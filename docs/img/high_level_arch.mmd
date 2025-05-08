@@ -1,0 +1,29 @@
+%%{init:
+   {
+     'flowchart': { 'htmlLabels': true },
+     'themeCSS': '.node text { white-space: pre !important; }'
+   }
+}%%
+flowchart TD
+  %% ───── Infra glue ─────
+  subgraph "IaC & Observability"
+    L["Terraform + pre-commit hooks"]
+    M["CloudWatch<br/>Metrics/Alarms"]
+  end
+
+  %% ───── Online inference path ─────
+  A["Clients<br/>(mobile / web)"] --> B[API Gateway]
+  B --> C["AWS Lambda Router<br/>(or Fargate)"]
+  C --> D["Online Feature Store<br/>(DynamoDB)"]
+  D --> E["Redis Cache<br/>(Elasticache)"]
+  C --> F["SageMaker Realtime Endpoint<br/>(Nginx container)"]
+  C --> G["Kafka / Kinesis<br/>&quot;fraud-events&quot; stream"]
+
+  %% ───── Monitoring & drift ─────
+  G --> H["Monitoring & Drift<br/>(CloudWatch → Grafana)"]
+
+  %% ───── Offline training path ─────
+  I["S3 Data Lake<br/>&quotraw/&quot,<br/>&quotfeature-store/offline/&quot"] --> J["SageMaker Pipelines<br/>(training)"]
+  J --> K["MLflow Model Registry"]
+  K --> F
+
