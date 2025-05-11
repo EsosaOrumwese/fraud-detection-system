@@ -9,12 +9,7 @@ license = {text = "MIT License"}
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "requests (>=2.32.3,<3.0.0)",
-    "detect-secrets (>=1.5.0,<2.0.0)",
-    "pre-commit (>=4.2.0,<5.0.0)",
-    "black (>=25.1.0,<26.0.0)",
-    "ruff (>=0.11.9,<0.12.0)",
-    "mypy (>=1.15.0,<2.0.0)"
+    "requests (>=2.32.3,<3.0.0)",       # add using `poetry add <package-name>`
 ]
 
 
@@ -22,6 +17,12 @@ dependencies = [
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.poetry.group.dev.dependencies]
+[tool.poetry.group.dev.dependencies]    # add using `poetry add --dev <package-name>`
 pytest = "^8.3.5"
+detect-secrets = "^1.5.0"
+pre-commit = "^4.2.0"
+black = "^25.1.0"
+ruff = "^0.11.9"
+mypy = "^1.15.0"
+coverage = "^7.8.0"
 
