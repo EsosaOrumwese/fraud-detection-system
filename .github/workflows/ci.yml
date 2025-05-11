@@ -20,7 +20,7 @@ jobs:
       - uses: abatilo/actions-poetry@v4.0.0       # installs latest Poetry
 
       - name: Install dependencies
-        run: poetry install                    # pulls main + dev deps
+        run: poetry install --no-root                   # pulls main + dev deps
         # cache step can be added later if runtime matters
 
       # -------- pre-commit hooks --------
