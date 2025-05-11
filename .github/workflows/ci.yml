@@ -50,7 +50,7 @@ jobs:
       - name: checkov
         uses: bridgecrewio/checkov-action@v12.1347.0
         with:
-          framework: terraform,dockerfile
+          framework: all
           quiet: true                            # reduces verbosity
           soft_fail_on: MEDIUM                   # only HIGH blocks merge
 
