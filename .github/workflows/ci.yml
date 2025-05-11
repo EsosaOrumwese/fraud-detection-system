@@ -1,0 +1,56 @@
+name: CI
+
+on:            # run on every push & PR
+  push:
+    branches: [ main, dev ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # -------- checkout code --------
+      - uses: actions/checkout@v4
+
+      # -------- Python & Poetry setup --------
+      - uses: actions/setup-python@v5          # quicker than apt-get
+        with:
+          python-version: "3.12"
+      - uses: abatilo/actions-poetry@v4.0.0       # installs latest Poetry
+
+      - name: Install dependencies
+        run: poetry install                    # pulls main + dev deps
+        # cache step can be added later if runtime matters
+
+      # -------- pre-commit hooks --------
+      - name: Lint / format / secrets / tf fmt
+        run: poetry run pre-commit run --all-files
+        # CI fails here if any hook fails -> mirrors local dev UX
+
+      # -------- tests + coverage --------
+      - name: Unit tests + HTML/XML coverage
+        run: |
+          poetry run coverage run -m pytest
+          poetry run coverage xml              # writes coverage.xml for badge
+
+      # # -------- upload coverage to Codecov (optional) --------
+      # - name: Upload to Codecov
+      #   uses: codecov/codecov-action@v4
+      #   with:
+      #     files: ./coverage.xml
+
+      # -------- tfsec: Terraform security scan --------
+      - name: tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3   # ~30 s scan
+        with:
+          soft_fail: false                       # fail hard on any finding (blocks merge)
+
+      # -------- Checkov: broader scan incl. Dockerfile --------
+      - name: checkov
+        uses: bridgecrewio/checkov-action@v12.1347.0
+        with:
+          framework: terraform,dockerfile
+          quiet: true                            # reduces verbosity
+          soft_fail_on: MEDIUM                   # only HIGH blocks merge
+
