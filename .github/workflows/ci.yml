@@ -1,56 +1,108 @@
 name: CI
 
-on:            # run on every push & PR
+on:
   push:
-    branches: [ main, dev ]
+    branches: [main, dev]
   pull_request:
+    branches: [main, dev]
+
+# one workflow per branch at a time → cancelled when you force-push
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  POETRY_VIRTUALENVS_CREATE: "false"   # install into runner’s env
 
 jobs:
-  build:
+  # ──────────────────── LINT ────────────────────
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/cache@v4          #  cache pip and pre-commit caches across runs
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/pre-commit
+          key: ${{ runner.os }}-lint-${{ hashFiles('pyproject.toml', '.pre-commit-config.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-lint-
+
+      - uses: abatilo/actions-poetry@v4
+        with:
+          poetry-version: "2.1.3"        # pin for reproducibility
+
+      - name: Install dev dependencies
+        run: poetry install --no-interaction --no-root --with dev
+
+      - name: Run pre-commit hooks
+        run: |
+          poetry run pre-commit run --all-files --show-diff-on-failure
+
+  # ──────────────────── TEST & COVERAGE ────────────────────
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.11"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ matrix.python-version }}-
+
+      - uses: abatilo/actions-poetry@v4
+        with:
+          poetry-version: "2.1.3"
+
+      - name: Install dev dependencies
+        run: poetry install --no-interaction --no-root --with dev
+
+      - name: Run tests with coverage
+        run: |
+          poetry run pytest -q --cov=src --cov-report=xml --cov-fail-under=50           # would change to 70% later
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          flags: unittests
+          fail_ci_if_error: true
+
+  # ──────────────────── SECURITY SCANS ────────────────────
+  security:
+    needs: lint
+    if: ${{ always() }}                 # run even if earlier jobs fail
     runs-on: ubuntu-latest
 
     steps:
-      # -------- checkout code --------
       - uses: actions/checkout@v4
 
-      # -------- Python & Poetry setup --------
-      - uses: actions/setup-python@v5          # quicker than apt-get
+      - name: tfsec (Terraform static scan)
+        if: hashFiles('**/*.tf') != ''  # skip if no .tf yet
+        uses: aquasecurity/tfsec-action@v1.0.3
         with:
-          python-version: "3.12"
-      - uses: abatilo/actions-poetry@v4.0.0       # installs latest Poetry
+          soft_fail: false              # HIGH/MED findings break the build
 
-      - name: Install dependencies
-        run: poetry install --no-root                   # pulls main + dev deps
-        # cache step can be added later if runtime matters
-
-      # -------- pre-commit hooks --------
-      - name: Lint / format / secrets / tf fmt
-        run: poetry run pre-commit run --all-files
-        # CI fails here if any hook fails -> mirrors local dev UX
-
-      # -------- tests + coverage --------
-      - name: Unit tests + HTML/XML coverage
-        run: |
-          poetry run coverage run -m pytest
-          poetry run coverage xml              # writes coverage.xml for badge
-
-      # # -------- upload coverage to Codecov (optional) --------
-      # - name: Upload to Codecov
-      #   uses: codecov/codecov-action@v4
-      #   with:
-      #     files: ./coverage.xml
-
-      # -------- tfsec: Terraform security scan --------
-      - name: tfsec
-        uses: aquasecurity/tfsec-action@v1.0.3   # ~30 s scan
-        with:
-          soft_fail: false                       # fail hard on any finding (blocks merge)
-
-      # -------- Checkov: broader scan incl. Dockerfile --------
-      - name: checkov
+      - name: Checkov (IaC / Docker / Python scan)
         uses: bridgecrewio/checkov-action@v12.1347.0
         with:
-          framework: all
-          quiet: true                            # reduces verbosity
-          soft_fail_on: MEDIUM                   # only HIGH blocks merge
-
+          quiet: true
+          soft_fail_on: MEDIUM

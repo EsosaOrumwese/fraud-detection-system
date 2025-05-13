@@ -1,5 +1,26 @@
 # Summary notes
-Goal of issue `[REP-02]:Pre-commit: ruff, black, pytest, terraform fmt` was to add an opinionated quality-gate layer that runs locally (pre-commit hooks) and remotely (GitHub Actions) so that every line of code, Terraform, and test that enters the repo is formatted, linted, and unit-tested automatically.
+Summary notes for `[REP-02]:Pre-commit: ruff, black, pytest, terraform fmt`
+
+---
+
+## REP-02: Configure Pre-commit
+
+**Goal**
+Embed “fail-fast” quality checks (formatting, linting, type-checking, secrets scanning, Terraform hygiene) into every developer workflow, **before** code ever reaches GitHub.
+
+**Why**
+
+* Enforces a consistent code style and catches common errors locally.
+* Reduces noisy, nit-picky CI failures and code-review comments.
+* Prevents accidental commits of secrets or malformed Terraform.
+
+**Acceptance Criteria**
+
+* Running `pre-commit install` once enables hooks on every `git commit`.
+* `pre-commit run --all-files` exits cleanly on a “clean” branch.
+* The same command runs in CI and passes on your main/dev branches.
+
+---
 
 ## Hooks used
 Stored in `.pre-commit-config.yaml` in the root directory.
