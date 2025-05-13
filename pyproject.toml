@@ -7,7 +7,7 @@ authors = [
 ]
 license = {text = "MIT License"}
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 dependencies = [
     "requests (>=2.32.3,<3.0.0)",       # add using `poetry add <package-name>`
 ]
@@ -25,4 +25,5 @@ black = "^25.1.0"
 ruff = "^0.11.9"
 mypy = "^1.15.0"
 coverage = "^7.8.0"
+pytest-cov = "^6.1.1"
 
