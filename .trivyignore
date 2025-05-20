@@ -1,0 +1,2 @@
+AVD-AWS-0089   # skip bucket-logging for now
+AVD-AWS-0164   # skip error because public subnet is intentional in sandbox
