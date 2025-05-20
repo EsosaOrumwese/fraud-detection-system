@@ -114,7 +114,7 @@ jobs:
   # ──────────────────── INFRACOST SCANS ────────────────────
   infracost-pull-request-checks:
     needs: security
-    runs-on: : ubuntu-latest
+    runs-on: ubuntu-latest
     if: github.event_name == 'pull_request' && (github.event.action == 'opened' || github.event.action == 'synchronize')
     permissions:
       contents: read
