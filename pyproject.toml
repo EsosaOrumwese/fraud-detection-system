@@ -1,10 +1,30 @@
 [project]
 name = "fraud-detection-system"
-version = "0.0.0"
+version = "0.1.0"
 description = "Portfolio fraud detection project"
-requires-python = ">=3.12"
-authors = [{name="Esosa Orumwese", email="eorumwese@gmail.com"}]
+authors = [
+    {name = "Esosa Orumwese",email = "eorumwese@gmail.com"}
+]
+license = {text = "MIT License"}
+readme = "README.md"
+requires-python = ">=3.11,<4.0"
+dependencies = [
+    "requests (>=2.32.3,<3.0.0)",       # add using `poetry add <package-name>`
+]
+
 
 [build-system]
-requires = ["setuptools>=65", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.dev.dependencies]    # add using `poetry add --dev <package-name>`
+pytest = "^8.3.5"
+detect-secrets = "^1.5.0"
+pre-commit = "^4.2.0"
+black = "^25.1.0"
+ruff = "^0.11.9"
+mypy = "^1.15.0"
+coverage = "^7.8.0"
+pytest-cov = "^6.1.1"
+checkov = "^3.2.427"
+
