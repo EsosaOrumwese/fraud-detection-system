@@ -51,9 +51,9 @@ No modules.
 
 | Name | Description |
 |------|-------------|
-| <a name="output_artifacts_bucket"></a> [artifacts\_bucket](#output\_artifacts\_bucket) | n/a |
-| <a name="output_public_subnet_id"></a> [public\_subnet\_id](#output\_public\_subnet\_id) | n/a |
-| <a name="output_raw_bucket_name"></a> [raw\_bucket\_name](#output\_raw\_bucket\_name) | n/a |
-| <a name="output_sagemaker_role_arn"></a> [sagemaker\_role\_arn](#output\_sagemaker\_role\_arn) | n/a |
-| <a name="output_vpc_id"></a> [vpc\_id](#output\_vpc\_id) | n/a |
+| <a name="output_artifacts_bucket_name"></a> [artifacts\_bucket\_name](#output\_artifacts\_bucket\_name) | Name of the S3 bucket for model artifacts |
+| <a name="output_public_subnet_id"></a> [public\_subnet\_id](#output\_public\_subnet\_id) | The subnet ID for the public subnet in AZ-a |
+| <a name="output_raw_bucket_name"></a> [raw\_bucket\_name](#output\_raw\_bucket\_name) | Name of the S3 bucket for raw data |
+| <a name="output_sagemaker_role_arn"></a> [sagemaker\_role\_arn](#output\_sagemaker\_role\_arn) | ARN of the SageMaker execution role |
+| <a name="output_vpc_id"></a> [vpc\_id](#output\_vpc\_id) | The ID of the main VPC |
 <!-- END_TF_DOCS -->
