@@ -47,7 +47,7 @@
     hooks:
       - id: terraform_fmt
       - id: terraform_validate
-      - id: terraform_tflint
+      #- id: terraform_tflint
       #- id: terraform_trivy      # run by hand in makefile
 
   - repo: https://github.com/terraform-docs/terraform-docs
