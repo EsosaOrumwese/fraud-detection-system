@@ -113,6 +113,8 @@ jobs:
       - name: Checkov (IaC / Docker / Python scan)
         uses: bridgecrewio/checkov-action@v12.3017.0
         with:
+          directory: infra/terraform
+          framework: terraform
           quiet: true
           soft_fail_on: MEDIUM
 
