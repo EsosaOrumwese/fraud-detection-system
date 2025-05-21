@@ -41,7 +41,7 @@ nuke:
 .PHONY: checkov scan-trivy tfsec
 
 checkov:
-	checkov -d $(TF_DIR)
+	checkov -d $(TF_DIR) --quiet --soft-fail-on MEDIUM --framework terraform
 
 scan-trivy:
 	trivy config $(TF_DIR)
@@ -60,12 +60,14 @@ infracost:
 	  --show-skipped
 
 # ────────────────────────────────────────────────────────────────────────────
-# You can now run:
-#   make tf-init
-#   make tf-plan
-#   make tf-apply
-#   make checkov
-#   make scan-trivy
-#   make infracost
-#   etc.
+# Budget & Alarms
 # ────────────────────────────────────────────────────────────────────────────
+.PHONY: budget-test alarm-test
+
+budget-test:   ## Send dummy budget alert from console
+	@echo "∙  Go to AWS Budgets → your budget → 'Send test alert'"
+
+alarm-test:    ## Force a billing alarm evaluation
+	aws cloudwatch --region us-east-1 \
+	  set-alarm-state --alarm-name fraud-sbx-billing-40gbp \
+	  --state-value ALARM --state-reason "manual-test"

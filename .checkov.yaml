@@ -12,4 +12,5 @@
 
 
 # .checkov.yaml
+# 1) the checks you already skip
 skip-check: CKV_AWS_144,CKV_AWS_18,CKV2_AWS_61,CKV2_AWS_62,CKV2_AWS_12,CKV_AWS_130,CKV_AWS_338,CKV_AWS_145,CKV_AWS_158,CKV2_AWS_11

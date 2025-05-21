@@ -1,5 +1,5 @@
 ###############################################################################
-# Input variables (+ sane defaults)                                              
+# Input variables (+ sane defaults)
 ###############################################################################
 
 variable "aws_region" {
@@ -10,7 +10,7 @@ variable "aws_region" {
 
 variable "environment" {
   type        = string
-  description = "Deployment stage (sandbox, dev, prod, …)"
+  description = "Deployment stage (sandbox, dev, prod, ...)"
   default     = "sandbox"
 }
 
@@ -26,4 +26,16 @@ variable "bucket_suffix" {
   type        = string
   description = "Unique suffix to avoid global S3 name clashes"
   default     = "esosaorumz808"
+}
+
+## variables for alerts and budgets
+variable "alert_email" {
+  description = "Primary recipient for budget / billing alerts"
+  type        = string
+}
+
+variable "monthly_budget_gbp" {
+  description = "Cost ceiling for the sandbox environment (GBP)"
+  type        = number
+  default     = 40 # sprint charter says £40/mo
 }
