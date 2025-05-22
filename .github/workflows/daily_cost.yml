@@ -1,52 +1,48 @@
-name: Daily Cost Report
+name: Daily AWS Cost
 
 on:
   schedule:
-    # 06:30 UTC = 08:30 CEST (enough buffer for CE data to refresh)
-    - cron: '30 6 * * *'
+    - cron:  '13 6 * * *'      # 06:13 UTC daily
   workflow_dispatch:
 
 jobs:
-  ce-report:
+  cost-report:
     runs-on: ubuntu-latest
-
+    permissions:
+      id-token: write          # enable OIDC in this job
+      contents: write          # allow commenting
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4.2.1
+      # 1 ▸ Federate into AWS with short-lived creds
+      - name: Configure AWS creds
+        uses: aws-actions/configure-aws-credentials@v4
         with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
           aws-region: eu-west-2
-          # either via secrets:
-          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          # or via an assumed role:
-          # role-to-assume:      ${{ secrets.AWS_ROLE_ARN }}
 
-      - name: Determine dates
-        id: dates
-        run: |
-          # GitHub Actions Ubuntu runners have GNU date
-          YESTERDAY=$(date -u -d "yesterday" '+%Y-%m-%d')
-          echo "yesterday=$YESTERDAY" >> $GITHUB_OUTPUT
-
-      - name: Query Cost Explorer for yesterday
+      # 2 ▸ Query yesterday’s cost in GBP via Cost Explorer
+      - name: Get cost
         id: cost
         run: |
-          AMOUNT=$(aws ce get-cost-and-usage \
-            --time-period Start=${{ steps.dates.outputs.yesterday }},End=${{ steps.dates.outputs.yesterday }} \
-            --granularity DAILY \
-            --metrics UnblendedCost \
-            --query "ResultsByTime[0].Total.UnblendedCost.Amount" \
-            --output text)
-          echo "amount=$AMOUNT" >> $GITHUB_OUTPUT
+          sudo apt-get -yqq install jq
+          START=$(date -u -d "yesterday" +%Y-%m-%d)
+          END=$(date -u +%Y-%m-%d)
 
-      - name: Post comment to Issue #1
+          AMOUNT=$(aws ce get-cost-and-usage \
+            --time-period Start=$START,End=$END \
+            --granularity DAILY \
+            --metrics BlendedCost \
+            --filter '{"Dimensions":{"Key":"RECORD_TYPE","Values":["Usage"]}}' \
+            --query 'ResultsByTime[0].Total.BlendedCost.Amount' \
+            --output text)
+
+          echo "amount=${AMOUNT:-0}" >> $GITHUB_OUTPUT
+          echo "date=$START"         >> $GITHUB_OUTPUT
+
+      # 3 ▸ Post / update a comment in pinned issue #1
+      - name: Comment daily spend
         uses: peter-evans/create-or-update-comment@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           issue-number: 1
           body: |
-            ### 💰 AWS Spend for ${{ steps.dates.outputs.yesterday }}
-            Yesterday’s total: **£${{ steps.cost.outputs.amount }}**
+            ### 💰 AWS spend for **${{ steps.cost.outputs.date }}**
+            **£${{ steps.cost.outputs.amount }}**
