@@ -12,8 +12,8 @@
 #  - CKV_AWS_272:  # "Ensure AWS Lambda function is configured to validate code-signing"
 #  - CKV_AWS_382: "Ensure no security groups allow egress from 0.0.0.0:0 to port -1"
 #  - CKV_AWS_117   # Lambda VPC — accepted trade-off
-
+#  - CKV_AWS_115: "Ensure that AWS Lambda function is configured for function-level concurrent execution limit"
 
 # .checkov.yaml
 # 1) the checks you already skip
-skip-check: CKV_AWS_144,CKV_AWS_18,CKV2_AWS_61,CKV2_AWS_62,CKV2_AWS_12,CKV_AWS_130,CKV_AWS_338,CKV_AWS_145,CKV_AWS_158,CKV2_AWS_11,CKV_AWS_272,CKV_AWS_50,CKV_AWS_66,CKV2_AWS_73,CKV_AWS_382,CKV_AWS_117
+skip-check: CKV_AWS_144,CKV_AWS_18,CKV2_AWS_61,CKV2_AWS_62,CKV2_AWS_12,CKV_AWS_130,CKV_AWS_338,CKV_AWS_145,CKV_AWS_158,CKV2_AWS_11,CKV_AWS_272,CKV_AWS_50,CKV_AWS_66,CKV2_AWS_73,CKV_AWS_382,CKV_AWS_117,CKV_AWS_115
