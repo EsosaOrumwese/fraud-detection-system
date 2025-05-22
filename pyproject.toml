@@ -3,7 +3,7 @@ name = "fraud-detection-system"
 version = "0.1.0"
 description = "Portfolio fraud detection project"
 authors = [
-    {name = "Esosa Orumwese",email = "eorumwese@gmail.com"}
+    {name = "Esosa Orumwese"}
 ]
 license = {text = "MIT License"}
 readme = "README.md"

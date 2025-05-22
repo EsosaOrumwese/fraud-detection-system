@@ -5,15 +5,7 @@
 #  • Uses same SNS topic, so one confirmation step covers all alerts
 ###############################################################################
 
-# Provider alias in the global billing region
-provider "aws" {
-  alias  = "us"
-  region = "us-east-1"
-}
-
 resource "aws_cloudwatch_metric_alarm" "billing_100pct" {
-  provider = aws.us # important!
-
   alarm_name          = "fraud-sbx-billing-40gbp"
   comparison_operator = "GreaterThanOrEqualToThreshold"
   period              = 21600
@@ -21,9 +13,9 @@ resource "aws_cloudwatch_metric_alarm" "billing_100pct" {
   metric_name         = "EstimatedCharges"
   namespace           = "AWS/Billing"
   statistic           = "Maximum"
-  threshold           = var.monthly_budget_gbp # same 40 GBP
+  threshold           = var.monthly_budget_gbp * var.fx_gbp_to_usd # converting 40 GBP to USD
   dimensions = {
-    Currency = "GBP"
+    Currency = "USD"
   }
 
   alarm_actions = [aws_sns_topic.budget_alerts.arn]

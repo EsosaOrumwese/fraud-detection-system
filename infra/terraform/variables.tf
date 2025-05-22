@@ -39,3 +39,9 @@ variable "monthly_budget_gbp" {
   type        = number
   default     = 40 # sprint charter says £40/mo
 }
+
+variable "fx_gbp_to_usd" {
+  description = "FX Rate for GBP to USD"
+  type        = number
+  default     = 1.33 # or whatever rate you pick
+}

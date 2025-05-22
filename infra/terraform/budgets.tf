@@ -7,10 +7,19 @@
 #    [add in 30% if you like]
 ###############################################################################
 
+data "aws_caller_identity" "current" {}
+locals {
+  account     = data.aws_caller_identity.current.account_id
+  region      = var.aws_region
+  lambda_name = "fraud-cost-kill"
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 1 ▸  SNS topic + e-mail subscription
 # ----------------------------------------------------------------------------
 
+#trivy:ignore:AVD-AWS-0136 (AWS managed keys are okay)
+#tfsec:ignore:aws-sns-topic-encryption-use-cmk
 resource "aws_sns_topic" "budget_alerts" {
   name              = "fraud-budget-alerts"
   kms_master_key_id = "alias/aws/sns"
@@ -33,11 +42,26 @@ resource "aws_lambda_function" "cost_kill_switch" {
   role          = aws_iam_role.lambda_cost.arn
   runtime       = "python3.11"
   handler       = "index.handler"
-
-  timeout = 30
+  timeout       = 30
 
   source_code_hash = filebase64sha256("lambda/cost_kill.zip") # created below
   filename         = "lambda/cost_kill.zip"
+
+  # X-Ray tracing
+  tracing_config { mode = "Active" }
+
+  # # Concurrency guard  (CKV_AWS_115 cleared)
+  # reserved_concurrent_executions = 2 # λ fires max twice in parallel
+
+  # Dead-Letter Queue
+  dead_letter_config {
+    target_arn = aws_sqs_queue.lambda_dlq.arn
+  }
+
+  # ensure policy is attached before creating the function
+  depends_on = [
+    aws_iam_role_policy.lambda_cost_inline
+  ]
 }
 
 #  ➤ Subscribe the Lambda to your Budget-topic
@@ -54,6 +78,34 @@ resource "aws_lambda_permission" "allow_sns_invoke" {
   function_name = aws_lambda_function.cost_kill_switch.function_name
   principal     = "sns.amazonaws.com"
   source_arn    = aws_sns_topic.budget_alerts.arn
+}
+
+# Security group: egress-only, no ingress
+#trivy:ignore:AVD-AWS-0104
+#tfsec:ignore:aws-ec2-no-public-egress-sgr
+# resource "aws_security_group" "lambda" {
+#   name        = "fraud-lambda-sg"
+#   description = "Egress only for Lambda kill switch — HTTPS to AWS APIs"
+#   vpc_id      = aws_vpc.main.id
+#
+#   egress {
+#     from_port   = 443
+#     to_port     = 443
+#     protocol    = "tcp"
+#     cidr_blocks = ["0.0.0.0/0"]
+#     description = "Allow HTTPS egress for Lambda to call SageMaker & SNS"
+#   }
+# }
+
+
+# SQS Dead-Letter Queue (cheap, serverless)
+#trivy:ignore:AVD-AWS-0135
+#tfsec:ignore:aws-sqs-queue-encryption-use-cmk
+resource "aws_sqs_queue" "lambda_dlq" {
+  name = "fraud-cost-kill-dlq"
+  # CKV_AWS_27: encrypt all messages at rest via KMS-SQS
+  kms_data_key_reuse_period_seconds = 300
+  kms_master_key_id                 = "alias/aws/sqs"
 }
 
 
@@ -95,26 +147,52 @@ data "aws_iam_policy_document" "lambda_trust" {
     }
   }
 }
-resource "aws_iam_role_policy" "lambda_cost_inline" {
-  role = aws_iam_role.lambda_cost.id
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [{
-      Effect = "Allow",
-      Action = [
-        "sagemaker:ListEndpoints",
-        "sagemaker:StopEndpoint",
-        "sagemaker:ListNotebookInstances",
-        "sagemaker:StopNotebookInstance"
-      ],
-      Resource = "*"
-      }, {
-      Effect   = "Allow",
-      Action   = ["logs:*"],
-      Resource = "arn:aws:logs:*:*:*"
-    }]
-  })
+
+#-t-f-sec:ignore:aws-iam-no-policy-wildcards
+data "aws_iam_policy_document" "lambda_cost_policy" {
+  statement {
+    sid    = "SageMakerStop"
+    effect = "Allow"
+    actions = [
+      "sagemaker:ListEndpoints",
+      "sagemaker:StopEndpoint",
+      "sagemaker:ListNotebookInstances",
+      "sagemaker:StopNotebookInstance",
+    ]
+    resources = [
+      "arn:aws:sagemaker:${var.aws_region}:${data.aws_caller_identity.current.account_id}:endpoint/*",
+      "arn:aws:sagemaker:${var.aws_region}:${data.aws_caller_identity.current.account_id}:notebook-instance/*",
+    ]
+  }
+
+  statement { # allow CloudWatch log write
+    effect  = "Allow"
+    actions = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"]
+    resources = [
+      "arn:aws:logs:${local.region}:${local.account}:log-group:/aws/lambda/${local.lambda_name}",
+      "arn:aws:logs:${local.region}:${local.account}:log-group:/aws/lambda/${local.lambda_name}:*",
+    ]
+  }
+
+  # give Lambda permission to send messages to its DLQ
+  statement {
+    sid    = "AllowSendToDLQ"
+    effect = "Allow"
+    actions = [
+      "sqs:SendMessage",
+      "sqs:SendMessageBatch"
+    ]
+    resources = [
+      aws_sqs_queue.lambda_dlq.arn
+    ]
+  }
 }
+
+resource "aws_iam_role_policy" "lambda_cost_inline" {
+  role   = aws_iam_role.lambda_cost.id
+  policy = data.aws_iam_policy_document.lambda_cost_policy.json
+}
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 4 ▸  Monthly AWS Budget – three notification blocks + 1 that calls Lambda
@@ -124,9 +202,9 @@ resource "aws_budgets_budget" "sandbox_monthly" {
   budget_type = "COST"
   time_unit   = "MONTHLY"
 
-  # Limit is expressed in *display* currency (GBP)
-  limit_amount = tostring(var.monthly_budget_gbp) # 40
-  limit_unit   = "GBP"
+  # Limit is expressed in *display* currency (USD)
+  limit_amount = tostring(var.monthly_budget_gbp) * var.fx_gbp_to_usd # converting 40 GBP to USD
+  limit_unit   = "USD"
 
   # 30 % early-warning
   notification {
