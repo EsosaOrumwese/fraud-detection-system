@@ -44,14 +44,11 @@ resource "aws_lambda_function" "cost_kill_switch" {
   handler       = "index.handler"
   timeout       = 30
 
-  source_code_hash = filebase64sha256("lambda/cost_kill.zip") # created below
-  filename         = "lambda/cost_kill.zip"
+  source_code_hash = filebase64sha256("${path.module}/lambda/cost_kill.zip") # created below
+  filename         = "${path.module}/lambda/cost_kill.zip"
 
   # X-Ray tracing
   tracing_config { mode = "Active" }
-
-  # # Concurrency guard  (CKV_AWS_115 cleared)
-  # reserved_concurrent_executions = 2 # λ fires max twice in parallel
 
   # Dead-Letter Queue
   dead_letter_config {
@@ -79,24 +76,6 @@ resource "aws_lambda_permission" "allow_sns_invoke" {
   principal     = "sns.amazonaws.com"
   source_arn    = aws_sns_topic.budget_alerts.arn
 }
-
-# Security group: egress-only, no ingress
-#trivy:ignore:AVD-AWS-0104
-#tfsec:ignore:aws-ec2-no-public-egress-sgr
-# resource "aws_security_group" "lambda" {
-#   name        = "fraud-lambda-sg"
-#   description = "Egress only for Lambda kill switch — HTTPS to AWS APIs"
-#   vpc_id      = aws_vpc.main.id
-#
-#   egress {
-#     from_port   = 443
-#     to_port     = 443
-#     protocol    = "tcp"
-#     cidr_blocks = ["0.0.0.0/0"]
-#     description = "Allow HTTPS egress for Lambda to call SageMaker & SNS"
-#   }
-# }
-
 
 # SQS Dead-Letter Queue (cheap, serverless)
 #trivy:ignore:AVD-AWS-0135

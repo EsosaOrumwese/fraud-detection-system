@@ -77,3 +77,12 @@ alarm-test:    ## Force a billing alarm into ALARM state
 	  --alarm-name "$(ALARM_NAME)" \
 	  --state-value  ALARM \
 	  --state-reason "manual-test via make alarm-test"
+
+# ────────────────────────────────────────────────────────────────────────────
+# Build Lambda
+# ────────────────────────────────────────────────────────────────────────────
+.PHONY: build-lambda
+
+build-lambda:
+	mkdir -p infra/terraform/lambda
+	python -m zipfile -c infra/terraform/lambda/cost_kill.zip lambda/index.py
