@@ -182,7 +182,7 @@ resource "aws_budgets_budget" "sandbox_monthly" {
   time_unit   = "MONTHLY"
 
   # Limit is expressed in *display* currency (USD)
-  limit_amount = tostring(var.monthly_budget_gbp) * var.fx_gbp_to_usd # converting 40 GBP to USD
+  limit_amount = tostring(var.monthly_budget_gbp * var.fx_gbp_to_usd) # converting 40 GBP to USD
   limit_unit   = "USD"
 
   # 30 % early-warning
