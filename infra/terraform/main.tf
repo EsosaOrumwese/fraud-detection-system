@@ -76,12 +76,13 @@ resource "aws_s3_bucket_versioning" "raw" {
 }
 
 # Default encryption – AWS-managed keys (SSE-S3) cost £0
-#tfsec:ignore:aws-s3-encryption-customer-key
+#-t-f-s-ec:ignore:aws-s3-encryption-customer-key
 resource "aws_s3_bucket_server_side_encryption_configuration" "raw" {
   bucket = aws_s3_bucket.raw.id
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = "alias/aws/s3"
     }
   }
 }
@@ -107,13 +108,14 @@ resource "aws_s3_bucket_versioning" "artifacts" {
   versioning_configuration { status = "Enabled" }
 }
 
-# Default encryption – AWS-managed keys (SSE-S3) cost £0
-#tfsec:ignore:aws-s3-encryption-customer-key
+# Default encryption – AWS-managed keys (SSE-S3) cost £0 [using aws/s3 now]
+#-t-f-sec:ignore:aws-s3-encryption-customer-key
 resource "aws_s3_bucket_server_side_encryption_configuration" "artifacts" {
   bucket = aws_s3_bucket.artifacts.id
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = "alias/aws/s3"
     }
   }
 }

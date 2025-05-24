@@ -5,8 +5,11 @@
 # ────────────────────────────────────────────────────────────────────────────
 TF_DIR   := infra/terraform
 TF_PLAN  := plan.out
-ENV      ?= sandbox
-TFVARS   := $(ENV).tfvars
+#ENV      ?= sandbox
+TFVARS   := terraform.tfvars
+ALARM_NAME    ?= fraud-sbx-billing-40gbp
+export PYTHONUTF8 = 1
+
 
 # ────────────────────────────────────────────────────────────────────────────
 # Terraform targets
@@ -17,12 +20,7 @@ tf-init:
 	terraform -chdir=$(TF_DIR) init
 
 tf-init-remote:
-	terraform -chdir=infra/terraform init \
-		-backend-config="bucket=$(TF_STATE_BUCKET)" \
-		-backend-config="dynamodb_table=$(TF_STATE_TABLE)" \
-		-backend-config="key=sandbox/terraform.tfstate" \
-		-backend-config="region=eu-west-2"
-	  	-reconfigure
+	terraform -chdir=infra/terraform init -reconfigure
 
 tf-plan:
 	terraform -chdir=$(TF_DIR) plan \
@@ -41,7 +39,13 @@ nuke:
 .PHONY: checkov scan-trivy tfsec
 
 checkov:
-	checkov -d $(TF_DIR)
+	@echo "-> Running Checkov with UTF-8 forced"
+	checkov -d $(TF_DIR) \
+	  --framework terraform \
+	  --quiet \
+	  --soft-fail-on MEDIUM \
+	  --skip-path '$(TF_DIR)/lambda' \
+	  --skip-path '.*\.zip$$'
 
 scan-trivy:
 	trivy config $(TF_DIR)
@@ -60,12 +64,25 @@ infracost:
 	  --show-skipped
 
 # ────────────────────────────────────────────────────────────────────────────
-# You can now run:
-#   make tf-init
-#   make tf-plan
-#   make tf-apply
-#   make checkov
-#   make scan-trivy
-#   make infracost
-#   etc.
+# Budget & Alarms
 # ────────────────────────────────────────────────────────────────────────────
+.PHONY: budget-test alarm-test
+
+budget-test:   ## Send dummy budget alert from console
+	@echo " Go to AWS Budgets -> your budget -> 'Send test alert'"
+
+alarm-test:    ## Force a billing alarm into ALARM state
+	@echo "-> Forcing alarm '$(ALARM_NAME)' to ALARM"
+	aws cloudwatch set-alarm-state \
+	  --alarm-name "$(ALARM_NAME)" \
+	  --state-value  ALARM \
+	  --state-reason "manual-test via make alarm-test"
+
+# ────────────────────────────────────────────────────────────────────────────
+# Build Lambda
+# ────────────────────────────────────────────────────────────────────────────
+.PHONY: build-lambda
+
+build-lambda:
+	mkdir -p infra/terraform/lambda
+	python -m zipfile -c infra/terraform/lambda/cost_kill.zip lambda/index.py

@@ -26,3 +26,8 @@ output "sagemaker_role_arn" {
   description = "ARN of the SageMaker execution role"
   value       = aws_iam_role.sagemaker_rw.arn
 }
+
+output "github_cost_role_arn" {
+  description = "GitHub cost role arn"
+  value       = aws_iam_role.github_cost_reader.arn
+}
