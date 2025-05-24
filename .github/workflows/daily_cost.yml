@@ -1,0 +1,48 @@
+name: Daily AWS Cost
+
+on:
+  schedule:
+    - cron:  '13 6 * * *'      # 06:13 UTC daily
+  workflow_dispatch:
+
+jobs:
+  cost-report:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write          # enable OIDC in this job
+      contents: write          # allow commenting
+    steps:
+      # 1 ▸ Federate into AWS with short-lived creds
+      - name: Configure AWS creds
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
+          aws-region: eu-west-2
+
+      # 2 ▸ Query yesterday’s cost in GBP via Cost Explorer
+      - name: Get cost
+        id: cost
+        run: |
+          sudo apt-get -yqq install jq
+          START=$(date -u -d "yesterday" +%Y-%m-%d)
+          END=$(date -u +%Y-%m-%d)
+
+          AMOUNT=$(aws ce get-cost-and-usage \
+            --time-period Start=$START,End=$END \
+            --granularity DAILY \
+            --metrics BlendedCost \
+            --filter '{"Dimensions":{"Key":"RECORD_TYPE","Values":["Usage"]}}' \
+            --query 'ResultsByTime[0].Total.BlendedCost.Amount' \
+            --output text)
+
+          echo "amount=${AMOUNT:-0}" >> $GITHUB_OUTPUT
+          echo "date=$START"         >> $GITHUB_OUTPUT
+
+      # 3 ▸ Post / update a comment in pinned issue #1
+      - name: Comment daily spend
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: 1
+          body: |
+            ### 💰 AWS spend for **${{ steps.cost.outputs.date }}**
+            **£${{ steps.cost.outputs.amount }}**

@@ -127,4 +127,5 @@ dmypy.json
 # terraform state
 *.tfstate*
 .terraform/
-/infra/terraform/sandbox.tfvars
+/infra/terraform/terraform.tfvars
+infra/terraform/lambda/*.zip
