@@ -86,3 +86,54 @@ alarm-test:    ## Force a billing alarm into ALARM state
 build-lambda:
 	mkdir -p infra/terraform/lambda
 	python -m zipfile -c infra/terraform/lambda/cost_kill.zip lambda/index.py
+
+# ────────────────────────────────────────────────────────────────────────────
+# Generate Markdown data dictionary
+# ────────────────────────────────────────────────────────────────────────────
+.PHONY: docs test-schema json-schema bump-schema
+
+docs:
+	@mkdir -p docs/data-dictionary
+	poetry run python scripts/schema_to_md.py > \
+	   docs/data-dictionary/schema_v$(shell yq '.version' config/transaction_schema.yaml).md
+
+test-schema:  ## Fast-path test
+	poetry run pytest -q tests/unit/test_schema_yaml.py
+
+json-schema:  ## YAML → JSON-Schema
+	poetry run python scripts/schema_to_json.py
+
+bump-schema:  ## Args: kind=[patch|minor|major] (default patch)
+	poetry run python scripts/bump_schema_version.py $(kind)
+	git add config/transaction_schema.yaml
+	git commit -m "chore(schema): bump version"
+	git tag "schema-v$$(yq '.version' config/transaction_schema.yaml)"
+
+# ────────────────────────────────────────────────────────────────────────────
+# Great Expectations Bootstrap and Validate
+# ────────────────────────────────────────────────────────────────────────────
+FILE ?= data/sample.parquet
+
+.PHONY: ge-bootstrap gen-empty-parquet ge-validate smoke-schema
+
+# ――― Build GE context & suite ―――
+ge-bootstrap:
+	poetry run python scripts/ge_bootstrap.py
+
+# ――― Generate empty Parquet matching your schema ―――
+gen-empty-parquet:
+	poetry run python scripts/gen_empty_parquet.py
+
+# ――― Validate a file (override with FILE=…) ―――
+ge-validate:
+	poetry run python scripts/ge_validate.py $(FILE)
+
+# ――― Smoke‐test: bootstrap → empty parquet → validate ―――
+
+# produce a single valid row
+gen-smoke-data:
+	@poetry run python scripts/gen_dummy_parquet.py
+
+smoke-schema: ge-bootstrap gen-smoke-data
+	@echo "✓ Running GE smoke-test against tmp/dummy.parquet"
+	@$(MAKE) ge-validate FILE=tmp/dummy.parquet

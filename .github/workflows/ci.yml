@@ -121,6 +121,35 @@ jobs:
           quiet: true
           soft_fail_on: MEDIUM
 
+  # ──────────────────── DATA QUALITY (Great Expectations) ────────────────────
+  data-quality:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: abatilo/actions-poetry@v4
+        with:
+          poetry-version: "2.1.3"
+
+      - name: Install dev dependencies
+        run: poetry install --no-interaction --no-root --with dev
+
+      - name: Bootstrap GE context & suite
+        run: make ge-bootstrap
+
+      - name: Generate dummy Parquet for schema smoke test
+        run: make gen-smoke-data
+
+      - name: Validate schema smoke test
+        run: make smoke-schema
+
+
   # ──────────────────── INFRACOST SCANS ────────────────────
   infracost-pull-request-checks:
     needs: security
