@@ -1,0 +1,617 @@
+{
+  "expectations": [
+    {
+      "id": "a2d00cc7-600e-4715-b5ba-3288b6d71c89",
+      "kwargs": {
+        "column": "transaction_id"
+      },
+      "meta": {},
+      "type": "expect_column_to_exist"
+    },
+    {
+      "id": "af8c05a1-9426-4536-9d3f-2cae232590bb",
+      "kwargs": {
+        "column": "transaction_id"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "039122a1-62ce-468f-9836-ec172010caac",
+      "kwargs": {
+        "column": "transaction_id",
+        "type_": "object"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_of_type"
+    },
+    {
+      "id": "32117ad0-6186-45c0-b4b6-6af1f9867903",
+      "kwargs": {
+        "column": "event_time"
+      },
+      "meta": {},
+      "type": "expect_column_to_exist"
+    },
+    {
+      "id": "9ee2415a-0514-42d2-9b74-f8d4e9fd1e0d",
+      "kwargs": {
+        "column": "event_time"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "debeff8f-c7aa-43bb-945c-ee0aa021c7f5",
+      "kwargs": {
+        "column": "event_time",
+        "type_": "Timestamp"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_of_type"
+    },
+    {
+      "id": "b3bc9cf7-e6ea-4b2d-8ed3-892521837255",
+      "kwargs": {
+        "column": "local_time_offset"
+      },
+      "meta": {},
+      "type": "expect_column_to_exist"
+    },
+    {
+      "id": "363a309e-f05d-49aa-bd64-3e2154e4b584",
+      "kwargs": {
+        "column": "local_time_offset"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "9bcb65e2-c9d5-4780-92f7-d108f16d7049",
+      "kwargs": {
+        "column": "local_time_offset",
+        "type_": "int64"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_of_type"
+    },
+    {
+      "id": "95ee9b9d-9065-43f8-96e6-38f4e542caa1",
+      "kwargs": {
+        "column": "amount"
+      },
+      "meta": {},
+      "type": "expect_column_to_exist"
+    },
+    {
+      "id": "6290fa78-335f-404c-a505-ea349c9b9242",
+      "kwargs": {
+        "column": "amount"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "1338c43e-da17-41c3-a454-d86f02a50b7a",
+      "kwargs": {
+        "column": "amount",
+        "type_": "float64"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_of_type"
+    },
+    {
+      "id": "da3dff71-0940-4b24-aa40-47117e082ff6",
+      "kwargs": {
+        "column": "currency_code"
+      },
+      "meta": {},
+      "type": "expect_column_to_exist"
+    },
+    {
+      "id": "0b92b01f-e4a3-472b-b1a6-40b81a7c6dac",
+      "kwargs": {
+        "column": "currency_code"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "61f840a9-53cc-4919-9759-1982eb0b6260",
+      "kwargs": {
+        "column": "currency_code",
+        "type_": "object"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_of_type"
+    },
+    {
+      "id": "e8563ccf-ee3f-4881-9dee-23a8815c9577",
+      "kwargs": {
+        "column": "card_pan_hash"
+      },
+      "meta": {},
+      "type": "expect_column_to_exist"
+    },
+    {
+      "id": "75f23257-c3d5-48fe-8b31-42a72d521710",
+      "kwargs": {
+        "column": "card_pan_hash"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "de66ed6c-fe6d-491f-b3ac-cc8124b64e9a",
+      "kwargs": {
+        "column": "card_pan_hash",
+        "type_": "object"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_of_type"
+    },
+    {
+      "id": "c2ded7b1-8cdb-4138-8712-6ff8d174b3c4",
+      "kwargs": {
+        "column": "card_scheme"
+      },
+      "meta": {},
+      "type": "expect_column_to_exist"
+    },
+    {
+      "id": "8a796f69-d06e-4296-99e7-6c0c476692b4",
+      "kwargs": {
+        "column": "card_scheme"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "f5d29388-b93e-4b05-bc49-b35c9f0eb171",
+      "kwargs": {
+        "column": "card_scheme",
+        "type_": "object"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_of_type"
+    },
+    {
+      "id": "d675972b-70f8-4cab-a9dc-f7b9cb8a35fc",
+      "kwargs": {
+        "column": "card_scheme",
+        "value_set": [
+          "VISA",
+          "MASTERCARD",
+          "AMEX",
+          "DISCOVER"
+        ]
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_in_set"
+    },
+    {
+      "id": "360dc7f7-f6b6-4147-80b4-d6ae13f036d5",
+      "kwargs": {
+        "column": "card_exp_year"
+      },
+      "meta": {},
+      "type": "expect_column_to_exist"
+    },
+    {
+      "id": "5b753700-54de-433c-97cd-c266988f79be",
+      "kwargs": {
+        "column": "card_exp_year"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "a51163aa-7f53-48e6-82c7-66ea179c62ec",
+      "kwargs": {
+        "column": "card_exp_year",
+        "type_": "int64"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_of_type"
+    },
+    {
+      "id": "c7cdcb2a-5617-4bdc-acc9-b0ef633926ba",
+      "kwargs": {
+        "column": "card_exp_month"
+      },
+      "meta": {},
+      "type": "expect_column_to_exist"
+    },
+    {
+      "id": "d36272f6-3639-4637-9716-5b839bad8cb9",
+      "kwargs": {
+        "column": "card_exp_month"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "dac81674-9dfa-49e1-bc41-3da549944d6b",
+      "kwargs": {
+        "column": "card_exp_month",
+        "type_": "int64"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_of_type"
+    },
+    {
+      "id": "751c02c7-ac07-4667-9b46-425ba44f51ae",
+      "kwargs": {
+        "column": "customer_id"
+      },
+      "meta": {},
+      "type": "expect_column_to_exist"
+    },
+    {
+      "id": "7417af50-4267-4478-b00c-d6707de8ce0e",
+      "kwargs": {
+        "column": "customer_id"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "ac786050-6648-4dcf-8a4f-5a5f5248a4cf",
+      "kwargs": {
+        "column": "customer_id",
+        "type_": "int64"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_of_type"
+    },
+    {
+      "id": "76996ff2-22f2-4d78-9b79-c4e3a8bc3856",
+      "kwargs": {
+        "column": "merchant_id"
+      },
+      "meta": {},
+      "type": "expect_column_to_exist"
+    },
+    {
+      "id": "2e86564f-5b19-4fb8-8818-1f3404d17d43",
+      "kwargs": {
+        "column": "merchant_id"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "f51b4bec-6e65-4698-abd2-47932d28a157",
+      "kwargs": {
+        "column": "merchant_id",
+        "type_": "int64"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_of_type"
+    },
+    {
+      "id": "f523e194-9953-4e3b-9b86-077aaa090996",
+      "kwargs": {
+        "column": "merchant_country"
+      },
+      "meta": {},
+      "type": "expect_column_to_exist"
+    },
+    {
+      "id": "bd4706a4-a849-4fb2-8b63-676d69189339",
+      "kwargs": {
+        "column": "merchant_country"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "c4ce8e4a-9fb5-4747-9885-453583f80f7b",
+      "kwargs": {
+        "column": "merchant_country",
+        "type_": "object"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_of_type"
+    },
+    {
+      "id": "16aeaff9-33b1-49ab-9787-3e61624bcd82",
+      "kwargs": {
+        "column": "mcc_code"
+      },
+      "meta": {},
+      "type": "expect_column_to_exist"
+    },
+    {
+      "id": "dc8b5140-f426-40f7-adf1-b3d5425c82f6",
+      "kwargs": {
+        "column": "mcc_code",
+        "type_": "int64"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_of_type"
+    },
+    {
+      "id": "c4d4779d-fd25-4434-86c0-fa18bda8958f",
+      "kwargs": {
+        "column": "channel"
+      },
+      "meta": {},
+      "type": "expect_column_to_exist"
+    },
+    {
+      "id": "f67e86ab-c5a0-4c28-8608-c8475b024f40",
+      "kwargs": {
+        "column": "channel"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "df22e282-39d8-4d15-8f49-d639e30187ff",
+      "kwargs": {
+        "column": "channel",
+        "type_": "object"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_of_type"
+    },
+    {
+      "id": "eb8c23f4-ab7a-4687-aa17-ef155016dd72",
+      "kwargs": {
+        "column": "channel",
+        "value_set": [
+          "ONLINE",
+          "IN_STORE",
+          "ATM"
+        ]
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_in_set"
+    },
+    {
+      "id": "70cf5b56-270b-48fc-a349-207565a1a38e",
+      "kwargs": {
+        "column": "pos_entry_mode"
+      },
+      "meta": {},
+      "type": "expect_column_to_exist"
+    },
+    {
+      "id": "38a2a0a8-ed94-4e57-a993-8e4c9c826df3",
+      "kwargs": {
+        "column": "pos_entry_mode"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "d2329c73-420f-49be-bc7f-7daa0ac378da",
+      "kwargs": {
+        "column": "pos_entry_mode",
+        "type_": "object"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_of_type"
+    },
+    {
+      "id": "7ece7b4d-ea93-4386-9c6e-0827654b125b",
+      "kwargs": {
+        "column": "pos_entry_mode",
+        "value_set": [
+          "CHIP",
+          "MAGSTRIPE",
+          "NFC",
+          "ECOM"
+        ]
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_in_set"
+    },
+    {
+      "id": "98dc9ff7-ef7d-401a-9f63-38c116f79ca4",
+      "kwargs": {
+        "column": "device_id"
+      },
+      "meta": {},
+      "type": "expect_column_to_exist"
+    },
+    {
+      "id": "6cd33868-549a-4a02-8de2-f43d45b27f76",
+      "kwargs": {
+        "column": "device_id",
+        "type_": "object"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_of_type"
+    },
+    {
+      "id": "2571d0a7-9648-41ab-99a5-c73fb2d8bb91",
+      "kwargs": {
+        "column": "device_type"
+      },
+      "meta": {},
+      "type": "expect_column_to_exist"
+    },
+    {
+      "id": "4b595802-de2b-4224-ba98-c9d900864ee5",
+      "kwargs": {
+        "column": "device_type",
+        "type_": "object"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_of_type"
+    },
+    {
+      "id": "202aa13a-8171-44db-a457-4cb974ca4802",
+      "kwargs": {
+        "column": "device_type",
+        "value_set": [
+          "IOS",
+          "ANDROID",
+          "WEB",
+          "POS"
+        ]
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_in_set"
+    },
+    {
+      "id": "a1b5eda0-0a14-45dd-897b-a116fc1d31f9",
+      "kwargs": {
+        "column": "ip_address"
+      },
+      "meta": {},
+      "type": "expect_column_to_exist"
+    },
+    {
+      "id": "1e2d3b89-f713-4922-a942-a1d5d861135c",
+      "kwargs": {
+        "column": "ip_address",
+        "type_": "object"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_of_type"
+    },
+    {
+      "id": "9245ba29-b29f-44d1-9f85-05a2c8cc5777",
+      "kwargs": {
+        "column": "user_agent"
+      },
+      "meta": {},
+      "type": "expect_column_to_exist"
+    },
+    {
+      "id": "bd3837aa-7b05-4be8-a67c-8da47897189b",
+      "kwargs": {
+        "column": "user_agent",
+        "type_": "object"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_of_type"
+    },
+    {
+      "id": "cd352685-a4c0-4aa9-9fc8-80bab7b2dd02",
+      "kwargs": {
+        "column": "latitude"
+      },
+      "meta": {},
+      "type": "expect_column_to_exist"
+    },
+    {
+      "id": "d2889989-b475-497b-a7fe-7b7ff0a78e95",
+      "kwargs": {
+        "column": "latitude"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "3c3f0f2b-9497-40c5-bf7b-bfd3d2f22bd5",
+      "kwargs": {
+        "column": "latitude",
+        "type_": "float64"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_of_type"
+    },
+    {
+      "id": "c0f87085-de24-4826-bda1-8cd463758bb8",
+      "kwargs": {
+        "column": "longitude"
+      },
+      "meta": {},
+      "type": "expect_column_to_exist"
+    },
+    {
+      "id": "f12a8ea7-bbc1-41b6-b5c5-97352f44b1ae",
+      "kwargs": {
+        "column": "longitude"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "4c76e593-39f6-41d7-9bd3-ea3375d2fa42",
+      "kwargs": {
+        "column": "longitude",
+        "type_": "float64"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_of_type"
+    },
+    {
+      "id": "36577ccb-efd6-4388-b863-d0891b327129",
+      "kwargs": {
+        "column": "is_recurring"
+      },
+      "meta": {},
+      "type": "expect_column_to_exist"
+    },
+    {
+      "id": "53b37f32-ec54-4c99-924c-4cecb5128a6e",
+      "kwargs": {
+        "column": "is_recurring"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "53e83306-a3d6-4abd-b971-d17e1b6e60e2",
+      "kwargs": {
+        "column": "is_recurring",
+        "type_": "bool"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_of_type"
+    },
+    {
+      "id": "55e0c4ad-e008-4388-9cb1-f88dfcce939c",
+      "kwargs": {
+        "column": "previous_txn_id"
+      },
+      "meta": {},
+      "type": "expect_column_to_exist"
+    },
+    {
+      "id": "9761bd43-30b6-4447-8e44-58bf26f01cc3",
+      "kwargs": {
+        "column": "previous_txn_id",
+        "type_": "object"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_of_type"
+    },
+    {
+      "id": "0af1d0aa-a08c-4e36-b431-9427be90bdab",
+      "kwargs": {
+        "column": "label_fraud"
+      },
+      "meta": {},
+      "type": "expect_column_to_exist"
+    },
+    {
+      "id": "03ee7b8f-1d16-400c-aa8f-656a4522cd13",
+      "kwargs": {
+        "column": "label_fraud"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_not_be_null"
+    },
+    {
+      "id": "61f00785-fdb2-44f5-8de6-b064c85849a7",
+      "kwargs": {
+        "column": "label_fraud",
+        "type_": "bool"
+      },
+      "meta": {},
+      "type": "expect_column_values_to_be_of_type"
+    }
+  ],
+  "id": "4971b9c3-bf09-412a-ae27-dad70f4f10e0",
+  "meta": {
+    "great_expectations_version": "1.4.5"
+  },
+  "name": "txn_schema_suite",
+  "notes": null
+}
