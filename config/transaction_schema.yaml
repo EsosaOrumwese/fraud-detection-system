@@ -1,0 +1,169 @@
+# -----------------------------------------------------------------------------
+#  Fraud-Detection  ▸  Synthetic Payment Event Schema
+#  version: 0.1.0            (semantic-versioned; bump via make bump-schema)
+#  description: >
+#    Synthetic card-present / card-not-present payment events modelled on ISO-8583
+#    and common PSP logs. 24 fields, RFC-3339 UTC timestamps, ISO enumerations.
+# -----------------------------------------------------------------------------
+version: 0.1.0
+description: Synthetic payment events emulating ISO-8583 card-present / CNP logs.
+primary_key: transaction_id
+event_time: event_time
+
+fields:
+  # ───────── Identification ────────────────────────────────────────────────
+- name: transaction_id   # UUIDv4 – globally unique row key
+  dtype: string
+  description: Globally unique transaction identifier (UUIDv4).
+  nullable: false
+  example: 4be4242b-5c9f-4631-a688-19d756343f07
+
+- name: event_time
+  dtype: datetime
+  description: RFC-3339 timestamp (UTC) when transaction occurred.
+  nullable: false
+  example: '2025-05-24T12:34:56Z'
+
+- name: local_time_offset
+  dtype: int   # minutes offset from UTC
+  description: Minutes between local merchant time and UTC (-720 … +840).
+  nullable: false
+  example: -60
+
+      # ───────── Monetary details ──────────────────────────────────────────────
+- name: amount
+  dtype: float
+  description: Transaction amount in minor currency units (e.g. 12.30).
+  nullable: false
+  example: 42.35
+
+- name: currency_code
+  dtype: string
+  description: ISO-4217 code (GBP, USD, EUR…).
+  nullable: false
+  example: GBP
+
+      # ───────── Card details (hashed ⇢ no PCI risk) ───────────────────────────
+- name: card_pan_hash
+  dtype: string
+  description: SHA-256 hash of primary account number (PAN).
+  nullable: false
+  example: 40a7…f9c   # truncated for doc brevity
+
+- name: card_scheme
+  dtype: enum
+  enum: [VISA, MASTERCARD, AMEX, DISCOVER]
+  description: Card network / scheme.
+  nullable: false
+  example: VISA
+
+- name: card_exp_year
+  dtype: int
+  description: Expiry year (YYYY).
+  nullable: false
+  example: 2027
+
+- name: card_exp_month
+  dtype: int
+  description: Expiry month (1-12).
+  nullable: false
+  example: 4
+
+      # ───────── Parties ───────────────────────────────────────────────────────
+- name: customer_id
+  dtype: int
+  description: Synthetic foreign-key to customer table (future sprint).
+  nullable: false
+  example: 314159
+
+- name: merchant_id
+  dtype: int
+  description: Synthetic merchant identifier.
+  nullable: false
+  example: 271828
+
+- name: merchant_country
+  dtype: string
+  description: ISO-3166-alpha-2 country code of merchant.
+  nullable: false
+  example: GB
+
+- name: mcc_code
+  dtype: int
+  description: 4-digit Merchant Category Code (ISO-8583 field 18).
+  nullable: true   # 5–10 % nulls mimic dirty feeds
+  example: 5411 # Grocery
+
+
+      # ───────── Channel / device context ──────────────────────────────────────
+- name: channel
+  dtype: enum
+  enum: [ONLINE, IN_STORE, ATM]
+  description: High-level purchase channel.
+  nullable: false
+  example: ONLINE
+
+- name: pos_entry_mode
+  dtype: enum
+  enum: [CHIP, MAGSTRIPE, NFC, ECOM]
+  description: Detailed POS entry mode.
+  nullable: false
+  example: NFC
+
+- name: device_id
+  dtype: string
+  description: Device or terminal identifier.
+  nullable: true
+  example: dvc_f93b0c2c
+
+- name: device_type
+  dtype: enum
+  enum: [IOS, ANDROID, WEB, POS]
+  description: Device operating system / terminal class.
+  nullable: true
+  example: IOS
+
+- name: ip_address
+  dtype: string
+  description: IPv4 address of customer (CNP only). Dotted quad.
+  nullable: true
+  example: 203.0.113.24
+
+- name: user_agent
+  dtype: string
+  description: Browser or SDK User-Agent string (trimmed).
+  nullable: true
+  example: Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X)…
+
+      # ───────── Geo (jittered) ────────────────────────────────────────────────
+- name: latitude
+  dtype: float
+  description: Approximate merchant lat, jittered ±0.5°.
+  nullable: false
+  example: 51.5074
+
+- name: longitude
+  dtype: float
+  description: Approximate merchant lon, jittered ±0.5°.
+  nullable: false
+  example: -0.1278
+
+      # ───────── Behaviour flags ───────────────────────────────────────────────
+- name: is_recurring
+  dtype: bool
+  description: True if part of subscription / standing order.
+  nullable: false
+  example: false
+
+- name: previous_txn_id
+  dtype: string
+  description: Immediate previous transaction for this card (nullable).
+  nullable: true
+  example:
+
+      # ───────── Label ─────────────────────────────────────────────────────────
+- name: label_fraud
+  dtype: bool
+  description: Fraud ground-truth (1 = fraud, 0 = legit).
+  nullable: false
+  example: false

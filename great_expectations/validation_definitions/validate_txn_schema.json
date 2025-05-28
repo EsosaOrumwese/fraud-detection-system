@@ -1,0 +1,22 @@
+{
+  "data": {
+    "asset": {
+      "id": "92e6f9fe-7c3d-46a9-a244-12bc0741518a",
+      "name": "batch_df_asset"
+    },
+    "batch_definition": {
+      "id": "7d915a36-73ce-4a7d-8ee8-6ecd69186af7",
+      "name": "whole_dataframe_batch"
+    },
+    "datasource": {
+      "id": "280d00f8-ca47-4e0b-a2fa-ee41b66c3d13",
+      "name": "runtime_pandas"
+    }
+  },
+  "id": "310cde7a-1d96-4616-b63f-fbd011ff6de4",
+  "name": "validate_txn_schema",
+  "suite": {
+    "id": "d97d6573-1a73-42f7-bc44-ec6f4017ea55",
+    "name": "txn_schema_suite"
+  }
+}
