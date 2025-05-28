@@ -2,13 +2,13 @@ name: Daily AWS Cost
 
 # give GITHUB_TOKEN the ability to assume OIDC, read/write repo contents, and write issue comments
 permissions:
-  id-token: write             # enable OIDC in this job
-  contents: write             # allow commenting
+  id-token: write # enable OIDC in this job
+  contents: write # allow commenting
   issues: write
 
 on:
   schedule:
-    - cron:  '13 6 * * *'      # 06:13 UTC daily
+    - cron: 13 6 * * * # 06:13 UTC daily
   workflow_dispatch:
 
 jobs:
@@ -20,9 +20,10 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_OIDC_ROLE_ARN }}
-          aws-region: eu-west-2
+          aws-region:
+            eu-west-2
 
-      # 2 ▸ Query yesterday’s cost in GBP via Cost Explorer
+            # 2 ▸ Query yesterday’s cost in GBP via Cost Explorer
       - name: Get cost
         id: cost
         run: |
@@ -41,11 +42,11 @@ jobs:
           echo "amount=${AMOUNT:-0}" >> $GITHUB_OUTPUT
           echo "date=$START"         >> $GITHUB_OUTPUT
 
-      # 3 ▸ Post / update a comment in pinned issue #1
+          # 3 ▸ Post / update a comment in pinned issue #1
       - name: Comment daily spend
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: 1
-          body: |
+          body: |-
             ### 💰 AWS spend for **${{ steps.cost.outputs.date }}**
             **£${{ steps.cost.outputs.amount }}**

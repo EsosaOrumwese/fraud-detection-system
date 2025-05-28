@@ -27,7 +27,7 @@ else:
     sys.exit("ERROR: supported formats: .parquet, .csv")
 
 # ─── 2) Load your GX context & suite ──────────────────────────────────────────
-ctx = gx.get_context(context_root_dir="great_expectations")
+ctx = gx.get_context(context_root_dir="great_expectations")  # type: ignore
 suite = ctx.suites.get(
     "txn_schema_suite"
 )  # ctx.get_expectation_suite("txn_schema_suite")
@@ -73,13 +73,12 @@ except DataContextError:
 # For a dataframe asset, the batch_parameter key is "dataframe"
 # noinspection PyTypeChecker
 results = vd.run(
-    batch_parameters={"dataframe": df},
-    result_format={"result_format": "BASIC"}
+    batch_parameters={"dataframe": df}, result_format={"result_format": "BASIC"}
 )
 # After running validation, to print out the failed expectations:
 for r in results["results"]:
     if not r["success"]:
-        ep = r["expectation_config"]              # this is an ExpectationConfiguration
+        ep = r["expectation_config"]  # this is an ExpectationConfiguration
         # access attributes, not dictionary keys:
         print(f"✗ {ep.type} failed on {ep.kwargs}")
 
