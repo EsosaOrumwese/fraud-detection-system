@@ -12,6 +12,17 @@
       - id: ruff                                # 10–100× faster than flake8
         args: ['--fix']       # autofix trivial issues
 
+  # --- YAML formating             -------------------------------------------
+
+
+  # --- YAML lint                 -------------------------------------------
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.37.1
+    hooks:
+      - id: yamllint
+        args: [--format, parsable, config/transaction_schema.yaml]
+
+
   # --- Type checking -------------------------------------------------------
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.15.0
