@@ -7,8 +7,9 @@ import pandas as pd  # type: ignore
 from pathlib import Path
 
 # Load schema
-spec = yaml.safe_load(Path("config/transaction_schema.yaml")
-                      .read_text(encoding="utf-8"))
+spec = yaml.safe_load(
+    Path("config/transaction_schema.yaml").read_text(encoding="utf-8")
+)
 
 # Build empty DataFrame
 df = pd.DataFrame({f["name"]: [] for f in spec["fields"]})

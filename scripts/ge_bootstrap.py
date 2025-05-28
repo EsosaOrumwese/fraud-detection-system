@@ -27,7 +27,7 @@ if not SCHEMA_PATH.exists():
 spec = yaml.safe_load(SCHEMA_PATH.read_text(encoding="utf-8"))
 
 # ─── 2) Initialize / load the GE Data Context ─────────────────────────────────
-ctx = gx.get_context(context_root_dir=str(CTX_DIR))
+ctx = gx.get_context(context_root_dir=str(CTX_DIR))  # type: ignore
 
 # ─── 3) Remove any existing suite of the same name ────────────────────────────
 if any(s.name == SUITE_NAME for s in ctx.suites.all()):
