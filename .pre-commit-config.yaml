@@ -32,7 +32,9 @@ repos:
     hooks:
       - id: check-yaml
       - id: end-of-file-fixer # adds final newline, strips CRs
+        files: '^(config/.*|\.github/workflows/.*|scripts/.*|\.pre-commit-config\.yaml)$'
       - id: trailing-whitespace # strips stray spaces/tabs
+        files: '^(config/.*|\.github/workflows/.*|scripts/.*|\.pre-commit-config\.yaml)$'
 
 
           # --- Type checking -------------------------------------------------------
