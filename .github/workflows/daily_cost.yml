@@ -46,7 +46,7 @@ jobs:
       - name: Comment daily spend
         uses: peter-evans/create-or-update-comment@v4
         with:
-          issue-number: 1
+          issue-number: 5
           body: |-
             ### 💰 AWS spend for **${{ steps.cost.outputs.date }}**
             **£${{ steps.cost.outputs.amount }}**
