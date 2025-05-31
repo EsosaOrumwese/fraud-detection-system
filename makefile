@@ -137,3 +137,33 @@ gen-smoke-data:
 smoke-schema: ge-bootstrap gen-smoke-data
 	@echo "✓ Running GE smoke-test against tmp/dummy.parquet"
 	@$(MAKE) ge-validate FILE=tmp/dummy.parquet
+
+# ────────────────────────────────────────────────────────────────────────────
+# ---------- DATA GEN ----------
+# ────────────────────────────────────────────────────────────────────────────
+.PHONY: gen-data profile clean-memory
+
+# Default number of rows and output directory (can be overridden via CLI)
+ROWS ?= 1000000
+OUTDIR ?= outputs
+
+# Data generation target:
+#   - Runs the generate.py module to produce a Parquet file with $(ROWS) rows
+#   - Writes into $(OUTDIR)
+gen-data:
+	@echo "→ Generating $(ROWS) rows into $(OUTDIR)..."
+	poetry run python -m src.fraud_detection.simulator.generate --rows $(ROWS) --out $(OUTDIR)
+
+# Profile target: depends on data, then profiles the most recent Parquet in $(OUTDIR)
+profile: gen-data
+	@echo "→ Profiling Parquet in $(OUTDIR)..."
+	@FILE=$(shell ls $(OUTDIR)/payments_$(subst ,,_$(ROWS))_*.parquet | tail -n1) && \
+	if [ -z "$$FILE" ]; then \
+	  echo "Error: No Parquet matching payments_$(subst ,,_$(ROWS))_*.parquet in $(OUTDIR)"; \
+	  exit 1; \
+	fi && \
+	poetry run python scripts/profile_parquet.py "$$FILE"
+
+# Clean target: remove the entire outputs directory
+clean-memory:
+	rm -rf $(OUTDIR)
