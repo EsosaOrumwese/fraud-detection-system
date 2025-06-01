@@ -12,7 +12,6 @@ MCC_CODES: List[int] = [
     5814,  # Fast Food Restaurants
     5451,  # Dairy Products Stores
     5462,  # Bakeries
-
     # Retail (Apparel, Electronics, Department)
     5651,  # Family Clothing Stores
     5691,  # Men’s and Boys’ Clothing and Accessories Stores
@@ -33,7 +32,6 @@ MCC_CODES: List[int] = [
     5948,  # Luggage and Leather Goods Stores
     5949,  # Fabric Stores, Piece Goods, and Sewing Notions
     5600,  # Apparel and Accessory Services (Cleaning, Alterations, etc.)
-
     # Home & Hardware
     5211,  # Lumber and Building Materials Stores, Hardware
     5251,  # Hardware Stores
@@ -43,7 +41,6 @@ MCC_CODES: List[int] = [
     5734,  # Computer Software Stores
     5735,  # Record Stores, Video Tapes, and Disks
     5970,  # Artist Supply and Craft Shops
-
     # Health & Beauty
     5912,  # Drug Stores and Pharmacies
     5971,  # Electrical and Electronic Repair Shops
@@ -54,7 +51,6 @@ MCC_CODES: List[int] = [
     5913,  # Packaged Liquor Stores
     5973,  # Antiquarian and Specialty Collectible Stores
     5974,  # Computer Network/Information Services
-
     # Transportation & Travel
     4111,  # Local/Suburban Commuter Passenger Transport (Including Ferries)
     4121,  # Taxicabs and Limousines
@@ -69,7 +65,6 @@ MCC_CODES: List[int] = [
     7512,  # Automobile Rental Agencies
     7513,  # Automobile Parking Lots and Garages
     7519,  # Motor Home Rental
-
     # Lodging & Entertainment
     5811,  # Caterers
     7011,  # Hotels, Motels, Resorts (Lodging)
@@ -91,7 +86,6 @@ MCC_CODES: List[int] = [
     7349,  # Cleaning and Maintenance, Janitorial Services
     7511,  # Truck Stop (Truck Parking, Supplies and Services)
     7995,  # Gambling—Casinos, Race Tracks
-
     # Professional & Business Services
     8011,  # Doctors and Physicians
     8021,  # Dentists and Orthodontists
@@ -112,7 +106,6 @@ MCC_CODES: List[int] = [
     8299,  # Schools and Educational Services (Not Elsewhere Classified)
     8398,  # Charitable and Social Service Organizations
     8661,  # Religious Organizations
-
     # Government & Misc
     9211,  # Court Costs, Including Alimony and Child Support
     9222,  # Fines
