@@ -7,7 +7,7 @@ usage:
 import sys
 import pathlib
 import polars as pl
-from ydata_profiling import ProfileReport
+from ydata_profiling import ProfileReport  # type: ignore
 
 # --- Argument validation ---
 if len(sys.argv) < 2:
@@ -19,8 +19,11 @@ if not fn.exists():
     print(f"Error: file {fn} does not exist.")
     sys.exit(1)
 
-# --- Load a sample of up to 100k rows via Polars (lazy scan + sample) ---
-df = pl.scan_parquet(fn).sample(100_000, seed=42).collect()
+# --- Read entire Parquet into a Polars DataFrame (RAM ~ few hundred MB) ---
+df_full = pl.read_parquet(fn)
+
+# --- Take a 100k‐row sample (deterministic via seed) ---
+df = df_full.sample(100_000, seed=42)
 
 # --- Build a minimal-profile HTML report using YData-Profiling ---
 profile = ProfileReport(df.to_pandas(), minimal=True, title=f"Profile {fn.name}")

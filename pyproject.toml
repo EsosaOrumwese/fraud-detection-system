@@ -8,6 +8,10 @@ authors = [
 license = {text = "MIT License"}
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
+# Tell Poetry: “Look for packages under src/”
+packages = [
+  { include = "fraud_detection", from = "src" }
+]
 dependencies = [
     "requests (>=2.32.3,<3.0.0)",       # add using `poetry add <package-name>`
     "pyarrow (>=20.0.0,<21.0.0)",
@@ -18,7 +22,6 @@ dependencies = [
     "polars (>=1.30.0,<2.0.0)",
     "boto3 (==1.35.49)",
 ]
-
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

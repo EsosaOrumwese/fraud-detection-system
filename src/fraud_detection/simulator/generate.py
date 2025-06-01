@@ -14,6 +14,7 @@ CLI
 • Column order is enforced via the YAML schema.
 • Optionally uploads to S3 bucket defined in environment variable RAW_BUCKET.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -31,13 +32,13 @@ from typing import Dict, List, Optional
 import boto3  # type: ignore
 import botocore  # type: ignore
 import polars as pl  # type: ignore
-import pyarrow as pa  # type: ignore
 import pyarrow.parquet as pq  # type: ignore
 import yaml  # type: ignore
 from faker import Faker
-#from mimesis import Finance  # type: ignore
+
+# from mimesis import Finance  # type: ignore
 # Since Mimesis no longer provides MCC in version 18.0.0, define a static list of common MCCs
-from src.fraud_detection.simulator.mcc_codes import MCC_CODES
+from fraud_detection.simulator.mcc_codes import MCC_CODES
 
 # ---------- Setup logging ---------------------------------------------------
 logging.basicConfig(
@@ -50,7 +51,7 @@ logger = logging.getLogger(__name__)
 # ---------- Constants & Global Generators -----------------------------------
 SCHEMA_YAML = pathlib.Path("config/transaction_schema.yaml")
 faker = Faker()
-#finance = Finance()
+# finance = Finance()
 random.seed(42)
 faker.seed_instance(42)
 
@@ -110,13 +111,17 @@ class TransactionSimulator:
         We intentionally keep this lean: avoid re-creating Faker()/Mimesis() instances on every call.
         """
         # 1. Randomize a transaction timestamp between (now - 30 days) and now:
-        rand_ts = now_ts - random.uniform(0, 30 * 24 * 3600) # compute a random timestamp sometime in the past 30 days
-        ts = datetime.datetime.fromtimestamp(rand_ts, tz=datetime.timezone.utc) # create a UTC‐aware datetime in one go
+        rand_ts = now_ts - random.uniform(
+            0, 30 * 24 * 3600
+        )  # compute a random timestamp sometime in the past 30 days
+        ts = datetime.datetime.fromtimestamp(
+            rand_ts, tz=datetime.timezone.utc
+        )  # create a UTC‐aware datetime in one go
 
         # 2. Customer and card information:
         user_id = faker.random_int(10_000, 999_999)
         raw_card_number = faker.credit_card_number()  # e.g. "4242 4242 4242 4242"
-        #card_pan_hash = faker.sha256(raw_card_number)
+        # card_pan_hash = faker.sha256(raw_card_number)
         card_pan_hash = hashlib.sha256(raw_card_number.encode("utf-8")).hexdigest()
 
         # 3. Merchant / business info:
@@ -131,7 +136,9 @@ class TransactionSimulator:
             round(faker.latitude(), 6) if random.random() > self.null_geo_rate else None
         )
         longitude = (
-            round(faker.longitude(), 6) if random.random() > self.null_geo_rate else None
+            round(faker.longitude(), 6)
+            if random.random() > self.null_geo_rate
+            else None
         )
         device_id = faker.uuid4() if random.random() > self.null_device_rate else None
         ip_address = faker.ipv4_public() if channel == "ONLINE" else None
@@ -148,7 +155,9 @@ class TransactionSimulator:
             "amount": amount,
             "currency_code": faker.currency_code(),
             "card_pan_hash": card_pan_hash,
-            "card_scheme": faker.random_element(("VISA", "MASTERCARD", "AMEX", "DISCOVER")),
+            "card_scheme": faker.random_element(
+                ("VISA", "MASTERCARD", "AMEX", "DISCOVER")
+            ),
             "card_exp_year": faker.random_int(2026, 2030),
             "card_exp_month": faker.random_int(1, 12),
             "customer_id": user_id,
@@ -156,7 +165,9 @@ class TransactionSimulator:
             "merchant_country": faker.country_code(representation="alpha-2"),
             "mcc_code": mcc,
             "channel": channel,
-            "pos_entry_mode": faker.random_element(("CHIP", "MAGSTRIPE", "NFC", "ECOM")),
+            "pos_entry_mode": faker.random_element(
+                ("CHIP", "MAGSTRIPE", "NFC", "ECOM")
+            ),
             "device_id": device_id,
             "device_type": faker.random_element(("IOS", "ANDROID", "WEB", "POS")),
             "ip_address": ip_address,
@@ -187,7 +198,9 @@ class TransactionSimulator:
         total_chunks = math.ceil(self.total_rows / self.chunk_size)
 
         logger.info(f"Beginning simulation: {self.total_rows:,} rows → {out_path}")
-        logger.info(f"Chunk size: {self.chunk_size:,} rows ({total_chunks} total chunks)")
+        logger.info(
+            f"Chunk size: {self.chunk_size:,} rows ({total_chunks} total chunks)"
+        )
 
         chunk_index = 0
         while rows_remaining > 0:
@@ -202,7 +215,9 @@ class TransactionSimulator:
             # 2b. Build a Polars DataFrame with the correct schema/order
             df_chunk = pl.from_dicts(
                 chunk_dicts, schema_overrides={"event_time": pl.Datetime("ns", "UTC")}
-            ).select(COLUMNS)  # enforce column order exactly as in YAML
+            ).select(
+                COLUMNS
+            )  # enforce column order exactly as in YAML
 
             # 2c. Convert to PyArrow table
             arrow_table = df_chunk.to_arrow()
@@ -234,7 +249,9 @@ class TransactionSimulator:
             parquet_writer.close()
 
         total_duration = time.time() - start_time
-        logger.info(f"Completed: {self.total_rows:,} rows in {total_duration:0.2f}s → {out_path}")
+        logger.info(
+            f"Completed: {self.total_rows:,} rows in {total_duration:0.2f}s → {out_path}"
+        )
         return out_path
 
     def upload_to_s3(self, file_path: pathlib.Path, bucket: str) -> None:
@@ -252,9 +269,6 @@ class TransactionSimulator:
         s3_client.upload_file(str(file_path), bucket, key)
         logger.info(f"Upload complete → s3://{bucket}/{key}")
 
-def generate_dataset(total_rows: int, out_dir: pathlib.Path) -> pathlib.Path:
-    sim = TransactionSimulator(total_rows=total_rows, out_dir=out_dir)
-    return sim.generate_to_parquet()
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -287,6 +301,11 @@ def main() -> None:
             logger.error("Environment variable RAW_BUCKET not set. Aborting upload.")
             raise SystemExit(1)
         simulator.upload_to_s3(parquet_path, bucket_name)
+
+
+def generate_dataset(total_rows: int, out_dir: pathlib.Path) -> pathlib.Path:
+    sim = TransactionSimulator(total_rows=total_rows, out_dir=out_dir)
+    return sim.generate_to_parquet()
 
 
 if __name__ == "__main__":

@@ -144,7 +144,7 @@ smoke-schema: ge-bootstrap gen-smoke-data
 .PHONY: gen-data profile clean-memory
 
 # Default number of rows and output directory (can be overridden via CLI)
-ROWS ?= 1000000
+ROWS ?= 1_000_000
 OUTDIR ?= outputs
 
 # Data generation target:
@@ -157,9 +157,9 @@ gen-data:
 # Profile target: depends on data, then profiles the most recent Parquet in $(OUTDIR)
 profile: gen-data
 	@echo "→ Profiling Parquet in $(OUTDIR)..."
-	@FILE=$(shell ls $(OUTDIR)/payments_$(subst ,,_$(ROWS))_*.parquet | tail -n1) && \
+	@FILE=$(shell ls $(OUTDIR)/payments_$(subst ,,$(ROWS))_*.parquet | tail -n1) && \
 	if [ -z "$$FILE" ]; then \
-	  echo "Error: No Parquet matching payments_$(subst ,,_$(ROWS))_*.parquet in $(OUTDIR)"; \
+	  echo "Error: No Parquet matching payments_$(subst ,,$(ROWS))_*.parquet in $(OUTDIR)"; \
 	  exit 1; \
 	fi && \
 	poetry run python scripts/profile_parquet.py "$$FILE"
