@@ -21,6 +21,8 @@ dependencies = [
     "ydata-profiling (>=4.16.1,<5.0.0)",
     "polars (>=1.30.0,<2.0.0)",
     "boto3 (==1.35.49)",
+    "prefect (>=3.4.4,<4.0.0)",
+    "duckdb (>=1.3.0,<2.0.0)",
 ]
 
 [build-system]

@@ -308,5 +308,18 @@ def generate_dataset(total_rows: int, out_dir: pathlib.Path) -> pathlib.Path:
     return sim.generate_to_parquet()
 
 
+def _upload_to_s3(file_path: pathlib.Path, bucket: str) -> str:
+    """
+    Wraps TransactionSimulator.upload_to_s3 and returns the actual s3:// URI,
+    including year/month prefixes.
+    """
+    sim = TransactionSimulator(total_rows=0, out_dir=file_path.parent)  # dummy instance
+    # We assume upload_to_s3() writes to: s3://{bucket}/payments/year=YYYY/month=MM/{filename}
+    sim.upload_to_s3(file_path, bucket)
+    today = datetime.date.today()
+    key = f"payments/year={today.year}/month={today:%m}/{file_path.name}"
+    return f"s3://{bucket}/{key}"
+
+
 if __name__ == "__main__":
     main()
