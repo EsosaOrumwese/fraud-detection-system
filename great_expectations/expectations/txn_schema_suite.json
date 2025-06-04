@@ -1,7 +1,7 @@
 {
   "expectations": [
     {
-      "id": "a2d00cc7-600e-4715-b5ba-3288b6d71c89",
+      "id": "11349809-0141-4702-8548-9b251cc3d9fd",
       "kwargs": {
         "column": "transaction_id"
       },
@@ -9,7 +9,7 @@
       "type": "expect_column_to_exist"
     },
     {
-      "id": "af8c05a1-9426-4536-9d3f-2cae232590bb",
+      "id": "21d286c1-b218-4ceb-a97b-0ece26d23252",
       "kwargs": {
         "column": "transaction_id"
       },
@@ -17,7 +17,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "039122a1-62ce-468f-9836-ec172010caac",
+      "id": "b726588a-18e2-41a3-a645-d72c2cb8c98a",
       "kwargs": {
         "column": "transaction_id",
         "type_": "object"
@@ -26,7 +26,7 @@
       "type": "expect_column_values_to_be_of_type"
     },
     {
-      "id": "32117ad0-6186-45c0-b4b6-6af1f9867903",
+      "id": "82c3bf9e-44ce-4362-816a-f5718bcd4ff2",
       "kwargs": {
         "column": "event_time"
       },
@@ -34,7 +34,7 @@
       "type": "expect_column_to_exist"
     },
     {
-      "id": "9ee2415a-0514-42d2-9b74-f8d4e9fd1e0d",
+      "id": "8c2d86ba-a445-46b5-bfac-029463ad3ab7",
       "kwargs": {
         "column": "event_time"
       },
@@ -42,7 +42,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "debeff8f-c7aa-43bb-945c-ee0aa021c7f5",
+      "id": "11e5abd8-19e0-4959-b5a7-497b20c353fa",
       "kwargs": {
         "column": "event_time",
         "type_": "Timestamp"
@@ -51,7 +51,7 @@
       "type": "expect_column_values_to_be_of_type"
     },
     {
-      "id": "b3bc9cf7-e6ea-4b2d-8ed3-892521837255",
+      "id": "37496f39-4b37-4f1d-8846-d73adee6a965",
       "kwargs": {
         "column": "local_time_offset"
       },
@@ -59,7 +59,7 @@
       "type": "expect_column_to_exist"
     },
     {
-      "id": "363a309e-f05d-49aa-bd64-3e2154e4b584",
+      "id": "931970b9-a9db-4e8d-a311-eb6998d520ee",
       "kwargs": {
         "column": "local_time_offset"
       },
@@ -67,7 +67,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "9bcb65e2-c9d5-4780-92f7-d108f16d7049",
+      "id": "f6e7d618-05fa-4137-b4ef-84ea85753b72",
       "kwargs": {
         "column": "local_time_offset",
         "type_": "int64"
@@ -76,7 +76,7 @@
       "type": "expect_column_values_to_be_of_type"
     },
     {
-      "id": "95ee9b9d-9065-43f8-96e6-38f4e542caa1",
+      "id": "aaf24c94-8621-4929-b72f-ab6741a3361f",
       "kwargs": {
         "column": "amount"
       },
@@ -84,7 +84,7 @@
       "type": "expect_column_to_exist"
     },
     {
-      "id": "6290fa78-335f-404c-a505-ea349c9b9242",
+      "id": "ddf7af03-4265-40b2-89d4-69c80efb7f28",
       "kwargs": {
         "column": "amount"
       },
@@ -92,7 +92,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "1338c43e-da17-41c3-a454-d86f02a50b7a",
+      "id": "c74f11c7-07fd-456a-b0cb-e0770db1f1c6",
       "kwargs": {
         "column": "amount",
         "type_": "float64"
@@ -101,7 +101,7 @@
       "type": "expect_column_values_to_be_of_type"
     },
     {
-      "id": "da3dff71-0940-4b24-aa40-47117e082ff6",
+      "id": "39fd128b-d7ed-4cf9-b82b-aa9999754228",
       "kwargs": {
         "column": "currency_code"
       },
@@ -109,7 +109,7 @@
       "type": "expect_column_to_exist"
     },
     {
-      "id": "0b92b01f-e4a3-472b-b1a6-40b81a7c6dac",
+      "id": "631b1b34-cf3c-4bd9-8695-a95317c29505",
       "kwargs": {
         "column": "currency_code"
       },
@@ -117,7 +117,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "61f840a9-53cc-4919-9759-1982eb0b6260",
+      "id": "8a9946cf-997e-4084-a2ff-cda9674db513",
       "kwargs": {
         "column": "currency_code",
         "type_": "object"
@@ -126,7 +126,7 @@
       "type": "expect_column_values_to_be_of_type"
     },
     {
-      "id": "e8563ccf-ee3f-4881-9dee-23a8815c9577",
+      "id": "48c5e84c-bf46-4f15-97f7-50af6087e8a6",
       "kwargs": {
         "column": "card_pan_hash"
       },
@@ -134,7 +134,7 @@
       "type": "expect_column_to_exist"
     },
     {
-      "id": "75f23257-c3d5-48fe-8b31-42a72d521710",
+      "id": "dc8b07f4-713b-4b93-843a-baeb737b40b3",
       "kwargs": {
         "column": "card_pan_hash"
       },
@@ -142,7 +142,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "de66ed6c-fe6d-491f-b3ac-cc8124b64e9a",
+      "id": "25cc7b4c-78b3-49f3-945f-00cff71d9fbc",
       "kwargs": {
         "column": "card_pan_hash",
         "type_": "object"
@@ -151,7 +151,7 @@
       "type": "expect_column_values_to_be_of_type"
     },
     {
-      "id": "c2ded7b1-8cdb-4138-8712-6ff8d174b3c4",
+      "id": "6f1b721f-2288-4519-ae33-255327cc7cb2",
       "kwargs": {
         "column": "card_scheme"
       },
@@ -159,7 +159,7 @@
       "type": "expect_column_to_exist"
     },
     {
-      "id": "8a796f69-d06e-4296-99e7-6c0c476692b4",
+      "id": "d77069fa-a4c7-40a8-8dca-15f5fbfe2d22",
       "kwargs": {
         "column": "card_scheme"
       },
@@ -167,7 +167,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "f5d29388-b93e-4b05-bc49-b35c9f0eb171",
+      "id": "ed9b9de4-1856-43c2-aa57-d473991dfcb3",
       "kwargs": {
         "column": "card_scheme",
         "type_": "object"
@@ -176,7 +176,7 @@
       "type": "expect_column_values_to_be_of_type"
     },
     {
-      "id": "d675972b-70f8-4cab-a9dc-f7b9cb8a35fc",
+      "id": "a217bf34-3cab-4f41-aa5f-c9538272b0bf",
       "kwargs": {
         "column": "card_scheme",
         "value_set": [
@@ -190,7 +190,7 @@
       "type": "expect_column_values_to_be_in_set"
     },
     {
-      "id": "360dc7f7-f6b6-4147-80b4-d6ae13f036d5",
+      "id": "00267df6-4dbf-4519-8740-46f136f30037",
       "kwargs": {
         "column": "card_exp_year"
       },
@@ -198,7 +198,7 @@
       "type": "expect_column_to_exist"
     },
     {
-      "id": "5b753700-54de-433c-97cd-c266988f79be",
+      "id": "a82062f4-5387-4c95-9e67-6936531141b9",
       "kwargs": {
         "column": "card_exp_year"
       },
@@ -206,7 +206,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "a51163aa-7f53-48e6-82c7-66ea179c62ec",
+      "id": "ea646fb0-f091-4531-af4c-cb5da456c3dd",
       "kwargs": {
         "column": "card_exp_year",
         "type_": "int64"
@@ -215,7 +215,7 @@
       "type": "expect_column_values_to_be_of_type"
     },
     {
-      "id": "c7cdcb2a-5617-4bdc-acc9-b0ef633926ba",
+      "id": "6e63bfc9-2ae2-40f1-9bbd-17545c5f3850",
       "kwargs": {
         "column": "card_exp_month"
       },
@@ -223,7 +223,7 @@
       "type": "expect_column_to_exist"
     },
     {
-      "id": "d36272f6-3639-4637-9716-5b839bad8cb9",
+      "id": "8d33c421-5c55-44d0-86f5-5b926d1082b1",
       "kwargs": {
         "column": "card_exp_month"
       },
@@ -231,7 +231,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "dac81674-9dfa-49e1-bc41-3da549944d6b",
+      "id": "ada3c27a-e8ae-470a-8ded-bea00027215b",
       "kwargs": {
         "column": "card_exp_month",
         "type_": "int64"
@@ -240,7 +240,7 @@
       "type": "expect_column_values_to_be_of_type"
     },
     {
-      "id": "751c02c7-ac07-4667-9b46-425ba44f51ae",
+      "id": "ff957b3d-8212-410c-83cf-e942da081dfa",
       "kwargs": {
         "column": "customer_id"
       },
@@ -248,7 +248,7 @@
       "type": "expect_column_to_exist"
     },
     {
-      "id": "7417af50-4267-4478-b00c-d6707de8ce0e",
+      "id": "7491c467-0d3a-47d8-b5a9-e2a8451ba7fb",
       "kwargs": {
         "column": "customer_id"
       },
@@ -256,7 +256,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "ac786050-6648-4dcf-8a4f-5a5f5248a4cf",
+      "id": "9260e205-5d77-4d20-9185-4723cb59e72e",
       "kwargs": {
         "column": "customer_id",
         "type_": "int64"
@@ -265,7 +265,7 @@
       "type": "expect_column_values_to_be_of_type"
     },
     {
-      "id": "76996ff2-22f2-4d78-9b79-c4e3a8bc3856",
+      "id": "bb2a73a2-bb48-4dd6-bd0c-669692ee97f0",
       "kwargs": {
         "column": "merchant_id"
       },
@@ -273,7 +273,7 @@
       "type": "expect_column_to_exist"
     },
     {
-      "id": "2e86564f-5b19-4fb8-8818-1f3404d17d43",
+      "id": "20e81e2f-b66d-4144-93b6-cc6b1a9a366a",
       "kwargs": {
         "column": "merchant_id"
       },
@@ -281,7 +281,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "f51b4bec-6e65-4698-abd2-47932d28a157",
+      "id": "c7dd7ce4-aaaf-477f-a9f8-ec022e664be2",
       "kwargs": {
         "column": "merchant_id",
         "type_": "int64"
@@ -290,7 +290,7 @@
       "type": "expect_column_values_to_be_of_type"
     },
     {
-      "id": "f523e194-9953-4e3b-9b86-077aaa090996",
+      "id": "61086a33-9abb-4f5c-86cf-be964da23782",
       "kwargs": {
         "column": "merchant_country"
       },
@@ -298,7 +298,7 @@
       "type": "expect_column_to_exist"
     },
     {
-      "id": "bd4706a4-a849-4fb2-8b63-676d69189339",
+      "id": "46e312d7-de6e-4475-acef-1e749ac5102b",
       "kwargs": {
         "column": "merchant_country"
       },
@@ -306,7 +306,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "c4ce8e4a-9fb5-4747-9885-453583f80f7b",
+      "id": "8ee0feaa-44eb-4e6c-975b-8ea8c96daa6f",
       "kwargs": {
         "column": "merchant_country",
         "type_": "object"
@@ -315,7 +315,7 @@
       "type": "expect_column_values_to_be_of_type"
     },
     {
-      "id": "16aeaff9-33b1-49ab-9787-3e61624bcd82",
+      "id": "d48063c7-8e99-47f0-883f-4592f38d944a",
       "kwargs": {
         "column": "mcc_code"
       },
@@ -323,7 +323,7 @@
       "type": "expect_column_to_exist"
     },
     {
-      "id": "dc8b5140-f426-40f7-adf1-b3d5425c82f6",
+      "id": "877de3d7-ae4d-45a7-bf76-20f2716f7558",
       "kwargs": {
         "column": "mcc_code",
         "type_": "int64"
@@ -332,7 +332,7 @@
       "type": "expect_column_values_to_be_of_type"
     },
     {
-      "id": "c4d4779d-fd25-4434-86c0-fa18bda8958f",
+      "id": "ee75b6a5-4815-42bc-9567-b812776d2f55",
       "kwargs": {
         "column": "channel"
       },
@@ -340,7 +340,7 @@
       "type": "expect_column_to_exist"
     },
     {
-      "id": "f67e86ab-c5a0-4c28-8608-c8475b024f40",
+      "id": "179ba3ff-6a63-47f0-b4db-27858c65153e",
       "kwargs": {
         "column": "channel"
       },
@@ -348,7 +348,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "df22e282-39d8-4d15-8f49-d639e30187ff",
+      "id": "031762ee-c4ba-4b7d-843d-70b1eeba9a75",
       "kwargs": {
         "column": "channel",
         "type_": "object"
@@ -357,7 +357,7 @@
       "type": "expect_column_values_to_be_of_type"
     },
     {
-      "id": "eb8c23f4-ab7a-4687-aa17-ef155016dd72",
+      "id": "eecdc202-0921-455f-9194-3c19e3b3f556",
       "kwargs": {
         "column": "channel",
         "value_set": [
@@ -370,7 +370,7 @@
       "type": "expect_column_values_to_be_in_set"
     },
     {
-      "id": "70cf5b56-270b-48fc-a349-207565a1a38e",
+      "id": "9e4779fc-31b3-4acc-accb-2c143d169d75",
       "kwargs": {
         "column": "pos_entry_mode"
       },
@@ -378,7 +378,7 @@
       "type": "expect_column_to_exist"
     },
     {
-      "id": "38a2a0a8-ed94-4e57-a993-8e4c9c826df3",
+      "id": "47454c05-7b60-422e-a4ef-50816118e0fa",
       "kwargs": {
         "column": "pos_entry_mode"
       },
@@ -386,7 +386,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "d2329c73-420f-49be-bc7f-7daa0ac378da",
+      "id": "de36bb07-e0a0-438e-bf5e-c5aae88badf4",
       "kwargs": {
         "column": "pos_entry_mode",
         "type_": "object"
@@ -395,7 +395,7 @@
       "type": "expect_column_values_to_be_of_type"
     },
     {
-      "id": "7ece7b4d-ea93-4386-9c6e-0827654b125b",
+      "id": "e776b14d-8f9a-4feb-bb6b-28730c3c21d3",
       "kwargs": {
         "column": "pos_entry_mode",
         "value_set": [
@@ -409,7 +409,7 @@
       "type": "expect_column_values_to_be_in_set"
     },
     {
-      "id": "98dc9ff7-ef7d-401a-9f63-38c116f79ca4",
+      "id": "5b6e0d1e-b79c-4d00-bb4b-855e862bc958",
       "kwargs": {
         "column": "device_id"
       },
@@ -417,7 +417,7 @@
       "type": "expect_column_to_exist"
     },
     {
-      "id": "6cd33868-549a-4a02-8de2-f43d45b27f76",
+      "id": "3fee1261-df3d-4262-9442-f38a386e3797",
       "kwargs": {
         "column": "device_id",
         "type_": "object"
@@ -426,7 +426,7 @@
       "type": "expect_column_values_to_be_of_type"
     },
     {
-      "id": "2571d0a7-9648-41ab-99a5-c73fb2d8bb91",
+      "id": "68bb350c-8bef-4304-a403-c53bebb8c42b",
       "kwargs": {
         "column": "device_type"
       },
@@ -434,7 +434,7 @@
       "type": "expect_column_to_exist"
     },
     {
-      "id": "4b595802-de2b-4224-ba98-c9d900864ee5",
+      "id": "52769bac-1dd9-4cc6-95e6-ec055140c26a",
       "kwargs": {
         "column": "device_type",
         "type_": "object"
@@ -443,7 +443,7 @@
       "type": "expect_column_values_to_be_of_type"
     },
     {
-      "id": "202aa13a-8171-44db-a457-4cb974ca4802",
+      "id": "9d0d308f-5456-4673-b84e-9369fde77c94",
       "kwargs": {
         "column": "device_type",
         "value_set": [
@@ -457,7 +457,7 @@
       "type": "expect_column_values_to_be_in_set"
     },
     {
-      "id": "a1b5eda0-0a14-45dd-897b-a116fc1d31f9",
+      "id": "8a9ba752-f3c4-447d-9efe-2c5452762689",
       "kwargs": {
         "column": "ip_address"
       },
@@ -465,7 +465,7 @@
       "type": "expect_column_to_exist"
     },
     {
-      "id": "1e2d3b89-f713-4922-a942-a1d5d861135c",
+      "id": "d0a68963-19b2-46e1-bfdc-6db225470b80",
       "kwargs": {
         "column": "ip_address",
         "type_": "object"
@@ -474,7 +474,7 @@
       "type": "expect_column_values_to_be_of_type"
     },
     {
-      "id": "9245ba29-b29f-44d1-9f85-05a2c8cc5777",
+      "id": "f0d477c3-2720-4349-a39a-76f2cc8e3013",
       "kwargs": {
         "column": "user_agent"
       },
@@ -482,7 +482,7 @@
       "type": "expect_column_to_exist"
     },
     {
-      "id": "bd3837aa-7b05-4be8-a67c-8da47897189b",
+      "id": "328c48ba-5b6d-4d76-bce6-0144d1d72270",
       "kwargs": {
         "column": "user_agent",
         "type_": "object"
@@ -491,7 +491,7 @@
       "type": "expect_column_values_to_be_of_type"
     },
     {
-      "id": "cd352685-a4c0-4aa9-9fc8-80bab7b2dd02",
+      "id": "c9c55114-6990-4cb7-9a97-aecdf3d624f8",
       "kwargs": {
         "column": "latitude"
       },
@@ -499,7 +499,7 @@
       "type": "expect_column_to_exist"
     },
     {
-      "id": "d2889989-b475-497b-a7fe-7b7ff0a78e95",
+      "id": "564cbadc-682e-477e-8d83-98d64ff1e19d",
       "kwargs": {
         "column": "latitude"
       },
@@ -507,7 +507,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "3c3f0f2b-9497-40c5-bf7b-bfd3d2f22bd5",
+      "id": "ce5b1241-bf57-41c4-8817-14e4d24f5e3a",
       "kwargs": {
         "column": "latitude",
         "type_": "float64"
@@ -516,7 +516,7 @@
       "type": "expect_column_values_to_be_of_type"
     },
     {
-      "id": "c0f87085-de24-4826-bda1-8cd463758bb8",
+      "id": "ee06b63d-85bc-451e-8c79-4ace80d6f115",
       "kwargs": {
         "column": "longitude"
       },
@@ -524,7 +524,7 @@
       "type": "expect_column_to_exist"
     },
     {
-      "id": "f12a8ea7-bbc1-41b6-b5c5-97352f44b1ae",
+      "id": "1e9c2825-9fe9-47c6-a7c9-59ad7edd6a81",
       "kwargs": {
         "column": "longitude"
       },
@@ -532,7 +532,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "4c76e593-39f6-41d7-9bd3-ea3375d2fa42",
+      "id": "6edf2423-816b-4403-b61d-da063eb277b8",
       "kwargs": {
         "column": "longitude",
         "type_": "float64"
@@ -541,7 +541,7 @@
       "type": "expect_column_values_to_be_of_type"
     },
     {
-      "id": "36577ccb-efd6-4388-b863-d0891b327129",
+      "id": "d45ce433-6d9c-4de7-81c8-2c3266b1489f",
       "kwargs": {
         "column": "is_recurring"
       },
@@ -549,7 +549,7 @@
       "type": "expect_column_to_exist"
     },
     {
-      "id": "53b37f32-ec54-4c99-924c-4cecb5128a6e",
+      "id": "1c0e2d5c-21f1-4315-b9ab-e8371f7d8493",
       "kwargs": {
         "column": "is_recurring"
       },
@@ -557,7 +557,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "53e83306-a3d6-4abd-b971-d17e1b6e60e2",
+      "id": "f9a79a37-3563-40bf-bd45-2dd9b8c9351d",
       "kwargs": {
         "column": "is_recurring",
         "type_": "bool"
@@ -566,7 +566,7 @@
       "type": "expect_column_values_to_be_of_type"
     },
     {
-      "id": "55e0c4ad-e008-4388-9cb1-f88dfcce939c",
+      "id": "f3f50b37-25af-4c88-959d-9d9042539025",
       "kwargs": {
         "column": "previous_txn_id"
       },
@@ -574,7 +574,7 @@
       "type": "expect_column_to_exist"
     },
     {
-      "id": "9761bd43-30b6-4447-8e44-58bf26f01cc3",
+      "id": "46a515f4-27e9-4bd3-b055-364efe8cae07",
       "kwargs": {
         "column": "previous_txn_id",
         "type_": "object"
@@ -583,7 +583,7 @@
       "type": "expect_column_values_to_be_of_type"
     },
     {
-      "id": "0af1d0aa-a08c-4e36-b431-9427be90bdab",
+      "id": "5a734f1f-84e8-48b0-8d7a-5926617b5b1e",
       "kwargs": {
         "column": "label_fraud"
       },
@@ -591,7 +591,7 @@
       "type": "expect_column_to_exist"
     },
     {
-      "id": "03ee7b8f-1d16-400c-aa8f-656a4522cd13",
+      "id": "565a93ef-2bea-4555-923e-660396b244ae",
       "kwargs": {
         "column": "label_fraud"
       },
@@ -599,7 +599,7 @@
       "type": "expect_column_values_to_not_be_null"
     },
     {
-      "id": "61f00785-fdb2-44f5-8de6-b064c85849a7",
+      "id": "03260d98-4f91-4e1e-b02a-4406927ad4b2",
       "kwargs": {
         "column": "label_fraud",
         "type_": "bool"
@@ -608,9 +608,9 @@
       "type": "expect_column_values_to_be_of_type"
     }
   ],
-  "id": "4971b9c3-bf09-412a-ae27-dad70f4f10e0",
+  "id": "0db3de96-a80e-445e-8e84-008ddf2a4fea",
   "meta": {
-    "great_expectations_version": "1.4.5"
+    "great_expectations_version": "1.4.6"
   },
   "name": "txn_schema_suite",
   "notes": null
