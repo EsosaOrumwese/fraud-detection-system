@@ -12,7 +12,7 @@ CLI
 
 • Streams data in 100k-row chunks (constant RAM) to a single Snappy‐compressed Parquet.
 • Column order is enforced via the YAML schema.
-• Optionally uploads to S3 bucket defined in environment variable RAW_BUCKET.
+• Optionally uploads to S3 bucket defined in environment variable raw_bucket_name.
 """
 
 from __future__ import annotations
@@ -21,7 +21,6 @@ import argparse
 import datetime
 import logging
 import math
-import os
 import pathlib
 import random
 import time
@@ -39,6 +38,7 @@ from faker import Faker
 # from mimesis import Finance  # type: ignore
 # Since Mimesis no longer provides MCC in version 18.0.0, define a static list of common MCCs
 from .mcc_codes import MCC_CODES
+from fraud_detection.utils.param_store import get_param  # type: ignore
 
 # ---------- Setup logging ---------------------------------------------------
 logging.basicConfig(
@@ -287,7 +287,7 @@ def main() -> None:
         "--s3",
         choices=["yes", "no"],
         default="no",
-        help="Whether to upload the final Parquet to S3 (requires RAW_BUCKET env var).",
+        help="Whether to upload the final Parquet to S3 (requires 'raw_bucket_name' env var).",
     )
 
     args = parser.parse_args()
@@ -296,9 +296,11 @@ def main() -> None:
     parquet_path = simulator.generate_to_parquet()
 
     if args.s3 == "yes":
-        bucket_name = os.environ.get("RAW_BUCKET")
+        bucket_name = get_param("/fraud/raw_bucket_name")
         if not bucket_name:
-            logger.error("Environment variable RAW_BUCKET not set. Aborting upload.")
+            logger.error(
+                "Environment variable `raw_bucket_name` not set. Aborting upload."
+            )
             raise SystemExit(1)
         simulator.upload_to_s3(parquet_path, bucket_name)
 
