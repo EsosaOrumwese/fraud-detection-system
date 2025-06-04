@@ -135,7 +135,7 @@ gen-smoke-data:
 	@poetry run python scripts/gen_dummy_parquet.py
 
 smoke-schema: ge-bootstrap gen-smoke-data
-	@echo "✓ Running GE smoke-test against tmp/dummy.parquet"
+	@echo "+ Running GE smoke-test against tmp/dummy.parquet"
 	@$(MAKE) ge-validate FILE=tmp/dummy.parquet
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -151,12 +151,12 @@ OUTDIR ?= outputs
 #   - Runs the generate.py module to produce a Parquet file with $(ROWS) rows
 #   - Writes into $(OUTDIR)
 gen-data:
-	@echo "→ Generating $(ROWS) rows into $(OUTDIR)..."
+	@echo "-> Generating $(ROWS) rows into $(OUTDIR)..."
 	poetry run python -m src.fraud_detection.simulator.generate --rows $(ROWS) --out $(OUTDIR)
 
 # Profile target: depends on data, then profiles the most recent Parquet in $(OUTDIR)
 profile: gen-data
-	@echo "→ Profiling Parquet in $(OUTDIR)..."
+	@echo "-> Profiling Parquet in $(OUTDIR)..."
 	@FILE=$(shell ls $(OUTDIR)/payments_$(subst ,,$(ROWS))_*.parquet | tail -n1) && \
 	if [ -z "$$FILE" ]; then \
 	  echo "Error: No Parquet matching payments_$(subst ,,$(ROWS))_*.parquet in $(OUTDIR)"; \
