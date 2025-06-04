@@ -1,5 +1,5 @@
 [project]
-name = "fraud-detection-system"
+name = "fraud_detection"
 version = "0.1.0"
 description = "Portfolio fraud detection project"
 authors = [

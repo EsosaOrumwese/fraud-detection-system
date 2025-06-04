@@ -14,11 +14,16 @@ export PYTHONUTF8 = 1
 # ────────────────────────────────────────────────────────────────────────────
 # Terraform targets
 # ────────────────────────────────────────────────────────────────────────────
-.PHONY: tf-init tf-init-remote tf-plan tf-apply nuke
+.PHONY: tf-init tf-init-remote tf-plan tf-apply pull-raw-bucket nuke
 
 tf-init:
 	terraform -chdir=$(TF_DIR) init
 
+## After this, import your oidc providers so as to prevent an error. Get arn with command below
+#	$ aws iam list-open-id-connect-providers
+## Next run this to import your provider
+#  $ terraform -chdir=infra/terraform import aws_iam_openid_connect_provider.github \
+#		arn:aws:iam::<YOUR_ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com
 tf-init-remote:
 	terraform -chdir=infra/terraform init -reconfigure
 
@@ -29,6 +34,11 @@ tf-plan:
 
 tf-apply:
 	terraform -chdir=$(TF_DIR) apply $(TF_PLAN)
+
+# 2) Fetch RAW_BUCKET from SSM and cache to .env
+pull-raw-bucket:
+	@echo "-> Fetching raw bucket name from SSM and caching to .env..."
+	@poetry run python scripts/pull_raw_bucket.py
 
 nuke:
 	terraform -chdir=$(TF_DIR) destroy -auto-approve
@@ -63,6 +73,9 @@ infracost:
 	  --format diff \
 	  --show-skipped
 
+
+
+
 # ────────────────────────────────────────────────────────────────────────────
 # Budget & Alarms
 # ────────────────────────────────────────────────────────────────────────────
@@ -78,6 +91,9 @@ alarm-test:    ## Force a billing alarm into ALARM state
 	  --state-value  ALARM \
 	  --state-reason "manual-test via make alarm-test"
 
+
+
+
 # ────────────────────────────────────────────────────────────────────────────
 # Build Lambda
 # ────────────────────────────────────────────────────────────────────────────
@@ -86,6 +102,9 @@ alarm-test:    ## Force a billing alarm into ALARM state
 build-lambda:
 	mkdir -p infra/terraform/lambda
 	python -m zipfile -c infra/terraform/lambda/cost_kill.zip lambda/index.py
+
+
+
 
 # ────────────────────────────────────────────────────────────────────────────
 # Generate Markdown data dictionary
@@ -108,6 +127,9 @@ bump-schema:  ## Args: kind=[patch|minor|major] (default patch)
 	git add config/transaction_schema.yaml
 	git commit -m "chore(schema): bump version"
 	git tag "schema-v$$(yq '.version' config/transaction_schema.yaml)"
+
+
+
 
 # ────────────────────────────────────────────────────────────────────────────
 # Great Expectations Bootstrap and Validate
@@ -138,6 +160,9 @@ smoke-schema: ge-bootstrap gen-smoke-data
 	@echo "+ Running GE smoke-test against tmp/dummy.parquet"
 	@$(MAKE) ge-validate FILE=tmp/dummy.parquet
 
+
+
+
 # ────────────────────────────────────────────────────────────────────────────
 # ---------- DATA GEN ----------
 # ────────────────────────────────────────────────────────────────────────────
@@ -147,15 +172,22 @@ smoke-schema: ge-bootstrap gen-smoke-data
 ROWS ?= 1_000_000
 OUTDIR ?= outputs
 
-# Data generation target:
-#   - Runs the generate.py module to produce a Parquet file with $(ROWS) rows
-#   - Writes into $(OUTDIR)
+# 1) Generate data locally only (no S3 upload).
 gen-data:
 	@echo "-> Generating $(ROWS) rows into $(OUTDIR)..."
-	poetry run python -m src.fraud_detection.simulator.generate --rows $(ROWS) --out $(OUTDIR)
+	poetry run python -m src.fraud_detection.simulator.generate \
+		--rows $(ROWS) --out $(OUTDIR) --s3 no
 
-# Profile target: depends on data, then profiles the most recent Parquet in $(OUTDIR)
-profile: gen-data
+# 2) Generate data AND upload directly to RAW_BUCKET (will read from .env)
+gen-data-raw: pull-raw-bucket
+	@echo "-> RAW_BUCKET is $${FRAUD_RAW_BUCKET_NAME}"
+	@echo "-> Generating $(ROWS) rows into $(OUTDIR) and uploading to s3://$${FRAUD_RAW_BUCKET_NAME}..."
+	@RAW_BUCKET=$${FRAUD_RAW_BUCKET_NAME} \
+	poetry run python -m src.fraud_detection.simulator.generate \
+	  --rows $(ROWS) --out $(OUTDIR) --s3 yes
+
+# 3) Profile target: depends on gen-data (local‐only) and then profiles with our script.
+profile: #gen-data
 	@echo "-> Profiling Parquet in $(OUTDIR)..."
 	@FILE=$(shell ls $(OUTDIR)/payments_$(subst ,,$(ROWS))_*.parquet | tail -n1) && \
 	if [ -z "$$FILE" ]; then \
