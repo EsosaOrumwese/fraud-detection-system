@@ -199,3 +199,17 @@ profile: #gen-data
 # Clean target: remove the entire outputs directory
 clean-memory:
 	rm -rf $(OUTDIR)
+
+
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# ---------- ML Model Performance Check ----------
+# ────────────────────────────────────────────────────────────────────────────
+.PHONY: train mlflow-ui
+
+train:  ## Train baseline model on 500 k rows
+	poetry run python -m fraud_detection.modelling.train_baseline --rows 500000
+
+mlflow-ui:  ## Launch MLflow UI for local inspection
+	poetry run mlflow ui -p 5000

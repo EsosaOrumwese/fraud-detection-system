@@ -29,7 +29,6 @@ import hashlib
 from typing import Dict, List, Optional
 
 import boto3  # type: ignore
-import botocore  # type: ignore
 import polars as pl  # type: ignore
 import pyarrow.parquet as pq  # type: ignore
 import yaml  # type: ignore
@@ -262,11 +261,8 @@ class TransactionSimulator:
         today = datetime.date.today()
         key = f"payments/year={today.year}/month={today:%m}/{file_path.name}"
 
-        s3_client = boto3.client(
-            "s3", config=botocore.client.Config(signature_version="s3v4")
-        )
         logger.info(f"Uploading {file_path} to s3://{bucket}/{key} …")
-        s3_client.upload_file(str(file_path), bucket, key)
+        boto3.client("s3").upload_file(str(file_path), bucket, key)
         logger.info(f"Upload complete → s3://{bucket}/{key}")
 
 
