@@ -41,6 +41,8 @@ from sklearn.preprocessing import OneHotEncoder  # type: ignore
 from xgboost import XGBClassifier
 import boto3  # type: ignore
 
+from src.fraud_detection.utils.datetime_featurizer import DateTimeFeaturizer
+
 # ─── MODULE-LEVEL CONSTANTS ──────────────────────────────────────────────────
 
 logger = logging.getLogger(__name__)
@@ -67,7 +69,8 @@ def load_schema(schema_path: pathlib.Path) -> dict[str, Any]:
 
 SCHEMA = load_schema(SCHEMA_PATH)
 TARGET = "label_fraud"
-# Identify which columns are categorical vs. numeric
+
+# Extract columns by dtype
 CATEGORICAL: list[str] = [
     f["name"]
     for f in SCHEMA["fields"]
@@ -76,7 +79,14 @@ CATEGORICAL: list[str] = [
 NUMERIC: list[str] = [
     f["name"]
     for f in SCHEMA["fields"]
-    if f.get("dtype") in ("int", "float", "datetime")
+    if f.get("dtype") in ("int", "float")
+]
+
+# I am just expecting on datetime column
+DATETIME: list[str] = [
+    f["name"]
+    for f in SCHEMA["fields"]
+    if f.get("dtype") == "datetime"
 ]
 
 # ─── DATA LOADING & PREPROCESSING HELPERS ─────────────────────────────────────
@@ -142,7 +152,7 @@ def build_pipeline(
     tree_method: str = "hist",
 ) -> Pipeline:
     """
-    Construct a scikit-learn pipeline: OneHotEncoder → passthrough numerics → XGBoost.
+    Construct a scikit-learn pipeline: DateTimeFeaturizer → OneHotEncoder → passthrough numerics → XGBoost.
 
     Args:
         max_categories: `max_categories` argument for OneHotEncoder (sklearn ≥1.4).
@@ -154,6 +164,10 @@ def build_pipeline(
     Returns:
         A sklearn Pipeline that accepts raw DataFrame (with SCHEMA columns) and yields a fitted XGBClassifier.
     """
+    dt_pipe = Pipeline([
+        ("featurize", DateTimeFeaturizer(fields=DATETIME, cyclical=True)),
+    ])
+
     one_hot = OneHotEncoder(
         handle_unknown="ignore",
         sparse_output=True,
@@ -161,6 +175,7 @@ def build_pipeline(
     )
     ct = ColumnTransformer(
         transformers=[
+            ("dt", dt_pipe, DATETIME),
             ("cat", one_hot, CATEGORICAL),
             ("num", "passthrough", NUMERIC),
         ],
