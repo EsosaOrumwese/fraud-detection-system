@@ -4,7 +4,7 @@ Baseline fraud classifier: XGBoost + sklearn ColumnTransformer.
 Usage (as a CLI):
     poetry run python -m fraud_detection.modelling.train_baseline \
         --rows 500000 \
-        --parquet outputs/payments_1000000_1_000_000.parquet \
+        --parquet outputs/payments_1_000_000.parquet \
         --n-est 300 \
         --max-depth 6 \
         --learning-rate 0.1 \
@@ -31,6 +31,7 @@ from typing import Any
 
 import mlflow
 import mlflow.sklearn
+from mlflow.models.signature import infer_signature
 import pandas as pd  # type: ignore
 import polars as pl
 from sklearn.compose import ColumnTransformer  # type: ignore
@@ -41,7 +42,17 @@ from sklearn.preprocessing import OneHotEncoder  # type: ignore
 from xgboost import XGBClassifier
 import boto3  # type: ignore
 
-from src.fraud_detection.utils.datetime_featurizer import DateTimeFeaturizer
+from fraud_detection.utils.datetime_featurizer import DateTimeFeaturizer
+
+import warnings
+
+### Although my pipeline is fit, it still throws this error. So I'll ignore it for now till it's fixed
+warnings.filterwarnings(
+    "ignore",
+    message="This Pipeline instance is not fitted yet.*",
+    category=FutureWarning,
+)
+
 
 # ─── MODULE-LEVEL CONSTANTS ──────────────────────────────────────────────────
 
@@ -67,6 +78,8 @@ def load_schema(schema_path: pathlib.Path) -> dict[str, Any]:
         raise RuntimeError(f"Unable to parse YAML schema file: {e}") from e
 
 
+# ─── DEFINING IMPORTANT VARIABLES ─────────────────────────────────────
+
 SCHEMA = load_schema(SCHEMA_PATH)
 TARGET = "label_fraud"
 
@@ -74,19 +87,16 @@ TARGET = "label_fraud"
 CATEGORICAL: list[str] = [
     f["name"]
     for f in SCHEMA["fields"]
-    if f.get("dtype") in ("enum", "string") and f["name"] != TARGET
+    if f.get("dtype") in ("enum", "string", "bool") and f["name"] != TARGET
 ]
 NUMERIC: list[str] = [
-    f["name"]
-    for f in SCHEMA["fields"]
-    if f.get("dtype") in ("int", "float")
+    f["name"] for f in SCHEMA["fields"] if f.get("dtype") in ("int", "float")
 ]
+INTEGER: list[str] = [f["name"] for f in SCHEMA["fields"] if f.get("dtype") == "int"]
 
 # I am just expecting on datetime column
 DATETIME: list[str] = [
-    f["name"]
-    for f in SCHEMA["fields"]
-    if f.get("dtype") == "datetime"
+    f["name"] for f in SCHEMA["fields"] if f.get("dtype") == "datetime"
 ]
 
 # ─── DATA LOADING & PREPROCESSING HELPERS ─────────────────────────────────────
@@ -111,15 +121,20 @@ def load_data(
     if not parquet_path.exists():
         raise FileNotFoundError(f"Parquet file not found at {parquet_path.resolve()}")
     # Count total rows in Parquet
-    total_rows_df = pl.scan_parquet(parquet_path).select(pl.count()).collect()
-    total_rows = int(total_rows_df["count"][0])
+    total_rows_df = pl.scan_parquet(parquet_path).select(pl.len()).collect()
+    total_rows = int(total_rows_df["len"][0])
     if rows > total_rows:
         raise ValueError(f"Requested {rows} rows but file has only {total_rows} rows.")
 
     # Sample without replacement (deterministic)
-    df_polars = pl.read_parquet(parquet_path).sample(
-        n=rows, seed=seed, with_replacement=False
-    )
+    # df_polars = pl.read_parquet(parquet_path).sample(
+    #     n=rows, seed=seed, with_replacement=False
+    # )
+    # Wrap reads & sampling in the global cache:
+    with pl.StringCache():
+        df_polars = pl.read_parquet(parquet_path).sample(
+            n=rows, seed=seed, with_replacement=False
+        )
     df = df_polars.to_pandas()
     logger.info("Loaded %d rows from %s", rows, parquet_path.name)
     return df
@@ -164,13 +179,16 @@ def build_pipeline(
     Returns:
         A sklearn Pipeline that accepts raw DataFrame (with SCHEMA columns) and yields a fitted XGBClassifier.
     """
-    dt_pipe = Pipeline([
-        ("featurize", DateTimeFeaturizer(fields=DATETIME, cyclical=True)),
-    ])
+    dt_pipe = Pipeline(
+        [
+            ("featurize", DateTimeFeaturizer(fields=DATETIME, cyclical=True)),
+        ]
+    )
 
     one_hot = OneHotEncoder(
         handle_unknown="ignore",
         sparse_output=True,
+        drop="first",
         max_categories=max_categories,
     )
     ct = ColumnTransformer(
@@ -236,7 +254,7 @@ def quick_train(
     n_estimators: int = 50,
     max_depth: int = 3,
     learning_rate: float = 0.1,
-) -> tuple[float, pathlib.Path] | float:
+) -> tuple[float, pathlib.Path] | float:  # type: ignore
     """
     A fast, in-memory train/test pass (used by unit tests).
 
@@ -267,6 +285,9 @@ def quick_train(
         raise KeyError(f"Target column '{TARGET}' missing from data.")
 
     X = df.drop(columns=[TARGET])
+    # convert int to float to avoid MLFlow warnings about NULL and ints breaking schema
+    X[INTEGER] = X[INTEGER].astype(float)
+
     # Cast label_fraud (bool) → int (0/1) for XGBoost
     y = df[TARGET].astype(int)
 
@@ -372,7 +393,8 @@ def main() -> None:
         if TARGET not in df.columns:
             raise KeyError(f"Target column '{TARGET}' missing from data.")
         X = df.drop(columns=[TARGET])
-        y = df[TARGET]
+        # convert int to float to avoid MLFlow warnings about NULL and ints breaking schema
+        X[INTEGER] = X[INTEGER].astype(float)
         y = df[TARGET].astype(int)
 
         # Split
@@ -426,10 +448,12 @@ def main() -> None:
             logger.info("Test AUC-PR: %.4f", auc_pr)
 
             # Log pipeline (preprocessing + model) as a single sklearn artifact
+            sig = infer_signature(X_train, preds)
             mlflow.sklearn.log_model(
                 sk_model=pipeline,
                 artifact_path="pipeline_artifact",
                 registered_model_name="fraud_xgb",
+                signature=sig,
             )
 
             # optional S3‐upload of model artifacts

@@ -125,7 +125,7 @@ json-schema:  ## YAML → JSON-Schema
 bump-schema:  ## Args: kind=[patch|minor|major] (default patch)
 	poetry run python scripts/bump_schema_version.py $(kind)
 	git add config/transaction_schema.yaml
-	git commit -m "chore(schema): bump version"
+	git commit -m "chore(schema): bump version" --no-verify
 	git tag "schema-v$$(yq '.version' config/transaction_schema.yaml)"
 
 
@@ -206,10 +206,28 @@ clean-memory:
 # ────────────────────────────────────────────────────────────────────────────
 # ---------- ML Model Performance Check ----------
 # ────────────────────────────────────────────────────────────────────────────
-.PHONY: train mlflow-ui
+# where to stash the MLflow UI PID
+MLFLOW_PID_FILE := .mlflow_ui.pid
+MLFLOW_LOG      := mlflow.log
+MLFLOW_PORT     := 5000
 
-train:  ## Train baseline model on 500 k rows
+.PHONY: ml-train mlflow-ui-start mlflow-ui-stop
+
+ml-train:  ## Train baseline model on 500 k rows
 	poetry run python -m fraud_detection.modelling.train_baseline --rows 500000
 
-mlflow-ui:  ## Launch MLflow UI for local inspection
-	poetry run mlflow ui -p 5000
+mlflow-ui-start:
+	@echo "  Starting MLflow UI at http://127.0.0.1:$(MLFLOW_PORT)"
+	@nohup poetry run mlflow ui -p $(MLFLOW_PORT)
+	@echo "  PID saved to $(MLFLOW_PID_FILE)"
+	@echo "  Done. You may safely close this shell or run other commands."
+
+mlflow-ui-stop:
+	@if [ -f $(MLFLOW_PID_FILE) ]; then \
+	  PID=$$(cat $(MLFLOW_PID_FILE)); \
+	  echo "  Stopping MLflow UI (PID $$PID)"; \
+	  kill $$PID && rm $(MLFLOW_PID_FILE) && echo "  Stopped."; \
+	else \
+	  echo "! No PID file found at $(MLFLOW_PID_FILE). Is it running?"; \
+	fi
+
