@@ -69,7 +69,9 @@ fields:
   nullable: false
   example: GB
 - name: mcc_code
-  dtype: int
+  dtype: enum
+  enum:
+  - $ref: src/fraud_detection/simulator/mcc_codes.py
   description: 4-digit Merchant Category Code (ISO-8583 field 18).
   nullable: true
   example: 5411
