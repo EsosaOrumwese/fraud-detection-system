@@ -129,3 +129,7 @@ dmypy.json
 .terraform/
 /infra/terraform/terraform.tfvars
 infra/terraform/lambda/*.zip
+
+## mlflow and output data
+mlruns/
+outputs/
