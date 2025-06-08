@@ -1,237 +1,215 @@
-.PHONY: tf-init tf-plan tf-apply nuke tf-init-remote
+# ────────────────────────────────────────────────────────────────────────────
+#  Variables & Defaults
+# ────────────────────────────────────────────────────────────────────────────
+# Terraform
+TF_DIR         := infra/terraform
+TF_PLAN        := plan.out
+TFVARS         := terraform.tfvars
+ALARM_NAME     ?= Test Alarm
+
+# Data generation & ML
+ROWS           ?= 1_000_000
+OUTDIR         ?= outputs
+DATA_DIR	   ?= $(OUTDIR)/payments_$(subst ,,$(ROWS))_*.parquet
+SMOKE_ROWS     ?= 1_000
+PROFILE_ARGS   ?=
+ML_TRAIN_ARGS  ?=					# ML_TRAIN_ARGS="--n-est 200 --learning-rate 0.05"
+MLFLOW_PORT    ?= 5000
+MLFLOW_LOG     := mlflow.log
+MLFLOW_PID     := .mlflow_ui.pid
+
+# Great Expectations
+GE_FILE        ?= data/sample.parquet
+
+export PYTHONUTF8=1
 
 # ────────────────────────────────────────────────────────────────────────────
-# Variables
+#  Terraform (leave as-is; you can rename tf-apply→infra-apply etc. if you like)
 # ────────────────────────────────────────────────────────────────────────────
-TF_DIR   := infra/terraform
-TF_PLAN  := plan.out
-#ENV      ?= sandbox
-TFVARS   := terraform.tfvars
-ALARM_NAME    ?= fraud-sbx-billing-40gbp
-export PYTHONUTF8 = 1
-
-
-# ────────────────────────────────────────────────────────────────────────────
-# Terraform targets
-# ────────────────────────────────────────────────────────────────────────────
-.PHONY: tf-init tf-init-remote tf-plan tf-apply pull-raw-bucket pull-artifacts-bucket nuke
+.PHONY: tf-init tf-init-remote tf-plan tf-apply nuke pull-raw-bucket pull-artifacts-bucket
 
 tf-init:
+	@echo "-> terraform init"
 	terraform -chdir=$(TF_DIR) init
 
-## After this, import your oidc providers so as to prevent an error. Get arn with command below
-#	$ aws iam list-open-id-connect-providers
-## Next run this to import your provider
-#  $ terraform -chdir=infra/terraform import aws_iam_openid_connect_provider.github \
-#		arn:aws:iam::<YOUR_ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com
 tf-init-remote:
-	terraform -chdir=infra/terraform init -reconfigure
+	@echo "-> terraform init -reconfigure"
+	terraform -chdir=$(TF_DIR) init -reconfigure
 
 tf-plan:
+	@echo "-> terraform plan"
 	terraform -chdir=$(TF_DIR) plan \
 	  -var-file=$(TFVARS) \
 	  -out=$(TF_PLAN)
 
 tf-apply:
+	@echo "-> terraform apply"
 	terraform -chdir=$(TF_DIR) apply $(TF_PLAN)
 
-# 2) Fetch RAW_BUCKET from SSM and cache to .env
-pull-raw-bucket:
-	@echo "-> Fetching raw bucket name from SSM and caching to .env..."
-	@poetry run python scripts/pull_raw_bucket.py
-
-pull-artifacts-bucket:
-	@echo "-> Fetching artifacts bucket name from SSM and caching to .env..."
-	@poetry run python scripts/pull_artifacts_bucket.py
-
 nuke:
+	@echo "-> terraform destroy"
 	terraform -chdir=$(TF_DIR) destroy -auto-approve
 
+pull-raw-bucket:
+	@echo "-> pulling RAW_BUCKET into .env"
+	poetry run python scripts/pull_raw_bucket.py
+
+pull-artifacts-bucket:
+	@echo "-> pulling ARTIFACTS_BUCKET into .env"
+	poetry run python scripts/pull_artifacts_bucket.py
+
 # ────────────────────────────────────────────────────────────────────────────
-# Security / Scanning targets
+#  Security & Cost Scanning
 # ────────────────────────────────────────────────────────────────────────────
-.PHONY: checkov scan-trivy tfsec
+.PHONY: checkov scan-trivy tfsec infracost budget-test alarm-test
 
 checkov:
-	@echo "-> Running Checkov with UTF-8 forced"
-	checkov -d $(TF_DIR) \
-	  --framework terraform \
-	  --quiet \
-	  --soft-fail-on MEDIUM \
-	  --skip-path '$(TF_DIR)/lambda' \
-	  --skip-path '.*\.zip$$'
+	@echo "-> Running Checkov"
+	checkov -d $(TF_DIR) --framework terraform --quiet --soft-fail-on MEDIUM \
+	  --skip-path '$(TF_DIR)/lambda' --skip-path '.*\.zip$$'
 
 scan-trivy:
+	@echo "-> Running Trivy config scan"
 	trivy config $(TF_DIR)
 
 tfsec:
+	@echo "-> Running tfsec"
 	tfsec $(TF_DIR)
 
-# ────────────────────────────────────────────────────────────────────────────
-# Infracost
-# ────────────────────────────────────────────────────────────────────────────
-.PHONY: infracost
 infracost:
-	infracost diff \
-	  --path $(TF_DIR) \
-	  --format diff \
-	  --show-skipped
+	@echo "-> Running Infracost diff"
+	infracost diff --path $(TF_DIR) --format diff --show-skipped
 
+budget-test:
+	@echo "-> Triggering AWS Budget test alert"
+	@echo "  (login to AWS Console -> Budgets -> Send test alert)"
 
-
-
-# ────────────────────────────────────────────────────────────────────────────
-# Budget & Alarms
-# ────────────────────────────────────────────────────────────────────────────
-.PHONY: budget-test alarm-test
-
-budget-test:   ## Send dummy budget alert from console
-	@echo " Go to AWS Budgets -> your budget -> 'Send test alert'"
-
-alarm-test:    ## Force a billing alarm into ALARM state
-	@echo "-> Forcing alarm '$(ALARM_NAME)' to ALARM"
+alarm-test:
+	@echo "-> Forcing billing alarm into ALARM state"
 	aws cloudwatch set-alarm-state \
 	  --alarm-name "$(ALARM_NAME)" \
-	  --state-value  ALARM \
-	  --state-reason "manual-test via make alarm-test"
-
-
-
+	  --state-value ALARM \
+	  --state-reason "manual test via make alarm-test"
 
 # ────────────────────────────────────────────────────────────────────────────
-# Build Lambda
+#  Build Lambda ZIP
 # ────────────────────────────────────────────────────────────────────────────
 .PHONY: build-lambda
 
 build-lambda:
-	mkdir -p infra/terraform/lambda
-	python -m zipfile -c infra/terraform/lambda/cost_kill.zip lambda/index.py
-
-
-
+	@echo "-> Packaging Lambda ZIP"
+	@mkdir -p $(TF_DIR)/lambda
+	@python -m zipfile -c $(TF_DIR)/lambda/cost_kill.zip lambda/index.py
 
 # ────────────────────────────────────────────────────────────────────────────
-# Generate Markdown data dictionary
+#  Docs & Schema management
 # ────────────────────────────────────────────────────────────────────────────
 .PHONY: docs test-schema json-schema bump-schema
 
 docs:
+	@echo "-> Generating Markdown data dictionary"
 	@mkdir -p docs/data-dictionary
-	poetry run python scripts/schema_to_md.py > \
-	   docs/data-dictionary/schema_v$(shell yq '.version' config/transaction_schema.yaml).md
+	@poetry run python scripts/schema_to_md.py > \
+	  docs/data-dictionary/schema_v$$(yq '.version' config/transaction_schema.yaml).md
 
-test-schema:  ## Fast-path test
+test-schema:
+	@echo "-> Testing YAML schema syntax"
 	poetry run pytest -q tests/unit/test_schema_yaml.py
 
-json-schema:  ## YAML → JSON-Schema
+json-schema:
+	@echo "→ Converting YAML → JSON Schema"
 	poetry run python scripts/schema_to_json.py
 
-bump-schema:  ## Args: kind=[patch|minor|major] (default patch)
-	poetry run python scripts/bump_schema_version.py $(kind)
-	git add config/transaction_schema.yaml
-	git commit -m "chore(schema): bump version" --no-verify
-	git tag "schema-v$$(yq '.version' config/transaction_schema.yaml)"
-
-
-
+bump-schema:
+	@echo "-> Bumping schema version (kind=$(kind))"
+	@poetry run python scripts/bump_schema_version.py $(kind)
+	@git add config/transaction_schema.yaml
+	@git commit -m "chore(schema): bump version" --no-verify
+	@git tag "schema-v$$(yq '.version' config/transaction_schema.yaml)"
 
 # ────────────────────────────────────────────────────────────────────────────
-# Great Expectations Bootstrap and Validate
+#  Great Expectations
 # ────────────────────────────────────────────────────────────────────────────
-FILE ?= data/sample.parquet
+.PHONY: ge-bootstrap ge-validate smoke-schema
 
-.PHONY: ge-bootstrap gen-empty-parquet ge-validate smoke-schema
-
-# ――― Build GE context & suite ―――
 ge-bootstrap:
+	@echo "-> Bootstrapping Great Expectations"
 	poetry run python scripts/ge_bootstrap.py
 
-# ――― Generate empty Parquet matching your schema ―――
-gen-empty-parquet:
-	poetry run python scripts/gen_empty_parquet.py
-
-# ――― Validate a file (override with FILE=…) ―――
 ge-validate:
-	poetry run python scripts/ge_validate.py $(FILE)
+	@echo "-> Validating $(GE_FILE)"
+	poetry run python scripts/ge_validate.py $(GE_FILE)
 
-# ――― Smoke‐test: bootstrap → empty parquet → validate ―――
-
-# produce a single valid row
-gen-smoke-data:
-	@poetry run python scripts/gen_dummy_parquet.py
-
-smoke-schema: ge-bootstrap gen-smoke-data
-	@echo "+ Running GE smoke-test against tmp/dummy.parquet"
-	@$(MAKE) ge-validate FILE=tmp/dummy.parquet
-
-
-
+smoke-schema:
+	@echo "-> Smoke-testing schema with $(SMOKE_ROWS) rows"
+	@rm -rf tmp && mkdir -p tmp
+	poetry run python -m fraud_detection.simulator.generate \
+	  --rows $(SMOKE_ROWS) --out tmp --s3 no
+	poetry run python scripts/ge_validate.py tmp/payments_*_*.parquet
+	@rm -rf tmp
 
 # ────────────────────────────────────────────────────────────────────────────
-# ---------- DATA GEN ----------
+#  Data Generation & Profiling
 # ────────────────────────────────────────────────────────────────────────────
-.PHONY: gen-data profile clean-memory
+.PHONY: gen-data-local gen-data-raw validate-data gen-data profile clean-memory
 
-# Default number of rows and output directory (can be overridden via CLI)
-ROWS ?= 1_000_000
-OUTDIR ?= outputs
+gen-data-local:
+	@echo "-> Generating $(ROWS) rows (local)"
+	poetry run python -m fraud_detection.simulator.generate \
+	  --rows $(ROWS) --out $(OUTDIR) --s3 no
 
-# 1) Generate data locally only (no S3 upload).
-gen-data:
-	@echo "-> Generating $(ROWS) rows into $(OUTDIR)..."
-	poetry run python -m src.fraud_detection.simulator.generate \
-		--rows $(ROWS) --out $(OUTDIR) --s3 no
-
-# 2) Generate data AND upload directly to RAW_BUCKET (will read from .env)
-gen-data-raw: pull-raw-bucket
-	@echo "-> RAW_BUCKET is $${FRAUD_RAW_BUCKET_NAME}"
-	@echo "-> Generating $(ROWS) rows into $(OUTDIR) and uploading to s3://$${FRAUD_RAW_BUCKET_NAME}..."
-	@RAW_BUCKET=$${FRAUD_RAW_BUCKET_NAME} \
-	poetry run python -m src.fraud_detection.simulator.generate \
+gen-data-raw:
+	@echo "-> Generating $(ROWS) rows & uploading to RAW_BUCKET"
+	poetry run python -m fraud_detection.simulator.generate \
 	  --rows $(ROWS) --out $(OUTDIR) --s3 yes
 
-# 3) Profile target: depends on gen-data (local‐only) and then profiles with our script.
-profile: #gen-data
-	@echo "-> Profiling Parquet in $(OUTDIR)..."
-	@FILE=$(shell ls $(OUTDIR)/payments_$(subst ,,$(ROWS))_*.parquet | tail -n1) && \
+validate-data:
+	@echo "-> Validating latest Parquet"
+	@FILE=$$(ls $(OUTDIR)/payments_$(subst ,,$(ROWS))_*.parquet | tail -n1); \
 	if [ -z "$$FILE" ]; then \
-	  echo "Error: No Parquet matching payments_$(subst ,,$(ROWS))_*.parquet in $(OUTDIR)"; \
-	  exit 1; \
-	fi && \
-	poetry run python scripts/profile_parquet.py "$$FILE"
-
-# Clean target: remove the entire outputs directory
-clean-memory:
-	rm -rf $(OUTDIR)
-
-
-
-
-# ────────────────────────────────────────────────────────────────────────────
-# ---------- ML Model Performance Check ----------
-# ────────────────────────────────────────────────────────────────────────────
-# where to stash the MLflow UI PID
-MLFLOW_PID_FILE := .mlflow_ui.pid
-MLFLOW_LOG      := mlflow.log
-MLFLOW_PORT     := 5000
-
-.PHONY: ml-train mlflow-ui-start mlflow-ui-stop
-
-ml-train:  ## Train baseline model on 500 k rows
-	poetry run python -m fraud_detection.modelling.train_baseline --rows 500000
-
-mlflow-ui-start:
-	@echo "  Starting MLflow UI at http://127.0.0.1:$(MLFLOW_PORT)"
-	@nohup poetry run mlflow ui -p $(MLFLOW_PORT)
-	@echo "  PID saved to $(MLFLOW_PID_FILE)"
-	@echo "  Done. You may safely close this shell or run other commands."
-
-mlflow-ui-stop:
-	@if [ -f $(MLFLOW_PID_FILE) ]; then \
-	  PID=$$(cat $(MLFLOW_PID_FILE)); \
-	  echo "  Stopping MLflow UI (PID $$PID)"; \
-	  kill $$PID && rm $(MLFLOW_PID_FILE) && echo "  Stopped."; \
+	  echo "x No file to validate"; exit 1; \
 	else \
-	  echo "! No PID file found at $(MLFLOW_PID_FILE). Is it running?"; \
+	  poetry run python scripts/ge_validate.py $$FILE; \
 	fi
 
+# Combined pipeline
+gen-data: gen-data-local validate-data
+
+profile:
+	@echo "-> Profiling parquet"
+	@FILE=$$(ls $(OUTDIR)/payments_$(subst ,,$(ROWS))_*.parquet | tail -n1); \
+	if [ -z "$$FILE" ]; then \
+	  echo "✗ No parquet to profile"; exit 1; \
+	else \
+	  poetry run python scripts/profile_parquet.py "$$FILE"; \
+	fi
+
+clean-memory:
+	@echo "→ Cleaning output directory"
+	@rm -rf $(OUTDIR)
+
+# ────────────────────────────────────────────────────────────────────────────
+#  Model Training & MLflow UI
+# ────────────────────────────────────────────────────────────────────────────
+.PHONY: ml-train mlflow-ui-start mlflow-ui-stop
+
+ml-train:
+	@echo "-> Training model (rows=$(ROWS))"
+	poetry run python -m fraud_detection.modelling.train_baseline \
+	  --rows $(ROWS) \
+	  --parquet $(DATA_DIR) $(ML_TRAIN_ARGS)
+
+mlflow-ui-start:
+	@echo "-> Starting MLflow UI on port $(MLFLOW_PORT)"
+	@nohup poetry run mlflow ui -p $(MLFLOW_PORT) \
+	  >$(MLFLOW_LOG) 2>&1 & echo $$! >$(MLFLOW_PID)
+	@echo "   Logs: $(MLFLOW_LOG), PID: $(MLFLOW_PID)"
+
+mlflow-ui-stop:
+	@if [ -f $(MLFLOW_PID) ]; then \
+	  PID=$$(cat $(MLFLOW_PID)); \
+	  echo "-> Stopping MLflow UI (PID $$PID)"; \
+	  kill $$PID && rm $(MLFLOW_PID); \
+	else \
+	  echo "x No PID file at $(MLFLOW_PID)"; \
+	fi
