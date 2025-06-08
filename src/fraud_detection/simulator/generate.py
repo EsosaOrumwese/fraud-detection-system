@@ -68,12 +68,12 @@ COLUMNS: List[str] = [field_dict["name"] for field_dict in SCHEMA["fields"]]
 
 # map YAML "dtype" → an actual Polars DataType instance
 _DTYPES: dict[str, pl.DataType] = {
-    "int":      Int64(),             # nullable 64-bit int
-    "float":    Float64(),           # nullable 64-bit float
-    "string":   Utf8(),              # UTF-8 string
-    "bool":     Boolean(),           # nullable boolean
-    "datetime": Datetime("ns","UTC"),# timestamp[ns, UTC]
-    "enum":     Categorical(),       # categorical for enums
+    "int": Int64(),  # nullable 64-bit int
+    "float": Float64(),  # nullable 64-bit float
+    "string": Utf8(),  # UTF-8 string
+    "bool": Boolean(),  # nullable boolean
+    "datetime": Datetime("ns", "UTC"),  # timestamp[ns, UTC]
+    "enum": Categorical(),  # categorical for enums
 }
 
 # now map each field name to its Polars type
@@ -238,7 +238,9 @@ class TransactionSimulator:
             # 2b. Build a Polars DataFrame with the correct schema/order
             df_chunk = pl.from_dicts(
                 chunk_dicts, schema_overrides=SCHEMA_POLARS
-            ).select(COLUMNS)  # enforce column order exactly as in YAML
+            ).select(
+                COLUMNS
+            )  # enforce column order exactly as in YAML
 
             # 2c. Convert to PyArrow table
             arrow_table = df_chunk.to_arrow()
