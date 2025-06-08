@@ -241,6 +241,28 @@ def setup_mlflow(
 
 
 def _upload_folder(run_id: str, artifact_path: str, bucket: str):
+    """
+    Recursively upload all artifacts from a given MLflow run path into an S3 bucket.
+
+    This function traverses the MLflow artifact directory structure for the specified
+    run and artifact path. It lists each entry using the MLflowClient API; if the entry
+    is a directory, it recurses into that directory, and if it is a file, it downloads
+    that file locally and uploads it to the given S3 bucket under the key
+    `models/{run_id}/{artifact_relative_path}`. Logs a warning if the starting path
+    contains no artifacts, and logs an info message for each successful upload.
+
+    Args:
+        run_id (str):
+            The MLflow run identifier whose artifacts should be uploaded.
+        artifact_path (str):
+            The root artifact subdirectory (e.g. "pipeline_artifact") within the run
+            from which to begin uploading.
+        bucket (str):
+            The name of the target S3 bucket where artifacts will be stored.
+
+    Returns:
+        None
+    """
     from mlflow.tracking import MlflowClient
 
     client = MlflowClient()
