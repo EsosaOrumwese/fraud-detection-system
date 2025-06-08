@@ -240,6 +240,29 @@ def setup_mlflow(
     logger.info("MLflow experiment set to '%s' at '%s'", experiment_name, tracking_uri)
 
 
+def _upload_folder(run_id: str, artifact_path: str, bucket: str):
+    from mlflow.tracking import MlflowClient
+
+    client = MlflowClient()
+    items = client.list_artifacts(run_id, artifact_path)
+    if not items:
+        logger.warning("No artifacts found at '%s' for run %s", artifact_path, run_id)
+        return
+
+    for item in items:
+        # item.path is already like "pipeline_artifact/MLmodel" or deeper
+        path_in_repo = item.path
+        if item.is_dir:
+            _upload_folder(run_id, path_in_repo, bucket)
+        else:
+            # this will pull down exactly that artifact file
+            local_path = client.download_artifacts(run_id, path_in_repo)
+            # put it under models/<run_id>/<relative_path>
+            key = f"models/{run_id}/{path_in_repo}"
+            boto3.client("s3").upload_file(str(local_path), bucket, key)
+            logger.info("Uploaded %s → s3://%s/%s", path_in_repo, bucket, key)
+
+
 # ─── QUICK-TRAIN FUNCTION FOR UNIT TESTS ─────────────────────────────────────────
 
 
@@ -461,24 +484,15 @@ def main() -> None:
                 from fraud_detection.utils.param_store import get_param
 
                 bucket = get_param("/fraud/artifacts_bucket_name")
+                logger.info("Artifacts‐upload enabled; bucket from SSM: %r", bucket)
                 if not bucket:
                     logger.error("No artifacts bucket in SSM—skipping upload")
                 else:
-                    # assume pipeline was logged under 'pipeline_artifact'
-                    local_artifact_dir = (
-                        BASE_DIR
-                        / "mlruns"
-                        / run.info.run_id
-                        / "artifacts"
-                        / "pipeline_artifact"
-                    )
-                    for path in local_artifact_dir.rglob("*"):
-                        if path.is_file():
-                            key = f"models/{run.info.run_id}/{path.relative_to(local_artifact_dir)}"
-                            boto3.client("s3").upload_file(str(path), bucket, key)
-                            logger.info(
-                                "Uploaded %s → s3://%s/%s", path.name, bucket, key
-                            )
+                    run_id = run.info.run_id
+                    base_artifact_path = "pipeline_artifact"
+
+                    # kick it off
+                    _upload_folder(run_id, base_artifact_path, bucket)
 
             # Log a small sample (1%) of the source data for traceability
             sample_df = df.sample(frac=0.01, random_state=args.seed)

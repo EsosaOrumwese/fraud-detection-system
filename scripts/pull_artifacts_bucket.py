@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 """
-scripts/pull_raw_bucket.py
+scripts/pull_artifacts_bucket.py
 
-Fetch the SSM parameter "/fraud/raw_bucket_name", cache it to .env via get_param(),
+Fetch the SSM parameter "/fraud/artifacts_bucket_name", cache it to .env via get_param(),
 and print the environment‐variable assignment so Make or CI can pick it up.
 
 Usage:
-    poetry run python scripts/pull_raw_bucket.py
+    poetry run python scripts/pull_artifacts_bucket.py
 """
 import sys
 import pathlib
@@ -20,17 +20,17 @@ if str(PROJECT_ROOT) not in sys.path:
 
 def main():
     try:
-        bucket = get_param("/fraud/raw_bucket_name")
+        bucket = get_param("/fraud/artifacts_bucket_name")
     except Exception as e:
         print(
-            f"Error: could not read /fraud/raw_bucket_name from SSM ({e})",
+            f"Error: could not read /fraud/artifacts_bucket_name from SSM ({e})",
             file=sys.stderr,
         )
         sys.exit(1)
 
-    # get_param already wrote "FRAUD_RAW_BUCKET_NAME=<value>" into .env.
+    # get_param already wrote "FRAUD_ARTIFACTS_BUCKET_NAME=<value>" into .env.
     # We still echo it so Make or CI can grab it if needed.
-    print(f"FRAUD_RAW_BUCKET_NAME={bucket}")
+    print(f"FRAUD_ARTIFACTS_BUCKET_NAME={bucket}")
 
 
 if __name__ == "__main__":

@@ -14,7 +14,7 @@ export PYTHONUTF8 = 1
 # ────────────────────────────────────────────────────────────────────────────
 # Terraform targets
 # ────────────────────────────────────────────────────────────────────────────
-.PHONY: tf-init tf-init-remote tf-plan tf-apply pull-raw-bucket nuke
+.PHONY: tf-init tf-init-remote tf-plan tf-apply pull-raw-bucket pull-artifacts-bucket nuke
 
 tf-init:
 	terraform -chdir=$(TF_DIR) init
@@ -39,6 +39,10 @@ tf-apply:
 pull-raw-bucket:
 	@echo "-> Fetching raw bucket name from SSM and caching to .env..."
 	@poetry run python scripts/pull_raw_bucket.py
+
+pull-artifacts-bucket:
+	@echo "-> Fetching artifacts bucket name from SSM and caching to .env..."
+	@poetry run python scripts/pull_artifacts_bucket.py
 
 nuke:
 	terraform -chdir=$(TF_DIR) destroy -auto-approve
