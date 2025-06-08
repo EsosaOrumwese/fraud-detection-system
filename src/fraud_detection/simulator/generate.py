@@ -29,8 +29,15 @@ import hashlib
 from typing import Dict, List, Optional
 
 import boto3  # type: ignore
-import botocore  # type: ignore
 import polars as pl  # type: ignore
+from polars.datatypes import (
+    Int64,
+    Float64,
+    Utf8,
+    Boolean,
+    Datetime,
+    Categorical,
+)
 import pyarrow.parquet as pq  # type: ignore
 import yaml  # type: ignore
 from faker import Faker
@@ -58,6 +65,22 @@ faker.seed_instance(42)
 # Load YAML once and extract column order
 SCHEMA = yaml.safe_load(SCHEMA_YAML.read_text())
 COLUMNS: List[str] = [field_dict["name"] for field_dict in SCHEMA["fields"]]
+
+# map YAML "dtype" → an actual Polars DataType instance
+_DTYPES: dict[str, pl.DataType] = {
+    "int": Int64(),  # nullable 64-bit int
+    "float": Float64(),  # nullable 64-bit float
+    "string": Utf8(),  # UTF-8 string
+    "bool": Boolean(),  # nullable boolean
+    "datetime": Datetime("ns", "UTC"),  # timestamp[ns, UTC]
+    "enum": Categorical(),  # categorical for enums
+}
+
+# now map each field name to its Polars type
+SCHEMA_POLARS: dict[str, pl.DataType] = {
+    f["name"]: _DTYPES.get(f["dtype"], pl.Utf8)  # type: ignore
+    for f in SCHEMA["fields"]
+}
 
 
 # You can extend this list as needed for more variety.
@@ -214,7 +237,7 @@ class TransactionSimulator:
 
             # 2b. Build a Polars DataFrame with the correct schema/order
             df_chunk = pl.from_dicts(
-                chunk_dicts, schema_overrides={"event_time": pl.Datetime("ns", "UTC")}
+                chunk_dicts, schema_overrides=SCHEMA_POLARS
             ).select(
                 COLUMNS
             )  # enforce column order exactly as in YAML
@@ -262,11 +285,8 @@ class TransactionSimulator:
         today = datetime.date.today()
         key = f"payments/year={today.year}/month={today:%m}/{file_path.name}"
 
-        s3_client = boto3.client(
-            "s3", config=botocore.client.Config(signature_version="s3v4")
-        )
         logger.info(f"Uploading {file_path} to s3://{bucket}/{key} …")
-        s3_client.upload_file(str(file_path), bucket, key)
+        boto3.client("s3").upload_file(str(file_path), bucket, key)
         logger.info(f"Upload complete → s3://{bucket}/{key}")
 
 
