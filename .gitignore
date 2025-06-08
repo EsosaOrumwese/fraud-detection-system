@@ -133,3 +133,4 @@ infra/terraform/lambda/*.zip
 ## mlflow and output data
 mlruns/
 outputs/
+/nohup.out
