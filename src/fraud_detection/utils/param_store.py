@@ -46,7 +46,7 @@ def get_param(param_name: str) -> str:
 
     # Fetch from SSM
     ssm = boto3.client("ssm")
-    resp = ssm.get_parameter(Name=param_name)
+    resp = ssm.get_parameter(Name=param_name, WithDecryption=True)
     value = resp["Parameter"]["Value"]
 
     # Cache locally

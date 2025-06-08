@@ -80,7 +80,7 @@ for r in results["results"]:
     if not r["success"]:
         ep = r["expectation_config"]  # this is an ExpectationConfiguration
         # access attributes, not dictionary keys:
-        print(f"✗ {ep.type} failed on {ep.kwargs}")
+        print(f"{ep.type} failed on {ep.kwargs}")
 
 print(f"Validation success: {results.success}")
 sys.exit(0 if results.success else 1)

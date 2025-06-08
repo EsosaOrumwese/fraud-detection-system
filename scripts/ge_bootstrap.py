@@ -16,6 +16,8 @@ from great_expectations.expectations.core import (
     ExpectColumnValuesToBeInSet,
 )
 
+from fraud_detection.simulator.mcc_codes import MCC_CODES  # type: ignore
+
 # ─── Constants ─────────────────────────────────────────────────────────────────
 SCHEMA_PATH = Path("config/transaction_schema.yaml")  # Your source schema
 CTX_DIR = Path("great_expectations")  # GE project folder
@@ -44,7 +46,7 @@ dtype_map = {
     "float": "float64",
     "bool": "bool",
     "datetime": "Timestamp",
-    "enum": "object",
+    "enum": "CategoricalDtypeType",
 }
 
 # ─── 6) Loop through fields and add expectations ───────────────────────────────
@@ -67,7 +69,18 @@ for field in spec["fields"]:
         )
     )
 
-    # d) If the field is an enum, values must be in that set
+    # d)  for the *specific* mcc_code column, pull the python list:
+    if col == "mcc_code":
+        suite.add_expectation(
+            ExpectColumnValuesToBeInSet(
+                column=col,
+                value_set=[str(i) for i in MCC_CODES],
+                # ignore_row_if="all_values_are_missing",
+            )
+        )
+        continue
+
+    # e) If the field is an enum, values must be in that set
     if field.get("enum"):
         suite.add_expectation(
             ExpectColumnValuesToBeInSet(
