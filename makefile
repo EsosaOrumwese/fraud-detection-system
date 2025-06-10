@@ -26,7 +26,7 @@ export PYTHONUTF8=1
 # ────────────────────────────────────────────────────────────────────────────
 #  Terraform (leave as-is; you can rename tf-apply→infra-apply etc. if you like)
 # ────────────────────────────────────────────────────────────────────────────
-.PHONY: tf-init tf-init-remote tf-plan tf-apply nuke pull-raw-bucket pull-artifacts-bucket
+.PHONY: tf-init tf-init-remote tf-plan tf-apply pull-raw-bucket pull-artifacts-bucket nuke nuke-dry
 
 tf-init:
 	@echo "-> terraform init"
@@ -46,17 +46,24 @@ tf-apply:
 	@echo "-> terraform apply"
 	terraform -chdir=$(TF_DIR) apply $(TF_PLAN)
 
-nuke:
-	@echo "-> terraform destroy"
-	terraform -chdir=$(TF_DIR) destroy -auto-approve
-
 pull-raw-bucket:
-	@echo "-> pulling RAW_BUCKET into .env"
+	@echo "-> pulling FRAUD_RAW_BUCKET_NAME into .env"
 	poetry run python scripts/pull_raw_bucket.py
 
 pull-artifacts-bucket:
-	@echo "-> pulling ARTIFACTS_BUCKET into .env"
+	@echo "-> pulling FRAUD_ARTIFACTS_BUCKET_NAME into .env"
 	poetry run python scripts/pull_artifacts_bucket.py
+
+# Load RAW_BUCKET and ARTIFACTS_BUCKET from .env (via pull targets), then destroy
+nuke: pull-raw-bucket pull-artifacts-bucket
+	@echo "-> Running full sandbox teardown"
+	bash infra/scripts/nuke.sh
+
+# Dry-run the same teardown (skips confirmation & tag-check)
+nuke-dry:
+	@echo "-> Preview sandbox teardown (dry-run)"
+	@bash infra/scripts/nuke.sh --dry-run --force
+
 
 # ────────────────────────────────────────────────────────────────────────────
 #  Security & Cost Scanning
