@@ -9,7 +9,10 @@ resource "aws_vpc" "main" {
   enable_dns_support   = true
   enable_dns_hostnames = true
 
-  tags = { Name = "fraud-${var.environment}-vpc" } ## e.g. in this sandbox "fraud-sandbox--vpc"
+  tags = {
+    Environment = var.environment
+    Name        = "fraud-${var.environment}-vpc"
+  } ## e.g. in this sandbox "fraud-sandbox--vpc"
 }
 
 # Public subnet in AZ-a so future services (Fargate, Lambda) have outbound
@@ -22,13 +25,19 @@ resource "aws_subnet" "public_a" {
   availability_zone       = "${var.aws_region}a"
   map_public_ip_on_launch = true
 
-  tags = { Name = "fraud-${var.environment}-public-a" }
+  tags = {
+    Environment = var.environment
+    Name        = "fraud-${var.environment}-public-a"
+  }
 }
 
 # IGW + route table → make subnet actually public
 resource "aws_internet_gateway" "gw" {
   vpc_id = aws_vpc.main.id
-  tags   = { Name = "fraud-${var.environment}-igw" }
+  tags = {
+    Environment = var.environment
+    Name        = "fraud-${var.environment}-igw"
+  }
 }
 
 resource "aws_route_table" "public" {
@@ -39,7 +48,10 @@ resource "aws_route_table" "public" {
     gateway_id = aws_internet_gateway.gw.id
   }
 
-  tags = { Name = "fraud-${var.environment}-rt-public" }
+  tags = {
+    Environment = var.environment
+    Name        = "fraud-${var.environment}-rt-public"
+  }
 }
 
 resource "aws_route_table_association" "public_a" {
@@ -67,6 +79,10 @@ locals {
 #tfsec:ignore:aws-s3-enable-bucket-logging   # opting out of logging in sandbox
 resource "aws_s3_bucket" "raw" {
   bucket = local.raw_bucket_name
+
+  tags = {
+    Environment = var.environment
+  }
 }
 
 # Versioning keeps every object revision (cheap in dev, priceless in prod)
@@ -101,6 +117,10 @@ resource "aws_s3_bucket_public_access_block" "raw" {
 #tfsec:ignore:aws-s3-enable-bucket-logging   # opting out of logging in sandbox
 resource "aws_s3_bucket" "artifacts" {
   bucket = local.artifacts_bucket_name
+
+  tags = {
+    Environment = var.environment
+  }
 }
 
 resource "aws_s3_bucket_versioning" "artifacts" {
