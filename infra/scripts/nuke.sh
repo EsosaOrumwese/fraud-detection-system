@@ -48,22 +48,47 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-# ── Pull & source your bucket names ───────────────────────────────────────────
-log INFO "🔸 Fetching bucket names from SSM"
-run poetry run python scripts/pull_raw_bucket.py
-run poetry run python scripts/pull_artifacts_bucket.py
+# ─── Resolve bucket names ────────────────────────────────────────────────────
+# In CI dry-run tests, the two FRAUD_* vars are already set and PATH is stubbed,
+# so skip any poetry/python calls and just use those. Otherwise, fetch via SSM.
 
-set -o allexport
-[[ -f .env ]] || die ".env not found—did pull_* succeed?"
-# shellcheck disable=SC1091
-source .env
-set +o allexport
+if [[ -z "${FRAUD_RAW_BUCKET_NAME:-}" ]]; then
+  if $DRY_RUN; then
+    RAW_BUCKET="dummy-bucket"
+  else
+    log INFO "🔸 Fetching raw bucket name from SSM"
+    run poetry run python scripts/pull_raw_bucket.py
+  fi
+else
+  RAW_BUCKET="$FRAUD_RAW_BUCKET_NAME"
+fi
 
-[[ -n "${FRAUD_RAW_BUCKET_NAME:-}" && -n "${FRAUD_ARTIFACTS_BUCKET_NAME:-}" ]] \
-  || die "FRAUD_RAW_BUCKET_NAME & FRAUD_ARTIFACTS_BUCKET_NAME must be set"
+if [[ -z "${FRAUD_ARTIFACTS_BUCKET_NAME:-}" ]]; then
+  if $DRY_RUN; then
+    ART_BUCKET="dummy-bucket"
+  else
+    log INFO "🔸 Fetching artifacts bucket name from SSM"
+    run poetry run python scripts/pull_artifacts_bucket.py
+  fi
+else
+  ART_BUCKET="$FRAUD_ARTIFACTS_BUCKET_NAME"
+fi
 
-RAW_BUCKET="$FRAUD_RAW_BUCKET_NAME"
-ART_BUCKET="$FRAUD_ARTIFACTS_BUCKET_NAME"
+# If we ran the helpers above, source .env so their values land in our env
+if ! $DRY_RUN && [[ -f .env ]]; then
+  set -o allexport
+  # shellcheck disable=SC1091
+  source .env
+  set +o allexport
+  # overwrite in-script vars if the helpers wrote new values
+  RAW_BUCKET="${FRAUD_RAW_BUCKET_NAME:-$RAW_BUCKET}"
+  ART_BUCKET="${FRAUD_ARTIFACTS_BUCKET_NAME:-$ART_BUCKET}"
+fi
+
+# Final sanity check
+[[ -n "${RAW_BUCKET:-}" && -n "${ART_BUCKET:-}" ]] \
+  || die "RAW_BUCKET and ART_BUCKET must be set (env, test-env, or SSM)."
+
 
 # ── Safety Checks ────────────────────────────────────────────────────────────
 confirm() {
