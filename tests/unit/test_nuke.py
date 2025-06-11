@@ -7,8 +7,8 @@ def test_nuke_dry_runs_successfully(tmp_path, monkeypatch):
     monkeypatch.setenv("FRAUD_RAW_BUCKET_NAME", "dummy-bucket")
     monkeypatch.setenv("FRAUD_ARTIFACTS_BUCKET_NAME", "dummy-bucket")
     monkeypatch.setenv("MLFLOW_TRACKING_URI", "file:///nonexistent")
-    # stub out aws, terraform, python parts:
-    monkeypatch.setenv("PATH", str(tmp_path))  # place no-op binaries here if needed
+    # # stub out aws, terraform, python parts:
+    # monkeypatch.setenv("PATH", str(tmp_path))  # place no-op binaries here if needed
 
     result = subprocess.run(
         ["bash", "infra/scripts/nuke.sh", "--dry-run", "--force"],
