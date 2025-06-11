@@ -2,7 +2,8 @@
 
 | ID       | Title                             | Date       | Status   |
 |----------|-----------------------------------|------------|----------|
-| ADR-0008 | **Adopt Feast as Feature Store**  | 2025-06-08 | Proposed |
+| ADR-0009 | Sandbox “Nuke” Script & Workflow  | 2025-06-09 | Proposed |
+| ADR-0008 | Adopt Feast as Feature Store      | 2025-06-08 | Proposed |
 | ADR-0007 | Baseline Fraud Model (XGBoost v2) | 2025-06-05 | Accepted |
 | ADR-0006 | Synthetic-Data Generator Design   | 2025-06-03 | Accepted |
 | ADR-0005 | Transaction Schema v0.1.0         | 2025-05-25 | Accepted |

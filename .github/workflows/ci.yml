@@ -18,7 +18,7 @@ env:
 jobs:
   # ──────────────────── LINT ────────────────────
   lint:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -97,6 +97,14 @@ jobs:
           flags: unittests
           fail_ci_if_error: true
           git_service: github
+      # ──────────────────── Nuke script dry-run ────────────────────
+      - name: Nuke script dry-run
+        run: |
+          echo "-> Verifying teardown script (dry-run)"
+          FRAUD_RAW_BUCKET_NAME=dummy \
+          FRAUD_ARTIFACTS_BUCKET_NAME=dummy \
+          MLFLOW_TRACKING_URI=dummy \
+          make nuke-dry
 
   # ──────────────────── SECURITY SCANS ────────────────────
   security:
