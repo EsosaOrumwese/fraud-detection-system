@@ -42,7 +42,7 @@ jobs:
           echo "amount=${AMOUNT:-0}" >> $GITHUB_OUTPUT
           echo "date=$START"         >> $GITHUB_OUTPUT
 
-          # 3 ▸ Post / update a comment in pinned issue #1
+          # 3 ▸ Post / update a comment in pinned issue #5
       - name: Comment daily spend
         uses: peter-evans/create-or-update-comment@v4
         with:
