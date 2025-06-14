@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 Bootstrap a GE 1.4.5 FileDataContext and build an ExpectationSuite
 that mirrors your YAML schema.

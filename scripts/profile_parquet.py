@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 profile_parquet.py ─ YData-Profiling on a sample of the Parquet.
 usage:
