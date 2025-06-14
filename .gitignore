@@ -134,3 +134,7 @@ infra/terraform/lambda/*.zip
 mlruns/
 outputs/
 /nohup.out
+
+# Airflow
+logs/
+postgres_data/
