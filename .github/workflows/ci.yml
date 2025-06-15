@@ -129,6 +129,32 @@ jobs:
           quiet: true
           soft_fail_on: MEDIUM
 
+
+  # ──────────────────── ORCHESTRATION TESTS (AIRFLOW) ────────────────────
+  orchestration-test:
+    needs: test
+    runs-on: ubuntu-latest
+    services:
+      docker:
+        image: docker:28.2.2
+        options: --privileged
+        ports:
+          - 2375:2375
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3.10.0
+
+      - name: Lint Airflow Compose file
+        run: docker compose -f orchestration/airflow/docker-compose.yml config
+
+      - name: Run Tests
+        run: |
+          make airflow-bootstrap
+          pytest --maxfail=1 --disable-warnings -q
+
+
   # ──────────────────── DATA QUALITY (Great Expectations) ────────────────────
   data-quality:
     needs: test

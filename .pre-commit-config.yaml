@@ -1,32 +1,26 @@
 repos:
-  # --- Python formatting ---------------------------------------------------
-  - repo: https://github.com/psf/black # auto-formatter
-    rev: 25.1.0 # pin for reproducibility
+  - repo: https://github.com/psf/black
+    rev: 25.1.0
     hooks:
       - id:
           black
 
-          # --- Python linting / complexity / unused --------------------------------
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.11.10
     hooks:
-      - id: ruff # 10–100× faster than flake8
+      - id: ruff
         args:
-          [--fix] # autofix trivial issues
+          [--fix]
 
-
-          # --- YAML formating             -------------------------------------------
   - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
-    rev: v2.14.0 # or whatever the latest tag is
+    rev: v2.14.0
     hooks:
-      # 1️⃣ Format & sort YAML (ruamel.yaml under the hood)
       - id: pretty-format-yaml
         exclude: '(^\.github/workflows/(ci|daily_cost)\.yml$|^\.pre-commit-config\.yaml$)'
         args: ["--autofix", "--indent", "2"]
         additional_dependencies:
           - ruamel.yaml==0.18.7
 
-            # still keep a syntax check
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
@@ -36,8 +30,14 @@ repos:
       - id: trailing-whitespace # strips stray spaces/tabs
         files: '^(config/.*|\.github/workflows/.*|scripts/.*|\.pre-commit-config\.yaml)$'
 
+  - repo: local
+    hooks:
+      - id: compose-lint
+        name: lint airflow compose
+        entry: docker compose -f orchestration/airflow/docker-compose.yml config
+        language: system
+        files: ^orchestration/airflow/docker-compose\.yml$
 
-          # --- Type checking -------------------------------------------------------
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.15.0
     hooks:
@@ -45,8 +45,6 @@ repos:
         additional_dependencies:
           [types-requests] # add stubs as needed
 
-
-          # --- Pytest --------------------------------------------------------------
   - repo: local
     hooks:
       - id: pytest
@@ -57,20 +55,14 @@ repos:
         pass_filenames:
           false
 
-          ## Needs fixing. `Error: Unable to read baseline`
-          ## Solution: .secrets.baseline created in UTF-16. I manually changed it to UTF-8.
-          # --- Secrets scanning ----------------------------------------------------
   - repo: https://github.com/Yelp/detect-secrets
     rev: v1.5.0
     hooks:
       - id: detect-secrets
         args: [--baseline, .secrets.baseline] # allows approved secrets list
         exclude:
-          .*package(-lock)?\.json$ # skip JS lockfiles
+          .*package(-lock)?\.json$
 
-
-          # --- Terraform hygiene & security ---------------------------------------
-          # use `checkov -f infra/terraform/main.tf --quiet` for checkov instead
   - repo: https://github.com/antonbabenko/pre-commit-terraform
     rev: v1.99.0
     hooks:
