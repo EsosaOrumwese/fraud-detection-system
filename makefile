@@ -234,8 +234,15 @@ airflow-bootstrap:
 	@echo "Bootstrapping Airflow secrets..."
 	@bash -c 'exec "$(AIRFLOW_DIR)/scripts/bootstrap.sh"'
 
+make airflow-build:
+	@echo "Rebuilding your custom image..."
+	@$(COMPOSE) --env-file $(ENV_FILE) build
+
 airflow-up: airflow-bootstrap
 	@echo "Starting Airflow..."
+	@echo "   Initialize DB and Admin User"
+	@$(COMPOSE) --env-file $(ENV_FILE) up airflow-init
+	@echo "   Bring up the long running services"
 	@$(COMPOSE) --env-file $(ENV_FILE) up -d --wait
 
 airflow-down:
