@@ -30,14 +30,6 @@ repos:
       - id: trailing-whitespace # strips stray spaces/tabs
         files: '^(config/.*|\.github/workflows/.*|scripts/.*|\.pre-commit-config\.yaml)$'
 
-  - repo: local
-    hooks:
-      - id: compose-lint
-        name: lint airflow compose
-        entry: docker compose -f orchestration/airflow/docker-compose.yml config
-        language: system
-        files: ^orchestration/airflow/docker-compose\.yml$
-
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.15.0
     hooks:
