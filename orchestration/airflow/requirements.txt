@@ -1,0 +1,8 @@
+# Core Airflow + CeleryExecutor, Redis broker, Postgres backend
+apache-airflow[celery,redis,postgres]==3.0.2
+
+# Connexion & Swagger UI support for the API-server
+connexion[swagger-ui]
+
+# Pin Flask to <2.3 so flask.json.JSONEncoder still exists
+flask<2.3.0
