@@ -2,7 +2,8 @@
 apache-airflow[celery,redis,postgres]==3.0.2
 
 # Connexion & Swagger UI support for the API-server
-connexion[swagger-ui]
+# pin to the current tested version
+connexion[swagger-ui]==2.14.2
 
-# Pin Flask to <2.3 so flask.json.JSONEncoder still exists
-flask<2.3.0
+# Pin Flask to a known good release
+flask==2.2.5
