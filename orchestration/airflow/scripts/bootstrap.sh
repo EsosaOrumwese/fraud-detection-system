@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -eu
+if [[ -n "${BASH_VERSION:-}" ]]; then
+  set -o pipefail
+fi
 
 ENV_FILE="$(dirname "$0")/../.env"
 
