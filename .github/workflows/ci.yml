@@ -50,6 +50,9 @@ jobs:
       - name: Build Lambda package
         run: make build-lambda
 
+      - name: Bootstrap Airflow .env
+        run: bash orchestration/airflow/scripts/bootstrap.sh
+
       - name: Run pre-commit hooks
         run: |
           poetry run pre-commit run --all-files --show-diff-on-failure
@@ -84,6 +87,9 @@ jobs:
 
       - name: Install dev dependencies
         run: poetry install --no-interaction --with dev
+
+      - name: Bootstrap Airflow .env
+        run: bash orchestration/airflow/scripts/bootstrap.sh
 
       - name: Run tests with coverage
         run: |
