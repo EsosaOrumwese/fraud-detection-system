@@ -27,7 +27,8 @@ x-airflow-common: &airflow-common
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres/airflow
     AIRFLOW__CELERY__BROKER_URL: redis://:@redis:6379/0
-    AIRFLOW__CORE__FERNET_KEY: ''
+    AIRFLOW__CORE__FERNET_KEY: ${FERNET_KEY:?}
+    AIRFLOW__API__SECRET_KEY: ${SECRET_KEY:?}
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-apiserver:8080/execution/
@@ -78,7 +79,7 @@ services:
     <<: *airflow-common
     command: api-server
     ports:
-    - 8080:8080
+    - "8080:8080"
     healthcheck:
       test: [CMD, curl, --fail, http://localhost:8080/api/v2/version]
       interval: 30s
@@ -246,7 +247,7 @@ services:
       _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-airflow}
       _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
       _PIP_ADDITIONAL_REQUIREMENTS: ''
-    user: 0:0
+    user: "0:0"
     restart: on-failure
 
   airflow-cli:
@@ -266,7 +267,7 @@ services:
     - flower
     command: celery flower
     ports:
-    - 5555:5555
+    - "5555:5555"
     healthcheck:
       test: [CMD, curl, --fail, http://localhost:5555/]
       interval: 30s

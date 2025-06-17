@@ -39,6 +39,14 @@ repos:
 
   - repo: local
     hooks:
+      - id: airflow-compose-lint
+        name: docker-compose lint (airflow)
+        entry: docker compose -f orchestration/airflow/docker-compose.yml config
+        language: system
+        files: ^orchestration/airflow/docker-compose\.yml$
+
+  - repo: local
+    hooks:
       - id: pytest
         name: pytest
         entry: pytest -q
