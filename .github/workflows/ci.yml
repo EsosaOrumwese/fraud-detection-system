@@ -129,7 +129,6 @@ jobs:
           quiet: true
           soft_fail_on: MEDIUM
 
-
   # ──────────────────── ORCHESTRATION TESTS (AIRFLOW) ────────────────────
   orchestration-test:
     needs: test
@@ -155,8 +154,6 @@ jobs:
       - name: Tear down stack
         working-directory: orchestration/airflow
         run: docker compose down -v
-
-
 
   # ──────────────────── DATA QUALITY (Great Expectations) ────────────────────
   data-quality:

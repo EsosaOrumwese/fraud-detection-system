@@ -16,7 +16,7 @@ repos:
     rev: v2.14.0
     hooks:
       - id: pretty-format-yaml
-        exclude: '(^\.github/workflows/(ci|daily_cost)\.yml$|^\.pre-commit-config\.yaml$)'
+        exclude: '(^\.github/workflows/(ci|daily_cost)\.yml$|^\.pre-commit-config\.yaml$|^orchestration/)'
         args: ["--autofix", "--indent", "2"]
         additional_dependencies:
           - ruamel.yaml==0.18.7
