@@ -228,13 +228,13 @@ AIRFLOW_DIR := orchestration/airflow
 COMPOSE      = docker compose -f $(AIRFLOW_DIR)/docker-compose.yml
 ENV_FILE     = $(AIRFLOW_DIR)/.env
 
-.PHONY: airflow-bootstrap airflow-up airflow-down airflow-reset airflow-logs
+.PHONY: airflow-bootstrap airflow-build airflow-up airflow-down airflow-reset airflow-logs
 
 airflow-bootstrap:
 	@echo "Bootstrapping Airflow secrets..."
 	@bash -c 'exec "$(AIRFLOW_DIR)/scripts/bootstrap.sh"'
 
-make airflow-build:
+airflow-build:
 	@echo "Rebuilding your custom image..."
 	@$(COMPOSE) --env-file $(ENV_FILE) build
 
