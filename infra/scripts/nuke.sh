@@ -11,7 +11,10 @@
 #  • Graceful failures & structured logs
 # ------------------------------------------------------------------------------
 
-set -o errexit -o nounset -o pipefail
+set -o errexit -o nounset
+if [[ -n "${BASH_VERSION:-}" ]]; then
+  set -o pipefail
+fi
 
 TF_DIR="infra/terraform"
 DRY_RUN=false

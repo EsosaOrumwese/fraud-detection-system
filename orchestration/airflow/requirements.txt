@@ -1,0 +1,9 @@
+# Core Airflow + CeleryExecutor, Redis broker, Postgres backend
+apache-airflow[celery,redis,postgres]==3.0.2
+
+# Connexion & Swagger UI support for the API-server
+# pin to the current tested version
+connexion[swagger-ui]==2.14.2
+
+# Pin Flask to a known good release
+flask==2.2.5
