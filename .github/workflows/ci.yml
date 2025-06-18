@@ -157,6 +157,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Grant execute permission to bootstrap.sh
+        run: chmod +x orchestration/airflow/scripts/bootstrap.sh
+
       - name: Bootstrap Airflow .env
         run: make airflow-bootstrap
 
