@@ -152,3 +152,4 @@ outputs/
 ## Python bytecode & caches under orchestration
 /orchestration/airflow/**/*.py[cod]
 /orchestration/airflow/**/__pycache__/
+/orchestration/airflow/config/
