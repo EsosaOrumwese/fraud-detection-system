@@ -57,15 +57,22 @@ repos:
         pass_filenames:
           false
 
-  - repo: https://github.com/Yelp/detect-secrets
-    rev: v1.5.0
+#  - repo: https://github.com/Yelp/detect-secrets
+#    rev: v1.5.0
+#    hooks:
+#      - id: detect-secrets
+#        name: Detect new secrets
+#        entry: detect-secrets-hook
+#        args: ['--baseline', '.secrets.baseline'] # allows approved secrets list
+#        exclude: '(^.*package(-lock)?\.json$|^docs/references/.*\.md$|^notes/)'
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.27.2
     hooks:
-      - id: detect-secrets
-        name: Detect new secrets
-        entry: detect-secrets-hook
-        language: python
-        args: ['--baseline', '.secrets.baseline'] # allows approved secrets list
-        exclude: '(^.*package(-lock)?\.json$|^docs/references/.*\.md$|^notes/)'
+      - id: gitleaks
+        name: Gitleaks secrets scan
+        args: ['--baseline-path', '.gitleaks.baseline']
+        language: system
 
   - repo: https://github.com/antonbabenko/pre-commit-terraform
     rev: v1.99.0
