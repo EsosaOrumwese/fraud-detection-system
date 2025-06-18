@@ -157,6 +157,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Bootstrap Airflow .env
+        run: make airflow-bootstrap
+
       - name: Build & start Airflow stack
         working-directory: orchestration/airflow
         run: |
