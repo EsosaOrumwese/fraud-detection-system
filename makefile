@@ -220,3 +220,39 @@ mlflow-ui-stop:
 	else \
 	  echo "x No PID file at $(MLFLOW_PID)"; \
 	fi
+
+# ────────────────────────────────────────────────────────────────────────────
+#  Orchestration: Airflow
+# ────────────────────────────────────────────────────────────────────────────
+AIRFLOW_DIR := orchestration/airflow
+COMPOSE      = docker compose -f $(AIRFLOW_DIR)/docker-compose.yml
+ENV_FILE     = $(AIRFLOW_DIR)/.env
+
+.PHONY: airflow-bootstrap airflow-build airflow-up airflow-down airflow-reset airflow-logs
+
+airflow-bootstrap:
+	@echo "Bootstrapping Airflow secrets..."
+	@bash -c 'exec "$(AIRFLOW_DIR)/scripts/bootstrap.sh"'
+
+airflow-build:
+	@echo "Rebuilding your custom image..."
+	@$(COMPOSE) --env-file $(ENV_FILE) build
+
+airflow-up: airflow-bootstrap
+	@echo "Starting Airflow..."
+	@echo "   Initialize DB and Admin User"
+	@$(COMPOSE) --env-file $(ENV_FILE) up airflow-init
+	@echo "   Bring up the long running services"
+	@$(COMPOSE) --env-file $(ENV_FILE) up -d --wait
+
+airflow-down:
+	@echo "Stopping Airflow..."
+	@$(COMPOSE) --env-file $(ENV_FILE) down || true
+
+airflow-reset: airflow-down
+	@echo "Resetting state..."
+	@rm -rf $(AIRFLOW_DIR)/postgres-db-volume $(AIRFLOW_DIR)/logs/*
+
+airflow-logs:
+	@echo "Tailing logs..."
+	@$(COMPOSE) --env-file $(ENV_FILE) logs -f airflow-apiserver

@@ -134,3 +134,21 @@ infra/terraform/lambda/*.zip
 mlruns/
 outputs/
 /nohup.out
+
+# Airflow
+/orchestration/airflow/.env
+
+## local Airflow logs (rotating, large, ephemeral)
+/orchestration/airflow/logs/
+/orchestration/airflow/logs/**/*
+
+## Local Postgres data if you ever bind it to a host path
+/orchestration/airflow/postgres-db-volume/
+/orchestration/airflow/postgres-db-volume/*
+
+## Airflow config containing secrets (ignore only the generated cfg)
+/orchestration/airflow/config/airflow.cfg
+
+## Python bytecode & caches under orchestration
+/orchestration/airflow/**/*.py[cod]
+/orchestration/airflow/**/__pycache__/

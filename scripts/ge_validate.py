@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 Validate a Parquet or CSV file against txn_schema_suite using
 Great Expectations 1.4.5’s V1 ValidationDefinition API.
