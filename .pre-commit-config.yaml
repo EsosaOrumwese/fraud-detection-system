@@ -25,6 +25,7 @@ repos:
     rev: v5.0.0
     hooks:
       - id: check-yaml
+        exclude: '(^orchestration/)'
       - id: end-of-file-fixer # adds final newline, strips CRs
         files: '^(config/.*|\.github/workflows/.*|scripts/.*|\.pre-commit-config\.yaml)$'
       - id: trailing-whitespace # strips stray spaces/tabs
@@ -43,7 +44,8 @@ repos:
         name: docker-compose lint (airflow)
         entry: docker compose -f orchestration/airflow/docker-compose.yml config
         language: system
-        files: ^orchestration/airflow/docker-compose\.yml$
+        files: '^(orchestration/airflow/docker-compose\.yml)$'
+        pass_filenames: false
 
   - repo: local
     hooks:
@@ -59,11 +61,11 @@ repos:
     rev: v1.5.0
     hooks:
       - id: detect-secrets
-        args: [--baseline, .secrets.baseline] # allows approved secrets list
-        exclude: |
-          .*package(-lock)?\.json$
-          ^docs/references/.*\.(md)$
-          ^orchestration/airflow/config/airflow\.cfg$
+        name: Detect new secrets
+        entry: detect-secrets-hook
+        language: python
+        args: ['--baseline', '.secrets.baseline'] # allows approved secrets list
+        exclude: '(^.*package(-lock)?\.json$|^docs/references/.*\.md$|^notes/)'
 
   - repo: https://github.com/antonbabenko/pre-commit-terraform
     rev: v1.99.0
