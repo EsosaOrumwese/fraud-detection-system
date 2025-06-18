@@ -72,7 +72,6 @@ repos:
       - id: gitleaks
         name: Gitleaks secrets scan
         args: ['--baseline-path', '.gitleaks.baseline']
-        language: system
 
   - repo: https://github.com/antonbabenko/pre-commit-terraform
     rev: v1.99.0
