@@ -228,7 +228,7 @@ AIRFLOW_DIR := orchestration/airflow
 COMPOSE      = docker compose -f $(AIRFLOW_DIR)/docker-compose.yml
 ENV_FILE     = $(AIRFLOW_DIR)/.env
 
-.PHONY: airflow-bootstrap airflow-build airflow-up airflow-down airflow-reset airflow-logs
+.PHONY: airflow-bootstrap airflow-build airflow-up airflow-down airflow-reset airflow-logs airflow-test-dag
 
 airflow-bootstrap:
 	@echo "Bootstrapping Airflow secrets..."
@@ -236,7 +236,7 @@ airflow-bootstrap:
 
 airflow-build:
 	@echo "Rebuilding your custom image..."
-	@$(COMPOSE) --env-file $(ENV_FILE) build
+	@$(COMPOSE) --env-file $(ENV_FILE) build --pull
 
 airflow-up: airflow-bootstrap
 	@echo "Starting Airflow..."
@@ -247,7 +247,7 @@ airflow-up: airflow-bootstrap
 
 airflow-down:
 	@echo "Stopping Airflow..."
-	@$(COMPOSE) --env-file $(ENV_FILE) down || true
+	@$(COMPOSE) --env-file $(ENV_FILE) down -v || true
 
 airflow-reset: airflow-down
 	@echo "Resetting state..."
@@ -256,3 +256,12 @@ airflow-reset: airflow-down
 airflow-logs:
 	@echo "Tailing logs..."
 	@$(COMPOSE) --env-file $(ENV_FILE) logs -f airflow-apiserver
+
+airflow-test-dag: airflow-up
+	# Trigger the daily_synthetic DAG for a given date
+	@echo "Trigger the daily_synthetic DAG for a given date"
+	@$(COMPOSE) --env-file $(ENV_FILE) run --rm airflow-cli \
+	    dags test daily_synthetic $$(date +%Y-%m-%d)
+	@echo "   Successful!"
+#	@echo "Tear down services and volumes"
+#	@$(COMPOSE) --env-file $(ENV_FILE) down -v #|| true

@@ -163,18 +163,20 @@ jobs:
       - name: Bootstrap Airflow .env
         run: make airflow-bootstrap
 
-      - name: Build & start Airflow stack
-        working-directory: orchestration/airflow
-        run: |
-          docker compose build --pull
-          docker compose up -d --wait
+      - name: Build Airflow stack
+        run: make airflow-build
 
-      - name: Smoke-test webserver health
+      - name: Start Airflow stack
+        run: make airflow-up
+
+      - name: Smoke-test apiserver health
         run: curl --fail http://localhost:8080/api/v2/version
 
+      - name: Airflow DAG smoke test
+        run: make airflow-test-dag
+
       - name: Tear down stack
-        working-directory: orchestration/airflow
-        run: docker compose down -v
+        run: make airflow-down
 
   # ──────────────────── DATA QUALITY (Great Expectations) ────────────────────
   data-quality:
