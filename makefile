@@ -257,7 +257,7 @@ airflow-logs:
 	@echo "Tailing logs..."
 	@$(COMPOSE) --env-file $(ENV_FILE) logs -f airflow-apiserver
 
-airflow-test-dag: airflow-up
+airflow-test-dag: #airflow-up
 	# Trigger the daily_synthetic DAG for a given date
 	@echo "Trigger the daily_synthetic DAG for a given date"
 	@$(COMPOSE) --env-file $(ENV_FILE) run --rm airflow-cli \
