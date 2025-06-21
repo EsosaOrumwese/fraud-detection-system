@@ -4,7 +4,7 @@ Convert YAML spec → JSON-Schema draft-07.
 Usage:
     poetry run python scripts/schema_to_json.py
 Output:
-    config/transaction_schema.json
+    schema/transaction_schema.json
 """
 import json
 import sys
@@ -13,7 +13,7 @@ from pathlib import Path
 import yaml  # type: ignore
 
 # Load YAML
-yaml_path = Path("config/transaction_schema.yaml")
+yaml_path = Path("schema/transaction_schema.yaml")
 with yaml_path.open("r", encoding="utf-8-sig") as f:
     schema = yaml.safe_load(f)
 
@@ -64,6 +64,6 @@ for field in schema["fields"]:
     out["properties"][field["name"]] = prop
 
 # Write JSON Schema
-json_path = Path("config/transaction_schema.json")
+json_path = Path("schema/transaction_schema.json")
 json_path.write_text(json.dumps(out, indent=2), encoding="utf-8")
 print(f"Wrote {json_path}", file=sys.stderr)

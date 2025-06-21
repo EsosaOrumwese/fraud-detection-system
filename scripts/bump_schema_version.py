@@ -9,7 +9,7 @@ import pathlib
 import yaml  # type: ignore
 
 kind = sys.argv[1] if len(sys.argv) > 1 else "patch"
-path = pathlib.Path("config/transaction_schema.yaml")
+path = pathlib.Path("schema/transaction_schema.yaml")
 doc = yaml.safe_load(path.read_text())
 
 major, minor, patch = map(int, doc["version"].split("."))
