@@ -218,7 +218,7 @@ Commit ADR-0005 **before** coding – shows governance.
 
 ```bash
 # create folders if missing
-mkdir -p config docs/data-dictionary scripts tests/unit
+mkdir -p schema docs/data-dictionary scripts tests/unit
 
 # install dev deps
 poetry add --group dev yamllint pydantic datamodel-code-generator jinja2
@@ -274,7 +274,7 @@ Tips ✓
 Run:
 
 ```bash
-yamllint config/transaction_schema.yaml
+yamllint schema/transaction_schema.yaml
 ```
 
 Expect **no output** on success.
@@ -284,7 +284,7 @@ Expect **no output** on success.
 ```python
 # tests/unit/test_schema_yaml.py
 import yaml, pathlib, pytest, re
-SCHEMA_PATH = pathlib.Path("config/transaction_schema.yaml")
+SCHEMA_PATH = pathlib.Path("schema/transaction_schema.yaml")
 
 def load():
     return yaml.safe_load(SCHEMA_PATH.read_text())
@@ -687,7 +687,7 @@ All hooks are declared in **`.pre-commit-config.yaml`**; Sprint-01 task **REP-02
 import yaml
 from pathlib import Path
 
-SCHEMA_PATH = Path(__file__).parents[2] / "config/transaction_schema.yaml"
+SCHEMA_PATH = Path(__file__).parents[2] / "schema/transaction_schema.yaml"
 
 def test_schema_loads_and_is_complete():
     data = yaml.safe_load(SCHEMA_PATH.read_text())
@@ -743,7 +743,7 @@ pip install -r requirements-dev.txt
 pre-commit install
 
 # 3. Work on YAML, save ➜ run lint
-yamllint config/transaction_schema.yaml
+yamllint schema/transaction_schema.yaml
 
 # 4. Run the unit test
 pytest tests/unit/test_schema_load.py

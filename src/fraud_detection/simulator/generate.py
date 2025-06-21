@@ -1,7 +1,7 @@
 """
 generate.py
 ───────────
-Create synthetic payment events that conform to config/transaction_schema.yaml.
+Create synthetic payment events that conform to schema/transaction_schema.yaml.
 
 CLI
 ---
@@ -56,7 +56,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ---------- Constants & Global Generators -----------------------------------
-SCHEMA_YAML = pathlib.Path("config/transaction_schema.yaml")
+SCHEMA_YAML = pathlib.Path("schema/transaction_schema.yaml")
 faker = Faker()
 # finance = Finance()
 random.seed(42)

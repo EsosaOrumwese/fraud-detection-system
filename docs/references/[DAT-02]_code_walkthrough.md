@@ -17,7 +17,7 @@ Throughout, I’ll speak as though you’re a mid-level engineer being mentored 
 """
 generate.py
 ───────────
-Create synthetic payment events that conform to config/transaction_schema.yaml.
+Create synthetic payment events that conform to schema/transaction_schema.yaml.
 
 CLI
 ---
@@ -214,7 +214,7 @@ logger = logging.getLogger(__name__)
 ## 5. Constants & Global Generator Instances
 
 ```python
-SCHEMA_YAML = pathlib.Path("config/transaction_schema.yaml")
+SCHEMA_YAML = pathlib.Path("schema/transaction_schema.yaml")
 faker = Faker()
 business = Business()
 random.seed(42)
@@ -1399,7 +1399,7 @@ You can drop this into `src/fraud_detection/simulator/generate.py`—replacing y
 """
 generate.py
 ───────────
-Create synthetic payment events that conform to config/transaction_schema.yaml,
+Create synthetic payment events that conform to schema/transaction_schema.yaml,
 using Mimesis 18.0.0 (no Business().mcc()).
 
 CLI
@@ -1442,7 +1442,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ---------- Constants & Global Generators -----------------------------------
-SCHEMA_YAML = pathlib.Path("config/transaction_schema.yaml")
+SCHEMA_YAML = pathlib.Path("schema/transaction_schema.yaml")
 faker = Faker()
 random.seed(42)
 faker.seed_instance(42)
