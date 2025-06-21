@@ -258,10 +258,11 @@ airflow-logs:
 	@$(COMPOSE) --env-file $(ENV_FILE) logs -f airflow-apiserver
 
 airflow-test-dag: #airflow-up
-	# Trigger the daily_synthetic DAG for a given date
-	@echo "Trigger the daily_synthetic DAG for a given date"
-	@$(COMPOSE) --env-file $(ENV_FILE) run --rm airflow-cli \
-	    dags test daily_synthetic $$(date +%Y-%m-%d)
+	@echo "Smoke-test imports"
+	@docker compose exec airflow-scheduler airflow dags list
+	@echo "Runtime test a single task to catch missing deps or runtime errors"
+	@docker compose exec airflow-scheduler \
+      airflow tasks test daily_synthetic run_generator $$(date +%Y-%m-%d)
 	@echo "   Successful!"
 #	@echo "Tear down services and volumes"
 #	@$(COMPOSE) --env-file $(ENV_FILE) down -v #|| true
