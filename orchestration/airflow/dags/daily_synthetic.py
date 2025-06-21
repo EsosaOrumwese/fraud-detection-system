@@ -8,92 +8,104 @@ Purpose: Generate 1 M synthetic transactions, upload Parquet to raw S3,
 
 from __future__ import annotations
 
-import os
+import sys
+import subprocess
+import shutil
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import boto3  # type: ignore
 from airflow.decorators import dag, task
-from airflow.models.param import Param
-from airflow.utils.trigger_rule import TriggerRule
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
-from fraud_detection.simulator.generate import generate_dataset  # type: ignore # signature: (total_rows, out_dir) → Path
+from fraud_detection.simulator.generate import generate_dataset  # type: ignore
 from fraud_detection.utils.param_store import get_param  # type: ignore
 
+# 1. Default/task‐level retry & alert settings
+default_args = {
+    "owner": "mlops",
+    "depends_on_past": False,
+    "email_on_failure": True,
+    "email_on_retry": False,
+    "retries": 2,
+    "retry_delay": timedelta(minutes=5),
+    "retry_exponential_backoff": True,
+}
 
-# ─────────────────────────── DAG definition ────────────────────────────── #
+# 2. DAG decorator — using 'schedule' (cron) per Airflow 3 docs
 @dag(
-    schedule="0 2 * * *",  # 02:00 UTC daily
-    start_date=datetime(2025, 6, 12),  # first valid run
+    dag_id="daily_synthetic",
+    default_args=default_args,
+    schedule="0 2 * * *",       # 02:00 UTC daily
+    start_date=datetime(2025, 6, 20),
     catchup=True,
-    default_args={
-        "owner": "mlops",
-        "retries": 2,
-        "retry_delay": timedelta(minutes=5),
-        "email_on_failure": False,
-    },
-    max_active_runs=1,  # no overlapping runs
-    tags=["data-gen"],
-    params={
-        "rows": Param(1_000_000, type="integer", description="Total rows to generate"),
-    },
+    max_active_runs=1,
+    tags=["data_generation", "synthetic"],
 )
 def daily_synthetic():
     @task
-    def fetch_bucket() -> str:
+    def fetch_bucket_name() -> str:
         """Retrieve the S3 raw-bucket name from SSM via your Param Store helper."""
         bucket = get_param("/fraud/raw_bucket_name")
         if not bucket:
             raise RuntimeError("SSM param '/fraud/raw_bucket_name' is empty")
         return bucket
 
-    @task
-    def generate(rows: int) -> str:
-        """Run your generator and return the local Parquet file path."""
+    @task(multiple_outputs=True)
+    def run_generator(num_rows: int) -> dict[str, str]:
+        """Run your generator and return the local Parquet file path & temp_dir."""
         tmp_dir = Path(tempfile.mkdtemp())
-        out_path = generate_dataset(rows, tmp_dir)
-        return str(out_path)
+        out_file = generate_dataset(num_rows, tmp_dir)
+        return {
+            "local_path": str(out_file),
+            "tmp_dir": str(tmp_dir),
+        }
 
     @task
-    def upload(local_path: str, bucket: str, ds: str) -> str:
+    def validate_file(local_path: str) -> None:
+        """Validate via your existing GE script — production via subprocess"""
+        script = Path("/opt/airflow/scripts/ge_validate.py")
+        if not script.exists():
+            raise FileNotFoundError(f"Validation script missing at {script}")
+        subprocess.run([sys.executable, str(script), local_path], check=True)
+
+    @task
+    def upload_to_s3(local_path: str, bucket: str, execution_date: str) -> str:
         """
         Upload the generated Parquet to S3 under:
           s3://{bucket}/payments/year=YYYY/month=MM/{filename}
         """
-        # parse execution date (ds is an ISO string)
-        exec_dt = datetime.fromisoformat(ds)
-        part = exec_dt.date()
+        # ds == 'YYYY-MM-DD'
+        date = datetime.fromisoformat(execution_date)
         key = (
             f"payments/"
-            f"year={part.year}/"
-            f"month={part:%m}/"
+            f"year={date.year}/month={date.month:02d}/"
             f"{Path(local_path).name}"
         )
-
-        s3 = boto3.client(
-            "s3",
-            region_name=os.getenv("AWS_DEFAULT_REGION", "eu-west-2"),
+        hook = S3Hook(aws_conn_id=None)
+        hook.load_file(
+            filename=local_path,
+            key=key,
+            bucket_name=bucket,
+            replace=True,
         )
-        s3.upload_file(local_path, bucket, key)
         return f"s3://{bucket}/{key}"
 
-    @task(trigger_rule=TriggerRule.ALL_DONE)
-    def cleanup(local_path: str):
+    @task(trigger_rule="all_done")
+    def cleanup_tmp(tmp_dir: str) -> None:
         """Ensure the temp file is removed even if upstream fails."""
-        try:
-            Path(local_path).unlink(missing_ok=True)
-        except Exception as e:
-            # Log a warning but don’t fail the DAG
-            print(f"Cleanup warning: {e}")
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
-    # ─────────────────────── Compose task graph ───────────────────────── #
-    bucket = fetch_bucket()
-    file_path = generate("{{ params.rows }}")
-    s3_uri = upload(file_path, bucket, "{{ ds }}")
-    cleanup(file_path)
+    # Define dependencies
+    bucket = fetch_bucket_name()
+    gen = run_generator(num_rows=1_000_000)
+    validation = validate_file(gen["local_path"])
+    upload = upload_to_s3(gen["local_path"], bucket, "{{ ds }}")
+    cleanup = cleanup_tmp(gen["tmp_dir"])
+
+    bucket >> gen >> validation >> upload >> cleanup  # type: ignore[list-item]
 
 
 
 # instantiate the DAG
-daily_synthetic = daily_synthetic()
+daily_synthetic = daily_synthetic()  # type: ignore
