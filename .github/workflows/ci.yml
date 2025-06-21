@@ -157,6 +157,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Configure AWS creds
+        uses: aws-actions/configure-aws-credentials@v4.2.1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-2
+
       - name: Grant execute permission to bootstrap.sh
         run: chmod +x orchestration/airflow/scripts/bootstrap.sh
 
