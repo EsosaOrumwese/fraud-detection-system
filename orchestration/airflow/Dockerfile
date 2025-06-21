@@ -1,5 +1,9 @@
-# ─── builder ─────────────────────────────────────────────────────────────
-FROM python:3.12-slim AS builder
+# ─── build args (must come before ALL FROMs) ─────────────────────────────
+ARG AIRFLOW_VERSION=3.0.2
+ARG PYTHON_VERSION=3.12
+
+# ─── builder stage ──────────────────────────────────────────────────────
+FROM python:${PYTHON_VERSION}-slim AS builder
 WORKDIR /build
 
 # 1. Install Poetry (only for export)
@@ -16,9 +20,7 @@ RUN poetry export \
       --format requirements.txt \
       --output requirements.txt
 
-# Build a custom Airflow image with pinned deps at build time
-ARG AIRFLOW_VERSION=3.0.2
-ARG PYTHON_VERSION=3.12
+# ─── runtime stage ──────────────────────────────────────────────────────
 FROM apache/airflow:${AIRFLOW_VERSION}-python${PYTHON_VERSION}
 
 # Install OS-level libs for wheels (e.g. psycopg2); clean up apt lists

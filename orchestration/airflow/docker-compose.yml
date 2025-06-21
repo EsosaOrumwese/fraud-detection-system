@@ -76,6 +76,7 @@ services:
     restart: always
 
   airflow-apiserver:
+    <<: *airflow-common
     command: api-server
     environment:
       <<: *airflow-common-env
@@ -97,6 +98,7 @@ services:
         condition: service_completed_successfully
 
   airflow-scheduler:
+    <<: *airflow-common
     command: scheduler
     environment:
       <<: *airflow-common-env
@@ -116,6 +118,7 @@ services:
         condition: service_completed_successfully
 
   airflow-dag-processor:
+    <<: *airflow-common
     command: dag-processor
     healthcheck:
       test: [CMD-SHELL, 'airflow jobs check --job-type DagProcessorJob --hostname "$${HOSTNAME}"']
@@ -130,6 +133,7 @@ services:
         condition: service_completed_successfully
 
   airflow-worker:
+    <<: *airflow-common
     command: celery worker
     healthcheck:
       # yamllint disable rule:line-length
