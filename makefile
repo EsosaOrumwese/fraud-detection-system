@@ -259,9 +259,9 @@ airflow-logs:
 
 airflow-test-dag: #airflow-up
 	@echo "Smoke-test imports"
-	@docker compose exec airflow-scheduler airflow dags list
+	@$(COMPOSE) --env-file $(ENV_FILE) exec airflow-scheduler airflow dags list
 	@echo "Runtime test a single task to catch missing deps or runtime errors"
-	@docker compose exec airflow-scheduler \
+	@$(COMPOSE) --env-file $(ENV_FILE) exec airflow-scheduler \
       airflow tasks test daily_synthetic run_generator $$(date +%Y-%m-%d)
 	@echo "   Successful!"
 #	@echo "Tear down services and volumes"
