@@ -3,15 +3,16 @@ ARG AIRFLOW_VERSION=3.0.2
 ARG PYTHON_VERSION=3.12
 
 # ─── builder stage ──────────────────────────────────────────────────────
-FROM python:${PYTHON_VERSION}-slim AS builder
+FROM python:${PYTHON_VERSION} AS builder
 WORKDIR /build
 
 # 1. Install Poetry (only for export)
 RUN pip install --no-cache-dir poetry
+RUN pip install --no-cache-dir poetry-plugin-export
 
 # 2. Copy only the minimal files needed to resolve main dependencies
-#    (your pyproject.toml now has GE in main, and no Apache-Airflow entry)
-COPY ../../pyproject.toml ../../poetry.lock* ./
+#    (pyproject.toml lives at repo root, alongside poetry.lock)
+COPY pyproject.toml poetry.lock* ./
 
 # 3. Export a pinned requirements.txt (main deps only)
 RUN poetry export \
@@ -37,14 +38,15 @@ RUN pip install --no-cache-dir --upgrade pip \
  && pip install --no-cache-dir -r /tmp/requirements-runtime.txt
 
 # 2) Copy & install your fraud-detection package
-#    so `import fraud_detection…` works out-of-the-box
-COPY ../../src /opt/airflow/src
-ENV PYTHONPATH=/opt/airflow/src
+#    so it's installed as a real Python package
+COPY src /opt/airflow/src
+RUN pip install --no-cache-dir /opt/airflow/src
 
-# 3) Bake in your DAGs & plugins
-COPY dags/    /opt/airflow/dags/
-COPY plugins/ /opt/airflow/plugins/
+# 3) Bake in your DAGs & plugins (paths now under orchestration/airflow/)
+COPY orchestration/airflow/dags/    /opt/airflow/dags/
+COPY orchestration/airflow/plugins/ /opt/airflow/plugins/
 
-# 4) Copy infra & GE so scripts can run in-container
-COPY ../../infra/terraform /opt/airflow/infra/terraform
-COPY ../../great_expectations    /opt/airflow/great_expectations
+# 4) Copy infra & Great Expectations
+COPY infra/terraform/       /opt/airflow/infra/terraform/
+COPY great_expectations/    /opt/airflow/great_expectations/
+COPY scripts/ge_validate.py /opt/airflow/scripts/

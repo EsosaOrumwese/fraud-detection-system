@@ -238,7 +238,7 @@ airflow-build:
 	@echo "Rebuilding your custom image..."
 	@$(COMPOSE) --env-file $(ENV_FILE) build --pull
 
-airflow-up: airflow-bootstrap
+airflow-up: #airflow-bootstrap
 	@echo "Starting Airflow..."
 	@echo "   Initialize DB and Admin User"
 	@$(COMPOSE) --env-file $(ENV_FILE) up airflow-init
