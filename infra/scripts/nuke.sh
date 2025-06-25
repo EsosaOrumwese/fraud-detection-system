@@ -11,7 +11,7 @@
 #  • Graceful failures & structured logs
 # ------------------------------------------------------------------------------
 
-set -o errexit -o nounset
+set -eu
 if [[ -n "${BASH_VERSION:-}" ]]; then
   set -o pipefail
 fi
