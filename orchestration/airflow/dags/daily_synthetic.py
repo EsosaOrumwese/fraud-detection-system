@@ -32,11 +32,12 @@ default_args = {
     "retry_exponential_backoff": True,
 }
 
+
 # 2. DAG decorator — using 'schedule' (cron) per Airflow 3 docs
 @dag(
     dag_id="daily_synthetic",
     default_args=default_args,
-    schedule="0 2 * * *",       # 02:00 UTC daily
+    schedule="0 2 * * *",  # 02:00 UTC daily
     start_date=datetime(2025, 6, 20),
     catchup=True,
     max_active_runs=1,
@@ -104,7 +105,6 @@ def daily_synthetic():
     cleanup = cleanup_tmp(gen["tmp_dir"])
 
     bucket >> gen >> validation >> upload >> cleanup  # type: ignore[list-item]
-
 
 
 # instantiate the DAG
