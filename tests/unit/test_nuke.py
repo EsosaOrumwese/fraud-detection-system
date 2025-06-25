@@ -11,7 +11,7 @@ def test_nuke_dry_runs_successfully(tmp_path, monkeypatch):
     # monkeypatch.setenv("PATH", str(tmp_path))  # place no-op binaries here if needed
 
     result = subprocess.run(
-        ["bash", "infra/scripts/nuke.sh", "--dry-run", "--force"],
+        ["sh", "infra/scripts/nuke.sh", "--dry-run", "--force"],
         capture_output=True,
         text=True,
     )
