@@ -59,3 +59,10 @@ COPY orchestration/airflow/plugins/ ./plugins/
 COPY great_expectations/    ./great_expectations/
 COPY schema/                ./schema
 COPY scripts/ge_validate.py ./scripts/
+
+# Ensure airflow user can write to GE’s uncommitted store
+USER root
+RUN chown -R airflow:airflow /opt/airflow/great_expectations
+
+# Back to the airflow user for normal operation
+USER airflow
