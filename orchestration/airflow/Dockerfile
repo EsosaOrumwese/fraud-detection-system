@@ -54,6 +54,7 @@ COPY orchestration/airflow/dags/    ./dags/
 COPY orchestration/airflow/plugins/ ./plugins/
 
 # 5) Bake in infra & GE so your DAGs can import/execute them
+## commented out infra/terraform as I don't think it's neccessary for this image
 #COPY infra/terraform/       ./infra/terraform/
 COPY great_expectations/    ./great_expectations/
 COPY schema/                ./schema
