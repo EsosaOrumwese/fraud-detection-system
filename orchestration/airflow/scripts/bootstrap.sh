@@ -32,8 +32,8 @@ PYCODE
 
 # Always append AWS credentials to the same env file
 {
-  echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}"
-  echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}"
+  [ -z "${AWS_ACCESS_KEY_ID:-}" ] || echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}"
+  [ -z "${AWS_SECRET_ACCESS_KEY:-}" ] || echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}"
   echo "AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-eu-west-2}"
 } >> "$ENV_FILE"
 
