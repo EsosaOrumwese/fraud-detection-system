@@ -44,6 +44,9 @@ jobs:
         with:
           poetry-version: 2.1.3 # pin for reproducibility
 
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libxml2-dev libxmlsec1-dev libxmlsec1-openssl
+
       - name: Install dev dependencies
         run: poetry install --no-interaction --with dev
 
@@ -90,6 +93,9 @@ jobs:
       - uses: abatilo/actions-poetry@v4
         with:
           poetry-version: 2.1.3
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libxml2-dev libxmlsec1-dev libxmlsec1-openssl
 
       - name: Install dev dependencies
         run: poetry install --no-interaction --with dev
@@ -200,6 +206,9 @@ jobs:
       - uses: abatilo/actions-poetry@v4
         with:
           poetry-version: 2.1.3
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libxml2-dev libxmlsec1-dev libxmlsec1-openssl
 
       - name: Install dev dependencies
         run: poetry install --no-interaction --with dev
