@@ -62,7 +62,8 @@ COPY scripts/ge_validate.py ./scripts/
 
 # Ensure airflow user can write to GE’s uncommitted store
 USER root
-RUN chown -R airflow:airflow /opt/airflow/great_expectations
+# 50000 is the default AIRFLOW_UID; 0 is the root GID
+RUN chown -R 50000:0 /opt/airflow/great_expectations
 
 # Back to the airflow user for normal operation
 USER airflow
