@@ -19,7 +19,7 @@ from great_expectations.expectations.core import (
 from fraud_detection.simulator.mcc_codes import MCC_CODES  # type: ignore
 
 # ─── Constants ─────────────────────────────────────────────────────────────────
-SCHEMA_PATH = Path("config/transaction_schema.yaml")  # Your source schema
+SCHEMA_PATH = Path("schema/transaction_schema.yaml")  # Your source schema
 CTX_DIR = Path("great_expectations")  # GE project folder
 SUITE_NAME = "txn_schema_suite"  # Suite identifier
 

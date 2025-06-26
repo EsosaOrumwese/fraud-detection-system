@@ -10,7 +10,7 @@ Below is a detailed review of the “starter kit” for ML-01, followed by a set
 * **Original** uses:
 
   ```python
-  SCHEMA = yaml.safe_load(pathlib.Path("config/transaction_schema.yaml").read_text())
+  SCHEMA = yaml.safe_load(pathlib.Path("schema/transaction_schema.yaml").read_text())
   ```
 
   * No error handling if the file is missing or malformed.
@@ -31,7 +31,7 @@ def load_schema(schema_path: pathlib.Path) -> dict:
         raise RuntimeError(f"Unable to parse YAML schema: {e}") from e
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.parent  # points to project root
-SCHEMA_PATH = BASE_DIR / "config" / "transaction_schema.yaml"
+SCHEMA_PATH = BASE_DIR / "schema" / "transaction_schema.yaml"
 SCHEMA = load_schema(SCHEMA_PATH)
 ```
 
@@ -409,7 +409,7 @@ logging.basicConfig(
 )
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.parent  # Points to project root
-SCHEMA_PATH = BASE_DIR / "config" / "transaction_schema.yaml"
+SCHEMA_PATH = BASE_DIR / "schema" / "transaction_schema.yaml"
 
 # Load & validate schema on import
 def load_schema(schema_path: pathlib.Path) -> dict[str, Any]:

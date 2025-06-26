@@ -225,10 +225,10 @@ mlflow-ui-stop:
 #  Orchestration: Airflow
 # ────────────────────────────────────────────────────────────────────────────
 AIRFLOW_DIR := orchestration/airflow
-COMPOSE      = docker compose -f $(AIRFLOW_DIR)/docker-compose.yml
 ENV_FILE     = $(AIRFLOW_DIR)/.env
+COMPOSE      = docker compose -f $(AIRFLOW_DIR)/docker-compose.yml --env-file $(ENV_FILE)
 
-.PHONY: airflow-bootstrap airflow-build airflow-up airflow-down airflow-reset airflow-logs
+.PHONY: airflow-bootstrap airflow-build airflow-up airflow-down airflow-reset airflow-logs airflow-test-dag
 
 airflow-bootstrap:
 	@echo "Bootstrapping Airflow secrets..."
@@ -236,18 +236,18 @@ airflow-bootstrap:
 
 airflow-build:
 	@echo "Rebuilding your custom image..."
-	@$(COMPOSE) --env-file $(ENV_FILE) build
+	@$(COMPOSE) build --pull
 
-airflow-up: airflow-bootstrap
+airflow-up: #airflow-bootstrap
 	@echo "Starting Airflow..."
 	@echo "   Initialize DB and Admin User"
-	@$(COMPOSE) --env-file $(ENV_FILE) up airflow-init
+	@$(COMPOSE) up airflow-init
 	@echo "   Bring up the long running services"
-	@$(COMPOSE) --env-file $(ENV_FILE) up -d --wait
+	@$(COMPOSE) up -d --wait
 
 airflow-down:
 	@echo "Stopping Airflow..."
-	@$(COMPOSE) --env-file $(ENV_FILE) down || true
+	@$(COMPOSE) down -v || true
 
 airflow-reset: airflow-down
 	@echo "Resetting state..."
@@ -255,4 +255,14 @@ airflow-reset: airflow-down
 
 airflow-logs:
 	@echo "Tailing logs..."
-	@$(COMPOSE) --env-file $(ENV_FILE) logs -f airflow-apiserver
+	@$(COMPOSE) logs -f airflow-apiserver
+
+airflow-test-dag: #airflow-up
+	@echo "Smoke-test imports"
+	@$(COMPOSE) exec airflow-scheduler airflow dags list
+	@echo "Runtime test a single task to catch missing deps or runtime errors"
+	@$(COMPOSE) exec airflow-scheduler \
+      airflow tasks test daily_synthetic run_generator $$(date +%Y-%m-%d)
+	@echo "   Successful!"
+#	@echo "Tear down services and volumes"
+#	@$(COMPOSE) --env-file $(ENV_FILE) down -v #|| true

@@ -246,7 +246,7 @@ profile: data
 import polars as pl, pathlib, yaml
 from fraud_detection.simulator.generate import generate_dataset
 
-SCHEMA = yaml.safe_load(pathlib.Path("config/transaction_schema.yaml").read_text())
+SCHEMA = yaml.safe_load(pathlib.Path("schema/transaction_schema.yaml").read_text())
 
 def test_schema_match(tmp_path):
     path = generate_dataset(50_000, tmp_path)

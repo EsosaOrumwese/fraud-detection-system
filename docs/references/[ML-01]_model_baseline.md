@@ -44,7 +44,7 @@ from xgboost import XGBClassifier
 import mlflow, mlflow.xgboost
 import yaml
 
-SCHEMA = yaml.safe_load(pathlib.Path("config/transaction_schema.yaml").read_text())
+SCHEMA = yaml.safe_load(pathlib.Path("schema/transaction_schema.yaml").read_text())
 TARGET = "label_fraud"
 CATEGORICAL = [f["name"] for f in SCHEMA["fields"]
                if f["dtype"] in ("enum", "string") and f["name"] != TARGET]
