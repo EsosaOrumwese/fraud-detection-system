@@ -5,7 +5,7 @@ from fraud_detection.simulator.generate import generate_dataset
 
 # Load schema once (relative to repository root)
 BASE_DIR = pathlib.Path(__file__).parents[2]  # tests/unit → repo root
-SCHEMA_PATH = BASE_DIR / "config" / "transaction_schema.yaml"
+SCHEMA_PATH = BASE_DIR / "schema" / "transaction_schema.yaml"
 SCHEMA = yaml.safe_load(SCHEMA_PATH.read_text())
 
 

@@ -18,7 +18,7 @@ else:
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 # 2) Read the schema as UTF-8 (and strip any BOM if present)
-schema_path = Path("config/transaction_schema.yaml")
+schema_path = Path("schema/transaction_schema.yaml")
 with schema_path.open("r", encoding="utf-8-sig") as f:
     schema = yaml.safe_load(f)
 

@@ -7,7 +7,7 @@ import yaml  # type: ignore
 from pathlib import Path
 import pytest
 
-SCHEMA = Path("config/transaction_schema.yaml")
+SCHEMA = Path("schema/transaction_schema.yaml")
 SPEC = yaml.safe_load(SCHEMA.read_text())
 ALLOWED_DTYPES = {"string", "int", "float", "bool", "datetime", "enum"}
 

@@ -64,7 +64,7 @@ logging.basicConfig(
 )
 
 BASE_DIR = pathlib.Path(__file__).parent.parent.parent.parent  # Points to project root
-SCHEMA_PATH = BASE_DIR / "config" / "transaction_schema.yaml"
+SCHEMA_PATH = BASE_DIR / "schema" / "transaction_schema.yaml"
 
 
 # Load & validate schema on import
