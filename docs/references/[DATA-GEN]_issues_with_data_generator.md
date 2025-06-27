@@ -1,3 +1,4 @@
+# Issues with my data generator
 Here’s a deeper, “no holds barred” critique of your current `TransactionSimulator`-based generator, drawing on the actual code and how it’s wired into your DAG:
 
 ---
@@ -66,3 +67,113 @@ Here’s a deeper, “no holds barred” critique of your current `TransactionSi
 5. **Observability & testing**: emit metrics for every key distribution, write property-based tests against GE expectations, and validate with streaming-friendly patterns.
 
 Only after these foundations are hardened can we meaningfully tackle SD-01’s goal of proper entity catalogues.
+
+-----
+# Order of approach to resolution
+
+Below is a proposed backlog of discrete task groups and individual tasks, organized by **what absolutely must land *before* SD-01** (the proper entity-catalog work), and **what can slide until afterward**. I’ve tagged each task with a priority (High/Med/Low) and a short rationale from a production-grade, financial-services lens.
+
+---
+
+## 🛠️ Pre-SD-01 Essentials
+
+> These lay the scaffolding you need before you can cleanly carve out customer/card/merchant catalogs.
+
+### 1. Modularize & Decouple (High)
+
+* **1.1 Extract Entity-Catalog Module**
+  Pull all `customer_id`, `merchant_id`, `card_id` generation into its own package/API (e.g. `simulator/catalogs`).
+* **1.2 Split Transaction Logic**
+  Refactor the `TransactionSimulator` so it simply (a) draws from catalogs, (b) applies transaction rules, (c) hands off to writer.
+* **1.3 Abstract Output Writer**
+  Define a generic “sink” interface (e.g. local FS, S3) and implement both. Replace hard-wired Parquet+S3 logic with DI.
+
+### 2. Centralized Configuration (High)
+
+* **2.1 Pydantic-driven Config Schema**
+  Define a YAML/JSON schema for *all* parameters: row count, date range, null rates, fraud rate, chunk size, seed, output path, etc.
+* **2.2 CLI & Env Override**
+  Wire your generator to load that config and allow `--config`, `--param overrides`, and ENV fallbacks; remove hard-coded defaults in `__init__`.
+
+### 3. Reproducibility & RNG Control (High)
+
+* **3.1 Remove Global Seeding**
+  Eliminate `random.seed(42)` at import time. Instead, accept a `seed` parameter in config/CLI.
+* **3.2 Log & Persist Seed**
+  Emit the seed in run-metadata so you can exactly replay any nightly batch.
+
+### 4. Path & Naming Alignment (High)
+
+* **4.1 Robust Schema Loading**
+  Resolve your YAML schema path relative to `__file__` (or via a config key), not the CWD.
+* **4.2 Sync File Names with Airflow Dates**
+  Parameterize file naming (`YYYY-MM-DD`) from your config or DAG’s `execution_date`, not `date.today()`.
+* **4.3 Idempotent Upload Logic**
+  Wrap S3 writes with “if exists, skip or overwrite” semantics, plus retry/back-off.
+
+---
+
+## 🏗️ Post-SD-01 Enhancements
+
+> Once the proper catalogs are in place, you can layer on realism, scale, and observability.
+
+### 5. Realism & Scenario Plugins (Med)
+
+* **5.1 Zipfian Customer/Card/Merchant Generator**
+  Implement true Zipf sampling for entity frequencies and expose the alpha parameter in config.
+* **5.2 Geo-Correlated Merchant Catalog**
+  Build a merchant table where country ↔ latitude/longitude ↔ MCC are consistent.
+* **5.3 Temporal Seasonality Engine**
+  Add hour-of-day, weekday/weekend and holiday curves so timestamps mirror real traffic spikes.
+* **5.4 Fraud Hotspot Injection**
+  Plugin framework to target fraud rates by MCC or by transaction size.
+
+### 6. Observability & Metrics (Med)
+
+* **6.1 Structured Logging**
+  Switch to a JSON logger (e.g. `structlog`) and emit per-chunk stats: row-counts, null-rates, unique IDs.
+* **6.2 Metrics Export**
+  Instrument with Prometheus client (counters/gauges for fraud count, durations) so Ops can alert on drifts.
+
+### 7. Performance & Scalability (Med)
+
+* **7.1 Tunable Chunking & Streaming**
+  Allow dynamic chunk sizing and partial flush so you can handle 10 M+ rows without OOM.
+* **7.2 Benchmark & Optimize**
+  Profile the Polars→Arrow conversion and test alternative engines (e.g. pure Arrow writes) if needed.
+
+### 8. Testing & Validation (Med)
+
+* **8.1 Property-Based Tests**
+  Use Hypothesis to assert your Zipfian sampler actually produces the expected heavy tail across seeds.
+* **8.2 Streaming-Friendly GE Checks**
+  Refactor `ge_validate.py` to sample or validate via Polars so you don’t load 1 M rows into Pandas.
+* **8.3 Edge-Case & Error Tests**
+  Tests for invalid dates, zero-row runs, bad config, S3 outages (mocks).
+
+### 9. CI/CD & Documentation (Low)
+
+* **9.1 CI Integration**
+  Add generator unit tests and GE suite validations to your GitHub Actions for every PR.
+* **9.2 Golden-File Smoke Tests**
+  For a small row count (e.g. 1 k), compare output against a checked-in Parquet to catch regressions.
+* **9.3 Docs & Examples**
+  Flesh out `README.md` with CLI examples, config reference, and sample outputs.
+
+---
+
+### Prioritization Summary
+
+| Priority | Task Group                   | Why now?                                                                                 |
+|----------|------------------------------|------------------------------------------------------------------------------------------|
+| High     | 1. Modularize & Decouple     | You can’t build a clean entity-catalog in a tangled codebase.                            |
+| High     | 2. Centralized Configuration | Hard-coded defaults will bleed into your SD-01 work and make it non-reusable.            |
+| High     | 3. RNG Control               | Without explicit seeds, debugging data “drifts” or reproducing failures is impossible.   |
+| High     | 4. Path & Naming Alignment   | Misaligned file names / schema loads will break your DAG long before features get built. |
+| Med      | 5. Realism Plugins           | Core to SD-01 but only after you’ve modularized & parameterized.                         |
+| Med      | 6. Observability             | Essential in Prod, but can wait until your generator shape is stable.                    |
+| Med      | 7. Performance & Scalability | Scale matters in finance, but only after correctness & modularity.                       |
+| Med      | 8. Testing & Validation      | Add once core flows are in place; tests will guide refactors.                            |
+| Low      | 9. CI/CD & Documentation     | Polish & guardrails—valuable, but the generator must first be rock-solid.                |
+
+With this roadmap you can knock out the high-priority plumbing, then circle back during or immediately after SD-01 to layer in realism, metrics, and robustness—exactly the way any Tier-1 bank would tackle an end-to-end fraud pipeline. Let me know which “High” task you’d like to dive into first!
