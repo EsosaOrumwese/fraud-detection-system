@@ -8,7 +8,7 @@ It reads your schema, builds a Polars DataFrame in‐memory, and hands it back.
 from __future__ import annotations
 import random
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from pathlib import Path
 from typing import Optional
 
@@ -17,6 +17,7 @@ import polars as pl
 from faker import Faker
 
 from .mcc_codes import MCC_CODES
+from .temporal import sample_timestamps
 
 # Locate the schema at the project root (/schema/transaction_schema.yaml)
 _SCHEMA_PATH = (
@@ -39,7 +40,7 @@ _DTYPE_MAP: dict[str, pl.DataType] = {
 # Build Polars schema for casting
 _POLARS_SCHEMA = {
     fld["name"]: (
-        _DTYPE_MAP[fld["dtype"]]()
+        _DTYPE_MAP[fld["dtype"]]()  # type: ignore
         if not isinstance(_DTYPE_MAP[fld["dtype"]], type)  # type: ignore
         else _DTYPE_MAP[fld["dtype"]]
     )
@@ -52,42 +53,67 @@ def generate_dataframe(
     total_rows: int,
     fraud_rate: float = 0.01,
     seed: Optional[int] = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
 ) -> pl.DataFrame:
     """
     Generate a Polars DataFrame of synthetic payment events.
+
+    Timestamps will be sampled between `start_date` and `end_date` (inclusive);
+    if either is None, both default to “today” in UTC.
 
     Parameters
     ----------
     total_rows : int
         Number of rows to produce.
-    fraud_rate : float
-        Fraction (0–1) of transactions labeled as fraud.
-    seed : Optional[int]
+    fraud_rate : float, optional
+        Fraction (0–1) of transactions labeled as fraud.  Default is 0.01.
+    seed : int | None, optional
         Seed for RNG reproducibility; if None, randomness is not seeded.
+    start_date : date | None, optional
+        Earliest date (UTC) for `event_time`.  If None, defaults to today.
+    end_date : date | None, optional
+        Latest date (UTC) for `event_time`.  If None, defaults to today.
 
     Returns
     -------
     pl.DataFrame
-        A DataFrame with exactly `total_rows` rows, columns in schema order,
-        and dtypes matching your YAML spec.
+        A DataFrame with:
+          - exactly `total_rows` rows,
+          - columns in schema order,
+          - dtypes matching your YAML spec,
+          - `event_time` uniformly spread between the start and end dates,
+            with a diurnal mixture of morning, afternoon, and evening hours.
     """
+    # Determine date range defaults at runtime
+    if start_date is None:
+        start_date = date.today()
+    if end_date is None:
+        end_date = date.today()
+
     # Seed control
     if seed is not None:
         random.seed(seed)
         _fake.seed_instance(seed)
 
-    # # Pre-extract the enum list for mcc_code by name
-    # mcc_field = next(f for f in _schema["fields"] if f["name"] == "mcc_code")
-    # mcc_list = mcc_field.get("enum", [])
+    # Generate realistic event_time column (wrap errors clearly)
+    try:
+        timestamps = sample_timestamps(
+            total_rows=total_rows,
+            start_date=start_date,
+            end_date=end_date,
+            seed=seed,
+        )
+    except ValueError as e:
+        raise ValueError(f"Temporal sampling failed for range {start_date} to {end_date}: {e}") from e
 
     rows: list[dict[str, object]] = []
-    now = datetime.now(timezone.utc)
 
-    for _ in range(total_rows):
+    for i in range(total_rows):
         is_fraud = random.random() < fraud_rate
         record = {
             "transaction_id": uuid.uuid4().hex,
-            "event_time": now,
+            "event_time": timestamps[i],
             "local_time_offset": random.randint(-720, 840),
             "amount": round(random.uniform(1.0, 500.0), 2),
             "currency_code": _fake.currency_code(),
@@ -95,7 +121,7 @@ def generate_dataframe(
             "card_scheme": _fake.random_element(
                 ["VISA", "MASTERCARD", "AMEX", "DISCOVER"]
             ),
-            "card_exp_year": random.randint(now.year + 1, now.year + 5),
+            "card_exp_year": random.randint(start_date.year + 1, start_date.year + 5),
             "card_exp_month": random.randint(1, 12),
             "customer_id": random.randint(1_000, 999_999),
             "merchant_id": random.randint(1_000, 9_999),
