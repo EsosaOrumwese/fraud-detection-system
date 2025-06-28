@@ -84,7 +84,11 @@ def main() -> None:
             cfg.seed,
         )
         df = generate_dataframe(
-            total_rows=cfg.total_rows, fraud_rate=cfg.fraud_rate, seed=cfg.seed
+            total_rows=cfg.total_rows,
+            fraud_rate=cfg.fraud_rate,
+            seed=cfg.seed,
+            start_date=cfg.temporal.start_date,
+            end_date=cfg.temporal.end_date,
         )
 
         # 2) Write locally
