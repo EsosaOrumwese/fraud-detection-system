@@ -42,8 +42,7 @@ def _zipf_weights(n: int, exponent: float) -> np.ndarray:
 
 
 def generate_customer_catalog(
-        num_customers: int,
-        zipf_exponent: float = 1.2
+    num_customers: int, zipf_exponent: float = 1.2
 ) -> pl.DataFrame:
     """
     Build a customer catalog with Zipf-based sampling weights.
@@ -64,15 +63,17 @@ def generate_customer_catalog(
     """
     ids = np.arange(1, num_customers + 1, dtype=np.int32)
     weights = _zipf_weights(num_customers, zipf_exponent)
-    return pl.DataFrame({
-        "customer_id": ids,
-        "weight": weights.astype(np.float64),
-    })
+    return pl.DataFrame(
+        {
+            "customer_id": ids,
+            "weight": weights.astype(np.float64),
+        }
+    )
 
 
 def generate_merchant_catalog(
-        num_merchants: int,
-        zipf_exponent: float = 1.2,
+    num_merchants: int,
+    zipf_exponent: float = 1.2,
 ) -> pl.DataFrame:
     """
     Build a merchant catalog with Zipf-based sampling weights.
@@ -93,15 +94,17 @@ def generate_merchant_catalog(
     """
     ids = np.arange(1, num_merchants + 1, dtype=np.int32)
     weights = _zipf_weights(num_merchants, zipf_exponent)
-    return pl.DataFrame({
-        "merchant_id": ids,
-        "weight": weights.astype(np.float64),
-    })
+    return pl.DataFrame(
+        {
+            "merchant_id": ids,
+            "weight": weights.astype(np.float64),
+        }
+    )
 
 
 def generate_card_catalog(
-        num_cards: int,
-        zipf_exponent: float = 1.0,
+    num_cards: int,
+    zipf_exponent: float = 1.0,
 ) -> pl.DataFrame:
     """
     Build a card catalog with Zipf-based sampling weights.
@@ -122,17 +125,19 @@ def generate_card_catalog(
     """
     ids = np.arange(1, num_cards + 1, dtype=np.int32)
     weights = _zipf_weights(num_cards, zipf_exponent)
-    return pl.DataFrame({
-        "card_id": ids,
-        "weight": weights.astype(np.float64),
-    })
+    return pl.DataFrame(
+        {
+            "card_id": ids,
+            "weight": weights.astype(np.float64),
+        }
+    )
 
 
 def sample_entities(
-        catalog: pl.DataFrame,
-        entity_col: str,
-        size: int,
-        seed: Optional[int] = None,
+    catalog: pl.DataFrame,
+    entity_col: str,
+    size: int,
+    seed: Optional[int] = None,
 ) -> np.ndarray:
     """
     Sample a sequence of entity IDs from a catalog according to its weights.

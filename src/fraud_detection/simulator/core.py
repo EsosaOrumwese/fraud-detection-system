@@ -19,7 +19,9 @@ from faker import Faker
 from .mcc_codes import MCC_CODES
 
 # Locate the schema at the project root (/schema/transaction_schema.yaml)
-_SCHEMA_PATH = (Path(__file__).resolve().parents[3] / "schema" / "transaction_schema.yaml")
+_SCHEMA_PATH = (
+    Path(__file__).resolve().parents[3] / "schema" / "transaction_schema.yaml"
+)
 if not _SCHEMA_PATH.exists():
     raise FileNotFoundError(f"Schema not found at {_SCHEMA_PATH}")
 _schema = yaml.safe_load(_SCHEMA_PATH.read_text())
@@ -37,12 +39,14 @@ _DTYPE_MAP: dict[str, pl.DataType] = {
 # Build Polars schema for casting
 _POLARS_SCHEMA = {
     fld["name"]: (
-        _DTYPE_MAP[fld["dtype"]]() if not isinstance(_DTYPE_MAP[fld["dtype"]], type)  # type: ignore
+        _DTYPE_MAP[fld["dtype"]]()
+        if not isinstance(_DTYPE_MAP[fld["dtype"]], type)  # type: ignore
         else _DTYPE_MAP[fld["dtype"]]
     )
     for fld in _schema["fields"]
 }
 _fake = Faker()
+
 
 def generate_dataframe(
     total_rows: int,
@@ -88,7 +92,9 @@ def generate_dataframe(
             "amount": round(random.uniform(1.0, 500.0), 2),
             "currency_code": _fake.currency_code(),
             "card_pan_hash": _fake.sha256(),
-            "card_scheme": _fake.random_element(["VISA", "MASTERCARD", "AMEX", "DISCOVER"]),
+            "card_scheme": _fake.random_element(
+                ["VISA", "MASTERCARD", "AMEX", "DISCOVER"]
+            ),
             "card_exp_year": random.randint(now.year + 1, now.year + 5),
             "card_exp_month": random.randint(1, 12),
             "customer_id": random.randint(1_000, 999_999),
@@ -100,7 +106,9 @@ def generate_dataframe(
                 else None
             ),
             "channel": _fake.random_element(["ONLINE", "IN_STORE", "ATM"]),
-            "pos_entry_mode": _fake.random_element(["CHIP", "MAGSTRIPE", "NFC", "ECOM"]),
+            "pos_entry_mode": _fake.random_element(
+                ["CHIP", "MAGSTRIPE", "NFC", "ECOM"]
+            ),
             "device_id": _fake.uuid4() if _fake.random.random() > 0.1 else None,
             "device_type": _fake.random_element(["IOS", "ANDROID", "WEB", "POS"]),
             "ip_address": _fake.ipv4_public(),
@@ -113,14 +121,14 @@ def generate_dataframe(
         }
         rows.append(record)
 
-
-
     # Build DataFrame & enforce schema
-    df = pl.DataFrame(rows).with_columns([
-        pl.col(col).cast(_POLARS_SCHEMA[col])
-        for col in _COLUMNS
-    ]).select(_COLUMNS)
+    df = (
+        pl.DataFrame(rows)
+        .with_columns([pl.col(col).cast(_POLARS_SCHEMA[col]) for col in _COLUMNS])
+        .select(_COLUMNS)
+    )
     return df
+
 
 def write_parquet(df: pl.DataFrame, out_path: Path) -> Path:
     """

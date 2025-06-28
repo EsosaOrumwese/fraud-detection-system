@@ -12,7 +12,6 @@ This lets existing code (Airflow DAGs, Makefile, tests) that do:
 continue to work unmodified.
 """
 
-from pathlib import Path
 import sys
 
 from fraud_detection.simulator.core import generate_dataframe, write_parquet
@@ -23,9 +22,11 @@ generate_dataset = generate_dataframe
 
 __all__ = ["generate_dataset", "write_parquet", "main"]
 
+
 def main() -> None:
     """CLI entrypoint for backwards compatibility."""
     return _cli_main()
+
 
 if __name__ == "__main__":
     sys.exit(main())  # type: ignore
