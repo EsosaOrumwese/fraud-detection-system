@@ -94,9 +94,11 @@ def generate_dataframe(
             "customer_id": random.randint(1_000, 999_999),
             "merchant_id": random.randint(1_000, 9_999),
             "merchant_country": _fake.country_code(representation="alpha-2"),
-            "mcc_code": _fake.random_element(MCC_CODES)
-            if _fake.random.random() > 0.05
-            else None,
+            "mcc_code": (
+                str(_fake.random_element(MCC_CODES))  # now a string
+                if _fake.random.random() > 0.05
+                else None
+            ),
             "channel": _fake.random_element(["ONLINE", "IN_STORE", "ATM"]),
             "pos_entry_mode": _fake.random_element(["CHIP", "MAGSTRIPE", "NFC", "ECOM"]),
             "device_id": _fake.uuid4() if _fake.random.random() > 0.1 else None,
@@ -110,6 +112,8 @@ def generate_dataframe(
             "label_fraud": is_fraud,
         }
         rows.append(record)
+
+
 
     # Build DataFrame & enforce schema
     df = pl.DataFrame(rows).with_columns([
