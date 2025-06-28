@@ -72,6 +72,15 @@ class GeneratorConfig(BaseModel):
     )
 
     @model_validator(mode="before")
+    def ensure_sections_present(cls, values):
+        # values is the raw dict from YAML
+        if "catalog" not in values:
+            raise ValueError("Missing required `catalog` section")
+        if "temporal" not in values:
+            raise ValueError("Missing required `temporal` section")
+        return values
+
+    @model_validator(mode="before")
     def convert_paths(cls, values):
         # Ensure out_dir is a Path if provided as str
         od = values.get("out_dir")
