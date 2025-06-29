@@ -1,5 +1,5 @@
 """
-Entity‐catalog generation and sampling driven by Zipf distributions.
+Entity‐catalog generation and sampling driven by Zipf distributions plus risk factors.
 """
 
 from __future__ import annotations
@@ -8,6 +8,7 @@ from typing import Optional
 import numpy as np
 from numpy.random import Generator, default_rng
 import polars as pl
+from faker import Faker
 
 
 def _zipf_weights(n: int, exponent: float) -> np.ndarray:
@@ -45,7 +46,7 @@ def generate_customer_catalog(
     num_customers: int, zipf_exponent: float = 1.2
 ) -> pl.DataFrame:
     """
-    Build a customer catalog with Zipf-based sampling weights.
+    Build a customer catalog with Zipf-based sampling weights. (No risk, customers not risk‐modeled here.)
 
     Parameters
     ----------
@@ -63,20 +64,28 @@ def generate_customer_catalog(
     """
     ids = np.arange(1, num_customers + 1, dtype=np.int32)
     weights = _zipf_weights(num_customers, zipf_exponent)
-    return pl.DataFrame(
+    return (pl.DataFrame(
         {
             "customer_id": ids,
             "weight": weights.astype(np.float64),
-        }
+        })
+        .with_columns([
+            pl.col("customer_id").cast(pl.Int32),
+            pl.col("weight").cast(pl.Float64),
+        ])
     )
 
 
 def generate_merchant_catalog(
     num_merchants: int,
     zipf_exponent: float = 1.2,
+    seed: Optional[int] = None,
+    risk_alpha: float = 2.0,
+    risk_beta: float = 5.0,
 ) -> pl.DataFrame:
     """
-    Build a merchant catalog with Zipf-based sampling weights.
+    Build a merchant catalog with Zipf-based sampling weights + per‐merchant fraud risk.
+    Risk ~ Beta(risk_alpha, risk_beta).
 
     Parameters
     ----------
@@ -94,20 +103,32 @@ def generate_merchant_catalog(
     """
     ids = np.arange(1, num_merchants + 1, dtype=np.int32)
     weights = _zipf_weights(num_merchants, zipf_exponent)
-    return pl.DataFrame(
+    rng: Generator = default_rng(seed)
+    risks = rng.beta(risk_alpha, risk_beta, size=num_merchants)
+    return (pl.DataFrame(
         {
             "merchant_id": ids,
             "weight": weights.astype(np.float64),
-        }
+            "risk": risks.astype(np.float64),
+        })
+        .with_columns([
+            pl.col("merchant_id").cast(pl.Int32),
+            pl.col("weight").cast(pl.Float64),
+            pl.col("risk").cast(pl.Float64),
+        ])
     )
 
 
 def generate_card_catalog(
     num_cards: int,
     zipf_exponent: float = 1.0,
+    seed: Optional[int] = None,
+    risk_alpha: float = 2.0,
+    risk_beta: float = 5.0,
 ) -> pl.DataFrame:
     """
-    Build a card catalog with Zipf-based sampling weights.
+    Build a card catalog with Zipf-based sampling weights + per‐card fraud risk + persistent pan_hash.
+    Risk ~ Beta(risk_alpha, risk_beta).
 
     Parameters
     ----------
@@ -125,11 +146,25 @@ def generate_card_catalog(
     """
     ids = np.arange(1, num_cards + 1, dtype=np.int32)
     weights = _zipf_weights(num_cards, zipf_exponent)
-    return pl.DataFrame(
+    rng: Generator = default_rng(seed)
+    risks = rng.beta(risk_alpha, risk_beta, size=num_cards)
+    fake = Faker()
+    if seed is not None:
+        fake.seed_instance(seed)
+    pan_hashes = [fake.sha256() for _ in range(num_cards)]
+    return (pl.DataFrame(
         {
             "card_id": ids,
             "weight": weights.astype(np.float64),
-        }
+            "risk": risks.astype(np.float64),
+            "pan_hash": pan_hashes,
+        })
+        .with_columns([
+            pl.col("card_id").cast(pl.Int32),
+            pl.col("weight").cast(pl.Float64),
+            pl.col("risk").cast(pl.Float64),
+            pl.col("pan_hash").cast(pl.Utf8),
+        ])
     )
 
 

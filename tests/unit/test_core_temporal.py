@@ -24,11 +24,6 @@ def test_generate_dataframe_injection_of_timestamps(tmp_path):
 def test_temporal_error_propagation():
     # end_date < start_date
     with pytest.raises(ValueError) as exc:
-        generate_dataframe(
-            total_rows=10,
-            fraud_rate=0.5,
-            seed=0,
-            start_date=date(2025,6,5),
-            end_date=date(2025,6,1)
-        )
+        generate_dataframe(total_rows=10, catalog_cfg=, fraud_rate=0.5, seed=0, start_date=date(2025, 6, 5),
+                           end_date=date(2025, 6, 1))
     assert "Temporal sampling failed" in str(exc.value)

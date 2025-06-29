@@ -1,20 +1,26 @@
-# Master configuration for fraud simulator
-total_rows: 1000000       # positive integer
+# Master configuration for fraud simulator (with risk priors)
+
+total_rows: 1000000       # positive integer (no underscores!)
 fraud_rate: 0.02          # 0 <= fraud_rate <= 1
 seed: 42                  # optional RNG seed
 
-catalog: # Entity catalog sizes & Zipf exponents
+catalog:
   num_customers: 50000
   customer_zipf_exponent: 1.2
+
   num_merchants: 5000
   merchant_zipf_exponent: 1.2
+  merchant_risk_alpha: 2.0
+  merchant_risk_beta: 5.0
+
   num_cards: 100000
   card_zipf_exponent: 1.0
+  card_risk_alpha: 2.0
+  card_risk_beta: 5.0
 
-temporal:  # Date range for event_time
-  start_date: '2025-06-01'
-  end_date: '2025-06-30'
+temporal:
+  start_date: "2025-06-01"
+  end_date:   "2025-06-30"
 
-# Output settings
-out_dir: outputs          # local root for Parquet writes
+out_dir: "outputs"        # local root for Parquet writes
 s3_upload: false          # if true, CLI will upload to S3
