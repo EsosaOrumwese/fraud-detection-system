@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Command‐line interface for the fraud simulator.
+Command‐line interface for the fraud simulator, now driven by config including risk priors.
 
 Handles:
  1. Argument parsing (rows, fraud_rate, seed, out_dir, S3 flag)
@@ -9,10 +9,11 @@ Handles:
  4. Clear exit codes and messages for any failures
 
 Workflow:
- 1. Parse --config and any override flags
+ 1. Parse --config and --s3 override
  2. Load & validate config via model_validate
- 3. Apply CLI overrides (only for S3 flag)
- 4. Generate, write, and optionally upload based on final settings
+ 3. Generate DataFrame with correlated fraud via risk catalogs
+ 4. Write partitioned Parquet and optionally upload to S3
+ 5. Structured logs & clear exit codes
 """
 
 import sys
@@ -79,16 +80,15 @@ def main() -> None:
         # 1) Generate
         logger.info(
             "Starting data generation (rows=%d, fraud_rate=%.4f, seed=%s)",
-            cfg.total_rows,
-            cfg.fraud_rate,
-            cfg.seed,
+            cfg.total_rows, cfg.fraud_rate, cfg.seed,
         )
         df = generate_dataframe(
             total_rows=cfg.total_rows,
+            catalog_cfg=cfg.catalog,
             fraud_rate=cfg.fraud_rate,
             seed=cfg.seed,
             start_date=cfg.temporal.start_date,
-            end_date=cfg.temporal.end_date,
+            end_date=cfg.temporal.end_date
         )
 
         # 2) Write locally

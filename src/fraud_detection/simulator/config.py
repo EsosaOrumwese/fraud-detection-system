@@ -12,18 +12,20 @@ from pydantic import BaseModel, Field, model_validator, ValidationError
 
 
 class CatalogConfig(BaseModel):
-    """Parameters for entity catalogs and Zipf exponents."""
+    """Parameters for entity catalogs, Zipf exponents, and fraud-risk Beta priors."""
 
     num_customers: int = Field(..., gt=0, description="Total unique customers")
-    customer_zipf_exponent: float = Field(
-        1.2, gt=0, description="Zipf exponent for customers"
-    )
+    customer_zipf_exponent: float = Field(1.2, gt=0, description="Zipf exponent for customers")
+
     num_merchants: int = Field(..., gt=0, description="Total unique merchants")
-    merchant_zipf_exponent: float = Field(
-        1.2, gt=0, description="Zipf exponent for merchants"
-    )
+    merchant_zipf_exponent: float = Field(1.2, gt=0, description="Zipf exponent for merchants")
+    merchant_risk_alpha: float = Field(2.0, gt=0, description="Alpha parameter for merchant-risk Beta")
+    merchant_risk_beta: float = Field(5.0, gt=0, description="Beta  parameter for merchant-risk Beta")
+
     num_cards: int = Field(..., gt=0, description="Total unique cards")
     card_zipf_exponent: float = Field(1.0, gt=0, description="Zipf exponent for cards")
+    card_risk_alpha: float = Field(2.0, gt=0, description="Alpha parameter for card-risk Beta")
+    card_risk_beta: float = Field(5.0, gt=0, description="Beta  parameter for card-risk Beta")
 
     # Providing extra data is not permitted, and a ValidationError will be raised if this is the case
     model_config = dict(extra="forbid")
@@ -32,9 +34,7 @@ class CatalogConfig(BaseModel):
 class TemporalConfig(BaseModel):
     """Temporal span and time-of-day distribution settings."""
 
-    start_date: date = Field(
-        ..., description="Inclusive start date for simulated events"
-    )
+    start_date: date = Field(..., description="Inclusive start date for simulated events")
     end_date: date = Field(..., description="Inclusive end date for simulated events")
 
     @model_validator(mode="after")
@@ -53,9 +53,7 @@ class GeneratorConfig(BaseModel):
     """
 
     # core knobs
-    total_rows: int = Field(
-        1_000_000, gt=0, description="Number of transactions to generate"
-    )
+    total_rows: int = Field(1_000_000, gt=0, description="Number of transactions to generate")
     fraud_rate: float = Field(0.01, ge=0, le=1, description="Global fraud probability")
     seed: Optional[int] = Field(None, description="RNG seed for reproducibility")
 
@@ -67,9 +65,7 @@ class GeneratorConfig(BaseModel):
 
     # output settings
     out_dir: Path = Field(Path("outputs"), description="Local output directory")
-    s3_upload: bool = Field(
-        False, description="Whether to upload to S3 after generation"
-    )
+    s3_upload: bool = Field(False, description="Whether to upload to S3 after generation")
 
     @model_validator(mode="before")
     def ensure_sections_present(cls, values):

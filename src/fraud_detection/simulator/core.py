@@ -15,9 +15,17 @@ from typing import Optional
 import yaml  # type: ignore
 import polars as pl
 from faker import Faker
+import numpy as np
 
 from .mcc_codes import MCC_CODES
 from .temporal import sample_timestamps
+from .catalog import (
+    generate_card_catalog,
+    generate_customer_catalog,
+    generate_merchant_catalog,
+    sample_entities
+)
+from .config import CatalogConfig
 
 # Locate the schema at the project root (/schema/transaction_schema.yaml)
 _SCHEMA_PATH = (
@@ -51,6 +59,7 @@ _fake = Faker()
 
 def generate_dataframe(
     total_rows: int,
+    catalog_cfg: CatalogConfig,
     fraud_rate: float = 0.01,
     seed: Optional[int] = None,
     start_date: date | None = None,
@@ -107,24 +116,56 @@ def generate_dataframe(
     except ValueError as e:
         raise ValueError(f"Temporal sampling failed for range {start_date} to {end_date}: {e}") from e
 
+    # 1) Build entity catalogs (Zipf + risk)
+    cust_cat = generate_customer_catalog(
+        num_customers=catalog_cfg.num_customers,
+        zipf_exponent=catalog_cfg.customer_zipf_exponent,
+    )
+    merch_cat = generate_merchant_catalog(
+        num_merchants=catalog_cfg.num_merchants,
+        zipf_exponent=catalog_cfg.merchant_zipf_exponent,
+        seed=seed,
+    )
+    card_cat = generate_card_catalog(
+        num_cards=catalog_cfg.num_cards,
+        zipf_exponent=catalog_cfg.card_zipf_exponent,
+        seed=seed,
+    )
+
+    # 2) Sample actual entity sequences
+    cust_ids = sample_entities(cust_cat, "customer_id", total_rows, seed=seed)
+    merch_ids = sample_entities(merch_cat, "merchant_id", total_rows, seed=(seed + 1) if seed is not None else None)
+    card_ids = sample_entities(card_cat, "card_id", total_rows, seed=(seed + 2) if seed is not None else None)
+
+    # 3) Vectorized arrays for risk & pan_hash (no KeyError risk)
+    merch_risk_arr = merch_cat["risk"].to_numpy()
+    card_risk_arr  = card_cat["risk"].to_numpy()
+    pan_hash_arr   = np.array(card_cat["pan_hash"].to_list(), dtype=object)
+
     rows: list[dict[str, object]] = []
 
     for i in range(total_rows):
-        is_fraud = random.random() < fraud_rate
+        # Correlated fraud probability
+        m_factor = merch_risk_arr[merch_ids[i] - 1]
+        c_factor = card_risk_arr[card_ids[i] - 1]
+        p_fraud = fraud_rate * m_factor * c_factor
+        is_fraud = random.random() < p_fraud
+
         record = {
             "transaction_id": uuid.uuid4().hex,
             "event_time": timestamps[i],
             "local_time_offset": random.randint(-720, 840),
             "amount": round(random.uniform(1.0, 500.0), 2),
             "currency_code": _fake.currency_code(),
-            "card_pan_hash": _fake.sha256(),
+            "card_pan_hash": pan_hash_arr[card_ids[i] - 1],
             "card_scheme": _fake.random_element(
                 ["VISA", "MASTERCARD", "AMEX", "DISCOVER"]
             ),
             "card_exp_year": random.randint(start_date.year + 1, start_date.year + 5),
             "card_exp_month": random.randint(1, 12),
-            "customer_id": random.randint(1_000, 999_999),
-            "merchant_id": random.randint(1_000, 9_999),
+            # sample from catalogs instead of uniform random
+            "customer_id": cust_ids[i],
+            "merchant_id": merch_ids[i],
             "merchant_country": _fake.country_code(representation="alpha-2"),
             "mcc_code": (
                 str(_fake.random_element(MCC_CODES))  # now a string
