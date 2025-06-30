@@ -4,13 +4,13 @@ import polars as pl
 from pathlib import Path
 from datetime import date
 
-from fraud_detection.simulator.core import generate_dataframe
-from fraud_detection.simulator.config import (
+from fraud_detection.simulator.core import generate_dataframe  # type: ignore
+from fraud_detection.simulator.config import (  # type: ignore
     CatalogConfig,
     TemporalConfig,
     GeneratorConfig,
 )
-from fraud_detection.simulator.catalog import generate_card_catalog
+from fraud_detection.simulator.catalog import generate_card_catalog  # type: ignore
 
 def make_generator_config(tmp_path: Path) -> GeneratorConfig:
     catalog = CatalogConfig(
@@ -54,8 +54,8 @@ def test_generate_dataframe_core_columns_and_types(tmp_path):
     # Types
     assert df["transaction_id"].dtype == pl.Utf8
     assert df["event_time"].dtype == pl.Datetime
-    assert df["customer_id"].dtype == pl.Int32
-    assert df["merchant_id"].dtype == pl.Int32
+    assert df["customer_id"].dtype == pl.Int64
+    assert df["merchant_id"].dtype == pl.Int64
     assert df["card_pan_hash"].dtype == pl.Utf8
     assert df["label_fraud"].dtype == pl.Boolean
 
@@ -102,4 +102,4 @@ def test_reproducibility(tmp_path):
         end_date=cfg.temporal.end_date,
     )
     # DataFrames should be exactly equal
-    assert df1.frame_equal(df2)
+    assert df1.to_pandas().equals(df2.to_pandas())

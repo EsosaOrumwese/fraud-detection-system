@@ -152,7 +152,7 @@ def generate_dataframe(
         is_fraud = random.random() < p_fraud
 
         record = {
-            "transaction_id": uuid.uuid4().hex,
+            "transaction_id": _fake.uuid4().replace("-",""),
             "event_time": timestamps[i],
             "local_time_offset": random.randint(-720, 840),
             "amount": round(random.uniform(1.0, 500.0), 2),
