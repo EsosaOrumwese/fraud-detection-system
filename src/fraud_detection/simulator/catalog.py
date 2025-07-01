@@ -60,7 +60,7 @@ def generate_customer_catalog(
     pl.DataFrame
         with columns:
         - customer_id (int32): 1...num_customers
-        - weight (float64): sampling probability
+        - weight (Float64): normalized Zipf probabilities summing to 1
     """
     ids = np.arange(1, num_customers + 1, dtype=np.int32)
     weights = _zipf_weights(num_customers, zipf_exponent)
@@ -93,13 +93,20 @@ def generate_merchant_catalog(
         Total unique merchants to generate.
     zipf_exponent : float
         Zipf exponent for merchant popularity.
+    seed : int | None, optional
+        RNG seed for reproducibility; if None, randomness is not seeded.
+    risk_alpha : float, optional
+        Alpha (shape) parameter for the Beta distribution of merchant risk.
+    risk_beta : float, optional
+        Beta (shape) parameter for the Beta distribution of merchant risk.
 
     Returns
     -------
     pl.DataFrame
-        with columns:
-        - merchant_id (int32): 1...num_merchants
-        - weight (float64): sampling probability
+        A DataFrame with columns:
+          - merchant_id (Int32): IDs from 1 to `num_merchants`
+          - weight (Float64): normalized Zipf probabilities summing to 1
+          - risk (Float64): samples from Beta(`risk_alpha`, `risk_beta`)
     """
     ids = np.arange(1, num_merchants + 1, dtype=np.int32)
     weights = _zipf_weights(num_merchants, zipf_exponent)
@@ -136,13 +143,21 @@ def generate_card_catalog(
         Total unique cards to generate.
     zipf_exponent : float
         Zipf exponent for card usage (default 1.0 for mild skew).
+    seed : int | None, optional
+        RNG seed for reproducibility; if None, randomness is not seeded.
+    risk_alpha : float, optional
+        Alpha (shape) parameter for the Beta distribution of card risk.
+    risk_beta : float, optional
+        Beta (shape) parameter for the Beta distribution of card risk.
 
     Returns
     -------
     pl.DataFrame
         with columns:
-        - card_id (int32): 1...num_cards
-        - weight (float64): sampling probability
+          - card_id (Int32): IDs from 1 to `num_cards`
+          - weight (Float64): normalized Zipf probabilities summing to 1
+          - risk (Float64): samples from Beta(`risk_alpha`, `risk_beta`)
+          - pan_hash (Utf8): deterministic, seeded hash strings for each card
     """
     ids = np.arange(1, num_cards + 1, dtype=np.int32)
     weights = _zipf_weights(num_cards, zipf_exponent)

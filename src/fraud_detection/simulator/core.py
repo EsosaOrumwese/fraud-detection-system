@@ -68,13 +68,19 @@ def generate_dataframe(
     """
     Generate a Polars DataFrame of synthetic payment events.
 
-    Timestamps will be sampled between `start_date` and `end_date` (inclusive);
-    if either is None, both default to “today” in UTC.
+    This function will:
+      1. Sample `event_time` between `start_date` and `end_date` (diurnal mixture).
+      2. Build Zipf-distributed customer, merchant, and card catalogs with Beta-distributed risk.
+      3. Draw entity IDs from those catalogs.
+      4. Correlate fraud labels with the per-entity risk factors.
 
     Parameters
     ----------
     total_rows : int
         Number of rows to produce.
+    catalog_cfg : CatalogConfig
+        Configuration for your entity catalogs (customers, merchants, cards),
+        including counts, Zipf exponents, and Beta priors for risk.
     fraud_rate : float, optional
         Fraction (0–1) of transactions labeled as fraud.  Default is 0.01.
     seed : int | None, optional
@@ -91,8 +97,7 @@ def generate_dataframe(
           - exactly `total_rows` rows,
           - columns in schema order,
           - dtypes matching your YAML spec,
-          - `event_time` uniformly spread between the start and end dates,
-            with a diurnal mixture of morning, afternoon, and evening hours.
+          - Fraud labels correlated with merchant & card risk.
     """
     # Determine date range defaults at runtime
     if start_date is None:
