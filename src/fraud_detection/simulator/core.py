@@ -25,7 +25,7 @@ from .catalog import (
     generate_merchant_catalog,
     sample_entities
 )
-from .config import CatalogConfig
+from .config import CatalogConfig, GeneratorConfig
 
 # Locate the schema at the project root (/schema/transaction_schema.yaml)
 _SCHEMA_PATH = (
@@ -57,14 +57,7 @@ _POLARS_SCHEMA = {
 _fake = Faker()
 
 
-def generate_dataframe(
-    total_rows: int,
-    catalog_cfg: CatalogConfig,
-    fraud_rate: float = 0.01,
-    seed: Optional[int] = None,
-    start_date: date | None = None,
-    end_date: date | None = None,
-) -> pl.DataFrame:
+def generate_dataframe(cfg: GeneratorConfig) -> pl.DataFrame:
     """
     Generate a Polars DataFrame of synthetic payment events.
 
@@ -76,19 +69,9 @@ def generate_dataframe(
 
     Parameters
     ----------
-    total_rows : int
-        Number of rows to produce.
-    catalog_cfg : CatalogConfig
+    cfg : GeneratorConfig
         Configuration for your entity catalogs (customers, merchants, cards),
         including counts, Zipf exponents, and Beta priors for risk.
-    fraud_rate : float, optional
-        Fraction (0–1) of transactions labeled as fraud.  Default is 0.01.
-    seed : int | None, optional
-        Seed for RNG reproducibility; if None, randomness is not seeded.
-    start_date : date | None, optional
-        Earliest date (UTC) for `event_time`.  If None, defaults to today.
-    end_date : date | None, optional
-        Latest date (UTC) for `event_time`.  If None, defaults to today.
 
     Returns
     -------
@@ -99,6 +82,13 @@ def generate_dataframe(
           - dtypes matching your YAML spec,
           - Fraud labels correlated with merchant & card risk.
     """
+    # Unpack config
+    total_rows = cfg.total_rows
+    fraud_rate = cfg.fraud_rate
+    seed       = cfg.seed
+    start_date = cfg.temporal.start_date
+    end_date   = cfg.temporal.end_date
+
     # Determine date range defaults at runtime
     if start_date is None:
         start_date = date.today()
@@ -123,24 +113,28 @@ def generate_dataframe(
 
     # 1) Build entity catalogs (Zipf + risk)
     cust_cat = generate_customer_catalog(
-        num_customers=catalog_cfg.num_customers,
-        zipf_exponent=catalog_cfg.customer_zipf_exponent,
+        num_customers=cfg.catalog.num_customers,
+        zipf_exponent=cfg.catalog.customer_zipf_exponent,
     )
     merch_cat = generate_merchant_catalog(
-        num_merchants=catalog_cfg.num_merchants,
-        zipf_exponent=catalog_cfg.merchant_zipf_exponent,
+        num_merchants=cfg.catalog.num_merchants,
+        zipf_exponent=cfg.catalog.merchant_zipf_exponent,
         seed=seed,
+        risk_alpha=cfg.catalog.merchant_risk_alpha,
+        risk_beta=cfg.catalog.merchant_risk_beta,
     )
     card_cat = generate_card_catalog(
-        num_cards=catalog_cfg.num_cards,
-        zipf_exponent=catalog_cfg.card_zipf_exponent,
+        num_cards=cfg.catalog.num_cards,
+        zipf_exponent=cfg.catalog.card_zipf_exponent,
         seed=seed,
+        risk_alpha=cfg.catalog.merchant_risk_alpha,
+        risk_beta=cfg.catalog.merchant_risk_beta,
     )
 
     # 2) Sample actual entity sequences
     cust_ids = sample_entities(cust_cat, "customer_id", total_rows, seed=seed)
-    merch_ids = sample_entities(merch_cat, "merchant_id", total_rows, seed=(seed + 1) if seed is not None else None)
-    card_ids = sample_entities(card_cat, "card_id", total_rows, seed=(seed + 2) if seed is not None else None)
+    merch_ids = sample_entities(merch_cat, "merchant_id", total_rows, seed=(seed or 0) + 1)
+    card_ids = sample_entities(card_cat, "card_id", total_rows, seed=(seed or 0) + 2)
 
     # 3) Vectorized arrays for risk & pan_hash (no KeyError risk)
     merch_risk_arr = merch_cat["risk"].to_numpy()
@@ -148,6 +142,11 @@ def generate_dataframe(
     pan_hash_arr   = np.array(card_cat["pan_hash"].to_list(), dtype=object)
 
     rows: list[dict[str, object]] = []
+    # Prep feature‐sampling helpers
+    device_types = list(cfg.feature.device_types.keys())
+    device_weights = list(cfg.feature.device_types.values())
+    # Map merchant_id → mcc_code
+    mcc_map = {r["merchant_id"]: r["mcc_code"] for r in merch_cat.to_dicts()}
 
     for i in range(total_rows):
         # Correlated fraud probability
@@ -157,40 +156,49 @@ def generate_dataframe(
         is_fraud = random.random() < p_fraud
 
         record = {
-            "transaction_id": _fake.uuid4().replace("-",""),
-            "event_time": timestamps[i],
+            "transaction_id":    _fake.uuid4().replace("-",""),
+            "event_time":        timestamps[i],
             "local_time_offset": random.randint(-720, 840),
-            "amount": round(random.uniform(1.0, 500.0), 2),
-            "currency_code": _fake.currency_code(),
-            "card_pan_hash": pan_hash_arr[card_ids[i] - 1],
-            "card_scheme": _fake.random_element(
-                ["VISA", "MASTERCARD", "AMEX", "DISCOVER"]
-            ),
-            "card_exp_year": random.randint(start_date.year + 1, start_date.year + 5),
-            "card_exp_month": random.randint(1, 12),
-            # sample from catalogs instead of uniform random
-            "customer_id": cust_ids[i],
-            "merchant_id": merch_ids[i],
-            "merchant_country": _fake.country_code(representation="alpha-2"),
-            "mcc_code": (
-                str(_fake.random_element(MCC_CODES))  # now a string
-                if _fake.random.random() > 0.05
-                else None
-            ),
-            "channel": _fake.random_element(["ONLINE", "IN_STORE", "ATM"]),
-            "pos_entry_mode": _fake.random_element(
-                ["CHIP", "MAGSTRIPE", "NFC", "ECOM"]
-            ),
-            "device_id": _fake.uuid4() if _fake.random.random() > 0.1 else None,
-            "device_type": _fake.random_element(["IOS", "ANDROID", "WEB", "POS"]),
-            "ip_address": _fake.ipv4_public(),
-            "user_agent": _fake.user_agent(),
-            "latitude": round(_fake.latitude(), 6),
-            "longitude": round(_fake.longitude(), 6),
-            "is_recurring": _fake.boolean(chance_of_getting_true=10),
-            "previous_txn_id": None,
-            "label_fraud": is_fraud,
+            "amount":            round(random.uniform(1.0, 500.0), 2),
+            "currency_code":     _fake.currency_code(),
+            "card_pan_hash":     pan_hash_arr[card_ids[i] - 1],
         }
+        # ─── Phase 6: amount
+        mcc = mcc_map[merch_ids[i]]
+        if cfg.feature.amount_distribution == "lognormal":
+            amt = random.lognormvariate(cfg.feature.lognormal_mean, cfg.feature.lognormal_sigma)
+        elif cfg.feature.amount_distribution == "normal":
+            amt = random.gauss(cfg.feature.lognormal_mean, cfg.feature.lognormal_sigma)
+        else:
+            amt = random.uniform(cfg.feature.uniform_min, cfg.feature.uniform_max)
+        record["amount"] = round(amt, 2)
+        # ─── Phase 6: device_type
+        record["device_type"] = random.choices(device_types, weights=device_weights, k=1)[0]
+        # ─── Phase 6: currency & timezone from MCC
+        if str(mcc).startswith("4"):
+            record["currency_code"] = "EUR" # why not GBP?
+            record["timezone"]      = "Europe/Berlin" # why not London
+        else:
+            record["currency_code"] = "USD"
+            record["timezone"]      = "America/New_York"
+        # ─── backfill old fields
+        record.update({
+            "card_scheme":       _fake.random_element(["VISA","MASTERCARD","AMEX","DISCOVER"]),
+            "card_exp_year":     random.randint(start_date.year+1, start_date.year+5),
+            "card_exp_month":    random.randint(1,12),
+            "channel":           _fake.random_element(["ONLINE","IN_STORE","ATM"]),
+            "pos_entry_mode":    _fake.random_element(["CHIP","MAGSTRIPE","NFC","ECOM"]),
+            "device_id":         _fake.uuid4() if _fake.random.random()>0.1 else None,
+            "ip_address":        _fake.ipv4_public(),
+            "user_agent":        _fake.user_agent(),
+            "latitude":          round(_fake.latitude(),6),
+            "longitude":         round(_fake.longitude(),6),
+            "is_recurring":      _fake.boolean(chance_of_getting_true=10),
+            "previous_txn_id":   None,
+            "label_fraud":       is_fraud,
+            "mcc_code":          mcc,
+        })
+
         rows.append(record)
 
     # Build DataFrame & enforce schema

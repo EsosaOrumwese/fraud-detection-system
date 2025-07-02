@@ -10,6 +10,8 @@ from numpy.random import Generator, default_rng
 import polars as pl
 from faker import Faker
 
+from .mcc_codes import MCC_CODES
+
 
 def _zipf_weights(n: int, exponent: float) -> np.ndarray:
     """
@@ -107,21 +109,28 @@ def generate_merchant_catalog(
           - merchant_id (Int32): IDs from 1 to `num_merchants`
           - weight (Float64): normalized Zipf probabilities summing to 1
           - risk (Float64): samples from Beta(`risk_alpha`, `risk_beta`)
+          - mcc_code (Int32): randomly assigned merchant code
     """
     ids = np.arange(1, num_merchants + 1, dtype=np.int32)
     weights = _zipf_weights(num_merchants, zipf_exponent)
     rng: Generator = default_rng(seed)
     risks = rng.beta(risk_alpha, risk_beta, size=num_merchants)
+
+    # Assign each merchant an MCC code
+    mccs = default_rng(seed).choice(MCC_CODES, size=num_merchants)
+
     return (pl.DataFrame(
         {
             "merchant_id": ids,
             "weight": weights.astype(np.float64),
             "risk": risks.astype(np.float64),
+            "mcc_code": mccs.astype(int),
         })
         .with_columns([
             pl.col("merchant_id").cast(pl.Int32),
             pl.col("weight").cast(pl.Float64),
             pl.col("risk").cast(pl.Float64),
+            pl.col("mcc_code").cast(pl.Int32),
         ])
     )
 
