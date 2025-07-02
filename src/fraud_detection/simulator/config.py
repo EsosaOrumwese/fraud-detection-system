@@ -5,10 +5,23 @@ Configuration loader & schema for the fraud simulator.
 from __future__ import annotations
 from pathlib import Path
 from datetime import date
-from typing import Optional
+from typing import Optional, Literal, Dict
 
 import yaml  # type: ignore
 from pydantic import BaseModel, Field, model_validator, ValidationError
+
+class FeatureConfig(BaseModel):
+    """Feature sampling parameters."""
+    device_types: Dict[str, float] = Field( ..., description="Weights for device_type sampling")
+    amount_distribution: Literal["lognormal","normal","uniform"] = Field(
+        default="lognormal", description="Distribution for transaction amount"
+    )
+    lognormal_mean:  float = Field(3.0, ge=0, description="Mean for lognormal/normal")
+    lognormal_sigma: float = Field(1.0, gt=0, description="Sigma for lognormal/normal")
+    uniform_min:     float = Field(1.0, ge=0, description="Min for uniform distribution")
+    uniform_max:     float = Field(500.0, gt=0, description="Max for uniform distribution")
+
+    model_config = dict(extra="forbid")
 
 
 class CatalogConfig(BaseModel):
@@ -63,6 +76,9 @@ class GeneratorConfig(BaseModel):
     # temporal settings
     temporal: TemporalConfig
 
+    # feature sampling parameters
+    feature: FeatureConfig
+
     # output settings
     out_dir: Path = Field(Path("outputs"), description="Local output directory")
     s3_upload: bool = Field(False, description="Whether to upload to S3 after generation")
@@ -74,6 +90,8 @@ class GeneratorConfig(BaseModel):
             raise ValueError("Missing required `catalog` section")
         if "temporal" not in values:
             raise ValueError("Missing required `temporal` section")
+        if "feature" not in values:
+            raise ValueError("Missing required `feature` section")
         return values
 
     @model_validator(mode="before")
@@ -91,6 +109,8 @@ class GeneratorConfig(BaseModel):
             raise ValueError("Missing required `catalog` section")
         if self.temporal is None:
             raise ValueError("Missing required `temporal` section")
+        if self.feature is None:
+            raise ValueError("Missing required `feature` section")
         return self
 
     model_config = dict(extra="forbid")

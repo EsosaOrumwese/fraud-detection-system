@@ -82,14 +82,7 @@ def main() -> None:
             "Starting data generation (rows=%d, fraud_rate=%.4f, seed=%s)",
             cfg.total_rows, cfg.fraud_rate, cfg.seed,
         )
-        df = generate_dataframe(
-            total_rows=cfg.total_rows,
-            catalog_cfg=cfg.catalog,
-            fraud_rate=cfg.fraud_rate,
-            seed=cfg.seed,
-            start_date=cfg.temporal.start_date,
-            end_date=cfg.temporal.end_date
-        )
+        df = generate_dataframe(cfg)
 
         # 2) Write locally
         today = date.today()
