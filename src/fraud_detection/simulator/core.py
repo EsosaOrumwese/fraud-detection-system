@@ -10,6 +10,9 @@ import random
 import uuid
 from datetime import date
 from pathlib import Path
+from typing import Optional
+import math
+import multiprocessing
 
 import yaml  # type: ignore
 import polars as pl
@@ -57,6 +60,134 @@ _POLARS_SCHEMA = {
 _fake = Faker()
 
 
+def _generate_chunk(chunk_rows: int, cfg: GeneratorConfig, seed: Optional[int]) -> pl.DataFrame:
+    """
+    Generate a single chunk of `chunk_rows` events using fully vectorized operations.
+    """
+    # ── Unpack & defaults ──────────────────────────────────────────────────────
+    fraud_rate = cfg.fraud_rate
+    start_date = cfg.temporal.start_date or date.today()
+    end_date   = cfg.temporal.end_date   or date.today()
+    # seed Python/NumPy/Faker for reproducibility
+    if seed is not None:
+        random.seed(seed)
+        _fake.seed_instance(seed)
+    rng = np.random.default_rng(seed)
+
+    # ── 1) Timestamps ──────────────────────────────────────────────────────────
+    timestamps = sample_timestamps(
+        total_rows=chunk_rows,
+        start_date=start_date,
+        end_date=end_date,
+        seed=seed,
+    )
+
+    # ── 2) Catalogs ────────────────────────────────────────────────────────────
+    cust_cat = generate_customer_catalog(
+        num_customers=cfg.catalog.num_customers,
+        zipf_exponent=cfg.catalog.customer_zipf_exponent,
+    )
+    merch_cat = generate_merchant_catalog(
+        num_merchants=cfg.catalog.num_merchants,
+        zipf_exponent=cfg.catalog.merchant_zipf_exponent,
+        seed=seed,
+        risk_alpha=cfg.catalog.merchant_risk_alpha,
+        risk_beta=cfg.catalog.merchant_risk_beta,
+    )
+    card_cat = generate_card_catalog(
+        num_cards=cfg.catalog.num_cards,
+        zipf_exponent=cfg.catalog.card_zipf_exponent,
+        seed=seed,
+        risk_alpha=cfg.catalog.card_risk_alpha,
+        risk_beta=cfg.catalog.card_risk_beta,
+    )
+
+    # ── 3) Entity‐ID draws ──────────────────────────────────────────────────────
+    cust_ids  = sample_entities(cust_cat,  "customer_id", chunk_rows, seed=seed)
+    merch_ids = sample_entities(merch_cat, "merchant_id", chunk_rows, seed=(seed or 0) + 1)
+    card_ids  = sample_entities(card_cat, "card_id",     chunk_rows, seed=(seed or 0) + 2)
+
+    # ── 4) Fraud label ─────────────────────────────────────────────────────────
+    m_risk = merch_cat["risk"].to_numpy()[merch_ids - 1]
+    c_risk = card_cat["risk"].to_numpy()[card_ids  - 1]
+    p_fraud = fraud_rate * m_risk * c_risk
+    label_fraud = rng.random(chunk_rows) < p_fraud
+
+    # ── 5) Numeric features ───────────────────────────────────────────────────
+    local_time_offset = rng.integers(-720, 841, size=chunk_rows)
+    if cfg.feature.amount_distribution == "lognormal":
+        raw_amt = rng.lognormal(cfg.feature.lognormal_mean, cfg.feature.lognormal_sigma, size=chunk_rows)
+    elif cfg.feature.amount_distribution == "normal":
+        raw_amt = rng.normal(cfg.feature.lognormal_mean, cfg.feature.lognormal_sigma, size=chunk_rows)
+    else:
+        raw_amt = rng.uniform(cfg.feature.uniform_min, cfg.feature.uniform_max, size=chunk_rows)
+    amount = np.round(raw_amt, 2)
+
+    # ── 6) Fully‐vectorized categoricals ───────────────────────────────────────
+    # device_type
+    dev_keys   = list(cfg.feature.device_types.keys())
+    dev_wts    = np.array(list(cfg.feature.device_types.values()), dtype=float)
+    device_type = rng.choice(dev_keys, size=chunk_rows, p=dev_wts/dev_wts.sum())
+    # card_scheme
+    schemes    = ["VISA","MASTERCARD","AMEX","DISCOVER"]
+    card_scheme = rng.choice(schemes, size=chunk_rows)
+    # channel
+    channels   = ["ONLINE","IN_STORE","ATM"]
+    channel    = rng.choice(channels, size=chunk_rows)
+    # pos_entry_mode
+    modes      = ["CHIP","MAGSTRIPE","NFC","ECOM"]
+    pos_entry_mode = rng.choice(modes, size=chunk_rows)
+    # is_recurring
+    is_recurring = rng.random(chunk_rows) < 0.1
+
+    # ── 7) Currency & timezone via MCC code ───────────────────────────────────
+    mcc_arr = merch_cat["mcc_code"].to_numpy()[merch_ids - 1].astype(str)
+    eur_mask = np.char.startswith(mcc_arr, "4")
+    currency_code = np.where(eur_mask, "EUR", "USD")
+    timezone      = np.where(eur_mask, "Europe/Berlin", "America/New_York")
+
+    # ── 8) Other vectorizable fields ──────────────────────────────────────────
+    pan_hash = np.array(card_cat["pan_hash"].to_list(), dtype=object)[card_ids - 1]
+    # merchant_country pool‐sample
+    pool_n = min(chunk_rows, 100_000)
+    country_pool = [_fake.country_code(representation="alpha-2") for _ in range(pool_n)]
+    merchant_country = rng.choice(country_pool, size=chunk_rows)
+    # lat/lon uniform draws
+    latitude  = np.round(rng.uniform(-90,  90, size=chunk_rows), 6)
+    longitude = np.round(rng.uniform(-180, 180, size=chunk_rows), 6)
+
+    # ── 9) Assemble & cast ─────────────────────────────────────────────────────
+    df = pl.DataFrame({
+        "transaction_id":  [uuid.uuid4().hex for _ in range(chunk_rows)],
+        "event_time":      timestamps,
+        "local_time_offset": local_time_offset,
+        "amount":          amount,
+        "currency_code":   currency_code,
+        "card_pan_hash":   pan_hash,
+        "customer_id":     cust_ids,
+        "merchant_id":     merch_ids,
+        "merchant_country":merchant_country,
+        "device_type":     device_type,
+        "timezone":        timezone,
+        "card_scheme":     card_scheme,
+        "card_exp_year":   rng.integers(start_date.year + 1, start_date.year + 6, size=chunk_rows),
+        "card_exp_month":  rng.integers(1, 13, size=chunk_rows),
+        "channel":         channel,
+        "pos_entry_mode":  pos_entry_mode,
+        "device_id":       [uuid.uuid4().hex if flag else None for flag in (rng.random(chunk_rows) < 0.9)],
+        "ip_address":      rng.choice([_fake.ipv4_public() for _ in range(pool_n)], size=chunk_rows),
+        "user_agent":      rng.choice([_fake.user_agent()   for _ in range(pool_n)], size=chunk_rows),
+        "latitude":        latitude,
+        "longitude":       longitude,
+        "is_recurring":    is_recurring,
+        "previous_txn_id": [None]*chunk_rows,
+        "label_fraud":     label_fraud,
+        "mcc_code":        mcc_arr,
+    }).with_columns([pl.col(c).cast(_POLARS_SCHEMA[c]) for c in _COLUMNS]) \
+      .select(_COLUMNS)
+    return df
+
+
 def generate_dataframe(cfg: GeneratorConfig) -> pl.DataFrame:
     """
     Generate a Polars DataFrame of synthetic payment events.
@@ -84,149 +215,19 @@ def generate_dataframe(cfg: GeneratorConfig) -> pl.DataFrame:
     """
     # Unpack config
     total_rows = cfg.total_rows
-    fraud_rate = cfg.fraud_rate
-    seed       = cfg.seed
-    start_date = cfg.temporal.start_date
-    end_date   = cfg.temporal.end_date
+    # If configured, split into parallel chunks
+    if cfg.num_workers > 1 and cfg.batch_size > 0:
+        num_chunks = math.ceil(total_rows / cfg.batch_size)
+        counts     = [cfg.batch_size] * (num_chunks - 1) + [total_rows - cfg.batch_size * (num_chunks - 1)]
+        base_seed  = cfg.seed or 0
+        args       = [(counts[i], cfg, base_seed + i) for i in range(num_chunks)]
+        with multiprocessing.Pool(cfg.num_workers) as pool:
+            dfs = pool.starmap(_generate_chunk, args)
 
-    # Determine date range defaults at runtime
-    if start_date is None:
-        start_date = date.today()
-    if end_date is None:
-        end_date = date.today()
+        return pl.concat(dfs, rechunk=False)
 
-    # Seed control
-    if seed is not None:
-        random.seed(seed)
-        _fake.seed_instance(seed)
-
-    # Generate realistic event_time column (wrap errors clearly)
-    try:
-        timestamps = sample_timestamps(
-            total_rows=total_rows,
-            start_date=start_date,
-            end_date=end_date,
-            seed=seed,
-        )
-    except ValueError as e:
-        raise ValueError(f"Temporal sampling failed for range {start_date} to {end_date}: {e}") from e
-
-    # 1) Build entity catalogs (Zipf + risk)
-    cust_cat = generate_customer_catalog(
-        num_customers=cfg.catalog.num_customers,
-        zipf_exponent=cfg.catalog.customer_zipf_exponent,
-    )
-    merch_cat = generate_merchant_catalog(
-        num_merchants=cfg.catalog.num_merchants,
-        zipf_exponent=cfg.catalog.merchant_zipf_exponent,
-        seed=seed,
-        risk_alpha=cfg.catalog.merchant_risk_alpha,
-        risk_beta=cfg.catalog.merchant_risk_beta,
-    )
-    card_cat = generate_card_catalog(
-        num_cards=cfg.catalog.num_cards,
-        zipf_exponent=cfg.catalog.card_zipf_exponent,
-        seed=seed,
-        risk_alpha=cfg.catalog.merchant_risk_alpha,
-        risk_beta=cfg.catalog.merchant_risk_beta,
-    )
-
-    # 2) Sample actual entity sequences
-    cust_ids = sample_entities(cust_cat, "customer_id", total_rows, seed=seed)
-    merch_ids = sample_entities(merch_cat, "merchant_id", total_rows, seed=(seed or 0) + 1)
-    card_ids = sample_entities(card_cat, "card_id", total_rows, seed=(seed or 0) + 2)
-
-    # 3) Batched, vectorized feature generation
-    rng = np.random.default_rng(seed)
-
-    # Entity-level arrays
-    cust_ids_arr  = cust_ids
-    merch_ids_arr = merch_ids
-    card_ids_arr  = card_ids
-
-    merch_risk_arr = merch_cat["risk"].to_numpy()
-    card_risk_arr  = card_cat["risk"].to_numpy()
-
-    # Fraud label: p = fraud_rate * merchant_risk * card_risk
-    m_factor   = merch_risk_arr[merch_ids_arr - 1]
-    c_factor   = card_risk_arr[card_ids_arr - 1]
-    p_fraud    = fraud_rate * m_factor * c_factor
-    label_fraud = rng.random(total_rows) < p_fraud
-
-    # Temporal and numeric features
-    local_time_offset = rng.integers(-720, 841, size=total_rows)
-
-    if cfg.feature.amount_distribution == "lognormal":
-        raw_amounts = rng.lognormal(cfg.feature.lognormal_mean, cfg.feature.lognormal_sigma, size=total_rows)
-    elif cfg.feature.amount_distribution == "normal":
-        raw_amounts = rng.normal(cfg.feature.lognormal_mean, cfg.feature.lognormal_sigma, size=total_rows)
-    else:
-        raw_amounts = rng.uniform(cfg.feature.uniform_min, cfg.feature.uniform_max, size=total_rows)
-    amount = np.round(raw_amounts, 2)
-
-    # Map merchants → MCC codes (string) for currency/timezone logic
-    mcc_arr       = merch_cat["mcc_code"].to_numpy()[merch_ids_arr - 1]
-    mcc_strs      = mcc_arr.astype(str)
-    eur_mask      = np.char.startswith(mcc_strs, "4")
-    currency_code = np.where(eur_mask, "EUR", "USD")
-    timezone      = np.where(eur_mask, "Europe/Berlin", "America/New_York")
-
-    # Card PAN hashes
-    pan_hash_arr = np.array(card_cat["pan_hash"].to_list(), dtype=object)[card_ids_arr - 1]
-
-    # Semi-vectorized / list-comprehension features
-    transaction_id    = [uuid.uuid4().hex for _ in range(total_rows)]
-    device_type       = rng.choice(
-        list(cfg.feature.device_types.keys()),
-        size=total_rows,
-        p=np.array(list(cfg.feature.device_types.values())) / sum(cfg.feature.device_types.values())
-    )
-    merchant_country  = [_fake.country_code(representation="alpha-2") for _ in range(total_rows)]
-    card_scheme       = [_fake.random_element(["VISA","MASTERCARD","AMEX","DISCOVER"]) for _ in range(total_rows)]
-    card_exp_year     = rng.integers(start_date.year + 1, start_date.year + 6, size=total_rows)
-    card_exp_month    = rng.integers(1, 13, size=total_rows)
-    channel           = [_fake.random_element(["ONLINE","IN_STORE","ATM"]) for _ in range(total_rows)]
-    pos_entry_mode    = [_fake.random_element(["CHIP","MAGSTRIPE","NFC","ECOM"]) for _ in range(total_rows)]
-    device_id         = [uuid.uuid4().hex if rng.random() < 0.9 else None for _ in range(total_rows)]
-    ip_address        = [_fake.ipv4_public() for _ in range(total_rows)]
-    user_agent        = [_fake.user_agent() for _ in range(total_rows)]
-    latitude          = [round(_fake.latitude(), 6) for _ in range(total_rows)]
-    longitude         = [round(_fake.longitude(), 6) for _ in range(total_rows)]
-    is_recurring      = rng.random(total_rows) < 0.1
-    previous_txn_id   = [None] * total_rows
-
-    # Build DataFrame in one shot and cast
-    df = pl.DataFrame({
-        "transaction_id":    transaction_id,
-        "event_time":        timestamps,
-        "local_time_offset": local_time_offset,
-        "amount":            amount,
-        "currency_code":     currency_code,
-        "card_pan_hash":     pan_hash_arr,
-        "customer_id":       cust_ids_arr,
-        "merchant_id":       merch_ids_arr,
-        "merchant_country":  merchant_country,
-        "device_type":       device_type,
-        "timezone":          timezone,
-        "card_scheme":       card_scheme,
-        "card_exp_year":     card_exp_year,
-        "card_exp_month":    card_exp_month,
-        "channel":           channel,
-        "pos_entry_mode":    pos_entry_mode,
-        "device_id":         device_id,
-        "ip_address":        ip_address,
-        "user_agent":        user_agent,
-        "latitude":          latitude,
-        "longitude":         longitude,
-        "is_recurring":      is_recurring,
-        "previous_txn_id":   previous_txn_id,
-        "label_fraud":       label_fraud,
-        "mcc_code":          mcc_strs,
-    }).with_columns([pl.col(col).cast(_POLARS_SCHEMA[col]) for col in _COLUMNS]) \
-      .select(_COLUMNS)
-
-    return df
-
+    # Single-process fallback when parallelism is not requested
+    return _generate_chunk(total_rows, cfg, cfg.seed)
 
 def write_parquet(df: pl.DataFrame, out_path: Path) -> Path:
     """
