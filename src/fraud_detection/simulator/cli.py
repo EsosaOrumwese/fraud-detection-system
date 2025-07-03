@@ -18,6 +18,7 @@ Workflow:
 
 import sys
 import argparse
+import click
 import logging
 from pathlib import Path
 from datetime import date
@@ -56,6 +57,16 @@ def main() -> None:
         default="INFO",
         help="Set logging level",
     )
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        help="Number of parallel worker processes to use (overrides config.num_workers)",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        help="Number of rows to generate in each batch (overrides config.batch_size)",
+    )
     args = parser.parse_args()
 
     # Configure logging
@@ -69,6 +80,11 @@ def main() -> None:
     # Load & validate config
     try:
         cfg: GeneratorConfig = load_config(args.config)
+        # allow CLI to override performance knobs
+        if args.num_workers is not None:
+            cfg.num_workers = args.num_workers
+        if args.batch_size is not None:
+            cfg.batch_size = args.batch_size
     except (FileNotFoundError, ValueError, ValidationError) as e:
         logger.error("Config error: %s", e)
         sys.exit(1)
