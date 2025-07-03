@@ -63,6 +63,30 @@ _POLARS_SCHEMA = {
 _fake = Faker()
 
 
+def _make_uuid4_hex_array(rng: np.random.Generator, n: int) -> list[str]:
+    """
+    Generate `n` RFC-4122-compliant UUIDv4 hex strings, deterministically
+    from the given numpy Generator.
+    """
+    # 1) Draw two arrays of 64-bit unsigned ints
+    hi = rng.integers(0, 2**64, size=n, dtype=np.uint64)
+    lo = rng.integers(0, 2**64, size=n, dtype=np.uint64)
+
+    # 2) Combine to 128-bit Python ints
+    ints = (hi.astype(object) << 64) | lo.astype(object)
+
+    # 3) Set version bits (flip bits 76–79 to 0b0100) and variant bits (flip bits 62–63 to 0b10)
+    def _set_uuid4_bits(i: int) -> int:
+        i = (i & ~(0xF << 76)) | (4 << 76)
+        i = (i & ~(0x3 << 62)) | (2 << 62)
+        return i
+
+    ints = [_set_uuid4_bits(i) for i in ints]
+
+    # 4) Convert to hex strings
+    return [uuid.UUID(int=i).hex for i in ints]
+
+
 # Helper for Pool.imap_unordered to unpack the args tuple
 def _chunk_worker(args: tuple[int, GeneratorConfig, Optional[int]]) -> pl.DataFrame:
     """
@@ -167,9 +191,19 @@ def _generate_chunk(chunk_rows: int, cfg: GeneratorConfig, seed: Optional[int]) 
     latitude  = np.round(rng.uniform(-90,  90, size=chunk_rows), 6)
     longitude = np.round(rng.uniform(-180, 180, size=chunk_rows), 6)
 
+    # Generate transaction_id
+    tx_ids = _make_uuid4_hex_array(rng, chunk_rows)
+
+    # Generate device_id with ~90% present
+    mask = rng.random(chunk_rows) < 0.9
+    # Make exactly sum(mask) UUIDs
+    dev_ids_pool = _make_uuid4_hex_array(rng, int(mask.sum()))
+    it = iter(dev_ids_pool)
+    device_ids = [next(it) if m else None for m in mask]
+
     # ── 9) Assemble & cast ─────────────────────────────────────────────────────
     df = pl.DataFrame({
-        "transaction_id":  [uuid.uuid4().hex for _ in range(chunk_rows)],
+        "transaction_id":  tx_ids,
         "event_time":      timestamps,
         "local_time_offset": local_time_offset,
         "amount":          amount,
@@ -185,7 +219,7 @@ def _generate_chunk(chunk_rows: int, cfg: GeneratorConfig, seed: Optional[int]) 
         "card_exp_month":  rng.integers(1, 13, size=chunk_rows),
         "channel":         channel,
         "pos_entry_mode":  pos_entry_mode,
-        "device_id":       [uuid.uuid4().hex if flag else None for flag in (rng.random(chunk_rows) < 0.9)],
+        "device_id":       device_ids,
         "ip_address":      rng.choice([_fake.ipv4_public() for _ in range(pool_n)], size=chunk_rows),
         "user_agent":      rng.choice([_fake.user_agent()   for _ in range(pool_n)], size=chunk_rows),
         "latitude":        latitude,
