@@ -26,28 +26,39 @@ def test_zipf_weights_sum_to_one_and_invalid():
         _zipf_weights(10, -1.0)
 
 
-@pytest.mark.parametrize(
-    "func,col",
-    [
-        (generate_customer_catalog, "customer_id"),
-        (generate_merchant_catalog, "merchant_id"),
-        (generate_card_catalog, "card_id"),
-    ],
-)
-def test_catalog_generation_length_and_dtype(func, col):
-    # Create a small catalog
-    df = func(
-        num_customers := 5 if "customer" in func.__name__ else 5, zipf_exponent=1.5
-    )
-    # Check columns
-    assert list(df.columns) == [col, "weight"]
-    # Check length
+# @pytest.mark.parametrize(
+#     "func,col",
+#     [
+#         (generate_customer_catalog, "customer_id"),
+#         (generate_merchant_catalog, "merchant_id"),
+#         (generate_card_catalog, "card_id"),
+#     ],
+# )
+def test_customer_catalog_columns_and_dtype():
+    df = generate_customer_catalog(num_customers=5, zipf_exponent=1.5)
+    assert list(df.columns) == ["customer_id", "weight"]
     assert df.height == 5
-    # IDs are integer, weight is float
-    assert df[col].dtype in (pl.Int32, pl.Int64)
+    assert df["customer_id"].dtype in (pl.Int32, pl.Int64)
     assert df["weight"].dtype == pl.Float64
-    # Weights sum to 1
     assert pytest.approx(1.0, rel=1e-12) == df["weight"].sum()
+
+def test_merchant_catalog_columns_and_dtype():
+    df = generate_merchant_catalog(num_merchants=5, zipf_exponent=1.5)
+    assert list(df.columns) == ["merchant_id", "weight", "risk", "mcc_code"]
+    assert df.height == 5
+    assert df["merchant_id"].dtype in (pl.Int32, pl.Int64)
+    assert df["weight"].dtype  == pl.Float64
+    assert df["risk"].dtype    == pl.Float64
+    assert df["mcc_code"].dtype == pl.Int32
+
+def test_card_catalog_columns_and_dtype():
+    df = generate_card_catalog(num_cards=5, zipf_exponent=1.5)
+    assert list(df.columns) == ["card_id", "weight", "risk", "pan_hash"]
+    assert df.height == 5
+    assert df["card_id"].dtype in (pl.Int32, pl.Int64)
+    assert df["weight"].dtype == pl.Float64
+    assert df["risk"].dtype   == pl.Float64
+    assert df["pan_hash"].dtype == pl.Utf8
 
 
 def test_sample_entities_basic_and_errors():
