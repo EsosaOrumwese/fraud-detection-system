@@ -14,7 +14,8 @@ from typing import Optional
 import math
 import multiprocessing
 import sys
-from tqdm import tqdm
+import logging
+import time
 
 import yaml  # type: ignore
 import polars as pl
@@ -226,18 +227,11 @@ def generate_dataframe(cfg: GeneratorConfig) -> pl.DataFrame:
     # Unpack config
     total_rows = cfg.total_rows
 
-    # A tiny wrapper that convinces tqdm it’s writing to a TTY,
-    # so it will emit \r-updates instead of new lines.
-    class _TTYWriter:
-        def __init__(self, stream):
-            self.stream = stream
-        def write(self, x):
-            self.stream.write(x)
-        def flush(self):
-            self.stream.flush()
-        def isatty(self):
-            return True
-
+    # Set up logging for per‐chunk status updates
+    logger = logging.getLogger(__name__)
+    start_time     = time.perf_counter()
+    last_time      = start_time
+    cumulative_rows = 0
 
     # If configured, split into parallel chunks
     if cfg.num_workers > 1 and cfg.batch_size > 0:
@@ -245,31 +239,46 @@ def generate_dataframe(cfg: GeneratorConfig) -> pl.DataFrame:
         counts     = [cfg.batch_size] * (num_chunks - 1) + [total_rows - cfg.batch_size * (num_chunks - 1)]
         base_seed  = cfg.seed or 0
         args       = [(counts[i], cfg, base_seed + i) for i in range(num_chunks)]
-        writer = _TTYWriter(sys.stdout)
         dfs: list[pl.DataFrame] = []
-        with multiprocessing.Pool(cfg.num_workers) as pool, \
-             tqdm(total=total_rows,
-                  file=writer,
-                  miniters=cfg.batch_size,
-                  ncols=80,
-                  desc="Generating rows") as pbar:
-            # use our 1-arg helper so the Pool feeds (_size,cfg,seed) correctly
+
+        # Parallel generation with per‐chunk logging
+        with multiprocessing.Pool(cfg.num_workers) as pool:
             for df in pool.imap_unordered(_chunk_worker, args):
+                now = time.perf_counter()
+                chunk_time = now - last_time
+                total_time = now - start_time
+                cumulative_rows += df.height
+                speed = df.height / chunk_time if chunk_time > 0 else float('inf')
+                logger.info(
+                    "Chunk done: %d rows in %.2f s (%.0f rows/s) — total %d/%d rows in %.2f s",
+                    df.height, chunk_time, speed, cumulative_rows, total_rows, total_time,
+                )
+                last_time = now
                 dfs.append(df)
-                pbar.update(df.height)
-        return pl.concat(dfs, rechunk=False)
 
+            # One global concat + schema cast
+        df = pl.concat(dfs, rechunk=False)
+        return (
+            df
+            .with_columns([pl.col(col).cast(_POLARS_SCHEMA[col]) for col in _COLUMNS])
+            .select(_COLUMNS)
+        )
 
-    # Single-process fallback (with progress bar)
-    writer = _TTYWriter(sys.stdout)
-    with tqdm(total=total_rows,
-             file=writer,
-             miniters=cfg.batch_size,
-             ncols=80,
-             desc="Generating rows") as pbar:
-        df = _generate_chunk(total_rows, cfg, cfg.seed)
-        pbar.update(df.height)
-    return df
+    # Single-process fallback with logging
+    df = _generate_chunk(total_rows, cfg, cfg.seed)
+    now        = time.perf_counter()
+    chunk_time = now - last_time
+    speed      = df.height / chunk_time if chunk_time > 0 else float('inf')
+    logger.info(
+        "Single-chunk done: %d rows in %.2f s (%.0f rows/s)",
+        df.height, chunk_time, speed,
+    )
+    # Apply schema cast
+    return (
+        df
+        .with_columns([pl.col(col).cast(_POLARS_SCHEMA[col]) for col in _COLUMNS])
+        .select(_COLUMNS)
+    )
 
 def write_parquet(df: pl.DataFrame, out_path: Path) -> Path:
     """
