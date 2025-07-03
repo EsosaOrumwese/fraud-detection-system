@@ -70,6 +70,10 @@ class GeneratorConfig(BaseModel):
     fraud_rate: float = Field(0.01, ge=0, le=1, description="Global fraud probability")
     seed: Optional[int] = Field(None, description="RNG seed for reproducibility")
 
+    # performance knobs
+    batch_size: int = Field(100_000, gt=0, description="Number of rows to generate in each batch (for chunked/streamed writes)")
+    num_workers: int = Field(1, gt=0, description="Number of parallel worker processes/threads for generation")
+
     # entity catalogs
     catalog: CatalogConfig
 
