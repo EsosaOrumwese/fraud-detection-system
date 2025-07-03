@@ -117,7 +117,7 @@ def generate_merchant_catalog(
     risks = rng.beta(risk_alpha, risk_beta, size=num_merchants)
 
     # Assign each merchant an MCC code
-    mccs = default_rng(seed).choice(MCC_CODES, size=num_merchants)
+    mccs = rng.choice(MCC_CODES, size=num_merchants)
 
     return (pl.DataFrame(
         {
