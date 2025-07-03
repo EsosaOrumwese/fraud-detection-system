@@ -10,6 +10,11 @@ import numpy as np
 from numpy.random import Generator, default_rng
 
 
+# Pre‐computed Gaussian‐mixture parameters (seconds since midnight)
+_TEMPORAL_MEANS = np.array([9, 13, 20], dtype=float) * 3600
+_TEMPORAL_STDS  = np.array([2, 1, 3], dtype=float) * 3600
+_TEMPORAL_PROBS = np.array([0.4, 0.3, 0.3], dtype=float)
+
 def sample_timestamps(
     total_rows: int,
     start_date: date,
@@ -60,19 +65,10 @@ def sample_timestamps(
     day_offsets = rng.integers(0, days, size=total_rows)
 
     # Mixture proportions for time-of-day
-    comp = rng.choice(3, size=total_rows, p=np.array([0.4, 0.3, 0.3], float))
-    means = np.array([9 * 3600, 13 * 3600, 20 * 3600], dtype=float)
-    stds  = np.array([2 * 3600,  1 * 3600,  3 * 3600], dtype=float)
+    comp = rng.choice(3, size=total_rows, p=_TEMPORAL_PROBS)
 
-    # Define component parameters (seconds from midnight)
-    comp_params = {
-        0: (9 * 3600, 2 * 3600),    # morning
-        1: (13 * 3600, 1 * 3600),   # afternoon
-        2: (20 * 3600, 3 * 3600),   # evening
-    }
-
-    # Vectorized normal draws per component
-    secs = rng.normal(loc=means[comp], scale=stds[comp], size=total_rows)
+    # Vectorized normal draws per component (seconds since midnight)
+    secs = rng.normal(loc=_TEMPORAL_MEANS[comp], scale=_TEMPORAL_STDS[comp], size=total_rows)
     secs = np.clip(secs, 0, 24 * 3600 - 1).round().astype(np.int64)
 
     # Build numpy.datetime64 arrays
