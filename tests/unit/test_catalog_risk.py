@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import polars as pl
 
-from fraud_detection.simulator.catalog import (
+from fraud_detection.simulator.catalog import (  # type: ignore
     generate_merchant_catalog,
     generate_card_catalog,
 )
@@ -16,10 +16,11 @@ def test_merchant_catalog_risk_and_weights():
         risk_beta=5.0,
     )
     # Columns & types
-    assert list(df.columns) == ["merchant_id", "weight", "risk"]
+    assert list(df.columns) == ["merchant_id", "weight", "risk", "mcc_code"]
     assert df.schema["merchant_id"] == pl.Int32
     assert df.schema["weight"] == pl.Float64
     assert df.schema["risk"]   == pl.Float64
+    assert df.schema["mcc_code"] == pl.Int32
 
     # Length & sums
     assert df.height == 5
