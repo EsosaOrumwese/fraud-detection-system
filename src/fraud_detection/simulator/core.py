@@ -194,8 +194,8 @@ def _generate_chunk(chunk_rows: int, cfg: GeneratorConfig, seed: Optional[int]) 
         "previous_txn_id": [None]*chunk_rows,
         "label_fraud":     label_fraud,
         "mcc_code":        mcc_arr,
-    }).with_columns([pl.col(c).cast(_POLARS_SCHEMA[c]) for c in _COLUMNS]) \
-      .select(_COLUMNS)
+    })
+
     return df
 
 
