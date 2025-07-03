@@ -8,14 +8,14 @@ It reads your schema, builds a Polars DataFrame in‐memory, and hands it back.
 from __future__ import annotations
 import random
 import uuid
-from datetime import datetime, timezone, date
+from datetime import date
 from pathlib import Path
-from typing import Optional
 
 import yaml  # type: ignore
 import polars as pl
 from faker import Faker
 import numpy as np
+from numpy.random import default_rng
 
 from .mcc_codes import MCC_CODES
 from .temporal import sample_timestamps
@@ -136,77 +136,95 @@ def generate_dataframe(cfg: GeneratorConfig) -> pl.DataFrame:
     merch_ids = sample_entities(merch_cat, "merchant_id", total_rows, seed=(seed or 0) + 1)
     card_ids = sample_entities(card_cat, "card_id", total_rows, seed=(seed or 0) + 2)
 
-    # 3) Vectorized arrays for risk & pan_hash (no KeyError risk)
+    # 3) Batched, vectorized feature generation
+    rng = np.random.default_rng(seed)
+
+    # Entity-level arrays
+    cust_ids_arr  = cust_ids
+    merch_ids_arr = merch_ids
+    card_ids_arr  = card_ids
+
     merch_risk_arr = merch_cat["risk"].to_numpy()
     card_risk_arr  = card_cat["risk"].to_numpy()
-    pan_hash_arr   = np.array(card_cat["pan_hash"].to_list(), dtype=object)
 
-    rows: list[dict[str, object]] = []
-    # Prep feature‐sampling helpers
-    device_types = list(cfg.feature.device_types.keys())
-    device_weights = list(cfg.feature.device_types.values())
-    # Map merchant_id → mcc_code
-    mcc_map = {r["merchant_id"]: r["mcc_code"] for r in merch_cat.to_dicts()}
+    # Fraud label: p = fraud_rate * merchant_risk * card_risk
+    m_factor   = merch_risk_arr[merch_ids_arr - 1]
+    c_factor   = card_risk_arr[card_ids_arr - 1]
+    p_fraud    = fraud_rate * m_factor * c_factor
+    label_fraud = rng.random(total_rows) < p_fraud
 
-    for i in range(total_rows):
-        # Correlated fraud probability
-        m_factor = merch_risk_arr[merch_ids[i] - 1]
-        c_factor = card_risk_arr[card_ids[i] - 1]
-        p_fraud = fraud_rate * m_factor * c_factor
-        is_fraud = random.random() < p_fraud
+    # Temporal and numeric features
+    local_time_offset = rng.integers(-720, 841, size=total_rows)
 
-        record = {
-            "transaction_id":    _fake.uuid4().replace("-",""),
-            "event_time":        timestamps[i],
-            "local_time_offset": random.randint(-720, 840),
-            "amount":            round(random.uniform(1.0, 500.0), 2),
-            "currency_code":     _fake.currency_code(),
-            "card_pan_hash":     pan_hash_arr[card_ids[i] - 1],
-        }
-        # ─── Phase 6: amount
-        mcc = mcc_map[merch_ids[i]]
-        if cfg.feature.amount_distribution == "lognormal":
-            amt = random.lognormvariate(cfg.feature.lognormal_mean, cfg.feature.lognormal_sigma)
-        elif cfg.feature.amount_distribution == "normal":
-            amt = random.gauss(cfg.feature.lognormal_mean, cfg.feature.lognormal_sigma)
-        else:
-            amt = random.uniform(cfg.feature.uniform_min, cfg.feature.uniform_max)
-        record["amount"] = round(amt, 2)
-        # ─── Phase 6: device_type
-        record["device_type"] = random.choices(device_types, weights=device_weights, k=1)[0]
-        # ─── Phase 6: currency & timezone from MCC
-        if str(mcc).startswith("4"):
-            record["currency_code"] = "EUR" # why not GBP?
-            record["timezone"]      = "Europe/Berlin" # why not London
-        else:
-            record["currency_code"] = "USD"
-            record["timezone"]      = "America/New_York"
-        # ─── backfill old fields
-        record.update({
-            "card_scheme":       _fake.random_element(["VISA","MASTERCARD","AMEX","DISCOVER"]),
-            "card_exp_year":     random.randint(start_date.year+1, start_date.year+5),
-            "card_exp_month":    random.randint(1,12),
-            "channel":           _fake.random_element(["ONLINE","IN_STORE","ATM"]),
-            "pos_entry_mode":    _fake.random_element(["CHIP","MAGSTRIPE","NFC","ECOM"]),
-            "device_id":         _fake.uuid4() if _fake.random.random()>0.1 else None,
-            "ip_address":        _fake.ipv4_public(),
-            "user_agent":        _fake.user_agent(),
-            "latitude":          round(_fake.latitude(),6),
-            "longitude":         round(_fake.longitude(),6),
-            "is_recurring":      _fake.boolean(chance_of_getting_true=10),
-            "previous_txn_id":   None,
-            "label_fraud":       is_fraud,
-            "mcc_code":          mcc,
-        })
+    if cfg.feature.amount_distribution == "lognormal":
+        raw_amounts = rng.lognormal(cfg.feature.lognormal_mean, cfg.feature.lognormal_sigma, size=total_rows)
+    elif cfg.feature.amount_distribution == "normal":
+        raw_amounts = rng.normal(cfg.feature.lognormal_mean, cfg.feature.lognormal_sigma, size=total_rows)
+    else:
+        raw_amounts = rng.uniform(cfg.feature.uniform_min, cfg.feature.uniform_max, size=total_rows)
+    amount = np.round(raw_amounts, 2)
 
-        rows.append(record)
+    # Map merchants → MCC codes (string) for currency/timezone logic
+    mcc_arr       = merch_cat["mcc_code"].to_numpy()[merch_ids_arr - 1]
+    mcc_strs      = mcc_arr.astype(str)
+    eur_mask      = np.char.startswith(mcc_strs, "4")
+    currency_code = np.where(eur_mask, "EUR", "USD")
+    timezone      = np.where(eur_mask, "Europe/Berlin", "America/New_York")
 
-    # Build DataFrame & enforce schema
-    df = (
-        pl.DataFrame(rows)
-        .with_columns([pl.col(col).cast(_POLARS_SCHEMA[col]) for col in _COLUMNS])
-        .select(_COLUMNS)
+    # Card PAN hashes
+    pan_hash_arr = np.array(card_cat["pan_hash"].to_list(), dtype=object)[card_ids_arr - 1]
+
+    # Semi-vectorized / list-comprehension features
+    transaction_id    = [uuid.uuid4().hex for _ in range(total_rows)]
+    device_type       = rng.choice(
+        list(cfg.feature.device_types.keys()),
+        size=total_rows,
+        p=np.array(list(cfg.feature.device_types.values())) / sum(cfg.feature.device_types.values())
     )
+    merchant_country  = [_fake.country_code(representation="alpha-2") for _ in range(total_rows)]
+    card_scheme       = [_fake.random_element(["VISA","MASTERCARD","AMEX","DISCOVER"]) for _ in range(total_rows)]
+    card_exp_year     = rng.integers(start_date.year + 1, start_date.year + 6, size=total_rows)
+    card_exp_month    = rng.integers(1, 13, size=total_rows)
+    channel           = [_fake.random_element(["ONLINE","IN_STORE","ATM"]) for _ in range(total_rows)]
+    pos_entry_mode    = [_fake.random_element(["CHIP","MAGSTRIPE","NFC","ECOM"]) for _ in range(total_rows)]
+    device_id         = [uuid.uuid4().hex if rng.random() < 0.9 else None for _ in range(total_rows)]
+    ip_address        = [_fake.ipv4_public() for _ in range(total_rows)]
+    user_agent        = [_fake.user_agent() for _ in range(total_rows)]
+    latitude          = [round(_fake.latitude(), 6) for _ in range(total_rows)]
+    longitude         = [round(_fake.longitude(), 6) for _ in range(total_rows)]
+    is_recurring      = rng.random(total_rows) < 0.1
+    previous_txn_id   = [None] * total_rows
+
+    # Build DataFrame in one shot and cast
+    df = pl.DataFrame({
+        "transaction_id":    transaction_id,
+        "event_time":        timestamps,
+        "local_time_offset": local_time_offset,
+        "amount":            amount,
+        "currency_code":     currency_code,
+        "card_pan_hash":     pan_hash_arr,
+        "customer_id":       cust_ids_arr,
+        "merchant_id":       merch_ids_arr,
+        "merchant_country":  merchant_country,
+        "device_type":       device_type,
+        "timezone":          timezone,
+        "card_scheme":       card_scheme,
+        "card_exp_year":     card_exp_year,
+        "card_exp_month":    card_exp_month,
+        "channel":           channel,
+        "pos_entry_mode":    pos_entry_mode,
+        "device_id":         device_id,
+        "ip_address":        ip_address,
+        "user_agent":        user_agent,
+        "latitude":          latitude,
+        "longitude":         longitude,
+        "is_recurring":      is_recurring,
+        "previous_txn_id":   previous_txn_id,
+        "label_fraud":       label_fraud,
+        "mcc_code":          mcc_strs,
+    }).with_columns([pl.col(col).cast(_POLARS_SCHEMA[col]) for col in _COLUMNS]) \
+      .select(_COLUMNS)
+
     return df
 
 
