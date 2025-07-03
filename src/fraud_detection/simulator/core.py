@@ -62,6 +62,14 @@ _POLARS_SCHEMA = {
 _fake = Faker()
 
 
+# Helper for Pool.imap_unordered to unpack the args tuple
+def _chunk_worker(args: tuple[int, GeneratorConfig, Optional[int]]) -> pl.DataFrame:
+    """
+    Unpack (chunk_rows, cfg, seed) tuple for multiprocessing.
+    """
+    from .core import _generate_chunk  # avoid circular at import
+    return _generate_chunk(*args)
+
 def _generate_chunk(chunk_rows: int, cfg: GeneratorConfig, seed: Optional[int]) -> pl.DataFrame:
     """
     Generate a single chunk of `chunk_rows` events using fully vectorized operations.
@@ -245,7 +253,8 @@ def generate_dataframe(cfg: GeneratorConfig) -> pl.DataFrame:
                   miniters=cfg.batch_size,
                   ncols=80,
                   desc="Generating rows") as pbar:
-            for df in pool.imap_unordered(_generate_chunk, args):  # type: ignore
+            # use our 1-arg helper so the Pool feeds (_size,cfg,seed) correctly
+            for df in pool.imap_unordered(_chunk_worker, args):
                 dfs.append(df)
                 pbar.update(df.height)
         return pl.concat(dfs, rechunk=False)
