@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import Optional
 import math
 import multiprocessing
+import sys
+from tqdm import tqdm
 
 import yaml  # type: ignore
 import polars as pl
@@ -215,19 +217,50 @@ def generate_dataframe(cfg: GeneratorConfig) -> pl.DataFrame:
     """
     # Unpack config
     total_rows = cfg.total_rows
+
+    # A tiny wrapper that convinces tqdm it’s writing to a TTY,
+    # so it will emit \r-updates instead of new lines.
+    class _TTYWriter:
+        def __init__(self, stream):
+            self.stream = stream
+        def write(self, x):
+            self.stream.write(x)
+        def flush(self):
+            self.stream.flush()
+        def isatty(self):
+            return True
+
+
     # If configured, split into parallel chunks
     if cfg.num_workers > 1 and cfg.batch_size > 0:
         num_chunks = math.ceil(total_rows / cfg.batch_size)
         counts     = [cfg.batch_size] * (num_chunks - 1) + [total_rows - cfg.batch_size * (num_chunks - 1)]
         base_seed  = cfg.seed or 0
         args       = [(counts[i], cfg, base_seed + i) for i in range(num_chunks)]
-        with multiprocessing.Pool(cfg.num_workers) as pool:
-            dfs = pool.starmap(_generate_chunk, args)
-
+        writer = _TTYWriter(sys.stdout)
+        dfs: list[pl.DataFrame] = []
+        with multiprocessing.Pool(cfg.num_workers) as pool, \
+             tqdm(total=total_rows,
+                  file=writer,
+                  miniters=cfg.batch_size,
+                  ncols=80,
+                  desc="Generating rows") as pbar:
+            for df in pool.imap_unordered(_generate_chunk, args):  # type: ignore
+                dfs.append(df)
+                pbar.update(df.height)
         return pl.concat(dfs, rechunk=False)
 
-    # Single-process fallback when parallelism is not requested
-    return _generate_chunk(total_rows, cfg, cfg.seed)
+
+    # Single-process fallback (with progress bar)
+    writer = _TTYWriter(sys.stdout)
+    with tqdm(total=total_rows,
+             file=writer,
+             miniters=cfg.batch_size,
+             ncols=80,
+             desc="Generating rows") as pbar:
+        df = _generate_chunk(total_rows, cfg, cfg.seed)
+        pbar.update(df.height)
+    return df
 
 def write_parquet(df: pl.DataFrame, out_path: Path) -> Path:
     """

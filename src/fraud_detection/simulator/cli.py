@@ -22,6 +22,7 @@ import click
 import logging
 from pathlib import Path
 from datetime import date
+import time
 
 import boto3  # type: ignore
 from botocore.exceptions import ClientError  # type: ignore
@@ -98,7 +99,13 @@ def main() -> None:
             "Starting data generation (rows=%d, fraud_rate=%.4f, seed=%s)",
             cfg.total_rows, cfg.fraud_rate, cfg.seed,
         )
+        start = time.perf_counter()
         df = generate_dataframe(cfg)
+        elapsed = time.perf_counter() - start
+        logger.info(
+            "Generation complete: %d rows in %.2f s (%.0f rows/s)",
+            len(df), elapsed, len(df) / elapsed,
+        )
 
         # 2) Write locally
         today = date.today()
