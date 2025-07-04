@@ -2,16 +2,19 @@ import pandas as pd  # type: ignore
 import polars as pl
 import pytest
 from datetime import date
+from pathlib import Path
 
 from fraud_detection.simulator.core import generate_dataframe  # type: ignore
+from fraud_detection.simulator.config import load_config, GeneratorConfig  # type: ignore
 
 def test_generate_dataframe_injection_of_timestamps(tmp_path):
-    cfg = dict(total_rows=100,
-               fraud_rate=0.0,
-               seed=123,
-               start_date=date(2025,6,1),
-               end_date=date(2025,6,1))
-    df = generate_dataframe(**cfg)
+    cfg = load_config(Path("project_config/generator_config.yaml"))
+    # make this a small chunk for testing
+    cfg.total_rows = 100
+    # force the one-day window we expect
+    cfg.temporal.start_date = date(2025, 6, 1)
+    cfg.temporal.end_date   = date(2025, 6, 1)
+    df = generate_dataframe(cfg)
     # Check type & shape
     assert isinstance(df, pl.DataFrame)
     assert df.height == 100
@@ -22,8 +25,10 @@ def test_generate_dataframe_injection_of_timestamps(tmp_path):
     assert (pd_ts.dt.date == date(2025,6,1)).all()
 
 def test_temporal_error_propagation():
-    # end_date < start_date
+    # error when end_date is before start_date
+    cfg = load_config(Path("project_config/generator_config.yaml"))
+    cfg.temporal.start_date = date(2025, 6, 2)
+    cfg.temporal.end_date   = date(2025, 6, 1)
     with pytest.raises(ValueError) as exc:
-        generate_dataframe(total_rows=10, catalog_cfg=, fraud_rate=0.5, seed=0, start_date=date(2025, 6, 5),
-                           end_date=date(2025, 6, 1))
+        generate_dataframe(cfg)
     assert "Temporal sampling failed" in str(exc.value)
