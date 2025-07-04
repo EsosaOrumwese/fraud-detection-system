@@ -177,7 +177,6 @@ def _generate_chunk(chunk_rows: int, cfg: GeneratorConfig, seed: Optional[int]) 
     mcc_arr = merch_cat["mcc_code"].to_numpy()[merch_ids - 1].astype(str)
     eur_mask = np.char.startswith(mcc_arr, "4")
     currency_code = np.where(eur_mask, "EUR", "USD")
-    timezone      = np.where(eur_mask, "Europe/Berlin", "America/New_York")
 
     # ── 8) Other vectorizable fields ──────────────────────────────────────────
     pan_hash = np.array(card_cat["pan_hash"].to_list(), dtype=object)[card_ids - 1]
@@ -211,7 +210,6 @@ def _generate_chunk(chunk_rows: int, cfg: GeneratorConfig, seed: Optional[int]) 
         "merchant_id":     merch_ids,
         "merchant_country":merchant_country,
         "device_type":     device_type,
-        "timezone":        timezone,
         "card_scheme":     card_scheme,
         "card_exp_year":   rng.integers(start_date.year + 1, start_date.year + 6, size=chunk_rows),
         "card_exp_month":  rng.integers(1, 13, size=chunk_rows),
