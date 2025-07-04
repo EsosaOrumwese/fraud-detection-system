@@ -30,6 +30,7 @@ from .catalog import (
     sample_entities
 )
 from .config import CatalogConfig, GeneratorConfig
+from .labeler import label_fraud
 
 # Locate the schema at the project root (/schema/transaction_schema.yaml)
 _SCHEMA_PATH = (
@@ -143,8 +144,8 @@ def _generate_chunk(chunk_rows: int, cfg: GeneratorConfig, seed: Optional[int]) 
     # ── 4) Fraud label ─────────────────────────────────────────────────────────
     m_risk = merch_cat["risk"].to_numpy()[merch_ids - 1]
     c_risk = card_cat["risk"].to_numpy()[card_ids  - 1]
-    p_fraud = fraud_rate * m_risk * c_risk
-    label_fraud = rng.random(chunk_rows) < p_fraud
+    #p_fraud = fraud_rate * m_risk * c_risk
+    #label_fraud = rng.random(chunk_rows) < p_fraud
 
     # ── 5) Numeric features ───────────────────────────────────────────────────
     local_time_offset = rng.integers(-720, 841, size=chunk_rows)
@@ -222,7 +223,10 @@ def _generate_chunk(chunk_rows: int, cfg: GeneratorConfig, seed: Optional[int]) 
         "longitude":       longitude,
         "is_recurring":    is_recurring,
         "previous_txn_id": [None]*chunk_rows,
-        "label_fraud":     label_fraud,
+        # ── INCLUDE INTERNAL RISK COLUMNS FOR LABELER ─────────────
+        "merch_risk": m_risk,
+        "card_risk": c_risk,
+        #"label_fraud":     label_fraud,
         "mcc_code":        mcc_arr,
     })
 
@@ -296,6 +300,7 @@ def generate_dataframe(cfg: GeneratorConfig) -> pl.DataFrame:
 
             # One global concat + schema cast
         df = pl.concat(dfs, rechunk=False)
+        df = label_fraud(df, fraud_rate=cfg.fraud_rate, seed=cfg.seed)
         return (
             df
             .with_columns([pl.col(col).cast(_POLARS_SCHEMA[col]) for col in _COLUMNS])
@@ -311,6 +316,7 @@ def generate_dataframe(cfg: GeneratorConfig) -> pl.DataFrame:
         "Single-chunk done: %d rows in %.2f s (%.0f rows/s)",
         df.height, chunk_time, speed,
     )
+    df = label_fraud(df, fraud_rate=cfg.fraud_rate, seed=cfg.seed)
     # Apply schema cast
     return (
         df
