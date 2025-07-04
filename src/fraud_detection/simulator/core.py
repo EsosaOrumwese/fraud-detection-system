@@ -21,9 +21,7 @@ import yaml  # type: ignore
 import polars as pl
 from faker import Faker
 import numpy as np
-from numpy.random import default_rng
 
-from .mcc_codes import MCC_CODES
 from .temporal import sample_timestamps
 from .catalog import (
     generate_card_catalog,

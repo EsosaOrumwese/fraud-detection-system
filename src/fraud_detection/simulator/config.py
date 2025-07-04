@@ -8,7 +8,7 @@ from datetime import date
 from typing import Optional, Literal, Dict
 
 import yaml  # type: ignore
-from pydantic import BaseModel, Field, model_validator, ValidationError
+from pydantic import BaseModel, Field, model_validator, ValidationError, ConfigDict
 
 class FeatureConfig(BaseModel):
     """Feature sampling parameters."""
@@ -21,7 +21,7 @@ class FeatureConfig(BaseModel):
     uniform_min:     float = Field(1.0, ge=0, description="Min for uniform distribution")
     uniform_max:     float = Field(500.0, gt=0, description="Max for uniform distribution")
 
-    model_config = dict(extra="forbid")
+    model_config = ConfigDict(extra="forbid")
 
 
 class CatalogConfig(BaseModel):
@@ -41,7 +41,7 @@ class CatalogConfig(BaseModel):
     card_risk_beta: float = Field(5.0, gt=0, description="Beta  parameter for card-risk Beta")
 
     # Providing extra data is not permitted, and a ValidationError will be raised if this is the case
-    model_config = dict(extra="forbid")
+    model_config = ConfigDict(extra="forbid")
 
 
 class TemporalConfig(BaseModel):
@@ -56,7 +56,7 @@ class TemporalConfig(BaseModel):
             raise ValueError("end_date must be on or after start_date")
         return self
 
-    model_config = dict(extra="forbid")
+    model_config = ConfigDict(extra="forbid")
 
 
 class GeneratorConfig(BaseModel):
@@ -117,7 +117,7 @@ class GeneratorConfig(BaseModel):
             raise ValueError("Missing required `feature` section")
         return self
 
-    model_config = dict(extra="forbid")
+    model_config = ConfigDict(extra="forbid")
 
 
 def load_config(path: Path) -> GeneratorConfig:

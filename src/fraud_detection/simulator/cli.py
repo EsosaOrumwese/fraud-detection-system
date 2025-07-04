@@ -18,7 +18,6 @@ Workflow:
 
 import sys
 import argparse
-import click
 import logging
 from pathlib import Path
 from datetime import date
