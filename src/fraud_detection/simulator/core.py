@@ -258,14 +258,22 @@ def generate_dataframe(cfg: GeneratorConfig) -> pl.DataFrame:
           - dtypes matching your YAML spec,
           - Fraud labels correlated with merchant & card risk.
     """
-    # Unpack config
-    total_rows = cfg.total_rows
 
     # Set up logging for per‐chunk status updates
     logger = logging.getLogger(__name__)
     start_time     = time.perf_counter()
     last_time      = start_time
     cumulative_rows = 0
+
+    # Unpack config
+    total_rows = cfg.total_rows
+    start_date = cfg.temporal.start_date or date.today()
+    end_date = cfg.temporal.end_date or date.today()
+
+    # ── Temporal sanity check ─────────────────────────────────────────────────
+    if end_date < start_date:
+        # Make sure invalid ranges bubble up as a ValueError
+        raise ValueError(f"Temporal sampling failed: end_date {end_date!r} is before start_date {start_date!r}")
 
     # If configured, split into parallel chunks
     if cfg.num_workers > 1 and cfg.batch_size > 0:
