@@ -3,7 +3,7 @@ Temporal sampler for synthetic events, with diurnal patterns.
 """
 
 from __future__ import annotations
-from datetime import date, datetime, timedelta, timezone
+from datetime import date
 from typing import Optional
 
 import numpy as np
