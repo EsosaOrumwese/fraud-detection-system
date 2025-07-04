@@ -23,11 +23,11 @@ def test_schema(tmp_path):
 def test_fraud_rate(tmp_path):
     """
     Generate 50k rows, read back all, compute mean(label_fraud),
-    and assert it falls within [0.002, 0.004] (±4σ around 0.003).
+    and assert it falls within [0.02, 0.04] (±4σ around 0.03).
     """
     p = generate_dataset(50_000, tmp_path, 0.03)
     rate = pl.read_parquet(p).select(pl.col("label_fraud").mean()).item()
-    assert 0.002 <= rate <= 0.004
+    assert 0.02 <= rate <= 0.04
 
 
 def test_row_count(tmp_path):

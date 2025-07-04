@@ -113,11 +113,12 @@ def generate_merchant_catalog(
     """
     ids = np.arange(1, num_merchants + 1, dtype=np.int32)
     weights = _zipf_weights(num_merchants, zipf_exponent)
-    rng: Generator = default_rng(seed)
-    risks = rng.beta(risk_alpha, risk_beta, size=num_merchants)
+    risk_rng: Generator = default_rng((seed or 0) + 1)
+    risks = risk_rng.beta(risk_alpha, risk_beta, size=num_merchants)
 
     # Assign each merchant an MCC code
-    mccs = rng.choice(MCC_CODES, size=num_merchants)
+    mcc_rng: Generator = default_rng((seed or 0) + 2)
+    mccs = mcc_rng.choice(MCC_CODES, size=num_merchants)
 
     return (pl.DataFrame(
         {
@@ -170,11 +171,11 @@ def generate_card_catalog(
     """
     ids = np.arange(1, num_cards + 1, dtype=np.int32)
     weights = _zipf_weights(num_cards, zipf_exponent)
-    rng: Generator = default_rng(seed)
+    rng: Generator = default_rng((seed or 0) + 3)
     risks = rng.beta(risk_alpha, risk_beta, size=num_cards)
     fake = Faker()
     if seed is not None:
-        fake.seed_instance(seed)
+        fake.seed_instance((seed or 0) + 4)
     pan_hashes = [fake.sha256() for _ in range(num_cards)]
     return (pl.DataFrame(
         {
@@ -245,5 +246,5 @@ def sample_entities(
     p = weights / total_w
 
     # Use a local Generator for thread-safe reproducibility
-    rng: Generator = default_rng(seed)
+    rng: Generator = default_rng((seed or 0) + 5)
     return rng.choice(ids, size=size, p=p)
