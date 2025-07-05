@@ -2,7 +2,7 @@ import polars as pl
 import pathlib
 import yaml  # type: ignore
 
-from fraud_detection.simulator.config import load_config
+from fraud_detection.simulator.config import load_config  # type: ignore
 from fraud_detection.simulator.generate import generate_dataset  # type: ignore
 
 # Load schema once (relative to repository root)

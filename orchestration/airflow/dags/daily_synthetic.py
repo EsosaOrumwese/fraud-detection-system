@@ -20,6 +20,7 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
 from fraud_detection.simulator.generate import generate_dataset  # type: ignore
 from fraud_detection.utils.param_store import get_param  # type: ignore
+from fraud_detection.simulator.config import load_config
 
 # 1. Default/task‐level retry & alert settings
 default_args = {
@@ -39,7 +40,7 @@ default_args = {
     default_args=default_args,
     schedule="0 2 * * *",  # 02:00 UTC daily
     start_date=datetime(2025, 6, 20),
-    catchup=True,
+    catchup=False,
     max_active_runs=1,
     tags=["data_generation", "synthetic"],
 )
@@ -53,13 +54,20 @@ def daily_synthetic():
         return bucket
 
     @task(multiple_outputs=True)
-    def run_generator(num_rows: int) -> dict[str, str]:
+    def run_generator() -> dict[str, str]:
         """Run your generator and return the local Parquet file path & temp_dir."""
+        base_dir = Path(__file__).parents[1]  # Dag is located in ./dags/ in Docker container
+        config_path = base_dir / "project_config" / "generator_config.yaml"
+
+        cfg = load_config(config_path)
         tmp_dir = Path(tempfile.mkdtemp())
-        out_file = generate_dataset(num_rows, tmp_dir)
+
+        cfg.out_dir = tmp_dir
+        out_file = generate_dataset(cfg)
         return {
             "local_path": str(out_file),
             "tmp_dir": str(tmp_dir),
+            "config_path": str(config_path),
         }
 
     @task
@@ -71,17 +79,18 @@ def daily_synthetic():
         subprocess.run([sys.executable, str(script), local_path], check=True)
 
     @task
-    def upload_to_s3(local_path: str, bucket: str, execution_date: str) -> str:
+    def upload_to_s3(local_path: str, bucket: str, execution_date: str, config_path: str) -> str:
         """
         Upload the generated Parquet to S3 under:
           s3://{bucket}/payments/year=YYYY/month=MM/{filename}
         """
         # ds == 'YYYY-MM-DD'
+        cfg = load_config(Path(config_path))
         date = datetime.fromisoformat(execution_date)
         key = (
             f"payments/"
             f"year={date.year}/month={date.month:02d}/"
-            f"{Path(local_path).name}"
+            f"payments_{cfg.total_rows:_}_{execution_date}.parquet"
         )
         hook = S3Hook(aws_conn_id=None)
         hook.load_file(
@@ -99,9 +108,9 @@ def daily_synthetic():
 
     # Define dependencies
     bucket = fetch_bucket_name()
-    gen = run_generator(num_rows=1_000_000)
+    gen = run_generator()
     validation = validate_file(gen["local_path"])
-    upload = upload_to_s3(gen["local_path"], bucket, "{{ ds }}")
+    upload = upload_to_s3(gen["local_path"], bucket, "{{ ds }}", gen["config_path"])
     cleanup = cleanup_tmp(gen["tmp_dir"])
 
     bucket >> gen >> validation >> upload >> cleanup  # type: ignore[list-item]
