@@ -33,9 +33,7 @@ from .config import CatalogConfig, GeneratorConfig
 from .labeler import label_fraud
 
 # Locate the schema at the project root (/schema/transaction_schema.yaml)
-_SCHEMA_PATH = (
-    Path(__file__).resolve().parents[3] / "schema" / "transaction_schema.yaml"
-)
+_SCHEMA_PATH = Path("schema/transaction_schema.yaml")
 if not _SCHEMA_PATH.exists():
     raise FileNotFoundError(f"Schema not found at {_SCHEMA_PATH}")
 _schema = yaml.safe_load(_SCHEMA_PATH.read_text())

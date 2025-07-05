@@ -14,6 +14,7 @@ continue to work unmodified.
 
 import sys
 from pathlib import Path
+from datetime import date
 
 from fraud_detection.simulator.core import generate_dataframe, write_parquet
 from fraud_detection.simulator.cli import main as _cli_main
@@ -27,9 +28,16 @@ def generate_dataset(cfg: GeneratorConfig) -> Path:
     # 1) Generate the DataFrame
     df = generate_dataframe(cfg)
 
+    # 2) Get filename
+    today = date.today()
+    year = today.year
+    month = f"{today.month:02d}"
+    filename = f"payments_{cfg.total_rows:_}_{today.isoformat()}.parquet"
+
     # 2) Ensure directory exists and write
-    cfg.out_dir.mkdir(parents=True, exist_ok=True)
-    out_path = cfg.out_dir / f"dataset_{cfg.total_rows}.parquet"
+    local_dir = cfg.out_dir / "payments" / f"year={year}" / f"month={month}"
+    # cfg.out_dir.mkdir(parents=True, exist_ok=True)
+    out_path = local_dir / filename
     write_parquet(df, out_path)
     return out_path
 
