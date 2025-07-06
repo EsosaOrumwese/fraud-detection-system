@@ -4,6 +4,8 @@ Entity‐catalog generation and sampling driven by Zipf distributions plus risk 
 
 from __future__ import annotations
 from typing import Optional
+import os
+from pathlib import Path
 
 import numpy as np
 from numpy.random import Generator, default_rng
@@ -11,6 +13,7 @@ import polars as pl
 from faker import Faker
 
 from .mcc_codes import MCC_CODES
+from .config import GeneratorConfig
 
 
 def _zipf_weights(n: int, exponent: float) -> np.ndarray:
@@ -248,3 +251,63 @@ def sample_entities(
     # Use a local Generator for thread-safe reproducibility
     rng: Generator = default_rng((seed or 0) + 5)
     return rng.choice(ids, size=size, p=p)
+
+
+def write_catalogs(
+    cfg: GeneratorConfig,
+) -> None:
+    """
+    Generate and write customer, merchant, and card catalogs as Parquet files,
+    ensuring each artifact is <= cfg.catalog.max_size_mb on disk.
+    """
+
+    # 1) Build in-memory DataFrames once
+    customers = generate_customer_catalog(
+        num_customers=cfg.catalog.num_customers,
+        zipf_exponent=cfg.catalog.customer_zipf_exponent,
+    )
+    merchants = generate_merchant_catalog(
+        num_merchants=cfg.catalog.num_merchants,
+        zipf_exponent=cfg.catalog.merchant_zipf_exponent,
+        risk_alpha=cfg.catalog.merchant_risk_alpha,
+        risk_beta=cfg.catalog.merchant_risk_beta,
+        seed=cfg.seed,
+    )
+    cards = generate_card_catalog(
+        num_cards=cfg.catalog.num_cards,
+        zipf_exponent=cfg.catalog.card_zipf_exponent,
+        risk_alpha=cfg.catalog.card_risk_alpha,
+        risk_beta=cfg.catalog.card_risk_beta,
+        seed=cfg.seed,
+    )
+
+    # 2) Define output paths
+    output_dir = Path(cfg.out_dir)
+    catalog_dir = output_dir / "catalog"
+    catalog_dir.mkdir(exist_ok=True, parents=True)
+
+    paths = {
+        "customers": catalog_dir / "customers.parquet",
+        "merchants": catalog_dir / "merchants.parquet",
+        "cards":     catalog_dir / "cards.parquet",
+    }
+
+    # 3) Write with Snappy + configured row_group_size, then check file sizes
+    max_bytes = cfg.catalog.max_size_mb * 1024 * 1024
+    for name, df in [("customers", customers), ("merchants", merchants), ("cards", cards)]:
+        out_path = paths[name]
+        df.write_parquet(
+            out_path,
+            compression="snappy",
+            row_group_size=cfg.catalog.parquet_row_group_size,
+            use_pyarrow=True,
+        )
+        size = os.path.getsize(out_path)
+        if size > max_bytes:
+            mb = size / (1024 * 1024)
+            raise ValueError(
+                f"{name}.parquet is {mb:.2f} MB, exceeds max "
+                f"{cfg.catalog.max_size_mb} MB"
+            )
+
+    # 4) All catalogs written and validated
