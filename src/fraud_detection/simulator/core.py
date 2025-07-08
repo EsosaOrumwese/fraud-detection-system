@@ -27,7 +27,9 @@ from .catalog import (
     generate_card_catalog,
     generate_customer_catalog,
     generate_merchant_catalog,
-    sample_entities
+    sample_entities,
+    write_catalogs,
+    load_catalogs,
 )
 from .config import CatalogConfig, GeneratorConfig
 from .labeler import label_fraud
@@ -58,6 +60,22 @@ _POLARS_SCHEMA = {
     for fld in _schema["fields"]
 }
 _fake = Faker()
+
+# Globals to hold preloaded catalogs in v2 mode
+_CUST_CAT: pl.DataFrame | None = None
+_MERCH_CAT: pl.DataFrame | None = None
+_CARD_CAT: pl.DataFrame | None = None
+
+# ── Make this a true top-level function so it can be pickled on Windows ─────────
+def _init_worker(cust_cat: pl.DataFrame | None,
+                 merch_cat: pl.DataFrame | None,
+                 card_cat: pl.DataFrame | None) -> None:
+    """
+    Pool initializer: stash the preloaded catalogs in module globals.
+    This must live at module top-level to be importable by child processes.
+    """
+    global _CUST_CAT, _MERCH_CAT, _CARD_CAT
+    _CUST_CAT, _MERCH_CAT, _CARD_CAT = cust_cat, merch_cat, card_cat
 
 
 def _make_uuid4_hex_array(rng: np.random.Generator, n: int) -> list[str]:
@@ -115,33 +133,36 @@ def _generate_chunk(chunk_rows: int, cfg: GeneratorConfig, seed: Optional[int]) 
     )
 
     # ── 2) Catalogs ────────────────────────────────────────────────────────────
-    cust_cat = generate_customer_catalog(
-        num_customers=cfg.catalog.num_customers,
-        zipf_exponent=cfg.catalog.customer_zipf_exponent,
-    )
-    merch_cat = generate_merchant_catalog(
-        num_merchants=cfg.catalog.num_merchants,
-        zipf_exponent=cfg.catalog.merchant_zipf_exponent,
-        seed=seed,
-        risk_alpha=cfg.catalog.merchant_risk_alpha,
-        risk_beta=cfg.catalog.merchant_risk_beta,
-    )
-    card_cat = generate_card_catalog(
-        num_cards=cfg.catalog.num_cards,
-        zipf_exponent=cfg.catalog.card_zipf_exponent,
-        seed=seed,
-        risk_alpha=cfg.catalog.card_risk_alpha,
-        risk_beta=cfg.catalog.card_risk_beta,
-    )
+    if cfg.realism == "v2" and _CUST_CAT is not None:
+        cust_cat, merch_cat, card_cat = _CUST_CAT, _MERCH_CAT, _CARD_CAT
+    else:
+        cust_cat = generate_customer_catalog(
+            num_customers=cfg.catalog.num_customers,
+            zipf_exponent=cfg.catalog.customer_zipf_exponent,
+        )
+        merch_cat = generate_merchant_catalog(
+            num_merchants=cfg.catalog.num_merchants,
+            zipf_exponent=cfg.catalog.merchant_zipf_exponent,
+            seed=seed,
+            risk_alpha=cfg.catalog.merchant_risk_alpha,
+            risk_beta=cfg.catalog.merchant_risk_beta,
+        )
+        card_cat = generate_card_catalog(
+            num_cards=cfg.catalog.num_cards,
+            zipf_exponent=cfg.catalog.card_zipf_exponent,
+            seed=seed,
+            risk_alpha=cfg.catalog.card_risk_alpha,
+            risk_beta=cfg.catalog.card_risk_beta,
+        )
 
     # ── 3) Entity‐ID draws ──────────────────────────────────────────────────────
     cust_ids  = sample_entities(cust_cat,  "customer_id", chunk_rows, seed=seed)
-    merch_ids = sample_entities(merch_cat, "merchant_id", chunk_rows, seed=(seed or 0) + 1)
-    card_ids  = sample_entities(card_cat, "card_id",     chunk_rows, seed=(seed or 0) + 2)
+    merch_ids = sample_entities(merch_cat, "merchant_id", chunk_rows, seed=(seed or 0) + 1)  # type: ignore
+    card_ids  = sample_entities(card_cat, "card_id",     chunk_rows, seed=(seed or 0) + 2)  # type: ignore
 
     # ── 4) Fraud label ─────────────────────────────────────────────────────────
-    m_risk = merch_cat["risk"].to_numpy()[merch_ids - 1]
-    c_risk = card_cat["risk"].to_numpy()[card_ids  - 1]
+    m_risk = merch_cat["risk"].to_numpy()[merch_ids - 1]  # type: ignore
+    c_risk = card_cat["risk"].to_numpy()[card_ids  - 1]  # type: ignore
     #p_fraud = fraud_rate * m_risk * c_risk
     #label_fraud = rng.random(chunk_rows) < p_fraud
 
@@ -173,12 +194,12 @@ def _generate_chunk(chunk_rows: int, cfg: GeneratorConfig, seed: Optional[int]) 
     is_recurring = rng.random(chunk_rows) < 0.1
 
     # ── 7) Currency & timezone via MCC code ───────────────────────────────────
-    mcc_arr = merch_cat["mcc_code"].to_numpy()[merch_ids - 1].astype(str)
+    mcc_arr = merch_cat["mcc_code"].to_numpy()[merch_ids - 1].astype(str)  # type: ignore
     eur_mask = np.char.startswith(mcc_arr, "4")
     currency_code = np.where(eur_mask, "EUR", "USD")
 
     # ── 8) Other vectorizable fields ──────────────────────────────────────────
-    pan_hash = np.array(card_cat["pan_hash"].to_list(), dtype=object)[card_ids - 1]
+    pan_hash = np.array(card_cat["pan_hash"].to_list(), dtype=object)[card_ids - 1]  # type: ignore
     # merchant_country pool‐sample
     pool_n = min(chunk_rows, 100_000)
     country_pool = [_fake.country_code(representation="alpha-2") for _ in range(pool_n)]
@@ -273,6 +294,14 @@ def generate_dataframe(cfg: GeneratorConfig) -> pl.DataFrame:
         # Make sure invalid ranges bubble up as a ValueError
         raise ValueError(f"Temporal sampling failed: end_date {end_date!r} is before start_date {start_date!r}")
 
+    # Pre-build & load catalogs once in v2 mode
+    catalogs: tuple[pl.DataFrame,pl.DataFrame,pl.DataFrame] | None = None
+    if cfg.realism == "v2":
+        catalog_dir = cfg.out_dir / "catalog"
+        catalog_dir.mkdir(parents=True, exist_ok=True)
+        write_catalogs(catalog_dir, cfg)
+        catalogs = load_catalogs(catalog_dir)
+
     # If configured, split into parallel chunks
     if cfg.num_workers > 1 and cfg.batch_size > 0:
         num_chunks = math.ceil(total_rows / cfg.batch_size)
@@ -281,8 +310,13 @@ def generate_dataframe(cfg: GeneratorConfig) -> pl.DataFrame:
         args       = [(counts[i], cfg, base_seed + i) for i in range(num_chunks)]
         dfs: list[pl.DataFrame] = []
 
-        # Parallel generation with per‐chunk logging
-        with multiprocessing.Pool(cfg.num_workers) as pool:
+        # Parallel generation with per‐chunk logging, injecting catalogs via our top-level initializer
+        init_args = catalogs if catalogs is not None else (None, None, None)
+        with multiprocessing.Pool(
+                processes=cfg.num_workers,
+                initializer=_init_worker,
+                initargs=init_args
+        ) as pool:
             for df in pool.imap_unordered(_chunk_worker, args):
                 now = time.perf_counter()
                 chunk_time = now - last_time
@@ -305,7 +339,10 @@ def generate_dataframe(cfg: GeneratorConfig) -> pl.DataFrame:
             .select(_COLUMNS)
         )
 
-    # Single-process fallback with logging
+    # Single-process fallback with logging (also set globals if v2)
+    if cfg.num_workers == 1 and cfg.realism == "v2" and catalogs is not None:
+        global _CUST_CAT, _MERCH_CAT, _CARD_CAT
+        _CUST_CAT, _MERCH_CAT, _CARD_CAT = catalogs
     df = _generate_chunk(total_rows, cfg, cfg.seed)
     now        = time.perf_counter()
     chunk_time = now - last_time

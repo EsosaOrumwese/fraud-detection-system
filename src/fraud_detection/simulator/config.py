@@ -40,6 +40,11 @@ class CatalogConfig(BaseModel):
     card_risk_alpha: float = Field(2.0, gt=0, description="Alpha parameter for card-risk Beta")
     card_risk_beta: float = Field(5.0, gt=0, description="Beta  parameter for card-risk Beta")
 
+    max_size_mb: int = Field(default=5, description="Maximum allowable file size (MB) for each Parquet catalog")
+    parquet_row_group_size: int = Field(default=64_000_000,
+                                        description="Row-group size (bytes) when writing Parquet for optimal chunking"
+                                        )
+
     # Providing extra data is not permitted, and a ValidationError will be raised if this is the case
     model_config = ConfigDict(extra="forbid")
 
@@ -69,6 +74,10 @@ class GeneratorConfig(BaseModel):
     total_rows: int = Field(1_000_000, gt=0, description="Number of transactions to generate")
     fraud_rate: float = Field(0.01, ge=0, le=1, description="Global fraud probability")
     seed: Optional[int] = Field(None, description="RNG seed for reproducibility")
+    realism: Literal["v1","v2"] = Field(
+        "v1",
+        description="Sampling mode: 'v1'=legacy in-memory, 'v2'=Zipf catalogs on disk"
+    )
 
     # performance knobs
     batch_size: int = Field(100_000, gt=0, description="Number of rows to generate in each batch (for chunked/streamed writes)")

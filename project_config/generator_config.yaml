@@ -3,6 +3,7 @@
 total_rows: 1000000       # positive integer (no underscores!)
 fraud_rate: 0.02          # 0 <= fraud_rate <= 1
 seed: 42                  # optional RNG seed
+realism: "v1"
 num_workers: 1
 batch_size: 250000
 

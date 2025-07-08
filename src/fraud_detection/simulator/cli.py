@@ -67,6 +67,13 @@ def main() -> None:
         type=int,
         help="Number of rows to generate in each batch (overrides config.batch_size)",
     )
+    parser.add_argument(
+        "--realism",
+        type=str,
+        choices=["v1","v2"],
+        default="v1",
+        help="Override sampling mode (v1 = rebuild per chunk; v2 = pre-load catalogs)",
+    )
     args = parser.parse_args()
 
     # Configure logging
@@ -85,6 +92,8 @@ def main() -> None:
             cfg.num_workers = args.num_workers
         if args.batch_size is not None:
             cfg.batch_size = args.batch_size
+        if args.realism:
+            cfg.realism = args.realism
     except (FileNotFoundError, ValueError, ValidationError) as e:
         logger.error("Config error: %s", e)
         sys.exit(1)
