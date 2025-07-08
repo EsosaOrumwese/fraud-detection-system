@@ -66,6 +66,13 @@ _CUST_CAT: pl.DataFrame | None = None
 _MERCH_CAT: pl.DataFrame | None = None
 _CARD_CAT: pl.DataFrame | None = None
 
+# ISO 3166-1 alpha-2 Eurozone country codes
+_EUR_COUNTRIES = [
+    "AT","BE","DE","ES","FR","IE","IT","LU","NL","PT",
+    "FI","GR","SK","SI","EE","LV","LT","CY","MT"
+]
+
+
 # ── Make this a true top-level function so it can be pickled on Windows ─────────
 def _init_worker(cust_cat: pl.DataFrame | None,
                  merch_cat: pl.DataFrame | None,
@@ -98,8 +105,8 @@ def _make_uuid4_hex_array(rng: np.random.Generator, n: int) -> list[str]:
 
     ints = [_set_uuid4_bits(i) for i in ints]
 
-    # 4) Convert to hex strings
-    return [uuid.UUID(int=i).hex for i in ints]
+    # 4) Convert to hyphenated UUID4 strings
+    return [str(uuid.UUID(int=i)) for i in ints]
 
 
 # Helper for Pool.imap_unordered to unpack the args tuple
@@ -195,15 +202,18 @@ def _generate_chunk(chunk_rows: int, cfg: GeneratorConfig, seed: Optional[int]) 
 
     # ── 7) Currency & timezone via MCC code ───────────────────────────────────
     mcc_arr = merch_cat["mcc_code"].to_numpy()[merch_ids - 1].astype(str)  # type: ignore
-    eur_mask = np.char.startswith(mcc_arr, "4")
+
+    # Sample merchant_country immediately after defining it, then map to currency
+    pool_n = min(chunk_rows, 100_000)
+    country_pool = [_fake.country_code(representation="alpha-2") for _ in range(pool_n)]
+    merchant_country = rng.choice(country_pool, size=chunk_rows)
+
+    eur_mask = np.isin(merchant_country, _EUR_COUNTRIES)
     currency_code = np.where(eur_mask, "EUR", "USD")
 
     # ── 8) Other vectorizable fields ──────────────────────────────────────────
     pan_hash = np.array(card_cat["pan_hash"].to_list(), dtype=object)[card_ids - 1]  # type: ignore
-    # merchant_country pool‐sample
-    pool_n = min(chunk_rows, 100_000)
-    country_pool = [_fake.country_code(representation="alpha-2") for _ in range(pool_n)]
-    merchant_country = rng.choice(country_pool, size=chunk_rows)
+
     # lat/lon uniform draws
     latitude  = np.round(rng.uniform(-90,  90, size=chunk_rows), 6)
     longitude = np.round(rng.uniform(-180, 180, size=chunk_rows), 6)
