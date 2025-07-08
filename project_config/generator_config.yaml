@@ -21,7 +21,7 @@ catalog:
   card_risk_alpha: 2.0
   card_risk_beta: 5.0
 
-  max_size_mb: 5
+  max_size_mb: 10  # for now seeing as we have n_rows unique entities which isn't ideal
   parquet_row_group_size: 64_000_000
 
 temporal:
