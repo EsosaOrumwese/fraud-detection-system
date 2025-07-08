@@ -5,6 +5,7 @@ Keeps core.py lean by isolating all label logic here.
 Uses NumPy + Polars with no pandas detours.
 """
 from __future__ import annotations
+
 from typing import Optional
 
 import numpy as np
@@ -70,20 +71,21 @@ def label_fraud(
         labels[drop] = False
     elif current < target:
         remaining = target - current
+
+        # 1. Draw wave anchors (times + merchants), weighted by merchant risk
         num_waves = max(1, remaining // burst_factor)
-
-        # merchant risk weights for wave selection
-        merch_ids = df["merchant_id"].to_numpy()
-        uniq, idx = np.unique(merch_ids, return_index=True)
-        # grab merch_risk at first occurrence
-        merch_risk_arr = df["merch_risk"].to_numpy()
-        weights = np.array([merch_risk_arr[i] for i in idx], float)
-        weights /= weights.sum()
-
         wave_times = rng.choice(arr_ts_ns, size=num_waves, replace=False)
-        wave_merch = rng.choice(uniq,     size=num_waves, p=weights)
-        burst_size = max(1, remaining // num_waves)
 
+        merch_ids = df["merchant_id"].to_numpy()
+        uniq, idx_first = np.unique(merch_ids, return_index=True)
+        merch_risks = df["merch_risk"].to_numpy()[idx_first]
+        # if all-zero risk, fall back to uniform
+        grp_probs = None if merch_risks.sum() <= 0 else merch_risks / merch_risks.sum()
+        wave_merch = rng.choice(uniq, size=num_waves, replace=True, p=grp_probs)
+
+        # 2. For each wave:
+        #    • pick up to burst_factor txns within ±burst_window_s
+        #    • if fewer than burst_factor available, draw the remainder globally
         for wt, wm in zip(wave_times, wave_merch):
             if remaining <= 0:
                 break
@@ -93,13 +95,43 @@ def label_fraud(
                 & (np.abs(arr_ts_ns - wt) <= burst_window_s * 1_000_000_000)
             )
             idxs = np.nonzero(mask)[0]
-            if idxs.size >= burst_size:
-                choice = rng.choice(idxs, size=burst_size, replace=False)
-            else:
-                nf = np.nonzero(~labels)[0]
-                choice = rng.choice(nf, size=min(len(nf), burst_size), replace=False)
-            labels[choice] = True
-            remaining -= len(choice)
+            if idxs.size >= burst_factor:
+                # full burst
+                chosen = rng.choice(idxs, size=burst_factor, replace=False)
+                labels[chosen] = True
+                remaining -= burst_factor
+            elif idxs.size > 0:
+                # partial: take what we can, then fill the rest globally
+                labels[idxs] = True
+                taken = idxs.size
+                remaining -= taken
+                # global fill for the shortfall
+                shortfall = min(burst_factor - taken, remaining)
+                if shortfall > 0:
+                    unlabeled = np.nonzero(~labels)[0]
+                    # weight by combined risk
+                    cr = arr_mrisk * arr_crisk
+                    total = cr[unlabeled].sum()
+                    probs = None if total <= 0 else cr[unlabeled] / total
+                    extra = rng.choice(unlabeled, size=shortfall, replace=False, p=probs)
+                    labels[extra] = True
+                    remaining -= shortfall
+
+        # 3. Final global fallback if still below target
+        if remaining > 0:
+            unlabeled = np.nonzero(~labels)[0]
+            if unlabeled.size > 0:
+                combined_risk = arr_mrisk * arr_crisk
+                total = combined_risk[unlabeled].sum()
+                probs = None if total <= 0 else combined_risk[unlabeled] / total
+                final = rng.choice(
+                    unlabeled,
+                    size=min(remaining, unlabeled.size),
+                    replace=False,
+                    p=probs
+                )
+                labels[final] = True
+
 
     # attach back to Polars
     return df.with_columns(pl.Series("label_fraud", labels).cast(pl.Boolean))
