@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Optional
 import math
 import multiprocessing
-import sys
 import logging
 import time
 
