@@ -128,11 +128,22 @@ def main() -> None:
 
         # 3) Optional S3 upload
         if do_upload:
+            s3 = boto3.client("s3")
+
             bucket = get_param("/fraud/raw_bucket_name")
             key = f"payments/year={year}/month={month}/{filename}"
             logger.info("Uploading to S3: s3://%s/%s", bucket, key)
-            boto3.client("s3").upload_file(str(local_path), bucket, key)
+            s3.upload_file(str(local_path), bucket, key)
             logger.info("Upload complete: s3://%s/%s", bucket, key)
+
+            # Upload catalogs (v2) to artifacts bucket
+            if cfg.realism == "v2":
+                bucket_art = get_param("/fraud/artifacts_bucket_name")
+                catalog_dir = Path(cfg.out_dir) / "catalog"
+                for parquet_file in catalog_dir.glob("*.parquet"):
+                    key_cat = f"catalogues/{parquet_file.name}"
+                    logger.info(f"Uploading catalog {parquet_file.name} to s3://{bucket_art}/{key_cat}")
+                    s3.upload_file(str(parquet_file), bucket_art, key_cat)
 
     except ClientError as e:
         logger.error("S3 upload failed: %s", e, exc_info=True)
