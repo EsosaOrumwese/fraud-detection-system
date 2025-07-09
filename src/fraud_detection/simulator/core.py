@@ -77,8 +77,14 @@ def _init_worker(cust_cat: pl.DataFrame | None,
                  merch_cat: pl.DataFrame | None,
                  card_cat: pl.DataFrame | None) -> None:
     """
-    Pool initializer: stash the preloaded catalogs in module globals.
-    This must live at module top-level to be importable by child processes.
+    Pool initializer for multiprocessing.
+
+    Stores the provided catalog DataFrames into the module-level globals
+    `_CUST_CAT`, `_MERCH_CAT`, and `_CARD_CAT` so that each worker process
+    can reuse the preloaded catalogs when `cfg.realism == "v2"`.
+
+    Must be defined at the top level (not nested) for 'picklability' under
+    spawn/fork start methods on all platforms (Windows, macOS, Linux).
     """
     global _CUST_CAT, _MERCH_CAT, _CARD_CAT
     _CUST_CAT, _MERCH_CAT, _CARD_CAT = cust_cat, merch_cat, card_cat
@@ -86,8 +92,9 @@ def _init_worker(cust_cat: pl.DataFrame | None,
 
 def _make_uuid4_hex_array(rng: np.random.Generator, n: int) -> list[str]:
     """
-    Generate `n` RFC-4122-compliant UUIDv4 hex strings, deterministically
-    from the given numpy Generator.
+    Generate `n` RFC-4122-compliant UUID4 strings, using the provided NumPy RNG.
+
+    Each UUID is returned in standard hyphenated 8-4-4-4-12 form.
     """
     # 1) Draw two arrays of 64-bit unsigned ints
     hi = rng.integers(0, 2**64, size=n, dtype=np.uint64)
@@ -111,9 +118,12 @@ def _make_uuid4_hex_array(rng: np.random.Generator, n: int) -> list[str]:
 # Helper for Pool.imap_unordered to unpack the args tuple
 def _chunk_worker(args: tuple[int, GeneratorConfig, Optional[int]]) -> pl.DataFrame:
     """
-    Unpack (chunk_rows, cfg, seed) tuple for multiprocessing.
+    Multiprocessing worker wrapper.
+
+    Unpacks the tuple `(chunk_rows, cfg, seed)` passed via `Pool.imap_unordered`
+    and invokes `_generate_chunk`. Returns the resulting DataFrame.
     """
-    from .core import _generate_chunk  # avoid circular at import
+    # from .core import _generate_chunk  # avoid circular at import
     return _generate_chunk(*args)
 
 def _generate_chunk(chunk_rows: int, cfg: GeneratorConfig, seed: Optional[int]) -> pl.DataFrame:

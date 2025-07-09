@@ -258,8 +258,14 @@ def write_catalogs(
     cfg: GeneratorConfig,
 ) -> None:
     """
-    Generate and write customer, merchant, and card catalogs as Parquet files,
-    ensuring each artifact is <= cfg.catalog.max_size_mb on disk.
+    Build and write customer, merchant, and card catalogs to Parquet.
+
+    Uses Zipf and Beta distributions (from cfg.catalog) to generate:
+      - customer_catalog.parquet
+      - merchant_catalog.parquet
+      - card_catalog.parquet
+
+    Ensures each file is Snappy-compressed and below cfg.catalog.max_size_mb.
     """
 
     # 1) Build in-memory DataFrames once
@@ -319,11 +325,11 @@ def write_catalogs(
 
 def load_catalogs(catalog_dir: Path | str) -> tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame]:
     """
-    Load the three Parquet catalogs from disk.
-    Expects files:
-      - customers.parquet
-      - merchants.parquet
-      - cards.parquet
+    Read the three catalog Parquets from `catalog_dir` and return DataFrames:
+      (cust, merch, card)
+
+    Expects files named:
+      customers.parquet, merchants.parquet, cards.parquet
     """
     catalog_dir = Path(catalog_dir)
     cust = pl.read_parquet(catalog_dir / "customers.parquet")

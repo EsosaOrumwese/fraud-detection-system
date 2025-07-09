@@ -28,9 +28,23 @@ def label_fraud(
     burst_window_s: int = 1800,
 ) -> pl.DataFrame:
     """
-    Vectorized fraud labeling:
-      1) Compute per‐txn logistic p via amount, merch_risk, card_risk, hour.
-      2) Bernoulli draw clamped to exact fraud_rate via overshoot/undershoot bursts.
+    Refine initial fraud labels to enforce exactly `round(fraud_rate * N)` positives,
+    with bursty clustering around high-risk merchants and within ±burst_window_s seconds.
+
+    Steps:
+      1. Compute logistic score on amount, merchant & card risk, night flag.
+      2. Initial Bernoulli draw matching marginal fraud_rate.
+      3. If overshot: randomly drop surplus positives.
+      4. If undershot:
+         a. Select `num_waves=remaining//burst_factor` (min 1) wave anchors
+            (random time + merchant, weighted by merchant risk).
+         b. For each wave, label up to `burst_factor` unlabeled txns
+            within ±burst_window_s of the anchor,
+            filling any per-wave shortfall immediately from the global pool.
+      5. Final global fallback if still below target.
+
+    Returns:
+      A new DataFrame with a `label_fraud: bool` column.
     """
     N = df.height
     # Extract arrays

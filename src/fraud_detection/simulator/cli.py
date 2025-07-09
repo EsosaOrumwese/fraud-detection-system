@@ -38,6 +38,25 @@ logger = logging.getLogger(__name__)
 
 
 def main() -> None:
+    """
+    Entry point for the fraud simulator CLI.
+
+    Parses command-line arguments for:
+      --config      Path to generator_config.yaml
+      --s3          Flag to upload outputs (transactions & catalogs) to S3
+      --log-level   Logging level (e.g. INFO, DEBUG)
+      --num-workers Override number of parallel workers
+      --batch-size  Override number of rows per chunk
+      --realism     Sampling mode: "v1" or "v2"
+
+    Workflow:
+      1. Load and validate configuration via config.load_config()
+      2. Invoke core.generate_dataframe(cfg) to build the DataFrame
+      3. Write partitioned Parquet under out_dir/payments/year=…/month=…
+      4. If --s3:
+         • upload transactions to the raw-data bucket
+         • if realism="v2", upload catalog Parquets to the artifacts bucket
+    """
     parser = argparse.ArgumentParser(
         description="Generate synthetic payments matching schema and optionally upload to S3"
     )
@@ -83,6 +102,7 @@ def main() -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     logger.debug("Arguments: %s", args)
+
 
     # Load & validate config
     try:
