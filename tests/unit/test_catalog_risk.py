@@ -7,6 +7,7 @@ from fraud_detection.simulator.catalog import (  # type: ignore
     generate_card_catalog,
 )
 
+
 def test_merchant_catalog_risk_and_weights():
     df = generate_merchant_catalog(
         num_merchants=5,
@@ -19,7 +20,7 @@ def test_merchant_catalog_risk_and_weights():
     assert list(df.columns) == ["merchant_id", "weight", "risk", "mcc_code"]
     assert df.schema["merchant_id"] == pl.Int32
     assert df.schema["weight"] == pl.Float64
-    assert df.schema["risk"]   == pl.Float64
+    assert df.schema["risk"] == pl.Float64
     assert df.schema["mcc_code"] == pl.Int32
 
     # Length & sums
@@ -42,6 +43,7 @@ def test_merchant_catalog_risk_and_weights():
         df2["risk"].to_numpy(),
     )
 
+
 def test_card_catalog_risk_and_pan_hash():
     df = generate_card_catalog(
         num_cards=5,
@@ -52,10 +54,10 @@ def test_card_catalog_risk_and_pan_hash():
     )
     # Columns & types
     assert list(df.columns) == ["card_id", "weight", "risk", "pan_hash"]
-    assert df.schema["card_id"]   == pl.Int32
-    assert df.schema["weight"]    == pl.Float64
-    assert df.schema["risk"]      == pl.Float64
-    assert df.schema["pan_hash"]  == pl.Utf8
+    assert df.schema["card_id"] == pl.Int32
+    assert df.schema["weight"] == pl.Float64
+    assert df.schema["risk"] == pl.Float64
+    assert df.schema["pan_hash"] == pl.Utf8
 
     # Length, weight sum, risk bounds
     assert df.height == 5

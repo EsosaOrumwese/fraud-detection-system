@@ -2,7 +2,8 @@ import numpy as np
 import polars as pl
 import pytest
 
-from fraud_detection.simulator.labeler import label_fraud  # type: ignore 
+from fraud_detection.simulator.labeler import label_fraud  # type: ignore
+
 
 def make_test_df(n_rows: int) -> pl.DataFrame:
     """
@@ -13,13 +14,16 @@ def make_test_df(n_rows: int) -> pl.DataFrame:
     """
     base = np.datetime64("2025-01-01T00:00:00", "ns")
     times = base + np.arange(n_rows) * np.timedelta64(1, "h")
-    return pl.DataFrame({
-        "event_time":    times,
-        "amount":        [1.0] * n_rows,
-        "merch_risk":    [0.0] * n_rows,
-        "card_risk":     [0.0] * n_rows,
-        "merchant_id":   [1]   * n_rows,
-    })
+    return pl.DataFrame(
+        {
+            "event_time": times,
+            "amount": [1.0] * n_rows,
+            "merch_risk": [0.0] * n_rows,
+            "card_risk": [0.0] * n_rows,
+            "merchant_id": [1] * n_rows,
+        }
+    )
+
 
 @pytest.mark.parametrize("n_rows", [100, 200, 1000])
 def test_label_fraud_exact_count_and_boolean(n_rows):
@@ -45,11 +49,12 @@ def test_label_fraud_exact_count_and_boolean(n_rows):
     # Exactly round(50 * 0.2) = 10 frauds
     assert sum(labels) == round(n_rows * fraud_rate)
 
+
 def test_label_fraud_burst_clusters_within_window():
     df = make_test_df(100)
     fraud_rate = 0.1
     burst_window_s = 7200  # 2 hours
-    burst_factor   = 4
+    burst_factor = 4
 
     out = label_fraud(
         df,

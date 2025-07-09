@@ -1,10 +1,10 @@
-import pytest
 import polars as pl
 from pathlib import Path
 
 from fraud_detection.simulator.config import load_config
 from fraud_detection.simulator.core import generate_dataframe
 import fraud_detection.simulator.catalog as catmod
+
 
 def test_chunk_reuse(tmp_path, monkeypatch):
     # ── 1) Load and tweak config for a tiny run in v2 ─────────────────────────
@@ -22,18 +22,27 @@ def test_chunk_reuse(tmp_path, monkeypatch):
 
     # ── 2) Spy on catalog builder calls ────────────────────────────────────────
     calls = {"cust": 0, "merch": 0, "card": 0}
+
     def wrap(fn, key):
         def inner(*args, **kwargs):
             calls[key] += 1
             return fn(*args, **kwargs)
+
         return inner
 
-    monkeypatch.setattr(catmod, "generate_customer_catalog",
-                        wrap(catmod.generate_customer_catalog, "cust"))
-    monkeypatch.setattr(catmod, "generate_merchant_catalog",
-                        wrap(catmod.generate_merchant_catalog, "merch"))
-    monkeypatch.setattr(catmod, "generate_card_catalog",
-                        wrap(catmod.generate_card_catalog, "card"))
+    monkeypatch.setattr(
+        catmod,
+        "generate_customer_catalog",
+        wrap(catmod.generate_customer_catalog, "cust"),
+    )
+    monkeypatch.setattr(
+        catmod,
+        "generate_merchant_catalog",
+        wrap(catmod.generate_merchant_catalog, "merch"),
+    )
+    monkeypatch.setattr(
+        catmod, "generate_card_catalog", wrap(catmod.generate_card_catalog, "card")
+    )
 
     # ── 3) Run the generator and inspect calls ────────────────────────────────
     df = generate_dataframe(cfg)

@@ -1,9 +1,8 @@
-import polars as pl
 from pathlib import Path
 
-import pytest
 from fraud_detection.simulator.catalog import write_catalogs  # type: ignore
-from fraud_detection.simulator.config import load_config       # type: ignore
+from fraud_detection.simulator.config import load_config  # type: ignore
+
 
 def test_write_catalogs(tmp_path: Path):
     # Load the master config and shrink catalogs so test runs small
@@ -21,6 +20,6 @@ def test_write_catalogs(tmp_path: Path):
         assert p.exists(), f"{name}.parquet not found"
         size = p.stat().st_size
         assert size > 0, "Empty file written"
-        assert size <= cfg.catalog.max_size_mb * 1024 * 1024, (
-            f"{name}.parquet is {size/(1024*1024):.2f} MB, exceeds {cfg.catalog.max_size_mb} MB"
-        )
+        assert (
+            size <= cfg.catalog.max_size_mb * 1024 * 1024
+        ), f"{name}.parquet is {size/(1024*1024):.2f} MB, exceeds {cfg.catalog.max_size_mb} MB"

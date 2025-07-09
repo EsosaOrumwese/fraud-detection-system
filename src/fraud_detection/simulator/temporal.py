@@ -12,8 +12,9 @@ from numpy.random import Generator, default_rng
 
 # Pre‐computed Gaussian‐mixture parameters (seconds since midnight)
 _TEMPORAL_MEANS = np.array([9, 13, 20], dtype=float) * 3600
-_TEMPORAL_STDS  = np.array([2, 1, 3], dtype=float) * 3600
+_TEMPORAL_STDS = np.array([2, 1, 3], dtype=float) * 3600
 _TEMPORAL_PROBS = np.array([0.4, 0.3, 0.3], dtype=float)
+
 
 def sample_timestamps(
     total_rows: int,
@@ -68,13 +69,17 @@ def sample_timestamps(
     comp = rng.choice(3, size=total_rows, p=_TEMPORAL_PROBS)
 
     # Vectorized normal draws per component (seconds since midnight)
-    secs = rng.normal(loc=_TEMPORAL_MEANS[comp], scale=_TEMPORAL_STDS[comp], size=total_rows)
+    secs = rng.normal(
+        loc=_TEMPORAL_MEANS[comp], scale=_TEMPORAL_STDS[comp], size=total_rows
+    )
     secs = np.clip(secs, 0, 24 * 3600 - 1).round().astype(np.int64)
 
     # Build numpy.datetime64 arrays
     base_dates = np.datetime64(start_date, "D") + day_offsets.astype("timedelta64[D]")
     time_offsets = secs.astype("timedelta64[s]")
     # Sum gives dtype datetime64[ns]
-    timestamps = (base_dates.astype("datetime64[ns]") + time_offsets.astype("timedelta64[ns]"))
+    timestamps = base_dates.astype("datetime64[ns]") + time_offsets.astype(
+        "timedelta64[ns]"
+    )
 
     return timestamps

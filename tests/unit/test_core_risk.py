@@ -1,5 +1,3 @@
-import numpy as np
-import pytest
 import polars as pl
 from pathlib import Path
 from datetime import date
@@ -9,9 +7,10 @@ from fraud_detection.simulator.config import (  # type: ignore
     CatalogConfig,
     TemporalConfig,
     GeneratorConfig,
-    FeatureConfig
+    FeatureConfig,
 )
 from fraud_detection.simulator.catalog import generate_card_catalog  # type: ignore
+
 
 def make_generator_config(tmp_path: Path) -> GeneratorConfig:
     catalog = CatalogConfig(
@@ -26,9 +25,9 @@ def make_generator_config(tmp_path: Path) -> GeneratorConfig:
         card_risk_alpha=2.0,
         card_risk_beta=5.0,
     )
-    temporal = TemporalConfig(start_date=date(2025,6,1), end_date=date(2025,6,1))
+    temporal = TemporalConfig(start_date=date(2025, 6, 1), end_date=date(2025, 6, 1))
     feature = FeatureConfig(
-        device_types={"IOS":0.5, "ANDROID":0.5},
+        device_types={"IOS": 0.5, "ANDROID": 0.5},
         amount_distribution="lognormal",
         lognormal_mean=3.0,
         lognormal_sigma=1.0,
@@ -42,17 +41,23 @@ def make_generator_config(tmp_path: Path) -> GeneratorConfig:
         catalog=catalog,
         temporal=temporal,
         feature=feature,
-
-        out_dir=tmp_path,   # unused by generate_dataframe
+        out_dir=tmp_path,  # unused by generate_dataframe
         s3_upload=False,
     )
+
 
 def test_generate_dataframe_core_columns_and_types(tmp_path):
     cfg = make_generator_config(tmp_path)
     df = generate_dataframe(cfg)
     # Core columns exist
-    for col in ["transaction_id", "event_time", "customer_id",
-                "merchant_id", "card_pan_hash", "label_fraud"]:
+    for col in [
+        "transaction_id",
+        "event_time",
+        "customer_id",
+        "merchant_id",
+        "card_pan_hash",
+        "label_fraud",
+    ]:
         assert col in df.columns
 
     # Types
@@ -62,6 +67,7 @@ def test_generate_dataframe_core_columns_and_types(tmp_path):
     assert df["merchant_id"].dtype == pl.Int64
     assert df["card_pan_hash"].dtype == pl.Utf8
     assert df["label_fraud"].dtype == pl.Boolean
+
 
 def test_card_pan_hash_matches_catalog(tmp_path):
     cfg = make_generator_config(tmp_path)
@@ -79,6 +85,7 @@ def test_card_pan_hash_matches_catalog(tmp_path):
     # Every card_pan_hash in the output should come from the catalog
     out_hashes = df["card_pan_hash"].to_list()
     assert set(out_hashes).issubset(pan_set)
+
 
 def test_reproducibility(tmp_path):
     cfg = make_generator_config(tmp_path)

@@ -18,7 +18,7 @@ from datetime import date
 
 from fraud_detection.simulator.core import generate_dataframe, write_parquet
 from fraud_detection.simulator.cli import main as _cli_main
-from fraud_detection.simulator.config import load_config, GeneratorConfig
+from fraud_detection.simulator.config import GeneratorConfig
 
 
 def generate_dataset(cfg: GeneratorConfig) -> Path:
@@ -40,6 +40,7 @@ def generate_dataset(cfg: GeneratorConfig) -> Path:
     out_path = local_dir / filename
     write_parquet(df, out_path)
     return out_path
+
 
 __all__ = ["generate_dataset", "write_parquet", "main"]
 

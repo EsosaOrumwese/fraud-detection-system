@@ -3,7 +3,7 @@
 total_rows: 1000000       # positive integer (no underscores!)
 fraud_rate: 0.02          # 0 <= fraud_rate <= 1
 seed: 42                  # optional RNG seed
-realism: "v1"
+realism: v1
 num_workers: 1
 batch_size: 250000
 
@@ -21,25 +21,25 @@ catalog:
   card_risk_alpha: 2.0
   card_risk_beta: 5.0
 
-  max_size_mb: 10  # for now seeing as we have n_rows unique entities which isn't ideal
+  max_size_mb: 10
   parquet_row_group_size: 64_000_000
 
 temporal:
-  start_date: "2025-06-01"
-  end_date:   "2025-06-30"
+  start_date: '2025-06-01'
+  end_date: '2025-06-30'
 
 feature:
   device_types:
-    IOS:     0.3
+    IOS: 0.3
     ANDROID: 0.4
-    WEB:     0.2
-    POS:     0.1
+    WEB: 0.2
+    POS: 0.1
 
   amount_distribution: lognormal       # options: lognormal | normal | uniform
-  lognormal_mean:        3.0           # for lognormal & normal
-  lognormal_sigma:       1.0           # for lognormal & normal
-  uniform_min:           1.0           # for uniform fallback
-  uniform_max:         500.0           # for uniform fallback
+  lognormal_mean: 3.0                  # for lognormal & normal
+  lognormal_sigma: 1.0                 # for lognormal & normal
+  uniform_min: 1.0                     # for uniform fallback
+  uniform_max: 500.0                   # for uniform fallback
 
-out_dir: "outputs"        # local root for Parquet writes
+out_dir: outputs          # local root for Parquet writes
 s3_upload: false          # if true, CLI will upload to S3

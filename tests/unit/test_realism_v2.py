@@ -5,7 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from fraud_detection.simulator.catalog import load_catalogs  # type: ignore 
+from fraud_detection.simulator.catalog import load_catalogs  # type: ignore
+
 
 @pytest.mark.parametrize("workers,batch", [(2, 500)])
 def test_cli_realism_v2(tmp_path, workers, batch):
@@ -19,7 +20,7 @@ def test_cli_realism_v2(tmp_path, workers, batch):
     out_dir = tmp_path / "out_dir_test"
     # Quote the path so YAML parses Windows drives correctly
     text = re.sub(
-        r'^out_dir:.*',
+        r"^out_dir:.*",
         f'out_dir: "{out_dir.as_posix()}"',
         text,
         flags=re.MULTILINE,
@@ -32,11 +33,16 @@ def test_cli_realism_v2(tmp_path, workers, batch):
     # ── 3) Invoke the CLI under project_root so schema/… is on cwd ───────────────
     cmd = [
         sys.executable,
-        "-m", "fraud_detection.simulator.cli",
-        "--config", str(test_cfg),
-        "--realism", "v2",
-        "--num-workers", str(workers),
-        "--batch-size", str(batch),
+        "-m",
+        "fraud_detection.simulator.cli",
+        "--config",
+        str(test_cfg),
+        "--realism",
+        "v2",
+        "--num-workers",
+        str(workers),
+        "--batch-size",
+        str(batch),
     ]
     result = subprocess.run(
         cmd,
@@ -53,7 +59,9 @@ def test_cli_realism_v2(tmp_path, workers, batch):
 
     # ── 4) Verify the catalogs/ folder was created under our override out_dir ────
     catalog_dir = out_dir / "catalog"
-    assert catalog_dir.exists() and catalog_dir.is_dir(), f"No catalog dir at {catalog_dir}"
+    assert (
+        catalog_dir.exists() and catalog_dir.is_dir()
+    ), f"No catalog dir at {catalog_dir}"
 
     # ── 5) load_catalogs must read back the three DataFrames without error ───────
     cust, merch, card = load_catalogs(catalog_dir)

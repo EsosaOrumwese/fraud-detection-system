@@ -40,8 +40,8 @@ def test_quick_auc(n_rows: int, tmp_path: pathlib.Path):
     cfg = load_config(CONFIG_PATH)
     # 2) Override just the row-count and output directory
     cfg.total_rows = n_rows
-    cfg.out_dir     = tmp_path
-    cfg.fraud_rate  = 0.03
+    cfg.out_dir = tmp_path
+    cfg.fraud_rate = 0.03
 
     parquet_path = generate_dataset(cfg)
     # validate schema

@@ -2,9 +2,9 @@ import math
 
 import numpy as np
 import polars as pl
-import pytest
 
 from fraud_detection.simulator.catalog import generate_customer_catalog
+
 
 def test_customer_zipf_top_10_percent_skew():
     """
@@ -31,6 +31,4 @@ def test_customer_zipf_top_10_percent_skew():
     top_n = math.ceil(num_customers * 0.10)
     top_sum = sorted_w[:top_n].sum()
 
-    assert top_sum > 0.5, (
-        f"Top 10% weights sum to {top_sum:.3f}, expected > 0.5"
-    )
+    assert top_sum > 0.5, f"Top 10% weights sum to {top_sum:.3f}, expected > 0.5"
