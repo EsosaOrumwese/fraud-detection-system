@@ -29,6 +29,44 @@ make mlflow-ui-start    # → http://localhost:5000
 ````
 
 ---
+## Data Generator
+
+This repository includes an end-to-end synthetic fraud-data generator under `src/fraud_detection/simulator/`.
+
+### Usage
+
+```bash
+python src/fraud_detection/simulator/cli.py \
+  --config project_config/generator_config.yaml \
+  [--realism v1|v2] \
+  [--num-workers N] [--batch-size M] \
+  [--s3]
+````
+
+* **--config**: YAML config with all generator parameters.
+* **--realism**:
+
+  * `v1`: rebuilds customer/merchant/card catalogs per chunk (legacy).
+  * `v2`: pre-writes catalogs once to `out_dir/catalog/` and reuses them—faster for large runs.
+* **--s3**:
+
+  * Uploads transactions to your “raw” S3 bucket (`/fraud/raw_bucket_name`).
+  * When `--realism v2`, also uploads catalog Parquets to your artifacts bucket (`/fraud/artifacts_bucket_name`).
+
+### Outputs
+
+* **Transactions**: partitioned Parquet under `out_dir/payments/year=…/month=…/transactions.parquet`.
+* **Catalogs** (v2 only):
+
+  * `out_dir/catalog/customers.parquet`
+  * `out_dir/catalog/merchants.parquet`
+  * `out_dir/catalog/cards.parquet`
+
+### Schema
+
+See `schema/transaction_schema.yaml` for the transaction column definitions and types.
+
+---
 
 ## 📚 Documentation
 
