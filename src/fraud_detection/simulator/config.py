@@ -66,8 +66,21 @@ class TemporalConfig(BaseModel):
 
 class GeneratorConfig(BaseModel):
     """
-    Master config for data generation.
-    All parameters are validated before generation begins.
+    Configuration for the fraud-data generator.
+
+    Attributes:
+      total_rows (int): Total number of transactions to generate.
+      fraud_rate (float): Target fraction of fraudulent transactions.
+      seed (Optional[int]): RNG seed for reproducibility.
+      batch_size (int): Number of rows per chunk when writing in parallel.
+      num_workers (int): Number of parallel worker processes.
+      out_dir (Path): Local directory to write outputs.
+      realism (Literal["v1","v2"]):
+          "v1" = rebuild catalogs each chunk;
+          "v2" = pre-load catalogs once and reuse.
+      catalog (CatalogConfig): Nested settings for customer/merchant/card catalogs.
+      temporal (TemporalConfig): Settings for timestamp sampling.
+      feature (FeatureConfig): Settings for amount, device, geo distributions.
     """
 
     # core knobs
