@@ -42,14 +42,16 @@ def test_customer_catalog_columns_and_dtype():
     assert df["weight"].dtype == pl.Float64
     assert pytest.approx(1.0, rel=1e-12) == df["weight"].sum()
 
+
 def test_merchant_catalog_columns_and_dtype():
     df = generate_merchant_catalog(num_merchants=5, zipf_exponent=1.5)
     assert list(df.columns) == ["merchant_id", "weight", "risk", "mcc_code"]
     assert df.height == 5
     assert df["merchant_id"].dtype in (pl.Int32, pl.Int64)
-    assert df["weight"].dtype  == pl.Float64
-    assert df["risk"].dtype    == pl.Float64
+    assert df["weight"].dtype == pl.Float64
+    assert df["risk"].dtype == pl.Float64
     assert df["mcc_code"].dtype == pl.Int32
+
 
 def test_card_catalog_columns_and_dtype():
     df = generate_card_catalog(num_cards=5, zipf_exponent=1.5)
@@ -57,7 +59,7 @@ def test_card_catalog_columns_and_dtype():
     assert df.height == 5
     assert df["card_id"].dtype in (pl.Int32, pl.Int64)
     assert df["weight"].dtype == pl.Float64
-    assert df["risk"].dtype   == pl.Float64
+    assert df["risk"].dtype == pl.Float64
     assert df["pan_hash"].dtype == pl.Utf8
 
 

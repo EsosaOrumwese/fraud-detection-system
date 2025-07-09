@@ -89,7 +89,7 @@ def main() -> None:
     parser.add_argument(
         "--realism",
         type=str,
-        choices=["v1","v2"],
+        choices=["v1", "v2"],
         default="v1",
         help="Override sampling mode (v1 = rebuild per chunk; v2 = pre-load catalogs)",
     )
@@ -102,7 +102,6 @@ def main() -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
     logger.debug("Arguments: %s", args)
-
 
     # Load & validate config
     try:
@@ -125,14 +124,18 @@ def main() -> None:
         # 1) Generate
         logger.info(
             "Starting data generation (rows=%d, fraud_rate=%.4f, seed=%s)",
-            cfg.total_rows, cfg.fraud_rate, cfg.seed,
+            cfg.total_rows,
+            cfg.fraud_rate,
+            cfg.seed,
         )
         start = time.perf_counter()
         df = generate_dataframe(cfg)
         elapsed = time.perf_counter() - start
         logger.info(
             "Generation complete: %d rows in %.2f s (%.0f rows/s)",
-            len(df), elapsed, len(df) / elapsed,
+            len(df),
+            elapsed,
+            len(df) / elapsed,
         )
 
         # 2) Write locally
@@ -162,7 +165,9 @@ def main() -> None:
                 catalog_dir = Path(cfg.out_dir) / "catalog"
                 for parquet_file in catalog_dir.glob("*.parquet"):
                     key_cat = f"catalogues/{parquet_file.name}"
-                    logger.info(f"Uploading catalog {parquet_file.name} to s3://{bucket_art}/{key_cat}")
+                    logger.info(
+                        f"Uploading catalog {parquet_file.name} to s3://{bucket_art}/{key_cat}"
+                    )
                     s3.upload_file(str(parquet_file), bucket_art, key_cat)
 
     except ClientError as e:

@@ -115,7 +115,6 @@ MCC_CODES: List[int] = [
 ]
 
 
-
 # Industry-average chargeback rates by category (decimal form)
 MCC_CODE_WEIGHTS: List[float] = [
     # Grocery & Food (Retail) – 0.52%
@@ -123,16 +122,13 @@ MCC_CODE_WEIGHTS: List[float] = [
     0.0052,  # 5422 Freezer & Locker Meat Provisioners
     0.0052,  # 5499 Miscellaneous Food Stores—Convenience & Specialty Markets
     0.0052,  # 5921 Package Stores, Beer, Wine, and Liquor
-
     # Restaurants & Bars – 0.12%
     0.0012,  # 5812 Eating Places, Restaurants
     0.0012,  # 5813 Bars, Cocktail Lounges, Discotheques, Nightclubs, Taverns
     0.0012,  # 5814 Fast Food Restaurants
-
     # Dairy & Bakeries (Retail) – 0.52%
     0.0052,  # 5451 Dairy Products Stores
     0.0052,  # 5462 Bakeries
-
     # Apparel & Specialty Retail – 0.52%
     0.0052,  # 5651 Family Clothing Stores
     0.0052,  # 5691 Men’s and Boys’ Clothing and Accessories Stores
@@ -153,7 +149,6 @@ MCC_CODE_WEIGHTS: List[float] = [
     0.0052,  # 5948 Luggage and Leather Goods Stores
     0.0052,  # 5949 Fabric Stores, Piece Goods, and Sewing Notions
     0.0052,  # 5600 Apparel and Accessory Services (Cleaning, Alterations, etc.)
-
     # Home & Hardware – 0.52%
     0.0052,  # 5211 Lumber and Building Materials Stores, Hardware
     0.0052,  # 5251 Hardware Stores
@@ -163,7 +158,6 @@ MCC_CODE_WEIGHTS: List[float] = [
     0.0066,  # 5734 Computer Software Stores (Software & SaaS – 0.66%)
     0.0056,  # 5735 Record Stores, Video Tapes, and Disks (Media & Entertainment – 0.56%)
     0.0052,  # 5970 Artist Supply and Craft Shops
-
     # Health & Beauty Services – 0.86%
     0.0086,  # 5912 Drug Stores and Pharmacies
     0.0060,  # 5971 Electrical and Electronic Repair Shops
@@ -174,7 +168,6 @@ MCC_CODE_WEIGHTS: List[float] = [
     0.0052,  # 5913 Packaged Liquor Stores
     0.0052,  # 5973 Antiquarian & Specialty Collectible Stores
     0.0066,  # 5974 Computer Network/Information Services (Digital Services – 0.66%)
-
     # Transportation & Travel – 0.89%
     0.0089,  # 4111 Local/Suburban Commuter Passenger Transport (Including Ferries)
     0.0089,  # 4121 Taxicabs and Limousines
@@ -189,7 +182,6 @@ MCC_CODE_WEIGHTS: List[float] = [
     0.0089,  # 7512 Automobile Rental Agencies
     0.0089,  # 7513 Automobile Parking Lots and Garages
     0.0089,  # 7519 Motor Home Rental
-
     # Lodging & Entertainment
     0.0012,  # 5811 Caterers (Restaurants – 0.12%)
     0.0089,  # 7011 Hotels, Motels, Resorts (Travel – 0.89%)
@@ -210,10 +202,8 @@ MCC_CODE_WEIGHTS: List[float] = [
     0.0060,  # 7342 Disinfecting and Pest Control Services
     0.0060,  # 7349 Cleaning, Maintenance, and Janitorial Services
     0.0089,  # 7511 Truck Stop (Truck Parking, Services)
-
     # Gambling & Betting – 1.50%
     0.0150,  # 7995 Gambling—Casinos, Race Tracks
-
     # Professional & Business Services
     0.0086,  # 8011 Medical and Dental Laboratories
     0.0086,  # 8021 Offices and Clinics of Dentists
@@ -226,7 +216,6 @@ MCC_CODE_WEIGHTS: List[float] = [
     0.0086,  # 8062 Hospitals
     0.0086,  # 8099 Health and Allied Services, Not Elsewhere Classified
     0.0060,  # 8111 Legal Services and Attorneys
-
     # Education & Training – 1.02%
     0.0102,  # 8211 Elementary and Secondary Schools
     0.0102,  # 8220 Colleges, Universities, Professional Schools
@@ -234,7 +223,6 @@ MCC_CODE_WEIGHTS: List[float] = [
     0.0102,  # 8244 Business and Secretarial Schools
     0.0102,  # 8249 Vocational and Trade Schools
     0.0102,  # 8299 Schools and Educational Services (Not Elsewhere Classified)
-
     # Non-profit & Government – default average 0.60%
     0.0060,  # 8398 Charitable and Social Service Organizations
     0.0060,  # 8661 Religious Organizations

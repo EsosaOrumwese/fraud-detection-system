@@ -56,7 +56,9 @@ def daily_synthetic():
     @task(multiple_outputs=True)
     def run_generator() -> dict[str, str]:
         """Run your generator and return the local Parquet file path & temp_dir."""
-        base_dir = Path(__file__).parents[1]  # Dag is located in ./dags/ in Docker container
+        base_dir = Path(__file__).parents[
+            1
+        ]  # Dag is located in ./dags/ in Docker container
         config_path = base_dir / "project_config" / "generator_config.yaml"
 
         cfg = load_config(config_path)
@@ -79,7 +81,9 @@ def daily_synthetic():
         subprocess.run([sys.executable, str(script), local_path], check=True)
 
     @task
-    def upload_to_s3(local_path: str, bucket: str, execution_date: str, config_path: str) -> str:
+    def upload_to_s3(
+        local_path: str, bucket: str, execution_date: str, config_path: str
+    ) -> str:
         """
         Upload the generated Parquet to S3 under:
           s3://{bucket}/payments/year=YYYY/month=MM/{filename}

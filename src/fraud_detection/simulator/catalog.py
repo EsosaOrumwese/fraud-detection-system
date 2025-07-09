@@ -3,7 +3,7 @@ Entity‐catalog generation and sampling driven by Zipf distributions plus risk 
 """
 
 from __future__ import annotations
-from typing import Optional, Union, Tuple
+from typing import Optional
 import os
 from pathlib import Path
 
@@ -69,15 +69,16 @@ def generate_customer_catalog(
     """
     ids = np.arange(1, num_customers + 1, dtype=np.int32)
     weights = _zipf_weights(num_customers, zipf_exponent)
-    return (pl.DataFrame(
+    return pl.DataFrame(
         {
             "customer_id": ids,
             "weight": weights.astype(np.float64),
-        })
-        .with_columns([
+        }
+    ).with_columns(
+        [
             pl.col("customer_id").cast(pl.Int32),
             pl.col("weight").cast(pl.Float64),
-        ])
+        ]
     )
 
 
@@ -123,19 +124,20 @@ def generate_merchant_catalog(
     mcc_rng: Generator = default_rng((seed or 0) + 2)
     mccs = mcc_rng.choice(MCC_CODES, size=num_merchants)
 
-    return (pl.DataFrame(
+    return pl.DataFrame(
         {
             "merchant_id": ids,
             "weight": weights.astype(np.float64),
             "risk": risks.astype(np.float64),
             "mcc_code": mccs.astype(int),
-        })
-        .with_columns([
+        }
+    ).with_columns(
+        [
             pl.col("merchant_id").cast(pl.Int32),
             pl.col("weight").cast(pl.Float64),
             pl.col("risk").cast(pl.Float64),
             pl.col("mcc_code").cast(pl.Int32),
-        ])
+        ]
     )
 
 
@@ -180,19 +182,20 @@ def generate_card_catalog(
     if seed is not None:
         fake.seed_instance((seed or 0) + 4)
     pan_hashes = [fake.sha256() for _ in range(num_cards)]
-    return (pl.DataFrame(
+    return pl.DataFrame(
         {
             "card_id": ids,
             "weight": weights.astype(np.float64),
             "risk": risks.astype(np.float64),
             "pan_hash": pan_hashes,
-        })
-        .with_columns([
+        }
+    ).with_columns(
+        [
             pl.col("card_id").cast(pl.Int32),
             pl.col("weight").cast(pl.Float64),
             pl.col("risk").cast(pl.Float64),
             pl.col("pan_hash").cast(pl.Utf8),
-        ])
+        ]
     )
 
 
@@ -297,12 +300,16 @@ def write_catalogs(
     paths = {
         "customers": catalog_dir / "customers.parquet",
         "merchants": catalog_dir / "merchants.parquet",
-        "cards":     catalog_dir / "cards.parquet",
+        "cards": catalog_dir / "cards.parquet",
     }
 
     # 3) Write with Snappy + configured row_group_size, then check file sizes
     max_bytes = cfg.catalog.max_size_mb * 1024 * 1024
-    for name, df in [("customers", customers), ("merchants", merchants), ("cards", cards)]:
+    for name, df in [
+        ("customers", customers),
+        ("merchants", merchants),
+        ("cards", cards),
+    ]:
         out_path = paths[name]
         df.write_parquet(
             out_path,
@@ -311,19 +318,20 @@ def write_catalogs(
             use_pyarrow=True,
         )
         size = os.path.getsize(out_path)
-        ## Address later as I have n_rows unique customers
 
-        # if size > max_bytes:
-        #     mb = size / (1024 * 1024)
-        #     raise ValueError(
-        #         f"{name}.parquet is {mb:.2f} MB, exceeds max "
-        #         f"{cfg.catalog.max_size_mb} MB"
-        #     )
+        if size > max_bytes:
+            mb = size / (1024 * 1024)
+            raise ValueError(
+                f"{name}.parquet is {mb:.2f} MB, exceeds max "
+                f"{cfg.catalog.max_size_mb} MB"
+            )
 
     # 4) All catalogs written and validated
 
 
-def load_catalogs(catalog_dir: Path | str) -> tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame]:
+def load_catalogs(
+    catalog_dir: Path | str,
+) -> tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame]:
     """
     Read the three catalog Parquets from `catalog_dir` and return DataFrames:
       (cust, merch, card)
@@ -345,7 +353,11 @@ if __name__ == "__main__":
     from fraud_detection.simulator.config import load_config  # type: ignore
 
     # Allow passing a custom config path, else use default
-    cfg_path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("project_config/generator_config.yaml")
+    cfg_path = (
+        Path(sys.argv[1])
+        if len(sys.argv) > 1
+        else Path("project_config/generator_config.yaml")
+    )
     cfg = load_config(cfg_path)
 
     output_dir = Path(cfg.out_dir)

@@ -3,7 +3,9 @@ import polars as pl
 from datetime import datetime, timezone
 
 from fraud_detection.simulator.labeler import label_fraud
-  # type: ignore
+
+
+# type: ignore
 def make_test_df(N: int) -> pl.DataFrame:
     """
     Build a minimal DataFrame with required columns:
@@ -21,17 +23,19 @@ def make_test_df(N: int) -> pl.DataFrame:
     # Half at midnight, half at noon UTC
     base = datetime(2025, 1, 1, tzinfo=timezone.utc)
     times = [
-        base.replace(hour=0) if i < N // 2 else base.replace(hour=12)
-        for i in range(N)
+        base.replace(hour=0) if i < N // 2 else base.replace(hour=12) for i in range(N)
     ]
     merchant_ids = np.arange(1, N + 1)
-    return pl.DataFrame({
-        "amount":       amounts,
-        "merch_risk":   merch_risk,
-        "card_risk":    card_risk,
-        "event_time":   times,
-        "merchant_id":  merchant_ids,
-    })
+    return pl.DataFrame(
+        {
+            "amount": amounts,
+            "merch_risk": merch_risk,
+            "card_risk": card_risk,
+            "event_time": times,
+            "merchant_id": merchant_ids,
+        }
+    )
+
 
 def test_exact_count_and_reproducibility():
     df = make_test_df(1000)
@@ -48,24 +52,35 @@ def test_exact_count_and_reproducibility():
     # 2) Fully reproducible
     assert labeled1["label_fraud"].to_list() == labeled2["label_fraud"].to_list()
 
+
 def test_zero_rate_all_false():
     df = make_test_df(200)
     labeled = label_fraud(df, fraud_rate=0.0, seed=7)
     assert labeled["label_fraud"].sum() == 0
+
 
 def test_one_rate_all_true():
     df = make_test_df(200)
     labeled = label_fraud(df, fraud_rate=1.0, seed=7)
     assert labeled["label_fraud"].sum() == 200
 
+
 def test_schema_and_dtype():
     df = make_test_df(50)
     labeled = label_fraud(df, fraud_rate=0.2, seed=123)
     # Should preserve original columns plus label_fraud
-    for col in ["amount", "merch_risk", "card_risk", "event_time", "merchant_id", "label_fraud"]:
+    for col in [
+        "amount",
+        "merch_risk",
+        "card_risk",
+        "event_time",
+        "merchant_id",
+        "label_fraud",
+    ]:
         assert col in labeled.columns
     # label_fraud must be Boolean
     assert labeled["label_fraud"].dtype == pl.Boolean
+
 
 def test_logistic_parameters_change_effect():
     """

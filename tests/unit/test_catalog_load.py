@@ -5,6 +5,7 @@ from pathlib import Path
 from fraud_detection.simulator.config import load_config
 from fraud_detection.simulator.catalog import write_catalogs, load_catalogs
 
+
 def test_load_catalogs_roundtrip(tmp_path):
     # ── 1) Load your real config and override for speed & isolation ─────────
     project_root = Path(__file__).parents[2]

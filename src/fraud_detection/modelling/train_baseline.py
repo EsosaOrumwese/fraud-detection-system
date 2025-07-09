@@ -517,7 +517,7 @@ def main() -> None:
 
             # Log a small sample (1%) of the source data for traceability
             sample_df = df.sample(frac=0.01, random_state=args.seed)
-            #sample_path = BASE_DIR / "mlruns" / "tmp_sample.csv"
+            # sample_path = BASE_DIR / "mlruns" / "tmp_sample.csv"
             sample_path = pathlib.Path("outputs/mlruns/tmp_sample.csv")
             sample_df.to_csv(sample_path, index=False)
             mlflow.log_artifact(str(sample_path), artifact_path="sample_source")

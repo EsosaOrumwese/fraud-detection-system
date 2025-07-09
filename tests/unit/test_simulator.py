@@ -21,8 +21,8 @@ def test_schema(tmp_path):
     cfg = load_config(CONFIG_PATH)
     # 2) Override just the row-count and output directory
     cfg.total_rows = 50000
-    cfg.out_dir     = tmp_path
-    cfg.fraud_rate  = 0.03
+    cfg.out_dir = tmp_path
+    cfg.fraud_rate = 0.03
 
     p = generate_dataset(cfg)
     cols = pl.read_parquet(p, n_rows=0).columns
@@ -56,8 +56,8 @@ def test_row_count(tmp_path):
     cfg = load_config(CONFIG_PATH)
     # 2) Override just the row-count and output directory
     cfg.total_rows = 10000
-    cfg.out_dir     = tmp_path
-    cfg.fraud_rate  = 0.03
+    cfg.out_dir = tmp_path
+    cfg.fraud_rate = 0.03
 
     p = generate_dataset(cfg)
     cnt = pl.read_parquet(p).height  # Or: pl.read_parquet(p).shape[0]
