@@ -59,6 +59,7 @@ COPY orchestration/airflow/plugins/ ./plugins/
 COPY great_expectations/    ./great_expectations/
 COPY schema/                ./schema
 COPY scripts/ge_validate.py ./scripts/
+COPY project_config/        ./project_config
 
 # Ensure airflow user can write to GE’s uncommitted store
 USER root

@@ -458,8 +458,8 @@ flask = ">=2.1.1"
 gunicorn = ">=20.1.0"
 httpx = ">=0.25.0"
 importlib-metadata = [
-    {version = ">=6.5", markers = "python_version < \"3.12\""},
     {version = ">=7.0", markers = "python_version >= \"3.12\""},
+    {version = ">=6.5", markers = "python_version < \"3.12\""},
 ]
 itsdangerous = ">=2.0"
 jinja2 = ">=3.1.5"
@@ -474,8 +474,8 @@ opentelemetry-exporter-otlp = ">=1.26.0"
 packaging = ">=23.2"
 pathspec = ">=0.9.0"
 pendulum = [
-    {version = ">=2.1.2,<4.0", markers = "python_version < \"3.12\""},
     {version = ">=3.0.0,<4.0", markers = "python_version >= \"3.12\""},
+    {version = ">=2.1.2,<4.0", markers = "python_version < \"3.12\""},
 ]
 pluggy = ">=1.5.0"
 psutil = ">=5.8.0"
@@ -745,8 +745,8 @@ jinja2 = ">=3.1.5"
 methodtools = ">=0.4.7"
 msgspec = ">=0.19.0"
 pendulum = [
-    {version = ">=2.1.2,<4.0", markers = "python_version < \"3.12\""},
     {version = ">=3.0.0,<4.0", markers = "python_version >= \"3.12\""},
+    {version = ">=2.1.2,<4.0", markers = "python_version < \"3.12\""},
 ]
 psutil = ">=6.1.0"
 python-dateutil = ">=2.7.0"
@@ -2725,11 +2725,11 @@ jsonschema = ">=2.5.1"
 marshmallow = ">=3.7.1,<4.0.0"
 mistune = ">=0.8.4"
 numpy = [
-    {version = ">=1.22.4", markers = "python_version >= \"3.10\""},
     {version = ">=1.26.0", markers = "python_version >= \"3.12\""},
+    {version = ">=1.22.4", markers = "python_version >= \"3.10\" and python_version < \"3.12\""},
 ]
 packaging = "*"
-pandas = {version = ">=1.3.0,<2.2", markers = "python_version >= \"3.10\""}
+pandas = {version = ">=1.3.0,<2.2", markers = "python_version >= \"3.12\""}
 posthog = ">3,<4"
 pydantic = ">=1.10.7"
 pyparsing = ">=2.4"
@@ -4800,8 +4800,8 @@ files = [
 
 [package.dependencies]
 numpy = [
-    {version = ">=1.23.2,<2", markers = "python_version == \"3.11\""},
     {version = ">=1.26.0,<2", markers = "python_version >= \"3.12\""},
+    {version = ">=1.23.2,<2", markers = "python_version == \"3.11\""},
 ]
 python-dateutil = ">=2.8.2"
 pytz = ">=2020.1"
@@ -5762,6 +5762,30 @@ files = [
 
 [package.dependencies]
 typing-extensions = ">=4.6.0,<4.7.0 || >4.7.0"
+
+[[package]]
+name = "pydantic-settings"
+version = "2.10.1"
+description = "Settings management using Pydantic"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "pydantic_settings-2.10.1-py3-none-any.whl", hash = "sha256:a60952460b99cf661dc25c29c0ef171721f98bfcb52ef8d9ea4c943d7c8cc796"},
+    {file = "pydantic_settings-2.10.1.tar.gz", hash = "sha256:06f0062169818d0f5524420a360d632d5857b83cffd4d42fe29597807a1614ee"},
+]
+
+[package.dependencies]
+pydantic = ">=2.7.0"
+python-dotenv = ">=0.21.0"
+typing-inspection = ">=0.4.0"
+
+[package.extras]
+aws-secrets-manager = ["boto3 (>=1.35.0)", "boto3-stubs[secretsmanager]"]
+azure-key-vault = ["azure-identity (>=1.16.0)", "azure-keyvault-secrets (>=4.8.0)"]
+gcp-secret-manager = ["google-cloud-secret-manager (>=2.23.1)"]
+toml = ["tomli (>=2.0.1)"]
+yaml = ["pyyaml (>=6.0.1)"]
 
 [[package]]
 name = "pygments"
@@ -8418,4 +8442,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.13"
-content-hash = "528e2ecc026bff922c8ad976ac48d6f2c966f8a9f8646b4ac661f2807845266f"
+content-hash = "7b8978951dedea786eefdbfc9f0572c15c9f2bb7a39b78aa488a653db5c2c588"

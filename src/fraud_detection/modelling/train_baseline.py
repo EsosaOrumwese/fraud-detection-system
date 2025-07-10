@@ -63,8 +63,7 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 
-BASE_DIR = pathlib.Path(__file__).parent.parent.parent.parent  # Points to project root
-SCHEMA_PATH = BASE_DIR / "schema" / "transaction_schema.yaml"
+SCHEMA_PATH = pathlib.Path("schema/transaction_schema.yaml")
 
 
 # Load & validate schema on import
@@ -219,16 +218,16 @@ def build_pipeline(
 
 def setup_mlflow(
     experiment_name: str,
-    tracking_uri: str = "file:./mlruns",
+    tracking_uri: str = "file:./outputs/mlruns",
 ) -> None:
     """
-    Configure MLflow to use a local `mlruns/` directory and set up the experiment.
+    Configure MLflow to use a local `outputs/mlruns/` directory and set up the experiment.
 
     If the experiment does not exist, it will be created (no error if it already exists).
 
     Args:
         experiment_name: Name of the MLflow experiment (e.g. "baseline_fraud").
-        tracking_uri: Tracking URI (default: local folder "mlruns").
+        tracking_uri: Tracking URI (default: local folder "outputs/mlruns").
     """
     mlflow.set_tracking_uri(tracking_uri)
     try:
@@ -430,7 +429,7 @@ def main() -> None:
     try:
         # Resolve Parquet path if not provided
         if args.parquet is None:
-            args.parquet = resolve_single_parquet(BASE_DIR / "outputs", args.rows)
+            args.parquet = resolve_single_parquet(pathlib.Path("outputs/"), args.rows)
         logger.info("Using Parquet: %s", args.parquet)
 
         # Load data
@@ -466,7 +465,7 @@ def main() -> None:
         pipeline.set_params(clf__scale_pos_weight=spw)
 
         # Set up MLflow
-        setup_mlflow(args.mlflow_experiment, tracking_uri="file:./mlruns")
+        setup_mlflow(args.mlflow_experiment, tracking_uri="file:./outputs/mlruns")
         with mlflow.start_run(run_name="baseline_xgb") as run:
             # Log parameters & tags
             mlflow.log_params(
@@ -518,7 +517,8 @@ def main() -> None:
 
             # Log a small sample (1%) of the source data for traceability
             sample_df = df.sample(frac=0.01, random_state=args.seed)
-            sample_path = BASE_DIR / "mlruns" / "tmp_sample.csv"
+            # sample_path = BASE_DIR / "mlruns" / "tmp_sample.csv"
+            sample_path = pathlib.Path("outputs/mlruns/tmp_sample.csv")
             sample_df.to_csv(sample_path, index=False)
             mlflow.log_artifact(str(sample_path), artifact_path="sample_source")
             sample_path.unlink()
