@@ -10,7 +10,8 @@ ALARM_NAME     ?= Test Alarm
 # Data generation & ML
 ROWS           ?= 1_000_000
 OUTDIR         ?= outputs
-DATA_DIR	   ?= $(OUTDIR)/payments_$(subst ,,$(ROWS))_*.parquet
+DATA_DIR	   ?= $(OUTDIR)/payments/year=2025/month=07
+CONFIG_PATH	   ?= project_config/generator_config.yaml
 SMOKE_ROWS     ?= 1_000
 PROFILE_ARGS   ?=
 ML_TRAIN_ARGS  ?=					# ML_TRAIN_ARGS="--n-est 200 --learning-rate 0.05"
@@ -147,32 +148,24 @@ ge-validate:
 	@echo "-> Validating $(GE_FILE)"
 	poetry run python scripts/ge_validate.py $(GE_FILE)
 
-smoke-schema:
-	@echo "-> Smoke-testing schema with $(SMOKE_ROWS) rows"
-	@rm -rf tmp && mkdir -p tmp
-	poetry run python -m fraud_detection.simulator.generate \
-	  --rows $(SMOKE_ROWS) --out tmp --s3 no
-	poetry run python scripts/ge_validate.py tmp/payments_*_*.parquet
-	@rm -rf tmp
-
 # ────────────────────────────────────────────────────────────────────────────
 #  Data Generation & Profiling
 # ────────────────────────────────────────────────────────────────────────────
 .PHONY: gen-data-local gen-data-raw validate-data gen-data profile clean-memory
 
 gen-data-local:
-	@echo "-> Generating $(ROWS) rows (local)"
+	@echo "-> Generating data based on config (local)"
 	poetry run python -m fraud_detection.simulator.generate \
-	  --rows $(ROWS) --out $(OUTDIR) --s3 no
+	  --config $(CONFIG_PATH) --realism v2
 
 gen-data-raw:
-	@echo "-> Generating $(ROWS) rows & uploading to RAW_BUCKET"
+	@echo "-> Generating data based on config & uploading to AWS S3 bucket"
 	poetry run python -m fraud_detection.simulator.generate \
-	  --rows $(ROWS) --out $(OUTDIR) --s3 yes
+	  --config $(CONFIG_PATH) --realism v2 --s3
 
 validate-data:
 	@echo "-> Validating latest Parquet"
-	@FILE=$$(ls $(OUTDIR)/payments_$(subst ,,$(ROWS))_*.parquet | tail -n1); \
+	@FILE=$$(ls $(DATA_DIR)/payments_$(subst ,,$(ROWS))_*.parquet | tail -n1); \
 	if [ -z "$$FILE" ]; then \
 	  echo "x No file to validate"; exit 1; \
 	else \
@@ -184,7 +177,7 @@ gen-data: gen-data-local validate-data
 
 profile:
 	@echo "-> Profiling parquet"
-	@FILE=$$(ls $(OUTDIR)/payments_$(subst ,,$(ROWS))_*.parquet | tail -n1); \
+	@FILE=$$(ls $(DATA_DIR)/payments_$(subst ,,$(ROWS))_*.parquet | tail -n1); \
 	if [ -z "$$FILE" ]; then \
 	  echo "✗ No parquet to profile"; exit 1; \
 	else \

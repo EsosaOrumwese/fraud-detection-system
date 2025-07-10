@@ -216,8 +216,8 @@ jobs:
       - name: Bootstrap GE context & suite
         run: make ge-bootstrap
 
-      - name: Generate dummy parquet & Validate schema smoke test
-        run: make smoke-schema
+      - name: Generate data & Validate schema smoke test
+        run: make gen-data
 
   # ──────────────────── INFRACOST SCANS ────────────────────
   infracost-pull-request-checks:
