@@ -141,6 +141,8 @@ jobs:
         uses: aquasecurity/tfsec-action@v1.0.3
         with:
           soft_fail: false # HIGH/MED findings break the build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkov (IaC / Docker / Python scan)
         uses: bridgecrewio/checkov-action@v12.3017.0
