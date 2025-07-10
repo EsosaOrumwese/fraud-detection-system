@@ -148,14 +148,6 @@ ge-validate:
 	@echo "-> Validating $(GE_FILE)"
 	poetry run python scripts/ge_validate.py $(GE_FILE)
 
-smoke-schema:
-	@echo "-> Smoke-testing schema with $(SMOKE_ROWS) rows"
-	@rm -rf tmp && mkdir -p tmp
-	poetry run python -m fraud_detection.simulator.generate \
-	  --rows $(SMOKE_ROWS) --out tmp --s3 no
-	poetry run python scripts/ge_validate.py tmp/payments_*_*.parquet
-	@rm -rf tmp
-
 # ────────────────────────────────────────────────────────────────────────────
 #  Data Generation & Profiling
 # ────────────────────────────────────────────────────────────────────────────
