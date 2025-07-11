@@ -97,12 +97,6 @@ def sample_timestamps(
 
     rng: Generator = default_rng(seed)
 
-    # choose distribution implementation
-    dist_cls = get_distribution(distribution_type)
-    # prefer user-supplied components, else defaults
-    comps = time_components if time_components is not None else _DEFAULT_TIME_COMPONENTS
-    dist = dist_cls(comps)  # type: ignore
-
     # 1) Build all calendar dates
     num_days = (end_date - start_date).days + 1
     all_dates = np.datetime64(start_date, "D") + np.arange(
@@ -125,36 +119,39 @@ def sample_timestamps(
     else:
         per_date_p = None
 
-    # 3) Draw day indices, chunking if requested
+    # 3) Prepare time-of-day sampler & pre-generate all time offsets
+    dist_cls = get_distribution(distribution_type)
+    comps    = time_components if time_components is not None else _DEFAULT_TIME_COMPONENTS
+    dist     = dist_cls(comps)
+    secs_all  = dist.sample(total_rows, rng)
+    times_all = secs_all.astype("timedelta64[s]").astype("timedelta64[ns]")
+
+    # 4) Assemble final timestamps in chunk-bounded batches
     if chunk_size is not None and total_rows > chunk_size:
-        parts, remaining = [], total_rows
+        parts, offset, remaining = [], 0, total_rows
         while remaining > 0:
             n = min(chunk_size, remaining)
+            # date sampling
             if per_date_p is None:
                 idx = rng.integers(0, num_days, size=n)
             else:
                 idx = rng.choice(num_days, size=n, p=per_date_p)
-            parts.append(idx)
+
+            dates_chunk = all_dates[idx].astype("datetime64[ns]")
+            times_chunk = times_all[offset : offset + n]
+            parts.append(dates_chunk + times_chunk)
+
+            offset    += n
             remaining -= n
-        day_offsets = np.concatenate(parts)
+        return np.concatenate(parts)
+
+    # single-shot or no chunking
+    if per_date_p is None:
+        idx = rng.integers(0, num_days, size=total_rows)
     else:
-        if per_date_p is None:
-            day_offsets = rng.integers(0, num_days, size=total_rows)
-        else:
-            day_offsets = rng.choice(num_days, size=total_rows, p=per_date_p)
-
-    # Delegate time-of-day sampling to the selected distribution
-    secs = dist.sample(total_rows, rng)
-
-    # Build numpy.datetime64 arrays
-    base_dates = np.datetime64(start_date, "D") + day_offsets.astype("timedelta64[D]")
-    time_offsets = secs.astype("timedelta64[s]")
-    # Sum gives dtype datetime64[ns]
-    timestamps = base_dates.astype("datetime64[ns]") + time_offsets.astype(
-        "timedelta64[ns]"
-    )
-
-    return timestamps
+        idx = rng.choice(num_days, size=total_rows, p=per_date_p)
+    dates = all_dates[idx].astype("datetime64[ns]")
+    return dates + times_all
 
 
 
