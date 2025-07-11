@@ -4,7 +4,7 @@ Temporal sampler for synthetic events, with diurnal patterns.
 
 from __future__ import annotations
 from datetime import date
-from typing import Optional
+from typing import Optional, Dict, List
 
 import numpy as np
 import abc
@@ -48,6 +48,8 @@ def sample_timestamps(
     seed: Optional[int] = None,
     distribution_type: str = "gaussian",
     time_components: Optional[list[dict]] = None,
+    weekday_weights: Optional[Dict[int, float]] = None,
+    chunk_size: Optional[int] = None,
 ) -> np.ndarray:  # type: ignore
     """
     Generate timestamps between start_date and end_date with a diurnal mixture.
@@ -69,6 +71,14 @@ def sample_timestamps(
         Inclusive end date.
     seed : Optional[int]
         RNG seed for reproducibility.
+    distribution_type : str
+        Type of distribution to use.
+    time_components : List[dict]
+        List of time components to use.
+    weekday_weights : Dict[int, float]
+        Weight of each time component.
+    chunk_size : int
+        Number of timestamps to generate at a time.
 
     Returns
     -------
@@ -93,11 +103,45 @@ def sample_timestamps(
     comps = time_components if time_components is not None else _DEFAULT_TIME_COMPONENTS
     dist = dist_cls(comps)  # type: ignore
 
+    # 1) Build all calendar dates
+    num_days = (end_date - start_date).days + 1
+    all_dates = np.datetime64(start_date, "D") + np.arange(
+        num_days, dtype="timedelta64[D]"
+    )
 
-    # Build list of candidate dates
-    days = (end_date - start_date).days + 1
-    # Sample day offsets [0, days)
-    day_offsets = rng.integers(0, days, size=total_rows)
+    # 2) Compute per-date probabilities if weights provided
+    if weekday_weights is not None:
+        w = np.array([
+            weekday_weights.get(
+                int(dt.astype("datetime64[D]").astype(object).weekday()),
+                0.0
+            )
+            for dt in all_dates
+        ], dtype=float)
+        total_w = w.sum()
+        if total_w <= 0:
+            raise ValueError("Sum of weekday_weights must be > 0")
+        per_date_p = w / total_w
+    else:
+        per_date_p = None
+
+    # 3) Draw day indices, chunking if requested
+    if chunk_size is not None and total_rows > chunk_size:
+        parts, remaining = [], total_rows
+        while remaining > 0:
+            n = min(chunk_size, remaining)
+            if per_date_p is None:
+                idx = rng.integers(0, num_days, size=n)
+            else:
+                idx = rng.choice(num_days, size=n, p=per_date_p)
+            parts.append(idx)
+            remaining -= n
+        day_offsets = np.concatenate(parts)
+    else:
+        if per_date_p is None:
+            day_offsets = rng.integers(0, num_days, size=total_rows)
+        else:
+            day_offsets = rng.choice(num_days, size=total_rows, p=per_date_p)
 
     # Delegate time-of-day sampling to the selected distribution
     secs = dist.sample(total_rows, rng)
