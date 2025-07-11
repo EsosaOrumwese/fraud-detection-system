@@ -5,7 +5,7 @@ Configuration loader & schema for the fraud simulator.
 from __future__ import annotations
 from pathlib import Path
 from datetime import date
-from typing import Optional, Literal, Dict
+from typing import Optional, Literal, Dict, List
 
 import yaml  # type: ignore
 from pydantic import BaseModel, Field, model_validator, ValidationError, ConfigDict
@@ -69,6 +69,15 @@ class CatalogConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+# new time‐of‐day component schema
+class TimeComponentConfig(BaseModel):
+    mean_hour: float = Field(..., ge=0, lt=24, description="Center hour of the Gaussian peak")
+    std_hours: float = Field(..., gt=0, description="Std dev in hours for the peak")
+    weight: float = Field(..., ge=0, description="Relative weight of this component")
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class TemporalConfig(BaseModel):
     """Temporal span and time-of-day distribution settings."""
 
@@ -77,10 +86,57 @@ class TemporalConfig(BaseModel):
     )
     end_date: date = Field(..., description="Inclusive end date for simulated events")
 
+    # SD-02 fields
+    weekday_weights: Optional[Dict[int, float]] = Field(
+        None, description="Map weekday (0=Mon … 6=Sun) to relative weight"
+    )
+    time_components: Optional[List[TimeComponentConfig]] = Field(
+        None, description="List of Gaussian components for time-of-day"
+    )
+    distribution_type: Literal["gaussian"] = Field(
+        "gaussian", description="Which TemporalDistribution to use"
+    )
+    chunk_size: Optional[int] = Field(
+        None, ge=1, description="Max rows per internal sampling batch"
+    )
+
     @model_validator(mode="after")
     def check_date_order(self):
         if self.end_date < self.start_date:
             raise ValueError("end_date must be on or after start_date")
+        return self
+
+    @model_validator(mode="after")
+    def validate_and_normalize(self):
+        # weekday_weights
+        ww = self.weekday_weights
+        if ww is not None:
+            for k, v in ww.items():
+                if k not in range(0, 7):
+                    raise ValueError(f"Invalid weekday key {k!r}; must be 0–6")
+                if v < 0:
+                    raise ValueError(f"Negative weight for weekday {k!r}")
+            total = sum(ww.values())
+            if total <= 0:
+                raise ValueError("Sum of weekday_weights must be > 0")
+            normalized = {k: v / total for k, v in ww.items()}
+            object.__setattr__(self, "weekday_weights", normalized)
+
+        # time_components
+        tcs = self.time_components
+        if tcs is not None:
+            total_w = sum(tc.weight for tc in tcs)
+            if total_w <= 0:
+                raise ValueError("Sum of time_components weights must be > 0")
+            for tc in tcs:
+                tc.weight /= total_w
+            object.__setattr__(self, "time_components", tcs)
+
+        # chunk_size
+        cs = self.chunk_size
+        if cs is not None and cs < 1:
+            raise ValueError("chunk_size must be ≥ 1")
+
         return self
 
     model_config = ConfigDict(extra="forbid")

@@ -27,6 +27,19 @@ catalog:
 temporal:
   start_date: '2025-06-01'
   end_date: '2025-06-30'
+  # SD-02: optional weekday seasonality (0=Mon … 6=Sun)
+  weekday_weights:
+    # e.g. Monday-heavy:
+    # 0: 1.5
+  # SD-02: optional Gaussian mixture for time-of-day
+  time_components:
+    # - mean_hour: 8.0
+    #   std_hours: 1.0
+    #   weight: 0.4
+  # SD-02: which sampler to use (“gaussian” only option today)
+  distribution_type: gaussian
+  # SD-02: max rows per internal sampling chunk (for very large N)
+  chunk_size: null
 
 feature:
   device_types:
