@@ -145,17 +145,49 @@ def main() -> None:
         # ── CLI overrides for temporal settings ─────────────────────────────────
         # weekday_weights (inline JSON only)
         if args.weekday_weights is not None:
+            # 1) Load JSON
             try:
-                override_w = json.loads(args.weekday_weights)
-            except Exception:
-                logger.error("Invalid JSON for --weekday-weights")
+                raw = json.loads(args.weekday_weights)
+            except json.JSONDecodeError as e:
+                logger.error("Invalid JSON for --weekday-weights: %s", e)
                 sys.exit(1)
-            # empty dict → uniform weights
-            if isinstance(override_w, dict) and not override_w:
+
+            # 2) Must be a dict
+            if not isinstance(raw, dict):
+                logger.error("--weekday-weights must be a JSON object")
+                sys.exit(1)
+
+            # 3) Coerce & validate entries
+            override_w: dict[int, float] = {}
+            for k, v in raw.items():
+                try:
+                    ik = int(k)
+                    fv = float(v)
+                except Exception:
+                    logger.error("Invalid entry in --weekday-weights: key %r→int, value %r→float", k, v)
+                    sys.exit(1)
+                if ik < 0 or ik > 6:
+                    logger.error("Weekday index %d out of range [0,6]", ik)
+                    sys.exit(1)
+                if fv <= 0:
+                    logger.error("Weekday weight for %d must be > 0; got %s", ik, v)
+                    sys.exit(1)
+                override_w[ik] = fv
+
+            # 4) Empty dict → uniform weights
+            if not override_w:
                 override_w = {i: 1.0 for i in range(7)}
-            base_w = cfg.temporal.weekday_weights or {}
-            base_w.update(override_w)
-            cfg.temporal.weekday_weights = base_w
+
+            # 5) Ensure weights sum > 0
+            total = sum(override_w.values())
+            if total <= 0:
+                logger.error("Sum of weekday-weights must be > 0; got %s", total)
+                sys.exit(1)
+
+            # 6) Merge non-mutatively with file or defaults
+            existing = cfg.temporal.weekday_weights or {}
+            merged = {**existing, **override_w}
+            cfg.temporal.weekday_weights = merged
 
         # time_components (inline JSON only)
         if args.time_components is not None:
