@@ -17,6 +17,7 @@ Workflow:
 """
 
 import sys
+import json
 import argparse
 import logging
 from pathlib import Path
@@ -93,6 +94,33 @@ def main() -> None:
         default="v1",
         help="Override sampling mode (v1 = rebuild per chunk; v2 = pre-load catalogs)",
     )
+    # ── SD-02 temporal overrides ───────────────────────────────────────────────
+    parser.add_argument(
+        "--weekday-weights",
+        type=str,
+        help="JSON string containing weekday-to-weight map",
+    )
+    parser.add_argument(
+        "--time-components",
+        type=str,
+        help="JSON string containing list of time-component objects",
+    )
+    parser.add_argument(
+        "--seed",
+        type=str,
+        help="Override RNG seed (int or string) for reproducibility",
+    )
+    parser.add_argument(
+        "--distribution-type",
+        type=str,
+        choices=["gaussian"],
+        help="Override temporal distribution type",
+    )
+    parser.add_argument(
+        "--chunk-size",
+        type=int,
+        help="Override max rows per sampling batch (chunk_size)",
+    )
     args = parser.parse_args()
 
     # Configure logging
@@ -106,13 +134,60 @@ def main() -> None:
     # Load & validate config
     try:
         cfg: GeneratorConfig = load_config(args.config)
-        # allow CLI to override performance knobs
+        # allow CLI to override performance & temporal knobs
         if args.num_workers is not None:
             cfg.num_workers = args.num_workers
         if args.batch_size is not None:
             cfg.batch_size = args.batch_size
         if args.realism:
             cfg.realism = args.realism
+
+        # ── CLI overrides for temporal settings ─────────────────────────────────
+        # weekday_weights (inline JSON only)
+        if args.weekday_weights is not None:
+            try:
+                override = json.loads(args.weekday_weights)
+            except json.JSONDecodeError as e:
+                logger.error("Malformed JSON for --weekday-weights: %s", e)
+                sys.exit(1)
+            base = cfg.temporal.weekday_weights or {}
+            merged = {**base, **{int(k): float(v) for k, v in override.items()}}
+            cfg.temporal.weekday_weights = merged
+
+        # time_components (inline JSON only)
+        if args.time_components is not None:
+            try:
+                tc_list = json.loads(args.time_components)
+            except json.JSONDecodeError as e:
+                logger.error("Malformed JSON for --time-components: %s", e)
+                sys.exit(1)
+            try:
+                from fraud_detection.simulator.config import TimeComponentConfig
+                cfg.temporal.time_components = [
+                    TimeComponentConfig(**c) for c in tc_list
+                ]
+            except ValidationError as e:
+                logger.error("Invalid entry in --time-components: %s", e)
+                sys.exit(1)
+
+        # seed override (int or string)
+        if args.seed is not None:
+            try:
+                cfg.seed = int(args.seed)
+            except ValueError:
+                logger.error("--seed must be an integer")
+                sys.exit(1)
+
+        # distribution_type override
+        if args.distribution_type:
+            cfg.temporal.distribution_type = args.distribution_type
+
+        # chunk_size override
+        if args.chunk_size is not None:
+            if args.chunk_size <= 0:
+                logger.error("--chunk-size must be > 0")
+                sys.exit(1)
+            cfg.temporal.chunk_size = args.chunk_size
     except (FileNotFoundError, ValueError, ValidationError) as e:
         logger.error("Config error: %s", e)
         sys.exit(1)
