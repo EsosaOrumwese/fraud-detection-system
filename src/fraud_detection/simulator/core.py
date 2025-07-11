@@ -167,6 +167,7 @@ def _generate_chunk(
         start_date=start_date,
         end_date=end_date,
         seed=seed,
+        timezone=cfg.temporal.timezone,
         distribution_type=cfg.temporal.distribution_type,
         time_components=cfg.temporal.time_components,  # type: ignore
         weekday_weights=cfg.temporal.weekday_weights,

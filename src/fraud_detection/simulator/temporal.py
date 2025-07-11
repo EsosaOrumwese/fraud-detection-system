@@ -45,7 +45,9 @@ def sample_timestamps(
     total_rows: int,
     start_date: date,
     end_date: date,
+    *,
     seed: Optional[int] = None,
+    timezone: str = "UTC",
     distribution_type: str = "gaussian",
     time_components: Optional[list[dict]] = None,
     weekday_weights: Optional[Dict[int, float]] = None,
@@ -79,7 +81,6 @@ def sample_timestamps(
         A dict mapping day-of-week (0=Mon...6=Sun) to non-negative weight.
         If provided, calendar dates are sampled in proportion to these weights.
         If None, dates are uniform across the range.
-
     time_components : Sequence[TimeComponentConfig], optional
         A list of TimeComponentConfig tuples (mean_hour, std_hours, weight)
         defining a Gaussian mixture for the time-of-day offset.

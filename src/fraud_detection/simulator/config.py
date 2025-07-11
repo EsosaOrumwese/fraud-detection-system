@@ -96,6 +96,10 @@ class TemporalConfig(BaseModel):
     distribution_type: Literal["gaussian"] = Field(
         "gaussian", description="Which TemporalDistribution to use"
     )
+    timezone: str = Field(
+        "UTC",
+        description="IANA timezone name for sampling (e.g. 'UTC', 'Europe/London')"
+    )
     chunk_size: Optional[int] = Field(
         None, ge=1, description="Max rows per internal sampling batch"
     )
