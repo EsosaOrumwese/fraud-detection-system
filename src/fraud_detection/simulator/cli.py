@@ -146,13 +146,16 @@ def main() -> None:
         # weekday_weights (inline JSON only)
         if args.weekday_weights is not None:
             try:
-                override = json.loads(args.weekday_weights)
-            except json.JSONDecodeError as e:
-                logger.error("Malformed JSON for --weekday-weights: %s", e)
+                override_w = json.loads(args.weekday_weights)
+            except Exception:
+                logger.error("Invalid JSON for --weekday-weights")
                 sys.exit(1)
-            base = cfg.temporal.weekday_weights or {}
-            merged = {**base, **{int(k): float(v) for k, v in override.items()}}
-            cfg.temporal.weekday_weights = merged
+            # empty dict → uniform weights
+            if isinstance(override_w, dict) and not override_w:
+                override_w = {i: 1.0 for i in range(7)}
+            base_w = cfg.temporal.weekday_weights or {}
+            base_w.update(override_w)
+            cfg.temporal.weekday_weights = base_w
 
         # time_components (inline JSON only)
         if args.time_components is not None:
@@ -191,7 +194,7 @@ def main() -> None:
         # ── Observability: dump final temporal settings ───────────────────────────
         logger.info(
             "Resolved temporal settings: weekday_weights=%s, time_components=%s, "
-            "distribution_type=%s, chunk_size=%d",
+            "distribution_type=%s, chunk_size=%s",
             cfg.temporal.weekday_weights,
             cfg.temporal.time_components,
             cfg.temporal.distribution_type,
