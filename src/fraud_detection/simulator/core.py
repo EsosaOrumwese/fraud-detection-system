@@ -366,8 +366,17 @@ def generate_dataframe(cfg: GeneratorConfig) -> pl.DataFrame:
         counts = [cfg.batch_size] * (num_chunks - 1) + [
             total_rows - cfg.batch_size * (num_chunks - 1)
         ]
-        base_seed = cfg.seed or 0
-        args = [(counts[i], cfg, base_seed + i) for i in range(num_chunks)]
+        # Stage 6: derive per-chunk seeds from one master RNG instead of seed+i
+        from numpy.random import default_rng
+        master_rng = default_rng(cfg.seed or 0)
+        sub_seeds = master_rng.integers(
+            low=0, high=2 ** 63, size=num_chunks, dtype="uint64"
+        ).tolist()
+        logger.debug(
+            "Derived %d chunk sub-seeds from master seed %s: %s",
+            num_chunks, cfg.seed, sub_seeds
+        )
+        args = [(counts[i], cfg, int(sub_seeds[i])) for i in range(num_chunks)]
         dfs: list[pl.DataFrame] = []
 
         # Parallel generation with per‐chunk logging, injecting catalogs via our top-level initializer
