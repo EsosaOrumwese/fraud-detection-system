@@ -7,13 +7,38 @@ from datetime import date
 from typing import Optional
 
 import numpy as np
+import abc
 from numpy.random import Generator, default_rng
 
+# Registry for pluggable temporal distributions
+__registry: dict[str, type["TemporalDistribution"]] = {}
 
-# Pre‐computed Gaussian‐mixture parameters (seconds since midnight)
-_TEMPORAL_MEANS = np.array([9, 13, 20], dtype=float) * 3600
-_TEMPORAL_STDS = np.array([2, 1, 3], dtype=float) * 3600
-_TEMPORAL_PROBS = np.array([0.4, 0.3, 0.3], dtype=float)
+def register_distribution(name: str):
+    def _inner(cls: type["TemporalDistribution"]):
+        __registry[name] = cls
+        return cls
+    return _inner
+
+def get_distribution(name: str) -> type["TemporalDistribution"]:
+    try:
+        return __registry[name]
+    except KeyError:
+        raise ValueError(f"Unknown distribution_type {name!r}; supported: {list(__registry)}")
+
+class TemporalDistribution(abc.ABC):
+    """Interface for time-of-day sampling strategies."""
+
+    @abc.abstractmethod
+    def sample(self, count: int, rng: Generator, **params) -> np.ndarray:
+        """Return `count` offsets in seconds since midnight."""
+        ...
+
+# Default mixture components for backward compatibility
+_DEFAULT_TIME_COMPONENTS = [
+    {"mean_hour": 9.0, "std_hours": 2.0, "weight": 0.4},
+    {"mean_hour":13.0, "std_hours": 1.0, "weight": 0.3},
+    {"mean_hour":20.0, "std_hours": 3.0, "weight": 0.3},
+]
 
 
 def sample_timestamps(
@@ -21,6 +46,8 @@ def sample_timestamps(
     start_date: date,
     end_date: date,
     seed: Optional[int] = None,
+    distribution_type: str = "gaussian",
+    time_components: Optional[list[dict]] = None,
 ) -> np.ndarray:  # type: ignore
     """
     Generate timestamps between start_date and end_date with a diurnal mixture.
@@ -60,19 +87,20 @@ def sample_timestamps(
 
     rng: Generator = default_rng(seed)
 
+    # choose distribution implementation
+    dist_cls = get_distribution(distribution_type)
+    # prefer user-supplied components, else defaults
+    comps = time_components if time_components is not None else _DEFAULT_TIME_COMPONENTS
+    dist = dist_cls(comps)  # type: ignore
+
+
     # Build list of candidate dates
     days = (end_date - start_date).days + 1
     # Sample day offsets [0, days)
     day_offsets = rng.integers(0, days, size=total_rows)
 
-    # Mixture proportions for time-of-day
-    comp = rng.choice(3, size=total_rows, p=_TEMPORAL_PROBS)
-
-    # Vectorized normal draws per component (seconds since midnight)
-    secs = rng.normal(
-        loc=_TEMPORAL_MEANS[comp], scale=_TEMPORAL_STDS[comp], size=total_rows
-    )
-    secs = np.clip(secs, 0, 24 * 3600 - 1).round().astype(np.int64)
+    # Delegate time-of-day sampling to the selected distribution
+    secs = dist.sample(total_rows, rng)
 
     # Build numpy.datetime64 arrays
     base_dates = np.datetime64(start_date, "D") + day_offsets.astype("timedelta64[D]")
@@ -83,3 +111,33 @@ def sample_timestamps(
     )
 
     return timestamps
+
+
+
+@register_distribution("gaussian")
+class GaussianMixtureDistribution(TemporalDistribution):
+    def __init__(self, components: list[dict]):
+        """Initialize Gaussian‐mixture using dicts or TimeComponentConfig instances."""
+        means, stds, weights = [], [], []
+        for c in components:
+            if isinstance(c, dict):
+                means.append(c["mean_hour"])
+                stds.append(c["std_hours"])
+                weights.append(c["weight"])
+            else:
+                # assume Pydantic TimeComponentConfig
+                means.append(c.mean_hour)
+                stds.append(c.std_hours)
+                weights.append(c.weight)
+        # convert to seconds
+        self.means   = np.array(means,   dtype=float) * 3600
+        self.stds    = np.array(stds,    dtype=float) * 3600
+        self.weights = np.array(weights, dtype=float)
+
+    def sample(self, count: int, rng: Generator, **params) -> np.ndarray:
+        # pick a component index per draw
+        idx = rng.choice(len(self.weights), size=count, p=self.weights)
+        # draw from the corresponding Gaussians
+        secs = rng.normal(loc=self.means[idx], scale=self.stds[idx], size=count)
+        # clip to [0, 24h) and round
+        return np.clip(secs, 0, 24 * 3600 - 1).round().astype(np.int64)

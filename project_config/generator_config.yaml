@@ -27,7 +27,7 @@ catalog:
 temporal:
   start_date: '2025-06-01'
   end_date: '2025-06-30'
-  # SD-02: optional weekday seasonality (0=Mon … 6=Sun)
+  # SD-02: optional weekday seasonality (0=Mon ... 6=Sun)
   weekday_weights:
     # e.g. Monday-heavy:
     # 0: 1.5
