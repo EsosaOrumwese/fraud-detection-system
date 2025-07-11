@@ -188,6 +188,15 @@ def main() -> None:
                 logger.error("--chunk-size must be > 0")
                 sys.exit(1)
             cfg.temporal.chunk_size = args.chunk_size
+        # ── Observability: dump final temporal settings ───────────────────────────
+        logger.info(
+            "Resolved temporal settings: weekday_weights=%s, time_components=%s, "
+            "distribution_type=%s, chunk_size=%d",
+            cfg.temporal.weekday_weights,
+            cfg.temporal.time_components,
+            cfg.temporal.distribution_type,
+            cfg.temporal.chunk_size,
+        )
     except (FileNotFoundError, ValueError, ValidationError) as e:
         logger.error("Config error: %s", e)
         sys.exit(1)

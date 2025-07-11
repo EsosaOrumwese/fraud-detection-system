@@ -119,31 +119,44 @@ def sample_timestamps(
     else:
         per_date_p = None
 
-    # 3) Prepare time-of-day sampler & pre-generate all time offsets
+    # 3) Prepare time-of-day sampler (defer sampling until per-chunk to respect memory)
     dist_cls = get_distribution(distribution_type)
     comps    = time_components if time_components is not None else _DEFAULT_TIME_COMPONENTS
-    dist     = dist_cls(comps)
-    secs_all  = dist.sample(total_rows, rng)
-    times_all = secs_all.astype("timedelta64[s]").astype("timedelta64[ns]")
+    dist     = dist_cls(comps)  # type: ignore
 
     # 4) Assemble final timestamps in chunk-bounded batches
     if chunk_size is not None and total_rows > chunk_size:
-        parts, offset, remaining = [], 0, total_rows
+        parts, remaining, offset = [], total_rows, 0
         while remaining > 0:
             n = min(chunk_size, remaining)
-            # date sampling
+            # a) date sampling batch
             if per_date_p is None:
                 idx = rng.integers(0, num_days, size=n)
             else:
                 idx = rng.choice(num_days, size=n, p=per_date_p)
+            dates = all_dates[idx].astype("datetime64[ns]")
 
-            dates_chunk = all_dates[idx].astype("datetime64[ns]")
-            times_chunk = times_all[offset : offset + n]
-            parts.append(dates_chunk + times_chunk)
+            # b) time-of-day sampling batch via registry
+            secs = dist.sample(n, rng)
+            times = secs.astype("timedelta64[s]").astype("timedelta64[ns]")
 
+            parts.append(dates + times)
             offset    += n
             remaining -= n
         return np.concatenate(parts)
+
+    # Single-shot behavior when chunking not needed
+    # a) date sampling
+    if per_date_p is None:
+        idx = rng.integers(0, num_days, size=total_rows)
+    else:
+        idx = rng.choice(num_days, size=total_rows, p=per_date_p)
+    dates = all_dates[idx].astype("datetime64[ns]")
+
+    # b) full time-of-day draw
+    secs = dist.sample(total_rows, rng)
+    times = secs.astype("timedelta64[s]").astype("timedelta64[ns]")
+    return dates + times
 
     # single-shot or no chunking
     if per_date_p is None:
