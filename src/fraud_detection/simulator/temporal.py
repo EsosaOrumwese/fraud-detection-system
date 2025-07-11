@@ -75,10 +75,15 @@ def sample_timestamps(
         Type of distribution to use.
     time_components : List[dict]
         List of time components to use.
-    weekday_weights : Dict[int, float]
-        Weight of each time component.
-    chunk_size : int
-        Number of timestamps to generate at a time.
+    weekday_weights : Mapping[int, float], optional
+        A dict mapping day-of-week (0=Mon...6=Sun) to non-negative weight.
+        If provided, calendar dates are sampled in proportion to these weights.
+        If None, dates are uniform across the range.
+
+    time_components : Sequence[TimeComponentConfig], optional
+        A list of TimeComponentConfig tuples (mean_hour, std_hours, weight)
+        defining a Gaussian mixture for the time-of-day offset.
+        If None, defaults to a single component at 12:00 (noon) with weight=1.
 
     Returns
     -------
@@ -126,7 +131,9 @@ def sample_timestamps(
 
     # 4) Assemble final timestamps in chunk-bounded batches
     if chunk_size is not None and total_rows > chunk_size:
-        parts, remaining, offset = [], total_rows, 0
+        # preallocate output array
+        out = np.empty(total_rows, dtype="datetime64[ns]")
+        remaining, offset = total_rows, 0
         while remaining > 0:
             n = min(chunk_size, remaining)
             # a) date sampling batch
@@ -140,10 +147,11 @@ def sample_timestamps(
             secs = dist.sample(n, rng)
             times = secs.astype("timedelta64[s]").astype("timedelta64[ns]")
 
-            parts.append(dates + times)
-            offset    += n
+            # fill in preallocated array
+            out[offset : offset + n] = dates + times
+            offset += n
             remaining -= n
-        return np.concatenate(parts)
+        return out
 
     # Single-shot behavior when chunking not needed
     # a) date sampling
@@ -157,15 +165,6 @@ def sample_timestamps(
     secs = dist.sample(total_rows, rng)
     times = secs.astype("timedelta64[s]").astype("timedelta64[ns]")
     return dates + times
-
-    # single-shot or no chunking
-    if per_date_p is None:
-        idx = rng.integers(0, num_days, size=total_rows)
-    else:
-        idx = rng.choice(num_days, size=total_rows, p=per_date_p)
-    dates = all_dates[idx].astype("datetime64[ns]")
-    return dates + times_all
-
 
 
 @register_distribution("gaussian")

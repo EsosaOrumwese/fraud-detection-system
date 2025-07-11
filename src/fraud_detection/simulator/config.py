@@ -229,13 +229,21 @@ class GeneratorConfig(BaseModel):
             raise ValueError("Missing required `feature` section")
         return self
 
-    @model_validator(mode="after")
-    def default_temporal_chunk_size(self):
-        # Stage 1: if user didn't set chunk_size, default it to batch_size
-        if self.temporal.chunk_size is None:
-            # use object.__setattr__ since Pydantic models are frozen post-validation
-            object.__setattr__(self.temporal, "chunk_size", self.batch_size)
-        return self
+    @model_validator(mode="before")
+    def set_default_chunk_size(cls, values):
+        """
+        Stage 1 polish: ensure temporal.chunk_size always defaults to batch_size
+        so downstream logic can assume it's an int (never None).
+        """
+        # Only apply if the user didn't explicitly set chunk_size in YAML/CLI
+        batch = values.get("batch_size")
+        temp  = values.get("temporal")
+        if batch is not None and isinstance(temp, dict):
+            # Only fill when missing or null
+            if temp.get("chunk_size") is None:
+                temp["chunk_size"] = batch
+                values["temporal"] = temp
+        return values
 
     model_config = ConfigDict(extra="forbid")
 
