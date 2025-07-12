@@ -102,6 +102,7 @@ def sample_timestamps(
         raise ValueError("end_date must be on or after start_date")
 
     rng: Generator = default_rng(seed)
+    logger.debug("sample_timestamps: seed=%s, timezone=%s, rows=%d", seed, timezone, total_rows)
 
     # 1) Build all calendar dates
     num_days = (end_date - start_date).days + 1

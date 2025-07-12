@@ -121,6 +121,11 @@ def main() -> None:
         type=int,
         help="Override max rows per sampling batch (chunk_size)",
     )
+    parser.add_argument(
+        "--timezone",
+        type=str,
+        help="Override temporal.timezone (IANA name, e.g. 'UTC', 'Europe/London')",
+    )
     args = parser.parse_args()
 
     # Configure logging
@@ -223,6 +228,9 @@ def main() -> None:
                 logger.error("--chunk-size must be > 0")
                 sys.exit(1)
             cfg.temporal.chunk_size = args.chunk_size
+
+        if args.timezone is not None:
+            cfg.temporal.timezone = args.timezone
         # ── Observability: dump final temporal settings ───────────────────────────
         logger.info(
             "Resolved temporal settings: weekday_weights=%s, time_components=%s, "
@@ -231,6 +239,7 @@ def main() -> None:
             cfg.temporal.time_components,
             cfg.temporal.distribution_type,
             cfg.temporal.chunk_size,
+            cfg.temporal.timezone,
         )
     except (FileNotFoundError, ValueError, ValidationError) as e:
         logger.error("Config error: %s", e)
