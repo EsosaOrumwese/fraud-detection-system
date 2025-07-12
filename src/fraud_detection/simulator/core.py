@@ -404,6 +404,14 @@ def generate_dataframe(cfg: GeneratorConfig) -> pl.DataFrame:
 
             # One global concat + schema cast
         df = pl.concat(dfs, rechunk=False)
+        # Stage 4: apply timezone conversion in one pass via Polars
+        df = df.with_columns(
+            pl.col("timestamp")
+            .dt.replace_time_zone(cfg.temporal.timezone)
+            .dt.convert_time_zone("UTC")
+            .dt.replace_time_zone(None)
+            .alias("timestamp")
+        )
         df = label_fraud(df, fraud_rate=cfg.fraud_rate, seed=cfg.seed)
         return df.with_columns(
             [pl.col(col).cast(_POLARS_SCHEMA[col]) for col in _COLUMNS]
@@ -422,6 +430,14 @@ def generate_dataframe(cfg: GeneratorConfig) -> pl.DataFrame:
         df.height,
         chunk_time,
         speed,
+    )
+    # Stage 4: apply timezone conversion in one pass via Polars
+    df = df.with_columns(
+        pl.col("timestamp")
+        .dt.replace_time_zone(cfg.temporal.timezone)
+        .dt.convert_time_zone("UTC")
+        .dt.replace_time_zone(None)
+        .alias("timestamp")
     )
     df = label_fraud(df, fraud_rate=cfg.fraud_rate, seed=cfg.seed)
     # Apply schema cast
