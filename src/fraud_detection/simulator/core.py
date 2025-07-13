@@ -352,6 +352,17 @@ def generate_dataframe(cfg: GeneratorConfig) -> pl.DataFrame:
             f"Temporal sampling failed: end_date {end_date!r} is before start_date {start_date!r}"
         )
 
+    # Log resolved temporal config for observability
+    logger.info(
+        "Using temporal config: timezone=%s, distribution_type=%s, "
+        "weekday_weights=%s, time_components=%s, chunk_size=%s",
+        cfg.temporal.timezone,
+        cfg.temporal.distribution_type,
+        cfg.temporal.weekday_weights,
+        cfg.temporal.time_components,
+        cfg.temporal.chunk_size,
+    )
+
     # Pre-build & load catalogs once in v2 mode
     catalogs: tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame] | None = None
     if cfg.realism == "v2":
@@ -406,11 +417,11 @@ def generate_dataframe(cfg: GeneratorConfig) -> pl.DataFrame:
         df = pl.concat(dfs, rechunk=False)
         # Stage 4: apply timezone conversion in one pass via Polars
         df = df.with_columns(
-            pl.col("timestamp")
+            pl.col("event_time")
             .dt.replace_time_zone(cfg.temporal.timezone)
             .dt.convert_time_zone("UTC")
             .dt.replace_time_zone(None)
-            .alias("timestamp")
+            .alias("event_time")
         )
         df = label_fraud(df, fraud_rate=cfg.fraud_rate, seed=cfg.seed)
         return df.with_columns(
@@ -433,11 +444,11 @@ def generate_dataframe(cfg: GeneratorConfig) -> pl.DataFrame:
     )
     # Stage 4: apply timezone conversion in one pass via Polars
     df = df.with_columns(
-        pl.col("timestamp")
+        pl.col("event_time")
         .dt.replace_time_zone(cfg.temporal.timezone)
         .dt.convert_time_zone("UTC")
         .dt.replace_time_zone(None)
-        .alias("timestamp")
+        .alias("event_time")
     )
     df = label_fraud(df, fraud_rate=cfg.fraud_rate, seed=cfg.seed)
     # Apply schema cast
