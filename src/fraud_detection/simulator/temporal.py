@@ -5,6 +5,7 @@ Temporal sampler for synthetic events, with diurnal patterns.
 from __future__ import annotations
 from datetime import date
 from typing import Optional, Dict, List
+import logging
 
 import numpy as np
 import abc
@@ -40,6 +41,7 @@ _DEFAULT_TIME_COMPONENTS = [
     {"mean_hour":20.0, "std_hours": 3.0, "weight": 0.3},
 ]
 
+_LOGGER = logging.getLogger(__name__)
 
 def sample_timestamps(
     total_rows: int,
@@ -102,7 +104,7 @@ def sample_timestamps(
         raise ValueError("end_date must be on or after start_date")
 
     rng: Generator = default_rng(seed)
-    logger.debug("sample_timestamps: seed=%s, timezone=%s, rows=%d", seed, timezone, total_rows)
+    _LOGGER.debug("Initializing sample_timestamps RNG with seed=%s, timezone=%s, total_rows=%d", seed, timezone, total_rows)
 
     # 1) Build all calendar dates
     num_days = (end_date - start_date).days + 1
