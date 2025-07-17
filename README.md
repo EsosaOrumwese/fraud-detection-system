@@ -1,13 +1,30 @@
-# Fraud Detection System  
++75
+-59
+
+# Fraud Detection System
+
 [![codecov](https://codecov.io/gh/EsosaOrumwese/fraud-detection-system/graph/badge.svg?token=9INHHQJDOO)](https://codecov.io/gh/EsosaOrumwese/fraud-detection-system)
 
-> **Enterprise-grade, real-time fraud-prediction platform**  
-> Portfolio project — built E2E with Terraform, Polars/Faker, XGBoost 2,  
-> MLflow 3, and (future) Airflow 3 + Feast feature store.
+> **Enterprise-grade, real-time fraud-prediction platform** built with Terraform, Polars/Faker, XGBoost, MLflow and Airflow.
 
----
+![High Level Architecture](docs/img/high_level_arch.png)
 
-## 👟 Quick-start
+## Overview
+
+The goal of this project is to demonstrate an end-to-end machine learning platform capable of generating realistic transactions, training fraud models and orchestrating data pipelines. The Terraform stack provisions all required AWS infrastructure while Airflow coordinates data generation and model training workflows.
+
+## Dependencies
+
+- Python 3.11+
+- [Poetry](https://python-poetry.org/) for environment and package management
+
+Install dependencies with:
+
+```bash
+poetry install --with dev
+```
+
+## Quick Start
 
 ```bash
 # 1  Clone & install
@@ -26,84 +43,86 @@ make profile
 # 4  Train baseline model & view MLflow UI
 make ml-train      ROWS=500000
 make mlflow-ui-start    # → http://localhost:5000
-````
-
----
-## Data Generator
-
-This repository includes an end-to-end synthetic fraud-data generator under `src/fraud_detection/simulator/`.
-
-### Usage
-
-```bash
-python src/fraud_detection/simulator/cli.py \
-  --config project_config/generator_config.yaml \
-  [--realism v1|v2] \
-  [--num-workers N] [--batch-size M] \
-  [--s3]
-````
-
-* **--config**: YAML config with all generator parameters.
-* **--realism**:
-
-  * `v1`: rebuilds customer/merchant/card catalogs per chunk (legacy).
-  * `v2`: pre-writes catalogs once to `out_dir/catalog/` and reuses them—faster for large runs.
-* **--s3**:
-
-  * Uploads transactions to your “raw” S3 bucket (`/fraud/raw_bucket_name`).
-  * When `--realism v2`, also uploads catalog Parquets to your artifacts bucket (`/fraud/artifacts_bucket_name`).
-
-### Outputs
-
-* **Transactions**: partitioned Parquet under `out_dir/payments/year=…/month=…/transactions.parquet`.
-* **Catalogs** (v2 only):
-
-  * `out_dir/catalog/customers.parquet`
-  * `out_dir/catalog/merchants.parquet`
-  * `out_dir/catalog/cards.parquet`
-
-### Schema
-
-See `schema/transaction_schema.yaml` for the transaction column definitions and types.
-
----
-
-## 📚 Documentation
-
-| Doc                       | Description                                      |
-|---------------------------|--------------------------------------------------|
-| **PROJECT\_CHARTER.md**   | Scope, sprint cadence, acceptance criteria       |
-| **docs/adr/**             | Architecture Decision Records (`ADR-0008`, etc.) |
-| **docs/data-dictionary/** | Auto-generated schema dictionary                 |
-| **sprints/**              | Sprint plans & velocity tracking                 |
-
----
-
-## 🛠️ Operations
-
-### Teardown (“nuke”)
-
-Safely destroys **only** sandbox resources: VPC, buckets, IAM roles, and local MLflow artefacts.
-
-```bash
-# 1 Pull bucket names from Parameter Store
-make pull-raw-bucket && make pull-artifacts-bucket
-
-# 2 Run the nuke script (prompts for token)
-make nuke                # type NUKEME to confirm
-
-# GitHub UI (dry-run by default)
-Actions → **Nuke Sandbox** → enter NUKEME
 ```
 
----
+## Directory Structure
 
-## 📈 Project board
+```
+docs/                - ADRs, images and data dictionary
+infra/               - Terraform modules and scripts
+orchestration/       - Local Airflow stack
+project_config/      - Data generator configuration
+schema/              - Data schema definitions
+scripts/             - Helper utilities
+src/                 - Application code
+tests/               - Unit tests
+```
 
-Sprint backlog and done column live on the **GitHub Projects** tab — updated each pull-request.
+## Data Generation
 
----
+Generate data locally or upload directly to S3:
 
-*© 2025 Esosa Orumwese* — MIT Licence
-Built with ❤️, caffeine, and lots of `pre-commit` hooks.
+```bash
+make gen-data-local      # local Parquet files
+make gen-data-raw        # writes to S3
+make profile             # profile latest dataset
+make validate-data       # run Great Expectations checks
+```
 
+## Model Training
+
+Train a baseline model and inspect runs via MLflow:
+
+```bash
+make ml-train ROWS=500000
+make mlflow-ui-start  # http://localhost:5000
+```
+
+Stop the UI with `make mlflow-ui-stop`.
+
+## Running Tests
+
+```bash
+poetry run pytest
+```
+
+## Airflow
+
+Bootstrap secrets and start services:
+
+```bash
+make airflow-bootstrap
+make airflow-up            # visit http://localhost:8080
+```
+
+Tear down with `make airflow-down` or `make airflow-reset` to also remove volumes. Smoke test the DAG with `make airflow-test-dag`.
+
+## Infrastructure
+
+Provision the sandbox:
+
+```bash
+make tf-init
+make tf-plan
+make tf-apply
+```
+
+Destroy all resources when done:
+
+```bash
+make nuke
+```
+
+## Documentation
+
+- [Project Charter](PROJECT_CHARTER.md)
+- [Architecture Decision Records](docs/adr/)
+- [Data Dictionary](docs/data-dictionary/)
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+
+## Contributing
+
+Contributions are welcome! Please open an issue to propose changes before submitting a pull request.
