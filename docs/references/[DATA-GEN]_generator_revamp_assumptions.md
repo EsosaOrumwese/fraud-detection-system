@@ -42,9 +42,18 @@ $$
 \lambda_{\text{extra}}=\theta_0+\theta_1\log N.
 $$
 
-The coefficients $\theta_0, \theta_1$ live in `crossborder_hyperparams.yaml` and were fitted by maximum likelihood to six years of combined Visa, Mastercard and UnionPay cross‑border settlement tables released under the “Back‑of‑the‑Monthly‑Spend” initiative; the sub‑linear relationship (θ₁ < 1) is statistically significant at p < 10⁻⁵, so no freer functional form is justified. A conventional rejection sampler converts the Poisson to ZTPoisson so that $K\ge0$ and the probability mass at zero is re‑normalised.
+The coefficients $\theta_0, \theta_1$ live in `crossborder_hyperparams.yaml` (digest `3b2e…fa`) and were fitted by maximum likelihood to six years of combined Visa, Mastercard and UnionPay cross‑border settlement tables released under the “Back‑of‑the‑Monthly‑Spend” initiative; the sub‑linear relationship ($\theta_1 < 1$) is statistically significant at $p < 10^{-5}$, so no freer functional form is justified. Sampling uses classical rejection: draw $k$ from $\text{Poisson}(\lambda_{\text{extra}})$ until $k \geq 1$, record any rejections to `rng_audit.log`, and renormalise the distribution internally so that:
+
+$$
+\Pr(K = k) = \frac{\Pr_{\text{Poisson}}(k \mid \lambda)}{1 - \exp(-\lambda)}
+$$
+
+This guarantees that every merchant marked cross‑border spans at least one foreign jurisdiction ($K \geq 1$).
 
 If $K=0$ the chain remains purely domestic; if $K>0$ the pipeline must choose the extra jurisdictions. A vector of cross‑currency settlement shares $\mathbf s$ is pre‑computed for the merchant’s home currency from the same public statistics; entry $s_j$ is the fraction of total card spend by residents of the home currency that settled in currency $j$. The algorithm draws $K$ distinct country codes without replacement by weighted sampling on $\mathbf s$. Because $\mathbf s$ itself changes only quarterly, two catalogue builds run weeks apart will differ only if the manifest fingerprint changes. This property insulates the simulation from day‑to‑day noise in cross‑border volumes while still reflecting structural shifts over years.
+
+ Settlement‑share vectors $\mathbf{s}^{\text{(ccy)}}$ are stored in are stored in `artefacts/network_share_vectors/settlement_shares_2024Q4.parquet`; the parquet’s SHA‑256 digest and semantic version tag (`v2.0.0`) are incorporated into the manifest fingerprint. Vectors refresh each calendar quarter; a new file name and tag (e.g., `…_2025Q1.parquet`, `v2.1.0`) trigger a manifest change that forces a fresh universe. CI rejects any attempt to overwrite a historical file or to reuse an old tag with updated contents.
+
 
 Now **K + 1** country codes are on the table: the home country plus the extras. The Dirichlet concentration vector $\alpha$ appropriate to `(home_country, mcc, channel)` is looked up. A single deviate from $\operatorname{Dir}(\mathbf{\alpha})$ produces a fractional vector $\mathbf w$. Multiplying $\mathbf w$ by the integer $N$ yields real allocations; the algorithm floors every component to obtain preliminary integers $\mathbf n^{\text{floor}}$. The deficit $d=N-\sum n^{\text{floor}}$ is strictly less than the number of countries and is resolved by awarding one extra outlet to each of the first $d$ indices when the residual fractions are sorted descending. The sort uses a stable key consisting of the residual followed by the country ISO code, guaranteeing bit‑for‑bit order on every run independent of underlying library versions. The mapping
 
