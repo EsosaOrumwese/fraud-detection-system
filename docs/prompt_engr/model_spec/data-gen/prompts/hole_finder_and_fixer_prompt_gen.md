@@ -199,3 +199,121 @@ _review released_
 
 ### ASSISTANT
 Details in `docs/prompt_engr/prompts/hole_finder_for_narrative_and_assumptions.md`
+
+### USER
+>What about the prompt template for the fixes or does this include it as well?
+
+### ASSISTANT
+_first try at a prompt gen_
+
+### USER
+>Brutally review this prompt template as though you aren't the one who wrote it. Is there any ambiguity that will result in the model not responding as expected? Is there any detail left or something not properly specified
+
+### ASSISTANT
+_review released_
+
+### USER
+>Alright, provide a solid template that will get a 10/10 brutal review score
+
+### ASSISTANT
+Details in `docs/prompt_engr/prompts/hole_f_for_narrative_and_assumptions.md`
+
+-----
+## Creation of v3 -> emphasis on what a hole is and reduction of headers and footers to focus on content
+
+### USER
+>Remember to assume the role of a thought clarifier again:
+>
+>I just ran this hole fixer prompt and I believe does absolute rubbish. The hole finder is spending but I think introducing another detailed prompt for fixing (given that we have already provided lots of details and contraints in the hole finder, just messes it up and cause the explanation to be subpar. 
+>
+>Firstly, due to the format, so much space is wasted on structure that it just replaces the sentence with another weak sentence. And in all honesty, I think this who fixing and replacing of individual sentences just doesn't work out.
+>
+>Secondly, it's interesting that the hole which I saw during my review of the first subsegment i.e. the spatial priors hole, never got picked up as a hole. It appears that maybe my definition of hole didn't cover that kind because although the hole finder did a good job in finding actual problems in that narrative and assumption, because the definition of "holes" didn't include unclear concepts or ideas for example "where did the spatial priors come from and what is it, it never got picked up. So I think great effort should be spent in defining the holes as that is what we're interested in finding.
+>
+>Every other thing about the hole finder is good but let it also include Low-High holes so I can choose what is worth chasing.
+>
+>As for the fixing of these holes, instead of fixing sentence by sentence, I would suggest an entire rewrite of the narrative first to fix the holes and then the assumptions to fix the holes. Priority should be placed on detail and not trying to shorten the length. We can still use our markers again. When rewrite, the narrative and technical assumption, it's important to keep the style of both documents (you can analyze my narrative and assumptions doc to find out what style is that). And also when rewriting, it can leave sections that are good as is and only expand on ideas that it needs to expand on, include what needs including or carry out the fixes
+
+### ASSISTANT
+```markdown
+Got it—you want to tighten *what* the Hole‑Finder flags and overhaul *how* fixes are delivered. Here’s what I’m hearing, plus the questions that will let us pin the new spec down precisely.
+
+---
+
+### 1  •  Broaden the definition of a “hole”
+
+Right now the spec focuses on obvious breaks in logic or missing artefacts. You need it to *also* catch fuzzy or undefined concepts (e.g. “spatial priors” appear but their origin is never explained).
+**Proposed tweak** A hole is any passage that forces a reader to ask “what/why/how?” about *either* (a) provenance of an artefact **or** (b) the meaning of a concept.
+**Question 1** Do you want the Hole‑Finder to flag *every* vague term (“log‑normal residual”, “Hough transform”, etc.), or only those that lack even a one‑sentence working definition inside the two docs?
+
+### 2  •  Severity tagging
+
+You’d like a Low ⇄ High slider so you can decide which gaps to chase.
+**Proposed scheme** 
+• Critical = breaks reproducibility or contradicts design.
+• High  = undefined artefact or concept that downstream code must reference (e.g. spatial priors).
+• Medium = could be inferred but still under‑specified.
+• Low  = stylistic or clarity nits.
+**Question 2** Is a four‑tier scale enough, or do you want numeric 1‑5?
+
+### 3  •  Whole‑document rewrites instead of line fixes
+
+Sentence‑level patches are yielding tepid prose and waste space. You prefer a guided rewrite that **leaves good sections untouched** and **expands** ambiguous ones in‑place.
+**Proposed fix workflow**
+
+1. Hole‑Finder emits the tagged list (incl. severity).
+2. Hole‑Fixer returns two **complete** replacement files—one for narrative, one for assumptions—each in its native style.
+    • Sections that required no change are copied verbatim.
+    • Revised or expanded sections are inserted inline.
+    • Use clear markers like
+     `<<<FIXED‑NARRATIVE‑START (id=12)>>> … <<<FIXED‑NARRATIVE‑END>>>`
+     so diff/merge is deterministic.
+   **Question 3a** Do you want both replacements in a **single** message or two messages (one per doc)?
+   **Question 3b** Do you prefer explicit change markers as above, or a clean rewrite with a separate diff report?
+
+### 4  •  Structural overhead
+
+You feel the earlier templates burned too many tokens on scaffolding.
+**Proposed trim** We can collapse the Hole‑Report header/footer to a simple delimiter (`--- HOLE 12 --- …`) and drop redundant field labels.
+**Question 4** Is token economy still a pressing issue now that we will be rewriting whole sections anyway?
+
+### 5  •  Style preservation
+
+You asked the model to “analyze my narrative and assumptions doc to find out what style that is.”
+**Proposed guard‑rail** Add an explicit instruction: *“Mimic the sentence length, tense, and lexical density of the original document; do not simplify technical jargon.”*
+**Question 5** Should we require the Fixer to run a quick self‑check: e.g. average sentence length must stay within ±10 % of the original?
+
+### 6  •  Handoff format for rewritten docs
+
+If we swap entire files, auditors need an easy import path.
+**Option A** Inline code‑fence with the full text.
+**Option B** Ask the Fixer to attach two `.txt` files (requires tooling support).
+**Question 6** Which option fits your pipeline?
+
+---
+
+Answer these six questions (short bullet replies are fine), and I’ll draft the streamlined Hole‑Finder + rewritten‑file Fixer templates that should finally pass a brutal JP Morgan audit.
+```
+
+### USER
+>1 Broaden the definition of a “hole”
+>Yes, I agree with your proposed tweak but I hope that won't be the only definition of a hole. With regards to your question, I do not want the hole finder to flag "every" vague term in the narrative.txt like the ones you mentioned unless it's use within the narrative isn't detailed. However, I would expect for those vague terms to be fully defined within the assumptions and their variables also detailed. It's interesting that you mentioned these vague terms as this is most times where the ambiguity lies. So just pay attention to the narrative around it, if it's rushed, then we need to slow things down and define it more.
+>
+>2 Severity tagging
+>A four-tier scale is enough with low, medium, high, critical. We can focus on Medium to Critical. However, I would want an honest and brutal review and classification of these holes as I don't have that much tokens for a back and forth.
+>
+>3 Whole‑document rewrites instead of line fixes
+>Question3a: If I say I want it in separate messages i.e. one per doc, that implies I'm limiting it to 1 message for doc. However, what I want is for it to expand in detail every ambiguity per doc and if it exceeds one output, it can flow to the next.
+>Question3b: I believe a marker is better as it'll help me know what to look out for.
+>
+>4 Structural overhead
+>When I refer to token economy, it's not like I want to reduce the amount of tokens I use, no. Instead I want to maximize the tokens available. Having a structure with bullet points and so many headers and footers like in the hole fixer, just increase the length of the doc and forces the model to summarize the text so as to not appear to long. When in reality its all empty spaces that filled it up. I also refered to token economy in "2 Severity tagging" and that was because having a weak hole finder and/or fixer will result in me running it over and over again to find and fix the hole. Resulting in waste of tokens
+>
+>5 Style preservation
+>No, I asked YOU to analyze my narrative and assumptions doc to find out what style was used there so that the fixes can follow also. I can't fully describe the style of the doc apart from the narrative which I know is a technical prose in narrative format where details are encouraged and summaries/bullet points/code forbidden unless necessary.
+>
+>6 Handoff format for rewritten docs
+>I don't get this. I'm using this prompt withing chatGPT in their o3 model. The text files will be the ones reviewed by the hole finder
+
+### ASSISTANT
+_refer to now updated `docs/prompt_engr/model_spec/data-gen/prompts/hole_finder_finder_for_narrative_and_assumptions.md`_
