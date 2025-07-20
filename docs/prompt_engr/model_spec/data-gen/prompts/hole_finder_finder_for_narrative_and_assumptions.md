@@ -3,11 +3,11 @@ They keep scaffolding to an absolute minimum, broaden the hole definition, tag s
 
 ---
 
-## ➊  HOLE‑FINDER TEMPLATE  (v 3)
+## ➊  HOLE‑FINDER TEMPLATE  (v 3.1)
 
 ```
 ##################################
-#  HOLE‑FINDER • Sub‑segment {{NAME}}
+#  HOLE‑FINDER v3.1 • Sub‑segment {{NAME}}
 ##################################
 
 ROLE  
@@ -35,6 +35,7 @@ For each hole, output the block below (no extra labels, no bullets):
 --- HOLE {{ID}} | Severity={{Critical|High|Medium|Low}} ---
 <narrative> "quoted sentence or clause"                 ← include only if present
 <assumption> "quoted sentence or clause"                ← include only if present
+Anchor: "exact sentence or clause"          ← mandatory; copy *one* of the quotes verbatim
 Context: “… previous sentence … {{TARGET}} … next sentence …”
 Why: one paragraph explaining the ambiguity (no bullets).  
 Confidence={{HIGH|MEDIUM|LOW}}
@@ -53,11 +54,11 @@ Never split a HOLE block across messages.
 
 ---
 
-## ➋  HOLE‑FIXER (REWRITER) TEMPLATE  (v 3)
+## ➋  HOLE‑FIXER (REWRITER) TEMPLATE  (v 3.1)
 
 ````
 ##################################
-#  HOLE‑FIXER • Sub‑segment {{NAME}}
+#  HOLE‑FIXER v3.1 • Sub‑segment {{NAME}}
 ##################################
 
 INPUT  
@@ -74,27 +75,60 @@ Rewrite **both** Narrative.txt and Assumptions.txt so every hole in `hole_ids` i
 • Mimic each file’s original tone: same tense, similar sentence length, no bullets, no code.
 
 INLINE‑MARKER CONVENTION
-Wrap every changed or new section with `<<<FIX id={{ID}}>>>` … `<<<END FIX>>>`.
-Use the matching Hole ID so auditors can diff selectively.
+For every hole you fix, wrap the changed or new section like this **(notice the four metadata lines at the top, then the body, then `<<<END FIX>>>`)**:
+
+```text
+<<<FIX id={{ID}}>>>
+TARGET: {{narrative | assumptions | both}}
+INTENT: {{add | replace | delete | rewrite}}
+ANCHOR: "exact sentence or clause"          ← copy from the Anchor line in HOLE {{ID}}
+>>>
+… FIX BODY …
+<<<END FIX>>>
+```
+
+COLLECT‑AND‑ORDER RULE
+  • Buffer all FIX blocks while generating.
+  • After every hole_id is processed:
+        – Sort buffered blocks in ascending id order within each TARGET.
+        – Emit exactly one header and footer per TARGET.
+  • If a header + its blocks exceed ~6 000 tokens, insert
+    `<<FR‑CONTINUE>>` immediately after a header or between blocks.
 
 OUTPUT
-Send the rewritten Narrative first, then the rewritten Assumptions, each in a fenced block.
+Send the rewritten Narrative first, then the rewritten Assumptions, each inside the single header/footer pair described above.
 
 ```txt
 #####  REWRITTEN NARRATIVE.txt  #####
-<<<FIX id=3>>>
+<<<FIX id=1>>>
+TARGET: narrative
+INTENT: add
+ANCHOR: "exact sentence or clause"
+>>>
 … expanded prose …
 <<<END FIX>>>
+<<<FIX id=2>>>
+TARGET: narrative
+INTENT: add
+ANCHOR: "exact sentence or clause"
+>>>
+… expanded prose …
+<<<END FIX>>>
+…
 
 <unchanged paragraphs reproduced verbatim>
 
 #####  END NARRATIVE  #####
 
 #####  REWRITTEN ASSUMPTIONS.txt  #####
-<<<FIX id=5>>>
+<<<FIX id=1>>>
+TARGET: narrative
+INTENT: add
+ANCHOR: "exact sentence or clause"
+>>>
 … added formula definitions …
 <<<END FIX>>>
-
+…
 <unchanged paragraphs reproduced verbatim>
 
 #####  END ASSUMPTIONS  #####
@@ -129,122 +163,142 @@ When both rewritten files and all rationales are complete, output `<<FR‑END>>`
 
 If any final nuance still feels loose, tell me and we’ll tighten it before you rerun the loop.
 
-## ➌ INTEGRATOR
-
-Below is a new **INTEGRATOR PROMPT** that aligns with the exact stylistic DNA of your full Narrative and Assumptions, fixes every flaw caught in the last audit, and guarantees a seamless, “always‑been‑there” merge.
+## ➌ INTEGRATOR v3
+Below is **INTEGRATOR v3**—the fully patched template that incorporates every fix flagged in the brutal audit (items 2‑A → 2‑H) and aligns seamlessly with your Hole‑Finder v3 and Hole‑Fixer v3 workflow.
 
 ---
 
 ````
 ####################################################
-#  INTEGRATOR • Sub‑segment {{NAME}}               #
+#  INTEGRATOR v3 • Sub‑segment {{NAME}}            #
 ####################################################
 
-INPUT FILES
- • narrative_*.txt         ← pristine source narrative
- • assumptions_*.txt       ← pristine source assumptions
- • holes_*.txt             ← identified <<<FIX id=…>>> blocks
- • fixes_*.txt             ← approved fixes for <<<FIX id=…>>> blocks
-   (style: dense prose, no summaries; each block already
-    states the anchor sentence or [MISSING HERE] placeholder)
+INPUT FILES (all four must be present in this chat turn)
+  narrative_original.txt        ← unaltered baseline
+  assumptions_original.txt      ← unaltered baseline
+  holes.txt                     ← approved HOLE blocks
+  fixes.txt                     ← approved FIX blocks
+  
 
-ROLE
-You are JP Morgan’s editorial integrator.  
-Merge every fix **in place** so the finished Narrative and
-Assumptions read as continuous first drafts—no FIX markers,
-no placeholders, no duplicate sentences, no stylistic drift.
+EACH FIX BLOCK MUST CONTAIN
+  <<<FIX id=K>>>
+  TARGET: narrative | assumptions | both      (MANDATORY)
+  INTENT: add | replace | delete | rewrite    (MANDATORY)
+  ANCHOR: "quoted sentence…" | [MISSING HERE] (MANDATORY)
+  … FIX BODY …
+  <<<END FIX>>>
+  
+  If FIX ids are not in ascending order, 
+    read all blocks into memory, 
+    sort by id within each TARGET, 
+    then proceed with the merge.
 
-STYLE MATRIX  (MUST be honoured)
+Fail‑safe: if any FIX is missing TARGET or INTENT, assume TARGET=both,
+INTENT=add, **but record “MISSING METADATA” in the integration report**.
+If any FIX lacks an ANCHOR *while* the matching HOLE provides one,
+abort with:
+  META‑INCONSISTENCY ERROR – id=K.
 
-| File        | Voice & Flow                               | Allowed Syntax                               | Forbidden                                                       |
-|-------------|--------------------------------------------|----------------------------------------------|-----------------------------------------------------------------|
-| Narrative   | Technical‑narrative prose, long sentences, | Inline math `$…$`; inline code in back‑ticks | • bullets                                                       |
-|             | first‑person plural, em‑dash cadence       | (rare), emphasised words `*like this*`,      | • numbered lists                                                |
-|             |                                            | em‑dashes `—`                                | • code blocks ```…```                                           |
-| Assumptions | Declarative companion prose,               | Inline & display math (`$$…$$`);             | • bullets *may stay* if already present but do not add new ones |
-|             | one paragraph per rule/constant,           | inline code in back‑ticks; **short**         | • new code blocks of > 5 lines                                  |
-|             | may embed brief one‑line code snippets     | code snippets in ```text``` fences           | • pseudocode                                                    |
+MISSION
+Produce polished Narrative and Assumptions with every FIX applied once,
+no markers, no placeholders, no duplicate sentences, preserved voice.
 
-GENERAL RULES
-G-0 Ensure all anchors exist within file. If **any** anchor cannot be matched (even after fuzzy
-     10‑word subsequence search) or placement is ambiguous, take note of it. 
-     After search of all anchors if there are anchors which are missing then;
-     STOP and emit exactly for all missing anchors:
+STYLE RULES
+  Narrative   – long cohesive technical sentences, first‑person plural,
+                inline math `$…$`, italics, em‑dashes.
+                **No bullets, no numbered lists, no fenced code.**
+  Assumptions – declarative paragraphs, may use inline `$…$`
+                or display math `$$…$$`, may retain pre‑existing bullets,
+                may keep one‑line ```text``` snippets already present.
+                **Do not introduce new bullets or multi‑line code fences.**
 
-       CLARIFICATION NEEDED – id={{n}} – “first five words
-       of the missing anchor” - why you think it is missing to help the USER guide you
+ANCHOR‑LOCATOR (four‑stage)
+  1. Exact canonical match (whitespace + markdown stripped).
+  2. Fuzzy sentence match:
+        score = 0.55·Jaccard + 0.30·LCS + 0.15·BigramDice
+        accept ≥ {{FUZZY_THRESH:0.68}}
+  3. Fuzzy paragraph match (same score on paragraph text).
+  4. Thematic fallback:
+        pick paragraph with highest density of domain tokens
+        (capitalised terms, snake_case, ALL_CAPS, artefact filenames).
 
-     then await instructions.
-    
-G‑1 Locate the anchor sentence from each <<<FIX id=…>>> block 
-     *case‑insensitive*.  
-     • If found, expand or replace at that exact spot.  
-     • If anchor is `[MISSING HERE]`, insert the fix at the
-       nearest preceding paragraph that introduces the same
-       concept; if two candidates tie, pick the first.
+If paragraph ends with ':' or regex ^(Step|Phase|Segment)\s+\d+,
+insert any *add* text **after** that paragraph, not inside.
 
-G‑2 Do **not** truncate or paraphrase unchanged content; copy
-     it verbatim so reviewers can run a plain diff.
+INTENT EXECUTION
+  replace / rewrite  – swap anchor sentence (or whole paragraph if FIX spans >1 sentence).
+  add                – insert FIX BODY after anchor paragraph; if anchor was [MISSING HERE]
+                       use thematic fallback placement.
+  delete             – remove anchor sentence; if paragraph empties, drop paragraph.
 
-G‑3 When integrating, replicate original typography  
-     (em‑dashes, italics, line‑breaks, section headings).
+Over‑eager delete guard:
+  if deleting the *sole* definition of a concept, downgrade to replace with empty stub.
 
-G‑4 After merging, strip **all** `<<<FIX …>>>` and
-     `<<<END FIX>>>` markers.
+AFTER EACH INSERT
+  • Local de‑dup: within ±3 sentences, drop duplicates (similarity ≥ 0.90).
+  • Paragraph re‑tokenised so later FIXes see updated text.
 
-G‑5 Verification pass:  
-     • Every `id=` present in fixes.txt must appear **exactly
-       once** in the merged output.  
-     • No literal `<<<FIX` or `<<<END FIX>>>` strings remain.  
-     • No duplicate of the anchor sentence survives within a
-       ±3‑line window of the insertion.  
-     • Narrative contains **zero** bullet symbols `•‑*`,
-       numbered lists `1)`, or fenced code blocks. And most have
-       a logical flow with no abrupt interjections.
-     • Assumptions may retain *existing* bullets or one‑line
-       ```text``` snippets, but no multi‑line code fences or
-       pseudocode were added.
+GLOBAL PASS (after all FIXes)
+  1. Terminology map first definition → canonical form.
+  2. Harmonise later variants to canonical (unless FIX introduces longer, more specific form).
+  3. Schema lists: merge to superset, order alphabetically for diff‑stability.
+  4. Duplicate check repeated after canonicalisation.
+
+CLEAN‑UP & VERIFICATION
+  • Remove all <<<FIX …>>> / <<<END FIX>>> markers.
+  • Strip editorial artefacts: strike‑through ~~…~~, diff chevrons >>> <<< .
+  • Ensure Narrative contains zero list markers and zero fenced code blocks.
+  • Ensure every FIX id appears exactly once per TARGET.
+  • Ensure no literal ‘<<<FIX’ or ‘<<<END FIX>>>’ strings remain.
+
+UNPLACED FIXES
+  Any FIX still unresolved after fallback is appended *outside* the merged files,
+  under “UNPLACED FIXES” header, with REASON diagnostics.
 
 TOKEN MANAGEMENT
- • When a single reply nears ≈6000 tokens, finish the current
-   logical paragraph, output `<<IG‑CONTINUE>>`, and send a
-   follow‑up message beginning `<<IG‑CONTINUATION>>`.  
-   Never split a paragraph.
+  If reply nears ≈6 000 tokens, finish paragraph, output `<<IG‑CONTINUE>>`
+  on its own line, then continue in a new message prefixed `<<IG‑CONTINUATION>>`.
+  Never split a paragraph.
 
 OUTPUT
 ```txt
 #####  MERGED NARRATIVE.txt  #####
-… fully integrated narrative …
+… integrated narrative …
 #####  END NARRATIVE  #####
 
 #####  MERGED ASSUMPTIONS.txt  #####
-… fully integrated assumptions …
+… integrated assumptions …
 #####  END ASSUMPTIONS  #####
 ```
 
-If either file exceeds ≈6000 tokens, split it into PART 1,
-PART 2, … each inside its own `#####` block; keep order.
+Split either file into PART 1, 2, … blocks if needed.
 
-END
-When both files pass verification, output `<<IG‑END>>`
-on a line by itself.
+INTEGRATION REPORT  (separate message **after** <\<IG‑END>>)
+id | placement | action | notes
+Omit if >120 fixes or if user sets REPORT=false.
+
+FINAL TOKEN
+When both merged files pass verification, output `<<IG‑END>>`
+on its own line.  If there are unplaced fixes, output `<<IG‑END‑WITH‑UNPLACED>>`.
+
 \####################################################
 
-# END OF TEMPLATE
+# END INTEGRATOR v3
 
 \####################################################
 
 ````
 
-**What changed & why**
+**Key patches versus v2**
 
-* **Code ban reinstated** – multi‑line code fences disallowed in both docs; assumptions may keep their existing one‑liners.  
-* **Bullet ban clarified** – zero bullets permitted in Narrative; Assumptions may *retain* but not *add* bullets.  
-* **Style matrix** – explicit sentence‑length, voice, syntax cues to stop generic prose drift.  
-* **Anchor‑search fallback & clarification hook** – avoids silent mis‑placements.  
-* **Duplicate‑sentence purge** – guarantees seamless flow.  
-* **No change‑log lure** – prevents summarisation creep; focus stays on detail.  
-* **Control‑token safety** – only `<<IG‑CONTINUE>>`, `<<IG‑CONTINUATION>>`, `<<IG‑END>>` allowed, each on its own line.  
+* **Mandatory TARGET / INTENT / ANCHOR** with abort‑on‑mismatch safeguard.  
+* **Fuzzy threshold exposed** (`{{FUZZY_THRESH}}`) so you can tune per run.  
+* **Paragraph colon/step guard** prevents mid‑list insertions.  
+* **Terminology map precedes duplicate sweep** (audit item 2‑E).  
+* **Delete‑downgrade rule** averts accidental loss of sole definitions.  
+* **UNPLACED appendix now *outside* merged docs** to keep first‑draft feel.  
+* **Integration report moved to post‑END message** so it never forces file splits.  
+* **Control tokens** remain minimal: `<<IG‑CONTINUE>>`, `<<IG‑CONTINUATION>>`, `<<IG‑END>>`.
 
-Drop your three files above this template, fill `{{NAME}}`, and the model will produce polished, audit‑ready documents that look like they were never broken.
+Drop your four files above this template, replace `{{NAME}}`, adjust `{{FUZZY_THRESH}}` if needed, and the model will deliver cohesive, audit‑ready documents with zero manual babysitting.
 
