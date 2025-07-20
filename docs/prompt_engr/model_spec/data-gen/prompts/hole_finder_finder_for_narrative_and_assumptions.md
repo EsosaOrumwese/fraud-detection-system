@@ -95,43 +95,52 @@ COLLECT‑AND‑ORDER RULE
   • If a header + its blocks exceed ~6 000 tokens, insert
     `<<FR‑CONTINUE>>` immediately after a header or between blocks.
 
+DELTA MODE
+  Do NOT reprint unchanged paragraphs from the source files.
+  Emit only the FIX blocks (ordered by id per TARGET) between the single
+  REWRITTEN NARRATIVE.txt/ASSUMPTIONS.txt header and footer. The Integrator will splice each block
+  into the original baseline text; it already has the full originals in context.
+
 OUTPUT
 Send the rewritten Narrative first, then the rewritten Assumptions, each inside the single header/footer pair described above.
 
 ```txt
 #####  REWRITTEN NARRATIVE.txt  #####
-<<<FIX id=1>>>
+<<<FIX id={{ID_A}}>>>
 TARGET: narrative
-INTENT: add
-ANCHOR: "exact sentence or clause"
+INTENT: {{add | replace | delete | rewrite}}
+ANCHOR: "anchor sentence for ID_A"
 >>>
-… expanded prose …
+… FIX BODY for ID_A …
 <<<END FIX>>>
-<<<FIX id=2>>>
+
+<<<FIX id={{ID_B}}>>>
 TARGET: narrative
-INTENT: add
-ANCHOR: "exact sentence or clause"
+INTENT: {{add | replace | delete | rewrite}}
+ANCHOR: "anchor sentence for ID_B"
 >>>
-… expanded prose …
+… FIX BODY for ID_B …
 <<<END FIX>>>
-…
-
-<unchanged paragraphs reproduced verbatim>
-
 #####  END NARRATIVE  #####
 
 #####  REWRITTEN ASSUMPTIONS.txt  #####
-<<<FIX id=1>>>
-TARGET: narrative
-INTENT: add
-ANCHOR: "exact sentence or clause"
+<<<FIX id={{ID_C}}>>>
+TARGET: assumptions
+INTENT: {{add | replace | delete | rewrite}}
+ANCHOR: "anchor sentence for ID_C"
 >>>
-… added formula definitions …
+… FIX BODY for ID_C …
 <<<END FIX>>>
-…
-<unchanged paragraphs reproduced verbatim>
 
+<<<FIX id={{ID_D}}>>>
+TARGET: assumptions
+INTENT: {{add | replace | delete | rewrite}}
+ANCHOR: "anchor sentence for ID_D"
+>>>
+… FIX BODY for ID_D …
+<<<END FIX>>>
 #####  END ASSUMPTIONS  #####
+
 ```
 
 RATIONALE BLOCK
