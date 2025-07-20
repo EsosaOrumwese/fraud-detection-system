@@ -34,7 +34,20 @@ where $L$ is geodesic length in metres (approximated via EPSG:3857 projection) a
 
 ### 5 Land–water filter and termination guarantee
 
-The land polygon is Natural Earth 1:10m v5.1.2 (`natural_earth_land_10m_v5.1.2.geojson`, full SHA‑256 in manifest, CRS EPSG:4326, no simplification or pre‑processing). A candidate coordinate is rejected if it lies outside the land polygon, or if a road prior was used and its closest point distance to the sampled road segment exceeds 50 m. Termination cap: max\_attempts\_per\_site = min(500, 10 \* expected\_success\_factor) where expected\_success\_factor is 1 / max(0.10, current\_prior\_acceptance\_lower\_bound). Exceed cap → raise exception and log `placement_failure` (reason=`acceptance_cap_exceeded`, merchant\_id, site\_id, attempts); partial outputs rolled back; no infinite loops. Acceptance monitoring: sample\_size\_per\_prior=10,000 nightly; compute point estimate p̂ and Wilson lower 95% bound L; require L ≥ 0.90; metrics logged with (prior\_id, p\_hat, L, sample\_size, failures); regression alert triggers if p̂ drops >5 percentage points week‑over‑week even if L≥0.90.
+The land polygon is Natural Earth 1:10 m v5.1.2 (`natural_earth_land_10m_v5.1.2.geojson`, full SHA-256 in the manifest, CRS EPSG:4326, no simplification or pre-processing). A candidate coordinate is rejected if it lies outside the land polygon or, when a road prior is used, if its closest-point distance to the sampled road segment exceeds 50 m. **Termination cap:** first compute the Wilson 95 % lower-confidence bound of the empirical acceptance rate for the current prior and denote it $a_L$. Define
+
+$$
+\text{expected_success_factor}=\frac{1}{\max(0.10, a_L)}.
+$$
+
+Then set
+
+$$
+\text{max_attempts_per_site}=\min\!\bigl(500,\;10\times\text{expected_success_factor}\bigr).
+$$
+
+Exceeding the cap raises an exception and logs `placement_failure` (`reason=acceptance_cap_exceeded`, `merchant_id`, `site_id`, `attempts`); partial outputs are rolled back; no infinite loops are possible. Acceptance monitoring: `sample_size_per_prior=10 000` nightly; we compute point estimate \$p̂\$ and Wilson lower 95 % bound \$L\$; we require \$L≥0.90\$; metrics are logged (prior id, \$p̂\$, \$L\$, sample size, failures); a regression alert fires if \$p̂\$ drops more than 5 percentage points week-over-week even with \$L≥0.90\$.
+
 
 ---
 
