@@ -62,7 +62,7 @@ Never split a HOLE block across messages.
 ##################################
 
 INPUT  
-You receive exactly one JSON array in the message **above** this template:
+You receive exactly one JSON array in the message **above** this template like this example below:
 
 ```json
 {"hole_ids":[3,5,9]}
