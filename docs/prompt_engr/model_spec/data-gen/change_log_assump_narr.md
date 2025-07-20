@@ -25,6 +25,7 @@
 - Outlet stub schema expanded; previous builds incompatible.
 - RNG log requires updated parser for new event types and fields.
 
+
 ## [1B.1.0] - 2025-07-20
 ### Added
 - `spatial_manifest.json` with composite `spatial_manifest_digest` column.
@@ -32,6 +33,8 @@
 - Extended per-site tagging fields (indices, barycentric coords, raw & normalized weights, uniform thresholds).
 - RNG audit events: fenwick_build, pixel_draw, feature_draw, triangle_draw, polyline_offset, tz_mismatch, tz_mismatch_exhausted, footfall_draw, placement_failure.
 - Governed config artefacts: `spatial_blend.yaml`, `winsor.yml`, `fallback_policy.yml`, `calibration_slice_config.yml`, `tz_world_metadata.json`, `footfall_coefficients.yaml`.
+- New provenance artefacts for time‑zone boundaries (`tz_world_polygons_v2024a.geojson`), OSM primary‑road snapshot (`osm_primary_roads_{planet_YYYYMMDD}.gpkg`), AADT counts table (`aadt_counts_compiled_v1.parquet`), IATA airport boundaries (`iata_airport_boundaries_v2023Q4.geojson`), suburban population density raster (`suburban_pop_density_2022_v1.tif`), and road traffic density raster (`road_traffic_density_2022_v2.tif`).
+- Governed Artefact Registry appendix in Assumptions.txt enumerating every spatial and policy artefact, their path patterns, semver fields, and digest requirements.
 
 ### Changed
 - Blending: standardized CRS/grid/resampling; deterministic content-addressed output.
@@ -44,6 +47,7 @@
 - Winsorisation: two-pass deterministic, governed policy file.
 - Fallback semantics: explicit zero-support criteria and reason codes.
 - Manifest fingerprint: excludes wall-clock timestamp; combined upstream + spatial + governed digests.
+- Assumptions.txt now ends with a “Governed Artefact Registry” section listing all spatial/prior and policy files with the exact filename patterns, role descriptions, semver and SHA‑256 columns, and manifest inclusion rules.
 
 ### Removed
 - Reliance on implicit prior coverage assumption.
