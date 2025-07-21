@@ -60,3 +60,30 @@
 ### Migration
 - Consumers must update schema handlers to read new columns and enforce `spatial_manifest_digest`.
 - Replay tooling must validate presence of new audit events.
+
+
+## [2A.1.0] – 2025‑07‑21
+
+### Added
+
+* Full provenance for `tz_world_2025a.shp` and companion `.shx/.dbf/.prj/.cpg` under `artefacts/priors/tz_world/2025a/` with individual SHA‑256 digests in the manifest.
+* SHA‑256 digest of the STR‑tree index (Python 3.10, pickle protocol 5) replacing MD5.
+* `tz_nudge.yml` and `tz_overrides.yaml` as governed artefacts with semver and digest fields (`tz_nudge_digest`, `tz_overrides_digest`).
+* Declaration of tzdata archive `artefacts/priors/tzdata/tzdata2025a.tar.gz` with semver in `zoneinfo_version.yml` and `tzdata_archive_digest`.
+* Simulation horizon config (`simulation_horizon.yml`) with `sim_start`/`sim_end`, RLE truncation and cache‑size gauge enforcement (< 8 MiB).
+* Exception table enumerating `TimeZoneLookupError`, `DSTLookupTieError`, and `TimeTableCoverageError` with atomic rollback semantics.
+* Appendix A (Mathematical Definitions & Conventions) detailing RLE, Δ computation, nudge, fold‑bit hashing, UTC conversion, horizon truncation, cache metrics, and error‑handling formulas.
+* Governed Artefact Registry table listing all 2A artefacts, path patterns, roles, semver and digest fields.
+
+### Changed
+
+* Tie‑break narrative updated to acknowledge `DSTLookupTieError` if a nudge does not resolve overlapping polygons.
+* Corrected `event_time_utc` formula to `floor((t_local - 60*o) * 1000)` (ms), aligning with `TIMESTAMP_MILLIS`.
+
+### Removed
+
+* Implicit assumptions about error‑free DST tie resolution; now explicitly handled.
+
+### Migration 
+- Consumers must refresh the 2A spec, update CI to ingest new digest fields, and regenerate any downstream manifests before proceeding to 2B.
+
