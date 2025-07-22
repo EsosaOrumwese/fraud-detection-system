@@ -87,3 +87,19 @@
 ### Migration 
 - Consumers must refresh the 2A spec, update CI to ingest new digest fields, and regenerate any downstream manifests before proceeding to 2B.
 
+
+## [3A.1.0] – 2025‑07‑22
+
+### Added
+- `zone_mixture_policy.yml` (`theta_mix`) with `theta_digest` and CI gating  
+- `country_zone_alphas.yaml` (ISO→TZID α) with `zone_alpha_digest`  
+- `docs/round_ints.md` rounding spec with `rounding_spec_digest` and CI property test  
+- `zone_floor.yml` floors for micro‑zones with `zone_floor_digest`  
+- `artefacts/allocation/country_major_zone.csv` fallback mapping with `major_zone_digest  
+- `artefacts/allocation/<merchant_id>_zone_alloc.parquet` and `zone_alloc_index.csv` drift sentinel with `zone_alloc_index_digest`  
+- `config/routing/rng_policy.yml` RNG key policy (`gamma_day`) with `gamma_day_key_digest`  
+- `config/validation/cross_zone_validation.yml` validation thresholds with `cross_zone_validation_digest` and CI slope/share tests  
+- `docs/rng_proof.md` and `ci/replay_zone_alloc.py` RNG‑stream isolation proof with `rng_proof_digest` 
+- `LICENSES/*` licence texts with `licence_digests`  
+- Appendix A – Mathematical Definitions & Conventions  
+- Governed Artefact Registry table
