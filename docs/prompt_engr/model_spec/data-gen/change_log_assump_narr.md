@@ -103,3 +103,22 @@
 - `LICENSES/*` licence texts with `licence_digests`  
 - Appendix A – Mathematical Definitions & Conventions  
 - Governed Artefact Registry table
+
+
+## [3B.1.0] – 2025‑07‑22
+
+### Added
+- `config/virtual/mcc_channel_rules.yaml` policy ledger (`virtual_rules_digest`) and CI `test_virtual_rules.py`
+- `artefacts/virtual/virtual_settlement_coords.csv` coordinate registry (`settlement_coord_digest`) and CI `verify_coords_evidence.py`
+- `artefacts/geocode/pelias_cached.sqlite` geocoder bundle (`pelias_digest`) and CI `test_geocoder_bundle.py`
+- `config/virtual/cdn_country_weights.yaml` edge‑weight policy (`cdn_weights_digest`) and CI `test_cdn_weights.py`
+- `artefacts/rasters/hrsl_100m.tif` HRSL population raster (`hrsl_digest`) and CI `test_raster_availability.py`
+- `edge_catalogue_index.csv` drift‑sentinel index (`edge_catalogue_index_digest`)
+- `config/routing/rng_policy.yml` Philox key policy (`cdn_key_digest`) and CI `test_cdn_key.py`
+- `config/virtual/virtual_validation.yml` validation thresholds (`virtual_validation_digest`) and CI `test_virtual_validation.py`
+- `logs/edge_progress.log` logging policy (`virtual_logging_digest`) and CI `test_log_config.py`
+- `schema/transaction_schema.avsc` virtual‑flow fields (`transaction_schema_digest`) and CI `test_schema_registry.py`
+- CI `test_virtual_universe.py` for virtual universe hash
+- `manifest_virtual.json` licence digest registry (`licence_digests_virtual`) and CI `test_licences_virtual.py`
+- Appendix A with mathematical definitions for all virtual‑merchant algorithms
+- Governed Artefact Registry table for the virtual sub‑segment
