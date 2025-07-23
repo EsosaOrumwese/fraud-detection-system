@@ -150,7 +150,7 @@
 - Audit‑log parsers must handle additional fields (`stream_jump`, `hurdle_bernoulli`, `nb_rejection`, etc.).
 
 
-## [4.1.1] - 2025-07-23
+## [4A.1.1] - 2025-07-23
 
 ### Changed
 - **Narrative** now references `pipeline_launcher.sh` for manifest creation instead of “orchestration script.”
@@ -161,5 +161,19 @@
 
 ### Breaking
 - Scripts and line‑number conventions have been formalized; downstream documentation or automation expecting generic “script” names or placeholder line N must be updated to the specific names and line 5.
+
+## [4B.1.0] - 2025-07-23
+
+### Changed
+- Structural integrity failure now writes to `structural_failure_<parameter_hash>.parquet` and raises `StructuralValidationError` (was generic `<hash>` placeholder).
+- Licence concordance step simplified to `validate_licences.py` comparing against `licence_digests` in the manifest, raising `LicenceMismatchError`.
+- HashGate integration clarified: directory `validation/<parameter_hash>/` is SHA-256 hashed, uploaded to `/hashgate/<parameter_hash>/<master_seed>`, with HTTP response logged.
+- Footfall regression diagnostic PDF fixed to `glm_theta_violation.pdf` in the `validation/<parameter_hash>/` path.
+- AUROC evaluation cadence now configured via `auroc_interval` in `validation_conf.yml` (default 1,000,000 rows) and triggers `AurocThresholdExceeded` on breach.
+
+### Breaking
+- File-naming conventions for structural failures and diagnostics changed; downstream scripts and tests must reference the new names.
+- Validation configuration (`validation_conf.yml`) must include `auroc_interval`.
+- HashGate upload URIs and polling workflows must be updated to use the `/hashgate/<parameter_hash>/<master_seed>` pattern and handle logged HTTP statuses.
 
 
