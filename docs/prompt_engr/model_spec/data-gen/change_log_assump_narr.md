@@ -124,7 +124,7 @@
 - Governed Artefact Registry table for the virtual sub‑segment
 
 
-## [4A.1] - 2025-07-23
+## [4A.1.0] - 2025-07-23
 ### Added
 - `license_map` section details and `validate_licences.py` license‐artifact verification.
 - Live manifest path (`/tmp/build.manifest`) and manifest line ordering.
@@ -148,4 +148,18 @@
 - CI jobs now expect new validation scripts and updated `rng_trace.log` event schema.
 - Manifest and dataset naming conventions changed; downstream consumers must adapt to `/tmp/build.manifest` and `synthetic_v1_<parameter_hash>` directory names.
 - Audit‑log parsers must handle additional fields (`stream_jump`, `hurdle_bernoulli`, `nb_rejection`, etc.).
+
+
+## [4.1.1] - 2025-07-23
+
+### Changed
+- **Narrative** now references `pipeline_launcher.sh` for manifest creation instead of “orchestration script.”
+- **Narrative** now references `artefact_loader.py` for artifact path enumeration.
+- **Narrative & Assumptions** updated to place `master_seed_hex` on **line 5** of the manifest.
+- **Narrative** now references `upload_to_hashgate.py` for HashGate uploads.
+- **Assumptions** now document insertion of `creator_param_hash=<hash>` into Parquet schema comments and its use in the RNG constructor.
+
+### Breaking
+- Scripts and line‑number conventions have been formalized; downstream documentation or automation expecting generic “script” names or placeholder line N must be updated to the specific names and line 5.
+
 
