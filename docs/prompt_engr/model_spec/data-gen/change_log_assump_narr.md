@@ -122,3 +122,30 @@
 - `manifest_virtual.json` licence digest registry (`licence_digests_virtual`) and CI `test_licences_virtual.py`
 - Appendix A with mathematical definitions for all virtual‑merchant algorithms
 - Governed Artefact Registry table for the virtual sub‑segment
+
+
+## [4A.1] - 2025-07-23
+### Added
+- `license_map` section details and `validate_licences.py` license‐artifact verification.
+- Live manifest path (`/tmp/build.manifest`) and manifest line ordering.
+- Parameter‑set hash computation (XOR + SHA256 over ordered digests) and `dataset_root` naming.
+- Master seed construction with 64‑bit left‑shift of timestamp and low‑128 bit XOR.
+- Philox 2¹²⁸ sub‑stream protocol with SHA1‑derived jump strides and full `rng_trace.log`.
+- Structural firewall in `firewall.py` performing five vectorized integrity checks.
+- Geospatial conformance audit in `geo_audit.py` using conjugate beta‑posterior intervals.
+- Outlet‑count bootstrap (`bootstrap_validator.py`) with 10000 replicates, envelope tests, and PNG diagnostics.
+- Footfall–throughput Poisson‑GLM regression in `footfall_glm_validator.py` with dispersion bounds.
+- Multivariate indistinguishability test (`xgb_validator.py`) on 6‑D embeddings with deterministic AUROC.
+- DST edge‑passer (`dst_validator.py`) minute‑level gap/fold validation around transitions.
+- HashGate integration (`upload_to_hashgate.py`) and read‑only NFS export by `parameter_hash`.
+
+### Changed
+- YAML schema enforcement extended: all statistical entries require `mean`, `ci_lower`, `ci_upper`.
+- Manifest generation revised to include artifact‑registry enumeration and streaming into accumulator.
+- CI collision prevention via Postgres unique constraint on `(parameter_hash, seed)`.
+
+### Breaking
+- CI jobs now expect new validation scripts and updated `rng_trace.log` event schema.
+- Manifest and dataset naming conventions changed; downstream consumers must adapt to `/tmp/build.manifest` and `synthetic_v1_<parameter_hash>` directory names.
+- Audit‑log parsers must handle additional fields (`stream_jump`, `hurdle_bernoulli`, `nb_rejection`, etc.).
+
