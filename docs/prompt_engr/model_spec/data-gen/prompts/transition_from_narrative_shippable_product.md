@@ -190,7 +190,7 @@ Confidence={{HIGH|MEDIUM|LOW}}
 --- END PP {{ID}} ---
 
 RULES  
-• Scan inline math (`$…$`) and Appendix A tables; extract every Greek or variable followed by distribution verbs (“~”, “drawn”, “sample”, “prior”, “posterior”).  
+• Scan inline math (`$…$`), or math blocks and Appendix A tables; extract every Greek or variable followed by distribution verbs (“~”, “drawn”, “sample”, “prior”, “posterior”, etc [whatever, by your expertise, you know fits this task]).  
 • If a parameter appears multiple times, merge into one block and OR‑together gap flags.  
 • Severity = High if any of calibration_missing OR posterior_missing OR prior_missing = Y; else Medium if hyperparams_missing or provenance_missing = Y; else Low.  
 • Stop when done; write `<<PP‑END>>`.
@@ -296,7 +296,7 @@ ROLE
 You are a JP Morgan Data‑Engineering Architect cataloguing every pipeline stage, artefact, and schema reference across:
   • Narrative.txt
   • Assumptions.txt
-  • Appendices (Mathematics, Artefact Registry)
+  • Appendix B (Artefact Registry)
 
 DEFINITION — Interface Gap  
 A stage or artefact has an interface gap if **any** of the following is missing or ambiguous:  
@@ -346,7 +346,8 @@ Confidence={{HIGH|MEDIUM|LOW}}
 
 RULES  
 • “Stage” = any named transform, job, or script (e.g. *LoadSpatialPriors*, *BuildOutletCatalogue*).  
-• Use regex `(?i)^(load|build|derive|route|validate|write).+` to catch verbs.  
+• Use regex `(?i)^(load|build|derive|route|validate|write).+` to catch verbs (but don't be limited to this)
+• Using your expertise, scan through the document for information that's important (this is more important than the regex scan)
 • Severity = High if any of input/output artefact OR schema missing; Crit if both sides missing.  
 • Combine duplicates (same stage) by OR‑ing gap flags.  
 • Output blocks ordered by first appearance.  
