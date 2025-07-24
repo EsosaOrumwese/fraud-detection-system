@@ -1,4 +1,4 @@
-## [1A.1] - 2025-07-20
+## [1A.1.0] - 2025-07-20
 ### Added
 - Deterministic currency→country expansion artefact with smoothing/fallback.
 - Universal RNG audit schema covering all stochastic events and stream jumps.
@@ -25,6 +25,28 @@
 - Outlet stub schema expanded; previous builds incompatible.
 - RNG log requires updated parser for new event types and fields.
 
+## [1A.1.1] – 2025‑07‑24
+
+### Added
+* **Complete manifest construction algorithm**: formalized step‑by‑step procedure for computing parameter and artefact digests, XOR reduction, lineage fingerprint propagation.
+* **Audit log schema/table**: explicit field listing and event types for all mandatory stochastic operations, rejection/failure, and sequence indices.
+* **Immutability contract**: downstream modules required to verify manifest lineage/fingerprint in all outputs; contract violation now aborts downstream.
+* **Formal monitoring and CI/CD guardrails**: CUSUM/threshold logic, corridor constraints, and required diagnostics explicitly mapped.
+* **Post‑write and structural validation logic**: algorithm for deterministic replay and validation, ensuring reproducibility and full auditability.
+* **Output stub schema (mathematics appendix)**: column‑level type and field specification for all outputs, with explicit encoding, versioning, and read‑only enforcement.
+* **Explicit registry of governed input artefacts, logs, manifests, diagnostic outputs, and output catalogues**: all artefacts referenced in the narrative/assumptions now formally listed in Governing Artefacts appendix.
+
+### Changed
+
+* **All previously procedural or implicit narrative/assumption steps** (e.g., lineage propagation, audit events, manifest update triggers, schema versioning, CI validation) are now formalized in appendices as reproducible pseudo‑algorithms or tables.
+
+### Fixed
+* **Gaps between narrative/assumptions and appendices**: All referenced artefacts, logs, schemas, and contracts are now explicitly governed and versioned.
+
+### Security / Integrity
+* **No design changes or new requirements introduced**: All updates strictly expand and formalize what is already present, ensuring full spec‑appendix alignment and eliminating tacit knowledge.
+
+---
 
 ## [1B.1.0] - 2025-07-20
 ### Added
@@ -62,8 +84,29 @@
 - Replay tooling must validate presence of new audit events.
 
 
-## [2A.1.0] – 2025‑07‑21
+## [1B.1.1] – 2025‑07‑24
 
+### Added
+* **Manifest digest and whitelist construction (maths appendix)**: stepwise algorithm for composite digest, whitelist enforcement, and timestamp exclusion.
+* **Fenwick tree build/reuse logic**: concurrency, lock-guarded idempotent construction, crash handling, and audit event emission now formalized in mathematics appendix.
+* **Crash-tolerant write protocol**: temp file, fsync, atomic rename, and recovery invariant detailed and mandated.
+* **Audit log and placement event schema**: event fields, types, failure reasons, and site RNG index now formalized.
+* **Remoteness/capital row selection algorithm**: fallback/abort logic now explicit for capital dataset usage.
+* **Immutability and output contract**: mathematics appendix formalizes lineage verification and downstream enforcement.
+* **Output catalogue, schema, log, temp, and diagnostic artefact registry**: all outputs, logs, metrics, schema descriptors, calibration digests, and temp file policies now formally registered in Governing Artefacts appendix.
+* **Manifest/whitelist enforcement policy**: build abort and semver bump requirements made explicit in artefacts appendix.
+
+### Changed
+* **No narrative/assumption content altered or removed**: All integrations are expansions to fully capture required operational, diagnostic, and reproducibility logic in the appendices.
+
+### Fixed
+* **Every artefact, log, contract, and schema referenced in the main text is now governed and explicitly tracked**.
+
+### Security / Integrity
+* **Downstream immutability and audit enforcement**: Appendices now require, and mathematically formalize, all lineage, schema, and log contract checks already present in the main text.
+
+---
+## [2A.1.0] – 2025‑07‑21
 ### Added
 
 * Full provenance for `tz_world_2025a.shp` and companion `.shx/.dbf/.prj/.cpg` under `artefacts/priors/tz_world/2025a/` with individual SHA‑256 digests in the manifest.
