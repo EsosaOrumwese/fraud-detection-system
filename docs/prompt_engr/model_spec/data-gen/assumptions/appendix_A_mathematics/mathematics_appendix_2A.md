@@ -191,3 +191,120 @@ If violated, raise `TimeTableCoverageError`.
 | `TimeTableCoverageError` | cache limit breach or access outside `[s,e]` | abort build, no rows written |
 
 On any exception, clean up `*.parquet.tmp`, flush audit logs, and exit atomically.
+
+---
+### A.9 STR-Tree Spatial Index Construction and Digest
+
+**Algorithm: Deterministic STR-Tree Index Build and Hashing**
+
+Let $\mathcal{P} = {P_1, ..., P_N}$ be the set of polygons loaded from `tz_world_2025a.shp` and companions, each with attribute `TZID`.
+
+1. **Sort** $\mathcal{P}$ in lexicographic order by `TZID`.
+2. **Build** STR-tree index from bounding boxes of $\mathcal{P}$, insert order preserved.
+3. **Serialize** the STR-tree using Python 3.10 pickle protocol 5 to bytes $S$.
+4. **Compute** the digest:
+
+   $$
+   \text{tz_index_digest} = \mathrm{SHA256}(S)
+   $$
+5. **Record** `tz_index_digest` in the manifest for build reproducibility.
+
+If any step fails, or if the CRS ≠ EPSG:4326, abort the build.
+
+---
+
+### A.10 Deterministic Tie-Break and Nudge Vector**
+
+Given a coordinate $x$ with two polygons $P_1, P_2$ whose areas are $A_1, A_2$:
+
+* Let $P_s = \arg\min{A_1, A_2}$, and $c = \mathrm{centroid}(P_s)$.
+* Read $\varepsilon$ from `tz_nudge.yml` (`nudge_distance_degrees` field).
+* Compute
+
+  $$
+  u = \frac{c - x}{\|c - x\|},\quad x' = x + \varepsilon \cdot u
+  $$
+* Use $x'$ for a repeat point-in-polygon test.
+* **Store** nudge vector $(nudge_lat, nudge_lon) = (x' - x)$ per site in the output.
+* If after nudge, two polygons still claim the point, raise `DSTLookupTieError`.
+
+---
+
+### A.11 Override Precedence and Validation
+
+**Override Application (Algorithm):**
+
+Given `config/timezone/tz_overrides.yaml` listing override entries:
+
+1. For each site, test overrides in order:
+
+   1. **Site-specific**: match on `(merchant_id, site_id)`
+   2. **MCC-wide**: match on `mcc`
+   3. **Country-wide**: match on `country`
+2. If multiple matches: use the most specific.
+3. If an override applies, use its `TZID` for this site, else use polygon lookup.
+4. CI validation: after full build, reload site catalogue, reapply overrides, assert at least one override row differs from polygon-only; zero differences abort merge (proving override obsolescence).
+
+---
+
+### A.12 Provenance Chain and Manifest Linkage
+
+All files and derived artefacts must be referenced in `spatial_manifest.json` with their SHA-256 digest and semver field, and included in the composite manifest digest as in Section 1A.
+
+* For each artefact $f_i$ in manifest:
+
+  $$
+  d_i = \mathrm{SHA256}(f_i)
+  $$
+* Composite digest:
+
+  $$
+  d_\text{manifest} = \mathrm{SHA256}(\mathrm{concat}(d_1 \| ... \| d_N))
+  $$
+* Any change triggers new manifest digest and downstream rebuild.
+
+---
+
+### A.13 Event/Audit Log Schema
+
+**Event Fields Table** (for error and audit logging):
+
+| Field          | Type     | Description                                      |
+|----------------|----------|--------------------------------------------------|
+| timestamp_utc  | datetime | Wall clock time of event                         |
+| event_type     | string   | {lookup, tie_break, override, nudge, error, ...} |
+| merchant_id    | int64    | Merchant identifier                              |
+| site_id        | int64    | Site identifier                                  |
+| coordinate     | float[2] | Original (lat, lon)                              |
+| tzid           | string   | Resultant time zone ID                           |
+| nudge_lat      | float    | Nudge latitude applied (0 if none)               |
+| nudge_lon      | float    | Nudge longitude applied (0 if none)              |
+| override_scope | string   | Override type if applied (site/mcc/country)      |
+| error_type     | string   | {TimeZoneLookupError, DSTLookupTieError, ...}    |
+| error_details  | object   | Error-specific data (see A.8)                    |
+
+**Log events must be unique per site; missing/duplicate events abort build.**
+
+---
+
+### A.14 Licence Provenance and Artefact Mapping
+
+* Every governed artefact is associated with a licence file in `LICENSES/`:
+
+  * `tz_world_2025a.*`: CC BY 4.0
+  * `tzdata2025a.tar.gz`: Public Domain
+* Digest of each licence file is recorded in manifest.
+
+---
+
+### A.15 RNG Independence Contract and Proof
+
+* Fold-bit hash for fall-back handling uses `global_seed`, not Philox counters, ensuring complete random-stream isolation.
+* Formal proof is maintained in `docs/rng_proof.md`; digest is recorded as `rng_proof_digest` in the manifest and cited in appendix.
+
+---
+
+### A.16 CI/Validation Outputs and Cache Recording
+
+* The memory size of the cache is recorded as `tz_cache_bytes` (see A.7).
+* Nightly CI logs override validation and build manifest drift as structured output artefacts.
