@@ -1,22 +1,30 @@
-## Subsegment 3A: Capturing cross‑zone merchants
+## Subsegment 3A: Capturing cross-zone merchants (Integrated Registry)
 
-| ID / Key                    | Path Pattern                                            | Role                                                        | Semver Field | Digest Field                   |
-|-----------------------------|---------------------------------------------------------|-------------------------------------------------------------|--------------|--------------------------------|
-| **zone\_mixture\_policy**   | `config/allocation/zone_mixture_policy.yml`             | Attention‑threshold θ for escalation queue                  | `semver`     | `theta_digest`                 |
-| **country\_zone\_alphas**   | `config/allocation/country_zone_alphas.yaml`            | Dirichlet concentration parameters α per ISO country→TZID   | `semver`     | `zone_alpha_digest`            |
-| **rounding\_spec**          | `docs/round_ints.md`                                    | Functional spec for largest‑remainder & bump rule           | n/a          | `rounding_spec_digest`         |
-| **zone\_floor**             | `config/allocation/zone_floor.yml`                      | Minimum outlet counts φₙ for micro‑zones                    | `semver`     | `zone_floor_digest`            |
-| **country\_major\_zone**    | `artefacts/allocation/country_major_zone.csv`           | Fallback mapping country→major TZID by land‑area            | n/a          | `major_zone_digest`            |
-| **zone\_alloc\_parquet**    | `artefacts/allocation/<merchant_id>_zone_alloc.parquet` | Per‑merchant `(country_iso, tzid, N_outlets)` allocation    | n/a          | `zone_alloc_parquet_digest`    |
-| **zone\_alloc\_index**      | `artefacts/allocation/zone_alloc_index.csv`             | Drift‑sentinel index mapping `<merchant_id>,<sha256>`       | n/a          | `zone_alloc_index_digest`      |
-| **routing\_day\_effect**    | `config/routing/routing_day_effect.yml`                 | Corporate‑day log‑normal variance σ\_γ²                     | `semver`     | `gamma_variance_digest`        |
-| **rng\_proof**              | `docs/rng_proof.md`                                     | Formal RNG‑isolation proof                                  | n/a          | `rng_proof_digest`             |
-| **cross\_zone\_validation** | `config/validation/cross_zone_validation.yml`           | CI thresholds for offset‑barcode slope & share convergence  | `semver`     | `cross_zone_validation_digest` |
-| **license\_files**          | `LICENSES/*.md`                                         | Licence texts for public data and analyst‑authored policies | n/a          | `licence_digests`              |
+| ID / Key                       | Path Pattern                                            | Role                                                                      | Semver Field    | Digest Field                   |
+|--------------------------------|---------------------------------------------------------|---------------------------------------------------------------------------|-----------------|--------------------------------|
+| **zone_mixture_policy**        | `config/allocation/zone_mixture_policy.yml`             | Attention-threshold θ for escalation queue                                | `semver`        | `theta_digest`                 |
+| **country_zone_alphas**        | `config/allocation/country_zone_alphas.yaml`            | Dirichlet concentration parameters α per ISO country→TZID                 | `semver`        | `zone_alpha_digest`            |
+| **rounding_spec**              | `docs/round_ints.md`                                    | Functional spec for largest-remainder & bump rule                         | n/a             | `rounding_spec_digest`         |
+| **zone_floor**                 | `config/allocation/zone_floor.yml`                      | Minimum outlet counts φₙ for micro-zones                                  | `semver`        | `zone_floor_digest`            |
+| **country_major_zone**         | `artefacts/allocation/country_major_zone.csv`           | Fallback mapping country→major TZID by land-area                          | n/a             | `major_zone_digest`            |
+| **zone_alloc_parquet**         | `artefacts/allocation/<merchant_id>_zone_alloc.parquet` | Per-merchant (country_iso, tzid, N_outlets) allocation                    | n/a             | `zone_alloc_parquet_digest`    |
+| **zone_alloc_index**           | `artefacts/allocation/zone_alloc_index.csv`             | Drift-sentinel index mapping \<merchant_id>,<sha256>                      | n/a             | `zone_alloc_index_digest`      |
+| **zone_alloc_schema**          | `artefacts/allocation/zone_alloc_schema.json`           | Parquet schema for allocation outputs                                     | schema_version  | `zone_alloc_schema_digest`     |
+| **barcode_slope_log**          | `logs/barcode_slope_validation.log`                     | Numeric log of offset-barcode slope per merchant                          | Manifest semver | (run-specific)                 |
+| **barcode_slope_heatmap**      | `logs/barcode_slope_heatmap.png`                        | Visual diagnostic of barcode slope convergence                            | Manifest semver | (run-specific)                 |
+| **cross_zone_validation**      | `config/validation/cross_zone_validation.yml`           | CI thresholds for barcode/zone-share convergence                          | `semver`        | `cross_zone_validation_digest` |
+| **test_rounding_conservation** | `logs/test_rounding_conservation.log`                   | Property-based test log from CI on conservation, replay, and monotonicity | Manifest semver | (run-specific)                 |
+| **error_log**                  | `logs/zone_alloc_error.log`                             | All drift/error events (ZoneAllocDriftError, UniverseHashError, etc.)     | Manifest semver | (run-specific)                 |
+| **rng_proof**                  | `docs/rng_proof.md`                                     | Formal RNG-isolation proof                                                | n/a             | `rng_proof_digest`             |
+| **license_files**              | `LICENSES/*.md`                                         | Licence texts for public data and analyst-authored policies               | n/a             | `licence_digests`              |
 
-**Notes:**
+---
 
-* `n/a` in **Semver Field** indicates no inline semver; the file’s path and digest alone govern it.
-* Replace `<merchant_id>` with the zero‑padded merchant code.
-* All paths use Unix‑style forward slashes and are case‑sensitive.
-* Any addition, removal, or version change of these artefacts must follow semver and manifest rules and will automatically refresh the overall manifest digest via CI.
+### Enforcement and Contract Notes
+
+* **Any addition, removal, or semver/digest change in the artefact set triggers a manifest refresh and CI build.**
+* **All Parquet allocation outputs must conform to the schema in `zone_alloc_schema.json`—column names, types, order, and sortedness contractually enforced.**
+* **All validation, diagnostic, and test logs must be retained and referenced in the build manifest; missing logs are a build failure.**
+* **Any output row or log with a mismatched `universe_hash` is considered invalid; drift triggers a hard abort and error log event.**
+* **Each YAML/CSV/config artefact must have a mapped licence file in `LICENSES/` and matching digest.**
+* **Drift sentinel errors and property-based test failures must be logged and are blocking for build completion.**

@@ -14,7 +14,7 @@ $$
 $$
 
 and threshold
-$\theta = \texttt{theta\_mix}\in(0,1)$,
+$\theta = \texttt{theta_mix}\in(0,1)$,
 compute the escalation set
 
 $$
@@ -189,8 +189,69 @@ $$
 \Delta_z = \bigl|\hat s_z - \tfrac{n_z}{N}\bigr|.
 $$
 
-Assert $\Delta_z < \texttt{share\_tolerance}$ for all $z$.
+Assert $\Delta_z < \texttt{share_tolerance}$ for all $z$.
 
 ---
 
-*All formulae reference code modules and artefacts by path, with units, types, and invariant behaviours defined. With this appendix, every transformation in the cross‑zone layer is unambiguously specified.*
+#### A.12 Cross-Linkage to Rounding Specification and CI Test Suite
+
+All rounding, largest-remainder, and bump-rule logic must comply **exactly** with the canonical markdown specification in `docs/round_ints.md`.
+
+* **Property-based test suite**: Every update to the rounding code or YAMLs is validated by running `ci/test_rounding_conservation.py` and associated scripts.
+* **Formal contract**: Output is only considered valid if all tests pass; failure triggers build abort.
+
+---
+
+#### A.13 Universe Hash, Manifest Drift, and Error Contracts
+
+* **Algorithm:**
+
+  1. Concatenate byte digests in order (see A.8).
+  2. Compute `universe_hash` as SHA-256 of the result.
+  3. On allocation, write `universe_hash` to `<merchant_id>_zone_alloc.parquet` and `zone_alloc_index.csv`.
+  4. On every downstream use, recompute and check; mismatch triggers `UniverseHashError`.
+* **Contract**: Any drift detected in digest, hash, or allocation result aborts the pipeline.
+* **ZoneAllocDriftError**: Raised and logged if any row in `zone_alloc_index.csv` mismatches on hash replay.
+
+---
+
+#### A.14 Output Schema and Column Contract
+
+* **Output Parquet Schema for `<merchant_id>_zone_alloc.parquet`:**
+    
+    | Column        | Type     | Description                              |
+    |---------------|----------|------------------------------------------|
+    | merchant_id   | int64    | Merchant identifier                      |
+    | tzid          | string   | Zone identifier                          |
+    | n_zones       | int32    | Number of zones allocated                |
+    | n_allocated   | int32    | Number of outlets allocated to this zone |
+    | is_major_zone | bool     | True if fallback major zone              |
+    | expectation   | float64  | Real expectation before rounding         |
+    | residual      | float64  | Residual from rounding step              |
+    | bump_applied  | bool     | True if bump rule triggered              |
+    | universe_hash | char(64) | Allocation lineage (hex)                 |
+
+* **Sorting contract:** Rows sorted by `tzid` ascending, then by `merchant_id`.
+* **Null handling:** No column nullable; all fields required.
+
+---
+
+#### A.15 Licence Provenance and Enforcement
+
+* **Each governed YAML/CSV or code artefact must be accompanied by its licence file in `LICENSES/`**.
+* The licence’s SHA-256 digest is recorded in the manifest and checked on every CI run.
+* Any missing or mismatched licence digest aborts the build.
+
+---
+
+#### A.16 End-to-End Replay/Isolation Guarantees
+
+* **Given the governing YAMLs, `universe_hash`, and master seed, all zone allocation results must be exactly replayable on any system.**
+* **Any non-replayability, mismatch, or hidden state is a spec violation and triggers pipeline abort.**
+
+---
+
+#### A.17 CI/Validation Output Artefact Enforcement
+
+* **All property-based test outputs, barcode-slope validation logs, zone-share convergence logs, and drift/error events must be written as governed artefacts.**
+* **CI failure logs are tracked, reviewed, and referenced in the manifest for every run.**

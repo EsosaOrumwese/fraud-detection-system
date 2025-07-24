@@ -247,5 +247,63 @@ For each merchant and UTC day $d$:
 
 ---
 
-*With this expanded Appendix A, every numeric algorithm, crypto operation and validation check in the virtual‑merchant flow is specified in mathematical terms, tied to code, manifest keys and CI tests to ensure absolute reproducibility.*
+### A.11 Output Table Schema and Contract**
 
+* **All outputs to `edge_catalogue/<merchant_id>.parquet` must conform to this schema:**
+
+| Column                | Type     | Description                             |
+|-----------------------|----------|-----------------------------------------|
+| edge_id               | string   | Unique identifier for each virtual edge |
+| country_iso           | char(2)  | Country ISO code                        |
+| tzid                  | string   | Time zone identifier                    |
+| lat                   | float64  | Latitude in decimal degrees (WGS84)     |
+| lon                   | float64  | Longitude in decimal degrees (WGS84)    |
+| edge_weight           | int32    | Edge sampling weight (after rounding)   |
+| virtual_universe_hash | char(64) | Provenance digest (see A.8)             |
+
+* **Sorting contract:**
+  Rows must be sorted by `country_iso`, then `edge_id`.
+* **All columns non-nullable and present for every output row.**
+* **Schema enforced by `edge_catalogue_schema.json`, which is a governed artefact.**
+
+---
+
+### A.12 Error Log, Drift Sentinel, and Crash Recovery Enforcement
+
+* **Error log artefact:**
+  All runtime errors, CI failures (`VirtualUniverseMismatchError`, geocoder validation, cutoff assertion), and drift events must be written to `logs/virtual_error.log`, governed and referenced in the manifest.
+* **Crash recovery/progress log:**
+  All build progress for edge creation, crash/interruption points, and recovery events are written to `logs/edge_progress.log`, which is also governed.
+* **Any missing or duplicate error/progress log entry, or any failed test output, must abort the build and invalidate outputs.**
+
+---
+
+### A.13 Test, Validation, and CI Contracts
+
+* **All property-based and deterministic tests for virtual merchant rules** (e.g., `test_virtual_rules.py`, `verify_coords_evidence.py`, `test_cdn_key.py`, `test_virtual_universe.py`, `test_cutoff_time.py`, `validate_virtual.py`) must be run nightly and produce log outputs, all of which are governed and tracked in the manifest.
+* **Any failed test, missing log, or validation drift aborts the build and triggers error log entry.**
+* **Test log artefacts:**
+
+  * `logs/test_virtual_rules.log`
+  * `logs/verify_coords_evidence.log`
+  * `logs/test_cdn_key.log`
+  * `logs/test_virtual_universe.log`
+  * `logs/test_cutoff_time.log`
+  * `logs/validate_virtual.log`
+
+---
+
+### A.14 Manifest and Licence Provenance Contracts
+
+* **Manifest drift:**
+  Any change in manifest, schema, YAML, or referenced digest must trigger manifest refresh and abort current/queued builds.
+* **Licence mapping:**
+  Every YAML/CSV/NPZ/Parquet artefact must be explicitly mapped to a tracked file in `LICENSES/`, with SHA-256 digest checked on every CI run.
+* **Any missing, mismatched, or unreferenced licence digest aborts the build.**
+
+---
+
+### A.15 End-to-End Reproducibility and Replay Guarantee
+
+* Given all governed artefacts (YAMLs, NPZs, CSVs, JSON schema, manifests, and seed), the entire virtual edge and arrival generation pipeline must be exactly replayable on any system.
+* Any non-reproducibility, mismatch, or hidden state is a pipeline violation and must be recorded as an error event.
