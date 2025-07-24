@@ -219,6 +219,26 @@
 - Appendix A – Mathematical Definitions & Conventions  
 - Governed Artefact Registry table
 
+## [3A.1.1] – 2025‑07‑24
+
+### Added
+* **Cross-linkage to rounding spec and CI test suite:** Maths appendix now formally contracts to `docs/round_ints.md` and requires that all rounding logic and property-based tests (`ci/test_rounding_conservation.py`) must pass and be artefact-logged.
+* **Universe hash/manifest enforcement:** Algorithms and error contracts for universe hash construction, manifest propagation, and drift/error (`ZoneAllocDriftError`, `UniverseHashError`) now formalized in maths appendix.
+* **Output Parquet schema contract:** Explicit table definition for `<merchant_id>_zone_alloc.parquet` columns, types, sortedness, and nullability now required and governed.
+* **Licence provenance/enforcement:** Appendix now requires every governed YAML/CSV/config to have an explicit `LICENSES/` mapping and digest check on every CI run.
+* **Replay guarantee:** End-to-end reproducibility and replay contract now stated in appendix; failure to reproduce or replay is a spec violation and aborts the pipeline.
+* **Diagnostic/test artefact governance:** All barcode slope validation logs, heatmaps, property-based test logs, and drift/error events are now required as governed outputs and referenced in the manifest.
+* **Artefact registry expanded:** Registry now explicitly lists all schema, log, validation, and test outputs as governed, with enforcement and abort contracts.
+
+### Changed
+* **All procedural/operational contracts** (test logs, output schemas, licence enforcement, drift/error handling) now formalized in the appendices, with explicit governance rules.
+
+### Fixed
+* **Any previously ungoverned artefact, log, or schema referenced in the main text is now fully listed and enforced.**
+
+### Integrity
+* **No new requirements or design changes—strict formalization and audit gap-closure only.**
+
 
 ## [3B.1.0] – 2025‑07‑22
 
@@ -237,6 +257,27 @@
 - `manifest_virtual.json` licence digest registry (`licence_digests_virtual`) and CI `test_licences_virtual.py`
 - Appendix A with mathematical definitions for all virtual‑merchant algorithms
 - Governed Artefact Registry table for the virtual sub‑segment
+
+## [3B.1.1] – 2025‑07‑24
+
+### Added
+* **Output table schema/contract:** Full output column, type, and sortedness contract for `edge_catalogue/<merchant_id>.parquet` formalized and schema-governed.
+* **Error and drift log governance:** All error, progress, CI drift, and crash logs (`virtual_error.log`, `edge_progress.log`) now registered as governed artefacts with hard abort on any missing or failed log.
+* **Test, validation, and CI contract:** Every referenced test (`test_virtual_rules.py`, `verify_coords_evidence.py`, `test_cdn_key.py`, `test_virtual_universe.py`, `test_cutoff_time.py`, `validate_virtual.py`) now produces a governed log, all tracked and required in the manifest.
+* **Manifest/licence contract enforcement:** Every YAML/CSV/NPZ/Parquet artefact is now explicitly mapped to a `LICENSES/` file with SHA-256 digest, enforced on every CI run.
+* **Replay/reproducibility contract:** End-to-end reproducibility and replay guarantee now formalized in maths appendix and enforced by CI.
+* **Artefact registry expanded:** All schema, log, and validation outputs, plus all CI test logs and licence mappings, now listed as governed with strict enforcement.
+
+### Changed
+* **All procedural/operational requirements** (test outputs, output schemas, error/drift logging, manifest/licence enforcement) are now formally required, not implied.
+
+### Fixed
+* **Any missing governance, logging, schema, or contract referenced in main spec is now fully closed.**
+
+### Integrity
+* **No design change—every formalization is demanded by your original narrative and assumptions.**
+
+---
 
 
 ## [4A.1.0] - 2025-07-23
