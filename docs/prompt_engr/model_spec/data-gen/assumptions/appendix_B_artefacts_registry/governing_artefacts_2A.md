@@ -1,0 +1,18 @@
+## Subsegment 2A: Deriving the civil time zone
+
+| ID / Key                       | Path Pattern                                       | Role                                                 | Semver Field                 | Digest Field                                                                                                                                          |
+| ------------------------------ | -------------------------------------------------- | ---------------------------------------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **tz\_world\_polygons\_2025a** | `artefacts/priors/tz_world/2025a/tz_world_2025a.*` | IANA time‑zone polygon shapefile and companion files | `semver` (in sidecar)        | `tz_world_shp_digest`, `tz_world_shx_digest`, `tz_world_dbf_digest`, `tz_world_prj_digest`, `tz_world_cpg_digest` aggregated into `tz_polygon_digest` |
+| **tz\_nudge**                  | `config/timezone/tz_nudge.yml`                     | Deterministic nudge distance ε                       | `semver`                     | `tz_nudge_digest`                                                                                                                                     |
+| **tz\_overrides**              | `config/timezone/tz_overrides.yaml`                | Manual mapping overrides for exceptional zones       | `semver`                     | `tz_overrides_digest`                                                                                                                                 |
+| **zoneinfo\_version**          | `zoneinfo_version.yml`                             | IANA tzdata version descriptor                       | `semver` (`tzdata_version`)  | `tz_horizon_digest` (see horizon below)                                                                                                               |
+| **tzdata\_archive**            | `artefacts/priors/tzdata/tzdata2025a.tar.gz`       | Official IANA tzdata release archive                 | (in `zoneinfo_version.yml`)  | `tzdata_archive_digest`                                                                                                                               |
+| **simulation\_horizon**        | `config/timezone/simulation_horizon.yml`           | Simulation start/end bounds for timeline extraction  | `semver`                     | `tz_horizon_digest`                                                                                                                                   |
+| **rng\_proof**                 | `docs/rng_proof.md`                                | Formal proof of RNG‑stream isolation                 | Git commit (ref in manifest) | `rng_proof_digest`                                                                                                                                    |
+
+**Notes:**
+
+* The `tz_world_polygons_2025a.*` pattern covers `.shp`, `.shx`, `.dbf`, `.prj` and `.cpg`; each must declare `semver` and `sha256_digest` in its sidecar or manifest entry.
+* The `zoneinfo_version.yml` file holds both the tzdata version string and governs horizon defaults; its `tz_horizon_digest` covers both the tzdata version and the simulation bounds.
+* Any addition, removal, or version bump of these artefacts must follow semver rules and will automatically refresh the overall manifest digest via CI.
+* Pattern matching is case‑sensitive; path separators use Unix‑style forward slashes.
