@@ -131,6 +131,78 @@
 - Consumers must refresh the 2A spec, update CI to ingest new digest fields, and regenerate any downstream manifests before proceeding to 2B.
 
 
+## [2A.1.1] – 2025‑07‑24
+
+### Added
+* **Deterministic STR-tree index construction and hashing:** Algorithm for STR-tree build, serialization (Python 3.10, pickle 5), and SHA-256 digest (`tz_index_digest`) now formalized in maths appendix and governed as artefact.
+* **Nudge/tie-break protocol and output linkage:** Algorithmic formula for vector nudging, YAML-driven epsilon, and output of `(nudge_lat, nudge_lon)` per site.
+* **Override precedence algorithm:** Full pseudo-algorithm for specificity/precedence, manifest and CI drift validation now formalized.
+* **Audit/event log schema:** Formal field table covering all assignment, nudge, error, and override events, with enforcement.
+* **Manifest, provenance, and licensing:** Manifest digest/artefact aggregation, artefact/digest linkage, and explicit licence mapping now governed in both maths and artefact appendix.
+* **Output artefacts:** STR-tree digest, override/nudge YAMLs, audit/validation logs, cache byte record, output schema, and output catalogue now fully governed.
+* **CI enforcement:** Nightly override drift, audit logs, manifest drift detection and enforcement now governed.
+* **Immutability contract:** All catalogue outputs must carry and validate digest lineage; missing field or digest triggers hard abort.
+
+### Changed
+* **All previously procedural, narrative, or implicit steps** (STR index build, nudge application, audit logging, error event contracts, manifest enforcement) now formalized as algorithms, tables, or build invariants in appendices.
+
+### Fixed
+* **Gaps in registry:** Every referenced log, output, digest, and contract is now explicitly listed and governed.
+
+### Integrity
+* No narrative or design changes—*all expansions are formalizations of existing commitments*.
+
+---
+
+## [2B.1.0] – 2025‑07‑22
+
+### Added
+* **Catalogue provenance:** `artefacts/catalogue/site_catalogue.parquet` governed under `site_catalogue_digest`.
+* **Routing manifest:** `artefacts/routing/routing_manifest.json` with its own semver and `routing_manifest_digest`.
+* **Config governance:**
+  * `config/routing/routing_day_effect.yml` (`sigma_squared`, semver, `gamma_variance_digest`).
+  * `config/routing/cdn_country_weights.yaml` (`q_c`, semver, `cdn_alias_digest`).
+  * `config/routing/routing_validation.yml` (`tolerance_share`, `target_correlation`, semver, `validation_config_digest`).
+* **Binary I/O formats:**
+  * `<merchant_id>_pweights.bin` (little‑endian float64, code in `router/io.py`).
+  * `<merchant_id>_alias.npz` (NumPy 1.23 uncompressed, arrays `prob` & `alias`).
+* **RNG partitioning:** Philox seed from SHA‑1 of `(global_seed, "router", merchant_id)` documented in `rng_policy.yml`, and counter scheme fixed in `router/prng.py`.
+* **Error‑handling:** Introduce `RoutingZeroWeightError` for Σ Fᵢ = 0 in `router/errors.py`.
+* **Operational logs:** `logs/routing/routing_audit.log` path, rotation (daily), retention (90 days) governed by `logging.yml` (`audit_log_config_digest`).
+* **Performance metrics:** SLA of 200 MB/s and RAM caps monitored via Prometheus in `router/metrics.py`, thresholds in `performance.yml` (`perf_config_digest`).
+* **Governed Artefact Registry:** Append registry table listing all 2B artefacts with path patterns, roles, semver and digest fields.
+
+### Changed
+* No previous behaviors removed; new validations and exceptions introduced.
+
+## [2B.1.1] – 2025‑07‑22
+
+### Changed
+
+* **Time‑zone grouping:** Added explicit definition of the “time‑zone group” (outlets with matching IANA `tzid`) for re‑normalisation invariants.
+* **Alias‑table thresholds:** Clarified that the `prob` array stores fixed‑point thresholds as `round(p_i * N_m)` in `uint32`, ensuring precise comparison against the uniform draw.
+
+
+## [2B.1.2] – 2025‑07‑24
+
+### Added
+* **Manifest construction and governance:** Algorithmic formalization of artefact digest construction, manifest enforcement, and abort triggers.
+* **Alias table modulation (O(1) threshold scaling):** Pseudo-algorithm for post-modulation scaling without table rebuild, ensuring invariance.
+* **Virtual merchant CDN routing:** Step-by-step process for CDN country alias sampling and output, formalized and governed.
+* **Audit/validation/error logs:** Structured schema for all routing/audit/validation/error logs, each governed as output artefacts.
+* **Output buffer governance:** Buffer files, all hidden columns (gamma\_id, gamma\_value, ip\_country\_code) now registered with schema enforcement.
+* **Validation and CI outputs:** Assertion outputs, batch validation logs, and hard-fail enforcement now governed.
+* **Licence enforcement:** All config, YAML, and data files must carry digest-verified licence, referenced in manifest and registry.
+
+### Changed
+* **Enforcement contracts:** All procedural/operational requirements for logs, manifests, schema, and audit trails now codified and governed.
+
+### Fixed
+* **No design changes:** All expansions are direct formalizations—no mechanism or guarantee altered or omitted.
+
+----
+
+
 ## [3A.1.0] – 2025‑07‑22
 
 ### Added

@@ -208,4 +208,85 @@ Thresholds ($\mathrm{TP}\ge200$, $\mathrm{Mem}\le2$) are loaded from `config/rou
 
 ---
 
-With this appendix, every numerical operation, random‑seed decision, file format and validation formula is explicitly defined, leaving no room for interpretation.
+### A.10 Manifest, Artefact, and Checksum Governance
+
+**Manifest and Artefact Digest Construction**
+Let $\mathcal{A} = \texttt{{all governed artefacts: site catalogue, weights bin, alias table npz, day effect YAML, CDN config, validation YMLs, routing manifest, logs}}$, ordered lexicographically.
+
+* For each $a_i \in \mathcal{A}$, compute SHA-256 digest $d_i$.
+* The `routing_manifest.json` lists every $a_i$ with fields: `path`, `semver`, `sha256_digest`.
+* The master manifest digest:
+
+  $$
+  f_\text{routing} = \mathrm{SHA256}(d_1 \| d_2 \| \cdots \| d_n)
+  $$
+* **Build contracts:**
+
+  * Any artefact missing, semver/digest mismatch, or manifest drift triggers an immediate abort.
+  * All pipeline outputs and logs must reference the exact `routing_manifest_digest` for reproducibility.
+
+---
+
+### A.11 Alias Sampling with Scaled Threshold (No Table Rebuild)
+
+**Scaled-Threshold Algorithm**
+After daily modulation by $\gamma_d$, the original alias table (from $p_i$) remains valid.
+On O(1) lookup:
+
+* For group $G$ (time-zone cluster), scale all $\tilde{p}_i := \gamma_d \cdot p_i$ in $G$, then renormalize within $G$.
+* Compute scale factor $s_G = 1/\sum_{i \in G} \tilde{p}_i$.
+* Given uniform $u \in [0,1)$,
+
+  $$
+  k = \lfloor u \cdot N_m \rfloor
+  $$
+* Accept $k$ if $u < \mathrm{prob}[k] \cdot s_G$; otherwise select $\mathrm{alias}[k]$.
+
+*No alias table rebuild occurs; the modulated weights only scale the acceptance threshold for the O(1) lookup.*
+
+---
+
+### A.12 Virtual Merchant CDN Edge Routing
+
+* For virtual merchants ($is_virtual=1$), read $Q = [q_1, ..., q_K]$ from `cdn_country_weights.yaml` (governed, semver, sha256).
+* Build alias table as in A.2 for $Q$; store in `<merchant_id>_cdn_alias.npz`, reference digest in manifest.
+* At routing, sample country index with the same O(1) algorithm (see A.4) and record selected country code as `ip_country_code` in buffer/logs.
+
+---
+
+### A.13 Routing Audit/Event Log Schema
+
+**Audit/Event Log Schema**
+
+| Field                   | Type     | Description                                       |
+|-------------------------|----------|---------------------------------------------------|
+| timestamp_utc           | datetime | Event wall-clock timestamp (ISO 8601)             |
+| event_type              | string   | {routing_batch_checksum, routing_error, OOM, ...} |
+| merchant_id             | int64    | Merchant identifier                               |
+| batch_index             | int64    | Batch index (per million events)                  |
+| site_id                 | int64    | Selected site (or null for errors)                |
+| ip_country_code         | string   | For virtual merchants (optional)                  |
+| cumulative_counts       | int64[]  | Vector of per-site counts (see A.6)               |
+| routing_manifest_digest | char(64) | Manifest lineage at batch time                    |
+| error_type              | string   | (if event_type is error)                          |
+| error_details           | object   | Exception and context (if error)                  |
+
+**Mandatory:**
+
+* Every batch and error event must be logged.
+* Missing, duplicate, or out-of-order events abort downstream build or audit replay.
+
+---
+
+### A.14 Validation and CI Assertion Mapping
+
+* For every run, compute empirical share deviation and correlation as in A.7.
+* Record validation outputs and assertion status in `logs/routing/validation.log`.
+* If any assertion in A.7 fails, log event `validation_failed` and abort build (no outputs written).
+
+---
+
+### A.15 Licence and Provenance Enforcement
+
+* Every input YAML or calibration artefact must be paired with a `LICENSES/` entry (SHA-256), listed in the routing manifest.
+* Licence digest must match what is recorded in manifest, else build aborts.
