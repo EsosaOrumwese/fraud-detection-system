@@ -315,6 +315,26 @@
 - **Narrative** now references `upload_to_hashgate.py` for HashGate uploads.
 - **Assumptions** now document insertion of `creator_param_hash=<hash>` into Parquet schema comments and its use in the RNG constructor.
 
+## [4A.1.2] – 2025‑07‑24
+
+### Added
+* **Meta-governance contracts**: All artefacts, configs, logs, scripts, schemas, build/container/source hashes, and validation outputs from 1A–3B must be registered in the artefact registry and referenced in every manifest by hash.
+* **Manifest and build artefacts**: `/tmp/build.manifest`, live manifest, and all pipeline orchestration scripts (e.g., `pipeline_launcher.sh`) are now governed artefacts, hash-captured and referenced at row-level.
+* **Source and container provenance**: All runs must record the Git source SHA, branch, and container hash (`Dockerfile.lock`) in the manifest and all output rows.
+* **Read-only export/immutability contract**: Export directories named by parameter hash are NFS/OS-level read-only; any attempt to overwrite or re-export with the same hash/seed is a fatal error and blocks build/merge.
+* **Validation and forensic artefact logging**: All outputs from statistical validation, bootstrap, geospatial conformance, GLM/footfall regression, AUROC, DST, and structural firewall checks are now governed artefacts with unique digests, referenced in the manifest, and blocking for merge.
+* **HashGate/Audit linkage**: All manifests and validation outputs must include a HashGate audit URI and require CI approval of this URI prior to merge or release.
+* **Licence mapping enforcement**: Every governed artefact, config, or schema is now explicitly mapped to a tracked `LICENSES/` file, with digest checked in every build and merge.
+
+### Changed
+* **Row-level provenance and manifest lineage**: All output files/tables must now embed parameter hash, build timestamp, manifest digest, and source/container SHA as schema or metadata.
+* **Collision/uniqueness contracts**: Directory and Postgres-level uniqueness constraints on parameter hash and seed are strictly enforced, with collision errors blocking CI and dataset export.
+
+### Breaking
+* **CI and audit jobs**: All validation, provenance, and audit artefacts must be present, hashed, and referenced in the manifest for a build to pass or a dataset to be released.
+* **Manifest and registry enumeration**: Any missing, mismatched, or omitted artefact, licence, or validation output now blocks pipeline progression, requiring downstream consumers and CI tooling to honor full meta-governance enforcement.
+
+
 ### Breaking
 - Scripts and line‑number conventions have been formalized; downstream documentation or automation expecting generic “script” names or placeholder line N must be updated to the specific names and line 5.
 
@@ -331,5 +351,21 @@
 - File-naming conventions for structural failures and diagnostics changed; downstream scripts and tests must reference the new names.
 - Validation configuration (`validation_conf.yml`) must include `auroc_interval`.
 - HashGate upload URIs and polling workflows must be updated to use the `/hashgate/<parameter_hash>/<master_seed>` pattern and handle logged HTTP statuses.
+
+## [4B.1.1] – 2025‑07‑24
+
+### Added
+* **Full validation artefact and log governance**: Every validator output, error log, AUROC model dump, misclassification index, θ-violation PDF, barcode failure overlay, and HashGate audit URI now governed, hash-tracked, and referenced in the manifest.
+* **Merge-blocking and quarantine contracts**: Any structural error, DST/time error, distribution drift, theta/barcode failure, or licence mismatch triggers dataset quarantine and blocks merge until cleared.
+* **HashGate audit contract**: All CI jobs must poll and reference the HashGate/Audit URI for immutable approval before merge or release.
+* **Licence mapping and enforcement**: All governed artefacts must have explicit licence mapping and digest; any mismatch blocks build and validation.
+* **Read-only directory export/collision contract**: Datasets are NFS/OS-level read-only after build, and re-exporting for the same parameter hash/seed triggers a fatal error.
+
+### Changed
+* **Validation manifest and pass/fail artefacts**: All validation outputs, pass/fail flags, and error overlays must now be registered in the manifest, referenced in every output row, and block merge on any failure or absence.
+* **End-to-end audit trail**: All outputs are now required to be auditable by HashGate and referenced in both manifest and output schema.
+
+### Breaking
+* **CI, validation, and audit workflow**: Build, merge, and release are now strictly gated on the successful, complete, and hash-validated presence of all governance artefacts and audit logs listed above. Downstream automation and scripts must enforce these contracts.
 
 

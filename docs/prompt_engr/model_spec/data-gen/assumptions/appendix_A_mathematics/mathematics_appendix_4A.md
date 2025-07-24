@@ -1,5 +1,5 @@
 ## Subsegment 4A: Reproducibility and configurability
-**A.1 Parameter‑Set Hash & Manifest Fingerprint**
+### **A.1 Parameter‑Set Hash & Manifest Fingerprint**
 For each artefact file $f_i$, let
 
 $$
@@ -20,7 +20,7 @@ X = D_1 \oplus D_2 \oplus \cdots \oplus D_n,\quad
 P = \mathrm{SHA256}(X).
 $$
 
-**A.2 Master Seed Construction**
+### **A.2 Master Seed Construction**
 Let $t_{\mathrm{ns}}$ be the high‑resolution monotonic clock in nanoseconds.  Define
 
 $$
@@ -31,7 +31,7 @@ $$
 
 where $\ll$ is the 64‑bit left shift and $\oplus$ is bitwise XOR on 128‑bit values.
 
-**A.3 Philox Counter Jump**
+### **A.3 Philox Counter Jump**
 Each module declares a canonical identifier $\mathrm{STREAM\_NAME}$.  Compute
 
 $$
@@ -46,7 +46,7 @@ $$
 
 All RNG draws use Philox 2¹²⁸ with AES‑round mixing; every call to `_jump(h)` advances the counter accordingly.
 
-**A.4 Truncated‑Normal Bootstrap for Yaml Parameters**
+### **A.4 Truncated‑Normal Bootstrap for Yaml Parameters**
 For each statistical parameter block with reported
 $\mu$ (mean), $\ell$ (ci\_lower), and $u$ (ci\_upper) from a 90% CI, define
 
@@ -57,7 +57,7 @@ $$
 
 where $z_{0.95}\approx1.645$.  Bootstrap replicates $\{X_j\}_{j=1}^{100}$ are drawn i.i.d. and used to regenerate synthetic outputs for validation.
 
-**A.5 Conjugate Beta‑Posterior Intervals**
+### **A.5 Conjugate Beta‑Posterior Intervals**
 For geospatial conformance, let $\alpha_i$ be the prior weight for zone $i$ from `country_zone_alphas.yaml`, and let $k_i$ be the observed outlet count in that zone out of total $N$.  The posterior on the true share $\theta_i$ is
 
 $$
@@ -68,7 +68,7 @@ The 95% credible interval is taken as
 $\bigl[\,F^{-1}_{\theta_i}(0.025),\,F^{-1}_{\theta_i}(0.975)\bigr]$,
 where $F^{-1}$ is the Beta quantile function.
 
-**A.6 Poisson GLM Over‑dispersion Parameter**
+### **A.6 Poisson GLM Over‑dispersion Parameter**
 In the footfall–throughput regression, we fit
 $\mathrm{E}[Y]=\exp(\mathbf{x}^\top\beta)$ for counts $Y$.  The dispersion parameter $\phi$ is estimated by
 
@@ -78,7 +78,7 @@ $$
 
 where $n$ is the sample size and $p$ the number of predictors.  Acceptable bounds are $\phi\in[1,2]$ for card‑present, $\phi\in[2,4]$ for CNP.
 
-**A.7 DST Gap & Fold Enumeration**
+### **A.7 DST Gap & Fold Enumeration**
 For each zone observing DST: let
 $\tau_s$ and $\tau_e$ be the local timestamps at spring gap start and end.  The **gap interval** is $[\tau_s,\tau_e)$.  The **fold interval** at autumn is likewise the repeated hour.  Validation enumerates every minute $m$ in a 48‑h window around each transition, asserting:
 
@@ -86,6 +86,71 @@ $$
 m\notin[\tau_s,\tau_e),\quad \text{and}\quad m\text{ appears twice if }m\in[\tau_f,\tau_f+60\mathrm{m}).
 $$
 
+### **A.8 Global Enforcement, Manifest, and Uniqueness Contracts**
+
+* **Manifest and Artefact Enforcement:**
+  Every artefact, YAML, config, schema, log, code bundle, validation output, and source hash referenced in 1A–3B, or required for pipeline execution, must be declared and included in `artefact_registry.yaml` and hashed for parameter-set hash \$P\$.
+
+  * *Pipeline contract:* Any omission, addition, or modification of artefact bytes, YAML fields, schema headers, or licence digest triggers a new \$P\$ and blocks reuse of prior outputs.
+
+* **Parameter Hash/Directory Uniqueness:**
+  For every run, output directories and catalogue files are named by the parameter-set hash \$P\$ and master seed.
+
+  * If a directory with the same \$P\$, seed, and timestamp exists, pipeline must abort with a collision error (e.g., `ParameterHashCollisionError`).
+  * Postgres-level uniqueness constraints are enforced on \$(P, \text{seed})\$ for all registry and catalogue tables.
+
+* **Row-level Provenance:**
+  Every output row (across all tables and formats) must embed \$P\$ as a field, along with a build timestamp, source hash, and manifest lineage, checked against the run manifest on all downstream validation.
+
+  * *If any row is missing or mismatches provenance, output is invalid and must be quarantined.*
+
+### **A.9 Configuration, Schema, and Licence Enforcement**
+
+* **Config/YAML Validation:**
+  All configuration files must pass validation against their governed JSON schema, and must include a three-header block:
+
+  * `schema` (schema version/URI)
+  * `version` (semver)
+  * `released` (ISO8601 date)
+    Any YAML or config missing or failing validation aborts the pipeline and is not included in \$P\$.
+
+* **Licence Mapping:**
+  Every governed artefact must be mapped to an explicit licence file (SHA-256 checked) and referenced in `artefact_registry.yaml:license_map`.
+
+  * *Any missing or mismatched licence aborts the build and is flagged in CI.*
+
+---
+
+### **A.10 Output, Validation, and Forensic Artefact Enforcement**
+
+* **Validation Log/Output Guarantee:**
+  Every pipeline validation step (bootstrap, geo, regression, AUROC, DST, firewall, “needs-tune”, etc.) must write a log or output artefact, named and tracked by \$P\$ and hash, and referenced in the manifest.
+
+  * *Failure to produce, register, or hash any output log aborts the build/merge and blocks downstream use.*
+  * *All logs are immutable and must be accessible by HashGate/Audit URI.*
+
+* **Directory Immutability Contract:**
+  The dataset export directory, named for \$P\$, must be set read-only at the OS or NFS layer after build completion.
+
+  * *Attempts to overwrite, delete, or re-export must yield a fatal error and require explicit operator intervention.*
+
+
+### **A.11 Audit, HashGate, and Forensic Linkage**
+
+* **HashGate/Audit URI Contract:**
+  Every build/run must register its manifest, parameter-set hash, and all output artefacts with a HashGate/Audit endpoint (URI or SHA link), referenced in both manifest and output schema.
+
+  * *All forensic paperwork, validation artefacts, and audit trails must be accessible and reconstructable for any \$P\$.*
+
+
+### **A.12 Collision and Merge-Block Enforcement**
+
+* **CI and Merge-Block Contracts:**
+  Any failure in validation log, manifest collision, missing artefact, schema or licence error, or failed uniqueness/immutability check blocks CI/merge and triggers a pipeline quarantine.
+
+  * *No output, model, or dataset may be promoted or released unless every meta-contract above is satisfied and logged as successful.*
+
+---
 ### Variable Definitions
 Below is a complete glossary of every symbol and variable used in Appendix A, with precise definitions drawn from those formulas.
 
