@@ -238,6 +238,116 @@ $$
 
 Logged as `site_rng_index`.
 
+#### 15 .Manifest Digest Construction and Whitelist Enforcement
+
+**Manifest Digest Construction**
+Let $F = {f_1, ..., f_n}$ be the lexicographically ordered list of all spatial prior artefact files and governed YAMLs referenced for a given build (including every `.tif`, `.shp`, `.gpkg`, `.yaml`, `.json`, etc.), as enumerated in `spatial_manifest.json`.
+
+* For each $f_i$, compute its SHA-256 digest $d_i$.
+* Exclude the wall-clock build timestamp field from all hash inputs.
+* Concatenate all $d_i$ in lexicographic path order to form $C = d_1 | d_2 | ... | d_n$.
+* The **spatial manifest digest** is:
+
+  $$
+  \text{spatial_manifest_digest} = \text{SHA256}(C)
+  $$
+* This digest is written in every output row and output log, and is checked by downstream modules for lineage matching.
+* Any modification, removal, or addition of a file to $F$ mandates a manifest semver bump and yields a new digest.
+
+**Whitelist Enforcement:**
+
+* Only artefacts and patterns explicitly enumerated in `spatial_manifest.json` (or `allow_patterns`) may exist in the prior library directory at build time.
+* Presence of any stray file aborts the build; removal of any artefact mandates semver increment.
+* The manifest filename must be exactly `spatial_manifest.json`; any deviation aborts the build.
+
+---
+
+#### 16. Fenwick Tree Concurrency and Logging
+
+**Fenwick Tree Construction (Determinism & Concurrency)**
+
+* For every (country, prior_id) pair, the Fenwick tree is built once per build under a double-checked locking protocol:
+
+  1. If tree exists: skip.
+  2. Else: acquire lock, build from canonical weight vector, record event `fenwick_build` with fields (country, prior_id, n, total_weight, build_ms, scale_factor).
+  3. After release, blocked threads reuse completed tree.
+* Build is crash-tolerant and idempotent: mismatch in (n, total_weight) aborts with error.
+
+---
+
+#### 17. Crash-Tolerant Write Protocol
+
+**Crash-Tolerant Idempotent Writes**
+
+* For each site:
+
+  1. Write row to temp file: `sites/partition_date=YYYYMMDD/merchant_id={id}/site_id={site_id}.parquet.tmp`.
+  2. Fsync, then atomically rename to `.parquet`.
+  3. If final file exists (from prior crash/rerun), skip rewrite.
+  4. Schema validation occurs before rename; only fully valid and written files are exposed as final output.
+
+* Any error or hard cap (max attempts, placement failure, etc.) aborts the build; only fully completed site rows are retained.
+
+---
+
+#### 18. Audit Event Schema and Placement Failure Events
+
+**Audit Event Schema**
+Each stochastic or structural operation (sampling, Fenwick build, placement, footfall draw, tz mismatch, fallback, placement failure) is logged as a structured event with the following general fields (all events):
+
+| Field                   | Type     | Description                     |
+|-------------------------|----------|---------------------------------|
+| timestamp_utc           | datetime | ISO-8601 UTC wall clock         |
+| event_type              | string   | Event code (see below)          |
+| merchant_id             | int64    | Merchant identifier             |
+| site_id                 | int64    | Site identifier                 |
+| pre_counter             | uint128  | Philox counter before operation |
+| post_counter            | uint128  | Philox counter after operation  |
+| stride_key              | string   | Key for substream               |
+| site_rng_index          | int64    | Global RNG draw index           |
+| [event-specific fields] | varies   | See below                       |
+
+**Placement Failure Event Schema:**
+
+* Event: `placement_failure`
+* Additional fields:
+  * `reason` (enum: `acceptance_cap_exceeded`, `tz_mismatch_exhausted`)
+  * `attempt_count` (int)
+  * `prior_tag` (string)
+
+---
+
+#### 19. Capital Row Selection Logic (Remoteness Metrics)
+
+**Capital Selection**
+
+* Load `capitals_dataset_2024.parquet`; select the row with `role_type='administrative'` and `primary_flag=true` for each country.
+* If absent, fallback to `role_type='primary'`.
+* If neither present, abort build.
+* Haversine and road distances are computed from these coordinates for all remoteness metrics.
+
+---
+
+#### 20. Immutability Contract for Outputs
+
+**Immutability Postcondition**
+
+* Every output row contains the `spatial_manifest_digest` field.
+* Downstream modules must verify that all rows have the same digest and that it matches the value in the root-level manifest; otherwise, output is treated as non-compliant and downstream simulation aborts.
+* Any modification to the spatial columns or governed parameters triggers a new build, a manifest semver bump, and a new digest.
+
+---
+
+#### 21. Manifest Reproducibility and Lineage Propagation
+
+* The overall build fingerprint for 1B is computed as
+
+  $$
+  \text{SHA256}(\text{manifest_fingerprint}_{\text{upstream}} \| \text{spatial_manifest_digest} \| \text{footfall_coefficients_digest} \| \text{winsor_policy_digest} \| \text{fallback_policy_digest})
+  $$
+* Any change to any included artefact, policy, or prior propagates a new output lineage; all downstream steps must verify lineage compatibility before proceeding.
+
+
 ---
 
 ### Notes & Domain Constraints
