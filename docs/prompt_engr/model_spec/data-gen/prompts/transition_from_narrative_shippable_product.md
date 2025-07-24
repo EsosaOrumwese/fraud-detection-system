@@ -1,8 +1,4 @@
 # Edge-case CFSW
-Below are two production‑grade templates—**Edge‑Case Catalogue‑Finder v1** and **Edge‑Case Spec‑Writer v1**—that mirror the rigor of your Hole‑Finder / Fixer pipeline.
-They are tuned to force the model to exhaustively enumerate every single edge‑case pathway and then generate laser‑specific recovery clauses, leaving nothing for a brutal reviewer to flag as “hand‑wavy”.
-
----
 
 ## ➊  EDGE‑CASE CATALOGUE‑FINDER v1  (ECC‑F)
 
