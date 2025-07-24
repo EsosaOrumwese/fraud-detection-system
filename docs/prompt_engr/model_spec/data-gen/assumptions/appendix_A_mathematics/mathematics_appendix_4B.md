@@ -1,6 +1,6 @@
 ## Subsegment 4B: Validation without bullet points
 
-### **A.1 Parameter‑Set Hash & Manifest Fingerprint**
+### A.1 Parameter‑Set Hash & Manifest Fingerprint
 For each artefact file $f_i$, let
 
 $$
@@ -26,7 +26,7 @@ X = D_1 \oplus D_2 \oplus \cdots \oplus D_n,\quad
 \text{then}\quad P = \mathrm{SHA256}(X).
 $$
 
-### **A.2 Master Seed Construction**
+### A.2 Master Seed Construction
 Let $t_{\mathrm{ns}}$ denote the monotonic clock reading in nanoseconds (`time_ns()`).  Define
 
 $$
@@ -37,7 +37,7 @@ $$
 
 where $\ll$ is a 64‑bit left shift and $\oplus$ is bitwise XOR on 128‑bit values.
 
-### **A.3 Philox Counter Jump**
+### A.3 Philox Counter Jump
 Each module declares a string `STREAM_NAME`.  Compute its 128‑bit stride
 
 $$
@@ -52,7 +52,7 @@ $$
 
 All random draws use Philox 2¹²⁸ with AES‑round mixing; each call to `_jump(h)` advances the counter accordingly.
 
-### **A.4 Truncated‑Normal Bootstrap for YAML Parameters**
+### A.4 Truncated‑Normal Bootstrap for YAML Parameters
 For each coefficient with reported mean $\mu$, lower CI $\ell$, upper CI $u$ (90 %), set
 
 $$
@@ -67,7 +67,7 @@ $$
 
 i.i.d., and regenerate synthetic outputs for envelope validation.
 
-### **A.5 Conjugate Beta‑Posterior Intervals**
+### A.5 Conjugate Beta‑Posterior Intervals
 Let $\alpha_i$ be the prior for zone $i$ from `country_zone_alphas.yaml`, and $k_i$ the observed outlet count out of total $N$.  The posterior for the true share $\theta_i$ is
 
 $$
@@ -82,7 +82,7 @@ $$
 
 where $F^{-1}$ is the Beta quantile.
 
-### **A.6 Poisson GLM Over‑dispersion Parameter**
+### A.6 Poisson GLM Over‑dispersion Parameter
 For the footfall–throughput Poisson GLM with link $\log$, fitted values $\hat y_i$ and observations $y_i$, dispersion is estimated as
 
 $$
@@ -91,13 +91,68 @@ $$
 
 with $n$ samples and $p$ predictors.  Acceptable $\hat\phi\in[1,2]$ for CP and $[2,4]$ for CNP.
 
-### **A.7 DST Gap & Fold Enumeration**
+### A.7 DST Gap & Fold Enumeration
 Let $\tau_s,\tau_e$ be the local epoch seconds bracketing a DST spring gap; the gap interval is $[\tau_s,\tau_e)$.  Define the fold interval at autumn likewise.  For each minute $m$ in a 48 h window, the validator asserts
 
 $$
 m\notin[\tau_s,\tau_e),\quad\text{and}\quad
 \bigl|\#\{m\}\bigr|=2\quad\text{if }m\in[\tau_f,\tau_f+3600).
 $$
+
+### A.8 Global Output Logging, Manifest, and Provenance Enforcement
+
+* **Validation Artefact and Log Requirement:**
+  Every validation output, defect log, AUROC model dump, misclassification index, θ-violation PDF, barcode failure overlay, and all error/validator logs *must* be written as artefacts, tracked by parameter hash $P$ and referenced by digest in the manifest.
+* **End-to-end Provenance:**
+  All validation artefacts and logs must embed $P$, build timestamp, manifest digest, and (if applicable) HashGate audit URI in their schema or metadata.
+
+
+### A.9 Pass/Fail and Merge-blocking Contracts
+
+* **Blocking Conditions:**
+  Any occurrence of the following must block merge, trigger dataset quarantine, and be logged as a governed artefact:
+
+  * `StructuralError` (structural failures, nulls, type mismatches)
+  * `DstIllegalTimeError` (illegal or ambiguous local times)
+  * `DistributionDriftDetected` (distributional drift in output)
+  * `ThetaOutOfRange` (θ‑violation, e.g., parameter or model outside confidence region)
+  * `BarcodeSlopeError` (barcode slope outside acceptance envelope)
+  * `LicenceMismatchError` (missing or incorrect licence mapping)
+  * Any CI, validator, or audit script failure
+
+* **Manifest/CI Enforcement:**
+  All validation pass/fail events and logs must be recorded in the manifest, and their hash referenced in every pipeline output.
+  *No output may be merged or exported if any pass/fail artefact or error log is missing, incomplete, or fails validation.*
+
+
+### A.10 HashGate/Audit Trail and Audit URI Contract
+
+* **Audit URI Requirement:**
+  Every build must register a HashGate/Audit URI (`/hashgate/<P>/<master_seed>`) and record this in the manifest, PR, and all output logs.
+* **CI Polling and Approval:**
+  CI scripts must poll the HashGate/Audit URI and require immutable approval before merging or releasing the dataset.
+
+### A.11 Licence Mapping and Enforcement
+
+* **Explicit Licence Contract:**
+  Every governed artefact (config, code, schema, output, validation log, PNG/PDF, etc.) must have an explicit licence file mapped in the artefact registry and checked by SHA-256.
+* **Merge-block on Licence Error:**
+  Any missing or mismatched licence, or registry omission, blocks CI, merge, and downstream use.
+
+### A.12 Directory Immutability and Collision Handling
+
+* **Export Directory Contract:**
+  The exported dataset directory for parameter hash $P$ and master seed must be set read-only after build.
+  Any attempt to regenerate, overwrite, or export with the same $P$ and seed triggers a fatal collision error and must abort.
+
+
+### A.13 Glossary and End-to-End Invariant
+
+* **Pipeline Invariant:**
+  Every formula, contract, or validation step in this appendix is globally binding for the full pipeline, and must be referenced in the pipeline configuration, registry, and all documentation.
+* **No Escape Clause:**
+  No artefact, log, or output referenced in 1A–4B or their appendices may escape governance or validation by omission or loophole.
+
 
 ### Variable Definitions
 Here is a complete glossary of every symbol and variable used in Appendix A:
