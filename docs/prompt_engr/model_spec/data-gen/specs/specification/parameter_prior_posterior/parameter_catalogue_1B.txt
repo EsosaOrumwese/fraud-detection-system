@@ -1,27 +1,23 @@
-############################################################
-#  PARAMETER CATALOGUE‑FINDER • Sub‑segment 1B             #
-############################################################
-
 --- PP 1 ---
 Name: Spatial prior blend coefficients
-Symbol: $\alpha_k$, for $k = 1, ..., K$ (blend vector for each prior blend)
+Symbol: αₖ
 Scope: merchant_location
-Prior_type: Convex combination (weights on spatial priors, deterministic sum-to-one vector)
+Prior_type: Convex combination
 Prior_specified: Yes
-Calibration_recipe: Partial (manual/configurable, must sum to 1 within $1\times10^{-9}$, changes require semver bump and propagate to manifest digest)
-Posterior_validation: Partial (CI checks for sum-to-one, semver, and coefficient drift; but no empirical spatial plausibility test)
-Provenance_tag: Yes (`spatial_blend.yaml`, semver, sha256_digest)
-Units: dimensionless (each $\alpha_k \geq 0$)
-Default_policy: abort (build aborts if not sum-to-one or on illegal change)
-Interface_consumer: Blended prior raster construction for site placement (importance sampler, Fenwick tree construction)
-Description: Weights for convex combination of spatial priors (e.g. population, roads) per (MCC, channel), governing spatial sampling.
-Anchor: "The blend coefficients live in `spatial_blend.yaml`; a reviewer can change a coefficient and regenerate a new catalogue to test sensitivity. `spatial_blend.yaml` is a governed artefact carrying `semver` and a SHA‑256 digest; weight vectors are stored in canonical lexicographic order of `prior_id` and must sum to 1 within 1×10⁻⁹ or CI fails; any coefficient change requires a semver bump."
-Context: "For big-box categories the prior is a blended raster ... blend is constructed ... blend coefficients live in `spatial_blend.yaml`; a reviewer can change a coefficient ... test sensitivity."
+Calibration_recipe: No
+Posterior_validation: Yes
+Provenance_tag: Yes
+Units: dimensionless
+Default_policy: abort
+Interface_consumer: spatial_blend.yaml loader in spatial_sampler
+Description: Weights for convex blend of raster/vector priors per (MCC, channel).
+Anchor: “The blend coefficients live in `spatial_blend.yaml`; … weight vectors … must sum to 1 within 1×10⁻⁹ or CI fails” :contentReference[oaicite:15]{index=15}
+Context: “For big-box categories the prior is a blended raster … blend coefficients live in `spatial_blend.yaml`; a reviewer can change a coefficient … test sensitivity.”  
 Gap_flags:
   prior_missing=N
   hyperparams_missing=N
   calibration_missing=Y
-  posterior_missing=Y
+  posterior_missing=N
   provenance_missing=N
   units_missing=N
   default_policy_missing=N
@@ -32,24 +28,24 @@ Confidence=HIGH
 
 --- PP 2 ---
 Name: Fenwick tree integer scaling factor
-Symbol: $S$
+Symbol: S
 Scope: merchant_location
-Prior_type: Deterministic scaling (function of weight vector; not stochastic)
+Prior_type: Deterministic function
 Prior_specified: Yes
-Calibration_recipe: No (computed directly)
-Posterior_validation: Yes (log events for all build steps, range validation, overflow check)
-Provenance_tag: Partial (calculated per Fenwick build, logged, not in artefact)
-Units: dimensionless (used to scale float weights to uint64)
-Default_policy: abort (if overflow or mismatch, build aborts)
-Interface_consumer: Fenwick tree construction for spatial importance sampling
-Description: Converts float prior weights into scaled integers for efficient and exact Fenwick tree sampling; ensures deterministic sampling and O(log n) search.
-Anchor: "Float weights are scaled to uint64 deterministically: let W_f = Σ w_i; S = (2^64−1 − n)/W_f; store w_i' = max(1, floor(w_i × S)) ensuring every positive w_i has at least unit mass; cumulative sums are little-endian and never overflow by construction"
-Context: "Fenwick trees are built eagerly the first time any site in a country references a given prior: a double‑checked lock guards construction ... Float weights are scaled to uint64 deterministically ... cumulative sums are little‑endian and never overflow by construction."
+Calibration_recipe: No
+Posterior_validation: Yes
+Provenance_tag: Partial
+Units: dimensionless
+Default_policy: abort
+Interface_consumer: Fenwick tree builder in spatial_sampler
+Description: Scales float prior weights to uint64 for Fenwick sampling.
+Anchor: “S = (2^64−1 − n)/W_f; cumulative sums … never overflow by construction” :contentReference[oaicite:16]{index=16}
+Context: “Float weights are scaled to uint64 deterministically: let W_f = Σ w_i; S = … ensuring every positive w_i … overflow prevented.”  
 Gap_flags:
   prior_missing=N
   hyperparams_missing=N
-  calibration_missing=N
-  posterior_missing=N
+  calibration_missing=Y
+  posterior_missing=Y
   provenance_missing=Y
   units_missing=N
   default_policy_missing=N
@@ -59,143 +55,367 @@ Confidence=HIGH
 --- END PP 2 ---
 
 --- PP 3 ---
-Name: AADT floor for road segment weights
-Symbol: $\underline{A}$
+Name: Global raster grid resolution
+Symbol: Δλ = Δφ = 1/1200°
 Scope: merchant_location
-Prior_type: Fixed floor constant
+Prior_type: Fixed constant
 Prior_specified: Yes
-Calibration_recipe: No (fixed at 500 vehicles/day)
-Posterior_validation: Yes (policy is versioned and changes trigger semver bump, referenced in artefact digest)
-Provenance_tag: Yes (`footfall_coefficients.yaml`)
-Units: vehicles/day
-Default_policy: use prior (always use floor if AADT missing or too low)
-Interface_consumer: Road segment feature weight calculation in road prior for spatial sampling
-Description: Minimum value for AADT when calculating road segment weight, ensuring sparse roads retain positive sampling mass.
-Anchor: "AADT values are floored at 500 vehicles/day before multiplication to avoid zero-weight segments and retain sparse rural roads in sampling; units are vehicles per day"
-Context: "If the prior is a vector layer instead of a raster, the engine ... for roads ... (AADT values are floored at 500 vehicles/day before multiplication ... units are vehicles per day)"
+Calibration_recipe: No
+Posterior_validation: No
+Provenance_tag: No
+Units: degrees
+Default_policy: abort on change
+Interface_consumer: raster_reprojection module
+Description: Angular spacing of global grid for raster resampling.
+Anchor: “Global raster grid resolution fixed at 1/1200° (~300 m at equator)” :contentReference[oaicite:17]{index=17}
+Context: “Geospatial Grid: Global raster grid resolution fixed at 1/1200°; indices must not assume constant metre size …”  
 Gap_flags:
   prior_missing=N
   hyperparams_missing=N
-  calibration_missing=N
-  posterior_missing=N
-  provenance_missing=N
+  calibration_missing=Y
+  posterior_missing=Y
+  provenance_missing=Y
   units_missing=N
   default_policy_missing=N
-  interface_consumer_missing=N
+  interface_consumer_missing=Y
   description_missing=N
 Confidence=HIGH
 --- END PP 3 ---
 
 --- PP 4 ---
-Name: Fallback policy thresholds for prior support
-Symbol: `global_threshold`, `per_mcc_overrides`
+Name: Intra‑pixel jitter flag
+Symbol: jitter_enabled
 Scope: merchant_location
-Prior_type: Deterministic (YAML policy)
+Prior_type: Fixed boolean
 Prior_specified: Yes
-Calibration_recipe: No (policy configuration, not fitted)
-Posterior_validation: Yes (CI checks fallback rate, triggers threshold justification if changed)
-Provenance_tag: Yes (`fallback_policy.yml`, semver, sha256_digest)
-Units: fallback rate (proportion, dimensionless)
-Default_policy: abort if threshold exceeded or policy missing
-Interface_consumer: Fallback logic in site sampling for missing/zero-support priors
-Description: Policy threshold for global fallback rate and optional MCC overrides; governs when fallback is allowed and when build must abort.
-Anchor: "Fallback inserts prior_tag='FALLBACK_POP' and sets fallback_reason in {missing_prior, zero_support, empty_vector_after_filter}. fallback_policy.yml (semver, sha256) specifies global_threshold and optional per_mcc_overrides; CI validates (a) thresholds non‑decreasing vs previous, (b) any raise includes justification text"
-Context: "Edge cases arise when a country is so small—or an MCC so specialised—that the chosen prior has zero support ... Fallback raster provenance: WorldPop ... fallback_policy.yml ... specifies global_threshold and optional per_mcc_overrides; CI validates ... "
+Calibration_recipe: No
+Posterior_validation: No
+Provenance_tag: No
+Units: boolean
+Default_policy: off
+Interface_consumer: pixel_center_sampler
+Description: Toggles ±½ Δ uniform jitter on pixel‑center coordinates.
+Anchor: “Intra‑pixel jitter optional: if enabled, add uniform offsets in (–Δ/2,+Δ/2).” :contentReference[oaicite:18]{index=18}
+Context: “Raster resampling onto fixed grid … optional intra‑pixel jitter to avoid alignment artifacts.”  
+Gap_flags:
+  prior_missing=N
+  hyperparams_missing=N
+  calibration_missing=Y
+  posterior_missing=Y
+  provenance_missing=Y
+  units_missing=N
+  default_policy_missing=N
+  interface_consumer_missing=Y
+  description_missing=N
+Confidence=MEDIUM
+--- END PP 4 ---
+
+--- PP 5 ---
+Name: Road‑proximity rejection threshold
+Symbol: d_road_max = 50 m
+Scope: merchant_location
+Prior_type: Fixed constant
+Prior_specified: Yes
+Calibration_recipe: No
+Posterior_validation: No
+Provenance_tag: No
+Units: metres
+Default_policy: abort on breach
+Interface_consumer: road_distance_filter
+Description: Maximum allowed distance from nearest primary road for road‑based priors.
+Anchor: “Distance ≤ 50 m for road priors” :contentReference[oaicite:19]{index=19}
+Context: “For vehicle‑oriented merchants the prior is … line segments carry AADT … reject if > d_road_max.”  
+Gap_flags:
+  prior_missing=N
+  hyperparams_missing=N
+  calibration_missing=Y
+  posterior_missing=Y
+  provenance_missing=Y
+  units_missing=N
+  default_policy_missing=N
+  interface_consumer_missing=Y
+  description_missing=N
+Confidence=MEDIUM
+--- END PP 5 ---
+
+--- PP 6 ---
+Name: Wilson 95% lower‑bound
+Symbol: L ≥ 0.90
+Scope: validation
+Prior_type: Fixed threshold
+Prior_specified: Yes
+Calibration_recipe: No
+Posterior_validation: Yes
+Provenance_tag: No
+Units: proportion
+Default_policy: abort on drop
+Interface_consumer: acceptance_monitor
+Description: Lower 95% confidence bound on acceptance probability per prior.
+Anchor: “require L ≥ 0.90 after Wilson 95% bound” :contentReference[oaicite:20]{index=20}
+Context: “compute p̂ and Wilson lower 95% bound L; require L≥0.90; log metrics nightly.”  
 Gap_flags:
   prior_missing=N
   hyperparams_missing=N
   calibration_missing=Y
   posterior_missing=N
-  provenance_missing=N
+  provenance_missing=Y
   units_missing=N
   default_policy_missing=N
-  interface_consumer_missing=N
-  description_missing=N
-Confidence=HIGH
---- END PP 4 ---
-
---- PP 5 ---
-Name: Footfall log-normal noise and scaling coefficients
-Symbol: $\kappa_{g,h}$ (scaling), $\sigma_{g,h}$ (log-normal std), $\epsilon \sim \mathcal{N}(0, \sigma^2_{g,h})$
-Scope: merchant_location
-Prior_type: Scaling: fixed; $\sigma_{g,h}$: calibrated log-normal noise (prior is $\mathcal{N}(0, \sigma^2)$); $\epsilon$: site draw
-Prior_specified: Partial (scaling may be fixed, $\sigma_{g,h}$ is calibrated)
-Calibration_recipe: Yes (calibrated for Fano target via 10M-row synthetic slice; Brent’s method)
-Posterior_validation: Yes (Fano factor, variance/mean check, tolerance, convergence stats logged)
-Provenance_tag: Yes (`footfall_coefficients.yaml`, calibration_slice_config.yml)
-Units: footfall: dimensionless (proxy for annual throughput), $\sigma$: log-units, $\epsilon$: log-units
-Default_policy: use prior (always apply for each site, abort on missing)
-Interface_consumer: Footfall calculation for each placed site (footfall field in site catalogue)
-Description: Scaling and log-normal noise parameters for annual footfall estimate per site, stratified by MCC and channel; sets micro-level throughput for simulation.
-Anchor: "Footfall formula: footfall = κ_(mcc,channel) × prior_weight_raw × exp(ε), ε ~ N(0, σ_(mcc,channel)^2) ... Both κ and σ stored in `footfall_coefficients.yaml` ... Calibration specification: synthetic slice size = 10,000,000 ... Fano target 1.80 ... Brent bracket [0.05, 2.0]; tolerance 1e−4 ... convergence stats embedded."
-Context: "Finally, the foot-traffic scalar is computed ... engine multiplies a category-specific load factor κ (read from `footfall_coefficients.yaml`) with the raw blended float weight ... then with a Log-Normal residual ... Calibration uses a governed 10 million-row synthetic slice ... Brent’s method searches σ in [0.05, 2.0] until |Fano_sim − Fano_target|<1 × 10⁻⁴ (target Fano 1.80); resulting κ, σ and convergence stats enter `footfall_coefficients.yaml`."
-Gap_flags:
-  prior_missing=N
-  hyperparams_missing=N
-  calibration_missing=N
-  posterior_missing=N
-  provenance_missing=N
-  units_missing=N
-  default_policy_missing=N
-  interface_consumer_missing=N
-  description_missing=N
-Confidence=HIGH
---- END PP 5 ---
-
---- PP 6 ---
-Name: Winsorisation policy parameters
-Symbol: $M$ (clip multiple), $N_{\min}$ (minimum sites for clipping)
-Scope: merchant_location
-Prior_type: Deterministic (policy config)
-Prior_specified: Yes
-Calibration_recipe: No (policy fixed in YAML)
-Posterior_validation: Yes (CI checks for $M \geq 1$ and $N_{\min} \geq 1$, semver and drift, clipping stats logged)
-Provenance_tag: Yes (`winsor.yml`, semver, sha256_digest)
-Units: $M$: dimensionless (multiples of $\sigma$), $N_{\min}$: count (sites)
-Default_policy: use prior (policy always applied)
-Interface_consumer: Clipping logic for log footfall in site catalogue, after placement and noise
-Description: Outlier control policy for log-footfall per (country, MCC); governs how much deviation from mean is clipped and at what sample size threshold.
-Anchor: "Means and standard deviations (μ, σ) of log footfall used for clipping are computed ... two-pass procedure ... the clipping multiple (3) and minimum stratum size (30) are governed in winsor.yml (semver, sha256)."
-Context: "Means and standard deviations (μ, σ) of log footfall used for clipping ... two-pass procedure ... the clipping multiple (3) and minimum stratum size (30) are governed in winsor.yml (semver, sha256)."
-Gap_flags:
-  prior_missing=N
-  hyperparams_missing=N
-  calibration_missing=N
-  posterior_missing=N
-  provenance_missing=N
-  units_missing=N
-  default_policy_missing=N
-  interface_consumer_missing=N
+  interface_consumer_missing=Y
   description_missing=N
 Confidence=HIGH
 --- END PP 6 ---
 
 --- PP 7 ---
-Name: Philox PRNG stream partition keys and stride mapping
-Symbol: substream keys: `site_sampling`, `polygon_interior`, `footfall_lognormal`, `fenwick_tie_break`, `tz_resample`; stride(key) = lower_64_bits_le(SHA256(key))
-Scope: merchant_location
-Prior_type: Deterministic (RNG partitioning; no stochastic parameter)
+Name: Trend‑alert drop threshold
+Symbol: Δp_max = 5 ppt
+Scope: validation
+Prior_type: Fixed threshold
 Prior_specified: Yes
-Calibration_recipe: Not applicable
-Posterior_validation: Yes (every draw/event is auditable, full replay)
-Provenance_tag: Yes (manifest, artefact digests, logged stride per event)
-Units: key: string; stride: uint64
-Default_policy: abort (CI asserts uniqueness of each key and stride, any change aborts build)
-Interface_consumer: Every stochastic process and audit log in spatial sampling, placement, footfall, resampling, Fenwick
-Description: Mapping from string keys to unique 64-bit strides for Philox PRNG substreams, ensuring deterministic, non-overlapping streams for every stochastic branch.
-Anchor: "All spatial sub‑streams derive 64‑bit stride values as the lower little‑endian half of SHA‑256(key_string); SHA‑1 is not used; each stride is unique across modules (`site_sampling`, `polygon_interior`, `footfall_lognormal`, `fenwick_tie_break`, `tz_resample`). Jumping ahead means adding the unsigned 128‑bit stride to the current Philox counter (no leapfrog); uniqueness of strides plus monotonic addition guarantees non‑overlap of generated sub‑streams; stride collisions are asserted absent by CI."
-Context: "Every randomness source emits an audit event: ... All spatial sub‑streams derive 64‑bit stride values ... uniqueness of strides plus monotonic addition guarantees non-overlap ... stride collisions are asserted absent by CI."
+Calibration_recipe: No
+Posterior_validation: Yes
+Provenance_tag: No
+Units: percentage points
+Default_policy: alert only
+Interface_consumer: acceptance_monitor
+Description: Maximum allowed week‑over‑week drop in p̂.
+Anchor: “regression alert fires if p̂ drops more than 5 percentage points” :contentReference[oaicite:21]{index=21}
+Context: “monitor … p̂; a regression alert fires if drop > 5 ppt even if L ≥ 0.90.”  
 Gap_flags:
   prior_missing=N
   hyperparams_missing=N
-  calibration_missing=N
+  calibration_missing=Y
   posterior_missing=N
-  provenance_missing=N
+  provenance_missing=Y
   units_missing=N
   default_policy_missing=N
-  interface_consumer_missing=N
+  interface_consumer_missing=Y
   description_missing=N
 Confidence=HIGH
 --- END PP 7 ---
+
+--- PP 8 ---
+Name: Termination‑cap formula constants
+Symbol: A_max = min(500, 10/max(r_min, a_L)); r_min = 0.10
+Scope: merchant_location
+Prior_type: Fixed formula
+Prior_specified: Yes
+Calibration_recipe: No
+Posterior_validation: No
+Provenance_tag: No
+Units: count
+Default_policy: abort
+Interface_consumer: placement_attempt_manager
+Description: Caps max attempts per pixel/polygon draw based on success‑rate floor.
+Anchor: “min success_rate=0.10; A_max = min(500, 10/max(0.10, a_L))” :contentReference[oaicite:22]{index=22}
+Context: “per‑site resample attempts must never exceed A_max; exceeding aborts build.”  
+Gap_flags:
+  prior_missing=N
+  hyperparams_missing=N
+  calibration_missing=Y
+  posterior_missing=Y
+  provenance_missing=Y
+  units_missing=N
+  default_policy_missing=N
+  interface_consumer_missing=Y
+  description_missing=N
+Confidence=HIGH
+--- END PP 8 ---
+
+--- PP 9 ---
+Name: Philox sub‑stream keys & strides
+Symbol: keys = {…}, stride = low64(SHA256(key))
+Scope: merchant_location
+Prior_type: Fixed deterministic assignment
+Prior_specified: Yes
+Calibration_recipe: No
+Posterior_validation: Yes
+Provenance_tag: No
+Units: dimensionless
+Default_policy: abort on duplicate
+Interface_consumer: philox_rng_manager
+Description: Keys and stride offsets for each RNG sub‑stream.
+Anchor: “keys enumerated: site_sampling, polygon_interior, footfall_lognormal, fenwick_tie_break, tz_resample; stride=lower‑64 bits(SHA256(key))” :contentReference[oaicite:23]{index=23}
+Context: “Sub‑stream stride derivation: stride(key)=…; CI asserts distinctness; SHA‑1 prohibited.”  
+Gap_flags:
+  prior_missing=N
+  hyperparams_missing=N
+  calibration_missing=Y
+  posterior_missing=N
+  provenance_missing=Y
+  units_missing=N
+  default_policy_missing=N
+  interface_consumer_missing=Y
+  description_missing=N
+Confidence=HIGH
+--- END PP 9 ---
+
+--- PP 10 ---
+Name: Earth radius for Haversine
+Symbol: R = 6371.0088 km
+Scope: merchant_location
+Prior_type: Fixed constant
+Prior_specified: Yes
+Calibration_recipe: No
+Posterior_validation: No
+Provenance_tag: No
+Units: kilometres
+Default_policy: abort on change
+Interface_consumer: distance_calculator
+Description: Radius used in great‑circle distance formula.
+Anchor: “with R=6371.0088 km” :contentReference[oaicite:24]{index=24}
+Context: “d_H = 2R arcsin(…) with R=6371.0088 km.”  
+Gap_flags:
+  prior_missing=N
+  hyperparams_missing=N
+  calibration_missing=Y
+  posterior_missing=Y
+  provenance_missing=Y
+  units_missing=N
+  default_policy_missing=N
+  interface_consumer_missing=Y
+  description_missing=N
+Confidence=HIGH
+--- END PP 10 ---
+
+--- PP 11 ---
+Name: Contraction‑hierarchies graph path & version
+Symbol: graph_file = osm_ch_graph_{snapshot}.bin
+Scope: merchant_location
+Prior_type: Fixed artefact reference
+Prior_specified: Yes
+Calibration_recipe: No
+Posterior_validation: No
+Provenance_tag: Yes
+Units: N/A
+Default_policy: abort if missing
+Interface_consumer: road_distance_calculator
+Description: Path pattern and semver/digest for CH graph used in d_R.
+Anchor: “Pattern: osm_ch_graph_{snapshot}.bin + semver/digest” :contentReference[oaicite:25]{index=25}
+Context: “Road distance d_R = length of shortest path in graph G_c; CH graph file …”  
+Gap_flags:
+  prior_missing=N
+  hyperparams_missing=N
+  calibration_missing=Y
+  posterior_missing=Y
+  provenance_missing=N
+  units_missing=N
+  default_policy_missing=N
+  interface_consumer_missing=Y
+  description_missing=N
+Confidence=HIGH
+--- END PP 11 ---
+
+--- PP 12 ---
+Name: Crash‑tolerant write protocol
+Symbol: temp_suffix + fsync + atomic‑rename
+Scope: merchant_location
+Prior_type: Fixed policy
+Prior_specified: Yes
+Calibration_recipe: No
+Posterior_validation: No
+Provenance_tag: No
+Units: N/A
+Default_policy: abort on violation
+Interface_consumer: file_writer in placement_engine
+Description: Ensures idempotent, atomic writes of site_parquet rows.
+Anchor: “Write to .parquet.tmp, fsync, then atomic rename; skip if final exists” :contentReference[oaicite:26]{index=26}
+Context: “Write protocol: construct temp file … fsync, atomic rename; idempotent recovery.”  
+Gap_flags:
+  prior_missing=N
+  hyperparams_missing=N
+  calibration_missing=Y
+  posterior_missing=Y
+  provenance_missing=Y
+  units_missing=N
+  default_policy_missing=N
+  interface_consumer_missing=Y
+  description_missing=N
+Confidence=HIGH
+--- END PP 12 ---
+
+--- PP 13 ---
+Name: Audit‑event schema fields
+Symbol: fields = {pre_counter, post_counter, stride_key, …}
+Scope: merchant_location
+Prior_type: Fixed schema
+Prior_specified: Yes
+Calibration_recipe: No
+Posterior_validation: No
+Provenance_tag: No
+Units: N/A
+Default_policy: abort on mismatch
+Interface_consumer: placement_audit.log writer
+Description: Fields logged for each stochastic/structural event.
+Anchor: “Audit‑event schema: pre_counter, post_counter, stride_key, … placement_failure reasons…” :contentReference[oaicite:27]{index=27}
+Context: “Placement Failure Event Schema: Event: placement_failure; Additional fields: reason, attempt_count, prior_tag.”  
+Gap_flags:
+  prior_missing=N
+  hyperparams_missing=N
+  calibration_missing=Y
+  posterior_missing=Y
+  provenance_missing=Y
+  units_missing=N
+  default_policy_missing=N
+  interface_consumer_missing=Y
+  description_missing=N
+Confidence=HIGH
+--- END PP 13 ---
+
+--- PP 14 ---
+Name: Capital‑fallback selection logic
+Symbol: role_type & primary_flag
+Scope: merchant_location
+Prior_type: Fixed policy
+Prior_specified: Yes
+Calibration_recipe: No
+Posterior_validation: No
+Provenance_tag: No
+Units: N/A
+Default_policy: abort on none
+Interface_consumer: capital_selector in remoteness_module
+Description: Logic to choose administrative or primary capital fallback per country.
+Anchor: “select row with role_type='administrative' & primary_flag=true; else primary; else abort” :contentReference[oaicite:28]{index=28}
+Context: “Load capitals_dataset_2024.parquet; select …; if neither present, abort build.”  
+Gap_flags:
+  prior_missing=N
+  hyperparams_missing=N
+  calibration_missing=Y
+  posterior_missing=Y
+  provenance_missing=Y
+  units_missing=N
+  default_policy_missing=N
+  interface_consumer_missing=Y
+  description_missing=N
+Confidence=HIGH
+--- END PP 14 ---
+
+--- PP 15 ---
+Name: Fenwick‑alias uniform deviate
+Symbol: cdf_threshold_u ~ U(0,1)
+Scope: merchant_location
+Prior_type: Uniform
+Prior_specified: Yes
+Calibration_recipe: No
+Posterior_validation: No
+Provenance_tag: Yes
+Units: dimensionless
+Default_policy: abort on RNG error
+Interface_consumer: Fenwick/alias sampler
+Description: Exact scaled uniform used in importance‑sampling at each draw.
+Anchor: “cdf_threshold_u stores the exact scaled uniform used in Fenwick / alias search” :contentReference[oaicite:29]{index=29}
+Context: “Extended site catalogue columns: … cdf_threshold_u (float64) stores the exact scaled uniform used in Fenwick / alias search.”  
+Gap_flags:
+  prior_missing=N
+  hyperparams_missing=N
+  calibration_missing=Y
+  posterior_missing=Y
+  provenance_missing=N
+  units_missing=N
+  default_policy_missing=Y
+  interface_consumer_missing=Y
+  description_missing=N
+Confidence=MEDIUM
+--- END PP 15 ---
 
 <<PP‑END>>

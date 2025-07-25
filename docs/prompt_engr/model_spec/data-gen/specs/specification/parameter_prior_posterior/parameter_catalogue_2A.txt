@@ -1,7 +1,3 @@
-############################################################
-#  PARAMETER CATALOGUE‑FINDER • Sub‑segment 2A             #
-############################################################
-
 --- PP 1 ---
 Name: Polygon nudge distance (border tie-break)
 Symbol: $\varepsilon$
