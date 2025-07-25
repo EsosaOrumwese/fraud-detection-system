@@ -1,0 +1,280 @@
+--- IC 1 ---
+Stage: ComputeGDPBuckets
+Anchor: "It is discretised into five buckets using Jenks natural breaks; the mapping table lives at `artefacts/gdp/gdp_bucket_map_2024.parquet` with its own digest (`gdp_bucket_map_digest`) and semantic version so reviewers can rerun the binning step on a later vintage." :contentReference[oaicite:9]{index=9}
+Input_artefact: artefacts/gdp/gdp_bucket_map_2024.parquet
+Input_schema: Partial
+Output_artefact: Missing
+Output_schema: Partial
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Missing
+Schema_version: Present
+Access_policy: Missing
+Consumed_by: HurdleDecision
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=Y
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=Y
+  schema_version_missing=N
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… embeds that release date. It is discretised into five buckets using Jenks natural breaks; the mapping table lives at `artefacts/gdp/gdp_bucket_map_2024.parquet` with its own digest (`gdp_bucket_map_digest`) and semantic version so reviewers can rerun the binning step on a later vintage. All bucket assignments are therefore deterministic functions of ISO-3166 code and the versioned GDP data-set.” 
+Confidence=MEDIUM
+--- END IC 1 ---
+
+--- IC 2 ---
+Stage: LoadHurdleCoefficients
+Anchor: "… all hurdle logistic coefficients are co-located in `hurdle_coefficients.yaml` and loaded atomically." :contentReference[oaicite:10]{index=10}
+Input_artefact: hurdle_coefficients.yaml
+Input_schema: Yes
+Output_artefact: Missing
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Abort on missing file
+Schema_version: Present
+Access_policy: Missing
+Consumed_by: HurdleDecision
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=N
+  output_missing=Y
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=N
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “The generator multiplies the design matrix row by the logistic-regression coefficient vector stored in `hurdle_coefficients.yaml` … all hurdle logistic coefficients are co-located in `hurdle_coefficients.yaml` and loaded atomically. Because the logistic coefficients were estimated on a proprietary acquirer sample and released only as YAML, the open-source code never sees raw data yet reproduces the same probabilities.” 
+Confidence=HIGH
+--- END IC 2 ---
+
+--- IC 3 ---
+Stage: HurdleDecision
+Anchor: "Philox 2¹²⁸ supplies a single uniform deviate … The Bernoulli outcome is persisted to the row; the RNG audit log also records event_type=`hurdle_bernoulli`, pre/post counters, the uniform, π, and the stride for full replay." :contentReference[oaicite:11]{index=11}
+Input_artefact: hurdle_coefficients.yaml
+Input_schema: Partial
+Output_artefact: rng_audit.log
+Output_schema: Yes
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Abort on RNG error
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: ComputeNBParameters
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=N
+  output_schema_missing=N
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=Medium
+Context: “… obtains a probability π … if it is less than π the merchant advances to the multi-site branch … The Bernoulli outcome is persisted to the row; the RNG audit log also records event_type=`hurdle_bernoulli`, pre/post counters, the uniform, π, and the stride for full replay.” 
+Confidence=MEDIUM
+--- END IC 3 ---
+
+--- IC 4 ---
+Stage: ComputeNBParameters
+Anchor: "For every merchant declared multi-site the pipeline computes the mean μ and dispersion φ of a negative binomial. … the dispersion log-link reuses those categorical components and appends a continuous natural log(GDP per capita in constant 2015 USD) term with positive coefficient η constrained during estimation." :contentReference[oaicite:12]{index=12}
+Input_artefact: nb_dispersion_coefficients.yaml
+Input_schema: Partial
+Output_artefact: diagnostic_metrics.parquet
+Output_schema: Yes
+Partitioning_rule: No
+Success_metric: Yes
+Error_code_policy: Missing
+Schema_version: Present
+Access_policy: Missing
+Consumed_by: DrawNBCount
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=N
+  output_schema_missing=N
+  partition_missing=Y
+  metric_missing=N
+  error_policy_missing=Y
+  schema_version_missing=N
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=Medium
+Context: “For every merchant declared multi-site the pipeline computes the mean μ and dispersion φ of a negative binomial. The mean log-link intentionally *excludes* the developmental (GDP bucket) factor present in the hurdle logistic …” 
+Confidence=MEDIUM
+--- END IC 4 ---
+
+--- IC 5 ---
+Stage: DrawNBCount
+Anchor: "A deviate N ∼ NB(μ, φ) is then sampled ... If the variate equals 0 or 1 the algorithm rejects it, increments the “NB-rejection” counter, and draws again ... Every rejection *and* the final accepted draw write full pre/post counters plus cumulative rejection count to `rng_audit.log`." :contentReference[oaicite:13]{index=13}
+Input_artefact: None
+Input_schema: No
+Output_artefact: rng_audit.log
+Output_schema: Yes
+Partitioning_rule: No
+Success_metric: Yes
+Error_code_policy: Abort on infinite loop cap
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: CrossBorderCount
+Test_pathway: Missing
+Gap_flags:
+  input_missing=Y
+  input_schema_missing=Y
+  output_missing=N
+  output_schema_missing=N
+  partition_missing=Y
+  metric_missing=N
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=Crit
+Context: “A deviate N ∼ NB(μ, φ) is then sampled from the merchant-specific Philox sub-stream via the Poisson–Gamma mixture (Gamma … then Poisson). If the variate equals 0 or 1 the algorithm rejects it … Every rejection *and* the final accepted draw write … to `rng_audit.log`.” 
+Confidence=LOW
+--- END IC 5 ---
+
+--- IC 6 ---
+Stage: CrossBorderCount
+Anchor: "… samples a **true zero-truncated Poisson**, K ∼ ZTPoisson(λ_extra) with λ_extra = θ₀ + θ₁ log N … Classical rejection draws from Poisson(λ_extra) until K ≥ 1; the number of rejections is logged (event_type=`ztp_rejection`). A hard cap of 64 rejections aborts the build (`ztp_retry_exhausted`) …" :contentReference[oaicite:14]{index=14}
+Input_artefact: crossborder_hyperparams.yaml
+Input_schema: Partial
+Output_artefact: rng_audit.log
+Output_schema: Yes
+Partitioning_rule: No
+Success_metric: Yes
+Error_code_policy: Abort on cap exceeded
+Schema_version: Present
+Access_policy: Missing
+Consumed_by: CurrencyCountryExpansion
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=N
+  output_schema_missing=N
+  partition_missing=Y
+  metric_missing=N
+  error_policy_missing=N
+  schema_version_missing=N
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=Medium
+Context: “With the domestic count N pinned … it samples a true zero-truncated Poisson, K ∼ ZTPoisson(λ_extra) with λ_extra = θ₀ + θ₁ log N … A hard cap of 64 rejections aborts the build (`ztp_retry_exhausted`) …” 
+Confidence=MEDIUM
+--- END IC 6 ---
+
+--- IC 7 ---
+Stage: CurrencyCountryExpansion
+Anchor: "When K ≥ 1 the pipeline assembles a candidate list of foreign jurisdictions using a currency→country expansion. It begins with a *settlement share vector* at the currency level from `artefacts/network_share_vectors/settlement_shares_2024Q4.parquet` … proportional intra-currency country weights from `artefacts/currency_country_split/ccy_country_shares_2024Q4.parquet`; if any destination weight is sparse … additive Dirichlet smoothing (α=0.5) is applied." :contentReference[oaicite:15]{index=15}
+Input_artefact: artefacts/network_share_vectors/settlement_shares_2024Q4.parquet, artefacts/currency_country_split/ccy_country_shares_2024Q4.parquet
+Input_schema: Partial
+Output_artefact: Missing
+Output_schema: Partial
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Missing
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: DirichletAllocation
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=Y
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=Y
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “When K ≥ 1 the pipeline assembles a candidate list of foreign jurisdictions using a currency→country expansion … from `artefacts/network_share_vectors/settlement_shares_2024Q4.parquet` … and `artefacts/currency_country_split/ccy_country_shares_2024Q4.parquet` … additive Dirichlet smoothing (α=0.5) is applied.” 
+Confidence=MEDIUM
+--- END IC 7 ---
+
+--- IC 8 ---
+Stage: WriteOutletCatalogue
+Anchor: "The table is written under a path embedding both seed and fingerprint, e.g., `…/outlet_catalogue/seed={seed}/fingerprint={fingerprint}/part-*.parquet`." :contentReference[oaicite:16]{index=16}
+Input_artefact: _manifest.json
+Input_schema: Partial
+Output_artefact: outlet_catalogue/seed={seed}/fingerprint={fingerprint}/part-*.parquet
+Output_schema: Yes
+Partitioning_rule: Yes
+Success_metric: No
+Error_code_policy: Missing
+Schema_version: Present
+Access_policy: Missing
+Consumed_by: ValidateOutletCatalogue
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=N
+  output_schema_missing=N
+  partition_missing=N
+  metric_missing=Y
+  error_policy_missing=Y
+  schema_version_missing=N
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=Medium
+Context: “Each stub row now contains these non-nullable typed columns … The table is written under a path embedding both seed and fingerprint, e.g., `…/outlet_catalogue/seed={seed}/fingerprint={fingerprint}/part-*.parquet`.” 
+Confidence=MEDIUM
+--- END IC 8 ---
+
+--- IC 9 ---
+Stage: ValidateOutletCatalogue
+Anchor: "Immediately after write, a validation routine re-reads the Parquet and recomputes μ, φ, K, Dirichlet weights, residual ordering, integer allocations, tie_break_rank sequence, and generated site_ids from the stored inputs. Any mismatch aborts the build before downstream consumption." :contentReference[oaicite:17]{index=17}
+Input_artefact: outlet_catalogue/…/part-*.parquet
+Input_schema: Yes
+Output_artefact: Missing
+Output_schema: No
+Partitioning_rule: No
+Success_metric: Yes
+Error_code_policy: Abort on mismatch
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: CI/CD pipeline
+Test_pathway: integration
+Gap_flags:
+  input_missing=N
+  input_schema_missing=N
+  output_missing=Y
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=N
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “Immediately after write, a validation routine re-reads the Parquet and recomputes μ, φ, K, Dirichlet weights, residual ordering, integer allocations, tie_break_rank sequence, and generated site_ids from the stored inputs. Any mismatch aborts the build before downstream consumption.” 
+Confidence=HIGH
+--- END IC 9 ---
+
+<<IC-END>>

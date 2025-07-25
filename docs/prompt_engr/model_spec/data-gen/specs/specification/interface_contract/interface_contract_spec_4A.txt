@@ -1,0 +1,909 @@
+<<<IC-FIX id=1>
+Stage: LaunchPipelineContainer
+INPUT_ARTIFACT:
+name: Dockerfile_lock
+path_pattern: s3://data-engine/config/reproducibility/Dockerfile.lock  # File not yet created; path is reserved by spec.
+sha256: <to-be-populated-on-build>
+schema: |
+{
+  "name": "Dockerfile_lock",
+  "type": "record",
+  "fields": [
+    {"name":"IMAGE_SHA256","type":"string","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: build_manifest
+path_pattern: file:///tmp/build.manifest  # path reserved by spec.
+sha256: <to-be-populated-on-build>
+schema: |
+{
+  "name": "build_manifest",
+  "type": "record",
+  "fields": [
+    {"name":"container_hash","type":"string","nullable":false},
+    {"name":"container_hostname","type":"string","nullable":false},
+    {"name":"utc_start_time","type":"string","nullable":false"}
+  ]
+}
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: file_existence
+expected_range: [1,1]
+ERROR_POLICY:
+error_code: LaunchContainerError
+retry_max: 1
+retry_backoff_sec: 30
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: infra-team-read
+write_policy: infra-team-write
+CONSUMED_BY:
+module: pipeline_launcher.sh
+function: n/a
+description: Launches container with pinned image digest
+TEST_PATHWAY:
+test_type: integration
+tool: custom
+script: tests/test_launch_pipeline_container.sh
+assertion: manifest contains three fields
+Confidence=HIGH
+<<<END IC-FIX>>>
+
+<<<IC-FIX id=2>
+Stage: ValidateContainerHash
+INPUT_ARTIFACT:
+name: Dockerfile_lock
+path_pattern: s3://data-engine/config/reproducibility/Dockerfile.lock
+sha256: <to-be-populated-on-build>
+schema: |
+{
+  "name": "Dockerfile_lock",
+  "type": "record",
+  "fields": [
+    {"name":"IMAGE_SHA256","type":"string","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: Missing
+path_pattern: TBD
+sha256: <to-be-populated-on-build>
+schema: |
+{ }
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: container_hash_match
+expected_range: [1,1]
+ERROR_POLICY:
+error_code: ContainerHashMismatchError
+retry_max: 0
+retry_backoff_sec: 0
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: infra-team-read
+write_policy: infra-team-write
+CONSUMED_BY:
+module: validate_container_hash.yml
+function: n/a
+description: Verifies container filesystem hash matches lock
+TEST_PATHWAY:
+test_type: integration
+tool: custom
+script: tests/test_validate_container_hash.sh
+assertion: CI halts on mismatch
+Confidence=MEDIUM
+<<<END IC-FIX>>>
+
+<<<IC-FIX id=3>
+Stage: ExtractSourceSHA
+INPUT_ARTIFACT:
+name: git_HEAD
+path_pattern: local://.git/HEAD
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"string" }
+OUTPUT_ARTIFACT:
+name: build_manifest
+path_pattern: file:///tmp/build.manifest
+sha256: <to-be-populated-on-build>
+schema: |
+{
+  "name":"build_manifest",
+  "type":"record",
+  "fields":[
+    {"name":"source_sha1","type":"string","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: file_existence
+expected_range: [1,1]
+ERROR_POLICY:
+error_code: ExtractSourceSHAError
+retry_max: 0
+retry_backoff_sec: 0
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: dev-team-read
+write_policy: dev-team-write
+CONSUMED_BY:
+module: git rev-parse
+function: n/a
+description: Captures repository tree SHA
+TEST_PATHWAY:
+test_type: integration
+tool: custom
+script: tests/test_extract_source_sha.sh
+assertion: SHA1 recorded in manifest
+Confidence=MEDIUM
+<<<END IC-FIX>>}
+
+<<<IC-FIX id=4>
+Stage: ValidateSourceHash
+INPUT_ARTIFACT:
+name: source_module
+path_pattern: file:///app/fraudsim/__init__.py
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"string" }
+OUTPUT_ARTIFACT:
+name: Missing
+path_pattern: TBD
+sha256: <to-be-populated-on-build>
+schema: |
+{ }
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: source_hash_match
+expected_range: [1,1]
+ERROR_POLICY:
+error_code: SourceHashMismatchError
+retry_max: 0
+retry_backoff_sec: 0
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: dev-team-read
+write_policy: dev-team-write
+CONSUMED_BY:
+module: main.py
+function: n/a
+description: Ensures embedded source hash matches manifest
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_validate_source_hash.py
+assertion: guard raises on mismatch
+Confidence=MEDIUM
+<<<END IC-FIX>>}
+
+<<<IC-FIX id=5>
+Stage: BuildArtefactManifest
+INPUT_ARTIFACT:
+name: artefact_registry
+path_pattern: s3://data-engine/config/reproducibility/artefact_registry.yaml
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"record","fields":[{"name":"path","type":"string"},{"name":"digest","type":"string"}] }
+OUTPUT_ARTIFACT:
+name: build_manifest
+path_pattern: file:///tmp/build.manifest
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"record","fields":[{"name":"parameter_set_hash","type":"string"}] }
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: file_existence
+expected_range: [1,1]
+ERROR_POLICY:
+error_code: BuildArtefactManifestError
+retry_max: 0
+retry_backoff_sec: 0
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: dev-team-read
+write_policy: dev-team-write
+CONSUMED_BY:
+module: artefact_loader.py
+function: n/a
+description: Aggregates artefact checksums into manifest
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_build_artefact_manifest.py
+assertion: parameter_set_hash recorded
+Confidence=HIGH
+<<<END IC-FIX>>}
+
+<<<IC-FIX id=6>
+Stage: CompareRegistry
+INPUT_ARTIFACT:
+name: artefact_registry
+path_pattern: s3://data-engine/config/reproducibility/artefact_registry.yaml
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"record","fields":[{"name":"path","type":"string"},{"name":"digest","type":"string"}] }
+INPUT_ARTIFACT:
+name: build_manifest
+path_pattern: file:///tmp/build.manifest
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"record" }
+OUTPUT_ARTIFACT:
+name: Missing
+path_pattern: TBD
+sha256: <to-be-populated-on-build>
+schema: |
+{ }
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: registry_match
+expected_range: [1,1]
+ERROR_POLICY:
+error_code: RegistryMismatchError
+retry_max: 0
+retry_backoff_sec: 0
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: dev-team-read
+write_policy: dev-team-write
+CONSUMED_BY:
+module: compare_registry.py
+function: n/a
+description: Verifies registry consistency
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_compare_registry.py
+assertion: no diff between registry and manifest
+Confidence=HIGH
+<<<END IC-FIX>>}
+
+<<<IC-FIX id=7>
+Stage: GenerateMasterSeed
+INPUT_ARTIFACT:
+name: build_manifest
+path_pattern: file:///tmp/build.manifest
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"record" }
+OUTPUT_ARTIFACT:
+name: build_manifest
+path_pattern: file:///tmp/build.manifest
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"record","fields":[{"name":"master_seed_hex","type":"string"}] }
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: file_existence
+expected_range: [1,1]
+ERROR_POLICY:
+error_code: GenerateMasterSeedError
+retry_max: 0
+retry_backoff_sec: 0
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: rng-team-read
+write_policy: rng-team-write
+CONSUMED_BY:
+module: master_seed_generator
+function: n/a
+description: Produces high-entropy master seed
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_generate_master_seed.py
+assertion: seed field present
+Confidence=MEDIUM
+<<<END IC-FIX>>}
+
+<<<IC-FIX id=8>
+Stage: JumpRNGStreams
+INPUT_ARTIFACT:
+name: build_manifest
+path_pattern: file:///tmp/build.manifest
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"record" }
+OUTPUT_ARTIFACT:
+name: rng_trace_log
+path_pattern: s3://data-engine/logs/rng/rng_trace.log  # path reserved by spec.
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"record","fields":[{"name":"module","type":"string"},{"name":"identifier","type":"string"},{"name":"offset","type":"long"}] }
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: file_existence
+expected_range: [1,1]
+ERROR_POLICY:
+error_code: JumpRNGError
+retry_max: 0
+retry_backoff_sec: 0
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: rng-team-read
+write_policy: rng-team-write
+CONSUMED_BY:
+module: firewall.py
+function: n/a
+description: Records RNG stream jumps
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_jump_rng_streams.py
+assertion: log entries recorded
+Confidence=MEDIUM
+<<<END IC-FIX>>}
+
+<<<IC-FIX id=9>
+Stage: ReplayRNG
+INPUT_ARTIFACT:
+name: rng_trace_log
+path_pattern: s3://data-engine/logs/rng/rng_trace.log
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"record" }
+OUTPUT_ARTIFACT:
+name: Missing
+path_pattern: TBD
+sha256: <to-be-populated-on-build>
+schema: |
+{ }
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: replay_match
+expected_range: [1,1]
+ERROR_POLICY:
+error_code: ReplayRNGError
+retry_max: 0
+retry_backoff_sec: 0
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: rng-team-read
+write_policy: rng-team-write
+CONSUMED_BY:
+module: replay_rng.py
+function: n/a
+description: Replays RNG to verify determinism
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_replay_rng.py
+assertion: spot-check values match
+Confidence=MEDIUM
+<<<END IC-FIX>>}
+
+<<<IC-FIX id=10>
+Stage: ValidateConfigSchemas
+INPUT_ARTIFACT:
+name: config_yaml
+path_pattern: s3://data-engine/config/*.yaml
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"map","values":"string" }
+OUTPUT_ARTIFACT:
+name: Missing
+path_pattern: TBD
+sha256: <to-be-populated-on-build>
+schema: |
+{ }
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: schema_validations
+expected_range: [1,1]
+ERROR_POLICY:
+error_code: SchemaValidationError
+retry_max: 0
+retry_backoff_sec: 0
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: config-team-read
+write_policy: config-team-write
+CONSUMED_BY:
+module: bootstrap_validator.py
+function: n/a
+description: Validates YAMLs against JSON schemas
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_validate_config_schemas.py
+assertion: no version mismatches
+Confidence=MEDIUM
+<<<END IC-FIX>>}
+
+<<<IC-FIX id=11>
+Stage: BootstrapValidator
+INPUT_ARTIFACT:
+name: config_yaml
+path_pattern: s3://data-engine/config/*.yaml
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"map","values":"string" }
+OUTPUT_ARTIFACT:
+name: bootstrap_validation_log
+path_pattern: s3://data-engine/logs/bootstrap_validation.log
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"string" }
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: validations_passed
+expected_range: [1,1]
+ERROR_POLICY:
+error_code: BootstrapValidationError
+retry_max: 0
+retry_backoff_sec: 0
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: validation-team-read
+write_policy: validation-team-write
+CONSUMED_BY:
+module: bootstrap_validator.py
+function: n/a
+description: Runs empirical validation on sample slice
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_bootstrap_validator.py
+assertion: histogram envelope holds
+Confidence=MEDIUM
+<<<END IC-FIX>>}
+
+<<<IC-FIX id=12>
+Stage: AuditDatasetRegistry
+INPUT_ARTIFACT:
+name: register_dataset
+path_pattern: s3://data-engine/scripts/register_dataset.py
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"string" }
+INPUT_ARTIFACT:
+name: postgres_catalog
+path_pattern: postgres://datasets.catalog
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"record" }
+OUTPUT_ARTIFACT:
+name: Missing
+path_pattern: TBD
+sha256: <to-be-populated-on-build>
+schema: |
+{ }
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: unique_enforced
+expected_range: [1,1]
+ERROR_POLICY:
+error_code: ParameterCollisionError
+retry_max: 0
+retry_backoff_sec: 0
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: dataset-team-read
+write_policy: dataset-team-write
+CONSUMED_BY:
+module: register_dataset.py
+function: n/a
+description: Enforces uniqueness in dataset registry
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_audit_dataset_registry.py
+assertion: UNIQUE_VIOLATION surfaces correctly
+Confidence=MEDIUM
+<<<END IC-FIX>>}
+
+<<<IC-FIX id=13>
+Stage: RunStructuralFirewall
+INPUT_ARTIFACT:
+name: synthetic_records
+path_pattern: s3://data-engine/processed/synthetic_data_records.parquet
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"binary" }
+OUTPUT_ARTIFACT:
+name: failure_reproducer
+path_pattern: file:///tmp/failure_reproducer.py
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"binary" }
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: batch_streamed
+expected_range: [1,1]
+ERROR_POLICY:
+error_code: StructuralFirewallError
+retry_max: 0
+retry_backoff_sec: 0
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: security-team-read
+write_policy: security-team-write
+CONSUMED_BY:
+module: firewall.py
+function: n/a
+description: Applies structural checks to synthetic data
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_structural_firewall.py
+assertion: reproducer generated on violation
+Confidence=HIGH
+<<<END IC-FIX>>}
+
+<<<IC-FIX id=14>
+Stage: RunGeoAudit
+INPUT_ARTIFACT:
+name: synthetic_records
+path_pattern: s3://data-engine/processed/synthetic_data_records.parquet
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"binary" }
+INPUT_ARTIFACT:
+name: country_zone_alphas
+path_pattern: s3://data-engine/config/allocation/country_zone_alphas.yaml
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"record" }
+OUTPUT_ARTIFACT:
+name: geo_audit_log
+path_pattern: s3://data-engine/logs/geo_audit.csv
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"record","fields":[{"name":"tzid","type":"string"},{"name":"observed_share","type":"double"},{"name":"interval_low","type":"double"},{"name":"interval_high","type":"double"}] }
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: audits_performed
+expected_range: [1,1]
+ERROR_POLICY:
+error_code: GeoAuditError
+retry_max: 0
+retry_backoff_sec: 0
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: audit-team-read
+write_policy: audit-team-write
+CONSUMED_BY:
+module: geo_audit.py
+function: n/a
+description: Validates spatial distribution of synthetic data
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_geo_audit.py
+assertion: shares within predictive envelope
+Confidence=MEDIUM
+<<<END IC-FIX>>}
+
+<<<IC-FIX id=15>
+Stage: RunHurdleBootstrap
+INPUT_ARTIFACT:
+name: hurdle_coefficients
+path_pattern: s3://data-engine/config/hurdle_coefficients.yaml
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"record" }
+OUTPUT_ARTIFACT:
+name: bootstrap_histograms
+path_pattern: s3://data-engine/validation/bootstrap_histograms.png
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"binary" }
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: image_generated
+expected_range: [1,1]
+ERROR_POLICY:
+error_code: HurdleBootstrapError
+retry_max: 0
+retry_backoff_sec: 0
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: validation-team-read
+write_policy: validation-team-write
+CONSUMED_BY:
+module: hurdle_bootstrap.py
+function: n/a
+description: Produces bootstrap histograms for hurdle layer
+TEST_PATHWAY:
+test_type: integration
+tool: custom
+script: tests/test_hurdle_bootstrap.py
+assertion: plot files exist
+Confidence=MEDIUM
+<<<END IC-FIX>>}
+
+<<<IC-FIX id=16>
+Stage: RunFootfallRegression
+INPUT_ARTIFACT:
+name: footfall_coefficients
+path_pattern: s3://data-engine/config/footfall_coefficients.yaml
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"record" }
+INPUT_ARTIFACT:
+name: synthetic_records
+path_pattern: s3://data-engine/processed/synthetic_data_records.parquet
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"binary" }
+OUTPUT_ARTIFACT:
+name: footfall_regression_log
+path_pattern: s3://data-engine/logs/footfall_regression.csv
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"record","fields":[{"name":"theta","type":"double"},{"name":"status","type":"string"}] }
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: regression_performed
+expected_range: [1,1]
+ERROR_POLICY:
+error_code: FootfallRegressionError
+retry_max: 0
+retry_backoff_sec: 0
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: regression-team-read
+write_policy: regression-team-write
+CONSUMED_BY:
+module: footfall_regression.py
+function: n/a
+description: Fits Poisson GLM and checks dispersion
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_footfall_regression.py
+assertion: θ within bounds
+Confidence=MEDIUM
+<<<END IC-FIX>>}
+
+<<<IC-FIX id=17>
+Stage: RunIndistinguishabilityTest
+INPUT_ARTIFACT:
+name: synthetic_records
+path_pattern: s3://data-engine/processed/synthetic_data_records.parquet
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"binary" }
+INPUT_ARTIFACT:
+name: real_data_sample
+path_pattern: s3://data-engine/processed/real_data_sample.parquet
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"binary" }
+OUTPUT_ARTIFACT:
+name: indistinguishability_report
+path_pattern: s3://data-engine/logs/auroc_indistinguishability.csv
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"record","fields":[{"name":"auroc","type":"double"}] }
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: test_performed
+expected_range: [1,1]
+ERROR_POLICY:
+error_code: IndistinguishabilityError
+retry_max: 0
+retry_backoff_sec: 0
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: ml-team-read
+write_policy: ml-team-write
+CONSUMED_BY:
+module: indistinguishability_test.py
+function: n/a
+description: Trains classifier to test data indistinguishability
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_indistinguishability.py
+assertion: AUROC < 0.55
+Confidence=MEDIUM
+<<<END IC-FIX>>}
+
+<<<IC-FIX id=18>
+Stage: RunDSTEdgePasser
+INPUT_ARTIFACT:
+name: synthetic_records
+path_pattern: s3://data-engine/processed/synthetic_data_records.parquet
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"binary" }
+INPUT_ARTIFACT:
+name: zoneinfo_version
+path_pattern: s3://data-engine/config/zoneinfo_version.yml
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"record" }
+OUTPUT_ARTIFACT:
+name: dst_failures
+path_pattern: s3://data-engine/validation/dst_failures.csv
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"record","fields":[{"name":"tzid","type":"string"},{"name":"failure_count","type":"int"}] }
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: test_performed
+expected_range: [1,1]
+ERROR_POLICY:
+error_code: DSTEdgePasserError
+retry_max: 0
+retry_backoff_sec: 0
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: dst-team-read
+write_policy: dst-team-write
+CONSUMED_BY:
+module: dst_edge_passer.py
+function: n/a
+description: Tests DST edge cases in synthetic data
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_dst_edge_passer.py
+assertion: no TZ failures
+Confidence=MEDIUM
+<<<END IC-FIX>>}
+
+<<<IC-FIX id=19>
+Stage: UploadToHashGate
+INPUT_ARTIFACT:
+name: build_manifest
+path_pattern: file:///tmp/build.manifest
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"record" }
+INPUT_ARTIFACT:
+name: validation_flag
+path_pattern: s3://data-engine/validation/validation_passed.flag  # File not yet created; path is reserved by spec.
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"string" }
+OUTPUT_ARTIFACT:
+name: hashgate_uri
+path_pattern: file:///tmp/hashgate_uri.txt  # path reserved by spec.
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"string" }
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: post_success
+expected_range: [1,1]
+ERROR_POLICY:
+error_code: HashGatePostError
+retry_max: 3
+retry_backoff_sec: 60
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: ci-team-read
+write_policy: ci-team-write
+CONSUMED_BY:
+module: upload_to_hashgate.py
+function: n/a
+description: Posts manifest and validation flag to HashGate service
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_upload_to_hashgate.py
+assertion: URI returned and merge gate passes
+Confidence=MEDIUM
+<<<END IC-FIX>>}
+
+<<<IC-FIX id=20>
+Stage: EnforceImmutability
+INPUT_ARTIFACT:
+name: dataset_directory
+path_pattern: s3://data-engine/datasets/{parameter_hash}_{seed}/  # path reserved by spec.
+sha256: <to-be-populated-on-build>
+schema: |
+{ "type":"string" }
+OUTPUT_ARTIFACT:
+name: Missing
+path_pattern: TBD
+sha256: <to-be-populated-on-build>
+schema: |
+{ }
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: immutability_enforced
+expected_range: [1,1]
+ERROR_POLICY:
+error_code: DirectoryCollisionError
+retry_max: 0
+retry_backoff_sec: 0
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: storage-team-read
+write_policy: storage-team-write
+CONSUMED_BY:
+module: enforce_immutability.py
+function: n/a
+description: Ensures dataset directory is immutable post-merge
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_enforce_immutability.py
+assertion: collision on regeneration detected
+Confidence=MEDIUM
+<<<END IC-FIX>>}
+
+<<IS-END>>  

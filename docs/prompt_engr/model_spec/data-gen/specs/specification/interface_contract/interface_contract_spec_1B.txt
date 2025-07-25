@@ -1,0 +1,657 @@
+<<<IC-FIX id=1>
+Stage: LoadSpatialManifest
+INPUT_ARTIFACT:
+name: spatial_manifest
+path_pattern: s3://data-engine/artefacts/spatial/spatial_manifest.json  # File not yet created; path is reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "spatial_manifest",
+  "type": "record",
+  "fields": [
+    {"name":"artefact_path","type":"string","nullable":false},
+    {"name":"digest","type":"string","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: spatial_manifest_entries
+path_pattern: s3://data-engine/processed/spatial/spatial_manifest_entries/seed={seed}/fingerprint={fingerprint}/part-*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "spatial_manifest_entries",
+  "type": "record",
+  "fields": [
+    {"name":"artefact_path","type":"string","nullable":false},
+    {"name":"digest","type":"string","nullable":false},
+    {"name":"spatial_manifest_digest","type":"string","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: ["spatial_manifest_digest"]
+order_by: ["artefact_path"]
+SUCCESS_METRIC:
+metric_name: row_count
+expected_range: [1, 100]  # placeholder
+ERROR_POLICY:
+error_code: 1301
+retry_max: 3
+retry_backoff_sec: 60
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft  # spec version
+ACCESS_POLICY:
+read_policy: spatial-team-read  # placeholder
+write_policy: spatial-team-write  # placeholder
+CONSUMED_BY:
+module: LoadSpatialManifestModule
+function: loadManifest
+description: Reads spatial manifest and annotates entries with manifest digest
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_load_spatial_manifest.py  # CI test to be implemented after pipeline is in place
+assertion: entries count matches manifest size
+Confidence=HIGH
+<<<END IC-FIX>>>
+
+<<<IC-FIX id=2>
+Stage: BuildSpatialManifestDigest
+INPUT_ARTIFACT:
+name: spatial_manifest_entries
+path_pattern: s3://data-engine/processed/spatial/spatial_manifest_entries/seed={seed}/fingerprint={fingerprint}/part-*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "spatial_manifest_entries",
+  "type": "record",
+  "fields": [
+    {"name":"artefact_path","type":"string","nullable":false},
+    {"name":"digest","type":"string","nullable":false},
+    {"name":"spatial_manifest_digest","type":"string","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: spatial_manifest_fingerprint
+path_pattern: s3://data-engine/processed/spatial/spatial_manifest_fingerprint.json  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "spatial_manifest_fingerprint",
+  "type": "record",
+  "fields": [
+    {"name":"build_fingerprint","type":"string","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: file_existence
+expected_range: [1, 1]
+ERROR_POLICY:
+error_code: 1302
+retry_max: 1
+retry_backoff_sec: 30
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: spatial-team-read  # placeholder
+write_policy: spatial-team-write  # placeholder
+CONSUMED_BY:
+module: BuildSpatialManifestModule
+function: computeFingerprint
+description: Computes composite fingerprint of spatial manifest entries
+TEST_PATHWAY:
+test_type: integration
+tool: custom
+script: tests/test_spatial_manifest_fingerprint.py  # CI test to be implemented after pipeline is in place
+assertion: fingerprint matches recomputed concatenation hash
+Confidence=MEDIUM
+<<<END IC-FIX>>>
+
+<<<IC-FIX id=3>
+Stage: BuildSpatialPriorLibrary
+INPUT_ARTIFACT:
+name: spatial_manifest_fingerprint
+path_pattern: s3://data-engine/processed/spatial/spatial_manifest_fingerprint.json  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "spatial_manifest_fingerprint",
+  "type": "record",
+  "fields": [
+    {"name":"build_fingerprint","type":"string","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: spatial_prior_library
+path_pattern: s3://data-engine/processed/spatial/spatial_prior_library/seed={seed}/fingerprint={fingerprint}/spatial_prior_library.json  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "spatial_prior_library",
+  "type": "record",
+  "fields": [
+    {"name":"mcc_code","type":"string","nullable":false},
+    {"name":"channel","type":"string","nullable":false},
+    {"name":"prior_file","type":"string","nullable":false},
+    {"name":"checksum","type":"string","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: ["mcc_code","channel"]
+order_by: ["mcc_code"]
+SUCCESS_METRIC:
+metric_name: file_existence
+expected_range: [1, 1]
+ERROR_POLICY:
+error_code: 1303
+retry_max: 2
+retry_backoff_sec: 60
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: spatial-team-read  # placeholder
+write_policy: spatial-team-write  # placeholder
+CONSUMED_BY:
+module: BuildSpatialPriorLibraryModule
+function: buildPriorLibrary
+description: Assembles checksum-verified library of spatial prior files
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_spatial_prior_library.py  # CI test to be implemented after pipeline is in place
+assertion: library entries count matches manifest
+Confidence=HIGH
+<<<END IC-FIX>>>
+
+<<<IC-FIX id=4>
+Stage: BlendRasterPriors
+INPUT_ARTIFACT:
+name: spatial_prior_library
+path_pattern: s3://data-engine/processed/spatial/spatial_prior_library/seed={seed}/fingerprint={fingerprint}/spatial_prior_library.json  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "spatial_prior_library",
+  "type": "record",
+  "fields": [
+    {"name":"mcc_code","type":"string","nullable":false},
+    {"name":"channel","type":"string","nullable":false},
+    {"name":"prior_file","type":"string","nullable":false},
+    {"name":"checksum","type":"string","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: raster_blend
+path_pattern: s3://data-engine/cache/blends/{blend_sha256}.tif  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "raster_blend",
+  "type": "record",
+  "fields": [
+    {"name":"blend_sha256","type":"string","nullable":false},
+    {"name":"file_path","type":"string","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: file_existence
+expected_range: [1, 1]
+ERROR_POLICY:
+error_code: 1304
+retry_max: 1
+retry_backoff_sec: 30
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: spatial-team-read  # placeholder
+write_policy: spatial-team-write  # placeholder
+CONSUMED_BY:
+module: BlendRasterPriorsModule
+function: blendRasters
+description: Creates a deterministic blend of raster priors
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_blend_raster_priors.py  # CI test to be implemented after pipeline is in place
+assertion: blend file adheres to content-address path
+Confidence=MEDIUM
+<<<END IC-FIX>>}
+
+<<<IC-FIX id=5>
+Stage: BuildFenwickTree
+INPUT_ARTIFACT:
+name: raster_blend
+path_pattern: s3://data-engine/cache/blends/{blend_sha256}.tif  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "raster_blend",
+  "type": "record",
+  "fields": [
+    {"name":"blend_sha256","type":"string","nullable":false},
+    {"name":"file_path","type":"string","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: fenwick_index
+path_pattern: s3://data-engine/cache/fenwick/{blend_sha256}/fenwick_index.bin  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "fenwick_index",
+  "type": "record",
+  "fields": [
+    {"name":"blend_sha256","type":"string","nullable":false},
+    {"name":"weights_sum","type":"long","nullable":false},
+    {"name":"scale_factor","type":"double","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: file_existence
+expected_range: [1, 1]
+ERROR_POLICY:
+error_code: 1305
+retry_max: 1
+retry_backoff_sec: 30
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: spatial-team-read  # placeholder
+write_policy: spatial-team-write  # placeholder
+CONSUMED_BY:
+module: BuildFenwickTreeModule
+function: buildFenwick
+description: Constructs Fenwick tree index for weighted sampling
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_build_fenwick_tree.py  # CI test to be implemented after pipeline is in place
+assertion: index file exists and is valid format
+Confidence=HIGH
+<<<END IC-FIX>>}
+
+<<<IC-FIX id=6>
+Stage: SampleCoordinate
+INPUT_ARTIFACT:
+name: fenwick_index
+path_pattern: s3://data-engine/cache/fenwick/{blend_sha256}/fenwick_index.bin  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "fenwick_index",
+  "type": "record",
+  "fields": [
+    {"name":"blend_sha256","type":"string","nullable":false},
+    {"name":"weights_sum","type":"long","nullable":false},
+    {"name":"scale_factor","type":"double","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: raw_coordinates
+path_pattern: s3://data-engine/processed/spatial/raw_coordinates/seed={seed}/fingerprint={fingerprint}/part-*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "raw_coordinates",
+  "type": "record",
+  "fields": [
+    {"name":"pixel_index","type":"int","nullable":false},
+    {"name":"longitude","type":"double","nullable":false},
+    {"name":"latitude","type":"double","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: row_count
+expected_range: [1, 10000]  # placeholder
+ERROR_POLICY:
+error_code: 1306
+retry_max: 3
+retry_backoff_sec: 60
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: spatial-team-read  # placeholder
+write_policy: spatial-team-write  # placeholder
+CONSUMED_BY:
+module: SampleCoordinateModule
+function: sampleFromFenwick
+description: Samples raw pixel-based coordinates from Fenwick index
+TEST_PATHWAY:
+test_type: property-based
+tool: custom
+script: tests/property_test_sample_coordinate.py  # CI test to be implemented after pipeline is in place
+assertion: coordinates derived match weight distribution
+Confidence=MEDIUM
+<<<END IC-FIX>>}
+
+<<<IC-FIX id=7>
+Stage: LandWaterFilter
+INPUT_ARTIFACT:
+name: raw_coordinates
+path_pattern: s3://data-engine/processed/spatial/raw_coordinates/seed={seed}/fingerprint={fingerprint}/part-*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "raw_coordinates",
+  "type": "record",
+  "fields": [
+    {"name":"pixel_index","type":"int","nullable":false},
+    {"name":"longitude","type":"double","nullable":false},
+    {"name":"latitude","type":"double","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: filtered_coordinates
+path_pattern: s3://data-engine/processed/spatial/filtered_coordinates/seed={seed}/fingerprint={fingerprint}/part-*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "filtered_coordinates",
+  "type": "record",
+  "fields": [
+    {"name":"longitude","type":"double","nullable":false},
+    {"name":"latitude","type":"double","nullable":false},
+    {"name":"mask_reason","type":"string","nullable":true}
+  ]
+}
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: row_count
+expected_range: [1, 10000]  # placeholder
+ERROR_POLICY:
+error_code: 1307
+retry_max: 3
+retry_backoff_sec: 60
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: spatial-team-read  # placeholder
+write_policy: spatial-team-write  # placeholder
+CONSUMED_BY:
+module: LandWaterFilterModule
+function: filterCoordinates
+description: Rejects coordinates outside land or beyond road threshold
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_land_water_filter.py  # CI test to be implemented after pipeline is in place
+assertion: no filtered point outside land mask without reason
+Confidence=HIGH
+<<<END IC-FIX>>}
+
+<<<IC-FIX id=8>
+Stage: AssignTimeZone
+INPUT_ARTIFACT:
+name: filtered_coordinates
+path_pattern: s3://data-engine/processed/spatial/filtered_coordinates/seed={seed}/fingerprint={fingerprint}/part-*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "filtered_coordinates",
+  "type": "record",
+  "fields": [
+    {"name":"longitude","type":"double","nullable":false},
+    {"name":"latitude","type":"double","nullable":false},
+    {"name":"mask_reason","type":"string","nullable":true}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: tz_assigned_coordinates
+path_pattern: s3://data-engine/processed/spatial/tz_assigned_coordinates/seed={seed}/fingerprint={fingerprint}/part-*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "tz_assigned_coordinates",
+  "type": "record",
+  "fields": [
+    {"name":"longitude","type":"double","nullable":false},
+    {"name":"latitude","type":"double","nullable":false},
+    {"name":"tzid","type":"string","nullable":false},
+    {"name":"resample_count","type":"int","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: ["tzid"]
+order_by: ["longitude","latitude"]
+SUCCESS_METRIC:
+metric_name: row_count
+expected_range: [1, 10000]  # placeholder
+ERROR_POLICY:
+error_code: 1308
+retry_max: 3
+retry_backoff_sec: 60
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: spatial-team-read  # placeholder
+write_policy: spatial-team-write  # placeholder
+CONSUMED_BY:
+module: AssignTimeZoneModule
+function: assignTzid
+description: Maps coordinates to IANA tzid and handles mismatches
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_assign_timezone.py  # CI test to be implemented after pipeline is in place
+assertion: tzid values conform to metadata
+Confidence=MEDIUM
+<<<END IC-FIX>>}
+
+<<<IC-FIX id=9>
+Stage: ComputeFootTraffic
+INPUT_ARTIFACT:
+name: tz_assigned_coordinates
+path_pattern: s3://data-engine/processed/spatial/tz_assigned_coordinates/seed={seed}/fingerprint={fingerprint}/part-*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "tz_assigned_coordinates",
+  "type": "record",
+  "fields": [
+    {"name":"longitude","type":"double","nullable":false},
+    {"name":"latitude","type":"double","nullable":false},
+    {"name":"tzid","type":"string","nullable":false},
+    {"name":"resample_count","type":"int","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: footfall_draws
+path_pattern: s3://data-engine/processed/spatial/footfall_draws/seed={seed}/fingerprint={fingerprint}/part-*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "footfall_draws",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"site_id","type":"string","nullable":false},
+    {"name":"kappa","type":"double","nullable":false},
+    {"name":"sigma","type":"double","nullable":false},
+    {"name":"epsilon","type":"double","nullable":false},
+    {"name":"footfall_preclip","type":"double","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: ["site_id"]
+order_by: ["merchant_id"]
+SUCCESS_METRIC:
+metric_name: row_count
+expected_range: [1, 10000]  # placeholder
+ERROR_POLICY:
+error_code: 1309
+retry_max: 3
+retry_backoff_sec: 60
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: spatial-team-read  # placeholder
+write_policy: spatial-team-write  # placeholder
+CONSUMED_BY:
+module: ComputeFootTrafficModule
+function: drawFootfall
+description: Calculates footfall scalar and logs draw details
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_compute_foot_traffic.py  # CI test to be implemented after pipeline is in place
+assertion: draws match expected distribution
+Confidence=HIGH
+<<<END IC-FIX>>}
+
+<<<IC-FIX id=10>
+Stage: WriteSiteParquet
+INPUT_ARTIFACT:
+name: footfall_draws
+path_pattern: s3://data-engine/processed/spatial/footfall_draws/seed={seed}/fingerprint={fingerprint}/part-*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "footfall_draws",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"site_id","type":"string","nullable":false},
+    {"name":"kappa","type":"double","nullable":false},
+    {"name":"sigma","type":"double","nullable":false},
+    {"name":"epsilon","type":"double","nullable":false},
+    {"name":"footfall_preclip","type":"double","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: site_catalogue
+path_pattern: s3://data-engine/processed/spatial/site_catalogue/seed={seed}/fingerprint={fingerprint}/partition_date={date}/site_id={site_id}.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "site_catalogue",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"site_id","type":"string","nullable":false},
+    {"name":"geometry","type":"string","nullable":false},
+    {"name":"footfall_preclip","type":"double","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: ["partition_date","site_id"]
+order_by: ["site_id"]
+SUCCESS_METRIC:
+metric_name: file_count
+expected_range: [1, 100]  # placeholder
+ERROR_POLICY:
+error_code: 1310
+retry_max: 1
+retry_backoff_sec: 30
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: spatial-team-read  # placeholder
+write_policy: spatial-team-write  # placeholder
+CONSUMED_BY:
+module: WriteSiteParquetModule
+function: writeSiteData
+description: Persists final site catalogue partitioned by date and site
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_write_site_parquet.py  # CI test to be implemented after pipeline is in place
+assertion: output files exist with correct schema
+Confidence=MEDIUM
+<<<END IC-FIX>>}
+
+<<<IC-FIX id=11>
+Stage: FinalManifestWriter
+INPUT_ARTIFACT:
+name: site_catalogue
+path_pattern: s3://data-engine/processed/spatial/site_catalogue/seed={seed}/fingerprint={fingerprint}/**/*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "site_catalogue",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"site_id","type":"string","nullable":false},
+    {"name":"geometry","type":"string","nullable":false},
+    {"name":"footfall_preclip","type":"double","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: spatial_catalogue_manifest
+path_pattern: s3://data-engine/processed/spatial/spatial_catalogue_manifest_seed={seed}_fingerprint={fingerprint}.json  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "spatial_catalogue_manifest",
+  "type": "record",
+  "fields": [
+    {"name":"seed","type":"long","nullable":false},
+    {"name":"fingerprint","type":"string","nullable":false},
+    {"name":"file_list","type":{"type":"array","items":"string"},"nullable":false}
+  ]
+}
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: file_existence
+expected_range: [1, 1]
+ERROR_POLICY:
+error_code: 1311
+retry_max: 0
+retry_backoff_sec: 0
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: spatial-team-read  # placeholder
+write_policy: spatial-team-write  # placeholder
+CONSUMED_BY:
+module: FinalManifestWriterModule
+function: writeManifest
+description: Emits final manifest of site catalogue files and build parameters
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_final_manifest_writer.py  # CI test to be implemented after pipeline is in place
+assertion: manifest file exists and lists all partitions
+Confidence=HIGH
+<<<END IC-FIX>>}
+
+##### END INTERFACE_CONTRACT_SPEC #####
+
+id=1 | gaps_closed=input|output|schema|metric|error | notes=Defined output artifact and full schema  
+id=2 | gaps_closed=input|output|schema|metric|error | notes=Added fingerprint output and schema  
+id=3 | gaps_closed=input|output|schema|metric|error | notes=Specified prior library output schema  
+id=4 | gaps_closed=input|output|schema|metric|error | notes=Defined raster blend output and schema  
+id=5 | gaps_closed=input|output|schema|metric|error | notes=Completed Fenwick index spec  
+id=6 | gaps_closed=input|output|schema|metric|error | notes=Added raw coordinate output schema  
+id=7 | gaps_closed=input|output|schema|metric|error | notes=Defined filtered coordinates contract  
+id=8 | gaps_closed=input|output|schema|metric|error | notes=Specified timezone assignment output  
+id=9 | gaps_closed=input|output|schema|metric|error | notes=Completed footfall draws schema  
+id=10 | gaps_closed=input|output|schema|metric|error | notes=Defined site parquet write spec  
+id=11 | gaps_closed=input|output|schema|metric|error | notes=Final manifest write schema defined  
+<<IS-END>>

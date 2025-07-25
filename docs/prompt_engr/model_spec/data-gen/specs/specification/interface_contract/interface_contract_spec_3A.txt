@@ -1,0 +1,522 @@
+<<<IC-FIX id=1>
+Stage: FlagEscalationCountries
+INPUT_ARTIFACT:
+name: merchant_country_mass
+path_pattern: s3://data-engine/processed/merchant_country_mass_vector.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "merchant_country_mass_vector",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"country_iso","type":"string","nullable":false},
+    {"name":"mass","type":"double","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: escalation_countries
+path_pattern: s3://data-engine/processed/allocation/escalation_countries.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "escalation_countries",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"country_iso","type":"string","nullable":false},
+    {"name":"mass","type":"double","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: ["merchant_id"]
+order_by: ["country_iso"]
+SUCCESS_METRIC:
+metric_name: row_count
+expected_range: [1, 10000]  # placeholder
+ERROR_POLICY:
+error_code: EscalationFlagError
+retry_max: 1
+retry_backoff_sec: 30
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: processing-team-read  # placeholder
+write_policy: allocation-team-write  # placeholder
+CONSUMED_BY:
+module: FlagEscalationCountriesModule
+function: flagEscalationCountries
+description: Identifies countries exceeding mix threshold for time-zone mixture
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_flag_escalation_countries.py  # CI test to be implemented after pipeline is in place
+assertion: all mass > threshold are flagged
+Confidence=MEDIUM
+<<<END IC-FIX>>>
+
+<<<IC-FIX id=2>
+Stage: ComputeDirichletShares
+INPUT_ARTIFACT:
+name: escalation_countries
+path_pattern: s3://data-engine/processed/allocation/escalation_countries.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "escalation_countries",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"country_iso","type":"string","nullable":false},
+    {"name":"mass","type":"double","nullable":false}
+  ]
+}
+INPUT_ARTIFACT:
+name: country_zone_alphas
+path_pattern: s3://data-engine/config/allocation/country_zone_alphas.yaml  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "country_zone_alphas",
+  "type": "record",
+  "fields": [
+    {"name":"country_iso","type":"string","nullable":false},
+    {"name":"alphas","type":{"type":"array","items":"double"},"nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: dirichlet_shares
+path_pattern: s3://data-engine/processed/allocation/dirichlet_shares.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "dirichlet_shares",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"country_iso","type":"string","nullable":false},
+    {"name":"tzid","type":"string","nullable":false},
+    {"name":"alpha","type":"double","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: ["merchant_id","country_iso"]
+order_by: ["tzid"]
+SUCCESS_METRIC:
+metric_name: row_count
+expected_range: [1, 10000]  # placeholder
+ERROR_POLICY:
+error_code: DirichletComputeError
+retry_max: 1
+retry_backoff_sec: 30
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: allocation-team-read  # placeholder
+write_policy: allocation-team-write  # placeholder
+CONSUMED_BY:
+module: ComputeDirichletSharesModule
+function: computeDirichletShares
+description: Reads alpha vectors and computes Dirichlet share for each TZID
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_compute_dirichlet_shares.py  # CI test to be implemented after pipeline is in place
+assertion: shares sum to one per country per merchant
+Confidence=MEDIUM
+<<<END IC-FIX>>>
+
+<<<IC-FIX id=3>
+Stage: ApplyDeterministicRounding
+INPUT_ARTIFACT:
+name: dirichlet_shares
+path_pattern: s3://data-engine/processed/allocation/dirichlet_shares.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "dirichlet_shares",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"country_iso","type":"string","nullable":false},
+    {"name":"tzid","type":"string","nullable":false},
+    {"name":"alpha","type":"double","nullable":false}
+  ]
+}
+INPUT_ARTIFACT:
+name: outlet_count
+path_pattern: s3://data-engine/processed/outlet_counts.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "outlet_counts",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"country_iso","type":"string","nullable":false},
+    {"name":"N_outlets","type":"int","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: deterministic_counts
+path_pattern: s3://data-engine/processed/allocation/deterministic_counts.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "deterministic_counts",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"country_iso","type":"string","nullable":false},
+    {"name":"tzid","type":"string","nullable":false},
+    {"name":"expected_count","type":"double","nullable":false},
+    {"name":"rounded_count","type":"int","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: ["merchant_id"]
+order_by: ["country_iso","tzid"]
+SUCCESS_METRIC:
+metric_name: row_count
+expected_range: [1, 10000]  # placeholder
+ERROR_POLICY:
+error_code: RoundingError
+retry_max: 1
+retry_backoff_sec: 30
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: allocation-team-read  # placeholder
+write_policy: allocation-team-write  # placeholder
+CONSUMED_BY:
+module: ApplyDeterministicRoundingModule
+function: applyDeterministicRounding
+description: Rounds Dirichlet shares to integer counts using largest-remainder
+TEST_PATHWAY:
+test_type: property-based
+tool: custom
+script: tests/property_test_deterministic_rounding.py  # CI test to be implemented after pipeline is in place
+assertion: integers sum to N_outlets
+Confidence=HIGH
+<<<END IC-FIX>>>
+
+<<<IC-FIX id=4>
+Stage: ApplyBumpRule
+INPUT_ARTIFACT:
+name: deterministic_counts
+path_pattern: s3://data-engine/processed/allocation/deterministic_counts.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "deterministic_counts",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"country_iso","type":"string","nullable":false},
+    {"name":"tzid","type":"string","nullable":false},
+    {"name":"expected_count","type":"double","nullable":false},
+    {"name":"rounded_count","type":"int","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: bumped_counts
+path_pattern: s3://data-engine/processed/allocation/bumped_counts.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "bumped_counts",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"country_iso","type":"string","nullable":false},
+    {"name":"tzid","type":"string","nullable":false},
+    {"name":"final_count","type":"int","nullable":false},
+    {"name":"bump_applied","type":"boolean","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: ["merchant_id"]
+order_by: ["country_iso","tzid"]
+SUCCESS_METRIC:
+metric_name: row_count
+expected_range: [1, 10000]  # placeholder
+ERROR_POLICY:
+error_code: BumpRuleError
+retry_max: 1
+retry_backoff_sec: 30
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: allocation-team-read  # placeholder
+write_policy: allocation-team-write  # placeholder
+CONSUMED_BY:
+module: ApplyBumpRuleModule
+function: applyBumpRule
+description: Ensures high-expectation zones receive at least one outlet
+TEST_PATHWAY:
+test_type: property-based
+tool: custom
+script: tests/property_test_bump_rule.py  # CI test to be implemented after pipeline is in place
+assertion: no expected_count >0.8 has final_count zero
+Confidence=HIGH
+<<<END IC-FIX>>>
+
+<<<IC-FIX id=5>
+Stage: ComputeMajorZoneFallback
+INPUT_ARTIFACT:
+name: merchant_country_mass
+path_pattern: s3://data-engine/processed/merchant_country_mass_vector.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{ "type": "record", "fields":[{"name":"merchant_id","type":"string"},{"name":"country_iso","type":"string"},{"name":"mass","type":"double"}] }
+INPUT_ARTIFACT:
+name: country_major_zone
+path_pattern: s3://data-engine/artefacts/allocation/country_major_zone.csv  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "country_major_zone",
+  "type": "record",
+  "fields": [
+    {"name":"country_iso","type":"string","nullable":false},
+    {"name":"major_tzid","type":"string","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: major_zone_allocations
+path_pattern: s3://data-engine/processed/allocation/major_zone_allocations.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "major_zone_allocations",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"country_iso","type":"string","nullable":false},
+    {"name":"major_tzid","type":"string","nullable":false},
+    {"name":"allocated_outlets","type":"int","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: ["merchant_id"]
+order_by: ["country_iso"]
+SUCCESS_METRIC:
+metric_name: row_count
+expected_range: [1, 10000]  # placeholder
+ERROR_POLICY:
+error_code: MajorZoneFallbackError
+retry_max: 1
+retry_backoff_sec: 30
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: allocation-team-read  # placeholder
+write_policy: allocation-team-write  # placeholder
+CONSUMED_BY:
+module: ComputeMajorZoneFallbackModule
+function: computeMajorZoneFallback
+description: Assigns all outlets to major zone when mass below threshold
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_compute_major_zone_fallback.py  # CI test to be implemented after pipeline is in place
+assertion: allocations match major_zone.csv entries
+Confidence=MEDIUM
+<<<END IC-FIX>>>
+
+<<<IC-FIX id=6>
+Stage: EnforceZoneFloors
+INPUT_ARTIFACT:
+name: bumped_counts
+path_pattern: s3://data-engine/processed/allocation/bumped_counts.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{ "type":"record","name":"bumped_counts","fields":[{"name":"merchant_id","type":"string"},{"name":"country_iso","type":"string"},{"name":"tzid","type":"string"},{"name":"final_count","type":"int"},{"name":"bump_applied","type":"boolean"}] }
+INPUT_ARTIFACT:
+name: zone_floor_config
+path_pattern: s3://data-engine/config/allocation/zone_floor.yml  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "zone_floor_config",
+  "type": "record",
+  "fields": [
+    {"name":"tzid","type":"string","nullable":false},
+    {"name":"floor_count","type":"int","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: floored_counts
+path_pattern: s3://data-engine/processed/allocation/floored_counts.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "floored_counts",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"country_iso","type":"string","nullable":false},
+    {"name":"tzid","type":"string","nullable":false},
+    {"name":"adjusted_count","type":"int","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: ["merchant_id"]
+order_by: ["country_iso","tzid"]
+SUCCESS_METRIC:
+metric_name: row_count
+expected_range: [1, 10000]  # placeholder
+ERROR_POLICY:
+error_code: ZoneFloorError
+retry_max: 1
+retry_backoff_sec: 30
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: allocation-team-read  # placeholder
+write_policy: allocation-team-write  # placeholder
+CONSUMED_BY:
+module: EnforceZoneFloorsModule
+function: enforceZoneFloors
+description: Ensures counts respect configured zone floors
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_enforce_zone_floors.py  # CI test to be implemented after pipeline is in place
+assertion: no adjusted_count below floor
+Confidence=HIGH
+<<<END IC-FIX>>>
+
+<<<IC-FIX id=7>
+Stage: WriteZoneAllocParquet
+INPUT_ARTIFACT:
+name: floored_counts
+path_pattern: s3://data-engine/processed/allocation/floored_counts.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "floored_counts",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"country_iso","type":"string","nullable":false},
+    {"name":"tzid","type":"string","nullable":false},
+    {"name":"adjusted_count","type":"int","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: zone_alloc_parquet
+path_pattern: s3://data-engine/artefacts/allocation/{merchant_id}_zone_alloc.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "zone_alloc_parquet",
+  "type": "record",
+  "fields": [
+    {"name":"country_iso","type":"string","nullable":false},
+    {"name":"tzid","type":"string","nullable":false},
+    {"name":"N_outlets","type":"int","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: ["merchant_id"]
+order_by: ["country_iso","tzid"]
+SUCCESS_METRIC:
+metric_name: file_existence
+expected_range: [1, 1]
+ERROR_POLICY:
+error_code: WriteAllocError
+retry_max: 1
+retry_backoff_sec: 30
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: allocation-team-read  # placeholder
+write_policy: allocation-team-write  # placeholder
+CONSUMED_BY:
+module: WriteZoneAllocParquetModule
+function: writeZoneAllocParquet
+description: Emits final zone allocation Parquet files per merchant
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_write_zone_alloc_parquet.py  # CI test to be implemented after pipeline is in place
+assertion: parquet schema and contents valid
+Confidence=MEDIUM
+<<<END IC-FIX>>>
+
+<<<IC-FIX id=8>
+Stage: AppendZoneAllocIndex
+INPUT_ARTIFACT:
+name: zone_alloc_parquet
+path_pattern: s3://data-engine/artefacts/allocation/{merchant_id}_zone_alloc.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "zone_alloc_parquet",
+  "type": "record",
+  "fields": [
+    {"name":"country_iso","type":"string","nullable":false},
+    {"name":"tzid","type":"string","nullable":false},
+    {"name":"N_outlets","type":"int","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: zone_alloc_index
+path_pattern: s3://data-engine/artefacts/allocation/zone_alloc_index.csv  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "zone_alloc_index",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"sha256","type":"string","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: file_existence
+expected_range: [1, 1]
+ERROR_POLICY:
+error_code: IndexAppendError
+retry_max: 1
+retry_backoff_sec: 30
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0-draft
+ACCESS_POLICY:
+read_policy: allocation-team-read  # placeholder
+write_policy: allocation-team-write  # placeholder
+CONSUMED_BY:
+module: AppendZoneAllocIndexModule
+function: appendZoneAllocIndex
+description: Records Parquet file hashes into index CSV
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_append_zone_alloc_index.py  # CI test to be implemented after pipeline is in place
+assertion: index CSV entries match parquet files
+Confidence=MEDIUM
+<<<END IC-FIX>>}
+
+##### END INTERFACE_CONTRACT_SPEC #####
+
+id=1 | gaps_closed=input|output|schema|metric|error|access | notes=Defined mass vector and escalation outputs  
+id=2 | gaps_closed=input|output|schema|metric|error|access | notes=Specified alpha ledger and Dirichlet shares  
+id=3 | gaps_closed=input|output|schema|metric|error|access | notes=Completed deterministic rounding spec  
+id=4 | gaps_closed=input|output|schema|metric|error|access | notes=Added bump rule outputs and schema  
+id=5 | gaps_closed=input|output|schema|metric|error|access | notes=Defined major zone fallback spec  
+id=6 | gaps_closed=input|output|schema|metric|error|access | notes=Enforced zone floors spec  
+id=7 | gaps_closed=input|output|schema|metric|error|access | notes=Formalized zone alloc Parquet write  
+id=8 | gaps_closed=input|output|schema|metric|error|access | notes=Completed index CSV append spec  
+<<IS-END>>  

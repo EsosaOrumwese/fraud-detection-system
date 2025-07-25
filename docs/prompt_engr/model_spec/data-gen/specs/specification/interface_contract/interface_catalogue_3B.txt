@@ -1,0 +1,156 @@
+--- IC 1 ---
+Stage: DeriveIsVirtual
+Anchor: "The branch that labels a merchant “virtual” is taken when the boolean column `is_virtual` of the `merchant_master` table is true. That column … is pre-populated by the script `derive_is_virtual.py`, which reads … `mcc_channel_rules.yaml`." :contentReference[oaicite:5]{index=5}
+Input_artefact: merchant_master.parquet; config/virtual/mcc_channel_rules.yaml
+Input_schema: Yes
+Output_artefact: merchant_master.parquet
+Output_schema: Yes
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: CreateSettlementNode
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=N
+  output_missing=N
+  output_schema_missing=N
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=Medium
+Context: “… boolean column `is_virtual` … is pre-populated by the script `derive_is_virtual.py` …” 
+Confidence=MEDIUM
+--- END IC 1 ---
+
+--- IC 2 ---
+Stage: CreateSettlementNode
+Anchor: "Once `is_virtual` is true … the generator creates one **settlement node** whose `site_id` is the hexadecimal SHA-1 digest of … `(merchant_id,"SETTLEMENT")`." :contentReference[oaicite:6]{index=6}
+Input_artefact: artefacts/virtual/virtual_settlement_coords.csv
+Input_schema: Yes
+Output_artefact: site_catalogue/partition_date=*/merchant_id=*/site_id=*.parquet
+Output_schema: Yes
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: WriteSiteParquet
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=N
+  output_missing=N
+  output_schema_missing=N
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… generator creates one **settlement node** …” 
+Confidence=MEDIUM
+--- END IC 2 ---
+
+--- IC 3 ---
+Stage: BuildEdgeCatalogue
+Anchor: "Edge catalogue generation proceeds deterministically inside `build_edge_catalogue.py`. For merchant *m* the script reads `config/virtual/cdn_country_weights.yaml`, multiplies each weight by E, runs largest-remainder rounding … writes a row to **`edge_catalogue/<merchant_id>.parquet`** containing (`edge_id`, `country_iso`, `tzid`, `lat`, `lon`, `edge_weight`)." :contentReference[oaicite:7]{index=7}
+Input_artefact: config/virtual/cdn_country_weights.yaml; artefacts/rasters/hrsl_100m.tif
+Input_schema: Partial
+Output_artefact: edge_catalogue/<merchant_id>.parquet
+Output_schema: Yes
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: BuildCdnAliasTable
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=N
+  output_schema_missing=N
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… writes a row to **`edge_catalogue/<merchant_id>.parquet`** containing …” 
+Confidence=MEDIUM
+--- END IC 3 ---
+
+--- IC 4 ---
+Stage: BuildCdnAliasTable
+Anchor: "Philox sub-stream key is defined as the SHA-256 of … `(global_seed,"CDN",merchant_id)`; this policy resides in `config/routing/rng_policy.yml` … these three digests … concatenated … and hashed into **`virtual_universe_hash`**, stored as a top-level attribute in `<merchant_id>_cdn_alias.npz`." :contentReference[oaicite:8]{index=8}
+Input_artefact: edge_catalogue/<merchant_id>.parquet; config/routing/rng_policy.yml
+Input_schema: Partial
+Output_artefact: <merchant_id>_cdn_alias.npz
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: semver
+Access_policy: Missing
+Consumed_by: RouteTransaction
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=N
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=N
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… hashed into **`virtual_universe_hash`**, stored as … `<merchant_id>_cdn_alias.npz`.” 
+Confidence=MEDIUM
+--- END IC 4 ---
+
+--- IC 5 ---
+Stage: ValidateVirtual
+Anchor: "Validation for virtual merchants is codified in `validate_virtual.py`. It loads 30 synthetic days … fails if any $|\hat{\pi}_c - \pi_c| > 0.02$ … checks that … closed interval [23:59:54, 23:59:59]." :contentReference[oaicite:9]{index=9}
+Input_artefact: config/virtual/virtual_validation.yml
+Input_schema: Yes
+Output_artefact: logs/validate_virtual.log
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: semver
+Access_policy: Missing
+Consumed_by: CI_CD_Pipeline
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=N
+  output_missing=N
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=N
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… codified in `validate_virtual.py` … fails if any $|\hat{\pi}_c - \pi_c| > 0.02$ …” 
+Confidence=MEDIUM
+--- END IC 5 ---
+
+<<IC-END>>
