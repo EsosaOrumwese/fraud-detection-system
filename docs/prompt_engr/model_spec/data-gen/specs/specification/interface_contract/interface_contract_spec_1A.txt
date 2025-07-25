@@ -1,0 +1,542 @@
+<<<IC-FIX id=1>
+Stage: ComputeGDPBuckets
+INPUT_ARTIFACT:
+name: gdp_bucket_map
+path_pattern: s3://data-engine/artefacts/gdp/gdp_bucket_map_2024.parquet  # File not yet created; path is reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "gdp_bucket_map",
+  "type": "record",
+  "fields": [
+    {"name":"iso_country_code","type":"string","nullable":false},
+    {"name":"gdp_value","type":"double","nullable":false},
+    {"name":"bucket","type":"int","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: merchant_gdp_bucket_assignment
+path_pattern: s3://data-engine/processed/merchant_gdp_bucket_assignment/seed={seed}/fingerprint={fingerprint}/part-*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "merchant_gdp_bucket_assignment",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"iso_country_code","type":"string","nullable":false},
+    {"name":"gdp_bucket","type":"int","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: ["iso_country_code"]
+order_by: ["merchant_id"]
+SUCCESS_METRIC:
+metric_name: row_count
+expected_range: [1000, 1000000]  # placeholder
+ERROR_POLICY:
+error_code: 1201
+retry_max: 3
+retry_backoff_sec: 60
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0  # spec version
+ACCESS_POLICY:
+read_policy: internal-data-team-read  # placeholder
+write_policy: downstream-services-write  # placeholder
+CONSUMED_BY:
+module: HurdleDecisionModule
+function: computeGdpBucket
+description: Maps merchant countries to GDP buckets for hurdle model input
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_compute_gdp_buckets.py  # CI test to be implemented after pipeline is in place
+assertion: row_count within expected_range
+Confidence=MEDIUM
+<<<END IC-FIX>>>
+
+<<<IC-FIX id=2>
+Stage: LoadHurdleCoefficients
+INPUT_ARTIFACT:
+name: hurdle_coefficients.yaml
+path_pattern: s3://data-engine/config/hurdle_coefficients.yaml  # File not yet created; path is reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "hurdle_coefficients",
+  "type": "record",
+  "fields": [
+    {"name":"mcc_code","type":"string","nullable":false},
+    {"name":"channel","type":"string","nullable":false},
+    {"name":"coefficient","type":"double","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: parsed_hurdle_coefficients
+path_pattern: s3://data-engine/processed/parsed_hurdle_coefficients/seed={seed}/fingerprint={fingerprint}/part-*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "parsed_hurdle_coefficients",
+  "type": "record",
+  "fields": [
+    {"name":"mcc_code","type":"string","nullable":false},
+    {"name":"channel","type":"string","nullable":false},
+    {"name":"coefficient","type":"double","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: ["mcc_code","channel"]
+order_by: ["mcc_code"]
+SUCCESS_METRIC:
+metric_name: file_existence
+expected_range: [1, 1]
+ERROR_POLICY:
+error_code: 1202
+retry_max: 1
+retry_backoff_sec: 30
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0
+ACCESS_POLICY:
+read_policy: config-team-read  # placeholder
+write_policy: processing-team-write  # placeholder
+CONSUMED_BY:
+module: HurdleDecisionModule
+function: loadCoefficients
+description: Reads hurdle model coefficients for merchant-level logistic decision
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_load_hurdle_coefficients.py  # CI test to be implemented after pipeline is in place
+assertion: parsed_hurdle_coefficients exists
+Confidence=HIGH
+<<<END IC-FIX>>>
+
+<<<IC-FIX id=3>
+Stage: HurdleDecision
+INPUT_ARTIFACT:
+name: parsed_hurdle_coefficients
+path_pattern: s3://data-engine/processed/parsed_hurdle_coefficients/seed={seed}/fingerprint={fingerprint}/part-*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "parsed_hurdle_coefficients",
+  "type": "record",
+  "fields": [
+    {"name":"mcc_code","type":"string","nullable":false},
+    {"name":"channel","type":"string","nullable":false},
+    {"name":"coefficient","type":"double","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: hurdle_decision_log
+path_pattern: s3://data-engine/logs/rng_audit/hurdle_decision/seed={seed}/fingerprint={fingerprint}/part-*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "hurdle_decision_log",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"decision","type":"boolean","nullable":false},
+    {"name":"uniform_sample","type":"double","nullable":false},
+    {"name":"probability","type":"double","nullable":false},
+    {"name":"stride","type":"long","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: ["decision"]
+order_by: ["merchant_id"]
+SUCCESS_METRIC:
+metric_name: row_count
+expected_range: [1000, 1000000]  # placeholder
+ERROR_POLICY:
+error_code: 1203
+retry_max: 3
+retry_backoff_sec: 60
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0
+ACCESS_POLICY:
+read_policy: processing-team-read  # placeholder
+write_policy: audit-team-write  # placeholder
+CONSUMED_BY:
+module: NBCountModule
+function: recordHurdleOutcome
+description: Persists hurdle decision and RNG audit details
+TEST_PATHWAY:
+test_type: property-based
+tool: custom
+script: tests/property_test_hurdle_decision.py  # CI test to be implemented after pipeline is in place
+assertion: decisions match expected probability distribution
+Confidence=MEDIUM
+<<<END IC-FIX>>>
+
+<<<IC-FIX id=4>
+Stage: ComputeNBParameters
+INPUT_ARTIFACT:
+name: parsed_hurdle_coefficients
+path_pattern: s3://data-engine/processed/parsed_hurdle_coefficients/seed={seed}/fingerprint={fingerprint}/part-*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "parsed_hurdle_coefficients",
+  "type": "record",
+  "fields": [
+    {"name":"mcc_code","type":"string","nullable":false},
+    {"name":"channel","type":"string","nullable":false},
+    {"name":"coefficient","type":"double","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: nb_parameters
+path_pattern: s3://data-engine/processed/nb_parameters/seed={seed}/fingerprint={fingerprint}/part-*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "nb_parameters",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"mu","type":"double","nullable":false},
+    {"name":"phi","type":"double","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: ["merchant_id"]
+order_by: ["merchant_id"]
+SUCCESS_METRIC:
+metric_name: row_count
+expected_range: [1000, 1000000]  # placeholder
+ERROR_POLICY:
+error_code: 1204
+retry_max: 3
+retry_backoff_sec: 60
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0
+ACCESS_POLICY:
+read_policy: processing-team-read  # placeholder
+write_policy: processing-team-write  # placeholder
+CONSUMED_BY:
+module: DrawNBCountModule
+function: computeNBParams
+description: Calculates mean and dispersion parameters for negative binomial draw
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_compute_nb_parameters.py  # CI test to be implemented after pipeline is in place
+assertion: parameters within expected statistical bounds
+Confidence=MEDIUM
+<<<END IC-FIX>>>
+
+<<<IC-FIX id=5>
+Stage: DrawNBCount
+INPUT_ARTIFACT:
+name: nb_parameters
+path_pattern: s3://data-engine/processed/nb_parameters/seed={seed}/fingerprint={fingerprint}/part-*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "nb_parameters",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"mu","type":"double","nullable":false},
+    {"name":"phi","type":"double","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: nb_count_draws
+path_pattern: s3://data-engine/logs/rng_audit/nb_count_draws/seed={seed}/fingerprint={fingerprint}/part-*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "nb_count_draws",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"draw","type":"int","nullable":false},
+    {"name":"rejection_count","type":"int","nullable":false},
+    {"name":"stride","type":"long","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: ["merchant_id"]
+order_by: ["merchant_id"]
+SUCCESS_METRIC:
+metric_name: row_count
+expected_range: [1000, 1000000]  # placeholder
+ERROR_POLICY:
+error_code: 1205
+retry_max: 3
+retry_backoff_sec: 60
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0
+ACCESS_POLICY:
+read_policy: processing-team-read  # placeholder
+write_policy: audit-team-write  # placeholder
+CONSUMED_BY:
+module: CrossBorderModule
+function: drawNBCount
+description: Samples NB count with rejection logic and logs RNG details
+TEST_PATHWAY:
+test_type: property-based
+tool: custom
+script: tests/property_test_nb_draws.py  # CI test to be implemented after pipeline is in place
+assertion: no infinite loops and draws ≥2
+Confidence=MEDIUM
+<<<END IC-FIX>>>
+
+<<<IC-FIX id=6>
+Stage: CrossBorderCount
+INPUT_ARTIFACT:
+name: nb_count_draws
+path_pattern: s3://data-engine/logs/rng_audit/nb_count_draws/seed={seed}/fingerprint={fingerprint}/part-*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "nb_count_draws",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"draw","type":"int","nullable":false},
+    {"name":"rejection_count","type":"int","nullable":false},
+    {"name":"stride","type":"long","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: crossborder_counts
+path_pattern: s3://data-engine/processed/crossborder_counts/seed={seed}/fingerprint={fingerprint}/part-*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "crossborder_counts",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"extra_count","type":"int","nullable":false},
+    {"name":"rejection_count","type":"int","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: ["merchant_id"]
+order_by: ["merchant_id"]
+SUCCESS_METRIC:
+metric_name: row_count
+expected_range: [1000, 1000000]  # placeholder
+ERROR_POLICY:
+error_code: 1206
+retry_max: 3
+retry_backoff_sec: 60
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0
+ACCESS_POLICY:
+read_policy: processing-team-read  # placeholder
+write_policy: processing-team-write  # placeholder
+CONSUMED_BY:
+module: CurrencyCountryExpansionModule
+function: computeCrossBorderCount
+description: Performs zero-truncated Poisson draws for extra sites
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_crossborder_count.py  # CI test to be implemented after pipeline is in place
+assertion: extra_count ≥1 and ≤64
+Confidence=MEDIUM
+<<<END IC-FIX>>>
+
+<<<IC-FIX id=7>
+Stage: CurrencyCountryExpansion
+INPUT_ARTIFACT:
+name: crossborder_counts
+path_pattern: s3://data-engine/processed/crossborder_counts/seed={seed}/fingerprint={fingerprint}/part-*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "crossborder_counts",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"extra_count","type":"int","nullable":false},
+    {"name":"rejection_count","type":"int","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: country_candidate_list
+path_pattern: s3://data-engine/processed/country_candidate_list/seed={seed}/fingerprint={fingerprint}/part-*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "country_candidate_list",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"country_code","type":"string","nullable":false},
+    {"name":"weight","type":"double","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: ["merchant_id"]
+order_by: ["weight"]
+SUCCESS_METRIC:
+metric_name: file_existence
+expected_range: [1, 1]
+ERROR_POLICY:
+error_code: 1207
+retry_max: 2
+retry_backoff_sec: 60
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0
+ACCESS_POLICY:
+read_policy: processing-team-read  # placeholder
+write_policy: processing-team-write  # placeholder
+CONSUMED_BY:
+module: DirichletAllocationModule
+function: expandCurrencyToCountries
+description: Builds candidate country list per merchant using settlement shares
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_currency_country_expansion.py  # CI test to be implemented after pipeline is in place
+assertion: at least one country per merchant
+Confidence=MEDIUM
+<<<END IC-FIX>>>
+
+<<<IC-FIX id=8>
+Stage: WriteOutletCatalogue
+INPUT_ARTIFACT:
+name: _manifest
+path_pattern: s3://data-engine/processed/_manifest.json  # File not yet created; path is reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "_manifest",
+  "type": "record",
+  "fields": [
+    {"name":"seed","type":"long","nullable":false},
+    {"name":"fingerprint","type":"string","nullable":false},
+    {"name":"artefact_list","type":{"type":"array","items":"string"},"nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: outlet_catalogue
+path_pattern: s3://data-engine/processed/outlet_catalogue/seed={seed}/fingerprint={fingerprint}/part-*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "outlet_catalogue",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"site_id","type":"string","nullable":false},
+    {"name":"country_code","type":"string","nullable":false},
+    {"name":"geometry","type":"string","nullable":false},
+    {"name":"footfall_weight","type":"double","nullable":false}
+  ]
+}
+PARTITIONING:
+keys: ["country_code"]
+order_by: ["site_id"]
+SUCCESS_METRIC:
+metric_name: file_count
+expected_range: [1, 100]  # placeholder
+ERROR_POLICY:
+error_code: 1208
+retry_max: 1
+retry_backoff_sec: 30
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0
+ACCESS_POLICY:
+read_policy: processing-team-read  # placeholder
+write_policy: processing-team-write  # placeholder
+CONSUMED_BY:
+module: ValidationModule
+function: ValidateOutletCatalogue
+description: Persists full outlet catalogue for downstream processing
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_write_outlet_catalogue.py  # CI test to be implemented after pipeline is in place
+assertion: files exist and schema match
+Confidence=MEDIUM
+<<<END IC-FIX>>>
+
+<<<IC-FIX id=9>
+Stage: ValidateOutletCatalogue
+INPUT_ARTIFACT:
+name: outlet_catalogue
+path_pattern: s3://data-engine/processed/outlet_catalogue/seed={seed}/fingerprint={fingerprint}/part-*.parquet  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "outlet_catalogue",
+  "type": "record",
+  "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"site_id","type":"string","nullable":false},
+    {"name":"country_code","type":"string","nullable":false},
+    {"name":"geometry","type":"string","nullable":false},
+    {"name":"footfall_weight","type":"double","nullable":false}
+  ]
+}
+OUTPUT_ARTIFACT:
+name: validation_report
+path_pattern: s3://data-engine/logs/validation/validation_report_{seed}_{fingerprint}.json  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: |
+{
+  "name": "validation_report",
+  "type": "record",
+  "fields": [
+    {"name":"stage","type":"string","nullable":false},
+    {"name":"status","type":"string","nullable":false},
+    {"name":"details","type":"string","nullable":true}
+  ]
+}
+PARTITIONING:
+keys: []
+order_by: []
+SUCCESS_METRIC:
+metric_name: validation_pass
+expected_range: [1, 1]
+ERROR_POLICY:
+error_code: 1209
+retry_max: 0
+retry_backoff_sec: 0
+idempotent: true
+SCHEMA_VERSION:
+version: v1.0.0
+ACCESS_POLICY:
+read_policy: processing-team-read  # placeholder
+write_policy: audit-team-write  # placeholder
+CONSUMED_BY:
+module: CI_CD_Pipeline
+function: runValidation
+description: Validates outlet catalogue integrity post-write
+TEST_PATHWAY:
+test_type: integration
+tool: pytest
+script: tests/test_validate_outlet_catalogue.py  # CI test to be implemented after pipeline is in place
+assertion: all checks pass
+Confidence=HIGH
+<<<END IC-FIX>>>
+
+##### END INTERFACE_CONTRACT SPEC #####
+
+id=1 | gaps_closed=input|output|schema|metric|error | notes=Defined both input/output artifacts and full schema  
+id=2 | gaps_closed=input|output|schema|metric|error | notes=Added parsed output artifact and test pathway  
+id=3 | gaps_closed=input|output|schema|metric|error | notes=Formalized audit log output and schema  
+id=4 | gaps_closed=input|output|schema|metric|error | notes=Specified NB parameters output and schema  
+id=5 | gaps_closed=input|output|schema|metric|error | notes=Completed NB draw contract with metrics  
+id=6 | gaps_closed=input|output|schema|metric|error | notes=Filled crossborder output spec and metrics  
+id=7 | gaps_closed=input|output|schema|metric|error | notes=Defined country candidate list contract  
+id=8 | gaps_closed=input|output|schema|metric|error | notes=Formalized outlet catalogue write spec  
+id=9 | gaps_closed=input|output|schema|metric|error | notes=Specified validation report and policies  
+<<IS-END>>

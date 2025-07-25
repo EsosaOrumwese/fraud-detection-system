@@ -1,0 +1,621 @@
+--- IC 1 ---
+Stage: LaunchPipelineContainer
+Anchor: "pipeline_launcher.sh reads the lock file’s `IMAGE_SHA256=` line, passes the digest to `docker run --pull=never`, then writes three items—container hash, container hostname, UTC start time—to the first three fields of a run-local manifest at `/tmp/build.manifest`." :contentReference[oaicite:20]{index=20}
+Input_artefact: Dockerfile.lock
+Input_schema: No
+Output_artefact: /tmp/build.manifest
+Output_schema: Partial
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Missing
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: ValidateContainerHash
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=N
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=Y
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… `pipeline_launcher.sh` reads … then writes … at `/tmp/build.manifest`.” 
+Confidence=HIGH
+--- END IC 1 ---
+
+--- IC 2 ---
+Stage: ValidateContainerHash
+Anchor: "CI job `validate_container_hash.yml` starts a sibling container from the same digest and hashes the root file system; any mismatch halts the workflow before a single artefact is touched." :contentReference[oaicite:21]{index=21}
+Input_artefact: Dockerfile.lock
+Input_schema: No
+Output_artefact: Missing
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: ExtractSourceSha
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=Y
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… `validate_container_hash.yml` starts … hashes …; any mismatch halts …” 
+Confidence=MEDIUM
+--- END IC 2 ---
+
+--- IC 3 ---
+Stage: ExtractSourceSHA
+Anchor: "`git rev-parse --verify HEAD` exports the exact tree hash of the checked-out repository; that forty-character SHA-1 becomes `source_sha1` on line 4 of the manifest." :contentReference[oaicite:22]{index=22}
+Input_artefact: .git/HEAD
+Input_schema: No
+Output_artefact: /tmp/build.manifest
+Output_schema: Partial
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Missing
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: ValidateSourceHash
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=N
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=Y
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… `git rev-parse --verify HEAD` exports … becomes `source_sha1` on line 4 …” 
+Confidence=MEDIUM
+--- END IC 3 ---
+
+--- IC 4 ---
+Stage: ValidateSourceHash
+Anchor: "At runtime `importlib.metadata.version` emits that same string, and a guard inside `main.py` raises `SourceHashMismatchError` if the embedded SHA-1 differs from the manifest entry." :contentReference[oaicite:23]{index=23}
+Input_artefact: fraudsim/__init__.py
+Input_schema: No
+Output_artefact: Missing
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: BuildArtefactManifest
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=Y
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… guard inside `main.py` raises `SourceHashMismatchError` …” 
+Confidence=MEDIUM
+--- END IC 4 ---
+
+--- IC 5 ---
+Stage: BuildArtefactManifest
+Anchor: "`artefact_loader.py` loops in lexical order, opens each path in binary mode, streams it into `sha256sum` and appends `digest  path` to the manifest. Simultaneously a `hashlib.sha256()` accumulator ingests `digest\n` bytes for every artefact. Once enumeration ends the accumulator’s hex digest becomes the **parameter-set hash**." :contentReference[oaicite:24]{index=24}
+Input_artefact: artefact_registry.yaml
+Input_schema: Yes
+Output_artefact: /tmp/build.manifest
+Output_schema: Partial
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Missing
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: CompareRegistry
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=N
+  output_missing=N
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=Y
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… `artefact_loader.py` loops … accumulator yields parameter-set hash.” 
+Confidence=HIGH
+--- END IC 5 ---
+
+--- IC 6 ---
+Stage: CompareRegistry
+Anchor: "CI step `compare_registry.py` regenerates the enumeration under a fresh interpreter and asserts that the manifest’s artefact list and the re-enumeration are byte-identical." :contentReference[oaicite:25]{index=25}
+Input_artefact: artefact_registry.yaml; /tmp/build.manifest
+Input_schema: Yes
+Output_artefact: Missing
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: GenerateMasterSeed
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=Y
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… `compare_registry.py` regenerates … asserts … byte-identical.” 
+Confidence=HIGH
+--- END IC 6 ---
+
+--- IC 7 ---
+Stage: GenerateMasterSeed
+Anchor: "The **master seed** is produced by taking the high-resolution monotonic clock `time_ns()`, left-shifting by 64 bits, then XOR-ing with the low 128 bits of `param_hash`. The seed is printed onto line 5 of the manifest (`master_seed_hex=`) and passed to NumPy’s `Philox` constructor." :contentReference[oaicite:26]{index=26}
+Input_artefact: /tmp/build.manifest
+Input_schema: No
+Output_artefact: /tmp/build.manifest
+Output_schema: Partial
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Missing
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: JumpRNGStreams
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=N
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=Y
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… seed is printed onto … manifest … passed to NumPy’s `Philox` …” 
+Confidence=MEDIUM
+--- END IC 7 ---
+
+--- IC 8 ---
+Stage: JumpRNGStreams
+Anchor: "Every module defines a static string `STREAM_NAME`, hashed with SHA-1 to 128 bits; at module entry, code calls `rng._jump(int.from_bytes(stream_hash, 'big'))`. … The *jump offset* is recorded per invocation in `logs/rng_trace.log` as `module,identifier,offset`." :contentReference[oaicite:27]{index=27}
+Input_artefact: /tmp/build.manifest
+Input_schema: No
+Output_artefact: logs/rng_trace.log
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Missing
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: ReplayRNG
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=N
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=Y
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… `rng._jump` … recorded in `logs/rng_trace.log` …” 
+Confidence=MEDIUM
+--- END IC 8 ---
+
+--- IC 9 ---
+Stage: ReplayRNG
+Anchor: "`replay_rng.py` in CI parses the trace, reproduces the counter state, draws the first three random numbers for spot-check, and fails if any differ." :contentReference[oaicite:28]{index=28}
+Input_artefact: logs/rng_trace.log; /tmp/build.manifest
+Input_schema: No
+Output_artefact: Missing
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: ValidateConfigSchemas
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=Y
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… `replay_rng.py` … fails if any differ.” 
+Confidence=MEDIUM
+--- END IC 9 ---
+
+--- IC 10 ---
+Stage: ValidateConfigSchemas
+Anchor: "Configurability is confined to YAMLs validated by JSON Schema. Each YAML begins with a header … The loader maps the `<domain>` identifier to a local `schemas/<domain>.json`, checks the `major` matches, and raises `SchemaVersionError` if the YAML’s major exceeds the generator’s expectation." :contentReference[oaicite:29]{index=29}
+Input_artefact: config/*.yaml; schemas/*.json
+Input_schema: Partial
+Output_artefact: Missing
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: BootstrapValidator
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=Y
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… validated by JSON Schema … raises `SchemaVersionError` …” 
+Confidence=MEDIUM
+--- END IC 10 ---
+
+--- IC 11 ---
+Stage: BootstrapValidator
+Anchor: "`bootstrap_validator.py` draws one hundred truncated-normal replicates from each triplet, re-runs the generator on a 50 000-row dry slice, and checks that synthetic histograms lie within the 90 % predictive envelope. If any bucket fails, the YAML gains a Git label “needs-tune” and CI refuses merge." :contentReference[oaicite:30]{index=30}
+Input_artefact: config/*.yaml
+Input_schema: Partial
+Output_artefact: logs/bootstrap_validation.log
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: AuditDatasetRegistry
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=N
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… `bootstrap_validator.py` draws … CI refuses merge.” 
+Confidence=MEDIUM
+--- END IC 11 ---
+
+--- IC 12 ---
+Stage: AuditDatasetRegistry
+Anchor: "`register_dataset.py` inserts the triple and declares `parameter_hash, seed` unique. If an attempt is made to write a different `path` under the same `(parameter_hash, seed)`, Postgres throws `UNIQUE_VIOLATION`; the CLI surfaces the error as “parameter collision—increment YAML versions.”" :contentReference[oaicite:31]{index=31}
+Input_artefact: register_dataset.py; Postgres datasets catalog
+Input_schema: No
+Output_artefact: Missing
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: RunStructuralFirewall
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=Y
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… Postgres throws `UNIQUE_VIOLATION`; the CLI surfaces …” 
+Confidence=MEDIUM
+--- END IC 12 ---
+
+--- IC 13 ---
+Stage: RunStructuralFirewall
+Anchor: "The **structural firewall** is coded in `firewall.py`. It streams generated records in batches of 50 000. Each batch undergoes five vectorized checks … On first violation a reproducer file is written with the offending row and RNG offset; CI fails citing the reproducer path." :contentReference[oaicite:32]{index=32}
+Input_artefact: synthetic_data_records
+Input_schema: No
+Output_artefact: /tmp/failure_reproducer.py
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: RunGeoAudit
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=N
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… writes reproducer file … CI fails …” 
+Confidence=HIGH
+--- END IC 13 ---
+
+--- IC 14 ---
+Stage: RunGeoAudit
+Anchor: "`geo_audit.py` tallies outlets, forms beta posterior intervals at 95 %, and asserts synthetic share sits inside." :contentReference[oaicite:33]{index=33}
+Input_artefact: synthetic_data_records; config/country_zone_alphas.yaml
+Input_schema: No
+Output_artefact: logs/geo_audit.csv
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: RunHurdleBootstrap
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=N
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… `geo_audit.py` tallies … asserts …” 
+Confidence=MEDIUM
+--- END IC 14 ---
+
+--- IC 15 ---
+Stage: RunHurdleBootstrap
+Anchor: "The **outlet-count bootstrap** re-inverts the hurdle coefficients … draws 10 000 bootstrap coefficient vectors; simulates chain-size histograms; and overlays synthetic counts." :contentReference[oaicite:34]{index=34}
+Input_artefact: config/hurdle_coefficients.yaml
+Input_schema: Yes
+Output_artefact: validation/bootstrap_histograms.png
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: RunFootfallRegression
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=N
+  output_missing=N
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… draws 10 000 bootstrap … overlays synthetic counts.” 
+Confidence=MEDIUM
+--- END IC 15 ---
+
+--- IC 16 ---
+Stage: RunFootfallRegression
+Anchor: "The **footfall model check** fits a Poisson GLM … Dispersion parameter θ must land in [1,2] … If θ drifts outside, `footfall_coefficients.yaml` gets flagged." :contentReference[oaicite:35]{index=35}
+Input_artefact: config/footfall_coefficients.yaml; synthetic_data_records
+Input_schema: Yes
+Output_artefact: logs/footfall_regression.csv
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: RunIndistinguishabilityTest
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=N
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… fits a Poisson GLM … gets flagged.” 
+Confidence=MEDIUM
+--- END IC 16 ---
+
+--- IC 17 ---
+Stage: RunIndistinguishabilityTest
+Anchor: "For **multivariate indistinguishability** the harness samples 200 000 rows … trains XGBoost … If AUROC≥0.55, CI fails." :contentReference[oaicite:36]{index=36}
+Input_artefact: synthetic_data_records; real_data_sample
+Input_schema: No
+Output_artefact: logs/auroc_indistinguishability.csv
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: RunDSTEdgePasser
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=N
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… trains XGBoost … CI fails.” 
+Confidence=MEDIUM
+--- END IC 17 ---
+
+--- IC 18 ---
+Stage: RunDSTEdgePasser
+Anchor: "The **DST edge passer** iterates every DST-observing `tzid` … Failure produces a CSV `dst_failures.csv` and blocks merge." :contentReference[oaicite:37]{index=37}
+Input_artefact: synthetic_data_records; zoneinfo_version.yml
+Input_schema: No
+Output_artefact: validation/dst_failures.csv
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: UploadToHashGate
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=N
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… Failure produces … `dst_failures.csv` and blocks merge.” 
+Confidence=MEDIUM
+--- END IC 18 ---
+
+--- IC 19 ---
+Stage: UploadToHashGate
+Anchor: "`upload_to_hashgate.py` posts the manifest JSON, validation flag, and artefact URL to HashGate. Pull-request lint rule polls HashGate; merge gates on `validation_passed=true`." :contentReference[oaicite:38]{index=38}
+Input_artefact: /tmp/build.manifest; validation/*
+Input_schema: No
+Output_artefact: hashgate_uri.txt
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: EnforceImmutability
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=N
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… posts … to HashGate … merge gates on `validation_passed=true`.” 
+Confidence=MEDIUM
+--- END IC 19 ---
+
+--- IC 20 ---
+Stage: EnforceImmutability
+Anchor: "Once the merge occurs, the dataset’s directory—whose name already embeds `parameter_hash`—is mounted read-only on the shared NFS. Attempting to regenerate the same seed with a different parameter hash yields a directory-name collision, forcing the developer to bump semantic versions." :contentReference[oaicite:39]{index=39}
+Input_artefact: dataset_directory
+Input_schema: No
+Output_artefact: Missing
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: Missing
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=Y
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=Y
+  test_pathway_missing=Y
+Severity=High
+Context: “… mounted read-only … directory-name collision …” 
+Confidence=MEDIUM
+--- END IC 20 ---
+
+<<IC-END>>

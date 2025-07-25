@@ -1,0 +1,156 @@
+--- IC 1 ---
+Stage: BuildSTRTreeIndex
+Anchor: "An audit routine serialises the constructed STR-tree using Python 3.10’s pickle protocol 5, computes a SHA-256 digest of the resulting byte stream, and stores it in the manifest under the key `tz_index_digest`." :contentReference[oaicite:15]{index=15}
+Input_artefact: artefacts/priors/tz_world/2025a/tz_world_2025a.* :contentReference[oaicite:16]{index=16}
+Input_schema: No
+Output_artefact: artefacts/priors/tz_world/2025a/tz_index_digest.txt :contentReference[oaicite:17]{index=17}
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: semver
+Access_policy: Missing
+Consumed_by: DeriveTimeZone
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=N
+  output_missing=N
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=N
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… computes a SHA-256 digest … stores it in the manifest under the key `tz_index_digest` …”
+Confidence=HIGH
+--- END IC 1 ---
+
+--- IC 2 ---
+Stage: DeriveTimeZone
+Anchor: "When an outlet coordinate is fed into the engine, the STR-tree is queried for candidate polygons." :contentReference[oaicite:18]{index=18}
+Input_artefact: output/site_catalogue/partition_date=*/merchant_id=*/site_id=*.parquet :contentReference[oaicite:19]{index=19}; config/timezone/tz_nudge.yml :contentReference[oaicite:20]{index=20}
+Input_schema: Partial
+Output_artefact: logs/tz_assignment_audit.log :contentReference[oaicite:21]{index=21}
+Output_schema: Yes
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: ApplyTimeZoneOverrides
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=N
+  output_schema_missing=N
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… STR-tree is queried for candidate polygons …”  
+Confidence=MEDIUM
+--- END IC 2 ---
+
+--- IC 3 ---
+Stage: ApplyTimeZoneOverrides
+Anchor: "The override registry `config/timezone/tz_overrides.yaml` is a governed artefact with metadata fields `semver` and `sha256_digest`; it must list each override entry (scope, tzid, evidence_url, expiry_yyyy_mm_dd), and any modification triggers an update to `tz_overrides_digest` in the manifest." :contentReference[oaicite:22]{index=22}
+Input_artefact: config/timezone/tz_overrides.yaml :contentReference[oaicite:23]{index=23}
+Input_schema: Yes
+Output_artefact: logs/tz_assignment_audit.log :contentReference[oaicite:24]{index=24}
+Output_schema: Yes
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: semver
+Access_policy: Missing
+Consumed_by: ExtractZoneTimeline
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=N
+  output_missing=N
+  output_schema_missing=N
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=N
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… override registry `config/timezone/tz_overrides.yaml` is a governed artefact …”
+Confidence=MEDIUM
+--- END IC 3 ---
+
+--- IC 4 ---
+Stage: ExtractZoneTimeline
+Anchor: "For each `TZID` in the catalogue, the engine extracts `(transition_epoch, offset_minutes)`, truncates the arrays to the configured horizon `[sim_start, sim_end]` (values read from `config/timezone/simulation_horizon.yml`), applies run-length encoding, and stores as bytes. CI asserts that `tz_cache_bytes` (manifest field) remains < 8 MiB; any increase triggers a build failure." :contentReference[oaicite:25]{index=25}
+Input_artefact: artefacts/priors/tzdata/tzdata2025a.tar.gz; config/timezone/simulation_horizon.yml; zoneinfo_version.yml :contentReference[oaicite:26]{index=26}
+Input_schema: Partial
+Output_artefact: output/tz_cache_bytes.txt :contentReference[oaicite:27]{index=27}
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: ComputeLocalToUTC
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=N
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… CI asserts that `tz_cache_bytes` …”
+Confidence=HIGH
+--- END IC 4 ---
+
+--- IC 5 ---
+Stage: ComputeLocalToUTC
+Anchor: "When the temporal engine later generates a **local epoch second** $t_{\\text{local}}$, the civil-time module must map it to UTC. The timetable for the site’s zone is bisection-searched (via `numpy.searchsorted`) to locate the most recent transition epoch not later than $t_{\\text{local}}$. The associated offset $o$ in minutes is read; the provisional UTC epoch is `floor((t_local - 60*o) * 1000)`." :contentReference[oaicite:28]{index=28}
+Input_artefact: output/tz_cache_bytes.txt :contentReference[oaicite:29]{index=29}
+Input_schema: No
+Output_artefact: Missing
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: ArrivalEngine
+Test_pathway: Missing
+Gap_flags:
+  input_missing=Y
+  input_schema_missing=Y
+  output_missing=Y
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=Crit
+Context: “… must map it to UTC … provisional UTC epoch is `floor((t_local - 60*o) * 1000)`.”
+Confidence=MEDIUM
+--- END IC 5 ---
+
+<<IC-END>>

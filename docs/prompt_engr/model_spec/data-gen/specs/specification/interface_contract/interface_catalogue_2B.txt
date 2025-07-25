@@ -1,0 +1,162 @@
+--- IC 1 ---
+Stage: ComputeProbabilityVector
+Anchor: "These weights are written to disk once as a two-column table `(site_id, p_i)` sorted lexicographically by `site_id`; the vector is written little-endian as a headerless `float64` array in `<merchant_id>_pweights.bin`, with its SHA-256 recorded as `weight_digest` in `routing_manifest.json`." :contentReference[oaicite:6]{index=6}
+Input_artefact: artefacts/catalogue/site_catalogue.parquet; config/routing/errors.yml :contentReference[oaicite:7]{index=7}
+Input_schema: Partial
+Output_artefact: `<merchant_id>_pweights.bin`
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: BuildAliasTable
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=N
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… the vector is written little-endian as `<merchant_id>_pweights.bin`, with its SHA-256 recorded as `weight_digest` in `routing_manifest.json` …”
+Confidence=HIGH
+--- END IC 1 ---
+
+--- IC 2 ---
+Stage: BuildAliasTable
+Anchor: "… the pipeline constructs **an alias table** per merchant. Arrays `prob` and `alias` of length $N_m$ are then saved to `<merchant_id>_alias.npz`, and its digest is recorded as `alias_digest`." :contentReference[oaicite:8]{index=8}
+Input_artefact: `<merchant_id>_pweights.bin`
+Input_schema: No
+Output_artefact: `<merchant_id>_alias.npz`
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: RouteTransaction
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=N
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… Arrays `prob` and `alias` … saved to `<merchant_id>_alias.npz`, and its digest is recorded as `alias_digest`.”
+Confidence=HIGH
+--- END IC 2 ---
+
+--- IC 3 ---
+Stage: BuildCdnAliasTable
+Anchor: "Certain merchants flagged `is_virtual=1` receive a shadow list of edge-node countries drawn from `config/routing/cdn_country_weights.yaml` (`semver`, `sha256_digest`, `q_c`), using the same alias-table logic to select `ip_country`." :contentReference[oaicite:9]{index=9}
+Input_artefact: config/routing/cdn_country_weights.yaml
+Input_schema: Yes
+Output_artefact: `<merchant_id>_cdn_alias.npz`
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Yes
+Schema_version: semver
+Access_policy: Missing
+Consumed_by: RouteTransaction
+Test_pathway: Missing
+Gap_flags:
+  input_missing=N
+  input_schema_missing=N
+  output_missing=N
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=N
+  schema_version_missing=N
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… shadow list … drawn from `config/routing/cdn_country_weights.yaml` … `<merchant_id>_cdn_alias.npz` …”
+Confidence=MEDIUM
+--- END IC 3 ---
+
+--- IC 4 ---
+Stage: RouteTransaction
+Anchor: "When the arrival engine proposes a local timestamp `t_local`, the router computes the candidate UTC date `d`, multiplies each `p_i` by γ_d, re-normalises within the time-zone group, and then selects … The router returns `(site_id, tzid)` and writes the transaction record unchanged." :contentReference[oaicite:10]{index=10}
+Input_artefact: `<merchant_id>_alias.npz`; config/routing/routing_day_effect.yml; config/routing/rng_policy.yml
+Input_schema: No
+Output_artefact: logs/routing/routing_audit.log
+Output_schema: Partial
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Missing
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: NightlyRouterTest
+Test_pathway: integration
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=N
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=Y
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… selects via alias lookup … writes the transaction record unchanged.”
+Confidence=MEDIUM
+--- END IC 4 ---
+
+--- IC 5 ---
+Stage: AuditRouting
+Anchor: "Finally, once per million routed events, the engine computes  
+```
+
+checksum = SHA256(merchant\_id || batch\_index || cumulative\_counts\_vector)
+
+```
+and appends it with an ISO 8601 timestamp to `logs/routing/routing_audit.log`. Rotation (daily) and 90-day retention are governed by `config/routing/logging.yml` (`audit_log_config_digest`), and a nightly integration test reruns the router to verify matching checksums;" :contentReference[oaicite:11]{index=11}
+Input_artefact: logs/routing/routing_audit.log; config/routing/logging.yml; config/routing/routing_validation.yml
+Input_schema: Partial
+Output_artefact: Missing
+Output_schema: No
+Partitioning_rule: No
+Success_metric: No
+Error_code_policy: Missing
+Schema_version: Missing
+Access_policy: Missing
+Consumed_by: NightlyRouterTest
+Test_pathway: integration
+Gap_flags:
+  input_missing=N
+  input_schema_missing=Y
+  output_missing=Y
+  output_schema_missing=Y
+  partition_missing=Y
+  metric_missing=Y
+  error_policy_missing=Y
+  schema_version_missing=Y
+  access_policy_missing=Y
+  consumed_by_missing=N
+  test_pathway_missing=Y
+Severity=High
+Context: “… appends it … to `logs/routing/routing_audit.log`. Rotation … governed by `config/routing/logging.yml` … nightly integration test reruns the router …”
+Confidence=MEDIUM
+--- END IC 5 ---
+
+<<IC-END>>  
