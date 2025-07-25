@@ -1,22 +1,18 @@
-############################################################
-#  PARAMETER CATALOGUE‑FINDER • Sub‑segment 4B             #
-############################################################
-
 --- PP 1 ---
-Name: Structural validation error contract
-Symbol: StructuralError, structural_failure_<parameter_hash>.parquet
-Scope: validation
-Prior_type: Deterministic contract (Parquet + CI, not stochastic)
-Prior_specified: Yes
-Calibration_recipe: Yes (validator, artefact_registry.yaml, manifest, CI script, schema check)
-Posterior_validation: Yes (defect log, fail fast, merge-blocking, manifest digest)
-Provenance_tag: Yes (structural_failure_<parameter_hash>.parquet, structural_failure_digest)
-Units: log entry (failed row, RNG jump offset)
-Default_policy: abort (first error halts pipeline, blocks merge)
-Interface_consumer: validator, CI, audit, manifest, logs
-Description: Every failed row or coordinate/time/schema defect triggers a halt, is written to structural_failure parquet, digest is merge-blocking.
-Anchor: "If a single row fails any of these checks, the defect channel halts subsequent validation, writes the row and its context into structural_failure_<parameter_hash>.parquet, then raises a StructuralValidationError pinpointing the exact generator line..."
-Context: "Coordinate plausibility pulls `lat, lon` if the merchant is physical, or `ip_latitude, ip_longitude` if virtual, and feeds them directly into the same tz‑world point‑in‑polygon lookup used during generation... If the returned `TZID` disagrees with the row’s recorded `tzid_operational`, a defect object is pushed into a synchronous defect channel... If a single row fails any of these checks..."
+Name: Structural failure Parquet path  
+Symbol: structural_failure_<parameter_hash>.parquet  
+Scope: validation  
+Prior_type: Fixed artefact pattern  
+Prior_specified: Yes  
+Calibration_recipe: No  
+Posterior_validation: Yes  
+Provenance_tag: Yes  
+Units: file path  
+Default_policy: abort on any structural error  
+Interface_consumer: structural_validator.py  
+Description: Output Parquet storing the first row that fails any structural check.  
+Anchor: “writes the row and its context into `structural_failure_<parameter_hash>.parquet`” :contentReference[oaicite:24]{index=24}  
+Context: “… then raises a `StructuralValidationError` pinpointing the exact generator line that emitted the failed row.” :contentReference[oaicite:25]{index=25}  
 Gap_flags:
   prior_missing=N
   hyperparams_missing=N
@@ -31,20 +27,20 @@ Confidence=HIGH
 --- END PP 1 ---
 
 --- PP 2 ---
-Name: Adversarial AUROC drift detection
-Symbol: DistributionDriftDetected, auroc_model_*.parquet, misclassified_*.csv
-Scope: validation
-Prior_type: Deterministic contract (XGBoost, YAML, hyper-parameter lock)
-Prior_specified: Yes
-Calibration_recipe: Yes (validation_conf.yml, hyper-parameter lock, CI)
-Posterior_validation: Yes (AUROC threshold, misclassified indices, manifest hash, fail fast)
-Provenance_tag: Yes (auroc_model_*.parquet, misclassification_digest, validation_conf_digest)
-Units: AUROC (float), indices (CSV)
-Default_policy: abort (if AUROC > 0.55 or artefact/log missing)
-Interface_consumer: validator, CI, audit, manifest, logs
-Description: Windowed AUROC adversarial test (AUROC > 0.55 triggers DistributionDriftDetected and halts pipeline, merges model dump and indices).
-Anchor: "AUROC is evaluated once every million rows; as soon as it exceeds 0.55, the validator short‑circuits, dumps the model dump, the misclassified example indices, and the seed state of the RNG to /tmp/auroc_failure, then throws DistributionDriftDetected."
-Context: "Streams...through a sliding window of 200 000 rows—half synthetic, half real reference data—embedding each row into a six‑dimensional feature space... AUROC is evaluated once every million rows..."
+Name: Sliding window size  
+Symbol: window_size = 200000  
+Scope: validation  
+Prior_type: Fixed constant  
+Prior_specified: Yes  
+Calibration_recipe: No  
+Posterior_validation: Yes  
+Provenance_tag: Yes  
+Units: count (rows)  
+Default_policy: abort if mis‑sized  
+Interface_consumer: adversarial_validator.py  
+Description: Number of rows (half synthetic, half real) fed per classifier run.  
+Anchor: “It streams the entire dataset through a sliding window of 200 000 rows—half synthetic, half real…” :contentReference[oaicite:26]{index=26}  
+Context: “…embedding each row into a six‑dimensional feature space…” :contentReference[oaicite:27]{index=27}  
 Gap_flags:
   prior_missing=N
   hyperparams_missing=N
@@ -59,20 +55,20 @@ Confidence=HIGH
 --- END PP 2 ---
 
 --- PP 3 ---
-Name: Semantic GLM dispersion corridor
-Symbol: θ, glm_theta_violation.pdf
-Scope: validation
-Prior_type: Corridor (YAML, Poisson GLM, channel-specific)
-Prior_specified: Yes
-Calibration_recipe: Yes (footfall_coefficients.yaml, statsmodels, empirical corridor, CI)
-Posterior_validation: Yes (GLM fit, θ-corridor, PDF artefact, fail fast)
-Provenance_tag: Yes (footfall_coefficients.yaml, theta_violation_digest)
-Units: θ (dispersion, float)
-Default_policy: abort (θ out of corridor triggers error, CI block, needs_recalibration flag)
-Interface_consumer: validator, CI, semantic_glm.py, audit, manifest
-Description: Poisson GLM θ estimate for footfall-thruput fit; must be in corridor [1,2] for CP, [2,4] for CNP or build fails.
-Anchor: "The dispersion estimate θ must reside within the corridor specified in footfall_coefficients.yaml—1 to 2 for card‑present channels, 2 to 4 for CNP. If θ escapes this corridor, the validator labels the YAML with a Git attribute needs_recalibration, emits glm_theta_violation.pdf, and raises ThetaOutOfRange..."
-Context: "A Poisson regression with hour‑of‑day spline and merchant‑day random intercepts is run in‑memory using statsmodels; the dispersion estimate θ is compared against the channel‑specific corridor promised by the LGCP variance calibration..."
+Name: AUROC evaluation interval  
+Symbol: auroc_interval = 1 000 000  
+Scope: validation  
+Prior_type: Fixed constant  
+Prior_specified: Yes  
+Calibration_recipe: No  
+Posterior_validation: Yes  
+Provenance_tag: Yes  
+Units: count (rows)  
+Default_policy: abort on mis‑interval  
+Interface_consumer: adversarial_validator.py  
+Description: Number of rows between successive AUROC checks.  
+Anchor: “The classifier’s AUROC is evaluated once every million rows…” :contentReference[oaicite:28]{index=28}  
+Context: “…as soon as it exceeds 0.55, the validator short‑circuits…” :contentReference[oaicite:29]{index=29}  
 Gap_flags:
   prior_missing=N
   hyperparams_missing=N
@@ -87,20 +83,20 @@ Confidence=HIGH
 --- END PP 3 ---
 
 --- PP 4 ---
-Name: Barcode slope threshold
-Symbol: barcode_bounds.yml, BarcodeSlopeError, barcode_failure_*.png
-Scope: validation
-Prior_type: Physical-law corridor (YAML, Hough transform)
-Prior_specified: Yes
-Calibration_recipe: Yes (barcode_bounds.yml, empirical slope, CI)
-Posterior_validation: Yes (Hough transform, PNG overlay, manifest hash, fail fast)
-Provenance_tag: Yes (barcode_bounds.yml, barcode_failure_digest)
-Units: slope (offsets per UTC hour, float)
-Default_policy: abort (slope out of bounds triggers PNG, fail, merge block)
-Interface_consumer: validator, barcode.py, CI, audit, manifest
-Description: Physics-based acceptance corridor for barcode slope; fails if slope falls outside [-1, -0.5].
-Anchor: "Physics says the Earth rotates fifteen degrees each hour... If a merchant’s dominant slope falls outside −1 to −0.5, the barcode inspection fails. When it fails, the validator renders a 700 × 300 PNG showing the heat‑map with a red line through the detected slope and stores it under barcode_failure_<merchant_id>.png."
-Context: "The validator bins each merchant’s events on a two‑dimensional plane of UTC hour (0–23) versus local_time_offset in minutes. Using a fast Hough transform it extracts the dominant line... Physics says... If a merchant’s dominant slope falls outside −1 to −0.5, the barcode inspection fails..."
+Name: AUROC failure threshold  
+Symbol: auroc_cut = 0.55  
+Scope: validation  
+Prior_type: Fixed constant  
+Prior_specified: Yes  
+Calibration_recipe: No  
+Posterior_validation: Yes  
+Provenance_tag: Yes  
+Units: proportion  
+Default_policy: abort on breach  
+Interface_consumer: adversarial_validator.py  
+Description: Maximum AUROC before synthetic data is deemed distinguishable.  
+Anchor: “…should not beat a coin toss by more than five percentage points.” :contentReference[oaicite:30]{index=30}  
+Context: “If AUROC≥0.55, the validator short‑circuits…” :contentReference[oaicite:31]{index=31}  
 Gap_flags:
   prior_missing=N
   hyperparams_missing=N
@@ -115,20 +111,20 @@ Confidence=HIGH
 --- END PP 4 ---
 
 --- PP 5 ---
-Name: Licence mapping and audit
-Symbol: artefact_registry.yaml, licence_digests
-Scope: validation
-Prior_type: Deterministic mapping (SHA-1 digest contract)
-Prior_specified: Yes
-Calibration_recipe: Yes (validate_licences.py, manifest/artefact_registry.yaml, CI, audit)
-Posterior_validation: Yes (SHA-1 mapping check, manifest/licence_log_digest, fail fast)
-Provenance_tag: Yes (artefact_registry.yaml, licence_log_digest)
-Units: SHA-1 digest (hex string)
-Default_policy: abort (licence mismatch, missing, or unreferenced)
-Interface_consumer: validator, CI, audit, manifest, logs
-Description: Every artefact must have mapped SHA-1 licence; CI blocks merge on any mapping error.
-Anchor: "Every artefact path logged in the manifest has an accompanying licence path; the validator recomputes the SHA‑1 of each licence file, compares it with the SHA‑1 digests recorded in the manifest’s licence_digests field via validate_licences.py, raising LicenceMismatchError on any mismatch."
-Context: "Every artefact path logged in the manifest has an accompanying licence path... validate_licences.py recomputes SHA-1 digests for each licence and compares them to the licence_digests field in the manifest; any mismatch raises LicenceMismatchError, preventing datasets whose legal pedigree has drifted."
+Name: Semantic‑GLM dispersion corridor  
+Symbol: θ_cp ∈ [1,2], θ_cnp ∈ [2,4]  
+Scope: validation  
+Prior_type: Fixed constants  
+Prior_specified: Yes  
+Calibration_recipe: No  
+Posterior_validation: Yes  
+Provenance_tag: Yes  
+Units: dimensionless  
+Default_policy: abort on breach  
+Interface_consumer: semantic_glm.py  
+Description: Allowed over‑dispersion for Poisson GLM of transaction counts.  
+Anchor: “dispersion estimate θ is compared against the channel‑specific corridor promised by the LGCP variance calibration.” :contentReference[oaicite:32]{index=32}  
+Context: “…immediately causes the validator to mark `footfall_coefficients.yaml` with a Git attribute `needs_recalibration`…” :contentReference[oaicite:33]{index=33}  
 Gap_flags:
   prior_missing=N
   hyperparams_missing=N
@@ -143,20 +139,20 @@ Confidence=HIGH
 --- END PP 5 ---
 
 --- PP 6 ---
-Name: Directory immutability and audit hash/URI enforcement
-Symbol: validation/hashgate_uri.txt, readonly.flag
-Scope: validation
-Prior_type: Deterministic (SHA-256, URI, file lock)
-Prior_specified: Yes
-Calibration_recipe: Yes (validator, audit, manifest, CI, NFS lock)
-Posterior_validation: Yes (read-only flag, manifest/audit hash, CI poll/lock)
-Provenance_tag: Yes (validation/hashgate_uri.txt, readonly.flag, hashgate_uri_digest, readonly_flag_digest)
-Units: URI (string), SHA-256 digest, file presence
-Default_policy: abort (if missing, not locked, or URI not referenced)
-Interface_consumer: validator, CI, NFS, merge/release script, manifest
-Description: Final directory must be read-only, audit URI must be referenced in manifest, and poll for approval; any unlock or collision aborts.
-Anchor: "When all these intertwined narratives finish without raising an exception, the validator appends validation_passed=true to the manifest, hashes the entire validation/<parameter_hash>/ directory, uploads the resulting bundle to HashGate at /hashgate/<parameter_hash>/<master_seed>, and logs the HTTP status code."
-Context: "When all these intertwined narratives finish without raising an exception, the validator appends validation_passed=true to the manifest, hashes the entire validation/<parameter_hash>/ directory, uploads the resulting bundle to HashGate at /hashgate/<parameter_hash>/<master_seed>..."
+Name: GLM θ‑violation PDF path  
+Symbol: glm_theta_violation.pdf  
+Scope: validation  
+Prior_type: Fixed artefact pattern  
+Prior_specified: Yes  
+Calibration_recipe: No  
+Posterior_validation: Yes  
+Provenance_tag: Yes  
+Units: file path  
+Default_policy: abort on generation  
+Interface_consumer: semantic_glm.py  
+Description: PDF showing predicted vs observed counts when θ breaches corridor.  
+Anchor: “…emits a PDF file named `glm_theta_violation.pdf` in the `validation/<parameter_hash>/` directory.” :contentReference[oaicite:34]{index=34}  
+Context: “…raises `ThetaOutOfRange`, preventing silent variance drift.” :contentReference[oaicite:35]{index=35}  
 Gap_flags:
   prior_missing=N
   hyperparams_missing=N
@@ -169,5 +165,173 @@ Gap_flags:
   description_missing=N
 Confidence=HIGH
 --- END PP 6 ---
+
+--- PP 7 ---
+Name: Barcode slope acceptance band  
+Symbol: slope ∈ [–1, –0.5]  
+Scope: validation  
+Prior_type: Fixed constants  
+Prior_specified: Yes  
+Calibration_recipe: No  
+Posterior_validation: Yes  
+Provenance_tag: Yes  
+Units: minutes per hour  
+Default_policy: abort on breach  
+Interface_consumer: barcode_validator.py  
+Description: Allowed slope range for offset‑UTC Hough‑transform test.  
+Anchor: “If a merchant’s dominant slope falls outside –1 to –0.5, the barcode inspection fails.” :contentReference[oaicite:36]{index=36}  
+Context: “…stores it under `barcode_failure_<merchant_id>.png`.” :contentReference[oaicite:37]{index=37}  
+Gap_flags:
+  prior_missing=N
+  hyperparams_missing=N
+  calibration_missing=N
+  posterior_missing=N
+  provenance_missing=N
+  units_missing=N
+  default_policy_missing=N
+  interface_consumer_missing=N
+  description_missing=N
+Confidence=HIGH
+--- END PP 7 ---
+
+--- PP 8 ---
+Name: Barcode failure PNG path  
+Symbol: barcode_failure_<merchant_id>.png  
+Scope: validation  
+Prior_type: Fixed artefact pattern  
+Prior_specified: Yes  
+Calibration_recipe: No  
+Posterior_validation: Yes  
+Provenance_tag: Yes  
+Units: file path  
+Default_policy: abort on generation  
+Interface_consumer: barcode_validator.py  
+Description: Heat‑map overlay image when barcode slope test fails.  
+Anchor: “…stores it under `barcode_failure_<merchant_id>.png`.” :contentReference[oaicite:38]{index=38}  
+Context: “…triggers developers to re‑examine time‑zone mixture…” :contentReference[oaicite:39]{index=39}  
+Gap_flags:
+  prior_missing=N
+  hyperparams_missing=N
+  calibration_missing=N
+  posterior_missing=N
+  provenance_missing=N
+  units_missing=N
+  default_policy_missing=N
+  interface_consumer_missing=N
+  description_missing=N
+Confidence=HIGH
+--- END PP 8 ---
+
+--- PP 9 ---
+Name: Licence‑mismatch guard  
+Symbol: N/A  
+Scope: validation  
+Prior_type: Fixed CI check  
+Prior_specified: Yes  
+Calibration_recipe: No  
+Posterior_validation: Yes  
+Provenance_tag: Yes  
+Units: N/A  
+Default_policy: abort on mismatch  
+Interface_consumer: validate_licences.py  
+Description: Recomputes SHA‑1 of each licence file and compares to manifest’s `licence_digests`.  
+Anchor: “recomputes the SHA‑1 of each licence file, compares it with the SHA‑1 digests recorded in the manifest’s `licence_digests` field.” :contentReference[oaicite:40]{index=40}  
+Context: “…raising `LicenceMismatchError` on any mismatch.” :contentReference[oaicite:41]{index=41}  
+Gap_flags:
+  prior_missing=N
+  hyperparams_missing=N
+  calibration_missing=N
+  posterior_missing=N
+  provenance_missing=N
+  units_missing=N
+  default_policy_missing=N
+  interface_consumer_missing=N
+  description_missing=N
+Confidence=HIGH
+--- END PP 9 ---
+
+--- PP 10 ---
+Name: Final validation pass flag  
+Symbol: validation_passed=true  
+Scope: validation  
+Prior_type: Fixed manifest field  
+Prior_specified: Yes  
+Calibration_recipe: No  
+Posterior_validation: Yes  
+Provenance_tag: Yes  
+Units: Boolean  
+Default_policy: abort on false  
+Interface_consumer: upload_to_hashgate.py  
+Description: Flag appended to manifest only if all tests pass.  
+Anchor: “…appends `validation_passed=true` to the manifest…” :contentReference[oaicite:42]{index=42}  
+Context: “…and logs the HTTP status code.” :contentReference[oaicite:43]{index=43}  
+Gap_flags:
+  prior_missing=N
+  hyperparams_missing=N
+  calibration_missing=N
+  posterior_missing=N
+  provenance_missing=N
+  units_missing=N
+  default_policy_missing=N
+  interface_consumer_missing=N
+  description_missing=N
+Confidence=HIGH
+--- END PP 10 ---
+
+--- PP 11 ---
+Name: HashGate upload directory  
+Symbol: /hashgate/<parameter_hash>/<master_seed>  
+Scope: validation  
+Prior_type: Fixed URI pattern  
+Prior_specified: Yes  
+Calibration_recipe: No  
+Posterior_validation: Yes  
+Provenance_tag: Yes  
+Units: URI  
+Default_policy: abort on failure  
+Interface_consumer: upload_to_hashgate.py  
+Description: REST endpoint where validation artefacts are posted.  
+Anchor: “…uploads the bundle to HashGate at `/hashgate/<parameter_hash>/<master_seed>`…” :contentReference[oaicite:44]{index=44}  
+Context: “…GitHub Actions then polls that URI, retrieves the immutable manifest…” :contentReference[oaicite:45]{index=45}  
+Gap_flags:
+  prior_missing=N
+  hyperparams_missing=N
+  calibration_missing=N
+  posterior_missing=N
+  provenance_missing=N
+  units_missing=N
+  default_policy_missing=N
+  interface_consumer_missing=N
+  description_missing=N
+Confidence=HIGH
+--- END PP 11 ---
+
+--- PP 12 ---
+Name: CI merge‑block condition  
+Symbol: N/A  
+Scope: validation  
+Prior_type: Fixed CI contract  
+Prior_specified: Yes  
+Calibration_recipe: No  
+Posterior_validation: Yes  
+Provenance_tag: Yes  
+Units: N/A  
+Default_policy: abort on contract violation  
+Interface_consumer: GitHub Actions workflow  
+Description: Polls HashGate URI and refuses merge until validation_passed=true.  
+Anchor: “GitHub Actions then polls that URI… and merges the dataset only if a byte‑for‑byte match is observed.” :contentReference[oaicite:46]{index=46}  
+Context: “…forcing the developer to bump semantic versions…” :contentReference[oaicite:47]{index=47}  
+Gap_flags:
+  prior_missing=N
+  hyperparams_missing=N
+  calibration_missing=N
+  posterior_missing=N
+  provenance_missing=N
+  units_missing=N
+  default_policy_missing=N
+  interface_consumer_missing=N
+  description_missing=N
+Confidence=HIGH
+--- END PP 12 ---
 
 <<PP‑END>>

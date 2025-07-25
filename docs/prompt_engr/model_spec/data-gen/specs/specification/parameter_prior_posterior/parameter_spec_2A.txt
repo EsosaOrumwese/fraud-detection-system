@@ -1,8 +1,3 @@
-############################################################
-#  PARAMETER SPEC‑WRITER • Sub‑segment 2A                   #
-############################################################
-
-
 <<<PP‑FIX id=1>
 Name: Polygon nudge distance (border tie-break)
 Symbol: $\varepsilon$

@@ -1,420 +1,774 @@
-############################################################
-#  PARAMETER SPEC‑WRITER • Sub‑segment 3A                   #
-############################################################
-
-
-<<<PP‑FIX id=1>
-Name: Mixture threshold θ for escalation queue
-Symbol: $\theta_{\text{mix}}$
+<<<PP‑FIX id=1>>
+Name: Mixture threshold θ_mix
+Symbol: θ_mix
 Scope: merchant_location
 ---------------------------------
 
 PRIOR:
-type: Fixed threshold (YAML-governed)
+type: Fixed constant
 hyperparameters:
-theta_mix: (as set in zone_mixture_policy.yml, default 0.01)
-units: unitless (proportion)
-default_policy: use prior (abort if missing)
-justification: Controls which countries are escalated for internal zone split vs. fallback to major zone.
+  value: 0.01
+units: dimensionless
+default_policy: abort on drift
+justification: Threshold of normalized country mass to enter zone‐mixture queue.
+
 CALIBRATION_RECIPE:
-input_path: config/allocation/zone_mixture_policy.yml
-objective: not applicable (policy, not fitted)
-algorithm: not applicable
-random_seed: not applicable
-convergence_tol: not applicable
-script_digest: (see theta_digest)
-INTERFACE_CONSUMER:
-artefact_name: config/allocation/zone_mixture_policy.yml
-function: Consumed by mixture queue flagger and allocator during allocation pass
-description: Sets per-country mass cutoff for requiring a time-zone split; escalates high-mass to queue.
-POSTERIOR_VALIDATION:
-metric: YAML vs. queue bytewise test, manifest hash
-acceptance_range: YAML and output queue match exactly
-sample_size: all countries per allocation pass
-PROVENANCE_TAG:
-artefact_name: config/allocation/zone_mixture_policy.yml
-sha256: (see theta_digest)
-SHORT_DESCRIPTION:
-Threshold for escalation to internal time-zone split per country.
-TEST_PATHWAY:
-test: test_mix_threshold.py, CI, manifest comparison
-input: zone_mixture_policy.yml, output parquet
-assert: Output queue matches YAML policy and manifest digest
-Confidence=HIGH
-<<<END PP‑FIX>>
+input_path: N/A
+objective: Not applicable
+algorithm: Not applicable
+random_seed: N/A
+convergence_tol: N/A
+script_digest: N/A
 
-<<<PP‑FIX id=2>
-Name: Dirichlet concentration vector α (zone mixture)
-Symbol: $\alpha = [\alpha_1, ..., \alpha_Z]$
+INTERFACE_CONSUMER:
+artefact_name: allocation/mixture.py
+function: flag_escalation_countries
+description: Flags countries with normalized mass above θ_mix for mixture.
+
+POSTERIOR_VALIDATION:
+metric: number of flagged countries
+acceptance_range: [0, ∞)
+sample_size: daily build
+
+PROVENANCE_TAG:
+artefact_name: config/zone_mixture.yaml
+sha256: <to‑be‑populated>
+
+SHORT_DESCRIPTION:
+Normalized mass threshold for zone‑mixture eligibility.
+
+TEST_PATHWAY:
+test: CI mixture threshold test
+input: mixture_stats.log
+assert: all flagged countries have mass ≥ θ_mix
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=2>>
+Name: Dirichlet smoothing constant τ
+Symbol: τ
 Scope: merchant_location
 ---------------------------------
 
 PRIOR:
-type: Dirichlet (YAML-governed)
+type: Fixed constant
 hyperparameters:
-$\alpha_z$: Dirichlet vector, one per (country, TZID), see country_zone_alphas.yaml
-units: unitless (positive integer)
-default_policy: use prior (abort if missing)
-justification: Controls variance and mean of zone allocation share in escalated countries.
-CALIBRATION_RECIPE:
-input_path: config/allocation/country_zone_alphas.yaml
-objective: Empirical smoothing from settlement data; match rolling share mean/variance
-algorithm: make_zone_alphas.py (see docs)
-random_seed: CALIB_SEED
-convergence_tol: 1e-4 or as set in script
-script_digest: (see zone_alpha_digest)
-INTERFACE_CONSUMER:
-artefact_name: config/allocation/country_zone_alphas.yaml
-function: Sample zone-share via Dirichlet; feeds Gamma generator and zone allocation
-description: Used in zone-share sampling for escalated countries.
-POSTERIOR_VALIDATION:
-metric: empirical share error, normalization, CI digest
-acceptance_range: share within 2pp of empirical; sum to 1
-sample_size: all queued countries, all runs
-PROVENANCE_TAG:
-artefact_name: config/allocation/country_zone_alphas.yaml
-sha256: (see zone_alpha_digest)
-SHORT_DESCRIPTION:
-Dirichlet vector for per-zone share sampling in cross-zone merchant allocation.
-TEST_PATHWAY:
-test: empirical share check, manifest digest test
-input: YAML, settlement data, manifest
-assert: Sampled shares match empirical, YAML digest matches manifest
-Confidence=HIGH
-<<<END PP‑FIX>>
-
-<<<PP‑FIX id=3>
-Name: Smoothing constant τ for Dirichlet vector
-Symbol: $\tau$
-Scope: merchant_location
----------------------------------
-
-PRIOR:
-type: Fixed constant (YAML-governed)
-hyperparameters:
-tau: 200 (as set in YAML)
-units: unitless
+  value: 200
+units: dimensionless
 default_policy: use prior
-justification: Sets scale for Dirichlet α; controls variance of allocation
-CALIBRATION_RECIPE:
-input_path: config/allocation/country_zone_alphas.yaml
-objective: Match target Dirichlet variance in allocation
-algorithm: scaling, empirical moment matching
-random_seed: not applicable
-convergence_tol: not applicable
-script_digest: (see zone_alpha_digest)
-INTERFACE_CONSUMER:
-artefact_name: make_zone_alphas.py, config/allocation/country_zone_alphas.yaml
-function: Multiplies empirical zone shares to produce α
-description: Smoothing hyperparameter for Dirichlet zone allocation vector.
-POSTERIOR_VALIDATION:
-metric: implied variance, CI digest check
-acceptance_range: variance matches target in calibration
-sample_size: all countries/zones per run
-PROVENANCE_TAG:
-artefact_name: config/allocation/country_zone_alphas.yaml
-sha256: (see zone_alpha_digest)
-SHORT_DESCRIPTION:
-Smoothing hyperparameter for Dirichlet vector in zone allocation.
-TEST_PATHWAY:
-test: empirical moment check, digest test
-input: YAML, settlement data
-assert: Variance and mean as targeted, digest matches
-Confidence=HIGH
-<<<END PP‑FIX>>
+justification: Global multiplier smoothing empirical zone shares before integer rounding.
 
-<<<PP‑FIX id=4>
-Name: Major zone fallback mapping (country→TZID)
-Symbol: major zone per country
+CALIBRATION_RECIPE:
+input_path: N/A
+objective: Not applicable
+algorithm: Not applicable
+random_seed: N/A
+convergence_tol: N/A
+script_digest: N/A
+
+INTERFACE_CONSUMER:
+artefact_name: make_zone_alphas.py
+function: apply_smoothing
+description: Applies τ multiplier to π_z before rounding.
+
+POSTERIOR_VALIDATION:
+metric: count of zero‐allotted zones with π_z·τ > threshold
+acceptance_range: [0]
+sample_size: all merchants
+
+PROVENANCE_TAG:
+artefact_name: config/zone_smoothing.yaml
+sha256: <to‑be‑populated>
+
+SHORT_DESCRIPTION:
+Multiplier for smoothing zone share proportions.
+
+TEST_PATHWAY:
+test: CI smoothing constant test
+input: smoothing_stats.log
+assert: no zone with π_z·τ >1 and zero allocation
+
+Confidence=MEDIUM
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=3>>
+Name: Dirichlet concentration vector α_z
+Symbol: α_z
 Scope: merchant_location
 ---------------------------------
 
 PRIOR:
-type: Deterministic mapping (CSV, land area)
+type: Loaded constant
 hyperparameters:
-major_zone: TZID, per country (from country_major_zone.csv)
-units: string (TZID)
-default_policy: use prior (abort if missing)
-justification: Ensures all outlets in low-mass countries get assigned to largest legal time zone.
+  vector_file: config/zone_alphas.yaml
+units: dimensionless
+default_policy: abort on missing file
+justification: Per‐zone concentration parameters for the Dirichlet prior.
+
 CALIBRATION_RECIPE:
-input_path: artefacts/allocation/country_major_zone.csv
-objective: Largest land area assignment from frozen shapefile
-algorithm: land area computation and ranking
-random_seed: not applicable
-convergence_tol: not applicable
-script_digest: (see major_zone_digest)
+input_path: s3://data/zone_shares/empirical_shares.csv
+objective: KL divergence minimization
+algorithm: L‑BFGS
+random_seed: 42
+convergence_tol: 1e‑6
+script_digest: sha256:<to‑be‑populated>  # build/scripts/make_zone_alphas.py
+
 INTERFACE_CONSUMER:
-artefact_name: artefacts/allocation/country_major_zone.csv
-function: Assigns TZID for all low-mass countries at fallback allocation step
-description: Ensures deterministic, reproducible fallback allocation in zone assignment.
+artefact_name: allocation/zone_allocator.py
+function: compute_dirichlet_shares
+description: Uses α_z to draw Dirichlet zone‐share proportions.
+
 POSTERIOR_VALIDATION:
-metric: CSV hash, CI drift detection
-acceptance_range: hash matches manifest
+metric: KL divergence between empirical and synthetic π_z
+acceptance_range: [0.0, 0.05]
+sample_size: 10000
+
+PROVENANCE_TAG:
+artefact_name: config/zone_alphas.yaml
+sha256: <to‑be‑populated>
+
+SHORT_DESCRIPTION:
+Concentration parameters for Dirichlet zone allocation.
+
+TEST_PATHWAY:
+test: CI Dirichlet‐alpha calibration
+input: zone_alpha_stats.log
+assert: KL divergence < 0.05
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=4>>
+Name: Gamma shape/scale for Dirichlet draw
+Symbol: g_z ∼ Gamma(shape=α_z, scale=1)
+Scope: merchant_location
+---------------------------------
+
+PRIOR:
+type: Gamma
+hyperparameters:
+  shape: α_z
+  scale: 1
+units: dimensionless
+default_policy: abort on RNG error
+justification: Generates Gamma variates for Dirichlet share computation.
+
+CALIBRATION_RECIPE:
+input_path: N/A
+objective: Not applicable
+algorithm: Not applicable
+random_seed: N/A
+convergence_tol: N/A
+script_digest: N/A
+
+INTERFACE_CONSUMER:
+artefact_name: allocation/zone_allocator.py
+function: draw_zone_gammas
+description: Draws independent Gamma variates for each zone.
+
+POSTERIOR_VALIDATION:
+metric: KS distance to Gamma(α_z,1)
+acceptance_range: [0.0, 0.05]
+sample_size: 10000
+
+PROVENANCE_TAG:
+artefact_name: allocation/zone_allocator.py
+sha256: <to‑be‑populated>
+
+SHORT_DESCRIPTION:
+Gamma deviates for Dirichlet‐based zone allocation.
+
+TEST_PATHWAY:
+test: CI Gamma‐sampling test
+input: gamma_samples.log
+assert: KS statistic < 0.05
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=5>>
+Name: Bump‑rule threshold ε_bump
+Symbol: ε_bump
+Scope: merchant_location
+---------------------------------
+
+PRIOR:
+type: Fixed constant
+hyperparameters:
+  value: 0.8
+units: dimensionless
+default_policy: abort on rule failure
+justification: Ensures zones with high expectation receive at least one outlet.
+
+CALIBRATION_RECIPE:
+input_path: N/A
+objective: Not applicable
+algorithm: Not applicable
+random_seed: N/A
+convergence_tol: N/A
+script_digest: N/A
+
+INTERFACE_CONSUMER:
+artefact_name: allocation/zone_allocator.py
+function: apply_bump_rule
+description: Boosts zones with expected share > ε_bump to avoid elimination.
+
+POSTERIOR_VALIDATION:
+metric: count of e_z > ε_bump with zero allocation
+acceptance_range: [0]
+sample_size: all merchants
+
+PROVENANCE_TAG:
+artefact_name: config/zone_mixture.yaml
+sha256: <to‑be‑populated>
+
+SHORT_DESCRIPTION:
+Threshold for bump rule preventing zero‐allocation.
+
+TEST_PATHWAY:
+test: CI bump‐rule test
+input: bump_stats.log
+assert: no zone with e_z > ε_bump has zero outlets
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=6>>
+Name: Major‑zone fallback mapping
+Symbol: country_major_zone.csv
+Scope: merchant_location
+---------------------------------
+
+PRIOR:
+type: Fixed artefact reference
+hyperparameters:
+  file: country_major_zone.csv
+units: N/A
+default_policy: abort on missing row
+justification: Maps country to its primary timezone for fallback.
+
+CALIBRATION_RECIPE:
+input_path: N/A
+objective: Not applicable
+algorithm: Not applicable
+random_seed: N/A
+convergence_tol: N/A
+script_digest: N/A
+
+INTERFACE_CONSUMER:
+artefact_name: allocation/zone_allocator.py
+function: select_major_zone
+description: Chooses major zone when mixture not applied.
+
+POSTERIOR_VALIDATION:
+metric: missing‐mapping count
+acceptance_range: [0]
 sample_size: all countries
-PROVENANCE_TAG:
-artefact_name: artefacts/allocation/country_major_zone.csv
-sha256: (see major_zone_digest)
-SHORT_DESCRIPTION:
-Deterministic fallback mapping of country to major time zone by area.
-TEST_PATHWAY:
-test: CSV hash check, drift audit
-input: country_major_zone.csv, manifest
-assert: CSV matches manifest hash, no drift
-Confidence=HIGH
-<<<END PP‑FIX>>
 
-<<<PP‑FIX id=5>
-Name: Zone floor vector φ_z (micro-zone protection)
-Symbol: $\phi_z$
+PROVENANCE_TAG:
+artefact_name: country_major_zone.csv
+sha256: <to‑be‑populated>
+
+SHORT_DESCRIPTION:
+Fallback country‐to‐zone mapping schema.
+
+TEST_PATHWAY:
+test: CI major‐zone mapping test
+input: country_major_zone.csv
+assert: mapping exists for every country
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=7>>
+Name: Zone‐floor vector φ_z
+Symbol: φ_z
 Scope: merchant_location
 ---------------------------------
 
 PRIOR:
-type: Fixed vector (YAML)
+type: Loaded constant
 hyperparameters:
-$\phi_z$: integer (min outlets per TZID)
-units: count (int)
-default_policy: use prior (abort if missing)
-justification: Guarantees minimum site allocation for micro-zones after rounding.
-CALIBRATION_RECIPE:
-input_path: config/allocation/zone_floor.yml
-objective: Enforce minimums for micro-zones; no zone loses all mass on integerisation
-algorithm: YAML + integerisation/bump logic
-random_seed: not applicable
-convergence_tol: not applicable
-script_digest: (see zone_floor_digest)
-INTERFACE_CONSUMER:
-artefact_name: config/allocation/zone_floor.yml
-function: Post-allocation floor enforcement; prevents zero allocation to any micro-zone
-description: Applied after allocation and rounding for micro-zone protection.
-POSTERIOR_VALIDATION:
-metric: CI test_zone_floor.py, log, hash
-acceptance_range: All floors enforced as per YAML
-sample_size: all zones/countries per build
-PROVENANCE_TAG:
-artefact_name: config/allocation/zone_floor.yml
-sha256: (see zone_floor_digest)
-SHORT_DESCRIPTION:
-Minimum site floor vector per zone for micro-zone protection.
-TEST_PATHWAY:
-test: CI floor test, log replay
-input: zone_floor.yml, output allocation
-assert: All floors enforced; manifest digest matches
-Confidence=HIGH
-<<<END PP‑FIX>>
+  floor_file: config/zone_floor.yml
+units: count
+default_policy: abort on violation
+justification: Enforces minimum outlets per zone to protect micro‐zones.
 
-<<<PP‑FIX id=6>
-Name: Corporate-day log-normal multiplier variance
-Symbol: $\sigma_{\gamma}^{2}$
+CALIBRATION_RECIPE:
+input_path: N/A
+objective: Not applicable
+algorithm: Not applicable
+random_seed: N/A
+convergence_tol: N/A
+script_digest: N/A
+
+INTERFACE_CONSUMER:
+artefact_name: allocation/zone_allocator.py
+function: enforce_zone_floors
+description: Applies φ_z floors to zone allocation counts.
+
+POSTERIOR_VALIDATION:
+metric: floor violation count
+acceptance_range: [0]
+sample_size: all merchants
+
+PROVENANCE_TAG:
+artefact_name: config/zone_floor.yml
+sha256: <to‑be‑populated>
+
+SHORT_DESCRIPTION:
+Minimum count thresholds for each timezone.
+
+TEST_PATHWAY:
+test: CI zone_floor test
+input: zone_floor_stats.log
+assert: no outlet count below φ_z
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=8>>
+Name: Corporate‑day random effect variance
+Symbol: σ_γ²
 Scope: merchant_location
 ---------------------------------
 
 PRIOR:
-type: LogNormal variance (YAML-governed)
+type: Loaded constant
 hyperparameters:
-$\sigma_{\gamma}^{2}$: 0.15 (see routing_day_effect.yml)
-units: variance (dimensionless)
-default_policy: use prior (fallback 0.15)
-justification: Modulates LGCP mean for synchrony in cross-zone merchant allocation.
-CALIBRATION_RECIPE:
-input_path: config/routing/routing_day_effect.yml
-objective: Fit to cross-zone correlation, empirical synchrony
-algorithm: empirical moment matching
-random_seed: CALIB_SEED
-convergence_tol: as set in YAML
-script_digest: (see gamma_variance_digest)
-INTERFACE_CONSUMER:
-artefact_name: config/routing/routing_day_effect.yml
-function: Modulates LGCP mean, Poisson intensity, synchrony
-description: Used for latent synchrony modulation in LGCP per merchant, per day.
-POSTERIOR_VALIDATION:
-metric: empirical correlation, CI digest check
-acceptance_range: matches cross-zone synchrony; digest in manifest
-sample_size: all days/merchants
-PROVENANCE_TAG:
-artefact_name: config/routing/routing_day_effect.yml
-sha256: (see gamma_variance_digest)
-SHORT_DESCRIPTION:
-Variance for corporate-day log-normal multiplier in cross-zone LGCP mean.
-TEST_PATHWAY:
-test: empirical synchrony check, digest audit
-input: routing_day_effect.yml, validation log
-assert: Synchrony/variance matches target, manifest lock
-Confidence=HIGH
-<<<END PP‑FIX>>
+  variance_file: routing_day_effect.yml
+units: dimensionless
+default_policy: abort on missing file
+justification: Variance for corporate‐day LogNormal random effect.
 
-<<<PP‑FIX id=7>
-Name: Universe hash (cross-artifact linkage)
-Symbol: $h = \mathrm{SHA256}(zone\_alpha\_digest \| theta\_digest \| zone\_floor\_digest \| gamma\_variance\_digest \| zone\_alloc\_parquet\_digest)$
+CALIBRATION_RECIPE:
+input_path: s3://data/routing/day_counts.csv
+objective: Method of Moments
+algorithm: Nelder‑Mead
+random_seed: 42
+convergence_tol: 1e‑6
+script_digest: sha256:<to‑be‑populated>  # build/scripts/calibrate_gamma.py
+
+INTERFACE_CONSUMER:
+artefact_name: routing_day_effect.yml
+function: load_day_variance
+description: Loads σ_γ² for γ_d sampler.
+
+POSTERIOR_VALIDATION:
+metric: empirical variance match
+acceptance_range: [σ_γ², σ_γ²]
+sample_size: daily build
+
+PROVENANCE_TAG:
+artefact_name: routing_day_effect.yml
+sha256: <to‑be‑populated>
+
+SHORT_DESCRIPTION:
+Variance parameter for day‐effect LogNormal.
+
+TEST_PATHWAY:
+test: CI day_variance test
+input: day_effect_stats.log
+assert: loaded variance matches manifest
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=9>>
+Name: Corporate‑day random effect mean
+Symbol: μ_γ
 Scope: merchant_location
 ---------------------------------
 
 PRIOR:
-type: Deterministic digest (hash concatenation, not stochastic)
+type: Deterministic derived constant
 hyperparameters:
-digests: zone_alpha_digest, theta_digest, zone_floor_digest, gamma_variance_digest, zone_alloc_parquet_digest
-units: 64-char hex string
-default_policy: abort (on any hash mismatch)
-justification: Ensures all allocation, routing, and validation use identical artefact set; cross-artifact linkage.
-CALIBRATION_RECIPE:
-input_path: manifest, per-run
-objective: cross-artifact linkage; ensure all config digests align
-algorithm: hash concatenation + SHA256
-random_seed: not applicable
-convergence_tol: not applicable
-script_digest: (see manifest)
-INTERFACE_CONSUMER:
-artefact_name: manifest, all downstream routing tables
-function: Universe linkage guard for all alias tables and allocation outputs
-description: Enforces artefact integrity; all downstream consumers must match hash
-POSTERIOR_VALIDATION:
-metric: manifest hash check, property-based test
-acceptance_range: hash matches all downstream artefacts; abort on drift
-sample_size: per allocation run, all merchants
-PROVENANCE_TAG:
-artefact_name: manifest
-sha256: (hash of concatenated digests)
-SHORT_DESCRIPTION:
-Cross-artifact linkage hash for universe integrity in routing/allocation.
-TEST_PATHWAY:
-test: manifest check, alias table audit
-input: manifest, alias tables
-assert: All hash values match or abort build
-Confidence=HIGH
-<<<END PP‑FIX>>
+  formula: μ_γ = -½ σ_γ²
+units: dimensionless
+default_policy: use prior
+justification: Centers log‑normal so E[γ_d] = 1.
 
-<<<PP‑FIX id=8>
-Name: Barcode slope validation thresholds
-Symbol: barcode_slope_low, barcode_slope_high
+CALIBRATION_RECIPE:
+input_path: N/A
+objective: Not applicable
+algorithm: Not applicable
+random_seed: N/A
+convergence_tol: N/A
+script_digest: N/A
+
+INTERFACE_CONSUMER:
+artefact_name: routing_day_effect.yml
+function: compute_log_normal_mean
+description: Derives μ_γ from σ_γ² for LogNormal effect.
+
+POSTERIOR_VALIDATION:
+metric: mean expectation test
+acceptance_range: [1.0, 1.0]
+sample_size: 10000
+
+PROVENANCE_TAG:
+artefact_name: routing_day_effect.yml
+sha256: <to‑be‑populated>
+
+SHORT_DESCRIPTION:
+Mean of log‐normal for corporate‐day effect.
+
+TEST_PATHWAY:
+test: CI lognormal mean test
+input: uniform_day_effect.log
+assert: E[γ_d] ≈ 1
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=10>>
+Name: Gamma‐day uniform deviate
+Symbol: u_d ∼ U(0,1)
 Scope: merchant_location
 ---------------------------------
 
 PRIOR:
-type: Fixed threshold (YAML-governed)
+type: Uniform
 hyperparameters:
-barcode_slope_low: -1.0
-barcode_slope_high: -0.5
-units: offsets per UTC hour (float)
-default_policy: abort (if threshold breached)
-justification: Prevents physically impossible barcode slope in cross-zone audit.
-CALIBRATION_RECIPE:
-input_path: config/validation/cross_zone_validation.yml
-objective: set empirically from synthetic validation
-algorithm: empirical, Hough transform slope estimation
-random_seed: not applicable
-convergence_tol: not applicable
-script_digest: (see cross_zone_validation_digest)
-INTERFACE_CONSUMER:
-artefact_name: config/validation/cross_zone_validation.yml
-function: Consumed by CI barcode audit in cross-zone merchant validation
-description: Checks for barcode heatmap slope within valid bounds during CI
-POSTERIOR_VALIDATION:
-metric: barcode slope (Hough), CI digest
-acceptance_range: [-1.0, -0.5]
-sample_size: all synthetic validation jobs
-PROVENANCE_TAG:
-artefact_name: config/validation/cross_zone_validation.yml
-sha256: (see cross_zone_validation_digest)
-SHORT_DESCRIPTION:
-Audit thresholds for barcode slope in cross-zone merchant validation.
-TEST_PATHWAY:
-test: barcode slope CI audit
-input: barcode audit output, validation log
-assert: All slopes within thresholds, manifest digest locked
-Confidence=HIGH
-<<<END PP‑FIX>>
+  min: 0
+  max: 1
+units: dimensionless
+default_policy: abort on RNG error
+justification: Uniform draw for inverse‐Gaussian transform of γ_d.
 
-<<<PP‑FIX id=9>
-Name: Zone-share convergence tolerance
+CALIBRATION_RECIPE:
+input_path: N/A
+objective: Not applicable
+algorithm: Not applicable
+random_seed: N/A
+convergence_tol: N/A
+script_digest: N/A
+
+INTERFACE_CONSUMER:
+artefact_name: allocation/day_effect.py
+function: draw_uniform_day
+description: Produces uniform deviate for day‐effect sampling.
+
+POSTERIOR_VALIDATION:
+metric: KS distance for uniformity
+acceptance_range: [0.0, 0.05]
+sample_size: 10000
+
+PROVENANCE_TAG:
+artefact_name: rng_policy.yml
+sha256: <to‑be‑populated>
+
+SHORT_DESCRIPTION:
+Uniform deviate for corporate‐day effect.
+
+TEST_PATHWAY:
+test: CI uniform‐day test
+input: uniform_day_effect.log
+assert: KS statistic < 0.05
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=11>>
+Name: Gamma‐day RNG key derivation
+Symbol: key = SHA256(global_seed‖"gamma_day"‖merchant_id)
+Scope: merchant_location
+---------------------------------
+
+PRIOR:
+type: Deterministic hash policy
+hyperparameters:
+  policy_file: config/rng_policy.yml
+units: hex (256‑bit)
+default_policy: abort on mismatch
+justification: Derives Philox sub‐stream key for γ_d.
+
+CALIBRATION_RECIPE:
+input_path: N/A
+objective: Not applicable
+algorithm: Not applicable
+random_seed: N/A
+convergence_tol: N/A
+script_digest: N/A
+
+INTERFACE_CONSUMER:
+artefact_name: allocation/day_effect.py
+function: derive_gamma_key
+description: Computes seed key for day‐effect PRNG.
+
+POSTERIOR_VALIDATION:
+metric: key digest match
+acceptance_range: [true, true]
+sample_size: one
+
+PROVENANCE_TAG:
+artefact_name: config/rng_policy.yml
+sha256: <to‑be‑populated>
+
+SHORT_DESCRIPTION:
+Hash‐based PRNG key derivation for day‐effect.
+
+TEST_PATHWAY:
+test: CI gamma‐key derivation test
+input: rng_policy.yml
+assert: computed key digest matches
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=12>>
+Name: Universe hash h
+Symbol: h = SHA256(zone_alpha_digest‖θ_mix_digest‖zone_floor_digest‖gamma_variance_digest‖zone_alloc_parquet_digest)
+Scope: merchant_location
+---------------------------------
+
+PRIOR:
+type: Deterministic function
+hyperparameters:
+  inputs: [zone_alpha_digest, θ_mix_digest, zone_floor_digest, gamma_variance_digest, zone_alloc_parquet_digest]
+units: hex (256‑bit)
+default_policy: abort on mismatch
+justification: Binds all cross‑zone parameters and outputs into a single digest.
+
+CALIBRATION_RECIPE:
+input_path: N/A
+objective: Not applicable
+algorithm: Not applicable
+random_seed: N/A
+convergence_tol: N/A
+script_digest: N/A
+
+INTERFACE_CONSUMER:
+artefact_name: allocation/universe_hash.py
+function: compute_universe_hash
+description: Aggregates digests into h for drift detection.
+
+POSTERIOR_VALIDATION:
+metric: hash match across runs
+acceptance_range: [true, true]
+sample_size: two independent builds
+
+PROVENANCE_TAG:
+artefact_name: allocation/universe_hash.py
+sha256: <to‑be‑populated>
+
+SHORT_DESCRIPTION:
+Aggregate digest linking all 3A parameters and artefacts.
+
+TEST_PATHWAY:
+test: CI universe‑hash test
+input: universe_hash.log
+assert: h identical across builds
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=13>>
+Name: Zone‐alloc Parquet digest
+Symbol: zone_alloc_parquet_digest
+Scope: merchant_location
+---------------------------------
+
+PRIOR:
+type: Fixed artefact reference
+hyperparameters:
+  file: zone_alloc.parquet
+units: hex (256‑bit)
+default_policy: abort on drift
+justification: Digest of per‑merchant Parquet for drift detection.
+
+CALIBRATION_RECIPE:
+input_path: N/A
+objective: Not applicable
+algorithm: Not applicable
+random_seed: N/A
+convergence_tol: N/A
+script_digest: N/A
+
+INTERFACE_CONSUMER:
+artefact_name: zone_alloc.parquet
+function: N/A
+description: Parquet file containing zone allocation outputs.
+
+POSTERIOR_VALIDATION:
+metric: digest match
+acceptance_range: [true, true]
+sample_size: all merchants
+
+PROVENANCE_TAG:
+artefact_name: zone_alloc.parquet
+sha256: <to‑be‑populated>
+
+SHORT_DESCRIPTION:
+Parquet file SHA‑256 for zone allocation.
+
+TEST_PATHWAY:
+test: CI Parquet‑digest test
+input: zone_alloc_index.csv
+assert: sha256 matches logged value
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=14>>
+Name: Zone‐alloc index digest
+Symbol: zone_alloc_index_digest
+Scope: merchant_location
+---------------------------------
+
+PRIOR:
+type: Fixed artefact reference
+hyperparameters:
+  file: zone_alloc_index.csv
+units: hex (256‑bit)
+default_policy: abort on mismatch
+justification: Manifest key for zone‑alloc Parquet digest index.
+
+CALIBRATION_RECIPE:
+input_path: N/A
+objective: Not applicable
+algorithm: Not applicable
+random_seed: N/A
+convergence_tol: N/A
+script_digest: N/A
+
+INTERFACE_CONSUMER:
+artefact_name: zone_alloc_index.csv
+function: N/A
+description: CSV manifest mapping merchant_id to Parquet digest.
+
+POSTERIOR_VALIDATION:
+metric: index entry presence
+acceptance_range: [true, true]
+sample_size: all merchants
+
+PROVENANCE_TAG:
+artefact_name: zone_alloc_index.csv
+sha256: <to‑be‑populated>
+
+SHORT_DESCRIPTION:
+Manifest of zone‑alloc Parquet digests.
+
+TEST_PATHWAY:
+test: CI index‑digest test
+input: zone_alloc_index.csv
+assert: entry exists for every merchant
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=15>>
+Name: Barcode‑slope lower/upper bounds
+Symbol: slope_low, slope_high
+Scope: validation
+---------------------------------
+
+PRIOR:
+type: Loaded constants
+hyperparameters:
+  slope_low: -1.0
+  slope_high: -0.5
+units: hours per offset
+default_policy: abort on breach
+justification: Acceptable slope range for CI cross‑zone offset test.
+
+CALIBRATION_RECIPE:
+input_path: N/A
+objective: Not applicable
+algorithm: Not applicable
+random_seed: N/A
+convergence_tol: N/A
+script_digest: N/A
+
+INTERFACE_CONSUMER:
+artefact_name: validation/cross_zone_validation.py
+function: check_barcode_slope
+description: Enforces slope bounds in offset‑barcode test.
+
+POSTERIOR_VALIDATION:
+metric: slope violations count
+acceptance_range: [0]
+sample_size: daily build
+
+PROVENANCE_TAG:
+artefact_name: config/cross_zone_validation.yml
+sha256: <to‑be‑populated>
+
+SHORT_DESCRIPTION:
+Slope tolerance for cross‑zone offset validation.
+
+TEST_PATHWAY:
+test: CI barcode‑slope test
+input: barcode_slope_stats.log
+assert: no slope outside [slope_low, slope_high]
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=16>>
+Name: Zone‑share convergence tolerance
 Symbol: share_tolerance
-Scope: merchant_location
+Scope: validation
 ---------------------------------
 
 PRIOR:
-type: Fixed threshold (YAML-governed)
+type: Loaded constant
 hyperparameters:
-share_tolerance: 0.02
-units: unitless (absolute deviation)
-default_policy: abort (if tolerance breached)
-justification: Ensures empirical/allocated shares agree to within two percentage points during validation.
-CALIBRATION_RECIPE:
-input_path: config/validation/cross_zone_validation.yml
-objective: match share convergence between synthetic and allocated
-algorithm: empirical deviation calculation
-random_seed: not applicable
-convergence_tol: not applicable
-script_digest: (see cross_zone_validation_digest)
-INTERFACE_CONSUMER:
-artefact_name: config/validation/cross_zone_validation.yml
-function: Used by CI to check share deviation in cross-zone validation
-description: Triggers build abort if share tolerance breached in CI check.
-POSTERIOR_VALIDATION:
-metric: absolute deviation in share
-acceptance_range: ≤ 0.02
-sample_size: all merchants, all validation runs
-PROVENANCE_TAG:
-artefact_name: config/validation/cross_zone_validation.yml
-sha256: (see cross_zone_validation_digest)
-SHORT_DESCRIPTION:
-Tolerance for allowed share difference in zone convergence validation.
-TEST_PATHWAY:
-test: share convergence CI check
-input: validation output, allocation logs
-assert: All shares within tolerance or build aborts
-Confidence=HIGH
-<<<END PP‑FIX>>
+  value: 0.02
+units: dimensionless
+default_policy: abort on breach
+justification: Maximum allowed difference between empirical and target zone shares.
 
-<<<PP‑FIX id=10>
-Name: Random-stream isolation (Philox substream allocation)
-Symbol: SHA256(merchant_id, country_iso)
-Scope: merchant_location
----------------------------------
-
-PRIOR:
-type: Deterministic hash/key (not stochastic)
-hyperparameters:
-merchant_id: string
-country_iso: string
-units: 64-char hex (Philox key)
-default_policy: abort (if proof not matched, CI fail)
-justification: Guarantees per-merchant/country random stream isolation for Dirichlet, Gamma draws.
 CALIBRATION_RECIPE:
-input_path: docs/rng_proof.md
-objective: proof of stream isolation and replay
-algorithm: property-based test suite, hash construction
-random_seed: not applicable
-convergence_tol: not applicable
-script_digest: (see rng_proof_digest)
+input_path: N/A
+objective: Not applicable
+algorithm: Not applicable
+random_seed: N/A
+convergence_tol: N/A
+script_digest: N/A
+
 INTERFACE_CONSUMER:
-artefact_name: docs/rng_proof.md
-function: Dirichlet/Gamma stream isolation, downstream validation and audit
-description: Enforces reproducibility and auditability of all random draws in cross-zone allocation.
+artefact_name: validation/cross_zone_validation.yml
+function: load_share_tolerance
+description: Provides share_tolerance for CI checks.
+
 POSTERIOR_VALIDATION:
-metric: property-based test, proof in manifest
-acceptance_range: all hash tests pass
-sample_size: all allocation runs per merchant
+metric: max |π_emp - π_target|
+acceptance_range: [0.0, share_tolerance]
+sample_size: daily build
+
 PROVENANCE_TAG:
-artefact_name: docs/rng_proof.md
-sha256: (see rng_proof_digest)
+artefact_name: validation/cross_zone_validation.yml
+sha256: <to‑be‑populated>
+
 SHORT_DESCRIPTION:
-Keying for Philox substreams to isolate all random draws per merchant/country.
+Tolerance for zone‑share convergence in CI.
+
 TEST_PATHWAY:
-test: property-based suite, audit replay
-input: validation logs, manifest, rng proof
-assert: All substreams pass isolation and proof check
+test: CI share‑convergence test
+input: share_tolerance_stats.log
+assert: max deviation ≤ share_tolerance
+
 Confidence=HIGH
-<<<END PP‑FIX>>
+<<<END PP‑FIX>>>
 
 ##### END PARAMETER_SPEC #####
 
-id=1 | gaps_closed=prior|calib|post|prov | notes=YAML-driven escalation threshold, audit/manifest locked  
-id=2 | gaps_closed=prior|calib|post|prov | notes=Dirichlet vector, script-calibrated, manifest locked  
-id=3 | gaps_closed=prior|calib|post|prov | notes=Dirichlet smoothing constant, script-calibrated  
-id=4 | gaps_closed=prior|calib|post|prov | notes=Major zone fallback, shapefile-calculated  
-id=5 | gaps_closed=prior|calib|post|prov | notes=Micro-zone floor, YAML/CI/test enforced  
-id=6 | gaps_closed=prior|calib|post|prov | notes=Corporate-day variance, YAML/script-driven  
-id=7 | gaps_closed=prior|calib|post|prov | notes=Hash linkage, manifest/CI enforced  
-id=8 | gaps_closed=prior|calib|post|prov | notes=Barcode slope, CI-audited  
-id=9 | gaps_closed=prior|calib|post|prov | notes=Share tolerance, CI build-audited  
-id=10 | gaps_closed=prior|calib|post|prov | notes=Stream isolation, proof-locked  
+id=1  | gaps_closed=none | notes=Initial mixture threshold fully specified  
+id=2  | gaps_closed=post | notes=Added posterior validation for τ smoothing  
+id=3  | gaps_closed=post | notes=Specified Dirichlet‐alpha validation metric  
+id=4  | gaps_closed=post | notes=Added Gamma sampling KS test  
+id=5  | gaps_closed=none | notes=Bump threshold fully defined  
+id=6  | gaps_closed=none | notes=Major‐zone mapping spec complete  
+id=7  | gaps_closed=none | notes=Zone‐floor specification complete  
+id=8  | gaps_closed=none | notes=Variance load and CI check in place  
+id=9  | gaps_closed=none | notes=Derived mean spec complete  
+id=10 | gaps_closed=none | notes=Uniform deviate test added  
+id=11 | gaps_closed=none | notes=Gamma‐day key test specified  
+id=12 | gaps_closed=none | notes=Universe hash CI test specified  
+id=13 | gaps_closed=none | notes=Parquet digest CI test specified  
+id=14 | gaps_closed=none | notes=Index digest CI test specified  
+id=15 | gaps_closed=none | notes=Barcode‐slope spec complete  
+id=16 | gaps_closed=none | notes=Share tolerance CI spec complete  
 <<PS‑END>>

@@ -160,7 +160,7 @@ Write `No parameter gaps found.` then `<<PP‑END>>`.
 
 CATALOGUE BLOCK FORMAT  
 (no bullets, no summaries)
-
+```text
 --- PP {{ID}} ---
 Name: {{plain_english_name}}
 Symbol: {{math_symbol}}
@@ -188,6 +188,7 @@ Gap_flags:
   description_missing={{Y|N}}
 Confidence={{HIGH|MEDIUM|LOW}}
 --- END PP {{ID}} ---
+```txt
 
 RULES  
 • Scan inline math (`$…$`), or math blocks and Appendix A tables; extract every Greek or variable followed by distribution verbs (“~”, “drawn”, “sample”, “prior”, “posterior”, etc [whatever, by your expertise, you know fits this task]).  
@@ -223,7 +224,7 @@ GOAL
 For each pp_id, fill every gap flagged by PCF and emit a deterministic spec block.
 
 SPEC BLOCK FORMAT (no bullets)
-
+```txt
 <<<PP‑FIX id={{ID}}>
 Name: {{plain_english_name}}
 Symbol: {{math_symbol}}
@@ -265,7 +266,7 @@ input: {{synthetic or real data}}
 assert: {{acceptance condition}}
 Confidence={{HIGH|MEDIUM|LOW}}
 <<<END PP‑FIX>>>
-
+```
 COLLECT‑AND‑ORDER RULE
 • Buffer all PP‑FIX blocks → sort ascending by id.
 • Emit one header `##### PARAMETER_SPEC.txt #####`, the blocks, then `##### END PARAMETER_SPEC #####`.

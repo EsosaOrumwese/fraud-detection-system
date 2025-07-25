@@ -1,258 +1,583 @@
-############################################################
-#  PARAMETER SPEC‑WRITER • Sub‑segment 4B                   #
-############################################################
-
-
-<<<PP‑FIX id=1>
-Name: Structural validation error contract
-Symbol: StructuralError, structural_failure_<parameter_hash>.parquet
-Scope: validation
+<<<PP‑FIX id=1>>
+Name: Structural failure Parquet path  
+Symbol: structural_failure_<parameter_hash>.parquet  
+Scope: validation  
 ---------------------------------
 
 PRIOR:
-type: Deterministic contract (Parquet + CI)
+type: Fixed artefact pattern  
 hyperparameters:
-structural_failure_parquet: structural_failure_<parameter_hash>.parquet
-units: log entry (failed row, RNG jump offset)
-default_policy: abort (first error halts pipeline, blocks merge)
-justification: Ensures no structural error is silently tolerated; every defect halts build, is logged and merge-blocked.
-CALIBRATION_RECIPE:
-input_path: structural_failure_<parameter_hash>.parquet, artefact_registry.yaml
-objective: Capture and halt on every structural error, ensure every error is logged and hash-mapped
-algorithm: synchronous defect channel, CI test, log and hash validation
-random_seed: not applicable
-convergence_tol: not applicable
-script_digest: (see structural_failure_digest)
-INTERFACE_CONSUMER:
-artefact_name: validator, CI, audit, manifest, logs
-function: Captures and logs every failed row/defect for structural plausibility validation
-description: All pipeline outputs and validation harnesses halt and log on structural defect, blocking merge.
-POSTERIOR_VALIDATION:
-metric: defect log check, fail-fast, merge-block
-acceptance_range: no defects tolerated, all logged
-sample_size: all failed rows per run
-PROVENANCE_TAG:
-artefact_name: structural_failure_<parameter_hash>.parquet
-sha256: (see structural_failure_digest)
-SHORT_DESCRIPTION:
-Every failed row or coordinate/time/schema defect is logged and blocks build and merge.
-TEST_PATHWAY:
-test: CI, audit, manifest log replay
-input: structural_failure parquet, logs, manifest
-assert: All defects halt pipeline, defect log present, hash matches
-Confidence=HIGH
-<<<END PP‑FIX>>
+  pattern: "structural_failure_<parameter_hash>.parquet"  
+units: file path  
+default_policy: abort on any structural error  
+justification: Defines the output path for rows failing structural validation.
 
-<<<PP‑FIX id=2>
-Name: Adversarial AUROC drift detection
-Symbol: DistributionDriftDetected, auroc_model_*.parquet, misclassified_*.csv
-Scope: validation
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: structural_validator.py  
+function: write_failure_parquet  
+description: Emits failed‐row context into the structured Parquet file.
+
+POSTERIOR_VALIDATION:
+metric: file existence  
+acceptance_range: [true, true]  
+sample_size: each validation run  
+
+PROVENANCE_TAG:
+artefact_name: structural_validator.py  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+Parquet file path for recording structural validation failures.
+
+TEST_PATHWAY:
+test: CI structural‐validation test  
+input: generator_output.parquet  
+assert: file created when any structural error occurs  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=2>>
+Name: Sliding window size  
+Symbol: window_size  
+Scope: validation  
 ---------------------------------
 
 PRIOR:
-type: Deterministic contract (XGBoost, YAML, hyper-parameter lock)
+type: Fixed constant  
 hyperparameters:
-auroc_model_parquet: auroc_model_*.parquet
-misclassified_csv: misclassified_*.csv
-units: AUROC (float), indices (CSV)
-default_policy: abort (if AUROC > 0.55 or artefact/log missing)
-justification: Ensures that any distributional drift is detected and blocks further progress if AUROC threshold exceeded.
-CALIBRATION_RECIPE:
-input_path: validation_conf.yml
-objective: Windowed AUROC test, hyper-parameter locked model validation
-algorithm: XGBoost windowed training, YAML/model/feature locking
-random_seed: not applicable
-convergence_tol: not applicable
-script_digest: (see validation_conf_digest)
-INTERFACE_CONSUMER:
-artefact_name: validator, CI, audit, manifest, logs
-function: Runs adversarial test, logs drift, halts pipeline if drift detected
-description: Detects and logs any AUROC drift above threshold, blocks merge, logs model dump and misclassified indices.
-POSTERIOR_VALIDATION:
-metric: AUROC threshold test, manifest/CI fail-fast
-acceptance_range: AUROC ≤ 0.55
-sample_size: million-row windows per run
-PROVENANCE_TAG:
-artefact_name: auroc_model_*.parquet, misclassification_digest
-sha256: (see validation_conf_digest)
-SHORT_DESCRIPTION:
-Adversarial AUROC drift test logs and blocks build if drift detected.
-TEST_PATHWAY:
-test: CI, adversarial log check, manifest match
-input: model parquet, misclassified csv, logs
-assert: AUROC ≤ 0.55 or pipeline halts, logs/manifest match
-Confidence=HIGH
-<<<END PP‑FIX>>
+  value: 200000  
+units: rows  
+default_policy: abort if mis‑sized  
+justification: Number of rows (half real, half synthetic) per classifier window.
 
-<<<PP‑FIX id=3>
-Name: Semantic GLM dispersion corridor
-Symbol: θ, glm_theta_violation.pdf
-Scope: validation
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: adversarial_validator.py  
+function: run_sliding_window  
+description: Streams data in windows of size `window_size` for AUROC checks.
+
+POSTERIOR_VALIDATION:
+metric: window length verification  
+acceptance_range: [window_size, window_size]  
+sample_size: each validation run  
+
+PROVENANCE_TAG:
+artefact_name: adversarial_validator.py  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+Row count per sliding window for adversarial validation.
+
+TEST_PATHWAY:
+test: CI window‐size test  
+input: validation_stream.log  
+assert: each window contains exactly `window_size` rows  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=3>>
+Name: AUROC evaluation interval  
+Symbol: auroc_interval  
+Scope: validation  
 ---------------------------------
 
 PRIOR:
-type: Corridor (YAML, Poisson GLM, channel-specific)
+type: Fixed constant  
 hyperparameters:
-theta_cp: [1, 2]
-theta_cnp: [2, 4]
-units: θ (dispersion, float)
-default_policy: abort (θ out of corridor triggers error, CI block, needs_recalibration flag)
-justification: Protects model/fit plausibility; out-of-range θ means LGCP/footfall calibration has drifted.
-CALIBRATION_RECIPE:
-input_path: footfall_coefficients.yaml, statsmodels, CI logs
-objective: Corridor and fit validation, channel-specific θ
-algorithm: statsmodels GLM, in-memory, dispersion check
-random_seed: not applicable
-convergence_tol: not applicable
-script_digest: (see theta_violation_digest)
-INTERFACE_CONSUMER:
-artefact_name: validator, CI, semantic_glm.py, audit, manifest
-function: Checks and flags dispersion; blocks merge if corridor violated.
-description: Ensures every fitted channel stays within plausible θ corridor, recalibration forced if violated.
-POSTERIOR_VALIDATION:
-metric: θ corridor fit, GLM fit, CI manifest/flag check
-acceptance_range: [1, 2] for CP; [2, 4] for CNP
-sample_size: all channel/merchants per run
-PROVENANCE_TAG:
-artefact_name: footfall_coefficients.yaml
-sha256: (see theta_violation_digest)
-SHORT_DESCRIPTION:
-GLM θ corridor for footfall calibration and semantic dispersion control.
-TEST_PATHWAY:
-test: semantic_glm.py, CI replay, log/manifest
-input: YAML, fit, logs
-assert: All θ within corridor, else block/recalibrate
-Confidence=HIGH
-<<<END PP‑FIX>>
+  value: 1000000  
+units: rows  
+default_policy: abort if interval mis‑computed  
+justification: Frequency (in rows) at which AUROC is computed.
 
-<<<PP‑FIX id=4>
-Name: Barcode slope threshold
-Symbol: barcode_bounds.yml, BarcodeSlopeError, barcode_failure_*.png
-Scope: validation
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: adversarial_validator.py  
+function: evaluate_auroc_periodically  
+description: Triggers AUROC check every `auroc_interval` rows.
+
+POSTERIOR_VALIDATION:
+metric: check scheduling  
+acceptance_range: [true, true]  
+sample_size: validation run  
+
+PROVENANCE_TAG:
+artefact_name: adversarial_validator.py  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+Row interval for periodic AUROC evaluations.
+
+TEST_PATHWAY:
+test: CI AUROC‐interval test  
+input: adversarial_stats.log  
+assert: AUROC computed at every `auroc_interval`  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=4>>
+Name: AUROC failure threshold  
+Symbol: auroc_cut  
+Scope: validation  
 ---------------------------------
 
 PRIOR:
-type: Physical-law corridor (YAML, Hough transform)
+type: Fixed constant  
 hyperparameters:
-barcode_slope_low: -1.0
-barcode_slope_high: -0.5
-units: slope (offsets per UTC hour, float)
-default_policy: abort (slope out of bounds triggers PNG, fail, merge block)
-justification: Physics corridor enforcement for all merchants, hard block if barcode slope falls outside bounds.
-CALIBRATION_RECIPE:
-input_path: barcode_bounds.yml
-objective: Empirical slope validation, Hough transform check
-algorithm: fast Hough transform, PNG overlay, YAML corridor
-random_seed: not applicable
-convergence_tol: not applicable
-script_digest: (see barcode_failure_digest)
-INTERFACE_CONSUMER:
-artefact_name: validator, barcode.py, CI, audit, manifest
-function: Runs Hough transform, renders and saves barcode failure PNG, logs event
-description: Protects against physically implausible barcode drift or time-series implausibility.
-POSTERIOR_VALIDATION:
-metric: Hough slope corridor, PNG audit, manifest check
-acceptance_range: [-1, -0.5]
-sample_size: all barcode events per run
-PROVENANCE_TAG:
-artefact_name: barcode_bounds.yml
-sha256: (see barcode_failure_digest)
-SHORT_DESCRIPTION:
-Physical corridor for barcode slope, rendered, checked, and merge-blocked if out of bounds.
-TEST_PATHWAY:
-test: barcode.py, PNG overlay, CI replay
-input: YAML, PNG, logs
-assert: All slopes within corridor, else block
-Confidence=HIGH
-<<<END PP‑FIX>>
+  value: 0.55  
+units: proportion  
+default_policy: abort on breach  
+justification: Maximum tolerable AUROC before CI failure.
 
-<<<PP‑FIX id=5>
-Name: Licence mapping and audit
-Symbol: artefact_registry.yaml, licence_digests
-Scope: validation
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: adversarial_validator.py  
+function: check_auroc_threshold  
+description: Aborts validation if AUROC ≥ `auroc_cut`.
+
+POSTERIOR_VALIDATION:
+metric: AUROC value  
+acceptance_range: [0.0, auroc_cut]  
+sample_size: each evaluation  
+
+PROVENANCE_TAG:
+artefact_name: adversarial_validator.py  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+Threshold for adversarial classifier AUROC.
+
+TEST_PATHWAY:
+test: CI AUROC‐threshold test  
+input: adversarial_stats.log  
+assert: AUROC < `auroc_cut`  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=5>>
+Name: Semantic‑GLM dispersion corridor  
+Symbol: θ_cp_bounds, θ_cnp_bounds  
+Scope: validation  
 ---------------------------------
 
 PRIOR:
-type: Deterministic mapping (SHA-1 digest contract)
+type: Fixed constants  
 hyperparameters:
-licence_digests: SHA-1 for every mapped artefact
-units: SHA-1 digest (hex string)
-default_policy: abort (licence mismatch, missing, or unreferenced)
-justification: Enforces full legal provenance for every artefact, all mapped, SHA-1 locked, blocking build if mismatch.
-CALIBRATION_RECIPE:
-input_path: artefact_registry.yaml, validate_licences.py
-objective: Mapping and SHA-1 match for all artefacts
-algorithm: SHA-1 calculation, mapping, audit
-random_seed: not applicable
-convergence_tol: not applicable
-script_digest: (see licence_log_digest)
-INTERFACE_CONSUMER:
-artefact_name: validator, CI, audit, manifest, logs
-function: Checks mapping for all artefacts, SHA-1 for every licence; blocks build if mismatch
-description: Mapping is fully checked and logged; CI blocks merge if any missing or mismatched
-POSTERIOR_VALIDATION:
-metric: mapping completeness, SHA-1 comparison
-acceptance_range: all licences mapped, all SHA-1s match
-sample_size: all artefacts per build
-PROVENANCE_TAG:
-artefact_name: artefact_registry.yaml
-sha256: (see licence_log_digest)
-SHORT_DESCRIPTION:
-Legal and compliance mapping for every artefact and its SHA-1 licence.
-TEST_PATHWAY:
-test: validate_licences.py, CI, audit replay
-input: artefact_registry.yaml, manifest
-assert: All artefact SHA-1 digests match, mapping is complete
-Confidence=HIGH
-<<<END PP‑FIX>>
+  θ_cp_lower: 1  
+  θ_cp_upper: 2  
+  θ_cnp_lower: 2  
+  θ_cnp_upper: 4  
+units: dimensionless  
+default_policy: abort on breach  
+justification: Acceptable over‑dispersion corridors for Poisson GLM.
 
-<<<PP‑FIX id=6>
-Name: Directory immutability and audit hash/URI enforcement
-Symbol: validation/hashgate_uri.txt, readonly.flag
-Scope: validation
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: semantic_glm.py  
+function: validate_dispersion  
+description: Ensures fitted dispersion θ lies within specified bounds.
+
+POSTERIOR_VALIDATION:
+metric: dispersion check  
+acceptance_range: [θ_lower, θ_upper]  
+sample_size: per‑channel fit  
+
+PROVENANCE_TAG:
+artefact_name: semantic_glm.py  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+GLM dispersion bounds for card‑present and CNP channels.
+
+TEST_PATHWAY:
+test: CI dispersion‐bounds test  
+input: glm_fit_stats.log  
+assert: θ ∈ [bounds] for each channel  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=6>>
+Name: GLM θ‑violation PDF path  
+Symbol: glm_theta_violation.pdf  
+Scope: validation  
 ---------------------------------
 
 PRIOR:
-type: Deterministic (SHA-256, URI, file lock)
+type: Fixed artefact pattern  
 hyperparameters:
-hashgate_uri: validation/hashgate_uri.txt
-readonly_flag: readonly.flag
-units: URI (string), SHA-256 digest, file presence
-default_policy: abort (if missing, not locked, or URI not referenced)
-justification: Directory must be read-only, hashgate URI must be present, audit/merge must reference hash/URI.
+  filename: glm_theta_violation.pdf  
+units: file path  
+default_policy: abort on generation  
+justification: Output PDF when dispersion breaches corridor.
+
 CALIBRATION_RECIPE:
-input_path: validation/hashgate_uri.txt, readonly.flag
-objective: Ensure directory immutability and audit URI/flag presence
-algorithm: directory/file presence, SHA-256 calculation, URI check
-random_seed: not applicable
-convergence_tol: not applicable
-script_digest: (see hashgate_uri_digest, readonly_flag_digest)
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
 INTERFACE_CONSUMER:
-artefact_name: validator, CI, NFS, manifest, merge/release script
-function: Ensures audit/validation directory is immutable, audit URI and readonly flag are referenced in manifest and logs
-description: Final directory is checked for immutability, poll for URI approval, CI blocks merge if any test fails.
+artefact_name: semantic_glm.py  
+function: emit_violation_pdf  
+description: Writes PDF illustrating predicted vs observed counts.
+
 POSTERIOR_VALIDATION:
-metric: directory/file presence, hash/URI check
-acceptance_range: hashgate URI and readonly flag present and referenced, directory read-only
-sample_size: all validation directories per build
+metric: file existence  
+acceptance_range: [true, true]  
+sample_size: each violation event  
+
 PROVENANCE_TAG:
-artefact_name: validation/hashgate_uri.txt, readonly.flag
-sha256: (see hashgate_uri_digest, readonly_flag_digest)
+artefact_name: semantic_glm.py  
+sha256: <to‑be‑populated>  
+
 SHORT_DESCRIPTION:
-Directory and audit URI/flag for immutability and merge-blocking validation.
+PDF path for GLM dispersion violations.
+
 TEST_PATHWAY:
-test: directory immutability, CI, audit log
-input: hashgate_uri.txt, readonly.flag, manifest, logs
-assert: Directory is read-only, all hashes/flags present
+test: CI PDF‐generation test  
+input: semantic_glm.log  
+assert: PDF created upon θ breach  
+
 Confidence=HIGH
-<<<END PP‑FIX>>
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=7>>
+Name: Barcode slope acceptance band  
+Symbol: slope_bounds  
+Scope: validation  
+---------------------------------
+
+PRIOR:
+type: Fixed constants  
+hyperparameters:
+  lower: -1.0  
+  upper: -0.5  
+units: minutes per hour  
+default_policy: abort on breach  
+justification: Acceptable slope range for Hough‐transform offset test.
+
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: barcode_validator.py  
+function: check_barcode_slope  
+description: Fails if dominant slope ∉ [lower, upper].
+
+POSTERIOR_VALIDATION:
+metric: slope violation count  
+acceptance_range: [0, 0]  
+sample_size: each merchant  
+
+PROVENANCE_TAG:
+artefact_name: barcode_validator.py  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+Slope tolerance for barcode offset‑UTC test.
+
+TEST_PATHWAY:
+test: CI barcode‐slope test  
+input: barcode_stats.log  
+assert: no slope outside bounds  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=8>>
+Name: Barcode failure PNG path  
+Symbol: barcode_failure_<merchant_id>.png  
+Scope: validation  
+---------------------------------
+
+PRIOR:
+type: Fixed artefact pattern  
+hyperparameters:
+  pattern: "barcode_failure_<merchant_id>.png"  
+units: file path  
+default_policy: abort on generation  
+justification: Heat‐map output for barcode slope failures.
+
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: barcode_validator.py  
+function: emit_failure_image  
+description: Saves failure overlay as PNG.
+
+POSTERIOR_VALIDATION:
+metric: file existence  
+acceptance_range: [true, true]  
+sample_size: each failure  
+
+PROVENANCE_TAG:
+artefact_name: barcode_validator.py  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+PNG path for barcode slope failure visualizations.
+
+TEST_PATHWAY:
+test: CI barcode‐image test  
+input: barcode_stats.log  
+assert: PNG created upon slope failure  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=9>>
+Name: Licence‑mismatch guard  
+Symbol: N/A  
+Scope: validation  
+---------------------------------
+
+PRIOR:
+type: Fixed CI check  
+hyperparameters:
+  manifest_field: licence_digests  
+units: N/A  
+default_policy: abort on mismatch  
+justification: Verifies manifest‑recorded SHA‑1 matches licence files.
+
+CALIBRATION_RECIPE:
+input_path: manifest.json  
+objective: Not applicable  
+algorithm: SHA‑1 recomputation  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: validate_licences.py  
+function: check_licence_hashes  
+description: Recomputes and compares licence file SHA‑1 digests.
+
+POSTERIOR_VALIDATION:
+metric: mismatch count  
+acceptance_range: [0, 0]  
+sample_size: all licences  
+
+PROVENANCE_TAG:
+artefact_name: validate_licences.py  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+CI guard for licence SHA‑1 consistency.
+
+TEST_PATHWAY:
+test: CI licence‐guard test  
+input: licence_files  
+assert: all SHA‑1 match manifest  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=10>>
+Name: Final validation pass flag  
+Symbol: validation_passed  
+Scope: validation  
+---------------------------------
+
+PRIOR:
+type: Fixed manifest field  
+hyperparameters:
+  value: true  
+units: boolean  
+default_policy: abort on false  
+justification: Indicates all validation checks passed.
+
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: upload_to_hashgate.py  
+function: append_validation_flag  
+description: Adds `validation_passed=true` to manifest when tests succeed.
+
+POSTERIOR_VALIDATION:
+metric: manifest field check  
+acceptance_range: [true, true]  
+sample_size: one upload  
+
+PROVENANCE_TAG:
+artefact_name: upload_to_hashgate.py  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+Manifest flag for final validation success.
+
+TEST_PATHWAY:
+test: CI validation-pass test  
+input: manifest.json  
+assert: `validation_passed` is true  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=11>>
+Name: HashGate upload directory  
+Symbol: /hashgate/<parameter_hash>/<master_seed>  
+Scope: validation  
+---------------------------------
+
+PRIOR:
+type: Fixed URI pattern  
+hyperparameters:
+  pattern: "/hashgate/<parameter_hash>/<master_seed>"  
+units: URI  
+default_policy: abort on failure  
+justification: Endpoint for posting validation artefacts.
+
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: upload_to_hashgate.py  
+function: post_to_hashgate  
+description: Uploads bundle to HashGate URI.
+
+POSTERIOR_VALIDATION:
+metric: HTTP status code  
+acceptance_range: [200, 200]  
+sample_size: one upload  
+
+PROVENANCE_TAG:
+artefact_name: upload_to_hashgate.py  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+HashGate REST endpoint for validation uploads.
+
+TEST_PATHWAY:
+test: CI upload‐directory test  
+input: none  
+assert: receive 200 OK  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=12>>
+Name: CI merge‑block condition  
+Symbol: N/A  
+Scope: validation  
+---------------------------------
+
+PRIOR:
+type: Fixed CI contract  
+hyperparameters:
+  workflow: GitHub Actions  
+units: N/A  
+default_policy: abort on contract violation  
+justification: Prevents merge until byte‑for‑byte manifest match.
+
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: .github/workflows/validate.yml  
+function: enforce_merge_condition  
+description: Polls HashGate and blocks merge until validation_passed=true.
+
+POSTERIOR_VALIDATION:
+metric: manifest match  
+acceptance_range: [true, true]  
+sample_size: one merge event  
+
+PROVENANCE_TAG:
+artefact_name: .github/workflows/validate.yml  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+CI rule enforcing immutable manifest match before merge.
+
+TEST_PATHWAY:
+test: CI merge‐guard test  
+input: none  
+assert: merge blocked until validation_passed  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
 
 ##### END PARAMETER_SPEC #####
 
-id=1 | gaps_closed=prior|calib|post|prov | notes=Parquet defect contract, manifest/CI enforced  
-id=2 | gaps_closed=prior|calib|post|prov | notes=AUROC test, model/hyper lock, fail-fast  
-id=3 | gaps_closed=prior|calib|post|prov | notes=θ corridor, YAML, statsmodels, CI/manifest  
-id=4 | gaps_closed=prior|calib|post|prov | notes=barcode slope, YAML, PNG overlay, CI  
-id=5 | gaps_closed=prior|calib|post|prov | notes=SHA-1 mapping, validate_licences.py, manifest  
-id=6 | gaps_closed=prior|calib|post|prov | notes=Directory immutability, hashgate URI, manifest  
+id=1  | gaps_closed=none | notes=Structural failure path spec complete  
+id=2  | gaps_closed=none | notes=Window size spec complete  
+id=3  | gaps_closed=none | notes=AUROC interval spec complete  
+id=4  | gaps_closed=none | notes=AUROC threshold spec complete  
+id=5  | gaps_closed=none | notes=GLM dispersion corridor spec complete  
+id=6  | gaps_closed=none | notes=Theta‐violation PDF path spec complete  
+id=7  | gaps_closed=none | notes=Barcode slope band spec complete  
+id=8  | gaps_closed=none | notes=Barcode failure PNG path spec complete  
+id=9  | gaps_closed=none | notes=Licence mismatch guard spec complete  
+id=10 | gaps_closed=none | notes=Validation pass flag spec complete  
+id=11 | gaps_closed=none | notes=HashGate URI pattern spec complete  
+id=12 | gaps_closed=none | notes=CI merge condition spec complete  
 <<PS‑END>>

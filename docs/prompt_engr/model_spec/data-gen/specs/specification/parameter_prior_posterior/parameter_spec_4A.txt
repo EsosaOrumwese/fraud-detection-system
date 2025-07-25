@@ -1,259 +1,822 @@
-############################################################
-#  PARAMETER SPEC‑WRITER • Sub‑segment 4A                   #
-############################################################
-
-
-<<<PP‑FIX id=1>
-Name: Parameter-set hash (manifest fingerprint)
-Symbol: $P$
-Scope: merchant_location
+<<<PP‑FIX id=1>>
+Name: Docker image content hash  
+Symbol: container_sha256  
+Scope: reproducibility_configurability  
 ---------------------------------
 
 PRIOR:
-type: Deterministic function (SHA-256 digest)
+type: Fixed artefact reference  
 hyperparameters:
-artefact_set: enumerated absolute POSIX paths (artefact_registry.yaml)
-units: 256-bit hex string
-default_policy: abort (if missing or hash mismatch)
-justification: Anchors all output reproducibility and dataset root; enforces immutability of parameter configuration.
-CALIBRATION_RECIPE:
-input_path: artefact_registry.yaml, manifest, all artefacts
-objective: Complete enumeration and bytewise SHA-256 digest over every artefact
-algorithm: artefact_loader.py, hash accumulator
-random_seed: not applicable
-convergence_tol: not applicable
-script_digest: (see manifest)
-INTERFACE_CONSUMER:
-artefact_name: manifest, all pipeline modules
-function: Propagates parameter hash for all output, directory names, PRNG seed, and provenance fields
-description: Every pipeline output, log, and artefact embeds or references this hash as a provenance anchor.
-POSTERIOR_VALIDATION:
-metric: manifest comparison, collision check
-acceptance_range: hash matches for every output; no collision
-sample_size: all artefacts per build
-PROVENANCE_TAG:
-artefact_name: manifest, artefact_registry.yaml
-sha256: (see manifest)
-SHORT_DESCRIPTION:
-256-bit SHA-256 fingerprint of all declared artefacts, configs, code, and licences.
-TEST_PATHWAY:
-test: artefact_loader.py, manifest comparison, collision audit
-input: artefact_registry.yaml, manifest, artefacts
-assert: Hash matches and unique across builds
-Confidence=HIGH
-<<<END PP‑FIX>>
+  source_file: Dockerfile.lock  
+units: hex (256‑bit)  
+default_policy: abort on mismatch  
+justification: Ensures the exact Docker image used is pinned by content hash.
 
-<<<PP‑FIX id=2>
-Name: Master seed for global PRNG
-Symbol: $\mathit{master\_seed}$
-Scope: merchant_location
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: pipeline_launcher.sh  
+function: validate_container_hash  
+description: Reads `IMAGE_SHA256` from Dockerfile.lock and verifies runtime image.
+
+POSTERIOR_VALIDATION:
+metric: hash equality  
+acceptance_range: [container_sha256, container_sha256]  
+sample_size: one build  
+
+PROVENANCE_TAG:
+artefact_name: Dockerfile.lock  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+Pinned SHA‑256 of the Docker image for reproducible builds.
+
+TEST_PATHWAY:
+test: CI container-hash test  
+input: validate_container_hash.yml  
+assert: runtime image hash matches lock file  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=2>>
+Name: Source code tree hash  
+Symbol: source_sha1  
+Scope: reproducibility_configurability  
 ---------------------------------
 
 PRIOR:
-type: Deterministic function (timestamp + hash)
+type: Fixed artefact reference  
 hyperparameters:
-master_seed: (timestamp_ns << 64) XOR (parameter_set_hash[0:128])
-units: 128-bit integer (hex)
-default_policy: abort (if missing, drift, or mismatch)
-justification: Guarantees global PRNG seed is audit-traceable, unique per parameter set and build time.
-CALIBRATION_RECIPE:
-input_path: manifest, build logs
-objective: Ensure PRNG reproducibility across all pipeline modules
-algorithm: deterministic calculation as described in spec
-random_seed: not applicable
-convergence_tol: not applicable
-script_digest: (see manifest)
-INTERFACE_CONSUMER:
-artefact_name: manifest, all PRNG modules, pipeline logs
-function: Seeds Philox 2^128 + AES-round RNG for every pipeline process and row
-description: Master seed locks every random number stream to the parameter set and build provenance.
-POSTERIOR_VALIDATION:
-metric: manifest and replay check, CI PRNG audit
-acceptance_range: master_seed matches manifest and all PRNG replay
-sample_size: all rows/events per build
-PROVENANCE_TAG:
-artefact_name: manifest
-sha256: (see manifest)
-SHORT_DESCRIPTION:
-Audit-traceable, deterministic 128-bit seed for global PRNG.
-TEST_PATHWAY:
-test: manifest/replay check, PRNG audit
-input: manifest, logs, build output
-assert: All PRNG traces match manifest seed
-Confidence=HIGH
-<<<END PP‑FIX>>
+  git_command: "git rev-parse --verify HEAD"  
+units: hex (160‑bit)  
+default_policy: abort on mismatch  
+justification: Captures exact Git tree hash for source immutability.
 
-<<<PP‑FIX id=3>
-Name: Artefact registry with licence mapping
-Symbol: artefact_registry.yaml, license_map
-Scope: merchant_location
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: validate_container_hash.yml  
+function: validate_source_hash  
+description: Reads `__codehash__` in manifest and compares to `git` output.
+
+POSTERIOR_VALIDATION:
+metric: hash equality  
+acceptance_range: [source_sha1, source_sha1]  
+sample_size: one build  
+
+PROVENANCE_TAG:
+artefact_name: manifest line 4 (`__codehash__`)  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+Git tree SHA‑1 of the checked‑out repository.
+
+TEST_PATHWAY:
+test: CI source-hash test  
+input: manifest  
+assert: codehash matches `git rev-parse`  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=3>>
+Name: Parameter‑set hash  
+Symbol: P  
+Scope: reproducibility_configurability  
 ---------------------------------
 
 PRIOR:
-type: Deterministic contract (YAML, SHA-256, licence mapping)
+type: Deterministic function  
 hyperparameters:
-artefact_registry: YAML list of artefact paths
-license_map: mapping of artefact → licence file (SHA-256 digest)
-units: registry: YAML list; licence: path, SHA-256 digest
-default_policy: abort (if artefact, licence, or mapping missing)
-justification: Guarantees all artefacts have mapped and governed licences, enforced at every build.
-CALIBRATION_RECIPE:
-input_path: artefact_registry.yaml, LICENSES/
-objective: Complete enumeration, mapping, and hash calculation
-algorithm: artefact_loader.py, hash for each licence
-random_seed: not applicable
-convergence_tol: not applicable
-script_digest: (see manifest)
-INTERFACE_CONSUMER:
-artefact_name: artefact_registry.yaml, LICENSES/, manifest, pipeline modules
-function: Maps every artefact to a licence, enforces audit and legal provenance for build/validation
-description: Every output and artefact is mapped to a hash-locked licence and tracked in the registry.
-POSTERIOR_VALIDATION:
-metric: manifest comparison, missing/drift check, CI test
-acceptance_range: all artefacts mapped and hashes present
-sample_size: all artefacts per build
-PROVENANCE_TAG:
-artefact_name: artefact_registry.yaml, LICENSES/
-sha256: (see manifest)
-SHORT_DESCRIPTION:
-Governed, auditable registry of artefacts and licences, mapped and hash-locked.
-TEST_PATHWAY:
-test: artefact_loader.py, CI, manifest replay
-input: artefact_registry.yaml, LICENSES/
-assert: All mappings present, hashes match manifest
-Confidence=HIGH
-<<<END PP‑FIX>>
+  concat_order: lexicographic  
+units: hex (256‑bit)  
+default_policy: abort on mismatch  
+justification: Aggregates all artefact digests into single signature.
 
-<<<PP‑FIX id=4>
-Name: Source, container, and build manifest provenance
-Symbol: source_sha1, container_sha, build_manifest_digest
-Scope: merchant_location
+CALIBRATION_RECIPE:
+input_path: artefact_registry.yaml  
+objective: Not applicable  
+algorithm: SHA‑256 accumulator  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: compare_registry.py  
+function: compute_param_set_hash  
+description: Reads registry entries, concatenates digests, hashes to P.
+
+POSTERIOR_VALIDATION:
+metric: hash equality  
+acceptance_range: [P, P]  
+sample_size: one build  
+
+PROVENANCE_TAG:
+artefact_name: artefact_registry.yaml  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+SHA‑256 of concatenated artefact digests.
+
+TEST_PATHWAY:
+test: CI param-set-hash test  
+input: artefact_registry.yaml  
+assert: computed P matches manifest  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=4>>
+Name: Master seed constructor  
+Symbol: master_seed  
+Scope: reproducibility_configurability  
 ---------------------------------
 
 PRIOR:
-type: Deterministic (SHA-1/SHA-256 digests and build manifests)
+type: Deterministic function  
 hyperparameters:
-source_sha1: git SHA-1 commit
-container_sha: Dockerfile.lock SHA-256
-build_manifest_digest: manifest SHA-256
-units: SHA-1 (source), SHA-256 (container), manifest hash
-default_policy: abort (on mismatch or missing)
-justification: Guarantees full traceability from code to container to build; enforced at manifest and output level.
-CALIBRATION_RECIPE:
-input_path: Dockerfile.lock, build manifest, pipeline_launcher.sh
-objective: Traceable, reproducible container and code state for all outputs
-algorithm: shell/git commands, manifest recording, hash comparison
-random_seed: not applicable
-convergence_tol: not applicable
-script_digest: (see manifest)
-INTERFACE_CONSUMER:
-artefact_name: build manifest, Dockerfile.lock, pipeline_launcher.sh, CI
-function: Provenance contract for every artefact, output row, and manifest
-description: All output artefacts, logs, and manifests record the container, source, and build hashes.
-POSTERIOR_VALIDATION:
-metric: manifest hash, container/source check
-acceptance_range: all hashes match manifest
-sample_size: all outputs/rows per build
-PROVENANCE_TAG:
-artefact_name: build manifest, Dockerfile.lock, pipeline_launcher.sh
-sha256: (see manifest)
-SHORT_DESCRIPTION:
-Source, container, and build manifest provenance for every output artefact.
-TEST_PATHWAY:
-test: build log/manifest replay, container/source hash audit
-input: build manifest, Dockerfile.lock, git
-assert: All outputs/rows carry correct provenance; CI passes
-Confidence=HIGH
-<<<END PP‑FIX>>
+  timestamp_bits: 64  
+  hash_mod_bits: 128  
+units: 128‑bit integer  
+default_policy: abort on mis‑compute  
+justification: Combines time_ns and P into PRNG seed.
 
-<<<PP‑FIX id=5>
-Name: Validation, firewall, and audit artefact registry
-Symbol: validation/<parameter_hash>/, audit/hashgate_uri.txt
-Scope: merchant_location
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: bitwise operations  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: pipeline_launcher.sh  
+function: construct_master_seed  
+description: Shifts `time_ns()`, XORs low 128 bits of P.
+
+POSTERIOR_VALIDATION:
+metric: seed equality  
+acceptance_range: [master_seed, master_seed]  
+sample_size: one build  
+
+PROVENANCE_TAG:
+artefact_name: manifest field `master_seed`  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+128‑bit seed for reproducible PRNG construction.
+
+TEST_PATHWAY:
+test: CI master-seed test  
+input: pipeline_launcher.log  
+assert: master_seed recreates identical RNG  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=5>>
+Name: RNG spot‑check draw count  
+Symbol: n_spot  
+Scope: reproducibility_configurability  
 ---------------------------------
 
 PRIOR:
-type: Deterministic contract (SHA-256 digests, hash contracts)
+type: Fixed constant  
 hyperparameters:
-validation_dir: validation/<parameter_hash>/
-audit_uri: audit/hashgate_uri.txt
-units: SHA-256 digest per artefact/log
-default_policy: abort (if artefact/log missing, not hash-mapped, or drifted)
-justification: Locks all validation, firewall, and audit outputs to parameter hash and manifest.
-CALIBRATION_RECIPE:
-input_path: validation/<parameter_hash>/, audit/hashgate_uri.txt, manifest
-objective: Complete enumeration, hash calculation, and manifest validation
-algorithm: artefact enumeration, hash, manifest posting to HashGate
-random_seed: not applicable
-convergence_tol: not applicable
-script_digest: (see manifest)
-INTERFACE_CONSUMER:
-artefact_name: CI, merge, pipeline, audit, HashGate
-function: Registers and hashes every validation/audit output for pipeline, audit, and forensic workflow.
-description: Every validation/audit artefact is hash-locked and posted to HashGate, blocking merge on drift.
-POSTERIOR_VALIDATION:
-metric: hash match, manifest and audit log comparison
-acceptance_range: all artefact hashes match manifest and audit logs
-sample_size: all validation/audit artefacts per build
-PROVENANCE_TAG:
-artefact_name: manifest, validation/<parameter_hash>/, audit/hashgate_uri.txt
-sha256: (see manifest)
-SHORT_DESCRIPTION:
-All validation, firewall, and audit artefacts hash-mapped and contract-locked.
-TEST_PATHWAY:
-test: audit/manifest comparison, HashGate merge check
-input: validation directory, audit URI, manifest
-assert: All artefact hashes mapped and pass merge audit
-Confidence=HIGH
-<<<END PP‑FIX>>
+  value: 3  
+units: count  
+default_policy: abort on mismatch  
+justification: Number of initial RNG draws for CI spot‑check.
 
-<<<PP‑FIX id=6>
-Name: Directory immutability and collision enforcement
-Symbol: synthetic_v1_<parameter_hash>
-Scope: merchant_location
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: replay_rng.py  
+function: spot_check_draws  
+description: Replays trace and draws first `n_spot` values.
+
+POSTERIOR_VALIDATION:
+metric: draw equality  
+acceptance_range: [true, true]  
+sample_size: one CI run  
+
+PROVENANCE_TAG:
+artefact_name: replay_rng.py  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+Count of initial RNG numbers to verify reproducibility.
+
+TEST_PATHWAY:
+test: CI RNG spot‑check  
+input: rng_trace.log  
+assert: first 3 draws identical  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=6>>
+Name: Bootstrap replicates count  
+Symbol: n_bootstrap  
+Scope: reproducibility_configurability  
 ---------------------------------
 
 PRIOR:
-type: Deterministic (filesystem, hash-based contract)
+type: Fixed constant  
 hyperparameters:
-parameter_hash: 256-bit hex string
-directory_path: synthetic_v1_<parameter_hash>
-units: directory path (string)
-default_policy: abort (on overwrite, mismatch, or collision)
-justification: Guarantees dataset output is immutable, unique per parameter set, and collision-proof.
+  value: 100  
+units: count  
+default_policy: abort on envelope failure  
+justification: Number of bootstrap replicates per coefficient block.
+
 CALIBRATION_RECIPE:
-input_path: NFS/export directory, manifest, build logs
-objective: Validate immutability, uniqueness, and collision logic
-algorithm: create directory, mount read-only, check for collision on parameter_hash
-random_seed: not applicable
-convergence_tol: not applicable
-script_digest: (see manifest)
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
 INTERFACE_CONSUMER:
-artefact_name: NFS export, manifest, CI, pipeline outputs
-function: Ensures all outputs are written to unique, read-only directory per parameter hash
-description: Any overwrite or hash collision aborts build and blocks CI/merge.
+artefact_name: bootstrap_validator.py  
+function: run_bootstrap_replicates  
+description: Draws `n_bootstrap` truncated‑normal samples, reruns generator.
+
 POSTERIOR_VALIDATION:
-metric: read-only mount, collision audit, manifest check
-acceptance_range: directory unique, no collisions, read-only
-sample_size: all builds per hash
+metric: coverage fraction  
+acceptance_range: [0.90, 1.00]  
+sample_size: each coefficient block  
+
 PROVENANCE_TAG:
-artefact_name: filesystem, manifest
-sha256: (see manifest)
+artefact_name: bootstrap_validator.py  
+sha256: <to‑be‑populated>  
+
 SHORT_DESCRIPTION:
-Directory immutability and collision enforcement for each parameter-set output.
+Number of truncated‑normal bootstrap replicates for validation.
+
 TEST_PATHWAY:
-test: mount read-only, audit manifest, collision check
-input: NFS export, manifest, logs
-assert: Directory immutable, no collision, manifest matches
+test: CI bootstrap‑coverage test  
+input: bootstrap_stats.log  
+assert: ≥90% replicates within bounds  
+
 Confidence=HIGH
-<<<END PP‑FIX>>
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=7>>
+Name: Z‑score for 90% CI  
+Symbol: z_0.95  
+Scope: reproducibility_configurability  
+---------------------------------
+
+PRIOR:
+type: Fixed constant  
+hyperparameters:
+  value: 1.645  
+units: dimensionless  
+default_policy: abort on missing constant  
+justification: z‑score for truncated‑normal bootstrap width.
+
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: bootstrap_validator.py  
+function: compute_sigma_from_bounds  
+description: Uses z_0.95 to derive σ from [ℓ,u].
+
+POSTERIOR_VALIDATION:
+metric: bound reconstruction error  
+acceptance_range: [0.0, 1e-6]  
+sample_size: one block  
+
+PROVENANCE_TAG:
+artefact_name: bootstrap_validator.py  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+z‑score used for 90% truncated‑normal bootstrap CI.
+
+TEST_PATHWAY:
+test: CI z-score test  
+input: bootstrap_bounds.log  
+assert: σ matches (u−ℓ)/(2·z_0.95)  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=8>>
+Name: Beta‑posterior credible level  
+Symbol: credible_level  
+Scope: validation  
+---------------------------------
+
+PRIOR:
+type: Fixed constant  
+hyperparameters:
+  value: 0.95  
+units: proportion  
+default_policy: abort on failure  
+justification: Confidence level for Beta posterior intervals.
+
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: geo_audit.py  
+function: compute_beta_intervals  
+description: Forms 95% credible intervals for outlet shares.
+
+POSTERIOR_VALIDATION:
+metric: coverage check  
+acceptance_range: [true, true]  
+sample_size: each zoneshare  
+
+PROVENANCE_TAG:
+artefact_name: geo_audit.py  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+Credible level for geospatial Beta intervals.
+
+TEST_PATHWAY:
+test: CI beta-coverage test  
+input: geo_audit.log  
+assert: empirical share within credible interval  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=9>>
+Name: Geospatial margin tolerance  
+Symbol: margin  
+Scope: validation  
+---------------------------------
+
+PRIOR:
+type: Fixed constant  
+hyperparameters:
+  value: 0.001  
+units: proportion  
+default_policy: abort on breach  
+justification: Permits 0.1 ppt deviation outside Beta intervals.
+
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: geo_audit.py  
+function: enforce_margin_tolerance  
+description: Checks empirical line stays inside ribbons ±margin.
+
+POSTERIOR_VALIDATION:
+metric: margin violation count  
+acceptance_range: [0]  
+sample_size: all zones  
+
+PROVENANCE_TAG:
+artefact_name: geo_audit.py  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+Allowed deviation outside Beta posterior intervals.
+
+TEST_PATHWAY:
+test: CI geospatial-margin test  
+input: geo_margin_stats.log  
+assert: no violation > margin  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=10>>
+Name: Card‑present over‑dispersion bounds  
+Symbol: φ_cp_bounds  
+Scope: validation  
+---------------------------------
+
+PRIOR:
+type: Fixed constants  
+hyperparameters:
+  lower: 1  
+  upper: 2  
+units: dimensionless  
+default_policy: abort on breach  
+justification: Permissible GLM dispersion for card-present footfall.
+
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: footfall_validator.py  
+function: check_card_present_dispersion  
+description: Validates fitted θ lies within φ_cp_bounds.
+
+POSTERIOR_VALIDATION:
+metric: dispersion check  
+acceptance_range: [1, 2]  
+sample_size: per-channel fit  
+
+PROVENANCE_TAG:
+artefact_name: footfall_validator.py  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+GLM dispersion bounds for card‑present traffic.
+
+TEST_PATHWAY:
+test: CI card-present dispersion test  
+input: dispersion_stats.log  
+assert: θ ∈ [1,2]  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=11>>
+Name: CNP over‑dispersion bounds  
+Symbol: φ_cnp_bounds  
+Scope: validation  
+---------------------------------
+
+PRIOR:
+type: Fixed constants  
+hyperparameters:
+  lower: 2  
+  upper: 4  
+units: dimensionless  
+default_policy: abort on breach  
+justification: Permissible GLM dispersion for card‑not-present traffic.
+
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: footfall_validator.py  
+function: check_cnp_dispersion  
+description: Validates θ lies within φ_cnp_bounds.
+
+POSTERIOR_VALIDATION:
+metric: dispersion check  
+acceptance_range: [2, 4]  
+sample_size: per-channel fit  
+
+PROVENANCE_TAG:
+artefact_name: footfall_validator.py  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+GLM dispersion bounds for CNP traffic.
+
+TEST_PATHWAY:
+test: CI CNP dispersion test  
+input: dispersion_stats.log  
+assert: θ ∈ [2,4]  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=12>>
+Name: Adversarial sample size  
+Symbol: N_adv  
+Scope: validation  
+---------------------------------
+
+PRIOR:
+type: Fixed constant  
+hyperparameters:
+  value: 200000  
+units: count  
+default_policy: abort on misuse  
+justification: Rows sampled for multivariate indistinguishability test.
+
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: indistinguishability_test.py  
+function: sample_adversarial_rows  
+description: Draws N_adv rows split real vs synthetic.
+
+POSTERIOR_VALIDATION:
+metric: sample-size check  
+acceptance_range: [N_adv]  
+sample_size: one test  
+
+PROVENANCE_TAG:
+artefact_name: indistinguishability_test.py  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+Row count for adversarial classifier test.
+
+TEST_PATHWAY:
+test: CI adversarial-sample test  
+input: adv_sample_stats.log  
+assert: exactly N_adv rows processed  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=13>>
+Name: AUROC failure threshold  
+Symbol: τ_auroc  
+Scope: validation  
+---------------------------------
+
+PRIOR:
+type: Fixed constant  
+hyperparameters:
+  value: 0.55  
+units: proportion  
+default_policy: abort on breach  
+justification: Maximum allowed AUROC before CI failure.
+
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: indistinguishability_test.py  
+function: evaluate_auroc  
+description: Trains classifier and compares AUROC to τ_auroc.
+
+POSTERIOR_VALIDATION:
+metric: AUROC value  
+acceptance_range: [0.0, 0.55]  
+sample_size: one model run  
+
+PROVENANCE_TAG:
+artefact_name: indistinguishability_test.py  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+AUROC threshold for synthetic indistinguishability.
+
+TEST_PATHWAY:
+test: CI AUROC‑threshold test  
+input: auroc_stats.log  
+assert: AUROC < τ_auroc  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=14>>
+Name: Firewall batch size  
+Symbol: B  
+Scope: reproducibility_configurability  
+---------------------------------
+
+PRIOR:
+type: Fixed constant  
+hyperparameters:
+  value: 50000  
+units: count  
+default_policy: abort on failure  
+justification: Records per batch for structural firewall checks.
+
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: firewall.py  
+function: process_firewall_batch  
+description: Streams B records and applies checks.
+
+POSTERIOR_VALIDATION:
+metric: batch count check  
+acceptance_range: [B]  
+sample_size: one run  
+
+PROVENANCE_TAG:
+artefact_name: firewall.py  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+Batch size for firewall structural checks.
+
+TEST_PATHWAY:
+test: CI firewall-batch-size test  
+input: firewall_stats.log  
+assert: processed B records per batch  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=15>>
+Name: Firewall check count  
+Symbol: C  
+Scope: reproducibility_configurability  
+---------------------------------
+
+PRIOR:
+type: Fixed constant  
+hyperparameters:
+  value: 5  
+units: count  
+default_policy: abort on failure  
+justification: Number of vectorized checks per firewall batch.
+
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: firewall.py  
+function: apply_firewall_checks  
+description: Executes C checks on each batch.
+
+POSTERIOR_VALIDATION:
+metric: check count verification  
+acceptance_range: [C]  
+sample_size: one batch  
+
+PROVENANCE_TAG:
+artefact_name: firewall.py  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+Count of firewall structural checks per batch.
+
+TEST_PATHWAY:
+test: CI firewall-check-count test  
+input: firewall_stats.log  
+assert: applied C checks per batch  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=16>>
+Name: Seconds per minute constant  
+Symbol: s_per_min  
+Scope: merchant_location  
+---------------------------------
+
+PRIOR:
+type: Fixed constant  
+hyperparameters:
+  value: 60  
+units: seconds per minute  
+default_policy: use prior  
+justification: Physical constant defining 60 s per minute.
+
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: time_conversion.py  
+function: seconds_per_minute  
+description: Provides constant for time conversions.
+
+POSTERIOR_VALIDATION:
+metric: constant equality  
+acceptance_range: [60, 60]  
+sample_size: one application  
+
+PROVENANCE_TAG:
+artefact_name: time_conversion.py  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+Physical constant of seconds per minute.
+
+TEST_PATHWAY:
+test: CI time-constant test  
+input: time_conversion_stats.log  
+assert: returns 60  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
+
+<<<PP‑FIX id=17>>
+Name: DST edge‑pass window hours  
+Symbol: W  
+Scope: validation  
+---------------------------------
+
+PRIOR:
+type: Fixed constant  
+hyperparameters:
+  value: 48  
+units: hours  
+default_policy: abort on violation  
+justification: Window length around DST transitions for checks.
+
+CALIBRATION_RECIPE:
+input_path: N/A  
+objective: Not applicable  
+algorithm: Not applicable  
+random_seed: N/A  
+convergence_tol: N/A  
+script_digest: N/A  
+
+INTERFACE_CONSUMER:
+artefact_name: dst_edge_passer.py  
+function: enumerate_dst_window  
+description: Builds ±W/2‑h schedule around transitions.
+
+POSTERIOR_VALIDATION:
+metric: window length check  
+acceptance_range: [W]  
+sample_size: one year simulation  
+
+PROVENANCE_TAG:
+artefact_name: dst_edge_passer.py  
+sha256: <to‑be‑populated>  
+
+SHORT_DESCRIPTION:
+Hours window for DST edge/fold validation.
+
+TEST_PATHWAY:
+test: CI DST‑window test  
+input: dst_edge_stats.log  
+assert: schedule spans 48 h  
+
+Confidence=HIGH
+<<<END PP‑FIX>>>
 
 ##### END PARAMETER_SPEC #####
 
-id=1 | gaps_closed=prior|calib|post|prov | notes=Artefact hash, manifest/CI enforced  
-id=2 | gaps_closed=prior|calib|post|prov | notes=Deterministic seed, manifest/PRNG audited  
-id=3 | gaps_closed=prior|calib|post|prov | notes=Registry+licence mapping, YAML, CI audit  
-id=4 | gaps_closed=prior|calib|post|prov | notes=Provenance, container/source hash, manifest  
-id=5 | gaps_closed=prior|calib|post|prov | notes=Validation, audit, HashGate, hash-mapped  
-id=6 | gaps_closed=prior|calib|post|prov | notes=Immutability, collision, read-only directory  
-<<PS‑END>>
+id=1  | gaps_closed=none | notes=Docker hash spec complete  
+id=2  | gaps_closed=none | notes=Source hash spec complete  
+id=3  | gaps_closed=none | notes=Parameter-set hash spec complete  
+id=4  | gaps_closed=none | notes=Master seed spec complete  
+id=5  | gaps_closed=none | notes=Spot-check draw spec complete  
+id=6  | gaps_closed=none | notes=Bootstrap replicates spec complete  
+id=7  | gaps_closed=none | notes=Z-score spec complete  
+id=8  | gaps_closed=none | notes=Beta CI level spec complete  
+id=9  | gaps_closed=none | notes=Margin tolerance spec complete  
+id=10 | gaps_closed=none | notes=CP dispersion bounds spec complete  
+id=11 | gaps_closed=none | notes=CNP dispersion bounds spec complete  
+id=12 | gaps_closed=none | notes=Adversarial sample-size spec complete  
+id=13 | gaps_closed=none | notes=AUROC threshold spec complete  
+id=14 | gaps_closed=none | notes=Firewall batch-size spec complete  
+id=15 | gaps_closed=none | notes=Firewall check-count spec complete  
+id=16 | gaps_closed=none | notes=Seconds-per-minute spec complete  
+id=17 | gaps_closed=none | notes=DST edge-window spec complete  
+<<PS‑END>>  
