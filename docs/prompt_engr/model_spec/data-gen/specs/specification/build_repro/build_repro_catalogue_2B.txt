@@ -1,0 +1,552 @@
+--- BR 1 ---
+Artefact: code_repo
+Name_or_path: artefacts/catalogue/site_catalogue.parquet
+Anchor: "The catalogue Parquet file is located at `artefacts/catalogue/site_catalogue.parquet`…"
+Digest_present: No
+Version_pin: Yes
+Lockfile_complete: n/a
+Build_manifest: Yes
+Env_locale_present: n/a
+Env_repro_vars_present: n/a
+Compiler_version_present: n/a
+OS_release_present: n/a
+Source_tarball_digest: n/a
+Repro_instructions_present: No
+Gap_flags:
+  digest_missing=Y
+  version_missing=N
+  lock_missing=N
+  manifest_missing=N
+  env_missing=N
+  compiler_missing=N
+  os_missing=N
+  tarball_missing=N
+  repro_instructions_missing=Y
+Severity=Crit
+Context: “prev … (start) … target: artefacts/catalogue/site_catalogue.parquet … next … artefacts/routing/routing_manifest.json”
+Confidence=HIGH
+--- END BR 1 ---
+
+--- BR 2 ---
+Artefact: code_repo
+Name_or_path: artefacts/routing/routing_manifest.json
+Anchor: "Declared as a governed artefact in `routing_manifest.json` under `site_catalogue_digest`"
+Digest_present: No
+Version_pin: Yes
+Lockfile_complete: n/a
+Build_manifest: n/a
+Env_locale_present: n/a
+Env_repro_vars_present: n/a
+Compiler_version_present: n/a
+OS_release_present: n/a
+Source_tarball_digest: n/a
+Repro_instructions_present: No
+Gap_flags:
+  digest_missing=Y
+  version_missing=N
+  lock_missing=N
+  manifest_missing=N
+  env_missing=N
+  compiler_missing=N
+  os_missing=N
+  tarball_missing=N
+  repro_instructions_missing=Y
+Severity=Crit
+Context: “prev … artefacts/catalogue/site_catalogue.parquet … target: artefacts/routing/routing_manifest.json … next … config/routing/routing_day_effect.yml”
+Confidence=HIGH
+--- END BR 2 ---
+
+--- BR 3 ---
+Artefact: code_repo
+Name_or_path: config/routing/routing_day_effect.yml
+Anchor: "`σ_γ²` governed by `config/routing/routing_day_effect.yml` (`gamma_variance_digest`)"
+Digest_present: No
+Version_pin: Yes
+Lockfile_complete: n/a
+Build_manifest: n/a
+Env_locale_present: n/a
+Env_repro_vars_present: n/a
+Compiler_version_present: n/a
+OS_release_present: n/a
+Source_tarball_digest: n/a
+Repro_instructions_present: No
+Gap_flags:
+  digest_missing=Y
+  version_missing=N
+  lock_missing=N
+  manifest_missing=N
+  env_missing=N
+  compiler_missing=N
+  os_missing=N
+  tarball_missing=N
+  repro_instructions_missing=Y
+Severity=Crit
+Context: “prev … artefacts/routing/routing_manifest.json … target: config/routing/routing_day_effect.yml … next … config/routing/cdn_country_weights.yaml”
+Confidence=HIGH
+--- END BR 3 ---
+
+--- BR 4 ---
+Artefact: code_repo
+Name_or_path: config/routing/cdn_country_weights.yaml
+Anchor: "Loads `cdn_country_weights.yaml` (`cdn_alias_digest`)"
+Digest_present: No
+Version_pin: Yes
+Lockfile_complete: n/a
+Build_manifest: n/a
+Env_locale_present: n/a
+Env_repro_vars_present: n/a
+Compiler_version_present: n/a
+OS_release_present: n/a
+Source_tarball_digest: n/a
+Repro_instructions_present: No
+Gap_flags:
+  digest_missing=Y
+  version_missing=N
+  lock_missing=N
+  manifest_missing=N
+  env_missing=N
+  compiler_missing=N
+  os_missing=N
+  tarball_missing=N
+  repro_instructions_missing=Y
+Severity=Crit
+Context: “prev … config/routing/routing_day_effect.yml … target: config/routing/cdn_country_weights.yaml … next … config/routing/routing_validation.yml”
+Confidence=HIGH
+--- END BR 4 ---
+
+--- BR 5 ---
+Artefact: code_repo
+Name_or_path: config/routing/routing_validation.yml
+Anchor: "Tolerance and target reside in `routing_validation.yml`"
+Digest_present: No
+Version_pin: Yes
+Lockfile_complete: n/a
+Build_manifest: n/a
+Env_locale_present: n/a
+Env_repro_vars_present: n/a
+Compiler_version_present: n/a
+OS_release_present: n/a
+Source_tarball_digest: n/a
+Repro_instructions_present: No
+Gap_flags:
+  digest_missing=Y
+  version_missing=N
+  lock_missing=N
+  manifest_missing=N
+  env_missing=N
+  compiler_missing=N
+  os_missing=N
+  tarball_missing=N
+  repro_instructions_missing=Y
+Severity=Crit
+Context: “prev … config/routing/cdn_country_weights.yaml … target: config/routing/routing_validation.yml … next … config/routing/logging.yml”
+Confidence=HIGH
+--- END BR 5 ---
+
+--- BR 6 ---
+Artefact: code_repo
+Name_or_path: config/routing/logging.yml
+Anchor: "Rotation (daily) and 90-day retention are governed by `config/routing/logging.yml`"
+Digest_present: No
+Version_pin: Yes
+Lockfile_complete: n/a
+Build_manifest: n/a
+Env_locale_present: n/a
+Env_repro_vars_present: n/a
+Compiler_version_present: n/a
+OS_release_present: n/a
+Source_tarball_digest: n/a
+Repro_instructions_present: No
+Gap_flags:
+  digest_missing=Y
+  version_missing=N
+  lock_missing=N
+  manifest_missing=N
+  env_missing=N
+  compiler_missing=N
+  os_missing=N
+  tarball_missing=N
+  repro_instructions_missing=Y
+Severity=Crit
+Context: “prev … config/routing/routing_validation.yml … target: config/routing/logging.yml … next … config/routing/rng_policy.yml”
+Confidence=HIGH
+--- END BR 6 ---
+
+--- BR 7 ---
+Artefact: code_repo
+Name_or_path: config/routing/rng_policy.yml
+Anchor: "Seed derivation uses … governed by `rng_policy.yml`"
+Digest_present: No
+Version_pin: Yes
+Lockfile_complete: n/a
+Build_manifest: n/a
+Env_locale_present: n/a
+Env_repro_vars_present: n/a
+Compiler_version_present: n/a
+OS_release_present: n/a
+Source_tarball_digest: n/a
+Repro_instructions_present: No
+Gap_flags:
+  digest_missing=Y
+  version_missing=N
+  lock_missing=N
+  manifest_missing=N
+  env_missing=N
+  compiler_missing=N
+  os_missing=N
+  tarball_missing=N
+  repro_instructions_missing=Y
+Severity=Crit
+Context: “prev … config/routing/logging.yml … target: config/routing/rng_policy.yml … next … docs/rng_proof.md”
+Confidence=HIGH
+--- END BR 7 ---
+
+--- BR 8 ---
+Artefact: code_repo
+Name_or_path: docs/rng_proof.md
+Anchor: "The formal proof in `docs/rng_proof.md` documents this property"
+Digest_present: No
+Version_pin: Yes
+Lockfile_complete: n/a
+Build_manifest: n/a
+Env_locale_present: n/a
+Env_repro_vars_present: n/a
+Compiler_version_present: n/a
+OS_release_present: n/a
+Source_tarball_digest: n/a
+Repro_instructions_present: No
+Gap_flags:
+  digest_missing=Y
+  version_missing=N
+  lock_missing=N
+  manifest_missing=N
+  env_missing=N
+  compiler_missing=N
+  os_missing=N
+  tarball_missing=N
+  repro_instructions_missing=Y
+Severity=Crit
+Context: “prev … config/routing/rng_policy.yml … target: docs/rng_proof.md … next … <merchant_id>_pweights.bin”
+Confidence=HIGH
+--- END BR 8 ---
+
+--- BR 9 ---
+Artefact: container
+Name_or_path: <merchant_id>_pweights.bin
+Anchor: "Written as `<merchant_id>_pweights.bin`; its SHA-256 is recorded in `routing_manifest.json` under `weight_digest`"
+Digest_present: No
+Version_pin: Yes
+Lockfile_complete: n/a
+Build_manifest: Yes
+Env_locale_present: n/a
+Env_repro_vars_present: n/a
+Compiler_version_present: n/a
+OS_release_present: n/a
+Source_tarball_digest: n/a
+Repro_instructions_present: No
+Gap_flags:
+  digest_missing=Y
+  version_missing=N
+  lock_missing=N
+  manifest_missing=N
+  env_missing=N
+  compiler_missing=N
+  os_missing=N
+  tarball_missing=N
+  repro_instructions_missing=Y
+Severity=Crit
+Context: “prev … docs/rng_proof.md … target: <merchant_id>_pweights.bin … next … <merchant_id>_alias.npz”
+Confidence=HIGH
+--- END BR 9 ---
+
+--- BR 10 ---
+Artefact: container
+Name_or_path: <merchant_id>_alias.npz
+Anchor: "Saved as `<merchant_id>_alias.npz`; its digest recorded as `alias_digest`"
+Digest_present: No
+Version_pin: Yes
+Lockfile_complete: n/a
+Build_manifest: Yes
+Env_locale_present: n/a
+Env_repro_vars_present: n/a
+Compiler_version_present: n/a
+OS_release_present: n/a
+Source_tarball_digest: n/a
+Repro_instructions_present: No
+Gap_flags:
+  digest_missing=Y
+  version_missing=N
+  lock_missing=N
+  manifest_missing=N
+  env_missing=N
+  compiler_missing=N
+  os_missing=N
+  tarball_missing=N
+  repro_instructions_missing=Y
+Severity=Crit
+Context: “prev … <merchant_id>_pweights.bin … target: <merchant_id>_alias.npz … next … <merchant_id>_cdn_alias.npz”
+Confidence=HIGH
+--- END BR 10 ---
+
+--- BR 11 ---
+Artefact: container
+Name_or_path: <merchant_id>_cdn_alias.npz
+Anchor: "Saved as `<merchant_id>_cdn_alias.npz`; digest recorded as `cdn_alias_digest`"
+Digest_present: No
+Version_pin: Yes
+Lockfile_complete: n/a
+Build_manifest: Yes
+Env_locale_present: n/a
+Env_repro_vars_present: n/a
+Compiler_version_present: n/a
+OS_release_present: n/a
+Source_tarball_digest: n/a
+Repro_instructions_present: No
+Gap_flags:
+  digest_missing=Y
+  version_missing=N
+  lock_missing=N
+  manifest_missing=N
+  env_missing=N
+  compiler_missing=N
+  os_missing=N
+  tarball_missing=N
+  repro_instructions_missing=Y
+Severity=Crit
+Context: “prev … <merchant_id>_alias.npz … target: <merchant_id>_cdn_alias.npz … next … config/routing/errors.yml”
+Confidence=HIGH
+--- END BR 11 ---
+
+--- BR 12 ---
+Artefact: code_repo
+Name_or_path: config/routing/errors.yml
+Anchor: "`errors.yml` defines exception codes; digest field `errors_config_digest`"
+Digest_present: No
+Version_pin: Yes
+Lockfile_complete: n/a
+Build_manifest: n/a
+Env_locale_present: n/a
+Env_repro_vars_present: n/a
+Compiler_version_present: n/a
+OS_release_present: n/a
+Source_tarball_digest: n/a
+Repro_instructions_present: No
+Gap_flags:
+  digest_missing=Y
+  version_missing=N
+  lock_missing=N
+  manifest_missing=N
+  env_missing=N
+  compiler_missing=N
+  os_missing=N
+  tarball_missing=N
+  repro_instructions_missing=Y
+Severity=Crit
+Context: “prev … <merchant_id>_cdn_alias.npz … target: config/routing/errors.yml … next … config/routing/performance.yml”
+Confidence=HIGH
+--- END BR 12 ---
+
+--- BR 13 ---
+Artefact: code_repo
+Name_or_path: config/routing/performance.yml
+Anchor: "`performance.yml` defines throughput and memory SLA thresholds"
+Digest_present: No
+Version_pin: Yes
+Lockfile_complete: n/a
+Build_manifest: n/a
+Env_locale_present: n/a
+Env_repro_vars_present: n/a
+Compiler_version_present: n/a
+OS_release_present: n/a
+Source_tarball_digest: n/a
+Repro_instructions_present: No
+Gap_flags:
+  digest_missing=Y
+  version_missing=N
+  lock_missing=N
+  manifest_missing=N
+  env_missing=N
+  compiler_missing=N
+  os_missing=N
+  tarball_missing=N
+  repro_instructions_missing=Y
+Severity=Crit
+Context: “prev … config/routing/errors.yml … target: config/routing/performance.yml … next … logs/routing/routing_audit.log”
+Confidence=HIGH
+--- END BR 13 ---
+
+--- BR 14 ---
+Artefact: code_repo
+Name_or_path: logs/routing/routing_audit.log
+Anchor: "Appends an ISO 8601 timestamp to `logs/routing/routing_audit.log`"
+Digest_present: No
+Version_pin: Yes
+Lockfile_complete: n/a
+Build_manifest: No
+Env_locale_present: n/a
+Env_repro_vars_present: n/a
+Compiler_version_present: n/a
+OS_release_present: n/a
+Source_tarball_digest: n/a
+Repro_instructions_present: No
+Gap_flags:
+  digest_missing=Y
+  version_missing=N
+  lock_missing=N
+  manifest_missing=N
+  env_missing=N
+  compiler_missing=N
+  os_missing=N
+  tarball_missing=N
+  repro_instructions_missing=Y
+Severity=Crit
+Context: “prev … config/routing/performance.yml … target: logs/routing/routing_audit.log … next … logs/routing/validation.log”
+Confidence=HIGH
+--- END BR 14 ---
+
+--- BR 15 ---
+Artefact: code_repo
+Name_or_path: logs/routing/validation.log
+Anchor: "`routing_validation_report` written to `logs/routing/validation.log`"
+Digest_present: No
+Version_pin: Yes
+Lockfile_complete: n/a
+Build_manifest: No
+Env_locale_present: n/a
+Env_repro_vars_present: n/a
+Compiler_version_present: n/a
+OS_release_present: n/a
+Source_tarball_digest: n/a
+Repro_instructions_present: No
+Gap_flags:
+  digest_missing=Y
+  version_missing=N
+  lock_missing=N
+  manifest_missing=N
+  env_missing=N
+  compiler_missing=N
+  os_missing=N
+  tarball_missing=N
+  repro_instructions_missing=Y
+Severity=Crit
+Context: “prev … logs/routing/routing_audit.log … target: logs/routing/validation.log … next … logs/routing/errors.log”
+Confidence=HIGH
+--- END BR 15 ---
+
+--- BR 16 ---
+Artefact: code_repo
+Name_or_path: logs/routing/errors.log
+Anchor: "`routing_error_log` captures runtime failures and manifest drift"
+Digest_present: No
+Version_pin: Yes
+Lockfile_complete: n/a
+Build_manifest: No
+Env_locale_present: n/a
+Env_repro_vars_present: n/a
+Compiler_version_present: n/a
+OS_release_present: n/a
+Source_tarball_digest: n/a
+Repro_instructions_present: No
+Gap_flags:
+  digest_missing=Y
+  version_missing=N
+  lock_missing=N
+  manifest_missing=N
+  env_missing=N
+  compiler_missing=N
+  os_missing=N
+  tarball_missing=N
+  repro_instructions_missing=Y
+Severity=Crit
+Context: “prev … logs/routing/validation.log … target: logs/routing/errors.log … next … output/buffer/…”
+Confidence=HIGH
+--- END BR 16 ---
+
+--- BR 17 ---
+Artefact: code_repo
+Name_or_path: output/buffer/partition_date=*/merchant_id=*/batch_*.parquet
+Anchor: "`output_buffer` includes hidden columns …"
+Digest_present: No
+Version_pin: Yes
+Lockfile_complete: n/a
+Build_manifest: No
+Env_locale_present: n/a
+Env_repro_vars_present: n/a
+Compiler_version_present: n/a
+OS_release_present: n/a
+Source_tarball_digest: n/a
+Repro_instructions_present: No
+Gap_flags:
+  digest_missing=Y
+  version_missing=N
+  lock_missing=N
+  manifest_missing=N
+  env_missing=N
+  compiler_missing=N
+  os_missing=N
+  tarball_missing=N
+  repro_instructions_missing=Y
+Severity=Crit
+Context: “prev … logs/routing/errors.log … target: output/buffer/partition_date=*/merchant_id=*/batch_*.parquet … next … output/catalogue_schema.json”
+Confidence=HIGH
+--- END BR 17 ---
+
+--- BR 18 ---
+Artefact: code_repo
+Name_or_path: output/catalogue_schema.json
+Anchor: "`output_catalogue_schema.json` as JSON schema for all outputs"
+Digest_present: No
+Version_pin: Yes
+Lockfile_complete: n/a
+Build_manifest: No
+Env_locale_present: n/a
+Env_repro_vars_present: n/a
+Compiler_version_present: n/a
+OS_release_present: n/a
+Source_tarball_digest: n/a
+Repro_instructions_present: No
+Gap_flags:
+  digest_missing=Y
+  version_missing=N
+  lock_missing=N
+  manifest_missing=N
+  env_missing=N
+  compiler_missing=N
+  os_missing=N
+  tarball_missing=N
+  repro_instructions_missing=Y
+Severity=Crit
+Context: “prev … output/buffer/… … target: output/catalogue_schema.json … next … LICENSES/”
+Confidence=HIGH
+--- END BR 18 ---
+
+--- BR 19 ---
+Artefact: code_repo
+Name_or_path: LICENSES/
+Anchor: "All licences … in `LICENSES/`"
+Digest_present: No
+Version_pin: Yes
+Lockfile_complete: n/a
+Build_manifest: No
+Env_locale_present: n/a
+Env_repro_vars_present: n/a
+Compiler_version_present: n/a
+OS_release_present: n/a
+Source_tarball_digest: n/a
+Repro_instructions_present: No
+Gap_flags:
+  digest_missing=Y
+  version_missing=N
+  lock_missing=N
+  manifest_missing=N
+  env_missing=N
+  compiler_missing=N
+  os_missing=N
+  tarball_missing=N
+  repro_instructions_missing=Y
+Severity=Crit
+Context: “prev … output/catalogue_schema.json … target: LICENSES/ … next … (end)”
+Confidence=HIGH
+--- END BR 19 ---
+
+<<BR-END>>

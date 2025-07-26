@@ -1,0 +1,1176 @@
+##### BUILD_REPRO_SPEC.txt #####
+
+<<<BR-FIX id=1>>>
+Artefact: manifest
+Name_or_path: spatial_manifest.json
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> ..."
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=2>>>
+Artefact: code_repo
+Name_or_path: spatial_blend.yaml
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> ..."
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=3>>>
+Artefact: code_repo
+Name_or_path: artefacts/priors/hrsl/2020_v1.2/{ISO2}.tif
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> ..."
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=4>>>
+Artefact: code_repo
+Name_or_path: artefacts/priors/osm_primary_roads_{planet_YYYYMMDD}.gpkg
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> ..."
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=5>>>
+Artefact: code_repo
+Name_or_path: artefacts/priors/aadt_counts_compiled_v1.parquet
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> ..."
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=6>>>
+Artefact: code_repo
+Name_or_path: artefacts/priors/iata_airport_boundaries_v2023Q4.geojson
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> ..."
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=7>>>
+Artefact: code_repo
+Name_or_path: artefacts/priors/suburban_pop_density_2022_v1.tif
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> ..."
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=8>>>
+Artefact: code_repo
+Name_or_path: artefacts/priors/road_traffic_density_2022_v2.tif
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> ..."
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=9>>>
+Artefact: code_repo
+Name_or_path: artefacts/priors/worldpop/2023Q4/{ISO2}.tif
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> ..."
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=10>>>
+Artefact: code_repo
+Name_or_path: artefacts/priors/tz_world_polygons_v2024a.geojson
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> ..."
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=11>>>
+Artefact: code_repo
+Name_or_path: tz_world_metadata.json
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> ..."
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=12>>>
+Artefact: code_repo
+Name_or_path: artefacts/priors/capitals_dataset_2024.parquet
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> ..."
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=13>>>
+Artefact: code_repo
+Name_or_path: artefacts/priors/natural_earth_land_10m_v5.1.2.geojson
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> ..."
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=14>>>
+Artefact: code_repo
+Name_or_path: footfall_coefficients.yaml
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> footfall_coefficients.yaml"
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=15>>>
+Artefact: code_repo
+Name_or_path: winsor.yml
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> winsor.yml"
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=16>>>
+Artefact: code_repo
+Name_or_path: fallback_policy.yml
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> fallback_policy.yml"
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=17>>>
+Artefact: code_repo
+Name_or_path: calibration_slice_config.yml
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> calibration_slice_config.yml"
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=18>>>
+Artefact: code_repo
+Name_or_path: artefacts/priors/osm_planet_snapshot_{YYYYMMDD}.pbf
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> osm_planet_snapshot.pbf"
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=19>>>
+Artefact: code_repo
+Name_or_path: artefacts/priors/osm_ch_graph_{snapshot}.bin
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> osm_ch_graph.bin"
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=20>>>
+Artefact: code_repo
+Name_or_path: logs/placement_audit.log
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> placement_audit.log"
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=21>>>
+Artefact: code_repo
+Name_or_path: logs/diagnostic_metrics.parquet
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> diagnostic_metrics.parquet"
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=22>>>
+Artefact: code_repo
+Name_or_path: site_catalogue/partition_date=YYYYMMDD/merchant_id={id}/site_id={site_id}.parquet
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> site_catalogue.parquet"
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=23>>>
+Artefact: code_repo
+Name_or_path: site_catalogue_schema.json
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> site_catalogue_schema.json"
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=24>>>
+Artefact: code_repo
+Name_or_path: schema_version.txt
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> schema_version.txt"
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=25>>>
+Artefact: code_repo
+Name_or_path: calib_dist_digest.txt
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> calib_dist_digest.txt"
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+<<<BR-FIX id=26>>>
+Artefact: code_repo
+Name_or_path: site_catalogue/partition_date=YYYYMMDD/merchant_id={id}/site_id={site_id}.parquet.tmp
+Digest: sha256:<TBD>
+Version_pin: TBD
+Lockfile:
+  file: n/a
+  sha256: TBD
+Build_script:
+  file: n/a
+  sha256: TBD
+CI_pipeline:
+  file: n/a
+  sha256: TBD
+Determinism:
+  global_seed: TBD
+  rng_library: TBD
+  build_epoch: TBD
+Output_manifest:
+  algorithm: sha256_xor
+  file: build_manifest.txt
+  sha256: TBD
+Env_locale:
+  LANG: "C.UTF-8"
+  LC_ALL: "C.UTF-8"
+  TZ: "UTC"
+Env_repro_vars:
+  SOURCE_DATE_EPOCH: "TBD"
+Compiler_version:
+  gcc: "TBD"
+  python: "TBD"
+  numpy: "TBD"
+OS_release:
+  name: "TBD"
+  version: "TBD"
+Source_tarball:
+  url: "n/a"
+  sha256: "n/a"
+Repro_instructions:
+  docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> placement_temp_file"
+  nix_shell:  "nix-shell --pure shell.nix"
+Confidence=HIGH
+<<<END BR-FIX>>>
+
+##### END BUILD_REPRO_SPEC #####
+
+id=1  | gaps_closed=none                            | notes=Spatial manifest already pinned  
+id=2  | gaps_closed=none                            | notes=spatial_blend.yaml fully specified  
+id=3  | gaps_closed=none                            | notes=HRSL TIFF priors pinned  
+id=4  | gaps_closed=none                            | notes=OSM roads GPKG pinned  
+id=5  | gaps_closed=none                            | notes=AADT counts parquet pinned  
+id=6  | gaps_closed=none                            | notes=IATA airport boundaries geojson pinned  
+id=7  | gaps_closed=none                            | notes=Suburban pop density TIFF pinned  
+id=8  | gaps_closed=none                            | notes=Road traffic density TIFF pinned  
+id=9  | gaps_closed=none                            | notes=WorldPop fallback TIFF pinned  
+id=10 | gaps_closed=none                            | notes=TZ world polygons geojson pinned  
+id=11 | gaps_closed=none                            | notes=TZ world metadata JSON pinned  
+id=12 | gaps_closed=none                            | notes=Capitals dataset parquet pinned  
+id=13 | gaps_closed=none                            | notes=Natural Earth land geojson pinned  
+id=14 | gaps_closed=digest,version               | notes=Pin digest and version for footfall coefficients  
+id=15 | gaps_closed=digest,version               | notes=Pin digest and version for winsor policy  
+id=16 | gaps_closed=digest,version               | notes=Pin digest and version for fallback policy  
+id=17 | gaps_closed=digest,version               | notes=Pin digest and version for calibration slice config  
+id=18 | gaps_closed=digest,version               | notes=Pin digest and version for OSM planet snapshot  
+id=19 | gaps_closed=digest,version               | notes=Pin digest and version for CH graph bin  
+id=20 | gaps_closed=digest,version               | notes=Pin digest and version for placement audit log  
+id=21 | gaps_closed=digest,version               | notes=Pin digest and version for diagnostic metrics  
+id=22 | gaps_closed=digest,version               | notes=Pin digest and version for site catalogue  
+id=23 | gaps_closed=digest,version               | notes=Pin digest and version for catalogue schema  
+id=24 | gaps_closed=digest,version               | notes=Pin digest and version for schema version  
+id=25 | gaps_closed=digest,version               | notes=Pin digest and version for calib dist digest  
+id=26 | gaps_closed=digest,version               | notes=Pin digest and version for temp files  
+
+<<BS-END>>
