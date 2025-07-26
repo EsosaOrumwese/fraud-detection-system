@@ -1,0 +1,225 @@
+--- EC 1 | Stage=LoadSpatialManifest | Severity=High ---
+Failure_event: Missing or misnamed `spatial_manifest.json`
+Anchor: "The manifest filename is fixed (must be exactly `spatial_manifest.json`); alternate names or multiple manifests abort the build."
+Handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: JSON manifest file at `spatial_manifest.json`
+Interfaces_affected: LoadSpatialManifestModule/loadManifest
+Test_type: CI
+Test_injection: remove or rename `spatial_manifest.json` and run loadManifest()
+Context: “Every geographic prior resides … must be exactly `spatial_manifest.json`; alternate names … abort the build.”
+Confidence=HIGH
+--- END EC 1 ---
+
+--- EC 2 | Stage=BuildSpatialManifestEntries | Severity=High ---
+Failure_event: Missing sibling SHA-256 digest sidecars for spatial artefacts
+Anchor: "Each file is accompanied by a sibling text file containing its SHA-256 digest."
+Handled: Partial
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: one `.sha256` file per artefact path
+Interfaces_affected: BuildSpatialManifestModule/computeFingerprint
+Test_type: CI
+Test_injection: remove one `.sha256` file and run manifest build
+Context: “Every geographic prior resides … sibling text file containing its SHA-256 digest.”
+Confidence=HIGH
+--- END EC 2 ---
+
+--- EC 3 | Stage=BuildSpatialPriorLibrary | Severity=High ---
+Failure_event: Missing `spatial_blend.yaml` blend-coefficients table
+Anchor: "Blend coefficients live in `spatial_blend.yaml`; a reviewer can change …"
+Handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: YAML file at `spatial_blend.yaml`
+Interfaces_affected: BuildSpatialPriorLibraryModule/buildPriorLibrary
+Test_type: CI
+Test_injection: delete `spatial_blend.yaml` and invoke buildPriorLibrary()
+Context: “Mapping MCC×channel … coefficients live in `spatial_blend.yaml`; …”
+Confidence=HIGH
+--- END EC 3 ---
+
+--- EC 4 | Stage=BuildSpatialPriorLibrary | Severity=High ---
+Failure_event: Blend weights sum outside 1 ± 1e-9 tolerance
+Anchor: "weights must sum to 1 within 1e-9 or CI fails."
+Handled: Partial
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: Σ(weights) ∈ [1−1e-9,1+1e-9]
+Interfaces_affected: BuildSpatialPriorLibraryModule/buildPriorLibrary
+Test_type: CI
+Test_injection: alter one weight so sum ≠1 and run blend validation
+Context: “weights must sum to 1 within 1e-9 or CI fails.”
+Confidence=HIGH
+--- END EC 4 ---
+
+--- EC 5 | Stage=BuildSpatialPriorLibrary | Severity=High ---
+Failure_event: Missing HRSL population raster for an ISO code
+Anchor: "HRSL prior is pinned by id `hrsl_pop_100m` … path pattern `artefacts/priors/hrsl/2020_v1.2/{ISO2}.tif`"
+Handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: GeoTIFF at specified path for each ISO2
+Interfaces_affected: BuildSpatialPriorLibraryModule/buildPriorLibrary
+Test_type: CI
+Test_injection: remove one `{ISO2}.tif` file and run prior library build
+Context: “HRSL prior is pinned by id … path pattern `artefacts/priors/hrsl/2020_v1.2/{ISO2}.tif` …”
+Confidence=HIGH
+--- END EC 5 ---
+
+--- EC 6 | Stage=BuildSpatialPriorLibrary | Severity=High ---
+Failure_event: Missing WorldPop fallback raster for zero-support countries
+Anchor: "Fallback raster provenance: WorldPop … path pattern `artefacts/priors/worldpop/2023Q4/{ISO2}.tif`"
+Handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: GeoTIFF at fallback path for each ISO2
+Interfaces_affected: BuildSpatialPriorLibraryModule/buildPriorLibrary
+Test_type: CI
+Test_injection: remove one fallback `{ISO2}.tif` and run fallback logic
+Context: “Fallback raster provenance: WorldPop … path pattern `artefacts/priors/worldpop/2023Q4/{ISO2}.tif` …”
+Confidence=HIGH
+--- END EC 6 ---
+
+--- EC 7 | Stage=BlendRasterPriors | Severity=High ---
+Failure_event: Missing or corrupt cached blend file
+Anchor: "blended raster is written … to `cache/blends/{sha256(component_digests+weights)}.tif` via atomic temp-rename"
+Handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: TIFF file at computed cache path
+Interfaces_affected: BlendRasterPriorsModule/blendRasters
+Test_type: CI
+Test_injection: corrupt or remove blend file and run blendRasters()
+Context: “blended raster is written … to `cache/blends/{sha256(component_digests+weights)}.tif` …”
+Confidence=HIGH
+--- END EC 7 ---
+
+--- EC 8 | Stage=BuildFenwickTree | Severity=High ---
+Failure_event: Fenwick build mismatch in (n, total_weight) on concurrent threads
+Anchor: "duplicate build attempts detect mismatch in (n, total_weight) and abort (should not occur)."
+Handled: Partial
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: consistent (n, total_weight) per (country,prior)
+Interfaces_affected: BuildFenwickTreeModule/buildFenwick
+Test_type: fuzz
+Test_injection: run concurrent builds with modified weight vector
+Context: “duplicate build attempts detect mismatch in (n, total_weight) and abort (should not occur).”
+Confidence=HIGH
+--- END EC 8 ---
+
+--- EC 9 | Stage=SampleCoordinate | Severity=High ---
+Failure_event: Sampling loop non-termination when no support >0
+Anchor: "Missing or unusable prior cases trigger governed fallback …"
+Handled: Partial
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: Σ(raw_weights)>0 or fallback applied
+Interfaces_affected: SampleCoordinateModule/sampleFromFenwick
+Test_type: CI
+Test_injection: use country with zero-support prior and run sampling
+Context: “Missing or unusable prior cases trigger governed fallback to the WorldPop raster.”
+Confidence=HIGH
+--- END EC 9 ---
+
+--- EC 10 | Stage=LandWaterFilter | Severity=High ---
+Failure_event: Missing or corrupt `natural_earth_land_10m_v5.1.2.geojson`
+Anchor: "Land polygon is Natural Earth 1:10 m v5.1.2 (`natural_earth_land_10m_v5.1.2.geojson`)"
+Handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: GeoJSON land mask at specified path
+Interfaces_affected: LandWaterFilterModule/filterCoordinates
+Test_type: CI
+Test_injection: remove or corrupt land polygon and run filterCoordinates()
+Context: “Land polygon is Natural Earth 1:10 m v5.1.2 (`natural_earth_land_10m_v5.1.2.geojson`, …).”
+Confidence=HIGH
+--- END EC 10 ---
+
+--- EC 11 | Stage=AssignTimeZone | Severity=High ---
+Failure_event: Missing `tz_world_metadata.json` zone→ISO mapping
+Anchor: "Engine loads `tz_world_metadata.json` (semver, sha256) mapping each IANA zone …"
+Handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: JSON mapping `tzid`→ISO2 set
+Interfaces_affected: AssignTimeZoneModule/assignTzid
+Test_type: CI
+Test_injection: remove metadata file and run assignTzid()
+Context: “Engine loads `tz_world_metadata.json` (semver, sha256) mapping each IANA zone …”
+Confidence=HIGH
+--- END EC 11 ---
+
+--- EC 12 | Stage=ComputeFootTraffic | Severity=High ---
+Failure_event: Missing or invalid `footfall_coefficients.yaml`
+Anchor: "κ and σ stored in `footfall_coefficients.yaml` (semver, sha256) with calibration metadata"
+Handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: YAML file with κ, σ per (MCC,channel)
+Interfaces_affected: ComputeFootTrafficModule/drawFootfall
+Test_type: CI
+Test_injection: corrupt or delete `footfall_coefficients.yaml` and run drawFootfall()
+Context: “κ and σ stored in `footfall_coefficients.yaml` (semver, sha256) with calibration metadata …”
+Confidence=HIGH
+--- END EC 12 ---
+
+--- EC 13 | Stage=WriteSiteParquet | Severity=High ---
+Failure_event: Atomic write protocol violation on Parquet output
+Anchor: "construct temp file … then atomic rename … ensures idempotent reruns"
+Handled: Partial
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: final `.parquet` only after atomic rename
+Interfaces_affected: WriteSiteParquetModule/writeSiteData
+Test_type: fuzz
+Test_injection: simulate fsync or rename failure during writeSiteData()
+Context: “construct temp file … atomic rename … ensures idempotent reruns.”
+Confidence=HIGH
+--- END EC 13 ---
+
+--- EC 14 | Stage=FinalManifestWriter | Severity=High ---
+Failure_event: Missing final JSON catalogue manifest
+Anchor: "When all merchants are processed the build writes a manifest JSON …"
+Handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: JSON manifest at specified output path
+Interfaces_affected: FinalManifestWriterModule/writeManifest
+Test_type: CI
+Test_injection: skip manifest write and run writeManifest()
+Context: “When all merchants are processed the build writes a manifest JSON …”
+Confidence=HIGH
+--- END EC 14 ---
+
+<<EC-END>>

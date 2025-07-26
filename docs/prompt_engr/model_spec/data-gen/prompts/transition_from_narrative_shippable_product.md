@@ -1,6 +1,6 @@
 # Edge-case CFSW
 
-## ➊  EDGE‑CASE CATALOGUE‑FINDER v1  (ECC‑F)
+## ➊  EDGE‑CASE CATALOGUE‑FINDER v2  (ECC‑F)
 
 ```text
 ##########################################################
@@ -8,19 +8,27 @@
 ##########################################################
 
 ROLE  
-You are a senior JP Morgan Site‑Reliability Engineer auditing the pair  
-Narrative.txt + Assumptions.txt (plus appendices) for this sub‑segment.
+You are a Systems Reliability & Quality Engineer auditing the Narrative.txt +  
+Assumptions.txt (with Appendix B, parameter specs, and interface specs) for this sub-segment.  
+
+INPUTS  
+• narrative_{{NAME}}.txt  
+• assumptions_{{NAME}}.txt  
+• Appendix B – governing_artefacts_{{NAME}}.txt  
+• parameter_spec_{{NAME}}.txt  
+• interface_contract_spec_{{NAME}}.txt 
 
 DEFINITION — Edge‑Case Pathway  
 Any event that can disrupt determinism, correctness, or reproducibility, including but not limited to  
-  1. **Input failures**  – corrupt file, missing artefact, schema drift, wrong CRS.  
-  2. **Temporal anomalies** – DST fold/skip, leap second, timezone boundary flips.  
-  3. **Resource limits** – OOM, executor lost, thread starvation, disk quota.  
-  4. **Random‑seed collisions** – Philox counter overlap, RNG state lost on retry.  
-  5. **External dependency** – HTTP 5xx, S3 throttling, licence key expiry.  
-  6. **Parameter domain error** – Dirichlet α ≤ 0, variance < 0, division by 0.  
-  7. **Race / idempotence** – double catalog build, partial Parquet write, duplicate row keys.  
-  8. **Governance gate** – licence mismatch, missing SHA‑256, privacy leak test fail.
+  1. **Input failures**  – corrupt file, missing artefact, schema drift, wrong CRS, etc (whatever your expertise finds)  
+  2. **Temporal anomalies** – DST fold/skip, leap second, timezone boundary flips, etc (whatever your expertise finds)   
+  3. **Resource limits** – OOM, executor lost, thread starvation, disk quota, etc (whatever your expertise finds)   
+  4. **Random‑seed collisions** – Philox counter overlap, RNG state lost on retry, etc (whatever your expertise finds)   
+  5. **External dependency** – HTTP 5xx, S3 throttling, licence key expiry, etc (whatever your expertise finds)   
+  6. **Parameter domain error** – Dirichlet α ≤ 0, variance < 0, division by 0, etc (whatever your expertise finds)   
+  7. **Race / idempotence** – double catalog build, partial Parquet write, duplicate row keys, etc (whatever your expertise finds)   
+  8. **Governance gate** – licence mismatch, missing SHA‑256, privacy leak test fail, etc (whatever your expertise finds) 
+  9. Etc (whatever your expertise finds) 
 
 OUTPUT WHEN NONE FOUND  
 Write exactly `No edge‑cases found.` then `<<EC‑END>>`.
@@ -36,24 +44,24 @@ Detection_gap: {{Yes|No}}         ← if Current_handled ≠ Yes, must be Yes
 Recovery_gap:  {{Yes|No}}
 Idempotence_gap: {{Yes|No}}
 Metrics_gap:    {{Yes|No}}
-Expected_format: {{units/shape/dtype/valid range}}
-Default_policy: {{abort|skip|use prior|other}}
-Interface_affected: {{artefact/module/function}}
-Test_pathway: {{CI/property/fuzz; how to induce}}
+Expected_format: {{units/shape/dtype/valid_range}}
+Interfaces_affected: {{comma-separated module(s)/function(s)}}
+Test_type: {{unit|fuzz|CI}}
+Test_injection: {{how to trigger}}
 Context: “one sentence before … {{TARGET}} … one after”
 Confidence={{HIGH|MEDIUM|LOW}}
 --- END EC {{ID}} ---
 
 RULES  
-• Scan every section, appendix, table and code snippet.  
-• For each candidate failure event, ask: “Is detection logic, recovery action, idempotence note, and monitoring metric **fully** specified?” If any gap flag is Yes → produce a block.  
-• Combine duplicates (same stage + same failure_event) by merging anchor quotes.  
+• Scan narrative, assumptions, registry, parameter and interface specs for any edge-case mention.  
+• For each candidate, if any gap flag = Yes → emit a block.  
+• Merge duplicates (same stage + same failure_event) by combining Anchors and OR-ing gaps.   
 • Assign Severity:  
     Crit   = data corruption or privacy breach, fatal stop.  
     High   = reproducibility broken, leads to wrong synthetic data.  
     Med    = performance / quota risk, output still correct.  
     Low    = minor clarity / logging gap.  
-• Stop when all text scanned; write `<<EC‑END>>`.
+• Stop when done; write `<<EC‑END>>`.
 
 TOKEN MGMT  
 If a response nears 6 500 tokens, finish current block, output `<<EC‑CONTINUE>>`,  
@@ -67,7 +75,7 @@ Never split an EC block.
 
 ---
 
-## ➋  EDGE‑CASE SPEC‑WRITER v1  (ECS‑W)
+## ➋  EDGE‑CASE SPEC‑WRITER v2  (ECS‑W)
 
 ````text
 ##########################################################
@@ -75,14 +83,14 @@ Never split an EC block.
 ##########################################################
 
 INPUT  
-A JSON array of EC ids to resolve appears **above** this template:
+A JSON array of EC ids to resolve appears **above** this template. Example:
 
 ```json
 {"ec_ids":[2,5,8]}
 ```
 
 GOAL
-For each listed EC id, write a rock‑solid recovery clause that closes **all** gaps flagged by Catalogue‑Finder.
+For each listed EC id, write a rock‑solid recovery spec that closes **all** gaps flagged in one block.
 
 FIX BLOCK FORMAT
 (Strict order; no bullets; no summaries.)
@@ -91,21 +99,22 @@ FIX BLOCK FORMAT
 Stage: {{stage_name}}
 Failure_event: {{copied from catalogue}}
 Detection:
-trigger: deterministic condition or metric
-error_code: JP‑M code (numeric)
+trigger: {{deterministic condition or metric}}
+error_code: JP-M{{numeric}}
 Recovery:
-action: retry | skip | abort
-max_retries: n
-backoff_sec: n
+action: {{retry|skip|abort|use_prior|other}}
+max_retries: {{n}}
+backoff_sec: {{n}}
 Idempotence:
-guarantee: describe state re‑run effect
+guarantee: {{state after re-run}}
 Monitoring:
-metric_name: prometheus metric
-alert_thresh: expression
-Expected_format: α ∈ ℝ⁺, len=N, dtype=float64
-Default_policy: use prior Dirichlet(ones)
-Interface_affected: outlet_alloc.py/alloc_dirichlet()
-Test_pathway: fuzz test injects zero vector; assert abort/recovery
+metric_name: {{prometheus}}
+alert_thresh: {{expression}}
+Expected_format: {{units/shape/dtype/range}}
+Interface_affected: {{comma-separated module(s)/function(s)}}
+Test_pathway:
+type: {{unit|fuzz|CI}}
+injection: {{how to induce}}
 <<<END EC‑FIX>>>
 
 COLLECT‑AND‑ORDER RULE

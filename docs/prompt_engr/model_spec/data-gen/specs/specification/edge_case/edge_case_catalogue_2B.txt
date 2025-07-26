@@ -1,0 +1,209 @@
+--- EC 1 | Stage=ComputeProbabilityVector | Severity=High ---
+Failure_event: Zero total foot-traffic (Σ Fᵢ = 0)
+Anchor: "default_policy: abort on zero total"  
+Current_handled: Partial  
+Detection_gap: No  
+Recovery_gap: Yes  
+Idempotence_gap: Yes  
+Metrics_gap: No  
+Expected_format: Σ Fᵢ > 0  
+Interfaces_affected: router/engine.py/normalize_site_weights  
+Test_type: unit  
+Test_injection: supply empty site_catalogue.parquet with all Fᵢ=0  
+Context: “... default_policy: abort on zero total ...”  
+Confidence=HIGH
+--- END EC 1 ---
+
+--- EC 2 | Stage=ComputeProbabilityVector | Severity=Med ---
+Failure_event: Non-IEEE-754-compliant host sums  
+Anchor: "Because IEEE rounding is deterministic ... two machines yield identical pᵢ"  
+Current_handled: No  
+Detection_gap: Yes  
+Recovery_gap: Yes  
+Idempotence_gap: Yes  
+Metrics_gap: No  
+Expected_format: IEEE-754 double sums  
+Interfaces_affected: router/engine.py/normalize_site_weights  
+Test_type: fuzz  
+Test_injection: run on non-compliant CPU or emulate different FP rounding  
+Context: “... identical on any IEEE-compliant CPU ...”  
+Confidence=MEDIUM
+--- END EC 2 ---
+
+--- EC 3 | Stage=BuildAliasTable | Severity=High ---
+Failure_event: Alias manifest missing `alias_digest`
+Anchor: "Its digest joins the manifest: `alias_digest`."  
+Current_handled: No  
+Detection_gap: Yes  
+Recovery_gap: Yes  
+Idempotence_gap: Yes  
+Metrics_gap: Yes  
+Expected_format: alias_digest present in routing_manifest.json  
+Interfaces_affected: BuildAliasTableModule/buildAliasTable  
+Test_type: CI  
+Test_injection: generate alias.npz, omit digest write, run CI  
+Context: “... its digest joins the manifest: `alias_digest`.”  
+Confidence=HIGH
+--- END EC 3 ---
+
+--- EC 4 | Stage=BuildCdnAliasTable | Severity=High ---
+Failure_event: CDN alias YAML missing or malformed 
+Anchor: "config/routing/cdn_country_weights.yaml ... File not yet created"  
+Current_handled: No  
+Detection_gap: Yes  
+Recovery_gap: Yes  
+Idempotence_gap: Yes  
+Metrics_gap: Yes  
+Expected_format: valid YAML at config/routing/cdn_country_weights.yaml  
+Interfaces_affected: RouteTransactionModule/buildCdnAliasTable  
+Test_type: CI  
+Test_injection: remove or corrupt cdn_country_weights.yaml and run buildCdnAliasTable()  
+Context: “… path is reserved by spec.”  
+Confidence=HIGH
+--- END EC 4 ---
+
+--- EC 5 | Stage=ComputeProbabilityVector | Severity=Med ---
+Failure_event: Inconsistent p-vector file ordering  
+Anchor: "sorted lexicographically by `site_id`"  
+Current_handled: Partial  
+Detection_gap: Yes  
+Recovery_gap: Yes  
+Idempotence_gap: Yes  
+Metrics_gap: No  
+Expected_format: `<merchant_id>_pweights.bin` sorted by site_id  
+Interfaces_affected: BuildAliasTableModule/computeProbabilityVector  
+Test_type: unit  
+Test_injection: shuffle site_catalogue.parquet, run normalize_site_weights()  
+Context: “... sorted lexicographically by `site_id`; … identical pᵢ”  
+Confidence=MEDIUM
+--- END EC 5 ---
+
+--- EC 6 | Stage=RouteTransaction | Severity=High ---
+Failure_event: Routing manifest missing `weight_digest`
+Anchor: "its SHA-256 recorded as `weight_digest` in routing_manifest.json`"  
+Current_handled: No  
+Detection_gap: Yes  
+Recovery_gap: Yes  
+Idempotence_gap: Yes  
+Metrics_gap: Yes  
+Expected_format: weight_digest present in routing_manifest.json  
+Interfaces_affected: RouteTransactionModule/routeTransaction  
+Test_type: CI  
+Test_injection: write pweights.bin without manifest entry, run routeTransaction()  
+Context: “... recorded as `weight_digest` in `routing_manifest.json`”  
+Confidence=HIGH
+--- END EC 6 ---
+
+--- EC 7 | Stage=RouteTransaction | Severity=Med ---
+Failure_event: Missing rng_policy.yml fields  
+Anchor: "Module governed by `rng_policy.yml` (`rng_policy_digest`)"  
+Current_handled: Partial  
+Detection_gap: Yes  
+Recovery_gap: Yes  
+Idempotence_gap: Yes  
+Metrics_gap: No  
+Expected_format: fields max_stride, seed_offset in rng_policy.yml  
+Interfaces_affected: router/prng.py  
+Test_type: unit  
+Test_injection: remove fields and run RNG derivation test  
+Context: “... governed by `rng_policy.yml` (`rng_policy_digest`)”  
+Confidence=MEDIUM
+--- END EC 7 ---
+
+--- EC 8 | Stage=DeriveTimeZone | Severity=Low ---
+Failure_event: Time-zone computation edge (leap second)
+Anchor: "handles gap/fold logic"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: No
+Expected_format: correct UTC conversion across leap second
+Interfaces_affected: RouteTransactionModule/routeTransaction
+Test_type: fuzz
+Test_injection: simulate t_local at leap-second boundary
+Context: “… handles gap/fold logic … writes the transaction record unchanged.”
+Confidence=LOW
+--- END EC 8 ---
+
+--- EC 9 | Stage=RouteTransaction | Severity=High ---
+Failure_event: Missing routing_day_effect.yml digest
+Anchor: "defaulting to 0.15" & “manifest field `gamma_variance_digest`”
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: gamma_variance_digest in routing_manifest.json
+Interfaces_affected: RouteTransactionModule/routeTransaction
+Test_type: CI
+Test_injection: modify variance without digest update, run CI harness
+Context: “… `gamma_variance_digest` therefore guards the effect size.” 
+Confidence=HIGH
+--- END EC 9 ---
+
+--- EC 10 | Stage=AuditRouting | Severity=Med ---
+Failure_event: Audit log rotation or retention not enforced
+Anchor: "Rotation (daily) and 90-day retention are governed by `config/routing/logging.yml`"
+Current_handled: Partial
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: No
+Expected_format: daily rotated logs, retention=90 days
+Interfaces_affected: NightlyRouterTest/auditRouting
+Test_type: CI
+Test_injection: insert old log >90d, run retention check
+Context: “… governed by `config/routing/logging.yml` (`audit_log_config_digest`)” 
+Confidence=MEDIUM
+--- END EC 10 ---
+
+--- EC 11 | Stage=AuditRouting | Severity=High ---
+Failure_event: Missing routing_validation.yml digest
+Anchor: "CI blocks merges if any merchant breaches them"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: validation_config_digest in routing_manifest.json
+Interfaces_affected: CI_CD_Pipeline/auditRouting
+Test_type: CI
+Test_injection: alter routing_validation.yml, skip digest update, run CI
+Context: “… CI blocks merges if any merchant breaches them.” 
+Confidence=HIGH
+--- END EC 11 ---
+
+--- EC 12 | Stage=VirtualRouting | Severity=High ---
+Failure_event: Missing cdn_alias_digest in manifest
+Anchor: "alias_digest recorded as `cdn_alias_digest`"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: cdn_alias_digest in routing_manifest.json
+Interfaces_affected: RouteTransactionModule/buildCdnAliasTable
+Test_type: CI
+Test_injection: omit digest write, run CI alias test
+Context: “… recorded as `cdn_alias_digest`.” 
+Confidence=HIGH
+--- END EC 12 ---
+
+--- EC 13 | Stage=VirtualRouting | Severity=High ---
+Failure_event: VirtualUniverseMismatchError not caught
+Anchor: “fails fast if anyone tweaks country weights but forgets to rebuild the alias table.”
+Current_handled: Partial
+Detection_gap: No
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: No
+Expected_format: raise VirtualUniverseMismatchError on mismatch
+Interfaces_affected: RouteTransactionModule/buildCdnAliasTable
+Test_type: fuzz
+Test_injection: tweak cdn_country_weights, rebuild not run, load NPZ
+Context: “... fails fast ... VirtualUniverseMismatchError ...” 
+Confidence=MEDIUM
+--- END EC 13 ---
+
+<<EC-END>>

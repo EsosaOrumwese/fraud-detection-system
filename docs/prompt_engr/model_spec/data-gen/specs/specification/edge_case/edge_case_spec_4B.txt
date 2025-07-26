@@ -1,0 +1,441 @@
+<<<EC-FIX id=1>>
+Stage: StructuralIntegrity
+Failure_event: Parquet partition missing or corrupt
+Detection:
+  trigger: validate_structural_integrity.py raises IOError or fastavro error on partition open
+  error_code: JP-M001
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no partial validation state left
+Monitoring:
+  metric_name: parquet_partition_error_total
+  alert_thresh: parquet_partition_error_total > 0
+Expected_format: Parquet files at `${dataset_root}/transactions/*.parquet`
+Interface_affected: validateStructuralIntegrity
+Test_pathway:
+  type: integration
+  injection: delete or corrupt a Parquet file and run validate_structural_integrity.py
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=2>>
+Stage: TzWorldLookup
+Failure_event: Missing time-zone shapefile `tz_world_2025a.shp`
+Detection:
+  trigger: validate_structural_integrity.py raises FileNotFoundError for `tz_world_2025a.shp`
+  error_code: JP-M002
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no partial TZ lookup on abort
+Monitoring:
+  metric_name: tz_world_shapefile_missing_total
+  alert_thresh: tz_world_shapefile_missing_total > 0
+Expected_format: Shapefile at `tz_world_2025a.shp`
+Interface_affected: validateStructuralIntegrity
+Test_pathway:
+  type: CI
+  injection: remove `tz_world_2025a.shp` and run validate_structural_integrity.py
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=3>>
+Stage: ZoneinfoLegality
+Failure_event: Missing `config/zoneinfo_version.yml`
+Detection:
+  trigger: validate_structural_integrity.py raises FileNotFoundError for `zoneinfo_version.yml`
+  error_code: JP-M003
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no zoneinfo validation on abort
+Monitoring:
+  metric_name: zoneinfo_version_missing_total
+  alert_thresh: zoneinfo_version_missing_total > 0
+Expected_format: YAML at `config/zoneinfo_version.yml` containing `version`
+Interface_affected: validateStructuralIntegrity
+Test_pathway:
+  type: CI
+  injection: delete `zoneinfo_version.yml` and run validate_structural_integrity.py
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=4>>
+Stage: SchemaFirewall
+Failure_event: Missing `schemas/transaction_schema.json`
+Detection:
+  trigger: validate_structural_integrity.py raises FileNotFoundError for schema file
+  error_code: JP-M004
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no schema enforcement on abort
+Monitoring:
+  metric_name: transaction_schema_missing_total
+  alert_thresh: transaction_schema_missing_total > 0
+Expected_format: JSON schema at `schemas/transaction_schema.json`
+Interface_affected: validateStructuralIntegrity
+Test_pathway:
+  type: CI
+  injection: remove `transaction_schema.json` and run validate_structural_integrity.py
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=5>>
+Stage: AdversarialEmbedding
+Failure_event: Missing `config/validation_conf.yml`
+Detection:
+  trigger: validate_adversarial_indistinguishability.py raises FileNotFoundError for config
+  error_code: JP-M005
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no embedding validation on abort
+Monitoring:
+  metric_name: validation_conf_missing_total
+  alert_thresh: validation_conf_missing_total > 0
+Expected_format: YAML at `config/validation_conf.yml` with fields `auroc_interval`, `auroc_cut`
+Interface_affected: validateAdversarialIndistinguishability
+Test_pathway:
+  type: CI
+  injection: delete `validation_conf.yml` and run validate_adversarial_indistinguishability.py
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=6>>
+Stage: AdversarialEmbedding
+Failure_event: Missing module or function `adv_embed.embed_6d`
+Detection:
+  trigger: importError or AttributeError for `adv_embed.embed_6d`
+  error_code: JP-M006
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no embedding on abort
+Monitoring:
+  metric_name: adv_embed_missing_total
+  alert_thresh: adv_embed_missing_total > 0
+Expected_format: Python module `adv_embed` with function `embed_6d`
+Interface_affected: validateAdversarialIndistinguishability
+Test_pathway:
+  type: unit
+  injection: uninstall or override `adv_embed` and run validate_adversarial_indistinguishability.py
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=7>>
+Stage: DistributionalDrift
+Failure_event: Missing RNG audit log `logs/rng_trace.log`
+Detection:
+  trigger: validateAdversarialIndistinguishability.py detects missing log file
+  error_code: JP-M007
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no RNG audit on abort
+Monitoring:
+  metric_name: rng_trace_missing_total
+  alert_thresh: rng_trace_missing_total > 0
+Expected_format: CSV log at `logs/rng_trace.log` with `module,identifier,offset`
+Interface_affected: validateAdversarialIndistinguishability
+Test_pathway:
+  type: CI
+  injection: delete `rng_trace.log` and run validate_adversarial_indistinguishability.py
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=8>>
+Stage: StructuralFailureLogging
+Failure_event: Missing structural failure output `validation/structural_failure_<parameter_hash>.parquet`
+Detection:
+  trigger: validate_structural_integrity.py does not find failure Parquet after error
+  error_code: JP-M008
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no partial failure log on abort
+Monitoring:
+  metric_name: structural_failure_missing_total
+  alert_thresh: structural_failure_missing_total > 0
+Expected_format: Parquet at `validation/structural_failure_<parameter_hash>.parquet`
+Interface_affected: validateStructuralIntegrity
+Test_pathway:
+  type: CI
+  injection: induce structural error and verify Parquet presence
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=9>>
+Stage: DistributionalDrift
+Failure_event: Missing AUROC model dump `validation/auroc_model_<parameter_hash>.parquet`
+Detection:
+  trigger: validate_adversarial_indistinguishability.py checks for model Parquet existence on drift
+  error_code: JP-M009
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no partial model dump on abort
+Monitoring:
+  metric_name: auroc_model_missing_total
+  alert_thresh: auroc_model_missing_total > 0
+Expected_format: Parquet at `validation/auroc_model_<parameter_hash>.parquet`
+Interface_affected: validateAdversarialIndistinguishability
+Test_pathway:
+  type: CI
+  injection: trigger AUROC exceed and verify Parquet presence
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=10>>
+Stage: DistributionalDrift
+Failure_event: Missing misclassification indices `validation/misclassified_<parameter_hash>.csv`
+Detection:
+  trigger: validate_adversarial_indistinguishability.py checks for CSV existence on drift
+  error_code: JP-M010
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no partial CSV on abort
+Monitoring:
+  metric_name: misclassified_indices_missing_total
+  alert_thresh: misclassified_indices_missing_total > 0
+Expected_format: CSV at `validation/misclassified_<parameter_hash>.csv`
+Interface_affected: validateAdversarialIndistinguishability
+Test_pathway:
+  type: CI
+  injection: trigger AUROC exceed and verify CSV presence
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=11>>
+Stage: SemanticCongruence
+Failure_event: Missing `config/footfall_coefficients.yaml`
+Detection:
+  trigger: validateSemanticCongruence.py raises FileNotFoundError for config
+  error_code: JP-M011
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no congruence validation on abort
+Monitoring:
+  metric_name: footfall_coeff_missing_total
+  alert_thresh: footfall_coeff_missing_total > 0
+Expected_format: YAML at `config/footfall_coefficients.yaml` with dispersion bounds
+Interface_affected: validateSemanticCongruence
+Test_pathway:
+  type: CI
+  injection: delete `footfall_coefficients.yaml` and run validate_semantic_congruence.py
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=12>>
+Stage: SemanticCongruence
+Failure_event: Missing site catalogue `site_catalog.parquet`
+Detection:
+  trigger: validateSemanticCongruence.py raises FileNotFoundError for Parquet
+  error_code: JP-M012
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no congruence validation on abort
+Monitoring:
+  metric_name: site_catalog_missing_total
+  alert_thresh: site_catalog_missing_total > 0
+Expected_format: Parquet at `site_catalog.parquet`
+Interface_affected: validateSemanticCongruence
+Test_pathway:
+  type: CI
+  injection: delete `site_catalog.parquet` and run validate_semantic_congruence.py
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=13>>
+Stage: OffsetBarcodeInterrogation
+Failure_event: Missing `config/barcode_bounds.yml`
+Detection:
+  trigger: validateOffsetBarcode.py raises FileNotFoundError for config
+  error_code: JP-M013
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no barcode interrogation on abort
+Monitoring:
+  metric_name: barcode_bounds_missing_total
+  alert_thresh: barcode_bounds_missing_total > 0
+Expected_format: YAML at `config/barcode_bounds.yml` with numeric bounds
+Interface_affected: validateOffsetBarcode
+Test_pathway:
+  type: CI
+  injection: delete `barcode_bounds.yml` and run validate_offset_barcode.py
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=14>>
+Stage: OffsetBarcodeInterrogation
+Failure_event: Missing barcode failure overlay `validation/barcode_failure_<merchant_id>.png`
+Detection:
+  trigger: validateOffsetBarcode.py checks for overlay PNG presence
+  error_code: JP-M014
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no overlay generation on abort
+Monitoring:
+  metric_name: barcode_overlay_missing_total
+  alert_thresh: barcode_overlay_missing_total > 0
+Expected_format: PNG at `validation/barcode_failure_<merchant_id>.png`
+Interface_affected: validateOffsetBarcode
+Test_pathway:
+  type: CI
+  injection: force slope error and verify PNG presence
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=15>>
+Stage: LicenceConcordance
+Failure_event: Missing licence validation log `validation/licence_check.log`
+Detection:
+  trigger: validateLicences.py raises FileNotFoundError for log
+  error_code: JP-M015
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no licence check pass on abort
+Monitoring:
+  metric_name: licence_check_log_missing_total
+  alert_thresh: licence_check_log_missing_total > 0
+Expected_format: Log at `validation/licence_check.log` listing licences
+Interface_affected: validateLicences
+Test_pathway:
+  type: CI
+  injection: delete licence files and run validate_licences.py
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=16>>
+Stage: FinalManifest
+Failure_event: Missing CI pass artefact `validation/ci_validation_passed.flag`
+Detection:
+  trigger: pipeline_launcher.sh checks for flag file at end of validation
+  error_code: JP-M016
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no manifest completion on abort
+Monitoring:
+  metric_name: ci_pass_flag_missing_total
+  alert_thresh: ci_pass_flag_missing_total > 0
+Expected_format: Flag file `validation/ci_validation_passed.flag` with content `true`
+Interface_affected: pipeline_launcher.sh
+Test_pathway:
+  type: CI
+  injection: skip flag creation and run full validation pipeline
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=17>>
+Stage: FinalManifest
+Failure_event: Missing HashGate URI file `validation/hashgate_uri.txt`
+Detection:
+  trigger: uploadToHashGate process checks for URI file post-upload
+  error_code: JP-M017
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no upload reference on abort
+Monitoring:
+  metric_name: hashgate_uri_missing_total
+  alert_thresh: hashgate_uri_missing_total > 0
+Expected_format: Text file `validation/hashgate_uri.txt` containing the URI
+Interface_affected: uploadToHashGate
+Test_pathway:
+  type: CI
+  injection: prevent upload and run upload_to_hashgate.py
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=18>>
+Stage: DataExportImmutability
+Failure_event: Missing read-only export flag `readonly.flag`
+Detection:
+  trigger: pipeline_launcher.sh checks for `readonly.flag` in dataset root
+  error_code: JP-M018
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no export on abort
+Monitoring:
+  metric_name: readonly_flag_missing_total
+  alert_thresh: readonly_flag_missing_total > 0
+Expected_format: Flag file `readonly.flag` in dataset root
+Interface_affected: pipeline_launcher.sh
+Test_pathway:
+  type: integration
+  injection: omit flag and attempt remount dataset directory
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=19>>
+Stage: MergeCondition
+Failure_event: Missing Postgres uniqueness enforcement
+Detection:
+  trigger: register_dataset.py does not receive UNIQUE_VIOLATION on duplicate insert
+  error_code: JP-M019
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no duplicate dataset entries on abort
+Monitoring:
+  metric_name: datasets_uniqueness_violation_total
+  alert_thresh: datasets_uniqueness_violation_total > 0
+Expected_format: UNIQUE constraint on PostgreSQL table `datasets(id, parameter_hash, seed, path)`
+Interface_affected: register_dataset.py
+Test_pathway:
+  type: integration
+  injection: attempt duplicate insert and verify UNIQUE_VIOLATION
+<<<END EC-FIX>>>
+
+##### END EDGE-CASE SPEC #####
+
+id=1  | Confidence=HIGH   | Notes=Abort on partition errors to ensure data integrity.  
+id=2  | Confidence=HIGH   | Notes=Require tz-world shapefile for correct temporal lookup.  
+id=3  | Confidence=HIGH   | Notes=Ensure zoneinfo version config for civil time correctness.  
+id=4  | Confidence=HIGH   | Notes=Require transaction schema for strict validation.  
+id=5  | Confidence=HIGH   | Notes=Include adversarial hyperparameters for drift tests.  
+id=6  | Confidence=MEDIUM | Notes=Provide RNG embed function for reproducibility.  
+id=7  | Confidence=HIGH   | Notes=Log RNG offsets to audit stream jumps.  
+id=8  | Confidence=HIGH   | Notes=Emit structural failure artifacts on errors.  
+id=9  | Confidence=HIGH   | Notes=Dump AUROC model on drift for analysis.  
+id=10 | Confidence=HIGH   | Notes=Record misclassified indices for debugging.  
+id=11 | Confidence=HIGH   | Notes=Include footfall coefficients for semantic checks.  
+id=12 | Confidence=HIGH   | Notes=Require site catalogue for traffic joins.  
+id=13 | Confidence=HIGH   | Notes=Ensure barcode bounds config for validation.  
+id=14 | Confidence=HIGH   | Notes=Produce barcode failure overlays on errors.  
+id=15 | Confidence=HIGH   | Notes=Log licence checks to prevent legal drift.  
+id=16 | Confidence=MEDIUM | Notes=Enforce CI pass flag to gate downstream steps.  
+id=17 | Confidence=MEDIUM | Notes=Provide HashGate URI for audit trace.  
+id=18 | Confidence=HIGH   | Notes=Flag read-only export to enforce immutability.  
+id=19 | Confidence=HIGH   | Notes=Abort on uniqueness gaps to avoid duplicates.  
+
+<<ES-END>>

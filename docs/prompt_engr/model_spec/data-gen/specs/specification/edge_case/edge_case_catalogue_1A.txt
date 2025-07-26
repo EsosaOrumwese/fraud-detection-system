@@ -1,0 +1,113 @@
+--- EC 1 | Stage=ComputeGDPBuckets | Severity=High ---
+Failure_event: Missing input artefact `gdp_bucket_map_2024.parquet`
+Anchor: "path_pattern: s3://data-engine/artefacts/gdp/gdp_bucket_map_2024.parquet  # File not yet created; path is reserved by spec."
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: file present at S3 path
+Interfaces_affected: artefact_registry_loader/load_manifest()
+Test_type: CI
+Test_injection: CI test attempts `load_manifest()` with missing file; expect clear error
+Context: “<<<IC-FIX id=1> … path_pattern: s3://data-engine/artefacts/gdp/gdp_bucket_map_2024.parquet … sha256: <to-be-populated-on-build>”
+Confidence=HIGH
+--- END EC 1 ---
+
+--- EC 2 | Stage=CrossBorderExpansion | Severity=High ---
+Failure_event: Dirichlet parameter α ≤ 0 in cross-border hyperparameters
+Anchor: "crossborder_hyperparams.yaml – (θ₀, θ₁) for λ_extra and Dirichlet weights"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: α ∈ ℝ⁺
+Interfaces_affected: sample_nb_poisson_component()/alloc_dirichlet()
+Test_type: fuzz
+Test_injection: inject θ₁ = 0 or negative in hyperparams; expect validation error
+Context: “* crossborder_hyperparams.yaml – (θ₀, θ₁) for λ_extra and Dirichlet…”
+Confidence=HIGH
+--- END EC 2 ---
+
+--- EC 3 | Stage=SiteIndexing | Severity=Med ---
+Failure_event: Site identifier overflow beyond 6 digits
+Anchor: "Sequence width 6 digits suffices for expected outlet counts; overflow aborts ensure no silent truncation."
+Current_handled: Partial
+Detection_gap: Yes
+Recovery_gap: Partial
+Idempotence_gap: Yes
+Metrics_gap: No
+Expected_format: site_id length = 6 digits
+Interfaces_affected: site_id_generator/generate_id()
+Test_type: fuzz
+Test_injection: generate N > 999999 outlets; expect abort with clear failure
+Context: “... width suffices for expected outlet counts; overflow aborts ensure no silent truncation.”
+Confidence=MEDIUM
+--- END EC 3 ---
+
+--- EC 4 | Stage=AuditLogging | Severity=High ---
+Failure_event: Missing audit log entry invalidates build
+Anchor: "Any missing log entry invalidates the build."
+Current_handled: Partial
+Detection_gap: Yes
+Recovery_gap: No
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: continuous pre/post counter log entries
+Interfaces_affected: audit_logger/log_event()
+Test_type: CI
+Test_injection: remove a log entry in CI replay; expect explicit abort
+Context: “... reproducible via logged pre/post counters and p…; any missing log entry invalidates the build.”
+Confidence=HIGH
+--- END EC 4 ---
+
+--- EC 5 | Stage=StructuralValidation | Severity=High ---
+Failure_event: Structural validation failure on read-back
+Anchor: "Immediately after write, a validation routine re-reads the Parquet; any required event constitutes a structural validation failure."
+Current_handled: Partial
+Detection_gap: No
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: schema-compliant Parquet file
+Interfaces_affected: validation_runner/validate_parquet()
+Test_type: unit
+Test_injection: write malformed Parquet; expect clear recovery action
+Context: “... re-reads the Parquet and triggers structural validation failure.”
+Confidence=MEDIUM
+--- END EC 5 ---
+
+--- EC 6 | Stage=RandomSeed | Severity=High ---
+Failure_event: Uninitialized or missing random_seed leads to non-determinism
+Anchor: "random_seed: N/A"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: random_seed ∈ ℕ
+Interfaces_affected: stochastic_engine/set_seed()
+Test_type: CI
+Test_injection: enable build without seed; expect explicit seed error
+Context: “random_seed: N/A”
+Confidence=HIGH
+--- END EC 6 ---
+
+--- EC 7 | Stage=Provenance | Severity=High ---
+Failure_event: Missing SHA-256 digest placeholder for calibration scripts
+Anchor: "sha256: <to-be-populated-on-build>  # placeholder"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: sha256 = 64-hex string
+Interfaces_affected: provenance_tracker/record_digest()
+Test_type: CI
+Test_injection: run CI without digest; expect explicit digest error
+Context: “sha256: <to-be-populated-on-build>  # placeholder”
+Confidence=HIGH
+--- END EC 7 ---
+
+<<EC-END>>

@@ -1,0 +1,177 @@
+--- EC 1 | Stage=LaunchPipelineContainer | Severity=High ---
+Failure_event: Missing `Dockerfile.lock`
+Anchor: "The very first premise is that the build always executes inside the Docker image whose **content-hash lives in `Dockerfile.lock`**."
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: File at project root named `Dockerfile.lock` containing line `IMAGE_SHA256=<hex256>`
+Interfaces_affected: pipeline_launcher.sh
+Test_type: CI
+Test_injection: remove `Dockerfile.lock` and run pipeline_launcher.sh
+Context: “Reproducibility in this pipeline … content-hash lives in `Dockerfile.lock` … writes three items—container hash, container hostname…”  
+Confidence=HIGH
+--- END EC 1 ---
+
+--- EC 2 | Stage=WriteBuildManifest | Severity=High ---
+Failure_event: Cannot write `/tmp/build.manifest`
+Anchor: "`pipeline_launcher.sh` reads the lock file’s `IMAGE_SHA256=` line … then writes three items … to the first three fields of a run-local manifest at `/tmp/build.manifest`."
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: Writable file `/tmp/build.manifest` with at least 5 lines (container_hash, hostname, utc_start, source_sha1, master_seed_hex)
+Interfaces_affected: pipeline_launcher.sh
+Test_type: CI
+Test_injection: make `/tmp` non-writable and run pipeline_launcher.sh
+Context: “... reads the lock file … then writes three items … to `/tmp/build.manifest`. CI job `validate_container_hash.yml` …”  
+Confidence=HIGH
+--- END EC 2 ---
+
+--- EC 3 | Stage=BuildArtefactManifest | Severity=High ---
+Failure_event: Missing `artefact_registry.yaml`
+Anchor: "No artefact may influence sampling unless it appears in **`artefact_registry.yaml`**."
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: YAML file `artefact_registry.yaml` listing absolute POSIX paths and `license_map` section
+Interfaces_affected: artefact_loader.py
+Test_type: CI
+Test_injection: delete `artefact_registry.yaml` and run artefact_loader.py
+Context: “… is coded in `artefact_loader.py`, which enumerates every artefact path declared in `artefact_registry.yaml`. Simultaneously …”  
+Confidence=HIGH
+--- END EC 3 ---
+
+--- EC 4 | Stage=ValidateLicences | Severity=High ---
+Failure_event: Missing licence file for an artefact
+Anchor: "`validate_licences.py` verifies every artefact has a licence and that the licence text’s SHA-1 is listed in `manifest.licence_digests`."
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: For each path in `artefact_registry.yaml`, a corresponding file under `LICENSES/` with matching SHA-1
+Interfaces_affected: validate_licences.py
+Test_type: CI
+Test_injection: remove one licence Markdown from `LICENSES/` and run validate_licences.py
+Context: “… must accompany artefacts. CI job `validate_licences.py` verifies … SHA-1 is listed in `manifest.licence_digests`.”  
+Confidence=HIGH
+--- END EC 4 ---
+
+--- EC 5 | Stage=ValidateConfigSchemas | Severity=Med ---
+Failure_event: Missing or mismatched JSON Schema for a config domain
+Anchor: "The loader maps the `<domain>` identifier to a local `schemas/<domain>.json`, checks the `major` matches, and raises `SchemaVersionError` if …"
+Current_handled: Partial
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: `schemas/<domain>.json` file present for every YAML `schema` header, matching major version
+Interfaces_affected: bootstrap_validator.py
+Test_type: CI
+Test_injection: remove `schemas/hurdle_coefficients.json` and run bootstrap_validator.py
+Context: “… each YAML begins with … `schema: "jp.fraudsim.hurdle_coefficients@2"`. The loader maps … to `schemas/<domain>.json` …”  
+Confidence=MEDIUM
+--- END EC 5 ---
+
+--- EC 6 | Stage=BootstrapValidation | Severity=High ---
+Failure_event: Missing `bootstrap_validator.py`
+Anchor: "`bootstrap_validator.py` draws one hundred truncated-normal replicates … and checks that synthetic histograms lie within the 90 % predictive envelope."
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: Executable script `bootstrap_validator.py` in project root
+Interfaces_affected: bootstrap_validator.py
+Test_type: CI
+Test_injection: delete `bootstrap_validator.py` and run validate_config_schemas
+Context: “Configurability is confined to YAMLs … After loading, `bootstrap_validator.py` draws …”  
+Confidence=HIGH
+--- END EC 6 ---
+
+--- EC 7 | Stage=RegisterDataset | Severity=High ---
+Failure_event: Postgres `datasets` catalog unreachable or missing table
+Anchor: "Collision prevention is anchored in Postgres catalog **`datasets(id, parameter_hash, seed, path)`**. `register_dataset.py` inserts … and declares `parameter_hash, seed` unique."
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: Postgres connection string and table `datasets` with unique constraint on `(parameter_hash, seed)`
+Interfaces_affected: register_dataset.py
+Test_type: integration
+Test_injection: point to invalid Postgres URL and run register_dataset.py
+Context: “… register_dataset.py` inserts the triple and declares … unique. If an attempt … throws `UNIQUE_VIOLATION` …”  
+Confidence=HIGH
+--- END EC 7 ---
+
+--- EC 8 | Stage=JumpRNGStreams | Severity=High ---
+Failure_event: Missing `logs/rng_trace.log`
+Anchor: "The *jump offset* is recorded per invocation in `logs/rng_trace.log` as `module,identifier,offset`."
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: Log file `logs/rng_trace.log` containing CSV lines `module,identifier,offset`
+Interfaces_affected: firewall.py
+Test_type: CI
+Test_injection: run any RNG-driven module and verify absence of `logs/rng_trace.log`
+Context: “… streams remain non-overlapping. The *jump offset* is recorded … in `logs/rng_trace.log`.”  
+Confidence=HIGH
+--- END EC 8 ---
+
+--- EC 9 | Stage=RunDSTEdgePasser | Severity=High ---
+Failure_event: Missing `zoneinfo_version.yml`
+Anchor: "Each batch undergoes five vectorized checks: … (2) `tzid` belongs to the zoneinfo build `zoneinfo_version.yml`;"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: YAML file `zoneinfo_version.yml` with build identifier
+Interfaces_affected: firewall.py
+Test_type: CI
+Test_injection: delete `zoneinfo_version.yml` and run firewall.py
+Context: “… batches: (1) …; (2) `tzid` belongs to the zoneinfo build `zoneinfo_version.yml`; …”  
+Confidence=HIGH
+--- END EC 9 ---
+
+--- EC 10 | Stage=UploadToHashGate | Severity=Med ---
+Failure_event: HashGate HTTP 5xx or service unreachable
+Anchor: "`upload_to_hashgate.py` posts the manifest … to HashGate."
+Current_handled: Partial
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: Successful HTTP 200 response from HashGate POST
+Interfaces_affected: upload_to_hashgate.py
+Test_type: integration
+Test_injection: point to invalid HashGate endpoint and run upload_to_hashgate.py
+Context: “All validation artefacts … posted … to HashGate. Pull-request lint rule … polls HashGate; merge gates …”  
+Confidence=MEDIUM
+--- END EC 10 ---
+
+--- EC 11 | Stage=EnforceImmutability | Severity=High ---
+Failure_event: Dataset directory not read-only or missing collision detection
+Anchor: "dataset immutability: the dataset directory name embeds `parameter_hash`. NFS exports it read-only. Any attempt to regenerate … throws `OSError: read-only file system`"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: NFS-mounted directory `datasets/<parameter_hash>_<seed>/` with read-only permissions
+Interfaces_affected: enforce_immutability.py
+Test_type: integration
+Test_injection: remount directory as writable and attempt regenerate
+Context: “… NFS exports it read-only. Any attempt to regenerate … throws `OSError: read-only file system`, forcing version bump.”  
+Confidence=HIGH
+--- END EC 11 ---
+
+<<EC-END>>
