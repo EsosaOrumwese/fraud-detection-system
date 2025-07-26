@@ -1,0 +1,173 @@
+<<<TV-FIX id=1>>>
+[artefacts/catalogue/site_catalogue.parquet]
+type             = "parquet"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["config/routing/routing_manifest.json"]
+notes            = "Initial output catalogue placeholder"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=2>>>
+[artefacts/routing/routing_manifest.json]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["artefacts/catalogue/site_catalogue.parquet"]
+notes            = "Defines routing manifest schema"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=3>>>
+[config/routing/routing_day_effect.yml]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "annual"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["config/routing/cdn_country_weights.yaml"]
+notes            = "Day-of-week effect configuration"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=4>>>
+[config/routing/cdn_country_weights.yaml]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "annual"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["config/routing/routing_day_effect.yml"]
+notes            = "CDN country weight definitions"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=5>>>
+[config/routing/routing_validation.yml]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "annual"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["config/routing/logging.yml"]
+notes            = "Validation rules for routing"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=6>>>
+[config/routing/logging.yml]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "annual"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["config/routing/routing_validation.yml"]
+notes            = "Logging configuration for routing module"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=7>>>
+[config/routing/rng_policy.yml]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "annual"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["docs/rng_proof.md"]
+notes            = "RNG stream policy definitions"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=8>>>
+[docs/rng_proof.md]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["config/routing/rng_policy.yml"]
+notes            = "Formal proof document for RNG streams"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=9>>>
+[<merchant_id>_pweights.bin]
+type             = "container"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["<merchant_id>_alias.npz"]
+notes            = "Per-merchant probability weights binary"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=10>>>
+[<merchant_id>_alias.npz]
+type             = "container"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["<merchant_id>_pweights.bin"]
+notes            = "Alias table NPZ for site routing"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=11>>>
+[<merchant_id>_cdn_alias.npz]
+type             = "container"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["<merchant_id>_alias.npz"]
+notes            = "CDN-optimized alias table"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=12>>>
+[config/routing/errors.yml]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "annual"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["config/routing/performance.yml"]
+notes            = "Error handling configuration"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=13>>>
+[config/routing/performance.yml]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "annual"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["config/routing/errors.yml"]
+notes            = "Performance thresholds and metrics"
+<<<END TV-FIX>>>
+
+##### END VERSION_MATRIX #####
+
+id=1  | gaps_closed=tag|window|cadence|digest|compat | notes=catalogue output placeholder  
+id=2  | gaps_closed=tag|window|cadence|compat       | notes=manifest draft placeholder  
+id=3  | gaps_closed=tag|window|cadence|compat       | notes=day effect config placeholder  
+id=4  | gaps_closed=tag|window|cadence|compat       | notes=cdn weight config placeholder  
+id=5  | gaps_closed=tag|window|cadence|compat       | notes=validation config placeholder  
+id=6  | gaps_closed=tag|window|cadence|compat       | notes=logging config placeholder  
+id=7  | gaps_closed=tag|window|cadence|compat       | notes=rng policy placeholder  
+id=8  | gaps_closed=tag|window|compat              | notes=rng proof doc placeholder  
+id=9  | gaps_closed=tag|window|compat              | notes=weights binary placeholder  
+id=10 | gaps_closed=tag|window|compat              | notes=alias NPZ placeholder  
+id=11 | gaps_closed=tag|window|compat              | notes=cdn alias NPZ placeholder  
+id=12 | gaps_closed=tag|window|cadence|compat       | notes=errors config placeholder  
+id=13 | gaps_closed=tag|window|cadence|compat       | notes=performance config placeholder  
+
+<<VM-END>>

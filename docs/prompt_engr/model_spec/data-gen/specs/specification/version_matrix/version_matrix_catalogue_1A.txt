@@ -1,0 +1,286 @@
+--- TV 1 ---
+Artefact: hurdle_coefficients.yaml
+Type: code
+Anchor: "hurdle_coefficients.yaml – logistic (hurdle) coefficients"
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev version-tagged artefact bundles … hurdle_coefficients.yaml … next nb_dispersion_coefficients.yaml”
+--- END TV 1 ---
+
+--- TV 2 ---
+Artefact: nb_dispersion_coefficients.yaml
+Type: code
+Anchor: "nb_dispersion_coefficients.yaml – dispersion (φ) coefficients including GDP per-capita term η"
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev hurdle_coefficients.yaml … nb_dispersion_coefficients.yaml … next crossborder_hyperparams.yaml”
+--- END TV 2 ---
+
+--- TV 3 ---
+Artefact: crossborder_hyperparams.yaml
+Type: code
+Anchor: "crossborder_hyperparams.yaml – hyperparameters θ₀, θ₁ and Dirichlet concentrations α"
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev nb_dispersion_coefficients.yaml … crossborder_hyperparams.yaml … next artefacts/gdp/gdp_bucket_map_2024.parquet”
+--- END TV 3 ---
+
+--- TV 4 ---
+Artefact: artefacts/gdp/gdp_bucket_map_2024.parquet
+Type: parquet
+Anchor: "artefacts/gdp/gdp_bucket_map_2024.parquet – Jenks bucket mapping table"
+Version_tag: 2024
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=N
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev crossborder_hyperparams.yaml … gdp_bucket_map_2024.parquet … next settlement_shares_2024Q4.parquet”
+--- END TV 4 ---
+
+--- TV 5 ---
+Artefact: artefacts/network_share_vectors/settlement_shares_2024Q4.parquet
+Type: parquet
+Anchor: "settlement_shares_2024Q4.parquet – currency-level settlement share vectors"
+Version_tag: 2024Q4
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=N
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev gdp_bucket_map_2024.parquet … settlement_shares_2024Q4.parquet … next ccy_country_shares_2024Q4.parquet”
+--- END TV 5 ---
+
+--- TV 6 ---
+Artefact: artefacts/currency_country_split/ccy_country_shares_2024Q4.parquet
+Type: parquet
+Anchor: "ccy_country_shares_2024Q4.parquet – intra-currency country split table"
+Version_tag: 2024Q4
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=N
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev settlement_shares_2024Q4.parquet … ccy_country_shares_2024Q4.parquet … next hurdle_stationarity_tests_2024Q4.parquet”
+--- END TV 6 ---
+
+--- TV 7 ---
+Artefact: artefacts/diagnostics/hurdle_stationarity_tests_2024Q4.parquet
+Type: parquet
+Anchor: "hurdle_stationarity_tests_2024Q4.parquet – stationarity diagnostic output"
+Version_tag: 2024Q4
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=N
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev ccy_country_shares_2024Q4.parquet … hurdle_stationarity_tests_2024Q4.parquet … next _manifest.json”
+--- END TV 7 ---
+
+--- TV 8 ---
+Artefact: _manifest.json
+Type: code
+Anchor: "_manifest.json – top-level manifest with digests and lineage"
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev hurdle_stationarity_tests_2024Q4.parquet … _manifest.json … next manifest_fingerprint”
+--- END TV 8 ---
+
+--- TV 9 ---
+Artefact: manifest_fingerprint
+Type: code
+Anchor: "manifest_fingerprint – 256-bit lineage fingerprint used as seed"
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev _manifest.json … manifest_fingerprint … next rng_audit.log”
+--- END TV 9 ---
+
+--- TV 10 ---
+Artefact: rng_audit.log
+Type: code
+Anchor: "rng_audit.log – structured log of all stochastic draws and rejections"
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: No
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=Y
+  compat_missing=Y
+Severity=High
+Context: “prev manifest_fingerprint … rng_audit.log … next diagnostic_metrics.parquet”
+--- END TV 10 ---
+
+--- TV 11 ---
+Artefact: diagnostic_metrics.parquet
+Type: parquet
+Anchor: "diagnostic_metrics.parquet – NB rejection rates, CUSUM status, rounding errors"
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: No
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=Y
+  compat_missing=Y
+Severity=High
+Context: “prev rng_audit.log … diagnostic_metrics.parquet … next stationarity_diagnostics.parquet”
+--- END TV 11 ---
+
+--- TV 12 ---
+Artefact: stationarity_diagnostics.parquet
+Type: parquet
+Anchor: "stationarity_diagnostics.parquet – rolling Wald test outputs"
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev diagnostic_metrics.parquet … stationarity_diagnostics.parquet … next outlet_catalogue output”
+--- END TV 12 ---
+
+--- TV 13 ---
+Artefact: outlet_catalogue/seed={seed}/fingerprint={fingerprint}/part-*.parquet
+Type: parquet
+Anchor: "outlet_catalogue/.../part-*.parquet – immutable outlet stub table"
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: No
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=Y
+  compat_missing=Y
+Severity=High
+Context: “prev stationarity_diagnostics.parquet … outlet_catalogue/.../part-*.parquet … next outlet_catalogue_schema.json”
+--- END TV 13 ---
+
+--- TV 14 ---
+Artefact: outlet_catalogue_schema.json
+Type: code
+Anchor: "outlet_catalogue_schema.json – explicit schema descriptor for outlet stub output"
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: No
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=Y
+  compat_missing=Y
+Severity=High
+Context: “prev outlet_catalogue/.../part-*.parquet … outlet_catalogue_schema.json … next schema_version.txt”
+--- END TV 14 ---
+
+--- TV 15 ---
+Artefact: schema_version.txt
+Type: code
+Anchor: "schema_version.txt – schema version file triggering fingerprint changes"
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: No
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=Y
+  compat_missing=Y
+Severity=High
+Context: “prev outlet_catalogue_schema.json … schema_version.txt … next (end)”
+--- END TV 15 ---
+
+<<TV-END>>

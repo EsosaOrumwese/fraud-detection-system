@@ -1,0 +1,495 @@
+--- TV 1 ---
+Artefact: spatial_manifest.json
+Type: code
+Anchor: "The manifest filename is fixed (must be exactly spatial_manifest.json); alternative names or multiple manifests abort the build."
+Version_tag: N/A
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev … (start) … spatial_manifest.json … next spatial_blend.yaml”
+--- END TV 1 ---
+
+--- TV 2 ---
+Artefact: spatial_blend.yaml
+Type: code
+Anchor: "The governed YAML table spatial_blend.yaml (fields: semver, sha256_digest, updated, entries[]) maps each (mcc_code, channel) to either a direct artefact id or a blend of artefacts."
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev spatial_manifest.json … spatial_blend.yaml … next hrsl_pop_100m”
+--- END TV 2 ---
+
+--- TV 3 ---
+Artefact: artefacts/priors/hrsl/2020_v1.2/{ISO2}.tif
+Type: raster
+Anchor: "HRSL prior id: hrsl_pop_100m (provider Meta/HRSL, vintage 2020_v1.2, path pattern artefacts/priors/hrsl/2020_v1.2/{ISO2}.tif, nodata→0, sha256 digest listed)."
+Version_tag: 2020_v1.2
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=N
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev spatial_blend.yaml … hrsl_pop_100m … next osm_primary_roads”
+--- END TV 3 ---
+
+--- TV 4 ---
+Artefact: artefacts/priors/osm_primary_roads_{planet_YYYYMMDD}.gpkg
+Type: vector
+Anchor: "Filtered OSM primary-road network; path pattern artefacts/priors/osm_primary_roads_{planet_YYYYMMDD}.gpkg (snapshot_date metadata) with sha256_digest."
+Version_tag: snapshot_date
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=N
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev hrsl_pop_100m … osm_primary_roads … next aadt_counts_compiled_v1.parquet”
+--- END TV 4 ---
+
+--- TV 5 ---
+Artefact: artefacts/priors/aadt_counts_compiled_v1.parquet
+Type: parquet
+Anchor: "Government-sourced AADT table for roads; path artefacts/priors/aadt_counts_compiled_v1.parquet with semver and sha256_digest."
+Version_tag: v1
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=N
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev osm_primary_roads … aadt_counts_compiled_v1.parquet … next iata_airport_boundaries_v2023Q4.geojson”
+--- END TV 5 ---
+
+--- TV 6 ---
+Artefact: artefacts/priors/iata_airport_boundaries_v2023Q4.geojson
+Type: vector
+Anchor: "Commercial-airport boundary polygons; path artefacts/priors/iata_airport_boundaries_v2023Q4.geojson with semver and sha256_digest."
+Version_tag: v2023Q4
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=N
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev aadt_counts_compiled_v1.parquet … iata_airport_boundaries_v2023Q4 … next suburban_pop_density_2022_v1”
+--- END TV 6 ---
+
+--- TV 7 ---
+Artefact: artefacts/priors/suburban_pop_density_2022_v1.tif
+Type: raster
+Anchor: "Suburban population density raster; path artefacts/priors/suburban_pop_density_2022_v1.tif with semver and sha256_digest."
+Version_tag: v1
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=N
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev iata_airport_boundaries_v2023Q4 … suburban_pop_density_2022_v1 … next road_traffic_density_2022_v2”
+--- END TV 7 ---
+
+--- TV 8 ---
+Artefact: artefacts/priors/road_traffic_density_2022_v2.tif
+Type: raster
+Anchor: "Road traffic density raster; path artefacts/priors/road_traffic_density_2022_v2.tif with semver and sha256_digest."
+Version_tag: v2
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=N
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev suburban_pop_density_2022_v1 … road_traffic_density_2022_v2 … next worldpop_fallback_2023Q4”
+--- END TV 8 ---
+
+--- TV 9 ---
+Artefact: artefacts/priors/worldpop/2023Q4/{ISO2}.tif
+Type: raster
+Anchor: "WorldPop 1 km fallback population raster; path artefacts/priors/worldpop/2023Q4/{ISO2}.tif with vintage tag and sha256_digest."
+Version_tag: 2023Q4
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=N
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev road_traffic_density_2022_v2 … worldpop_fallback_2023Q4 … next tz_world_polygons_v2024a”
+--- END TV 9 ---
+
+--- TV 10 ---
+Artefact: artefacts/priors/tz_world_polygons_v2024a.geojson
+Type: vector
+Anchor: "IANA time-zone polygon boundaries; path artefacts/priors/tz_world_polygons_v2024a.geojson with semver and sha256_digest."
+Version_tag: v2024a
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=N
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev worldpop_fallback_2023Q4 … tz_world_polygons_v2024a … next tz_world_metadata.json”
+--- END TV 10 ---
+
+--- TV 11 ---
+Artefact: tz_world_metadata.json
+Type: code
+Anchor: "Engine loads tz_world_metadata.json (semver, sha256) mapping each IANA zone to ISO-alpha-2 codes."
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev tz_world_polygons_v2024a … tz_world_metadata.json … next capitals_dataset_2024.parquet”
+--- END TV 11 ---
+
+--- TV 12 ---
+Artefact: artefacts/priors/capitals_dataset_2024.parquet
+Type: parquet
+Anchor: "capitals_dataset_2024.parquet – country capital coordinates (iso2, role_type, primary_flag, lat, lon, sha256)."
+Version_tag: v2024
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=N
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev tz_world_metadata.json … capitals_dataset_2024.parquet … next natural_earth_land_10m_v5.1.2.geojson”
+--- END TV 12 ---
+
+--- TV 13 ---
+Artefact: artefacts/priors/natural_earth_land_10m_v5.1.2.geojson
+Type: vector
+Anchor: "Natural Earth 1:10 m v5.1.2 land polygon; path artefacts/priors/natural_earth_land_10m_v5.1.2.geojson with semver and sha256."
+Version_tag: v5.1.2
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=N
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev capitals_dataset_2024.parquet … natural_earth_land_10m_v5.1.2 … next footfall_coefficients.yaml”
+--- END TV 13 ---
+
+--- TV 14 ---
+Artefact: footfall_coefficients.yaml
+Type: code
+Anchor: "footfall_coefficients.yaml (semver, sha256) specifies κ and σ per (MCC, channel) + calibration metadata."
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev natural_earth_land_10m_v5.1.2 … footfall_coefficients.yaml … next winsor.yml”
+--- END TV 14 ---
+
+--- TV 15 ---
+Artefact: winsor.yml
+Type: code
+Anchor: "winsor.yml contains (clip_multiple=3, min_sites_for_clip=30, semver, sha256_digest)."
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev footfall_coefficients.yaml … winsor.yml … next fallback_policy.yml”
+--- END TV 15 ---
+
+--- TV 16 ---
+Artefact: fallback_policy.yml
+Type: code
+Anchor: "fallback_policy.yml specifies global_threshold and per_mcc_overrides with semver and sha256."
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev winsor.yml … fallback_policy.yml … next calibration_slice_config.yml”
+--- END TV 16 ---
+
+--- TV 17 ---
+Artefact: calibration_slice_config.yml
+Type: code
+Anchor: "calibration_slice_config.yml – Footfall calibration slice specification with semver and sha256."
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev fallback_policy.yml … calibration_slice_config.yml … next osm_planet_snapshot_{YYYYMMDD}.pbf”
+--- END TV 17 ---
+
+--- TV 18 ---
+Artefact: artefacts/priors/osm_planet_snapshot_{YYYYMMDD}.pbf
+Type: container
+Anchor: "OSM planet extract for road graph construction; path artefacts/priors/osm_planet_snapshot_{YYYYMMDD}.pbf with snapshot_date metadata and sha256."
+Version_tag: snapshot_date
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=N
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev calibration_slice_config.yml … osm_planet_snapshot_{YYYYMMDD}.pbf … next osm_ch_graph_{snapshot}.bin”
+--- END TV 18 ---
+
+--- TV 19 ---
+Artefact: artefacts/priors/osm_ch_graph_{snapshot}.bin
+Type: container
+Anchor: "Contraction-hierarchies graph for road distances; path artefacts/priors/osm_ch_graph_{snapshot}.bin with semver and sha256."
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev osm_planet_snapshot_{YYYYMMDD}.pbf … osm_ch_graph_{snapshot}.bin … next placement_audit.log”
+--- END TV 19 ---
+
+--- TV 20 ---
+Artefact: logs/placement_audit.log
+Type: code
+Anchor: "Audit log for all spatial sampling, Fenwick, and placement ops at logs/placement_audit.log."
+Version_tag: N/A
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: No
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=Y
+  compat_missing=Y
+Severity=High
+Context: “prev osm_ch_graph_{snapshot}.bin … placement_audit.log … next diagnostic_metrics.parquet”
+--- END TV 20 ---
+
+--- TV 21 ---
+Artefact: logs/diagnostic_metrics.parquet
+Type: parquet
+Anchor: "Nightly metrics for acceptance rates, fallback counts, CUSUM at logs/diagnostic_metrics.parquet."
+Version_tag: N/A
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: No
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=Y
+  compat_missing=Y
+Severity=High
+Context: “prev placement_audit.log … diagnostic_metrics.parquet … next site_catalogue/.../*.parquet”
+--- END TV 21 ---
+
+--- TV 22 ---
+Artefact: site_catalogue/partition_date=YYYYMMDD/merchant_id={id}/site_id={site_id}.parquet
+Type: parquet
+Anchor: "Final spatial catalogue output for each merchant/site at site_catalogue/.../*.parquet with manifest semver and spatial_manifest_digest."
+Version_tag: draft
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev diagnostic_metrics.parquet … site_catalogue…parquet … next site_catalogue_schema.json”
+--- END TV 22 ---
+
+--- TV 23 ---
+Artefact: site_catalogue_schema.json
+Type: code
+Anchor: "site_catalogue_schema.json – Parquet schema descriptor for output catalogue."
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev site_catalogue…parquet … site_catalogue_schema.json … next schema_version.txt”
+--- END TV 23 ---
+
+--- TV 24 ---
+Artefact: schema_version.txt
+Type: code
+Anchor: "schema_version.txt – Output schema versioning, required for immutability contract."
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: No
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=Y
+  compat_missing=Y
+Severity=High
+Context: “prev site_catalogue_schema.json … schema_version.txt … next calib_dist_digest.txt”
+--- END TV 24 ---
+
+--- TV 25 ---
+Artefact: calib_dist_digest.txt
+Type: code
+Anchor: "calib_dist_digest.txt – Digest for calibration slice distribution."
+Version_tag: N/A
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev schema_version.txt … calib_dist_digest.txt … next placement_temp_files”
+--- END TV 25 ---
+
+--- TV 26 ---
+Artefact: site_catalogue/partition_date=YYYYMMDD/merchant_id={id}/site_id={site_id}.parquet.tmp
+Type: container
+Anchor: "Crash-tolerant temp files at site_catalogue/.../*.parquet.tmp for idempotent writes."
+Version_tag: N/A
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: No
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=Y
+  compat_missing=Y
+Severity=High
+Context: “prev calib_dist_digest.txt … placement_temp_files … next (end)”
+--- END TV 26 ---
+
+<<TV-END>>

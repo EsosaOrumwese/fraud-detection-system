@@ -1,0 +1,286 @@
+--- TV 1 ---
+Artefact: config/allocation/zone_mixture_policy.yml
+Type: code
+Anchor: "loaded at runtime from config/allocation/zone_mixture_policy.yml (keys: theta_mix, semver, sha256_digest)"
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev (start) … config/allocation/zone_mixture_policy.yml … next config/allocation/country_zone_alphas.yaml”
+--- END TV 1 ---
+
+--- TV 2 ---
+Artefact: config/allocation/country_zone_alphas.yaml
+Type: code
+Anchor: "opens the YAML ledger config/allocation/country_zone_alphas.yaml mapping ISO code→{TZID: α} with semver and sha256_digest"
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev config/allocation/zone_mixture_policy.yml … country_zone_alphas.yaml … next docs/round_ints.md”
+--- END TV 2 ---
+
+--- TV 3 ---
+Artefact: docs/round_ints.md
+Type: code
+Anchor: "Functional spec in docs/round_ints.md for largest-remainder & bump rule"
+Version_tag: N/A
+Valid_window: N/A
+Update_cadence: N/A
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=NA
+  cadence_missing=NA
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev config/allocation/country_zone_alphas.yaml … round_ints.md … next config/allocation/zone_floor.yml”
+--- END TV 3 ---
+
+--- TV 4 ---
+Artefact: config/allocation/zone_floor.yml
+Type: code
+Anchor: "config/allocation/zone_floor.yml lists floors per TZID with semver and sha256_digest"
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev docs/round_ints.md … zone_floor.yml … next artefacts/allocation/country_major_zone.csv”
+--- END TV 4 ---
+
+--- TV 5 ---
+Artefact: artefacts/allocation/country_major_zone.csv
+Type: csv
+Anchor: "artefacts/allocation/country_major_zone.csv chosen by land-area; SHA-256 stored as major_zone_digest"
+Version_tag: N/A
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev config/allocation/zone_floor.yml … country_major_zone.csv … next artefacts/allocation/<merchant_id>_zone_alloc.parquet”
+--- END TV 5 ---
+
+--- TV 6 ---
+Artefact: artefacts/allocation/<merchant_id>_zone_alloc.parquet
+Type: parquet
+Anchor: "writes artefacts/allocation/<merchant_id>_zone_alloc.parquet sorted by country then TZID"
+Version_tag: N/A
+Valid_window: N/A
+Update_cadence: N/A
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=NA
+  cadence_missing=NA
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev country_major_zone.csv … <merchant_id>_zone_alloc.parquet … next artefacts/allocation/zone_alloc_index.csv”
+--- END TV 6 ---
+
+--- TV 7 ---
+Artefact: artefacts/allocation/zone_alloc_index.csv
+Type: csv
+Anchor: "appends <merchant_id>,<sha256> to artefacts/allocation/zone_alloc_index.csv"
+Version_tag: N/A
+Valid_window: N/A
+Update_cadence: N/A
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=NA
+  cadence_missing=NA
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev <merchant_id>_zone_alloc.parquet … zone_alloc_index.csv … next artefacts/allocation/zone_alloc_schema.json”
+--- END TV 7 ---
+
+--- TV 8 ---
+Artefact: artefacts/allocation/zone_alloc_schema.json
+Type: code
+Anchor: "artefacts/allocation/zone_alloc_schema.json defines Parquet schema with schema_version"
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev zone_alloc_index.csv … zone_alloc_schema.json … next logs/barcode_slope_validation.log”
+--- END TV 8 ---
+
+--- TV 9 ---
+Artefact: logs/barcode_slope_validation.log
+Type: code
+Anchor: "logs/barcode_slope_validation.log records numeric log of offset-barcode slope tests"
+Version_tag: N/A
+Valid_window: N/A
+Update_cadence: N/A
+Digest_present: No
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=NA
+  cadence_missing=NA
+  digest_missing=Y
+  compat_missing=Y
+Severity=High
+Context: “prev zone_alloc_schema.json … barcode_slope_validation.log … next logs/barcode_slope_heatmap.png”
+--- END TV 9 ---
+
+--- TV 10 ---
+Artefact: logs/barcode_slope_heatmap.png
+Type: container
+Anchor: "logs/barcode_slope_heatmap.png visual diagnostic of offset-barcode convergence"
+Version_tag: N/A
+Valid_window: N/A
+Update_cadence: N/A
+Digest_present: No
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=NA
+  cadence_missing=NA
+  digest_missing=Y
+  compat_missing=Y
+Severity=High
+Context: “prev barcode_slope_validation.log … barcode_slope_heatmap.png … next config/validation/cross_zone_validation.yml”
+--- END TV 10 ---
+
+--- TV 11 ---
+Artefact: config/validation/cross_zone_validation.yml
+Type: code
+Anchor: "config/validation/cross_zone_validation.yml sets thresholds with semver and sha256_digest"
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev barcode_slope_heatmap.png … cross_zone_validation.yml … next logs/test_rounding_conservation.log”
+--- END TV 11 ---
+
+--- TV 12 ---
+Artefact: logs/test_rounding_conservation.log
+Type: code
+Anchor: "logs/test_rounding_conservation.log CI log of rounding-conservation property tests"
+Version_tag: N/A
+Valid_window: N/A
+Update_cadence: N/A
+Digest_present: No
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=NA
+  cadence_missing=NA
+  digest_missing=Y
+  compat_missing=Y
+Severity=High
+Context: “prev cross_zone_validation.yml … test_rounding_conservation.log … next logs/zone_alloc_error.log”
+--- END TV 12 ---
+
+--- TV 13 ---
+Artefact: logs/zone_alloc_error.log
+Type: code
+Anchor: "logs/zone_alloc_error.log records drift and error events (ZoneAllocDriftError, UniverseHashError)"
+Version_tag: N/A
+Valid_window: N/A
+Update_cadence: N/A
+Digest_present: No
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=NA
+  cadence_missing=NA
+  digest_missing=Y
+  compat_missing=Y
+Severity=High
+Context: “prev test_rounding_conservation.log … zone_alloc_error.log … next docs/rng_proof.md”
+--- END TV 13 ---
+
+--- TV 14 ---
+Artefact: docs/rng_proof.md
+Type: code
+Anchor: "docs/rng_proof.md contains formal RNG-stream isolation proof"
+Version_tag: N/A
+Valid_window: N/A
+Update_cadence: N/A
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=NA
+  cadence_missing=NA
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev zone_alloc_error.log … rng_proof.md … next LICENSES/”
+--- END TV 14 ---
+
+--- TV 15 ---
+Artefact: LICENSES/*.md
+Type: container
+Anchor: "LICENSES/ holds licence texts (Visa MCX research-use, CC0 analyst-authored)"
+Version_tag: N/A
+Valid_window: N/A
+Update_cadence: N/A
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=NA
+  cadence_missing=NA
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev rng_proof.md … LICENSES/ … next (end)”
+--- END TV 15 ---
+
+<<TV-END>>

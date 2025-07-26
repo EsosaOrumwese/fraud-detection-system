@@ -1,0 +1,267 @@
+--- TV 1 ---
+Artefact: tz_world_polygons_2025a
+Type: vector
+Anchor: "tz_world_2025a.shp, .shx, .dbf, .prj, .cpg each declare metadata semver and sha256_digest"
+Version_tag: 2025a
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=N
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev (start) … tz_world_polygons_2025a … next tz_index_digest”
+--- END TV 1 ---
+
+--- TV 2 ---
+Artefact: tz_index_digest
+Type: code
+Anchor: "STR-tree index is serialized via pickle protocol 5 and stored as tz_index_digest"
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev tz_world_polygons_2025a … tz_index_digest … next tz_nudge.yml”
+--- END TV 2 ---
+
+--- TV 3 ---
+Artefact: tz_nudge.yml
+Type: code
+Anchor: "config/timezone/tz_nudge.yml carries semver and sha256_digest and defines nudge_distance_degrees: 0.0001"
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev tz_index_digest … tz_nudge.yml … next tz_overrides.yaml”
+--- END TV 3 ---
+
+--- TV 4 ---
+Artefact: tz_overrides.yaml
+Type: code
+Anchor: "config/timezone/tz_overrides.yaml lists overrides with fields semver and sha256_digest"
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev tz_nudge.yml … tz_overrides.yaml … next zoneinfo_version.yml”
+--- END TV 4 ---
+
+--- TV 5 ---
+Artefact: zoneinfo_version.yml
+Type: code
+Anchor: "zoneinfo_version.yml declares tzdata_version and carries semver and tzdata_archive_digest"
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev tz_overrides.yaml … zoneinfo_version.yml … next tzdata2025a.tar.gz”
+--- END TV 5 ---
+
+--- TV 6 ---
+Artefact: tzdata2025a.tar.gz
+Type: container
+Anchor: "artefacts/priors/tzdata/tzdata2025a.tar.gz is the IANA tzdata archive"
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev zoneinfo_version.yml … tzdata2025a.tar.gz … next simulation_horizon.yml”
+--- END TV 6 ---
+
+--- TV 7 ---
+Artefact: simulation_horizon.yml
+Type: code
+Anchor: "config/timezone/simulation_horizon.yml defines sim_start_iso8601 and sim_end_iso8601 with semver and sha256_digest"
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev tzdata2025a.tar.gz … simulation_horizon.yml … next rng_proof.md”
+--- END TV 7 ---
+
+--- TV 8 ---
+Artefact: rng_proof.md
+Type: code
+Anchor: "docs/rng_proof.md contains formal RNG-stream isolation proof and is version-controlled"
+Version_tag: Missing
+Valid_window: N/A
+Update_cadence: N/A
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=NA
+  cadence_missing=NA
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev simulation_horizon.yml … rng_proof.md … next output/site_catalogue”
+--- END TV 8 ---
+
+--- TV 9 ---
+Artefact: output/site_catalogue/partition_date=*/merchant_id=*/site_id=*.parquet
+Type: parquet
+Anchor: "Output catalogue must include nudge_lat, nudge_lon, TZID, fold, offsets and uses manifest semver"
+Version_tag: Missing
+Valid_window: N/A
+Update_cadence: N/A
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=NA
+  cadence_missing=NA
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev rng_proof.md … output/site_catalogue … next output/site_catalogue_schema.json”
+--- END TV 9 ---
+
+--- TV 10 ---
+Artefact: output/site_catalogue_schema.json
+Type: code
+Anchor: "output/site_catalogue_schema.json is Parquet schema descriptor with schema_version field"
+Version_tag: Missing
+Valid_window: N/A
+Update_cadence: N/A
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=NA
+  cadence_missing=NA
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev output/site_catalogue … output/site_catalogue_schema.json … next logs/tz_assignment_audit.log”
+--- END TV 10 ---
+
+--- TV 11 ---
+Artefact: logs/tz_assignment_audit.log
+Type: code
+Anchor: "logs/tz_assignment_audit.log records all assignment, nudge, override, error and rollback events"
+Version_tag: Missing
+Valid_window: N/A
+Update_cadence: daily
+Digest_present: No
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=NA
+  cadence_missing=Y
+  digest_missing=Y
+  compat_missing=Y
+Severity=High
+Context: “prev output/site_catalogue_schema.json … tz_assignment_audit.log … next logs/ci_override_validation.log”
+--- END TV 11 ---
+
+--- TV 12 ---
+Artefact: logs/ci_override_validation.log
+Type: code
+Anchor: "logs/ci_override_validation.log contains nightly override drift and manifest checks"
+Version_tag: Missing
+Valid_window: N/A
+Update_cadence: daily
+Digest_present: No
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=NA
+  cadence_missing=Y
+  digest_missing=Y
+  compat_missing=Y
+Severity=High
+Context: “prev tz_assignment_audit.log … ci_override_validation.log … next output/tz_cache_bytes.txt”
+--- END TV 12 ---
+
+--- TV 13 ---
+Artefact: output/tz_cache_bytes.txt
+Type: code
+Anchor: "output/tz_cache_bytes.txt records exact byte size of in-memory zone cache"
+Version_tag: Missing
+Valid_window: N/A
+Update_cadence: N/A
+Digest_present: No
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=NA
+  cadence_missing=NA
+  digest_missing=Y
+  compat_missing=Y
+Severity=High
+Context: “prev ci_override_validation.log … tz_cache_bytes.txt … next LICENSES/”
+--- END TV 13 ---
+
+--- TV 14 ---
+Artefact: LICENSES/
+Type: container
+Anchor: "LICENSES/ holds CC BY 4.0 for tz_world and Public Domain for tzdata"
+Version_tag: Missing
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=Y
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev tz_cache_bytes.txt … LICENSES/ … next (end)”
+--- END TV 14 ---
+
+<<TV-END>>

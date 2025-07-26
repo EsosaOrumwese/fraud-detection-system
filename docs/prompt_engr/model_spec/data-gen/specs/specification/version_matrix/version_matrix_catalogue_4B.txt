@@ -1,0 +1,381 @@
+--- TV 1 ---
+Artefact: artefact_registry.yaml
+Type: code
+Anchor: "artefact_registry.yaml"
+Version_tag: N/A
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: No
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=NA
+  compat_missing=Y
+Severity=High
+Context: “prev (start) … artefact_registry.yaml … next config/validation_conf.yml”
+--- END TV 1 ---
+
+--- TV 2 ---
+Artefact: config/validation_conf.yml
+Type: code
+Anchor: "config/validation_conf.yml"
+Version_tag: Present
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=N
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev artefact_registry.yaml … config/validation_conf.yml … next config/footfall_coefficients.yaml”
+--- END TV 2 ---
+
+--- TV 3 ---
+Artefact: config/footfall_coefficients.yaml
+Type: code
+Anchor: "config/footfall_coefficients.yaml"
+Version_tag: Present
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=N
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev config/validation_conf.yml … config/footfall_coefficients.yaml … next config/barcode_bounds.yml”
+--- END TV 3 ---
+
+--- TV 4 ---
+Artefact: config/barcode_bounds.yml
+Type: code
+Anchor: "config/barcode_bounds.yml"
+Version_tag: Present
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=N
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev config/footfall_coefficients.yaml … config/barcode_bounds.yml … next schemas/transaction_schema.json”
+--- END TV 4 ---
+
+--- TV 5 ---
+Artefact: schemas/transaction_schema.json
+Type: code
+Anchor: "schemas/transaction_schema.json"
+Version_tag: N/A
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev config/barcode_bounds.yml … schemas/transaction_schema.json … next config/zoneinfo_version.yml”
+--- END TV 5 ---
+
+--- TV 6 ---
+Artefact: config/zoneinfo_version.yml
+Type: code
+Anchor: "config/zoneinfo_version.yml"
+Version_tag: N/A
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev schemas/transaction_schema.json … config/zoneinfo_version.yml … next tz_world_2025a.shp”
+--- END TV 6 ---
+
+--- TV 7 ---
+Artefact: tz_world_2025a.shp
+Type: vector
+Anchor: "tz_world_2025a.shp"
+Version_tag: N/A
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev config/zoneinfo_version.yml … tz_world_2025a.shp … next {dataset_root}/site_catalogue/*.parquet”
+--- END TV 7 ---
+
+--- TV 8 ---
+Artefact: {dataset_root}/site_catalogue/*.parquet
+Type: parquet
+Anchor: "{dataset_root}/site_catalogue/*.parquet"
+Version_tag: N/A
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev tz_world_2025a.shp … {dataset_root}/site_catalogue/*.parquet … next {dataset_root}/transactions/*.parquet”
+--- END TV 8 ---
+
+--- TV 9 ---
+Artefact: {dataset_root}/transactions/*.parquet
+Type: parquet
+Anchor: "{dataset_root}/transactions/*.parquet"
+Version_tag: N/A
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev {dataset_root}/site_catalogue/*.parquet … {dataset_root}/transactions/*.parquet … next {dataset_root}/logs/rng_trace.log”
+--- END TV 9 ---
+
+--- TV 10 ---
+Artefact: {dataset_root}/logs/rng_trace.log
+Type: code
+Anchor: "{dataset_root}/logs/rng_trace.log"
+Version_tag: N/A
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev {dataset_root}/transactions/*.parquet … {dataset_root}/logs/rng_trace.log … next validation/structural_failure_*.parquet”
+--- END TV 10 ---
+
+--- TV 11 ---
+Artefact: validation/structural_failure_*.parquet
+Type: parquet
+Anchor: "validation/structural_failure_*.parquet"
+Version_tag: N/A
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev {dataset_root}/logs/rng_trace.log … validation/structural_failure_*.parquet … next validation/auroc_model_*.parquet”
+--- END TV 11 ---
+
+--- TV 12 ---
+Artefact: validation/auroc_model_*.parquet
+Type: parquet
+Anchor: "validation/auroc_model_*.parquet"
+Version_tag: N/A
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev validation/structural_failure_*.parquet … validation/auroc_model_*.parquet … next validation/misclassified_*.csv”
+--- END TV 12 ---
+
+--- TV 13 ---
+Artefact: validation/misclassified_*.csv
+Type: csv
+Anchor: "validation/misclassified_*.csv"
+Version_tag: N/A
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev validation/auroc_model_*.parquet … validation/misclassified_*.csv … next validation/theta_violation_*.pdf”
+--- END TV 13 ---
+
+--- TV 14 ---
+Artefact: validation/theta_violation_*.pdf
+Type: container
+Anchor: "validation/theta_violation_*.pdf"
+Version_tag: N/A
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev validation/misclassified_*.csv … validation/theta_violation_*.pdf … next validation/barcode_failure_*.png”
+--- END TV 14 ---
+
+--- TV 15 ---
+Artefact: validation/barcode_failure_*.png
+Type: container
+Anchor: "validation/barcode_failure_*.png"
+Version_tag: N/A
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev validation/theta_violation_*.pdf … validation/barcode_failure_*.png … next validation/validator.log”
+--- END TV 15 ---
+
+--- TV 16 ---
+Artefact: validation/validator.log
+Type: code
+Anchor: "validation/validator.log"
+Version_tag: N/A
+Valid_window: Missing
+Update_cadence: Missing
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=Y
+  cadence_missing=Y
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev validation/barcode_failure_*.png … validation/validator.log … next validation/ci_validation_passed.flag”
+--- END TV 16 ---
+
+--- TV 17 ---
+Artefact: validation/ci_validation_passed.flag
+Type: code
+Anchor: "validation/ci_validation_passed.flag"
+Version_tag: N/A
+Valid_window: N/A
+Update_cadence: N/A
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=NA
+  cadence_missing=NA
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev validation/validator.log … validation/ci_validation_passed.flag … next validation/hashgate_uri.txt”
+--- END TV 17 ---
+
+--- TV 18 ---
+Artefact: validation/hashgate_uri.txt
+Type: code
+Anchor: "validation/hashgate_uri.txt"
+Version_tag: N/A
+Valid_window: N/A
+Update_cadence: N/A
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=NA
+  cadence_missing=NA
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev validation/ci_validation_passed.flag … validation/hashgate_uri.txt … next validation/licence_check.log”
+--- END TV 18 ---
+
+--- TV 19 ---
+Artefact: validation/licence_check.log
+Type: code
+Anchor: "validation/licence_check.log"
+Version_tag: N/A
+Valid_window: N/A
+Update_cadence: N/A
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=NA
+  cadence_missing=NA
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev validation/hashgate_uri.txt … validation/licence_check.log … next {dataset_root}/readonly.flag”
+--- END TV 19 ---
+
+--- TV 20 ---
+Artefact: {dataset_root}/readonly.flag
+Type: code
+Anchor: "{dataset_root}/readonly.flag"
+Version_tag: N/A
+Valid_window: N/A
+Update_cadence: N/A
+Digest_present: Yes
+Compatibility_matrix: No
+Gap_flags:
+  tag_missing=NA
+  window_missing=NA
+  cadence_missing=NA
+  digest_missing=N
+  compat_missing=Y
+Severity=High
+Context: “prev validation/licence_check.log … {dataset_root}/readonly.flag … next (end)”
+--- END TV 20 ---
+
+<<TV-END>>
