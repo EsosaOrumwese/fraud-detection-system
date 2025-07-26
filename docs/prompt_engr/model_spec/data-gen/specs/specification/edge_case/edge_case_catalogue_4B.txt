@@ -1,0 +1,305 @@
+--- EC 1 | Stage=StructuralIntegrity | Severity=High ---
+Failure_event: Parquet partition missing or corrupt
+Anchor: "opens every Parquet partition in round-robin order"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: Parquet files at `${dataset_root}/transactions/*.parquet`
+Interfaces_affected: validateStructuralIntegrity
+Test_type: integration
+Test_injection: delete or corrupt a Parquet partition and run validate_structural_integrity.py
+Context: “The validator opens every Parquet partition in round-robin order … feeds the geographic coordinates …”  
+Confidence=HIGH
+--- END EC 1 ---
+
+--- EC 2 | Stage=TzWorldLookup | Severity=High ---
+Failure_event: Missing time-zone shapefile `tz_world_2025a.shp`
+Anchor: "same tz-world spatial index whose shapefile digest (`tz_polygon_digest`) was sealed earlier"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: Shapefile at `tz_world_2025a.shp`
+Interfaces_affected: validateStructuralIntegrity
+Test_type: CI
+Test_injection: remove `tz_world_2025a.shp` and run validate_structural_integrity.py
+Context: “... feeds them directly into the same tz-world spatial index whose shapefile digest … was sealed earlier in the manifest.”  
+Confidence=HIGH
+--- END EC 2 ---
+
+--- EC 3 | Stage=ZoneinfoLegality | Severity=High ---
+Failure_event: Missing `config/zoneinfo_version.yml`
+Anchor: "converts it through the zoneinfo release pinned by `zoneinfo_digest`"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: YAML at `config/zoneinfo_version.yml` containing `version`
+Interfaces_affected: validateStructuralIntegrity
+Test_type: CI
+Test_injection: delete `zoneinfo_version.yml` and run validate_structural_integrity.py
+Context: “… recomputes local civil time … converts it through the zoneinfo release pinned by `zoneinfo_digest`, and demands bit-level equality …”  
+Confidence=HIGH
+--- END EC 3 ---
+
+--- EC 4 | Stage=SchemaFirewall | Severity=High ---
+Failure_event: Missing `schemas/transaction_schema.json`
+Anchor: "Fastavro’s runtime schema compiled from `transaction_schema.json`"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: JSON schema at `schemas/transaction_schema.json`
+Interfaces_affected: validateStructuralIntegrity
+Test_type: CI
+Test_injection: delete `transaction_schema.json` and run validate_structural_integrity.py
+Context: “… schema completeness … under Fastavro’s runtime schema compiled from `transaction_schema.json`.”  
+Confidence=HIGH
+--- END EC 4 ---
+
+--- EC 5 | Stage=AdversarialEmbedding | Severity=High ---
+Failure_event: Missing `config/validation_conf.yml`
+Anchor: "hyper-parameters (`adv_conf_digest`) are locked in `validation_conf.yml`"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: YAML at `config/validation_conf.yml` with fields `auroc_interval`, `auroc_cut`
+Interfaces_affected: validateAdversarialIndistinguishability
+Test_type: CI
+Test_injection: remove `validation_conf.yml` and run validate_adversarial_indistinguishability.py
+Context: “… XGBoost classifier whose hyper-parameters (`adv_conf_digest`) are locked in `validation_conf.yml`.”  
+Confidence=HIGH
+--- END EC 5 ---
+
+--- EC 6 | Stage=AdversarialEmbedding | Severity=Med ---
+Failure_event: Missing module or function `adv_embed.embed_6d`
+Anchor: "streams through `adv_embed.embed_6d` … projecting it into a six-dimensional vector"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: Python module `adv_embed` with function `embed_6d`
+Interfaces_affected: validateAdversarialIndistinguishability
+Test_type: unit
+Test_injection: uninstall or comment out `adv_embed` and run validate_adversarial_indistinguishability.py
+Context: “… every transaction streams through `adv_embed.embed_6d` (source digest `adv_embed_digest`).”  
+Confidence=MEDIUM
+--- END EC 6 ---
+
+--- EC 7 | Stage=DistributionalDrift | Severity=High ---
+Failure_event: Missing RNG audit log `logs/rng_trace.log`
+Anchor: "recorded RNG jump in `rng_trace.log`"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: Log at `logs/rng_trace.log` with CSV lines `module,identifier,offset`
+Interfaces_affected: validateAdversarialIndistinguishability
+Test_type: CI
+Test_injection: delete `rng_trace.log` and run validate_adversarial_indistinguishability.py
+Context: “… ensuring reproducibility via the recorded RNG jump in `rng_trace.log`.”  
+Confidence=HIGH
+--- END EC 7 ---
+
+--- EC 8 | Stage=StructuralFailureLogging | Severity=High ---
+Failure_event: Missing structural failure output `validation/structural_failure_<parameter_hash>.parquet`
+Anchor: "writes the offending row plus its Philox jump offset to `structural_failure_<parameter_hash>.parquet`"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: Parquet at `validation/structural_failure_<parameter_hash>.parquet`
+Interfaces_affected: validateStructuralIntegrity
+Test_type: CI
+Test_injection: induce a structural error and verify file presence
+Context: “… disagreement triggers `StructuralError`, writes the offending row … to `structural_failure_<parameter_hash>.parquet`, and stops the build.”  
+Confidence=HIGH
+--- END EC 8 ---
+
+--- EC 9 | Stage=DistributionalDrift | Severity=High ---
+Failure_event: Missing AUROC model dump `validation/auroc_model_<parameter_hash>.parquet`
+Anchor: "dumps model artefacts … to `/tmp/auroc_failure`"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: Parquet at `validation/auroc_model_<parameter_hash>.parquet`
+Interfaces_affected: validateAdversarialIndistinguishability
+Test_type: CI
+Test_injection: trigger AUROC exceed and verify model dump exists
+Context: “… short-circuits, dumps model artefacts and misclassified indices to `/tmp/auroc_failure`, and raises `DistributionDriftDetected`.”  
+Confidence=HIGH
+--- END EC 9 ---
+
+--- EC 10 | Stage=DistributionalDrift | Severity=High ---
+Failure_event: Missing misclassification indices `validation/misclassified_<parameter_hash>.csv`
+Anchor: "dumps model artefacts and misclassified indices to `/tmp/auroc_failure`"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: CSV at `validation/misclassified_<parameter_hash>.csv`
+Interfaces_affected: validateAdversarialIndistinguishability
+Test_type: CI
+Test_injection: trigger AUROC exceed and verify CSV exists
+Context: “… dumps model artefacts and misclassified indices to `/tmp/auroc_failure` …”  
+Confidence=HIGH
+--- END EC 10 ---
+
+--- EC 11 | Stage=SemanticCongruence | Severity=High ---
+Failure_event: Missing `config/footfall_coefficients.yaml`
+Anchor: "dispersion estimate θ must reside within the corridor specified in `footfall_coefficients.yaml`"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: YAML at `config/footfall_coefficients.yaml` with dispersion bounds
+Interfaces_affected: validateSemanticCongruence
+Test_type: CI
+Test_injection: delete `footfall_coefficients.yaml` and run validate_semantic_congruence.py
+Context: “… corridor specified in `footfall_coefficients.yaml`—1 to 2 for card-present channels, 2 to 4 for CNP.”  
+Confidence=HIGH
+--- END EC 11 ---
+
+--- EC 12 | Stage=SemanticCongruence | Severity=High ---
+Failure_event: Missing site catalogue `site_catalog.parquet`
+Anchor: "joins … to the immutable foot-traffic scalars in `site_catalog.parquet`"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: Parquet at `site_catalog.parquet`
+Interfaces_affected: validateSemanticCongruence
+Test_type: CI
+Test_injection: delete `site_catalog.parquet` and run validate_semantic_congruence.py
+Context: “Hourly legitimate transaction counts per site are joined to the immutable foot-traffic scalars in `site_catalog.parquet`; …”  
+Confidence=HIGH
+--- END EC 12 ---
+
+--- EC 13 | Stage=OffsetBarcodeInterrogation | Severity=High ---
+Failure_event: Missing `config/barcode_bounds.yml`
+Anchor: "allowable band, recorded in `barcode_bounds.yml`, is [–1,–0.5]"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: YAML at `config/barcode_bounds.yml` with numeric bounds
+Interfaces_affected: validateOffsetBarcode
+Test_type: CI
+Test_injection: delete `barcode_bounds.yml` and run validate_offset_barcode.py
+Context: “… allowable band, recorded in `barcode_bounds.yml`, is [–1,–0.5].”  
+Confidence=HIGH
+--- END EC 13 ---
+
+--- EC 14 | Stage=OffsetBarcodeInterrogation | Severity=High ---
+Failure_event: Missing barcode failure overlay `validation/barcode_failure_<merchant_id>.png`
+Anchor: "stores it under `barcode_failure_<merchant_id>.png`"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: PNG at `validation/barcode_failure_<merchant_id>.png`
+Interfaces_affected: validateOffsetBarcode
+Test_type: CI
+Test_injection: force slope error and verify PNG exists
+Context: “… draws a red overlay on the heat-map stored as `barcode_failure_<merchant_id>.png`, and archives it in CI.”  
+Confidence=HIGH
+--- END EC 14 ---
+
+--- EC 15 | Stage=LicenceConcordance | Severity=High ---
+Failure_event: Missing licence validation log `validation/licence_check.log`
+Anchor: "validate_licences.py recomputes SHA-1 digests for each licence and compares them"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: Log at `validation/licence_check.log` listing all licences checked
+Interfaces_affected: validateLicences
+Test_type: CI
+Test_injection: delete licence files and run validate_licences.py
+Context: “… any mismatch raises `LicenceMismatchError`, preventing datasets whose legal pedigree has drifted.”  
+Confidence=HIGH
+--- END EC 15 ---
+
+--- EC 16 | Stage=FinalManifest | Severity=Med ---
+Failure_event: Missing CI pass artefact `validation/ci_validation_passed.flag`
+Anchor: "CI Result/Pass Artefact   • validation/ci_validation_passed.flag"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: Flag file at `validation/ci_validation_passed.flag` with content `true`
+Interfaces_affected: pipeline_launcher.sh
+Test_type: CI
+Test_injection: skip creation of flag and run full validation pipeline
+Context: “CI result/pass artefact → validation/ci_validation_passed.flag”  
+Confidence=MEDIUM
+--- END EC 16 ---
+
+--- EC 17 | Stage=FinalManifest | Severity=Med ---
+Failure_event: Missing HashGate URI file `validation/hashgate_uri.txt`
+Anchor: "uploads the bundle to HashGate at `/hashgate/<parameter_hash>/<master_seed>`"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: Text file at `validation/hashgate_uri.txt` containing the URI
+Interfaces_affected: uploadToHashGate
+Test_type: CI
+Test_injection: prevent upload and run upload_to_hashgate.py
+Context: “… uploads the bundle to HashGate at `/hashgate/<parameter_hash>/<master_seed>` …”  
+Confidence=MEDIUM
+--- END EC 17 ---
+
+--- EC 18 | Stage=DataExportImmutability | Severity=High ---
+Failure_event: Missing read-only export flag `readonly.flag`
+Anchor: "exported dataset directory is set read-only on NFS"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: Flag file `readonly.flag` in dataset root
+Interfaces_affected: pipeline_launcher.sh
+Test_type: integration
+Test_injection: omit flag and attempt remount dataset directory
+Context: “… mounted read-only on NFS, and the Postgres registry enforces uniqueness …”  
+Confidence=HIGH
+--- END EC 18 ---
+
+--- EC 19 | Stage=MergeCondition | Severity=High ---
+Failure_event: Missing Postgres uniqueness enforcement
+Anchor: "Postgres registry enforces uniqueness of `(parameter_hash, seed, path)`"
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: Unique constraint on table `datasets(id, parameter_hash, seed, path)`
+Interfaces_affected: register_dataset.py
+Test_type: integration
+Test_injection: attempt duplicate insert and verify UNIQUE_VIOLATION
+Context: “… Postgres registry enforces uniqueness of `(parameter_hash, seed, path)`, forbidding any silent regeneration …”  
+Confidence=HIGH
+--- END EC 19 ---
+
+<<EC-END>>

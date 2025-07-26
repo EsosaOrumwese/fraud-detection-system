@@ -1,0 +1,303 @@
+<<<EC-FIX id=1>>
+Stage: ComputeProbabilityVector
+Failure_event: Zero total foot-traffic (Σ Fᵢ = 0)
+Detection:
+  trigger: normalize_site_weights() detects Σ Fᵢ == 0
+  error_code: JP-M001
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no state change on abort
+Monitoring:
+  metric_name: zero_foot_traffic_total
+  alert_thresh: zero_foot_traffic_total > 0
+Expected_format: Σ Fᵢ > 0
+Interface_affected: router/engine.py/normalize_site_weights
+Test_pathway:
+  type: unit
+  injection: supply site_catalogue.parquet with all Fᵢ=0
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=2>>
+Stage: ComputeProbabilityVector
+Failure_event: Non-IEEE-754-compliant host sums
+Detection:
+  trigger: checksum validation of double-precision sum mismatches reference IEEE-754 result
+  error_code: JP-M002
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no partial output on abort
+Monitoring:
+  metric_name: non_ieee_rounding_violations_total
+  alert_thresh: non_ieee_rounding_violations_total > 0
+Expected_format: IEEE-754 compliant double precision sums
+Interface_affected: router/engine.py/normalize_site_weights
+Test_pathway:
+  type: fuzz
+  injection: emulate non-IEEE rounding mode and run normalize_site_weights()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=3>>
+Stage: BuildAliasTable
+Failure_event: Alias manifest missing `alias_digest`
+Detection:
+  trigger: routing_manifest.json lacks `alias_digest` field
+  error_code: JP-M003
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no partial manifest write on abort
+Monitoring:
+  metric_name: alias_digest_missing_total
+  alert_thresh: alias_digest_missing_total > 0
+Expected_format: `alias_digest` present in routing_manifest.json
+Interface_affected: BuildAliasTableModule/buildAliasTable
+Test_pathway:
+  type: CI
+  injection: generate alias.npz without writing digest and run buildAliasTable()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=4>>
+Stage: BuildCdnAliasTable
+Failure_event: CDN alias YAML missing or malformed
+Detection:
+  trigger: parse error or missing file at config/routing/cdn_country_weights.yaml
+  error_code: JP-M004
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no partial alias table on abort
+Monitoring:
+  metric_name: cdn_yaml_error_total
+  alert_thresh: cdn_yaml_error_total > 0
+Expected_format: valid YAML at config/routing/cdn_country_weights.yaml
+Interface_affected: RouteTransactionModule/buildCdnAliasTable
+Test_pathway:
+  type: CI
+  injection: corrupt or remove cdn_country_weights.yaml and run buildCdnAliasTable()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=5>>
+Stage: ComputeProbabilityVector
+Failure_event: Inconsistent p-vector file ordering
+Detection:
+  trigger: compare generated `<merchant_id>_pweights.bin` order against lexicographic site_id
+  error_code: JP-M005
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no extra files on abort
+Monitoring:
+  metric_name: pvector_ordering_error_total
+  alert_thresh: pvector_ordering_error_total > 0
+Expected_format: files sorted lexicographically by site_id
+Interface_affected: BuildAliasTableModule/computeProbabilityVector
+Test_pathway:
+  type: unit
+  injection: shuffle site_catalogue.parquet entries and run normalize_site_weights()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=6>>
+Stage: RouteTransaction
+Failure_event: Routing manifest missing `weight_digest`
+Detection:
+  trigger: routing_manifest.json lacks `weight_digest` field
+  error_code: JP-M006
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no partial routing output on abort
+Monitoring:
+  metric_name: weight_digest_missing_total
+  alert_thresh: weight_digest_missing_total > 0
+Expected_format: `weight_digest` present in routing_manifest.json
+Interface_affected: RouteTransactionModule/routeTransaction
+Test_pathway:
+  type: CI
+  injection: omit `weight_digest` and run routeTransaction()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=7>>
+Stage: RouteTransaction
+Failure_event: Missing `rng_policy.yml` fields
+Detection:
+  trigger: missing keys `max_stride` or `seed_offset` in rng_policy.yml
+  error_code: JP-M007
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no RNG state change on abort
+Monitoring:
+  metric_name: rng_policy_error_total
+  alert_thresh: rng_policy_error_total > 0
+Expected_format: fields `max_stride` and `seed_offset` in rng_policy.yml
+Interface_affected: router/prng.py
+Test_pathway:
+  type: unit
+  injection: remove or rename fields and run RNG derivation test
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=8>>
+Stage: DeriveTimeZone
+Failure_event: Time-zone computation edge (leap second)
+Detection:
+  trigger: timestamp conversion detects leap-second input
+  error_code: JP-M008
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no inconsistent timestamp assignments
+Monitoring:
+  metric_name: leap_second_fault_total
+  alert_thresh: leap_second_fault_total > 0
+Expected_format: correct UTC conversion across leap second
+Interface_affected: RouteTransactionModule/routeTransaction
+Test_pathway:
+  type: fuzz
+  injection: simulate t_local at leap-second boundary and run routeTransaction()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=9>>
+Stage: RouteTransaction
+Failure_event: Missing `routing_day_effect.yml` digest
+Detection:
+  trigger: routing_manifest.json lacks `gamma_variance_digest` field
+  error_code: JP-M009
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no partial manifest on abort
+Monitoring:
+  metric_name: routing_day_effect_digest_missing_total
+  alert_thresh: routing_day_effect_digest_missing_total > 0
+Expected_format: `gamma_variance_digest` in routing_manifest.json
+Interface_affected: RouteTransactionModule/routeTransaction
+Test_pathway:
+  type: CI
+  injection: modify variance without updating digest and run CI harness
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=10>>
+Stage: AuditRouting
+Failure_event: Audit log rotation or retention not enforced
+Detection:
+  trigger: auditRouting() checks retention policy failure
+  error_code: JP-M010
+Recovery:
+  action: skip
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: log rotation idempotent on retry
+Monitoring:
+  metric_name: audit_log_retention_fail_total
+  alert_thresh: audit_log_retention_fail_total > 0
+Expected_format: logs rotated daily with 90-day retention
+Interface_affected: NightlyRouterTest/auditRouting
+Test_pathway:
+  type: CI
+  injection: insert log older than 90 days and run auditRouting()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=11>>
+Stage: AuditRouting
+Failure_event: Missing `routing_validation.yml` digest
+Detection:
+  trigger: routing_manifest.json lacks `validation_config_digest` field
+  error_code: JP-M011
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no partial validation on abort
+Monitoring:
+  metric_name: validation_digest_missing_total
+  alert_thresh: validation_digest_missing_total > 0
+Expected_format: `validation_config_digest` in routing_manifest.json
+Interface_affected: CI_CD_Pipeline/auditRouting
+Test_pathway:
+  type: CI
+  injection: alter validation file without updating digest and run CI
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=12>>
+Stage: VirtualRouting
+Failure_event: Missing `cdn_alias_digest` in manifest
+Detection:
+  trigger: routing_manifest.json lacks `cdn_alias_digest` field
+  error_code: JP-M012
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no partial alias on abort
+Monitoring:
+  metric_name: cdn_alias_digest_missing_total
+  alert_thresh: cdn_alias_digest_missing_total > 0
+Expected_format: `cdn_alias_digest` present in routing_manifest.json
+Interface_affected: RouteTransactionModule/buildCdnAliasTable
+Test_pathway:
+  type: CI
+  injection: omit cdn_alias_digest and run CI alias test
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=13>>
+Stage: VirtualRouting
+Failure_event: VirtualUniverseMismatchError not caught
+Detection:
+  trigger: mismatch detection logic missing exception handler
+  error_code: JP-M013
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: subsequent runs will rethrow error consistently
+Monitoring:
+  metric_name: virtual_universe_mismatch_total
+  alert_thresh: virtual_universe_mismatch_total > 0
+Expected_format: raise VirtualUniverseMismatchError on mismatch
+Interface_affected: RouteTransactionModule/buildCdnAliasTable
+Test_pathway:
+  type: fuzz
+  injection: tweak cdn_country_weights without rebuilding alias table and run blend test
+<<<END EC-FIX>>>
+
+##### END EDGE-CASE SPEC #####
+
+id=1  | Confidence=HIGH   | Notes=Abort on zero traffic to prevent invalid normalization.  
+id=2  | Confidence=MEDIUM | Notes=Enforce IEEE-754 sums for deterministic p-vector.  
+id=3  | Confidence=HIGH   | Notes=Ensure alias_digest presence in manifest.  
+id=4  | Confidence=HIGH   | Notes=Require valid CDN weights YAML for alias generation.  
+id=5  | Confidence=MEDIUM | Notes=Enforce lexicographic ordering to guarantee reproducibility.  
+id=6  | Confidence=HIGH   | Notes=Abort on missing weight_digest to maintain manifest integrity.  
+id=7  | Confidence=MEDIUM | Notes=Validate RNG policy fields to ensure deterministic routing.  
+id=8  | Confidence=LOW    | Notes=Abort on leap-second input to avoid timestamp ambiguity.  
+id=9  | Confidence=HIGH   | Notes=Require gamma_variance_digest to validate day effect config.  
+id=10 | Confidence=MEDIUM | Notes=Skip or rotate logs to enforce retention policy.  
+id=11 | Confidence=HIGH   | Notes=Abort on missing validation digest to block invalid merges.  
+id=12 | Confidence=HIGH   | Notes=Ensure cdn_alias_digest to validate virtual routing.  
+id=13 | Confidence=MEDIUM | Notes=Abort on universe mismatch to prevent stale alias usage.  
+
+<<ES-END>>

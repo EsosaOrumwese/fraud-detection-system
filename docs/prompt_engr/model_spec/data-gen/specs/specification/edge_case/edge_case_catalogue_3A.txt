@@ -1,0 +1,225 @@
+--- EC 1 | Stage=FlagEscalationCountries | Severity=High ---
+Failure_event: Missing `config/allocation/zone_mixture_policy.yml`
+Anchor: "θ is loaded at runtime from `config/allocation/zone_mixture_policy.yml` (keys: `theta_mix`, `semver`, `sha256_digest`)."
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: YAML file at `config/allocation/zone_mixture_policy.yml` with key `theta_mix`
+Interfaces_affected: FlagEscalationCountriesModule/flagEscalationCountries
+Test_type: CI
+Test_injection: remove the YAML and run flagEscalationCountries()
+Context: “First, it has to transform every merchant’s country‐mass vector … loaded at runtime from `config/allocation/zone_mixture_policy.yml` … and its SHA-256 is recorded as `theta_digest`.”  
+Confidence=HIGH
+--- END EC 1 ---
+
+--- EC 2 | Stage=FlagEscalationCountries | Severity=Med ---
+Failure_event: Invalid `theta_mix` value (≤0 or ≥1)
+Anchor: "threshold of normalized country mass to enter zone-mixture queue, defaulting to 1 percent."
+Current_handled: Partial
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: 0 < theta_mix < 1
+Interfaces_affected: FlagEscalationCountriesModule/flagEscalationCountries
+Test_type: CI
+Test_injection: set `theta_mix=0` or `1` in the YAML and run CI test_mix_threshold.py
+Context: “scans v and flags every country whose mass exceeds a tunable attention threshold θ, defaulting to 1 percent.”  
+Confidence=MEDIUM
+--- END EC 2 ---
+
+--- EC 3 | Stage=ComputeDirichletShares | Severity=High ---
+Failure_event: Missing `config/allocation/country_zone_alphas.yaml`
+Anchor: "Dirichlet hyper-parameters α … lives in `config/allocation/country_zone_alphas.yaml`."
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: YAML mapping ISO→{TZID: positive integer α}
+Interfaces_affected: ComputeDirichletSharesModule/computeDirichletShares
+Test_type: CI
+Test_injection: delete the YAML and run computeDirichletShares()
+Context: “The probability law … lives in `config/allocation/country_zone_alphas.yaml`, carries fields `semver` and `sha256_digest`…”  
+Confidence=HIGH
+--- END EC 3 ---
+
+--- EC 4 | Stage=ComputeDirichletShares | Severity=Med ---
+Failure_event: Non‐positive α in `country_zone_alphas.yaml`
+Anchor: "whose values are positive integers."
+Current_handled: Partial
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: α_z ∈ ℕ⁺
+Interfaces_affected: ComputeDirichletSharesModule/computeDirichletShares
+Test_type: fuzz
+Test_injection: set an α value to 0 or negative and run computeDirichletShares()
+Context: “Keys map to nested object … whose values are positive integers.”  
+Confidence=MEDIUM
+--- END EC 4 ---
+
+--- EC 5 | Stage=ApplyDeterministicRounding | Severity=High ---
+Failure_event: Missing functional spec `docs/round_ints.md`
+Anchor: "Its functional spec is written in `docs/round_ints.md`."
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: Markdown file at `docs/round_ints.md`
+Interfaces_affected: ApplyDeterministicRoundingModule/applyDeterministicRounding
+Test_type: CI
+Test_injection: remove the file and run ci/test_rounding_conservation.py
+Context: “After standard rounding … its functional spec is written in `docs/round_ints.md`, and a property-based test in CI …”  
+Confidence=HIGH
+--- END EC 5 ---
+
+--- EC 6 | Stage=EnforceZoneFloors | Severity=High ---
+Failure_event: Missing `config/allocation/zone_floor.yml`
+Anchor: "The floor definitions reside in `config/allocation/zone_floor.yml`."
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: YAML file at `config/allocation/zone_floor.yml`
+Interfaces_affected: EnforceZoneFloorsModule/enforceZoneFloors
+Test_type: CI
+Test_injection: delete the YAML and run ci/test_zone_floor.py
+Context: “The list is sparse … After the bump rule completes, the allocator scans every floor. If a zone’s integer count is below its floor …”  
+Confidence=HIGH
+--- END EC 6 ---
+
+--- EC 7 | Stage=EnforceZoneFloors | Severity=Med ---
+Failure_event: Non‐integer or negative floor values in `zone_floor.yml`
+Anchor: "lists floors for selected `TZID`s. … each a small integer"
+Current_handled: Partial
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: φ_z ∈ ℕ₀
+Interfaces_affected: EnforceZoneFloorsModule/enforceZoneFloors
+Test_type: unit
+Test_injection: set a floor to –1 or decimal and run ci/test_zone_floor.py
+Context: “zones like `Europe/San_Marino` … the YAML `config/allocation/zone_floor.yml` lists floors …”  
+Confidence=MEDIUM
+--- END EC 7 ---
+
+--- EC 8 | Stage=ComputeMajorZoneFallback | Severity=High ---
+Failure_event: Missing `artefacts/allocation/country_major_zone.csv`
+Anchor: "calls a CSV file called `artefacts/allocation/country_major_zone.csv`."
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: CSV at `artefacts/allocation/country_major_zone.csv`
+Interfaces_affected: ComputeMajorZoneFallbackModule/computeMajorZoneFallback
+Test_type: CI
+Test_injection: remove the CSV and run computeMajorZoneFallback()
+Context: “The code consults a CSV file called `artefacts/allocation/country_major_zone.csv`, …”  
+Confidence=HIGH
+--- END EC 8 ---
+
+--- EC 9 | Stage=WriteZoneAllocParquet | Severity=High ---
+Failure_event: Missing per‐merchant Parquet `…/<merchant_id>_zone_alloc.parquet`
+Anchor: "The allocator emits `artefacts/allocation/<merchant_id>_zone_alloc.parquet`."
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: Parquet file at `artefacts/allocation/<merchant_id>_zone_alloc.parquet`
+Interfaces_affected: WriteZoneAllocParquetModule/writeZoneAllocParquet
+Test_type: CI
+Test_injection: skip Parquet write and run writeZoneAllocParquet()
+Context: “All escalated countries … are appended to a merchant‐scoped Parquet file … `…/<merchant_id>_zone_alloc.parquet`.”  
+Confidence=HIGH
+--- END EC 9 ---
+
+--- EC 10 | Stage=AppendZoneAllocIndex | Severity=High ---
+Failure_event: Missing or incomplete `zone_alloc_index.csv` entry
+Anchor: "appends the line `<merchant_id>,<sha256>` to `artefacts/allocation/zone_alloc_index.csv`."
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: one `<merchant_id>,<sha256>` line per merchant in CSV
+Interfaces_affected: AppendZoneAllocIndexModule/appendZoneAllocIndex
+Test_type: CI
+Test_injection: omit the append and run appendZoneAllocIndex()
+Context: “immediately after writing, it hashes the Parquet … and appends the line `<merchant_id>,<sha256>` to `zone_alloc_index.csv`.”  
+Confidence=HIGH
+--- END EC 10 ---
+
+--- EC 11 | Stage=ComputeCorporateDayEffect | Severity=High ---
+Failure_event: Missing `config/routing/routing_day_effect.yml`
+Anchor: "The variance σ_γ² lives in `config/routing/routing_day_effect.yml` under key `sigma_gamma_sq`."
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: YAML file at `config/routing/routing_day_effect.yml` with `sigma_gamma_sq`
+Interfaces_affected: CorporateDayEffectModule/computeDayEffect
+Test_type: CI
+Test_injection: delete the YAML and run computeDayEffect()
+Context: “The variance σ_γ² lives in `config/routing/routing_day_effect.yml` under key `sigma_gamma_sq`, default 0.15.”  
+Confidence=HIGH
+--- END EC 11 ---
+
+--- EC 12 | Stage=ComputeCorporateDayEffect | Severity=High ---
+Failure_event: Missing `config/routing/rng_policy.yml` for key derivation
+Anchor: "seed derivation is governed by `config/routing/rng_policy.yml` and its SHA-256 is stored as `gamma_day_key_digest`."
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: YAML file at `config/routing/rng_policy.yml` defining gamma-day policy
+Interfaces_affected: CorporateDayEffectModule/deriveGammaKey
+Test_type: CI
+Test_injection: remove the YAML and run computeDayEffect()
+Context: “seed derivation is governed by `config/routing/rng_policy.yml` and its SHA-256 is stored as `gamma_day_key_digest`.”  
+Confidence=HIGH
+--- END EC 12 ---
+
+--- EC 13 | Stage=VerifyRandomStreamIsolation | Severity=Low ---
+Failure_event: Missing proof document `docs/rng_proof.md`
+Anchor: "`docs/rng_proof.md` shows that each Dirichlet draw consumes … block."
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: No
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: Markdown file at `docs/rng_proof.md`
+Interfaces_affected: N/A
+Test_type: CI
+Test_injection: remove the document and run ci/replay_zone_alloc.py
+Context: "`docs/rng_proof.md` shows that each Dirichlet draw consumes … block."  
+Confidence=LOW
+--- END EC 13 ---
+
+--- EC 14 | Stage=CrossZoneValidation | Severity=High ---
+Failure_event: Missing `config/validation/cross_zone_validation.yml`
+Anchor: "Both thresholds live in `cross_zone_validation.yml`, so tightening them is one line in a file."
+Current_handled: No
+Detection_gap: Yes
+Recovery_gap: Yes
+Idempotence_gap: Yes
+Metrics_gap: Yes
+Expected_format: YAML at `config/validation/cross_zone_validation.yml` with keys `barcode_slope_low`, `barcode_slope_high`, `share_tolerance`
+Interfaces_affected: CrossZoneValidationModule/validateCrossZone
+Test_type: CI
+Test_injection: delete the YAML and run ci/test_cross_zone_validation.py
+Context: “Both thresholds live in `cross_zone_validation.yml`, so tightening them is one line in a file, not a code change.”  
+Confidence=HIGH
+--- END EC 14 ---
+
+<<EC-END>>

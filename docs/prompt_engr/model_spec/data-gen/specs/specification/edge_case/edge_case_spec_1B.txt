@@ -1,0 +1,326 @@
+<<<EC-FIX id=1>>
+Stage: LoadSpatialManifest
+Failure_event: Missing or misnamed `spatial_manifest.json`
+Detection:
+  trigger: loadManifest() raises FileNotFoundError for `spatial_manifest.json`
+  error_code: JP-M001
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no partial manifest state persisted on abort
+Monitoring:
+  metric_name: spatial_manifest_missing_total
+  alert_thresh: spatial_manifest_missing_total > 0
+Expected_format: JSON file at root named `spatial_manifest.json`
+Interface_affected: LoadSpatialManifestModule/loadManifest
+Test_pathway:
+  type: CI
+  injection: rename or remove `spatial_manifest.json` and run loadManifest()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=2>>
+Stage: BuildSpatialManifestEntries
+Failure_event: Missing sibling SHA-256 digest sidecars for spatial artefacts
+Detection:
+  trigger: computeFingerprint() finds missing `*.sha256` for an artefact
+  error_code: JP-M002
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: manifest build is not partially committed on abort
+Monitoring:
+  metric_name: digest_sidecar_missing_total
+  alert_thresh: digest_sidecar_missing_total > 0
+Expected_format: one `.sha256` file per artefact path
+Interface_affected: BuildSpatialManifestModule/computeFingerprint
+Test_pathway:
+  type: CI
+  injection: delete one `.sha256` file and run buildManifestEntries()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=3>>
+Stage: BuildSpatialPriorLibrary
+Failure_event: Missing `spatial_blend.yaml` blend-coefficients table
+Detection:
+  trigger: buildPriorLibrary() finds no `spatial_blend.yaml` in config path
+  error_code: JP-M003
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no prior library writes on abort
+Monitoring:
+  metric_name: blend_coeff_file_missing_total
+  alert_thresh: blend_coeff_file_missing_total > 0
+Expected_format: YAML file named `spatial_blend.yaml`
+Interface_affected: BuildSpatialPriorLibraryModule/buildPriorLibrary
+Test_pathway:
+  type: CI
+  injection: remove `spatial_blend.yaml` and run buildPriorLibrary()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=4>>
+Stage: BuildSpatialPriorLibrary
+Failure_event: Blend weights sum outside 1 ± 1e-9 tolerance
+Detection:
+  trigger: sum(weights) validation fails tolerance check
+  error_code: JP-M004
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no persisted blend state on abort
+Monitoring:
+  metric_name: blend_weight_tolerance_violation_total
+  alert_thresh: blend_weight_tolerance_violation_total > 0
+Expected_format: Σ(weights) ∈ [1−1e-9,1+1e-9]
+Interface_affected: BuildSpatialPriorLibraryModule/buildPriorLibrary
+Test_pathway:
+  type: CI
+  injection: modify a weight so sum ≠1 and run buildPriorLibrary()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=5>>
+Stage: BuildSpatialPriorLibrary
+Failure_event: Missing HRSL population raster for an ISO code
+Detection:
+  trigger: buildPriorLibrary() fails to find GeoTIFF at `artefacts/priors/hrsl/2020_v1.2/{ISO2}.tif`
+  error_code: JP-M005
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no partial raster cache writes on abort
+Monitoring:
+  metric_name: hrsl_raster_missing_total
+  alert_thresh: hrsl_raster_missing_total > 0
+Expected_format: GeoTIFF at `artefacts/priors/hrsl/2020_v1.2/{ISO2}.tif`
+Interface_affected: BuildSpatialPriorLibraryModule/buildPriorLibrary
+Test_pathway:
+  type: CI
+  injection: remove one `{ISO2}.tif` file and run buildPriorLibrary()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=6>>
+Stage: BuildSpatialPriorLibrary
+Failure_event: Missing WorldPop fallback raster for zero-support countries
+Detection:
+  trigger: buildPriorLibrary() fails to find GeoTIFF at `artefacts/priors/worldpop/2023Q4/{ISO2}.tif`
+  error_code: JP-M006
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no fallback state persisted on abort
+Monitoring:
+  metric_name: worldpop_fallback_missing_total
+  alert_thresh: worldpop_fallback_missing_total > 0
+Expected_format: GeoTIFF at `artefacts/priors/worldpop/2023Q4/{ISO2}.tif`
+Interface_affected: BuildSpatialPriorLibraryModule/buildPriorLibrary
+Test_pathway:
+  type: CI
+  injection: delete one fallback `{ISO2}.tif` and run buildPriorLibrary()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=7>>
+Stage: BlendRasterPriors
+Failure_event: Missing or corrupt cached blend file
+Detection:
+  trigger: blendRasters() finds missing or unreadable TIFF at `cache/blends/{digest}.tif`
+  error_code: JP-M007
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no cached state on abort
+Monitoring:
+  metric_name: cached_blend_missing_or_corrupt_total
+  alert_thresh: cached_blend_missing_or_corrupt_total > 0
+Expected_format: TIFF at `cache/blends/{sha256(component_digests+weights)}.tif`
+Interface_affected: BlendRasterPriorsModule/blendRasters
+Test_pathway:
+  type: CI
+  injection: corrupt or remove blend file and run blendRasters()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=8>>
+Stage: BuildFenwickTree
+Failure_event: Fenwick build mismatch in (n, total_weight) on concurrent threads
+Detection:
+  trigger: buildFenwick() detects inconsistent (n, total_weight) across threads
+  error_code: JP-M008
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no partial tree writes on abort
+Monitoring:
+  metric_name: fenwick_concurrency_mismatch_total
+  alert_thresh: fenwick_concurrency_mismatch_total > 0
+Expected_format: consistent (n, total_weight) per (country,prior)
+Interface_affected: BuildFenwickTreeModule/buildFenwick
+Test_pathway:
+  type: fuzz
+  injection: simulate concurrent build with modified weights
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=9>>
+Stage: SampleCoordinate
+Failure_event: Sampling loop non-termination when no support >0
+Detection:
+  trigger: sampleFromFenwick() enters infinite loop detection timeout
+  error_code: JP-M009
+Recovery:
+  action: use_prior
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: subsequent calls use prior raster deterministically
+Monitoring:
+  metric_name: sampling_nontermination_timeout_total
+  alert_thresh: sampling_nontermination_timeout_total > 0
+Expected_format: Σ(raw_weights)>0 or fallback applied
+Interface_affected: SampleCoordinateModule/sampleFromFenwick
+Test_pathway:
+  type: CI
+  injection: use country with zero-support prior and run sampleFromFenwick()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=10>>
+Stage: LandWaterFilter
+Failure_event: Missing or corrupt `natural_earth_land_10m_v5.1.2.geojson`
+Detection:
+  trigger: filterCoordinates() raises FileNotFoundError or parse error for geojson
+  error_code: JP-M010
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no partial coordinate lists on abort
+Monitoring:
+  metric_name: land_mask_missing_or_corrupt_total
+  alert_thresh: land_mask_missing_or_corrupt_total > 0
+Expected_format: GeoJSON at `natural_earth_land_10m_v5.1.2.geojson`
+Interface_affected: LandWaterFilterModule/filterCoordinates
+Test_pathway:
+  type: CI
+  injection: remove or corrupt land geojson and run filterCoordinates()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=11>>
+Stage: AssignTimeZone
+Failure_event: Missing `tz_world_metadata.json` zone→ISO mapping
+Detection:
+  trigger: assignTzid() raises FileNotFoundError for metadata file
+  error_code: JP-M011
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no partial timezone assignments on abort
+Monitoring:
+  metric_name: tz_metadata_missing_total
+  alert_thresh: tz_metadata_missing_total > 0
+Expected_format: JSON mapping `tzid`→ISO2 set in `tz_world_metadata.json`
+Interface_affected: AssignTimeZoneModule/assignTzid
+Test_pathway:
+  type: CI
+  injection: delete metadata file and run assignTzid()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=12>>
+Stage: ComputeFootTraffic
+Failure_event: Missing or invalid `footfall_coefficients.yaml`
+Detection:
+  trigger: drawFootfall() validation of κ, σ values fails schema or missing file
+  error_code: JP-M012
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no partial traffic data on abort
+Monitoring:
+  metric_name: footfall_coeff_file_error_total
+  alert_thresh: footfall_coeff_file_error_total > 0
+Expected_format: YAML with κ, σ per (MCC,channel)
+Interface_affected: ComputeFootTrafficModule/drawFootfall
+Test_pathway:
+  type: CI
+  injection: corrupt or delete coefficients file and run drawFootfall()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=13>>
+Stage: WriteSiteParquet
+Failure_event: Atomic write protocol violation on Parquet output
+Detection:
+  trigger: writeSiteData() detects missing temp-rename or partial file
+  error_code: JP-M013
+Recovery:
+  action: retry
+  max_retries: 1
+  backoff_sec: 5
+Idempotence:
+  guarantee: retry will not produce duplicate or corrupt output
+Monitoring:
+  metric_name: parquet_atomic_failures_total
+  alert_thresh: parquet_atomic_failures_total > 0
+Expected_format: final `.parquet` only appears after atomic rename
+Interface_affected: WriteSiteParquetModule/writeSiteData
+Test_pathway:
+  type: fuzz
+  injection: simulate rename failure during writeSiteData()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=14>>
+Stage: FinalManifestWriter
+Failure_event: Missing final JSON catalogue manifest
+Detection:
+  trigger: writeManifest() raises FileNotFoundError post-run
+  error_code: JP-M014
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no leftover temporary manifest files on abort
+Monitoring:
+  metric_name: final_manifest_missing_total
+  alert_thresh: final_manifest_missing_total > 0
+Expected_format: JSON manifest at specified output path
+Interface_affected: FinalManifestWriterModule/writeManifest
+Test_pathway:
+  type: CI
+  injection: skip manifest write and run writeManifest()
+<<<END EC-FIX>>>
+
+##### END EDGE-CASE SPEC #####
+
+id=1  | Confidence=HIGH | Notes=Ensure manifest presence to drive downstream stages.  
+id=2  | Confidence=HIGH | Notes=Enforce integrity of manifest digests.  
+id=3  | Confidence=HIGH | Notes=Require blend config for spatial priors.  
+id=4  | Confidence=HIGH | Notes=Guarantee valid blend weights normalization.  
+id=5  | Confidence=HIGH | Notes=Ensure HRSL raster availability per ISO.  
+id=6  | Confidence=HIGH | Notes=Ensure fallback raster availability.  
+id=7  | Confidence=HIGH | Notes=Enforce cached blend file integrity.  
+id=8  | Confidence=HIGH | Notes=Prevent concurrency mismatches in Fenwick builds.  
+id=9  | Confidence=HIGH | Notes=Apply fallback to avoid infinite sampling loops.  
+id=10 | Confidence=HIGH | Notes=Ensure land mask geojson presence.  
+id=11 | Confidence=HIGH | Notes=Require timezone metadata for correct assignment.  
+id=12 | Confidence=HIGH | Notes=Validate footfall coefficients before sampling.  
+id=13 | Confidence=MEDIUM | Notes=Retry atomic Parquet write to handle transient FS errors.  
+id=14 | Confidence=HIGH | Notes=Abort on missing manifest to guarantee pipeline completion.  
+
+<<ES-END>>

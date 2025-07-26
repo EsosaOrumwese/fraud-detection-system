@@ -1,0 +1,372 @@
+<<<EC-FIX id=1>>
+Stage: DeriveIsVirtual
+Failure_event: Missing `config/virtual/mcc_channel_rules.yaml`
+Detection:
+  trigger: file existence check for `config/virtual/mcc_channel_rules.yaml`
+  error_code: JP-M001
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no virtual‐flag assignments on abort
+Monitoring:
+  metric_name: mcc_channel_rules_missing_total
+  alert_thresh: mcc_channel_rules_missing_total > 0
+Expected_format: YAML at `config/virtual/mcc_channel_rules.yaml` with keys `mcc_channel`, `online_only`, optional overrides
+Interface_affected: DeriveIsVirtualModule/deriveIsVirtual
+Test_pathway:
+  type: CI
+  injection: remove `mcc_channel_rules.yaml` and run deriveIsVirtual()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=2>>
+Stage: DeriveIsVirtual
+Failure_event: Invalid `online_only` or override logic in MCC rules
+Detection:
+  trigger: validation check fails on `online_only` flag or override expressions
+  error_code: JP-M002
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no flag assignments on abort
+Monitoring:
+  metric_name: invalid_mcc_override_total
+  alert_thresh: invalid_mcc_override_total > 0
+Expected_format: boolean `online_only` and valid conditional overrides in YAML
+Interface_affected: DeriveIsVirtualModule/deriveIsVirtual
+Test_pathway:
+  type: unit
+  injection: insert invalid flag or override and run test_virtual_rules.py
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=3>>
+Stage: CreateSettlementNode
+Failure_event: Missing `artefacts/virtual/virtual_settlement_coords.csv`
+Detection:
+  trigger: file existence check for `artefacts/virtual/virtual_settlement_coords.csv`
+  error_code: JP-M003
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no settlement node writes on abort
+Monitoring:
+  metric_name: settlement_coords_missing_total
+  alert_thresh: settlement_coords_missing_total > 0
+Expected_format: CSV at `artefacts/virtual/virtual_settlement_coords.csv` with columns `merchant_id,lat,lon,evidence_url`
+Interface_affected: CreateSettlementNodeModule/createSettlementNode
+Test_pathway:
+  type: CI
+  injection: remove CSV and run createSettlementNode()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=4>>
+Stage: CreateSettlementNode
+Failure_event: Missing or malformed columns in settlement coords CSV
+Detection:
+  trigger: schema validation fails on expected columns
+  error_code: JP-M004
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no settlement node writes on abort
+Monitoring:
+  metric_name: settlement_coords_schema_error_total
+  alert_thresh: settlement_coords_schema_error_total > 0
+Expected_format: columns `merchant_id`, `lat`, `lon`, `evidence_url` present and typed correctly
+Interface_affected: CreateSettlementNodeModule/createSettlementNode
+Test_pathway:
+  type: unit
+  injection: drop or rename a column and run createSettlementNode()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=5>>
+Stage: CreateSettlementNode
+Failure_event: Missing `artefacts/geocode/pelias_cached.sqlite`
+Detection:
+  trigger: file existence check for `artefacts/geocode/pelias_cached.sqlite`
+  error_code: JP-M005
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no geocode verification on abort
+Monitoring:
+  metric_name: pelias_bundle_missing_total
+  alert_thresh: pelias_bundle_missing_total > 0
+Expected_format: SQLite bundle at `artefacts/geocode/pelias_cached.sqlite`
+Interface_affected: CreateSettlementNodeModule/verifyGeocodeEvidence
+Test_pathway:
+  type: CI
+  injection: delete geocoder bundle and run verifyGeocodeEvidence()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=6>>
+Stage: CreateSettlementNode
+Failure_event: Digest mismatch for geocoder bundle
+Detection:
+  trigger: SHA-256 check fails against recorded `pelias_digest`
+  error_code: JP-M006
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no geocode verification on abort
+Monitoring:
+  metric_name: pelias_digest_mismatch_total
+  alert_thresh: pelias_digest_mismatch_total > 0
+Expected_format: `pelias_digest` matches SHA-256 of the SQLite file
+Interface_affected: CreateSettlementNodeModule/verifyGeocodeEvidence
+Test_pathway:
+  type: CI
+  injection: corrupt the bundle and run test_geocoder_bundle.py
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=7>>
+Stage: BuildEdgeCatalogue
+Failure_event: Missing `config/virtual/cdn_country_weights.yaml`
+Detection:
+  trigger: file existence check for `config/virtual/cdn_country_weights.yaml`
+  error_code: JP-M007
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no edge catalogue writes on abort
+Monitoring:
+  metric_name: cdn_weights_missing_total
+  alert_thresh: cdn_weights_missing_total > 0
+Expected_format: YAML at `config/virtual/cdn_country_weights.yaml` with `country_iso→weight`, `edge_scale`, `semver`, `sha256_digest`
+Interface_affected: BuildEdgeCatalogueModule/buildEdgeCatalogue
+Test_pathway:
+  type: CI
+  injection: remove YAML and run buildEdgeCatalogue()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=8>>
+Stage: BuildEdgeCatalogue
+Failure_event: Missing or invalid `edge_scale` in CDN weights
+Detection:
+  trigger: validation check fails on `edge_scale` type
+  error_code: JP-M008
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no edge catalogue writes on abort
+Monitoring:
+  metric_name: invalid_edge_scale_total
+  alert_thresh: invalid_edge_scale_total > 0
+Expected_format: integer `edge_scale` in YAML
+Interface_affected: BuildEdgeCatalogueModule/applyEdgeScale
+Test_pathway:
+  type: unit
+  injection: remove or set edge_scale to non-integer and run buildEdgeCatalogue()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=9>>
+Stage: BuildEdgeCatalogue
+Failure_event: Missing raster artefact `artefacts/rasters/hrsl_100m.tif`
+Detection:
+  trigger: file existence check for `artefacts/rasters/hrsl_100m.tif`
+  error_code: JP-M009
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no raster blending on abort
+Monitoring:
+  metric_name: hrsl_raster_missing_total
+  alert_thresh: hrsl_raster_missing_total > 0
+Expected_format: GeoTIFF at `artefacts/rasters/hrsl_100m.tif`
+Interface_affected: BuildEdgeCatalogueModule/buildEdgeCatalogue
+Test_pathway:
+  type: CI
+  injection: delete raster and run buildEdgeCatalogue()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=10>>
+Stage: BuildCdnAliasTable
+Failure_event: Missing `config/routing/rng_policy.yml`
+Detection:
+  trigger: file existence check for `config/routing/rng_policy.yml`
+  error_code: JP-M010
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no alias table writes on abort
+Monitoring:
+  metric_name: rng_policy_missing_total
+  alert_thresh: rng_policy_missing_total > 0
+Expected_format: YAML at `config/routing/rng_policy.yml` with key derivation fields
+Interface_affected: BuildCdnAliasTableModule/buildCdnAliasTable
+Test_pathway:
+  type: CI
+  injection: remove YAML and run buildCdnAliasTable()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=11>>
+Stage: BuildEdgeCatalogue
+Failure_event: Missing per-merchant Parquet `edge_catalogue/<merchant_id>.parquet`
+Detection:
+  trigger: file existence check for `edge_catalogue/<merchant_id>.parquet`
+  error_code: JP-M011
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no partial edge file on abort
+Monitoring:
+  metric_name: edge_parquet_missing_total
+  alert_thresh: edge_parquet_missing_total > 0
+Expected_format: Parquet at `edge_catalogue/<merchant_id>.parquet` with required schema
+Interface_affected: BuildEdgeCatalogueModule/buildEdgeCatalogue
+Test_pathway:
+  type: CI
+  injection: skip Parquet write and run buildEdgeCatalogue()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=12>>
+Stage: BuildEdgeCatalogue
+Failure_event: Missing index entry in `edge_catalogue_index.csv`
+Detection:
+  trigger: missing line `<merchant_id>,<sha256>` in `edge_catalogue_index.csv`
+  error_code: JP-M012
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no partial index update on abort
+Monitoring:
+  metric_name: edge_catalogue_index_missing_total
+  alert_thresh: edge_catalogue_index_missing_total > 0
+Expected_format: CSV line `<merchant_id>,<sha256>` per merchant
+Interface_affected: BuildEdgeCatalogueModule/buildEdgeCatalogue
+Test_pathway:
+  type: CI
+  injection: omit append and run buildEdgeCatalogue()
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=13>>
+Stage: ValidateVirtual
+Failure_event: Missing `config/virtual/virtual_validation.yml`
+Detection:
+  trigger: file existence check for `config/virtual/virtual_validation.yml`
+  error_code: JP-M013
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no validation run on abort
+Monitoring:
+  metric_name: virtual_validation_missing_total
+  alert_thresh: virtual_validation_missing_total > 0
+Expected_format: YAML at `config/virtual/virtual_validation.yml` with keys `country_tolerance`, `time_cutoff_tolerance`
+Interface_affected: ValidateVirtualModule/validateVirtual
+Test_pathway:
+  type: CI
+  injection: delete YAML and run validate_virtual.py
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=14>>
+Stage: ValidateVirtual
+Failure_event: Validation thresholds out of range
+Detection:
+  trigger: check fails if any |ĥπ_c − π_c| > 0.02 or time deviation > 5s
+  error_code: JP-M014
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no validation run on abort
+Monitoring:
+  metric_name: validation_threshold_violation_total
+  alert_thresh: validation_threshold_violation_total > 0
+Expected_format: 0 ≤ |ĥπ_c − π_c| ≤ 0.02 and time deviation ≤ 5s
+Interface_affected: ValidateVirtualModule/validateVirtual
+Test_pathway:
+  type: unit
+  injection: set thresholds beyond limits and run ci/test_virtual_validation.py
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=15>>
+Stage: ValidateVirtual
+Failure_event: Missing licence files in `LICENSES/`
+Detection:
+  trigger: verifyVirtual() finds missing Markdown files under `LICENSES/`
+  error_code: JP-M015
+Recovery:
+  action: abort
+  max_retries: 0
+  backoff_sec: 0
+Idempotence:
+  guarantee: no validation run on abort
+Monitoring:
+  metric_name: licence_files_missing_total
+  alert_thresh: licence_files_missing_total > 0
+Expected_format: Markdown files under `LICENSES/`
+Interface_affected: ValidateVirtualModule/validateVirtual
+Test_pathway:
+  type: CI
+  injection: remove a licence file and run validate_virtual.py
+<<<END EC-FIX>>>
+
+<<<EC-FIX id=16>>
+Stage: BuildEdgeCatalogue
+Failure_event: Missing or corrupt `logs/edge_progress.log` for recovery
+Detection:
+  trigger: read of `logs/edge_progress.log` fails or file not found
+  error_code: JP-M016
+Recovery:
+  action: retry
+  max_retries: 1
+  backoff_sec: 5
+Idempotence:
+  guarantee: crash recovery skips completed batches deterministically
+Monitoring:
+  metric_name: edge_progress_log_missing_total
+  alert_thresh: edge_progress_log_missing_total > 0
+Expected_format: log file at `logs/edge_progress.log` with one entry per completed batch
+Interface_affected: BuildEdgeCatalogueModule/crashRecovery
+Test_pathway:
+  type: CI
+  injection: delete or corrupt log and restart build
+<<<END EC-FIX>>>
+
+##### END EDGE-CASE SPEC #####
+
+id=1  | Confidence=HIGH   | Notes=Ensure config for virtual‐flag rules is present.  
+id=2  | Confidence=MEDIUM | Notes=Validate override logic to prevent misclassification.  
+id=3  | Confidence=HIGH   | Notes=Require settlement coordinate CSV for virtual merchants.  
+id=4  | Confidence=MEDIUM | Notes=Enforce correct CSV schema for coordinates.  
+id=5  | Confidence=HIGH   | Notes=Guarantee offline geocode bundle availability.  
+id=6  | Confidence=MEDIUM | Notes=Ensure geocoder bundle integrity via digest.  
+id=7  | Confidence=HIGH   | Notes=Require CDN weight config for edge sampling.  
+id=8  | Confidence=MEDIUM | Notes=Validate `edge_scale` to maintain weight scaling.  
+id=9  | Confidence=HIGH   | Notes=Ensure HRSL raster availability for density sampling.  
+id=10 | Confidence=HIGH   | Notes=Require RNG policy presence for deterministic aliasing.  
+id=11 | Confidence=HIGH   | Notes=Guarantee per‐merchant edge output via Parquet.  
+id=12 | Confidence=HIGH   | Notes=Ensure index CSV entries for edge catalogue.  
+id=13 | Confidence=HIGH   | Notes=Require virtual validation config for quality checks.  
+id=14 | Confidence=MEDIUM | Notes=Enforce validation thresholds to prevent drift.  
+id=15 | Confidence=HIGH   | Notes=Ensure licence files accompany virtual artefacts.  
+id=16 | Confidence=HIGH   | Notes=Enable crash recovery via progress log replication.  
+
+<<ES-END>>
