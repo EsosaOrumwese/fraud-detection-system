@@ -55,31 +55,9 @@ Confidence=HIGH
 --- END PP 2 ---
 
 --- PP 3 ---
-Name: NB mean link coefficients
-Symbol: $\alpha_0,\alpha_{\mathrm{mcc}},\alpha_{\mathrm{channel}}$
-Scope: merchant_location
-Prior_type: Loaded constant (MLE estimates)
-Prior_specified: Yes
-Calibration_recipe: No
-Posterior_validation: Yes (NB rejection‑rate corridor) :contentReference[oaicite:48]{index=48}
-Provenance_tag: Yes (`nb_dispersion_coefficients.yaml`) :contentReference[oaicite:49]{index=49}
-Units: log (count)
-Default_policy: abort on missing file
-Interface_consumer: Poisson–Gamma NB sampler
-Description: Regression weights for mean of NB outlet‑count distribution.
-Anchor: “$\log\mu=\alpha_0+\alpha_{\mathrm{mcc}}+\alpha_{\mathrm{channel}}$” :contentReference[oaicite:50]{index=50}
-Context: “Mean log‑link (μ): intercept + MCC + channel …”
-Gap_flags:
-  prior_missing=N
-  hyperparams_missing=Y
-  calibration_missing=Y
-  posterior_missing=N
-  provenance_missing=N
-  units_missing=N
-  default_policy_missing=Y
-  interface_consumer_missing=Y
-  description_missing=N
-Confidence=HIGH
+# Name: NB mean link coefficients
+# NB-mean block removed – coefficients now co-located inside
+# config/hurdle_coefficients.yaml (see change above).
 --- END PP 3 ---
 
 --- PP 4 ---

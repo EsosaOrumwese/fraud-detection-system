@@ -131,7 +131,7 @@ notes            = "Add version tag, cadence, digest, and compatibility list"
 <<<END TV-FIX>>>
 
 <<<TV-FIX id=12>>>
-[stationarity_diagnostics.parquet]
+[artefacts/diagnostics/hurdle_stationarity_tests_2024Q4.parquet]
 type             = "parquet"
 version_tag      = "v1.0.0-draft"
 valid_from       = "2025-07-26"

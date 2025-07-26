@@ -223,7 +223,7 @@ write_policy: processing-team-write  # placeholder
 CONSUMED_BY:
 module: DrawNBCountModule
 function: computeNBParams
-description: Calculates mean and dispersion parameters for negative binomial draw
+description: Contains β-coefficients **and** α-coefficients (NB-mean link); no separate NB-mean artefact exists.
 TEST_PATHWAY:
 test_type: integration
 tool: pytest

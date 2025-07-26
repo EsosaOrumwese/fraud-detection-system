@@ -204,13 +204,13 @@ Gap_flags:
   digest_missing=Y
   compat_missing=Y
 Severity=High
-Context: “prev rng_audit.log … diagnostic_metrics.parquet … next stationarity_diagnostics.parquet”
+Context: “prev rng_audit.log … diagnostic_metrics.parquet … next artefacts/diagnostics/hurdle_stationarity_tests_2024Q4.parquet”
 --- END TV 11 ---
 
 --- TV 12 ---
-Artefact: stationarity_diagnostics.parquet
+Artefact: artefacts/diagnostics/hurdle_stationarity_tests_2024Q4.parquet
 Type: parquet
-Anchor: "stationarity_diagnostics.parquet – rolling Wald test outputs"
+Anchor: "artefacts/diagnostics/hurdle_stationarity_tests_2024Q4.parquet – rolling Wald test outputs"
 Version_tag: Missing
 Valid_window: Missing
 Update_cadence: Missing
@@ -223,7 +223,7 @@ Gap_flags:
   digest_missing=N
   compat_missing=Y
 Severity=High
-Context: “prev diagnostic_metrics.parquet … stationarity_diagnostics.parquet … next outlet_catalogue output”
+Context: “prev diagnostic_metrics.parquet … artefacts/diagnostics/hurdle_stationarity_tests_2024Q4.parquet … next outlet_catalogue output”
 --- END TV 12 ---
 
 --- TV 13 ---
@@ -242,7 +242,7 @@ Gap_flags:
   digest_missing=Y
   compat_missing=Y
 Severity=High
-Context: “prev stationarity_diagnostics.parquet … outlet_catalogue/.../part-*.parquet … next outlet_catalogue_schema.json”
+Context: “prev artefacts/diagnostics/hurdle_stationarity_tests_2024Q4.parquet … outlet_catalogue/.../part-*.parquet … next outlet_catalogue_schema.json”
 --- END TV 13 ---
 
 --- TV 14 ---

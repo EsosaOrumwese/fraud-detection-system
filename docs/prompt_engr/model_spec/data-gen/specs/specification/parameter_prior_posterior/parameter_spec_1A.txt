@@ -71,7 +71,7 @@ script_digest: sha256:<to‑be‑populated>  # build/scripts/calibrate_hurdle_gl
 INTERFACE_CONSUMER:
 artefact_name: config/hurdle_coefficients.yaml
 function: load_hurdle_coefficients
-description: Provides the β vector for the hurdle branch decision.
+description: Provides **both** (a) the β vector for the hurdle-logistic branch and (b) the α vector for the NB-mean link (μ).  All coefficients sit in the same YAML so their provenance hash is single-point.
 
 POSTERIOR_VALIDATION:
 metric: stationarity of β across nightly builds
@@ -94,50 +94,9 @@ Confidence=HIGH
 <<<END PP‑FIX>>>
 
 <<<PP‑FIX id=3>>
-Name: NB mean link coefficients
-Symbol: $\alpha_0,\alpha_{\mathrm{mcc}},\alpha_{\mathrm{channel}}$
-Scope: merchant_location
----------------------------------
-
-PRIOR:
-type: Loaded constant
-hyperparameters:
-  coefficients_file: config/nb_mean_coefficients.yaml
-units: log (count)
-default_policy: abort on missing file
-justification: GLM estimates for the Poisson mean of site‑counts.
-
-CALIBRATION_RECIPE:
-input_path: s3://data/merchant/site_counts.csv
-objective: Maximum Likelihood Estimation
-algorithm: Iteratively Reweighted Least Squares
-random_seed: 42
-convergence_tol: 1e‑8
-script_digest: sha256:<to‑be‑populated>  # build/scripts/calibrate_nb_mean.py
-
-INTERFACE_CONSUMER:
-artefact_name: config/nb_mean_coefficients.yaml
-function: load_nb_mean_coefficients
-description: Supplies the mean‑link weights for the NB sampler.
-
-POSTERIOR_VALIDATION:
-metric: overall NB rejection rate
-acceptance_range: [0.0, 0.06]
-sample_size: 1000
-
-PROVENANCE_TAG:
-artefact_name: config/nb_mean_coefficients.yaml
-sha256: <to‑be‑populated>
-
-SHORT_DESCRIPTION:
-GLM coefficients for the mean parameter of the NB site‑count model.
-
-TEST_PATHWAY:
-test: CI NB rejection‑rate monitor
-input: nb_rejection_stats.log
-assert: overall rejection rate ≤ 0.06
-
-Confidence=HIGH
+# Name: NB mean link coefficients
+# NB-mean block removed – coefficients now co-located inside
+# config/hurdle_coefficients.yaml (see change above).
 <<<END PP‑FIX>>>
 
 <<<PP‑FIX id=4>>

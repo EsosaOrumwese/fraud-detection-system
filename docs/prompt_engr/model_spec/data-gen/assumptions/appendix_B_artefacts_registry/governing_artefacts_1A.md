@@ -1,8 +1,8 @@
 ## Subsegment 1A: From merchants to physical sites
 
 ### **Input Model and Parameter Artefacts**
-- `hurdle_coefficients.yaml`  
-  Logistic (hurdle) regression coefficients (intercept, MCC, channel, GDP bucket), with version and SHA-256 digest.
+- `hurdle_coefficients.yaml`
+  Logistic (hurdle) **and NB-mean** regression coefficients (intercept, MCC, channel, GDP bucket), with version and SHA-256 digest.
 - `nb_dispersion_coefficients.yaml`  
   Negative binomial dispersion coefficients (including GDP per-capita term η), with version and SHA-256 digest.
 - `crossborder_hyperparams.yaml`  
@@ -27,8 +27,8 @@
   Structured log of all stochastic draws, counters, and rejections for reproducibility (see narrative/assumptions event schema).
 - `diagnostic_metrics.parquet`  
   Metrics output: NB rejection rates, CUSUM status, rounding errors, parameter drift; referenced in CI/CD monitoring.
-- `stationarity_diagnostics.parquet`  
-  Full output from rolling Wald tests on coefficients (GDP bucket, etc.), versioned and digested.
+- `artefacts/diagnostics/hurdle_stationarity_tests_2024Q4.parquet`
+  Rolling Wald-test diagnostics for the hurdle/NB-mean coefficients.
 
 ### **Output Artefacts**
 - `outlet_catalogue/seed={seed}/fingerprint={fingerprint}/part-*.parquet`  
