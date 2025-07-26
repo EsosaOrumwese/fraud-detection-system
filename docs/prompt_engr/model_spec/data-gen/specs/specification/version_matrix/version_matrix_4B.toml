@@ -1,0 +1,264 @@
+<<<TV-FIX id=1>>>
+[artefact_registry.yaml]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["ALL_OTHER_ARTIFACTS"]
+notes            = "Registry of all artefacts; draft version and placeholders"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=2>>>
+[config/validation_conf.yml]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["artefact_registry.yaml"]
+notes            = "Validation configuration; draft version and placeholders"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=3>>>
+[config/footfall_coefficients.yaml]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["config/validation_conf.yml"]
+notes            = "Footfall κ and σ definitions; draft placeholders"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=4>>>
+[config/barcode_bounds.yml]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["config/footfall_coefficients.yaml"]
+notes            = "Barcode bounding rules; draft placeholders"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=5>>>
+[schemas/transaction_schema.json]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["config/barcode_bounds.yml"]
+notes            = "JSON transaction schema; draft placeholders"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=6>>>
+[config/zoneinfo_version.yml]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["schemas/transaction_schema.json"]
+notes            = "Declared tzdata version; draft placeholders"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=7>>>
+[tz_world_2025a.shp]
+type             = "vector"
+version_tag      = "2025a"
+valid_from       = "2025-01-01"
+valid_to         = "9999-12-31"
+update_cadence   = "annual"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["config/zoneinfo_version.yml"]
+notes            = "IANA TZ polygons v2025a; annual update"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=8>>>
+[{dataset_root}/site_catalogue/*.parquet]
+type             = "parquet"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["tz_world_2025a.shp"]
+notes            = "Site catalogue outputs; draft placeholders"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=9>>>
+[{dataset_root}/transactions/*.parquet]
+type             = "parquet"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["{dataset_root}/site_catalogue/*.parquet"]
+notes            = "Transaction outputs; draft placeholders"
+<<<END TV-FIX>>]
+
+<<<TV-FIX id=10>>>
+[{dataset_root}/logs/rng_trace.log]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "daily"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["{dataset_root}/transactions/*.parquet"]
+notes            = "RNG trace log; daily updates"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=11>>>
+[validation/structural_failure_*.parquet]
+type             = "parquet"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "daily"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["{dataset_root}/logs/rng_trace.log"]
+notes            = "Structural failure outputs; daily"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=12>>>
+[validation/auroc_model_*.parquet]
+type             = "parquet"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "daily"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["validation/structural_failure_*.parquet"]
+notes            = "AUROC model outputs; daily"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=13>>>
+[validation/misclassified_*.csv]
+type             = "csv"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "daily"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["validation/auroc_model_*.parquet"]
+notes            = "Misclassified samples; daily"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=14>>>
+[validation/theta_violation_*.pdf]
+type             = "container"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "daily"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["validation/misclassified_*.csv"]
+notes            = "Theta violation diagnostics; daily"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=15>>>
+[validation/barcode_failure_*.png]
+type             = "container"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "daily"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["validation/theta_violation_*.pdf"]
+notes            = "Barcode failure images; daily"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=16>>>
+[validation/validator.log]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "daily"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["validation/barcode_failure_*.png"]
+notes            = "Validator log; daily"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=17>>>
+[validation/ci_validation_passed.flag]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "on-success"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["validation/validator.log"]
+notes            = "CI pass flag; updated on successful run"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=18>>>
+[validation/hashgate_uri.txt]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["validation/ci_validation_passed.flag"]
+notes            = "Hashgate URI reference; draft placeholders"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=19>>>
+[validation/licence_check.log]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "daily"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["validation/hashgate_uri.txt"]
+notes            = "Licence compliance log; daily"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=20>>>
+[{dataset_root}/readonly.flag]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "on-change"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["validation/licence_check.log"]
+notes            = "Read-only marker flag; updated on permission change"
+<<<END TV-FIX>>>
+
+##### END VERSION_MATRIX #####
+
+id=1  | gaps_closed=tag|window|cadence|compat        | notes=registry draft  
+id=2  | gaps_closed=tag|window|cadence|compat        | notes=validation config draft  
+id=3  | gaps_closed=tag|window|cadence|compat        | notes=footfall coeff draft  
+id=4  | gaps_closed=tag|window|cadence|compat        | notes=barcode bounds draft  
+id=5  | gaps_closed=tag|window|cadence|compat        | notes=transaction schema draft  
+id=6  | gaps_closed=tag|window|cadence|compat        | notes=zoneinfo version draft  
+id=7  | gaps_closed=tag|window|cadence|digest|compat | notes=TZ shapefile versioned  
+id=8  | gaps_closed=tag|window|cadence|digest|compat | notes=site catalogue placeholders  
+id=9  | gaps_closed=tag|window|cadence|compat        | notes=transaction outputs draft  
+id=10 | gaps_closed=tag|window|cadence|compat        | notes=RNG trace daily  
+id=11 | gaps_closed=tag|window|cadence|compat        | notes=struct failures daily  
+id=12 | gaps_closed=tag|window|cadence|compat        | notes=AUROC outputs daily  
+id=13 | gaps_closed=tag|window|cadence|compat        | notes=misclassified daily  
+id=14 | gaps_closed=tag|window|cadence|compat        | notes=theta violation daily  
+id=15 | gaps_closed=tag|window|cadence|compat        | notes=barcode failure daily  
+id=16 | gaps_closed=tag|window|cadence|compat        | notes=validator log daily  
+id=17 | gaps_closed=tag|compat                      | notes=CI pass flag on-success  
+id=18 | gaps_closed=tag|compat                      | notes=hashgate URI draft  
+id=19 | gaps_closed=tag|cadence|compat              | notes=licence check daily  
+id=20 | gaps_closed=tag|cadence|compat              | notes=readonly flag on-change  
+
+<<VM-END>>

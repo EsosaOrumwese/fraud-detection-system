@@ -1,0 +1,199 @@
+<<<TV-FIX id=1>>>
+[config/allocation/zone_mixture_policy.yml]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["config/allocation/country_zone_alphas.yaml"]
+notes            = "Defines θ_mix policy; placeholder for digest"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=2>>>
+[config/allocation/country_zone_alphas.yaml]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["config/allocation/zone_mixture_policy.yml"]
+notes            = "Maps ISO→{TZID:α}; placeholder for digest"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=3>>>
+[docs/round_ints.md]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["config/allocation/zone_floor.yml"]
+notes            = "Spec for rounding rules; placeholder digest"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=4>>>
+[config/allocation/zone_floor.yml]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["docs/round_ints.md"]
+notes            = "Floor values per TZID; placeholder digest"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=5>>>
+[artefacts/allocation/country_major_zone.csv]
+type             = "csv"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["config/allocation/zone_floor.yml"]
+notes            = "Major zone by land-area; placeholder digest"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=6>>>
+[artefacts/allocation/<merchant_id>_zone_alloc.parquet]
+type             = "parquet"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["artefacts/allocation/country_major_zone.csv"]
+notes            = "Per-merchant zone allocations; placeholder digest"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=7>>>
+[artefacts/allocation/zone_alloc_index.csv]
+type             = "csv"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["artefacts/allocation/<merchant_id>_zone_alloc.parquet"]
+notes            = "Index of zone_alloc artefacts; placeholder digest"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=8>>>
+[artefacts/allocation/zone_alloc_schema.json]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["artefacts/allocation/zone_alloc_index.csv"]
+notes            = "Parquet schema for allocations; placeholder digest"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=9>>>
+[logs/barcode_slope_validation.log]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["logs/barcode_slope_heatmap.png"]
+notes            = "Validation log for slope tests; placeholder digest"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=10>>>
+[logs/barcode_slope_heatmap.png]
+type             = "container"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["logs/barcode_slope_validation.log"]
+notes            = "Heatmap diagnostic image; placeholder digest"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=11>>>
+[config/validation/cross_zone_validation.yml]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["config/allocation/zone_floor.yml"]
+notes            = "Cross-zone validation rules; placeholder digest"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=12>>>
+[logs/test_rounding_conservation.log]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["config/validation/cross_zone_validation.yml"]
+notes            = "Rounding conservation CI log; placeholder digest"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=13>>>
+[logs/zone_alloc_error.log]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["logs/test_rounding_conservation.log"]
+notes            = "Error events log for zone allocation; placeholder digest"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=14>>>
+[docs/rng_proof.md]
+type             = "code"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["config/routing/rng_policy.yml"]
+notes            = "RNG isolation proof; placeholder digest"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=15>>>
+[LICENSES/*.md]
+type             = "container"
+version_tag      = "v1.0.0-draft"
+valid_from       = "2025-07-26"
+valid_to         = "9999-12-31"
+update_cadence   = "never"
+sha256           = "<to-be-populated-on-build>"
+compatible_with  = ["docs/rng_proof.md"]
+notes            = "License files; placeholder digest"
+<<<END TV-FIX>>>
+
+##### END VERSION_MATRIX #####
+
+id=1  | gaps_closed=tag|window|cadence|digest|compat | notes=added draft tag & digest placeholder  
+id=2  | gaps_closed=tag|window|cadence|digest|compat | notes=added draft tag & digest placeholder  
+id=3  | gaps_closed=digest|compat                  | notes=added digest placeholder  
+id=4  | gaps_closed=tag|window|cadence|digest|compat | notes=added draft tag & digest placeholder  
+id=5  | gaps_closed=digest|compat                  | notes=added digest placeholder  
+id=6  | gaps_closed=digest|compat                  | notes=added digest placeholder  
+id=7  | gaps_closed=digest|compat                  | notes=added digest placeholder  
+id=8  | gaps_closed=tag|window|cadence|digest|compat | notes=added draft tag & digest placeholder  
+id=9  | gaps_closed=tag|window|cadence|digest|compat | notes=added draft tag & digest placeholder  
+id=10 | gaps_closed=tag|window|cadence|digest|compat | notes=added draft tag & digest placeholder  
+id=11 | gaps_closed=tag|window|cadence|digest|compat | notes=added draft tag & digest placeholder  
+id=12 | gaps_closed=tag|window|cadence|digest|compat | notes=added draft tag & digest placeholder  
+id=13 | gaps_closed=tag|window|cadence|digest|compat | notes=added draft tag & digest placeholder  
+id=14 | gaps_closed=tag|window|cadence|digest|compat | notes=added draft tag & digest placeholder  
+id=15 | gaps_closed=tag|window|cadence|digest|compat | notes=added draft tag & digest placeholder  
+
+<<VM-END>>

@@ -464,6 +464,8 @@ vintage, semantic version, or release tag across:
   • Narrative.txt
   • Assumptions.txt
   • Appendix B – Governing Artefact Registry
+  • Parameter specifications
+  • Interface contract specifications
 
 DEFINITION — Version‑Matrix Gap  
 An artefact has a gap if any of these fields is missing or ambiguous:  
@@ -481,32 +483,31 @@ CATALOGUE BLOCK FORMAT  (no bullets)
 --- TV {{ID}} ---
 Artefact: {{artefact_name}}
 Type: {{raster | vector | csv | parquet | code | container}}
-Anchor: "exact sentence or clause"
-Version_tag: {{tag_or_Missing}}
-Valid_window: {{[start,end]|Missing}}
-Update_cadence: {{daily|monthly|annual|never|Missing}}
+Anchor: "{{exact sentence or clause}}"
+Version_tag: {{tag_or_Missing|N/A}}
+Valid_window: {{[YYYY-MM-DD,YYYY-MM-DD]|Missing|N/A}}
+Update_cadence: {{daily|monthly|annual|never|Missing|N/A}}
 Digest_present: {{Yes|No}}
 Compatibility_matrix: {{Yes|Partial|No}}
 Gap_flags:
-  tag_missing={{Y|N}}
-  window_missing={{Y|N}}
-  cadence_missing={{Y|N}}
-  digest_missing={{Y|N}}
-  compat_missing={{Y|N}}
+  tag_missing={{Y|N|NA}}
+  window_missing={{Y|N|NA}}
+  cadence_missing={{Y|N|NA}}
+  digest_missing={{Y|N|NA}}
+  compat_missing={{Y|N|NA}}
 Severity={{High|Med|Low}}
-Context: “prev … {{TARGET}} … next”
-Confidence={{HIGH|MEDIUM|LOW}}
+Context: “prev … {{TARGET}} … next”   # free-form human context=
 --- END TV {{ID}} ---
 
 RULES  
-• Match artefact names via Appendix B table and inline mentions (`s3://`, `.yaml`, `tz_world`).  
-• If any Gap flag = Y → emit a block.  
-• Severity: High if tag_missing OR compat_missing; Medium for window/cadence/digest gaps; Low otherwise.  
-• Merge duplicates (same artefact) by OR‑ing flags.  
-• Stop when done; write `<<TV‑END>>`.
-
-TOKEN SPLIT  
-At ~6500 tokens, close block, write `<<TV‑CONTINUE>>`, resume in `<<TV‑CONTINUATION>>`.
+• Match artefact names via the supplied artefact registry and any in-text identifiers (e.g. S3 paths, object names, tags).  
+• Emit a block whenever any Gap_flag ≠ N.  
+• Severity:  
+    - **High** if tag_missing == Y OR compat_missing == Y  
+    - **Med** if window_missing == Y OR cadence_missing == Y OR digest_missing == Y  
+    - **Low** if only NA flags.  
+• Merge duplicates by OR-ing flags.  
+• Stop when done; write `<<TV-END>>`.
 
 ######################################################################
 #  END TEMPORAL VERSION MATRIX FINDER                                #
@@ -542,7 +543,7 @@ valid_from = "YYYY‑MM‑DD"
 valid_to = "YYYY‑MM‑DD"          # use "9999‑12‑31" if perpetual
 update_cadence = "{{daily|monthly|annual|never}}"
 sha256 = "{{64‑hex}}"
-compatible_with = ["gdp_2025‑04‑15", "tz_world_2024a"]
+compatible_with = ["artefact_a_tag","artefact_b_tag",…]
 notes = "{{one‑line justification}}"
 <<<END TV‑FIX>>>
 
