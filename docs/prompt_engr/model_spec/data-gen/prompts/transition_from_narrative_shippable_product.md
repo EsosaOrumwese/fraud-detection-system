@@ -574,7 +574,7 @@ Write `<<VM‑END>>` when finished.
 ````
 
 # BUILD‑REPRODUCIBILITY CATALOGUE FINDER + SPEC WRITER
-## ➊  BUILD‑REPRO CATALOGUE‑FINDER v1  (BR‑F)
+## ➊  BUILD‑REPRO CATALOGUE‑FINDER v2  (BR‑F)
 
 ```text
 ######################################################################
@@ -582,11 +582,18 @@ Write `<<VM‑END>>` when finished.
 ######################################################################
 
 ROLE  
-You are a DevOps auditor extracting every reproducibility artefact across:
-  • Narrative.txt
-  • Assumptions.txt
-  • Any `Dockerfile`, `pyproject.toml`, `requirements.txt` snippets in appendices
-
+You are a DevOps auditor harvesting every artefact that can break build
+reproducibility across:
+  • narrative_{{NAME}}.txt
+  • assumptions_{{NAME}}.txt
+  • governing_artefacts_{{NAME}}.txt (Appendix B)
+  • parameter_spec_{{NAME}}.txt
+  • interface_contract_spec_{{NAME}}.txt
+  • version_matrix_spec_{{NAME}}.toml
+  • edge_case_spec_{{NAME}}.txt
+  • Any pasted Dockerfile, pyproject, requirements*, environment.yml,
+    Pipfile.lock, Conda-lock, or CI workflow snippets
+    
 DEFINITION — Repro Gap  
 An item has a gap if any of these fields is missing or ambiguous:  
   1. Container/base image name **and** immutable digest (sha256:…)  
@@ -596,6 +603,7 @@ An item has a gap if any of these fields is missing or ambiguous:
   5. CI pipeline manifest (GitHub Actions, Jenkinsfile) pinned to digest/sha  
   6. Global deterministic seed + RNG library version  
   7. Output manifest checksum (e.g., XOR of artefact SHA‑256s)
+  8. (Optional) Compiler, OS, locale, SOURCE_DATE_EPOCH, env repro vars
 
 OUTPUT WHEN NONE  
 `No build‑repro gaps found.` then `<<BR‑END>>`.
@@ -603,14 +611,15 @@ OUTPUT WHEN NONE
 CATALOGUE BLOCK FORMAT
 
 --- BR {{ID}} ---
-Artefact: {{container|code_repo|lockfile|build_script|ci_pipeline|seed|manifest}}
+Artefact: {{container|code_repo|lockfile|build_script|ci_pipeline|seed|manifest|compiler|os|env}}
 Name_or_path: {{value}}
 Anchor: "exact sentence or clause"
 Digest_present: {{Yes|No}}
 Version_pin: {{Yes|No}}              # tag or commit
 Lockfile_complete: {{Yes|No|n/a}}
 Build_manifest: {{Yes|No|n/a}}
-Env_vars_present: {{Yes|No|n/a}}
+Env_locale_present: {{Yes|No|n/a}}
+Env_repro_vars_present: {{Yes|No|n/a}}
 Compiler_version_present: {{Yes|No|n/a}}
 OS_release_present: {{Yes|No|n/a}}
 Source_tarball_digest: {{sha256:...|n/a}}
@@ -631,11 +640,17 @@ Confidence={{HIGH|MEDIUM|LOW}}
 --- END BR {{ID}} ---
 
 RULES  
-• For containers look for `FROM`, `image:` or `.docker.io/…@sha256:`.  
-• For code repo pin, look for `git_sha=` or commit links.  
-• Severity: Crit if digest_missing; High if version_missing or lock_missing; Med otherwise.  
-• Merge duplicates by OR‑ing flags.  
-• Stop then write `<<BR‑END>>`.
+• Containers: detect `FROM image@sha256:` or `image: tag@sha256:` lines.  
+• Code repo pins: look for `git_sha=…`, commit URLs, or `tar.gz#sha256=`.  
+• Lockfile detection: `Pipfile.lock`, `poetry.lock`, `requirements_lock.txt`,
+  `environment.yml`, `conda.lock`, `conda-lock.yml`.  
+• Compiler/OS/env flags are **only** gaps if the narrative or specs say they
+  **must** be pinned. Otherwise set *_present = n/a and gap flags N.  
+• Severity: Crit if digest_missing == Y or tarball_missing == Y; High if
+  version_missing or lock_missing or manifest_missing == Y; Med otherwise.  
+• Merge duplicates (same artefact) by OR-ing flags & concatenating anchors.  
+• Stop when done; output <<BR-END>>.  If >6 000 tokens, close with
+  <<BR-CONTINUE>>, then resume <<BR-CONTINUATION>>.
 
 TOKEN SPLIT  
 At ~6500 tokens output `<<BR‑CONTINUE>>` / `<<BR‑CONTINUATION>>`.
@@ -647,7 +662,7 @@ At ~6500 tokens output `<<BR‑CONTINUE>>` / `<<BR‑CONTINUATION>>`.
 
 ---
 
-## ➋  BUILD‑REPRO SPEC‑WRITER v1  (BR‑S)
+## ➋  BUILD‑REPRO SPEC‑WRITER v2  (BR‑S)
 
 ````text
 ######################################################################
@@ -655,67 +670,70 @@ At ~6500 tokens output `<<BR‑CONTINUE>>` / `<<BR‑CONTINUATION>>`.
 ######################################################################
 
 INPUT  
-JSON array of gaps to fix appears above:
+JSON array of gaps to fix appears above. Example:
 
 ```json
 {"br_ids":[3,6,9]}
 ```
 
 GOAL
-For each br_id close **all** gap flags with immutable pins.
+For each br_id write a deterministic pin that closes **all** gap flags.
+Placeholders (`TBD`, `<to-fill>`) are allowed where artefact does not yet exist.
 
 SPEC BLOCK FORMAT (no bullets)
 
 <<<BR‑FIX id={{ID}}>
-Artefact: {{type}}
+Artefact: {{container|code_repo|lockfile|build_script|ci_pipeline|seed|manifest|compiler|os|env}}
 Name_or_path: {{value}}
-Digest: sha256:{{64‑hex}}
-Version_pin: {{tag_or_commit}}
+Digest: {{sha256:64-hex|TBD}}
+Version_pin: {{tag|commit|TBD}}
 Lockfile:
-file: {{path/to/lockfile}}
-sha256: {{64‑hex}}
+file: {{path/to/lockfile|n/a}}
+sha256: {{64-hex|TBD}}
 Build_script:
-file: {{build.sh|dag.py}}
-sha256: {{64‑hex}}
+file: {{build.sh|dag.py|n/a}}
+sha256: {{64-hex|TBD}}
 CI_pipeline:
-file: .github/workflows/TBD
-sha256: {{64‑hex}}
+file: {{.github/workflows/build.yml|Jenkinsfile|n/a}}
+sha256: {{64-hex|TBD}}
 Determinism:
-global_seed: 42
-rng_library: Philox‑2^128, v{{ver}}
+global_seed: {{int|TBD}}
+rng_library: {{Philox-2^128 vX.Y|TBD}}
+build_epoch: {{2025-07-26T12:00:00Z|TBD}}
 Output_manifest:
-algorithm: SHA‑256 XOR
+algorithm: {{sha256_xor|sha256_tree|blake2}}
 file: build_manifest.txt
-sha256: {{64‑hex}}
-Env_vars:
+sha256: {{64-hex|TBD}}
+Env_locale:
 LANG: "C.UTF-8"
 LC_ALL: "C.UTF-8"
 TZ: "UTC"
+Env_repro_vars:
+SOURCE_DATE_EPOCH: "{{unix_epoch|TBD}}"
 Compiler_version:
-gcc: "TBD"
-python: "TBD"
-numpy: "TBD"
+gcc: "{{12.2.0|TBD}}"
+python: "{{3.11.4|TBD}}"
+numpy: "{{1.26.4|TBD}}"
 OS_release:
-name: "TBD"
-version: "TBD"
+name: "{{debian|ubuntu|alpine|TBD}}"
+version: "{{12.5|22.04|3.18|TBD}}"
 Source_tarball:
-url: "s3://bucket/path/TBD"
-sha256: "sha256:PLACEHOLDER"
+url: "{{s3://bucket/path.tar.gz|n/a}}"
+sha256: "{{64-hex|n/a}}"
 Repro_instructions:
-docker_run: "docker run ... "
-nix_shell: "nix-shell ... "
-Confidence={{HIGH|MEDIUM|LOW}}
-<<<END BR‑FIX>>>
+docker_run: "docker run --rm -e LANG=C.UTF-8 <image>@sha256:<digest> ..."
+nix_shell:  "nix-shell --pure shell.nix"
 Confidence={{HIGH|MEDIUM|LOW}}
 <<<END BR‑FIX>>>
 
 COLLECT‑AND‑ORDER RULE
 • Sort BR‑FIX blocks ascending by id.
 • Header `##### BUILD_REPRO_SPEC.txt #####`, blocks, footer `##### END BUILD_REPRO_SPEC #####`.
-• If > 6000 tokens, split between blocks with `<<BS‑CONTINUE>>` / `<<BS‑CONTINUATION>>`.
+• If output > 6 000 tokens, split between blocks with `<<BS‑CONTINUE>>` / `<<BS‑CONTINUATION>>`.
 
 RATIONALE FOOTER
-`id={{ID}} | gaps_closed={{digest|version|lock|manifest}} | notes=…`
+After spec, output one line per id:
+`id={{ID}} | gaps_closed={{digest|version|lock|manifest|env|compiler|os|tarball}} | notes=…` (≤ 20 words)
 
 END TOKEN
 `<<BS‑END>>`
