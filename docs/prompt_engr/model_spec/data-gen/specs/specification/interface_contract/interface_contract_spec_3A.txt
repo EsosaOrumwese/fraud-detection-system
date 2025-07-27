@@ -2,7 +2,7 @@
 Stage: FlagEscalationCountries
 INPUT_ARTIFACT:
 name: merchant_country_mass
-path_pattern: s3://data-engine/processed/merchant_country_mass_vector.parquet  # path reserved by spec.
+path_pattern: s3://data-engine/artefacts/catalogue/merchant_country_mass_vector.parquet  # path reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 {
@@ -14,9 +14,21 @@ schema: |
     {"name":"mass","type":"double","nullable":false}
   ]
 }
+INPUT_ARTIFACT:
+name: zone_mixture_policy
+path_pattern: s3://data-engine/config/allocation/zone_mixture_policy.yml
+sha256: <to-be-populated-on-build>
+schema: |
+{
+  "name": "zone_mixture_policy",
+  "type": "record",
+  "fields": [
+     {"name":"theta_mix","type":"double"}
+  ]
+}
 OUTPUT_ARTIFACT:
 name: escalation_countries
-path_pattern: s3://data-engine/processed/allocation/escalation_countries.parquet  # path reserved by spec.
+path_pattern: s3://data-engine/artefacts/allocation/escalation_countries.parquet  # path reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 {
@@ -32,8 +44,8 @@ PARTITIONING:
 keys: ["merchant_id"]
 order_by: ["country_iso"]
 SUCCESS_METRIC:
-metric_name: row_count
-expected_range: [1, 10000]  # placeholder
+metric_name: escalation_match_theta         # every flagged mass > θ_mix
+expected_range: [1, 1]
 ERROR_POLICY:
 error_code: EscalationFlagError
 retry_max: 1
@@ -60,7 +72,7 @@ Confidence=MEDIUM
 Stage: ComputeDirichletShares
 INPUT_ARTIFACT:
 name: escalation_countries
-path_pattern: s3://data-engine/processed/allocation/escalation_countries.parquet  # path reserved by spec.
+path_pattern: s3://data-engine/artefacts/allocation/escalation_countries.parquet  # path reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 {
@@ -87,7 +99,7 @@ schema: |
 }
 OUTPUT_ARTIFACT:
 name: dirichlet_shares
-path_pattern: s3://data-engine/processed/allocation/dirichlet_shares.parquet  # path reserved by spec.
+path_pattern: s3://data-engine/artefacts/allocation/dirichlet_shares.parquet  # path reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 {
@@ -132,7 +144,7 @@ Confidence=MEDIUM
 Stage: ApplyDeterministicRounding
 INPUT_ARTIFACT:
 name: dirichlet_shares
-path_pattern: s3://data-engine/processed/allocation/dirichlet_shares.parquet  # path reserved by spec.
+path_pattern: s3://data-engine/artefacts/allocation/dirichlet_shares.parquet  # path reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 {
@@ -147,7 +159,7 @@ schema: |
 }
 INPUT_ARTIFACT:
 name: outlet_count
-path_pattern: s3://data-engine/processed/outlet_counts.parquet  # path reserved by spec.
+path_pattern: s3://data-engine/artefacts/catalogue/outlet_counts.parquet  # path reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 {
@@ -159,9 +171,14 @@ schema: |
     {"name":"N_outlets","type":"int","nullable":false}
   ]
 }
+INPUT_ARTIFACT:
+name: rounding_spec
+path_pattern: s3://data-engine/docs/round_ints.md  # path reserved by spec.
+sha256: <to-be-populated-on-build>  # placeholder
+schema: N/A
 OUTPUT_ARTIFACT:
 name: deterministic_counts
-path_pattern: s3://data-engine/processed/allocation/deterministic_counts.parquet  # path reserved by spec.
+path_pattern: s3://data-engine/artefacts/allocation/deterministic_counts.parquet  # path reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 {
@@ -179,8 +196,8 @@ PARTITIONING:
 keys: ["merchant_id"]
 order_by: ["country_iso","tzid"]
 SUCCESS_METRIC:
-metric_name: row_count
-expected_range: [1, 10000]  # placeholder
+metric_name: rounding_integrity           # integers sum to N_outlets
+expected_range: [1, 1]
 ERROR_POLICY:
 error_code: RoundingError
 retry_max: 1
@@ -207,7 +224,7 @@ Confidence=HIGH
 Stage: ApplyBumpRule
 INPUT_ARTIFACT:
 name: deterministic_counts
-path_pattern: s3://data-engine/processed/allocation/deterministic_counts.parquet  # path reserved by spec.
+path_pattern: s3://data-engine/artefacts/allocation/deterministic_counts.parquet  # path reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 {
@@ -223,7 +240,7 @@ schema: |
 }
 OUTPUT_ARTIFACT:
 name: bumped_counts
-path_pattern: s3://data-engine/processed/allocation/bumped_counts.parquet  # path reserved by spec.
+path_pattern: s3://data-engine/artefacts/allocation/bumped_counts.parquet  # path reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 {
@@ -234,15 +251,16 @@ schema: |
     {"name":"country_iso","type":"string","nullable":false},
     {"name":"tzid","type":"string","nullable":false},
     {"name":"final_count","type":"int","nullable":false},
-    {"name":"bump_applied","type":"boolean","nullable":false}
+    {"name":"bump_applied","type":"boolean","nullable":false},
+    {"name":"residual","type":"double","nullable":false}
   ]
 }
 PARTITIONING:
 keys: ["merchant_id"]
 order_by: ["country_iso","tzid"]
 SUCCESS_METRIC:
-metric_name: row_count
-expected_range: [1, 10000]  # placeholder
+metric_name: bump_invariant         # no e_z>0.8 with zero count
+expected_range: [1, 1] 
 ERROR_POLICY:
 error_code: BumpRuleError
 retry_max: 1
@@ -269,7 +287,7 @@ Confidence=HIGH
 Stage: ComputeMajorZoneFallback
 INPUT_ARTIFACT:
 name: merchant_country_mass
-path_pattern: s3://data-engine/processed/merchant_country_mass_vector.parquet  # path reserved by spec.
+path_pattern: s3://data-engine/artefacts/merchant_country_mass_vector.parquet  # path reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 { "type": "record", "fields":[{"name":"merchant_id","type":"string"},{"name":"country_iso","type":"string"},{"name":"mass","type":"double"}] }
@@ -288,7 +306,7 @@ schema: |
 }
 OUTPUT_ARTIFACT:
 name: major_zone_allocations
-path_pattern: s3://data-engine/processed/allocation/major_zone_allocations.parquet  # path reserved by spec.
+path_pattern: s3://data-engine/artefacts/allocation/major_zone_allocations.parquet  # path reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 {
@@ -333,7 +351,7 @@ Confidence=MEDIUM
 Stage: EnforceZoneFloors
 INPUT_ARTIFACT:
 name: bumped_counts
-path_pattern: s3://data-engine/processed/allocation/bumped_counts.parquet  # path reserved by spec.
+path_pattern: s3://data-engine/artefacts/allocation/bumped_counts.parquet  # path reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 { "type":"record","name":"bumped_counts","fields":[{"name":"merchant_id","type":"string"},{"name":"country_iso","type":"string"},{"name":"tzid","type":"string"},{"name":"final_count","type":"int"},{"name":"bump_applied","type":"boolean"}] }
@@ -352,7 +370,7 @@ schema: |
 }
 OUTPUT_ARTIFACT:
 name: floored_counts
-path_pattern: s3://data-engine/processed/allocation/floored_counts.parquet  # path reserved by spec.
+path_pattern: s3://data-engine/artefacts/allocation/floored_counts.parquet  # path reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 {
@@ -362,15 +380,16 @@ schema: |
     {"name":"merchant_id","type":"string","nullable":false},
     {"name":"country_iso","type":"string","nullable":false},
     {"name":"tzid","type":"string","nullable":false},
-    {"name":"adjusted_count","type":"int","nullable":false}
+    {"name":"adjusted_count","type":"int","nullable":false},
+    {"name":"floor_applied","type":"boolean","nullable":false}
   ]
 }
 PARTITIONING:
 keys: ["merchant_id"]
 order_by: ["country_iso","tzid"]
 SUCCESS_METRIC:
-metric_name: row_count
-expected_range: [1, 10000]  # placeholder
+metric_name: floor_invariant            # no adjusted < φ_z
+expected_range: [1, 1]
 ERROR_POLICY:
 error_code: ZoneFloorError
 retry_max: 1
@@ -397,7 +416,7 @@ Confidence=HIGH
 Stage: WriteZoneAllocParquet
 INPUT_ARTIFACT:
 name: floored_counts
-path_pattern: s3://data-engine/processed/allocation/floored_counts.parquet  # path reserved by spec.
+path_pattern: s3://data-engine/artefacts/allocation/floored_counts.parquet  # path reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 {
@@ -421,14 +440,20 @@ schema: |
   "fields": [
     {"name":"country_iso","type":"string","nullable":false},
     {"name":"tzid","type":"string","nullable":false},
-    {"name":"N_outlets","type":"int","nullable":false}
+    {"name":"expectation","type":"double","nullable":false},
+    {"name":"residual","type":"double","nullable":false},
+    {"name":"rounded_count","type":"int","nullable":false},
+    {"name":"bump_applied","type":"boolean","nullable":false},
+    {"name":"adjusted_count","type":"int","nullable":false},
+    {"name":"is_major_zone","type":"boolean","nullable":false},
+    {"name":"universe_hash","type":"string","nullable":false}
   ]
 }
 PARTITIONING:
 keys: ["merchant_id"]
 order_by: ["country_iso","tzid"]
 SUCCESS_METRIC:
-metric_name: file_existence
+metric_name: universe_hash_match                # parquet rows embed correct hash
 expected_range: [1, 1]
 ERROR_POLICY:
 error_code: WriteAllocError
@@ -507,6 +532,75 @@ tool: pytest
 script: tests/test_append_zone_alloc_index.py  # CI test to be implemented after pipeline is in place
 assertion: index CSV entries match parquet files
 Confidence=MEDIUM
+<<<END IC-FIX>>
+
+<<<IC-FIX id=9>>
+Stage: ComputeUniverseHash
+INPUT_ARTIFACT:
+  name: zone_alpha_digest
+  path_pattern: s3://data-engine/config/allocation/country_zone_alphas.yaml
+  sha256: <to-be-populated-on-build>
+INPUT_ARTIFACT:
+  name: theta_digest
+  path_pattern: s3://data-engine/config/allocation/zone_mixture_policy.yml
+  sha256: <to-be-populated-on-build>
+INPUT_ARTIFACT:
+  name: zone_floor_digest
+  path_pattern: s3://data-engine/config/allocation/zone_floor.yml
+  sha256: <to-be-populated-on-build>
+INPUT_ARTIFACT:
+  name: adjusted_counts
+  path_pattern: s3://data-engine/artefacts/allocation/floored_counts.parquet
+  sha256: <to-be-populated-on-build>
+OUTPUT_ARTIFACT:
+  name: universe_hash_digest
+  path_pattern: s3://data-engine/artefacts/allocation/universe_hash_digest.txt
+  sha256: <to-be-populated-on-build>
+SUCCESS_METRIC:
+  metric_name: digest_length_64
+  expected_range: [1, 1]
+<<<END IC-FIX>>
+
+<<<IC-FIX id=10>>
+Stage: ComputeCorporateDayEffect
+INPUT_ARTIFACT:
+  name: routing_day_effect
+  path_pattern: s3://data-engine/config/routing/routing_day_effect.yml
+  sha256: <to-be-populated-on-build>
+INPUT_ARTIFACT:
+  name: rng_policy
+  path_pattern: s3://data-engine/config/routing/rng_policy.yml
+  sha256: <to-be-populated-on-build>
+OUTPUT_ARTIFACT:
+  name: corporate_day_effect_table
+  path_pattern: s3://data-engine/artefacts/allocation/{merchant_id}_gamma_day_effect.parquet
+  sha256: <to-be-populated-on-build>
+SUCCESS_METRIC:
+  metric_name: gamma_variance_match
+  expected_range: [1,1]
+<<<END IC-FIX>>
+
+<<<IC-FIX id=11>>
+Stage: CrossZoneValidation
+INPUT_ARTIFACT:
+  name: zone_alloc_parquet
+  path_pattern: s3://data-engine/artefacts/allocation/{merchant_id}_zone_alloc.parquet
+  sha256: <to-be-populated-on-build>
+INPUT_ARTIFACT:
+  name: cross_zone_validation_rules
+  path_pattern: s3://data-engine/config/validation/cross_zone_validation.yml
+  sha256: <to-be-populated-on-build>
+OUTPUT_ARTIFACT:
+  name: barcode_slope_validation_log
+  path_pattern: s3://data-engine/logs/barcode_slope_validation.log
+  sha256: <to-be-populated-on-build>
+OUTPUT_ARTIFACT:
+  name: share_convergence_log
+  path_pattern: s3://data-engine/logs/share_convergence.log
+  sha256: <to-be-populated-on-build>
+SUCCESS_METRIC:
+  metric_name: validation_pass
+  expected_range: [1,1]
 <<<END IC-FIX>>}
 
 ##### END INTERFACE_CONTRACT_SPEC #####

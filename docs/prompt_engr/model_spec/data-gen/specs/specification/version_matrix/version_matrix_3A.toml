@@ -1,4 +1,4 @@
-<<<TV-FIX id=1>>>
+<<TV-FIX id=1>>>
 [config/allocation/zone_mixture_policy.yml]
 type             = "code"
 version_tag      = "v1.0.0-draft"
@@ -176,6 +176,54 @@ update_cadence   = "never"
 sha256           = "<to-be-populated-on-build>"
 compatible_with  = ["docs/rng_proof.md"]
 notes            = "License files; placeholder digest"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=16>>>
+[artefacts/allocation/universe_hash_digest.txt]
+type            = "code"
+version_tag     = "v1.0.0-draft"
+valid_from      = "2025-07-26"
+valid_to        = "9999-12-31"
+update_cadence  = "each_run"
+sha256          = "<to-be-populated-on-build>"
+compatible_with = ["artefacts/allocation/<merchant_id>_zone_alloc.parquet"]
+notes           = "Hash sentinel combining all governed digests"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=17>>>
+[artefacts/allocation/<merchant_id>_gamma_day_effect.parquet]
+type            = "parquet"
+version_tag     = "v1.0.0-draft"
+valid_from      = "2025-07-26"
+valid_to        = "9999-12-31"
+update_cadence  = "each_run"
+sha256          = "<to-be-populated-on-build>"
+compatible_with = ["config/routing/routing_day_effect.yml"]
+notes           = "Daily γ_d values per merchant"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=18>>>
+[logs/barcode_slope_validation.log]
+type            = "code"
+version_tag     = "v1.0.0-draft"
+valid_from      = "2025-07-26"
+valid_to        = "9999-12-31"
+update_cadence  = "nightly"
+sha256          = "<to-be-populated-on-build>"
+compatible_with = ["config/validation/cross_zone_validation.yml"]
+notes           = "Barcode-slope validation output"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=19>>>
+[logs/share_convergence.log]
+type            = "code"
+version_tag     = "v1.0.0-draft"
+valid_from      = "2025-07-26"
+valid_to        = "9999-12-31"
+update_cadence  = "nightly"
+sha256          = "<to-be-populated-on-build>"
+compatible_with = ["config/validation/cross_zone_validation.yml"]
+notes           = "Zone-share convergence diagnostics"
 <<<END TV-FIX>>>
 
 ##### END VERSION_MATRIX #####
