@@ -148,10 +148,10 @@ Scope: merchant_location
 PRIOR:
 type: Fixed boolean
 hyperparameters:
-  default_value: false
+  default_value: false  # Narrative default constraint
 units: boolean
 default_policy: use prior
-justification: Toggles uniform jitter on pixel-center sampling.
+justification: Toggles uniform jitter on pixel-center sampling. Governed builds MUST leave this flag `false`; enabling it requires a semantic-version bump for the entire merchant-location layer.
 
 CALIBRATION_RECIPE:
 input_path: N/A
