@@ -154,6 +154,42 @@ compatible_with  = ["config/routing/errors.yml"]
 notes            = "Performance thresholds and metrics"
 <<<END TV-FIX>>>
 
+<<<TV-FIX id=14>>>
+[logs/routing/routing_audit.log]
+type            = "log"
+version_tag     = "v1.0.0-draft"
+valid_from      = "2025-07-26"
+valid_to        = "9999-12-31"
+update_cadence  = "each_run"
+sha256          = "<to-be-populated-on-build>"
+compatible_with = ["artefacts/routing/routing_manifest.json"]
+notes           = "Batch-audit checksums for routing"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=15>>>
+[logs/routing/validation.log]
+type            = "log"
+version_tag     = "v1.0.0-draft"
+valid_from      = "2025-07-26"
+valid_to        = "9999-12-31"
+update_cadence  = "nightly"
+sha256          = "<to-be-populated-on-build>"
+compatible_with = ["config/routing/routing_validation.yml"]
+notes           = "Nightly routing validation log"
+<<<END TV-FIX>>>
+
+<<<TV-FIX id=16>>>
+[output/buffer]
+type            = "parquet"
+version_tag     = "v1.0.0-draft"
+valid_from      = "2025-07-26"
+valid_to        = "9999-12-31"
+update_cadence  = "each_run"
+sha256          = "<to-be-populated-on-build>"
+compatible_with = ["artefacts/routing/routing_manifest.json"]
+notes           = "Per-batch routed-transaction buffer"
+<<<END TV-FIX>>>
+
 ##### END VERSION_MATRIX #####
 
 id=1  | gaps_closed=tag|window|cadence|digest|compat | notes=catalogue output placeholder  

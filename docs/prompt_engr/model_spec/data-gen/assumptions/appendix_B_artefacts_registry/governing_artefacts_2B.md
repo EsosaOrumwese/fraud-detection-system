@@ -1,20 +1,24 @@
 ## Subsegment 2B: Routing transactions through sites
 
-| ID / Key                     | Path Pattern                                 | Role                                                            | Semver Field   | Digest Field               |
-| ---------------------------- | -------------------------------------------- | --------------------------------------------------------------- | -------------- | -------------------------- |
-| **site_catalogue_parquet** | `artefacts/catalogue/site_catalogue.parquet` | Foot‑traffic weights for all sites                              | `semver`       | `site_catalogue_digest`    |
-| **routing_manifest**        | `artefacts/routing/routing_manifest.json`    | Manifest of all routing artefacts and their digests             | `semver`       | `routing_manifest_digest`  |
-| **routing_day_effect**     | `config/routing/routing_day_effect.yml`      | Corporate‑day variance parameter σ²                             | `semver`       | `gamma_variance_digest`    |
-| **cdn_country_weights**    | `config/routing/cdn_country_weights.yaml`    | Edge‑node country weight vector for virtual merchants           | `semver`       | `cdn_alias_digest`         |
-| **routing_validation**      | `config/routing/routing_validation.yml`      | Validation thresholds (`tolerance_share`, `target_correlation`) | `semver`       | `validation_config_digest` |
-| **logging_config**          | `config/routing/logging.yml`                 | Audit‑log path, rotation and retention policy                   | `semver`       | `audit_log_config_digest`  |
-| **rng_policy**              | `config/routing/rng_policy.yml`              | RNG seed derivation policy (SHA‑1 usage)                        | `semver`       | `rng_policy_digest`        |
-| **rng_proof**               | `docs/rng_proof.md`                          | Formal proof of RNG stream isolation                            | Git commit ref | `rng_proof_digest`         |
-| **pweights_bin**            | `<merchant_id>_pweights.bin`                 | Little‑endian `float64` weight vectors per merchant             | n/a            | `weight_digest`            |
-| **alias_npz**               | `<merchant_id>_alias.npz`                    | Uncompressed NumPy arrays (`prob`, `alias`) for alias sampling  | n/a            | `alias_digest`             |
-| **cdn_alias_npz**          | `<merchant_id>_cdn_alias.npz`                | Uncompressed NumPy arrays (`prob`, `alias`) for CDN sampling    | n/a            | `cdn_alias_digest`         |
-| **errors_config**           | `config/routing/errors.yml`                  | Exception definitions (`RoutingZeroWeightError`, etc.)          | `semver`       | `errors_config_digest`     |
-| **performance_config**      | `config/routing/performance.yml`             | Throughput and memory SLA thresholds                            | `semver`       | `perf_config_digest`       |
+| ID / Key                   | Path Pattern                                                   | Role                                                            | Semver Field    | Digest Field               |
+|----------------------------|----------------------------------------------------------------|-----------------------------------------------------------------|-----------------|----------------------------|
+| **site_catalogue_parquet** | `artefacts/catalogue/site_catalogue.parquet`                   | Foot‑traffic weights for all sites                              | `semver`        | `site_catalogue_digest`    |
+| **routing_manifest**       | `artefacts/routing/routing_manifest.json`                      | Manifest of all routing artefacts and their digests             | `semver`        | `routing_manifest_digest`  |
+| **routing_day_effect**     | `config/routing/routing_day_effect.yml`                        | Corporate‑day variance parameter σ²                             | `semver`        | `gamma_variance_digest`    |
+| **cdn_country_weights**    | `config/routing/cdn_country_weights.yaml`                      | Edge‑node country weight vector for virtual merchants           | `semver`        | `cdn_alias_digest`         |
+| **routing_validation**     | `config/routing/routing_validation.yml`                        | Validation thresholds (`tolerance_share`, `target_correlation`) | `semver`        | `validation_config_digest` |
+| **logging_config**         | `config/routing/logging.yml`                                   | Audit‑log path, rotation and retention policy                   | `semver`        | `audit_log_config_digest`  |
+| **rng_policy**             | `config/routing/rng_policy.yml`                                | RNG seed derivation policy (SHA‑1 usage)                        | `semver`        | `rng_policy_digest`        |
+| **rng_proof**              | `docs/rng_proof.md`                                            | Formal proof of RNG stream isolation                            | Git commit ref  | `rng_proof_digest`         |
+| **pweights_bin**           | `<merchant_id>_pweights.bin`                                   | Little‑endian `float64` weight vectors per merchant             | n/a             | `weight_digest`            |
+| **alias_npz**              | `<merchant_id>_alias.npz`                                      | Uncompressed NumPy arrays (`prob`, `alias`) for alias sampling  | n/a             | `alias_digest`             |
+| **cdn_alias_npz**          | `<merchant_id>_cdn_alias.npz`                                  | Uncompressed NumPy arrays (`prob`, `alias`) for CDN sampling    | n/a             | `cdn_alias_digest`         |
+| **errors_config**          | `config/routing/errors.yml`                                    | Exception definitions (`RoutingZeroWeightError`, etc.)          | `semver`        | `errors_config_digest`     |
+| **performance_config**     | `config/routing/performance.yml`                               | Throughput and memory SLA thresholds                            | `semver`        | `perf_config_digest`       |
+| **routing_audit_log**      | `logs/routing/routing_audit.log`                               | Batch-level audit checksums & errors                            | `semver`        | (run-specific)             |
+| **routing_validation_log** | `logs/routing/validation.log`                                  | Nightly share & correlation validation results                  | `semver`        | (run-specific)             |
+| **output_buffer**          | `output/buffer/partition_date=*/merchant_id=*/batch_*.parquet` | Per-batch routed-txn buffer incl. γ-fields                      | `semver`        | `routing_manifest_digest`    |
+
 
 **Notes:**
 
