@@ -424,10 +424,13 @@ schema: |
   "name": "tz_assigned_coordinates",
   "type": "record",
   "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"site_id","type":"string","nullable":false},
     {"name":"longitude","type":"double","nullable":false},
     {"name":"latitude","type":"double","nullable":false},
     {"name":"tzid","type":"string","nullable":false},
-    {"name":"resample_count","type":"int","nullable":false}
+    {"name":"resample_count","type":"int","nullable":false},
+    {"name":"spatial_manifest_digest","type":"string","nullable":false}
   ]
 }
 PARTITIONING:
@@ -469,10 +472,13 @@ schema: |
   "name": "tz_assigned_coordinates",
   "type": "record",
   "fields": [
+    {"name":"merchant_id","type":"string","nullable":false},
+    {"name":"site_id","type":"string","nullable":false},
     {"name":"longitude","type":"double","nullable":false},
     {"name":"latitude","type":"double","nullable":false},
     {"name":"tzid","type":"string","nullable":false},
-    {"name":"resample_count","type":"int","nullable":false}
+    {"name":"resample_count","type":"int","nullable":false},
+    {"name":"spatial_manifest_digest","type":"string","nullable":false}
   ]
 }
 OUTPUT_ARTIFACT:
@@ -547,12 +553,26 @@ schema: |
 {
   "name": "site_catalogue",
   "type": "record",
-  "fields": [
-    {"name":"merchant_id","type":"string","nullable":false},
-    {"name":"site_id","type":"string","nullable":false},
-    {"name":"geometry","type":"string","nullable":false},
-    {"name":"footfall_preclip","type":"double","nullable":false}
-  ]
+   "fields": [
+     {"name":"merchant_id","type":"string","nullable":false},
+     {"name":"site_id","type":"string","nullable":false},
+     {"name":"longitude","type":"double","nullable":false},
+     {"name":"latitude","type":"double","nullable":false},
+     {"name":"geometry","type":"string","nullable":false},
+     {"name":"prior_tag","type":"string","nullable":false},
+     {"name":"prior_weight_raw","type":"double","nullable":false},
+     {"name":"prior_weight_norm","type":"double","nullable":false},
+     {"name":"artefact_digest","type":"string","nullable":false},
+     {"name":"spatial_manifest_digest","type":"string","nullable":false},
+     {"name":"log_footfall_preclip","type":"double","nullable":false},
+     {"name":"footfall_preclip","type":"double","nullable":false},
+     {"name":"footfall_clipped","type":"double","nullable":false},
+     {"name":"tzid","type":"string","nullable":false},
+     {"name":"pixel_index","type":"int","nullable":false},
+     {"name":"feature_index","type":"int","nullable":true},
+     {"name":"d_haversine_km","type":"double","nullable":false},
+     {"name":"d_road_km","type":"double","nullable":false}
+   ]
 }
 PARTITIONING:
 keys: ["partition_date","site_id"]
