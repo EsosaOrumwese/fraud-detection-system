@@ -2,7 +2,7 @@
 Stage: ComputeProbabilityVector
 INPUT_ARTIFACT:
 name: site_catalogue
-path_pattern: s3://data-engine/processed/site_catalogue/seed={seed}/fingerprint={fingerprint}/**/*.parquet  # path reserved by spec.
+path_pattern: s3://data-engine/artefacts/catalogue/site_catalogue.parquet  # path reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 {
@@ -31,18 +31,19 @@ schema: |
 }
 OUTPUT_ARTIFACT:
 name: merchant_pweights
-path_pattern: s3://data-engine/processed/routing/{merchant_id}_pweights.bin  # path reserved by spec.
+path_pattern: s3://data-engine/{merchant_id}_pweights.bin  # path reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 {
-  "type": "array",
-  "items": "double"
+  "type": "binary",
+  "endianness":"little",
+  "dtype":"float64"
 }
 PARTITIONING:
 keys: []
 order_by: []
 SUCCESS_METRIC:
-metric_name: file_existence
+metric_name: weight_digest_match                    # SHA-256(pweights.bin)
 expected_range: [1, 1]
 ERROR_POLICY:
 error_code: RoutingZeroWeightError  # defined in errors.yml
@@ -70,13 +71,13 @@ Confidence=HIGH
 Stage: BuildAliasTable
 INPUT_ARTIFACT:
 name: merchant_pweights
-path_pattern: s3://data-engine/processed/routing/{merchant_id}_pweights.bin  # path reserved by spec.
+path_pattern: s3://data-engine/{merchant_id}_pweights.bin  # path reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 { "type": "binary" }
 OUTPUT_ARTIFACT:
 name: merchant_alias
-path_pattern: s3://data-engine/processed/routing/{merchant_id}_alias.npz  # path reserved by spec.
+path_pattern: s3://data-engine/{merchant_id}_alias.npz  # path reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 { "type": "binary" }
@@ -84,7 +85,7 @@ PARTITIONING:
 keys: []
 order_by: []
 SUCCESS_METRIC:
-metric_name: file_existence
+metric_name: alias_digest_match
 expected_range: [1, 1]
 ERROR_POLICY:
 error_code: AliasHashMismatchError  # defined in errors.yml
@@ -112,7 +113,7 @@ Confidence=HIGH
 Stage: BuildCdnAliasTable
 INPUT_ARTIFACT:
 name: cdn_weights_config
-path_pattern: s3://data-engine/config/routing/cdn_country_weights.yaml  # File not yet created; path is reserved by spec.
+path_pattern: s3://data-engine/{merchant_id}_cdn_alias.npz  # File not yet created; path is reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 {
@@ -205,7 +206,12 @@ schema: |
     {"name":"tzid","type":"string","nullable":false},
     {"name":"timestamp","type":"long","nullable":false},
     {"name":"batch_index","type":"long","nullable":false},
-    {"name":"counter_vector","type":{"type":"array","items":"long"},"nullable":false}
+    {"name":"counter_vector","type":{"type":"array","items":"long"},"nullable":false},
+    {"name":"event_type","type":"string","nullable":false},
+    {"name":"routing_manifest_digest","type":"string","nullable":false},
+    {"name":"ip_country_code","type":"string","nullable":true},
+    {"name":"error_type","type":"string","nullable":true},
+    {"name":"error_details","type":"string","nullable":true}
   ]
 }
 PARTITIONING:
@@ -279,12 +285,12 @@ schema: |
   ]
 }
 OUTPUT_ARTIFACT:
-name: routing_validation_report
-path_pattern: s3://data-engine/logs/routing/routing_validation_report_{date}.json  # path reserved by spec.
+name: routing_validation_log
+path_pattern: s3://data-engine/logs/routing/validation.log  # path reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 {
-  "name": "routing_validation_report",
+  "name": "routing_validation_log",
   "type": "record",
   "fields": [
     {"name":"date","type":"string","nullable":false},
@@ -296,7 +302,7 @@ PARTITIONING:
 keys: []
 order_by: []
 SUCCESS_METRIC:
-metric_name: validation_pass
+metric_name: validation_log_exists
 expected_range: [1, 1]
 ERROR_POLICY:
 error_code: ValidationError
@@ -319,6 +325,58 @@ script: tests/test_audit_routing.py  # CI test to be implemented after pipeline 
 assertion: validation report indicates all checks pass
 Confidence=MEDIUM
 <<<END IC-FIX>>}
+
+<<<IC-FIX id=6>>
+Stage: WriteRoutingManifest
+INPUT_ARTIFACT:
+  name: pweights_bin
+  path_pattern: s3://data-engine/{merchant_id}_pweights.bin
+  sha256: <to-be-populated-on-build>
+INPUT_ARTIFACT:
+  name: alias_npz
+  path_pattern: s3://data-engine/{merchant_id}_alias.npz
+  sha256: <to-be-populated-on-build>
+INPUT_ARTIFACT:
+  name: cdn_alias_npz
+  path_pattern: s3://data-engine/{merchant_id}_cdn_alias.npz
+  sha256: <to-be-populated-on-build>
+OUTPUT_ARTIFACT:
+  name: routing_manifest
+  path_pattern: s3://data-engine/artefacts/routing/routing_manifest.json
+  sha256: <to-be-populated-on-build>
+SUCCESS_METRIC:
+  metric_name: manifest_completeness
+  expected_range: [1,1]
+<<<END IC-FIX>>
+
+<<<IC-FIX id=7>>
+Stage: WriteOutputBuffer
+INPUT_ARTIFACT:
+  name: merchant_alias
+  path_pattern: s3://data-engine/{merchant_id}_alias.npz
+  sha256: <to-be-populated-on-build>
+OUTPUT_ARTIFACT:
+  name: output_buffer
+  path_pattern: s3://data-engine/output/buffer/partition_date=*/merchant_id=*/batch_*.parquet
+  sha256: <to-be-populated-on-build>
+  schema: |
+    {
+      "name": "output_buffer",
+      "type": "record",
+      "fields": [
+        {"name":"merchant_id","type":"string","nullable":false},
+        {"name":"site_id","type":"string","nullable":false},
+        {"name":"txn_id","type":"string","nullable":false},
+        {"name":"gamma_id","type":"int","nullable":false},
+        {"name":"gamma_value","type":"double","nullable":false},
+        {"name":"ip_country_code","type":"string","nullable":true},
+        {"name":"routing_manifest_digest","type":"string","nullable":false}
+      ]
+    }
+SUCCESS_METRIC:
+  metric_name: buffer_rowcount_positive
+  expected_range: [1,]
+<<<END IC-FIX>>
 
 ##### END INTERFACE_CONTRACT_SPEC #####
 
