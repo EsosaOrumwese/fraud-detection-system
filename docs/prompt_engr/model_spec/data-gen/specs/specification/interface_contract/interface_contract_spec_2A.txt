@@ -15,7 +15,7 @@ schema: |
 }
 OUTPUT_ARTIFACT:
 name: tz_index_digest
-path_pattern: s3://data-engine/processed/tz_index/tz_index_digest.txt  # path reserved by spec.
+path_pattern: s3://data-engine/artefacts/priors/tz_world/2025a/tz_index_digest.txt  # path reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 {
@@ -85,7 +85,7 @@ schema: |
 }
 OUTPUT_ARTIFACT:
 name: tz_assignment_audit
-path_pattern: s3://data-engine/logs/tz_assignment/tz_assignment_audit.log  # path reserved by spec.
+path_pattern: s3://data-engine/logs/tz_assignment_audit.log # path reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 {
@@ -95,7 +95,11 @@ schema: |
     {"name":"site_id","type":"string","nullable":false},
     {"name":"candidate_polygons_count","type":"int","nullable":false},
     {"name":"nudge_applied","type":"boolean","nullable":false},
-    {"name":"chosen_tzid","type":"string","nullable":false}
+    {"name":"nudge_lat","type":"double","nullable":true},
+    {"name":"nudge_lon","type":"double","nullable":true},
+    {"name":"chosen_tzid","type":"string","nullable":false},
+    {"name":"override_scope","type":"string","nullable":true},
+    {"name":"error_type","type":"string","nullable":true}
   ]
 }
 PARTITIONING:
@@ -160,18 +164,19 @@ schema: |
   ]
 }
 OUTPUT_ARTIFACT:
-name: tz_override_audit
-path_pattern: s3://data-engine/logs/tz_override/tz_override_audit.log  # path reserved by spec.
+name: ci_override_validation_log
+path_pattern: s3://data-engine/logs/ci_override_validation.log  # path reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 {
-  "name": "tz_override_audit",
+  "name": "ci_override_validation_log",
   "type": "record",
   "fields": [
     {"name":"site_id","type":"string","nullable":false},
     {"name":"original_tzid","type":"string","nullable":false},
     {"name":"override_tzid","type":"string","nullable":true},
-    {"name":"used_evidence_url","type":"string","nullable":true}
+    {"name":"used_evidence_url","type":"string","nullable":true},
+    {"name":"diff_count","type":"int","nullable":false}
   ]
 }
 PARTITIONING:
@@ -239,15 +244,15 @@ schema: |
   ]
 }
 OUTPUT_ARTIFACT:
-name: tz_cache_bytes
-path_pattern: s3://data-engine/processed/tz_cache/tz_cache_bytes.bin  # path reserved by spec.
+name: tz_cache_bytes_record
+path_pattern: s3://data-engine/output/tz_cache_bytes.txt  # path reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 {
-  "name": "tz_cache_bytes",
+  "name": "tz_cache_bytes_record",
   "type": "record",
   "fields": [
-    {"name":"tz_cache_bytes","type":"bytes","nullable":false}
+    {"name":"tz_cache_bytes","type":"int","nullable":false}
   ]
 }
 PARTITIONING:
@@ -333,6 +338,67 @@ assertion: mapping invertible and within expected bounds
 Confidence=MEDIUM
 <<<END IC-FIX>>}
 
+<<<IC-FIX id=6>>
+Stage: WriteUpdatedSiteCatalogue
+INPUT_ARTIFACT:
+  name: site_coordinates
+  path_pattern: s3://data-engine/processed/site_catalogue/partition_date=*/merchant_id=*/site_id=*.parquet
+  sha256: <to-be-populated-on-build>
+INPUT_ARTIFACT:
+  name: tz_assignment_audit
+  path_pattern: s3://data-engine/logs/tz_assignment_audit.log
+  sha256: <to-be-populated-on-build>
+INPUT_ARTIFACT:
+  name: ci_override_validation_log
+  path_pattern: s3://data-engine/logs/ci_override_validation.log
+  sha256: <to-be-populated-on-build>
+OUTPUT_ARTIFACT:
+  name: updated_site_catalogue
+  path_pattern: s3://data-engine/output/site_catalogue/partition_date=*/merchant_id=*/site_id=*.parquet
+  sha256: <to-be-populated-on-build>
+  schema: |
+    {
+      "name": "updated_site_catalogue",
+      "type": "record",
+      "fields": [
+        {"name":"merchant_id","type":"string","nullable":false},
+        {"name":"site_id","type":"string","nullable":false},
+        {"name":"longitude","type":"double","nullable":false},
+        {"name":"latitude","type":"double","nullable":false},
+        {"name":"TZID","type":"string","nullable":false},
+        {"name":"nudge_lat","type":"double","nullable":true},
+        {"name":"nudge_lon","type":"double","nullable":true},
+        {"name":"dst_adjusted","type":"boolean","nullable":false},
+        {"name":"fold","type":"int","nullable":false},
+        {"name":"spatial_manifest_digest","type":"string","nullable":false}
+      ]
+    }
+PARTITIONING:
+  keys: ["partition_date","merchant_id"]
+SUCCESS_METRIC:
+  metric_name: schema_match
+  expected_range: [1,1]
+ERROR_POLICY:
+  error_code: 1406
+  retry_max: 1
+  retry_backoff_sec: 30
+  idempotent: true
+SCHEMA_VERSION:
+  version: v1.0.0-draft
+ACCESS_POLICY:
+  read_policy: internal-data-team-read
+  write_policy: internal-data-team-write
+CONSUMED_BY:
+  module: ArrivalEngine
+  function: consumeSiteCatalogue
+  description: Supplies site rows with final TZ fields for LGCP layer
+TEST_PATHWAY:
+  test_type: integration
+  tool: pytest
+  script: tests/test_write_updated_site_catalogue.py
+  assertion: row counts match originals; schema equals spec
+Confidence=HIGH
+<<<END IC-FIX>>}
 ##### END INTERFACE_CONTRACT_SPEC #####
 
 id=1 | gaps_closed=output|schema|metric|error|access|partition | notes=Added output artifact, full schema, and policies  
