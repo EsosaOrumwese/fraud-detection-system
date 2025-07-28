@@ -2,7 +2,7 @@
 Stage: ValidateStructuralIntegrity
 INPUT_ARTIFACT:
 name: transactions_data
-path_pattern: s3://data-engine/processed/{parameter_hash}/transactions/*.parquet  # path reserved by spec.
+path_pattern: s3://data-engine/datasets/{parameter_hash}_{master_seed_hex}/transactions/*.parquet
 sha256: <to-be-populated-on-build>
 schema: |
 {
@@ -41,15 +41,19 @@ schema: |
 { "type":"record" }
 OUTPUT_ARTIFACT:
 name: structural_failure
-path_pattern: s3://data-engine/validation/structural_failure_{parameter_hash}.parquet  # path reserved by spec.
+path_pattern: s3://data-engine/validation/structural_failure_{parameter_hash}.parquet
 sha256: <to-be-populated-on-build>
 schema: |
 { "type":"record" }
+OUTPUT_ARTIFACT:
+name: validator_log
+path_pattern: s3://data-engine/validation/{parameter_hash}/validator.log
+sha256: <to-be-populated-on-build>
 PARTITIONING:
 keys: []
 order_by: []
 SUCCESS_METRIC:
-metric_name: file_existence
+metric_name: defect_count_zero          # row-count of failure parquet == 0
 expected_range: [1,1]
 ERROR_POLICY:
 error_code: StructuralIntegrityError
@@ -102,7 +106,7 @@ schema: |
 { "type":"record" }
 OUTPUT_ARTIFACT:
 name: rng_trace_log
-path_pattern: s3://data-engine/logs/rng/rng_trace.log  # path reserved by spec.
+path_pattern: s3://data-engine/datasets/{parameter_hash}_{master_seed_hex}/logs/rng_trace.log
 sha256: <to-be-populated-on-build>
 schema: |
 { "type":"record" }
@@ -110,8 +114,8 @@ PARTITIONING:
 keys: []
 order_by: []
 SUCCESS_METRIC:
-metric_name: file_existence
-expected_range: [3,3]
+metric_name: auroc_under_threshold       # AUROC < 0.55 AND rng_trace present
+expected_range: [1,1]
 ERROR_POLICY:
 error_code: DistributionDriftError
 retry_max: 0
@@ -144,7 +148,7 @@ schema: |
 { "type":"record" }
 INPUT_ARTIFACT:
 name: site_catalogue
-path_pattern: s3://data-engine/processed/site_catalogue/{parameter_hash}/*.parquet  # path reserved by spec.
+path_pattern: s3://data-engine/datasets/{parameter_hash}_{master_seed_hex}/site_catalogue/*.parquet
 sha256: <to-be-populated-on-build>
 schema: |
 { "type":"record" }
@@ -158,7 +162,7 @@ PARTITIONING:
 keys: []
 order_by: []
 SUCCESS_METRIC:
-metric_name: file_existence
+metric_name: dispersion_bounds_pass      # CP∈[1,2], CNP∈[2,4]
 expected_range: [1,1]
 ERROR_POLICY:
 error_code: SemanticCongruenceError
@@ -186,7 +190,7 @@ Confidence=MEDIUM
 Stage: ValidateOffsetBarcode
 INPUT_ARTIFACT:
 name: transactions_data
-path_pattern: s3://data-engine/processed/{parameter_hash}/transactions/*.parquet  # path reserved by spec.
+path_pattern: s3://data-engine/datasets/{parameter_hash}_{master_seed_hex}/transactions/*.parquet
 sha256: <to-be-populated-on-build>
 schema: |
 { "type":"record" }
@@ -198,7 +202,7 @@ schema: |
 { "type":"record" }
 OUTPUT_ARTIFACT:
 name: barcode_failure_png
-path_pattern: s3://data-engine/validation/barcode_failure_{merchant_id}.png  # path reserved by spec.
+path_pattern: s3://data-engine/validation/barcode_failure_{merchant_id}.png
 sha256: <to-be-populated-on-build>
 schema: |
 { "type":"binary" }
@@ -206,7 +210,7 @@ PARTITIONING:
 keys: []
 order_by: []
 SUCCESS_METRIC:
-metric_name: file_existence
+metric_name: barcode_slope_bounds_pass   # slope ∈ [-1,-0.5]
 expected_range: [1,1]
 ERROR_POLICY:
 error_code: OffsetBarcodeError
@@ -248,7 +252,7 @@ PARTITIONING:
 keys: []
 order_by: []
 SUCCESS_METRIC:
-metric_name: file_existence
+metric_name: licence_mismatch_count_zero
 expected_range: [1,1]
 ERROR_POLICY:
 error_code: LicenceMismatchError
@@ -271,6 +275,29 @@ script: tests/test_validate_licences.py
 assertion: log lists all licences verified
 Confidence=MEDIUM
 <<<END IC-FIX>>}
+
+<<<IC-FIX id=Flag>>
+Stage: AppendValidationPassFlag
+INPUT_ARTIFACT:
+  name: structural_failure
+  path_pattern: s3://data-engine/validation/structural_failure_{parameter_hash}.parquet
+  sha256: <to-be-populated-on-build>
+INPUT_ARTIFACT:
+  name: validator_log
+  path_pattern: s3://data-engine/validation/{parameter_hash}/validator.log
+  sha256: <to-be-populated-on-build>
+OUTPUT_ARTIFACT:
+  name: ci_validation_passed_flag
+  path_pattern: s3://data-engine/validation/{parameter_hash}/ci_validation_passed.flag
+  sha256: <to-be-populated-on-build>
+OUTPUT_ARTIFACT:
+  name: readonly_flag
+  path_pattern: s3://data-engine/datasets/{parameter_hash}_{master_seed_hex}/readonly.flag
+  sha256: <to-be-populated-on-build>
+SUCCESS_METRIC:
+  metric_name: validation_pass_flag_set
+  expected_range: [1,1]
+<<<END IC-FIX>>
 
 <<<IC-FIX id=6>
 Stage: UploadToHashGate
@@ -338,7 +365,7 @@ PARTITIONING:
 keys: []
 order_by: []
 SUCCESS_METRIC:
-metric_name: file_existence
+metric_name: manifest_hash_match         # HashGate manifest == local manifest
 expected_range: [1,1]
 ERROR_POLICY:
 error_code: MergeConditionError

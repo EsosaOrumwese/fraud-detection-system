@@ -2,7 +2,7 @@
 Stage: LaunchPipelineContainer
 INPUT_ARTIFACT:
 name: Dockerfile_lock
-path_pattern: s3://data-engine/config/reproducibility/Dockerfile.lock  # File not yet created; path is reserved by spec.
+path_pattern: ./Dockerfile.lock  # File not yet created; path is reserved by spec.
 sha256: <to-be-populated-on-build>
 schema: |
 {
@@ -30,7 +30,7 @@ PARTITIONING:
 keys: []
 order_by: []
 SUCCESS_METRIC:
-metric_name: file_existence
+metric_name: docker_lock_hash_match            # SHA-256 lockfile verified
 expected_range: [1,1]
 ERROR_POLICY:
 error_code: LaunchContainerError
@@ -69,8 +69,8 @@ schema: |
   ]
 }
 OUTPUT_ARTIFACT:
-name: Missing
-path_pattern: TBD
+name: validate_container_hash_log
+path_pattern: s3://data-engine/logs/validate_container_hash.log
 sha256: <to-be-populated-on-build>
 schema: |
 { }
@@ -258,7 +258,7 @@ PARTITIONING:
 keys: []
 order_by: []
 SUCCESS_METRIC:
-metric_name: registry_match
+metric_name: parameter_set_hash_written
 expected_range: [1,1]
 ERROR_POLICY:
 error_code: RegistryMismatchError
