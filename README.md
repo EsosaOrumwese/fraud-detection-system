@@ -1,6 +1,3 @@
-+75
--59
-
 # Fraud Detection System
 
 [![codecov](https://codecov.io/gh/EsosaOrumwese/fraud-detection-system/graph/badge.svg?token=9INHHQJDOO)](https://codecov.io/gh/EsosaOrumwese/fraud-detection-system)
