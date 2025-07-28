@@ -45,8 +45,8 @@ PARTITIONING:
 keys: ["merchant_id"]
 order_by: ["merchant_id"]
 SUCCESS_METRIC:
-metric_name: row_count
-expected_range: [1,1000000]  # placeholder
+metric_name: is_virtual_byte_match       # flags in output == YAML lookup
+expected_range: [1,1]
 ERROR_POLICY:
 error_code: DeriveIsVirtualError
 retry_max: 1
@@ -87,7 +87,7 @@ schema: |
 }
 OUTPUT_ARTIFACT:
 name: settlement_node_catalogue
-path_pattern: s3://data-engine/processed/settlement_node_catalogue/partition_date={date}/merchant_id={merchant_id}/site_id={site_id}.parquet  # path reserved by spec.
+path_pattern: s3://data-engine/edge_catalogue/settlement_node/{merchant_id}.parquet
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 {
@@ -97,7 +97,8 @@ schema: |
     {"name":"merchant_id","type":"string","nullable":false},
     {"name":"site_id","type":"string","nullable":false},
     {"name":"latitude","type":"double","nullable":false},
-    {"name":"longitude","type":"double","nullable":false}
+    {"name":"longitude","type":"double","nullable":false},
+    {"name":"evidence_url","type":"string","nullable":false}
   ]
 }
 PARTITIONING:
@@ -151,7 +152,7 @@ schema: |
 { "type": "binary" }
 OUTPUT_ARTIFACT:
 name: edge_catalogue
-path_pattern: s3://data-engine/processed/edge_catalogue/{merchant_id}.parquet  # path reserved by spec.
+path_pattern: s3://data-engine/edge_catalogue/{merchant_id}.parquet
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 {
@@ -163,15 +164,20 @@ schema: |
     {"name":"tzid","type":"string","nullable":false},
     {"name":"latitude","type":"double","nullable":false},
     {"name":"longitude","type":"double","nullable":false},
-    {"name":"edge_weight","type":"double","nullable":false}
+    {"name":"edge_weight","type":"int","nullable":false},
+    {"name":"virtual_universe_hash","type":"string","nullable":false}
   ]
 }
+OUTPUT_ARTIFACT:
+name: merchant_master_virtual
+path_pattern: s3://data-engine/logs/edge_progress.log
+sha256: <to-be-populated-on-build>  # placeholder
 PARTITIONING:
 keys: ["edge_id"]
 order_by: ["edge_id"]
 SUCCESS_METRIC:
-metric_name: row_count
-expected_range: [1,100000]  # placeholder
+metric_name: edge_size_bounds            # 50 ≤ rowcount ≤ 800
+expected_range: [1,1]
 ERROR_POLICY:
 error_code: EdgeCatalogueError
 retry_max: 1
@@ -194,14 +200,41 @@ assertion: edge catalogue contains expected columns and count
 Confidence=MEDIUM
 <<<END IC-FIX>>>
 
+<<<IC-FIX id=Hash>>
+Stage: ComputeVirtualUniverseHash
+INPUT_ARTIFACT:
+  name: cdn_weights_yaml
+  path_pattern: s3://data-engine/config/virtual/cdn_country_weights.yaml
+  sha256: <to-be-populated-on-build>
+INPUT_ARTIFACT:
+  name: edge_catalogue
+  path_pattern: s3://data-engine/edge_catalogue/{merchant_id}.parquet
+  sha256: <to-be-populated-on-build>
+INPUT_ARTIFACT:
+  name: virtual_rules_yaml
+  path_pattern: s3://data-engine/config/virtual/mcc_channel_rules.yaml
+  sha256: <to-be-populated-on-build>
+OUTPUT_ARTIFACT:
+  name: virtual_universe_hash_digest
+  path_pattern: s3://data-engine/edge_catalogue/{merchant_id}_virtual_hash.txt
+  sha256: <to-be-populated-on-build>
+SUCCESS_METRIC:
+  metric_name: digest_length_64
+  expected_range: [1,1]
+<<<END IC-FIX>>
+
 <<<IC-FIX id=4>
 Stage: BuildCdnAliasTable
 INPUT_ARTIFACT:
 name: edge_catalogue
-path_pattern: s3://data-engine/processed/edge_catalogue/{merchant_id}.parquet  # path reserved by spec.
+path_pattern: s3://data-engine/edge_catalogue/{merchant_id}.parquet
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 { "type": "binary" }
+INPUT_ARTIFACT:
+  name: virtual_universe_hash_digest
+  path_pattern: s3://data-engine/edge_catalogue/{merchant_id}_virtual_hash.txt
+  sha256: <to-be-populated-on-build>
 INPUT_ARTIFACT:
 name: rng_policy
 path_pattern: s3://data-engine/config/routing/rng_policy.yml  # path reserved by spec.
@@ -216,16 +249,20 @@ schema: |
   ]
 }
 OUTPUT_ARTIFACT:
-name: cdn_alias
-path_pattern: s3://data-engine/processed/cdn_alias/{merchant_id}_cdn_alias.npz  # path reserved by spec.
+name: cdn_alias_npz
+path_pattern: s3://data-engine/{merchant_id}_cdn_alias.npz  # path reserved by spec.
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 { "type": "binary" }
+OUTPUT_ARTIFACT:
+name: virtual_error_log
+path_pattern: s3://data-engine/logs/virtual_error.log
+sha256: <to-be-populated-on-build>  # placeholder
 PARTITIONING:
 keys: []
 order_by: []
 SUCCESS_METRIC:
-metric_name: file_existence
+metric_name: universe_hash_match          # NPZ attr equals digest
 expected_range: [1,1]
 ERROR_POLICY:
 error_code: CdnAliasError
@@ -266,7 +303,7 @@ schema: |
 }
 OUTPUT_ARTIFACT:
 name: validate_virtual_log
-path_pattern: s3://data-engine/logs/virtual/validate_virtual.log  # path reserved by spec.
+path_pattern: s3://data-engine/logs/validate_virtual.log
 sha256: <to-be-populated-on-build>  # placeholder
 schema: |
 {
@@ -305,6 +342,22 @@ tool: custom
 script: tests/property_test_validate_virtual.py  # CI test to be implemented after pipeline is in place
 assertion: no pi_diff_exceeded true beyond tolerance
 Confidence=MEDIUM
+<<<END IC-FIX>>
+
+<<<IC-FIX id=PatchSchema>>
+Stage: PatchTransactionSchema
+INPUT_ARTIFACT:
+name: transaction_schema
+path_pattern: s3://data-engine/schema/transaction_schema.avsc
+sha256: <to-be-populated-on-build>
+OUTPUT_ARTIFACT:
+name: patched_transaction_schema
+path_pattern: s3://data-engine/schema/transaction_schema.avsc
+sha256: <to-be-populated-on-build>
+SUCCESS_METRIC:
+metric_name: schema_fields_present          # confirms four new nullable fields
+expected_range: [1,1]
+DESCRIPTION: Adds tzid_settlement, tzid_operational, ip_latitude, ip_longitude (nullable) to AVSC.
 <<<END IC-FIX>>}
 
 ##### END INTERFACE_CONTRACT_SPEC #####
