@@ -1,6 +1,6 @@
 <<<TV-FIX id=1>>>
 [config/virtual/mcc_channel_rules.yaml]
-type             = "code"
+type             = "yaml"
 version_tag      = "v1.0.0-draft"
 valid_from       = "2025-07-26"
 valid_to         = "9999-12-31"
@@ -24,7 +24,7 @@ notes            = "Virtual merchant settlement coordinates; placeholder digest"
 
 <<<TV-FIX id=3>>>
 [artefacts/geocode/pelias_cached.sqlite]
-type             = "code"
+type             = "sqlite"
 version_tag      = "v1.0.0-draft"
 valid_from       = "2025-07-26"
 valid_to         = "9999-12-31"
@@ -36,7 +36,7 @@ notes            = "Pelias geocode cache; placeholder version and digest"
 
 <<<TV-FIX id=4>>>
 [config/virtual/cdn_country_weights.yaml]
-type             = "code"
+type             = "yaml"
 version_tag      = "v1.0.0-draft"
 valid_from       = "2025-07-26"
 valid_to         = "9999-12-31"
@@ -78,13 +78,13 @@ valid_from       = "2025-07-26"
 valid_to         = "9999-12-31"
 update_cadence   = "never"
 sha256           = "<to-be-populated-on-build>"
-compatible_with  = ["ALL_OTHER_ARTIFACTS"]
-notes            = "Index of virtual edge catalogues; placeholders"
+compatible_with  = ["edge_catalogue/{merchant_id}.parquet"]
+notes            = "Digest registry for edge catalogues"
 <<<END TV-FIX>>>
 
 <<<TV-FIX id=8>>>
 [config/routing/rng_policy.yml]
-type             = "code"
+type             = "yml"
 version_tag      = "v1.0.0-draft"
 valid_from       = "2025-07-26"
 valid_to         = "9999-12-31"
@@ -96,7 +96,7 @@ notes            = "RNG policy for virtual merchant routing; placeholders"
 
 <<<TV-FIX id=9>>>
 [config/virtual/virtual_validation.yml]
-type             = "code"
+type             = "yml"
 version_tag      = "v1.0.0-draft"
 valid_from       = "2025-07-26"
 valid_to         = "9999-12-31"
@@ -120,7 +120,7 @@ notes            = "Transaction schema AVSC; placeholders"
 
 <<<TV-FIX id=11>>>
 [config/logging/virtual_logging.yml]
-type             = "code"
+type             = "yml"
 version_tag      = "v1.0.0-draft"
 valid_from       = "2025-07-26"
 valid_to         = "9999-12-31"
@@ -132,7 +132,7 @@ notes            = "Logging config for virtual flows; placeholders"
 
 <<<TV-FIX id=12>>>
 [LICENSES/*.md]
-type             = "container"
+type             = "markdown"
 version_tag      = "v1.0.0-draft"
 valid_from       = "2025-07-26"
 valid_to         = "9999-12-31"
@@ -144,7 +144,7 @@ notes            = "License files for virtual merchant module; placeholders"
 
 <<<TV-FIX id=13>>>
 [edge_catalogue_schema.json]
-type             = "code"
+type             = "json"
 version_tag      = "v1.0.0-draft"
 valid_from       = "2025-07-26"
 valid_to         = "9999-12-31"
@@ -156,19 +156,19 @@ notes            = "Schema for virtual edge catalogue; placeholders"
 
 <<<TV-FIX id=14>>>
 [logs/virtual_error.log]
-type             = "code"
+type             = "log"
 version_tag      = "v1.0.0-draft"
 valid_from       = "2025-07-26"
 valid_to         = "9999-12-31"
-update_cadence   = "daily"
+update_cadence   = "each_run"
 sha256           = "<to-be-populated-on-build>"
 compatible_with  = ["ALL_OTHER_ARTIFACTS"]
-notes            = "Error log for virtual processing; placeholder digest"
+notes            = "Runtime error log for virtual merchant pipeline"
 <<<END TV-FIX>>>
 
 <<<TV-FIX id=15>>>
 [logs/edge_progress.log]
-type             = "code"
+type             = "log"
 version_tag      = "v1.0.0-draft"
 valid_from       = "2025-07-26"
 valid_to         = "9999-12-31"
@@ -180,7 +180,7 @@ notes            = "Progress log for virtual edge placement; placeholders"
 
 <<<TV-FIX id=16>>>
 [logs/test_virtual_rules.log]
-type             = "code"
+type             = "log"
 version_tag      = "v1.0.0-draft"
 valid_from       = "2025-07-26"
 valid_to         = "9999-12-31"
@@ -192,7 +192,7 @@ notes            = "CI log for virtual rules tests; placeholders"
 
 <<<TV-FIX id=17>>>
 [logs/verify_coords_evidence.log]
-type             = "code"
+type             = "log"
 version_tag      = "v1.0.0-draft"
 valid_from       = "2025-07-26"
 valid_to         = "9999-12-31"
@@ -204,7 +204,7 @@ notes            = "Evidence log for coordinate validation; placeholders"
 
 <<<TV-FIX id=18>>>
 [logs/test_cdn_key.log]
-type             = "code"
+type             = "log"
 version_tag      = "v1.0.0-draft"
 valid_from       = "2025-07-26"
 valid_to         = "9999-12-31"
@@ -212,6 +212,30 @@ update_cadence   = "daily"
 sha256           = "<to-be-populated-on-build>"
 compatible_with  = ["ALL_OTHER_ARTIFACTS"]
 notes            = "CI log for CDN key tests; placeholders"
+<<<END TV-FIX>>>
+
+<<<TV-FIX=19>>>
+[logs/validate_virtual.log]
+type            = "log"
+version_tag     = "v1.0.0-draft"
+valid_from      = "2025-07-26"
+valid_to        = "9999-12-31"
+update_cadence  = "daily"
+sha256          = "<to-be-populated-on-build>"
+compatible_with = ["config/virtual/virtual_validation.yml"]
+notes           = "Validation log for virtual merchants"
+<<<END TV-FIX>>>
+
+<<<TV-FIX=20>>>
+[edge_catalogue/{merchant_id}_virtual_hash.txt]
+type            = "code"
+version_tag     = "v1.0.0-draft"
+valid_from      = "2025-07-26"
+valid_to        = "9999-12-31"
+update_cadence  = "each_run"
+sha256          = "<to-be-populated-on-build>"
+compatible_with = ["{merchant_id}_cdn_alias.npz"]
+notes           = "Hash sentinel for virtual merchant artefacts"
 <<<END TV-FIX>>>
 
 ##### END VERSION_MATRIX #####

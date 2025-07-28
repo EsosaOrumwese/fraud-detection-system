@@ -8,7 +8,7 @@
 | **cdn_weights**                | `config/virtual/cdn_country_weights.yaml`         | CDN edge‑weight policy                                                | `semver`                  | `cdn_weights_digest`           |
 | **hrsl_raster**                | `artefacts/rasters/hrsl_100m.tif`                 | Facebook HRSL 100m population raster                                  | `semver`                  | `hrsl_digest`                  |
 | **edge_catalogue_parquet**     | `edge_catalogue/<merchant_id>.parquet`            | Per‑merchant virtual edge node table                                  | n/a                       | `edge_digest`                  |
-| **edge_catalogue_index**       | `edge_catalogue_index.csv`                        | Drift‑sentinel index for all edge catalogues                          | n/a                       | `edge_catalogue_index_digest`  |
+| **edge_catalogue_index**       | `edge_catalogue/edge_catalogue_index.csv`         | Digest registry for edge catalogues                                   | `semver`                  | `edge_catalogue_index_digest`  |
 | **rng_policy**                 | `config/routing/rng_policy.yml`                   | Philox RNG key derivation policy                                      | `semver`                  | `cdn_key_digest`               |
 | **virtual_validation**         | `config/virtual/virtual_validation.yml`           | CI thresholds for virtual‑merchant validation                         | `semver`                  | `virtual_validation_digest`    |
 | **transaction_schema**         | `schema/transaction_schema.avsc`                  | AVSC schema defining virtual‑flow fields                              | `semver`                  | `transaction_schema_digest`    |
@@ -23,6 +23,7 @@
 | **test_virtual_universe_log**  | `logs/test_virtual_universe.log`                  | Log from universe replay validation                                   | Manifest semver           | (run-specific)                 |
 | **test_cutoff_time_log**       | `logs/test_cutoff_time.log`                       | Log from cutoff time and cutpoint assertion tests                     | Manifest semver           | (run-specific)                 |
 | **validate_virtual_log**       | `logs/validate_virtual.log`                       | Output from main validator over all virtual merchant pipeline rules   | Manifest semver           | (run-specific)                 |
+| **virtual_universe_hash**      | `edge_catalogue/{merchant_id}_virtual_hash.txt`   | Hash sentinel for virtual merchant artefacts                          | Manifest semver           | <run-specific>                 |
 
 
 **Notes:**
