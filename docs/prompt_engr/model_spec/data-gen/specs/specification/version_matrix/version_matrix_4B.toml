@@ -180,7 +180,7 @@ notes            = "Barcode failure images; daily"
 
 <<<TV-FIX id=16>>>
 [validation/validator.log]
-type             = "code"
+type             = "log"
 version_tag      = "v1.0.0-draft"
 valid_from       = "2025-07-26"
 valid_to         = "9999-12-31"
