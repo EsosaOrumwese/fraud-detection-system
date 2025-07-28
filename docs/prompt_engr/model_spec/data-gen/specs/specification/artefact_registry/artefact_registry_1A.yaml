@@ -1,0 +1,1288 @@
+subsegments:
+  - id: "1A"
+    name: "Merchants to Physical Sites"
+    artifacts:
+
+      # ── Batch 1: Artefact Bundles & Provenance, GDP & Stationarity, Settlement & Currency Splits ──
+
+      - artifact_id: "hurdle_coefficients"
+        name: "hurdle_coefficients.yaml"
+        path: "configs/models/hurdle/hurdle_coefficients.yaml"
+        type: "config"
+        category: "hurdle_model"
+        semver: "<TBD_SEMVER>"
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Coefficients for the logistic hurdle component of outlet-count model"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "nb_dispersion_coefficients"
+        name: "nb_dispersion_coefficients.yaml"
+        path: "configs/models/hurdle/nb_dispersion_coefficients.yaml"
+        type: "config"
+        category: "hurdle_model"
+        semver: "<TBD_SEMVER>"
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Coefficients for the negative-binomial dispersion parameter"
+        dependencies: ["hurdle_coefficients"]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "crossborder_hyperparams"
+        name: "crossborder_hyperparams.yaml"
+        path: "configs/allocation/crossborder_hyperparams.yaml"
+        type: "config"
+        category: "allocation"
+        semver: "<TBD_SEMVER>"
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Hyperparameters for Dirichlet split of multi-site merchants across countries"
+        dependencies: ["nb_dispersion_coefficients"]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "spatial_prior_bundle"
+        name: "spatial_prior_bundle/"
+        path: "data/spatial_priors/2025_v1/"
+        type: "directory"
+        category: "spatial_prior"
+        semver: null
+        version: "2025_v1"
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Bundle of rasters/vectors for category-specific spatial priors"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "world_bank_gdp_per_capita_20250415"
+        name: "world_bank_gdp_per_capita_20250415.csv"
+        path: "data/external/world_bank/gdp_per_capita_20250415.csv"
+        type: "data"
+        category: "economic_indicators"
+        semver: null
+        version: "2025-04-15"
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Raw GDP per capita dataset used for country development bucketing"
+        dependencies: []
+        source: "World Bank WDI"
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "gdp_bucket_map_2024"
+        name: "gdp_bucket_map_2024.parquet"
+        path: "data/processed/gdp/gdp_bucket_map_2024.parquet"
+        type: "data"
+        category: "economic_indicators"
+        semver: null
+        version: "2024"
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Mapping of countries to GDP buckets for 2024"
+        dependencies:
+          - world_bank_gdp_per_capita_20250415
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "gdp_bucket_map_semver"
+        name: "gdp_bucket_map_semver"
+        path: "configs/versioning/gdp_bucket_map.semver"
+        type: "config"
+        category: "versioning"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Semantic version identifier for the GDP bucket mapping"
+        dependencies: ["gdp_bucket_map_2024"]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "gdp_bucket_map_digest"
+        name: "gdp_bucket_map_digest"
+        path: "configs/versioning/gdp_bucket_map.digest"
+        type: "config"
+        category: "versioning"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "SHA-256 digest placeholder for the GDP bucket map"
+        dependencies: ["gdp_bucket_map_2024"]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "hurdle_stationarity_tests_2024Q4"
+        name: "hurdle_stationarity_tests_2024Q4.parquet"
+        path: "data/diagnostics/hurdle_stationarity_tests_2024Q4.parquet"
+        type: "data"
+        category: "diagnostics"
+        semver: null
+        version: "2024Q4"
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Results of stationarity tests on hurdle model residuals"
+        dependencies:
+          - hurdle_coefficients
+          - nb_dispersion_coefficients
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "hurdle_stationarity_semver"
+        name: "hurdle_stationarity_semver"
+        path: "configs/versioning/hurdle_stationarity.semver"
+        type: "config"
+        category: "versioning"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Semantic version for hurdle stationarity tests dataset"
+        dependencies:
+          - hurdle_stationarity_tests_2024Q4
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "hurdle_stationarity_digest"
+        name: "hurdle_stationarity_digest"
+        path: "configs/versioning/hurdle_stationarity.digest"
+        type: "config"
+        category: "versioning"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "SHA-256 digest placeholder for stationarity test results"
+        dependencies:
+          - hurdle_stationarity_tests_2024Q4
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "settlement_shares_2024Q4"
+        name: "settlement_shares_2024Q4.parquet"
+        path: "data/network/settlement_shares_2024Q4.parquet"
+        type: "data"
+        category: "allocation"
+        semver: null
+        version: "2024Q4"
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Country-level merchant settlement share vectors"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "ccy_country_shares_2024Q4"
+        name: "ccy_country_shares_2024Q4.parquet"
+        path: "data/network/ccy_country_shares_2024Q4.parquet"
+        type: "data"
+        category: "allocation"
+        semver: null
+        version: "2024Q4"
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Currency-to-country split proportions for settlement data"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+        
+      - artifact_id: "storage_path_pattern"
+        name: "storage_path_pattern.yaml"
+        path: "configs/storage/storage_path_pattern.yaml"
+        type: "config"
+        category: "storage"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Defines the Parquet output path template with seed and fingerprint variables"
+        dependencies:
+          - manifest_fingerprint
+          - philox_master_counter
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: "Pattern: 'catalogue/seed={seed}/fingerprint={fingerprint}/part-*.parquet'"
+      
+      - artifact_id: "compression_zstd_level3"
+        name: "compression_zstd_level3"
+        path: "configs/storage/compression.yaml"
+        type: "config"
+        category: "storage"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Specifies ZSTD compression codec and level 3 for Parquet outputs"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: "Ensures that all Parquet files use ZSTD codec at level 3"
+    
+      # ── Batch 2: Manifest & Seed, RNG Audit & Event-Log ──
+
+      - artifact_id: "git_commit_hash"
+        name: "git_commit_hash"
+        path: "ci/manifests/git_commit_hash.txt"
+        type: "manifest"
+        category: "reproducibility"
+        semver: null
+        version: null
+        digest: "<TBD_VALUE>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Git tree SHA-1 of the source repository"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "parameter_hash"
+        name: "parameter_hash"
+        path: "ci/manifests/parameter_hash.txt"
+        type: "manifest"
+        category: "versioning"
+        semver: null
+        version: null
+        digest: "<TBD_VALUE>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "SHA-256 of concatenated parameter digests"
+        dependencies:
+          - hurdle_coefficients
+          - nb_dispersion_coefficients
+          - crossborder_hyperparams
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "manifest_fingerprint"
+        name: "_manifest.json"
+        path: "ci/manifests/_manifest.json"
+        type: "manifest"
+        category: "reproducibility"
+        semver: null
+        version: null
+        digest: "<TBD_VALUE>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "SHA-256 of XOR of all artefact digests, git_commit_hash, and parameter_hash"
+        dependencies:
+          - git_commit_hash
+          - parameter_hash
+          - hurdle_coefficients
+          - nb_dispersion_coefficients
+          - crossborder_hyperparams
+          - spatial_prior_bundle
+          - world_bank_gdp_per_capita_20250415
+          - gdp_bucket_map_2024
+          - gdp_bucket_map_semver
+          - gdp_bucket_map_digest
+          - hurdle_stationarity_tests_2024Q4
+          - hurdle_stationarity_semver
+          - hurdle_stationarity_digest
+          - settlement_shares_2024Q4
+          - ccy_country_shares_2024Q4
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci","runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "philox_master_counter"
+        name: "philox_master_counter"
+        path: "ci/manifests/philox_master_counter.txt"
+        type: "config"
+        category: "rng"
+        semver: null
+        version: null
+        digest: "<TBD_VALUE>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Initial Philox seed derived from manifest_fingerprint and run_seed"
+        dependencies:
+          - manifest_fingerprint
+          - run_seed
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "run_seed"
+        name: "run_seed"
+        path: "configs/rng/run_seed.yaml"
+        type: "config"
+        category: "rng"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "User-provided randomness seed used to derive Philox master counter"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "rng_audit_log"
+        name: "rng_audit.log"
+        path: "logs/rng/rng_audit.log"
+        type: "log"
+        category: "rng"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Structured record of every random draw with counters, event_type, and parameters"
+        dependencies:
+          - philox_master_counter
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "rng_trace_log"
+        name: "rng_trace.log"
+        path: "logs/rng/rng_trace.log"
+        type: "log"
+        category: "rng"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Log of Philox sub-stream jump offsets per module and merchant"
+        dependencies:
+          - philox_master_counter
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "datasets_table"
+        name: "datasets"
+        path: "db/schema/datasets_table.sql"
+        type: "schema"
+        category: "registry"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "DDL for internal dataset registry to audit (seed, parameter_hash) collisions"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "hurdle_bernoulli"
+        name: "hurdle_bernoulli"
+        path: "logs/rng/events/hurdle_bernoulli.jsonl"
+        type: "schema"
+        category: "rng_event"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Event type logging Bernoulli outcome and parameters"
+        dependencies:
+          - rng_audit_log
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "gamma_component"
+        name: "gamma_component"
+        path: "logs/rng/events/gamma_component.jsonl"
+        type: "schema"
+        category: "rng_event"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Event logging the Gamma draw in the Poisson–Gamma mixture"
+        dependencies:
+          - rng_audit_log
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "poisson_component"
+        name: "poisson_component"
+        path: "logs/rng/events/poisson_component.jsonl"
+        type: "schema"
+        category: "rng_event"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Event logging the Poisson draw in the Poisson–Gamma mixture"
+        dependencies:
+          - rng_audit_log
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "nb_final"
+        name: "nb_final"
+        path: "logs/rng/events/nb_final.jsonl"
+        type: "schema"
+        category: "rng_event"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Event logging final Negative-Binomial draw with parameters and value"
+        dependencies:
+          - gamma_component
+          - poisson_component
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "ztp_rejection"
+        name: "ztp_rejection"
+        path: "logs/rng/events/ztp_rejection.jsonl"
+        type: "schema"
+        category: "rng_event"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Event logging each rejected zero in zero-truncated Poisson sampling"
+        dependencies:
+          - nb_final
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "ztp_retry_exhausted"
+        name: "ztp_retry_exhausted"
+        path: "logs/rng/events/ztp_retry_exhausted.jsonl"
+        type: "exception"
+        category: "rng_event"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Exception event when ZTP sampling exceeds max retries"
+        dependencies:
+          - ztp_rejection
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "gumbel_key"
+        name: "gumbel_key"
+        path: "logs/rng/events/gumbel_key.jsonl"
+        type: "schema"
+        category: "rng_event"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Event logging Gumbel-top-k key computations for country selection"
+        dependencies:
+          - ztp_retry_exhausted
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "dirichlet_gamma_vector"
+        name: "dirichlet_gamma_vector"
+        path: "logs/rng/events/dirichlet_gamma_vector.jsonl"
+        type: "schema"
+        category: "rng_event"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Event logging raw Gamma draws and normalized weights for Dirichlet allocation"
+        dependencies:
+          - gumbel_key
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "stream_jump_entries"
+        name: "stream_jump"
+        path: "logs/rng/events/stream_jump.jsonl"
+        type: "schema"
+        category: "rng_event"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Event logging Philox jump strides for sub-stream initialization"
+        dependencies:
+          - philox_master_counter
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "sequence_finalize"
+        name: "sequence_finalize"
+        path: "logs/rng/events/sequence_finalize.jsonl"
+        type: "schema"
+        category: "rng_event"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Event marking completion of site-sequence assignment for a merchant"
+        dependencies:
+          - dirichlet_gamma_vector
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      # ── Batch 3: Merchant Design & Hurdle, Negative‑Binomial ──
+
+      - artifact_id: "transaction_schema_merchant_ids"
+        name: "merchant_ids.csv"
+        path: "data/inputs/transaction_schema/merchant_ids.csv"
+        type: "data"
+        category: "input"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "List of all merchant_id values from the base transaction schema"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: "schema/transaction_schema.avsc"
+        notes: null
+
+      - artifact_id: "hurdle_design_matrix"
+        name: "design_matrix.parquet"
+        path: "data/processed/hurdle/design_matrix/<MANIFEST_KEY>/design_matrix.parquet"
+        type: "data"
+        category: "model_input"
+        semver: null
+        version: "<MANIFEST_KEY>"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Computed merchant predictors (intercept + MCC + channel + GDP bucket)"
+        dependencies:
+          - transaction_schema_merchant_ids
+          - hurdle_coefficients
+          - world_bank_gdp_per_capita_20250415
+          - gdp_bucket_map_2024
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: "schema/design_matrix.avsc"
+        notes: null
+
+      - artifact_id: "hurdle_pi_probs"
+        name: "hurdle_pi_probs.parquet"
+        path: "data/processed/hurdle/pi_probs/<MANIFEST_KEY>/hurdle_pi_probs.parquet"
+        type: "data"
+        category: "hurdle_model"
+        semver: null
+        version: "<MANIFEST_KEY>"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Logistic‐hurdle π values (single‐vs‐multi probability) per merchant"
+        dependencies:
+          - hurdle_design_matrix
+          - hurdle_coefficients
+          - nb_dispersion_coefficients
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: "schema/hurdle_pi_probs.avsc"
+        notes: null
+
+      - artifact_id: "hurdle_nb_model"
+        name: "hurdle_nb_model.py"
+        path: "src/models/hurdle/hurdle_nb_model.py"
+        type: "code"
+        category: "hurdle_model"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Implementation of NB sampler: mean & dispersion links, Poisson–Gamma draws, rejection logic"
+        dependencies:
+          - hurdle_coefficients
+          - nb_dispersion_coefficients
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: "Replaces separate mean, dispersion, mixture, and rejection artifacts"
+
+      - artifact_id: "lambda_extra_formula"
+        name: "crossborder.py"
+        path: "src/allocation/crossborder.py"
+        type: "code"
+        category: "allocation"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "θ₀ + θ₁·log N formula for extra-country count"
+        dependencies:
+          - crossborder_hyperparams
+          - gdp_bucket_map_2024
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "sparse_flag"
+        name: "sparse_flags.parquet"
+        path: "data/processed/allocation/sparse_flags/<MANIFEST_KEY>/sparse_flags.parquet"
+        type: "data"
+        category: "allocation"
+        semver: null
+        version: "<MANIFEST_KEY>"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Indicator for equal‐split fallback under low observation counts"
+        dependencies:
+          - ccy_country_shares_2024Q4
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: "schema/sparse_flags.avsc"
+        notes: null
+
+      # ── Batch 4: Cross‑Border & Dirichlet Allocation ──
+
+      - artifact_id: "crossborder_allocation"
+        name: "crossborder_allocation.py"
+        path: "src/allocation/crossborder_allocation.py"
+        type: "code"
+        category: "allocation"
+        semver: "<MANIFEST_KEY>"
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Implements λ_extra formula, Dirichlet allocation, Gumbel‑top‑k sampling, country_set ordering, and tie_break_rank logic"
+        dependencies:
+          - crossborder_hyperparams
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null  # consolidates λ_extra, dirichlet_gamma_vector, gumbel_key, tie_break_rank
+
+      - artifact_id: "country_set"
+        name: "country_set.parquet"
+        path: "data/processed/allocation/country_sets/<MANIFEST_KEY>/country_set.parquet"
+        type: "data"
+        category: "allocation"
+        semver: "<MANIFEST_KEY>"
+        version: "<MANIFEST_KEY>"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Per‑merchant ordered list of home + selected foreign ISO codes"
+        dependencies:
+          - crossborder_allocation
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: "schema/country_set.avsc"
+        notes: null  # Ordered country_set
+
+      - artifact_id: "dirichlet_lrr_proof"
+        name: "dirichlet_lrr_proof.md"
+        path: "docs/derivations/dirichlet_lrr_proof.md"
+        type: "script"
+        category: "documentation"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Formal proof of bound and determinism for largest‑remainder rounding"
+        dependencies:
+          - crossborder_allocation
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["ci","dev"]
+        schema: null
+        notes: null  # docs/derivations/dirichlet_lrr_proof.md
+
+      # ── Batch 4: Cross‑Border & Dirichlet Allocation (Revised) ──
+
+      - artifact_id: "crossborder_allocation"
+        name: "crossborder_allocation.py"
+        path: "src/allocation/crossborder_allocation.py"
+        type: "code"
+        category: "allocation"
+        semver: null
+        version: "<MANIFEST_KEY>"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Implements λ_extra formula, Dirichlet sampling, Gumbel‑top‑k, and tie_break_rank logic"
+        dependencies:
+          - crossborder_hyperparams
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "country_set"
+        name: "country_set.parquet"
+        path: "data/processed/allocation/country_sets/<MANIFEST_KEY>/country_set.parquet"
+        type: "data"
+        category: "allocation"
+        semver: null
+        version: "<MANIFEST_KEY>"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Per‑merchant ordered list of home + selected foreign ISO codes"
+        dependencies:
+          - crossborder_allocation
+          - spatial_prior_bundle
+          - gumbel_key
+          - dirichlet_gamma_vector
+          - tie_break_rank
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: "schema/country_set.avsc"
+        notes: null
+
+      - artifact_id: "tie_break_rank"
+        name: "tie_break_rank"
+        path: "logs/rng/events/tie_break_rank.jsonl"
+        type: "schema"
+        category: "rng_event"
+        semver: null
+        version: "<MANIFEST_KEY>"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Event logging the final rank order resolution in largest‑remainder rounding"
+        dependencies:
+          - dirichlet_gamma_vector
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "dirichlet_lrr_proof"
+        name: "dirichlet_lrr_proof.md"
+        path: "docs/derivations/dirichlet_lrr_proof.md"
+        type: "documentation"
+        category: "documentation"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Formal proof of correctness and determinism for largest‑remainder rounding"
+        dependencies:
+          - crossborder_allocation
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["ci","dev"]
+        schema: null
+        notes: null
+
+      # ── Batch 5: Outlet-Stub Schema Columns ──
+
+      - artifact_id: "merchant_id_column"
+        name: "merchant_id"
+        path: "schema/outlet_stub.avsc"
+        type: "schema"
+        category: "outlet_stub"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Synthetic merchant identifier for each outlet stub"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci","runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "site_id_column"
+        name: "site_id"
+        path: "schema/outlet_stub.avsc"
+        type: "schema"
+        category: "outlet_stub"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Unique site identifier for each outlet generated"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci","runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "home_country_iso_column"
+        name: "home_country_iso"
+        path: "schema/outlet_stub.avsc"
+        type: "schema"
+        category: "outlet_stub"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "ISO‑3166‑1 alpha‑2 code of merchant’s home country"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci","runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "legal_country_iso_column"
+        name: "legal_country_iso"
+        path: "schema/outlet_stub.avsc"
+        type: "schema"
+        category: "outlet_stub"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "ISO‑3166‑1 alpha‑2 code of merchant’s legal‐seat country"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci","runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "single_vs_multi_flag_column"
+        name: "single_vs_multi_flag"
+        path: "schema/outlet_stub.avsc"
+        type: "schema"
+        category: "outlet_stub"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Binary indicator (0=single-site, 1=multi-site) from hurdle model"
+        dependencies:
+          - hurdle_pi_probs
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci","runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "raw_nb_outlet_draw_column"
+        name: "raw_nb_outlet_draw"
+        path: "schema/outlet_stub.avsc"
+        type: "schema"
+        category: "outlet_stub"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Raw count draw from Negative‑Binomial sampler before truncation"
+        dependencies:
+          - hurdle_nb_model
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci","runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "final_country_outlet_count_column"
+        name: "final_country_outlet_count"
+        path: "schema/outlet_stub.avsc"
+        type: "schema"
+        category: "outlet_stub"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Number of outlets allocated to each country after Dirichlet split"
+        dependencies:
+          - crossborder_allocation
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci","runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "tie_break_rank_column"
+        name: "tie_break_rank"
+        path: "schema/outlet_stub.avsc"
+        type: "schema"
+        category: "outlet_stub"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Rank order used to break ties in largest‑remainder allocation"
+        dependencies:
+          - tie_break_rank
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci","runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "manifest_fingerprint_column"
+        name: "manifest_fingerprint"
+        path: "schema/outlet_stub.avsc"
+        type: "schema"
+        category: "outlet_stub"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Composite SHA‑256 fingerprint for reproducibility per stub row"
+        dependencies:
+          - manifest_fingerprint
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci","runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "global_seed_column"
+        name: "global_seed"
+        path: "schema/outlet_stub.avsc"
+        type: "schema"
+        category: "outlet_stub"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Philox sub‑stream seed identifier for each stub draw"
+        dependencies:
+          - philox_master_counter
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci","runtime"]
+        schema: null
+        notes: null
+
+      # ── Batch 6: Validation & Monitoring, Numeric Environment, Internal Registry ──
+
+      - artifact_id: "post_write_validation_routine"
+        name: "post_write_validation_routine"
+        path: "src/validation/post_write_validation.py"
+        type: "script"
+        category: "validation"
+        semver: null
+        version: "<MANIFEST_KEY>"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Recomputes counts, weights, allocations, tie_break_rank, and site_ids; aborts build on mismatch"
+        dependencies:
+          - outlet_catalogue_parquet  # implicit dependency on the output data
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci","runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "stream_jump_audit_event"
+        name: "stream_jump"
+        path: "logs/rng/events/stream_jump.jsonl"
+        type: "schema"
+        category: "rng_event"
+        semver: null
+        version: "<MANIFEST_KEY>"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Additional Philox jump events for downstream modules (e.g., cross‑border allocation)"
+        dependencies:
+          - philox_master_counter
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "nightly_ci_metrics"
+        name: "nightly_ci_metrics"
+        path: "ci/metrics/nightly_ci_metrics.yaml"
+        type: "data"
+        category: "monitoring"
+        semver: null
+        version: "<MANIFEST_KEY>"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Aggregated CI metrics: NB rejections, ZTP stats, rounding deviations, sparse_flag rate, event_type counts, parameter drift, θ₁ significance"
+        dependencies:
+          - post_write_validation_routine
+          - stream_jump_audit_event
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "ieee754_binary64"
+        name: "IEEE-754 binary64"
+        path: null
+        type: "exception"
+        category: "numeric_environment"
+        semver: null
+        version: null
+        digest: null
+        manifest_key: null
+        license: null
+        role: "Enforces use of IEEE-754 binary64 arithmetic for all stochastic & residual operations"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "fma_disabled"
+        name: "Fused-multiply-add disabled"
+        path: null
+        type: "exception"
+        category: "numeric_environment"
+        semver: null
+        version: null
+        digest: null
+        manifest_key: null
+        license: null
+        role: "Disables fused-multiply-add for Dirichlet and residual computations"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "residual_quantisation"
+        name: "Residual quantisation"
+        path: null
+        type: "config"
+        category: "numeric_environment"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Rounds residual fractions to 8 decimal places before sorting"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "datasets_table"
+        name: "datasets_table"
+        path: "db/schema/datasets.sql"
+        type: "schema"
+        category: "registry"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "DDL for internal dataset registry table for (parameter_hash, seed, path) collision audits"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null

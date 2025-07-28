@@ -1,72 +1,95 @@
 ## Subsegment 1B: Placing outlets on the planet
-Below is the complete list of every spatial and policy artefact referenced in this sub‑segment. Each entry must appear in `spatial_manifest.json` with the indicated metadata; any change to the artefact file, its semver or its digest will produce a new `spatial_manifest_digest`.
+Below is a comprehensive registry of **all artefacts** in Sub‑segment 1B (“Placing outlets on the planet”), each with a brief note on its role. I’ve cross‑checked both the **assumptions** and **narrative** texts to ensure nothing is omitted.
 
-| ID / Key                               | Path Pattern                                                | Role                                              | Semver Field          | Digest Field               |
-|----------------------------------------|-------------------------------------------------------------|---------------------------------------------------|-----------------------|----------------------------|
-| **spatial_manifest.json**              | `spatial_manifest.json`                                     | Composite listing of all spatial artefacts        | n/a (manifest header) | `composite_spatial_digest` |
-| **spatial_blend.yaml**                 | `spatial_blend.yaml`                                        | Prior blending coefficients                       | `semver`              | `sha256_digest`            |
-| **hrsl_pop_100m**                      | `artefacts/priors/hrsl/2020_v1.2/{ISO2}.tif`                | 100 m Meta/HRSL population raster                 | `semver`              | `sha256_digest`            |
-| **osm_primary_roads**                  | `artefacts/priors/osm_primary_roads_{planet_YYYYMMDD}.gpkg` | Filtered OSM primary‑road network                 | (`snapshot_date`)     | `sha256_digest`            |
-| **aadt_counts_compiled_v1.parquet**    | `artefacts/priors/aadt_counts_compiled_v1.parquet`          | Government‑sourced AADT table for roads           | `semver`              | `sha256_digest`            |
-| **iata_airport_boundaries_v2023Q4**    | `artefacts/priors/iata_airport_boundaries_v2023Q4.geojson`  | Commercial‑airport boundary polygons              | `semver`              | `sha256_digest`            |
-| **suburban_pop_density_2022_v1**       | `artefacts/priors/suburban_pop_density_2022_v1.tif`         | Suburban population density raster                | `semver`              | `sha256_digest`            |
-| **road_traffic_density_2022_v2**       | `artefacts/priors/road_traffic_density_2022_v2.tif`         | Road traffic density raster                       | `semver`              | `sha256_digest`            |
-| **worldpop_fallback_2023Q4**           | `artefacts/priors/worldpop/2023Q4/{ISO2}.tif`               | WorldPop 1 km fallback population raster          | (`vintage`)           | `sha256_digest`            |
-| **tz_world_polygons_v2024a**           | `artefacts/priors/tz_world_polygons_v2024a.geojson`         | IANA time‑zone polygon boundaries                 | `semver`              | `sha256_digest`            |
-| **tz_world_metadata.json**             | `tz_world_metadata.json`                                    | Zone→ISO mapping & enclave whitelist              | `semver`              | `sha256_digest`            |
-| **capitals_dataset_2024.parquet**      | `artefacts/priors/capitals_dataset_2024.parquet`            | Country capital coordinates                       | `semver`              | `sha256_digest`            |
-| **natural_earth_land_10m_v5.1.2**      | `artefacts/priors/natural_earth_land_10m_v5.1.2.geojson`    | Land‑mask polygon for dry‑land filtering          | `semver`              | `sha256_digest`            |
-| **footfall_coefficients.yaml**         | `footfall_coefficients.yaml`                                | κ and σ per (MCC, channel) + calibration metadata | `semver`              | `sha256_digest`            |
-| **winsor.yml**                         | `winsor.yml`                                                | Outlier clipping policy                           | `semver`              | `sha256_digest`            |
-| **fallback_policy.yml**                | `fallback_policy.yml`                                       | Fallback rate thresholds & overrides              | `semver`              | `sha256_digest`            |
-| **calibration_slice_config.yml**       | `calibration_slice_config.yml`                              | Footfall calibration slice specification          | `semver`              | `sha256_digest`            |
-| **osm_planet_snapshot_{YYYYMMDD}.pbf** | `artefacts/priors/osm_planet_snapshot_{YYYYMMDD}.pbf`       | OSM planet extract for road graph construction    | `snapshot_date`       | `sha256_digest`            |
-| **osm_ch_graph_{snapshot}.bin**        | `artefacts/priors/osm_ch_graph_{snapshot}.bin`              | Contraction‑hierarchies graph for road distances  | `semver`              | `sha256_digest`            |
+---
 
-*Notes:*
+### 1. Manifest & Versioning Artefacts
 
-* All pattern entries are case‑sensitive.
-* Fields in parentheses (e.g., `snapshot_date`, `vintage`) are embedded in the file’s metadata sidecar and must be captured in the manifest entry.
-* Any addition, removal, or version change of an artefact must follow semver rules and will automatically refresh the `spatial_manifest_digest` via CI.
-* The manifest itself is authored at `spatial_manifest.json` and should list each artefact row with the above columns plus optional metadata (e.g., file size, byte count).
+* **`spatial_manifest.json`** – The fixed‑name JSON manifest listing every spatial prior’s SHA‑256 digest in lexicographic order; its digest is hashed to produce the **`spatial_manifest_digest`** column you embed in each site row for cryptographic provenance.&#x20;
+* **Sibling `.sha256` files** – Plain‑text siblings of each GeoTIFF/shapefile/GeoPackage recording that artefact’s SHA‑256, used by the manifest builder to verify integrity.&#x20;
 
-### **A. Additions to Artefact Registry Table**
+### 2. Spatial Prior Artefacts
 
-Add the following rows **below the main artefact table** to explicitly register all critical logs, outputs, and schema/contract artefacts mentioned in your narrative/assumptions:
+* **HRSL population raster** (`artefacts/priors/hrsl/2020_v1.2/{ISO2}.tif`) – 100 m GeoTIFF from Meta’s High Resolution Settlement Layer, pinned by ID `hrsl_pop_100m` (vintage `2020_v1.2`); nodata cells→0.&#x20;
+* **WorldPop fallback raster** (`artefacts/priors/worldpop/2023Q4/{ISO2}.tif`) – 1 km GeoTIFF used when primary priors are missing or zero‑support.&#x20;
+* **OSM primary‑road network** (ESRI shapefiles/GeoPackages) – Clipped to country boundary with AADT per segment; used for vehicle‑oriented MCCs.&#x20;
+* **IATA airport polygons** (vector layer) – Commercial‑airport boundaries for travel‑retail MCCs; sampled by area.&#x20;
 
-| ID / Key                         | Path Pattern                                                                            | Role                                                                           | Semver Field    | Digest Field              |
-| -------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | --------------- | ------------------------- |
-| **placement_audit.log**         | `logs/placement_audit.log`                                                              | Audit log for all spatial sampling, Fenwick, and placement ops                 | n/a             | n/a (run-specific)        |
-| **diagnostic_metrics.parquet**  | `logs/diagnostic_metrics.parquet`                                                       | Nightly metrics for acceptance rates, fallback counts, CUSUM                   | n/a             | n/a (run-specific)        |
-| **site_catalogue**              | `site_catalogue/partition_date=YYYYMMDD/merchant_id={id}/site_id={site_id}.parquet`     | Final spatial catalogue output for each merchant/site, all fields (see schema) | Manifest semver | `spatial_manifest_digest` |
-| **site_catalogue_schema.json** | `site_catalogue_schema.json`                                                            | Parquet schema descriptor for output catalogue                                 | `semver`        | `sha256_digest`           |
-| **schema_version.txt**          | `schema_version.txt`                                                                    | Output schema versioning, required for immutability contract                   | `semver`        | n/a                       |
-| **calib_dist_digest.txt**      | `calib_dist_digest.txt`                                                                 | Digest for calibration slice distribution (see footfall cal.)                  | n/a             | `sha256_digest`           |
-| **placement_temp_files**       | `site_catalogue/partition_date=YYYYMMDD/merchant_id={id}/site_id={site_id}.parquet.tmp` | Crash-tolerant, idempotent temp files for site catalogue rows                  | n/a             | n/a (run-specific)        |
+### 3. Spatial Blending Artefacts
 
-### **B. Explicit Policy/Manifest Contract**
+* **`spatial_blend.yaml`** – Governed YAML mapping each `(MCC, channel)` to either a single prior ID or a convex blend of priors; carries `semver`, `sha256_digest`, and enforces weights summing to 1 within 1 × 10⁻⁹.&#x20;
+* **Blended raster cache** (`cache/blends/{sha256(component_digests+weights)}.tif`) – Content‑addressed GeoTIFF of the blended prior, atomically written & reused.&#x20;
 
-**Manifest/Whitelist Policy**
+### 4. Deterministic Sampling Artefacts
 
-* Only artefacts and file patterns explicitly listed in `spatial_manifest.json` or `allow_patterns` are permitted at build time.
-* Any stray file, missing artefact, or unlisted pattern aborts the build.
-* Any addition/removal triggers a required semver bump, which CI must verify.
+* **Fenwick tree build logs** (`fenwick_build` event) – Records `(country, prior_id, n, total_weight, build_ms, scale_factor)` for each CDF structure, ensuring repeatable importance sampling.&#x20;
 
-**Immutability & Downstream Contract**
+### 5. Land–Water Filtering Artefacts
 
-* All output rows in the site catalogue must have identical `spatial_manifest_digest` matching the manifest at the catalogue root.
-* Any downstream read or transform must verify this digest and abort if it does not match—immutable contract is enforced via schema and manifest checks.
+* **`natural_earth_land_10m_v5.1.2.geojson`** – Natural Earth 1:10 m land polygon (v5.1.2), used to reject water points or road‑far points (> 50 m).&#x20;
 
-**Event/Audit Log Requirements**
+### 6. Remoteness Proxies Artefacts
 
-* Every site placement, resample, Fenwick build, failure, or fallback event must be logged in `placement_audit.log` with full event schema (see maths appendix for fields).
-* Any missing or duplicate mandatory event is a structural validation failure; no partial or orphaned output rows may be published.
+* **`capitals_dataset_2024.parquet`** – Parquet of capital coordinates (ISO₂, `role_type`, `primary_flag`, lat, lon) with SHA‑256, used for Haversine distance.&#x20;
+* **OSM planet extract `.osm.pbf`** – Raw OSM snapshot (date‑stamped), SHA‑256‑pinned, source for the road graph.&#x20;
+* **Contraction‑hierarchies graph** – Prebuilt road index with commit hash & build parameters, used for on‑network distance.&#x20;
 
-**Crash Tolerance/Recovery**
+### 7. Tagging & Schema Artefacts
 
-* Partial temp files from interrupted writes must never be promoted to final output; crash recovery protocol is to revalidate, skip existing `.parquet` files, and ensure only completed, validated rows are included.
+Extended Parquet columns added to each site row:
 
-### **C. Notes/Clarifications**
+| Column                                                    | Type    | Role                                                           |
+| --------------------------------------------------------- | ------- | -------------------------------------------------------------- |
+| `lat`, `lon`                                              | float64 | Sampled geographic coordinate                                  |
+| `prior_tag`                                               | string  | Prior ID or `"FALLBACK_POP"`                                   |
+| `prior_weight_raw`                                        | float64 | Float weight at sampled pixel/feature                          |
+| `prior_weight_norm`                                       | float64 | Normalized weight = raw/Σ(raw weights)                         |
+| `artefact_digest`                                         | hex64   | SHA‑256 of the specific prior file used                        |
+| `spatial_manifest_digest`                                 | hex64   | Manifest hash for end‑to‑end traceability                      |
+| `pixel_index` / `feature_index`                           | int32   | Exact sampling index for rasters or vectors                    |
+| `segment_index`, `segment_frac` / `triangle_id`, `u`, `v` | various | Barycentric or polyline offsets for replayable vector sampling |
+| `cdf_threshold_u`                                         | float64 | Uniform threshold in scaled CDF                                |
+| `log_footfall_preclip`                                    | float64 | Pre‑clip log‑footfall value                                    |
+| `footfall_clipped`                                        | bool    | Whether a site’s footfall was clipped                          |
+|                                                           |         |                                                                |
 
-* Any change to the catalogue schema or artefact inventory requires a version bump for both `spatial_manifest.json` and `site_catalogue_schema.json`, ensuring downstream processes detect all lineage and schema changes.
-* All logs and diagnostics (even if ephemeral/run-specific) must be captured in the build artefact manifest for full auditability and to enable reproducibility review.
+### 8. Fallback Policy Artefacts
+
+* **`fallback_policy.yml`** – YAML governing when to fallback to population raster, with `global_threshold`, `per_mcc_overrides`, `semver`, `sha256`.&#x20;
+* **`fallback_reason`** values – One of `missing_prior`, `zero_support`, `empty_vector_after_filter`, recorded per site.&#x20;
+
+### 9. Time‑Zone Consistency Artefacts
+
+* **`tz_world_metadata.json`** – JSON mapping each IANA zone to its valid ISO α‑2 codes, with `semver`, `sha256`.&#x20;
+* **`tz_mismatch`**, **`tz_mismatch_exhausted`** events – Logged on each timezone validation failure or cap exhaustion.&#x20;
+
+### 10. Footfall Calibration Artefacts
+
+* **`footfall_coefficients.yaml`** – YAML storing κ and σ per (MCC, channel) with calibration metadata (Fano target, iterations, seed), `semver`, `sha256`.&#x20;
+* **`calibration_slice_config.yml`** – Config for the 10 million‑row synthetic calibration slice stratified by (MCC, channel).&#x20;
+* **`CALIB_SEED`** – Fixed seed for calibration slice construction.&#x20;
+* **`historic_dist_2024Q4.sha256`** – Digest of the 2024 Q4 merchant distribution used for stratification.&#x20;
+* **`footfall_draw`** event – Audit of the log‑normal residual ε per site.&#x20;
+
+### 11. Outlier Control Artefacts
+
+* **`winsor.yml`** – Two‑pass clipping policy (`clip_multiple=3`, `min_sites_for_clip=30`), with `semver`, `sha256`.&#x20;
+* **`log_footfall_preclip`**, **`footfall_clipped`** flags – Persisted in the Parquet for audit and debugging.&#x20;
+
+### 12. RNG Audit Artefacts
+
+* **Master seed** – 128‑bit hex string written into the manifest before sampling.&#x20;
+* **Audit events**:
+  `fenwick_build`, `pixel_draw`, `feature_draw`, `triangle_draw`, `polyline_offset`,
+  `footfall_draw`, `tz_mismatch`, `tz_mismatch_exhausted`, `placement_failure`
+  each logging `(pre_counter, post_counter, stride_key, merchant_id, site_id, site_rng_index)` and event‑specific payload.&#x20;
+
+### 13. Crash‑Tolerance Artefacts
+
+* **Temp file pattern**:
+  `sites/partition_date=YYYYMMDD/merchant_id={id}/site_id={site_id}.parquet.tmp` – Written + fsync before atomic rename.&#x20;
+* **Final Parquet files**:
+  `sites/partition_date=YYYYMMDD/merchant_id={id}/site_id={site_id}.parquet` – Idempotent output for each site.&#x20;
+* **End‑of‑run manifest JSON** – Records the run seed, composite spatial artefact hash, and wall‑clock time.&#x20;
+
+---

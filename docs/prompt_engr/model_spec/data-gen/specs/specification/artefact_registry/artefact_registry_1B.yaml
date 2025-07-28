@@ -1,0 +1,1000 @@
+subsegments:
+  - id: "1B"
+    name: "Placing outlets on the planet"
+    artifacts:
+      # Batch 1: Manifest & Versioning + Spatial Priors
+
+      - artifact_id: "spatial_manifest"
+        name: "spatial_manifest.json"
+        path: "configs/manifests/spatial_manifest.json"
+        type: "manifest"
+        category: "spatial_prior"
+        semver: "<MANIFEST_KEY>"
+        version: "<MANIFEST_KEY>"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Aggregated manifest of all spatial prior assets with their digests"
+        dependencies:
+          - sibling_sha256s
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci","runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "sibling_sha256s"
+        name: "sibling_.sha256_files"
+        path: "configs/manifests/spatial/sibling_sha256s/"
+        type: "directory"
+        category: "versioning"
+        semver: null
+        version: null
+        digest: null
+        manifest_key: null
+        license: "<SPDX_LICENSE_ID>"
+        role: "Directory of individual .sha256 digest files for spatial prior siblings"
+        dependencies: [ ]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "hrsl_pop_100m_raster"
+        name: "hrsl_pop_100m.tif"
+        path: "data/spatial_priors/hrsl_pop_100m_v1.2/hrsl_pop_100m.tif"
+        type: "data"
+        category: "spatial_prior"
+        semver: null
+        version: "2020_v1.2"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "High-Resolution Settlement Layer raster for population density"
+        dependencies: [ ]
+        source: "Facebook HRSL"
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "worldpop_raster"
+        name: "worldpop_2023Q4.tif"
+        path: "data/spatial_priors/worldpop/worldpop_2023Q4.tif"
+        type: "data"
+        category: "spatial_prior"
+        semver: null
+        version: "2023Q4"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "WorldPop raster for population fallback in spatial placement"
+        dependencies: [ ]
+        source: "WorldPop"
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "osm_primary_roads"
+        name: "osm_primary_roads.shp"
+        path: "data/spatial_priors/osm/osm_primary_roads.shp"
+        type: "data"
+        category: "spatial_prior"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "OpenStreetMap primary roads shapefile for road-proximity prior"
+        dependencies: [ ]
+        source: "OpenStreetMap"
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: "Includes .shp, .shx, .dbf, and .prj"
+
+      - artifact_id: "iata_airport_polygons"
+        name: "iata_airport_polygons.geojson"
+        path: "data/spatial_priors/iata/airports.geojson"
+        type: "data"
+        category: "spatial_prior"
+        semver: null
+        version: "2025"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "IATA-defined airport service area polygons for airport merchant placement"
+        dependencies: [ ]
+        source: "IATA"
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      # Batch 2: Spatial Blending & Deterministic Sampling & Land–Water Filtering
+
+      - artifact_id: "spatial_blend"
+        name: "spatial_blend.yaml"
+        path: "configs/spatial/spatial_blend.yaml"
+        type: "config"
+        category: "spatial_prior"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Configuration for blending category‑specific rasters into combined spatial priors"
+        dependencies:
+          - hrsl_pop_100m_raster
+          - worldpop_raster
+          - osm_primary_roads
+          - iata_airport_polygons
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "blended_raster_cache"
+        name: "blended_raster_cache/"
+        path: "data/spatial_priors/blended/cache_v1/"
+        type: "directory"
+        category: "spatial_prior"
+        semver: null
+        version: "v1"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Cached outputs of blended rasters for repeated sampling"
+        dependencies:
+          - spatial_blend
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "fenwick_build_event"
+        name: "fenwick_build_event.jsonl"
+        path: "logs/spatial/fenwick_build_event.jsonl"
+        type: "log"
+        category: "sampling"
+        semver: null
+        version: "<MANIFEST_KEY>"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Event log for Fenwick‑tree CDF construction over spatial prior grid"
+        dependencies:
+          - blended_raster_cache
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "natural_earth_land"
+        name: "ne_land_10m_v5.1.2.geojson"
+        path: "data/external/natural_earth/physical/ne_land_10m_v5.1.2.geojson"
+        type: "data"
+        category: "spatial_prior"
+        semver: null
+        version: "v5.1.2"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "10m Natural Earth land polygons for land–water masking"
+        dependencies: [ ]
+        source: "Natural Earth"
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      # Batch 3: Remoteness Proxies
+
+      - artifact_id: "capitals_dataset_2024"
+        name: "capitals_dataset_2024.parquet"
+        path: "data/external/geography/capitals_dataset_2024.parquet"
+        type: "data"
+        category: "remoteness"
+        semver: null
+        version: "2024"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "List of national capital coordinates used to compute Haversine remoteness"
+        dependencies: [ ]
+        source: "Natural Earth"
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: "schema/capitals_dataset.avsc"
+        notes: null
+
+      - artifact_id: "osm_planet_extract"
+        name: "osm_planet_extract.osm.pbf"
+        path: "data/external/osm/planet/osm_planet_extract.osm.pbf"
+        type: "data"
+        category: "remoteness"
+        semver: null
+        version: "<EXTRACT_DATE>"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "ODbL-1.0"
+        role: "Full OpenStreetMap extract for building contraction hierarchies"
+        dependencies: [ ]
+        source: "OpenStreetMap"
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "contraction_hierarchies_graph"
+        name: "contraction_hierarchies_graph"
+        path: "data/processed/remoteness/graph_v1/"
+        type: "directory"
+        category: "remoteness"
+        semver: null
+        version: "v1"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Precomputed hierarchy graph for network‐distance calculations"
+        dependencies:
+          - osm_planet_extract
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      # Batch 4: Tagging & Schema, Fallback Policy & Time‑Zone Consistency
+
+      - artifact_id: "lat_column"
+        name: "lat"
+        path: "schema/site_catalogue.avsc"
+        type: "schema"
+        category: "placement"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Latitude coordinate of sampled outlet stub"
+        dependencies: [ ]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci","runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "lon_column"
+        name: "lon"
+        path: "schema/site_catalogue.avsc"
+        type: "schema"
+        category: "placement"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Longitude coordinate of sampled outlet stub"
+        dependencies: [ ]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci","runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "prior_tag_column"
+        name: "prior_tag"
+        path: "schema/site_catalogue.avsc"
+        type: "schema"
+        category: "placement"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Identifier of the spatial prior used (e.g., population, roads, airport)"
+        dependencies: [ ]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci","runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "prior_weight_raw_column"
+        name: "prior_weight_raw"
+        path: "schema/site_catalogue.avsc"
+        type: "schema"
+        category: "placement"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Raw unnormalized weight from spatial prior sampling"
+        dependencies: [ ]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci","runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "prior_weight_norm_column"
+        name: "prior_weight_norm"
+        path: "schema/site_catalogue.avsc"
+        type: "schema"
+        category: "placement"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Normalized spatial prior weight"
+        dependencies: [ ]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci","runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "artefact_digest_column"
+        name: "artefact_digest"
+        path: "schema/site_catalogue.avsc"
+        type: "schema"
+        category: "placement"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "SHA‑256 digest of the spatial_prior_bundle used"
+        dependencies:
+          - spatial_manifest
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci","runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "spatial_manifest_digest_column"
+        name: "spatial_manifest_digest"
+        path: "schema/site_catalogue.avsc"
+        type: "schema"
+        category: "placement"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "SHA‑256 digest of the spatial_manifest"
+        dependencies:
+          - spatial_manifest
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci","runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "pixel_index_column"
+        name: "pixel_index"
+        path: "schema/site_catalogue.avsc"
+        type: "schema"
+        category: "placement"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Index of the sampled raster pixel"
+        dependencies: [ ]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci","runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "feature_index_column"
+        name: "feature_index"
+        path: "schema/site_catalogue.avsc"
+        type: "schema"
+        category: "placement"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Index of the sampled vector feature"
+        dependencies: [ ]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci","runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "segment_index_column"
+        name: "segment_index"
+        path: "schema/site_catalogue.avsc"
+        type: "schema"
+        category: "placement"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Index of the segment (lattice, road, polygon) used"
+        dependencies: [ ]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci","runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "segment_frac_column"
+        name: "segment_frac"
+        path: "schema/site_catalogue.avsc"
+        type: "schema"
+        category: "placement"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Relative position along the segment"
+        dependencies: [ ]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci","runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "triangle_id_column"
+        name: "triangle_id"
+        path: "schema/site_catalogue.avsc"
+        type: "schema"
+        category: "placement"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Triangle identifier for mesh‑based placement fallback"
+        dependencies: [ ]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci","runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "u_column"
+        name: "u"
+        path: "schema/site_catalogue.avsc"
+        type: "schema"
+        category: "placement"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "First barycentric coordinate for triangle sampling"
+        dependencies: [ ]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci","runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "v_column"
+        name: "v"
+        path: "schema/site_catalogue.avsc"
+        type: "schema"
+        category: "placement"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Second barycentric coordinate for triangle sampling"
+        dependencies: [ ]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci","runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "cdf_threshold_u_column"
+        name: "cdf_threshold_u"
+        path: "schema/site_catalogue.avsc"
+        type: "schema"
+        category: "placement"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Random uniform draw threshold for CDF inversion"
+        dependencies: [ ]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci","runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "log_footfall_preclip_column"
+        name: "log_footfall_preclip"
+        path: "schema/site_catalogue.avsc"
+        type: "schema"
+        category: "placement"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Log of raw footfall scalar before clipping"
+        dependencies: [ ]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci","runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "footfall_clipped_column"
+        name: "footfall_clipped"
+        path: "schema/site_catalogue.avsc"
+        type: "schema"
+        category: "placement"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Final footfall scalar after clipping to allowable range"
+        dependencies: [ ]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci","runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "fallback_policy"
+        name: "fallback_policy.yml"
+        path: "configs/spatial/fallback_policy.yml"
+        type: "config"
+        category: "fallback"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Rules for fallback to mesh or other priors when sampling fails"
+        dependencies:
+          - spatial_manifest
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "fallback_reason_column"
+        name: "fallback_reason"
+        path: "schema/site_catalogue.avsc"
+        type: "schema"
+        category: "fallback"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Indicator of which fallback policy was applied (e.g., land-water, proximity)"
+        dependencies:
+          - fallback_policy
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci","runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "tz_world_metadata"
+        name: "tz_world_metadata.json"
+        path: "data/external/tz/tz_world_metadata.json"
+        type: "data"
+        category: "timezone"
+        semver: null
+        version: "2025a"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Compact IANA tz-world shapefile converted to JSON for STR-tree"
+        dependencies: [ ]
+        source: "IANA"
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "tz_mismatch_event"
+        name: "tz_mismatch_event.jsonl"
+        path: "logs/spatial/tz_mismatch_event.jsonl"
+        type: "schema"
+        category: "timezone"
+        semver: null
+        version: "<MANIFEST_KEY>"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Event logging any ambiguous timezone lookups resolved by ε nudge"
+        dependencies:
+          - tz_world_metadata
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "tz_mismatch_exhausted_event"
+        name: "tz_mismatch_exhausted_event.jsonl"
+        path: "logs/spatial/tz_mismatch_exhausted_event.jsonl"
+        type: "exception"
+        category: "timezone"
+        semver: null
+        version: "<MANIFEST_KEY>"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Exception when timezone ambiguity persists after max ε nudges"
+        dependencies:
+          - tz_mismatch_event
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      # Batch 5: Footfall Calibration & Outlier Control
+
+      - artifact_id: "footfall_coefficients"
+        name: "footfall_coefficients.yaml"
+        path: "configs/footfall/footfall_coefficients.yaml"
+        type: "config"
+        category: "footfall_model"
+        semver: "<MANIFEST_KEY>"
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Coefficients for κ scalar computation in footfall model"
+        dependencies: [ ]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "calibration_slice_config"
+        name: "calibration_slice_config.yml"
+        path: "configs/footfall/calibration_slice_config.yml"
+        type: "config"
+        category: "footfall_model"
+        semver: "<MANIFEST_KEY>"
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Defines calibration buckets and procedures for footfall residuals"
+        dependencies:
+          - footfall_coefficients
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "calib_seed"
+        name: "CALIB_SEED"
+        path: "configs/footfall/calib_seed.yaml"
+        type: "config"
+        category: "footfall_model"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Philox seed for reproducible footfall residual draws"
+        dependencies: [ ]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "historic_dist_2024Q4_digest"
+        name: "historic_dist_2024Q4.sha256"
+        path: "configs/footfall/historic_dist_2024Q4.sha256"
+        type: "config"
+        category: "footfall_model"
+        semver: null
+        version: "2024Q4"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "SHA‑256 digest of historical footfall residual distribution data"
+        dependencies: [ ]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "footfall_draw_event"
+        name: "footfall_draw_event.jsonl"
+        path: "logs/footfall/footfall_draw_event.jsonl"
+        type: "schema"
+        category: "rng_event"
+        semver: null
+        version: "<MANIFEST_KEY>"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Event logging the log‑normal residual draw for footfall scalar"
+        dependencies:
+          - calib_seed
+          - calibration_slice_config
+          - historic_dist_2024Q4_digest
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "winsor_config"
+        name: "winsor.yml"
+        path: "configs/footfall/winsor.yml"
+        type: "config"
+        category: "footfall_model"
+        semver: "<MANIFEST_KEY>"
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Rules for winsorizing extreme footfall residuals before clipping"
+        dependencies:
+          - calibration_slice_config
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      # Batch 6: Sampling & Placement RNG‑Audit Events
+
+      - artifact_id: "master_seed"
+        name: "MASTER_SEED"
+        path: "configs/spatial/master_seed.yaml"
+        type: "config"
+        category: "rng"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Philox master seed for spatial sampling sub‑streams"
+        dependencies:
+          - manifest_fingerprint
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "pixel_draw_event"
+        name: "pixel_draw_event.jsonl"
+        path: "logs/spatial/pixel_draw_event.jsonl"
+        type: "schema"
+        category: "rng_event"
+        semver: null
+        version: "<MANIFEST_KEY>"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Event logging each random draw for raster pixel sampling"
+        dependencies:
+          - fenwick_build_event
+          - master_seed
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "feature_draw_event"
+        name: "feature_draw_event.jsonl"
+        path: "logs/spatial/feature_draw_event.jsonl"
+        type: "schema"
+        category: "rng_event"
+        semver: null
+        version: "<MANIFEST_KEY>"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Event logging each random draw for vector feature sampling"
+        dependencies:
+          - osm_primary_roads
+          - master_seed
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "triangle_draw_event"
+        name: "triangle_draw_event.jsonl"
+        path: "logs/spatial/triangle_draw_event.jsonl"
+        type: "schema"
+        category: "rng_event"
+        semver: null
+        version: "<MANIFEST_KEY>"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Event logging barycentric coordinate draws for triangle fallback sampling"
+        dependencies:
+          - contraction_hierarchies_graph
+          - master_seed
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "polyline_offset_event"
+        name: "polyline_offset_event.jsonl"
+        path: "logs/spatial/polyline_offset_event.jsonl"
+        type: "schema"
+        category: "rng_event"
+        semver: null
+        version: "<MANIFEST_KEY>"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Event logging random offset draws along road polylines"
+        dependencies:
+          - osm_primary_roads
+          - master_seed
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "placement_failure_event"
+        name: "placement_failure_event.jsonl"
+        path: "logs/spatial/placement_failure_event.jsonl"
+        type: "exception"
+        category: "rng_event"
+        semver: null
+        version: "<MANIFEST_KEY>"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Exception event when all sampling methods fail for an outlet stub"
+        dependencies:
+          - fallback_policy
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      # Batch 7: Crash‑Tolerance
+
+      - artifact_id: "temp_file_pattern"
+        name: "temp_file_pattern"
+        path: "configs/storage/temp_file_pattern.yaml"
+        type: "config"
+        category: "storage"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Defines the naming template for intermediate temp files during placement"
+        dependencies:
+          - spatial_manifest
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: "Pattern: 'tmp/{seed}/{site_id}/*.tmp'"
+
+      - artifact_id: "final_parquet_file_pattern"
+        name: "final_parquet_file_pattern"
+        path: "configs/storage/final_parquet_file_pattern.yaml"
+        type: "config"
+        category: "storage"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Defines the naming template for final Parquet shard outputs"
+        dependencies:
+          - storage_path_pattern
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: "Pattern: 'catalogue/seed={seed}/fingerprint={fingerprint}/part-*.parquet'"
+
+      - artifact_id: "end_of_run_manifest"
+        name: "end_of_run_manifest_JSON"
+        path: "ci/manifests/end_of_run_manifest.json"
+        type: "manifest"
+        category: "storage"
+        semver: null
+        version: "<MANIFEST_KEY>"
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Aggregated summary manifest listing all output files and their digests at the end of the run"
+        dependencies:
+          - final_parquet_file_pattern
+          - manifest_fingerprint
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci" ]
+        schema: null
+        notes: null
