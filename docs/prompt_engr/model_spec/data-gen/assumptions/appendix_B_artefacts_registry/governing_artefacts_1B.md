@@ -92,4 +92,99 @@ Extended Parquet columns added to each site row:
   `sites/partition_date=YYYYMMDD/merchant_id={id}/site_id={site_id}.parquet` – Idempotent output for each site.&#x20;
 * **End‑of‑run manifest JSON** – Records the run seed, composite spatial artefact hash, and wall‑clock time.&#x20;
 
+## 1B · Governing artefacts — addenda (to include in your doc)
+
+### A) Spatial reference & grid
+
+* **`crs_policy`** — canonical CRS and allowed temporary transforms. Cross‑layer.&#x20;
+* **`global_grid_spec`** — origin, resolution (fixed **1/1200°** grid), indexing; used by blends & sampling. Cross‑layer.&#x20;
+* **`country_boundary_ref`** — Admin‑0 polygons used for clipping/validation. Cross‑layer.&#x20;
+* **`land_water_mask_ref`** — Natural‑Earth **1:10 m v5.1.2** land mask (EPSG:4326). Cross‑layer.&#x20;
+* **`boundary_topology_fix_policy`** — rules/tolerances before clipping (repair self‑intersections/slivers).&#x20;
+
+### B) Priors & blending provenance
+
+* **`prior_blend_recipe`** — per‑MCC/channel convex weights (must sum to 1 within 1e‑9).&#x20;
+* **`prior_blend_manifest`** — digests of component priors + recipe used.&#x20;
+* **`prior_provenance_map`** — country/category → which prior vintage actually used.&#x20;
+
+### C) Candidate pools & samplers
+
+* **`country_cell_index`** — grid‑cell membership per country (post‑clip).&#x20;
+* **`candidate_pool_index`** — eligible cells/points with weights after masks & blends.&#x20;
+* **`fenwick_snapshot`** — serialized Fenwick/alias tables per (country, prior).&#x20;
+* **`sampling_method_manifest`** — records sampler (Fenwick vs alias), tolerances, seeds/strides.&#x20;
+
+### D) Acceptance & fallback governance
+
+* **`acceptance_policy`** — thresholds: land/water, **road proximity**, TZ‑country consistency; Wilson target.&#x20;
+* **`acceptance_metrics`** — nightly acceptance with Wilson intervals (CI gate).&#x20;
+* **`fallback_policy`** — exact fallback rules & global cap.&#x20;
+* **`fallback_metrics`** — realized fallback rates + reasons.&#x20;
+* **`sample_blacklist_areas`** — polygons to exclude (military, glaciers, inland water). Cross‑layer.&#x20;
+
+### E) Roads & distance
+
+* **`roads_ref`** — road network vintage & license (OSM). Cross‑layer.&#x20;
+* **`road_spatial_index`** — tiled index (R‑tree/H3) for proximity queries.&#x20;
+* **`road_proximity_config`** — category‑specific thresholds (default **50 m**).&#x20;
+* **`network_distance_graph`** *(optional)* — OSRM/CH snapshot for on‑network distance. Cross‑layer.&#x20;
+* **`road_distance_method`** — “nearest‑segment” vs “shortest‑path”, tie‑breaks.&#x20;
+
+### F) Remoteness proxies
+
+* **`capital_points_ref`** — authoritative capital coordinates (Parquet). Cross‑layer.&#x20;
+* **`remoteness_method`** — Haversine/Vincenty, ellipsoid constants, rounding.&#x20;
+* **`remoteness_metrics`** — GC/network distance summaries; winsor stats.&#x20;
+
+### G) Timezone consistency
+
+* **`tz_polygons_ref`** — TZ polygons to assign TZID. Cross‑layer.&#x20;
+* **`tz_override_table`** — manual fixes (enclaves/quirks). Cross‑layer.&#x20;
+* **`tz_mismatch_events`** — events when TZ country ≠ ISO country.&#x20;
+
+### H) Footfall & winsorization
+
+* **`footfall_coefficients`** — transform from prior intensity → per‑site scalar.&#x20;
+* **`winsor_policy`** — caps by category/country bucket.&#x20;
+* **`footfall_scalar_table`** — per‑site scalar + provenance tag.&#x20;
+
+### I) Output governance & reproducibility
+
+* **`site_catalogue`** + **`site_catalogue_schema`** — final rows; single authoritative schema file; written atomically; validated by spatial manifest.&#x20;
+* **`spatial_write_manifest`** — per‑run list of parts, bbox, CRS, digests.&#x20;
+* **`temp_write_policy`** + **`write_ahead_log`** — rename‑only commits + idempotent WAL. Cross‑layer.&#x20;
+* **`geospatial_lib_versions`** — exact GDAL/GEOS/PROJ used (pins topology behaviour). Cross‑layer.&#x20;
+
+### J) RNG & event logging
+
+* **`rng_event_types_sampling`** — schema/catalog for sampling events. Cross‑layer.&#x20;
+* **`sample_candidate_events`**, **`accept_reject_events`**, **`fallback_invoked_events`** — runtime event streams (data).&#x20;
+
 ---
+
+## Policy constants & QA gates (record these verbatim in the doc)
+
+* **Road proximity:** reject if candidate point is **> 50 m** from the sampled road segment.&#x20;
+* **Land mask:** Natural‑Earth **1:10 m v5.1.2** (EPSG:4326), **no simplification**.&#x20;
+* **Acceptance SLO:** nightly CI draws **10 000** per prior; **Wilson 95% lower bound ≥ 0.90** or build fails; trend alert if p̂ drops > 5 pp week‑over‑week. &#x20;
+* **Termination cap:** `max_attempts_per_site = min(500, 10 × 1/max(0.10, a_L))`; exceeding logs `placement_failure` and aborts.&#x20;
+* **Grid alignment:** all blends resampled to **1/1200°** global grid (origin −180°, −90°); bilinear for continuous rasters.&#x20;
+* **AADT floor:** **500 vehicles/day** when constructing road weights.&#x20;
+* **Deterministic sampling:** floats scaled to **uint64**; CDF via **Fenwick tree**; no intra‑pixel jitter in governed builds.&#x20;
+
+---
+
+## Site‑catalogue: schema deltas to surface in the doc
+
+Add these **column families** (your schema file remains the source of truth):
+
+* **Core:** `lat`, `lon`, `prior_tag`, `prior_weight_raw`, `prior_weight_norm`, `spatial_manifest_digest`, `artefact_digest`. &#x20;
+* **Replay fields:** raster → `pixel_index`; vector‑polyline → `feature_index`, `segment_index`, `segment_frac`; vector‑polygon → `feature_index`, `triangle_id`, `u`, `v`; always log `cdf_threshold_u`.&#x20;
+* **Remoteness:** `gc_km_to_capital` and, if network enabled, `road_km_to_capital`.&#x20;
+
+---
+
+## Cross‑layer flags (mark clearly in the doc)
+
+`crs_policy`, `global_grid_spec`, `country_boundary_ref`, `land_water_mask_ref`, `roads_ref`, `network_distance_graph`, `tz_polygons_ref`, `tz_override_table`, `geospatial_lib_versions` — these are **shared** beyond 1B and must be version‑locked for the whole layer.&#x20;
