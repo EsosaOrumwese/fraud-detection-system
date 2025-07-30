@@ -1,507 +1,716 @@
-# Subsegment 3B: Special Treatment for Purely Virtual Merchants
 subsegments:
   - id: "3B"
     name: "Special Treatment for Purely Virtual Merchants"
     artifacts:
-      # Batch 1: Classification & Settlement
 
-      - artifact_id: "merchant_master_parquet"
-        name: "merchant_master.parquet"
-        path: "artefacts/catalogue/merchant_master.parquet"
-        type: "data"
-        category: "catalogue"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: null
-        license: "<SPDX_LICENSE_ID>"
-        role: "Master merchant table with pre‑populated is_virtual flag"
+      # ──────────────────────────────
+      # 1 · CROSS‑LAYER INPUT
+      # ──────────────────────────────
+      - name: site_catalogue
+        path: data/outputs/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: input
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.1B.output.site_catalogue
+        license: "{spdx_or_internal}"
+        role: Outlet stubs incl. `is_virtual` flag consumed by 3B.
         dependencies: []
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
-        schema: null
+        source: internal
+        owner: { owner_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schema/outlet_stub.avsc
+        cross_layer: true
         notes: null
 
-      - artifact_id: "derive_is_virtual_py"
-        name: "derive_is_virtual.py"
-        path: "src/virtual/derive_is_virtual.py"
-        type: "script"
-        category: "virtual_classification"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: null
-        license: "<SPDX_LICENSE_ID>"
-        role: "Reads MCC rules YAML and sets is_virtual in merchant_master.parquet"
-        dependencies:
-          - merchant_master_parquet
-          - mcc_channel_rules_yaml
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
-        schema: null
-        notes: null
-
-      - artifact_id: "mcc_channel_rules_yaml"
-        name: "mcc_channel_rules.yaml"
-        path: "config/virtual/mcc_channel_rules.yaml"
-        type: "config"
-        category: "virtual_classification"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"    # virtual_rules_digest
-        license: "<SPDX_LICENSE_ID>"
-        role: "Maps MCC codes to online_only flag for virtual‑merchant classification"
+      # ──────────────────────────────
+      # 2 · VIRTUAL‑MERCHANT CLASSIFICATION RULES
+      # ──────────────────────────────
+      - name: mcc_channel_rules
+        path: config/virtual/mcc_channel_rules.yaml
+        type: config
+        category: virtual_classification
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.config.virtual_rules
+        license: "{spdx_or_internal}"
+        role: MCC + channel rules driving `is_virtual` derivation.
         dependencies: []
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
+        cross_layer: true
         notes: null
 
-      - artifact_id: "test_virtual_rules_py"
-        name: "test_virtual_rules.py"
-        path: "ci/test_virtual_rules.py"
-        type: "ci_test"
-        category: "virtual_classification"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: null
-        license: "<SPDX_LICENSE_ID>"
-        role: "CI test re‑deriving is_virtual from YAML and byte‑comparing to Parquet"
-        dependencies:
-          - derive_is_virtual_py
-          - merchant_master_parquet
-          - mcc_channel_rules_yaml
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["ci"]
-        schema: null
-        notes: null
-
-      - artifact_id: "virtual_settlement_coords_csv"
-        name: "virtual_settlement_coords.csv"
-        path: "artefacts/virtual/virtual_settlement_coords.csv"
-        type: "data"
-        category: "virtual_geocode"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"    # settlement_coord_digest
-        license: "<SPDX_LICENSE_ID>"
-        role: "Lookup of merchant_id → (lat, lon, evidence_url) for settlement node"
+      # ──────────────────────────────
+      # 3 · CDN COUNTRY WEIGHTS
+      # ──────────────────────────────
+      - name: cdn_country_weights
+        path: config/virtual/cdn_country_weights.yaml
+        type: config
+        category: virtual_routing
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.config.cdn_country_weights
+        license: CC‑BY‑4.0
+        role: Per‑merchant `country_iso → weight`, plus `edge_scale = 500`.
         dependencies: []
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
+        source: external
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
+        cross_layer: true
         notes: null
 
-      - artifact_id: "verify_coords_evidence_py"
-        name: "verify_coords_evidence.py"
-        path: "ci/verify_coords_evidence.py"
-        type: "ci_test"
-        category: "virtual_geocode"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: null
-        license: "<SPDX_LICENSE_ID>"
-        role: "CI job geocoding evidence URLs and asserting ≤5 km error"
+      - name: akamai_to_yaml_sql
+        path: etl/akamai_to_yaml.sql
+        type: code
+        category: virtual_routing
+        semver: "{code_semver}"
+        version: "{git_commit}"
+        digest: "{git_tree_hash}"
+        manifest_key: mlr.3B.code.akamai_to_yaml
+        license: "{spdx_or_internal}"
+        role: Extracts Akamai SOTI volumes and writes YAML weights.
+        dependencies: []
+        source: internal
+        owner: { engineering_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ dev ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      # ──────────────────────────────
+      # 4 · SETTLEMENT COORDINATES & GEOCODER BUNDLE
+      # ──────────────────────────────
+      - name: virtual_settlement_coords
+        path: artefacts/virtual/virtual_settlement_coords.csv
+        type: dataset
+        category: virtual_geocode
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.dataset.settlement_coords
+        license: "{spdx_or_internal}"
+        role: `merchant_id → (lat, lon, evidence_url)` for settlement node.
+        dependencies: []
+        source: internal
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      - name: pelias_cached_sqlite
+        path: artefacts/geocode/pelias_cached.sqlite
+        type: dataset
+        category: geocode_bundle
+        semver: "{semver}"
+        version: "{vintage}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.dataset.pelias_bundle
+        license: CC‑BY‑4.0
+        role: Offline Pelias bundle for evidence‑URL geocoding.
+        dependencies: []
+        source: external
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      # ──────────────────────────────
+      # 5 · POPULATION RASTER FOR EDGE SAMPLING
+      # ──────────────────────────────
+      - name: hrsl_raster
+        path: artefacts/rasters/hrsl_100m.tif
+        type: reference
+        category: population_raster
+        semver: "{semver}"
+        version: "{vintage}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.ref.hrsl_raster
+        license: CC‑BY‑4.0
+        role: 100 m HRSL raster used for edge coordinate sampling.
+        dependencies: []
+        source: external
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      # ──────────────────────────────
+      # 6 · GOVERNING VALIDATION & LOGGING POLICIES
+      # ──────────────────────────────
+      - name: virtual_validation_policy
+        path: config/virtual/virtual_validation.yml
+        type: config
+        category: validation
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.config.virtual_validation
+        license: "{spdx_or_internal}"
+        role: Tolerances for country‑share & settlement cut‑off checks.
+        dependencies: []
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: virtual_logging_policy
+        path: config/logging/virtual_logging.yml
+        type: config
+        category: logging
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.config.virtual_logging
+        license: "{spdx_or_internal}"
+        role: Rotation & retention rules for `edge_progress.log`.
+        dependencies: []
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: routing_day_effect
+        path: config/routing/routing_day_effect.yml
+        type: config
+        category: routing
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.config.routing_day_effect
+        license: "{spdx_or_internal}"
+        role: σ² for daily γ_d (shared from 2B/3A).
+        dependencies: []
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      - name: performance_config
+        path: config/routing/performance.yml
+        type: config
+        category: performance
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.config.performance
+        license: "{spdx_or_internal}"
+        role: Throughput & memory SLA thresholds (reused by 3B metrics).
+        dependencies: []
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      # ─────────────────────────────────────────────
+      # 7 · EDGE‑CATALOGUE DERIVED ARTEFACTS
+      # ─────────────────────────────────────────────
+      - name: edge_catalogue_pattern
+        path: artefacts/virtual/edge_catalogue/{merchant_id}_edges.parquet
+        type: dataset
+        category: virtual_edges
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.dataset.edge_catalogue_pattern
+        license: "{spdx_or_internal}"
+        role: Deterministically sampled CDN edge nodes (lat, lon, weight).
         dependencies:
-          - virtual_settlement_coords_csv
+          - cdn_country_weights
+          - hrsl_raster
+          - virtual_settlement_coords
+          - edge_catalogue_schema
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: "Pattern — one parquet per virtual merchant."
+
+      - name: edge_catalogue_index
+        path: artefacts/virtual/edge_catalogue_index.csv
+        type: mapping
+        category: virtual_edges
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.dataset.edge_catalogue_index
+        license: "{spdx_or_internal}"
+        role: Merchant → edge‑parquet path + edge_digest lookup table.
+        dependencies: [ edge_catalogue_pattern ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      # ─────────────────────────────────────────────
+      # 8 · CDN ALIAS OUTPUTS
+      # ─────────────────────────────────────────────
+      - name: merchant_cdn_alias_pattern
+        path: artefacts/virtual/cdn_alias/{merchant_id}_cdn_alias.npz
+        type: dataset
+        category: virtual_alias
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.dataset.cdn_alias_pattern
+        license: "{spdx_or_internal}"
+        role: Alias table & prob arrays on CDN edge weights; embeds virtual_universe_hash.
+        dependencies:
+          - cdn_country_weights
+          - edge_catalogue_pattern
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: "Pattern expands per virtual merchant."
+
+      # ─────────────────────────────────────────────
+      # 9 · MANIFESTS & PROVENANCE
+      # ─────────────────────────────────────────────
+      - name: virtual_manifest
+        path: artefacts/manifests/virtual_manifest.json
+        type: manifest
+        category: provenance
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.manifest.virtual
+        license: "{spdx_or_internal}"
+        role: Digests of edge catalogues, CDN aliases, and governing configs.
+        dependencies:
+          - edge_catalogue_index
+          - merchant_cdn_alias_pattern
+          - cdn_country_weights
+          - mcc_channel_rules
+          - hrsl_raster
           - pelias_cached_sqlite
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["ci"]
+          - virtual_settlement_coords
+          - edge_catalogue_schema
+          - rng_policy
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
+        cross_layer: false
         notes: null
 
-      - artifact_id: "pelias_cached_sqlite"
-        name: "pelias_cached.sqlite"
-        path: "artefacts/geocode/pelias_cached.sqlite"
-        type: "data"
-        category: "geocode_bundle"
-        semver: "<TBD_SEMVER>"
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"    # pelias_digest
-        license: "<SPDX_LICENSE_ID>"
-        role: "Offline Pelias geocoder bundle for evidence‑URL verification"
-        dependencies: []
-        source: "Pelias"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
-        schema: null
-        notes: null
-
-      # Batch 2: CDN‑Edge Catalogue Construction
-
-      - artifact_id: "cdn_country_weights_yaml"
-        name: "cdn_country_weights.yaml"
-        path: "config/virtual/cdn_country_weights.yaml"
-        type: "config"
-        category: "virtual_routing"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"    # cdn_weights_digest
-        license: "<SPDX_LICENSE_ID>"
-        role: "Stationary CDN‑edge country weights for virtual merchants"
-        dependencies: []
-        source: "Akamai State of the Internet"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
-        schema: null
-        notes: null
-
-      - artifact_id: "akamai_to_yaml_sql"
-        name: "akamai_to_yaml.sql"
-        path: "etl/akamai_to_yaml.sql"
-        type: "script"
-        category: "virtual_routing"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: null
-        license: "<SPDX_LICENSE_ID>"
-        role: "SQL script to extract Akamai ‘State of the Internet’ volumes from PDF into YAML"
-        dependencies: []
-        source: "Akamai State of the Internet"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["dev"]
-        schema: null
-        notes: null
-
-      - artifact_id: "build_edge_catalogue_py"
-        name: "build_edge_catalogue.py"
-        path: "src/virtual/build_edge_catalogue.py"
-        type: "script"
-        category: "edge_catalogue"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: null
-        license: "<SPDX_LICENSE_ID>"
-        role: "Generates per‑merchant CDN‑edge catalogue by rounding weights and sampling from population raster"
+      - name: build_fingerprint_3B
+        path: artefacts/manifests/build_fingerprint_3B.txt
+        type: manifest
+        category: provenance
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.manifest.build_fingerprint
+        license: "{spdx_or_internal}"
+        role: Composite SHA‑256 tying 3B to upstream & governed artefacts.
         dependencies:
-          - cdn_country_weights_yaml
-          - akamai_to_yaml_sql
-          - hrsl_raster_tif
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
+          - virtual_manifest
+          - rng_policy
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
+        cross_layer: false
         notes: null
 
-      - artifact_id: "hrsl_raster_tif"
-        name: "hrsl_100m.tif"
-        path: "artefacts/rasters/hrsl_100m.tif"
-        type: "data"
-        category: "population_raster"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"    # hrsl_digest
-        license: "<SPDX_LICENSE_ID>"
-        role: "100m‑resolution HRSL population raster for edge coordinate sampling"
+      # ─────────────────────────────────────────────
+      # 10 · PROCESS & RECOVERY LOGS
+      # ─────────────────────────────────────────────
+      - name: edge_progress_log
+        path: logs/virtual/{run_id}/edge_progress.log
+        type: log
+        category: progress_log
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.log.edge_progress
+        license: "{spdx_or_internal}"
+        role: Records finished country batches for crash‑safe restarts.
+        dependencies: [ virtual_logging_policy ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: virtual_audit_log
+        path: logs/virtual/{run_id}/virtual_audit.log
+        type: log
+        category: virtual_audit
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.log.virtual_audit
+        license: "{spdx_or_internal}"
+        role: SHA‑256(batch_index ‖ cumulative_country_counts) audit lines.
+        dependencies: [ virtual_logging_policy ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      # ─────────────────────────────────────────────
+      # 11 · GOVERNED CODE MODULES & SCRIPTS
+      # ─────────────────────────────────────────────
+      - name: derive_is_virtual_py
+        path: src/virtual/derive_is_virtual.py
+        type: code
+        category: virtual_classification
+        semver: "{code_semver}"
+        version: "{git_commit}"
+        digest: "{git_tree_hash}"
+        manifest_key: mlr.3B.code.derive_is_virtual
+        license: "{spdx_or_internal}"
+        role: Adds/updates `is_virtual` column in site catalogue using MCC rules.
+        dependencies: [ mcc_channel_rules ]
+        source: internal
+        owner: { engineering_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ dev, staging, prod ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: edge_sampler_py
+        path: src/virtual/edge_sampler.py
+        type: code
+        category: virtual_edges
+        semver: "{code_semver}"
+        version: "{git_commit}"
+        digest: "{git_tree_hash}"
+        manifest_key: mlr.3B.code.edge_sampler
+        license: "{spdx_or_internal}"
+        role: Fenwick sampler building edge_catalogue parquet.
+        dependencies: [ hrsl_raster ]
+        source: internal
+        owner: { engineering_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ dev, staging, prod ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: alias_builder_py
+        path: src/virtual/alias_builder.py
+        type: code
+        category: virtual_alias
+        semver: "{code_semver}"
+        version: "{git_commit}"
+        digest: "{git_tree_hash}"
+        manifest_key: mlr.3B.code.alias_builder
+        license: "{spdx_or_internal}"
+        role: Builds NPZ alias tables embedding virtual_universe_hash.
+        dependencies: [ cdn_country_weights, edge_catalogue_pattern, universe_hash_policy ]
+        source: internal
+        owner: { engineering_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ dev, staging, prod ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: validate_virtual_py
+        path: tests/validate_virtual.py
+        type: code
+        category: integration_test
+        semver: "{code_semver}"
+        version: "{git_commit}"
+        digest: "{git_tree_hash}"
+        manifest_key: mlr.3B.test.validate_virtual
+        license: "{spdx_or_internal}"
+        role: Runs share & cut‑off validation on sample run outputs.
+        dependencies: [ virtual_validation_policy, merchant_cdn_alias_pattern ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      # ─────────────────────────────────────────────
+      # 12 · CI / UNIT TESTS
+      # ─────────────────────────────────────────────
+      - name: test_virtual_rules_py
+        path: ci/tests/test_virtual_rules.py
+        type: ci_test
+        category: virtual_classification
+        semver: "{code_semver}"
+        version: "{git_commit}"
+        digest: "{git_tree_hash}"
+        manifest_key: mlr.3B.ci.virtual_rules
+        license: "{spdx_or_internal}"
+        role: Ensures derive_is_virtual output matches MCC rules.
+        dependencies: [ mcc_channel_rules, site_catalogue ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: test_geocoder_bundle_py
+        path: ci/tests/test_geocoder_bundle.py
+        type: ci_test
+        category: virtual_geocode
+        semver: "{code_semver}"
+        version: "{git_commit}"
+        digest: "{git_tree_hash}"
+        manifest_key: mlr.3B.ci.geocoder_bundle
+        license: "{spdx_or_internal}"
+        role: Asserts evidence_url geocodes within 5 km of stored coords.
+        dependencies: [ pelias_cached_sqlite, virtual_settlement_coords ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: test_virtual_validation_py
+        path: ci/tests/test_virtual_validation.py
+        type: ci_test
+        category: validation
+        semver: "{code_semver}"
+        version: "{git_commit}"
+        digest: "{git_tree_hash}"
+        manifest_key: mlr.3B.ci.virtual_validation
+        license: "{spdx_or_internal}"
+        role: Runs end‑to‑end validator and fails CI on drift.
+        dependencies: [ virtual_validation_policy, merchant_cdn_alias_pattern ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      # ─────────────────────────────────────────────
+      # 13 · PERFORMANCE METRICS
+      # ─────────────────────────────────────────────
+      - name: edge_sampler_metrics
+        path: artefacts/metrics/edge_sampler_{run_id}.parquet
+        type: dataset
+        category: metrics
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.metrics.edge_sampler
+        license: "{spdx_or_internal}"
+        role: Samples/sec and memory footprint of edge sampler.
+        dependencies: [ performance_config ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      # ─────────────────────────────────────────────
+      # 14 · DOCUMENTATION & LICENCE PROOFS
+      # ─────────────────────────────────────────────
+      - name: licences_akamai_md
+        path: LICENSES/akamai_soti.md
+        type: documentation
+        category: licence
+        semver: "{semver}"
+        version: "{doc_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.docs.licence.akamai
+        license: CC‑BY‑4.0
+        role: Licence text for Akamai SOTI dataset.
         dependencies: []
-        source: "Facebook HRSL"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
+        source: external
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ dev, ci, runtime ]
         schema: null
+        cross_layer: false
         notes: null
 
-      - artifact_id: "cdn_alias_npz"
-        name: "<merchant_id>_cdn_alias.npz"
-        path: "artefacts/alias/<merchant_id>_cdn_alias.npz"
-        type: "data"
-        category: "alias_table"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: null
-        license: "<SPDX_LICENSE_ID>"
-        role: "NumPy‑serialized Vose alias table for edge sampling, embedding universe hash"
-        dependencies:
-          - cdn_country_weights_yaml
-          - edge_catalogue_parquet
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
-        schema: null
-        notes: null
-
-      - artifact_id: "edge_catalogue_parquet"
-        name: "<merchant_id>.parquet"
-        path: "edge_catalogue/<merchant_id>.parquet"
-        type: "data"
-        category: "edge_catalogue"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"    # edge_digest_<merchant_id>
-        license: "<SPDX_LICENSE_ID>"
-        role: "Per‑merchant Parquet of edge_id, country_iso, tzid, lat, lon, edge_weight"
-        dependencies:
-          - build_edge_catalogue_py
-          - hrsl_raster_tif
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
-        schema: null
-        notes: null
-
-      - artifact_id: "edge_catalogue_index_csv"
-        name: "edge_catalogue_index.csv"
-        path: "edge_catalogue_index.csv"
-        type: "data"
-        category: "edge_catalogue"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"    # edge_catalogue_index_digest
-        license: "<SPDX_LICENSE_ID>"
-        role: "Index mapping merchant_id to Parquet digest for edge‑drift detection"
-        dependencies:
-          - edge_catalogue_parquet
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
-        schema: null
-        notes: null
-
-      # Batch 3: Schema & Validation Scripts
-
-      - artifact_id: "transaction_schema_avsc"
-        name: "transaction_schema.avsc"
-        path: "schema/transaction_schema.avsc"
-        type: "schema"
-        category: "transaction_schema"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"    # e.g., schema_digest
-        license: "<SPDX_LICENSE_ID>"
-        role: "Avro schema extended with tzid_settlement, tzid_operational, ip_latitude, ip_longitude, and ip_country fields"
+      - name: licences_hrsl_md
+        path: LICENSES/facebook_hrsl.md
+        type: documentation
+        category: licence
+        semver: "{semver}"
+        version: "{doc_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.docs.licence.hrsl
+        license: CC‑BY‑4.0
+        role: Licence text for HRSL raster.
         dependencies: []
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
+        source: external
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ dev, ci, runtime ]
         schema: null
+        cross_layer: false
         notes: null
 
-      - artifact_id: "test_schema_registry_py"
-        name: "test_schema_registry.py"
-        path: "ci/test_schema_registry.py"
-        type: "ci_test"
-        category: "schema_registry"
+      # ─────────────────────────────────────────────
+      # 15 · EXCEPTION CONTRACTS
+      # ─────────────────────────────────────────────
+      - name: VirtualUniverseMismatchError
+        path: null
+        type: exception
+        category: exception_contract
         semver: null
         version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: null
-        license: "<SPDX_LICENSE_ID>"
-        role: "CI test enforcing Avro schema consistency against the manifest"
-        dependencies:
-          - transaction_schema_avsc
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["ci"]
-        schema: null
-        notes: null
-
-      - artifact_id: "virtual_validation_yml"
-        name: "virtual_validation.yml"
-        path: "config/virtual/virtual_validation.yml"
-        type: "config"
-        category: "virtual_validation"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"    # virtual_validation_digest
-        license: "<SPDX_LICENSE_ID>"
-        role: "Thresholds for ip_country share tolerance and settlement cut‑off time validation"
+        digest: null
+        manifest_key: mlr.3B.exception.universe_mismatch
+        license: null
+        role: Raised when virtual_universe_hash mismatch in replay.
         dependencies: []
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["ci"]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
+        cross_layer: false
         notes: null
 
-      - artifact_id: "test_virtual_validation_py"
-        name: "test_virtual_validation.py"
-        path: "ci/test_virtual_validation.py"
-        type: "ci_test"
-        category: "virtual_validation"
+      - name: VirtualEdgeSamplingError
+        path: null
+        type: exception
+        category: exception_contract
         semver: null
         version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: null
-        license: "<SPDX_LICENSE_ID>"
-        role: "CI test that checks empirical ip_country shares and settlement cut‑off against YAML thresholds"
-        dependencies:
-          - virtual_validation_yml
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["ci"]
-        schema: null
-        notes: null
-
-      - artifact_id: "test_geocoder_bundle_py"
-        name: "test_geocoder_bundle.py"
-        path: "ci/test_geocoder_bundle.py"
-        type: "ci_test"
-        category: "geocode_bundle"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: null
-        license: "<SPDX_LICENSE_ID>"
-        role: "CI test verifying SHA‑256 digest of the offline Pelias geocoder bundle"
-        dependencies:
-          - pelias_cached_sqlite
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["ci"]
-        schema: null
-        notes: null
-
-      - artifact_id: "validate_virtual_py"
-        name: "validate_virtual.py"
-        path: "src/virtual/validate_virtual.py"
-        type: "script"
-        category: "virtual_validation"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: null
-        license: "<SPDX_LICENSE_ID>"
-        role: "Script that loads 30 days of synthetic transactions to validate ip_country distribution and settlement cut‑off times"
-        dependencies:
-          - virtual_validation_yml
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["ci"]
-        schema: null
-        notes: null
-
-      # Batch 4: Exceptions, Logging & Licenses
-
-      - artifact_id: "virtual_universe_mismatch_error"
-        name: "VirtualUniverseMismatchError"
-        path: "src/virtual/exceptions.py"
-        type: "exception"
-        category: "virtual_consistency"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: null
-        license: "<SPDX_LICENSE_ID>"
-        role: "Raised if the alias table’s embedded universe hash differs from live YAML/parquet digests"
-        dependencies:
-          - cdn_alias_npz
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
-        schema: null
-        notes: null
-
-      - artifact_id: "edge_progress_log"
-        name: "edge_progress.log"
-        path: "logs/edge_progress.log"
-        type: "log"
-        category: "progress_log"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: null
-        license: "<SPDX_LICENSE_ID>"
-        role: "Append‑only record of completed edge batches for crash recovery"
+        digest: null
+        manifest_key: mlr.3B.exception.edge_sampling
+        license: null
+        role: Raised when edge sampler fails to hit population ≥ threshold.
         dependencies: []
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
+        cross_layer: false
         notes: null
 
-      - artifact_id: "virtual_logging_yml"
-        name: "virtual_logging.yml"
-        path: "config/logging/virtual_logging.yml"
-        type: "config"
-        category: "logging"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"    # retention_config_digest
-        license: "<SPDX_LICENSE_ID>"
-        role: "Configures daily rotation and 90‑day retention of the progress log"
-        dependencies: []
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
+      # additional artefacts
+
+      - name: rng_policy
+        path: config/routing/rng_policy.yml
+        type: config
+        category: routing
+        semver: { semver }
+        version: { config_version }
+        digest: { sha256 }
+        manifest_key: mlr.2B.config.rng_policy
+        license: { spdx_or_internal }
+        role: Cross-layer RNG policy (SHA-256 keyed Philox) for CDN alias stream keying.
+        dependencies: [ ]
+        source: internal
+        owner: { platform_team }
+        last_updated: { iso8601_timestamp }
+        environment: [ runtime ]
         schema: null
+        cross_layer: true
         notes: null
 
-      - artifact_id: "license_akamai_soti_md"
-        name: "akamai_soti.md"
-        path: "LICENSES/akamai_soti.md"
-        type: "license"
-        category: "license"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: null
-        license: "<SPDX_LICENSE_ID>"
-        role: "CC BY 4.0 licence text for Akamai ‘State of the Internet’ data"
-        dependencies: []
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["dev"]
+      - name: edge_catalogue_schema
+        path: config/virtual/schemas/edge_catalogue.schema.json
+        type: schema
+        category: virtual_edges
+        semver: { semver }
+        version: { schema_version }
+        digest: { sha256 }
+        manifest_key: mlr.3B.schema.edge_catalogue
+        license: { spdx_or_internal }
+        role: Schema for edge catalogue (edge_id STRING, country_iso STRING, tzid STRING, lat DOUBLE, lon DOUBLE, edge_weight FLOAT).
+        dependencies: [ ]
+        source: internal
+        owner: { qa_team }
+        last_updated: { iso8601_timestamp }
+        environment: [ ci, runtime ]
         schema: null
+        cross_layer: false
         notes: null
 
-      - artifact_id: "license_facebook_hrsl_md"
-        name: "facebook_hrsl.md"
-        path: "LICENSES/facebook_hrsl.md"
-        type: "license"
-        category: "license"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: null
-        license: "<SPDX_LICENSE_ID>"
-        role: "CC BY 4.0 licence text for Meta’s HRSL population raster"
-        dependencies: []
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["dev"]
+      - name: universe_hash_policy
+        path: docs/universe_hash_policy.md
+        type: documentation
+        category: governance
+        semver: { semver }
+        version: { doc_version }
+        digest: { sha256 }
+        manifest_key: mlr.3B.docs.universe_hash_policy
+        license: { spdx_or_internal }
+        role: Canonical concatenation order for virtual_universe_hash embedded in alias files.
+        dependencies: [ ]
+        source: internal
+        owner: { platform_team }
+        last_updated: { iso8601_timestamp }
+        environment: [ dev, ci, runtime ]
         schema: null
+        cross_layer: true
+        notes: null
+
+      - name: virtual_licences_manifest
+        path: artefacts/manifests/virtual_licences_manifest.json
+        type: manifest
+        category: licence
+        semver: { semver }
+        version: { run_id }
+        digest: { sha256 }
+        manifest_key: mlr.3B.manifest.licences
+        license: { spdx_or_internal }
+        role: Roll-up of licence digests for virtual subsegment.
+        dependencies:
+          - licences_akamai_md
+          - licences_hrsl_md
+        source: internal
+        owner: { data_governance_team }
+        last_updated: { iso8601_timestamp }
+        environment: [ ci ]
+        schema: null
+        cross_layer: false
         notes: null
