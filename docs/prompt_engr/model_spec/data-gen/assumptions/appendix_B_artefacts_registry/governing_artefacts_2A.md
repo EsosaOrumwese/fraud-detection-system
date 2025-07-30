@@ -34,3 +34,63 @@
 * The `zoneinfo_version.yml` file holds both the tzdata version string and governs horizon defaults; its `tz_horizon_digest` covers both the tzdata version and the simulation bounds.
 * Any addition, removal, or version bump of these artefacts must follow semver rules and will automatically refresh the overall manifest digest via CI.
 * Pattern matching is case‑sensitive; path separators use Unix‑style forward slashes.
+
+## 2A · Deriving the civil time zone — governing artefacts (revision)
+
+### A) Polygon source & deterministic index
+
+* **tz‑world shapefile components** (`.shp/.shx/.dbf/.prj/.cpg`) under `artefacts/priors/tz_world/2025a/`; provenance digests rolled up into **`tz_polygon_digest`** in `spatial_manifest.json`.
+* **STR‑tree serialization** (`tz_world_strtree.pkl`) with SHA‑256 **`tz_index_digest`**; polygons inserted in **lexicographic TZID order** to fix tree shape.
+* **`tzid_insertion_order`** *(manifest)* — the exact sorted TZID list used to build the tree. **\[New]** (guards collation drift).
+* **`locale_policy.yaml`** — pins sort/collation (e.g., code‑point order) so “lexicographic” is identical across envs. **\[New]**
+
+### B) Nudge tie‑break & exceptions
+
+* **`tz_nudge.yml`** (ε = **0.0001°**) with `tz_nudge_digest`; nudge vector persisted as `nudge_lat`, `nudge_lon`.
+* **Exceptions:** `TimeZoneLookupError` (zero‑hit), `DSTLookupTieError` (nudge still ambiguous).
+
+### C) Overrides (governed)
+
+* **`tz_overrides.yaml`** (scope, tzid, evidence\_url, expiry) + CI: **must change ≥ 1 row** or fail. 
+* **`tz_overrides.schema.json`** — schema for pre‑commit validation. **\[New]**
+* **`override_application.jsonl`** *(log)* — per‑row when an override fires. **\[New]**
+* **`override_metrics.parquet`** — counts by (scope, tzid) backing the nightly check. **\[New]**
+
+### D) tzdata, horizon & cache
+
+* **`tzdata2025a.tar.gz`** plus **`zoneinfo_version.yml`**; digest pinned as `tzdata_archive_digest`.
+* **`simulation_horizon.yml`** → `tz_horizon_digest`.
+* **`tz_cache.pkl`** (RLE timetables) with **`tz_cache_bytes`**; CI gate **< 8 MiB**. 
+* **`tz_cache_metrics.parquet`** — size & zone counts for CI trend. **\[New]**
+* **`iana_links_snapshot.parquet`** — alias→canonical TZID table extracted from pinned tzdata. **\[New]**
+* **`timetables/`** *(debug dump)* — optional per‑TZID timetables for investigations. **\[New]**
+
+### E) Lookup audits & failure visibility
+
+* **`tz_lookup_events.jsonl`** *(log)* — for each site: `(lat, lon, tzids_hit_list, nudge_vector, final_tzid, override_applied?)`. **\[New]** (lightweight replay surface).
+* **`tz_lookup_failures.jsonl`** *(log)* — rows that raise `TimeZoneLookupError` (lat, lon, prior\_tag, reason). **\[New]**
+* **`civil_time_manifest.json`** — **per‑run roll‑up** of `tz_polygon_digest`, `tz_index_digest`, `tz_nudge_digest`, `tzdata_archive_digest`, `tz_horizon_digest`, and `tz_cache_bytes` (single place auditors look). **\[New]** 
+
+### F) Timestamp semantics & legality
+
+* **`timestamp_precision_policy.yaml`** — defines `event_time_utc = floor((t_local − 60·o) × 1000)` (ms) and sub‑ms truncation. **\[New]**
+* **Legality filter:** forward‑gap replacement with `dst_adjusted=True`, `gap_seconds` surfaced to the arrival engine; fall‑back fold resolved by `SHA‑256(global_seed ‖ site_id ‖ t_local) % 2`. 
+
+### G) Reproducibility records
+
+* **`python_lib_versions.txt`** — versions of Python/NumPy/Shapely/pyproj/zoneinfo; complements index/cache determinism. **\[New]**
+* **`rng_proof.md`** — proof that fold parity uses only `(global_seed, site_id, t_local)`.
+
+### H) CI gates (record explicitly)
+
+* **Override freshness:** nightly reapply; **must change ≥ 1** row or block.
+* **Cache budget:** `tz_cache_bytes < 8 MiB`; alert on trend growth.
+* **Index determinism:** STR‑tree digest **must equal** `tz_index_digest` for the run.
+
+### I) Output columns (reminder; schema file is source of truth)
+
+* `event_time_utc` (int64 ms), `local_time_offset` (int16), `dst_adjusted` (bool), `fold` (int8); plus `nudge_lat`, `nudge_lon` for replay. 
+
+### “New in this revision” — quick list to add to artefact index
+
+`civil_time_manifest`, `tz_lookup_events`, `override_application_log`, `override_metrics`, `tz_cache_metrics`, `tzid_insertion_order`, `locale_policy`, `geometry_tolerance_policy`, `timestamp_precision_policy`, `iana_links_snapshot`, `tz_timetable_dump`, `python_lib_versions`, `tz_lookup_failures`. (All now present in 2A registry.)

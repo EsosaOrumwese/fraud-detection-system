@@ -2,1427 +2,1120 @@ subsegments:
   - id: "1B"
     name: "Placing outlets on the planet"
     artifacts:
-      # ─────────── Core egress (dataset + schema) ───────────
-      - artifact_id: "site_catalogue"
-        name: "site_catalogue/"
-        path: "data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/"
-        type: "data"
-        category: "output"
-        semver: "{semver}"
-        version: "{manifest_fingerprint}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.output.site_catalogue"
-        license: null
-        role: "Final per‑site rows (coords, tz, remoteness, footfall, provenance); committed atomically via rename."
-        dependencies:
-          - candidate_pool_index
-          - fenwick_snapshot
-          - acceptance_policy
-          - fallback_policy
-          - tz_polygons_ref
-          - footfall_coefficients
-          - winsor_policy
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: "schema/site_catalogue.avsc"
-        cross_layer: false
-        notes: "Crash‑safe writes; validated by spatial_write_manifest."
-
-      - artifact_id: "site_catalogue_schema"
-        name: "site_catalogue.avsc"
-        path: "schema/site_catalogue.avsc"
-        type: "schema"
-        category: "output"
-        semver: "{schema_semver}"
-        version: "{schema_version}"
-        digest: "{schema_digest}"
-        manifest_key: "mlr.1B.schema.site_catalogue"
-        license: null
-        role: "Single authoritative schema for site catalogue (columns, types, constraints)."
-        dependencies: [ ]
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "dev","staging","prod" ]
-        schema: null
-        cross_layer: false
-        notes: "Supersedes per‑column entries."
-
-      # ─────────── Spatial references, CRS, grid, boundaries ───────────
-
-      - artifact_id: "crs_policy"
-        name: "crs_policy.yaml"
-        path: "configs/spatial/crs_policy.yaml"
-        type: "config"
-        category: "spatial"
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: "mlr.spatial.crs_policy"
-        license: null
-        role: "Canonical CRS (e.g., EPSG:4326) and allowed temporary transforms; rounding/precision rules."
-        dependencies: [ ]
-        source: "internal"
-        owner: "{platform_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      - artifact_id: "global_grid_spec"
-        name: "global_grid_spec.yaml"
-        path: "configs/spatial/global_grid_spec.yaml"
-        type: "config"
-        category: "spatial"
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: "mlr.spatial.global_grid_spec"
-        license: null
-        role: "Grid origin, resolution (e.g., 1/1200°), and indexing; shared by priors and samplers."
-        dependencies:
-          - crs_policy
-        source: "internal"
-        owner: "{platform_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      - artifact_id: "country_boundary_ref"
-        name: "admin0_boundaries/"
-        path: "data/reference/boundaries/admin0/{vintage}/"
-        type: "reference"
-        category: "spatial_reference"
-        semver: "{semver}"
-        version: "{vintage}"
-        digest: "{reference_digest}"
-        manifest_key: "mlr.ref.country_boundaries_admin0"
-        license: "{spdx_or_internal}"
-        role: "Country polygons for clipping priors and validating site ISO."
-        dependencies: [ ]
-        source: "external"
-        owner: "{data_governance_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "dev","staging","prod" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      - artifact_id: "land_water_mask_ref"
-        name: "land_water_mask/"
-        path: "data/reference/masks/land_water/{vintage}/"
-        type: "reference"
-        category: "spatial_reference"
-        semver: "{semver}"
-        version: "{vintage}"
-        digest: "{reference_digest}"
-        manifest_key: "mlr.ref.land_water_mask"
-        license: "{spdx_or_internal}"
-        role: "Land/sea mask used in acceptance tests and candidate filtering."
-        dependencies: [ ]
-        source: "external"
-        owner: "{data_governance_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "dev","staging","prod" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      - artifact_id: "boundary_topology_fix_policy"
-        name: "boundary_topology_fix_policy.yaml"
-        path: "configs/spatial/boundary_topology_fix_policy.yaml"
-        type: "config"
-        category: "spatial"
-        semver: "{semver}"
-        version: "{policy_version}"
-        digest: "{sha256}"
-        manifest_key: "mlr.spatial.boundary_topology_fix_policy"
-        license: null
-        role: "Rules/tolerances for repairing boundary topology (self‑intersections, slivers) before clipping."
-        dependencies:
-          - country_boundary_ref
-        source: "internal"
-        owner: "{platform_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      # ─────────── Spatial priors & blending (keep your existing; add governance) ───────────
-
-      - artifact_id: "spatial_manifest"
-        name: "spatial_manifest.json"
-        path: "configs/manifests/spatial_manifest.json"
-        type: "manifest"
-        category: "spatial_prior"
-        semver: "{manifest_key}"
-        version: "{manifest_key}"
-        digest: "{sha256}"
-        manifest_key: "{manifest_key}"
-        license: "{spdx_or_internal}"
-        role: "Aggregated manifest of all spatial prior assets with their digests."
-        dependencies:
-          - sibling_sha256s
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "ci","runtime" ]
-        schema: null
-        cross_layer: true
-        notes: "Reuses prior bundle you registered."  # from original registry
-
-      - artifact_id: "sibling_sha256s"
-        name: "sibling_sha256s/"
-        path: "configs/manifests/spatial/sibling_sha256s/"
-        type: "directory"
-        category: "versioning"
-        semver: null
-        version: null
-        digest: null
-        manifest_key: null
-        license: "{spdx_or_internal}"
-        role: "Directory of individual .sha256 digest files for spatial prior siblings."
-        dependencies: [ ]
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "ci" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      - artifact_id: "hrsl_pop_100m_raster"
-        name: "hrsl_pop_100m.tif"
-        path: "data/spatial_priors/hrsl_pop_100m_v1.2/hrsl_pop_100m.tif"
-        type: "data"
-        category: "spatial_prior"
-        semver: "{semver}"
-        version: "2020_v1.2"
-        digest: "{sha256}"
-        manifest_key: "{manifest_key}"
-        license: "{spdx_or_internal}"
-        role: "High‑Resolution Settlement Layer raster for population density."
-        dependencies: [ ]
-        source: "Facebook HRSL"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      - artifact_id: "worldpop_raster"
-        name: "worldpop_2023Q4.tif"
-        path: "data/spatial_priors/worldpop/worldpop_2023Q4.tif"
-        type: "data"
-        category: "spatial_prior"
-        semver: "{semver}"
-        version: "2023Q4"
-        digest: "{sha256}"
-        manifest_key: "{manifest_key}"
-        license: "{spdx_or_internal}"
-        role: "WorldPop raster for population fallback in spatial placement."
-        dependencies: [ ]
-        source: "WorldPop"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      - artifact_id: "osm_primary_roads"
-        name: "osm_primary_roads.shp"
-        path: "data/spatial_priors/osm/osm_primary_roads.shp"
-        type: "data"
-        category: "spatial_prior"
-        semver: "{semver}"
-        version: "{vintage}"
-        digest: "{sha256}"
-        manifest_key: "{manifest_key}"
-        license: "{spdx_or_internal}"
-        role: "OpenStreetMap primary roads for road‑proximity prior."
-        dependencies: [ ]
-        source: "OpenStreetMap"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: true
-        notes: "Includes .shp, .shx, .dbf, .prj."
-
-      - artifact_id: "iata_airport_polygons"
-        name: "airports.geojson"
-        path: "data/spatial_priors/iata/airports.geojson"
-        type: "data"
-        category: "spatial_prior"
-        semver: "{semver}"
-        version: "2025"
-        digest: "{sha256}"
-        manifest_key: "{manifest_key}"
-        license: "{spdx_or_internal}"
-        role: "IATA airport service‑area polygons."
-        dependencies: [ ]
-        source: "IATA"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      - artifact_id: "spatial_blend"
-        name: "spatial_blend.yaml"
-        path: "configs/spatial/spatial_blend.yaml"
-        type: "config"
-        category: "spatial_prior"
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: "{manifest_key}"
-        license: "{spdx_or_internal}"
-        role: "Configuration for blending category‑specific priors into combined per‑country priors."
-        dependencies:
-          - hrsl_pop_100m_raster
-          - worldpop_raster
-          - osm_primary_roads
-          - iata_airport_polygons
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      - artifact_id: "prior_blend_recipe"
-        name: "prior_blend_recipe.yaml"
-        path: "configs/spatial/priors/prior_blend_recipe.yaml"
-        type: "config"
-        category: "spatial_prior"
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.priors.blend_recipe"
-        license: null
-        role: "Per‑category blend weights and normalization mode."
-        dependencies: [ ]
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      - artifact_id: "prior_blend_manifest"
-        name: "prior_blend/{manifest_key}.json"
-        path: "data/manifests/1B/prior_blend/{manifest_key}.json"
-        type: "manifest"
-        category: "spatial_prior"
-        semver: "{semver}"
-        version: "{manifest_key}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.priors.blend_manifest"
-        license: null
-        role: "Records component prior digests + recipe used for the blended prior."
-        dependencies:
-          - prior_blend_recipe
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "ci","runtime" ]
-        schema: null
-        cross_layer: false
-        notes: "Include the exact artefact_ids used per country/category."
-
-      - artifact_id: "prior_provenance_map"
-        name: "prior_provenance_map/"
-        path: "data/derived/1B/prior_provenance_map/{manifest_key}/"
-        type: "mapping"
-        category: "spatial_prior"
-        semver: "{semver}"
-        version: "{manifest_key}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.priors.provenance_map"
-        license: null
-        role: "Country/category → component prior vintage effectively used."
-        dependencies:
-          - prior_blend_manifest
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      - artifact_id: "blended_raster_cache"
-        name: "blended_raster_cache/"
-        path: "data/spatial_priors/blended/cache_v1/"
-        type: "directory"
-        category: "spatial_prior"
-        semver: "{semver}"
-        version: "v1"
-        digest: "{sha256}"
-        manifest_key: "{manifest_key}"
-        license: "{spdx_or_internal}"
-        role: "Cached outputs of blended priors for repeated sampling."
-        dependencies:
-          - spatial_blend
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      # ─────────── Indices & candidate pools ───────────
-
-      - artifact_id: "country_cell_index"
-        name: "country_cell_index/"
-        path: "data/indices/1B/country_cell_index/{grid_version}/"
-        type: "data"
-        category: "spatial_index"
-        semver: "{semver}"
-        version: "{grid_version}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.index.country_cell_index"
-        license: null
-        role: "Grid‑cell membership per country (post boundary clip)."
-        dependencies:
-          - global_grid_spec
-          - country_boundary_ref
-        source: "internal"
-        owner: "{engineering_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      - artifact_id: "candidate_pool_index"
-        name: "candidate_pool_index/"
-        path: "data/indices/1B/candidate_pool_index/{manifest_key}/"
-        type: "data"
-        category: "spatial_index"
-        semver: "{semver}"
-        version: "{manifest_key}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.index.candidate_pool"
-        license: null
-        role: "Eligible cells/points with weights after masks, clips, and blends."
-        dependencies:
-          - country_cell_index
-          - land_water_mask_ref
-          - prior_blend_recipe
-          - prior_blend_manifest
-          - sample_blacklist_areas
-        source: "internal"
-        owner: "{engineering_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      - artifact_id: "fenwick_snapshot"
-        name: "fenwick/"
-        path: "data/cache/1B/fenwick/{manifest_key}/"
-        type: "data"
-        category: "spatial_index"
-        semver: "{semver}"
-        version: "{manifest_key}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.cache.fenwick_snapshot"
-        license: null
-        role: "Serialized Fenwick/alias tables to sample without extra RNG or drift."
-        dependencies:
-          - candidate_pool_index
-        source: "internal"
-        owner: "{engineering_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      - artifact_id: "sampling_method_manifest"
-        name: "sampling_method/{manifest_key}.json"
-        path: "data/manifests/1B/sampling_method/{manifest_key}.json"
-        type: "manifest"
-        category: "sampling"
-        semver: "{semver}"
-        version: "{manifest_key}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.sampling.method_manifest"
-        license: null
-        role: "Sampler choice (Fenwick vs alias), numerical tolerances, seeds/strides."
-        dependencies:
-          - fenwick_snapshot
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "ci","runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      - artifact_id: "fenwick_build_event"
-        name: "fenwick_build_event.jsonl"
-        path: "logs/spatial/fenwick_build_event.jsonl"
-        type: "log"
-        category: "sampling"
-        semver: "{semver}"
-        version: "{manifest_key}"
-        digest: "{sha256}"
-        manifest_key: "{manifest_key}"
-        license: "{spdx_or_internal}"
-        role: "Event log for Fenwick‑tree CDF construction."
-        dependencies:
-          - blended_raster_cache
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      # ─────────── Acceptance / fallback governance & metrics ───────────
-
-      - artifact_id: "acceptance_policy"
-        name: "acceptance_policy.yaml"
-        path: "configs/spatial/acceptance_policy.yaml"
-        type: "config"
-        category: "acceptance"
-        semver: "{semver}"
-        version: "{policy_version}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.acceptance.policy"
-        license: null
-        role: "Thresholds: land/water, road proximity, TZ‑country consistency; Wilson‑bound target."
-        dependencies:
-          - crs_policy
-          - road_proximity_config
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      - artifact_id: "acceptance_metrics"
-        name: "acceptance/{run_id}.parquet"
-        path: "ci/metrics/1B/acceptance/{run_id}.parquet"
-        type: "data"
-        category: "monitoring"
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.metrics.acceptance"
-        license: null
-        role: "Nightly acceptance rates per country/category with Wilson intervals."
-        dependencies:
-          - site_catalogue
-          - acceptance_policy
-        source: "internal"
-        owner: "{qa_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "ci" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      - artifact_id: "fallback_policy"
-        name: "fallback_policy.yml"
-        path: "configs/spatial/fallback_policy.yml"
-        type: "config"
-        category: "fallback"
-        semver: "{semver}"
-        version: "{policy_version}"
-        digest: "{sha256}"
-        manifest_key: "{manifest_key}"
-        license: "{spdx_or_internal}"
-        role: "Rules when priors fail (population‑only, grid‑uniform, neighbor borrowing); global cap."
-        dependencies:
-          - spatial_manifest
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      - artifact_id: "fallback_metrics"
-        name: "fallback/{run_id}.parquet"
-        path: "ci/metrics/1B/fallback/{run_id}.parquet"
-        type: "data"
-        category: "monitoring"
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.metrics.fallback"
-        license: null
-        role: "Realized fallback rates per country/category with reason codes."
-        dependencies:
-          - site_catalogue
-          - fallback_policy
-        source: "internal"
-        owner: "{qa_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "ci" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      - artifact_id: "sample_blacklist_areas"
-        name: "sample_blacklist_areas/"
-        path: "data/reference/exclusions/sample_blacklist_areas/{vintage}/"
-        type: "data"
-        category: "spatial_reference"
-        semver: "{semver}"
-        version: "{vintage}"
-        digest: "{sha256}"
-        manifest_key: "mlr.ref.sample_blacklist_areas"
-        license: null
-        role: "Polygons to exclude (military, glaciers, large inland water)."
-        dependencies:
-          - country_boundary_ref
-        source: "external"
-        owner: "{data_governance_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "dev","staging","prod" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      # ─────────── Roads, proximity & (optional) network distance ───────────
-
-      - artifact_id: "roads_ref"
-        name: "roads/"
-        path: "data/reference/roads/{vintage}/"
-        type: "reference"
-        category: "spatial_reference"
-        semver: "{semver}"
-        version: "{vintage}"
-        digest: "{reference_digest}"
-        manifest_key: "mlr.ref.roads"
-        license: "{spdx_or_internal}"
-        role: "Road network vintage used for proximity checks and optional network distances."
-        dependencies: [ ]
-        source: "external"
-        owner: "{data_governance_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "dev","staging","prod" ]
-        schema: null
-        cross_layer: true
-        notes: "Can reference same vintage as osm_primary_roads."
-
-      - artifact_id: "road_spatial_index"
-        name: "road_index/"
-        path: "data/cache/1B/road_index/{vintage}/"
-        type: "data"
-        category: "spatial_index"
-        semver: "{semver}"
-        version: "{vintage}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.cache.road_spatial_index"
-        license: null
-        role: "Tiled spatial index (R‑tree/H3) for fast road proximity queries."
-        dependencies:
-          - roads_ref
-        source: "internal"
-        owner: "{engineering_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      - artifact_id: "road_proximity_config"
-        name: "road_proximity_config.yaml"
-        path: "configs/spatial/road_proximity_config.yaml"
-        type: "config"
-        category: "acceptance"
-        semver: "{semver}"
-        version: "{policy_version}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.acceptance.road_proximity"
-        license: null
-        role: "Proximity thresholds per merchant category (default 50 m)."
-        dependencies: [ ]
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      - artifact_id: "network_distance_graph"
-        name: "road_graph/"
-        path: "data/reference/road_graph/{vintage}/"
-        type: "reference"
-        category: "spatial_reference"
-        semver: "{semver}"
-        version: "{vintage}"
-        digest: "{reference_digest}"
-        manifest_key: "mlr.ref.road_graph"
-        license: "{spdx_or_internal}"
-        role: "Graph/OSRM snapshot for computing true network distances (optional)."
-        dependencies:
-          - roads_ref
-        source: "external"
-        owner: "{data_governance_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "dev","staging","prod" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      - artifact_id: "road_distance_method"
-        name: "road_distance_method.yaml"
-        path: "configs/spatial/road_distance_method.yaml"
-        type: "config"
-        category: "acceptance"
-        semver: "{semver}"
-        version: "{policy_version}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.acceptance.road_distance_method"
-        license: null
-        role: "Method for road distance (nearest segment vs shortest path) and tie‑break rules."
-        dependencies:
-          - network_distance_graph
-        source: "internal"
-        owner: "{platform_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      # ─────────── Remoteness (capital GC + optional network) ───────────
-
-      - artifact_id: "capital_points_ref"
-        name: "capitals.csv"
-        path: "data/reference/capitals/{vintage}/capitals.csv"
-        type: "reference"
-        category: "spatial_reference"
-        semver: "{semver}"
-        version: "{vintage}"
-        digest: "{reference_digest}"
-        manifest_key: "mlr.ref.capital_points"
-        license: "{spdx_or_internal}"
-        role: "Authoritative capital coordinates / chosen centroids."
-        dependencies: [ ]
-        source: "external"
-        owner: "{data_governance_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "dev","staging","prod" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      - artifact_id: "remoteness_method"
-        name: "remoteness_method.yaml"
-        path: "configs/spatial/remoteness_method.yaml"
-        type: "config"
-        category: "acceptance"
-        semver: "{semver}"
-        version: "{policy_version}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.acceptance.remoteness_method"
-        license: null
-        role: "Great‑circle method (Haversine/Vincenty), ellipsoid constants, rounding policy."
-        dependencies:
-          - crs_policy
-        source: "internal"
-        owner: "{platform_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      - artifact_id: "remoteness_metrics"
-        name: "remoteness/{run_id}.parquet"
-        path: "ci/metrics/1B/remoteness/{run_id}.parquet"
-        type: "data"
-        category: "monitoring"
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.metrics.remoteness"
-        license: null
-        role: "Distribution summaries of GC and/or network distances; winsor stats."
-        dependencies:
-          - site_catalogue
-          - remoteness_method
-          - capital_points_ref
-        source: "internal"
-        owner: "{qa_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "ci" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      # ─────────── Timezone consistency ───────────
-
-      - artifact_id: "tz_polygons_ref"
-        name: "tz_polygons/"
-        path: "data/reference/timezones/{vintage}/"
-        type: "reference"
-        category: "spatial_reference"
-        semver: "{semver}"
-        version: "{vintage}"
-        digest: "{reference_digest}"
-        manifest_key: "mlr.ref.tz_polygons"
-        license: "{spdx_or_internal}"
-        role: "Timezone polygons used to assign TZID."
-        dependencies: [ ]
-        source: "external"
-        owner: "{data_governance_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "dev","staging","prod" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      - artifact_id: "tz_override_table"
-        name: "tz_override_table.yaml"
-        path: "configs/spatial/tz_override_table.yaml"
-        type: "config"
-        category: "spatial"
-        semver: "{semver}"
-        version: "{policy_version}"
-        digest: "{sha256}"
-        manifest_key: "mlr.spatial.tz_override_table"
-        license: null
-        role: "Manual corrections for TZ assignment (enclaves/quirks)."
-        dependencies:
-          - tz_polygons_ref
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      - artifact_id: "tz_mismatch_events"
-        name: "tz_mismatch.jsonl"
-        path: "logs/spatial/tz_mismatch.jsonl"
-        type: "data"
-        category: "events"
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.events.tz_mismatch"
-        license: null
-        role: "Event stream when site timezone country ≠ site ISO country."
-        dependencies:
-          - site_catalogue
-          - tz_polygons_ref
-        source: "internal"
-        owner: "{qa_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      # ─────────── Footfall & winsorization ───────────
-
-      - artifact_id: "footfall_coefficients"
-        name: "footfall_coefficients.yaml"
-        path: "configs/spatial/footfall_coefficients.yaml"
-        type: "config"
-        category: "footfall"
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.footfall.coefficients"
-        license: null
-        role: "Transform from blended prior intensity to per‑site footfall scalar by category."
-        dependencies: [ ]
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      - artifact_id: "winsor_policy"
-        name: "winsor_policy.yaml"
-        path: "configs/spatial/winsor_policy.yaml"
-        type: "config"
-        category: "footfall"
-        semver: "{semver}"
-        version: "{policy_version}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.footfall.winsor_policy"
-        license: null
-        role: "Caps for footfall/remoteness by category/country bucket."
-        dependencies:
-          - footfall_coefficients
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      - artifact_id: "footfall_scalar_table"
-        name: "footfall_scalars/"
-        path: "data/derived/1B/footfall_scalars/{manifest_key}/"
-        type: "data"
-        category: "footfall"
-        semver: "{semver}"
-        version: "{manifest_key}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.footfall.scalars"
-        license: null
-        role: "Per‑site footfall scalar with provenance tag (dominant prior contributor)."
-        dependencies:
-          - site_catalogue
-          - footfall_coefficients
-          - winsor_policy
-        source: "internal"
-        owner: "{engineering_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      # ─────────── RNG audit: schemas + streams (sampling) ───────────
-
-      - artifact_id: "rng_event_types_sampling"
-        name: "schemas/sampling/"
-        path: "logs/rng/events/schemas/sampling/{event_name}-{semver}.json"
-        type: "schema"
-        category: "rng_event"
-        semver: "{semver}"
-        version: "{schema_version}"
-        digest: "{catalog_digest}"
-        manifest_key: "mlr.rng.events.sampling.schema_catalog"
-        license: null
-        role: "Schema/catalog for sampling events (sample_candidate, accept_reject, fallback_invoked)."
-        dependencies: [ ]
-        source: "internal"
-        owner: "{platform_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "dev","staging","prod" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      - artifact_id: "sample_candidate_events"
-        name: "sample_candidate.jsonl"
-        path: "logs/rng/events/sample_candidate.jsonl"
-        type: "data"
-        category: "events"
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.events.sample_candidate"
-        license: null
-        role: "Event per candidate sampled from the blended prior (pre‑acceptance)."
-        dependencies:
-          - rng_event_types_sampling
-          - fenwick_snapshot
-        source: "internal"
-        owner: "{qa_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      - artifact_id: "accept_reject_events"
-        name: "accept_reject.jsonl"
-        path: "logs/rng/events/accept_reject.jsonl"
-        type: "data"
-        category: "events"
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.events.accept_reject"
-        license: null
-        role: "Event for acceptance decision (land/water, road proximity, tz consistency)."
-        dependencies:
-          - rng_event_types_sampling
-          - acceptance_policy
-        source: "internal"
-        owner: "{qa_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      - artifact_id: "fallback_invoked_events"
-        name: "fallback_invoked.jsonl"
-        path: "logs/rng/events/fallback_invoked.jsonl"
-        type: "data"
-        category: "events"
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.events.fallback_invoked"
-        license: null
-        role: "Event when fallback path triggers and which rule fired."
-        dependencies:
-          - rng_event_types_sampling
-          - fallback_policy
-        source: "internal"
-        owner: "{qa_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      # Keep your existing RNG/audit events from the original file
-      - artifact_id: "master_seed"
-        name: "MASTER_SEED"
-        path: "configs/spatial/master_seed.yaml"
-        type: "config"
-        category: "rng"
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: "{manifest_key}"
-        license: "{spdx_or_internal}"
-        role: "Philox master seed for spatial sampling sub‑streams."
-        dependencies:
-          - manifest_fingerprint
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      - artifact_id: "pixel_draw_event"
-        name: "pixel_draw_event.jsonl"
-        path: "logs/spatial/pixel_draw_event.jsonl"
-        type: "data"
-        category: "rng_event"
-        semver: "{semver}"
-        version: "{manifest_key}"
-        digest: "{sha256}"
-        manifest_key: "{manifest_key}"
-        license: "{spdx_or_internal}"
-        role: "Event logging each random draw for raster pixel sampling."
-        dependencies:
-          - fenwick_build_event
-          - master_seed
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      - artifact_id: "feature_draw_event"
-        name: "feature_draw_event.jsonl"
-        path: "logs/spatial/feature_draw_event.jsonl"
-        type: "data"
-        category: "rng_event"
-        semver: "{semver}"
-        version: "{manifest_key}"
-        digest: "{sha256}"
-        manifest_key: "{manifest_key}"
-        license: "{spdx_or_internal}"
-        role: "Event logging each random draw for vector feature sampling."
-        dependencies:
-          - osm_primary_roads
-          - master_seed
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      - artifact_id: "triangle_draw_event"
-        name: "triangle_draw_event.jsonl"
-        path: "logs/spatial/triangle_draw_event.jsonl"
-        type: "data"
-        category: "rng_event"
-        semver: "{semver}"
-        version: "{manifest_key}"
-        digest: "{sha256}"
-        manifest_key: "{manifest_key}"
-        license: "{spdx_or_internal}"
-        role: "Event logging barycentric coordinate draws for triangle fallback sampling."
-        dependencies:
-          - contraction_hierarchies_graph
-          - master_seed
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      - artifact_id: "polyline_offset_event"
-        name: "polyline_offset_event.jsonl"
-        path: "logs/spatial/polyline_offset_event.jsonl"
-        type: "data"
-        category: "rng_event"
-        semver: "{semver}"
-        version: "{manifest_key}"
-        digest: "{sha256}"
-        manifest_key: "{manifest_key}"
-        license: "{spdx_or_internal}"
-        role: "Event logging random offset draws along road polylines."
-        dependencies:
-          - osm_primary_roads
-          - master_seed
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      - artifact_id: "placement_failure_event"
-        name: "placement_failure_event.jsonl"
-        path: "logs/spatial/placement_failure_event.jsonl"
-        type: "exception"
-        category: "rng_event"
-        semver: "{semver}"
-        version: "{manifest_key}"
-        digest: "{sha256}"
-        manifest_key: "{manifest_key}"
-        license: "{spdx_or_internal}"
-        role: "Exception event when all sampling methods fail for an outlet stub."
-        dependencies:
-          - fallback_policy
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      # ─────────── Remoteness inputs (carry over originals) ───────────
-
-      - artifact_id: "capitals_dataset_2024"
-        name: "capitals_dataset_2024.parquet"
-        path: "data/external/geography/capitals_dataset_2024.parquet"
-        type: "data"
-        category: "remoteness"
-        semver: "{semver}"
-        version: "2024"
-        digest: "{sha256}"
-        manifest_key: "{manifest_key}"
-        license: "{spdx_or_internal}"
-        role: "List of national capital coordinates used for Haversine baseline."
-        dependencies: [ ]
-        source: "Natural Earth"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: "schema/capitals_dataset.avsc"
-        cross_layer: true
-        notes:
-
-      - artifact_id: "osm_planet_extract"
-        name: "osm_planet_extract.osm.pbf"
-        path: "data/external/osm/planet/osm_planet_extract.osm.pbf"
-        type: "data"
-        category: "remoteness"
-        semver: "{semver}"
-        version: "{extract_date}"
-        digest: "{sha256}"
-        manifest_key: "{manifest_key}"
-        license: "ODbL-1.0"
-        role: "Full OSM extract for building contraction hierarchies."
-        dependencies: [ ]
-        source: "OpenStreetMap"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      - artifact_id: "contraction_hierarchies_graph"
-        name: "graph_v1/"
-        path: "data/processed/remoteness/graph_v1/"
-        type: "directory"
-        category: "remoteness"
-        semver: "{semver}"
-        version: "v1"
-        digest: "{sha256}"
-        manifest_key: "{manifest_key}"
-        license: "{spdx_or_internal}"
-        role: "Precomputed hierarchy graph for network‑distance calculations."
-        dependencies:
-          - osm_planet_extract
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      # ─────────── Timezone input (carry over originals) ───────────
-
-      - artifact_id: "tz_world_metadata"
-        name: "tz_world_metadata.json"
-        path: "data/external/tz/tz_world_metadata.json"
-        type: "data"
-        category: "timezone"
-        semver: "{semver}"
-        version: "2025a"
-        digest: "{sha256}"
-        manifest_key: "{manifest_key}"
-        license: "{spdx_or_internal}"
-        role: "Compact IANA tz‑world metadata for STR‑tree."
-        dependencies: [ ]
-        source: "IANA"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      - artifact_id: "tz_mismatch_event"
-        name: "tz_mismatch_event.jsonl"
-        path: "logs/spatial/tz_mismatch_event.jsonl"
-        type: "data"
-        category: "timezone"
-        semver: "{semver}"
-        version: "{manifest_key}"
-        digest: "{sha256}"
-        manifest_key: "{manifest_key}"
-        license: "{spdx_or_internal}"
-        role: "Event when ambiguous timezone lookup resolved by ε nudge."
-        dependencies:
-          - tz_world_metadata
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      - artifact_id: "tz_mismatch_exhausted_event"
-        name: "tz_mismatch_exhausted_event.jsonl"
-        path: "logs/spatial/tz_mismatch_exhausted_event.jsonl"
-        type: "exception"
-        category: "timezone"
-        semver: "{semver}"
-        version: "{manifest_key}"
-        digest: "{sha256}"
-        manifest_key: "{manifest_key}"
-        license: "{spdx_or_internal}"
-        role: "Exception when timezone ambiguity persists after max ε nudges."
-        dependencies:
-          - tz_mismatch_event
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      # ─────────── Storage: temp/commit protocol, manifest, WAL ───────────
-
-      - artifact_id: "temp_write_policy"
-        name: "temp_write_policy.yaml"
-        path: "configs/storage/temp_write_policy.yaml"
-        type: "config"
-        category: "storage"
-        semver: "{semver}"
-        version: "{policy_version}"
-        digest: "{sha256}"
-        manifest_key: "mlr.storage.temp_write_policy"
-        license: null
-        role: "Temp dir pattern and rename‑only commit rule for atomic writes."
-        dependencies: [ ]
-        source: "internal"
-        owner: "{platform_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      - artifact_id: "write_ahead_log"
-        name: "write_ahead.log"
-        path: "logs/spatial/write_ahead.log"
-        type: "log"
-        category: "storage"
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: "mlr.storage.write_ahead_log"
-        license: null
-        role: "Idempotent WAL of planned output chunks to enable safe retries."
-        dependencies:
-          - temp_write_policy
-        source: "internal"
-        owner: "{platform_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      - artifact_id: "spatial_write_manifest"
-        name: "_spatial_manifest.json"
-        path: "data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/_spatial_manifest.json"
-        type: "manifest"
-        category: "output"
-        semver: "{semver}"
-        version: "{manifest_fingerprint}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.output.spatial_write_manifest"
-        license: null
-        role: "Lists committed parts, row counts, bbox, CRS, and digests for the 1B run."
-        dependencies:
-          - site_catalogue
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "ci","runtime" ]
-        schema: null
-        cross_layer: false
-        notes:
-
-      - artifact_id: "temp_file_pattern"
-        name: "temp_file_pattern.yaml"
-        path: "configs/storage/temp_file_pattern.yaml"
-        type: "config"
-        category: "storage"
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: "{manifest_key}"
-        license: "{spdx_or_internal}"
-        role: "Naming template for intermediate temp files."
-        dependencies:
-          - spatial_manifest
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: true
-        notes: "e.g., 'tmp/{seed}/{site_id}/*.tmp'"
-
-      - artifact_id: "final_parquet_file_pattern"
-        name: "final_parquet_file_pattern.yaml"
-        path: "configs/storage/final_parquet_file_pattern.yaml"
-        type: "config"
-        category: "storage"
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: "{manifest_key}"
-        license: "{spdx_or_internal}"
-        role: "Naming template for final Parquet shard outputs."
-        dependencies:
-          - storage_path_pattern
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: true
-        notes: "Pattern: 'catalogue/seed={seed}/fingerprint={fingerprint}/part-*.parquet'"
-
-      - artifact_id: "end_of_run_manifest"
-        name: "end_of_run_manifest.json"
-        path: "ci/manifests/end_of_run_manifest.json"
-        type: "manifest"
-        category: "storage"
-        semver: "{semver}"
-        version: "{manifest_key}"
-        digest: "{sha256}"
-        manifest_key: "{manifest_key}"
-        license: "{spdx_or_internal}"
-        role: "Aggregated summary of all output files and digests at end of run."
-        dependencies:
-          - final_parquet_file_pattern
-          - manifest_fingerprint
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "ci" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      # ─────────── Reproducibility: library versions ───────────
-
-      - artifact_id: "geospatial_lib_versions"
-        name: "geospatial_lib_versions.txt"
-        path: "ci/manifests/geospatial_lib_versions.txt"
-        type: "manifest"
-        category: "reproducibility"
-        semver: "{semver}"
-        version: "{manifest_version}"
-        digest: "{sha256}"
-        manifest_key: "mlr.ci.geospatial_lib_versions"
-        license: null
-        role: "Exact GDAL/GEOS/PROJ (and bindings) used for spatial operations."
-        dependencies: [ ]
-        source: "internal"
-        owner: "{platform_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "ci","runtime" ]
-        schema: null
-        cross_layer: true
-        notes:
-
-      # ─────────── Documentation / codebook ───────────
-
-      - artifact_id: "site_provenance_codebook"
-        name: "site_provenance_codebook.yaml"
-        path: "docs/codebooks/site_provenance_codebook.yaml"
-        type: "mapping"
-        category: "documentation"
-        semver: "{semver}"
-        version: "{doc_version}"
-        digest: "{sha256}"
-        manifest_key: "mlr.1B.docs.site_provenance_codebook"
-        license: null
-        role: "Code→meaning map for per‑site provenance tags (dominant prior, fallback reason, etc.)."
-        dependencies:
-          - prior_blend_recipe
-        source: "internal"
-        owner: "{owner_team}"
-        last_updated: "{iso8601_timestamp}"
-        environment: [ "dev","staging","prod" ]
-        schema: null
-        cross_layer: false
-        notes:
+
+    # ─────────── Core egress (dataset + schema) ───────────
+    - artifact_id: site_catalogue
+      name: "site_catalogue/"
+      path: "data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/"
+      type: dataset
+      category: output
+      semver: "{semver}"
+      version: "{manifest_fingerprint}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.output.site_catalogue
+      license: null
+      role: "Final per‑site rows (coords, tz, remoteness, footfall, provenance); committed atomically via rename."
+      dependencies:
+        - candidate_pool_index
+        - fenwick_snapshot
+        - acceptance_policy
+        - fallback_policy
+        - tz_polygons_ref
+        - footfall_coefficients
+        - winsor_policy
+      source: internal
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: schema/site_catalogue.avsc
+      cross_layer: true
+      notes: "Crash‑safe writes; validated by spatial_write_manifest."
+
+    - artifact_id: site_catalogue_schema
+      name: "site_catalogue.avsc"
+      path: "schema/site_catalogue.avsc"
+      type: schema
+      category: output
+      semver: "{schema_semver}"
+      version: "{schema_version}"
+      digest: "{schema_digest}"
+      manifest_key: mlr.1B.schema.site_catalogue
+      license: null
+      role: "Single authoritative schema for site catalogue (columns, types, constraints)."
+      dependencies: [ ]
+      source: internal
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ dev, staging, prod ]
+      schema: null
+      cross_layer: false
+      notes: null
+
+    # ─────────── Spatial references, CRS, grid, boundaries ───────────
+    - artifact_id: crs_policy
+      name: crs_policy.yaml
+      path: configs/spatial/crs_policy.yaml
+      type: config
+      category: spatial
+      semver: "{semver}"
+      version: "{config_version}"
+      digest: "{sha256}"
+      manifest_key: mlr.spatial.crs_policy
+      license: null
+      role: "Canonical CRS (e.g., EPSG:4326) and allowed temporary transforms; rounding/precision rules."
+      dependencies: [ ]
+      source: internal
+      owner: "{platform_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    - artifact_id: global_grid_spec
+      name: global_grid_spec.yaml
+      path: configs/spatial/global_grid_spec.yaml
+      type: config
+      category: spatial
+      semver: "{semver}"
+      version: "{config_version}"
+      digest: "{sha256}"
+      manifest_key: mlr.spatial.global_grid_spec
+      license: null
+      role: "Grid origin, resolution (e.g., 1/1200°), and indexing; shared by priors and samplers."
+      dependencies:
+        - crs_policy
+      source: internal
+      owner: "{platform_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    - artifact_id: country_boundary_ref
+      name: admin0_boundaries/
+      path: data/reference/boundaries/admin0/{vintage}/
+      type: reference
+      category: spatial_reference
+      semver: "{semver}"
+      version: "{vintage}"
+      digest: "{reference_digest}"
+      manifest_key: mlr.ref.country_boundaries_admin0
+      license: "{spdx_or_internal}"
+      role: "Country polygons for clipping priors and validating site ISO."
+      dependencies: [ ]
+      source: external
+      owner: "{data_governance_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ dev, staging, prod ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    - artifact_id: land_water_mask_ref
+      name: land_water_mask/
+      path: data/reference/masks/land_water/{vintage}/
+      type: reference
+      category: spatial_reference
+      semver: "{semver}"
+      version: "{vintage}"
+      digest: "{reference_digest}"
+      manifest_key: mlr.ref.land_water_mask
+      license: "{spdx_or_internal}"
+      role: "Land/sea mask used in acceptance tests and candidate filtering."
+      dependencies: [ ]
+      source: external
+      owner: "{data_governance_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ dev, staging, prod ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    - artifact_id: boundary_topology_fix_policy
+      name: boundary_topology_fix_policy.yaml
+      path: configs/spatial/boundary_topology_fix_policy.yaml
+      type: config
+      category: spatial
+      semver: "{semver}"
+      version: "{policy_version}"
+      digest: "{sha256}"
+      manifest_key: mlr.spatial.boundary_topology_fix_policy
+      license: null
+      role: "Rules/tolerances for repairing boundary topology before clipping."
+      dependencies:
+        - country_boundary_ref
+      source: internal
+      owner: "{platform_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    # ─────────── Spatial priors & blending ───────────
+    - artifact_id: spatial_manifest
+      name: spatial_manifest.json
+      path: configs/manifests/spatial_manifest.json
+      type: manifest
+      category: spatial_prior
+      semver: "{manifest_key}"
+      version: "{manifest_key}"
+      digest: "{sha256}"
+      manifest_key: "{manifest_key}"
+      license: "{spdx_or_internal}"
+      role: "Aggregated manifest of all spatial prior assets with their digests."
+      dependencies:
+        - sibling_sha256s
+      source: internal
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ ci, runtime ]
+      schema: null
+      cross_layer: true
+      notes: "Reuses prior bundle registered under 1A."
+
+    - artifact_id: sibling_sha256s
+      name: sibling_sha256s/
+      path: configs/manifests/spatial/sibling_sha256s/
+      type: directory
+      category: versioning
+      semver: null
+      version: null
+      digest: null
+      manifest_key: null
+      license: "{spdx_or_internal}"
+      role: "Individual .sha256 digest files for spatial prior siblings."
+      dependencies: [ ]
+      source: internal
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ ci ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    - artifact_id: hrsl_pop_100m_raster
+      name: hrsl_pop_100m.tif
+      path: data/spatial_priors/hrsl_pop_100m_v1.2/hrsl_pop_100m.tif
+      type: reference
+      category: spatial_prior
+      semver: "{semver}"
+      version: "2020_v1.2"
+      digest: "{sha256}"
+      manifest_key: mlr.ref.hrsl_pop_100m_v1_2
+      license: "{spdx_or_internal}"
+      role: "High‑Resolution Settlement Layer raster for population density."
+      dependencies: [ ]
+      source: "Facebook HRSL"
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    - artifact_id: worldpop_raster
+      name: worldpop_2023Q4.tif
+      path: data/spatial_priors/worldpop/worldpop_2023Q4.tif
+      type: reference
+      category: spatial_prior
+      semver: "{semver}"
+      version: "2023Q4"
+      digest: "{sha256}"
+      manifest_key: mlr.ref.worldpop_2023Q4
+      license: "{spdx_or_internal}"
+      role: "WorldPop raster for population fallback in spatial placement."
+      dependencies: [ ]
+      source: WorldPop
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    - artifact_id: osm_primary_roads
+      name: osm_primary_roads.shp
+      path: data/spatial_priors/osm/osm_primary_roads.shp
+      type: reference
+      category: spatial_prior
+      semver: "{semver}"
+      version: "{vintage}"
+      digest: "{sha256}"
+      manifest_key: mlr.ref.osm_primary_roads_{vintage}
+      license: "ODbL-1.0"
+      role: "OpenStreetMap primary roads for road‑proximity prior."
+      dependencies: [ ]
+      source: OpenStreetMap
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: true
+      notes: "Includes .shp, .shx, .dbf, .prj."
+
+    - artifact_id: iata_airport_polygons
+      name: airports.geojson
+      path: data/spatial_priors/iata/airports.geojson
+      type: reference
+      category: spatial_prior
+      semver: "{semver}"
+      version: "2025"
+      digest: "{sha256}"
+      manifest_key: mlr.ref.iata_airport_polygons_2025
+      license: "{spdx_or_internal}"
+      role: "IATA airport service‑area polygons."
+      dependencies: [ ]
+      source: IATA
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    - artifact_id: spatial_blend
+      name: spatial_blend.yaml
+      path: configs/spatial/spatial_blend.yaml
+      type: config
+      category: spatial_prior
+      semver: "{semver}"
+      version: "{config_version}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.priors.spatial_blend
+      license: "{spdx_or_internal}"
+      role: "Blend definition for category‑specific priors into combined weights."
+      dependencies:
+        - hrsl_pop_100m_raster
+        - worldpop_raster
+        - osm_primary_roads
+        - iata_airport_polygons
+      source: internal
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: false
+      notes: null
+
+    - artifact_id: prior_blend_recipe
+      name: prior_blend_recipe.yaml
+      path: configs/spatial/priors/prior_blend_recipe.yaml
+      type: config
+      category: spatial_prior
+      semver: "{semver}"
+      version: "{config_version}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.priors.blend_recipe
+      license: null
+      role: "Per‑category blend weights and normalization mode."
+      dependencies: [ ]
+      source: internal
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: false
+      notes: null
+
+    - artifact_id: prior_blend_manifest
+      name: prior_blend/{manifest_key}.json
+      path: data/manifests/1B/prior_blend/{manifest_key}.json
+      type: manifest
+      category: spatial_prior
+      semver: "{semver}"
+      version: "{manifest_key}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.priors.blend_manifest
+      license: null
+      role: "Records component prior digests and recipe used for each blend."
+      dependencies:
+        - prior_blend_recipe
+      source: internal
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ ci, runtime ]
+      schema: null
+      cross_layer: false
+      notes: "Lists country→recipe→source prior digests."
+
+    - artifact_id: prior_provenance_map
+      name: prior_provenance_map/
+      path: data/derived/1B/prior_provenance_map/{manifest_key}/
+      type: mapping
+      category: spatial_prior
+      semver: "{semver}"
+      version: "{manifest_key}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.priors.provenance_map
+      license: null
+      role: "Country/category → component prior vintage actually used."
+      dependencies:
+        - prior_blend_manifest
+      source: internal
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: false
+      notes: null
+
+    - artifact_id: blended_raster_cache
+      name: blended_raster_cache/
+      path: data/spatial_priors/blended/cache_v1/
+      type: directory
+      category: spatial_prior
+      semver: "{semver}"
+      version: "v1"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.cache.blended_raster
+      license: "{spdx_or_internal}"
+      role: "Cached blended rasters for repeatable sampling without recompute."
+      dependencies:
+        - spatial_blend
+      source: internal
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: false
+      notes: null
+
+    # ─────────── Indices & candidate pools ───────────
+    - artifact_id: country_cell_index
+      name: country_cell_index/
+      path: data/indices/1B/country_cell_index/{grid_version}/
+      type: dataset
+      category: spatial_index
+      semver: "{semver}"
+      version: "{grid_version}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.index.country_cell_index
+      license: null
+      role: "Grid‑cell membership per country (post boundary clip)."
+      dependencies:
+        - global_grid_spec
+        - country_boundary_ref
+      source: internal
+      owner: "{engineering_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: false
+      notes: null
+
+    - artifact_id: candidate_pool_index
+      name: candidate_pool_index/
+      path: data/indices/1B/candidate_pool_index/{manifest_key}/
+      type: dataset
+      category: spatial_index
+      semver: "{semver}"
+      version: "{manifest_key}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.index.candidate_pool
+      license: null
+      role: "Eligible cells/points with weights after masks, clips, and blends."
+      dependencies:
+        - country_cell_index
+        - land_water_mask_ref
+        - prior_blend_recipe
+        - prior_blend_manifest
+        - sample_blacklist_areas
+      source: internal
+      owner: "{engineering_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: false
+      notes: null
+
+    - artifact_id: fenwick_snapshot
+      name: fenwick/
+      path: data/cache/1B/fenwick/{manifest_key}/
+      type: dataset
+      category: spatial_index
+      semver: "{semver}"
+      version: "{manifest_key}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.cache.fenwick_snapshot
+      license: null
+      role: "Serialized Fenwick trees / alias tables for RNG‑free sampling."
+      dependencies:
+        - candidate_pool_index
+      source: internal
+      owner: "{engineering_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: false
+      notes: "File names follow fenwick_tree_cache_{country}_{prior}.bin."
+
+    - artifact_id: sampling_method_manifest
+      name: sampling_method/{manifest_key}.json
+      path: data/manifests/1B/sampling_method/{manifest_key}.json
+      type: manifest
+      category: sampling
+      semver: "{semver}"
+      version: "{manifest_key}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.sampling.method_manifest
+      license: null
+      role: "Sampler choice (Fenwick vs alias) plus numeric tolerances & seeds."
+      dependencies:
+        - fenwick_snapshot
+      source: internal
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ ci, runtime ]
+      schema: null
+      cross_layer: false
+      notes: null
+
+    - artifact_id: fenwick_build_event
+      name: fenwick_build_event.jsonl
+      path: logs/spatial/fenwick_build_event.jsonl
+      type: log
+      category: sampling
+      semver: "{semver}"
+      version: "{manifest_key}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.events.fenwick_build
+      license: "{spdx_or_internal}"
+      role: "Event log for Fenwick CDF construction."
+      dependencies:
+        - blended_raster_cache
+      source: internal
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: false
+      notes: null
+
+    # ─────────── Acceptance / fallback governance & metrics ───────────
+    - artifact_id: acceptance_policy
+      name: acceptance_policy.yaml
+      path: configs/spatial/acceptance_policy.yaml
+      type: config
+      category: acceptance
+      semver: "{semver}"
+      version: "{policy_version}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.acceptance.policy
+      license: null
+      role: "Thresholds: land/water, road proximity, TZ‑country consistency."
+      dependencies:
+        - crs_policy
+        - road_proximity_config
+      source: internal
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: false
+      notes: null
+
+    - artifact_id: acceptance_metrics
+      name: acceptance/{run_id}.parquet
+      path: ci/metrics/1B/acceptance/{run_id}.parquet
+      type: dataset
+      category: monitoring
+      semver: "{semver}"
+      version: "{run_id}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.metrics.acceptance
+      license: null
+      role: "Nightly acceptance rates with Wilson intervals."
+      dependencies:
+        - site_catalogue
+        - acceptance_policy
+      source: internal
+      owner: "{qa_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ ci ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    - artifact_id: fallback_policy
+      name: fallback_policy.yml
+      path: configs/spatial/fallback_policy.yml
+      type: config
+      category: fallback
+      semver: "{semver}"
+      version: "{policy_version}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.fallback.policy
+      license: "{spdx_or_internal}"
+      role: "Rules when priors fail; global fallback rate cap < 1 %."
+      dependencies:
+        - spatial_manifest
+      source: internal
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: false
+      notes: null
+
+    - artifact_id: fallback_metrics
+      name: fallback/{run_id}.parquet
+      path: ci/metrics/1B/fallback/{run_id}.parquet
+      type: dataset
+      category: monitoring
+      semver: "{semver}"
+      version: "{run_id}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.metrics.fallback
+      license: null
+      role: "Realized fallback rates per country/category with reason codes."
+      dependencies:
+        - site_catalogue
+        - fallback_policy
+      source: internal
+      owner: "{qa_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ ci ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    - artifact_id: sample_blacklist_areas
+      name: sample_blacklist_areas/
+      path: data/reference/exclusions/sample_blacklist_areas/{vintage}/
+      type: dataset
+      category: spatial_reference
+      semver: "{semver}"
+      version: "{vintage}"
+      digest: "{sha256}"
+      manifest_key: mlr.ref.sample_blacklist_areas
+      license: null
+      role: "Polygons to exclude (military zones, glaciers, etc.)."
+      dependencies:
+        - country_boundary_ref
+      source: external
+      owner: "{data_governance_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ dev, staging, prod ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    # ─────────── Roads, proximity & network distance ───────────
+    - artifact_id: roads_ref
+      name: roads/
+      path: data/reference/roads/{vintage}/
+      type: reference
+      category: spatial_reference
+      semver: "{semver}"
+      version: "{vintage}"
+      digest: "{reference_digest}"
+      manifest_key: mlr.ref.roads
+      license: "{spdx_or_internal}"
+      role: "Road network vintage used for proximity checks."
+      dependencies: [ ]
+      source: external
+      owner: "{data_governance_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ dev, staging, prod ]
+      schema: null
+      cross_layer: true
+      notes: "May share vintage with osm_primary_roads."
+
+    - artifact_id: road_spatial_index
+      name: road_index/
+      path: data/cache/1B/road_index/{vintage}/
+      type: dataset
+      category: spatial_index
+      semver: "{semver}"
+      version: "{vintage}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.cache.road_spatial_index
+      license: null
+      role: "Tiled spatial index for fast road proximity queries."
+      dependencies:
+        - roads_ref
+      source: internal
+      owner: "{engineering_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: false
+      notes: null
+
+    - artifact_id: road_proximity_config
+      name: road_proximity_config.yaml
+      path: configs/spatial/road_proximity_config.yaml
+      type: config
+      category: acceptance
+      semver: "{semver}"
+      version: "{policy_version}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.acceptance.road_proximity
+      license: null
+      role: "Proximity thresholds per merchant category (default 50 m)."
+      dependencies: [ ]
+      source: internal
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: false
+      notes: null
+
+    - artifact_id: network_distance_graph
+      name: road_graph/
+      path: data/reference/road_graph/{vintage}/
+      type: reference
+      category: spatial_reference
+      semver: "{semver}"
+      version: "{vintage}"
+      digest: "{reference_digest}"
+      manifest_key: mlr.ref.road_graph
+      license: "{spdx_or_internal}"
+      role: "Contraction‑hierarchies graph for true network distances."
+      dependencies:
+        - roads_ref
+      source: external
+      owner: "{data_governance_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ dev, staging, prod ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    - artifact_id: road_distance_method
+      name: road_distance_method.yaml
+      path: configs/spatial/road_distance_method.yaml
+      type: config
+      category: acceptance
+      semver: "{semver}"
+      version: "{policy_version}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.acceptance.road_distance_method
+      license: null
+      role: "Method for road distance (nearest segment vs shortest path)."
+      dependencies:
+        - network_distance_graph
+      source: internal
+      owner: "{platform_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    # ─────────── Remoteness (capital GC + optional network) ───────────
+    - artifact_id: capital_points_ref
+      name: capitals.csv
+      path: data/reference/capitals/{vintage}/capitals.csv
+      type: reference
+      category: spatial_reference
+      semver: "{semver}"
+      version: "{vintage}"
+      digest: "{reference_digest}"
+      manifest_key: mlr.ref.capital_points
+      license: "{spdx_or_internal}"
+      role: "Authoritative capital coordinates."
+      dependencies: [ ]
+      source: external
+      owner: "{data_governance_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ dev, staging, prod ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    - artifact_id: remoteness_method
+      name: remoteness_method.yaml
+      path: configs/spatial/remoteness_method.yaml
+      type: config
+      category: acceptance
+      semver: "{semver}"
+      version: "{policy_version}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.acceptance.remoteness_method
+      license: null
+      role: "Great‑circle method, ellipsoid constants, rounding policy."
+      dependencies:
+        - crs_policy
+      source: internal
+      owner: "{platform_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    - artifact_id: remoteness_metrics
+      name: remoteness/{run_id}.parquet
+      path: ci/metrics/1B/remoteness/{run_id}.parquet
+      type: dataset
+      category: monitoring
+      semver: "{semver}"
+      version: "{run_id}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.metrics.remoteness
+      license: null
+      role: "Distribution summaries of GC and/or network distances."
+      dependencies:
+        - site_catalogue
+        - remoteness_method
+        - capital_points_ref
+      source: internal
+      owner: "{qa_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ ci ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    # ─────────── Timezone consistency ───────────
+    - artifact_id: tz_polygons_ref
+      name: tz_polygons/
+      path: data/reference/timezones/{vintage}/
+      type: reference
+      category: spatial_reference
+      semver: "{semver}"
+      version: "{vintage}"
+      digest: "{reference_digest}"
+      manifest_key: mlr.ref.tz_polygons
+      license: "{spdx_or_internal}"
+      role: "Timezone polygons."
+      dependencies: [ ]
+      source: external
+      owner: "{data_governance_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ dev, staging, prod ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    - artifact_id: tz_override_table
+      name: tz_override_table.yaml
+      path: configs/spatial/tz_override_table.yaml
+      type: config
+      category: spatial
+      semver: "{semver}"
+      version: "{policy_version}"
+      digest: "{sha256}"
+      manifest_key: mlr.spatial.tz_override_table
+      license: null
+      role: "Manual corrections for TZ assignment."
+      dependencies:
+        - tz_polygons_ref
+      source: internal
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    - artifact_id: tz_mismatch_events
+      name: tz_mismatch.jsonl
+      path: logs/spatial/tz_mismatch.jsonl
+      type: dataset
+      category: timezone
+      semver: "{semver}"
+      version: "{run_id}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.events.tz_mismatch
+      license: null
+      role: "Event when site TZ country ≠ site ISO country."
+      dependencies:
+        - site_catalogue
+        - tz_polygons_ref
+      source: internal
+      owner: "{qa_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    # ─────────── Footfall & winsorisation ───────────
+    - artifact_id: footfall_coefficients
+      name: footfall_coefficients.yaml
+      path: configs/spatial/footfall_coefficients.yaml
+      type: config
+      category: footfall
+      semver: "{semver}"
+      version: "{config_version}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.footfall.coefficients
+      license: null
+      role: "κ_(mcc,channel) coefficients for log‑normal footfall."
+      dependencies: [ ]
+      source: internal
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: false
+      notes: null
+
+    - artifact_id: winsor_policy
+      name: winsor_policy.yaml
+      path: configs/spatial/winsor_policy.yaml
+      type: config
+      category: footfall
+      semver: "{semver}"
+      version: "{policy_version}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.footfall.winsor_policy
+      license: null
+      role: "Caps for footfall/remoteness (μ+3σ) when stratum ≥ 30."
+      dependencies:
+        - footfall_coefficients
+      source: internal
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: false
+      notes: null
+
+    - artifact_id: footfall_scalar_table
+      name: footfall_scalars/
+      path: data/derived/1B/footfall_scalars/{manifest_key}/
+      type: dataset
+      category: footfall
+      semver: "{semver}"
+      version: "{manifest_key}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.footfall.scalars
+      license: null
+      role: "Per‑site footfall scalar with provenance tag."
+      dependencies:
+        - site_catalogue
+        - footfall_coefficients
+        - winsor_policy
+      source: internal
+      owner: "{engineering_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: false
+      notes: null
+
+    # ─────────── RNG audit streams ───────────
+    - artifact_id: sample_candidate_events
+      name: sample_candidate.jsonl
+      path: logs/rng/events/sample_candidate.jsonl
+      type: log
+      category: rng_event
+      semver: "{semver}"
+      version: "{run_id}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.rng.sample_candidate
+      license: null
+      role: "Event per candidate sampled (pre‑acceptance)."
+      dependencies:
+        - rng_event_schema_catalog     # defined in 1A, cross_layer=true
+        - fenwick_snapshot
+      source: internal
+      owner: "{qa_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    - artifact_id: accept_reject_events
+      name: accept_reject.jsonl
+      path: logs/rng/events/accept_reject.jsonl
+      type: log
+      category: rng_event
+      semver: "{semver}"
+      version: "{run_id}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.rng.accept_reject
+      license: null
+      role: "Acceptance decision events (land/water, road proximity, TZ)."
+      dependencies:
+        - rng_event_schema_catalog
+        - acceptance_policy
+      source: internal
+      owner: "{qa_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    - artifact_id: fallback_invoked_events
+      name: fallback_invoked.jsonl
+      path: logs/rng/events/fallback_invoked.jsonl
+      type: log
+      category: rng_event
+      semver: "{semver}"
+      version: "{run_id}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.rng.fallback_invoked
+      license: null
+      role: "Records each fallback invocation & rule triggered."
+      dependencies:
+        - rng_event_schema_catalog
+        - fallback_policy
+      source: internal
+      owner: "{qa_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    - artifact_id: fenwick_tie_break
+      name: fenwick_tie_break.jsonl
+      path: logs/rng/events/fenwick_tie_break.jsonl
+      type: log
+      category: rng_event
+      semver: "{semver}"
+      version: "{run_id}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.rng.fenwick_tie_break
+      license: null
+      role: "Tie‑break ordering when cumulative weights collide."
+      dependencies:
+        - rng_event_schema_catalog
+        - fenwick_snapshot
+      source: internal
+      owner: "{platform_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    - artifact_id: tz_resample
+      name: tz_resample.jsonl
+      path: logs/rng/events/tz_resample.jsonl
+      type: log
+      category: rng_event
+      semver: "{semver}"
+      version: "{run_id}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.rng.tz_resample
+      license: null
+      role: "Coordinate re‑sampling events after TZ‑ISO mismatch."
+      dependencies:
+        - rng_event_schema_catalog
+        - tz_polygons_ref
+      source: internal
+      owner: "{platform_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    # ─────────── Master seed & end‑of‑run manifest ───────────
+    - artifact_id: master_seed
+      name: MASTER_SEED
+      path: configs/spatial/master_seed.yaml
+      type: config
+      category: rng
+      semver: "{semver}"
+      version: "{config_version}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.rng.master_seed
+      license: null
+      role: "Philox master seed for spatial sampling sub‑streams."
+      dependencies:
+        - manifest_fingerprint          # from 1A, cross_layer=true
+      source: internal
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    - artifact_id: final_parquet_file_pattern
+      name: final_parquet_file_pattern.yaml
+      path: configs/storage/final_parquet_file_pattern.yaml
+      type: config
+      category: storage
+      semver: "{semver}"
+      version: "{config_version}"
+      digest: "{sha256}"
+      manifest_key: mlr.storage.final_parquet_pattern
+      license: null
+      role: "Naming template for final Parquet shard outputs."
+      dependencies:
+        - storage_path_pattern          # from 1A
+      source: internal
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ runtime ]
+      schema: null
+      cross_layer: true
+      notes: "Pattern: 'catalogue/seed={seed}/fingerprint={fingerprint}/part-*.parquet'"
+
+    - artifact_id: end_of_run_manifest
+      name: end_of_run_manifest.json
+      path: ci/manifests/end_of_run_manifest.json
+      type: manifest
+      category: storage
+      semver: "{semver}"
+      version: "{manifest_key}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.storage.end_of_run_manifest
+      license: null
+      role: "Aggregated summary of all output files and digests."
+      dependencies:
+        - final_parquet_file_pattern
+        - manifest_fingerprint
+      source: internal
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ ci ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    # ─────────── Reproducibility: library versions ───────────
+    - artifact_id: geospatial_lib_versions
+      name: geospatial_lib_versions.txt
+      path: ci/manifests/geospatial_lib_versions.txt
+      type: manifest
+      category: reproducibility
+      semver: "{semver}"
+      version: "{manifest_version}"
+      digest: "{sha256}"
+      manifest_key: mlr.ci.geospatial_lib_versions
+      license: null
+      role: "Exact GDAL/GEOS/PROJ (and bindings) used for spatial ops."
+      dependencies: [ ]
+      source: internal
+      owner: "{platform_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ ci, runtime ]
+      schema: null
+      cross_layer: true
+      notes: null
+
+    # ─────────── Documentation / codebook ───────────
+    - artifact_id: site_provenance_codebook
+      name: site_provenance_codebook.yaml
+      path: docs/codebooks/site_provenance_codebook.yaml
+      type: mapping
+      category: documentation
+      semver: "{semver}"
+      version: "{doc_version}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.docs.site_provenance_codebook
+      license: null
+      role: "Code→meaning map for per‑site provenance tags."
+      dependencies:
+        - prior_blend_recipe
+      source: internal
+      owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
+      environment: [ dev, staging, prod ]
+      schema: null
+      cross_layer: false
+      notes: null
