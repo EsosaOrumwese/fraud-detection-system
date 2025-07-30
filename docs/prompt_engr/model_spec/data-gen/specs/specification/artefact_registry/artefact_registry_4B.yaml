@@ -1,0 +1,357 @@
+subsegments:
+  - id: "4B"
+    name: "Validation without bullet points"
+    artifacts:
+
+      # ── Batch 1: Schemas & Validation Configs ──
+
+      - artifact_id: "transaction_schema_json"
+        name: "transaction_schema.json"
+        path: "configs/validation/transaction_schema.json"
+        type: "schema"
+        category: "validation"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "schema_digest"
+        license: "<SPDX_LICENSE_ID>"
+        role: "JSON representation of the transaction schema for structural validation"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci","runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "validation_conf"
+        name: "validation_conf.yml"
+        path: "configs/validation/validation_conf.yml"
+        type: "config"
+        category: "validation"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "validation_conf_digest"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Configuration for structural and semantic validation thresholds"
+        dependencies:
+          - transaction_schema_json
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "barcode_bounds"
+        name: "barcode_bounds.yml"
+        path: "configs/validation/barcode_bounds.yml"
+        type: "config"
+        category: "validation"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "barcode_bounds_digest"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Defines bounds for merchant‐country allocation barcode validation"
+        dependencies:
+          - validation_conf
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "country_zone_alphas"
+        name: "country_zone_alphas.yaml"
+        path: "configs/validation/country_zone_alphas.yaml"
+        type: "config"
+        category: "validation"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "adv_conf_digest"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Hyperparameters for validating cross‐zone Dirichlet posteriors"
+        dependencies:
+          - validation_conf
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "schemas_directory"
+        name: "schemas/"
+        path: "schemas/"
+        type: "directory"
+        category: "schema"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "schema_directory_digest"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Directory containing all Avro/JSON schemas for validation"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci","runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "footfall_coefficients"
+        name: "footfall_coefficients.yaml"
+        path: "configs/footfall/footfall_coefficients.yaml"
+        type: "config"
+        category: "validation"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "semantic_sha256"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Coefficients for GLM‐based validation of footfall throughput"
+        dependencies:
+          - validation_conf
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      # ── Batch 2: Model & Semantic-Check Code ──
+
+      - artifact_id: "adv_embed_model"
+        name: "adv_embed.embed_6d"
+        path: "models/adversarial/adv_embed.embed_6d"
+        type: "data"
+        category: "validation"
+        semver: null
+        version: "<MODEL_VERSION>"
+        digest: "<SHA256>"
+        manifest_key: "adv_embed_digest"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Trained 6-dimensional adversarial embedder for distributional checks"
+        dependencies:
+          - validation_conf
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "semantic_glm"
+        name: "semantic_glm.py"
+        path: "src/validation/semantic_glm.py"
+        type: "script"
+        category: "validation"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "semantic_sha256"
+        license: "<SPDX_LICENSE_ID>"
+        role: "GLM implementation for semantic congruence checks on footfall data"
+        dependencies:
+          - footfall_coefficients
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci","runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "barcode_script"
+        name: "barcode.py"
+        path: "src/validation/barcode.py"
+        type: "script"
+        category: "validation"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "barcode_sha256"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Script to compute and validate merchant-country allocation barcodes"
+        dependencies:
+          - barcode_bounds
+          - validation_conf
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci","runtime" ]
+        schema: null
+        notes: null
+
+      # ── Batch 3: Validation Outputs & Logs ──
+
+      - artifact_id: "site_catalog_parquet"
+        name: "site_catalog.parquet"
+        path: "data/validation/site_catalog.parquet"
+        type: "data"
+        category: "validation_output"
+        semver: null
+        version: "<VALIDATION_RUN_ID>"
+        digest: "<SHA256>"
+        manifest_key: "site_catalog_digest"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Snapshot of site catalogue used for end‑to‑end validation checks"
+        dependencies:
+          - schemas_directory
+          - transaction_schema_json
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: "schema/site_catalogue.avsc"
+        notes: null
+
+      - artifact_id: "structural_failure"
+        name: "structural_failure_<parameter_hash>.parquet"
+        path: "logs/validation/structural_failure_<parameter_hash>.parquet"
+        type: "data"
+        category: "validation_output"
+        semver: null
+        version: "<VALIDATION_RUN_ID>"
+        digest: "<SHA256>"
+        manifest_key: "structural_failure_digest"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Rows failing structural validation (missing fields, type mismatches)"
+        dependencies:
+          - transaction_schema_json
+          - schemas_directory
+          - validation_conf
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "barcode_failure"
+        name: "barcode_failure_<merchant_id>.png"
+        path: "logs/validation/barcode_failure_<merchant_id>.png"
+        type: "image"
+        category: "validation_output"
+        semver: null
+        version: "<VALIDATION_RUN_ID>"
+        digest: "<SHA256>"
+        manifest_key: "barcode_failure_image_digest"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Visualization of barcode slope violations per merchant"
+        dependencies:
+          - barcode_script
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "auroc_failure"
+        name: "auroc_failure_<parameter_hash>.png"
+        path: "/tmp/auroc_failure_<parameter_hash>.png"
+        type: "image"
+        category: "validation_output"
+        semver: null
+        version: "<VALIDATION_RUN_ID>"
+        digest: "<SHA256>"
+        manifest_key: "auroc_failure_image_digest"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Plot showing adversarial AUROC below threshold"
+        dependencies:
+          - adv_embed_model
+          - semantic_glm
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "rng_trace_log"
+        name: "rng_trace.log"
+        path: "logs/rng/rng_trace.log"
+        type: "log"
+        category: "rng_validation"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "rng_trace_digest"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Trace of RNG sub‑stream jumps during validation runs"
+        dependencies: [ ]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      # ── Batch 4: CI Bundles & Gateways ──
+
+      - artifact_id: "validation_bundle"
+        name: "validation/<parameter_hash>/"
+        path: "validation/<parameter_hash>/"
+        type: "directory"
+        category: "ci_artifact"
+        semver: null
+        version: "<parameter_hash>"
+        digest: "<SHA256>"
+        manifest_key: "validation_bundle_digest"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Directory of all validation outputs (structural, adversarial, semantic, barcode)"
+        dependencies:
+          - structural_failure
+          - barcode_failure
+          - auroc_failure
+          - rng_trace_log
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci" ]
+        schema: null
+        notes: null
+
+      # ── Batch 5: Infra Registry ──
+
+      - artifact_id: "nfs_read_only_mount"
+        name: "nfs_read_only_mount"
+        path: "configs/infra/nfs_read_only.yml"
+        type: "config"
+        category: "infrastructure"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "nfs_read_only_mount_digest"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Configuration for mounting the validation output directory as NFS read‑only for immutable publishing"
+        dependencies: [ ]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "runtime" ]
+        schema: null
+        notes: null
+
+      - artifact_id: "postgres_registry_schema"
+        name: "datasets.sql"
+        path: "db/schema/datasets.sql"
+        type: "schema"
+        category: "registry"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "postgres_registry_schema_digest"
+        license: "<SPDX_LICENSE_ID>"
+        role: "DDL for the Postgres catalog enforcing unique (parameter_hash, seed, path)"
+        dependencies: [ ]
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: [ "ci" ]
+        schema: null
+        notes: null

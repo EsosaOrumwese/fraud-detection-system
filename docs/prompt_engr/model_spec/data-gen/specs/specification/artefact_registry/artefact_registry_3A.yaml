@@ -1,0 +1,284 @@
+subsegments:
+  - id: "3A"
+    name: "Capturing Cross‑Zone Merchants"
+    artifacts:
+      # Batch 1: Mixture & Proof‑of‑Concept
+      - artifact_id: "zone_mixture_policy_yml"
+        name: "zone_mixture_policy.yml"
+        path: "config/allocation/zone_mixture_policy.yml"
+        type: "config"
+        category: "allocation"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"    # e.g. theta_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "Tunable cross‑zone threshold theta_mix loaded at runtime"  # governed by YAML key theta_mix
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "test_mix_threshold_py"
+        name: "test_mix_threshold.py"
+        path: "ci/test_mix_threshold.py"
+        type: "ci_test"
+        category: "allocation"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: null
+        license: "<SPDX_LICENSE_ID>"
+        role: "CI test that byte‑compares the YAML‑driven escalation queue against Parquet output"  # ensures theta_mix changes force rebuilds
+        dependencies:
+          - zone_mixture_policy_yml
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "country_zone_alphas_yaml"
+        name: "country_zone_alphas.yaml"
+        path: "config/allocation/country_zone_alphas.yaml"
+        type: "config"
+        category: "allocation"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"    # e.g. zone_alpha_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "Dirichlet concentration parameters α_z for each TZID per country"  # derived via make_zone_alphas.py
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "make_zone_alphas_py"
+        name: "make_zone_alphas.py"
+        path: "src/allocation/make_zone_alphas.py"
+        type: "script"
+        category: "allocation"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: null
+        license: "<SPDX_LICENSE_ID>"
+        role: "Script to compute α parameters from anonymised settlement data"  # generates country_zone_alphas.yaml
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["dev"]
+        schema: null
+        notes: null
+
+      - artifact_id: "round_ints_md"
+        name: "round_ints.md"
+        path: "docs/round_ints.md"
+        type: "script/doc"
+        category: "allocation"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: null
+        license: "<SPDX_LICENSE_ID>"
+        role: "Formal spec of largest‑remainder rounding with bump rule"  # details handling of fractional counts
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["dev"]
+        schema: null
+        notes: null
+
+      # Batch 2: Rounding & Country‑Level Outputs
+      - artifact_id: "test_rounding_conservation_py"
+        name: "test_rounding_conservation.py"
+        path: "ci/test_rounding_conservation.py"
+        type: "ci_test"
+        category: "allocation"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: null
+        license: "<SPDX_LICENSE_ID>"
+        role: "Property‑based CI test asserting sum of floors + bump allocations equals country total"  # ensures deterministic bump rule correctness
+        dependencies:
+          - round_ints_md
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "country_major_zone_csv"
+        name: "country_major_zone.csv"
+        path: "artefacts/allocation/country_major_zone.csv"
+        type: "data"
+        category: "allocation"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"   # major_zone_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "CSV of each country’s single largest‑area TZID for fallback allocations"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "zone_floor_yml"
+        name: "zone_floor.yml"
+        path: "config/allocation/zone_floor.yml"
+        type: "config"
+        category: "allocation"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"   # zone_floor_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "Defines minimum outlet floors per TZID to protect micro‑zones"  # micro‑zone protections
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "test_zone_floor_py"
+        name: "test_zone_floor.py"
+        path: "ci/test_zone_floor.py"
+        type: "ci_test"
+        category: "allocation"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: null
+        license: "<SPDX_LICENSE_ID>"
+        role: "CI test verifying all micro‑zones meet their floor allocations"  # enforces zone_floor.yml floors
+        dependencies:
+          - zone_floor_yml
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "zone_alloc_parquet"
+        name: "<merchant_id>_zone_alloc.parquet"
+        path: "artefacts/allocation/<merchant_id>_zone_alloc.parquet"
+        type: "data"
+        category: "allocation"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"   # zone_alloc_parquet_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "Parquet of (country_iso, tzid, N_outlets) triples for each merchant"  # final cross‑zone allocation output
+        dependencies:
+          - country_major_zone_csv
+          - zone_mixture_policy_yml
+          - country_zone_alphas_yaml
+          - round_ints_md
+          - zone_floor_yml
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      # Batch 3: Indexing & Replay
+      - artifact_id: "zone_alloc_index_csv"
+        name: "zone_alloc_index.csv"
+        path: "artefacts/allocation/zone_alloc_index.csv"
+        type: "data"
+        category: "allocation"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"   # e.g., zone_alloc_index_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "Index mapping (merchant_id, country_iso, tzid) to row offset in zone allocation parquet"
+        dependencies:
+          - zone_alloc_parquet
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "replay_zone_alloc_py"
+        name: "replay_zone_alloc.py"
+        path: "ci/replay_zone_alloc.py"
+        type: "ci_test"
+        category: "allocation"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: null
+        license: "<SPDX_LICENSE_ID>"
+        role: "Replays zone allocations for each merchant to verify Parquet output consistency"
+        dependencies:
+          - zone_alloc_parquet
+          - zone_alloc_index_csv
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "cross_zone_validation_yml"
+        name: "cross_zone_validation.yml"
+        path: "config/validation/cross_zone_validation.yml"
+        type: "config"
+        category: "validation"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"   # e.g., cross_zone_validation_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "Thresholds for share and data completeness in cross‑zone validation"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "test_cross_zone_validation_py"
+        name: "test_cross_zone_validation.py"
+        path: "ci/test_cross_zone_validation.py"
+        type: "ci_test"
+        category: "validation"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: null
+        license: "<SPDX_LICENSE_ID>"
+        role: "CI test that validates cross‑zone allocation results against configured thresholds"
+        dependencies:
+          - cross_zone_validation_yml
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null

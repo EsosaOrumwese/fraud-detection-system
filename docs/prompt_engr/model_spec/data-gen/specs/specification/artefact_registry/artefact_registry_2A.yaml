@@ -1,0 +1,408 @@
+# Subsegment 2A: Deriving the Civil Time Zone
+subsegments:
+  - id: "2A"
+    name: "Deriving the Civil Time Zone"
+    artifacts:
+      # Batch 1: Core tz-world shapefile components
+      - artifact_id: "tz_world_shp"
+        name: "tz_world_2025a.shp"
+        path: "artefacts/priors/tz_world/2025a/tz_world_2025a.shp"
+        type: "data"
+        category: "spatial_prior"
+        semver: null
+        version: "2025a"
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"    # e.g., tz_world_shp_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "Canonical IANA tz‑world polygon geometries for timezone lookup"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "tz_world_shx"
+        name: "tz_world_2025a.shx"
+        path: "artefacts/priors/tz_world/2025a/tz_world_2025a.shx"
+        type: "data"
+        category: "spatial_prior"
+        semver: null
+        version: "2025a"
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"    # e.g., tz_world_shx_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "Index file for tz‑world spatial polygons"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "tz_world_dbf"
+        name: "tz_world_2025a.dbf"
+        path: "artefacts/priors/tz_world/2025a/tz_world_2025a.dbf"
+        type: "data"
+        category: "spatial_prior"
+        semver: null
+        version: "2025a"
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"    # e.g., tz_world_dbf_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "Attribute table for tz‑world spatial polygons"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "tz_world_prj"
+        name: "tz_world_2025a.prj"
+        path: "artefacts/priors/tz_world/2025a/tz_world_2025a.prj"
+        type: "data"
+        category: "spatial_prior"
+        semver: null
+        version: "2025a"
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"    # e.g., tz_world_prj_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "Projection definition for tz‑world spatial polygons"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "tz_world_cpg"
+        name: "tz_world_2025a.cpg"
+        path: "artefacts/priors/tz_world/2025a/tz_world_2025a.cpg"
+        type: "data"
+        category: "spatial_prior"
+        semver: null
+        version: "2025a"
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"    # e.g., tz_world_cpg_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "Character encoding file for tz‑world spatial polygons"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      # Batch 2: Manifests & Serialized Caches
+      - artifact_id: "spatial_manifest_json"
+        name: "spatial_manifest.json"
+        path: "artefacts/manifests/spatial_manifest.json"
+        type: "manifest"
+        category: "manifest"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"   # tz_polygon_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "Aggregates SHA‑256 digests of tz_world shapefile components"
+        dependencies:
+          - tz_world_shp
+          - tz_world_shx
+          - tz_world_dbf
+          - tz_world_prj
+          - tz_world_cpg
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "str_tree_serialization"
+        name: "tz_world_strtree.pkl"
+        path: "artefacts/index/tz_world_strtree.pkl"
+        type: "data"
+        category: "spatial_index"
+        semver: null
+        version: "2025a"
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"   # tz_index_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "Serialized STR‑tree index of tz_world polygons (pickle protocol 5)"
+        dependencies:
+          - tz_world_shp
+          - tz_world_shx
+          - tz_world_dbf
+          - tz_world_prj
+          - tz_world_cpg
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "tzdata_archive"
+        name: "tzdata2025a.tar.gz"
+        path: "artefacts/priors/tzdata/tzdata2025a.tar.gz"
+        type: "data"
+        category: "tzdata"
+        semver: null
+        version: "2025a"
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"   # tzdata_archive_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "IANA zoneinfo archive for civil timeline rules"
+        dependencies: []
+        source: "IANA/zoneinfo"
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "zoneinfo_version_yml"
+        name: "zoneinfo_version.yml"
+        path: "config/timezone/zoneinfo_version.yml"
+        type: "config"
+        category: "tzdata"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"   # e.g., zoneinfo_version_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "Declares tzdata version and semantic version"
+        dependencies:
+          - tzdata_archive
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "tz_cache_singleton"
+        name: "tz_cache.pkl"
+        path: "artefacts/cache/tz_cache.pkl"
+        type: "data"
+        category: "index_cache"
+        semver: null
+        version: "2025a"
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"   # tz_cache_bytes
+        license: "<SPDX_LICENSE_ID>"
+        role: "Run‑length encoded UTC transition cache bytes"
+        dependencies:
+          - tzdata_archive
+          - zoneinfo_version_yml
+          - simulation_horizon_yml
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      # Batch 3: Configuration & Docs
+      - artifact_id: "tz_nudge_yml"
+        name: "tz_nudge.yml"
+        path: "config/timezone/tz_nudge.yml"
+        type: "config"
+        category: "timezone_nudge"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"   # tz_nudge_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "Coordinates epsilon‑nudge parameters for boundary cases"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "tz_overrides_yaml"
+        name: "tz_overrides.yaml"
+        path: "config/timezone/tz_overrides.yaml"
+        type: "config"
+        category: "timezone_override"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"   # tz_overrides_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "Priority‑based override rules for ambiguous points"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "simulation_horizon_yml"
+        name: "simulation_horizon.yml"
+        path: "config/timezone/simulation_horizon.yml"
+        type: "config"
+        category: "sim_horizon"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"   # tz_horizon_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "Defines simulation start/end ISO 8601 bounds for timezone caching"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "rng_proof_md"
+        name: "rng_proof.md"
+        path: "docs/rng_proof.md"
+        type: "script/doc"
+        category: "rng_reproducibility"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"   # rng_proof_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "Documents deterministic RNG sub‑stream proof"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["dev"]
+        schema: null
+        notes: null
+
+      - artifact_id: "licenses_dir"
+        name: "LICENSES/"
+        path: "LICENSES/"
+        type: "directory"
+        category: "license"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: null
+        license: "<SPDX_LICENSE_ID>"
+        role: "Container for all third‑party license files"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["dev"]
+        schema: null
+        notes: null
+
+      # Batch 4: Exceptions & CI tests
+      - artifact_id: "dst_lookup_tie_error"
+        name: "DSTLookupTieError"
+        path: "src/timezone/exceptions.py"
+        type: "exception"
+        category: "tz_lookup"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: null
+        license: "<SPDX_LICENSE_ID>"
+        role: "Raised if a 0.0001° nudge still yields multiple polygons"
+        dependencies:
+          - tz_nudge_yml
+          - str_tree_serialization
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "timezone_lookup_error"
+        name: "TimeZoneLookupError"
+        path: "src/timezone/exceptions.py"
+        type: "exception"
+        category: "tz_lookup"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: null
+        license: "<SPDX_LICENSE_ID>"
+        role: "Raised when no polygon contains the point (zero-hit lookup)"
+        dependencies:
+          - str_tree_serialization
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "zone_mismatch_error"
+        name: "ZoneMismatchError"
+        path: "src/timezone/exceptions.py"
+        type: "exception"
+        category: "tz_validation"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: null
+        license: "<SPDX_LICENSE_ID>"
+        role: "Raised by nightly validation if timezone assignments deviate unexpectedly"
+        dependencies:
+          - tz_cache_singleton
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "timetable_coverage_error"
+        name: "TimeTableCoverageError"
+        path: "src/timezone/exceptions.py"
+        type: "exception"
+        category: "tz_validation"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: null
+        license: "<SPDX_LICENSE_ID>"
+        role: "Raised when a transition lies outside the configured simulation horizon"
+        dependencies:
+          - simulation_horizon_yml
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "override_logic_ci_check"
+        name: "Override logic CI check"
+        path: "ci/tests/timezone_override_validation.sh"
+        type: "ci_test"
+        category: "timezone_override"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: null
+        license: "<SPDX_LICENSE_ID>"
+        role: "Nightly CI assertion that at least one override entry changes a lookup result"
+        dependencies:
+          - tz_overrides_yaml
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null

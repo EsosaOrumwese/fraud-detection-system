@@ -1,0 +1,444 @@
+subsegments:
+  - id: "2B"
+    name: "Routing Transactions Through Sites"
+    artifacts:
+      # Batch 1: Core catalogue & weights files
+      - artifact_id: "site_catalogue_parquet"
+        name: "site_catalogue.parquet"
+        path: "artefacts/catalogue/site_catalogue.parquet"
+        type: "data"
+        category: "catalogue"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Site metadata table including site_id, coordinates, tzid, and associated attributes"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "routing_manifest_json"
+        name: "routing_manifest.json"
+        path: "artefacts/manifests/routing_manifest.json"
+        type: "manifest"
+        category: "routing"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Aggregates SHA‑256 digests of routing artifacts per merchant"
+        dependencies:
+          - pweights_bin
+          - alias_npz
+          - cdn_alias_npz
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "pweights_bin"
+        name: "<merchant_id>_pweights.bin"
+        path: "artefacts/routing/<merchant_id>_pweights.bin"
+        type: "data"
+        category: "routing"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "weight_digest"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Normalized foot‑traffic weight vector for merchant"
+        dependencies:
+          - site_catalogue_parquet
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "alias_npz"
+        name: "<merchant_id>_alias.npz"
+        path: "artefacts/routing/<merchant_id>_alias.npz"
+        type: "data"
+        category: "routing"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "alias_digest"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Alias table for O(1) multimodal sampling of sites"
+        dependencies:
+          - pweights_bin
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "cdn_country_weights_yaml"
+        name: "cdn_country_weights.yaml"
+        path: "config/routing/cdn_country_weights.yaml"
+        type: "config"
+        category: "routing"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Stationary CDN‑edge country weights for virtual merchants"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "cdn_alias_npz"
+        name: "<merchant_id>_cdn_alias.npz"
+        path: "artefacts/routing/<merchant_id>_cdn_alias.npz"
+        type: "data"
+        category: "routing"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "cdn_alias_digest"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Alias table for CDN edge country sampling for virtual merchants"
+        dependencies:
+          - cdn_country_weights_yaml
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "licenses_dir"
+        name: "LICENSES/"
+        path: "LICENSES/"
+        type: "directory"
+        category: "license"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: null
+        license: "<SPDX_LICENSE_ID>"
+        role: "Third‑party license files directory"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["dev"]
+        schema: null
+        notes: null
+
+      # Batch 2: Alias construction & sampling vectors
+
+      - artifact_id: "alias_construction_py"
+        name: "alias_construction.py"
+        path: "src/routing/alias_construction.py"
+        type: "script"
+        category: "routing"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Implements the Vose alias‑table construction algorithm"
+        dependencies:
+          - pweights_bin
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "alias_sampling_py"
+        name: "alias_sampling.py"
+        path: "src/routing/alias_sampling.py"
+        type: "script"
+        category: "routing"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Performs O(1) outlet choice using u_site = u_rand × N_m and applies scale_factor"
+        dependencies:
+          - alias_construction_py
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "cumulative_counts_vector"
+        name: "cumulative_counts_vector"
+        path: "artefacts/routing/<merchant_id>_cumulative_counts.npy"
+        type: "data"
+        category: "audit"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Packed uint64 array of per‑site routed counts used for audit checksum"
+        dependencies:
+          - routing_manifest_json
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "empirical_share_validation_py"
+        name: "empirical_share_validation.py"
+        path: "src/routing/validation/empirical_share_validation.py"
+        type: "script"
+        category: "validation"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Computes ŝ_i & ρ_emp and asserts deviations within tolerance"
+        dependencies:
+          - routing_manifest_json
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "scale_factor_logic"
+        name: "scale_factor = 1"
+        path: "src/routing/scale_factor_logic.py"
+        type: "script"
+        category: "routing"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Ensures scale_factor remains 1, preserving alias‑table acceptance logic without rebuilds"
+        dependencies:
+          - alias_sampling_py
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      # Batch 3: Daily Multiplier & RNG/Modulation Logic
+
+      - artifact_id: "routing_day_effect_yml"
+        name: "routing_day_effect.yml"
+        path: "config/routing/routing_day_effect.yml"
+        type: "config"
+        category: "routing"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"   # gamma_variance_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "Defines σ_γ² for log‑normal corporate‑day multiplier"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "rng_policy_yml"
+        name: "rng_policy.yml"
+        path: "config/routing/rng_policy.yml"
+        type: "config"
+        category: "routing"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"   # rng_policy_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "Specifies SHA‑1 seed derivation policy for Philox sub‑streams"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "router_seed_py"
+        name: "router/seed.py"
+        path: "src/routing/router/seed.py"
+        type: "script"
+        category: "routing"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: null
+        license: "<SPDX_LICENSE_ID>"
+        role: "Derives per‑merchant Philox sub‑stream key via SHA‑1"
+        dependencies:
+          - rng_policy_yml
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "router_prng_py"
+        name: "router/prng.py"
+        path: "src/routing/router/prng.py"
+        type: "script"
+        category: "routing"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: null
+        license: "<SPDX_LICENSE_ID>"
+        role: "Advances Philox counter to produce uniform draws"
+        dependencies:
+          - router_seed_py
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "router_modulation_py"
+        name: "router/modulation.py"
+        path: "src/routing/router/modulation.py"
+        type: "script"
+        category: "routing"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: null
+        license: "<SPDX_LICENSE_ID>"
+        role: "Multiplies p_i by γ_d and re‑normalises within tzid group"
+        dependencies:
+          - router_prng_py
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "calibrate_gamma_ipynb"
+        name: "calibrate_gamma.ipynb"
+        path: "notebooks/calibrate_gamma.ipynb"
+        type: "script"
+        category: "routing"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: null
+        license: "<SPDX_LICENSE_ID>"
+        role: "Notebook deriving routing_day_effect.yml from historical data"
+        dependencies:
+          - routing_day_effect_yml
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["dev"]
+        schema: null
+        notes: null
+
+      # Batch 4: Logging, Validation & External‑Data
+
+      - artifact_id: "routing_logging_yml"
+        name: "logging.yml"
+        path: "config/routing/logging.yml"
+        type: "config"
+        category: "routing"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"    # audit_log_config_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "Controls rotation and 90-day retention of the routing audit log"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "routing_validation_yml"
+        name: "routing_validation.yml"
+        path: "config/routing/routing_validation.yml"
+        type: "config"
+        category: "validation"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"    # routing_validation_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "Specifies share‐ and correlation‐tolerance thresholds for routing validation"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "routing_audit_log"
+        name: "routing_audit.log"
+        path: "logs/routing/routing_audit.log"
+        type: "log"
+        category: "audit"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"    # routing_audit_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "Appends per‑million‑event checksums to detect reproducibility drift"
+        dependencies:
+          - cumulative_counts_vector
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "cdn_weights_ext_yaml"
+        name: "cdn_country_weights.yaml"
+        path: "artefacts/external/cdn_country_weights.yaml"
+        type: "data"
+        category: "external_data"
+        semver: null
+        version: null
+        digest: "<TBD_SHA256>"
+        manifest_key: "<TBD_MANIFEST_KEY>"    # cdn_country_weights_digest
+        license: "<SPDX_LICENSE_ID>"
+        role: "Stationary CDN‑edge country weights derived from Akamai State of the Internet report"
+        dependencies: []
+        source: "Akamai State of the Internet"
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
