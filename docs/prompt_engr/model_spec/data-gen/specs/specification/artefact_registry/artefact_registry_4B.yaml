@@ -1,357 +1,517 @@
 subsegments:
   - id: "4B"
-    name: "Validation without bullet points"
+    name: "Validation Without Bullet Points"
     artifacts:
 
-      # ── Batch 1: Schemas & Validation Configs ──
-
-      - artifact_id: "transaction_schema_json"
-        name: "transaction_schema.json"
-        path: "configs/validation/transaction_schema.json"
-        type: "schema"
-        category: "validation"
-        semver: null
-        version: null
-        digest: "<SHA256>"
-        manifest_key: "schema_digest"
-        license: "<SPDX_LICENSE_ID>"
-        role: "JSON representation of the transaction schema for structural validation"
+      # 1  VALIDATOR INPUT DATA
+      - name: synthetic_partition_pattern
+        path: output/transactions/partition_date=*/batch_*.parquet
+        type: dataset
+        category: validator_input
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.4B.input.synthetic_partition_pattern
+        license: "{spdx_or_internal}"
+        role: All synthetic transaction parquet partitions to be validated.
         dependencies: []
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
-        environment: ["ci","runtime"]
-        schema: null
-        notes: null
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: transaction_schema_json
+        cross_layer: true
+        notes: "Pattern expands to many parquet files."
 
-      - artifact_id: "validation_conf"
-        name: "validation_conf.yml"
-        path: "configs/validation/validation_conf.yml"
-        type: "config"
-        category: "validation"
-        semver: null
-        version: null
-        digest: "<SHA256>"
-        manifest_key: "validation_conf_digest"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Configuration for structural and semantic validation thresholds"
-        dependencies:
-          - transaction_schema_json
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
-        environment: ["ci"]
-        schema: null
-        notes: null
-
-      - artifact_id: "barcode_bounds"
-        name: "barcode_bounds.yml"
-        path: "configs/validation/barcode_bounds.yml"
-        type: "config"
-        category: "validation"
-        semver: null
-        version: null
-        digest: "<SHA256>"
-        manifest_key: "barcode_bounds_digest"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Defines bounds for merchant‐country allocation barcode validation"
-        dependencies:
-          - validation_conf
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
-        environment: ["ci"]
-        schema: null
-        notes: null
-
-      - artifact_id: "country_zone_alphas"
-        name: "country_zone_alphas.yaml"
-        path: "configs/validation/country_zone_alphas.yaml"
-        type: "config"
-        category: "validation"
-        semver: null
-        version: null
-        digest: "<SHA256>"
-        manifest_key: "adv_conf_digest"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Hyperparameters for validating cross‐zone Dirichlet posteriors"
-        dependencies:
-          - validation_conf
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
-        environment: ["ci"]
-        schema: null
-        notes: null
-
-      - artifact_id: "schemas_directory"
-        name: "schemas/"
-        path: "schemas/"
-        type: "directory"
-        category: "schema"
-        semver: null
-        version: null
-        digest: "<SHA256>"
-        manifest_key: "schema_directory_digest"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Directory containing all Avro/JSON schemas for validation"
+      - name: real_reference_slice
+        path: data/reference/real_reference_slice.parquet
+        type: dataset
+        category: validator_input
+        semver: "2025.0.0"
+        version: "2025"
+        digest: "{sha256}"
+        manifest_key: mlr.ref.validation.real_reference_slice
+        license: RestrictedCommercial
+        role: GDPR-sanitised real data slice for adversarial AUROC target.
         dependencies: []
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
-        environment: ["ci","runtime"]
-        schema: null
+        source: external
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: transaction_schema_json
+        cross_layer: true
         notes: null
 
-      - artifact_id: "footfall_coefficients"
-        name: "footfall_coefficients.yaml"
-        path: "configs/footfall/footfall_coefficients.yaml"
-        type: "config"
-        category: "validation"
+      # 2  CROSS-LAYER DIGEST REFERENCES
+      - name: tz_polygon_digest
+        path: artefacts/manifests/tz_polygon_digest.txt
+        type: manifest
+        category: spatial_digests
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.manifest.tz_polygon_digest
+        license: "{spdx_or_internal}"
+        role: SHA-256 of tz-world polygons reused for coordinate legality check.
+        dependencies: []
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      - name: zoneinfo_digest
+        path: artefacts/manifests/zoneinfo_digest.txt
+        type: manifest
+        category: runtime_environment
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.manifest.zoneinfo_digest
+        license: "{spdx_or_internal}"
+        role: Digest of zoneinfo build used for DST legality validation.
+        dependencies: []
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      # 3  SCHEMAS & VALIDATOR CONFIG BLOBS
+      - name: transaction_schema_json
+        path: schema/transaction_schema.json
+        type: schema
+        category: validator_schema
+        semver: "{schema_semver}"
+        version: "{schema_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.4B.schema.transaction
+        license: "{spdx_or_internal}"
+        role: JSON Schema compiled by validator for structural checks.
+        dependencies: []
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      - name: validation_conf_yml
+        path: config/validation/validation_conf.yml
+        type: config
+        category: validator_config
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.4B.config.validation_conf
+        license: "{spdx_or_internal}"
+        role: AUROC cut-line, window size, theta corridors, fail-fast flags.
+        dependencies: []
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: barcode_bounds_yml
+        path: config/validation/barcode_bounds.yml
+        type: config
+        category: barcode_validation
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.4B.config.barcode_bounds
+        license: "{spdx_or_internal}"
+        role: Acceptable slope band for offset-barcode validation (-1...-0.5).
+        dependencies: []
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: adv_embed_py
+        path: src/validation/adv_embed.py
+        type: code
+        category: adversarial_validation
+        semver: "{code_semver}"
+        version: "{git_commit}"
+        digest: "{git_tree_hash}"
+        manifest_key: mlr.4B.code.adv_embed
+        license: "{spdx_or_internal}"
+        role: Embeds each row into 6-D vector for adversarial AUROC.
+        dependencies: []
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ dev, ci, runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+    
+      # 4  VALIDATOR RUNNER & PRIMARY SCRIPT
+      - name: validator_runner_py
+        path: src/validation/validator_runner.py
+        type: code
+        category: validator_runtime
+        semver: "{code_semver}"
+        version: "{git_commit}"
+        digest: "{git_tree_hash}"
+        manifest_key: mlr.4B.code.validator_runner
+        license: "{spdx_or_internal}"
+        role: Orchestrates structural, barcode, AUROC & DST legality checks.
+        dependencies:
+          - validation_conf_yml
+          - barcode_bounds_yml
+          - adv_embed_py
+          - synthetic_partition_pattern
+          - real_reference_slice
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      # 5  VALIDATION OUTPUT METRICS
+      - name: validation_report_parquet
+        path: artefacts/validation/validation_report_{run_id}.parquet
+        type: dataset
+        category: validation_output
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.4B.output.validation_report
+        license: "{spdx_or_internal}"
+        role: Row-per-metric table (slope, AUROC, null-share, etc.).
+        dependencies:
+          - validator_runner_py
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: barcode_slope_metrics_json
+        path: artefacts/validation/barcode_slope_metrics_{run_id}.json
+        type: dataset
+        category: validation_output
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.4B.output.barcode_slope_metrics
+        license: "{spdx_or_internal}"
+        role: JSON with slope, intercept, R^2 for offset-barcode plot
+        dependencies:
+          - validator_runner_py
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: adv_auroc_metrics_json
+        path: artefacts/validation/adv_auroc_metrics_{run_id}.json
+        type: dataset
+        category: validation_output
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.4B.output.adv_auroc_metrics
+        license: "{spdx_or_internal}"
+        role: AUROC, precision@95%CI for adversarial test.
+        dependencies:
+          - validator_runner_py
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: barcode_heatmap_png
+        path: artefacts/validation/barcode_heatmap_{run_id}.png
+        type: documentation
+        category: validation_visual
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.4B.viz.barcode_heatmap
+        license: "{spdx_or_internal}"
+        role: Visual QC of barcode slope band.
+        dependencies:
+          - validator_runner_py
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      # 6  MANIFEST & AUDIT
+      - name: validator_manifest
+        path: artefacts/manifests/validator_manifest_{run_id}.json
+        type: manifest
+        category: provenance
+        semver: {semver}
+        version: {run_id}
+        digest: {sha256}
+        manifest_key: mlr.4B.manifest.validator
+        license: {spdx_or_internal}
+        role: Bundles digests of input slice, configs, scripts & metrics outputs.
+        dependencies:
+          - validation_report_parquet
+          - barcode_slope_metrics_json
+          - adv_auroc_metrics_json
+          - synthetic_partition_pattern        # input slice pattern
+          - real_reference_slice               # adversarial reference
+          - transaction_schema_json            # structural schema
+          - validation_conf_yml                # thresholds and toggles
+          - barcode_bounds_yml                 # slope corridor
+          - adv_embed_py                       # embedder code digest
+          - tz_polygon_digest                  # spatial vintage
+          - zoneinfo_digest                    # ZoneInfo build
+        source: internal
+        owner: { qa_team }
+        last_updated: {iso8601_timestamp}
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+
+      - name: validator_audit_log
+        path: logs/validation/{run_id}/validator_audit.log
+        type: log
+        category: validation_audit
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.4B.log.validator_audit
+        license: "{spdx_or_internal}"
+        role: Structured log of metric values + pass/fail per check.
+        dependencies:
+          - validator_runner_py
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      # 7  CI TESTS & EXPECTED-METRICS TEMPLATE
+      - name: validation_ci_test_py
+        path: ci/tests/validation_ci_test.py
+        type: ci_test
+        category: validation
+        semver: "{code_semver}"
+        version: "{git_commit}"
+        digest: "{git_tree_hash}"
+        manifest_key: mlr.4B.ci.validation_suite
+        license: "{spdx_or_internal}"
+        role: Asserts every metric in validation_report meets expected corridor.
+        dependencies:
+          - expected_metrics_yaml
+          - validation_report_parquet
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: expected_metrics_yaml
+        path: configs/validation/expected_metrics.yaml
+        type: config
+        category: validation
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.4B.config.expected_metrics
+        license: "{spdx_or_internal}"
+        role: Target values & tolerances for CI regression checks.
+        dependencies: []
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      # 8  SNAPSHOT DIFF & REPLAY
+      - name: snap_diff_py
+        path: tools/snap_diff.py
+        type: code
+        category: validation_tooling
+        semver: "{code_semver}"
+        version: "{git_commit}"
+        digest: "{git_tree_hash}"
+        manifest_key: mlr.4B.tool.snap_diff
+        license: "{spdx_or_internal}"
+        role: Diffs current metrics vs previous run snapshot; emits JSON diff.
+        dependencies:
+          - validation_report_parquet
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ dev, ci ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      # 9  CONTAINER LOCK & BUILD MANIFEST
+      - name: validator_dockerfile_lock
+        path: Dockerfile.validator.lock
+        type: manifest
+        category: reproducibility
+        semver: "{semver}"
+        version: "{container_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.4B.manifest.validator_dockerfile_lock
+        license: "{spdx_or_internal}"
+        role: Locks validator container base digest & layer hashes.
+        dependencies: []
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: validator_build_manifest
+        path: artefacts/manifests/validator_build.manifest
+        type: manifest
+        category: reproducibility
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.4B.manifest.validator_build
+        license: "{spdx_or_internal}"
+        role: Digest roll-up of validator code, configs, container hash.
+        dependencies:
+          - validator_dockerfile_lock
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      # 10  RNG TRACE FOR VALIDATOR
+      - name: validator_rng_trace_log
+        path: logs/validation/{run_id}/validator_rng_trace.log
+        type: log
+        category: rng_audit
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.4B.log.validator_rng_trace
+        license: "{spdx_or_internal}"
+        role: Philox key & counter trace used during validation draws.
+        dependencies: [ rng_logging_policy ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      # 11  EXCEPTION CONTRACTS
+      - name: ValidationDriftError
+        path: null
+        type: exception
+        category: exception_contract
         semver: null
         version: null
-        digest: "<SHA256>"
-        manifest_key: "semantic_sha256"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Coefficients for GLM‐based validation of footfall throughput"
-        dependencies:
-          - validation_conf
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
-        environment: ["ci"]
+        digest: null
+        manifest_key: mlr.4B.exception.validation_drift
+        license: null
+        role: Raised when any metric exceeds tolerance corridor.
+        dependencies: []
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
+        cross_layer: false
         notes: null
 
-      # ── Batch 2: Model & Semantic-Check Code ──
-
-      - artifact_id: "adv_embed_model"
-        name: "adv_embed.embed_6d"
-        path: "models/adversarial/adv_embed.embed_6d"
-        type: "data"
-        category: "validation"
-        semver: null
-        version: "<MODEL_VERSION>"
-        digest: "<SHA256>"
-        manifest_key: "adv_embed_digest"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Trained 6-dimensional adversarial embedder for distributional checks"
-        dependencies:
-          - validation_conf
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
-        schema: null
-        notes: null
-
-      - artifact_id: "semantic_glm"
-        name: "semantic_glm.py"
-        path: "src/validation/semantic_glm.py"
-        type: "script"
-        category: "validation"
+      - name: BarcodeSlopeError
+        path: null
+        type: exception
+        category: exception_contract
         semver: null
         version: null
-        digest: "<SHA256>"
-        manifest_key: "semantic_sha256"
-        license: "<SPDX_LICENSE_ID>"
-        role: "GLM implementation for semantic congruence checks on footfall data"
-        dependencies:
-          - footfall_coefficients
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
-        environment: [ "ci","runtime" ]
+        digest: null
+        manifest_key: mlr.4B.exception.barcode_slope
+        license: null
+        role: Raised when barcode slope falls outside bounds file.
+        dependencies: []
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
+        cross_layer: false
         notes: null
 
-      - artifact_id: "barcode_script"
-        name: "barcode.py"
-        path: "src/validation/barcode.py"
-        type: "script"
-        category: "validation"
+      - name: AUROCThresholdError
+        path: null
+        type: exception
+        category: exception_contract
         semver: null
         version: null
-        digest: "<SHA256>"
-        manifest_key: "barcode_sha256"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Script to compute and validate merchant-country allocation barcodes"
-        dependencies:
-          - barcode_bounds
-          - validation_conf
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
-        environment: [ "ci","runtime" ]
+        digest: null
+        manifest_key: mlr.4B.exception.auroc_threshold
+        license: null
+        role: Raised when adversarial AUROC exceeds cut-line in validation_conf.
+        dependencies: []
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
+        cross_layer: false
         notes: null
 
-      # ── Batch 3: Validation Outputs & Logs ──
-
-      - artifact_id: "site_catalog_parquet"
-        name: "site_catalog.parquet"
-        path: "data/validation/site_catalog.parquet"
-        type: "data"
-        category: "validation_output"
-        semver: null
-        version: "<VALIDATION_RUN_ID>"
-        digest: "<SHA256>"
-        manifest_key: "site_catalog_digest"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Snapshot of site catalogue used for end‑to‑end validation checks"
-        dependencies:
-          - schemas_directory
-          - transaction_schema_json
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
-        schema: "schema/site_catalogue.avsc"
-        notes: null
-
-      - artifact_id: "structural_failure"
-        name: "structural_failure_<parameter_hash>.parquet"
-        path: "logs/validation/structural_failure_<parameter_hash>.parquet"
-        type: "data"
-        category: "validation_output"
-        semver: null
-        version: "<VALIDATION_RUN_ID>"
-        digest: "<SHA256>"
-        manifest_key: "structural_failure_digest"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Rows failing structural validation (missing fields, type mismatches)"
-        dependencies:
-          - transaction_schema_json
-          - schemas_directory
-          - validation_conf
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
-        environment: [ "ci" ]
-        schema: null
-        notes: null
-
-      - artifact_id: "barcode_failure"
-        name: "barcode_failure_<merchant_id>.png"
-        path: "logs/validation/barcode_failure_<merchant_id>.png"
-        type: "image"
-        category: "validation_output"
-        semver: null
-        version: "<VALIDATION_RUN_ID>"
-        digest: "<SHA256>"
-        manifest_key: "barcode_failure_image_digest"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Visualization of barcode slope violations per merchant"
-        dependencies:
-          - barcode_script
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
-        environment: [ "ci" ]
-        schema: null
-        notes: null
-
-      - artifact_id: "auroc_failure"
-        name: "auroc_failure_<parameter_hash>.png"
-        path: "/tmp/auroc_failure_<parameter_hash>.png"
-        type: "image"
-        category: "validation_output"
-        semver: null
-        version: "<VALIDATION_RUN_ID>"
-        digest: "<SHA256>"
-        manifest_key: "auroc_failure_image_digest"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Plot showing adversarial AUROC below threshold"
-        dependencies:
-          - adv_embed_model
-          - semantic_glm
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
-        environment: [ "ci" ]
-        schema: null
-        notes: null
-
-      - artifact_id: "rng_trace_log"
-        name: "rng_trace.log"
-        path: "logs/rng/rng_trace.log"
-        type: "log"
-        category: "rng_validation"
-        semver: null
-        version: null
-        digest: "<SHA256>"
-        manifest_key: "rng_trace_digest"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Trace of RNG sub‑stream jumps during validation runs"
+      # cross layer
+      - name: rng_logging_policy
+        path: configs/rng/rng_logging.yml
+        type: config
+        category: rng_policy
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.4A.config.rng_logging
+        license: "{spdx_or_internal}"
+        role: Enables Philox counter dumps for every segment; size budget 10 MiB.
         dependencies: [ ]
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
-        notes: null
-
-      # ── Batch 4: CI Bundles & Gateways ──
-
-      - artifact_id: "validation_bundle"
-        name: "validation/<parameter_hash>/"
-        path: "validation/<parameter_hash>/"
-        type: "directory"
-        category: "ci_artifact"
-        semver: null
-        version: "<parameter_hash>"
-        digest: "<SHA256>"
-        manifest_key: "validation_bundle_digest"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Directory of all validation outputs (structural, adversarial, semantic, barcode)"
-        dependencies:
-          - structural_failure
-          - barcode_failure
-          - auroc_failure
-          - rng_trace_log
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
-        environment: [ "ci" ]
-        schema: null
-        notes: null
-
-      # ── Batch 5: Infra Registry ──
-
-      - artifact_id: "nfs_read_only_mount"
-        name: "nfs_read_only_mount"
-        path: "configs/infra/nfs_read_only.yml"
-        type: "config"
-        category: "infrastructure"
-        semver: null
-        version: null
-        digest: "<SHA256>"
-        manifest_key: "nfs_read_only_mount_digest"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Configuration for mounting the validation output directory as NFS read‑only for immutable publishing"
-        dependencies: [ ]
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
-        schema: null
-        notes: null
-
-      - artifact_id: "postgres_registry_schema"
-        name: "datasets.sql"
-        path: "db/schema/datasets.sql"
-        type: "schema"
-        category: "registry"
-        semver: null
-        version: null
-        digest: "<SHA256>"
-        manifest_key: "postgres_registry_schema_digest"
-        license: "<SPDX_LICENSE_ID>"
-        role: "DDL for the Postgres catalog enforcing unique (parameter_hash, seed, path)"
-        dependencies: [ ]
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
-        environment: [ "ci" ]
-        schema: null
+        cross_layer: true
         notes: null
