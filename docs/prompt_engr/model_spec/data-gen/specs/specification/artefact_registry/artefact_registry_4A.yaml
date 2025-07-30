@@ -234,7 +234,7 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.4A.config.rng_logging
         license: "{spdx_or_internal}"
-        role: Enables Philox counter dumps for every segment; size budget 10 MiB.
+        role: Enables Philox counter dumps for every segment; size budget 10 MiB.
         dependencies: []
         source: internal
         owner: { platform_team }
