@@ -27,7 +27,7 @@ subsegments:
       owner: "{owner_team}"
       last_updated: "{iso8601_timestamp}"
       environment: [ runtime ]
-      schema: schema/site_catalogue.avsc
+      schema: site_catalogue.avsc
       cross_layer: true
       notes: "Crash‑safe writes; validated by spatial_write_manifest."
 
