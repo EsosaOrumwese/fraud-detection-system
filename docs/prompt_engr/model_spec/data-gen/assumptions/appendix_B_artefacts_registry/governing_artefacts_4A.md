@@ -1,96 +1,155 @@
-## Subsegment 4A: Reproducibility and configurability
-
-| Artefact Class                     | Path Pattern                                                    | SemVer Field | Digest Field                |
-|------------------------------------|-----------------------------------------------------------------|--------------|-----------------------------|
-| Docker Lockfile                    | `Dockerfile.lock`                                               | N/A          | N/A                         |
-| Artefact Registry YAML             | `artefact_registry.yaml`                                        | N/A          | N/A                         |
-| Hurdle Coefficients                | `config/hurdle_coefficients.yaml`                               | `version`    | `hurdle_coeff_digest`       |
-| NB Coefficients                    | `config/nb_coefficients.yaml`                                   | `version`    | `nb_coeff_digest`           |
-| Cross‑Border Hyperparams           | `config/crossborder_hyperparams.yaml`                           | `version`    | `crossborder_hyp_digest`    |
-| Footfall Coefficients              | `config/footfall_coefficients.yaml`                             | `version`    | `footfall_coeff_digest`     |
-| Routing Day Effect                 | `config/routing_day_effect.yml`                                 | `version`    | `gamma_variance_digest`     |
-| Winsorisation Policy               | `config/winsor.yml`                                             | `version`    | `winsor_digest`             |
-| Fallback Policy                    | `config/fallback_policy.yml`                                    | `version`    | `fallback_policy_digest`    |
-| Zone Floor Constraints             | `config/zone_floor.yml`                                         | `version`    | `zone_floor_digest`         |
-| Country‑Zone Alphas                | `config/country_zone_alphas.yaml`                               | `version`    | `zone_alpha_digest`         |
-| Calibration Slice Config           | `config/calibration_slice_config.yml`                           | `version`    | `calibration_slice_digest`  |
-| Cross‑Zone Validation              | `config/cross_zone_validation.yml`                              | `version`    | `cross_zone_val_digest`     |
-| CDN Country Weights                | `config/cdn_country_weights.yaml`                               | `version`    | `cdn_weights_digest`        |
-| Validation Configuration           | `config/validation_conf.yml`                                    | `version`    | `validation_conf_digest`    |
-| Transaction Schema AVSC            | `schemas/transaction_schema.avsc`                               | N/A          | `schema_digest`             |
-| Domain JSON Schemas                | `schemas/<domain>.json`                                         | N/A          | `schema_<domain>_digest`    |
-| Spatial Blend Config               | `spatial_blend.yaml`                                            | `version`    | `spatial_blend_digest`      |
-| HRSL Population Rasters            | `artefacts/priors/hrsl_pop_100m_{ISO}.tif`                      | N/A          | `hrsl_pop_digest`           |
-| OSM Roads                          | `artefacts/priors/osm_primary_roads_*.pbf`                      | N/A          | `osm_roads_digest`          |
-| Airport Boundaries                 | `artefacts/priors/iata_airport_boundaries_*.geojson`            | N/A          | `airport_boundaries_digest` |
-| WorldPop Fallback                  | `artefacts/priors/worldpop_fallback_{ISO}.tif`                  | N/A          | `worldpop_fallback_digest`  |
-| Spatial Manifest JSON              | `spatial_manifest.json`                                         | N/A          | `spatial_manifest_digest`   |
-| Timezone Shapefile                 | `tz_world_2025a.shp`                                            | N/A          | `tz_polygon_digest`         |
-| Timezone Data Archive              | `tzdata2025a.tar.gz`                                            | N/A          | `tzdata_digest`             |
-| Timezone Overrides YAML            | `tz_overrides.yaml`                                             | `version`    | `tz_overrides_digest`       |
-| Timezone Nudge Config              | `tz_nudge.yml`                                                  | `version`    | `tz_nudge_digest`           |
-| Zoneinfo Version YAML              | `zoneinfo_version.yml`                                          | N/A          | `zoneinfo_version_digest`   |
-| Network‑Share Vectors              | `artefacts/network_share_vectors/settlement_shares_*.parquet`   | N/A          | `settlement_share_digest`   |
-| Currency‑Country Shares            | `artefacts/currency_country_split/ccy_country_shares_*.parquet` | N/A          | `currency_country_digest`   |
-| MCC Channel Rules YAML             | `config/mcc_channel_rules.yaml`                                 | `version`    | `virtual_rules_digest`      |
-| Virtual Settlement Coordinates CSV | `virtual_settlement_coords.csv`                                 | N/A          | `settlement_coord_digest`   |
-| CDN Edge Weights YAML              | `config/virtual/cdn_country_weights.yaml`                       | `version`    | `cdn_weights_digest`        |
-| Alias Tables NPZ                   | `alias/*.npz`                                                   | N/A          | `alias_digest`              |
-| Edge Catalogue Parquet             | `edge_catalogue/*.parquet`                                      | N/A          | `edge_catalogue_digest`     |
-
-
-### Integrated Additions and Enforcement for Subsegment 4A
-
-#### A. Artefact, Source, Manifest, and Provenance Registry
-
-Add the following entries to your artefact table (or beneath as a supplementary block):
-
-| Artefact Class        | Path Pattern / Example                    | SemVer Field | Digest Field                  | Notes                                                                        |
-|-----------------------|-------------------------------------------|--------------|-------------------------------|------------------------------------------------------------------------------|
-| **Build Manifest**    | `/tmp/build.manifest`                     | N/A          | `build_manifest_digest`       | Generated at every build; must be registered, immutable, and row-referenced. |
-| **Live Manifest**     | `<export_dir>/manifest_<hash>.json`       | N/A          | `live_manifest_digest`        | Live reference manifest, must match all row provenance.                      |
-| **Pipeline Script**   | `pipeline_launcher.sh`                    | N/A          | `script_digest`               | Governs the execution pipeline; must be hash-captured.                       |
-| **Source SHA/Branch** | (from `git rev-parse HEAD`, `git branch`) | N/A          | `source_sha`, `source_branch` | Recorded in manifest, referenced in every output row.                        |
-| **Container Hash**    | `Dockerfile.lock`                         | N/A          | `container_sha`               | Immutable pipeline/container build image.                                    |
+Here’s the consolidated **governing artefacts** note for **4A – Reproducibility and configurability**, inline and in plain ASCII. It mirrors your 4A registry you just linted and your 4A narrative/assumptions, and it sticks to scope (governance, wiring, and checks only).
 
 ---
 
-#### B. Output, Validation, and Forensic Artefact Registry
+## Scope
 
-Explicitly register all required validation, CI, and audit logs—each governed, hash-tracked, and blocking for build/merge on failure or omission:
-
-| Artefact Class                 | Path Pattern / Example                                                 | SemVer Field | Digest Field                 | Notes                                                        |
-|--------------------------------|------------------------------------------------------------------------|--------------|------------------------------|--------------------------------------------------------------|
-| **Bootstrap Histograms**       | `validation/bootstrap_*.png`, `validation/bootstrap_*.csv`             | N/A          | `bootstrap_digest`           | Confidence, dispersion, and statistical envelope validation. |
-| **Geospatial Conformance**     | `validation/geo_conformance_*.csv`, `validation/geo_conformance_*.png` | N/A          | `geo_conformance_digest`     | Footfall and spatial regression checks.                      |
-| **Footfall Regression**        | `validation/footfall_regression_*.csv`                                 | N/A          | `footfall_regression_digest` | Over-dispersion and GLM validation artefacts.                |
-| **AUROC Indistinguishability** | `validation/auroc_indistinguishability_*.csv`                          | N/A          | `auroc_digest`               | Adversarial and indistinguishability validation.             |
-| **DST Validation/Edge**        | `validation/dst_failures.csv`                                          | N/A          | `dst_failures_digest`        | DST gap and fold validation.                                 |
-| **Structural Firewall**        | `validation/firewall_report.log`                                       | N/A          | `firewall_digest`            | Any blocked/malformed/structurally invalid record.           |
-| **CI/Needs-Tune Flags**        | `validation/ci_needs_tune.log`, `validation/retune_hurdle.log`         | N/A          | `ci_tune_digest`             | CI-enforced retune and YAML/threshold alerts.                |
-| **HashGate URI/Audit**         | `audit/hashgate_uri.txt`                                               | N/A          | `hashgate_uri_digest`        | Forensic trail and approval.                                 |
+Lists only the governed artefacts and rules needed to audit and reproduce sub‑segment 4A. No cross‑layer producers are introduced; items are internal to 4A unless marked otherwise.
 
 ---
 
-#### C. Licence Mapping and Enforcement
+## A) Container and build provenance
 
-Explicitly extend the registry or notes with:
-
-* Every artefact above **must be mapped to a licence file in `LICENSES/`**, with SHA-256 digest (`licence_digest`) enforced by CI.
-* **The `artefact_registry.yaml:license_map`** is a governed field, and any omission, drift, or failure blocks merge.
-
----
-
-#### D. Directory Immutability and Collision Enforcement
-
-**Enforcement notes:**
-* The export directory, named for the parameter-set hash, **must be set read-only at the OS/NFS layer after build. Any overwrite or second export for the same hash triggers a fatal collision error.**
-* All directories and files must be registered, reference the build manifest and parameter-set hash, and be auditable.
+* **Dockerfile.lock** -> pins the base image digest for reproducible builds.
+* **pipeline\_launcher.sh** -> initializes the run, writes the first lines of the per‑run build manifest (container digest, hostname, UTC start).
+* **validate\_container\_hash.yml** (CI) -> verifies the built image matches Dockerfile.lock before any data generation.
+* **build.manifest** -> per‑run manifest that accumulates all digests (git tree, container, configs, schemas) so auditors have a single entry point.
 
 ---
 
-#### E. Forensic/Audit Linkage and Row Provenance
+## B) Registry, schema, loader, and diff
 
-* Every output artefact must record the manifest digest, source SHA/branch, container SHA, and parameter-set hash in schema metadata and row-level fields.
-* **All output, validation, and forensic artefacts must be auditable by the HashGate URI and included in both build and live manifests.**
+* **artefact\_registry.schema.json** -> JSON Schema that defines the shape of registry files.
+* **artefact\_registry.yaml** -> live registry instance the loader uses; every path and its manifest\_key are governed.
+* **artefact\_loader.py** -> reads artefact\_registry.yaml, computes SHA‑256 for each file, and appends entries to build.manifest.
+* **compare\_registry.py** (CI) -> re‑enumerates the registry and byte‑compares against build.manifest to detect path or ordering drift.
+* **schemas/** (directory) -> bundle of JSON/Avro schemas referenced by downstream checks.
 
+---
+
+## C) Source code immutability
+
+* **git tree hash** -> exported to build.manifest (source\_sha1 or equivalent).
+* **code hash embed** (e.g., **codehash** in package init) -> must equal the git tree hash at runtime.
+* **SourceHashMismatchError** (exception) -> raised if embedded code hash and manifest code hash differ.
+
+---
+
+## D) RNG governance and replay
+
+* **rng\_logging.yml** -> logging policy (rotation, retention) for RNG traces.
+* **rng\_trace.log** -> audit trail of Philox jumps; records module, identifier, and counter offset for exact replay.
+* **replay\_rng.py** (CI/runtime) -> reconstructs RNG state from rng\_trace.log and spot‑checks draws for determinism.
+
+---
+
+## E) Time and timezone provenance
+
+* **zoneinfo\_version.yml** -> declares the IANA/zoneinfo build version used by checks and by DST tests.
+* **firewall.py** -> structural and semantic invariant checks over generated datasets; depends on build.manifest and zoneinfo\_version.yml.
+* **failure\_reproducer.py** -> emits a local reproducer with the failing row and RNG offset when the firewall trips.
+
+---
+
+## F) Validation harnesses (statistical and structural)
+
+* **country\_zone\_alphas.yaml** -> Dirichlet alpha inputs for share audits.
+* **geo\_audit.py** (CI) -> posterior share checks by country and tzid using country\_zone\_alphas.yaml.
+* **hurdle\_coefficients.yaml** -> parameters for outlet‑count bootstrap.
+* **outlet\_bootstrap\_harness.py** (CI) -> bootstrap envelopes for outlet counts; emits diagnostics on breach.
+* **footfall\_coefficients.yaml** -> parameters and dispersion thresholds for footfall intensity checks.
+* **footfall\_glm\_harness.py** (CI) -> Poisson GLM dispersion band checks for hourly intensity.
+* **adversarial\_xgb.py** (CI) -> indistinguishability test; AUROC gate over a fixed sample and seed.
+* **dst\_edge\_passer.py** (CI) -> minute‑wise DST transition checks against zoneinfo version.
+* **dst\_failures.csv** -> failure table written by dst\_edge\_passer for post‑mortem.
+
+---
+
+## G) Dataset registry and collision prevention
+
+* **dataset\_catalog.ddl.sql** -> catalog DDL with uniqueness constraints on (parameter\_hash, seed).
+* **register\_dataset.py** (CI) -> writes (parameter\_hash, seed, path) to the catalog; uniqueness violation blocks publish.
+
+---
+
+## H) Licensing and immutability
+
+* **LICENSES/** (directory) -> SPDX texts referenced by the registry’s license mapping.
+* **validate\_licences.py** (CI) -> verifies mapped artefacts have the expected licence texts and digests.
+* **nfs\_export\_policy.md** -> read‑only export/mount policy that locks published datasets against mutation.
+
+---
+
+## I) Release gating
+
+* **upload\_to\_hashgate.py** -> posts build.manifest, validation\_passed flag, and bundle URL to the internal gate.
+* **.github/workflows/block\_merge.yml** -> blocks merge until the gate reports validation\_passed=true for the parameter hash.
+
+---
+
+## J) CI and audit rules (make these explicit)
+
+1. **Manifest completeness**: build.manifest must include the digests for all items enumerated in artefact\_registry.yaml during the run.
+2. **Registry vs manifest**: compare\_registry.py must pass; any mismatch in ordering, path set, or digest fails CI.
+3. **Schema lock**: data files validated in this sub‑segment must use schemas from schemas/ or those referenced by registry entries; schema changes require a schema digest change.
+4. **RNG replayability**: rng\_trace.log is mandatory in runs that generate randomness; replay\_rng.py must reproduce spot‑check draws.
+5. **Time and tz provenance**: firewall.py must validate tzid membership and DST behavior using zoneinfo\_version.yml; any failure produces failure\_reproducer.py and fails CI.
+6. **Statistical gates**: geo\_audit, outlet\_bootstrap\_harness, footfall\_glm\_harness, dst\_edge\_passer, and adversarial\_xgb must pass with their configured thresholds.
+7. **Licensing**: validate\_licences.py must succeed against LICENSES/ and the license\_map in artefact\_registry.yaml.
+8. **Immutability**: published dataset paths are mounted read‑only; attempts to overwrite must error and require a version bump.
+9. **Release**: block\_merge.yml must observe validation\_passed=true from upload\_to\_hashgate.py before merge.
+
+---
+
+## New in this revision
+
+* Split of registry into schema (artefact\_registry.schema.json) and instance (artefact\_registry.yaml).
+* rng\_trace.log with rng\_logging.yml and replay\_rng.py wired to CI.
+* zoneinfo\_version.yml dependency added to firewall.py and DST checks.
+* Registration of validation harnesses and their coefficient/config inputs.
+* Dataset catalog DDL registered; register\_dataset wired to it.
+* Licence directory and CI licence validation scripted.
+* Upload and gate workflow registered end‑to‑end.
+
+## Table
+The table keeps the same four‑column convention you use for 1A → 3B.
+
+
+| Governing artefact ID        | Path / pattern                                        | Role (one‑liner)                                           | Provenance / digest key        |
+|------------------------------|-------------------------------------------------------|------------------------------------------------------------|--------------------------------|
+| Dockerfile.lock              | Dockerfile.lock                                       | Pins base‑image & layer digests for reproducible container | dockerfile_lock_digest         |
+| pipeline_launcher.sh         | ci/pipeline_launcher.sh                               | Kicks off run & writes initial build.manifest              | git_tree_hash                  |
+| validate_container_hash CI   | configs/ci/validate_container_hash.yml                | Asserts built image digest == Dockerfile.lock              | validate_container_hash_digest |
+| build.manifest               | artefacts/manifests/build.manifest                    | Per‑run roll‑up of all digests (code, configs, outputs)    | build_manifest_digest          |
+| artefact_registry_schema     | configs/registry/artefact_registry.schema.json        | JSON Schema for registry files                             | registry_schema_digest         |
+| artefact_registry.yaml       | configs/registry/artefact_registry.yaml               | Live registry instance (validated at runtime)              | registry_yaml_digest           |
+| schemas/ bundle              | schemas/                                              | All domain schemas (transaction, outlet, etc.)             | schemas_dir_digest             |
+| artefact_loader.py           | src/registry/artefact_loader.py                       | Loads registry, validates & hashes artefacts               | git_tree_hash                  |
+| compare_registry.py          | src/registry/compare_registry.py                      | Diffs registry vs build.manifest in CI                     | git_tree_hash                  |
+| register_dataset.sh          | scripts/register_dataset.sh                           | Helper to append dataset entries & re‑hash registry        | git_tree_hash                  |
+| dataset_catalog_ddl.sql      | db/dataset_catalog.ddl.sql                            | Postgres DDL mapping manifest_key → storage_uri            | dataset_catalog_digest         |
+| rng_logging_policy           | configs/rng/rng_logging.yml                           | Enables Philox counter dumps (size budget)                 | rng_logging_digest             |
+| global_rng_trace.log         | logs/rng/{run_id}/global_rng_trace.log                | Full Philox key+counter trace                              | (run‑specific)                 |
+| replay_rng.py                | tools/replay_rng.py                                   | Replays RNG trace for determinism audit                    | git_tree_hash                  |
+| zoneinfo_version.yml         | configs/runtime/zoneinfo_version.yml                  | Pins IANA tzdata/ICU build                                 | zoneinfo_version_digest        |
+| firewall_rules               | configs/infra/firewall.yml                            | Ingress allow / egress deny list for workers               | firewall_digest                |
+| nfs_export_policy.md         | docs/infra/nfs_export_policy.md                       | Human contract for read‑only NFS exports                   | nfs_export_policy_digest       |
+| failure_reproducer.py        | tools/failure_reproducer.py                           | Generates local reproducer from failing RNG/state          | git_tree_hash                  |
+| geo_audit.py                 | tools/geo_audit.py                                    | Scans outputs for impossible lat/lon coordinates           | git_tree_hash                  |
+| hurdle_coefficients.yaml     | config/models/hurdle_coefficients.yaml                | θ & dispersion for hurdle NB (cross‑layer)                 | hurdle_coeff_digest            |
+| footfall_coefficients.yaml   | config/models/footfall_coefficients.yaml              | GLM footfall coefficients (cross‑layer)                    | footfall_coeff_digest          |
+| footfall_glm_harness.py      | src/ds/footfall_glm_harness.py                        | Predicts F_i for QC using footfall GLM                     | git_tree_hash                  |
+| adversarial_xgb.pkl          | artefacts/models/adversarial_xgb.pkl                  | XGBoost model for indistinguishability audit               | adversarial_xgb_digest         |
+| dst_edge_passer.py           | tests/dst_edge_passer.py                              | Replays DST folds/gaps → asserts no TZ lookup error        | git_tree_hash                  |
+| dst_failures.csv             | artefacts/fixtures/dst_failures.csv                   | Historical DST failure cases for regression                | dst_failures_digest            |
+| licences/ directory          | LICENSES/                                             | All third‑party licence texts                              | licences_dir_digest            |
+| validate_licences.py         | ci/tests/validate_licences.py                         | CI check: every external artefact has licence & digest     | git_tree_hash                  |
+| upload_to_hashgate.sh        | scripts/deploy/upload_to_hashgate.sh                  | Uploads build.manifest to notarisation service             | git_tree_hash                  |
+| block_merge.yaml             | configs/ci/block_merge.yaml                           | GH action blocking merge until Hashgate receipt            | block_merge_digest             |
+| edge_sampler_metrics         | artefacts/metrics/edge_sampler_{run_id}.parquet       | Perf budget metrics for edge sampler (cross‑segment)       | (run‑specific)                 |
+| performance_config           | configs/routing/performance.yml                       | Throughput & memory SLA thresholds (cross‑layer)           | perf_config_digest             |
+| site_catalogue (ref)         | artefacts/catalogue/site_catalogue.parquet            | Cross‑layer site catalogue for GLM harness                 | site_catalogue_digest          |
+| allocation_licences_manifest | artefacts/manifests/allocation_licences_manifest.json | Licence roll‑up from segment 3A                            | allocation_licences_digest     |
+| VirtualUniverseMismatchError | exception (contract)                                  | Thrown when universe hash ≠ replay hash                    | n/a                            |
+| VirtualEdgeSamplingError     | exception (contract)                                  | Thrown when HRSL sampling fails threshold                  | n/a                            |
+| SourceHashMismatchError      | exception (contract)                                  | Thrown when embedded code hash ≠ git tree hash             | n/a                            |
