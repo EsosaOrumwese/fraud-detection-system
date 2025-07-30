@@ -1,697 +1,837 @@
 subsegments:
   - id: "2A"
-    name: "Deriving the Civil Time Zone"
+    name: "Deriving the Civil Time‑Zone"
     artifacts:
-
-      # ─────────── Core tz‑world components (pinned vintage) ───────────
-      - artifact_id: "tz_world_shp"
-        name: "tz_world_2025a.shp"
-        path: "artefacts/priors/tz_world/2025a/tz_world_2025a.shp"
-        type: "data"
-        category: "spatial_prior"
-        semver: null
+ 
+      # 1 · CROSS‑LAYER INPUT
+      
+      - name: site_catalogue
+        path: data/outputs/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: input
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.1B.output.site_catalogue
+        license: "{spdx_or_internal}"
+        role: Outlet stubs from 1B (lat/lon per site).
+        dependencies: [ ]
+        source: internal
+        owner: { owner_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schema/outlet_stub.avsc
+        cross_layer: true
+        notes: null
+  
+      # 2 · TZ‑WORLD SHAPEFILE BUNDLE
+      
+      - name: tz_world_shapefile_2025_shp
+        path: artefacts/priors/tz_world/2025a/tz_world_2025a.shp
+        type: reference
+        category: spatial
+        semver: "2025a.0.0"
         version: "2025a"
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Canonical IANA tz‑world polygon geometries for timezone lookup."
+        digest: "{sha256}"
+        manifest_key: mlr.ref.spatial.tz_world_2025a.shp
+        license: ODbL-1.0
+        role: Main polygon geometry for IANA TZ boundaries.
         dependencies: [ ]
-        source: "external"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes: null
-
-      - artifact_id: "tz_world_shx"
-        name: "tz_world_2025a.shx"
-        path: "artefacts/priors/tz_world/2025a/tz_world_2025a.shx"
-        type: "data"
-        category: "spatial_prior"
-        semver: null
-        version: "2025a"
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Index file for tz‑world spatial polygons."
-        dependencies: [ ]
-        source: "external"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes: null
-
-      - artifact_id: "tz_world_dbf"
-        name: "tz_world_2025a.dbf"
-        path: "artefacts/priors/tz_world/2025a/tz_world_2025a.dbf"
-        type: "data"
-        category: "spatial_prior"
-        semver: null
-        version: "2025a"
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Attribute table for tz‑world spatial polygons."
-        dependencies: [ ]
-        source: "external"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes: null
-
-      - artifact_id: "tz_world_prj"
-        name: "tz_world_2025a.prj"
-        path: "artefacts/priors/tz_world/2025a/tz_world_2025a.prj"
-        type: "data"
-        category: "spatial_prior"
-        semver: null
-        version: "2025a"
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Projection definition for tz‑world spatial polygons."
-        dependencies: [ ]
-        source: "external"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes: null
-
-      - artifact_id: "tz_world_cpg"
-        name: "tz_world_2025a.cpg"
-        path: "artefacts/priors/tz_world/2025a/tz_world_2025a.cpg"
-        type: "data"
-        category: "spatial_prior"
-        semver: null
-        version: "2025a"
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Character encoding file for tz‑world spatial polygons."
-        dependencies: [ ]
-        source: "external"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes: null
-
-      # ─────────── Manifests & Serialized Caches ───────────
-      - artifact_id: "spatial_manifest_json"
-        name: "spatial_manifest.json"
-        path: "artefacts/manifests/spatial_manifest.json"
-        type: "manifest"
-        category: "manifest"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"   # tz_polygon_digest
-        license: "<SPDX_LICENSE_ID>"
-        role: "Aggregates SHA‑256 digests of tz_world shapefile components."
-        dependencies:
-          - tz_world_shp
-          - tz_world_shx
-          - tz_world_dbf
-          - tz_world_prj
-          - tz_world_cpg
-        source: "internal"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes: null
-
-      - artifact_id: "tzid_insertion_order"
-        name: "tzid_insertion_order.json"
-        path: "artefacts/index/tzid_insertion_order/2025a.json"
-        type: "manifest"
-        category: "indexing"
-        semver: null
-        version: "2025a"
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: null
-        role: "Exact lexicographically‑sorted TZID list used to build the STR‑tree."
-        dependencies:
-          - spatial_manifest_json
-          - locale_policy
-        source: "internal"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "ci", "runtime" ]
-        schema: null
-        cross_layer: false
-        notes: null
-
-      - artifact_id: "str_tree_serialization"
-        name: "tz_world_strtree.pkl"
-        path: "artefacts/index/tz_world_strtree.pkl"
-        type: "data"
-        category: "spatial_index"
-        semver: null
-        version: "2025a"
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"   # tz_index_digest
-        license: null
-        role: "Serialized STR‑tree index of tz_world polygons (pickle protocol 5)."
-        dependencies:
-          - tz_world_shp
-          - tz_world_shx
-          - tz_world_dbf
-          - tz_world_prj
-          - tz_world_cpg
-          - tzid_insertion_order
-          - geometry_tolerance_policy
-        source: "internal"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes: null
-
-      - artifact_id: "tzdata_archive"
-        name: "tzdata2025a.tar.gz"
-        path: "artefacts/priors/tzdata/tzdata2025a.tar.gz"
-        type: "data"
-        category: "tzdata"
-        semver: null
-        version: "2025a"
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: "<SPDX_LICENSE_ID>"
-        role: "IANA zoneinfo archive for civil timeline rules."
-        dependencies: [ ]
-        source: "external"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes: null
-
-      - artifact_id: "zoneinfo_version_yml"
-        name: "zoneinfo_version.yml"
-        path: "config/timezone/zoneinfo_version.yml"
-        type: "config"
-        category: "tzdata"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: null
-        role: "Declares tzdata version and semantic version."
-        dependencies:
-          - tzdata_archive
-        source: "internal"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes: null
-
-      - artifact_id: "tz_cache_singleton"
-        name: "tz_cache.pkl"
-        path: "artefacts/cache/tz_cache.pkl"
-        type: "data"
-        category: "index_cache"
-        semver: null
-        version: "2025a"
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"   # tz_cache_bytes
-        license: null
-        role: "Run‑length encoded UTC transition cache bytes."
-        dependencies:
-          - tzdata_archive
-          - zoneinfo_version_yml
-          - simulation_horizon_yml
-        source: "internal"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes: null
-
-      # ─────────── Configuration & Policies ───────────
-      - artifact_id: "tz_nudge_yml"
-        name: "tz_nudge.yml"
-        path: "config/timezone/tz_nudge.yml"
-        type: "config"
-        category: "timezone_nudge"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: null
-        role: "Epsilon‑nudge parameters for boundary cases."
-        dependencies: [ ]
-        source: "internal"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes: null
-
-      - artifact_id: "tz_overrides_yaml"
-        name: "tz_overrides.yaml"
-        path: "config/timezone/tz_overrides.yaml"
-        type: "config"
-        category: "timezone_override"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: null
-        role: "Priority‑based override rules for ambiguous points."
-        dependencies: [ ]
-        source: "internal"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes: null
-
-      - artifact_id: "tz_overrides_schema"
-        name: "tz_overrides.schema.json"
-        path: "config/timezone/schemas/tz_overrides.schema.json"
-        type: "schema"
-        category: "timezone_override"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: null
-        role: "JSON‑Schema validating scope/URL/date for tz_overrides.yaml (pre‑commit)."
-        dependencies:
-          - tz_overrides_yaml
-        source: "internal"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "ci", "runtime" ]
-        schema: null
-        cross_layer: false
-        notes: null
-
-      - artifact_id: "simulation_horizon_yml"
-        name: "simulation_horizon.yml"
-        path: "config/timezone/simulation_horizon.yml"
-        type: "config"
-        category: "sim_horizon"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: null
-        role: "Defines simulation start/end ISO‑8601 bounds for timezone caching."
-        dependencies: [ ]
-        source: "internal"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes: null
-
-      - artifact_id: "geometry_tolerance_policy"
-        name: "geometry_tolerance_policy.yaml"
-        path: "config/spatial/geometry_tolerance_policy.yaml"
-        type: "config"
-        category: "spatial"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: null
-        role: "Epsilon/tolerance for point‑in‑polygon numerics (distinct from ε‑nudge distance)."
-        dependencies: [ ]
-        source: "internal"
-        owner: "<PLATFORM_TEAM>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
+        source: external
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
         cross_layer: true
         notes: null
 
-      - artifact_id: "timestamp_precision_policy"
-        name: "timestamp_precision_policy.yaml"
-        path: "config/timezone/timestamp_precision_policy.yaml"
-        type: "config"
-        category: "timezone"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: null
-        role: "Defines UTC millisecond truncation/floor semantics for event_time_utc."
-        dependencies: [ ]
-        source: "internal"
-        owner: "<PLATFORM_TEAM>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
+      - name: tz_world_shapefile_2025_shx
+        path: artefacts/priors/tz_world/2025a/tz_world_2025a.shx
+        type: reference
+        category: spatial
+        semver: "2025a.0.0"
+        version: "2025a"
+        digest: "{sha256}"
+        manifest_key: mlr.ref.spatial.tz_world_2025a.shx
+        license: ODbL-1.0
+        role: Spatial‑index companion for tz_world.shp.
+        dependencies: [ tz_world_shapefile_2025_shp ]
+        source: external
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
         cross_layer: true
         notes: null
 
-      - artifact_id: "locale_policy"
-        name: "locale_policy.yaml"
-        path: "config/system/locale_policy.yaml"
-        type: "config"
-        category: "system"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: null
-        role: "Pins collation/locale (e.g., C/Unicode code‑point) for TZID ordering and hashing."
-        dependencies: [ ]
-        source: "internal"
-        owner: "<PLATFORM_TEAM>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
+      - name: tz_world_shapefile_2025_dbf
+        path: artefacts/priors/tz_world/2025a/tz_world_2025a.dbf
+        type: reference
+        category: spatial
+        semver: "2025a.0.0"
+        version: "2025a"
+        digest: "{sha256}"
+        manifest_key: mlr.ref.spatial.tz_world_2025a.dbf
+        license: ODbL-1.0
+        role: Attribute table for tz_world polygons.
+        dependencies: [ tz_world_shapefile_2025_shp ]
+        source: external
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
         cross_layer: true
         notes: null
 
-      # ─────────── tzdata structure & aliasing ───────────
-      - artifact_id: "iana_links_snapshot"
-        name: "iana_links_snapshot.parquet"
-        path: "artefacts/derived/tz/iana_links_snapshot.parquet"
-        type: "data"
-        category: "tzdata"
-        semver: null
+      - name: tz_world_shapefile_2025_prj
+        path: artefacts/priors/tz_world/2025a/tz_world_2025a.prj
+        type: reference
+        category: spatial
+        semver: "2025a.0.0"
         version: "2025a"
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Alias→canonical TZID mapping resolved from the pinned tzdata archive."
-        dependencies:
-          - tzdata_archive
-          - zoneinfo_version_yml
-        source: "internal"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
+        digest: "{sha256}"
+        manifest_key: mlr.ref.spatial.tz_world_2025a.prj
+        license: ODbL-1.0
+        role: Projection (EPSG:4326) file.
+        dependencies: [ tz_world_shapefile_2025_shp ]
+        source: external
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
-        cross_layer: false
+        cross_layer: true
         notes: null
 
-      - artifact_id: "tz_timetable_dump"
-        name: "timetables/"
-        path: "artefacts/derived/tz/timetables/2025a/"
-        type: "directory"
-        category: "tzdata"
-        semver: null
+      - name: tz_world_shapefile_2025_cpg
+        path: artefacts/priors/tz_world/2025a/tz_world_2025a.cpg
+        type: reference
+        category: spatial
+        semver: "2025a.0.0"
         version: "2025a"
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: null
-        role: "Optional Parquet dumps of per‑TZID timetables (transition_epoch, offset_minutes)."
-        dependencies:
-          - tzdata_archive
-          - simulation_horizon_yml
-        source: "internal"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "ci" ]
+        digest: "{sha256}"
+        manifest_key: mlr.ref.spatial.tz_world_2025a.cpg
+        license: ODbL-1.0
+        role: Code‑page definition for tz_world attributes.
+        dependencies: [ tz_world_shapefile_2025_shp ]
+        source: external
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      - name: tz_world_metadata
+        path: artefacts/priors/tz_world/2025a/tz_world_metadata.json
+        type: mapping
+        category: spatial
+        semver: "2025a.0.0"
+        version: "2025a"
+        digest: "{sha256}"
+        manifest_key: mlr.ref.spatial.tz_world_2025a.meta
+        license: ODbL-1.0
+        role: Per‑zone country‑set mapping for sanity checks.
+        dependencies: [ tz_world_shapefile_2025_shp ]
+        source: external
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+   
+      # 3 · IANA TZ DATA RELEASE
+      
+      - name: tzdata_archive_2025a
+        path: artefacts/priors/tzdata/tzdata2025a.tar.gz
+        type: reference
+        category: timezone
+        semver: "2025a.0.0"
+        version: "2025a"
+        digest: "{sha256}"
+        manifest_key: mlr.ref.tzdata.2025a
+        license: PublicDomain
+        role: Official IANA tzdata archive.
+        dependencies: [ ]
+        source: external
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      - name: iana_links_snapshot
+        path: artefacts/priors/tzdata/iana_links_snapshot.parquet
+        type: reference
+        category: timezone
+        semver: "2025a.0.0"
+        version: "2025a"
+        digest: "{sha256}"
+        manifest_key: mlr.ref.tzdata.iana_links
+        license: PublicDomain
+        role: Snapshot of Link → Zone equivalence used for diagnostics.
+        dependencies: [ tzdata_archive_2025a ]
+        source: internal
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+  
+      # 4 · GOVERNING CONFIG BLOBS
+      
+      - name: tz_nudge_policy
+        path: config/timezone/tz_nudge.yml
+        type: config
+        category: timezone
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.config.tz_nudge
+        license: "{spdx_or_internal}"
+        role: ε‑nudge magnitude & algorithm for deterministic tie‑breaks.
+        dependencies: [ ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      - name: tz_overrides
+        path: config/timezone/tz_overrides.yaml
+        type: config
+        category: timezone
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.config.tz_overrides
+        license: "{spdx_or_internal}"
+        role: Manual override table with evidence URLs & expiry dates.
+        dependencies: [ ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schema/tz_overrides.avsc
+        cross_layer: true
+        notes: null
+
+      - name: simulation_horizon
+        path: config/simulation_horizon.yml
+        type: config
+        category: simulation
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.config.simulation_horizon
+        license: "{spdx_or_internal}"
+        role: Start & end date for timeline cache extraction.
+        dependencies: [ ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
         cross_layer: false
         notes: null
 
-      # ─────────── Audit streams, metrics, manifest ───────────
-      - artifact_id: "tz_lookup_events"
-        name: "tz_lookup_events.jsonl"
-        path: "logs/timezone/tz_lookup_events.jsonl"
-        type: "log"
-        category: "events"
-        semver: null
-        version: "<RUN_ID>"
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: null
-        role: "Per‑site audit: (lat, lon, tzids_hit_list, nudge_vector, final_tzid, override_applied?)."
-        dependencies:
-          - str_tree_serialization
-          - tz_nudge_yml
-          - tz_overrides_yaml
-          - timestamp_precision_policy
-        source: "internal"
-        owner: "<QA_TEAM>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
+      - name: zoneinfo_version
+        path: config/zoneinfo_version.yml
+        type: config
+        category: timezone
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.config.zoneinfo_version
+        license: "{spdx_or_internal}"
+        role: Declares expected zoneinfo library build.
+        dependencies: [ tzdata_archive_2025a ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
         cross_layer: false
         notes: null
 
-      - artifact_id: "tz_lookup_failures"
-        name: "tz_lookup_failures.jsonl"
-        path: "logs/timezone/tz_lookup_failures.jsonl"
-        type: "log"
-        category: "events"
-        semver: null
-        version: "<RUN_ID>"
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: null
-        role: "Event log for TimeZoneLookupError (lat, lon, prior_tag, reason)."
-        dependencies:
-          - spatial_manifest_json
-        source: "internal"
-        owner: "<QA_TEAM>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
+      - name: geometry_tolerance_policy
+        path: config/numeric/geometry_tolerance_policy.yaml
+        type: config
+        category: numeric_environment
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.numeric.geometry_tolerance
+        license: "{spdx_or_internal}"
+        role: Allowed floating‑point tolerance for geometry ops.
+        dependencies: [ ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      - name: timestamp_precision_policy
+        path: config/numeric/timestamp_precision_policy.yaml
+        type: config
+        category: numeric_environment
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.numeric.timestamp_precision
+        license: "{spdx_or_internal}"
+        role: Millisecond truncation & rounding rules.
+        dependencies: [ ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      - name: locale_policy
+        path: config/locale_policy.yaml
+        type: config
+        category: localisation
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.locale.policy
+        license: "{spdx_or_internal}"
+        role: Locale rules (ISO, CLDR) relevant to time‑zone overrides.
+        dependencies: [ ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
         cross_layer: false
         notes: null
 
-      - artifact_id: "override_application_log"
-        name: "override_application.jsonl"
-        path: "logs/timezone/override_application.jsonl"
-        type: "log"
-        category: "events"
-        semver: null
-        version: "<RUN_ID>"
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: null
-        role: "Event per row where an override supersedes polygon TZID (with scope & prior_tzid)."
-        dependencies:
-          - tz_overrides_yaml
-        source: "internal"
-        owner: "<QA_TEAM>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
+      
+      # 5 · INDEX / CACHE
+      
+      - name: tz_index_pickle
+        path: artefacts/cache/tz_world/2025a/{sha256}/tz_index.pkl
+        type: cache
+        category: spatial_index
+        semver: "{semver}"
+        version: "{sha256}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.cache.tz_index
+        license: "{spdx_or_internal}"
+        role: STR‑tree pickle for point‑in‑polygon lookup.
+        dependencies: [ tz_world_shapefile_2025_shp, tzid_insertion_order, geometry_tolerance_policy, locale_policy ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
-        cross_layer: false
+        cross_layer: true
         notes: null
 
-      - artifact_id: "override_metrics"
-        name: "override_metrics.parquet"
-        path: "ci/metrics/2A/override_metrics/{run_id}.parquet"
-        type: "data"
-        category: "metrics"
-        semver: null
+      - name: timetable_cache
+        path: artefacts/cache/timetable/{sha256}/timetable_cache.parquet
+        type: cache
+        category: timezone
+        semver: "{semver}"
+        version: "{sha256}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.cache.timetable
+        license: "{spdx_or_internal}"
+        role: Run‑length‑encoded zone transitions (≤ 8 MiB).
+        dependencies: [ tzdata_archive_2025a, simulation_horizon ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      - name: tz_cache_metrics
+        path: artefacts/metrics/tz_cache_metrics.parquet
+        type: dataset
+        category: metrics
+        semver: "{semver}"
         version: "{run_id}"
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: null
-        role: "Counts by (scope, tzid) proving nightly override check would change ≥1 row."
-        dependencies:
-          - tz_overrides_yaml
-          - site_catalogue
-        source: "internal"
-        owner: "<QA_TEAM>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "ci" ]
+        digest: "{sha256}"
+        manifest_key: mlr.2A.metrics.tz_cache
+        license: "{spdx_or_internal}"
+        role: Size & hit‑rate metrics for timetable cache.
+        dependencies: [ timetable_cache, zoneinfo_version ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci ]
         schema: null
         cross_layer: false
         notes: null
 
-      - artifact_id: "tz_cache_metrics"
-        name: "tz_cache_metrics.parquet"
-        path: "ci/metrics/2A/tz_cache_metrics/{run_id}.parquet"
-        type: "data"
-        category: "metrics"
-        semver: null
+      # 6 · MANIFESTS & DIGESTS
+      
+      - name: spatial_manifest
+        path: artefacts/manifests/spatial_manifest.json
+        type: manifest
+        category: provenance
+        semver: "{semver}"
         version: "{run_id}"
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: null
-        role: "Gauge of tz_cache_bytes and zone counts; asserts memory stays < 8 MiB."
-        dependencies:
-          - tz_cache_singleton
-          - zoneinfo_version_yml
-        source: "internal"
-        owner: "<QA_TEAM>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "ci" ]
+        digest: "{sha256}"
+        manifest_key: mlr.2A.manifest.spatial
+        license: "{spdx_or_internal}"
+        role: Aggregated digests of all spatial artefacts.
+        dependencies: [ tz_world_shapefile_2025_shp, tzdata_archive_2025a ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
         cross_layer: false
         notes: null
 
-      - artifact_id: "civil_time_manifest"
-        name: "civil_time_manifest.json"
-        path: "ci/manifests/2A/civil_time_manifest.json"
-        type: "manifest"
-        category: "tz_governance"
-        semver: null
-        version: "<RUN_ID>"
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: null
-        role: "Per‑run roll‑up: tz_polygon_digest, tz_index_digest, tz_nudge_digest, tzdata_archive_digest, tz_horizon_digest, tz_cache_bytes."
-        dependencies:
-          - spatial_manifest_json
-          - str_tree_serialization
-          - tz_nudge_yml
-          - tzdata_archive
-          - simulation_horizon_yml
-          - tz_cache_singleton
-          - tz_overrides_yaml
-        source: "internal"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "ci" ]
+      - name: tz_polygon_digest
+        path: artefacts/manifests/tz_polygon_digest.txt
+        type: manifest
+        category: provenance
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.manifest.tz_polygon_digest
+        license: "{spdx_or_internal}"
+        role: SHA‑256 of concatenated polygon bytes (ordered by TZID).
+        dependencies: [ tz_world_shapefile_2025_shp ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
         cross_layer: false
         notes: null
 
-      # ─────────── Exceptions & CI tests ───────────
-      - artifact_id: "dst_lookup_tie_error"
-        name: "DSTLookupTieError"
-        path: "src/timezone/exceptions.py"
-        type: "exception"
-        category: "tz_lookup"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: null
-        license: null
-        role: "Raised if an ε‑nudge still yields multiple polygons."
-        dependencies:
-          - tz_nudge_yml
-          - str_tree_serialization
-        source: "internal"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
+      - name: tz_index_digest
+        path: artefacts/manifests/tz_index_digest.txt
+        type: manifest
+        category: provenance
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.manifest.tz_index_digest
+        license: "{spdx_or_internal}"
+        role: SHA‑256 of STR‑tree pickle bytes.
+        dependencies: [ tz_index_pickle ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
         cross_layer: false
         notes: null
 
-      - artifact_id: "timezone_lookup_error"
-        name: "TimeZoneLookupError"
-        path: "src/timezone/exceptions.py"
-        type: "exception"
-        category: "tz_lookup"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: null
-        license: null
-        role: "Raised when no polygon contains the point (zero‑hit lookup)."
-        dependencies:
-          - str_tree_serialization
-        source: "internal"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes: null
-
-      - artifact_id: "timetable_coverage_error"
-        name: "TimeTableCoverageError"
-        path: "src/timezone/exceptions.py"
-        type: "exception"
-        category: "tz_validation"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: null
-        license: null
-        role: "Raised when a transition lies outside the configured simulation horizon."
-        dependencies:
-          - simulation_horizon_yml
-        source: "internal"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "runtime" ]
-        schema: null
-        cross_layer: false
-        notes: null
-
-      - artifact_id: "override_logic_ci_check"
-        name: "override_logic_ci_check.sh"
-        path: "ci/tests/timezone_override_validation.sh"
-        type: "ci_test"
-        category: "timezone_override"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: null
-        license: null
-        role: "Nightly CI assertion that at least one override entry changes a lookup result."
-        dependencies:
-          - tz_overrides_yaml
-          - override_metrics
-        source: "internal"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "ci" ]
-        schema: null
-        cross_layer: false
-        notes: null
-
-      # ─────────── Reproducibility manifests ───────────
-      - artifact_id: "python_lib_versions"
-        name: "python_lib_versions.txt"
-        path: "ci/manifests/python_lib_versions.txt"
-        type: "manifest"
-        category: "reproducibility"
-        semver: null
-        version: "<RUN_ID>"
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: null
-        role: "Exact versions of Python/NumPy/Shapely/pyproj/zoneinfo affecting pickles & caches."
-        dependencies: [ ]
-        source: "internal"
-        owner: "<PLATFORM_TEAM>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "ci" ]
+      - name: tzid_insertion_order
+        path: artefacts/priors/tz_world/2025a/tzid_insertion_order.txt
+        type: mapping
+        category: spatial
+        semver: "2025a.0.0"
+        version: "2025a"
+        digest: "{sha256}"
+        manifest_key: mlr.ref.spatial.tzid_insertion_order_2025a
+        license: ODbL-1.0
+        role: Canonical lexicographic TZID list used when building STR‑tree.
+        dependencies: [ tz_world_shapefile_2025_shp ]
+        source: internal
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
         cross_layer: true
         notes: null
 
-      - artifact_id: "rng_proof_md"
-        name: "rng_proof.md"
-        path: "docs/rng_proof.md"
-        type: "document"
-        category: "documentation"
-        semver: null
-        version: "<DOC_VERSION>"
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: null
-        role: "Formal proof that fold parity uses only (global_seed, site_id, t_local) — not Philox."
+      - name: civil_time_manifest
+        path: artefacts/manifests/civil_time_manifest.json
+        type: manifest
+        category: provenance
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.manifest.civil_time
+        license: "{spdx_or_internal}"
+        role: Captures seed, tz_polygon & tz_index digests, tz_nudge digest, tzdata archive & horizon digests, and tz_cache_bytes.
+        dependencies: [ spatial_manifest, tz_polygon_digest, tz_index_digest, tz_nudge_policy, tzdata_archive_2025a, simulation_horizon, timetable_cache, zoneinfo_version ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: build_fingerprint_2A
+        path: artefacts/manifests/build_fingerprint_2A.txt
+        type: manifest
+        category: provenance
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.manifest.build_fingerprint
+        license: "{spdx_or_internal}"
+        role: Composite SHA‑256 tying 2A to all governed artefacts.
+        dependencies:
+          - spatial_manifest
+          - tz_polygon_digest
+          - tz_index_digest
+          - tz_nudge_policy
+          - tz_overrides
+          - tzdata_archive_2025a
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      # 7 · EVENT SCHEMA & LOG STREAMS
+      
+      - name: timezone_event_schema
+        path: schema/timezone_event_schema.json
+        type: schema
+        category: timezone_event
+        semver: "{semver}"
+        version: "{schema_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.schema.timezone_events
+        license: "{spdx_or_internal}"
+        role: JSON schema validating all timezone event streams.
         dependencies: [ ]
-        source: "internal"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: [ "dev", "ci", "runtime" ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      # The following block pattern repeats for each JSONL stream
+      - name: tz_lookup_error_log
+        path: logs/timezone/{run_id}/tz_lookup_error.jsonl
+        type: log
+        category: timezone_event
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.log.tz_lookup_error
+        license: "{spdx_or_internal}"
+        role: Event where no polygon matches a site coordinate.
+        dependencies: [ timezone_event_schema ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+      
+      # Add alongside tz_lookup_error_log
+
+      - name: tz_lookup_events
+        path: logs/timezone/{run_id}/tz_lookup_events.jsonl
+        type: log
+        category: timezone_event
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.log.tz_lookup_events
+        license: "{spdx_or_internal}"
+        role: Per‑site audit of (lat, lon, tzids_hit_list, nudge_vector, final_tzid, override_applied?).
+        dependencies: [ timezone_event_schema, tz_nudge_policy, tz_overrides ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: tz_nudge_applied_log
+        path: logs/timezone/{run_id}/tz_nudge_applied.jsonl
+        type: log
+        category: timezone_event
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.log.tz_nudge_applied
+        license: "{spdx_or_internal}"
+        role: Records ε‑nudge vector and pre/post hit sets.
+        dependencies: [ timezone_event_schema, tz_nudge_policy ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: tz_override_applied_log
+        path: logs/timezone/{run_id}/tz_override_applied.jsonl
+        type: log
+        category: timezone_event
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.log.tz_override_applied
+        license: "{spdx_or_internal}"
+        role: When an override supersedes polygon TZID (prior_tzid, scope, final_tzid).
+        dependencies: [ timezone_event_schema, tz_overrides ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: time_gap_shift_log
+        path: logs/timezone/{run_id}/time_gap_shift.jsonl
+        type: log
+        category: timezone_event
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.log.time_gap_shift
+        license: "{spdx_or_internal}"
+        role: Shifts applied to land forward‑gap legality fixes (gap_seconds, adjusted_local_time).
+        dependencies: [ timezone_event_schema, simulation_horizon ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: fold_choice_log
+        path: logs/timezone/{run_id}/fold_choice.jsonl
+        type: log
+        category: timezone_event
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.log.fold_choice
+        license: "{spdx_or_internal}"
+        role: Parity choice for backward fold (hash inputs and chosen fold).
+        dependencies: [ timezone_event_schema, timestamp_precision_policy ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: utc_conversion_log
+        path: logs/timezone/{run_id}/utc_conversion.jsonl
+        type: log
+        category: timezone_event
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.log.utc_conversion
+        license: "{spdx_or_internal}"
+        role: (t_local, offset_minutes) → event_time_utc, with precision policy applied.
+        dependencies: [ timezone_event_schema, timestamp_precision_policy, zoneinfo_version ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+      
+      # 8 · METRICS & CI OUTPUTS
+      - name: override_metrics
+        path: artefacts/metrics/override_metrics.parquet
+        type: dataset
+        category: metrics
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.metrics.overrides
+        license: "{spdx_or_internal}"
+        role: Hit‑rate & expiry‑coverage metrics for tz_overrides.
+        dependencies: [ tz_overrides, site_catalogue ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci ]
+        schema: null
+        cross_layer: false
+        notes: null
+      
+      # 9 · RNG AUDIT & TRACE
+      
+      - name: rng_audit_2A
+        path: logs/timezone/{run_id}/rng_audit_2A.log
+        type: log
+        category: rng_audit
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.log.rng_audit
+        license: "{spdx_or_internal}"
+        role: Structured audit of Philox counter positions.
+        dependencies: [ ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: rng_trace_2A
+        path: logs/timezone/{run_id}/rng_trace_2A.log
+        type: log
+        category: rng_audit
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.log.rng_trace
+        license: "{spdx_or_internal}"
+        role: Full trace of every RNG draw in 2A.
+        dependencies: [ rng_audit_2A ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      # 10 · CI SCRIPTS & TESTS
+      
+      - name: override_logic_ci_check
+        path: ci/tests/timezone_override_validation.sh
+        type: ci_test
+        category: timezone_override
+        semver: "{semver}"
+        version: "{script_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.ci.override_validation
+        license: "{spdx_or_internal}"
+        role: Nightly assertion that at least one override changes lookup result.
+        dependencies: [ tz_overrides, override_metrics ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci ]
+        schema: null
+        cross_layer: false
+        notes: null
+      
+      # 11 · VERSION PIN / ENVIRONMENT
+      
+      - name: python_lib_versions
+        path: artefacts/manifests/python_lib_versions.txt
+        type: manifest
+        category: runtime_environment
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.manifest.python_lib_versions
+        license: "{spdx_or_internal}"
+        role: Frozen pip freeze used for deterministic builds.
+        dependencies: [ ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+      
+      # 12 · ERROR / EXCEPTION CONTRACT
+      
+      - name: DSTLookupTieError
+        path: null
+        type: exception
+        category: exception_contract
+        semver: null
+        version: null
+        digest: null
+        manifest_key: mlr.2A.exception.dst_lookup_tie
+        license: null
+        role: Raised when two polygons persist after ε‑nudge.
+        dependencies: [ ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: TimeZoneLookupError
+        path: null
+        type: exception
+        category: exception_contract
+        semver: null
+        version: null
+        digest: null
+        manifest_key: mlr.2A.exception.timezone_lookup
+        license: null
+        role: Raised when no TZ polygon matches a point.
+        dependencies: [ ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: TimeTableCoverageError
+        path: null
+        type: exception
+        category: exception_contract
+        semver: null
+        version: null
+        digest: null
+        manifest_key: mlr.2A.exception.timetable_coverage
+        license: null
+        role: Raised when zone rules do not cover simulation horizon.
+        dependencies: [ ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+      
+      # 13 · DOCUMENTATION / PROOF
+      
+      - name: rng_independence_proof
+        path: docs/rng_proof.md
+        type: documentation
+        category: proof
+        semver: "{semver}"
+        version: "{doc_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.docs.rng_independence
+        license: "{spdx_or_internal}"
+        role: Proof that fold‑parity hash is independent of Philox streams.
+        dependencies: [ ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ dev, ci, runtime ]
         schema: null
         cross_layer: false
         notes: null
