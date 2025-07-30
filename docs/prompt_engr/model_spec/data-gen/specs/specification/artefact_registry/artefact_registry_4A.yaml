@@ -1,0 +1,370 @@
+subsegments:
+  - id: "4A"
+    name: "Reproducibility and Configurability"
+    artifacts:
+
+      # ── Batch 1: Container & Manifest Bootstrapping ──
+
+      - artifact_id: "dockerfile_lock"
+        name: "Dockerfile.lock"
+        path: "Dockerfile.lock"
+        type: "manifest"
+        category: "reproducibility"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Locks base image and dependencies for reproducible container builds"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "pipeline_launcher"
+        name: "pipeline_launcher.sh"
+        path: "ci/pipeline_launcher.sh"
+        type: "script"
+        category: "ci"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Entrypoint script that initializes build manifest and invokes validation steps"
+        dependencies:
+          - dockerfile_lock
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci","runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "validate_container_hash"
+        name: "validate_container_hash.yml"
+        path: "configs/ci/validate_container_hash.yml"
+        type: "ci_test"
+        category: "reproducibility"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "CI configuration to verify built container digest matches lockfile"
+        dependencies:
+          - dockerfile_lock
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "build_manifest"
+        name: "build.manifest"
+        path: "/tmp/build.manifest"
+        type: "manifest"
+        category: "reproducibility"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Aggregate manifest of all digests (git, container, configs) generated at build time"
+        dependencies:
+          - pipeline_launcher
+          - validate_container_hash
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      # ── Batch 2: Core Runtime & CI Scripts ──
+
+      - artifact_id: "main_py"
+        name: "main.py"
+        path: "src/main.py"
+        type: "code"
+        category: "runtime"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Pipeline entrypoint that verifies source hash and orchestrates stages"
+        dependencies:
+          - build_manifest
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "fraudsim_init"
+        name: "__init__.py"
+        path: "fraudsim/__init__.py"
+        type: "code"
+        category: "runtime"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Initializes the fraudsim package and loads embedded codehash"
+        dependencies:
+          - main_py
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "artifact_loader"
+        name: "artefact_loader.py"
+        path: "src/infra/artefact_loader.py"
+        type: "code"
+        category: "registry"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Loads and validates artefact_registry.yaml entries at runtime"
+        dependencies:
+          - artefact_registry.yaml
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "compare_registry"
+        name: "compare_registry.py"
+        path: "src/infra/compare_registry.py"
+        type: "script"
+        category: "registry"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "CLI tool to diff build.manifest against artefact_registry.yaml"
+        dependencies:
+          - build_manifest
+          - artefact_registry.yaml
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "register_dataset"
+        name: "register_dataset.py"
+        path: "src/infra/register_dataset.py"
+        type: "script"
+        category: "registry"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Inserts (parameter_hash, seed, path) entries into datasets catalog"
+        dependencies:
+          - compare_registry
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "replay_rng"
+        name: "replay_rng.py"
+        path: "src/infra/replay_rng.py"
+        type: "script"
+        category: "rng"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Replays Philox jumps to verify deterministic RNG streams"
+        dependencies:
+          - compare_registry
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci","runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "bootstrap_validator"
+        name: "bootstrap_validator.py"
+        path: "src/validation/bootstrap_validator.py"
+        type: "script"
+        category: "ci_test"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "CI test for outlet‐count bootstrap invariants"
+        dependencies:
+          - artefact_registry.yaml
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "validate_licences"
+        name: "validate_licences.py"
+        path: "src/validation/validate_licences.py"
+        type: "script"
+        category: "ci_test"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "CI helper to verify LICENSES/ against registry mappings"
+        dependencies:
+          - LICENSES/
+          - artefact_registry.yaml
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "firewall"
+        name: "firewall.py"
+        path: "src/security/firewall.py"
+        type: "code"
+        category: "validation"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Enforces structural and semantic invariants on generated datasets"
+        dependencies:
+          - build_manifest
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime","ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "failure_reproducer"
+        name: "failure_reproducer.py"
+        path: "/tmp/failure_reproducer.py"
+        type: "script"
+        category: "validation"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Script to reproduce and debug validation failures locally"
+        dependencies:
+          - firewall
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["runtime","ci"]
+        schema: null
+        notes: null
+
+
+      # ── Batch 3: Registry Schema & Licensing ──
+
+      - artifact_id: "artifact_registry_yaml"
+        name: "artefact_registry.yaml"
+        path: "configs/registry/artefact_registry.yaml"
+        type: "schema"
+        category: "registry"
+        semver: "1.0"
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Master registry template defining expected artifacts and fields"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci","runtime"]
+        schema: null
+        notes: null
+
+      - artifact_id: "schemas_directory"
+        name: "schemas/"
+        path: "schemas/"
+        type: "directory"
+        category: "schema"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Directory of JSON/Avro schemas for all domains (transaction, outlet_stub, site_catalogue, etc.)"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci","runtime"]
+        schema: null
+        notes: "Includes schema files like transaction_schema.avsc, site_catalogue.avsc, etc."
+
+      - artifact_id: "country_zone_alphas"
+        name: "country_zone_alphas.yaml"
+        path: "configs/validation/country_zone_alphas.yaml"
+        type: "config"
+        category: "validation"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: "<SPDX_LICENSE_ID>"
+        role: "Alpha hyperparameters for cross-zone Dirichlet posterior validation"
+        dependencies:
+          - artifact_registry_yaml
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
+
+      - artifact_id: "licenses_directory"
+        name: "LICENSES/"
+        path: "LICENSES/"
+        type: "directory"
+        category: "license"
+        semver: null
+        version: null
+        digest: "<SHA256>"
+        manifest_key: "<MANIFEST_KEY>"
+        license: null
+        role: "Directory containing all SPDX‐licensed text files referenced by artifacts"
+        dependencies: []
+        source: null
+        owner: "<TEAM_NAME>"
+        last_updated: "<YYYY-MM-DDThh:mm:ssZ>"
+        environment: ["ci"]
+        schema: null
+        notes: null
