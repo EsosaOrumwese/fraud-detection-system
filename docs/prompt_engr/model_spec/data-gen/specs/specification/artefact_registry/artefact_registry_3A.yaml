@@ -21,7 +21,7 @@ subsegments:
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: schema/outlet_stub.avsc
+        schema: outlet_stub_schema
         cross_layer: true
         notes: null
 
@@ -165,7 +165,7 @@ subsegments:
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: schema/zone_alloc.schema.json
+        schema: zone_alloc_schema
         cross_layer: true
         notes: "Pattern expands: one parquet per merchant."
 

@@ -766,7 +766,7 @@ subsegments:
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: schema/transaction_schema.avsc
+        schema: transaction_schema.avsc
         cross_layer: true
         notes: null
 
@@ -785,7 +785,7 @@ subsegments:
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: schema/design_matrix.avsc
+        schema: design_matrix.avsc
         cross_layer: true
         notes: null
 
@@ -804,7 +804,7 @@ subsegments:
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: schema/hurdle_pi_probs.avsc
+        schema: hurdle_pi_probs.avsc
         cross_layer: true
         notes: null
 
@@ -842,7 +842,7 @@ subsegments:
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: schema/sparse_flags.avsc
+        schema: sparse_flags.avsc
         cross_layer: false
         notes: null
 
@@ -899,7 +899,7 @@ subsegments:
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: schema/country_set.avsc
+        schema: country_set.avsc
         cross_layer: false
         notes: "Persist to avoid extra RNG in downstream routing."
 
@@ -975,7 +975,7 @@ subsegments:
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: schema/outlet_stub.avsc
+        schema: outlet_stub_schema
         cross_layer: true
         notes: "ZSTD level 3; path pattern enforced by `storage_path_pattern`."
 
@@ -1264,3 +1264,79 @@ subsegments:
         cross_layer: false
         notes: null
 
+      # ── New schema artefacts (1A) ──
+      - name: design_matrix.avsc
+        path: schema/design_matrix.avsc
+        type: schema
+        category: schema
+        semver: { semver }
+        version: { schema_version }
+        digest: { sha256 }
+        manifest_key: mlr.1A.schema.design_matrix
+        license: { spdx_or_internal }
+        role: Avro schema for hurdle model design matrix (intercept, MCC, channel, GDP bucket)
+        dependencies: [ ]
+        source: internal
+        owner: { qa_team }
+        last_updated: { iso8601_timestamp }
+        environment: [ ci, runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: hurdle_pi_probs.avsc
+        path: schema/hurdle_pi_probs.avsc
+        type: schema
+        category: schema
+        semver: { semver }
+        version: { schema_version }
+        digest: { sha256 }
+        manifest_key: mlr.1A.schema.hurdle_pi_probs
+        license: { spdx_or_internal }
+        role: Avro schema for π (open‑probability) vectors from hurdle stage
+        dependencies: [ ]
+        source: internal
+        owner: { qa_team }
+        last_updated: { iso8601_timestamp }
+        environment: [ ci, runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: sparse_flags.avsc
+        path: schema/sparse_flags.avsc
+        type: schema
+        category: schema
+        semver: { semver }
+        version: { schema_version }
+        digest: { sha256 }
+        manifest_key: mlr.1A.schema.sparse_flags
+        license: { spdx_or_internal }
+        role: Avro schema for boolean sparsity indicators used in pipeline shortcuts
+        dependencies: [ ]
+        source: internal
+        owner: { qa_team }
+        last_updated: { iso8601_timestamp }
+        environment: [ ci, runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: country_set.avsc
+        path: schema/country_set.avsc
+        type: schema
+        category: schema
+        semver: { semver }
+        version: { schema_version }
+        digest: { sha256 }
+        manifest_key: mlr.1A.schema.country_set
+        license: { spdx_or_internal }
+        role: Avro schema for the canonical set of countries enabled for generation
+        dependencies: [ ]
+        source: internal
+        owner: { qa_team }
+        last_updated: { iso8601_timestamp }
+        environment: [ ci, runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
