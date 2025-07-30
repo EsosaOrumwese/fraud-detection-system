@@ -2,443 +2,658 @@ subsegments:
   - id: "2B"
     name: "Routing Transactions Through Sites"
     artifacts:
-      # Batch 1: Core catalogue & weights files
-      - artifact_id: "site_catalogue_parquet"
-        name: "site_catalogue.parquet"
-        path: "artefacts/catalogue/site_catalogue.parquet"
-        type: "data"
-        category: "catalogue"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Site metadata table including site_id, coordinates, tzid, and associated attributes"
+
+      # ──────────────────────────────
+      # 1 · CROSS‑LAYER INPUT
+      # ──────────────────────────────
+      - name: site_catalogue
+        path: data/outputs/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+        type: dataset
+        category: input
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.1B.output.site_catalogue
+        license: "{spdx_or_internal}"
+        role: Outlet stubs with coordinates, tzid, and foot‑traffic scalars.
         dependencies: []
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
-        schema: null
+        source: internal
+        owner: { owner_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schema/outlet_stub.avsc
+        cross_layer: true
         notes: null
 
-      - artifact_id: "routing_manifest_json"
-        name: "routing_manifest.json"
-        path: "artefacts/manifests/routing_manifest.json"
-        type: "manifest"
-        category: "routing"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Aggregates SHA‑256 digests of routing artifacts per merchant"
-        dependencies:
-          - pweights_bin
-          - alias_npz
-          - cdn_alias_npz
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
-        schema: null
-        notes: null
-
-      - artifact_id: "pweights_bin"
-        name: "<merchant_id>_pweights.bin"
-        path: "artefacts/routing/<merchant_id>_pweights.bin"
-        type: "data"
-        category: "routing"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "weight_digest"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Normalized foot‑traffic weight vector for merchant"
-        dependencies:
-          - site_catalogue_parquet
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
-        schema: null
-        notes: null
-
-      - artifact_id: "alias_npz"
-        name: "<merchant_id>_alias.npz"
-        path: "artefacts/routing/<merchant_id>_alias.npz"
-        type: "data"
-        category: "routing"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "alias_digest"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Alias table for O(1) multimodal sampling of sites"
-        dependencies:
-          - pweights_bin
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
-        schema: null
-        notes: null
-
-      - artifact_id: "cdn_country_weights_yaml"
-        name: "cdn_country_weights.yaml"
-        path: "config/routing/cdn_country_weights.yaml"
-        type: "config"
-        category: "routing"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Stationary CDN‑edge country weights for virtual merchants"
+      # ──────────────────────────────
+      # 2 · GOVERNING CONFIG BLOBS
+      # ──────────────────────────────
+      - name: routing_day_effect
+        path: config/routing/routing_day_effect.yml
+        type: config
+        category: routing
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.config.routing_day_effect
+        license: "{spdx_or_internal}"
+        role: σ² for corporate‑day log‑normal multiplier γ_d.
         dependencies: []
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
+        cross_layer: true
         notes: null
 
-      - artifact_id: "cdn_alias_npz"
-        name: "<merchant_id>_cdn_alias.npz"
-        path: "artefacts/routing/<merchant_id>_cdn_alias.npz"
-        type: "data"
-        category: "routing"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "cdn_alias_digest"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Alias table for CDN edge country sampling for virtual merchants"
+      - artifact_id: cdn_weights_ext_yaml
+        name: cdn_country_weights.yaml
+        path: artefacts/external/cdn_country_weights.yaml
+        type: dataset
+        category: external_data
+        semver: "{semver}"
+        version: "{vintage}"
+        digest: "{sha256}"
+        manifest_key: cdn_country_weights_digest
+        license: "CC-BY-4.0"
+        role: "Stationary CDN edge country weights (Akamai State of the Internet)."
+        dependencies: [ ]
+        source: external
+        owner: "{data_governance_team}"
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - artifact_id: cdn_country_weights
+        name: cdn_country_weights.yaml
+        path: config/routing/cdn_country_weights.yaml
+        type: config
+        category: routing
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: cdn_weights_config_digest
+        license: null
+        role: "Thin wrapper referencing the external CDN weights (selection/mapping only)."
         dependencies:
-          - cdn_country_weights_yaml
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
+          - cdn_weights_ext_yaml
+        source: internal
+        owner: "{data_governance_team}"
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
+        cross_layer: false
         notes: null
 
-      - artifact_id: "licenses_dir"
-        name: "LICENSES/"
-        path: "LICENSES/"
-        type: "directory"
-        category: "license"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: null
-        license: "<SPDX_LICENSE_ID>"
-        role: "Third‑party license files directory"
+      - name: rng_policy
+        path: config/routing/rng_policy.yml
+        type: config
+        category: rng_policy
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.config.rng_policy
+        license: "{spdx_or_internal}"
+        role: Philox sub‑stream derivation keys & stride sizes.
         dependencies: []
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["dev"]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
+        cross_layer: true
         notes: null
 
-      # Batch 2: Alias construction & sampling vectors
-
-      - artifact_id: "alias_construction_py"
-        name: "alias_construction.py"
-        path: "src/routing/alias_construction.py"
-        type: "script"
-        category: "routing"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Implements the Vose alias‑table construction algorithm"
-        dependencies:
-          - pweights_bin
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
-        schema: null
-        notes: null
-
-      - artifact_id: "alias_sampling_py"
-        name: "alias_sampling.py"
-        path: "src/routing/alias_sampling.py"
-        type: "script"
-        category: "routing"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Performs O(1) outlet choice using u_site = u_rand × N_m and applies scale_factor"
-        dependencies:
-          - alias_construction_py
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
-        schema: null
-        notes: null
-
-      - artifact_id: "cumulative_counts_vector"
-        name: "cumulative_counts_vector"
-        path: "artefacts/routing/<merchant_id>_cumulative_counts.npy"
-        type: "data"
-        category: "audit"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Packed uint64 array of per‑site routed counts used for audit checksum"
-        dependencies:
-          - routing_manifest_json
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["ci"]
-        schema: null
-        notes: null
-
-      - artifact_id: "empirical_share_validation_py"
-        name: "empirical_share_validation.py"
-        path: "src/routing/validation/empirical_share_validation.py"
-        type: "script"
-        category: "validation"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Computes ŝ_i & ρ_emp and asserts deviations within tolerance"
-        dependencies:
-          - routing_manifest_json
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["ci"]
-        schema: null
-        notes: null
-
-      - artifact_id: "scale_factor_logic"
-        name: "scale_factor = 1"
-        path: "src/routing/scale_factor_logic.py"
-        type: "script"
-        category: "routing"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"
-        license: "<SPDX_LICENSE_ID>"
-        role: "Ensures scale_factor remains 1, preserving alias‑table acceptance logic without rebuilds"
-        dependencies:
-          - alias_sampling_py
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
-        schema: null
-        notes: null
-
-      # Batch 3: Daily Multiplier & RNG/Modulation Logic
-
-      - artifact_id: "routing_day_effect_yml"
-        name: "routing_day_effect.yml"
-        path: "config/routing/routing_day_effect.yml"
-        type: "config"
-        category: "routing"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"   # gamma_variance_digest
-        license: "<SPDX_LICENSE_ID>"
-        role: "Defines σ_γ² for log‑normal corporate‑day multiplier"
+      - name: routing_logging_policy
+        path: config/routing/logging.yml
+        type: config
+        category: logging
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.config.logging
+        license: "{spdx_or_internal}"
+        role: Batch size, rotation, retention rules for audit log.
         dependencies: []
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
+        cross_layer: false
         notes: null
 
-      - artifact_id: "rng_policy_yml"
-        name: "rng_policy.yml"
-        path: "config/routing/rng_policy.yml"
-        type: "config"
-        category: "routing"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"   # rng_policy_digest
-        license: "<SPDX_LICENSE_ID>"
-        role: "Specifies SHA‑1 seed derivation policy for Philox sub‑streams"
+      - name: routing_validation_policy
+        path: config/routing/routing_validation.yml
+        type: config
+        category: validation
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.config.validation
+        license: "{spdx_or_internal}"
+        role: Error bounds for share & correlation validation.
         dependencies: []
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
+        cross_layer: false
         notes: null
 
-      - artifact_id: "router_seed_py"
-        name: "router/seed.py"
-        path: "src/routing/router/seed.py"
-        type: "script"
-        category: "routing"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: null
-        license: "<SPDX_LICENSE_ID>"
-        role: "Derives per‑merchant Philox sub‑stream key via SHA‑1"
-        dependencies:
-          - rng_policy_yml
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
-        schema: null
-        notes: null
-
-      - artifact_id: "router_prng_py"
-        name: "router/prng.py"
-        path: "src/routing/router/prng.py"
-        type: "script"
-        category: "routing"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: null
-        license: "<SPDX_LICENSE_ID>"
-        role: "Advances Philox counter to produce uniform draws"
-        dependencies:
-          - router_seed_py
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
-        schema: null
-        notes: null
-
-      - artifact_id: "router_modulation_py"
-        name: "router/modulation.py"
-        path: "src/routing/router/modulation.py"
-        type: "script"
-        category: "routing"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: null
-        license: "<SPDX_LICENSE_ID>"
-        role: "Multiplies p_i by γ_d and re‑normalises within tzid group"
-        dependencies:
-          - router_prng_py
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
-        schema: null
-        notes: null
-
-      - artifact_id: "calibrate_gamma_ipynb"
-        name: "calibrate_gamma.ipynb"
-        path: "notebooks/calibrate_gamma.ipynb"
-        type: "script"
-        category: "routing"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: null
-        license: "<SPDX_LICENSE_ID>"
-        role: "Notebook deriving routing_day_effect.yml from historical data"
-        dependencies:
-          - routing_day_effect_yml
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["dev"]
-        schema: null
-        notes: null
-
-      # Batch 4: Logging, Validation & External‑Data
-
-      - artifact_id: "routing_logging_yml"
-        name: "logging.yml"
-        path: "config/routing/logging.yml"
-        type: "config"
-        category: "routing"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"    # audit_log_config_digest
-        license: "<SPDX_LICENSE_ID>"
-        role: "Controls rotation and 90-day retention of the routing audit log"
+      - name: tz_grouping_policy
+        path: config/routing/tz_grouping_policy.yml
+        type: config
+        category: routing
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.config.tz_grouping
+        license: "{spdx_or_internal}"
+        role: Defines renormalisation within tzid groups after γ_d scaling.
         dependencies: []
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
+        cross_layer: false
         notes: null
 
-      - artifact_id: "routing_validation_yml"
-        name: "routing_validation.yml"
-        path: "config/routing/routing_validation.yml"
-        type: "config"
-        category: "validation"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"    # routing_validation_digest
-        license: "<SPDX_LICENSE_ID>"
-        role: "Specifies share‐ and correlation‐tolerance thresholds for routing validation"
+      - name: performance_config
+        path: config/routing/performance.yml
+        type: config
+        category: performance
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.config.performance
+        license: "{spdx_or_internal}"
+        role: Throughput & memory SLA thresholds.
         dependencies: []
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["ci"]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci ]
         schema: null
+        cross_layer: false
         notes: null
 
-      - artifact_id: "routing_audit_log"
-        name: "routing_audit.log"
-        path: "logs/routing/routing_audit.log"
-        type: "log"
-        category: "audit"
-        semver: null
-        version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"    # routing_audit_digest
-        license: "<SPDX_LICENSE_ID>"
-        role: "Appends per‑million‑event checksums to detect reproducibility drift"
+      - name: errors_config
+        path: config/routing/errors.yml
+        type: config
+        category: exception_contract
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.config.errors
+        license: "{spdx_or_internal}"
+        role: Declares RoutingZeroWeightError & friends.
+        dependencies: []
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      # ─────────────────────────────────────────────
+      # 3 · PER‑MERCHANT WEIGHTS & ALIAS PATTERNS
+      # ─────────────────────────────────────────────
+      - name: merchant_weights_pattern
+        path: artefacts/router/weights/{merchant_id}_pweights.bin
+        type: dataset
+        category: routing_weights
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.weights.pattern
+        license: "{spdx_or_internal}"
+        role: Float64 p_i vector per merchant (lexicographic outlet order).
+        dependencies: [ site_catalogue ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: "Pattern expands to one artefact per merchant."
+
+      - name: merchant_alias_pattern
+        path: artefacts/router/alias/{merchant_id}_alias.npz
+        type: dataset
+        category: routing_alias
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.alias.pattern
+        license: "{spdx_or_internal}"
+        role: Deterministic Vose alias tables (prob + alias uint32 arrays).
+        dependencies: [ merchant_weights_pattern ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: "Pattern; one file per merchant."
+
+      - name: merchant_cdn_alias_pattern
+        path: artefacts/router/cdn_alias/{merchant_id}_cdn_alias.npz
+        type: dataset
+        category: routing_alias
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.cdn_alias.pattern
+        license: "{spdx_or_internal}"
+        role: Alias tables on CDN country weights (virtual merchants only).
+        dependencies: [ cdn_country_weights ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: "Generated only when is_virtual = 1."
+
+      # ─────────────────────────────────────────────
+      # 4 · MANIFESTS & PROVENANCE
+      # ─────────────────────────────────────────────
+      - name: routing_manifest
+        path: artefacts/manifests/routing_manifest.json
+        type: manifest
+        category: provenance
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.manifest.routing
+        license: "{spdx_or_internal}"
+        role: Digest bundle of weights, alias files & governing configs.
         dependencies:
-          - cumulative_counts_vector
-        source: null
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
+          - site_catalogue
+          - merchant_weights_pattern
+          - merchant_alias_pattern
+          - routing_day_effect
+          - rng_policy
+          - routing_logging_policy
+          - cdn_country_weights
+          - cdn_weights_ext_yaml
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
+        cross_layer: false
         notes: null
 
-      - artifact_id: "cdn_weights_ext_yaml"
-        name: "cdn_country_weights.yaml"
-        path: "artefacts/external/cdn_country_weights.yaml"
-        type: "data"
-        category: "external_data"
+      - name: build_fingerprint_2B
+        path: artefacts/manifests/build_fingerprint_2B.txt
+        type: manifest
+        category: provenance
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.manifest.build_fingerprint
+        license: "{spdx_or_internal}"
+        role: Composite SHA‑256 tying 2B to upstream & governed artefacts.
+        dependencies:
+          - routing_manifest
+          - rng_policy
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      # ─────────────────────────────────────────────
+      # 5 · LOGS & VALIDATION OUTPUTS
+      # ─────────────────────────────────────────────
+      - name: routing_audit_log
+        path: logs/routing/{run_id}/routing_audit.log
+        type: log
+        category: routing_audit
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.log.audit
+        license: "{spdx_or_internal}"
+        role: Batch checksum audit lines for deterministic replay.
+        dependencies: [ routing_audit_schema, routing_logging_policy, cumulative_counts_vector ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: routing_validation_report
+        path: artefacts/metrics/routing_validation_{run_id}.parquet
+        type: dataset
+        category: validation
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.validation.report
+        license: "{spdx_or_internal}"
+        role: End‑of‑day share & correlation metrics per merchant.
+        dependencies:
+          - routing_validation_policy
+          - routing_audit_log
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      # ─────────────────────────────────────────────
+      # 6 · RNG AUDIT & TRACE
+      # ─────────────────────────────────────────────
+      - name: rng_audit_2B
+        path: logs/routing/{run_id}/rng_audit_2B.log
+        type: log
+        category: rng_audit
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.log.rng_audit
+        license: "{spdx_or_internal}"
+        role: Structured audit of Philox counter windows for 2B.
+        dependencies: [ ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: rng_trace_2B
+        path: logs/routing/{run_id}/rng_trace_2B.log
+        type: log
+        category: rng_audit
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.log.rng_trace
+        license: "{spdx_or_internal}"
+        role: Full trace of every RNG draw (γ_d uniforms) in 2B.
+        dependencies: [ rng_audit_2B ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      # ─────────────────────────────────────────────
+      # 7 · GOVERNED CODE ARTEFACTS & TESTS
+      # ─────────────────────────────────────────────
+      - name: router_modulation_py
+        path: src/router/modulation.py
+        type: code
+        category: routing
+        semver: "{code_semver}"
+        version: "{git_commit}"
+        digest: "{git_tree_hash}"
+        manifest_key: mlr.2B.code.router_modulation
+        license: "{spdx_or_internal}"
+        role: Time‑zone group γ_d scaling logic.
+        dependencies: [ routing_day_effect, tz_grouping_policy ]
+        source: internal
+        owner: { engineering_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ dev, staging, prod ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: router_lookup_py
+        path: src/router/lookup.py
+        type: code
+        category: routing
+        semver: "{code_semver}"
+        version: "{git_commit}"
+        digest: "{git_tree_hash}"
+        manifest_key: mlr.2B.code.router_lookup
+        license: "{spdx_or_internal}"
+        role: Constant‑time alias sampling.
+        dependencies: [ merchant_alias_pattern ]
+        source: internal
+        owner: { engineering_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ dev, staging, prod ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: test_alias_py
+        path: tests/test_alias.py
+        type: code
+        category: unit_test
+        semver: "{code_semver}"
+        version: "{git_commit}"
+        digest: "{git_tree_hash}"
+        manifest_key: mlr.2B.test.alias_construction
+        license: "{spdx_or_internal}"
+        role: Unit tests verifying deterministic alias build & hash.
+        dependencies: [ router_lookup_py ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: validate_routing_py
+        path: tests/validate_routing.py
+        type: code
+        category: integration_test
+        semver: "{code_semver}"
+        version: "{git_commit}"
+        digest: "{git_tree_hash}"
+        manifest_key: mlr.2B.test.routing_validation
+        license: "{spdx_or_internal}"
+        role: End‑of‑day share & correlation validator harness.
+        dependencies: [ routing_validation_policy ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      # ─────────────────────────────────────────────
+      # 8 · PERFORMANCE METRICS & CI SCRIPTS
+      # ─────────────────────────────────────────────
+      - name: throughput_metrics
+        path: artefacts/metrics/throughput_{run_id}.parquet
+        type: dataset
+        category: metrics
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.metrics.throughput
+        license: "{spdx_or_internal}"
+        role: Events/second & memory‑footprint samples.
+        dependencies: [ performance_config ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: performance_ci_script
+        path: ci/tests/performance_budget_check.sh
+        type: ci_test
+        category: performance
+        semver: "{code_semver}"
+        version: "{git_commit}"
+        digest: "{git_tree_hash}"
+        manifest_key: mlr.2B.ci.performance_budget
+        license: "{spdx_or_internal}"
+        role: Fails CI if throughput_metrics exceed SLA in performance_config.
+        dependencies: [ throughput_metrics, performance_config ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      # ─────────────────────────────────────────────
+      # 9 · DOCUMENTATION / PROOF
+      # ─────────────────────────────────────────────
+      - name: alias_determinism_proof
+        path: docs/alias_determinism_proof.md
+        type: documentation
+        category: proof
+        semver: "{semver}"
+        version: "{doc_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.docs.alias_determinism
+        license: "{spdx_or_internal}"
+        role: Formal proof that Vose alias build is RNG‑free & byte‑stable.
+        dependencies: [ ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ dev, ci, runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      # ─────────────────────────────────────────────
+      # 10 · ERROR / EXCEPTION CONTRACT
+      # ─────────────────────────────────────────────
+      - name: RoutingZeroWeightError
+        path: null
+        type: exception
+        category: exception_contract
         semver: null
         version: null
-        digest: "<TBD_SHA256>"
-        manifest_key: "<TBD_MANIFEST_KEY>"    # cdn_country_weights_digest
-        license: "<SPDX_LICENSE_ID>"
-        role: "Stationary CDN‑edge country weights derived from Akamai State of the Internet report"
-        dependencies: []
-        source: "Akamai State of the Internet"
-        owner: "<TEAM_NAME>"
-        last_updated: "<YYYY‑MM‑DDThh:mm:ssZ>"
-        environment: ["runtime"]
+        digest: null
+        manifest_key: mlr.2B.exception.zero_weight
+        license: null
+        role: Raised when ΣF_i = 0 for a merchant.
+        dependencies: [ ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
+        cross_layer: false
+        notes: null
+
+      # Additional
+      - name: routing_audit_schema
+        path: config/routing/schemas/routing_audit.schema.json
+        type: schema
+        category: routing_audit
+        semver: "{semver}"
+        version: "{schema_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.schema.routing_audit
+        license: "{spdx_or_internal}"
+        role: JSON‑Schema for routing_audit.log rows (ts, merchant_id, batch_index, checksum, counts_digest).
+        dependencies: [ ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci, runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: gamma_draw_log
+        path: logs/routing/{run_id}/gamma_draw.jsonl
+        type: log
+        category: routing_audit
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.log.gamma_draw
+        license: "{spdx_or_internal}"
+        role:
+          Per (merchant, UTC day): gamma_id, gamma_value, and PRNG stream info for replay.
+        dependencies: [ routing_day_effect, rng_policy, router_modulation_py ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: router_checksum_ci_test
+        path: ci/tests/router_checksum_ci_test.sh
+        type: ci_test
+        category: routing_audit
+        semver: "{code_semver}"
+        version: "{git_commit}"
+        digest: "{git_tree_hash}"
+        manifest_key: mlr.2B.ci.router_checksum
+        license: "{spdx_or_internal}"
+        role: Nightly rerun asserts routing_audit.log matches prior run (first mismatch fails).
+        dependencies: [ routing_manifest, routing_audit_log, cumulative_counts_vector ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: alias_npz_spec
+        path: docs/specs/alias_npz_spec.md
+        type: documentation
+        category: spec
+        semver: "{semver}"
+        version: "{doc_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.docs.alias_npz_spec
+        license: "{spdx_or_internal}"
+        role: Spec for .npz format (array names, dtypes, endianness, NumPy version, compression).
+        dependencies: [ ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ dev, ci, runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: cumulative_counts_vector
+        path: artefacts/router/audit/{merchant_id}_cumulative_counts.npy
+        type: dataset
+        category: routing_audit
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.audit.cumulative_counts
+        license: "{spdx_or_internal}"
+        role: Packed uint64 per‑site totals backing audit checksums.
+        dependencies: [ merchant_alias_pattern ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci ]
+        schema: null
+        cross_layer: false
         notes: null
