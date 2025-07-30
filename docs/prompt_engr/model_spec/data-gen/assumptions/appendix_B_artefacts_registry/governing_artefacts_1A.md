@@ -126,5 +126,71 @@ On a second, line‑by‑line pass through the actual Sub‑segment 1A files, 
 3. **Internal dataset registry (`datasets` table)**
    *Role:* A Postgres catalog table (`datasets(id, parameter_hash, seed, path)`) queried in the “collision audit” to ensure you never accidentally rebuild under the same `(seed, parameter_hash)` but with different outputs.
 
+Yes—there are a few precise updates I recommend for your **governing artefacts** doc before we jump to 1B. I’ve kept this to copy‑ready Markdown that slots into your existing file. Each bullet is grounded in the 1A narrative/assumptions and your registry; citations point to where the behaviour is required.
 
-With those added, the registry for Sub‑segment 1A is now rock‑solid. Let me know if you’d like another sweep or want to move on to the next sub‑segment.
+---
+
+## Governing artefacts – 1A updates (copy‑ready)
+
+### A. Register these additional artefacts (data + config + schemas + code)
+
+* **`outlet_catalogue/` (dataset)** — the *egress* of 1A: final outlet stubs written under `seed=` and `fingerprint=` partitions; this is referenced as the destination of the 1A build and validated later, so it should be first‑class.&#x20;
+* **`outlet_stub.avsc` (schema)** — single, authoritative schema for the outlet catalogue (we’re using the “Option A: one schema artefact” approach). Column list and constraints are already described in your snapshot.&#x20;
+* **`rng_event_schema_catalog` (schema)** — catalog of per‑event JSON Schemas (e.g., `hurdle_bernoulli`, `nb_final`, `dirichlet_gamma_vector`, `sequence_finalize`), so event streams are validated consistently.&#x20;
+* **`site_sequence_overflow` (event schema)** — exception emitted when a per‑(merchant,country) block exceeds the supported range; called out in the 1A process.&#x20;
+* **`validation_bundle_1A/` (dataset)** and **`_passed.flag` (manifest)** — compact validator outputs and a single success flag bound to `{parameter_hash}`; both referenced by your validation narrative.&#x20;
+* **`ccy_smoothing_params.yaml` (parameter‑set/config)** and **`ccy_country_weights_cache/` (dataset)** — the smoothed currency→country expansion is intentionally cached to avoid extra RNG; treat both as governed inputs/outputs.&#x20;
+* **`site_id_allocator.py` (code)** — deterministic per‑(merchant,country) sequence generator with zero‑padding and overflow checks; implementation behaviour is part of determinism here.&#x20;
+* **`datasets` table DDL (`datasets_table`) + `dataset_registry_connection.yaml`** — used in collision audits so you never rebuild a different output under the same `(seed, parameter_hash)`; your snapshot mentions this explicitly.&#x20;
+* **`license_map.yaml`** — artefact→license mapping referenced by the manifest/validation (“LICENSES/…” directory).&#x20;
+* **`docker_base_image_digest` (manifest)** — pinned container digest (“Dockerfile.lock” / base image) that the run executes in; part of the reproducibility envelope.&#x20;
+* **`iso3166_canonical_2024` (reference)** — freeze a canonical ISO‑3166 vintage to make lexicographic tie‑break order auditable.&#x20;
+* **`crossborder_eligibility_rules` (parameter‑set) + `crossborder_eligibility_flags/` (dataset)** — you gate entry into the cross‑border branch by designation; capture rules + the derived flags.&#x20;
+
+> All of the above now exist in your reworked 1A registry; this section just mirrors them into the **governing artefacts** doc for reviewers.&#x20;
+
+---
+
+### B. Policy clarifications (tighten what’s already implied)
+
+* **Cross‑layer dependencies:** mark artefacts sourced outside 1A as *cross‑layer* (e.g., `transaction_schema.merchant_ids`, `world_bank_gdp_per_capita_20250415`, `iso3166_canonical_2024`, base image digest). This keeps the 1A ownership boundary clean.&#x20;
+* **Environment strategy:** single registry across envs with env‑templated URIs (you’re already embedding env in paths); don’t fork registries unless governance later mandates hard isolation.&#x20;
+* **External priors:** each external dataset is registered by **vintage + license** and may carry **valid\_from / valid\_to** if time‑scoped. (You already freeze World Bank GDP by 2025‑04‑15.)&#x20;
+* **Fingerprint formula (recap):** `_manifest.json` holds SHA‑256 of XOR of \[artefact digests + `git_commit_hash` + `parameter_hash`]; fingerprint is written into Parquet comments and used in RNG seeding. Keep this exact recipe here for auditors.&#x20;
+* **RNG governance:**
+
+  * `philox_master_counter` = H(`manifest_fingerprint` ∥ `run_seed`) (logged),
+  * `rng_audit.log` schema versioned; event streams validated against the **catalog**,
+  * `rng_trace.log` captures sub‑stream jumps for replay.&#x20;
+* **Numeric environment:** enforce IEEE‑754 binary64; disable FMA for Dirichlet/residual ops; quantise residuals to 8 d.p. before sorting (documented here as policy artefacts).&#x20;
+* **Output storage policy:** ZSTD level 3; path pattern includes `seed=` and `fingerprint=`; publish the pattern string here to prevent accidental drift.&#x20;
+* **Validation gates:** publish that the build **fails** if post‑write recomputation of μ, φ, K, Dirichlet weights, rank order, or site IDs disagrees; `validation_bundle_1A` + `_passed.flag` are the governed outputs.&#x20;
+
+---
+
+### C. Minimal “what counts as governed” table (add to the doc)
+
+| Type                 | Governed in 1A? | Examples                                                                                   |
+| -------------------- | --------------- | ------------------------------------------------------------------------------------------ |
+| Dataset              | Yes             | `outlet_catalogue`, `country_set`, `ccy_country_weights_cache`                             |
+| Reference            | Yes             | `iso3166_canonical_2024`, `world_bank_gdp_per_capita_20250415`                             |
+| Parameter‑set/Config | Yes             | `crossborder_hyperparams`, `ccy_smoothing_params`, `storage_path_pattern`                  |
+| Manifest/Provenance  | Yes             | `manifest_fingerprint`, `git_commit_hash`, `docker_base_image_digest`                      |
+| Seed/RNG             | Yes             | `philox_master_counter`, `run_seed`, `rng_audit.log`, `rng_trace.log`                      |
+| Event schemas        | Yes             | `rng_event_schema_catalog`, `ztp_rejection`, `sequence_finalize`, `site_sequence_overflow` |
+| Index/Cache          | Yes             | `ccy_country_weights_cache`                                                                |
+| Mapping              | Yes             | `license_map`, (later) code→owner, artefact→license                                        |
+| Code                 | Yes (select)    | `hurdle_nb_model.py`, `crossborder_allocation.py`, `site_id_allocator.py`                  |
+| Documentation        | Yes             | `dirichlet_lrr_proof.md`                                                                   |
+
+(These align with the taxonomy we agreed earlier; the doc snapshot already covers most of them.)&#x20;
+
+---
+
+### D. One‑paragraph norms (drop‑in text)
+
+> **Determinism norm.** Any byte change to governed artefacts (data, parameters, schemas, code in scope) must either (a) bump its semver and roll a new `parameter_hash`, or (b) fail manifest checks. The **fingerprint** is written into all 1A outputs and RNG seeds; any mismatch is a hard error at read or validation time.&#x20;
+
+> **Eligibility norm.** Cross‑border expansion occurs only for merchants flagged by `crossborder_eligibility_flags`; the rules that set these flags live in `crossborder_eligibility_rules` and are versioned alongside the allocation code.&#x20;
+
+> **Audit norm.** Every stochastic decision produces an event in the validated RNG event streams, and replay is possible using `rng_trace.log` plus the `philox_master_counter`.&#x20;
