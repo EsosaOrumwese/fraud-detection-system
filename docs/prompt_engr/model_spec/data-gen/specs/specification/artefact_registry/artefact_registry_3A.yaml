@@ -7,7 +7,7 @@ subsegments:
       # 1 · CROSS‑LAYER INPUT
       # ──────────────────────────────
       - name: site_catalogue
-        path: data/outputs/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+        path: data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
         type: dataset
         category: input
         semver: "{semver}"

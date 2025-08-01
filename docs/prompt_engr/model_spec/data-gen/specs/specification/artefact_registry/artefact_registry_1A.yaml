@@ -1230,9 +1230,9 @@ subsegments:
         path: configs/allocation/crossborder_eligibility_rules.yaml
         type: config
         category: allocation
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
+        semver: { semver }
+        version: { config_version }
+        digest: { sha256 }
         manifest_key: mlr.1A.params.crossborder_eligibility
         license: "{spdx_or_internal}"
         role: Rules that determine which merchants attempt cross‑border expansion.
@@ -1249,9 +1249,9 @@ subsegments:
         path: data/processed/allocation/crossborder_eligibility_flags/{manifest_key}/flags.parquet
         type: dataset
         category: allocation
-        semver: "{semver}"
-        version: "{manifest_key}"
-        digest: "{sha256}"
+        semver: { semver }
+        version: { manifest_key }
+        digest: { sha256 }
         manifest_key: mlr.1A.derived.crossborder_eligibility_flags
         license: "{spdx_or_internal}"
         role: Per‑merchant eligibility flags after applying rules.
@@ -1339,4 +1339,22 @@ subsegments:
         environment: [ ci, runtime ]
         schema: null
         cross_layer: false
+        notes: null
+
+      - name: licence_files
+        path: LICENSES/
+        type: directory
+        category: licensing
+        semver: { semver }
+        version: { run_id }
+        digest: { sha256 }
+        manifest_key: mlr.1A.licenses
+        license: Mixed
+        role: Licence texts referenced by license_map; validated in CI.
+        dependencies: [ license_map ]
+        source: internal
+        owner: { legal_team }
+        environment: [ ci, runtime ]
+        schema: null
+        cross_layer: true
         notes: null
