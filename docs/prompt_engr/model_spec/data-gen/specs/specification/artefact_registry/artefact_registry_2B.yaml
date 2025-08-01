@@ -3,9 +3,7 @@ subsegments:
     name: "Routing Transactions Through Sites"
     artifacts:
 
-      # ──────────────────────────────
-      # 1 · CROSS‑LAYER INPUT
-      # ──────────────────────────────
+      # 1 CROSS‑LAYER INPUT
       - name: site_catalogue
         path: data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
         type: dataset
@@ -25,9 +23,7 @@ subsegments:
         cross_layer: true
         notes: null
 
-      # ──────────────────────────────
-      # 2 · GOVERNING CONFIG BLOBS
-      # ──────────────────────────────
+      # 2 GOVERNING CONFIG BLOBS
       - name: routing_day_effect
         path: config/routing/routing_day_effect.yml
         type: config
@@ -47,8 +43,7 @@ subsegments:
         cross_layer: true
         notes: null
 
-      - artifact_id: cdn_weights_ext_yaml
-        name: cdn_country_weights.yaml
+      - name: cdn_weights_ext_yaml
         path: artefacts/external/cdn_country_weights.yaml
         type: dataset
         category: external_data
@@ -67,8 +62,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      - artifact_id: cdn_country_weights
-        name: cdn_country_weights.yaml
+      - name: cdn_country_weights
         path: config/routing/cdn_country_weights.yaml
         type: config
         category: routing
@@ -202,7 +196,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # 3 · PER‑MERCHANT WEIGHTS & ALIAS PATTERNS
+      # 3 PER‑MERCHANT WEIGHTS & ALIAS PATTERNS
       - name: merchant_weights_pattern
         path: artefacts/router/weights/{merchant_id}_pweights.bin
         type: dataset
@@ -260,7 +254,7 @@ subsegments:
         cross_layer: true
         notes: "Generated only when is_virtual = 1."
 
-      # 4 · MANIFESTS & PROVENANCE
+      # 4 MANIFESTS & PROVENANCE
       - name: routing_manifest
         path: artefacts/manifests/routing_manifest.json
         type: manifest
@@ -310,7 +304,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # 5 · LOGS & VALIDATION OUTPUTS
+      # 5 LOGS & VALIDATION OUTPUTS
       - name: routing_audit_log
         path: logs/routing/{run_id}/routing_audit.log
         type: log
@@ -351,7 +345,23 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # 6 · RNG AUDIT & TRACE
+      - name: routing_error_log
+        path: logs/routing/{run_id}/errors.log
+        type: log
+        category: routing_audit
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.log.errors
+        license: "{spdx_or_internal}"
+        role: "Structured error log for runtime failures, zero-weight, OOM, assertion breaches, manifest drift."
+        dependencies: [ routing_logging_policy ]
+        source: internal
+        owner: { qa_team }
+        environment: [ runtime ]
+        cross_layer: false
+
+      # 6 RNG AUDIT & TRACE
       - name: rng_audit_2B
         path: logs/routing/{run_id}/rng_audit_2B.log
         type: log
@@ -390,7 +400,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # 7 · GOVERNED CODE ARTEFACTS & TESTS
+      # 7 GOVERNED CODE ARTEFACTS & TESTS
       - name: router_modulation_py
         path: src/router/modulation.py
         type: code
@@ -467,7 +477,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # 8 · PERFORMANCE METRICS & CI SCRIPTS
+      # 8 PERFORMANCE METRICS & CI SCRIPTS
       - name: throughput_metrics
         path: artefacts/metrics/throughput_{run_id}.parquet
         type: dataset
@@ -506,7 +516,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # 9 · DOCUMENTATION / PROOF
+      # 9 DOCUMENTATION / PROOF
       - name: alias_determinism_proof
         path: docs/alias_determinism_proof.md
         type: documentation
@@ -526,7 +536,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # 10 · ERROR / EXCEPTION CONTRACT
+      # 10 ERROR / EXCEPTION CONTRACT
       - name: RoutingZeroWeightError
         path: null
         type: exception
@@ -545,6 +555,39 @@ subsegments:
         schema: null
         cross_layer: false
         notes: null
+        
+      # 11  OUTPUT BUFFERS & SCHEMA CONTRACT
+      - name: output_buffer
+        path: output/buffer/partition_date=*/merchant_id=*/batch_*.parquet
+        type: dataset
+        category: routing_output
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.output.buffer
+        license: "{spdx_or_internal}"
+        role: "Per-batch routed-txn buffer including hidden γ/id/ip columns required by router."
+        dependencies: [ site_catalogue, routing_manifest, output_catalogue_schema ]
+        source: internal
+        owner: { platform_team }
+        environment: [ runtime ]
+        cross_layer: false
+
+      - name: output_catalogue_schema
+        path: output/catalogue_schema.json
+        type: schema
+        category: routing_output
+        semver: "{schema_semver}"
+        version: "{schema_version}"
+        digest: "{schema_sha256}"
+        manifest_key: mlr.2B.schema.output_catalogue
+        license: "{spdx_or_internal}"
+        role: "JSON schema listing all governed output fields incl. hidden columns."
+        dependencies: [ ]
+        source: internal
+        owner: { platform_team }
+        environment: [ dev, ci, runtime ]
+        cross_layer: false
 
       # Additional
       - name: routing_audit_schema
@@ -680,3 +723,19 @@ subsegments:
         schema: null
         cross_layer: true
         notes: null
+
+      - name: routing_licences
+        path: LICENSES/
+        type: licenses
+        category: licensing
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.licenses
+        license: "SEE-FILES"
+        role: "All third-party/internal licence texts; each file tracked by digest and referenced in routing_manifest."
+        dependencies: [ routing_manifest ]
+        source: external
+        owner: { legal_team }
+        environment: [ ci, runtime ]
+        cross_layer: true

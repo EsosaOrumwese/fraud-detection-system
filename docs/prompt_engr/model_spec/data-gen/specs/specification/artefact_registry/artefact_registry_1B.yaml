@@ -3,7 +3,7 @@ subsegments:
     name: "Placing outlets on the planet"
     artifacts:
 
-    # ─────────── Core egress (dataset + schema) ───────────
+    # ----------- Core egress (dataset + schema) -----------
     - name: site_catalogue
       path: data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
       type: dataset
@@ -49,7 +49,7 @@ subsegments:
       cross_layer: false
       notes: null
 
-    # ─────────── Spatial references, CRS, grid, boundaries ───────────
+    # ----------- Spatial references, CRS, grid, boundaries -----------
     - name: crs_policy
       path: configs/spatial/crs_policy.yaml
       type: config
@@ -147,7 +147,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    # ─────────── Spatial priors & blending ───────────
+    # ----------- Spatial priors & blending -----------
     - name: spatial_manifest
       path: configs/manifests/spatial_manifest.json
       type: manifest
@@ -365,7 +365,7 @@ subsegments:
       cross_layer: false
       notes: null
 
-    # ─────────── Indices & candidate pools ───────────
+    # ----------- Indices & candidate pools -----------
     - name: country_cell_index
       path: data/indices/1B/country_cell_index/{grid_version}/
       type: dataset
@@ -471,7 +471,7 @@ subsegments:
       cross_layer: false
       notes: null
 
-    # ─────────── Acceptance / fallback governance & metrics ───────────
+    # ----------- Acceptance / fallback governance & metrics -----------
     - name: acceptance_policy
       path: configs/spatial/acceptance_policy.yaml
       type: config
@@ -575,7 +575,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    # ─────────── Roads, proximity & network distance ───────────
+    # ----------- Roads, proximity & network distance -----------
     - name: roads_ref
       path: data/reference/roads/{vintage}/
       type: reference
@@ -674,7 +674,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    # ─────────── Remoteness (capital GC + optional network) ───────────
+    # ----------- Remoteness (capital GC + optional network) -----------
     - name: capital_points_ref
       path: data/reference/capitals/{vintage}/capitals.csv
       type: reference
@@ -736,7 +736,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    # ─────────── Timezone consistency ───────────
+    # ----------- Timezone consistency -----------
     - name: tz_polygons_ref
       path: data/reference/timezones/{vintage}/
       type: reference
@@ -797,7 +797,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    # ─────────── Footfall & winsorisation ───────────
+    # ----------- Footfall & winsorisation -----------
     - name: footfall_coefficients
       path: configs/spatial/footfall_coefficients.yaml
       type: config
@@ -859,7 +859,7 @@ subsegments:
       cross_layer: false
       notes: null
 
-    # ─────────── RNG audit streams ───────────
+    # ----------- RNG audit streams -----------
     - name: sample_candidate_events
       path: logs/rng/events/sample_candidate.jsonl
       type: log
@@ -965,7 +965,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    # ─────────── Master seed & end‑of‑run manifest ───────────
+    # ----------- Master seed & end‑of‑run manifest -----------
     - name: master_seed
       path: configs/spatial/master_seed.yaml
       type: config
@@ -1027,7 +1027,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    # ─────────── Reproducibility: library versions ───────────
+    # ----------- Reproducibility: library versions -----------
     - name: geospatial_lib_versions
       path: ci/manifests/geospatial_lib_versions.txt
       type: manifest
@@ -1047,7 +1047,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    # ─────────── Documentation / codebook ───────────
+    # ----------- Documentation / codebook -----------
     - name: site_provenance_codebook
       path: docs/codebooks/site_provenance_codebook.yaml
       type: mapping
@@ -1086,3 +1086,52 @@ subsegments:
       schema: null
       cross_layer: true
       notes: null
+
+    # ----------- Output governance & write safety -----------
+    - name: spatial_write_manifest
+      path: ci/manifests/spatial_write_manifest.json
+      type: manifest
+      category: storage
+      semver: "{semver}"
+      version: "{run_id}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.storage.spatial_write_manifest
+      license: "{spdx_or_internal}"
+      role: Per-run list of written parts (bbox, CRS, digests) for the site catalogue.
+      dependencies: [ site_catalogue_schema, crs_policy ]
+      source: internal
+      owner: "{owner_team}"
+      environment: [ ci, runtime ]
+      cross_layer: true
+
+    - name: temp_write_policy
+      path: configs/storage/temp_write_policy.yaml
+      type: config
+      category: storage
+      semver: "{semver}"
+      version: "{config_version}"
+      digest: "{sha256}"
+      manifest_key: mlr.storage.temp_write_policy
+      license: "{spdx_or_internal}"
+      role: Atomic rename-only commit rules; governs *.tmp -> final shard.
+      dependencies: [ final_parquet_file_pattern ]
+      source: internal
+      owner: "{owner_team}"
+      environment: [ runtime ]
+      cross_layer: true
+
+    - name: write_ahead_log
+      path: logs/storage/write_ahead.log
+      type: log
+      category: storage
+      semver: "{semver}"
+      version: "{run_id}"
+      digest: "{sha256}"
+      manifest_key: mlr.storage.write_ahead_log
+      license: "{spdx_or_internal}"
+      role: Idempotent WAL for crash recovery during site-catalogue writes.
+      dependencies: [ temp_write_policy ]
+      source: internal
+      owner: "{qa_team}"
+      environment: [ runtime ]
+      cross_layer: true
