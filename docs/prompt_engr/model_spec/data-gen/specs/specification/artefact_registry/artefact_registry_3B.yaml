@@ -3,11 +3,9 @@ subsegments:
     name: "Special Treatment for Purely Virtual Merchants"
     artifacts:
 
-      # ──────────────────────────────
       # 1 · CROSS‑LAYER INPUT
-      # ──────────────────────────────
       - name: site_catalogue
-        path: data/outputs/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+        path: data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
         type: dataset
         category: input
         semver: "{semver}"
@@ -25,9 +23,7 @@ subsegments:
         cross_layer: true
         notes: null
 
-      # ──────────────────────────────
-      # 2 · VIRTUAL‑MERCHANT CLASSIFICATION RULES
-      # ──────────────────────────────
+      # 2 · VIRTUAL MERCHANT CLASSIFICATION RULES
       - name: mcc_channel_rules
         path: config/virtual/mcc_channel_rules.yaml
         type: config
@@ -37,7 +33,7 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.3B.config.virtual_rules
         license: "{spdx_or_internal}"
-        role: MCC + channel rules driving `is_virtual` derivation.
+        role: MCC + channel rules driving `is_virtual` derivation.
         dependencies: []
         source: internal
         owner: { platform_team }
@@ -47,9 +43,7 @@ subsegments:
         cross_layer: true
         notes: null
 
-      # ──────────────────────────────
       # 3 · CDN COUNTRY WEIGHTS
-      # ──────────────────────────────
       - name: cdn_country_weights
         path: config/virtual/cdn_country_weights.yaml
         type: config
@@ -88,9 +82,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # ──────────────────────────────
       # 4 · SETTLEMENT COORDINATES & GEOCODER BUNDLE
-      # ──────────────────────────────
       - name: virtual_settlement_coords
         path: artefacts/virtual/virtual_settlement_coords.csv
         type: dataset
@@ -129,9 +121,7 @@ subsegments:
         cross_layer: true
         notes: null
 
-      # ──────────────────────────────
       # 5 · POPULATION RASTER FOR EDGE SAMPLING
-      # ──────────────────────────────
       - name: hrsl_raster
         path: artefacts/rasters/hrsl_100m.tif
         type: reference
@@ -151,9 +141,7 @@ subsegments:
         cross_layer: true
         notes: null
 
-      # ──────────────────────────────
       # 6 · GOVERNING VALIDATION & LOGGING POLICIES
-      # ──────────────────────────────
       - name: virtual_validation_policy
         path: config/virtual/virtual_validation.yml
         type: config
@@ -230,9 +218,7 @@ subsegments:
         cross_layer: true
         notes: null
 
-      # ─────────────────────────────────────────────
       # 7 · EDGE‑CATALOGUE DERIVED ARTEFACTS
-      # ─────────────────────────────────────────────
       - name: edge_catalogue_pattern
         path: artefacts/virtual/edge_catalogue/{merchant_id}_edges.parquet
         type: dataset
@@ -275,9 +261,7 @@ subsegments:
         cross_layer: true
         notes: null
 
-      # ─────────────────────────────────────────────
       # 8 · CDN ALIAS OUTPUTS
-      # ─────────────────────────────────────────────
       - name: merchant_cdn_alias_pattern
         path: artefacts/virtual/cdn_alias/{merchant_id}_cdn_alias.npz
         type: dataset
@@ -299,9 +283,7 @@ subsegments:
         cross_layer: true
         notes: "Pattern expands per virtual merchant."
 
-      # ─────────────────────────────────────────────
       # 9 · MANIFESTS & PROVENANCE
-      # ─────────────────────────────────────────────
       - name: virtual_manifest
         path: artefacts/manifests/virtual_manifest.json
         type: manifest
@@ -351,9 +333,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # ─────────────────────────────────────────────
       # 10 · PROCESS & RECOVERY LOGS
-      # ─────────────────────────────────────────────
       - name: edge_progress_log
         path: logs/virtual/{run_id}/edge_progress.log
         type: log
@@ -392,9 +372,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # ─────────────────────────────────────────────
       # 11 · GOVERNED CODE MODULES & SCRIPTS
-      # ─────────────────────────────────────────────
       - name: derive_is_virtual_py
         path: src/virtual/derive_is_virtual.py
         type: code
@@ -471,9 +449,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # ─────────────────────────────────────────────
       # 12 · CI / UNIT TESTS
-      # ─────────────────────────────────────────────
       - name: test_virtual_rules_py
         path: ci/tests/test_virtual_rules.py
         type: ci_test
@@ -531,9 +507,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # ─────────────────────────────────────────────
       # 13 · PERFORMANCE METRICS
-      # ─────────────────────────────────────────────
       - name: edge_sampler_metrics
         path: artefacts/metrics/edge_sampler_{run_id}.parquet
         type: dataset
@@ -553,9 +527,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # ─────────────────────────────────────────────
       # 14 · DOCUMENTATION & LICENCE PROOFS
-      # ─────────────────────────────────────────────
       - name: licences_akamai_md
         path: LICENSES/akamai_soti.md
         type: documentation
@@ -594,9 +566,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # ─────────────────────────────────────────────
       # 15 · EXCEPTION CONTRACTS
-      # ─────────────────────────────────────────────
       - name: VirtualUniverseMismatchError
         path: null
         type: exception
@@ -636,7 +606,6 @@ subsegments:
         notes: null
 
       # additional artefacts
-
       - name: rng_policy
         path: config/routing/rng_policy.yml
         type: config

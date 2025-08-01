@@ -3,10 +3,10 @@ subsegments:
     name: "Deriving the Civil Time‑Zone"
     artifacts:
  
-      # 1 · CROSS‑LAYER INPUT
+      # 1 CROSS‑LAYER INPUT
       
       - name: site_catalogue
-        path: data/outputs/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+        path: data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
         type: dataset
         category: input
         semver: "{semver}"
@@ -14,17 +14,17 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.1B.output.site_catalogue
         license: "{spdx_or_internal}"
-        role: Outlet stubs from 1B (lat/lon per site).
+        role: Site-catalogue rows from 1B (lat/lon, tzid, foot-traffic fields, provenance).
         dependencies: [ ]
         source: internal
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: schema/outlet_stub.avsc
+        schema: schema/site_catalogue.avsc
         cross_layer: true
         notes: null
   
-      # 2 · TZ‑WORLD SHAPEFILE BUNDLE
+      # 2 TZ‑WORLD SHAPEFILE BUNDLE
       
       - name: tz_world_shapefile_2025_shp
         path: artefacts/priors/tz_world/2025a/tz_world_2025a.shp
@@ -140,7 +140,7 @@ subsegments:
         cross_layer: true
         notes: null
    
-      # 3 · IANA TZ DATA RELEASE
+      # 3 IANA TZ DATA RELEASE
       
       - name: tzdata_archive_2025a
         path: artefacts/priors/tzdata/tzdata2025a.tar.gz
@@ -180,7 +180,7 @@ subsegments:
         cross_layer: false
         notes: null
   
-      # 4 · GOVERNING CONFIG BLOBS
+      # 4 GOVERNING CONFIG BLOBS
       
       - name: tz_nudge_policy
         path: config/timezone/tz_nudge.yml
@@ -316,7 +316,7 @@ subsegments:
         notes: null
 
       
-      # 5 · INDEX / CACHE
+      # 5 INDEX / CACHE
       
       - name: tz_index_pickle
         path: artefacts/cache/tz_world/2025a/{sha256}/tz_index.pkl
@@ -375,7 +375,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # 6 · MANIFESTS & DIGESTS
+      # 6 MANIFESTS & DIGESTS
       
       - name: spatial_manifest
         path: artefacts/manifests/spatial_manifest.json
@@ -497,7 +497,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # 7 · EVENT SCHEMA & LOG STREAMS
+      # 7 EVENT SCHEMA & LOG STREAMS
       
       - name: timezone_event_schema
         path: schema/timezone_event_schema.json
@@ -654,7 +654,7 @@ subsegments:
         cross_layer: false
         notes: null
       
-      # 8 · METRICS & CI OUTPUTS
+      # 8 METRICS & CI OUTPUTS
       - name: override_metrics
         path: artefacts/metrics/override_metrics.parquet
         type: dataset
@@ -674,7 +674,7 @@ subsegments:
         cross_layer: false
         notes: null
       
-      # 9 · RNG AUDIT & TRACE
+      # 9 RNG AUDIT & TRACE
       
       - name: rng_audit_2A
         path: logs/timezone/{run_id}/rng_audit_2A.log
@@ -714,7 +714,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # 10 · CI SCRIPTS & TESTS
+      # 10 CI SCRIPTS & TESTS
       
       - name: override_logic_ci_check
         path: ci/tests/timezone_override_validation.sh
@@ -735,7 +735,7 @@ subsegments:
         cross_layer: false
         notes: null
       
-      # 11 · VERSION PIN / ENVIRONMENT
+      # 11 VERSION PIN / ENVIRONMENT
       
       - name: python_lib_versions
         path: artefacts/manifests/python_lib_versions.txt
@@ -756,7 +756,7 @@ subsegments:
         cross_layer: false
         notes: null
       
-      # 12 · ERROR / EXCEPTION CONTRACT
+      # 12 ERROR / EXCEPTION CONTRACT
       
       - name: DSTLookupTieError
         path: null
@@ -815,7 +815,7 @@ subsegments:
         cross_layer: false
         notes: null
       
-      # 13 · DOCUMENTATION / PROOF
+      # 13 DOCUMENTATION / PROOF
       
       - name: rng_independence_proof
         path: docs/rng_proof.md
@@ -834,4 +834,23 @@ subsegments:
         environment: [ dev, ci, runtime ]
         schema: null
         cross_layer: false
+        notes: null
+
+      # 14 LICENSING (governed)
+      - name: licence_files
+        path: LICENSES/
+        type: directory
+        category: licensing
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256_tree}"
+        manifest_key: mlr.2A.licenses
+        license: CC-BY-4.0-and-PublicDomain
+        role: SPDX texts for tz_world  tzdata; referenced by civil_time_manifest.
+        dependencies: [ ]
+        source: internal
+        owner: { legal_team }
+        environment: [ ci, runtime ]
+        schema: null
+        cross_layer: true
         notes: null

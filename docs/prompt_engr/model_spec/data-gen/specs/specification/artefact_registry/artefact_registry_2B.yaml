@@ -7,7 +7,7 @@ subsegments:
       # 1 · CROSS‑LAYER INPUT
       # ──────────────────────────────
       - name: site_catalogue
-        path: data/outputs/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+        path: data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
         type: dataset
         category: input
         semver: "{semver}"
@@ -15,13 +15,13 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.1B.output.site_catalogue
         license: "{spdx_or_internal}"
-        role: Outlet stubs with coordinates, tzid, and foot‑traffic scalars.
+        role: Site-catalogue rows with coordinates, tzid, foot-traffic & provenance fields from 1B.
         dependencies: []
         source: internal
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: outlet_stub_schema
+        schema: site_catalogue_schema
         cross_layer: true
         notes: null
 
@@ -202,9 +202,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # ─────────────────────────────────────────────
       # 3 · PER‑MERCHANT WEIGHTS & ALIAS PATTERNS
-      # ─────────────────────────────────────────────
       - name: merchant_weights_pattern
         path: artefacts/router/weights/{merchant_id}_pweights.bin
         type: dataset
@@ -262,9 +260,7 @@ subsegments:
         cross_layer: true
         notes: "Generated only when is_virtual = 1."
 
-      # ─────────────────────────────────────────────
       # 4 · MANIFESTS & PROVENANCE
-      # ─────────────────────────────────────────────
       - name: routing_manifest
         path: artefacts/manifests/routing_manifest.json
         type: manifest
@@ -284,6 +280,7 @@ subsegments:
           - routing_logging_policy
           - cdn_country_weights
           - cdn_weights_ext_yaml
+          - civil_time_manifest
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
@@ -313,9 +310,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # ─────────────────────────────────────────────
       # 5 · LOGS & VALIDATION OUTPUTS
-      # ─────────────────────────────────────────────
       - name: routing_audit_log
         path: logs/routing/{run_id}/routing_audit.log
         type: log
@@ -356,9 +351,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # ─────────────────────────────────────────────
       # 6 · RNG AUDIT & TRACE
-      # ─────────────────────────────────────────────
       - name: rng_audit_2B
         path: logs/routing/{run_id}/rng_audit_2B.log
         type: log
@@ -397,9 +390,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # ─────────────────────────────────────────────
       # 7 · GOVERNED CODE ARTEFACTS & TESTS
-      # ─────────────────────────────────────────────
       - name: router_modulation_py
         path: src/router/modulation.py
         type: code
@@ -476,9 +467,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # ─────────────────────────────────────────────
       # 8 · PERFORMANCE METRICS & CI SCRIPTS
-      # ─────────────────────────────────────────────
       - name: throughput_metrics
         path: artefacts/metrics/throughput_{run_id}.parquet
         type: dataset
@@ -517,9 +506,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # ─────────────────────────────────────────────
       # 9 · DOCUMENTATION / PROOF
-      # ─────────────────────────────────────────────
       - name: alias_determinism_proof
         path: docs/alias_determinism_proof.md
         type: documentation
@@ -539,9 +526,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # ─────────────────────────────────────────────
       # 10 · ERROR / EXCEPTION CONTRACT
-      # ─────────────────────────────────────────────
       - name: RoutingZeroWeightError
         path: null
         type: exception
@@ -656,4 +641,42 @@ subsegments:
         environment: [ ci ]
         schema: null
         cross_layer: false
+        notes: null
+
+      # 1A/2A -> 2B provenance bridge (cross-layer)
+      - name: civil_time_manifest
+        path: artefacts/manifests/civil_time_manifest.json
+        type: manifest
+        category: provenance
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.manifest.civil_time
+        license: "{spdx_or_internal}"
+        role: TZ polygons/index/nudge/tzdata/horizon cache roll-up from 2A (propagates tz lineage).
+        dependencies: [ ]
+        source: internal
+        owner: { platform_team }
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: "Referenced by routing_manifest for end-to-end provenance."
+        
+      # Licensing (governed)
+      - name: licence_files
+        path: LICENSES/
+        type: directory
+        category: licensing
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256_tree}"
+        manifest_key: mlr.2B.licenses
+        license: CC-BY-4.0-and-Proprietary
+        role: All licence texts referenced by routing_manifest (Akamai SOTI, internal configs, etc.).
+        dependencies: [ ]
+        source: internal
+        owner: { legal_team }
+        environment: [ ci, runtime ]
+        schema: null
+        cross_layer: true
         notes: null

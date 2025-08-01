@@ -4,9 +4,8 @@ subsegments:
     artifacts:
 
     # ─────────── Core egress (dataset + schema) ───────────
-    - artifact_id: site_catalogue
-      name: "site_catalogue/"
-      path: "data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/"
+    - name: site_catalogue
+      path: data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
       type: dataset
       category: output
       semver: "{semver}"
@@ -31,9 +30,8 @@ subsegments:
       cross_layer: true
       notes: "Crash‑safe writes; validated by spatial_write_manifest."
 
-    - artifact_id: site_catalogue_schema
-      name: "site_catalogue.avsc"
-      path: "schema/site_catalogue.avsc"
+    - name: site_catalogue_schema
+      path: schema/site_catalogue.avsc
       type: schema
       category: output
       semver: "{schema_semver}"
@@ -52,8 +50,7 @@ subsegments:
       notes: null
 
     # ─────────── Spatial references, CRS, grid, boundaries ───────────
-    - artifact_id: crs_policy
-      name: crs_policy.yaml
+    - name: crs_policy
       path: configs/spatial/crs_policy.yaml
       type: config
       category: spatial
@@ -72,8 +69,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    - artifact_id: global_grid_spec
-      name: global_grid_spec.yaml
+    - name: global_grid_spec
       path: configs/spatial/global_grid_spec.yaml
       type: config
       category: spatial
@@ -93,8 +89,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    - artifact_id: country_boundary_ref
-      name: admin0_boundaries/
+    - name: country_boundary_ref
       path: data/reference/boundaries/admin0/{vintage}/
       type: reference
       category: spatial_reference
@@ -113,8 +108,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    - artifact_id: land_water_mask_ref
-      name: land_water_mask/
+    - name: land_water_mask_ref
       path: data/reference/masks/land_water/{vintage}/
       type: reference
       category: spatial_reference
@@ -133,8 +127,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    - artifact_id: boundary_topology_fix_policy
-      name: boundary_topology_fix_policy.yaml
+    - name: boundary_topology_fix_policy
       path: configs/spatial/boundary_topology_fix_policy.yaml
       type: config
       category: spatial
@@ -155,8 +148,7 @@ subsegments:
       notes: null
 
     # ─────────── Spatial priors & blending ───────────
-    - artifact_id: spatial_manifest
-      name: spatial_manifest.json
+    - name: spatial_manifest
       path: configs/manifests/spatial_manifest.json
       type: manifest
       category: spatial_prior
@@ -176,8 +168,7 @@ subsegments:
       cross_layer: true
       notes: "Reuses prior bundle registered under 1A."
 
-    - artifact_id: sibling_sha256s
-      name: sibling_sha256s/
+    - name: sibling_sha256s
       path: configs/manifests/spatial/sibling_sha256s/
       type: directory
       category: versioning
@@ -196,8 +187,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    - artifact_id: hrsl_pop_100m_raster
-      name: hrsl_pop_100m.tif
+    - name: hrsl_pop_100m_raster
       path: data/spatial_priors/hrsl_pop_100m_v1.2/hrsl_pop_100m.tif
       type: reference
       category: spatial_prior
@@ -216,8 +206,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    - artifact_id: worldpop_raster
-      name: worldpop_2023Q4.tif
+    - name: worldpop_raster
       path: data/spatial_priors/worldpop/worldpop_2023Q4.tif
       type: reference
       category: spatial_prior
@@ -236,8 +225,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    - artifact_id: osm_primary_roads
-      name: osm_primary_roads.shp
+    - name: osm_primary_roads
       path: data/spatial_priors/osm/osm_primary_roads.shp
       type: reference
       category: spatial_prior
@@ -256,8 +244,7 @@ subsegments:
       cross_layer: true
       notes: "Includes .shp, .shx, .dbf, .prj."
 
-    - artifact_id: iata_airport_polygons
-      name: airports.geojson
+    - name: iata_airport_polygons
       path: data/spatial_priors/iata/airports.geojson
       type: reference
       category: spatial_prior
@@ -276,8 +263,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    - artifact_id: spatial_blend
-      name: spatial_blend.yaml
+    - name: spatial_blend
       path: configs/spatial/spatial_blend.yaml
       type: config
       category: spatial_prior
@@ -300,8 +286,7 @@ subsegments:
       cross_layer: false
       notes: null
 
-    - artifact_id: prior_blend_recipe
-      name: prior_blend_recipe.yaml
+    - name: prior_blend_recipe
       path: configs/spatial/priors/prior_blend_recipe.yaml
       type: config
       category: spatial_prior
@@ -320,8 +305,7 @@ subsegments:
       cross_layer: false
       notes: null
 
-    - artifact_id: prior_blend_manifest
-      name: prior_blend/{manifest_key}.json
+    - name: prior_blend_manifest
       path: data/manifests/1B/prior_blend/{manifest_key}.json
       type: manifest
       category: spatial_prior
@@ -341,8 +325,7 @@ subsegments:
       cross_layer: false
       notes: "Lists country→recipe→source prior digests."
 
-    - artifact_id: prior_provenance_map
-      name: prior_provenance_map/
+    - name: prior_provenance_map
       path: data/derived/1B/prior_provenance_map/{manifest_key}/
       type: mapping
       category: spatial_prior
@@ -362,8 +345,7 @@ subsegments:
       cross_layer: false
       notes: null
 
-    - artifact_id: blended_raster_cache
-      name: blended_raster_cache/
+    - name: blended_raster_cache
       path: data/spatial_priors/blended/cache_v1/
       type: directory
       category: spatial_prior
@@ -384,8 +366,7 @@ subsegments:
       notes: null
 
     # ─────────── Indices & candidate pools ───────────
-    - artifact_id: country_cell_index
-      name: country_cell_index/
+    - name: country_cell_index
       path: data/indices/1B/country_cell_index/{grid_version}/
       type: dataset
       category: spatial_index
@@ -406,8 +387,7 @@ subsegments:
       cross_layer: false
       notes: null
 
-    - artifact_id: candidate_pool_index
-      name: candidate_pool_index/
+    - name: candidate_pool_index
       path: data/indices/1B/candidate_pool_index/{manifest_key}/
       type: dataset
       category: spatial_index
@@ -431,8 +411,7 @@ subsegments:
       cross_layer: false
       notes: null
 
-    - artifact_id: fenwick_snapshot
-      name: fenwick/
+    - name: fenwick_snapshot
       path: data/cache/1B/fenwick/{manifest_key}/
       type: dataset
       category: spatial_index
@@ -452,8 +431,7 @@ subsegments:
       cross_layer: false
       notes: "File names follow fenwick_tree_cache_{country}_{prior}.bin."
 
-    - artifact_id: sampling_method_manifest
-      name: sampling_method/{manifest_key}.json
+    - name: sampling_method_manifest
       path: data/manifests/1B/sampling_method/{manifest_key}.json
       type: manifest
       category: sampling
@@ -473,8 +451,7 @@ subsegments:
       cross_layer: false
       notes: null
 
-    - artifact_id: fenwick_build_event
-      name: fenwick_build_event.jsonl
+    - name: fenwick_build_event
       path: logs/spatial/fenwick_build_event.jsonl
       type: log
       category: sampling
@@ -495,8 +472,7 @@ subsegments:
       notes: null
 
     # ─────────── Acceptance / fallback governance & metrics ───────────
-    - artifact_id: acceptance_policy
-      name: acceptance_policy.yaml
+    - name: acceptance_policy
       path: configs/spatial/acceptance_policy.yaml
       type: config
       category: acceptance
@@ -517,8 +493,7 @@ subsegments:
       cross_layer: false
       notes: null
 
-    - artifact_id: acceptance_metrics
-      name: acceptance/{run_id}.parquet
+    - name: acceptance_metrics
       path: ci/metrics/1B/acceptance/{run_id}.parquet
       type: dataset
       category: monitoring
@@ -539,8 +514,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    - artifact_id: fallback_policy
-      name: fallback_policy.yml
+    - name: fallback_policy
       path: configs/spatial/fallback_policy.yml
       type: config
       category: fallback
@@ -560,8 +534,7 @@ subsegments:
       cross_layer: false
       notes: null
 
-    - artifact_id: fallback_metrics
-      name: fallback/{run_id}.parquet
+    - name: fallback_metrics
       path: ci/metrics/1B/fallback/{run_id}.parquet
       type: dataset
       category: monitoring
@@ -582,8 +555,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    - artifact_id: sample_blacklist_areas
-      name: sample_blacklist_areas/
+    - name: sample_blacklist_areas
       path: data/reference/exclusions/sample_blacklist_areas/{vintage}/
       type: dataset
       category: spatial_reference
@@ -604,8 +576,7 @@ subsegments:
       notes: null
 
     # ─────────── Roads, proximity & network distance ───────────
-    - artifact_id: roads_ref
-      name: roads/
+    - name: roads_ref
       path: data/reference/roads/{vintage}/
       type: reference
       category: spatial_reference
@@ -624,8 +595,7 @@ subsegments:
       cross_layer: true
       notes: "May share vintage with osm_primary_roads."
 
-    - artifact_id: road_spatial_index
-      name: road_index/
+    - name: road_spatial_index
       path: data/cache/1B/road_index/{vintage}/
       type: dataset
       category: spatial_index
@@ -645,8 +615,7 @@ subsegments:
       cross_layer: false
       notes: null
 
-    - artifact_id: road_proximity_config
-      name: road_proximity_config.yaml
+    - name: road_proximity_config
       path: configs/spatial/road_proximity_config.yaml
       type: config
       category: acceptance
@@ -665,8 +634,7 @@ subsegments:
       cross_layer: false
       notes: null
 
-    - artifact_id: network_distance_graph
-      name: road_graph/
+    - name: network_distance_graph
       path: data/reference/road_graph/{vintage}/
       type: reference
       category: spatial_reference
@@ -686,8 +654,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    - artifact_id: road_distance_method
-      name: road_distance_method.yaml
+    - name: road_distance_method
       path: configs/spatial/road_distance_method.yaml
       type: config
       category: acceptance
@@ -708,8 +675,7 @@ subsegments:
       notes: null
 
     # ─────────── Remoteness (capital GC + optional network) ───────────
-    - artifact_id: capital_points_ref
-      name: capitals.csv
+    - name: capital_points_ref
       path: data/reference/capitals/{vintage}/capitals.csv
       type: reference
       category: spatial_reference
@@ -728,8 +694,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    - artifact_id: remoteness_method
-      name: remoteness_method.yaml
+    - name: remoteness_method
       path: configs/spatial/remoteness_method.yaml
       type: config
       category: acceptance
@@ -749,8 +714,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    - artifact_id: remoteness_metrics
-      name: remoteness/{run_id}.parquet
+    - name: remoteness_metrics
       path: ci/metrics/1B/remoteness/{run_id}.parquet
       type: dataset
       category: monitoring
@@ -773,8 +737,7 @@ subsegments:
       notes: null
 
     # ─────────── Timezone consistency ───────────
-    - artifact_id: tz_polygons_ref
-      name: tz_polygons/
+    - name: tz_polygons_ref
       path: data/reference/timezones/{vintage}/
       type: reference
       category: spatial_reference
@@ -793,8 +756,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    - artifact_id: tz_override_table
-      name: tz_override_table.yaml
+    - name: tz_override_table
       path: configs/spatial/tz_override_table.yaml
       type: config
       category: spatial
@@ -814,8 +776,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    - artifact_id: tz_mismatch_events
-      name: tz_mismatch.jsonl
+    - name: tz_mismatch_events
       path: logs/spatial/tz_mismatch.jsonl
       type: dataset
       category: timezone
@@ -837,8 +798,7 @@ subsegments:
       notes: null
 
     # ─────────── Footfall & winsorisation ───────────
-    - artifact_id: footfall_coefficients
-      name: footfall_coefficients.yaml
+    - name: footfall_coefficients
       path: configs/spatial/footfall_coefficients.yaml
       type: config
       category: footfall
@@ -857,8 +817,7 @@ subsegments:
       cross_layer: false
       notes: null
 
-    - artifact_id: winsor_policy
-      name: winsor_policy.yaml
+    - name: winsor_policy
       path: configs/spatial/winsor_policy.yaml
       type: config
       category: footfall
@@ -878,8 +837,7 @@ subsegments:
       cross_layer: false
       notes: null
 
-    - artifact_id: footfall_scalar_table
-      name: footfall_scalars/
+    - name: footfall_scalar_table
       path: data/derived/1B/footfall_scalars/{manifest_key}/
       type: dataset
       category: footfall
@@ -902,8 +860,7 @@ subsegments:
       notes: null
 
     # ─────────── RNG audit streams ───────────
-    - artifact_id: sample_candidate_events
-      name: sample_candidate.jsonl
+    - name: sample_candidate_events
       path: logs/rng/events/sample_candidate.jsonl
       type: log
       category: rng_event
@@ -924,8 +881,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    - artifact_id: accept_reject_events
-      name: accept_reject.jsonl
+    - name: accept_reject_events
       path: logs/rng/events/accept_reject.jsonl
       type: log
       category: rng_event
@@ -946,8 +902,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    - artifact_id: fallback_invoked_events
-      name: fallback_invoked.jsonl
+    - name: fallback_invoked_events
       path: logs/rng/events/fallback_invoked.jsonl
       type: log
       category: rng_event
@@ -968,8 +923,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    - artifact_id: fenwick_tie_break
-      name: fenwick_tie_break.jsonl
+    - name: fenwick_tie_break
       path: logs/rng/events/fenwick_tie_break.jsonl
       type: log
       category: rng_event
@@ -990,8 +944,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    - artifact_id: tz_resample
-      name: tz_resample.jsonl
+    - name: tz_resample
       path: logs/rng/events/tz_resample.jsonl
       type: log
       category: rng_event
@@ -1013,8 +966,7 @@ subsegments:
       notes: null
 
     # ─────────── Master seed & end‑of‑run manifest ───────────
-    - artifact_id: master_seed
-      name: MASTER_SEED
+    - name: master_seed
       path: configs/spatial/master_seed.yaml
       type: config
       category: rng
@@ -1034,8 +986,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    - artifact_id: final_parquet_file_pattern
-      name: final_parquet_file_pattern.yaml
+    - name: final_parquet_file_pattern
       path: configs/storage/final_parquet_file_pattern.yaml
       type: config
       category: storage
@@ -1055,8 +1006,7 @@ subsegments:
       cross_layer: true
       notes: "Pattern: 'catalogue/seed={seed}/fingerprint={fingerprint}/part-*.parquet'"
 
-    - artifact_id: end_of_run_manifest
-      name: end_of_run_manifest.json
+    - name: end_of_run_manifest
       path: ci/manifests/end_of_run_manifest.json
       type: manifest
       category: storage
@@ -1078,8 +1028,7 @@ subsegments:
       notes: null
 
     # ─────────── Reproducibility: library versions ───────────
-    - artifact_id: geospatial_lib_versions
-      name: geospatial_lib_versions.txt
+    - name: geospatial_lib_versions
       path: ci/manifests/geospatial_lib_versions.txt
       type: manifest
       category: reproducibility
@@ -1099,8 +1048,7 @@ subsegments:
       notes: null
 
     # ─────────── Documentation / codebook ───────────
-    - artifact_id: site_provenance_codebook
-      name: site_provenance_codebook.yaml
+    - name: site_provenance_codebook
       path: docs/codebooks/site_provenance_codebook.yaml
       type: mapping
       category: documentation
@@ -1109,7 +1057,7 @@ subsegments:
       digest: "{sha256}"
       manifest_key: mlr.1B.docs.site_provenance_codebook
       license: null
-      role: "Code→meaning map for per‑site provenance tags."
+      role: "Code->meaning map for per‑site provenance tags."
       dependencies:
         - prior_blend_recipe
       source: internal
@@ -1118,4 +1066,23 @@ subsegments:
       environment: [ dev, staging, prod ]
       schema: null
       cross_layer: false
+      notes: null
+
+      # Licensing (governed)
+    - name: licence_files
+      path: LICENSES/
+      type: directory
+      category: licensing
+      semver: "{semver}"
+      version: "{run_id}"
+      digest: "{sha256_tree}"
+      manifest_key: mlr.1B.licenses
+      license: CC-BY-4.0-and-PublicDomain
+      role: SPDX texts for HRSL/WorldPop/other spatial priors; referenced by spatial_manifest.
+      dependencies: [ ]
+      source: internal
+      owner: "{legal_team}"
+      environment: [ ci, runtime ]
+      schema: null
+      cross_layer: true
       notes: null
