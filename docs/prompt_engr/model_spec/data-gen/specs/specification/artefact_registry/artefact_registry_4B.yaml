@@ -14,12 +14,12 @@ subsegments:
         manifest_key: mlr.4B.input.synthetic_partition_pattern
         license: "{spdx_or_internal}"
         role: All synthetic transaction parquet partitions to be validated.
-        dependencies: []
+        dependencies: [ transaction_schema_avro ]
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: transaction_schema_json
+        schema: transaction_schema_avro
         cross_layer: true
         notes: "Pattern expands to many parquet files."
 
@@ -33,12 +33,12 @@ subsegments:
         manifest_key: mlr.ref.validation.real_reference_slice
         license: RestrictedCommercial
         role: GDPR-sanitised real data slice for adversarial AUROC target.
-        dependencies: []
+        dependencies: [ transaction_schema_avro ]
         source: external
         owner: { data_governance_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: transaction_schema_json
+        schema: transaction_schema_avro
         cross_layer: true
         notes: null
 
@@ -82,8 +82,8 @@ subsegments:
         notes: null
 
       # 3  SCHEMAS & VALIDATOR CONFIG BLOBS
-      - name: transaction_schema_json
-        path: schema/transaction_schema.json
+      - name: transaction_schema_avro
+        path: schemas/transaction_schema.avsc
         type: schema
         category: validator_schema
         semver: "{schema_semver}"
@@ -91,7 +91,7 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.4B.schema.transaction
         license: "{spdx_or_internal}"
-        role: JSON Schema compiled by validator for structural checks.
+        role: Avro Schema compiled by validator for structural checks.
         dependencies: []
         source: internal
         owner: { platform_team }
@@ -214,6 +214,7 @@ subsegments:
           - adv_embed_py
           - structural_firewall_py
           - barcode_py
+          - semantic_glm_py
           - synthetic_partition_pattern
           - real_reference_slice
         source: internal
@@ -235,9 +236,10 @@ subsegments:
         manifest_key: mlr.4B.code.structural_firewall
         license: "{spdx_or_internal}"
         role: "Vectorised row-level checks: coord plausibility, TZ legality, DST bits, schema."
-        dependencies: [ transaction_schema_json, tz_polygon_digest, zoneinfo_digest ]
+        dependencies: [ transaction_schema_avro, tz_polygon_digest, zoneinfo_digest ]
         source: internal
         owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
         schema: null
         cross_layer: false
@@ -256,6 +258,7 @@ subsegments:
         dependencies: [ structural_firewall_py ]
         source: internal
         owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
         schema: null
         cross_layer: false
@@ -357,9 +360,10 @@ subsegments:
           - validation_report_parquet
           - barcode_slope_metrics_json
           - adv_auroc_metrics_json
+          - validator_rng_trace_log
           - synthetic_partition_pattern        # input slice pattern
           - real_reference_slice               # adversarial reference
-          - transaction_schema_json            # structural schema
+          - transaction_schema_avro            # structural schema
           - validation_conf_yml                # thresholds and toggles
           - barcode_bounds_yml                 # slope corridor
           - adv_embed_py                       # embedder code digest
@@ -371,6 +375,7 @@ subsegments:
           - failure_reproducer_py
           - barcode_py
           - semantic_glm_py
+          - virtual_manifest
         source: internal
         owner: { qa_team }
         last_updated: {iso8601_timestamp}
@@ -613,10 +618,11 @@ subsegments:
         dependencies: [ ]
         source: internal
         owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
         schema: null
         cross_layer: true
-        notes: "Referenced by virtual_manifest for settlement cut-off provenance."
+        notes: "Referenced by validator_manifest for DST/time provenance."
 
       - name: site_catalogue
         path: data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
@@ -628,7 +634,7 @@ subsegments:
         manifest_key: mlr.1B.output.site_catalogue
         license: "{spdx_or_internal}"
         role: Site snapshot used for semantic checks and adversarial embedding.
-        dependencies: [ ]
+        dependencies: [ site_catalogue_schema ]
         source: internal
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
@@ -669,6 +675,7 @@ subsegments:
         dependencies: [ ]
         source: internal
         owner: { legal_team }
+        last_updated: "{iso8601_timestamp}"
         environment: [ ci, runtime ]
         schema: null
         cross_layer: true

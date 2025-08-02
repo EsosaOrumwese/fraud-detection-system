@@ -14,7 +14,7 @@ subsegments:
         manifest_key: mlr.1B.output.site_catalogue
         license: "{spdx_or_internal}"
         role: Site-catalogue rows from 1B (to be joined with a virtual overlay; 3B MUST NOT mutate 1B).
-        dependencies: []
+        dependencies: [ site_catalogue_schema ]
         source: internal
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
@@ -43,7 +43,26 @@ subsegments:
         cross_layer: true
         notes: null
 
-      # 3 CDN COUNTRY WEIGHTS
+      # split external weights vs internal wrapper (licensing clarity)
+      - name: cdn_weights_ext_yaml
+        path: artefacts/external/cdn_country_weights.yaml
+        type: dataset
+        category: external_data
+        semver: "{semver}"
+        version: "{vintage}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.external.cdn_country_weights
+        license: CC-BY-4.0
+        role: Stationary CDN edge weights (Akamai SOTI).
+        dependencies: [ ]
+        source: external
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+
       - name: cdn_country_weights
         path: config/virtual/cdn_country_weights.yaml
         type: config
@@ -52,10 +71,10 @@ subsegments:
         version: "{config_version}"
         digest: "{sha256}"
         manifest_key: mlr.3B.config.cdn_country_weights
-        license: CC‑BY‑4.0
-        role: Per‑merchant `country_iso → weight`, plus `edge_scale = 500`.
-        dependencies: []
-        source: external
+        license: "{spdx_or_internal}"
+        role: Thin wrapper mapping/selection over external weights; edge_scale=500.
+        dependencies: [ cdn_weights_ext_yaml ]
+        source: internal
         owner: { data_governance_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
@@ -238,7 +257,7 @@ subsegments:
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: edge_catalogue_schema
         cross_layer: true
         notes: "Pattern — one parquet per virtual merchant."
 
@@ -292,7 +311,7 @@ subsegments:
         manifest_key: mlr.3B.dataset.virtual_overlay
         license: "{spdx_or_internal}"
         role: Non-mutating overlay that provides is_virtual to downstream joins.
-        dependencies: [ mcc_channel_rules, virtual_overlay_schema ]
+        dependencies: [ mcc_channel_rules, virtual_overlay_schema, site_catalogue ]
         source: internal
         owner: { engineering_team }
         last_updated: "{iso8601_timestamp}"
@@ -375,11 +394,12 @@ subsegments:
         dependencies:
           - cdn_country_weights
           - edge_catalogue_pattern
+          - cdn_alias_schema
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: cdn_alias_schema
         cross_layer: true
         notes: "Pattern expands per virtual merchant."
 
@@ -397,6 +417,7 @@ subsegments:
         dependencies:
           - edge_catalogue_index
           - merchant_cdn_alias_pattern
+          - virtual_overlay
           - cdn_country_weights
           - mcc_channel_rules
           - hrsl_raster
@@ -483,8 +504,8 @@ subsegments:
         digest: "{git_tree_hash}"
         manifest_key: mlr.3B.code.derive_is_virtual
         license: "{spdx_or_internal}"
-        role: Adds/updates `is_virtual` column in site catalogue using MCC rules.
-        dependencies: [ mcc_channel_rules ]
+        role: Derives non-mutating `virtual_overlay` from MCC rules; does NOT alter 1B.
+        dependencies: [ mcc_channel_rules, site_catalogue, virtual_overlay_schema ]
         source: internal
         owner: { engineering_team }
         last_updated: "{iso8601_timestamp}"
@@ -633,16 +654,16 @@ subsegments:
         notes: null
 
       # 14 DOCUMENTATION & LICENCE PROOFS
-      - name: licences_akamai_md
+      - name: licenses_akamai_md
         path: LICENSES/akamai_soti.md
         type: documentation
-        category: licence
+        category: licensing
         semver: "{semver}"
         version: "{doc_version}"
         digest: "{sha256}"
-        manifest_key: mlr.3B.docs.licence.akamai
+        manifest_key: mlr.3B.docs.licensing.akamai
         license: CC‑BY‑4.0
-        role: Licence text for Akamai SOTI dataset.
+        role: License text for Akamai SOTI dataset.
         dependencies: []
         source: external
         owner: { data_governance_team }
@@ -652,16 +673,16 @@ subsegments:
         cross_layer: false
         notes: null
 
-      - name: licences_hrsl_md
+      - name: licenses_hrsl_md
         path: LICENSES/facebook_hrsl.md
         type: documentation
-        category: licence
+        category: licensing
         semver: "{semver}"
         version: "{doc_version}"
         digest: "{sha256}"
-        manifest_key: mlr.3B.docs.licence.hrsl
+        manifest_key: mlr.3B.docs.licensing.hrsl
         license: CC‑BY‑4.0
-        role: Licence text for HRSL raster.
+        role: License text for HRSL raster.
         dependencies: []
         source: external
         owner: { data_governance_team }
@@ -715,16 +736,16 @@ subsegments:
         path: config/routing/rng_policy.yml
         type: config
         category: routing
-        semver: { semver }
-        version: { config_version }
-        digest: { sha256 }
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
         manifest_key: mlr.2B.config.rng_policy
-        license: { spdx_or_internal }
+        license: "{spdx_or_internal}"
         role: Cross-layer RNG policy (SHA-256 keyed Philox) for CDN alias stream keying.
         dependencies: [ ]
         source: internal
         owner: { platform_team }
-        last_updated: { iso8601_timestamp }
+        last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
         schema: null
         cross_layer: true
@@ -734,16 +755,16 @@ subsegments:
         path: schema/edge_catalogue.schema.json
         type: schema
         category: virtual_edges
-        semver: { semver }
-        version: { schema_version }
-        digest: { sha256 }
+        semver: "{semver}"
+        version: "{schema_version}"
+        digest: "{sha256}"
         manifest_key: mlr.3B.schema.edge_catalogue
-        license: { spdx_or_internal }
+        license: "{spdx_or_internal}"
         role: JSON-Schema used to validate all edge_catalogue parquets.
         dependencies: [ ]
         source: internal
         owner: { qa_team }
-        last_updated: { iso8601_timestamp }
+        last_updated: "{iso8601_timestamp}"
         environment: [ ci, runtime ]
         schema: null
         cross_layer: false
@@ -753,38 +774,39 @@ subsegments:
         path: docs/universe_hash_policy.md
         type: documentation
         category: governance
-        semver: { semver }
-        version: { doc_version }
-        digest: { sha256 }
+        semver: "{semver}"
+        version: "{doc_version}"
+        digest: "{sha256}"
         manifest_key: mlr.3B.docs.universe_hash_policy
-        license: { spdx_or_internal }
+        license: "{spdx_or_internal}"
         role: Canonical concatenation order for virtual_universe_hash embedded in alias files.
         dependencies: [ ]
         source: internal
         owner: { platform_team }
-        last_updated: { iso8601_timestamp }
+        last_updated: "{iso8601_timestamp}"
         environment: [ dev, ci, runtime ]
         schema: null
         cross_layer: true
         notes: null
 
-      - name: virtual_licences_manifest
-        path: artefacts/manifests/virtual_licences_manifest.json
+      - name: virtual_licenses_manifest
+        path: artefacts/manifests/virtual_licenses_manifest.json
         type: manifest
-        category: licence
-        semver: { semver }
-        version: { run_id }
-        digest: { sha256 }
-        manifest_key: mlr.3B.manifest.licences
-        license: { spdx_or_internal }
-        role: Roll-up of licence digests for virtual subsegment.
+        category: licensing
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.manifest.licenses
+        license: "{spdx_or_internal}"
+        role: Roll-up of license digests for virtual subsegment.
         dependencies:
-          - licences_akamai_md
-          - licences_hrsl_md
+          - licenses_akamai_md
+          - licenses_hrsl_md
+          - virtual_licenses_dir
         source: internal
         owner: { data_governance_team }
-        last_updated: { iso8601_timestamp }
-        environment: [ ci ]
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci, runtime ]
         schema: null
         cross_layer: false
         notes: null

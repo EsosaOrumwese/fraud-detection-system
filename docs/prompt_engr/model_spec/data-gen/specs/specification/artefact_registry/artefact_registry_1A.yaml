@@ -1341,7 +1341,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      - name: licence_files
+      - name: license_files
         path: LICENSES/
         type: directory
         category: licensing
@@ -1350,7 +1350,7 @@ subsegments:
         digest: { sha256 }
         manifest_key: mlr.1A.licenses
         license: Mixed
-        role: Licence texts referenced by license_map; validated in CI.
+        role: License texts referenced by license_map; validated in CI.
         dependencies: [ license_map ]
         source: internal
         owner: { legal_team }

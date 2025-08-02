@@ -14,7 +14,7 @@ subsegments:
         manifest_key: mlr.1B.output.site_catalogue
         license: "{spdx_or_internal}"
         role: Site-catalogue rows from 1B (coords, tzid, footfall, provenance) for zone splitting
-        dependencies: []
+        dependencies: [ site_catalogue_schema ]
         source: internal
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
@@ -230,19 +230,20 @@ subsegments:
         cross_layer: false
         notes: null
 
-      - name: allocation_licences_manifest
-        path: artefacts/manifests/allocation_licences_manifest.json
+      - name: allocation_licenses_manifest
+        path: artefacts/manifests/allocation_licenses_manifest.json
         type: manifest
-        category: licence
+        category: licensing
         semver: "{semver}"
         version: "{run_id}"
         digest: "{sha256}"
-        manifest_key: mlr.3A.manifest.licences
+        manifest_key: mlr.3A.manifest.licenses
         license: "{spdx_or_internal}"
-        role: Licence provenance for external data used in 3A.
+        role: License provenance for external data used in 3A.
         dependencies:
           - country_major_zone
-          - visa_mcx_md
+          - visa_mcx_license_text
+          - allocation_licenses_dir
         source: internal
         owner: { data_governance_team }
         last_updated: "{iso8601_timestamp}"
@@ -359,25 +360,6 @@ subsegments:
         license: "{spdx_or_internal}"
         role: Asserts zone_floor shares respected in outputs.
         dependencies: [ zone_floor, merchant_zone_alloc_pattern ]
-        source: internal
-        owner: { qa_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci ]
-        schema: null
-        cross_layer: false
-        notes: null
-
-      - name: test_rounding_conservation_py
-        path: ci/tests/test_rounding_conservation.py
-        type: ci_test
-        category: zone_allocation
-        semver: "{code_semver}"
-        version: "{git_commit}"
-        digest: "{git_tree_hash}"
-        manifest_key: mlr.3A.ci.rounding_conservation
-        license: "{spdx_or_internal}"
-        role: Validates integer rounding conserves total weight.
-        dependencies: [ merchant_zone_alloc_pattern ]
         source: internal
         owner: { qa_team }
         last_updated: "{iso8601_timestamp}"
@@ -503,16 +485,16 @@ subsegments:
         cross_layer: false
         notes: null
 
-      - name: visa_mcx_md
+      - name: visa_mcx_memo_md
         path: docs/visa_mcx.md
         type: documentation
         category: licensing
         semver: "{semver}"
         version: "{doc_version}"
         digest: "{sha256}"
-        manifest_key: mlr.3A.docs.visa_mcx
+        manifest_key: mlr.3A.docs.visa_mcx_memo
         license: "CC-BY-4.0"
-        role: Licence memo covering Visa MCX dataset usage in α derivation.
+        role: License memo covering Visa MCX dataset usage in α derivation.
         dependencies: [ ]
         source: internal
         owner: { data_governance_team }
@@ -568,19 +550,6 @@ subsegments:
         role: Property test (10k vectors) that sum of integerised shares == target.
         dependencies: [ round_ints_spec_md ]
 
-      # 12 MIXTURE-THRESHOLD CI
-      - name: test_mix_threshold_py
-        path: ci/tests/test_mix_threshold.py
-        type: ci_test
-        category: allocation_validation
-        semver: "{code_semver}"
-        version: "{git_commit}"
-        digest: "{git_tree_hash}"
-        manifest_key: mlr.3A.ci.mix_threshold
-        license: "{spdx_or_internal}"
-        role: Byte-compare escalation queue vs <merchant_id>_zone_alloc.parquet.
-        dependencies: [ zone_mixture_policy, merchant_zone_alloc_pattern ]
-
       # 13 HIDDEN γ-DAY TABLE
       - name: gamma_day_table_schema
         path: schema/gamma_day_table.schema.json
@@ -594,6 +563,13 @@ subsegments:
         role:
           Columns: merchant_id STRING, day_index INT16, gamma_value FLOAT64.
         dependencies: [ ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ dev, ci, runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
 
       - name: gamma_day_table
         path: artefacts/metrics/gamma_day_table_{run_id}.parquet
@@ -606,34 +582,28 @@ subsegments:
         license: "{spdx_or_internal}"
         role: Forensic record of per-day γ draws for replay.
         dependencies: [ routing_day_effect, rng_policy, gamma_day_table_schema ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci, runtime ]
+        schema: gamma_day_table_schema
+        cross_layer: false
+        notes: null
 
-      # 14 LICENCES
-      - name: visa_mcx_md
+      # 14 LICENSES
+      - name: visa_mcx_license_text
         path: LICENSES/visa_mcx.md
         type: documentation
-        category: licence
+        category: licensing
         semver: "{semver}"
         version: "{doc_version}"
         digest: "{sha256}"
-        manifest_key: mlr.3A.licence.visa_mcx
+        manifest_key: mlr.3A.licensing.visa_mcx
         license: CC-BY-4.0
-        role: Licence text referenced by allocation_licences_manifest.
+        role: License text referenced by allocation_licenses_manifest.
         dependencies: [ ]
         source: external
         owner: { data_governance_team }
-
-      # 15 ZONE-FLOOR CI
-      - name: test_zone_floor_py
-        path: ci/tests/test_zone_floor.py
-        type: ci_test
-        category: allocation_validation
-        semver: "{code_semver}"
-        version: "{git_commit}"
-        digest: "{git_tree_hash}"
-        manifest_key: mlr.3A.ci.zone_floor
-        license: "{spdx_or_internal}"
-        role: Replays allocations and asserts configured micro-zone floors.
-        dependencies: [ zone_floor, merchant_zone_alloc_pattern ]
 
       # 3A  SCHEMAS FOR ESCALATION QUEUE
       - name: zone_escalation_queue_schema

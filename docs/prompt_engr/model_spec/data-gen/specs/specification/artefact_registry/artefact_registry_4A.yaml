@@ -76,7 +76,6 @@ subsegments:
         dependencies:
           - pipeline_launcher
           - validate_container_hash
-          - spatial_write_manifest
           - civil_time_manifest
           - routing_manifest
           - allocation_manifest
@@ -130,7 +129,7 @@ subsegments:
         notes: null
 
       - name: schemas_directory
-        path: schemas/
+        path: schema/
         type: directory
         category: schema_bundle
         semver: "{semver}"
@@ -294,7 +293,7 @@ subsegments:
         semver: "{semver}"
         version: "{config_version}"
         digest: "{sha256}"
-        manifest_key: mlr.2A.config.zoneinfo_version
+        manifest_key: mlr.4A.config.zoneinfo_version
         license: "{spdx_or_internal}"
         role: Pins ICU / tzdata version—referenced by RNG tests that depend on DST.
         dependencies: []
@@ -407,13 +406,13 @@ subsegments:
         notes: null
 
       - name: footfall_coefficients_yaml
-        path: config/models/footfall_coefficients.yaml
+        path: configs/spatial/footfall_coefficients.yaml
         type: config
         category: model_params
         semver: "{semver}"
         version: "{coeff_version}"
         digest: "{sha256}"
-        manifest_key: mlr.1B.config.footfall_coefficients
+        manifest_key: mlr.1B.footfall.coefficients
         license: "{spdx_or_internal}"
         role: GLM coefficients for footfall scaling (cross-layer reference).
         dependencies: []
@@ -505,17 +504,17 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # 10 LICENCE DIRECTORY & VALIDATOR
-      - name: licences_directory
+      # 10 LICENSE DIRECTORY & VALIDATOR
+      - name: licenses_directory
         path: LICENSES/
         type: directory
-        category: licence
+        category: licensing
         semver: "{semver}"
-        version: "{licence_bundle_version}"
+        version: "{license_bundle_version}"
         digest: "{sha256}"
-        manifest_key: mlr.4A.dir.licences
+        manifest_key: mlr.4A.dir.licenses
         license: Mixed
-        role: Folder containing all third-party licence texts referenced in registry.
+        role: Folder containing all third-party license texts referenced in registry.
         dependencies: []
         source: internal
         owner: { data_governance_team }
@@ -525,19 +524,20 @@ subsegments:
         cross_layer: false
         notes: null
 
-      - name: validate_licences_py
-        path: ci/tests/validate_licences.py
+      - name: validate_licenses_py
+        path: ci/tests/validate_licenses.py
         type: ci_test
-        category: licence
+        category: licensing
         semver: "{code_semver}"
         version: "{git_commit}"
         digest: "{git_tree_hash}"
-        manifest_key: mlr.4A.ci.validate_licences
+        manifest_key: mlr.4A.ci.validate_licenses
         license: "{spdx_or_internal}"
-        role: CI test ensuring every external artefact has licence text & digest.
+        role: CI test ensuring every external artefact has license text & digest.
         dependencies:
-          - licences_directory
-          - allocation_licences_manifest
+          - licenses_directory
+          - allocation_licenses_manifest
+          - virtual_licenses_manifest
         source: internal
         owner: { qa_team }
         last_updated: "{iso8601_timestamp}"
@@ -556,7 +556,7 @@ subsegments:
         digest: "{git_tree_hash}"
         manifest_key: mlr.4A.script.upload_to_hashgate
         license: "{spdx_or_internal}"
-        role: Uploads build.manifest + registry digest to Hashgate notarisation.
+        role: Uploads build.manifest + registry digest to Hashgate notarization
         dependencies:
           - build_manifest
         source: internal
@@ -589,40 +589,79 @@ subsegments:
         
       # Cross-layer reference for site catalogue (used by footfall harness)
       - name: site_catalogue
-        path: artefacts/catalogue/site_catalogue.parquet
+        path: data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
         type: dataset
-        category: catalogue
-        semver: { semver }
-        version: { vintage }
-        digest: { sha256 }
-        manifest_key: mlr.1B.data.site_catalogue
-        license: { spdx_or_internal }
+        category: input
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.1B.output.site_catalogue
+        license: "{spdx_or_internal}"
         role: Cross-layer site catalogue consumed by footfall_glm_harness_py.
-        dependencies: [ ]
+        dependencies: [ site_catalogue_schema ]
         source: internal
         owner: { platform_team }
-        last_updated: { iso8601_timestamp }
+        last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
+        schema: site_catalogue_schema
+        cross_layer: true
+        notes: null
+
+      # Cross-layer roll-up of licenses from allocation subsegment (3A)
+      - name: allocation_licenses_manifest
+        path: artefacts/manifests/allocation_licenses_manifest.json
+        type: manifest
+        category: licensing
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: allocation_licenses_digest
+        license: { spdx_or_internal }
+        role: Roll-up manifest of license digests for allocation artefacts.
+        dependencies: [ ]
+        source: internal
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci, runtime ]
         schema: null
         cross_layer: true
         notes: null
 
-      # Cross-layer roll-up of licences from allocation subsegment (3A)
-      - name: allocation_licences_manifest
-        path: artefacts/manifests/allocation_licences_manifest.json
+      # Cross-layer roll-up of licenses from virtual subsegment (3B)
+      - name: virtual_licenses_manifest
+        path: artefacts/manifests/virtual_licenses_manifest.json
         type: manifest
-        category: licence
-        semver: { semver }
-        version: { run_id }
-        digest: { sha256 }
-        manifest_key: allocation_licences_digest
-        license: { spdx_or_internal }
-        role: Roll-up manifest of licence digests for allocation artefacts.
+        category: licensing
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.manifest.licenses
+        license: "{spdx_or_internal}"
+        role: Roll-up manifest of license digests for virtual artefacts.
         dependencies: [ ]
         source: internal
         owner: { data_governance_team }
-        last_updated: { iso8601_timestamp }
+        last_updated: "{iso8601_timestamp}"
         environment: [ ci ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      - name: routing_manifest
+        path: artefacts/manifests/routing_manifest.json
+        type: manifest
+        category: provenance
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2B.manifest.routing
+        license: "{spdx_or_internal}"
+        role: Digest roll-up for 2B routing outputs/configs.
+        dependencies: [ ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
         cross_layer: true
         notes: null
@@ -648,6 +687,132 @@ subsegments:
           - zoneinfo_digest                   # 2A→4B cross-layer
         source: internal
         owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
         environment: [ ci, runtime ]
         cross_layer: true
         notes: "Any change to registries or cross-layer digests requires a break-glass."
+
+      - name: tz_polygon_digest
+        path: artefacts/manifests/tz_polygon_digest.txt
+        type: manifest
+        category: spatial_digests
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.manifest.tz_polygon_digest
+        license: "{spdx_or_internal}"
+        role: SHA-256 of tz-world polygons.
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        cross_layer: true
+        notes: null
+
+      - name: tz_index_digest
+        path: artefacts/manifests/tz_index_digest.txt
+        type: manifest
+        category: spatial_digests
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.manifest.tz_index_digest
+        license: "{spdx_or_internal}"
+        role: SHA-256 of tz index.
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        cross_layer: true
+        notes: null
+
+      - name: zoneinfo_digest
+        path: artefacts/manifests/zoneinfo_digest.txt
+        type: manifest
+        category: runtime_environment
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.manifest.zoneinfo_digest
+        license: "{spdx_or_internal}"
+        role: Digest of zoneinfo build.
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        cross_layer: true
+        notes: null
+
+      - name: validator_build_manifest
+        path: artefacts/manifests/validator_build.manifest
+        type: manifest
+        category: reproducibility
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.4B.manifest.validator_build
+        license: "{spdx_or_internal}"
+        role: Digest roll-up for validator container & code.
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci ]
+        cross_layer: true
+        notes: null
+
+      # 3A roll-up
+      - name: allocation_manifest
+        path: artefacts/manifests/allocation_manifest.json
+        type: manifest
+        category: provenance
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.3A.manifest.allocation
+        license: "{spdx_or_internal}"
+        role: Digest bundle of 3A zone-allocation outputs/configs.
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      # 3B roll-up
+      - name: virtual_manifest
+        path: artefacts/manifests/virtual_manifest.json
+        type: manifest
+        category: provenance
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.manifest.virtual
+        license: "{spdx_or_internal}"
+        role: Digest bundle of 3B virtual inputs/outputs/configs.
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      # 2A roll-up
+      - name: civil_time_manifest
+        path: artefacts/manifests/civil_time_manifest.json
+        type: manifest
+        category: provenance
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.manifest.civil_time
+        license: "{spdx_or_internal}"
+        role: Cross-layer digest roll-up from 2A.
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
