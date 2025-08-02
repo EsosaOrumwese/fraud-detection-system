@@ -3,7 +3,7 @@ subsegments:
     name: "Special Treatment for Purely Virtual Merchants"
     artifacts:
 
-      # 1 · CROSS‑LAYER INPUT
+      # 1 CROSS‑LAYER INPUT
       - name: site_catalogue
         path: data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
         type: dataset
@@ -23,7 +23,7 @@ subsegments:
         cross_layer: true
         notes: null
 
-      # 2 · VIRTUAL MERCHANT CLASSIFICATION RULES
+      # 2 VIRTUAL MERCHANT CLASSIFICATION RULES
       - name: mcc_channel_rules
         path: config/virtual/mcc_channel_rules.yaml
         type: config
@@ -43,7 +43,7 @@ subsegments:
         cross_layer: true
         notes: null
 
-      # 3 · CDN COUNTRY WEIGHTS
+      # 3 CDN COUNTRY WEIGHTS
       - name: cdn_country_weights
         path: config/virtual/cdn_country_weights.yaml
         type: config
@@ -82,7 +82,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # 4 · SETTLEMENT COORDINATES & GEOCODER BUNDLE
+      # 4 SETTLEMENT COORDINATES & GEOCODER BUNDLE
       - name: virtual_settlement_coords
         path: artefacts/virtual/virtual_settlement_coords.csv
         type: dataset
@@ -121,7 +121,7 @@ subsegments:
         cross_layer: true
         notes: null
 
-      # 5 · POPULATION RASTER FOR EDGE SAMPLING
+      # 5 POPULATION RASTER FOR EDGE SAMPLING
       - name: hrsl_raster
         path: artefacts/rasters/hrsl_100m.tif
         type: reference
@@ -141,7 +141,7 @@ subsegments:
         cross_layer: true
         notes: null
 
-      # 6 · GOVERNING VALIDATION & LOGGING POLICIES
+      # 6 GOVERNING VALIDATION & LOGGING POLICIES
       - name: virtual_validation_policy
         path: config/virtual/virtual_validation.yml
         type: config
@@ -218,7 +218,7 @@ subsegments:
         cross_layer: true
         notes: null
 
-      # 7 · EDGE‑CATALOGUE DERIVED ARTEFACTS
+      # 7 EDGE‑CATALOGUE DERIVED ARTEFACTS
       - name: edge_catalogue_pattern
         path: artefacts/virtual/edge_catalogue/{merchant_id}_edges.parquet
         type: dataset
@@ -260,8 +260,108 @@ subsegments:
         schema: null
         cross_layer: true
         notes: null
+        
+      # 3B NON-MUTATING OVERLAY FOR is_virtual
+      - name: virtual_overlay_schema
+        path: schema/virtual_overlay.schema.json
+        type: schema
+        category: virtual_classification
+        semver: "{schema_semver}"
+        version: "{schema_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.schema.virtual_overlay
+        license: "{spdx_or_internal}"
+        role:
+          Columns: merchant_id STRING, is_virtual BOOL, reason STRING.
+        dependencies: [ ]
+        source: internal
+        owner: { engineering_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci, runtime ]
+        schema: null
+        cross_layer: true
+        notes: "Enables join-on-overlay; 1B site_catalogue remains immutable."
 
-      # 8 · CDN ALIAS OUTPUTS
+      - name: virtual_overlay
+        path: artefacts/virtual/virtual_overlay_{run_id}.parquet
+        type: dataset
+        category: virtual_classification
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.dataset.virtual_overlay
+        license: "{spdx_or_internal}"
+        role: Non-mutating overlay that provides is_virtual to downstream joins.
+        dependencies: [ mcc_channel_rules, virtual_overlay_schema ]
+        source: internal
+        owner: { engineering_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: virtual_overlay_schema
+        cross_layer: true
+        notes: "Downstream consumers must `JOIN site_catalogue USING (merchant_id)`."
+
+      # 3B RNG / GAMMA DRAW AUDIT
+      - name: gamma_draw_schema
+        path: schema/gamma_draw.schema.json
+        type: schema
+        category: rng_audit
+        semver: "{schema_semver}"
+        version: "{schema_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.schema.gamma_draw
+        license: "{spdx_or_internal}"
+        role: JSON Schema for per-draw γ audit events (counter, day_index, gamma).
+        dependencies: [ ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci, runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: gamma_draw_log
+        path: logs/virtual/{run_id}/gamma_draw.jsonl
+        type: log
+        category: rng_audit
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.log.gamma_draw
+        license: "{spdx_or_internal}"
+        role: Per-merchant draw record (Philox key/counter, day_index, gamma_value).
+        dependencies: [ gamma_draw_schema, routing_day_effect ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: gamma_draw_schema
+        cross_layer: true
+        notes: "Complements 4A global RNG trace by capturing 3B-local draws."
+
+      # 3B SCHEMA FOR CDN ALIAS CONTAINER
+      - name: cdn_alias_schema
+        path: schema/cdn_alias.schema.json
+        type: schema
+        category: virtual_alias
+        semver: "{schema_semver}"
+        version: "{schema_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.schema.cdn_alias
+        license: "{spdx_or_internal}"
+        role:
+          Validates NPZ contents: arrays {edges:int32, probs:float64}, hash:str.
+        dependencies: [ ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci, runtime ]
+        schema: null
+        cross_layer: false
+        notes: "Used to sanity-check merchant_cdn_alias_pattern outputs."
+
+      # 8 CDN ALIAS OUTPUTS
       - name: merchant_cdn_alias_pattern
         path: artefacts/virtual/cdn_alias/{merchant_id}_cdn_alias.npz
         type: dataset
@@ -283,7 +383,7 @@ subsegments:
         cross_layer: true
         notes: "Pattern expands per virtual merchant."
 
-      # 9 · MANIFESTS & PROVENANCE
+      # 9 MANIFESTS & PROVENANCE
       - name: virtual_manifest
         path: artefacts/manifests/virtual_manifest.json
         type: manifest
@@ -334,7 +434,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # 10 · PROCESS & RECOVERY LOGS
+      # 10 PROCESS & RECOVERY LOGS
       - name: edge_progress_log
         path: logs/virtual/{run_id}/edge_progress.log
         type: log
@@ -373,7 +473,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # 11 · GOVERNED CODE MODULES & SCRIPTS
+      # 11 GOVERNED CODE MODULES & SCRIPTS
       - name: derive_is_virtual_py
         path: src/virtual/derive_is_virtual.py
         type: code
@@ -432,16 +532,20 @@ subsegments:
         notes: null
 
       - name: validate_virtual_py
-        path: tests/validate_virtual.py
-        type: code
-        category: integration_test
+        path: ci/tests/validate_virtual.py
+        type: ci_test
+        category: virtual_validation
         semver: "{code_semver}"
         version: "{git_commit}"
         digest: "{git_tree_hash}"
-        manifest_key: mlr.3B.test.validate_virtual
+        manifest_key: mlr.3B.ci.validate_virtual
         license: "{spdx_or_internal}"
         role: Runs share & cut‑off validation on sample run outputs.
-        dependencies: [ virtual_validation_policy, merchant_cdn_alias_pattern ]
+        dependencies:
+          - virtual_validation_policy
+          - merchant_cdn_alias_pattern
+          - virtual_manifest
+          - civil_time_manifest
         source: internal
         owner: { qa_team }
         last_updated: "{iso8601_timestamp}"
@@ -450,7 +554,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # 12 · CI / UNIT TESTS
+      # 12 CI / UNIT TESTS
       - name: test_virtual_rules_py
         path: ci/tests/test_virtual_rules.py
         type: ci_test
@@ -508,7 +612,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # 13 · PERFORMANCE METRICS
+      # 13 PERFORMANCE METRICS
       - name: edge_sampler_metrics
         path: artefacts/metrics/edge_sampler_{run_id}.parquet
         type: dataset
@@ -528,7 +632,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # 14 · DOCUMENTATION & LICENCE PROOFS
+      # 14 DOCUMENTATION & LICENCE PROOFS
       - name: licences_akamai_md
         path: LICENSES/akamai_soti.md
         type: documentation
@@ -567,7 +671,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # 15 · EXCEPTION CONTRACTS
+      # 15 EXCEPTION CONTRACTS
       - name: VirtualUniverseMismatchError
         path: null
         type: exception
@@ -627,7 +731,7 @@ subsegments:
         notes: null
 
       - name: edge_catalogue_schema
-        path: config/virtual/schemas/edge_catalogue.schema.json
+        path: schema/edge_catalogue.schema.json
         type: schema
         category: virtual_edges
         semver: { semver }
@@ -635,7 +739,7 @@ subsegments:
         digest: { sha256 }
         manifest_key: mlr.3B.schema.edge_catalogue
         license: { spdx_or_internal }
-        role: Schema for edge catalogue (edge_id STRING, country_iso STRING, tzid STRING, lat DOUBLE, lon DOUBLE, edge_weight FLOAT).
+        role: JSON-Schema used to validate all edge_catalogue parquets.
         dependencies: [ ]
         source: internal
         owner: { qa_team }
