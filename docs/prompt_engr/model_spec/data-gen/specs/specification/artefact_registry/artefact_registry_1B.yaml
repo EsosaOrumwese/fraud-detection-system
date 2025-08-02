@@ -13,7 +13,7 @@ subsegments:
       digest: "{sha256}"
       manifest_key: mlr.1B.output.site_catalogue
       license: null
-      role: "Final per‑site rows (coords, tz, remoteness, footfall, provenance); committed atomically via rename."
+      role: "Final per-site rows (coords, tz, remoteness, footfall, provenance); committed atomically via rename."
       dependencies:
         - candidate_pool_index
         - fenwick_snapshot
@@ -22,13 +22,16 @@ subsegments:
         - tz_polygons_ref
         - footfall_coefficients
         - winsor_policy
+        - site_catalogue_schema
+        - spatial_write_manifest
+        - tz_world_metadata
       source: internal
       owner: "{owner_team}"
       last_updated: "{iso8601_timestamp}"
       environment: [ runtime ]
-      schema: site_catalogue.avsc
+      schema: site_catalogue_schema
       cross_layer: true
-      notes: "Crash‑safe writes; validated by spatial_write_manifest."
+      notes: "Crash-safe writes; validated by spatial_write_manifest."
 
     - name: site_catalogue_schema
       path: schema/site_catalogue.avsc
@@ -46,7 +49,7 @@ subsegments:
       last_updated: "{iso8601_timestamp}"
       environment: [ dev, staging, prod ]
       schema: null
-      cross_layer: false
+      cross_layer: true
       notes: null
 
     # ----------- Spatial references, CRS, grid, boundaries -----------
@@ -188,35 +191,50 @@ subsegments:
       notes: null
 
     - name: hrsl_pop_100m_raster
-      path: data/spatial_priors/hrsl_pop_100m_v1.2/hrsl_pop_100m.tif
-      type: reference
+      path: artefacts/priors/hrsl/2020_v1.2/
+      type: raster
       category: spatial_prior
       semver: "{semver}"
       version: "2020_v1.2"
       digest: "{sha256}"
       manifest_key: mlr.ref.hrsl_pop_100m_v1_2
       license: "{spdx_or_internal}"
-      role: "High‑Resolution Settlement Layer raster for population density."
-      dependencies: [ ]
+      role: "Directory of per-country HRSL GeoTIFFs (population density)."
+      dependencies: [ spatial_manifest, hrsl_index_json ]
       source: "Facebook HRSL"
       owner: "{owner_team}"
       last_updated: "{iso8601_timestamp}"
       environment: [ runtime ]
       schema: null
       cross_layer: true
-      notes: null
+      notes: "Per-country HRSL tiles; members + sha256 are listed in hrsl_index_json."
+
+    - name: hrsl_index_json
+      path: artefacts/priors/hrsl/2020_v1.2/index.json
+      type: manifest
+      category: spatial_index
+      semver: "{semver}"
+      version: "{run_id}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.hrsl.index
+      license: "{spdx_or_internal}"
+      role: "Whitelist of HRSL {ISO2}.tif files with sha256; generated/validated from spatial_manifest."
+      dependencies: [ spatial_manifest ]
+      source: internal
+      owner: { platform_team }
+      environment: [ ci, runtime ]
 
     - name: worldpop_raster
-      path: data/spatial_priors/worldpop/worldpop_2023Q4.tif
-      type: reference
+      path: artefacts/priors/worldpop/2023Q4/
+      type: raster
       category: spatial_prior
       semver: "{semver}"
       version: "2023Q4"
       digest: "{sha256}"
       manifest_key: mlr.ref.worldpop_2023Q4
       license: "{spdx_or_internal}"
-      role: "WorldPop raster for population fallback in spatial placement."
-      dependencies: [ ]
+      role: "Directory containing per-country WorldPop GeoTIFFs; members + sha256 are listed in worldpop_index_json."
+      dependencies: [ spatial_manifest, worldpop_index_json ]
       source: WorldPop
       owner: "{owner_team}"
       last_updated: "{iso8601_timestamp}"
@@ -225,8 +243,23 @@ subsegments:
       cross_layer: true
       notes: null
 
+    - name: worldpop_index_json
+      path: artefacts/priors/worldpop/2023Q4/index.json
+      type: manifest
+      category: spatial_index
+      semver: "{semver}"
+      version: "{run_id}"
+      digest: "{sha256}"
+      manifest_key: mlr.1B.worldpop.index
+      license: "{spdx_or_internal}"
+      role: "Whitelist of WorldPop {ISO2}.tif files with sha256; generated/validated from spatial_manifest."
+      dependencies: [ spatial_manifest ]
+      source: internal
+      owner: { platform_team }
+      environment: [ ci, runtime ]
+
     - name: osm_primary_roads
-      path: data/spatial_priors/osm/osm_primary_roads.shp
+      path: data/spatial_priors/osm/{vintage}/primary_roads/
       type: reference
       category: spatial_prior
       semver: "{semver}"
@@ -234,15 +267,15 @@ subsegments:
       digest: "{sha256}"
       manifest_key: mlr.ref.osm_primary_roads_{vintage}
       license: "ODbL-1.0"
-      role: "OpenStreetMap primary roads for road‑proximity prior."
-      dependencies: [ ]
+      role: "OpenStreetMap primary roads for road-proximity prior."
+      dependencies: [ spatial_manifest ]
       source: OpenStreetMap
       owner: "{owner_team}"
       last_updated: "{iso8601_timestamp}"
       environment: [ runtime ]
       schema: null
       cross_layer: true
-      notes: "Includes .shp, .shx, .dbf, .prj."
+      notes: "Multi-file shapefile bundle (.shp/.shx/.dbf/.prj); members tracked via spatial_manifest."
 
     - name: iata_airport_polygons
       path: data/spatial_priors/iata/airports.geojson
@@ -253,8 +286,8 @@ subsegments:
       digest: "{sha256}"
       manifest_key: mlr.ref.iata_airport_polygons_2025
       license: "{spdx_or_internal}"
-      role: "IATA airport service‑area polygons."
-      dependencies: [ ]
+      role: "IATA airport service-area polygons."
+      dependencies: [ spatial_manifest ]
       source: IATA
       owner: "{owner_team}"
       last_updated: "{iso8601_timestamp}"
@@ -272,7 +305,7 @@ subsegments:
       digest: "{sha256}"
       manifest_key: mlr.1B.priors.spatial_blend
       license: "{spdx_or_internal}"
-      role: "Blend definition for category‑specific priors into combined weights."
+      role: "Blend definition for category-specific priors into combined weights."
       dependencies:
         - hrsl_pop_100m_raster
         - worldpop_raster
@@ -295,7 +328,7 @@ subsegments:
       digest: "{sha256}"
       manifest_key: mlr.1B.priors.blend_recipe
       license: null
-      role: "Per‑category blend weights and normalization mode."
+      role: "Per-category blend weights and normalization mode."
       dependencies: [ ]
       source: internal
       owner: "{owner_team}"
@@ -375,7 +408,7 @@ subsegments:
       digest: "{sha256}"
       manifest_key: mlr.1B.index.country_cell_index
       license: null
-      role: "Grid‑cell membership per country (post boundary clip)."
+      role: "Grid-cell membership per country (post boundary clip)."
       dependencies:
         - global_grid_spec
         - country_boundary_ref
@@ -420,7 +453,7 @@ subsegments:
       digest: "{sha256}"
       manifest_key: mlr.1B.cache.fenwick_snapshot
       license: null
-      role: "Serialized Fenwick trees / alias tables for RNG‑free sampling."
+      role: "Serialized Fenwick trees / alias tables for RNG-free sampling."
       dependencies:
         - candidate_pool_index
       source: internal
@@ -481,7 +514,7 @@ subsegments:
       digest: "{sha256}"
       manifest_key: mlr.1B.acceptance.policy
       license: null
-      role: "Thresholds: land/water, road proximity, TZ‑country consistency."
+      role: "Thresholds: land/water, road proximity, TZ-country consistency."
       dependencies:
         - crs_policy
         - road_proximity_config
@@ -643,7 +676,7 @@ subsegments:
       digest: "{reference_digest}"
       manifest_key: mlr.ref.road_graph
       license: "{spdx_or_internal}"
-      role: "Contraction‑hierarchies graph for true network distances."
+      role: "Contraction-hierarchies graph for true network distances."
       dependencies:
         - roads_ref
       source: external
@@ -703,7 +736,7 @@ subsegments:
       digest: "{sha256}"
       manifest_key: mlr.1B.acceptance.remoteness_method
       license: null
-      role: "Great‑circle method, ellipsoid constants, rounding policy."
+      role: "Great-circle method, ellipsoid constants, rounding policy."
       dependencies:
         - crs_policy
       source: internal
@@ -754,7 +787,7 @@ subsegments:
       environment: [ dev, staging, prod ]
       schema: null
       cross_layer: true
-      notes: null
+      notes: "Pinned to tz_world 2025a; harmonised with 2A shapefile bundle."
 
     - name: tz_override_table
       path: configs/spatial/tz_override_table.yaml
@@ -807,7 +840,7 @@ subsegments:
       digest: "{sha256}"
       manifest_key: mlr.1B.footfall.coefficients
       license: null
-      role: "κ_(mcc,channel) coefficients for log‑normal footfall."
+      role: "κ_(mcc,channel) coefficients for log-normal footfall."
       dependencies: [ ]
       source: internal
       owner: "{owner_team}"
@@ -846,7 +879,7 @@ subsegments:
       digest: "{sha256}"
       manifest_key: mlr.1B.footfall.scalars
       license: null
-      role: "Per‑site footfall scalar with provenance tag."
+      role: "Per-site footfall scalar with provenance tag."
       dependencies:
         - site_catalogue
         - footfall_coefficients
@@ -869,7 +902,7 @@ subsegments:
       digest: "{sha256}"
       manifest_key: mlr.1B.rng.sample_candidate
       license: null
-      role: "Event per candidate sampled (pre‑acceptance)."
+      role: "Event per candidate sampled (pre-acceptance)."
       dependencies:
         - rng_event_schema_catalog     # defined in 1A, cross_layer=true
         - fenwick_snapshot
@@ -932,7 +965,7 @@ subsegments:
       digest: "{sha256}"
       manifest_key: mlr.1B.rng.fenwick_tie_break
       license: null
-      role: "Tie‑break ordering when cumulative weights collide."
+      role: "Tie-break ordering when cumulative weights collide."
       dependencies:
         - rng_event_schema_catalog
         - fenwick_snapshot
@@ -953,7 +986,7 @@ subsegments:
       digest: "{sha256}"
       manifest_key: mlr.1B.rng.tz_resample
       license: null
-      role: "Coordinate re‑sampling events after TZ‑ISO mismatch."
+      role: "Coordinate re-sampling events after TZ-ISO mismatch."
       dependencies:
         - rng_event_schema_catalog
         - tz_polygons_ref
@@ -965,7 +998,7 @@ subsegments:
       cross_layer: true
       notes: null
 
-    # ----------- Master seed & end‑of‑run manifest -----------
+    # ----------- Master seed & end-of-run manifest -----------
     - name: master_seed
       path: configs/spatial/master_seed.yaml
       type: config
@@ -975,7 +1008,7 @@ subsegments:
       digest: "{sha256}"
       manifest_key: mlr.1B.rng.master_seed
       license: null
-      role: "Philox master seed for spatial sampling sub‑streams."
+      role: "Philox master seed for spatial sampling sub-streams."
       dependencies:
         - manifest_fingerprint          # from 1A, cross_layer=true
       source: internal
@@ -1057,7 +1090,7 @@ subsegments:
       digest: "{sha256}"
       manifest_key: mlr.1B.docs.site_provenance_codebook
       license: null
-      role: "Code->meaning map for per‑site provenance tags."
+      role: "Code->meaning map for per-site provenance tags."
       dependencies:
         - prior_blend_recipe
       source: internal
