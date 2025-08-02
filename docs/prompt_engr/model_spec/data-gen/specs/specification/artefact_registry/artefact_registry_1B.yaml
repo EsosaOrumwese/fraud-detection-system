@@ -1102,7 +1102,7 @@ subsegments:
       notes: null
 
       # Licensing (governed)
-    - name: licence_files
+    - name: license_files
       path: LICENSES/
       type: directory
       category: licensing
@@ -1115,6 +1115,7 @@ subsegments:
       dependencies: [ ]
       source: internal
       owner: "{legal_team}"
+      last_updated: "{iso8601_timestamp}"
       environment: [ ci, runtime ]
       schema: null
       cross_layer: true
@@ -1134,8 +1135,10 @@ subsegments:
       dependencies: [ site_catalogue_schema, crs_policy ]
       source: internal
       owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
       environment: [ ci, runtime ]
       cross_layer: true
+      notes: null
 
     - name: temp_write_policy
       path: configs/storage/temp_write_policy.yaml
@@ -1150,8 +1153,10 @@ subsegments:
       dependencies: [ final_parquet_file_pattern ]
       source: internal
       owner: "{owner_team}"
+      last_updated: "{iso8601_timestamp}"
       environment: [ runtime ]
       cross_layer: true
+      notes: null
 
     - name: write_ahead_log
       path: logs/storage/write_ahead.log
@@ -1166,5 +1171,7 @@ subsegments:
       dependencies: [ temp_write_policy ]
       source: internal
       owner: "{qa_team}"
+      last_updated: "{iso8601_timestamp}"
       environment: [ runtime ]
       cross_layer: true
+      notes: null
