@@ -14,7 +14,7 @@ subsegments:
         manifest_key: mlr.1B.output.site_catalogue
         license: "{spdx_or_internal}"
         role: Site-catalogue rows with coordinates, tzid, foot-traffic & provenance fields from 1B.
-        dependencies: []
+        dependencies: [ site_catalogue_schema ]
         source: internal
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
@@ -269,6 +269,7 @@ subsegments:
           - site_catalogue
           - merchant_weights_pattern
           - merchant_alias_pattern
+          - merchant_cdn_alias_pattern
           - routing_day_effect
           - rng_policy
           - routing_logging_policy
@@ -337,6 +338,7 @@ subsegments:
         dependencies:
           - routing_validation_policy
           - routing_audit_log
+          - civil_time_manifest
         source: internal
         owner: { qa_team }
         last_updated: "{iso8601_timestamp}"
@@ -358,8 +360,10 @@ subsegments:
         dependencies: [ routing_logging_policy ]
         source: internal
         owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
         cross_layer: false
+        notes: null
 
       # 6 RNG AUDIT & TRACE
       - name: rng_audit_2B
@@ -570,8 +574,11 @@ subsegments:
         dependencies: [ site_catalogue, routing_manifest, output_catalogue_schema ]
         source: internal
         owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
+        schema: null
         cross_layer: false
+        notes: null
 
       - name: output_catalogue_schema
         path: output/catalogue_schema.json
@@ -586,8 +593,11 @@ subsegments:
         dependencies: [ ]
         source: internal
         owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
         environment: [ dev, ci, runtime ]
+        schema: null
         cross_layer: false
+        notes: null
 
       # Additional
       - name: routing_audit_schema
@@ -681,7 +691,7 @@ subsegments:
         source: internal
         owner: { qa_team }
         last_updated: "{iso8601_timestamp}"
-        environment: [ ci ]
+        environment: [ ci, runtime ]
         schema: null
         cross_layer: false
         notes: null
@@ -700,6 +710,7 @@ subsegments:
         dependencies: [ ]
         source: internal
         owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
         schema: null
         cross_layer: true
@@ -719,23 +730,8 @@ subsegments:
         dependencies: [ ]
         source: internal
         owner: { legal_team }
+        last_updated: "{iso8601_timestamp}"
         environment: [ ci, runtime ]
         schema: null
         cross_layer: true
         notes: null
-
-      - name: routing_licences
-        path: LICENSES/
-        type: licenses
-        category: licensing
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.2B.licenses
-        license: "SEE-FILES"
-        role: "All third-party/internal licence texts; each file tracked by digest and referenced in routing_manifest."
-        dependencies: [ routing_manifest ]
-        source: external
-        owner: { legal_team }
-        environment: [ ci, runtime ]
-        cross_layer: true
