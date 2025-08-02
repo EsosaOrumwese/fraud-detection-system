@@ -13,13 +13,13 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.1B.output.site_catalogue
         license: "{spdx_or_internal}"
-        role: Outlet stubs incl. `is_virtual` flag consumed by 3B.
+        role: Site-catalogue rows from 1B (to be joined with a virtual overlay; 3B MUST NOT mutate 1B).
         dependencies: []
         source: internal
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: outlet_stub_schema
+        schema: site_catalogue_schema
         cross_layer: true
         notes: null
 
@@ -131,7 +131,7 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.3B.ref.hrsl_raster
         license: CC‑BY‑4.0
-        role: 100 m HRSL raster used for edge coordinate sampling.
+        role: 100 m HRSL raster used for edge coordinate sampling.
         dependencies: []
         source: external
         owner: { data_governance_team }
@@ -251,7 +251,7 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.3B.dataset.edge_catalogue_index
         license: "{spdx_or_internal}"
-        role: Merchant → edge‑parquet path + edge_digest lookup table.
+        role: Merchant -> edge‑parquet path + edge_digest lookup table.
         dependencies: [ edge_catalogue_pattern ]
         source: internal
         owner: { platform_team }
@@ -293,7 +293,7 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.3B.manifest.virtual
         license: "{spdx_or_internal}"
-        role: Digests of edge catalogues, CDN aliases, and governing configs.
+        role: Digests of edge catalogues, CDN aliases, governing configs, and civil-time lineage.
         dependencies:
           - edge_catalogue_index
           - merchant_cdn_alias_pattern
@@ -304,6 +304,7 @@ subsegments:
           - virtual_settlement_coords
           - edge_catalogue_schema
           - rng_policy
+          - civil_time_manifest
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
@@ -478,7 +479,7 @@ subsegments:
         digest: "{git_tree_hash}"
         manifest_key: mlr.3B.ci.geocoder_bundle
         license: "{spdx_or_internal}"
-        role: Asserts evidence_url geocodes within 5 km of stored coords.
+        role: Asserts evidence_url geocodes within 5 km of stored coords.
         dependencies: [ pelias_cached_sqlite, virtual_settlement_coords ]
         source: internal
         owner: { qa_team }
@@ -682,4 +683,40 @@ subsegments:
         environment: [ ci ]
         schema: null
         cross_layer: false
+        notes: null
+
+      - name: civil_time_manifest
+        path: artefacts/manifests/civil_time_manifest.json
+        type: manifest
+        category: provenance
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.manifest.civil_time
+        license: "{spdx_or_internal}"
+        role: Cross-layer digest roll-up from 2A (tz polygons/index/overrides/tzdata/horizon).
+        dependencies: [ ]
+        source: internal
+        owner: { platform_team }
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: "Referenced by virtual_manifest for settlement cut-off provenance."
+
+      - name: virtual_licenses_dir
+        path: LICENSES/
+        type: directory
+        category: licensing
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256_tree}"
+        manifest_key: mlr.3B.licenses
+        license: "SEE-FILES"
+        role: SPDX texts for HRSL, Akamai SOTI and any other external assets used by 3B.
+        dependencies: [ ]
+        source: internal
+        owner: { legal_team }
+        environment: [ ci, runtime ]
+        schema: null
+        cross_layer: true
         notes: null

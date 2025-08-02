@@ -287,6 +287,8 @@ subsegments:
           - adv_embed_py                       # embedder code digest
           - tz_polygon_digest                  # spatial vintage
           - zoneinfo_digest                    # ZoneInfo build
+          - civil_time_manifest
+          - site_catalogue
         source: internal
         owner: { qa_team }
         last_updated: {iso8601_timestamp}
@@ -512,6 +514,42 @@ subsegments:
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      - name: civil_time_manifest
+        path: artefacts/manifests/civil_time_manifest.json
+        type: manifest
+        category: provenance
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.manifest.civil_time
+        license: "{spdx_or_internal}"
+        role: Cross-layer digest roll-up from 2A (tz polygons/index/overrides/tzdata/horizon).
+        dependencies: [ ]
+        source: internal
+        owner: { platform_team }
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: "Referenced by virtual_manifest for settlement cut-off provenance."
+
+      - name: virtual_licenses_dir
+        path: LICENSES/
+        type: directory
+        category: licensing
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256_tree}"
+        manifest_key: mlr.3B.licenses
+        license: "SEE-FILES"
+        role: SPDX texts for HRSL, Akamai SOTI and any other external assets used by 3B.
+        dependencies: [ ]
+        source: internal
+        owner: { legal_team }
+        environment: [ ci, runtime ]
         schema: null
         cross_layer: true
         notes: null
