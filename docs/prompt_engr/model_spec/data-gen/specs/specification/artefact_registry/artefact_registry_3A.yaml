@@ -3,7 +3,7 @@ subsegments:
     name: "Capturing Cross‑Zone Merchants"
     artifacts:
 
-      # 1 · CROSS‑LAYER INPUT
+      # 1 CROSS‑LAYER INPUT
       - name: site_catalogue
         path: data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
         type: dataset
@@ -23,7 +23,7 @@ subsegments:
         cross_layer: true
         notes: null
 
-      # 2 · GOVERNING CONFIG BLOBS
+      # 2 GOVERNING CONFIG BLOBS
       - name: zone_mixture_policy
         path: config/zone/zone_mixture_policy.yml
         type: config
@@ -138,7 +138,7 @@ subsegments:
         cross_layer: true
         notes: null
 
-      # 3 · PER‑MERCHANT ZONE‑ALLOCATION OUTPUTS
+      # 3 PER‑MERCHANT ZONE‑ALLOCATION OUTPUTS
       - name: merchant_zone_alloc_pattern
         path: artefacts/zone_alloc/output/{merchant_id}_zone_alloc.parquet
         type: dataset
@@ -201,7 +201,7 @@ subsegments:
         cross_layer: true
         notes: null
 
-      # 4 · MANIFESTS & PROVENANCE
+      # 4 MANIFESTS & PROVENANCE
       - name: allocation_manifest
         path: artefacts/manifests/allocation_manifest.json
         type: manifest
@@ -289,7 +289,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # 6 · GOVERNED CODE & HELPER SCRIPTS
+      # 6 GOVERNED CODE & HELPER SCRIPTS
       - name: make_zone_alphas_py
         path: src/zone/make_zone_alphas.py
         type: code
@@ -328,7 +328,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # 7 · CI/UNIT/INTEGRATION TESTS
+      # 7 CI/UNIT/INTEGRATION TESTS
       - name: test_mix_threshold_py
         path: ci/tests/test_mix_threshold.py
         type: ci_test
@@ -405,7 +405,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # 8 · METRICS & VISUALISATIONS
+      # 8 METRICS & VISUALISATIONS
       - name: barcode_heatmap_png
         path: artefacts/metrics/barcode_heatmap_{run_id}.png
         type: documentation
@@ -425,7 +425,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # 9 · DOCUMENTATION / PROOFS
+      # 9 DOCUMENTATION / PROOFS
       - name: round_ints_md
         path: docs/round_ints.md
         type: documentation
@@ -464,7 +464,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # 10 · ERROR / EXCEPTION CONTRACTS
+      # 10 ERROR / EXCEPTION CONTRACTS
       - name: UniverseHashError
         path: null
         type: exception
@@ -539,3 +539,138 @@ subsegments:
         schema: null
         cross_layer: true
         notes: null
+
+      # 11 DETERMINISTIC ROUNDING & CI
+      - name: round_ints_spec_md
+        path: docs/round_ints.md
+        type: documentation
+        category: proof
+        semver: "{semver}"
+        version: "{doc_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.3A.docs.round_ints_spec
+        license: "{spdx_or_internal}"
+        role: Formal spec for largest-remainder + “bump” rule used in 3A.
+        dependencies: [ ]
+        source: internal
+        owner: { qa_team }
+        environment: [ ci, runtime ]
+
+      - name: test_rounding_conservation_py
+        path: ci/tests/test_rounding_conservation.py
+        type: ci_test
+        category: allocation_validation
+        semver: "{code_semver}"
+        version: "{git_commit}"
+        digest: "{git_tree_hash}"
+        manifest_key: mlr.3A.ci.rounding_conservation
+        license: "{spdx_or_internal}"
+        role: Property test (10k vectors) that sum of integerised shares == target.
+        dependencies: [ round_ints_spec_md ]
+
+      # 12 MIXTURE-THRESHOLD CI
+      - name: test_mix_threshold_py
+        path: ci/tests/test_mix_threshold.py
+        type: ci_test
+        category: allocation_validation
+        semver: "{code_semver}"
+        version: "{git_commit}"
+        digest: "{git_tree_hash}"
+        manifest_key: mlr.3A.ci.mix_threshold
+        license: "{spdx_or_internal}"
+        role: Byte-compare escalation queue vs <merchant_id>_zone_alloc.parquet.
+        dependencies: [ zone_mixture_policy, merchant_zone_alloc_pattern ]
+
+      # 13 HIDDEN γ-DAY TABLE
+      - name: gamma_day_table_schema
+        path: schema/gamma_day_table.schema.json
+        type: schema
+        category: routing_gamma
+        semver: "{semver}"
+        version: "{schema_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.3A.schema.gamma_day_table
+        license: "{spdx_or_internal}"
+        role:
+          Columns: merchant_id STRING, day_index INT16, gamma_value FLOAT64.
+        dependencies: [ ]
+
+      - name: gamma_day_table
+        path: artefacts/metrics/gamma_day_table_{run_id}.parquet
+        type: dataset
+        category: routing_gamma
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.3A.metrics.gamma_day_table
+        license: "{spdx_or_internal}"
+        role: Forensic record of per-day γ draws for replay.
+        dependencies: [ routing_day_effect, rng_policy, gamma_day_table_schema ]
+
+      # 14 LICENCES
+      - name: visa_mcx_md
+        path: LICENSES/visa_mcx.md
+        type: documentation
+        category: licence
+        semver: "{semver}"
+        version: "{doc_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.3A.licence.visa_mcx
+        license: CC-BY-4.0
+        role: Licence text referenced by allocation_licences_manifest.
+        dependencies: [ ]
+        source: external
+        owner: { data_governance_team }
+
+      # 15 ZONE-FLOOR CI
+      - name: test_zone_floor_py
+        path: ci/tests/test_zone_floor.py
+        type: ci_test
+        category: allocation_validation
+        semver: "{code_semver}"
+        version: "{git_commit}"
+        digest: "{git_tree_hash}"
+        manifest_key: mlr.3A.ci.zone_floor
+        license: "{spdx_or_internal}"
+        role: Replays allocations and asserts configured micro-zone floors.
+        dependencies: [ zone_floor, merchant_zone_alloc_pattern ]
+
+      # 3A  SCHEMAS FOR ESCALATION QUEUE
+      - name: zone_escalation_queue_schema
+        path: schema/zone_escalation_queue.schema.json
+        type: schema
+        category: zone_allocation
+        semver: "{schema_semver}"
+        version: "{schema_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.3A.schema.zone_escalation_queue
+        license: "{spdx_or_internal}"
+        role: JSON Schema for escalation queue rows flagged by θ_mix checks.
+        dependencies: [ ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci, runtime ]
+        schema: null
+        cross_layer: false
+        notes: "Columns: merchant_id, reason, mix_score, threshold, created_at."
+
+      # 3A  DATASET PERSISTING THE ESCALATION QUEUE
+      - name: zone_escalation_queue_csv
+        path: artefacts/zone_alloc/escalation_queue_{run_id}.csv
+        type: dataset
+        category: zone_allocation
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.3A.output.zone_escalation_queue
+        license: "{spdx_or_internal}"
+        role: Snapshot of merchants requiring manual review due to θ_mix threshold.
+        dependencies: [ zone_mixture_policy, merchant_zone_alloc_pattern, zone_escalation_queue_schema ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: zone_escalation_queue_schema
+        cross_layer: true
+        notes: "Materialised for audit; compared by ci/tests/test_mix_threshold.py."

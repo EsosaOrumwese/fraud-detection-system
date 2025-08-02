@@ -626,3 +626,28 @@ subsegments:
         schema: null
         cross_layer: true
         notes: null
+
+      # 4A — REGISTRY LOCK
+      - name: registry_lock_manifest
+        path: artefacts/manifests/registry_lock_{date}.json
+        type: manifest
+        category: reproducibility
+        semver: "{semver}"
+        version: "{date}"
+        digest: "{sha256}"
+        manifest_key: mlr.4A.manifest.registry_lock
+        license: "{spdx_or_internal}"
+        role: Frozen snapshot of all artefact registries (1A–4B) and key cross-layer digests.
+        dependencies:
+          - artefact_registry                 # the consolidated YAML
+          - build_manifest                    # existing 4A roll-up
+          - validator_build_manifest          # 4B env+container lock
+          - tz_polygon_digest                 # 2A
+          - tz_index_digest                   # 2A
+          - civil_time_manifest               # 2A
+          - zoneinfo_digest                   # 2A→4B cross-layer
+        source: internal
+        owner: { platform_team }
+        environment: [ ci, runtime ]
+        cross_layer: true
+        notes: "Any change to registries or cross-layer digests requires a break-glass."

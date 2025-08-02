@@ -258,6 +258,25 @@ subsegments:
         cross_layer: false
         notes: null
 
+      - name: zoneinfo_digest
+        path: artefacts/manifests/zoneinfo_digest.txt
+        type: manifest
+        category: runtime_environment
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.manifest.zoneinfo_digest
+        license: "{spdx_or_internal}"
+        role: Digest of the zoneinfo build/version used by ZoneInfo for DST checks.
+        dependencies: [ zoneinfo_version ]   # already present in 2A
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: "Referenced by 4B structural/DST legality checks."
+
       - name: geometry_tolerance_policy
         path: config/numeric/geometry_tolerance_policy.yaml
         type: config
@@ -469,7 +488,7 @@ subsegments:
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
         schema: null
-        cross_layer: false
+        cross_layer: true
         notes: null
 
       - name: build_fingerprint_2A
