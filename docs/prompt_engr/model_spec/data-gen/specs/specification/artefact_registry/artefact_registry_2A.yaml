@@ -15,12 +15,12 @@ subsegments:
         manifest_key: mlr.1B.output.site_catalogue
         license: "{spdx_or_internal}"
         role: Site-catalogue rows from 1B (lat/lon, tzid, foot-traffic fields, provenance).
-        dependencies: [ ]
+        dependencies: [ site_catalogue_schema ]
         source: internal
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: schema/site_catalogue.avsc
+        schema: site_catalogue_schema
         cross_layer: true
         notes: null
   
@@ -216,7 +216,26 @@ subsegments:
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: schema/tz_overrides.avsc
+        schema: tz_overrides_schema
+        cross_layer: true
+        notes: null
+
+      - name: tz_overrides_schema
+        path: schema/tz_overrides.avsc
+        type: schema
+        category: timezone
+        semver: "{semver}"
+        version: "{schema_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.schema.tz_overrides
+        license: "{spdx_or_internal}"
+        role: "Schema for tz_overrides rows."
+        dependencies: [ ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ dev, staging, prod ]
+        schema: null
         cross_layer: true
         notes: null
 
@@ -431,7 +450,7 @@ subsegments:
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
         schema: null
-        cross_layer: false
+        cross_layer: true
         notes: null
 
       - name: tz_index_digest
@@ -450,7 +469,7 @@ subsegments:
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
         schema: null
-        cross_layer: false
+        cross_layer: true
         notes: null
 
       - name: tzid_insertion_order
@@ -482,7 +501,7 @@ subsegments:
         manifest_key: mlr.2A.manifest.civil_time
         license: "{spdx_or_internal}"
         role: Captures seed, tz_polygon & tz_index digests, tz_nudge digest, tzdata archive & horizon digests, and tz_cache_bytes.
-        dependencies: [ spatial_manifest, tz_polygon_digest, tz_index_digest, tz_nudge_policy, tzdata_archive_2025a, simulation_horizon, timetable_cache, zoneinfo_version ]
+        dependencies: [ spatial_manifest, tz_polygon_digest, tz_index_digest, tz_nudge_policy, tzdata_archive_2025a, simulation_horizon, timetable_cache, zoneinfo_version, zoneinfo_digest ]
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
