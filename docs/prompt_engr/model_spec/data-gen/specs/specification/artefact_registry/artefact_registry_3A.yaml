@@ -3,9 +3,7 @@ subsegments:
     name: "Capturing Cross‑Zone Merchants"
     artifacts:
 
-      # ──────────────────────────────
       # 1 · CROSS‑LAYER INPUT
-      # ──────────────────────────────
       - name: site_catalogue
         path: data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
         type: dataset
@@ -15,19 +13,17 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.1B.output.site_catalogue
         license: "{spdx_or_internal}"
-        role: Outlet stubs with tzid and foot‑traffic scalars (needed for zone splitting).
+        role: Site-catalogue rows from 1B (coords, tzid, footfall, provenance) for zone splitting
         dependencies: []
         source: internal
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: outlet_stub_schema
+        schema: site_catalogue_schema
         cross_layer: true
         notes: null
 
-      # ──────────────────────────────
       # 2 · GOVERNING CONFIG BLOBS
-      # ──────────────────────────────
       - name: zone_mixture_policy
         path: config/zone/zone_mixture_policy.yml
         type: config
@@ -94,7 +90,7 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.ref.geo.country_major_zone
         license: CC‑BY‑4.0
-        role: Mapping ISO → major time‑zone used for zone_floor enforcement.
+        role: Mapping ISO → major time‑zone used for zone_floor enforcement.
         dependencies: []
         source: external
         owner: { data_governance_team }
@@ -142,9 +138,7 @@ subsegments:
         cross_layer: true
         notes: null
 
-      # ─────────────────────────────────────────────
       # 3 · PER‑MERCHANT ZONE‑ALLOCATION OUTPUTS
-      # ─────────────────────────────────────────────
       - name: merchant_zone_alloc_pattern
         path: artefacts/zone_alloc/output/{merchant_id}_zone_alloc.parquet
         type: dataset
@@ -207,9 +201,7 @@ subsegments:
         cross_layer: true
         notes: null
 
-      # ─────────────────────────────────────────────
       # 4 · MANIFESTS & PROVENANCE
-      # ─────────────────────────────────────────────
       - name: allocation_manifest
         path: artefacts/manifests/allocation_manifest.json
         type: manifest
@@ -297,9 +289,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # ─────────────────────────────────────────────
       # 6 · GOVERNED CODE & HELPER SCRIPTS
-      # ─────────────────────────────────────────────
       - name: make_zone_alphas_py
         path: src/zone/make_zone_alphas.py
         type: code
@@ -338,9 +328,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # ─────────────────────────────────────────────
       # 7 · CI/UNIT/INTEGRATION TESTS
-      # ─────────────────────────────────────────────
       - name: test_mix_threshold_py
         path: ci/tests/test_mix_threshold.py
         type: ci_test
@@ -417,9 +405,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # ─────────────────────────────────────────────
       # 8 · METRICS & VISUALISATIONS
-      # ─────────────────────────────────────────────
       - name: barcode_heatmap_png
         path: artefacts/metrics/barcode_heatmap_{run_id}.png
         type: documentation
@@ -439,9 +425,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # ─────────────────────────────────────────────
       # 9 · DOCUMENTATION / PROOFS
-      # ─────────────────────────────────────────────
       - name: round_ints_md
         path: docs/round_ints.md
         type: documentation
@@ -480,9 +464,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      # ─────────────────────────────────────────────
       # 10 · ERROR / EXCEPTION CONTRACTS
-      # ─────────────────────────────────────────────
       - name: UniverseHashError
         path: null
         type: exception
@@ -538,4 +520,22 @@ subsegments:
         environment: [ dev, ci, runtime ]
         schema: null
         cross_layer: false
+        notes: null
+        
+      - name: allocation_licenses_dir
+        path: LICENSES/
+        type: directory
+        category: licensing
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256_tree}"
+        manifest_key: mlr.3A.licenses
+        license: "SEE-FILES"
+        role: SPDX texts for any external refs used in zone allocation (e.g., geo refs).
+        dependencies: [ ]
+        source: internal
+        owner: { legal_team }
+        environment: [ ci, runtime ]
+        schema: null
+        cross_layer: true
         notes: null

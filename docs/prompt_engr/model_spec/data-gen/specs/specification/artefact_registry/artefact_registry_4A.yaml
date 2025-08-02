@@ -4,7 +4,7 @@ subsegments:
     artifacts:
 
       # 1 CONTAINER & BUILD PROVENANCE
-      - name: Dockerfile.lock
+      - name: Dockerfile_lock
         path: Dockerfile.lock
         type: manifest
         category: reproducibility
@@ -23,7 +23,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      - name: pipeline_launcher.sh
+      - name: pipeline_launcher
         path: ci/pipeline_launcher.sh
         type: script
         category: ci
@@ -34,7 +34,7 @@ subsegments:
         license: "{spdx_or_internal}"
         role: Entrypoint that writes the initial build.manifest and kicks off validation jobs.
         dependencies:
-          - Dockerfile.lock
+          - Dockerfile_lock
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
@@ -43,7 +43,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      - name: validate_container_hash.yml
+      - name: validate_container_hash
         path: configs/ci/validate_container_hash.yml
         type: ci_test
         category: reproducibility
@@ -54,7 +54,7 @@ subsegments:
         license: "{spdx_or_internal}"
         role: GH-action that asserts built image digest == Dockerfile.lock.
         dependencies:
-          - Dockerfile.lock
+          - Dockerfile_lock
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
@@ -63,7 +63,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      - name: build.manifest
+      - name: build_manifest
         path: artefacts/manifests/build.manifest
         type: manifest
         category: reproducibility
@@ -74,8 +74,13 @@ subsegments:
         license: "{spdx_or_internal}"
         role: Aggregates git tree, container digest, param hash & all artefact digests.
         dependencies:
-          - pipeline_launcher.sh
-          - validate_container_hash.yml
+          - pipeline_launcher
+          - validate_container_hash
+          - spatial_write_manifest
+          - civil_time_manifest
+          - routing_manifest
+          - allocation_manifest
+          - virtual_manifest
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
@@ -85,7 +90,7 @@ subsegments:
         notes: null
 
       # 2 REGISTRY SCHEMA & LIVE INSTANCE
-      - name: artefact_registry.schema.json
+      - name: artefact_registry_schema
         path: configs/registry/artefact_registry.schema.json
         type: schema
         category: registry
@@ -104,7 +109,7 @@ subsegments:
         cross_layer: false
         notes: null
 
-      - name: artefact_registry.yaml
+      - name: artefact_registry
         path: configs/registry/artefact_registry.yaml
         type: config
         category: registry
@@ -115,12 +120,12 @@ subsegments:
         license: "{spdx_or_internal}"
         role: Live registry instance enumerated by loader; validated at runtime.
         dependencies:
-          - artefact_registry.schema.json
+          - artefact_registry_schema
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ ci, runtime ]
-        schema: artefact_registry.schema.json
+        schema: artefact_registry_schema
         cross_layer: false
         notes: null
 
@@ -141,7 +146,7 @@ subsegments:
         environment: [ ci, runtime ]
         schema: null
         cross_layer: false
-        notes: "Contains transaction_schema.avsc, site_catalogue.avsc, …"
+        notes: "Contains transaction_schema.avsc, site_catalogue.avsc, ..."
 
       # 3 REGISTRY TOOLING & CONSISTENCY CHECKS
       - name: artefact_loader_py
@@ -155,7 +160,7 @@ subsegments:
         license: "{spdx_or_internal}"
         role: Parses registry YAML, validates against schema, loads into memory.
         dependencies:
-          - artefact_registry.schema.json
+          - artefact_registry_schema
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
@@ -173,9 +178,9 @@ subsegments:
         digest: "{git_tree_hash}"
         manifest_key: mlr.4A.code.compare_registry
         license: "{spdx_or_internal}"
-        role: Diffs two registry YAMLs → JSON patch; fails if undeclared change.
+        role: Diffs two registry YAMLs -> JSON patch; fails if undeclared change.
         dependencies:
-          - artefact_registry.yaml
+          - artefact_registry
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
@@ -195,7 +200,7 @@ subsegments:
         license: "{spdx_or_internal}"
         role: Bash helper that appends new dataset block + re-hashes registry.
         dependencies:
-          - artefact_registry.yaml
+          - artefact_registry
         source: internal
         owner: { data_ops_team }
         last_updated: "{iso8601_timestamp}"
@@ -205,7 +210,7 @@ subsegments:
         notes: null
 
       # 4 DATASET CATALOG & DDL GOVERNANCE
-      - name: dataset_catalog.ddl.sql
+      - name: dataset_catalog
         path: db/dataset_catalog.ddl.sql
         type: code
         category: catalog_schema
@@ -553,7 +558,7 @@ subsegments:
         license: "{spdx_or_internal}"
         role: Uploads build.manifest + registry digest to Hashgate notarisation.
         dependencies:
-          - build.manifest
+          - build_manifest
         source: internal
         owner: { sre_team }
         last_updated: "{iso8601_timestamp}"
