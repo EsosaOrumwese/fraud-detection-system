@@ -50,7 +50,7 @@ subsegments:
         semver: "{semver}"
         version: "{vintage}"
         digest: "{sha256}"
-        manifest_key: cdn_country_weights_digest
+        manifest_key: mlr.2B.ref.cdn_country_weights
         license: "CC-BY-4.0"
         role: "Stationary CDN edge country weights (Akamai State of the Internet)."
         dependencies: [ ]
@@ -69,7 +69,7 @@ subsegments:
         semver: "{semver}"
         version: "{config_version}"
         digest: "{sha256}"
-        manifest_key: cdn_weights_config_digest
+        manifest_key: mlr.2B.config.cdn_country_weights
         license: null
         role: "Thin wrapper referencing the external CDN weights (selection/mapping only)."
         dependencies:
