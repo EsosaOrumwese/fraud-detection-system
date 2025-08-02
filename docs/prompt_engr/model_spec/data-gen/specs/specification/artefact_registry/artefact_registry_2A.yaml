@@ -425,7 +425,7 @@ subsegments:
         manifest_key: mlr.2A.manifest.spatial
         license: "{spdx_or_internal}"
         role: Aggregated digests of all spatial artefacts.
-        dependencies: [ tz_world_shapefile_2025_shp, tzdata_archive_2025a ]
+        dependencies: [ tz_world_shapefile_2025_shp, tzid_insertion_order, tz_world_metadata, tzdata_archive_2025a ]
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
@@ -888,6 +888,7 @@ subsegments:
         dependencies: [ ]
         source: internal
         owner: { legal_team }
+        last_updated: "{iso8601_timestamp}"
         environment: [ ci, runtime ]
         schema: null
         cross_layer: true
