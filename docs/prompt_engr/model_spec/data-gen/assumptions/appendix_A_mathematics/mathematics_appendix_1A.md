@@ -57,6 +57,12 @@ $$
 
 Sampling is rejection of k=0 from standard Poisson until $k\ge 1$; cap = 64 attempts.
 
+> *Implementation note:* In the production build we parameterise
+> $\lambda_{\text{extra}} = \exp(\theta_0 + \theta_1 X)$
+> where $X$ is the smoothed openness index.
+> This log-link GLM replaces the earlier identity-link draft (λ = θ₀ + θ₁ log N) and guarantees λ > 0 while leaving the ZTP PMF and sampling logic unchanged.
+
+
 ### **A.4 Currency→Country Expansion**
 Let currency‑level settlement weights be $s^{(\text{ccy})}_j$, $\sum_j s^{(\text{ccy})}_j = 1$. For a multi‑country currency with member country set $C$ and proportional intra‑currency country weights $q_c$ (smoothed), define:
 
