@@ -24,7 +24,7 @@ GDP per capita (constant 2015 USD) values come from the World Bank “World Deve
 ### 3. Design Matrices & Model Forms
 
 **Hurdle Logistic:**
-Predictors = intercept + MCC dummies + channel dummies + developmental (GDP) bucket dummies. **The full hurdle coefficient vector \(\beta = (\beta_{0}, \beta_{\text{mcc}}, \beta_{\text{channel}}, \beta_{\text{dev}})\) is stored wholesale inside `hurdle_coefficients.yaml`; there is no separate external parameter (e.g. `γ_{dev}`) — ensuring a single provenance point for all logistic terms.
+Predictors = intercept + MCC dummies + channel dummies + developmental (GDP) bucket dummies. **The full hurdle coefficient vector $(\beta = (\beta_{0}, \beta_{\text{mcc}}, \beta_{\text{channel}}, \beta_{\text{dev}}))$ is stored wholesale inside `hurdle_coefficients.yaml`; there is no separate external parameter (e.g. `γ_{dev}`) — ensuring a single provenance point for all logistic terms.
 
 $$
 \pi = \sigma( \mathbf x^\top \beta)
@@ -74,6 +74,11 @@ Draws via Poisson–Gamma mixture. Rejection rule: if N ∈ {0,1} redraw until N
 ### 7. Zero‑Truncated Poisson for Foreign Country Count
 
 Only merchants that passed the hurdle and are designated to attempt cross‑border expansion enter this branch. K \~ ZTPoisson(λ\_extra) with λ\_extra = θ₀ + θ₁ log N (θ₁ < 1, Wald p-value < 1e−5; stored as `theta1_stats`). True zero‑truncation implemented by rejection sampling: draw from Poisson(λ\_extra) until k ≥1 (recording rejections). Hard cap: 64 rejections → abort (`ztp_retry_exhausted`). Targets: mean rejection count <0.05; p99.9 <3; violations abort.
+> *Implementation note:* In the production build we parameterise
+> $\lambda_{\text{extra}} = \exp(\theta_0 + \theta_1 X)$
+> where $X$ is the smoothed openness index.
+> This log-link GLM replaces the earlier identity-link draft (λ = θ₀ + θ₁ log N) and guarantees λ > 0 while leaving the ZTP PMF and sampling logic unchanged.
+
 
 ### 8. Currency → Country Expansion & Weights
 
