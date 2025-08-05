@@ -8,7 +8,7 @@ The generator ingests version‑tagged artefact bundles tracked under Git LFS:
 
 * `hurdle_coefficients.yaml` – logistic (hurdle) coefficients and NB mean coefficients.
 * `nb_dispersion_coefficients.yaml` – dispersion (φ) coefficients including GDP per‑capita term coefficient η.
-* `crossborder_hyperparams.yaml` – (θ₀, θ₁) for λ\_extra and Dirichlet concentration vectors α keyed by (home\_country, MCC, channel); includes `theta1_stats` (wald\_p\_value, ci\_lower, ci\_upper).
+* `crossborder_hyperparams.yaml` – `theta`: {`theta0`, `theta1_size`, `theta2_open`} for λ\_extra and Dirichlet concentration vectors α keyed by (home\_country, MCC, channel); includes `theta1_stats` (wald\_p\_value, ci\_lower, ci\_upper).
 * `artefacts/gdp/gdp_bucket_map_2024.parquet` – Jenks bucket mapping table.
 * `artefacts/network_share_vectors/settlement_shares_2024Q4.parquet` – currency‑level settlement share vectors (semver, SHA‑256 digest).
 * `artefacts/currency_country_split/ccy_country_shares_2024Q4.parquet` – intra‑currency proportional country splits (with per‑cell observation counts).
@@ -75,10 +75,11 @@ Draws via Poisson–Gamma mixture. Rejection rule: if N ∈ {0,1} redraw until N
 
 Only merchants that passed the hurdle and are designated to attempt cross‑border expansion enter this branch. K \~ ZTPoisson(λ\_extra) with λ\_extra = θ₀ + θ₁ log N (θ₁ < 1, Wald p-value < 1e−5; stored as `theta1_stats`). True zero‑truncation implemented by rejection sampling: draw from Poisson(λ\_extra) until k ≥1 (recording rejections). Hard cap: 64 rejections → abort (`ztp_retry_exhausted`). Targets: mean rejection count <0.05; p99.9 <3; violations abort.
 > *Implementation note:* In the production build we parameterise
-> $\lambda_{\text{extra}} = \exp(\theta_0 + \theta_1 X)$
-> where $X$ is the smoothed openness index.
+>  $\lambda_{\text{extra}} = \exp\!\bigl(\theta_0 + \theta_1 \log{N} + \theta_{2}X),\; 0 < \theta_1 < 1$
+> $N$ is the domestic-outlet count and $X$ is the openness index.
 > This log-link GLM replaces the earlier identity-link draft (λ = θ₀ + θ₁ log N) and guarantees λ > 0 while leaving the ZTP PMF and sampling logic unchanged.
-
+> •  Wald test confirms $0<\theta_1<1$ (sub-linear size elasticity) **and** $\theta_2>0$ (openness effect).
+> •  Quarterly drift gate checks both slopes; build fails if either CI excludes the previous estimate.
 
 ### 8. Currency → Country Expansion & Weights
 
