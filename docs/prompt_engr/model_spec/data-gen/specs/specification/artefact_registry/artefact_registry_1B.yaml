@@ -708,8 +708,8 @@ subsegments:
       notes: null
 
     # ----------- Remoteness (capital GC + optional network) -----------
-    - name: capital_points_ref
-      path: data/reference/capitals/{vintage}/capitals.csv
+    - name: capital_points_parquet
+      path: data/reference/capitals/{vintage}/capital_points_{vintage}.parquet
       type: reference
       category: spatial_reference
       semver: "{semver}"
@@ -717,7 +717,7 @@ subsegments:
       digest: "{reference_digest}"
       manifest_key: mlr.ref.capital_points
       license: "{spdx_or_internal}"
-      role: "Authoritative capital coordinates."
+      role: "Authoritative capital coordinates (admin primary preferred)."
       dependencies: [ ]
       source: external
       owner: "{data_governance_team}"
@@ -725,7 +725,7 @@ subsegments:
       environment: [ dev, staging, prod ]
       schema: null
       cross_layer: true
-      notes: null
+      notes: "Fields: iso2, role_type, primary_flag, lat, lon."
 
     - name: remoteness_method
       path: configs/spatial/remoteness_method.yaml

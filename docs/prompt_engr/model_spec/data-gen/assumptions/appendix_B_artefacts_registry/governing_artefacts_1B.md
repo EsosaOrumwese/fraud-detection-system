@@ -30,7 +30,7 @@ Below is a comprehensive registry of **all artefacts** in Sub‑segment 1B (�
 
 ### 6. Remoteness Proxies Artefacts
 
-* **`capitals_dataset_2024.parquet`** – Parquet of capital coordinates (ISO₂, `role_type`, `primary_flag`, lat, lon) with SHA‑256, used for Haversine distance.
+* **`capital_points_{vintage}.parquet`** – Parquet of capital coordinates (ISO2, `role_type`, `primary_flag`, lat, lon). SHA-256 is tracked in the artefact registry and in the release manifest; used for Haversine/remoteness calculations.
 * **OSM planet extract `.osm.pbf`** – Raw OSM snapshot (date‑stamped), SHA‑256‑pinned, source for the road graph.
 * **Contraction‑hierarchies graph** – Prebuilt road index with commit hash & build parameters, used for on‑network distance.
 

@@ -58,9 +58,11 @@ $$
 Sampling is rejection of k=0 from standard Poisson until $k\ge 1$; cap = 64 attempts.
 
 > *Implementation note:* In the production build we parameterise
-> $\lambda_{\text{extra}} = \exp(\theta_0 + \theta_1 X)$
-> where $X$ is the smoothed openness index.
+>  $\lambda_{\text{extra}} = \exp\!\bigl(\theta_0 + \theta_1 \log{N} + \theta_{2}X),\; 0 < \theta_1 < 1$
+> $N$ is the domestic-outlet count and $X$ is the openness index.
 > This log-link GLM replaces the earlier identity-link draft (λ = θ₀ + θ₁ log N) and guarantees λ > 0 while leaving the ZTP PMF and sampling logic unchanged.
+> •  Wald test confirms $0<\theta_1<1$ (sub-linear size elasticity) **and** $\theta_2>0$ (openness effect).
+> •  Quarterly drift gate checks both slopes; build fails if either CI excludes the previous estimate.
 
 
 ### **A.4 Currency→Country Expansion**
