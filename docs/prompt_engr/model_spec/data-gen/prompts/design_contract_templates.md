@@ -15,7 +15,7 @@
       └─ performance.<ID>.yaml
       ↓
 4. maths → machine bridge
-      ├─ mathematics_appendix_<ID>.txt   (human, already written)
+      ├─ mathematics_appendix_<ID>.txt   (human, already written. You might replace this with algorithmic logic)
       ├─ function_registry.<ID>.yaml
       └─ parameter_dictionary.<ID>.yaml
       ↓
@@ -102,8 +102,57 @@ Let me know if you need a minimal, "blank" template (for bootstrapping), or a fu
 | `taxonomy.layer1.yaml`                           | Single enum list of log levels, event types, metric names—used by all stages.                                                                                   |
 | `layer1_merchant_location_realism.manifest.yaml` | Final lock-down: pins SHA-256 of every sub-segment contract, link contract, shared component, and governing artefact; downstream layers trust this single hash. |
 
-######################################################################################################
 
+### Expanded, step-by-step roadmap
+
+*(each step adds just enough detail so you know **what feeds what**, **who fills it**, and **why it must come before the next step**)*
+
+| #      | File(s) you create / finalise                         | Filled **from**                                                               | Key fields you must pin **now**                                            | Why the **next** step needs it                                                                      |
+| ------ | ----------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| **1**  | **`artefact_registry`**                               |  • design narrative • assumptions • governing YAML/CSV models                 | `artifact_id`, `digest_key`, `version/vintage`, `sha256`                   | Every downstream contract refers to artefacts by the *exact IDs* & digests registered here.         |
+| **2**  | **`dataset_dictionary.layer1.yaml`**                  |  • artefact registry (points to data files)<br> • prose describing outputs    | dataset ID, owner stage, path/prefix, `schema_ref` *placeholder*           | Gives each sub-segment a *canonical dataset name* to reference in its own `schemas.<ID>.yaml`.      |
+| **3a** | **`schemas.<ID>.yaml`** *(8 files)*                   |  • dataset dictionary row for that stage<br> • narrative (column list, types) | Column list, nullability, partitioning, ordering                           | Invariants need column names + semantics to write rules; logging needs required fields.             |
+| **3b** | **`invariants.<ID>.yaml`**                            |  • narrative rules<br> • maths appendix (tolerances)                          | invariant `id`, description, `expression.sql / py`, linked exception       | Tells logging which errors to emit; link-contracts use invariants to check cross-stage guarantees.  |
+| **3c** | **`rng_contract.<ID>.yaml`**                          |  • maths appendix algorithm steps<br> • assumptions on determinism            | seed fields, namespace, retry caps, required RNG events                    | Logging contract must list the same RNG events; invariant “required RNG audit events” points here.  |
+| **3d** | **`logging_contract.<ID>.yaml`**                      |  • rng\_contract (event list)<br> • invariants (error payload fields)         | path, rotation, `event_taxonomy` slice, payload schema, coverage rule      | Interface contract will embed a digest of this file; taxonomy will later deduplicate the enums.     |
+| **3e** | **`performance.<ID>.yaml`**                           |  • SRE notes / runbook                                                        | `batch_size_rows`, placeholder targets                                     | Interface contract pins perf spec; taxonomy lists metric names you declare here.                    |
+| **4**  | **`mathematics_appendix_<ID>.txt`** *(already exist)* | —                                                                             | —                                                                          | Function/parameter registries quote section numbers; invariants reference eq-IDs here.              |
+| **4a** | **`function_registry.<ID>.yaml`**                     |  • appendix sections A.\*                                                     | each `function.id`, inputs/outputs, RNG draws                              | Parameter dictionary checks that every symbol used here is defined.                                 |
+| **4b** | **`parameter_dictionary.<ID>.yaml`**                  |  • appendix equations                                                         | each symbol → artefact key / dataset.column                                | Interface contract “thin” form can avoid redeclaring mapping logic.                                 |
+| **5**  | **`interface_contract.<ID>.yaml`** *(thin)*           |  • digests of *all* files from steps 2-4                                      | `components.*.sha256`, upstream/downstream dataset refs                    | CI can rebuild and diff; link-contract generator needs both sides’ interface files.                 |
+| **6**  | **`link_contract.<N→N+1>.yaml`** *(CI auto-gen)*      |  • schemas.N (egress) • schemas.N+1 (ingress)                                 | dataset name, column compat table, partition/ordering checks               | Manifest pins its digest to prove boundary compatibility at build time.                             |
+| **7a** | **`error_catalogue.layer1.yaml`**                     |  • invariants (exception names)<br> • logging payload schemas                 | `error.id`, code, message template, `must_include_fields`                  | Logging contracts must use these IDs; taxonomy links to `severity`.                                 |
+| **7b** | **`id_namespace_registry.layer1.yaml`**               |  • schemas (ID columns) • rng\_contracts                                      | bit-width, sequencing, derivation formula                                  | Downstream layers allocate new IDs without collision and reference upstream ones.                   |
+| **7c** | **`prior_library.layer1.yaml`**                       |  • maths appendix symbol tables<br> • artefact YAML/CSV containing priors     | distribution & hyper-params, artefact path                                 | Later behavioural layers reuse the same priors and track changes by digest.                         |
+| **7d** | **`taxonomy.layer1.yaml`**                            |  • logging contracts (event types)<br> • performance specs (metric names)     | canonical `event_types`, `metrics`, `log_levels` enums                     | Logging contract payload schemas must reference these enums; observability dashboards rely on them. |
+| **8**  | **`layer1_merchant_location_realism.manifest.yaml`**  |  • SHA-256 of every file from steps 1-7                                       | sub-segment digests, link-contract digests, component digests, bundle hash | Downstream layers pin **one** hash—the manifest’s bundle SHA-256—to trust all of Layer 1.           |
+
+---
+
+#### Populating order in practice
+
+1. **Fill artefact registry → dataset dictionary.**
+2. For each sub-segment, iterate through *schemas → invariants → RNG → logging → performance → maths bridges*.
+3. Generate interface contract, commit; CI then auto-generates link contract.
+4. When all eight stages pass CI, compile shared tables (error catalogue, ID registry, priors, taxonomy).
+5. Run final CI task that writes `layer1_…manifest.yaml` with every SHA-256 and blocks merge unless:
+
+   * all placeholder markers resolved (phase ≥ beta),
+   * every link contract passes,
+   * bundle hash computed and stored.
+
+Now Layer 1 is **frozen**; later layers reference only:
+
+```yaml
+depends_on:
+  layer: "merchant_location_realism"
+  manifest_sha256: "<pinned_bundle_hash>"
+```
+
+If any upstream spec changes, its SHA-256 changes, CI forces a manifest version bump, and downstream contracts refuse to build until they’re re-validated.
+
+######################################################################################################
+######################################################################################################
 ######################################################################################################
 
 ## `ARTEFACT_REGISTRY.yaml`
@@ -215,7 +264,7 @@ subsegments:
 
 
 ######################################################################################################
-
+######################################################################################################
 ######################################################################################################
 
 ## `DATASET_DICTIONARY.<LAYER-ID>.yaml` (layer scope))
@@ -320,7 +369,7 @@ waivers:
 
 
 ######################################################################################################
-
+######################################################################################################
 ######################################################################################################
 
 ## `SCHEMAS.<ID>.yaml`
@@ -636,7 +685,7 @@ validation:
 
 
 ######################################################################################################
-
+######################################################################################################
 ######################################################################################################
 
 ## `INVARIANTS.<ID>.yaml`
@@ -884,7 +933,7 @@ groups:
 
 
 ######################################################################################################
-
+######################################################################################################
 ######################################################################################################
 
 ## `RNG_CONTRACT.<ID>.yaml`
@@ -1286,7 +1335,7 @@ waivers:
 
 
 ######################################################################################################
-
+######################################################################################################
 ######################################################################################################
 
 ## `LOGGING_CONTRACT.<ID>.yaml`
@@ -2063,7 +2112,7 @@ You can keep **one `logging_contract.base.yaml`** and then per‑stage **overlay
 
 
 ######################################################################################################
-
+######################################################################################################
 ######################################################################################################
 
 ## `PERFORMANCE.<ID>.yaml`
@@ -2492,24 +2541,548 @@ waivers:
 
 
 ######################################################################################################
-
+######################################################################################################
 ######################################################################################################
 
-## `FUNCTION_REGISTRY.<ID>.yaml`
+## `FUNCTION_REGISTRY.<ID>.yaml` & `PARAMETER_DICTIONARY.<ID>.yaml`
+
+These “mathematics appendices” are exactly what most teams are missing: they’re the **computational source‑of‑truth** (formulae, distributions, parameter linkages, code refs). They shouldn’t be forced into the Interface‑Contract body; instead, keep them **as a separate, governed component** that other docs *reference and validate against*.
+
+Below is how I’d place and use them, plus a small set of templates so you can operationalize them in CI without rewriting the appendices.
+
+---
+
+#### Where they fit in the doc set
+
+Add a sixth component to the thin Interface Contract:
+
+```yaml
+components:
+  math_spec:
+    file: "mathematics_appendix_<ID>.txt"
+    sha256: null     # pinned by CI to catch drift
+    required: true
+```
+
+Then **link from other components to the math spec**:
+
+* **Invariants**: many rules are direct consequences of the math (e.g., NB multi must yield $N\ge2$; ZTP retry cap 64; LRR error bound $|n_i-w_iN|\le1$). Your 1A appendix states each of these explicitly, so invariants should cite those sections.&#x20;
+* **RNG**: required event sets and counter semantics fall out of the algorithmic steps listed in the appendices (e.g., hurdle→gamma→poisson→nb\_final→dirichlet, with `stream_jump` and `sequence_finalize`).&#x20;
+* **Logging**: payload fields and “must include” keys are enumerated in the math appendices for 1A/1B (e.g., `lambda_extra` for ZTP, Fenwick build fields, placement failure reasons).
+* **Schemas**: some field shapes/semantics are defined here (e.g., site‑ID sequencing, event\_time storage, fold bit, tz index digest).
+* **Validation/Perf**: acceptance envelopes come straight from the math (e.g., share convergence, barcode slope, router long‑run share/correlation checks, throughput thresholds).
+
+In short, the appendices become **normative** for algorithms and parameterization; the other specs are **contractual wrappers** that bind IO, determinism, logging, and SLOs to those algorithms.
+
+---
+
+#### What to *do* with the appendices (honest, practical plan)
+
+1. **Register them as governed artefacts**
+   Treat each appendix as a tracked input with a pinned digest. Put the filename and hash in your artefact registry and the Interface Contract’s `components.math_spec`. (You already do this rigorously elsewhere—apply the same pattern here.)
+
+2. **Derive two machine‑readable indices from them (lightweight, not rewrites):**
+
+   * **Function Registry**: one YAML per sub‑segment that catalogs *each function/computation* named in the appendix, with inputs/outputs, units, RNG consumption, code refs, and which invariants/log events it touches.
+   * **Parameter Dictionary**: a flat list of *symbols and parameters* appearing in the formulas, mapped to their **operational names** (dataset columns / YAML keys), with units and ranges.
+
+3. **Use CI to cross‑link**
+
+   * Every **invariant** must reference at least one function or parameter from the Function Registry.
+   * Every **logging event** must list its payload fields; CI checks those fields are mentioned in either the Function Registry or the appendix section it cites.
+   * Every **schema column** that originates from a formula (e.g., `event_time_utc`, `fold`, `site_id`) must have a back‑reference to the math that defines it.
+
+4. **Property tests from the math**
+   Write tiny deterministic vectors (or ranges) where the math implies a property (LRR sums to $N$; ZTP `k=0` never appears; alias sampling reproduces $p$ in long‑run; DST conversions obey the gap/fold rules). Those test recipes are already present in the appendices (often with exact equations and code pointers).
+
+---
+
+### A) Function Registry (per sub‑segment)
+
+Save as `function_registry.<ID>.yaml`
+
+```yaml
+version: "1.0"
+subsegment: { id: "TBD", name: "TBD" }
+math_spec_ref: { file: "mathematics_appendix_<ID>.txt", sha256: null }
+
+functions:
+  - id: "hurdle_logistic"
+    section_ref: "A.1"                     # points into the appendix
+    purpose: "Decide single vs multi-site"
+    code_refs: ["generator/hurdle.py:logit_decide"]
+    inputs:
+      - { name: "mcc", source: "ingress.merchant_core.mcc", dtype: "int|enum", units: null }
+      - { name: "channel", source: "ingress.merchant_core.channel", dtype: "enum", units: null }
+      - { name: "gdp_bucket", source: "artefact:gdp_bucket_map", dtype: "int", units: null }
+      - { name: "beta", source: "artefact:hurdle_coefficients", dtype: "vector<float64>", units: null }
+    outputs:
+      - { name: "pi", dtype: "float64", units: null }
+      - { name: "is_multi", dtype: "bool", units: null }
+    randomness:
+      draws: [{ dist: "Uniform(0,1)", count: 1, stream: "1A" }]
+      rejection: null
+    touches:
+      invariants: ["nb-multi-requires-N>=2"]
+      logging_events: ["hurdle_bernoulli"]
+      egress_columns: []
+    notes: "Logit with MCC/channel/dev dummies."
+```
+
+> You’ll add one entry per computation in each appendix: NB mixture, ZTP, Gumbel‑top‑k, Dirichlet, LRR, Fenwick scaling, Alias build/sample, TZ fold hashing, etc. The math already lists formulas and code refs (e.g., 1A A.1–A.12, 1B Sections 1–18, 2A A.1–A.10, 2B A.1–A.10, 3A A.1–A.12, 3B A.1–A.9, 4A/4B global constructs).
+
+### B) Parameter Dictionary (per sub‑segment)
+
+Save as `parameter_dictionary.<ID>.yaml`
+
+```yaml
+version: "1.0"
+subsegment: { id: "TBD", name: "TBD" }
+math_spec_ref: { file: "mathematics_appendix_<ID>.txt", sha256: null }
+
+parameters:
+  - symbol: "mu"
+    meaning: "NB mean"
+    appears_in: ["A.2"]
+    source_binding: { type: "artefact_or_model", name: "nb_dispersion_coefficients|mean_link" }
+    dtype: "float64"
+    units: null
+    valid_range: { min: 0.0, max: null }
+  - symbol: "phi"
+    meaning: "NB dispersion"
+    appears_in: ["A.2"]
+    source_binding: { type: "artefact_or_model", name: "nb_dispersion_coefficients|dispersion_link" }
+    dtype: "float64"
+    units: null
+    valid_range: { min: 0.0, max: null }
+  - symbol: "lambda_extra"
+    meaning: "ZTP Poisson rate"
+    appears_in: ["A.3"]
+    source_binding: { type: "derived", expression: "theta0 + theta1*log(N)" }
+    dtype: "float64"
+    units: null
+    valid_range: { min: 0.0, max: null }
+```
+
+> This resolves symbols (μ, ϕ, λ, α, κ, σ, etc.) to their operational names/locations so your schemas/invariants can point to the same objects the equations use. Examples exist across the appendices: NB links & mappings in 1A; Fenwick scaler $S$ and integer weights $\tilde w_i$ in 1B; DST fields in 2A; alias arrays in 2B; Dirichlet and floors in 3A; edge rounding $k_c$ in 3B; parameter‑hash/seed/jump in 4A/4B.
+
+---
+
+#### Why keep the appendices separate (and governed)
+
+* They already capture the **complete algorithmic sequence** per stage (e.g., 1A’s hurdle→NB→ZTP→Gumbel→Dirichlet→LRR→ID sequencing, with explicit logging schema). Folding that into the interface file would bloat it and risk drift.&#x20;
+* They contain **code paths** and **units** that are essential for reproducibility but don’t belong in IO contracts (e.g., Fenwick integer scaling $S$, polygon sampling, road proximity filters, attempt caps; alias build/save formats; RLE and fold hashing).
+* Validation math (e.g., share convergence, barcode slope, Beta intervals, GLM dispersion) is **global** and feeds your 4B validators; it’s better referenced once than repeated.
+
+---
+
+#### What CI can automate directly from these appendices
+
+* **Coverage check:** Every function in the appendix must appear in `function_registry.<ID>.yaml`; warn on gaps (you said 90% confident—this quantifies the remaining 10%).
+* **Binding check:** Every parameter symbol used in any function must appear in the **Parameter Dictionary** with a bound source (dataset column, artefact key, or derived expression).
+* **Interface link:** Each invariant in `invariants.<ID>.yaml` must cite `functions[*].id` and/or `parameters[*].symbol` that justify the rule.
+* **Logging link:** For every mandated event in the appendix, assert a matching entry in `logging_contract.<ID>.yaml` with required payload fields (e.g., `lambda_extra` for ZTP; `fenwick_build` fields; `routing_checksum`).
+* **Golden properties:** Auto‑run micro tests derived from the math (e.g., ZTP never yields 0; LRR sums to $N$; `event_time_utc` calculation; fold bit parity; alias long‑run shares).
+
+---
+
+#### If you want, I can convert one appendix into a Function Registry now
+
+For example, I can turn **1A** into a `function_registry.1A.yaml` with entries for:
+
+* `hurdle_logistic` (A.1), `nb_mixture` (A.2), `ztp_poisson` (A.3), `ccy_to_country` (A.4), `gumbel_topk` (A.5), `dirichlet_draw` (A.6), `largest_remainder_round` (A.7), `site_id_sequence` (A.8), `manifest_param_hash` (A.9), `seed_counter_map` (A.10), `lineage_policy` (A.11), and the **event taxonomy** linkage (A.12).&#x20;
+
+That would give you a concrete example to pattern‑match across 1B–4B and immediately highlight any missing parameters or unbound symbols.
+
+---
+
+#### Bottom line
+
+* Keep the appendices **as they are**—they’re the **math‑normative spec**.
+* Add **two small, machine‑readable indices** (Function Registry + Parameter Dictionary) per sub‑segment that *point back* to the appendix and *bind* symbols to operational names.
+* Reference the appendix from the Interface Contract as a **component with a pinned digest**, and wire CI to check coverage and consistency across **schemas, invariants, RNG, logging, and performance**.
+
+### Minimal Stubs
+Great—here’s a **practical stub** for one sub‑segment (**2B – Routing transactions through sites**) showing both files you asked for. I kept them tight but useful: each function lists inputs/outputs and where randomness/logging is involved; each symbol in the parameter dictionary is bound to a source or config. After the YAML, I’ve added short grounding notes so you can verify against the appendix quickly.
+
+---
+
+#### `function_registry.2B.yaml` (stub)
+
+```yaml
+version: "1.0"
+subsegment: { id: "2B", name: "Routing transactions through sites" }
+math_spec_ref: { file: "mathematics_appendix_2B.txt", sha256: null }
+
+functions:
+
+  - id: "weight_normalization"
+    section_ref: "A.1"
+    purpose: "Turn raw site weights F into a probability vector p"
+    code_refs: ["router/io.py:load_weights"]
+    inputs:
+      - { name: "F", source: "artefacts/site_catalogue.parquet", dtype: "float64[]" }
+    outputs:
+      - { name: "p", dtype: "float64[]", semantics: "normalized weights (sum=1)" }
+      - { name: "W", dtype: "float64", semantics: "sum(F)" }
+    randomness: { draws: [], rejection: null }
+    touches:
+      invariants: ["no_zero_weight_distribution?"]
+      logging_events: []
+      egress_columns: []
+    notes: "Abort if W==0 via RoutingZeroWeightError"
+
+  - id: "build_alias_table"
+    section_ref: "A.2"
+    purpose: "Build Vose alias arrays for O(1) sampling"
+    code_refs: ["router/alias.py:build_alias_table"]
+    inputs:
+      - { name: "p", source: "weight_normalization", dtype: "float64[]" }
+    outputs:
+      - { name: "prob", dtype: "uint32[]"}
+      - { name: "alias", dtype: "uint32[]"}
+      - { name: "alias_npz_path", dtype: "path" }
+    randomness: { draws: [], rejection: null }
+    touches:
+      invariants: []
+      logging_events: []
+      egress_columns: []
+
+  - id: "corporate_day_effect"
+    section_ref: "A.3"
+    purpose: "Daily log‑normal multiplier γ_d for cross‑zone co‑movement"
+    code_refs: ["router/seed.py:derive_philox_seed", "router/prng.py:get_uniform"]
+    inputs:
+      - { name: "global_seed", source: "manifest", dtype: "bytes" }
+      - { name: "merchant_id", source: "ingress", dtype: "int64" }
+      - { name: "sigma_gamma_sq", source: "config/routing/routing_day_effect.yml", dtype: "float64" }
+    outputs:
+      - { name: "gamma_d", dtype: "float64", semantics: "lognormal multiplier" }
+    randomness:
+      draws:
+        - { dist: "Uniform(0,1)", count: 1, stream: "philox", counter: "0 per day" }
+      rejection: null
+    touches:
+      invariants: []
+      logging_events: []
+      egress_columns: []
+
+  - id: "sample_site_alias"
+    section_ref: "A.4"
+    purpose: "O(1) site sampling using alias arrays"
+    code_refs: ["router/sampler.py:sample_site"]
+    inputs:
+      - { name: "prob", source: "build_alias_table", dtype: "uint32[]" }
+      - { name: "alias", source: "build_alias_table", dtype: "uint32[]" }
+      - { name: "N_m", source: "derived(len(prob))", dtype: "int32" }
+      - { name: "day_index", source: "clock", dtype: "int32" }
+      - { name: "i", source: "internal_counter", dtype: "int64" }
+    outputs:
+      - { name: "site_index", dtype: "int32" }
+      - { name: "site_id", dtype: "int64" }
+    randomness:
+      draws:
+        - { dist: "Uniform(0,1)", count: 1, counter: "d+1+i" }
+      rejection: null
+    touches:
+      invariants: []
+      logging_events: ["alias_sample"]
+      egress_columns: []
+
+  - id: "sample_cdn_country"
+    section_ref: "A.5/A.12"
+    purpose: "Alias sampling over CDN country weights for virtual merchants"
+    code_refs: ["router/alias.py:build_alias_table","router/sampler.py:sample_cdn_country"]
+    inputs:
+      - { name: "Q", source: "config/routing/cdn_country_weights.yaml", dtype: "float64[]" }
+    outputs:
+      - { name: "ip_country_code", dtype: "string" }
+    randomness:
+      draws:
+        - { dist: "Uniform(0,1)", count: 1 }
+      rejection: null
+    touches:
+      invariants: []
+      logging_events: ["cdn_alias_sample"]
+      egress_columns: []
+
+  - id: "audit_checksum"
+    section_ref: "A.6"
+    purpose: "Batch checksum over cumulative counts"
+    code_refs: ["router/audit.py:emit_checksum"]
+    inputs:
+      - { name: "merchant_id", source: "ingress", dtype: "int64" }
+      - { name: "batch_index", source: "internal", dtype: "int64" }
+      - { name: "C", source: "router state (cumulative counts)", dtype: "uint64[]" }
+    outputs:
+      - { name: "checksum", dtype: "char(64)" }
+    randomness: { draws: [], rejection: null }
+    touches:
+      invariants: []
+      logging_events: ["routing_batch_checksum"]
+      egress_columns: []
+
+  - id: "validation_metrics_longrun"
+    section_ref: "A.7/A.14"
+    purpose: "Long‑run share deviation and hour‑corr checks"
+    code_refs: ["router/validation.py:run_checks"]
+    inputs:
+      - { name: "C", source: "counts", dtype: "int64[]" }
+      - { name: "p", source: "weight_normalization", dtype: "float64[]" }
+      - { name: "epsilon_p", source: "routing_validation.yml", dtype: "float64" }
+      - { name: "rho_star", source: "routing_validation.yml", dtype: "float64" }
+    outputs:
+      - { name: "assertion_status", dtype: "bool" }
+    randomness: { draws: [], rejection: null }
+    touches:
+      invariants: ["share_deviation_within_epsilon","hourly_corr_within_epsilon"]
+      logging_events: ["validation_failed?"]
+      egress_columns: []
+
+  - id: "guard_zero_weight"
+    section_ref: "A.8"
+    purpose: "Abort if total weight W==0"
+    code_refs: ["router/errors.py:check_zero_weight"]
+    inputs:
+      - { name: "W", source: "weight_normalization", dtype: "float64" }
+    outputs: []
+    randomness: { draws: [], rejection: null }
+    touches:
+      invariants: ["no_zero_weight_distribution"]
+      logging_events: ["routing_error"]
+
+  - id: "perf_metrics"
+    section_ref: "A.9"
+    purpose: "Emit throughput (MB/s) and memory (GB)"
+    code_refs: ["router/metrics.py"]
+    inputs:
+      - { name: "bytes_routed", source: "router", dtype: "uint64" }
+      - { name: "elapsed_seconds", source: "clock", dtype: "float64" }
+    outputs:
+      - { name: "TP_MBps", dtype: "float64" }
+      - { name: "Mem_GB", dtype: "float64" }
+    randomness: { draws: [], rejection: null }
+    touches:
+      invariants: []
+      logging_events: ["metrics"]
+
+  - id: "manifest_and_artifact_governance"
+    section_ref: "A.10"
+    purpose: "Compute and enforce routing manifest digest"
+    code_refs: ["router/manifest.py"]
+    inputs:
+      - { name: "artefact_list", source: "routing_manifest.json", dtype: "list<path>" }
+    outputs:
+      - { name: "routing_manifest_digest", dtype: "char(64)" }
+    randomness: { draws: [], rejection: null }
+    touches:
+      invariants: ["manifest_digest_present"]
+      logging_events: []
+
+  - id: "scaled_threshold_lookup"
+    section_ref: "A.11"
+    purpose: "Scale acceptance threshold per group without alias rebuild"
+    code_refs: ["router/sampler.py:sample_site (mode: scaled_threshold)"]
+    inputs:
+      - { name: "gamma_d", source: "corporate_day_effect", dtype: "float64" }
+      - { name: "group", source: "tz_cluster", dtype: "id" }
+    outputs:
+      - { name: "site_index", dtype: "int32" }
+    randomness:
+      draws:
+        - { dist: "Uniform(0,1)", count: 1 }
+      rejection: null
+    touches:
+      invariants: []
+      logging_events: ["alias_sample"]
+
+  - id: "routing_audit_log_schema"
+    section_ref: "A.13"
+    purpose: "Define required audit fields and ordering constraints"
+    code_refs: ["router/audit.py:append_event"]
+    inputs: []
+    outputs: []
+    randomness: { draws: [], rejection: null }
+    touches:
+      invariants: ["required_audit_fields_present","event_ordering_monotone"]
+      logging_events: ["routing_batch_checksum","routing_error","OOM"]
+
+  - id: "license_and_provenance_enforcement"
+    section_ref: "A.15"
+    purpose: "Verify LICENSE digests for all governed inputs"
+    code_refs: ["router/license_check.py:verify"]
+    inputs:
+      - { name: "LICENSES/*", source: "repo", dtype: "path[]" }
+    outputs:
+      - { name: "license_check_status", dtype: "bool" }
+    randomness: { draws: [], rejection: null }
+    touches:
+      invariants: ["license_digest_matches"]
+      logging_events: ["routing_error"]
+```
+
+---
+
+#### `parameter_dictionary.2B.yaml` (stub)
+
+```yaml
+version: "1.0"
+subsegment: { id: "2B", name: "Routing transactions through sites" }
+math_spec_ref: { file: "mathematics_appendix_2B.txt", sha256: null }
+
+parameters:
+  - symbol: "F_i"
+    meaning: "Raw foot-traffic/site weight for site i"
+    appears_in: ["A.1"]
+    source_binding: { type: "dataset", name: "artefacts/site_catalogue.parquet", column: "F" }
+    dtype: "float64"
+    units: null
+    valid_range: { min: 0.0, max: null }
+
+  - symbol: "W"
+    meaning: "Total raw weight"
+    appears_in: ["A.1","A.8"]
+    source_binding: { type: "derived", expression: "sum(F_i)" }
+    dtype: "float64"
+    units: null
+    valid_range: { min: 0.0, max: null }
+
+  - symbol: "p_i"
+    meaning: "Normalized site probability"
+    appears_in: ["A.1","A.2","A.4"]
+    source_binding: { type: "derived", expression: "F_i / W" }
+    dtype: "float64"
+    units: null
+    valid_range: { min: 0.0, max: 1.0 }
+
+  - symbol: "N_m"
+    meaning: "Number of sites for merchant m"
+    appears_in: ["A.2","A.4"]
+    source_binding: { type: "derived", expression: "len(p)" }
+    dtype: "int32"
+    units: null
+    valid_range: { min: 1, max: null }
+
+  - symbol: "prob[k]"
+    meaning: "Alias acceptance threshold for index k"
+    appears_in: ["A.2","A.4"]
+    source_binding: { type: "artefact", name: "<merchant_id>_alias.npz:prob" }
+    dtype: "uint32"
+    units: null
+    valid_range: { min: 0, max: null }
+
+  - symbol: "alias[k]"
+    meaning: "Alias index for fallback when u<threshold fails"
+    appears_in: ["A.2","A.4"]
+    source_binding: { type: "artefact", name: "<merchant_id>_alias.npz:alias" }
+    dtype: "uint32"
+    units: null
+    valid_range: { min: 0, max: null }
+
+  - symbol: "u"
+    meaning: "Uniform(0,1) draw for sampling"
+    appears_in: ["A.4","A.11"]
+    source_binding: { type: "rng", name: "philox", stream: "router", counter: "d+1+i" }
+    dtype: "float64"
+    units: null
+    valid_range: { min: 0.0, max: 1.0 }
+
+  - symbol: "k"
+    meaning: "Floor(u*N_m) index"
+    appears_in: ["A.4","A.11"]
+    source_binding: { type: "derived", expression: "floor(u * N_m)" }
+    dtype: "int32"
+    units: null
+    valid_range: { min: 0, max: "N_m-1" }
+
+  - symbol: "f"
+    meaning: "Fractional part of u*N_m"
+    appears_in: ["A.4"]
+    source_binding: { type: "derived", expression: "u * N_m - k" }
+    dtype: "float64"
+    units: null
+    valid_range: { min: 0.0, max: 1.0 }
+
+  - symbol: "gamma_d"
+    meaning: "Corporate-day multiplier"
+    appears_in: ["A.3","A.11"]
+    source_binding: { type: "derived", expression: "exp(mu_gamma + sigma_gamma * Phi^{-1}(u_d))" }
+    dtype: "float64"
+    units: null
+    valid_range: { min: 0.0, max: null }
+
+  - symbol: "epsilon_p"
+    meaning: "Tolerance for share deviation"
+    appears_in: ["A.7","A.14"]
+    source_binding: { type: "config", name: "routing_validation.yml:epsilon_p" }
+    dtype: "float64"
+    units: null
+    valid_range: { min: 0.0, max: 0.1 }   # TBD exact bound
+
+  - symbol: "rho_star"
+    meaning: "Target hour-correlation between top-2 zones"
+    appears_in: ["A.7","A.14"]
+    source_binding: { type: "config", name: "routing_validation.yml:rho_star" }
+    dtype: "float64"
+    units: null
+    valid_range: { min: -1.0, max: 1.0 }
+
+  - symbol: "B"
+    meaning: "Batch size for checksum"
+    appears_in: ["A.6"]
+    source_binding: { type: "constant", name: "batch_events", value: 1000000 }
+    dtype: "int64"
+    units: "events"
+    valid_range: { min: 1, max: null }
+
+  - symbol: "routing_manifest_digest"
+    meaning: "SHA-256 digest of routing manifest"
+    appears_in: ["A.10","A.13"]
+    source_binding: { type: "manifest", name: "routing_manifest.json:digest" }
+    dtype: "char(64)"
+    units: null
+    valid_range: { min: null, max: null }
+
+  - symbol: "Q_k"
+    meaning: "CDN country probability for index k"
+    appears_in: ["A.5","A.12"]
+    source_binding: { type: "config", name: "config/routing/cdn_country_weights.yaml" }
+    dtype: "float64"
+    units: null
+    valid_range: { min: 0.0, max: 1.0 }
+```
+
+---
+
+#### Grounding notes (so you can cross‑check fast)
+
+* **A.1 – weight normalization** defines $F_i$, $W$, and $p_i=F_i/W$, and points to the zero‑weight guard (A.8).&#x20;
+* **A.2 – alias table** construction with `prob[]` and `alias[]` (`uint32`) and deterministic save to `<merchant_id>_alias.npz`.
+* **A.3 – corporate‑day effect**: Philox seed derivation, $u_d\in[0,1)$, $\gamma_d=\exp(\mu_\gamma+\sigma_\gamma\Phi^{-1}(u_d))$.&#x20;
+* **A.4 – outlet sampling**: $u\rightarrow k=\lfloor uN_m\rfloor$, fraction $f$, then compare to `prob[k]` or use `alias[k]`.&#x20;
+* **A.5/A.12 – CDN/virtual routing**: alias over $Q$ from `cdn_country_weights.yaml`, with event logging of selected `ip_country_code`.&#x20;
+* **A.6 – audit checksum**: SHA‑256 over `(merchant_id‖batch_index‖BE(C))`, batch size $B=10^6$, log to `routing_audit.log`.&#x20;
+* **A.7 – validation metrics** (long‑run share and hour‑corr); **A.14** maps to CI assertions and abort.&#x20;
+* **A.8 – zero‑weight error**: `RoutingZeroWeightError(merchant_id)` when $W=0$.&#x20;
+* **A.9 – performance metrics** specify throughput and memory with thresholds from config.
+* **A.10 – manifest governance**: artifact SHA‑256s and `routing_manifest_digest`; build abort on drift.&#x20;
+* **A.11 – scaled‑threshold**: per‑group scale $s_G$ and accept if $u<\text{prob}[k]\cdot s_G$ without alias rebuild.&#x20;
+* **A.13 – routing audit/event schema**: required fields and “mandatory” coverage rules.&#x20;
+
+---
+
+#### How to use these stubs
+* In CI, add **coverage checks**:
+
+  * Every `functions[*].section_ref` must exist in the appendix.
+  * Every symbol mentioned in any `functions[*].inputs/outputs` is present in the **parameter dictionary**.
+* As you tighten things, replace `null`/`TBD` and wire these into your **Interface Contract (v1.1)** via a `components.math_spec` pointer and digest pin.
+
 
 
 ######################################################################################################
-
 ######################################################################################################
-
-
-## `PARAMETER_DICTIONARY.<ID>.yaml`
-
-
 ######################################################################################################
-
-######################################################################################################
-
 
 ## `INTERFACE_CONTRACT.<ID>.yaml`
 
@@ -2739,12 +3312,760 @@ observability:
 No other logic changes. If you’d already generated stubs for 1A-4B, just extend the `components` block in each and let CI re-pin the new digests.
 
 
+######################################################################################################
+######################################################################################################
+######################################################################################################
+\
 
+## `LINK_CONTRACT.<N→N+1>.yaml`
+
+**Short take – your draft is *almost* there.**
+For a link-contract that CI can generate and downstream specs can trust you only need:
+
+* Both sub-segments’ **interface-contract digests** (not the raw schema digests) – that proves you compared *exact* contracts, not just the schema JSON chunks.
+* A **machine-readable diff block** so a failure tells engineers *why* the link broke.
+* A tiny **integrity section** (CI hashes the whole file) so the layer-manifest can pin it.
+
+Everything else in your stub is on the right track.
+Below is a tightened template that CI can produce automatically and that the layer-manifest can pin.
+
+---
+
+### Recommended `link_contract.<FROM>_to_<TO>.yaml` (v1.0)
+
+```yaml
+# link_contract.<FROM>_to_<TO>.yaml — CI-generated; do NOT hand-edit
+link_version: "1.0"
+
+boundary: "1B->2A"                  # human label
+generated_at: null                  # CI writes ISO-8601
+
+from:
+  id: "1B"
+  interface_contract: "interface_contract.1B.yaml"
+  sha256: null                      # digest of the entire interface contract
+  egress_ref: "schemas.1B.yaml#/egress/datasets"
+
+to:
+  id: "2A"
+  interface_contract: "interface_contract.2A.yaml"
+  sha256: null
+  ingress_ref: "schemas.2A.yaml#/ingress/datasets"
+
+# 1. Dataset & column compatibility map
+mapping:
+  datasets:
+    - from: "site_catalogue"        # dataset id as produced by 1B
+      to:   "site_catalogue_ingress" # dataset id expected by 2A
+      column_map:
+        site_id:          "site_id"
+        lat:              "lat"
+        lon:              "lon"
+        tzid_operational: "tzid_operational"
+      allowed_transforms:
+        - "partitioning_change"     # path/partition scheme may differ
+        - "ordering_change"         # sort order may differ
+      notes: null
+
+# 2. Invariant reconciliation
+invariants_reconciled:
+  - { id: "no_null_coords",    status: "satisfied" }
+  - { id: "iso2-codes-format", status: "satisfied" }
+  - { id: "tzid_present",      status: "satisfied" }
+
+# 3. Compatibility result
+compatibility_result:
+  status: "pass"                    # pass | fail
+  failures: []                      # on fail, CI lists mismatches here
+  warnings: []
+
+# 4. Integrity (CI fills; layer-manifest pins this hash)
+integrity:
+  sha256: null
+```
+
+#### Why this is “good enough”
+
+| Field                           | Reason                                                                                                                                         |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `interface_contract` + `sha256` | Proves which exact contract versions were compared; if either upstream or downstream changes, CI regenerates this file and the digest changes. |
+| `mapping.datasets[].column_map` | Minimal one-to-one map; if names match you can let CI generate an identity map automatically.                                                  |
+| `allowed_transforms`            | Keeps the link flexible (partitioning / ordering changes are benign; type changes are not).                                                    |
+| `invariants_reconciled`         | States which cross-boundary rules are upheld so downstream invariants don’t have to re-check.                                                  |
+| `compatibility_result`          | Single status + machine-readable lists of failures/warnings for CI logs.                                                                       |
+| `integrity.sha256`              | Layer-manifest pins this; any silent change breaks the bundle hash and fails the build.                                                        |
+
+---
+
+### CI workflow (fully automated)
+
+1. **After** both `interface_contract.<FROM>.yaml` and `interface_contract.<TO>.yaml` pass linting, the build script:
+
+   * loads the egress schema JSON from `<FROM>` and ingress schema JSON from `<TO>`,
+   * computes column/dataset diffs,
+   * writes this `link_contract.<FROM>_to_<TO>.yaml` with `status: pass` or `fail`,
+   * computes its own SHA-256 and inserts it in the file.
+2. The layer-manifest job then collects every link contract’s digest and pins them.
+3. **No human edits** – any manual change would alter the digest, break the manifest, and fail CI.
+
+
+######################################################################################################
+######################################################################################################
+######################################################################################################
+
+## `ERROR_CATALOGUE.LAYER1.yaml`
+```yaml
+# error_catalogue.layer1.yaml — global catalogue of all runtime exceptions & error codes for Layer 1
+version: "1.0"
+
+lifecycle:
+  phase: "planning"                 # planning | alpha | beta | stable
+  last_reviewed: null
+  approver: null
+
+ci_policy:
+  allow_placeholders: true
+  placeholder_markers: ["TBD", null]
+  block_on_phase: ["beta","stable"] # no TBD/null once the layer is ≥ beta
+
+layer:
+  id: "layer1"
+  name: "Merchant Location Realism"
+
+conventions:
+  code_format: "E{SubSeg}{3-digit}" # e.g., E1A001, E2B004 …
+  severity_enum: ["INFO","WARN","ERROR","FATAL"]
+  category_enum: ["structural","semantic","stochastic","system","infra","validation"]
+  message_template_style: "jinja2"  # {{field}} interpolation
+
+errors:
+
+  - id: "ZTPOissonRetryExhausted"
+    code: "TBD"                     # filled when approved, must respect code_format
+    originating_subsegment: "1A"
+    status: "proposed"              # proposed | approved | deprecated
+    severity: "ERROR"
+    category: "stochastic"
+    message_template: |
+      Exceeded {{cap_retries}} ZTP retries for merchant={{merchant_id}},
+      λ_extra={{lambda_extra}}, rejection_count={{rejection_count}}.
+    must_include_fields:
+      - "merchant_id"
+      - "lambda_extra"
+      - "rejection_count"
+    invariants_triggered: ["ztp-cap-64"]
+    logging_event: "ztp_retry_exhausted"
+    remediation: "Tune λ_extra or increase cap_retries; investigate parameter set."
+    doc_url: null
+
+  - id: "NBRejectionLoopViolation"
+    code: "TBD"
+    originating_subsegment: "1A"
+    status: "proposed"
+    severity: "ERROR"
+    category: "stochastic"
+    message_template: |
+      NB draw loop exceeded retry window for merchant={{merchant_id}},
+      draw={{raw_nb_outlet_draw}}, counter={{rejection_count}}.
+    must_include_fields: ["merchant_id","raw_nb_outlet_draw","rejection_count"]
+    invariants_triggered: ["nb-multi-requires-N>=2"]
+    logging_event: "routing_error"
+    remediation: "Inspect hurdle parameters and NB dispersion."
+    doc_url: null
+
+  # ── Add one block per distinct error across 1A … 4B ──
+  # Fields may be left null/TBD until phase ≥ alpha.
+
+groups:                # optional logical bundles
+  - id: "fatal_system_errors"
+    includes: ["CounterWrapError","RNGAuditMissingEvents"]
+
+integrity:
+  error_count: null         # CI fills → total number of error entries
+  sha256: null              # CI fills → hash of sorted JSON for drift control
+
+open_questions:
+  - id: "code-range-allocation"
+    note: "Reserve E3x*** for 3A & 3B? align with fraud layer?"
+    owner: "architecture"
+    due_by: null
+
+waivers:
+  - id: "placeholder-codes"
+    covers_errors: ["ZTPOissonRetryExhausted","NBRejectionLoopViolation"]
+    reason: "Codes to be assigned after RFC-013 approval"
+    expires_on: "2025-10-01"
+```
+
+### How this template is “done right”
+
+| Feature                                                  | Purpose                                                                               |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| **Layer-wide scope** & `originating_subsegment`          | Ensures every error is unique across 1A … 4B yet still traceable to its source stage. |
+| **Pinned digest via `integrity.sha256`**                 | CI can detect if anyone edits an error definition without a review bump.              |
+| **`must_include_fields`**                                | Aligns with logging contract so downstream replay code can rely on a stable payload.  |
+| **`invariants_triggered` + `logging_event` cross-links** | Guarantees invariants and audit logs stay consistent with the error catalogue.        |
+| **Lifecycle & waivers**                                  | Allows placeholders (`TBD`) during planning but blocks them at beta/stable.           |
 
 
 
 ######################################################################################################
+######################################################################################################
+######################################################################################################
 
+## `ID_NAMESPACE_REGISTRY.LAYER1.yaml`
+
+```yaml
+# id_namespace_registry.layer1.yaml — canonical registry of every identifier & RNG namespace in Layer 1
+version: "1.0"
+
+lifecycle:
+  phase: "planning"                 # planning | alpha | beta | stable
+  last_reviewed: null
+  approver: null
+
+ci_policy:
+  allow_placeholders: true
+  placeholder_markers: ["TBD", null]
+  block_on_phase: ["beta","stable"]   # no TBD/null once layer ≥ beta
+
+layer:
+  id: "layer1"
+  name: "Merchant Location Realism"
+
+# 1 ▪ Entity / Record Identifiers
+identifiers:
+
+  - id: "merchant_id"
+    status: "proposed"                # proposed | approved | deprecated
+    owner_subsegment: "seed_import"   # stage that first defines it
+    description: "Opaque 64-bit synthetic merchant identifier"
+    bit_width: 64
+    signed: false
+    uniqueness_scope: "global"        # global | per-X (specify)
+    sequencing:
+      strategy: "random"              # sequential | random | hash | ULID | other
+      algorithm: "philox-stream 0 seed=parameter_hash"   # if random/hash
+      collision_handling: "reject"    # reject | retry | modulo
+    format:
+      display: "decimal"              # decimal | hex | base32 | string
+      regex: "^[0-9]{1,20}$"
+    example: "123456789012"
+    pii: false
+    cross_layer: true                 # referenced outside Layer 1?
+    provenance_fields_in_schema: []   # dataset.column where it appears first
+    references:
+      datasets_produced: ["merchant_core"]
+      datasets_consumed: ["outlet_catalogue","routing_events"]
+      logging_fields: ["merchant_id"]
+      rng_streams: ["per-merchant"]
+    notes: null
+
+  - id: "site_id"
+    status: "proposed"
+    owner_subsegment: "1A"
+    description: "6-digit per-(merchant,legal_country) outlet sequence"
+    bit_width: 24                     # 6 decimal digits ≈ 2^20
+    signed: false
+    uniqueness_scope: "merchant+country"
+    sequencing:
+      strategy: "sequential"
+      start_at: 1
+      padding: 6
+      collision_handling: "abort"
+    format: { display: "string", regex: "^[0-9]{6}$" }
+    example: "000123"
+    cross_layer: true
+    provenance_fields_in_schema: ["outlet_catalogue.site_id"]
+    references:
+      datasets_produced: ["outlet_catalogue"]
+      datasets_consumed: ["site_catalogue","rng_audit_log"]
+      logging_fields: ["site_id"]
+      rng_streams: ["per-site"]
+    notes: null
+
+  # ── Add one block for each ID: edge_id (3B), tzlookup_id (2A), routed_tx_id (2B), validation_id (4B) etc. ──
+
+# 2 ▪ RNG & Counter Namespaces
+rng_namespaces:
+
+  - id: "1A"
+    status: "proposed"
+    description: "All Philox sub-streams for merchant→site generation"
+    counter_bits: 128
+    key_bits: 64
+    derivation:
+      namespace_string: "1A"
+      seed_fields: ["manifest_fingerprint","run_seed"]
+      variables: ["merchant_id"]
+      formula: "philox_key = first_64_le_bits(SHA256(namespace||merchant_id))"
+    jump_stride_source: "SHA256(namespace||merchant_id)[:16]"
+    audit_event_required: true        # stream_jump must be logged
+    required_event_set: ["hurdle_bernoulli","gamma_component","poisson_component","nb_final","stream_jump","sequence_finalize"]
+    notes: null
+
+  - id: "router"
+    status: "proposed"
+    description: "Per-merchant or per-merchant-per-day streams for alias sampling"
+    counter_bits: 128
+    key_bits: 64
+    derivation:
+      namespace_string: "2B-router"
+      seed_fields: ["parameter_hash","master_seed"]
+      variables: ["merchant_id","day_index"]
+      formula: "key = SHA256(ns || merchant_id || day_index)[:8]"
+    jump_stride_source: "SHA256(ns||merchant_id||day_index)[:16]"
+    audit_event_required: true
+    required_event_set: ["alias_sample","day_effect_draw","stream_jump"]
+    notes: null
+
+  # ── Add one block for each RNG namespace used across the layer ──
+
+# 3 ▪ Integrity & Governance
+integrity:
+  identifier_count: null              # CI fills
+  rng_namespace_count: null           # CI fills
+  sha256: null                        # digest of sorted JSON (identifiers+rng_namespaces)
+
+change_management:
+  requires:
+    - "increment id_namespace_registry.layer1.yaml version"
+    - "update ALL affected sub-segment contracts"
+    - "owner & architecture approval"
+
+open_questions:
+  - id: "edge_id-bitwidth"
+    note: "Decide 3B edge_id width (32 vs 48 bits)"
+    owner: "3B-design"
+    due_by: null
+
+waivers:
+  - id: "rng-namespace-review"
+    reason: "Namespace for validation layer still in flux"
+    expires_on: "2025-10-15"
+```
+
+### How this template is “production-ready”
+
+1. **Single source of truth** – every identifier & RNG namespace is declared exactly once.
+2. **Direct cross-links** – `references.datasets_produced / consumed / logging_fields / rng_streams` make CI verify that each ID really appears where declared.
+3. **Bit-width + sequencing rules** – prevents silent overflow or collision when new IDs are added.
+4. **Pinned integrity hash** – any change triggers a digest diff in the Layer Manifest, forcing review.
+5. **Lifecycle & waivers** – allows placeholders now, blocks them when the layer matures.
+
+######################################################################################################
+######################################################################################################
+######################################################################################################
+
+## `PRIOR_LIBRARY.LAYER1.yaml`
+```yaml
+# prior_library.layer1.yaml ── canonical index of every model prior / hyper-parameter
+# ────────────────────────────────────────────────────────────────────────────────
+#  PURPOSE
+#  • One per *layer* (not per stage) so later layers can import priors by ID.
+#  • Each entry names the symbol, its distribution or fixed value, where it comes
+#    from (artefact / config), and which functions in the Function Registry use it.
+#  • CI will hash this file; any change bumps layer-manifest version.
+# ────────────────────────────────────────────────────────────────────────────────
+version: "1.0"
+
+lifecycle:
+  phase: "planning"                 # planning | alpha | beta | stable
+  last_reviewed: null
+  approver: null
+
+ci_policy:
+  allow_placeholders: true          # `null` or "TBD" permitted while ≤ alpha
+  placeholder_markers: ["TBD", null]
+  block_on_phase: ["beta","stable"] # placeholders outlawed once ≥ beta
+
+layer:
+  id: "layer1"
+  name: "Merchant Location Realism"
+
+# ── GLOBAL METADATA ABOUT THE LIBRARY ───────────────────────────────────────────
+defaults:
+  dtype: "float64"
+  units: null
+  status: "proposed"                # proposed | approved | deprecated
+
+# ── LIST OF PRIORS / HYPER-PARAMETERS ──────────────────────────────────────────
+priors:
+
+  - id: "beta_hurdle"               # unique, camel_or_snake; referenced by code
+    symbol: "β"                     # TeX/Greek symbol (informational)
+    description: "Logistic-link coefficients for hurdle (single vs multi-site)"
+    originating_subsegment: "1A"
+    source:
+      type: "artefact"              # artefact | config | constant | derived
+      path: "hurdle_coefficients.yaml"
+      key: "beta_vector"
+    prior_type: "vector"
+    distribution: null              # fixed vector, so no prior distribution
+    shape: [K]                      # comment: K = number of MCC/channel dummies
+    dtype: "float64"
+    units: null
+    default_value: null
+    valid_range: null
+    used_by_functions: ["hurdle_logistic"]
+    status: "proposed"
+    last_updated: null
+    references:
+      math_sections: ["A.1"]
+      docs_url: null
+
+  - id: "phi_nb_dispersion"
+    symbol: "ϕ"
+    description: "Dispersion parameter for NB mixture in outlet count model"
+    originating_subsegment: "1A"
+    source:
+      type: "artefact"
+      path: "nb_dispersion_coefficients.yaml"
+      key: "phi"
+    prior_type: "scalar"
+    distribution:
+      name: "InverseGamma"
+      parameters: { alpha: 2.0, beta: 1.0 }   # p(ϕ) ∝ ϕ^{-α−1} e^{−β/ϕ}
+    dtype: "float64"
+    units: null
+    default_value: null
+    valid_range: { min: 0.0, max: null }
+    used_by_functions: ["nb_mixture"]
+    status: "proposed"
+    last_updated: null
+    references:
+      math_sections: ["A.2"]
+      docs_url: null
+
+  - id: "sigma_gamma_sq"
+    symbol: "σ_γ²"
+    description: "Variance of log-normal day-effect multiplier γ_d"
+    originating_subsegment: "2B"
+    source:
+      type: "config"
+      path: "config/routing/routing_day_effect.yml"
+      key: "sigma_gamma_sq"
+    prior_type: "scalar"
+    distribution:
+      name: "HalfNormal"
+      parameters: { scale: 0.5 }     # σ_γ ~ HalfNormal(0, 0.5)
+    dtype: "float64"
+    units: null
+    default_value: null
+    valid_range: { min: 0.0, max: 1.0 }
+    used_by_functions: ["corporate_day_effect"]
+    status: "proposed"
+    last_updated: null
+    references:
+      math_sections: ["A.3"]
+      docs_url: null
+
+  # ── Add one block for every prior / hyper-parameter referenced in Functions ──
+
+# ── INTEGRITY & GOVERNANCE ─────────────────────────────────────────────────────
+integrity:
+  prior_count: null                 # CI fills actual number of priors
+  sha256: null                      # CI fills digest of canonical JSON to detect drift
+
+change_management:
+  requires:
+    - "update Version or lifecycle.phase when priors change shape or distribution"
+    - "owner & architecture approval"
+
+open_questions:
+  - id: "rho_star_distribution"
+    note: "Should ρ* have Beta prior? pending Model RFC-017"
+    owner: "2B-modelling"
+    due_by: null
+
+waivers:
+  - id: "beta_hurdle-placeholder"
+    covers_priors: ["beta_hurdle"]
+    reason: "Final coefficients depend on MCC regrouping study"
+    expires_on: "2025-11-01"
+```
+
+### Template rationale (“why it’s built right”)
+
+| Design choice                                                   | Benefit                                                                                                            |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **Layer scope** (not per stage)                                 | Later layers need a single, stable library to import from; avoids duplication.                                     |
+| **`source` block**                                              | Explicitly binds each prior to an artefact/config/constant, so CI can hash-pin it and the code can load it by key. |
+| **`distribution` vs `default_value`**                           | Handles both true Bayesian priors (Inverse-Gamma, Half-Normal, Dirichlet) *and* fixed parameter vectors.           |
+| **Cross-refs to `function_registry` and maths section numbers** | Enables automated checks that every function’s parameters are defined, and vice-versa — no orphan symbols.         |
+| **Lifecycle + waivers**                                         | Lets you keep placeholders (`null`/`TBD`) in planning while enforcing completeness before β/stable.                |
+| **Global integrity hash**                                       | One digest for the whole file; pinned in the Layer-manifest so any silent change forces a review.                  |
+
+Copy this template, list every parameter from the maths appendices (NB μ/ϕ, ZTP λ\_extra, Dirichlet α\_i, LRR ε, fold hash constants, validation priors, etc.), and pin its SHA-256 in your layer-manifest.
+
+
+
+
+
+
+## `TAXONOMY.LAYER1.yaml`
+```yaml
+# taxonomy.layer1.yaml — central list of event-types, metrics, & log-levels for Layer 1
+# ────────────────────────────────────────────────────────────────────────────────
+#  PURPOSE
+#  • Eliminate drift: every sub-segment must use one of these canonical enums.
+#  • CI checks: Interface & Logging contracts reference ids defined here.
+#  • Layer-scope (one file) → future layers import & extend, never duplicate.
+# ────────────────────────────────────────────────────────────────────────────────
+version: "1.0"
+
+lifecycle:
+  phase: "planning"                   # planning | alpha | beta | stable
+  last_reviewed: null
+  approver: null
+
+ci_policy:
+  allow_placeholders: true
+  placeholder_markers: ["TBD", null]
+  block_on_phase: ["beta","stable"]   # placeholders outlawed once ≥ beta
+
+layer:
+  id: "layer1"
+  name: "Merchant Location Realism"
+
+# 1 ▪ Log-level Enum (shared across all sub-segments)
+log_levels: ["DEBUG","INFO","WARN","ERROR","FATAL"]
+
+# 2 ▪ Event-type Catalogue
+event_types:
+
+  - id: "hurdle_bernoulli"
+    status: "proposed"                # proposed | approved | deprecated
+    originating_subsegment: "1A"
+    severity: "INFO"                  # must be one of log_levels
+    description: "Bernoulli draw for single vs multi-site"
+    payload:
+      required_fields: ["merchant_id","pre_counter","post_counter","pi","outcome"]
+    references:
+      math_sections: ["1A A.1"]
+      logging_contract_ref: "logging_contract.1A.yaml#/event_taxonomy"
+
+  - id: "ztp_rejection"
+    status: "proposed"
+    originating_subsegment: "1A"
+    severity: "WARN"
+    description: "Rejected ZTP draw (k=0) before cap"
+    payload:
+      required_fields: ["merchant_id","lambda_extra","attempt"]
+    references:
+      math_sections: ["1A A.3"]
+
+  - id: "ztp_retry_exhausted"
+    status: "proposed"
+    originating_subsegment: "1A"
+    severity: "ERROR"
+    description: "Exceeded 64 ZTP retries"
+    payload:
+      required_fields: ["merchant_id","lambda_extra","rejection_count"]
+    references:
+      error_catalogue_ref: "error_catalogue.layer1.yaml#/errors/0"
+      invariants_ref:      "invariants.1A.yaml#/invariants/ztp-cap-64"
+
+  # ── Continue: gamma_component, nb_final, gumbel_key, dirichlet_gamma_vector,
+  #              stream_jump, sequence_finalize, fenwick_build, pixel_draw,
+  #              tz_lookup, alias_sample, routing_checksum, etc. ──
+
+# 3 ▪ Metrics Catalogue (names consumed by Prometheus / StatsD, etc.)
+metrics:
+
+  - name: "throughput_rows_per_sec"
+    status: "proposed"
+    originating_subsegment: "2B"
+    unit: "rows/sec"
+    description: "Router processed rows per second (1-minute EWMA)"
+    references:
+      performance_contract_ref: "performance.2B.yaml#/observability_metrics"
+
+  - name: "latency_ms_p99"
+    status: "proposed"
+    originating_subsegment: "2B"
+    unit: "ms"
+    description: "End-to-end p99 latency per batch"
+    references: {}
+
+  - name: "nb_rejection_rate_overall"
+    status: "proposed"
+    originating_subsegment: "1A"
+    unit: "ratio"
+    description: "Mean NB rejection count divided by total draws"
+    references:
+      logging_contract_ref: "logging_contract.1A.yaml#/observability"
+
+  # ── Add every metric referenced in performance.*.yaml or invariants.*.yaml ──
+
+# 4 ▪ Integrity & Governance
+integrity:
+  event_type_count: null          # CI fills
+  metric_count: null              # CI fills
+  sha256: null                    # CI fills canonical JSON digest
+
+change_management:
+  requires:
+    - "bump taxonomy.layer1.yaml version"
+    - "update affected logging_contracts & performance specs"
+    - "owner + architecture approval"
+
+open_questions:
+  - id: "metric-units-standard"
+    note: "Adopt Prometheus base units or keep free-form?"
+    owner: "observability"
+    due_by: null
+
+waivers:
+  - id: "sample-rate-metric-tbd"
+    covers_metrics: ["sample_rate_overall"]
+    reason: "Name may change after perf RFC"
+    expires_on: "2025-10-15"
+```
+
+### Why this template “gets it right”
+
+| Element                                                                               | Purpose                                                                                             |
+| ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| **Single list of `log_levels`**                                                       | All logging contracts must pick from this enum—no accidental `Info` vs `INFO`.                      |
+| **Event-type sections with `payload.required_fields`**                                | Guarantees every audit log event has a stable, agreed schema (CI validates).                        |
+| **Cross-references** (`logging_contract_ref`, `error_catalogue_ref`, `math_sections`) | Lets CI ensure every event & metric mentioned elsewhere is declared here, and vice-versa.           |
+| **Metrics catalogue** with `unit` and `description`                                   | Downstream monitoring dashboards can rely on consistent spelling and units.                         |
+| **Integrity hash**                                                                    | Pinned in the Layer-manifest so any silent rename or schema tweak breaks the build until reviewed.  |
+| **Lifecycle & waivers**                                                               | Enables placeholders (`TBD`) in planning, blocks them later, and lets you time-box undecided enums. |
+
+Copy this template, enumerate all event-types emitted by 1A…4B, and list every metric name referenced in your performance contracts or invariants. Pin the file’s SHA-256 in the Layer-manifest and your taxonomy is frozen for production.
+
+######################################################################################################
+######################################################################################################
 ######################################################################################################
 
 
+## `LAYER1_MERCHANT_LOCATION_REALISM.MANIFEST.yaml`
+```yaml
+# layer1_merchant_location_realism.manifest.yaml
+# ────────────────────────────────────────────────────────────────────────────────
+#  PRODUCTION-GRADE LAYER MANIFEST  (the final “lock-down” file)
+#
+#  • One file per layer.  Immutable after release; bump `manifest_version`
+#    for breaking changes.
+#  • CI populates every *_sha256 field with the canonical digest of the
+#    referenced file’s normalised JSON/YAML.
+#  • Down-stream layers pin just **one** value: this manifest’s sha-256.
+# ────────────────────────────────────────────────────────────────────────────────
+manifest_version: "1.0"
+
+layer:
+  id: "layer1"
+  name: "Merchant Location Realism"
+  owner: "TBD team/email"
+  doc_url: null
+  lifecycle_phase: "planning"         # planning | alpha | beta | stable
+  release_tag: null                   # set when phase ≥ beta (e.g., "v1.0.0")
+
+ci_policy:
+  # CI refuses to merge if any sha256 remains null when phase ≥ beta
+  enforce_sha256: ["beta","stable"]
+
+created_at: null                      # ISO-8601 (CI populates)
+created_by: null                      # build user / CI job id
+build_id: null                        # CI build identifier
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 1 ▪ Sub-segment Interface Contracts (authoritative)
+# ────────────────────────────────────────────────────────────────────────────────
+subsegments:
+  # id    contract file                      sha256 (CI fills)     contract_version
+  - { id: "1A", contract: "interface_contract.1A.yaml", sha256: null, version: null }
+  - { id: "1B", contract: "interface_contract.1B.yaml", sha256: null, version: null }
+  - { id: "2A", contract: "interface_contract.2A.yaml", sha256: null, version: null }
+  - { id: "2B", contract: "interface_contract.2B.yaml", sha256: null, version: null }
+  - { id: "3A", contract: "interface_contract.3A.yaml", sha256: null, version: null }
+  - { id: "3B", contract: "interface_contract.3B.yaml", sha256: null, version: null }
+  - { id: "4A", contract: "interface_contract.4A.yaml", sha256: null, version: null }
+  - { id: "4B", contract: "interface_contract.4B.yaml", sha256: null, version: null }
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 2 ▪ Cross-stage Link-Contracts (auto-generated by CI; prove compatibility)
+# ────────────────────────────────────────────────────────────────────────────────
+link_contracts:
+  - { boundary: "1A→1B", file: "link_contract.1A_to_1B.yaml", sha256: null }
+  - { boundary: "1B→2A", file: "link_contract.1B_to_2A.yaml", sha256: null }
+  - { boundary: "2A→2B", file: "link_contract.2A_to_2B.yaml", sha256: null }
+  - { boundary: "2B→3A", file: "link_contract.2B_to_3A.yaml", sha256: null }
+  - { boundary: "3A→3B", file: "link_contract.3A_to_3B.yaml", sha256: null }
+  - { boundary: "3B→4A", file: "link_contract.3B_to_4A.yaml", sha256: null }
+  - { boundary: "4A→4B", file: "link_contract.4A_to_4B.yaml", sha256: null }
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 3 ▪ Layer-wide Governed Components (single source shared by all stages)
+# ────────────────────────────────────────────────────────────────────────────────
+components:
+  dataset_dictionary:     { file: "dataset_dictionary.layer1.yaml",     sha256: null }
+  error_catalogue:        { file: "error_catalogue.layer1.yaml",        sha256: null }
+  id_namespace_registry:  { file: "id_namespace_registry.layer1.yaml",  sha256: null }
+  prior_library:          { file: "prior_library.layer1.yaml",          sha256: null }
+  taxonomy:               { file: "taxonomy.layer1.yaml",               sha256: null }
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 4 ▪ Governing Artefacts (human-readable docs & maths, immutable once pinned)
+# ────────────────────────────────────────────────────────────────────────────────
+governing_artefacts:
+  # filename                                 sha256 (CI fills)   owner_subsegment
+  - { file: "narrative_1A_merchants_to_physical sites_sub-segment.txt", sha256: null, subsegment: "1A" }
+  - { file: "assumptions_1A_merchants _to physical sites_sub-segment.txt", sha256: null, subsegment: "1A" }
+  - { file: "mathematics_appendix_1A.txt", sha256: null, subsegment: "1A" }
+  # … repeat for 1B … 4B
+  - { file: "mathematics_appendix_4B.txt", sha256: null, subsegment: "4B" }
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 5 ▪ Integrity Summary  (CI populates; diff detected → build fails)
+# ────────────────────────────────────────────────────────────────────────────────
+integrity:
+  subsegment_count: 8
+  link_contract_count: 7
+  component_count: 5
+  governing_artefact_count: null         # CI counts lines in `governing_artefacts`
+  bundle_sha256: null                    # hash of concatenated, sorted JSON of every pinned file
+
+# ────────────────────────────────────────────────────────────────────────────────
+# 6 ▪ Change-Management Rules
+# ────────────────────────────────────────────────────────────────────────────────
+change_management:
+  allowed_if:
+    - "manifest_version bumped (semver) OR lifecycle.phase changed forward"
+    - "all updated files have new sha256; CI link-contracts regenerated"
+  requires:
+    - "owner approval"
+    - "architecture sign-off"
+    - "updated release_tag when entering beta"
+
+open_questions:
+  - id: "link-contract-scope"
+    note: "Do we emit 4A→4B link if 4B only reads validation bundle?"
+    owner: "architecture"
+    due_by: null
+
+waivers:
+  - id: "component-placeholder-digests"
+    covers_components: ["prior_library","taxonomy"]
+    reason: "Files drafted; content review pending"
+    expires_on: "2025-10-15"
+```
+
+### Why this manifest *locks* Layer 1
+
+| Section                   | Guarantee                                                                                |
+| ------------------------- | ---------------------------------------------------------------------------------------- |
+| **Sub-segment list**      | Every Interface Contract is pinned by digest; any change forces a new manifest.          |
+| **Link-contracts**        | Cross-boundary compatibility proved *at build time*; downstream can rely on data shapes. |
+| **Components**            | Dataset dictionary, error catalogue, taxonomy, etc., frozen as a single hash.            |
+| **Governing artefacts**   | Narratives, assumptions, maths appendices immutable once released.                       |
+| **Bundle hash**           | One top-level SHA-256 covers *every* file listed; downstream only needs this value.      |
+| **Lifecycle / CI policy** | Placeholders allowed in planning, blocked from beta onward.                              |
+
+Pin this manifest’s `bundle_sha256` in your global pipeline build manifest; from that point, Layer 1 is reproducibly specified for production, and any drift will fail CI.
+
+######################################################################################################
+######################################################################################################
+######################################################################################################
