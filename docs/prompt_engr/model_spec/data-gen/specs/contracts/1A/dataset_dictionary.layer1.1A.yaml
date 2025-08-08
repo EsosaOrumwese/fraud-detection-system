@@ -314,7 +314,7 @@ datasets:
     version: "{manifest_fingerprint}"
     format: "parquet"
     path: "data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/"
-    partitioning: ["seed","manifest_fingerprint"]
+    partitioning: ["seed","fingerprint"]
     ordering: ["merchant_id","legal_country_iso","tie_break_rank"]
     schema_ref: "schemas.1A.yaml#/egress/outlet_catalogue"
     lineage:
@@ -368,7 +368,7 @@ datasets:
     version: "{manifest_fingerprint}"
     format: "zip"
     path: "data/layer1/1A/validation/fingerprint={manifest_fingerprint}/"
-    partitioning: ["manifest_fingerprint"]
+    partitioning: ["fingerprint"]
     ordering: []
     schema_ref: "schemas.1A.yaml#/validation/validation_bundle"
     lineage:

@@ -1,0 +1,276 @@
+# schemas.1A.yaml
+version: "1.0"
+$id: "schemas.1A.yaml"
+description: "Schemas for Layer 1 — Subsegment 1A (Merchant -> Physical Sites: modelling, allocation, egress, diagnostics)."
+
+# Reusable primitives
+$defs:
+  iso2:
+    type: string
+    pattern: "^[A-Z]{2}$"
+    description: "ISO 3166-1 alpha-2 country code (upper-case)."
+  iso4217:
+    type: string
+    pattern: "^[A-Z]{3}$"
+    description: "ISO 4217 currency code (upper-case)."
+  pct01:
+    type: number
+    minimum: 0.0
+    maximum: 1.0
+    description: "Share or probability in [0,1]."
+  channel:
+    type: string
+    enum: ["card_present","card_not_present"]
+    description: "Acquiring channel."
+  id64:
+    type: integer
+    minimum: 1
+    maximum: 9223372036854775807
+    description: "Positive 64-bit identifier."
+  uint64:
+    type: integer
+    minimum: 0
+    maximum: 18446744073709551615
+    description: "Unsigned 64-bit integer."
+
+# NOTE: All 1A-produced tables (model/prep/alloc/egress) carry a non-null
+#       manifest_fingerprint column to embed build lineage in each row.
+
+
+# 1) Modelling / predictors
+model:
+  hurdle_design_matrix:
+    type: table
+    description: "Predictors for the hurdle (single vs multi-site) logistic model."
+    primary_key: ["merchant_id"]
+    partition_keys: ["parameter_hash"]
+    sort_keys: []
+    columns:
+      - { name: manifest_fingerprint, type: string,  nullable: false,
+          description: "Hex-encoded SHA-256 lineage fingerprint.",
+          pattern: "^[a-f0-9]{64}$" }
+      - { name: merchant_id,   $ref: "#/$defs/id64",  nullable: false, description: "Synthetic merchant identifier." }
+      - { name: mcc,           type: int32,          nullable: false, description: "Merchant Category Code (0–9999).", minimum: 0, maximum: 9999 }
+      - { name: channel,       $ref: "#/$defs/channel", nullable: false, description: "Acquiring channel." }
+      - { name: gdp_bucket_id, type: int8,           nullable: false, description: "GDP bucket from ingress (Jenks, K=5).", minimum: 1, maximum: 5 }
+      - { name: intercept,     type: float32,        nullable: false, description: "Bias term for logistic model.", const: 1.0 }
+    notes:
+      - "Categorical/raw predictors + intercept only; encoding applied by the modelling library at fit time."
+
+  hurdle_pi_probs:
+    type: table
+    description: "Per-merchant hurdle probability (π) and logit score after model fit."
+    primary_key: ["merchant_id"]
+    partition_keys: ["parameter_hash"]
+    sort_keys: []
+    columns:
+      - { name: manifest_fingerprint, type: string,  nullable: false,
+          description: "Hex-encoded SHA-256 lineage fingerprint.",
+          pattern: "^[a-f0-9]{64}$" }
+      - { name: merchant_id, $ref: "#/$defs/id64", nullable: false, description: "Synthetic merchant identifier." }
+      - { name: logit,       type: float32,       nullable: false, description: "Linear predictor before logistic link." }
+      - { name: pi,          $ref: "#/$defs/pct01", nullable: false, description: "Probability of being multi-site." }
+
+
+# 2) Preparation / deterministic caches
+prep:
+  ccy_country_weights_cache:
+    type: table
+    description: "Deterministic expanded currency→country weights after smoothing/normalization."
+    primary_key: ["currency","country_iso"]
+    partition_keys: ["parameter_hash"]
+    sort_keys: []
+    columns:
+      - { name: manifest_fingerprint, type: string,  nullable: false,
+          description: "Hex-encoded SHA-256 lineage fingerprint.",
+          pattern: "^[a-f0-9]{64}$" }
+      - { name: currency,     $ref: "#/$defs/iso4217", nullable: false, description: "ISO 4217 currency." }
+      - name: country_iso
+        $ref: "#/$defs/iso2"
+        nullable: false
+        description: "Country within currency area."
+        fk: { dataset_ref: "schemas.ingress.layer1.yaml#/iso3166_canonical_2024", column: "country_iso" }
+      - { name: weight,       $ref: "#/$defs/pct01",   nullable: false, description: "Normalized weight; sums to 1 per currency." }
+      - { name: obs_count,    type: int64,             nullable: true,  description: "Supporting observations (post-merge; optional).", minimum: 0 }
+      - { name: smoothing,    type: string,            nullable: true,  description: "Smoothing rule applied (e.g., 'alpha=0.5')." }
+    constraints:
+      - type: group_sum_equals_one
+        group_by: ["currency"]
+        value_column: "weight"
+        tolerance: 1e-6
+
+  sparse_flag:
+    type: table
+    description: "Sparsity indicators at currency level for the expansion step."
+    primary_key: ["currency"]
+    partition_keys: ["parameter_hash"]
+    sort_keys: []
+    columns:
+      - { name: manifest_fingerprint, type: string,  nullable: false,
+          description: "Hex-encoded SHA-256 lineage fingerprint.",
+          pattern: "^[a-f0-9]{64}$" }
+      - { name: currency,   $ref: "#/$defs/iso4217", nullable: false, description: "ISO 4217 currency." }
+      - { name: is_sparse,  type: boolean,          nullable: false, description: "True if observations below configured threshold." }
+      - { name: obs_count,  type: int64,            nullable: false, description: "Observation count used to determine sparsity.", minimum: 0 }
+      - { name: threshold,  type: int64,            nullable: false, description: "Cutoff used for sparsity decision.", minimum: 0 }
+
+  crossborder_eligibility_flags:
+    type: table
+    description: "Eligibility flags enforcing cross-border rules before ZTP."
+    primary_key: ["merchant_id"]
+    partition_keys: ["parameter_hash"]
+    sort_keys: []
+    columns:
+      - { name: manifest_fingerprint, type: string,  nullable: false,
+          description: "Hex-encoded SHA-256 lineage fingerprint.",
+          pattern: "^[a-f0-9]{64}$" }
+      - { name: merchant_id, $ref: "#/$defs/id64",   nullable: false, description: "Merchant ID." }
+      - { name: is_eligible, type: boolean,         nullable: false, description: "Eligible for cross-border expansion." }
+      - { name: reason,      type: string,          nullable: true,  description: "Reason when ineligible (free text or enum-coded)." }
+      - { name: rule_set,    type: string,          nullable: false, description: "Rule set identifier/version applied." }
+
+
+# 3) Allocation outputs (stochastic; seed-dependent)
+alloc:
+
+  country_set:
+    type: table
+    description: "Ordered set of legal countries per merchant (home + K foreign)."
+    primary_key: ["merchant_id","country_iso"]
+    partition_keys: ["seed","parameter_hash"]
+    sort_keys: []     # order is carried by 'rank'
+    columns:
+      - { name: manifest_fingerprint, type: string,  nullable: false,
+          description: "Hex-encoded SHA-256 lineage fingerprint.",
+          pattern: "^[a-f0-9]{64}$" }
+      - { name: merchant_id, $ref: "#/$defs/id64",  nullable: false, description: "Merchant ID." }
+      - name: country_iso
+        $ref: "#/$defs/iso2"
+        nullable: false
+        description: "Country in the merchant's legal set."
+        fk: { dataset_ref: "schemas.ingress.layer1.yaml#/iso3166_canonical_2024", column: "country_iso" }
+      - { name: is_home,     type: boolean,         nullable: false, description: "True for the home/registration country." }
+      - { name: rank,        type: int32,           nullable: false, description: "Stable order: 0=home; 1..K for foreigns (Gumbel order).", minimum: 0 }
+      - { name: prior_weight, type: float64,        nullable: true,  description: "Selection prior weight before sampling (diagnostic).", minimum: 0.0, maximum: 1.0 }
+
+  ranking_residual_cache:
+    type: table
+    description: "Largest-remainder residuals (per merchant,country) to stabilize integerization & tie-breaks."
+    primary_key: ["merchant_id","country_iso"]
+    partition_keys: ["seed","parameter_hash"]
+    sort_keys: []
+    columns:
+      - { name: manifest_fingerprint, type: string,  nullable: false,
+          description: "Hex-encoded SHA-256 lineage fingerprint.",
+          pattern: "^[a-f0-9]{64}$" }
+      - { name: merchant_id,   $ref: "#/$defs/id64",  nullable: false, description: "Merchant ID." }
+      - name: country_iso
+        $ref: "#/$defs/iso2"
+        nullable: false
+        description: "Country within allocation group."
+        fk: { dataset_ref: "schemas.ingress.layer1.yaml#/iso3166_canonical_2024", column: "country_iso" }
+      - name: residual
+        type: float64
+        nullable: false
+        description: "Fractional remainder in [0,1)."
+        minimum: 0.0
+        maximum: 1.0
+        exclusiveMaximum: true
+      - { name: tie_break_rank, type: int32,         nullable: false, description: "Deterministic rank for extra-unit assignment (descending residual)." }
+
+
+# 4) Egress (immutable outlet stubs)
+egress:
+  outlet_catalogue:
+    type: table
+    description: "Immutable outlet stubs before coordinate placement; per-merchant per-country site sequencing."
+    primary_key: ["merchant_id","site_id"]
+    unique_keys:
+      - ["merchant_id","legal_country_iso","tie_break_rank"]
+    partition_keys: ["seed","fingerprint"]
+    sort_keys: ["merchant_id","legal_country_iso","tie_break_rank"]
+    columns:
+      - { name: manifest_fingerprint, type: string,  nullable: false,
+          description: "Hex-encoded SHA-256 lineage fingerprint (egress partition key also stored per-row).",
+          pattern: "^[a-f0-9]{64}$" }
+      - { name: merchant_id,        $ref: "#/$defs/id64",  nullable: false, description: "Merchant ID." }
+      - name: site_id
+        type: string
+        nullable: false
+        description: "6-digit zero-padded per-(merchant,legal_country) sequence."
+        pattern: "^[0-9]{6}$"
+      - name: home_country_iso
+        $ref: "#/$defs/iso2"
+        nullable: false
+        description: "Onboarding/home country (drives GDP bucket)."
+        fk: { dataset_ref: "schemas.ingress.layer1.yaml#/iso3166_canonical_2024", column: "country_iso" }
+      - name: legal_country_iso
+        $ref: "#/$defs/iso2"
+        nullable: false
+        description: "Country the site belongs to (legal allocation)."
+        fk: { dataset_ref: "schemas.ingress.layer1.yaml#/iso3166_canonical_2024", column: "country_iso" }
+      - { name: single_vs_multi_flag, type: boolean, nullable: false,
+          description: "1 if multi-site (hurdle success), else 0." }
+      - { name: raw_nb_outlet_draw, type: int32, nullable: false,
+          description: "Accepted NB draw N before cross-border allocation.", minimum: 1 }
+      - { name: final_country_outlet_count, type: int32, nullable: false,
+          description: "Integer outlet count allocated to this legal_country.", minimum: 0 }
+      - { name: tie_break_rank,     type: int32,           nullable: false, description: "Stable per-country site order (1..n_i).", minimum: 1 }
+      - { name: parameter_hash,     type: string,          nullable: true,  description: "Parameter hash used in this build (diagnostic copy)." }
+      - { name: global_seed,        $ref: "#/$defs/uint64", nullable: false,
+          description: "Master Philox seed (derivable from manifest; stored for audit replay)." }
+    notes:
+      - "Rows are immutable for a given (seed,fingerprint) partition."
+      - "Only 1A->1B handoff; 1B adds coordinates."
+
+
+# 5) Diagnostics / validation
+validation:
+  hurdle_stationarity_tests:
+    type: table
+    description: "Stability checks across vintages for the hurdle model (coefs, tests, thresholds)."
+    primary_key: ["test_id"]
+    partition_keys: ["parameter_hash"]
+    sort_keys: []
+    columns:
+      - { name: test_id,     type: string,   nullable: false, description: "Deterministic test identifier." }
+      - { name: subject,     type: string,   nullable: false, description: "What is tested (e.g., 'theta_channel', 'overall_fit')." }
+      - { name: metric,      type: string,   nullable: false, description: "Metric name (e.g., 'coef','p_value','ks_stat')." }
+      - { name: value,       type: float64,  nullable: false, description: "Measured value." }
+      - { name: threshold,   type: float64,  nullable: true,  description: "Acceptance threshold (if applicable)." }
+      - { name: passed,      type: boolean,  nullable: false, description: "Whether the test passed." }
+      - { name: notes,       type: string,   nullable: true,  description: "Free-text diagnostics." }
+
+  ci_metrics:
+    type: table
+    description: "Nightly CI drift metrics for 1A (NB/ZTP stats, residuals, sparsity rates)."
+    primary_key: ["run_id","metric"]
+    partition_keys: ["run_id"]
+    sort_keys: []
+    columns:
+      - { name: run_id,    type: string,   nullable: false, description: "CI run identifier (matches partition)." }
+      - { name: metric,    type: string,   nullable: false, description: "Metric name (e.g., 'nb_k_rmse','ztp_accept_rate')." }
+      - { name: entity,    type: string,   nullable: true,  description: "Dimension key (e.g., currency code, 'GLOBAL')." }
+      - { name: value,     type: float64,  nullable: false, description: "Metric value." }
+      - { name: lower,     type: float64,  nullable: true,  description: "Lower bound (if monitored with bounds)." }
+      - { name: upper,     type: float64,  nullable: true,  description: "Upper bound (if monitored with bounds)." }
+      - { name: passed,    type: boolean,  nullable: true,  description: "Optional quick flag whether within thresholds." }
+
+  validation_bundle:
+    type: bundle
+    description: "Release-time validator outputs (plots, diffs, metrics) packed as a bundle."
+    partition_keys: ["fingerprint"]
+    index_schema:
+      type: table
+      description: "Logical index stored inside the bundle as index.json."
+      primary_key: ["artifact_id"]
+      columns:
+        - { name: artifact_id, type: string,  nullable: false, description: "Unique artifact within bundle." }
+        - { name: kind,        type: string,  nullable: false, description: "Type (plot|table|diff|text|summary)." }
+        - { name: path,        type: string,  nullable: false, description: "Relative path inside the bundle." }
+        - { name: mime,        type: string,  nullable: true,  description: "MIME type (if known)." }
+        - { name: notes,       type: string,  nullable: true,  description: "Optional description." }
+
+# Cross-file references:
+#  ISO foreign keys point to schemas.ingress.layer1.yaml#/iso3166_canonical_2024.country_iso
+#  RNG audit/event schemas live in schemas.layer1.yaml and are referenced by the data dictionary for logs.
