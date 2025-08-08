@@ -1,0 +1,298 @@
+# schemas.layer1.yaml
+version: "1.0"
+$id: "schemas.layer1.yaml"
+description: "Layer-wide schemas used by Layer 1 (shared logs and RNG event streams)."
+
+# -- Reusable primitives ---------------------------------------------------
+$defs:
+  id64:
+    type: integer
+    minimum: 1
+    maximum: 9223372036854775807
+    description: "Positive 64-bit identifier."
+  iso2:
+    type: string
+    pattern: "^[A-Z]{2}$"
+    description: "ISO 3166-1 alpha-2 country code."
+  iso4217:
+    type: string
+    pattern: "^[A-Z]{3}$"
+    description: "ISO 4217 currency code."
+  hex64:
+    type: string
+    pattern: "^[a-f0-9]{64}$"
+    description: "Lowercase hex SHA-256 digest."
+  u01:
+    type: number
+    exclusiveMinimum: 0.0
+    exclusiveMaximum: 1.0
+    description: "Open-interval uniform deviate in (0,1)."
+  pct01:
+    type: number
+    minimum: 0.0
+    maximum: 1.0
+    description: "Probability or share in [0,1]."
+  uint32:
+    type: integer
+    minimum: 0
+    maximum: 4294967295
+  uint64:
+    type: integer
+    minimum: 0
+    maximum: 18446744073709551615
+  six_digit_seq:
+    type: string
+    pattern: "^[0-9]{6}$"
+    description: "Zero-padded 6-digit sequence string."
+  stream_label:
+    type: string
+    description: "Deterministic Philox sub-stream label (e.g., 'hurdle_bernoulli', 'gumbel_key')."
+
+  # Common envelope for all RNG JSONL events
+  rng_envelope:
+    type: object
+    additionalProperties: false
+    required: [ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label,
+               rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi]
+    properties:
+      ts_utc: { type: string, format: date-time, description: "Event timestamp (UTC)." }
+      run_id: { type: string,  description: "Stable identifier for this run (also used as dataset version)." }
+      seed:   { $ref: "#/$defs/uint64", description: "Master Philox seed for this run." }
+      parameter_hash:       { $ref: "#/$defs/hex64", description: "SHA-256 of combined parameter bundle." }
+      manifest_fingerprint: { $ref: "#/$defs/hex64", description: "Run fingerprint used across Layer 1." }
+      module: { type: string, description: "Emitting module (e.g., '1A.nb_sampler')." }
+      substream_label: { $ref: "#/$defs/stream_label", description: "Philox sub-stream logical label." }
+      rng_counter_before_lo: { $ref: "#/$defs/uint64", description: "Philox 2x64 counter low (before draws)." }
+      rng_counter_before_hi: { $ref: "#/$defs/uint64", description: "Philox 2x64 counter high (before draws)." }
+      rng_counter_after_lo:  { $ref: "#/$defs/uint64", description: "Philox 2x64 counter low (after draws)." }
+      rng_counter_after_hi:  { $ref: "#/$defs/uint64", description: "Philox 2x64 counter high (after draws)." }
+      merchant_id: { $ref: "#/$defs/id64", nullable: true, description: "Present when event is merchant-scoped." }
+
+# -- RNG: Core logs (JSONL) ------------------------------------------------
+rng:
+  core:
+
+    rng_audit_log:
+      type: stream
+      description: "Run-scoped RNG audit (master seed, algo, code digests, platform)."
+      record:
+        type: object
+        additionalProperties: false
+        required: [ts_utc, run_id, seed, manifest_fingerprint, parameter_hash, algorithm, build_commit]
+        properties:
+          ts_utc:  { type: string, format: date-time }
+          run_id:  { type: string }
+          seed:    { $ref: "#/$defs/uint64" }
+          manifest_fingerprint: { $ref: "#/$defs/hex64" }
+          parameter_hash:       { $ref: "#/$defs/hex64" }
+          algorithm: { type: string, enum: ["philox2x64-10"], description: "Counter-based RNG variant." }
+          build_commit: { type: string, description: "Git SHA of code at run." }
+          code_digest:  { $ref: "#/$defs/hex64", description: "Digest of source bundle opened by runtime.", nullable: true }
+          hostname:     { type: string, nullable: true }
+          platform:     { type: string, nullable: true }
+          notes:        { type: string, nullable: true }
+
+    rng_trace_log:
+      type: stream
+      description: "Structured per-module RNG consumption trace."
+      record:
+        type: object
+        additionalProperties: false
+        required: [ts_utc, run_id, seed, module, substream_label, draws, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi]
+        properties:
+          ts_utc: { type: string, format: date-time }
+          run_id: { type: string }
+          seed:   { $ref: "#/$defs/uint64" }
+          module: { type: string }
+          substream_label: { $ref: "#/$defs/stream_label" }
+          draws:  { $ref: "#/$defs/uint64", description: "Number of uniforms consumed." }
+          rng_counter_before_lo: { $ref: "#/$defs/uint64" }
+          rng_counter_before_hi: { $ref: "#/$defs/uint64" }
+          rng_counter_after_lo:  { $ref: "#/$defs/uint64" }
+          rng_counter_after_hi:  { $ref: "#/$defs/uint64" }
+          detail: { type: string, nullable: true }
+
+  # -- RNG: Event schemas (JSONL) ------------------------------------------
+  events:
+
+    hurdle_bernoulli:
+      allOf:
+        - $ref: "#/$defs/rng_envelope"
+        - type: object
+          additionalProperties: false
+          required: [merchant_id, pi, u, is_multi]
+          properties:
+            merchant_id: { $ref: "#/$defs/id64" }
+            pi: { $ref: "#/$defs/pct01", description: "Logistic probability of being multi-site." }
+            u:  { $ref: "#/$defs/u01",   description: "Uniform deviate compared to π." }
+            is_multi: { type: boolean, description: "Outcome: true => multi-site." }
+            gdp_bucket_id: { type: integer, minimum: 1, maximum: 5, description: "From design matrix." }
+            mcc: { type: integer, minimum: 0, maximum: 9999 }
+            channel: { type: string, enum: ["card_present","card_not_present"] }
+
+    gamma_component:
+      allOf:
+        - $ref: "#/$defs/rng_envelope"
+        - type: object
+          additionalProperties: false
+          required: [merchant_id, context, index, alpha, gamma_value]
+          properties:
+            merchant_id: { $ref: "#/$defs/id64" }
+            context: { type: string, enum: ["nb","dirichlet"], description: "NB mixture vs Dirichlet sampler." }
+            index:   { type: integer, minimum: 0, description: "Component index (Dirichlet i, or NB=0)." }
+            country_iso: { $ref: "#/$defs/iso2", nullable: true, description: "Present for Dirichlet components." }
+            alpha:   { type: number, exclusiveMinimum: 0.0, description: "Gamma shape parameter." }
+            gamma_value: { type: number, exclusiveMinimum: 0.0, description: "Sampled Gamma(α,1) deviate." }
+
+    poisson_component:
+      allOf:
+        - $ref: "#/$defs/rng_envelope"
+        - type: object
+          additionalProperties: false
+          required: [merchant_id, context, lambda, k]
+          properties:
+            merchant_id: { $ref: "#/$defs/id64" }
+            context: { type: string, enum: ["nb","ztp"], description: "NB composition or ZTP sampler." }
+            lambda:  { type: number, exclusiveMinimum: 0.0 }
+            k:       { type: integer, minimum: 0, description: "Poisson draw (untruncated)." }
+
+    nb_final:
+      allOf:
+        - $ref: "#/$defs/rng_envelope"
+        - type: object
+          additionalProperties: false
+          required: [merchant_id, mu, dispersion_k, n_outlets, nb_rejections]
+          properties:
+            merchant_id:   { $ref: "#/$defs/id64" }
+            mu:            { type: number, exclusiveMinimum: 0.0, description: "NB mean parameter." }
+            dispersion_k:  { type: number, exclusiveMinimum: 0.0, description: "NB dispersion (size) parameter." }
+            n_outlets:     { type: integer, minimum: 2, description: "Accepted NB draw N (rejected if {0,1})." }
+            nb_rejections: { type: integer, minimum: 0, description: "Count of rejected {0,1} draws before acceptance." }
+            method:        { type: string, enum: ["poisson_gamma_mixture"] }
+
+    ztp_rejection:
+      allOf:
+        - $ref: "#/$defs/rng_envelope"
+        - type: object
+          additionalProperties: false
+          required: [merchant_id, lambda_extra, k, attempt]
+          properties:
+            merchant_id:  { $ref: "#/$defs/id64" }
+            lambda_extra: { type: number, exclusiveMinimum: 0.0, description: "λ for extra-country count." }
+            k:            { type: integer, const: 0, description: "Rejected draw (ZTP zero)." }
+            attempt:      { type: integer, minimum: 1, maximum: 64 }
+
+    ztp_retry_exhausted:
+      allOf:
+        - $ref: "#/$defs/rng_envelope"
+        - type: object
+          additionalProperties: false
+          required: [merchant_id, lambda_extra, attempts, aborted]
+          properties:
+            merchant_id:  { $ref: "#/$defs/id64" }
+            lambda_extra: { type: number, exclusiveMinimum: 0.0 }
+            attempts:     { type: integer, const: 64 }
+            aborted:      { type: boolean, const: true }
+
+    gumbel_key:
+      allOf:
+        - $ref: "#/$defs/rng_envelope"
+        - type: object
+          additionalProperties: false
+          required: [merchant_id, country_iso, weight, u, key, selected]
+          properties:
+            merchant_id: { $ref: "#/$defs/id64" }
+            country_iso: { $ref: "#/$defs/iso2" }
+            weight:      { $ref: "#/$defs/pct01", description: "Renormalised candidate weight." }
+            u:           { $ref: "#/$defs/u01" }
+            key:         { type: number, description: "log(w) - log(-log u)" }
+            selected:    { type: boolean, description: "True if country among the top-K." }
+            selection_order: { type: integer, minimum: 1, nullable: true, description: "1..K when selected; null otherwise." }
+
+    dirichlet_gamma_vector:
+      allOf:
+        - $ref: "#/$defs/rng_envelope"
+        - type: object
+          additionalProperties: false
+          required: [merchant_id, home_country_iso, country_isos, alpha, gamma_raw, weights]
+          properties:
+            merchant_id:      { $ref: "#/$defs/id64" }
+            home_country_iso: { $ref: "#/$defs/iso2" }
+            country_isos:
+              type: array
+              minItems: 1
+              items: { $ref: "#/$defs/iso2" }
+              description: "Order: home first, then foreigns in Gumbel order."
+            alpha:
+              type: array
+              minItems: 1
+              items: { type: number, exclusiveMinimum: 0.0 }
+              description: "Dirichlet α-vector, length == len(country_isos)."
+            gamma_raw:
+              type: array
+              minItems: 1
+              items: { type: number, exclusiveMinimum: 0.0 }
+              description: "Raw Gamma(α_i,1) deviates."
+            weights:
+              type: array
+              minItems: 1
+              items: { $ref: "#/$defs/pct01" }
+              description: "Normalised w_i; Σ w_i == 1 to 1e-6."
+            n_domestic: { type: integer, minimum: 1, nullable: true, description: "Optional diagnostic: domestic outlet count N used to scale." }
+          constraints:
+            - type: equal_length
+              arrays: ["country_isos","alpha","gamma_raw","weights"]
+            - type: sum_equals_one
+              array: "weights"
+              tolerance: 1e-6
+
+    stream_jump:
+      allOf:
+        - $ref: "#/$defs/rng_envelope"
+        - type: object
+          additionalProperties: false
+          required: [reason, jump_stride_lo, jump_stride_hi]
+          properties:
+            reason: { type: string, enum: ["init","module_start","reset","advance"], description: "Why jump occurred." }
+            jump_stride_lo: { $ref: "#/$defs/uint64", description: "Lower 64 bits of stride (e.g., first 64b of SHA-256(label))." }
+            jump_stride_hi: { $ref: "#/$defs/uint64", description: "Upper 64 bits of stride (if used)." }
+
+    sequence_finalize:
+      allOf:
+        - $ref: "#/$defs/rng_envelope"
+        - type: object
+          additionalProperties: false
+          required: [merchant_id, country_iso, site_count, start_sequence, end_sequence]
+          properties:
+            merchant_id:    { $ref: "#/$defs/id64" }
+            country_iso:    { $ref: "#/$defs/iso2" }
+            site_count:     { type: integer, minimum: 0 }
+            start_sequence: { $ref: "#/$defs/six_digit_seq" }
+            end_sequence:   { $ref: "#/$defs/six_digit_seq" }
+
+    tie_break_rank:
+      allOf:
+        - $ref: "#/$defs/rng_envelope"
+        - type: object
+          additionalProperties: false
+          required: [merchant_id, country_iso, residual, tie_break_rank]
+          properties:
+            merchant_id:    { $ref: "#/$defs/id64" }
+            country_iso:    { $ref: "#/$defs/iso2" }
+            # Note: residuals are quantised to 8 dp by the engine; rounding tolerance is validated in invariants, not in schema.
+            residual:      { type: number, minimum: 0.0, maximum: 1.0, description: "Largest-remainder residual in [0,1)." }
+            tie_break_rank: { type: integer, minimum: 1 }
+
+    site_sequence_overflow:
+      allOf:
+        - $ref: "#/$defs/rng_envelope"
+        - type: object
+          additionalProperties: false
+          required: [merchant_id, country_iso, attempted_count, max_seq, overflow_by, severity]
+          properties:
+            merchant_id:     { $ref: "#/$defs/id64" }
+            country_iso:     { $ref: "#/$defs/iso2" }
+            attempted_count: { type: integer, minimum: 0, description: "Requested n_i for this country." }
+            max_seq:         { type: integer, const: 999999, description: "6-digit ceiling." }
+            overflow_by:     { type: integer, minimum: 1 }
+            severity:        { type: string, enum: ["ERROR"], description: "Hard guardrail triggers abort." }
