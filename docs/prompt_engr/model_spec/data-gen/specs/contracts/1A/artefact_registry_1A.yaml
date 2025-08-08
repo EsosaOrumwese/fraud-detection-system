@@ -505,13 +505,13 @@ subsegments:
         notes: null
 
       - name: rng_audit_log
-        path: logs/rng/rng_audit.log
+        path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
         type: log
         category: rng
         semver: "{semver}"
         version: "{run_id}"
         digest: "{sha256}"
-        manifest_key: mlr.rng.audit.log
+        manifest_key: mlr.rng.audit
         license: "{spdx_or_internal}"
         role: Structured record of every RNG draw (event, counter, params).
         dependencies: [ philox_master_counter, rng_audit_schema ]
@@ -519,18 +519,18 @@ subsegments:
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: rng_audit_schema
         cross_layer: true
         notes: null
 
       - name: rng_trace_log
-        path: logs/rng/rng_trace.log
+        path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
         type: log
         category: rng
         semver: "{semver}"
         version: "{run_id}"
         digest: "{sha256}"
-        manifest_key: mlr.rng.trace.log
+        manifest_key: mlr.rng.trace
         license: "{spdx_or_internal}"
         role: Philox sub‑stream jump offsets per module/merchant.
         dependencies: [ philox_master_counter ]
@@ -542,8 +542,8 @@ subsegments:
         cross_layer: true
         notes: null
 
-      - name: hurdle_bernoulli
-        path: logs/rng/events/hurdle_bernoulli.jsonl
+      - name: rng_event_hurdle_bernoulli
+        path: logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         type: log
         category: rng_event
         semver: "{semver}"
@@ -551,7 +551,7 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.rng.events.hurdle_bernoulli
         license: "{spdx_or_internal}"
-        role: Event stream for Bernoulli hurdle outcomes.
+        role: Bernoulli draws per merchant for the hurdle decision (pi).
         dependencies: [ rng_audit_log, rng_event_schema_catalog ]
         source: internal
         owner: { platform_team }
@@ -561,8 +561,8 @@ subsegments:
         cross_layer: true
         notes: null
 
-      - name: gamma_component
-        path: logs/rng/events/gamma_component.jsonl
+      - name: rng_event_gamma_component
+        path: logs/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         type: log
         category: rng_event
         semver: "{semver}"
@@ -570,18 +570,18 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.rng.events.gamma_component
         license: "{spdx_or_internal}"
-        role: Event stream for Gamma draw in Poisson–Gamma mixture.
-        dependencies: [ rng_audit_log, rng_event_schema_catalog ]
+        role: Gamma draws used in NB and Dirichlet composition.
+        dependencies: [ rng_event_schema_catalog ]
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: rng_event_schema_catalog
         cross_layer: true
         notes: null
 
-      - name: poisson_component
-        path: logs/rng/events/poisson_component.jsonl
+      - name: rng_event_poisson_component
+        path: logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         type: log
         category: rng_event
         semver: "{semver}"
@@ -589,75 +589,75 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.rng.events.poisson_component
         license: "{spdx_or_internal}"
-        role: Event stream for Poisson draw in Poisson–Gamma mixture.
-        dependencies: [ rng_audit_log, rng_event_schema_catalog ]
+        role: Poisson draws used in NB composition / ZTP.
+        dependencies: [ rng_event_schema_catalog ]
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: rng_event_schema_catalog
         cross_layer: true
         notes: null
 
-      - name: nb_final
-        path: logs/rng/events/nb_final.jsonl
-        type: schema
+      - name: rng_event_nb_final
+        path: logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
         category: rng_event
         semver: "{semver}"
         version: "{run_id}"
         digest: "{sha256}"
         manifest_key: mlr.rng.events.nb_final
         license: "{spdx_or_internal}"
-        role: Event stream for final NB draw (k, mean, dispersion).
-        dependencies: [ gamma_component, poisson_component, rng_event_schema_catalog ]
+        role: Final Negative Binomial draws for outlet counts.
+        dependencies: [ rng_event_gamma_component, rng_event_poisson_component, rng_event_schema_catalog ]
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: rng_event_schema_catalog
         cross_layer: true
         notes: null
 
-      - name: ztp_rejection
-        path: logs/rng/events/ztp_rejection.jsonl
-        type: schema
+      - name: rng_event_ztp_rejection
+        path: logs/rng/events/ztp_rejection/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
         category: rng_event
         semver: "{semver}"
         version: "{run_id}"
         digest: "{sha256}"
         manifest_key: mlr.rng.events.ztp_rejection
         license: "{spdx_or_internal}"
-        role: Event stream logging each zero rejected by ZTP sampler.
-        dependencies: [ nb_final, rng_event_schema_catalog ]
+        role: Rejected zero draws from the ZTP sampler.
+        dependencies: [ rng_event_schema_catalog ]
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: rng_event_schema_catalog
         cross_layer: true
         notes: null
 
-      - name: ztp_retry_exhausted
-        path: logs/rng/events/ztp_retry_exhausted.jsonl
-        type: schema
+      - name: rng_event_ztp_retry_exhausted
+        path: logs/rng/events/ztp_retry_exhausted/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
         category: rng_event
         semver: "{semver}"
         version: "{run_id}"
         digest: "{sha256}"
         manifest_key: mlr.rng.events.ztp_retry_exhausted
         license: "{spdx_or_internal}"
-        role: Exception when ZTP exceeds max retries.
-        dependencies: [ ztp_rejection, rng_event_schema_catalog ]
+        role: Hard events when ZTP exceeds max retries.
+        dependencies: [ rng_event_ztp_rejection, rng_event_schema_catalog ]
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: rng_event_schema_catalog
         cross_layer: true
         notes: null
 
-      - name: gumbel_key
-        path: logs/rng/events/gumbel_key.jsonl
+      - name: rng_event_gumbel_key
+        path: logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         type: log
         category: rng_event
         semver: "{semver}"
@@ -665,18 +665,18 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.rng.events.gumbel_key
         license: "{spdx_or_internal}"
-        role: Gumbel‑top‑k key computations for country selection.
-        dependencies: [ ztp_retry_exhausted, rng_event_schema_catalog ]
+        role: Gumbel-top-k keys used to select foreign countries.
+        dependencies: [ rng_event_schema_catalog ]
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: rng_event_schema_catalog
         cross_layer: true
         notes: null
 
-      - name: dirichlet_gamma_vector
-        path: logs/rng/events/dirichlet_gamma_vector.jsonl
+      - name: rng_event_dirichlet_gamma_vector
+        path: logs/rng/events/dirichlet_gamma_vector/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         type: log
         category: rng_event
         semver: "{semver}"
@@ -684,18 +684,18 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.rng.events.dirichlet_gamma_vector
         license: "{spdx_or_internal}"
-        role: Raw Gamma draws and normalized weights for Dirichlet allocation.
-        dependencies: [ gumbel_key, rng_event_schema_catalog ]
+        role: Gamma vectors underlying Dirichlet splits across countries.
+        dependencies: [ rng_event_schema_catalog ]
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: rng_event_schema_catalog
         cross_layer: true
         notes: null
 
-      - name: stream_jump
-        path: logs/rng/events/stream_jump.jsonl
+      - name: rng_event_stream_jump
+        path: logs/rng/events/stream_jump/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         type: log
         category: rng_event
         semver: "{semver}"
@@ -703,18 +703,18 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.rng.events.stream_jump
         license: "{spdx_or_internal}"
-        role: Philox jump strides for sub‑stream init.
-        dependencies: [ philox_master_counter, rng_event_schema_catalog ]
+        role: Explicit Philox stream/substream jump records.
+        dependencies: [ rng_event_schema_catalog ]
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: rng_event_schema_catalog
         cross_layer: true
         notes: null
 
-      - name: sequence_finalize
-        path: logs/rng/events/sequence_finalize.jsonl
+      - name: rng_event_sequence_finalize
+        path: logs/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         type: log
         category: rng_event
         semver: "{semver}"
@@ -722,18 +722,18 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.rng.events.sequence_finalize
         license: "{spdx_or_internal}"
-        role: Completion of site‑sequence assignment per merchant.
-        dependencies: [ dirichlet_gamma_vector, rng_event_schema_catalog ]
+        role: Final sequence allocation per (merchant,country) block.
+        dependencies: [ rng_event_schema_catalog ]
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: rng_event_schema_catalog
         cross_layer: true
         notes: null
 
-      - name: site_sequence_overflow
-        path: logs/rng/events/site_sequence_overflow.jsonl
+      - name: rng_event_site_sequence_overflow
+        path: logs/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         type: log
         category: rng_event
         semver: "{semver}"
@@ -741,13 +741,13 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.rng.events.site_sequence_overflow
         license: "{spdx_or_internal}"
-        role: Exception when per‑(merchant,country) site counts exceed max supported.
-        dependencies: [ sequence_finalize, rng_event_schema_catalog ]
+        role: Guardrail events when site sequence space is exhausted.
+        dependencies: [ rng_event_schema_catalog ]
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: rng_event_schema_catalog
         cross_layer: true
         notes: null
 
@@ -865,8 +865,8 @@ subsegments:
         cross_layer: false
         notes: null
 
-      - name: tie_break_rank
-        path: logs/rng/events/tie_break_rank.jsonl
+      - name: rng_event_tie_break_rank
+        path: logs/rng/events/tie_break_rank/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         type: log
         category: rng_event
         semver: "{semver}"
@@ -874,13 +874,13 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.rng.events.tie_break_rank
         license: "{spdx_or_internal}"
-        role: Final rank order resolution for LRR tie‑breaks.
-        dependencies: [ dirichlet_gamma_vector, rng_event_schema_catalog ]
+        role: Deterministic tie-break ranks used in largest-remainder integerisation.
+        dependencies: [ rng_event_schema_catalog ]
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: rng_event_schema_catalog
         cross_layer: true
         notes: null
 
