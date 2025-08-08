@@ -275,11 +275,11 @@ Below are is the template for ( `dataset_dictionary.layer1.yaml` ).
 > *Use once per layer; each sub-segment references rows here.*
 
 ```yaml
-# dataset_dictionary.layer1.yaml — machine-readable catalogue of every dataset produced or consumed in Layer 1
+# dataset_dictionary.<layer_or_subsegment>.yaml
 version: "1.0"
 
 lifecycle:
-  phase: "planning"           # planning|alpha|beta|stable
+  phase: "planning"        # planning|alpha|beta|stable
   last_reviewed: null
   approver: null
 
@@ -289,73 +289,70 @@ ci_policy:
   block_on_phase: ["beta","stable"]
 
 layer:
-  id: "layer1"
-  name: "Merchant Location Realism"
+  id: "<layer_id>"
+  name: "<Layer descriptive name>"
 
+# ── External / seed / canonical inputs ─────────────────────────────────────
+reference_data:
+  - id: "<short_id>"
+    status: "approved"                 # proposed|approved|deprecated
+    owner_subsegment: "ingress"
+    description: "<What this file is used for>"
+    version: "<YYYY-MM-DD or semver>"
+    format: "<csv|shapefile|cog|...>"
+    path: "<repo-relative path or s3://…>"
+    partitioning: []                  # list directory keys e.g. ["year","month"]
+    ordering: []                      # row sort keys
+    schema_ref: "schemas.ingress.<layer_id>.yaml#/<pointer>"
+    columns:                           # OR columns_ref: "<pointer>"
+      - { name: "<col>", dtype: "<dtype>", semantics: "<meaning>" }
+    lineage:
+      produced_by: null               # external
+      consumed_by: ["<subsegment_id>"]
+      final_in_layer: false
+    retention_days: 1095
+    pii: false
+    licence: "<CC-BY-4.0 | ODbL-1.0 | Proprietary-Internal>"
+
+# ── Internally generated datasets ──────────────────────────────────────────
 datasets:
-  - id: "merchant_core"                 # short, unique key
-    status: "proposed"                  # proposed|approved|deprecated
-    owner_subsegment: "1A"              # where it is first produced
-    description: "Per-merchant attributes used by Layer 1 generators"
-    format: "parquet"                   # parquet|csv|jsonl|npz|avro|sqlite
-    partitioning: []                    # list of directory partition keys (if any)
-    ordering: []                        # sort keys inside each file
-    schema_ref: "schemas.1A.yaml#/ingress/datasets/0/columns"
-    columns:
-      - name: "merchant_id"
-        dtype: "int64"
-        semantics: "Synthetic merchant identifier"
-      - name: "mcc"
-        dtype: "int32"
-        semantics: "Merchant Category Code"
-      - name: "home_country_iso"
-        dtype: "char(2)"
-        semantics: "ISO 3166-1 alpha-2 home country"
-      - name: "channel"
-        dtype: "string"
-        semantics: "card_present/card_not_present"
-    lineage:
-      produced_by: "import_seed_data"   # job or function
-      consumed_by: ["1A","1B","2B"]     # list of sub-segments
-      final_in_layer: false
-    retention_days: 365
-    pii: false
-    licence: "Proprietary-Internal"
-
-  - id: "outlet_catalogue"
-    status: "proposed"
-    owner_subsegment: "1A"
-    description: "Outlet stubs prior to coordinate placement"
+  - id: "<short_id>"
+    status: "approved"
+    owner_subsegment: "<first_producing_subsegment>"
+    description: "<One-line purpose>"
+    version: "{manifest_key}"
     format: "parquet"
-    partitioning: []                    # path uses seed & fingerprint; no hive partitions
-    ordering: ["merchant_id","legal_country_iso","tie_break_rank"]
-    schema_ref: "schemas.1A.yaml#/egress/datasets/0/columns"
-    columns_ref: "schemas.1A.yaml#/egress/datasets/0/columns"   # shortcut if identical
+    path: "data/<area>/<dataset>/{manifest_key}/"
+    partitioning: []                  # ["manifest_key"] etc.
+    ordering: []
+    schema_ref: "schemas.<layer_id>.yaml#/pointer"
+    columns: []                       # or columns_ref: "..."
     lineage:
-      produced_by: "1A"
-      consumed_by: ["1B"]
+      produced_by: "<spark_job_or_fn>"
+      consumed_by: ["<subsegment_id>", "..."]
       final_in_layer: false
     retention_days: 365
     pii: false
     licence: "Proprietary-Internal"
 
-  # ── Add one block per dataset across all sub-segments (sites, tz_lookups, routed_tx, edge_catalogue, validation bundles, etc.) ──
+# Add as many dataset blocks as needed …                                   #
 
+# ── Governance / integrity ────────────────────────────────────────────────
 integrity:
-  bundled_schema_sha256: null      # CI fills with digest of concatenated schema JSON
-  dataset_count: null              # CI asserts expected count
+  bundled_schema_sha256: null
+  dataset_count: <INT>
 
 open_questions:
-  - id: "route_output_shape"
-    note: "Do routed_transaction outputs become an explicit dataset in Layer 1 or only stream?"
-    owner: "data-modelling"
+  - id: "any_outstanding_issue"
+    note: "<clarification needed>"
+    owner: "<team>"
     due_by: null
 
 waivers:
-  - id: "missing_retention_policy"
-    covers_datasets: ["edge_catalogue"]
-    reason: "SRE review pending"
-    expires_on: "2025-10-15"
+  - id: "any_temporary_waiver"
+    covers_datasets: ["<id1>", "<id2>"]
+    reason: "<reason>"
+    expires_on: "YYYY-MM-DD"
 ```
 
 **Key points**
