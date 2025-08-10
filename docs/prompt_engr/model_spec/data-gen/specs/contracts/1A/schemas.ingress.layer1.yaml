@@ -64,7 +64,7 @@ merchant_ids:
 # -- World Bank GDP-per-capita (constant 2015 USD) -------------------------
 world_bank_gdp_per_capita:
   type: table
-  primary_key: ["country_iso"]
+  primary_key: ["country_iso","observation_year"]
   description: "Flattened GDP per capita (constant 2015 USD) per ISO2 used for GDP bucketing."
   columns:
     - name: country_iso
