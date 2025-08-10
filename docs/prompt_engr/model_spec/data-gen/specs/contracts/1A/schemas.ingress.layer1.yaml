@@ -92,7 +92,7 @@ world_bank_gdp_per_capita:
     - type: not_null
       columns: ["gdp_pc_usd_2015"]
     - type: unique
-      columns: ["country_iso"]
+      columns: ["country_iso", "observation_year"]
 
 # -- Canonical ISO-3166 (deterministic tie-breaks, validation) -------------
 iso3166_canonical_2024:

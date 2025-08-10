@@ -184,7 +184,7 @@ egress:
   outlet_catalogue:
     type: table
     description: "Immutable outlet stubs per merchant and legal country. NOTE: Inter-country order is NOT encoded here; consumers must read `country_set.rank` (0=home, then foreigns in Gumbel order)."
-    primary_key: ["merchant_id","site_id"]
+    primary_key: ["merchant_id","legal_country_iso","site_order"]
     unique_keys:
       - ["merchant_id","legal_country_iso","site_order"]
     partition_keys: ["seed","fingerprint"]
