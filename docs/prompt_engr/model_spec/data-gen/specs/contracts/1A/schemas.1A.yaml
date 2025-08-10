@@ -176,19 +176,19 @@ alloc:
         minimum: 0.0
         maximum: 1.0
         exclusiveMaximum: true
-      - { name: tie_break_rank, type: int32,         nullable: false, description: "Deterministic rank for extra-unit assignment (descending residual)." }
+      - { name: residual_rank, type: int32,         nullable: false, description: "Rank by descending residual (1=largest)." }
 
 
 # 4) Egress (immutable outlet stubs)
 egress:
   outlet_catalogue:
     type: table
-    description: "Immutable outlet stubs before coordinate placement; per-merchant per-country site sequencing."
+    description: "Immutable outlet stubs per merchant and legal country. NOTE: Inter-country order is NOT encoded here; consumers must read `country_set.rank` (0=home, then foreigns in Gumbel order)."
     primary_key: ["merchant_id","site_id"]
     unique_keys:
-      - ["merchant_id","legal_country_iso","tie_break_rank"]
+      - ["merchant_id","legal_country_iso","site_order"]
     partition_keys: ["seed","fingerprint"]
-    sort_keys: ["merchant_id","legal_country_iso","tie_break_rank"]
+    sort_keys: ["merchant_id","legal_country_iso","site_order"]
     columns:
       - { name: manifest_fingerprint, type: string,  nullable: false,
           description: "Hex-encoded SHA-256 lineage fingerprint (egress partition key also stored per-row).",
@@ -215,8 +215,7 @@ egress:
           description: "Accepted NB draw N before cross-border allocation.", minimum: 1 }
       - { name: final_country_outlet_count, type: int32, nullable: false,
           description: "Integer outlet count allocated to this legal_country.", minimum: 0 }
-      - { name: tie_break_rank,     type: int32,           nullable: false, description: "Stable per-country site order (1..n_i).", minimum: 1 }
-      - { name: parameter_hash,     type: string,          nullable: true,  description: "Parameter hash used in this build (diagnostic copy)." }
+      - { name: site_order,     type: int32,           nullable: false, description: "Stable per-country site order (1..n_i).", minimum: 1 }
       - { name: global_seed,        $ref: "#/$defs/uint64", nullable: false,
           description: "Master Philox seed (derivable from manifest; stored for audit replay)." }
     notes:
@@ -241,20 +240,21 @@ validation:
       - { name: passed,      type: boolean,  nullable: false, description: "Whether the test passed." }
       - { name: notes,       type: string,   nullable: true,  description: "Free-text diagnostics." }
 
-  ci_metrics:
-    type: table
-    description: "Nightly CI drift metrics for 1A (NB/ZTP stats, residuals, sparsity rates)."
-    primary_key: ["run_id","metric"]
-    partition_keys: ["run_id"]
-    sort_keys: []
-    columns:
-      - { name: run_id,    type: string,   nullable: false, description: "CI run identifier (matches partition)." }
-      - { name: metric,    type: string,   nullable: false, description: "Metric name (e.g., 'nb_k_rmse','ztp_accept_rate')." }
-      - { name: entity,    type: string,   nullable: true,  description: "Dimension key (e.g., currency code, 'GLOBAL')." }
-      - { name: value,     type: float64,  nullable: false, description: "Metric value." }
-      - { name: lower,     type: float64,  nullable: true,  description: "Lower bound (if monitored with bounds)." }
-      - { name: upper,     type: float64,  nullable: true,  description: "Upper bound (if monitored with bounds)." }
-      - { name: passed,    type: boolean,  nullable: true,  description: "Optional quick flag whether within thresholds." }
+# Prune CI-time artefacts (planning phase)
+#  ci_metrics:
+#    type: table
+#    description: "Nightly CI drift metrics for 1A (NB/ZTP stats, residuals, sparsity rates)."
+#    primary_key: ["run_id","metric"]
+#    partition_keys: ["run_id"]
+#    sort_keys: []
+#    columns:
+#      - { name: run_id,    type: string,   nullable: false, description: "CI run identifier (matches partition)." }
+#      - { name: metric,    type: string,   nullable: false, description: "Metric name (e.g., 'nb_k_rmse','ztp_accept_rate')." }
+#      - { name: entity,    type: string,   nullable: true,  description: "Dimension key (e.g., currency code, 'GLOBAL')." }
+#      - { name: value,     type: float64,  nullable: false, description: "Metric value." }
+#      - { name: lower,     type: float64,  nullable: true,  description: "Lower bound (if monitored with bounds)." }
+#      - { name: upper,     type: float64,  nullable: true,  description: "Upper bound (if monitored with bounds)." }
+#      - { name: passed,    type: boolean,  nullable: true,  description: "Optional quick flag whether within thresholds." }
 
   validation_bundle:
     type: bundle

@@ -82,6 +82,7 @@ subsegments:
         notes: null
 
       # 3  SCHEMAS & VALIDATOR CONFIG BLOBS
+      #### might need to remove this artefact
       - name: transaction_schema_avro
         path: schemas/transaction_schema.avsc
         type: schema

@@ -1,4 +1,4 @@
-A merchant row in `transaction_schema` contains only four descriptive attributes—`merchant_id`, an MCC, the onboarding (home) country and a channel flag—yet by the end of the first sub‑segment the generator must have produced an immutable catalogue in which that merchant is represented by one or more **outlet stubs**. Each stub fixes the legal country in which the outlet trades; nothing downstream may reinterpret that decision. Because geospatial placement, timezone assignment and temporal intensity all build on this catalogue, the derivation of outlet counts and country spread must be reproducible, statistically defensible and hermetic. This document enumerates—explicitly—every assumption, parameterisation, artefact, and numeric environment constraint; any behaviour not written here is treated as a defect, not an implicit allowance.
+A merchant row in `transaction_schema` contains only four descriptive attributes—`merchant_id`, an MCC, the onboarding (home) country and a channel flag—yet by the end of the first sub‑segment the generator must have produced an immutable catalogue in which that merchant is represented by one or more **outlet stubs**. Each stub fixes the legal country in which the outlet trades; nothing downstream may reinterpret that decision. Because geospatial placement, timezone assignment and temporal intensity all build on this catalogue, the derivation of outlet counts and country spread must be reproducible, statistically defensible and hermetic. This document enumerates—explicitly—every assumption, parameterisation, artefact, and numeric environment constraint; any behaviour not written here is treated as a defect, not an implicit allowance. 1A consumes a processed, column-normalised merchant snapshot validated against `schemas.ingress.layer1.yaml#/merchant_ids` (JSON-Schema, sole authority during planning), not the raw `transaction_schema` record.
 
 ---
 
@@ -114,7 +114,7 @@ Integer allocation (largest‑remainder):
 3. Residuals r\_i = w\_i N − n\_i^floor; quantise r\_i to 8 dp.
 4. Sort residuals descending; break ties by ISO code (ASCII).
 5. Let d = N − Σ n\_i^floor. Since Σ w\_i = 1, 0 ≤ d < (K+1); if d=0 no adjustments. Otherwise add +1 to first d indices in sorted list.
-6. Persist ordering index as `tie_break_rank`.
+6. Persist ordering index as `residual_rank`.
 
 Bound justification: worst‑case |n\_i − w\_i N| ≤ 1, so relative allocation error ≤ 1/N; validation records deviations and aborts if any |n\_i − w\_i N| >1. Empirical report includes max and p99.9 deviations; expected relative error <0.3% for small N (e.g., N=3, K=2).
 
@@ -122,22 +122,22 @@ Formal proof of d bound and determinism resides in `docs/derivations/dirichlet_l
 
 ### 11. Site ID Sequencing & Schema
 
-Ordering: sort rows by `country_iso` ascending, then by `tie_break_rank`, then assign fixed 6‑digit zero‑padded sequence per (merchant\_id, country\_iso) block beginning at 000001. Overflow beyond 999999 outlets in a block aborts build (`site_sequence_overflow`, none expected). Event logged: `sequence_finalize`.
+Ordering: sort rows by `legal_country_iso` ascending, then by `site_order` (1..n_i). Inter-country order is NOT encoded here; consumers MUST use `country_set.rank` (0 = home, then Gumbel order) if they require it. Then assign fixed 6‑digit zero‑padded sequence per (merchant\_id, country\_iso) block beginning at 000001. Overflow beyond 999999 outlets in a block aborts build (`site_sequence_overflow`, none expected). Event logged: `sequence_finalize`.
 
 **Outlet stub schema (non‑nullable):**
 
-| Column                        | Type          | Description                                        |
-| ----------------------------- | ------------- | -------------------------------------------------- |
-| merchant\_id                  | int64         | Original merchant identifier                       |
-| site\_id                      | string `%06d` | Per-merchant+country sequence (6 digits)           |
-| home\_country\_iso            | char(2)       | Onboarding country (source for GDP bucket)         |
-| legal\_country\_iso           | char(2)       | Country of this outlet (home or foreign)           |
-| single\_vs\_multi\_flag       | bool          | 0=single-site, 1=multi-site                        |
-| raw\_nb\_outlet\_draw         | int32         | Raw NB draw N (≥2 if multi-site; 1 else)           |
-| final\_country\_outlet\_count | int32         | n\_i for this country                              |
-| tie\_break\_rank              | int32         | Position after residual sort (for forensic replay) |
-| manifest\_fingerprint         | char(64)      | Catalogue lineage identifier                       |
-| global\_seed                  | uint64        | Master seed (derivable from manifest)              |
+| Column                        | Type          | Description                                |
+|-------------------------------|---------------|--------------------------------------------|
+| merchant\_id                  | int64         | Original merchant identifier               |
+| site\_id                      | string `%06d` | Per-merchant+country sequence (6 digits)   |
+| home\_country\_iso            | char(2)       | Onboarding country (source for GDP bucket) |
+| legal\_country\_iso           | char(2)       | Country of this outlet (home or foreign)   |
+| single\_vs\_multi\_flag       | bool          | 0=single-site, 1=multi-site                |
+| raw\_nb\_outlet\_draw         | int32         | Raw NB draw N (≥2 if multi-site; 1 else)   |
+| final\_country\_outlet\_count | int32         | n\_i for this country                      |
+| site_order                    | int32         | Per-country site sequence (1..n_i)         |
+| manifest\_fingerprint         | char(64)      | Catalogue lineage identifier               |
+| global\_seed                  | uint64        | Master seed (derivable from manifest)      |
 
 Encoding: integers little‑endian; ISO codes dictionary‑encoded; compression ZSTD level 3; codec choice hashed. Schema version embedded; any column/order/type change → semver bump and fingerprint change.
 
