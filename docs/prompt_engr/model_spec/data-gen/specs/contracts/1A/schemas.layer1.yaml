@@ -270,18 +270,18 @@ rng:
             start_sequence: { $ref: "#/$defs/six_digit_seq" }
             end_sequence:   { $ref: "#/$defs/six_digit_seq" }
 
-    tie_break_rank:
+    residual_rank:
       allOf:
         - $ref: "#/$defs/rng_envelope"
         - type: object
           additionalProperties: false
-          required: [merchant_id, country_iso, residual, tie_break_rank]
+          required: [merchant_id, country_iso, residual, residual_rank]
           properties:
             merchant_id:    { $ref: "#/$defs/id64" }
             country_iso:    { $ref: "#/$defs/iso2" }
             # Note: residuals are quantised to 8 dp by the engine; rounding tolerance is validated in invariants, not in schema.
             residual:      { type: number, minimum: 0.0, maximum: 1.0, description: "Largest-remainder residual in [0,1)." }
-            tie_break_rank: { type: integer, minimum: 1 }
+            residual_rank: { type: integer, minimum: 1 }
 
     site_sequence_overflow:
       allOf:

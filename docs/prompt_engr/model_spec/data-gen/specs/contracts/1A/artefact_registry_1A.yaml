@@ -329,7 +329,7 @@ subsegments:
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: schemas.1A.yaml#/prep/ccy_country_weights_cache
         cross_layer: false
         notes: null
 
@@ -766,7 +766,7 @@ subsegments:
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: transaction_schema.avsc
+        schema: schemas.ingress.layer1.yaml#/merchant_ids
         cross_layer: true
         notes: null
 
@@ -785,7 +785,7 @@ subsegments:
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: design_matrix.avsc
+        schema: schemas.1A.yaml#/model/hurdle_design_matrix
         cross_layer: true
         notes: null
 
@@ -799,12 +799,12 @@ subsegments:
         manifest_key: mlr.1A.hurdle.pi_probs
         license: "{spdx_or_internal}"
         role: Logistic‑hurdle π (single vs multi) per merchant.
-        dependencies: [ hurdle_design_matrix, hurdle_coefficients, nb_dispersion_coefficients ]
+        dependencies: [ hurdle_design_matrix, hurdle_coefficients ]
         source: internal
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: hurdle_pi_probs.avsc
+        schema: schemas.1A.yaml#/model/hurdle_pi_probs
         cross_layer: true
         notes: null
 
@@ -842,7 +842,7 @@ subsegments:
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: sparse_flags.avsc
+        schema: schemas.1A.yaml#/prep/sparse_flag
         cross_layer: false
         notes: null
 
@@ -865,16 +865,16 @@ subsegments:
         cross_layer: false
         notes: null
 
-      - name: rng_event_tie_break_rank
-        path: logs/rng/events/tie_break_rank/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+      - name: rng_event_residual_rank
+        path: logs/rng/events/residual_rank/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         type: log
         category: rng_event
         semver: "{semver}"
         version: "{run_id}"
         digest: "{sha256}"
-        manifest_key: mlr.rng.events.tie_break_rank
+        manifest_key: mlr.rng.events.residual_rank
         license: "{spdx_or_internal}"
-        role: Deterministic tie-break ranks used in largest-remainder integerisation.
+        role: Deterministic residual ranks used in largest-remainder integerisation.
         dependencies: [ rng_event_schema_catalog ]
         source: internal
         owner: { platform_team }
@@ -894,12 +894,12 @@ subsegments:
         manifest_key: mlr.1A.allocation.country_set
         license: "{spdx_or_internal}"
         role: Ordered list of home + selected foreign ISO codes per merchant.
-        dependencies: [ crossborder_allocation, rng_event_gumbel_key, rng_event_dirichlet_gamma_vector, rng_event_tie_break_rank ]
+        dependencies: [ crossborder_allocation, rng_event_gumbel_key, rng_event_dirichlet_gamma_vector, rng_event_residual_rank ]
         source: internal
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: country_set.avsc
+        schema: schemas.1A.yaml#/alloc/country_set
         cross_layer: false
         notes: "Persist to avoid extra RNG in downstream routing."
 
@@ -918,25 +918,6 @@ subsegments:
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ ci, dev ]
-        schema: null
-        cross_layer: false
-        notes: null
-
-      - name: outlet_stub_schema
-        path: schema/outlet_stub.avsc
-        type: schema
-        category: outlet_stub
-        semver: "{schema_semver}"
-        version: "{schema_version}"
-        digest: "{schema_digest}"
-        manifest_key: mlr.1A.schema.outlet_stub
-        license: "{spdx_or_internal}"
-        role: Full schema for outlet catalogue (all columns & constraints).
-        dependencies: [ ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci, runtime ]
         schema: null
         cross_layer: false
         notes: null
@@ -970,33 +951,34 @@ subsegments:
         manifest_key: mlr.1A.output.outlet_catalogue
         license: "{spdx_or_internal}"
         role: Final outlet stubs (one row per site), deterministic partitions by seed & fingerprint.
-        dependencies: [ country_set, site_id_allocator, rng_event_sequence_finalize, outlet_stub_schema ]
+        dependencies: [ country_set, site_id_allocator, rng_event_sequence_finalize ]
         source: internal
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: outlet_stub_schema
+        schema: schemas.1A.yaml#/egress/outlet_catalogue
         cross_layer: true
         notes: "ZSTD level 3; path pattern enforced by `storage_path_pattern`."
 
-      - name: post_write_validation_routine
-        path: src/validation/post_write_validation.py
-        type: script
-        category: validation
-        semver: "{code_semver}"
-        version: "{git_commit}"
-        digest: "{git_tree_hash}"
-        manifest_key: mlr.1A.validation.post_write
-        license: "{spdx_or_internal}"
-        role: Recomputes counts, weights, tie_break_rank, and site_ids; aborts on mismatch.
-        dependencies: [ outlet_catalogue ]
-        source: internal
-        owner: { qa_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci, runtime ]
-        schema: null
-        cross_layer: false
-        notes: null
+# Prune CI-time artefacts (planning phase)
+#      - name: post_write_validation_routine
+#        path: src/validation/post_write_validation.py
+#        type: script
+#        category: validation
+#        semver: "{code_semver}"
+#        version: "{git_commit}"
+#        digest: "{git_tree_hash}"
+#        manifest_key: mlr.1A.validation.post_write
+#        license: "{spdx_or_internal}"
+#        role: Recomputes counts, weights, tie_break_rank, and site_ids; aborts on mismatch.
+#        dependencies: [ outlet_catalogue ]
+#        source: internal
+#        owner: { qa_team }
+#        last_updated: "{iso8601_timestamp}"
+#        environment: [ ci, runtime ]
+#        schema: null
+#        cross_layer: false
+#        notes: null
 
       - name: validation_bundle_1A
         path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
@@ -1036,24 +1018,24 @@ subsegments:
         cross_layer: false
         notes: null
 
-      - name: nightly_ci_metrics
-        path: ci/metrics/layer1/1A/nightly/run_id={run_id}/metrics.parquet
-        type: dataset
-        category: monitoring
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.metrics.ci
-        license: "{spdx_or_internal}"
-        role: NB/ ZTP stats, rounding deviations, sparse_flag rate, event counts, θ₁ sig; for drift detection.
-        dependencies: [ post_write_validation_routine, rng_audit_log ]
-        source: internal
-        owner: { qa_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci ]
-        schema: null
-        cross_layer: true
-        notes: null
+#      - name: nightly_ci_metrics
+#        path: ci/metrics/layer1/1A/nightly/run_id={run_id}/metrics.parquet
+#        type: dataset
+#        category: monitoring
+#        semver: "{semver}"
+#        version: "{run_id}"
+#        digest: "{sha256}"
+#        manifest_key: mlr.1A.metrics.ci
+#        license: "{spdx_or_internal}"
+#        role: NB/ ZTP stats, rounding deviations, sparse_flag rate, event counts, θ₁ sig; for drift detection.
+#        dependencies: [ post_write_validation_routine, rng_audit_log ]
+#        source: internal
+#        owner: { qa_team }
+#        last_updated: "{iso8601_timestamp}"
+#        environment: [ ci ]
+#        schema: null
+#        cross_layer: true
+#        notes: null
 
       - name: ieee754_binary64
         path: null
@@ -1127,7 +1109,7 @@ subsegments:
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: schemas.1A.yaml#/alloc/ranking_residual_cache
         cross_layer: true
         notes: null
 
@@ -1260,84 +1242,7 @@ subsegments:
         owner: { product_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
-        cross_layer: false
-        notes: null
-
-      # ── New schema artefacts (1A) ──
-      - name: design_matrix.avsc
-        path: schema/design_matrix.avsc
-        type: schema
-        category: schema
-        semver: { semver }
-        version: { schema_version }
-        digest: { sha256 }
-        manifest_key: mlr.1A.schema.design_matrix
-        license: { spdx_or_internal }
-        role: Avro schema for hurdle model design matrix (intercept, MCC, channel, GDP bucket)
-        dependencies: [ ]
-        source: internal
-        owner: { qa_team }
-        last_updated: { iso8601_timestamp }
-        environment: [ ci, runtime ]
-        schema: null
-        cross_layer: false
-        notes: null
-
-      - name: hurdle_pi_probs.avsc
-        path: schema/hurdle_pi_probs.avsc
-        type: schema
-        category: schema
-        semver: { semver }
-        version: { schema_version }
-        digest: { sha256 }
-        manifest_key: mlr.1A.schema.hurdle_pi_probs
-        license: { spdx_or_internal }
-        role: Avro schema for π (open‑probability) vectors from hurdle stage
-        dependencies: [ ]
-        source: internal
-        owner: { qa_team }
-        last_updated: { iso8601_timestamp }
-        environment: [ ci, runtime ]
-        schema: null
-        cross_layer: false
-        notes: null
-
-      - name: sparse_flags.avsc
-        path: schema/sparse_flags.avsc
-        type: schema
-        category: schema
-        semver: { semver }
-        version: { schema_version }
-        digest: { sha256 }
-        manifest_key: mlr.1A.schema.sparse_flags
-        license: { spdx_or_internal }
-        role: Avro schema for boolean sparsity indicators used in pipeline shortcuts
-        dependencies: [ ]
-        source: internal
-        owner: { qa_team }
-        last_updated: { iso8601_timestamp }
-        environment: [ ci, runtime ]
-        schema: null
-        cross_layer: false
-        notes: null
-
-      - name: country_set.avsc
-        path: schema/country_set.avsc
-        type: schema
-        category: schema
-        semver: { semver }
-        version: { schema_version }
-        digest: { sha256 }
-        manifest_key: mlr.1A.schema.country_set
-        license: { spdx_or_internal }
-        role: Avro schema for the canonical set of countries enabled for generation
-        dependencies: [ ]
-        source: internal
-        owner: { qa_team }
-        last_updated: { iso8601_timestamp }
-        environment: [ ci, runtime ]
-        schema: null
+        schema: schemas.1A.yaml#/prep/crossborder_eligibility_flags
         cross_layer: false
         notes: null
 

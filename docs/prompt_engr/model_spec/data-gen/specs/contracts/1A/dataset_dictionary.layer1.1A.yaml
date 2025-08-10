@@ -274,7 +274,7 @@ datasets:
   - id: "country_set"
     status: "approved"
     owner_subsegment: "1A"
-    description: "Ordered {home + foreign} ISO list per merchant after Gumbel-top-k."
+    description: "Per-merchant ordered set of countries participating in allocation. This dataset is the ONLY authoritative place for cross-country order (rank: 0=home, then Gumbel-selected foreigns). 1B MUST join here if it needs country order."
     version: "{parameter_hash}"
     format: "parquet"
     path: "data/layer1/1A/country_set/seed={seed}/parameter_hash={parameter_hash}/"
@@ -310,12 +310,12 @@ datasets:
   - id: "outlet_catalogue"
     status: "approved"
     owner_subsegment: "1A"
-    description: "Outlet stubs prior to coordinate placement; immutable counts & per-country sequencing."
+    description: "Immutable outlet stubs per merchant × legal_country. Does NOT encode cross-country order; join to `country_set` for that."
     version: "{manifest_fingerprint}"
     format: "parquet"
     path: "data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/"
     partitioning: ["seed","fingerprint"]
-    ordering: ["merchant_id","legal_country_iso","tie_break_rank"]
+    ordering: ["merchant_id","legal_country_iso","site_order"]
     schema_ref: "schemas.1A.yaml#/egress/outlet_catalogue"
     lineage:
       produced_by: "1A"
@@ -343,23 +343,24 @@ datasets:
     pii: false
     licence: "Proprietary-Internal"
 
-  - id: "nightly_ci_metrics"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "CI drift metrics for 1A (NB/ZTP stats, residuals, sparsity rates)."
-    version: "{run_id}"
-    format: "parquet"
-    path: "ci/metrics/layer1/1A/nightly/run_id={run_id}/metrics.parquet"
-    partitioning: ["run_id"]
-    ordering: []
-    schema_ref: "schemas.1A.yaml#/validation/ci_metrics"
-    lineage:
-      produced_by: "1A.ci_jobs"
-      consumed_by: ["validation"]
-      final_in_layer: false
-    retention_days: 365
-    pii: false
-    licence: "Proprietary-Internal"
+# Prune CI-time artefacts (planning phase)
+#  - id: "nightly_ci_metrics"
+#    status: "approved"
+#    owner_subsegment: "1A"
+#    description: "CI drift metrics for 1A (NB/ZTP stats, residuals, sparsity rates)."
+#    version: "{run_id}"
+#    format: "parquet"
+#    path: "ci/metrics/layer1/1A/nightly/run_id={run_id}/metrics.parquet"
+#    partitioning: ["run_id"]
+#    ordering: []
+#    schema_ref: "schemas.1A.yaml#/validation/ci_metrics"
+#    lineage:
+#      produced_by: "1A.ci_jobs"
+#      consumed_by: ["validation"]
+#      final_in_layer: false
+#    retention_days: 365
+#    pii: false
+#    licence: "Proprietary-Internal"
 
   - id: "validation_bundle_1A"
     status: "approved"
@@ -596,16 +597,16 @@ datasets:
     pii: false
     licence: "Proprietary-Internal"
 
-  - id: "rng_event_tie_break_rank"
+  - id: "rng_event_residual_rank"
     status: "approved"
     owner_subsegment: "1A"
-    description: "Event stream: deterministic tie-break ranks for per-country integerisation."
+    description: "Event stream: deterministic ranks of largest-remainder residuals for per-country integerisation."
     version: "{run_id}"
     format: "jsonl"
-    path: "logs/rng/events/tie_break_rank/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
+    path: "logs/rng/events/residual_rank/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
     partitioning: ["seed","parameter_hash","run_id"]
     ordering: []
-    schema_ref: "schemas.layer1.yaml#/rng/events/tie_break_rank"
+    schema_ref: "schemas.layer1.yaml#/rng/events/residual_rank"
     lineage:
       produced_by: "1A.integerisation"
       consumed_by: ["validation"]
@@ -635,7 +636,7 @@ datasets:
 # ── Governance / integrity ────────────────────────────────────────────────
 integrity:
   bundled_schema_sha256: null
-  dataset_count: 34
+  dataset_count: 33
 
 open_questions: []
 
