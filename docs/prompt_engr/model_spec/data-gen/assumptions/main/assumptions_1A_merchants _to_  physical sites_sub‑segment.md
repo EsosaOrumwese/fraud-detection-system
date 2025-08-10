@@ -143,7 +143,7 @@ Encoding: integers little‑endian; ISO codes dictionary‑encoded; compression 
 
 ### 12. Post‑Write Validation
 
-After writing the Parquet catalogue, a validation routine recomputes μ, φ, K, Dirichlet weights, residual ordering, integer allocations, tie\_break\_rank, and site\_id sequence from persisted inputs; mismatch aborts build. Presence and uniqueness of mandatory RNG events per merchant are checked; missing events abort.
+After writing the Parquet catalogue, a validation routine recomputes μ, φ, K, Dirichlet weights, residual ordering, integer allocations, the `residual_rank` and the per-country `site_order` sequence, and the generated `site_id`s from persisted inputs; any mismatch aborts the build. Presence and uniqueness of mandatory RNG events per merchant are checked; missing events abort.
 
 ### 13. Monitoring & Metrics
 
