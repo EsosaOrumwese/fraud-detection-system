@@ -2,7 +2,7 @@
 
 For merchant $m$, the evolving state is
 
-$$\mathcal{S} = \big(m,\, \text{home\_iso},\, \text{MCC},\, \text{channel},\, \text{GDP\_bucket},\, \pi,\, \text{flag},\, N,\, \text{elig},\, K,\, \mathcal{C},\, {\alpha},\, \mathbf{w},\, \mathbf{n},\, \text{seq}\big)$$
+$$\mathcal{S} = \big(m,\, \text{home_iso},\, \text{MCC},\, \text{channel},\, \text{GDP_bucket},\, \pi,\, \text{flag},\, N,\, \text{elig},\, K,\, \mathcal{C},\, {\alpha},\, \mathbf{w},\, \mathbf{n},\, \text{seq}\big)$$
 
 with meanings introduced as we enter each state. All draws are Philox-based and logged to per-event JSONL streams (hurdle, NB components, ZTP, Gumbel keys, Dirichlet gamma vectors, residual ranks, stream jumps, sequence finalize).
 
@@ -16,7 +16,7 @@ with meanings introduced as we enter each state. All draws are Philox-based and 
 * Build the **design vector** $x_m = [\text{intercept}, \text{MCC one-hots}, \text{channel one-hots}, \text{GDP bucket}]$. Load hurdle/NB coefficients; select **cross-border hyperparams** ($\theta$-vector, Dirichlet $\alpha$ lookup).
 * Compute or load $\pi_m$ (logit-hurdle success prob) to `hurdle_pi_probs`.
 * Apply **cross-border eligibility rules** $\rightarrow$ `crossborder_eligibility_flags`.
-* Bind **parameter\_hash/manifest\_fingerprint** (lineage keys used throughout paths and rows). `country_set` partitions on $\{\text{seed}, \text{parameter\_hash}\}$; `outlet_catalogue` on $\{\text{seed}, \text{fingerprint}\}$.
+* Bind **parameter_hash/manifest_fingerprint** (lineage keys used throughout paths and rows). `country_set` partitions on $\{\text{seed}, \text{parameter_hash}\}$; `outlet_catalogue` on $\{\text{seed}, \text{fingerprint}\}$.
 
 **Leaves:** $\mathcal{S}$ enriched with $x_m$, $\pi_m$, eligibility flag, and lineage keys.
 
@@ -49,7 +49,7 @@ with meanings introduced as we enter each state. All draws are Philox-based and 
 
 **Goal:** enforce policy before trying foreign spread.
 
-* Read `crossborder_eligibility_flags` (`is_eligible`, reason, rule\_set). Only **multi-site & eligible** merchants enter ZTP.
+* Read `crossborder_eligibility_flags` (`is_eligible`, reason, rule_set). Only **multi-site & eligible** merchants enter ZTP.
 
 **Branch:**
 - **Ineligible:** set $K = 0$, $\mathcal{C} = \{\text{home}\}$ $\rightarrow$ S7.
@@ -97,7 +97,7 @@ with meanings introduced as we enter each state. All draws are Philox-based and 
 * Load $\alpha = \alpha(\text{home}, \text{MCC}, \text{channel};\, K)$. Draw $\gamma_i \sim \text{Gamma}(\alpha_i, 1)$; set $w_i = \gamma_i / \sum_j \gamma_j$. Log `dirichlet_gamma_vector`.
 * **Largest-remainder rounding:**
   $$a_i = \lfloor N w_i \rfloor, \quad d = N - \sum_i a_i; \quad r_i = (N w_i - a_i)$$
-  residuals quantised to **8 dp**; sort $r_i$ desc (ISO secondary key); give $+1$ to the top $d$. Persist $(r_i, \text{residual\_rank})$ to `ranking_residual_cache_1A`; log `residual_rank`. Bound: $\lvert n_i - N w_i \rvert \le 1$.
+  residuals quantised to **8 dp**; sort $r_i$ desc (ISO secondary key); give $+1$ to the top $d$. Persist $(r_i, \text{residual_rank})$ to `ranking_residual_cache_1A`; log `residual_rank`. Bound: $\lvert n_i - N w_i \rvert \le 1$.
 
 **Leaves:** integer vector $\mathbf{n} = (n_i)_{i \in \mathcal{C}}$ with $\sum n_i = N$.
 
@@ -109,7 +109,7 @@ with meanings introduced as we enter each state. All draws are Philox-based and 
 
 * For each country $i$, emit $n_i$ rows with `site_order` $= 1..n_i$ (within-country). Assign a fixed **6-digit zero-padded** `site_id` sequence per $(\text{merchant}, i)$; overflow $> 999999 \rightarrow$ `site_sequence_overflow`. Log `sequence_finalize`. **Do not** encode cross-country order here; consumers must join `country_set.rank`. Primary key and partitions as per schema.
 
-**Leaves:** `outlet_catalogue` (immutable, per merchant $\times$ legal\_country), `country_set`, and `ranking_residual_cache_1A` ready for 1B.
+**Leaves:** `outlet_catalogue` (immutable, per merchant $\times$ legal_country), `country_set`, and `ranking_residual_cache_1A` ready for 1B.
 
 ***
 
