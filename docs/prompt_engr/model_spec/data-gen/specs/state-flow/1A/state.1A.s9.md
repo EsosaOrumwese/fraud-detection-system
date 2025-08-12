@@ -1,7 +1,3 @@
-Awesome—here’s **S9 — Post-write validation & hand-off (math-first, same style/rigour as S0)**.
-
----
-
 # S9 — Post-write validation & hand-off
 
 ## S9.1 Scope, inputs, outputs

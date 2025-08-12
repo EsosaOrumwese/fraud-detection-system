@@ -8,13 +8,13 @@
   \texttt{merchant_ids} \subset \{(\texttt{merchant_id},\texttt{mcc},\texttt{channel},\texttt{home_country_iso})\},
   $$
 
-  validated by `schemas.ingress.layer1.yaml#/merchant_ids`.&#x20;
+  validated by `schemas.ingress.layer1.yaml#/merchant_ids`.
 * Canonical references (immutable for a run):
 
-  * ISO-3166 country list $\mathcal{I}$ (alpha-2).&#x20;
-  * GDP per-capita vintage $G:\mathcal{I}\to\mathbb{R}_{>0}$, pinned to **2025-04-15**.&#x20;
-  * Jenks $K{=}5$ GDP bucket map $B:\mathcal{I}\to\{1,\dots,5\}$ (precomputed artefact).&#x20;
-* Schema authority: authoritative contracts are `schemas.ingress.layer1.yaml`, `schemas.1A.yaml`, and shared RNG/event schemas in `schemas.layer1.yaml`. Avro (if any) is non-authoritative.&#x20;
+  * ISO-3166 country list $\mathcal{I}$ (alpha-2).
+  * GDP per-capita vintage $G:\mathcal{I}\to\mathbb{R}_{>0}$, pinned to **2025-04-15**.
+  * Jenks $K{=}5$ GDP bucket map $B:\mathcal{I}\to\{1,\dots,5\}$ (precomputed artefact).
+* Schema authority: authoritative contracts are `schemas.ingress.layer1.yaml`, `schemas.1A.yaml`, and shared RNG/event schemas in `schemas.layer1.yaml`. Avro (if any) is non-authoritative.
 
 ## S0.2 Parameter set hash and manifest fingerprint (lineage)
 
@@ -46,10 +46,10 @@ X \;=\; \bigoplus_{a\in\mathcal{A}} D(a) \;\oplus\; \text{git}_{32} \;\oplus\; \
 \quad \text{manifest_fingerprint}=\text{hex64}(\text{manifest_fingerprint_bytes}).
 $$
 
-This fingerprint versions **egress** and **validation** (e.g., `outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/…`) and is embedded in rows.&#x20;
+This fingerprint versions **egress** and **validation** (e.g., `outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/…`) and is embedded in rows.
 
 **Partitioning contract (from dictionary).**
-Parameter-scoped datasets partition by `{parameter_hash}`; egress/validation lineage partitions by `{manifest_fingerprint}` (and often `{seed}`).&#x20;
+Parameter-scoped datasets partition by `{parameter_hash}`; egress/validation lineage partitions by `{manifest_fingerprint}` (and often `{seed}`).
 
 ## S0.3 RNG: master seed, counter, and sub-stream mapping
 
@@ -61,7 +61,7 @@ $$
 \{\texttt{ts_utc},\texttt{run_id},\texttt{seed},\texttt{parameter_hash},\texttt{manifest_fingerprint},\texttt{module},\texttt{substream_label},\texttt{rng_counter_before_{lo,hi}},\texttt{rng_counter_after_{lo,hi}}\}.
 $$
 
-Open-interval uniforms `u01` satisfy $u\in(0,1)$ (exclusive bounds).&#x20;
+Open-interval uniforms `u01` satisfy $u\in(0,1)$ (exclusive bounds).
 
 ### S0.3.2 Master seed and initial counter (deterministic)
 
@@ -78,7 +78,7 @@ Given a run-supplied $s\in\{0,\dots,2^{64}\!-\!1\}$ (u64), and the 32-byte $\tex
   \boxed{\ (c_{\mathrm{hi}},c_{\mathrm{lo}}) = \mathrm{split64}\!\big(\mathrm{SHA256}(\text{“ctr:1A”}\ \|\ \text{manifest_fingerprint_bytes}\ \|\ \mathrm{LE64}(s))[0{:}16]\big)\ }.
   $$
 
-Emit one `rng_audit_log` row with these values before any draws; every per-event record includes pre/post counters via the envelope.&#x20;
+Emit one `rng_audit_log` row with these values before any draws; every per-event record includes pre/post counters via the envelope.
 
 ### S0.3.3 Sub-stream labelling (jump discipline)
 
@@ -94,7 +94,7 @@ $$
 (c'_{\mathrm{hi}},c'_{\mathrm{lo}}) = (c_{\mathrm{hi}},\ c_{\mathrm{lo}} + J(\ell))\quad\text{with 64-bit carry},
 $$
 
-then draw. Envelope counters prove consumption; *strides are not duplicated in payloads*.&#x20;
+then draw. Envelope counters prove consumption; *strides are not duplicated in payloads*.
 
 ## S0.4 Deterministic GDP bucket assignment
 
@@ -104,7 +104,7 @@ $$
 g_c \leftarrow G(c)\in\mathbb{R}_{>0},\qquad b_m := B(c)\in\{1,2,3,4,5\}.
 $$
 
-$B$ is a pinned lookup table (not recomputed online).&#x20;
+$B$ is a pinned lookup table (not recomputed online).
 
 ## S0.5 Design matrices (hurdle and NB)
 
@@ -125,7 +125,7 @@ $$
 \pi_m=\sigma(\beta^\top x_m),\ \ \sigma(t)=\tfrac{1}{1+e^{-t}}.
 $$
 
-All hurdle coefficients (including GDP-bucket dummies) live in a single YAML vector $\beta$.&#x20;
+All hurdle coefficients (including GDP-bucket dummies) live in a single YAML vector $\beta$.
 
 * **Negative-Binomial designs (used later in S2):**
 
@@ -135,7 +135,7 @@ $$
 \boxed{\ x^{(\phi)}_m=\big[1,\ \phi_{\mathrm{mcc}}(\texttt{mcc}_m),\ \phi_{\mathrm{ch}}(\texttt{channel}_m),\ \log g_c\big]^\top\ }.
 $$
 
-Design rule: GDP bucket **excluded** from NB mean; $\log g_c$ **included** in dispersion with positive slope at fit time.&#x20;
+Design rule: GDP bucket **excluded** from NB mean; $\log g_c$ **included** in dispersion with positive slope at fit time.
 
 **Numerical guard for $\sigma$.** Implement overflow-safe branches:
 
@@ -157,16 +157,16 @@ $$
 \boxed{\ \text{elig}_m=\mathbf{1}\big\{(\texttt{mcc}_m,\texttt{channel}_m,\texttt{home_country_iso}_m)\in \mathcal{E}\big\}\ }.
 $$
 
-Persist to `crossborder_eligibility_flags` (partitioned by `{parameter_hash}`) per `schemas.1A.yaml#/prep/crossborder_eligibility_flags`.&#x20;
+Persist to `crossborder_eligibility_flags` (partitioned by `{parameter_hash}`) per `schemas.1A.yaml#/prep/crossborder_eligibility_flags`.
 
 ## S0.7 Optional diagnostic cache (hurdle π)
 
-Optionally cache $(\texttt{merchant_id},\eta_m,\pi_m)$ to `hurdle_pi_probs/parameter_hash={parameter_hash}/…` with schema `#/model/hurdle_pi_probs`. This table is **read-only** and never consulted during sampling.&#x20;
+Optionally cache $(\texttt{merchant_id},\eta_m,\pi_m)$ to `hurdle_pi_probs/parameter_hash={parameter_hash}/…` with schema `#/model/hurdle_pi_probs`. This table is **read-only** and never consulted during sampling.
 
 ## S0.8 Numeric policy and determinism invariants
 
-* **Numeric environment:** IEEE-754 binary64. Disable FMA for operations affecting residual ordering in later states; use deterministic serial reductions. (These toggles are part of the artefact set hashed into the fingerprint.)&#x20;
-* **RNG envelope invariants:** Every RNG event (any state $>$ S0) must include the full envelope (seed, parameter_hash, manifest_fingerprint, pre/post counters, module, substream_label). Absence is a structural failure.&#x20;
+* **Numeric environment:** IEEE-754 binary64. Disable FMA for operations affecting residual ordering in later states; use deterministic serial reductions. (These toggles are part of the artefact set hashed into the fingerprint.)
+* **RNG envelope invariants:** Every RNG event (any state $>$ S0) must include the full envelope (seed, parameter_hash, manifest_fingerprint, pre/post counters, module, substream_label). Absence is a structural failure.
 * **Partitioning invariants (dictionary-backed):**
 
   $$
@@ -176,14 +176,14 @@ Optionally cache $(\texttt{merchant_id},\eta_m,\pi_m)$ to `hurdle_pi_probs/param
   \end{aligned}
   $$
 
-  e.g., `country_set` and `ranking_residual_cache_1A` by `{seed,parameter_hash}`; `outlet_catalogue` by `{seed,manifest_fingerprint}`.&#x20;
+  e.g., `country_set` and `ranking_residual_cache_1A` by `{seed,parameter_hash}`; `outlet_catalogue` by `{seed,manifest_fingerprint}`.
 
 ## S0.9 Failure modes (all abort)
 
 * Ingress schema violation for any row in `merchant_ids`.
 * Missing artefact or digest mismatch during parameter/fingerprint formation.
 * Non-finite values in $\eta_m$, $g_c$, or $b_m$ out of $\{1,\dots,5\}$.
-* RNG audit record not written before first draw; or envelope fields missing in any subsequent event (caught by validators tied to the dictionary schemas).&#x20;
+* RNG audit record not written before first draw; or envelope fields missing in any subsequent event (caught by validators tied to the dictionary schemas).
 
 ## S0.10 Outputs leaving S0 (deterministic state)
 
@@ -191,7 +191,7 @@ For each $m\in\mathcal{M}$, S0 produces:
 
 * $x_m,\ x^{(\mu)}_m,\ x^{(\phi)}_m,\ b_m,\ g_c$ in memory (or a transient design-matrix artefact);
 * one row in `crossborder_eligibility_flags` (and optional `hurdle_pi_probs`) **partitioned by `{parameter_hash}`**;
-* run-level `parameter_hash`, `manifest_fingerprint`, `seed=S_{\text{master}}`, and initial $(c_{\mathrm{hi}},c_{\mathrm{lo}})$ logged in RNG audit/trace logs.&#x20;
+* run-level `parameter_hash`, `manifest_fingerprint`, `seed=S_{\text{master}}`, and initial $(c_{\mathrm{hi}},c_{\mathrm{lo}})$ logged in RNG audit/trace logs.
 
 ---
 
