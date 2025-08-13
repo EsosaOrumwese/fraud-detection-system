@@ -138,6 +138,36 @@ Let $E$ be the audit envelope and $T_\ell$ the event traces for label $\ell$.
 
 4. **Replay spot-checks.** For a deterministic sample of $(m,i)$, re-draw the first few variates implied by `gumbel_key`/`dirichlet_gamma_vector` from the audited `(seed,counter)` and compare to logged `key`/`gamma` payloads; any mismatch aborts with a reproducer path. (Practice codified in the assumptions doc for RNG audit.)
 
+5. **Trace reconciliation (logs vs events).** For each event stream listed in the dataset dictionary, let
+   - $D_{\text{trace}}(\ell)$ be the sum of `draws` over all `rng_trace_log` rows for `(module, substream_label=\ell)`, and
+   - $D_{\text{events}}(\ell)$ be $\sum_{e\in T_\ell} e.\texttt{draws}$ from the structured RNG event stream for label $\ell$.
+   
+   Validators must prove
+   $$
+   D_{\text{trace}}(\ell) \;=\; D_{\text{events}}(\ell)
+   $$
+   for every label $\ell$. Any mismatch is a **structural failure** recorded in `rng_accounting.json`.
+
+6. **Budget spot‑checks (consistency with expected draw budgets).**
+   - **Hurdle.** Let $\mathcal{M}_\star=\{\,m:\ 0<\pi_m<1\,\}$. Require
+     $$
+     |\mathcal{M}_\star| \;=\; D_{\text{events}}(\text{``hurdle_bernoulli''}),
+     $$
+     since each such merchant consumes exactly one uniform (deterministic branches consume 0).
+   - **NB Gamma.** For `gamma_component` (context = "nb"), require
+     $$
+     \frac{D_{\text{events}}(\text{``gamma_component''})}{3} \;=\; \sum_m \big(\texttt{nb_final.nb_rejections}_m + 1\big),
+     $$
+     i.e., total attempts implied by draws/3 equals (rejections + first acceptance).
+   - **Dirichlet.** For `dirichlet_gamma_vector`, compute the implied total attempts as
+     $$
+     A_{\text{tot}} \;=\; \Big\lfloor \frac{D_{\text{events}}(\text{"dirichlet_gamma_vector"})}{3} \Big\rfloor.
+     $$
+     Confirm this against the per‑merchant vector structure (array lengths and constraints) in the logged events; additionally, the validator should verify that
+     $$
+     D_{\text{events}}(\text{``dirichlet_gamma_vector''}) \;=\; 3\,A_{\text{tot}} \;+\; \#\{\,\alpha_i<1\,\},
+     $$
+     reflecting the extra one‑uniform power step for components with $\alpha_i<1$ (per S0.3.6/S2.x).
 ---
 
 ## S9.6 Statistical corridors (release-time sanity)
