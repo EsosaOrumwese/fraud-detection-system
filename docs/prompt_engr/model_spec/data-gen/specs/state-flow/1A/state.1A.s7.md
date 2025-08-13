@@ -37,6 +37,8 @@ For budgets, see **S2.x**: α≥1 = 3 uniforms per attempt; α<1 = above plus 1 
    $$
 
    Emit **one** `dirichlet_gamma_vector` RNG event containing the aligned arrays `(country_isos, alpha, gamma_raw, weights)` (weights recorded after step 3). Envelope carries seed & Philox counters. Constraints: equal length arrays; $\sum_i w_i=1 \pm 10^{-6}$.
+   **Draw accounting (S0.3.6).** Event `draws` equals $\sum_i \big( 3 \times \text{attempts}_i \;+\; \mathbf{1}[\alpha_i<1] \big)$; normalisation consumes **no** uniforms.
+
 3. Serial normalisation (deterministic summation order):
 
    $$
