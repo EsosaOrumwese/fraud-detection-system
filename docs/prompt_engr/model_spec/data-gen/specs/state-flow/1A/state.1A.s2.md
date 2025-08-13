@@ -42,6 +42,39 @@ $r_m=\phi_m,\ p_m=\tfrac{\phi_m}{\phi_m+\mu_m}$.
 
 **numeric guard.** evaluate the linear predictors in binary64; abort if $\mu_m\le 0$ or $\phi_m\le 0$ after exponentiation (non-finite or non-positive).
 
+## S2.x Gamma(α,1) sampler (Marsaglia–Tsang MT1998, fixed budgets)
+
+**Case α ≥ 1**  
+Let $d = \alpha - \tfrac{1}{3}$, $c = (9d)^{-1/2}$.  
+Repeat attempts $t = 0, 1, \dots$:
+
+1. Draw $Z \sim \mathcal{N}(0,1)$ via **S0.3.5** (Box–Muller; exactly **2 uniforms** per $Z$; no caching).
+2. Set $V = (1 + cZ)^3$. If $V \le 0$, **reject** and continue.
+3. Draw $U \sim U(0,1)$ via **S0.3.4** (**1 uniform**).
+4. **Accept** if $\ln U < \tfrac{1}{2}Z^2 + d - dV + d\ln V$; return $G = dV$.
+
+**Budget per attempt:** **3 uniforms** (2 for $Z$, 1 for $U$).
+
+---
+
+**Case 0 < α < 1**  
+1. Draw $G' \sim \mathrm{Gamma}(\alpha+1,1)$ using the α ≥ 1 branch above (variable attempts; each attempt = 3 uniforms).  
+2. Draw $U \sim U(0,1)$ via **S0.3.4** (**1 uniform**).  
+3. Return $G = G'\,U^{1/\alpha}$.
+
+---
+
+**Logging**  
+- **NB**: emit `gamma_component` (context="nb") with `index=0`.  
+- **Dirichlet**: emit a single `dirichlet_gamma_vector` event containing all component values; the RNG envelope’s `draws` field must equal the total uniforms consumed for all components.  
+Envelope counters must reflect the **total uniforms** for all attempts and acceptance steps.
+
+**Determinism**  
+- Uniforms: **S0.3.4**.  
+- Normals: **S0.3.5**.  
+- Substreams: **S0.3.3** keyed mapping.
+
+
 ## S2.3 sampling theorem & construction (Poisson–Gamma mixture)
 
 **theorem (composition).** let $G\sim\mathrm{Gamma}(\alpha=\phi_m,\ \text{scale}=1)$ and, conditional on $G$, $K\mid G\sim\mathrm{Poisson}(\lambda=(\mu_m/\phi_m)\,G)$. then $K\sim \mathrm{NB2}(\mu_m,\phi_m)$.
@@ -51,10 +84,8 @@ $r_m=\phi_m,\ p_m=\tfrac{\phi_m}{\phi_m+\mu_m}$.
 1. **gamma step** (context=`"nb"`):
 
 $$
-G \sim \mathrm{Gamma}(\alpha=\phi_m,\ \text{scale}=1).
+G \sim \mathrm{Gamma}(\alpha=\phi_m,\, \text{scale}=1) \quad\text{via the sampler in S2.x}.
 $$
-
-Implementation note: when the Marsaglia–Tsang sampler requires a standard normal, draw it via **S0.3.5** (Box–Muller; exactly 2 uniforms per normal; no caching).
 
 log one record to `logs/rng/events/gamma_component/...` with the shared rng envelope and payload
 $\{\texttt{merchant_id},\ \texttt{context}=\text{"nb"},\ \texttt{index}=0,\ \alpha=\phi_m,\ \texttt{gamma_value}=G\}$.
@@ -114,8 +145,9 @@ Substream labels:
 Each attempt **emits exactly one** `gamma_component` and **one** `poisson_component` record.  
 `nb_final` appears **once** at acceptance.
 
-Replay is proven by the envelope counters; counter state for each $(\ell,m)$ is derived from the keyed mapping of S0.3.3 and incremented locally for each uniform consumed. There is no additive stride; label→merchant→index fully determines the counter.
-All uniforms consumed by the NB samplers (Gamma and Poisson) are drawn via the `u01` mapping in **S0.3.4** (open interval; one counter increment ⇒ one uniform).
+Replay is proven by the envelope counters; counter state for each $(\ell,m)$ is derived from the keyed mapping of S0.3.3 and incremented locally for each uniform consumed. There is no additive stride; label→merchant→index fully determines the counter.\
+All uniforms consumed by the NB samplers (Gamma and Poisson) are drawn via the `u01` mapping in **S0.3.4** (open interval; one counter increment ⇒ one uniform).\
+Gamma sampling follows **S2.x**, with α≥1 costing exactly 3 uniforms per attempt (2 for the normal, 1 for the acceptance-$U$) and α<1 costing the above plus 1 extra uniform for the power transform.
 
 ## S2.7 determinism & correctness invariants
 
