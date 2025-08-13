@@ -113,6 +113,7 @@ Each attempt **emits exactly one** `gamma_component` and **one** `poisson_compon
 `nb_final` appears **once** at acceptance.
 
 Replay is proven by the envelope counters; counter state for each $(\ell,m)$ is derived from the keyed mapping of S0.3.3 and incremented locally for each uniform consumed. There is no additive stride; label→merchant→index fully determines the counter.
+All uniforms consumed by the NB samplers (Gamma and Poisson) are drawn via the `u01` mapping in **S0.3.4** (open interval; one counter increment ⇒ one uniform).
 
 ## S2.7 determinism & correctness invariants
 
