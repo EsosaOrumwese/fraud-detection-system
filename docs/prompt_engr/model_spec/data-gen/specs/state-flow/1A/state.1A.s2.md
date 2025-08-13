@@ -103,12 +103,16 @@ $$
 
 > **event coverage invariant.** for any merchant with `nb_final`, there must exist at least one preceding `gamma_component` and one `poisson_component` event (context=`"nb"`) with matching envelope keys; absence is a structural failure.
 
-## S2.6 rng sub-streams & consumption discipline
+## S2.6 RNG substreams & consumption discipline
 
-* sub-stream labels:
-  $\ell_\gamma=$"gamma_component", $\ell_\pi=$"poisson_component".
-  each attempt **emits exactly one** `gamma_component` and **one** `poisson_component` record. `nb_final` appears **once** at acceptance.
-* replay is proven by the **envelope counters**; strides are defined by label hashing per S0 and are not duplicated in event payloads.
+Substream labels:
+- $\ell_\gamma=$ `"gamma_component"`
+- $\ell_\pi=$ `"poisson_component"`
+
+Each attempt **emits exactly one** `gamma_component` and **one** `poisson_component` record.  
+`nb_final` appears **once** at acceptance.
+
+Replay is proven by the envelope counters; counter state for each $(\ell,m)$ is derived from the keyed mapping of S0.3.3 and incremented locally for each uniform consumed. There is no additive stride; label→merchant→index fully determines the counter.
 
 ## S2.7 determinism & correctness invariants
 

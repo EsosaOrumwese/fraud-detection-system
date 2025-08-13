@@ -50,33 +50,29 @@ $$
 
 and (optionally) clamp only the *evaluation* at $|\eta|>40$ for stability—values logged should remain the unclamped $\eta_m$. The narrative confirms the single-YAML provenance for $\beta$ and the predictor set.
 
-## S1.3 RNG sub-stream and Bernoulli trial
+## S1.3 RNG substream and Bernoulli trial
 
-Let the **sub-stream label** be
+Let the **substream label** be
+$$
+\ell := \text{"hurdle_bernoulli"}.
+$$
+
+The keyed substream mapping of S0.3.3 is used to derive the Philox 2×64 counter state for $(\ell,m)$. Advance the **local index** for $(\ell,m)$ by one for each uniform consumed; the RNG envelope records pre/post counters.
+
+Draw **one** uniform deviate on the open interval (exclusive bounds by schema):
 
 $$
-\ell := \text{``hurdle_bernoulli''}.
-$$
-
-Its 64-bit jump stride is $J(\ell)=\mathrm{LE64}(\mathrm{SHA256}(\ell))$ as defined in S0; advance the Philox 2×64 counter by adding $J(\ell)$ to the low word with carry into the high word before any consumption (envelope records pre/post counters). (Envelope is mandatory per schema.)
-
-Draw **one** uniform deviate on the **open interval** (exclusive bounds by schema):
-
-$$
-\boxed{\ u_m \sim U(0,1)\ \text{ with } u_m\in(0,1)\ }.
+u_m \sim U(0,1) \quad\text{via `u01` (S0.3.4)}.
 $$
 
 The outcome is
-
 $$
-\boxed{\ \text{is_multi}(m) = \mathbf{1}\{u_m<\pi_m\}\ }.
+\text{is_multi}(m) = \mathbf{1}\{u_m < \pi_m\}.
 $$
 
-**Consumption discipline.**
-
-* If $0<\pi_m<1$: consume **exactly one** uniform.
-* If $\pi_m=0$ or $\pi_m=1$: consume **zero** uniforms; the outcome is deterministic; still emit a trace with `draws=0` in `rng_trace_log`.
-  The `u` field in the hurdle event uses the schema primitive `u01` (open interval).
+**Consumption discipline**
+- If $0 < \pi_m < 1$: consume exactly one uniform.
+- If $\pi_m \in \{0,1\}$: consume zero uniforms (deterministic outcome); still emit a trace with `draws=0` in `rng_trace_log`. In this case the `u` field in the hurdle event is `null` and `deterministic=true` per schema.
 
 ## S1.4 Event emission (authoritative schema + optional context)
 
