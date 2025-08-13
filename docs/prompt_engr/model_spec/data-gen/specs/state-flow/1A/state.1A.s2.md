@@ -54,6 +54,8 @@ $$
 G \sim \mathrm{Gamma}(\alpha=\phi_m,\ \text{scale}=1).
 $$
 
+Implementation note: when the Marsaglia–Tsang sampler requires a standard normal, draw it via **S0.3.5** (Box–Muller; exactly 2 uniforms per normal; no caching).
+
 log one record to `logs/rng/events/gamma_component/...` with the shared rng envelope and payload
 $\{\texttt{merchant_id},\ \texttt{context}=\text{"nb"},\ \texttt{index}=0,\ \alpha=\phi_m,\ \texttt{gamma_value}=G\}$.
 (schema requires `merchant_id, context, index, alpha, gamma_value`.)

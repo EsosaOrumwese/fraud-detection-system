@@ -109,14 +109,23 @@ Optionally record a `stream_jump` event when a module first emits for a new $(\e
 
 ### S0.3.4 Uniform on (0,1) from 64‑bit
 
-Given a 64‑bit unsigned integer \(x\) from Philox, define the open‑interval uniform
-\[
+Given a 64‑bit unsigned integer ($x$) from Philox, define the open‑interval uniform
+$$
 u \;=\; \frac{x+1}{2^{64}+1} \;\in\; (0,1).
-\]
+$$
 
 **Lane usage.** Each **uniform** consumes exactly **one** 64‑bit lane; we **do not** reuse Philox’s second 64‑bit lane for a second uniform.  
 **Counter rule.** One counter increment ⇒ one uniform (per S0.3.3 keyed substream mapping).  
 **Scope.** All internal uniforms (`u01`) in hurdle, NB, ZTP, Gumbel, and Dirichlet samplers use this mapping.
+
+### S0.3.5 Standard normal deviate
+
+For $U_1,U_2\stackrel{\text{iid}}{\sim}U(0,1)$ from **S0.3.4**,
+$$
+Z=\sqrt{-2\ln U_1}\,\cos(2\pi U_2)\ \sim\ \mathcal{N}(0,1).
+$$
+
+**Budget.** Exactly **2 uniforms** per \(Z\). We **do not** cache the paired sine normal; if a subsequent normal is required, it draws two new uniforms.
 
 
 ## S0.4 Deterministic GDP bucket assignment
