@@ -69,6 +69,7 @@ $$
 
 **Substream label:** $\ell=$ `"gumbel_key"`. Use the keyed substream mapping (S0.3.3) for $(\ell,m)$. Exactly **one** uniform is drawn per candidate $i\in\mathcal{F}_m$; open-interval `u01` per S0.3.4.
 **Draw accounting (S0.3.6).** Event `draws` must equal the number of candidate countries evaluated for that merchant.
+**Uniforms & mapping:** uniforms via **S0.3.4**; keyed mapping via **S0.3.3**.
 
 **Per-candidate event (always emitted):**
 $$
