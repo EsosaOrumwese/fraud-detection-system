@@ -80,21 +80,33 @@ Given a run-supplied $s\in\{0,\dots,2^{64}\!-\!1\}$ (u64), and the 32-byte $\tex
 
 Emit one `rng_audit_log` row with these values before any draws; every per-event record includes pre/post counters via the envelope.
 
-### S0.3.3 Sub-stream labelling (jump discipline)
+### S0.3.3 Keyed substream mapping (order-invariant)
 
-For any logical event label $\ell\in\mathcal{L}$ (e.g., `"hurdle_bernoulli"`, `"gamma_component"`, `"poisson_component"`, `"gumbel_key"`) define the 64-bit stride
-
-$$
-\boxed{\ J(\ell) = \mathrm{LE64}\!\big(\mathrm{SHA256}(\ell)\big)\ }.
-$$
-
-Before consuming uniforms for label $\ell$ (for merchant $m$), update
+For a logical event label $\ell\in\mathcal{L}$ (e.g., `"hurdle_bernoulli"`, `"gamma_component"`, `"poisson_component"`, `"gumbel_key"`) and merchant $m$, define a **base counter**:
 
 $$
-(c'_{\mathrm{hi}},c'_{\mathrm{lo}}) = (c_{\mathrm{hi}},\ c_{\mathrm{lo}} + J(\ell))\quad\text{with 64-bit carry},
+(c^{\mathrm{base}}_{\mathrm{hi}},\,c^{\mathrm{base}}_{\mathrm{lo}}) \;=\; \mathrm{split64}\!\Big(\mathrm{SHA256}\big(\text{"ctr:1A"} \,\|\, \texttt{manifest\_fingerprint\_bytes} \,\|\, \mathrm{LE64}(\texttt{seed}) \,\|\, \ell \,\|\, \mathrm{LE64}(m)\big)[0{:}16]\Big).
 $$
 
-then draw. Envelope counters prove consumption; *strides are not duplicated in payloads*.
+The $i$-th uniform consumed for that $(\ell,m)$ pair uses counter
+
+$$
+(c_{\mathrm{hi}},\,c_{\mathrm{lo}}) \;=\; (c^{\mathrm{base}}_{\mathrm{hi}},\, c^{\mathrm{base}}_{\mathrm{lo}} + i)
+$$
+
+with 64-bit carry into $c_{\mathrm{hi}}$. This mapping is **pure** in $(\texttt{seed},\ \texttt{fingerprint},\ \ell,\ m,\ i)$ and therefore order-invariant across partitions.
+
+Envelope counters in every RNG event must satisfy
+
+$$
+(\texttt{after\_hi},\ \texttt{after\_lo}) \;=\; (\texttt{before\_hi},\ \texttt{before\_lo}) + \texttt{draws}
+$$
+
+in 128-bit arithmetic, where `draws` is exactly the number of uniforms consumed by that event.  
+Optionally record a `stream_jump` event when a module first emits for a new $(\ell,m)$.
+
+> **Rationale:** removes dependence on processing order; replay is now guaranteed under parallel execution. All consuming steps refer to this mapping, not to an additive stride.
+
 
 ## S0.4 Deterministic GDP bucket assignment
 

@@ -52,31 +52,27 @@ $$
 
 Rejection sampling from $\mathrm{Poisson}(\lambda)$ has acceptance probability $1-e^{-\lambda}$. (These facts guide corridor checks but are not logged themselves.)
 
-## S4.4 RNG protocol (sub-streams, counters, schema)
+## S4.4 RNG protocol (substreams, counters, schema)
 
-* **Sub-stream label.** Use the Philox sub-stream $\ell=$`"poisson_component"` for **every** Poisson attempt in S4 with `context="ztp"`. Strides follow S0’s label→jump mapping; replay is proven via the envelope’s pre/post counters.
-* **Event contracts.**
+**Substream label.** Use $\ell=$ `"poisson_component"` for every Poisson attempt in S4 with `context="ztp"`. The keyed mapping of S0.3.3 is used to derive the Philox counter state for $(\ell,m)$; increment the local index for each uniform consumed. Replay is proven via the envelope’s pre/post counters.
 
-  * `poisson_component`: required fields `{merchant_id, context="ztp", lambda, k}` + RNG envelope. `lambda` is $\lambda_{\text{extra},m}$; `k` is the raw (untruncated) Poisson draw.
-  * `ztp_rejection`: required `{merchant_id, lambda_extra, k=0, attempt}` + envelope; `attempt∈[1,64]`.
-  * `ztp_retry_exhausted`: required `{merchant_id, lambda_extra, attempts=64, aborted=true}` + envelope.
-    Dataset dictionary paths (partition by `{seed,parameter_hash,run_id}`) are fixed.
+**Event contracts**
+- `poisson_component`: required `{merchant_id, context="ztp", lambda, k}` + RNG envelope. `lambda` is $\lambda_{\text{extra},m}$; `k` is the raw (untruncated) Poisson draw.
+- `ztp_rejection`: required `{merchant_id, lambda_extra, k=0, attempt}` + envelope.
+- `ztp_retry_exhausted`: required `{merchant_id, lambda_extra, attempts=64, aborted=true}` + envelope.
 
 ## S4.5 Sampling algorithm (formal)
 
-For each **eligible** merchant $m$ ($e_m{=}1$):
+For each eligible merchant $m$:
 
-1. Compute $\lambda:=\lambda_{\text{extra},m}=\exp(\theta_0+\theta_1\log N_m+\theta_2 X_m)$.
+1. Compute $\lambda := \lambda_{\text{extra},m} = \exp(\theta_0+\theta_1\log N_m+\theta_2 X_m)$.
 2. **Attempt loop** for $a=1,2,\dots$:
-   a) Draw $K_a \sim \mathrm{Poisson}(\lambda)$ from sub-stream $\ell$ and **emit**
-   `poisson_component{ merchant_id=m, context="ztp", lambda=λ, k=K_a, ...envelope }`.
-   b) If $K_a=0$: **emit**
-   `ztp_rejection{ merchant_id=m, lambda_extra=λ, k=0, attempt=a, ...envelope }` and continue.
-   c) If $K_a\ge1$: **accept** $K_m\leftarrow K_a$ and **stop** the loop.
-   d) If $a=64$ and still $K_a=0$: **emit**
-   `ztp_retry_exhausted{ merchant_id=m, lambda_extra=λ, attempts=64, aborted=true, ...envelope }` and **abort** this merchant.
+   a) Draw $K_a \sim \mathrm{Poisson}(\lambda)$ using substream $(\ell_\pi,m)$ via S0.3.3/S0.3.4. Emit `poisson_component{..., attempt=a}`.  
+   b) If $K_a=0$: emit `ztp_rejection{..., attempt=a}` and continue.  
+   c) If $K_a\ge 1$: accept $K_m\leftarrow K_a$ and stop.  
+   d) If $a=64$ and still $K_a=0$: emit `ztp_retry_exhausted{...}` and abort this merchant.
 
-All underlying uniforms used by the Poisson sampler are on the open interval $u\in(0,1)$ per the `u01` primitive; exact consumption is evidenced by the envelope counters in every record.
+All uniforms used by the Poisson sampler come from the keyed substream mapping and the open-interval `u01` primitive.
 
 ## S4.6 Determinism & correctness invariants
 

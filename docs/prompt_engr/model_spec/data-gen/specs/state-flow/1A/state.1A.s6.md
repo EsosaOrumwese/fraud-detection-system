@@ -67,20 +67,18 @@ $$
 
 ## S6.4 RNG protocol & event contract
 
-* **Sub-stream label:** $\ell=$ `"gumbel_key"`. Jump/stride resolution and counter advancement follow S0; **one** uniform draw per candidate $i\in\mathcal{F}_m$. (Open interval primitive `u01`.)
-* **Per-candidate event (always emitted):**
+**Substream label:** $\ell=$ `"gumbel_key"`. Use the keyed substream mapping (S0.3.3) for $(\ell,m)$. Exactly **one** uniform is drawn per candidate $i\in\mathcal{F}_m$; open-interval `u01` per S0.3.4.
 
-  $$
-  u_i\sim U(0,1),\qquad z_i=\log\tilde w_i - \log(-\log u_i).
-  $$
+**Per-candidate event (always emitted):**
+$$
+u_i \sim U(0,1), \quad z_i = \log\tilde{w}_i - \log(-\log u_i).
+$$
 
-  Emit a row to `logs/rng/events/gumbel_key/...` with payload
-
-  $$
-  \{\texttt{merchant_id},\ \texttt{country_iso}=i,\ \texttt{weight}=\tilde w_i,\ \texttt{u}=u_i,\ \texttt{key}=z_i,\ \texttt{selected}\in\{\texttt{true},\texttt{false}\},\ \texttt{selection_order}\},
-  $$
-
-  plus the **RNG envelope** fields. Schema `#/rng/events/gumbel_key` requires exactly these fields and types (including `u01` for open-interval uniforms).
+Emit a row to `logs/rng/events/gumbel_key/...` with payload:
+$$
+\{\texttt{merchant_id},\ \texttt{country_iso}=i,\ \texttt{weight}=\tilde{w}_i,\ \texttt{u}=u_i,\ \texttt{key}=z_i,\ \texttt{selected},\ \texttt{selection_order}\}
+$$
+plus the RNG envelope fields. Schema `#/rng/events/gumbel_key` requires these fields and types.
 
 ---
 
