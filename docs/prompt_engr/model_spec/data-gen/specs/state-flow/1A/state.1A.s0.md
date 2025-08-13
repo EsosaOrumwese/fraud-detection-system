@@ -107,6 +107,17 @@ Optionally record a `stream_jump` event when a module first emits for a new $(\e
 
 > **Rationale:** removes dependence on processing order; replay is now guaranteed under parallel execution. All consuming steps refer to this mapping, not to an additive stride.
 
+### S0.3.4 Uniform on (0,1) from 64‑bit
+
+Given a 64‑bit unsigned integer \(x\) from Philox, define the open‑interval uniform
+\[
+u \;=\; \frac{x+1}{2^{64}+1} \;\in\; (0,1).
+\]
+
+**Lane usage.** Each **uniform** consumes exactly **one** 64‑bit lane; we **do not** reuse Philox’s second 64‑bit lane for a second uniform.  
+**Counter rule.** One counter increment ⇒ one uniform (per S0.3.3 keyed substream mapping).  
+**Scope.** All internal uniforms (`u01`) in hurdle, NB, ZTP, Gumbel, and Dirichlet samplers use this mapping.
+
 
 ## S0.4 Deterministic GDP bucket assignment
 
