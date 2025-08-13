@@ -85,7 +85,7 @@ Emit one `rng_audit_log` row with these values before any draws; every per-event
 For a logical event label $\ell\in\mathcal{L}$ (e.g., `"hurdle_bernoulli"`, `"gamma_component"`, `"poisson_component"`, `"gumbel_key"`) and merchant $m$, define a **base counter**:
 
 $$
-(c^{\mathrm{base}}_{\mathrm{hi}},\,c^{\mathrm{base}}_{\mathrm{lo}}) \;=\; \mathrm{split64}\!\Big(\mathrm{SHA256}\big(\text{"ctr:1A"} \,\|\, \texttt{manifest\_fingerprint\_bytes} \,\|\, \mathrm{LE64}(\texttt{seed}) \,\|\, \ell \,\|\, \mathrm{LE64}(m)\big)[0{:}16]\Big).
+(c^{\mathrm{base}}_{\mathrm{hi}},\,c^{\mathrm{base}}_{\mathrm{lo}}) \;=\; \mathrm{split64}\!\Big(\mathrm{SHA256}\big(\text{"ctr:1A"} \,\|\, \texttt{manifest_fingerprint_bytes} \,\|\, \mathrm{LE64}(\texttt{seed}) \,\|\, \ell \,\|\, \mathrm{LE64}(m)\big)[0{:}16]\Big).
 $$
 
 The $i$-th uniform consumed for that $(\ell,m)$ pair uses counter
@@ -99,7 +99,7 @@ with 64-bit carry into $c_{\mathrm{hi}}$. This mapping is **pure** in $(\texttt{
 Envelope counters in every RNG event must satisfy
 
 $$
-(\texttt{after\_hi},\ \texttt{after\_lo}) \;=\; (\texttt{before\_hi},\ \texttt{before\_lo}) + \texttt{draws}
+(\texttt{after_hi},\ \texttt{after_lo}) \;=\; (\texttt{before_hi},\ \texttt{before_lo}) + \texttt{draws}
 $$
 
 in 128-bit arithmetic, where `draws` is exactly the number of uniforms consumed by that event.  
@@ -127,6 +127,44 @@ $$
 
 **Budget.** Exactly **2 uniforms** per \(Z\). We **do not** cache the paired sine normal; if a subsequent normal is required, it draws two new uniforms.
 
+### S0.3.6 Draw accounting contract
+
+For every RNG event:
+
+- **Draws** = the 128‑bit delta between the envelope counters:
+  $$
+  \texttt{draws} \;=\; (\texttt{after_hi},\texttt{after_lo}) \;-\; (\texttt{before_hi},\texttt{before_lo})
+  $$
+  computed in unsigned 128‑bit arithmetic.
+
+- Emit **one** `rng_trace_log` row per `(module, substream_label)` emission carrying this **draws** value. Validators aggregate
+  $\sum \text{draws}$ per `(merchant, substream_label)` and reconcile against the expected totals implied by the algorithms.
+
+**Per‑event expectations in 1A**
+
+- `hurdle_bernoulli`:  
+  draws = 1 iff $0<\pi<1$; else 0 (deterministic branch still emits trace with `draws=0`).
+
+- `gamma_component` (context = "nb"):  
+  draws = $3 \times$ number of Gamma attempts **+** $\mathbf{1}[\phi_m < 1]$ (extra uniform for the $U^{1/\alpha}$ power step when $\alpha\!=\!\phi_m<1$). See **S2.x**.
+
+- `poisson_component` (context = "nb"):  
+  **variable**; the envelope counters reflect the actual sampler consumption. No fixed budget required.
+
+- `poisson_component` (context = "ztp"):  
+  **variable** per attempt; envelope counters reflect actual consumption. No fixed budget required.  
+  `ztp_rejection` and `ztp_retry_exhausted` themselves are **non‑consuming** (draws = 0); their “draws” are fully accounted by the accompanying `poisson_component`(context="ztp") events.
+
+- `gumbel_key`:  
+  exactly **1** uniform per candidate country; event `draws` must equal the number of candidates evaluated.
+
+- `dirichlet_gamma_vector`:  
+  draws = $\sum_i \big( 3 \times \text{attempts}_i \;+\; \mathbf{1}[\alpha_i < 1] \big)$ across components; **no uniforms** for normalisation.
+
+- `residual_rank`, `sequence_finalize`, `site_sequence_overflow`:  
+  **non‑consuming** (draws = 0; envelope before == after).
+
+> All uniforms use **S0.3.4**; all standard normals use **S0.3.5**; substreams follow **S0.3.3** (keyed mapping).
 
 ## S0.4 Deterministic GDP bucket assignment
 

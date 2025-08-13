@@ -86,9 +86,9 @@ Optional (good practice) context fields permitted by schema: `gdp_bucket_id=b_m`
 
 ## S1.5 Determinism & correctness invariants
 
-* **I-H1 (bit-replay).** For fixed $(x_m,\beta,\texttt{seed},\texttt{parameter_hash},\texttt{manifest_fingerprint})$, the tuple $(u_m,\text{is_multi}(m))$ and the envelope counters are **bit-identical** across replays. (Counter-based Philox + fixed jump + fixed draw count.)
-* **I-H2 (consumption).** Uniform consumption count per merchant is $1$ iff $0<\pi_m<1$, else $0$. An `rng_trace_log` row must record the draw count for this sub-stream.
-* **I-H3 (schema conformance).** The hurdle record must contain the envelope fields and **payload keys** `merchant_id`, `pi`, `u`, `is_multi`, with `u` drawn on $(0,1)$. Any omission violates `schemas.layer1.yaml`.
+* **I-H1 (bit‑replay).** For fixed $(x_m,\beta,\texttt{seed},\texttt{parameter_hash},\texttt{manifest_fingerprint})$, the tuple $(u_m,\text{is_multi}(m))$ and the envelope counters are **bit‑identical** across replays. (Counter‑based Philox + **keyed substream mapping** + fixed draw budget per branch.)
+* **I-H2 (consumption).** Draw accounting follows **S0.3.6**: the hurdle consumes **1** uniform iff $0<\pi_m<1$, else **0**. An `rng_trace_log` row must record the `draws` for this substream.
+* **I-H3 (schema conformance).** The hurdle record must contain the envelope fields and **payload keys** `merchant_id`, `pi`, `is_multi`, and `u` which is **either** in $(0,1)$ when $0<\pi_m<1$ with `deterministic=false`, **or** `null` when $\pi_m\in\{0,1\}$ with `deterministic=true`. Any omission violates `schemas.layer1.yaml`.
 * **I-H4 (branch purity).** No downstream state may override the hurdle decision. Validation enforces that merchants producing NB/ZTP/Dirichlet/Gumbel events **must** have a prior hurdle record with `is_multi=true`. (The dataset dictionary ties event paths to validation.)
 
 ## S1.6 Failure modes (abort semantics)

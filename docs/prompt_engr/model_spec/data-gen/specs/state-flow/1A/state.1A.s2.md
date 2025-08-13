@@ -148,6 +148,7 @@ Each attempt **emits exactly one** `gamma_component` and **one** `poisson_compon
 Replay is proven by the envelope counters; counter state for each $(\ell,m)$ is derived from the keyed mapping of S0.3.3 and incremented locally for each uniform consumed. There is no additive stride; label→merchant→index fully determines the counter.\
 All uniforms consumed by the NB samplers (Gamma and Poisson) are drawn via the `u01` mapping in **S0.3.4** (open interval; one counter increment ⇒ one uniform).\
 Gamma sampling follows **S2.x**, with α≥1 costing exactly 3 uniforms per attempt (2 for the normal, 1 for the acceptance-$U$) and α<1 costing the above plus 1 extra uniform for the power transform.
+Per **S0.3.6** draw accounting: `gamma_component` draws $= 3 \times$ attempts $+ \mathbf{1}[\phi_m<1]$; `poisson_component` draws are **variable** and reconciled via its envelope counters; `nb_final` draws $=0$.
 
 ## S2.7 determinism & correctness invariants
 

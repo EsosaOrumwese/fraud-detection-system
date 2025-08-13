@@ -60,6 +60,7 @@ Rejection sampling from $\mathrm{Poisson}(\lambda)$ has acceptance probability $
 - `poisson_component`: required `{merchant_id, context="ztp", lambda, k}` + RNG envelope. `lambda` is $\lambda_{\text{extra},m}$; `k` is the raw (untruncated) Poisson draw.
 - `ztp_rejection`: required `{merchant_id, lambda_extra, k=0, attempt}` + envelope.
 - `ztp_retry_exhausted`: required `{merchant_id, lambda_extra, attempts=64, aborted=true}` + envelope.
+**Draw accounting (S0.3.6).** `poisson_component`(context="ztp") has **variable** draw counts whose value is the envelope delta; `ztp_rejection` and `ztp_retry_exhausted` are **non‑consuming** (draws $=0$). Validators reconcile totals from the envelopes.
 
 ## S4.5 Sampling algorithm (formal)
 

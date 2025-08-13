@@ -70,7 +70,7 @@ $$
 n_{m,c} \le U \quad \text{is a required invariant.}
 $$
 
-The condition reflects the declared 6-digit `site_id` format and the documented overflow guard.
+The condition reflects the declared 6-digit `site_id` format and the documented overflow guard. Per **S0.3.6**, `site_sequence_overflow` is **non‑consuming** (`draws = 0`; envelope before == after).
 
 **(3) Ordering for write-stability.**
 Before writing, order rows lexicographically by $(\texttt{merchant_id},\texttt{legal_country_iso},\texttt{site_order})$. Note: **inter-country order** (home vs foreign selection order) is **not** encoded in this table and must be recovered via a join on `alloc/country_set` using its `rank` column when needed.
@@ -95,6 +95,7 @@ From the egress schema:
 ## S8.4 Event emission (audit trail)
 
 Although S8 consumes **no RNG**, we still produce explicit JSONL **RNG-event** records following the common envelope (timestamps, run id, seed, manifest fingerprint, module, substream label, and Philox counters before/after). For non-consuming events, counters **do not advance** (before = after).
+Per **S0.3.6**, these events are **non‑consuming** and must report `draws = 0`.
 
 * **`sequence_finalize`** (one per $(m,c)$ with $n_{m,c}>0$): semantic role *“Final sequence allocation per (merchant,country) block.”* Envelope fields per `rng_envelope`; module e.g. `"1A.site_id_allocator"`; label `"sequence_finalize"`. Schema catalogued; path and role defined in registry/dictionary.
 
