@@ -29,7 +29,8 @@ Given a merchant’s **total outlet count** $N$ and its ordered **country set** 
 ### A) Dirichlet weights over $C$  (skip if $|C|=1$)
 
 1. Let $m = |C| = K+1$. Retrieve $\alpha = (\alpha_1,\dots,\alpha_m)$ with $\alpha_i>0$.
-2. Draw independent gamma components using the Marsaglia–Tsang method; any uniforms required by the sampler are drawn via the `u01` mapping in **S0.3.4** (open interval; one counter increment ⇒ one uniform), and any standard normals required by the sampler are drawn via **S0.3.5** (Box–Muller; exactly 2 uniforms per normal; no caching):
+2. Draw independent gamma components using the sampler in **S2.x**; any uniforms required by the sampler are drawn via the `u01` mapping in **S0.3.4**, and any standard normals via **S0.3.5**.  
+For budgets, see **S2.x**: α≥1 = 3 uniforms per attempt; α<1 = above plus 1 uniform for the power transform.
 
    $$
    G_i \sim \mathrm{Gamma}(\alpha_i,\,1),\quad i=1,\dots,m.
