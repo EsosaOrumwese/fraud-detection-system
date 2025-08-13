@@ -51,6 +51,26 @@ This fingerprint versions **egress** and **validation** (e.g., `outlet_catalogue
 **Partitioning contract (from dictionary).**
 Parameter-scoped datasets partition by `{parameter_hash}`; egress/validation lineage partitions by `{manifest_fingerprint}` (and often `{seed}`).
 
+### S0.2.4 Run identifier (`run_id`) for logs (not part of modelling state)
+
+At process start, let $T$ be the UTC start time in **nanoseconds** (unsigned 64‑bit). Define:
+
+$$
+\texttt{run_id}
+\;=\;
+\text{hex32}\!\Big(
+  \mathrm{SHA256}\big(
+    \text{``run:1A''} \,\|\, \texttt{manifest_fingerprint_bytes} \,\|\, \mathrm{LE64}(\texttt{seed}) \,\|\, \mathrm{LE64}(T)
+  \big)[0{:}16]
+\Big).
+$$
+
+**Semantics & scope.**
+- `run_id` is **unique per execution** and is used **only** for versioning/partitioning of logs and traces (e.g., `rng_audit_log`, `rng_trace_log`, `rng_event_*`).
+- `run_id` **does not** participate in RNG seeding or counter derivation and **must not** influence modelling outputs. Modelling/egress datasets depend only on `(seed, parameter_hash, manifest_fingerprint)`.
+
+**Partitioning note.** Parameter‑scoped modelling datasets are keyed by `{parameter_hash}`; egress/validation by `{manifest_fingerprint}` (and often `{seed}`). **RNG logs/trace/events** are partitioned by `{seed, parameter_hash, run_id}` per the dataset dictionary.
+
 ## S0.3 RNG: master seed, counter, and sub-stream mapping
 
 ### S0.3.1 Algorithm and state
@@ -61,7 +81,7 @@ $$
 \{\texttt{ts_utc},\texttt{run_id},\texttt{seed},\texttt{parameter_hash},\texttt{manifest_fingerprint},\texttt{module},\texttt{substream_label},\texttt{rng_counter_before_{lo,hi}},\texttt{rng_counter_after_{lo,hi}}\}.
 $$
 
-Open-interval uniforms `u01` satisfy $u\in(0,1)$ (exclusive bounds).
+Open-interval uniforms `u01` satisfy $u\in(0,1)$ (exclusive bounds). Compute `run_id` per **S0.2.4** and include it in the initial `rng_audit_log` emission before any RNG event.
 
 ### S0.3.2 Master seed and initial counter (deterministic)
 
@@ -78,7 +98,7 @@ Given a run-supplied $s\in\{0,\dots,2^{64}\!-\!1\}$ (u64), and the 32-byte $\tex
   \boxed{\ (c_{\mathrm{hi}},c_{\mathrm{lo}}) = \mathrm{split64}\!\big(\mathrm{SHA256}(\text{“ctr:1A”}\ \|\ \text{manifest_fingerprint_bytes}\ \|\ \mathrm{LE64}(s))[0{:}16]\big)\ }.
   $$
 
-Emit one `rng_audit_log` row with these values before any draws; every per-event record includes pre/post counters via the envelope.
+Emit one `rng_audit_log` row with these values before any draws; every per-event record includes pre/post counters via the envelope. This audit row **must** include the `run_id` computed in **S0.2.4**.
 
 ### S0.3.3 Keyed substream mapping (order-invariant)
 
