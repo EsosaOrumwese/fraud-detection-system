@@ -252,10 +252,15 @@ Compute `SHA256(bundle)` and write `_passed.flag` whose digest equals that hash;
 
 ## S9.9 Hand-off to 1B (contract)
 
-On success:
+On success, 1B MUST perform a **preflight gate** before reading:
 
-* 1B **reads** `outlet_catalogue` (seed/fingerprint partition) and **must** join `country_set` to obtain inter-country order; `outlet_catalogue` only carries **within-country** `site_order`. This naming/semantics are locked by the schema authority policy.
-* 1B discovery uses the artefact registry entry for `outlet_catalogue` (path, partitioning, and schema pointer), which declares it cross-layer and final for 1A.
+1) **Partition lineage check.** Resolve the target partition `(seed={seed}, fingerprint={F})` for `outlet_catalogue`. Read a single row and assert the per-row `manifest_fingerprint` equals `{F}`. **Fail** if mismatch.
+2) **Validation proof check.** Locate `data/layer1/1A/validation/fingerprint={F}/` and assert:
+   - `validation_bundle_1A.zip` (or bundle folder) **exists**; let its digest be `SHA256(bundle)`.
+   - `_passed.flag` **exists** and its content hash equals `SHA256(bundle)`. **Fail** if missing or not equal.
+3) **Proceed** to read `outlet_catalogue` **only if** step (2) passed. When inter-country order is needed, 1B **must** join `country_set.rank` (egress does not encode inter-country order).
+
+Notes: This gate makes the 1A→1B hand-off contingent on a cryptographic proof that validation completed successfully **for the same fingerprint**.
 
 ---
 
@@ -265,4 +270,4 @@ On success:
 
 ### Outputs (recap)
 
-* `validation_bundle_1A(fingerprint)` (**zip** with `index.json` as per schema) and `_passed.flag` whose digest equals the bundle hash; authorization for 1B to proceed on this `(seed,fingerprint)` partition.
+* `validation_bundle_1A(fingerprint)` (**zip** with `index.json` as per schema) and `_passed.flag` whose content hash equals `SHA256(bundle)`; this pair is the **authorization gate** for 1B to proceed on this `(seed,fingerprint)` partition.

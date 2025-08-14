@@ -977,7 +977,9 @@ subsegments:
         environment: [ runtime ]
         schema: schemas.1A.yaml#/egress/outlet_catalogue
         cross_layer: true
-        notes: "ZSTD level 3; path pattern enforced by `storage_path_pattern`."
+        notes: "ZSTD level 3; path pattern enforced by `storage_path_pattern`. \
+                Consumption gate: 1B MUST verify that `_passed.flag` content hash equals SHA256(`validation_bundle_1A`) \
+                for the same `fingerprint` before reading this dataset."
 
 # Prune CI-time artefacts (planning phase)
 #      - name: post_write_validation_routine
@@ -1016,7 +1018,9 @@ subsegments:
         environment: [ ci, runtime ]
         schema: null
         cross_layer: false
-        notes: null
+        notes: "Contains validator outputs for 1A and serves as the basis \
+                for the hand-off gate to 1B. The `_passed.flag` in this folder MUST have content hash equal to\
+                SHA256(bundle) for the same `fingerprint`; consumers must verify this prior to reading `outlet_catalogue`."
 
       - name: validation_passed_flag
         path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag

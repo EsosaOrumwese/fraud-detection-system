@@ -328,7 +328,7 @@ datasets:
   - id: "outlet_catalogue"
     status: "approved"
     owner_subsegment: "1A"
-    description: "Immutable outlet stubs per merchant × legal_country. Does NOT encode cross-country order; join to `country_set` for that."
+    description: "Immutable outlet stubs per merchant × legal_country. Does NOT encode cross-country order; join to `country_set` for that. Consumers MUST only read after verifying `_passed.flag` matches SHA256(`validation_bundle_1A`) for the same fingerprint (see S9.9)."
     version: "{manifest_fingerprint}"
     format: "parquet"
     path: "data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/"
