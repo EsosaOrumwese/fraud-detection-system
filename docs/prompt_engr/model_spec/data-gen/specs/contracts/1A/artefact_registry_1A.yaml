@@ -333,6 +333,25 @@ subsegments:
         cross_layer: false
         notes: null
 
+      - name: merchant_currency
+        path: data/layer1/1A/merchant_currency/parameter_hash={parameter_hash}/
+        type: dataset
+        category: preparation
+        semver: "{semver}"
+        version: "{parameter_hash}"
+        digest: "{sha256}"
+        manifest_key: mlr.1A.cache.merchant_currency
+        license: "{spdx_or_internal}"
+        role: Deterministic κₘ cache (per-merchant settlement currency).
+        dependencies: [ settlement_shares_2024Q4, iso4217_canonical, iso3166_canonical_2024 ]
+        source: internal
+        owner: { owner_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.1A.yaml#/prep/merchant_currency
+        cross_layer: false
+        notes: null
+
       - name: storage_path_pattern
         path: configs/storage/storage_path_pattern.yaml
         type: config

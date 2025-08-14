@@ -1,4 +1,37 @@
 # S5 — Currency → Country expansion & deterministic weights (no RNG)
+**Preamble.** For each merchant $m$, the currency $\kappa_m$ is read from the `merchant_currency` cache produced by **S5.0**; S5 does not infer or override $\kappa_m$.
+
+## S5.0 — Merchant currency κₘ (deterministic, no RNG)
+
+**Purpose.** Fix the merchant’s settlement currency κₘ exactly once, with stable tie‑breaks, and persist a tiny cache for downstream S5/S6 consumers.
+
+**Inputs (per merchant m).**
+* Optional per‑merchant **currency share vector** `s^(ccy)_m` from ingress (schema `schemas.ingress.layer1.yaml#/settlement_shares`), keyed by ISO‑4217 currency.
+* Merchant **home ISO** `c = home_country_iso_m` and a pinned table of **primary legal tender** per ISO (ingress canon).
+* Lineage: `parameter_hash`, `manifest_fingerprint`.
+
+**Algorithm (purely deterministic).**
+
+1) If ingress provides a per‑merchant currency share vector `s^(ccy)_m`:
+$$
+\kappa_m \;:=\; \arg\max_{\kappa} s^{(\mathrm{ccy})}_{m,\kappa}
+$$
+Break ties by **ISO‑4217** ASCII lexicographic order on the currency code.
+
+2) Else (no per‑merchant vector), set $\kappa_m$ to the **primary legal tender** of the merchant’s **home** ISO using the pinned lookup. If multiple legal tenders are marked “primary”, break ties lexicographically by ISO‑4217 code.
+
+3) Persist one row to `merchant_currency/parameter_hash={parameter_hash}/…` with `{ merchant_id, kappa, source, tie_break_used, manifest_fingerprint }`
+where `source ∈ {"ingress_share_vector","home_primary_legal_tender"}` and `tie_break_used ∈ {true,false}`.
+
+**Outputs.**
+* Dataset: `merchant_currency` (schema `schemas.1A.yaml#/prep/merchant_currency`), partitioned by `{parameter_hash}`.
+
+**Determinism & failures.**
+* No RNG. Any missing FK for ISO/currency, or an empty legal‑tender mapping for `home`, is a hard abort.
+
+**Downstream contract.** S5/S6 **must** read $\kappa_m$ from `merchant_currency` and *not* recompute it.
+
+
 
 ## S5.1 Universe, symbols, authority
 
@@ -9,7 +42,7 @@
   * **Settlement shares at currency level:** `settlement_shares_2024Q4` (ingress reference). Schema: `schemas.ingress.layer1.yaml#/settlement_shares`. (Not needed to *compute* the intra-currency weights but governs the wider candidate assembly in 1A.)
   * **ISO-3166 canonical list:** used for FK / ordering. (Via schema FK for `country_iso`.);
 * **Authoritative outputs and schemas.**
-
+  * `merchant_currency` (per‑merchant κₘ), schema `schemas.1A.yaml#/prep/merchant_currency`, partitioned by `{parameter_hash}`.  ← produced by S5.0
   * `ccy_country_weights_cache` (deterministic expanded weights), schema `schemas.1A.yaml#/prep/ccy_country_weights_cache`, partitioned by `{parameter_hash}`.
   * `sparse_flag` (per-currency sparsity decision), schema `schemas.1A.yaml#/prep/sparse_flag`, partitioned by `{parameter_hash}`.
 
