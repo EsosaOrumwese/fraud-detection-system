@@ -105,12 +105,18 @@ All equalities below are checked with integer/bit-exact comparisons.
    If we define the site-id integer $u_{m,i,k}$ as the lexicographic index of `site_order=k` (1-based), then
 
    $$
-   \text{id}_{m,i,k} \;=\; \text{zpad6}(u_{m,i,k}). 
+   \text{id}_{m,i,k} \;=\; \text{zpad6}(u_{m,i,k}).
    $$
 
-   This is compared against every row’s `site_id` and cross-checked with `sequence_finalize` RNG events (see §S9.5).
+   This is compared against every row’s `site_id`. Additionally, validators must confirm that **exactly one** `sequence_finalize` event exists for the $(m,i)$ block (see §S9.5), without implying any per-site event mapping.
 
-6. **Policy coherence** (eligibility): if `crossborder_eligibility_flags[m]=0`, then $H_m=0$ and $\sum_{i\ne \text{home}} n_{m,i}=0$.
+6. **`sequence_finalize` cardinality** (global equality):
+
+   $$
+   \sum_{(m,c)} \mathbf{1}\{\,n_{m,c}>0\,\} \;=\; \#\text{rows in }\texttt{rng\_event\_sequence\_finalize}.
+   $$
+
+   Any mismatch is a **structural failure**.
 
 ---
 
@@ -133,13 +139,13 @@ Let $E$ be the audit envelope and $T_\ell$ the event traces for label $\ell$.
    * `gumbel_key`: exactly one draw per (merchant, candidate foreign country).
    * `dirichlet_gamma_vector`: **one** vector draw per merchant when $K\!+\!1>1$; none when $K=0$.
    * `residual_rank`: exactly once per $(m,i)$ with $n_{m,i}\ge 0$.
-   * `sequence_finalize`: exactly $\sum_i n_{m,i}$ events per $m$ with a 1-to-1 mapping to `site_id`s.
-     Violations are listed by `(merchant_id,label,expected,observed)`. (Event kinds and existence are governed by the layer-wide RNG schema catalog.)
+   * `sequence_finalize`: **exactly one non-consuming event per $(m,i)$ with $n_{m,i}>0$** (envelope counters must satisfy `before == after`, `draws = 0`).  
+     Global count equality is enforced in §S9.4(6).
 
 4. **Replay spot-checks.** For a deterministic sample of $(m,i)$, re-draw the first few variates implied by `gumbel_key`/`dirichlet_gamma_vector` from the audited `(seed,counter)` and compare to logged `key`/`gamma` payloads; any mismatch aborts with a reproducer path. (Practice codified in the assumptions doc for RNG audit.)
 
 5. **Trace reconciliation (logs vs events).** For each event stream listed in the dataset dictionary, let
-   - $D_{\text{trace}}(\ell)$ be the sum of `draws` over all `rng_trace_log` rows for `(module, substream_label=\ell)`, and
+   - $D_{\text{trace}}(\ell)$ be the sum of `draws` over all `rng_trace_log` rows for `(module, substream_label=\ell)$, and
    - $D_{\text{events}}(\ell)$ be $\sum_{e\in T_\ell} e.\texttt{draws}$ from the structured RNG event stream for label $\ell$.
    
    Validators must prove
@@ -148,7 +154,7 @@ Let $E$ be the audit envelope and $T_\ell$ the event traces for label $\ell$.
    $$
    for every label $\ell$. Any mismatch is a **structural failure** recorded in `rng_accounting.json`.
 
-6. **Budget spot‑checks (consistency with expected draw budgets).**
+6. **Budget spot-checks (consistency with expected draw budgets).**
    - **Hurdle.** Let $\mathcal{M}_\star=\{\,m:\ 0<\pi_m<1\,\}$. Require
      $$
      |\mathcal{M}_\star| \;=\; D_{\text{events}}(\text{``hurdle_bernoulli''}),
@@ -163,11 +169,11 @@ Let $E$ be the audit envelope and $T_\ell$ the event traces for label $\ell$.
      $$
      A_{\text{tot}} \;=\; \Big\lfloor \frac{D_{\text{events}}(\text{"dirichlet_gamma_vector"})}{3} \Big\rfloor.
      $$
-     Confirm this against the per‑merchant vector structure (array lengths and constraints) in the logged events; additionally, the validator should verify that
+     Confirm this against the per-merchant vector structure (array lengths and constraints) in the logged events; additionally, the validator should verify that
      $$
      D_{\text{events}}(\text{``dirichlet_gamma_vector''}) \;=\; 3\,A_{\text{tot}} \;+\; \#\{\,\alpha_i<1\,\},
      $$
-     reflecting the extra one‑uniform power step for components with $\alpha_i<1$ (per S0.3.6/S2.x).
+     reflecting the extra one-uniform power step for components with $\alpha_i<1$ (per S0.3.6/S2.x).
 ---
 
 ## S9.6 Statistical corridors (release-time sanity)
