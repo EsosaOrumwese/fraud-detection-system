@@ -50,97 +50,77 @@ where `source ∈ {"ingress_share_vector","home_primary_legal_tender"}` and `tie
 
 ## S5.2 Symbols and fixed hyperparameters
 
-For an ISO-4217 currency $\kappa$, let its member-country set be
+For an ISO-4217 currency $\kappa$, define the **member-country set**:
 
 $$
-\mathcal{D}(\kappa)=\{i_1,\dots,i_D\}\subset\mathcal{I},\quad D=|\mathcal{D}(\kappa)|.
+\mathcal{D}(\kappa) = \{i_1, \dots, i_D\} \subset \mathcal{I}, \quad D = |\mathcal{D}(\kappa)|.
 $$
 
-From `ccy_country_shares_2024Q4`, let $y_i\in\mathbb{Z}_{\ge0}$ denote the **observation count** for destination country $i\in\mathcal{D}(\kappa)$; define
+From `ccy_country_shares_2024Q4`, let $y_i \in \mathbb{Z}_{\ge 0}$ be the **observation count** for destination $i \in \mathcal{D}(\kappa)$. Let
 
 $$
-Y=\sum_{i\in\mathcal{D}(\kappa)} y_i .
+Y := \sum_{i \in \mathcal{D}(\kappa)} y_i
 $$
 
-Define the **additive Dirichlet smoothing constant**
+be the **total observation count** for $\kappa$.
+
+**Fixed hyperparameters** (from subsegment assumptions):
+
+* Additive Dirichlet smoothing constant: $\alpha := 0.5$.
+* Sparsity threshold: $T := 30$ observations — used both for *destination-level* sparsity and the *global* total-mass test.
+
+Define **smoothed counts**:
 
 $$
-\alpha:=0.5.
-$$
-
-Policy threshold for sparsity/fallback:
-
-$$
-T:=30.
-$$
-
-These values come from the subsegment assumptions.
-
-We also define **smoothed counts**
-
-$$
-\tilde y_i = y_i + \alpha,\qquad \tilde Y = \sum_i \tilde y_i = Y + \alpha D .
+\tilde{y}_i := y_i + \alpha, \qquad
+\tilde{Y} := Y + \alpha D.
 $$
 
 ---
 
 ## S5.3 Deterministic expansion (math, per currency $\kappa$)
 
-**Case A — Single-country currency $(D=1)$.**
-Weights are degenerate:
-
+**Case A — Single-country currency ($D = 1$).**  
+Degenerate weights:
 $$
 w_{i_1}^{(\kappa)} := 1.
 $$
+Persist with `obs_count = y_{i_1}`, `smoothing = null`. Mark `is_sparse = false` in `sparse_flag`.
 
-Emit one row in `ccy_country_weights_cache` with `weight=1`, `obs_count=y_{i_1}`, `smoothing=null`, and `sparse_flag=false` for this currency (see persistence below).
+**Case B — Multi-country currency ($D \ge 2$).**
 
-**Case B — Multi-country currency $(D\ge2)$.**
+1. **Destination-level sparsity flag.**  
+   $\text{dest\_sparse} := \big[ \min_{i} y_i < T \big]$
 
-1. **Compute candidate weight vectors**
+2. **Global sparsity flag.**  
+   $\text{is\_sparse}(\kappa) := \big[ Y < T + \alpha D \big]$
 
-$$
-\hat w_i := 
-\begin{cases}
-\frac{y_i}{Y}, & Y>0,\\[2pt]
-\text{undefined}, & Y=0,
-\end{cases}
-\qquad
-\tilde w_i := \frac{\tilde y_i}{\tilde Y} = \frac{y_i+\alpha}{Y+\alpha D}.
-$$
+3. **Weight vector.**
+   * If `is_sparse(κ) = true` (global sparse):  
+     $$w_i \leftarrow \frac{1}{D} \quad\forall i$$  
+     `smoothing = "equal_split_fallback"`.
+   * Else if `dest_sparse = true`:  
+     $$w_i \leftarrow \frac{\tilde{y}_i}{\tilde{Y}}$$  
+     `smoothing = "alpha=0.5"`.
+   * Else (no sparsity):  
+     $$w_i \leftarrow \frac{y_i}{Y}$$  
+     `smoothing = null`.
 
-2. **Choose smoothing vs. raw.**
-   Use the *smoothed* vector $\tilde w$ **iff** any destination is sparse at the cell level:
+4. **Guards.**  
+   Require $w_i > 0$ for all emitted $i$. If any $w_i \le 0$ after smoothing, abort as artefact error.
 
-$$
-\min_{i} y_i < T \ \ \Rightarrow\ \ w^{(\kappa)} \leftarrow \tilde w\ \text{ and record `smoothing="alpha=0.5"`};
-$$
+5. **Renormalise & order.**  
+   Enforce $\sum_i w_i = 1$ in binary64 by **serial summation over ISO-sorted indices**; re-scale if $|\sum_i w_i - 1| > 10^{-12}$.
 
-otherwise (all $y_i\ge T$ and $Y>0$), use the *raw* vector $w^{(\kappa)} \leftarrow \hat w$ with `smoothing=null`. (This is the “apply additive Dirichlet smoothing $\alpha=0.5$” rule—engaged **when** any destination count is below threshold.)
+6. **Emit.**  
+   For each $(\kappa, i)$ persist:
+   * `weight = w_i`  
+   * `obs_count = y_i`  
+   * `smoothing` as per step 3.  
 
-3. **Global sparsity/fallback test (per currency).**
-   If the **post-smoothing mass is still insufficient**,
-
-$$
-\tilde Y < T + \alpha D \quad\Longleftrightarrow\quad Y < T,
-$$
-
-then **fallback to equal split**
-
-$$
-w^{(\kappa)}_i \leftarrow \frac{1}{D}\quad\text{for all }i,
-$$
-
-and set the per-currency `sparse_flag` to **true** (obs_count $=Y$, threshold $=T$). Otherwise, `sparse_flag=false`. (This matches: “if total post-smoothing mass insufficient … fall back to equal split (flag `sparse_flag=true`).”)
-
-4. **Renormalise and order.**
-   Numerically enforce
-
-$$
-\sum_{i} w^{(\kappa)}_i = 1\quad\text{(binary64; renormalise if needed within }10^{-12}\text{),}
-$$
-
-and **order deterministically by ISO (ASCII)** when persisting rows. (The cache schema also enforces a *group_sum_equals_one* constraint per currency.)
+   For each $\kappa$ persist one `sparse_flag` row:
+   * `is_sparse = is_sparse(κ)`  
+   * `obs_count = Y`, `threshold = T`
 
 **Summary (multi-country).**
 
@@ -156,6 +136,7 @@ $$
 ---
 
 ## S5.4 Persistence: tables, keys, and partitioning
+No schema changes in Batch 2.C; persistence maps directly to the existing `ccy_country_weights_cache` and `sparse_flag` tables.
 
 **A) `ccy_country_weights_cache`** (deterministic).
 For each $(\kappa, i)$ pair we persist:
