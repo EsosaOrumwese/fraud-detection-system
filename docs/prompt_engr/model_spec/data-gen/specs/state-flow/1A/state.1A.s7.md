@@ -19,7 +19,7 @@ Given a merchant’s **total outlet count** $N$ and its ordered **country set** 
 ## Numeric environment (determinism)
 
 * IEEE‑754 **binary64** for all stochastic arithmetic; serial reductions; **FMA disabled** for Dirichlet & residual ops.
-* Residuals are **quantised to 8 dp** **before** sorting; sum‑to‑one checks use a tolerance of $10^{-6}$ for $w$.
+* Residuals are **quantised to 8 dp** **before** sorting; sum-to-one checks use a tolerance of $10^{-12}$ for $w$.
 
 ---
 
@@ -43,12 +43,31 @@ Enforce $\min_i \alpha_i \ge 10^{-6}$ (abort if violated after loading).
    G_i \sim \mathrm{Gamma}(\alpha_i,\,1),\quad i=0,\dots,K_m^\star.
    $$
    Uniforms via **S0.3.4**; keyed mapping via **S0.3.3**; any normals via **S0.3.5**.  
-   **Draw budgets:** for each $i$, $\alpha_i\ge1$ uses 3 uniforms/attempt; $\alpha_i<1$ uses the same plus 1 uniform for the power transform.
+   **Draw budgets:** for each $i$, $\alpha_i\ge1$ uses 3 uniforms/attempt; $\alpha_i < 1$ uses the same plus 1 uniform for the power transform.
 
-2. **Deterministic normalisation (serial order = `country_set.rank` ascending):**
+2. **Deterministic normalisation (fixed order; compensated sum).**  
+   Use a **Neumaier compensated sum** in **serial order = `country_set.rank` ascending** (ISO as secondary if needed):
    $$
-   S=\sum_{i=0}^{K_m^\star} G_i,\qquad w_i=\frac{G_i}{S},\quad \sum_i w_i = 1.
+   S=\texttt{sum_comp}(G_0,\dots,G_{K_m^\star}),\qquad w_i=\frac{G_i}{S}.
    $$
+   If $|S-1|>10^{-12}$ after an initial normalise, recompute $S'=\texttt{sum_comp}(w)$ and assert $|S'-1|\le 10^{-12}$.  
+   **Prohibitions:** no BLAS/parallel or GPU reductions for this step.
+
+   **Algorithm (Neumaier variant, binary64; fixed order):**
+   ```
+   function sum_comp(xs[0..m-1]):
+       s = 0.0
+       c = 0.0
+       for i in 0..m-1 in country_set.rank ascending (then ISO):
+           x = xs[i]
+           t = s + x
+           if abs(s) >= abs(x):
+               c += (s - t) + x
+           else:
+               c += (x - t) + s
+           s = t
+       return s + c
+   ```
    Emit **one** `dirichlet_gamma_vector` event with aligned arrays `(country_isos, alpha, gamma_raw, weights)` (weights recorded post‑normalisation).  
    **Draw accounting (S0.3.6):** `draws = \sum_i \big(3\times \text{attempts}_i + \mathbf{1}[\alpha_i<1]\big)`; normalisation consumes **no** uniforms.
 
@@ -61,7 +80,7 @@ Given $N \in \mathbb{Z}_{\ge 1}$ and $w\in\Delta^{m-1}$:
 3. Residuals (pre‑quantisation): $r_i^{\text{raw}} = a_i - f_i \in [0,1)$.
 4. **Quantise** residuals: $r_i = \mathrm{round}(r_i^{\text{raw}}, 8\ \text{dp})$.
 5. Compute deficit: $d = N - \sum_i f_i$. Because $\sum_i w_i = 1$, $0 \le d < m$.
-6. **Stable sort** indices by the key **$(r_i\ \text{desc},\ \texttt{country\_set.rank}\ \text{asc},\ \text{ISO}\ \text{asc})$**.  
+6. **Stable sort** indices by the key **$(r_i\ \text{desc},\ \texttt{country_set.rank}\ \text{asc},\ \text{ISO}\ \text{asc})$**.  
    (This uses **Gumbel order**—`country_set.rank`—*before* ISO as the deterministic secondary key.)
 7. Final integers:
    $$
@@ -81,7 +100,7 @@ Given $N \in \mathbb{Z}_{\ge 1}$ and $w\in\Delta^{m-1}$:
 
 * **Mass conservation:** $\sum_i n_i=N$ (checked).
 * **Non‑negativity:** $n_i\in\mathbb{Z}_{\ge 0}$.
-* **Stable ordering:** residual sort key = $(r_i\ \downarrow,\ \texttt{country\_set.rank}\ \uparrow,\ \text{ISO}\ \uparrow)$ with $r_i$ quantised to 8 dp; prevents platform‑dependent ties and preserves the S6 Gumbel order as the prior.
+* **Stable ordering:** residual sort key = $(r_i\ \downarrow,\ \texttt{country_set.rank}\ \uparrow,\ \text{ISO}\ \uparrow)$ with $r_i$ quantised to 8 dp; prevents platform‑dependent ties and preserves the S6 Gumbel order as the prior.
 * **RNG lineage:** One `dirichlet_gamma_vector` event per merchant with $|C|>1$; $|C|$ `residual_rank` events always (including the $|C|=1$ case). Paths & schemas are fixed across runs.
 
 ---

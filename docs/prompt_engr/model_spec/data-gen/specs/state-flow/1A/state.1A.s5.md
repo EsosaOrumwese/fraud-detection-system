@@ -90,10 +90,10 @@ Persist with `obs_count = y_{i_1}`, `smoothing = null`. Mark `is_sparse = false`
 **Case B — Multi-country currency ($D \ge 2$).**
 
 1. **Destination-level sparsity flag.**  
-   $\text{dest\_sparse} := \big[ \min_{i} y_i < T \big]$
+   $\text{dest_sparse} := \big[ \min_{i} y_i < T \big]$
 
 2. **Global sparsity flag.**  
-   $\text{is\_sparse}(\kappa) := \big[ Y < T + \alpha D \big]$
+   $\text{is_sparse}(\kappa) := \big[ Y < T + \alpha D \big]$
 
 3. **Weight vector.**
    * If `is_sparse(κ) = true` (global sparse):  
@@ -110,8 +110,27 @@ Persist with `obs_count = y_{i_1}`, `smoothing = null`. Mark `is_sparse = false`
    Require $w_i > 0$ for all emitted $i$. If any $w_i \le 0$ after smoothing, abort as artefact error.
 
 5. **Renormalise & order.**  
-   Enforce $\sum_i w_i = 1$ in binary64 by **serial summation over ISO-sorted indices**; re-scale if $|\sum_i w_i - 1| > 10^{-12}$.
+   Compute the sum with a **fixed-order compensated sum (Neumaier, binary64)** over **ISO-lexicographic** indices, then renormalise if needed:
+   $$
+   S=\texttt{sum_comp}(w);\quad \text{if }|S-1|>10^{-12}\text{ then }w_i\leftarrow \frac{w_i}{S},\;S'=\texttt{sum_comp}(w),\;\;|S'-1|\le 10^{-12}.
+   $$
+   **Prohibitions:** no BLAS/parallel reductions; no vectorised reductions for this step.
 
+   **Algorithm (Neumaier variant, binary64; fixed ISO order):**
+   ```
+   function sum_comp(xs[0..m-1]):
+       s = 0.0    // binary64
+       c = 0.0    // compensation (binary64)
+       for i in 0..m-1 in ISO-lexicographic order:
+           x = xs[i]
+           t = s + x
+           if abs(s) >= abs(x):
+               c += (s - t) + x
+           else:
+               c += (x - t) + s
+           s = t
+       return s + c
+   ```
 6. **Emit.**  
    For each $(\kappa, i)$ persist:
    * `weight = w_i`  
