@@ -255,8 +255,15 @@ Optionally cache $(\texttt{merchant_id},\eta_m,\pi_m)$ to `hurdle_pi_probs/param
 
 ## S0.8 Numeric policy and determinism invariants
 
-* **Numeric environment:** IEEE-754 binary64. Disable FMA for operations affecting residual ordering in later states; use deterministic serial reductions. (These toggles are part of the artefact set hashed into the fingerprint.)
+* **Numeric environment (governed):**
+  - All arithmetic in **S5/S7** that **feeds ordering** — renormalising weight vectors, computing residual sort keys, and the “sum-to-one” check — MUST execute in **IEEE-754 binary64** with **roundTiesToEven**.
+  - **FMA is disabled** for these code paths. Compilers/libraries MUST NOT emit fused multiply-add when evaluating expressions that later influence ordering or integerisation.
+  - **Serial, single-thread reductions only.** Parallel reductions, GPU kernels, or BLAS backends MUST NOT be used for S5/S7 normalisations; use an explicit loop in a fixed, documented order (country_set.rank, then ISO tiebreak).
+  - **Denormals/subnormals:** honour IEEE-754 subnormals (**no flush-to-zero**) to avoid platform-dependent branch points.
+  - These toggles are part of the artefact set; any change flips the **manifest_fingerprint**.
+
 * **RNG envelope invariants:** Every RNG event (any state $>$ S0) must include the full envelope (seed, parameter_hash, manifest_fingerprint, pre/post counters, module, substream_label). Absence is a structural failure.
+
 * **Partitioning invariants (dictionary-backed):**
 
   $$
