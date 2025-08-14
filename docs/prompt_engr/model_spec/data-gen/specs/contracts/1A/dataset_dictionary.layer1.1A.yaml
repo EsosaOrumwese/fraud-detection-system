@@ -313,7 +313,7 @@ datasets:
     description: "Largest-remainder residual cache to stabilise RNG lineage."
     version: "{parameter_hash}"
     format: "parquet"
-    path: "data/layer1/1A/ranking_residual_cache/seed={seed}/parameter_hash={parameter_hash}/"
+    path: "data/layer1/1A/ranking_residual_cache_1A/seed={seed}/parameter_hash={parameter_hash}/"
     partitioning: ["seed", "parameter_hash"]
     ordering: []
     schema_ref: "schemas.1A.yaml#/alloc/ranking_residual_cache"

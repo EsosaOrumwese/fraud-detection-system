@@ -1114,7 +1114,7 @@ subsegments:
         notes: null
 
       - name: ranking_residual_cache_1A
-        path: data/layer1/1A/ranking_residual_cache/seed={seed}/parameter_hash={parameter_hash}/
+        path: data/layer1/1A/ranking_residual_cache_1A/seed={seed}/parameter_hash={parameter_hash}/
         type: dataset
         category: cache
         semver: "{semver}"
