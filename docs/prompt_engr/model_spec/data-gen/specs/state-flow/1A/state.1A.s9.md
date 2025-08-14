@@ -283,3 +283,34 @@ Notes: This gate makes the 1A→1B hand-off contingent on a cryptographic proof 
 ### Outputs (recap)
 
 * `validation_bundle_1A(fingerprint)` (**zip** with `index.json` as per schema) and `_passed.flag` whose content hash equals `SHA256(bundle)`; this pair is the **authorization gate** for 1B to proceed on this `(seed,fingerprint)` partition.
+
+---
+
+## S9.10 Numeric-determinism checks (policy enforcement)
+
+Validators MUST prove that the numeric policy from S5/S7 was respected; results are summarised in `rng_accounting.json` and recorded in `metrics.csv`.
+
+* **S5 cache groups (currency→country weights).** For each currency $\kappa$:
+  - Recompute the group sum using the **same lexicographic order** and the **Neumaier compensated sum** (binary64).
+  - Assert the internal renormalisation target: 
+    $$
+    \left|\sum_i w_i^{(\kappa)} - 1\right| \le 10^{-12}.
+    $$
+  - If `sparse_flag(κ)=true`, assert each component is equal-split within numerical guard:
+    $$
+    \left|w_i^{(\kappa)} - \tfrac{1}{D}\right| \le 10^{-12}\quad \forall i.
+    $$
+
+* **S7 Dirichlet (per merchant with |C|>1).**
+  - From the logged `dirichlet_gamma_vector` event, recompute
+    $S=\texttt{sum\_comp}(G)$ in **country_set.rank** order (ISO as secondary if needed) and verify the recorded weights normalise to 1 within the **event/schema** tolerance:
+    $$
+    \left|\sum_i w_i - 1\right| \le 10^{-6}.
+    $$
+  - Rebuild **quantised residuals** using the exact rule (8 dp, ties-to-even):
+    $q=\operatorname{roundToEven}(10^8 r_i^{\text{raw}}),\ r_i=q/10^8$,
+    and assert that sorting by $(r_i\ \downarrow,\ \texttt{country\_set.rank}\ \uparrow,\ \text{ISO}\ \uparrow)$ reproduces the published `residual_rank` order.
+
+Failures in any of the checks above are **hard fails**; the bundle is written with diagnostics, and `_passed.flag` is not emitted.
+
+---
