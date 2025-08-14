@@ -66,12 +66,16 @@ Rejection sampling from $\mathrm{Poisson}(\lambda)$ has acceptance probability $
 
 For each eligible merchant $m$:
 
-1. Compute $\lambda := \lambda_{\text{extra},m} = \exp(\theta_0+\theta_1\log N_m+\theta_2 X_m)$.
+1. Compute $\lambda := \lambda_{\text{extra},m} = \exp(\theta_0 + \theta_1 \log N_m + \theta_2 X_m)$.
 2. **Attempt loop** for $a=1,2,\dots$:
-   a) Draw $K_a \sim \mathrm{Poisson}(\lambda)$ using substream $(\ell_\pi,m)$ via S0.3.3/S0.3.4. Emit `poisson_component{..., attempt=a}`.  
-   b) If $K_a=0$: emit `ztp_rejection{..., attempt=a}` and continue.  
-   c) If $K_a\ge 1$: accept $K_m\leftarrow K_a$ and stop.  
-   d) If $a=64$ and still $K_a=0$: emit `ztp_retry_exhausted{...}` and abort this merchant.
+   a) Draw $K_a \sim \mathrm{Poisson}(\lambda)$ using substream $(\ell_\pi,m)$ via S0.3.3/S0.3.4. Emit `poisson_component{..., context="ztp", attempt=a}`.  
+   b) If $K_a = 0$: emit `ztp_rejection{..., attempt=a}` and continue.  
+   c) If $K_a \ge 1$: accept $K_m \leftarrow K_a$ and stop.  
+   d) If $a = 64$ and still $K_a = 0$: emit `ztp_retry_exhausted{...}` and proceed to **(e)**.
+3. **(e) Exhaustion policy (governed).** Let `policy = crossborder_hyperparams.ztp_on_exhaustion_policy ∈ {"abort","downgrade_domestic"}` (default `"abort"`):
+   * `"abort"`: **abort merchant** — emit no S5/S6/S7 artefacts for $m$.
+   * `"downgrade_domestic"`: set $K_m := 0$ and **skip S5–S6**. Proceed directly to S7 with $\mathcal{C}_m = \{\text{home}\}$ and `reason="ztp_exhausted"`.
+   Record the effective action in `validation_bundle_1A`. No schema changes are required.
 
 All uniforms used by the Poisson sampler come from the keyed substream mapping and the open-interval `u01` primitive.
 
@@ -93,17 +97,17 @@ All uniforms used by the Poisson sampler come from the keyed substream mapping a
 
 For each **eligible** $m$:
 
-* **In-memory state to S5/S6:**
+* **In-memory state to next steps:**
+  * **Normal** (no exhaustion): 
+    $$\boxed{\,K_m \in \{1,2,\dots\}\,} \quad \text{(foreign-country count)} \quad \rightarrow \text{S5/S6}.$$
+  * **Exhaustion with `policy="downgrade_domestic"`:** set $K_m := 0$ and **skip S5–S6**; proceed to S7 with $\mathcal{C}_m = \{\text{home}\}$. The reason `"ztp_exhausted"` is recorded in the validation bundle.
+  * **Exhaustion with `policy="abort"`:** merchant is **aborted**; no S5/S6/S7 emission.
 
-  $$
-  \boxed{\ K_m \in \{1,2,\dots\}\ } \quad\text{(foreign-country count)}
-  $$
 * **Authoritative event streams (partitioned by `{seed, parameter_hash, run_id}`):**
-
-  * `logs/rng/events/poisson_component/...` (≥1 row, context="ztp").
+  * `logs/rng/events/poisson_component/...` (≥1 row, `context="ztp"`).
   * `logs/rng/events/ztp_rejection/...` (0..64 rows).
-  * `logs/rng/events/ztp_retry_exhausted/...` (≤1 row; only on abort).
+  * `logs/rng/events/ztp_retry_exhausted/...` (≤1 row; **emitted on exhaustion** regardless of policy).
 
-For **ineligible** $e_m{=}0$: S3 already fixed $K_m{:=}0$; S4 emits **no** ZTP events for such merchants.
+For **ineligible** $e_m = 0$: S3 already fixed $K_m := 0$; S4 emits **no** ZTP events for such merchants.
 
 ---
