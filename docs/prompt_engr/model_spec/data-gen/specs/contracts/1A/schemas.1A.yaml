@@ -242,6 +242,7 @@ egress:
     notes:
       - "Rows are immutable for a given (seed,fingerprint) partition."
       - "Only 1A->1B handoff; 1B adds coordinates."
+      - "Inter-country order is NOT represented here; consumers MUST join `alloc/country_set.rank` (0=home; foreigns follow Gumbel order)."
 
 
 # 5) Diagnostics / validation
