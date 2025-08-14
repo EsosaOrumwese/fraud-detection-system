@@ -235,7 +235,7 @@ egress:
       - { name: raw_nb_outlet_draw, type: int32, nullable: false,
           description: "Accepted NB draw N before cross-border allocation.", minimum: 1 }
       - { name: final_country_outlet_count, type: int32, nullable: false,
-          description: "Integer outlet count allocated to this legal_country.", minimum: 0 }
+          description: "Integer outlet count allocated to this legal_country (per persisted row).", minimum: 1, maximum: 999999 }
       - { name: site_order,     type: int32,           nullable: false, description: "Stable per-country site order (1..n_i).", minimum: 1 }
       - { name: global_seed,        $ref: "#/$defs/uint64", nullable: false,
           description: "Master Philox seed (derivable from manifest; stored for audit replay)." }

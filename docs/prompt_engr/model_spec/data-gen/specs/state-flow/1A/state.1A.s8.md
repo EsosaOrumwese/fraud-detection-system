@@ -8,7 +8,8 @@ Let the run be characterized by:
 * **Manifest fingerprint** $F \in \{0,\dots,2^{256}\!-\!1\}$ (hex64), derived in S0. This value is stored per-row and used for partitioning.
 * **Master seed** $S_{\text{master}} \in \{0,\dots,2^{64}\!-\!1\}$ (a.k.a. `global_seed`), fixed for the run by S0.
 * **Country set** per merchant $m$: an ordered set $\mathcal{C}_m=\{c_0,\dots,c_{K_m}\}$ with `rank(c_0)=0` (home) and `rank(c_i)=i` for foreigns. Persisted already in `alloc/country_set`.
-* **Integer outlet counts** per $(m,c)$: $n_{m,c}\in\mathbb{Z}_{\ge 0}$, the final largest-remainder counts from S7 (with the residual ordering cached in `ranking_residual_cache`).
+* **Integer outlet counts** per $(m,c)$: $n_{m,c}\in\mathbb{Z}_{\ge 1}$ for **materialised** blocks (the final largest-remainder counts from S7, with residual ordering cached in `ranking_residual_cache`).  
+  * *Note:* any $(m,c)$ with $n_{m,c}=0$ produces **no rows** and is not present in egress.
 * **Per-merchant flags and provenance** carried from earlier states: `single_vs_multi_flag` (hurdle outcome), `raw_nb_outlet_draw` $N_m$, `home_country_iso`, etc., available on the wide allocation record used to assemble egress. (Columns and constraints summarized below.)
 
 **Outputs.**
@@ -18,7 +19,7 @@ A single immutable Parquet table **`egress/outlet_catalogue`**, partitioned by `
 * **Uniqueness:** additionally $(\texttt{merchant_id},\texttt{legal_country_iso},\texttt{site_order})$ (same tuple) and a per-row 6-digit `site_id` string.
 * **Partition keys:** `seed`, `fingerprint`; **Sort keys:** `(merchant_id, legal_country_iso, site_order)`.
 * **Selected columns:**
-  `manifest_fingerprint` (hex64), `merchant_id` (id64), `site_id` (string, `^[0-9]{6}$`), `home_country_iso` (ISO-2), `legal_country_iso` (ISO-2), `single_vs_multi_flag` (bool), `raw_nb_outlet_draw` (int32, ≥1), `final_country_outlet_count` (int32, ≥0), `site_order` (int32, ≥1), `global_seed` (uint64).
+   `manifest_fingerprint` (hex64), `merchant_id` (id64), `site_id` (string, `^[0-9]{6}$`), `home_country_iso` (ISO-2), `legal_country_iso` (ISO-2), `single_vs_multi_flag` (bool), `raw_nb_outlet_draw` (int32, ≥1), `final_country_outlet_count` (int32, 1..999999), `site_order` (int32, ≥1), `global_seed` (uint64).
   *Inter-country order is **not** encoded here; consumers must join `alloc/country_set.rank`.*
 
 Materialization path:
@@ -49,7 +50,7 @@ Let the **overflow threshold** be $U=999{,}999$ (max 6-digit number).
 ## S8.2 Deterministic construction of per-country sequences
 
 **(1) Row expansion.**
-For each $(m,c)$ with $n_{m,c}>0$, create one row per $j\in\mathcal{J}_{m,c}$ with:
+For each $(m,c)$ with $n_{m,c}\ge 1$, create one row per $j\in\mathcal{J}_{m,c}$ with:
 
 * `merchant_id = m`,
 * `legal_country_iso = c`,
@@ -81,9 +82,13 @@ Before writing, order rows lexicographically by $(\texttt{merchant_id},\texttt{l
 
 From the egress schema:
 
-1. **Domain constraints.**
-   `site_id` matches `^[0-9]{6}$`; `site_order ≥ 1`; `final_country_outlet_count ≥ 0`; `raw_nb_outlet_draw ≥ 1`; ISO-2 codes validated against canonical ISO dataset via FK.
+ 1. **Domain constraints.**
+    `site_id` matches `^[0-9]{6}$`; `raw_nb_outlet_draw ≥ 1`; `final_country_outlet_count ∈ {1,…,999999}`; `site_order ≥ 1`; ISO-2 codes validated against the canonical ISO dataset via FK.
 
+    **Cross-field constraint (every row):**
+    $$
+    1 \le \texttt{site_order} \le \texttt{final_country_outlet_count}.
+    $$
 2. **Keys & uniqueness.**
    Primary key is $(\texttt{merchant_id},\texttt{legal_country_iso},\texttt{site_order})$; dataset is partitioned by `(seed, fingerprint)`; sort keys mirror the construction order above.
 
