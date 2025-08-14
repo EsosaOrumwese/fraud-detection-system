@@ -199,6 +199,24 @@ datasets:
     pii: false
     licence: "Proprietary-Internal"
 
+  - id: "merchant_currency"
+    status: "approved"
+    owner_subsegment: "1A"
+    description: "Per-merchant settlement currency κₘ with provenance."
+    version: "{parameter_hash}"
+    format: "parquet"
+    path: "data/layer1/1A/merchant_currency/parameter_hash={parameter_hash}/"
+    partitioning: [ "parameter_hash" ]
+    ordering: [ ]
+    schema_ref: "schemas.1A.yaml#/prep/merchant_currency"
+    lineage:
+      produced_by: "1A.derive_merchant_currency"   # S5.0
+      consumed_by: [ "1A.expand_currency_to_country", "1A.select_gumbel_candidates" ]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: "Proprietary-Internal"
+
   - id: "hurdle_design_matrix"
     status: "approved"
     owner_subsegment: "1A"

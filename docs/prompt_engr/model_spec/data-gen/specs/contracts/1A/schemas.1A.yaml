@@ -99,6 +99,27 @@ prep:
         value_column: "weight"
         tolerance: 1e-6
 
+  merchant_currency:
+    type: table
+    description: "Deterministic per-merchant settlement currency κₘ and provenance."
+    primary_key: ["merchant_id"]
+    partition_keys: ["parameter_hash"]
+    sort_keys: []
+    columns:
+      - { name: manifest_fingerprint, type: string, nullable: false,
+          description: "Hex-encoded SHA-256 lineage fingerprint.",
+          pattern: "^[a-f0-9]{64}$" }
+      - { name: merchant_id, $ref: "#/$defs/id64", nullable: false,
+          description: "Merchant ID." }
+      - { name: kappa, $ref: "#/$defs/iso4217", nullable: false,
+          description: "Resolved settlement currency κₘ (ISO-4217)." }
+      - { name: source, type: string, nullable: false,
+          enum: ["ingress_share_vector","home_primary_legal_tender"],
+          description: "Provenance for κₘ." }
+      - { name: tie_break_used, type: boolean, nullable: false,
+          description: "True iff lexicographic tie-break was applied." }
+    constraints: []
+
   sparse_flag:
     type: table
     description: "Sparsity indicators at currency level for the expansion step."

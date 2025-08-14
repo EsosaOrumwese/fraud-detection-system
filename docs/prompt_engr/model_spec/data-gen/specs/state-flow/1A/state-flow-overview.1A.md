@@ -71,8 +71,7 @@ with meanings introduced as we enter each state. All draws are Philox-based and 
 
 # S5 — Currency $\rightarrow$ country expansion (weights)
 
-**Goal:** expand currency-level settlement shares to country weights.
-
+**Goal:** expand currency-level settlement shares to country weights. (Reads $\kappa_m$ from the S5.0 `merchant_currency` cache.)
 * Build currency-level settlement vector; expand to country weights using intra-currency split; if any destination sparse ($<30$ obs), apply **Dirichlet smoothing** $\alpha = 0.5$; if still globally sparse, fallback **equal split** and set `sparse_flag = true`. Renormalise; order countries lexicographically by ISO. Persist `sparse_flag`.
 
 **Leaves:** deterministic weight vector $w^{(\text{ccy} \to \text{iso})}$.

@@ -31,7 +31,7 @@
 
 * **Foreign count:** $K_m\in\{1,2,\dots\}$ from S4. (S4 event lineage in RNG envelope.)
 
-* **Candidate prior weights (deterministic):** the **currency→country weights cache** from S5, `ccy_country_weights_cache` keyed by the merchant’s currency $\kappa_m$:
+* **Candidate prior weights (deterministic):** read $\kappa_m$ from `merchant_currency` (S5.0), then use the **currency→country weights cache** from S5, `ccy_country_weights_cache` keyed by $\kappa_m$:
 
   $$
   \{(\kappa_m, i, w_i^{(\kappa_m)}) : i\in \mathcal{D}(\kappa_m)\subset\mathcal{I}\},\quad \sum_{i} w_i^{(\kappa_m)}=1.
