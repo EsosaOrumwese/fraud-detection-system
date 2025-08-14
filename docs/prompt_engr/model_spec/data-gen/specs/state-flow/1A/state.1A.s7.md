@@ -68,8 +68,9 @@ Enforce $\min_i \alpha_i \ge 10^{-6}$ (abort if violated after loading).
            s = t
        return s + c
    ```
-   Emit **one** `dirichlet_gamma_vector` event with aligned arrays `(country_isos, alpha, gamma_raw, weights)` (weights recorded post‑normalisation).  
-   **Draw accounting (S0.3.6):** `draws = \sum_i \big(3\times \text{attempts}_i + \mathbf{1}[\alpha_i<1]\big)`; normalisation consumes **no** uniforms.
+   Emit **one** `dirichlet_gamma_vector` event with aligned arrays `(country_isos, alpha, gamma_raw, weights)` (weights recorded post‑normalisation).\
+   **Draw accounting (S0.3.6):** `draws = \sum_i \big(3\times \text{attempts}_i + \mathbf{1}[\alpha_i<1]\big)`; normalisation consumes **no** uniforms.\
+   **Tolerances:** internal renormalisation targets $|\sum_i w_i - 1|\le 10^{-12}$ (binary64). Event/schema checks permit $|\sum_i w_i - 1|\le 10^{-6}$; the validator records both values in `metrics.csv`.
 
 ### S7.3 Real‑valued to integer counts via **largest‑remainder** (LRR)
 
