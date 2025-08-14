@@ -113,7 +113,7 @@ All equalities below are checked with integer/bit-exact comparisons.
 6. **`sequence_finalize` cardinality** (global equality):
 
    $$
-   \sum_{(m,c)} \mathbf{1}\{\,n_{m,c}>0\,\} \;=\; \#\text{rows in }\texttt{rng\_event\_sequence\_finalize}.
+   \sum_{(m,c)} \mathbf{1}\{\,n_{m,c}>0\,\} \;=\; \#\text{rows in }\texttt{rng_event_sequence_finalize}.
    $$
 
    Any mismatch is a **structural failure**.
@@ -174,6 +174,15 @@ Let $E$ be the audit envelope and $T_\ell$ the event traces for label $\ell$.
      D_{\text{events}}(\text{``dirichlet_gamma_vector''}) \;=\; 3\,A_{\text{tot}} \;+\; \#\{\,\alpha_i<1\,\},
      $$
      reflecting the extra one-uniform power step for components with $\alpha_i<1$ (per S0.3.6/S2.x).
+
+7. **Sparse lineage linkage (S5 → S6)**:
+   - Let $\kappa_m$ be the settlement currency for merchant $m$, and let $M_m$ be the number of **foreign candidate countries** for $m$ used by the Gumbel-Top-$K$ selection in S6 (i.e., the count of candidates **excluding** the home country).
+   - If `sparse_flag(κ_m) = true`, then the emitted Gumbel payload weights for merchant $m$ must be equal-split:
+      for every candidate $j \in \{1,\dots,M_m\}$ with an associated event in `gumbel_key`,
+      $$
+      \big|\, \texttt{gumbel_key.weight}_{m,j} - \tfrac{1}{M_m} \,\big| \;\le\; 10^{-12}.
+      $$
+      The validator computes $M_m$ as the number of `gumbel_key` entries for merchant $m$ among **foreign** candidates and asserts the bound. Any violation ⇒ **failure**.
 ---
 
 ## S9.6 Statistical corridors (release-time sanity)
