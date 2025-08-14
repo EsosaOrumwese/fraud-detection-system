@@ -51,7 +51,7 @@ Enforce $\min_i \alpha_i \ge 10^{-6}$ (abort if violated after loading).
    S=\texttt{sum_comp}(G_0,\dots,G_{K_m^\star}),\qquad w_i=\frac{G_i}{S}.
    $$
    If $|S-1|>10^{-12}$ after an initial normalise, recompute $S'=\texttt{sum_comp}(w)$ and assert $|S'-1|\le 10^{-12}$.  
-   **Prohibitions:** no BLAS/parallel or GPU reductions for this step.
+   **Prohibitions:** no BLAS/parallel or GPU reductions for this step. **No BLAS/GPU; this normalisation is a single-thread loop.**
 
    **Algorithm (Neumaier variant, binary64; fixed order):**
    ```

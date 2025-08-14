@@ -114,7 +114,7 @@ Persist with `obs_count = y_{i_1}`, `smoothing = null`. Mark `is_sparse = false`
    $$
    S=\texttt{sum_comp}(w);\quad \text{if }|S-1|>10^{-12}\text{ then }w_i\leftarrow \frac{w_i}{S},\;S'=\texttt{sum_comp}(w),\;\;|S'-1|\le 10^{-12}.
    $$
-   **Prohibitions:** no BLAS/parallel reductions; no vectorised reductions for this step.
+   **Prohibitions:** no BLAS/parallel reductions; no vectorised reductions for this step. **Do not call BLAS, GPU, or parallel reductions here; this is a single-thread loop.**
 
    **Algorithm (Neumaier variant, binary64; fixed ISO order):**
    ```
