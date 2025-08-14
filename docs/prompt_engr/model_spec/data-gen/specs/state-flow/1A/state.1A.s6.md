@@ -1,5 +1,19 @@
 # S6 — Foreign country selection (Gumbel-top-$K$), deterministic & auditable
 
+## S6.0 Pre-screen/cap with candidate size $M$
+
+Let $\mathcal{D}(\kappa_m)$ be the member-country set for the merchant’s currency $\kappa_m$ after S5 expansion. Exclude the **home** ISO and define
+$$
+M_m := \big|\mathcal{D}(\kappa_m)\setminus\{\text{home}\}\big|,\qquad
+K_m^\star := \min\big(K_m,\; M_m\big).
+$$
+
+**Rules.**
+* If $M_m = 0$, set $K_m^\star = 0$ and **skip Gumbel** (S6). Proceed to S7 with $\mathcal{C}_m = \{\text{home}\}$ and reason `"no_candidates"` recorded in the validation bundle.
+* If $M_m < K_m$, proceed with $K_m^\star$ (capped) in S6. Validators assert $0 \le K_m^\star \le M_m$.
+* No schema changes; `country_set` remains the sole authority for cross-country order emitted by S6.
+
+
 ## S6.1 Universe, symbols, authority
 
 * **Domain.** Evaluate this state **only** for merchants $m$ that:
