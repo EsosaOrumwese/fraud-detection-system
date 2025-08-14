@@ -81,13 +81,20 @@ All equalities below are checked with integer/bit-exact comparisons.
 
    And `site_order` is a permutation of $\{1,\dots,n_{m,i}\}$ with no gaps/dupes.
 
-2. **Country-set coverage** (per $m$):
+2. **Country-set coverage & order** (per $m$):
 
-   $$
-   \{\,i:(m,i)\in\texttt{country_set}\,\} \;=\; \{\,i: n_{m,i}\ge 0\,\},
-   $$
+   1) **Home uniqueness.** `country_set` has **exactly one** row with `is_home=true` and `rank=0`.  
+      Its `country_iso` must equal the `home_country_iso` present on every egress row for $m$.
 
-   and the unique home country in `country_set` (`is_home=true`, `rank=0`) matches every row’s `home_country_iso` for that $m$.
+   2) **Foreign rank contiguity (no gaps/dupes).** Let $K_m$ be the number of non-home rows for merchant $m$ in `country_set`.  
+      All non-home rows must satisfy $\texttt{rank} \in \{1,\dots,K_m\}$ and, for each $i \in \{1,\dots,K_m\}$, there is **exactly one** row with `rank=i`.
+
+   3) **Order = Top-K by Gumbel key.** Let $S$ be the list of **foreign** ISO codes for merchant $m$ sorted by:
+      - primary key: descending `gumbel_key.key`,  
+      - secondary tie-break: ascending ISO code (lexicographic).
+      
+      Then the set of non-home `country_set.country_iso` equals the set in $S$, **and** their order by increasing `rank` equals the order of $S$.  
+      Any mismatch in membership or order ⇒ **failure**.
 
 3. **Allocation conservation** (per $m$):
    Let $\mathcal{I}_m$ be legal countries in `country_set`. Then
