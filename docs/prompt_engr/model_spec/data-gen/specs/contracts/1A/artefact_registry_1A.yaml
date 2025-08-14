@@ -1018,9 +1018,10 @@ subsegments:
         environment: [ ci, runtime ]
         schema: null
         cross_layer: false
-        notes: "Contains validator outputs for 1A and serves as the basis \
-                for the hand-off gate to 1B. The `_passed.flag` in this folder MUST have content hash equal to\
-                SHA256(bundle) for the same `fingerprint`; consumers must verify this prior to reading `outlet_catalogue`."
+        notes: "Contains validator outputs for 1A (incl. `rng_accounting.json` event coverage) \
+        and serves as the basis for the hand-off gate to 1B. The `_passed.flag` in this folder MUST have \
+        content hash equal to SHA256(bundle) for the same `fingerprint`; consumers must verify this prior \
+        to reading `outlet_catalogue`."
 
       - name: validation_passed_flag
         path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
