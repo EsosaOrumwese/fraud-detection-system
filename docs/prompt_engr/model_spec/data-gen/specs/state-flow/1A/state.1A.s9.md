@@ -125,6 +125,18 @@ All equalities below are checked with integer/bit-exact comparisons.
 
    Any mismatch is a **structural failure**.
 
+7. **Event coverage invariants (per-merchant logging requirements)**  
+   Validators MUST enforce presence/uniqueness for required RNG streams:
+
+   * **S1 — Hurdle:** exactly one `hurdle_bernoulli` if $0<\pi_m<1$; **zero** otherwise (degenerate $\pi$). Event must include the standard RNG envelope.
+   * **S2 — NB mixture:** **≥1** `gamma_component` (context="nb") and **≥1** `poisson_component` (context="nb") across attempts; **exactly one** `nb_final` at acceptance.
+   * **S3 — Eligibility gate:** if `is_eligible=0`, then **no** ZTP/Gumbel/Dirichlet events may exist for $m$. If `is_eligible=1`, S4 events must exist or an explicit abort must be present.
+   * **S4 — ZTP:** For accepted $K_m\ge1$: **≥1** `poisson_component` (context="ztp"); **0..64** `ztp_rejection` with strictly increasing `attempt`; **no** `ztp_retry_exhausted`. For abort: **exactly one** `ztp_retry_exhausted` with `attempts=64`.
+   * **S6 — Gumbel-Top-K:** for each candidate examined, **one** `gumbel_key` record (ties broken lexicographically by ISO).
+   * **S7 — Largest-remainder:** for each $(m,i)$, **one** `residual_rank` event (with quantised residuals), and a persisted `ranking_residual_cache_1A` row must exist for $(m,i)$.
+   * **S8 — Sequence finalisation:** for each emitted $(m,c)$ block in egress, **exactly one** `sequence_finalize` event (non-consuming).
+
+   The validator publishes a machine-readable **`rng_accounting.json`** table in the bundle with the per-label counts above; **any mismatch is a hard fail** (bundle still written, `_passed.flag` withheld).
 ---
 
 ## S9.5 RNG determinism & replay checks
@@ -235,7 +247,7 @@ The validator emits a **ZIP bundle** with an index conforming to `schemas.1A.yam
 * `index.json` — table of artefacts (plots/tables/diffs/summaries).
 * `schema_checks.json` — per-dataset pass/fail + violations.
 * `key_constraints.json` — PK/UK/FK results.
-* `rng_accounting.json` — per-label draw counts and replay spot-checks.
+* `rng_accounting.json` — authoritative, machine-readable per-label coverage table (presence/uniqueness counts by merchant/label) plus replay spot-checks; the validator enforces hard-fail on mismatches.
 * `metrics.csv` — corridor metrics (π gap, ZTP acceptance, sparsity rate, LRR max error, etc.).
 * `diffs/` — when applicable (e.g., residual-rank mismatches).
 
