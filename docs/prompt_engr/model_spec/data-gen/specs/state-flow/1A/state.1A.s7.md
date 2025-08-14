@@ -78,7 +78,11 @@ Given $N \in \mathbb{Z}_{\ge 1}$ and $w\in\Delta^{m-1}$:
 1. Real allocations: $a_i = N\,w_i$.
 2. Floors: $f_i=\lfloor a_i \rfloor$.
 3. Residuals (pre‑quantisation): $r_i^{\text{raw}} = a_i - f_i \in [0,1)$.
-4. **Quantise** residuals: $r_i = \mathrm{round}(r_i^{\text{raw}}, 8\ \text{dp})$.
+4. Quantise residuals (8 dp, ties-to-even). Let $u = r_i^{\text{raw}}\in[0,1)$. Define
+   $$
+   q = \operatorname{roundToEven}(10^8 u)\in\mathbb{Z},\qquad r_i = \frac{q}{10^8}.
+   $$
+   Here $\operatorname{roundToEven}(z)$ returns the nearest integer; exact halves (fraction .5) round to the even integer. Sorting keys MUST use this $r_i$.
 5. Compute deficit: $d = N - \sum_i f_i$. Because $\sum_i w_i = 1$, $0 \le d < m$.
 6. **Stable sort** indices by the key **$(r_i\ \text{desc},\ \texttt{country_set.rank}\ \text{asc},\ \text{ISO}\ \text{asc})$**.  
    (This uses **Gumbel order**—`country_set.rank`—*before* ISO as the deterministic secondary key.)
