@@ -93,10 +93,12 @@ with meanings introduced as we enter each state. All draws are Philox-based and 
 
 **Goal:** convert $N$ into integer per-country counts.
 
-* Load $\alpha = \alpha(\text{home}, \text{MCC}, \text{channel};\, K)$. Draw $\gamma_i \sim \text{Gamma}(\alpha_i, 1)$; set $w_i = \gamma_i / \sum_j \gamma_j$. Log `dirichlet_gamma_vector`.
-* **Largest-remainder rounding:**
-  $$a_i = \lfloor N w_i \rfloor, \quad d = N - \sum_i a_i; \quad r_i = (N w_i - a_i)$$
-  residuals quantised to **8 dp**; sort $r_i$ desc (ISO secondary key); give $+1$ to the top $d$. Persist $(r_i, \text{residual_rank})$ to `ranking_residual_cache_1A`; log `residual_rank`. Bound: $\lvert n_i - N w_i \rvert \le 1$.
+ * **Largest-remainder rounding:**
+   $$a_i = \lfloor N w_i \rfloor, \quad d = N - \sum_i a_i; \quad r_i = (N w_i - a_i)$$
+   residuals quantised to **8 dp (ties-to-even)**; sort by
+   $(r_i\ \downarrow,\ \texttt{country_set.rank}\ \uparrow,\ \text{ISO}\ \uparrow)$; give $+1$ to the top $d$.
+   Persist $(r_i,\ \text{residual_rank})$ to `ranking_residual_cache_1A`; log `residual_rank`.  
+   Bound: $\lvert n_i - N w_i \rvert \le 1$.
 
 **Leaves:** integer vector $\mathbf{n} = (n_i)_{i \in \mathcal{C}}$ with $\sum n_i = N$.
 
@@ -116,8 +118,7 @@ with meanings introduced as we enter each state. All draws are Philox-based and 
 
 **Goal:** prove the write is self-consistent.
 
-* Re-read the Parquet, recompute $\mu, \phi, K, \mathbf{w}, \mathbf{n}$, residual ordering, `site_order`, and `site_id`s from stored inputs; **any mismatch aborts**. Package metrics/logs into `validation_bundle_1A`. Stream-jump records allow Philox counter reconstruction even with zero rejections. Absence of any required RNG event is a structural failure.
-
+* Re-read the Parquet, recompute $\mu, \phi, K, \mathbf{w}, \mathbf{n}$, residual ordering, `site_order`, and `site_id`s from stored inputs; **any mismatch aborts**. Package metrics/logs into `validation_bundle_1A` **and write `_passed.flag`**; **1B MUST verify** the gate (`_passed.flag` content hash == `SHA256(bundle)` for the same fingerprint) **before reading**. Stream-jump records allow Philox counter reconstruction even with zero rejections. Absence of any required RNG event is a structural failure.
 ***
 
 ## Handoffs/Firewalls
