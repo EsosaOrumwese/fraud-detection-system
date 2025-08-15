@@ -9,9 +9,9 @@ K_m^\star := \min\!\big(K_m,\; M_m\big).
 $$
 
 **Rules.**
-* If $M_m = 0$, set $K_m^\star = 0$ and **skip Gumbel** (S6). Proceed to S7 with $\mathcal{C}_m = \{\text{home}\}$ and reason `"no_candidates"` recorded in the validation bundle.
+* If $M_m = 0$, set $K_m^\star = 0$, **persist** `country_set` with a single **home row** (`rank=0`, `prior_weight=null`), **emit no `gumbel_key`**, then proceed to S7 (reason `"no_candidates"` recorded in the validation bundle).
 * If $M_m < K_m$, proceed with $K_m^\star$ (capped) in S6. Validators assert $0 \le K_m^\star \le M_m$.
-* No schema changes; `country_set` remains the sole authority for cross‑country order emitted by S6.
+* Persist the **home-only** `country_set` row in this state when $K_m^\star=0$; `country_set` remains the sole authority for cross-country order emitted by S6.
 
 ---
 
@@ -120,14 +120,18 @@ where $(i_1,\dots,i_{K_m^\star})$ is the Gumbel order. **`country_set` is the on
 * **Missing weights:** no cache row for $\kappa_m$ in `ccy_country_weights_cache` → abort (input precondition of S5/S6).
 * **Schema/envelope violation:** any `gumbel_key` row missing required fields or RNG envelope; `u` not in open interval; invalid ISO → abort.
 * **Order persistence gap:** a merchant with any `gumbel_key.selected=true` but missing corresponding `country_set` rows → validation abort.
+**Persistence responsibility.** `country_set` is **materialised by S6 for all merchants reaching S3**:
+  - domestic-only or downgraded: the single home row with `rank=0`;
+  - eligible with $K_m^\star\ge 1$: home (`rank=0`) plus selected foreigns (`rank=1..K_m^\star`).
+
+S3 never writes `country_set`; it only sets branch state
 
 ---
 
 ## S6.9 Inputs → outputs (state boundary)
 
-* **Inputs (per merchant):**
-  $K_m\ge1$ (from S4); effective $K_m^\star$ (from S6.0); home ISO $c$; currency $\kappa_m$; candidate prior weights $\{w_i^{(\kappa_m)}\}$ from `ccy_country_weights_cache`; RNG lineage (`seed`, `parameter_hash`, `manifest_fingerprint`).
-
+* **Inputs (per merchant):** 
+  * (from S4); effective $K_m^\star$ (from S6.0); home ISO $c$; currency $\kappa_m$; candidate prior weights $\{w_i^{(\kappa_m)}\}$ from `ccy_country_weights_cache`; RNG lineage (`seed`, `parameter_hash`, `manifest_fingerprint`).
 * **Outputs:**
   1. **RNG event stream:** `logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` with **$M_m$** rows per merchant, schema `#/rng/events/gumbel_key`.
-  2. **Allocation dataset:** `data/layer1/1A/country_set/seed={seed}/parameter_hash={parameter_hash}/…` with $K_m^\star+1$ rows (home `rank=0` + $K_m^\star$ foreigns in **Gumbel order**), schema `#/alloc/country_set`.
+  2. **Allocation dataset:** `data/layer1/1A/country_set/seed={seed}/parameter_hash={parameter_hash}/…` with $K_m^\star{+}1$ rows (home `rank=0` + $K_m^\star$ foreigns in **Gumbel order**), schema `#/alloc/country_set`.

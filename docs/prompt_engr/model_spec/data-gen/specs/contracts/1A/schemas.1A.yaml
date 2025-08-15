@@ -71,6 +71,22 @@ model:
       - { name: logit,       type: float32,       nullable: false, description: "Linear predictor before logistic link." }
       - { name: pi,          $ref: "#/$defs/pct01", nullable: false, description: "Probability of being multi-site." }
 
+  crossborder_features:
+    type: table
+    description: "Deterministic per-merchant features for cross-border modelling."
+    primary_key: [ "merchant_id" ]
+    partition_keys: [ "parameter_hash" ]
+    sort_keys: [ ]
+    columns:
+      - { name: merchant_id,   $ref: "#/$defs/id64",  nullable: false, description: "Synthetic merchant identifier from ingress." }
+      - { name: openness,      $ref: "#/$defs/pct01", nullable: false, description: "Scalar X_m ∈ [0,1] used in λ_extra." }
+      - { name: source,        type: string,          nullable: false, description: "Source/provenance label for feature construction." }
+      - { name: parameter_hash, type: string,         nullable: false, description: "Parameter-set hash that versioned the feature build.", pattern: "^[a-f0-9]{64}$" }
+      - { name: manifest_fingerprint, type: string,   nullable: false, description: "Run fingerprint.", pattern: "^[a-f0-9]{64}$" }
+    invariants:
+      - "openness ∈ [0,1]"
+      - "FK(merchant_id) → ingress.merchant_ids"
+
 
 # 2) Preparation / deterministic caches
 prep:
