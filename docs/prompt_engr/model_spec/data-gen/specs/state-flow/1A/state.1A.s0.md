@@ -69,7 +69,7 @@ $$
 - `run_id` is **unique per execution** and is used **only** for versioning/partitioning of logs and traces (e.g., `rng_audit_log`, `rng_trace_log`, `rng_event_*`).
 - `run_id` **does not** participate in RNG seeding or counter derivation and **must not** influence modelling outputs. Modelling/egress datasets depend only on `(seed, parameter_hash, manifest_fingerprint)`.
 
-**Partitioning note.** Parameter‑scoped modelling datasets are keyed by `{parameter_hash}`; egress/validation by `{manifest_fingerprint}` (and often `{seed}`). **RNG logs/trace/events** are partitioned by `{seed, parameter_hash, run_id}` per the dataset dictionary.
+**Partitioning note.** Parameter-scoped modelling datasets are keyed by `{parameter_hash}`; **randomness-bearing datasets** (e.g., `country_set`, `ranking_residual_cache_1A`) are keyed by `{seed, parameter_hash}`; audit logs are keyed by `{seed, parameter_hash, run_id}` per the dataset dictionary.
 
 ## S0.3 RNG: master seed, counter, and sub-stream mapping
 
@@ -185,6 +185,36 @@ For every RNG event:
   **non‑consuming** (draws = 0; envelope before == after).
 
 > All uniforms use **S0.3.4**; all standard normals use **S0.3.5**; substreams follow **S0.3.3** (keyed mapping).
+
+### S0.3.7 Poisson($\lambda$) sampler (deterministic regimes)
+
+For $\lambda > 0$ draw $K \sim \text{Poisson}(\lambda)$ with two pinned regimes; all uniforms come from the keyed sub-stream (S0.3.3) via the open interval $U(0,1)$ transform (S0.3.4).
+
+**Regime A (Inversion) for $\lambda < 10$.**  
+Let $L = \exp(-\lambda)$. Set $p \leftarrow 1$, $k \leftarrow 0$. Repeat: draw $u \sim U(0,1)$; $p \leftarrow p \cdot u$; $k \leftarrow k + 1$; stop when $p \le L$; return $K = k - 1$.  
+*Uniforms consumed:* stochastic ($\approx \lambda + 1$ in expectation).
+
+**Regime B (PTRS) for $\lambda \ge 10$ (Hörmann transformed-rejection).**  
+Precompute $b = 0.931 + 2.53\sqrt{\lambda}$; $a = -0.059 + 0.02483\, b$; $\text{inv}\alpha = 1.1239 + \frac{1.1328}{b - 3.4}$; $v_r = 0.9277 - \frac{3.6224}{b - 2}$.  
+
+Loop: draw $u,v \sim U(0,1)$. If $u \le 0.86$ and $v \le v_r$, accept $k = \lfloor \frac{b\,v}{u} + \lambda + 0.43 \rfloor$.  
+Else set $u_s = 0.5 - \lvert u - 0.5 \rvert$; $k = \lfloor \frac{2a}{u_s} + b \rfloor v + \lambda + 0.43$; if $k < 0$ continue.  
+
+Accept if  
+$$
+\log\!\left( \frac{v \cdot \text{inv}\alpha}{a/(u_s^2) + b} \right) \le -\lambda + k\log\lambda - \log\Gamma(k+1).
+$$
+
+Return accepted $k$ as $K$.  
+*Uniforms consumed:* 2 per attempt; attempts geometric with acceptance parameter defined by the region above.
+
+**Logging & determinism.** Emit `poisson_component` RNG events with `context ∈ {"nb","ztp"}` and envelope deltas per S0.3.6. For fixed `($\lambda$, seed, fingerprint, label, merchant)` the attempt stream and accepted $K$ are bit-replayable.
+
+**Note (normative constants).** The numerical coefficients used in PTRS
+(`0.931`, `2.53`, `-0.059`, `0.02483`, `1.1239`, `1.1328`, `3.4`, `0.9277`, `3.6224`, and the squeeze cutoff `0.86`) are algorithmic constants from Hörmann’s construction. 
+They are **not configuration parameters** and must not be altered without replacing PTRS with a different, fully specified method.
+Only the regime threshold for switching from inversion to PTRS is a governed design choice (here: `λ* = 10`) and is pinned for reproducibility.
+
 
 ## S0.4 Deterministic GDP bucket assignment
 

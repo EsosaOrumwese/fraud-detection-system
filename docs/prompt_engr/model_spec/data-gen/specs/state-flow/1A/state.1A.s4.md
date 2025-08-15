@@ -9,8 +9,9 @@
     (Ineligible merchants skip S4–S6 and keep $K_m{:=}0$.)
 * **Inputs (per $m$).**
 
-  * $N_m\in\{2,3,\dots\}$: accepted domestic count from S2.
-  * Hyperparameters $\theta=(\theta_0,\theta_1,\theta_2)$ and **openness** scalar $X_m$, from `crossborder_hyperparams.yaml`, keyed by $(\text{home_country},\text{MCC},\text{channel})$. Governance notes (Wald tests, drift gates) accompany $\theta$ in the YAML.
+  * $N_m$ from S2 (only if multi-site), eligibility flags from S3.
+  * Hyperparameters $\theta=(\theta_0,\theta_1,\theta_2)$ from `crossborder_hyperparams.yaml` (Wald stats recorded).
+  * Openness scalar $X_m \in [0,1]$ from `crossborder_features` (parameter-scoped), keyed by `merchant_id`.
   * RNG lineage from S0: `seed`, `parameter_hash`, `manifest_fingerprint`; events use the shared RNG envelope.
 * **Authoritative schemas & event streams.**
 
@@ -18,6 +19,10 @@
   * `ztp_rejection` for zero draws (attempt index 1..64).
   * `ztp_retry_exhausted` for the hard cap at 64 rejections.
     Dataset dictionary pins paths/partitions for all three streams.
+
+* Don't know where to put this but here it is:
+  * **Sampler.** True ZTP via rejection from $\text{Poisson}(\lambda_\text{extra})$ (see **S0.3.7** for Poisson regimes) where $\lambda_\text{extra}=\exp(\theta_0+\theta_1\log N_m+\theta_2 X_m)$; cap 64 rejections then apply the configured branch policy.
+
 
 ## S4.2 Link function and parameterisation
 
@@ -68,7 +73,7 @@ For each eligible merchant $m$:
 
 1. Compute $\lambda := \lambda_{\text{extra},m} = \exp(\theta_0 + \theta_1 \log N_m + \theta_2 X_m)$.
 2. **Attempt loop** for $a=1,2,\dots$:
-   a) Draw $K_a \sim \mathrm{Poisson}(\lambda)$ using substream $(\ell_\pi,m)$ via S0.3.3/S0.3.4. Emit `poisson_component{..., context="ztp", attempt=a}`.  
+   a) Draw $K_a \sim \mathrm{Poisson}(\lambda)$ **using the Poisson(λ) regimes in S0.3.7**, with sub-stream per S0.3.3 and open-interval uniforms per S0.3.4. Emit `poisson_component{..., context="ztp", attempt=a}`.  
    b) If $K_a = 0$: emit `ztp_rejection{..., attempt=a}` and continue.  
    c) If $K_a \ge 1$: accept $K_m \leftarrow K_a$ and stop.  
    d) If $a = 64$ and still $K_a = 0$: emit `ztp_retry_exhausted{...}` and proceed to **(e)**.

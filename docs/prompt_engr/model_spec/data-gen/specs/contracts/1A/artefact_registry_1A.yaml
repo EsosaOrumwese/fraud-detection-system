@@ -66,6 +66,24 @@ subsegments:
       # ---------------------------
       # EXTERNAL & REFERENCE DATA
       # ---------------------------
+      - name: dirichlet_alpha_policy
+        path: configs/models/allocation/dirichlet_alpha_policy.yaml
+        type: config
+        category: allocation_policy
+        semver: "{semver}"
+        version: "{config_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.1A.allocation.dirichlet_alpha_policy
+        license: "{spdx_or_internal}"
+        role: Dirichlet α-vector policy and fallback ladder for country allocation.
+        dependencies: [ crossborder_hyperparams ]
+        source: internal
+        owner: { owner_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: false
+        notes: null
 
       - name: world_bank_gdp_per_capita_20250415
         path: reference/economic/world_bank_gdp_per_capita/2025-04-15/gdp.parquet
@@ -343,7 +361,7 @@ subsegments:
         manifest_key: mlr.1A.cache.merchant_currency
         license: "{spdx_or_internal}"
         role: Deterministic κₘ cache (per-merchant settlement currency).
-        dependencies: [ settlement_shares_2024Q4, iso4217_canonical, iso3166_canonical_2024 ]
+        dependencies: [ settlement_shares_2024Q4, iso3166_canonical_2024 ]
         source: internal
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
@@ -761,12 +779,12 @@ subsegments:
         manifest_key: mlr.rng.events.site_sequence_overflow
         license: "{spdx_or_internal}"
         role: Guardrail events when site sequence space is exhausted.
-        dependencies: [ rng_event_schema_catalog ]
+        dependencies: [ ]
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: rng_event_schema_catalog
+        schema: schemas.layer1.yaml#/rng/events/site_sequence_overflow
         cross_layer: true
         notes: null
 
@@ -884,6 +902,25 @@ subsegments:
         cross_layer: false
         notes: null
 
+      - name: crossborder_features
+        path: data/layer1/1A/crossborder_features/parameter_hash={parameter_hash}/
+        type: dataset
+        category: model_features
+        semver: "{dataset_semver}"
+        version: "{parameter_hash}"
+        digest: "{sha256}"
+        manifest_key: mlr.1A.model.crossborder_features
+        license: "{spdx_or_internal}"
+        role: Deterministic per-merchant features for S4; currently the openness scalar X_m ∈ [0,1].
+        dependencies: [ transaction_schema_merchant_ids ]
+        source: internal
+        owner: { engineering_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci, dev, staging, prod ]
+        schema: schemas.1A.yaml#/model/crossborder_features
+        cross_layer: false
+        notes: "Produced in S0; consumed in S4. Deterministic, parameter-scoped."
+
       - name: rng_event_residual_rank
         path: logs/rng/events/residual_rank/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         type: log
@@ -894,12 +931,12 @@ subsegments:
         manifest_key: mlr.rng.events.residual_rank
         license: "{spdx_or_internal}"
         role: Deterministic residual ranks used in largest-remainder integerisation.
-        dependencies: [ rng_event_schema_catalog ]
+        dependencies: [ residual_quantisation_policy ]
         source: internal
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: rng_event_schema_catalog
+        schema: schemas.layer1.yaml#/rng/events/residual_rank
         cross_layer: true
         notes: null
 
@@ -1011,7 +1048,7 @@ subsegments:
         manifest_key: mlr.1A.validation.bundle
         license: "{spdx_or_internal}"
         role: Validator outputs for 1A (metrics, diffs, plots).
-        dependencies: [ outlet_catalogue, rng_audit_log, rng_event_schema_catalog ]
+        dependencies: [ outlet_catalogue, rng_audit_log ]
         source: internal
         owner: { qa_team }
         last_updated: "{iso8601_timestamp}"

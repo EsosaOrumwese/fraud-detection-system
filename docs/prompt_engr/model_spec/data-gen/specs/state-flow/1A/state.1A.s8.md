@@ -16,7 +16,7 @@ Let the run be characterized by:
 A single immutable Parquet table **`egress/outlet_catalogue`**, partitioned by `seed` and `fingerprint`, with schema and constraints:
 
 * **Primary key:** $(\texttt{merchant_id},\texttt{legal_country_iso},\texttt{site_order})$.
-* **Uniqueness:** additionally $(\texttt{merchant_id},\texttt{legal_country_iso},\texttt{site_order})$ (same tuple) and a per-row 6-digit `site_id` string.
+* **Additional uniqueness:** `site_id` (6-digit string) **within each (merchant,country)** block.
 * **Partition keys:** `seed`, `fingerprint`; **Sort keys:** `(merchant_id, legal_country_iso, site_order)`.
 * **Selected columns:**
    `manifest_fingerprint` (hex64), `merchant_id` (id64), `site_id` (string, `^[0-9]{6}$`), `home_country_iso` (ISO-2), `legal_country_iso` (ISO-2), `single_vs_multi_flag` (bool), `raw_nb_outlet_draw` (int32, ≥1), `final_country_outlet_count` (int32, 1..999999), `site_order` (int32, ≥1), `global_seed` (uint64).
@@ -132,7 +132,7 @@ $$
 \big(\{n_{m,c}\}, F, S_{\text{master}}\big) \;\mapsto\; \texttt{outlet_catalogue}
 $$
 
-with no RNG draws. Therefore replay is byte-stable under identical partitions. (The seed and fingerprint are also stored per-row as `global_seed` and `manifest_fingerprint`.)
+with no RNG draws. Therefore, replay is byte-stable under identical partitions. (The seed and fingerprint are also stored per-row as `global_seed` and `manifest_fingerprint`.)
 
 **Validation checks (fail-fast):**
 

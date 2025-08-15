@@ -361,6 +361,24 @@ datasets:
     pii: false
     licence: "Proprietary-Internal"
 
+  - id: "crossborder_features"
+    status: "planning"
+    owner_subsegment: "1A"
+    description: "Per-merchant deterministic features used by cross-border K (currently: openness scalar X_m in [0,1])."
+    version: "{parameter_hash}"
+    format: "parquet"
+    path: "data/layer1/1A/crossborder_features/parameter_hash={parameter_hash}/"
+    partitioning: [ "parameter_hash" ]
+    ordering: [ "merchant_id" ]
+    schema_ref: "schemas.1A.yaml#/model/crossborder_features"
+    lineage:
+      produced_by: "1A.S0"
+      consumed_by: [ "1A.S4" ]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: "Proprietary-Internal"
+
 # Prune CI-time artefacts (planning phase)
 #  - id: "nightly_ci_metrics"
 #    status: "approved"
