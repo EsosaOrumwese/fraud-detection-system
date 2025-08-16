@@ -1,1694 +1,2214 @@
-# S0.1 — Universe, symbols, authority (formal)
+# S0.1 — Universe, Symbols, Authority (normative)
 
-## S0.1.a Typed domains and the ingress relation
+## Purpose & scope
 
-Define the primitive domains:
+S0.1 establishes the **canonical universe** (merchant rows and reference datasets) and the **schema authority** for subsegment 1A. Its job is to make the rest of S0–S9 reproducible by fixing the domain symbols and where their truth comes from. No RNG is consumed here.
 
-* Merchant identifiers: $\mathsf{MerchantID}$ (opaque identifiers; equality and ordering only).
-* Merchant category codes: $\mathsf{MCC}=\{1000,\dots,9999\}\subset\mathbb{N}$ (4-digit numeric codes).
-* Channels: $\mathsf{Chan}=\{\text{CP},\text{CNP}\}$.
-* Countries (ISO-3166-1 alpha-2): $\mathcal{I}\subset\{\text{AA},\text{AB},\dots\}$ (2-character uppercase strings).
+**What S0.1 freezes for the run**
 
-The **ingress table** is a finite relation (no duplicates by definition):
+* The merchant universe $\mathcal{M}$ from the **normalised ingress** table `merchant_ids`.
+* The immutable **reference artefacts**: ISO-3166 country set $\mathcal{I}$; GDP-per-capita vintage $G$ pinned to **2025-04-15**; a precomputed Jenks $K{=}5$ GDP bucket map $B$.
+* The **schema authority**: only JSON-Schema contracts in `schemas.ingress.layer1.yaml`, `schemas.1A.yaml`, and shared RNG/event schemas in `schemas.layer1.yaml` are authoritative; Avro (if any) is non-authoritative.
 
-$$
-\texttt{merchant_ids}\ \subseteq\ \mathsf{MerchantID}\times \mathsf{MCC}\times \mathsf{Chan}\times \mathcal{I}.
-$$
-
-We write a row as a 4-tuple $(\texttt{merchant_id},\texttt{mcc},\texttt{channel},\texttt{home_country_iso})$. This table **must** validate against `schemas.ingress.layer1.yaml#/merchant_ids`. S0.1’s first outcome is the **set** of seed merchants
-
-$$
-\mathcal{M}\;=\;\{\texttt{merchant_id} : (\texttt{merchant_id},\_,\_,\_)\in \texttt{merchant_ids}\}.
-$$
-
-All further computation quantifies over $\mathcal{M}$.
-
-### Ingress invariants (enforced by validation)
-
-For every $(m,\mathrm{mcc},\mathrm{ch},c)\in\texttt{merchant_ids}$:
-
-1. $m\in\mathsf{MerchantID}$, $\mathrm{mcc}\in\mathsf{MCC}$, $\mathrm{ch}\in\mathsf{Chan}$, $c\in\mathcal{I}$.
-2. **Uniqueness:** at most one tuple with the same $m$.
-3. **Non-nulls:** all four fields present (no missing values).
-4. **ISO authority:** $c$ must be an ISO-3166 alpha-2 code admitted by the run’s canonical list (see below).
-   (If any fails, S0 aborts before proceeding.)
+> Downstream consequence: **inter-country order is never encoded** in egress `outlet_catalogue`; consumers MUST join `country_set.rank` (0=home; foreigns follow Gumbel selection order). S0.1 records that rule as part of the authority.
 
 ---
 
-## S0.1.b Canonical reference artefacts (immutable within a run)
+## Domain symbols (definitions and types)
 
-S0.1 **loads and freezes** three immutable references:
+### Merchants (ingress universe)
 
-1. **ISO countries:** the set $\mathcal{I}$ of valid ISO-3166 alpha-2 codes used for domain checks and foreign keys.
-2. **GDP per-capita function:** a total map
-
-$$
-G:\ \mathcal{I}\ \to\ \mathbb{R}_{>0},\qquad c\mapsto G(c),
-$$
-
-**pinned to the 2025-04-15 vintage** (so every run uses the same numeric vector).
-3\) **Jenks 5-bucket map:** a total map
-
-$$
-B:\ \mathcal{I}\ \to\ \{1,2,3,4,5\},
-$$
-
-precomputed from the pinned GDP vintage (not recomputed at run time). For intuition, there exist thresholds $\tau_0<\dots<\tau_5$ such that $B(c)=k$ iff $G(c)\in(\tau_{k-1},\tau_k]$; but only the map $B(\cdot)$ itself is authoritative.
-
-**Immutability contract.** Within a single run, $\mathcal{I}$, $G$, and $B$ are **constants**. Any change of these artefacts (new ISO list, new GDP vintage, or a regenerated Jenks map) must occur between runs and will be captured by lineage in S0.2 (parameter/fingerprint hashing).
-
----
-
-## S0.1.c Authority and precedence
-
-There are **three** authoritative schema families, in strict precedence:
-
-1. `schemas.ingress.layer1.yaml` — governs external inputs (e.g., `merchant_ids`) and canonical lookups.
-2. `schemas.1A.yaml` — governs 1A’s own parameter-scoped and egress datasets.
-3. `schemas.layer1.yaml` — governs shared RNG/event envelopes and event payloads.
-
-If an Avro or auxiliary schema disagrees, **these YAML schemas win**. All validations, FK checks, and type domains in S0+ later states are defined **by these authorities**.
-
----
-
-## S0.1.d Outputs of S0.1 (what later substates may use)
-
-After S0.1, the process exposes, for the rest of S0 (and states S1–S8):
-
-* The seed merchant set $\mathcal{M}$ and the validated ingress relation `merchant_ids`.
-* The canonical domains $\mathcal{I}$, $G(\cdot)$, $B(\cdot)$ (all immutable for the run).
-* The schema-authority precedence used by every subsequent validation.
-
-No RNG, no hashing, and no feature vectors are produced **yet** (that starts in S0.2+).
-
----
-
-### Quick checklist (pass/fail for S0.1)
-
-* Ingress rows conform to the authoritative ingress schema.
-* $\mathcal{I}$, $G$, $B$ are loaded and pinned for the run.
-* $\mathcal{M}$ is well-defined (no duplicate merchant IDs).
-* All subsequent states can treat $\mathcal{I}$, $G$, $B$ as constants.
-
----
-
-# S0.2.1 Hash primitives (definitions, conversions, guards)
-
-## A) Byte strings, length, concatenation
-
-* Let $\mathbb{B}=\{0,1\}$. A **byte string** is an element $x\in(\mathbb{B}^8)^{*}$.
-* **Length in bytes:** $|x|\in\mathbb{N}$.
-* **Concatenation:** for byte strings $x,y$, define $x\ \|\ y$ as the byte string formed by appending the bytes of $y$ after $x$. Concatenation is **on raw bytes**, never on hex text. This is used directly in the parameter-hash recipe (e.g., concatenating raw 32-byte digests before hashing).
-
-## B) SHA-256
-
-* $\mathrm{SHA256}:(\mathbb{B}^8)^{*}\to\mathbb{B}^{256}$ maps any byte string to a **32-byte** digest. We always hash **exact file bytes** (no newline, encoding, or YAML normalization): $D(a)=\mathrm{SHA256}(\mathrm{bytes}(a))$.
-* **Hex encoder (lowercase):**
-  $\mathrm{hex64}:\mathbb{B}^{256}\to\{[0\!-\!9a\!-\!f]\}^{64}$ produces a 64-char lowercase hex. Downstream schemas accept only `^[a-f0-9]{64}$`.
-
-## C) 256-bit XOR
-
-* Let $\oplus:\mathbb{B}^{256}\times\mathbb{B}^{256}\to\mathbb{B}^{256}$ be **bytewise XOR**:
-  if $x=(x_0,\dots,x_{31})$ and $y=(y_0,\dots,y_{31})$ with bytes $x_j,y_j\in\mathbb{B}^8$, then
+* Let $\mathcal{M}$ be the finite set of merchants from the normalised ingress table:
 
   $$
-  x\oplus y \;=\; (x_0\oplus y_0,\ \dots,\ x_{31}\oplus y_{31}).
+  \texttt{merchant_ids}\subset\{(\texttt{merchant_id},\ \texttt{mcc},\ \texttt{channel},\ \texttt{home_country_iso})\}\,,
   $$
 
-  The identity element is $0^{256}$ (32 zero bytes).
-  **XOR-reduce** of a finite multiset $S\subset(\mathbb{B}^{256})$ is $\bigoplus S:=\;$left-to-right fold with identity $0^{256}$.
-  This operator is used both in forming the **manifest fingerprint** and (legacy variant) for the parameter hash; our *current* parameter-hash uses concatenation→SHA-256, while the manifest uses XOR-reduce→SHA-256.
+  validated by `schemas.ingress.layer1.yaml#/merchant_ids`.
 
-## D) 64-bit little-endian conversions (used in S0.3 seeding)
+* Field domains (as enforced by the ingress schema and reused throughout 1A):
 
-* $\mathrm{LE64}:\{0,\dots,2^{64}\!-\!1\}\to\mathbb{B}^{64}$ encodes an unsigned 64-bit integer as **8 bytes, little-endian**.
-* $\mathrm{LE64}^{-1}:\mathbb{B}^{64}\to\{0,\dots,2^{64}\!-\!1\}$ decodes 8 little-endian bytes to u64.
-* $\mathrm{split64}:\mathbb{B}^{128}\to\{0,\dots,2^{64}\!-\!1\}^2$ splits 16 bytes into two u64 via little-endian for the low/high words.
-  These are invoked by the master seed and counter derivations (S0.3).
+  * $\texttt{merchant_id}$: opaque 64-bit identifier (string/id type per schema).
+  * $\texttt{mcc}\in\mathcal{K}$: valid 4-digit MCC code set $\mathcal{K}$.
+  * $\texttt{channel}\in\mathcal{C}$: card-present vs card-not-present, i.e. $\mathcal{C}=\{\mathrm{CP},\mathrm{CNP}\}$.
+  * $\texttt{home_country_iso}\in\mathcal{I}$: ISO-3166 alpha-2 code. (FK to $\mathcal{I}$ enforced later.)
+    (These symbols are referenced repeatedly in S1–S7; S0.1 defines them once.)
 
-## E) 20→32 byte padding for git commit hashes
+### Canonical references (immutable within the run)
 
-Let $\mathrm{git}_{\mathrm{raw}}$ be the VCS commit hash bytes. Define
+* **Countries:** $\mathcal{I}$ = ISO-3166 alpha-2 country list (finite, determined by the pinned reference).
+* **GDP (per-capita) map:** $G:\mathcal{I}\rightarrow\mathbb{R}_{>0}$, **pinned to 2025-04-15** (fixes both values and coverage).
+* **GDP bucket map:** $B:\mathcal{I}\rightarrow\{1,\dots,5\}$ — a precomputed Jenks $K=5$ classification over $G$. (S0.4 will define how to (re)build it; here we treat the artefact as immutable input.)
+
+### Derived per-merchant tuple
+
+For $m\in\mathcal{M}$, define the typed triple:
 
 $$
-\mathrm{git}_{32} \;=\;
-\begin{cases}
-\text{0x00}^{12}\ \|\ \mathrm{git}_{\mathrm{raw}}, & |\mathrm{git}_{\mathrm{raw}}|=20\ \text{(SHA-1)},\\
-\mathrm{git}_{\mathrm{raw}}, & |\mathrm{git}_{\mathrm{raw}}|=32\ \text{(SHA-256)},\\
-\text{abort}, & \text{otherwise}.
-\end{cases}
+t(m):=\big(\texttt{mcc}_m,\ \texttt{channel}_m,\ \texttt{home_country_iso}_m\big)\in\mathcal{K}\times\mathcal{C}\times\mathcal{I}\,,
 $$
 
-This produces a **32-byte** value suitable for XOR alongside 32-byte digests. Used in the manifest fingerprint.
-
-## F) Helper combinators used by S0.2
-
-* **Concat-digest** (used for the parameter hash): for filenames $p_1 < p_2 < p_3$ (ASCII lexicographic order),
-
-  $$
-  \text{parameter_hash_bytes}\;=\;\mathrm{SHA256}\!\big(D(p_1)\ \|\ D(p_2)\ \|\ D(p_3)\big),\quad
-  \text{parameter_hash}=\mathrm{hex64}(\cdot).
-  $$
-
-  This is the **only** version key for parameter-scoped datasets.
-* **XOR-digest** (used for the manifest fingerprint): if $\mathcal{A}$ is the set of all artefacts opened in 1A, let
-
-  $$
-  X=\Big(\bigoplus_{a\in\mathcal{A}} D(a)\Big)\ \oplus\ \mathrm{git}_{32}\ \oplus\ \text{parameter_hash_bytes},\qquad
-  \text{manifest_fingerprint_bytes}=\mathrm{SHA256}(X),\ \text{then hex64}.
-  $$
-
-  This fingerprint versions **egress & validation** and appears in their partition paths.
-
-## G) Guards & failure semantics
-
-Operations below **abort** S0.2 with a reproducible message:
-
-1. **Length mismatch:** any XOR operand not exactly 32 bytes; any LE64 input not 8 or 16 bytes (for `split64`).
-2. **Hex policy breach:** any persisted fingerprint/hash not matching `^[a-f0-9]{64}$`.
-3. **Git hash anomaly:** commit bytes not 20 or 32 (unexpected VCS format).
+used by deterministic policies in later states (e.g., cross-border eligibility).
 
 ---
 
-### What S0.2.1 “exports” to S0.2.2–S0.2.3
+## Authority & contracts (single source of truth)
 
-* **Primitives:** $\mathrm{SHA256}$, $\mathrm{hex64}$, $\oplus$, $\|$, $\mathrm{git}_{32}$, $\mathrm{LE64}$, $\mathrm{split64}$.
-* **Recipes:** Concat-digest (parameter hash) and XOR-digest (manifest fingerprint).
-* **Contracts:** All inputs are raw bytes; outputs are 32-byte digests or 64-hex strings; schema patterns/paths downstream rely on these encodings (e.g., `outlet_catalogue/…/fingerprint={manifest_fingerprint}/`).
+### Authoritative schemas for 1A
+
+Only **JSON-Schema** is the source of truth for 1A. All dataset contracts and RNG event contracts must refer to these paths (JSON Pointer fragments):
+
+* Ingress: `schemas.ingress.layer1.yaml#/merchant_ids`.
+* 1A model/alloc/egress: `schemas.1A.yaml` (e.g., `#/model/hurdle_pi_probs`, `#/prep/sparse_flag`, `#/alloc/country_set`, `#/egress/outlet_catalogue`).
+* Shared RNG events: `schemas.layer1.yaml#/rng/events/*`.
+  Avro (`.avsc`) is **non-authoritative** for 1A and must not be referenced by registry/dictionary entries.
+
+### Semantic clarifications (normative)
+
+* `country_set` is the **only** authority for **cross-country order** (rank: 0 = home, then foreigns). Egress `outlet_catalogue` does **not** carry cross-country order; consumers **must** join `country_set.rank`. This rule is part of the schema authority and dictionary notes.
+* Partitioning semantics (used later, documented here for authority): parameter-scoped datasets partition by `parameter_hash`, while egress/validation partition by `manifest_fingerprint`. (Full details in S0.10; recorded as an invariant here.)
 
 ---
 
-# S0.2.2 — Parameter hash (canonical, under-the-hood)
+## Run-time invariants (frozen context)
 
-## Goal
-
-Produce a **single 256-bit key** `parameter_hash` that deterministically version-controls all **parameter-scoped** datasets. It must change if **any byte** of any required parameter file changes, and be invariant to directory layout or file read chunking.
-
----
-
-## Inputs (exactly three files, required)
-
-Let the required set of **filenames** be
+S0.1 constructs a **run context** $\mathcal{U}$ and freezes it:
 
 $$
-\mathcal{F}=\{\text{``hurdle_coefficients.yaml''},\ \text{``nb_dispersion_coefficients.yaml''},\ \text{``crossborder_hyperparams.yaml''}\}.
+\mathcal{U} := \big(\mathcal{M}, \ \mathcal{I}, \ G,\ B,\ \text{SchemaAuthority}\big).
 $$
 
-Each filename must resolve to **exactly one** regular file on disk (symlinks allowed but resolved), and will be read as raw bytes.
+**Invariants (must hold for the entire run):**
 
-> Important: Only the **file contents** matter for digesting. Paths, YAML parsing, whitespace normalization, and OS line endings are **not** used. We hash **exact bytes on disk**.
+1. **Immutability:** $\mathcal{M}$, $\mathcal{I}$, $G$, $B$ and the authority mapping must not change after S0.1 completes. Any observed mutation later is a hard failure.
+2. **Coverage:** $\forall m\in\mathcal{M}:\ \texttt{home_country_iso}_m\in\mathcal{I}$. Missing FK is a schema/lineage violation upstream of S3/S6.
+3. **Determinism:** No RNG consumption; all outputs of S0.1 are pure functions of the loaded bytes and schemas (S0.2 will digest/record them).
+4. **Authority compliance:** Every dataset/stream referenced downstream must use the **JSON-Schema** anchors listed above; any non-authoritative reference is a policy breach.
 
 ---
 
-## Discovery & validation (before hashing)
+## Failure semantics (abort codes)
 
-1. **Resolve** each $f\in\mathcal{F}$ via the artefact registry → absolute path $P(f)$.
-2. **Symlink resolution:** resolve $P(f)$ through symlinks; reject cycles.
-3. **File type:** require “regular file”; reject directories, sockets, FIFOs.
-4. **Uniqueness:** each $f$ appears **once**; duplicates by name are an error.
-5. **Readability:** open for read; permission errors abort.
-6. **Stability window (optional hardening):** record `(size, mtime_ns)` before and after hashing; if either changes, re-hash once; if still inconsistent, abort (`changed_during_hash`).
+S0.1 MUST abort the run if any of the following occur:
 
-Zero-length files are allowed (their SHA-256 is the standard zero-length digest).
+* `E_INGRESS_SCHEMA`: `merchant_ids` fails validation against `schemas.ingress.layer1.yaml#/merchant_ids`.
+* `E_REF_MISSING`: any canonical reference (ISO list, GDP vintage, or bucket map) is missing or unreadable. (S0.2 will separately catch digest mismatches when hashing.)
+* `E_AUTHORITY_BREACH`: a dataset or event in registry/dictionary points to a non-authoritative schema (e.g., an `.avsc`) for 1A.
+* `E_FK_HOME_ISO`: some $m$ has `home_country_iso` not in $\mathcal{I}$. (This will also be caught later when persisting `country_set`.)
 
----
-
-## Digest of each file (raw bytes, streaming)
-
-For any resolved file $a$ (one of the three):
-
-* Define $D(a)=\mathrm{SHA256}(\text{bytes}(a))\in\{0,1\}^{256}$.
-* **Streaming**: read in fixed chunks (e.g., 1 MiB) and update the SHA-256 state; do **not** transcode encodings; include every byte as stored (including `\r\n` vs `\n`, BOMs, trailing newlines).
-* Do **not** canonicalize YAML (no parse-and-dump); we hash the literal bytes.
-
-This yields three 32-byte digests: $D_1, D_2, D_3$.
+> When S0.1 aborts, no RNG audit or parameter/fingerprint artefacts should be emitted; S0.2 has not yet run.
 
 ---
 
-## Canonical ordering of inputs
+## Validation hooks (what CI/runtime checks here)
 
-Sort the **filenames** in **ASCII lexicographic** order (case-sensitive) to obtain $(p_1,p_2,p_3)$. With the three names above, the order is:
-
-$$
-p_1=\text{``crossborder_hyperparams.yaml''},\quad
-p_2=\text{``hurdle_coefficients.yaml''},\quad
-p_3=\text{``nb_dispersion_coefficients.yaml''}.
-$$
-
-Let $D(p_i)$ denote the SHA-256 digest (32 bytes) of the file whose name is $p_i$.
+* **Schema check:** validate `merchant_ids` against the ingress schema before deriving $t(m)$.
+* **Reference presence & immutability:** assert that the referenced ISO set, GDP vintage (2025-04-15), and $B$ load successfully and are cached read-only for the lifetime of the run.
+* **Authority audit:** scan the registry/dictionary for any 1A dataset using **non-JSON-Schema** refs and fail the build if found (policy enforcement).
+* **Country FK pre-check:** `home_country_iso ∈ 𝕀` for all merchants. (This avoids later surprises at S3/S6.)
 
 ---
 
-## Construction (concatenate-then-hash)
+## Reference routine (language-agnostic)
 
-Concatenate the **raw digests** in that filename order to form a 96-byte string:
+```text
+function S0_1_resolve_universe_and_authority():
+  # 1) Load & validate merchants
+  M = read_table("merchant_ids")                          # ingress
+  assert schema_ok(M, "schemas.ingress.layer1.yaml#/merchant_ids")
 
-$$
-C \;=\; D(p_1)\ \|\ D(p_2)\ \|\ D(p_3)\ \in \{0,1\}^{96\cdot 8}.
-$$
+  # 2) Load canonical references (read-only for run)
+  I = load_iso3166_alpha2()                                # set of country codes
+  G = load_gdp_per_capita(vintage="2025-04-15")            # map ISO->R_{>0}
+  B = load_gdp_jenks_buckets(K=5, vintage="2025-04-15")    # map ISO-> {1..5}; precomputed artefact
 
-Hash the concatenation once more:
+  # 3) Pre-flight authority: JSON-Schema only
+  assert all_registry_refs_are_jsonschema()
+  assert dictionary_notes_include_country_set_order_rule()
 
-$$
-\boxed{\ \text{parameter_hash_bytes} \;=\; \mathrm{SHA256}(C)\ \in\ \{0,1\}^{256}\ }.
-$$
+  # 4) Cross-check foreign keys
+  for m in M:
+      assert m.home_country_iso in I, E_FK_HOME_ISO
 
-Encode for persistence:
-
-$$
-\boxed{\ \text{parameter_hash}\;=\;\mathrm{hex64}(\text{parameter_hash_bytes})\ \in\ [a\!-\!f0\!-\!9]^{64}\ }.
-$$
-
----
-
-## Properties (why this is robust)
-
-* **Any-byte sensitivity:** if any single bit of any input file flips, at least one $D(p_i)$ changes → `parameter_hash` changes with overwhelming probability ($1-2^{-256}$).
-* **Order invariance to paths:** directory layout doesn’t matter; only filename **order** and **content bytes** matter.
-* **Streaming-safe:** chunk boundaries do not affect $D(\cdot)$; the result is independent of buffer sizes.
-* **Normalization-free:** no dependence on YAML parser, locale, or line ending normalization.
-
----
-
-## Failure semantics (abort conditions)
-
-Abort S0.2 with a precise error code if any of the following occurs:
-
-* `missing_parameter_file(f)`: a required filename $f$ is not found.
-* `duplicate_parameter_file(f)`: more than one candidate resolves for $f$.
-* `unreadable_parameter_file(f)`: permission/IO error.
-* `not_regular_file(f)`: resolved target is not a regular file.
-* `changed_during_hash(f)`: `(size, mtime_ns)` instability across the hashing pass(es).
-* `bad_hex_encoding`: when persisting, `parameter_hash` is not `^[a-f0-9]{64}$` (should never happen if encoder is correct).
-
-Each abort should include `(filename, resolved_path, errno, size_before/after, mtime_before/after)` for forensics.
-
----
-
-## Determinism & reproducibility invariants
-
-* **I-PH1 (content determinism):** For a fixed triple of file **contents**, `parameter_hash` is **bit-identical** across machines/OSes.
-* **I-PH2 (name determinism):** Renaming any of the three files changes the **ordering** (and hence `parameter_hash`) even if bytes are unchanged. (We require the canonical names; this prevents accidental swaps.)
-* **I-PH3 (scope):** Only these three files influence `parameter_hash`. Extra parameter files present in the repo or on disk are **ignored** by S0.2.2.
-
----
-
-## What this key controls downstream
-
-All **parameter-scoped** datasets and caches must partition on `parameter_hash={parameter_hash}` (e.g., `hurdle_pi_probs`, `crossborder_eligibility_flags`, `country_set`, `ranking_residual_cache_1A`, and any validation outputs keyed to parameters rather than egress). The **egress** datasets (e.g., `outlet_catalogue`) will instead be versioned by the **manifest fingerprint** from S0.2.3.
-
----
-
-## Minimal reference algorithm (pseudo, language-agnostic)
-
-```
-INPUT: registry paths for the three canonical filenames in F
-OUTPUT: parameter_hash (64-char lowercase hex)
-
-1  files := sort_ascii(["crossborder_hyperparams.yaml",
-                        "hurdle_coefficients.yaml",
-                        "nb_dispersion_coefficients.yaml"])
-2  digests := []
-3  for f in files:
-4      p := resolve_path_via_registry(f)       # symlinks allowed; must end at a regular file
-5      (size0, mtime0) := stat(p)
-6      D := sha256_streaming_bytes(p)          # exact bytes; no normalization
-7      (size1, mtime1) := stat(p)
-8      if (size0,mtime0)!=(size1,mtime1):      # optional hardening
-9          D := sha256_streaming_bytes(p)
-10     digests.append(D)                       # D is 32 bytes
-11 C := concat_bytes(digests[0], digests[1], digests[2])   # 96 bytes
-12 H := sha256_bytes(C)                        # 32 bytes
-13 return hex_lowercase_64(H)
+  # 5) Freeze run context (no RNG here)
+  U = { M: M, I: I, G: G, B: B, authority: JSONSCHEMA_ONLY }
+  return U
 ```
 
----
-
-# S0.2.3 — Manifest fingerprint (run lineage, under the hood)
-
-## Goal
-
-Produce a **run-level lineage key** `manifest_fingerprint ∈ [a–f0–9]^64` used to version **egress** and **validation** partitions and embedded in all RNG envelopes. It must change if **any opened artefact** (models, reference tables, schema knobs, etc.) changes, **or** if the code commit changes, **or** if the parameter bundle (from S0.2.2) changes.
+(Where `dictionary_notes_include_country_set_order_rule()` verifies that egress readers are instructed to **join `country_set.rank`** for cross-country order; this is required by the dictionary/schema policy.)
 
 ---
 
-## Inputs
+## Notes for downstream states
 
-* **Artefact set** $\mathcal{A}$: the **set of all files opened** by the 1A run (e.g., ISO table, GDP bucket map, currency splits, schema catalogs, plus the 3 YAMLs). Each $a\in\mathcal{A}$ is a resolved, regular file; define $D(a)=\mathrm{SHA256}(\text{bytes}(a))\in\{0,1\}^{256}$. (The S0 doc explicitly defines $\mathcal{A}$ this way.)
-* **Repository commit bytes** $\text{git}_{32}\in\{0,1\}^{256}$: the VCS commit hash as 32 bytes; if using SHA-1, **left-pad with 12 zero bytes** to 32 (per S0.2.1).
-* **`parameter_hash_bytes`** $\in\{0,1\}^{256}$: from S0.2.2 (concat-digest of the three YAMLs). Partitioning for parameter-scoped datasets depends only on this; we fold it here too so egress/validation lineage “tracks” the parameter bundle.
-
----
-
-## Canonical construction
-
-1. **Artefact closure & uniqueness.** Build $\mathcal{A}$ as the set of **distinct** absolute paths after symlink resolution; reject non-regular files. (If a file is opened via multiple aliases, include it **once**.)
-2. **Digest each artefact.** For all $a\in\mathcal{A}$, compute $D(a)$ via streaming SHA-256 of **raw bytes** (no normalization).
-3. **XOR-reduce to a 32-byte accumulator.**
-
-   $$
-   X_0 \;=\; \bigoplus_{a\in\mathcal{A}} D(a)\quad(\text{bytewise XOR; identity }0^{256}).
-   $$
-4. **Fold in commit and parameters.**
-
-   $$
-   X \;=\; X_0 \;\oplus\; \text{git}_{32} \;\oplus\; \text{parameter_hash_bytes}.
-   $$
-5. **Hash once.**
-
-   $$
-   \boxed{\ \text{manifest_fingerprint_bytes}=\mathrm{SHA256}(X)\ },\qquad
-   \text{manifest_fingerprint}=\mathrm{hex64}(\text{manifest_fingerprint_bytes}).
-   $$
-
-**Why XOR?** It makes the accumulator **order-independent** (set semantics) and sensitive to any byte change in any artefact; the final SHA-256 removes linearity and yields a uniformly distributed 256-bit lineage key. The separate inclusion of `parameter_hash_bytes` ensures egress lineage shifts even if the three YAMLs are already members of $\mathcal{A}$.
+* S0.2 will now **hash** the loaded bytes (parameters and artefacts) to derive `parameter_hash` and `manifest_fingerprint`, and log provenance. S0.1’s immutability guarantees make those digests stable.
+* S3’s eligibility and S6’s `country_set` persistence rely on S0.1’s **country FK** and authority decisions; violating them becomes a structural failure later.
 
 ---
 
-## Properties & invariants
-
-* **Order-insensitivity.** Because XOR is commutative/associative, permuting $\mathcal{A}$ does not change `manifest_fingerprint`.
-* **Any-byte sensitivity.** Flipping any bit in any opened artefact (or changing the commit or parameter bundle) changes the fingerprint with probability $1-2^{-256}$.
-* **Non-emptiness.** $\mathcal{A}\neq\varnothing$ (at least the 3 YAMLs + ISO/GDP are opened in S0). Otherwise abort.
-* **Encoding.** Persisted value must satisfy the hex pattern `^[a-f0-9]{64}$` (schema primitive `hex64`).
+**Summary:** S0.1 pins the **who** (merchants), the **where** (countries), the **context** (GDP & buckets), and the **law** (schema authority). It consumes **no randomness**, and it fails fast on any schema/authority/coverage breach—so everything that follows is on rock-solid, reproducible ground.
 
 ---
 
-## Failure semantics (abort with diagnostics)
+# S0.2 — Hashes & Identifiers (Parameter Set, Manifest Fingerprint, Run ID)
 
-* `artefact_missing(path)` / `not_regular_file(path)` / `unreadable(path)` during closure or hashing.
-* `git_hash_bad_length` if commit bytes are neither 20 nor 32 before padding.
-* `empty_artefact_set` if $\mathcal{A}$ resolves empty.
-* `bad_hex_encoding` if the encoder yields a non-hex64 string (should not happen).
+## Purpose (what S0.2 guarantees)
 
-Each failure records: path, resolved target, errno, size/mtime (before/after), and, for commit, the raw length observed.
+Create the three lineage keys that make 1A reproducible and auditable:
 
----
+1. **`parameter_hash`** — versions *parameter-scoped* datasets; changes when any governed parameter file’s **bytes** change.
+2. **`manifest_fingerprint`** — versions *egress & validation* outputs; changes when *any opened artefact*, the code commit, or the parameter bundle changes.
+3. **`run_id`** — partitions logs; **not** part of modelling state; never influences RNG or outputs.
 
-## Determinism & replay
-
-For a fixed set of **file contents** in $\mathcal{A}$, a fixed commit, and a fixed parameter bundle, the fingerprint is **bit-reproducible** across machines/OSes. The value is written into:
-
-* **Egress partitions**:
-  `data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/…` (and stored per row as `manifest_fingerprint`).
-* **Validation bundle**:
-  `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/…` (plus `_passed.flag`).
-* **RNG events**: every JSONL event includes `manifest_fingerprint` in the **shared envelope** (required by `schemas.layer1.yaml`).
-
-Parameter-scoped datasets (e.g., `country_set`, `ranking_residual_cache_1A`, `crossborder_eligibility_flags`) continue to partition by `parameter_hash={parameter_hash}`. This split of responsibilities is asserted in S0 and re-checked in validation.
+**No RNG is consumed in S0.2.** These identifiers are pure functions of bytes + time (for `run_id` only as a log partitioner).
 
 ---
 
-## Minimal reference algorithm (language-agnostic)
+## S0.2.1 Hash primitives (pin the byte-level rules)
 
-```
-INPUT: artefact registry + runtime file list (all actually opened files),
-       git_commit_bytes (20 or 32), parameter_hash_bytes (32)
-OUTPUT: manifest_fingerprint (64-char lowercase hex)
+* Digest: $\mathrm{SHA256}(x)\in\{0,1\}^{256}$ (raw 32-byte digest).
+* Operators: `||` = byte concatenation; `⊕` = **bytewise XOR** on 32-byte arrays.
+* Encodings:
 
-1  A := resolve_all_opened_files()            # absolute paths, symlinks resolved
-2  if A is empty: abort("empty_artefact_set")
-3  X := 0x00...00 (32 bytes)
-4  for a in set(A):                            # de-duplicate aliases
-5      assert is_regular_file(a)
-6      D := sha256_streaming_bytes(a)         # exact bytes, no normalization
-7      X := xor_32bytes(X, D)
-8  git32 := (len(git_commit_bytes)==20) ? (0x00*12 || git_commit_bytes)
-         : (len==32 ? git_commit_bytes : abort("git_hash_bad_length"))
-9  X := xor_32bytes( xor_32bytes(X, git32), parameter_hash_bytes )
-10 H := sha256_bytes(X)
-11 return hex_lowercase_64(H)
-```
+  * `hex64(b32)`: lower-case hex of 32 bytes ⇒ 64 chars.
+  * `hex32(b16)`: lower-case hex of 16 bytes ⇒ 32 chars.
+
+**Byte domain rule:** Hash **exact file bytes**; no parsing, normalisation, or newline conversions. Files are opened in binary mode. (This is implicit in the locked spec’s “SHA256(bytes(a))”.)
 
 ---
 
-## What S0.2.3 “exports” to the rest of 1A
+## S0.2.2 `parameter_hash` (canonical, normative)
 
-* A single **`manifest_fingerprint`** (hex64) used to **partition egress and validation** and recorded in **every** RNG envelope.
-* The explicit **partitioning contract**: parameter-scoped by `{parameter_hash}`, egress/validation by `{manifest_fingerprint}` (and often `{seed}`). Validators in S9 assert this split.
+**Governed set $\mathcal{P}$.** Exactly these three parameter files (canonical names):
+`hurdle_coefficients.yaml`, `nb_dispersion_coefficients.yaml`, `crossborder_hyperparams.yaml`.
+
+**Algorithm (exact):**
+
+1. Sort $\mathcal{P}$ by **filename** using bytewise ASCII lexicographic order to get $(p_1,p_2,p_3)$.
+2. Compute inner digests $d_i = \mathrm{SHA256}(\text{bytes}(p_i))$ (each 32 bytes).
+3. Concatenate: $c = d_1 \,\|\, d_2 \,\|\, d_3$ (96 bytes).
+4. Outer digest: $\text{parameter_hash_bytes} = \mathrm{SHA256}(c)$.
+5. Encode: $\text{parameter_hash} = \text{hex64}(\text{parameter_hash_bytes})$.
+
+**Properties:**
+
+* Deterministic; order-invariant to input presentation (because of the filename sort).
+* Any byte change in any governed file yields a different `parameter_hash`.
+* Only the three canonical files influence this hash (governance choice).
+
+**Effect on storage:** *Parameter-scoped* datasets **must** partition by `parameter_hash={parameter_hash}` (e.g., `crossborder_eligibility_flags`, `country_set`, `ranking_residual_cache_1A`, optional `hurdle_pi_probs`).
+
+**Errors (abort S0):**
+
+* `E_PARAM_EMPTY` (any of the three missing/unreadable).
+* `E_PARAM_NONASCII_NAME` (if a basename isn’t ASCII).
+* `E_PARAM_IO(name, errno)` (I/O error).
+* `E_PARAM_DUP_BASENAME` (should never happen if canonical).
+  (Names are informative; the lock implies the structural checks by construction.)
+
+**Audit (emit these rows):**
+
+* `param_digest_log`: `{filename, size_bytes, sha256_hex, mtime_ns}` for each $p_i$.
+* `parameter_hash_resolved`: `{parameter_hash, filenames_sorted}`.
+  (These names mirror S0’s practice of logging lineage; the lock explicitly makes `parameter_hash` a first-class lineage value.)
 
 ---
 
-# S0.3.1 — Algorithm and state (Philox engine, envelope, and u01)
+## S0.2.3 `manifest_fingerprint` (run lineage for egress/validation)
 
-## A) Engine and state objects
+**Purpose.** A single lineage key that flips if **anything** material to the run changes: any opened artefact, the repository commit ID, or the parameter bundle. Egress/validation partitions use this key (e.g., `outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/…`).
 
-We fix the counter-based RNG to **Philox $2\times64$ with 10 rounds**. The engine is a pure function
+**Inputs (exact):**
+
+* $\mathcal{A}$ = set of **all artefacts the run opens** (includes the parameter files above *plus* ISO tables, GDP map, etc.). Let $D(a)=\mathrm{SHA256}(\text{bytes}(a))$.
+* `git_32`: the repository commit as **32 bytes**; if your VCS commit is 20 bytes (SHA-1), left-pad with 12 zero bytes to 32.
+* `parameter_hash_bytes` from S0.2.2.
+
+**Algorithm (exact):**
 
 $$
-\Phi_{S}:\ \{0,\dots,2^{64}\!-\!1\}^2 \longrightarrow \{0,\dots,2^{64}\!-\!1\}^2,
+X \;=\; \bigoplus_{a\in \mathcal{A}} D(a)\ \ \oplus\ \ \text{git}_{32}\ \ \oplus\ \ \text{parameter_hash_bytes},\qquad
+\text{manifest_fingerprint_bytes}=\mathrm{SHA256}(X),
 $$
 
-parameterised by a **64-bit key** $S$ (“seed”) and evaluated at a **128-bit counter**
-$C=(c_{\mathrm{hi}},c_{\mathrm{lo}})\in\{0,\dots,2^{64}\!-\!1\}^2$.
-A single **block call** returns two independent 64-bit integers:
-
 $$
-(z_0,z_1) \;=\; \Phi_{S}(C).
+\text{manifest_fingerprint}=\text{hex64}(\text{manifest_fingerprint_bytes}).
 $$
 
-**Counter stepping.** Let $\mathrm{inc}(C)$ add 1 to the low word with carry:
+**Properties:**
 
-$$
-\mathrm{inc}(c_{\mathrm{hi}},c_{\mathrm{lo}}) \;=\; \big(c_{\mathrm{hi}} + \mathbf{1}\{c_{\mathrm{lo}}=2^{64}\!-\!1\},\ (c_{\mathrm{lo}}+1)\bmod 2^{64}\big).
-$$
+* Changing **any** opened artefact’s bytes flips the fingerprint.
+* Changing the **code commit** flips the fingerprint.
+* Changing the **parameter bundle** flips the fingerprint (folded in via `parameter_hash_bytes`).
 
-Consuming $B$ blocks advances the counter by $B$ applications of $\mathrm{inc}$. We never reuse a counter value within a run. (Per-label “jumps” that reposition the counter are specified later in S0.3.3.)
+**Effect on storage:** Egress & validation datasets **must** partition by `fingerprint={manifest_fingerprint}` (often alongside `seed`).
+Example:
+`outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/…`
+
+**Errors (abort S0):**
+
+* `E_ARTIFACT_EMPTY` (no artefacts enumerated).
+* `E_ARTIFACT_IO(name, errno)` (failed to read an opened artefact).
+* `E_GIT_BYTES` (unable to obtain/format the commit into 32 bytes).
+* `E_PARAM_HASH_ABSENT` (S0.2.2 didn’t complete; parameter bytes not available).
+
+**Audit (emit):**
+
+* `manifest_fingerprint_resolved`: `{ manifest_fingerprint, artifact_count, git_commit_hex, parameter_hash }`.
 
 ---
 
-## B) Event envelope (what every RNG JSONL record must carry)
+## S0.2.4 `run_id` (logs only; not modelling state)
 
-Every RNG JSONL event **must** include the shared **rng envelope** fields:
+**Goal.** Give each execution its own log partition key; **must not** affect RNG or outputs.
 
-$$
-\{\texttt{ts_utc},\texttt{run_id},\texttt{seed},\texttt{parameter_hash},\texttt{manifest_fingerprint},\texttt{module},\texttt{substream_label},\texttt{rng_counter_before_{\{lo,hi\}}},\texttt{rng_counter_after_{\{lo,hi\}}}\}.
-$$
+**Inputs:**
 
-* `seed` is the master Philox key $S$ (u64).
-* `rng_counter_before_{lo,hi}` is the **counter before** the first block for the event.
-* `rng_counter_after_{lo,hi}` is the counter **after** the last block consumed by the event.
-* `parameter_hash` and `manifest_fingerprint` bind the event to the parameter bundle and run fingerprint.
-* `module` and `substream_label` identify the logical producer and the Philox substream (see S0.3.3).
-  These fields and types are mandated by `schemas.layer1.yaml` and are validated structurally.
+* `manifest_fingerprint_bytes` (32 bytes),
+* `seed` (u64; the modelling seed), and
+* start time $T$ = UTC **nanoseconds** (u64).
 
-In addition, the **RNG trace log** carries `draws` (the count of uniforms consumed) together with the same before/after counters; validators recompute the expected block advance:
+**Algorithm (exact):**
 
 $$
-B=\left\lceil \frac{\texttt{draws}}{2}\right\rceil,\qquad
-(\text{after_hi},\text{after_lo}) \stackrel{?}{=}\mathrm{advance}\big((\text{before_hi},\text{before_lo}),\ B\big).
+\texttt{run_id}=\text{hex32}\!\Big(\mathrm{SHA256}\big(\text{``run:1A''}\ \|\ \texttt{manifest_fingerprint_bytes}\ \|\ \mathrm{LE64}(\texttt{seed})\ \|\ \mathrm{LE64}(T)\big)[0{:}16]\Big).
 $$
 
-Any mismatch is a hard failure.
+**Scope & invariants:**
+
+* Partitions **only** `rng_audit_log`, `rng_trace_log`, and `rng_event_*` as `{seed, parameter_hash, run_id}`.
+* `run_id` never enters RNG seeding or model state; outputs depend **only** on `(seed, parameter_hash, manifest_fingerprint)`.
 
 ---
 
-## C) Open-interval uniforms $u\in(0,1)$ (binary64-safe mapping)
+## Partitioning contract (recap; dictionary-backed)
 
-All event schemas that log a uniform require **open-interval** $u01$ values. We obtain a binary64 deviate $u\in(0,1)$ from a 64-bit integer $z$ by using the top 53 bits (binary64 mantissa width) with a half-ulp offset:
-
-1. Extract top-53 bits: $t = \left\lfloor z/2^{11} \right\rfloor \in \{0,\dots,2^{53}\!-\!1\}$.
-2. Map to $(0,1)$:
-
-$$
-\boxed{\ u \;=\; \frac{t + \tfrac{1}{2}}{2^{53}} \ }\ \in\ \Big(\tfrac{1}{2^{54}},\, 1-\tfrac{1}{2^{54}}\Big).
-$$
-
-This guarantees strict **exclusion** of 0 and 1 and is invariant to platform endianness (we only shift integers). When an event needs $d$ uniforms, we read the block outputs $(z_0,z_1),(\tilde z_0,\tilde z_1),\dots$, applying the mapping to each in order; number of blocks consumed is $B=\lceil d/2\rceil$. The resulting `u` fields validate against the `u01` primitive in the shared schema.
+* **Parameter-scoped:** `…/parameter_hash={parameter_hash}/…`
+* **Egress/validation:** `…/fingerprint={manifest_fingerprint}/…` (often with `seed`).
+* **RNG logs/events:** partitions by `{ seed, parameter_hash, run_id }`.
 
 ---
 
-## D) Consumption semantics (uniform accounting)
+## Operational requirements (race-proofing, concurrency, reproducibility)
 
-For a single **event** that needs $d$ uniforms:
-
-* **Before-state:** read `rng_counter_before_{hi,lo}` $=$ $C_{\mathrm{before}}$.
-* **Blocks:** $B=\lceil d/2\rceil$.
-* **Outputs:** collect $(z_0,z_1)$ from $\Phi_S(C_{\mathrm{before}})$, then increment the counter $B-1$ times to obtain the remaining blocks, mapping each $z$ to $u$ via §C.
-* **After-state:** compute $C_{\mathrm{after}} = \mathrm{advance}(C_{\mathrm{before}},B)$ and write it to `rng_counter_after_{hi,lo}`.
-* **Trace:** emit a `rng_trace_log` record with `draws=d` and the same before/after counters.
-
-Downstream event schemas (e.g., `hurdle_bernoulli`, `gumbel_key`, `dirichlet_gamma_vector`, `poisson_component`, `gamma_component`, `nb_final`, `ztp_*`) inherit the envelope and add their payload; validators cross-check that the number of logical uniforms implied by the payload equals `draws` in the trace and thus $B$ blocks.
+* **Streaming reads:** hash via streaming to tolerate large files without loading to RAM; the digest must be over **exact bytes**.
+* **Anti-race guard:** optionally `stat` (size, mtime) **before/after** hashing; if they differ, re-read and re-hash (or fail `E_PARAM_RACE` / `E_ARTIFACT_RACE`).
+* **Filename semantics:** sort by **basename** (no directory components) when building chained/ordered digests.
+* **Commit bytes:** if the VCS uses SHA-256, take 32 bytes as-is; if SHA-1, **left-pad** to 32 bytes.
+* **Immutability:** once S0.2 is done, treat `parameter_hash` & `manifest_fingerprint` as **final** for the run; embed them in envelopes and partitions.
 
 ---
 
-## E) Determinism, ordering, and isolation
+## Failure semantics (explicit aborts)
 
-* **Determinism:** Given fixed `(seed, manifest_fingerprint, parameter_hash)` and the same **substream label** and **merchant ordering**, all events reproduce bit-identically; counters advance only by the declared number of blocks. (Substream jump policy sits in S0.3.3.)
-* **Ordering:** Within an event, we consume $z_0$ **before** $z_1$; across blocks, we process in ascending counter order.
-* **Isolation:** Different substreams (labels) start from **disjoint counter locations**; jumping is logged (see “stream_jump” dataset in the dictionary) and ensures that events cannot overlap counters even if executed out of order.
-
----
-
-## F) Invariants and failure semantics
-
-**Invariants (must hold for every event):**
-
-1. Envelope presence and types match `schemas.layer1.yaml#/$defs/rng_envelope`.
-2. `u01` values (when present) satisfy $0 < u < 1$ per schema primitive.
-3. Counter conservation:
-
-$$
-\text{after} \;=\; \mathrm{advance}(\text{before},\ \lceil \tfrac{\texttt{draws}}{2}\rceil).
-$$
-
-4. Monotonic counters across events within the **same substream** (strictly increasing by blocks).
-5. `seed`, `parameter_hash`, `manifest_fingerprint` in each event equal the run’s authoritative values.
-
-**Abort conditions (hard fail):**
-
-* Missing any required envelope field or schema-type violation.
-* Counter conservation failure or non-monotonic advance in a substream trace.
-* Any logged uniform equals 0 or 1 (should be impossible under §C, but validated via `u01`).
+* `E_PARAM_*` / `E_ARTIFACT_*` / `E_GIT_*` / `E_PARAM_RACE` / `E_ARTIFACT_RACE`: **abort the run** (S0.9 lists abort classes; S0.2 raises these when hashing/enumerating fails).
+* On abort in S0.2, **do not** emit RNG audit/trace; S0.3 hasn’t begun.
 
 ---
 
-## G) What S0.3.1 exports to S0.3.2/S0.3.3 and later states
+## Validation & CI hooks (prove it’s right)
 
-* The **engine contract** $(S,C)\mapsto(z_0,z_1)$ and the block/advance arithmetic.
-* The **envelope contract** (fields, meanings, and counter accounting) that every RNG JSONL record must satisfy.
-* The **u01 mapping** from 64-bit integers to binary64 $u\in(0,1)$ with strict open bounds.
-* The requirement to log `rng_trace_log(draws, before, after)` per substream, enabling S9’s replay/accounting checks.
-
----
-
-# S0.3.2 — Master seed and initial counter (deterministic, under the hood)
-
-## Goal
-
-Derive a single **64-bit Philox key** $S_{\text{master}}$ and a **128-bit starting counter** $C_0=(c_{\mathrm{hi}},c_{\mathrm{lo}})$ **deterministically** from:
-
-* a run-supplied 64-bit integer $s$, and
-* the 32-byte `manifest_fingerprint_bytes` (from S0.2.3),
-
-using **domain-separated** SHA-256 constructions so that (i) reordering/aliasing cannot collide seed and counter domains, and (ii) different runs/commits/artefact sets produce different RNG trajectories.
+* **Recompute checks:** CI re-computes `parameter_hash` from the three governed files and asserts equality with the logged `parameter_hash_resolved`. Same for `manifest_fingerprint` from enumerated artefacts + commit bytes.
+* **Partition lint:** verify the dictionary enforces `parameter_hash` on parameter-scoped datasets and `fingerprint` on egress/validation, and that RNG logs use `{ seed, parameter_hash, run_id }`.
+* **Uniqueness:** ensure `run_id` doesn’t collide within `{ seed, parameter_hash }` scope (practically impossible; catches clock/monotonic-time bugs).
 
 ---
 
-## Inputs (types, encoding, guards)
+## Reference pseudocode (language-agnostic)
 
-* $s \in \{0,\dots,2^{64}\!-\!1\}$ — **unsigned** 64-bit integer provided by the caller (“run seed”).
-* `manifest_fingerprint_bytes` $\in \mathbb{B}^{256}$ — exactly **32 bytes** (raw, not hex).
-* **String tags** for domain separation are **ASCII** byte strings:
+```text
+# --- parameter_hash ---
+def compute_parameter_hash(P_files):            # list of (basename, path)
+    if len(P_files) != 3: raise E_PARAM_EMPTY
+    assert all_ascii_unique_basenames(P_files)
+    files = sort_by_basename_ascii(P_files)     # (p1,p2,p3)
+    inner = [sha256_stream(path) for (_, path) in files]  # 3 * 32 bytes
+    chain = inner[0] + inner[1] + inner[2]      # 96 bytes
+    H = sha256_bytes(chain)                     # 32 bytes
+    return hex_lower_64(H), H                   # hex64 + raw bytes
 
-  * $t_{\text{seed}}=$ `b"seed:1A"`,
-  * $t_{\text{ctr}}=$ `b"ctr:1A"`.
+# --- manifest_fingerprint ---
+def compute_manifest_fingerprint(artifacts, git32, param_bytes):
+    if not artifacts: raise E_ARTIFACT_EMPTY
+    X = zero_bytes(32)
+    for a in artifacts:
+        X = xor32(X, sha256_stream(a))          # bytewise XOR of 32-byte digests
+    X = xor32(X, git32)
+    X = xor32(X, param_bytes)
+    F = sha256_bytes(X)                         # 32 bytes
+    return hex_lower_64(F), F
 
-**Abort if**: $s$ is not representable as u64; or `manifest_fingerprint_bytes` is not 32 bytes; or tags are altered (the tags are normative constants).
-
----
-
-## Byte combinators used (from S0.2.1)
-
-* $\mathrm{LE64}(s)$ — 8-byte **little-endian** encoding of the u64 $s$.
-* Concatenation $x\|\!y$ — **raw bytes** append (no hex, no delimiters).
-* $\mathrm{split64}(b_0{:}16)$ — interpret the first 16 bytes as two u64s in **little-endian** order, returning $(u_0,u_1)$.
-* $\mathrm{SHA256}(\cdot)$ — 32-byte digest (raw).
-
----
-
-## Constructions (exact recipes)
-
-### A) Master Philox key $S_{\text{master}}$ (u64)
-
-$$
-\boxed{\quad
-S_{\text{master}} \;=\; \mathrm{LE64}\!\Big(\ \mathrm{SHA256}\big(t_{\text{seed}} \ \|\ \mathrm{LE64}(s) \ \|\ \text{manifest_fingerprint_bytes}\big)\ [0{:}8]\ \Big)\ .
-\quad}
-$$
-
-* Compute the SHA-256 of the **concatenation** in that exact order.
-* Take the **first 8 bytes** of the digest (offset 0..7) and **decode** as u64 by **little-endian**.
-* No rejection or masking: every 8-byte pattern is valid; Philox accepts any 64-bit key.
-
-### B) Initial counter $C_0=(c_{\mathrm{hi}},c_{\mathrm{lo}})$ (two u64)
-
-$$
-\boxed{\quad
-(c_{\mathrm{hi}},c_{\mathrm{lo}}) \;=\; \mathrm{split64}\!\Big(\ \mathrm{SHA256}\big(t_{\text{ctr}} \ \|\ \text{manifest_fingerprint_bytes} \ \|\ \mathrm{LE64}(s)\big)\ [0{:}16]\ \Big)\ .
-\quad}
-$$
-
-* Compute SHA-256 of the **different, domain-separated** concatenation (note the **tag** and the **argument order** differ from the seed construction).
-* Take the **first 16 bytes** and split into two u64s by **little-endian**:
-
-  * bytes 0..7 → $c_{\mathrm{hi}}$,
-  * bytes 8..15 → $c_{\mathrm{lo}}$.
-* This yields a full 128-bit starting counter. (No requirement that either word be non-zero.)
-
-**Why different tags *and* different argument order?**
-This ensures **PRF-like separation** of the two derived values. Even if an adversary could pick $s$ and the fingerprint, the chance that seed and counter collide under some unintended algebraic relation is negligible; the two SHA-256 inputs are unrelated except via shared bytes.
-
----
-
-## Properties and invariants
-
-* **I-SC1 (Determinism).** For fixed $(s,\text{manifest_fingerprint_bytes})$, the pair $(S_{\text{master}},C_0)$ is **bit-stable** across machines/OSes.
-* **I-SC2 (Avalanche).** Flipping any bit of $s$ or the fingerprint flips each output bit with probability $\approx \tfrac12$ (SHA-256 avalanche); effective collision probability is $\ll 2^{-64}$ for the seed and $\ll 2^{-128}$ for the counter pair.
-* **I-SC3 (Domain separation).** Using distinct tags and argument orders prevents accidental equality $S_{\text{master}} = c_{\mathrm{lo}}$ (or similar) except with negligible probability.
-* **I-SC4 (No draws yet).** $C_0$ is **not consumed** here; it is only **recorded**. First consumption happens in the first RNG event of S1 (or whichever state draws first).
-* **I-SC5 (Audit before use).** An audit row **must** be written before any draw (see “Audit emission” below).
-
----
-
-## Failure semantics (abort conditions)
-
-* `bad_run_seed`: input $s$ outside u64 range or non-integer type.
-* `bad_manifest_bytes`: fingerprint buffer not exactly 32 bytes.
-* `tag_mutation`: the tag bytes differ from the normative ASCII constants (configuration corruption).
-  All failures are **hard** and abort S0.3.
-
----
-
-## Audit emission (required output of S0.3.2)
-
-Before **any** RNG consumption, write one row to `rng_audit_log` with (at minimum):
-
-```
-{ ts_utc,
-  run_id,
-  seed = S_master,                       # u64
-  parameter_hash,                        # hex64
-  manifest_fingerprint,                  # hex64
-  module = "1A.rng.bootstrap",
-  substream_label = "rng_audit_log",
-  rng_counter_before_hi = c_hi,          # equals c_hi
-  rng_counter_before_lo = c_lo,          # equals c_lo
-  rng_counter_after_hi  = c_hi,          # no draws yet -> before==after
-  rng_counter_after_lo  = c_lo }
-```
-
-* **Counters do not advance** here (`before == after`), establishing the **ground truth** starting point used by S9 to verify all later counter advances.
-
----
-
-## Minimal reference algorithm (language-agnostic)
-
-```
-INPUT:
-  s : u64
-  mf_bytes : 32-byte buffer (manifest_fingerprint_bytes)
-
-CONSTANTS:
-  T_SEED = ASCII bytes("seed:1A")
-  T_CTR  = ASCII bytes("ctr:1A")
-
-OUTPUT:
-  S_master : u64
-  (c_hi, c_lo) : (u64, u64)
-
-# seed
-buf_seed := sha256( T_SEED || LE64(s) || mf_bytes )      # 32 bytes
-S_master := LE64_to_u64( buf_seed[0:8] )
-
-# counter
-buf_ctr  := sha256( T_CTR  || mf_bytes || LE64(s) )      # 32 bytes
-c_hi     := LE64_to_u64( buf_ctr[0:8] )
-c_lo     := LE64_to_u64( buf_ctr[8:16] )
-
-# audit row (before any draws)
-emit_rng_audit_log(S_master, c_hi, c_lo, parameter_hash, manifest_fingerprint, ...)
-
-return S_master, (c_hi, c_lo)
+# --- run_id ---
+def derive_run_id(fingerprint_bytes, seed_u64, start_time_ns):
+    payload = b"run:1A" + fingerprint_bytes \
+              + le64(seed_u64) + le64(start_time_ns)
+    r = sha256_bytes(payload)[:16]              # first 16 bytes
+    return hex_lower_32(r)
 ```
 
 ---
 
-## Notes for implementers
+## Worked mini-example (structure only)
 
-* Treat all concatenations as **raw bytes**; do **not** hex-encode intermediate digests/fields.
-* The **little-endian** interpretation is normative; do not switch to big-endian.
-* Store `manifest_fingerprint` and `parameter_hash` on the audit row as **hex strings** (64 lowercase hex chars), but feed **raw 32-byte** `manifest_fingerprint_bytes` into the SHA-256 recipes above.
-* The first producer that actually **consumes** RNG (e.g., the S1 hurdle) must log `rng_counter_before_*` equal to $(c_{\mathrm{hi}},c_{\mathrm{lo}})$ from the audit row, enabling end-to-end counter accounting.
+* Inner digests: `d1 = SHA256(p1)`, `d2 = …`, `d3 = …`; chain and hash to get `parameter_hash`.
+* Artefacts $A$: 17 files opened → XOR their digests, XOR with `git_32` and `parameter_hash_bytes`, hash → `manifest_fingerprint`.
+* Start run at $T$ ns with modelling `seed` ⇒ derive `run_id`; log partitions use `{ seed, parameter_hash, run_id }`.
 
 ---
 
-# S0.3.3 — Sub-stream labelling (jump discipline)
+## Where this shows up next
+
+S0.3 will use `manifest_fingerprint_bytes` + `seed` to derive the **master RNG seed** and initial counter; S0.2 must therefore run **before** any RNG audit/trace emission.
+
+---
+
+**Bottom line:** S0.2 turns bytes and commit into **two immutable lineage keys** (`parameter_hash`, `manifest_fingerprint`) and a **log-only** `run_id`. Partitioning and envelopes throughout 1A rely on these values exactly as formalised above; change any governed byte and the right partitions flip.
+
+---
+
+# S0.3 — RNG Engine, Substreams, Samplers & Draw Accounting (normative)
 
 ## Purpose
 
-Give every logical RNG **event label** $\ell$ (e.g., `"hurdle_bernoulli"`, `"gamma_component"`, `"poisson_component"`, `"gumbel_key"`, `"dirichlet_gamma_vector"`, `"residual_rank"`, `"sequence_finalize"`, `"ztp_*"`) a **deterministic jump** in the Philox counter so that events from different labels occupy (practically) disjoint regions of the $2^{128}$ counter space, while keeping draw accounting exact via the common envelope. Labels and event streams are catalogued in the dataset dictionary and share the layer-wide RNG envelope schema.
+S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we carve it into **keyed, order-invariant** substreams, how we map bits to $(0,1)$, how we generate $Z\sim\mathcal{N}(0,1)$, $\Gamma(\alpha,1)$, and $\mathrm{Poisson}(\lambda)$, and how every draw is **counted, logged, and reproducible**. This sub-state consumes RNG (unlike S0.1–S0.2).
 
 ---
 
-## Label domain and encoding
+## S0.3.1 Engine & Event Envelope
 
-* Label set $\mathcal{L}$: finite set of canonical **ASCII** strings used in the RNG event streams and in the `substream_label` envelope field (case-sensitive; no normalization; no trailing NUL). Examples above are **illustrative**, not exhaustive; the registry enumerates the authoritative set.
-* When an event is emitted, its `substream_label` **must exactly** equal the $\ell$ used to compute the jump for that event; validators rely on this. Envelope fields are mandated by `schemas.layer1.yaml#/$defs/rng_envelope`.
+### PRNG
 
----
+* **Algorithm:** Philox 2×64 with 10 rounds (counter-based; splittable).
+* **State per substream:** a 64-bit **key** $k$ and a 128-bit **counter** $c=(c_3,c_2,c_1,c_0)$.
+* **Block function:** $(x_0,x_1)\leftarrow \mathrm{PHILOX}_{2\times64,10}(k, c)$ returns **two** independent 64-bit words per counter.
+* **Counter advance:** after consuming a block, increment $c\leftarrow c+1$ mod $2^{128}$.
 
-## Stride derivation $J(\ell)$ (exact bytes)
+> We never *cache* the second normal, but we **do** use both 64-bit lanes of each block as independent $x$-words when we need two uniforms at once (e.g., Box–Muller).
 
-Let $\mathrm{SHA256}(\ell)\in\mathbb{B}^{256}$ be the digest of the ASCII bytes of the label (no terminator). Define the **64-bit** stride
+### Event envelope (mandatory fields for **every** RNG event/log row)
 
-$$
-\boxed{\ J(\ell)\;=\;\mathrm{LE64}\!\big(\mathrm{SHA256}(\ell)[0{:}8]\big)\ \in\ \{0,\dots,2^{64}\!-\!1\}\ }.
-$$
-
-That is: take the **first 8 bytes** of the 32-byte digest and decode them little-endian to an unsigned 64-bit integer. (No rejection if $J(\ell)=0$; it is allowed but astronomically rare that two labels share the same 8-byte prefix.)
-
-**Determinism:** for a fixed $\ell$, $J(\ell)$ is bit-stable across machines/OSes.
-
----
-
-## Jump update (mod $2^{128}$) before each labelled event
-
-Let the current Philox counter be $C=(c_{\mathrm{hi}},c_{\mathrm{lo}})\in\{0,\dots,2^{64}\!-\!1\}^2$.
-**Before consuming uniforms for an event with label $\ell$**, compute the **jumped** counter
-
-$$
-\boxed{\ (c'_{\mathrm{hi}},c'_{\mathrm{lo}})\;=\;\big(c_{\mathrm{hi}}\ +\ \mathbf{1}\{c_{\mathrm{lo}}+J(\ell)\ \ge\ 2^{64}\},\ \ (c_{\mathrm{lo}}+J(\ell))\bmod 2^{64}\big)\ },
-$$
-
-i.e., add $J(\ell)$ to the **low** word with 64-bit carry into the high word. Then **start** the event’s draws at $C'=(c'_{\mathrm{hi}},c'_{\mathrm{lo}})$.
-
-* The **jump** itself is **not** counted as “draws.” It is recorded in a separate `stream_jump` event (see below), so the event’s envelope still satisfies the counter-conservation rule “after = advance(before, ⌈draws/2⌉)”.
-* **No stride duplication in payloads:** event payloads never carry $J(\ell)$; only the `substream_label` declares the label used to compute the jump.
-
----
-
-## Logging & accounting artefacts
-
-1. **RNG envelope (every event):**
-   `ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, rng_counter_before_{lo,hi}, rng_counter_after_{lo,hi}`. Validators assert open-interval uniforms and strict counter conservation per event.
-
-2. **`stream_jump` events (one per labelled event):**
-   Explicitly logs the jump from $C$ to $C'$ with the label $\ell$. Path & schema are fixed in the dictionary (`logs/rng/events/stream_jump/…`). These records let S9 **separate** address-space re-positioning from block consumption when auditing counters.
-
-3. **`rng_trace_log` (roll-up):**
-   Aggregated per-label/per-module draw accounting and jump offsets (by run/seed/parameter_hash). Used by validators to check that the sum of event draws implies the total block advance observed.
-
----
-
-## Invariants
-
-* **I-L1 (label determinism).** Given $\ell$, the stride $J(\ell)$ is fixed; different labels are overwhelmingly likely to have different strides.
-* **I-L2 (event conservation).** For an event needing $d$ uniforms, with block count $B=\lceil d/2\rceil$, the envelope must satisfy
-
-  $$
-  \text{after} \;=\; \mathrm{advance}(\text{before},\,B),
-  $$
-
-  **independent** of the jump; the jump is evidenced by the paired `stream_jump` record that sets `before`.
-* **I-L3 (sub-stream monotonicity).** Within the **same** label, the sequence of event `before` counters is strictly increasing **in the emitted order** because each event begins at the previous event’s `after` plus a non-negative stride $J(\ell)$ (wrap to 0 across $2^{128}$ is practically unreachable under any realistic draw budget).
-* **I-L4 (cross-label isolation, practical).** Because label jumps are SHA-256 derived and the counter space is $2^{128}$, the probability that two labels’ event ranges overlap **exactly** at a block boundary within our total block budget is negligible; if ever detected, it is treated as a fatal audit failure.
-
----
-
-## Failure semantics (hard abort)
-
-* `bad_label_encoding`: non-ASCII label or empty string encountered.
-* `envelope_mismatch`: `substream_label` in envelope does not equal the label used to compute the jump.
-* `trace_violation`: after $\neq$ advance(before, $B$) for any event (draws mis-counted).
-* `missing_stream_jump`: a labelled event lacks a companion `stream_jump` record establishing its `before` counter.
-
----
-
-## Minimal reference algorithm (numbered, language-agnostic)
-
-**Inputs:** current counter $C=(c_{\mathrm{hi}},c_{\mathrm{lo}})$; event label $\ell$; event needs $d$ uniforms; Philox key $S$.
-**Outputs:** updated counter; two JSONL rows (one `stream_jump`, one event with envelope).
-
-1. **Compute stride.**
-   $h \leftarrow \mathrm{SHA256}(\text{ASCII}(\ell))$ (32 bytes).
-   $J \leftarrow \mathrm{LE64}(h[0{:}8])$.
-
-2. **Jump the counter.**
-   $c'_{\mathrm{lo}} \leftarrow (c_{\mathrm{lo}}+J) \bmod 2^{64}$.
-   $c'_{\mathrm{hi}} \leftarrow c_{\mathrm{hi}} + \mathbf{1}\{c_{\mathrm{lo}}+J \ge 2^{64}\}$.
-   $C' \leftarrow (c'_{\mathrm{hi}}, c'_{\mathrm{lo}})$.
-
-3. **Emit `stream_jump`.**
-   JSONL with the RNG envelope where `rng_counter_before_* = C`, `rng_counter_after_* = C'`, `substream_label = \ell`, `module = <producer>`. (No `draws` counted here.)
-
-4. **Prepare event draw accounting.**
-   $B \leftarrow \lceil d/2\rceil$.
-   Set event `before = C'`.
-
-5. **Generate uniforms from Philox.**
-   Evaluate $\Phi_S$ at counters $C',\ \mathrm{inc}(C'),\ \ldots,\ \mathrm{advance}(C',B-1)$; map each 64-bit word to $u\in(0,1)$ via the u01 rule (S0.3.1).
-
-6. **Set event `after`.**
-   $C'' \leftarrow \mathrm{advance}(C',B)$.
-   Event envelope: `rng_counter_before_* = C'`, `rng_counter_after_* = C''`, `substream_label = \ell` (plus payload).
-
-7. **Publish both records and update cursor.**
-   Append the `stream_jump` row (step 3) and the event row (step 6).
-   Set the global cursor $C \leftarrow C''$.
-
-Steps (1)–(7) are repeated for **every** labelled event. The event’s **draws** equal $d$; `rng_trace_log` can roll up draw totals and confirm that the net counter advance equals $\sum \lceil d/2\rceil$ blocks across the run.
-
-
-
-```css
-INPUT:
-  S_master : u64                              # Philox key
-  C        : (u64 hi, u64 lo)                 # current 128-bit counter
-  label    : ASCII string                     # substream label (e.g., "gumbel_key")
-  d        : int >= 0                         # number of uniforms the event will consume
-  ctx      : {ts_utc, run_id, parameter_hash, manifest_fingerprint, module}
-
-OUTPUT:
-  C_next   : (u64 hi, u64 lo)                 # updated counter after the event
-  records  : [ stream_jump_row, event_row ]   # two JSONL rows (envelopes filled)
-  U        : list<float> length d             # u01 uniforms for caller (optional)
-
-# --- helpers ---
-# inc(C) -> advance counter by 1 block (add 1 to low, carry to high)
-# advance(C, B) -> apply inc(.) exactly B times
-# phi_block(S, C) -> (z0, z1)  two 64-bit ints from Philox2x64-10 at counter C
-# u01(z) = ((floor(z / 2^11) + 0.5) / 2^53)   # maps 64-bit int to open-interval (0,1)
-
-1  assert is_ascii(label) and label != ""
-2  h  := sha256(ASCII(label))                 # 32 bytes
-3  J  := LE64(h[0:8])                         # 64-bit stride from first 8 bytes
-
-# ---- jump BEFORE consuming any draws ----
-4  C_before := C
-5  lo' := (C.lo + J) mod 2^64
-6  hi' := C.hi + ((C.lo + J) >= 2^64 ? 1 : 0)
-7  C_jump := (hi', lo')                       # event will start here
-
-# ---- emit stream_jump (no draws counted) ----
-8  stream_jump_row := {
-       ts_utc: ctx.ts_utc, run_id: ctx.run_id, module: ctx.module,
-       seed: S_master, parameter_hash: ctx.parameter_hash,
-       manifest_fingerprint: ctx.manifest_fingerprint,
-       substream_label: label,
-       rng_counter_before_hi: C_before.hi, rng_counter_before_lo: C_before.lo,
-       rng_counter_after_hi:  C_jump.hi,   rng_counter_after_lo:  C_jump.lo
-   }
-
-# ---- consume d uniforms in blocks of 2 words per block ----
-9  B := ceil(d / 2)                           # number of Philox blocks
-10 U := []                                    # will hold d uniforms
-11 for b in 0 .. B-1:
-12     C_blk := advance(C_jump, b)
-13     (z0, z1) := phi_block(S_master, C_blk)
-14     if 2*b     < d: U.append( u01(z0) )
-15     if 2*b + 1 < d: U.append( u01(z1) )
-
-# ---- finalize event envelope ----
-16 C_after := advance(C_jump, B)
-17 event_row := {
-       ts_utc: ctx.ts_utc, run_id: ctx.run_id, module: ctx.module,
-       seed: S_master, parameter_hash: ctx.parameter_hash,
-       manifest_fingerprint: ctx.manifest_fingerprint,
-       substream_label: label,
-       rng_counter_before_hi: C_jump.hi,   rng_counter_before_lo: C_jump.lo,
-       rng_counter_after_hi:  C_after.hi,  rng_counter_after_lo:  C_after.lo,
-       /* + event-specific payload fields built by the caller, which must imply d draws */
-   }
-
-# ---- return and advance global cursor ----
-18 C_next := C_after
-19 records := [stream_jump_row, event_row]
-20 return (C_next, records, U)
+```
+{
+  ts_utc:            int64  # epoch ns
+  module:            string # e.g. "1A.S6.gumbel"
+  substream_label:   string # e.g. "gumbel_key", "dirichlet_gamma_vector"
+  seed:              uint64 # modelling seed (S0.3.2)
+  parameter_hash:    string # hex64 (S0.2.2)
+  manifest_fingerprint: string # hex64 (S0.2.3)
+  run_id:            string # hex32 (S0.2.4)
+  rng_counter_before_lo: uint64
+  rng_counter_before_hi: uint64
+  rng_counter_after_lo:  uint64
+  rng_counter_after_hi:  uint64
+  draws:             uint128 # exact count of 64-bit words consumed by this event
+  payload: { ... }          # event-specific fields (e.g., iso, weight, key, α, λ, etc.)
+}
 ```
 
-notes:
-
-* if `d == 0`, then `B == 0`, `C_after == C_jump`, and you still emit both rows (the jump is separate from draw accounting).
-* event payloads must be consistent with `d` (S9 checks `after = advance(before, ceil(d/2))` exactly).
+* **Non-consuming** events set `draws = 0` and keep `before == after`.
+* The pair `(substream_label, payload.ids...)` identifies the **substream** used (defined next).
 
 ---
 
-## Where this shows up (paths/schemas)
+## S0.3.2 Master seed & initial counter (per run)
 
-* `logs/rng/events/<label>/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` for each event stream (e.g., `gumbel_key`, `dirichlet_gamma_vector`, etc.).
-* `logs/rng/events/stream_jump/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` for the jump records.
-* All event records use the shared envelope defined in `schemas.layer1.yaml` (u01, hex patterns, counters).
+Let:
+
+* `seed` = user/model seed (u64).
+* `manifest_fingerprint_bytes` (32 bytes) from S0.2.3.
+
+Define a master material $\mathsf{M} := \mathrm{SHA256}(\text{"mlr:1A.master"}\ \|\ \texttt{manifest_fingerprint_bytes}\ \|\ \mathrm{LE64}(\texttt{seed}))$ (32 bytes).
+
+Derive:
+
+* **Root key:** $k_\star = \mathrm{LOW64}(\mathsf{M})$.
+* **Root counter:** $c_\star = (\mathrm{BE64}(\mathsf{M}[8{:}16]),\ \mathrm{BE64}(\mathsf{M}[16{:}24]),\ \mathrm{BE64}(\mathsf{M}[24{:}32]),\ 0)$.
+
+> No events use $(k_\star,c_\star)$ directly; all substreams are **keyed** from it (next section). The initial audit row is emitted **before** any consumption with `run_id` present.
 
 ---
 
-# S0.4 — Deterministic GDP bucket assignment
+## S0.3.3 Keyed, order-invariant substreams
+
+We must be **order-invariant** under parallelism and sharding. To achieve that, every logical substream is keyed by a deterministic tuple, never by execution order.
+
+### Substream key & counter derivation
+
+For any event family label $\ell$ (e.g., `"hurdle_bernoulli"`, `"gumbel_key"`, `"dirichlet_gamma_vector"`) and entity identifiers $\mathbf{id}$ (e.g., `merchant_id`, `candidate_index i`, or `iso`), define a byte message
+
+$$
+\mathsf{msg} := \text{"mlr:1A:"}\ \|\ \ell\ \|\ \text{"|"}\ \|\ \mathrm{SER}(\mathbf{id}),
+$$
+
+where `SER` is a stable, endian-pinned encoding of IDs (e.g., `merchant_id` as LE64, `i` as LE32, ISO as 2 ASCII bytes).
+
+Compute:
+
+$$
+\mathsf{H} := \mathrm{SHA256}\big(\mathsf{M}\ \|\ \mathsf{msg}\big)\quad(\text{32 bytes}).
+$$
+
+Then set the **substream**:
+
+* $k(\ell,\mathbf{id}) = \mathrm{LOW64}(\mathsf{H})$,
+* $c(\ell,\mathbf{id}) = \big(\mathrm{BE64}(\mathsf{H}[8{:}16]),\ \mathrm{BE64}(\mathsf{H}[16{:}24]),\ \mathrm{BE64}(\mathsf{H}[24{:}32]),\ 0\big).$
+
+> All draws for that event **must** come from $\mathrm{PHILOX}(k(\ell,\mathbf{id}), \cdot)$ by advancing the counter monotonically. This makes results independent of processing order and partitioning.
+
+---
+
+## S0.3.4 Uniforms on the **open** interval $(0,1)$
+
+Given a 64-bit word $x\in\{0,\dots,2^{64}-1\}$, define:
+
+$$
+u = \frac{x+1}{2^{64}+1}\in(0,1).
+$$
+
+* This mapping guarantees **open bounds** (never 0 or 1), avoiding $\ln(0)$ in Box–Muller and $\log\log(1)$ in Gumbel.
+* When two uniforms are needed simultaneously, use the two 64-bit lanes $(x_0,x_1)$ from the **same** Philox block, mapped independently via the same formula.
+
+---
+
+## S0.3.5 Standard normal $Z\sim\mathcal{N}(0,1)$ (Box–Muller, no cache)
+
+To sample one $Z$:
+
+1. Draw $(u_1,u_2)\in (0,1)^2$ using **one** Philox block.
+2. Compute
+
+$$
+r = \sqrt{-2\ln u_1},\quad \theta = 2\pi u_2,\quad
+Z = r\cos\theta.
+$$
+
+* **Budget:** exactly **2 uniforms** per $Z$.
+* **No caching:** discard $r\sin\theta$; never reuse it later.
+* **Determinism:** trigonometric/log operations in binary64; no FMA; serial evaluation (see S0.8 numeric policy).
+
+---
+
+## S0.3.6 Gamma $\Gamma(\alpha,1)$ (Marsaglia–Tsang, fixed-block accounting)
+
+We require gamma variates for Dirichlet weights (S7). Use Marsaglia–Tsang’s method with **fixed draw blocks** so draw counts are predictable.
+
+### Case A: $\alpha \ge 1$
+
+Let $d = \alpha - \tfrac{1}{3}$, $c = 1/\sqrt{9d}$. Repeat:
+
+1. **Normals:** draw one $Z\sim\mathcal{N}(0,1)$ via S0.3.5 (consumes **2 uniforms**).
+2. **Transform:** $v = (1 + cZ)^3$. If $v \le 0$, **reject**.
+3. **Accept test:** draw $u\in(0,1)$ (**+1 uniform**) and accept if
+
+$$
+\ln u \le \tfrac{1}{2}Z^2 + d - dv + d\ln v.
+$$
+
+On acceptance, return $X = dv$.
+
+**Budget discipline:** one attempt consumes **3 uniforms** (2 for $Z$, 1 for $u$). On rejection, consume another **block of 3**; total draws per sample are multiples of 3.
+
+### Case B: $\alpha \in (0,1)$
+
+Use the **boosting** trick with draw-count normalisation:
+
+1. Sample $Y\sim\Gamma(\alpha+1,1)$ using Case A (consumes a multiple of 3 uniforms).
+2. Draw $u\in(0,1)$ (**+1 uniform**) and set $X = Y \cdot u^{1/\alpha}$.
+
+**Block normalisation:** to keep “draws % 3 == 0” for **every** gamma sample, immediately draw and discard **2 dummy uniforms** after step (2). Thus, each completed $\Gamma(\alpha,1)$ consumes a total that is a multiple of **3** uniforms (attempt-multiple for step 1 plus 3 from step 2 + dummies).
+
+> **Invariants:**
+> • Each gamma sample uses $3t$ uniforms for some integer $t\ge 1$.
+> • A `dirichlet_gamma_vector` of dimension $K$ consumes a multiple of **3K** uniforms.
+
+---
+
+## S0.3.7 Poisson $\mathrm{Poisson}(\lambda)$ and ZTP scaffolding
+
+We need Poisson counts in NB/ZTP contexts later. Pin the samplers (budgets are variable; envelope must record exact draws):
+
+### Small $\lambda$ (default threshold 10)
+
+**Inversion** method: draw uniforms $u_1,u_2,\dots$ and iterate a cumulative product until it falls below $e^{-\lambda}$.
+
+* **Budget:** variable per outcome $N$ (roughly $N+1$ uniforms).
+* **Determinism:** serial loop, binary64.
+
+### Moderate/large $\lambda$ (≥10)
+
+Use a PTRS-class rejection sampler (Hörmann) requiring **one normal** and **one uniform** per attempt; acceptance can require multiple attempts.
+
+* **Budget:** multiples of $3$ uniforms per attempt (2 for normal, 1 for accept $u$).
+* **Constants:** fix the exact numeric constants and branch thresholds in code (documented in the sampler’s module notes); deterministic math (S0.8).
+
+### Zero-Truncated Poisson (ZTP) scaffolding
+
+ZTP is handled in S4 with a corridor (e.g., max 64 rejections); **here** we only define that **ZTP draws are regular Poisson draws conditioned on $N>0$** via accept/reject. The event envelope must reflect *all* uniforms used across attempts; the per-event `draws` counter therefore grows with rejections.
+
+---
+
+## S0.3.8 Gumbel key from a single uniform
+
+For candidate ranking we use Gumbel keys:
+
+* Draw $u\in(0,1)$ and compute
+
+$$
+g = -\ln(-\ln u).
+$$
+
+* **Budget:** **1 uniform** per candidate.
+* **Tie-break:** when sorting by $g$, break ties **lexicographically** by ISO code (or the deterministic secondary key specified by the state using it).
+* **Logging:** emit one `gumbel_key` event **per candidate** with the standard envelope; `weight` and `iso` live in payload.
+
+---
+
+## S0.3.9 Draw accounting & logs (auditable replay)
+
+Two log streams book-keep RNG usage in addition to the event logs:
+
+1. **`rng_audit_log`** (one row at run start, **before any draw**): snapshot of the root seed/counter identity for audit (`seed`, `manifest_fingerprint`, `parameter_hash`, `run_id`, wall-clock, code version).
+2. **`rng_trace_log`** (**one row per** $(\texttt{module},\texttt{substream_label})$): cumulative `draws` consumed on that substream at emission time, with the *current* `(counter_before, counter_after)`.
+
+**Per-event budgets (must hold):**
+
+* **Bernoulli hurdle:**
+
+  * If $0<\pi<1$: **1** uniform.
+  * If $\pi\in\{0,1\}$: **0** uniforms (`draws=0`).
+* **Gumbel key:** **1** uniform per candidate.
+* **Normal $Z$:** **2** uniforms (Box–Muller, no cache).
+* **Gamma:** **multiples of 3** uniforms per sample (by design in §S0.3.6).
+* **Dirichlet $K$-vector:** **multiple of $3K$** uniforms total.
+* **Poisson (inversion):** variable, logged exactly.
+* **Poisson (PTRS):** multiples of **3** per attempt; logged exactly.
+* **ZTP:** sum of underlying Poisson attempts per rejection; logged exactly.
+
+**Envelope invariants:**
+
+* `draws` equals the number of **64-bit words** consumed in that event.
+* Counters advance by exactly `ceil(draws/2)` Philox **blocks** (since a block yields two 64-bit words).
+* `rng_counter_after` ≥ `rng_counter_before` lexicographically; non-consuming events keep them equal.
+
+---
+
+## S0.3.10 Determinism & failure semantics
+
+**Must hold for every run:**
+
+1. **Order-invariance:** Results do not change under re-sharding or re-ordering, because every event uses a keyed substream defined by $(\ell,\mathbf{id})$.
+2. **Open-interval safety:** All uniforms lie strictly in $(0,1)$.
+3. **Budget correctness:** Per-event budgets above are satisfied; gamma/dirichlet **mod-3** rules hold.
+4. **No FMA, serial reductions** on ordering-critical arithmetic (S0.8); trigs/logs in binary64.
+
+**Fail the run if:**
+
+* An event’s `draws` disagrees with recomputed draws from envelope counters.
+* Any sampler produces NaN/Inf.
+* A “non-consuming” event changes counters.
+* A gamma/dirichlet event violates the **mod-3** draw discipline.
+
+---
+
+## Reference pseudocode (language-agnostic)
+
+```text
+# -- Philox interface --
+struct Stream { key: u64, ctr: u128 }  # ctr is (hi64, lo64) logically
+fn philox_block(s: Stream) -> (u64,u64, Stream) {
+  (x0,x1) = PHILOX_2x64_10(s.key, s.ctr)
+  s.ctr += 1
+  return (x0,x1,s)
+}
+
+# -- u01 open interval --
+fn u01(x: u64) -> f64 { (x as f128 + 1.0) / (2^64 + 1.0) }  # conceptually; implement in f64 carefully
+
+# -- Box–Muller (one Z, no cache) --
+fn normal(stream: &mut Stream) -> (f64, draws:int) {
+  (x0,x1,*stream) = philox_block(*stream)
+  u1 = u01(x0); u2 = u01(x1)         # 2 uniforms
+  r = sqrt(-2.0 * ln(u1))
+  theta = TAU * u2
+  return (r * cos(theta), 2)
+}
+
+# -- Gamma(alpha,1) with fixed-block accounting --
+fn gamma_mt(alpha: f64, stream: &mut Stream) -> (f64, draws:int) {
+  if alpha >= 1.0 {
+    d = alpha - 1.0/3.0; c = 1.0/sqrt(9.0*d)
+    loop:
+      (z, dZ) = normal(stream)       # dZ = 2 uniforms
+      v = (1.0 + c*z)
+      v = v*v*v
+      if v <= 0.0 { continue }
+      (x0,_,*stream) = philox_block(*stream); u = u01(x0)  # +1 uniform
+      if ln(u) <= 0.5*z*z + d - d*v + d*ln(v) {
+        return (d*v, dZ + 1)          # total is 3 per attempt
+      }
+  } else {
+    (y, dY) = gamma_mt(alpha + 1.0, stream)   # multiple of 3
+    (x0,_,*stream) = philox_block(*stream); u = u01(x0)    # +1
+    # burn two dummies to keep mod-3 discipline
+    (_,_,*stream) = philox_block(*stream)                  # +2
+    return (y * pow(u, 1.0/alpha), dY + 3)                 # still multiple of 3
+  }
+}
+
+# -- Poisson scaffolding (sketch) --
+fn poisson(lambda: f64, stream: &mut Stream) -> (int, draws:int) {
+  if lambda < 10.0 {
+    L = exp(-lambda); k = 0; p = 1.0; draws = 0
+    loop:
+      (x0,_,*stream) = philox_block(*stream); u = u01(x0); draws += 1
+      p *= u; if p <= L { return (k, draws) } else { k += 1 }
+  } else {
+    # PTRS-like: each attempt ~ (Z,u) => 3 uniforms (2 for Z, 1 for u)
+    # repeat until accepted; count draws accordingly.
+  }
+}
+```
+
+---
+
+## What S0.3 guarantees to downstream states
+
+* Any module can declare a substream label $\ell$ and entity IDs $\mathbf{id}$; it then gets a **stable, independent** random stream unaffected by execution order.
+* All samplers have **pinned** budgets (constant where possible; fully logged where variable).
+* Auditability is total: given the envelopes and `(seed, parameter_hash, manifest_fingerprint, run_id)`, every draw can be replayed exactly.
+
+---
+
+**Summary:** S0.3 nails the stochastic bedrock for 1A. We fix the engine (Philox 2×64-10), make substreams **keyed & order-invariant**, map bits to **(0,1)** safely, specify **Box–Muller**, **Gamma with mod-3 draw discipline**, **Poisson** regimes, and codify **draw accounting** so audits and replay are deterministic down to each 64-bit word.
+
+---
+
+# S0.4 — Deterministic GDP Bucket Assignment (normative)
 
 ## Purpose
 
-For each merchant $m$ with home ISO $c\in\mathcal{I}$, attach:
+Attach to every merchant $m$ two **deterministic**, **non-stochastic** features from pinned references:
 
-* the **GDP per-capita level** $g_c\in\mathbb{R}_{>0}$ from the pinned **2025-04-15** WDI vintage, and
-* the **Jenks bucket id** $b_m:=B(c)\in\{1,2,3,4,5\}$ from the **frozen** mapping table (not recomputed online).
+* $g_c$ — GDP-per-capita level for the merchant’s **home** country $c$ from the **2025-04-15** vintage World Bank WDI extract, and
+* $b_m\in\{1,\dots,5\}$ — the **Jenks** $K{=}5$ GDP bucket id for that home country from the **precomputed** mapping table.
 
-These are read-only lookups governed by authoritative ingress schemas and artefact dictionary entries.
-
----
-
-## Inputs (read-only)
-
-* `merchant_ids` (authoritative seed), columns `(merchant_id, mcc, channel, home_country_iso)`. `home_country_iso` must be ISO-2 and FK-valid.
-* `world_bank_gdp_per_capita/2025-04-15` (flattened table) → supplies $G(c)$. Schema enforces non-null `gdp_pc_usd_2015` and uniqueness per `(country_iso, observation_year)`.
-* `gdp_bucket_map_2024` (processed table) → supplies $B(c)\in\{1..5\}$. Primary key on `country_iso`, bucket in $[1..5]$, method=`"jenks"`, $K=5$.
+No RNG is consumed here. S0.4 is a pure function of the loaded bytes fixed by S0.1–S0.2.
 
 ---
 
-## Outputs (to S0.5 and downstream)
+## Inputs & domains (read-only)
 
-For each merchant $m$ with home ISO $c$:
+* `merchant_ids` (authoritative seed), carrying `merchant_id`, `mcc`, `channel`, `home_country_iso`. `home_country_iso` must be ISO-2; FK validated against the canonical ISO table.
+* **GDP vintage**: `world_bank_gdp_per_capita_20250415` (version `2025-04-15`) providing a total function
+  $G:\mathcal{I}\rightarrow\mathbb{R}_{>0}$. Schema enforces non-null, one value per `(country_iso, observation_year)`.
+* **Bucket map**: `gdp_bucket_map_2024` providing a total function
+  $B:\mathcal{I}\rightarrow\{1,2,3,4,5\}$, precomputed by Jenks $K{=}5$ over the pinned GDP vintage. Primary key `country_iso`; `bucket ∈ {1..5}`. **Not recomputed online.**
 
-* $g_c$ — numeric GDP level used in the **NB dispersion** design (as $\log g_c$ in S0.5/S2).
-* $b_m$ — categorical bucket used in the **hurdle** design (GDP dummies) and optionally logged for diagnostics.
-
-(These may be persisted in a small feature cache, or carried transiently into S0.5. They are **not** parameter-scoped datasets themselves.)
+> Both reference artefacts are listed in the dictionary/registry as run-time, read-only inputs (and therefore folded into the manifest fingerprint by S0.2).
 
 ---
 
-## Deterministic definitions
+## Canonical definition (what S0.4 does)
 
-Let $c=\texttt{home_country_iso}(m)\in\mathcal{I}$. Then:
+Let $m\in\mathcal{M}$ with home ISO $c=\texttt{home_country_iso}(m)\in\mathcal{I}$. Then
 
 $$
 g_c \leftarrow G(c)\in\mathbb{R}_{>0},\qquad
 b_m \leftarrow B(c)\in\{1,2,3,4,5\}.
 $$
 
-Here $G$ is the function induced by the **2025-04-15** WDI table and $B$ is the function induced by the **pinned** Jenks $K=5$ bucket map; both are immutable within a run and referenced by schema/dictionary.
+These are **lookups** only; the bucket boundaries are **not** computed at run-time.
 
 ---
 
-## Invariants (must hold)
+## Semantics & usage (downstream expectations)
 
-* **I-ISO.** $c$ must exist in the canonical ISO list; enforced via FK on `merchant_ids.home_country_iso`.
-* **I-GDP.** There exists exactly one GDP value for $(c,\text{year}=2025\text{-}04\text{-}15\ \text{vintage})$; schema uniqueness covers year disambiguation. $g_c>0$.
-* **I-Bucket.** Exactly one row in `gdp_bucket_map_2024` for `country_iso=c`; `bucket_id ∈ {1..5}`. $B$ is a **lookup table**, not recomputed.
-* **I-Usage split.** The **bucket** $b_m$ is used **only** in the hurdle logistic; $\log g_c$ appears **only** in NB dispersion. (Design parsimony per assumptions.)
+* $b_m$ (Jenks bucket) appears **only** in the hurdle design as five one-hot dummies (column order frozen by the fitting bundle). $\log g_c$ appears **only** in NB dispersion. (As documented in the S0 design sections that consume S0.4 outputs.)
+* If you materialise these features, they live inside the model design artefact(s) under `…/parameter_hash={parameter_hash}/` and are schema-governed in `schemas.1A.yaml` (e.g., `#/model/hurdle_design_matrix`, `#/model/hurdle_pi_probs`), but they are commonly carried transiently into S0.5.
 
 ---
 
-## Failure semantics (abort with diagnostics)
+## Determinism & numeric policy (ordering-sensitive details)
 
-* `unknown_home_iso(m,c)`: $c\notin\mathcal{I}$ or FK fails.
-* `missing_gdp_value(c)`: no GDP row for $c$ at the pinned vintage.
-* `nonpositive_gdp(c, g_c)`: $g_c\le 0$ (schema guards this, but we assert).
-* `missing_bucket_mapping(c)`: no `gdp_bucket_map_2024` row for $c$.
-* `bucket_out_of_range(c, b)`: $b\notin\{1,\dots,5\}$ (schema guard).
-
-Each abort should include `(merchant_id, c, offending_dataset, expected_pk)` to speed forensics.
+* **No randomness**; S0.4 must yield identical results across shards and runs with the same `manifest_fingerprint`.
+* **Binary64 arithmetic** for any derived transforms (e.g., $\log g_c$ in S0.5); no FMA on ordering-critical code paths (per S0.8).
+* **Open/closed rule (for intuition only):** if you rebuild $B$ (CI only), the notional thresholds $\tau_0<\dots<\tau_5$ satisfy
+  $B(c)=k \iff G(c)\in(\tau_{k-1},\tau_k]$. **Right-closed** prevents ambiguity when $G(c)$ equals a break value. (Authoritative truth is still the table $B$, not $\tau$).
 
 ---
 
-## Minimal reference algorithm (numbered, language-agnostic)
+## Failure semantics (abort codes; zero tolerance)
 
-```css
-INPUT:
-  merchant_ids               # table: (merchant_id, mcc, channel, home_country_iso)
-  world_bank_gdp_2025_04_15  # table: (country_iso, observation_year, gdp_pc_usd_2015)
-  gdp_bucket_map_2024        # table: (country_iso -> bucket_id in [1..5])
+Abort S0 with a clear message and a diff hint if any of the following occur:
 
-OUTPUT:
-  features: list of records (merchant_id, home_country_iso, g_c, b_m)
+* `E_HOME_ISO_FK(m,c)`: `home_country_iso` not in the canonical ISO set $\mathcal{I}$. (Upstream contract from S0.1.)
+* `E_GDP_MISSING(c)`: no GDP value at the **2025-04-15** vintage for `c`.
+* `E_GDP_NONPOS(c, g_c)`: GDP value $\le 0$ (schema forbids; double-guard here).
+* `E_BUCKET_MISSING(c)`: no bucket row for `c` in `gdp_bucket_map_2024`.
+* `E_BUCKET_RANGE(c, b)`: bucket outside $\{1,\dots,5\}$. (Schema forbids; double-guard.)
 
-1  iso_set := load_iso2_canonical()                            # from ingress schema ref
-2  gdp     := index(world_bank_gdp_2025_04_15 by country_iso)  # single row per (iso,year)
-3  buckets := index(gdp_bucket_map_2024 by country_iso)        # PK guarantees uniqueness
+All errors must identify the **offending dataset** and the **expected primary key** to speed forensics.
 
-4  features := []
-5  for each row r in merchant_ids:
-6      m := r.merchant_id
-7      c := r.home_country_iso
-8      if c not in iso_set: abort("unknown_home_iso", m, c)
+---
 
-9      if c not in gdp:    abort("missing_gdp_value", c)
-10     g_c := gdp[c].gdp_pc_usd_2015
-11     if g_c <= 0:        abort("nonpositive_gdp", c, g_c)
+## Validation hooks (what CI/runtime must verify)
 
-12     if c not in buckets: abort("missing_bucket_mapping", c)
-13     b   := buckets[c].bucket_id
-14     if b < 1 or b > 5:  abort("bucket_out_of_range", c, b)
+1. **Coverage**: every `home_country_iso` in `merchant_ids` has both $G(c)$ and $B(c)$.
+2. **FK integrity**: `country_iso` in the bucket and GDP tables are members of the run’s ISO set.
+3. **Immutability evidence**: both artefacts appear in the S0.2 `manifest_fingerprint` enumeration (count and digests logged).
+4. **Optional rebuild check (CI only, non-runtime)**: recompute Jenks $K{=}5$ breaks from the pinned GDP vector and assert the rebuilt mapping equals `gdp_bucket_map_2024`. If not, fail with a per-ISO diff. (Spec below.)
 
-15     features.append({ merchant_id: m,
-16                       home_country_iso: c,
-17                       g_c: g_c,
-18                       b_m: b })
+---
 
-19 return features
+## Optional rebuild spec for $B$ (CI only; not used at runtime)
+
+**Objective:** Find monotone thresholds $\tau_0=-\infty<\tau_1<\dots<\tau_5=+\infty$ minimising the total within-class sum of squares (Jenks natural breaks, **optimal** DP solution), over the multiset $\{G(c)\mid c\in\mathcal{I}\}$.
+
+**Rebuild algorithm (exact, deterministic):**
+
+1. Construct the sorted vector $y_1\le \dots \le y_n$ of GDP values (include duplicates; stable sort by `(value, iso)` lexicographic to make tie-breaks deterministic).
+2. Precompute prefix sums $S_k=\sum_{i=1}^k y_i$ and $Q_k=\sum_{i=1}^k y_i^2$.
+3. For classes $j=1..5$, run the standard **optimal 1-D $k$-means DP** (a.k.a. Jenks DP):
+   $\text{SSE}(a..b)=Q_b-Q_{a-1}-\frac{(S_b-S_{a-1})^2}{b-a+1}$.
+   Let $D[b,j]=\min_{a\in[j..b]} D[a-1,j-1]+\text{SSE}(a..b)$ with $D[*,1]=\text{SSE}(1..*)$. Keep backpointers $P[b,j]$ giving the optimal split index.
+4. Backtrack at $(b{=}n,j{=}5)$ to obtain split indices $t_1 < \dots < t_4$.
+5. Set thresholds by values, using **right-closed** classes:
+   $\tau_1=y_{t_1}, \tau_2=y_{t_2}, \tau_3=y_{t_3}, \tau_4=y_{t_4}$.
+6. Define $B(c)=k$ iff $G(c)\in(\tau_{k-1},\tau_k]$. In case multiple optimal solutions exist due to flat regions (ties), choose the **lexicographically smallest** $(t_1,\dots,t_4)$ by preferring earlier split indices at each DP tie.
+7. Emit a deterministic diff if any `country_iso` maps to a different $k$ than the shipped `gdp_bucket_map_2024`.
+
+This spec fixes all ambiguities (ties, stable sorting, right-closed intervals, lexicographic tie-break), so the CI rebuild is bit-stable under IEEE-754 binary64. (Runtime still uses the **shipped** $B$.)
+
+---
+
+## Reference routine (language-agnostic; runtime path)
+
+```text
+function S0_4_attach_gdp_features(M, I, G, B):
+  # Inputs:
+  #   M: table merchant_ids (merchant_id, mcc, channel, home_country_iso)
+  #   I: ISO-2 set (canonical)
+  #   G: map ISO -> R>0 from 2025-04-15 vintage
+  #   B: map ISO -> {1..5} from gdp_bucket_map_2024
+  # Output: iterator of (merchant_id, g_c, b_m)
+
+  for row in M:
+      m = row.merchant_id
+      c = row.home_country_iso
+
+      assert c in I, E_HOME_ISO_FK(m,c)
+
+      g = G.get(c)        # must exist; > 0
+      if g is None: raise E_GDP_MISSING(c)
+      if not (g > 0.0): raise E_GDP_NONPOS(c, g)
+
+      b = B.get(c)        # must exist; in 1..5
+      if b is None: raise E_BUCKET_MISSING(c)
+      if not (1 <= b <= 5): raise E_BUCKET_RANGE(c, b)
+
+      yield (m, g, b)     # carried into S0.5 designs (and/or cached)
 ```
 
 ---
 
-## Notes for implementers
+## Complexity & concurrency
 
-* Treat both lookups as **pure reads** from artefacts pinned by the dictionary; never recompute Jenks online.
-* If you cache outputs, scope any dataset to **`parameter_hash`** only if it depends on model params; here, simple feature caching is optional since the artefacts are ingress-scoped, not parameter-scoped.
-
----
-
-# S0.5 — Design matrices (hurdle and NB)
-
-## Purpose
-
-Construct **deterministic, column-aligned design vectors** for each merchant $m$, to be used by:
-
-* the **hurdle logistic** (single vs. multi-site) in S1, and
-* the **NB branch** in S2 (mean and dispersion links).
-
-Column order and encoders are **frozen** by the model-fitting bundle and validated against the schema/dictionary entries for the optional caches (`hurdle_design_matrix`, `hurdle_pi_probs`).
+* **Time:** $O(|\mathcal{M}|)$ hash-map lookups; **Space:** $O(1)$ per row streaming.
+* **Parallelism:** embarrassingly parallel across merchants; determinism holds because the mapping is pure and run-pinned.
+* **I/O:** inputs are memory-mapped/streamed; the GDP and bucket tables are small (|𝕀| scale) and cached read-only for the run.
 
 ---
 
-## Inputs (read-only; all from S0.\*)
+## Lineage & partitions (where these matter)
 
-* From **ingress**: for each $m$, $\texttt{mcc}_m\in\{0,\dots,9999\}$, $\texttt{channel}_m\in\{\text{CP},\text{CNP}\}$, $\texttt{home_country_iso}_m\in\mathcal{I}$. (Validated earlier.)
-* From **S0.4**: GDP lookup $g_c=G(c)>0$ for home ISO $c$, and **Jenks bucket** $b_m=B(c)\in\{1,\dots,5\}$.
-* From the **model-fitting bundle** (frozen):
-
-  * One-hot **column dictionaries** that define the column **order** for MCC dummies, channel dummies, and GDP-bucket dummies.
-  * Coefficients:
-
-    * **Hurdle** coefficients $\beta$ in a **single YAML vector** (includes intercept, MCC, channel, and **all 5 GDP-bucket dummies**).
-    * **NB dispersion** coefficients (contains the slope $\eta$ on $\log g_c$; $\eta>0$ at fit time). NB mean excludes GDP bucket by design.
-
-(Design rule recapped in the S0 doc: GDP bucket used **only** in hurdle; $\log g_c$ used **only** in dispersion.)
+* Both `world_bank_gdp_per_capita_20250415` and `gdp_bucket_map_2024` are enumerated artefacts contributing to `manifest_fingerprint`; **changing either flips the fingerprint** and thus the egress partition for the run.
+* If features are materialised into model inputs, they are **parameter-scoped** and therefore partitioned by `parameter_hash={parameter_hash}` per dictionary policy for model artefacts.
 
 ---
 
-## Encoders (column-frozen one-hots)
+**Bottom line:** S0.4 is a strict, zero-RNG lookup step that attaches $(g_c,b_m)$ from the pinned GDP vintage and the precomputed Jenks $K{=}5$ map. We specify exact domains, FK/coverage checks, CI rebuild rules (deterministic DP Jenks) and failure semantics. With this, downstream S0.5+ can treat the GDP level and bucket as immutable, reproducible inputs.
 
-Let
+---
+
+# S0.5 — Design Matrices (Hurdle & NB), Column Discipline, and Validation (normative)
+
+## Purpose & scope
+
+Construct **deterministic, column-aligned design vectors** for each merchant $m$ for:
+
+* the **hurdle logistic** (single vs multi) used in **S1**, and
+* the **Negative-Binomial (NB)** branch used in **S2** (mean and dispersion links).
+
+Column dictionaries and ordering are **frozen by the model-fitting bundle** and **not recomputed online**.
+
+---
+
+## Inputs (read-only; all pinned by S0.1–S0.4)
+
+* From **ingress**: $(\texttt{merchant_id}, \texttt{mcc}, \texttt{channel}, \texttt{home_country_iso})$ per merchant, schema-validated earlier. Channels are in $\{\mathrm{CP},\mathrm{CNP}\}$.
+* From **S0.4**: $g_c=G(c)>0$ (GDP per-capita for home ISO $c$) and **Jenks $K{=}5$ bucket** $b_m=B(c)\in\{1,\dots,5\}$. These are **lookups** only.
+* From the **model-fitting bundle** (frozen artefacts):
+
+  * One-hot **column dictionaries** fixing the **column order** for:
+
+    * MCC dummies (size $C_{\mathrm{mcc}}$),
+    * Channel dummies (size 2, for CP/CNP),
+    * GDP-bucket dummies (size 5, for buckets 1..5).
+  * **Coefficient vectors**:
+
+    * **Hurdle** coefficients $\beta$ in **one YAML vector** containing intercept, MCC, channel, and **all 5 GDP-bucket dummies** (atomic load).
+    * **NB dispersion** coefficients (includes the slope on $\log g_c$; NB mean **excludes** GDP bucket by design).
+
+> Design rule (must hold globally): **GDP bucket** appears **only** in the hurdle design; $\log g_c$ appears **only** in the NB dispersion design.
+
+---
+
+## Encoders (deterministic one-hots; column-frozen)
+
+Define one-hot encoders (exact domains & sizes):
 
 $$
-\phi_{\mathrm{mcc}}:\mathbb{N}\to\{0,1\}^{C_{\mathrm{mcc}}},\quad
-\phi_{\mathrm{ch}}:\{\mathrm{CP},\mathrm{CNP}\}\to\{0,1\}^{2},\quad
-\phi_{\mathrm{dev}}:\{1,\dots,5\}\to\{0,1\}^{5},
+\phi_{\mathrm{mcc}}:\mathbb{N}\rightarrow\{0,1\}^{C_{\mathrm{mcc}}},\quad
+\phi_{\mathrm{ch}}:\{\mathrm{CP},\mathrm{CNP}\}\rightarrow\{0,1\}^{2},\quad
+\phi_{\mathrm{dev}}:\{1,\dots,5\}\rightarrow\{0,1\}^{5}.
 $$
 
-be **deterministic** maps with exactly one “1” per input and columns ordered by the **fitting bundle dictionary** (not recomputed online). The **intercept** is a separate scalar $1$.
+* Each encoder returns a vector with **exactly one** entry equal to 1.
+* **Column order is frozen** by the fitting dictionaries (shipped with the coefficients) and is **not** recomputed at runtime.
+* The **intercept** is always the leading scalar 1.
 
-* Channel recoding is canonicalised to the event schema vocabulary when logged (`"card_present"`, `"card_not_present"`), but the encoder domain is $\{\mathrm{CP},\mathrm{CNP}\}$.
+*(Channel vocab for logging events is later canonicalised to strings like `"card_present"` / `"card_not_present"`; here the encoder domain remains $\{\mathrm{CP},\mathrm{CNP}\}$.)*
 
 ---
 
-## Design vectors (definitions & dimensions)
+## Design vectors (definitions, dimensions, and strict ordering)
 
-Let $c$ be the home ISO for $m$, $g_c>0$, $b_m\in\{1,\dots,5\}$. Then:
+Let $c=\texttt{home_country_iso}(m)$, $g_c>0$, $b_m\in\{1,\dots,5\}$.
 
 ### Hurdle (logit) design
 
 $$
-\boxed{\;x_m=\big[1,\ \phi_{\mathrm{mcc}}(\texttt{mcc}_m),\ \phi_{\mathrm{ch}}(\texttt{channel}_m),\ \phi_{\mathrm{dev}}(b_m)\big]^\top\;}\in\mathbb{R}^{1+C_{\mathrm{mcc}}+2+5}.
+\boxed{\,x_m=\big[1,\ \phi_{\mathrm{mcc}}(\texttt{mcc}_m),\ \phi_{\mathrm{ch}}(\texttt{channel}_m),\ \phi_{\mathrm{dev}}(b_m)\big]^\top\,}\in\mathbb{R}^{1+C_{\mathrm{mcc}}+2+5}.
 $$
 
-Logit:
+Link and probability:
 
 $$
-\pi_m=\sigma(\beta^\top x_m),\qquad
-\sigma(t)=\tfrac{1}{1+e^{-t}}.
+\eta_m=\beta^\top x_m,\qquad \pi_m=\sigma(\eta_m)=\tfrac{1}{1+e^{-\eta_m}}.
 $$
 
-**All** hurdle coefficients (including GDP-bucket dummies) are stored **together** in `hurdle_coefficients.yaml` and loaded atomically.
+All hurdle coefficients (including the 5 GDP-bucket dummies) live together in **one** YAML vector $\beta$.
 
-### Negative-Binomial (used later in S2)
-
-$$
-\boxed{\;x^{(\mu)}_m=\big[1,\ \phi_{\mathrm{mcc}}(\texttt{mcc}_m),\ \phi_{\mathrm{ch}}(\texttt{channel}_m)\big]^\top\;}\in\mathbb{R}^{1+C_{\mathrm{mcc}}+2},
-$$
+### Negative-Binomial (used in S2)
 
 $$
-\boxed{\;x^{(\phi)}_m=\big[1,\ \phi_{\mathrm{mcc}}(\texttt{mcc}_m),\ \phi_{\mathrm{ch}}(\texttt{channel}_m),\ \log g_c\big]^\top\;}\in\mathbb{R}^{1+C_{\mathrm{mcc}}+2+1}.
+\boxed{\,x^{(\mu)}_m=\big[1,\ \phi_{\mathrm{mcc}}(\texttt{mcc}_m),\ \phi_{\mathrm{ch}}(\texttt{channel}_m)\big]^\top\,}\in\mathbb{R}^{1+C_{\mathrm{mcc}}+2},
 $$
 
-**Design rule:** GDP bucket **excluded** from NB mean; $\log g_c$ **included** in dispersion with positive slope $\eta>0$.
+$$
+\boxed{\,x^{(\phi)}_m=\big[1,\ \phi_{\mathrm{mcc}}(\texttt{mcc}_m),\ \phi_{\mathrm{ch}}(\texttt{channel}_m),\ \log g_c\big]^\top\,}\in\mathbb{R}^{1+C_{\mathrm{mcc}}+2+1}.
+$$
+
+**Design rule:** bucket dummies are **excluded** from NB mean; $\log g_c$ is **included** in dispersion (with positive fitted slope).
 
 ---
 
-## Numerical guard for $\sigma$ (overflow-safe)
+## Safe logistic evaluation (overflow-stable)
 
-Evaluate with branch-stable form:
+Implement $\sigma(\eta)$ using the branch-stable identity:
 
 $$
 \sigma(\eta)=
 \begin{cases}
 \frac{1}{1+e^{-\eta}},& \eta\ge 0,\\[4pt]
-\frac{e^\eta}{1+e^\eta},& \eta<0,
+\frac{e^{\eta}}{1+e^{\eta}},& \eta<0.
 \end{cases}
 $$
 
-and (optionally) clip **only for display/logging** at $|\eta|>40$ to avoid NaNs; $\pi\in\{0,1\}$ at saturation.
+Optional: clip $|\eta|>40$ **only for display/logging** (not for computation) so that $\pi$ saturates to $\{0,1\}$ without NaNs.
 
 ---
 
-## Invariants & validation
+## Determinism & numeric policy (ordering-critical)
 
-* **Column alignment.** The length of $\beta$ equals $\dim(x_m)$; MCC/channel/dev dummy **orders** match the frozen dictionaries. (Hurdle $\beta$ is a **single YAML vector**.)
-* **One-hot correctness.** For each encoder, exactly one entry is 1; others 0.
-* **GDP constraints.** $g_c>0$; $b_m\in\{1,\dots,5\}$ (from S0.4).
-* **Scope split.** GDP bucket appears **only** in $x_m$; $\log g_c$ appears **only** in $x^{(\phi)}_m$. (Checked by design-matrix builder.)
-* **Schema ties.** If persisted, `hurdle_design_matrix` and `hurdle_pi_probs` use the dictionary paths and schema refs in Layer-1 1A.
+* **No randomness** in S0.5; output depends only on pinned dictionaries and S0.4 features.
+* Use IEEE-754 **binary64**; on ordering-critical paths (e.g., any later normalisations depending on these features) **disable FMA** and use **serial reductions** with fixed order—per S0.8 policy. These toggles are part of the artefact set and flip the fingerprint if changed.
 
 ---
 
-## Failure semantics (hard abort)
+## Persistence (optional caches) & partitions
 
-* `unknown_mcc(mcc)`: MCC not present in the fitting dictionary (should not happen if dictionary covers ingress).
-* `unknown_channel(ch)`: channel not in {$\mathrm{CP},\mathrm{CNP}$}.
-* `bucket_out_of_range(b)`: $b\notin\{1,\dots,5\}$.
-* `nonpositive_gdp(g)`: $g\le 0$.
-* `beta_length_mismatch`: $|\beta|\neq 1+C_{\mathrm{mcc}}+2+5$.
-* `column_order_mismatch`: dictionary order differs from what the bundle declares.
+S0.5 usually holds $x_m, x^{(\mu)}_m, x^{(\phi)}_m$ **in memory**. If you materialise:
 
-Each abort surfaces the merchant id, offending field(s), and the dictionary digest used.
+* `hurdle_design_matrix` under `…/parameter_hash={parameter_hash}/…` with schema in `schemas.1A.yaml#/model/hurdle_design_matrix`.
+* Optional diagnostics: `hurdle_pi_probs` under `…/parameter_hash={parameter_hash}/…` with schema `#/model/hurdle_pi_probs` (never used by samplers).
+
+*(These are **parameter-scoped** caches; partitioning and schema references are dictionary-backed.)*
 
 ---
 
-## Outputs (what S1/S2 will read)
+## Validation hooks (must pass)
 
-* In-memory (or cached) per-merchant vectors $x_m$, $x^{(\mu)}_m$, $x^{(\phi)}_m$.
-* Optional caches (parameter-scoped, per dictionary):
-
-  * `hurdle_design_matrix/parameter_hash={parameter_hash}/…` (schema `schemas.1A.yaml#/model/hurdle_design_matrix`).
-  * `hurdle_pi_probs/parameter_hash={parameter_hash}/…` (schema `schemas.1A.yaml#/model/hurdle_pi_probs`).
-
----
-
-## Minimal reference algorithm (numbered, language-agnostic)
-
-```css
-INPUT:
-  merchant_ids              # (merchant_id, mcc, channel, home_country_iso)
-  gdp_map, bucket_map       # from S0.4: c -> g_c > 0, c -> b in {1..5}
-  dicts:                    # frozen by fitting bundle
-    mcc_cols[]              # ordered list of MCC keys
-    ch_cols[]               # ["CP","CNP"] in fixed order
-    dev_cols[]              # [1,2,3,4,5] in fixed order
-  hurdle_beta               # single YAML vector for hurdle (includes dev dummies)
-
-OUTPUT:
-  per-merchant:
-    x_m, x_mu_m, x_phi_m    # design vectors
-    (optional) pi_m         # logistic probability for diagnostics cache
-
-1  C_mcc := length(mcc_cols);  assert length(ch_cols)==2;  assert length(dev_cols)==5
-2  assert length(hurdle_beta) == 1 + C_mcc + 2 + 5        # intercept + MCC + ch + dev
-
-3  features := []
-4  for each row r in merchant_ids:
-5      m := r.merchant_id
-6      c := r.home_country_iso
-7      g := gdp_map[c];        if g <= 0: abort("nonpositive_gdp", c, g)
-8      b := bucket_map[c];     if b not in {1..5}: abort("bucket_out_of_range", c, b)
-
-9      # --- one-hot encoders (column order fixed by dicts) ---
-10     oh_mcc := zero_vector(C_mcc)
-11     idx_m  := index_of(r.mcc in mcc_cols);     if idx_m == NONE: abort("unknown_mcc", r.mcc)
-12     oh_mcc[idx_m] := 1
-
-13     oh_ch  := zero_vector(2)
-14     idx_c  := index_of(r.channel in ch_cols);  if idx_c == NONE: abort("unknown_channel", r.channel)
-15     oh_ch[idx_c] := 1
-
-16     oh_dev := zero_vector(5)
-17     idx_d  := index_of(b in dev_cols)          # dev_cols == [1,2,3,4,5]
-18     oh_dev[idx_d] := 1
-
-19     # --- assemble designs ---
-20     x_m      := concat([1], oh_mcc, oh_ch, oh_dev)
-21     x_mu_m   := concat([1], oh_mcc, oh_ch)
-22     x_phi_m  := concat([1], oh_mcc, oh_ch, [log(g)])
-
-23     # --- optional: compute hurdle probability for diagnostics ---
-24     eta      := dot(hurdle_beta, x_m)
-25     if eta >= 0: pi := 1.0 / (1.0 + exp(-eta))
-26     else        : t  := exp(eta);  pi := t / (1.0 + t)      # overflow-safe branch
-
-27     emit_optional_row_to("hurdle_design_matrix", m, x_m)        # schema/dictionary-controlled
-28     emit_optional_row_to("hurdle_pi_probs", m, eta, pi)         # diagnostics table
-
-29     features.append({merchant_id:m, x:x_m, x_mu:x_mu_m, x_phi:x_phi_m, pi:pi})
-
-30 return features
-```
+1. **Column alignment:** $\text{len}(\beta)=\dim(x_m)$ and column orders of MCC, channel, bucket dummies **match** the frozen dictionaries. **Any** drift is a hard error. (S1 explicitly aborts on design/coeff mismatch at use.)
+2. **One-hot correctness:** each encoder emits exactly one “1”.
+3. **Feature domains:** $g_c>0$, $b_m\in\{1,\dots,5\}$ (from S0.4).
+4. **Scope split:** **Bucket dummies only in hurdle**; $\log g_c$ **only in dispersion**—checked by the builder to prevent accidental leakage.
+5. **Partition lint (if persisted):** any materialised dataset uses the **parameter-scoped** partition and embeds the same `parameter_hash` in rows (dictionary contract).
 
 ---
 
-### Where this is anchored in your docs
+## Failure semantics (abort S0; precise codes)
 
-* The exact **design forms** and the **“bucket only in hurdle / log-GDP only in dispersion”** rule come straight from your narrative & assumptions.
-* The **single YAML** for hurdle $\beta$ and the optional **π cache**/schemas are called out in the state/narrative and dictionary.
-* Event schema vocabulary (for logging later in S1) fixes channel strings and u01 constraints.
-
----
-
-# S0.6 Cross-border eligibility (deterministic gate)
-
-### Inputs (authoritative)
-
-* Merchant snapshot row $m\in\mathcal{M}$ with $(\texttt{merchant_id},\texttt{mcc},\texttt{channel},\texttt{home_country_iso})$ from `schemas.ingress.layer1.yaml#/merchant_ids`.
-* Eligibility policy bundle **`crossborder_eligibility_rules.yaml`** (ruleset identifier/version lives here; tracked in the artefact registry).
-* Partition/version lineage: `parameter_hash`, `manifest_fingerprint`.
-* Output contract: `schemas.1A.yaml#/prep/crossborder_eligibility_flags` (columns: `manifest_fingerprint`, `merchant_id`, `is_eligible`, `reason`, `rule_set`), and dictionary path/partitioning by `{parameter_hash}`.
-
-### Output (authoritative)
-
-* One row per $m$:
-  $(\texttt{merchant_id},\ \texttt{is_eligible}\in\{0,1\},\ \texttt{reason}\in\text{String or Enum},\ \texttt{rule_set},\ \texttt{manifest_fingerprint})$
-  written to `data/layer1/1A/crossborder_eligibility_flags/parameter_hash={parameter_hash}/…` under the schema above.
+* `E_DSGN_UNKNOWN_MCC(mcc)`: MCC absent from the fitting dictionary (should not happen if ingress dictionary is aligned).
+* `E_DSGN_UNKNOWN_CHANNEL(ch)`: channel not in $\{\mathrm{CP},\mathrm{CNP}\}$.
+* `E_DSGN_SHAPE_MISMATCH(exp_dim, got_dim)`: $\dim(\beta)\neq \dim(x_m)$ or dictionary sizes drift. (S1 would also abort on this when forming $\eta_m$.)
+* `E_DSGN_DOMAIN_GDP(g)`: $g_c\le 0$ (double guard; S0.4 should have already enforced).
+* `E_PARTITION_MISMATCH(id, path_key, embedded_key)`: if persisted, the `parameter_hash` embedded in rows must equal the directory key—otherwise fail.
 
 ---
 
-### Domain and symbols
-
-Let
-
-$$
-\mathcal{C}=\{\mathrm{CP},\mathrm{CNP}\},\qquad
-\mathcal{I}=\text{ISO-3166 alpha-2 set},\qquad
-\mathcal{K}=\text{valid 4-digit MCC codes}.
-$$
-
-A merchant $m$ maps to the triple
-
-$$
-t(m) := \big(\texttt{mcc}_m,\ \texttt{channel}_m,\ \texttt{home_country_iso}_m\big)\in \mathcal{K}\times\mathcal{C}\times\mathcal{I}.
-$$
-
-The policy file defines a **finite family of clauses** $\mathcal{R}=\{r_j\}_{j=1}^J$. Each clause $r_j$ is a tuple
-
-$$
-r_j=\big(S^{(j)}_{\!\mathrm{mcc}},\ S^{(j)}_{\!\mathrm{ch}},\ S^{(j)}_{\!\mathrm{iso}},\ d_j,\ \mathrm{id}_j\big),
-$$
-
-where $S^{(j)}_{\!\mathrm{mcc}}\subseteq\mathcal{K}$ (sets and/or disjoint ranges),
-$S^{(j)}_{\!\mathrm{ch}}\subseteq\mathcal{C}$,
-$S^{(j)}_{\!\mathrm{iso}}\subseteq\mathcal{I}$,
-and $d_j\in\{\textsf{allow},\textsf{deny}\}$.
-`id_j` is a stable string label for provenance in `reason`.
-(The registry explicitly tracks this rule bundle as the source of the flags. )
-
-Define the **set semantics** of a clause:
-
-$$
-\lbrack\!\lbrack r_j\rbrack\!\rbrack := S^{(j)}_{\!\mathrm{mcc}}\times S^{(j)}_{\!\mathrm{ch}}\times S^{(j)}_{\!\mathrm{iso}}\ \subseteq\ \mathcal{K}\times\mathcal{C}\times\mathcal{I}.
-$$
-
-Partition the family by decision:
-
-$$
-\mathcal{R}_{\textsf{allow}}=\{r_j:d_j=\textsf{allow}\},\qquad
-\mathcal{R}_{\textsf{deny}}=\{r_j:d_j=\textsf{deny}\}.
-$$
-
-Aggregate **coverage sets**:
-
-$$
-E_{\textsf{allow}}:=\bigcup_{r\in\mathcal{R}_{\textsf{allow}}}\lbrack\!\lbrack r\rbrack\!\rbrack,\qquad
-E_{\textsf{deny}} :=\bigcup_{r\in\mathcal{R}_{\textsf{deny}}}\lbrack\!\lbrack r\rbrack\!\rbrack.
-$$
-
-### Policy (default-deny with deny-overrides-allow)
-
-Adopt conservative semantics (fits gating intent and compliance defensibility):
-
-$$
-\boxed{\ E := E_{\textsf{allow}}\setminus E_{\textsf{deny}}\ },\qquad
-\boxed{\ \text{elig}_m = \mathbf{1}\{\,t(m)\in E\,\}\ }.
-$$
-
-Equivalently, $ \text{elig}_m=1$ iff $t(m)$ is covered by **at least one** allow clause and **no** deny clause; otherwise $ \text{elig}_m=0$.
-(These semantics align with the dataset’s purpose as a *pre-ZTP enforcement* and the registry’s explicit “rules determine which merchants attempt cross-border expansion”.)
-
-### Provenance fields
-
-Let `rule_set` be the versioned identifier of the loaded policy file (e.g., a semver or config hash). Each output row carries this `rule_set` and the run’s `manifest_fingerprint` for lineage, as required by the schema. Reasons are emitted as deterministic strings:
-
-$$
-\text{reason}_m=\begin{cases}
-\text{"allow:"}\!+\!\min\{\mathrm{id}_j: t(m)\in\lbrack\!\lbrack r_j\rbrack\!\rbrack,\, d_j=\textsf{allow}\}, & \text{if }\text{elig}_m=1;\\[4pt]
-\text{"deny:"}\!+\!\min\{\mathrm{id}_j: t(m)\in\lbrack\!\lbrack r_j\rbrack\!\rbrack,\, d_j=\textsf{deny}\}, & \text{if }t(m)\in E_{\textsf{deny}};\\[4pt]
-\text{"deny:default_no_rule"}, & \text{otherwise (default-deny)}.
-\end{cases}
-$$
-
-(The schema’s `reason` is nullable; you may choose to populate it only for the negative branch, but carrying a deterministic code for both branches eases audits.)
-
-### Invariants and properties
-
-1. **Determinism / RNG-free.** No randomness enters; output depends only on $t(m)$ and the policy artefact (therefore partitions by `{parameter_hash}` as specified).
-2. **Monotonicity.** Adding a deny clause never increases eligibility; adding an allow clause never decreases it **unless** it also introduces overlapping deny coverage (deny wins).
-3. **Idempotence.** Re-applying the rules does not change results: a pure function of $t(m)$.
-4. **Completeness of lineage.** Every row **must** include `manifest_fingerprint` and `rule_set` (schema-enforced), and the dataset **must** be partitioned by `{parameter_hash}` (dictionary-enforced).
-
----
-
-### Reference algorithm (minimal, deterministic)
+## Reference algorithm (language-agnostic)
 
 ```text
-INPUT: merchants M, ruleset R = {r_j}, parameter_hash, manifest_fingerprint, rule_set_id
-OUTPUT: crossborder_eligibility_flags rows
+function S0_5_build_designs(M, dict_mcc, dict_ch, dict_dev5, beta_hurdle, nb_dispersion_coef, G, B):
+  # Inputs:
+  #   M: merchant_ids rows (merchant_id, mcc, channel, home_country_iso)
+  #   dict_mcc: ordered list of MCC category keys (size C_mcc) -> column positions
+  #   dict_ch:  ordered list ["CP","CNP"] -> column positions (size 2)
+  #   dict_dev5: ordered list [1,2,3,4,5] -> column positions (size 5)
+  #   beta_hurdle: YAML vector (len = 1 + C_mcc + 2 + 5)
+  #   nb_dispersion_coef: YAML vector (len = 1 + C_mcc + 2 + 1)
+  #   G: ISO -> g_c > 0            (from S0.4)
+  #   B: ISO -> b_m in {1..5}      (from S0.4)
 
-1  # Pre-normalise rules:
-2  # Expand each r_j into explicit (MCC-set, channel-set, ISO-set, decision, id_j)
-3  # Ensure sets are finite and disjointable; no regex/wildcards at this point.
+  assert len(beta_hurdle) == 1 + len(dict_mcc) + 2 + 5, E_DSGN_SHAPE_MISMATCH
+  assert dict_ch == ["CP","CNP"], E_DSGN_UNKNOWN_CHANNEL
 
-4  for each merchant m in M:
-5      t := (m.mcc, m.channel, m.home_country_iso)
-6      allow_hits := { id_j : t ∈ ⟦r_j⟧ and r_j.decision = ALLOW }
-7      deny_hits  := { id_j : t ∈ ⟦r_j⟧ and r_j.decision = DENY }
-8      is_eligible := (|allow_hits| > 0) and (|deny_hits| = 0)
-9      reason :=
-10         if is_eligible then
-11             ("allow:" + min_lex(allow_hits))
-12         else if |deny_hits| > 0 then
-13             ("deny:" + min_lex(deny_hits))
-14         else
-15             "deny:default_no_rule"
-16      emit row:
-17         (manifest_fingerprint, m.merchant_id, is_eligible, reason, rule_set = rule_set_id)
-18
-19 # Persist to:
-20 # data/layer1/1A/crossborder_eligibility_flags/parameter_hash={parameter_hash}/...
-# Schema: schemas.1A.yaml#/prep/crossborder_eligibility_flags
+  for r in M:
+      m := r.merchant_id
+      c := r.home_country_iso
+      g := G[c];   if not (g > 0):   raise E_DSGN_DOMAIN_GDP(g)
+      b := B[c];   if b not in {1,2,3,4,5}: raise E_DSGN_DOMAIN_BUCKET(b)
+
+      # One-hots (positions from frozen dictionaries)
+      h_mcc = one_hot(dict_mcc.index_of(r.mcc), len(dict_mcc))     # throws if unknown -> E_DSGN_UNKNOWN_MCC
+      h_ch  = one_hot(dict_ch.index_of(r.channel), 2)              # CP/CNP only
+      h_dev = one_hot(dict_dev5.index_of(b), 5)
+
+      # Designs (strict order)
+      x_hurdle = [1] + h_mcc + h_ch + h_dev
+      x_nb_mu  = [1] + h_mcc + h_ch
+      x_nb_phi = [1] + h_mcc + h_ch + [log(g)]
+
+      # Emit / cache as needed (parameter-scoped if persisted)
+      yield (m, x_hurdle, x_nb_mu, x_nb_phi)
 ```
 
 ---
 
-# S0.7 — Optional diagnostic cache (hurdle $\pi$)
+## Complexity & concurrency
+
+* **Time:** $O(|\mathcal{M}|)$ with constant work per row.
+* **Space:** streaming construction; one merchant at a time.
+* **Parallelism:** embarrassingly parallel across merchants; determinism holds because dictionaries and S0.4 lookups are fixed.
+
+---
+
+## How S0.5 connects downstream
+
+* **S1 consumes** $(x_m,\beta)$ to compute $\eta_m$ and draw/record the Bernoulli hurdle event (audited). S1 will **abort** if the design/coefficients shape or order is inconsistent.
+* **S2 consumes** $(x_m^{(\mu)},x_m^{(\phi)})$ for NB mean/dispersion; all RNG usage there is tracked with the S0.3 envelope/trace rules.
+
+---
+
+**Summary:** S0.5 deterministically builds the **exact** hurdle and NB design vectors with **frozen** column order and strict domain checks, no RNG. It enforces the global design rule (bucket dummies only in hurdle; $\log g_c$ only in dispersion), guarantees shape/ordering alignment with the shipped coefficients, and—if you persist—binds everything to the **parameter-scoped** partitioning contract. This makes S1/S2 reproducible and auditable end-to-end.
+
+---
+
+# S0.6 — Cross-border Eligibility (deterministic gate, normative)
 
 ## Purpose
 
-Materialize a **read-only** cache of the hurdle logistic outputs for each merchant,
+Decide, **without randomness**, whether each merchant $m$ is permitted to attempt cross-border expansion later in the journey (i.e., enter S4–S6). Persist exactly one row per merchant to the parameter-scoped dataset **`crossborder_eligibility_flags`** with fields `(merchant_id, is_eligible, reason, rule_set, manifest_fingerprint)`. This dataset is read by S3 to branch the journey; S3 does not modify it.  
 
-$$
-(\texttt{merchant_id},\ \eta_m,\ \pi_m),
-\qquad
-\eta_m:=\beta^\top x_m,\ \ \pi_m:=\sigma(\eta_m),
-$$
+---
 
-to the dataset **`hurdle_pi_probs/parameter_hash={parameter_hash}/…`** with schema `schemas.1A.yaml#/model/hurdle_pi_probs`. This artefact is **never consulted during sampling**; it exists solely for diagnostics/validation and lineage.
+## Inputs (read-only; pinned earlier)
 
-## Inputs (deterministic)
+* **Merchant tuple** $t(m)=(\texttt{mcc}_m,\texttt{channel}_m,\texttt{home_country_iso}_m)$ from `merchant_ids` (S0.1).
+* **Parameter bundle:** `crossborder_hyperparams.yaml` (governed by `parameter_hash`; contains the eligibility rule set as specified below).
+* **Lineage keys:** `parameter_hash`, `manifest_fingerprint` (S0.2).
+* **Schema & dictionary contracts:**
 
-* **Design vector** $x_m$ built in S0.5 (intercept + MCC + channel + GDP-bucket one-hots).
-* **Hurdle coefficients** $\beta$ (single YAML vector; loaded atomically).
-* **Lineage keys:** `parameter_hash` (partitions this cache) and `manifest_fingerprint` (embedded per row). Dictionary fixes path and partitioning.
+  * Dataset: `crossborder_eligibility_flags` → partitioned by `{parameter_hash}`, schema `schemas.1A.yaml#/prep/crossborder_eligibility_flags`. 
 
-## Output (schema & typing)
+No RNG is consumed in S0.6.
 
-A Parquet table with:
+---
 
-* **Primary key:** `merchant_id`. **Partition key:** `parameter_hash`.
-* **Columns:**
-  `manifest_fingerprint` (hex64), `merchant_id` (id64), `logit` (float32), `pi` (pct01).
+## Output (authoritative)
 
-The dictionary declares the dataset as **model** artefact, produced by `1A.fit_hurdle_model`, retained 365 days, and **not final** in layer 1A.
-
-## Deterministic definitions & numerical policy
-
-* **Linear predictor.** $\eta_m=\beta^\top x_m$ with **column order** exactly matching the fitting bundle used for $\beta$ (S0.5).
-
-* **Logistic link (overflow-safe).**
-
-  $$
-  \sigma(\eta)=
-  \begin{cases}
-  \dfrac{1}{1+e^{-\eta}},& \eta\ge 0,\\[6pt]
-  \dfrac{e^\eta}{1+e^\eta},& \eta<0,
-  \end{cases}
-  \quad\Rightarrow\quad
-  \pi_m=\sigma(\eta_m)\in(0,1).
-  $$
-
-  For persistence, store `pi` as **float32** and accept $[0,1]$ as per `pct01` (hard saturation at $|\eta| \gg 1$ may round to exactly 0 or 1; this satisfies the schema).
-
-* **Precision discipline.** Compute $\eta_m,\pi_m$ in binary64, then round to the schema’s `float32` on write; this avoids avoidable drift across platforms while meeting the column type. (Schema for `pi` uses `pct01` in $[0,1]$.)
-
-## Invariants (must hold)
-
-1. **One row per merchant:**
-   $\big|\texttt{hurdle_pi_probs}\big|=\big|\mathcal{M}\big|$, keyed by `merchant_id`.
-2. **Lineage presence:**
-   Every row has `manifest_fingerprint` equal to the run fingerprint; partition directory equals the run’s `parameter_hash`.
-3. **Shape/ordering consistency:**
-   $|\beta|=\dim(x_m)$; MCC, channel, GDP-bucket dummy **orders** match the frozen dictionaries from the fitting bundle (S0.5).
-4. **Range checks:**
-   `pi ∈ [0,1]` (schema `pct01`), `logit` finite (no NaN/Inf).
-5. **Read-only contract:**
-   Declared as diagnostic; **never read** by the sampler (reinforced by dictionary lineage and the narrative).
-
-## Failure semantics (abort)
-
-* `beta_length_mismatch` or `column_order_mismatch` (design vs. coefficients).
-* `nan_or_inf_logit` or `nan_pi` (numerical failure).
-* `bad_lineage`: missing/incorrect `manifest_fingerprint` or wrong `parameter_hash` partition.
-* `pk_violation`: duplicate `merchant_id` in output (should be impossible if inputs are unique).
-
-## Minimal reference algorithm (supporting, not explanatory)
+Write one row per merchant $m$ to:
 
 ```
-INPUT: merchants M, design x_m (from S0.5), beta, parameter_hash, manifest_fingerprint
-OUTPUT: rows (merchant_id, logit, pi, manifest_fingerprint) -> hurdle_pi_probs
-
-1  check length(beta) == dim(x_m) for a sentinel merchant; else abort
-2  for each m in M:
-3      eta := dot(beta, x_m[m])                 # binary64 compute
-4      pi  := (eta >= 0) ? 1/(1+exp(-eta))      # overflow-safe σ
-5                       : exp(eta)/(1+exp(eta))
-6      write {manifest_fingerprint, merchant_id=m, logit=float32(eta), pi=float32(pi)}
-7  persist under data/layer1/1A/hurdle_pi_probs/parameter_hash={parameter_hash}/...
+data/layer1/1A/crossborder_eligibility_flags/parameter_hash={parameter_hash}/part-*.parquet
 ```
----
 
-# S0.8 — Numeric policy and determinism invariants
+with columns and constraints exactly per schema:
 
-## S0.8.1 Numeric environment (authoritative)
-
-We **fix** the arithmetic model to IEEE-754 **binary64** with *round-to-nearest, ties-to-even*; all scalars $x,y,\dots$ live in $\mathbb{F}_{64}$ (double precision). Two explicit controls are part of the artefact/runtime configuration and therefore fall under the **fingerprinted environment**:
-
-1. **FMA policy (disabled where ordering matters).**
-   For any expression of the form $a\cdot b + c$ used in computations that later influence **ordering** (e.g., residuals for largest-remainder), evaluate **as two rounded steps**:
-
-   $$
-   r_1 := \mathrm{round}_{64}(a\cdot b),\qquad
-   s := \mathrm{round}_{64}(r_1 + c).
-   $$
-
-   No fused-multiply-add is permitted in these code paths. (This toggle is part of the artefact set and hence included in the run **manifest fingerprint**.)
-
-2. **Deterministic reductions (no parallel non-associative sums).**
-   Any sum over a finite sequence $x_1,\dots,x_n\in\mathbb{F}_{64}$ that affects **branching or ordering** is evaluated by a **serial left fold** in a fixed, documented key order:
-
-   $$
-   s_0:=0,\quad s_k:=\mathrm{round}_{64}(s_{k-1}+x_k)\ \ (k=1,\dots,n),
-   $$
-
-   where the iteration order is the lexicographic order of the dataset’s **primary key** (e.g., $(\texttt{merchant_id},\texttt{legal_country_iso})$ for per-merchant, per-country accumulations). No tree/pairwise/compensated or parallel reductions are used in these **ordering-sensitive** paths. (The policy is stated in S0 and carried into S1–S8; the validator replays with the same order.)
-
-**Reproducibility note.** Because (i) FMA is disabled in sensitive paths, and (ii) reduction order is fixed, any compliant implementation produces **bit-identical** decisions (ranks, argmaxes, ties) across machines given the same `parameter_hash` and `manifest_fingerprint`.
+* `merchant_id` (PK),
+* `is_eligible` (boolean),
+* `reason` (nullable string: the decisive rule label or fallback),
+* `rule_set` (non-null string identifying the rule bundle/version),
+* `manifest_fingerprint` (hex64).
 
 ---
 
-## S0.8.2 RNG envelope invariants (must hold for **every** RNG event, states $>$ S0)
+## Domains & symbols
 
-Every RNG JSONL event uses the **shared envelope** schema and must **include**:
+* Channels $\mathcal{C}=\{\mathrm{CP},\mathrm{CNP}\}$.
+* Countries $\mathcal{I}$: ISO-3166 alpha-2 set (S0.1).
+* MCC set $\mathcal{K}$: 4-digit merchant category codes.
+* Merchant map $t(m)\in\mathcal{K}\times\mathcal{C}\times\mathcal{I}$ defined in S0.1.
+
+---
+
+## Rule family (configuration semantics)
+
+All eligibility rules live in **`crossborder_hyperparams.yaml`** under a top-level object:
+
+```yaml
+eligibility:
+  rule_set_id: "eligibility.v1.2025-04-15"
+  default_decision: "deny"         # "allow" or "deny"
+  rules:
+    - id: "sanctions_deny"
+      priority: 10                 # smaller = higher precedence inside same decision tier
+      decision: "deny"             # "allow"|"deny"
+      mcc:     ["*"]               # list of MCCs or "*" (wildcard); ranges allowed as "5000-5999"
+      channel: ["CP","CNP"]        # subset of {"CP","CNP"} or "*"
+      iso:     ["RU","IR","KP"]    # subset of ISO-2 or "*" (wildcard)
+      reason:  "sanctions"
+    - id: "card_present_low_risk_allow"
+      priority: 50
+      decision: "allow"
+      mcc:     ["5411","5812","5814","5912"]
+      channel: ["CP"]
+      iso:     ["*"]
+      reason:  "low_risk_cp"
+    # ... more rules ...
+```
+
+**Validation of the bundle** (done once at load):
+
+* `rule_set_id`: non-empty ASCII; becomes **`rule_set`** column value.
+* `default_decision ∈ {"allow","deny"}`.
+* Each rule: `id` unique; `priority` integer in $[0, 2^{31}{-}1]$; `decision ∈ {"allow","deny"}`; list fields are either `"*"` or non-empty lists with valid members/ranges. Unknown MCC/ISO or channel outside $\mathcal{C}$ is a hard error.
+
+---
+
+## Set interpretation & matching
+
+Each rule $r$ defines (after expansion of `"*"` and ranges) three sets
+$(S_{\!{\rm mcc}}, S_{\!{\rm ch}}, S_{\!{\rm iso}})\subseteq \mathcal{K}\times\mathcal{C}\times\mathcal{I}$ and a decision $d\in\{\textsf{allow},\textsf{deny}\}$.
+
+* **Clause semantics:** $[ [ r ] ] = S_{\!{\rm mcc}}\times S_{\!{\rm ch}}\times S_{\!{\rm iso}}$.
+* **A rule “matches”** merchant $m$ iff $t(m)\in [ [ r ] ]$.
+
+Let $\mathcal{R}_{\textsf{allow}}$ and $\mathcal{R}_{\textsf{deny}}$ be the sets of rules by decision.
+
+---
+
+## Conflict resolution & determinism (normative)
+
+When multiple rules match a merchant, the decision and the **reason** are selected by this **total order**:
+
+1. **Decision tier:** `deny` outranks `allow`.
+2. **Priority:** lower `priority` outranks higher (e.g., `10` beats `50`).
+3. **Tie-break:** lexical order on `id` (ASCII).
+
+Let $\mathrm{best}_{\textsf{deny}}(m)$ be the top-ranked matching deny rule (or `None`), and $\mathrm{best}_{\textsf{allow}}(m)$ the top-ranked matching allow rule (or `None`).
+
+* If $\mathrm{best}_{\textsf{deny}}(m)$ exists → **`is_eligible = false`**, `reason = that.id`.
+* Else if $\mathrm{best}_{\textsf{allow}}(m)$ exists → **`is_eligible = true`**, `reason = that.id`.
+* Else (no matches) → **`is_eligible = (default_decision == "allow")`**,
+  `reason = "default_allow"` or `"default_deny"` accordingly.
+
+This rule makes outcomes **order-invariant** and replayable under any parallelisation.
+
+---
+
+## Algorithm (exact; streaming-safe)
+
+For each merchant row $m$:
+
+1. Obtain $t(m)=(\texttt{mcc},\texttt{channel},\texttt{home_iso})$.
+2. Build candidate sets $D=\{\text{deny rules matching }m\}$, $A=\{\text{allow rules matching }m\}$.
+
+   * Matching expands `"*"` to full domain and MCC ranges “a–b” to the integer set $\{a,\dots,b\}$.
+3. Choose decision per **Conflict resolution** above; collect `reason`.
+4. Emit row:
+
+   ```
+   {
+     manifest_fingerprint, merchant_id,
+     is_eligible: true|false,
+     reason: <winning rule id or "default_*">,
+     rule_set: eligibility.rule_set_id
+   }
+   ```
+5. Partition write by `parameter_hash` (dataset is parameter-scoped).
+
+**Complexities.** If rules are indexed by channel and home ISO, and MCC ranges are interval-tree indexed, per-merchant matching is $O(\log |\mathcal{R}| + M)$ with small constants; naive is $O(|\mathcal{R}|)$, acceptable at current scale.
+
+---
+
+## Formal specification (decision function)
+
+Let $\prec$ be the strict order on rules defined by the triple key
+$(\text{decision}, \text{priority}, \text{id})$ under the mapping `deny` $<$ `allow` for the first component, numeric order for `priority`, ASCII for `id`. For a set $S$ of rules, let $\min_\prec S$ be its best element.
+
+Define:
 
 $$
-\{\texttt{ts_utc},\texttt{run_id},\texttt{seed},\texttt{parameter_hash},\texttt{manifest_fingerprint},\texttt{module},\texttt{substream_label},\texttt{rng_counter_before_{lo,hi}},\texttt{rng_counter_after_{lo,hi}}\}.
+\mathrm{best}_{\textsf{deny}}(m)=\min\nolimits_\prec\{r\in\mathcal{R}_{\textsf{deny}} \mid t(m)\in[ [ r ] ]\},
 $$
 
-* `seed` is the master Philox u64; `parameter_hash` and `manifest_fingerprint` bind the event to its parameter bundle and run lineage.
-* Counters satisfy **block conservation**:
-
-  $$
-  C_{\text{after}}=\mathrm{advance}\!\left(C_{\text{before}},\,\Big\lceil\frac{\texttt{draws}}{2}\Big\rceil\right),
-  $$
-
-  with `draws` implied by the payload and cross-checked by S9.
-* Absence of any required field is a **structural failure** against `schemas.layer1.yaml#/$defs/rng_envelope`.
-
----
-
-## S0.8.3 Partitioning invariants (dictionary-backed, audited)
-
-Partitioning is **data-contracted**; the dataset dictionary enumerates which key drives each artefact’s path.
-
-* **Parameter-scoped** artefacts must live under:
-
-  $$
-  \texttt{…/parameter_hash=\{parameter_hash\}/…}\quad\text{(and often } \texttt{seed}\text{ when per-seed)}.
-  $$
-
-  Examples:
-  `crossborder_eligibility_flags( parameter_hash )`,
-  `hurdle_pi_probs( parameter_hash )`,
-  `country_set( seed, parameter_hash )`,
-  `ranking_residual_cache( seed, parameter_hash )`.
-
-* **Egress / validation** artefacts must live under:
-
-  $$
-  \texttt{…/fingerprint=\{manifest_fingerprint\}/…}\quad\text{(and often } \texttt{seed}\text{)}.
-  $$
-
-  Examples:
-  `outlet_catalogue( seed, fingerprint )`,
-  `validation_bundle_1A( fingerprint )`,
-  `_passed.flag( fingerprint )`.
-
-The **paths** above are authoritative; validators assert the path template **and** the embedded columns (e.g., every Parquet row in `outlet_catalogue` carries the same `manifest_fingerprint` as the directory).
-
----
-
-## S0.8.4 Determinism guarantees (what equality means)
-
-For any two runs $R,R'$:
-
-* If $\texttt{parameter_hash}(R)=\texttt{parameter_hash}(R')$ **and** $\texttt{manifest_fingerprint}(R)=\texttt{manifest_fingerprint}(R')$, then all **parameter-scoped** artefacts and all **egress/validation** artefacts are **bit-replayable** (identical schemas, values, and RNG traces), provided the numeric toggles match (which they must, as they’re part of the artefact set hashed into the fingerprint).
-
-* If either key differs, reproducible divergence is **expected** and treated as a new lineage. (Dictionary and registry encode this expectation; consumers must use the partition keys when discovering data.)
-
----
-
-## S0.8.5 What S0.8 enforces downstream
-
-* **Numeric policy**: FMA-off and serial reductions for ordering-sensitive ops; binary64 throughout.
-* **RNG envelope**: every event post-S0 is structurally validated against the shared schema; missing fields or counter-conservation failure is a **hard abort** in S9.
-* **Partitioning**: writers must use the dictionary’s path templates; readers must treat `{parameter_hash}` vs `{fingerprint}` as **semantic** (parameter lineage vs run lineage).
----
-
-# S0.9 — Failure modes (all abort)
-
-Let the run context be fixed (`parameter_hash`, `manifest_fingerprint`, numeric/FMA toggles) and the authoritative schemas be those named by the **Schema Authority Policy**. Any violation below **aborts S0** (or the first state that can detect it) with a deterministic error code and a forensic payload (offending PKs, artefact id/path, sizes/mtimes, etc.).
-
----
-
-## (F1) Ingress schema violation (merchant_ids)
-
-**Predicate.**
-`merchant_ids ⊄ schemas.ingress.layer1.yaml#/merchant_ids` (type, required fields, PK uniqueness, ISO-2 pattern) ⟺ **FAIL**.
-
-Formally, for some row $r=(m,\mathrm{mcc},\mathrm{ch},c)$:
-
-* $m$ not an `id64`; or
-* $\mathrm{mcc}$ not a valid 4-digit code; or
-* $\mathrm{ch}\notin\{\mathrm{CP},\mathrm{CNP}\}$; or
-* $c$ not matching `^[A-Z]{2}$` or not in the canonical ISO table; or
-* duplicate $m$.
-
-**Detection.** JSON-Schema validation against the ingress ref in the **dictionary** (the dictionary pins the schema and the path).
-
-**Error.** `ingress_schema_violation(merchant_ids, row_pk=…)`.
-
----
-
-## (F2) Missing artefact or digest/fingerprint formation failure
-
-Covers S0.2 hashing & lineage.
-
-### (F2a) Parameters (S0.2.2)
-
-Missing/duplicate/unreadable file in $\mathcal{F}=${`crossborder_hyperparams.yaml`, `hurdle_coefficients.yaml`, `nb_dispersion_coefficients.yaml`} ⟺ **FAIL**.
-Guard also fires on **instability during hash** (size/mtime changed), **bad hex64**, or any non-regular file.
-
-**Error.** `missing_parameter_file(f) | duplicate_parameter_file(f) | unreadable_parameter_file(f) | changed_during_hash(f) | bad_hex_encoding`.
-
-### (F2b) Manifest fingerprint (S0.2.3)
-
-* **Empty artefact set** $\mathcal{A}=\varnothing$; or
-* **git hash** not 20 or 32 bytes before padding to `git32`; or
-* any artefact in $\mathcal{A}$ unreadable/not regular; or
-* **bad hex64** on persistence. ⟺ **FAIL**.
-
-**Error.** `empty_artefact_set | git_hash_bad_length | artefact_missing(path) | not_regular_file(path) | bad_hex_encoding`.
-
-*(Both (F2a) and (F2b) are part of the lineage contract that later drives partitioning of parameter-scoped vs egress/validation artefacts.)*
-
----
-
-## (F3) Non-finite / out-of-domain feature or model outputs
-
-### (F3a) GDP & bucket (S0.4)
-
-* $g_c\notin\mathbb{R}_{>0}$ (NaN/Inf/≤0) ⟺ **FAIL**.
-* $b_m\notin\{1,2,3,4,5\}$ ⟺ **FAIL**.
-  (These are pure lookups from pinned artefacts; violations indicate bad upstream rows or wrong joins.)
-
-**Error.** `nonpositive_gdp(c, g_c) | bucket_out_of_range(c, b)`.
-
-### (F3b) Hurdle logit/probability (S0.5/S0.7)
-
-* $\eta_m=\beta^\top x_m$ not finite; or
-* $\pi_m=\sigma(\eta_m)$ is NaN (implementation bug—overflow-safe form prevents this). ⟺ **FAIL**.
-  Schema for the optional cache requires `logit` finite and `pi ∈ [0,1]`.
-
-**Error.** `nan_or_inf_logit(m) | nan_pi(m)`.
-
----
-
-## (F4) RNG audit/envelope violations
-
-### (F4a) Audit not written before first draw
-
-If **any** RNG event exists but no `rng_audit_log` row for the run (`seed, parameter_hash, run_id`) has been written ⟺ **FAIL**. The dictionary mandates the audit log path & schema.
-
-**Error.** `missing_rng_audit_log(run_id, seed, parameter_hash)`.
-
-### (F4b) Envelope structural failure (any event)
-
-Missing any required envelope field:
-$\{\texttt{ts_utc},\texttt{run_id},\texttt{seed},\texttt{parameter_hash},\texttt{manifest_fingerprint},\texttt{module},\texttt{substream_label},\texttt{rng_counter_before_{lo,hi}},\texttt{rng_counter_after_{lo,hi}}\}$
-or type/pattern mismatch (e.g., non-hex64), ⟺ **FAIL** against the shared schema.
-
-**Error.** `rng_envelope_schema_violation(label, event_id)`.
-
-### (F4c) Counter conservation failure
-
-For an event with `draws = d`,
-
 $$
-C_{\text{after}}\ne \mathrm{advance}\!\left(C_{\text{before}},\ \left\lceil \frac{d}{2}\right\rceil\right)\ \ \Rightarrow\ \ \textbf{FAIL}.
+\mathrm{best}_{\textsf{allow}}(m)=\min\nolimits_\prec\{r\in\mathcal{R}_{\textsf{allow}} \mid t(m)\in[ [ r ] ]\}.
 $$
 
-Detected by the **rng trace** validator using the same dictionary/schema.
+The eligibility indicator is
 
-**Error.** `rng_counter_mismatch(label, before, after, draws)`.
+$$
+\boxed{\
+e_m = 
+\begin{cases}
+0,& \mathrm{best}_{\textsf{deny}}(m)\ \text{exists},\\[2pt]
+1,& \mathrm{best}_{\textsf{deny}}(m)=\varnothing\ \land\ \mathrm{best}_{\textsf{allow}}(m)\ \text{exists},\\[2pt]
+\mathbf{1}\{\texttt{default_decision}=\text{"allow"}\},& \text{otherwise.}
+\end{cases}}
+$$
 
----
-
-## (F5) Partitioning/lineage mismatch (schema + dictionary)
-
-Any dataset written under a **wrong partition key** or with **embedded lineage** not equal to the directory key ⟺ **FAIL**. Examples:
-
-* Parameter-scoped outputs (e.g., `crossborder_eligibility_flags`, `hurdle_pi_probs`, `country_set`, `ranking_residual_cache`) **must** live under `…/parameter_hash={parameter_hash}/…` and rows must embed the **same** `parameter_hash`.
-* Egress/validation (`outlet_catalogue`, `validation_bundle_1A`) **must** live under `…/fingerprint={manifest_fingerprint}/…` and rows/bundle index must embed the **same** `manifest_fingerprint`.
-
-**Error.** `partition_mismatch(dataset_id, path_key, embedded_key)`.
-
----
-
-## (F6) Schema authority breach
-
-Referencing non-authoritative schemas (e.g., an `.avsc` for a 1A dataset) or drifting from the declared JSON-Schema refs in the **dictionary** ⟺ **FAIL** (build-time or validation-time).
-
-**Error.** `non_authoritative_schema_ref(dataset_id, observed_ref)`.
+The **reason** is the winning rule’s `id` when matched; otherwise `"default_allow"`/`"default_deny"`.
 
 ---
 
-### Where these guards are anchored
+## Determinism & contracts
 
-* **Schemas & envelope:** `schemas.ingress.layer1.yaml`, `schemas.1A.yaml`, and `schemas.layer1.yaml` (rng envelope + primitives inc. `hex64`, `u01`, `pct01`).
-* **Dictionary paths/partitions:** canonical paths for every dataset (eligibility, design, caches, egress, validation, RNG logs).
-* **Lineage recipes:** parameter hash & manifest fingerprint definitions in S0.2.\* (what to compute and how).
----
-
-perfect — here’s **S0.10 — Outputs leaving S0 (deterministic state)**, tightened to the exact artefacts, types, and partitions the next states will rely on.
+* **No RNG.** Output depends only on $t(m)$ and the parameter bundle.
+* **Schema and partitioning:** rows must conform to `#/prep/crossborder_eligibility_flags` and be stored under `parameter_hash={parameter_hash}`. 
+* **Downstream gate:** S3 **reads** `is_eligible` and branches: if 0 → **domestic-only** (skip S4–S6); if 1 → proceed to ZTP of foreign-count (S4).
 
 ---
 
-# S0.10 — Outputs leaving S0
+## Failure semantics (abort S0 with precise codes)
 
-For each $m\in\mathcal{M}$, S0 emits the following **deterministic** products and lineage keys.
+At parameter load:
 
-## A) In-memory (or transient model-input artefact)
+* `E_ELIG_RULESET_ID_EMPTY` — missing/empty `rule_set_id`.
+* `E_ELIG_DEFAULT_INVALID` — `default_decision` not in {"allow","deny"}.
+* `E_ELIG_RULE_DUP_ID(id)` — duplicate rule id.
+* `E_ELIG_RULE_BAD_CHANNEL(id, ch)` — channel not in $\{\mathrm{CP},\mathrm{CNP}\}$.
+* `E_ELIG_RULE_BAD_ISO(id, iso)` — ISO not in canonical $\mathcal{I}$.
+* `E_ELIG_RULE_BAD_MCC(id, mcc)` — MCC not in $\mathcal{K}$ or bad range.
 
-* **Design vectors** (column order frozen by the fitting bundle):
+At evaluation time:
 
-  * $x_m\in\mathbb{R}^{1+C_{\mathrm{mcc}}+2+5}$ (hurdle: intercept + MCC + channel + GDP-bucket dummies),
-  * $x^{(\mu)}_m\in\mathbb{R}^{1+C_{\mathrm{mcc}}+2}$ (NB mean),
-  * $x^{(\phi)}_m\in\mathbb{R}^{1+C_{\mathrm{mcc}}+2+1}$ (NB dispersion, includes $\log g_c$).
-* **Country features:** $b_m\in\{1,\dots,5\}$ (Jenks bucket), $g_c>0$ (GDP per-capita for home ISO).
-  If materialised, these live under **`hurdle_design_matrix/parameter_hash={parameter_hash}/…`** with schema `schemas.1A.yaml#/model/hurdle_design_matrix`.
+* `E_ELIG_MISSING_MERCHANT(m)` — merchant row missing required fields.
+* `E_ELIG_WRITE_FAIL(path, errno)` — failed to persist to the partitioned dataset.
+* `E_PARTITION_MISMATCH(path_key, embedded_fp)` — embedded `manifest_fingerprint` mismatches directory fingerprint (should not happen; S0.2 pins it).
 
-## B) Deterministic prep/caches (parameter-scoped)
+All errors **abort S0**; no partial output is acceptable.
 
-* **Cross-border gate:** one row per merchant in
-  **`crossborder_eligibility_flags/parameter_hash={parameter_hash}/…`**, schema `schemas.1A.yaml#/prep/crossborder_eligibility_flags`.
-* **Optional diagnostics:** hurdle cache
-  **`hurdle_pi_probs/parameter_hash={parameter_hash}/…`**, schema `schemas.1A.yaml#/model/hurdle_pi_probs` (never read by samplers).
+---
 
-> Partitioning is **by `{parameter_hash}`** for both datasets; this is dictionary-backed and audited.
+## Validation & CI hooks
 
-## C) Run-level lineage + RNG bootstrap (persisted logs)
+1. **Schema conformance:** every output row matches `#/prep/crossborder_eligibility_flags`.
+2. **Coverage:** one and only one row per merchant id (PK uniqueness).
+3. **Determinism test:** re-run S0.6 with the same inputs → bit-identical Parquet rows (ignoring file ordering).
+4. **Policy lint:** simulate N random merchants drawn from the current ingress distribution and report counts by decision tier (`deny`, `allow`, `default_*`) to detect unintended policy swings during parameter updates.
+5. **Dictionary lint:** dataset path and partitioning exactly match dictionary entry.
 
-S0 finalises and records the keys that bind all subsequent RNG and egress:
+---
 
-* **`parameter_hash ∈ [a–f0–9]^{64}`** (concat-digest of parameter YAMLs) and
-  **`manifest_fingerprint ∈ [a–f0–9]^{64}`** (XOR-reduce of artefacts ⊕ git ⊕ parameter hash), both carried in all downstream artefacts/events.
-* **Master Philox seed** $S_{\text{master}}\in\{0,\dots,2^{64}-1\}$ and **initial counter** $(c_{\mathrm{hi}},c_{\mathrm{lo}})\in\{0,\dots,2^{64}-1\}^2$, written to the **RNG audit log** **before any draw**:
-  `logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl`, schema `schemas.layer1.yaml#/rng/core/rng_audit_log`. Envelope fields (`seed`, `parameter_hash`, `manifest_fingerprint`, counters) are mandatory in all RNG JSONL.
-* **RNG trace log** is opened (same partition keys) to enforce counter conservation in later states.
+## Reference pseudocode (language-agnostic)
 
-## D) What downstream states can assume
+```text
+function S0_6_apply_eligibility_rules(merchants, params, manifest_fingerprint, parameter_hash):
+  cfg = params["eligibility"]
+  rsid = cfg["rule_set_id"]
+  default_is_allow = (cfg["default_decision"] == "allow")
 
-* The triplet $(\texttt{parameter_hash},\texttt{manifest_fingerprint},\texttt{seed}=S_{\text{master}})$ and initial $(c_{\mathrm{hi}},c_{\mathrm{lo}})$ are **already recorded** and immutable for the run; types follow `hex64`/`uint64` defs in the shared schema.
-* Any consumer needing hurdle design or π may **optionally** read the caches above; samplers must not depend on them for correctness.
-* Egress in later states (e.g., `outlet_catalogue`) will partition by `{seed,fingerprint}`; parameter-scoped intermediates continue under `{parameter_hash}`.
+  rules = parse_and_expand(cfg["rules"])  # validate: domains, ranges, duplicates
+  deny_rules  = index_rules(rules, decision="deny")   # index by (channel, home_iso), MCC ranges
+  allow_rules = index_rules(rules, decision="allow")
+
+  writer = open_partitioned_writer(
+              dataset="crossborder_eligibility_flags",
+              partition={"parameter_hash": parameter_hash})
+
+  for m in merchants:          # stream over merchants; order-independent
+      key = (m.mcc, m.channel, m.home_country_iso)
+
+      D = match_rules(deny_rules,  key)   # returns list of (priority, id, reason)
+      A = match_rules(allow_rules, key)
+
+      if not empty(D):
+          best = min_lex(D)               # (priority asc, id ASCII)
+          is_eligible = false
+          reason      = best.id
+      elif not empty(A):
+          best = min_lex(A)
+          is_eligible = true
+          reason      = best.id
+      else:
+          is_eligible = default_is_allow
+          reason      = "default_allow" if default_is_allow else "default_deny"
+
+      writer.write({
+        "manifest_fingerprint": manifest_fingerprint,
+        "merchant_id": m.merchant_id,
+        "is_eligible": is_eligible,
+        "reason": reason,
+        "rule_set": rsid
+      })
+
+  writer.close()
+```
+
+---
+
+## Complexity, concurrency, and I/O
+
+* **Time:** $O(|\mathcal{M}| \cdot \log |\mathcal{R}|)$ with simple indices; $O(|\mathcal{M}| \cdot |\mathcal{R}|)$ naive.
+* **Space:** streaming; constant memory apart from indices.
+* **Parallelism:** embarrassingly parallel across shards; determinism holds because decisions depend only on $t(m)$ and a static, versioned rule set.
+
+---
+
+## How S0.6 connects downstream
+
+* S3 treats `crossborder_eligibility_flags.is_eligible` as the **sole** branch condition before ZTP. If `false`, $K_m=0$ and the country set later persists as `{home}` only; if `true`, proceed to S4 for foreign-count and then S6 for Gumbel selection and final `country_set` persistence. 
+
+---
+
+**Bottom line:** S0.6 deterministically turns policy into a per-merchant **yes/no** gate, with a stable conflict-resolution order, explicit **reason** strings, and a versioned **rule_set** id. It writes an authoritative, parameter-scoped table that downstream states consume verbatim to control the cross-border branch—no RNG, no ambiguity.
+
+---
+
+# S0.7 — Hurdle π Diagnostic Cache (deterministic, optional, normative)
+
+## Purpose
+
+Materialise a **read-only diagnostics table** with per-merchant logistic-hurdle outputs
+
+$$
+(\texttt{merchant_id},\ \eta_m,\ \pi_m),\quad \eta_m=\beta^\top x_m,\ \pi_m=\sigma(\eta_m)\in(0,1),
+$$
+
+so that monitoring/validation can inspect the hurdle surface without re-evaluating designs on the hot path. This artefact is **never consulted by samplers**; it is optional and lives under the **parameter-scoped** partition.
+
+* **Dataset id / path / schema:** `hurdle_pi_probs` →
+  `data/layer1/1A/hurdle_pi_probs/parameter_hash={parameter_hash}/` with schema `schemas.1A.yaml#/model/hurdle_pi_probs`.
+* **Registry role:** “Logistic-hurdle π (single vs multi) per merchant”. Depends on `hurdle_design_matrix` and `hurdle_coefficients`.
+
+> S0.10 explicitly lists this as **optional** output of S0 (parameter-scoped).
+
+---
+
+## Inputs (frozen by S0.1–S0.5)
+
+* **Design vector** $x_m=[1,\ \phi_{\mathrm{mcc}},\ \phi_{\mathrm{ch}},\ \phi_{\mathrm{dev}}]$ constructed in **S0.5** with column order frozen by the fitting bundle.
+* **Hurdle coefficients** $\beta$ loaded atomically from `hurdle_coefficients.yaml` (the single YAML contains all columns of $x_m$).
+* **Lineage keys:** `parameter_hash` (partition key) and `manifest_fingerprint` (embedded per row).
+
+No other artefacts are read here; **no RNG** is consumed.
+
+---
+
+## Output (schema, typing, keys)
+
+A Parquet table with **one row per merchant**:
+
+* **Primary key:** `merchant_id`.
+* **Partition key:** `parameter_hash` (directory level).
+* **Columns (min set):**
+
+  * `manifest_fingerprint` (hex64),
+  * `merchant_id` (id64 per ingress schema),
+  * `logit` (alias of $\eta_m$; **float32**),
+  * `pi` (alias of $\pi_m$; **float32** in $(0,1)$).
+
+Dictionary and registry describe this dataset exactly with the path above and schema ref `#/model/hurdle_pi_probs`; lineage marks it **produced by** 1A’s hurdle fit and **final_in_layer: false**.
+
+---
+
+## Canonical definitions & numerical policy (deterministic)
+
+### Linear predictor and logistic
+
+Let $\eta_m = \beta^\top x_m$ with the **exact** column order from the fitting bundle (validated in S0.5). Logistic map is evaluated with the **overflow-stable branch**:
+
+$$
+\sigma(\eta)=
+\begin{cases}
+\dfrac{1}{1+e^{-\eta}}, & \eta\ge 0,\\[6pt]
+\dfrac{e^{\eta}}{1+e^{\eta}}, & \eta<0.
+\end{cases}
+\quad\Rightarrow\quad \pi_m=\sigma(\eta_m)\in(0,1).
+$$
+
+Arithmetic is IEEE-754 **binary64** for computation; persisted `logit`/`pi` are **narrowed** to float32 using round-to-nearest, ties-to-even. (This narrowing is deterministic and part of the contract.)
+
+### Determinism & scope rules
+
+* **No randomness.** Results depend only on $x_m$ and $\beta$.
+* **No side effects.** This artefact **must not** be read by any sampler or allocation routine (it is diagnostics only).
+* **Parameter-scoped.** Changing `parameter_hash` (i.e., any governed parameter byte) invalidates the entire table (distinct partition).
+
+---
+
+## Failure semantics (abort S0 with precise codes)
+
+* `E_PI_SHAPE_MISMATCH(exp_dim, got_dim)` — $|\beta|\neq \dim(x_m)$ for the bundle in use (should have been caught in S0.5; double-guard here).
+* `E_PI_NAN_OR_INF(m)` — $\eta_m$ or $\pi_m$ is non-finite after evaluation. (Forbidden in S0 failure list.)
+* `E_PI_PARTITION(path_key, embedded_hash)` — embedded `parameter_hash` (if embedded) mismatches directory key (dictionary partition contract).
+* `E_PI_WRITE(path, errno)` — write failure to the parameter-scoped location.
+
+> On any of the above, **abort S0**; this cache is either wholly correct or not present for the run.
+
+---
+
+## Validation & CI hooks (prove it)
+
+1. **Schema conformance:** table matches `schemas.1A.yaml#/model/hurdle_pi_probs`.
+2. **Coverage:** exactly $|\mathcal{M}|$ rows (1 row per merchant id).
+3. **Recompute check:** independently recompute $x_m$ (using S0.5’s dictionaries) and $\eta_m,\pi_m$ from the shipped $\beta$; assert bit-equality after float32 narrowing.
+4. **Partition lint:** dataset path includes `parameter_hash={parameter_hash}` and no other partition keys; dictionary entry matches.
+5. **Downstream isolation:** static analysis / policy test confirms no production code reads `hurdle_pi_probs` in states S1–S9 (it’s diagnostics only).
+
+---
+
+## Algorithm (exact; streaming-safe)
+
+For each merchant row $m\in\mathcal{M}$:
+
+1. Load $x_m$ from S0.5 (or recompute deterministically). Ensure column order matches the fitting dictionary.
+2. Compute $\eta_m=\beta^\top x_m$ in **binary64**; compute $\pi_m=\sigma(\eta_m)$ via the branch-stable definition above.
+3. Check finiteness; on failure raise `E_PI_NAN_OR_INF(m)`.
+4. Narrow to float32 with IEEE round-to-nearest-even: `logit := float32(η_m)`, `pi := float32(π_m)`.
+5. Emit row `{ manifest_fingerprint, merchant_id, logit, pi }`.
+6. Persist under `data/layer1/1A/hurdle_pi_probs/parameter_hash={parameter_hash}/…` (dictionary path), Parquet, one file or multiple parts; ordering is unspecified.
+
+**Complexity.** $O(|\mathcal{M}|)$ dot-products; space $O(1)$ streaming; trivially parallel across shards (determinism unaffected).
+
+---
+
+## Reference pseudocode (language-agnostic)
+
+```text
+function S0_7_build_hurdle_pi_cache(merchants, beta, dicts, manifest_fingerprint, parameter_hash):
+  # dicts carry the frozen column order for MCC, channel, bucket (from S0.5)
+  writer = open_partitioned_writer(
+             dataset="hurdle_pi_probs",
+             partition={"parameter_hash": parameter_hash})
+
+  for m in merchants:
+      x = build_x_hurdle(m, dicts)                # deterministic, validated in S0.5
+      eta64 = dot_f64(beta, x)                    # binary64 accumulation (fixed order)
+      pi64  = logistic_branch_stable(eta64)       # in (0,1)
+      if not is_finite(eta64) or not is_finite(pi64):
+          raise E_PI_NAN_OR_INF(m.merchant_id)
+
+      row = {
+        "manifest_fingerprint": manifest_fingerprint,
+        "merchant_id": m.merchant_id,
+        "logit": f32(eta64),                      # IEEE round-to-nearest-even
+        "pi":    f32(pi64)
+      }
+      writer.write(row)
+
+  writer.close()
+```
+
+---
+
+## How S0.7 connects downstream
+
+* **S1** recomputes $\eta_m,\pi_m$ on the fly to draw the Bernoulli hurdle; it **does not** read this cache. S0.7 exists solely for auditability and exploration.
+* **S0.10** lists `hurdle_pi_probs` as an optional S0 product; presence/absence does not affect any later state (fingerprint captures parameters either way).
+
+---
+
+**Bottom line:** S0.7 provides an **optional, parameter-scoped**, **deterministic** snapshot of the hurdle surface $(\eta_m,\pi_m)$ per merchant. It’s fully governed by schema/dictionary, has strict failure and validation hooks, and—crucially—**does not** influence any stochastic step or allocation result.
+
+---
+
+# S0.8 — Numeric Policy & Determinism Controls (normative)
+
+## Purpose
+
+Guarantee that all numerically sensitive computations in 1A are **bit-stable** across machines, builds, and degrees of parallelism. S0.8 defines:
+
+* the **floating-point environment** (format, rounding, subnormals),
+* a **deterministic math profile** for `exp/log/sin/cos/atan2/pow`,
+* **compiler/runtime flags** forbidding contraction and fast-math,
+* **reduction/sorting** rules (fixed order, exact tie-breaks),
+* **tolerances** for validation (internal vs external),
+* runtime **self-tests** that abort the run if violated.
+
+No randomness is consumed in S0.8; this is configuration + mandatory self-checks.
+
+---
+
+## S0.8.1 Floating-point environment (must hold)
+
+**Format.** IEEE-754 **binary64** (`float64`) for all model computations and comparisons that can affect decisions/order. Persisted diagnostics may downcast (explicitly specified elsewhere).
+
+**Rounding mode.** **Round to nearest, ties to even** (RNE). The run must confirm the mode at startup and fix it process-wide.
+
+**FMA (fused multiply-add).** **Disabled** on any ordering-critical computation (anything that drives a decision, ranking, acceptance test, or integerisation). The build must set flags to prevent contraction (see §S0.8.4). We allow FMA **only** in code paths explicitly marked “non-critical” and never feeding a branch/ordering.
+
+**Subnormals / FTZ / DAZ.** **Disabled** (i.e., subnormals must be honored). FTZ (“flush-to-zero”) and DAZ (“denormals-are-zero”) must be **off**.
+
+**Exceptions.** Floating exceptions are masked (no SIGFPE), but every numeric op must return a finite value. Any NaN/Inf encountered in a model computation is a **hard error** (§S0.8.8).
+
+**Endianness & integer width.** Assumed little-endian. Where endianness matters (e.g., hashing, PRNG message layouts), the spec pins byte order explicitly.
+
+---
+
+## S0.8.2 Deterministic libm profile (math functions)
+
+Most OS libm functions are not bit-stable across platforms. 1A therefore pins a **math profile** for the following functions used anywhere in the layer:
+`exp`, `log`, `log1p`, `expm1`, `sqrt`, `sin`, `cos`, `atan2`, `pow`, `tanh`, `erf` (if ever used).
+
+**Normative requirements**
+
+* Implementations **must be bit-identical** across platforms for all inputs in their defined domains.
+* `sqrt` must be **correctly rounded** (IEEE requires this already).
+* `exp`, `log`, `sin`, `cos`, `atan2`, `pow`, `tanh`, `erf` must be **deterministic** to the last bit (we pin the implementation/version; see build notes).
+* Trig arguments are in radians; domain errors (e.g., `log(x≤0)`) must **never occur** on valid model inputs. If they would, upstream logic must guard them (e.g., open-interval uniforms in Box–Muller ensure `ln(u)` is well-defined).
+
+**Operationalisation**
+
+* Vendor a deterministic math library or table-driven approximations as part of the runtime and expose them through a sealed namespace (e.g., `mlr_math::exp`).
+* Disallow the system toolchain from inlining different libm variants.
+* Record **`math_profile_id`** (string/semver) in the run manifest and fold it into the **manifest fingerprint** inputs for complete lineage (if you change the math profile, partitions flip).
+
+---
+
+## S0.8.3 Reduction, accumulation & linear algebra
+
+**Sums and dot-products.**
+
+* Use **serial, fixed-order** accumulation (iteration order is the natural data order or an explicitly documented stable order).
+* Use **Neumaier** (or Kahan) compensated summation for all dot-products and totals that feed decisions/ordering. Keep the same algorithm consistently across builds.
+* Do **not** parallel-reduce with dynamic chunking for decision-critical numbers. If parallel throughput is required for non-critical metrics, use a **fixed topology** pairwise tree with pinned chunk size and ordering and assert numerically that the result does not affect any downstream branch.
+
+**Products and ratios.**
+
+* Compute products by summing logs only if explicitly specified; otherwise multiply in binary64 with overflow/underflow checks.
+* Ratios must check the denominator against zero with a **strict** epsilon (see tolerances).
+
+**Matrix ops / BLAS.**
+
+* For decision-critical paths, **do not call external BLAS/LAPACK** because of platform variance; use our deterministic scalar kernels (the dimensionalities in 1A are small—design vectors are short). If a future path needs BLAS, you must pin an exact deterministic backend and version and include that in `math_profile_id`.
+
+---
+
+## S0.8.4 Compiler / interpreter flags (build contract)
+
+**C/C++ (examples):**
+
+* `-ffloat-store` (if needed for specific compilers to avoid excess precision on x87—rare on modern x86_64).
+* `-fno-fast-math -fno-unsafe-math-optimizations`
+* `-ffp-contract=off` (no FMA contraction)
+* `-fexcess-precision=standard`
+* `-frounding-math` (where supported)
+* `-fno-associative-math -fno-reciprocal-math -fno-finite-math-only`
+
+**LLVM/Clang IR:**
+
+* Set `fast-math` flags **off** on all FP ops that affect decisions.
+* Mark reduction loops `llvm.experimental.constrained.*` with rounding mode RNE and exceptions masked.
+
+**JIT/VMs (NumPy/Python, JVM, etc.):**
+
+* Disable vectorisation where it could change summation order (e.g., `NUMPY_EXPERIMENTAL_ARRAY_FUNCTION=0` if necessary; avoid `np.sum` on large arrays when order matters—use our scalar kernel).
+* Pin `MKL_NUM_THREADS=1`, `OPENBLAS_NUM_THREADS=1` for any accidental BLAS use; for critical code, avoid BLAS entirely.
+
+**GPU (if any):**
+
+* **Do not** offload decision-critical kernels to GPU unless you pin a deterministic math profile and disable fused ops; otherwise, keep them on CPU.
+
+All build settings are recorded in the **run manifest** and folded into the fingerprint enumeration inputs.
+
+---
+
+## S0.8.5 Sorting, comparisons & total order for floats
+
+**Comparisons.**
+
+* For sorting, use a **total order** on floats defined by IEEE-754 `totalOrder`:
+
+  * `-0.0` < `+0.0`;
+  * finite numbers by value, then by sign of zero;
+  * NaNs are **forbidden**; encountering a NaN is a hard error.
+
+**Tie-breakers.**
+
+* When two keys compare equal under totalOrder, break ties **lexicographically** by a secondary deterministic key (e.g., `ISO` then `merchant_id`). This rule appears in Gumbel ranking and any place we sort candidates.
+
+**Equality & nearly-equal.**
+
+* Use exact equality only where the math guarantees it (e.g., integer counters).
+* For “nearly equal” checks, use a **ULP-based** predicate: `ulpDiff(a,b) ≤ 1` where appropriate, never a raw absolute epsilon, unless specifically specified (see tolerances).
+
+---
+
+## S0.8.6 Tolerances & quantisation (when comparisons are externalised)
+
+**Internal computation tolerances** (used in self-tests, not to fudge decisions):
+
+* **Sums/dots:** compare with `ulpDiff ≤ 1` (exactly 1 ULP) when re-deriving in CI with the same math profile.
+* **Transcendentals:** exact bit equality required; mismatch is a build/profile violation.
+
+**External comparison tolerances** (for reporting/tests where CSV/decimal I/O may round):
+
+* Accept absolute diff ≤ **1e-6** or relative diff ≤ **1e-6** (whichever larger) when comparing persisted float32 diagnostics to recomputed float64 values downcast to float32.
+
+**Quantisation.**
+
+* Where the spec requires **downcasting** (e.g., S0.7 narrows to float32), the quantisation is IEEE round-to-nearest-even. No other quantisation is allowed unless a state explicitly says so.
+
+---
+
+## S0.8.7 Determinism under concurrency
+
+**Order-invariance by construction.** RNG substreams are keyed (S0.3), so draw sequences are independent of scheduling. S0.8 complements this with **order-stable numeric kernels**:
+
+* Any operation that feeds a sort or a branch must be computed in a **single-threaded** scalar loop with fixed iteration order and Neumaier compensation.
+* Map-like operations over merchants may be parallel, **provided** their results are independent per row and do not aggregate into an ordering/threshold without the serial kernel.
+
+**I/O & partitioning.** File emission order is unspecified; content equivalence is defined by row sets. Hashes and fingerprints make partitions unambiguous regardless of file ordering.
+
+---
+
+## S0.8.8 Failure semantics (abort codes)
+
+* `E_NUM_FMA_ON`: FMA contraction detected on a guarded kernel.
+* `E_NUM_FTZ_ON`: FTZ/DAZ detected as enabled.
+* `E_NUM_RNDMODE`: rounding mode is not nearest-even.
+* `E_NUM_LIBM_PROFILE`: math profile version mismatch or non-deterministic libm detected by self-tests.
+* `E_NUM_NAN_OR_INF(ctx)`: any model computation produced NaN/Inf (includes trigs/logs).
+* `E_NUM_PAR_REDUCE`: a decision-critical reduction executed in parallel or with a non-pinned topology.
+* `E_NUM_TOTORDER_NAN`: NaN encountered where total order on floats is required (e.g., sort key).
+* `E_NUM_ULP_MISMATCH(func)`: recomputation differs beyond allowed ULP budget.
+
+On any of the above, **abort the run**. S0.8 errors indicate an environment that cannot guarantee reproducibility.
+
+---
+
+## S0.8.9 Self-tests (must run before S1)
+
+At process start (after S0.2; before any RNG draw):
+
+1. **Rounding & FTZ test.**
+
+   * Set and read rounding mode; ensure RNE.
+   * Create a subnormal (e.g., `2^-1075`) and multiply by 1; confirm not flushed to 0.
+2. **FMA detection.**
+
+   * Evaluate `a*b + c` with values that have different results with/without FMA (known triples). Confirm it **does not** equal the fused result.
+3. **libm profile.**
+
+   * Evaluate a fixed regression suite of inputs for `exp/log/sin/cos/atan2/pow` and compare against the vendored deterministic results (bitwise). Fail if any mismatch.
+4. **Neumaier audited sum.**
+
+   * Sum a known adversarial sequence (e.g., `[1, 1e-16] * N + [-1] * N`) and verify the result and compensation term match expected deterministic values.
+5. **TotalOrder sanity.**
+
+   * Sort a crafted float array including `-0.0`, `+0.0`, large/small magnitudes. Verify order and tie-breakers.
+
+Persist a `numeric_policy_attest.json` into the validation bundle with the pass/fail status and environment hashes.
+
+---
+
+## S0.8.10 Reference kernels (pseudocode)
+
+**Neumaier compensated sum (fixed order)**
+
+```text
+def sum_neumaier(xs: iterable<float64>) -> float64:
+    s = 0.0
+    c = 0.0
+    for x in xs:                  # fixed iteration order
+        y = x - c
+        t = s + y
+        c = (t - s) - y
+        s = t
+    return s
+```
+
+**Dot product with Neumaier**
+
+```text
+def dot_neumaier(a: float64[], b: float64[]) -> float64:
+    assert len(a) == len(b)
+    s = 0.0
+    c = 0.0
+    for i in 0..len(a)-1:
+        y = a[i]*b[i] - c
+        t = s + y
+        c = (t - s) - y
+        s = t
+    return s
+```
+
+**Total order comparator for floats (NaNs forbidden)**
+
+```text
+def total_order_key(x: float64, secondary) -> tuple:
+    # map to sortable tuple: (isNaN, signbit, magnitude_bits, secondary_key)
+    assert not isNaN(x)          # NaN -> E_NUM_TOTORDER_NAN
+    bits = u64_from_f64(x)
+    sign = bits >> 63
+    mag  = bits ^ (sign << 63)   # flip sign to make monotone
+    # Treat -0.0 < +0.0 explicitly:
+    if x == 0.0 and sign == 1: mag = 0 - 1  # ensure (-0.0) sorts before (+0.0)
+    return (sign, mag, secondary)
+```
+
+---
+
+## S0.8.11 Validation & CI hooks
+
+* **Bitwise CI:** run the self-tests under at least two platforms (e.g., Linux/glibc and Linux/musl) and assert identical outputs.
+* **Rebuild sensitivity:** mild refactors must not change any decision-critical outputs; if they do, they must also change the math profile or numeric policy version and hence flip the fingerprint.
+* **Partition lint:** confirm `numeric_policy_attest.json` is included in the validation bundle and its hash is listed in the manifest enumeration.
+
+---
+
+## S0.8.12 Interaction with other states
+
+* **S0.3 (RNG).** Validates that Box–Muller, gamma acceptance tests, and Gumbel keys evaluate on the pinned math profile; `log` and trigs are guaranteed stable.
+* **S0.5–S2 (design & GLM evals).** Dot products and logistics use Neumaier + branch-stable logistic; results are stable across builds.
+* **S6 (ranking).** Any sort over float keys uses the **total order** + deterministic tie-breakers to make rankings bit-stable.
+
+---
+
+**Bottom line:** S0.8 freezes the numeric universe: binary64 + RNE, **no FMA**, **no FTZ**, deterministic libm, fixed-order compensated reductions, and a total-order sort with explicit tie-breaks. It ships with self-tests that abort the run if anything drifts. With S0.8 in place, every downstream state can rely on bit-stable arithmetic and reproducible decisions.
+
+---
+
+# S0.9 — Failure Modes & Abort Semantics (normative)
+
+## Purpose
+
+Define a **single, deterministic** failure contract for 1A so that any violation of schema, lineage, numeric policy, RNG envelope, or partitioning halts the run in a reproducible way, with an actionable forensic payload. The combined state doc already lists the headline items; S0.9 expands them into a full **failure catalog (F1–F10)** and a **run-abort procedure**.
+
+**Scope.** S0.9 governs **all of 1A**, not only S0.\* steps. Where a failure is detected in a later state (S1–S7), it’s still classified by S0.9’s codes (e.g., envelope/partitioning). The combined doc explicitly calls out S0.9 (“Failure modes (all abort)”).
+
+---
+
+## 0) Definitions & severity
+
+* **Run-abort (hard):** Terminates the **entire** 1A run; no further states execute. This applies to structural lineage/schema/numeric violations and to RNG-envelope/trace corruption. (The combined doc marks S0.9 items as “all abort”.)
+* **Merchant-abort (soft):** Permitted **only** where a state explicitly defines a per-merchant policy (e.g., ZTP retry exhaustion can “abort merchant” or “downgrade to domestic” per governed policy). This is **not** an S0.9 escape hatch; it exists where the state spec says so (e.g., S4).
+
+---
+
+## 1) Failure catalog (F1–F10)
+
+### (F1) Ingress schema violation (`merchant_ids`)
+
+**Predicate:** row set fails `schemas.ingress.layer1.yaml#/merchant_ids` (types, required fields, PK uniqueness, ISO-2). This is one of the headline S0.9 bullets. **Run-abort.**
+**Error:** `ingress_schema_violation(dataset="merchant_ids", row_pk, detail)`.
+
+---
+
+### (F2) Parameter / fingerprint formation failure (S0.2)
+
+Covers the **parameter hash** and **manifest fingerprint** formation that gate all partition keys. These are explicit S0.9 bullets (“Missing artefact or digest mismatch during parameter/fingerprint formation”). **Run-abort.**
+
+* **(F2a) Parameters:** missing/duplicate/unreadable in governed set {`hurdle_coefficients.yaml`,`nb_dispersion_coefficients.yaml`,`crossborder_hyperparams.yaml`} or hash-race during streaming. **Run-abort.**
+  **Error:** `param_file_missing|duplicate|unreadable|changed_during_hash(name)`.
+
+* **(F2b) Manifest fingerprint:** empty artefact set, unreadable artefact, invalid git bytes, bad hex persistence. **Run-abort.**
+  **Error:** `fingerprint_empty_artifacts|git_bytes_invalid|artifact_unreadable(path)|bad_hex_encoding`.
+
+---
+
+### (F3) Non-finite / out-of-domain features or model outputs
+
+The S0.9 bullets include “Non-finite values in $\eta_m$, $g_c$, or $b_m\notin\{1..5\}$”. These are pure, deterministic lookups/evals; any violation is unrecoverable. **Run-abort.**
+
+* **(F3a) GDP & bucket (S0.4):** $g_c\le 0$ or NaN/Inf; $b_m\notin\{1..5\}$. **Run-abort.**
+  **Error:** `nonpositive_gdp(c, g) | bucket_out_of_range(c, b)`.
+
+* **(F3b) Hurdle eval (S0.5/S0.7):** non-finite $\eta_m$ or $\pi_m$. **Run-abort.**
+  **Error:** `hurdle_nonfinite(merchant_id, field)`.
+
+---
+
+### (F4) RNG bootstrap / envelope / draw-accounting failures
+
+The headlines include “RNG audit record not written before first draw; or envelope fields missing in any subsequent event.” S0 & S2 detail the **envelope** and **draws=counters delta** invariants. **Run-abort.**
+
+* **(F4a) Missing audit row:** first RNG event appears without prior `rng_audit_log` (seed, fingerprint, run_id, initial counters). **Run-abort.**
+  **Error:** `rng_audit_missing_before_first_draw`.
+
+* **(F4b) Envelope violation:** any RNG event missing required envelope fields (`seed`, `parameter_hash`, `manifest_fingerprint`, pre/post counters, module, substream_label). **Run-abort.**
+  **Error:** `rng_envelope_violation(event_path, missing_fields[])`.
+
+* **(F4c) Counter conservation:** `after - before != draws` (128-bit unsigned). **Run-abort.**
+  **Error:** `rng_counter_mismatch(label, before, after, draws)`.
+
+* **(F4d) Budget discipline:** per-event expectations breached (e.g., hurdle emits draws=1 when $\pi\in\{0,1\}$). (Budget rules are spelled in S0.3 and per-state invariants like S2.\*.) **Run-abort.**
+  **Error:** `rng_budget_violation(event, expected, observed)`.
+
+---
+
+### (F5) Partitioning / lineage mismatch (dictionary-backed)
+
+Writers must use the correct partition **and** embed the same lineage key in rows; validators assert both. This is explicitly documented (examples for parameter-scoped vs egress/validation). **Run-abort.**
+**Error:** `partition_mismatch(dataset_id, path_key, embedded_key)`.
+
+---
+
+### (F6) Schema-authority breach
+
+1A’s authority is **JSON-Schema** (specific files); referencing non-authoritative schema (e.g., Avro) or drifting from dictionary refs is a structural error. **Run-abort.**
+**Error:** `non_authoritative_schema_ref(dataset_id, observed_ref)`.
+
+---
+
+### (F7) Numeric policy violation (S0.8)
+
+S0.8 pins binary64 + RNE, **FMA-off**, no FTZ/DAZ, serial reductions on ordering paths. Violations invalidate determinism. **Run-abort.**
+**Errors:** `numeric_rounding_mode`, `fma_detected`, `ftz_or_daz_enabled`, `parallel_reduce_on_ordering_path`, `libm_profile_mismatch`.
+
+---
+
+### (F8) Event coverage / corridor guarantees (state-specific but classified here)
+
+Later states impose coverage/corridor rules (e.g., NB component coverage, ZTP attempt indexing and exhaustion handling). Violations are **structural**: envelope present but required **event family** missing or inconsistent. **Run-abort** for the run; some states additionally allow **merchant-abort** per policy (e.g., ZTP exhaustion).
+**Errors:** `event_family_missing(kind, merchant_id)`, `corridor_breach(kind, metric, value)`.
+
+---
+
+### (F9) Dictionary/path drift (writer/reader)
+
+Paths and lineage semantics are *authoritative* (parameter vs fingerprint partitions, log partitions include `run_id`). Any deviation is structural. **Run-abort.**
+**Errors:** `dictionary_path_violation(dataset_id, expected_template, observed_path)`, `log_partition_violation(expected_keys, observed)`.
+
+---
+
+### (F10) I/O integrity & atomics
+
+Non-regular files, short writes, or partial file sets for a dataset instance; lack of atomic commit (e.g., moving a completed tmp dir) → dataset may be partially visible. The writer must **fail the run** and remove/mark the incomplete instance. **Run-abort.** (Implied by partitioning invariants and validator checks.)
+**Errors:** `io_write_failure(path, errno)`, `incomplete_dataset_instance(dataset_id, partition)`.
+
+---
+
+## 2) Abort procedure (what happens the instant a failure is detected)
+
+1. **Stop emission** of new events/datasets immediately.
+2. **Flush & seal** the validation bundle with:
+
+   * `failure_code`, `state`, `module`, `merchant_id` (optional), and the **forensic payload** (dataset id, offending path/PKs, sizes/mtimes, expected vs observed digests/counters).
+3. **Mark incomplete outputs** in the working directory and either:
+
+   * delete temp dirs; or
+   * write a `_FAILED.json` sentinel alongside the partition root that contains the forensic payload.
+4. **Do not** emit any further RNG events (the audit/trace must **not** advance counters after the failure point).
+5. Exit with a non-zero status code; the orchestrator records the failure and halts downstream tasks.
+
+---
+
+## 3) Validator responsibilities (what the harness proves)
+
+* **Ingress schema conformance** (`merchant_ids`).
+* **Lineage recomputation**: independently recompute `parameter_hash` and `manifest_fingerprint` and assert equality to logged values; error out on missing/empty artefact sets.
+* **Envelope completeness & counter conservation** for **every** RNG event; reconcile `draws` with `after-before`.
+* **Budget & coverage checks** for state-specific families (e.g., NB has two component events per attempt then one final; ZTP has its rejection/exhaustion shape).
+* **Partition equivalence**: path template vs embedded lineage keys; logs use `{seed,parameter_hash,run_id}`, parameter-scoped use `{parameter_hash}`, egress/validation use `{fingerprint}` (and often `seed`).
+* **Numeric policy attestation**: run S0.8 self-tests and abort on mismatch (RNE, no FMA/FTZ, deterministic libm).
+
+---
+
+## 4) Error code schema (structured, machine-actionable)
+
+Every failure MUST emit a JSON object like:
+
+```json
+{
+  "failure_code": "rng_counter_mismatch",
+  "state": "S2",
+  "module": "nb_sampler",
+  "dataset_id": "logs/rng/events/poisson_component",
+  "merchant_id": "m_0065F3A2",
+  "detail": {
+    "before": {"hi": "...", "lo": "..."},
+    "after":  {"hi": "...", "lo": "..."},
+    "draws":  "..."
+  },
+  "parameter_hash": "<hex64>",
+  "manifest_fingerprint": "<hex64>",
+  "seed": 1234567890,
+  "run_id": "<hex32>",
+  "ts_utc": 1723700000123456789
+}
+```
+
+This mirrors the envelope/lineage keys present elsewhere so triage is reproducible. (The combined doc requires envelope presence and log partitioning by `{seed,parameter_hash,run_id}`; the same keys are attached to failures.)
+
+---
+
+## 5) Where to detect each failure (first line of defense)
+
+| Failure                         | First detector (preferred)         | Secondary                       |
+|---------------------------------|------------------------------------|---------------------------------|
+| F1 ingress schema               | S0.1 loader (schema validation)    | Validator pass 1                |
+| F2 params/fingerprint           | S0.2 hashing routine               | Validator recompute             |
+| F3 features / hurdle non-finite | S0.4/S0.5/S0.7 evaluators          | Validator recompute             |
+| F4 envelope / counters          | Event emitters (runtime guards)    | Validator envelope pass         |
+| F5 partitioning/lineage         | Dataset writer (path+embed check)  | Validator partition lint        |
+| F6 schema authority             | Registry/dictionary linter (build) | Validator schema refs           |
+| F7 numeric policy               | S0.8 self-tests                    | Validator re-attest             |
+| F8 coverage/corridor            | State invariants (S1/S2/S4/…)      | Validator family coverage       |
+| F9 dictionary/path drift        | Writer + dictionary linter         | Validator path lint             |
+| F10 I/O atomics                 | Writer’s commit phase              | Validator instance completeness |
+
+(Headlines F1–F4 match the combined S0.9 bullets; S0.9 formalises the rest to avoid ambiguity in production.)
+
+---
+
+## 6) Examples (concrete, minimal)
+
+* **Missing audit row (F4a):** first seen event is `hurdle_bernoulli` but `rng_audit_log` partition has no `run_id=…` file → `rng_audit_missing_before_first_draw` → **Run-abort**. (Envelope/logging rules are pinned in S0.3/S0.2.)
+
+* **Partition mismatch (F5):** writing `outlet_catalogue` under `…/fingerprint=…` but embedding a different `manifest_fingerprint` in rows → `partition_mismatch(outlet_catalogue, path_fp, row_fp)` → **Run-abort**. (Dictionary enforces fingerprint partition for egress.)
+
+* **Non-finite $\eta_m$ (F3b):** safe logistic still returns NaN due to upstream non-finite β or x → `hurdle_nonfinite` → **Run-abort**. (S0.9 headline lists non-finite $\eta_m$ as abort.)
+
+---
+
+## 7) Interaction with other states
+
+* **S1/S2/S4**: Their own failure sections (coverage, corridors, context fields) are **sub-cases** of S0.9 classes F4/F8 and are validated with the same envelope/partition contracts.
+* **S0.10**: Outputs must exist **only** when no F1–F10 occurred; S0.10’s lineage/partition summary depends on clean S0.2/S0.3 completions.
+
+---
+
+**Bottom line:** S0.9 codifies a strict, reproducible “**fail fast, fail loud**” policy. The headline S0.9 bullets from the combined doc are made concrete: exactly when we abort, what error codes look like, where they’re detected, how writers/validators enforce partitioning and envelope invariants, and how numeric policy violations are surfaced. With S0.9 in place, any deviation from schema, lineage, RNG discipline, or numeric rules terminates deterministically with a forensic trail you can replay.
+
+---
+
+awesome — here’s **S0.10 at 100% detail**, written so an engineer can implement it verbatim. This final S0 sub-state is the “contracts & packing slip” for everything S0 produces and the lineage you’ll rely on downstream.
+
+---
+
+# S0.10 — Outputs, Partitions & Validation Bundle (normative)
+
+## Purpose
+
+Freeze **what S0 emits**, **how it’s partitioned**, **what lineage keys must be embedded**, and **how we package the attestation bundle** that lets later states (and CI) prove a run is valid. S0.10 is purely contractual: no RNG is consumed and no model numerics are performed here.
+
+---
+
+## S0.10.1 Lineage keys (recap; scope of use)
+
+* **`parameter_hash` (hex64):** partitions **parameter-scoped** artefacts. Changes when any governed parameter file’s bytes change (S0.2.2).
+* **`manifest_fingerprint` (hex64):** partitions **egress & validation** artefacts. Changes when any opened artefact, the repo commit, or the parameter bundle changes (S0.2.3).
+* **`seed` (u64):** the modelling seed; used in log partitions and to derive RNG streams (S0.3).
+* **`run_id` (hex32):** **logs only**; partitions RNG/audit/trace events. Not modelling state (S0.2.4).
+
+**Embedding rule (row-level):**
+Where a dataset schema includes `manifest_fingerprint` or `parameter_hash`, the **embedded value must equal** the directory partition key. Mismatch ⇒ S0.9/F5 **run-abort**.
+
+---
+
+## S0.10.2 Artefact classes produced by S0
+
+S0 produces three classes of outputs:
+
+1. **Parameter-scoped model inputs/caches** (deterministic; safe to reuse across runs that share `parameter_hash`):
+
+   * `crossborder_eligibility_flags` (S0.6).
+   * `hurdle_pi_probs` (S0.7, **optional** diagnostics).
+   * *(Optionally transient and not authoritative: `hurdle_design_matrix`)*.
+
+2. **Lineage & attestation files** (fingerprint-scoped):
+
+   * `validation_bundle_1A` (directory containing the attestation payload; §S0.10.5).
+   * `numeric_policy_attest.json` (from S0.8 self-tests), inside the bundle.
+   * `parameter_hash_resolved.json` and `manifest_fingerprint_resolved.json`, inside the bundle.
+   * `param_digest_log.jsonl` (one row per governed parameter file), inside the bundle.
+   * `fingerprint_artifacts.jsonl` (all opened artefacts: path + SHA256), inside the bundle.
+
+3. **RNG audit stub** (created at **start of S0.3**, not S0.10, listed here for partitioning completeness):
+
+   * `rng_audit_log` and `rng_trace_log` are **log-scoped** by `{seed, parameter_hash, run_id}` and **not** part of the parameter- or fingerprint-scoped datasets. S0.10 records this partitioning contract.
+
+---
+
+## S0.10.3 Partitioning & paths (authoritative)
+
+### Parameter-scoped (partition by `parameter_hash`)
+
+* **Dataset:** `crossborder_eligibility_flags`
+  **Path:** `data/layer1/1A/crossborder_eligibility_flags/parameter_hash={parameter_hash}/part-*.parquet`
+  **Schema:** `schemas.1A.yaml#/prep/crossborder_eligibility_flags`
+  **Row keys:** `merchant_id` (PK).
+  **Embedded lineage:** `manifest_fingerprint` (column), must equal the run’s fingerprint.
+
+* **Dataset (optional):** `hurdle_pi_probs`
+  **Path:** `data/layer1/1A/hurdle_pi_probs/parameter_hash={parameter_hash}/part-*.parquet`
+  **Schema:** `schemas.1A.yaml#/model/hurdle_pi_probs`
+  **Row keys:** `merchant_id` (PK).
+  **Embedded lineage:** `manifest_fingerprint`.
+
+> **Write semantics:** **overwrite-atomic** per partition. Writers must stage to a temp dir and `rename(2)` into the partition root. Partial outputs must never become visible (S0.9/F10).
+
+### Fingerprint-scoped (partition by `fingerprint`)
+
+* **Dataset:** `validation_bundle_1A` (a directory, not Parquet)
+  **Path:** `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/`
+  **Contents:** see §S0.10.5.
+  **Embedded lineage:** filenames and JSON fields include `parameter_hash`, `manifest_fingerprint`, `seed`, `run_id` (where applicable).
+
+### Log-scoped (RNG) — for reference
+
+* **Logs:** `rng_audit_log`, `rng_trace_log`, and every `rng_event_*`
+  **Path template:** `logs/rng/<stream>/<seed={seed}>/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+  **Envelope:** must carry `{seed, parameter_hash, manifest_fingerprint, run_id, module, substream_label, counter_before/after, draws}` (S0.3.1).
+  *(S0.10 doesn’t produce these; it codifies the partition contract.)*
+
+---
+
+## S0.10.4 Immutability, idempotence & retention
+
+* **Immutability:** A materialised dataset instance (a specific partition directory) is **immutable**. Re-runs with the **same keys** must either (a) detect the existing instance and **no-op**, or (b) write a byte-identical instance to a new temp dir and atomically replace; both strategies are acceptable so long as bytes do not change.
+* **Idempotence:** With the same inputs and environment profile, S0 reproduces **bit-identical** bytes (apart from file ordering for Parquet row groups, which is **not** part of the contract).
+* **Retention:**
+
+  * Parameter-scoped caches: keep last **N** `parameter_hash` generations (team policy; default N=5).
+  * Validation bundles: keep **all** `manifest_fingerprint` generations for audit.
+  * Log-scoped events: retain per compliance policy (e.g., 90 days), as they’re not modelling state.
+
+---
+
+## S0.10.5 Validation bundle (structure, hashing & “_passed.flag”)
+
+The **validation bundle** is an on-disk directory (or tarball, optional), **fingerprint-scoped**, containing exactly:
+
+```
+validation/
+  fingerprint={manifest_fingerprint}/
+    MANIFEST.json
+    parameter_hash_resolved.json
+    manifest_fingerprint_resolved.json
+    param_digest_log.jsonl
+    fingerprint_artifacts.jsonl
+    numeric_policy_attest.json
+    DICTIONARY_LINT.txt                 # optional, human-readable
+    SCHEMA_LINT.txt                     # optional, human-readable
+    _passed.flag
+```
+
+### MANIFEST.json (normative keys)
+
+```json
+{
+  "version": "1A.validation.v1",
+  "manifest_fingerprint": "<hex64>",
+  "parameter_hash": "<hex64>",
+  "git_commit_hex": "<hex40-or-64>",   // canonically padded to 64 in hashing step
+  "artifact_count": 123,               // # of opened artefacts in fingerprint set
+  "math_profile_id": "libm.det.v2.1",
+  "compiler_flags": {
+    "fma": false, "ftz": false, "rounding": "RNE",
+    "fast_math": false, "blas": "none"
+  },
+  "created_utc_ns": 1723700000123456789
+}
+```
+
+### parameter_hash_resolved.json
+
+```json
+{
+  "parameter_hash": "<hex64>",
+  "filenames_sorted": [
+    "crossborder_hyperparams.yaml",
+    "hurdle_coefficients.yaml",
+    "nb_dispersion_coefficients.yaml"
+  ]
+}
+```
+
+### manifest_fingerprint_resolved.json
+
+```json
+{
+  "manifest_fingerprint": "<hex64>",
+  "git_commit_hex": "<hex40-or-64>",
+  "parameter_hash": "<hex64>",
+  "artifact_count": 123
+}
+```
+
+### param_digest_log.jsonl
+
+JSON Lines; one row per governed parameter file:
+
+```json
+{"filename":"hurdle_coefficients.yaml","size_bytes":12345,"sha256_hex":"<hex64>","mtime_ns":17237...}
+{"filename":"nb_dispersion_coefficients.yaml","size_bytes":6789,"sha256_hex":"<hex64>","mtime_ns":17237...}
+{"filename":"crossborder_hyperparams.yaml","size_bytes":2345,"sha256_hex":"<hex64>","mtime_ns":17237...}
+```
+
+### fingerprint_artifacts.jsonl
+
+All artefacts **actually opened** during the run (including the three params), each with its digest:
+
+```json
+{"path":".../iso3166_canonical_2024.csv","sha256_hex":"<hex64>","size_bytes":...}
+{"path":".../world_bank_gdp_per_capita_20250415.parquet","sha256_hex":"<hex64>","size_bytes":...}
+...
+```
+
+### numeric_policy_attest.json
+
+Exact pass/fail & fingerprints from S0.8 self-tests:
+
+```json
+{
+  "rounding_mode":"RNE","ftz":false,"fma":false,
+  "libm_profile_id":"libm.det.v2.1",
+  "selftests":{"rounding":true,"ftz":true,"fma":true,"libm":true,"neumaier":true,"total_order":true}
+}
+```
+
+### `_passed.flag` (gating token)
+
+* **Definition:** `_passed.flag` contains the single line
+  `sha256_hex = <hex64>`,
+  where `<hex64>` is the **SHA-256** over the **canonical byte concatenation** of the **other bundle files in lexicographic filename order**.
+* **Purpose:** Downstream readers (e.g., when consuming final egress) **MUST** verify that `sha256(bundle_without_flag) == value in _passed.flag`. This is the **read-gate** in downstream specs: if it doesn’t match, the egress consumer **must not** read and the run is considered invalid.
+* **Canonicalisation rules for the hash:**
+
+  * Filenames sorted ASCII (`DICTIONARY_LINT.txt`, `MANIFEST.json`, …, `param_digest_log.jsonl`, …).
+  * Each file’s raw bytes concatenated **exactly**; no newline canonicalisation.
+  * `_passed.flag` itself is **excluded** from the hash.
+
+> **Why a gate?** The flag proves **bundle completeness** and protects downstream from half-written or tampered validation payloads.
+
+---
+
+## S0.10.6 Writer behaviour (atomicity & lints)
+
+**Atomic write:**
+
+* Writers for parameter-scoped datasets and the validation bundle must write to a temp dir `.../_tmp.{uuid}` and atomically `rename(2)` into the final partition path. On failure, delete the temp dir. Never expose partial contents.
+
+**Dictionary & schema lints (optional files in bundle):**
+
+* `DICTIONARY_LINT.txt`: diff of dataset dictionary vs observed writer paths and schema refs for the run.
+* `SCHEMA_LINT.txt`: results of validating every produced dataset against its JSON-Schema anchor.
+  These are **informational** and **excluded** from `_passed.flag` only if you explicitly choose so; by default they are **included**.
+
+---
+
+## S0.10.7 Idempotent re-runs & equivalence
+
+Two validation bundles are **equivalent** if:
+
+* Their `MANIFEST.json` objects are identical byte-for-byte **except** for `created_utc_ns`.
+* All other files are identical and `_passed.flag` hashes match.
+  This defines the equality notion for CI that de-duplicates bundles across re-runs.
+
+---
+
+## S0.10.8 Pseudocode (reference implementation)
+
+```text
+function S0_10_emit_outputs_and_bundle(ctx):
+  # ctx carries parameter_hash, manifest_fingerprint, seed, run_id, git_commit_hex,
+  # math_profile_id, compiler flags, and enumerations produced in S0.2/S0.8
+
+  # 1) Ensure parameter-scoped datasets persisted (S0.6/S0.7 did the writes)
+  assert partition_exists("crossborder_eligibility_flags", parameter_hash)
+  # hurdle_pi_probs is optional; if configured, assert its partition too.
+
+  # 2) Build validation bundle contents in memory
+  MANIFEST = {
+    "version": "1A.validation.v1",
+    "manifest_fingerprint": ctx.fingerprint,
+    "parameter_hash": ctx.parameter_hash,
+    "git_commit_hex": ctx.git_commit_hex,
+    "artifact_count": len(ctx.artifacts),
+    "math_profile_id": ctx.math_profile_id,
+    "compiler_flags": ctx.compiler_flags,
+    "created_utc_ns": now_ns()
+  }
+
+  # Marshal files:
+  write_json("MANIFEST.json", MANIFEST)
+  write_json("parameter_hash_resolved.json", {
+    "parameter_hash": ctx.parameter_hash,
+    "filenames_sorted": ctx.param_filenames_sorted
+  })
+  write_json("manifest_fingerprint_resolved.json", {
+    "manifest_fingerprint": ctx.fingerprint,
+    "git_commit_hex": ctx.git_commit_hex,
+    "parameter_hash": ctx.parameter_hash,
+    "artifact_count": len(ctx.artifacts)
+  })
+  write_jsonl("param_digest_log.jsonl", ctx.param_digests)      # one row/file
+  write_jsonl("fingerprint_artifacts.jsonl", ctx.artifact_digests)
+  write_json("numeric_policy_attest.json", ctx.numeric_attest)
+
+  # 3) Compute _passed.flag over all files except the flag itself
+  files = list_bundle_files()             # lexicographic ASCII order
+  concat = b""
+  for f in files:
+      if f == "_passed.flag": continue
+      concat += read_bytes(f)
+  h = sha256_bytes(concat)
+  write_text("_passed.flag", "sha256_hex = " + hex_lower_64(h) + "\n")
+
+  # 4) Atomic publish under fingerprint partition
+  publish_atomic(dir="data/layer1/1A/validation/fingerprint=" + ctx.fingerprint)
+```
+
+---
+
+## S0.10.9 Validation (what CI/runtime must assert)
+
+* **Partition lint:** every produced dataset lives under the correct partition (parameter vs fingerprint vs logs); embedded lineage equals directory key.
+* **Bundle integrity:** `_passed.flag` matches the hash of the bundle contents; all required files present.
+* **Schema conformance:** each dataset matches its JSON-Schema anchor.
+* **Lineage recomputation:** recompute `parameter_hash` and `manifest_fingerprint`; assert equality with the `*_resolved.json` files.
+* **Numeric attestation:** `numeric_policy_attest.json` shows all S0.8 self-tests passed for the run.
+
+---
+
+## S0.10.10 Downstream consumption rules (what later states must do)
+
+* **Parameter-scoped readers** (e.g., S1/S2/S3) should **only** key by `parameter_hash` and ignore `run_id`.
+* **Egress/validation consumers** (e.g., at final hand-off) **must**:
+
+  1. locate the `fingerprint={manifest_fingerprint}` partition;
+  2. verify `_passed.flag`;
+  3. optionally re-hash `fingerprint_artifacts.jsonl` and `param_digest_log.jsonl` to spot tampering.
+     If any check fails, **do not read** and mark the run invalid.
+
+---
+
+**Bottom line:** S0.10 makes S0’s outputs **unambiguous and self-proving**. Parameter-scoped datasets are immutable and keyed by `parameter_hash`; the **validation bundle** is fingerprint-scoped, atomically published, and protected by a `_passed.flag` gate. With these contracts, later states can consume 1A confidently, and CI can prove a run is reproducible and complete.
+
+---
