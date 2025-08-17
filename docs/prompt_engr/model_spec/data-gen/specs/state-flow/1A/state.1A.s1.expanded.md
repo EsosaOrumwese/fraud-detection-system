@@ -42,7 +42,7 @@ Before the **first** hurdle event, S0 must have established:
 * `manifest_fingerprint` (hex64) — partitions egress/validation; embedded in all events.
 
   * `manifest_fingerprint_bytes` = **32 raw bytes** from the **lowercase** hex string (big-endian).
-* `seed` (u64) — master key for **Philox-2x64-10**; current **pre-event** counter $(\texttt{hi},\texttt{lo})$.
+* `seed` (u64) — master key for **Philox-2x64-10**.
 * `run_id` (hex32) — **logs-only** partition key.
 * `rng_audit_log` row exists for this `{seed, parameter_hash, run_id}` (S0.3). S1 MUST NOT emit its first RNG event without this prior audit row.
 
@@ -52,7 +52,7 @@ All hurdle events include the **shared RNG envelope** fields (no more, no fewer)
 { ts_utc,
   module="1A.hurdle_sampler",
   substream_label="hurdle_bernoulli",
-  seed, parameter_hash, manifest_fingerprint, run_id, design_index_digest,
+  seed, parameter_hash, manifest_fingerprint, run_id,
   rng_counter_before_{hi,lo}, rng_counter_after_{hi,lo} }
 ```
 
@@ -63,9 +63,10 @@ All hurdle events include the **shared RNG envelope** fields (no more, no fewer)
 ## Preconditions (hard invariants at S1 entry)
 
 1. **Shape & order:** $|\beta|=\dim(x_m)$ **and** `design_index_digest` matches the YAML; otherwise abort (design/coeff mismatch).
-2. **Domains:** `channel ∈ {CP,CNP}`; $b_m\in\{1,\dots,5\}$; GDP $g_c>0$ already enforced upstream (S0.4/S0.5).
+2. **Domains:** `channel ∈ {CP,CNP}`; $b_m\in\{1,\dots,5\}$; **MCC present in the frozen MCC dictionary**; GDP $g_c > 0$ already enforced upstream (S0.4/S0.5).
 3. **Numeric policy:** S0.8 environment in force — IEEE-754 binary64, round-to-nearest-even, **no FMA**, **no FTZ/DAZ**; dot-products use **fixed-order accumulation**.
-4. **RNG audit present:** the audit envelope for this run/subsystem is present before S1 emits the first hurdle event; otherwise abort (S0.9/F4a).
+4. **RNG audit present:** the audit envelope for this run/subsystem is present before S1 emits the first hurdle event; otherwise abort (S0.9/F4).
+
 
 ---
 
@@ -86,7 +87,7 @@ with schema anchor `schemas.layer1.yaml#/rng/events/hurdle_bernoulli`. The `subs
 logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
 ```
 
-(schema `#/rng/core/rng_trace_log`) containing the `draws` count and the envelope pointers; this is the sole authority for draw-accounting.
+(schema `#/rng/core/rng_trace_log`) containing the `draws` count and the envelope pointers; rows **MUST** include `module` and `substream_label` identical to the paired hurdle event. Joins key on `{seed, parameter_hash, run_id, substream_label, merchant_id}`. This trace is the sole authority for draw-accounting.
 
 ---
 
@@ -94,18 +95,14 @@ logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_t
 
 * **Probability & safe logistic (S1.2).** Compute $\eta_m=\beta^\top x_m$ and $\pi_m=\sigma(\eta_m)$ with the **two-branch** overflow-safe logistic. If either is non-finite, abort.
 
-* **Deterministic threshold & u(0,1) (S1.3).** Use **binary64 thresholding**:
-
-  * treat $\pi_m \le 2^{-53}$ as 0 and $\pi_m \ge 1-2^{-53}$ as 1 (**deterministic** case);
-  * otherwise draw **exactly one** open-interval uniform $u\in(0,1)$ after jumping to substream `"hurdle_bernoulli"`.
-    Counters advance exactly per S0.3 mapping and appear in the envelope.
+* **Deterministic regimes & u(0,1) (S1.3).** Use **only** the two-branch logistic’s result:
+  * if $0 < \pi_m < 1$ ⇒ stochastic: draw **exactly one** $u\in(0,1)$; counters advance by **1**;
+  * if $\pi_m\in\{0,1\}$ ⇒ deterministic: **no draw**; counters unchanged.
 
 * **Payload discipline (S1.4).** Payload uses the **nullable-u** contract with an explicit flag:
-
-  * fields: `{merchant_id, pi, is_multi, u|null, deterministic}`;
-  * when $2^{-53} < \pi_m < 1-2^{-53}$: `u∈(0,1)`, `deterministic=false`;
-  * when thresholded: `u=null`, `deterministic=true`.
-    (`eta` is not part of the event payload; if needed, it may appear in diagnostics tables only.)
+  * fields: `{merchant_id, pi, is_multi, deterministic, u|null}`;
+  * when $0 < \pi_m < 1$: `u∈(0,1)`, `deterministic=false`;
+  * when $\pi_m\in\{0,1\}$: `u=null`, `deterministic=true`.
 
 ---
 
@@ -125,7 +122,7 @@ By pinning $x_m$, $\beta$, the **design-index digest**, lineage keys, event IDs/
 
 ---
 
-**Bottom line:** S1 starts only when $x_m$, $\beta$, the **matching `design_index_digest`**, and the lineage/RNG context are immutable and schema-backed; it writes to the single authoritative hurdle stream with a fixed envelope and partitioning. With these inputs and preconditions, S1.2–S1.4 can compute $\eta,\pi$, apply the binary64 threshold rule, draw $u$ (when needed), and emit an event the validator can reproduce byte-for-byte.
+**Bottom line:** S1 starts only when $x_m$, $\beta$, the **matching `design_index_digest`**, and the lineage/RNG context are immutable and schema-backed; it writes to the single authoritative hurdle stream with a fixed envelope and partitioning. With these inputs and preconditions, S1.2–S1.4 can compute $\eta,\pi$, decide the branch from $\pi$ exactly (no thresholds), draw $u$ when needed, and emit an event the validator can reproduce byte-for-byte.
 
 ---
 
@@ -186,21 +183,15 @@ computed in IEEE-754 **binary64** with a **fixed iteration order** over the froz
 
 ---
 
-## Deterministic classification (normative)
+## Deterministic regimes & consequences (normative)
 
-To make draw-consumption unambiguous, S1 classifies $\pi_m$ using a **binary64 threshold rule**:
+S1 relies **only** on the overflow-safe logistic from §S1.2; there is **no epsilon thresholding**.
 
-* Let $\epsilon = 2^{-53}$.
-* If $\pi_m \le \epsilon$ ⇒ **deterministic-zero** (treated as 0 for RNG).
-* If $\pi_m \ge 1-\epsilon$ ⇒ **deterministic-one** (treated as 1 for RNG).
-* Otherwise ⇒ **stochastic**.
+* **Typical:** if $0 < \pi_m < 1$, S1.3 MUST consume exactly **one** $u\sim U(0,1)$ (open interval), set `is_multi = 1{u < π}`, and advance the counter by **1**.
+* **Saturated:** if $\pi_m\in\{0,1\}$, S1.3 MUST consume **zero** uniforms (counter unchanged) and set `is_multi = 0` when $\pi=0$ or `1` when $\pi=1$.
 
-**Consequences for S1.3.**
+> There is **no clamping** of $\eta$ or $\pi$. Saturation to exact 0/1 happens only via binary64 under/overflow inside the two-branch logistic.
 
-* **Stochastic:** S1.3 MUST consume exactly **one** $u\sim U(0,1)$ (open interval) and set `is_multi = 1{u < π}`.
-* **Deterministic:** S1.3 MUST consume **zero** uniforms and set `is_multi` to the classified outcome (0 or 1).
-
-> There is **no clamping** of $\eta$ or $\pi$. Saturation to exact 0/1 may occur numerically for extreme $\eta$; the threshold rule is normative and supersedes relying on incidental saturation.
 
 ---
 
@@ -216,7 +207,7 @@ To make draw-consumption unambiguous, S1 classifies $\pi_m$ using a **binary64 t
 
 For each merchant $m$, produce:
 
-* $\eta_m\in\mathbb{R}$ (finite), $\pi_m\in[0,1]$, and a **classification** `deterministic_class ∈ {zero, one, none}`.
+* $\eta_m\in\mathbb{R}$ (finite), $\pi_m\in[0,1]$, and a **saturation classification** `deterministic_class ∈ {zero, one, none}` (exact-equality in binary64).
 
 These are **not** persisted by S1.2:
 
@@ -236,7 +227,7 @@ These are **not** persisted by S1.2:
 ## Validation hooks (minimal, for later)
 
 * **Bit-replay:** Recompute $\eta,\pi$ independently under the pinned math profile; assert finiteness and $\pi\in[0,1]$ with bitwise equality.
-* **Classification:** Assert `deterministic=true` in S1.4 iff $\pi \le 2^{-53}$ or $\pi \ge 1-2^{-53}$.
+* **Classification:** Assert `deterministic=true` in S1.4 iff $\pi\in\{0,1\}$ (exact binary64 saturation).
 * **Budget linkage:** `draws = 1` iff classification is **none**; else `0` (cross-check with `rng_trace_log`).
 
 ---
@@ -271,11 +262,10 @@ function S1_2_probability_map(x_m, beta):
   if not is_finite(pi):   raise E_HURDLE_NONFINITE("pi")
   if pi < 0.0 or pi > 1.0: raise E_HURDLE_OUT_OF_RANGE(pi)
 
-  # 3) Deterministic classification (binary64 threshold rule)
-  eps = 2^-53
-  if pi <= eps:
+  # 3) Deterministic classification (no thresholds)
+  if pi == 0.0:
       deterministic_class = "zero"
-  elif pi >= 1.0 - eps:
+  elif pi == 1.0:
       deterministic_class = "one"
   else:
       deterministic_class = "none"
@@ -292,7 +282,7 @@ function S1_2_probability_map(x_m, beta):
 
 ---
 
-**Bottom line:** S1.2 prescribes a fixed-order binary64 dot product and an overflow-safe two-branch logistic, followed by a **binary64 threshold classification**. This makes the RNG budget and event semantics exact and portable, eliminating any room for divergent implementations.
+**Bottom line:** S1.2 prescribes a fixed-order binary64 dot product and an overflow-safe two-branch logistic, followed by a **binary64 exact-equality (saturation) classification**. This makes the RNG budget and event semantics exact and portable, eliminating any room for divergent implementations.
 
 ---
 
@@ -313,8 +303,8 @@ and emit **exactly one** hurdle event (payload formalised in S1.4). Substream ma
 ## Inputs (available at S1.3 entry)
 
 * $\pi_m\in[0,1]$ **and** `deterministic_class ∈ {zero, one, none}` from S1.2
-  (If classification isn’t passed through the call boundary, the S1.2 rule MUST be re-applied here.)
-* Run lineage: `seed` (u64), `manifest_fingerprint`/`manifest_fingerprint_bytes` (32 raw bytes from lowercase hex, big-endian), `parameter_hash`, `run_id`, `module="1A.hurdle_sampler"`, and `design_index_digest`.
+  (If classification isn’t passed through the call boundary, re-derive as: `cls="none"` iff `0<π<1`, else `cls∈{zero,one}`.)
+* Run lineage: `seed` (u64), `manifest_fingerprint`/`manifest_fingerprint_bytes` (32 raw bytes from lowercase hex, big-endian), `parameter_hash`, `run_id`, `module="1A.hurdle_sampler"`.
 * `merchant_id = m` (u64).
 * Dictionary paths:
   `logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` and
@@ -351,6 +341,9 @@ $$
 
 with 64-bit carry into $c_{\mathrm{hi}}$. This mapping is **pure** in $(\texttt{seed},\texttt{manifest_fingerprint},\ell,m,i)$ → **order-invariant across partitions**.
 
+**Normative parsing & encoding.** Let `h = SHA256(…)[0:16]`. Interpret **little-endian**:  
+`before_hi = u64_le(h[0:8])`, `before_lo = u64_le(h[8:16])`. The 128-bit counter is `(before_hi << 64) + before_lo`, and increments apply to `lo` with carry into `hi`. All literal strings (`"ctr:1A"`, labels) are encoded as **ASCII bytes with no NUL terminator** in the hash input.
+
 ### Counter conservation (envelope law)
 
 For hurdle events:
@@ -359,7 +352,7 @@ $$
 (\texttt{after_hi},\texttt{after_lo})=(\texttt{before_hi},\texttt{before_lo})+\Delta,
 $$
 
-where $\Delta = 0$ if the classification is deterministic (`zero` or `one`), and $\Delta = 1$ if the classification is `none`. (The value of $\Delta$ is also written to `rng_trace_log.draws`; it is **not** an envelope field.)
+where $\Delta = 0$ if the saturation classification is deterministic (`zero` or `one`), and $\Delta = 1$ if the classification is `none`. (The value of $\Delta$ is also written to `rng_trace_log.draws`; it is **not** an envelope field.)
 
 > **No `stream_jump` record.** Under this keyed-counter scheme, `stream_jump` is unnecessary and MUST NOT be emitted (removes optional behaviour and divergence).
 
@@ -382,7 +375,7 @@ $$
 Let $\pi=\pi_m$ and `cls = deterministic_class`.
 
 * **Deterministic (`cls ∈ {zero, one}`):**
-  $\Delta=0$; do **not** call Philox; set
+  $\Delta=0$; **do not** call Philox; **do not** advance the counter; set
 
   $$
   \text{is_multi}=\begin{cases}
@@ -394,10 +387,10 @@ Let $\pi=\pi_m$ and `cls = deterministic_class`.
   Envelope counters satisfy `after == before`. Payload will use `u=null` and `deterministic=true` (S1.4).
 
 * **Stochastic (`cls = none`):**
-  $\Delta=1$; draw $u$ as above and set $\text{is_multi}=\mathbf{1}\{u<\pi\}$.
-  Envelope counters satisfy `after = before + 1`. Payload includes `u∈(0,1)` and `deterministic=false`.
+  $\Delta=1$; draw $u$ at `before` and set $\text{is_multi}=\mathbf{1}\{u < \pi\}$.
+  Envelope counters satisfy `after = before + 1`. Payload includes `u∈(0,1)`.
 
-These rules are normative and tie exactly to S1.2’s **binary64 threshold** classification.
+These rules are normative and tie exactly to S1.2’s **binary64 exact-equality (saturation)** classification.
 
 ---
 
@@ -406,7 +399,7 @@ These rules are normative and tie exactly to S1.2’s **binary64 threshold** cla
 Each hurdle event **must** carry the shared RNG envelope:
 
 ```
-{ ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, design_index_digest,
+{ ts_utc, run_id, seed, parameter_hash, manifest_fingerprint,
   module="1A.hurdle_sampler", substream_label="hurdle_bernoulli",
   rng_counter_before_{hi,lo}, rng_counter_after_{hi,lo} }
 ```
@@ -420,8 +413,8 @@ S1 also emits one `rng_trace_log` row with `draws = Δ` (0 or 1).
 
 * **Envelope/label mismatch.** Missing required envelope fields, or `substream_label` ≠ `"hurdle_bernoulli"` → **S0.9/F4** (RNG envelope violation).
 * **Counter conservation failure.** `(after − before) ∉ {0,1}`, or it disagrees with the branch (`Δ`) → **S0.9/F4**.
-* **Uniform out of range.** In a stochastic branch, observed `u ≤ 0` or `u ≥ 1` → **S0.9/F4** (u01 violation).
-* **Determinism inconsistency.** Classification `none` but `u` absent, or classification `zero/one` but `u` present → **S0.9/F4**.
+* **Uniform out of range.** In a stochastic branch (`Δ=1`), observed `u ≤ 0` or `u ≥ 1` → **S0.9/F4** (u01 violation).
+* **Branch/payload mismatch.** If `Δ=1` and `u` is absent or not in (0,1), or if `Δ=0` and the counter advanced → **S0.9/F4**.
 
 (Shape/order and non-finite errors originate in S1.1–S1.2, not here.)
 
@@ -433,10 +426,9 @@ For each hurdle record:
 
 1. **Rebuild the base counter.** From `(seed, manifest_fingerprint_bytes, label="hurdle_bernoulli", merchant_id)`, recompute the base counter and assert envelope `before` equals it.
 2. **Recompute budget & decision.**
-   Recompute `cls` from $\pi$ using the **S1.2 threshold rule** ($\epsilon=2^{-53}$):
-
-   * If `cls ≠ none`: assert `u==null`, `deterministic=true`, and `after==before`.
-   * If `cls = none`: regenerate $x_0$ via Philox at `before`, map to $u$, assert $u\in(0,1)$, `(u<π) == is_multi`, and `after = before + 1`.
+    Derive `cls` from $\pi$ via **saturation classification** (no epsilons):
+   * If `0<π<1` (`cls=none`): regenerate $x_0$ via Philox at `before`, map to $u$, assert $u\in(0,1)$, `(u<π) == is_multi`, and `after = before + 1`.
+   * Else (`cls∈{zero,one}`): assert `u==null`, `deterministic=true`, and `after==before`.
 3. **Trace reconciliation.** Join with `rng_trace_log`; assert `draws == (after − before)`.
 4. **Partition/embedding equality.** Path keys `{seed, parameter_hash, run_id}` equal the same fields embedded in the envelope.
 
@@ -448,10 +440,10 @@ For each hurdle record:
 INPUT:
   m : merchant_id (u64)
   pi : float64 in [0,1]
-  cls : {"zero","one","none"}  # from S1.2; if absent, re-derive using eps = 2^-53
+  cls : {"zero","one","none"}  # from S1.2; if absent, re-derive from π: cls="none" iff 0<π<1
   seed : u64
   mf_bytes : 32-byte manifest_fingerprint_bytes (from lowercase hex, big-endian)
-  now_utc_ns : u64
+  now_utc_iso : string  # RFC 3339 / ISO-8601 UTC timestamp
 
 # 1) Base counter for (label, merchant)
 buf = sha256( ASCII("ctr:1A") || mf_bytes || LE64(seed) || ASCII("hurdle_bernoulli") || LE64(m) )
@@ -459,11 +451,11 @@ before_hi = LE64_to_u64(buf[0:8])
 before_lo = LE64_to_u64(buf[8:16])
 
 # 2) Branch on classification
-if cls == "zero" or cls == "one":
+if cls != "none":
     Δ = 0
-    after_hi, after_lo = before_hi, before_lo
     u_val = null
     is_multi = (cls == "one")
+    after_hi, after_lo = before_hi, before_lo
 else:
     Δ = 1
     x0 = philox2x64_10(seed, before_hi, before_lo).lo64
@@ -474,18 +466,17 @@ else:
 # 3) Emit hurdle event (payload per S1.4)
 emit_hurdle_event(
   envelope = {
-    ts_utc=now_utc_ns, run_id, seed, parameter_hash, manifest_fingerprint,
-    design_index_digest, module="1A.hurdle_sampler", substream_label="hurdle_bernoulli",
+    ts_utc=now_utc_iso, run_id, seed, parameter_hash, manifest_fingerprint
+    module="1A.hurdle_sampler", substream_label="hurdle_bernoulli",
     rng_counter_before_hi=before_hi, rng_counter_before_lo=before_lo,
     rng_counter_after_hi=after_hi,   rng_counter_after_lo=after_lo
   },
-  payload = { merchant_id=m, pi=pi, u=u_val, is_multi=is_multi,
-              deterministic=(Δ == 0) }
+  payload = { merchant_id=m, pi=pi, u=u_val, is_multi=is_multi, deterministic=(Δ==0) }
 )
 
 # 4) Emit rng_trace_log row
 emit_rng_trace({
-  ts_utc=now_utc_ns, run_id, seed, parameter_hash, manifest_fingerprint,
+  ts_utc=now_utc_iso, run_id, seed, parameter_hash, manifest_fingerprint,
   module="1A.hurdle_sampler", substream_label="hurdle_bernoulli",
   rng_counter_before_hi=before_hi, rng_counter_before_lo=before_lo,
   rng_counter_after_hi=after_hi,   rng_counter_after_lo=after_lo,
@@ -499,12 +490,12 @@ emit_rng_trace({
 
 * **I-H1 (bit-replay).** Fixing $(x_m,\beta,\texttt{seed},\texttt{parameter_hash},\texttt{manifest_fingerprint})$, the tuple $(u_m,\text{is_multi}(m))$ and counters are **bit-identical** across replays.
 * **I-H2 (consumption).** `draws=1` iff classification is **none**; otherwise `0`.
-* **I-H3 (schema conformance).** `u` and `deterministic` appear exactly per the classification and S1.4.
+* **I-H3 (schema conformance).** If `Δ=1`, `u ∈ (0,1)` and `(u<π) == is_multi`; if `Δ=0`, `u == null` and counters do not advance.
 * **I-H4 (branch purity).** Hurdle decision feeds subsequent states; downstream MUST NOT override it.
 
 ---
 
-**Bottom line:** S1.3 sets a deterministic, merchant-keyed Philox substream and a single-uniform Bernoulli decision controlled by S1.2’s threshold classification. No optional jumps, explicit lane policy, open-interval mapping, and counter conservation make the stream replayable, auditable, and unambiguous.
+**Bottom line:** S1.3 sets a deterministic, merchant-keyed Philox substream and a single-uniform Bernoulli decision controlled by S1.2’s classification. No optional jumps, explicit lane policy, open-interval mapping, and counter conservation make the stream replayable, auditable, and unambiguous.
 
 ---
 
@@ -532,45 +523,37 @@ The stream is approved in the dictionary and bound to the schema anchor:
 Every record MUST carry `$defs.rng_envelope` exactly:
 
 * **Required envelope fields**
-  `ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, design_index_digest, module, substream_label, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi`.
+  `ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, rng_counter_before_hi, rng_counter_before_lo, rng_counter_after_hi, rng_counter_after_lo`.
 
-* **Semantics (normative)**
-
-  * `ts_utc`: RFC 3339/ISO timestamp (UTC) at emit time.
-  * `run_id`: log-only identifier (scopes logs; from S0).
-  * `seed`: master Philox key (u64; run-constant).
-  * `parameter_hash`, `manifest_fingerprint`: lineage keys (hex).
-
-    * `manifest_fingerprint_bytes` = 32 raw bytes from the **lowercase** hex string (big-endian) used in counter derivation (S1.3).
-  * `design_index_digest`: SHA-256 hex (lowercase) of the feature index map used to wire $x_m$ (must match S1.1).
-  * `module`: **exactly** `"1A.hurdle_sampler"`.
-  * `substream_label`: **exactly** `"hurdle_bernoulli"`.
-  * `rng_counter_before_*`, `rng_counter_after_*`: Philox-2×64 counter **before** and **after** the event’s draws.
+* Semantics (normative):
+   * `ts_utc`: RFC 3339/ISO timestamp (UTC) at emit time.
+   * `run_id`: log-only identifier.
+   * `seed`: the master Philox u64 seed (constant within a run).
+   * `parameter_hash`, `manifest_fingerprint`: lineage keys (hex).
+   * `module`: **exactly** `"1A.hurdle_sampler"`.
+   * `substream_label`: **exactly** `"hurdle_bernoulli"`.
+   * `rng_counter_before_*`, `rng_counter_after_*`: Philox-2x64 counter **before** and **after** the event’s draws.
 
 **Counter arithmetic (ties to S1.3).**
 Let $\Delta\in\{0,1\}$ be the draw budget decided by S1.2’s classification (`none` → 1, `zero/one` → 0). Then:
 
 ```
-after == before + Δ       # unsigned 128-bit addition
+after == before + Δ       # unsigned 128-bit 
 ```
 
 (There is **no** block grouping; each uniform uses one counter increment.)
+
+**Serialization policy (u64 fields).** All 64-bit integers (`seed`, `merchant_id`, `rng_counter_*`) MUST be emitted and read as integer types with full 64-bit precision. Implementations that coerce these to IEEE-754 `double` (53-bit mantissa) are non-compliant.
 
 ---
 
 ## 3) Payload (event-specific, exact contract)
 
-The hurdle payload is **minimal, branch-clean, and schema-anchored**:
+The hurdle payload is **branch-clean and schema-anchored**:
 
-* **Required**:
-  `merchant_id` (u64), `pi` (float64 in \[0,1]), `is_multi` (boolean), `deterministic` (boolean).
-
-* **Conditional**:
-  `u` (float64 in (0,1)) is **required when** `deterministic=false` and **must be null** when `deterministic=true`.
-
-* **Optional `context` object** (when enabled in schema):
-  `{ "mcc": <int>, "channel": "CP"|"CNP", "gdp_bucket_id": 1..5 }`.
-  (This keeps optional fields contained and avoids payload churn.)
+* **Required**: `merchant_id` (u64), `pi` (float64 in [0,1]), `is_multi` (bool), `deterministic` (bool)
+* **Conditional**: `u` — present with `deterministic=false` and `u∈(0,1)`; **must be** `null` when `deterministic=true`
+* **Optional**: `mcc` (int), `channel` ("card_present"|"card_not_present"), `gdp_bucket_id` (1..5)
 
 **Branch semantics (normative):**
 
@@ -596,13 +579,12 @@ The hurdle payload is **minimal, branch-clean, and schema-anchored**:
   "seed": 1234567890123456789,
   "parameter_hash": "0f...c1",
   "manifest_fingerprint": "aa...33",
-  "design_index_digest": "bb...55",
   "module": "1A.hurdle_sampler",
   "substream_label": "hurdle_bernoulli",
-  "rng_counter_before_lo": 9876543210,
   "rng_counter_before_hi": 42,
-  "rng_counter_after_lo": 9876543211,
+  "rng_counter_before_lo": 9876543210,
   "rng_counter_after_hi": 42,
+  "rng_counter_after_lo": 9876543211,
 
   "merchant_id": 184467440737095,
   "pi": 0.3725,
@@ -621,13 +603,12 @@ The hurdle payload is **minimal, branch-clean, and schema-anchored**:
   "seed": 1234567890123456789,
   "parameter_hash": "0f...c1",
   "manifest_fingerprint": "aa...33",
-  "design_index_digest": "bb...55",
   "module": "1A.hurdle_sampler",
   "substream_label": "hurdle_bernoulli",
-  "rng_counter_before_lo": 555,
   "rng_counter_before_hi": 7,
-  "rng_counter_after_lo": 555,
+  "rng_counter_before_lo": 555,
   "rng_counter_after_hi": 7,
+  "rng_counter_after_lo": 555,
 
   "merchant_id": 184467440737096,
   "pi": 0.9999999999999,
@@ -639,12 +620,12 @@ The hurdle payload is **minimal, branch-clean, and schema-anchored**:
 
 ---
 
-## 5) Write discipline & linkage
+## 5) Write discipline, idempotency, and ordering
 
 * **Exactly one** hurdle record per merchant.
 * Append-only `part-*` files; stable partitioning by `{seed, parameter_hash, run_id}`.
 * Always `module="1A.hurdle_sampler"` and `substream_label="hurdle_bernoulli"`.
-* Emit **one** `rng_trace_log` row per hurdle record with `draws = Δ` and matching envelope counters/keys.
+* Trace linkage: for each merchant, emit **exactly one** `rng_trace_log` row for sub-stream `"hurdle_bernoulli"` with `draws=Δ∈{0,1}` and the same `(seed, parameter_hash, run_id)` partition.
 
 ---
 
@@ -652,22 +633,23 @@ The hurdle payload is **minimal, branch-clean, and schema-anchored**:
 
 For each record:
 
-1. **Schema conformance.** Validate against `#/rng/events/hurdle_bernoulli` + `$defs.rng_envelope`.
-2. **Counter proof.** Recompute $\Delta$ from `deterministic`:
+1. **Base-counter proof.** Rebuild the base counter for `(seed, manifest_fingerprint_bytes, "hurdle_bernoulli", merchant_id)` and assert envelope `before` equals it.
+2. **Schema conformance.** Validate against `#/rng/events/hurdle_bernoulli` + `$defs.rng_envelope`.
+3. **Counter (and base-counter) proof.** Recompute $\Delta$ from `deterministic`:
 
    * `true` → $\Delta=0$ and `after==before`; `u==null`.
    * `false` → $\Delta=1$ and `after==before+1`; `u∈(0,1)`.
-3. **RNG replay.** For $\Delta=1$, regenerate $u$ from Philox at `before` using S1.3 and assert `(u < pi) == is_multi`.
-4. **Trace reconciliation.** Join `rng_trace_log` on envelope keys; assert `draws == (after − before)`.
-5. **Cardinality & ordering.** Row count equals merchants in `merchant_ids` for the run; path keys equal embedded fields.
+4. **RNG replay.** For $\Delta=1$, regenerate $u$ from Philox at `before` and assert `(u < pi) == is_multi`.
+5. **Trace reconciliation.** Join `rng_trace_log` on `{seed, parameter_hash, run_id, substream_label="hurdle_bernoulli", merchant_id}`; assert `draws == (after − before)`.
+6. **Cardinality & ordering.** Row count equals merchants in `merchant_ids` for the run; path keys equal embedded fields.
 
 ---
 
 ## 7) Failure semantics surfaced by S1.4
 
-* **E_SCHEMA_HURDLE**: record fails `#/rng/events/hurdle_bernoulli` (missing envelope field, wrong types, `u` present with `deterministic=true`, etc.).
-* **E_COUNTER_MISMATCH**: `after` ≠ `before + Δ`.
-* **E_BRANCH_GAP** (checked later): any downstream RNG event for a merchant with **no** prior hurdle record or with `is_multi=false`.
+* **`hurdle_payload_schema_violation`**: record fails `#/rng/events/hurdle_bernoulli` (missing envelope field, wrong types, `u` present with `deterministic=true`, etc.).
+* **`rng_counter_mismatch`**: `after` ≠ `before + Δ`.
+* **`logging_gap_no_prior_hurdle`** (checked later): any downstream RNG event for a merchant with **no** prior hurdle record or with `is_multi=false`.
 
 ---
 
@@ -680,7 +662,7 @@ function emit_hurdle_event(m, pi, cls, ctx):
                         mf_bytes=ctx.mf_bytes, merchant=m)
   if cls == "none":
       Δ = 1
-      x0 = philox2x64_10(ctx.seed, before).lo64
+      x0 = philox2x64_10(ctx.seed, before_hi, before_lo).lo64
       u  = (x0 + 1) / (2^64 + 1)
       is_multi = (u < pi)
       after = add_u128(before, 1)
@@ -702,7 +684,7 @@ function emit_hurdle_event(m, pi, cls, ctx):
 
 ---
 
-**Bottom line:** S1.4 now has a single, unambiguous contract: stable pathing, a precise envelope (including `design_index_digest`), and a **nullable-`u` + `deterministic`** payload that mirrors S1.2’s threshold classification. Counters prove consumption (`after = before + Δ`), making each hurdle decision independently replayable and audit-tight.
+**Bottom line:** S1.4 now has a single, unambiguous contract: stable pathing, a precise envelope, and a **nullable-`u` + `deterministic`** payload that mirrors S1.2’s classification. Counters prove consumption (`after = before + Δ`), making each hurdle decision independently replayable and audit-tight.
 
 ---
 
@@ -717,10 +699,10 @@ Freeze the invariants that must hold for every merchant’s hurdle decision so d
 ## I-H0 — Environment, schema & authority (precondition)
 
 * **Numeric profile.** IEEE-754 **binary64**, round-to-nearest-even; **no FMA**, **no FTZ/DAZ**; fixed-order reductions; deterministic `exp` in the two-branch logistic. (Violations ⇒ S0.9/F3.)
-* **Schema anchors.** All RNG records conform to `$defs.rng_envelope` and their event schema anchors. Hurdle is bound to `schemas.layer1.yaml#/rng/events/hurdle_bernoulli`.
-* **Design wiring authority.** `design_index_digest` emitted in every hurdle envelope **equals** the digest embedded in `hurdle_coefficients.yaml` and the local feature wiring used in S1.1–S1.2. (Mismatch ⇒ S0.9/F6.)
+* **Schema anchors.** All RNG records conform to `$defs.rng_envelope`; hurdle events bind to `schemas.layer1.yaml#/rng/events/hurdle_bernoulli`.
+* **Design wiring authority.** `design_index_digest` is used for **pre-run wiring checks only** (S1.1) and is **not** emitted in hurdle events.
 
-**Validator.** Assert the math profile, envelope presence, and `design_index_digest` equality per record.
+**Validator.** Assert the math profile and envelope presence per record.
 
 ---
 
@@ -728,7 +710,7 @@ Freeze the invariants that must hold for every merchant’s hurdle decision so d
 
 **Statement.** For fixed inputs $(x_m,\beta,\texttt{seed},\texttt{parameter_hash},\texttt{manifest_fingerprint})$, the tuple $(u_m,\text{is_multi}(m))$ and envelope counters $(C^{\mathrm{pre}}_m,C^{\mathrm{post}}_m)$ are **bit-identical** across replays, independent of emission order.
 
-**Why.** Base counter is a pure function of `(seed, manifest_fingerprint_bytes, "hurdle_bernoulli", merchant_id)`; draw budget is a pure function of $\pi_m$ via S1.2’s threshold rule; $u$ uses a single mapped 64-bit word (open interval).
+**Why.** Base counter is a pure function of `(seed, manifest_fingerprint_bytes, "hurdle_bernoulli", merchant_id)`; draw budget is a pure function of $\pi_m$ via S1.2’s **saturation classification**; $u$ uses a single mapped 64-bit word (open interval).
 
 **Validator.** Rebuild base counter; if draw budget is 1, regenerate $u$ and assert `(u < π) == is_multi`; counters match exactly.
 
@@ -736,23 +718,17 @@ Freeze the invariants that must hold for every merchant’s hurdle decision so d
 
 ## I-H2 — Consumption & budget (single-uniform law)
 
-**Statement.** Let $\epsilon=2^{-53}$ and define the **classification** from S1.2:
-
-* `none` if $\epsilon<\pi_m<1-\epsilon$ (stochastic),
-* `zero` if $\pi_m\le\epsilon$, `one` if $\pi_m\ge 1-\epsilon$ (deterministic).
-
-Then the draw budget $\Delta$ is:
-
-* $\Delta=1$ if classification is `none`;
-* $\Delta=0$ if classification is `zero` or `one`.
+**Statement.** The draw budget $\Delta$ is:
+* $\Delta=1$ iff $0 < \pi_m < 1$ (stochastic);
+* $\Delta=0$ iff $\pi_m\in\{0,1\}$ (deterministic).
 
 Envelope counters obey:
 
 ```
-after == before + Δ      # unsigned 128-bit addition
+after == before + Δ      # unsigned 128-bit
 ```
 
-**Validator.** Re-derive classification from `pi`; check `after − before == Δ` and `rng_trace_log.draws == Δ`.
+**Validator.** Derive $\Delta$ from `pi`; check `after − before == Δ` and `rng_trace_log.draws == Δ`.
 
 ---
 
@@ -792,7 +768,7 @@ after == before + Δ      # unsigned 128-bit addition
 ## I-H6 — Envelope completeness & path equality
 
 * Every record contains **all** envelope fields:
-  `ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, design_index_digest, module="1A.hurdle_sampler", substream_label="hurdle_bernoulli", rng_counter_before_{hi,lo}, rng_counter_after_{hi,lo}`.
+  `ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module="1A.hurdle_sampler", substream_label="hurdle_bernoulli", rng_counter_before_{hi,lo}, rng_counter_after_{hi,lo}`.
 * Path keys `{seed, parameter_hash, run_id}` **equal** the same embedded fields.
 
 **Validator.** JSON-schema conformance + equality of path vs embedded keys.
@@ -831,7 +807,7 @@ For each hurdle row $r$ with merchant $m$:
 
 1. Recompute $(\eta_m,\pi_m)$ per S1.2 (fixed-order dot + two-branch logistic); assert finiteness and $\pi \in [0,1]$.
 2. Rebuild **base counter** for $(\text{"hurdle_bernoulli"}, m)$ and assert `rng_counter_before` equals it.
-3. Derive classification via $\epsilon=2^{-53}$; set $\Delta = 1$ iff `none`; assert `rng_counter_after = rng_counter_before + Δ`.
+3. Derive $\Delta$ directly from $\pi$: set $\Delta = 1$ iff $0 < \pi < 1$; else $\Delta=0$. Assert `rng_counter_after = rng_counter_before + Δ`.
 4. If $\Delta=1$: regenerate $u$ (open-interval mapping) and assert $u \in (0,1)$ and `(u < π) == is_multi`.
    If $\Delta=0$: assert `deterministic=true`, `u=null`, and `is_multi` matches the classification (`zero`→false, `one`→true).
 5. Cross-check `rng_trace_log.draws == Δ`.
@@ -854,7 +830,7 @@ For each hurdle row $r$ with merchant $m$:
 
 ---
 
-**Bottom line:** With the binary64 threshold classification, single-uniform budget, exact envelope + counter law, nullable-`u` payload, and `design_index_digest` echoed, S1 is fully replayable and impossible to misinterpret—giving downstream states a clean, deterministic base to build on.
+**Bottom line:** With the binary64 logistic, single-uniform budget, exact envelope + counter law, and nullable-`u` payload, S1 is fully replayable and impossible to misinterpret—giving downstream states a clean, deterministic base to build on.
 
 ---
 
@@ -880,9 +856,9 @@ Schemas in `schemas.layer1.yaml` (e.g., `$defs.rng_envelope`, `#/rng/events/hurd
 **Forensics.** `{merchant_id, field, value}`.
 
 **A3. `design_index_digest_mismatch`**
-**Predicate.** `design_index_digest (envelope)` ≠ digest embedded in `hurdle_coefficients.yaml` **or** ≠ digest of the local wiring used to build $x_m$.
-**Detect at.** S1.1 guard; envelope echo at S1.4. **Abort run.**
-**Forensics.** `{digest_yaml, digest_local, digest_envelope}`.
+**Predicate.** Digest embedded in `hurdle_coefficients.yaml` ≠ digest of the local wiring used to build $x_m$.
+**Detect at.** S1.1/S1.2 guard (pre-run wiring check). **Abort run.**
+**Forensics.** `{digest_yaml, digest_local}`.
 
 ---
 
@@ -904,7 +880,7 @@ Schemas in `schemas.layer1.yaml` (e.g., `$defs.rng_envelope`, `#/rng/events/hurd
 
 **C1. `rng_envelope_schema_violation`**
 **Predicate.** Any missing/wrongly-typed **envelope** field required by `$defs.rng_envelope`:
-`{ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, design_index_digest, module, substream_label, rng_counter_before_{lo,hi}, rng_counter_after_{lo,hi}}`.
+`{ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, rng_counter_before_{hi,lo}, rng_counter_after_{hi,lo}}`.
 **Detect at.** Writer + validator schema checks. **Abort run.**
 **Forensics.** `{dataset_id, path, missing_or_bad:[...]}`.
 
@@ -913,7 +889,7 @@ Schemas in `schemas.layer1.yaml` (e.g., `$defs.rng_envelope`, `#/rng/events/hurd
 **Detect at.** Writer assertion; validator. **Abort run.**
 
 **C3. `rng_counter_mismatch`**
-**Predicate.** `u128(after) − u128(before) ≠ Δ`, where **Δ** is the draw budget from S1.2’s **threshold classification** (`none→1`, `zero/one→0`).
+**Predicate.** `u128(after) − u128(before) ≠ Δ`, where **Δ** is the draw budget from S1.2’s **saturation classification** (`none→1`, `zero/one→0`).
 **Detect at.** Writer + validator reconciliation. **Abort run.**
 **Forensics.** `{before, after, delta_expected:Δ}`.
 
@@ -943,7 +919,7 @@ Schemas in `schemas.layer1.yaml` (e.g., `$defs.rng_envelope`, `#/rng/events/hurd
 **Detect at.** Writer JSON-Schema; CI validator. **Abort run.**
 
 **D2. `payload_branch_inconsistency`**
-**Predicate.** `deterministic=false` but `u` absent/nullable, **or** `deterministic=true` but `u` present and non-null.
+**Predicate.** If `Δ=1` and `u` is absent or not in (0,1), **or** if `Δ=0` and `(after ≠ before)` (counter advanced).
 **Detect at.** Writer; validator. **Abort run.**
 
 **D3. `decision_mismatch`**
@@ -999,7 +975,6 @@ Emit a JSON failure object with envelope lineage (written alongside the validati
   "seed": 1234567890,
   "parameter_hash": "<hex64>",
   "manifest_fingerprint": "<hex64>",
-  "design_index_digest": "<hex64>",
   "run_id": "<hex32>",
   "ts_utc": "2025-08-15T10:12:03.123456Z"
 }
@@ -1009,23 +984,23 @@ Emit a JSON failure object with envelope lineage (written alongside the validati
 
 ## Where to detect & who double-checks
 
-| Family / Code               | First detector (runtime)   | Secondary (validator / CI) |
-| --------------------------- | -------------------------- | -------------------------- |
-| A1–A3 design/wiring         | S1.1/S1.2 guards           | N/A (optional lints)       |
-| B1–B2 numeric invalid       | S1.2 evaluation guards     | Re-eval η,π                |
-| C1 envelope schema          | Writer JSON-Schema         | Validator schema pass      |
-| C2/C6 label/module mismatch | Writer assertions          | Validator                  |
-| C3 counter mismatch         | Writer + trace emission    | Counter reconciliation     |
-| C4 trace missing/mismatch   | —                          | Trace join                 |
-| C5 u out of range           | Writer check               | `u01` + replay             |
-| D1 payload schema           | Writer JSON-Schema         | Validator schema pass      |
-| D2 branch inconsistency     | Writer assertion           | Replay/branch recompute    |
-| D3 decision mismatch        | —                          | Replay `(u<π) == is_multi` |
-| E1 partition mismatch       | Writer path/embed equality | Path lint                  |
-| E2 wrong dataset path       | —                          | Dictionary lint            |
-| F1 logging gap              | —                          | Cross-stream gating        |
-| F2 duplicate record         | —                          | Uniqueness                 |
-| F3 cardinality mismatch     | —                          | Row count vs ingress       |
+| Family / Code                   | First detector (runtime)   | Secondary (validator / CI) |
+|---------------------------------|----------------------------|----------------------------|
+| A1–A3 design/wiring             | S1.1/S1.2 guards           | N/A (optional lints)       |
+| B1–B2 numeric invalid           | S1.2 evaluation guards     | Re-eval η,π                |
+| C1 envelope schema              | Writer JSON-Schema         | Validator schema pass      |
+| C2/C6 label/module mismatch     | Writer assertions          | Validator                  |
+| C3 counter mismatch             | Writer + trace emission    | Counter reconciliation     |
+| C4 trace missing/mismatch       | —                          | Trace join                 |
+| C5 u out of range               | Writer check               | `u01` + replay             |
+| D1 payload schema               | Writer JSON-Schema         | Validator schema pass      |
+| D2 payload_branch_inconsistency | Writer assertion           | Replay/branch recompute    |
+| D3 decision mismatch            | —                          | Replay `(u<π) == is_multi` |
+| E1 partition mismatch           | Writer path/embed equality | Path lint                  |
+| E2 wrong dataset path           | —                          | Dictionary lint            |
+| F1 logging gap                  | —                          | Cross-stream gating        |
+| F2 duplicate record             | —                          | Uniqueness                 |
+| F3 cardinality mismatch         | —                          | Row count vs ingress       |
 
 ---
 
@@ -1033,7 +1008,7 @@ Emit a JSON failure object with envelope lineage (written alongside the validati
 
 1. **Schema:** validate hurdle events + trace rows against anchors (envelope + event).
 2. **Recompute η,π:** S1.2 rules (fixed-order dot + two-branch logistic). Assert finiteness and $\pi \in [0,1]$.
-3. **Classification & budget:** with $\epsilon=2^{-53}$, derive classification (`none/zero/one`) and $\Delta$. Assert `after = before + Δ` and `trace.draws == Δ`.
+3. **Budget from π:** set $\Delta = 1$ iff $0 < \pi < 1$; else $\Delta=0$. Assert `after = before + Δ` and `trace.draws == Δ`.
 4. **Payload discipline:**
 
    * `deterministic=true` ⇒ `u==null`;
@@ -1074,10 +1049,10 @@ logs/rng/events/hurdle_bernoulli/
 **Envelope (shared; required for all RNG events):**
 
 ```
-{ ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, design_index_digest,
+{ ts_utc, run_id, seed, parameter_hash, manifest_fingerprint,
   module="1A.hurdle_sampler", substream_label="hurdle_bernoulli",
-  rng_counter_before_lo, rng_counter_before_hi,
-  rng_counter_after_lo,  rng_counter_after_hi }
+  rng_counter_before_hi, rng_counter_before_lo,
+  rng_counter_after_hi,  rng_counter_after_lo }
 ```
 
 **Payload (authoritative, branch-clean):**
@@ -1165,11 +1140,11 @@ data/layer1/1A/hurdle_pi_probs/parameter_hash={parameter_hash}/…
 ## E) Boundary invariants (must hold when S1 ends)
 
 1. **Single emit:** exactly one hurdle record per merchant per `{seed, parameter_hash, run_id}`, and exactly one $\Xi_m$.
-2. **Counter continuity:** next RNG envelope for $m$ satisfies `rng_counter_before == C_m^{\star}`.
+2. **Counter continuity:** next RNG envelope for $m$ satisfies $\texttt{rng_counter_before} == C_m^{\star}$.
 3. **Branch purity:** downstream RNG streams appear **iff** `is_multi=1`; single-site path performs **no** NB/ZTP/Dirichlet/Gumbel draws.
 4. **Lineage coherence:** logs use `{seed, parameter_hash, run_id}`; egress/validation later uses `fingerprint={manifest_fingerprint}`. Embedded keys equal path keys.
-5. **Numeric consistency:** payload `pi` equals recomputed $π_m$ from S1.2 (fixed-order dot + two-branch logistic); binary64 thresholding governs `deterministic` (S1.2).
-6. **Design wiring coherence:** `design_index_digest` in the envelope equals the digest in `hurdle_coefficients.yaml` and the local wiring used to form $x_m$.
+5. **Numeric consistency:** payload `pi` equals recomputed $\pi_m$ from S1.2 (fixed-order dot + two-branch logistic).
+6. **Design wiring coherence:** local wiring digest equals the digest embedded in `hurdle_coefficients.yaml` (pre-run check; not emitted in events).
 
 ---
 
@@ -1195,7 +1170,7 @@ OUTPUT:
 10     K_m := ⊥      # set later in cross-border/ranking
 11     next_state := S2
 
-12 return Xi_m, next_state
+12 return (is_multi, N_m, K_m, 𝒞_m, C_star_m) next_state
 ```
 
 ---
@@ -1257,7 +1232,7 @@ Validate **every** hurdle record against:
 **Envelope (must include, exactly):**
 
 ```
-{ ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, design_index_digest,
+{ ts_utc, run_id, seed, parameter_hash, manifest_fingerprint,
   module, substream_label, rng_counter_before_{hi,lo}, rng_counter_after_{hi,lo} }
 ```
 
@@ -1267,9 +1242,9 @@ Validate **every** hurdle record against:
 **Payload (branch-clean, no dual contract):**
 
 ```
-required:  merchant_id (u64), pi (float64 in [0,1]), is_multi (bool), deterministic (bool)
-conditional: u (float64 in (0,1)) present iff deterministic=false; u=null iff deterministic=true
-optional:   context {mcc, channel, gdp_bucket_id} when enabled in schema
+required:   merchant_id (u64), pi (float64 in [0,1]), is_multi (bool), deterministic (bool)
+conditional u (float64 in (0,1)) present iff deterministic=false; u=null iff deterministic=true
+optional:   mcc (int), channel ("card_present"|"card_not_present"), gdp_bucket_id (1..5)
 ```
 
 Fail on the first schema error.
@@ -1305,25 +1280,18 @@ For each hurdle record:
    $$
 
    Assert `rng_counter_before == base_counter`. (Do **not** trust envelope blindly.)
-2. **Classification & budget (S1.2 threshold rule).**
+2. **Budget from π (saturation classification; no epsilons).**
 
-   * $\epsilon = 2^{-53}$
-   * `cls = none` if $\epsilon < \pi < 1-\epsilon$; `zero` if $\pi \le \epsilon$; `one` if $\pi \ge 1-\epsilon$.
-   * $\Delta = 1$ iff `cls = none`; else $\Delta = 0$.
+   * $\Delta = 1$ iff $0 < \pi < 1$; else $\Delta=0$.
 3. **Counter conservation.** Assert:
 
    ```
-   after == before + Δ       # unsigned 128-bit addition
+   after == before + Δ       # unsigned 128-bit
    ```
 4. **Trace join.** On `(seed, parameter_hash, run_id, label=ℓ, merchant_id)`, assert `rng_trace_log.draws == Δ`.
 5. **Branch-specific replay.**
-
-   * If `Δ=0` (deterministic): assert `deterministic=true`, `u=null`, and:
-
-     * `cls=zero`  ⇒ `is_multi=false`
-     * `cls=one`   ⇒ `is_multi=true`
-   * If `Δ=1` (stochastic): regenerate the **lo64** word at `before`, map to $u=(x_0+1)/(2^{64}+1)$; assert $u\in(0,1)$ and `(u < pi) == is_multi`, and envelope `after = before + 1`.
-
+   * If `Δ=0` (deterministic): assert $\pi\in\{0,1\}$; assert payload has `deterministic=true` and `u==null`; assert `is_multi` equals `(π==1)`.  
+   * If `Δ=1` (stochastic): regenerate the **lo64** word at `before`, map to `u` via `u01`, assert `0<u<1` and `(u < π) == is_multi`, and `after = before + 1`.
 ---
 
 ## V6. Cross-stream gating (branch purity)
@@ -1380,7 +1348,6 @@ Emit one JSON object per failure:
   "seed": 1234567890,
   "parameter_hash": "<hex64>",
   "manifest_fingerprint": "<hex64>",
-  "design_index_digest": "<hex64>",
   "run_id": "<hex32>",
   "ts_utc": "2025-08-15T10:12:03.123456Z"
 }
@@ -1417,7 +1384,7 @@ Run validator for:
 
 1. **Schema step:** hurdle + trace rows validate against anchors.
 2. **Partition step:** path ↔ embedded equality; label/module equality.
-3. **Replay step:** recompute $η,π$; derive `cls` by threshold; budget; rebuild base counter; regenerate $u$ when needed; check decision & counters; trace join.
+3. **Replay step:** recompute $η,\pi$; derive `cls`/budget **exactly from $\pi$ via saturation classification (no epsilons)**; rebuild base counter; regenerate $u$ when needed; check decision & counters; trace join.
 4. **Gating step:** downstream only when `is_multi=true`.
 5. **Cardinality/uniqueness:** one hurdle row per merchant; counts match ingress.
 
@@ -1456,14 +1423,12 @@ for e in H:
 beta, digest_yaml := load_beta_and_digest_once()
 for e in H:
   x_m, digest_local := rebuild_design_and_digest(e.merchant_id)
-  assert digest_local == digest_yaml == e.design_index_digest
+  assert digest_local == digest_yaml
   eta, pi := fixed_order_dot_and_safe_logistic(x_m, beta)
   assert is_finite(eta) and is_finite(pi) and 0.0 <= pi <= 1.0
 
-  # 4) classification and budget
-  eps := 2^-53
-  cls := (pi <= eps) ? "zero" : (pi >= 1.0 - eps) ? "one" : "none"
-  Δ   := (cls == "none") ? 1 : 0
+  # 4) budget from π (saturation classification; no epsilons)
+  Δ := (0.0 < pi && pi < 1.0) ? 1 : 0
 
   # 5) base counter and counters
   before := base_counter(seed, manifest_fingerprint_bytes, "hurdle_bernoulli", e.merchant_id)
@@ -1477,13 +1442,13 @@ for e in H:
 
   # 7) branch-specific checks
   if Δ == 0:
-     assert e.deterministic == true and e.u == null
-     assert (cls == "zero" and e.is_multi == false) or (cls == "one" and e.is_multi == true)
+     assert e.deterministic == true && e.u == null
+     assert (pi == 0.0 && e.is_multi == false) || (pi == 1.0 && e.is_multi == true)
   else:
      u := regenerate_u01(seed, before)  # lo64 -> (x0+1)/(2^64+1)
      assert 0.0 < u and u < 1.0
      assert (u < pi) == e.is_multi
-     assert e.deterministic == false and e.u ∈ (0,1)
+     assert e.deterministic == false && e.u ∈ (0,1)
 
 # 8) gating
 H1 := { e.merchant_id | e.is_multi == true }
