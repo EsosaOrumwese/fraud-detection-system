@@ -742,15 +742,7 @@ Event **must** carry (in addition to the common envelope):
   nb_rejections    // == r_m (int64, ≥0)
 }
 ```
-
-**Optional but RECOMMENDED (derived, deterministic):**
-
-```
-nb_r = dispersion_k,                       // binary64 (duplicate for canonical NB)
-nb_p = dispersion_k / (dispersion_k + mu)  // binary64, computed here from echoed μ,φ
-```
-
-(If present, these must be computed in **binary64** here; no RNG.)
+// No optional NB fields (`nb_r`, `nb_p`) are included; downstream can derive them if needed.
 
 **Non-consuming constraint:** `rng_counter_before == rng_counter_after` (both 128-bit words). Validator treats inequality as structural failure.
 
@@ -906,7 +898,7 @@ Guarantee **bit-replay** and **auditability** of the NB sampler by fixing (i) wh
   * `logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`
     Partition keys are **exactly** `["seed","parameter_hash","run_id"]`.
 
-> Notes: (1) We keep the **stream names** (`gamma_component`, `poisson_component`) while distinguishing NB via **substream labels** above; S4 will use e.g. `poisson_ztp`. (2) `context="nb"` is present on component events (not used for mapping); `nb_final` carries **no** `context`.
+> Notes: We keep the **stream names** (`gamma_component`, `poisson_component`) and distinguish NB vs ZTP via the **`context`** only (`"nb"` vs `"ztp"`). `nb_final` carries **no** `context`.
 
 ---
 
@@ -922,7 +914,7 @@ D = "ctr:1A"                // ASCII
   || seed_bytes                   // 16 bytes if UUID v4; else 8-byte LE if u64
   || parameter_hash_bytes         // 32 bytes (hex-decoded)
   || module                       // ASCII "1A.nb_sampler"
-  || substream_label              // ASCII, e.g., "gamma_nb"
+  || substream_label              // ASCII, one of: "gamma_component", "poisson_component", "nb_final"
   || merchant_id_utf8             // ASCII/UTF-8
 ```
 
@@ -942,15 +934,14 @@ D = "ctr:1A"                // ASCII
 (c_hi, c_lo) = (c_base_hi, c_base_lo + i)   // 128-bit add with carry into hi
 ```
 
-Mapping is **pure** in `(manifest_fingerprint, seed, parameter_hash, module, substream_label, merchant_id, i)` and independent of attempt order or file layout.
+Mapping is **pure** in `(manifest_fingerprint, seed, parameter_hash, module, substream_label, merchant_id, i)` and independent of attempt order or file layout. Attempt indices are **not** part of the key.
 
 4. **Envelope arithmetic (per event):**
 
 ```
-(after_hi, after_lo) = (before_hi, before_lo) + draws    // unsigned 128-bit
+(after_hi, after_lo) = (before_hi, before_lo) + (#uniforms_consumed)    // unsigned 128-bit
+// The number of uniforms consumed is inferred from sampler usage; we do not persist a separate `draws` field.
 ```
-
-`draws` is the **count of uniforms** consumed by that event.
 
 ---
 
@@ -1626,16 +1617,16 @@ Write **exactly** these streams, **partitioned** by `["seed","parameter_hash","r
 
    * **Path:** `logs/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
    * **Schema:** `schemas.layer1.yaml#/rng/events/gamma_component`
-   * **Module/label/context:** `module="1A.nb_sampler"`, `substream_label="gamma_nb"`, `context="nb"`
+   * **Module/label/context:** `module="1A.nb_sampler"`, `substream_label="gamma_component"`, `context="nb"`
    * **Cardinality per multi-site merchant:** **one row per attempt** (≥1 overall).
 
 2. **Poisson components (NB mixture)**
 
    * **Path:** `logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
    * **Schema:** `schemas.layer1.yaml#/rng/events/poisson_component`
-   * **Module/label/context:** `module="1A.nb_sampler"`, `substream_label="poisson_nb"`, `context="nb"`
+   * **Module/label/context:** `module="1A.nb_sampler"`, `substream_label="poisson_component"`, `context="nb"`
    * **Cardinality:** **one row per attempt** (≥1 overall).
-   * **Note:** S4 (ZTP) reuses this **stream name** but with **`substream_label="poisson_ztp"`** and `context="ztp"`. Labels keep S2/S4 substreams disjoint.
+   * **Note:** S4 (ZTP) reuses this **stream name** with the same `substream_label="poisson_component"` and sets `context="ztp"`.
 
 3. **NB final (accepted outcome)**
 
@@ -1646,18 +1637,18 @@ Write **exactly** these streams, **partitioned** by `["seed","parameter_hash","r
    * **Cardinality:** **exactly 1** row per `(seed, parameter_hash, run_id, merchant_id)`.
 
 **Envelope (MUST on every row):**
-`ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, module, substream_label, rng_counter_before_{lo,hi}, rng_counter_after_{lo,hi}, merchant_id, draws`
-(`nb_final` is **non-consuming**: `before == after` and `draws = 0`).
+`ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, module, substream_label, rng_counter_before_{lo,hi}, rng_counter_after_{lo,hi}, merchant_id`
+(`nb_final` is **non-consuming**: `before == after`).
 
 **Payload (MUST):**
 
 * `gamma_component` (NB):
-  `{ merchant_id, context: "nb", attempt: <int≥0>, alpha: φ_m, scale: 1.0, gamma_value: <binary64> }`
+  `{ merchant_id, context: "nb", index: 0, alpha: φ_m, gamma_value: <binary64> }`
 * `poisson_component` (NB):
-  `{ merchant_id, context: "nb", attempt: <int≥0>, lambda: <binary64>, k: <int64≥0> }`
+  `{ merchant_id, context: "nb", lambda: <binary64>, k: <int64≥0> }`
 * `nb_final`:
   `{ merchant_id, mu: μ_m, dispersion_k: φ_m, n_outlets: N_m (≥2), nb_rejections: r_m (≥0) }`
-  *(Optional, recommended):* `nb_r = dispersion_k`, `nb_p = dispersion_k / (dispersion_k + mu)` (binary64).
+  // No extra optional NB fields are persisted in `nb_final`.
 
 **Retention & lineage.** Streams are non-final (180-day retention) and produced by `1A.nb_sampler` (dictionary lineage).
 

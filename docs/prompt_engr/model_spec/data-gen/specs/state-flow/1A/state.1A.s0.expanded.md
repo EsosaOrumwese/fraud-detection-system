@@ -28,7 +28,7 @@ validated by `schemas.ingress.layer1.yaml#/merchant_ids`.
 
 **Field domains (authoritative and reused throughout 1A):**
 
-* `merchant_id`: **opaque identifier** (string, arbitrary UTF-8). For all places in 1A that require a 64-bit integer key (e.g., RNG substream keys), the **only** mapping is:
+* `merchant_id`: **opaque identifier** (id64 integer, per ingress schema). For all places in 1A that require a 64-bit integer key (e.g., RNG substream keys), the **only** mapping is:
 
   ```
   merchant_u64 = LOW64( SHA256( UTF8(merchant_id) ) )
@@ -269,7 +269,7 @@ Create the three lineage keys that make 1A reproducible and auditable:
 
 **Properties:** Any change to an opened artefact’s **bytes or basename**, the **commit**, or the **parameter bundle** flips the fingerprint. No XOR cancellation risk.
 
-**Storage effect (normative):** Egress & validation datasets **must** partition by `fingerprint={manifest_fingerprint}` (often alongside `global_seed`).
+**Storage effect (normative):** Egress & validation datasets **must** partition by `fingerprint={manifest_fingerprint}` (often alongside `seed`).
 
 **Errors (abort S0):**
 `E_ARTIFACT_EMPTY`, `E_ARTIFACT_IO(name,errno)`, `E_ARTIFACT_NONASCII_NAME`, `E_ARTIFACT_DUP_BASENAME`, `E_GIT_BYTES`, `E_PARAM_HASH_ABSENT`.
@@ -285,30 +285,30 @@ Create the three lineage keys that make 1A reproducible and auditable:
 **Goal.** Give each execution its own log partition key; **must not** affect RNG or outputs.
 
 **Inputs:**
-`manifest_fingerprint_bytes` (32), `global_seed` (u64; the modelling seed), start time `T_ns` = **UTC nanoseconds** (u64).
+`manifest_fingerprint_bytes` (32), `seed` (u64; the modelling seed), start time `T_ns` = **UTC nanoseconds** (u64).
 
 **Algorithm (UER payload):**
 
 ```
-payload = UER("run:1A") || manifest_fingerprint_bytes || LE64(global_seed) || LE64(T_ns)
+payload = UER("run:1A") || manifest_fingerprint_bytes || LE64(seed) || LE64(T_ns)
 r = SHA256(payload)[0:16]      # first 16 bytes
 run_id = hex32(r)
 ```
 
 **Scope & invariants (normative):**
 
-* Partitions **only** `rng_audit_log`, `rng_trace_log`, and `rng_event_*` as `{ global_seed, parameter_hash, run_id }`.
-* `run_id` **never** enters RNG seeding or model state; all deterministic outputs depend **only** on `(global_seed, parameter_hash, manifest_fingerprint)`.
-
+* Partitions **only** `rng_audit_log`, `rng_trace_log`, and `rng_event_*` as `{ seed, parameter_hash, run_id }`.
+* `run_id` **never** enters RNG seeding or model state; all determinism/outputs depend **only** on `(seed, parameter_hash, manifest_fingerprint)`.
+ 
 ---
 
 ## Partitioning contract (authoritative)
 
-| Dataset class       | Partition keys (in order)                 |
-| ------------------- | ----------------------------------------- |
-| Parameter-scoped    | `parameter_hash`                          |
-| Egress & validation | `global_seed`, `manifest_fingerprint`     |
-| RNG logs & events   | `global_seed`, `parameter_hash`, `run_id` |
+| Dataset class       | Partition keys (in order)          |
+|---------------------|------------------------------------|
+| Parameter-scoped    | `parameter_hash`                   |
+| Egress & validation | `manifest_fingerprint`             |
+| RNG logs & events   | `seed`, `parameter_hash`, `run_id` |
 
 *(Row-embedded key columns must equal their path keys byte-for-byte.)*
 
@@ -332,8 +332,8 @@ On any `E_PARAM_*`, `E_ARTIFACT_*`, `E_GIT_*`, or race error, **abort the run** 
 ## Validation & CI hooks
 
 * **Recompute:** CI recomputes `parameter_hash` from 𝓟 and `manifest_fingerprint` from (enumerated 𝓐, `git_32`, `parameter_hash_bytes`). Must match logged `*_resolved` rows.
-* **Partition lint:** dictionary enforces the partition table above; RNG logs must use `{ global_seed, parameter_hash, run_id }`.
-* **Uniqueness:** within `{ global_seed, parameter_hash }`, `run_id` must be unique (practically guaranteed; guards clock bugs).
+* **Partition lint:** dictionary enforces the partition table above; RNG logs must use `{ seed, parameter_hash, run_id }`.
+* **Uniqueness:** within `{ seed, parameter_hash }`, `run_id` must be unique (practically guaranteed; guards clock bugs).
 
 ---
 
@@ -375,8 +375,8 @@ def compute_manifest_fingerprint(artifacts, git32, param_bytes):
     return hex_lower_64(F), F
 
 # --- run_id ---
-def derive_run_id(fingerprint_bytes, global_seed_u64, start_time_ns):
-    payload = enc_str("run:1A") + fingerprint_bytes + enc_u64(global_seed_u64) + enc_u64(start_time_ns)
+def derive_run_id(fingerprint_bytes, seed_u64, start_time_ns):
+    payload = enc_str("run:1A") + fingerprint_bytes + enc_u64(seed_u64) + enc_u64(start_time_ns)
     r = sha256_bytes(payload)[:16]                # 16 bytes
     return hex_lower_32(r)
 ```
@@ -385,7 +385,7 @@ def derive_run_id(fingerprint_bytes, global_seed_u64, start_time_ns):
 
 ## Where this shows up next
 
-S0.3 derives the master RNG seed/counters using `manifest_fingerprint_bytes` and `global_seed`. Therefore S0.2 **must** complete before any RNG event emission.
+S0.3 derives the master RNG seed/counters using `manifest_fingerprint_bytes` and `seed`. Therefore S0.2 **must** complete before any RNG event emission.
 
 ---
 
@@ -418,10 +418,10 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
 
 ```
 {
-  ts_utc:                  int64   # Unix epoch nanoseconds (UTC)
+  ts_utc:                  string  # RFC 3339 / ISO-8601 UTC, e.g. "2025-04-15T12:34:56.123456789Z"
   module:                  string  # e.g. "1A.S6.gumbel" (see vocab registry)
   substream_label:         string  # e.g. "gumbel_key", "dirichlet_gamma_vector"
-  global_seed:             uint64  # modelling seed (from S0.2)
+  seed:                    uint64  # modelling seed (from S0.2)
   parameter_hash:          string  # hex64 (S0.2)
   manifest_fingerprint:    string  # hex64 (S0.2)
   run_id:                  string  # hex32 (S0.2)
@@ -429,13 +429,21 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
   rng_counter_before_hi:   uint64
   rng_counter_after_lo:    uint64
   rng_counter_after_hi:    uint64
-  draws:                   uint128 # 64-bit words consumed by this event
-  payload: { ... }                 # event-specific fields (ids, params, etc.)
+  blocks:                  uint64   # PHILOX blocks advanced by this event
+  draws:                   string   # decimal-encoded uint128; regex ^[0-9]+$. Represents UNIFORMS used by this event (family budgets check against this).
+  payload: { ... }                 # event-specific fields (flattened by schema in practice)
 }
 ```
 
-* **Non-consuming** events set `draws=0` and keep `before == after`.
+* **Non-consuming** events keep `before == after` and set `blocks = 0`.
 * `module` and `substream_label` must be chosen from the 1A **vocab registry** (enumerated in `schemas.layer1.yaml`); free-text labels are not allowed.
+
+* When a family-level **uniforms-used** count is relevant (e.g., Gamma mod-3 discipline), include `uniforms: uint64` in `payload` and validate budgets against that value.
+
+**Encoding notes (normative):**
+
+* `draws` is a **JSON string** carrying a **base-10** representation of a `uint128`. Producers/consumers **must** parse/emit as decimal and **must not** split into lo/hi words in the envelope (use the decimal string everywhere, mirroring S0.9 failure payloads).
+* `ts_utc` in RNG **events** is an **RFC-3339/ISO-8601 UTC string** (e.g., `"2025-04-15T12:34:56.123456789Z"`). See S0.9 §2.2 for failure-record timestamps (they are **nanoseconds since epoch** as an unsigned integer).
 
 ---
 
@@ -443,13 +451,13 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
 
 Let:
 
-* `global_seed` = user/model seed (u64, from S0.2),
+* `seed` = user/model seed (u64, from S0.2),
 * `manifest_fingerprint_bytes` (32 bytes, from S0.2).
 
 Define **master material** (UER = universal encoding rule from S0.2):
 
 ```
-M = SHA256( UER("mlr:1A.master") || manifest_fingerprint_bytes || LE64(global_seed) )  # 32 bytes
+M = SHA256( UER("mlr:1A.master") || manifest_fingerprint_bytes || LE64(seed) )  # 32 bytes
 ```
 
 Derive **root** (audit-only; never used directly for draws):
@@ -457,7 +465,7 @@ Derive **root** (audit-only; never used directly for draws):
 * Root key:     $k_\star = \text{LOW64}(M)$.
 * Root counter: $c_\star = (\text{BE64}(M[8:16]),\ \text{BE64}(M[16:24]),\ \text{BE64}(M[24:32]),\ 0)$.
 
-> Emit a single `rng_audit_log` row **before** any draws with `global_seed`, `manifest_fingerprint`, `parameter_hash`, `run_id`, and $(k_\star,c_\star)$. **No event** may draw from $(k_\star,c_\star)$.
+> Emit a single `rng_audit_log` row **before** any draws with `seed`, `manifest_fingerprint`, `parameter_hash`, `run_id`, and $(k_\star,c_\star)$. **No event** may draw from $(k_\star,c_\star)$.
 
 ---
 
@@ -497,6 +505,17 @@ $$
 * This mapping is **mandatory**; alternatives (e.g., $x/2^{64}$) are **forbidden**.
 * For Box–Muller (needs two uniforms), use both lanes from the same Philox block; otherwise, for single-uniform events use the **low lane** and discard the high lane (S0.3.1).
 
+* `INV_U64P1 = 0x1.0000000000000p-64`  *(nearest binary64 to $1/(2^{64}{+}1)$; use as a named constant to avoid toolchain rewrites)*.
+
+**Reference kernel (updated to use the named constant):**
+
+```text
+fn u01(x: u64) -> f64 {
+  # Compute in binary64; mapping is mandatory
+  const INV_U64P1: f64 = 0x1.0000000000000p-64;  # ≈ 5.421010862427522e-20
+  return ( (x as f64 + 1.0) * INV_U64P1 )
+}
+```
 ---
 
 ## S0.3.5 Standard normal $Z\sim\mathcal N(0,1)$ (Box–Muller, no cache)
@@ -580,24 +599,27 @@ For candidate ranking:
 
 Two cross-cut logs in addition to per-event logs:
 
-1. **`rng_audit_log`** — **one row at run start** (before any draw): `(global_seed, manifest_fingerprint, parameter_hash, run_id, root key/counter, code version, ts_utc)`.
-2. **`rng_trace_log`** — **one row per** `(module, substream_label)` whenever emitted: cumulative `draws` consumed on that substream, plus current `rng_counter_before_*`/`after_*`.
+1. **`rng_audit_log`** — **one row at run start** (before any draw): `(seed, manifest_fingerprint, parameter_hash, run_id, root key/counter, code version, ts_utc)`.
+2. **`rng_trace_log`** (**one row per** $(\texttt{module},\texttt{substream_label})$): cumulative **blocks** consumed on that substream at emission time (type per existing schema, typically uint64), with the *current* `(counter_before, counter_after)`.
 
 **Per-event budget rules (must hold):**
 
-* **Bernoulli hurdle:** if $0<\pi<1$ → **1** uniform; if $\pi\in\{0,1\}$ → **0** uniforms.
-* **Gumbel key:** **1** uniform/candidate.
-* **Normal $Z$:** **2** uniforms.
-* **Gamma:** **multiple of 3** uniforms/sample.
-* **Dirichlet $K$:** **multiple of $3K$** uniforms in total.
-* **Poisson (inversion):** variable; log exactly.
-* **Poisson (PTRS):** **multiples of 3** per attempt; log exactly.
-* **ZTP:** sum over underlying Poisson attempts.
+*Note:* here, $\pi$ refers to the **binary64** value computed at sampling time in **S1** (not the float32 diagnostic persisted in **S0.7**).
 
-**Envelope invariants (must hold):**
+* Validate **uniforms-used** (`draws` or `payload.uniforms`) against family budgets:
+  * **Bernoulli hurdle:** if $0 < \pi < 1$ → **1**; if $\pi\in\{0,1\}$ → **0**.
+  * **Gumbel key:** **1** per candidate.
+  * **Normal $Z$:** **2**.
+  * **Gamma:** **multiple of 3** per sample.
+  * **Dirichlet $K$:** **multiple of $3K$** in total.
+  * **Poisson (inversion):** variable; report exact count.
+  * **Poisson (PTRS):** **multiples of 3** per attempt; report exact count.
+  * **ZTP:** sum over underlying Poisson attempts.
+* **Counter-delta invariant:** interpret `(after − before)` as a 128-bit little-endian increment of the Philox counter and require it equals **`blocks`**. Single-uniform events still advance **one** block (high lane discarded); two-uniform events consume both lanes of **one** block.
 
-* `draws` = count of **64-bit words** consumed in the event.
-* Counters advance by exactly **ceil(draws/2)** Philox **blocks**.
+**Envelope invariants:**
+
+* Philox blocks advance consistently with lane policy: single-uniform events advance **one** block (high lane discarded); two-uniform events consume **both lanes** of one block.
 * `rng_counter_after` ≥ `rng_counter_before` lexicographically; non-consuming events keep them equal.
 
 ---
@@ -613,7 +635,7 @@ Two cross-cut logs in addition to per-event logs:
 
 **Abort the run if:**
 
-* An event’s `draws` disagrees with the block advance implied by the counters.
+* An event’s `blocks` disagrees with the counter delta implied by the counters (`after − before`, 128-bit LE).
 * Any sampler yields NaN/Inf.
 * A non-consuming event changes counters.
 * A Gamma/Dirichlet event violates the **mod-3** draw discipline.
@@ -648,7 +670,9 @@ fn normal(stream: &mut Stream) -> (f64, draws:int) {
   (x0,x1,*stream) = philox_block(*stream)    # both lanes → 2 uniforms
   u1 = u01(x0); u2 = u01(x1)
   r = sqrt(-2.0 * ln(u1))
-  th = 6.283185307179586476925286766559 * u2  # τ = 2π (fixed constant)
+  # τ = 2π (fixed constant; binary64 hex literal to avoid libm / macro drift)
+  const TAU: f64 = 0x1.921fb54442d18p+2;
+  th = TAU * u2
   return (r * cos(th), 2)
 }
 
@@ -696,7 +720,7 @@ fn poisson(lambda: f64, stream: &mut Stream) -> (int, draws:int) {
 
 * Any module declares `(substream_label, ids)` and receives a **stable, independent** substream—order/shard-invariant.
 * Samplers have **pinned** budgets (constant where possible; fully logged where variable).
-* Given `(global_seed, parameter_hash, manifest_fingerprint, run_id)` and the envelopes, every draw is **replayable exactly**.
+* Given `(seed, parameter_hash, manifest_fingerprint, run_id)` and the envelopes, every draw is **replayable exactly**.
 
 ---
 
@@ -1063,10 +1087,10 @@ function S0_5_build_designs(M, dict_mcc, dict_ch, dict_dev5,
 
 ## Purpose
 
-Decide, **without randomness**, whether each merchant $m$ is permitted to attempt cross-border expansion later (i.e., enter S4–S6). Persist **exactly one row per merchant** to the parameter-scoped dataset **`crossborder_eligibility_flags`** with fields `(merchant_id, is_eligible, reason, rule_set, parameter_hash [, produced_by_fingerprint])`.
+Decide, **without randomness**, whether each merchant $m$ is permitted to attempt cross-border expansion later (i.e., enter S4–S6). 
+Persist **exactly one row per merchant** to the parameter-scoped dataset **`crossborder_eligibility_flags`** with fields `(parameter_hash, merchant_id, is_eligible, reason, rule_set)` (optionally `produced_by_fingerprint` for provenance).
 
-* **Parameter-scoped** ⇒ partition by `parameter_hash` and **embed the same `parameter_hash`** in each row.
-* `produced_by_fingerprint` is **optional, informational** (for lineage browsing); **do not validate** it against the path and **do not** use it for joins.
+* **Parameter-scoped** ⇒ partition by `parameter_hash`; **rows embed `parameter_hash`** (required by schema). `produced_by_fingerprint` (hex64) is optional and informational.
 
 No RNG is consumed in S0.6.
 
@@ -1076,7 +1100,7 @@ No RNG is consumed in S0.6.
 
 * **Merchant tuple** $t(m)=(\texttt{mcc}_m,\texttt{channel_sym}_m,\texttt{home_country_iso}_m)$ from `merchant_ids` (S0.1), where `channel_sym ∈ {CP,CNP}` (S0.1 mapping is authoritative).
 * **Parameter bundle:** `crossborder_hyperparams.yaml` (governed by `parameter_hash`; contains the eligibility rule set).
-* **Lineage keys:** `parameter_hash` (required), `manifest_fingerprint` (available for logging only).
+* **Lineage keys:** `parameter_hash` (partition path and embedded column).
 * **Schema & dictionary:** dataset `crossborder_eligibility_flags` → partitioned by `{parameter_hash}`, schema `schemas.1A.yaml#/prep/crossborder_eligibility_flags`.
 
 ---
@@ -1089,16 +1113,14 @@ Write one row per merchant $m$ to:
 .../crossborder_eligibility_flags/parameter_hash={parameter_hash}/part-*.parquet
 ```
 
-**Columns (normative):**
+**Columns (normative; per schema):**
 
+* `parameter_hash` (hex64; **must equal** the path key),
+* `produced_by_fingerprint` (hex64; optional, **informational only** — it is **never** part of partition keys or equality checks),
 * `merchant_id` (PK; one and only one row per merchant),
 * `is_eligible` (boolean),
-* `reason` (non-empty string: winning rule `id`, or `"default_allow"` / `"default_deny"`),
-* `rule_set` (non-empty string copied from `eligibility.rule_set_id`),
-* `parameter_hash` (hex64; **must equal** the partition key),
-* `produced_by_fingerprint` (hex64; **optional**, informational only).
-
-> **Change from earlier draft:** `manifest_fingerprint` is **not** a required column here (to avoid coupling a parameter-scoped dataset to run-scoped lineage).
+* `reason` (nullable string: winning rule `id`, or `"default_allow"` / `"default_deny"`),
+* `rule_set` (non-empty string copied from `eligibility.rule_set_id`).
 
 ---
 
@@ -1188,7 +1210,7 @@ For each merchant $m$:
 ```json
 {
   "parameter_hash":           "<hex64>",
-  "produced_by_fingerprint":  "<hex64>"   // optional
+  "produced_by_fingerprint":  "<hex64>",  // optional
   "merchant_id":              "<id>",
   "is_eligible":              true|false,
   "reason":                   "<winning rule id | default_allow | default_deny>",
@@ -1229,9 +1251,7 @@ $$
 
 * **No RNG.** Output depends only on $t(m)$ and the parameter bundle.
 * **Schema & partitioning (normative):** rows conform to `#/prep/crossborder_eligibility_flags`; dataset is partitioned by `{parameter_hash}`; each row **embeds the same `parameter_hash`**.
-  `produced_by_fingerprint` (if present) is informational and **not** compared to any path key.
-* **Downstream gate:** S3 reads `is_eligible` and branches: if `false` → **domestic-only** (skip S4–S6); if `true` → proceed to ZTP in S4.
-
+  `produced_by_fingerprint` (if present) is **informational only** and **never** compared to any path key or used in partition/equality semantics.
 ---
 
 ## Failure semantics (precise aborts)
@@ -1249,7 +1269,7 @@ $$
 
 * `E_ELIG_MISSING_MERCHANT(m)` — missing required fields in `merchant_ids`.
 * `E_ELIG_WRITE_FAIL(path, errno)` — failed to persist a row.
-* `E_PARTITION_MISMATCH(path_key, embedded_paramhash)` — embedded `parameter_hash` ≠ directory key.
+* `E_PARTITION_MISMATCH(path_key, embedded_key)` — embedded `parameter_hash` mismatches directory key.
 
 On any error, **abort S0**; no partial output is acceptable.
 
@@ -1352,7 +1372,7 @@ so monitoring/validation can inspect the hurdle surface **without** recomputing 
 
 * **Design vector** $x_m=[1,\ \phi_{\text{mcc}},\ \phi_{\text{ch}},\ \phi_{\text{dev}}]$ from **S0.5** (column order frozen by the fitting bundle).
 * **Hurdle coefficients** $\beta$ (single YAML vector matching $x_m$’s layout).
-* **Lineage keys:** `parameter_hash` (**required**, partition key); `manifest_fingerprint` is available **only** for informational lineage if you choose to store it (see columns below).
+* **Lineage keys:** `parameter_hash`  (partition path and embedded column). `produced_by_fingerprint` (hex64) optional/informational.
 
 **No RNG** is consumed.
 
@@ -1365,19 +1385,13 @@ A Parquet table with **one row per merchant**:
 * **Primary key:** `merchant_id`.
 * **Partition key:** `parameter_hash` (directory level).
 
-**Columns (normative minimum):**
+**Columns (normative; per schema):**
 
-* `parameter_hash` (hex64) — **must equal** the directory key,
+* `parameter_hash` (hex64; **must equal** path key),
+* `produced_by_fingerprint` (hex64; optional, **informational only** — it is **never** part of partition keys or equality checks),
 * `merchant_id` (id64 per ingress schema),
 * `logit` (float32) — narrowed $\eta_m$,
 * `pi` (float32) — narrowed $\pi_m\in[0,1]$.
-
-**Optional informational column (not validated against path):**
-
-* `produced_by_fingerprint` (hex64) — for lineage browsing only. *(Do **not** require or compare to any directory key.)*
-
-*(Earlier drafts had a required `manifest_fingerprint` column here; that coupling is removed to keep this dataset purely parameter-scoped.)*
-
 ---
 
 ## Canonical definitions & numerical policy
@@ -1410,6 +1424,7 @@ Persist `logit` and `pi` as **float32** using **round-to-nearest, ties-to-even**
 * **No randomness.** Results depend only on $x_m$ and $\beta$.
 * **Diagnostics-only.** No production sampler/allocation routine may read this table.
 * **Parameter-scoped.** Changing any governed parameter byte changes `parameter_hash` and thus the partition; no implicit overwrite across partitions.
+* `produced_by_fingerprint` (if present) is **informational only** and **does not** participate in partition keys or row equality.
 
 ---
 
@@ -1417,7 +1432,7 @@ Persist `logit` and `pi` as **float32** using **round-to-nearest, ties-to-even**
 
 * `E_PI_SHAPE_MISMATCH(exp_dim, got_dim)` — $|\beta|\neq \dim(x_m)$ (double-guard beyond S0.5).
 * `E_PI_NAN_OR_INF(m)` — $\eta_m$ or $\pi_m$ non-finite.
-* `E_PI_PARTITION(path_key, embedded_paramhash)` — embedded `parameter_hash` (required column) ≠ directory key.
+* `E_PI_PARTITION(path_key, embedded_key)` — embedded `parameter_hash` mismatches directory key.
 * `E_PI_WRITE(path, errno)` — write failure.
 
 > On any failure, **abort S0**; the cache is either wholly correct or absent.
@@ -1449,11 +1464,10 @@ For each merchant $m\in\mathcal M$:
    ```json
    {
      "parameter_hash": "<hex64>",
-     "merchant_id":    "<id64>",
-     "logit":          <float32>,
-     "pi":             <float32>[0,1],
-     // optionally:
-     "produced_by_fingerprint": "<hex64>"
+     "produced_by_fingerprint":  "<hex64>",  // optional
+     "merchant_id":          "<id64>",
+     "logit":                "<float32>",
+     "pi":                   "<float32>[0,1]"
    }
    ```
 6. Persist under `.../hurdle_pi_probs/parameter_hash={parameter_hash}/…` (Parquet). File ordering is unspecified.
@@ -1904,9 +1918,9 @@ To keep prior `E_*` codes, attach both:
 Validation outputs are **fingerprint-scoped**. On the first failure:
 
 ```
-.../validation/layer1/1A/failures/
+data/layer1/1A/validation/failures/
   fingerprint={manifest_fingerprint}/
-    seed={global_seed}/
+    seed={seed}/
       run_id={run_id}/
         failure.json                  # mandatory, single file
         _FAILED.SENTINEL.json         # duplicate of the forensic header (for quick scans)
@@ -1921,7 +1935,7 @@ Validation outputs are **fingerprint-scoped**. On the first failure:
 {
   "type": "object",
   "required": ["failure_class","failure_code","state","module",
-               "parameter_hash","manifest_fingerprint","global_seed","run_id",
+               "parameter_hash","manifest_fingerprint","seed","run_id",
                "ts_utc","detail"],
   "properties": {
     "failure_class": {"type":"string","enum":["F1","F2","F3","F4","F5","F6","F7","F8","F9","F10"]},
@@ -1932,13 +1946,17 @@ Validation outputs are **fingerprint-scoped**. On the first failure:
     "merchant_id":   {"type":["string","null"]},
     "parameter_hash":{"type":"string","pattern":"^[0-9a-f]{64}$"},
     "manifest_fingerprint":{"type":"string","pattern":"^[0-9a-f]{64}$"},
-    "global_seed":   {"type":"integer","minimum":0},
+    "seed":          {"type":"integer","minimum":0},
     "run_id":        {"type":"string","pattern":"^[0-9a-f]{32}$"},
     "ts_utc":        {"type":"integer","minimum":0},
     "detail":        {"type":"object"}               // typed per failure_code (see below)
   }
 }
 ```
+
+**Timestamp encoding note (normative):**
+* In **failure records**, `ts_utc` is an **unsigned integer**: **nanoseconds since the Unix epoch (UTC)**.
+* In **RNG event envelopes** (S0.3.1), `ts_utc` is an **RFC-3339/ISO-8601 UTC string**.
 
 **Typed `detail` payloads** (normative minima):
 
@@ -1975,7 +1993,7 @@ This log **never** replaces a run-abort; it records permitted soft fallbacks onl
 * **Ingress schema** (F1).
 * **Lineage recomputation** of `parameter_hash` & `manifest_fingerprint` (F2).
 * **RNG envelope & counter conservation** for **every** event; budgets per family (F4).
-* **Partition equivalence** (F5): parameter-scoped `{parameter_hash}`, logs `{global_seed,parameter_hash,run_id}`, egress/validation `{fingerprint}` (and often `global_seed`).
+* **Partition equivalence** (F5): parameter-scoped `{parameter_hash}`, logs `{seed,parameter_hash,run_id}`, egress/validation `{fingerprint}` (and often `seed`).
 * **Numeric attestation** (F7): run S0.8 self-tests; verify `numeric_policy_attest.json` and reject mismatches.
 * **Coverage/corridors** per state (F8).
 * **Dictionary paths** (F9).
@@ -2014,7 +2032,7 @@ This log **never** replaces a run-abort; it records permitted soft fallbacks onl
 function abort_run(failure_class, failure_code, ctx):
   stop_emitters()                                  # no new RNG/events
   payload = build_failure_payload(failure_class, failure_code, ctx)  # includes lineage keys
-  path = val_path(fingerprint=ctx.fp, seed=ctx.global_seed, run_id=ctx.run_id)
+  path = val_path(fingerprint=ctx.fp, seed=ctx.seed, run_id=ctx.run_id)
   write_atomic(path+"/failure.json", json(payload))
   write_atomic(path+"/_FAILED.SENTINEL.json", json(payload_header(payload)))
   mark_incomplete_partitions(ctx.inflight_outputs)
@@ -2031,7 +2049,7 @@ function abort_run(failure_class, failure_code, ctx):
 
 ---
 
-**Bottom line:** S0.9 is now a precise, fingerprinted **fail-fast** contract: one vocabulary (F1–F10 + `failure_code`), one failure record schema, atomic/validated placement under `{fingerprint, global_seed, run_id}`, a clear E↔F crosswalk for state errors, and a deterministic abort routine. With this in place, **any** deviation from schema, lineage, RNG, numeric policy, or partitioning terminates the run loudly—with everything you need to reproduce and fix it.
+**Bottom line:** S0.9 is now a precise, fingerprinted **fail-fast** contract: one vocabulary (F1–F10 + `failure_code`), one failure record schema, atomic/validated placement under `{fingerprint, seed, run_id}`, a clear E↔F crosswalk for state errors, and a deterministic abort routine. With this in place, **any** deviation from schema, lineage, RNG, numeric policy, or partitioning terminates the run loudly—with everything you need to reproduce and fix it.
 
 ---
 
@@ -2045,7 +2063,11 @@ function abort_run(failure_class, failure_code, ctx):
 * **`run_id` (hex32):** **logs only**; partitions RNG audit/trace/events. (S0.2.4)
 
 **Embedding rule (row-level):**
-If a schema **includes** a lineage key column, its value **must equal** the directory partition key for that dataset class. Mismatch ⇒ **S0.9/F5 run-abort**.
+* If a schema includes a **`parameter_hash`** column, its value **must equal** the directory key (`parameter_hash`).
+* If a schema includes a **`manifest_fingerprint`** column, its value **must equal** the run’s `manifest_fingerprint` (it does **not** equal the directory key).
+* For datasets with **both** columns present, both constraints must hold simultaneously.
+
+Any mismatch triggers **S0.9/F5 run-abort**.
 
 ---
 
@@ -2084,19 +2106,13 @@ If a schema **includes** a lineage key column, its value **must equal** the dire
 **Path:** `data/layer1/1A/crossborder_eligibility_flags/parameter_hash={parameter_hash}/part-*.parquet`
 **Schema:** `schemas.1A.yaml#/prep/crossborder_eligibility_flags`
 **Row keys:** `merchant_id` (PK)
-**Embedded lineage (normative):**
-
-* `parameter_hash` (**required**) — equals the path key.
-* `produced_by_fingerprint` (hex64, **optional**, informational only; **not** validated against any path).
+**Embedded lineage (normative):** `parameter_hash` (required; equals path key). Optional: `produced_by_fingerprint` (hex64), **informational only** and **never** part of partition keys/equality.
 
 **Dataset (optional):** `hurdle_pi_probs`
 **Path:** `data/layer1/1A/hurdle_pi_probs/parameter_hash={parameter_hash}/part-*.parquet`
 **Schema:** `schemas.1A.yaml#/model/hurdle_pi_probs`
 **Row keys:** `merchant_id` (PK)
-**Embedded lineage (normative):**
-
-* `parameter_hash` (**required**) — equals the path key.
-* `produced_by_fingerprint` (hex64, **optional**).
+**Embedded lineage (normative):** `parameter_hash` (required; equals path key). Optional: `produced_by_fingerprint` (hex64), **informational only** and **never** part of partition keys/equality.
 
 > **Write semantics (both):** **overwrite-atomic** per partition (stage in `…/_tmp.{uuid}` → single `rename(2)`). Partial contents must never become visible (S0.9/F10).
 
@@ -2110,8 +2126,8 @@ If a schema **includes** a lineage key column, its value **must equal** the dire
 
 **Logs:** `rng_audit_log`, `rng_trace_log`, each `rng_event_*`
 **Path template:** `logs/rng/<stream>/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
-**Envelope (per S0.3):** `{seed, parameter_hash, manifest_fingerprint, run_id, module, substream_label, counter_before/after, draws, ts_utc, payload…}`.
-
+**Envelope (per S0.3):** `{seed, parameter_hash, manifest_fingerprint, run_id, module, substream_label, counter_before/after, blocks, draws, ts_utc, payload…}`.
+`rng_trace_log` aggregates **blocks**.
 ---
 
 ## S0.10.4 Immutability, idempotence & retention
