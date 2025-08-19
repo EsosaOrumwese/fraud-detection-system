@@ -40,7 +40,7 @@ validated by `schemas.ingress.layer1.yaml#/merchant_ids`.
 * `channel ∈ 𝕮`: card-present vs not-present. **Canonical internal symbols:** `CP`, `CNP`. **Ingress mapping (normative):**
 
   | Ingress value (string) | Internal symbol |
-  | ---------------------- | --------------- |
+  |------------------------|-----------------|
   | `"card_present"`       | `CP`            |
   | `"card_not_present"`   | `CNP`           |
 
@@ -326,7 +326,7 @@ run_id = hex32(r)
 
 ## Failure semantics
 
-On any `E_PARAM_*`, `E_ARTIFACT_*`, `E_GIT_*`, or race error, **abort the run** (per S0.9). On abort in S0.2, **do not** emit RNG audit/trace; S0.3 hasn’t begun.
+On any `E_PARAM_*`, `E_ARTIFACT_*`, `E_GIT_*`, or race error, **abort the run** (per S0, **or** `E_RUNID_COLLISION_EXHAUSTED` (loop exceeded 2^16), abort the run per S0.9.9). On abort in S0.2, **do not** emit RNG audit/trace; S0.3 hasn’t begun.
 
 ---
 
@@ -449,9 +449,9 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
 > - With the lane policy, **single-uniform** events have `(blocks=1, draws=1)`, and **two-uniform** events (Box–Muller) have `(blocks=1, draws=2)`. **Non-consuming** events have `(blocks=0, draws="0")`.
 
 * **Non-consuming** events keep `before == after` and set `blocks = 0`.
-* `module` and `substream_label` must be chosen from the 1A vo... (enumerated in `schemas.layer1.yaml`); free-text labels are not allowed.
+* `module` and `substream_label` must be chosen from the 1A vocabulary registry enumerated in `schemas.layer1.yaml#/rng/events/*`; free-text labels are not allowed.
 
-* When a family-level **uniforms-used** count is relevant **for diagnostics**, include `uniforms: uint64` in `payload` **only for** `gamma_component` and `dirichlet_gamma_vector`; validators MUST require it equals `draws`.
+* When a family-level **uniforms-used** count is relevant **for diagnostics**, include `uniforms: string` (decimal-encoded `uint128`, same domain as `draws`) in `payload` **only for** `gamma_component` and `dirichlet_gamma_vector`; validators MUST require it equals `draws`.
 
 **Encoding notes (normative):**
 * **Authority (normative):** An event’s envelope `draws` MUST equal the kernel’s computed uniform count for that event. Counters remain the authority for `blocks`; discrepancies are `F4d:rng_budget_violation` (not F4c).
@@ -548,7 +548,6 @@ This is the required implementation of the open-interval rule. Computing `1/(2^6
 
 To sample **one** $Z$:
 
-**Constants & functions:** `TAU = 0x1.921fb54442d18p+2` (binary64-exact $2\pi$); `\ln` = natural log; `\cos` takes **radians**.
 
 1. Draw a **single** Philox block → $(x_0,x_1)$.
 2. Map $u_1 = u01(x_0),\ u_2 = u01(x_1)$.
@@ -629,7 +628,7 @@ For candidate ranking:
 
 * Draw $u\in(0,1)$; compute $g=-\ln(-\ln u)$.
 * **Budget:** **1 uniform** per candidate (single-lane low).
-* **Tie-break:** sort primarily by $g$, secondarily by the deterministic key (e.g., ISO ascending ASCII).
+* **Tie-break:** sort primarily by $g$, then by `ISO` (ASCII ascending), then by `merchant_id` if still tied.
 * **Log:** one `gumbel_key` event **per candidate**.
 
 ---
@@ -669,7 +668,6 @@ Envelope invariants:**
 * Any sampler yields NaN/Inf.
 * A non-consuming event changes counters.
 * A Gamma/Dirichlet event’s `draws` mismatches the recomputed exact budget per §S0.3.6.
-* 
 ---
 
 ## Reference pseudocode (language-agnostic)
@@ -718,10 +716,10 @@ fn gamma_mt(alpha: f64, stream: &mut Stream) -> (f64, draws:int) {
       (u, dU) = uniform1(stream)            # dU=1
       total += dU
       if ln(u) <= 0.5*z*z + d - d*v + d*ln(v) {
-        return (d*v, total)                 # multiple of 3
+        return (d*v, total)                 # total uniforms actually consumed (variable)
       }
   } else {
-    (y, dY) = gamma_mt(alpha + 1.0, stream) # multiple of 3
+    (y, dY) = gamma_mt(alpha + 1.0, stream) # variable
     (u, dU) = uniform1(stream)              # +1
     return (y * pow(u, 1.0/alpha), dY + dU + 2)
   }
@@ -736,7 +734,7 @@ fn poisson(lambda: f64, stream: &mut Stream) -> (int, draws:int) {
       p *= u
       if p <= L { return (k, draws) } else { k += 1 }
   } else {
-    # PTRS attempt: (Z,u) -> 3 uniforms/attempt; repeat until accept.
+    # PTRS attempt: (u,v) -> 2 uniforms/attempt; repeat until accept.
   }
 }
 ```
@@ -2254,7 +2252,7 @@ Downstream **must** verify this; mismatch ⇒ treat run as invalid (S0.9/F10).
 
 Two bundles are **equivalent** if:
 
-* `MANIFEST.json` matches byte-for-byte **except** `created_utc_ns`, and
+* `MANIFEST.json` matches byte-for-byte ** 
 * all other files match byte-for-byte and `_passed.flag` hashes match.
 
 ---
