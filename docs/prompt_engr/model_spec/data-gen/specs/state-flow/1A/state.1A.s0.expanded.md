@@ -449,7 +449,9 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
 
 **Encoding notes (normative):**
 
-* **Authority:** Envelope `draws` is the **only** normative count of uniforms used. If a family includes `payload.uniforms`, its value MUST equal `draws`; otherwise the event is invalid.
+* **Authority:** Envelope `draws` is the **only** authoritative count of uniforms used.
+* **Optional duplication:** Only `gamma_component` and `dirichlet_gamma_vector` MAY include `payload.uniforms` (for per-component diagnostics). If present, it **must equal** `draws`. All other families MUST NOT include `payload.uniforms`.
+
 * `draws` is a **JSON string** carrying a **base-10** representation of a `uint128`. Producers/consumers **must** parse/emit as decimal and **must not** split into lo/hi words in the envelope (use the decimal string everywhere, mirroring S0.9 failure payloads).
 * `ts_utc` in RNG **events** is an **RFC-3339/ISO-8601 UTC string** (e.g., `"2025-04-15T12:34:56.123456789Z"`). See S0.9 §2.2 for failure-record timestamps (they are **nanoseconds since epoch** as an unsigned integer).
 
@@ -488,6 +490,12 @@ Every logical substream is keyed by a deterministic tuple; **never** by executio
 ### Substream derivation (UER, no delimiters)
 * **Indices (`i`,`j`, …):** 0-based, unsigned, encoded as **LE32**; must satisfy `0 ≤ value ≤ 2^32−1`; negative values are forbidden.
 * **ISO codes:** MUST be **uppercase ASCII** before UER encoding (length-prefixed UTF-8).
+
+> **UER/SER recap (normative):**
+> - **UER (strings):** UTF-8 bytes prefixed by a 32-bit **little-endian** length; concatenation is unambiguous and order-sensitive.  
+> - **SER(ids):** integers are **LE32** (indices) or **LE64** (u64 keys); all indices are **0-based** and unsigned.  
+> - **ISO codes:** uppercase ASCII under UER.
+> These are the only encodings allowed for hashing and substream derivation in §S0.3.
 
 For an event family label `ℓ` (e.g., `"hurdle_bernoulli"`, `"gumbel_key"`) and an ordered ID tuple **ids** (event-family-specific; e.g., `(merchant_u64, iso)`), build:
 
@@ -583,22 +591,34 @@ On acceptance, return $G=dv$.
 
 ## S0.3.7 Poisson $\text{Poisson}(\lambda)$ & ZTP scaffolding
 
-Two regimes; threshold is a governed constant (default $\lambda_0=10$).
+Two regimes; **Threshold (normative):** $\lambda^\star = 10$ (spec constant; not configurable). Changing it requires a spec revision and flips `manifest_fingerprint` per §S0.2.3.
 
 **Small $\lambda<\lambda_0$** — **Inversion**
 Draw uniforms $u_1,u_2,\ldots$ and iterate the standard product until it falls below $e^{-\lambda}$.
 
 * **Budget:** variable (≈ $N+1$ uniforms); log exactly in `draws`.
 
-**Moderate/Large $\lambda\ge\lambda_0$** — **PTRS (Hörmann-class) rejection**
-Each **attempt** draws one normal (Box–Muller = 2 uniforms) and one accept-test uniform (**+1**): **3 uniforms/attempt**.
-
-* **Constants & inequalities:** fixed by a vendored file `poisson_ptrs_constants.json` (constants, thresholds, and `<` vs `<=` decisions), which is part of the artefact set and thus included in the **manifest fingerprint**. Implementations must use these constants exactly.
-* **Budget:** multiples of **3** per attempt; acceptance may take several attempts.
-
+**Moderate/Large $\lambda\ge\lambda_0$** — **PTRS (Hörmann-class) rejection (fully specified)**
+Per-attempt draws: **two uniforms** $u,v\sim U(0,1)$ from **one Philox block** (lane policy).
+**Constants (normative):**
+${} \quad b = 0.931 + 2.53\sqrt{\lambda},\quad a = -0.059 + 0.02483\,b,\quad \mathrm{inv}\,\alpha = 1.1239 + \dfrac{1.1328}{b-3.4},\quad v_r = 0.9277 - \dfrac{3.6224}{b-2},\quad u_{\text{cut}}=0.86.$
+**Attempt loop:**
+1) Draw $(u,v)$.
+2) If $u\le u_{\text{cut}}$ and $v\le v_r$: accept $k=\left\lfloor \dfrac{b\,v}{u} + \lambda + 0.43 \right\rfloor$.
+3) Else set $u_s = 0.5 - |u-0.5|$, and form the candidate $k=\left\lfloor \bigl(\tfrac{2a}{u_s} + b\bigr) v + \lambda + 0.43 \right\rfloor$; if $k<0$, continue.
+4) Accept iff
+$\displaystyle \ln\!\Bigl(\frac{v\cdot \mathrm{inv}\,\alpha}{\,a/u_s^2 + b\,}\Bigr) \le -\lambda + k\ln\lambda - \log\Gamma(k+1).$
+On acceptance return $K=k$; otherwise repeat from step 1.
+**Budget:** **exactly 2 uniforms per attempt**; attempts repeat until acceptance. `draws` records the total used. All `\ln`, `\sqrt{\ }`, and `\log\Gamma` calls obey §S0.8 (pinned math profile).
+ 
 **Zero-Truncated Poisson (ZTP)**
 Handled by accept/reject on $\text{Poisson}(\lambda)$ conditioned on $N>0$. The `draws` field includes all uniforms across rejections.
 
+**ZTP event budgets (normative):**
+* Each `poisson_component(context="ztp")` event records the **actual** sampler consumption via the envelope counters.
+* `ztp_rejection` and `ztp_retry_exhausted` are **non-consuming**: `before==after`, `blocks=0`, `draws="0"`.
+* Hard cap: **64** zero outcomes; on exhaustion, emit `ztp_retry_exhausted` and branch per S4; budgets remain as above.
+ 
 ---
 
 ## S0.3.8 Gumbel key from a single uniform
@@ -616,8 +636,10 @@ For candidate ranking:
 
 Two cross-cut logs in addition to per-event logs:
 
-1. **`rng_audit_log`** — **exactly one** row **before any RNG event** with: `(seed, manifest_fingerprint, parameter_hash, run_id, algorithm="philox2x64-10", root key/counter, code_version, ts_utc)`.
-2. **`rng_trace_log`** — **append-only**: **emit one row at every emission** per `(module, substream_label)`. Each row records the **cumulative `blocks_total`** consumed on that substream up to (and including) this emission, plus the current `(counter_before, counter_after)`. **Traces are in units of blocks.** Budget checks use **per-event `draws`**, not the trace.
+1. **`rng_audit_log`** — **one row at run start** (before any RNG event): `(seed, manifest_fingerprint, parameter_hash, run_id, root key/counter, code version, ts_utc)`.
+   **`rng_audit_log` schema (normative minimum):** `{ ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, algorithm, rng_key_hi, rng_key_lo, rng_counter_hi, rng_counter_lo, code_version }`. Field types and names are governed by `schemas.layer1.yaml#/rng/audit` (authoritative).
+2. **`rng_trace_log`** (**one row per** $(\texttt{module},\texttt{substream\_label)$; cumulative **blocks** (unsigned 64-bit) by uint64), with the *current* `(counter_before, counter_after)`.  
+    **Reconciliation (normative):** For each `(module, substream_label)`, `rng_trace_log.blocks_total` MUST be monotone non-decreasing across emissions, and the **final** `blocks_total` MUST equal the **sum of per-event `blocks`** over `rng_event_*` in the same `{seed, parameter_hash, run_id}`. Budget checks use **event `draws`**, not the trace.
 
 **Per-event budget rules (must hold):**
 
@@ -630,7 +652,7 @@ Two cross-cut logs in addition to per-event logs:
   * **Gamma:** **multiple of 3** per sample.
   * **Dirichlet $K$:** **multiple of $3K$** in total.
   * **Poisson (inversion):** variable; report exact count.
-  * **Poisson (PTRS):** **multiples of 3** per attempt; report exact count.
+  * **Poisson (PTRS):** **exactly 2 uniforms/attempt**; report exact count.
   * **ZTP:** sum over underlying Poisson attempts.
 * **Counter-delta invariant:** interpret `(after − before)` as a 128-bit little-endian increment of the Philox counter and require it equals **`blocks`**. Single-uniform events still advance **one** block (high lane discarded); two-uniform events consume both lanes of **one** block.
 
@@ -1538,6 +1560,8 @@ function S0_7_build_hurdle_pi_cache(merchants, beta, dicts, parameter_hash, prod
 
 # S0.8 — Numeric Policy & Determinism Controls (normative, fixed)
 
+**Cross-reference (normative):** All samplers and transforms in §S0.3 use IEEE-754 **binary64**, round-to-nearest-ties-even, **FMA off**, **no FTZ/DAZ**, and the pinned deterministic libm profile (`numeric_policy.json`, `math_profile_manifest.json`). Any computation that affects a branch/order (acceptance tests, sort keys, integerisation) must execute in a **serial, fixed-order** kernel. Self-tests and attest are in §S0.8 and are part of the validation bundle.
+
 ## Purpose
 
 Guarantee that numerically sensitive computations in 1A are **bit-stable** across machines, compilers, and parallelism. S0.8 defines:
@@ -2082,7 +2106,8 @@ function abort_run(failure_class, failure_code, ctx):
 
 **Embedding rule (row-level):**
 * If a schema includes a **`parameter_hash`** column, its value **must equal** the directory key (`parameter_hash`).
-* If a schema includes a **`manifest_fingerprint`** column, its value **must equal** the run’s `manifest_fingerprint` (it does **not** equal the directory key).
+* If a schema includes a **`manifest_fingerprint`** column, its value **must equal** the run’s `manifest_fingerprint`.
+  For **egress/validation** datasets (fingerprint-scoped), it **must also equal** the directory key `fingerprint={manifest_fingerprint}`.
 * For datasets with **both** columns present, both constraints must hold simultaneously.
 
 Any mismatch triggers **S0.9/F5 run-abort**.
@@ -2117,6 +2142,8 @@ Any mismatch triggers **S0.9/F5 run-abort**.
 ---
 
 ## S0.10.3 Partitioning & paths (authoritative)
+
+**Naming rule (normative):** Any path segment named `fingerprint={…}` **always** carries the value of `manifest_fingerprint`. The column name is `manifest_fingerprint`; the path label remains `fingerprint=…`.
 
 ### Parameter-scoped (partition by `parameter_hash`)
 
