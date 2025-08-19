@@ -467,6 +467,9 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
 * `draws` is a **JSON string** carrying a **base-10** representation of a `uint128`. Producers/consumers **must** parse/emit as decimal and **must not** split into lo/hi words in the envelope (use the decimal string everywhere, mirroring S0.9 failure payloads).
 * `ts_utc` in RNG **events** is an **RFC-3339/ISO-8601 UTC string** with up to **nanosecond** precision (e.g., `"2025-04-15T12:34:56.123456789Z"`). `ts_utc` in **failures** is **epoch-nanoseconds** (they are **nanoseconds since epoch** as an unsigned integer). See **§S0.9 “Failure records”** for failure-record timestamps (epoch-ns u64).
 
+* **Serialization note:** Envelope counter fields (`rng_counter_*_{hi,lo}`), `blocks`, and `draws` carry **numeric values**. Endianness (LE/BE) applies only to **derivations** (hash splits, Philox counters); JSON serialisation uses number semantics and is endianness-agnostic.
+
+
 ---
 
 ## S0.3.2 Master seed & initial counter (per run)
@@ -537,7 +540,9 @@ c(ℓ,ids) = ( BE64(H[16:24]), BE64(H[24:32]) )   # 128-bit counter (hi,lo)
 **Normative mapping:**
 
 ```text
-u = ((x + 1) * 0x1.0000000000000p-64)  # x is u64; nearest binary64 to 1/(2^64+1)
+# x is u64; map to strictly (0,1) — never 0.0, never 1.0
+u = ((x + 1) * 0x1.0000000000000p-64)
+if u == 1.0: u := 0x1.fffffffffffffp-1   # max < 1 in binary64 (1 - 2^-53)
 ```
 
 This is the required implementation of the open-interval rule. Computing `1/(2^64+1)` at runtime or using decimal literals is **forbidden**.
@@ -683,9 +688,11 @@ fn philox_block(s: Stream) -> (u64,u64,Stream) {
 
 # u01 mapping (open interval)
 fn u01(x: u64) -> f64 {
-  # Compute in binary64; mapping is normative
-  const INV_U64P1: f64 = 0x1.0000000000000p-64;  # nearest binary64 to 1/(2^64+1)
-  return ( ((x as f64) + 1.0) * INV_U64P1 )
+  # Binary64; strict (0,1) open interval — never 0.0, never 1.0
+  const TWO_NEG_64:    f64 = 0x1.0000000000000p-64;   # 2^-64
+  const ONE_MINUS_EPS: f64 = 0x1.fffffffffffffp-1;    # 1 - 2^-53 (max < 1 in binary64)
+  let u = ((x as f64) + 1.0) * TWO_NEG_64;
+  return (u == 1.0) ? ONE_MINUS_EPS : u
 }
 
 # Single uniform (lane policy)
@@ -706,22 +713,24 @@ fn normal(stream: &mut Stream) -> (f64, draws:int) {
 # Gamma(alpha,1) with budget discipline
 fn gamma_mt(alpha: f64, stream: &mut Stream) -> (f64, draws:int) {
   if alpha >= 1.0 {
-    d = alpha - 1.0/3.0; c = 1.0/sqrt(9.0*d)
-    total = 0
-    loop:
-      (z, dZ) = normal(stream)              # dZ=2
-      total += dZ
-      v = (1.0 + c*z); v = v*v*v
-      if v <= 0.0 { continue }
-      (u, dU) = uniform1(stream)            # dU=1
-      total += dU
+    let d = alpha - (1.0/3.0);
+    let c = 1.0 / sqrt(9.0 * d);
+    var total = 0;
+    loop {
+      let (z, dZ) = normal(stream);       # Box–Muller → 2 uniforms (1 block)
+      total += dZ;
+      let v = (1.0 + c*z); v = v*v*v;
+      if v <= 0.0 { continue; }
+      let (u, dU) = uniform1(stream);     # +1 uniform
+      total += dU;
       if ln(u) <= 0.5*z*z + d - d*v + d*ln(v) {
-        return (d*v, total)                 # total uniforms actually consumed (variable)
+        return (d*v, total);              # exact actual-use budgeting
       }
+    }
   } else {
-    (y, dY) = gamma_mt(alpha + 1.0, stream) # variable
-    (u, dU) = uniform1(stream)              # +1
-    return (y * pow(u, 1.0/alpha), dY + dU + 2)
+    let (y, dY) = gamma_mt(alpha + 1.0, stream);  # recurse to Case A
+    let (u, dU) = uniform1(stream);               # +1 uniform
+    return (y * pow(u, 1.0/alpha), dY + dU);
   }
 }
 
@@ -749,7 +758,7 @@ fn poisson(lambda: f64, stream: &mut Stream) -> (int, draws:int) {
 
 ---
 
-**Summary:** S0.3 pins Philox 2×64-10, the **low-lane policy** for single uniforms, **UER-based** substream derivation, one **open-interval** `u01`, Box–Muller (**no cache**), Gamma (Marsaglia–Tsang) with **exact actual-use budgeting**, Poisson with a **fully specified** inversion/PTRS split, and strict **draw accounting** tied to counters. This is deterministic, auditable, and ready to implement.
+**Summary:** S0.3 pins Philox 2×64-10, the **low-lane policy** for single uniforms, **UER-based** substream derivation, one **open-interval** `u01`, Box–Muller (**no cache**), Gamma (Marsaglia–Tsang) with **exact actual-use budgeting**, Poisson with a **fully specified** inversion/PTRS split, and strict **draw accounting** tied to counters. This is deterministic, auditable, and ready to implement. Gumbel keys break ties by ISO, then merchant_id.
 
 ---
 
@@ -1595,7 +1604,7 @@ No RNG is consumed here.
 
 ## S0.8.2 Deterministic libm profile (math functions)
 
-**Scope:** `exp`, `log`, `log1p`, `expm1`, `sqrt`, `sin`, `cos`, `atan2`, `pow`, `tanh`, `erf` (if used).
+**Scope:** `exp`, `log`, `log1p`, `expm1`, `sqrt`, `sin`, `cos`, `atan2`, `pow`, `tanh`, `erf` (if used), `lgamma`.
 
 **Normative requirements**
 
@@ -1616,7 +1625,7 @@ No RNG is consumed here.
   "math_profile_id": "mlr-math-1.2.0",
   "vendor": "acme-deterministic-libm",
   "build": "glibc-2.38-toolchain-2025-04-10",
-  "functions": ["exp","log","log1p","expm1","sqrt","sin","cos","atan2","pow","tanh"],
+  "functions": ["exp","log","log1p","expm1","sqrt","sin","cos","atan2","pow","tanh","lgamma"],
   "artifacts": [
     {"name":"libmlr_math.so","sha256":"<64-hex>"},
     {"name":"headers.tgz","sha256":"<64-hex>"}
@@ -1926,15 +1935,15 @@ Short writes, partial instances, non-atomic commit. **Run-abort.**
 
 To keep prior `E_*` codes, attach both:
 
-| Example `E_*` (state)                  | S0.9 class | Canonical `failure_code`                  |
-|----------------------------------------|------------|-------------------------------------------|
-| `E_INGRESS_SCHEMA` (S0.1)              | F1         | `ingress_schema_violation`                |
-| `E_PARAM_EMPTY`, `E_GIT_BYTES` (S0.2)  | F2         | `param_file_missing`, `git_bytes_invalid` |
-| `E_PI_NAN_OR_INF` (S0.7)               | F3         | `hurdle_nonfinite`                        |
-| `E_AUTHORITY_BREACH` (S0.1)            | F6         | `non_authoritative_schema_ref`            |
-| `E_NUM_FMA_ON` (S0.8)                  | F7         | `fma_detected`                            |
-| `E_PARTITION_MISMATCH` (several)       | F5         | `partition_mismatch`                      |
-| `E_RUNID_COLLISION_EXHAUSTED` (S0.2.4) | F2         | `runid_collision_exhausted`               |
+| Example `E_*` (state)                 | S0.9 class | Canonical `failure_code`                  |
+| ------------------------------------- | ---------- | ----------------------------------------- |
+| `E_INGRESS_SCHEMA` (S0.1)             | F1         | `ingress_schema_violation`                |
+| `E_PARAM_EMPTY`, `E_GIT_BYTES` (S0.2) | F2         | `param_file_missing`, `git_bytes_invalid` |
+| `E_PI_NAN_OR_INF` (S0.7)              | F3         | `hurdle_nonfinite`                        |
+| `E_AUTHORITY_BREACH` (S0.1)           | F6         | `non_authoritative_schema_ref`            |
+| `E_NUM_FMA_ON` (S0.8)                 | F7         | `fma_detected`                            |
+| `E_PARTITION_MISMATCH` (several)      | F5         | `partition_mismatch`                      |
+| `E_RUNID_COLLISION_EXHAUSTED` (S0.2.4) | F2 | `runid_collision_exhausted` |
 
 **Rule:** a failure record **must** carry both `failure_class` (F1…F10) and the concrete `failure_code` (snake_case).
 
