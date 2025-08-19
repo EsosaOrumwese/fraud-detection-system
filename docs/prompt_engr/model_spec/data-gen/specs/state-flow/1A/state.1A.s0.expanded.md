@@ -522,6 +522,7 @@ $$
 * `INV_U64P1 = 0x1.0000000000000p-64`  *(nearest binary64 to $1/(2^{64}{+}1)$; use as a named constant to avoid toolchain rewrites)*.
 
 * **Only the kernel below is normative;** computing `1/(2^64+1)` at runtime (e.g., `18446744073709551616.0 + 1.0`) is **forbidden**.
+
 **Reference kernel (updated to use the named constant):**
 
 ```text
@@ -531,51 +532,52 @@ fn u01(x: u64) -> f64 {
   return ( (x as f64 + 1.0) * INV_U64P1 )
 }
 ```
+* **Note:** In IEEE-754 binary64, the nearest representable to `1/(2^64+1)` equals `2^-64`; using the hex literal above is **normative**.
+
 ---
 
 ## S0.3.5 Standard normal $Z\sim\mathcal N(0,1)$ (Box–Muller, no cache)
 
 To sample **one** $Z$:
 
+**Constants & functions:** `TAU = 0x1.921fb54442d18p+2` (binary64-exact $2\pi$); `\ln` = natural log; `\cos` takes **radians**.
+
 1. Draw a **single** Philox block → $(x_0,x_1)$.
 2. Map $u_1 = u01(x_0),\ u_2 = u01(x_1)$.
-3. Compute $r=\sqrt{-2\ln u_1},\ \theta=2\pi u_2,\ Z=r\cos\theta$.
+3. Compute $r=\sqrt{-2\ln u_1},\ \theta=\mathrm{TAU}\cdot u_2,\ Z=r\cos\theta$.
 
 Budget & rules:
 
 * **Budget:** exactly **2 uniforms** per $Z$ (1 block).
 * **No caching:** **discard** the companion normal $r\sin\theta$.
-* **Numeric policy:** binary64, no FMA, serial evaluation order (per S0.8).
+* **Numeric policy:** binary64, round-to-nearest-ties-even, FMA **off**, no FTZ/DAZ; evaluation order is as written (per S0.8).
 
 ---
 
-## S0.3.6 Gamma $\Gamma(\alpha,1)$ (Marsaglia–Tsang with fixed-block accounting)
+## S0.3.6 Gamma $\Gamma(\alpha,1)$ (Marsaglia–Tsang; exact actual-use budgeting)
 
-We use Marsaglia–Tsang (2000) with a draw-count discipline that makes budgets predictable.
+We use Marsaglia–Tsang (2000). Budgets reflect the **exact number of uniforms consumed** (no padding or dummy draws). Normals come from §S0.3.5 (two uniforms per normal). All uniforms use §S0.3.4.
 
-**Case A: $\alpha\ge 1$**
-Let $d=\alpha-\tfrac13,\ c=1/\sqrt{9d}$. Repeat:
+**Case A: $\alpha\ge 1$**  (set $d=\alpha-\tfrac13$, $c=1/\sqrt{9d}$)
 
-1. Draw $Z$ via S0.3.5 (**2 uniforms**).
-2. $v=(1+cZ)^3$. If $v\le 0$, **reject** (consume another attempt).
-3. Draw $u$ (**1 uniform**). Accept if
+Repeat:
+1. Draw **one** standard normal $N$ via Box–Muller → **2 uniforms**; `(blocks+=1, draws+=2)`.
+2. Compute $v=(1+cN)^3$. If $v\le 0$, **reject** and go to step 1 (no extra uniforms consumed in this branch).
+3. Draw $U\sim\mathrm{Uniform}(0,1)$ → **+1 uniform**; `(draws+=1)`.
+4. Accept iff $\ln U < \tfrac12 N^2 + d - d v + d\ln v$. If rejected, go to step 1.
 
-   $$
-   \ln u \le \tfrac12 Z^2 + d - dv + d\ln v.
-   $$
+On acceptance, return $G=dv$.  
+**Budget per accepted sample:** $2A + B$ uniforms, where $A$ is the number of attempts and $B$ the number of step-2 passes (one on the accepted attempt). There is **no fixed multiple**; the envelope `draws` records the exact count.
 
-On accept, return $X=dv$.
+**Case B: $0 < \alpha < 1$**  (boosting)
 
-**Budget:** **3 uniforms per attempt** (2 for $Z$, 1 for $u$); attempts repeat until accepted → total is a **multiple of 3**.
+1. Sample $G'\sim\Gamma(\alpha+1,1)$ via **Case A** (with its budgeting).
+2. Draw $U\sim\mathrm{Uniform}(0,1)$ → **+1 uniform**.
+3. Set $G = G'\cdot U^{1/\alpha}$ (pure arithmetic).
 
-**Case B: $0<\alpha<1$**
-Use boosting:
+**Budget per accepted sample:** `draws(G') + 1` uniforms. There are **no dummy or padding draws**; counters reflect only actual consumption.
 
-1. Sample $Y\sim\Gamma(\alpha+1,1)$ using Case A (multiple of 3 uniforms).
-2. Draw $u$ (**+1** uniform) and set $X=Y\cdot u^{1/\alpha}$.
-3. **Normalize budget:** immediately draw and discard **2 dummy uniforms** so each $\Gamma(\alpha,1)$ still consumes a **multiple of 3**.
-
-**Dirichlet vectors:** a `dirichlet_gamma_vector` of length $K$ consumes a **multiple of $3K$** uniforms.
+**Dirichlet vectors:** For shapes $(\alpha_1,\dots,\alpha_K)$, draw independent components with the kernel above and normalise. The total budget is the **sum** of component budgets; there is **no** “multiple of $3K$” rule. Envelope `draws` MUST equal that sum.
 
 ---
 
@@ -645,7 +647,7 @@ Two cross-cut logs in addition to per-event logs:
 
 1. **Order-invariant:** keyed substreams make outputs independent of execution order/sharding.
 2. **Open-interval uniforms:** $u\in(0,1)$ strictly (S0.3.4).
-3. **Budget correctness:** per-event budgets satisfied; Gamma/Dirichlet **mod-3** rules hold.
+3. **Budget correctness:** per-event budgets satisfied (Normals §S0.3.5; Gamma §S0.3.6; Poisson/ZTP §S0.3.7).
 4. **Numeric profile:** binary64, no FMA, serial reductions (S0.8).
 
 **Abort the run if:**
