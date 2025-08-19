@@ -396,6 +396,8 @@ S0.3 derives the master RNG seed/counters using `manifest_fingerprint_bytes` and
 
 # S0.3 — RNG Engine, Substreams, Samplers & Draw Accounting (normative, fixed)
 
+> **Notation (normative):** `ln(x)` denotes the natural logarithm. The unqualified `log` MUST NOT appear in kernels or acceptance tests.
+
 ## Purpose
 
 S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we carve it into **keyed, order-invariant** substreams, how we map bits to **(0,1)**, how we generate $Z\sim\mathcal N(0,1)$, $\Gamma(\alpha,1)$, and $\text{Poisson}(\lambda)$, and how every draw is **counted, logged, and reproducible**. This sub-state **does** consume RNG.
@@ -411,7 +413,8 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
 * **State per substream:** 64-bit **key** $k$ and 128-bit **counter** $c=(c_{\mathrm{hi}},c_{\mathrm{lo}})$.
 * **Block function:** $(x_0,x_1)\leftarrow \mathrm{PHILOX}_{2\times64,10}(k,c)$ returns **two** 64-bit words per counter; then increment $c\leftarrow c+1$ mod $2^{128}$.
 * **Lane policy (normative):**
-
+  * **No caching (normative):** Families that require two uniforms **must not** reuse, pool, or cache normals/uniforms across events. Each event **must** fetch a fresh block per the lane policy.
+  * **Clarification:** “Use low lane” means **read `x0` and advance the counter by 1 block**; the high lane `x1` is discarded and **may not** be reused later.
   * **Single-uniform events:** use **low lane** $x_0$, **discard** $x_1$; advance counter by 1 block; `draws=1`.
   * **Two-uniform events (e.g., Box–Muller):** use **both lanes** from the same block; advance counter by 1 block; `draws=2`.
   * No other reuse or caching of lanes is permitted.
@@ -432,10 +435,12 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
   rng_counter_after_lo:    uint64
   rng_counter_after_hi:    uint64
   blocks:                  uint64   # PHILOX blocks advanced by this event
-  draws:                   string   # decimal-encoded uint128; regex ^[0-9]+$. Represents UNIFORMS used by this event (family budgets check against this).
-  payload: { ... }                 # event-specific fields (flattened by schema in practice)
+  draws:                   string   # decimal-encoded uint128; required; **UNIFORMS** used by this event (family budgets check against this).
+  payload: { ... }                 # event-specific fields (flattened into top-level fields by the event schema; schema ensures global name uniqueness; name collisions are compile-time schema errors.)
 }
 ```
+
+> **Blocks vs draws (normative):** `blocks = (after_hi,after_lo) − (before_hi,before_lo)` in unsigned 128-bit arithmetic. `draws` = **uniforms used**. Single-uniform families: `(blocks=1, draws=1)`. Two-uniform families (e.g., Box–Muller): `(blocks=1, draws=2)`. Non-consuming: `(blocks=0, draws="0")`. The `blocks` equality is checked by counters; `draws` is checked by family budgets.
 
 > **Invariants (normative):**
 > - `blocks` = $(\texttt{after_hi},\texttt{after_lo}) - (\texttt{before_hi},\texttt{before_lo})$ in unsigned 128-bit arithmetic.
@@ -445,15 +450,21 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
 * **Non-consuming** events keep `before == after` and set `blocks = 0`.
 * `module` and `substream_label` must be chosen from the 1A vo... (enumerated in `schemas.layer1.yaml`); free-text labels are not allowed.
 
-* When a family-level **uniforms-used** count is relevant (e.g., Gamma mod-3 discipline), include `uniforms: uint64` in `payload` and validate budgets against that value.
+* When a family-level **uniforms-used** count is relevant **for diagnostics**, include `uniforms: uint64` in `payload` **only for** `gamma_component` and `dirichlet_gamma_vector`; validators MUST require it equals `draws`.
 
 **Encoding notes (normative):**
-
-* **Authority:** Envelope `draws` is the **only** authoritative count of uniforms used.
+* **Authority (normative):** An event’s envelope `draws` MUST equal the kernel’s computed uniform count for that event. Counters remain the authority for `blocks`; discrepancies are `F4d:rng_budget_violation` (not F4c).
+> **Budget table (normative authority for S0):**
+> - `uniform1` (single-uniform families): `(blocks=1, draws=1)`  
+> - `normal` (Box–Muller): `(blocks=1, draws=2)`  
+> - `gamma_component`: **variable**, per §S0.3.6 (exact actual-use)  
+> - `dirichlet_gamma_vector`: **sum of component** `gamma_component` budgets  
+> - `poisson_component (λ<10)`: **variable**, inversion (§S0.3.7)  
+> - `poisson_component (λ≥10)`: **2 uniforms/attempt**, PTRS (§S0.3.7)`  
 * **Optional duplication:** Only `gamma_component` and `dirichlet_gamma_vector` MAY include `payload.uniforms` (for per-component diagnostics). If present, it **must equal** `draws`. All other families MUST NOT include `payload.uniforms`.
 
 * `draws` is a **JSON string** carrying a **base-10** representation of a `uint128`. Producers/consumers **must** parse/emit as decimal and **must not** split into lo/hi words in the envelope (use the decimal string everywhere, mirroring S0.9 failure payloads).
-* `ts_utc` in RNG **events** is an **RFC-3339/ISO-8601 UTC string** (e.g., `"2025-04-15T12:34:56.123456789Z"`). See S0.9 §2.2 for failure-record timestamps (they are **nanoseconds since epoch** as an unsigned integer).
+* `ts_utc` in RNG **events** is an **RFC-3339/ISO-8601 UTC string** with up to **nanosecond** precision (e.g., `"2025-04-15T12:34:56.123456789Z"`). `ts_utc` in **failures** is **epoch-nanoseconds** (they are **nanoseconds since epoch** as an unsigned integer). See **§S0.9 “Failure records”** for failure-record timestamps (epoch-ns u64).
 
 ---
 
@@ -470,6 +481,8 @@ Define **master material** (UER = universal encoding rule from S0.2):
 M = SHA256( UER("mlr:1A.master") || manifest_fingerprint_bytes || LE64(seed) )  # 32 bytes
 ```
 
+> **UER domain strings (normative):** `b"mlr:1A.master"` for master-material; `b"mlr:1A"` for substream messages; event-family labels `ℓ` are ASCII (e.g., `b"hurdle_bernoulli"`, `b"gumbel_key"`). These exact byte sequences are part of the hash inputs.
+
 Derive **root** (audit-only; never used directly for draws):
 
 * Root key:     $k_\star = \text{LOW64}(M)$.
@@ -480,6 +493,7 @@ Derive **root** (audit-only; never used directly for draws):
 > Envelopes carry these same numeric values as `rng_counter_*_{hi,lo}`. All counter math is **unsigned 128-bit** with addition performed as `lo += n; carry → hi`.
 
 > Emit a single `rng_audit_log` row **before** any draws with `seed`, `manifest_fingerprint`, `parameter_hash`, `run_id`, and $(k_\star,c_\star)$. **No event** may draw from $(k_\star,c_\star)$.
+> **Schema separation (normative):** `rng_audit_log` rows are **not** RNG events and MUST NOT be encoded with the event envelope. They carry the audit schema only and **must** precede the first RNG event.
 
 ---
 
@@ -489,7 +503,7 @@ Every logical substream is keyed by a deterministic tuple; **never** by executio
 
 ### Substream derivation (UER, no delimiters)
 * **Indices (`i`,`j`, …):** 0-based, unsigned, encoded as **LE32**; must satisfy `0 ≤ value ≤ 2^32−1`; negative values are forbidden.
-* **ISO codes:** MUST be **uppercase ASCII** before UER encoding (length-prefixed UTF-8).
+* **ISO encoding (normative):** `iso` MUST be **uppercase ASCII** before UER. If a lower-case code is encountered, **uppercase it** deterministically prior to encoding.
 
 > **UER/SER recap (normative):**
 > - **UER (strings):** UTF-8 bytes prefixed by a 32-bit **little-endian** length; concatenation is unambiguous and order-sensitive.  
@@ -503,7 +517,7 @@ For an event family label `ℓ` (e.g., `"hurdle_bernoulli"`, `"gumbel_key"`) and
 msg = UER("mlr:1A") || UER(ℓ) || SER(ids)
 H   = SHA256( M || msg )              # 32 bytes
 k(ℓ,ids) = LOW64(H)
-c(ℓ,ids) = ( BE64(H[8:16]), BE64(H[16:24]), BE64(H[24:32]), 0 )
+c(ℓ,ids) = ( BE64(H[16:24]), BE64(H[24:32]) )   # 128-bit counter (hi,lo)
 ```
 
 * **SER(ids)** uses UER per component, with **types fixed by schema**:
@@ -546,6 +560,8 @@ fn u01(x: u64) -> f64 {
 
 ## S0.3.5 Standard normal $Z\sim\mathcal N(0,1)$ (Box–Muller, no cache)
 
+**Constants (normative):** `TAU = 0x1.921fb54442d18p+2` (binary64-exact). Computing `2*pi` at runtime is **forbidden** to avoid libm drift.
+
 To sample **one** $Z$:
 
 **Constants & functions:** `TAU = 0x1.921fb54442d18p+2` (binary64-exact $2\pi$); `\ln` = natural log; `\cos` takes **radians**.
@@ -558,6 +574,7 @@ Budget & rules:
 
 * **Budget:** exactly **2 uniforms** per $Z$ (1 block).
 * **No caching:** **discard** the companion normal $r\sin\theta$.
+* **Envelope requirement (normative):** Each Box–Muller event MUST set `blocks=1` and `draws="2"`.
 * **Numeric policy:** binary64, round-to-nearest-ties-even, FMA **off**, no FTZ/DAZ; evaluation order is as written (per S0.8).
 
 ---
@@ -593,12 +610,12 @@ On acceptance, return $G=dv$.
 
 Two regimes; **Threshold (normative):** $\lambda^\star = 10$ (spec constant; not configurable). Changing it requires a spec revision and flips `manifest_fingerprint` per §S0.2.3.
 
-**Small $\lambda<\lambda_0$** — **Inversion**
+**Small $\lambda<\lambda^\star$** — **Inversion**
 Draw uniforms $u_1,u_2,\ldots$ and iterate the standard product until it falls below $e^{-\lambda}$.
 
 * **Budget:** variable (≈ $N+1$ uniforms); log exactly in `draws`.
 
-**Moderate/Large $\lambda\ge\lambda_0$** — **PTRS (Hörmann-class) rejection (fully specified)**
+**Moderate/Large $\lambda\ge\lambda^\star$** — **PTRS (Hörmann-class) rejection (fully specified)**
 Per-attempt draws: **two uniforms** $u,v\sim U(0,1)$ from **one Philox block** (lane policy).
 **Constants (normative):**
 ${} \quad b = 0.931 + 2.53\sqrt{\lambda},\quad a = -0.059 + 0.02483\,b,\quad \mathrm{inv}\,\alpha = 1.1239 + \dfrac{1.1328}{b-3.4},\quad v_r = 0.9277 - \dfrac{3.6224}{b-2},\quad u_{\text{cut}}=0.86.$
@@ -649,12 +666,12 @@ Two cross-cut logs in addition to per-event logs:
   * **Bernoulli hurdle:** if $0 < \pi < 1$ → **1**; if $\pi\in\{0,1\}$ → **0**.
   * **Gumbel key:** **1** per candidate.
   * **Normal $Z$:** **2**.
-  * **Gamma:** **multiple of 3** per sample.
-  * **Dirichlet $K$:** **multiple of $3K$** in total.
+  * **Gamma:** **variable**; exact actual-use per §S0.3.6.
+  * **Dirichlet $K$:** **sum of component** gamma budgets (per §S0.3.6).
   * **Poisson (inversion):** variable; report exact count.
   * **Poisson (PTRS):** **exactly 2 uniforms/attempt**; report exact count.
   * **ZTP:** sum over underlying Poisson attempts.
-* **Counter-delta invariant:** interpret `(after − before)` as a 128-bit little-endian increment of the Philox counter and require it equals **`blocks`**. Single-uniform events still advance **one** block (high lane discarded); two-uniform events consume both lanes of **one** block.
+* **Counter-delta invariant:** interpret `(after − before)` as an **unsigned 128-bit** increment with carry from `lo` to `hi` and require it equals **`blocks`**. Single-uniform events advance **one** block; two-uniform events consume both lanes from **one** block.
 
 **Envelope invariants:**
 
@@ -677,8 +694,8 @@ Two cross-cut logs in addition to per-event logs:
 * An event’s `blocks` disagrees with the 128-bit counter delta implied by the envelope (`after − before`).
 * Any sampler yields NaN/Inf.
 * A non-consuming event changes counters.
-* A Gamma/Dirichlet event violates the **mod-3** draw discipline.
-
+* A Gamma/Dirichlet event’s `draws` mismatches the recomputed exact budget per §S0.3.6.
+* 
 ---
 
 ## Reference pseudocode (language-agnostic)
@@ -764,7 +781,7 @@ fn poisson(lambda: f64, stream: &mut Stream) -> (int, draws:int) {
 
 ---
 
-**Summary:** S0.3 now locks the engine (Philox 2×64-10), **low-lane policy** for single uniforms, **UER-based** substream derivation, mandatory **open-interval** mapping, Box–Muller (no cache), Gamma with **mod-3** discipline, Poisson with a vendored **PTRS constants** file, and strict **draw accounting** tied to counters. It’s deterministic, auditable, and ready to implement.
+**Summary:** S0.3 pins Philox 2×64-10, the **low-lane policy** for single uniforms, **UER-based** substream derivation, one **open-interval** `u01`, Box–Muller (**no cache**), Gamma (Marsaglia–Tsang) with **exact actual-use budgeting**, Poisson with a **fully specified** inversion/PTRS split, and strict **draw accounting** tied to counters. This is deterministic, auditable, and ready to implement.
 
 ---
 
@@ -2145,6 +2162,12 @@ Any mismatch triggers **S0.9/F5 run-abort**.
 
 **Naming rule (normative):** Any path segment named `fingerprint={…}` **always** carries the value of `manifest_fingerprint`. The column name is `manifest_fingerprint`; the path label remains `fingerprint=…`.
 
+**RNG logs (normative paths & keys):**
+`rng_audit_log` → `logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/audit.jsonl`
+`rng_trace_log` → `logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl`
+`rng_event_*` → `logs/rng/events/{family}/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+Partitioning for all three: `["seed","parameter_hash","run_id"]`. The dataset dictionary remains authoritative for any additional fields.
+
 ### Parameter-scoped (partition by `parameter_hash`)
 
 **Dataset:** `crossborder_eligibility_flags`
@@ -2171,6 +2194,9 @@ Any mismatch triggers **S0.9/F5 run-abort**.
 
 **Logs:** `rng_audit_log`, `rng_trace_log`, each `rng_event_*`
 **Path template:** `logs/rng/<stream>/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+
+> **Physical row order (normative):** Within a partition, **Parquet row/row-group order is unspecified** and MUST NOT be relied on. Any consumer that depends on physical order is non-conformant.
+
 **Envelope (per S0.3):** `{seed, parameter_hash, manifest_fingerprint, run_id, module, substream_label, counter_before/after, blocks, draws, ts_utc, payload…}`.
 `rng_trace_log` aggregates **blocks**.
 ---
