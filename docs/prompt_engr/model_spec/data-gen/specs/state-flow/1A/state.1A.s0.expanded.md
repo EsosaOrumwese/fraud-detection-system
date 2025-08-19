@@ -33,8 +33,7 @@ validated by `schemas.ingress.layer1.yaml#/merchant_ids`.
   ```
   merchant_u64 = LOW64( SHA256( UTF8(merchant_id) ) )
   ```
-
-  where `LOW64` takes the low-order 8 bytes of the 32-byte hash, interpreted little-endian. This mapping is **normative** and used everywhere a u64 merchant key is required.
+  where `LOW64` takes **bytes 24..31** of the 32-byte SHA-256 digest, interpreted as little-endian u64. **No string formatting** is ever used in this mapping.
 
 * `mcc ∈ 𝕂`: valid 4-digit MCC code set 𝕂. **Authority:** exactly the enum/domain defined in `schemas.ingress.layer1.yaml#/merchant_ids/properties/mcc` (ISO 18245 subset). **Out-of-set MCCs are rejected here**.
 
@@ -295,6 +294,8 @@ r = SHA256(payload)[0:16]      # first 16 bytes
 run_id = hex32(r)
 ```
 
+**Uniqueness (normative):** If a newly computed `run_id` already exists in the target log directory for `{ seed, parameter_hash }`, deterministically adjust `T_ns` by adding `+1` nanosecond and recompute. Repeat until the `run_id` is unused. This loop MUST be bounded by 2^16 steps; exceeding it is a hard failure. `run_id` never influences modelling outputs.
+ 
 **Scope & invariants (normative):**
 
 * Partitions **only** `rng_audit_log`, `rng_trace_log`, and `rng_event_*` as `{ seed, parameter_hash, run_id }`.
@@ -406,7 +407,8 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
 ### PRNG (fixed)
 
 * **Algorithm:** Philox 2×64 with 10 rounds (counter-based; splittable).
-* **State per substream:** 64-bit **key** $k$ and 128-bit **counter** $c=(c_3,c_2,c_1,c_0)$.
+> **Counter (normative):** The Philox **counter is 128-bit**, represented as the ordered pair $(c_{\mathrm{hi}}, c_{\mathrm{lo}})$ of unsigned 64-bit integers. All counters in envelopes are these same two words. Any prior 4-word notation is non-normative and MUST NOT be used. The block function advances the counter by **1** (unsigned 128-bit add with carry from `lo` into `hi`).
+* **State per substream:** 64-bit **key** $k$ and 128-bit **counter** $c=(c_{\mathrm{hi}},c_{\mathrm{lo}})$.
 * **Block function:** $(x_0,x_1)\leftarrow \mathrm{PHILOX}_{2\times64,10}(k,c)$ returns **two** 64-bit words per counter; then increment $c\leftarrow c+1$ mod $2^{128}$.
 * **Lane policy (normative):**
 
@@ -435,13 +437,19 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
 }
 ```
 
+> **Invariants (normative):**
+> - `blocks` = $(\texttt{after_hi},\texttt{after_lo}) - (\texttt{before_hi},\texttt{before_lo})$ in unsigned 128-bit arithmetic.
+> - `draws` = number of **uniform(0,1)** variates consumed by the event.
+> - With the lane policy, **single-uniform** events have `(blocks=1, draws=1)`, and **two-uniform** events (Box–Muller) have `(blocks=1, draws=2)`. **Non-consuming** events have `(blocks=0, draws="0")`.
+
 * **Non-consuming** events keep `before == after` and set `blocks = 0`.
-* `module` and `substream_label` must be chosen from the 1A **vocab registry** (enumerated in `schemas.layer1.yaml`); free-text labels are not allowed.
+* `module` and `substream_label` must be chosen from the 1A vo... (enumerated in `schemas.layer1.yaml`); free-text labels are not allowed.
 
 * When a family-level **uniforms-used** count is relevant (e.g., Gamma mod-3 discipline), include `uniforms: uint64` in `payload` and validate budgets against that value.
 
 **Encoding notes (normative):**
 
+* **Authority:** Envelope `draws` is the **only** normative count of uniforms used. If a family includes `payload.uniforms`, its value MUST equal `draws`; otherwise the event is invalid.
 * `draws` is a **JSON string** carrying a **base-10** representation of a `uint128`. Producers/consumers **must** parse/emit as decimal and **must not** split into lo/hi words in the envelope (use the decimal string everywhere, mirroring S0.9 failure payloads).
 * `ts_utc` in RNG **events** is an **RFC-3339/ISO-8601 UTC string** (e.g., `"2025-04-15T12:34:56.123456789Z"`). See S0.9 §2.2 for failure-record timestamps (they are **nanoseconds since epoch** as an unsigned integer).
 
@@ -463,7 +471,11 @@ M = SHA256( UER("mlr:1A.master") || manifest_fingerprint_bytes || LE64(seed) )  
 Derive **root** (audit-only; never used directly for draws):
 
 * Root key:     $k_\star = \text{LOW64}(M)$.
-* Root counter: $c_\star = (\text{BE64}(M[8:16]),\ \text{BE64}(M[16:24]),\ \text{BE64}(M[24:32]),\ 0)$.
+* Root counter: $(c_{\star,\mathrm{hi}}, c_{\star,\mathrm{lo}}) = (\text{BE64}(M[16:24]),\ \text{BE64}(M[24:32]))$.
+
+> **`split64` (normative):** for a 16-byte string `b`, return `hi = u64_be(b[0..8])`, `lo = u64_be(b[8..16])`.
+
+> Envelopes carry these same numeric values as `rng_counter_*_{hi,lo}`. All counter math is **unsigned 128-bit** with addition performed as `lo += n; carry → hi`.
 
 > Emit a single `rng_audit_log` row **before** any draws with `seed`, `manifest_fingerprint`, `parameter_hash`, `run_id`, and $(k_\star,c_\star)$. **No event** may draw from $(k_\star,c_\star)$.
 
@@ -474,6 +486,8 @@ Derive **root** (audit-only; never used directly for draws):
 Every logical substream is keyed by a deterministic tuple; **never** by execution order.
 
 ### Substream derivation (UER, no delimiters)
+* **Indices (`i`,`j`, …):** 0-based, unsigned, encoded as **LE32**; must satisfy `0 ≤ value ≤ 2^32−1`; negative values are forbidden.
+* **ISO codes:** MUST be **uppercase ASCII** before UER encoding (length-prefixed UTF-8).
 
 For an event family label `ℓ` (e.g., `"hurdle_bernoulli"`, `"gumbel_key"`) and an ordered ID tuple **ids** (event-family-specific; e.g., `(merchant_u64, iso)`), build:
 
@@ -507,6 +521,7 @@ $$
 
 * `INV_U64P1 = 0x1.0000000000000p-64`  *(nearest binary64 to $1/(2^{64}{+}1)$; use as a named constant to avoid toolchain rewrites)*.
 
+* **Only the kernel below is normative;** computing `1/(2^64+1)` at runtime (e.g., `18446744073709551616.0 + 1.0`) is **forbidden**.
 **Reference kernel (updated to use the named constant):**
 
 ```text
@@ -599,8 +614,8 @@ For candidate ranking:
 
 Two cross-cut logs in addition to per-event logs:
 
-1. **`rng_audit_log`** — **one row at run start** (before any draw): `(seed, manifest_fingerprint, parameter_hash, run_id, root key/counter, code version, ts_utc)`.
-2. **`rng_trace_log`** (**one row per** $(\texttt{module},\texttt{substream_label})$): cumulative **blocks** consumed on that substream at emission time (type per existing schema, typically uint64), with the *current* `(counter_before, counter_after)`.
+1. **`rng_audit_log`** — **exactly one** row **before any RNG event** with: `(seed, manifest_fingerprint, parameter_hash, run_id, algorithm="philox2x64-10", root key/counter, code_version, ts_utc)`.
+2. **`rng_trace_log`** — **append-only**: **emit one row at every emission** per `(module, substream_label)`. Each row records the **cumulative `blocks_total`** consumed on that substream up to (and including) this emission, plus the current `(counter_before, counter_after)`. **Traces are in units of blocks.** Budget checks use **per-event `draws`**, not the trace.
 
 **Per-event budget rules (must hold):**
 
@@ -635,7 +650,7 @@ Two cross-cut logs in addition to per-event logs:
 
 **Abort the run if:**
 
-* An event’s `blocks` disagrees with the counter delta implied by the counters (`after − before`, 128-bit LE).
+* An event’s `blocks` disagrees with the 128-bit counter delta implied by the envelope (`after − before`).
 * Any sampler yields NaN/Inf.
 * A non-consuming event changes counters.
 * A Gamma/Dirichlet event violates the **mod-3** draw discipline.
@@ -655,8 +670,9 @@ fn philox_block(s: Stream) -> (u64,u64,Stream) {
 
 # u01 mapping (open interval)
 fn u01(x: u64) -> f64 {
-  # Compute in binary64; mapping is mandatory
-  return ( (x + 1.0) / (18446744073709551616.0 + 1.0) )  # (2^64 + 1)
+  # Compute in binary64; mapping is normative
+  const INV_U64P1: f64 = 0x1.0000000000000p-64;  # nearest binary64 to 1/(2^64+1)
+  return ( ((x as f64) + 1.0) * INV_U64P1 )
 }
 
 # Single uniform (lane policy)
@@ -1847,7 +1863,7 @@ Covers `parameter_hash` & `manifest_fingerprint`. **Run-abort.**
 
 * **F4a:** `rng_audit_missing_before_first_draw`.
 * **F4b:** `rng_envelope_violation` (missing required fields).
-* **F4c:** `rng_counter_mismatch` (`after−before != draws`).
+* **F4c:** `rng_counter_mismatch` (`after−before != blocks`).
 * **F4d:** `rng_budget_violation` (per S0.3 budgets).
 
 ---
@@ -1960,7 +1976,7 @@ data/layer1/1A/validation/failures/
 
 **Typed `detail` payloads** (normative minima):
 
-* `rng_counter_mismatch`: `{ "before":{"hi":u64,"lo":u64}, "after":{"hi":u64,"lo":u64}, "draws": "uint128-dec" }`
+* `rng_counter_mismatch`: `{ "before":{"hi":u64,"lo":u64}, "after":{"hi":u64,"lo":u64}, "blocks": uint64, "draws": "uint128-dec" }`
 * `partition_mismatch`: `{ "dataset_id":str, "path_key":str, "embedded_key":str }`
 * `ingress_schema_violation`: `{ "row_pk":str, "field":str, "message":str }`
 * `artifact_unreadable`: `{ "path":str, "errno":int }`
