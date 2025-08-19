@@ -31,9 +31,9 @@ validated by `schemas.ingress.layer1.yaml#/merchant_ids`.
 * `merchant_id`: **opaque identifier** (id64 integer, per ingress schema). For all places in 1A that require a 64-bit integer key (e.g., RNG substream keys), the **only** mapping is:
 
   ```
-  merchant_u64 = LOW64( SHA256( LE64(merchant_id) ) )
+  merchant_u64 = LOW64( SHA256( UTF8(merchant_id) ) )
   ```
-  where `LE64(merchant_id)` is the 8 raw little-endian bytes of the integer (not its string form), and `LOW64` takes **bytes 24..31** of the 32-byte SHA-256 digest, interpreted as little-endian u64. **No string formatting** is ever used in this mapping.
+  where `LOW64` takes **bytes 24..31** of the 32-byte SHA-256 digest, interpreted as little-endian u64. **No string formatting** is ever used in this mapping.
 
 * `mcc ∈ 𝕂`: valid 4-digit MCC code set 𝕂. **Authority:** exactly the enum/domain defined in `schemas.ingress.layer1.yaml#/merchant_ids/properties/mcc` (ISO 18245 subset). **Out-of-set MCCs are rejected here**.
 
@@ -405,6 +405,7 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
 ---
 
 ## S0.3.1 Engine & Event Envelope
+> **Practical bound (normative):** `blocks` is `uint64`. Producers MUST ensure a single event’s block consumption fits this width. If an event would exceed this bound, emit `F4d:rng_budget_violation` and abort the run.
 
 ### PRNG (fixed)
 
@@ -439,7 +440,6 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
   payload: { ... }                 # event-specific fields (flattened into top-level fields by the event schema; schema ensures global name uniqueness; name collisions are compile-time schema errors.)
 }
 ```
-**Counter interpretation (normative):** The pairs `(rng_counter_before_hi, rng_counter_before_lo)` and `(rng_counter_after_hi, rng_counter_after_lo)` MUST be interpreted as **(hi, lo)** words of a single **unsigned 128-bit** counter. All counter arithmetic is unsigned 128-bit with carry from `lo` into `hi`. Any listing/order of the fields in the schema does **not** change this interpretation.
 
 > **Blocks vs draws (normative):** `blocks = (after_hi,after_lo) − (before_hi,before_lo)` in unsigned 128-bit arithmetic. `draws` = **uniforms used**. Single-uniform families: `(blocks=1, draws=1)`. Two-uniform families (e.g., Box–Muller): `(blocks=1, draws=2)`. Non-consuming: `(blocks=0, draws="0")`. The `blocks` equality is checked by counters; `draws` is checked by family budgets.
 
@@ -461,7 +461,7 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
 > - `gamma_component`: **variable**, per §S0.3.6 (exact actual-use)  
 > - `dirichlet_gamma_vector`: **sum of component** `gamma_component` budgets  
 > - `poisson_component (λ<10)`: **variable**, inversion (§S0.3.7)  
-> - `poisson_component (λ≥10)`: **2 uniforms/attempt**, PTRS (§S0.3.7)`  
+> - `poisson_component (λ≥10)`: **2 uniforms/attempt**, PTRS (§S0.3.7)  
 * **Optional duplication:** Only `gamma_component` and `dirichlet_gamma_vector` MAY include `payload.uniforms` (for per-component diagnostics). If present, it **must equal** `draws`. All other families MUST NOT include `payload.uniforms`.
 
 * `draws` is a **JSON string** carrying a **base-10** representation of a `uint128`. Producers/consumers **must** parse/emit as decimal and **must not** split into lo/hi words in the envelope (use the decimal string everywhere, mirroring S0.9 failure payloads).
@@ -470,6 +470,7 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
 ---
 
 ## S0.3.2 Master seed & initial counter (per run)
+> **LOW64(digest32) (normative):** interpret **bytes 24..31** of the 32-byte SHA‑256 digest as **little‑endian u64** (same convention as §S0.1). **Counters** are always split as `BE64(H[16:24]), BE64(H[24:32])`.
 
 Let:
 
@@ -502,7 +503,7 @@ Derive **root** (audit-only; never used directly for draws):
 
 Every logical substream is keyed by a deterministic tuple; **never** by execution order.
 
-### Substream derivation (UER, no delimiters)
+### Substream derivation (UER, no delimiters) *(SER = integer encodings under UER: LE32 indices; LE64 keys)*
 * **Indices (`i`,`j`, …):** 0-based, unsigned, encoded as **LE32**; must satisfy `0 ≤ value ≤ 2^32−1`; negative values are forbidden.
 * **ISO encoding (normative):** `iso` MUST be **uppercase ASCII** before UER. If a lower-case code is encountered, **uppercase it** deterministically prior to encoding.
 
@@ -533,35 +534,17 @@ c(ℓ,ids) = ( BE64(H[16:24]), BE64(H[24:32]) )   # 128-bit counter (hi,lo)
 
 ## S0.3.4 Uniforms on the **open** interval $(0,1)$
 
-Given a 64-bit word $x\in\{0,\dots,2^{64}-1\}$,
-
-$$
-u=\frac{x+1}{2^{64}+1}\in(0,1).
-$$
-
-* This mapping is **mandatory**; alternatives (e.g., $x/2^{64}$) are **forbidden**.
-* For Box–Muller (needs two uniforms), use both lanes from the same Philox block; otherwise, for single-uniform events use the **low lane** and discard the high lane (S0.3.1).
-
-* `INV_U64P1 = 0x1.0000000000000p-64`  *(nearest binary64 to $1/(2^{64}{+}1)$; use as a named constant to avoid toolchain rewrites)*.
-
-* **Only the kernel below is normative;** computing `1/(2^64+1)` at runtime (e.g., `18446744073709551616.0 + 1.0`) is **forbidden**.
-
-**Reference kernel (updated to use the named constant):**
+**Normative mapping:**
 
 ```text
-fn u01(x: u64) -> f64 {
-  # Compute in binary64; mapping is mandatory
-  const INV_U64P1: f64 = 0x1.0000000000000p-64;  # ≈ 5.421010862427522e-20
-  return ( (x as f64 + 1.0) * INV_U64P1 )
-}
+u = ((x + 1) * 0x1.0000000000000p-64)  # x is u64; nearest binary64 to 1/(2^64+1)
 ```
-* **Note:** In IEEE-754 binary64, the nearest representable to `1/(2^64+1)` equals `2^-64`; using the hex literal above is **normative**.
 
----
+This is the required implementation of the open-interval rule. Computing `1/(2^64+1)` at runtime or using decimal literals is **forbidden**.
 
 ## S0.3.5 Standard normal $Z\sim\mathcal N(0,1)$ (Box–Muller, no cache)
 
-**Constants (normative):** `TAU = 0x1.921fb54442d18p+2` (binary64-exact). Computing `2*pi` at runtime is **forbidden** to avoid libm drift.
+**Constants (normative):** `TAU = 0x1.921fb54442d18p+2` (binary64-exact). Computing `2*pi` at runtime is **forbidden** to avoid libm drift. (See constant `TAU` defined once in §S0.3.5.)
 
 To sample **one** $Z$:
 
@@ -581,6 +564,7 @@ Budget & rules:
 ---
 
 ## S0.3.6 Gamma $\Gamma(\alpha,1)$ (Marsaglia–Tsang; exact actual-use budgeting)
+> **Case B (α<1) clarification (normative):** boosting draws `G' ~ Γ(α+1)` and then **+1 uniform** for `U`; **no** dummy or padding draws are permitted; envelope `draws` reflects exact actual use.
 
 We use Marsaglia–Tsang (2000). Budgets reflect the **exact number of uniforms consumed** (no padding or dummy draws). Normals come from §S0.3.5 (two uniforms per normal). All uniforms use §S0.3.4.
 
@@ -656,29 +640,14 @@ Two cross-cut logs in addition to per-event logs:
 
 1. **`rng_audit_log`** — **one row at run start** (before any RNG event): `(seed, manifest_fingerprint, parameter_hash, run_id, root key/counter, code version, ts_utc)`.
    **`rng_audit_log` schema (normative minimum):** `{ ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, algorithm, rng_key_hi, rng_key_lo, rng_counter_hi, rng_counter_lo, code_version }`. Field types and names are governed by `schemas.layer1.yaml#/rng/audit` (authoritative).
-2. `rng_trace_log` — **append-only**: emit **one row at every emission** per `(module, substream_label)`. Each row carries:
-   - `blocks_total: uint64` — the **cumulative** number of Philox **blocks** consumed on that substream up to (and including) this emission, and
-   - the current `rng_counter_before_*` / `rng_counter_after_*` pair.
+2. **`rng_trace_log`** (**one row per** $(\texttt{module},\texttt{substream\_label)$; cumulative **blocks** (unsigned 64-bit) by uint64), with the *current* `(counter_before, counter_after)`.  
+    **Reconciliation (normative):** For each `(module, substream_label)`, `rng_trace_log.blocks_total` MUST be monotone non-decreasing across emissions, and the **final** `blocks_total` MUST equal the **sum of per-event `blocks`** over `rng_event_*` in the same `{seed, parameter_hash, run_id}`. Budget checks use **event `draws`**, not the trace.
 
-   **Reconciliation (normative):** For each `(module, substream_label)`, `blocks_total` MUST be **monotone non-decreasing** and the **final** `blocks_total` MUST equal the **sum of per-event `blocks`** over all `rng_event_*` rows with the same `{seed, parameter_hash, run_id}`. Budget checks use **event `draws`**, not the trace.
+> **Practical bound (normative):** `rng_trace_log.blocks_total` is `uint64`; emitters MUST ensure totals fit this width or abort with `F4d:rng_budget_violation`.
 
+**Per-event budget rules are enforced **exactly as specified in §S0.3.1 (Budget table)**.
 
-**Per-event budget rules (must hold):**
-
-*Note:* here, $\pi$ refers to the **binary64** value computed at sampling time in **S1** (not the float32 diagnostic persisted in **S0.7**).
-
-* Validate **uniforms-used** (`draws` or `payload.uniforms`) against family budgets:
-  * **Bernoulli hurdle:** if $0 < \pi < 1$ → **1**; if $\pi\in\{0,1\}$ → **0**.
-  * **Gumbel key:** **1** per candidate.
-  * **Normal $Z$:** **2**.
-  * **Gamma:** **variable**; exact actual-use per §S0.3.6.
-  * **Dirichlet $K$:** **sum of component** gamma budgets (per §S0.3.6).
-  * **Poisson (inversion):** variable; report exact count.
-  * **Poisson (PTRS):** **exactly 2 uniforms/attempt**; report exact count.
-  * **ZTP:** sum over underlying Poisson attempts.
-* **Counter-delta invariant:** interpret `(after − before)` as an **unsigned 128-bit** increment with carry from `lo` to `hi` and require it equals **`blocks`**. Single-uniform events advance **one** block; two-uniform events consume both lanes from **one** block.
-
-**Envelope invariants:**
+Envelope invariants:**
 
 * Philox blocks advance consistently with lane policy: single-uniform events advance **one** block (high lane discarded); two-uniform events consume **both lanes** of one block.
 * `rng_counter_after` ≥ `rng_counter_before` lexicographically; non-consuming events keep them equal.
@@ -696,7 +665,7 @@ Two cross-cut logs in addition to per-event logs:
 
 **Abort the run if:**
 
-* An event’s `blocks` disagrees with the 128-bit counter delta `after − before`, interpreting each `(hi,lo)` pair as a **single unsigned 128-bit** integer.
+* An event’s `blocks` disagrees with the 128-bit counter delta implied by the envelope (`after − before`).
 * Any sampler yields NaN/Inf.
 * A non-consuming event changes counters.
 * A Gamma/Dirichlet event’s `draws` mismatches the recomputed exact budget per §S0.3.6.
@@ -723,13 +692,11 @@ fn u01(x: u64) -> f64 {
 
 # Single uniform (lane policy)
 fn uniform1(stream: &mut Stream) -> (f64, draws:int) {
-  (x0,_,*stream) = philox_block(*stream)     # low lane used, high discarded
   return (u01(x0), 1)
 }
 
 # Normal Z via Box–Muller (no cache)
 fn normal(stream: &mut Stream) -> (f64, draws:int) {
-  (x0,x1,*stream) = philox_block(*stream)    # both lanes → 2 uniforms
   u1 = u01(x0); u2 = u01(x1)
   r = sqrt(-2.0 * ln(u1))
   # τ = 2π (fixed constant; binary64 hex literal to avoid libm / macro drift)
@@ -738,34 +705,25 @@ fn normal(stream: &mut Stream) -> (f64, draws:int) {
   return (r * cos(th), 2)
 }
 
-# Gamma(alpha,1) with mod-3 discipline
+# Gamma(alpha,1) with budget discipline
 fn gamma_mt(alpha: f64, stream: &mut Stream) -> (f64, draws:int) {
   if alpha >= 1.0 {
-    let d = alpha - 1.0/3.0;
-    let c = 1.0 / sqrt(9.0 * d);
-    let total = 0;
-    loop {
-      // One Box–Muller normal → 2 uniforms (1 block)
-      let (z, dZ) = normal(stream);         // dZ = 2
-      total += dZ;
-
-      let mut v = 1.0 + c * z;
-      v = v * v * v;
-      if v <= 0.0 { continue; }
-
-      // Acceptance uniform → +1
-      let (u, dU) = uniform1(stream);       // dU = 1
-      total += dU;
-
-      if ln(u) < 0.5 * z * z + d - d * v + d * ln(v) {
-        return (d * v, total);              // variable budget; no padding
+    d = alpha - 1.0/3.0; c = 1.0/sqrt(9.0*d)
+    total = 0
+    loop:
+      (z, dZ) = normal(stream)              # dZ=2
+      total += dZ
+      v = (1.0 + c*z); v = v*v*v
+      if v <= 0.0 { continue }
+      (u, dU) = uniform1(stream)            # dU=1
+      total += dU
+      if ln(u) <= 0.5*z*z + d - d*v + d*ln(v) {
+        return (d*v, total)                 # multiple of 3
       }
-    }
   } else {
-    // Boosting: Gamma(alpha+1), then scale
-    let (gprime, dG) = gamma_mt(alpha + 1.0, stream);
-    let (u, dU) = uniform1(stream);         // +1
-    return (gprime * pow(u, 1.0 / alpha), dG + dU);
+    (y, dY) = gamma_mt(alpha + 1.0, stream) # multiple of 3
+    (u, dU) = uniform1(stream)              # +1
+    return (y * pow(u, 1.0/alpha), dY + dU + 2)
   }
 }
 
@@ -974,10 +932,10 @@ Deterministically construct **column-aligned design vectors** for each merchant 
   * **Coefficient vectors**:
 
     * **Hurdle** $\beta$ — a **single** YAML vector containing: intercept, MCC block, channel block, **all 5** bucket dummies.
-    * **NB dispersion** coefficients — intercept, MCC block, channel block, and **slope on $\log g_c$**.
+    * **NB dispersion** coefficients — intercept, MCC block, channel block, and **slope on $\ln g_c$**.
       *(NB mean excludes GDP bucket by design.)*
 
-> **Global design rule (normative):** **GDP bucket enters only the hurdle**; **$\log g_c$** enters **only** NB **dispersion**. The builder **must** assert this at construction time.
+> **Global design rule (normative):** **GDP bucket enters only the hurdle**; **$\ln g_c$** enters **only** NB **dispersion**. The builder **must** assert this at construction time.
 
 ---
 
@@ -1021,14 +979,14 @@ $$
 $$
 
 $$
-\boxed{\,x^{(\phi)}_m=\big[1,\ \phi_{\text{mcc}}(\texttt{mcc}_m),\ \phi_{\text{ch}}(\texttt{channel_sym}_m),\ \log g_c\big]^\top\,}\in\mathbb R^{1+C_{\text{mcc}}+2+1}.
+\boxed{\,x^{(\phi)}_m=\big[1,\ \phi_{\text{mcc}}(\texttt{mcc}_m),\ \phi_{\text{ch}}(\texttt{channel_sym}_m),\ \ln g_c\big]^\top\,}\in\mathbb R^{1+C_{\text{mcc}}+2+1}.
 $$
 
-**Leakage guard (enforced):** bucket dummies **not** present in $x^{(\mu)}$; $\log g_c$ present **only** in $x^{(\phi)}$.
+**Leakage guard (enforced):** bucket dummies **not** present in $x^{(\mu)}$; $\ln g_c$ present **only** in $x^{(\phi)}$.
 
 ---
 
-## Safe logistic evaluation (overflow-stable, no clamp in compute path)
+## Safe logistic evaluation (notation consistent with §S0.3: ln = natural log) (overflow-stable, no clamp in compute path)
 
 Use the branch-stable form:
 
@@ -1075,7 +1033,7 @@ By default, $x_m, x^{(\mu)}_m, x^{(\phi)}_m$ are **in-memory**. If materialised:
    * The **dictionary order** used to build vectors matches the order implied by the coefficient vectors. Any drift is a hard error.
 2. **One-hot correctness** — each encoder emits exactly one “1”.
 3. **Feature domains** — `g_c > 0`; `b_m ∈ {1..5}` (from S0.4).
-4. **Leakage guard (machine-checked)** — bucket dummies appear in `x_m` only; `log(g_c)` appears in `x^{(φ)}_m` only.
+4. **Leakage guard (machine-checked)** — bucket dummies appear in `x_m` only; `ln(g_c)` appears in `x^{(φ)}_m` only.
 5. **Partition lint (if persisted)** — embedded `parameter_hash` equals the path key exactly; otherwise `E_PARTITION_MISMATCH`.
 
 ---
@@ -1122,7 +1080,7 @@ function S0_5_build_designs(M, dict_mcc, dict_ch, dict_dev5,
 
       x_hurdle = [1] + h_mcc + h_ch + h_dev
       x_nb_mu  = [1] + h_mcc + h_ch
-      x_nb_phi = [1] + h_mcc + h_ch + [log(g)]
+      x_nb_phi = [1] + h_mcc + h_ch + [ln(g)]
 
       # Enforce leakage rule structurally (redundant but explicit)
       assert len(x_nb_mu)  == 1 + len(dict_mcc) + 2
@@ -1716,6 +1674,7 @@ Disable `fast-math` flags; use constrained FP intrinsics with RNE and masked exc
 
 ```text
 # bits = uint64 bit pattern of the float (IEEE-754)
+# Ties then break by deterministic secondary key: ISO (ASCII) then merchant_id.
 # Map to an integer key that is monotone w.r.t. totalOrder for non-NaNs:
 key = (bits & 0x8000000000000000) ? (~bits) : (bits | 0x8000000000000000)
 # This guarantees -0.0 sorts before +0.0 and preserves numeric order elsewhere.
@@ -1969,14 +1928,15 @@ Short writes, partial instances, non-atomic commit. **Run-abort.**
 
 To keep prior `E_*` codes, attach both:
 
-| Example `E_*` (state)                 | S0.9 class | Canonical `failure_code`                  |
-| ------------------------------------- | ---------- | ----------------------------------------- |
-| `E_INGRESS_SCHEMA` (S0.1)             | F1         | `ingress_schema_violation`                |
-| `E_PARAM_EMPTY`, `E_GIT_BYTES` (S0.2) | F2         | `param_file_missing`, `git_bytes_invalid` |
-| `E_PI_NAN_OR_INF` (S0.7)              | F3         | `hurdle_nonfinite`                        |
-| `E_AUTHORITY_BREACH` (S0.1)           | F6         | `non_authoritative_schema_ref`            |
-| `E_NUM_FMA_ON` (S0.8)                 | F7         | `fma_detected`                            |
-| `E_PARTITION_MISMATCH` (several)      | F5         | `partition_mismatch`                      |
+| Example `E_*` (state)                  | S0.9 class | Canonical `failure_code`                  |
+|----------------------------------------|------------|-------------------------------------------|
+| `E_INGRESS_SCHEMA` (S0.1)              | F1         | `ingress_schema_violation`                |
+| `E_PARAM_EMPTY`, `E_GIT_BYTES` (S0.2)  | F2         | `param_file_missing`, `git_bytes_invalid` |
+| `E_PI_NAN_OR_INF` (S0.7)               | F3         | `hurdle_nonfinite`                        |
+| `E_AUTHORITY_BREACH` (S0.1)            | F6         | `non_authoritative_schema_ref`            |
+| `E_NUM_FMA_ON` (S0.8)                  | F7         | `fma_detected`                            |
+| `E_PARTITION_MISMATCH` (several)       | F5         | `partition_mismatch`                      |
+| `E_RUNID_COLLISION_EXHAUSTED` (S0.2.4) | F2         | `runid_collision_exhausted`               |
 
 **Rule:** a failure record **must** carry both `failure_class` (F1…F10) and the concrete `failure_code` (snake_case).
 
@@ -2127,6 +2087,7 @@ function abort_run(failure_class, failure_code, ctx):
 # S0.10 — Outputs, Partitions & Validation Bundle (normative, fixed)
 
 ## S0.10.1 Lineage keys (recap; scope of use)
+> **Consumer note (normative):** Egress `outlet_catalogue` does **not** encode cross‑country order; consumers MUST join `country_set.rank` (from S0.1) to obtain rank (0=home; foreigns by Gumbel order).
 
 * **`parameter_hash` (hex64):** partitions **parameter-scoped** artefacts. (S0.2.2)
 * **`manifest_fingerprint` (hex64):** partitions **egress & validation** artefacts. (S0.2.3)
