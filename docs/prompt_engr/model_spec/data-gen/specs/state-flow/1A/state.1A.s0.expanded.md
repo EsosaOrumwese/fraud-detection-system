@@ -31,9 +31,9 @@ validated by `schemas.ingress.layer1.yaml#/merchant_ids`.
 * `merchant_id`: **opaque identifier** (id64 integer, per ingress schema). For all places in 1A that require a 64-bit integer key (e.g., RNG substream keys), the **only** mapping is:
 
   ```
-  merchant_u64 = LOW64( SHA256( UTF8(merchant_id) ) )
+  merchant_u64 = LOW64( SHA256( LE64(merchant_id) ) )
   ```
-  where `LOW64` takes **bytes 24..31** of the 32-byte SHA-256 digest, interpreted as little-endian u64. **No string formatting** is ever used in this mapping.
+  where `LE64(merchant_id)` is the 8 raw little-endian bytes of the integer (not its string form), and `LOW64` takes **bytes 24..31** of the 32-byte SHA-256 digest, interpreted as little-endian u64. **No string formatting** is ever used in this mapping.
 
 * `mcc ∈ 𝕂`: valid 4-digit MCC code set 𝕂. **Authority:** exactly the enum/domain defined in `schemas.ingress.layer1.yaml#/merchant_ids/properties/mcc` (ISO 18245 subset). **Out-of-set MCCs are rejected here**.
 
@@ -439,6 +439,7 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
   payload: { ... }                 # event-specific fields (flattened into top-level fields by the event schema; schema ensures global name uniqueness; name collisions are compile-time schema errors.)
 }
 ```
+**Counter interpretation (normative):** The pairs `(rng_counter_before_hi, rng_counter_before_lo)` and `(rng_counter_after_hi, rng_counter_after_lo)` MUST be interpreted as **(hi, lo)** words of a single **unsigned 128-bit** counter. All counter arithmetic is unsigned 128-bit with carry from `lo` into `hi`. Any listing/order of the fields in the schema does **not** change this interpretation.
 
 > **Blocks vs draws (normative):** `blocks = (after_hi,after_lo) − (before_hi,before_lo)` in unsigned 128-bit arithmetic. `draws` = **uniforms used**. Single-uniform families: `(blocks=1, draws=1)`. Two-uniform families (e.g., Box–Muller): `(blocks=1, draws=2)`. Non-consuming: `(blocks=0, draws="0")`. The `blocks` equality is checked by counters; `draws` is checked by family budgets.
 
@@ -655,8 +656,12 @@ Two cross-cut logs in addition to per-event logs:
 
 1. **`rng_audit_log`** — **one row at run start** (before any RNG event): `(seed, manifest_fingerprint, parameter_hash, run_id, root key/counter, code version, ts_utc)`.
    **`rng_audit_log` schema (normative minimum):** `{ ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, algorithm, rng_key_hi, rng_key_lo, rng_counter_hi, rng_counter_lo, code_version }`. Field types and names are governed by `schemas.layer1.yaml#/rng/audit` (authoritative).
-2. **`rng_trace_log`** (**one row per** $(\texttt{module},\texttt{substream\_label)$; cumulative **blocks** (unsigned 64-bit) by uint64), with the *current* `(counter_before, counter_after)`.  
-    **Reconciliation (normative):** For each `(module, substream_label)`, `rng_trace_log.blocks_total` MUST be monotone non-decreasing across emissions, and the **final** `blocks_total` MUST equal the **sum of per-event `blocks`** over `rng_event_*` in the same `{seed, parameter_hash, run_id}`. Budget checks use **event `draws`**, not the trace.
+2. `rng_trace_log` — **append-only**: emit **one row at every emission** per `(module, substream_label)`. Each row carries:
+   - `blocks_total: uint64` — the **cumulative** number of Philox **blocks** consumed on that substream up to (and including) this emission, and
+   - the current `rng_counter_before_*` / `rng_counter_after_*` pair.
+
+   **Reconciliation (normative):** For each `(module, substream_label)`, `blocks_total` MUST be **monotone non-decreasing** and the **final** `blocks_total` MUST equal the **sum of per-event `blocks`** over all `rng_event_*` rows with the same `{seed, parameter_hash, run_id}`. Budget checks use **event `draws`**, not the trace.
+
 
 **Per-event budget rules (must hold):**
 
@@ -691,7 +696,7 @@ Two cross-cut logs in addition to per-event logs:
 
 **Abort the run if:**
 
-* An event’s `blocks` disagrees with the 128-bit counter delta implied by the envelope (`after − before`).
+* An event’s `blocks` disagrees with the 128-bit counter delta `after − before`, interpreting each `(hi,lo)` pair as a **single unsigned 128-bit** integer.
 * Any sampler yields NaN/Inf.
 * A non-consuming event changes counters.
 * A Gamma/Dirichlet event’s `draws` mismatches the recomputed exact budget per §S0.3.6.
@@ -736,24 +741,31 @@ fn normal(stream: &mut Stream) -> (f64, draws:int) {
 # Gamma(alpha,1) with mod-3 discipline
 fn gamma_mt(alpha: f64, stream: &mut Stream) -> (f64, draws:int) {
   if alpha >= 1.0 {
-    d = alpha - 1.0/3.0; c = 1.0/sqrt(9.0*d)
-    total = 0
-    loop:
-      (z, dZ) = normal(stream)              # dZ=2
-      total += dZ
-      v = (1.0 + c*z); v = v*v*v
-      if v <= 0.0 { continue }
-      (u, dU) = uniform1(stream)            # dU=1
-      total += dU
-      if ln(u) <= 0.5*z*z + d - d*v + d*ln(v) {
-        return (d*v, total)                 # multiple of 3
+    let d = alpha - 1.0/3.0;
+    let c = 1.0 / sqrt(9.0 * d);
+    let total = 0;
+    loop {
+      // One Box–Muller normal → 2 uniforms (1 block)
+      let (z, dZ) = normal(stream);         // dZ = 2
+      total += dZ;
+
+      let mut v = 1.0 + c * z;
+      v = v * v * v;
+      if v <= 0.0 { continue; }
+
+      // Acceptance uniform → +1
+      let (u, dU) = uniform1(stream);       // dU = 1
+      total += dU;
+
+      if ln(u) < 0.5 * z * z + d - d * v + d * ln(v) {
+        return (d * v, total);              // variable budget; no padding
       }
+    }
   } else {
-    (y, dY) = gamma_mt(alpha + 1.0, stream) # multiple of 3
-    (u, dU) = uniform1(stream)              # +1
-    # burn two dummies to keep mod-3 discipline
-    (_,_,*stream) = philox_block(*stream)   # +2 discarded
-    return (y * pow(u, 1.0/alpha), dY + dU + 2)
+    // Boosting: Gamma(alpha+1), then scale
+    let (gprime, dG) = gamma_mt(alpha + 1.0, stream);
+    let (u, dU) = uniform1(stream);         // +1
+    return (gprime * pow(u, 1.0 / alpha), dG + dU);
   }
 }
 
