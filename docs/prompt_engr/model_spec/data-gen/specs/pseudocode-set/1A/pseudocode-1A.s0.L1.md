@@ -62,7 +62,7 @@ function authority_preflight(registry, dictionary):
   # Sanity: dictionary carries the explicit note that country order authority is 'country_set'
   entry = dictionary.lookup("country_set")
   assert contains_text(entry.description, "ONLY authoritative") , "E_AUTHORITY_BREACH"  # spec note presence
-  # (Dictionary indeed describes country_set as the ONLY authority for cross-country order.) :contentReference[oaicite:7]{index=7}
+  # (Dictionary indeed describes country_set as the ONLY authority for cross-country order.) 
 
   return {
     "ingress_anchor": anchors[0],
@@ -343,7 +343,7 @@ function rng_bootstrap_audit(seed:u64,
 # Deterministic substream for an event family 'ℓ' and ordered 'ids' tuple.
 # Types/encodings for ids are fixed by schema (e.g., merchant_u64=LE64, iso=UER uppercase, i/j=LE32).
 function derive_substream(master: Master, label: string, ids: tuple) -> Stream:
-  ids_norm = SER(ids)                 # per schema: LE32 indices, LE64 u64 keys; ISO uppercased then UER. :contentReference[oaicite:3]{index=3}
+  ids_norm = SER(ids)                 # per schema: LE32 indices, LE64 u64 keys; ISO uppercased then UER. 
   msg = UER("mlr:1A") || UER(label) || ids_norm
   H   = SHA256( master.M || msg )     # 32 bytes
   key = LOW64(H)
@@ -365,10 +365,10 @@ function begin_event_ctx(module, substream_label, seed, parameter_hash, manifest
 # Finalise: emit envelope row and update trace; returns updated cumulative blocks for (module,label).
 function end_event_and_trace(family, ctx:Ctx, stream_after:Stream, draws_hi:u64, draws_lo:u64, payload:object,
                              prev_blocks_total:uint64) -> (new_blocks_total:uint64):
-  end_event_emit(family, ctx, stream_after, draws_hi, draws_lo, payload)   # L0 D2 invariants: blocks = after - before; draws is decimal uint128. :contentReference[oaicite:5]{index=5}
+  end_event_emit(family, ctx, stream_after, draws_hi, draws_lo, payload)   # L0 D2 invariants: blocks = after - before; draws is decimal uint128. 
   return update_rng_trace(ctx.module, ctx.substream_label, ctx.seed, ctx.parameter_hash, ctx.run_id,
                           ctx.before_hi, ctx.before_lo, stream_after.ctr.hi, stream_after.ctr.lo,
-                          prev_blocks_total)                                # L0 D3 (monotone cumulative blocks) :contentReference[oaicite:6]{index=6}
+                          prev_blocks_total)                                # L0 D3 (monotone cumulative blocks) 
 ```
 
 *Envelope invariants enforced by L0: single-uniform families still advance **one block**; non-consuming events must keep `before==after` and `draws="0"`. JSON is numeric; endianness only in derivations.*
@@ -382,7 +382,7 @@ function end_event_and_trace(family, ctx:Ctx, stream_after:Stream, draws_hi:u64,
 ```text
 function event_gumbel_key(master, ids, prev_trace:uint64, meta) -> (g:f64, stream:Stream, new_trace:uint64):
   s  = derive_substream(master, "gumbel_key", ids)                      # label fixed by schema vocab
-  ctx = begin_event_ctx("S0", "gumbel_key", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
+  ctx = begin_event_ctx("1A.S0.rng", "gumbel_key", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
   (g, s1, d) = gumbel_key(s)                                            # L0 C5; draws = 1; blocks = 1
   payload = { key: g }                                                  # per-event schema payload
   new_total = end_event_and_trace("rng_event_gumbel_key", ctx, s1, 0, d, payload, prev_trace)
@@ -398,8 +398,8 @@ function event_gumbel_key(master, ids, prev_trace:uint64, meta) -> (g:f64, strea
 ```text
 function event_gamma_component(master, ids, alpha:f64, prev_trace:uint64, meta) -> (G:f64, stream:Stream, new_trace:uint64):
   s  = derive_substream(master, "gamma_component", ids)
-  ctx = begin_event_ctx("S0", "gamma_component", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
-  (G, s1, total) = gamma_mt(alpha, s)                                   # L0 C2; Case-B = draws(G') + 1 (normative) :contentReference[oaicite:9]{index=9}
+  ctx = begin_event_ctx("1A.S0.rng", "gamma_component", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
+  (G, s1, total) = gamma_mt(alpha, s)                                   # L0 C2; Case-B = draws(G') + 1 (normative) 
   payload = { alpha: alpha, value: G }
   new_total = end_event_and_trace("rng_event_gamma_component", ctx, s1, 0, total, payload, prev_trace)
   return (G, s1, new_total)
@@ -414,8 +414,8 @@ function event_gamma_component(master, ids, alpha:f64, prev_trace:uint64, meta) 
 ```text
 function event_poisson_component(master, ids, lambda:f64, context:string, prev_trace:uint64, meta) -> (K:int, stream:Stream, new_trace:uint64):
   s  = derive_substream(master, "poisson_component", ids)
-  ctx = begin_event_ctx("S0", "poisson_component", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
-  (K, s1, total) = poisson(lambda, s)                                   # L0 C3; inversion if λ<10, PTRS else (2 uniforms/attempt) :contentReference[oaicite:11]{index=11}
+  ctx = begin_event_ctx("1A.S0.rng", "poisson_component", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
+  (K, s1, total) = poisson(lambda, s)                                   # L0 C3; inversion if λ<10, PTRS else (2 uniforms/attempt) 
   payload = { lambda: lambda, context: context, k: K }
   new_total = end_event_and_trace("rng_event_poisson_component", ctx, s1, 0, total, payload, prev_trace)
   return (K, s1, new_total)
@@ -430,13 +430,13 @@ function event_poisson_component(master, ids, lambda:f64, context:string, prev_t
 ```text
 # Non-consuming event when ZTP discards a zero draw; envelope: before==after, blocks=0, draws="0".
 function event_ztp_rejection(master, ids, prev_trace:uint64, meta, before:Stream, after:Stream) -> uint64:
-  ctx = begin_event_ctx("S0", "ztp_rejection", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, before)
+  ctx = begin_event_ctx("1A.S0.rng", "ztp_rejection", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, before)
   new_total = end_event_and_trace("rng_event_poisson_component", ctx, after, 0, 0, {context:"ztp_rejection"}, prev_trace)
   return new_total
 
 # Non-consuming exhaustion marker after 64 zeros.
 function event_ztp_retry_exhausted(master, ids, prev_trace:uint64, meta, before:Stream, after:Stream) -> uint64:
-  ctx = begin_event_ctx("S0", "ztp_retry_exhausted", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, before)
+  ctx = begin_event_ctx("1A.S0.rng", "ztp_retry_exhausted", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, before)
   new_total = end_event_and_trace("rng_event_poisson_component", ctx, after, 0, 0, {context:"ztp_retry_exhausted", attempts:64}, prev_trace)
   return new_total
 ```
@@ -450,7 +450,7 @@ function event_ztp_retry_exhausted(master, ids, prev_trace:uint64, meta, before:
 ```text
 function event_normal_box_muller(master, ids, prev_trace:uint64, meta) -> (Z:f64, stream:Stream, new_trace:uint64):
   s  = derive_substream(master, "normal_box_muller", ids)
-  ctx = begin_event_ctx("S0", "normal_box_muller", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
+  ctx = begin_event_ctx("1A.S0.rng", "normal_box_muller", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
   (Z, s1, d) = normal_box_muller(s)
   payload = { z: Z }
   new_total = end_event_and_trace("rng_event_normal_box_muller", ctx, s1, 0, d, payload, prev_trace)
@@ -467,7 +467,7 @@ function event_normal_box_muller(master, ids, prev_trace:uint64, meta) -> (Z:f64
 # Optional producer-side check mirroring validator logic: ensure per-(module,label)
 # cumulative blocks equal the sum of event.blocks in this state slice.
 function reconcile_trace_vs_events(module, substream_label, events_blocks_sum:uint64, last_trace_total:uint64):
-  assert last_trace_total == events_blocks_sum, "rng_trace_reconcile_failed"   # producer-side guard; validator rechecks later. :contentReference[oaicite:15]{index=15}
+  assert last_trace_total == events_blocks_sum, "rng_trace_reconcile_failed"   # producer-side guard; validator rechecks later. 
 ```
 
 ---
@@ -871,17 +871,17 @@ function S0_7_build_hurdle_pi_cache(merchants, beta, dicts, parameter_hash, prod
   for m in merchants:
       # Rebuild deterministic hurdle design vector x_m from S0.5 (frozen dictionaries & order)
       x = build_x_hurdle(m, dicts)                          # [1] + onehots(mcc, ch, dev5); validated in S0.5
-                                                            # x dimension == expected (double-guard) :contentReference[oaicite:3]{index=3}
+                                                            # x dimension == expected (double-guard) 
 
       # Binary64 dot; fixed evaluation order; FMA off (S0.8 policy)
       eta64 = dot_f64(beta, x)
 
       # Branch-stable logistic in binary64 (no clamp in compute path)
-      pi64  = logistic_branch_stable(eta64)                 # σ(η) with overflow-stable branches :contentReference[oaicite:4]{index=4}
+      pi64  = logistic_branch_stable(eta64)                 # σ(η) with overflow-stable branches 
 
       # Finite checks (both values must be finite)
       if not (is_finite(eta64) and is_finite(pi64)):
-          abort("E_PI_NAN_OR_INF", {merchant_id: m.merchant_id})        :contentReference[oaicite:5]{index=5}
+          abort("E_PI_NAN_OR_INF", {merchant_id: m.merchant_id})        
 
       # Deterministic storage narrowing to float32 (round-to-nearest-even)
       row = {
@@ -891,7 +891,7 @@ function S0_7_build_hurdle_pi_cache(merchants, beta, dicts, parameter_hash, prod
         "pi":             f32(pi64)
       }
       if produced_by_fp is not None:
-          row["produced_by_fingerprint"] = produced_by_fp               # informational only :contentReference[oaicite:6]{index=6}
+          row["produced_by_fingerprint"] = produced_by_fp               # informational only 
 
       ok = w.write(row)
       if not ok:
