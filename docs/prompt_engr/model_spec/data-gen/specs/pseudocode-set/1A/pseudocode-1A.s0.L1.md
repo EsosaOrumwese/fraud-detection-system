@@ -1,0 +1,1265 @@
+# S0.1 — Universe, Symbols, Authority (L1 routines)
+
+> **Goal:** fix $\mathcal U=(\mathcal M,\mathcal I,G,B,\text{SchemaAuthority})$ for the run; **no RNG**; all outputs are pure functions of loaded bytes and schemas. Abort on any violation listed under S0.1 failure semantics.
+
+## 1) `load_and_validate_merchants() → M`
+
+**Inputs:** none (reads authoritative ingress table `merchant_ids`).
+**Outputs:** `M` (in-memory table with columns: `merchant_id` (id64), `mcc` (4-digit), `channel` (string), `home_country_iso` (ISO-2 uppercase)).
+**Failure:** `E_INGRESS_SCHEMA` if table fails JSON-Schema validation.
+
+```text
+function load_and_validate_merchants():
+  M = read_table("merchant_ids")
+  assert schema_ok(M, "schemas.ingress.layer1.yaml#/merchant_ids"), "E_INGRESS_SCHEMA"
+  return M
+```
+
+*(This only validates the ingress contract; domain checks and mapping happen below.)*
+
+---
+
+## 2) `load_canonical_refs() → (I, G, B)`
+
+**Inputs:** none (reads pinned artefacts; read-only).
+**Outputs:**
+
+* `I` = ISO-3166 alpha-2 set (uppercase ASCII),
+* `G` = GDP map $c↦\text{GDPpc}_{c,2024}^{\text{const2015USD}}$ (vintage **2025-04-15**, observation year **2024**),
+* `B` = Jenks **K=5** bucket map $c↦\{1..5\}$ precomputed over that same $G$.
+  **Failure:** `E_REF_MISSING` if any reference is missing/unreadable.
+
+```text
+function load_canonical_refs():
+  I = read_ref("iso3166_canonical_2024")                 # uppercase ISO-2 set
+  G = read_ref("world_bank_gdp_per_capita_20250415")     # total function at year=2024 (const 2015 USD)
+  B = read_ref("gdp_bucket_map_2024")                    # precomputed Jenks K=5 over G
+  assert I != null and G != null and B != null, "E_REF_MISSING"
+  return (I, G, B)
+```
+
+*(S0.1 only loads them; S0.4 later does the lookups. Both artefacts are included in the manifest fingerprint via S0.2.)*
+
+---
+
+## 3) `authority_preflight(registry, dictionary) → authority`
+
+**Purpose:** enforce that **JSON-Schema** is the sole contract authority for 1A; record the “country order is never encoded outside `country_set`” rule.
+**Outputs:** `authority` object with the three authoritative schema anchors and the country-order rule.
+**Failure:** `E_AUTHORITY_BREACH` if any 1A dataset/event points to a non-JSON-Schema contract (e.g., `.avsc`).
+
+```text
+function authority_preflight(registry, dictionary):
+  anchors = [
+    "schemas.ingress.layer1.yaml#/merchant_ids",
+    "schemas.1A.yaml#",
+    "schemas.layer1.yaml#/rng/events"  # family anchors
+  ]
+  # Scan dictionary: every 1A dataset schema_ref must begin with 'schemas.' (JSON-Schema), not an Avro file.
+  for ds in dictionary.datasets_owned_by("1A"):
+      assert is_jsonschema_anchor(ds.schema_ref), "E_AUTHORITY_BREACH"
+
+  # Sanity: dictionary carries the explicit note that country order authority is 'country_set'
+  entry = dictionary.lookup("country_set")
+  assert contains_text(entry.description, "ONLY authoritative") , "E_AUTHORITY_BREACH"  # spec note presence
+  # (Dictionary indeed describes country_set as the ONLY authority for cross-country order.) :contentReference[oaicite:7]{index=7}
+
+  return {
+    "ingress_anchor": anchors[0],
+    "layer1_anchor":  anchors[1],
+    "rng_anchor":     anchors[2],
+    "country_order_authority": "country_set"
+  }
+```
+
+*(S0.1 records this policy so downstream never encodes cross-country order elsewhere.)*
+
+---
+
+## 4) `enforce_domains_and_map_channel(M, I) → M′`
+
+**Purpose:** enforce **ISO FK**, **MCC domain**, and map ingress `channel` strings to internal symbols `{CP,CNP}`.
+**Outputs:** `M′` with columns: `merchant_id` (id64), `mcc` (4-digit in 𝕂), `channel_sym ∈ {CP,CNP}`, `home_country_iso ∈ I`.
+**Failure:**
+
+* `E_FK_HOME_ISO` if `home_country_iso ∉ I`,
+* `E_MCC_OUT_OF_DOMAIN` if `mcc ∉ 𝕂`,
+* `E_CHANNEL_VALUE` if `channel ∉ {"card_present","card_not_present"}`.
+
+```text
+function enforce_domains_and_map_channel(M, I):
+  M1 = []
+  for row in M:
+      c = row.home_country_iso
+      k = row.mcc
+      ch_in = row.channel
+      # ISO FK
+      assert c ∈ I, "E_FK_HOME_ISO"
+      # MCC domain (authority = ingress schema enum)
+      assert mcc_in_domain(k), "E_MCC_OUT_OF_DOMAIN"     # per schemas.ingress.layer1.yaml#/merchant_ids/properties/mcc
+      # Channel mapping (normative)
+      if ch_in == "card_present":     ch = "CP"
+      elif ch_in == "card_not_present": ch = "CNP"
+      else:                             abort("E_CHANNEL_VALUE")
+      M1.append({ merchant_id: row.merchant_id,
+                  mcc: k, channel_sym: ch, home_country_iso: c })
+  return M1
+```
+
+*(The internal channel vocabulary is exactly `["CP","CNP"]`—this is the only mapping.)*
+
+---
+
+## 5) `derive_merchant_u64(M′) → M″`
+
+**Purpose:** produce the canonical 64-bit key for any place that needs a u64 (e.g., RNG substreams).
+**Mapping (normative):**
+`merchant_u64 = LOW64( SHA256( UTF8(merchant_id) ) )` where **`LOW64` = bytes 24..31** of the 32-byte digest, interpreted as **little-endian u64**. **No string formatting** is ever used.
+
+```text
+function derive_merchant_u64(M1):
+  M2 = []
+  for row in M1:
+      d = SHA256( UER(row.merchant_id) )
+      u = LOW64(d)      # pick bytes 24..31, interpret LE u64
+      M2.append(row ∪ { merchant_u64: u })
+  return M2
+```
+
+---
+
+## 6) `freeze_run_context(M″, I, G, B, authority) → U`
+
+**Purpose:** construct and freeze $\mathcal U$ for the run and assert the **runtime invariants**.
+**Outputs:** `U = (M, I, G, B, authority)`; cached read-only for the run.
+**Failure:** abort on any invariant breach listed below.
+
+```text
+function freeze_run_context(M2, I, G, B, authority):
+  # Invariants (normative for S0.1)
+  # 1) Immutability: treat refs as read-only handles for lifetime of run (enforced by caller/orchestrator).
+  # 2) Coverage & domains already enforced by 'enforce_domains_and_map_channel'.
+  # 3) Determinism: no RNG; this function performs no draws.
+  # 4) Authority compliance: downstream must use JSON-Schema anchors recorded in 'authority'.
+
+  U = { M: M2, I: I, G: G, B: B, authority: authority }
+  return U
+```
+
+---
+
+### Abort & validation hooks bound to S0.1
+
+* **Abort codes:** `E_INGRESS_SCHEMA`, `E_REF_MISSING`, `E_AUTHORITY_BREACH`, `E_FK_HOME_ISO`, `E_MCC_OUT_OF_DOMAIN`, `E_CHANNEL_VALUE`.
+* **Runtime/CI checks:** schema-check `merchant_ids`; assert references load and remain read-only; authority audit over dictionary; ISO FK; MCC & channel domain and mapping.
+
+---
+
+# S0.2 — Hashes & Identifiers (L1 routines)
+
+> **Goal:** produce the three lineage keys (`parameter_hash`, `manifest_fingerprint`, `run_id`) exactly as specified; build the two S0.2 audit records for later bundling; no RNG is consumed in this state.
+
+## 1) `hash_stream_with_race_guard(path, on_param) → digest32`
+
+**Definition:** Use the L0 helper exactly (binary read, stat-before/after, fail on change). L1 **does not** re-implement it; call-through only. *(We’ll stat independently when we need size/mtime for logs.)*
+
+```text
+function hash_stream_with_race_guard(path, on_param):
+  return sha256_stream(path, on_param)   # L0 exact-bytes hashing with race-guard
+```
+
+---
+
+## 2) `compute_parameter_hash(P_files) → (parameter_hash, parameter_hash_bytes, param_digest_log_rows, parameter_hash_resolved_row)`
+
+**Inputs:** `P_files: list[(basename, path)]` = governed set 𝓟 (must be ASCII basenames, unique, non-empty).
+**Outputs:**
+
+* `parameter_hash: hex64`, `parameter_hash_bytes: bytes[32]`,
+* `param_digest_log_rows: list[{filename,size_bytes,sha256_hex,mtime_ns}]`,
+* `parameter_hash_resolved_row: {parameter_hash, filenames_sorted}`.
+  **Failure:** `E_PARAM_EMPTY`, `E_PARAM_NONASCII_NAME`, `E_PARAM_DUP_BASENAME`, `E_PARAM_IO`, `E_PARAM_RACE`.
+
+```text
+function compute_parameter_hash(P_files):
+  assert len(P_files) >= 1, "E_PARAM_EMPTY"
+  assert all_ascii_unique_basenames(P_files), "E_PARAM_NONASCII_NAME or E_PARAM_DUP_BASENAME"
+
+  files = sort_by_basename_ascii(P_files)            # bytewise ASCII order of basenames
+  tuples = []
+  digest_rows = []
+  for (name, path) in files:
+      s0 = stat(path)                                # capture size + mtime for logging
+      d  = hash_stream_with_race_guard(path, on_param=true)   # 32 raw bytes
+      t  = SHA256( enc_str(name) || d )              # tuple-hash includes UER(name)
+      tuples.append(t)
+      digest_rows.append({
+         filename: name,
+         size_bytes: s0.size_bytes,
+         sha256_hex: hex64(d),
+         mtime_ns: s0.mtime_ns
+      })
+
+  C  = concat(tuples)                                # 32·n bytes
+  Hb = SHA256(C)                                     # parameter_hash_bytes (32)
+  Hx = hex64(Hb)
+
+  resolved = { parameter_hash: Hx,
+               filenames_sorted: [ name for (name,_) in files ] }
+
+  return (Hx, Hb, digest_rows, resolved)
+```
+
+*This is the spec’s **tuple-hash** (names included, ASCII-sorted), plus the exact S0.2 audit rows for later bundling.*
+
+---
+
+## 3) `compute_manifest_fingerprint(artifacts, git32, param_b32) → (manifest_fingerprint, manifest_fingerprint_bytes, mf_resolved_row, fingerprint_artifacts_rows)`
+
+**Inputs:**
+
+* `artifacts: list[(basename, path)]` = set 𝓐 of **all artefacts actually opened** up to S0.2 (parameters, ISO, GDP, bucket map, schema files read, numeric policy, math profile, etc.),
+* `git32: bytes[32]` **raw commit bytes** (SHA-256 raw; or SHA-1 raw left-padded with 12 zeros),
+* `param_b32: bytes[32]` from S0.2.2.
+  **Outputs:**
+* `manifest_fingerprint: hex64`, `manifest_fingerprint_bytes: bytes[32]`,
+* `mf_resolved_row: {manifest_fingerprint, artifact_count, git_commit_hex, parameter_hash}`,
+* `fingerprint_artifacts_rows: list[{artifact_basename, sha256_hex}]` (for later `fingerprint_artifacts.jsonl`).
+  **Failure:** `E_ARTIFACT_EMPTY`, `E_ARTIFACT_NONASCII_NAME`, `E_ARTIFACT_DUP_BASENAME`, `E_GIT_BYTES`, `E_PARAM_HASH_ABSENT`, `E_ARTIFACT_IO`, `E_ARTIFACT_RACE`.
+
+```text
+function compute_manifest_fingerprint(artifacts, git32, param_b32, parameter_hash_hex):
+  assert len(artifacts) >= 1, "E_ARTIFACT_EMPTY"
+  assert len(git32) == 32,   "E_GIT_BYTES"
+  assert len(param_b32) == 32, "E_PARAM_HASH_ABSENT"
+  assert all_ascii_unique_basenames(artifacts), "E_ARTIFACT_NONASCII_NAME or E_ARTIFACT_DUP_BASENAME"
+
+  arts = sort_by_basename_ascii(artifacts)
+  parts = []
+  fa_rows = []
+  for (name, path) in arts:
+      d = hash_stream_with_race_guard(path, on_param=false)  # 32 raw bytes
+      t = SHA256( enc_str(name) || d )                       # name-aware tuple-hash
+      parts.append(t)
+      fa_rows.append({ artifact_basename: name, sha256_hex: hex64(d) })
+
+  U  = concat(parts) || git32 || param_b32
+  Fb = SHA256(U)
+  Fx = hex64(Fb)
+
+  mf_resolved = {
+    manifest_fingerprint: Fx,
+    artifact_count: len(arts),
+    git_commit_hex: hex64(git32),
+    parameter_hash: parameter_hash_hex
+  }
+  return (Fx, Fb, mf_resolved, fa_rows)
+```
+
+*This is the spec’s **sorted tuple-hash (no XOR)** over 𝓐 plus **raw** commit bytes and the parameter bundle. Any change flips the fingerprint. The resolved rows are the exact S0.2 audit lines the validator will later recompute and compare.*
+
+---
+
+## 4) `derive_run_id(fp_bytes, seed_u64, start_time_ns, exists_fn) → run_id`
+
+**Purpose:** log partitioner only; **never** influences RNG or outputs.
+**Uniqueness:** if `exists_fn(run_id)` is true within the `{seed, parameter_hash}` scope, add **+1 ns** deterministically and retry; cap at **2^16** attempts then hard-fail.
+**Output:** `run_id: hex32` (lower-case hex of first 16 digest bytes).
+
+```text
+function derive_run_id(fp_bytes, seed_u64, t_ns, exists_fn):
+  attempts = 0
+  while true:
+      payload = enc_str("run:1A") || fp_bytes || LE64(seed_u64) || LE64(t_ns)
+      r16 = SHA256(payload)[0:16]
+      rid = hex32(r16)
+      if not exists_fn(rid): return rid
+      t_ns = t_ns + 1
+      attempts = attempts + 1
+      if attempts > 65536:
+          abort("E_RUNID_COLLISION_EXHAUSTED", {seed:seed_u64})
+```
+
+*Exactly the spec’s UER payload + bounded loop; S0.2 consumes **no RNG**.*
+
+---
+
+## 5) (Tiny) convenience wrappers for S0.10 bundling
+
+S0.2 itself returns the audit rows; S0.10 will write them into the **validation bundle** under `fingerprint={manifest_fingerprint}`:
+
+* `param_digest_log.jsonl` (rows from §2),
+* `parameter_hash_resolved.json`,
+* `manifest_fingerprint_resolved.json`,
+* `fingerprint_artifacts.jsonl`. *(S0.10 computes `_passed.flag` and publishes atomically.)*
+
+---
+
+### Invariants & wiring (for implementers)
+
+* **Hashing domain:** always the **exact file bytes** (binary mode); use the race-guarded stream.
+* **Encoding:** UER for strings; LE64 for integers; **ASCII sort**; name-aware tuple-hash (no delimiters beyond UER).
+* **Partitioning contract:** parameter-scoped datasets partition by `parameter_hash`; egress/validation by `fingerprint`; RNG logs by `{seed, parameter_hash, run_id}`. *(Validators will recompute S0.2 keys and compare to the resolved rows.)*
+
+---
+
+# S0.3 — RNG Engine & Draw Accounting (L1 routines)
+
+> **Scope:** derive master/audit, key **order-invariant** substreams, draw via the pinned samplers, and emit **event envelopes** plus the **per-(module,label) trace**. Counters are Philox **2×64-10**, **128-bit** `(hi,lo)`; **blocks = after − before**; **draws = uniforms consumed** (decimal uint128 string). JSON fields are numeric; endianness applies only to derivations.
+
+## 1) Bootstrap — write the *single* RNG audit row (pre-draw)
+
+```text
+function rng_bootstrap_audit(seed:u64,
+                             parameter_hash:hex64,
+                             manifest_fingerprint:hex64,
+                             manifest_fingerprint_bytes:bytes[32],
+                             run_id:hex32,
+                             build_commit:string,
+                             code_digest:hex64|null,
+                             hostname:string|null,
+                             platform:string|null,
+                             notes:string|null) -> Master:
+  # Master material (UER strings & LE64 per spec)
+  M = SHA256( UER("mlr:1A.master") || manifest_fingerprint_bytes || LE64(seed) )  # 32 bytes
+  k_star = LOW64(M)
+  c_star = ( BE64(M[16:24]), BE64(M[24:32]) )
+
+  emit_rng_audit_row(seed, parameter_hash, manifest_fingerprint, run_id,
+                     build_commit, code_digest, hostname, platform, notes)
+  # NOTE: rng_audit_log uses its own schema; it is not an event and must precede the first event.
+  # Algorithm string is "philox2x64-10" per schema. 
+
+  return Master{ M, k_star, c_star }
+```
+
+*Norms: audit-before-any-draws; root `(k⋆,c⋆)` is **not** used directly for sampling.*
+
+---
+
+## 2) Substreams — order-invariant, message-keyed
+
+```text
+# Deterministic substream for an event family 'ℓ' and ordered 'ids' tuple.
+# Types/encodings for ids are fixed by schema (e.g., merchant_u64=LE64, iso=UER uppercase, i/j=LE32).
+function derive_substream(master: Master, label: string, ids: tuple) -> Stream:
+  ids_norm = SER(ids)                 # per schema: LE32 indices, LE64 u64 keys; ISO uppercased then UER. :contentReference[oaicite:3]{index=3}
+  msg = UER("mlr:1A") || UER(label) || ids_norm
+  H   = SHA256( master.M || msg )     # 32 bytes
+  key = LOW64(H)
+  ctr = ( BE64(H[16:24]), BE64(H[24:32]) )
+  return Stream{ key, ctr }
+```
+
+*Substreams are determined by `(seed, fingerprint, ℓ, ids)`—**never** by execution order.*
+
+---
+
+## 3) Event wrappers — draw, envelope, trace (one pattern)
+
+```text
+# Begin an RNG event: capture 'before' from the stream's counter.
+function begin_event_ctx(module, substream_label, seed, parameter_hash, manifest_fingerprint, run_id, stream) -> Ctx:
+  return begin_event(module, substream_label, seed, parameter_hash, manifest_fingerprint, run_id, stream)  # L0 D2
+
+# Finalise: emit envelope row and update trace; returns updated cumulative blocks for (module,label).
+function end_event_and_trace(family, ctx:Ctx, stream_after:Stream, draws_hi:u64, draws_lo:u64, payload:object,
+                             prev_blocks_total:uint64) -> (new_blocks_total:uint64):
+  end_event_emit(family, ctx, stream_after, draws_hi, draws_lo, payload)   # L0 D2 invariants: blocks = after - before; draws is decimal uint128. :contentReference[oaicite:5]{index=5}
+  return update_rng_trace(ctx.module, ctx.substream_label, ctx.seed, ctx.parameter_hash, ctx.run_id,
+                          ctx.before_hi, ctx.before_lo, stream_after.ctr.hi, stream_after.ctr.lo,
+                          prev_blocks_total)                                # L0 D3 (monotone cumulative blocks) :contentReference[oaicite:6]{index=6}
+```
+
+*Envelope invariants enforced by L0: single-uniform families still advance **one block**; non-consuming events must keep `before==after` and `draws="0"`. JSON is numeric; endianness only in derivations.*
+
+---
+
+## 4) Uniforms & samplers — L1 usage of L0 kernels (with envelopes)
+
+### 4.a `gumbel_key` (single uniform)
+
+```text
+function event_gumbel_key(master, ids, prev_trace:uint64, meta) -> (g:f64, stream:Stream, new_trace:uint64):
+  s  = derive_substream(master, "gumbel_key", ids)                      # label fixed by schema vocab
+  ctx = begin_event_ctx("S0", "gumbel_key", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
+  (g, s1, d) = gumbel_key(s)                                            # L0 C5; draws = 1; blocks = 1
+  payload = { key: g }                                                  # per-event schema payload
+  new_total = end_event_and_trace("rng_event_gumbel_key", ctx, s1, 0, d, payload, prev_trace)
+  return (g, s1, new_total)
+```
+
+*Budget: **1 uniform**; envelope must show `(blocks=1, draws="1")`. Ties later break by `(ISO, merchant_id)` per spec.*
+
+---
+
+### 4.b `gamma_mt` (Marsaglia–Tsang; **actual-use** budgeting)
+
+```text
+function event_gamma_component(master, ids, alpha:f64, prev_trace:uint64, meta) -> (G:f64, stream:Stream, new_trace:uint64):
+  s  = derive_substream(master, "gamma_component", ids)
+  ctx = begin_event_ctx("S0", "gamma_component", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
+  (G, s1, total) = gamma_mt(alpha, s)                                   # L0 C2; Case-B = draws(G') + 1 (normative) :contentReference[oaicite:9]{index=9}
+  payload = { alpha: alpha, value: G }
+  new_total = end_event_and_trace("rng_event_gamma_component", ctx, s1, 0, total, payload, prev_trace)
+  return (G, s1, new_total)
+```
+
+*Budget: **exact uniforms consumed**; **no padding**; Box–Muller inside uses exactly 2 uniforms (one block). Envelope `draws` logs the **actual** total.*
+
+---
+
+### 4.c `poisson` (inversion / PTRS split)
+
+```text
+function event_poisson_component(master, ids, lambda:f64, context:string, prev_trace:uint64, meta) -> (K:int, stream:Stream, new_trace:uint64):
+  s  = derive_substream(master, "poisson_component", ids)
+  ctx = begin_event_ctx("S0", "poisson_component", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
+  (K, s1, total) = poisson(lambda, s)                                   # L0 C3; inversion if λ<10, PTRS else (2 uniforms/attempt) :contentReference[oaicite:11]{index=11}
+  payload = { lambda: lambda, context: context, k: K }
+  new_total = end_event_and_trace("rng_event_poisson_component", ctx, s1, 0, total, payload, prev_trace)
+  return (K, s1, new_total)
+```
+
+*Normative constants for PTRS (`0.931`, `2.53`, `-0.059`, `0.02483`, `1.1239`, `1.1328`, `3.4`, `0.9277`, `3.6224`, `0.86`) are **algorithmic**, not configurable; split threshold λ★=10.*
+
+---
+
+### 4.d ZTP “rejection/exhaustion” (non-consuming) and success
+
+```text
+# Non-consuming event when ZTP discards a zero draw; envelope: before==after, blocks=0, draws="0".
+function event_ztp_rejection(master, ids, prev_trace:uint64, meta, before:Stream, after:Stream) -> uint64:
+  ctx = begin_event_ctx("S0", "ztp_rejection", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, before)
+  new_total = end_event_and_trace("rng_event_poisson_component", ctx, after, 0, 0, {context:"ztp_rejection"}, prev_trace)
+  return new_total
+
+# Non-consuming exhaustion marker after 64 zeros.
+function event_ztp_retry_exhausted(master, ids, prev_trace:uint64, meta, before:Stream, after:Stream) -> uint64:
+  ctx = begin_event_ctx("S0", "ztp_retry_exhausted", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, before)
+  new_total = end_event_and_trace("rng_event_poisson_component", ctx, after, 0, 0, {context:"ztp_retry_exhausted", attempts:64}, prev_trace)
+  return new_total
+```
+
+*ZTP note: rejections/exhaustion are **non-consuming** (`blocks=0`, `draws="0"`); the successful component event carries the budget. Hard cap **64** zeros.*
+
+---
+
+## 5) Box–Muller convenience wrapper (when needed by higher states)
+
+```text
+function event_normal_box_muller(master, ids, prev_trace:uint64, meta) -> (Z:f64, stream:Stream, new_trace:uint64):
+  s  = derive_substream(master, "normal_box_muller", ids)
+  ctx = begin_event_ctx("S0", "normal_box_muller", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
+  (Z, s1, d) = normal_box_muller(s)
+  payload = { z: Z }
+  new_total = end_event_and_trace("rng_event_normal_box_muller", ctx, s1, 0, d, payload, prev_trace)
+  return (Z, s1, new_trace=new_total)
+```
+
+*Budget: exactly **2 uniforms** (1 block); **discard** the sine mate; envelope must set `(blocks=1, draws="2")`.*
+
+---
+
+## 6) Reconciliation hook (end-of-state spot check)
+
+```text
+# Optional producer-side check mirroring validator logic: ensure per-(module,label)
+# cumulative blocks equal the sum of event.blocks in this state slice.
+function reconcile_trace_vs_events(module, substream_label, events_blocks_sum:uint64, last_trace_total:uint64):
+  assert last_trace_total == events_blocks_sum, "rng_trace_reconcile_failed"   # producer-side guard; validator rechecks later. :contentReference[oaicite:15]{index=15}
+```
+
+---
+
+### Norms these routines rely on (already pinned)
+
+* **Open-interval U(0,1)** map with the endpoint guard; **never** compute `1/(2^64+1)` at runtime.
+* **Box–Muller** constant `TAU=0x1.921fb54442d18p+2`; **no caching**; 2 uniforms → `(blocks=1, draws="2")`.
+* **Gamma** (MT): **actual-use** uniforms; **Case B** = `draws(G′)+1`.
+* **Poisson**: inversion for λ<10; **PTRS** for λ≥10 with **2 uniforms/attempt**; constants are algorithmic, not config.
+* **Envelope**: `before/after` are numeric `(hi,lo)`; `blocks` is **u64** from the 128-bit delta; `draws` is **decimal uint128 string**. Non-consuming events: `before==after`, `blocks=0`, `draws="0"`.
+* **Audit vs events**: audit row is **not** an event; must be written **before** the first event.
+
+This gives implementers unambiguous, state-accurate L1 routines for S0.3—plug-and-play on top of your L0 kernels and log writers, zero room for initiative.
+
+---
+
+# S0.4 — Deterministic GDP Bucket Attachment (L1)
+
+**Purpose.** For each merchant $m$ with home ISO $c$, attach:
+
+* $g_c = G(c)$ (GDP-per-capita, **obs-year 2024**, **constant 2015 USD**), and
+* $b_m = B(c) \in \{1..5\}$ (precomputed **Jenks K=5** bucket). **No thresholds are computed at runtime.**
+
+**Inputs (read-only; pinned by S0.1–S0.2):**
+
+* `M`: `merchant_ids` with `merchant_id`, `mcc`, `channel`, `home_country_iso` (ISO-2 **uppercase**, FK-validated in S0.1).
+* `I`: ISO set $\mathcal I$.
+* `G`: total function $c \mapsto \text{GDPpc}_{\text{c,2024}}^{\text{const2015USD}} > 0$.
+* `B`: total function $c \mapsto \{1..5\}$ from `gdp_bucket_map_2024` (**precomputed** over the same $G$).
+
+## Pseudocode (language-agnostic)
+
+```text
+function S0_4_attach_gdp_features(M, I, G, B):
+  # Output: stream/iterator of (merchant_id, g_c, b_m)
+
+  for row in M:
+      m = row.merchant_id
+      c = row.home_country_iso
+
+      # ISO FK (defensive: S0.1 already enforces)
+      if c not in I:
+          abort("E_HOME_ISO_FK", {merchant_id:m, iso:c})
+
+      # GDP lookup (must exist, strictly > 0)
+      g = G.get(c)
+      if g is None:
+          abort("E_GDP_MISSING", {iso:c})
+      if not (g > 0.0):
+          abort("E_GDP_NONPOS", {iso:c, value:g})
+
+      # Bucket lookup (must exist, 1..5)
+      b = B.get(c)
+      if b is None:
+          abort("E_BUCKET_MISSING", {iso:c})
+      if not (1 <= b <= 5):
+          abort("E_BUCKET_RANGE", {iso:c, value:b})
+
+      yield (m, g, b)  # passed forward to S0.5; optionally materialised (see partitions note)
+```
+
+**Determinism & numeric policy.** Pure lookups; **no randomness**. Any derived transforms later (e.g., $\log g_c$ in S0.5) follow the binary64 numeric policy (RNE, FMA-off) per S0.8.
+
+**Failure semantics (abort).** Zero-tolerance on: `E_HOME_ISO_FK`, `E_GDP_MISSING`, `E_GDP_NONPOS`, `E_BUCKET_MISSING`, `E_BUCKET_RANGE` (each with clear PK/ISO context).
+
+**Semantics & downstream usage.**
+$b_m$ is used **only** in the **hurdle** design (five one-hot dummies, order \[1..5]); $\log g_c$ is used **only** in NB **dispersion** (never in NB mean). This division is **normative** and must be asserted by the design builder.
+
+**Partitions & lineage.**
+If you materialise these features, write them as **parameter-scoped** artefacts under `…/parameter_hash={parameter_hash}/` (do **not** embed `manifest_fingerprint` in parameter-scoped tables). Both GDP and bucket artefacts are part of the **manifest fingerprint**; any byte change flips egress lineage.
+
+**Complexity & parallelism.**
+Time $O(|\mathcal M|)$ hash lookups; space $O(1)$ per streamed row; **embarrassingly parallel** and reproducible.
+
+**CI-only (not runtime) context.**
+If `B` is ever rebuilt, Jenks K=5 is defined via a deterministic DP with **right-closed** classes; the **authoritative** truth at runtime remains the shipped `gdp_bucket_map_2024`.
+
+---
+
+# S0.5 — Design Matrices (L1 routines)
+
+> **Scope:** deterministically build column-aligned design vectors for each merchant $m$: hurdle $x_m$, NB-mean $x^{(\mu)}_m$, and NB-dispersion $x^{(\phi)}_m$. **Column dictionaries and their order come from the fitting bundle and are never computed at runtime.**
+
+## 1) `build_dicts_and_assert_shapes(bundle) → (dict_mcc, dict_ch, dict_dev5, beta_hurdle, nb_dispersion_coef)`
+
+**Inputs:** parameter-scoped fitting bundle artefacts (bytes affect `parameter_hash`).
+**Outputs:** frozen dictionaries and coefficient vectors.
+**Failure:** `E_DSGN_UNKNOWN_CHANNEL`, `E_DSGN_SHAPE_MISMATCH`.
+
+```text
+function build_dicts_and_assert_shapes(bundle):
+  dict_mcc   = bundle.load("dict_mcc")        # authoritative order for MCC dummies
+  dict_ch    = bundle.load("dict_channel")    # MUST be exactly ["CP","CNP"]
+  dict_dev5  = bundle.load("dict_dev5")       # MUST be exactly [1,2,3,4,5]
+
+  beta_hurdle        = bundle.load("hurdle_coefficients")      # single vector: 1 + C_mcc + 2 + 5
+  nb_dispersion_coef = bundle.load("nb_dispersion_coeffs")     # vector:       1 + C_mcc + 2 + 1
+
+  assert dict_ch   == ["CP","CNP"], E_DSGN_UNKNOWN_CHANNEL                  # channel vocab is normative
+  assert dict_dev5 == [1,2,3,4,5],  E_DSGN_SHAPE_MISMATCH                   # bucket order is fixed
+
+  C_mcc = len(dict_mcc)
+  assert len(beta_hurdle)        == 1 + C_mcc + 2 + 5, E_DSGN_SHAPE_MISMATCH
+  assert len(nb_dispersion_coef) == 1 + C_mcc + 2 + 1, E_DSGN_SHAPE_MISMATCH
+
+  return (dict_mcc, dict_ch, dict_dev5, beta_hurdle, nb_dispersion_coef)
+```
+
+*Why:* dictionaries and shapes are frozen by the fitting artefacts; the hurdle vector **includes all five bucket dummies**; NB-dispersion includes the slope on $\ln g_c$.
+
+---
+
+## 2) `encode_onehots(m, dict_mcc, dict_ch, dict_dev5, G, B) → (h_mcc, h_ch, h_dev, g, b)`
+
+**Inputs:** merchant row with `{mcc, channel_sym, home_country_iso}`; dictionaries; S0.4 maps $G, B$.
+**Outputs:** one-hot blocks and the required S0.4 features.
+**Failure:** `E_DSGN_UNKNOWN_MCC`, `E_DSGN_UNKNOWN_CHANNEL`, `E_DSGN_DOMAIN_GDP`, `E_DSGN_DOMAIN_BUCKET`.
+
+```text
+function encode_onehots(m, dict_mcc, dict_ch, dict_dev5, G, B):
+  # Pull domains from S0.4 (strict coverage)
+  c = m.home_country_iso
+  g = G[c];    if not (g > 0):              abort(E_DSGN_DOMAIN_GDP,   {iso:c, g:g})
+  b = B[c];    if b not in {1,2,3,4,5}:     abort(E_DSGN_DOMAIN_BUCKET,{iso:c, b:b})
+
+  # Dictionary lookups -> positions
+  i_mcc = dict_mcc.index_of(m.mcc)          # throws -> E_DSGN_UNKNOWN_MCC if absent
+  i_ch  = dict_ch.index_of(m.channel_sym)   # channel_sym must be CP/CNP from S0.1
+  i_dev = dict_dev5.index_of(b)
+
+  # Deterministic one-hots (exactly one "1" each)
+  h_mcc = one_hot(i_mcc, len(dict_mcc))
+  h_ch  = one_hot(i_ch, 2)
+  h_dev = one_hot(i_dev, 5)
+
+  return (h_mcc, h_ch, h_dev, g, b)
+```
+
+*Notes:* channel vocabulary is **exactly** `["CP","CNP"]`; dev5 is `[1..5]` by construction.
+
+---
+
+## 3) `build_design_vectors(m, dicts, G, B) → (x_hurdle, x_nb_mu, x_nb_phi)`
+
+**Inputs:** merchant row; dictionaries; S0.4 maps.
+**Outputs:** three column-aligned design vectors.
+**Failure:** same as above; plus structural assertions to enforce the leakage rule.
+
+```text
+function build_design_vectors(m, dicts, G, B):
+  (dict_mcc, dict_ch, dict_dev5) = dicts
+  (h_mcc, h_ch, h_dev, g, b) = encode_onehots(m, dict_mcc, dict_ch, dict_dev5, G, B)
+
+  # Intercept-first convention (normative)
+  x_hurdle = [1] + h_mcc + h_ch + h_dev                  # ℝ^{1 + C_mcc + 2 + 5}
+  x_nb_mu  = [1] + h_mcc + h_ch                          # ℝ^{1 + C_mcc + 2}
+  x_nb_phi = [1] + h_mcc + h_ch + [ln(g)]                # ℝ^{1 + C_mcc + 2 + 1}
+
+  # Machine-check the leakage guard (redundant but explicit)
+  assert len(x_nb_mu)  == 1 + len(dict_mcc) + 2
+  assert len(x_nb_phi) == 1 + len(dict_mcc) + 2 + 1
+
+  return (x_hurdle, x_nb_mu, x_nb_phi)
+```
+
+*Design rules (normative):* GDP **bucket** appears **only** in the **hurdle**; $\ln g_c$ appears **only** in **NB-dispersion**. The dictionaries’ column order is authoritative.
+
+---
+
+## 4) (Optional) `S0_5_build_designs_stream(M, dicts, coefs, G, B) → iterator`
+
+A thin orchestrator for streaming all merchants. Emits tuples `(merchant_id, x_hurdle, x_nb_mu, x_nb_phi)`; **no RNG**; $O(|\mathcal M|)$ time, $O(1)$ space. If materialised, write under `…/parameter_hash={parameter_hash}/…` with the dictionary-backed schema; **do not** embed `manifest_fingerprint` in parameter-scoped outputs.
+
+```text
+function S0_5_build_designs_stream(M, dicts, coefs, G, B):
+  (dict_mcc, dict_ch, dict_dev5, beta_hurdle, nb_dispersion_coef) = coefs
+  # Shapes already asserted by 'build_dicts_and_assert_shapes'
+  for r in M:
+      (x_hurdle, x_nb_mu, x_nb_phi) = build_design_vectors(r, (dict_mcc, dict_ch, dict_dev5), G, B)
+      yield (r.merchant_id, x_hurdle, x_nb_mu, x_nb_phi)
+```
+
+---
+
+## Failure semantics (precise aborts)
+
+`E_DSGN_UNKNOWN_MCC`, `E_DSGN_UNKNOWN_CHANNEL`, `E_DSGN_SHAPE_MISMATCH`, `E_DSGN_DOMAIN_GDP`, `E_DSGN_DOMAIN_BUCKET`, and (if persisted) `E_PARTITION_MISMATCH` for parameter-scoped writes.
+
+---
+
+## Determinism & numeric policy
+
+No randomness; outputs are functions of frozen dictionaries and S0.4 lookups. Evaluate $\ln g_c$ in **binary64**, policy pinned by S0.8; any change flips the numeric-policy artefact.
+
+---
+
+**This exactly matches the frozen S0.5 text**: intercept-first layout, CP/CNP canonical order, dev-5 mapping `[1..5]`, strict column shapes, and a machine-checked **leakage guard** preventing GDP features from leaking across the hurdle/NB boundaries. Ready for S1 to consume $(x_m,\beta)$ and for S2 to consume $(x^{(\mu)}_m,x^{(\phi)}_m)$.
+
+---
+
+# S0.6 — Cross-border Eligibility (L1 routines)
+
+> **Goal:** Decide, *without randomness*, whether each merchant may attempt cross-border later. Persist **exactly one** row per merchant to **`crossborder_eligibility_flags`** (parameter-scoped, partitioned by `parameter_hash`; optional `produced_by_fingerprint` is informational only).
+
+## 1) `load_and_validate_rules(params, I, K) → (rule_set_id, default_allow, rules_expanded)`
+
+**Inputs:** parameter bundle (`crossborder_hyperparams.yaml`), ISO set `I`, MCC set `K`.
+**Output:** `rule_set_id: nonempty ASCII`, `default_allow: bool`, and a **validated, expanded** list of rules where each rule has:
+
+```
+{id, decision∈{allow,deny}, priority∈[0,2^31-1],
+ S_ch ⊆ {CP,CNP}, S_iso ⊆ I, S_mcc ⊆ K}
+```
+
+**Failure at load:** `E_ELIG_RULESET_ID_EMPTY`, `E_ELIG_DEFAULT_INVALID`, `E_ELIG_RULE_DUP_ID(id)`, `E_ELIG_RULE_BAD_CHANNEL(id,ch)`, `E_ELIG_RULE_BAD_ISO(id,iso)`, `E_ELIG_RULE_BAD_MCC(id,mcc_or_range)`.
+
+```text
+function load_and_validate_rules(params, I, K):
+  cfg = params["eligibility"]
+
+  rsid = cfg["rule_set_id"]
+  assert rsid is nonempty ASCII, E_ELIG_RULESET_ID_EMPTY
+
+  dd = cfg["default_decision"]
+  assert dd in {"allow","deny"}, E_ELIG_DEFAULT_INVALID
+  default_allow = (dd == "allow")
+
+  seen_ids = {}
+  rules_out = []
+  for r in cfg["rules"]:
+      id  = r["id"];  dec = r["decision"];  pri = r["priority"]
+      ch  = r["channel"]; iso = r["iso"];   mcc = r["mcc"]
+
+      # id unique, vocab/priority valid
+      assert id is ASCII and id not in seen_ids, E_ELIG_RULE_DUP_ID(id)
+      seen_ids[id] = 1
+      assert dec in {"allow","deny"} and 0 <= pri <= 2_147_483_647
+
+      # expand sets: "*" or subsets
+      S_ch  = {"CP","CNP"}         if ch  == "*" else set(ch)
+      S_iso = set(I)               if iso == "*" else set(iso)
+      S_mcc = expand_mcc(mcc)      # 4-digit elems and inclusive ranges "NNNN-MMMM"
+
+      # domain checks
+      assert S_ch  ⊆ {"CP","CNP"},             E_ELIG_RULE_BAD_CHANNEL(id, ch)
+      assert S_iso ⊆ I and ALL_UPPER_ASCII(S_iso), E_ELIG_RULE_BAD_ISO(id, bad_iso)
+      assert S_mcc ⊆ K and ranges_well_formed(mcc), E_ELIG_RULE_BAD_MCC(id, bad_mcc)
+
+      rules_out.append({ id, decision:dec, priority:pri,
+                         S_ch, S_iso, S_mcc })
+  return (rsid, default_allow, rules_out)
+```
+
+*Range semantics:* `"5000-5999"` expands to all integer MCCs with **inclusive** bounds; comparisons are numeric on parsed 4-digit codes.
+
+---
+
+## 2) `index_rules(rules_expanded) → (deny_idx, allow_idx)`
+
+**Purpose:** speed up matching; **not** visible externally.
+**Indexing:** by `(channel_sym, home_iso)` → **MCC interval set**.
+*(Naive $O(|\mathcal R|)$ scan is allowed; index is just a performance aid.)*
+
+```text
+function index_rules(rules):
+  deny_idx  = new_index()   # (ch, iso) -> MCC interval set with (priority, id)
+  allow_idx = new_index()
+  for r in rules:
+      for ch in r.S_ch:
+        for iso in r.S_iso:
+          target = deny_idx if r.decision=="deny" else allow_idx
+          target.insert(ch, iso, r.S_mcc, (r.priority, r.id))
+  return (deny_idx, allow_idx)
+```
+
+---
+
+## 3) `decide_eligibility(m, deny_idx, allow_idx, default_allow) → (is_eligible, reason)`
+
+**Inputs:** `m` has `(mcc, channel_sym∈{CP,CNP}, home_country_iso)` fixed in S0.1.
+**Conflict resolution (total order):** **deny** tier outranks **allow**; then **priority asc**; then **ASCII `id`**.
+
+```text
+function decide_eligibility(m, deny_idx, allow_idx, default_allow):
+  key = (m.channel_sym, m.home_country_iso, m.mcc)
+
+  D = deny_idx.match(key)   # -> list of (priority, id) for matching MCC intervals
+  A = allow_idx.match(key)
+
+  if not empty(D):
+      (p, id) = min_lex(D)                  # (priority asc, id ASCII asc)
+      return (false, id)
+  if not empty(A):
+      (p, id) = min_lex(A)
+      return (true, id)
+
+  return (default_allow, "default_allow" if default_allow else "default_deny")
+```
+
+Formal decision function $e_m$ and `reason` mirror the spec’s equations exactly.
+
+---
+
+## 4) `write_eligibility_flags(rows, parameter_hash, produced_by_fp?)`
+
+**Contract:** write **one** row per merchant to
+`…/crossborder_eligibility_flags/parameter_hash={parameter_hash}/part-*.parquet`
+embedding **the same `parameter_hash`** as a column; `produced_by_fingerprint` (hex64) is **optional** and **informational only** (never a partition key or equality key). Schema: `schemas.1A.yaml#/prep/crossborder_eligibility_flags`.
+
+```text
+function write_eligibility_flags(rows, parameter_hash, produced_by_fp=None):
+  w = open_partitioned_writer("crossborder_eligibility_flags",
+                              partition={"parameter_hash": parameter_hash})
+  for (m_id, is_ok, reason, rule_set_id) in rows:
+      row = {
+        "parameter_hash": parameter_hash,
+        "merchant_id": m_id,
+        "is_eligible": is_ok,
+        "reason": reason,
+        "rule_set": rule_set_id
+      }
+      if produced_by_fp is not None:
+          row["produced_by_fingerprint"] = produced_by_fp
+
+      ok = w.write(row)
+      assert ok, E_ELIG_WRITE_FAIL(w.path, w.errno)
+
+  w.close()
+```
+
+**Validation & CI hooks (spec-mandated):** schema conformance; **exactly one** row per `merchant_id`; determinism (byte-identical given the same inputs); partition lint (embedded `parameter_hash` equals path key; ignore `produced_by_fingerprint`).
+
+---
+
+## 5) Orchestrator (exact algorithm; streaming-safe)
+
+```text
+function S0_6_apply_eligibility_rules(merchants, params, I, K, parameter_hash, produced_by_fp=None):
+  (rsid, default_allow, rules) = load_and_validate_rules(params, I, K)
+  (deny_idx, allow_idx) = index_rules(rules)
+
+  out_rows = []
+  for m in merchants:
+      assert has_fields(m, ["mcc","channel_sym","home_country_iso","merchant_id"]),
+             E_ELIG_MISSING_MERCHANT(m.merchant_id)
+
+      (is_ok, why) = decide_eligibility(m, deny_idx, allow_idx, default_allow)
+      out_rows.append( (m.merchant_id, is_ok, why, rsid) )
+
+  write_eligibility_flags(out_rows, parameter_hash, produced_by_fp)
+```
+
+This is **order-invariant** and embarrassingly parallel; outputs depend only on $t(m)$ and the versioned rules.
+
+---
+
+## Determinism, domains, and failures (bound to S0.6)
+
+* **No RNG.** Pure function of merchant tuple + parameter bundle.
+* **Domains:** channels `{CP,CNP}`; ISO in $\mathcal I$; MCC in $\mathcal K$.
+* **Abort semantics:** load-time errors above; eval/persist errors `E_ELIG_MISSING_MERCHANT`, `E_ELIG_WRITE_FAIL(path, errno)`, `E_PARTITION_MISMATCH(path_key, embedded_key)`. **On any error, abort S0; no partial output.**
+
+This exactly matches the frozen S0.6 text: the rule grammar, expansion, domains, conflict-resolution order, dataset contract, and failure handling—no over-engineering and zero drift.
+
+---
+
+# S0.7 — Hurdle π Diagnostic Cache (L1)
+
+> **Purpose.** Materialise a **read-only** table with per-merchant $(\eta_m,\pi_m)$ so monitoring can inspect the hurdle surface **without** recomputation on the hot path. This artefact is **optional**, **parameter-scoped**, and **never** read by samplers. Schema: `schemas.1A.yaml#/model/hurdle_pi_probs`.
+
+## Inputs (frozen by S0.1–S0.5)
+
+* `merchants` (stream of rows providing `merchant_id`, `mcc`, `channel_sym`, `home_country_iso`),
+* `beta` (single hurdle coefficient vector aligned to `x_m`),
+* `dicts` (the frozen dictionaries from S0.5),
+* `parameter_hash` (partition key), optional `produced_by_fingerprint` (informational only).
+  **No RNG** is consumed.
+
+## Output (parameter-scoped dataset)
+
+Write **one row per merchant** to
+`…/layer1/1A/hurdle_pi_probs/parameter_hash={parameter_hash}/part-*.parquet` with columns:
+`parameter_hash` (== path key), `produced_by_fingerprint` (optional), `merchant_id`, `logit` (f32), `pi` (f32 in \[0,1]).
+
+---
+
+## Pseudocode (language-agnostic)
+
+```text
+function S0_7_build_hurdle_pi_cache(merchants, beta, dicts, parameter_hash, produced_by_fp=None):
+  # Open parameter-scoped writer
+  w = open_partitioned_writer("hurdle_pi_probs",
+        partition={"parameter_hash": parameter_hash})      # schema #/model/hurdle_pi_probs
+
+  # Optional: constant-time guard — beta length must match the hurdle design width (S0.5)
+  expected = 1 + len(dicts.mcc) + 2 + 5                     # intercept + MCC + CP/CNP + 5 buckets
+  if len(beta) != expected:
+      abort("E_PI_SHAPE_MISMATCH", {expected: expected, got: len(beta)})
+
+  for m in merchants:
+      # Rebuild deterministic hurdle design vector x_m from S0.5 (frozen dictionaries & order)
+      x = build_x_hurdle(m, dicts)                          # [1] + onehots(mcc, ch, dev5); validated in S0.5
+                                                            # x dimension == expected (double-guard) :contentReference[oaicite:3]{index=3}
+
+      # Binary64 dot; fixed evaluation order; FMA off (S0.8 policy)
+      eta64 = dot_f64(beta, x)
+
+      # Branch-stable logistic in binary64 (no clamp in compute path)
+      pi64  = logistic_branch_stable(eta64)                 # σ(η) with overflow-stable branches :contentReference[oaicite:4]{index=4}
+
+      # Finite checks (both values must be finite)
+      if not (is_finite(eta64) and is_finite(pi64)):
+          abort("E_PI_NAN_OR_INF", {merchant_id: m.merchant_id})        :contentReference[oaicite:5]{index=5}
+
+      # Deterministic storage narrowing to float32 (round-to-nearest-even)
+      row = {
+        "parameter_hash": parameter_hash,
+        "merchant_id":    m.merchant_id,
+        "logit":          f32(eta64),
+        "pi":             f32(pi64)
+      }
+      if produced_by_fp is not None:
+          row["produced_by_fingerprint"] = produced_by_fp               # informational only :contentReference[oaicite:6]{index=6}
+
+      ok = w.write(row)
+      if not ok:
+          abort("E_PI_WRITE", {path: w.path, errno: w.errno})
+
+  w.close()
+```
+
+**Notes bound to spec:**
+
+* `build_x_hurdle` uses the **exact** column order frozen by the fitting bundle; channel dict is **\["CP","CNP"]**, dev-5 is **\[1..5]**. Bucket dummies appear **only** in the hurdle design.
+* `logistic_branch_stable(η)` is the overflow-stable definition:
+
+  $$
+  \sigma(\eta)=\begin{cases}1/(1+e^{-\eta}),&\eta\ge0\\ e^\eta/(1+e^\eta),&\eta<0\end{cases}
+  $$
+
+  Extremes $\pi\in\{0,1\}$ are **allowed** and persisted.
+* Storage is **float32** only; compute is **binary64** under S0.8’s numeric policy (RNE, FMA-off, fixed evaluation order).
+
+---
+
+## Failure semantics (abort S0; precise)
+
+* `E_PI_SHAPE_MISMATCH(exp_dim, got_dim)` — $|\beta|\neq\dim(x_m)$.
+* `E_PI_NAN_OR_INF(m)` — non-finite $\eta_m$ or $\pi_m$.
+* `E_PI_WRITE(path, errno)` — writer failure.
+* Partition lint is validated externally; if enforced here, abort as `E_PI_PARTITION(path_key, embedded_key)` on mismatch.
+
+---
+
+## Validation & CI hooks (for S0.10/validators)
+
+1. Schema conformance; 2) **Coverage = |M|** rows; 3) **Recompute check**: rebuild $x_m$ and recompute $\eta_m,\pi_m$, assert **bit-for-bit** equality to stored **float32**; 4) Partition lint (`parameter_hash` in path == embedded); 5) **Downstream isolation**: S1–S9 **must not** read this dataset.
+
+**All of the above matches the frozen S0.7 text verbatim:** optional, parameter-scoped, diagnostic-only; binary64 compute, branch-stable logistic, deterministic f32 narrowing; strict shapes; precise failure codes; and no coupling to RNG or egress beyond parameter lineage.
+
+---
+
+# S0.8 — Numeric Policy & Self-tests (L1)
+
+> **Purpose (normative):** pin IEEE-754 **binary64**, **RNE**, **FMA off**, **no FTZ/DAZ**, deterministic libm, fixed-order reductions/sorts; then run self-tests and emit `numeric_policy_attest.json` for the validation bundle. Changing `numeric_policy.json` or `math_profile_manifest.json` flips the **manifest fingerprint**.
+
+## 1) `set_numeric_env_and_verify() → env`
+
+**Inputs:** none (reads nothing; sets process/thread FP state).
+**Outputs:** `env` summary `{rounding:"rne", fma:false, ftz:false, daz:false}`.
+**Abort:** `E_NUM_RNDMODE`, `E_NUM_FTZ_ON`. (FMA contraction is detected in §S0.8.9 test 2.)
+
+```text
+function set_numeric_env_and_verify():
+  # Set & verify IEEE-754 binary64, RNE; ensure FTZ/DAZ disabled.
+  fp_set_rounding("rne")
+  if fp_get_rounding() != "rne": abort("E_NUM_RNDMODE")
+
+  fp_set_flush_to_zero(false)
+  fp_set_denormals_are_zero(false)
+  if fp_get_flush_to_zero() or fp_get_denormals_are_zero():
+      abort("E_NUM_FTZ_ON")
+
+  # We do not trust compiler flags for FMA; actual detection is in self-tests (S0.8.9.2).
+  return {rounding:"rne", fma:false, ftz:false, daz:false}
+```
+
+*Matches **S0.8.1** environment: binary64, RNE, honour subnormals; FTZ/DAZ off. Build flags are separately recorded in the validation MANIFEST.*
+
+---
+
+## 2) `attest_libm_profile(paths) → (math_profile_id, digests)`
+
+**Inputs:** paths to `numeric_policy.json` and `math_profile_manifest.json`.
+**Outputs:** `math_profile_id` string and `digests` = SHA-256 hex for both files (for attestation).
+**Abort:** `E_NUM_PROFILE_ARTIFACT_MISSING(name)`, `E_NUM_LIBM_PROFILE` (coverage mismatch).
+
+```text
+function attest_libm_profile(paths):
+  np_path  = paths.numeric_policy_json
+  mp_path  = paths.math_profile_manifest_json
+
+  if not exists(np_path): abort("E_NUM_PROFILE_ARTIFACT_MISSING", {"name":"numeric_policy.json"})
+  if not exists(mp_path): abort("E_NUM_PROFILE_ARTIFACT_MISSING", {"name":"math_profile_manifest.json"})
+
+  np_bytes = read_bytes(np_path)
+  mp       = parse_json(read_bytes(mp_path))
+
+  math_profile_id = mp["math_profile_id"]
+  funcs = set(mp["functions"])
+
+  # Required deterministic libm surface (spec scope includes lgamma).
+  required = {"exp","log","log1p","expm1","sqrt","sin","cos","atan2","pow","tanh","erf","lgamma"}
+  if not required ⊆ funcs:
+      abort("E_NUM_LIBM_PROFILE", {"missing": list(required - funcs)})
+
+  dig_np = hex64( SHA256(np_bytes) )
+  dig_mp = hex64( SHA256(encode_utf8(json_canonical(mp))) )
+  return (math_profile_id, [{"name":"numeric_policy.json","sha256":dig_np},
+                            {"name":"math_profile_manifest.json","sha256":dig_mp}])
+```
+
+*Scope/requirements for deterministic libm and inclusion of **`lgamma`** are normative in **S0.8.2**.*
+
+---
+
+## 3) `run_self_tests_and_emit_attestation(env, math_profile_id, digests, platform) → attestation_json`
+
+**Inputs:** `env` from §1; `math_profile_id` & `digests` from §2; `platform` descriptor (OS/libc/compiler).
+**Output:** JSON object conforming to **`numeric_policy_attest.json`**; S0.10 will place it under `validation/fingerprint=…/`.
+**Abort:** on any failed test with the exact **S0.8.8** error codes.
+
+```text
+function run_self_tests_and_emit_attestation(env, math_profile_id, digests, platform):
+  # 1) Rounding & FTZ (S0.8.9.1)
+  assert fp_get_rounding() == "rne", "E_NUM_RNDMODE"
+  x = make_subnormal()                       # e.g., 2^-1075 as binary64
+  if (x * 1.0 == 0.0): abort("E_NUM_FTZ_ON")
+
+  # 2) FMA contraction detection (S0.8.9.2)
+  # Use a pinned triple (a,b,c) from the vendored test corpus with known fused vs. non-fused outcomes.
+  # Evaluate y = (a*b) + c in standard evaluation order and assert it matches the non-fused expected bits.
+  y = (a*b) + c
+  if bits(y) != expected_nonfused_bits: abort("E_NUM_FMA_ON")
+
+  # 3) libm regression (S0.8.9.3)
+  # Run the fixed suite for exp/log/log1p/expm1/sqrt/sin/cos/atan2/pow/tanh/(erf)/lgamma.
+  for (fn, inputs, expected_bits) in vendored_libm_suite():
+      for i in 0..len(inputs)-1:
+          r = call_deterministic_libm(fn, inputs[i])   # from the pinned math profile
+          if bits(r) != expected_bits[i]:
+              abort("E_NUM_LIBM_PROFILE", {"func":fn, "i":i})
+
+  # 4) Neumaier audited sum (S0.8.9.4)
+  (s, c) = neumaier_audit_sequence()         # adversarial sequence & expected (s*, c*)
+  if (bits(s) != bits_expected or bits(c) != bits_expected_c):
+      abort("E_NUM_ULP_MISMATCH", {"func":"neumaier"})
+
+  # 5) TotalOrder sanity (S0.8.9.5)
+  arr = crafted_float_array_with_signed_zero_and_extremes()
+  sorted = sort_by_key(arr, total_order_key) # from §S0.8.10 reference kernel
+  if not total_order_layout_ok(sorted):
+      abort("E_NUM_TOTORDER_NAN")
+
+  attest = {
+    "numeric_policy_version": "1.0",
+    "math_profile_id": math_profile_id,
+    "platform": platform,  # {"os":...,"libc":...,"compiler":...}
+    "flags": {"ffast-math": false, "fp_contract":"off", "rounding":"rne", "ftz": false, "daz": false},
+    "self_tests": {"rounding":"pass","ftz":"pass","fma":"pass","libm":"pass","neumaier":"pass","total_order":"pass"},
+    "digests": digests
+  }
+  # S0.10 will write this as validation/numeric_policy_attest.json and include it in the gate hash.
+  return attest
+```
+
+*The five tests, the attestation shape, and inclusion in the validation bundle are exactly **S0.8.9**; failure codes are listed in **S0.8.8**. The validation bundle lists `numeric_policy_attest.json` and records `math_profile_id` & flags in `MANIFEST.json`.*
+
+---
+
+## Notes the implementer must follow (normative)
+
+* **No BLAS/LAPACK** or parallel reductions on decision-critical paths; use the **reference Neumaier kernels** and **total-order key** (§S0.8.10).
+* The two numeric artefacts **must exist** and are part of S0.2’s artefact set; their digests appear again inside the **attestation**.
+* S0.10 **must** place `numeric_policy_attest.json` into the validation bundle and include it in the `_passed.flag` gate.
+
+This L1 set directly mirrors the frozen S0.8 text: environment guarantees (§S0.8.1), deterministic libm profile with **`lgamma`** (§S0.8.2), fixed-order reductions and kernels (§S0.8.10), explicit failure codes (§S0.8.8), the five self-tests and **attestation** (§S0.8.9), and the bundle contract (§S0.10.5). No over-engineering, no drift.
+
+---
+
+# S0.9 — Failure / Abort (L1)
+
+## 1) `build_failure_payload(class, code, ctx) → failure_json`
+
+```text
+# ctx MUST supply: state, module, parameter_hash (hex64), manifest_fingerprint (hex64),
+# seed (u64), run_id (hex32), and a typed 'detail' object per the spec tables.
+function build_failure_payload(failure_class, failure_code, ctx):
+  assert failure_class in {"F1","F2","F3","F4","F5","F6","F7","F8","F9","F10"}
+  return {
+    "failure_class":        failure_class,             # F1..F10
+    "failure_code":         failure_code,              # snake_case
+    "state":                ctx.state,                 # e.g., "S0.3"
+    "module":               ctx.module,                # e.g., "1A.S0.rng"
+    "dataset_id":           ctx.dataset_id or null,    # optional
+    "merchant_id":          ctx.merchant_id or null,   # optional
+    "parameter_hash":       ctx.parameter_hash,        # hex64
+    "manifest_fingerprint": ctx.manifest_fingerprint,  # hex64
+    "seed":                 ctx.seed,                  # u64
+    "run_id":               ctx.run_id,                # hex32
+    "ts_utc":               now_epoch_ns(),            # u64 epoch ns (normative)
+    "detail":               ctx.detail                 # typed minima per spec
+  }
+```
+
+*Fields, required set, and **timestamp domain (epoch-ns)** are normative; `detail`’s minimal shapes are fixed for codes like `rng_counter_mismatch`, `partition_mismatch`, `ingress_schema_violation`, `artifact_unreadable`, `dictionary_path_violation`, `hurdle_nonfinite`. *
+
+---
+
+## 2) `abort_run_atomic(payload, partial_partitions[])`
+
+```text
+# partial_partitions: list of {dataset_id, partition_path, reason} for any instance that escaped temp.
+# Effects (normative): stop emitters, seal fingerprint-scoped failure dir atomically, mark partial outputs, freeze RNG.
+function abort_run_atomic(payload, partial_partitions):
+  # 1) Stop emitting new events/datasets immediately (callers must honor).
+  stop_all_emitters()
+
+  # 2) Create fingerprint/seed/run_id failure dir atomically
+  base_final = "data/layer1/1A/validation/failures/" +
+               "fingerprint="+payload.manifest_fingerprint+"/" +
+               "seed="+stringify(payload.seed)+"/" +
+               "run_id="+payload.run_id+"/"
+  base_tmp = base_final + "_tmp." + uuid4()
+  mkdirs(base_tmp)
+
+  write_json(base_tmp + "failure.json", payload)           # mandatory single file
+  write_json(base_tmp + "_FAILED.SENTINEL.json", payload)  # duplicate header for quick scans
+
+  rename_atomic(base_tmp, base_final)                      # temp dir → single rename (normative)
+
+  # 3) Mark incomplete outputs (if any partition escaped temp)
+  for p in partial_partitions:
+    write_json(p.partition_path + "/_FAILED.json", {
+      "dataset_id": p.dataset_id,
+      "partition_keys": p.partition_path,
+      "reason": p.reason
+    })
+
+  # 4) Freeze RNG: forbid any further RNG events for this (seed, parameter_hash, run_id)
+  freeze_rng_for_run(payload.seed, payload.parameter_hash, payload.run_id)
+
+  # 5) Exit non-zero; orchestrator halts downstream
+  terminate_process_nonzero()
+```
+
+\*Failure artefacts live under `…/validation/failures/fingerprint={manifest_fingerprint}/seed={seed}/run_id={run_id}/` and are committed **atomically** (temp → rename). Re-runs hitting the **same** failure with the **same** lineage never overwrite an existing committed `failure.json`. On abort: stop emitters, seal the failure dir, write optional `_FAILED.json` sentinels inside any leaked partitions, freeze RNG, and exit non-zero. \*
+
+---
+
+## 3) `merchant_abort_log_write(rows, parameter_hash)`
+
+```text
+# Only call in states that explicitly allow "merchant-abort" (soft) in their spec.
+# rows: iterable of {merchant_id, state, module, reason, ts_utc=epoch_ns()}
+function merchant_abort_log_write(rows, parameter_hash):
+  w = open_partitioned_writer("prep/merchant_abort_log",
+        partition={"parameter_hash": parameter_hash})
+  for r in rows:
+    row = {
+      "parameter_hash": parameter_hash,   # embed equals path key
+      "merchant_id":    r.merchant_id,
+      "state":          r.state,
+      "module":         r.module,
+      "reason":         r.reason,
+      "ts_utc":         r.ts_utc          # epoch ns for consistency
+    }
+    assert w.write(row)
+  w.close()
+```
+
+\*This **never** replaces a run-abort; it only records permitted soft fallbacks. It is **parameter-scoped** at `…/prep/merchant_abort_log/parameter_hash={parameter_hash}/part-*.parquet`. \*
+
+---
+
+### Notes & invariants (normative, minimal)
+
+* **Fingerprint vs. parameter scope.** Failure bundles are **fingerprint-scoped**; parameter-scoped datasets (incl. merchant-abort log) must embed a `parameter_hash` equal to the path key. Egress/validation datasets must partition by `fingerprint={manifest_fingerprint}`.
+* **Failure taxonomy & crosswalk.** Always include both `failure_class` (F1–F10) and specific `failure_code` (snake_case). Examples and class mapping are fixed.
+* **Abort procedure ordering is fixed:** stop → seal failure bundle → mark partials → freeze RNG → exit non-zero.
+* **Writers remain overwrite-atomic** elsewhere; validators later check partition equivalence and instance completeness (F5/F10).
+
+This is a straight transcription of S0.9’s contract—nothing added, nothing omitted—so implementers can wire failures identically across the state.
+
+---
+
+# S0.10 — Outputs & Validation Bundle (L1)
+
+## 1) `preflight_partitions_exist(parameter_hash, emit_hurdle_pi_probs)`
+
+```text
+function preflight_partitions_exist(parameter_hash, emit_hurdle_pi_probs):
+  assert partition_exists("crossborder_eligibility_flags", parameter_hash),
+         "E_PRE_S010:missing_crossborder_eligibility_flags"
+
+  if emit_hurdle_pi_probs:
+      assert partition_exists("hurdle_pi_probs", parameter_hash),
+             "E_PRE_S010:missing_hurdle_pi_probs"
+
+  # Immutability/idempotence context (spec): concrete partition dirs are immutable; re-runs
+  # with same keys must be byte-identical or no-op. (Retention policy is out-of-band.)
+  return true
+```
+
+*Why:* S0.10 must not proceed unless the **parameter-scoped** partitions produced earlier exist. This exactly mirrors §S0.10.8’s preamble and the immutability/idempotence contract.
+
+---
+
+## 2) `assemble_validation_bundle(ctx) → tmp_dir`
+
+**Inputs (from earlier S0 steps):**
+`ctx = { fingerprint: hex64, parameter_hash: hex64, git_commit_hex: hex40|hex64, artifacts: list, param_filenames_sorted: list, param_digests: jsonl rows, artifact_digests: jsonl rows, numeric_attest: object, math_profile_id: str, compiler_flags: map }`.
+
+```text
+function assemble_validation_bundle(ctx):
+  tmp = mktempdir()   # under validation/_tmp.{uuid}
+
+  # MANIFEST.json (normative fields)
+  write_json(tmp+"/MANIFEST.json", {
+    "version": "1A.validation.v1",
+    "manifest_fingerprint": ctx.fingerprint,
+    "parameter_hash": ctx.parameter_hash,
+    "git_commit_hex": ctx.git_commit_hex,
+    "artifact_count": len(ctx.artifacts),
+    "math_profile_id": ctx.math_profile_id,
+    "compiler_flags": ctx.compiler_flags,
+    "created_utc_ns": now_ns()
+  })
+
+  # Resolutions + logs (normative file set)
+  write_json(tmp+"/parameter_hash_resolved.json", {
+    "parameter_hash": ctx.parameter_hash,
+    "filenames_sorted": ctx.param_filenames_sorted
+  })
+  write_json(tmp+"/manifest_fingerprint_resolved.json", {
+    "manifest_fingerprint": ctx.fingerprint,
+    "git_commit_hex": ctx.git_commit_hex,
+    "parameter_hash": ctx.parameter_hash,
+    "artifact_count": len(ctx.artifacts)
+  })
+  write_jsonl(tmp+"/param_digest_log.jsonl", ctx.param_digests)
+  write_jsonl(tmp+"/fingerprint_artifacts.jsonl", ctx.artifact_digests)
+  write_json(tmp+"/numeric_policy_attest.json", ctx.numeric_attest)
+
+  # Optional lints (if produced). By default they participate in the gate hash.
+  if ctx.dictionary_lint is not None:
+      write_text(tmp+"/DICTIONARY_LINT.txt", ctx.dictionary_lint)
+  if ctx.schema_lint is not None:
+      write_text(tmp+"/SCHEMA_LINT.txt", ctx.schema_lint)
+
+  return tmp
+```
+
+*Why:* This file list and the exact field shapes are the **normative** bundle contents. Do not add/remove files unless the spec changes.
+
+---
+
+## 3) `compute_gate_hash_and_publish_atomically(tmp_dir, fingerprint)`
+
+```text
+function compute_gate_hash_and_publish_atomically(tmp_dir, fingerprint):
+  # Gate hash over raw bytes of all files except the flag, in ASCII filename order
+  files = list_ascii_sorted(tmp_dir)                            # filenames only
+  H = sha256_concat_bytes([ tmp_dir+"/"+f for f in files if f != "_passed.flag" ])
+  write_text(tmp_dir+"/_passed.flag", "sha256_hex = " + hex64(H) + "\n")
+
+  # Atomic publish into fingerprint-scoped partition
+  final_dir = "data/layer1/1A/validation/fingerprint="+fingerprint
+  publish_atomic(tmp_dir, final_dir)
+```
+
+*Why:* `_passed.flag` is **mandatory** and must be computed exactly as specified; the bundle is then published with a **single atomic rename** under `fingerprint={manifest_fingerprint}`.
+
+---
+
+## Notes (normative, minimal)
+
+* **Partitioning recap:** parameter-scoped datasets use `parameter_hash={…}`; RNG logs are `{seed, parameter_hash, run_id}`; **validation bundle** uses `fingerprint={manifest_fingerprint}` (path label `fingerprint=…`, column name `manifest_fingerprint`). Validators will enforce row/path equivalence.
+* **Validation expectations (downstream/CI):** presence of every required file; `_passed.flag` must match; lineage recomputation must reproduce the two `*_resolved.json`; numeric attestation must indicate **all S0.8 tests passed**.
+* **Idempotent reruns:** bundles are equivalent iff `MANIFEST.json` matches byte-for-byte and all other files (and the flag’s hash) match byte-for-byte.
+
+This is a direct transcription of S0.10’s contract—**preflight**, **assemble**, **gate & publish**—and nothing else.
+
+---
