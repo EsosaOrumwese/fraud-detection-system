@@ -331,7 +331,9 @@ function rng_bootstrap_audit(seed:u64,
   k_star = LOW64(M)
   c_star = ( BE64(M[16:24]), BE64(M[24:32]) )
 
-  emit_rng_audit_row(seed, parameter_hash, manifest_fingerprint, run_id,
+  # Derive audit-only master material (root key/counter) per L0
+  (M, root_key, root_ctr) = derive_master_material(seed, manifest_fingerprint_bytes)
+  emit_rng_audit_row(seed, parameter_hash, manifest_fingerprint, run_id, 0, root_key, root_ctr.hi, root_ctr.lo, build_commit, code_digest, hostname, platform, notes)
                      0, k_star, c_star[0], c_star[1],
                      build_commit, code_digest, hostname, platform, notes)
   # NOTE: rng_audit_log uses its own schema; it is not an event and must precede the first event.
@@ -370,23 +372,11 @@ function begin_event_ctx(module, substream_label, seed, parameter_hash, manifest
   return begin_event(module, substream_label, seed, parameter_hash, manifest_fingerprint, run_id, stream)  # L0 D2
 
 # Finalise: emit envelope row and update trace; returns updated cumulative blocks for (module,label).
-function end_event_and_trace(family, ctx:Ctx, stream_after:Stream, draws_hi:u64, draws_lo:u64, payload:object,
-                             prev_blocks_total:uint64) -> (new_blocks_total:uint64):
-  end_event_emit(family, ctx, stream_after, draws_hi, draws_lo, payload)   # L0 D2 invariants: blocks = after - before; draws is decimal uint128.
-  return update_rng_trace(ctx.module, ctx.substream_label, ctx.seed, ctx.parameter_hash, ctx.run_id,
-                          ctx.before_hi, ctx.before_lo, stream_after.ctr.hi, stream_after.ctr.lo,
-                          prev_blocks_total)                                # L0 D3 (monotone cumulative blocks)
-```
-
-*Envelope invariants enforced by L0: single-uniform families still advance **one block**; non-consuming events must keep `before==after` and `draws="0"`. JSON is numeric; endianness only in derivations.*
-
----
-
-## 4) Uniforms & samplers — L1 usage of L0 kernels (with envelopes)
-
-### 4.a `gumbel_key` (single uniform)
-
-```text
+function end_event_and_trace(family, ctx:
+end_event_emit(family, ctx, stream_after, draws_hi, draws_lo, payload)
+return update_rng_trace(ctx.module, ctx.substream_label, ctx.seed, ctx.parameter_hash, ctx.run_id,
+                        ctx.before_hi, ctx.before_lo, stream_after.ctr.hi, stream_after.ctr.lo,
+                        prev_blocks_total)
 function event_gumbel_key(master, ids, prev_trace:uint64, meta) -> (g:f64, stream:Stream, new_trace:uint64):
   s  = derive_substream(master, "gumbel_key", ids)                      # label fixed by schema vocab
   ctx = begin_event_ctx("S0", "gumbel_key", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
@@ -556,6 +546,13 @@ If `B` is ever rebuilt, Jenks K=5 is defined via a deterministic DP with **right
 ---
 
 # S0.5 — Design Matrices (L1 routines)
+```text
+# Local helper: deterministic one-hot encoder (index within [0, length-1])
+function one_hot(index:int, length:int) -> int[]:
+  v = [0] * length
+  v[index] = 1
+  return v
+```
 
 > **Scope:** deterministically build column-aligned design vectors for each merchant $m$: hurdle $x_m$, NB-mean $x^{(\mu)}_m$, and NB-dispersion $x^{(\phi)}_m$. **Column dictionaries and their order come from the fitting bundle and are never computed at runtime.**
 
@@ -677,6 +674,44 @@ No randomness; outputs are functions of frozen dictionaries and S0.4 lookups. Ev
 ---
 
 # S0.6 — Cross-border Eligibility (L1 routines)
+```
+# Local helpers for rule parsing/ordering (self-contained per spec)
+function min_lex(pairs: list[(int priority, string id)]) -> (int,string):
+  best = pairs[0]
+  for p in pairs[1:]:
+    if (p.priority < best.priority) or (p.priority == best.priority and p.id < best.id):
+      best = p
+  return best
+
+function expand_mcc(spec: string) -> set[int]:
+  # supports "*" (all), "NNNN", or "NNNN-MMMM" inclusive; 4-digit ASCII
+  if spec == "*": return ALL_MCC_CODES
+  if "-" in spec:
+    lo, hi = spec.split("-", 1)
+    assert len(lo)==4 and len(hi)==4 and lo.isdigit() and hi.isdigit() and int(lo) <= int(hi)
+    return { i for i in range(int(lo), int(hi)+1) }
+  assert len(spec)==4 and spec.isdigit()
+  return { int(spec) }
+
+function ranges_well_formed(specs: list[string]) -> bool:
+  for s in specs:
+    if s == "*": continue
+    if "-" in s:
+      lo, hi = s.split("-", 1)
+      if not (len(lo)==4 and len(hi)==4 and lo.isdigit() and hi.isdigit() and int(lo)<=int(hi)):
+        return false
+    else:
+      if not (len(s)==4 and s.isdigit()):
+        return false
+  return true
+
+function ALL_UPPER_ASCII(S: list[string]) -> bool:
+  for x in S:
+    if x != x.upper(): return false
+    for ch in x:
+      if not ("A" <= ch <= "Z"): return false
+  return true
+```
 
 > **Goal:** Decide, *without randomness*, whether each merchant may attempt cross-border later. Persist **exactly one** row per merchant to **`crossborder_eligibility_flags`** (parameter-scoped, partitioned by `parameter_hash`; optional `produced_by_fingerprint` is informational only).
 
@@ -882,11 +917,7 @@ for m in merchants:
     # Binary64 dot; fixed evaluation order; FMA off (S0.8 policy)
     eta64 = dot_neumaier(beta, x_hurdle)
     # Branch-stable logistic (spec-true)
-    if eta64 >= 0.0:
-        pi64 = 1.0 / (1.0 + exp(-eta64))
-    else:
-        t = exp(eta64)
-        pi64 = t / (1.0 + t)
+    pi64 = logistic_branch_stable(eta64)
       row = {
         "parameter_hash": parameter_hash,
         "merchant_id":    m.merchant_id,
@@ -905,7 +936,7 @@ for m in merchants:
 
 **Notes bound to spec:**
 
-* `build_x_hurdle` uses the **exact** column order frozen by the fitting bundle; channel dict is **\["CP","CNP"]**, dev-5 is **\[1..5]**. Bucket dummies appear **only** in the hurdle design.
+* `build_design_vectors (hurdle vector via dicts, G, B)` uses the **exact** column order frozen by the fitting bundle; channel dict is **\["CP","CNP"]**, dev-5 is **\[1..5]**. Bucket dummies appear **only** in the hurdle design.
 * `logistic_branch_stable(η)` is the overflow-stable definition:
 
   $$
