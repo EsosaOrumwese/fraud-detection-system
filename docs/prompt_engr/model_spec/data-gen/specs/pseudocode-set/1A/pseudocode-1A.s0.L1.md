@@ -326,20 +326,16 @@ function rng_bootstrap_audit(seed:u64,
                              hostname:string|null,
                              platform:string|null,
                              notes:string|null) -> Master:
-  # Master material (UER strings & LE64 per spec)
-  M = SHA256( UER("mlr:1A.master") || manifest_fingerprint_bytes || LE64(seed) )  # 32 bytes
-  k_star = LOW64(M)
-  c_star = ( BE64(M[16:24]), BE64(M[24:32]) )
 
-  # Derive audit-only master material (root key/counter) per L0
+  # Derive audit-only master material (root key/counter) per L0.B
   (M, root_key, root_ctr) = derive_master_material(seed, manifest_fingerprint_bytes)
-  emit_rng_audit_row(seed, parameter_hash, manifest_fingerprint, run_id, 0, root_key, root_ctr.hi, root_ctr.lo, build_commit, code_digest, hostname, platform, notes)
-                     0, k_star, c_star[0], c_star[1],
-                     build_commit, code_digest, hostname, platform, notes)
+    emit_rng_audit_row(seed, parameter_hash, manifest_fingerprint, run_id,
+                       0, root_key, root_ctr.hi, root_ctr.lo,
+                       build_commit, code_digest, hostname, platform, notes)
   # NOTE: rng_audit_log uses its own schema; it is not an event and must precede the first event.
   # Algorithm string is "philox2x64-10" per schema. 
 
-  return Master{ M, k_star, c_star }
+  return Master{ M, k_star = root_key, c_star = (root_ctr.hi, root_ctr.lo) }
 ```
 
 *Norms: audit-before-any-draws; root `(k⋆,c⋆)` is **not** used directly for sampling.*
