@@ -825,43 +825,7 @@ Sticking to these “don’ts” keeps L3 lean, reproducible, and perfectly alig
 - `bundle_manifest_list(bundle_dir)` → `host.read_json(join(bundle_dir,"MANIFEST.json")).files`.
 - `load_dictionary_and_registry_from_artifacts(rows)` → locate dictionary/registry in 𝓐 and `host.read_json(...)`; pure lookups.
 
-## 6. Local adapters / helper shims
-```text
-# Added tiny shims to keep this document self-contained
-
-ascii_sort(list_str):
-  # total ASCII lexicographic sort
-  return sort_ascii(list_str)
-
-artifact_list_contains(rows, name):
-  # rows: list of objects with 'basename' field
-  for r in rows:
-    if r.basename == name:
-      return true
-  return false
-
-as_dec(u64_value):
-  # decimal string for u64
-  return decimal_string(u64_value)
-
-bundle_contains_success_marker(dir):
-  files = host.list_files(dir)
-  return ("_passed.flag" in files)
-
-instance_matches(bundle_dir, lineage):
-  # minimal lineage check against resolved files
-  r = host.read_json(bundle_dir + "/parameter_hash_resolved.json")
-  s = host.read_json(bundle_dir + "/manifest_fingerprint_resolved.json")
-  return (r.parameter_hash == lineage.parameter_hash) and (s.manifest_fingerprint == lineage.fingerprint)
-
-valid_failure_shape(payload):
-  # minimal structural check
-  return has_keys(payload, ["failure_class","failure_code","detail"])
-```
-
----
-
-## H‑L3.6 Local adapters used above (self‑contained)
+Local adapters used above (self‑contained)
 
 ```text
 function ascii_sort(xs:list<string>) -> list<string>:
@@ -890,6 +854,16 @@ function instance_matches(bundle_dir:string, lineage:object) -> bool:
 function valid_failure_shape(payload:object) -> bool:
   return (("failure_class" in payload) and ("failure_code" in payload) and ("detail" in payload))
 
+
+function discover_parameter_files(root:string) -> list[(string basename, string path)]:
+  # governed basenames per S0.2: exact ASCII names
+  governed = ["crossborder_hyperparams.yaml", "hurdle_coefficients.yaml", "nb_dispersion_coefficients.yaml"]
+  files = host.list_files(root)   # returns basenames
+  out = []
+  for name in governed:
+      if name in files:
+          out.append((name, root + "/" + name))
+  return out
 # Minimal wrappers to align with L0 encoders/hashes used in V3
 function hex64_to_raw32(hex64:string) -> bytes[32]:
   # parse 64 hex chars into 32 raw bytes
@@ -897,6 +871,56 @@ function hex64_to_raw32(hex64:string) -> bytes[32]:
 
 function enc_u64_le(x:u64) -> bytes[8]:
   return u64_to_le_bytes(x)
+
+function read_single_jsonl(path:string) -> object:
+  # Strictly one line → one JSON object
+  bs = host.read_bytes(path)
+  lines = split_bytes_on_lf(bs)
+  # ignore possible trailing empty line from final newline
+  payload = [ln for ln in lines if len(ln) > 0]
+  assert len(payload) == 1
+  return parse_json_strict(bytes_to_ascii(payload[0]))
+
+function count_jsonl(files:list[string]) -> u32:
+  # Count JSONL files in a listing (basenames)
+  return len([f for f in files if ends_with(f, ".jsonl")])
+
+function count_lines(path:string) -> u64:
+  # Exact line count (no normalization)
+  return len(host.read_bytes(path).split(b"\n"))
+
+function read_artifact_list(path:string) -> list[object]:
+  # fingerprint_artifacts.jsonl rows → objects with at least {basename, path, sha256_hex}
+  bs = host.read_bytes(path)
+  out = []
+  for ln in split_bytes_on_lf(bs):
+      if len(ln) == 0: continue
+      out.append(parse_json_strict(bytes_to_ascii(ln)))
+  return out
+
+function materialize_artifacts_bytes(rows:list[object]) -> list[object]:
+  # Re-open exactly the artefacts S0.2 fingerprinted; preserve basenames
+  out = []
+  for r in rows:
+      out.append({ basename: r.basename, bytes: host.read_bytes(r.path) })
+  return out
+
+function read_rows(path:string) -> iterator[object]:
+  # Minimal row iterator over a Parquet/JSONL shard; must surface embedded lineage fields
+  # Implementation may delegate to host-specific readers; this is a schematic contract.
+  return host.read_parquet_rows(path)  # or host.read_jsonl_rows(path)
+
+function extract_json_schema_anchors_from(registry:object) -> set[string]:
+  # Return the set of schema refs that are JSON-Schema anchors
+  anchors = set()
+  for entry in registry.entries:
+      if entry.type == "json-schema" and has_key(entry, "anchor"):
+          anchors.add(entry.anchor)
+  return anchors
+
+function fail_once_and_stop() -> object:
+  # Orchestrator convenience: after abort_run(F*,...) was called by a validator
+  return { verdict: "fail" }
 ```
 ```text
 # Additional small adapters to avoid undefined names
