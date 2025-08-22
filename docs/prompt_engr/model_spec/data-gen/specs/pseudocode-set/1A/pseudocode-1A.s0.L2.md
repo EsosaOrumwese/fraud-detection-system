@@ -143,7 +143,7 @@ This section lists **exactly** the artefacts that must be opened *before* `compu
 ## DoD checklist for §3
 
 * The table above lists **all** artefact categories S0 opens before S0.2 (numeric policy, math profile, ISO, GDP, Jenks-5, schema/dictionary/registry, and the governed parameter bundle 𝓟).
-* L2 states that `compute_manifest_fingerprint` takes **(𝓐, git32, param\_b32)** and that L2 **ensures 𝓐 is complete** at that call site.
+* L2 states that `compute_manifest_fingerprint` takes **(𝓐, git32, param_b32)** and that L2 **ensures 𝓐 is complete** at that call site.
 * It explicitly calls out **raw** commit bytes and the parameter bundle digest bytes as inputs to the fingerprint.
 * It explicitly forbids first-time opening of governance artefacts **after** S0.2.
 * No “TBD” or optional wording remains.
@@ -539,7 +539,7 @@ L2 must invoke the S0.9 abort with the **canonical payload**:
 
 * **Function (L1/L0):** `abort_run(...)` *(L0 also exposes `abort = abort_run` as an alias; use the canonical name to avoid drift.)*
 * **Failure class:** one of `F1…F10` (exact strings).
-* **Failure code:** snake\_case code defined by the caller (e.g., `l2_gate_failed`, `partition_mismatch`).
+* **Failure code:** snake_case code defined by the caller (e.g., `l2_gate_failed`, `partition_mismatch`).
 * **Context (required fields):**
 
   * `state`: e.g., `"S0.3"`
@@ -858,7 +858,7 @@ This section is the go/no-go list for S0. A run is **Done** only if **all** chec
 
 ## 11.2 Lineage re-derivation matches
 
-Using the L0 primitives (or the already-emitted *\_resolved* JSONs):
+Using the L0 primitives (or the already-emitted *_resolved* JSONs):
 
 * Recompute `parameter_hash` from the governed parameter bundle 𝓟; must equal the emitted `parameter_hash`.
 * Recompute `manifest_fingerprint = compute_manifest_fingerprint(arts, git32, param_b32)` using **exactly** the artefacts opened pre-S0.2 (S0.1’s set), the **raw** 32-byte commit, and the **32-byte** parameter-bundle digest; must equal the emitted `manifest_fingerprint`.
@@ -873,16 +873,16 @@ For every persisted dataset in §11.1:
   * **RNG audit** must embed `{seed, parameter_hash, run_id}` equal to its path.
   * **Validation bundle** must embed `manifest_fingerprint` equal to its path.
 
-Any mismatch → **fail (F5: partition\_mismatch)**.
+Any mismatch → **fail (F5: partition_mismatch)**.
 
-## 11.4 Validation gate (\_passed.flag) is correct
+## 11.4 Validation gate (_passed.flag) is correct
 
 * List bundle files in **bytewise ASCII** order, **excluding** `_passed.flag`.
 * Concatenate each file’s **raw bytes** in that order; SHA-256 the result.
 * The `_passed.flag` content must equal that digest; publish location must match `fingerprint={manifest_fingerprint}`.
 * Publish was done atomically (temp dir → final dir with a single rename).
 
-Any difference or non-atomic publish → **fail (F10: bundle\_gate\_or\_publish\_failed)**.
+Any difference or non-atomic publish → **fail (F10: bundle_gate_or_publish_failed)**.
 
 ## 11.5 Numeric attestation gate passed (pre-RNG)
 
@@ -893,7 +893,7 @@ Any difference or non-atomic publish → **fail (F10: bundle\_gate\_or\_publish\
   * self-tests (Neumaier sum, total-order key, libm regression).
 * L2 executed S0.8 **before** S0.3 (RNG bootstrap).
 
-If missing or failed → **fail (F7: numeric\_attestation\_failed)**.
+If missing or failed → **fail (F7: numeric_attestation_failed)**.
 
 ## 11.6 RNG audit content is consistent
 
@@ -904,7 +904,7 @@ Read the single audit row and confirm:
 * The audit partition keys `{seed, parameter_hash, run_id}` match the row’s embedded fields.
 * There are **zero** RNG event envelopes recorded for S0 (only the audit row exists under this lineage scope).
 
-Any discrepancy → **fail (F4a: rng\_audit\_inconsistent\_or\_missing)**.
+Any discrepancy → **fail (F4a: rng_audit_inconsistent_or_missing)**.
 
 ## 11.7 Determinism & re-run equivalence (scope-true)
 
@@ -919,7 +919,7 @@ Re-run S0 with **identical inputs** (𝓟, artefacts set 𝓐, `seed`, environme
 
 ## 11.8 No late governance opens
 
-Audit that **all governance and universe artefacts** (numeric policy, math profile, ISO/GDP/Jenks, schema/dictionary/registry) were opened **before** S0.2 fingerprinting, and that S0 didn’t first open any such artefact after S0.2. If violated → **fail (F2: fingerprint\_inputs\_incomplete)**.
+Audit that **all governance and universe artefacts** (numeric policy, math profile, ISO/GDP/Jenks, schema/dictionary/registry) were opened **before** S0.2 fingerprinting, and that S0 didn’t first open any such artefact after S0.2. If violated → **fail (F2: fingerprint_inputs_incomplete)**.
 
 ## 11.9 Fail-fast behavior
 
@@ -927,7 +927,7 @@ Audit that **all governance and universe artefacts** (numeric policy, math profi
 * No S0.10 bundle is published after an abort.
 * No retries/backoffs observed in logs.
 
-Violation → **fail (F9: abort\_policy\_violation)**.
+Violation → **fail (F9: abort_policy_violation)**.
 
 ---
 
@@ -958,7 +958,7 @@ This section lists the **forbidden moves** when wiring S0. Each item is justifie
 1. **Fingerprint too early / incomplete**
    * **Symptom:** `manifest_fingerprint` computed before opening numeric policy, math profile, ISO/GDP/Jenks, or schema/dictionary/registry.
    * **Forbidden:** Calling `compute_manifest_fingerprint(...)` without the **full** artefacts set 𝓐 opened by S0.1.
-   * **Do instead:** After S0.1, gather 𝓐 via `list_opened_artifacts()` and pass **𝓐 + raw git32 (32B) + param\_b32 (32B)** to `compute_manifest_fingerprint(...)`.
+   * **Do instead:** After S0.1, gather 𝓐 via `list_opened_artifacts()` and pass **𝓐 + raw git32 (32B) + param_b32 (32B)** to `compute_manifest_fingerprint(...)`.
 
 2. **Hex commit bytes**
    * **Symptom:** Feeding hex-encoded commit into the fingerprint.
@@ -1141,7 +1141,7 @@ This section pins the **only** host-environment hooks L2 is allowed to use. They
 
 **Contract.**
 
-* Must include everything S0.1 opened: **numeric\_policy.json**, **math\_profile\_manifest.json**, ISO set, GDP vintage, Jenks bucket map, schema/dictionary/registry anchors, etc.
+* Must include everything S0.1 opened: **numeric_policy.json**, **math_profile_manifest.json**, ISO set, GDP vintage, Jenks bucket map, schema/dictionary/registry anchors, etc.
 * Same ASCII/unique basename rules as H1.
 
 **Determinism.** The set is **closed** at S0.2. L2 must not first-open any governance artefact after S0.2.
