@@ -196,7 +196,7 @@ function V1_recompute_lineage_and_compare(bundle_dir, parameters_root):
       return abort_run(F2, "manifest_fingerprint_mismatch",
                        {expected:fp_hex, found:mf_resolved.manifest_fingerprint})
 
-  return ok, { param_hash_hex, param_hash_bytes, fp_hex, fp_bytes }
+  return ok
 ```
 
 **Notes:**
@@ -227,7 +227,7 @@ function V2_verify_numeric_attestation(bundle_dir, artifact_list_rows):
   if not artifact_list_contains(artifact_list_rows, "math_profile_manifest.json"):
       return abort_run(F2, "fingerprint_inputs_incomplete", {missing:"math_profile_manifest.json"})
 
-  return ok, { param_hash_hex, param_hash_bytes, fp_hex, fp_bytes }
+  return ok
 ```
 
 ---
@@ -273,7 +273,7 @@ function V3_check_rng_audit_invariant(log_root, seed, parameter_hash, run_id, ma
       return abort_run(F4a, "rng_audit_lineage_embed_mismatch",
                        {path:{seed,parameter_hash,run_id}, embedded:{audit_row.seed,audit_row.parameter_hash,audit_row.run_id}})
 
-  return ok, { param_hash_hex, param_hash_bytes, fp_hex, fp_bytes }
+  return ok
 ```
 
 ---
@@ -316,7 +316,7 @@ function V4_lint_partitions_and_schema(dictionary, registry, parameter_hash, dat
               return abort_run(F6, "schema_reference_not_json_schema",
                                {dataset:ds, schema_ref:ref})
 
-  return ok, { param_hash_hex, param_hash_bytes, fp_hex, fp_bytes }
+  return ok
 ```
 
 *Implementation notes:*
@@ -340,7 +340,7 @@ function V5_verify_gate_hash_and_publish(bundle_dir):
       return abort_run(F10, "passed_flag_missing", {dir:bundle_dir})
 
   # 1) Recompute the gate hash exactly as specified
-  others = ascii_sort([f for f in files if basename(f) != "_passed.flag"])
+  others = ascii_sort([f for f in files if f != "_passed.flag"])
   H = new_SHA256()
   for f in others:
       H.update( host.read_bytes(bundle_dir + "/" + f) )           # raw bytes, no transcoding
@@ -353,10 +353,11 @@ function V5_verify_gate_hash_and_publish(bundle_dir):
 
   # 2) Atomic publish via manifest: no extras beyond MANIFEST.json and _passed.flag
   manifest = host.read_json(join(bundle_dir, "MANIFEST.json"))
-  expected = set(manifest.files) ∪ {"_passed.flag"}
+  expected = set(manifest.files)
+  expected.add("_passed.flag")
   if set(files) != expected:
       return abort_run(F10, "bundle_contains_unexpected_files", {expected:expected, found:set(files)})
-return ok, { param_hash_hex, param_hash_bytes, fp_hex, fp_bytes }
+return ok
 ```
 
 *Notes:*
@@ -382,7 +383,7 @@ function V6_check_abort_semantics(root, fingerprint, seed, parameter_hash, run_i
       if sentinel_files is empty:
           return abort_run(F10, "missing_failed_sentinel", {fail_dir:fail_dir})
 
-      bundle_dir = root + "/validation/fingerprint=" + fingerprint + "/"
+      bundle_dir = root + "/fingerprint=" + fingerprint + "/"
       # Success bundle must not coexist with a failure for the same lineage instance
       if bundle_contains_success_marker(bundle_dir) and instance_matches(bundle_dir, {seed,parameter_hash,run_id}):
           return abort_run(F9, "bundle_published_after_abort",
@@ -393,42 +394,12 @@ function V6_check_abort_semantics(root, fingerprint, seed, parameter_hash, run_i
       if not valid_failure_shape(payload):
           return abort_run(F9, "invalid_failure_payload", {file:failure_files[0]})
 
-  return ok, { param_hash_hex, param_hash_bytes, fp_hex, fp_bytes }
+  return ok
 ```
 
 *Notes:*
 
 * L3 does **not** create or modify failure records; it only verifies placement and mutual exclusivity with a success bundle.
-
----
-
-## L3 Orchestrator (glue)
-
-```text
-function validate_S0(bundle_dir, data_root, log_root, seed, parameter_hash, manifest_fingerprint, run_id):
-  # V1 — lineage
-  require V1_recompute_lineage_and_compare(bundle_dir, parameters_root)
-
-  # V2 — numeric policy
-  artifact_rows = read_artifact_list(bundle_dir + "/fingerprint_artifacts.jsonl")
-  require V2_verify_numeric_attestation(bundle_dir, artifact_rows)
-
-  # V3 — RNG audit-only for S0
-  mf_bytes = read_manifest_fingerprint_bytes(bundle_dir)           # from resolved file or context
-  require V3_check_rng_audit_invariant(log_root, seed, parameter_hash, run_id, mf_bytes)
-
-  # V4 — partitions & schema
-  (dictionary, registry) = load_dictionary_and_registry_from_artifacts(artifact_rows)
-  require V4_lint_partitions_and_schema(dictionary, registry, parameter_hash, data_root)
-
-  # V5 — gate & atomic publish
-  require V5_verify_gate_hash_and_publish(bundle_dir)
-
-  # V6 — abort semantics (if any)
-  require V6_check_abort_semantics(validation_root, manifest_fingerprint, seed, parameter_hash, run_id)
-
-  return { verdict:"pass" }     # (optionally write validator_passed.json)
-```
 
 ---
 
@@ -849,3 +820,37 @@ Sticking to these “don’ts” keeps L3 lean, reproducible, and perfectly alig
 - `count_jsonl(files)` → number of JSONL files in the list; `count_lines(path)` → exact line count in file.
 - `bundle_manifest_list(bundle_dir)` → `host.read_json(join(bundle_dir,"MANIFEST.json")).files`.
 - `load_dictionary_and_registry_from_artifacts(rows)` → locate dictionary/registry in 𝓐 and `host.read_json(...)`; pure lookups.
+
+## 6. Local adapters / helper shims
+```text
+# Added tiny shims to keep this document self-contained
+
+ascii_sort(list_str):
+  # total ASCII lexicographic sort
+  return sort_ascii(list_str)
+
+artifact_list_contains(rows, name):
+  # rows: list of objects with 'basename' field
+  for r in rows:
+    if r.basename == name:
+      return true
+  return false
+
+as_dec(u64_value):
+  # decimal string for u64
+  return decimal_string(u64_value)
+
+bundle_contains_success_marker(dir):
+  files = host.list_files(dir)
+  return ("_passed.flag" in files)
+
+instance_matches(bundle_dir, lineage):
+  # minimal lineage check against resolved files
+  r = host.read_json(bundle_dir + "/parameter_hash_resolved.json")
+  s = host.read_json(bundle_dir + "/manifest_fingerprint_resolved.json")
+  return (r.parameter_hash == lineage.parameter_hash) and (s.manifest_fingerprint == lineage.fingerprint)
+
+valid_failure_shape(payload):
+  # minimal structural check
+  return has_keys(payload, ["failure_class","failure_code","detail"])
+```
