@@ -259,14 +259,18 @@ function V3_check_rng_audit_invariant(log_root, seed, parameter_hash, run_id, ma
   audit_row = read_single_jsonl(audit_files[0])         # guaranteed 1 file, 1 row
   if audit_row.algorithm != "philox2x64-10":
       return abort_run(F4a, "rng_algorithm_mismatch", {expected:"philox2x64-10", found:audit_row.algorithm})
-
-  if audit_row.root_key_u64 != root_key:
-      return abort_run(F4a, "rng_root_key_mismatch", {expected:root_key, found:audit_row.root_key_u64})
-
-  if (audit_row.root_ctr_hi != root_ctr.hi) or (audit_row.root_ctr_lo != root_ctr.lo):
-      return abort_run(F4a, "rng_root_counter_mismatch",
-                       {expected:{hi:root_ctr.hi, lo:root_ctr.lo},
-                        found:{hi:audit_row.root_ctr_hi, lo:audit_row.root_ctr_lo}})
+                        
+  # If the schema variant exposes key/counter, enforce exact match with L0 names
+  if ("rng_key_lo" in audit_row) or ("rng_key_hi" in audit_row):
+      if (audit_row.rng_key_hi != 0) or (audit_row.rng_key_lo != root_key):
+          return abort_run(F3, "audit_root_key_mismatch",
+                           {expected_lo:root_key, expected_hi:0,
+                            found_lo:audit_row.rng_key_lo, found_hi:audit_row.rng_key_hi})
+  if ("rng_counter_hi" in audit_row) or ("rng_counter_lo" in audit_row):
+      if (audit_row.rng_counter_hi != root_ctr.hi) or (audit_row.rng_counter_lo != root_ctr.lo):
+          return abort_run(F3, "audit_root_counter_mismatch",
+                           {expected_hi:root_ctr.hi, expected_lo:root_ctr.lo,
+                            found_hi:audit_row.rng_counter_hi, found_lo:audit_row.rng_counter_lo})
 
   # Embedded lineage must equal the path lineage
   if audit_row.seed != seed or audit_row.parameter_hash != parameter_hash or audit_row.run_id != run_id:
@@ -373,7 +377,7 @@ return ok
 
 ```text
 function V6_check_abort_semantics(root, fingerprint, seed, parameter_hash, run_id):
-  fail_dir = root + "/validation/fingerprint=" + fingerprint + "/seed=" + seed +
+  fail_dir = root + "/fingerprint=" + fingerprint + "/seed=" + seed + 
              "/parameter_hash=" + parameter_hash + "/run_id=" + run_id + "/"
   failure_files = host.glob(fail_dir + "/failure.json")
   sentinel_files = host.glob(fail_dir + "/_FAILED.SENTINEL.json")
@@ -893,4 +897,38 @@ function hex64_to_raw32(hex64:string) -> bytes[32]:
 
 function enc_u64_le(x:u64) -> bytes[8]:
   return u64_to_le_bytes(x)
+```
+```text
+# Additional small adapters to avoid undefined names
+function join(dir:string, name:string) -> string:
+  # simple POSIX-style join; callers pass normalized roots
+  if ends_with(dir, "/"): return dir + name
+  else: return dir + "/" + name
+
+function extract_hash(flag_text:string) -> hex64:
+  # expects a single line: 'sha256_hex = <64-hex>'
+  line = first_line(flag_text).strip()
+  parts = split(line, "=")    # ["sha256_hex ", " <hex>"]
+  return trim(parts[1])
+
+function hex_to_bytes(hexstr:string) -> bytes[]:
+  # parse lowercase hex into raw bytes (2 chars -> 1 byte)
+  assert (len(hexstr) % 2) == 0
+  out = []
+  i = 0
+  while i < len(hexstr):
+    out.append( byte_from_hex(hexstr[i:i+2]) )
+    i += 2
+  return bytes(out)
+
+function u64_to_le_bytes(x:u64) -> bytes[8]:
+  b0 = x        & 0xff
+  b1 = (x>>8)   & 0xff
+  b2 = (x>>16)  & 0xff
+  b3 = (x>>24)  & 0xff
+  b4 = (x>>32)  & 0xff
+  b5 = (x>>40)  & 0xff
+  b6 = (x>>48)  & 0xff
+  b7 = (x>>56)  & 0xff
+  return bytes([b0,b1,b2,b3,b4,b5,b6,b7])
 ```
