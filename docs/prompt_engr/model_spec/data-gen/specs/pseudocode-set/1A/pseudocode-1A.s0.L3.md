@@ -108,7 +108,10 @@ L3 **verifies** the following persisted outputs; it does **not** create them:
 
 ## Explicit non-outputs
 
-* L3 **must not** emit RNG events, modify parameter-scoped datasets, or republish the bundle. It is a read-only checker. The only files it may add are the single failure record (on error) or the optional `validator_passed.json` (on success), both of which—if present—participate in `_passed.flag` hashing rules.
+* L3 must not emit RNG events, modify parameter-scoped datasets, or change the validation bundle.
+* Success is signalled by process status (and/or an external validator log outside the bundle).
+* On failure, write exactly one failure record using the S0.9 taxonomy in the failure path.
+* Never add or modify files inside the validation bundle and never re-write `_passed.flag`.
 
 This matches your L0/L1/L2 contracts: bundle contents and `_passed.flag` rules (S0.10), partition scopes (S0.10.3), audit-only RNG in S0 (S0.3/L2), and the S0.9 failure taxonomy and placement.
 
@@ -123,7 +126,11 @@ Recompute `parameter_hash` from the governed parameter set using the tuple-hash 
 Read `numeric_policy_attest.json` from the bundle and require: RNE rounding, FMA-off, FTZ/DAZ-off, pinned libm profile (incl. `lgamma`), and self-tests = “pass”. If absent or failing ⇒ fail (F7).
 
 **V3 — RNG audit presence, and *only* audit in S0.**
-Check the RNG **audit** JSONL exists under `{seed, parameter_hash, run_id}` and was written after S0.2; **assert zero RNG events** exist for S0 (no envelopes with `{before, after, blocks, draws}`), and that counters never advanced. If any event exists ⇒ fail (F4a/F4d). 
+* Check the RNG audit JSONL exists under {seed, parameter_hash, run_id} and that each row embeds
+* exactly the recomputed {seed, parameter_hash, manifest_fingerprint, run_id}. Assert zero RNG events
+* exist for S0 (no envelopes with {before,after,blocks,draws}); counters therefore never advance.
+
+If any event exists ⇒ fail (F4a/F4d). 
 
 **V4 — Partition scope & embedding.**
 For each parameter-scoped dataset produced in S0 (e.g., `crossborder_eligibility_flags`, optional `hurdle_pi_probs`), verify the path key `parameter_hash=…` equals the **embedded** `parameter_hash` in every row. RNG audit rows must embed `{seed, parameter_hash, run_id}`; the validation bundle must be under `fingerprint={manifest_fingerprint}` and embed that fingerprint. Any mismatch ⇒ fail (F5/F10).
