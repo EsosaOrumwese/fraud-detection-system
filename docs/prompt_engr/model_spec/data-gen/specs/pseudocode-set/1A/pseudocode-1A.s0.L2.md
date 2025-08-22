@@ -724,7 +724,7 @@ function run_S0(seed: u64, cfg: Config):
   arts   = host.list_opened_artifacts()               # must include numeric policy/profile, ISO/GDP/Jenks, schemas/dict/registry opened above
   git32  = host.read_git_commit_32_bytes()
   (fp_hex, fp_bytes, fp_resolved, artifact_rows) =
-       compute_manifest_fingerprint(arts, git32, param_hash_bytes, param_hash_hex)
+       compute_manifest_fingerprint(arts, git32, param_hash_bytes)
 
   t_ns   = now_ns()                                   # from L0 Batch F
   run_id = derive_run_id(fp_bytes, seed, t_ns, host.run_id_exists)
@@ -765,7 +765,7 @@ function run_S0(seed: u64, cfg: Config):
     # S0.5 — dictionaries & designs (pure; may materialize parameter-scoped artefacts if specified in L1)
     dicts, coefs = build_dicts_and_assert_shapes(open_parameter_bundle(P_files))
     stream = S0_5_build_designs_stream(U.merchants, dicts, coefs, U.gdp_map, U.bucket_map)
-    drain(stream)   # consumer is state-internal; no S0 persistence mandated here
+    drain(stream)   # (internal to L1) consumer is state-internal; no S0 persistence mandated here
     # S0.7 — optional diagnostic cache (parameter-scoped)
     if cfg.emit_hurdle_pi_cache:
        S0_7_build_hurdle_pi_cache(U.merchants, coefs.beta_hurdle, dicts,
