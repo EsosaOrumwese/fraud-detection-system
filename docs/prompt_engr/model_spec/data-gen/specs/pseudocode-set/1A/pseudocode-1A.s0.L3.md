@@ -196,7 +196,7 @@ function V1_recompute_lineage_and_compare(bundle_dir, parameters_root):
       return abort_run(F2, "manifest_fingerprint_mismatch",
                        {expected:fp_hex, found:mf_resolved.manifest_fingerprint})
 
-  return ok
+  return ok, { fp_bytes: fp_bytes }
 ```
 
 **Notes:**
@@ -853,4 +853,44 @@ instance_matches(bundle_dir, lineage):
 valid_failure_shape(payload):
   # minimal structural check
   return has_keys(payload, ["failure_class","failure_code","detail"])
+```
+
+---
+
+## H‑L3.6 Local adapters used above (self‑contained)
+
+```text
+function ascii_sort(xs:list<string>) -> list<string>:
+  # Sort by raw ASCII code point
+  return sort(xs, key=bytewise_ascii)
+
+function as_dec(u64val:u64) -> string:
+  # Decimal string without separators
+  return to_decimal_string(u64val)
+
+function artifact_list_contains(rows:list<object>, name:string) -> bool:
+  # rows are objects with a 'basename' field
+  for r in rows:
+      if r.basename == name: return true
+  return false
+
+function bundle_contains_success_marker(dir:string) -> bool:
+  return ("_passed.flag" in host.list_files(dir))
+
+function instance_matches(bundle_dir:string, lineage:object) -> bool:
+  # Minimal lineage equivalence: compare resolved files
+  r = host.read_json(bundle_dir + "/parameter_hash_resolved.json")
+  s = host.read_json(bundle_dir + "/manifest_fingerprint_resolved.json")
+  return (r.parameter_hash == lineage.parameter_hash) and (s.manifest_fingerprint == lineage.fingerprint)
+
+function valid_failure_shape(payload:object) -> bool:
+  return (("failure_class" in payload) and ("failure_code" in payload) and ("detail" in payload))
+
+# Minimal wrappers to align with L0 encoders/hashes used in V3
+function hex64_to_raw32(hex64:string) -> bytes[32]:
+  # parse 64 hex chars into 32 raw bytes
+  return hex_to_bytes(hex64)
+
+function enc_u64_le(x:u64) -> bytes[8]:
+  return u64_to_le_bytes(x)
 ```
