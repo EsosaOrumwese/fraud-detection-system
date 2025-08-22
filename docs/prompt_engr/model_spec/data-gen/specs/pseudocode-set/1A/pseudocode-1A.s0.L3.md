@@ -16,7 +16,7 @@
 ## Scope (what L3 covers for S0)
 
 * Lineage re-derivation (𝓟 → `parameter_hash`; 𝓐 + `git32` + `param_b32` → `manifest_fingerprint`).
-* Numeric attestation presence & **pass** status; confirms **numeric\_policy.json** and **math\_profile\_manifest.json** are in the fingerprint artefact set.
+* Numeric attestation presence & **pass** status; confirms **numeric_policy.json** and **math_profile_manifest.json** are in the fingerprint artefact set.
 * RNG **audit-only** invariant for S0 and master-material match to audit row (`philox2x64-10`).
 * Partition lineage ≡ row lineage for parameter-scoped outputs (`crossborder_eligibility_flags`, optional `hurdle_pi_probs`).
 * Validation bundle integrity (`_passed.flag` hash, atomic publish) and abort semantics (if present).
@@ -40,29 +40,29 @@ L3 validators read **bytes on disk** (no producer state) and only the artefacts 
 
 **Lineage & artefact inputs**
 
-* **Governed parameter bundle 𝓟**: the exact files enumerated (ASCII/unique basenames) for S0.2; used to recompute `parameter_hash`. L2’s host shim `list_parameter_files()` is the authority for this set.&#x20;
+* **Governed parameter bundle 𝓟**: the exact files enumerated (ASCII/unique basenames) for S0.2; used to recompute `parameter_hash`. L2’s host shim `list_parameter_files()` is the authority for this set.
 * **Opened artefacts 𝓐 snapshot** (from S0.1, as consumed by S0.2): includes `numeric_policy.json`, `math_profile_manifest.json`, ISO set, GDP vintage, Jenks-5 buckets, schema/dictionary/registry anchors. L3 uses the bundle’s **fingerprint artefact list** (rows S0.2 emitted) to know *exactly* which basenames/paths to re-open and hash.
-* **Raw git commit bytes (`git32`)**: 32 **raw** bytes echoed in the bundle; used in fingerprint recomputation.&#x20;
+* **Raw git commit bytes (`git32`)**: 32 **raw** bytes echoed in the bundle; used in fingerprint recomputation.
 * **Resolved lineage files** written by S0.2:
-  `parameter_hash_resolved.json`, `manifest_fingerprint_resolved.json`, and the tabulations of parameter and artefact digests for cross-check.&#x20;
+  `parameter_hash_resolved.json`, `manifest_fingerprint_resolved.json`, and the tabulations of parameter and artefact digests for cross-check.
 
 **Numeric policy inputs**
 
-* **numeric\_policy\_attest.json** produced by S0.8 (RNE, FMA-off, FTZ/DAZ-off, pinned libm profile result + self-tests). L3 verifies presence + fields and that these files were in 𝓐 before S0.2 (via the artefact list).&#x20;
+* **numeric_policy_attest.json** produced by S0.8 (RNE, FMA-off, FTZ/DAZ-off, pinned libm profile result + self-tests). L3 verifies presence + fields and that these files were in 𝓐 before S0.2 (via the artefact list).
 
 **RNG logs (S0 emits audit only)**
 
-* **RNG audit log** under `{seed, parameter_hash, run_id}` with master key/counter & metadata. L3 asserts it exists and precedes *any* events. (S0 emits **no** RNG events; L3 also confirms absence of event files for S0.)&#x20;
-* **RNG trace log** (if present for the run-id scope): L3 reconciles `blocks_total` with any envelope rows; for S0 it should reflect **audit-only** behavior.&#x20;
+* **RNG audit log** under `{seed, parameter_hash, run_id}` with master key/counter & metadata. L3 asserts it exists and precedes *any* events. (S0 emits **no** RNG events; L3 also confirms absence of event files for S0.)
+* **RNG trace log** (if present for the run-id scope): L3 reconciles `blocks_total` with any envelope rows; for S0 it should reflect **audit-only** behavior.
 
 **Parameter-scoped outputs from S0**
 
-* **`crossborder_eligibility_flags`** (required): rows embed the exact `parameter_hash` equal to the partition key.&#x20;
-* **`hurdle_pi_probs`** (optional, only if `emit_hurdle_pi_cache=true`): same parameter-scoped partition/embedding rules.&#x20;
+* **`crossborder_eligibility_flags`** (required): rows embed the exact `parameter_hash` equal to the partition key.
+* **`hurdle_pi_probs`** (optional, only if `emit_hurdle_pi_cache=true`): same parameter-scoped partition/embedding rules.
 
 **Validation bundle (fingerprint-scoped)**
 
-* The full bundle under `fingerprint={manifest_fingerprint}` containing: lineage `_resolved` files, artefact/parameter digest tables, `numeric_policy_attest.json`, RNG audit/trace copies (if mirrored there), and **`_passed.flag`** whose hash covers the ASCII-sorted bytes of all other bundle files.&#x20;
+* The full bundle under `fingerprint={manifest_fingerprint}` containing: lineage `_resolved` files, artefact/parameter digest tables, `numeric_policy_attest.json`, RNG audit/trace copies (if mirrored there), and **`_passed.flag`** whose hash covers the ASCII-sorted bytes of all other bundle files.
 
 **Host-provided byte shims (read-only)**
 
@@ -71,7 +71,7 @@ L3 validators read **bytes on disk** (no producer state) and only the artefacts 
 
 **Explicit non-inputs (to prevent drift)**
 
-* No late-opened governance files (anything not in 𝓐 at S0.2) and no environment/config knobs beyond what S0 already recorded. L3 must *not* introduce new reads that would mutate 𝓐.&#x20;
+* No late-opened governance files (anything not in 𝓐 at S0.2) and no environment/config knobs beyond what S0 already recorded. L3 must *not* introduce new reads that would mutate 𝓐.
 
 ---
 
@@ -81,7 +81,7 @@ L3 produces **no new business artefacts**. Its job is to verify, from bytes, tha
 
 ## Success (optional)
 
-* **`validator_passed.json`** *(optional convenience file inside the fingerprint-scoped validation dir)* containing: recomputed `parameter_hash` and `manifest_fingerprint`, counts of parameters and artefacts, and a short “pass” verdict. Not part of any partition key; if present, it **must** be included in the `_passed.flag` hash like every other bundle file.&#x20;
+* **`validator_passed.json`** *(optional convenience file inside the fingerprint-scoped validation dir)* containing: recomputed `parameter_hash` and `manifest_fingerprint`, counts of parameters and artefacts, and a short “pass” verdict. Not part of any partition key; if present, it **must** be included in the `_passed.flag` hash like every other bundle file.
 
 > Note: The authoritative success signal remains the existing `_passed.flag` computed over the **ASCII-sorted** raw bytes of all other bundle files; L3 only verifies it.
 
@@ -94,7 +94,7 @@ When any check fails, L3 must emit **one** S0.9 failure record under the run’s
   * `failure_class` ∈ {F1…F10},
   * a precise `failure_code` (e.g., `lineage_mismatch`, `numeric_attest_fail`, `rng_audit_missing`, `partition_mismatch`, `gate_hash_mismatch`, `non_atomic_publish`),
   * typed `detail` payload (expected vs observed digests, paths, counters).
-    Any subsequent S0.10 publish must **not** exist for an aborted run. Violations are atomicity errors.&#x20;
+    Any subsequent S0.10 publish must **not** exist for an aborted run. Violations are atomicity errors.
 
 ## Scope & partitions L3 validates (no new writes)
 
@@ -108,7 +108,7 @@ L3 **verifies** the following persisted outputs; it does **not** create them:
 
 ## Explicit non-outputs
 
-* L3 **must not** emit RNG events, modify parameter-scoped datasets, or republish the bundle. It is a read-only checker. The only files it may add are the single failure record (on error) or the optional `validator_passed.json` (on success), both of which—if present—participate in `_passed.flag` hashing rules.&#x20;
+* L3 **must not** emit RNG events, modify parameter-scoped datasets, or republish the bundle. It is a read-only checker. The only files it may add are the single failure record (on error) or the optional `validator_passed.json` (on success), both of which—if present—participate in `_passed.flag` hashing rules.
 
 This matches your L0/L1/L2 contracts: bundle contents and `_passed.flag` rules (S0.10), partition scopes (S0.10.3), audit-only RNG in S0 (S0.3/L2), and the S0.9 failure taxonomy and placement.
 
@@ -117,24 +117,24 @@ This matches your L0/L1/L2 contracts: bundle contents and `_passed.flag` rules (
 # 3) Execution order (validator run plan)
 
 **V1 — Lineage recompute first.**
-Recompute `parameter_hash` from the governed parameter set using the tuple-hash (ASCII‐sorted basenames; name included in the tuple), and compare to `parameter_hash_resolved.json`. Then recompute `manifest_fingerprint` from the **opened artefacts set** + `git32` + `parameter_hash_bytes`, and compare to `manifest_fingerprint_resolved.json`. Any mismatch ⇒ fail (F2).&#x20;
+Recompute `parameter_hash` from the governed parameter set using the tuple-hash (ASCII‐sorted basenames; name included in the tuple), and compare to `parameter_hash_resolved.json`. Then recompute `manifest_fingerprint` from the **opened artefacts set** + `git32` + `parameter_hash_bytes`, and compare to `manifest_fingerprint_resolved.json`. Any mismatch ⇒ fail (F2).
 
 **V2 — Numeric attestation must be valid.**
-Read `numeric_policy_attest.json` from the bundle and require: RNE rounding, FMA-off, FTZ/DAZ-off, pinned libm profile (incl. `lgamma`), and self-tests = “pass”. If absent or failing ⇒ fail (F7).&#x20;
+Read `numeric_policy_attest.json` from the bundle and require: RNE rounding, FMA-off, FTZ/DAZ-off, pinned libm profile (incl. `lgamma`), and self-tests = “pass”. If absent or failing ⇒ fail (F7).
 
 **V3 — RNG audit presence, and *only* audit in S0.**
-Check the RNG **audit** JSONL exists under `{seed, parameter_hash, run_id}` and was written after S0.2; **assert zero RNG events** exist for S0 (no envelopes with `{before, after, blocks, draws}`), and that counters never advanced. If any event exists ⇒ fail (F4a/F4d). &#x20;
+Check the RNG **audit** JSONL exists under `{seed, parameter_hash, run_id}` and was written after S0.2; **assert zero RNG events** exist for S0 (no envelopes with `{before, after, blocks, draws}`), and that counters never advanced. If any event exists ⇒ fail (F4a/F4d). 
 
 **V4 — Partition scope & embedding.**
-For each parameter-scoped dataset produced in S0 (e.g., `crossborder_eligibility_flags`, optional `hurdle_pi_probs`), verify the path key `parameter_hash=…` equals the **embedded** `parameter_hash` in every row. RNG audit rows must embed `{seed, parameter_hash, run_id}`; the validation bundle must be under `fingerprint={manifest_fingerprint}` and embed that fingerprint. Any mismatch ⇒ fail (F5/F10).&#x20;
+For each parameter-scoped dataset produced in S0 (e.g., `crossborder_eligibility_flags`, optional `hurdle_pi_probs`), verify the path key `parameter_hash=…` equals the **embedded** `parameter_hash` in every row. RNG audit rows must embed `{seed, parameter_hash, run_id}`; the validation bundle must be under `fingerprint={manifest_fingerprint}` and embed that fingerprint. Any mismatch ⇒ fail (F5/F10).
 
 **V5 — Validation gate & atomic publish.**
-Recompute `_passed.flag`: list bundle files in **bytewise ASCII** order, concatenate the raw bytes of **all except** `_passed.flag`, SHA-256 the concatenation; flag content must match. Also ensure publish was atomic (no temp files visible in final path). Otherwise ⇒ fail (F10).&#x20;
+Recompute `_passed.flag`: list bundle files in **bytewise ASCII** order, concatenate the raw bytes of **all except** `_passed.flag`, SHA-256 the concatenation; flag content must match. Also ensure publish was atomic (no temp files visible in final path). Otherwise ⇒ fail (F10).
 
 **V6 — Final verdict.**
-If V1–V5 pass, emit a single success verdict (optionally `validator_passed.json`). On first failure, write one S0.9 failure record (typed class/code) and stop (idempotent).&#x20;
+If V1–V5 pass, emit a single success verdict (optionally `validator_passed.json`). On first failure, write one S0.9 failure record (typed class/code) and stop (idempotent).
 
-> Rationale for this order: lineage proves we’re validating the right bytes; numeric policy gates determinism **before** any RNG stage; S0 is **audit-only** for RNG; partition rules are enforced per dictionary; and the bundle is accepted only via the hash gate + atomic publish contract. &#x20;
+> Rationale for this order: lineage proves we’re validating the right bytes; numeric policy gates determinism **before** any RNG stage; S0 is **audit-only** for RNG; partition rules are enforced per dictionary; and the bundle is accepted only via the hash gate + atomic publish contract. 
 
 ---
 
@@ -159,9 +159,9 @@ Here’s **Section 4 — Validator routines**, written as **code-agnostic pseudo
 **Uses L0:** `all_ascii_unique_basenames`, `sha256_stream`, `UER/LE64`, `compute_parameter_hash`, `compute_manifest_fingerprint`.
 
 ```text
-function V1_recompute_lineage_and_compare(bundle_dir, parameter_dir):
+function V1_recompute_lineage_and_compare(bundle_dir, parameters_root):
   # 1) Recompute parameter_hash from governed parameter bundle 𝓟
-  P_files = discover_parameter_files(parameter_dir)               # same enumeration rules as S0.2
+  P_files = discover_parameter_files(parameters_root)               # same enumeration rules as S0.2
   if not all_ascii_unique_basenames(P_files): 
       return abort_run(F2, "basenames_invalid_or_duplicate", {where:"parameters"})
 
@@ -189,7 +189,7 @@ function V1_recompute_lineage_and_compare(bundle_dir, parameter_dir):
       return abort_run(F2, "manifest_fingerprint_mismatch",
                        {expected:fp_hex, found:mf_resolved.manifest_fingerprint})
 
-  return ok
+  return ok, { param_hash_hex, param_hash_bytes, fp_hex, fp_bytes }
 ```
 
 **Notes:**
@@ -220,7 +220,7 @@ function V2_verify_numeric_attestation(bundle_dir, artifact_list_rows):
   if not artifact_list_contains(artifact_list_rows, "math_profile_manifest.json"):
       return abort_run(F2, "fingerprint_inputs_incomplete", {missing:"math_profile_manifest.json"})
 
-  return ok
+  return ok, { param_hash_hex, param_hash_bytes, fp_hex, fp_bytes }
 ```
 
 ---
@@ -238,6 +238,8 @@ function V3_check_rng_audit_invariant(log_root, seed, parameter_hash, run_id, ma
   audit_files = host.list_files(lineage_path)
   if count_jsonl(audit_files) != 1:
       return abort_run(F4a, "rng_audit_missing_or_multiple", {path:lineage_path, count:count_jsonl(audit_files)})
+  if count_lines(audit_files[0]) != 1:
+      return abort_run(F4a, "rng_audit_row_count", {path:audit_files[0], count:count_lines(audit_files[0])})
 
   # S0 must be audit-only: assert absence of RNG event envelopes for this lineage
   events_glob = log_root + "/logs/rng/events/seed=" + seed +
@@ -264,7 +266,7 @@ function V3_check_rng_audit_invariant(log_root, seed, parameter_hash, run_id, ma
       return abort_run(F4a, "rng_audit_lineage_embed_mismatch",
                        {path:{seed,parameter_hash,run_id}, embedded:{audit_row.seed,audit_row.parameter_hash,audit_row.run_id}})
 
-  return ok
+  return ok, { param_hash_hex, param_hash_bytes, fp_hex, fp_bytes }
 ```
 
 ---
@@ -307,7 +309,7 @@ function V4_lint_partitions_and_schema(dictionary, registry, parameter_hash, dat
               return abort_run(F6, "schema_reference_not_json_schema",
                                {dataset:ds, schema_ref:ref})
 
-  return ok
+  return ok, { param_hash_hex, param_hash_bytes, fp_hex, fp_bytes }
 ```
 
 *Implementation notes:*
@@ -342,11 +344,12 @@ function V5_verify_gate_hash_and_publish(bundle_dir):
       return abort_run(F10, "gate_hash_mismatch",
                        {expected:expected_hex, found:extract_hash(flag_text)})
 
-  # 2) Atomic publish sanity — no temp files visible in final dir
-  if any(name_has_tmp_suffix(f) for f in files):
-      return abort_run(F10, "non_atomic_publish_detected", {dir:bundle_dir, tmp_files:filter_tmp(files)})
-
-  return ok
+  # 2) Atomic publish via manifest: no extras beyond MANIFEST.json and _passed.flag
+  manifest = host.read_json(join(bundle_dir, "MANIFEST.json"))
+  expected = set(manifest.files) ∪ {"_passed.flag"}
+  if set(files) != expected:
+      return abort_run(F10, "bundle_contains_unexpected_files", {expected:expected, found:set(files)})
+return ok, { param_hash_hex, param_hash_bytes, fp_hex, fp_bytes }
 ```
 
 *Notes:*
@@ -383,7 +386,7 @@ function V6_check_abort_semantics(root, fingerprint, seed, parameter_hash, run_i
       if not valid_failure_shape(payload):
           return abort_run(F9, "invalid_failure_payload", {file:failure_files[0]})
 
-  return ok
+  return ok, { param_hash_hex, param_hash_bytes, fp_hex, fp_bytes }
 ```
 
 *Notes:*
@@ -456,7 +459,7 @@ Below is the **single** entrypoint that runs all validators in the only allowed 
 #   - Never emits RNG events or draws.
 #   - Never adds to artefact set 𝓐; only re-opens what S0 already recorded.
 
-function validate_S0(validation_root, data_root, log_root,
+function validate_S0(validation_root, data_root, log_root, parameters_root,
                      seed:u64, parameter_hash:hex64,
                      manifest_fingerprint:hex64, run_id:hex32):
 
@@ -467,7 +470,7 @@ function validate_S0(validation_root, data_root, log_root,
   # V1 — Lineage recomputation
   # ---------------------------
   # Recompute parameter_hash and manifest_fingerprint from bytes and compare to *_resolved.json
-  ok1 = V1_recompute_lineage_and_compare(bundle_dir, /*parameter_dir not needed if artefact lists include it*/ null)
+  ok1, v1 = V1_recompute_lineage_and_compare(bundle_dir, parameters_root)
   if ok1 != ok: return fail_once_and_stop()   # V1 already called abort_run(F2, ...)
 
   # Load artefact list rows once; many checks reuse it
@@ -476,8 +479,8 @@ function validate_S0(validation_root, data_root, log_root,
 
   # Get fingerprint bytes for RNG master-material recomputation
   mf_resolved = host.read_json(join(bundle_dir, "manifest_fingerprint_resolved.json"))
-  mf_hex   = mf_resolved.manifest_fingerprint
-  mf_bytes = hex64_to_bytes(mf_hex)                           # L0 helper; exact 32-byte array
+  mf_hex = mf_resolved.manifest_fingerprint
+  mf_bytes = v1.fp_bytes                           # L0 helper; exact 32-byte array
 
   # --------------------------------
   # V2 — Numeric attestation (gate)
@@ -828,3 +831,14 @@ To keep L3 deterministic, spec-true, and guess-free, **do not** do any of the fo
 Sticking to these “don’ts” keeps L3 lean, reproducible, and perfectly aligned with the frozen S0 spec and your L0/L1/L2 truths.
 
 ---
+
+# Appendix — Local adapters used by L3 (pure, no new logic)
+
+- `discover_parameter_files(root)` → use `host.list_files(root)` and filter per governed rules logged by S0.2 (ASCII basenames, uniqueness).
+- `read_artifact_list(path)` → parse JSONL rows into `{basename, path, hash}` records.
+- `materialize_artifacts_bytes(rows)` → for each row, call `host.read_bytes(row.path)` and return list of `{basename, bytes}`; preserve basenames.
+- `read_git32_from_bundle(bundle_dir)` → read raw 32-byte commit from the bundle context file S0.10 emitted.
+- `read_single_jsonl(path)` → ensure exactly one line; strict-parse JSON and return the object.
+- `count_jsonl(files)` → number of JSONL files in the list; `count_lines(path)` → exact line count in file.
+- `bundle_manifest_list(bundle_dir)` → `host.read_json(join(bundle_dir,"MANIFEST.json")).files`.
+- `load_dictionary_and_registry_from_artifacts(rows)` → locate dictionary/registry in 𝓐 and `host.read_json(...)`; pure lookups.
