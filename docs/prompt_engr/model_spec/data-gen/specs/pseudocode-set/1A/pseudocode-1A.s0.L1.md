@@ -234,7 +234,7 @@ function compute_parameter_hash(P_files):
   **Failure:** `E_ARTIFACT_EMPTY`, `E_ARTIFACT_NONASCII_NAME`, `E_ARTIFACT_DUP_BASENAME`, `E_GIT_BYTES`, `E_PARAM_HASH_ABSENT`, `E_ARTIFACT_IO`, `E_ARTIFACT_RACE`.
 
 ```text
-function compute_manifest_fingerprint(artifacts, git32, param_b32, parameter_hash_hex):
+function compute_manifest_fingerprint(artifacts, git32, param_b32):
   assert len(artifacts) >= 1, "E_ARTIFACT_EMPTY"
   assert len(git32) == 32,   "E_GIT_BYTES"
   assert len(param_b32) == 32, "E_PARAM_HASH_ABSENT"
@@ -257,7 +257,7 @@ function compute_manifest_fingerprint(artifacts, git32, param_b32, parameter_has
     manifest_fingerprint: Fx,
     artifact_count: len(arts),
     git_commit_hex: hex64(git32),
-    parameter_hash: parameter_hash_hex
+    parameter_hash: hex64(param_b32)
   }
   return (Fx, Fb, mf_resolved, fa_rows)
 ```
