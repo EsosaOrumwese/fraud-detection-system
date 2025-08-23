@@ -550,7 +550,7 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.rng.audit
         license: "{spdx_or_internal}"
-        role: Structured record of every RNG draw (event, counter, params).
+        role: Run-scoped audit row emitted before any RNG event (seed, context, optional key/counter).
         dependencies: [ philox_master_counter, rng_audit_schema ]
         source: internal
         owner: { platform_team }
@@ -1321,6 +1321,47 @@ subsegments:
         source: internal
         owner: { legal_team }
         environment: [ ci, runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      # ---------------------------
+      # GOVERNANCE (NUMERIC/MATH)
+      # ---------------------------
+      - name: numeric_policy_profile
+        path: reference/governance/numeric_policy/{version}/numeric_policy.json
+        type: reference
+        category: governance
+        semver: "{semver}"
+        version: "{version}"
+        digest: "{sha256}"
+        manifest_key: mlr.gov.numeric_policy_profile
+        license: "{spdx_or_internal}"
+        role: Pinned numeric environment policy (RNE, FMA off, FTZ/DAZ off, subnormals preserved). Included in manifest_fingerprint as an opened artefact.
+        dependencies: [ ]
+        source: internal
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      - name: math_profile_manifest
+        path: reference/governance/math_profile/{version}/math_profile_manifest.json
+        type: reference
+        category: governance
+        semver: "{semver}"
+        version: "{version}"
+        digest: "{sha256}"
+        manifest_key: mlr.gov.math_profile_manifest
+        license: "{spdx_or_internal}"
+        role: Pinned deterministic libm profile (function set + expected signatures). Included in manifest_fingerprint as an opened artefact.
+        dependencies: [ ]
+        source: internal
+        owner: { data_governance_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
         schema: null
         cross_layer: true
         notes: null
