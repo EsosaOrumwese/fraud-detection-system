@@ -296,3 +296,95 @@ rng:
             max_seq:         { type: integer, const: 999999, description: "6-digit ceiling." }
             overflow_by:     { type: integer, minimum: 1 }
             severity:        { type: string, enum: ["ERROR"], description: "Hard guardrail triggers abort." }
+
+
+governance:
+  numeric_policy_profile:
+    type: object
+    required: [rounding, fma, ftz_daz, subnormals]
+    properties:
+      rounding: { type: string, enum: ["RNE"] }
+      fma: { type: string, enum: ["off"] }
+      ftz_daz: { type: string, enum: ["off"] }
+      subnormals: { type: string, enum: ["preserved"] }
+      notes: { type: string, nullable: true }
+  math_profile_manifest:
+    type: object
+    required: [math_profile_id, vendor, version, functions]
+    properties:
+      math_profile_id: { type: string }
+      vendor: { type: string }
+      version: { type: string }
+      functions:
+        type: array
+        items: { type: string }
+      checksum:
+        type: string
+        pattern: "^[0-9a-f]{64}$"
+
+
+validation:
+  numeric_policy_attest:
+    type: object
+    required: [passed, rounding_ok, fma_off_ok, subnormals_ok, libm_regression_ok, neumaier_ok, total_order_ok, math_profile_id, profile_functions]
+    properties:
+      passed: { type: boolean }
+      rounding_ok: { type: boolean }
+      fma_off_ok: { type: boolean }
+      subnormals_ok: { type: boolean }
+      libm_regression_ok: { type: boolean }
+      neumaier_ok: { type: boolean }
+      total_order_ok: { type: boolean }
+      math_profile_id: { type: string }
+      profile_functions:
+        type: array
+        items: { type: string }
+  parameter_hash_resolved:
+    type: object
+    required: [parameter_hash, artifact_count]
+    properties:
+      parameter_hash:
+        type: string
+        pattern: "^[0-9a-f]{64}$"
+      artifact_count:
+        type: integer
+        minimum: 0
+      details:
+        type: array
+        items: { type: object }
+  manifest_fingerprint_resolved:
+    type: object
+    required: [manifest_fingerprint, artifact_count, git_commit_hex, parameter_hash]
+    properties:
+      manifest_fingerprint:
+        type: string
+        pattern: "^[0-9a-f]{64}$"
+      artifact_count:
+        type: integer
+        minimum: 0
+      git_commit_hex:
+        type: string
+        pattern: "^[0-9a-f]{64}$"
+      parameter_hash:
+        type: string
+        pattern: "^[0-9a-f]{64}$"
+  fingerprint_artifacts:
+    type: object
+    required: [path, sha256, size_bytes]
+    properties:
+      path: { type: string }
+      sha256:
+        type: string
+        pattern: "^[0-9a-f]{64}$"
+      size_bytes:
+        type: integer
+        minimum: 0
+  run_environ:
+    type: object
+    properties:
+      hostname: { type: string }
+      platform: { type: string }
+      build_commit: { type: string }
+      code_digest:
+        type: string
+        pattern: "^[0-9a-f]{64}$"

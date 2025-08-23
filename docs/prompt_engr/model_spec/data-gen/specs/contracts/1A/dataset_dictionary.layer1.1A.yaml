@@ -403,7 +403,7 @@ datasets:
     owner_subsegment: "1A"
     description: "Validator outputs for 1A (metrics, plots, diffs)."
     version: "{manifest_fingerprint}"
-    format: "zip"
+    format: "folder"
     path: "data/layer1/1A/validation/fingerprint={manifest_fingerprint}/"
     partitioning: ["fingerprint"]
     ordering: []
@@ -438,7 +438,7 @@ datasets:
   - id: "rng_trace_log"
     status: "approved"
     owner_subsegment: "1A"
-    description: "Structured per-module RNG trace for reproducibility and forensics."
+    description: "Structured per-module RNG trace for reproducibility and forensics (draws = uniforms consumed per step; blocks reconciled via before/after counters)"
     version: "{run_id}"
     format: "jsonl"
     path: "logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl"
@@ -672,8 +672,23 @@ datasets:
 # ── Governance / integrity ────────────────────────────────────────────────
 integrity:
   bundled_schema_sha256: null
-  dataset_count: 33
+  dataset_count: 35
 
 open_questions: []
 
 waivers: []
+
+
+# S0 validation bundle required members (doc note):
+# - MANIFEST.json
+# - parameter_hash_resolved.json
+# - manifest_fingerprint_resolved.json
+# - fingerprint_artifacts.jsonl
+# - param_digest_log.jsonl
+# - numeric_policy_attest.json
+# - run_environ.json
+# - _passed.flag
+
+
+# RNG trace log clarification (doc only):
+# 'draws' represent uniforms consumed during the traced step; counters (before/after) reconcile blocks independently.
