@@ -1,0 +1,108 @@
+Here’s the TTS-friendly rendering of **S0.3.4 through S0.3.8**, with formulas explained out loud and reasoning woven in for smooth spoken flow.
+
+---
+
+Section S0 point 3.4. Uniforms on the open interval from zero to one.
+
+The rule is: map a sixty-four bit unsigned integer x into a double precision value strictly between zero and one. Never equal to zero point zero, never equal to one point zero.
+
+The formula is: take x plus one, multiply by two to the power negative sixty-four. In hexadecimal constant form, that multiplier is “zero x one point followed by thirteen zeroes p minus sixty-four.”
+
+If the computed u happens to equal one point zero in floating point, then reset it to the largest representable double smaller than one. That value is “zero x one point ffffffff ffffff p minus one,” which is one minus two to the power negative fifty-three.
+
+This mapping must be implemented exactly as written. Computing one divided by two to the sixty-four plus one at runtime, or using decimal literals, is forbidden.
+
+---
+
+Section S0 point 3.5. Standard normal Z from the Normal distribution with mean zero and variance one. This uses the Box–Muller transform, with no caching.
+
+Constants. Tau is defined as two pi, but expressed as the exact binary64 constant “zero x one point nine two one f b five four four four two d one eight p plus two.” Computing two times pi at runtime is forbidden, to avoid drift in the math library.
+
+To sample one normal Z:
+
+Step one. Draw a single Philox block, which yields two sixty-four bit words, x zero and x one.
+Step two. Map them into uniforms on zero to one: u one equals u zero one of x zero, u two equals u zero one of x one.
+Step three. Compute r equals the square root of minus two times the natural logarithm of u one. Compute theta equals Tau times u two. Finally set Z equals r times cosine of theta.
+
+Budget and rules. Each normal requires exactly two uniforms, that is, one block. There is no caching: discard the companion normal r times sine of theta. The event envelope must record blocks equals one and draws equals two.
+
+Numeric policy: use binary64, round to nearest ties to even, fused multiply add disabled, flush to zero disabled. Evaluate in the order written, per state S0 point 8.
+
+---
+
+Section S0 point 3.6. Gamma distribution with shape parameter alpha and scale one, using Marsaglia–Tsang. Budgets reflect exact actual use, no dummy draws.
+
+Clarification for case B, alpha less than one. In that boosting method, we sample G prime from Gamma of alpha plus one, then we use one additional uniform for U. There are no dummy or padding draws. The envelope’s draws field must reflect the exact actual use.
+
+Case A. Alpha greater than or equal to one. Let d equal alpha minus one third. Let c equal one divided by the square root of nine d.
+
+Repeat the following steps.
+One. Draw one standard normal N by Box–Muller. That costs two uniforms and one block.
+Two. Compute v equals one plus c times N, cubed. If v is less than or equal to zero, reject and go back to step one. No extra uniforms are consumed in that branch.
+Three. Draw one uniform U. That costs one more uniform.
+Four. Accept if the natural log of U is less than one half N squared plus d minus d v plus d times log v. If rejected, go back to step one.
+
+On acceptance, return G equals d times v.
+
+Budget per accepted sample: two A plus B uniforms, where A is the number of attempts, and B is the number of step two passes, one of which is on the accepted attempt. There is no fixed multiple. The envelope’s draws field records the exact count.
+
+Case B. Alpha strictly between zero and one. Boosting.
+Step one. Sample G prime from Gamma of alpha plus one, using Case A with its own budget accounting.
+Step two. Draw a uniform U. Add one to the draws count.
+Step three. Set G equals G prime times U to the power one over alpha. That last operation is pure arithmetic, no additional randomness.
+
+Budget per accepted sample: the draws used for G prime plus one. Again, no dummy or padding draws.
+
+Dirichlet vectors. For a shape vector alpha one through alpha K, draw independent Gamma components with the kernel above and normalise. The total budget is the sum of component budgets. There is no “multiple of three K” rule. The envelope’s draws field must equal that sum.
+
+---
+
+Section S0 point 3.7. Poisson distribution with rate lambda, and zero-truncated Poisson scaffolding.
+
+There are two regimes, split by a threshold lambda star equal to ten. This is a fixed specification constant. It is not configurable. Changing it would require a spec revision and would flip the manifest fingerprint defined earlier in state S0 point 2.3.
+
+First regime. Small lambda, less than ten. Inversion method. Draw uniforms u one, u two, and so on, and iterate the standard product until it falls below e to the minus lambda.
+
+The budget here is variable, approximately N plus one uniforms. You must log the exact count in the draws field.
+
+Second regime. Moderate or large lambda greater or equal to ten. PTRS, a Hörmann-class rejection method.
+
+Each attempt consumes two uniforms, drawn as u and v, from one Philox block, using the lane policy.
+
+Constants are as follows.
+b equals zero point nine three one plus two point five three times square root of lambda.
+a equals minus zero point zero five nine plus zero point zero two four eight three times b.
+inv alpha equals one point one two three nine plus one point one three two eight divided by b minus three point four.
+v r equals zero point nine two seven seven minus three point six two two four divided by b minus two.
+u cut equals zero point eight six.
+
+Attempt loop.
+One. Draw u and v.
+Two. If u is less than or equal to u cut and v is less than or equal to v r, then accept k equals floor of b v over u plus lambda plus zero point four three.
+Three. Otherwise, set u s equals zero point five minus the absolute value of u minus zero point five. Form the candidate k equals floor of open paren two a over u s plus b, close paren times v plus lambda plus zero point four three. If k is negative, continue.
+Four. Accept if the natural logarithm of v times inv alpha over open paren a over u s squared plus b, close paren is less than or equal to minus lambda plus k log lambda minus log Gamma of k plus one.
+
+On acceptance return K equals k, otherwise repeat from step one.
+
+Budget. Exactly two uniforms per attempt. Attempts repeat until acceptance. The draws field records the total used. All natural log, square root, and log Gamma calls follow the numeric policy of state S0 point 8.
+
+Zero-truncated Poisson. Handle it by accept reject on the Poisson distribution conditioned on N greater than zero. The draws field includes all uniforms across rejections.
+
+Zero-truncated Poisson event budgets. Each poisson component event with context equal to ztp records the actual sampler consumption via the envelope counters. Events named ztp underscore rejection and ztp underscore retry underscore exhausted are non-consuming: before equals after, blocks equals zero, draws equals zero. There is a hard cap of sixty-four zero outcomes. On exhaustion, emit ztp underscore retry underscore exhausted and branch to state S4. Budgets remain as above.
+
+---
+
+Section S0 point 3.8. Gumbel key from a single uniform.
+
+For candidate ranking:
+Draw one uniform u in zero to one. Compute g equals minus log of minus log of u.
+
+Budget. Exactly one uniform per candidate, using the low lane only.
+
+Tie-break. Sort primarily by g. If there are ties, break by ISO code in ascending ASCII order. If still tied, break by merchant id.
+
+Logging. Write one event of type gumbel underscore key per candidate.
+
+---
+
+That concludes sections S0 point 3.4 through 3.8. The next section, S0 point 3.9, will cover draw budgets, accounting, and invariants.

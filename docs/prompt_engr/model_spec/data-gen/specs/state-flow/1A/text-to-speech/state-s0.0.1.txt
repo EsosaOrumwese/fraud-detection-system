@@ -1,0 +1,92 @@
+State S0 point 1. Universe, symbols, and authority. Normative, fixed.
+
+Purpose and scope.
+This state pins down the canonical universe for subsegment 1A and names the single sources of truth that everything else relies on. In other words, it freezes which merchant rows exist, which reference datasets count as law, and which schemas are authoritative. It does this so that every later state, S0 through S9, is reproducible. No randomness is consumed here.
+
+What S0 point 1 freezes for the run.
+First, the merchant universe, call it script M, drawn from the normalised ingress table named “merchant underscore ids.”
+Second, the immutable reference artefacts: the ISO‑3166 country set, call it script I; the GDP‑per‑capita map, call it G, pinned to the date two‑zero‑two‑five dash zero‑four dash one‑five; and a precomputed Jenks classification with K equals five buckets over GDP, call it B.
+Third, the schema authority: only JSON‑Schema contracts are authoritative—specifically the paths in “schemas dot ingress dot layer1 dot yaml,” “schemas dot 1A dot yaml,” and the shared RNG and event schemas in “schemas dot layer1 dot yaml.” If Avro files exist, they are non‑authoritative for 1A.
+
+A downstream rule that flows from this authority is recorded here: inter‑country order is never encoded inside the egress table named “outlet catalogue.” Any consumer that needs cross‑country order must join to “country underscore set dot rank,” where rank zero is the home country and the foreign countries follow the Gumbel selection order.
+
+Domain symbols: definitions and types.
+
+Merchants, the ingress universe.
+Let script M be the finite set of merchants drawn from the normalised ingress table whose row shape is: open brace merchant id, MCC, channel, home underscore country underscore iso close brace. This table must validate against the JSON‑Schema anchor “schemas dot ingress dot layer1 dot yaml, hash‑slash merchant underscore ids.”
+
+Field domains, which are authoritative and reused throughout 1A.
+Merchant id is an opaque identifier. In storage it is an id sixty‑four integer, per the ingress schema. Whenever 1A needs a sixty‑four bit integer key for randomness substreams or hashing, there is exactly one mapping, and only this mapping is permitted. The algorithm is: merchant underscore u sixty‑four equals LOW sixty‑four of SHA‑two‑fifty‑six of the UTF‑8 bytes of merchant id. LOW sixty‑four means: take bytes twenty‑four through thirty‑one of the thirty‑two‑byte SHA‑two‑fifty‑six digest, interpret those eight bytes as a little‑endian unsigned sixty‑four‑bit integer, and use that value. This mapping never uses string formatting and never uses any alternative digest slicing.
+
+MCC lies in calligraphic K, the set of valid four‑digit merchant category codes. The authority for this domain is exactly the enum in the ingress schema at “hash‑slash merchant underscore ids slash properties slash mcc,” which is an ISO 18245 subset. If an MCC is outside that set, it is rejected at S0 point 1.
+
+Channel lies in calligraphic C, which has two canonical internal symbols: CP for card‑present and CNP for card‑not‑present. The ingress strings are mapped as follows: the string “card underscore present” maps to CP. The string “card underscore not underscore present” maps to CNP. Any other string is a schema violation at S0 point 1.
+
+Home underscore country underscore iso lies in calligraphic I. It must be an ISO‑3166 alpha‑two code in uppercase ASCII. The foreign key to script I is enforced here, not later.
+
+Canonical references, immutable within the run.
+Countries: script I equals the ISO‑3166 alpha‑two list.
+GDP per capita: G maps each ISO code to a strictly positive real number, and the vintage is pinned to two‑zero‑two‑five dash zero‑four dash one‑five. Pinning fixes both the numerical values and the set of covered countries.
+GDP bucket map: B maps each ISO code to an integer from one through five. It is the precomputed Jenks K equals five classification over G. S0 point 4 describes a continuous‑integration‑only rebuild for diagnostics, but for S0 point 1, B is an immutable input.
+
+Derived per‑merchant tuple.
+For each merchant m in script M, define a typed quadruple t of m as: open paren MCC sub m, comma channel sub m in the set left brace CP comma CNP right brace, comma home underscore country underscore iso sub m, comma merchant underscore u sixty‑four sub m close paren. The type of this tuple is calligraphic K cross calligraphic C cross calligraphic I cross the set of all unsigned sixty‑four‑bit integers.
+
+Authority and contracts: single source of truth.
+
+Authoritative schemas for 1A.
+Only JSON‑Schema is the source of truth. All dataset contracts and all RNG event contracts must reference the following JSON Pointer fragments. Ingress uses the anchor “schemas dot ingress dot layer1 dot yaml, hash‑slash merchant underscore ids.” The 1A model, preparation, allocation, and egress schemas are in “schemas dot 1A dot yaml,” for example the anchors “hash‑slash model slash hurdle underscore pi underscore probs,” “hash‑slash prep slash sparse underscore flag,” “hash‑slash alloc slash country underscore set,” and “hash‑slash egress slash outlet underscore catalogue.” Shared RNG events live under “schemas dot layer1 dot yaml, hash‑slash rng slash events slash star.” Avro files with dot a v s c extension are non‑authoritative for 1A and must not be referenced by the registry or the dictionary.
+
+Semantic clarifications that are normative.
+Country underscore set is the only authority for cross‑country order. Its rank column uses zero for home and then follows the foreign order. The egress outlet catalogue does not carry cross‑country order; consumers must join to country underscore set dot rank. Partitioning semantics are also set here and implemented in S0 point 10: parameter‑scoped datasets partition by parameter hash; egress and validation datasets partition by manifest fingerprint.
+
+Run‑time invariants: the frozen context.
+
+S0 point 1 constructs a run context script U and freezes it. U equals the tuple open paren script M, comma script I, comma G, comma B, comma Schema Authority close paren.
+
+The invariants that must hold for the entire run are as follows.
+One. Immutability. The sets script M and script I, the maps G and B, and the authority mapping do not change after S0 point 1 completes. Any later mutation is a hard failure.
+Two. Coverage and domain conformance. For every merchant m in script M, the home country code is a member of script I, and that foreign key is enforced here. The merchant’s MCC is in the authoritative set calligraphic K. The channel string at ingress is either “card underscore present” or “card underscore not underscore present,” and it is mapped deterministically to the internal symbols CP or CNP.
+Three. Determinism. There is no randomness consumed in S0 point 1. All outputs of S0 point 1 are pure functions of the bytes that were loaded and the schemas; S0 point 2 will digest and record those bytes.
+Four. Authority compliance. Every dataset or stream referenced downstream must use the JSON‑Schema anchors listed earlier. Any non‑authoritative reference, such as to an Avro schema, is a policy breach.
+
+Failure semantics: abort codes.
+
+S0 point 1 must abort the run if any of the following occur.
+E underscore ingress underscore schema: the merchant underscore ids table fails validation against the ingress schema anchor.
+E underscore ref underscore missing: any of the canonical references—the ISO list, the GDP vintage, or the GDP bucket map—is missing or unreadable. Note that S0 point 2 separately catches digest mismatches during hashing.
+E underscore authority underscore breach: some dataset or event in the registry or dictionary points to a non‑JSON‑Schema reference for 1A, for example an Avro file.
+E underscore F K underscore home underscore iso: some merchant has a home country ISO code not present in script I.
+E underscore MCC underscore out underscore of underscore domain: some merchant has an MCC not in the authoritative set calligraphic K.
+E underscore channel underscore value: some merchant has an ingress channel value not in the two allowed strings so it cannot map to CP or CNP.
+
+When S0 point 1 aborts, no RNG audit artefacts are written and no parameter or fingerprint artefacts are emitted, because S0 point 2 has not yet run.
+
+Validation hooks: what continuous integration or runtime checks here.
+
+First, the schema check: validate the merchant underscore ids table against the ingress schema before deriving the merchant tuple t of m.
+Second, reference presence and immutability: assert that the ISO set, the GDP vintage two‑zero‑two‑five dash zero‑four dash one‑five, and the bucket map B all load successfully and are cached read‑only for the lifetime of the run.
+Third, authority audit: scan the registry and dictionary to ensure that any 1A dataset uses JSON‑Schema references only and fail the build if a non‑JSON reference is found.
+Fourth, country foreign key pre‑check: ensure that home underscore country underscore iso is in script I for all merchants.
+Fifth, MCC and channel domain checks: ensure that MCC lies in calligraphic K, and that the channel string is one of the two allowed strings and is mapped deterministically to CP or CNP.
+
+Reference routine, language‑agnostic, spoken with reasoning.
+
+Function name: S0 underscore 1 underscore resolve underscore universe underscore and underscore authority. The goal of this routine is to read the facts that define the world, prove they obey the declared schemas, map a few fields into canonical internal symbols, and then freeze those facts into a run context, all without any random draws.
+
+Step one. Load and validate merchants under a strict schema. Read the table called merchant underscore ids. Immediately assert that the table conforms to the JSON‑Schema at “schemas dot ingress dot layer1 dot yaml, anchor merchant underscore ids.” If it fails, raise the error E underscore ingress underscore schema.
+
+Step two. Load the canonical references as read‑only data for this run. Load script I, the set of ISO‑3166 alpha‑two country codes. Load G, the GDP per capita map, with the vintage date exactly equal to two‑zero‑two‑five dash zero‑four dash one‑five. Load B, the Jenks K equals five bucket map over that same GDP vintage; this is a precomputed artefact. If any of these are missing or unreadable, that corresponds to E underscore ref underscore missing, which is fatal for S0 point 1.
+
+Step three. Perform a pre‑flight authority check: JSON‑Schema only. Assert that all dataset and event references used by 1A in the registry and the dictionary point to JSON‑Schema anchors. If any instead point to a non‑JSON source of truth, such as an Avro schema, raise E underscore authority underscore breach. Also check that the dictionary’s notes explicitly include the rule that cross‑country order must come from country underscore set dot rank, so that downstream consumers do not try to infer order from outlet catalogue.
+
+Step four. Enforce domain rules and perform mappings; still no randomness. Iterate through each row in the merchant table. For each row, read the home country ISO code, the MCC, and the channel string. Assert the ISO code is a member of the set script I; otherwise raise E underscore F K underscore home underscore iso. Assert the MCC is in the allowed domain calligraphic K; otherwise raise E underscore MCC underscore out underscore of underscore domain. For the channel, map the string “card underscore present” to the internal symbol CP, map the string “card underscore not underscore present” to CNP, and if the string is any other value, abort with E underscore channel underscore value. Finally, compute the canonical sixty‑four‑bit merchant key: take the UTF‑8 bytes of the merchant id string; compute the SHA‑two‑fifty‑six digest; take bytes twenty‑four through thirty‑one of that digest; interpret those eight bytes as a little‑endian unsigned sixty‑four‑bit integer; and store that as merchant underscore u sixty‑four. This exact mapping is the only allowed mapping for all downstream randomness substreams or any place that needs a merchant key.
+
+Step five. Freeze the run context. Assemble U as a record containing M, I, G, B, and a marker that the authority is JSON‑Schema‑only. Return U. Because no random numbers are consumed, U is a pure function of the loaded bytes and the enforced schemas.
+
+Notes for downstream states.
+
+S0 point 2 will hash the bytes loaded in S0 point 1 to derive two lineage keys: the parameter hash and the manifest fingerprint. It will also log provenance. The immutability guarantees in S0 point 1 make those digests stable. All randomness substream keying that requires a merchant sixty‑four‑bit key must use the merchant underscore u sixty‑four defined here; there is no alternate mapping. The eligibility logic in S3 and the persistence of the cross‑country set in S6 rely directly on the country foreign key enforcement and on the channel symbol mapping to CP or CNP, both of which are fixed here.
+
+Closing summary in plain speech.
+S0 point 1 pins down the “who,” the “where,” the “context,” and the “law.” The “who” is the set of merchants and their canonical merchant underscore u sixty‑four keys. The “where” is the set of ISO‑3166 countries. The “context” is the GDP per capita map and the Jenks five‑bucket classification, both tied to the pinned vintage of April fifteenth, twenty twenty‑five. The “law” is that JSON‑Schema anchors are the only authority and that cross‑country order must always come from country underscore set dot rank. This state consumes no randomness, enforces domain validity at the source, and fails fast on any schema, authority, or coverage breach, so that everything downstream rests on a reproducible foundation.
