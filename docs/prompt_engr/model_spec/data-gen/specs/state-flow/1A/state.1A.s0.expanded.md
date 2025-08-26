@@ -2143,7 +2143,7 @@ Any mismatch triggers **S0.9/F5 run-abort**.
 **Naming rule (normative):** Any path segment named `fingerprint={…}` **always** carries the value of `manifest_fingerprint`. The column name is `manifest_fingerprint`; the path label remains `fingerprint=…`.
 
 **RNG logs (normative paths & keys):**
-`rng_audit_log` → `logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/audit.jsonl`
+`rng_audit_log` → `logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl`
 `rng_trace_log` → `logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl`
 `rng_event_*` → `logs/rng/events/{family}/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
 Partitioning for all three: `["seed","parameter_hash","run_id"]`. The dataset dictionary remains authoritative for any additional fields.
