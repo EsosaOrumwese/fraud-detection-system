@@ -1,0 +1,102 @@
+Here’s the **TTS-friendly narration** of the **second half of S0.5**, with all the detail preserved but spoken in a clear flow:
+
+---
+
+Section S0 point 5, continued. Determinism and numeric policy.
+
+No randomness is involved here. Outputs depend only on the frozen dictionaries and the GDP features from state S0 point 4.
+
+All calculations use IEEE-754 double precision, also called binary sixty-four. On any path where ordering matters, such as reductions or normalisations that involve these vectors, the rules are strict. No fused multiply-add, and only serial reductions. Changing these numeric toggles would change the numeric-policy artefact, which in turn changes the manifest fingerprint.
+
+---
+
+Persistence and partitions.
+
+By default, the three design vectors—x sub m, x superscript mu sub m, and x superscript phi sub m—exist only in memory.
+
+If they are materialised:
+The hurdle design matrix is written under the directory keyed by parameter underscore hash, with the schema at “schemas dot 1A dot yaml, anchor model slash hurdle underscore design underscore matrix.”
+
+Optionally, diagnostics can include hurdle pi probabilities under the same parameter hash partition, with schema at anchor model slash hurdle underscore pi underscore probs. These diagnostics are never used by samplers.
+
+Partitioning rule. These caches are parameter-scoped. Rows must embed the same parameter hash as the directory key. They must not embed the manifest fingerprint as a required column.
+
+---
+
+Validation hooks that must pass.
+
+First, column alignment and shapes. The length of the hurdle coefficient vector must equal one plus the size of the MCC dictionary, plus two for channel, plus five for buckets. The negative binomial dispersion coefficient vector must equal one plus the MCC size, plus two, plus one more for the log GDP. The dictionary order used to build the vectors must exactly match the order implied by the coefficient vectors. Any drift is a hard error.
+
+Second, one-hot correctness. Each encoder must emit exactly one entry equal to one.
+
+Third, feature domains. GDP per capita must be greater than zero. Bucket b sub m must be between one and five.
+
+Fourth, the leakage guard, machine-checked. Bucket dummies appear in the hurdle design only. The natural log of g sub c appears in the dispersion design only.
+
+Fifth, partition lint, if persisted. The embedded parameter hash must equal the path key exactly. Otherwise, raise error E partition mismatch.
+
+---
+
+Failure semantics, precise aborts.
+
+Error E design unknown MCC, if an MCC is not found in the fitting dictionary.
+Error E design unknown channel, if the channel symbol is not one of C P or C N P.
+Error E design shape mismatch, if the coefficient vector dimension and the design vector dimension disagree.
+Error E design domain GDP, if the GDP value is less than or equal to zero.
+Error E design domain bucket, if the bucket value is outside one through five.
+Error E partition mismatch, if the embedded parameter hash in a persisted dataset does not match the path key.
+
+---
+
+Reference algorithm, language-agnostic.
+
+Function S0 underscore 5 underscore build underscore designs, with inputs merchants, the dictionaries for MCC, channel, and bucket, the hurdle coefficients, the negative binomial dispersion coefficients, the GDP map G, and the bucket map B.
+
+First, enforce that the channel dictionary equals exactly \[C P, C N P]. If not, raise unknown channel error. Enforce that the bucket dictionary equals exactly \[1,2,3,4,5]. If not, raise a shape mismatch error.
+
+Check expected shapes. The hurdle coefficients must have length equal to one plus MCC dictionary size plus two plus five. The negative binomial dispersion coefficients must have length equal to one plus MCC size plus two plus one.
+
+Now, for each merchant row:
+Read m, the merchant id. Read c, the home country ISO code. Read ch, the channel symbol, which is already C P or C N P from S0 point 1 mapping.
+
+Lookup g as G of c. If g is not greater than zero, raise GDP domain error.
+
+Lookup b as B of c. If b is not in one through five, raise bucket domain error.
+
+Determine the one-hot positions from the frozen dictionaries. Find the index of the merchant’s MCC in the MCC dictionary. If absent, raise unknown MCC error. Find the index of channel in the channel dictionary. Find the index of bucket in the bucket dictionary.
+
+Build the one-hot vectors accordingly. h m c c is the one-hot vector of size MCC count. h c h is the one-hot vector of size two. h dev is the one-hot vector of size five.
+
+Construct the three design vectors.
+x hurdle equals \[1] plus h m c c plus h c h plus h dev.
+x NB mu equals \[1] plus h m c c plus h c h.
+x NB phi equals \[1] plus h m c c plus h c h plus natural log of g.
+
+Enforce the leakage rule structurally. Check that x NB mu length equals one plus MCC size plus two. Check that x NB phi length equals one plus MCC size plus two plus one.
+
+Finally, yield the merchant id and the three design vectors.
+
+---
+
+Complexity and concurrency.
+
+Time complexity is proportional to the number of merchants, with constant work per row.
+Space complexity is streaming: only one merchant at a time is held in memory.
+Parallelism is embarrassingly parallel. Determinism holds because dictionaries and GDP lookups are frozen.
+
+---
+
+Downstream connections.
+
+State S1 consumes the hurdle design x sub m with beta to compute eta and then pi for the Bernoulli hurdle. State 1 also aborts if any design and coefficient mismatch occurs.
+
+State S2 consumes the negative binomial mean and dispersion designs to sample outlet counts. All randomness there follows the event envelope and budget rules pinned in state S0 point 3.
+
+---
+
+Summary.
+State S0 point 5 gives the implementer the exact frozen layout for both hurdle and negative binomial design vectors. It enforces the channel vocabulary, which must be exactly C P and C N P, and it enforces the leakage rule that bucket features appear only in hurdle while log GDP appears only in dispersion. It cleanly separates parameter-scoped persistence from egress lineage. The process is deterministic, leakage-proof, and ready to feed directly into state 1 and state 2.
+
+---
+
+That finishes the TTS-ready version of **S0.5** in two sections. Do you want me to continue with **S0.6** next, in the same chunked narration style?
