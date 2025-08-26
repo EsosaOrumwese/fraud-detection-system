@@ -839,7 +839,7 @@ This section is the go/no-go list for S0. A run is **Done** only if **all** chec
 
 1. **RNG audit (audit-only in S0):**
    One audit row exists under
-   `logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/audit.jsonl`.
+   `logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl`.
    There are **no** RNG *event* files under this lineage scope.
 
 2. **Parameter-scoped datasets:**
