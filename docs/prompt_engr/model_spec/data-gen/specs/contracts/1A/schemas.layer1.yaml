@@ -55,12 +55,17 @@ $defs:
     required: [ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label,
                rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi]
     properties:
-      ts_utc: { type: string, format: date-time, description: "Event timestamp (UTC)." }
+      ts_utc:
+        type: string
+        format: date-time
+        description: "Event timestamp (UTC). MUST be RFC-3339 with 'Z' and EXACTLY 6 fractional digits (microseconds), e.g., 2025-08-15T10:03:12.345678Z."
       run_id: { type: string,  description: "Stable identifier for this run (also used as dataset version)." }
       seed:   { $ref: "#/$defs/uint64", description: "Master Philox seed for this run." }
       parameter_hash:       { $ref: "#/$defs/hex64", description: "SHA-256 of combined parameter bundle." }
       manifest_fingerprint: { $ref: "#/$defs/hex64", description: "Run fingerprint used across Layer 1." }
-      module: { type: string, description: "Emitting module (e.g., '1A.nb_sampler')." }
+      module:
+        type: string
+        description: "Emitting module (e.g., '1A.nb_sampler'). For S1 hurdle, MUST be '1A.hurdle_sampler'."
       substream_label: { $ref: "#/$defs/stream_label", description: "Philox sub-stream logical label." }
       rng_counter_before_lo: { $ref: "#/$defs/uint64", description: "Philox 2x64 counter low (before draws)." }
       rng_counter_before_hi: { $ref: "#/$defs/uint64", description: "Philox 2x64 counter high (before draws)." }
@@ -120,15 +125,27 @@ rng:
         - $ref: "#/$defs/rng_envelope"
         - type: object
           additionalProperties: false
-          required: [merchant_id, pi, u, is_multi]
+          required: [merchant_id, pi, u, is_multi, deterministic]   # deterministic flag is authoritative; 'u' becomes conditional
           properties:
             merchant_id: { $ref: "#/$defs/id64" }
             pi: { $ref: "#/$defs/pct01", description: "Logistic probability of being multi-site." }
-            u:  { $ref: "#/$defs/u01",   description: "Uniform deviate compared to π." }
-            is_multi: { type: boolean, description: "Outcome: true => multi-site." }
-            gdp_bucket_id: { type: integer, minimum: 1, maximum: 5, description: "From design matrix." }
-            mcc: { type: integer, minimum: 0, maximum: 9999 }
-            channel: { type: string, enum: ["card_present","card_not_present"] }
+            is_multi: { type: boolean, description: "Outcome: true ⇒ multi-site." }
+            deterministic: { type: boolean, description: "True iff π ∈ {0,1}. When true, no uniform is consumed and 'u' MUST be null." }
+            u:
+              oneOf:
+                - { type: "null", description: "Only valid when deterministic = true." }
+                - { $ref: "#/$defs/u01", description: "Open-interval uniform used only when deterministic = false." }
+            eta: { type: number, description: "Linear predictor (binary64).", nullable: true }
+            gdp_bucket_id: { type: integer, minimum: 1, maximum: 5, description: "From design matrix.", nullable: true }
+            mcc: { type: integer, minimum: 0, maximum: 9999, description: "MCC (from design).", nullable: true }
+            channel: { type: string, enum: ["card_present","card_not_present"], description: "Channel (from design).", nullable: true }
+          allOf:
+            - if: { properties: { deterministic: { const: true } } }
+              then:
+                properties: { u: { type: "null" } }
+            - if: { properties: { deterministic: { const: false } } }
+              then:
+                required: [u]
 
     gamma_component:
       allOf:
