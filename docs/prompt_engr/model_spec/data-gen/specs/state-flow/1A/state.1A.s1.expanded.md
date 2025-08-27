@@ -1117,34 +1117,43 @@ OUTPUT:
 
 ## V0. Purpose & scope
 
-Prove that every hurdle record is (a) schema-valid, (b) numerically correct under the pinned math policy, (c) RNG-accounted (counters ↔ draw budget), (d) partition-coherent, and (e) structurally consistent with downstream streams (gating). Hurdle is the **first** RNG event stream in 1A; validator uses the dataset dictionary paths and S1 invariants to check the run.
+Prove that every hurdle record is (a) **schema-valid**, (b) **numerically correct** under the pinned math policy, (c) **RNG-accounted** (counters ↔ uniform budget), (d) **partition-coherent**, and (e) **structurally consistent** with downstream streams via **presence-based gating**.
+Validator logic is **order-invariant** (shard/emit order is irrelevant) and uses the **dataset dictionary/registry** plus S1 invariants.
 
 ---
 
 ## V1. Inputs the validator must read
 
-1. **Locked state specs:** `state.1A.s1.txt` (source of truth for S1 rules) and the combined journey spec (for joins to later streams).
+1. **Locked specs:** the S1 state text (this document) and the combined journey spec (for cross-state joins).
 2. **Event datasets (logs):**
 
-   * Hurdle events:
-     `logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` (schema `#/rng/events/hurdle_bernoulli`).
-   * RNG trace:
-     `logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl`. (Trace proves `draws` per substream.)
-   * Downstream streams used for gating (appear **only** if `is_multi=true`):
-     `gamma_component`, `poisson_component`, `nb_final`.
-3. **Design/$\beta$ artefacts:** frozen encoders/dictionaries and `hurdle_coefficients.yaml` (single-YAML $\beta$).
-4. **Lineage keys & run context:** `(seed, parameter_hash, manifest_fingerprint, run_id)` are read from the records and path partitions; RNG envelope is required by the layer.
+   * **Hurdle events** — dataset id `rng_event_hurdle_bernoulli`, schema `#/rng/events/hurdle_bernoulli`, partitions
+
+     ```
+     logs/rng/events/hurdle_bernoulli/
+       seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/module={module}/substream_label={substream_label}/part-*.jsonl
+     ```
+   * **RNG trace (cumulative)** — per `(module, substream_label, merchant_id)` totals for the run.
+   * **Downstream gated streams** — discovered via the **registry filter** (e.g., `owner_segment=1A`, `state>S1`, `gated_by_hurdle=true`). S1 does **not** enumerate names inline.
+3. **Design/β artefacts:** frozen encoders/dictionaries and the single-YAML hurdle coefficients bundle (β).
+4. **Lineage keys:** `{seed, parameter_hash, manifest_fingerprint, run_id}` from path + envelope; the **shared RNG envelope** is mandatory for each event.
 
 ---
 
 ## V2. Discovery & partition lint (dictionary-backed)
 
-* **Locate** the hurdle event partition for the run via the path template above. The **embedded** envelope keys `{seed, parameter_hash, run_id}` **must equal** the path keys for every row; mismatch is a partition failure.
-* **Schema anchors** for hurdle and trace are fixed by the layer schema set. The hurdle payload keys are `{merchant_id, pi, is_multi, deterministic, u}`; envelope per `$defs.rng_envelope`. 
+* **Locate** the hurdle partition for the run using the dictionary/registry binding.
+* **Path ↔ embed equality:** for **every row**, the embedded envelope keys
+  `{seed, parameter_hash, run_id, module, substream_label}` **equal** the same path keys.
+  `manifest_fingerprint` is **embedded only** (never a path partition).
+* **Schema anchors** are fixed by the layer schema set. Payload keys are exactly
+  `{merchant_id, pi, is_multi, deterministic, u}`; the envelope is the layer-wide anchor.
 
-**Checks (discovery stage):**
+**Discovery checks:**
 
-* P-1: path exists for hurdle; P-2: at least one `part-*`; P-3: hurdle row count equals the ingress merchant count for the run; uniqueness of `merchant_id` within the hurdle partition. (Hurdle emits exactly one row per merchant.)
+* **P-1**: partition exists; **P-2**: at least one `part-*` file;
+* **P-3**: hurdle row count equals the ingress merchant count for the run;
+* **P-4**: uniqueness of `merchant_id` within `{seed, parameter_hash, run_id}`.
 
 ---
 
@@ -1152,10 +1161,15 @@ Prove that every hurdle record is (a) schema-valid, (b) numerically correct unde
 
 Validate **every** hurdle record against:
 
-* **Envelope:** `{ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, rng_counter_before_{hi,lo}, rng_counter_after_{hi,lo}}`. Missing any is a hard schema failure. 
-* **Payload:** `{merchant_id, pi, is_multi, deterministic, u}`, with `u` **required** (and `0<u<1`) when `deterministic=false`, and `u` **null** when `deterministic=true`.
- 
-> The locked hurdle schema and this state text both require `deterministic` and conditional `u` as above; deterministic rows **must** carry `u:null`, stochastic rows **must** carry `0<u<1`.
+* **Envelope (complete):**
+  `ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, rng_counter_before_hi, rng_counter_before_lo, rng_counter_after_hi, rng_counter_after_lo, blocks, draws`.
+  (`module`/`substream_label` are **registry literals**; `draws` is **u128 as a decimal string**; `blocks` is an integer.)
+* **Payload (minimal, authoritative):**
+  `merchant_id` (**decimal string → u64**), `pi` (**binary64 round-trip**, `0.0 ≤ pi ≤ 1.0`),
+  `is_multi` (**boolean**), `deterministic` (**boolean**, derived from `pi`),
+  `u` (**required** with type **number|null**: `null` iff `pi ∈ {0,1}`, else `u∈(0,1)`).
+
+> No diagnostic/context fields (e.g., `eta`, `mcc`, `channel`, `gdp_bucket_id`) are allowed in this authoritative stream.
 
 ---
 
@@ -1163,104 +1177,113 @@ Validate **every** hurdle record against:
 
 For each merchant $m$:
 
-1. Rebuild the frozen design vector $x_m$ using **Feature vector construction (logistic)** above; check one-hot sums and column order.
-2. Load $\beta$ atomically; assert $|\beta| = 1 + C_{mcc} + 2 + 5$ and **exact** column order equality with the encoders.
-3. Compute $\eta_m=\beta^\top x_m$ in binary64 (fixed order); compute $\pi_m$ via the **two-branch** logistic. Assert finiteness and `0.0 ≤ pi ≤ 1.0`.
+1. Rebuild $x_m$ using the **frozen encoders** (one-hot sums = 1; column order equals the fitting bundle).
+2. Load β atomically; assert $|β| = 1 + C_{\text{mcc}} + 2 + 5$ and **exact column alignment** with $x_m$.
+3. Compute $\eta_m = β^\top x_m$ in binary64 (fixed-order Neumaier).
+4. Compute $\pi_m$ with the **thresholded two-branch logistic** (explicit saturation at $T$): assert finiteness and `0.0 ≤ pi ≤ 1.0`.
 
-**Fail fast:** any non-finite $\eta,\pi$ or shape/order mismatch is a **hard abort** (S1 failure class).
+**Fail fast:** any non-finite $\eta$/$\pi$ or shape/order mismatch is a **hard abort**.
 
 ---
 
 ## V5. RNG replay & counter accounting (per row)
 
-Let the hurdle label be `substream_label = "hurdle_bernoulli"` (must match exactly).
+Let the label be the registry literal `substream_label="hurdle_bernoulli"`.
 
-For each hurdle record:
+1. **Base counter reconstruction:** using `(seed, manifest_fingerprint, substream_label, merchant_id)` and the S0 keyed-substream primitive, recompute the **base counter** and assert it equals the envelope `rng_counter_before`.
+2. **Budget from π:** set `draws_expected = 1` iff $0<\pi<1$, else `0`.
+3. **Budget identity:** compute `delta = u128(after) − u128(before)` and assert
+   `delta == blocks == parse_u128(draws) == draws_expected`.
+4. **Lane policy:** assert `delta ∈ {0,1}`.
+5. **Stochastic vs deterministic:**
 
-1. **Budget from $\pi$:** set `draws_expected = 1` iff $0<\pi<1$; else `0`. See **Counter conservation (envelope law)** for the equality chain that must hold across counters, envelope `blocks/draws`, and trace.
-2. **Counter conservation:** compute `delta = u128(after) − u128(before)` and assert `delta == blocks`.
-3. **Lane policy check (S1):** assert `u128(after) − u128(before) ∈ {0,1}`; any delta > 1 is a lane policy violation.
-4. **Trace and envelope reconciliation:** find the companion `rng_trace_log` row (join on `{seed, parameter_hash, run_id, substream_label, merchant_id}`) and assert:
-   - `trace_draws == draws_expected`,
-   - `u128(after) − u128(before) == draws_expected`,
-   - `blocks == draws_expected`, and
-   - `parse_u128(draws) == draws_expected`.
-5. **Deterministic vs stochastic branch:** (unchanged)
-   * If `draws_expected = 0`: assert the payload follows the deterministic contract — `pi ∈ {0.0,1.0}`, `u:null`, and `is_multi == pi`.
-   * If `draws_expected = 1`: regenerate the uniform $u$ (open interval) and assert `0<u<1` and `(u<π) == (is_multi == 1)`.
+   * If `draws_expected = 0`: assert `pi ∈ {0,1}`, `u == null`, `deterministic == true`, and `is_multi == (pi == 1.0)`.
+   * If `draws_expected = 1`: regenerate **one** uniform from the keyed substream at `before` (low lane), map via **open-interval** `u01`, assert `0<u<1` and `(u < pi) == is_multi`.
 
-*(The keyed mapping and label come from S0/S1; validator doesn’t need to re-derive the base counter formula beyond using the envelope `before` counter and label to generate $u$ deterministically.)*
+**Trace reconciliation (cumulative):** For each `(module, substream_label, merchant_id)`, the **trace totals** equal **Σ(event blocks)** for that key **and** the overall counter delta across the merchant’s hurdle events (hurdle has a single event, so totals = `delta`).
+
+> Naming: use `draws_expected` (from π), `blocks`/`draws` (from envelope), and `delta` for counter difference.
 
 ---
-**Naming (S1):** use `draws_expected` (from π), `trace_draws` (from trace), and (optionally) `delta_counters = u128(after) − u128(before)`; avoid `draws_observed`.
-
 
 ## V6. Cross-stream gating (branch purity)
 
-Build the **set of allowed multi merchants**
-$\mathcal{H}_1=\{m:\ \text{hurdle.is_multi}(m)=1\}$.
-For **every** downstream RNG event row from `{gamma_component, poisson_component, nb_final}`, assert `merchant_id ∈ 𝓗₁`; else raise `logging_gap_no_prior_hurdle`. Hurdle is first; downstream may not appear without it.
+Let $\mathcal{H}_1=\{m\mid \text{hurdle.is\_multi}(m)=true\}$.
+Build the **set of gated 1A RNG streams** via the **registry filter**. For **every** row in any gated stream, assert `merchant_id ∈ 𝓗₁`. For merchants **not** in $𝓗_1$, assert **no** gated rows exist. *(Presence-based; no temporal ordering requirement.)*
 
 ---
 
 ## V7. Cardinality & uniqueness
 
-* **Uniqueness:** exactly **one** hurdle record per `merchant_id` within the partition `{seed, parameter_hash, run_id}`.
-* **Coverage:** `count(hurdle_records) == count(merchant_ids)` for the run.
-  Failures are run-blocking.
+* **Uniqueness:** exactly **one** hurdle record per `merchant_id` within `{seed, parameter_hash, run_id}`.
+* **Coverage:** hurdle row count equals the ingress merchant count for the run.
+
+---
+
+**Bottom line:** This validator spec proves each hurdle event is schema-conformant, numerically correct, budget-conserving, partition-coherent, and correctly gates downstream streams—using **base-counter reconstruction**, **open-interval** replay, **cumulative** trace totals, and registry-driven discovery.
 
 ---
 
 ## V8. Partition equality & path authority
 
-For each hurdle row, assert:
+For **every** hurdle row:
 
-* Embedded `{seed, parameter_hash, run_id}` equal the **path** keys.
-* `substream_label == "hurdle_bernoulli"`; `module` is the expected S1 module name.
-  Mismatch is a lineage/partition failure.
+* **Path ↔ embed equality:** Embedded envelope keys
+  `{seed, parameter_hash, run_id, module, substream_label}` **must equal** the same keys in the dataset path.
+  *(The hurdle dataset partitions by `{seed, parameter_hash, run_id, module, substream_label}`.)*
+* **Literal checks:** `substream_label == "hurdle_bernoulli"` (registry literal) and `module` equals the registered producer id (e.g., `"1A.hurdle_sampler"`).
+* **No fingerprint in path:** `manifest_fingerprint` is **embedded only** (lineage), never a path partition.
+
+Mismatch is a lineage/partition failure.
 
 ---
 
 ## V9. Optional diagnostics (non-authoritative)
 
-If `hurdle_pi_probs/parameter_hash={parameter_hash}` exists, **do not** use it to verify decisions; at most, compare its `(η,π)` against recomputed values for sanity. Decisions are proven only by replaying S1.2 + S1.3.
+If the diagnostic table `…/hurdle_pi_probs/parameter_hash={parameter_hash}` exists, **do not** use it to verify decisions. At most, compare its `(eta, pi)` to recomputed values for sanity. Decisions are proven **only** by replaying S1.2 + S1.3.
 
 ---
 
 ## V10. Failure objects (forensics payload; exact keys)
 
-Emit one JSON object per failure with envelope lineage and a precise code:
+Emit **one JSON object per failure** with envelope lineage and a precise code:
 
 ```json
 {
   "state": "S1",
-  "dataset_id": "logs/rng/events/hurdle_bernoulli",
+  "dataset_id": "rng_event_hurdle_bernoulli",
+  "module": "1A.hurdle_sampler",
+  "substream_label": "hurdle_bernoulli",
   "failure_code": "rng_counter_mismatch",
-  "merchant_id": "m_0065F3A2",
+  "merchant_id": "184467440737095",
   "detail": {
     "rng_counter_before": {"hi": 42, "lo": 9876543210},
     "rng_counter_after":  {"hi": 42, "lo": 9876543211},
-    "draws_expected": 1,
-    "trace_draws": 0,
+    "blocks": 1,
+    "draws": "1",
+    "expected_delta": "1",
+    "trace_totals_draws": "0",
     "pi": 0.37,
     "u": 0.55
   },
-  "seed": 1234567890,
-  "parameter_hash": "<hex64>",
-  "manifest_fingerprint": "<hex64>",
-  "run_id": "<hex32>",
+  "seed": "1234567890123456789",
+  "parameter_hash": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+  "manifest_fingerprint": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+  "run_id": "0123456789abcdef0123456789abcdef",
   "ts_utc": "2025-08-15T10:12:03.123456Z"
 }
 ```
 
-Codes map 1:1 to S1.6 families (`beta_length_mismatch`, `hurdle_nonfinite_pi`, `rng_envelope_schema_violation`, `substream_label_mismatch`, `rng_counter_mismatch`, `rng_trace_missing_or_mismatch`, `u_out_of_range`, `hurdle_payload_violation`, `deterministic_branch_inconsistent`, `partition_mismatch`, `wrong_dataset_path`, `logging_gap_no_prior_hurdle`, `duplicate_hurdle_record`, `cardinality_mismatch`).
+* `dataset_id` is the **registry id** (not a path).
+* Numeric identifiers (`seed`, `merchant_id`) are **decimal strings** for transport safety.
+* `failure_code` maps **1:1** to S1.6 predicates.
 
 ---
 
 ## V11. End-of-run verdict & artifact
 
 * If **any** check fails ⇒ **RUN INVALID**. Emit a `_FAILED.json` sentinel with aggregated stats and the list of failure objects; CI blocks the merge.
-* If all checks pass ⇒ **RUN VALID**. Optionally record summary metrics (row counts, draw histograms, min/max/mean π, u-bounds). (Downstream gating still re-checked later, but S1.V provides the first hard gate.)
+* If all checks pass ⇒ **RUN VALID**. Optionally record summary metrics (row counts, draw histograms, min/max/mean `pi`, `u` bounds). *(Downstream layers may re-check gating; S1.V is the first hard gate.)*
 
 ---
 
@@ -1270,24 +1293,24 @@ Codes map 1:1 to S1.6 families (`beta_length_mismatch`, `hurdle_nonfinite_pi`, `
 
 Run the validator across:
 
-* **All changed parameter bundles** (distinct `parameter_hash`) and a **seed matrix** (e.g., 3 fixed seeds per PR).
-* At least one **prior manifest fingerprint** (to catch regressions vs the last known good).
+* All **changed parameter bundles** (distinct `parameter_hash`) and a **seed matrix** (e.g., 3 fixed seeds per PR).
+* At least one **prior manifest fingerprint** (regression guard vs last known good).
 
 ### CI-2. Steps
 
-1. **Schema step:** validate JSONL rows in hurdle + trace against the anchors; fail on first error.
-2. **Partition step:** path ↔ embedded equality; ensure stream IDs & labels match exactly.
-3. **Replay step:** recompute $η,π$ and the budget; regenerate $u$ when needed; check decision & counters; join to trace.
-4. **Gating step:** enforce “downstream only after `is_multi=true`”.
-5. **Cardinality/uniqueness:** one hurdle row per merchant; counts match ingress.
+1. **Schema:** validate hurdle + trace rows against schema anchors; fail fast.
+2. **Partition:** path ↔ embedded equality on `{seed, parameter_hash, run_id, module, substream_label}`; check registry literals; ensure **no fingerprint in path**.
+3. **Replay:** recompute $η,π$ and the budget; reconstruct base counter; regenerate $u$ when needed; check decision & counters; reconcile cumulative trace totals.
+4. **Gating:** enforce **presence-based** rule: gated streams exist **iff** `is_multi=true`.
+5. **Cardinality/uniqueness:** exactly one hurdle row per merchant; counts match ingress.
 
 ### CI-3. What blocks the merge
 
-* Any schema violation, partition mismatch, counter/trace mismatch, non-finite numeric, deterministic-branch inconsistency, gating failure, or cardinality/uniqueness failure. (Exact codes from S1.6.)
+Any: schema violation, partition mismatch, counter/trace mismatch, non-finite numeric, deterministic-branch inconsistency, **gating presence failure**, or cardinality/uniqueness failure. (Codes per S1.6.)
 
 ### CI-4. Provenance in the validation bundle
 
-Record a compact summary of S1.V in the run’s validation payload (fingerprint-scoped): counts, pass/fail status, and—if you choose—diagnostic text files (`SCHEMA_LINT.txt` / `DICTIONARY_LINT.txt`) for human inspection. (Bundle scoping is fingerprint-based per S0; logs remain log-scoped.)
+Record a compact summary in the fingerprint-scoped validation payload: counts, pass/fail, and optional lint artifacts (`SCHEMA_LINT.txt`, `DICTIONARY_LINT.txt`) for human inspection. *(Bundles are fingerprint-scoped; logs remain log-scoped.)*
 
 ---
 
@@ -1295,54 +1318,57 @@ Record a compact summary of S1.V in the run’s validation payload (fingerprint-
 
 ```text
 INPUT:
-  paths from dictionary; encoders; beta; run keys (seed, parameter_hash, run_id)
+  paths from registry; encoders; beta; run keys (seed, parameter_hash, run_id, module, substream_label)
 
 LOAD:
   H := read_jsonl(hurdle partition)
   T := read_jsonl(trace partition)
-  S := {read downstream streams}
+  S := discover_gated_streams_via_registry()
 
 # 1) schema
 assert_all_schema(H, "#/rng/events/hurdle_bernoulli")
 assert_all_schema(T, "#/rng/core/rng_trace_log")
 
 # 2) partition equality
-for e in H: assert path_keys(e) == embedded_keys(e)
+for e in H: assert path_keys(e) == embedded_keys(e)   # {seed, parameter_hash, run_id, module, substream_label}
 
 # 3) recompute (η, π) and budget
+beta := load_beta_once()
 for e in H:
-  x_m := rebuild_design(m)                   # domain checks
-  beta := load_beta_once()
+  x_m := rebuild_design(m)                 # frozen encoders; one-hot sums; column order
   eta, pi := fixed_order_dot_and_safe_logistic(x_m, beta)
   draws := 1 if 0 < pi < 1 else 0
 
-  # 4) counters & trace
-  assert u128(e.after) - u128(e.before) == draws
-  assert T.match(e).draws == draws
+  # 4) base counter + counters & trace
+  before := reconstruct_base_counter(seed, manifest_fingerprint, "hurdle_bernoulli", m)
+  assert e.rng_counter_before == before
+  delta := u128(e.after) - u128(e.before)
+  assert delta == draws == e.blocks == parse_u128(e.draws)
+  assert T.aggregate(m, "hurdle_bernoulli").totals == sum_blocks_for(H,m) == delta
 
-  # 5) branch-specific checks
+  # 5) branch checks
   if draws == 0:
-     assert (pi == 0 and !e.is_multi) or (pi == 1 and e.is_multi)
-     assert deterministic_contract_ok(e)  # according to chosen schema/text
+     assert (pi == 0.0 && !e.is_multi) || (pi == 1.0 && e.is_multi)
+     assert e.deterministic && e.u == null
   else:
-     u := regenerate_u01(seed, e.before)  # (0,1)
+     u := regenerate_u01(seed, before)     # (0,1), low-lane policy
      assert 0.0 < u && u < 1.0
      assert (u < pi) == e.is_multi
 
-# 6) gating
-H1 := {m | H[m].is_multi == true}
-for each row in downstream_streams:
+# 6) gating (presence-based)
+H1 := { m | H[m].is_multi == true }
+for each row in each gated stream s ∈ S:
   assert row.merchant_id in H1
+for each m ∉ H1:
+  assert no rows exist in any s ∈ S
 
 # 7) uniqueness & cardinality
 assert |H| == |ingress_merchant_ids|
 assert unique(H.merchant_id)
 ```
 
-All predicates above are the formalisation of S1.1–S1.7 and the combined journey’s invariants.
-
 ---
 
-**Bottom line:** S1.V gives you a **deterministic replay harness** and a **CI gate**: schema → partition → numeric replay → counter/trace reconciliation → gating → cardinality. It uses only the authoritative hurdles stream, the trace stream, $\beta$ + encoders, and the layer’s RNG envelope. Any deviation from the locked S1 rules trips a named failure that blocks the run and the merge.
+**Bottom line:** This chunk locks the **partition/lineage checks**, the **forensics error object**, and the **CI gate** to the exact S1 contracts: complete envelope, base-counter reconstruction, budget identity + cumulative trace, presence-based gating via the registry, and strict uniqueness/cardinality—so any drift trips a named, actionable failure.
 
 ---
