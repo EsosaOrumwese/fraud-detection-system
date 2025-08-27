@@ -643,106 +643,106 @@ Fields and types:
 
 ## Purpose
 
-Freeze the invariants that must hold for every merchant’s hurdle decision so that downstream states (NB/ZTP/Dirichlet/Gumbel) can **trust** and **replay** S1 exactly. The locked state explicitly enumerates the I-H invariants; below we expand them into precise predicates, proofs, and validations.
+Freeze the invariants that must hold for every merchant’s hurdle decision so downstream states can **trust** and **replay** S1 exactly. The I-H invariants below are stated as precise predicates with the validator obligations that prove them.
 
 ---
 
 ## I-H0 — Environment & schema authority (precondition)
 
-* Numeric policy from S0.8 is in force: IEEE-754 **binary64**, RNE, **no FMA**, **no FTZ/DAZ**, serial fixed-order reductions; deterministic `exp` used by the two-branch logistic. Violations are S0.9 failures. (Referenced by S1.2/S0.8 and required here for bit stability.)
-* All RNG records conform to the **shared envelope** in `schemas.layer1.yaml` and to their event-specific schema anchors. The hurdle stream is bound to `#/rng/events/hurdle_bernoulli`.
+* **Numeric policy (S0):** IEEE-754 **binary64**, round-to-nearest-even, **no FMA**, **no FTZ/DAZ**; fixed-order reductions; deterministic `exp`.
+* **Schema authority:** Every RNG record conforms to the **layer envelope** (single anchor) and its **event-specific schema**. The hurdle stream uses the registered dataset id and the schema anchor for `rng/events/hurdle_bernoulli`.
 
 ---
 
 ## I-H1 — Bit-replay (per merchant, per run)
 
 **Statement.** For fixed inputs
-$(x_m,\beta,\texttt{seed},\texttt{parameter_hash},\texttt{manifest_fingerprint})$, the tuple
-$(u_m,\ \text{is_multi}(m))$ **and** the envelope counters $(C^{\text{pre}}_m,C^{\text{post}}_m)$ are **bit-identical** across replays and independent of emission order or sharding.
+$(x_m,\ \beta,\ \texttt{seed},\ \texttt{parameter_hash},\ \texttt{manifest_fingerprint})$, the pair $(u_m,\ \text{is_multi}(m))$ and the envelope counters $(C^{\text{pre}}_m,\ C^{\text{post}}_m)$ are **bit-identical** across replays and **independent of emission order** or sharding.
 
-**Why it holds.** The keyed substream mapping pins the **base counter** for $(\ell=\text{"hurdle_bernoulli"}, m)$ from $(\texttt{seed},\texttt{manifest_fingerprint})$; draw budget is a pure function of $\pi_m$. Therefore `before`/`after` counters and the single uniform $u_m$ are deterministic functions of those keys.
+**Why it holds.** The keyed-substream primitive derives a **base counter** for $(\ell=\text{"hurdle_bernoulli"}, m)$ that depends only on the run keys and $(\ell,m)$. The draw budget is a pure function of $\pi_m$. The uniform $u_m$ is obtained by the S0 **open-interval** mapping from the substream (low-lane) and therefore deterministic.
 
-**Validator.** Rebuild the base counter from the envelope keys and recompute $u_m$ when `draws=1`; assert exact equality of counters and the decision `(u<π) == is_multi`.
+**Validator.** Rebuild the base counter from `(seed, manifest_fingerprint, substream_label="hurdle_bernoulli", merchant_id)`; assert envelope `before` matches.
+If `draws="1"`, regenerate $u$ and assert `(u < pi) == is_multi`. Assert counters match exactly.
 
 ---
 
 ## I-H2 — Consumption & budget (single-uniform law)
 
-**Statement.** Define $d_m=\mathbf{1}\{0<\pi_m<1\}$. Then the hurdle consumes **`draws = d_m`** uniforms:
+**Statement.** Let $d_m = \mathbf{1}\{0 < \pi_m < 1\}$. The hurdle consumes exactly `draws = d_m` uniforms and:
 
-* If $0<\pi_m<1$: `draws=1`; `after = before + 1` (u128; implied by **Counter conservation (envelope law)**).
-* If $\pi_m\in\{0,1\}$: `draws=0`; `after = before` (implied by **Counter conservation (envelope law)**).
+* If $0<\pi_m<1$: `after = before + 1`.
+* If $\pi_m \in \{0,1\}$: `after = before`.
 
-A companion `rng_trace_log` row records `draws` for this substream.
+**Law.** Envelope budgeting must satisfy
+`u128(after) − u128(before) = parse_u128(draws) = blocks`, with unit = **one 64-bit uniform**. For the hurdle, `blocks ∈ {0,1}` and `draws ∈ {"0","1"}`.
 
-**Why it holds.** S1.2 defines $\pi_m$ and the **saturated branch**; S1.3 maps one Philox 64-bit word to $u\in(0,1)$; S1 uses **no** second lane.
+**Trace model (cumulative).** RNG trace is **cumulative** per `(module, substream_label, merchant_id)` within the run; its totals equal the **sum of event budgets** and reconcile to the overall counter delta. There are **no per-event trace rows**.
 
-**Validator.** Check `after − before == draws` and that the trace row’s `draws` matches this delta.
+**Validator.** Check the envelope identity above; aggregate event budgets and assert equality with the trace totals for the same key.
 
 ---
 
 ## I-H3 — Schema-level payload discipline
 
-**Statement (state-as-written).** The hurdle record includes payload keys `{merchant_id, pi, is_multi, u}` with:
+**Statement.** The hurdle payload is **minimal and authoritative** with fields:
+`merchant_id` (decimal string → u64), `pi` (binary64 round-trip), `is_multi` (**boolean**), `deterministic` (**boolean**), `u` (**number|null**, **required**).
 
-* If $0<\pi<1$: `u ∈ (0,1)` (schema `$defs.u01`), `deterministic=false`.
-* If $\pi\in\{0,1\}$: `u=null`, `deterministic=true`.
-  Any deviation is a schema failure. (This is how the locked S1 describes deterministic rows.)
+**Equivalences (binary64 semantics).**
 
-> Note: The dataset dictionary pins the stream and envelope; if the concrete JSON-Schema for the hurdle event remains **non-nullable** for `u`, a tiny schema PR is needed so the state and schema align (you already flagged this in S1.4). The invariants above are the **intended** contract.
+* `deterministic ⇔ (pi ∈ {0.0, 1.0}) ⇔ draws="0" ⇔ u == null`.
+* `¬deterministic ⇔ (0 < pi < 1) ⇔ draws="1" ⇔ u ∈ (0,1)` and `is_multi == (u < pi)`.
+
+`is_multi` is **boolean only** (never `{0,1}`); any other encoding is non-conformant.
 
 ---
 
 ## I-H4 — Branch purity (downstream gating)
 
-**Statement.** Downstream RNG streams may **only** appear when the hurdle decided **multi**:
+**Statement.** Downstream **1A RNG streams** for a merchant appear **iff** that merchant’s hurdle event has `is_multi=true`.
 
-$$
-\text{is_multi}(m)=1 \implies \text{merchant } m \text{ may produce NB/ZTP/Dirichlet/Gumbel events;}
-$$
+**Authority.** The set of gated stream IDs is obtained via the **registry filter** (e.g., `owner_segment=1A`, `state>S1`, `gated_by_hurdle=true`); S1 does **not** enumerate stream names inline.
 
-$$
-\text{is_multi}(m)=0 \implies \text{no such events appear for } m.
-$$
+**Validator.** For each merchant, check presence/absence of all gated streams per the registry list against the merchant’s hurdle `is_multi` value.
 
-Validators join on merchant_id across streams declared in the dictionary to enforce this gate.
+---
+
+**Bottom line:** S1.5 fixes the invariant surface: a deterministic, order-invariant substream; a single-uniform budget with a strict envelope law and **cumulative** trace; a minimal, typed payload with `u:number|null` and boolean `is_multi`; and a registry-driven gating rule. These invariants give downstream states and validators a single, unambiguous contract for replay and auditing.
 
 ---
 
 ## I-H5 — Cardinality & uniqueness (per run)
 
-* Exactly **one** hurdle record per merchant per $(\texttt{seed},\texttt{parameter_hash},\texttt{run_id})$ partition. No duplicates.
-* Hurdle is the **first** RNG event stream in 1A; later event families must find a prior hurdle record for the merchant (enforced by validation rules).
+* Exactly **one** hurdle record per merchant within `{seed, parameter_hash, run_id}`. **No duplicates.**
+* **Presence gate, not order:** downstream 1A RNG streams are validated **by presence** relative to the hurdle decision (see I-H4). Emission order is **unspecified** and not validated.
 
-**Validator.** Count hurdle rows and assert equality with `merchant_ids` for the run; assert uniqueness of `(merchant_id)` within the hurdle partition.
+**Validator.** Count hurdle rows and assert equality with the ingress `merchant_ids` for the run; assert uniqueness of `merchant_id` within the hurdle partition.
 
 ---
 
 ## I-H6 — Envelope completeness & equality with path keys
 
-* Every record contains the **full** RNG envelope fields required by `$defs.rng_envelope`. Missing any field is a hard schema failure.
-* The embedded `{seed, parameter_hash, run_id}` in the record **equal** the same keys in the path
-  `logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`. Mismatch is a partitioning failure.
+* Every record contains the **full** RNG envelope required by `$defs.rng_envelope` (including `blocks` and `draws`); missing fields = hard schema failure.
+* Embedded `{seed, parameter_hash, run_id, module, substream_label}` **equal** the same keys in the dataset path. Any mismatch = partitioning failure.
 
 ---
 
 ## I-H7 — Order-invariance & concurrency safety
 
-* Emission **order is unspecified**; correctness depends only on per-row content. Replays reproduced on a different shard order must yield byte-identical envelope counters and outcomes (I-H1).
-* Writers may produce multiple `part-*` files; set equivalence of rows defines dataset equivalence. (Dictionary leaves ordering unconstrained.)
+* Emission **order is unspecified**; correctness depends only on per-row content. Replays with different shard orders yield byte-identical counters and decisions (I-H1).
+* Writers may produce multiple `part-*` files; **set equivalence** of rows defines dataset equivalence.
 
 ---
 
 ## I-H8 — Independence across merchants & substreams
 
-* Base counters are **disjoint** across distinct `(label, merchant_id)` pairs under the keyed mapping, making collisions impossible given fixed `seed` and `manifest_fingerprint`. Hence no cross-merchant interference.
-* The `substream_label` in the envelope is **exactly** `"hurdle_bernoulli"`, preventing accidental reuse of counters intended for other labels.
+* Base counters are derived **per (label, merchant_id)** via the keyed mapping, so distinct pairs receive **disjoint** substreams under a fixed `{seed, manifest_fingerprint}`.
+* `substream_label` in the envelope is **exactly** `"hurdle_bernoulli"`, preventing accidental reuse of counters intended for other labels.
 
 ---
 
 ## I-H9 — Optional diagnostics remain out of band
 
-* If `hurdle_pi_probs` is materialised (S0.7), it is **parameter-scoped** and **never** consulted by samplers; S1’s decisions must match an independent recomputation of $(\eta,\pi)$ from $x_m,\beta$. Validators can cross-check for sanity but the cache is not authoritative.
+* If any diagnostic cache (e.g., `hurdle_pi_probs`) exists, it is **non-authoritative**. S1 decisions must match an **independent recomputation** of $(\eta,\pi)$ from $(x_m,\beta)$. Validators may compare for sanity; disagreements never override the event.
 
 ---
 
@@ -750,30 +750,35 @@ Validators join on merchant_id across streams declared in the dictionary to enfo
 
 For each hurdle row $r$ with merchant $m$:
 
-1. Recompute $(\eta_m,\pi_m)$ from S1.2 rules (fixed-order dot + safe logistic). Assert finiteness and $\pi\in[0,1]$.
-2. Rebuild the **base counter** for $(\ell,m)$ and assert `rng_counter_before == base_counter`.
-3. From $\pi$, get `draws = 1{(0<π<1)}` and `after = before + draws`. Assert envelope equality and match to the trace row.
-4. If `draws=1`, regenerate $u$ via u01 and assert $u\in(0,1)$ and `(u < π) == is_multi`. If `draws=0`, assert the payload follows the deterministic branch rules (I-H3).
+1. **Recompute $\eta,\pi$.** Using S1.2 rules (fixed-order dot + thresholded two-branch logistic), assert `finite(η)` and `0.0 ≤ pi ≤ 1.0`.
+2. **Rebuild base counter.** Using `(seed, manifest_fingerprint, substream_label="hurdle_bernoulli", merchant_id)`, assert `rng_counter_before == base_counter`.
+3. **Budget identity.** From $\pi$, set `draws = "1"` iff $0<\pi<1$, else `"0"`. Assert
+   `u128(after) − u128(before) = parse_u128(draws) = blocks` and that for the hurdle stream `{blocks∈{0,1}, draws∈{"0","1"}}` holds.
+   **Trace reconciliation:** join to the **cumulative** trace record for `(module, substream_label, merchant_id)` and assert its totals equal the **sum of event blocks** (and the overall counter delta).
+4. **Outcome consistency.**
+
+   * If `draws="1"`: regenerate a single uniform via the S0 lane policy & open-interval mapping; assert `0<u<1` and `(u < pi) == is_multi`.
+   * If `draws="0"`: assert `pi ∈ {0.0,1.0}`, `u == null`, `deterministic == true`, and `is_multi == (pi == 1.0)`.
 
 ---
 
 ## Failure bindings (S0.9 classes surfaced by these invariants)
 
-* **Envelope missing/label drift/counter mismatch** → RNG envelope & accounting failure **F4** (abort run).
-* **Partition mismatch (path vs embedded keys)** → lineage/partition failure **F5** (abort run).
-* **Schema breach (`u` not in (0,1) when required; absent fields)** → schema failure (treated as **F4** because it breaks RNG event contract).
-* **Downstream without prior hurdle** → coverage/gating failure (validator), classified under event-family coverage (**F8**).
+* **Envelope/label/counter failures** → RNG envelope & accounting failure (**F4**) → **abort run**.
+* **Partition mismatch (path vs embedded)** → lineage/partition failure (**F5**) → **abort run**.
+* **Schema breach** (e.g., missing required envelope fields; `is_multi` not boolean; `u` not `number|null`; `u` out of (0,1) when stochastic) → schema failure (treated as **F4**).
+* **Gating violation** (downstream event exists when hurdle `is_multi=false` or no hurdle event) → coverage/gating failure (validator; event-family coverage class, e.g., **F8**).
 
 ---
 
 ## What this guarantees downstream
 
-* **Deterministic hand-off**: every merchant carries a single hurdle decision and a next counter cursor that downstream states must use; RNG continuity is mechanical (`before(next) == after(hurdle)`).
-* **Auditable lineage**: the dictionary partitions hurdle events by `{seed, parameter_hash, run_id}` and validation bundles by `{fingerprint}`; consumers can verify the correct bundle with the fingerprint before reading egress.
+* **Deterministic hand-off (by content, not cursor).** Each merchant has a single authoritative hurdle decision (`is_multi`) and a **self-contained** envelope. **Downstream states derive their own base counters** from the keyed mapping for their **own labels**; there is **no** requirement that `before(next) == after(hurdle)`.
+* **Auditable lineage.** Hurdle events are partitioned by `{seed, parameter_hash, run_id}`; validation/egress bundles are fingerprint-scoped. Consumers can verify they are reading the intended parameterization using the embedded `manifest_fingerprint`.
 
 ---
 
-**Bottom line:** S1.5 nails the **ten invariants** that make S1 reproducible: keyed substreams + single-uniform budget, envelope & path equality, payload discipline (including the deterministic branch), uniqueness/cardinality, and downstream gating. Each is backed by a concrete validator check and mapped to S0.9 failure classes, so violations halt the run with an actionable forensic trail.
+**Bottom line:** S1.5 (complete) nails the invariants that make S1 reproducible and safe to build on: uniqueness/cardinality, full envelope with budget identity, order-invariance, cross-label independence, gated downstream presence, diagnostics out-of-band, and validator-ready replay equations—mapped to S0.9 failure classes for actionable aborts.
 
 ---
 
