@@ -178,7 +178,7 @@ computed in IEEE-754 binary64 with a **fixed iteration order** over the frozen c
 ## Deterministic regimes & consequences for S1.3
 
 * **Typical case** $0<\pi_m<1$: RNG **will** consume exactly one $U(0,1)$ deviate for merchant $m$.
-* **Saturated case** $\pi_m\in\{0,1\}$: this arises when the two-branch evaluation underflows to exactly 0 or 1 in binary64 for extreme $\eta_m$. In this regime **no draw occurs**; `u` is absent/null and the event is flagged deterministic at emission. The locked S1 schema & invariants explicitly allow/require this behaviour.
+* **Saturated case** $\pi_m\in\{0,1\}$: this arises when the two-branch evaluation underflows to exactly 0 or 1 in binary64 for extreme $\eta_m$. In this regime **no draw occurs**; **emit** `u:null` and flag the event `deterministic=true` at emission. The locked S1 schema & invariants explicitly require this behaviour.
 
 > Non-normative (UI): display-only clipping of axes is permitted for charts/tables **without** altering the emitted `eta` or `pi`.
 
@@ -687,19 +687,11 @@ def emit_hurdle_event(m, pi_m, ctx):
     emit_trace_row(label="hurdle_bernoulli", draws=draws, before=(before_hi,before_lo), after=(after_hi,after_lo))
 ```
 
+
+**Normative contract (authoritative).** Hurdle payload keys are `{merchant_id, pi, is_multi, deterministic, u}`. `u` is **required** with type `number|null`: emit `u:null` when `deterministic=true` (`pi ∈ {0.0,1.0}` in binary64) and emit a JSON number that round-trips to binary64 with **strict bounds** `0<u<1` when `deterministic=false` (`0<pi<1`). Any deviation is a schema/validator failure; this state text and `schemas.layer1.yaml` anchors are the sole authority.
+
+
 Pseudocode aligns to: dictionary path & partitioning; shared envelope; hurdle payload; counter arithmetic; and trace linkage.
-
----
-
-## Practical reconciliation (one-liner decision you need to make)
-
-* **Pick one**:
-  **(A)** keep **schema-as-is** and make `u` **required** for all records (which implies you **must** also keep the stochastic-only semantics purely in counters/trace, not in `u`’s nullability), **or**
-  **(B)** apply a **tiny schema PR** to the hurdle event type to allow `u: null` and add `deterministic: boolean`, matching the S1 text exactly.
-
-Either choice keeps the path/partitioning and envelope **unchanged** and remains compatible with the dataset dictionary and registry.
-
-**Bottom line:** S1.4 produces a *provable* per-merchant record tying `(seed, parameter_hash, run_id)` to the hurdle decision with exact pre/post counters, and—subject to the small `u`/determinism schema choice—no ambiguity remains for replay or validation across the rest of 1A.
 
 ---
 
@@ -920,16 +912,13 @@ For each hurdle row $r$ with merchant $m$:
 ## Family D — Payload/schema discipline (hurdle event)
 
 **D1. `hurdle_payload_violation`**
-**Predicate.** Record fails `#/rng/events/hurdle_bernoulli` required payload keys: `merchant_id`, `pi`, `u`, `is_multi` (per the current schema), or types/ranges violate `$defs` (`pct01`, `u01`).
+**Predicate.** Record fails `#/rng/events/hurdle_bernoulli` required payload keys: `merchant_id`, `pi`, `is_multi`, `deterministic`, `u`, or types/ranges violate `$defs` (`pct01`, `u01`).
 **Detect at.** Writer schema validation; CI validator. **Abort run.**
 
 **D2. `deterministic_branch_inconsistent`**
-**Two equivalent contracts exist; choose one and enforce consistently:**
-
-* **State-as-written** (locked S1 narrative): if $\pi\in\{0,1\}$ then `u=null` and `deterministic=true`; else `u∈(0,1)` and `deterministic=false`.
-* **Schema-as-written** (current hurdle schema): `u` is **required** and must be in `(0,1)`; to permit `u=null` add a tiny schema PR.
-  **Predicate.** Event violates the chosen contract.
-  **Detect at.** Writer; validator. **Abort run.**
+**Contract (authoritative).** If $0<\pi<1$: payload must have `u∈(0,1)` and `deterministic=false`. If $\pi\in\{0,1\}$: payload must have `u=null` and `deterministic=true`.  
+**Predicate.** Event violates the contract above.  
+**Detect at.** Writer; validator. **Abort run.**
 
 ---
 
