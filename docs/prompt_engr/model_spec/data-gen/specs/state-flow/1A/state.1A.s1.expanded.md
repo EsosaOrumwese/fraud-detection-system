@@ -440,195 +440,202 @@ For each hurdle record in the run, the validator performs:
 
 # S1.4 — Event emission (hurdle Bernoulli), with **exact** envelope/payload, partitioning, invariants, and validation
 
-### 1) Where the records go (authoritative path + schema)
+### 1) Where the records go (authoritative dataset id, partitions, schema)
 
-Emit one **JSONL** record per merchant to the hurdle event stream:
+Emit **one JSONL record per merchant** to the hurdle RNG dataset:
 
-```
-logs/rng/events/hurdle_bernoulli/
-  seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
-```
+* **Dataset id:** registry entry for `rng_event_hurdle_bernoulli`.
+* **Partitions (path):**
 
-The stream is **approved** in the dictionary and bound to the shared schema
-`schemas.layer1.yaml#/rng/events/hurdle_bernoulli`.
+  ```
+  logs/rng/events/hurdle_bernoulli/
+    seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/module={module}/substream_label={substream_label}/part-*.jsonl
+  ```
 
-> Partition keys are `{seed, parameter_hash, run_id}` (dictionary-scoped).
+  *(No `manifest_fingerprint` in the path; it is embedded in the envelope.)*
+* **Schema:** layer schema anchor `schemas.layer1.yaml#/rng/events/hurdle_bernoulli`.
 
-### 2) Envelope (shared, required for **all** RNG events)
+> Partition keys are exactly `{seed, parameter_hash, run_id, module, substream_label}` as bound in the dictionary/registry.
 
-Every record must carry the **RNG envelope** defined once in the layer-wide schema:
+---
 
-* Required fields:
-  `ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi`.
-  These names and types are fixed by `$defs.rng_envelope` and referenced by each RNG event schema.
+### 2) Envelope (shared; required for **all** RNG events)
 
-* Semantics:
+Every hurdle record **must** carry the complete layer RNG envelope (single source of truth in the layer schema):
 
-  * `ts_utc`: RFC-3339 timestamp (UTC) with `Z` and **exactly 6 fractional digits** (microseconds) at emit time.
-  * `run_id`: log-only identifier from S0.2.4; partitions logs. (Dictionary and S0 establish scope.)
-  * `seed`: the master Philox u64 seed (constant within a run).
-  * `parameter_hash`, `manifest_fingerprint`: lineage keys bound at S0; they must match the run’s resolved values. (S0 and dictionary enforce this across logs/datasets.)
-  * `module`: emitting module label (e.g., `"1A.hurdle_sampler"`).
-  * `substream_label`: **must** be `"hurdle_bernoulli"`. (S1 fixes the sub-stream label; dictionary ties this event to S1.)
-  * `rng_counter_before_*`, `rng_counter_after_*`: the Philox **2×64** counter **before** and **after** the draw(s), proving consumption. (Shared schema requires both.)
+**Required fields**
 
-**Counter arithmetic for S1.4** (recap from S1.3):
-Let $d_m=\mathbf{1}\{0<\pi_m<1\}$ be the **uniform draw count** per merchant. One Philox block yields two 64-bit words; For S1, the lane policy (single-use) implies **one uniform ⇒ one counter increment**. Let $d_m=\mathbf{1}\{0<\pi_m<1\}$. If $C^{\text{pre}}=(\text{hi},\text{lo})$ then $$C^{\text{post}}=(\text{hi},\text{lo})+d_m\quad\text{(u128)}.$$ Write these counters to the envelope exactly. If $C^\text{pre}=(\text{hi},\text{lo})$ then $C^\text{post}=\mathrm{advance}(C^\text{pre},d_m)$. These counters must be written to the envelope exactly. (S1.3 defines stride/jumps; envelope encodes the proof.)
+* `ts_utc`, `run_id`, `seed`, `parameter_hash`, `manifest_fingerprint`, `module`, `substream_label`,
+* `rng_counter_before_hi`, `rng_counter_before_lo`, `rng_counter_after_hi`, `rng_counter_after_lo`,
+* `blocks`, `draws`.
 
-### 3) Payload (event-specific)
+**Semantics**
 
-The **payload** of `rng/events/hurdle_bernoulli` contains the merchant outcome and context. The stream’s dictionary entry and state text require:
+* `ts_utc` — RFC-3339 UTC per **S0 timestamp policy** (S1 adds no precision rule).
+* `module`, `substream_label` — **registry literals**; for this stream `substream_label == "hurdle_bernoulli"`.
+* `rng_counter_*` — 128-bit counters represented as two u64 words; names define the pairing `(hi, lo)`. Object key **order is non-semantic**.
+* `blocks` — non-negative integer **count of 64-bit uniforms consumed**.
+* `draws` — non-negative **u128 encoded as a decimal string**; `parse_u128(draws)` is the uniform count.
+* **Budget identity (must hold):**
+  `u128(after) − u128(before) = parse_u128(draws) = blocks`.
+  For the hurdle stream specifically: `blocks ∈ {0,1}`, `draws ∈ {"0","1"}`.
+* **Identifier serialization:** 64-bit identifiers carried in JSON (e.g., `seed`) are serialized as **decimal strings** for transport safety; consumers parse to u64 per S0. (`merchant_id` follows the same rule in the payload below.)
 
-* `merchant_id` (row key),
-* `pi` (Bernoulli parameter on $[0,1]$, **JSON number**, binary64 round-trip),
-* `is_multi` (Bernoulli outcome),
-* `deterministic` (boolean; **true** iff $\\pi\\in\\{0,1\\}$),
-* `u` **conditional** on the branch: present and in $(0,1)$ **only** when `deterministic=false`; **null** when `deterministic=true`.
+---
 
-> The dictionary binds this stream to `#/rng/events/hurdle_bernoulli`; the layer schema defines `u` via `$defs.u01` (exclusive bounds).
- 
-**Outcome semantics (canonical).**
-- If `0<pi<1`: `is_multi := 1{ u < pi }`.
-- If `pi ∈ {0.0,1.0}`: `is_multi := 1{ pi == 1.0 }` (i.e., `is_multi = pi`).
-Types: `is_multi ∈ {0,1}`.
-Branch invariants:
-`deterministic==true ⇒ u==null ∧ is_multi==pi`;
-`deterministic==false ⇒ 0<u<1 ∧ (u<pi) == (is_multi==1)`.
+### 3) Payload (event-specific; minimal and authoritative)
 
-**Deterministic vs stochastic cases (branch-clean):**
+Fields and types:
 
-* If $0<\pi_m<1$: draw $u_m\sim\mathrm{U}(0,1)$ (**open interval**), **emit** `u` as a JSON number (binary64 round-trip) and require **strict bounds** `0 < u < 1`; set `deterministic=false` and `is_multi=\mathbf{1}\{u_m<\pi_m\}`; **consume 1 uniform**.
-* If $\pi_m=0$: set `deterministic=true`, `u=null`, `is_multi=0`; **consume 0 uniforms**.
-* If $\pi_m=1$: set `deterministic=true`, `u=null`, `is_multi=1`; **consume 0 uniforms**.
+* `merchant_id` — **decimal string** (canonical u64 when parsed).
+* `pi` — JSON number, **binary64 round-trip** to the exact value computed in S1.2; must satisfy `0.0 ≤ pi ≤ 1.0`.
+* `is_multi` — **boolean** outcome.
+* `deterministic` — **boolean**, **derived**: `true` iff `pi ∈ {0.0, 1.0}` (binary64 equality).
+* `u` — **required** with type **number | null**:
 
-**Schema & branch contract (authoritative).** The field `u` is **required** with type `number|null`.
-- If `deterministic=true` (i.e., `pi ∈ {0.0,1.0}` in binary64): **emit** `u:null`.
-- If `deterministic=false` (i.e., `0<pi<1`): **emit** `u` as a JSON number that **round-trips to binary64** and **must** satisfy `0<u<1`.
-Any deviation is a schema/validator failure.
- 
+  * `u = null` iff `pi ∈ {0.0, 1.0}` (deterministic).
+  * `u ∈ (0,1)` iff `0 < pi < 1` (stochastic); `u` must also round-trip to the same binary64.
 
-### 4) Exact record layout (canonical JSON object)
+**Outcome semantics (canonical, predicate form)**
 
-Let `E` be the **envelope** and `P` the **payload**:
+* If `0 < pi < 1`: `is_multi := (u < pi)`.
+* If `pi ∈ {0.0, 1.0}`: `is_multi := (pi == 1.0)`.
+
+**Branch invariants**
+
+* Deterministic ⇒ `u == null` and **no uniform consumed** (`blocks=0`, `draws="0"`).
+* Stochastic ⇒ `0 < u < 1`, `is_multi == (u < pi)`, and **exactly one uniform consumed** (`blocks=1`, `draws="1"`).
+
+> The payload is **minimal** and authoritative for the decision; `eta` and any diagnostics are **not** part of this stream (they belong in non-authoritative diagnostic datasets, if present at all).
+
+---
+
+### 4) Canonical examples (normative JSON; object key order non-semantic)
+
+**Stochastic example (`0 < pi < 1`)**
 
 ```json
 {
   "ts_utc": "2025-08-15T10:03:12.345678Z",
-  "run_id": "<hex32>",
-  "seed": 1234567890123456789,
-  "parameter_hash": "<hex64>",
-  "manifest_fingerprint": "<hex64>",
+  "run_id": "0123456789abcdef0123456789abcdef",
+  "seed": "1234567890123456789",
+  "parameter_hash": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+  "manifest_fingerprint": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
   "module": "1A.hurdle_sampler",
   "substream_label": "hurdle_bernoulli",
-  "rng_counter_before_lo": 9876543210,
   "rng_counter_before_hi": 42,
-  "rng_counter_after_lo": 9876543211,
+  "rng_counter_before_lo": 9876543210,
   "rng_counter_after_hi": 42,
+  "rng_counter_after_lo": 9876543211,
+  "blocks": 1,
+  "draws": "1",
 
-  "merchant_id": 184467440737095,     // payload begins
+  "merchant_id": "184467440737095",
   "pi": 0.3725,
   "is_multi": false,
   "deterministic": false,
-  "u": 0.1049,                        // always present; null when deterministic
+  "u": 0.1049
 }
 ```
 
-**Deterministic example (π ∈ {0,1}):**
+**Deterministic example (`pi ∈ {0,1}`)**
 
 ```json
 {
   "ts_utc": "2025-08-15T10:03:12.345678Z",
-  "run_id": "<hex32>",
-  "seed": 1234567890123456789,
-  "parameter_hash": "<hex64>",
-  "manifest_fingerprint": "<hex64>",
+  "run_id": "0123456789abcdef0123456789abcdef",
+  "seed": "1234567890123456789",
+  "parameter_hash": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+  "manifest_fingerprint": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
   "module": "1A.hurdle_sampler",
   "substream_label": "hurdle_bernoulli",
-  "rng_counter_before_lo": 9876543210, "rng_counter_before_hi": 42,
-  "rng_counter_after_lo":  9876543210, "rng_counter_after_hi": 42,
-  "merchant_id": 184467440737095, "pi": 1.0, "is_multi": true, "deterministic": true, "u": null
+  "rng_counter_before_hi": 42,
+  "rng_counter_before_lo": 9876543210,
+  "rng_counter_after_hi": 42,
+  "rng_counter_after_lo": 9876543210,
+  "blocks": 0,
+  "draws": "0",
+
+  "merchant_id": "184467440737095",
+  "pi": 1.0,
+  "is_multi": true,
+  "deterministic": true,
+  "u": null
 }
 ```
 
+---
 
-* The **top block** conforms to `$defs.rng_envelope`.
-* The **payload keys** match the S1 state contract and dictionary binding.
+**Bottom line:** This section pins the **single authoritative** hurdle event stream: **where it’s written**, the **complete envelope** (with budget identity), the **minimal payload** with **boolean** `is_multi` and **required** `u:number|null`, and the **branch invariants** that tie `pi`, `u`, `deterministic`, and the **uniform budget** together—no ambiguity, no order-dependence, and no drift from S0.
 
-
+---
 
 ### 5) Write discipline, idempotency, and ordering
 
-* **One row per merchant** $|\mathcal{M}|$ written to the stream (no duplicates). The dictionary scopes the stream to the run via `{seed, parameter_hash, run_id}`; write new `part-*` files to preserve append-only semantics.
-* **Stable partitioning:** never include `manifest_fingerprint` in the hurdle event path (that key is for egress/validation datasets like `outlet_catalogue`).
-* **Module/label stability:** always `module="1A.hurdle_sampler"`, `substream_label="hurdle_bernoulli"`. (State & dictionary place the hurdle stream first; later streams depend on it.)
-* **Trace linkage:** for each merchant, emit **exactly one** `rng_trace_log` row for sub-stream `"hurdle_bernoulli"` with `draws=d_m∈{0,1}` and the same `(seed, parameter_hash, run_id)` partition.
+* **Exactly one hurdle row per merchant (per run).** Within `{seed, parameter_hash, run_id}` there is **at most one** hurdle event for each `merchant_id`, and the hurdle row count equals the merchant universe cardinality for that `{parameter_hash}` (from ingress). Writes are **append-only** to `part-*` shards.
 
-### 6) Validation hooks (what CI/replay must assert)
+* **Stable partitioning.** The hurdle event dataset is partitioned by
+  `{seed, parameter_hash, run_id, module, substream_label}`; **do not** include `manifest_fingerprint` in the path (it is embedded in the envelope for lineage).
 
-* **Schema conformance:** every record conforms to `#/rng/events/hurdle_bernoulli` + `$defs.rng_envelope`. (CI validates JSONL rows.)
-* **Replay equality:** for each row, recompute $d_m, d_m$ from $\pi_m$, check `rng_counter_after = advance(rng_counter_before, d_m)`. (Trace gives independent proof via `draws`.)
-* **Branch purity:** downstream RNG streams (`gamma_component`, `poisson_component`, `nb_final`, `dirichlet_gamma_vector`, `gumbel_key`, etc.) must **only** appear for merchants with a prior hurdle record where `is_multi=true`. (Dictionary lists all downstream streams used for validation joins.)
-* **Cardinality:** hurdle stream row count == number of merchants in `merchant_ids` for the run. (Ingress authoritative schema + S1 contract.)
+* **Module/label stability.** `module` and `substream_label` are **registry literals**. For this stream, `substream_label == "hurdle_bernoulli"`; `module` is the registered producer id (e.g., `"1A.hurdle_sampler"`).
 
-### 7) Failure semantics (abort classes surfaced by S1.4)
+* **Trace linkage (cumulative, not per-event).** Maintain a **cumulative** `rng_trace_log` per `(module, substream_label, merchant_id)` within the run; its totals equal the **sum of event budgets** for that key and reconcile to the counter deltas. Implementations MAY write intermediates during execution but MUST present **exactly one** final cumulative record per key at state completion. No per-event trace rows.
 
-* **E_SCHEMA_HURDLE**: JSONL record fails `#/rng/events/hurdle_bernoulli` (missing envelope field; `u` violates open interval; type mismatch).
-* **E_COUNTER_MISMATCH**: envelope `after` ≠ `before + d_m` (consumption proof fails).
-* **E_BRANCH_GAP** (deferred to validation): any downstream RNG event for a merchant with **no** prior hurdle record or with `is_multi=false`. (S1 marks hurdle as the **first** RNG stream.)
+---
 
-### 8) Reference emission pseudocode (language-agnostic, exact fielding)
+### 6) Validation hooks (what replay must assert)
 
-```python
-def emit_hurdle_event(m, pi_m, ctx):
-    # ctx carries: seed, parameter_hash, manifest_fingerprint, run_id,
-    #              module="1A.hurdle_sampler",
-    #              substream_label="hurdle_bernoulli",
-    #              counter_before=(hi, lo), and time source ts_utc()
-    draws = 1 if 0.0 < pi_m < 1.0 else 0
-    before_hi, before_lo = ctx.counter_before
+* **Schema conformance.** Every row validates against `#/rng/events/hurdle_bernoulli` (payload) and `$defs.rng_envelope` (envelope).
 
-    deterministic = (draws == 0)
+* **Budget identity & replay.** Let $d_m = 1$ iff $0<\pi_m<1$, else $d_m=0$. Assert
+  `u128(after) − u128(before) = d_m = blocks = parse_u128(draws)`.
+  (Fix the duplication in the draft: compute $d_m$ **once** from `pi`.)
 
-    if draws == 1:
-        u = next_u01()                         # consumes one block; open interval (0,1)
-        is_multi = (u < pi_m)
-        after_hi, after_lo = advance((before_hi, before_lo), 1)
-    else:
-        u = None
-        is_multi = (pi_m == 1.0)
-        after_hi, after_lo = (before_hi, before_lo)
+* **Decision predicate.**
 
-    record = {
-        "ts_utc": ts_utc(),
-        "run_id": ctx.run_id,
-        "seed": ctx.seed,
-        "parameter_hash": ctx.parameter_hash,
-        "manifest_fingerprint": ctx.manifest_fingerprint,
-        "module": ctx.module,
-        "substream_label": ctx.substream_label,
-        "rng_counter_before_lo": before_lo,
-        "rng_counter_before_hi": before_hi,
-        "rng_counter_after_lo":  after_lo,
-        "rng_counter_after_hi":  after_hi,
+  * If `d_m=0` (deterministic): `pi∈{0,1}`, `u==null`, `deterministic=true`, `after==before`, and `is_multi == (pi==1.0)`.
+  * If `d_m=1` (stochastic): regenerate **one** uniform from the keyed substream at `before` (low-lane policy), map via open-interval `u01`, assert `0<u<1`, and `(u<pi) == is_multi`; `after = before + 1`.
 
-        "merchant_id": m,
-        "pi": pi_m,
-        "deterministic": deterministic,
-        "u": u,   
-        "is_multi": is_multi
-    }
-    write_jsonl("logs/rng/events/hurdle_bernoulli/"
-                f"seed={ctx.seed}/parameter_hash={ctx.parameter_hash}/run_id={ctx.run_id}/part-*.jsonl",
-                record)
-    # trace row with draws for the same substream
-    emit_trace_row(label="hurdle_bernoulli", draws=draws, before=(before_hi,before_lo), after=(after_hi,after_lo))
-```
+* **Trace reconciliation (cumulative).** For each `(module, substream_label, merchant_id)`, cumulative trace totals equal the **sum** of that merchant’s hurdle `blocks` and equal the counter delta between earliest `before` and latest `after`.
 
+* **Gating invariant.** Downstream **1A RNG streams** must appear for a merchant **iff** that merchant’s hurdle event has `is_multi=true`. The set of gated stream IDs is obtained via the **registry filter** (S1 does **not** enumerate names inline).
 
-**Normative contract (authoritative).** Hurdle payload keys are `{merchant_id, pi, is_multi, deterministic, u}`. `u` is **required** with type `number|null`: emit `u:null` when `deterministic=true` (`pi ∈ {0.0,1.0}` in binary64) and emit a JSON number that round-trips to binary64 with **strict bounds** `0<u<1` when `deterministic=false` (`0<pi<1`). Any deviation is a schema/validator failure; this state text and `schemas.layer1.yaml` anchors are the sole authority.
+* **Cardinality & uniqueness.** Hurdle row count equals ingress merchant count for `{parameter_hash}`; uniqueness key is `merchant_id` scoped by `{seed, parameter_hash, run_id}`.
 
+---
 
-Pseudocode aligns to: dictionary path & partitioning; shared envelope; hurdle payload; counter arithmetic; and trace linkage.
+### 7) Failure semantics (surface at S1.4)
+
+* **E_SCHEMA_HURDLE.** Record fails schema: missing envelope fields; wrong types (e.g., `is_multi` not boolean, `u` not `number|null`); `u` violates open interval when stochastic; counters field names malformed.
+
+* **E_COUNTER_MISMATCH.** Budget identity fails: `u128(after) − u128(before) ≠ blocks` or `blocks ≠ parse_u128(draws)`; or hurdle emits values outside `{blocks∈{0,1}, draws∈{"0","1"}}`.
+
+* **E_GATING_VIOLATION.** Any downstream 1A RNG event exists for a merchant **without** a conformant hurdle event with `is_multi=true`. (Order is irrelevant; this is a **presence** invariant on the finalized datasets.)
+
+* **E_PARTITION_MISMATCH.** Path partitions `{seed, parameter_hash, run_id}` differ from the same fields embedded in the envelope; or `module`/`substream_label` don’t match registry literals **exactly**.
+
+(Shape/order and non-finite numeric faults are owned by S1.1–S1.2 preconditions.)
+
+---
+
+### 8) Reference emission procedure (ordering-invariant; language-agnostic)
+
+1. **Base counter.** Obtain the **base counter** for `(label="hurdle_bernoulli", merchant_id)` using the S0 keyed-substream primitive; set `before`.
+
+2. **Branch from `pi`.**
+
+   * If `pi ∈ {0.0,1.0}`: set `blocks=0`, `draws="0"`, `after=before`, `u=null`, `deterministic=true`, `is_multi=(pi==1.0)`.
+   * If `0 < pi < 1`: draw **one** uniform `u∈(0,1)` (low-lane, open-interval `u01`); set `blocks=1`, `draws="1"`, `after=before+1`, `deterministic=false`, `is_multi=(u<pi)`.
+
+3. **Emit hurdle event.** Envelope includes all required fields (`*_hi` then `*_lo` naming, `blocks`, `draws`, registry `module`/`substream_label`); payload includes `merchant_id` (decimal string), `pi` (binary64 round-trip), `u:number|null`, `is_multi:boolean`, `deterministic:boolean`.
+
+4. **Update cumulative trace.** Increase totals for `(module, substream_label, merchant_id)` by `blocks` and ensure a **single final** cumulative record exists at state completion.
+
+*(Procedure is normative; concrete code is illustrative only. S0 remains the authority for PRNG keying, counter arithmetic, lane policy, and `u01`.)*
+
+---
+
+**Bottom line:** S1.4 nails the **write discipline** (one row per merchant; stable partitions; no fingerprint in paths), the **complete envelope** with budget identity, the **minimal authoritative payload** (`is_multi` boolean; `u:number|null`), the **cumulative** trace model, and a validator-oriented hook set (budget, decision, gating, cardinality)—all order-invariant and S0-consistent.
 
 ---
 
