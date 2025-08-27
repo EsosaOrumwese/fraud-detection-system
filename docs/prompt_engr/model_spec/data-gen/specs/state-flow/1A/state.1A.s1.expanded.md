@@ -128,164 +128,160 @@ By fixing $x_m$, $\beta$, the run identifiers, the **order-invariant substreamin
 
 ## Purpose
 
-Given the frozen hurdle design vector $x_m$ and the single-YAML coefficient vector $\beta$ (from S1.1), compute the linear predictor
+Given the frozen design vector $x_m$ and the single-YAML coefficient vector $\beta$ (from S1.1), compute
 
 $$
-\eta_m=\beta^\top x_m
-$$
-
-and the hurdle probability
-
-$$
+\eta_m=\beta^\top x_m,\qquad
 \pi_m=\sigma(\eta_m)\in[0,1],
 $$
 
-then pass $(\eta_m,\pi_m)$ forward to RNG (S1.3) and event emission (S1.4). The logistic definition and safe evaluation are fixed by the locked S1 text/combined doc.
+then pass $(\eta_m,\pi_m)$ forward to S1.3 (RNG) and S1.4 (event). All numeric environment rules come from **S0.8** (binary64, RN-even, no FMA/FTZ/DAZ, deterministic libm; fixed-order reductions).
 
 ---
 
-## Inputs (recap; must already be validated in S1.1)
+## Inputs (recap; validated in S1.1)
 
-* **Design vector** $x_m=[1,\ \phi_{\mathrm{mcc}},\ \phi_{\mathrm{ch}},\ \phi_{\mathrm{dev}}]^\top\in\mathbb{R}^{1+C_{\mathrm{mcc}}+2+5}$, column order frozen by the fitting bundle.
-* **Coefficients** $\beta\in\mathbb{R}^{1+C_{\mathrm{mcc}}+2+5}$ loaded atomically from `hurdle_coefficients.yaml`; shape/order **must** match $x_m$.
+* **Design vector** $x_m\in\mathbb{R}^{1+C_{\mathrm{mcc}}+2+5}$, column order frozen by the fitting bundle (S0.5).
+* **Coefficients** $\beta\in\mathbb{R}^{1+C_{\mathrm{mcc}}+2+5}$ loaded atomically; shape/order equals $x_m$.
 
-(Shape/order failures are handled at S1.1/S1.6; see failure semantics below.)
+(Shape/order failures are handled at S1.1 / S0.9.)
 
 ---
 
 ## Canonical definitions (math)
 
-### Logistic map (normative)
+### Linear predictor (fixed-order Neumaier reduction)
+
+$$
+\eta_m=\beta^\top x_m
+$$
+
+Compute in IEEE-754 **binary64** using the **frozen column order** and the **Neumaier compensated summation** mandated by S0.8. No BLAS reordering or parallel reduction is permitted on any ordering-critical path.&#x20;
+
+### Logistic map and **explicit saturation regime** (normative)
+
+Baseline logistic:
 
 $$
 \sigma:\mathbb{R}\to(0,1),\qquad
 \sigma(\eta)=\frac{1}{1+e^{-\eta}}.
 $$
 
-**Safe evaluation (two-branch form):**
+**Evaluation contract (binary64, deterministic):**
+
+We define a **piecewise, overflow-safe evaluation** that is portable across libm profiles (no reliance on incidental under/overflow):
+
+* Fix a **binary64 saturation threshold** $T = 37.5$.
+* Compute $\pi=\sigma(\eta)$ as:
 
 $$
-\sigma(\eta)=
+\pi\;=\;
 \begin{cases}
-\dfrac{1}{1+e^{-\eta}}, & \eta\ge 0,\\[6pt]
-\dfrac{e^{\eta}}{1+e^{\eta}}, & \eta<0.
+1.0 & \text{if } \eta \ge +T,\\[4pt]
+\dfrac{1}{1+e^{-\eta}} & \text{if } 0 \le \eta < +T,\\[10pt]
+\dfrac{e^{\eta}}{1+e^{\eta}} & \text{if } -T < \eta < 0,\\[10pt]
+0.0 & \text{if } \eta \le -T.
 \end{cases}
 $$
 
-**Emission contract (binary64, normative).** Mathematically, $\sigma:(-\infty,\infty)\to(0,1)$. Under IEEE-754 binary64 evaluation of the **two-branch** form above, the **emitted** $\pi\in[0,1]$ and may equal exactly `0.0` or `1.0` for extreme $\eta$. Define `deterministic := (pi == 0.0 || pi == 1.0)` (exact binary64 comparison). If `deterministic=true`, emit `u:null`; if `false`, emit `0<u<1`.
+This guarantees $\pi\in[0,1]$ in **binary64**, and it makes the **deterministic regime** explicit and platform-independent (exact `0.0` or `1.0` only via this saturation). S0.8 governs the math profile for `exp` and the FP environment used in the middle branches.&#x20;
 
-This is the exact algorithm the locked S1 prescribes. It prevents overflow/underflow in the numerator and keeps $\pi\in[0,1]$ in binary64.
-
-### Linear predictor (fixed‐order dot product)
-
-$$
-\eta_m=\beta^\top x_m
-$$
-
-computed in IEEE-754 binary64 with a **fixed iteration order** over the frozen columns (Neumaier/Kahan compensation permitted). No reordering or BLAS is allowed on an ordering-critical path. (Policy from S0.8.)
+**Determinism flag (derived):**
+`deterministic := (pi == 0.0 || pi == 1.0)` using **binary64 equality**. If `deterministic=true` then S1.3 will consume **zero** uniforms; else S1.3 consumes **exactly one**. (See S1.3; validator equalities come from our Batch-1/2 decisions.)
 
 ---
 
-## Deterministic regimes & consequences for S1.3
+## Serialization & bounds (normative I/O rules)
 
-* **Typical case** $0<\pi_m<1$: RNG **will** consume exactly one $U(0,1)$ deviate for merchant $m$.
-* **Saturated case** $\pi_m\in\{0,1\}$: this arises when the two-branch evaluation underflows to exactly 0 or 1 in binary64 for extreme $\eta_m$. In this regime **no draw occurs**; **emit** `u:null` and flag the event `deterministic=true` at emission. The locked S1 schema & invariants explicitly require this behaviour.
-
-> Non-normative (UI): display-only clipping of axes is permitted for charts/tables **without** altering the emitted `eta` or `pi`.
+* **Binary64 round-trip:** Producers MUST serialize $\pi$ as a decimal that **round-trips bit-exactly** to the original binary64 (e.g., shortest round-trippable or fixed 17 digits). Consumers MUST parse as binary64 and MUST NOT depend on a fixed digit count.&#x20;
+* **Legal range:** Enforce `0.0 ≤ pi ≤ 1.0` (binary64). If $|\eta|\ge T$, emitted $\pi$ is exactly `0.0` or `1.0`; otherwise `0.0 < pi < 1.0`.&#x20;
+* **Diagnostics:** $\eta$ is **not** part of the normative hurdle event payload; if recorded, it belongs to a **diagnostic** dataset only (non-authoritative).&#x20;
 
 ---
 
-## Numeric policy (must hold)
+## Deterministic vs stochastic and consequences for S1.3
 
-* **Format:** IEEE-754 **binary64**, RNE rounding; **no FMA**, **no FTZ/DAZ**; deterministic libm. (S0.8.)
-* **Reduction:** fixed-order accumulation for $\beta^\top x$ (e.g., Neumaier).
-* **Domains:** inputs must already satisfy channel ∈ {CP,CNP}, $b_m\in\{1,\dots,5\}$. (From S1.1/S0.5.)
+* **Stochastic case** $(0<\pi<1)$: S1.3 will draw **one** $u\in(0,1)$ from the keyed substream, then decide `is_multi = (u < pi)`; budget `draws=1`. (Open-interval mapping and substreaming per S0.3.)&#x20;
+* **Deterministic case** $(\pi\in\{0,1\})$: S1.3 performs **no draw**; budget `draws=0`; downstream decision is implied by $\pi$ (`is_multi=true` iff $\pi==1.0$).&#x20;
 
-* **Serialization:** `pi` is a **JSON number** that must round-trip to the exact binary64 value on parse. Producers **MUST** emit the shortest round-trippable decimal (≤17 significant digits; scientific notation allowed). Consumers **MUST** parse as binary64. (If present in any debug stream, `eta` follows the same rule.)
-* **Bounds:** enforce `0.0 ≤ pi ≤ 1.0`.
+---
+
+## Numeric policy (must hold; inherited)
+
+S0.8 applies in full: **binary64**, RN-even, **no FMA**, **no FTZ/DAZ**, deterministic libm; fixed-order Neumaier reductions; any NaN/Inf in $\eta$ or $\pi$ is a **hard error** under S0.9.
+
+---
+
+**Bottom line:** S1.2 fixes a single, portable way to compute $\eta$ and $\pi$: a **fixed-order Neumaier** dot product followed by a **two-branch logistic** with **explicit saturation at $T=37.5$**. This yields exact `0.0/1.0` only by spec (not by accidental under/overflow), and it cleanly determines whether S1.3 consumes **one** uniform or **zero**.&#x20;
+
 ---
 
 ## Output of S1.2 (to S1.3/S1.4)
 
-For each merchant $m$, produce the pair
+For each merchant $m$, S1.2 produces the numeric pair
 
 $$
-(\eta_m,\ \pi_m),\quad \eta_m\in\mathbb{R}\ \text{finite},\ \ \pi_m\in[0,1].
+(\eta_m,\ \pi_m),\qquad \eta_m\in\mathbb{R}\ \text{(finite)},\ \ \pi_m\in[0,1]\ \text{(binary64)}.
 $$
 
-These are **not** persisted here; they feed S1.3 (Bernoulli) and S1.4 (event payload fields `eta`/`pi`). The locked event schema requires `pi` and (by I-H3) constrains `u/deterministic` based on whether $0<\pi<1$ or $\pi\in\{0,1\}$.
+These values are **not persisted by S1.2**. They flow directly into:
+
+* **S1.3 (RNG & decision):** determines whether **one** uniform is consumed $(0<\pi<1)$ or **zero** $(\pi\in\{0,1\})$, and if stochastic, evaluates the predicate `is_multi = (u < pi)`.
+* **S1.4 (event payload):** `pi` is a required payload field. `eta` is **not** a normative payload field; if recorded, it belongs to a diagnostic dataset (non-authoritative). S1.4 derives `deterministic` from `pi` and applies the `u` presence rule: `u=null` iff `pi∈{0,1}`, else `u∈(0,1)`.
 
 ---
 
 ## Failure semantics (abort S1 / run)
 
-Tie each predicate to S0.9 classes.
+S1.2 must **abort the run** if any of the following hold:
 
-1. **Shape/order mismatch** when forming $\eta=\beta^\top x$
-   → `E_DSGN_SHAPE_MISMATCH` (schema/authority) → **S0.9/F6** (or explicit S1 code), **run-abort**.
-2. **Numeric invalid**: $\eta$ or $\pi$ non-finite after evaluation
-   → `hurdle_nonfinite(merchant_id, field)` → **S0.9/F3**, **run-abort**.
-3. **Out-of-range** (should be impossible with the two-branch): $\pi\notin[0,1]$
-   → treat as **S0.9/F3**, **run-abort** with forensic payload ($\beta$ slice, $x$ indices).
+1. **Numeric invalid:** either $\eta$ or $\pi$ is non-finite (NaN/±Inf) after evaluation.
+2. **Out-of-range:** $\pi \notin [0,1]$ (should not occur under the thresholded two-branch logistic).
+3. **Shape/order mismatch:** already handled at S1.1; if encountered here, treat as a hard precondition failure.
+
+(Full failure taxonomy, codes, and CI handling live outside S1; this section defines only the operational abort triggers.)
 
 ---
 
-## Validation & CI hooks (prove S1.2 is correct)
+## Validator hooks (what the S1 checklist asserts for S1.2)
 
-* **Recompute check:** In the validator, independently rebuild $x_m$ (S0.5 dictionaries) and re-evaluate $\eta,\pi$ in binary64; assert
+The single S1 Validator Checklist (referenced once from S1) must be able to **reproduce** S1.2 exactly:
 
-  * $\eta$ is finite and
-  * $\pi\in[0,1]$ with **bitwise** equality under the pinned math profile. (Numeric policy from S0.8.)
-* **Deterministic regime linkage:** When later S1.4 records have `deterministic=true`/`u=null`, assert the recomputed $\pi$ is exactly 0 or 1 in binary64 (saturation), matching the locked invariant I-H3.
-* **Budget linkage (S1.3):** Use $\pi$ to predict draw budget: `draws = 1` iff $0<\pi<1$; else `0`. Validator cross-checks against the `rng_trace_log`.
+* **Recompute:** Rebuild $x_m$ (from S0’s frozen encoders) and re-evaluate $\eta,\pi$ using the fixed-order binary64 dot product and the **thresholded two-branch logistic** with the pinned saturation threshold $T$. Assert:
+
+  * $\eta$ is finite;
+  * $\pi \in [0,1]$;
+  * the recomputed $\pi$ matches the emitted `pi` **bit-for-bit** (binary64).
+* **Determinism equivalences:**
+  $\pi\in\{0,1\} \iff \text{deterministic}=\text{true} \iff \text{draws}=0 \iff u=\text{null}$.
+  Otherwise $0<\pi<1 \iff \text{deterministic}=\text{false} \iff \text{draws}=1 \iff u\in(0,1)$.
+* **Budget prediction link (with S1.3):** From $\pi$, predict `draws` as above and reconcile with the event envelope and the cumulative trace totals for the hurdle substream.
 
 ---
 
 ## Reference algorithm (language-agnostic, ordering-stable)
 
-```text
-function S1_2_probability_map(x_m, beta):
-  # Preconditions (S1.1):
-  #   len(beta) == len(x_m) and column order frozen/validated.
+1. **Dot product:** Compute $\eta=\beta^\top x$ in binary64 using the **frozen column order** and **Neumaier** compensation (no reordering/BLAS on ordering-critical paths).
+2. **Logistic with explicit saturation:** Using the fixed threshold $T$, set:
 
-  # 1) Fixed-order dot product in binary64 (Neumaier compensation allowed)
-  s = 0.0
-  c = 0.0
-  for i in 0..len(x_m)-1:         # exact column order from dictionaries
-      y = beta[i] * x_m[i] - c
-      t = s + y
-      c = (t - s) - y
-      s = t
-  eta = s                         # finite float64 required
+   * if $\eta \ge +T$ ⇒ $\pi = 1.0$;
+   * else if $-T \le \eta < +T$ ⇒ evaluate the two-branch logistic in binary64;
+   * else if $\eta \le -T$ ⇒ $\pi = 0.0$.
+3. **Guards:** $\eta$ and $\pi$ must be finite; $\pi$ must satisfy $0.0 \le \pi \le 1.0$.
+4. **Hand-off:** Emit $(\eta,\pi)$ to S1.3/S1.4. The RNG budget and `u` presence follow directly from $\pi$ as stated above.
 
-  # 2) Branch-stable logistic in binary64
-  if eta >= 0.0:
-      z = exp(-eta)               # finite; may underflow to 0 for huge eta
-      pi = 1.0 / (1.0 + z)        # in [0,1]
-  else:
-      z = exp(eta)                # may underflow to 0 for large negative eta
-      pi = z / (1.0 + z)          # in [0,1]
-
-  # 3) Guards
-  if not is_finite(eta): raise E_HURDLE_NONFINITE("eta")
-  if not is_finite(pi):  raise E_HURDLE_NONFINITE("pi")
-  if pi < 0.0 or pi > 1.0: raise E_HURDLE_OUT_OF_RANGE(pi)
-
-  return (eta, pi)
-```
-
-* `exp` is the deterministic libm implementation pinned by the math profile; no FMA contraction on the divisions. (S0.8.)
+*(This is a procedural specification, not implementation code; S0 remains the authority for the FP environment and PRNG primitives.)*
 
 ---
 
 ## How S1.2 interacts with adjacent sections
 
-* **Feeds S1.3:** $\pi_m$ determines the draw budget: exactly one $U(0,1)$ if $0<\pi<1$, else **zero**; the Bernoulli outcome is $\mathbf{1}\{u<\pi\}$.
-* **Feeds S1.4:** `pi` is written in the payload; when $\pi\in\{0,1\}$, S1.4 **must** emit `deterministic=true` and `u=null/absent` per the hurdle schema and I-H3.
+* **Feeds S1.3:** $\pi$ sets the **uniform budget**: exactly **one** uniform if $0<\pi<1$, else **zero**. If stochastic, S1.3 evaluates `is_multi = (u < pi)` using the open-interval mapping from S0.
+* **Feeds S1.4:** `pi` is serialized with **binary64 round-trip** fidelity. `deterministic` is derived from `pi`; `u` is **required** and **nullable** (`null` iff $\pi\in\{0,1\}$, otherwise a number in $(0,1)$). `is_multi` is **boolean** only.
 
 ---
 
-**Bottom line:** S1.2 fixes the only admissible way to compute $\eta$ and $\pi$: a fixed-order binary64 dot product followed by an overflow-safe two-branch logistic. This produces $\pi\in[0,1]$ deterministically, saturates to exactly 0 or 1 only via binary64 underflow (no ad-hoc clipping), and drives the precise draw budget and payload semantics required by S1.3–S1.4.
+**Bottom line:** S1.2 defines a single, portable procedure for $(\eta,\pi)$: **fixed-order** binary64 dot product and a **thresholded two-branch logistic** with explicit saturation. That yields $\pi\in[0,1]$ deterministically, makes the deterministic regime platform-independent, and drives the exact RNG budget and payload semantics required by S1.3–S1.4.
 
 ---
 
