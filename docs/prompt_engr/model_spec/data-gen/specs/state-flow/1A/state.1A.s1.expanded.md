@@ -784,199 +784,203 @@ For each hurdle row $r$ with merchant $m$:
 
 # S1.6 — Failure modes (normative, abort semantics)
 
-**Scope.** Failures here are specific to S1 (hurdle): design/$\beta$ misuse, numeric invalids, schema/envelope breaches, RNG counter/accounting errors, partition drift, and downstream gating. The locked S1 already lists the three headline bullets; below we fully formalize them and extend to all places S1 can break.
+**Scope.** Failures here are specific to S1 (hurdle): design/β misuse, numeric invalids, schema/envelope breaches, RNG counter/accounting errors, partition drift, and downstream gating. This section formalizes **all predicates, detection points, and run-abort semantics** that S1 may surface.
 
-**Authoritative references (used below):**
-
-* Event schema & shared envelope in `schemas.layer1.yaml` (e.g., `$defs.rng_envelope`, `#/rng/events/hurdle_bernoulli`, `$defs.u01`).
-* Dataset dictionary paths/partitions for hurdle events and RNG trace.
-* Locked S1 invariants I-H1..I-H4 and the “failure modes” bullets.
+**Authoritative references:**
+Layer schema (envelope anchor + hurdle event schema), dataset dictionary/registry (dataset id, partitions, enums), and S1 invariants (I-H1..I-H10).
 
 ---
 
 ## Family A — Design / coefficients misuse (compute-time hard abort)
 
 **A1. `beta_length_mismatch`**
-**Predicate.** `len(β) ≠ 1 + C_mcc + 2 + 5` when forming $\eta_m=\beta^\top x_m$.
-**Detect at.** S1.2 entry (or earlier guard in S1.1). **Abort run.**
+**Predicate.** `len(β) ≠ 1 + C_mcc + 2 + 5` when forming $\eta = \beta^\top x$.
+**Detect at.** S1.1/S1.2 entry. **Abort run.**
 **Forensics.** `{expected_len, observed_len, mcc_cols, channel_cols, bucket_cols}`.
-**Why.** Locked S1 calls out *design/coefficients mismatch* as abort.
 
 **A2. `unknown_category`**
-**Predicate.** `mcc_m` not in the MCC dictionary, or `channel_m` ∉ {CP, CNP}, or `b_m` ∉ {1..5}.
-**Detect at.** S1.1/S1.2 preprocessing. **Abort run.**
+**Predicate.** `mcc_m` not in MCC dictionary, or `channel_m ∉ {CP,CNP}`, or `b_m ∉ {1..5}`.
+**Detect at.** Precondition breach (inputs from S0). **Abort run.**
 **Forensics.** `{merchant_id, field, value}`.
 
 **A3. `column_order_mismatch`**
-**Predicate.** Encoder dictionary orders do not match the order implied by `β`’s bundle metadata (frozen column order).
+**Predicate.** Frozen encoder column order does **not** match β’s bundle order.
 **Detect at.** S1.1 design load. **Abort run.**
-**Forensics.** `{block: "mcc|channel|bucket", dict_digest, beta_digest}`.
+**Forensics.** `{block:"mcc|channel|bucket", dict_digest, beta_digest}`.
 
 ---
 
 ## Family B — Numeric invalids (compute-time hard abort)
 
 **B1. `hurdle_nonfinite_eta`**
-**Predicate.** $\eta_m$ non-finite after fixed-order dot product (binary64).
+**Predicate.** $\eta$ non-finite after fixed-order binary64 dot product.
 **Detect at.** S1.2. **Abort run.**
 **Forensics.** `{merchant_id, eta}`.
-**Why.** Locked S1 lists *numeric invalid* as abort.
 
-**B2. `hurdle_nonfinite_pi`**
-**Predicate.** $\pi_m$ non-finite (or $\pi\notin[0,1]$) after the two-branch logistic.
+**B2. `hurdle_nonfinite_or_oob_pi`**
+**Predicate.** $\pi$ non-finite **or** $\pi\notin[0,1]$ after the thresholded two-branch logistic.
 **Detect at.** S1.2. **Abort run.**
 **Forensics.** `{merchant_id, eta, pi}`.
-**Notes.** With the safe logistic, $\pi\notin[0,1]$ should be impossible; treat as hard error.
 
 ---
 
 ## Family C — Envelope & accounting (RNG/logging hard abort)
 
 **C1. `rng_envelope_schema_violation`**
-**Predicate.** Any missing/wrongly-typed **envelope** field required by `$defs.rng_envelope`:
-`{ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, rng_counter_before_{lo,hi}, rng_counter_after_{lo,hi}}`.
-**Detect at.** Writer and validator schema checks. **Abort run.**
-**Forensics.** `{dataset_id, path, missing_or_bad: [...]}`.
+**Predicate.** Missing/mistyped **envelope** field required by the anchor:
+`{ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, rng_counter_before_hi, rng_counter_before_lo, rng_counter_after_hi, rng_counter_after_lo, blocks, draws}`.
+**Detect at.** Writer + validator schema checks. **Abort run.**
+**Forensics.** `{dataset_id, path, missing_or_bad:[...]}`.
 
 **C2. `substream_label_mismatch`**
-**Predicate.** Envelope `substream_label` ≠ `"hurdle_bernoulli"`.
+**Predicate.** Envelope `substream_label` ≠ registry literal `"hurdle_bernoulli"`.
 **Detect at.** Writer assertion; validator. **Abort run.**
-**Why.** Label is fixed by S1 and schema/dictionary binding.
 
 **C3. `rng_counter_mismatch`**
-**Predicate.** `u128(after) − u128(before) ≠ draws`, where hurdle `draws ∈ {0,1}`.
-**Detect at.** Writer (when emitting trace) and validator reconciliation. **Abort run.**
-**Why.** S1 invariants require exact counter conservation; dictionary gives the trace stream to verify.
+**Predicate.** `u128(after) − u128(before) ≠ parse_u128(draws)` **or** that value ≠ `blocks`; hurdle must also satisfy `{blocks∈{0,1}, draws∈{"0","1"}}`.
+**Detect at.** Writer (optional) and validator reconciliation. **Abort run.**
+**Forensics.** `{before_hi, before_lo, after_hi, after_lo, blocks, draws}`.
 
-**C4. `rng_trace_missing_or_mismatch`**
-**Predicate.** Missing companion `rng_trace_log` row for the same `(seed, parameter_hash, run_id, label="hurdle_bernoulli")`, or `trace.draws ≠ delta_counters`.
-**Detect at.** Validator join. **Abort run.**
+**C4. `rng_trace_missing_or_totals_mismatch`**
+**Predicate.** Missing **cumulative** `rng_trace_log` record for `(module, substream_label, merchant_id)` within the run, **or** its totals ≠ **sum of event blocks** for that key **or** ≠ the overall counter delta (earliest `before` → latest `after`).
+**Detect at.** Validator join/aggregate. **Abort run.**
 
 **C5. `u_out_of_range`**
-**Predicate.** In a stochastic branch (`0<π<1`), payload `u` not in `(0,1)` (violates `$defs.u01`).
+**Predicate.** In a stochastic branch, payload `u` not in `(0,1)` (open-interval violation).
 **Detect at.** Writer check; validator schema + re-derivation. **Abort run.**
+**Forensics.** `{merchant_id, u, pi}`.
 
 ---
 
 ## Family D — Payload/schema discipline (hurdle event)
 
 **D1. `hurdle_payload_violation`**
-**Predicate.** Record fails `#/rng/events/hurdle_bernoulli` required payload keys: `merchant_id`, `pi`, `is_multi`, `deterministic`, `u`, or types/ranges violate `$defs` (`pct01`, `u01`).
-**Detect at.** Writer schema validation; CI validator. **Abort run.**
+**Predicate.** Record fails the hurdle event schema: missing any of `{merchant_id, pi, is_multi, deterministic, u}`; `is_multi` not **boolean**; `u` not `number|null`; `pi` not binary64-round-trippable (or out of `[0,1]`).
+**Detect at.** Writer schema validation; CI/validator. **Abort run.**
 
 **D2. `deterministic_branch_inconsistent`**
-**Contract (authoritative).** If $0<\pi<1$: payload must have `u∈(0,1)` and `deterministic=false`. If $\pi\in\{0,1\}$: payload must have `u=null` and `deterministic=true`.  
-**Predicate.** Event violates the contract above.  
-**Detect at.** Writer; validator. **Abort run.**
+**Predicate.** Payload contradicts branch rules:
+
+* `0<pi<1` but `u` absent/`null` or `deterministic=true`, **or**
+* `pi∈{0,1}` but `u` numeric or `deterministic=false`.
+  **Detect at.** Writer; validator. **Abort run.**
 
 ---
 
 ## Family E — Partitioning & lineage coherence (paths vs embedded)
 
 **E1. `partition_mismatch`**
-**Predicate.** Path keys for the hurdle stream (dictionary-pinned)
-`logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`
-do **not** equal the same embedded envelope fields.
+**Predicate.** Path partitions `{seed, parameter_hash, run_id, module, substream_label}` do **not** equal the same embedded envelope fields; or path includes `manifest_fingerprint` (which is **not** a partition for events).
 **Detect at.** Writer; validator lint. **Abort run.**
 
 **E2. `wrong_dataset_path`**
-**Predicate.** Hurdle events written under a path that does not match the dictionary `schema_ref` + `path` template.
+**Predicate.** Hurdle events written under a path that does not match the dictionary/registry binding (dataset id ↔ path template).
 **Detect at.** Writer; validator path lint. **Abort run.**
 
 ---
 
 ## Family F — Coverage & gating (cross-stream structural)
 
-**F1. `logging_gap_no_prior_hurdle`**
-**Predicate.** Any downstream RNG event (Gamma/Poisson/NB final/…) observed for merchant `m` **without** a prior hurdle record with `is_multi=true` in this run.
-**Detect at.** Validator cross-stream join. **Run invalid** (treat as hard failure).
+**F1. `gating_violation_no_prior_hurdle_true`**
+**Predicate.** Any downstream **1A RNG stream** appears for merchant $m$ **without** a conformant hurdle event with `is_multi=true` in the run. (Presence rule; emission order irrelevant.)
+**Detect at.** Validator cross-stream join using the **registry-filtered** set of gated streams. **Run invalid (hard).**
 
 **F2. `duplicate_hurdle_record`**
-**Predicate.** More than one hurdle record for the same merchant in the same `{seed, parameter_hash, run_id}` partition.
+**Predicate.** More than one hurdle event for the same merchant within `{seed, parameter_hash, run_id}`.
 **Detect at.** Validator uniqueness check. **Abort run.**
-**Why.** Locked S1 requires one record per merchant.
 
 **F3. `cardinality_mismatch`**
-**Predicate.** `count(hurdle_records) ≠ count(merchant_ids)` for the run.
+**Predicate.** `count(hurdle_events) ≠ count(merchant_ids)` for the run.
 **Detect at.** Validator count check. **Abort run.**
+
+---
+
+**Bottom line:** S1.6 enumerates **all abortable predicates** for the hurdle: design/β misuse, numeric invalids, complete envelope with strict **budget identity**, cumulative trace reconciliation, payload typing/branch rules, exact partition/embedding equality, and registry-driven gating. Each failure includes a precise detection point and forensics so the run can halt with actionable evidence.
 
 ---
 
 ## Error object (forensics payload; exact fields)
 
-Every S1 failure MUST be emitted as a JSON object alongside the validation bundle (and/or `_FAILED.json` sentinel) with the envelope lineage:
+Every S1 failure MUST emit a JSON object (alongside the validation bundle / `_FAILED.json` sentinel) carrying lineage + precise forensics:
 
 ```json
 {
   "failure_code": "rng_counter_mismatch",
   "state": "S1",
   "module": "1A.hurdle_sampler",
-  "dataset_id": "logs/rng/events/hurdle_bernoulli",
-  "merchant_id": "m_0065F3A2",
+  "substream_label": "hurdle_bernoulli",
+  "dataset_id": "rng_event_hurdle_bernoulli",
+  "path": "logs/rng/events/hurdle_bernoulli/seed=1234567890123456789/parameter_hash=abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789/run_id=0123456789abcdef0123456789abcdef/part-0001.jsonl",
+  "merchant_id": "184467440737095",
   "detail": {
     "before": {"hi": 42, "lo": 9876543210},
     "after":  {"hi": 42, "lo": 9876543211},
-    "draws_expected": 1,
-    "trace_draws": 0
+    "blocks": 1,
+    "draws": "1",
+    "expected_delta": "1",
+    "trace_totals_draws": "0"
   },
-  "seed": 1234567890,
-  "parameter_hash": "<hex64>",
-  "manifest_fingerprint": "<hex64>",
-  "run_id": "<hex32>",
+  "seed": "1234567890123456789",
+  "parameter_hash": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+  "manifest_fingerprint": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+  "run_id": "0123456789abcdef0123456789abcdef",
   "ts_utc": "2025-08-15T10:12:03.123456Z"
 }
 ```
 
-This mirrors the envelope fields and the dictionary dataset id for unambiguous triage. (Envelope fields and dataset ids are authoritative in schema/dictionary.)
+* `dataset_id` is the **registry id**; `path` is the concrete file path (optional but helpful).
+* Numeric identifiers (`seed`, `merchant_id`) are **decimal strings** (transport-safe); consumers parse to u64.
 
 ---
 
 ## Where to detect (first line) & who double-checks
 
-| Family / Code                  | First detector (runtime)         | Secondary (validator / CI)       |
-|--------------------------------|----------------------------------|----------------------------------|
-| A1–A3 design/$\beta$                 | S1.1/S1.2 guards                 | N/A (build lints, optional)      |
-| B1–B2 numeric invalid          | S1.2 evaluation guards           | Validator re-eval $\eta,\pi$     |
-| C1 envelope schema             | Writer JSON-Schema check         | Validator schema pass            |
-| C2 label mismatch              | Writer assertion                 | Validator                        |
-| C3 counter mismatch            | Writer + trace emission          | Validator counter reconciliation |
-| C4 trace missing/mismatch      | —                                | Validator trace join             |
-| C5 u out of range              | Writer check                     | Validator (`u01` + recompute)    |
-| D1 payload schema              | Writer JSON-Schema check         | Validator schema pass            |
-| D2 deterministic inconsistency | Writer assertion                 | Validator recompute branch       |
-| E1 partition mismatch          | Writer path/embed equality check | Validator path lint              |
-| E2 wrong dataset path          | —                                | Validator dictionary lint        |
-| F1 logging gap                 | —                                | Validator cross-stream gating    |
-| F2 duplicate record            | —                                | Validator uniqueness             |
-| F3 cardinality mismatch        | —                                | Validator row count vs ingress   |
+| Family / Code                  | First detector (runtime)         | Secondary (validator / CI)                                     |
+|--------------------------------|----------------------------------|----------------------------------------------------------------|
+| A1–A3 design/β                 | S1.1/S1.2 guards                 | (optional) build lints                                         |
+| B1–B2 numeric invalid          | S1.2 evaluation guards           | Re-eval η, π                                                   |
+| C1 envelope schema             | Writer JSON-Schema check         | Validator schema pass                                          |
+| C2 label mismatch              | Writer assertion                 | Validator                                                      |
+| C3 counter mismatch            | Writer (optional)                | Counter reconciliation (after−before vs draws/blocks)          |
+| C4 trace missing/totals mis    | —                                | Trace aggregate vs Σ(event blocks) and counter delta           |
+| C5 u out of range              | Writer check                     | `u01` + recompute                                              |
+| D1 payload schema              | Writer JSON-Schema check         | Validator schema pass                                          |
+| D2 deterministic inconsistency | Writer assertion                 | Recompute branch from π                                        |
+| E1 partition mismatch          | Writer path/embed equality check | Path lint (includes module/label and “no fingerprint in path”) |
+| E2 wrong dataset path          | —                                | Dictionary/registry binding lint                               |
+| F1 gating violation            | —                                | Cross-stream presence check via **registry filter**            |
+| F2 duplicate record            | —                                | Uniqueness check                                               |
+| F3 cardinality mismatch        | —                                | Row count vs ingress merchant set                              |
 
-(“Writer” = the hurdle sampler emitter; “Validator” = the harness reading dictionary paths & schemas.)
+> **Gating note:** Enforcement is **presence-based**: downstream gated streams must exist **iff** hurdle `is_multi=true`. No temporal “prior” requirement.
 
 ---
 
 ## Validator assertions (executable checklist)
 
-Using the dictionary’s paths and schema refs:
+Using the dictionary/registry bindings and schema anchors:
 
-1. **Schema:** validate hurdle events and trace rows against `schemas.layer1.yaml` anchors (envelope + event).
-2. **Counters:** assert `after = before + draws` (u128) and `trace.draws == draws`.
-3. **Decision:** recompute $\eta,\pi$ (S1.2 rules) and, for stochastic rows, regenerate $u$ from the keyed counter; assert `(u<π) == is_multi` and `u ∈ (0,1)`.
-4. **Deterministic regime:** if `draws=0`, assert `π ∈ {0,1}` and the payload follows the chosen contract (nullable-u or required-u).
-5. **Partition lint:** path keys `{seed, parameter_hash, run_id}` equal the same embedded envelope values.
-6. **Gating:** ensure every downstream RNG event for a merchant has a prior hurdle record with `is_multi=true`.
-7. **Uniqueness & cardinality:** one hurdle row per merchant; count equals `merchant_ids`.
+1. **Schema:** validate hurdle events **and** cumulative trace against the layer anchors (envelope + event + trace).
+2. **Counters & budget:** assert
+   `u128(after) − u128(before) = parse_u128(draws) = blocks` and, for hurdle, `{blocks∈{0,1}, draws∈{"0","1"}}`.
+   **Trace reconciliation:** per `(module, substream_label, merchant_id)`, cumulative `draws_total` equals **Σ(event blocks)** and the overall counter delta.
+3. **Decision:** recompute $\eta,\pi$ (S1.2 rules); if stochastic (`draws="1"`), regenerate one uniform from the keyed **base counter** (low-lane, open-interval `u01`) and assert `0<u<1` and `(u<pi) == is_multi`.
+4. **Deterministic regime:** if `draws="0"`, assert `pi ∈ {0,1}`, `deterministic=true`, and `u == null`.
+5. **Partition lint:** path partitions `{seed, parameter_hash, run_id, module, substream_label}` equal the embedded envelope; path **must not** include `manifest_fingerprint`.
+6. **Gating:** build the set of **gated 1A RNG streams** from the **registry filter**; for each merchant, presence/absence of those streams is **iff** hurdle `is_multi=true`.
+7. **Uniqueness & cardinality:** within the run partition, **exactly one** hurdle row per `merchant_id`; hurdle row count equals the ingress merchant cardinality.
 
 ---
 
 ## Minimal examples (concrete)
 
-* **Numeric invalid (B2).** `pi` equals `NaN` after logistic → `hurdle_nonfinite_pi` → abort. (Locked S1: *numeric invalid → abort*.)
-* **Envelope gap (C1).** Missing `rng_counter_after_hi` → `rng_envelope_schema_violation` → abort. (Envelope fields required by schema.)
-* **Gating failure (F1).** `rng_event_nb_final` exists for merchant `m` without prior hurdle `is_multi=true` → `logging_gap_no_prior_hurdle` → run invalid. (Dictionary binds streams; hurdle is first.)
+* **Numeric invalid (B2):** `pi` is NaN after logistic ⇒ `hurdle_nonfinite_or_oob_pi` ⇒ **abort**.
+* **Envelope gap (C1):** missing `rng_counter_after_hi` ⇒ `rng_envelope_schema_violation` ⇒ **abort**.
+* **Gating failure (F1):** a gated stream (from the **registry filter**) exists for merchant `m` while hurdle `is_multi=false` or no hurdle event exists ⇒ `gating_violation_no_prior_hurdle_true` ⇒ **run invalid**.
 
 ---
 
-**Bottom line:** S1 fails **fast** and **loud** when designs don’t match, numbers go non-finite, envelopes drift, counters don’t conserve, partitions lie, or downstream streams appear without the hurdle gate. The predicates, error codes, forensics payloads, and validator steps above are sufficient to implement production-grade checks that are perfectly aligned with your locked S1, schemas, and dictionary.
+**Bottom line:** S1.6 (complete) specifies the **failure predicates**, **where they’re detected**, the **forensics object** (with registry ids, lineage, counters, and budgets), and the **validator checklist**—all consistent with S0 and the locked S1 contracts (nullable `u`, boolean `is_multi`, full envelope with `blocks/draws`, stable partitions, cumulative trace, and registry-driven gating).
 
 ---
 
