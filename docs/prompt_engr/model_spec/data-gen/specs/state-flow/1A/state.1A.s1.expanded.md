@@ -9,6 +9,14 @@ S1 evaluates a **logistic hurdle** per merchant and produces a **Bernoulli outco
 ## Inputs (must be present at S1 entry)
 
 ### 1) Design vector $x_m$ (column-frozen, from S0.5)
+#### Feature vector construction (logistic, normative)
+
+* **Order (fixed):** `[intercept] ⧺ onehot(MCC) ⧺ onehot(channel) ⧺ onehot(GDP_bucket)`.
+* **Channel encoder (dim=2):** labels and order are exactly `[CP, CNP]`.
+* **GDP bucket encoder (dim=5):** labels and order are exactly `[1,2,3,4,5]`.
+* **MCC encoder (dim = $C_{mcc}$):** order is the order of the MCC coefficient names in `hurdle_coefficients.yaml` (prefix `mcc:`), left-to-right as stored; S1 **must** use that same order for the one-hot.
+* **Shape invariant:** $|x_m| = |\beta| = 1 + C_{mcc} + 2 + 5$.
+* **One-hot constraint:** each one-hot block has sum 1; active index must exist; else abort.
 
 For each merchant $m$, S1 receives the hurdle design vector
 
@@ -153,6 +161,8 @@ $$
 \end{cases}
 $$
 
+**Emission contract (binary64, normative).** Mathematically, $\sigma:(-\infty,\infty)\to(0,1)$. Under IEEE-754 binary64 evaluation of the **two-branch** form above, the **emitted** $\pi\in[0,1]$ and may equal exactly `0.0` or `1.0` for extreme $\eta$. Define `deterministic := (pi == 0.0 || pi == 1.0)` (exact binary64 comparison). If `deterministic=true`, emit `u:null`; if `false`, emit `0<u<1`.
+
 This is the exact algorithm the locked S1 prescribes. It prevents overflow/underflow in the numerator and keeps $\pi\in[0,1]$ in binary64.
 
 ### Linear predictor (fixed‐order dot product)
@@ -170,7 +180,7 @@ computed in IEEE-754 binary64 with a **fixed iteration order** over the frozen c
 * **Typical case** $0<\pi_m<1$: RNG **will** consume exactly one $U(0,1)$ deviate for merchant $m$.
 * **Saturated case** $\pi_m\in\{0,1\}$: this arises when the two-branch evaluation underflows to exactly 0 or 1 in binary64 for extreme $\eta_m$. In this regime **no draw occurs**; `u` is absent/null and the event is flagged deterministic at emission. The locked S1 schema & invariants explicitly allow/require this behaviour.
 
-> Implementation note: do **not** clamp $\eta$ for computation. The earlier texts mention optional clipping only for *display*; the normative computation uses the two-branch logistic above and lets binary64 decide whether $\pi$ saturates.
+> Non-normative (UI): display-only clipping of axes is permitted for charts/tables **without** altering the emitted `eta` or `pi`.
 
 ---
 
@@ -180,6 +190,8 @@ computed in IEEE-754 binary64 with a **fixed iteration order** over the frozen c
 * **Reduction:** fixed-order accumulation for $\beta^\top x$ (e.g., Neumaier).
 * **Domains:** inputs must already satisfy channel ∈ {CP,CNP}, $b_m\in\{1,\dots,5\}$. (From S1.1/S0.5.)
 
+* **Serialization:** `pi` is a **JSON number** that must round-trip to the exact binary64 value on parse. Producers **MUST** emit the shortest round-trippable decimal (≤17 significant digits; scientific notation allowed). Consumers **MUST** parse as binary64. (If present in any debug stream, `eta` follows the same rule.)
+* **Bounds:** enforce `0.0 ≤ pi ≤ 1.0`.
 ---
 
 ## Output of S1.2 (to S1.3/S1.4)
@@ -531,7 +543,7 @@ Let $d_m=\mathbf{1}\{0<\pi_m<1\}$ be the **uniform draw count** per merchant. On
 The **payload** of `rng/events/hurdle_bernoulli` contains the merchant outcome and context. The stream’s dictionary entry and state text require:
 
 * `merchant_id` (row key),
-* `pi` (Bernoulli parameter on $[0,1]$),
+* `pi` (Bernoulli parameter on $[0,1]$, **JSON number**, binary64 round-trip),
 * `is_multi` (Bernoulli outcome),
 * `deterministic` (boolean; **true** iff $\\pi\\in\\{0,1\\}$),
 * `u` **conditional** on the branch: present and in $(0,1)$ **only** when `deterministic=false`; **null** when `deterministic=true`.
@@ -1199,9 +1211,9 @@ Validate **every** hurdle record against:
 
 For each merchant $m$:
 
-1. Rebuild the frozen design vector $x_m$ from the encoders (intercept | MCC one-hot | channel one-hot | 5 GDP-bucket dummies). Enforce domain: MCC known, channel ∈ {CP,CNP}, bucket ∈ {1..5}.
-2. Load $\beta$ atomically from `hurdle_coefficients.yaml`; assert $|\beta|=1+C_{mcc}+2+5$ and column order equality with encoders.
-3. Compute $\eta_m=\beta^\top x_m$ in binary64, fixed order; compute $\pi_m$ with the overflow-safe two-branch logistic. Assert finiteness and $\pi\in[0,1]$.
+1. Rebuild the frozen design vector $x_m$ using **Feature vector construction (logistic)** above; check one-hot sums and column order.
+2. Load $\beta$ atomically; assert $|\beta| = 1 + C_{mcc} + 2 + 5$ and **exact** column order equality with the encoders.
+3. Compute $\eta_m=\beta^\top x_m$ in binary64 (fixed order); compute $\pi_m$ via the **two-branch** logistic. Assert finiteness and `0.0 ≤ pi ≤ 1.0`.
 
 **Fail fast:** any non-finite $\eta,\pi$ or shape/order mismatch is a **hard abort** (S1 failure class).
 
