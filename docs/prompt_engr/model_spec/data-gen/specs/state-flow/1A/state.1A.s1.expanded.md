@@ -379,7 +379,7 @@ Let $\pi=\pi_m$.
   \end{cases}
   $$
 
-  No Philox call; envelope counters satisfy `after == before`. Event payload marks `u=null` and `deterministic=true` (per S1.4/I-H3).
+  No Philox call; envelope counters satisfy `after == before` (implied by **Counter conservation (envelope law)**). ...payload marks `u=null` and `deterministic=true` (per S1.4/I-H3).
 
 * **Stochastic branch** ($0<\pi<1$):
   `draws = 1`; compute
@@ -550,24 +550,25 @@ The **payload** of `rng/events/hurdle_bernoulli` contains the merchant outcome a
 
 > The dictionary binds this stream to `#/rng/events/hurdle_bernoulli`; the layer schema defines `u` via `$defs.u01` (exclusive bounds).
  
-**Deterministic vs stochastic cases (branch-clean):**
+**Outcome semantics (canonical).**
+- If `0<pi<1`: `is_multi := 1{ u < pi }`.
+- If `pi ∈ {0.0,1.0}`: `is_multi := 1{ pi == 1.0 }` (i.e., `is_multi = pi`).
+Types: `is_multi ∈ {0,1}`.
+Branch invariants:
+`deterministic==true ⇒ u==null ∧ is_multi==pi`;
+`deterministic==false ⇒ 0<u<1 ∧ (u<pi) == (is_multi==1)`.
 
 **Deterministic vs stochastic cases (branch-clean):**
 
-* If $0<\pi_m<1$: draw $u_m\sim\mathrm{U}(0,1)$ (*open interval*, schema `$defs.u01`), set
-`is_multi=\mathbf{1}\{u_m<\pi_m\}`, `deterministic=false`, **consume 1 uniform** .
-* If $\pi_m=0$: set `is_multi=0`, `deterministic=true`, `u=null`, **consume 0 uniforms** .
-* If $\pi_m=1$: set `is_multi=1`, `deterministic=true`, `u=null`, **consume 0 uniforms**.
- 
-**Schema note (authoritative).**
-The hurdle schema **requires** a `deterministic` boolean and enforces `u` **conditional** on the branch:
-`u` is present in $(0,1)$ when `deterministic=false`, and `u` is `null` when `deterministic=true`. Any deviation is a schema failure.
- 
-1. **Schema-as-written (strict):** Always include `u` in $(0,1)$. For $\pi\in\{0,1\}$, you **do not** consume a block (counters unchanged) but you still set a conventional dummy `u` **only** if the hurdle schema explicitly allows it; otherwise **omit** `u` and make it optional in the event schema. *(If you keep `u` required & non-nullable, you cannot write a deterministic record without breaking the semantics.)*
+* If $0<\pi_m<1$: draw $u_m\sim\mathrm{U}(0,1)$ (**open interval**), **emit** `u` as a JSON number (binary64 round-trip) and require **strict bounds** `0 < u < 1`; set `deterministic=false` and `is_multi=\mathbf{1}\{u_m<\pi_m\}`; **consume 1 uniform**.
+* If $\pi_m=0$: set `deterministic=true`, `u=null`, `is_multi=0`; **consume 0 uniforms**.
+* If $\pi_m=1$: set `deterministic=true`, `u=null`, `is_multi=1`; **consume 0 uniforms**.
 
-2. **State-as-written:** Make `u` **nullable or optional** in the hurdle event schema and add a boolean `deterministic` flag; set `u=null, deterministic=true` when $\pi\in\{0,1\}$. *(This aligns the text; requires a tiny schema PR for the hurdle event type.)*
-
-> The dataset dictionary already fixes **where** the stream lives and the envelope partitioning; only the hurdle event’s **payload schema** needs the final pick between (1) and (2).
+**Schema & branch contract (authoritative).** The field `u` is **required** with type `number|null`.
+- If `deterministic=true` (i.e., `pi ∈ {0.0,1.0}` in binary64): **emit** `u:null`.
+- If `deterministic=false` (i.e., `0<pi<1`): **emit** `u` as a JSON number that **round-trips to binary64** and **must** satisfy `0<u<1`.
+Any deviation is a schema/validator failure.
+ 
 
 ### 4) Exact record layout (canonical JSON object)
 
@@ -591,7 +592,7 @@ Let `E` be the **envelope** and `P` the **payload**:
   "pi": 0.3725,
   "is_multi": false,
   "deterministic": false,
-  "u": 0.1049,                        // present iff 0<pi<1 per schema choice
+  "u": 0.1049,                        // always present; null when deterministic
 }
 ```
 
@@ -616,7 +617,7 @@ Let `E` be the **envelope** and `P` the **payload**:
 * The **top block** conforms to `$defs.rng_envelope`.
 * The **payload keys** match the S1 state contract and dictionary binding.
 
-> For deterministic records under option (2), set `"u": null, "is_multi": (pi==1)`, and add `"deterministic": true` **once** the hurdle event schema carries that field. *(Until then, keep option (1) and the schema as-is.)*
+
 
 ### 5) Write discipline, idempotency, and ordering
 
@@ -649,12 +650,14 @@ def emit_hurdle_event(m, pi_m, ctx):
     draws = 1 if 0.0 < pi_m < 1.0 else 0
     before_hi, before_lo = ctx.counter_before
 
+    deterministic = (draws == 0)
+
     if draws == 1:
         u = next_u01()                         # consumes one block; open interval (0,1)
         is_multi = (u < pi_m)
         after_hi, after_lo = advance((before_hi, before_lo), 1)
     else:
-        u = None                               # if schema option (2); else omit or handle per option (1)
+        u = None
         is_multi = (pi_m == 1.0)
         after_hi, after_lo = (before_hi, before_lo)
 
@@ -673,7 +676,8 @@ def emit_hurdle_event(m, pi_m, ctx):
 
         "merchant_id": m,
         "pi": pi_m,
-        # "u": u,   # include per final schema decision (see note in §3)
+        "deterministic": deterministic,
+        "u": u,   
         "is_multi": is_multi
     }
     write_jsonl("logs/rng/events/hurdle_bernoulli/"
@@ -730,8 +734,8 @@ $(u_m,\ \text{is_multi}(m))$ **and** the envelope counters $(C^{\text{pre}}_m,C^
 
 **Statement.** Define $d_m=\mathbf{1}\{0<\pi_m<1\}$. Then the hurdle consumes **`draws = d_m`** uniforms:
 
-* If $0<\pi_m<1$: `draws=1`; `after = before + 1` (u128).
-* If $\pi_m\in\{0,1\}$: `draws=0`; `after = before`.
+* If $0<\pi_m<1$: `draws=1`; `after = before + 1` (u128; implied by **Counter conservation (envelope law)**).
+* If $\pi_m\in\{0,1\}$: `draws=0`; `after = before` (implied by **Counter conservation (envelope law)**).
 
 A companion `rng_trace_log` row records `draws` for this substream.
 
@@ -1225,7 +1229,7 @@ Let the hurdle label be `substream_label = "hurdle_bernoulli"` (must match exact
 
 For each hurdle record:
 
-1. **Budget from π:** `draws_expected = 1` iff $0<\pi<1$; else `0`. (Hurdle is single-uniform.)
+1. **Budget from $\pi$:** set `draws_expected = 1` iff $0<\pi<1$; else `0`. See **Counter conservation (envelope law)** for the equality chain that must hold across counters, envelope `blocks/draws`, and trace.
 2. **Counter conservation:** compute `delta = u128(after) − u128(before)` and assert `delta == blocks`.
 3. **Lane policy check (S1):** assert `u128(after) − u128(before) ∈ {0,1}`; any delta > 1 is a lane policy violation.
 4. **Trace and envelope reconciliation:** find the companion `rng_trace_log` row (join on `{seed, parameter_hash, run_id, substream_label, merchant_id}`) and assert:
@@ -1234,8 +1238,8 @@ For each hurdle record:
    - `blocks == draws_expected`, and
    - `parse_u128(draws) == draws_expected`.
 5. **Deterministic vs stochastic branch:** (unchanged)
-   * If `draws_expected = 0`: assert the payload follows the deterministic contract: `is_multi = 0` when $\pi=0$, `is_multi=1` when $\pi=1$; and either `u=null, deterministic=true` (state contract) **or** `u` omitted per the chosen schema contract.
-   * If `draws_expected = 1`: regenerate the uniform $u$ from the keyed Philox at `before` using the layer’s `u01` (exclusive bounds) and assert `(u<π) == is_multi` and `0<u<1`.
+   * If `draws_expected = 0`: assert the payload follows the deterministic contract — `pi ∈ {0.0,1.0}`, `u:null`, and `is_multi == pi`.
+   * If `draws_expected = 1`: regenerate the uniform $u$ (open interval) and assert `0<u<1` and `(u<π) == (is_multi == 1)`.
 
 *(The keyed mapping and label come from S0/S1; validator doesn’t need to re-derive the base counter formula beyond using the envelope `before` counter and label to generate $u$ deterministically.)*
 
