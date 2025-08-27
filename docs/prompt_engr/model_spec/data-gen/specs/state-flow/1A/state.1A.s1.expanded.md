@@ -1,115 +1,126 @@
 # S1.1 — Inputs, Preconditions, and Write Targets (normative)
 
-## Purpose (what S1 does and does **not** do yet)
+## Purpose (what S1 does and does **not** do)
 
-S1 evaluates a **logistic hurdle** per merchant and produces a **Bernoulli outcome** “single vs multi”. In this subsection we only pin **inputs** and **context/lineage** required to do that deterministically; the actual probability map, RNG and event body are specified in S1.2–S1.4.
+S1 evaluates a **logistic hurdle** per merchant and emits a **Bernoulli outcome** (“single vs multi”). Here we pin **inputs**, **context/lineage**, and **write targets** required to do that deterministically. The logistic, RNG use, and payload specifics are defined in **S1.2–S1.4**.
+S1 does **not** specify downstream sampling (NB, ZTP, Dirichlet, etc.) nor CI/monitoring; those live in their respective state specs and the validation harness.
 
 ---
 
-## Inputs (must be present at S1 entry)
+## Inputs (available at S1 entry)
 
-### 1) Design vector $x_m$ (column-frozen, from S0.5)
-#### Feature vector construction (logistic, normative)
+### 1) Design vector $x_m$ (column-frozen from S0.5)
 
-* **Order (fixed):** `[intercept] ⧺ onehot(MCC) ⧺ onehot(channel) ⧺ onehot(GDP_bucket)`.
-* **Channel encoder (dim=2):** labels and order are exactly `[CP, CNP]`.
-* **GDP bucket encoder (dim=5):** labels and order are exactly `[1,2,3,4,5]`.
-* **MCC encoder (dim = $C_{mcc}$):** order is the order of the MCC coefficient names in `hurdle_coefficients.yaml` (prefix `mcc:`), left-to-right as stored; S1 **must** use that same order for the one-hot.
-* **Shape invariant:** $|x_m| = |\beta| = 1 + C_{mcc} + 2 + 5$.
-* **One-hot constraint:** each one-hot block has sum 1; active index must exist; else abort.
+**Feature vector (logistic):**
 
-For each merchant $m$, S1 receives the hurdle design vector
+* **Block order (fixed):** $[\,\text{intercept}\,] \,\Vert\, \text{onehot(MCC)} \,\Vert\, \text{onehot(channel)} \,\Vert\, \text{onehot(GDP\_bucket)}$.
+* **Channel encoder (dim=2):** labels and order are exactly $[\,\mathrm{CP},\,\mathrm{CNP}\,]$ as defined in S0.
+* **GDP bucket encoder (dim=5):** labels and order are exactly $[\,1,2,3,4,5\,]$ from S0’s Jenks-5 bundle.
+* **MCC encoder (dim $=C_{\text{mcc}}$):** column order is **the frozen order from S0.5** (the fitting bundle); S1 **does not** derive order from map/dictionary iteration.
+* **Shape invariant:** $|x_m| \;=\; 1 + C_{\text{mcc}} + 2 + 5$.
+
+S1 **receives** $x_m$ (already constructed by S0.5) as:
 
 $$
-x_m=\big[1,\ \phi_{\text{mcc}}(\texttt{mcc}_m),\ \phi_{\text{ch}}(\texttt{channel}_m),\ \phi_{\text{dev}}(b_m)\big]^\top,
+x_m=\big[\,1,\ \phi_{\text{mcc}}(\texttt{mcc}_m),\ \phi_{\text{ch}}(\texttt{channel}_m),\ \phi_{\text{dev}}(b_m)\,\big]^\top,
 $$
 
-with dimension $1+C_{\text{mcc}}+2+5$ and one-hot blocks whose **column order is frozen by the fitting bundle** (not recomputed online). GDP bucket $b_m\in\{1,\dots,5\}$ comes from S0.4. These are the only features used by the hurdle in S1; $\log g_c$ is **not** used here (belongs to NB dispersion later).
+with $b_m\in\{1,\dots,5\}$. These are the **only** hurdle features. (NB dispersion’s $\log g_c$ is **not** used here.)
+
+> **Note:** S0 enforces domain validity for MCC, channel, and GDP buckets and guarantees that each one-hot block sums to 1. S1 relies on that; it does **not** re-validate domain membership.
 
 ### 2) Coefficient vector $\beta$ (single YAML, atomic load)
 
-Load $\beta$ **atomically** from `hurdle_coefficients.yaml`. It already contains **all** coefficients in the exact order required by $x_m$: intercept, MCC block, channel block, **all five** GDP-bucket dummies. Enforce the shape invariant
+Load $\beta$ **atomically** from the hurdle coefficients bundle. The vector already contains **all coefficients** in the exact order aligned to $x_m$: intercept, MCC block, channel block, and the **five** GDP-bucket dummies. Enforce the shape invariant
 
 $$
-|\beta| = 1+C_{\text{mcc}}+2+5,
+|\beta| \;=\; 1 + C_{\text{mcc}} + 2 + 5 \quad (\text{else: abort as design/coeff mismatch}).
 $$
 
-else abort (shape/order mismatch).
+(Design rule context from S0.5: hurdle uses bucket dummies; NB mean excludes them; NB dispersion uses $\log g_c$.)
 
-> Design rule (context): hurdle uses bucket dummies; NB mean excludes them; NB dispersion uses $\log g_c$ (positive fitted slope). This is enforced in S0.5 and referenced by S1 only for clarity.
+### 3) Lineage & RNG context (fixed before any draw)
 
-### 3) Lineage & RNG context (must be fixed before any draw)
-
-Before the **first** hurdle draw, S1 must run under a context where S0 has already established:
+S0 has already established the **run identifiers** and RNG environment S1 uses:
 
 * `parameter_hash` (hex64) — partitions parameter-scoped artefacts.
-* `manifest_fingerprint` (hex64) — partitions egress/validation; also embedded in all events.
-* `seed` (u64) — master Philox-2×64-10 key, with current **pre-event** counter $(\texttt{hi},\texttt{lo})$.
-* `run_id` (hex32) — **logs-only** partition key.
-* `rng_audit_log` exists for this `{seed, parameter_hash, run_id}` (S0.3); S1 is not allowed to emit its first RNG event without a prior audit row.
+* `manifest_fingerprint` (hex64) — embedded for lineage; not a path partition here.
+* `seed` (u64) — run master seed (used by S0’s keyed-substream primitive).
+* `run_id` (hex32) — logs-only partition key.
+* An `rng_audit_log` exists for this `{seed, parameter_hash, run_id}` (S0). S1 must **not** emit the first hurdle event if the audit row is absent.
 
-All hurdle events will include the **shared RNG envelope** fields:
-`{ ts_utc, module="1A.hurdle_sampler", substream_label="hurdle_bernoulli", seed, parameter_hash, manifest_fingerprint, run_id, rng_counter_before_{hi,lo}, rng_counter_after_{hi,lo} }`. Missing any of these is a schema/envelope failure. (The exact event body is in S1.4.)
+**PRNG use model (order-invariant):** Every RNG event in 1A uses **label-keyed substreams**. The **base counter** for a given `(module, substream_label, merchant_id)` is derived **only** by S0’s keyed-substream mapping; it does **not** depend on execution order or on other labels’ counters. There is **no** cross-label counter chaining in S1.
 
-**Envelope timestamp format.** `ts_utc` MUST be RFC-3339 with `Z` and **exactly 6 fractional digits** (microseconds), e.g., `2025-08-15T10:03:12.345678Z`.
+---
 
-**Counter fields.** JSON field order is **low then high**: `rng_counter_before_lo`, `rng_counter_before_hi`, `rng_counter_after_lo`, `rng_counter_after_hi`. The mnemonic `(hi,lo)` used in formulas refers to the same values in tuple order; field names always write **_lo** before **_hi**.
+## Envelope contract (shared fields carried by every hurdle event)
+
+Each hurdle event **must** include the layer envelope fields:
+
+* `ts_utc` — RFC-3339 UTC **per S0’s timestamp policy** (S1 adds no precision rule).
+* `module` — registry literal for this stream (enumeration; see registry).
+* `substream_label` — registry literal `"hurdle_bernoulli"`.
+* `seed`, `parameter_hash`, `manifest_fingerprint`, `run_id`.
+* `rng_counter_before_hi`, `rng_counter_before_lo`, `rng_counter_after_hi`, `rng_counter_after_lo` (128-bit counter words; names define `(hi,lo)` pairing).
+* `blocks` (non-negative int; unit = **one 64-bit uniform**).
+* `draws` (non-negative **u128** encoded as a decimal string).
+
+**Envelope law (budget identity):**
+
+$$
+(\text{after}_{hi},\text{after}_{lo}) - (\text{before}_{hi},\text{before}_{lo}) \;=\; \text{parse\_u128(draws)} \;=\; \text{blocks}.
+$$
+
+For the hurdle stream specifically, `blocks ∈ {0,1}` and `draws ∈ {"0","1"}`.
+
+> **Key-order note:** JSON object **key order is non-semantic**. The `_hi/_lo` suffixes define the high/low words; parsers must bind by name.
 
 ---
 
 ## Preconditions (hard invariants at S1 entry)
 
-1. **Shape & order:** $|\beta|=\dim(x_m)$ and the block orders (MCC, channel, dev-5) match the fitting dictionaries; otherwise S1 aborts (design/coeff mismatch).
-2. **Domains:** channel $\in\{\mathrm{CP},\mathrm{CNP}\}$; $b_m\in\{1,\dots,5\}$; GDP $g_c>0$ already enforced upstream (S0.4/S0.5).
-3. **Numeric policy:** S0.8’s environment is in force: IEEE-754 binary64, round-to-nearest-even, **no FMA**, **no FTZ/DAZ**; dot-products use fixed-order accumulation. S1 will rely on the overflow-safe logistic in S1.2.
-4. **RNG audit present:** the audit envelope for this run/subsystem is present before S1 emits the first hurdle event; otherwise abort (S0.9/F4a).
+1. **Shape & alignment:** $|\beta|=\dim(x_m)$ and the block orders match S0.5’s fitting bundle; else abort as design/coeff mismatch.
+2. **Numeric environment:** S0’s numeric policy is in force (IEEE-754 binary64, RN-even, no FMA/FTZ/DAZ). S1 will use the overflow-safe two-branch logistic with a fixed saturation threshold (see S1.2).
+3. **RNG audit present:** the audit record for `{seed, parameter_hash, run_id}` exists before the first hurdle emission; else abort.
 
 ---
 
-## Event stream target (authoritative ID, path, schema)
+## Event stream target (authoritative id, partitions, schema)
 
-S1 writes **exactly one** hurdle record per merchant to:
+S1 emits **exactly one** hurdle record per merchant into the hurdle RNG dataset:
 
-```
-logs/rng/events/hurdle_bernoulli/
-  seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
-```
+* **Dataset id:** registry entry for the hurdle RNG stream.
+* **Partitions (path):** `{seed, parameter_hash, run_id, module, substream_label}` (no `manifest_fingerprint` in the path).
+* **Schema:** layer schema anchor for `rng/events/hurdle_bernoulli` (payload + envelope).
 
-with schema anchor `schemas.layer1.yaml#/rng/events/hurdle_bernoulli`. The `substream_label` in the envelope is **exactly** `"hurdle_bernoulli"`. These identifiers and the partitioning triple are authoritative via the dataset dictionary and artefact registry.
+**Uniqueness & completeness (per run):** Within `{seed, parameter_hash, run_id}`, there is **at most one** hurdle event per `merchant_id`, and the count of hurdle events equals the merchant universe count for that `{parameter_hash}` from S0.
 
-**Trace rule (S1).** For **each** hurdle event row, emit **exactly one** `rng_trace_log` row with the same `{seed, parameter_hash, run_id, substream_label="hurdle_bernoulli", merchant_id}` and fields `{rng_counter_before_*, rng_counter_after_*, draws}`. This row is the **only** authoritative source for `draws` for this substream.
-
----
-
-## Forward-looking contracts S1 must satisfy (tied here so inputs are complete)
-
-* **Probability & safe logistic (S1.2):** compute $\eta_m=\beta^\top x_m$ and $\pi_m=\sigma(\eta_m)$ with the **two-branch** overflow-safe logistic; non-finite $\eta$ or $\pi$ ⇒ abort.
-* **RNG substream & u(0,1) (S1.3):** jump by label `"hurdle_bernoulli"` then draw **one** open-interval uniform $u\in(0,1)$ **iff** $0<\pi_m<1$; otherwise `draws=0`. Counters advance exactly as per S0.3 mapping and show up in the envelope.
-* **Payload discipline (S1.4):** payload contains `{merchant_id, eta, pi, is_multi, u|null, deterministic}` where:
-
-  * when $0<\pi_m<1$: `u∈(0,1)`, `deterministic=false`;
-  * when $\pi_m\in\{0,1\}$: `u=null`, `deterministic=true`.
-    This is **schema-level** and validated downstream.
+**Trace (cumulative, not per-event):** For each `(module, substream_label="hurdle_bernoulli", merchant_id)` within the run, S1 maintains a **cumulative** `rng_trace_log` record whose totals (`blocks_total`, `draws_total`) equal the **sum of event budgets** for that key. The **event** is authoritative for the decision and budget; the trace totals exist for reconciliation.
 
 ---
 
-## Failure semantics (at S1.1 boundary)
+## Forward contracts S1 must satisfy (declared here so inputs are complete)
 
-If any precondition above fails, S1 must **abort the run** with S0.9 classes:
+* **Probability (S1.2):** compute $\eta_m=\beta^\top x_m$ and $\pi_m=\sigma(\eta_m)$ using the overflow-safe **two-branch logistic** with a **fixed binary64 threshold** $T$ such that $\pi_m\in\{0.0,1.0\}$ iff $|\eta_m|\ge T$; otherwise $0<\pi_m<1$.
+* **RNG substream & $u\in(0,1)$ (S1.3):** use the keyed substream for `substream_label="hurdle_bernoulli"`; consume **one** open-interval uniform **iff** $0<\pi_m<1$; otherwise consume zero. Envelope counters and budgets must satisfy the law above.
+* **Payload discipline (S1.4):** payload contains the minimal fields needed to decide/audit the hurdle, with types:
+  `is_multi` **boolean**; `u` **required** and **nullable** (`null` iff deterministic); other fields as per the hurdle event schema anchor.
 
-* shape/order mismatch → **Design/coefficients mismatch** (S1 failure mapped to S0.9/F6 or explicit code),
-* missing audit/envelope keys → **RNG envelope violation** (S0.9/F4),
-* wrong path/partition keys for logs → **Partition mismatch** (S0.9/F5).
+---
+
+## Failure semantics (at the S1.1 boundary)
+
+Abort the run if any precondition fails (shape/alignment mismatch; missing audit; envelope/schema violation; path partition mismatch). CI/monitoring policies and detailed failure catalogs live outside S1.
 
 ---
 
 ## Why this matters (determinism & replay)
 
-By pinning $x_m$, $\beta$, lineage keys, event IDs/paths, and the envelope **before** any draw, S1’s later Bernoulli outcome and counters become **bit-replayable** under any sharding or scheduling, as required by S1’s invariants (I-H1..H4) and the dictionary.
+By fixing $x_m$, $\beta$, the run identifiers, the **order-invariant substreaming model**, and the envelope/budget law **before** any draw, S1’s Bernoulli outcomes and counters are **bit-replayable** under any sharding or scheduling. This gives the validator a single, unambiguous contract to reproduce S1 decisions.
 
 ---
 
-**Bottom line:** S1 starts only when $x_m$, $\beta$, and the lineage/RNG context are immutable and schema-backed; it writes to the single authoritative hurdle stream with a fixed envelope and partitioning. With these inputs and preconditions, S1.2–S1.4 can compute $\eta,\pi$, draw $u$ (when needed), and emit an event that the validator can reproduce byte-for-byte.
+**Bottom line:** S1 starts only when $x_m$, $\beta$, and the lineage/RNG context are immutable and schema-backed; it writes to the single authoritative hurdle stream with a fixed envelope and partitioning. With these inputs and preconditions, S1.2–S1.4 compute $\eta,\pi$, consume at most one uniform (as required), and emit an event that validators can reproduce exactly.
 
 ---
 
