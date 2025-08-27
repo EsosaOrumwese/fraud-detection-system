@@ -289,24 +289,22 @@ The single S1 Validator Checklist (referenced once from S1) must be able to **re
 
 ## Purpose
 
-Given $\pi_m$ from S1.2, sample **at most one** uniform $u_m\in(0,1)$ from a **merchant-keyed** Philox substream labelled `"hurdle_bernoulli"`, decide
+Given $\pi_m$ from S1.2, consume **at most one** uniform $u_m\in(0,1)$ from the merchant-keyed substream labeled `"hurdle_bernoulli"`, decide
 
 $$
-\text{is_multi}(m)=\mathbf{1}\{u_m<\pi_m\},
+\text{is_multi}(m)\;=\;[\,u_m < \pi_m\,],
 $$
 
-and emit exactly one hurdle event (payload formalised in S1.4). Substream mapping and open-interval uniforms are fixed by S0.3.3–S0.3.4.
+and emit exactly one hurdle event (payload in S1.4). The keyed-substream mapping, lane policy, and open-interval $U(0,1)$ are owned by **S0.3** and are referenced here without redefinition.
 
 ---
 
-## Inputs (already available at S1.3 entry)
+## Inputs (available at S1.3 entry)
 
-* $\pi_m\in[0,1]$ and (optionally logged) $\eta_m$ from S1.2.
-* Run lineage: `seed` (u64), `manifest_fingerprint`/`…_bytes`, `parameter_hash`, `run_id`, `module="1A.hurdle_sampler"`.
-* Merchant identifier `merchant_id=m`.
-* Dictionary-anchored stream id & path for hurdle events and RNG trace (S1.4 will write to these):
-  `logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` and
-  `logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl`.
+* $\pi_m\in[0,1]$ from S1.2.
+* Run lineage identifiers: `seed`, `parameter_hash`, `manifest_fingerprint`, `run_id`, and `module` (registry literal for this producer).
+* `merchant_id` (serialized as decimal string in events; treated as u64 by the S0 keying primitive).
+* Dataset/registry anchors for hurdle events and RNG trace are established elsewhere (S1.1 / dictionary); S1.3 does **not** restate paths.
 
 ---
 
@@ -315,196 +313,128 @@ and emit exactly one hurdle event (payload formalised in S1.4). Substream mappin
 ### Label
 
 $$
-\ell := \text{"hurdle_bernoulli"}.
+\ell := \text{"hurdle_bernoulli"} \quad\text{(registry literal; appears verbatim in the event envelope).}
 $$
 
-This **exact** string must also appear in the event envelope as `substream_label`.
+### Base counter & independence (via S0 primitive)
 
-### Base counter (keyed mapping)
-
-Define the base Philox counter for the pair $(\ell,m)$ by S0.3.3:
-
-$$
-(c^{\text{base}}_{\mathrm{hi}},\,c^{\text{base}}_{\mathrm{lo}})\;
-=\;\mathrm{split64}\!\Big(\mathrm{SHA256}\big(\text{"ctr:1A"}\ \|\ \texttt{manifest_fingerprint_bytes}\ \|\ \mathrm{LE64}(\texttt{seed})\ \|\ \ell\ \|\ \mathrm{LE64}(m)\big)[0{:}16]\Big).
-$$
-
-The $i$-th uniform for $(\ell,m)$ uses
-
-$$
-(c_{\mathrm{hi}},c_{\mathrm{lo}})=(c^{\text{base}}_{\mathrm{hi}},\ c^{\text{base}}_{\mathrm{lo}}+i)
-\quad\text{with 64-bit carry into }c_{\mathrm{hi}}.
-$$
-
-This mapping is **pure** in $(\texttt{seed},\texttt{manifest_fingerprint},\ell,m,i)$ → **order-invariant across partitions**.
-
-### Counter conservation (envelope law)
-
-Every RNG event envelope must satisfy
-
-$$
-(\texttt{after_hi},\texttt{after_lo})=(\texttt{before_hi},\texttt{before_lo})+\texttt{draws}
-$$
-
-in unsigned 128-bit arithmetic, where “draws” denotes the **number of uniforms consumed** by the event. For hurdle, draws $\in\{0,1\}$ (see budget below). 
-
-**Note:** the envelope **carries** both `blocks` and `draws`.
-* `blocks`: integer count of counter increments (the u128 delta); for S1 (hurdle) `blocks ∈ {0,1}`.
-* `draws`: **JSON string** carrying a base-10 uint128; `parse_u128(draws)` **must equal** `blocks`.
-The companion `rng_trace_log` row also records the per-event draw count as an integer (`draws ∈ {0,1}` for S1).
-Validators must enforce the equalities:
-`u128(after) − u128(before) == blocks == parse_u128(draws)` and `trace_draws == blocks`.
+The **base counter** for each $(\ell, m)$ and the **keyed substream** are obtained **only** through S0’s mapping (pure in $(\texttt{seed}, \texttt{manifest_fingerprint}, \ell, m)$) and therefore **order-invariant** across partitions/shards. S1.3 **does not** chain counters across labels or merchants.
 
 ---
 
-## Uniform $u\in(0,1)$ (open interval; lane policy)
+## Envelope budgeting (counter law)
 
-### Generator
-
-RNG engine is Philox $2\times 64$-10 with key `seed`. Evaluate Philox at the event’s `before` counter and take a **single 64-bit word** $x$ (we do **not** reuse the second lane for a second uniform). Map it to $u$ via the layer-wide `u01` primitive:
+For every RNG event, the envelope must satisfy the S0 budgeting identity:
 
 $$
-u\;=\;\frac{x+1}{2^{64}+1}\ \in\ (0,1).
+(\texttt{after_hi},\texttt{after_lo}) - (\texttt{before_hi},\texttt{before_lo})
+\;=\; \text{parse_u128(draws)} \;=\; \texttt{blocks},
 $$
 
-**Budget rule:** one uniform consumes **one** counter increment.
+with unsigned 128-bit arithmetic on counters. In the hurdle stream, `blocks ∈ {0,1}` and `draws ∈ {"0","1"}`. (Unit of account = **one 64-bit uniform**.)
+
+> **Trace model (clarification):** The RNG trace is **cumulative** per `(module, substream_label, merchant)` within the run; its totals reconcile to the **sum of event budgets** and the counter deltas—S1.3 does **not** emit per-event trace rows.
 
 ---
 
-## Draw budget & decision logic
+## Uniform $u\in(0,1)$ & lane policy
+
+* **Engine:** Philox 2×64-10 (fixed in S0). Each block yields two 64-bit words; **single-uniform** events use the **low lane** (`x0`) and **discard** the high lane (`x1`). One counter increment ⇒ one uniform.
+* **Mapping to $U(0,1)$:** Use S0’s **open-interval** `u01` mapping from a 64-bit unsigned word to binary64. Exact 0 and exact 1 are **never** produced. (S1.3 references this mapping; it does not redefine it.)
+
+---
+
+## Draw budget & decision
 
 Let $\pi=\pi_m$.
 
-* **Deterministic branch** ($\pi\in\{0,1\}$):
-  `draws = 0`; set
+* **Deterministic branch** ($\pi\in\{0,1\}$).
+  `draws="0"`, `blocks=0`; **no** Philox call; envelope has `after == before`.
+  Outcome is implied by $\pi$: `is_multi = true` iff $\pi == 1.0$; else `false`.
+  Payload rules (S1.4): `deterministic=true`, `u=null`.
 
-  $$
-  \text{is_multi} = 
-  \begin{cases}
-  0,& \pi=0,\\
-  1,& \pi=1.
-  \end{cases}
-  $$
+* **Stochastic branch** ($0<\pi<1$).
+  Draw **one** uniform $u\in(0,1)$ using the keyed substream and lane policy; `draws="1"`, `blocks=1`; envelope has `after = before + 1`.
+  Decide `is_multi = (u < pi)`; payload: `deterministic=false`, `u` present and numeric.
 
-  No Philox call; envelope counters satisfy `after == before` (implied by **Counter conservation (envelope law)**). ...payload marks `u=null` and `deterministic=true` (per S1.4/I-H3).
+All of the above are enforced by the S0/S1 budgeting invariants and the S1 validator checklist (determinism equivalences and gating).
 
-* **Stochastic branch** ($0<\pi<1$):
-  `draws = 1`; compute
+---
 
-  $$
-  u = \frac{x+1}{2^{64}+1}\ \in\ (0,1),\qquad
-  \text{is_multi}=\mathbf{1}\{u<\pi\}.
-  $$
-
-  Envelope counters satisfy `after = before + 1`. `u` must be present in payload and `deterministic=false`.
-
-These rules are the locked S1 invariants (I-H2/I-H3) and S0.3.6 per-event expectations.
+**Bottom line:** S1.3 consumes **zero or one** uniform from the merchant-keyed `"hurdle_bernoulli"` substream, applies the **open-interval** mapping, decides with `u < pi`, and records a budget-correct envelope. No cross-label chaining, no alternative keying, no per-event trace rows—everything is S0-aligned and replayable.
 
 ---
 
 ## Envelope & streams touched here (recap; S1.4 formalises payload)
 
-Each hurdle event **must** carry the shared RNG envelope
-`{ ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module="1A.hurdle_sampler", substream_label="hurdle_bernoulli", rng_counter_before_{hi,lo}, rng_counter_after_{hi,lo} }`
-and be written to the dictionary path for `rng_event_hurdle_bernoulli`. S1 also emits one `rng_trace_log` row with the computed `draws`.
+Each hurdle event **must** carry the **complete** layer RNG envelope:
+
+`{ ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label="hurdle_bernoulli", rng_counter_before_hi, rng_counter_before_lo, rng_counter_after_hi, rng_counter_after_lo, blocks, draws }`
+
+* `module` and `substream_label` are **registry literals** (closed enums).
+* `blocks` is a non-negative integer; **unit = one 64-bit uniform**.
+* `draws` is a non-negative **u128 encoded as decimal string**; `parse_u128(draws)` **must equal** `blocks`.
+* **Budget identity (must hold):** `u128(after) − u128(before) = parse_u128(draws) = blocks`.
+
+S1.3 writes **one** hurdle event per merchant. The RNG trace is a **cumulative** dataset keyed by `(module, substream_label, merchant_id)` within the run; its totals equal the **sum of event budgets**. S1.3 does **not** emit per-event trace rows.
 
 ---
 
 ## Failure semantics (abort class bindings)
 
-* **Envelope mismatch / label drift.** `substream_label` ≠ `"hurdle_bernoulli"` in the event, or missing required envelope fields
-  → RNG envelope violation (**S0.9/F4**).
-* **Counter conservation failure.**
-  `after − before` (u128) ≠ `draws` (0 or 1 for hurdle)
-  → draw-accounting failure (**S0.9/F4**).
-* **Uniform out of range.** Observed `u` ≤ 0 or ≥ 1 in a stochastic branch
-  → u01 violation (**S0.9/F4**, numeric/logging).
-* **Determinism flag inconsistency.** `π∈{0,1}` but `u` present or `deterministic=false`; or $0<\pi<1$ but `u` absent
-  → schema/invariant failure (**S0.9/F4**).
+Abort the run on any of the following:
 
-(Shape/order and non-finite errors are handled in S1.1–S1.2; they do not originate here.)
+* **Envelope/label violation.** Missing required envelope fields; wrong `module`/`substream_label` literal; malformed counter fields (`*_hi/*_lo`).
+* **Budget identity failure.** `after − before` (u128) ≠ `blocks` ≠ `parse_u128(draws)`; or `blocks∉{0,1}` / `draws∉{"0","1"}` for hurdle.
+* **Uniform out of range.** In a stochastic branch, `u ≤ 0` or `u ≥ 1` (violates open-interval `u01`).
+* **Determinism inconsistency.** `π∈{0,1}` but `u` present or `deterministic=false`; or `0<π<1` but `u` absent or `deterministic=true`.
+
+(Shape/order and non-finite numeric faults are owned by S1.1–S1.2 preconditions.)
 
 ---
 
-## Validation & CI hooks (must pass)
+## Validator hooks (must pass)
 
-For each hurdle record:
+For each hurdle record in the run, the validator performs:
 
-1. **Rebuild the substream counter.** From `(seed, manifest_fingerprint_bytes, label="hurdle_bernoulli", merchant_id)`, recompute the base counter via subsection *Base counter (keyed mapping)* (identical to S0.3.3) and assert envelope `before` equals it.
-2. **Recompute budget & decision.** Using $\pi$ from S1.2 and the envelope branch:
+1. **Rebuild base counter (order-invariant).** Using the S0 keyed-substream primitive with `(seed, manifest_fingerprint, substream_label="hurdle_bernoulli", merchant_id)`, recompute the **base counter** and assert envelope `before` equals it. (No cross-label chaining is permitted.)
 
-   * If `draws=0`: assert $\pi\in\{0,1\}$, `u==null`, `deterministic=true`, and `after==before`.
-   * If `draws=1`: regenerate $x$ from Philox at `before`, map to $u$ via `u01`, assert $u\in(0,1)$ and `(u<π) == is_multi`, and `after = before + 1`.
-3. **Trace reconciliation.** Join with `rng_trace_log` for the same row key and assert the `draws` field equals the envelope delta.
-4. **Partition/embedding equality.** Path keys `{seed, parameter_hash, run_id}` equal the same fields embedded in the event.
+2. **Branch-specific checks from $\pi$ (from S1.2):**
 
----
+   * If `draws="0"`/`blocks=0`: assert $\pi\in\{0.0,1.0\}$, `u==null`, `deterministic=true`, and `after==before`.
+   * If `draws="1"`/`blocks=1`: generate **one** 64-bit word from the keyed substream at `before` using S0’s lane policy (low lane), map via S0’s **open-interval** `u01`, assert `0<u<1`, assert `(u<pi) == is_multi`, and assert `after = before + 1`.
 
-## Reference algorithm (ordering-invariant; language-agnostic)
+3. **Trace reconciliation (cumulative).** Aggregate `blocks` over all hurdle events for the same `(module, substream_label, merchant_id)`; assert the **trace totals** equal that sum and equal the counter delta between the earliest `before` and latest `after` for that key.
 
-```text
-INPUT:
-  m : merchant_id (u64)
-  pi : float64 in [0,1]
-  seed : u64
-  mf_bytes : 32-byte manifest_fingerprint_bytes
-  now_utc_ns : u64
-  ctx_envelope := {ts_utc, run_id, parameter_hash, manifest_fingerprint, module="1A.hurdle_sampler",
-                   substream_label="hurdle_bernoulli"}
-
-# 1) Base counter for (label, merchant)
-buf = sha256( ASCII("ctr:1A") || mf_bytes || LE64(seed) || ASCII("hurdle_bernoulli") || LE64(m) )
-before_hi = LE64_to_u64(buf[0:8])
-before_lo = LE64_to_u64(buf[8:16])
-
-# 2) Branch on pi
-if (pi == 0.0) or (pi == 1.0):
-    draws = 0
-    after_hi, after_lo = before_hi, before_lo
-    u_val = null
-    is_multi = (pi == 1.0)
-else:
-    draws = 1
-    # Philox2x64_10(seed, (before_hi, before_lo)) -> (x0, x1)
-    x0 = philox2x64_10(seed, before_hi, before_lo).lo64
-    u_val = (x0 + 1) / (2^64 + 1)    # open interval (0,1)
-    is_multi = (u_val < pi)
-    (after_hi, after_lo) = add_u128((before_hi, before_lo), 1)
-
-# 3) Emit hurdle event (S1.4 defines payload)
-emit_hurdle_event(
-  envelope = ctx_envelope + {
-      seed, rng_counter_before_hi=before_hi, rng_counter_before_lo=before_lo,
-            rng_counter_after_hi=after_hi,   rng_counter_after_lo=after_lo
-  },
-  payload  = { merchant_id=m, pi=pi, u=u_val, is_multi=is_multi,
-               deterministic = (draws == 0) }
-)
-
-# 4) Emit rng_trace_log row
-emit_rng_trace(
-  { ts_utc, run_id, seed, parameter_hash, manifest_fingerprint,
-    module="1A.hurdle_sampler", substream_label="hurdle_bernoulli",
-    rng_counter_before_hi=before_hi, rng_counter_before_lo=before_lo,
-    rng_counter_after_hi=after_hi,   rng_counter_after_lo=after_lo,
-    draws=draws }
-)
-```
-
-All writes use the dictionary paths/partitions (events and trace), which are keyed by `{seed, parameter_hash, run_id}`.
+4. **Partition/embedding equality.** Path partitions `{seed, parameter_hash, run_id}` match the embedded envelope fields; `module` / `substream_label` match the registry literals exactly.
 
 ---
 
-## Invariants (S1/H) guaranteed by this section
+## Procedure (ordering-invariant, language-agnostic)
 
-* **I-H1 (bit-replay).** Fixing $(x_m,\beta,\texttt{seed},\texttt{parameter_hash},\texttt{manifest_fingerprint})$, the tuple $(u_m,\text{is_multi}(m))$ and the envelope counters are **bit-identical** across replays (keyed substream + open-interval `u01`).
-* **I-H2 (consumption).** `draws=1` iff $0<\pi<1$; otherwise `draws=0`.
-* **I-H3 (schema conformance).** `u` and `deterministic` are present/absent exactly as required by the hurdle schema (detailed in S1.4).
-* **I-H4 (branch purity).** Hurdle decision feeds S2+; downstream must not override it.
+1. **Obtain base counter** for `(label="hurdle_bernoulli", merchant_id)` via the S0 keyed-substream primitive; set `before` accordingly.
+2. **Branch on $\pi$:**
+
+   * If $\pi\in\{0,1\}$: set `draws="0"`, `blocks=0`, `after=before`, `u=null`, `is_multi=(pi==1.0)`.
+   * If $0<\pi<1$: fetch **one** uniform $u\in(0,1)$ using the S0 lane policy and `u01`; set `draws="1"`, `blocks=1`, `after=before+1`, `is_multi=(u<pi)`.
+3. **Emit hurdle event** (S1.4): envelope includes all required fields above; payload includes `merchant_id`, `pi`, `u` (nullable), `is_multi` (boolean), `deterministic` (derived from `pi`).
+4. **Update cumulative RNG trace totals** for this `(module, substream_label, merchant_id)` by `+blocks`.
+
+*(This is a procedural spec; S0 remains the authority for PRNG keying, counter arithmetic, lane policy, and `u01` mapping.)*
 
 ---
 
-**Bottom line:** S1.3 defines a **merchant-keyed**, **label-stable** Philox substream and a **single-uniform** Bernoulli decision that is order-invariant and fully auditable by counters. The counters, label, and dictionary paths make the event stream replayable and independently checkable by validation.
+## Invariants (S1/H) guaranteed here
+
+* **Bit-replay:** Fixing $(x_m,\beta,\texttt{seed},\texttt{parameter_hash},\texttt{manifest_fingerprint})$, both the envelope counters and the pair $(u,\text{is_multi})$ are **bit-identical** under replay.
+* **Consumption:** `draws="1"` (and `blocks=1`) **iff** $0<\pi<1$; else `"0"`/`0`.
+* **Schema conformance:** `u` and `deterministic` comply with the hurdle event schema: `u=null` iff $\pi\in\{0,1\}$; `is_multi` is **boolean** only.
+* **Order-invariance:** `before` equals the keyed **base counter** for `(label, merchant)`—never a prior label’s `after`.
+* **Gating (forward contract):** Downstream 1A RNG streams appear **iff** `is_multi=true` (stream set obtained via the registry filter; S1 does not enumerate it).
+
+---
+
+**Bottom line:** S1.3 produces a single-uniform Bernoulli decision on a **merchant-keyed**, **label-stable** substream, with a **complete** envelope and a **cumulative** trace model. Everything is S0-compatible, order-invariant, and validator-checkable without guesswork.
 
 ---
 
