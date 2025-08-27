@@ -13,7 +13,7 @@ S1 does **not** specify downstream sampling (NB, ZTP, Dirichlet, etc.) nor CI/mo
 
 **Feature vector (logistic):**
 
-* **Block order (fixed):** $[\,\text{intercept}\,] \,\Vert\, \text{onehot(MCC)} \,\Vert\, \text{onehot(channel)} \,\Vert\, \text{onehot(GDP\_bucket)}$.
+* **Block order (fixed):** $[\,\text{intercept}\,] \,\Vert\, \text{onehot(MCC)} \,\Vert\, \text{onehot(channel)} \,\Vert\, \text{onehot(GDP_bucket)}$.
 * **Channel encoder (dim=2):** labels and order are exactly $[\,\mathrm{CP},\,\mathrm{CNP}\,]$ as defined in S0.
 * **GDP bucket encoder (dim=5):** labels and order are exactly $[\,1,2,3,4,5\,]$ from S0’s Jenks-5 bundle.
 * **MCC encoder (dim $=C_{\text{mcc}}$):** column order is **the frozen order from S0.5** (the fitting bundle); S1 **does not** derive order from map/dictionary iteration.
@@ -68,7 +68,7 @@ Each hurdle event **must** include the layer envelope fields:
 **Envelope law (budget identity):**
 
 $$
-(\text{after}_{hi},\text{after}_{lo}) - (\text{before}_{hi},\text{before}_{lo}) \;=\; \text{parse\_u128(draws)} \;=\; \text{blocks}.
+(\text{after}_{hi},\text{after}_{lo}) - (\text{before}_{hi},\text{before}_{lo}) \;=\; \text{parse_u128(draws)} \;=\; \text{blocks}.
 $$
 
 For the hurdle stream specifically, `blocks ∈ {0,1}` and `draws ∈ {"0","1"}`.
@@ -156,7 +156,7 @@ $$
 \eta_m=\beta^\top x_m
 $$
 
-Compute in IEEE-754 **binary64** using the **frozen column order** and the **Neumaier compensated summation** mandated by S0.8. No BLAS reordering or parallel reduction is permitted on any ordering-critical path.&#x20;
+Compute in IEEE-754 **binary64** using the **frozen column order** and the **Neumaier compensated summation** mandated by S0.8. No BLAS reordering or parallel reduction is permitted on any ordering-critical path.
 
 ### Logistic map and **explicit saturation regime** (normative)
 
@@ -184,7 +184,7 @@ $$
 \end{cases}
 $$
 
-This guarantees $\pi\in[0,1]$ in **binary64**, and it makes the **deterministic regime** explicit and platform-independent (exact `0.0` or `1.0` only via this saturation). S0.8 governs the math profile for `exp` and the FP environment used in the middle branches.&#x20;
+This guarantees $\pi\in[0,1]$ in **binary64**, and it makes the **deterministic regime** explicit and platform-independent (exact `0.0` or `1.0` only via this saturation). S0.8 governs the math profile for `exp` and the FP environment used in the middle branches.
 
 **Determinism flag (derived):**
 `deterministic := (pi == 0.0 || pi == 1.0)` using **binary64 equality**. If `deterministic=true` then S1.3 will consume **zero** uniforms; else S1.3 consumes **exactly one**. (See S1.3; validator equalities come from our Batch-1/2 decisions.)
@@ -193,16 +193,16 @@ This guarantees $\pi\in[0,1]$ in **binary64**, and it makes the **deterministic 
 
 ## Serialization & bounds (normative I/O rules)
 
-* **Binary64 round-trip:** Producers MUST serialize $\pi$ as a decimal that **round-trips bit-exactly** to the original binary64 (e.g., shortest round-trippable or fixed 17 digits). Consumers MUST parse as binary64 and MUST NOT depend on a fixed digit count.&#x20;
-* **Legal range:** Enforce `0.0 ≤ pi ≤ 1.0` (binary64). If $|\eta|\ge T$, emitted $\pi$ is exactly `0.0` or `1.0`; otherwise `0.0 < pi < 1.0`.&#x20;
-* **Diagnostics:** $\eta$ is **not** part of the normative hurdle event payload; if recorded, it belongs to a **diagnostic** dataset only (non-authoritative).&#x20;
+* **Binary64 round-trip:** Producers MUST serialize $\pi$ as a decimal that **round-trips bit-exactly** to the original binary64 (e.g., shortest round-trippable or fixed 17 digits). Consumers MUST parse as binary64 and MUST NOT depend on a fixed digit count.
+* **Legal range:** Enforce `0.0 ≤ pi ≤ 1.0` (binary64). If $|\eta|\ge T$, emitted $\pi$ is exactly `0.0` or `1.0`; otherwise `0.0 < pi < 1.0`.
+* **Diagnostics:** $\eta$ is **not** part of the normative hurdle event payload; if recorded, it belongs to a **diagnostic** dataset only (non-authoritative).
 
 ---
 
 ## Deterministic vs stochastic and consequences for S1.3
 
-* **Stochastic case** $(0<\pi<1)$: S1.3 will draw **one** $u\in(0,1)$ from the keyed substream, then decide `is_multi = (u < pi)`; budget `draws=1`. (Open-interval mapping and substreaming per S0.3.)&#x20;
-* **Deterministic case** $(\pi\in\{0,1\})$: S1.3 performs **no draw**; budget `draws=0`; downstream decision is implied by $\pi$ (`is_multi=true` iff $\pi==1.0$).&#x20;
+* **Stochastic case** $(0<\pi<1)$: S1.3 will draw **one** $u\in(0,1)$ from the keyed substream, then decide `is_multi = (u < pi)`; budget `draws=1`. (Open-interval mapping and substreaming per S0.3.)
+* **Deterministic case** $(\pi\in\{0,1\})$: S1.3 performs **no draw**; budget `draws=0`; downstream decision is implied by $\pi$ (`is_multi=true` iff $\pi==1.0$).
 
 ---
 
@@ -212,7 +212,7 @@ S0.8 applies in full: **binary64**, RN-even, **no FMA**, **no FTZ/DAZ**, determi
 
 ---
 
-**Bottom line:** S1.2 fixes a single, portable way to compute $\eta$ and $\pi$: a **fixed-order Neumaier** dot product followed by a **two-branch logistic** with **explicit saturation at $T=37.5$**. This yields exact `0.0/1.0` only by spec (not by accidental under/overflow), and it cleanly determines whether S1.3 consumes **one** uniform or **zero**.&#x20;
+**Bottom line:** S1.2 fixes a single, portable way to compute $\eta$ and $\pi$: a **fixed-order Neumaier** dot product followed by a **two-branch logistic** with **explicit saturation at $T=37.5$**. This yields exact `0.0/1.0` only by spec (not by accidental under/overflow), and it cleanly determines whether S1.3 consumes **one** uniform or **zero**.
 
 ---
 
@@ -988,88 +988,94 @@ Using the dictionary/registry bindings and schema anchors:
 
 ## A) Authoritative event stream that S1 **must** persist
 
-For every merchant $m\in\mathcal{M}$, S1 writes **exactly one** JSONL record to the hurdle event stream:
+For every merchant $m\in\mathcal{M}$, S1 writes **exactly one** JSONL record to the hurdle RNG dataset:
 
 ```
 logs/rng/events/hurdle_bernoulli/
-  seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/module={module}/substream_label={substream_label}/part-*.jsonl
 ```
 
-**Schema (fixed):** `schemas.layer1.yaml#/rng/events/hurdle_bernoulli`.
-**Dictionary binding (fixed):** `id: rng_event_hurdle_bernoulli`, partitioned by `{seed, parameter_hash, run_id}`, produced by `1A.hurdle_sampler`.
+* **Dataset id (registry):** `rng_event_hurdle_bernoulli`.
+* **Partitions:** `{seed, parameter_hash, run_id, module, substream_label}`.
+  *(Do **not** include `manifest_fingerprint` in the path; it is embedded for lineage.)*
+* **Schema:** `schemas.layer1.yaml#/rng/events/hurdle_bernoulli`.
 
 **Envelope (shared; required for all RNG events):**
-`{ ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label="hurdle_bernoulli", rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi }`. (From the layer-wide `$defs.rng_envelope`.)
+`{ ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label="hurdle_bernoulli", rng_counter_before_hi, rng_counter_before_lo, rng_counter_after_hi, rng_counter_after_lo, blocks, draws }`
 
-**Payload (authoritative):**
-`{ merchant_id, pi=π_m, is_multi, deterministic, u }`, where `u` is present (and in `(0,1)`) iff `deterministic=false`, and `u=null` when `deterministic=true`. (Optional context permitted by schema: `eta`, `gdp_bucket_id=b_m`, `mcc`, `channel`.)
- 
-**Companion trace:** one row in `rng_trace_log` for the same substream/partition proving draw accounting (`after = advance(before, d_m)`, with `draws∈{0,1}` for hurdle). The dictionary pins its path and schema.
+* **Budget identity (must hold):** `u128(after) − u128(before) = parse_u128(draws) = blocks`.
+  For the hurdle stream: `blocks ∈ {0,1}`, `draws ∈ {"0","1"}` (unit = one 64-bit uniform).
 
-> These hurdle records are the **only authoritative source** for the decision and the exact counter evolution that S2 must start from.
+**Payload (authoritative, minimal):**
+`{ merchant_id, pi, is_multi, deterministic, u }`
+
+* `merchant_id` — decimal **string** (parses to u64).
+* `pi` — JSON number, **binary64 round-trip**, `0.0 ≤ pi ≤ 1.0`.
+* `is_multi` — **boolean**.
+* `deterministic` — **boolean**, derived: `true` iff `pi ∈ {0.0, 1.0}` (binary64).
+* `u` — **required** `number|null`: `u=null` iff `pi ∈ {0,1}`, else `u∈(0,1)` (open interval).
+
+> Diagnostic/context fields (e.g., `eta`, `mcc`, `channel`, `gdp_bucket_id`) are **not** part of this authoritative stream. If materialized, they live in diagnostic datasets only.
+
+**Companion trace (cumulative):**
+Maintain a **single cumulative** `rng_trace_log` record per `(module, substream_label="hurdle_bernoulli", merchant_id)` within the run; its totals equal the **sum of event budgets** and reconcile to the counter delta. *(No per-event trace rows.)*
+
+> The hurdle event is the **only authoritative source** of the decision and its **own** counter evolution.
 
 ---
 
 ## B) In-memory **handoff tuple** to downstream (typed, deterministic)
 
-S1 does not persist a “state table”; instead, it yields a typed tuple per merchant to the orchestrator:
+S1 does not persist a “state table”; it yields a **typed tuple** per merchant to the orchestrator:
 
 $$
-\boxed{\ \Xi_m \;=\; \big(\ \text{is_multi}(m),\ N_m,\ K_m,\ \mathcal{C}_m,\ C_m^{\star}\ \big)\ }.
+\boxed{\ \Xi_m \;=\; \big(\ \text{is_multi}:\mathbf{bool},\ N:\mathbb{N},\ K:\mathbb{N},\ \mathcal{C}:\text{set[ISO_3166-1 alpha-2]},\ C^{\star}:\text{u128}\ \big)\ }.
 $$
 
 **Field semantics (normative):**
 
-* $\text{is_multi}(m)\in\{0,1\}$ — the hurdle outcome (from the event payload).
-* $N_m\in\mathbb{N}$ — **target outlet count** used by S2 (NB branch) when $\text{is_multi}=1$; for the single-site path set $N_m:=1$ by convention.
-* $K_m\in\mathbb{N}$ — **non-home country budget**; initialise $K_m:=0$ on the single-site path; multi-site assigns later in cross-border/ranking.
-* $\mathcal{C}_m\subseteq\mathcal{I}$ — **country set accumulator**; initialise $\{\text{home}(m)\}$, expand only in S2+/S3+.
-* $C_m^{\star}\in\{0,\dots,2^{64}\!-\!1\}^2$ — **RNG counter cursor after hurdle** for $m$: **exactly** the event’s `{rng_counter_after_hi, rng_counter_after_lo}`. **The very next labelled RNG event for $m$ must start with `rng_counter_before = C_m^{\star}`.**
+* `is_multi` — hurdle outcome (**boolean**) from the event payload.
+* `N` — **target outlet count** for S2 when `is_multi=true`; set `N:=1` on the single-site path.
+* `K` — **non-home country budget**; initialize `K:=0` on the single-site path; multi-site assigns later.
+* `\(\mathcal{C}\)` — **country set accumulator**; initialize `{ home_iso(m) }`, expand only in S2+/S3+.
+* `C^{\star}` — the hurdle event’s **post** counter as u128 (`{after_hi, after_lo}`), carried **only for audit**.
 
-**Branch semantics (deterministic split):**
+**Crucial counter rule:**
+Downstream states **do not** chain from `C^{\star}`. Each downstream RNG stream derives its **own base counter** from S0’s keyed-substream mapping using its **own** `(module, substream_label, merchant_id)`; there is **no cross-label counter chaining**.
 
-* If $\text{is_multi}(m)=0$:
-  $\boxed{N_m\leftarrow1,\;K_m\leftarrow0,\;\mathcal{C}_m\leftarrow\{\text{home}(m)\}}$,
-  **skip S2–S6** and jump to **S7** (single-home placement) with RNG starting at $C_m^{\star}$. No NB/Dirichlet/Poisson/ZTP/Gumbel streams may appear for $m$.
-* If $\text{is_multi}(m)=1$:
-  proceed to **S2** (NB branch) and **the first NB-labelled event must use `rng_counter_before = C_m^{\star}`**.
+**Branch semantics:**
 
-This defines a **pure, replayable** control-flow boundary: downstream states consume $\Xi_m$ only; they never “re-decide” the hurdle.
+* If `is_multi == false`: set `N:=1`, `K:=0`, `\(\mathcal{C}:={home_iso(m)}\)`, and route to **S7** (single-home placement). No NB/ZTP/Dirichlet/Gumbel streams may appear.
+* If `is_multi == true`: route to **S2** (NB branch). `N`, `K` are assigned downstream; `\(\mathcal{C}\)` starts as `{home_iso(m)}`.
 
 ---
 
 ## C) Downstream visibility (for validation & joins)
 
-Validators and downstream readers use the dictionary to discover the next streams for merchants with $\text{is_multi}=1$, all partitioned by `{seed, parameter_hash, run_id}`:
-
-* `logs/rng/events/gamma_component/...` (`#/rng/events/gamma_component`),
-* `logs/rng/events/poisson_component/...` (`#/rng/events/poisson_component`),
-* `logs/rng/events/nb_final/...` (`#/rng/events/nb_final`).
-
-The **gating rule** is enforced: these streams **must** be absent for merchants without a prior hurdle `is_multi=true`.
+Validators discover **gated** 1A RNG streams via the **registry filter** (e.g., `owner_segment=1A`, `state>S1`, `gated_by_hurdle=true`) and expect those streams to be **present iff** `is_multi=true` for a merchant. S1 does **not** enumerate stream names inline.
 
 ---
 
 ## D) Optional diagnostic dataset (parameter-scoped; not consulted by samplers)
 
-If enabled (often produced in S0.7), S1/S0 may persist a diagnostic:
+If enabled, a diagnostic table may be persisted (often produced in S0.7):
 
 ```
 data/layer1/1A/hurdle_pi_probs/parameter_hash={parameter_hash}/…
 ```
 
-**Schema:** `#/model/hurdle_pi_probs`. **Contents (per merchant):** `{manifest_fingerprint, merchant_id, logit=η_m, pi=π_m}`.
-This table is **read-only** and **never** consulted by S2+; it exists for debugging/QA and lineage checks.
+**Schema:** `#/model/hurdle_pi_probs`. **Contents (per merchant):** `{manifest_fingerprint, merchant_id, logit:eta, pi}`.
+This dataset is **read-only** and **non-authoritative**; samplers never consult it.
 
 ---
 
 ## E) Boundary invariants (must hold when S1 ends)
 
-1. **Single emit:** exactly one hurdle record per merchant per `{seed, parameter_hash, run_id}`, and exactly one $\Xi_m$.
-2. **Counter continuity:** the **next** event’s envelope for $m$ must satisfy `rng_counter_before == C_m^{\star}`.
-3. **Branch purity:** downstream RNG streams appear **iff** $\text{is_multi}=1$; single-site path performs **no** NB/ZTP/Dirichlet/Gumbel draws.
-4. **Lineage coherence:** logs use `{seed, parameter_hash, run_id}`; any egress/validation later uses `fingerprint={manifest_fingerprint}` (recall S0.10). Embedded keys equal path keys.
-5. **Numeric consistency:** the `pi` in the hurdle payload equals the recomputed $π_m$ from S1.2 (fixed-order dot + safe logistic).
+1. **Single emit:** exactly one hurdle record per merchant per `{seed, parameter_hash, run_id}` and exactly one $\Xi_m$.
+2. **Cross-label independence:** downstream RNG events **derive** their base counters via S0’s keyed mapping for their **own** labels; there is **no** requirement that `before(next) == C^{\star}`.
+3. **Branch purity (gating):** gated downstream 1A RNG streams are **present iff** `is_multi=true`.
+4. **Lineage coherence:** dataset paths use `{seed, parameter_hash, run_id, module, substream_label}`; embedded envelope keys equal the path keys; egress/validation later uses `fingerprint={manifest_fingerprint}`.
+5. **Numeric consistency:** hurdle `pi` equals the S1.2 recomputed value (fixed-order dot + thresholded two-branch logistic).
 
 ---
 
@@ -1080,30 +1086,30 @@ INPUT:
   hurdle_event for merchant m (envelope + payload), home_iso(m)
 
 OUTPUT:
-  Xi_m = (is_multi, N_m, K_m, C_m, C_star_m)
+  Xi_m = (is_multi, N, K, C_set, C_star)
 
-1  is_multi := hurdle_event.payload.is_multi                # 0 or 1
-2  C_star_m := (envelope.rng_counter_after_hi, envelope.rng_counter_after_lo)
+1  is_multi := hurdle_event.payload.is_multi                 # boolean
+2  C_star   := (envelope.rng_counter_after_hi, envelope.rng_counter_after_lo)  # audit only
 
-3  if is_multi == 0:
-4      N_m := 1
-5      K_m := 0
-6      C_m := { home_iso(m) }
+3  if is_multi == false:
+4      N := 1
+5      K := 0
+6      C_set := { home_iso(m) }
 7      next_state := S7
 8  else:
-9      N_m := ⊥   # to be sampled in S2 (NB)
-10     K_m := ⊥   # will be set in cross-border/ranking
-11     C_m := { home_iso(m) }
+9      N := <unassigned>   # set in S2
+10     K := <unassigned>   # set in cross-border/ranking
+11     C_set := { home_iso(m) }
 12     next_state := S2
 
 13  return Xi_m, next_state
 ```
 
-This mirrors the locked S1 boundary and is sufficient for an orchestrator to route merchants deterministically into S2 or S7.
+*(This is a handoff contract, not persisted state. Downstream states derive their **own** base counters; `C_star` is for audit.)*
 
 ---
 
-**Bottom line:** S1 outputs **one** persisted hurdle event (with envelope + payload) and a **precise** in-memory tuple $\Xi_m$ that pins RNG continuity and the branching path. The dictionary paths and schemas make discovery and validation deterministic; downstream streams for multi-site merchants can be verified and replayed starting from $C_m^{\star}$, while single-site merchants bypass S2–S6 to S7.
+**Bottom line:** S1 outputs **one** authoritative hurdle event per merchant (complete envelope + minimal payload) and a **typed, deterministic handoff tuple**. The boundary guarantees **gated presence**, **cross-label RNG independence** (no counter chaining), stable partitions, and numeric consistency—giving downstream states and validators a clean, replayable interface.
 
 ---
 
