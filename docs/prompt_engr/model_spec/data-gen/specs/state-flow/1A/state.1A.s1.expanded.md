@@ -341,8 +341,9 @@ with unsigned 128-bit arithmetic on counters. In the hurdle stream, `draws ∈ {
 
 > **Trace model (reconciliation):** The RNG trace is **cumulative** per `(module, substream_label)` within the run (no merchant dimension) and includes `rng_counter_before_{lo,hi}` and `rng_counter_after_{lo,hi}`. For the **final** row per key in a run:
 > 
-> * `draws_total:uint64` (saturating) equals **Σ parse_u128(draws)** over all hurdle events, and
-> * the **u128** counter delta `u128(after)−u128(before)` **equals** `draws_total` (interpreting `draws_total` as u128).
+> * `draws_total == Σ parse_u128(draws)` (diagnostic; saturating uint64),
+> * `blocks_total == Σ blocks` (normative; saturating uint64),
+> * `u128(after) − u128(before) == blocks_total`.
 > 
 > S1.3 does **not** emit per-event trace rows.
   
@@ -431,8 +432,8 @@ For each hurdle record in the run, the validator performs:
 1. **Obtain base counter** for `(label="hurdle_bernoulli", merchant_id)` via the S0 keyed-substream primitive; set `before` accordingly.
 2. **Branch on $\pi$:**
 
-   * If $\pi\in{0,1}$: set `draws="0"`, `after=before`, `u=null`, `is_multi=(pi==1.0)`. (If emitting `blocks`, set `0`.)
-   * If $0<\pi<1$: fetch **one** uniform $u\in(0,1)$ using the S0 lane policy and `u01`; set `draws="1"`, `after=before+1`, `is_multi=(u<pi)`. (If emitting `blocks`, set `1`.)
+   * If $\pi\in{0,1}$: set `draws="0"`, `after=before`, `u=null`, `is_multi=(pi==1.0)`. 
+   * If $0<\pi<1$: fetch **one** uniform $u\in(0,1)$ using the S0 lane policy and `u01`; set `draws="1"`, `after=before+1`, `is_multi=(u<pi)`. 
 3. **Emit hurdle event** (S1.4): envelope includes all required fields above; payload includes `merchant_id`, `pi`, `u` (nullable), `is_multi` (boolean), `deterministic` (derived from `pi`).
 4. **Update cumulative RNG trace totals** for `(module, substream_label)` by adding `parse_u128(draws)` (and `+1` to `events_total`); do **not** create per-event trace rows.
 
@@ -615,7 +616,7 @@ Fields and types (per the hurdle schema):
 * **Budget identity & replay.** Let `d_m := 1` iff `0 < pi_m < 1`, else `0`. Assert:
 
   * `u128(after) − u128(before) = parse_u128(draws)`,
-  * for hurdle: `parse_u128(draws) ∈ {0,1}` and, **if** `blocks` is present, `blocks = parse_u128(draws) = d_m`.
+  * for hurdle: `parse_u128(draws) ∈ {0,1}` and `blocks = parse_u128(draws) = d_m`.
 * **Decision predicate.**
 
   * If `d_m=0` (deterministic): `pi∈{0,1}`, `u==null`, `deterministic=true`, `after==before`, and `is_multi == (pi==1.0)`.
@@ -850,7 +851,6 @@ Layer schema (envelope anchor + hurdle event schema), dataset dictionary/registr
 **C1. `rng_envelope_schema_violation`**
 **Predicate.** Missing/mistyped **envelope** field required by the anchor:
 `{ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi, draws, blocks}`.
-` for hurdle.)
 **Detect at.** Writer + validator schema checks. **Abort run.**
 **Forensics.** `{dataset_id, path, missing_or_bad:[...]}`.
 
@@ -958,22 +958,22 @@ Every S1 failure MUST emit a JSON object (alongside the validation bundle / `_FA
 
 ## Where to detect (first line) & who double-checks
 
-| Family / Code                  | First detector (runtime)         | Secondary (validator / CI)                               |
-|--------------------------------|----------------------------------|----------------------------------------------------------|
-| A1–A3 design/β                 | S1.1/S1.2 guards                 | (optional) build lints                                   |
-| B1–B2 numeric invalid          | S1.2 evaluation guards           | Re-eval η, π                                             |
-| C1 envelope schema             | Writer JSON-Schema check         | Validator schema pass                                    |
-| C2 label mismatch              | Writer assertion                 | Validator                                                |
+| Family / Code                  | First detector (runtime)         | Secondary (validator / CI)                                                                                                                |
+|--------------------------------|----------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| A1–A3 design/β                 | S1.1/S1.2 guards                 | (optional) build lints                                                                                                                    |
+| B1–B2 numeric invalid          | S1.2 evaluation guards           | Re-eval η, π                                                                                                                              |
+| C1 envelope schema             | Writer JSON-Schema check         | Validator schema pass                                                                                                                     |
+| C2 label mismatch              | Writer assertion                 | Validator                                                                                                                                 |
 | C3 counter mismatch            | Writer assertion                 | Validator counter math (u128(after)−u128(before) vs **blocks**, and **blocks == parse_u128(draws)**); trace `blocks_total` reconciliation |
-| C4 trace missing/totals mis    | —                                | Trace aggregate vs Σ(event budgets) & counter delta      |
-| C5 u out of range              | Writer check                     | `u01` + recompute                                        |
-| D1 payload schema              | Writer JSON-Schema check         | Validator schema pass                                    |
-| D2 deterministic inconsistency | Writer assertion                 | Recompute branch from π                                  |
-| E1 partition mismatch          | Writer path/embed equality check | Path lint (only `{seed, parameter_hash, run_id}`)        |
-| E2 wrong dataset path          | —                                | Dictionary/registry binding lint                         |
-| F1 gating violation            | —                                | Cross-stream presence check via **registry filter**      |
-| F2 duplicate record            | —                                | Uniqueness check                                         |
-| F3 cardinality mismatch        | —                                | Row count vs ingress merchant set                        |
+| C4 trace missing/totals mis    | —                                | Trace aggregate vs Σ(event budgets) & counter delta                                                                                       |
+| C5 u out of range              | Writer check                     | `u01` + recompute                                                                                                                         |
+| D1 payload schema              | Writer JSON-Schema check         | Validator schema pass                                                                                                                     |
+| D2 deterministic inconsistency | Writer assertion                 | Recompute branch from π                                                                                                                   |
+| E1 partition mismatch          | Writer path/embed equality check | Path lint (only `{seed, parameter_hash, run_id}`)                                                                                         |
+| E2 wrong dataset path          | —                                | Dictionary/registry binding lint                                                                                                          |
+| F1 gating violation            | —                                | Cross-stream presence check via **registry filter**                                                                                       |
+| F2 duplicate record            | —                                | Uniqueness check                                                                                                                          |
+| F3 cardinality mismatch        | —                                | Row count vs ingress merchant set                                                                                                         |
 
 > **Gating note:** Enforcement is **presence-based**: downstream gated streams must exist **iff** hurdle `is_multi=true`. No temporal “prior” requirement.
 
@@ -1029,7 +1029,7 @@ logs/rng/events/hurdle_bernoulli/
 * `module`, `substream_label` are **registry literals** (closed enums). For this stream, `substream_label == "hurdle_bernoulli"`.
 * **Budget identity (must hold):**
   `u128(after) − u128(before) = parse_u128(draws)` (unsigned 128-bit arithmetic).
-  For the hurdle stream, `draws ∈ {"0","1"}` (unit = one 64-bit uniform). If `blocks` is present, it **must** equal `parse_u128(draws)` and hence `blocks ∈ {0,1}`.
+  For the hurdle stream, `draws ∈ {"0","1"}` (unit = one 64-bit uniform) and `blocks ∈ {0,1}` and **must equal** `parse_u128(draws)`.
 
 **Identifier serialization:** fields typed as `uint64/id64` in the schema (e.g., `seed`, counter words, `merchant_id`) are emitted as **JSON integers** (not strings).
 
@@ -1286,6 +1286,7 @@ Emit **one JSON object per failure** with envelope lineage and a precise code:
   "module": "1A.hurdle_sampler",
   "substream_label": "hurdle_bernoulli",
   "failure_code": "rng_counter_mismatch",
+  "failure_class": "F4",
 
   "merchant_id": "184467440737095",                 // string per S0 failure typing
   "detail": {
@@ -1308,7 +1309,7 @@ Emit **one JSON object per failure** with envelope lineage and a precise code:
 ```
 
 * `dataset_id` is the **registry id** (not a path).
-* Identifiers typed as id64/uint64 in the schema (e.g., `seed`, `merchant_id`) are JSON integers.
+* **Types per S0 failure schema:** `seed` is a JSON **integer**; `merchant_id` is a JSON **string** (or `null` when not applicable); `ts_utc` is a JSON **integer** = nanoseconds since Unix epoch (UTC). The `detail` payload for counter mismatches must include `before`, `after`, `blocks:uint64`, and `draws:"uint128-dec"`.
 * `failure_code` maps **1:1** to S1.6 predicates.
 
 ---
