@@ -5,6 +5,11 @@ description: "Layer-wide schemas used by Layer 1 (shared logs and RNG event stre
 
 # -- Reusable primitives ---------------------------------------------------
 $defs:
+  dec_u128:
+    type: string
+    pattern: "^(0|[1-9][0-9]{0,38})$"
+    maxLength: 39
+    description: "Base-10 unsigned 128-bit integer as a string (no sign, no leading zeros except '0'). Validator enforces < 2^128."
   id64:
     type: integer
     minimum: 1
@@ -53,7 +58,8 @@ $defs:
     type: object
     additionalProperties: false
     required: [ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label,
-               rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi]
+               rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi,
+               draws]
     properties:
       ts_utc:
         type: string
@@ -72,6 +78,9 @@ $defs:
       rng_counter_after_lo:  { $ref: "#/$defs/uint64", description: "Philox 2x64 counter low (after draws)." }
       rng_counter_after_hi:  { $ref: "#/$defs/uint64", description: "Philox 2x64 counter high (after draws)." }
       merchant_id: { $ref: "#/$defs/id64", nullable: true, description: "Present when event is merchant-scoped." }
+      draws:
+        $ref: "#/$defs/dec_u128"
+        description: "Number of uniforms consumed by THIS event (decimal u128 string). Must satisfy u128(after)-u128(before) == parse_u128(draws)."
 
 # -- RNG: Core logs (JSONL) ------------------------------------------------
 rng:
@@ -99,18 +108,22 @@ rng:
 
     rng_trace_log:
       type: stream
-      description: "Structured per-module RNG consumption trace."
+      description: "Structured per-(module,substream_label) RNG consumption trace with cumulative totals."
       record:
         type: object
         additionalProperties: false
-        required: [ts_utc, run_id, seed, module, substream_label, draws, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi]
+        required: [ts_utc, run_id, seed, module, substream_label,
+                   rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi,
+                   draws_total, blocks_total, events_total]
         properties:
           ts_utc: { type: string, format: date-time }
           run_id: { type: string }
           seed:   { $ref: "#/$defs/uint64" }
           module: { type: string }
           substream_label: { $ref: "#/$defs/stream_label" }
-          draws:  { $ref: "#/$defs/uint64", description: "Number of uniforms consumed." }
+          draws_total:  { $ref: "#/$defs/uint64", description: "Cumulative number of uniforms consumed for this (module, substream_label) in the run (saturating sum)." }
+          blocks_total: { $ref: "#/$defs/uint64", description: "Cumulative PRNG block count per (module, substream_label) in the run (saturating sum)." }
+          events_total: { $ref: "#/$defs/uint64", description: "Cumulative number of event rows observed for this (module, substream_label) in the run (saturating sum)." }
           rng_counter_before_lo: { $ref: "#/$defs/uint64" }
           rng_counter_before_hi: { $ref: "#/$defs/uint64" }
           rng_counter_after_lo:  { $ref: "#/$defs/uint64" }
