@@ -363,13 +363,13 @@ with unsigned 128-bit arithmetic on counters. In the hurdle stream, `draws ∈ {
 Let $\pi=\pi_m$.
 
 * **Deterministic branch** ($\pi\in{0,1}$).
-  `draws="0"`; **no** Philox call; envelope has `after == before`.
+  `draws="0"`; **no** Philox call; set `blocks=0`; envelope has `after == before`.
   Outcome is implied by $\pi$: `is_multi = true` iff `pi == 1.0`; else `false`.
-  Payload rules (S1.4): `deterministic=true`, `u=null`. Set `blocks=0`.
+  Payload rules (S1.4): `deterministic=true`, `u=null`.
 
 * **Stochastic branch** ($0<\pi<1$).
-  Draw **one** uniform $u\in(0,1)$ using the keyed substream and lane policy; `draws="1"`; envelope has `after = before + 1`.
-  Decide `is_multi = (u < pi)`; payload: `deterministic=false` and `u` present and numeric. Set `blocks=1`.
+  Draw **one** uniform $u\in(0,1)$ using the keyed substream and lane policy; `draws="1"`; set `blocks=1`; envelope has `after = before + 1`.
+  Decide `is_multi = (u < pi)`; payload: `deterministic=false` and `u` present and numeric.
 
 All of the above are enforced by the S0/S1 budgeting invariants and the S1 validator checklist (determinism equivalences and gating).
 
@@ -484,11 +484,8 @@ Every hurdle record **must** carry the complete layer RNG envelope (single sourc
 
 * `ts_utc`, `run_id`, `seed`, `parameter_hash`, `manifest_fingerprint`, `module`, `substream_label`,
 * `rng_counter_before_lo`, `rng_counter_before_hi`, `rng_counter_after_lo`, `rng_counter_after_hi`,
-* `draws` (required, u128 as a decimal string).
-
-**Optional convenience**
-
-* `blocks` (uint64) — if present for hurdle, it **must** be 0 or 1 and equal `parse_u128(draws)`.
+* `draws` (**required**, u128 as a decimal string),
+* `blocks` (**required**, uint64).
 
 **Semantics**
 
@@ -502,7 +499,7 @@ Every hurdle record **must** carry the complete layer RNG envelope (single sourc
   u128(after_hi,after_lo) − u128(before_hi,before_lo) = parse_u128(draws)
   ```
 
-  For the hurdle stream specifically: `draws ∈ {"0","1"}`; `blocks ∈ {0,1}` and `blocks == parse_u128(draws)`.
+  For the hurdle stream specifically: `draws ∈ {"0","1"}`; `blocks ∈ {0,1}` and **must equal** `parse_u128(draws)`.
 * **Identifier serialization:** 64-bit identifiers in the envelope (e.g., `seed`) are **JSON integers** per the layer schema (not strings).
 
 ---
@@ -554,6 +551,7 @@ Fields and types (per the hurdle schema):
   "rng_counter_after_hi": 42,
 
   "draws": "1",
+  "blocks": 1,
 
   "merchant_id": 184467440737095,
   "pi": 0.3725,
@@ -581,6 +579,7 @@ Fields and types (per the hurdle schema):
   "rng_counter_after_hi": 42,
 
   "draws": "0",
+  "blocks": 0,
 
   "merchant_id": 184467440737095,
   "pi": 1.0,
@@ -604,9 +603,9 @@ Fields and types (per the hurdle schema):
 * **Trace linkage (cumulative, substream-scoped).** Maintain a **cumulative** `rng_trace_log` per `(module, substream_label)` (no merchant dimension) within the run, including `rng_counter_before_{lo,hi}` and `rng_counter_after_{lo,hi}`. Totals are **saturating uint64** and equal the **sums** over all hurdle events in the run:
 
   * `draws_total == Σ parse_u128(draws)` (diagnostic; saturating uint64),
-  * `blocks_total == Σ blocks` (normative; saturating uint64), 
-  * `events_total ==` hurdle event count.
-  * and the **u128** counter delta `u128(after)−u128(before)` **equals** `draws_total`.
+  * `blocks_total == Σ blocks` (normative; saturating uint64),
+  * `events_total ==` hurdle event count,
+  * and the **u128** counter delta `u128(after)−u128(before)` **equals** `blocks_total`.
 
 ---
 
@@ -648,10 +647,10 @@ Fields and types (per the hurdle schema):
 1. **Base counter.** Obtain the **base counter** for `(label="hurdle_bernoulli", merchant_id)` using the S0 keyed-substream primitive; set `before`.
 2. **Branch from `pi`.**
 
-   * If `pi ∈ {0.0,1.0}`: set `draws="0"` (and, if emitting `blocks`, set `blocks=0`), `after=before`, `u=null`, `deterministic=true`, `is_multi=(pi==1.0)`.
-   * If `0 < pi < 1`: draw **one** uniform `u∈(0,1)` (low-lane, open-interval `u01`); set `draws="1"` (and, if emitting `blocks`, set `blocks=1`), `after=before+1`, `deterministic=false`, `is_multi=(u<pi)`.
+   * If `pi ∈ {0.0,1.0}`: set `draws="0"`, `blocks=0`, `after=before`, `u=null`, `deterministic=true`, `is_multi=(pi==1.0)`.
+   * If `0 < pi < 1`: draw **one** uniform `u∈(0,1)` (low-lane, open-interval `u01`); set `draws="1"`, `blocks=1`, `after=before+1`, `deterministic=false`, `is_multi=(u<pi)`.
 3. **Emit hurdle event.** Envelope includes all required fields (`*_lo` then `*_hi` naming); payload includes `merchant_id` (JSON integer), `pi` (binary64 round-trip), `u:number|null`, `is_multi:boolean`, `deterministic:boolean`.
-4. **Update cumulative trace (substream-scoped).** Increase `draws_total` for `(module, substream_label)` by `parse_u128(draws)` (saturating uint64). If you emit `blocks` in events, also increase `blocks_total` by `blocks`. Increase `events_total` by 1. Ensure **exactly one** final cumulative record exists per `(module, substream_label)` at state completion.
+4. **Update cumulative trace (substream-scoped).** Increase `draws_total` for `(module, substream_label)` by `parse_u128(draws)` (diagnostic; saturating uint64), and increase `blocks_total` by `blocks` (normative; saturating uint64). Increase `events_total` by 1. Ensure **exactly one** final cumulative record exists per `(module, substream_label)` at state completion.
 
 *(Procedure is normative; S0 remains the authority for PRNG keying, counter arithmetic, lane policy, and `u01`.)*
 
@@ -865,7 +864,7 @@ Layer schema (envelope anchor + hurdle event schema), dataset dictionary/registr
 **Forensics.** `{before_hi, before_lo, after_hi, after_lo, blocks, draws}`.
 
 **C4. `rng_trace_missing_or_totals_mismatch`**
-**Predicate.** Missing **final cumulative** `rng_trace_log` record for `(module, substream_label)` within the run, **or** its totals ≠ **sum of event budgets** for that key, **or** its **u128** counter delta `u128(after)−u128(before)` ≠ `draws_total`.
+**Predicate.** Missing **final cumulative** `rng_trace_log` record for `(module, substream_label)` within the run, **or** its totals ≠ **sum of event budgets** for that key, **or** its **u128** counter delta `u128(after)−u128(before)` ≠ `blocks_total`.
 **Detect at.** Validator aggregate. **Abort run.**
 
 **C5. `u_out_of_range`**
