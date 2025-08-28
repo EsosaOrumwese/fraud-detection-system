@@ -1289,24 +1289,23 @@ Emit **one JSON object per failure** with envelope lineage and a precise code:
   "failure_code": "rng_counter_mismatch",
   "failure_class": "F4",
 
-  "merchant_id": "184467440737095",                 // string per S0 failure typing
+  "merchant_id": "184467440737095",
   "detail": {
-    "before": { "hi": 42, "lo": 9876543210 },       // S0-typed minima: before/after
+    "before": { "hi": 42, "lo": 9876543210 },
     "after":  { "hi": 42, "lo": 9876543211 },
     "blocks": 1,
     "draws": "1",
     "expected_delta": "1",
     "trace_blocks_total": 0,
-    "trace_draws_total": 0                          // use this single canonical name
+    "trace_draws_total": 0
   },
 
-  "seed": 1234567890123456789,                      // integer
+  "seed": 1234567890123456789,
   "parameter_hash": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
   "manifest_fingerprint": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
   "run_id": "0123456789abcdef0123456789abcdef",
-  "ts_utc": 1752555123123456000                    // integer ns since epoch (S0 rule)
+  "ts_utc": 1752555123123456000
 }
-
 ```
 
 * `dataset_id` is the **registry id** (not a path).
