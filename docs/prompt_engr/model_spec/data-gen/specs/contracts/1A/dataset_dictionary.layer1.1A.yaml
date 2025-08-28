@@ -438,7 +438,7 @@ datasets:
   - id: "rng_trace_log"
     status: "approved"
     owner_subsegment: "1A"
-    description: "Structured per-module RNG trace for reproducibility and forensics (draws = uniforms consumed per step; blocks reconciled via before/after counters)"
+    description: "Structured per-(module,substream_label) RNG trace with cumulative totals for reproducibility and forensics (draws_total = sum of event-level draws; blocks_total reconciled via counters)."
     version: "{run_id}"
     format: "jsonl"
     path: "logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl"
