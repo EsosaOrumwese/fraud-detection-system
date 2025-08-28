@@ -556,7 +556,7 @@ Fields and types (per the hurdle schema):
 
   "merchant_id": 184467440737095,
   "pi": 0.3725,
-  "is_multi": false,
+  "is_multi": true,
   "deterministic": false,
   "u": 0.1049
 }
@@ -1365,7 +1365,7 @@ assert_all_schema(T, "#/rng/core/rng_trace_log")
 
 # 2) partition equality
 for e in H: assert path_keys(e) == embedded_keys(e)   # {seed, parameter_hash, run_id}
-assert all(e.module == "1A.hurdle_sampler" && e.substream_label == "hurdle_bernoulli" for e in H)
+assert all(e.module == "1A.hurdle_sampler" and e.substream_label == "hurdle_bernoulli" for e in H)
 
 # 3) recompute (η, π) and budget
 beta := load_beta_once()
@@ -1379,22 +1379,22 @@ for e in H:
   assert e.rng_counter_before == before
   delta := u128(e.after) - u128(e.before)
   assert delta == parse_u128(e.draws) == draws
-  if "blocks" in e: assert e.blocks == parse_u128(e.draws)
+  assert e.blocks == parse_u128(e.draws)
 
   # 5) branch checks
   if draws == 0:
-     assert (pi == 0.0 && !e.is_multi) || (pi == 1.0 && e.is_multi)
-     assert e.deterministic && e.u == null
+     assert (pi == 0.0 and !e.is_multi) || (pi == 1.0 and e.is_multi)
+     assert e.deterministic and e.u == null
   else:
      u := regenerate_u01(seed, before)     # (0,1), low-lane policy
-     assert 0.0 < u && u < 1.0
+     assert 0.0 < u and u < 1.0
      assert (u < pi) == e.is_multi
 
 # 6) trace reconciliation (final per (module, substream_label))
 for each key in final_rows(T):
-  assert key.draws_total == sum(parse_u128(e.draws) for e in H  # diagnostic where e.module==key.module && e.substream_label==key.substream_label)   # saturating uint64
-  if "blocks" in H: assert key.blocks_total == sum(e.blocks for e in H where same key)                                                # saturating uint64
-  assert u128(key.after) - u128(key.before) == key.blocks_total   # and, for hurdle, also equals key.draws_total 
+  assert key.draws_total == sum(parse_u128(e.draws) for e in H if e.module==key.module and e.substream_label==key.substream_label)   # diagnostic; saturating uint64
+  assert key.blocks_total == sum(e.blocks for e in H if e.module==key.module and e.substream_label==key.substream_label)             # normative; saturating uint64
+  assert u128(key.after) - u128(key.before) == key.blocks_total   # and, for hurdle, also equals key.draws_total
 
 # 7) gating (presence-based)
 H1 := { m | H[m].is_multi == true }
