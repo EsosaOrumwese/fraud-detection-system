@@ -80,7 +80,7 @@ $$
 $$
 
 For hurdle, $\texttt{draws} \in \{"0","1"\}$.
-*(If an implementation also emits a convenience `blocks:uint64`, it is **optional** and for hurdle must equal `parse_u128(draws)`.)*
+* Additionally, emit `blocks:uint64` as **required** by S0; for hurdle, `blocks ∈ {0,1}` and **must equal** `parse_u128(draws)`.*
 
 ---
 
@@ -337,7 +337,7 @@ $$
 $$
 
 with unsigned 128-bit arithmetic on counters. In the hurdle stream, `draws ∈ {"0","1"}` (the number of uniforms consumed).
-**`blocks` is optional**; if present (uint64), then for hurdle it **must** be `0` or `1` and **must equal** `parse_u128(draws)`.
+**`blocks` is required**; for hurdle (uint64) it **must** be `0` or `1` and **must equal** `parse_u128(draws)`.
 
 > **Trace model (reconciliation):** The RNG trace is **cumulative** per `(module, substream_label)` within the run (no merchant dimension) and includes `rng_counter_before_{lo,hi}` and `rng_counter_after_{lo,hi}`. For the **final** row per key in a run:
 > 
@@ -418,9 +418,9 @@ For each hurdle record in the run, the validator performs:
    * If `draws="1"`: generate **one** 64-bit word from the keyed substream at `before` using S0’s lane policy (low lane), map via S0’s **open-interval** `u01`, assert `0<u<1`, assert `(u<pi) == is_multi`, and assert `after = before + 1`.
 
 3. **Trace reconciliation (cumulative).** Let `H` be all hurdle events in the run. For the **final** trace row for `(module, substream_label)`:
-   * Assert `trace.draws_total == Σ parse_u128(e.draws)` (saturating uint64),
-   * If `blocks` is present in events: `trace.blocks_total == Σ e.blocks` (saturating uint64),
-   * Assert `u128(trace.after_hi,trace.after_lo) − u128(trace.before_hi,trace.before_lo) == trace.draws_total` (as u128).
+   * Assert `trace.draws_total == Σ parse_u128(e.draws)` (diagnostic; saturating uint64),
+   * Assert `trace.blocks_total == Σ e.blocks` (normative; saturating uint64),
+   * Assert `u128(trace.after_hi,trace.after_lo) − u128(trace.before_hi,trace.before_lo) == trace.blocks_total`.
 
 4. **Partition/embedding equality.** Path partitions `{seed, parameter_hash, run_id}` match the embedded envelope fields; `module` / `substream_label` match the registry literals exactly.
 
@@ -626,7 +626,7 @@ Fields and types (per the hurdle schema):
   * `trace.draws_total == Σ parse_u128(draws)` (diagnostic; saturating uint64),
   * `trace.blocks_total == Σ blocks` (normative; saturating uint64),
   * `trace.events_total ==` hurdle event count,
-  * `u128(trace.after) − u128(trace.before) == trace.draws_total` (as u128).
+  * `u128(trace.after) − u128(trace.before) == trace.blocks_total`.
 * **Gating invariant.** Downstream **1A RNG streams** must appear for a merchant **iff** that merchant’s hurdle event has `is_multi=true`. The set of gated stream IDs is obtained via the **registry filter** (S1 does **not** enumerate names inline).
 * **Cardinality & uniqueness.** Hurdle row count equals ingress merchant count for `{parameter_hash}`; uniqueness key is `merchant_id` scoped by `{seed, parameter_hash, run_id}`.
 
@@ -850,8 +850,8 @@ Layer schema (envelope anchor + hurdle event schema), dataset dictionary/registr
 
 **C1. `rng_envelope_schema_violation`**
 **Predicate.** Missing/mistyped **envelope** field required by the anchor:
-`{ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi, draws}`.
-(**Note:** `blocks` is **optional**; if present it must equal `parse_u128(draws)` for hurdle.)
+`{ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi, draws, blocks}`.
+` for hurdle.)
 **Detect at.** Writer + validator schema checks. **Abort run.**
 **Forensics.** `{dataset_id, path, missing_or_bad:[...]}`.
 
@@ -1024,8 +1024,7 @@ logs/rng/events/hurdle_bernoulli/
 * **Schema:** `schemas.layer1.yaml#/rng/events/hurdle_bernoulli`.
 
 **Envelope (shared; required for all RNG events):**
-`{ ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label="hurdle_bernoulli", rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi, draws }`
-Optionally: `blocks` (uint64 convenience field).
+{ ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi, draws, blocks }
 
 * `module`, `substream_label` are **registry literals** (closed enums). For this stream, `substream_label == "hurdle_bernoulli"`.
 * **Budget identity (must hold):**
@@ -1192,9 +1191,8 @@ Validator logic is **order-invariant** (shard/emit order is irrelevant) and uses
 Validate **every** hurdle record against:
 
 * **Envelope (complete):**
-  `ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi, draws`.
+  `ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi, draws, blocks`.
   (`module`/`substream_label` are **registry literals**; `draws` is **u128 as a decimal string**.)
-  **Optional convenience:** `blocks:uint64`. If present, it **must** equal `parse_u128(draws)`; for hurdle it **must** be `0` or `1`. `draws` remains the **authoritative** budget.
 * **Payload (minimal, authoritative):**
   `merchant_id` (**id64 JSON integer**), `pi` (**binary64 round-trip**, `0.0 ≤ pi ≤ 1.0`),
   `is_multi` (**boolean**), `deterministic` (**boolean**, derived from `pi`),
@@ -1233,7 +1231,7 @@ Let the label be the registry literal `substream_label="hurdle_bernoulli"`.
    * If `draws_expected = 1`: regenerate **one** uniform from the keyed substream at `before` (low lane), map via **open-interval** `u01`, assert `0<u<1` and `(u < pi) == is_multi`.
 
 **Trace reconciliation (cumulative):** For the **final** trace row per `(module, substream_label)`:
-`draws_total == Σ parse_u128(draws)` (saturating `uint64`), and `blocks_total == Σ blocks`; `events_total ==` hurdle event count; **and** `u128(after) − u128(before) == draws_total` (as u128).
+`draws_total == Σ parse_u128(draws)` (diagnostic; saturating `uint64`), and `blocks_total == Σ blocks` (normative; saturating `uint64`); **and** `u128(after) − u128(before) == blocks_total`.
 
 > Naming: use `draws_expected` (from π), `blocks`/`draws` (from envelope), and `delta` for counter difference.
 
@@ -1332,7 +1330,7 @@ Emit **one JSON object per failure** with envelope lineage and a precise code:
 1. **Schema:** validate hurdle + trace rows against schema anchors; fail fast.
 2. **Partition:** path ↔ embedded equality on `{seed, parameter_hash, run_id}`; then check envelope literals (`module`, `substream_label`); ensure **no fingerprint in path**.
 3. **Replay:** ... reconcile cumulative per-substream trace totals **and**
-   check `u128(trace.after) − u128(trace.before) == trace.draws_total` on the final trace row per (`module`, `substream_label`).
+   check `u128(trace.after) − u128(trace.before) == trace.blocks_total` on the final trace row per (`module`, `substream_label`).
 4. **Gating:** enforce **presence-based** rule: gated streams exist **iff** `is_multi=true`.
 5. **Cardinality/uniqueness:** exactly one hurdle row per merchant; counts match ingress.
 
@@ -1390,9 +1388,9 @@ for e in H:
 
 # 6) trace reconciliation (final per (module, substream_label))
 for each key in final_rows(T):
-  assert key.draws_total == sum(parse_u128(e.draws) for e in H where e.module==key.module && e.substream_label==key.substream_label)   # saturating uint64
+  assert key.draws_total == sum(parse_u128(e.draws) for e in H  # diagnostic where e.module==key.module && e.substream_label==key.substream_label)   # saturating uint64
   if "blocks" in H: assert key.blocks_total == sum(e.blocks for e in H where same key)                                                # saturating uint64
-  assert u128(key.after) - u128(key.before) == key.draws_total 
+  assert u128(key.after) - u128(key.before) == key.blocks_total   # and, for hurdle, also equals key.draws_total 
 
 # 7) gating (presence-based)
 H1 := { m | H[m].is_multi == true }
