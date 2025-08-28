@@ -524,8 +524,8 @@ Fields and types (per the hurdle schema):
 
 **Branch invariants**
 
-* Deterministic ⇒ `u == null` and **no uniform consumed** (`draws="0"`; if `blocks` present, `blocks=0`).
-* Stochastic ⇒ `0 < u < 1`, `is_multi == (u < pi)`, and **exactly one uniform consumed** (`draws="1"`; `blocks=1`).
+* Deterministic ⇒ `u == null` and **no uniform consumed** (`draws="0"`, `blocks=0`).
+* Stochastic ⇒ `0 < u < 1`, `is_multi == (u < pi)`, and **exactly one uniform consumed** (`draws="1"`, `blocks=1`).
 
 > The payload is **minimal** and authoritative for the decision; `eta` and any diagnostics are **not** part of this stream (they belong in non-authoritative diagnostic datasets, if present at all).
 
@@ -695,7 +695,7 @@ If `draws="1"`, regenerate $u$ and assert `(u < pi) == is_multi`. Assert counter
 * If $\pi_m \in {0,1}$: `after = before`.
 
 **Law.** Envelope budgeting must satisfy
-`u128(after) − u128(before) = parse_u128(draws)` (unsigned 128-bit arithmetic). For the hurdle, `draws ∈ {"0","1"}`; if `blocks` is present it **must equal** `parse_u128(draws)` and therefore `blocks ∈ {0,1}`.
+`u128(after) − u128(before) = parse_u128(draws)` (unsigned 128-bit arithmetic). For the hurdle, `draws ∈ {"0","1"}`; blocks is required and must equal `parse_u128(draws)`.
 
 **Trace model (cumulative).** RNG trace is **cumulative per `(module, substream_label)`** within the run (no merchant dimension). Its totals equal the **sums across all hurdle events** for that substream.
 
@@ -774,7 +774,7 @@ For each hurdle row $r$ with merchant $m$:
 1. **Recompute $\eta,\pi$.** Using S1.2 rules (fixed-order dot + two-branch logistic (no clamp)), assert `finite(η)` and `0.0 ≤ pi ≤ 1.0`.
 2. **Rebuild base counter.** Using `(seed, manifest_fingerprint, substream_label="hurdle_bernoulli", merchant_id)`, assert `rng_counter_before == base_counter`.
 3. **Budget identity.** From $\pi$, set `draws = "1"` iff $0<\pi<1$, else `"0"`. Assert
-   `u128(after) − u128(before) = parse_u128(draws)` and, if `blocks` is present, `blocks == parse_u128(draws)` (and for hurdle `blocks ∈ {0,1}`, `draws ∈ {"0","1"}`).
+   `u128(after) − u128(before) = parse_u128(draws)` and, blocks is required and must equal `parse_u128(draws)`.
    **Trace reconciliation:** join to the **cumulative** trace record for `(module, substream_label)` and assert its totals equal the **sum of hurdle event budgets**.
 4. **Outcome consistency.**
 
@@ -927,31 +927,32 @@ Every S1 failure MUST emit a JSON object (alongside the validation bundle / `_FA
 
 ```json
 {
+  "failure_class": "F4",
   "failure_code": "rng_counter_mismatch",
   "state": "S1",
   "module": "1A.hurdle_sampler",
   "substream_label": "hurdle_bernoulli",
   "dataset_id": "rng_event_hurdle_bernoulli",
   "path": "logs/rng/events/hurdle_bernoulli/seed=1234567890123456789/parameter_hash=abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789/run_id=0123456789abcdef0123456789abcdef/part-0001.jsonl",
-  "merchant_id": 184467440737095,
+  "merchant_id": "184467440737095",
   "detail": {
     "before": {"hi": 42, "lo": 9876543210},
     "after":  {"hi": 42, "lo": 9876543211},
     "draws": "1",
     "expected_delta": "1",
     "blocks": 1,
-    "trace_draws_total": 0
+    "trace_blocks_total": 0
   },
   "seed": 1234567890123456789,
   "parameter_hash": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
   "manifest_fingerprint": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
   "run_id": "0123456789abcdef0123456789abcdef",
-  "ts_utc": "2025-08-15T10:12:03.123456Z"
+  "ts_utc": 1752555123123456000
 }
 ```
 
-* `dataset_id` is the **registry id**; `path` is the concrete file path (optional but helpful).
-* Identifiers (`seed`, `merchant_id`) are **JSON integers** (schema-conformant). `blocks` may be absent in other failure objects; when present, it must equal `parse_u128(draws)` for hurdle.
+* `dataset_id` is the **registry id** (not a path).
+* **Types per S0 failure schema:** `seed` is a JSON **integer**; `merchant_id` is a JSON **string** (or `null` when not applicable); `ts_utc` is a JSON **integer** = nanoseconds since Unix epoch (UTC). The `detail` payload for counter mismatches must include `before`, `after`, `blocks:uint64`, and `draws:"uint128-dec"`. 
 
 ---
 
@@ -963,7 +964,7 @@ Every S1 failure MUST emit a JSON object (alongside the validation bundle / `_FA
 | B1–B2 numeric invalid          | S1.2 evaluation guards           | Re-eval η, π                                             |
 | C1 envelope schema             | Writer JSON-Schema check         | Validator schema pass                                    |
 | C2 label mismatch              | Writer assertion                 | Validator                                                |
-| C3 counter mismatch            | Writer (optional)                | Counter reconciliation (after−before vs draws\[/blocks]) |
+| C3 counter mismatch            | Writer assertion                 | Validator counter math (u128(after)−u128(before) vs **blocks**, and **blocks == parse_u128(draws)**); trace `blocks_total` reconciliation |
 | C4 trace missing/totals mis    | —                                | Trace aggregate vs Σ(event budgets) & counter delta      |
 | C5 u out of range              | Writer check                     | `u01` + recompute                                        |
 | D1 payload schema              | Writer JSON-Schema check         | Validator schema pass                                    |
@@ -984,8 +985,8 @@ Using the dictionary/registry bindings and schema anchors:
 
 1. **Schema:** validate hurdle events **and** cumulative trace against the layer anchors (envelope + event + trace).
 2. **Counters & budget:** assert
-   `u128(after) − u128(before) = parse_u128(draws)` and, for hurdle, `draws ∈ {"0","1"}`; if `blocks` is present, assert `blocks = parse_u128(draws)` and `blocks ∈ {0,1}`.
-   **Trace reconciliation:** per `(module, substream_label)`, `blocks_total` equals **Σ(event blocks)** (saturating to uint64; normative) and `draws_total` (if present) equals **Σ(event draws)** (saturating to uint64; diagnostic).
+   `u128(after) − u128(before) = parse_u128(draws)` and, for hurdle, `draws ∈ {"0","1"}`; **assert** `blocks = parse_u128(draws)` and `blocks ∈ {0,1}`.
+   **Trace reconciliation:** per `(module, substream_label)`, `blocks_total` equals **Σ(event blocks)** (saturating to uint64; normative) and `draws_total` (if recorded) equals **Σ(event draws)** (saturating to uint64; diagnostic).
 3. **Decision:** recompute $\eta,\pi$ (S1.2 rules); if stochastic (`draws="1"`), regenerate one uniform from the keyed **base counter** (low-lane, open-interval `u01`) and assert `0<u<1` and `(u<pi) == is_multi`.
 4. **Deterministic regime:** if `draws="0"`, assert `pi ∈ {0,1}`, `deterministic=true`, and `u == null`.
 5. **Partition lint:** path partitions `{seed, parameter_hash, run_id}` equal the embedded envelope; path **must not** include `module`, `substream_label`, or `manifest_fingerprint`.
@@ -1285,23 +1286,25 @@ Emit **one JSON object per failure** with envelope lineage and a precise code:
   "module": "1A.hurdle_sampler",
   "substream_label": "hurdle_bernoulli",
   "failure_code": "rng_counter_mismatch",
-  "merchant_id": 184467440737095,
+
+  "merchant_id": "184467440737095",                 // string per S0 failure typing
   "detail": {
-    "rng_counter_before": {"hi": 42, "lo": 9876543210},
-    "rng_counter_after":  {"hi": 42, "lo": 9876543211},
+    "before": { "hi": 42, "lo": 9876543210 },       // S0-typed minima: before/after
+    "after":  { "hi": 42, "lo": 9876543211 },
     "blocks": 1,
     "draws": "1",
     "expected_delta": "1",
-    "trace_totals_draws": "0",
-    "pi": 0.37,
-    "u": 0.55
+    "trace_blocks_total": 0,
+    "trace_draws_total": 0                          // use this single canonical name
   },
-  "seed": 1234567890123456789,
+
+  "seed": 1234567890123456789,                      // integer
   "parameter_hash": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
   "manifest_fingerprint": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
   "run_id": "0123456789abcdef0123456789abcdef",
-  "ts_utc": "2025-08-15T10:12:03.123456Z"
+  "ts_utc": 1752555123123456000                    // integer ns since epoch (S0 rule)
 }
+
 ```
 
 * `dataset_id` is the **registry id** (not a path).
