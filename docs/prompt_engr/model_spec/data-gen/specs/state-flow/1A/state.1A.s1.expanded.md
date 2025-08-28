@@ -106,14 +106,14 @@ logs/rng/events/hurdle_bernoulli/
 
 **Uniqueness & completeness (per run).** Within `{seed, parameter_hash, run_id}`, there is **exactly one** hurdle event per `merchant_id`, and the hurdle row count equals the merchant universe count for the run (from S0 ingress for the same `manifest_fingerprint`).
 
-**Trace (totals; no merchant dimension).** The RNG **trace** dataset is scoped to `(module, substream_label)` within the same `{seed, parameter_hash, run_id}`. It carries cumulative totals (`draws_total`, `blocks_total`, `events_total`) and before/after counters. The **event** is authoritative for per-row budgets and decisions; the trace totals exist for reconciliation.
+**Trace (totals; no merchant dimension).** The RNG **trace** is per `(module, substream_label)` and records cumulative totals keyed by `{seed, parameter_hash, run_id}`. `blocks_total` is the **normative** counter of cumulative consumption; `draws_total` (if recorded) is **diagnostic** (it must equal the saturating sum of per-event `draws`).
 
 ---
 
 ## Forward contracts S1 must satisfy (declared here so inputs are complete)
 
 * **Probability (S1.2).** Compute $\eta_m=\beta^\top x_m$ (fixed-order dot in binary64) and $\pi_m$ via the **two-branch** logistic. $\pi_m \in [0,1]$; the row is **deterministic** iff $\pi_m$ equals exactly `0.0` or `1.0` in binary64 (extreme underflow/overflow of `exp`), otherwise $0<\pi_m<1$.
-* **RNG substream & $u\in(0,1)$ (S1.3).** Use the keyed substream with `substream_label="hurdle_bernoulli"`. Draw **one** open-interval uniform $u$ via $u=(x+1)/(2^{64}+1)$ **iff** $0<\pi_m<1$; else draw **zero**. Envelope counters must satisfy the budget identity.
+* **RNG substream & $u\in(0,1)$ (S1.3).** Use the keyed substream mapping from **S0**. If $0<\pi_m<1$, consume exactly one open-interval uniform via S0’s `u01` mapping (binary64): $u=((x+1)\times 2^{-64})$, then **if** $u==1.0$ set $u=\mathrm{nextafter}(1.0,\text{below})$; if $\pi_m\in\{0,1\}$, draw **zero**. Envelope counters must satisfy the budget identity.
 * **Payload discipline (S1.4).** Payload is `{merchant_id, pi, is_multi, deterministic, u}` where `u` is **required** and **nullable**:
 
   * if $0<\pi<1$: `u ∈ (0,1)`, `deterministic=false`, `is_multi = 1{u<pi}`;
@@ -339,8 +339,13 @@ $$
 with unsigned 128-bit arithmetic on counters. In the hurdle stream, `draws ∈ {"0","1"}` (the number of uniforms consumed).
 **`blocks` is optional**; if present (uint64), then for hurdle it **must** be `0` or `1` and **must equal** `parse_u128(draws)`.
 
-> **Trace model (clarification):** The RNG trace is **cumulative** per `(module, substream_label)` within the run (no merchant dimension). Its totals reconcile to the **sum of event budgets** and to the aggregate counter delta over the hurdle events. S1.3 does **not** emit per-event trace rows.
-
+> **Trace model (reconciliation):** The RNG trace is **cumulative** per `(module, substream_label)` within the run (no merchant dimension) and includes `rng_counter_before_{lo,hi}` and `rng_counter_after_{lo,hi}`. For the **final** row per key in a run:
+> 
+> * `draws_total:uint64` (saturating) equals **Σ parse_u128(draws)** over all hurdle events, and
+> * the **u128** counter delta `u128(after)−u128(before)` **equals** `draws_total` (interpreting `draws_total` as u128).
+> 
+> S1.3 does **not** emit per-event trace rows.
+  
 **Field-order convention (names are authoritative):** JSON carries
 `rng_counter_before_lo`, `rng_counter_before_hi`, `rng_counter_after_lo`, `rng_counter_after_hi`. Parsers compose u128 as `(hi<<64) | lo`.
 
@@ -360,11 +365,11 @@ Let $\pi=\pi_m$.
 * **Deterministic branch** ($\pi\in{0,1}$).
   `draws="0"`; **no** Philox call; envelope has `after == before`.
   Outcome is implied by $\pi$: `is_multi = true` iff `pi == 1.0`; else `false`.
-  Payload rules (S1.4): `deterministic=true`, `u=null`. If `blocks` is present, it **must** be `0`.
+  Payload rules (S1.4): `deterministic=true`, `u=null`. Set `blocks=0`.
 
 * **Stochastic branch** ($0<\pi<1$).
   Draw **one** uniform $u\in(0,1)$ using the keyed substream and lane policy; `draws="1"`; envelope has `after = before + 1`.
-  Decide `is_multi = (u < pi)`; payload: `deterministic=false`, `u` present and numeric. If `blocks` is present, it **must** be `1`.
+  Decide `is_multi = (u < pi)`; payload: `deterministic=false` and `u` present and numeric. Set `blocks=1`.
 
 All of the above are enforced by the S0/S1 budgeting invariants and the S1 validator checklist (determinism equivalences and gating).
 
@@ -378,11 +383,11 @@ All of the above are enforced by the S0/S1 budgeting invariants and the S1 valid
 
 Each hurdle event **must** carry the **complete** layer RNG envelope:
 
-`{ ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label="hurdle_bernoulli", rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi, draws [, blocks] }`
+`{ ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi, draws, blocks }`
 
 * `module` and `substream_label` are **registry literals** (closed enums).
 * `draws` is a non-negative **u128 encoded as decimal string**; budget identity: `u128(after) − u128(before) = parse_u128(draws)`.
-* `blocks` (if present) is a non-negative uint64; for hurdle, `blocks ∈ {0,1}` and **must equal** `parse_u128(draws)`.
+* `blocks` is a non-negative uint64; for hurdle, `blocks ∈ {0,1}` and **must equal** `parse_u128(draws)`.
 
 S1.3 writes **one** hurdle event per merchant.  The RNG trace is **cumulative** per `(module, substream_label)` within the run (no merchant dimension). Its totals reconcile to the **sum of event budgets** and to the aggregate counter delta over the hurdle events. S1.3 does **not** emit per-event trace rows.
 
@@ -393,7 +398,7 @@ S1.3 writes **one** hurdle event per merchant.  The RNG trace is **cumulative** 
 Abort the run on any of the following:
 
 * **Envelope/label violation.** Missing required envelope fields; wrong `module`/`substream_label` literal; malformed counter fields (`*_hi/*_lo`).
-* **Budget identity failure.** `u128(after) − u128(before) ≠ parse_u128(draws)`; or (if `blocks` present) `blocks ≠ parse_u128(draws)`; or (if `blocks` present) `blocks∉{0,1}` for hurdle.
+* **Budget identity failure.** `u128(after) − u128(before) ≠ parse_u128(draws)`; or `blocks∉{0,1}` for hurdle.
 * **Uniform out of range.** In a stochastic branch, `u ≤ 0` or `u ≥ 1` (violates open-interval `u01`).
 * **Determinism inconsistency.** `π∈{0,1}` but `u` present or `deterministic=false`; or $0<\pi<1$ but `u` absent or `deterministic=true`.
 
@@ -412,7 +417,10 @@ For each hurdle record in the run, the validator performs:
    * If `draws="0"`: assert $\pi\in{0.0,1.0}$, `u==null`, `deterministic=true`, and `after==before`.
    * If `draws="1"`: generate **one** 64-bit word from the keyed substream at `before` using S0’s lane policy (low lane), map via S0’s **open-interval** `u01`, assert `0<u<1`, assert `(u<pi) == is_multi`, and assert `after = before + 1`.
 
-3. **Trace reconciliation (cumulative).** Let `H` be all hurdle events in the run. Assert `trace.draws_total == sum(parse_u128(e.draws) for e in H)` (with saturating uint64), and if `blocks` is present in events then `trace.blocks_total == sum(e.blocks)` (saturating uint64). Do **not** assert any equality between trace counters and an aggregate counter delta across events; counters are merchant-keyed.
+3. **Trace reconciliation (cumulative).** Let `H` be all hurdle events in the run. For the **final** trace row for `(module, substream_label)`:
+   * Assert `trace.draws_total == Σ parse_u128(e.draws)` (saturating uint64),
+   * If `blocks` is present in events: `trace.blocks_total == Σ e.blocks` (saturating uint64),
+   * Assert `u128(trace.after_hi,trace.after_lo) − u128(trace.before_hi,trace.before_lo) == trace.draws_total` (as u128).
 
 4. **Partition/embedding equality.** Path partitions `{seed, parameter_hash, run_id}` match the embedded envelope fields; `module` / `substream_label` match the registry literals exactly.
 
@@ -494,7 +502,7 @@ Every hurdle record **must** carry the complete layer RNG envelope (single sourc
   u128(after_hi,after_lo) − u128(before_hi,before_lo) = parse_u128(draws)
   ```
 
-  For the hurdle stream specifically: `draws ∈ {"0","1"}`; if `blocks` is present then `blocks ∈ {0,1}` and `blocks == parse_u128(draws)`.
+  For the hurdle stream specifically: `draws ∈ {"0","1"}`; `blocks ∈ {0,1}` and `blocks == parse_u128(draws)`.
 * **Identifier serialization:** 64-bit identifiers in the envelope (e.g., `seed`) are **JSON integers** per the layer schema (not strings).
 
 ---
@@ -520,7 +528,7 @@ Fields and types (per the hurdle schema):
 **Branch invariants**
 
 * Deterministic ⇒ `u == null` and **no uniform consumed** (`draws="0"`; if `blocks` present, `blocks=0`).
-* Stochastic ⇒ `0 < u < 1`, `is_multi == (u < pi)`, and **exactly one uniform consumed** (`draws="1"`; if `blocks` present, `blocks=1`).
+* Stochastic ⇒ `0 < u < 1`, `is_multi == (u < pi)`, and **exactly one uniform consumed** (`draws="1"`; `blocks=1`).
 
 > The payload is **minimal** and authoritative for the decision; `eta` and any diagnostics are **not** part of this stream (they belong in non-authoritative diagnostic datasets, if present at all).
 
@@ -593,11 +601,12 @@ Fields and types (per the hurdle schema):
 * **Exactly one hurdle row per merchant (per run).** Within `{seed, parameter_hash, run_id}` there is **at most one** hurdle event for each `merchant_id`, and the hurdle row count equals the merchant universe cardinality for that `{parameter_hash}` (from ingress). Writes are **append-only** to `part-*` shards.
 * **Stable partitioning.** The hurdle event dataset is partitioned **only** by `{seed, parameter_hash, run_id}`; **do not** include `manifest_fingerprint`, `module`, or `substream_label` in the path (they are embedded in the envelope).
 * **Module/label stability.** `module` and `substream_label` are **registry literals**. For this stream, `substream_label == "hurdle_bernoulli"`; `module` is the registered producer id (e.g., `"1A.hurdle_sampler"`).
-* **Trace linkage (cumulative, substream-scoped).** Maintain a **cumulative** `rng_trace_log` per `(module, substream_label)` (no merchant dimension) within the run. Its totals are **saturating uint64** and equal the **sums** over all hurdle events in the run:
+* **Trace linkage (cumulative, substream-scoped).** Maintain a **cumulative** `rng_trace_log` per `(module, substream_label)` (no merchant dimension) within the run, including `rng_counter_before_{lo,hi}` and `rng_counter_after_{lo,hi}`. Totals are **saturating uint64** and equal the **sums** over all hurdle events in the run:
 
-  * `draws_total == Σ parse_u128(draws)`,
-  * if `blocks` is present: `blocks_total == Σ blocks`,
+  * `draws_total == Σ parse_u128(draws)` (diagnostic; saturating uint64),
+  * `blocks_total == Σ blocks` (normative; saturating uint64), 
   * `events_total ==` hurdle event count.
+  * and the **u128** counter delta `u128(after)−u128(before)` **equals** `draws_total`.
 
 ---
 
@@ -612,12 +621,12 @@ Fields and types (per the hurdle schema):
 
   * If `d_m=0` (deterministic): `pi∈{0,1}`, `u==null`, `deterministic=true`, `after==before`, and `is_multi == (pi==1.0)`.
   * If `d_m=1` (stochastic): regenerate **one** uniform from the keyed substream at `before` (low-lane policy), map via open-interval `u01`, assert `0<u<1` and `(u<pi) == is_multi`; assert `after = before + 1`.
-* **Trace reconciliation (cumulative, substream-scoped).** For the run, aggregate hurdle events and assert:
+  * **Trace reconciliation (cumulative, substream-scoped).** For the run, aggregate hurdle events and assert on the **final** trace row:
 
-  * `trace.draws_total == Σ parse_u128(draws)` (saturating uint64),
-  * if `blocks` is present in events: `trace.blocks_total == Σ blocks` (saturating uint64),
-  * `trace.events_total ==` hurdle event count.
-  * **Do not** assert any equality between a “global counter delta” and the totals; counters are merchant-keyed and non-contiguous.
+  * `trace.draws_total == Σ parse_u128(draws)` (diagnostic; saturating uint64),
+  * `trace.blocks_total == Σ blocks` (normative; saturating uint64),
+  * `trace.events_total ==` hurdle event count,
+  * `u128(trace.after) − u128(trace.before) == trace.draws_total` (as u128).
 * **Gating invariant.** Downstream **1A RNG streams** must appear for a merchant **iff** that merchant’s hurdle event has `is_multi=true`. The set of gated stream IDs is obtained via the **registry filter** (S1 does **not** enumerate names inline).
 * **Cardinality & uniqueness.** Hurdle row count equals ingress merchant count for `{parameter_hash}`; uniqueness key is `merchant_id` scoped by `{seed, parameter_hash, run_id}`.
 
@@ -734,7 +743,7 @@ If `draws="1"`, regenerate $u$ and assert `(u < pi) == is_multi`. Assert counter
 
 ## I-H6 — Envelope completeness & equality with path keys
 
-* Every record contains the **full** RNG envelope required by `$defs.rng_envelope`. `draws` is **required**; `blocks` is **optional** (if present, it must equal `parse_u128(draws)` and for hurdle be `0` or `1`).
+* Every record contains the **full** RNG envelope required by `$defs.rng_envelope`. `draws` is **required**; `blocks` must equal `parse_u128(draws)` and for hurdle be `0` or `1`.
 * Embedded `{seed, parameter_hash, run_id}` **equal** the same keys in the dataset path. `module` and `substream_label` are registry literals checked **in the envelope** (they do **not** appear in the path).
 
 ---
@@ -851,12 +860,12 @@ Layer schema (envelope anchor + hurdle event schema), dataset dictionary/registr
 **Detect at.** Writer assertion; validator. **Abort run.**
 
 **C3. `rng_counter_mismatch`**
-**Predicate.** `u128(after) − u128(before) ≠ parse_u128(draws)`; or, if `blocks` is present, `blocks ≠ parse_u128(draws)`. For hurdle, if `blocks` is present it must also satisfy `blocks ∈ {0,1}` and `draws ∈ {"0","1"}`.
+**Predicate.** `u128(after) − u128(before) ≠ parse_u128(draws)`; or `blocks ≠ parse_u128(draws)`. For hurdle, it must also satisfy `blocks ∈ {0,1}` and `draws ∈ {"0","1"}`.
 **Detect at.** Writer (optional) and validator reconciliation. **Abort run.**
-**Forensics.** `{before_hi, before_lo, after_hi, after_lo, blocks?, draws}`.
+**Forensics.** `{before_hi, before_lo, after_hi, after_lo, blocks, draws}`.
 
 **C4. `rng_trace_missing_or_totals_mismatch`**
-**Predicate.** Missing **cumulative** `rng_trace_log` record for `(module, substream_label)` within the run, **or** its totals ≠ **sum of event budgets** for that key.
+**Predicate.** Missing **final cumulative** `rng_trace_log` record for `(module, substream_label)` within the run, **or** its totals ≠ **sum of event budgets** for that key, **or** its **u128** counter delta `u128(after)−u128(before)` ≠ `draws_total`.
 **Detect at.** Validator aggregate. **Abort run.**
 
 **C5. `u_out_of_range`**
@@ -977,7 +986,7 @@ Using the dictionary/registry bindings and schema anchors:
 1. **Schema:** validate hurdle events **and** cumulative trace against the layer anchors (envelope + event + trace).
 2. **Counters & budget:** assert
    `u128(after) − u128(before) = parse_u128(draws)` and, for hurdle, `draws ∈ {"0","1"}`; if `blocks` is present, assert `blocks = parse_u128(draws)` and `blocks ∈ {0,1}`.
-   **Trace reconciliation:** per `(module, substream_label)`, cumulative `draws_total` equals **Σ(event draws)** (saturating to uint64).
+   **Trace reconciliation:** per `(module, substream_label)`, `blocks_total` equals **Σ(event blocks)** (saturating to uint64; normative) and `draws_total` (if present) equals **Σ(event draws)** (saturating to uint64; diagnostic).
 3. **Decision:** recompute $\eta,\pi$ (S1.2 rules); if stochastic (`draws="1"`), regenerate one uniform from the keyed **base counter** (low-lane, open-interval `u01`) and assert `0<u<1` and `(u<pi) == is_multi`.
 4. **Deterministic regime:** if `draws="0"`, assert `pi ∈ {0,1}`, `deterministic=true`, and `u == null`.
 5. **Partition lint:** path partitions `{seed, parameter_hash, run_id}` equal the embedded envelope; path **must not** include `module`, `substream_label`, or `manifest_fingerprint`.
@@ -1152,7 +1161,7 @@ Validator logic is **order-invariant** (shard/emit order is irrelevant) and uses
      logs/rng/events/hurdle_bernoulli/
        seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
      ```
-   * **RNG trace (cumulative)** — per **(module, substream_label)** totals for the run (no merchant dimension; append-safe; take the final row per key).
+   * **RNG trace (cumulative)** — per **(module, substream_label)** totals **and** `rng_counter_before/after` for the run (no merchant dimension; append-safe; take the **final** row per key).
    * **Downstream gated streams** — discovered via the **registry filter** (e.g., `owner_segment=1A`, `state>S1`, `gated_by_hurdle=true`). S1 does **not** enumerate names inline.
 3. **Design/β artefacts:** frozen encoders/dictionaries and the single-YAML hurdle coefficients bundle (β).
 4. **Lineage keys:** `{seed, parameter_hash, manifest_fingerprint, run_id}` from path + envelope; the **shared RNG envelope** is mandatory for each event.
@@ -1216,15 +1225,15 @@ Let the label be the registry literal `substream_label="hurdle_bernoulli"`.
 2. **Budget from π:** set `draws_expected = 1` iff `0 < pi < 1`, else `0`.
 3. **Budget identity:** compute `delta = u128(after) − u128(before)` and assert
    `delta == parse_u128(draws) == draws_expected`.
-   If `blocks` is present, also assert `blocks == parse_u128(draws)` and `blocks ∈ {0,1}`.
+   Also assert `blocks == parse_u128(draws)` and `blocks ∈ {0,1}`.
 4. **Lane policy:** assert `delta ∈ {0,1}`.
 5. **Stochastic vs deterministic:**
 
    * If `draws_expected = 0`: assert `pi ∈ {0,1}`, `u == null`, `deterministic == true`, and `is_multi == (pi == 1.0)`.
    * If `draws_expected = 1`: regenerate **one** uniform from the keyed substream at `before` (low lane), map via **open-interval** `u01`, assert `0<u<1` and `(u < pi) == is_multi`.
 
-**Trace reconciliation (cumulative):** For each `(module, substream_label)`, the **trace totals** equal the **sums over all hurdle events in the run** (saturating `uint64`):
-`draws_total == Σ parse_u128(draws)`, and if present in events then `blocks_total == Σ blocks`; `events_total ==` hurdle event count.
+**Trace reconciliation (cumulative):** For the **final** trace row per `(module, substream_label)`:
+`draws_total == Σ parse_u128(draws)` (saturating `uint64`), and `blocks_total == Σ blocks`; `events_total ==` hurdle event count; **and** `u128(after) − u128(before) == draws_total` (as u128).
 
 > Naming: use `draws_expected` (from π), `blocks`/`draws` (from envelope), and `delta` for counter difference.
 
@@ -1322,7 +1331,8 @@ Emit **one JSON object per failure** with envelope lineage and a precise code:
 
 1. **Schema:** validate hurdle + trace rows against schema anchors; fail fast.
 2. **Partition:** path ↔ embedded equality on `{seed, parameter_hash, run_id}`; then check envelope literals (`module`, `substream_label`); ensure **no fingerprint in path**.
-3. **Replay:** recompute $η,π$ and the budget; reconstruct base counter; regenerate $u$ when needed; check decision & counters; reconcile cumulative per-substream trace totals (grouped by (`module`, `substream_label`))
+3. **Replay:** ... reconcile cumulative per-substream trace totals **and**
+   check `u128(trace.after) − u128(trace.before) == trace.draws_total` on the final trace row per (`module`, `substream_label`).
 4. **Gating:** enforce **presence-based** rule: gated streams exist **iff** `is_multi=true`.
 5. **Cardinality/uniqueness:** exactly one hurdle row per merchant; counts match ingress.
 
@@ -1378,14 +1388,20 @@ for e in H:
      assert 0.0 < u && u < 1.0
      assert (u < pi) == e.is_multi
 
-# 6) gating (presence-based) – unchanged
+# 6) trace reconciliation (final per (module, substream_label))
+for each key in final_rows(T):
+  assert key.draws_total == sum(parse_u128(e.draws) for e in H where e.module==key.module && e.substream_label==key.substream_label)   # saturating uint64
+  if "blocks" in H: assert key.blocks_total == sum(e.blocks for e in H where same key)                                                # saturating uint64
+  assert u128(key.after) - u128(key.before) == key.draws_total 
+
+# 7) gating (presence-based)
 H1 := { m | H[m].is_multi == true }
 for each row in each gated stream s ∈ S:
   assert row.merchant_id in H1
 for each m ∉ H1:
   assert no rows exist in any s ∈ S
 
-# 7) uniqueness & cardinality
+# 8) uniqueness & cardinality
 assert |H| == |ingress_merchant_ids|
 assert unique(H.merchant_id)
 ```
