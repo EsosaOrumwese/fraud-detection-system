@@ -432,10 +432,10 @@ For each hurdle record in the run, the validator performs:
 1. **Obtain base counter** for `(label="hurdle_bernoulli", merchant_id)` via the S0 keyed-substream primitive; set `before` accordingly.
 2. **Branch on $\pi$:**
 
-   * If $\pi\in{0,1}$: set `draws="0"`, `after=before`, `u=null`, `is_multi=(pi==1.0)`. 
-   * If $0<\pi<1$: fetch **one** uniform $u\in(0,1)$ using the S0 lane policy and `u01`; set `draws="1"`, `after=before+1`, `is_multi=(u<pi)`. 
+   * If $\pi\in{0,1}$: set `draws="0"`, `blocks=0`, `after=before`, `u=null`, `is_multi=(pi==1.0)`. 
+   * If $0<\pi<1$: fetch **one** uniform $u\in(0,1)$ using the S0 lane policy and `u01`; set `draws="1"`, `blocks=1`, `after=before+1`, `is_multi=(u<pi)`. 
 3. **Emit hurdle event** (S1.4): envelope includes all required fields above; payload includes `merchant_id`, `pi`, `u` (nullable), `is_multi` (boolean), `deterministic` (derived from `pi`).
-4. **Update cumulative RNG trace totals** for `(module, substream_label)` by adding `parse_u128(draws)` (and `+1` to `events_total`); do **not** create per-event trace rows.
+4. **Update cumulative RNG trace totals** for `(module, substream_label)` by adding `parse_u128(draws)` to `draws_total` (diagnostic; saturating uint64), adding `blocks` to `blocks_total` (normative; saturating uint64), and `+1` to `events_total`; do **not** create per-event trace rows.
 
 *(This is a procedural spec; S0 remains the authority for PRNG keying, counter arithmetic, lane policy, and `u01` mapping.)*
 
@@ -635,7 +635,7 @@ Fields and types (per the hurdle schema):
 ### 7) Failure semantics (surface at S1.4)
 
 * **E_SCHEMA_HURDLE.** Record fails schema: missing required envelope fields; wrong types (e.g., `is_multi` not boolean, `u` not `number|null`); `u` violates open interval when stochastic; counters field names malformed.
-* **E_COUNTER_MISMATCH.** Budget identity fails: `u128(after) − u128(before) ≠ parse_u128(draws)`; or hurdle emits values outside `{draws∈{"0","1"}}`; or, **if** `blocks` is present, `blocks ≠ parse_u128(draws)`.
+* **E_COUNTER_MISMATCH.** Budget identity fails: `u128(after) − u128(before) ≠ parse_u128(draws)`; or hurdle emits values outside `{draws∈{"0","1"}}`; or `blocks ≠ parse_u128(draws)`.
 * **E_GATING_VIOLATION.** Any downstream 1A RNG event exists for a merchant **without** a conformant hurdle event with `is_multi=true`. (Order is irrelevant; this is a **presence** invariant on the finalized datasets.)
 * **E_PARTITION_MISMATCH.** Path partitions `{seed, parameter_hash, run_id}` differ from the same fields embedded in the envelope; or `module`/`substream_label` don’t match registry literals **exactly**.
 
@@ -851,6 +851,7 @@ Layer schema (envelope anchor + hurdle event schema), dataset dictionary/registr
 **C1. `rng_envelope_schema_violation`**
 **Predicate.** Missing/mistyped **envelope** field required by the anchor:
 `{ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi, draws, blocks}`.
+
 **Detect at.** Writer + validator schema checks. **Abort run.**
 **Forensics.** `{dataset_id, path, missing_or_bad:[...]}`.
 
@@ -958,22 +959,22 @@ Every S1 failure MUST emit a JSON object (alongside the validation bundle / `_FA
 
 ## Where to detect (first line) & who double-checks
 
-| Family / Code                  | First detector (runtime)         | Secondary (validator / CI)                                                                                                                |
-|--------------------------------|----------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
-| A1–A3 design/β                 | S1.1/S1.2 guards                 | (optional) build lints                                                                                                                    |
-| B1–B2 numeric invalid          | S1.2 evaluation guards           | Re-eval η, π                                                                                                                              |
-| C1 envelope schema             | Writer JSON-Schema check         | Validator schema pass                                                                                                                     |
-| C2 label mismatch              | Writer assertion                 | Validator                                                                                                                                 |
+| Family / Code                  | First detector (runtime)         | Secondary (validator / CI)                               |
+|--------------------------------|----------------------------------|----------------------------------------------------------|
+| A1–A3 design/β                 | S1.1/S1.2 guards                 | (optional) build lints                                   |
+| B1–B2 numeric invalid          | S1.2 evaluation guards           | Re-eval η, π                                             |
+| C1 envelope schema             | Writer JSON-Schema check         | Validator schema pass                                    |
+| C2 label mismatch              | Writer assertion                 | Validator                                                |
 | C3 counter mismatch            | Writer assertion                 | Validator counter math (u128(after)−u128(before) vs **blocks**, and **blocks == parse_u128(draws)**); trace `blocks_total` reconciliation |
-| C4 trace missing/totals mis    | —                                | Trace aggregate vs Σ(event budgets) & counter delta                                                                                       |
-| C5 u out of range              | Writer check                     | `u01` + recompute                                                                                                                         |
-| D1 payload schema              | Writer JSON-Schema check         | Validator schema pass                                                                                                                     |
-| D2 deterministic inconsistency | Writer assertion                 | Recompute branch from π                                                                                                                   |
-| E1 partition mismatch          | Writer path/embed equality check | Path lint (only `{seed, parameter_hash, run_id}`)                                                                                         |
-| E2 wrong dataset path          | —                                | Dictionary/registry binding lint                                                                                                          |
-| F1 gating violation            | —                                | Cross-stream presence check via **registry filter**                                                                                       |
-| F2 duplicate record            | —                                | Uniqueness check                                                                                                                          |
-| F3 cardinality mismatch        | —                                | Row count vs ingress merchant set                                                                                                         |
+| C4 trace missing/totals mis    | —                                | Trace aggregate vs Σ(event budgets) & counter delta      |
+| C5 u out of range              | Writer check                     | `u01` + recompute                                        |
+| D1 payload schema              | Writer JSON-Schema check         | Validator schema pass                                    |
+| D2 deterministic inconsistency | Writer assertion                 | Recompute branch from π                                  |
+| E1 partition mismatch          | Writer path/embed equality check | Path lint (only `{seed, parameter_hash, run_id}`)        |
+| E2 wrong dataset path          | —                                | Dictionary/registry binding lint                         |
+| F1 gating violation            | —                                | Cross-stream presence check via **registry filter**      |
+| F2 duplicate record            | —                                | Uniqueness check                                         |
+| F3 cardinality mismatch        | —                                | Row count vs ingress merchant set                        |
 
 > **Gating note:** Enforcement is **presence-based**: downstream gated streams must exist **iff** hurdle `is_multi=true`. No temporal “prior” requirement.
 
