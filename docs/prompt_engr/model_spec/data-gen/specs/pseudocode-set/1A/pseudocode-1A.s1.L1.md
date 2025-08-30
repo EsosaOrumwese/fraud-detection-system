@@ -13,7 +13,7 @@ Specify the **runtime kernels** for State-1 that produce the *hurdle* decision (
 
 * Lineage keys are resolved: `seed:u64`, `parameter_hash:hex64`, `manifest_fingerprint:hex64`, `run_id:hex32`.
 * Numeric policy attested: IEEE-754 **binary64**, **RNE**, **no FMA**, **no FTZ/DAZ**, fixed-order reductions.
-* RNG bootstrap: **rng\_audit\_log** exists for `{seed, parameter_hash, run_id}`.
+* RNG bootstrap: **rng_audit_log** exists for `{seed, parameter_hash, run_id}`.
 * Hurdle design vector $x_m$ is available (built by S0.5; column order frozen).
 
 ## Event family and schema anchors
@@ -225,20 +225,20 @@ function S1_1_load_and_guard(merchant_id:u64,
 
 ### Inputs
 
-* `beta : f64[D]` — single YAML coefficient vector loaded atomically in S1.1; shape/order equals `x_m`. (Prechecked.)&#x20;
-* `x_m  : f64[D]` — hurdle design vector from S1.1/S0.5, frozen column order. (Prechecked.)&#x20;
+* `beta : f64[D]` — single YAML coefficient vector loaded atomically in S1.1; shape/order equals `x_m`. (Prechecked.)
+* `x_m  : f64[D]` — hurdle design vector from S1.1/S0.5, frozen column order. (Prechecked.)
 
 ### Outputs
 
-* `eta : f64` — finite linear predictor (not persisted).&#x20;
-* `pi  : f64` — probability in **\[0,1]** (binary64). **Not** persisted here; passed to S1.3/S1.4.&#x20;
+* `eta : f64` — finite linear predictor (not persisted).
+* `pi  : f64` — probability in **\[0,1]** (binary64). **Not** persisted here; passed to S1.3/S1.4.
 
 ---
 
 ## Preconditions (abort if violated)
 
-1. **Numeric environment:** IEEE-754 **binary64**, RN-even, **no FMA**, **no FTZ/DAZ**, deterministic libm; fixed-order reductions. (Inherited from S0.8.)&#x20;
-2. **Shape/order:** `len(beta) == len(x_m)` and column order frozen. (Guarded in S1.1; treat any violation here as hard precondition failure.)&#x20;
+1. **Numeric environment:** IEEE-754 **binary64**, RN-even, **no FMA**, **no FTZ/DAZ**, deterministic libm; fixed-order reductions. (Inherited from S0.8.)
+2. **Shape/order:** `len(beta) == len(x_m)` and column order frozen. (Guarded in S1.1; treat any violation here as hard precondition failure.)
 
 ---
 
@@ -279,23 +279,23 @@ function S1_2_probability_map(beta:f64[D], x_m:f64[D]) -> (eta:f64, pi:f64)
 
 ## Determinism & side-effects
 
-* **No RNG consumed.** Pure FP compute; results depend only on `(beta, x_m)` and the fixed numeric policy.&#x20;
-* **No writes.** Outputs feed S1.3/S1.4 in memory only.&#x20;
+* **No RNG consumed.** Pure FP compute; results depend only on `(beta, x_m)` and the fixed numeric policy.
+* **No writes.** Outputs feed S1.3/S1.4 in memory only.
 
 ---
 
 ## Failure semantics (precise aborts here)
 
-* `E_S1_NUMERIC_INVALID {eta, pi}` — either value non-finite.&#x20;
-* `E_S1_PI_OUT_OF_RANGE {pi}` — `pi ∉ [0,1]` (should not occur under two-branch).&#x20;
-* `E_S1_PRECOND_SHAPE_ORDER` — if a caller detects a late shape/order mismatch, treat as **hard precondition failure** (normally enforced in S1.1).&#x20;
+* `E_S1_NUMERIC_INVALID {eta, pi}` — either value non-finite.
+* `E_S1_PI_OUT_OF_RANGE {pi}` — `pi ∉ [0,1]` (should not occur under two-branch).
+* `E_S1_PRECOND_SHAPE_ORDER` — if a caller detects a late shape/order mismatch, treat as **hard precondition failure** (normally enforced in S1.1).
 
 ---
 
 ### L0 helpers used
 
-* `dot_neumaier(beta, x)` — fixed-order compensated dot (binary64).&#x20;
-* `logistic_branch_stable(eta)` — overflow-safe two-branch logistic.&#x20;
+* `dot_neumaier(beta, x)` — fixed-order compensated dot (binary64).
+* `logistic_branch_stable(eta)` — overflow-safe two-branch logistic.
 
 This S1.2 kernel exactly matches the frozen spec: fixed-order dot, two-branch logistic, strict guards, no over-engineering—and it hands a clean `(eta, pi)` to S1.3/S1.4 with zero ambiguity.
 
@@ -311,9 +311,9 @@ This S1.2 kernel exactly matches the frozen spec: fixed-order dot, two-branch lo
 
 ### Inputs
 
-* `pi : f64` — from S1.2; **finite** and `0.0 ≤ pi ≤ 1.0`. (Pre-guarded in S1.2.)&#x20;
+* `pi : f64` — from S1.2; **finite** and `0.0 ≤ pi ≤ 1.0`. (Pre-guarded in S1.2.)
 * `merchant_id : u64`.
-* `ctx : Context` — from S1.1; includes `{seed, parameter_hash, manifest_fingerprint, run_id, module, substream_label="hurdle_bernoulli"}`.&#x20;
+* `ctx : Context` — from S1.1; includes `{seed, parameter_hash, manifest_fingerprint, run_id, module, substream_label="hurdle_bernoulli"}`.
 
 ### Outputs (in-memory; passed to S1.4)
 
@@ -332,14 +332,14 @@ Decision {
 }
 ```
 
-(Budget identity `u128(after)-u128(before) == parse_u128(draws)` must hold.)&#x20;
+(Budget identity `u128(after)-u128(before) == parse_u128(draws)` must hold.)
 
 ---
 
 ## Preconditions (trusted from earlier sections)
 
-* `pi` is finite and in `[0,1]`.&#x20;
-* Audit row exists for `{seed, parameter_hash, run_id}` (S1.1).&#x20;
+* `pi` is finite and in `[0,1]`.
+* Audit row exists for `{seed, parameter_hash, run_id}` (S1.1).
 
 ---
 
@@ -411,19 +411,19 @@ function S1_3_rng_and_decision(pi:f64, merchant_id:u64, ctx:Context) -> Decision
 
 ## Determinism & budgeting guarantees (why this matches the spec)
 
-* **Keyed base counter.** `derive_substream(seed, manifest_fingerprint, "hurdle_bernoulli", merchant_id)` fixes the **order-invariant** starting counter for the merchant/label pair; no cross-label chaining.&#x20;
-* **Uniform policy.** Single-uniform events consume **one** Philox block and take the **low lane**; mapping to `U(0,1)` is strict-open, so `u` is never exactly `0` or `1`.&#x20;
+* **Keyed base counter.** `derive_substream(seed, manifest_fingerprint, "hurdle_bernoulli", merchant_id)` fixes the **order-invariant** starting counter for the merchant/label pair; no cross-label chaining.
+* **Uniform policy.** Single-uniform events consume **one** Philox block and take the **low lane**; mapping to `U(0,1)` is strict-open, so `u` is never exactly `0` or `1`.
 * **Branch law.** `pi∈{0,1}` ⇒ **zero** draw; `0<pi<1` ⇒ **exactly one** draw; outcome `is_multi = (u < pi)`; `u` is **null** iff deterministic.
-* **Budget identity.** We compute `after` from the stream and check `u128(after)−u128(before) = parse_u128(draws)`; for hurdle also `blocks == parse_u128(draws) ∈ {0,1}`. (S1.4 will persist these fields verbatim.)&#x20;
-* **No per-event trace write here.** Trace is **cumulative** and handled at S1.4; S1.3 only prepares envelope values.&#x20;
+* **Budget identity.** We compute `after` from the stream and check `u128(after)−u128(before) = parse_u128(draws)`; for hurdle also `blocks == parse_u128(draws) ∈ {0,1}`. (S1.4 will persist these fields verbatim.)
+* **No per-event trace write here.** Trace is **cumulative** and handled at S1.4; S1.3 only prepares envelope values.
 
 ---
 
 ## Failure semantics (raised here if violated)
 
-* `E_S1_U_OOB` — stochastic branch produced `u ≤ 0` or `u ≥ 1` (violates open-interval mapping).&#x20;
-* `E_S1_BLOCKS_MISMATCH` — delta blocks not in `{0,1}` or not equal to `parse_u128(draws)` for hurdle.&#x20;
-* `E_S1_BUDGET_IDENTITY` — `u128(after) − u128(before) ≠ parse_u128(draws)`.&#x20;
+* `E_S1_U_OOB` — stochastic branch produced `u ≤ 0` or `u ≥ 1` (violates open-interval mapping).
+* `E_S1_BLOCKS_MISMATCH` — delta blocks not in `{0,1}` or not equal to `parse_u128(draws)` for hurdle.
+* `E_S1_BUDGET_IDENTITY` — `u128(after) − u128(before) ≠ parse_u128(draws)`.
 
 ---
 
@@ -433,7 +433,7 @@ function S1_3_rng_and_decision(pi:f64, merchant_id:u64, ctx:Context) -> Decision
 
 # S1.4 — Emit event + update trace (authoritative stream)
 
-**Intent.** Persist the single **hurdle\_bernoulli** event for merchant `m` under the run lineage partitions, with a complete envelope and the minimal payload. Then update the per-(module, substream) **cumulative** RNG trace totals (`draws_total`, `blocks_total`, `events_total`). No decision logic lives here; we **verify** the S1.3 decision bundle and then write.
+**Intent.** Persist the single **hurdle_bernoulli** event for merchant `m` under the run lineage partitions, with a complete envelope and the minimal payload. Then update the per-(module, substream) **cumulative** RNG trace totals (`draws_total`, `blocks_total`, `events_total`). No decision logic lives here; we **verify** the S1.3 decision bundle and then write.
 **Dataset anchors (fixed):**
 
 * **Dataset id:** `rng_event_hurdle_bernoulli`
@@ -599,7 +599,7 @@ function S1_4_emit_event_and_update_trace(merchant_id:u64, pi:f64,
 **Intent.** From the hurdle event (the only authority for the decision and its own counters), build
 
 $$
-\Xi_m=(\text{is\_multi}:\mathbf{bool},\,N:\mathbb{N},\,K:\mathbb{N},\,\mathcal C:\text{set[ISO]},\,C^\star:\text{u128})
+\Xi_m=(\text{is_multi}:\mathbf{bool},\,N:\mathbb{N},\,K:\mathbb{N},\,\mathcal C:\text{set[ISO]},\,C^\star:\text{u128})
 $$
 
 and select the next state: **S7** when single-site, **S2** when multi-site. **Do not** pass counters to downstream RNG; $C^\star$ is **audit-only**.
@@ -611,8 +611,8 @@ and select the next state: **S7** when single-site, **S2** when multi-site. **Do
 ### Inputs
 
 * `hurdle_event : { envelope:{ rng_counter_after_hi:u64, rng_counter_after_lo:u64, … }, payload:{ merchant_id:u64, pi:f64, is_multi:bool, deterministic:bool, u:number|null } }`
-  *(Authoritative single row produced in S1.4 for this merchant.)*&#x20;
-* `home_iso : string` — ISO-3166-1 alpha-2 for merchant `m` (from S0 universe).&#x20;
+  *(Authoritative single row produced in S1.4 for this merchant.)*
+* `home_iso : string` — ISO-3166-1 alpha-2 for merchant `m` (from S0 universe).
 
 ### Outputs
 
@@ -627,15 +627,15 @@ Xi {
 next_state: enum { S2, S7 }
 ```
 
-*(Exactly one $\Xi_m$ per merchant; no persistence.)*&#x20;
+*(Exactly one $\Xi_m$ per merchant; no persistence.)*
 
 ---
 
 ## Preconditions (abort if violated)
 
-1. `hurdle_event` exists for this merchant (S1 emitted exactly one).&#x20;
-2. `home_iso` is a valid ISO alpha-2 (present in the S0 universe).&#x20;
-3. `is_multi` is boolean, `u` follows the schema equivalences from S1.4 (already enforced there).&#x20;
+1. `hurdle_event` exists for this merchant (S1 emitted exactly one).
+2. `home_iso` is a valid ISO alpha-2 (present in the S0 universe).
+3. `is_multi` is boolean, `u` follows the schema equivalences from S1.4 (already enforced there).
 
 ---
 
@@ -676,27 +676,27 @@ function S1_5_build_handoff_and_route(hurdle_event, home_iso:string) -> (Xi, nex
 
 ## Determinism & side-effects
 
-* **No writes.** Pure construction; returns in memory. One $\Xi_m$ per merchant.&#x20;
-* **No counter chaining.** Downstream RNG streams **derive their own base counters** with their own labels via S0’s keyed-substream mapping; $C^\star$ is **audit only**.&#x20;
-* **Gating surface.** Orchestrator/L3 will enforce "gated streams appear **iff** `is_multi=true`" using the registry filter (`owner_segment=1A`, `state>S1`, `gated_by_hurdle=true`). S1.5 does not enumerate stream names.&#x20;
+* **No writes.** Pure construction; returns in memory. One $\Xi_m$ per merchant.
+* **No counter chaining.** Downstream RNG streams **derive their own base counters** with their own labels via S0’s keyed-substream mapping; $C^\star$ is **audit only**.
+* **Gating surface.** Orchestrator/L3 will enforce "gated streams appear **iff** `is_multi=true`" using the registry filter (`owner_segment=1A`, `state>S1`, `gated_by_hurdle=true`). S1.5 does not enumerate stream names.
 
 ---
 
 ## Failure semantics (precise)
 
-* `E_S1_MISSING_HURDLE_EVENT` — no hurdle event found for merchant (violates S1 single-emit invariant).&#x20;
-* `E_S1_HOME_ISO_INVALID` — `home_iso` missing or not an uppercase ISO alpha-2.&#x20;
+* `E_S1_MISSING_HURDLE_EVENT` — no hurdle event found for merchant (violates S1 single-emit invariant).
+* `E_S1_HOME_ISO_INVALID` — `home_iso` missing or not an uppercase ISO alpha-2.
 
 ---
 
 ## Notes (implementation aids)
 
-* The hurdle event is the **only authority** for both `is_multi` and its **own** counters; do **not** recompute from `pi`/`u` here.&#x20;
-* `N`/`K` are intentionally **unassigned** on the multi-site branch at S1; they are fixed downstream (S2+).&#x20;
-* Validators will check: (a) **presence gating** of downstream 1A streams vs. `is_multi`, and (b) **cross-label independence** (no counter chaining).&#x20;
+* The hurdle event is the **only authority** for both `is_multi` and its **own** counters; do **not** recompute from `pi`/`u` here.
+* `N`/`K` are intentionally **unassigned** on the multi-site branch at S1; they are fixed downstream (S2+).
+* Validators will check: (a) **presence gating** of downstream 1A streams vs. `is_multi`, and (b) **cross-label independence** (no counter chaining).
 
 ---
 
-**Bottom line:** S1.5 returns a clean, typed $\Xi_m$ and a deterministic route with zero ambiguity, matching the frozen spec: **single emit**, **no counter chaining**, **registry-driven gating**, and **audit-only** $C^\star$.&#x20;
+**Bottom line:** S1.5 returns a clean, typed $\Xi_m$ and a deterministic route with zero ambiguity, matching the frozen spec: **single emit**, **no counter chaining**, **registry-driven gating**, and **audit-only** $C^\star$.
 
 ---
