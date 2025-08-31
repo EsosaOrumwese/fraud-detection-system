@@ -11,6 +11,9 @@
 * `uniform1(s) -> (u:f64, s':Stream, draws:uint128)` — **low lane** only, 1 block.
 * `uniform2(s) -> (u1, u2, s', draws:uint128)` — both lanes, 1 block.
 
+> **Normative input form:** `derive_master_material` consumes **manifest_fingerprint_bytes (32 raw bytes)**. If you hold the fingerprint as a hex string in higher layers, **decode it to bytes first**, derive the **master**, then call `derive_substream(M, …)`.
+> Substreams are always **master-based** (per S0).
+
 **Samplers (budgets = actual uniforms)**
 `normal_box_muller`, `gamma_mt`, `poisson_{inversion,ptrs}`, `poisson_ztp`, `gumbel_key`. (S1 uses only `uniform1`, but the budget rules are shared.)
 
@@ -18,9 +21,9 @@
 
 * `emit_rng_audit_row(...)` — S0 audit; **must exist** before S1’s first event.
 * `begin_event(module, substream_label, seed, parameter_hash, manifest_fingerprint, run_id, stream) -> EventCtx` — captures `ts_utc` (nanoseconds in S0).
-* `end_event_emit(family, ctx, stream_after, draws_hi, draws_lo, payload)` — writes envelope+payload; `blocks = after − before` (u128).
+* `end_event_emit(family, ctx, stream_after, draws_hi, draws_lo, payload)` — writes envelope+payload; **internal** `blocks = after − before` (u128); **emitted** `blocks` field is `u64` per event (hurdle: `0` or `1`).
 
-**Legacy trace updater (blocks only; S0)**
+**Legacy trace updater (blocks only; S0) — DEPRECATED for S1 producers**
 `update_rng_trace(...) -> new_blocks_total:uint64` — cumulative **blocks** (S0). S1 replaces this with a totals variant below.
 
 **128-bit helpers & numeric kernels**
@@ -39,7 +42,12 @@
 ```pseudocode
 function ts_utc_now_rfc3339_micro() -> string
   (sec:int64, nano:int32) = clock_utc_posix()            # [0..999,999,999]
-  micros = round_to_even(nano / 1_000.0)                 # μs with ties-to-even
+    # integer-domain ties-to-even rounding: ns -> μs (deterministic across runtimes)
+  q = nano // 1_000                                      # quotient in μs
+  r = nano %  1_000                                      # remainder in ns
+  if r < 500: micros = q
+  elif r > 500: micros = q + 1
+  else: micros = q + (q % 2)                             # tie to even
   if micros == 1_000_000:
       sec = sec + 1
       micros = 0
@@ -80,6 +88,24 @@ function decimal_string_to_u128(s:string) -> (hi:u64, lo:u64)
   return (hi, lo)
 ```
 
+### B3a. `u128_to_decimal_string(hi:u64, lo:u64) -> string`
+
+**Intent:** Emit plain base-10 decimal string for a non-negative 128-bit integer. No grouping, no sign, no exponent form, no leading zeros (except `"0"`). Deterministic across platforms.
+
+```pseudocode
+function u128_to_decimal_string(hi:u64, lo:u64) -> string
+  if hi == 0 and lo == 0: return "0"
+  buf = []    # characters in reverse
+  (a_hi, a_lo) = (hi, lo)
+  while (a_hi != 0) or (a_lo != 0):
+     # divide a 128-bit integer by 10: quotient q, remainder r in [0..9]
+     (q_hi, q_lo, r) = divmod_u128_by_small(a_hi, a_lo, 10)
+     push(buf, char('0' + r))
+     (a_hi, a_lo) = (q_hi, q_lo)
+  return reverse_chars(buf)
+```
+
+
 ### B4. Tiny predicates used by S1 producers/validator
 
 **Intent:** Encode S1’s branch rules and open-interval guard.
@@ -91,6 +117,9 @@ function is_open_interval_01(u:f64) -> bool
 function is_binary64_extreme01(pi:f64) -> bool
   return (pi == 0.0) or (pi == 1.0)    # exact binary64 equality
 ```
+
+> Notes: `is_binary64_extreme01` uses **exact equality** by design (no epsilon); `is_open_interval_01` forbids endpoints. This mirrors S1’s deterministic/stochastic branch law and the strict-open `u01` map from S0.
+
 
 ### B5. `begin_event_micro(...) -> EventCtx`
 
@@ -108,8 +137,8 @@ function begin_event_micro(module:string, substream_label:string,
     parameter_hash:       parameter_hash,
     manifest_fingerprint: manifest_fingerprint,
     run_id:               run_id,
-    rng_counter_before_lo: stream.ctr.lo,
-    rng_counter_before_hi: stream.ctr.hi
+    before_lo:            stream.ctr.lo,
+    before_hi:            stream.ctr.hi
   }
 ```
 
@@ -131,7 +160,7 @@ function u128_to_uint64_saturate(hi:u64, lo:u64) -> u64
 
 ### B7. `update_rng_trace_totals(...) -> (draws_total:u64, blocks_total:u64, events_total:u64)`
 
-**Intent:** Schema-accurate trace row with **microsecond** timestamp and **saturating** totals. Replaces the S0 “blocks-only” updater for S1 producers.
+**Intent:** Schema-accurate trace row with **microsecond** timestamp and **saturating u64 totals** (trace-only). Replaces the S0 “blocks-only” updater for S1 producers.
 
 ```pseudocode
 # Schema anchor: schemas.layer1.yaml#/rng/core/rng_trace_log
@@ -142,7 +171,7 @@ function update_rng_trace_totals(
     seed:u64, parameter_hash:hex64, run_id:hex32,
     before_hi:u64, before_lo:u64, after_hi:u64, after_lo:u64,
     prev_draws_total:u64, prev_blocks_total:u64, prev_events_total:u64,
-    draws_str:string, detail:string|null) -> (u64, u64, u64)
+    draws_str:string) -> (u64, u64, u64)
 
   # 1) Counter delta → blocks (must fit u64 per single event)
   (dhi, dlo) = u128_delta(after_hi, after_lo, before_hi, before_lo)
@@ -171,8 +200,8 @@ function update_rng_trace_totals(
     rng_counter_before_hi:   before_hi,
     rng_counter_after_lo:    after_lo,
     rng_counter_after_hi:    after_hi,
-    detail:                  detail
-  }
+    }
+  
   write_jsonl("logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl", row)
 
   return (new_draws_total, new_blocks_total, new_events_total)
