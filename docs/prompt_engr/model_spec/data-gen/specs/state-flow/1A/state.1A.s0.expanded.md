@@ -412,6 +412,7 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
 ### PRNG (fixed)
 
 * **Algorithm:** Philox 2×64 with 10 rounds (counter-based; splittable).
+* **Wire token (normative):** `philox2x64-10` (lowercase). Validators MUST expect this exact token wherever the RNG algorithm is named on the wire (e.g., `rng_audit_log.algorithm`).
 > **Counter (normative):** The Philox **counter is 128-bit**, represented as the ordered pair $(c_{\mathrm{hi}}, c_{\mathrm{lo}})$ of unsigned 64-bit integers. All counters in envelopes are these same two words. Any prior 4-word notation is non-normative and MUST NOT be used. The block function advances the counter by **1** (unsigned 128-bit add with carry from `lo` into `hi`).
 * **State per substream:** 64-bit **key** $k$ and 128-bit **counter** $c=(c_{\mathrm{hi}},c_{\mathrm{lo}})$.
 * **Block function:** $(x_0,x_1)\leftarrow \mathrm{PHILOX}_{2\times64,10}(k,c)$ returns **two** 64-bit words per counter; then increment $c\leftarrow c+1$ mod $2^{128}$.
@@ -469,6 +470,10 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
 > - `dirichlet_gamma_vector`: **sum of component** `gamma_component` budgets  
 > - `poisson_component (λ<10)`: **variable**, inversion (§S0.3.7)  
 > - `poisson_component (λ≥10)`: **2 uniforms/attempt**, PTRS (§S0.3.7)  
+> - `stream_jump`: `(blocks=0, draws="0")` — **non-consuming** (before==after)  
+> - `sequence_finalize`: `(blocks=0, draws="0")` — **non-consuming** (before==after)  
+> - `site_sequence_overflow`: `(blocks=0, draws="0")` — **non-consuming** (before==after)  
+
 
 * `draws` is a **JSON string** carrying a **base-10** representation of a `uint128`. Producers/consumers **must** parse/emit as decimal and **must not** split into lo/hi words in the envelope (use the decimal string everywhere, mirroring S0.9 failure payloads).
 * `ts_utc` in RNG **events** is an **RFC-3339/ISO-8601 UTC string** with **exactly 6 fractional digits** (microseconds), e.g., `"2025-08-15T10:03:12.345678Z"`. `ts_utc` in **failures** is **epoch-nanoseconds** (they are **nanoseconds since epoch** as an unsigned integer). See **§S0.9 “Failure records”** for failure-record timestamps (epoch-ns u64).
@@ -651,8 +656,10 @@ For candidate ranking:
 Two cross-cut logs in addition to per-event logs:
 
 1. **`rng_audit_log`** — **one row at run start** (before any RNG event): `(seed, manifest_fingerprint, parameter_hash, run_id, root key/counter, code version, ts_utc)`.
-   **`rng_audit_log` schema (normative minimum):** `{ ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, algorithm, rng_key_hi, rng_key_lo, rng_counter_hi, rng_counter_lo, code_version }`. Field types and names are governed by `schemas.layer1.yaml#/rng/audit` (authoritative). Audit rows are **core logs**, not RNG events.
+   **`rng_audit_log` schema (normative minimum):** `{ ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, algorithm, rng_key_hi, rng_key_lo, rng_counter_hi, rng_counter_lo, code_version }`. Field types and names are governed by `schemas.layer1.yaml#/rng/core/rng_audit_log` (authoritative). Audit rows are **core logs**, not RNG events.
 2. **`rng_trace_log`** (**one row per** $(\texttt{module},\texttt{substream_label})$; cumulative **blocks** (unsigned 64-bit) by uint64), with the *current* `(counter_before, counter_after)`.  
+   *(schema: `schemas.layer1.yaml#/rng/core/rng_trace_log`).*  
+
     **Reconciliation (normative):** For each `(module, substream_label)`, `rng_trace_log.blocks_total` MUST be monotone non-decreasing across emissions, and the **final** `blocks_total` MUST equal the **sum of per-event `blocks`** over `rng_event_*` in the same `{seed, parameter_hash, run_id}`. Budget checks use **event `draws`**, not the trace.
    **Lineage binding (normative):** Producers and consumers **MUST** bind `{ seed, parameter_hash, run_id }` from the enclosing **partition path**. These lineage fields are **not duplicated** as columns in `rng_trace_log` rows. (Drift is a hard F5 failure.)
 
@@ -2185,6 +2192,7 @@ Partitioning for all three: `["seed","parameter_hash","run_id"]`. The dataset di
 
 **Logs:** `rng_audit_log`, `rng_trace_log`, each `rng_event_*`
 **Path template:** `logs/rng/<stream>/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+> **Authority (normative):** Actual **paths and partition columns** are authoritative in the **dataset dictionary**. Strings shown here are examples to illustrate shape.
 
 > **Physical line order (normative):** For RNG **JSONL** logs, line order is append order **within a file**; there are **no ordering guarantees across files/parts**. Equality is by **row set**; any consumer that depends on physical order is non-conformant.
 
