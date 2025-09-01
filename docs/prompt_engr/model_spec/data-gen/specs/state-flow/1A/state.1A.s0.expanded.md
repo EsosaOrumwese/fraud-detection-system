@@ -231,6 +231,8 @@ Create the three lineage keys that make 1A reproducible and auditable:
 
 **Storage effect (normative):** *Parameter-scoped* datasets **must** partition by `parameter_hash={parameter_hash}` (e.g., `crossborder_eligibility_flags`, `country_set`, `ranking_residual_cache_1A`, optional `hurdle_pi_probs`).
 
+> **Physical row order (normative):** For **Parquet** parameter-scoped datasets, row and row-group order are **unspecified** and **MUST NOT** be relied upon. Consumers **must** treat equality as **row-set** equality; any dependence on physical order is non-conformant.
+
 **Errors (abort S0):**
 `E_PARAM_EMPTY` (missing), `E_PARAM_IO(name,errno)`, `E_PARAM_NONASCII_NAME`, `E_PARAM_DUP_BASENAME`.
 
@@ -649,9 +651,10 @@ For candidate ranking:
 Two cross-cut logs in addition to per-event logs:
 
 1. **`rng_audit_log`** — **one row at run start** (before any RNG event): `(seed, manifest_fingerprint, parameter_hash, run_id, root key/counter, code version, ts_utc)`.
-   **`rng_audit_log` schema (normative minimum):** `{ ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, algorithm, rng_key_hi, rng_key_lo, rng_counter_hi, rng_counter_lo, code_version }`. Field types and names are governed by `schemas.layer1.yaml#/rng/audit` (authoritative).
+   **`rng_audit_log` schema (normative minimum):** `{ ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, algorithm, rng_key_hi, rng_key_lo, rng_counter_hi, rng_counter_lo, code_version }`. Field types and names are governed by `schemas.layer1.yaml#/rng/audit` (authoritative). Audit rows are **core logs**, not RNG events.
 2. **`rng_trace_log`** (**one row per** $(\texttt{module},\texttt{substream_label})$; cumulative **blocks** (unsigned 64-bit) by uint64), with the *current* `(counter_before, counter_after)`.  
     **Reconciliation (normative):** For each `(module, substream_label)`, `rng_trace_log.blocks_total` MUST be monotone non-decreasing across emissions, and the **final** `blocks_total` MUST equal the **sum of per-event `blocks`** over `rng_event_*` in the same `{seed, parameter_hash, run_id}`. Budget checks use **event `draws`**, not the trace.
+   **Lineage binding (normative):** Producers and consumers **MUST** bind `{ seed, parameter_hash, run_id }` from the enclosing **partition path**. These lineage fields are **not duplicated** as columns in `rng_trace_log` rows. (Drift is a hard F5 failure.)
 
 > **Practical bound (normative):** `rng_trace_log.blocks_total` is `uint64`; emitters MUST ensure totals fit this width or abort with `F4d:rng_budget_violation`.
 
@@ -700,6 +703,7 @@ fn u01(x: u64) -> f64 {
   let u = ((x as f64) + 1.0) * TWO_NEG_64;
   return (u == 1.0) ? ONE_MINUS_EPS : u
 }
+* **Note (normative):** The `u==1.0` remap is a **measure-zero** adjustment required by binary64 rounding and **does not** affect PRNG budgets or counter deltas. The schema type **`u01`** enforces the open interval **(0,1)**.
 
 # Single uniform (lane policy)
 fn uniform1(stream: &mut Stream) -> (f64, draws:int) {
@@ -1590,6 +1594,7 @@ No RNG is consumed here.
 * **Subnormals:** **Honour** subnormals; FTZ/DAZ **off**.
 * **Exceptions:** mask signals; **any** NaN/Inf in model computations is a **hard error** (S0.8.8).
 * **Endianness:** little-endian; where relevant (hashing/PRNG), byte order is pinned per state.
+* **Constants (normative):** All decision-critical constants (e.g., `TAU`) **MUST** be encoded as **binary64 hex literals**; recomputation from other constants (e.g., `2*pi`) is **forbidden** to avoid drift across platforms/compilers.
 
 **`numeric_policy.json` (normative minimum):**
 
@@ -2181,7 +2186,7 @@ Partitioning for all three: `["seed","parameter_hash","run_id"]`. The dataset di
 **Logs:** `rng_audit_log`, `rng_trace_log`, each `rng_event_*`
 **Path template:** `logs/rng/<stream>/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
 
-> **Physical row order (normative):** Within a partition, **Parquet row/row-group order is unspecified** and MUST NOT be relied on. Any consumer that depends on physical order is non-conformant.
+> **Physical line order (normative):** For RNG **JSONL** logs, line order is append order **within a file**; there are **no ordering guarantees across files/parts**. Equality is by **row set**; any consumer that depends on physical order is non-conformant.
 
 **Envelope (per S0.3):** `{seed, parameter_hash, manifest_fingerprint, run_id, module, substream_label, counter_before/after, blocks, draws, ts_utc, payload…}`.
 `rng_trace_log` aggregates **blocks**.
