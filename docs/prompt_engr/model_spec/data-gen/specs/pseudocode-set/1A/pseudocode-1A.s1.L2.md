@@ -2,7 +2,7 @@
 
 # 1) Purpose
 
-Coordinate **S1.1 → S1.5** to (a) emit **exactly one** hurdle event per merchant into the authoritative stream, (b) maintain a **cumulative** RNG trace for `(module="1A.hurdle_sampler", substream_label="hurdle_bernoulli")`, and (c) return an in-memory **handoff tuple** $\Xi_m$ with a **route** (`S2` or `S7`). L2 adds **no new math** and **no policy**; it only wires the frozen kernels and enforces the path/partition, timestamp, numeric, and budget invariants already defined.
+Coordinate **S1.1 → S1.5** to (a) emit **exactly one** hurdle event per merchant into the authoritative stream, (b) maintain a **cumulative** RNG trace for `(module="1A.hurdle_sampler", substream_label="hurdle_bernoulli")`, and (c) return an in-memory **handoff tuple** $\Xi_m$ with a **next_state** ∈ {SingleHomePlacement, NegativeBinomialS2}. L2 adds **no new math** and **no policy**; it only wires the frozen kernels and enforces the path/partition, timestamp, numeric, and budget invariants already defined.
 
 ---
 
@@ -88,8 +88,8 @@ Coordinate **S1.1 → S1.5** to (a) emit **exactly one** hurdle event per mercha
 
 3. **Handoffs (in memory only):**
 
-   * For each merchant, return $\Xi_m=(\text{is_multi}:\mathbf{bool},\,N:\mathbb{N},\,K:\mathbb{N},\,\mathcal C:\text{set[ISO]},\,C^\star:\text{u128})$ and `next_state ∈ {S2,S7}`.
-   * **Construction:** `is_multi` from the emitted hurdle event; `N:=1, K:=0, 𝓒:={home_iso}` if single-site (`S7`); `N,K` unassigned and route `S2` if multi-site.
+   * For each merchant, return $\Xi_m=(\text{is_multi}:\mathbf{bool},\,N:\mathbb{N},\,K:\mathbb{N},\,\mathcal C:\text{set[ISO]},\,C^\star:\text{u128})$ and `next_state ∈ {SingleHomePlacement, NegativeBinomialS2}`.
+   * **Construction:** `is_multi` from the emitted hurdle event; `N:=1, K:=0, 𝓒:={home_iso}` if single-site (`SingleHomePlacement`); `N,K` unassigned and route `NegativeBinomialS2` if multi-site.
    * **Counter discipline:** `C*` is the **post** counter from the hurdle envelope; it is **audit-only** — **no counter chaining** to downstream RNG. All downstream streams derive their own base counters from their own labels.
 
 4. **Cardinality & coverage obligations (per run):**
@@ -118,7 +118,7 @@ That’s the contract your implementer can wire to: fixed inputs, fixed outputs,
    For each merchant `m`, the RNG **base counter** is derived from the frozen mapping:
 
    ```
-   derive_substream(seed, manifest_fingerprint, substream_label="hurdle_bernoulli", ids=(merchant_id=m))
+   master = derive_master_material(seed, manifest_fingerprint_bytes); base = derive_substream(master, substream_label="hurdle_bernoulli", ids=(merchant_id=m))
    ```
 
    This removes any dependence on execution order, batching, or concurrency. Two runs with the same `(seed, parameter_hash, manifest_fingerprint)` produce identical counters for every `m`.
@@ -256,12 +256,12 @@ This section shows, with no gaps, **how S1.1→S1.5 are wired for each merchant*
                  │        → (β, x_m, ctx)
                  │                                                             
                  ├─ S1.2  Probability map
-                 │        • η = β·x_m (Neumaier dot); π = logistic_two_branch(η) in binary64
+                 │        • η = β·x_m (Neumaier dot); π = logistic_branch_stable(η) in binary64
                  │        • assert finite η; 0 ≤ π ≤ 1
                  │        → (η, π)                                                
                  │
                  ├─ S1.3  RNG & decision
-                 │        • s_base = derive_substream(seed, manifest_fingerprint, "hurdle_bernoulli", m)
+                 │        • master = derive_master_material(seed, manifest_fingerprint_bytes); s_base = derive_substream(master, "hurdle_bernoulli", (m))
                  │        • if π∈{0,1}: draws="0", blocks=0, u=null, after=before
                  │          else: (u, s_after, draws="1"), blocks=1 with low lane, u∈(0,1), is_multi=(u<π)
                  │        → Decision{deterministic, is_multi, u|null, draws, blocks,
@@ -277,13 +277,13 @@ This section shows, with no gaps, **how S1.1→S1.5 are wired for each merchant*
                  │
                  └─ S1.5  Handoff (in-memory only)
                           • Xi_m = (is_multi, N, K, 𝓒, C*) from the **emitted** hurdle event (C* = post counter)
-                          • route = S7 if single-site; else S2 (multi-site)
-                          → append (m, Xi_m, route)                                                           
+                          • next_state = SingleHomePlacement (formerly S7) if single-site; else NegativeBinomialS2 (formerly S2) (multi-site)
+                          → append (m, Xi_m, next_state)                                                           
 ```
 
 **Non-negotiables enforced along the path:**
 
-* **Order-invariant substreams:** `derive_substream(seed, manifest_fingerprint, "hurdle_bernoulli", m)`; no cross-label chaining.
+* **Order-invariant substreams:** `master = derive_master_material(seed, manifest_fingerprint_bytes); base = derive_substream(master, "hurdle_bernoulli", (m))`; no cross-label chaining.
 * **Single-uniform law + lane policy:** 0 draws if π∈{0,1}; else 1 draw using **low lane**; `u∈(0,1)`.
 * **Budget identities:** per event `u128(after)−u128(before)=parse_u128(draws)` and for hurdle `blocks==parse_u128(draws)∈{0,1}`.
 * **Authoritative paths/schemas:** hurdle events under `{seed, parameter_hash, run_id}`; `module="1A.hurdle_sampler"`, `substream_label="hurdle_bernoulli"` in envelope; trace is cumulative (no merchant dimension).
@@ -298,7 +298,8 @@ struct Totals { draws_total:u64, blocks_total:u64, events_total:u64 }
 
 
 
-# Typed echo of what S1.4 wrote (authoritative for S1.5)
+# Minimal projection for routing (authoritative fields for S1.5 consumption)
+# Note: Full envelope includes before_* counters, draws, blocks; L2 reads only the subset it needs here.
 struct EmittedHurdle {
   envelope: {
     module: string,                  # "1A.hurdle_sampler"
@@ -319,7 +320,7 @@ struct EmittedHurdle {
   }
 }
 # Entry: orchestrate State-1 over the merchant universe
-function run_S1(seed:u64, parameter_hash:hex64, manifest_fingerprint:hex64, run_id:hex32,
+function run_S1(seed:u64, parameter_hash:hex64, manifest_fingerprint:hex64, manifest_fingerprint_bytes: bytes[32], run_id:hex32,
                 merchants:list<u64>, home_iso_of: map<u64,string>)
   # Gate: audit-before-first-event
   assert exists_rng_audit_row(seed, parameter_hash, run_id), E_S1_RNG_AUDIT_MISSING  # 
@@ -341,7 +342,7 @@ function run_S1(seed:u64, parameter_hash:hex64, manifest_fingerprint:hex64, run_
   # Deterministic file/trace order (RNG is order-invariant anyway)
   for m in sort_ascending(merchants):
       # S1.1 — Load & Guard
-      (beta, x_m, ctx) = S1_1_load_and_guard(m, seed, parameter_hash, manifest_fingerprint, run_id)
+      (beta, x_m, ctx) = S1_1_load_and_guard(m, seed, parameter_hash, manifest_fingerprint, manifest_fingerprint_bytes, run_id)
       # asserts: |beta|==dim(x_m); path partitions {seed,parameter_hash,run_id} bound; audit exists.  
 
       # S1.2 — Probability map (no RNG)
@@ -356,8 +357,8 @@ function run_S1(seed:u64, parameter_hash:hex64, manifest_fingerprint:hex64, run_
       (totals, emitted) = S1_4_emit_event_and_update_trace(m, pi, decision, ctx, totals)
 # writes 1 hurdle row; appends cumulative rng_trace_log; enforces budget identity.  
       # S1.5 — Build handoff tuple & routing (in-memory only; no counter chaining)
-      (Xi_m, route) = S1_5_build_handoff_and_route(emitted, home_iso_of[m])
-      append(handoffs, (m, Xi_m, route))  # Xi_m = (is_multi, N, K, 𝓒, C*).  
+      (Xi_m, next_state) = S1_5_build_handoff_and_route(emitted, home_iso_of[m])
+      append(handoffs, (m, Xi_m, next_state))  # Xi_m = (is_multi, N, K, 𝓒, C*).  
 
   # Post-condition (checked later by validator): totals reconcile with Σ(event budgets) and counter delta.  
   return (handoffs, totals)
@@ -374,13 +375,13 @@ function run_S1(seed:u64, parameter_hash:hex64, manifest_fingerprint:hex64, run_
 
 ## 4.3 Mini call-map (what each sub-state consumes/produces)
 
-| Step     | Consumes                                                                         | Calls (L1/L0)                                                                            | Produces / Side-effects                                                                                    |
-|----------|----------------------------------------------------------------------------------|------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------|
-| **S1.1** | `m`, `{seed,parameter_hash,manifest_fingerprint,run_id}`, `x_m` (S0.5), β (YAML) | `atomic_load_yaml_vector`, `fetch_hurdle_design_vector_for`, `exists_rng_audit_row`      | `(β, x_m, ctx)` with bound dataset/schema/path; **no writes**.                                             |
-| **S1.2** | `(β, x_m)`                                                                       | `dot_neumaier`, `logistic_two_branch_stable`                                             | `(η, π)` (finite; `[0,1]`); **no writes**.                                                                 |
-| **S1.3** | `π`, `m`, `ctx`                                                                  | `derive_substream`, `uniform1` (only if `0<π<1`)                                         | `Decision{…}` with before/after counters, `draws`, `blocks`, `u`, `null`.                                  |
-| **S1.4** | `m`, `π`, `Decision`, `ctx`, `totals`                                            | `begin_event_micro`, `end_event_emit`, `update_rng_trace_totals`, `f64_to_json_shortest` | **Writes** one hurdle event row; **appends** cumulative trace; returns `(totals', emitted:EmittedHurdle)`. |
-| **S1.5** | `emitted:EmittedHurdle`, `home_iso(m)`                                           | —                                                                                        | `Xi_m` and `route ∈ {S2,S7}`; **no writes**; `C*` is audit-only.                                           |
+| Step     | Consumes                                                                                                        | Calls (L1/L0)                                                                            | Produces / Side-effects                                                                                                            |
+|----------|-----------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------|
+| **S1.1** | `m`, `{seed,parameter_hash,manifest_fingerprint,run_id}` + `manifest_fingerprint_bytes`, `x_m` (S0.5), β (YAML) | `atomic_load_yaml_vector`, `fetch_hurdle_design_vector_for`, `exists_rng_audit_row`      | `(β, x_m, ctx)` with bound dataset/schema/path; **no writes**; guards: block-order check, path-partition lint, RNG audit presence. |
+| **S1.2** | `(β, x_m)`                                                                                                      | `dot_neumaier`, `logistic_branch_stable`                                                 | `(η, π)` (finite; `[0,1]`); **no writes**                                                                                          |
+| **S1.3** | `π`, `m`, `ctx`                                                                                                 | `derive_substream`, `uniform1` (only if `0<π<1`)                                         | `Decision{…}` with before/after counters, `draws`, `blocks`, `u`, `null`.                                                          |
+| **S1.4** | `m`, `π`, `Decision`, `ctx`, `totals`                                                                           | `begin_event_micro`, `end_event_emit`, `update_rng_trace_totals`, `f64_to_json_shortest` | **Writes** one hurdle event row; **appends** cumulative trace; returns `(totals', emitted:EmittedHurdle)`.                         |
+| **S1.5** | `emitted:EmittedHurdle`, `home_iso(m)`                                                                          | —                                                                                        | `Xi_m` and `next_state ∈ {SingleHomePlacement, NegativeBinomialS2}`; **no writes**; `C*` is audit-only.                            |
 
 ---
 
@@ -388,7 +389,7 @@ function run_S1(seed:u64, parameter_hash:hex64, manifest_fingerprint:hex64, run_
 
 * The **keyed substream** per merchant and the **single-uniform law** make RNG outputs independent of scheduling; the serial **S1.4** keeps the cumulative trace trivial and validator-friendly.
 * Event **schema/path** and **budget identities** are enforced at the emission point; validators later replay counters and reconcile totals without extra hints.
-* The handoff \$\Xi_m\$ is built from the **authoritative emitted event**, carries **audit-only** counters, and routes unambiguously to S2/S7.
+* The handoff $\Xi_m$ is built from the **authoritative emitted event**, carries **audit-only** counters, and routes unambiguously to `SingleHomePlacement`/`NegativeBinomialS2`.
 
 ## 4.5A — Per-merchant DAG (one merchant `m`)
 
@@ -424,7 +425,7 @@ S1.4(m): Emit Event + Update Cumulative Trace
     │
     └────► S1.5(m): Handoff (in-memory only; no counter chaining)
              inputs: emitted:EmittedHurdle, home_iso(m)
-             outputs: Xi_m, route ∈ {S2, S7}
+             outputs: Xi_m, next_state ∈ {SingleHomePlacement, NegativeBinomialS2}
 ```
 
 **Edge invariants (enforced across S1.3→S1.4):**
@@ -441,7 +442,8 @@ S1.4(m): Emit Event + Update Cumulative Trace
 ```
                            ┌─────────────────────────────────────────────────────┐
                            │ Fixed run inputs: seed, parameter_hash,             │
-                           │ manifest_fingerprint, run_id, M, home_iso(.), β, x_m│
+                           │ manifest_fingerprint, manifest_fingerprint_bytes,   │
+                           │ run_id, M, home_iso(.), β, x_m                      │
                            └─────────────────────────────────────────────────────┘
                                            │
                                            ▼
@@ -456,7 +458,7 @@ S1.4(m): Emit Event + Update Cumulative Trace
              │                     (S1.4 is the only serialized emission/trace step)  │
              └────────────────────────────────────────────────────────────────────────┘
                       │                 │
-                      │                 └──► append (m, Xi_m, route) → handoffs[]
+                      │                 └──► append (m, Xi_m, next_state) → handoffs[]
                       │
                       └──► rng_trace_log cumulative totals evolve monotonically (saturating)
                                            │
@@ -474,7 +476,7 @@ S1.4(m): Emit Event + Update Cumulative Trace
 * **E3:** `S1.3(m) → S1.4(m)` carries `Decision` bundle + `(π, ctx)` + current `totals`.
 * **E4:** `S1.4(m) → S1.5(m)` carries `emitted:EmittedHurdle` and `home_iso(m)`.
 * **E5:** `S1.4(m) → S1.4(m+1)` is the **serialization** on cumulative trace totals (`totals_out → totals_in` of the next merchant).
-* **E6:** `S1.5(m) → handoffs[]` appends `(m, Xi_m, route)`.
+* **E6:** `S1.5(m) → handoffs[]` appends `(m, Xi_m, next_state)`.
 
 ---
 
@@ -508,7 +510,7 @@ L2 carries *only* what it must to wire S1.1→S1.5 deterministically and return 
   * `draws_total[i] = draws_total[i-1] + parse_u128(decision.draws)` (0 or 1 for hurdle).
     *(L2 can assert these deltas cheaply; S1.4 already enforces the per-event identities.)*
 
-* `handoffs : list<(merchant_id:u64, Xi, next_state:{S2|S7})>`
+* `handoffs : list<(merchant_id:u64, Xi, next_state:{SingleHomePlacement|NegativeBinomialS2})>`
   Append-only, one entry per processed merchant, in the same deterministic order as the loop. Not persisted by L2.
   End-of-run invariant: `len(handoffs) == |M|` and each `merchant_id` appears exactly once.
 
@@ -751,7 +753,7 @@ struct Totals {
   events_total: u64   # saturating
 }
 
-# Typed echo produced by S1.4; consumed by S1.5 (see §4 updates)
+# Minimal projection for routing; S1.5 consumes this subset (see §4).
 struct EmittedHurdle {
   envelope: {
     module: string, substream_label: string,
@@ -766,7 +768,7 @@ struct EmittedHurdle {
 
 **Inputs (closed set):**
 
-* `seed:u64, parameter_hash:hex64, manifest_fingerprint:hex64, run_id:hex32`
+* `seed:u64, parameter_hash:hex64, manifest_fingerprint:hex64, manifest_fingerprint_bytes: bytes[32], run_id:hex32`
 * `merchants:list<u64>` and `home_iso_of: map<u64,string>` (ISO-3166-1 alpha-2)
 * Frozen artefacts reachable by L1 (S0.5 design vectors `x_m`, hurdle coefficients β)
 
@@ -780,88 +782,9 @@ struct EmittedHurdle {
 
 ---
 
-## 8.2 Orchestrator (paste-ready pseudocode)
-
-```pseudocode
-function run_S1(seed:u64, parameter_hash:hex64, manifest_fingerprint:hex64, run_id:hex32,
-                merchants:list<u64>, home_iso_of: map<u64,string>)
-    -> (handoffs: list<(merchant_id:u64, Xi, next_state:{S2|S7})>, final_totals: Totals)
-
-  # ── Gate-A: audit-before-first-event ──────────────────────────────────────────
-  assert exists_rng_audit_row(seed, parameter_hash, run_id), E_S1_RNG_AUDIT_MISSING
-
-  # ── Pre-loop hygiene (input preconditions) ───────────────────────────────────
-  if has_duplicates(merchants):
-      dups = offending_ids(merchants)
-      log_operator("duplicate_merchant_ids", dups)                     # ← operator aid
-      abort(E_S1_DUPLICATE_MERCHANT_IN_UNIVERSE, dups)
-
-  for m in merchants:
-      iso = home_iso_of.get(m)
-      if not is_valid_iso_alpha2(iso):
-          abort(E_S1_HOME_ISO_INVALID, {merchant_id:m, home_iso:iso})
-
-  # ── Empty-universe: valid no-op run ──────────────────────────────────────────
-  if merchants.is_empty():
-      return ([], Totals{draws_total:0, blocks_total:0, events_total:0})
-
-  # ── Init run-lifetime state ──────────────────────────────────────────────────
-  totals         = Totals{draws_total:0, blocks_total:0, events_total:0}
-  handoffs       = []
-  seen_merchants = set<u64>()  # hygiene, not semantics
-
-  # ── Deterministic per-merchant loop (S1.4 remains the serialization point) ──
-  for m in sort_ascending(merchants):
-
-      # Runtime hygiene duplicate guard (defensive)
-      if m in seen_merchants:
-          abort(E_S1_DUPLICATE_MERCHANT_RUNTIME, {merchant_id:m})
-      add(seen_merchants, m)
-
-      # S1.1 — Load & Guard
-      (beta, x_m, ctx) = S1_1_load_and_guard(m, seed, parameter_hash, manifest_fingerprint, run_id)
-
-      # S1.2 — Probability map
-      (eta, pi) = S1_2_probability_map(beta, x_m)
-
-      # S1.3 — RNG & decision (≤1 uniform; keyed substream)
-      decision = S1_3_rng_and_decision(pi, m, ctx)
-
-      # S1.4 — Emit hurdle event + append cumulative trace (STRICTLY SERIALIZED)
-      (totals_prime, emitted) = S1_4_emit_event_and_update_trace(m, pi, decision, ctx, totals)
-
-      # Loop-level delta checks (cheap; reinforce invariants without recomputation)
-      assert totals_prime.events_total == totals.events_total + 1
-      assert totals_prime.blocks_total == totals.blocks_total + decision.blocks
-      # For hurdle, parse_u128(decision.draws) ∈ {0,1} by law  ← added clarification
-      assert totals_prime.draws_total  == totals.draws_total  + parse_u128(decision.draws)
-
-      totals = totals_prime
-
-      # S1.5 — Build handoff tuple (in-memory only; no counter chaining)
-      (Xi_m, route) = S1_5_build_handoff_and_route(emitted, home_iso_of[m])
-      append(handoffs, (m, Xi_m, route))
-
-  # ── End-of-run light checks (coverage/bijection plausibility) ────────────────
-  assert len(handoffs) == len(merchants)
-  assert totals.events_total == len(merchants)
-  assert 0 <= totals.blocks_total and totals.blocks_total <= len(merchants)
-
-  return (handoffs, totals)
-```
-
-**Notes baked into the routine:**
-
-* **Serialization:** Do not run **S1.4** in parallel. Emission and cumulative trace update are the single serialization point.
-* **One call → one row:** Each S1.4 call appends exactly one hurdle row; event writer **must abort** on a second attempt for the same `(seed, parameter_hash, run_id, merchant_id)`.
-* **No partial side-effects:** If the event write fails, do **not** update the trace; on trace failure, abort the run.
-* **No counter chaining:** `C*` carried in `Xi_m` is audit-only; downstream states derive their own substreams by their own labels.
-
----
-
 ## 8.3 What this guarantees (and why it’s enough)
 
-* **Replayability:** RNG outcomes are fixed by `(seed, manifest_fingerprint, "hurdle_bernoulli", merchant_id)` and the single-uniform law; schedule only affects file append order.
+* **Replayability:** RNG outcomes are fixed by `master = derive_master_material(seed, manifest_fingerprint_bytes); base = derive_substream(master, label="hurdle_bernoulli", (merchant_id))`; independent of loop schedule; single-uniform law; schedule only affects file append order.
 * **Validator-friendliness:** Every row obeys budget identities; partitions exactly match embedded lineage keys; `ts_utc` uses microseconds; ids/counters are integers; floats round-trip in binary64. The cumulative trace is trivially reconcilable because it’s updated **immediately after** each event in the same loop.
 * **Idempotency & coverage:** One hurdle row per merchant per run; duplicates abort; empty universes are valid no-op runs.
 
@@ -984,7 +907,7 @@ A State-1 run is **done** (spec-true) only if **all** checks below pass. Treat t
 * [ ] **Serialized emission:** **S1.4** is not run in parallel; exactly one call → one event line → one trace line.
 * [ ] **Loop-level delta checks executed:** `events_total` +1, `blocks_total` + `decision.blocks`, `draws_total` + `parse_u128(decision.draws)` after each S1.4.
 * [ ] **Typed handoff:** S1.4 returns `EmittedHurdle`; S1.5 consumes it directly (no ad-hoc reconstruction).
-* [ ] **Handoff correctness:** for each merchant, $\Xi_m=(\text{is_multi},N,K,\mathcal C,C^\star)$ is produced; `C*` is the **post** hurdle counter (audit-only); route is `S7` iff single-site else `S2`.
+* [ ] **Handoff correctness:** for each merchant, $\Xi_m=(\text{is_multi},N,K,\mathcal C,C^\star)$ is produced; `C*` is the **post** hurdle counter (audit-only); next_state is `SingleHomePlacement` (formerly S7) iff single-site else `NegativeBinomialS2` (formerly S2).
 
 ## 10.5 Replay & invariance smoke tests (recommended)
 
