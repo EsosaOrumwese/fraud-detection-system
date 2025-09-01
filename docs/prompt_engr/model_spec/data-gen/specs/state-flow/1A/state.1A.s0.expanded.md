@@ -424,7 +424,7 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
 
 ```
 {
-  ts_utc:                  string  # RFC 3339 / ISO-8601 UTC, e.g. "2025-04-15T12:34:56.123456789Z"
+  ts_utc:                  string  # RFC 3339 / ISO-8601 UTC (exactly 6 fractional digits), e.g. "2025-08-15T10:03:12.345678Z"
   module:                  string  # e.g. "1A.S6.gumbel" (see vocab registry)
   substream_label:         string  # e.g. "gumbel_key", "dirichlet_gamma_vector"
   seed:                    uint64  # modelling seed (from S0.2)
@@ -444,8 +444,8 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
 > **Blocks vs draws (normative):** `blocks = (after_hi,after_lo) − (before_hi,before_lo)` in unsigned 128-bit arithmetic. `draws` = **uniforms used**. Single-uniform families: `(blocks=1, draws=1)`. Two-uniform families (e.g., Box–Muller): `(blocks=1, draws=2)`. Non-consuming: `(blocks=0, draws="0")`. The `blocks` equality is checked by counters; `draws` is checked by family budgets.
 
 > **Invariants (normative):**
-> - `blocks` = $(\texttt{after_hi},\texttt{after_lo}) - (\texttt{before_hi},\texttt{before_lo})$ in unsigned 128-bit arithmetic.
-> - `draws` = number of **uniform(0,1)** variates consumed by the event.
+> - `blocks` = $(\texttt{after_hi},\texttt{after_lo}) - (\texttt{before_hi},\texttt{before_lo})$ in unsigned 128-bit arithmetic. (authoritative equality check).
+> - `draws` = number of **uniform(0,1)** variates consumed by the event. (independent of the counter delta).
 > - With the lane policy, **single-uniform** events have `(blocks=1, draws=1)`, and **two-uniform** events (Box–Muller) have `(blocks=1, draws=2)`. **Non-consuming** events have `(blocks=0, draws="0")`.
 
 * **Non-consuming** events keep `before == after` and set `blocks = 0`.
@@ -465,9 +465,9 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
 * **Optional duplication:** Only `gamma_component` and `dirichlet_gamma_vector` MAY include `payload.uniforms` (for per-component diagnostics). If present, it **must equal** `draws`. All other families MUST NOT include `payload.uniforms`.
 
 * `draws` is a **JSON string** carrying a **base-10** representation of a `uint128`. Producers/consumers **must** parse/emit as decimal and **must not** split into lo/hi words in the envelope (use the decimal string everywhere, mirroring S0.9 failure payloads).
-* `ts_utc` in RNG **events** is an **RFC-3339/ISO-8601 UTC string** with up to **nanosecond** precision (e.g., `"2025-04-15T12:34:56.123456789Z"`). `ts_utc` in **failures** is **epoch-nanoseconds** (they are **nanoseconds since epoch** as an unsigned integer). See **§S0.9 “Failure records”** for failure-record timestamps (epoch-ns u64).
+* `ts_utc` in RNG **events** is an **RFC-3339/ISO-8601 UTC string** with **exactly 6 fractional digits** (microseconds), e.g., `"2025-08-15T10:03:12.345678Z"`. `ts_utc` in **failures** is **epoch-nanoseconds** (they are **nanoseconds since epoch** as an unsigned integer). See **§S0.9 “Failure records”** for failure-record timestamps (epoch-ns u64).
 
-* **Serialization note:** Envelope counter fields (`rng_counter_*_{hi,lo}`), `blocks`, and `draws` carry **numeric values**. Endianness (LE/BE) applies only to **derivations** (hash splits, Philox counters); JSON serialisation uses number semantics and is endianness-agnostic.
+* **Serialization note:** Envelope counter fields (`rng_counter_*_{hi,lo}`) and `blocks` are **numbers**; `draws` is a **decimal string** (`uint128` in base-10, per schema). Endianness (LE/BE) applies only to **derivations** (hash splits, Philox counters); JSON serialisation is endianness-agnostic.
 
 
 ---
@@ -497,7 +497,7 @@ Derive **root** (audit-only; never used directly for draws):
 
 > Envelopes carry these same numeric values as `rng_counter_*_{hi,lo}`. All counter math is **unsigned 128-bit** with addition performed as `lo += n; carry → hi`.
 
-> Emit a single `rng_audit_log` row **before** any draws with `seed`, `manifest_fingerprint`, `parameter_hash`, `run_id`, and $(k_\star,c_\star)$. **No event** may draw from $(k_\star,c_\star)$.
+> Emit a single `rng_audit_log` row **before** any draws with `seed`, `manifest_fingerprint`, `parameter_hash`, `run_id`, and $(k_\star,c_\star)$. **No event** may draw from $(k_\star,c_\star)$. (schema: `schemas.layer1.yaml#/rng/core/rng_audit_log`).
 > **Schema separation (normative):** `rng_audit_log` rows are **not** RNG events and MUST NOT be encoded with the event envelope. They carry the audit schema only and **must** precede the first RNG event.
 
 ---
@@ -643,7 +643,7 @@ For candidate ranking:
 Two cross-cut logs in addition to per-event logs:
 
 1. **`rng_audit_log`** — **one row at run start** (before any RNG event): `(seed, manifest_fingerprint, parameter_hash, run_id, root key/counter, code version, ts_utc)`.
-   **`rng_audit_log` schema (normative minimum):** `{ ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, algorithm, rng_key_hi, rng_key_lo, rng_counter_hi, rng_counter_lo, code_version }`. Field types and names are governed by `schemas.layer1.yaml#/rng/audit` (authoritative).
+   **`rng_audit_log` schema (normative minimum):** `{ ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, algorithm, rng_key_hi, rng_key_lo, rng_counter_hi, rng_counter_lo, code_version }`. Field types and names are governed by `schemas.layer1.yaml#/rng/core/rng_audit_log` (authoritative).
 2. **`rng_trace_log`** (**one row per** $(\texttt{module},\texttt{substream_label})$; cumulative **blocks** (unsigned 64-bit) by uint64), with the *current* `(counter_before, counter_after)`.  
     **Reconciliation (normative):** For each `(module, substream_label)`, `rng_trace_log.blocks_total` MUST be monotone non-decreasing across emissions, and the **final** `blocks_total` MUST equal the **sum of per-event `blocks`** over `rng_event_*` in the same `{seed, parameter_hash, run_id}`. Budget checks use **event `draws`**, not the trace.
 

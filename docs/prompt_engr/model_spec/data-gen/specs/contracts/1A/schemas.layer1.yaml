@@ -80,9 +80,9 @@ $defs:
       merchant_id: { $ref: "#/$defs/id64", nullable: true, description: "Present when event is merchant-scoped." }
       draws:
         $ref: "#/$defs/dec_u128"
-        description: "Number of uniforms consumed by THIS event (decimal u128 string). Must satisfy u128(after)-u128(before) == parse_u128(draws)."
+        description: "Uniform variates consumed by THIS event (decimal u128 string). Independent of the counter delta; validators enforce per-family budgets."
       blocks:
-        description: "Uniforms consumed (count of 64-bit words); must equal parse_u128(draws)"
+        description: "PRNG block increments for THIS event (delta of the 128-bit counters). MUST equal u128(after) − u128(before) and fit in uint64."
         $ref: "#/$defs/uint64"
 # -- RNG: Core logs (JSONL) ------------------------------------------------
 rng:
@@ -110,7 +110,7 @@ rng:
 
     rng_trace_log:
       type: stream
-      description: "Structured per-(module,substream_label) RNG consumption trace with cumulative totals."
+      description: "Structured per-(module,substream_label) RNG consumption trace with cumulative totals: draws_total = Σ event draws (uniforms); blocks_total = Σ event counter deltas (PRNG blocks). No equality between the two is implied."
       record:
         type: object
         additionalProperties: false
