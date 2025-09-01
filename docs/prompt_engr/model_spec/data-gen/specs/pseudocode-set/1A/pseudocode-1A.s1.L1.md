@@ -36,7 +36,7 @@ Specify the **runtime kernels** for State-1 that produce the *hurdle* decision (
 
 ## Budget & RNG invariants (hurdle stream)
 
-* **Base counter** derived from `(seed, manifest_fingerprint, label="hurdle_bernoulli", merchant_id)`.
+* **Base counter** derived from `master = derive_master_material(seed, manifest_fingerprint_bytes)`; then `base = derive_substream(master, label="hurdle_bernoulli", (merchant_id))`.
 * **Deterministic case:** if `pi ∈ {0.0,1.0}` → **zero** uniforms; `before==after`; `draws="0"`, `blocks=0`.
 * **Stochastic case:** if `0<pi<1` → consume **exactly one** uniform with **low lane**; `u∈(0,1)`; `draws="1"`, `blocks=1`.
 * **Authoritative identity:** `u128(after) − u128(before) == parse_u128(draws)`; and **for hurdle**: `blocks == parse_u128(draws) ∈ {0,1}`.
@@ -44,9 +44,9 @@ Specify the **runtime kernels** for State-1 that produce the *hurdle* decision (
 
 ## L0 dependencies (to be called by L1 kernels)
 
-* **Substreams/RNG:** `derive_substream`, `uniform1` (low lane), `u01`, `philox_block`.
-* **Envelope/trace:** `begin_event_micro`, `end_event_emit`, `update_rng_trace_totals`, `decimal_string_to_u128`.
-* **Numeric:** `dot_neumaier`, `logistic_branch_stable` (two-branch logistic).
+* **Substreams/RNG:** `derive_master_material`, `derive_substream`, `uniform1` (low lane), `u01`, `philox_block`.
+* **Envelope/trace:** `begin_event_micro`, `end_event_emit`, `update_rng_trace_totals`, `decimal_string_to_u128`, `u128_to_decimal_string`.
+* **Numeric:** `dot_neumaier`, `logistic_branch_stable` (two-branch logistic), `u128_to_uint64_or_abort`.
 * **Formatting:** `f64_to_json_shortest`, `ts_utc_now_rfc3339_micro`.
 * **Predicates:** `is_binary64_extreme01`, `is_open_interval_01`.
 
@@ -60,6 +60,7 @@ type Context = {
   seed:u64,
   parameter_hash:Hex64,
   manifest_fingerprint:Hex64,
+  manifest_fingerprint_bytes: bytes[32],
   run_id:Hex32,
   module:string,                 # "1A.hurdle_sampler"
   substream_label:string,        # "hurdle_bernoulli"
@@ -87,7 +88,7 @@ const EVENT_PATH_TPL    = "logs/rng/events/hurdle_bernoulli/" +
 * **S1.4 — Emit Event + Update Trace**
   Build envelope (microsecond ts, counters, `draws`, `blocks`), payload (`merchant_id, pi, is_multi, deterministic, u`), emit, then update cumulative trace (saturating totals).
 * **S1.5 — Handoff Tuple (in-memory)**
-  Build $\Xi_m$ and route (single-site → S7, multi-site → S2). No counter chaining.
+  Build $\Xi_m$ and route (single-site → SingleHomePlacement (formerly S7), multi-site → NegativeBinomialS2 (formerly S2)). No counter chaining.
 
 ---
 
@@ -129,7 +130,7 @@ const EVENT_PATH_TPL    = "logs/rng/events/hurdle_bernoulli/" +
 ```pseudocode
 function S1_1_load_and_guard(merchant_id:u64,
                               seed:u64, parameter_hash:hex64,
-                              manifest_fingerprint:hex64, run_id:hex32)
+                              manifest_fingerprint:hex64, manifest_fingerprint_bytes: bytes[32], run_id:hex32)
 
   # 0) Bind registry literals & dataset anchors (no I/O yet)
   module            = "1A.hurdle_sampler"
@@ -167,6 +168,7 @@ function S1_1_load_and_guard(merchant_id:u64,
     seed: seed,
     parameter_hash: parameter_hash,
     manifest_fingerprint: manifest_fingerprint,
+    manifest_fingerprint_bytes: manifest_fingerprint_bytes,
     run_id: run_id,
     module: module,
     substream_label: substream_label,
@@ -324,10 +326,11 @@ Decision {
   u: f64|null,                   # null iff deterministic
   draws: string,                 # decimal u128: "0" or "1"
   blocks: u64,                   # 0 or 1; must equal parse_u128(draws)
-  rng_counter_before_hi: u64,
-  rng_counter_before_lo: u64,
-  rng_counter_after_hi: u64,
-  rng_counter_after_lo: u64,
+  before_hi: u64,
+  before_lo: u64,
+  after_hi: u64,
+  after_lo: u64,
+  stream_before: Stream,
   stream_after: Stream           # carry stream for S1.4 end_event_emit
 }
 ```
@@ -348,7 +351,8 @@ Decision {
 ```pseudocode
 function S1_3_rng_and_decision(pi:f64, merchant_id:u64, ctx:Context) -> Decision
   # 0) Derive order-invariant base counter for this (label, merchant)
-  base = derive_substream(ctx.seed, ctx.manifest_fingerprint, ctx.substream_label, (merchant_id))
+  master = derive_master_material(ctx.seed, ctx.manifest_fingerprint_bytes)
+  base = derive_substream(master, ctx.substream_label, (merchant_id))
   before_hi = base.ctr.hi
   before_lo = base.ctr.lo
 
@@ -375,7 +379,8 @@ function S1_3_rng_and_decision(pi:f64, merchant_id:u64, ctx:Context) -> Decision
       (u_val, stream_after, draws_u128) = uniform1(base)          # consumes exactly 1 block
       assert is_open_interval_01(u_val), E_S1_U_OOB
 
-      draws_str = u128_to_decimal_string(draws_u128)              # authoritative usage count
+      (dhi, dlo) = u128_delta(stream_after.ctr.hi, stream_after.ctr.lo, before_hi, before_lo)
+      draws_str = u128_to_decimal_string(dhi, dlo)              # authoritative usage count
       after_hi  = stream_after.ctr.hi
       after_lo  = stream_after.ctr.lo
       stream_before = base
@@ -398,10 +403,10 @@ function S1_3_rng_and_decision(pi:f64, merchant_id:u64, ctx:Context) -> Decision
     u:             u_val,
     draws:         draws_str,
     blocks:        blocks,
-    rng_counter_before_hi: before_hi,
-    rng_counter_before_lo: before_lo,
-    rng_counter_after_hi:  after_hi,
-    rng_counter_after_lo:  after_lo,
+    before_hi: before_hi,
+    before_lo: before_lo,
+    after_hi:  after_hi,
+    after_lo:  after_lo,
     stream_before:         base,           # <— added for S1.4 begin_event_micro
     stream_after:          stream_after
   }
@@ -411,7 +416,7 @@ function S1_3_rng_and_decision(pi:f64, merchant_id:u64, ctx:Context) -> Decision
 
 ## Determinism & budgeting guarantees (why this matches the spec)
 
-* **Keyed base counter.** `derive_substream(seed, manifest_fingerprint, "hurdle_bernoulli", merchant_id)` fixes the **order-invariant** starting counter for the merchant/label pair; no cross-label chaining.
+* **Keyed base counter.** `master = derive_master_material(seed, manifest_fingerprint_bytes); base = derive_substream(master, label="hurdle_bernoulli", (merchant_id))` fixes the **order-invariant** starting counter for the merchant/label pair; no cross-label chaining.
 * **Uniform policy.** Single-uniform events consume **one** Philox block and take the **low lane**; mapping to `U(0,1)` is strict-open, so `u` is never exactly `0` or `1`.
 * **Branch law.** `pi∈{0,1}` ⇒ **zero** draw; `0<pi<1` ⇒ **exactly one** draw; outcome `is_multi = (u < pi)`; `u` is **null** iff deterministic.
 * **Budget identity.** We compute `after` from the stream and check `u128(after)−u128(before) = parse_u128(draws)`; for hurdle also `blocks == parse_u128(draws) ∈ {0,1}`. (S1.4 will persist these fields verbatim.)
@@ -458,10 +463,10 @@ function S1_3_rng_and_decision(pi:f64, merchant_id:u64, ctx:Context) -> Decision
     u: f64|null,
     draws: string,                 # "0" or "1" (decimal u128)
     blocks: u64,                   # 0 or 1
-    rng_counter_before_hi: u64,
-    rng_counter_before_lo: u64,
-    rng_counter_after_hi: u64,
-    rng_counter_after_lo: u64,
+    before_hi: u64,
+    before_lo: u64,
+    after_hi: u64,
+    after_lo: u64,
     stream_before: Stream,         # from derive_substream(...)
     stream_after:  Stream          # after uniform1(base) or == base
   }
@@ -470,7 +475,7 @@ function S1_3_rng_and_decision(pi:f64, merchant_id:u64, ctx:Context) -> Decision
 
   ```pseudocode
   Context {
-    seed:u64, parameter_hash:hex64, manifest_fingerprint:hex64, run_id:hex32,
+    seed:u64, parameter_hash:hex64, manifest_fingerprint:hex64, manifest_fingerprint_bytes: bytes[32], run_id:hex32,
     module:"1A.hurdle_sampler",
     substream_label:"hurdle_bernoulli",
     event_dataset_id:"rng_event_hurdle_bernoulli",
@@ -519,8 +524,8 @@ function S1_4_emit_event_and_update_trace(merchant_id:u64, pi:f64,
   (p_hi, p_lo) = decimal_string_to_u128(decision.draws)
   assert decision.blocks == u128_to_uint64_or_abort(p_hi, p_lo), E_S1_BLOCKS_MISMATCH
 
-  (dhi, dlo) = u128_delta(decision.rng_counter_after_hi, decision.rng_counter_after_lo,
-                          decision.rng_counter_before_hi, decision.rng_counter_before_lo)
+  (dhi, dlo) = u128_delta(decision.after_hi, decision.after_lo,
+                          decision.before_hi, decision.before_lo)
   assert (dhi == p_hi and dlo == p_lo), E_S1_BUDGET_IDENTITY
 
   # --- 1) Begin event (envelope prelude; microsecond ts, 'before' counters) ----
@@ -529,8 +534,8 @@ function S1_4_emit_event_and_update_trace(merchant_id:u64, pi:f64,
                              decision.stream_before)
 
   # Sanity: the 'before' we recorded must match decision
-  assert ev_ctx.rng_counter_before_hi == decision.rng_counter_before_hi
-  assert ev_ctx.rng_counter_before_lo == decision.rng_counter_before_lo
+  assert ev_ctx.before_hi == decision.before_hi
+  assert ev_ctx.before_lo == decision.before_lo
 
   # --- 2) Build minimal payload (binary64 round-trip for pi and nullable u) ----
   payload = {
@@ -544,12 +549,12 @@ function S1_4_emit_event_and_update_trace(merchant_id:u64, pi:f64,
   # --- 3) Emit hurdle event (end_event computes blocks from counters & writes) --
   (draws_hi, draws_lo) = decimal_string_to_u128(decision.draws)
 
-  end_event_emit(/*family*/ "rng_event_hurdle_bernoulli",
+  end_event_emit(/*dataset_id*/ "rng_event_hurdle_bernoulli",
                  /*ctx*/     ev_ctx,
                  /*stream_after*/ decision.stream_after,
                  /*draws_hi*/ draws_hi, /*draws_lo*/ draws_lo,
                  /*payload*/ payload)
-  # Writer resolves path from ctx.event_path (partitions: seed/parameter_hash/run_id)
+  # Writer resolves dataset path from dictionary + lineage partitions (seed/parameter_hash/run_id); ctx.event_path used only for debug/logs
   # and embeds the full envelope: ts_utc(μs), module, substream_label, lineage keys,
   # before/after counters, blocks (computed), draws (decimal u128), + payload.
 
@@ -557,11 +562,10 @@ function S1_4_emit_event_and_update_trace(merchant_id:u64, pi:f64,
   (new_draws_total, new_blocks_total, new_events_total) =
       update_rng_trace_totals(ctx.module, ctx.substream_label,
                               ctx.seed, ctx.parameter_hash, ctx.run_id,
-                              decision.rng_counter_before_hi, decision.rng_counter_before_lo,
-                              decision.rng_counter_after_hi,  decision.rng_counter_after_lo,
+                              decision.before_hi, decision.before_lo,
+                              decision.after_hi,  decision.after_lo,
                               prev_totals.draws_total, prev_totals.blocks_total, prev_totals.events_total,
-                              /*draws_str*/ decision.draws,
-                              /*detail*/   null)
+                              /*draws_str*/ decision.draws)
 
   return { draws_total:new_draws_total, blocks_total:new_blocks_total, events_total:new_events_total }
 ```
@@ -602,7 +606,7 @@ $$
 \Xi_m=(\text{is_multi}:\mathbf{bool},\,N:\mathbb{N},\,K:\mathbb{N},\,\mathcal C:\text{set[ISO]},\,C^\star:\text{u128})
 $$
 
-and select the next state: **S7** when single-site, **S2** when multi-site. **Do not** pass counters to downstream RNG; $C^\star$ is **audit-only**.
+and select the next state: **SingleHomePlacement** (formerly S7) when single-site, **NegativeBinomialS2** (formerly S2) when multi-site; pass counters to downstream RNG; $C^\star$ is **audit-only**.
 
 ---
 
@@ -610,7 +614,7 @@ and select the next state: **S7** when single-site, **S2** when multi-site. **Do
 
 ### Inputs
 
-* `hurdle_event : { envelope:{ rng_counter_after_hi:u64, rng_counter_after_lo:u64, … }, payload:{ merchant_id:u64, pi:f64, is_multi:bool, deterministic:bool, u:number|null } }`
+* `hurdle_event : { envelope:{ after_hi:u64, after_lo:u64, … }, payload:{ merchant_id:u64, pi:f64, is_multi:bool, deterministic:bool, u:number|null } }`
   *(Authoritative single row produced in S1.4 for this merchant.)*
 * `home_iso : string` — ISO-3166-1 alpha-2 for merchant `m` (from S0 universe).
 
@@ -624,7 +628,7 @@ Xi {
   C_set: set[string],  # set of ISO alpha-2
   C_star: (hi:u64, lo:u64)  # u128 post-counter from hurdle (audit-only)
 }
-next_state: enum { S2, S7 }
+next_state: enum { SingleHomePlacement, NegativeBinomialS2 }
 ```
 
 *(Exactly one $\Xi_m$ per merchant; no persistence.)*
@@ -654,12 +658,12 @@ function S1_5_build_handoff_and_route(hurdle_event, home_iso:string) -> (Xi, nex
       N = 1
       K = 0
       C_set = { home_iso }
-      next_state = S7        # single-home placement path
+      next_state = SingleHomePlacement      # formerly S7
   else:
       N = UNASSIGNED         # set later in S2 (NB branch)
       K = UNASSIGNED         # set later in cross-border/ranking
       C_set = { home_iso }
-      next_state = S2        # NB path (multi-site)
+      next_state = NegativeBinomialS2       # formerly S2 (multi-site)
 
   Xi = {
     is_multi: is_multi,
