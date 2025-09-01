@@ -35,7 +35,7 @@ validated by `schemas.ingress.layer1.yaml#/merchant_ids`.
   ```
   where `LOW64` takes **bytes 24..31** of the 32-byte SHA-256 digest, interpreted as little-endian u64. **No string formatting** is ever used in this mapping.
 
-* `mcc ∈ 𝕂`: valid 4-digit MCC code set 𝕂. **Authority:** exactly the enum/domain defined in `schemas.ingress.layer1.yaml#/merchant_ids/properties/mcc` (ISO 18245 subset). **Out-of-set MCCs are rejected here**.
+* `mcc`: 4-digit MCC code: **int32 in [0,9999]** per `merchant_ids.mcc` in the ingress schema. (If an enumerated ISO-18245 catalogue is adopted later, this spec will reference that artefact explicitly.)
 
 * `channel ∈ 𝕮`: card-present vs not-present. **Canonical internal symbols:** `CP`, `CNP`. **Ingress mapping (normative):**
 
@@ -97,7 +97,7 @@ $$
 2. **Coverage & domain conformance:**
 
    * $\forall m\in\mathcal{M}$: `home_country_iso_m ∈ 𝕀` (FK enforced here).
-   * `mcc_m ∈ 𝕂` (as per ingress schema enum).
+   * `mcc_m`: **int32 in [0,9999]** (per ingress schema type).
    * `channel_m ∈ {"card_present","card_not_present"}` at ingress and is mapped to `{CP,CNP}` internally.
 3. **Determinism:** No RNG consumption; all S0.1 outputs are pure functions of loaded bytes and schemas (S0.2 will digest/record them).
 4. **Authority compliance:** Every dataset/stream referenced downstream must use the **JSON-Schema** anchors listed above; any non-authoritative reference is a policy breach.
@@ -112,7 +112,7 @@ S0.1 **MUST abort** the run if any of the following occur:
 * `E_REF_MISSING` — any canonical reference (ISO list, GDP vintage, or bucket map) is missing or unreadable. (S0.2 separately catches digest mismatches when hashing.)
 * `E_AUTHORITY_BREACH` — a dataset or event in registry/dictionary points to a non-JSON-Schema (e.g., an `.avsc`) for 1A.
 * `E_FK_HOME_ISO` — some merchant has `home_country_iso` not in 𝕀.
-* `E_MCC_OUT_OF_DOMAIN` — some merchant has `mcc` not in the authoritative 𝕂 set.
+* `E_MCC_OUT_OF_DOMAIN` — some merchant has `mcc` outside **[0,9999]** or violates the ingress type constraints.
 * `E_CHANNEL_VALUE` — some merchant has an ingress `channel` not in `{"card_present","card_not_present"}` (cannot map to `{CP,CNP}`).
 
 > When S0.1 aborts, no RNG audit or parameter/fingerprint artefacts are emitted; S0.2 has not yet run.
@@ -125,7 +125,7 @@ S0.1 **MUST abort** the run if any of the following occur:
 * **Reference presence & immutability:** assert that the referenced ISO set, GDP vintage (2025-04-15), and $B$ load successfully and are cached read-only for the lifetime of the run.
 * **Authority audit:** scan the registry/dictionary for any 1A dataset using **non-JSON-Schema** refs and fail the build if found (policy enforcement).
 * **Country FK pre-check:** `home_country_iso ∈ 𝕀` for all merchants.
-* **MCC & channel domain checks:** `mcc ∈ 𝕂`; `channel ∈ {"card_present","card_not_present"}` with a deterministic map → `{CP,CNP}`.
+* **MCC & channel domain checks:** `mcc ∈ [0,9999]`; `channel ∈ {"card_present","card_not_present"}` with a deterministic map → `{CP,CNP}`.
 
 ---
 
@@ -420,12 +420,14 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
   * **Two-uniform events (e.g., Box–Muller):** use **both lanes** from the same block; advance counter by 1 block; `draws=2`.
   * No other reuse or caching of lanes is permitted.
 
-### Event envelope (mandatory fields on **every** RNG event/log row)
+### Event envelope (mandatory fields on **every** RNG event row)
+> **Note:** Audit/trace logs are governed by `schemas.layer1.yaml#/rng/core/*` and **do not** embed the event envelope.
+
 
 ```
 {
   ts_utc:                  string  # RFC 3339 / ISO-8601 UTC (exactly 6 fractional digits), e.g. "2025-08-15T10:03:12.345678Z"
-  module:                  string  # e.g. "1A.S6.gumbel" (see vocab registry)
+  module:                  string  # e.g. "1A.gumbel_sampler" (registered producer name)
   substream_label:         string  # e.g. "gumbel_key", "dirichlet_gamma_vector"
   seed:                    uint64  # modelling seed (from S0.2)
   parameter_hash:          string  # hex64 (S0.2)
@@ -440,6 +442,9 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
   payload: { ... }                 # event-specific fields (flattened into top-level fields by the event schema; schema ensures global name uniqueness; name collisions are compile-time schema errors.)
 }
 ```
+* **Module governance (normative):** `module` MUST equal one of the **registered producer names** in the dataset dictionary for 1A (e.g., `1A.hurdle_sampler`, `1A.nb_sampler`, `1A.gumbel_sampler`).
+* **Label governance (normative):** `substream_label` MUST be one of the labels published in the artefact `rng_event_schema_catalog` (manifest_key `mlr.rng.events.schema_catalog`) and validators MUST enforce membership.
+
 
 > **Blocks vs draws (normative):** `blocks = (after_hi,after_lo) − (before_hi,before_lo)` in unsigned 128-bit arithmetic. `draws` = **uniforms used**. Single-uniform families: `(blocks=1, draws=1)`. Two-uniform families (e.g., Box–Muller): `(blocks=1, draws=2)`. Non-consuming: `(blocks=0, draws="0")`. The `blocks` equality is checked by counters; `draws` is checked by family budgets.
 
@@ -462,7 +467,6 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
 > - `dirichlet_gamma_vector`: **sum of component** `gamma_component` budgets  
 > - `poisson_component (λ<10)`: **variable**, inversion (§S0.3.7)  
 > - `poisson_component (λ≥10)`: **2 uniforms/attempt**, PTRS (§S0.3.7)  
-* **Optional duplication:** Only `gamma_component` and `dirichlet_gamma_vector` MAY include `payload.uniforms` (for per-component diagnostics). If present, it **must equal** `draws`. All other families MUST NOT include `payload.uniforms`.
 
 * `draws` is a **JSON string** carrying a **base-10** representation of a `uint128`. Producers/consumers **must** parse/emit as decimal and **must not** split into lo/hi words in the envelope (use the decimal string everywhere, mirroring S0.9 failure payloads).
 * `ts_utc` in RNG **events** is an **RFC-3339/ISO-8601 UTC string** with **exactly 6 fractional digits** (microseconds), e.g., `"2025-08-15T10:03:12.345678Z"`. `ts_utc` in **failures** is **epoch-nanoseconds** (they are **nanoseconds since epoch** as an unsigned integer). See **§S0.9 “Failure records”** for failure-record timestamps (epoch-ns u64).
@@ -632,18 +636,20 @@ Handled by accept/reject on $\text{Poisson}(\lambda)$ conditioned on $N>0$. The 
 For candidate ranking:
 
 * Draw $u\in(0,1)$; compute $g=-\ln(-\ln u)$.
-* **Budget:** **1 uniform** per candidate (single-lane low).
+* **Budget:** **1 uniform** per candidate (single-lane low; event-level `draws="1"`).
 * **Tie-break:** sort primarily by $g$, then by `ISO` (ASCII ascending), then by `merchant_id` if still tied.
 * **Log:** one `gumbel_key` event **per candidate**.
 
 ---
 
 ## S0.3.9 Draw accounting & logs (auditable replay)
+> **Run policy (normative):** Although on-disk totals are saturating counters, producers MUST detect imminent overflow and raise `F4d:rng_budget_violation` **before** any saturation would occur.
+
 
 Two cross-cut logs in addition to per-event logs:
 
 1. **`rng_audit_log`** — **one row at run start** (before any RNG event): `(seed, manifest_fingerprint, parameter_hash, run_id, root key/counter, code version, ts_utc)`.
-   **`rng_audit_log` schema (normative minimum):** `{ ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, algorithm, rng_key_hi, rng_key_lo, rng_counter_hi, rng_counter_lo, code_version }`. Field types and names are governed by `schemas.layer1.yaml#/rng/core/rng_audit_log` (authoritative).
+   **`rng_audit_log` schema (normative minimum):** `{ ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, algorithm, rng_key_hi, rng_key_lo, rng_counter_hi, rng_counter_lo, code_version }`. Field types and names are governed by `schemas.layer1.yaml#/rng/audit` (authoritative).
 2. **`rng_trace_log`** (**one row per** $(\texttt{module},\texttt{substream_label})$; cumulative **blocks** (unsigned 64-bit) by uint64), with the *current* `(counter_before, counter_after)`.  
     **Reconciliation (normative):** For each `(module, substream_label)`, `rng_trace_log.blocks_total` MUST be monotone non-decreasing across emissions, and the **final** `blocks_total` MUST equal the **sum of per-event `blocks`** over `rng_event_*` in the same `{seed, parameter_hash, run_id}`. Budget checks use **event `draws`**, not the trace.
 
@@ -1979,7 +1985,7 @@ data/layer1/1A/validation/failures/
     "failure_class": {"type":"string","enum":["F1","F2","F3","F4","F5","F6","F7","F8","F9","F10"]},
     "failure_code":  {"type":"string"},              // snake_case
     "state":         {"type":"string"},              // e.g., "S0.3"
-    "module":        {"type":"string"},              // e.g., "1A.S6.gumbel"
+    "module":        {"type":"string"},              // e.g., "1A.gumbel_sampler"
     "dataset_id":    {"type":"string"},              // optional
     "merchant_id":   {"type":["string","null"]},
     "parameter_hash":{"type":"string","pattern":"^[0-9a-f]{64}$"},
