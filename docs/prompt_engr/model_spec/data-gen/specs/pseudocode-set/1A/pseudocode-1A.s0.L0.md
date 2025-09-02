@@ -265,6 +265,11 @@ const UINT64_MAX = 18446744073709551615
 function ts_utc_now_rfc3339_nano() -> string:
   # e.g., "2025-04-15T12:34:56.123456789Z" (UTC)
 
+function ts_utc_now_rfc3339_micro() -> string:
+  # RFC-3339 with exactly 6 fractional digits (UTC), e.g. "2025-04-15T12:34:56.123456Z"
+  # Implementation note: round/truncate to microseconds; never emit 3/7/9 digits.
+  # Used by RNG audit row, event envelopes, and trace rows in S0.
+
 # Unsigned 128-bit delta: (after_hi,after_lo) - (before_hi,before_lo)
 function u128_delta(ahi:u64, alo:u64, bhi:u64, blo:u64) -> (hi:u64, lo:u64):
   if alo >= blo:
@@ -304,18 +309,21 @@ function emit_rng_audit_row(seed:u64,
                             platform:string|null,
                             notes:string|null):
   row = {
-    ts_utc:               ts_utc_now_rfc3339_nano(),
+    ts_utc:               ts_utc_now_rfc3339_micro(),
     run_id:               run_id,
     seed:                 seed,
     manifest_fingerprint: manifest_fingerprint,
     parameter_hash:       parameter_hash,
     algorithm:            "philox2x64-10",
+    rng_key_lo:           rng_key_lo,
+    rng_key_hi:           rng_key_hi,
+    rng_counter_lo:       rng_counter_lo,
+    rng_counter_hi:       rng_counter_hi,
     build_commit:         build_commit,
     code_digest:          code_digest,
     hostname:             hostname,
     platform:             platform,
     notes:                notes
-    # optionally expose rng_key_*/rng_counter_* if schema variant includes them
   }
   write_jsonl("logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl", row)
 ```
@@ -327,7 +335,7 @@ function begin_event(module:string, substream_label:string,
                      seed:u64, parameter_hash:hex64, manifest_fingerprint:hex64, run_id:hex32,
                      stream:Stream) -> EventCtx:
   return {
-    ts_utc:  ts_utc_now_rfc3339_nano(),
+    ts_utc:  ts_utc_now_rfc3339_micro(),
     module:  module,
     substream_label: substream_label,
     seed:    seed,
@@ -366,7 +374,9 @@ function end_event_emit(family:string, ctx:EventCtx, stream_after:Stream,
   write_jsonl(path, row)
 ```
 
-### D3. Per-(module,label) RNG trace (cumulative **blocks**)
+### D3. Per-(module,label) RNG trace (cumulative **blocks**) — **DEPRECATED**
+> DEPRECATED: This writer is schema-mismatched and retained temporarily for compatibility.
+> Use **D3b.update_rng_trace_totals(...)** instead (emits draws_total/blocks_total/events_total).
 
 ```text
 function update_rng_trace(module:string, substream_label:string,
@@ -378,18 +388,54 @@ function update_rng_trace(module:string, substream_label:string,
   new_total  = prev_blocks_total + delta_u64
   assert new_total >= prev_blocks_total, "trace_monotone_violation"
   row = {
-    ts_utc:                  ts_utc_now_rfc3339_nano(),
+    ts_utc:                  ts_utc_now_rfc3339_micro(),
     run_id:                  run_id,
     seed:                    seed,
     module:                  module,
     substream_label:         substream_label,
-    # NOTE: schema field is named 'draws:uint64' but this row aggregates **blocks**.
+    # NOTE: DEPRECATED writer. Field name/type are NOT schema-compliant.
+    #       Use D3b.update_rng_trace_totals(...) which emits draws_total/blocks_total/events_total.
     draws:                   new_total,
     rng_counter_before_lo:   before_lo, rng_counter_before_hi: before_hi,
     rng_counter_after_lo:    after_lo,  rng_counter_after_hi:  after_hi
   }
   write_jsonl("logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl", row)
   return new_total
+```
+
+### D3b. Per-(module,label) RNG trace — **schema-compliant totals** (blocks/draws/events)
+
+```text
+# New, spec-compliant writer. Does not replace D3 yet to avoid breaking existing L1 code paths.
+# Emits cumulative integers: draws_total, blocks_total, events_total.
+function update_rng_trace_totals(module:string, substream_label:string,
+                                 seed:u64, parameter_hash:hex64, run_id:hex32,
+                                 before_hi:u64, before_lo:u64, after_hi:u64, after_lo:u64,
+                                 event_draws_hi:u64, event_draws_lo:u64,
+                                 prev_blocks_total:u64, prev_draws_total:u64, prev_events_total:u64)
+                                 -> (u64 new_blocks_total, u64 new_draws_total, u64 new_events_total):
+  (dhi, dlo) = u128_delta(after_hi, after_lo, before_hi, before_lo)
+  delta_blocks  = u128_to_uint64_or_abort(dhi, dlo)
+  inc_draws_u64 = u128_to_uint64_or_abort(event_draws_hi, event_draws_lo)
+  new_blocks_total = prev_blocks_total + delta_blocks
+  new_draws_total  = prev_draws_total + inc_draws_u64
+  new_events_total = prev_events_total + 1
+  assert new_blocks_total >= prev_blocks_total, "trace_monotone_violation"
+  assert new_draws_total  >= prev_draws_total, "trace_monotone_violation"
+  row = {
+    ts_utc:                  ts_utc_now_rfc3339_micro(),
+    run_id:                  run_id,
+    seed:                    seed,
+    module:                  module,
+    substream_label:         substream_label,
+    draws_total:             new_draws_total,
+    blocks_total:            new_blocks_total,
+    events_total:            new_events_total,
+    rng_counter_before_lo:   before_lo, rng_counter_before_hi: before_hi,
+    rng_counter_after_lo:    after_lo,  rng_counter_after_hi:  after_hi
+  }
+  write_jsonl("logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl", row)
+  return (new_blocks_total, new_draws_total, new_events_total)
 ```
 ---
 
