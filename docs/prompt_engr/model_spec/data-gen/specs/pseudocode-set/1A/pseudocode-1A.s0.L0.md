@@ -394,7 +394,8 @@ function emit_rng_audit_row(seed:u64,
     # Invariant: follow schema field names strictly; do not emit any 'code_version' field.
     notes:                notes
   }
-  write_jsonl("logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl", row)
+  path = dict_path_for_family("rng_audit_log", seed, parameter_hash, run_id)
+  write_jsonl(path, row)
 ```
 
 ### D2. Event envelope writer (authoritative counters & budgets)
@@ -473,7 +474,8 @@ function update_rng_trace(module:string, substream_label:string,
     rng_counter_before_lo:   before_lo, rng_counter_before_hi: before_hi,
     rng_counter_after_lo:    after_lo,  rng_counter_after_hi:  after_hi
   }
-  write_jsonl("logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl", row)
+  path = dict_path_for_family("rng_trace_log", seed, parameter_hash, run_id)
+  write_jsonl(path, row)
   return new_total
 ```
 
@@ -508,7 +510,8 @@ function update_rng_trace_totals(module:string, substream_label:string,
     rng_counter_before_lo:   before_lo, rng_counter_before_hi: before_hi,
     rng_counter_after_lo:    after_lo,  rng_counter_after_hi:  after_hi
   }
-  write_jsonl("logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl", row)
+  path = dict_path_for_family("rng_trace_log", seed, parameter_hash, run_id)
+  write_jsonl(path, row)
   return (new_blocks_total, new_draws_total, new_events_total)
 ```
 ---
@@ -596,6 +599,13 @@ function publish_atomic(tmp_dir: path, final_dir: path):
 ### F3. Partition/lineage equivalence check (dictionary-backed)
 
 ```text
+# Dataset scope lists used to validate partition/row lineage equivalence.
+# S0 (L0) has no parameter-scoped datasets; RNG log-scoped are the two below.
+const PARAMETER_SCOPED = []
+const RNG_LOG_SCOPED   = ["rng_audit_log","rng_trace_log"]
+```
+
+```text
 function verify_partition_keys(dataset_id: string,
                                path_keys: map<string,string|u64>,
                                row_embedded: map<string,string|u64>):
@@ -609,13 +619,24 @@ function verify_partition_keys(dataset_id: string,
       got    = { "seed": row_embedded["seed"],
                  "parameter_hash": row_embedded["parameter_hash"],
                  "run_id": row_embedded["run_id"] }
+  elif dataset_id.starts_with("rng_event_"):
+      expect = { "seed": path_keys["seed"],
+                 "parameter_hash": path_keys["parameter_hash"],
+                 "run_id": path_keys["run_id"] }
+      got    = { "seed": row_embedded["seed"],
+                 "parameter_hash": row_embedded["parameter_hash"],
+                 "run_id": row_embedded["run_id"] }
   elif dataset_id == "validation_bundle_1A":
       expect = { "manifest_fingerprint": path_keys["manifest_fingerprint"] }
       got    = { "manifest_fingerprint": row_embedded["manifest_fingerprint"] }
   else:
-      abort_run("F6","dictionary_path_violation", path_keys.seed, path_keys.parameter_hash, path_keys.manifest_fingerprint, path_keys.run_id, {dataset_id:dataset_id}, [])
-  if expect != got:
-      abort_run("F5","partition_mismatch", path_keys.seed, path_keys.parameter_hash, path_keys.manifest_fingerprint, path_keys.run_id, {dataset_id:dataset_id, expected:expect, embedded:got}, [])
+      abort_run("F6","dictionary_path_violation",
+                row_embedded["seed"], row_embedded["parameter_hash"], row_embedded["manifest_fingerprint"], row_embedded["run_id"],
+                { dataset_id: dataset_id, path_keys: path_keys, row_embedded: row_embedded }, [])
+   if expect != got:
+      abort_run("F5","partition_mismatch",
+                row_embedded["seed"], row_embedded["parameter_hash"], row_embedded["manifest_fingerprint"], row_embedded["run_id"],
+                { dataset_id: dataset_id, expected: expect, embedded: got, path_keys: path_keys }, [])
 ```
 
 ### F4. Deterministic run-abort
@@ -639,8 +660,8 @@ function abort_run(failure_class: string, failure_code: string,
     "run_id":        run_id,
     "detail":        detail
   }
-  write_json(tmp + "failure.json", hdr)
-  write_json(tmp + "_FAILED.SENTINEL.json", hdr)
+  write_json(tmp + "/failure.json", hdr)
+  write_json(tmp + "/_FAILED.SENTINEL.json", hdr)
   rename_atomic(tmp, base)    # atomic seal
 
   for p in partial_partitions:
@@ -694,8 +715,8 @@ function dict_path_for_family(family:string, seed:u64, parameter_hash:hex64, run
      tmpl  = "logs/rng/events/{event}/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
      return fill_template(tmpl.replace("{event}", event),
                           { seed: seed, parameter_hash: parameter_hash, run_id: run_id })
-  abort_run("F6","dictionary_family_unknown", 0, "0".repeat(64), "0".repeat(64), "0".repeat(32),
-            {family: family}, [])
+  # Pure helper: signal dictionary miss; the orchestrator will attach lineage via abort_run(...)
+  fail_F2("dictionary_family_unknown", { family: family })
 
 # ---- Writers (append/partition) — host-provided, no semantics beyond bytes ----
 function write_jsonl(path_template: string, row: object):
