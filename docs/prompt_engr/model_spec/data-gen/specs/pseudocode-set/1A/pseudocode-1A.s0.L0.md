@@ -200,6 +200,7 @@ function derive_master_material(seed_u64, manifest_fingerprint_bytes):
 function derive_substream(M, label: string, ids: tuple) -> Stream:
   # Invariant: msg = UER("mlr:1A") || UER(label) || SER(ids); no delimiters; LOW64/BE64 slices are fixed.
   # SER(ids) contract: indices are LE32, 0-based, unsigned; any ISO code in ids MUST be UPPERCASE ASCII before UER (§S0.3.3).
+  # SER v1 accepts only tags {iso, merchant_u64, i, j}; any other tag MUST fail_F2("ser_unsupported_id").
   msg = UER("mlr:1A") || UER(label) || SER(ids)        # no delimiters
   H   = SHA256( M || msg )                              # 32 bytes
   key = LOW64(H)
@@ -931,19 +932,21 @@ This is strictly in `(0,1)` (never 0, never 1). If your FP unit rounds `u==1.0` 
 
 **I2. SER(ids)**
 
-* Each `id` is encoded as:
-
-  * **uint32 indices** (0-based): `LE32(i)` with assert `0 ≤ i ≤ 0xffffffff`.
-  * **ISO codes**: assert *uppercase ASCII*; then `LE32(len(bytes))||bytes`.
-  * **Hex ids**: even length; `LE32(len(bytes))||bytes` (after hex→bytes).
-  * Other strings: UTF-8; `LE32(len(bytes))||bytes`.
+* Allowed tags and encodings (exactly these four; any other tag is unsupported):
+  * **uint32 indices** (0-based): `LE32(i)` with assert `0 ≤ i ≤ 0xffffffff`.  
+    Tags: `i`, `j`.
+  * **ISO codes**: assert *uppercase ASCII*; then `LE32(len(bytes))||bytes`.  
+    Tag: `iso`. (Normalization to uppercase occurs in A1.SER before UER.)
+  * **Merchant identifier (u64)**: `LE64(value)`.  
+    Tag: `merchant_u64`.
+* Any other tag **MUST** raise `F2:ser_unsupported_id` (as in A1.SER).
 
 **Tests**
 
 1. `UER("mlr:1A") = 06 00 00 00 6d 6c 72 3a 31 41`.
 2. `SER([i=0x00000005, iso="US"]) = 05 00 00 00 02 00 00 00 55 53`.
 3. Lowercase ISO `"us"` → **normalized to "US"** (uppercased deterministically, then encoded).
-
+4. `SER([{tag:"hex", value:"DEADBEEF"}])` ⇒ `F2:ser_unsupported_id`
 ---
 
 ### J. Master material & substream messages (hashing)
