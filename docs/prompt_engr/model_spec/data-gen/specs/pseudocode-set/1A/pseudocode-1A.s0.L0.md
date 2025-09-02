@@ -84,19 +84,30 @@ function SER(ids: tuple) -> bytes:
     switch id.tag:
       case "iso":
         v = to_ascii_uppercase(id.value)                     # normalize deterministically
-        assert is_ascii(v) else abort_run("F2","ser_iso_non_ascii",{ value: id.value })
+        assert is_ascii(v) else fail_F2("ser_iso_non_ascii",{ value: id.value })
         out = out || UER(v)  
       case "merchant_u64":  out = out || LE64(id.value)
       case "i":
         assert (id.value >= 0 and id.value <= 0xFFFFFFFF)
-          else abort_run("F2","ser_index_out_of_range",{ tag:"i", value: id.value })
+          else fail_F2("ser_index_out_of_range",{ tag:"i", value: id.value })
         out = out || LE32(id.value)
       case "j":
         assert (id.value >= 0 and id.value <= 0xFFFFFFFF)
-          else abort_run("F2","ser_index_out_of_range",{ tag:"j", value: id.value })
+          else fail_F2("ser_index_out_of_range",{ tag:"j", value: id.value })
         out = out || LE32(id.value)
-      default:              abort_run("F2","ser_unsupported_id",{ tag: id.tag })
+      default:              fail_F2("ser_unsupported_id",{ tag: id.tag })
   return out
+```
+
+### A1b. Pure-L0 failure raiser (typed, no side-effects)
+
+```text
+# L0 pure helpers MUST NOT write failure bundles. They raise a typed Error that L2 catches
+# and maps to abort_run(...). This keeps A2–A4 side-effect free.
+struct Error { failure_class: string, failure_code: string, detail: any }
+
+function fail_F2(code: string, detail: any) -> never:
+  raise Error{ failure_class: "F2", failure_code: code, detail: detail }
 ```
 
 ### A2. Streaming file SHA-256 with race-guard (exact bytes)
@@ -110,8 +121,8 @@ function sha256_stream(path: string, on_param: bool) -> bytes[32]:
   d  = sha256_finalize(H)                  # 32 bytes (raw)
   s2 = stat(path)
   if s1 != s2:
-      if on_param: abort(E_PARAM_RACE, {path, s1, s2})
-      else:        abort(E_ARTIFACT_RACE, {path, s1, s2})
+      if on_param: fail_F2("param_race",    { path: path, before: s1, after: s2 })
+      else:        fail_F2("artifact_race", { path: path, before: s1, after: s2 })
   return d
 ```
 
@@ -120,8 +131,9 @@ function sha256_stream(path: string, on_param: bool) -> bytes[32]:
 ```text
 # Canonical, tuple-hash, name-aware
 function compute_parameter_hash(P_files):
-  assert len(P_files) >= 1                  else abort(E_PARAM_EMPTY)
-  assert all_ascii_unique_basenames(P_files) else abort(E_PARAM_NONASCII_NAME or E_PARAM_DUP_BASENAME)
+  assert len(P_files) >= 1                  else fail_F2("param_empty", { files: len(P_files) })
+  assert all_ascii_unique_basenames(P_files) else fail_F2("basenames_invalid_or_duplicate",
+                                                          { where: "parameters" })
   
   # Invariant: ASCII-sort basenames; tuple = SHA256(UER(name)||digest); NO XOR; final = SHA256(concat tuples).
   files = sort_by_basename_ascii(P_files)
@@ -137,10 +149,11 @@ function compute_parameter_hash(P_files):
 
 # Sorted tuple-hash over opened artefacts + commit + parameter bundle
 function compute_manifest_fingerprint(artifacts, git32, param_b32):
-  assert len(artifacts) >= 1      else abort(E_ARTIFACT_EMPTY)
-  assert len(git32) == 32         else abort(E_GIT_BYTES)
-  assert len(param_b32) == 32     else abort(E_PARAM_HASH_ABSENT)
-  assert all_ascii_unique_basenames(artifacts) else abort(E_ARTIFACT_NONASCII_NAME or E_ARTIFACT_DUP_BASENAME)
+  assert len(artifacts) >= 1                  else fail_F2("artifact_empty", { count: 0 })
+  assert len(git32) == 32                     else fail_F2("git32_invalid", { got_len: len(git32) })
+  assert len(param_b32) == 32                 else fail_F2("param_hash_absent", { got_len: len(param_b32) })
+  assert all_ascii_unique_basenames(artifacts) else fail_F2("basenames_invalid_or_duplicate",
+                                                            { where: "artifacts" })
   # Invariant: artefacts are those opened pre-S0.2; ASCII sort basenames; U=concat(tuple-hashes)||git32||param_b32; final SHA256(U).
   arts = sort_by_basename_ascii(artifacts)
   parts = []
@@ -165,7 +178,8 @@ function derive_run_id(fp_bytes, seed_u64, t_ns_u64, exists: fn(hex32)->bool) ->
       if not exists(rid): return rid
       t_ns_u64 = t_ns_u64 + 1
       attempts = attempts + 1
-      if attempts >= 65536: abort(E_RUNID_COLLISION_EXHAUSTED, {seed_u64})
+      if attempts >= 65536:
+          fail_F2("runid_collision_exhausted", { seed: seed_u64, attempts: attempts })
 ```
 ---
 
@@ -206,6 +220,7 @@ function u01(x: u64) -> f64:
   const TWO_NEG_64    = 0x1.0000000000000p-64
   const ONE_MINUS_EPS = 0x1.fffffffffffffp-1
   # Invariant: u ∈ (0,1); mapping u=(x+1)/(2^64+1). Do NOT alter constants.
+  # (Binary64 note: this literal mapping is the spec-true equivalent of (x+1)/(2^64+1) with a 1.0 clamp.)
   u = ((as_f64(x) + 1.0) * TWO_NEG_64)
   return (u == 1.0) ? ONE_MINUS_EPS : u
 
@@ -647,16 +662,78 @@ function abort(...args):
 ## Z. I/O shims (utility; non-normative signatures)
 
 ```text
+# ---- Minimal dictionary of known families (authoritative names) ----
+# Exact IDs come from the dataset_dictionary / registry for S0 (RNG audit/trace)
+# and the generic events rule matches all rng_event_* families.  See:
+#  - rng_audit_log, rng_trace_log (log-scoped) … per spec & dictionary.
+#  - rng_event_* families route under logs/rng/events/{family}/… (generic rule).
+const DICTIONARY = {
+  "rng_audit_log": {
+     path_template: "logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl"
+  },
+  "rng_trace_log": {
+     path_template: "logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl"
+  }
+}
+
+# ---- Template filler (deterministic token substitution; no normalization) ----
+function fill_template(tmpl:string, vars: map<string,any>) -> string:
+  out = tmpl
+  for (k,v) in vars:
+     out = out.replace("{"+k+"}", stringify(v))
+  return out
+
+# ---- Paths for RNG/event families ----
+function dict_path_for_family(family:string, seed:u64, parameter_hash:hex64, run_id:hex32) -> path:
+  spec = DICTIONARY.get(family)
+  if spec is not None:
+     return fill_template(spec.path_template, { seed: seed, parameter_hash: parameter_hash, run_id: run_id })
+  # Generic mapping for *any* rng_event_* dataset id:
+  if family.starts_with("rng_event_"):
+     event = family.substring(len("rng_event_"))   # e.g., "hurdle_bernoulli"
+     tmpl  = "logs/rng/events/{event}/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
+     return fill_template(tmpl.replace("{event}", event),
+                          { seed: seed, parameter_hash: parameter_hash, run_id: run_id })
+  abort_run("F6","dictionary_family_unknown", 0, "0".repeat(64), "0".repeat(64), "0".repeat(32),
+            {family: family}, [])
+
+# ---- Writers (append/partition) — host-provided, no semantics beyond bytes ----
 function write_jsonl(path_template: string, row: object):
-  # Implementation-specific JSONL append or rotate.
+  # Host appends a single JSON object as one line, choosing/rotating the concrete file
+  # from the template if it contains 'part-*.jsonl'. No normalization of fields/keys.
 
 function open_partitioned_writer(dataset_id: string, partition: map<string,string>) -> Writer:
   # Returns object with .write(row) and .close(); must enforce embedded lineage == path keys.
+  # (L0/L1 verify equality via verify_partition_keys(...); host only provides the handle.)
 
-function dict_path_for_family(family:string, seed:u64, parameter_hash:hex64, run_id:hex32) -> path:
-  spec = DICTIONARY.get(family)       # authoritative mapping from vocab → path template
-  assert spec is not None, "E_DICT_FAMILY_UNKNOWN"
-  return fill_template(spec.path_template, { seed: seed, parameter_hash: parameter_hash, run_id: run_id })
+# ---- Small file I/O helpers used by L0 (abort/publish) ----
+function write_json(path: string, obj: object):
+  # Host writes JSON atomically at 'path'. No key reordering, ASCII/UTF-8 only.
+
+function write_text(path: string, text: string):
+  # Host writes exact text bytes (UTF-8) atomically at 'path'.
+
+function mkdirs(path: string):
+  # Host creates all missing parent directories (idempotent).
+
+function parent(path: string) -> string:
+  # Host returns the parent directory of 'path'.
+
+function uuid4() -> string:
+  # Host returns a random UUID v4 string for temp directories/names.
+
+function atomic_rename(src: string, dst: string):
+  # Host must implement an atomic move (POSIX rename(2)-semantics).
+  # On success, 'dst' becomes visible atomically; on failure, nothing is published.
+
+function rename_atomic(src: string, dst: string):
+  # Compatibility alias; some L0 sections call 'rename_atomic', others 'atomic_rename'.
+  return atomic_rename(src, dst)
+
+# ---- Deterministic bookkeeping hook (no effect on RNG semantics) ----
+function freeze_rng_for_run(seed:u64, parameter_hash:hex64, run_id:hex32):
+  # Optional, host-implemented; may persist a tiny note for forensics.
+  # MUST NOT advance RNG or change any counters/keys; no-op is acceptable.
 ```
 
 > **Serialization note (normative):** Envelope fields carry **numeric values**; byte order (LE/BE) applies only to **derivation** steps (hashing, key/counter construction), never to JSON serialization.
