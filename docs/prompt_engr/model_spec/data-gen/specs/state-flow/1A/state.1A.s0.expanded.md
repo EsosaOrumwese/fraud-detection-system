@@ -31,9 +31,9 @@ validated by `schemas.ingress.layer1.yaml#/merchant_ids`.
 * `merchant_id`: **opaque identifier** (id64 integer, per ingress schema). For all places in 1A that require a 64-bit integer key (e.g., RNG substream keys), the **only** mapping is:
 
   ```
-  merchant_u64 = LOW64( SHA256( UTF8(merchant_id) ) )
+  merchant_u64 = LOW64(SHA256(LE64(merchant_id)))
   ```
-  where `LOW64` takes **bytes 24..31** of the 32-byte SHA-256 digest, interpreted as little-endian u64. **No string formatting** is ever used in this mapping.
+  where `LOW64` takes **bytes 24..31** of the 32-byte SHA-256 digest, interpreted as little-endian u64. **No string formatting** is ever used in this mapping. 
 
 * `mcc`: 4-digit MCC code: **int32 in [0,9999]** per `merchant_ids.mcc` in the ingress schema. (If an enumerated ISO-18245 catalogue is adopted later, this spec will reference that artefact explicitly.)
 
@@ -156,7 +156,7 @@ function S0_1_resolve_universe_and_authority():
       if   ch == "card_present":     row.channel_sym = "CP"
       elif ch == "card_not_present": row.channel_sym = "CNP"
       else:                          abort(E_CHANNEL_VALUE)
-      row.merchant_u64 = LOW64( SHA256( UTF8(row.merchant_id) ) )  # canonical u64 key
+      row.merchant_u64 = LOW64(SHA256(LE64(merchant_id)))  # canonical u64 key
 
   # 5) Freeze run context (pure functions only)
   U = { M: M, I: I, G: G, B: B, authority: JSONSCHEMA_ONLY }
@@ -229,7 +229,12 @@ Create the three lineage keys that make 1A reproducible and auditable:
 
 **Properties:** deterministic; resistant to name/byte collisions; future-proof if 𝓟 grows.
 
-**Storage effect (normative):** *Parameter-scoped* datasets **must** partition by `parameter_hash={parameter_hash}` (e.g., `crossborder_eligibility_flags`, `country_set`, `ranking_residual_cache_1A`, optional `hurdle_pi_probs`).
+**Storage effect (normative):** *Parameter-scoped* datasets **must** partition by `parameter_hash={parameter_hash}` (e.g., `crossborder_eligibility_flags`, optional `hurdle_pi_probs`).
+
+> **Note:** Randomness-bearing allocations such as `country_set` and `ranking_residual_cache_1A` are **not** parameter-scoped and must partition by `seed` (and, when applicable, by `manifest_fingerprint`).
+
+
+
 
 > **Physical row order (normative):** For **Parquet** parameter-scoped datasets, row and row-group order are **unspecified** and **MUST NOT** be relied upon. Consumers **must** treat equality as **row-set** equality; any dependence on physical order is non-conformant.
 
@@ -328,7 +333,7 @@ run_id = hex32(r)
 
 ## Failure semantics
 
-On any `E_PARAM_*`, `E_ARTIFACT_*`, `E_GIT_*`, or race error, **abort the run** (per S0, **or** `E_RUNID_COLLISION_EXHAUSTED` (loop exceeded 2^16), abort the run per S0.9.9). On abort in S0.2, **do not** emit RNG audit/trace; S0.3 hasn’t begun.
+On any `E_PARAM_*`, `E_ARTIFACT_*`, `E_GIT_*`, race error or `E_RUNID_COLLISION_EXHAUSTED` (loop exceeded 2^16) abort the run per S0.9. On abort in S0.2, **do not** emit RNG audit/trace; S0.3 hasn’t begun.
 
 ---
 
@@ -419,8 +424,8 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
 * **Lane policy (normative):**
   * **No caching (normative):** Families that require two uniforms **must not** reuse, pool, or cache normals/uniforms across events. Each event **must** fetch a fresh block per the lane policy.
   * **Clarification:** “Use low lane” means **read `x0` and advance the counter by 1 block**; the high lane `x1` is discarded and **may not** be reused later.
-  * **Single-uniform events:** use **low lane** $x_0$, **discard** $x_1$; advance counter by 1 block; `draws=1`.
-  * **Two-uniform events (e.g., Box–Muller):** use **both lanes** from the same block; advance counter by 1 block; `draws=2`.
+  * **Single-uniform events:** use **low lane** $x_0$, **discard** $x_1$; advance counter by 1 block; `draws="1"`.
+  * **Two-uniform events (e.g., Box–Muller):** use **both lanes** from the same block; advance counter by 1 block; `draws="2"`.
   * No other reuse or caching of lanes is permitted.
 
 ### Event envelope (mandatory fields on **every** RNG event row)
@@ -441,31 +446,36 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
   rng_counter_after_lo:    uint64
   rng_counter_after_hi:    uint64
   blocks:                  uint64   # PHILOX blocks advanced by this event
-  draws:                   string   # decimal-encoded uint128; required; **UNIFORMS** used by this event (family budgets check against this).
+  draws:                   string   # decimal-encoded uint128; required; **UNIFORMS** used by this event (family budgets check against this); e.g., "0", "2").
   payload: { ... }                 # event-specific fields (flattened into top-level fields by the event schema; schema ensures global name uniqueness; name collisions are compile-time schema errors.)
 }
 ```
+
+> **Order note:** Fields are serialized in **lo, hi** order (`*_before_lo`, `*_before_hi`, `*_after_lo`, `*_after_hi`). For arithmetic, form 128-bit integers as the pair **(hi, lo)**, i.e. `U = (hi << 64) | lo`.
+
 * **Module governance (normative):** `module` MUST equal one of the **registered producer names** in the dataset dictionary for 1A (e.g., `1A.hurdle_sampler`, `1A.nb_sampler`, `1A.gumbel_sampler`).
 * **Label governance (normative):** `substream_label` MUST be one of the labels published in the artefact `rng_event_schema_catalog` (manifest_key `mlr.rng.events.schema_catalog`) and validators MUST enforce membership.
 
 
-> **Blocks vs draws (normative):** `blocks = (after_hi,after_lo) − (before_hi,before_lo)` in unsigned 128-bit arithmetic. `draws` = **uniforms used**. Single-uniform families: `(blocks=1, draws=1)`. Two-uniform families (e.g., Box–Muller): `(blocks=1, draws=2)`. Non-consuming: `(blocks=0, draws="0")`. The `blocks` equality is checked by counters; `draws` is checked by family budgets.
+> **Blocks vs draws (normative):** `blocks = (after_hi,after_lo) − (before_hi,before_lo)` in unsigned 128-bit arithmetic. `draws` = **uniforms used**. Single-uniform families: `(blocks=1, draws="1")`. Two-uniform families (e.g., Box–Muller): `(blocks=1, draws="2")`. Non-consuming: `(blocks=0, draws="0")`. The `blocks` equality is checked by counters; `draws` is checked by family budgets.
 
 > **Invariants (normative):**
 > - `blocks` = $(\texttt{after_hi},\texttt{after_lo}) - (\texttt{before_hi},\texttt{before_lo})$ in unsigned 128-bit arithmetic. (authoritative equality check).
 > - `draws` = number of **uniform(0,1)** variates consumed by the event. (independent of the counter delta).
-> - With the lane policy, **single-uniform** events have `(blocks=1, draws=1)`, and **two-uniform** events (Box–Muller) have `(blocks=1, draws=2)`. **Non-consuming** events have `(blocks=0, draws="0")`.
+> - With the lane policy, **single-uniform** events have `(blocks=1, draws="1")`, and **two-uniform** events (Box–Muller) have `(blocks=1, draws="2")`. **Non-consuming** events have `(blocks=0, draws="0")`.
 
 * **Non-consuming** events keep `before == after` and set `blocks = 0`.
 * `module` and `substream_label` must be chosen from the 1A vocabulary registry enumerated in `schemas.layer1.yaml#/rng/events/*`; free-text labels are not allowed.
 
-* When a family-level **uniforms-used** count is relevant **for diagnostics**, include `uniforms: string` (decimal-encoded `uint128`, same domain as `draws`) in `payload` **only for** `gamma_component` and `dirichlet_gamma_vector`; validators MUST require it equals `draws`.
+* When a family-level **uniforms-used** count is relevant **for diagnostics**, may include an optional `uniforms: string` (decimal-encoded `uint128`, same domain as `draws`) in `payload` **only for** `gamma_component` and `dirichlet_gamma_vector`; when present, validators MUST check it equals `draws`.
 
 **Encoding notes (normative):**
-* **Authority (normative):** An event’s envelope `draws` MUST equal the kernel’s computed uniform count for that event. Counters remain the authority for `blocks`; discrepancies are `F4d:rng_budget_violation` (not F4c).
+* **Authority (normative):** An event’s envelope `draws` MUST equal the kernel’s computed uniform count for that event. Counters remain the authority for `blocks`.
+* `blocks` ≠ (`after` − `before`) ⇒ `F4c: rng_counter_mismatch`
+* `draws` ≠ budgeted/actual uniforms ⇒ `F4d: rng_budget_violation`.
 > **Budget table (normative authority for S0):**
-> - `uniform1` (single-uniform families): `(blocks=1, draws=1)`  
-> - `normal` (Box–Muller): `(blocks=1, draws=2)`  
+> - `uniform1` (single-uniform families): `(blocks=1, draws="1")`  
+> - `normal` (Box–Muller): `(blocks=1, draws="2")`  
 > - `gamma_component`: **variable**, per §S0.3.6 (exact actual-use)  
 > - `dirichlet_gamma_vector`: **sum of component** `gamma_component` budgets  
 > - `poisson_component (λ<10)`: **variable**, inversion (§S0.3.7)  
@@ -485,6 +495,7 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
 
 ## S0.3.2 Master seed & initial counter (per run)
 > **LOW64(digest32) (normative):** interpret **bytes 24..31** of the 32-byte SHA‑256 digest as **little‑endian u64** (same convention as §S0.1). **Counters** are always split as `BE64(H[16:24]), BE64(H[24:32])`.
+> **Use of LOW64:** Whenever `LOW64(H)` appears (e.g., key derivation), it refers to this exact LE64 tail-bytes rule.
 
 Let:
 
@@ -576,6 +587,8 @@ Budget & rules:
 * **Envelope requirement (normative):** Each Box–Muller event MUST set `blocks=1` and `draws="2"`.
 * **Numeric policy:** binary64, round-to-nearest-ties-even, FMA **off**, no FTZ/DAZ; evaluation order is as written (per S0.8).
 
+* **Constants (normative):** All decision-critical constants (e.g., `TAU`) **MUST** be provided as **binary64 hex literals**. Recomputing from other constants (e.g., `2*pi`) is forbidden.
+
 ---
 
 ## S0.3.6 Gamma $\Gamma(\alpha,1)$ (Marsaglia–Tsang; exact actual-use budgeting)
@@ -592,7 +605,7 @@ Repeat:
 4. Accept iff $\ln U < \tfrac12 N^2 + d - d v + d\ln v$. If rejected, go to step 1.
 
 On acceptance, return $G=dv$.  
-**Budget per accepted sample:** $2A + B$ uniforms, where $A$ is the number of attempts and $B$ the number of step-2 passes (one on the accepted attempt). There is **no fixed multiple**; the envelope `draws` records the exact count.
+**Budget per accepted sample:** $2A + B$ uniforms, where $A$ is the number of attempts and $B$ is the number of **U draws** (i.e., the attempts with $v>0$, including the final accepted attempt). There is **no fixed multiple**; the envelope `draws` records the exact count.
 
 **Case B: $0 < \alpha < 1$**  (boosting)
 
@@ -613,7 +626,7 @@ Two regimes; **Threshold (normative):** $\lambda^\star = 10$ (spec constant; not
 **Small $\lambda<\lambda^\star$** — **Inversion**
 Draw uniforms $u_1,u_2,\ldots$ and iterate the standard product until it falls below $e^{-\lambda}$.
 
-* **Budget:** variable (≈ $N+1$ uniforms); log exactly in `draws`.
+* **Budget:** variable (**exactly** $K+1$ uniforms, including the stopping draw); log exactly in `draws`.
 
 **Moderate/Large $\lambda\ge\lambda^\star$** — **PTRS (Hörmann-class) rejection (fully specified)**
 Per-attempt draws: **two uniforms** $u,v\sim U(0,1)$ from **one Philox block** (lane policy).
@@ -657,7 +670,7 @@ Two cross-cut logs in addition to per-event logs:
 
 1. **`rng_audit_log`** — **one row at run start** (before any RNG event): `(seed, manifest_fingerprint, parameter_hash, run_id, root key/counter, code version, ts_utc)`.
    **`rng_audit_log` schema (normative minimum):** `{ ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, algorithm, rng_key_hi, rng_key_lo, rng_counter_hi, rng_counter_lo, code_version }`. Field types and names are governed by `schemas.layer1.yaml#/rng/core/rng_audit_log` (authoritative). Audit rows are **core logs**, not RNG events.
-2. **`rng_trace_log`** (**one row per** $(\texttt{module},\texttt{substream_label})$; cumulative **blocks** (unsigned 64-bit) by uint64), with the *current* `(counter_before, counter_after)`.  
+2. **`rng_trace_log`** (**one row per** $(\texttt{module},\texttt{substream_label})$; cumulative **blocks** (unsigned 64-bit), with the *current* `(counter_before, counter_after)`.  
    *(schema: `schemas.layer1.yaml#/rng/core/rng_trace_log`).*  
 
     **Reconciliation (normative):** For each `(module, substream_label)`, `rng_trace_log.blocks_total` MUST be monotone non-decreasing across emissions, and the **final** `blocks_total` MUST equal the **sum of per-event `blocks`** over `rng_event_*` in the same `{seed, parameter_hash, run_id}`. Budget checks use **event `draws`**, not the trace.
@@ -667,7 +680,7 @@ Two cross-cut logs in addition to per-event logs:
 
 **Per-event budget rules are enforced **exactly as specified in §S0.3.1 (Budget table)**.
 
-Envelope invariants:**
+**Envelope invariants:**
 
 * Philox blocks advance consistently with lane policy: single-uniform events advance **one** block (high lane discarded); two-uniform events consume **both lanes** of one block.
 * `rng_counter_after` ≥ `rng_counter_before` lexicographically; non-consuming events keep them equal.
@@ -714,16 +727,20 @@ fn u01(x: u64) -> f64 {
 
 # Single uniform (lane policy)
 fn uniform1(stream: &mut Stream) -> (f64, draws:int) {
+  let (x0, _x1, s2) = philox_block(*stream)   # fetch 1 block; discard high lane
+  *stream = s2
   return (u01(x0), 1)
 }
 
 # Normal Z via Box–Muller (no cache)
 fn normal(stream: &mut Stream) -> (f64, draws:int) {
-  u1 = u01(x0); u2 = u01(x1)
-  r = sqrt(-2.0 * ln(u1))
-  # τ = 2π (fixed constant; binary64 hex literal to avoid libm / macro drift)
+  let (x0, x1, s2) = philox_block(*stream)    # fetch 1 block; use both lanes
+  *stream = s2
+  let u1 = u01(x0); let u2 = u01(x1)
+  let r  = sqrt(-2.0 * ln(u1))
+  # τ = 2π (binary64 hex literal to avoid libm/macro drift)
   const TAU: f64 = 0x1.921fb54442d18p+2;
-  th = TAU * u2
+  let th = TAU * u2
   return (r * cos(th), 2)
 }
 
@@ -2112,7 +2129,10 @@ function abort_run(failure_class, failure_code, ctx):
 # S0.10 — Outputs, Partitions & Validation Bundle (normative, fixed)
 
 ## S0.10.1 Lineage keys (recap; scope of use)
-> **Consumer note (normative):** Egress `outlet_catalogue` does **not** encode cross‑country order; consumers MUST join `country_set.rank` (from S0.1) to obtain rank (0=home; foreigns by Gumbel order).
+> **Consumer note (normative):** Egress `outlet_catalogue` does **not** encode cross‑country order; consumers MUST join `country_set.rank` (materialized in S6; the authority rule is recorded in S0.1) to obtain rank (0=home; foreigns by Gumbel order).
+
+> **Tie-break (LRR, normative):** sort by quantised residual (desc), then **ISO code (ASCII) asc**. Do **not** use Gumbel rank as a secondary key.
+
 
 * **`parameter_hash` (hex64):** partitions **parameter-scoped** artefacts. (S0.2.2)
 * **`manifest_fingerprint` (hex64):** partitions **egress & validation** artefacts. (S0.2.3)
@@ -2280,7 +2300,7 @@ Downstream **must** verify this; mismatch ⇒ treat run as invalid (S0.9/F10).
 
 Two bundles are **equivalent** if:
 
-* `MANIFEST.json` matches byte-for-byte ** 
+* `MANIFEST.json` matches byte-for-byte.
 * all other files match byte-for-byte and `_passed.flag` hashes match.
 
 ---
