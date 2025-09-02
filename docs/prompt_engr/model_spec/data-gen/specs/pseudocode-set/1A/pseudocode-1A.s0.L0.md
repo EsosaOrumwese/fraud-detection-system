@@ -122,6 +122,8 @@ function sha256_stream(path: string, on_param: bool) -> bytes[32]:
 function compute_parameter_hash(P_files):
   assert len(P_files) >= 1                  else abort(E_PARAM_EMPTY)
   assert all_ascii_unique_basenames(P_files) else abort(E_PARAM_NONASCII_NAME or E_PARAM_DUP_BASENAME)
+  
+  # Invariant: ASCII-sort basenames; tuple = SHA256(UER(name)||digest); NO XOR; final = SHA256(concat tuples).
   files = sort_by_basename_ascii(P_files)
   tuples = []
   for (name, path) in files:
@@ -139,6 +141,7 @@ function compute_manifest_fingerprint(artifacts, git32, param_b32):
   assert len(git32) == 32         else abort(E_GIT_BYTES)
   assert len(param_b32) == 32     else abort(E_PARAM_HASH_ABSENT)
   assert all_ascii_unique_basenames(artifacts) else abort(E_ARTIFACT_NONASCII_NAME or E_ARTIFACT_DUP_BASENAME)
+  # Invariant: artefacts are those opened pre-S0.2; ASCII sort basenames; U=concat(tuple-hashes)||git32||param_b32; final SHA256(U).
   arts = sort_by_basename_ascii(artifacts)
   parts = []
   for (name, path) in arts:
@@ -173,6 +176,7 @@ Scope: master material (audit‑only), keyed substreams (order‑invariant), Phi
 ```text
 # Audit-only master material; not used directly for draws
 function derive_master_material(seed_u64, manifest_fingerprint_bytes):
+  # Invariant: domain UER("mlr:1A.master"); key=LOW64(M); ctr=(BE64(M[16:24]), BE64(M[24:32])).
   M = SHA256( UER("mlr:1A.master") || manifest_fingerprint_bytes || LE64(seed_u64) )  # 32 bytes
   root_key = LOW64(M)
   root_ctr = ( BE64(M[16:24]), BE64(M[24:32]) )
@@ -180,6 +184,7 @@ function derive_master_material(seed_u64, manifest_fingerprint_bytes):
 
 # Order-invariant substreams
 function derive_substream(M, label: string, ids: tuple) -> Stream:
+  # Invariant: msg = UER("mlr:1A") || UER(label) || SER(ids); no delimiters; LOW64/BE64 slices are fixed.
   msg = UER("mlr:1A") || UER(label) || SER(ids)        # no delimiters
   H   = SHA256( M || msg )                              # 32 bytes
   key = LOW64(H)
@@ -191,6 +196,7 @@ struct Stream { key: u64, ctr: (u64 hi, u64 lo) }
 # One Philox block; advance counter by +1 (unsigned 128-bit)
 function philox_block(s: Stream) -> (x0:u64, x1:u64, s':Stream):
   (x0, x1) = PHILOX_2x64_10(s.key, s.ctr)
+  # Invariant: advance by exactly +1 block per call.
   s.ctr = add_u128(s.ctr.hi, s.ctr.lo, 1)
   return (x0, x1, s)
 
@@ -198,12 +204,14 @@ function philox_block(s: Stream) -> (x0:u64, x1:u64, s':Stream):
 function u01(x: u64) -> f64:
   const TWO_NEG_64    = 0x1.0000000000000p-64
   const ONE_MINUS_EPS = 0x1.fffffffffffffp-1
+  # Invariant: u ∈ (0,1); mapping u=(x+1)/(2^64+1). Do NOT alter constants.
   u = ((as_f64(x) + 1.0) * TWO_NEG_64)
   return (u == 1.0) ? ONE_MINUS_EPS : u
 
 # Single-uniform draw (enforces lane policy)
 function uniform1(s: Stream) -> (u:f64, s':Stream, draws:uint128):
   (x0, x1, s1) = philox_block(s)   # advance exactly 1 block
+  # Invariant: use LOW lane only; budget=1.
   return (u01(x0), s1, 1)          # use low lane; discard high lane
 ```
 ---
@@ -216,12 +224,14 @@ Scope: Box–Muller normal; Marsaglia–Tsang gamma (α≥1 and α<1 boosting); 
 # Two uniforms from the same block (lane policy)
 function uniform2(s: Stream) -> (u1:f64, u2:f64, s':Stream, draws:uint128):
   (x0, x1, s1) = philox_block(s)
+  # Invariant: consume both lanes from one block; budget=2.
   return (u01(x0), u01(x1), s1, 2)
 
 # Box–Muller (no cache)
 const TAU = 0x1.921fb54442d18p+2
 function normal_box_muller(s: Stream) -> (Z:f64, s':Stream, draws:uint128):
   (u1, u2, s1, dU) = uniform2(s)              # draws=2 (1 block)
+  # Invariant: exactly two uniforms; no cache/reuse; budget propagated verbatim.
   r  = sqrt(-2.0 * ln(u1))
   th = TAU * u2
   Z  = r * cos(th)
@@ -230,6 +240,7 @@ function normal_box_muller(s: Stream) -> (Z:f64, s':Stream, draws:uint128):
 # Gamma (Marsaglia–Tsang), exact actual-use
 function gamma_mt(alpha:f64, s:Stream) -> (G:f64, s':Stream, draws:uint128):
   if alpha >= 1.0:
+      # Invariant: per loop +2 (BM) then +1 (uniform) when accept; returns actual total.
       d = alpha - (1.0/3.0); c = 1.0 / sqrt(9.0 * d)
       total = 0; s1 = s
       loop:
@@ -242,6 +253,7 @@ function gamma_mt(alpha:f64, s:Stream) -> (G:f64, s':Stream, draws:uint128):
           if ln(U) < 0.5*Z*Z + d - d*v + d*ln(v):
               return (d*v, s1, total)
   else:
+      # Invariant: Case-B uses Γ(α+1) then +1 uniform; returns actual total.
       (Gp, s1, dY) = gamma_mt(alpha + 1.0, s)
       (U,  s1, dU) = uniform1(s1)
       return (Gp * pow(U, 1.0/alpha), s1, dY + dU)
@@ -260,6 +272,7 @@ function poisson_ptrs(lambda:f64, s:Stream) -> (K:int, s':Stream, draws:uint128)
   a  = -0.059 + 0.02483*b
   inv_alpha = 1.1239 + (1.1328 / (b - 3.4))
   v_r = 0.9277 - (3.6224 / (b - 2))
+  # Invariant: consumes 2 uniforms per attempt via uniform2; constants are algorithmic, not configurable.
   total = 0; s1 = s
   loop:
       (u, v, s1, dUV) = uniform2(s1); total += dUV
@@ -273,6 +286,7 @@ function poisson_ptrs(lambda:f64, s:Stream) -> (K:int, s':Stream, draws:uint128)
       if lhs <= rhs: return (k, s1, total)
 
 function poisson(lambda:f64, s:Stream) -> (K:int, s':Stream, draws:uint128):
+  # Invariant: split threshold is λ★=10.0 (exact).
   if lambda < 10.0: return poisson_inversion(lambda, s)
   else:             return poisson_ptrs(lambda, s)
 
