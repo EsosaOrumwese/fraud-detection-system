@@ -2,6 +2,33 @@
 
 > Source of truth: `/mnt/data/3rd-updated-expansion.applied.vfinal.txt`. This file is a **faithful, code-agnostic transcription** of the S0 primitives, grouped as Batches A–F. It removes ambiguity, fixes placement, and avoids duplication. All constants, names, and rules are normative.
 
+## S0–L0 Non-regression Invariants (MUST NOT CHANGE)
+
+This header freezes invariants that MUST remain true. Any change requires an explicit version bump + re-validation.
+
+H4 — run_id scope & loop bound
+- run_id is a log partitioner ONLY; it MUST NOT influence RNG or model outputs.  
+- Uniqueness domain is exactly {seed, parameter_hash}.  
+- Bounded uniqueness loop MUST abort at attempts >= 65536 (i.e., ≤ 65,536 tries total).
+
+H5 — SER typed-ID rules
+- SER(ids) MUST uppercase ISO deterministically before UER and assert ASCII.  
+- Indices i, j MUST be unsigned LE32 with 0 ≤ value ≤ 2^32−1; out-of-range aborts.
+
+H6 — Event envelope “draws”
+- draws MUST equal the sampler’s actual uniform count for that event (decimal uint128 string).  
+- Non-consuming events (draws == 0) MUST NOT advance the counter (before == after).  
+- blocks come ONLY from 128-bit counter deltas; no padding draws.
+
+Carry-over criticals (already fixed; do not regress)
+- Timestamps for audit/events/trace: RFC-3339 UTC with exactly 6 fractional digits (microseconds).  
+- RNG audit row MUST include: algorithm="philox2x64-10", rng_key_{hi,lo}, rng_counter_{hi,lo}, and lineage keys.  
+- Trace writer MUST emit integers: draws_total, blocks_total, events_total; legacy trace is DEPRECATED.
+
+Change control
+- Any edit touching these rules requires: (a) doc version bump, (b) updated schema if applicable, (c) L3 validation rerun.
+
+
 ---
 
 ## Batch A — Encoding, hashing, identifiers (pure bytes)
@@ -55,10 +82,19 @@ function SER(ids: tuple) -> bytes:
   out = ""
   for id in ids:
     switch id.tag:
-      case "iso":           out = out || UER(id.value)       # ISO uppercased upstream in S0.1
+      case "iso":
+        v = to_ascii_uppercase(id.value)                     # normalize deterministically
+        assert is_ascii(v) else abort_run("F2","ser_iso_non_ascii",{ value: id.value })
+        out = out || UER(v)  
       case "merchant_u64":  out = out || LE64(id.value)
-      case "i":             out = out || LE32(id.value)
-      case "j":             out = out || LE32(id.value)
+      case "i":
+        assert (id.value >= 0 and id.value <= 0xFFFFFFFF)
+          else abort_run("F2","ser_index_out_of_range",{ tag:"i", value: id.value })
+        out = out || LE32(id.value)
+      case "j":
+        assert (id.value >= 0 and id.value <= 0xFFFFFFFF)
+          else abort_run("F2","ser_index_out_of_range",{ tag:"j", value: id.value })
+        out = out || LE32(id.value)
       default:              abort_run("F2","ser_unsupported_id",{ tag: id.tag })
   return out
 ```
@@ -115,6 +151,8 @@ function compute_manifest_fingerprint(artifacts, git32, param_b32):
   return (Fx, Fb)
 
 # Log-only run id (UER payload; bounded uniqueness loop)
+# NOTE: run_id is a log partitioner only and MUST NOT influence RNG or outputs.
+#       Uniqueness is within the {seed, parameter_hash} scope.
 function derive_run_id(fp_bytes, seed_u64, t_ns_u64, exists: fn(hex32)->bool) -> hex32:
   attempts = 0
   while true:
@@ -124,7 +162,7 @@ function derive_run_id(fp_bytes, seed_u64, t_ns_u64, exists: fn(hex32)->bool) ->
       if not exists(rid): return rid
       t_ns_u64 = t_ns_u64 + 1
       attempts = attempts + 1
-      if attempts > 65536: abort(E_RUNID_COLLISION_EXHAUSTED, {seed_u64})
+      if attempts >= 65536: abort(E_RUNID_COLLISION_EXHAUSTED, {seed_u64})
 ```
 ---
 
@@ -351,10 +389,14 @@ function end_event_emit(family:string, ctx:EventCtx, stream_after:Stream,
   after_lo = stream_after.ctr.lo
   (dhi, dlo) = u128_delta(after_hi, after_lo, ctx.before_hi, ctx.before_lo)
   blocks_u64 = u128_to_uint64_or_abort(dhi, dlo)
+  # Normative: 'draws' MUST equal the sampler's actual uniform count for this event.
+  # Producers (L1) must pass the exact count; this writer serializes it verbatim.
   draws_dec  = u128_to_decimal_string(draws_hi, draws_lo)
 
   if draws_hi==0 and draws_lo==0:
      assert after_hi==ctx.before_hi and after_lo==ctx.before_lo, "non_consuming_counter_change"
+  # Optional sanity: zero-draw events must not advance the counter (covered above);
+  # any further equality checks are enforced by the validator against family budgets.
 
   row = {
     ts_utc:                   ctx.ts_utc,
