@@ -1,6 +1,6 @@
 # L0 — Primitives for 1A.S0 (Batches A–F)
 
-> Source of truth: `/mnt/data/3rd-updated-expansion.applied.vfinal.txt`. This file is a **faithful, code-agnostic transcription** of the S0 primitives, grouped as Batches A–F. It removes ambiguity, fixes placement, and avoids duplication. All constants, names, and rules are normative.
+> Source of truth: `state.1A.s0.expanded.md`. This file is a **faithful, code-agnostic transcription** of the S0 primitives, grouped as Batches A–F. It removes ambiguity, fixes placement, and avoids duplication. All constants, names, and rules are normative.
 
 ## S0–L0 Non-regression Invariants (MUST NOT CHANGE)
 
@@ -758,3 +758,249 @@ function freeze_rng_for_run(seed:u64, parameter_hash:hex64, run_id:hex32):
 ```
 
 > **Serialization note (normative):** Envelope fields carry **numeric values**; byte order (LE/BE) applies only to **derivation** steps (hashing, key/counter construction), never to JSON serialization.
+
+## L0 Capsule Appendix (Normative)
+
+### A. Bytes, hex, and bit-casts (normative)
+
+**A1. Encodings**
+
+* **ASCII** = 7-bit US-ASCII. Reject bytes outside `[0x00..0x7F]` where ASCII is required.
+* **UTF-8** for arbitrary strings.
+* **Hex**: lowercase, even length, no prefix. Parse pairs into bytes; emit pairs per byte (00…ff).
+
+**A2. Endianness primitives**
+
+* `LE16/LE32/LE64(x)`: encode unsigned integer `x` as little-endian bytes of that width; on decode, interpret bytes as little-endian to an **unsigned** integer of that width; reject overflow.
+* `BE64(x)`: same, big-endian 64-bit.
+* **Casting vs encoding**:
+
+  * *Encoding* produces/consumes a byte string and is endianness-defined (LE/BE).
+  * *Bit-cast* preserves raw bit pattern across same-width scalar types (e.g., `u64_bits_to_f64`), **no arithmetic conversion**.
+
+**A3. Bit-cast rules (IEEE-754)**
+
+* `u64_bits_to_f64(b: uint64) -> float64`: reinterpret `b` as the IEEE-754 bit pattern of a `double` (no change). Inverse: `f64_bits_to_u64(d) -> uint64`. NaNs preserved bit-exactly. Denormals permitted.
+
+**A4. Test vectors (must pass)**
+
+1. `LE32(0x78563412) = 12 34 56 78` (bytes shown hex).
+2. Decode `BE64("0000000000000001") = 1`.
+3. `f64_bits_to_u64(u64_bits_to_f64(0x3ff0000000000000)) = 0x3ff0000000000000` (that pattern is `+1.0`).
+
+---
+
+### B. SHA-256 contracts (one-shot & stream)
+
+**B1. One-shot**
+
+* `sha256(bytes) -> 32 raw bytes`.
+* Hex form is lowercase hex of those 32 bytes.
+
+**B2. Streaming**
+
+* `sha256_init()`, `sha256_update(ctx, bytes)`, `sha256_final(ctx)`.
+* **Equivalence**: concatenating updates is exactly equivalent to hashing concatenated bytes once.
+
+**B3. Test vectors (must pass)**
+
+* `SHA256("") = e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`. ([NIST Computer Security Resource Center][1], [di-mgt.com.au][2])
+* `SHA256("abc") = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad`. ([NIST Computer Security Resource Center][1], [di-mgt.com.au][2])
+* Stream equivalence: `update("ab"), update("c")` then `final` **==** one-shot `"abc"` (same digest above).
+
+---
+
+### C. Philox2×64-10 reference core (normative)
+
+**C1. Purpose & domain**
+We use **Philox 2×64 with 10 rounds** as a keyed bijection on two 64-bit words. Each call maps `(ctr0, ctr1, key0)` → `(out0, out1)`. Arithmetic is **unsigned modulo 2^64**; multiplications compute both low and high halves.
+
+**C2. Constants**
+
+* **Multiplier** `M0 = 0xD2B74407B1CE6E93` (64-bit).
+* **Weyl** (round key increment) `W = 0x9E3779B97F4A7C15` (64-bit).
+  These are the standard constants for Philox2x64; the round schedule is: `k_q = k_0 + q*W (mod 2^64)`, for rounds `q=0..9`. (The 4×64 constants listed in WG21 P2075 are different and not used here.) ([thesalmons.org][3])
+
+**C3. Round function (one round `q`)**
+
+```
+# Inputs: (x0, x1) 64-bit words; round key k_q (64-bit)
+hi, lo = mul128(x1, M0)          # hi = ⌊x1*M0 / 2^64⌋, lo = (x1*M0 mod 2^64)
+x0', x1' = hi ^ x0 ^ k_q, lo     # XOR is bitwise on 64-bit words
+```
+
+Apply permutation for n=2: **identity** (no swap) per WG21 wording for n=2. Do this for `q=0..9` with `k_q = (k_0 + q*W) mod 2^64`. Final output is `(x0, x1)` after the 10th round. ([open-std.org][4])
+
+**C4. Counter/key mapping from Stream**
+
+* Given `Stream{key: u64, ctr: u128}`, map `ctr` → two 64-bit words **little-endian**:
+  `ctr0 = low64(ctr)`, `ctr1 = high64(ctr)`. Key `k_0 = key`. (Matches L0 stream definition.)
+
+**C5. 128-bit counter increment**
+After consuming **one Philox block**, add `1` to the 128-bit counter (see Section D).
+
+**C6. Known-Answer Tests (KATs)**
+To prevent drift, implementations **MUST** match Random123’s *Known-Answer Tests* for **philox2x64-10**. Use the official `examples/kat_vectors` file from Random123; filter rows whose method is Philox2x64 with 10 rounds and verify the exact `(counter, key) → (answer)` tuples. These vectors are the industry reference and byte-order independent. ([thesalmons.org][5])
+
+> **Example sources (authoritative):** Random123 “Known Answer Tests” documentation and KAT files. ([thesalmons.org][5])
+
+*Note:* We cite the KAT corpus rather than re-copying; the harness will load a small subset (2–3 tuples) into L3 to assert exact bit-for-bit agreement.
+
+---
+
+### D. 128-bit add (counter math)
+
+**D1. Addition**
+`add128((hi, lo), 1)` = `(hi', lo')` where `lo' = lo + 1 (mod 2^64)` and `hi' = hi + carry` with `carry = 1 if lo == 0xFFFFFFFFFFFFFFFF else 0`.
+
+**D2. Test vectors**
+
+1. `(0x0000...0000, 0xffffffffffffffff) + 1 = (0x0000...0001, 0x0000000000000000)`.
+2. `(0xDEAD_BEEF_0000_0001, 0xFFFFFFFFFFFFFFFE) + 1 = (0xDEAD_BEEF_0000_0001, 0xFFFFFFFFFFFFFFFF)`.
+3. Then `+1` again → `(0xDEAD_BEEF_0000_0002, 0x0000000000000000)`.
+
+---
+
+### E. Open-interval U(0,1) mapping (exact)
+
+Given a 64-bit uniform `x` (low lane), compute:
+
+```
+u = (x + 1) / (2^64 + 1)    # exact, using 128-bit numerator
+```
+
+This is strictly in `(0,1)` (never 0, never 1). If your FP unit rounds `u==1.0` by accident, clamp to `nextafter(1.0, -∞)` as a **defensive** guard (should be unreachable).
+
+**Tests**
+
+* `x=0 → u = 1/(2^64+1)`.
+* `x=2^64−1 → u = 2^64/(2^64+1) < 1`.
+
+---
+
+### F. Clock: `now_ns` contract
+
+* Returns **monotonic** time since an arbitrary epoch, **nanoseconds**, `uint64` modulo wrap.
+* Must not go backwards during a run. OK to differ from wall clock.
+* `ts_utc_now_rfc3339_micro/nano`: Use UTC wall clock; format per RFC-3339; fractional part exactly 6 or 9 digits.
+
+**Tests**
+
+1. `ts_utc_now_rfc3339_micro()` matches regex: `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$`.
+2. Two successive `now_ns()` calls are non-decreasing (allow equality).
+3. `now_ns()` to RFC-3339 via wall-clock is **not** required; they are separate APIs.
+
+---
+
+### G. JSON & atomic rename contracts
+
+**G1. JSON**
+
+* Must be UTF-8, no BOM.
+* Stable key ordering is **not required** unless specified in schema (L0 does not require sorting).
+* Newlines: `\n`; indentation is not normative.
+
+**G2. Atomic write-then-rename**
+
+* Write to `tmp = "{dest}.tmp.{pid}.{random}"`.
+* `fsync(tmp)`, then `rename(tmp, dest)` which must be **atomic** on target FS semantics.
+* After rename, the final file is either the **old** or **new** version; never a torn mix.
+* If `rename` cannot be atomic on platform, fall back to a durable **write to new inode** with `linkat+unlink` semantics to ensure atomic swap.
+
+**Tests**
+
+1. Crash between `fsync(tmp)` and `rename`: on restart, either old `dest` or intact `tmp` remains; recovery picks newest by mtime/size per your harness policy.
+2. Concurrent writers serialized by your lock (outside L0 scope) produce one of the competing complete files, never partial JSON.
+
+---
+
+### H. Host Writer contract & row/partition invariants
+
+**H1. Equality & partitioning invariants**
+
+* **Row equality** = byte-for-byte equal **serialized** row payload.
+* **Partitioning** keys: exactly the schema’s tuple (e.g., `{run_id, stream_label, counter_block}`) in the order specified. Two rows with the same partition key **must** land in the same shard/partition; different partition keys **must not** collide.
+
+**H2. Flush & durability**
+
+* `writer.append(row_bytes)` buffers; `writer.flush()` forces write+fsync (or equivalent) of all previously appended rows in that file segment.
+* `writer.close()` implies `flush()`.
+
+**H3. Idempotence**
+
+* Re-appending the **same** row (same partition, same bytes) is tolerated and results in at most one visible copy in downstream dedupe (downstream policy), but the writer itself is allowed to emit duplicates—L0 only guarantees byte-stable rows and stable partitioning.
+
+**Tests**
+
+1. Two equal serialized rows appended in one session compare equal byte-wise (audit hash equal).
+2. Partition key `(run_id="r", label="L", block=42)` maps to the same on-disk path on repeated runs with identical `run_id`.
+3. `append`→crash→replay append of the same `row_bytes` does not change the bytes-on-disk for that row (dedupe downstream acceptable; writer idempotence by bytes).
+
+---
+
+### I. UER and SER (explicit byte layouts)
+
+**I1. UER(domain: ASCII, label?: ASCII)**
+
+* UER(dom) = `LE32(len(dom)) || dom_ascii_bytes`.
+* UER(dom||label) = `LE32(len(dom))||dom||LE32(len(label))||label` (ASCII only; reject non-ASCII).
+
+**I2. SER(ids)**
+
+* Each `id` is encoded as:
+
+  * **uint32 indices** (0-based): `LE32(i)` with assert `0 ≤ i ≤ 0xffffffff`.
+  * **ISO codes**: assert *uppercase ASCII*; then `LE32(len(bytes))||bytes`.
+  * **Hex ids**: even length; `LE32(len(bytes))||bytes` (after hex→bytes).
+  * Other strings: UTF-8; `LE32(len(bytes))||bytes`.
+
+**Tests**
+
+1. `UER("mlr:1A") = 06 00 00 00 6d 6c 72 3a 31 41`.
+2. `SER([i=0x00000005, iso="US"]) = 05 00 00 00 02 00 00 00 55 53`.
+3. Lowercase ISO `"us"` → **reject** (must be uppercased upstream; L0 now enforces).
+
+---
+
+### J. Master material & substream messages (hashing)
+
+**J1. Master material**
+`M = SHA256( UER("mlr:1A.master") || fingerprint_bytes || LE64(seed) )`. Keys via `LOW64(M or H)`, counters via `BE64(H[16:24]), BE64(H[24:32])`.
+**Substream message** = `UER("mlr:1A") || UER(label) || SER(ids)` (exactly).
+
+*This matches the spec and your L0 stream builder; keep the exact domain strings and byte slices.* ([thesalmons.org][6])
+
+---
+
+### K. Budget / counts agreement (reminder)
+
+Event wrappers **must** pass the **actual** uniform counts (decimal u128 string) computed by kernels into the envelope’s `draws` field. L0 kernels already account precisely; ensure L1/L2 propagate the exact totals. (Authority for `blocks` is counter advancement; `draws` is uniform consumption.)
+
+---
+
+### L. Gamma accept inequality (pinning)
+
+Gamma(MT) acceptance uses strict `<` in L0 (`ln U < …`). This is consistent with one branch of spec prose; we lock this choice to avoid ambiguity. (Measure-zero boundary; no effect on budgets.)
+
+---
+
+### M. Philox conformance harness (how to wire tests)
+
+* L3 should include a tiny loader that reads **2–3** tuples for *philox2x64-10* from the official `kat_vectors` and asserts bit-exact equality. (Examples include `(ctr=(0,0), key=0)`, `(ctr=(~0,~0), key=~0)`, and “digits of π” cases; the file contains all three families.) ([thesalmons.org][7])
+* Keep these vectors separate from your own—treat the Random123 KAT file as authoritative. ([thesalmons.org][5])
+
+---
+
+### Why this closes the drift holes
+
+* **Every primitive** used implicitly in L0 (encodings, endian, bit-casts, hashing, counter math, RNG core) now has unambiguous rules *and* a way to prove compliance (tests).
+* **Philox** is specified down to constants, round math, and counter/key mapping, with a binding to the **Random123 KAT corpus** for numeric verification. That’s the industry’s reference set and avoids “home-made” vectors. ([thesalmons.org][5])
+* **I/O semantics** (atomic rename, JSON constraints) and **writer invariants** are frozen, so host integration can’t pick incompatible defaults.
+
+[1]: https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program/secure-hashing?utm_source=chatgpt.com "Secure Hashing - Cryptographic Algorithm Validation Program"
+[2]: https://www.di-mgt.com.au/sha_testvectors.html?utm_source=chatgpt.com "Test vectors for SHA-1, SHA-2 and SHA-3"
+[3]: https://www.thesalmons.org/john/random123/papers/random123sc11.pdf?utm_source=chatgpt.com "Parallel Random Numbers: As Easy as 1, 2, 3"
+[4]: https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2023/p2075r3.pdf "P2075R3.docx"
+[5]: https://www.thesalmons.org/john/random123/releases/latest/docs/ExamplesREADME.html "Random123-1.09: Examples, Tests and Benchmarks"
+[6]: https://www.thesalmons.org/john/random123/releases/latest/docs/index.html "Random123-1.09: Random123: a Library of Counter-Based Random Number Generators"
+[7]: https://www.thesalmons.org/john/random123/releases/1.04/docs/Release_01Notes.html?utm_source=chatgpt.com "Random123-1.04:"
