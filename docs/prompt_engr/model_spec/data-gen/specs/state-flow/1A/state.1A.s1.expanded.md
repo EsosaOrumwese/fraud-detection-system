@@ -69,7 +69,7 @@ Each hurdle record **must** include the layer envelope fields (names and types p
 * `substream_label` — **literal** `"hurdle_bernoulli"`.
 * Counter words (uint64):
   `rng_counter_before_lo`, `rng_counter_before_hi`, `rng_counter_after_lo`, `rng_counter_after_hi`.
-  *(Producers MUST serialize in this **lo→hi** order; consumers bind by name.)*
+(Object key order is **non-semantic**; names are authoritative. **Producers MAY emit in any order; consumers bind by name.** Compose u128 as `(hi<<64) | lo`.)
 * **`draws`** — **required** decimal u128 **string**: the number of uniforms consumed by **this** event.
 
 **Budget identity (unsigned 128-bit):**
@@ -78,6 +78,9 @@ $$
 \Delta \;\equiv\; \mathrm{u128}(\text{after_hi},\text{after_lo}) - \mathrm{u128}(\text{before_hi},\text{before_lo})
 \;=\; \texttt{parse_u128(draws)}.
 $$
+
+This identity is **scoped to the hurdle family only**. For hurdle, `draws ∈ {"0","1"}`; `blocks ∈ {0,1}` and **must equal** `parse_u128(draws)`. Other RNG families may have `draws ≠ blocks` while still satisfying S0’s counter rules.
+
 
 For hurdle, $\texttt{draws} \in \{"0","1"\}$.
 * Additionally, emit `blocks:uint64` as **required** by S0; for hurdle, `blocks ∈ {0,1}` and **must equal** `parse_u128(draws)`.*
@@ -208,7 +211,7 @@ Under the S0.8 math profile, this keeps $\pi\in[0,1]$ in binary64 and avoids spu
 ## Deterministic vs stochastic and consequences for S1.3
 
 * **Stochastic case** $(0<\pi<1)$: S1.3 will draw **one** $u\in(0,1)$ from the keyed substream, then decide `is_multi = (u < pi)`; budget `draws=1`. (Open-interval mapping and substreaming per S0.3.)
-* **Deterministic case** $(\pi\in\{0,1\})$: S1.3 performs **no draw**; budget `draws=0`; downstream decision is implied by $\pi$ (`is_multi=true` iff `pi==1.0`).
+* **Deterministic case** $(\pi\in\{0.0,1.0\})$: S1.3 performs **no draw**; budget `draws=0`; downstream decision is implied by $\pi$ (`is_multi=true` iff `pi==1.0`).
 
 ---
 
@@ -233,7 +236,7 @@ $$
 These values are **not persisted by S1.2**. They flow directly into:
 
 * **S1.3 (RNG & decision):** determines whether **one** uniform is consumed $(0<\pi<1)$ or **zero** $(\pi\in\{0,1\})$, and—if stochastic—evaluates `is_multi = (u < pi)`.
-* **S1.4 (event payload):** `pi` is a required payload field. `eta` is **not** a normative payload field; if recorded, it belongs to a diagnostic dataset (non-authoritative). S1.4 derives `deterministic` from `pi` and applies the `u` presence rule: `u=null` iff `pi∈{0,1}`, else `u∈(0,1)`.
+* **S1.4 (event payload):** `pi` is a required payload field. `eta` is **not** a normative payload field; if recorded, it belongs to a diagnostic dataset (non-authoritative). S1.4 derives `deterministic` from `pi` and applies the `u` presence rule: `u=null` iff `pi∈{0.0,1.0}`, else `u∈(0,1)`.
 
 ---
 
@@ -256,10 +259,10 @@ The single S1 Validator Checklist (referenced once from S1) must be able to **re
 * **Recompute:** Rebuild $x_m$ (from S0’s frozen encoders) and re-evaluate $\eta,\pi$ using the fixed-order binary64 dot product and the **two-branch logistic**. Assert:
 
   * $\eta$ is finite;
-  * $\pi \in [0,1]$;
+  * $\pi \in [0.0,1.0]$;
   * the recomputed $\pi$ matches the emitted `pi` **bit-for-bit** (binary64).
 * **Determinism equivalences:**
-  $\pi\in\{0,1\} \iff \text{deterministic}=\text{true} \iff \text{draws}=0 \iff u=\text{null}$.
+  $\pi\in\{0.0,1.0\} \iff \text{deterministic}=\text{true} \iff \text{draws}=0 \iff u=\text{null}$.
   Otherwise $0<\pi<1 \iff \text{deterministic}=\text{false} \iff \text{draws}=1 \iff u\in(0,1)$.
 * **Budget prediction link (with S1.3):** From $\pi$, predict `draws` as above and reconcile with the event envelope and the cumulative trace totals for the hurdle substream.
 
@@ -329,17 +332,17 @@ The **base counter** for each $(\ell, m)$ and the **keyed substream** are obtain
 
 ## Envelope budgeting (counter law)
 
-For every RNG event, the envelope must satisfy the S0 budgeting identity:
+For hurdle events, the envelope must satisfy the S0 budgeting identity:
 
 $$
-(\texttt{after_hi},\texttt{after_lo}) - (\texttt{before_hi},\texttt{before_lo})
-\;=\; \text{parse_u128(draws)},
+\mathrm{u128}(\texttt{after_hi},\texttt{after_lo}) - \mathrm{u128}(\texttt{before_hi},\texttt{before_lo})
+\;=\; \texttt{parse_u128(draws)},
 $$
 
 with unsigned 128-bit arithmetic on counters. In the hurdle stream, `draws ∈ {"0","1"}` (the number of uniforms consumed).
 **`blocks` is required**; for hurdle (uint64) it **must** be `0` or `1` and **must equal** `parse_u128(draws)`.
 
-> **Trace model (reconciliation):** The RNG trace is **cumulative** per `(module, substream_label)` within the run (no merchant dimension) and includes `rng_counter_before_{lo,hi}` and `rng_counter_after_{lo,hi}`. For the **final** row per key in a run:
+> **Trace model (reconciliation):** The RNG trace is **cumulative** per `(module, substream_label)` within the run (no merchant dimension) and includes `rng_counter_before_{lo,hi}` and `rng_counter_after_{lo,hi}`. For the **final** row per key in a run: *(as defined in S1.6: select the row with the **maximum** `(after_hi, after_lo)` in unsigned lexicographic order; tie-break by **latest** `ts_utc`)*:
 > 
 > * `draws_total == Σ parse_u128(draws)` (diagnostic; saturating uint64),
 > * `blocks_total == Σ blocks` (normative; saturating uint64),
@@ -363,7 +366,7 @@ with unsigned 128-bit arithmetic on counters. In the hurdle stream, `draws ∈ {
 
 Let $\pi=\pi_m$.
 
-* **Deterministic branch** ($\pi\in{0,1}$).
+* **Deterministic branch** ($\pi\in\{0.0,1.0\}$).
   `draws="0"`; **no** Philox call; set `blocks=0`; envelope has `after == before`.
   Outcome is implied by $\pi$: `is_multi = true` iff `pi == 1.0`; else `false`.
   Payload rules (S1.4): `deterministic=true`, `u=null`.
@@ -386,7 +389,7 @@ Each hurdle event **must** carry the **complete** layer RNG envelope:
 
 `{ ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi, draws, blocks }`
 
-* `module` and `substream_label` are **registry literals** (closed enums).
+* `module` and `substream_label` are **registry-closed literals** (schema-typed as strings; closure enforced by validators/registry).
 * `draws` is a non-negative **u128 encoded as decimal string**; budget identity: `u128(after) − u128(before) = parse_u128(draws)`.
 * `blocks` is a non-negative uint64; for hurdle, `blocks ∈ {0,1}` and **must equal** `parse_u128(draws)`.
 
@@ -432,7 +435,7 @@ For each hurdle record in the run, the validator performs:
 1. **Obtain base counter** for `(label="hurdle_bernoulli", merchant_id)` via the S0 keyed-substream primitive; set `before` accordingly.
 2. **Branch on $\pi$:**
 
-   * If $\pi\in{0,1}$: set `draws="0"`, `blocks=0`, `after=before`, `u=null`, `is_multi=(pi==1.0)`. 
+   * If $\pi\in\{0.0,1.0\}$: set `draws="0"`, `blocks=0`, `after=before`, `u=null`, `is_multi=(pi==1.0)`. 
    * If $0<\pi<1$: fetch **one** uniform $u\in(0,1)$ using the S0 lane policy and `u01`; set `draws="1"`, `blocks=1`, `after=before+1`, `is_multi=(u<pi)`. 
 3. **Emit hurdle event** (S1.4): envelope includes all required fields above; payload includes `merchant_id`, `pi`, `u` (nullable), `is_multi` (boolean), `deterministic` (derived from `pi`).
 4. **Update cumulative RNG trace totals** for `(module, substream_label)` by adding `parse_u128(draws)` to `draws_total` (diagnostic; saturating uint64), adding `blocks` to `blocks_total` (normative; saturating uint64), and `+1` to `events_total`; do **not** create per-event trace rows.
@@ -445,9 +448,9 @@ For each hurdle record in the run, the validator performs:
 
 * **Bit-replay:** Fixing $(x_m,\beta,\texttt{seed},\texttt{parameter_hash},\texttt{manifest_fingerprint})$, both the envelope counters and the pair $(u,\text{is_multi})$ are **bit-identical** under replay.
 * **Consumption:** `draws="1"` **iff** $0<\pi<1$; else `"0"`.
-* **Schema conformance:** `u` and `deterministic` comply with the hurdle event schema: `u=null` iff $\pi\in{0,1}$; `is_multi` is **boolean** only.
+* **Schema conformance:** `u` and `deterministic` comply with the hurdle event schema: `u=null` iff $\pi\in\{0.0,1.0\}$; `is_multi` is **boolean** only.
 * **Order-invariance:** `before` equals the keyed **base counter** for `(label, merchant)`—never a prior label’s `after`.
-* **Gating (forward contract):** Downstream 1A RNG streams appear **iff** `is_multi=true` (stream set obtained via the registry filter; S1 does not enumerate it).
+* **Gating (forward contract):** Downstream 1A RNG streams appear **iff** `is_multi=true`. The stream set is obtained via the dataset dictionary/registry using `owner_subsegment="1A"` and the enumerated list of **gated** 1A RNG dataset ids; S1 does **not** enumerate it.
 
 ---
 
@@ -491,8 +494,8 @@ Every hurdle record **must** carry the complete layer RNG envelope (single sourc
 **Semantics**
 
 * `ts_utc` — RFC-3339 UTC with **exactly 6 fractional digits** and `Z` (microseconds).
-* `module`, `substream_label` — **registry literals**; for this stream `substream_label == "hurdle_bernoulli"`.
-* `rng_counter_*` — 128-bit counters represented as two u64 words; names define the pairing `(lo, hi)`. Object key **order is non-semantic**, but producers **must** use the field names shown (…`_lo`, then …`_hi`).
+* `module`, `substream_label` — **registry-closed literals** (schema-typed as strings; closure enforced by validators/registry); for this stream `substream_label == "hurdle_bernoulli"`.
+* `rng_counter_*` — 128-bit counters represented as two u64 words; names define the pairing `(lo, hi)`. Object key **order is non-semantic**; producers **must** use the exact field names shown (…`_lo` and …`_hi`). Compose u128 as `(hi<<64) | lo`.
 * `draws` — non-negative **u128 encoded as a base-10 string** (no sign; no leading zeros except `"0"`). It is the **authoritative** per-event uniform count.
 * **Budget identity (must hold):**
 
@@ -525,7 +528,7 @@ Fields and types (per the hurdle schema):
 
 **Branch invariants**
 
-* Deterministic ⇒ `u == null` and **no uniform consumed** (`draws="0"`, `blocks=0`).
+Deterministic ⇒ `u == null` and a **non-consuming event** (`draws="0"`, `blocks=0`, `after == before`).
 * Stochastic ⇒ `0 < u < 1`, `is_multi == (u < pi)`, and **exactly one uniform consumed** (`draws="1"`, `blocks=1`).
 
 > The payload is **minimal** and authoritative for the decision; `eta` and any diagnostics are **not** part of this stream (they belong in non-authoritative diagnostic datasets, if present at all).
@@ -562,7 +565,7 @@ Fields and types (per the hurdle schema):
 }
 ```
 
-**Deterministic example (`pi ∈ {0,1}`)**
+**Deterministic example (`pi ∈ {0.0,1.0}`)**
 
 ```json
 {
@@ -600,7 +603,7 @@ Fields and types (per the hurdle schema):
 
 * **Exactly one hurdle row per merchant (per run).** Within `{seed, parameter_hash, run_id}` there is **at most one** hurdle event for each `merchant_id`, and the hurdle row count equals the merchant universe cardinality for that `{parameter_hash}` (from ingress). Writes are **append-only** to `part-*` shards.
 * **Stable partitioning.** The hurdle event dataset is partitioned **only** by `{seed, parameter_hash, run_id}`; **do not** include `manifest_fingerprint`, `module`, or `substream_label` in the path (they are embedded in the envelope).
-* **Module/label stability.** `module` and `substream_label` are **registry literals**. For this stream, `substream_label == "hurdle_bernoulli"`; `module` is the registered producer id (e.g., `"1A.hurdle_sampler"`).
+* **Module/label stability.** `module` and `substream_label` are **registry-closed literals** (schema-typed as strings; closure enforced by validators/registry). For this stream, `substream_label == "hurdle_bernoulli"`; `module` is the registered producer id (e.g., `"1A.hurdle_sampler"`).
 * **Trace linkage (cumulative, substream-scoped).** Maintain a **cumulative** `rng_trace_log` per `(module, substream_label)` (no merchant dimension) within the run, including `rng_counter_before_{lo,hi}` and `rng_counter_after_{lo,hi}`. Totals are **saturating uint64** and equal the **sums** over all hurdle events in the run:
 
   * `draws_total == Σ parse_u128(draws)` (diagnostic; saturating uint64),
@@ -619,15 +622,15 @@ Fields and types (per the hurdle schema):
   * for hurdle: `parse_u128(draws) ∈ {0,1}` and `blocks = parse_u128(draws) = d_m`.
 * **Decision predicate.**
 
-  * If `d_m=0` (deterministic): `pi∈{0,1}`, `u==null`, `deterministic=true`, `after==before`, and `is_multi == (pi==1.0)`.
+  * If `d_m=0` (deterministic): `pi∈{0.0,1.0}`, `u==null`, `deterministic=true`, `after==before`, and `is_multi == (pi==1.0)`.
   * If `d_m=1` (stochastic): regenerate **one** uniform from the keyed substream at `before` (low-lane policy), map via open-interval `u01`, assert `0<u<1` and `(u<pi) == is_multi`; assert `after = before + 1`.
-  * **Trace reconciliation (cumulative, substream-scoped).** For the run, aggregate hurdle events and assert on the **final** trace row:
+**Trace reconciliation (cumulative, substream-scoped).** For the run, aggregate hurdle events and assert on the **final** trace row (the row with the **maximum** `(after_hi, after_lo)` in unsigned lexicographic order; tie-break by **latest** `ts_utc`):
 
   * `trace.draws_total == Σ parse_u128(draws)` (diagnostic; saturating uint64),
   * `trace.blocks_total == Σ blocks` (normative; saturating uint64),
   * `trace.events_total ==` hurdle event count,
   * `u128(trace.after) − u128(trace.before) == trace.blocks_total`.
-* **Gating invariant.** Downstream **1A RNG streams** must appear for a merchant **iff** that merchant’s hurdle event has `is_multi=true`. The set of gated stream IDs is obtained via the **registry filter** (S1 does **not** enumerate names inline).
+* **Gating invariant.** Downstream **1A RNG streams** must appear for a merchant **iff** that merchant’s hurdle event has `is_multi=true`. The set of gated stream IDs is obtained via the dataset dictionary/registry using `owner_subsegment="1A"` and the enumerated list of **gated** 1A RNG dataset ids (S1 does **not** enumerate names inline).
 * **Cardinality & uniqueness.** Hurdle row count equals ingress merchant count for `{parameter_hash}`; uniqueness key is `merchant_id` scoped by `{seed, parameter_hash, run_id}`.
 
 ---
@@ -650,7 +653,7 @@ Fields and types (per the hurdle schema):
 
    * If `pi ∈ {0.0,1.0}`: set `draws="0"`, `blocks=0`, `after=before`, `u=null`, `deterministic=true`, `is_multi=(pi==1.0)`.
    * If `0 < pi < 1`: draw **one** uniform `u∈(0,1)` (low-lane, open-interval `u01`); set `draws="1"`, `blocks=1`, `after=before+1`, `deterministic=false`, `is_multi=(u<pi)`.
-3. **Emit hurdle event.** Envelope includes all required fields (`*_lo` then `*_hi` naming); payload includes `merchant_id` (JSON integer), `pi` (binary64 round-trip), `u:number|null`, `is_multi:boolean`, `deterministic:boolean`.
+3. **Emit hurdle event.** Envelope includes all required fields (`*_lo` and `*_hi` naming; object key order is non-semantic); payload includes `merchant_id` (JSON integer), `pi` (binary64 round-trip), `u:number|null`, `is_multi:boolean`, `deterministic:boolean`.
 4. **Update cumulative trace (substream-scoped).** Increase `draws_total` for `(module, substream_label)` by `parse_u128(draws)` (diagnostic; saturating uint64), and increase `blocks_total` by `blocks` (normative; saturating uint64). Increase `events_total` by 1. Ensure **exactly one** final cumulative record exists per `(module, substream_label)` at state completion.
 
 *(Procedure is normative; S0 remains the authority for PRNG keying, counter arithmetic, lane policy, and `u01`.)*
@@ -693,7 +696,7 @@ If `draws="1"`, regenerate $u$ and assert `(u < pi) == is_multi`. Assert counter
 **Statement.** Let $d_m = \mathbf{1}\{0 < \pi_m < 1\}$. The hurdle consumes exactly `draws = d_m` uniforms and:
 
 * If $0<\pi_m<1$: `after = before + 1`.
-* If $\pi_m \in {0,1}$: `after = before`.
+* If $\pi_m \in \{0.0,1.0\}$: `after = before`.
 
 **Law.** Envelope budgeting must satisfy
 `u128(after) − u128(before) = parse_u128(draws)` (unsigned 128-bit arithmetic). For the hurdle, `draws ∈ {"0","1"}`; blocks is required and must equal `parse_u128(draws)`.
@@ -722,7 +725,7 @@ If `draws="1"`, regenerate $u$ and assert `(u < pi) == is_multi`. Assert counter
 
 **Statement.** Downstream **1A RNG streams** for a merchant appear **iff** that merchant’s hurdle event has `is_multi=true`.
 
-**Authority.** The set of gated stream IDs is obtained via the **registry filter** (e.g., `owner_segment=1A`, `state>S1`, `gated_by_hurdle=true`); S1 does **not** enumerate stream names inline.
+**Authority.** The set of gated stream IDs is obtained via the dataset dictionary/registry using `owner_subsegment="1A"` and the enumerated set of **gated** 1A RNG dataset ids; S1 does **not** enumerate stream names inline.
 
 **Validator.** For each merchant, check presence/absence of all gated streams per the registry list against the merchant’s hurdle `is_multi` value.
 
@@ -867,6 +870,7 @@ Layer schema (envelope anchor + hurdle event schema), dataset dictionary/registr
 **C4. `rng_trace_missing_or_totals_mismatch`**
 **Predicate.** Missing **final cumulative** `rng_trace_log` record for `(module, substream_label)` within the run, **or** its totals ≠ **sum of event budgets** for that key, **or** its **u128** counter delta `u128(after)−u128(before)` ≠ `blocks_total`.
 **Detect at.** Validator aggregate. **Abort run.**
+**Final-row selection rule.** The **final** trace row per `(module, substream_label)` is the row with the **maximum** `(after_hi, after_lo)` in unsigned lexicographic order; ties break by **latest** `ts_utc`.
 
 **C5. `u_out_of_range`**
 **Predicate.** In a stochastic branch, payload `u` not in `(0,1)` (open-interval violation).
@@ -885,7 +889,7 @@ Layer schema (envelope anchor + hurdle event schema), dataset dictionary/registr
 **Predicate.** Payload contradicts branch rules:
 
 * `0<pi<1` but `u` absent/`null` or `deterministic=true`, **or**
-* `pi∈{0,1}` but `u` numeric or `deterministic=false`.
+* `pi∈{0.0,1.0}` but `u` numeric or `deterministic=false`.
   **Detect at.** Writer; validator. **Abort run.**
 
 ---
@@ -906,7 +910,7 @@ Layer schema (envelope anchor + hurdle event schema), dataset dictionary/registr
 
 **F1. `gating_violation_no_prior_hurdle_true`**
 **Predicate.** Any downstream **1A RNG stream** appears for merchant $m$ **without** a conformant hurdle event with `is_multi=true` in the run. (Presence rule; emission order irrelevant.)
-**Detect at.** Validator cross-stream join using the **registry-filtered** set of gated streams. **Run invalid (hard).**
+**Detect at.** Validator cross-stream join using the **dictionary/registry–filtered** set of gated streams. **Run invalid (hard).**
 
 **F2. `duplicate_hurdle_record`**
 **Predicate.** More than one hurdle event for the same merchant within `{seed, parameter_hash, run_id}`.
@@ -959,22 +963,22 @@ Every S1 failure MUST emit a JSON object (alongside the validation bundle / `_FA
 
 ## Where to detect (first line) & who double-checks
 
-| Family / Code                  | First detector (runtime)         | Secondary (validator / CI)                               |
-|--------------------------------|----------------------------------|----------------------------------------------------------|
-| A1–A3 design/β                 | S1.1/S1.2 guards                 | (optional) build lints                                   |
-| B1–B2 numeric invalid          | S1.2 evaluation guards           | Re-eval η, π                                             |
-| C1 envelope schema             | Writer JSON-Schema check         | Validator schema pass                                    |
-| C2 label mismatch              | Writer assertion                 | Validator                                                |
+| Family / Code                  | First detector (runtime)         | Secondary (validator / CI)                                                                                                                |
+|--------------------------------|----------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| A1–A3 design/β                 | S1.1/S1.2 guards                 | (optional) build lints                                                                                                                    |
+| B1–B2 numeric invalid          | S1.2 evaluation guards           | Re-eval η, π                                                                                                                              |
+| C1 envelope schema             | Writer JSON-Schema check         | Validator schema pass                                                                                                                     |
+| C2 label mismatch              | Writer assertion                 | Validator                                                                                                                                 |
 | C3 counter mismatch            | Writer assertion                 | Validator counter math (u128(after)−u128(before) vs **blocks**, and **blocks == parse_u128(draws)**); trace `blocks_total` reconciliation |
-| C4 trace missing/totals mis    | —                                | Trace aggregate vs Σ(event budgets) & counter delta      |
-| C5 u out of range              | Writer check                     | `u01` + recompute                                        |
-| D1 payload schema              | Writer JSON-Schema check         | Validator schema pass                                    |
-| D2 deterministic inconsistency | Writer assertion                 | Recompute branch from π                                  |
-| E1 partition mismatch          | Writer path/embed equality check | Path lint (only `{seed, parameter_hash, run_id}`)        |
-| E2 wrong dataset path          | —                                | Dictionary/registry binding lint                         |
-| F1 gating violation            | —                                | Cross-stream presence check via **registry filter**      |
-| F2 duplicate record            | —                                | Uniqueness check                                         |
-| F3 cardinality mismatch        | —                                | Row count vs ingress merchant set                        |
+| C4 trace missing/totals mis    | —                                | Trace aggregate vs Σ(event budgets) & counter delta                                                                                       |
+| C5 u out of range              | Writer check                     | `u01` + recompute                                                                                                                         |
+| D1 payload schema              | Writer JSON-Schema check         | Validator schema pass                                                                                                                     |
+| D2 deterministic inconsistency | Writer assertion                 | Recompute branch from π                                                                                                                   |
+| E1 partition mismatch          | Writer path/embed equality check | Path lint (only `{seed, parameter_hash, run_id}`)                                                                                         |
+| E2 wrong dataset path          | —                                | Dictionary/registry binding lint                                                                                                          |
+| F1 gating violation            | —                                | Cross-stream presence check via **dataset dictionary/registry** (`owner_subsegment="1A"` + enumerated gated ids)                          |
+| F2 duplicate record            | —                                | Uniqueness check                                                                                                                          |
+| F3 cardinality mismatch        | —                                | Row count vs ingress merchant set                                                                                                         |
 
 > **Gating note:** Enforcement is **presence-based**: downstream gated streams must exist **iff** hurdle `is_multi=true`. No temporal “prior” requirement.
 
@@ -989,9 +993,9 @@ Using the dictionary/registry bindings and schema anchors:
    `u128(after) − u128(before) = parse_u128(draws)` and, for hurdle, `draws ∈ {"0","1"}`; **assert** `blocks = parse_u128(draws)` and `blocks ∈ {0,1}`.
    **Trace reconciliation:** per `(module, substream_label)`, `blocks_total` equals **Σ(event blocks)** (saturating to uint64; normative) and `draws_total` (if recorded) equals **Σ(event draws)** (saturating to uint64; diagnostic).
 3. **Decision:** recompute $\eta,\pi$ (S1.2 rules); if stochastic (`draws="1"`), regenerate one uniform from the keyed **base counter** (low-lane, open-interval `u01`) and assert `0<u<1` and `(u<pi) == is_multi`.
-4. **Deterministic regime:** if `draws="0"`, assert `pi ∈ {0,1}`, `deterministic=true`, and `u == null`.
+4. **Deterministic regime:** if `draws="0"`, assert `pi ∈ {0.0,1.0}`, `deterministic=true`, and `u == null`.
 5. **Partition lint:** path partitions `{seed, parameter_hash, run_id}` equal the embedded envelope; path **must not** include `module`, `substream_label`, or `manifest_fingerprint`.
-6. **Gating:** build the set of **gated 1A RNG streams** from the **registry filter**; for each merchant, presence/absence of those streams is **iff** hurdle `is_multi=true`.
+6. **Gating:** build the set of **gated 1A RNG streams** from the **dataset dictionary/registry** using `owner_subsegment="1A"` and the enumerated **gated** dataset ids; for each merchant, presence/absence of those streams is **iff** hurdle `is_multi=true`. S1 does **not** enumerate names inline.
 7. **Uniqueness & cardinality:** within the run partition, **exactly one** hurdle row per `merchant_id`; hurdle row count equals the ingress merchant cardinality.
 
 ---
@@ -1000,7 +1004,7 @@ Using the dictionary/registry bindings and schema anchors:
 
 * **Numeric invalid (B2).** `pi` is NaN after logistic ⇒ `hurdle_nonfinite_or_oob_pi` ⇒ **abort**.
 * **Envelope gap (C1).** Missing `rng_counter_after_hi` ⇒ `rng_envelope_schema_violation` ⇒ **abort**.
-* **Gating failure (F1).** A gated stream (from the **registry filter**) exists for merchant `m` while hurdle `is_multi=false` or no hurdle event exists ⇒ `gating_violation_no_prior_hurdle_true` ⇒ **run invalid**.
+* **Gating failure (F1).** A gated stream (from the **dataset dictionary/registry**) exists for merchant `m` while hurdle `is_multi=false` or no hurdle event exists ⇒ `gating_violation_no_prior_hurdle_true` ⇒ **run invalid**.
 
 ---
 
@@ -1027,7 +1031,7 @@ logs/rng/events/hurdle_bernoulli/
 **Envelope (shared; required for all RNG events):**
 { ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi, draws, blocks }
 
-* `module`, `substream_label` are **registry literals** (closed enums). For this stream, `substream_label == "hurdle_bernoulli"`.
+`module`, `substream_label` are **registry-closed literals** (schema-typed as strings; closure enforced by validators/registry).
 * **Budget identity (must hold):**
   `u128(after) − u128(before) = parse_u128(draws)` (unsigned 128-bit arithmetic).
   For the hurdle stream, `draws ∈ {"0","1"}` (unit = one 64-bit uniform) and `blocks ∈ {0,1}` and **must equal** `parse_u128(draws)`.
@@ -1036,12 +1040,13 @@ logs/rng/events/hurdle_bernoulli/
 
 **Payload (authoritative, minimal):**
 `{ merchant_id, pi, is_multi, deterministic, u }`
+(Note: `merchant_id` is **required** by the hurdle event schema and appears as a **top-level** field in the event; it is optional in the shared envelope but **mandatory** here by the event schema.)
 
 * `merchant_id` — **id64 integer**.
 * `pi` — JSON number, **binary64 round-trip**, `0.0 ≤ pi ≤ 1.0`.
 * `is_multi` — **boolean**.
 * `deterministic` — **boolean**, derived: `true` iff `pi ∈ {0.0, 1.0}` (binary64).
-* `u` — **required** `number|null`: `u=null` iff `pi ∈ {0,1}`, else `u∈(0,1)` (open interval).
+* `u` — **required** `number|null`: `u=null` iff `pi ∈ {0.0,1.0}`, else `u∈(0,1)` (open interval).
 
 > Diagnostic/context fields (e.g., `eta`, `mcc`, `channel`, `gdp_bucket_id`) are **not** part of this authoritative stream. If materialized, they live in diagnostic datasets only.
 
@@ -1065,8 +1070,10 @@ $$
 * `is_multi` — hurdle outcome (**boolean**) from the event payload.
 * `N` — **target outlet count** for S2 when `is_multi=true`; set `N:=1` on the single-site path.
 * `K` — **non-home country budget**; initialize `K:=0` on the single-site path; multi-site assigns later.
-* `𝓒` — **country set accumulator**; initialize `{ home_iso(m) }`, expand only in S2+/S3+.
-* $C^{\star}$ — the hurdle event’s **post** counter as u128 (`{after_hi, after_lo}`), carried **only for audit**.
+* `𝓒 : \text{set[ISO_3166-1 alpha-2]}` — **country set accumulator**;
+* $C^{\star}$ — the hurdle event’s **post** counter as u128, carried **only for audit**. Represent as either:
+  (i) a **decimal** `u128` string (`rng_counter_after_dec_u128`), or
+  (ii) a labelled struct `{after_hi:uint64, after_lo:uint64}` (no positional tuples).
 
 **Crucial counter rule:**
 Downstream states **do not** chain from $C^{\star}$. Each downstream RNG stream derives its **own base counter** from S0’s keyed-substream mapping using its **own** `(module, substream_label, merchant_id)`; there is **no cross-label counter chaining**.
@@ -1080,7 +1087,7 @@ Downstream states **do not** chain from $C^{\star}$. Each downstream RNG stream 
 
 ## C) Downstream visibility (for validation & joins)
 
-Validators discover **gated** 1A RNG streams via the **registry filter** (e.g., `owner_segment=1A`, `state>S1`, `gated_by_hurdle=true`) and expect those streams to be **present iff** `is_multi=true` for a merchant. S1 does **not** enumerate stream names inline.
+Validators discover **gated** 1A RNG streams via the dataset dictionary/registry using `owner_subsegment="1A"` and the enumerated set of **gated** 1A RNG dataset ids. Those streams must be **present iff** `is_multi=true` for a merchant. S1 does **not** enumerate names inline.
 
 ---
 
@@ -1117,7 +1124,7 @@ OUTPUT:
   Xi_m = (is_multi, N, K, C_set, C_star)
 
 1  is_multi := hurdle_event.payload.is_multi                 # boolean
-2  C_star   := (envelope.rng_counter_after_hi, envelope.rng_counter_after_lo)  # audit only
+2  C_star   := envelope.rng_counter_after_dec_u128  # or {after_hi, after_lo}; audit only
 
 3  if is_multi == false:
 4      N := 1
@@ -1162,7 +1169,7 @@ Validator logic is **order-invariant** (shard/emit order is irrelevant) and uses
        seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
      ```
    * **RNG trace (cumulative)** — per **(module, substream_label)** totals **and** `rng_counter_before/after` for the run (no merchant dimension; append-safe; take the **final** row per key).
-   * **Downstream gated streams** — discovered via the **registry filter** (e.g., `owner_segment=1A`, `state>S1`, `gated_by_hurdle=true`). S1 does **not** enumerate names inline.
+   * **Downstream gated streams** — discovered via the dataset dictionary/registry using `owner_subsegment="1A"` and the enumerated set of **gated** 1A RNG dataset ids. S1 does **not** enumerate names inline.
 3. **Design/β artefacts:** frozen encoders/dictionaries and the single-YAML hurdle coefficients bundle (β).
 4. **Lineage keys:** `{seed, parameter_hash, manifest_fingerprint, run_id}` from path + envelope; the **shared RNG envelope** is mandatory for each event.
 
@@ -1193,11 +1200,11 @@ Validate **every** hurdle record against:
 
 * **Envelope (complete):**
   `ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi, draws, blocks`.
-  (`module`/`substream_label` are **registry literals**; `draws` is **u128 as a decimal string**.)
+  (`module`/`substream_label` are **registry-closed literals**; `draws` is **u128 as a decimal string**).
 * **Payload (minimal, authoritative):**
   `merchant_id` (**id64 JSON integer**), `pi` (**binary64 round-trip**, `0.0 ≤ pi ≤ 1.0`),
   `is_multi` (**boolean**), `deterministic` (**boolean**, derived from `pi`),
-  `u` (**required** with type **number|null**: `null` iff `pi ∈ {0,1}`, else `u∈(0,1)`).
+  `u` (**required** with type **number|null**: `null` iff `pi ∈ {0.0,1.0}`, else `u∈(0,1)`).
 
 > No diagnostic/context fields (e.g., `eta`, `mcc`, `channel`, `gdp_bucket_id`) are allowed in this authoritative stream.
 
@@ -1228,7 +1235,7 @@ Let the label be the registry literal `substream_label="hurdle_bernoulli"`.
 4. **Lane policy:** assert `delta ∈ {0,1}`.
 5. **Stochastic vs deterministic:**
 
-   * If `draws_expected = 0`: assert `pi ∈ {0,1}`, `u == null`, `deterministic == true`, and `is_multi == (pi == 1.0)`.
+   * If `draws_expected = 0`: assert `pi ∈ {0.0,1.0}`, `u == null`, `deterministic == true`, and `is_multi == (pi == 1.0)`.
    * If `draws_expected = 1`: regenerate **one** uniform from the keyed substream at `before` (low lane), map via **open-interval** `u01`, assert `0<u<1` and `(u < pi) == is_multi`.
 
 **Trace reconciliation (cumulative):** For the **final** trace row per `(module, substream_label)`:
@@ -1241,7 +1248,7 @@ Let the label be the registry literal `substream_label="hurdle_bernoulli"`.
 ## V6. Cross-stream gating (branch purity)
 
 Let $\mathcal{H}_1=\{m\mid \text{hurdle.is\_multi}(m)=\text{true}\}$.
-Build the **set of gated 1A RNG streams** via the **registry filter**. For **every** row in any gated stream, assert `merchant_id ∈ 𝓗₁`. For merchants **not** in $𝓗_1$, assert **no** gated rows exist. *(Presence-based; no temporal ordering requirement.)*
+Build the **set of gated 1A RNG streams** via the dataset dictionary/registry (`owner_subsegment="1A"` with the enumerated gated dataset ids). For **every** row in any gated stream, assert `merchant_id ∈ 𝓗₁`. For merchants **not** in $𝓗_1$, assert **no** gated rows exist. *(Presence-based; no temporal ordering requirement.)*
 
 ---
 
@@ -1332,8 +1339,7 @@ Emit **one JSON object per failure** with envelope lineage and a precise code:
 
 1. **Schema:** validate hurdle + trace rows against schema anchors; fail fast.
 2. **Partition:** path ↔ embedded equality on `{seed, parameter_hash, run_id}`; then check envelope literals (`module`, `substream_label`); ensure **no fingerprint in path**.
-3. **Replay:** ... reconcile cumulative per-substream trace totals **and**
-   check `u128(trace.after) − u128(trace.before) == trace.blocks_total` on the final trace row per (`module`, `substream_label`).
+3. **Replay:** Recompute `η=βᵀx` and `π=σ(η)` (two-branch logistic, no clamps). For rows with `0<π<1`, regenerate **one** uniform from the keyed substream at `rng_counter_before` (low-lane, open-interval `u01`) and assert the Bernoulli outcome matches the event record. Then reconcile cumulative per-substream **trace totals** and the **final trace row** as specified in **S1.V (Trace reconciliation)**.
 4. **Gating:** enforce **presence-based** rule: gated streams exist **iff** `is_multi=true`.
 5. **Cardinality/uniqueness:** exactly one hurdle row per merchant; counts match ingress.
 
