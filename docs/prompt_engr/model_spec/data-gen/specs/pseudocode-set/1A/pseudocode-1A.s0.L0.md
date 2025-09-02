@@ -219,8 +219,8 @@ function philox_block(s: Stream) -> (x0:u64, x1:u64, s':Stream):
 function u01(x: u64) -> f64:
   const TWO_NEG_64    = 0x1.0000000000000p-64
   const ONE_MINUS_EPS = 0x1.fffffffffffffp-1
-  # Invariant: u ∈ (0,1); mapping u=(x+1)/(2^64+1). Do NOT alter constants.
-  # (Binary64 note: this literal mapping is the spec-true equivalent of (x+1)/(2^64+1) with a 1.0 clamp.)
+  # Invariant: u ∈ (0,1). Use binary64 hex-literal mapping u=((as_f64(x)+1.0)*0x1.0000000000000p-64); never compute 1/(2^64+1).
+  # Binary64 note: if u rounds to 1.0, remap to 0x1.fffffffffffffp-1.
   u = ((as_f64(x) + 1.0) * TWO_NEG_64)
   return (u == 1.0) ? ONE_MINUS_EPS : u
 
@@ -358,7 +358,7 @@ function u128_to_decimal_string(hi:u64, lo:u64) -> string:
   # Deterministic base-1e19 chunking or repeated div/mod 10; no locale.
 
 function u128_to_uint64_or_abort(hi:u64, lo:u64) -> u64:
-  assert hi == 0 and lo <= UINT64_MAX, "F4d:rng_budget_violation"
+  assert hi == 0 and lo <= UINT64_MAX, "F4c:rng_counter_mismatch"
   return lo
 ```
 
@@ -366,6 +366,7 @@ function u128_to_uint64_or_abort(hi:u64, lo:u64) -> u64:
 
 ```text
 function emit_rng_audit_row(seed:u64,
+  # NOTE: S0 audit/trace/events MUST use ts_utc_now_rfc3339_micro(); failures use now_ns().
                             parameter_hash:hex64,
                             manifest_fingerprint:hex64,
                             run_id:hex32,
@@ -449,34 +450,17 @@ function end_event_emit(family:string, ctx:EventCtx, stream_after:Stream,
   write_jsonl(path, row)
 ```
 
-### D3. Per-(module,label) RNG trace (cumulative **blocks**) — **DEPRECATED**
+### D3. Per-(module,label) RNG trace (cumulative **blocks**) — **REMOVED (use `D3b.update_rng_trace_totals`)**
 > DEPRECATED: This writer is schema-mismatched and retained temporarily for compatibility.
 > Use **D3b.update_rng_trace_totals(...)** instead (emits draws_total/blocks_total/events_total).
 
 ```text
 function update_rng_trace(module:string, substream_label:string,
+  # REMOVED: schema-mismatched; do not use this writer. Use D3b.update_rng_trace_totals(...) instead.
+  fail_F2("deprecated_trace_writer_removed",{ module: module, substream_label: substream_label })
                           seed:u64, parameter_hash:hex64, run_id:hex32,
                           before_hi:u64, before_lo:u64, after_hi:u64, after_lo:u64,
                           prev_blocks_total:u64) -> u64:
-  (dhi, dlo) = u128_delta(after_hi, after_lo, before_hi, before_lo)
-  delta_u64  = u128_to_uint64_or_abort(dhi, dlo)
-  new_total  = prev_blocks_total + delta_u64
-  assert new_total >= prev_blocks_total, "trace_monotone_violation"
-  row = {
-    ts_utc:                  ts_utc_now_rfc3339_micro(),
-    run_id:                  run_id,
-    seed:                    seed,
-    module:                  module,
-    substream_label:         substream_label,
-    # NOTE: DEPRECATED writer. Field name/type are NOT schema-compliant.
-    #       Use D3b.update_rng_trace_totals(...) which emits draws_total/blocks_total/events_total.
-    draws:                   new_total,
-    rng_counter_before_lo:   before_lo, rng_counter_before_hi: before_hi,
-    rng_counter_after_lo:    after_lo,  rng_counter_after_hi:  after_hi
-  }
-  path = dict_path_for_family("rng_trace_log", seed, parameter_hash, run_id)
-  write_jsonl(path, row)
-  return new_total
 ```
 
 ### D3b. Per-(module,label) RNG trace — **schema-compliant totals** (blocks/draws/events)
@@ -842,7 +826,7 @@ After consuming **one Philox block**, add `1` to the 128-bit counter (see Sectio
 **C6. Known-Answer Tests (KATs)**
 To prevent drift, implementations **MUST** match Random123’s *Known-Answer Tests* for **philox2x64-10**. Use the official `examples/kat_vectors` file from Random123; filter rows whose method is Philox2x64 with 10 rounds and verify the exact `(counter, key) → (answer)` tuples. These vectors are the industry reference and byte-order independent. ([thesalmons.org][5])
 
-> **Example sources (authoritative):** Random123 “Known Answer Tests” documentation and KAT files. ([thesalmons.org][5])
+> **Example sources (citations; not runtime dependencies):** Random123 “Known Answer Tests” documentation and KAT files. ([thesalmons.org][5])
 
 *Note:* We cite the KAT corpus rather than re-copying; the harness will load a small subset (2–3 tuples) into L3 to assert exact bit-for-bit agreement.
 
@@ -866,15 +850,15 @@ To prevent drift, implementations **MUST** match Random123’s *Known-Answer Tes
 Given a 64-bit uniform `x` (low lane), compute:
 
 ```
-u = (x + 1) / (2^64 + 1)    # exact, using 128-bit numerator
+u = ((as_f64(x) + 1.0) * 0x1.0000000000000p-64)    # binary64 hex-literal scale
 ```
 
 This is strictly in `(0,1)` (never 0, never 1). If your FP unit rounds `u==1.0` by accident, clamp to `nextafter(1.0, -∞)` as a **defensive** guard (should be unreachable).
 
 **Tests**
 
-* `x=0 → u = 1/(2^64+1)`.
-* `x=2^64−1 → u = 2^64/(2^64+1) < 1`.
+* `x=0 → u = 0x1.0000000000000p-64`.
+* `x=2^64−1 → u == 1.0 → remapped to 0x1.fffffffffffffp-1`.
 
 ---
 
@@ -958,7 +942,7 @@ This is strictly in `(0,1)` (never 0, never 1). If your FP unit rounds `u==1.0` 
 
 1. `UER("mlr:1A") = 06 00 00 00 6d 6c 72 3a 31 41`.
 2. `SER([i=0x00000005, iso="US"]) = 05 00 00 00 02 00 00 00 55 53`.
-3. Lowercase ISO `"us"` → **reject** (must be uppercased upstream; L0 now enforces).
+3. Lowercase ISO `"us"` → **normalized to "US"** (uppercased deterministically, then encoded).
 
 ---
 
@@ -986,8 +970,8 @@ Gamma(MT) acceptance uses strict `<` in L0 (`ln U < …`). This is consistent wi
 
 ### M. Philox conformance harness (how to wire tests)
 
-* L3 should include a tiny loader that reads **2–3** tuples for *philox2x64-10* from the official `kat_vectors` and asserts bit-exact equality. (Examples include `(ctr=(0,0), key=0)`, `(ctr=(~0,~0), key=~0)`, and “digits of π” cases; the file contains all three families.) ([thesalmons.org][7])
-* Keep these vectors separate from your own—treat the Random123 KAT file as authoritative. ([thesalmons.org][5])
+* L3 should include a tiny loader that reads **2–3** tuples from a **vendored** KAT file (checked-in) for each method (Philox, Threefry, ARS; the file contains all three families.) ([thesalmons.org][7])
+* Keep these vectors separate from your own. Vendor a copy of the Random123 KAT file; treat it as the authoritative source (no network fetches). ([thesalmons.org][5])
 
 ---
 
