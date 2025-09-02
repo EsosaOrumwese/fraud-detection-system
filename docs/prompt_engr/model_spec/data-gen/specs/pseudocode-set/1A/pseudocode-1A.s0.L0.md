@@ -185,6 +185,7 @@ function derive_master_material(seed_u64, manifest_fingerprint_bytes):
 # Order-invariant substreams
 function derive_substream(M, label: string, ids: tuple) -> Stream:
   # Invariant: msg = UER("mlr:1A") || UER(label) || SER(ids); no delimiters; LOW64/BE64 slices are fixed.
+  # SER(ids) contract: indices are LE32, 0-based, unsigned; any ISO code in ids MUST be UPPERCASE ASCII before UER (§S0.3.3).
   msg = UER("mlr:1A") || UER(label) || SER(ids)        # no delimiters
   H   = SHA256( M || msg )                              # 32 bytes
   key = LOW64(H)
@@ -250,7 +251,7 @@ function gamma_mt(alpha:f64, s:Stream) -> (G:f64, s':Stream, draws:uint128):
           if v <= 0.0: continue
           (U, s1, dU) = uniform1(s1)             # +1 uniform
           total += dU
-          if ln(U) < 0.5*Z*Z + d - d*v + d*ln(v):
+          if ln(U) < 0.5*Z*Z + d - d*v + d*ln(v):  # spec choice: strict '<' (not '≤'); validators must match this L0 behavior.
               return (d*v, s1, total)
   else:
       # Invariant: Case-B uses Γ(α+1) then +1 uniform; returns actual total.
@@ -375,6 +376,7 @@ function emit_rng_audit_row(seed:u64,
     code_digest:          code_digest,
     hostname:             hostname,
     platform:             platform,
+    # Invariant: follow schema field names strictly; do not emit any 'code_version' field.
     notes:                notes
   }
   write_jsonl("logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl", row)
@@ -403,6 +405,7 @@ function end_event_emit(family:string, ctx:EventCtx, stream_after:Stream,
   after_lo = stream_after.ctr.lo
   (dhi, dlo) = u128_delta(after_hi, after_lo, ctx.before_hi, ctx.before_lo)
   blocks_u64 = u128_to_uint64_or_abort(dhi, dlo)
+  # Guard MUST sit at emit-time: blocks must fit into uint64 or abort (F4d). Never cast elsewhere.
   # Normative: 'draws' MUST equal the sampler's actual uniform count for this event.
   # Producers (L1) must pass the exact count; this writer serializes it verbatim.
   draws_dec  = u128_to_decimal_string(draws_hi, draws_lo)
