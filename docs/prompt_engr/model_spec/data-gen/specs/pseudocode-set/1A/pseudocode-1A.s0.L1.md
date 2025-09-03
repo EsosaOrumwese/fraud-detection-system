@@ -106,7 +106,7 @@ function enforce_domains_and_map_channel(M, I):
       # Channel mapping (normative)
       if ch_in == "card_present":     ch = "CP"
       elif ch_in == "card_not_present": ch = "CNP"
-      else:                             abort("E_CHANNEL_VALUE")
+      else:                             fail_F2("E_CHANNEL_VALUE", {})
       M1.append({ merchant_id: row.merchant_id,
                   mcc: k, channel_sym: ch, home_country_iso: c })
   return M1
@@ -119,14 +119,14 @@ function enforce_domains_and_map_channel(M, I):
 ## 5) `derive_merchant_u64(M′) → M″`
 
 **Purpose:** produce the canonical 64-bit key for any place that needs a u64 (e.g., RNG substreams).
-**Mapping (normative):**
-`merchant_u64 = LOW64( SHA256( UTF8(merchant_id) ) )` where **`LOW64` = bytes 24..31** of the 32-byte digest, interpreted as **little-endian u64**. **No string formatting** is ever used.
+**Mapping (normative):**  
+`merchant_u64 = LOW64( SHA256( LE64(merchant_id) ) )` where we pick bytes 24..31 and interpret as **little-endian u64**. **No string formatting** is ever used.
 
 ```text
 function derive_merchant_u64(M1):
   M2 = []
   for row in M1:
-      d = SHA256( UER(row.merchant_id) )
+      d = SHA256( LE64(row.merchant_id) )
       u = LOW64(d)      # pick bytes 24..31, interpret LE u64
       M2.append(row ∪ { merchant_u64: u })
   return M2
@@ -282,8 +282,8 @@ function derive_run_id(fp_bytes, seed_u64, t_ns, exists_fn):
       if not exists_fn(rid): return rid
       t_ns = t_ns + 1
       attempts = attempts + 1
-      if attempts > 65536:
-          abort("E_RUNID_COLLISION_EXHAUSTED", {seed:seed_u64})
+      if attempts >= 65536:
+          fail_F2("E_RUNID_COLLISION_EXHAUSTED", {seed:seed_u64})
 ```
 
 *Exactly the spec’s UER payload + bounded loop; S0.2 consumes **no RNG**.*
@@ -373,9 +373,9 @@ end_event_emit(family, ctx, stream_after, draws_hi, draws_lo, payload)
 return update_rng_trace(ctx.module, ctx.substream_label, ctx.seed, ctx.parameter_hash, ctx.run_id,
                         ctx.before_hi, ctx.before_lo, stream_after.ctr.hi, stream_after.ctr.lo,
                         prev_blocks_total)
-function event_gumbel_key(master, ids, prev_trace:uint64, meta) -> (g:f64, stream:Stream, new_trace:uint64):
+function event_gumbel_key(master, ids, module:string, prev_trace:uint64, meta) -> (g:f64, stream:Stream, new_trace:uint64):
   s  = derive_substream(master, "gumbel_key", ids)                      # label fixed by schema vocab
-  ctx = begin_event_ctx("S0", "gumbel_key", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
+  ctx = begin_event_ctx(module, "gumbel_key", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
   (g, s1, d) = gumbel_key(s)                                            # L0 C5; draws = 1; blocks = 1
   payload = { key: g }                                                  # per-event schema payload
   new_total = end_event_and_trace("rng_event_gumbel_key", ctx, s1, 0, d, payload, prev_trace)
@@ -389,9 +389,9 @@ function event_gumbel_key(master, ids, prev_trace:uint64, meta) -> (g:f64, strea
 ### 4.b `gamma_mt` (Marsaglia–Tsang; **actual-use** budgeting)
 
 ```text
-function event_gamma_component(master, ids, alpha:f64, prev_trace:uint64, meta) -> (G:f64, stream:Stream, new_trace:uint64):
+function event_gamma_component(master, ids, module:string, alpha:f64, prev_trace:uint64, meta) -> (G:f64, stream:Stream, new_trace:uint64):
   s  = derive_substream(master, "gamma_component", ids)
-  ctx = begin_event_ctx("S0", "gamma_component", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
+  ctx = begin_event_ctx(module, "gamma_component", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
   (G, s1, total) = gamma_mt(alpha, s)                                   # L0 C2; Case-B = draws(G') + 1 (normative)
   payload = { alpha: alpha, value: G }
   new_total = end_event_and_trace("rng_event_gamma_component", ctx, s1, 0, total, payload, prev_trace)
@@ -405,9 +405,9 @@ function event_gamma_component(master, ids, alpha:f64, prev_trace:uint64, meta) 
 ### 4.c `poisson` (inversion / PTRS split)
 
 ```text
-function event_poisson_component(master, ids, lambda:f64, context:string, prev_trace:uint64, meta) -> (K:int, stream:Stream, new_trace:uint64):
+function event_poisson_component(master, ids, module:string, lambda:f64, context:string, prev_trace:uint64, meta) -> (K:int, stream:Stream, new_trace:uint64):
   s  = derive_substream(master, "poisson_component", ids)
-  ctx = begin_event_ctx("S0", "poisson_component", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
+  ctx = begin_event_ctx(module, "poisson_component", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
   (K, s1, total) = poisson(lambda, s)                                   # L0 C3; inversion if λ<10, PTRS else (2 uniforms/attempt)
   payload = { lambda: lambda, context: context, k: K }
   new_total = end_event_and_trace("rng_event_poisson_component", ctx, s1, 0, total, payload, prev_trace)
@@ -419,18 +419,27 @@ function event_poisson_component(master, ids, lambda:f64, context:string, prev_t
 ---
 
 ### 4.d ZTP “rejection/exhaustion” (non-consuming) and success
+> **Payload contract (normative):** The payloads for the following ZTP markers **MUST** conform exactly to the
+> dictionary/schema entries:
+> 
+> - `rng_event_ztp_rejection` → `schemas.layer1.yaml#/rng/events/ztp_rejection`  
+> - `rng_event_ztp_retry_exhausted` → `schemas.layer1.yaml#/rng/events/ztp_retry_exhausted`
+> 
+> This file (L1) does not redefine those fields; implementers **must** serialize precisely the fields/types named in the
+> schema refs above. These events are **non-consuming** (`blocks=0`, `draws="0"`) and only carry ZTP control metadata.
+> The subsequent successful `poisson_component(context="ztp")` event carries the actual budget.
 
 ```text
 # Non-consuming event when ZTP discards a zero draw; envelope: before==after, blocks=0, draws="0".
-function event_ztp_rejection(master, ids, prev_trace:uint64, meta, before:Stream, after:Stream) -> uint64:
-  ctx = begin_event_ctx("S0", "ztp_rejection", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, before)
-  new_total = end_event_and_trace("rng_event_poisson_component", ctx, after, 0, 0, {context:"ztp_rejection"}, prev_trace)
+function event_ztp_rejection(master, ids, module:string, prev_trace:uint64, meta, before:Stream, after:Stream) -> uint64:
+  ctx = begin_event_ctx(module, "ztp_rejection", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, before)
+  new_total = end_event_and_trace("rng_event_ztp_rejection", ctx, after, 0, 0, {context:"ztp_rejection"}, prev_trace)
   return new_total
 
 # Non-consuming exhaustion marker after 64 zeros.
-function event_ztp_retry_exhausted(master, ids, prev_trace:uint64, meta, before:Stream, after:Stream) -> uint64:
-  ctx = begin_event_ctx("S0", "ztp_retry_exhausted", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, before)
-  new_total = end_event_and_trace("rng_event_poisson_component", ctx, after, 0, 0, {context:"ztp_retry_exhausted", attempts:64}, prev_trace)
+function event_ztp_retry_exhausted(master, ids, module:string, prev_trace:uint64, meta, before:Stream, after:Stream) -> uint64:
+  ctx = begin_event_ctx(module, "ztp_retry_exhausted", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, before)
+  new_total = end_event_and_trace("rng_event_ztp_retry_exhausted", ctx, after, 0, 0, {context:"ztp_retry_exhausted", attempts:64}, prev_trace)
   return new_total
 ```
 
@@ -440,10 +449,13 @@ function event_ztp_retry_exhausted(master, ids, prev_trace:uint64, meta, before:
 
 ## 5) Box–Muller convenience wrapper (when needed by higher states)
 
+> **Scope:** These RNG event helpers are **library code** for later states; **S0 orchestration never calls them**.
+> S0 produces only the RNG **audit row** (no RNG events in S0).
+
 ```text
-function event_normal_box_muller(master, ids, prev_trace:uint64, meta) -> (Z:f64, stream:Stream, new_trace:uint64):
+function event_normal_box_muller(master, ids, module:string, prev_trace:uint64, meta) -> (Z:f64, stream:Stream, new_trace:uint64):
   s  = derive_substream(master, "normal_box_muller", ids)
-  ctx = begin_event_ctx("S0", "normal_box_muller", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
+  ctx = begin_event_ctx(module, "normal_box_muller", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
   (Z, s1, d) = normal_box_muller(s)
   payload = { z: Z }
   new_total = end_event_and_trace("rng_event_normal_box_muller", ctx, s1, 0, d, payload, prev_trace)
@@ -458,9 +470,12 @@ function event_normal_box_muller(master, ids, prev_trace:uint64, meta) -> (Z:f64
 
 ```text
 # Optional producer-side check mirroring validator logic: ensure per-(module,label)
-# cumulative blocks equal the sum of event.blocks in this state slice.
-function reconcile_trace_vs_events(module, substream_label, events_blocks_sum:uint64, last_trace_total:uint64):
-  assert last_trace_total == events_blocks_sum, "rng_trace_reconcile_failed"   # producer-side guard; validator rechecks later.
+# cumulative **blocks** and **draws** equal the sums in this state slice.
+function reconcile_trace_vs_events(module, substream_label,
+                                   events_blocks_sum:uint64, last_trace_blocks_total:uint64,
+                                   events_draws_sum:uint64,  last_trace_draws_total:uint64):
+  assert last_trace_blocks_total == events_blocks_sum, "rng_trace_reconcile_failed_blocks"
+  assert last_trace_draws_total  == events_draws_sum,  "rng_trace_reconcile_failed_draws"
 ```
 
 ---
@@ -473,6 +488,9 @@ function reconcile_trace_vs_events(module, substream_label, events_blocks_sum:ui
 * **Poisson**: inversion for λ<10; **PTRS** for λ≥10 with **2 uniforms/attempt**; constants are algorithmic, not config.
 * **Envelope**: `before/after` are numeric `(hi,lo)`; `blocks` is **u64** from the 128-bit delta; `draws` is **decimal uint128 string**. Non-consuming events: `before==after`, `blocks=0`, `draws="0"`.
 * **Audit vs events**: audit row is **not** an event; must be written **before** the first event.
+
+> **Field spellings & budgeting semantics are normative per L0 Capsule §§H4–H6, J, K.**
+> (e.g., `blocks` is `u64`, `draws` is a **decimal u128 string**; master/substream message and budget authority are pinned there.)
 
 This gives implementers unambiguous, state-accurate L1 routines for S0.3—plug-and-play on top of your L0 kernels and log writers, zero room for initiative.
 
@@ -504,21 +522,21 @@ function S0_4_attach_gdp_features(M, I, G, B):
 
       # ISO FK (defensive: S0.1 already enforces)
       if c not in I:
-          abort("E_HOME_ISO_FK", {merchant_id:m, iso:c})
+          fail_F2("E_HOME_ISO_FK", {merchant_id:m, iso:c})
 
       # GDP lookup (must exist, strictly > 0)
       g = G.get(c)
       if g is None:
-          abort("E_GDP_MISSING", {iso:c})
+          fail_F2("E_GDP_MISSING", {iso:c})
       if not (g > 0.0):
-          abort("E_GDP_NONPOS", {iso:c, value:g})
+          fail_F2("E_GDP_NONPOS", {iso:c, value:g})
 
       # Bucket lookup (must exist, 1..5)
       b = B.get(c)
       if b is None:
-          abort("E_BUCKET_MISSING", {iso:c})
+          fail_F2("E_BUCKET_MISSING", {iso:c})
       if not (1 <= b <= 5):
-          abort("E_BUCKET_RANGE", {iso:c, value:b})
+          fail_F2("E_BUCKET_RANGE", {iso:c, value:b})
 
       yield (m, g, b)  # passed forward to S0.5; optionally materialised (see partitions note)
 ```
@@ -543,6 +561,9 @@ If `B` is ever rebuilt, Jenks K=5 is defined via a deterministic DP with **right
 
 # S0.5 — Design Matrices (L1 routines)
 ```text
+# API contract note (normative): all one-hot widths and column order (MCC, channel, dev5)
+# come **only** from the frozen fitting-bundle artefacts loaded here; they are **never**
+# derived from batch-observed categories.
 # Local helper: deterministic one-hot encoder (index within [0, length-1])
 function one_hot(index:int, length:int) -> int[]:
   v = [0] * length
@@ -563,6 +584,8 @@ function build_dicts_and_assert_shapes(bundle):
   dict_mcc   = bundle.load("dict_mcc")        # authoritative order for MCC dummies
   dict_ch    = bundle.load("dict_channel")    # MUST be exactly ["CP","CNP"]
   dict_dev5  = bundle.load("dict_dev5")       # MUST be exactly [1,2,3,4,5]
+  # Authoritative source: these dictionaries are part of the fitting bundle (parameter-scoped lineage),
+  # and are NOT derived from the current batch input.
 
   beta_hurdle        = bundle.load("hurdle_coefficients")      # single vector: 1 + C_mcc + 2 + 5
   nb_dispersion_coef = bundle.load("nb_dispersion_coeffs")     # vector:       1 + C_mcc + 2 + 1
@@ -591,8 +614,10 @@ function build_dicts_and_assert_shapes(bundle):
 function encode_onehots(m, dict_mcc, dict_ch, dict_dev5, G, B):
   # Pull domains from S0.4 (strict coverage)
   c = m.home_country_iso
-  g = G[c];    if not (g > 0):              abort(E_DSGN_DOMAIN_GDP,   {iso:c, g:g})
-  b = B[c];    if b not in {1,2,3,4,5}:     abort(E_DSGN_DOMAIN_BUCKET,{iso:c, b:b})
+  g = G[c];    if not (g > 0):              fail_F2("E_DSGN_DOMAIN_GDP",    {iso:c, g:g})
+  b = B[c];    if b not in {1,2,3,4,5}:     fail_F2("E_DSGN_DOMAIN_BUCKET", {iso:c, b:b})
+  # Indices come strictly from the frozen dicts above; do NOT infer widths or order from batch categories.
+  # (Prevents drift/leakage and preserves parameter-scoped determinism.)
 
   # Dictionary lookups -> positions
   i_mcc = dict_mcc.index_of(m.mcc)          # throws -> E_DSGN_UNKNOWN_MCC if absent
@@ -904,16 +929,21 @@ function S0_7_build_hurdle_pi_cache(merchants, beta, dicts, G, B, parameter_hash
   # Optional: constant-time guard — beta length must match the hurdle design width (S0.5)
   expected = 1 + len(dicts.mcc) + 2 + 5                     # intercept + MCC + CP/CNP + 5 buckets
   if len(beta) != expected:
-      abort("E_PI_SHAPE_MISMATCH", {expected: expected, got: len(beta)})
+      fail_F2("E_PI_SHAPE_MISMATCH", {expected: expected, got: len(beta)})
 
   
-for m in merchants:
-    # Rebuild deterministic hurdle design vector x_hurdle via S0.5
-    (x_hurdle, _, _) = build_design_vectors(m, dicts, G, B)
-    # Binary64 dot; fixed evaluation order; FMA off (S0.8 policy)
-    eta64 = dot_neumaier(beta, x_hurdle)
-    # Branch-stable logistic (spec-true)
-    pi64 = logistic_branch_stable(eta64)
+  # Stream merchants and materialize one row each
+  for m in merchants:
+      # Rebuild deterministic hurdle design vector x_hurdle via S0.5
+      (x_hurdle, _, _) = build_design_vectors(m, dicts, G, B)
+      # Binary64 dot; fixed evaluation order; FMA off (S0.8 policy)
+      eta64 = dot_neumaier(beta, x_hurdle)
+      # Branch-stable logistic (spec-true)
+      pi64 = logistic_branch_stable(eta64)
+      # Abort on non-finite values as per failure semantics
+      if not is_finite(eta64) or not is_finite(pi64):
+          fail_F2("E_PI_NAN_OR_INF", {merchant_id: m.merchant_id, eta: eta64, pi: pi64})
+
       row = {
         "parameter_hash": parameter_hash,
         "merchant_id":    m.merchant_id,
@@ -925,7 +955,7 @@ for m in merchants:
 
       ok = w.write(row)
       if not ok:
-          abort("E_PI_WRITE", {path: w.path, errno: w.errno})
+          fail_F2("E_PI_WRITE", {path: w.path, errno: w.errno})
 
   w.close()
 ```
@@ -975,12 +1005,12 @@ for m in merchants:
 function set_numeric_env_and_verify():
   # Set & verify IEEE-754 binary64, RNE; ensure FTZ/DAZ disabled.
   fp_set_rounding("rne")
-  if fp_get_rounding() != "rne": abort("E_NUM_RNDMODE")
+  if fp_get_rounding() != "rne": fail_F2("E_NUM_RNDMODE", {})
 
   fp_set_flush_to_zero(false)
   fp_set_denormals_are_zero(false)
   if fp_get_flush_to_zero() or fp_get_denormals_are_zero():
-      abort("E_NUM_FTZ_ON")
+      fail_F2("E_NUM_FTZ_ON", {})
 
   # We do not trust compiler flags for FMA; actual detection is in self-tests (S0.8.9.2).
   return {rounding:"rne", fma:false, ftz:false, daz:false}
@@ -1001,8 +1031,8 @@ function attest_libm_profile(paths):
   np_path  = paths.numeric_policy_json
   mp_path  = paths.math_profile_manifest_json
 
-  if not exists(np_path): abort("E_NUM_PROFILE_ARTIFACT_MISSING", {"name":"numeric_policy.json"})
-  if not exists(mp_path): abort("E_NUM_PROFILE_ARTIFACT_MISSING", {"name":"math_profile_manifest.json"})
+  if not exists(np_path): fail_F2("E_NUM_PROFILE_ARTIFACT_MISSING", {"name":"numeric_policy.json"})
+  if not exists(mp_path): fail_F2("E_NUM_PROFILE_ARTIFACT_MISSING", {"name":"math_profile_manifest.json"})
 
   np_bytes = read_bytes(np_path)
   mp       = parse_json(read_bytes(mp_path))
@@ -1013,7 +1043,7 @@ function attest_libm_profile(paths):
   # Required deterministic libm surface (spec scope includes lgamma).
   required = {"exp","log","log1p","expm1","sqrt","sin","cos","atan2","pow","tanh","erf","lgamma"}
   if not required ⊆ funcs:
-      abort("E_NUM_LIBM_PROFILE", {"missing": list(required - funcs)})
+      fail_F2("E_NUM_LIBM_PROFILE", {"missing": list(required - funcs)})
 
   dig_np = hex64( SHA256(np_bytes) )
   dig_mp = hex64( SHA256(encode_utf8(json_canonical(mp))) )
@@ -1036,13 +1066,13 @@ function run_self_tests_and_emit_attestation(env, math_profile_id, digests, plat
   # 1) Rounding & FTZ (S0.8.9.1)
   assert fp_get_rounding() == "rne", "E_NUM_RNDMODE"
   x = make_subnormal()                       # e.g., 2^-1075 as binary64
-  if (x * 1.0 == 0.0): abort("E_NUM_FTZ_ON")
+  if (x * 1.0 == 0.0): fail_F2("E_NUM_FTZ_ON", {})
 
   # 2) FMA contraction detection (S0.8.9.2)
   # Use a pinned triple (a,b,c) from the vendored test corpus with known fused vs. non-fused outcomes.
   # Evaluate y = (a*b) + c in standard evaluation order and assert it matches the non-fused expected bits.
   y = (a*b) + c
-  if bits(y) != expected_nonfused_bits: abort("E_NUM_FMA_ON")
+  if bits(y) != expected_nonfused_bits: fail_F2("E_NUM_FMA_ON", {})
 
   # 3) libm regression (S0.8.9.3)
   # Run the fixed suite for exp/log/log1p/expm1/sqrt/sin/cos/atan2/pow/tanh/(erf)/lgamma.
@@ -1050,18 +1080,18 @@ function run_self_tests_and_emit_attestation(env, math_profile_id, digests, plat
       for i in 0..len(inputs)-1:
           r = call_deterministic_libm(fn, inputs[i])   # from the pinned math profile
           if bits(r) != expected_bits[i]:
-              abort("E_NUM_LIBM_PROFILE", {"func":fn, "i":i})
+              fail_F2("E_NUM_LIBM_PROFILE", {"func":fn, "i":i})
 
   # 4) Neumaier audited sum (S0.8.9.4)
   (s, c) = neumaier_audit_sequence()         # adversarial sequence & expected (s*, c*)
   if (bits(s) != bits_expected or bits(c) != bits_expected_c):
-      abort("E_NUM_ULP_MISMATCH", {"func":"neumaier"})
+      fail_F2("E_NUM_ULP_MISMATCH", {"func":"neumaier"})
 
   # 5) TotalOrder sanity (S0.8.9.5)
   arr = crafted_float_array_with_signed_zero_and_extremes()
   sorted = sort_by_key(arr, total_order_key) # from §S0.8.10 reference kernel
   if not total_order_layout_ok(sorted):
-      abort("E_NUM_TOTORDER_NAN")
+      fail_F2("E_NUM_TOTORDER_NAN", {})
 
   attest = {
     "numeric_policy_version": "1.0",
