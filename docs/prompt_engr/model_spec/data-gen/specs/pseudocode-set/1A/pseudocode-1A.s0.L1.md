@@ -1,7 +1,7 @@
 # L1 — 1A.S0 State Kernels (S0.1–S0.10)
 
 > Source of truth: `state.1A.s0.expanded.md`. This file is a **faithful, code‑agnostic transcription** of S0’s per‑section routines. It preserves your algorithms exactly, but imposes consistent **placement and formatting** so implementers can read in order without guesswork.  
-> Dependencies: uses only the pinned L0 helpers from `pseudocode-1A.s0.L0.applied.v5.txt` (no undeclared helpers).
+> Dependencies: uses only the pinned L0 helpers from `pseudocode-1A.s0.L0.txt` (no undeclared helpers).
 
 ---
 # S0.1 — Universe, Symbols, Authority (L1 routines)
