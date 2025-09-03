@@ -808,6 +808,7 @@ function run_S0(seed: u64, cfg: Config):
     numeric_attest:  numeric_attest,
     param_digests:   param_digest_rows,     # from S0.2
     artifact_digests:artifact_rows,         # from S0.2
+    param_filenames_sorted: param_resolved.filenames_sorted,  # from S0.2
     # optional lints; include if earlier stages produced them
     dictionary_lint: null,
     schema_lint:     null
