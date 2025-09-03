@@ -1,9 +1,9 @@
 # L2 — Orchestration / DAG for 1A.S0 (spec-true, no over-engineering)
 
 > Sources of truth:
-> - `3rd-updated-expansion.applied.vfinal.txt` (frozen S0 spec)
-> - `pseudocode-1A.s0.L0.v5-frozen.txt` (frozen L0 primitives)
-> - `pseudocode-1A.s0.L1.v5-frozen.txt` (frozen L1 routines)
+> - `state.1A.s0.expanded.txt` (S0 spec)
+> - `pseudocode-1A.s0.L0.txt` (L0 primitives)
+> - `pseudocode-1A.s0.L1.txt` (L1 routines)
 
 # 1) Purpose & non-goals
 
@@ -251,13 +251,13 @@ This section names the **exact L1 entrypoints** each S0 stage calls, what they *
 ## S0.8 — Numeric policy & self-tests (gate)
 
 **Calls (L1):**
-`set_numeric_env_and_verify` → `attest_libm_profile` → `run_self_tests_and_emit_attestation(fingerprint)`
+`set_numeric_env_and_verify` → `attest_libm_profile` → `run_self_tests_and_emit_attestation`
 
 **Inputs:** numeric policy; math profile; host numeric environment.
 
-**Outputs:** `numeric_policy_attest.json` (path recorded) and pass/fail status.
+**Outputs:** in-memory **attestation object** and pass/fail status.
 
-**Persistence:** attestation file under `fingerprint={manifest_fingerprint}` (per L1).
+**Persistence:** none here; S0.10 writes the attestation into the fingerprint-scoped validation bundle.
 
 **Barrier:** **must pass** before S0.3 begins.
 
@@ -342,9 +342,9 @@ This section names the **exact L1 entrypoints** each S0 stage calls, what they *
 ## S0.10 — Validation bundle (fingerprint-scoped)
 
 **Calls (L1):**
-`preflight_partitions_exist(parameter_hash)` →
-`assemble_validation_bundle(seed, Lineage, Attest)` →
-`compute_gate_hash_and_publish_atomically(fingerprint)`
+`preflight_partitions_exist(parameter_hash, emit_hurdle_pi_probs)` →
+`assemble_validation_bundle(ctx)` →
+`compute_gate_hash_and_publish_atomically(tmp_dir, fingerprint)`
 
 **Inputs:** seed; lineage keys; attestation path/status; presence of parameter-scoped outputs.
 
@@ -690,7 +690,7 @@ host = {
   read_git_commit_32_bytes():     bytes[32],        # raw 32-byte commit
   run_id_exists(rid: hex32):      bool,             # for uniqueness loop
   platform_descriptor():          string,           # OS/libc/compiler triplet
-  compiler_flags():               string,           # serialized flags used to build
+  compiler_flags():               map,              # structured flags used to build (key→value)
   numeric_policy_paths():         { numeric_policy_json, math_profile_manifest_json },
   read_bytes(path: string):       bytes,            # raw bytes; inclusion into 𝓐 when opened in S0.1
   build_notes():                  { hostname?:string, code_digest?:hex64, notes?:string }
@@ -709,6 +709,12 @@ function run_S0(seed: u64, cfg: Config):
   paths = host.numeric_policy_paths()
   _ = host.read_bytes(paths.numeric_policy_json)           # ensure opened for 𝓐
   _ = host.read_bytes(paths.math_profile_manifest_json)    # ensure opened for 𝓐
+  # Open governance anchors NOW so they are part of 𝓐 and available to L1:
+  # (Exact locations are environment-configured; the host provides bytes. Parsing is pure.)
+  reg_bytes  = host.read_bytes("governance/artefact_registry_1A.yaml")      # ensure opened for 𝓐
+  dict_bytes = host.read_bytes("governance/dataset_dictionary.layer1.1A.json")  # ensure opened for 𝓐
+  registry   = parse_registry_yaml(reg_bytes)
+  dictionary = parse_dictionary_json(dict_bytes)
   authority = authority_preflight(registry, dictionary)
   M1 = enforce_domains_and_map_channel(M0, I)         # FK ISO, MCC domain, channel→{CP,CNP}
   M2 = derive_merchant_u64(M1)                        # canonical u64 per merchant
@@ -788,7 +794,7 @@ function run_S0(seed: u64, cfg: Config):
   # ─────────────────────────────────────────────────────────────
   # S0.10 — Validation bundle (fingerprint-scoped)
   # ─────────────────────────────────────────────────────────────
-  preflight_partitions_exist(param_hash_hex)
+  preflight_partitions_exist(param_hash_hex, cfg.emit_hurdle_pi_cache)
 
   ctx = {
     fingerprint:     fp_hex,
@@ -1206,23 +1212,26 @@ This section pins the **only** host-environment hooks L2 is allowed to use. They
 
 * If unavailable, return a fixed `"unknown"`; do **not** abort.
 
-**Used in.** S0.8 `run_self_tests_and_emit_attestation(...)` payload; S0.3 audit note; S0.10 bundle context.
+**Used in.** S0.8 `run_self_tests_and_emit_attestation(...)` payload; S0.3 audit note.  
+*Note:* The validation bundle’s MANIFEST `compiler_flags` field is sourced from **H7 `compiler_flags()`**, not from `platform_descriptor()`.
 
 ---
 
-## H7. `compiler_flags() -> string`
+## H7. `compiler_flags() -> map`
 
-**Purpose.** Record the compiler switches (e.g., to confirm FMA-off was used) in the validation bundle.
+**Purpose.** Provide a structured set of compiler/build switches (e.g., to confirm FMA-off) for inclusion in the validation bundle’s MANIFEST.
 
 **Contract.**
 
-* Return the exact flags string used to build the binary (or `"unknown"`).
+* Return a **map** (key → string|bool|number) that captures the effective compiler/build flags.  
+  Examples of keys (not exhaustive): `"cc"`, `"cxx"`, `"opt_level"`, `"fma"`, `"ftz"`, `"daz"`, `"rounding_mode"`, `"target_triple"`, `"abi"`, `"ldflags"`, `"cflags"`, `"cxxflags"`.  
+  Values must be **deterministic** for the running binary; if unavailable, return an **empty map** (do not fabricate).
 
-**Determinism.** Not part of fingerprint.
+**Determinism.** Not part of fingerprint; stable within a run.
 
 **Failure mapping.**
 
-* Unavailable → return `"unknown"` (no abort).
+* If unavailable, return **empty map**; do **not** abort.
 
 **Used in.** S0.10 bundle context.
 
@@ -1342,8 +1351,8 @@ Each S0 stage below tells you exactly **where** to verify behavior or bytes:
 * **L2:** numeric gate section (must pass before S0.3).
 * **L1:** `set_numeric_env_and_verify`, `attest_libm_profile`, `run_self_tests_and_emit_attestation`.
 * **L0:** Batch E (`sum_neumaier`, `total_order_key`), pinned libm profile per numeric policy.
-* **Datasets/Partitions:** fingerprint-scoped attestation only.
-* **Validation bundle:** `numeric_policy_attest.json`.
+* **Datasets/Partitions:** none (S0.8 computes an attestation **object** only).
+* **Validation bundle:** `numeric_policy_attest.json` is **materialised by S0.10** into the fingerprint-scoped bundle.
 
 ---
 
@@ -1353,7 +1362,7 @@ Each S0 stage below tells you exactly **where** to verify behavior or bytes:
 * **L1:** `rng_bootstrap_audit`.
 * **L0:** Batch B (`derive_master_material`), Batch D (`emit_rng_audit_row`).
 * **Datasets/Partitions:** RNG **audit** under `seed, parameter_hash, run_id`; **no events** in S0.
-* **Validation bundle:** includes audit pointer/summary (as specified by S0.10).
+* **Validation bundle:** N/A (bundle assembly happens in **S0.10**; S0.3 writes audit row only).
 
 ---
 
@@ -1399,7 +1408,7 @@ Each S0 stage below tells you exactly **where** to verify behavior or bytes:
 
 ## S0.10 — Validation bundle (gate & publish)
 
-* **L2:** `preflight_partitions_exist` → `assemble_validation_bundle` → `compute_gate_hash_and_publish_atomically`.
+* **L2:** `preflight_partitions_exist(parameter_hash, emit_hurdle_pi_probs)` → `assemble_validation_bundle` → `compute_gate_hash_and_publish_atomically`.
 * **L1:** those three entrypoints.
 * **L0:** `_passed.flag` builder (ASCII-sorted bytes, excluding the flag), `publish_atomic`.
 * **Datasets/Partitions:** fingerprint-scoped directory with `_passed.flag`.
