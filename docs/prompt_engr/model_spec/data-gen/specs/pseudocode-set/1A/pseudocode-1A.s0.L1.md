@@ -373,19 +373,27 @@ function derive_substream(master: Master, label: string, ids: tuple) -> Stream:
 function begin_event_ctx(module, substream_label, seed, parameter_hash, manifest_fingerprint, run_id, stream) -> Ctx:
   return begin_event(module, substream_label, seed, parameter_hash, manifest_fingerprint, run_id, stream)  # L0 D2
 
-# Finalise: emit envelope row and update trace; returns updated cumulative blocks for (module,label).
-function end_event_and_trace(family, ctx:
-end_event_emit(family, ctx, stream_after, draws_hi, draws_lo, payload)
-return update_rng_trace(ctx.module, ctx.substream_label, ctx.seed, ctx.parameter_hash, ctx.run_id,
-                        ctx.before_hi, ctx.before_lo, stream_after.ctr.hi, stream_after.ctr.lo,
-                        prev_blocks_total)
-function event_gumbel_key(master, ids, module:string, prev_trace:uint64, meta) -> (g:f64, stream:Stream, new_trace:uint64):
+# Trace state carries cumulative totals; callers may ignore draws/events if they only need blocks.
+struct TraceState { blocks_total:u64, draws_total:u64, events_total:u64 }
+
+# Finalise: emit envelope row and update trace; returns updated cumulative blocks/draws/events.
+function end_event_and_trace(family, ctx, stream_after, draws_hi, draws_lo, payload, trace:TraceState) -> TraceState:
+  end_event_emit(family, ctx, stream_after, draws_hi, draws_lo, payload)   # L0.D2
+  (b,d,e) = update_rng_trace_totals(
+              ctx.module, ctx.substream_label,
+              ctx.seed, ctx.parameter_hash, ctx.run_id,
+              ctx.before_hi, ctx.before_lo, stream_after.ctr.hi, stream_after.ctr.lo,
+              draws_hi, draws_lo,
+              trace.blocks_total, trace.draws_total, trace.events_total)   # L0.D3b
+  return TraceState{ blocks_total:b, draws_total:d, events_total:e }
+                        
+function event_gumbel_key(master, ids, module:string, trace:TraceState, meta) -> (g:f64, stream:Stream, new_trace:TraceState):
   s  = derive_substream(master, "gumbel_key", ids)                      # label fixed by schema vocab
   ctx = begin_event_ctx(module, "gumbel_key", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
-  (g, s1, d) = gumbel_key(s)                                            # L0 C5; draws = 1; blocks = 1
+  (g, s1, d) = gumbel_key(s)                                            # L0 C5; draws=1 (u128); blocks=1
   payload = { key: g }                                                  # per-event schema payload
-  new_total = end_event_and_trace("rng_event_gumbel_key", ctx, s1, 0, d, payload, prev_trace)
-  return (g, s1, new_total)
+  new_trace = end_event_and_trace("rng_event_gumbel_key", ctx, s1, 0, d, payload, trace)
+  return (g, s1, new_trace)
 ```
 
 *Budget: **1 uniform**; envelope must show `(blocks=1, draws="1")`. Ties later break by `(ISO, merchant_id)` per spec.*
@@ -395,13 +403,13 @@ function event_gumbel_key(master, ids, module:string, prev_trace:uint64, meta) -
 ### 4.b `gamma_mt` (Marsaglia–Tsang; **actual-use** budgeting)
 
 ```text
-function event_gamma_component(master, ids, module:string, alpha:f64, prev_trace:uint64, meta) -> (G:f64, stream:Stream, new_trace:uint64):
+function event_gamma_component(master, ids, module:string, alpha:f64, trace:TraceState, meta) -> (G:f64, stream:Stream, new_trace:TraceState):
   s  = derive_substream(master, "gamma_component", ids)
   ctx = begin_event_ctx(module, "gamma_component", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
   (G, s1, total) = gamma_mt(alpha, s)                                   # L0 C2; Case-B = draws(G') + 1 (normative)
   payload = { alpha: alpha, value: G }
-  new_total = end_event_and_trace("rng_event_gamma_component", ctx, s1, 0, total, payload, prev_trace)
-  return (G, s1, new_total)
+  new_trace = end_event_and_trace("rng_event_gamma_component", ctx, s1, 0, total, payload, trace)
+  return (G, s1, new_trace)
 ```
 
 *Budget: **exact uniforms consumed**; **no padding**; Box–Muller inside uses exactly 2 uniforms (one block). Envelope `draws` logs the **actual** total.*
@@ -411,13 +419,13 @@ function event_gamma_component(master, ids, module:string, alpha:f64, prev_trace
 ### 4.c `poisson` (inversion / PTRS split)
 
 ```text
-function event_poisson_component(master, ids, module:string, lambda:f64, context:string, prev_trace:uint64, meta) -> (K:int, stream:Stream, new_trace:uint64):
+function event_poisson_component(master, ids, module:string, lambda:f64, context:string, trace:TraceState, meta) -> (K:int, stream:Stream, new_trace:TraceState):
   s  = derive_substream(master, "poisson_component", ids)
   ctx = begin_event_ctx(module, "poisson_component", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
   (K, s1, total) = poisson(lambda, s)                                   # L0 C3; inversion if λ<10, PTRS else (2 uniforms/attempt)
   payload = { lambda: lambda, context: context, k: K }
-  new_total = end_event_and_trace("rng_event_poisson_component", ctx, s1, 0, total, payload, prev_trace)
-  return (K, s1, new_total)
+  new_trace = end_event_and_trace("rng_event_poisson_component", ctx, s1, 0, total, payload, trace)
+  return (K, s1, new_trace)
 ```
 
 *Normative constants for PTRS (`0.931`, `2.53`, `-0.059`, `0.02483`, `1.1239`, `1.1328`, `3.4`, `0.9277`, `3.6224`, `0.86`) are **algorithmic**, not configurable; split threshold λ★=10.*
@@ -437,16 +445,16 @@ function event_poisson_component(master, ids, module:string, lambda:f64, context
 
 ```text
 # Non-consuming event when ZTP discards a zero draw; envelope: before==after, blocks=0, draws="0".
-function event_ztp_rejection(master, ids, module:string, prev_trace:uint64, meta, before:Stream, after:Stream) -> uint64:
+function event_ztp_rejection(master, ids, module:string, trace:TraceState, meta, before:Stream, after:Stream) -> TraceState:
   ctx = begin_event_ctx(module, "ztp_rejection", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, before)
-  new_total = end_event_and_trace("rng_event_ztp_rejection", ctx, after, 0, 0, {context:"ztp_rejection"}, prev_trace)
-  return new_total
+  new_trace = end_event_and_trace("rng_event_ztp_rejection", ctx, after, 0, 0, {context:"ztp_rejection"}, trace)
+  return new_trace
 
 # Non-consuming exhaustion marker after 64 zeros.
-function event_ztp_retry_exhausted(master, ids, module:string, prev_trace:uint64, meta, before:Stream, after:Stream) -> uint64:
+function event_ztp_retry_exhausted(master, ids, module:string, trace:TraceState, meta, before:Stream, after:Stream) -> TraceState:
   ctx = begin_event_ctx(module, "ztp_retry_exhausted", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, before)
-  new_total = end_event_and_trace("rng_event_ztp_retry_exhausted", ctx, after, 0, 0, {context:"ztp_retry_exhausted", attempts:64}, prev_trace)
-  return new_total
+  new_trace = end_event_and_trace("rng_event_ztp_retry_exhausted", ctx, after, 0, 0, {context:"ztp_retry_exhausted", attempts:64}, trace)
+  return new_trace
 ```
 
 *ZTP note: rejections/exhaustion are **non-consuming** (`blocks=0`, `draws="0"`); the successful component event carries the budget. Hard cap **64** zeros.*
@@ -459,13 +467,13 @@ function event_ztp_retry_exhausted(master, ids, module:string, prev_trace:uint64
 > S0 produces only the RNG **audit row** (no RNG events in S0).
 
 ```text
-function event_normal_box_muller(master, ids, module:string, prev_trace:uint64, meta) -> (Z:f64, stream:Stream, new_trace:uint64):
+function event_normal_box_muller(master, ids, module:string, trace:TraceState, meta) -> (Z:f64, stream:Stream, new_trace:TraceState):
   s  = derive_substream(master, "normal_box_muller", ids)
   ctx = begin_event_ctx(module, "normal_box_muller", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
   (Z, s1, d) = normal_box_muller(s)
   payload = { z: Z }
-  new_total = end_event_and_trace("rng_event_normal_box_muller", ctx, s1, 0, d, payload, prev_trace)
-  return (Z, s1, new_total)
+  new_trace = end_event_and_trace("rng_event_normal_box_muller", ctx, s1, 0, d, payload, trace)
+  return (Z, s1, new_trace)
 ```
 
 *Budget: exactly **2 uniforms** (1 block); **discard** the sine mate; envelope must set `(blocks=1, draws="2")`.*
@@ -567,7 +575,7 @@ If `B` is ever rebuilt, Jenks K=5 is defined via a deterministic DP with **right
 
 # S0.5 — Design Matrices (L1 routines)
 ```text
-# API contract note (normative): all one-hot widths and column order (MCC, channel, dev)
+# API contract note (normative): all one-hot widths and column order (MCC, channel, dict_dev vocabulary)
 # come **only** from the frozen fitting-bundle artefacts loaded here; they are **never**
 # derived from batch-observed categories.
 # Local helper: deterministic one-hot encoder (index within [0, length-1])
