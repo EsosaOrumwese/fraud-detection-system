@@ -1,7 +1,13 @@
 # L1 — 1A.S0 State Kernels (S0.1–S0.10)
 
 > Source of truth: `state.1A.s0.expanded.md`. This file is a **faithful, code‑agnostic transcription** of S0’s per‑section routines. It preserves your algorithms exactly, but imposes consistent **placement and formatting** so implementers can read in order without guesswork.  
-> Dependencies: uses only the pinned L0 helpers from `pseudocode-1A.s0.L0.txt` (no undeclared helpers).
+> Dependencies: uses only pinned L0 helpers from `pseudocode-1A.s0.L0.txt` (no undeclared helpers).
+
+**Conventions (read first):**
+- Never hard-code widths, vocabularies, or domain sets — derive `|MCC|`, `|channel|`, `|dev|`, etc. from the governed dictionaries opened in S0.1; keep the normative assertions, not magic numbers.
+- Do not add new helpers or RNG behavior here; reuse L0 names exactly (S0 is audit-only for RNG).
+- Partition scope comes from the dataset dictionary; embed lineage keys and rely on L0’s `verify_partition_keys` for path==row equivalence.
+- No late governance opens after S0.2 fingerprinting; any change must flow via `parameter_hash` / `manifest_fingerprint`.
 
 ---
 # S0.1 — Universe, Symbols, Authority (L1 routines)
@@ -561,7 +567,7 @@ If `B` is ever rebuilt, Jenks K=5 is defined via a deterministic DP with **right
 
 # S0.5 — Design Matrices (L1 routines)
 ```text
-# API contract note (normative): all one-hot widths and column order (MCC, channel, dev5)
+# API contract note (normative): all one-hot widths and column order (MCC, channel, dev)
 # come **only** from the frozen fitting-bundle artefacts loaded here; they are **never**
 # derived from batch-observed categories.
 # Local helper: deterministic one-hot encoder (index within [0, length-1])
@@ -573,7 +579,7 @@ function one_hot(index:int, length:int) -> int[]:
 
 > **Scope:** deterministically build column-aligned design vectors for each merchant $m$: hurdle $x_m$, NB-mean $x^{(\mu)}_m$, and NB-dispersion $x^{(\phi)}_m$. **Column dictionaries and their order come from the fitting bundle and are never computed at runtime.**
 
-## 1) `build_dicts_and_assert_shapes(bundle) → (dict_mcc, dict_ch, dict_dev5, beta_hurdle, nb_dispersion_coef)`
+## 1) `build_dicts_and_assert_shapes(bundle) → (dict_mcc, dict_ch, dict_dev, beta_hurdle, nb_dispersion_coef)`
 
 **Inputs:** parameter-scoped fitting bundle artefacts (bytes affect `parameter_hash`).
 **Outputs:** frozen dictionaries and coefficient vectors.
@@ -583,56 +589,60 @@ function one_hot(index:int, length:int) -> int[]:
 function build_dicts_and_assert_shapes(bundle):
   dict_mcc   = bundle.load("dict_mcc")        # authoritative order for MCC dummies
   dict_ch    = bundle.load("dict_channel")    # MUST be exactly ["CP","CNP"]
-  dict_dev5  = bundle.load("dict_dev5")       # MUST be exactly [1,2,3,4,5]
+  dict_dev  = bundle.load("dict_dev")       # MUST be exactly [1,2,3,4,5]
   # Authoritative source: these dictionaries are part of the fitting bundle (parameter-scoped lineage),
   # and are NOT derived from the current batch input.
 
-  beta_hurdle        = bundle.load("hurdle_coefficients")      # single vector: 1 + C_mcc + 2 + 5
-  nb_dispersion_coef = bundle.load("nb_dispersion_coeffs")     # vector:       1 + C_mcc + 2 + 1
+  beta_hurdle        = bundle.load("hurdle_coefficients")      # single vector aligned to dicts
+  nb_dispersion_coef = bundle.load("nb_dispersion_coeffs")     # aligned; includes ln(g) slope
 
   assert dict_ch   == ["CP","CNP"], E_DSGN_UNKNOWN_CHANNEL                  # channel vocab is normative
-  assert dict_dev5 == [1,2,3,4,5],  E_DSGN_SHAPE_MISMATCH                   # bucket order is fixed
+  assert dict_dev == [1,2,3,4,5],  E_DSGN_SHAPE_MISMATCH                   # bucket order is fixed
 
   C_mcc = len(dict_mcc)
-  assert len(beta_hurdle)        == 1 + C_mcc + 2 + 5, E_DSGN_SHAPE_MISMATCH
-  assert len(nb_dispersion_coef) == 1 + C_mcc + 2 + 1, E_DSGN_SHAPE_MISMATCH
+  C_ch  = len(dict_ch)
+  C_dev = len(dict_dev)
+  assert C_ch  >= 1, E_DSGN_SHAPE_MISMATCH     # non-empty governed vocabularies
+  assert C_dev >= 1, E_DSGN_SHAPE_MISMATCH
+  assert len(beta_hurdle)        == 1 + C_mcc + C_ch + C_dev, E_DSGN_SHAPE_MISMATCH
+  assert len(nb_dispersion_coef) == 1 + C_mcc + C_ch + 1,     E_DSGN_SHAPE_MISMATCH
 
-  return (dict_mcc, dict_ch, dict_dev5, beta_hurdle, nb_dispersion_coef)
+  return (dict_mcc, dict_ch, dict_dev, beta_hurdle, nb_dispersion_coef)
 ```
 
 *Why:* dictionaries and shapes are frozen by the fitting artefacts; the hurdle vector **includes all five bucket dummies**; NB-dispersion includes the slope on $\ln g_c$.
 
 ---
 
-## 2) `encode_onehots(m, dict_mcc, dict_ch, dict_dev5, G, B) → (h_mcc, h_ch, h_dev, g, b)`
+## 2) `encode_onehots(m, dict_mcc, dict_ch, dict_dev, G, B) → (h_mcc, h_ch, h_dev, g, b)`
 
 **Inputs:** merchant row with `{mcc, channel_sym, home_country_iso}`; dictionaries; S0.4 maps $G, B$.
 **Outputs:** one-hot blocks and the required S0.4 features.
 **Failure:** `E_DSGN_UNKNOWN_MCC`, `E_DSGN_UNKNOWN_CHANNEL`, `E_DSGN_DOMAIN_GDP`, `E_DSGN_DOMAIN_BUCKET`.
 
 ```text
-function encode_onehots(m, dict_mcc, dict_ch, dict_dev5, G, B):
+function encode_onehots(m, dict_mcc, dict_ch, dict_dev, G, B):
   # Pull domains from S0.4 (strict coverage)
   c = m.home_country_iso
   g = G[c];    if not (g > 0):              fail_F2("E_DSGN_DOMAIN_GDP",    {iso:c, g:g})
-  b = B[c];    if b not in {1,2,3,4,5}:     fail_F2("E_DSGN_DOMAIN_BUCKET", {iso:c, b:b})
+  b = B[c];    if b not in set(dict_dev):  fail_F2("E_DSGN_DOMAIN_BUCKET", {iso:c, b:b})
   # Indices come strictly from the frozen dicts above; do NOT infer widths or order from batch categories.
   # (Prevents drift/leakage and preserves parameter-scoped determinism.)
 
   # Dictionary lookups -> positions
   i_mcc = dict_mcc.index_of(m.mcc)          # throws -> E_DSGN_UNKNOWN_MCC if absent
   i_ch  = dict_ch.index_of(m.channel_sym)   # channel_sym must be CP/CNP from S0.1
-  i_dev = dict_dev5.index_of(b)
+  i_dev = dict_dev.index_of(b)
 
   # Deterministic one-hots (exactly one "1" each)
   h_mcc = one_hot(i_mcc, len(dict_mcc))
-  h_ch  = one_hot(i_ch, 2)
-  h_dev = one_hot(i_dev, 5)
+  h_ch  = one_hot(i_ch, len(dict_ch))
+  h_dev = one_hot(i_dev, len(dict_dev))
 
   return (h_mcc, h_ch, h_dev, g, b)
 ```
 
-*Notes:* channel vocabulary is **exactly** `["CP","CNP"]`; dev5 is `[1..5]` by construction.
+*Notes:* channel vocabulary is **exactly** `["CP","CNP"]`; dev is `[1..5]` by construction.
 
 ---
 
@@ -644,17 +654,18 @@ function encode_onehots(m, dict_mcc, dict_ch, dict_dev5, G, B):
 
 ```text
 function build_design_vectors(m, dicts, G, B):
-  (dict_mcc, dict_ch, dict_dev5) = dicts
-  (h_mcc, h_ch, h_dev, g, b) = encode_onehots(m, dict_mcc, dict_ch, dict_dev5, G, B)
+  (dict_mcc, dict_ch, dict_dev) = dicts
+  (h_mcc, h_ch, h_dev, g, b) = encode_onehots(m, dict_mcc, dict_ch, dict_dev, G, B)
 
   # Intercept-first convention (normative)
-  x_hurdle = [1] + h_mcc + h_ch + h_dev                  # ℝ^{1 + C_mcc + 2 + 5}
-  x_nb_mu  = [1] + h_mcc + h_ch                          # ℝ^{1 + C_mcc + 2}
-  x_nb_phi = [1] + h_mcc + h_ch + [ln(g)]                # ℝ^{1 + C_mcc + 2 + 1}
+  x_hurdle = [1] + h_mcc + h_ch + h_dev                  # ℝ^{1 + C_mcc + |ch| + |dev|}
+  x_nb_mu  = [1] + h_mcc + h_ch                          # ℝ^{1 + C_mcc + |ch|}
+  x_nb_phi = [1] + h_mcc + h_ch + [ln(g)]                # ℝ^{1 + C_mcc + |ch| + 1}
 
   # Machine-check the leakage guard (redundant but explicit)
-  assert len(x_nb_mu)  == 1 + len(dict_mcc) + 2
-  assert len(x_nb_phi) == 1 + len(dict_mcc) + 2 + 1
+  C_ch  = len(dict_ch)
+  assert len(x_nb_mu)  == 1 + len(dict_mcc) + C_ch
+  assert len(x_nb_phi) == 1 + len(dict_mcc) + C_ch + 1
 
   return (x_hurdle, x_nb_mu, x_nb_phi)
 ```
@@ -669,10 +680,10 @@ A thin orchestrator for streaming all merchants. Emits tuples `(merchant_id, x_h
 
 ```text
 function S0_5_build_designs_stream(M, dicts, coefs, G, B):
-  (dict_mcc, dict_ch, dict_dev5, beta_hurdle, nb_dispersion_coef) = coefs
+  (dict_mcc, dict_ch, dict_dev, beta_hurdle, nb_dispersion_coef) = coefs
   # Shapes already asserted by 'build_dicts_and_assert_shapes'
   for r in M:
-      (x_hurdle, x_nb_mu, x_nb_phi) = build_design_vectors(r, (dict_mcc, dict_ch, dict_dev5), G, B)
+      (x_hurdle, x_nb_mu, x_nb_phi) = build_design_vectors(r, (dict_mcc, dict_ch, dict_dev), G, B)
       yield (r.merchant_id, x_hurdle, x_nb_mu, x_nb_phi)
 ```
 
@@ -927,7 +938,9 @@ function S0_7_build_hurdle_pi_cache(merchants, beta, dicts, G, B, parameter_hash
         partition={"parameter_hash": parameter_hash})      # schema #/model/hurdle_pi_probs
 
   # Optional: constant-time guard — beta length must match the hurdle design width (S0.5)
-  expected = 1 + len(dicts.mcc) + 2 + 5                     # intercept + MCC + CP/CNP + 5 buckets
+  C_ch  = len(dicts.ch)
+  C_dev = len(dicts.dev)
+  expected = 1 + len(dicts.mcc) + C_ch + C_dev               # intercept + MCC + channel + dev
   if len(beta) != expected:
       fail_F2("E_PI_SHAPE_MISMATCH", {expected: expected, got: len(beta)})
 
