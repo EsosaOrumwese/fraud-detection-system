@@ -877,6 +877,30 @@ This is strictly in `(0,1)` (never 0, never 1). If your FP unit rounds `u==1.0` 
 
 ---
 
+#### F1. RFC-3339 microsecond formatting capsule (clarification; test-pinned)
+
+**Scope.** Clarifies the exact steps for `ts_utc_now_rfc3339_micro()` used in audit/events/trace. This does **not** change behavior; it only removes latitude in host libraries.
+
+**Algorithm (normative for this API):**
+1) Read UTC wall-clock instant as `(secs:int64, nanos:int32)` where `secs` is seconds since Unix epoch and `0 ≤ nanos ≤ 999,999,999`.  
+2) Derive calendar fields `(Y, M, D, h, m, s)` from `secs` using **UTC, proleptic Gregorian**; no locale/offsets.  
+3) Compute `micro = floor(nanos / 1_000)` (i.e., **truncate** to microseconds; **no rounding**).  
+4) Format exactly:
+   - Year as 4+ ASCII digits (no sign for `Y ≥ 0000`).  
+   - `-` separator, two-digit month/day; `T` between date/time.  
+   - Two-digit hour/minute/second (00–59); leap seconds **not** represented.  
+   - `.` followed by **exactly six** ASCII digits: `micro` **left-padded with zeros** to width 6.  
+   - Literal `Z` suffix (no offsets permitted).  
+5) The output is ASCII, e.g., `2025-09-03T14:07:59.123456Z`.
+
+**Notes.**
+- This capsule applies only to the **microsecond** variant used by S0. For any nano helper a host might carry, behavior is non-normative for S0; S0 does **not** require or consume 9-digit timestamps.
+
+**Additional test (optional):**
+- When `(secs, nanos) = (1_695_-example_, 123_456_789)`, output must be `… .123456Z` (truncated, not rounded).
+
+---
+
 ### G. JSON & atomic rename contracts
 
 **G1. JSON**
