@@ -79,7 +79,6 @@ This section is grounded in the frozen spec and L0/L1; it defines a **closed set
 
      * `numeric_policy_attest.json` (from S0.8),
      * `parameter_hash_resolved.json`, `manifest_fingerprint_resolved.json`,
-     * RNG audit (only) required by S0.10,
      * bundle metadata (commit, artefact counts, compiler/numeric profile info),
      * `_passed.flag` computed over **ASCII-sorted** file bytes (excluding the flag itself).
 
@@ -241,6 +240,7 @@ This section names the **exact L1 entrypoints** each S0 stage calls, what they *
 **Inputs:** governed parameter bundle 𝓟; artefacts opened in S0.1 (numeric policy, math profile, ISO/GDP/Jenks, schema/dictionary/registry); raw 32-byte commit; time (ns) via `now_ns()`.
 
 **Outputs (in-memory):** `parameter_hash (hex & bytes)`, `manifest_fingerprint (hex & bytes)`, `run_id`.
+**Derivations (once here, reused later):** `build_commit = hex64(read_git_commit_32_bytes())` — used verbatim in **S0.3** audit and as `ctx.git_commit_hex` in **S0.10**.
 
 **Persistence:** none (lineage only).
 
@@ -256,6 +256,7 @@ This section names the **exact L1 entrypoints** each S0 stage calls, what they *
 **Inputs:** numeric policy; math profile; host numeric environment.
 
 **Outputs:** in-memory **attestation object** and pass/fail status.
+**Handoff:** L2 retains this `numeric_attest` object and passes it into **S0.10** as `ctx.numeric_attest` (no mutation).
 
 **Persistence:** none here; S0.10 writes the attestation into the fingerprint-scoped validation bundle.
 
@@ -272,6 +273,7 @@ This section names the **exact L1 entrypoints** each S0 stage calls, what they *
 (internally uses L0 `derive_master_material` and `emit_rng_audit_row`)
 
 **Inputs:** `seed`, lineage keys, build/runtime notes.
+**Derivation:** `build_commit` is the single value defined in **S0.2** as `hex64(read_git_commit_32_bytes())` (do not re-derive).
 
 **Outputs:** none (to callers).
 
@@ -346,7 +348,7 @@ This section names the **exact L1 entrypoints** each S0 stage calls, what they *
 `assemble_validation_bundle(ctx)` →
 `compute_gate_hash_and_publish_atomically(tmp_dir, fingerprint)`
 
-**Inputs:** seed; lineage keys; attestation path/status; presence of parameter-scoped outputs.
+**Inputs:** seed; lineage keys; **attestation object** (`numeric_attest` from S0.8); presence of parameter-scoped outputs.
 
 **Outputs:** validation directory with the required files and `_passed.flag`.
 
@@ -859,7 +861,6 @@ This section is the go/no-go list for S0. A run is **Done** only if **all** chec
 
    * `numeric_policy_attest.json` (S0.8),
    * `parameter_hash_resolved.json`, `manifest_fingerprint_resolved.json`,
-   * RNG audit (only) required by L1 S0.10,
    * `_passed.flag` (see §11.4).
 
 ## 11.2 Lineage re-derivation matches
@@ -1412,7 +1413,7 @@ Each S0 stage below tells you exactly **where** to verify behavior or bytes:
 * **L1:** those three entrypoints.
 * **L0:** `_passed.flag` builder (ASCII-sorted bytes, excluding the flag), `publish_atomic`.
 * **Datasets/Partitions:** fingerprint-scoped directory with `_passed.flag`.
-* **Validation bundle:** the bundle itself (this is where you verify the gate hash and atomic publish).
+* **Validation bundle:** the bundle itself (this is where you verify the gate hash and atomic publish). `numeric_attest` is the exact object produced in **S0.8** and injected into the ctx here.
 
 ---
 
@@ -1423,5 +1424,7 @@ Each S0 stage below tells you exactly **where** to verify behavior or bytes:
 * **RNG confusion?** L2 S0.3 call → L1 `rng_bootstrap_audit` → L0 `derive_master_material` & `emit_rng_audit_row` → audit JSONL under `{seed, parameter_hash, run_id}`.
 * **Partition mismatch?** L1 writer (S0.6/S0.7) → L0 `verify_partition_keys` → dataset partition path vs row-embedded lineage.
 * **Gate/publish issues?** L1 S0.10 → L0 `_passed.flag` builder & `publish_atomic` → fingerprint directory contents.
+
+**Ctx note (naming consistency):** in S0.10 assembly, `artifacts` lists **names only** (`[artifact_basename]`); per S0.2, all SHA-256 values are carried in `artifact_digests` and `param_digests`. This separation is normative.
 
 ---
