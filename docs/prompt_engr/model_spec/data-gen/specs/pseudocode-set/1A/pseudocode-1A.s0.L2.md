@@ -328,10 +328,10 @@ This section names the **exact L1 entrypoints** each S0 stage calls, what they *
 ## Branch B — S0.6 (no RNG)
 
 **Calls (L1):**
-`S0_6_apply_eligibility_rules(merchants, iso_set, parameter_hash, produced_by_fp)`
+`S0_6_apply_eligibility_rules(merchants, params, I, K, parameter_hash, produced_by_fp)`
 (internally uses `write_eligibility_flags`)
 
-**Inputs:** merchants; `iso_set`; lineage keys; governed rule set.
+**Inputs:** merchants; `iso_set (I)`; `mcc_set (K)`; lineage keys; governed rule set.
 
 **Outputs:** eligibility decisions per merchant.
 
