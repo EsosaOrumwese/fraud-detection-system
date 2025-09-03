@@ -586,7 +586,7 @@ function publish_atomic(tmp_dir: path, final_dir: path):
 ```text
 # Dataset scope lists used to validate partition/row lineage equivalence.
 # S0 (L0) has no parameter-scoped datasets; RNG log-scoped are the two below.
-const PARAMETER_SCOPED = []
+const PARAMETER_SCOPED = ["crossborder_eligibility_flags","hurdle_pi_probs"]
 const RNG_LOG_SCOPED   = ["rng_audit_log","rng_trace_log"]
 ```
 
