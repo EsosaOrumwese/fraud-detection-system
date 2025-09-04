@@ -4,6 +4,14 @@
 > - `state.1A.s0.expanded.txt` (S0 spec)
 > - `pseudocode-1A.s0.L0.txt` (L0 primitives)
 > - `pseudocode-1A.s0.L1.txt` (L1 routines)
+> Helper policy: If a function isn’t strictly state-local glue, **do not define it here** — call the canonical implementation in **L0** instead.
+
+> **Orchestrator & host shims (read-only).** L2 wires S0’s stages and defines **environment shims** (bytes/paths only).  
+> It **does not** implement algorithms covered by L0/L1, and it **does not** normalize data.  
+> - Use L0 for hashing, fingerprints, RNG, partition verification, and gate-hash semantics.  
+> - Shims are read-only interfaces; keep their signatures here (L0 stays host-agnostic).  
+> - If logic looks reusable, it belongs in **L0**, not in L2.
+> Helper policy: If a function isn’t strictly state-local glue, **do not define it here** — call the canonical implementation in **L0** instead.
 
 # 1) Purpose & non-goals
 

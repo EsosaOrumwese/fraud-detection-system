@@ -1,5 +1,12 @@
 # L0 — Primitives for 1A.S0 (Batches A–F)
 
+> **Canonical helpers & contracts.** L0 is the **single source of truth** for cross-state primitives and contracts:
+> - Capsules: bytes/UTF-8/JSON, hex↔bytes, endian encoders, tuple-hash/fingerprint, RNG master/material, RNG event wrappers, gate hash read/write.  
+> - Host I/O shim **interfaces** (read-only; no logic).
+>
+> **Change policy.** New helpers that could be reused across states **must be added here**.  
+> L1/L2/L3 must **not** redefine or “tweak” L0 helpers—they may only **call** them.
+
 > Source of truth: `state.1A.s0.expanded.md`. This file is a **faithful, code-agnostic transcription** of the S0 primitives, grouped as Batches A–F. It removes ambiguity, fixes placement, and avoids duplication. All constants, names, and rules are normative.
 
 ## S0–L0 Non-regression Invariants (MUST NOT CHANGE)
@@ -561,6 +568,30 @@ function event_normal_box_muller(module:string, trace:TraceState, meta) -> (Z:f6
   (Z, s1, draws) = normal_box_muller(s0)                               # L0 C
   nt = end_event_and_trace("rng_event_normal_box_muller", ctx, s1, 0, draws, { z: Z }, trace)
   return (Z, s1, nt)
+  
+# Gumbel tie-break key (budget: 1 uniform → blocks=1, draws="1")
+function event_gumbel_key(master:Master, ids:tuple, module:string, trace:TraceState, meta) -> (g:f64, stream:Stream, new_trace:TraceState):
+  s0  = derive_substream(master, "gumbel_key", ids)
+  ctx = begin_event_ctx(module, "gumbel_key", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s0)
+  (g, s1, draws) = gumbel_key(s0)  # L0 C5; draws=1 (u128); blocks=1
+  nt = end_event_and_trace("rng_event_gumbel_key", ctx, s1, 0, draws, { key: g }, trace)
+  return (g, s1, nt)
+
+# Gamma (Marsaglia–Tsang); budget = exact uniforms used by sampler (no padding)
+function event_gamma_component(master:Master, ids:tuple, module:string, alpha:f64, trace:TraceState, meta) -> (G:f64, stream:Stream, new_trace:TraceState):
+  s0  = derive_substream(master, "gamma_component", ids)
+  ctx = begin_event_ctx(module, "gamma_component", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s0)
+  (G, s1, total) = gamma_mt(alpha, s0)  # L0 C2; Case-B = draws(G') + 1 (normative)
+  nt = end_event_and_trace("rng_event_gamma_component", ctx, s1, 0, total, { alpha: alpha, value: G }, trace)
+  return (G, s1, nt)
+
+# Poisson (inversion for λ<10, PTRS otherwise); budget = exact uniforms used
+function event_poisson_component(master:Master, ids:tuple, module:string, lambda:f64, context:string, trace:TraceState, meta) -> (K:int, stream:Stream, new_trace:TraceState):
+  s0  = derive_substream(master, "poisson_component", ids)
+  ctx = begin_event_ctx(module, "poisson_component", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s0)
+  (K, s1, total) = poisson(lambda, s0)  # L0 C3
+  nt = end_event_and_trace("rng_event_poisson_component", ctx, s1, 0, total, { lambda: lambda, context: context, k: K }, trace)
+  return (K, s1, nt)
 ```
 
 ---

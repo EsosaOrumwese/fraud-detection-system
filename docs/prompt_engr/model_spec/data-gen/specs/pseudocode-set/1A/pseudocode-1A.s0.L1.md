@@ -2,6 +2,14 @@
 
 > Source of truth: `state.1A.s0.expanded.md`. This file is a **faithful, code‑agnostic transcription** of S0’s per‑section routines. It preserves your algorithms exactly, but imposes consistent **placement and formatting** so implementers can read in order without guesswork.  
 > Dependencies: uses only pinned L0 helpers from `pseudocode-1A.s0.L0.txt` (no undeclared helpers).
+> Helper policy: If a function isn’t strictly state-local glue, **do not define it here** — call the canonical implementation in **L0** instead.
+
+> **Helper policy.** This file defines **state-specific kernels** and wiring for S0.  
+> It **does not** redefine cross-state helpers. Use L0 for:
+> - Math/bytes/parsing/RNG/gate hash → L0 Capsules.  
+> - Failure/abort payloads and paths → L0 Batch-F.  
+> - RNG events & trace glue → L0 Batch-D.  
+> Local helpers are allowed **only** if they’re strictly S0-specific and not useful elsewhere; otherwise **promote to L0**.
 
 **Conventions (read first):**
 - Never hard-code widths, vocabularies, or domain sets — derive `|MCC|`, `|channel|`, `|dev|`, etc. from the governed dictionaries opened in S0.1; keep the normative assertions, not magic numbers.
@@ -372,27 +380,14 @@ function derive_substream(master: Master, label: string, ids: tuple) -> Stream:
 function begin_event_ctx(module, substream_label, seed, parameter_hash, manifest_fingerprint, run_id, stream) -> Ctx:
   return L0.begin_event_ctx(module, substream_label, seed, parameter_hash, manifest_fingerprint, run_id, stream)  # L0 D2
 
-# Trace state carries cumulative totals; callers may ignore draws/events if they only need blocks.
-struct TraceState { blocks_total:u64, draws_total:u64, events_total:u64 }
+# Trace state carries cumulative totals; **use the canonical L0 type** to avoid divergence.
+type TraceState = L0.TraceState
 
-# Finalise: emit envelope row and update trace; returns updated cumulative blocks/draws/events.
-function end_event_and_trace(family, ctx, stream_after, draws_hi, draws_lo, payload, trace:TraceState) -> TraceState:
-  end_event_emit(family, ctx, stream_after, draws_hi, draws_lo, payload)   # L0.D2
-  (b,d,e) = update_rng_trace_totals(
-              ctx.module, ctx.substream_label,
-              ctx.seed, ctx.parameter_hash, ctx.run_id,
-              ctx.before_hi, ctx.before_lo, stream_after.ctr.hi, stream_after.ctr.lo,
-              draws_hi, draws_lo,
-              trace.blocks_total, trace.draws_total, trace.events_total)   # L0.D3b
-  return TraceState{ blocks_total:b, draws_total:d, events_total:e }
-                        
+# Finalise + trace has a single canonical definition in L0.D2b.
+# Use L0.end_event_and_trace at call sites (no local variant in L1).
+
 function event_gumbel_key(master, ids, module:string, trace:TraceState, meta) -> (g:f64, stream:Stream, new_trace:TraceState):
-  s  = derive_substream(master, "gumbel_key", ids)                      # label fixed by schema vocab
-  ctx = begin_event_ctx(module, "gumbel_key", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
-  (g, s1, d) = gumbel_key(s)                                            # L0 C5; draws=1 (u128); blocks=1
-  payload = { key: g }                                                  # per-event schema payload
-  new_trace = end_event_and_trace("rng_event_gumbel_key", ctx, s1, 0, d, payload, trace)
-  return (g, s1, new_trace)
+  return L0.event_gumbel_key(master, ids, module, trace, meta)
 ```
 
 *Budget: **1 uniform**; envelope must show `(blocks=1, draws="1")`. Ties later break by `(ISO, merchant_id)` per spec.*
@@ -403,12 +398,7 @@ function event_gumbel_key(master, ids, module:string, trace:TraceState, meta) ->
 
 ```text
 function event_gamma_component(master, ids, module:string, alpha:f64, trace:TraceState, meta) -> (G:f64, stream:Stream, new_trace:TraceState):
-  s  = derive_substream(master, "gamma_component", ids)
-  ctx = begin_event_ctx(module, "gamma_component", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
-  (G, s1, total) = gamma_mt(alpha, s)                                   # L0 C2; Case-B = draws(G') + 1 (normative)
-  payload = { alpha: alpha, value: G }
-  new_trace = end_event_and_trace("rng_event_gamma_component", ctx, s1, 0, total, payload, trace)
-  return (G, s1, new_trace)
+  return L0.event_gamma_component(master, ids, module, alpha, trace, meta)
 ```
 
 *Budget: **exact uniforms consumed**; **no padding**; Box–Muller inside uses exactly 2 uniforms (one block). Envelope `draws` logs the **actual** total.*
@@ -419,12 +409,7 @@ function event_gamma_component(master, ids, module:string, alpha:f64, trace:Trac
 
 ```text
 function event_poisson_component(master, ids, module:string, lambda:f64, context:string, trace:TraceState, meta) -> (K:int, stream:Stream, new_trace:TraceState):
-  s  = derive_substream(master, "poisson_component", ids)
-  ctx = begin_event_ctx(module, "poisson_component", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
-  (K, s1, total) = poisson(lambda, s)                                   # L0 C3; inversion if λ<10, PTRS else (2 uniforms/attempt)
-  payload = { lambda: lambda, context: context, k: K }
-  new_trace = end_event_and_trace("rng_event_poisson_component", ctx, s1, 0, total, payload, trace)
-  return (K, s1, new_trace)
+  return L0.event_poisson_component(master, ids, module, lambda, context, trace, meta)
 ```
 
 *Normative constants for PTRS (`0.931`, `2.53`, `-0.059`, `0.02483`, `1.1239`, `1.1328`, `3.4`, `0.9277`, `3.6224`, `0.86`) are **algorithmic**, not configurable; split threshold λ★=10.*
