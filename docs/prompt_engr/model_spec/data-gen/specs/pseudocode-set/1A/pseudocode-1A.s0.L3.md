@@ -27,6 +27,7 @@
 * No re-implementation or reinterpretation of S0 business logic.
 * No heuristics, fuzzy matching, or tolerance bands (other than what the spec already defines).
 * No inference of config (e.g., **not** inferring `emit_hurdle_pi_cache` from dataset presence; the cache is treated as optional).
+* No success markers may be written **inside** the fingerprint-scoped validation bundle; any success logging (if used) must be **outside** the bundle.
 
 ## Section DoD
 
@@ -42,7 +43,7 @@ L3 validators read **bytes on disk** (no producer state) and only the artefacts 
 
 * **Governed parameter bundle 𝓟**: the exact files enumerated (ASCII/unique basenames) for S0.2; used to recompute `parameter_hash`. L2’s host shim `list_parameter_files()` is the authority for this set.
 * **Opened artefacts 𝓐 snapshot** (from S0.1, as consumed by S0.2): includes `numeric_policy.json`, `math_profile_manifest.json`, ISO set, GDP vintage, Jenks-5 buckets, schema/dictionary/registry anchors. L3 uses the bundle’s **fingerprint artefact list** (rows S0.2 emitted) to know *exactly* which basenames/paths to re-open and hash.
-* **Raw git commit bytes (`git32`)**: 32 **raw** bytes echoed in the bundle; used in fingerprint recomputation.
+* **Git commit (hex, resolved)**: read `git_commit_hex` from `manifest_fingerprint_resolved.json` and **decode to raw 32 bytes** for fingerprint recomputation (never hash the hex string).
 * **Resolved lineage files** written by S0.2:
   `parameter_hash_resolved.json`, `manifest_fingerprint_resolved.json`, and the tabulations of parameter and artefact digests for cross-check.
 
@@ -53,7 +54,7 @@ L3 validators read **bytes on disk** (no producer state) and only the artefacts 
 **RNG logs (S0 emits audit only)**
 
 * **RNG audit log** under `{seed, parameter_hash, run_id}` with master key/counter & metadata. L3 asserts it exists and precedes *any* events. (S0 emits **no** RNG events; L3 also confirms absence of event files for S0.)
-* **RNG trace log** (if present for the run-id scope): L3 reconciles `blocks_total` with any envelope rows; for S0 it should reflect **audit-only** behavior.
+* **RNG trace log** *(not used in S0)*: if present for later states under the run-id scope, reconcile `blocks_total` with any envelope rows. For S0, trace files are not expected.
 
 **Parameter-scoped outputs from S0**
 
@@ -67,7 +68,7 @@ L3 validators read **bytes on disk** (no producer state) and only the artefacts 
 **Host-provided byte shims (read-only)**
 
 * L3 may reuse the L2 read-only shims to fetch bytes/paths *without* adding logic:
-  `list_parameter_files`, `list_opened_artifacts`, `read_git_commit_32_bytes`, `read_bytes` (to re-open artefacts), plus optional `build_notes` if echoed in audit/bundle. These shims are defined and bounded in L2.
+  `list_parameter_files`, `read_bytes` (to re-open artefacts). (The git-hex→raw32 step is provided here as a **local adapter**; see Appendix `read_git32_from_resolved`.)
 
 **Explicit non-inputs (to prevent drift)**
 
@@ -75,21 +76,13 @@ L3 validators read **bytes on disk** (no producer state) and only the artefacts 
 
 ---
 
-# 2) Outputs
-
-L3 produces **no new business artefacts**. Its job is to verify, from bytes, that S0’s outputs obey the spec. It yields either a single success marker (optional) or a single failure record (mandatory on first violation).
-
-## Success (optional)
-
-* **`validator_passed.json`** *(optional convenience file inside the fingerprint-scoped validation dir)* containing: recomputed `parameter_hash` and `manifest_fingerprint`, counts of parameters and artefacts, and a short “pass” verdict. Not part of any partition key; if present, it **must** be included in the `_passed.flag` hash like every other bundle file.
-
-> Note: The authoritative success signal remains the existing `_passed.flag` computed over the **ASCII-sorted** raw bytes of all other bundle files; L3 only verifies it.
+L3 produces **no new business artefacts**. Its job is to verify, from bytes, that S0’s outputs obey the spec. On success, it produces **no files**; on failure, it emits **exactly one** failure record (mandatory on first violation).
 
 ## Failure (authoritative, exactly one)
 
 When any check fails, L3 must emit **one** S0.9 failure record under the run’s lineage scope and stop:
 
-* **Failure record** (JSON) placed under `{fingerprint, seed, parameter_hash, run_id}` per S0.9, with:
+* **Failure record** (JSON) placed under `{fingerprint, seed, run_id}` per S0.9, with:
 
   * `failure_class` ∈ {F1…F10},
   * a precise `failure_code` (e.g., `lineage_mismatch`, `numeric_attest_fail`, `rng_audit_missing`, `partition_mismatch`, `gate_hash_mismatch`, `non_atomic_publish`),
@@ -130,7 +123,7 @@ Read `numeric_policy_attest.json` from the bundle and require: RNE rounding, FMA
 * exactly the recomputed {seed, parameter_hash, manifest_fingerprint, run_id}. Assert zero RNG events
 * exist for S0 (no envelopes with {before,after,blocks,draws}); counters therefore never advance.
 
-If any event exists ⇒ fail (F4a/F4d). 
+If any event exists ⇒ fail (**F4a**). 
 
 **V4 — Partition scope & embedding.**
 For each parameter-scoped dataset produced in S0 (e.g., `crossborder_eligibility_flags`, optional `hurdle_pi_probs`), verify the path key `parameter_hash=…` equals the **embedded** `parameter_hash` in every row. RNG audit rows must embed `{seed, parameter_hash, run_id}`; the validation bundle must be under `fingerprint={manifest_fingerprint}` and embed that fingerprint. Any mismatch ⇒ fail (F5/F10).
@@ -139,7 +132,7 @@ For each parameter-scoped dataset produced in S0 (e.g., `crossborder_eligibility
 Recompute `_passed.flag`: list bundle files in **bytewise ASCII** order, concatenate the raw bytes of **all except** `_passed.flag`, SHA-256 the concatenation; flag content must match. Also ensure publish was atomic (no temp files visible in final path). Otherwise ⇒ fail (F10).
 
 **V6 — Final verdict.**
-If V1–V5 pass, emit a single success verdict (optionally `validator_passed.json`). On first failure, write one S0.9 failure record (typed class/code) and stop (idempotent).
+If V1–V5 pass, emit success (**no new files**). On first failure, write one S0.9 failure record (typed class/code) and stop (idempotent).
 
 > Rationale for this order: lineage proves we’re validating the right bytes; numeric policy gates determinism **before** any RNG stage; S0 is **audit-only** for RNG; partition rules are enforced per dictionary; and the bundle is accepted only via the hash gate + atomic publish contract. 
 
@@ -161,14 +154,14 @@ Here’s **Section 4 — Validator routines**, written as **code-agnostic pseudo
 
 * `parameter_hash_resolved.json`, `param_digest_log.jsonl`
 * `manifest_fingerprint_resolved.json`, `fingerprint_artifacts.jsonl`
-* `git32` (raw 32 bytes echoed in bundle context)
+* `git_commit_hex` (from `manifest_fingerprint_resolved.json`), **decoded to raw 32 bytes** for recomputation
 
 **Uses L0:** `all_ascii_unique_basenames`, `sha256_stream`, `UER/LE64`, `compute_parameter_hash`, `compute_manifest_fingerprint`.
 
 ```text
 function V1_recompute_lineage_and_compare(bundle_dir, parameters_root):
   # 1) Recompute parameter_hash from governed parameter bundle 𝓟
-  P_files = discover_parameter_files(parameters_root)               # same enumeration rules as S0.2
+  P_files = list_parameter_files(parameters_root)                  # same enumeration rules as S0.2 (host shim)
   if not all_ascii_unique_basenames(P_files): 
       return abort_run(F2, "basenames_invalid_or_duplicate", {where:"parameters"})
 
@@ -187,11 +180,13 @@ function V1_recompute_lineage_and_compare(bundle_dir, parameters_root):
   if not all_ascii_unique_basenames(arts):
       return abort_run(F2, "basenames_invalid_or_duplicate", {where:"artifacts"})
 
-  git32 = read_git32_from_bundle(bundle_dir)                       # raw 32 bytes echoed by S0.10
+  # Source the git commit **hex** from the resolved file, and decode to raw 32 bytes
+  mf_resolved = host.read_json(bundle_dir + "/manifest_fingerprint_resolved.json")
+  git32 = hex64_to_raw32(mf_resolved.git_commit_hex)
+
   (fp_hex, fp_bytes, fp_resolved, fa_rows_recomputed) =
       compute_manifest_fingerprint(arts, git32, param_hash_bytes)
-
-  mf_resolved = host.read_json(bundle_dir + "/manifest_fingerprint_resolved.json")
+      
   if mf_resolved.manifest_fingerprint != fp_hex:
       return abort_run(F2, "manifest_fingerprint_mismatch",
                        {expected:fp_hex, found:mf_resolved.manifest_fingerprint})
@@ -249,8 +244,8 @@ function V3_check_rng_audit_invariant(log_root, seed, parameter_hash, run_id, ma
       return abort_run(F4a, "rng_audit_row_count", {path:audit_files[0], count:count_lines(audit_files[0])})
 
   # S0 must be audit-only: assert absence of RNG event envelopes for this lineage
-  events_glob = log_root + "/logs/rng/events/seed=" + seed +
-                "/parameter_hash=" + parameter_hash + "/run_id=" + run_id + "/rng_event_*"
+  events_glob = log_root + "/logs/rng/events/*/seed=" + seed +
+                "/parameter_hash=" + parameter_hash + "/run_id=" + run_id + "/part-*.jsonl"
   if host.glob(events_glob) is not empty:
       return abort_run(F4a, "rng_events_present_in_S0", {path_glob:events_glob})
 
@@ -263,12 +258,12 @@ function V3_check_rng_audit_invariant(log_root, seed, parameter_hash, run_id, ma
   # If the schema variant exposes key/counter, enforce exact match with L0 names
   if ("rng_key_lo" in audit_row) or ("rng_key_hi" in audit_row):
       if (audit_row.rng_key_hi != 0) or (audit_row.rng_key_lo != root_key):
-          return abort_run(F3, "audit_root_key_mismatch",
+          return abort_run(F4a, "audit_root_key_mismatch",
                            {expected_lo:root_key, expected_hi:0,
                             found_lo:audit_row.rng_key_lo, found_hi:audit_row.rng_key_hi})
   if ("rng_counter_hi" in audit_row) or ("rng_counter_lo" in audit_row):
       if (audit_row.rng_counter_hi != root_ctr.hi) or (audit_row.rng_counter_lo != root_ctr.lo):
-          return abort_run(F3, "audit_root_counter_mismatch",
+          return abort_run(F4a, "audit_root_counter_mismatch",
                            {expected_hi:root_ctr.hi, expected_lo:root_ctr.lo,
                             found_hi:audit_row.rng_counter_hi, found_lo:audit_row.rng_counter_lo})
 
@@ -378,7 +373,7 @@ return ok
 ```text
 function V6_check_abort_semantics(root, fingerprint, seed, parameter_hash, run_id):
   fail_dir = root + "/fingerprint=" + fingerprint + "/seed=" + seed + 
-             "/parameter_hash=" + parameter_hash + "/run_id=" + run_id + "/"
+             "/run_id=" + run_id + "/"
   failure_files = host.glob(fail_dir + "/failure.json")
   sentinel_files = host.glob(fail_dir + "/_FAILED.SENTINEL.json")
 
@@ -389,7 +384,8 @@ function V6_check_abort_semantics(root, fingerprint, seed, parameter_hash, run_i
 
       bundle_dir = root + "/fingerprint=" + fingerprint + "/"
       # Success bundle must not coexist with a failure for the same lineage instance
-      if bundle_contains_success_marker(bundle_dir) and instance_matches(bundle_dir, {seed,parameter_hash,run_id}):
+      # instance_matches expects {parameter_hash, fingerprint}
+      if bundle_contains_success_marker(bundle_dir) and instance_matches(bundle_dir, {parameter_hash:parameter_hash, fingerprint:fingerprint}):
           return abort_run(F9, "bundle_published_after_abort",
                            {bundle:bundle_dir, fail_dir:fail_dir})
 
@@ -411,7 +407,7 @@ function V6_check_abort_semantics(root, fingerprint, seed, parameter_hash, run_i
 
 * Each routine **only** calls L0 primitives and host **byte shims**; no new algorithms or tolerances.
 * Each failure path maps to a **single** S0.9 `abort_run(F*, code, detail)` invocation and then stops.
-* Success produces **no** new business artefacts; optional `validator_passed.json` is allowed.
+* Success produces **no** new business artefacts.
 * Re-running yields identical outcomes (idempotent).
 
 ---
@@ -433,13 +429,13 @@ Below is the **single** entrypoint that runs all validators in the only allowed 
 #   run_id:          hex32 (path key)
 #
 # Side effects:
-#   - On success:   (optional) write validator_passed.json inside the bundle (participates in _passed.flag).
-#   - On failure:   write exactly one S0.9 failure record under {fingerprint, seed, parameter_hash, run_id} and stop.
+#   - On failure:   write exactly one S0.9 failure record under {fingerprint, seed, run_id} and stop.
 #
 # Non-goals:
 #   - Never alters business datasets or logs.
 #   - Never emits RNG events or draws.
 #   - Never adds to artefact set 𝓐; only re-opens what S0 already recorded.
+#   - Never writes success markers inside the fingerprint-scoped validation bundle.
 
 function validate_S0(validation_root, data_root, log_root, parameters_root,
                      seed:u64, parameter_hash:hex64,
@@ -495,17 +491,6 @@ function validate_S0(validation_root, data_root, log_root, parameters_root,
   ok6 = V6_check_abort_semantics(validation_root, manifest_fingerprint, as_dec(seed), parameter_hash, run_id)
   if ok6 != ok: return fail_once_and_stop()                   # abort_run(F9/F10, ...) already done
 
-  # ----------------
-  # Success verdict
-  # ----------------
-  if cfg.emit_validator_passed:                               # optional; not a new policy knob, just a write/no-write
-      write_json(join(bundle_dir, "validator_passed.json"),
-                 { verdict: "pass",
-                   seed: as_dec(seed),
-                   parameter_hash: parameter_hash,
-                   manifest_fingerprint: manifest_fingerprint,
-                   run_id: run_id })
-
   return { verdict: "pass" }
 ```
 
@@ -526,9 +511,8 @@ function validate_S0(validation_root, data_root, log_root, parameters_root,
 
 * `host.read_json(path)`, `host.read_bytes(path)`
 * `host.list_files(dir)`, `host.glob(pattern)`
-* `write_json(path, obj)` *(only if you enable the optional success marker)*
 
-These shims only fetch bytes/paths (and write the **optional** success marker). All hashing, hex/bytes conversions, and policy checks are performed via **frozen L0** and the **V1–V6** routines you already accepted.
+These shims only fetch bytes/paths. All hashing, hex/bytes conversions, and policy checks are performed via **frozen L0** and the **V1–V6** routines you already accepted.
 
 ---
 
@@ -647,31 +631,13 @@ Not a failing shim by itself; callers decide (e.g., temp files in bundle → `F1
 
 ---
 
-## H-L3.7 `write_json(path: string, obj: object)` *(success marker only; optional)*
-
-**Purpose.** Write `validator_passed.json` **only** if you enable the optional success marker.
-
-**Contract.**
-
-* Writes atomically to the final bundle dir. If you use it, include the file in the `_passed.flag` recomputation rules (L3 does not recompute the flag; it verifies the existing one).
-* **Never** used to write failure records (L3 calls `abort_run(...)` for that).
-
-**Determinism.** If written, content is deterministic (fixed schema).
-
-**Failure mapping.**
-If write fails, you may ignore (since it’s optional) or log a non-fatal note; do **not** transition a pass into a fail.
-
-**Used by.** Orchestrator success path (optional).
-
----
-
 ### Non-shims (explicitly **not** part of host)
 
 * Hashing, hex/bytes conversions, tuple-hash rules, `_passed.flag` recomputation, RNG master material, Neumaier/total-order checks, partition verification, and the S0.9 `abort_run(...)` **all come from L0/L3**, not from host utilities.
 
 ### DoD for §6
 
-* Only 7 read-only shims are listed; they **match** what L3 actually calls.
+* Only 6 read-only shims are listed; they **match** what L3 actually calls.
 * Each shim states **purpose, contract, determinism, failure mapping, and usage**.
 * No duplication of L0/L1 logic, no “smart” parsing, no normalization.
 * Implementers can provide these trivially on any FS; L3 remains portable and deterministic.
@@ -691,18 +657,18 @@ This section is the acceptance contract. If **all** checks pass exactly as writt
 ## 7.2 Inputs/outputs (closed set)
 
 * Reads only: bundle (fingerprint-scoped), parameter-scoped datasets, RNG audit path, governed parameters, artefact list, git32, attestation.
-* **No new business artefacts** are written. Optional `validator_passed.json` is allowed; if written, it must be covered by the bundle’s `_passed.flag`.
+* **No new artefacts are written inside the bundle.** Success is signalled by process status and/or an external validator log outside the bundle.
 
 ## 7.3 Determinism & purity
 
 * Uses **frozen L0** for: tuple-hash, fingerprint, hex/bytes, `_passed.flag` hashing, RNG master-material, partition-key verification.
-* Host shims are **read-only** (the seven listed in §6); no normalization, no hidden state.
+* Host shims are **read-only** (the six listed in §6); no normalization, no hidden state.
 * Re-running L3 yields identical results and (on failure) the **same** single failure record.
 
 ## 7.4 Failure policy (S0.9)
 
 * On first violation, calls `abort_run(F*, failure_code, detail)` and **returns immediately**.
-* Exactly **one** failure record is produced, under `{fingerprint, seed, parameter_hash, run_id}`.
+* Exactly **one** failure record is produced, under `{fingerprint, seed, run_id}` (path). The JSON payload still carries `{parameter_hash}`.
 * Failure classes map as:
 
   * **F2** lineage/fingerprint/artefact-set errors, missing governed inputs.
@@ -744,7 +710,7 @@ This section is the acceptance contract. If **all** checks pass exactly as writt
 
 ## 7.10 Abort semantics (if applicable)
 
-* If a failure record exists, it is placed **exactly** under `{fingerprint, seed, parameter_hash, run_id}` with valid shape.
+* If a failure record exists, it is placed **exactly** under `{fingerprint, seed, run_id}` with valid shape. The record body includes `{parameter_hash}`.
 * A success bundle **must not** co-exist for the same lineage instance; otherwise fail (**F9/F10**).
 
 ## 7.11 Negative/edge tests (must fail correctly)
@@ -758,7 +724,7 @@ This section is the acceptance contract. If **all** checks pass exactly as writt
 
 ## 7.12 Success criteria
 
-* With a valid S0 run, L3 completes V1…V6 without emitting a failure record, and (optionally) writes `validator_passed.json`.
+* With a valid S0 run, L3 completes V1…V6 **without emitting a failure record**.
 * A second run over the same bytes yields identical success.
 
 This DoD makes “green” objective: every check is mechanical, byte-backed, and mapped to a single failure class.
@@ -773,7 +739,7 @@ To keep L3 deterministic, spec-true, and guess-free, **do not** do any of the fo
 
 * **Late-opening governance**: don’t read any artefact that wasn’t in the S0.2 artefact list 𝓐. L3 must only re-open what S0 fingerprinted.
 * **Expanding the parameter set**: don’t discover extra governed files beyond the logged parameter list; don’t ignore basename ASCII/uniqueness rules.
-* **Using hex commit text**: fingerprint recomputation must use the **raw 32 bytes**, not a hex string.
+* **Using hex commit text**: always **decode** `git_commit_hex` to the **raw 32 bytes**; never hash the hex string itself.
 
 ## RNG & numeric policy
 
@@ -796,7 +762,7 @@ To keep L3 deterministic, spec-true, and guess-free, **do not** do any of the fo
 ## Gate & publish
 
 * **Wrong gate procedure**: don’t hash names; hash the **concatenated bytes** of all bundle files **except** `_passed.flag`, with ASCII filename ordering.
-* **Post-hoc mutation**: never modify bundle contents (including adding `validator_passed.json`) **without** acknowledging that L3 only *verifies* the existing `_passed.flag`. (If you choose to write the optional success marker, do not re-gate; verification still uses the pre-existing flag.)
+* **Post-hoc mutation**: never modify bundle contents after publish; L3 only *verifies* the existing `_passed.flag`.
 * **Non-atomic publish tolerance**: don’t ignore `_tmp`/partial files in the final bundle; that’s a failure.
 
 ## Control flow & failures
@@ -816,10 +782,9 @@ Sticking to these “don’ts” keeps L3 lean, reproducible, and perfectly alig
 
 # Appendix — Local adapters used by L3 (pure, no new logic)
 
-- `discover_parameter_files(root)` → use `host.list_files(root)` and filter per governed rules logged by S0.2 (ASCII basenames, uniqueness).
 - `read_artifact_list(path)` → parse JSONL rows into `{basename, path, hash}` records.
 - `materialize_artifacts_bytes(rows)` → for each row, call `host.read_bytes(row.path)` and return list of `{basename, bytes}`; preserve basenames.
-- `read_git32_from_bundle(bundle_dir)` → read raw 32-byte commit from the bundle context file S0.10 emitted.
+- `read_git32_from_resolved(bundle_dir)` → read `git_commit_hex` from `manifest_fingerprint_resolved.json` and return **raw 32 bytes** via `hex64_to_raw32`.
 - `read_single_jsonl(path)` → ensure exactly one line; strict-parse JSON and return the object.
 - `count_jsonl(files)` → number of JSONL files in the list; `count_lines(path)` → exact line count in file.
 - `bundle_manifest_list(bundle_dir)` → `host.read_json(join(bundle_dir,"MANIFEST.json")).files`.
@@ -854,16 +819,6 @@ function instance_matches(bundle_dir:string, lineage:object) -> bool:
 function valid_failure_shape(payload:object) -> bool:
   return (("failure_class" in payload) and ("failure_code" in payload) and ("detail" in payload))
 
-
-function discover_parameter_files(root:string) -> list[(string basename, string path)]:
-  # governed basenames per S0.2: exact ASCII names
-  governed = ["crossborder_hyperparams.yaml", "hurdle_coefficients.yaml", "nb_dispersion_coefficients.yaml"]
-  files = host.list_files(root)   # returns basenames
-  out = []
-  for name in governed:
-      if name in files:
-          out.append((name, root + "/" + name))
-  return out
 # Minimal wrappers to align with L0 encoders/hashes used in V3
 function hex64_to_raw32(hex64:string) -> bytes[32]:
   # parse 64 hex chars into 32 raw bytes
@@ -905,10 +860,29 @@ function materialize_artifacts_bytes(rows:list[object]) -> list[object]:
       out.append({ basename: r.basename, bytes: host.read_bytes(r.path) })
   return out
 
+function read_git32_from_resolved(bundle_dir:string) -> bytes[32]:
+  # Read git hex from the resolved file and decode to raw 32 bytes for recomputation
+  mf = host.read_json(bundle_dir + "/manifest_fingerprint_resolved.json")
+  return hex64_to_raw32(mf.git_commit_hex)
+
 function read_rows(path:string) -> iterator[object]:
-  # Minimal row iterator over a Parquet/JSONL shard; must surface embedded lineage fields
-  # Implementation may delegate to host-specific readers; this is a schematic contract.
-  return host.read_parquet_rows(path)  # or host.read_jsonl_rows(path)
+  # Schematic row iterator over a Parquet/JSONL shard; must surface embedded lineage fields.
+  # Uses ONLY declared host shims:
+  #  - JSONL: host.read_lines(path) → parse each line strictly.
+  #  - Parquet: host.read_bytes(path) → decode via a local codec adapter (not a host shim).
+  if ends_with(path, ".jsonl"):
+      for ln in host.read_lines(path):
+          if len(ln) == 0: continue
+          yield parse_json_strict(bytes_to_ascii(ln))
+  else:
+      bs = host.read_bytes(path)                   # raw Parquet bytes
+      for row in parquet_iter_rows(bs):            # local adapter, pure decode
+          yield row
+
+function parquet_iter_rows(bytes_blob:bytes) -> iterator[object]:
+  # Local decode adapter; implementation binds to a deterministic Parquet reader.
+  # Not a host shim; no normalization beyond the codec’s exact decoding.
+  return PARQUET.decode_iter(bytes_blob)
 
 function extract_json_schema_anchors_from(registry:object) -> set[string]:
   # Return the set of schema refs that are JSON-Schema anchors
