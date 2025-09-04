@@ -1,5 +1,14 @@
 # 0) Purpose — what L3 is (and isn’t)
 
+> **Validator (read-only; uses L0 helpers).** L3 performs **byte-level verification** of S0 outputs.  
+> It **does not** redefine cross-state helpers. Use L0 for:
+> - Lineage recompute, hex↔bytes, UTF-8/JSON rules, ASCII ordering → L0 Capsules.  
+> - RNG audit invariants & event taxonomy → L0 Batch-D.  
+> - Gate hash read/write (`_passed.flag`) → L0 Batch-F.  
+> - Partition/key verification → L0.  
+> Local adapters are allowed only when binding host shims to this validator (e.g., JSONL/Parquet iterators) and must have **no** independent algorithmic policy. 
+> Helper policy: If a function isn’t strictly state-local glue, **do not define it here** — call the canonical implementation in **L0** instead.
+
 ## Purpose (what L3 **is**)
 
 * A **read-only, idempotent validator** for **State-0** that proves the run is correct **from bytes on disk only**.
