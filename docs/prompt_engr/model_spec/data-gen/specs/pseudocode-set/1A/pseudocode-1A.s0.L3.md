@@ -339,16 +339,16 @@ function V5_verify_gate_hash_and_publish(bundle_dir):
       return abort_run(F10, "passed_flag_missing", {dir:bundle_dir})
 
   # 1) Recompute the gate hash exactly as specified
-  others = ascii_sort([f for f in files if f != "_passed.flag"])
+  others = L0.sort_ascii([f for f in files if f != "_passed.flag"])
   H = new_SHA256()
   for f in others:
       H.update( host.read_bytes(bundle_dir + "/" + f) )           # raw bytes, no transcoding
   expected_hex = hex64( H.finalize() )
 
   flag_text = host.read_bytes(bundle_dir + "/_passed.flag").decode_ascii_strict()
-  if extract_hash(flag_text) != expected_hex:
+  if L0.extract_hash(flag_text) != expected_hex:
       return abort_run(F10, "gate_hash_mismatch",
-                       {expected:expected_hex, found:extract_hash(flag_text)})
+                       {expected:expected_hex, found:L0.extract_hash(flag_text)})
 
   # 2) Atomic publish via manifest: no extras beyond MANIFEST.json and _passed.flag
   manifest = host.read_json(join(bundle_dir, "MANIFEST.json"))
@@ -809,9 +809,9 @@ Sticking to these “don’ts” keeps L3 lean, reproducible, and perfectly alig
 Local adapters used above (self‑contained)
 
 ```text
+# use L0.sort_ascii(xs) — single canonical ASCII ordering
 function ascii_sort(xs:list<string>) -> list<string>:
-  # Sort by raw ASCII code point
-  return sort(xs, key=bytewise_ascii)
+  return L0.sort_ascii(xs)
 
 function as_dec(u64val:u64) -> string:
   # Decimal string without separators
@@ -837,81 +837,35 @@ function valid_failure_shape(payload:object) -> bool:
 
 # Minimal wrappers to align with L0 encoders/hashes used in V3
 function hex64_to_raw32(hex64:string) -> bytes[32]:
-  # parse 64 hex chars into 32 raw bytes
-  return hex_to_bytes(hex64)
+  # delegate to L0 (single source of truth)
+  return L0.hex64_to_raw32(hex64)
 
+# LE64 encoder: use the single L0 primitive
 function enc_u64_le(x:u64) -> bytes[8]:
-  return u64_to_le_bytes(x)
+  return L0.enc_u64(x)
 
 # --- Primitive parsing capsule: strict JSON + byte helpers (normative for L3 JSONL usage) ---
 
 function bytes_to_ascii(bs:bytes) -> string:
-  # Strict UTF-8 decode (name kept for historical reasons).
-  # Contract: reject BOM; reject invalid UTF-8; return Unicode string.
-  if starts_with(bs, b"\xEF\xBB\xBF"): abort_run(F10, "json_bom_forbidden", {})
-  return decode_utf8_strict(bs)   # must fail on any invalid sequence
+  # delegate to L0 strict decoder (reject BOM, invalid UTF-8)
+  return L0.bytes_to_ascii(bs)
 
 function split_bytes_on_lf(bs:bytes) -> list[bytes]:
-  # Split on LF without normalizing CR; preserves empty trailing element if present.
-  # (Call sites may ignore a final empty line explicitly.)
-  return bs.split(b"\n")
+  # delegate to L0 canonical splitter
+  return L0.split_bytes_on_lf(bs)
 
 function parse_json_strict(s:string) -> object:
-  # RFC 8259 strict parse with L0-aligned constraints for control files/JSONL rows.
-  # Inputs: 's' is already UTF-8 decoded via bytes_to_ascii().
-  # Rules (normative):
-  #  1) No comments; no trailing commas; no trailing data after the single JSON value.
-  #  2) Object keys must be UNIQUE (first occurrence wins is NOT allowed) — duplicates → error.
-  #  3) Numbers: only decimal integer tokens allowed (no fraction '.', no exponent 'e'/'E').
-  #     - Positive integers parsed as unsigned 64-bit if 0 ≤ n ≤ 2^64-1; else → error.
-  #     - Negative integers parsed as signed 64-bit if −2^63 ≤ n < 0; else → error.
-  #     - Leading zeros forbidden except for zero itself ("0").
-  #  4) Strings must be valid JSON strings (escape sequences per RFC 8259; reject lone surrogates).
-  #  5) Whitespace allowed only where RFC permits.
-  # Return: a JSON object/array/scalar with integers typed as u64/i64 as per rule (3); no floats.
-  #
-  # Determinism: Given the same 's', returns exactly the same structure; errors are fatal at call site.
-  #
-  # (Implementation sketch — code-agnostic)
-  tok = json_lexer_strict(s)                 # produces RFC 8259 tokens; enforces rules 1,4,5
-  val = json_parse_from_tokens(tok)          # recursive descent; forbids trailing commas
-  if tok.has_more(): abort_run(F10, "json_trailing_data", {})
-  if is_object(val):
-      seen = set()
-      for (k, _) in object_items_in_order(val):
-          if k in seen: abort_run(F10, "json_duplicate_key", {key:k})
-          seen.add(k)
-  # Enforce integer-only policy and 64-bit ranges
-  def coerce_numbers(x):
-      if is_array(x): return [coerce_numbers(v) for v in x]
-      if is_object(x):
-          out = {}
-          for (k,v) in object_items_in_order(x): out[k] = coerce_numbers(v)
-          return out
-      if is_number_token(x):
-          if contains(x.text, ".") or contains_any(x.text, ["e","E"]):
-              abort_run(F10, "json_non_integer_number", {lexeme:x.text})
-          if starts_with(x.text, "-"):
-              n = parse_int_decimal(x.text)           # exact, no float
-              if n < -0x8000000000000000: abort_run(F10, "json_int64_underflow", {lexeme:x.text})
-              return as_i64(n)
-          else:
-              if (len(x.text) > 1) and starts_with(x.text, "0"):
-                  abort_run(F10, "json_leading_zero", {lexeme:x.text})
-              n = parse_uint_decimal(x.text)          # exact, no float
-              if n > 0xFFFFFFFFFFFFFFFF: abort_run(F10, "json_u64_overflow", {lexeme:x.text})
-              return as_u64(n)
-      return x
-  return coerce_numbers(val)
+  # delegate to L0 strict JSON (RFC 8259 + integer policy)
+  return L0.parse_json_strict(s)
 
 function read_single_jsonl(path:string) -> object:
   # Strictly one line → one JSON object
   bs = host.read_bytes(path)
-  lines = split_bytes_on_lf(bs)
+  lines = L0.split_bytes_on_lf(bs)
   # ignore possible trailing empty line from final newline
   payload = [ln for ln in lines if len(ln) > 0]
   assert len(payload) == 1
-  return parse_json_strict(bytes_to_ascii(payload[0]))
+  return L0.parse_json_strict(L0.bytes_to_ascii(payload[0]))
 
 function count_jsonl(files:list[string]) -> u32:
   # Count JSONL files in a listing (basenames)
@@ -925,9 +879,9 @@ function read_artifact_list(path:string) -> list[object]:
   # fingerprint_artifacts.jsonl rows → objects with at least {basename, path, sha256_hex}
   bs = host.read_bytes(path)
   out = []
-  for ln in split_bytes_on_lf(bs):
+  for ln in L0.split_bytes_on_lf(bs):
       if len(ln) == 0: continue
-      out.append(parse_json_strict(bytes_to_ascii(ln)))
+      out.append(L0.parse_json_strict(L0.bytes_to_ascii(ln)))
   return out
 
 function materialize_artifacts_bytes(rows:list[object]) -> list[object]:
@@ -950,7 +904,7 @@ function read_rows(path:string) -> iterator[object]:
   if ends_with(path, ".jsonl"):
       for ln in host.read_lines(path):
           if len(ln) == 0: continue
-          yield parse_json_strict(bytes_to_ascii(ln))
+          yield L0.parse_json_strict(L0.bytes_to_ascii(ln))
   else:
       bs = host.read_bytes(path)                   # raw Parquet bytes
       for row in parquet_iter_rows(bs):            # local adapter, pure decode
@@ -981,29 +935,10 @@ function join(dir:string, name:string) -> string:
   else: return dir + "/" + name
 
 function extract_hash(flag_text:string) -> hex64:
-  # expects a single line: 'sha256_hex = <64-hex>'
-  line = first_line(flag_text).strip()
-  parts = split(line, "=")    # ["sha256_hex ", " <hex>"]
-  return trim(parts[1])
+  # delegate to L0 `_passed.flag` inverse parser
+  return L0.extract_hash(flag_text)
 
-function hex_to_bytes(hexstr:string) -> bytes[]:
-  # parse lowercase hex into raw bytes (2 chars -> 1 byte)
-  assert (len(hexstr) % 2) == 0
-  out = []
-  i = 0
-  while i < len(hexstr):
-    out.append( byte_from_hex(hexstr[i:i+2]) )
-    i += 2
-  return bytes(out)
+## (hex_to_bytes removed — use L0.hex_to_bytes / L0.hex64_to_raw32)
 
-function u64_to_le_bytes(x:u64) -> bytes[8]:
-  b0 = x        & 0xff
-  b1 = (x>>8)   & 0xff
-  b2 = (x>>16)  & 0xff
-  b3 = (x>>24)  & 0xff
-  b4 = (x>>32)  & 0xff
-  b5 = (x>>40)  & 0xff
-  b6 = (x>>48)  & 0xff
-  b7 = (x>>56)  & 0xff
-  return bytes([b0,b1,b2,b3,b4,b5,b6,b7])
+## (u64_to_le_bytes removed — use L0.enc_u64)
 ```
