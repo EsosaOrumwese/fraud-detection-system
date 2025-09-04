@@ -181,6 +181,29 @@ function derive_run_id(fp_bytes, seed_u64, t_ns_u64, exists: fn(hex32)->bool) ->
       if attempts >= 65536:
           fail_F2("runid_collision_exhausted", { seed: seed_u64, attempts: attempts })
 ```
+
+### A4. Merchant scalar derivation (canonical)
+
+```text
+# Canonical scalar: LOW64(SHA256(LE64(id64))) — stable across languages.
+function merchant_u64_from_id64(id64: u64) -> u64:
+  b8  = LE64(id64)        # little-endian 8-byte encoding (normative)
+  h32 = SHA256(b8)        # 32 raw bytes
+  return LOW64(h32)       # bytes 24..31 as LE u64
+```
+
+### A5. Tiny string/anchor predicates (cross-state reuse)
+
+```text
+# ASCII substring predicate (bytewise).
+function contains_text(haystack: string, needle: string) -> bool:
+  return ascii_index_of(haystack, needle) >= 0
+
+# JSON-Schema ref MUST be a local anchor like "schemas.X.yaml#/path"
+function is_jsonschema_anchor(ref: string) -> bool:
+  return contains_text(ref, "schemas.") and contains_text(ref, ".yaml#/")
+```
+
 ---
 
 ## Batch B — PRNG core & keyed substreams
@@ -403,9 +426,9 @@ function emit_rng_audit_row(seed:u64,
 ### D2. Event envelope writer (authoritative counters & budgets)
 
 ```text
-function begin_event(module:string, substream_label:string,
-                     seed:u64, parameter_hash:hex64, manifest_fingerprint:hex64, run_id:hex32,
-                     stream:Stream) -> EventCtx:
+function begin_event_ctx(module:string, substream_label:string,
+                         seed:u64, parameter_hash:hex64, manifest_fingerprint:hex64, run_id:hex32,
+                         stream:Stream) -> EventCtx:
   return {
     ts_utc:  ts_utc_now_rfc3339_micro(),
     module:  module,
@@ -449,6 +472,24 @@ function end_event_emit(family:string, ctx:EventCtx, stream_after:Stream,
   }
   path = dict_path_for_family(family, ctx.seed, ctx.parameter_hash, ctx.run_id)
   write_jsonl(path, row)
+```
+
+### D2b. Event+Trace glue (convenience)
+
+```text
+# Minimal cumulative trace state used by producers.
+struct TraceState { blocks_total:u64, draws_total:u64, events_total:u64 }
+
+# Emit the event row, then advance cumulative totals (schema-compliant).
+function end_event_and_trace(family, ctx, stream_after, draws_hi:u64, draws_lo:u64, payload:object, trace:TraceState) -> TraceState:
+  end_event_emit(family, ctx, stream_after, draws_hi, draws_lo, payload)   # D2
+  (b,d,e) = update_rng_trace_totals(
+              ctx.module, ctx.substream_label,
+              ctx.seed, ctx.parameter_hash, ctx.run_id,
+              ctx.before_hi, ctx.before_lo, stream_after.ctr.hi, stream_after.ctr.lo,
+              draws_hi, draws_lo,
+              trace.blocks_total, trace.draws_total, trace.events_total)   # D3b
+  return TraceState{ blocks_total:b, draws_total:d, events_total:e }
 ```
 
 ### D3. Per-(module,label) RNG trace (cumulative **blocks**) — **REMOVED (use `D3b.update_rng_trace_totals`)**
@@ -499,6 +540,29 @@ function update_rng_trace_totals(module:string, substream_label:string,
   write_jsonl(path, row)
   return (new_blocks_total, new_draws_total, new_events_total)
 ```
+
+### D4. RNG event wrappers (library; S0 does not call these)
+
+```text
+# ZTP rejection (non-consuming): before==after, blocks=0, draws="0".
+function event_ztp_rejection(module:string, trace:TraceState, meta, before:Stream, after:Stream) -> TraceState:
+  ctx = begin_event_ctx(module, "ztp_rejection", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, before)
+  return end_event_and_trace("rng_event_ztp_rejection", ctx, after, 0, 0, { context:"ztp_rejection" }, trace)
+
+# ZTP retry exhausted after 64 zeros (non-consuming).
+function event_ztp_retry_exhausted(module:string, trace:TraceState, meta, before:Stream, after:Stream) -> TraceState:
+  ctx = begin_event_ctx(module, "ztp_retry_exhausted", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, before)
+  return end_event_and_trace("rng_event_ztp_retry_exhausted", ctx, after, 0, 0, { context:"ztp_retry_exhausted", attempts:64 }, trace)
+
+# Box–Muller event wrapper: consumes exactly 2 uniforms (1 block); discard sine mate.
+function event_normal_box_muller(module:string, trace:TraceState, meta) -> (Z:f64, stream:Stream, new_trace:TraceState):
+  s0  = derive_substream(meta.master, "normal_box_muller", meta.ids)   # L0 A2
+  ctx = begin_event_ctx(module, "normal_box_muller", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s0)
+  (Z, s1, draws) = normal_box_muller(s0)                               # L0 C
+  nt = end_event_and_trace("rng_event_normal_box_muller", ctx, s1, 0, draws, { z: Z }, trace)
+  return (Z, s1, nt)
+```
+
 ---
 
 ## Batch E — Numeric policy primitives (bit-stable math)
@@ -663,6 +727,72 @@ function abort_run(failure_class: string, failure_code: string,
 function abort(...args):
   return abort_run(...args)
 ```
+
+### F6. Failure payload builder (canonical shape)
+
+```text
+# ctx MUST supply: state, module, parameter_hash (hex64), manifest_fingerprint (hex64),
+# seed (u64), run_id (hex32), and a typed 'detail' object per the spec tables.
+function build_failure_payload(failure_class, failure_code, ctx):
+  assert failure_class in {"F1","F2","F3","F4","F5","F6","F7","F8","F9","F10"}
+  return {
+    "failure_class":        failure_class,             # F1..F10
+    "failure_code":         failure_code,              # snake_case
+    "state":                ctx.state,                 # e.g., "S0.3"
+    "module":               ctx.module,                # e.g., "1A.S0.rng"
+    "dataset_id":           ctx.dataset_id or null,    # optional
+    "merchant_id":          ctx.merchant_id or null,   # optional
+    "parameter_hash":       ctx.parameter_hash,        # hex64
+    "manifest_fingerprint": ctx.manifest_fingerprint,  # hex64
+    "seed":                 ctx.seed,                  # u64
+    "run_id":               ctx.run_id,                # hex32
+    "ts_utc":               now_ns(),            # u64 epoch ns (normative)
+    "detail":               ctx.detail                 # typed minima per spec
+  }
+```
+
+### F7. Payload-based abort (compat wrapper)
+
+```text
+# Wrapper for sites that already assemble the payload; forwards to F4.abort_run.
+function abort_run_atomic(payload, partial_partitions):
+  return abort_run(payload.failure_class, payload.failure_code,
+                   payload.seed, payload.parameter_hash, payload.manifest_fingerprint, payload.run_id,
+                   payload.detail, partial_partitions)
+```
+
+### F8. Merchant soft-abort log (parameter-scoped)
+
+```text
+# Only call in states that explicitly allow "merchant-abort" (soft) in their spec.
+# rows: iterable of {merchant_id, state, module, reason, ts_utc=epoch_ns()}
+function merchant_abort_log_write(rows, parameter_hash):
+  w = open_partitioned_writer("prep/merchant_abort_log", partition={"parameter_hash": parameter_hash})
+  for r in rows:
+    row = {
+      "parameter_hash": parameter_hash,   # embed equals path key
+      "merchant_id":    r.merchant_id,
+      "state":          r.state,
+      "module":         r.module,
+      "reason":         r.reason,
+      "ts_utc":         r.ts_utc          # epoch ns for consistency
+    }
+    assert w.write(row)
+  w.close()
+```
+
+### F9. Reconciliation hook (end-of-state spot check)
+
+```text
+# Optional producer-side check mirroring validator logic: ensure per-(module,label)
+# cumulative **blocks** and **draws** equal the sums in this state slice.
+function reconcile_trace_vs_events(module, substream_label,
+                                   events_blocks_sum:uint64, last_trace_blocks_total:uint64,
+                                   events_draws_sum:uint64,  last_trace_draws_total:uint64):
+  assert last_trace_blocks_total == events_blocks_sum, "rng_trace_reconcile_failed_blocks"
+  assert last_trace_draws_total  == events_draws_sum,  "rng_trace_reconcile_failed_draws"
+```
+
 ---
 
 ## Z. I/O shims (utility; non-normative signatures)

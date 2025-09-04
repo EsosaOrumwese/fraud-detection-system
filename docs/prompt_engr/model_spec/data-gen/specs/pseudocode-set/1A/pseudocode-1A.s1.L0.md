@@ -20,7 +20,7 @@
 **Envelope & writers (authoritative counters/budgets)**
 
 * `emit_rng_audit_row(...)` — S0 audit; **must exist** before S1’s first event.
-* `begin_event(module, substream_label, seed, parameter_hash, manifest_fingerprint, run_id, stream) -> EventCtx` — captures `ts_utc` (nanoseconds in S0).
+* `begin_event_ctx(module, substream_label, seed, parameter_hash, manifest_fingerprint, run_id, stream) -> EventCtx` — captures `ts_utc` (nanoseconds in S0).
 * `end_event_emit(family, ctx, stream_after, draws_hi, draws_lo, payload)` — writes envelope+payload; **internal** `blocks = after − before` (u128); **emitted** `blocks` field is `u64` per event (hurdle: `0` or `1`).
 
 **Legacy trace updater (blocks only; S0) — DEPRECATED for S1 producers**
@@ -123,7 +123,7 @@ function is_binary64_extreme01(pi:f64) -> bool
 
 ### B5. `begin_event_micro(...) -> EventCtx`
 
-**Intent:** Same as S0 `begin_event(...)`, but stamps **microsecond** `ts_utc` (S1 mandate). Pair with `end_event_emit(...)`.
+**Intent:** Same as S0 `begin_event_ctx(...)`, but stamps **microsecond** `ts_utc` (S1 mandate). Pair with `end_event_emit(...)`.
 
 ```pseudocode
 function begin_event_micro(module:string, substream_label:string,

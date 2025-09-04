@@ -69,11 +69,11 @@ function authority_preflight(registry, dictionary):
   ]
   # Scan dictionary: every 1A dataset schema_ref must begin with 'schemas.' (JSON-Schema), not an Avro file.
   for ds in dictionary.datasets_owned_by("1A"):
-      assert is_jsonschema_anchor(ds.schema_ref), "E_AUTHORITY_BREACH"
+      assert L0.is_jsonschema_anchor(ds.schema_ref), "E_AUTHORITY_BREACH"    # predicate lives in L0
 
   # Sanity: dictionary carries the explicit note that country order authority is 'country_set'
   entry = dictionary.lookup("country_set")
-  assert contains_text(entry.description, "ONLY authoritative") , "E_AUTHORITY_BREACH"  # spec note presence
+  assert L0.contains_text(entry.description, "ONLY authoritative"), "E_AUTHORITY_BREACH"  # micro-helper in L0
   # (Dictionary indeed describes country_set as the ONLY authority for cross-country order.)
 
   return {
@@ -132,8 +132,7 @@ function enforce_domains_and_map_channel(M, I):
 function derive_merchant_u64(M1):
   M2 = []
   for row in M1:
-      d = SHA256( LE64(row.merchant_id) )
-      u = LOW64(d)      # pick bytes 24..31, interpret LE u64
+      u = L0.merchant_u64_from_id64(row.merchant_id)    # single scalar in L0
       M2.append(row ∪ { merchant_u64: u })
   return M2
 ```
@@ -371,7 +370,7 @@ function derive_substream(master: Master, label: string, ids: tuple) -> Stream:
 ```text
 # Begin an RNG event: capture 'before' from the stream's counter.
 function begin_event_ctx(module, substream_label, seed, parameter_hash, manifest_fingerprint, run_id, stream) -> Ctx:
-  return begin_event(module, substream_label, seed, parameter_hash, manifest_fingerprint, run_id, stream)  # L0 D2
+  return L0.begin_event_ctx(module, substream_label, seed, parameter_hash, manifest_fingerprint, run_id, stream)  # L0 D2
 
 # Trace state carries cumulative totals; callers may ignore draws/events if they only need blocks.
 struct TraceState { blocks_total:u64, draws_total:u64, events_total:u64 }
@@ -444,17 +443,13 @@ function event_poisson_component(master, ids, module:string, lambda:f64, context
 > The subsequent successful `poisson_component(context="ztp")` event carries the actual budget.
 
 ```text
-# Non-consuming event when ZTP discards a zero draw; envelope: before==after, blocks=0, draws="0".
+# moved to L0.RNG (events capsule) — non-consuming marker
 function event_ztp_rejection(master, ids, module:string, trace:TraceState, meta, before:Stream, after:Stream) -> TraceState:
-  ctx = begin_event_ctx(module, "ztp_rejection", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, before)
-  new_trace = end_event_and_trace("rng_event_ztp_rejection", ctx, after, 0, 0, {context:"ztp_rejection"}, trace)
-  return new_trace
+  return L0.event_ztp_rejection(master, ids, module, trace, meta, before, after)
 
-# Non-consuming exhaustion marker after 64 zeros.
+# moved to L0.RNG (events capsule) — non-consuming exhaustion marker
 function event_ztp_retry_exhausted(master, ids, module:string, trace:TraceState, meta, before:Stream, after:Stream) -> TraceState:
-  ctx = begin_event_ctx(module, "ztp_retry_exhausted", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, before)
-  new_trace = end_event_and_trace("rng_event_ztp_retry_exhausted", ctx, after, 0, 0, {context:"ztp_retry_exhausted", attempts:64}, trace)
-  return new_trace
+  return L0.event_ztp_retry_exhausted(master, ids, module, trace, meta, before, after)
 ```
 
 *ZTP note: rejections/exhaustion are **non-consuming** (`blocks=0`, `draws="0"`); the successful component event carries the budget. Hard cap **64** zeros.*
@@ -467,13 +462,9 @@ function event_ztp_retry_exhausted(master, ids, module:string, trace:TraceState,
 > S0 produces only the RNG **audit row** (no RNG events in S0).
 
 ```text
+# moved to L0.RNG (events capsule) — budget (blocks=1, draws="2")
 function event_normal_box_muller(master, ids, module:string, trace:TraceState, meta) -> (Z:f64, stream:Stream, new_trace:TraceState):
-  s  = derive_substream(master, "normal_box_muller", ids)
-  ctx = begin_event_ctx(module, "normal_box_muller", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s)
-  (Z, s1, d) = normal_box_muller(s)
-  payload = { z: Z }
-  new_trace = end_event_and_trace("rng_event_normal_box_muller", ctx, s1, 0, d, payload, trace)
-  return (Z, s1, new_trace)
+  return L0.event_normal_box_muller(master, ids, module, trace, meta)
 ```
 
 *Budget: exactly **2 uniforms** (1 block); **discard** the sine mate; envelope must set `(blocks=1, draws="2")`.*
@@ -485,11 +476,13 @@ function event_normal_box_muller(master, ids, module:string, trace:TraceState, m
 ```text
 # Optional producer-side check mirroring validator logic: ensure per-(module,label)
 # cumulative **blocks** and **draws** equal the sums in this state slice.
+# moved to L0.RNG (events capsule) — producer-side spot-check
 function reconcile_trace_vs_events(module, substream_label,
                                    events_blocks_sum:uint64, last_trace_blocks_total:uint64,
                                    events_draws_sum:uint64,  last_trace_draws_total:uint64):
-  assert last_trace_blocks_total == events_blocks_sum, "rng_trace_reconcile_failed_blocks"
-  assert last_trace_draws_total  == events_draws_sum,  "rng_trace_reconcile_failed_draws"
+  return L0.reconcile_trace_vs_events(module, substream_label,
+                                      events_blocks_sum, last_trace_blocks_total,
+                                      events_draws_sum, last_trace_draws_total)
 ```
 
 ---
@@ -1145,93 +1138,36 @@ This L1 set directly mirrors the frozen S0.8 text: environment guarantees (§S0.
 ## 1) `build_failure_payload(class, code, ctx) → failure_json`
 
 ```text
-# ctx MUST supply: state, module, parameter_hash (hex64), manifest_fingerprint (hex64),
-# seed (u64), run_id (hex32), and a typed 'detail' object per the spec tables.
+# moved to L0.Batch-F (canonical envelope, single source of truth)
 function build_failure_payload(failure_class, failure_code, ctx):
-  assert failure_class in {"F1","F2","F3","F4","F5","F6","F7","F8","F9","F10"}
-  return {
-    "failure_class":        failure_class,             # F1..F10
-    "failure_code":         failure_code,              # snake_case
-    "state":                ctx.state,                 # e.g., "S0.3"
-    "module":               ctx.module,                # e.g., "1A.S0.rng"
-    "dataset_id":           ctx.dataset_id or null,    # optional
-    "merchant_id":          ctx.merchant_id or null,   # optional
-    "parameter_hash":       ctx.parameter_hash,        # hex64
-    "manifest_fingerprint": ctx.manifest_fingerprint,  # hex64
-    "seed":                 ctx.seed,                  # u64
-    "run_id":               ctx.run_id,                # hex32
-    "ts_utc":               now_ns(),            # u64 epoch ns (normative)
-    "detail":               ctx.detail                 # typed minima per spec
-  }
+  return L0.build_failure_payload(failure_class, failure_code, ctx)   # L0 Batch-F
 ```
 
-*Fields, required set, and **timestamp domain (epoch-ns)** are normative; `detail`’s minimal shapes are fixed for codes like `rng_counter_mismatch`, `partition_mismatch`, `ingress_schema_violation`, `artifact_unreadable`, `dictionary_path_violation`, `hurdle_nonfinite`. *
+*Fields, required set, and **timestamp domain (epoch-ns)** are normative; `detail`’s minimal shapes are fixed for codes like `rng_counter_mismatch`, `partition_mismatch`, `ingress_schema_violation`, `artifact_unreadable`, `dictionary_path_violation`, `hurdle_nonfinite`.*
 
 ---
 
 ## 2) `abort_run_atomic(payload, partial_partitions[])`
 
 ```text
-# partial_partitions: list of {dataset_id, partition_path, reason} for any instance that escaped temp.
-# Effects (normative): stop emitters, seal fingerprint-scoped failure dir atomically, mark partial outputs, freeze RNG.
+# moved to L0.Batch-F (single canonical abort path for all states)
 function abort_run_atomic(payload, partial_partitions):
-  # 1) Stop emitting new events/datasets immediately (callers must honor).
-  stop_all_emitters()
-
-  # 2) Create fingerprint/seed/run_id failure dir atomically
-  base_final = "data/layer1/1A/validation/failures/" +
-               "fingerprint="+payload.manifest_fingerprint+"/" +
-               "seed="+stringify(payload.seed)+"/" +
-               "run_id="+payload.run_id+"/"
-  base_tmp = base_final + "_tmp." + uuid4()
-  mkdirs(base_tmp)
-
-  write_json(base_tmp + "failure.json", payload)           # mandatory single file
-  write_json(base_tmp + "_FAILED.SENTINEL.json", payload)  # duplicate header for quick scans
-
-  rename_atomic(base_tmp, base_final)                      # temp dir → single rename (normative)
-
-  # 3) Mark incomplete outputs (if any partition escaped temp)
-  for p in partial_partitions:
-    write_json(p.partition_path + "/_FAILED.json", {
-      "dataset_id": p.dataset_id,
-      "partition_keys": p.partition_path,
-      "reason": p.reason
-    })
-
-  # 4) Freeze RNG: forbid any further RNG events for this (seed, parameter_hash, run_id)
-  freeze_rng_for_run(payload.seed, payload.parameter_hash, payload.run_id)
-
-  # 5) Exit non-zero; orchestrator halts downstream
-  terminate_process_nonzero()
+  return L0.abort_run_atomic(payload, partial_partitions)              # L0 Batch-F
 ```
 
-\*Failure artefacts live under `…/validation/failures/fingerprint={manifest_fingerprint}/seed={seed}/run_id={run_id}/` and are committed **atomically** (temp → rename). Re-runs hitting the **same** failure with the **same** lineage never overwrite an existing committed `failure.json`. On abort: stop emitters, seal the failure dir, write optional `_FAILED.json` sentinels inside any leaked partitions, freeze RNG, and exit non-zero. \*
+*Failure artefacts live under `…/validation/failures/fingerprint={manifest_fingerprint}/seed={seed}/run_id={run_id}/` and are committed **atomically** (temp → rename). Re-runs hitting the **same** failure with the **same** lineage never overwrite an existing committed `failure.json`. On abort: stop emitters, seal the failure dir, write optional `_FAILED.json` sentinels inside any leaked partitions, freeze RNG, and exit non-zero.*
 
 ---
 
 ## 3) `merchant_abort_log_write(rows, parameter_hash)`
 
 ```text
-# Only call in states that explicitly allow "merchant-abort" (soft) in their spec.
-# rows: iterable of {merchant_id, state, module, reason, ts_utc=epoch_ns()}
+# moved to L0.Batch-F (parameter-scoped soft-fallback log writer)
 function merchant_abort_log_write(rows, parameter_hash):
-  w = open_partitioned_writer("prep/merchant_abort_log",
-        partition={"parameter_hash": parameter_hash})
-  for r in rows:
-    row = {
-      "parameter_hash": parameter_hash,   # embed equals path key
-      "merchant_id":    r.merchant_id,
-      "state":          r.state,
-      "module":         r.module,
-      "reason":         r.reason,
-      "ts_utc":         r.ts_utc          # epoch ns for consistency
-    }
-    assert w.write(row)
-  w.close()
+  return L0.merchant_abort_log_write(rows, parameter_hash)            # L0 Batch-F
 ```
 
-\*This **never** replaces a run-abort; it only records permitted soft fallbacks. It is **parameter-scoped** at `…/prep/merchant_abort_log/parameter_hash={parameter_hash}/part-*.parquet`. \*
+*This **never** replaces a run-abort; it only records permitted soft fallbacks. It is **parameter-scoped** at `…/prep/merchant_abort_log/parameter_hash={parameter_hash}/part-*.parquet`.*
 
 ---
 
