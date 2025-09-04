@@ -843,6 +843,67 @@ function hex64_to_raw32(hex64:string) -> bytes[32]:
 function enc_u64_le(x:u64) -> bytes[8]:
   return u64_to_le_bytes(x)
 
+# --- Primitive parsing capsule: strict JSON + byte helpers (normative for L3 JSONL usage) ---
+
+function bytes_to_ascii(bs:bytes) -> string:
+  # Strict UTF-8 decode (name kept for historical reasons).
+  # Contract: reject BOM; reject invalid UTF-8; return Unicode string.
+  if starts_with(bs, b"\xEF\xBB\xBF"): abort_run(F10, "json_bom_forbidden", {})
+  return decode_utf8_strict(bs)   # must fail on any invalid sequence
+
+function split_bytes_on_lf(bs:bytes) -> list[bytes]:
+  # Split on LF without normalizing CR; preserves empty trailing element if present.
+  # (Call sites may ignore a final empty line explicitly.)
+  return bs.split(b"\n")
+
+function parse_json_strict(s:string) -> object:
+  # RFC 8259 strict parse with L0-aligned constraints for control files/JSONL rows.
+  # Inputs: 's' is already UTF-8 decoded via bytes_to_ascii().
+  # Rules (normative):
+  #  1) No comments; no trailing commas; no trailing data after the single JSON value.
+  #  2) Object keys must be UNIQUE (first occurrence wins is NOT allowed) — duplicates → error.
+  #  3) Numbers: only decimal integer tokens allowed (no fraction '.', no exponent 'e'/'E').
+  #     - Positive integers parsed as unsigned 64-bit if 0 ≤ n ≤ 2^64-1; else → error.
+  #     - Negative integers parsed as signed 64-bit if −2^63 ≤ n < 0; else → error.
+  #     - Leading zeros forbidden except for zero itself ("0").
+  #  4) Strings must be valid JSON strings (escape sequences per RFC 8259; reject lone surrogates).
+  #  5) Whitespace allowed only where RFC permits.
+  # Return: a JSON object/array/scalar with integers typed as u64/i64 as per rule (3); no floats.
+  #
+  # Determinism: Given the same 's', returns exactly the same structure; errors are fatal at call site.
+  #
+  # (Implementation sketch — code-agnostic)
+  tok = json_lexer_strict(s)                 # produces RFC 8259 tokens; enforces rules 1,4,5
+  val = json_parse_from_tokens(tok)          # recursive descent; forbids trailing commas
+  if tok.has_more(): abort_run(F10, "json_trailing_data", {})
+  if is_object(val):
+      seen = set()
+      for (k, _) in object_items_in_order(val):
+          if k in seen: abort_run(F10, "json_duplicate_key", {key:k})
+          seen.add(k)
+  # Enforce integer-only policy and 64-bit ranges
+  def coerce_numbers(x):
+      if is_array(x): return [coerce_numbers(v) for v in x]
+      if is_object(x):
+          out = {}
+          for (k,v) in object_items_in_order(x): out[k] = coerce_numbers(v)
+          return out
+      if is_number_token(x):
+          if contains(x.text, ".") or contains_any(x.text, ["e","E"]):
+              abort_run(F10, "json_non_integer_number", {lexeme:x.text})
+          if starts_with(x.text, "-"):
+              n = parse_int_decimal(x.text)           # exact, no float
+              if n < -0x8000000000000000: abort_run(F10, "json_int64_underflow", {lexeme:x.text})
+              return as_i64(n)
+          else:
+              if (len(x.text) > 1) and starts_with(x.text, "0"):
+                  abort_run(F10, "json_leading_zero", {lexeme:x.text})
+              n = parse_uint_decimal(x.text)          # exact, no float
+              if n > 0xFFFFFFFFFFFFFFFF: abort_run(F10, "json_u64_overflow", {lexeme:x.text})
+              return as_u64(n)
+      return x
+  return coerce_numbers(val)
+
 function read_single_jsonl(path:string) -> object:
   # Strictly one line → one JSON object
   bs = host.read_bytes(path)
