@@ -143,7 +143,7 @@ If V1–V5 pass, emit success (**no new files**). On first failure, write one S0
 Here’s **Section 4 — Validator routines**, written as **code-agnostic pseudocode** that only uses frozen L0 helpers and read-only host shims. Each routine is **pure**, idempotent, and maps failures to the S0.9 taxonomy. No new algorithms, no replays, no guessing.
 
 > Host shims L3 can use (bytes/paths only):
-> `host.read_bytes(path)->bytes`, `host.read_json(path)->obj`, `host.list_files(dir)->[path]`, `host.glob(dataset_id, scope)->[paths]`.
+> `host.read_bytes(path)->bytes`, `host.read_json(path)->obj`, `host.list_files(dir)->[path]`, `host.glob(pattern)->[path]`.
 > (These do **not** implement hashing, RNG, or partition policy; they just fetch bytes and paths.)
 
 ---
@@ -161,7 +161,7 @@ Here’s **Section 4 — Validator routines**, written as **code-agnostic pseudo
 ```text
 function V1_recompute_lineage_and_compare(bundle_dir, parameters_root):
   # 1) Recompute parameter_hash from governed parameter bundle 𝓟
-  P_files = list_parameter_files(parameters_root)                  # same enumeration rules as S0.2 (host shim)
+  P_files = host.list_parameter_files(parameters_root)                  # same enumeration rules as S0.2 (host shim)
   if not all_ascii_unique_basenames(P_files): 
       return abort_run(F2, "basenames_invalid_or_duplicate", {where:"parameters"})
 
@@ -511,6 +511,7 @@ function validate_S0(validation_root, data_root, log_root, parameters_root,
 
 * `host.read_json(path)`, `host.read_bytes(path)`
 * `host.list_files(dir)`, `host.glob(pattern)`
+* `host.list_parameter_files(root)`  ← (enumerate governed parameter bundle 𝓟; same contract as L2 H1)
 
 These shims only fetch bytes/paths. All hashing, hex/bytes conversions, and policy checks are performed via **frozen L0** and the **V1–V6** routines you already accepted.
 
@@ -521,6 +522,21 @@ These shims only fetch bytes/paths. All hashing, hex/bytes conversions, and poli
 L3 is **read-only**. It uses a **small subset** of the host shims already defined for L2 (same contracts—no new logic). These shims fetch bytes/paths only; all hashing, hex/bytes rules, and policy checks are done with **frozen L0** + the L3 routines.
 
 > Rule of thumb: shims **never normalize** or reinterpret content. They return raw bytes/objects and let L0/L3 do the exact work.
+
+## H-L3.0 `list_parameter_files(root: string) -> list[(basename_ascii: string, abs_path: string)]`
+
+**Purpose.** Enumerate the governed parameter bundle 𝓟 for V1 recomputation of `parameter_hash`.
+
+**Contract.**
+* Return every governed parameter file **exactly once**.
+* Each `basename_ascii` must be **ASCII** and **unique** across the list.
+* Paths must be absolute and readable.
+
+**Determinism.** Order is irrelevant (L0 hashes after **ASCII basename** sort). Contents must be stable for the run.
+
+**Failure mapping.** IO/missing → `F2:param_files_io`; non-ASCII/duplicate basenames → `F2:basenames_invalid_or_duplicate`.
+
+**Used by.** V1 `compute_parameter_hash(...)`.
 
 ---
 
@@ -662,7 +678,7 @@ This section is the acceptance contract. If **all** checks pass exactly as writt
 ## 7.3 Determinism & purity
 
 * Uses **frozen L0** for: tuple-hash, fingerprint, hex/bytes, `_passed.flag` hashing, RNG master-material, partition-key verification.
-* Host shims are **read-only** (the six listed in §6); no normalization, no hidden state.
+* Host shims are **read-only** (those listed in §6, incl. the optional `read_lines`); no normalization, no hidden state.
 * Re-running L3 yields identical results and (on failure) the **same** single failure record.
 
 ## 7.4 Failure policy (S0.9)
