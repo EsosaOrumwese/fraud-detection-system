@@ -246,7 +246,7 @@ datasets:
     ordering: []
     schema_ref: "schemas.1A.yaml#/model/hurdle_pi_probs"
     lineage:
-      produced_by: "1A.fit_hurdle_model"
+      produced_by: "1A.S0_7_build_hurdle_pi_probs"
       consumed_by: ["1A"]
       final_in_layer: false
     retention_days: 365
