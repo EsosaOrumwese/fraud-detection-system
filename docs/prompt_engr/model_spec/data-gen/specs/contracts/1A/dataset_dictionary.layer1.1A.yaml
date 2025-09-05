@@ -615,6 +615,24 @@ datasets:
     pii: false
     licence: "Proprietary-Internal"
 
+  - id: "rng_event_normal_box_muller"
+    status: "approved"
+    owner_subsegment: "1A"
+    description: "Event stream: standard normal draws via Box–Muller (Z only; sine mate discarded)."
+    version: "{run_id}"
+    format: "jsonl"
+    path: "logs/rng/events/normal_box_muller/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
+    partitioning: ["seed","parameter_hash","run_id"]
+    ordering: []
+    schema_ref: "schemas.layer1.yaml#/rng/events/normal_box_muller"
+    lineage:
+      produced_by: "L0.event_normal_box_muller"   # library helper; not called by S0 orchestration
+      consumed_by: ["validation"]
+      final_in_layer: false
+    retention_days: 180
+    pii: false
+    licence: "Proprietary-Internal"
+
   - id: "rng_event_sequence_finalize"
     status: "approved"
     owner_subsegment: "1A"

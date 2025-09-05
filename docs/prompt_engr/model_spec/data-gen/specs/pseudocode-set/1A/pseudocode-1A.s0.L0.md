@@ -552,18 +552,18 @@ function update_rng_trace_totals(module:string, substream_label:string,
 
 ```text
 # ZTP rejection (non-consuming): before==after, blocks=0, draws="0".
-function event_ztp_rejection(module:string, trace:TraceState, meta, before:Stream, after:Stream) -> TraceState:
+function event_ztp_rejection(master:Master, ids:tuple, module:string, trace:TraceState, meta, before:Stream, after:Stream) -> TraceState:
   ctx = begin_event_ctx(module, "ztp_rejection", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, before)
   return end_event_and_trace("rng_event_ztp_rejection", ctx, after, 0, 0, { context:"ztp_rejection" }, trace)
 
 # ZTP retry exhausted after 64 zeros (non-consuming).
-function event_ztp_retry_exhausted(module:string, trace:TraceState, meta, before:Stream, after:Stream) -> TraceState:
+function event_ztp_retry_exhausted(master:Master, ids:tuple, module:string, trace:TraceState, meta, before:Stream, after:Stream) -> TraceState:
   ctx = begin_event_ctx(module, "ztp_retry_exhausted", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, before)
   return end_event_and_trace("rng_event_ztp_retry_exhausted", ctx, after, 0, 0, { context:"ztp_retry_exhausted", attempts:64 }, trace)
 
 # Box–Muller event wrapper: consumes exactly 2 uniforms (1 block); discard sine mate.
-function event_normal_box_muller(module:string, trace:TraceState, meta) -> (Z:f64, stream:Stream, new_trace:TraceState):
-  s0  = derive_substream(meta.master, "normal_box_muller", meta.ids)   # L0 A2
+function event_normal_box_muller(master:Master, ids:tuple, module:string, trace:TraceState, meta) -> (Z:f64, stream:Stream, new_trace:TraceState):
+  s0  = derive_substream(master, "normal_box_muller", ids)             # L0 A2
   ctx = begin_event_ctx(module, "normal_box_muller", meta.seed, meta.parameter_hash, meta.fingerprint, meta.run_id, s0)
   (Z, s1, draws) = normal_box_muller(s0)                               # L0 C
   nt = end_event_and_trace("rng_event_normal_box_muller", ctx, s1, 0, draws, { z: Z }, trace)
