@@ -125,12 +125,14 @@ This matches your L0/L1/L2 contracts: bundle contents and `_passed.flag` rules (
 Recompute `parameter_hash` from the governed parameter set using the tuple-hash (ASCII‐sorted basenames; name included in the tuple), and compare to `parameter_hash_resolved.json`. Then recompute `manifest_fingerprint` from the **opened artefacts set** + `git32` + `parameter_hash_bytes`, and compare to `manifest_fingerprint_resolved.json`. Any mismatch ⇒ fail (F2).
 
 **V2 — Numeric attestation must be valid.**
-Read `numeric_policy_attest.json` from the bundle and require: RNE rounding, FMA-off, FTZ/DAZ-off, pinned libm profile (incl. `lgamma`), and self-tests = “pass”. If absent or failing ⇒ fail (F7).
+Read `numeric_policy_attest.json` from the bundle and require all **boolean** verdicts to be `true`:
+`rounding_ok`, `fma_off_ok`, `subnormals_ok`, `libm_regression_ok`, `neumaier_ok`, `total_order_ok`, and top-level `passed`.
+Also require `math_profile_id` and a non-empty `profile_functions` list. If absent or any `false` ⇒ fail (F7).
 
 **V3 — RNG audit presence, and *only* audit in S0.**
-* Check the RNG audit JSONL exists under {seed, parameter_hash, run_id} and that each row embeds
-* exactly the recomputed {seed, parameter_hash, manifest_fingerprint, run_id}. Assert zero RNG events
-* exist for S0 (no envelopes with {before,after,blocks,draws}); counters therefore never advance.
+Check the RNG audit JSONL exists under {seed, parameter_hash, run_id} and that each row embeds
+exactly the recomputed {seed, parameter_hash, manifest_fingerprint, run_id}. Assert zero RNG events
+exist for S0 (no envelopes with {before,after,blocks,draws}); counters therefore never advance.
 
 If any event exists ⇒ fail (**F4a**). 
 
@@ -218,12 +220,17 @@ function V1_recompute_lineage_and_compare(bundle_dir, parameters_root):
 function V2_verify_numeric_attestation(bundle_dir, artifact_list_rows):
   attest = host.read_json(bundle_dir + "/numeric_policy_attest.json")  # must exist
 
-  # Require pass verdicts for all pinned checks
-  req = ["rounding_RNE", "FMA_off", "FTZ_DAZ_off", "libm_profile_ok",
-         "neumaier_sum_ok", "total_order_ok", "libm_regression_ok"]
-  for k in req:
-      if attest[k] != "pass":
-          return abort_run(F7, "numeric_attest_fail", {check:k, value:attest[k]})
+  # Require boolean verdicts per schema (all true) + presence of id/functions
+  req_bools = ["passed", "rounding_ok", "fma_off_ok", "subnormals_ok",
+               "libm_regression_ok", "neumaier_ok", "total_order_ok"]
+  for k in req_bools:
+      if (k not in attest) or (attest[k] != true):
+          return abort_run(F7, "numeric_attest_fail", {check:k, value:attest.get(k, null)})
+
+  if ("math_profile_id" not in attest) or (attest["math_profile_id"] == ""):
+      return abort_run(F7, "numeric_attest_missing_id", {field:"math_profile_id"})
+  if ("profile_functions" not in attest) or (len(attest["profile_functions"]) == 0):
+      return abort_run(F7, "numeric_attest_missing_functions", {field:"profile_functions"})
 
   # Confirm both numeric artefacts were part of 𝓐 that formed the fingerprint
   if not artifact_list_contains(artifact_list_rows, "numeric_policy.json"):
