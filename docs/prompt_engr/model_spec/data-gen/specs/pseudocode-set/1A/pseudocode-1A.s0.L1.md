@@ -918,7 +918,7 @@ Write **one row per merchant** to
 ## Pseudocode (language-agnostic)
 
 ```text
-function S0_7_build_hurdle_pi_cache(merchants, beta, dicts, G, B, parameter_hash, produced_by_fp=None):
+function S0_7_build_hurdle_pi_probs(merchants, beta, dicts, G, B, parameter_hash, produced_by_fp=None):
   # Open parameter-scoped writer
   w = open_partitioned_writer("hurdle_pi_probs",
         partition={"parameter_hash": parameter_hash})      # schema #/model/hurdle_pi_probs

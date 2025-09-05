@@ -382,12 +382,12 @@ validation:
       parameter_hash:
         type: string
         pattern: "^[0-9a-f]{64}$"
+      filenames_sorted:
+        type: array
+        items: { type: string }
       artifact_count:
         type: integer
         minimum: 0
-      details:
-        type: array
-        items: { type: object }
   manifest_fingerprint_resolved:
     type: object
     required: [manifest_fingerprint, artifact_count, git_commit_hex, parameter_hash]
