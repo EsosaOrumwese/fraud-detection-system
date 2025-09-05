@@ -712,6 +712,25 @@ subsegments:
         cross_layer: true
         notes: null
 
+      - name: rng_event_normal_box_muller
+        path: logs/rng/events/normal_box_muller/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.rng.events.normal_box_muller
+        license: "{spdx_or_internal}"
+        role: Standard normal draws via Box–Muller (Z only; sine mate discarded).
+        dependencies: [ rng_event_schema_catalog ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: rng_event_schema_catalog
+        cross_layer: true
+        notes: "Budget (blocks=1, draws=\"2\"); library helper; S0 orchestration does not call it."
+
       - name: rng_event_dirichlet_gamma_vector
         path: logs/rng/events/dirichlet_gamma_vector/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         type: log

@@ -245,6 +245,24 @@ rng:
             selected:    { type: boolean, description: "True if country among the top-K." }
             selection_order: { type: integer, minimum: 1, nullable: true, description: "1..K when selected; null otherwise." }
 
+    normal_box_muller:
+      description: "Standard normal via Box–Muller; two-uniform event; sine mate discarded."
+      allOf:
+        - $ref: "#/$defs/rng_envelope"
+        - type: object
+          additionalProperties: false
+          properties:
+            substream_label: { const: "normal_box_muller", description: "Fixed label for Box–Muller helper." }
+            blocks: { const: 1, description: "Exactly one Philox block for two uniforms." }
+            draws: { type: string, enum: [ "2" ], description: "Decimal-encoded uint128; exactly two uniforms." }
+            payload:
+              type: object
+              additionalProperties: false
+              required: [z]
+              properties:
+                z: { type: number, description: "Standard normal deviate N(0,1) from Box–Muller (cosine branch); no caching." }
+          required: [payload]
+
     dirichlet_gamma_vector:
       allOf:
         - $ref: "#/$defs/rng_envelope"
