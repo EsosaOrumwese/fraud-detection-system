@@ -35,7 +35,7 @@
 * No sampler replays, no pseudorandom draws, no statistical checks.
 * No re-implementation or reinterpretation of S0 business logic.
 * No heuristics, fuzzy matching, or tolerance bands (other than what the spec already defines).
-* No inference of config (e.g., **not** inferring `emit_hurdle_pi_cache` from dataset presence; the cache is treated as optional).
+* No inference of config (e.g., **not** inferring `emit_hurdle_pi_probs` from dataset presence; the cache is treated as optional).
 * No success markers may be written **inside** the fingerprint-scoped validation bundle; any success logging (if used) must be **outside** the bundle.
 
 ## Section DoD
@@ -68,7 +68,7 @@ L3 validators read **bytes on disk** (no producer state) and only the artefacts 
 **Parameter-scoped outputs from S0**
 
 * **`crossborder_eligibility_flags`** (required): rows embed the exact `parameter_hash` equal to the partition key.
-* **`hurdle_pi_probs`** (optional, only if `emit_hurdle_pi_cache=true`): same parameter-scoped partition/embedding rules.
+* **`hurdle_pi_probs`** (optional, only if `emit_hurdle_pi_probs=true`): same parameter-scoped partition/embedding rules.
 
 **Validation bundle (fingerprint-scoped)**
 
@@ -780,7 +780,7 @@ To keep L3 deterministic, spec-true, and guess-free, **do not** do any of the fo
 
 ## Partitions & schemas
 
-* **Inferring config from presence**: treat `hurdle_pi_probs` as optional; if present, lint; if absent, OK. Do not infer `emit_hurdle_pi_cache`.
+* **Inferring config from presence**: treat `hurdle_pi_probs` as optional; if present, lint; if absent, OK. Do not infer `emit_hurdle_pi_probs`.
 * **Partition drift**: never accept rows whose embedded lineage doesn’t equal the path lineage.
 * **Authority drift**: don’t accept non–JSON-Schema refs for 1A datasets.
 

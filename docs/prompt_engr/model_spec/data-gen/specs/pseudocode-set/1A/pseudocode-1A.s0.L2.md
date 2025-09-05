@@ -25,7 +25,7 @@
 * No RNG **events** in S0 (the RNG **audit row only**, as defined in L1/L0).
 * No alternative numeric policy, math libraries, or environment flags; L2 does not relax L0/L1 constraints.
 * No additional caching/shuffling/parallelism beyond the **single** documented window.
-* No new configuration knobs (only the documented `emit_hurdle_pi_cache` diagnostic switch).
+* No new configuration knobs (only the documented `emit_hurdle_pi_probs` diagnostic switch).
 * No reinterpretation of failures: L2 surfaces L1/L0 failures via the existing abort path; it does not mask or retry.
 
 ---
@@ -60,7 +60,7 @@ This section is grounded in the frozen spec and L0/L1; it defines a **closed set
 
 5. **Config**
 
-   * `emit_hurdle_pi_cache : bool` (diagnostic; controls S0.7 only).
+   * `emit_hurdle_pi_probs : bool` (diagnostic; controls S0.7 only).
    * No other switches are accepted by L2.
 
 > **Invariant:** Nothing else is read by S0. L2 must not introduce additional inputs or defer opening any 𝓐 past S0.2.
@@ -72,7 +72,7 @@ This section is grounded in the frozen spec and L0/L1; it defines a **closed set
 1. **Parameter-scoped datasets (partitioned under `parameter_hash=…`)**
 
    * `crossborder_eligibility_flags` (S0.6, **required**) — each row must embed the same `parameter_hash` as the partition key.
-   * `hurdle_pi_probs` (S0.7, **optional**, only if `emit_hurdle_pi_cache=true`) — each row embeds `parameter_hash`.
+   * `hurdle_pi_probs` (S0.7, **optional**, only if `emit_hurdle_pi_probs=true`) — each row embeds `parameter_hash`.
 
 2. **RNG audit log (S0.3) — audit row only**
 
@@ -187,7 +187,7 @@ S0.10 (Validation bundle: assemble → gate → publish)
 2. **Gate-2 (post-branches):**
    `S0.10` **must not start** until **both** branches complete:
 
-   * **Branch A:** `S0.4` → `S0.5` → `[S0.7?]` (S0.7 runs only if `emit_hurdle_pi_cache=true`).
+   * **Branch A:** `S0.4` → `S0.5` → `[S0.7?]` (S0.7 runs only if `emit_hurdle_pi_probs=true`).
    * **Branch B:** `S0.6`.
 
 ## Rules embedded in the DAG
@@ -321,7 +321,7 @@ This section names the **exact L1 entrypoints** each S0 stage calls, what they *
 ### S0.7 — Hurdle π diagnostic cache (optional)
 
 **Calls (L1):**
-`S0_7_build_hurdle_pi_cache(merchants, beta, dicts, gdp_map, bucket_map, parameter_hash, produced_by_fp)`
+`S0_7_build_hurdle_pi_probs(merchants, beta, dicts, gdp_map, bucket_map, parameter_hash, produced_by_fp)`
 
 **Inputs:** design dicts & coefficients; `gdp_map`, `bucket_map`; lineage keys.
 
@@ -386,7 +386,7 @@ After `S0.3 (audit only)`, run the two branches **in parallel**:
 
 * **Branch A:** `S0.4 → S0.5 → [S0.7 optional]`
   Dependencies: needs `U=(M,I,G,B)` from S0.1 and the `parameter_hash`/`fingerprint` from S0.2.
-  Notes: S0.7 is gated by `emit_hurdle_pi_cache=true` and depends on S0.5 outputs (dicts/β and the same `G,B`).
+  Notes: S0.7 is gated by `emit_hurdle_pi_probs=true` and depends on S0.5 outputs (dicts/β and the same `G,B`).
 
 * **Branch B:** `S0.6`
   Dependencies: needs `U.merchants`, `U.iso_set` from S0.1 and the `parameter_hash`/`fingerprint` from S0.2.
@@ -643,13 +643,13 @@ All elements above are precisely what the frozen **L1 S0.9** and **L0** provide 
 
 ## 9.1 Single switch (diagnostic only)
 
-**`emit_hurdle_pi_cache : bool`**
+**`emit_hurdle_pi_probs : bool`**
 
 * **Scope:** Controls whether **S0.7** runs to materialize the *diagnostic* dataset `hurdle_pi_probs`.
 * **Effect:**
 
   * `false` (default): skip S0.7; no `hurdle_pi_probs` is written.
-  * `true`: call `S0_7_build_hurdle_pi_cache(merchants, beta, dicts, G, B, parameter_hash, produced_by_fp)` after S0.5; persist under `parameter_hash=…` with rows embedding the same `parameter_hash`.
+  * `true`: call `S0_7_build_hurdle_pi_probs(merchants, beta, dicts, G, B, parameter_hash, produced_by_fp)` after S0.5; persist under `parameter_hash=…` with rows embedding the same `parameter_hash`.
 * **Determinism:** Does **not** affect `parameter_hash` or `manifest_fingerprint` (the governed parameter bundle and opened-artefact set remain identical); it only controls whether that optional, parameter-scoped artefact is emitted.
 * **Where enforced:** L2 orchestration guards the S0.7 call; L1 contains the writer with partition/lineage checks.
 
@@ -669,18 +669,18 @@ To prevent drift or hidden variability, all of the following are **not** configu
 
 ```text
 struct Config {
-  emit_hurdle_pi_cache: bool = false
+  emit_hurdle_pi_probs: bool = false
 }
 ```
 
 **Usage in L2:**
 
-* Branch A: after `S0.5`, `if cfg.emit_hurdle_pi_cache: S0_7_build_hurdle_pi_cache(...)`.
+* Branch A: after `S0.5`, `if cfg.emit_hurdle_pi_probs: S0_7_build_hurdle_pi_probs(...)`.
 * All other stages ignore `cfg`.
 
 ## DoD checklist for §9
 
-* Only **one** flag is exposed (`emit_hurdle_pi_cache`), with scope, effect, default, and determinism note.
+* Only **one** flag is exposed (`emit_hurdle_pi_probs`), with scope, effect, default, and determinism note.
 * An explicit “**non-configurable by design**” list bans all other knobs (RNG, numeric, ordering, lineage, partitions, operational tuning).
 * The L2 usage site of the flag (guarding S0.7) is stated; no other stages are controlled by config.
 * No ambiguous “TBD” options, no environment levers, no implicit toggles.
@@ -707,7 +707,7 @@ host = {
 }
 
 # Config surface (single toggle)
-struct Config { emit_hurdle_pi_cache: bool = false }
+struct Config { emit_hurdle_pi_probs: bool = false }
 
 function run_S0(seed: u64, cfg: Config):
   # ─────────────────────────────────────────────────────────────
@@ -783,8 +783,8 @@ function run_S0(seed: u64, cfg: Config):
     stream = S0_5_build_designs_stream(U.merchants, dicts, coefs, U.gdp_map, U.bucket_map)
     drain(stream)   # (internal to L1) consumer is state-internal; no S0 persistence mandated here
     # S0.7 — optional diagnostic cache (parameter-scoped)
-    if cfg.emit_hurdle_pi_cache:
-       S0_7_build_hurdle_pi_cache(U.merchants, coefs.beta_hurdle, dicts,
+    if cfg.emit_hurdle_pi_probs:
+       S0_7_build_hurdle_pi_probs(U.merchants, coefs.beta_hurdle, dicts,
                                   U.gdp_map, U.bucket_map,
                                   param_hash_hex, produced_by_fp)
     return "A_OK"
@@ -804,7 +804,7 @@ function run_S0(seed: u64, cfg: Config):
   # ─────────────────────────────────────────────────────────────
   # S0.10 — Validation bundle (fingerprint-scoped)
   # ─────────────────────────────────────────────────────────────
-  preflight_partitions_exist(param_hash_hex, cfg.emit_hurdle_pi_cache)
+  preflight_partitions_exist(param_hash_hex, cfg.emit_hurdle_pi_probs)
 
   ctx = {
     fingerprint:     fp_hex,
@@ -862,7 +862,7 @@ This section is the go/no-go list for S0. A run is **Done** only if **all** chec
 2. **Parameter-scoped datasets:**
 
    * `crossborder_eligibility_flags` exists under `parameter_hash={parameter_hash}`.
-   * If `emit_hurdle_pi_cache=true`: `hurdle_pi_probs` exists under `parameter_hash={parameter_hash}`.
+   * If `emit_hurdle_pi_probs=true`: `hurdle_pi_probs` exists under `parameter_hash={parameter_hash}`.
    * Each row **embeds** the same `parameter_hash` as the path key.
 
 3. **Validation bundle (fingerprint-scoped):**
@@ -1074,8 +1074,8 @@ This section lists the **forbidden moves** when wiring S0. Each item is justifie
 15. **Ad-hoc toggles**
 
     * **Symptom:** Thread-count flags, debug IO skips, alternate RNG, alternate libm profile flags.
-    * **Forbidden:** Any extra config beyond `emit_hurdle_pi_cache`.
-    * **Do instead:** Expose **only** `emit_hurdle_pi_cache` to guard S0.7.
+    * **Forbidden:** Any extra config beyond `emit_hurdle_pi_probs`.
+    * **Do instead:** Expose **only** `emit_hurdle_pi_probs` to guard S0.7.
 
 ---
 
@@ -1398,8 +1398,8 @@ Each S0 stage below tells you exactly **where** to verify behavior or bytes:
 
 ## S0.7 — Hurdle π diagnostic cache (optional)
 
-* **L2:** conditional call guarded by `emit_hurdle_pi_cache`.
-* **L1:** `S0_7_build_hurdle_pi_cache`.
+* **L2:** conditional call guarded by `emit_hurdle_pi_probs`.
+* **L1:** `S0_7_build_hurdle_pi_probs`.
 * **L0:** Batch E `dot_neumaier`, `logistic_branch_stable`; Batch F `verify_partition_keys`.
 * **Datasets/Partitions:** `hurdle_pi_probs` under `parameter_hash=…`; rows embed the same `parameter_hash`.
 * **Validation bundle:** referenced in S0.10 context only (dataset itself is parameter-scoped).

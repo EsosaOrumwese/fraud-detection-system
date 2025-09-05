@@ -35,6 +35,13 @@ $defs:
 
 # NOTE: All 1A-produced tables (model/prep/alloc/egress) carry a non-null
 #       manifest_fingerprint column to embed build lineage in each row.
+# REPLACED (S0.10.3 normative):
+#   • Parameter-scoped and seed-scoped datasets DO NOT embed manifest_fingerprint.
+#   • Fingerprint-scoped outputs (e.g., validation_bundle_1A, egress/outlet_catalogue)
+#     are the only places where the partition uses fingerprint=… and the column
+#     name is manifest_fingerprint (when present in row payloads).
+#   • Some parameter-scoped caches MAY include an OPTIONAL produced_by_fingerprint
+#     (hex64) for provenance; it is informational only and never part of equality/partitioning.
 
 
 # 1) Modelling / predictors
@@ -46,9 +53,6 @@ model:
     partition_keys: ["parameter_hash"]
     sort_keys: []
     columns:
-      - { name: manifest_fingerprint, type: string,  nullable: false,
-          description: "Hex-encoded SHA-256 lineage fingerprint.",
-          pattern: "^[a-f0-9]{64}$" }
       - { name: merchant_id,   $ref: "#/$defs/id64",  nullable: false, description: "Synthetic merchant identifier." }
       - { name: mcc,           type: int32,          nullable: false, description: "Merchant Category Code (0–9999).", minimum: 0, maximum: 9999 }
       - { name: channel,       $ref: "#/$defs/channel", nullable: false, description: "Acquiring channel." }
@@ -64,9 +68,6 @@ model:
     partition_keys: ["parameter_hash"]
     sort_keys: []
     columns:
-      - { name: manifest_fingerprint, type: string,  nullable: false,
-          description: "Hex-encoded SHA-256 lineage fingerprint.",
-          pattern: "^[a-f0-9]{64}$" }
       - { name: merchant_id, $ref: "#/$defs/id64", nullable: false, description: "Synthetic merchant identifier." }
       - { name: logit,       type: float32,       nullable: false, description: "Linear predictor before logistic link." }
       - { name: pi,          $ref: "#/$defs/pct01", nullable: false, description: "Probability of being multi-site." }
@@ -82,7 +83,7 @@ model:
       - { name: openness,      $ref: "#/$defs/pct01", nullable: false, description: "Scalar X_m ∈ [0,1] used in λ_extra." }
       - { name: source,        type: string,          nullable: false, description: "Source/provenance label for feature construction." }
       - { name: parameter_hash, type: string,         nullable: false, description: "Parameter-set hash that versioned the feature build.", pattern: "^[a-f0-9]{64}$" }
-      - { name: manifest_fingerprint, type: string,   nullable: false, description: "Run fingerprint.", pattern: "^[a-f0-9]{64}$" }
+      # no per-row manifest_fingerprint; dataset is parameter-scoped
     invariants:
       - "openness ∈ [0,1]"
       - "FK(merchant_id) → ingress.merchant_ids"
@@ -97,9 +98,6 @@ prep:
     partition_keys: ["parameter_hash"]
     sort_keys: []
     columns:
-      - { name: manifest_fingerprint, type: string,  nullable: false,
-          description: "Hex-encoded SHA-256 lineage fingerprint.",
-          pattern: "^[a-f0-9]{64}$" }
       - { name: currency,     $ref: "#/$defs/iso4217", nullable: false, description: "ISO 4217 currency." }
       - name: country_iso
         $ref: "#/$defs/iso2"
@@ -122,9 +120,6 @@ prep:
     partition_keys: ["parameter_hash"]
     sort_keys: []
     columns:
-      - { name: manifest_fingerprint, type: string, nullable: false,
-          description: "Hex-encoded SHA-256 lineage fingerprint.",
-          pattern: "^[a-f0-9]{64}$" }
       - { name: merchant_id, $ref: "#/$defs/id64", nullable: false,
           description: "Merchant ID." }
       - { name: kappa, $ref: "#/$defs/iso4217", nullable: false,
@@ -143,9 +138,6 @@ prep:
     partition_keys: ["parameter_hash"]
     sort_keys: []
     columns:
-      - { name: manifest_fingerprint, type: string,  nullable: false,
-          description: "Hex-encoded SHA-256 lineage fingerprint.",
-          pattern: "^[a-f0-9]{64}$" }
       - { name: currency,   $ref: "#/$defs/iso4217", nullable: false, description: "ISO 4217 currency." }
       - { name: is_sparse,  type: boolean,          nullable: false, description: "True if observations below configured threshold." }
       - { name: obs_count,  type: int64,            nullable: false, description: "Observation count used to determine sparsity.", minimum: 0 }
@@ -158,8 +150,11 @@ prep:
     partition_keys: ["parameter_hash"]
     sort_keys: []
     columns:
-      - { name: manifest_fingerprint, type: string,  nullable: false,
-          description: "Hex-encoded SHA-256 lineage fingerprint.",
+      - { name: parameter_hash, type: string,  nullable: false,
+          description: "Parameter-set hash; must equal the partition key.",
+          pattern: "^[a-f0-9]{64}$" }
+      - { name: produced_by_fingerprint, type: string,  nullable: true,
+          description: "Optional provenance (informational only; not a partition/equality key).",
           pattern: "^[a-f0-9]{64}$" }
       - { name: merchant_id, $ref: "#/$defs/id64",   nullable: false, description: "Merchant ID." }
       - { name: is_eligible, type: boolean,         nullable: false, description: "Eligible for cross-border expansion." }
@@ -177,9 +172,6 @@ alloc:
     partition_keys: ["seed","parameter_hash"]
     sort_keys: []     # order is carried by 'rank'
     columns:
-      - { name: manifest_fingerprint, type: string,  nullable: false,
-          description: "Hex-encoded SHA-256 lineage fingerprint.",
-          pattern: "^[a-f0-9]{64}$" }
       - { name: merchant_id, $ref: "#/$defs/id64",  nullable: false, description: "Merchant ID." }
       - name: country_iso
         $ref: "#/$defs/iso2"
@@ -197,9 +189,6 @@ alloc:
     partition_keys: ["seed","parameter_hash"]
     sort_keys: []
     columns:
-      - { name: manifest_fingerprint, type: string,  nullable: false,
-          description: "Hex-encoded SHA-256 lineage fingerprint.",
-          pattern: "^[a-f0-9]{64}$" }
       - { name: merchant_id,   $ref: "#/$defs/id64",  nullable: false, description: "Merchant ID." }
       - name: country_iso
         $ref: "#/$defs/iso2"
