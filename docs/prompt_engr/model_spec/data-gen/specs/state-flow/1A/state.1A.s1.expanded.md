@@ -1000,10 +1000,11 @@ Every S1 failure MUST emit a JSON object (alongside the validation bundle / `_FA
 Using the dictionary/registry bindings and schema anchors:
 
 1. **Schema:** validate hurdle events **and** cumulative trace against the layer anchors (envelope + event + trace).
-2. **Counters & budget:** assert
-   `u128(after) − u128(before) = parse_u128(draws)` and, for **hurdle**, `draws ∈ {"0","1"}`; **assert** `blocks = parse_u128(draws)` and `blocks ∈ {0,1}` **(this equality is *hurdle-specific*; other families may have `blocks=1` with `draws>1`)**.   **Trace reconciliation:** per `(module, substream_label)`, `blocks_total` equals **Σ(event blocks)** (saturating to uint64; normative) and `draws_total` equals **Σ(event draws)** (saturating to uint64; **required**, diagnostic); and `events_total` equals the **event count** (saturating to uint64; normative).
+2. **Counters & budget:** enforce the **budget identity** (see **S1.4 — Envelope**) and, for **hurdle**, the branch constraints `draws ∈ {"0","1"}` and `blocks ∈ {0,1}`.
+   **Trace reconciliation:** per `(module, substream_label)`, `blocks_total` equals **Σ(event blocks)** (saturating to uint64; normative) and `draws_total` equals **Σ(event draws)** (saturating to uint64; **required**, diagnostic); and `events_total` equals the **event count** (saturating to uint64; normative).
    **Note:** Do **not** assert any relationship between `u128(key.after) − u128(key.before)` on the **final trace row** and these cumulative totals; that per-row delta is not equal to a cumulative sum.
 3. **Decision:** recompute $\eta,\pi$ (S1.2 rules); if stochastic (`draws="1"`), regenerate one uniform from the keyed **base counter** (low-lane, open-interval `u01`) and assert `0<u<1` and `(u<pi) == is_multi`.
+   *Doc note:* Whether one writes `(u < \pi)` or `(u \le \pi)` is **immaterial** here—`u` is drawn from an **open interval** (schema `$defs/u01`) so the equality case has probability 0, and the **deterministic branch** (`\pi ∈ {0,1}`) carries `u = null` by schema. See S0 open-interval and S1 envelope/payload rules.
 4. **Deterministic regime:** if `draws="0"`, assert `pi ∈ {0.0,1.0}` **(binary64 *bit-exact*)**, `deterministic=true`, and `u == null`.
 5. **Partition lint:** path partitions `{seed, parameter_hash, run_id}` equal the embedded envelope; path **must not** include `module`, `substream_label`, or `manifest_fingerprint`.
 6. **Gating:** build the set of **gated 1A RNG streams** from the **dataset dictionary/registry** using `owner_subsegment="1A"` and the enumerated **gated** dataset ids; for each merchant, presence/absence of those streams is **iff** hurdle `is_multi=true`. S1 does **not** enumerate names inline.
@@ -1045,7 +1046,7 @@ logs/rng/events/hurdle_bernoulli/
 `module`, `substream_label` are **registry-closed literals** (schema-typed as strings; closure enforced by validators/registry).
 * **Budget identity (must hold):**
   `u128(after) − u128(before) = parse_u128(draws)` (unsigned 128-bit arithmetic).
-  For the hurdle stream, `draws ∈ {"0","1"}` (unit = one 64-bit uniform) and `blocks ∈ {0,1}` and **must equal** `parse_u128(draws)`.
+  For the hurdle stream (a **single-uniform family**), `draws ∈ {"0","1"}` (unit = one 64-bit uniform) and `blocks ∈ {0,1}` and **must equal** `parse_u128(draws)`—**hurdle-specific**. Other families may record `blocks=1` with `draws>1`.
 
 **Identifier serialization:** fields typed as `uint64/id64` in the schema (e.g., `seed`, counter words, `merchant_id`) are emitted as **JSON integers** (not strings).
 
@@ -1211,6 +1212,11 @@ Validator logic is **order-invariant** (shard/emit order is irrelevant) and uses
   `{seed, parameter_hash, run_id}` **equal** the same path keys.
   `module` and `substream_label` are checked **in the envelope only** as registry literals (they do **not** appear in the path).
   `manifest_fingerprint` is **embedded only** (never a path partition).
+* **Canonical path representation (normative):** partition values must be **string-identical** to their canonical formats:
+  - `seed` → base-10 **unsigned** with **no leading zeros** (except the single digit `"0"` when zero);
+  - `parameter_hash` → **lowercase** 64-hex (`hex64`);
+  - `run_id` → **lowercase** 32-hex (`hex32`).
+  The equality check in the previous bullet is performed **byte-for-byte** on these canonical strings (path segment vs embedded field).
 * **Trace path ↔ embed (subset):** For `rng_trace_log`, the embedded envelope fields present (`seed`, `run_id`) **equal** the same path keys; `parameter_hash` is path-only.
 * **Schema anchors** are fixed by the layer schema set. Payload keys are exactly
   `{merchant_id, pi, is_multi, deterministic, u}`; the envelope is the layer-wide anchor.
