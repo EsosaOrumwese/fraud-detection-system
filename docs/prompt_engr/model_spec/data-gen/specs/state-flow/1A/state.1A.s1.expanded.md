@@ -358,7 +358,7 @@ with unsigned 128-bit arithmetic on counters. In the hurdle stream, `draws ∈ {
 ## Uniform $u\in(0,1)$ & lane policy
 
 * **Engine:** Philox 2×64-10 (fixed in S0). Each block yields two 64-bit words; **single-uniform** events use the **low lane** (`x0`) and **discard** the high lane (`x1`). One counter increment ⇒ one uniform.
-* **Mapping to $U(0,1)$:** Use S0’s **open-interval** `u01` mapping from a 64-bit unsigned word to binary64. Exact 0 and exact 1 are **never** produced. (S1.3 references this mapping; it does not redefine it.)
+* **Mapping to $U(0,1)$:** Use S0’s **open-interval** `u01` mapping from a 64-bit unsigned word to binary64 — **identical to S0’s `u01`**. Exact 0 and exact 1 are **never** produced. (S1.3 **references** this mapping; it **does not** redefine it.)
 
 ---
 
@@ -392,6 +392,8 @@ Each hurdle event **must** carry the **complete** layer RNG envelope:
 * `module` and `substream_label` are **registry-closed literals** (schema-typed as strings; closure enforced by validators/registry).
 * `draws` is a non-negative **u128 encoded as decimal string**; budget identity: `u128(after) − u128(before) = parse_u128(draws)`.
 * `blocks` is a non-negative uint64; for hurdle, `blocks ∈ {0,1}` and **must equal** `parse_u128(draws)`.
+
+**Single flat JSON object.** Each hurdle record is **one** top-level JSON object; “envelope” and “payload” are **conceptual groupings only** (no nested objects). This wording eliminates any ambiguity about structure.
 
 S1.3 writes **one** hurdle event per merchant.  The RNG trace is **cumulative** per `(module, substream_label)` within the run (no merchant dimension). Its totals reconcile to the **sum of event budgets** and to the aggregate counter delta over the hurdle events. S1.3 does **not** emit per-event trace rows.
 
@@ -536,6 +538,8 @@ Deterministic ⇒ `u == null` and a **non-consuming event** (`draws="0"`, `block
 ---
 
 ### 4) Canonical examples (normative JSON; object key order non-semantic)
+
+**Numeric policy for examples.** All numeric values below MUST be the **shortest round-trippable** IEEE-754 binary64 decimals. (Integer-typed ids remain JSON **integers** per schema.)
 
 **Stochastic example (`0 < pi < 1`)**
 
@@ -992,7 +996,7 @@ Using the dictionary/registry bindings and schema anchors:
 1. **Schema:** validate hurdle events **and** cumulative trace against the layer anchors (envelope + event + trace).
 2. **Counters & budget:** assert
    `u128(after) − u128(before) = parse_u128(draws)` and, for hurdle, `draws ∈ {"0","1"}`; **assert** `blocks = parse_u128(draws)` and `blocks ∈ {0,1}`.
-   **Trace reconciliation:** per `(module, substream_label)`, `blocks_total` equals **Σ(event blocks)** (saturating to uint64; normative) and `draws_total` (if recorded) equals **Σ(event draws)** (saturating to uint64; diagnostic).
+   **Trace reconciliation:** per `(module, substream_label)`, `blocks_total` equals **Σ(event blocks)** (saturating to uint64; normative) and `draws_total` (if recorded) equals **Σ(event draws)** (saturating to uint64; diagnostic); and `events_total` equals the **event count** (saturating to uint64; normative).
 3. **Decision:** recompute $\eta,\pi$ (S1.2 rules); if stochastic (`draws="1"`), regenerate one uniform from the keyed **base counter** (low-lane, open-interval `u01`) and assert `0<u<1` and `(u<pi) == is_multi`.
 4. **Deterministic regime:** if `draws="0"`, assert `pi ∈ {0.0,1.0}`, `deterministic=true`, and `u == null`.
 5. **Partition lint:** path partitions `{seed, parameter_hash, run_id}` equal the embedded envelope; path **must not** include `module`, `substream_label`, or `manifest_fingerprint`.
@@ -1208,6 +1212,8 @@ Validate **every** hurdle record against:
   `merchant_id` (**id64 JSON integer**), `pi` (**binary64 round-trip**, `0.0 ≤ pi ≤ 1.0`),
   `is_multi` (**boolean**), `deterministic` (**boolean**, derived from `pi`),
   `u` (**required** with type **number|null**: `null` iff `pi ∈ {0.0,1.0}`, else `u∈(0,1)`).
+
+**Flat record reminder.** There is **one** top-level JSON object per row; the “envelope” vs “payload” lists above are **not** separate nested objects.
 
 > **Diagnostics policy.** Diagnostic/context fields (e.g., `eta`, `mcc`, `channel`, `gdp_bucket_id`) are **allowed by the schema as optional/nullable**, but they are **non-authoritative**: producers **SHOULD NOT** emit them, and validators **MUST ignore** them if present.
 
