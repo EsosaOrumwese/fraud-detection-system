@@ -1060,6 +1060,19 @@ logs/rng/events/hurdle_bernoulli/
 **Companion trace (cumulative; per-substream, no merchant dimension):**
 Maintain a **cumulative** `rng_trace_log` row per `(module, substream_label)` within the run; its totals equal the **sum of event budgets** for that substream. *(No per-event trace rows; no merchant dimension in trace.)*
 
+* **Totals semantics (normative):**
+  - `events_total` = **count of event rows** for that `(module, substream_label)` in the run (saturating `uint64`);
+  - `blocks_total` = **Σ(event.blocks)** for that key in the run (saturating `uint64`);
+  - `draws_total`  = **Σ(event.draws)** for that key in the run (saturating `uint64`).
+  (Matches `schemas.layer1.yaml#/rng/core/rng_trace_log` and dictionary text for the trace dataset.) 
+
+* **Final-row selection (normative):** when multiple trace rows exist for the same `(module, substream_label)` in the run, **select the final row** by:
+  1) choosing the row with the maximum `(rng_counter_after_hi, rng_counter_after_lo)` in unsigned lexicographic order; if tied,
+  2) choosing the row with the latest `ts_utc`; if tied,
+  3) choosing the row with the lexicographically largest `(events_total, blocks_total, draws_total)`; if tied,
+  4) choosing the lexicographically largest part filename.
+  (Rule as defined at `schemas.layer1.yaml#/rng/core/rng_trace_log`.)
+ 
 > The hurdle event is the **only authoritative source** of the decision and its **own** counter evolution.
 
 ---
@@ -1161,6 +1174,7 @@ OUTPUT:
 
 Prove that every hurdle record is (a) **schema-valid**, (b) **numerically correct** under the pinned math policy, (c) **RNG-accounted** (counters ↔ uniform budget), (d) **partition-coherent**, and (e) **structurally consistent** with downstream streams via **presence-based gating**.
 Validator logic is **order-invariant** (shard/emit order is irrelevant) and uses the **dataset dictionary/registry** plus S1 invariants.
+*Doc note:* Path/partition rules are **normative** in **V2**; any repeats elsewhere are **reminders** that defer to V2.
 
 ---
 
@@ -1175,7 +1189,7 @@ Validator logic is **order-invariant** (shard/emit order is irrelevant) and uses
      logs/rng/events/hurdle_bernoulli/
        seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
      ```
-   * **RNG trace (cumulative)** — per **(module, substream_label)** totals **and** `rng_counter_before/after` for the run (no merchant dimension; append-safe; take the **final** row per key).
+   * **RNG trace (cumulative)** — per **(module, substream_label)** totals **and** `rng_counter_before/after` for the run (no merchant dimension; append-safe; take the **final** row per key — **selection rule per** `schemas.layer1.yaml#/rng/core/rng_trace_log`).
    * **Downstream gated streams** — discoverable **programmatically** in the dataset dictionary (`dataset_dictionary.layer1.1A.yaml`) via the `gating:` blocks. Concretely: select entries with `owner_subsegment == "1A"` **and** `gating.gated_by == "rng_event_hurdle_bernoulli"` (e.g., `rng_event_gamma_component`, `rng_event_poisson_component`). 
      If a legacy dictionary lacks `gating`, fall back to the artefact-registry enumeration for the same set. S1 does **not** enumerate names inline.
 3. **Design/β artefacts:** frozen encoders/dictionaries and the single-YAML hurdle coefficients bundle (β).
@@ -1192,12 +1206,16 @@ Validator logic is **order-invariant** (shard/emit order is irrelevant) and uses
   `manifest_fingerprint` is **embedded only** (never a path partition).
 * **Schema anchors** are fixed by the layer schema set. Payload keys are exactly
   `{merchant_id, pi, is_multi, deterministic, u}`; the envelope is the layer-wide anchor.
+  For S1 hurdle events, the envelope literal **`module` MUST equal `"1A.hurdle_sampler"`** and
+  **`substream_label` MUST equal `"hurdle_bernoulli"`** (registry literals; validated against the layer schema).
 * **Merchant scope & dual validation.** For merchant-scoped streams the envelope anchor admits `merchant_id` (nullable), while the hurdle **event schema requires** `merchant_id`. Validators treat the record as **one flat object** and enforce presence per the event schema (plus envelope conformance where applicable).
 
 > The **allowed literal set** for `module` and `substream_label` is resolved from the **dataset dictionary/registry**; S1 does **not** maintain a local enumerated list.
 
 > **Diagnostics policy (schema-aligned).** Optional diagnostic fields permitted by the layer schema (e.g., `eta`, or categorical predictors such as `mcc`, `channel`, `gdp_bucket_id`) are **non-authoritative** for S1.
 > Producers **SHOULD NOT** emit them in `rng_event_hurdle_bernoulli`; validators **MUST ignore** such fields if present—they have no effect on outcome, gating, or validation predicates.
+
+> **Numeric policy (examples reminder):** 64-bit counters/ids remain **JSON integers**; the u128 **`draws`** field is a **decimal string**; probabilities are IEEE-754 binary64; `u` uses S0’s **open-interval** `u01` mapping.
 
 **Discovery checks:**
 
