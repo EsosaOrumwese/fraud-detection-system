@@ -452,7 +452,7 @@ For each hurdle record in the run, the validator performs:
 * **Consumption:** `draws="1"` **iff** $0<\pi<1$; else `"0"`.
 * **Schema conformance:** `u` and `deterministic` comply with the hurdle event schema: `u=null` iff $\pi\in\{0.0,1.0\}$; `is_multi` is **boolean** only.
 * **Order-invariance:** `before` equals the keyed **base counter** for `(label, merchant)`—never a prior label’s `after`.
-* **Gating (forward contract):** Downstream 1A RNG streams appear **iff** `is_multi=true`. The stream set is obtained via the dataset dictionary/registry using `owner_subsegment="1A"` and the enumerated list of **gated** 1A RNG dataset ids; S1 does **not** enumerate it.
+* **Gating (forward contract):** Downstream 1A RNG streams appear **iff** `is_multi=true`. **Discover the stream set programmatically** from the dataset dictionary (`dataset_dictionary.layer1.1A.yaml`) via entries with `owner_subsegment == "1A"` **and** `gating.gated_by == "rng_event_hurdle_bernoulli"`. If a legacy dictionary lacks `gating`, **fall back** to the artefact-registry enumeration. S1 does **not** enumerate names inline.
 
 ---
 
@@ -507,6 +507,8 @@ Every hurdle record **must** carry the complete layer RNG envelope (single sourc
 
   For the hurdle stream specifically: `draws ∈ {"0","1"}`; `blocks ∈ {0,1}` and **must equal** `parse_u128(draws)`.
 * **Identifier serialization:** 64-bit identifiers in the envelope (e.g., `seed`) are **JSON integers** per the layer schema (not strings).
+
+> **Merchant scope (envelope vs event).** The shared RNG **envelope schema** admits an optional/nullable `merchant_id` for merchant-scoped streams (see layer schema). For the **hurdle** stream specifically, the **event schema requires** top-level `merchant_id`. Validators check presence under the event schema (and, if present, under the envelope anchor). This remains a **single flat JSON object**; “envelope” and “payload” are conceptual groupings only.
 
 ---
 
@@ -634,7 +636,7 @@ Deterministic ⇒ `u == null` and a **non-consuming event** (`draws="0"`, `block
   * `trace.blocks_total == Σ blocks` (normative; saturating uint64),
   * `trace.events_total ==` hurdle event count,
   * `u128(trace.after) − u128(trace.before) == trace.blocks_total`.
-* **Gating invariant.** Downstream **1A RNG streams** must appear for a merchant **iff** that merchant’s hurdle event has `is_multi=true`. The set of gated stream IDs is obtained via the dataset dictionary/registry using `owner_subsegment="1A"` and the enumerated list of **gated** 1A RNG dataset ids (S1 does **not** enumerate names inline).
+* **Gating invariant.** Downstream **1A RNG streams** must appear for a merchant **iff** that merchant’s hurdle event has `is_multi=true`. **Build the set programmatically** from the dataset dictionary by selecting entries with `owner_subsegment == "1A"` and `gating.gated_by == "rng_event_hurdle_bernoulli"`. If the dictionary is legacy and lacks `gating`, **fall back** to the artefact-registry enumeration. S1 does **not** enumerate names inline.
 * **Cardinality & uniqueness.** Hurdle row count equals the ingress merchant count for the **run** (same `manifest_fingerprint`); uniqueness key is `merchant_id` scoped by `{seed, parameter_hash, run_id}`.
 
 ---
@@ -729,7 +731,7 @@ If `draws="1"`, regenerate $u$ and assert `(u < pi) == is_multi`. Assert counter
 
 **Statement.** Downstream **1A RNG streams** for a merchant appear **iff** that merchant’s hurdle event has `is_multi=true`.
 
-**Authority.** The set of gated stream IDs is obtained via the dataset dictionary/registry using `owner_subsegment="1A"` and the enumerated set of **gated** 1A RNG dataset ids; S1 does **not** enumerate stream names inline.
+**Authority.** Validators **MUST** derive the gated set **programmatically** from the dataset dictionary (`owner_subsegment == "1A"` **and** `gating.gated_by == "rng_event_hurdle_bernoulli"`). If the dictionary is legacy and lacks `gating`, they **MUST** fall back to the artefact-registry enumeration. S1 does **not** enumerate stream names inline.
 
 **Validator.** For each merchant, check presence/absence of all gated streams per the registry list against the merchant’s hurdle `is_multi` value.
 
@@ -915,7 +917,7 @@ Layer schema (envelope anchor + hurdle event schema), dataset dictionary/registr
 
 **F1. `gating_violation_no_prior_hurdle_true`**
 **Predicate.** Any downstream **1A RNG stream** appears for merchant $m$ **without** a conformant hurdle event with `is_multi=true` in the run. (Presence rule; emission order irrelevant.)
-**Detect at.** Validator cross-stream join using the **dictionary/registry–filtered** set of gated streams. **Run invalid (hard).**
+**Detect at.** Validator cross-stream join using the set **derived programmatically** from the dataset dictionary (`owner_subsegment == "1A"` **and** `gating.gated_by == "rng_event_hurdle_bernoulli"`); **fallback** to the artefact-registry enumeration if the dictionary lacks `gating`. **Run invalid (hard).**
 
 **F2. `duplicate_hurdle_record`**
 **Predicate.** More than one hurdle event for the same merchant within `{seed, parameter_hash, run_id}`.
@@ -968,22 +970,22 @@ Every S1 failure MUST emit a JSON object (alongside the validation bundle / `_FA
 
 ## Where to detect (first line) & who double-checks
 
-| Family / Code                  | First detector (runtime)         | Secondary (validator / CI)                                                                                                                |
-|--------------------------------|----------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
-| A1–A3 design/β                 | S1.1/S1.2 guards                 | (optional) build lints                                                                                                                    |
-| B1–B2 numeric invalid          | S1.2 evaluation guards           | Re-eval η, π                                                                                                                              |
-| C1 envelope schema             | Writer JSON-Schema check         | Validator schema pass                                                                                                                     |
-| C2 label mismatch              | Writer assertion                 | Validator                                                                                                                                 |
-| C3 counter mismatch            | Writer assertion                 | Validator counter math (u128(after)−u128(before) vs **blocks**, and **blocks == parse_u128(draws)**); trace `blocks_total` reconciliation |
-| C4 trace missing/totals mis    | —                                | Trace aggregate vs Σ(event budgets) & counter delta                                                                                       |
-| C5 u out of range              | Writer check                     | `u01` + recompute                                                                                                                         |
-| D1 payload schema              | Writer JSON-Schema check         | Validator schema pass                                                                                                                     |
-| D2 deterministic inconsistency | Writer assertion                 | Recompute branch from π                                                                                                                   |
-| E1 partition mismatch          | Writer path/embed equality check | Path lint (only `{seed, parameter_hash, run_id}`)                                                                                         |
-| E2 wrong dataset path          | —                                | Dictionary/registry binding lint                                                                                                          |
-| F1 gating violation            | —                                | Cross-stream presence check via **dataset dictionary/registry** (`owner_subsegment="1A"` + enumerated gated ids)                          |
-| F2 duplicate record            | —                                | Uniqueness check                                                                                                                          |
-| F3 cardinality mismatch        | —                                | Row count vs ingress merchant set                                                                                                         |
+| Family / Code                  | First detector (runtime)         | Secondary (validator / CI)                                                                                                                                                                                                         |
+|--------------------------------|----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| A1–A3 design/β                 | S1.1/S1.2 guards                 | (optional) build lints                                                                                                                                                                                                             |
+| B1–B2 numeric invalid          | S1.2 evaluation guards           | Re-eval η, π                                                                                                                                                                                                                       |
+| C1 envelope schema             | Writer JSON-Schema check         | Validator schema pass                                                                                                                                                                                                              |
+| C2 label mismatch              | Writer assertion                 | Validator                                                                                                                                                                                                                          |
+| C3 counter mismatch            | Writer assertion                 | Validator counter math (u128(after)−u128(before) vs **blocks**, and **blocks == parse_u128(draws)**); trace `blocks_total` reconciliation                                                                                          |
+| C4 trace missing/totals mis    | —                                | Trace aggregate vs Σ(event budgets) & counter delta                                                                                                                                                                                |
+| C5 u out of range              | Writer check                     | `u01` + recompute                                                                                                                                                                                                                  |
+| D1 payload schema              | Writer JSON-Schema check         | Validator schema pass                                                                                                                                                                                                              |
+| D2 deterministic inconsistency | Writer assertion                 | Recompute branch from π                                                                                                                                                                                                            |
+| E1 partition mismatch          | Writer path/embed equality check | Path lint (only `{seed, parameter_hash, run_id}`)                                                                                                                                                                                  |
+| E2 wrong dataset path          | —                                | Dictionary/registry binding lint                                                                                                                                                                                                   |
+| F1 gating violation            | —                                | Cross-stream presence check using **dataset dictionary `gating:` blocks** (`owner_subsegment == "1A"` and `gating.gated_by == "rng_event_hurdle_bernoulli"`); **fallback** to artefact-registry enumeration if `gating` is absent  |
+| F2 duplicate record            | —                                | Uniqueness check                                                                                                                                                                                                                   |
+| F3 cardinality mismatch        | —                                | Row count vs ingress merchant set                                                                                                                                                                                                  |
 
 > **Gating note:** Enforcement is **presence-based**: downstream gated streams must exist **iff** hurdle `is_multi=true`. No temporal “prior” requirement.
 
@@ -1092,7 +1094,7 @@ Downstream states **do not** chain from $C^{\star}$. Each downstream RNG stream 
 
 ## C) Downstream visibility (for validation & joins)
 
-Validators discover **gated** 1A RNG streams via the dataset dictionary/registry using `owner_subsegment="1A"` and the enumerated set of **gated** 1A RNG dataset ids. Those streams must be **present iff** `is_multi=true` for a merchant. S1 does **not** enumerate names inline.
+Validators discover **gated** 1A RNG streams **programmatically** in the dataset dictionary via `gating:` blocks (`owner_subsegment == "1A"` **and** `gating.gated_by == "rng_event_hurdle_bernoulli"`). If the dictionary is legacy and lacks `gating`, they **fall back** to the artefact-registry enumeration. Those streams must be **present iff** `is_multi=true` for a merchant. S1 does **not** enumerate names inline.
 
 ---
 
@@ -1174,7 +1176,8 @@ Validator logic is **order-invariant** (shard/emit order is irrelevant) and uses
        seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
      ```
    * **RNG trace (cumulative)** — per **(module, substream_label)** totals **and** `rng_counter_before/after` for the run (no merchant dimension; append-safe; take the **final** row per key).
-   * **Downstream gated streams** — discovered via the dataset dictionary/registry using `owner_subsegment="1A"` and the enumerated set of **gated** 1A RNG dataset ids. S1 does **not** enumerate names inline.
+   * **Downstream gated streams** — discoverable **programmatically** in the dataset dictionary (`dataset_dictionary.layer1.1A.yaml`) via the `gating:` blocks. Concretely: select entries with `owner_subsegment == "1A"` **and** `gating.gated_by == "rng_event_hurdle_bernoulli"` (e.g., `rng_event_gamma_component`, `rng_event_poisson_component`). 
+     If a legacy dictionary lacks `gating`, fall back to the artefact-registry enumeration for the same set. S1 does **not** enumerate names inline.
 3. **Design/β artefacts:** frozen encoders/dictionaries and the single-YAML hurdle coefficients bundle (β).
 4. **Lineage keys:** `{seed, parameter_hash, manifest_fingerprint, run_id}` from path + envelope; the **shared RNG envelope** is mandatory for each event.
 
@@ -1189,6 +1192,7 @@ Validator logic is **order-invariant** (shard/emit order is irrelevant) and uses
   `manifest_fingerprint` is **embedded only** (never a path partition).
 * **Schema anchors** are fixed by the layer schema set. Payload keys are exactly
   `{merchant_id, pi, is_multi, deterministic, u}`; the envelope is the layer-wide anchor.
+* **Merchant scope & dual validation.** For merchant-scoped streams the envelope anchor admits `merchant_id` (nullable), while the hurdle **event schema requires** `merchant_id`. Validators treat the record as **one flat object** and enforce presence per the event schema (plus envelope conformance where applicable).
 
 > The **allowed literal set** for `module` and `substream_label` is resolved from the **dataset dictionary/registry**; S1 does **not** maintain a local enumerated list.
 
@@ -1262,8 +1266,8 @@ Let the label be the registry literal `substream_label="hurdle_bernoulli"`.
 
 ## V6. Cross-stream gating (branch purity)
 
-Let $\mathcal{H}_1=\{m\mid \text{hurdle.is\_multi}(m)=\text{true}\}$.
-Build the **set of gated 1A RNG streams** via the dataset dictionary/registry (`owner_subsegment="1A"` with the enumerated gated dataset ids). For **every** row in any gated stream, assert `merchant_id ∈ 𝓗₁`. For merchants **not** in $𝓗_1$, assert **no** gated rows exist. *(Presence-based; no temporal ordering requirement.)*
+Let $\mathcal{H}_1=\{m\mid \text{hurdle.is_multi}(m)=\text{true}\}$.
+Build the **set of gated 1A RNG streams** **programmatically** from the dataset dictionary (`owner_subsegment == "1A"` **and** `gating.gated_by == "rng_event_hurdle_bernoulli"`); if the dictionary is legacy and lacks `gating`, **fall back** to the artefact-registry enumeration. For **every** row in any gated stream, assert `merchant_id ∈ 𝓗₁`. For merchants **not** in $𝓗_1$, assert **no** gated rows exist. *(Presence-based; no temporal ordering requirement.)*
 
 ---
 
