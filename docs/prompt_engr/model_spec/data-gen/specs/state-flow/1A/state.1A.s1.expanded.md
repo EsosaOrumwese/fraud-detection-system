@@ -601,14 +601,14 @@ Deterministic ⇒ `u == null` and a **non-consuming event** (`draws="0"`, `block
 
 ### 5) Write discipline, idempotency, and ordering
 
-* **Exactly one hurdle row per merchant (per run).** Within `{seed, parameter_hash, run_id}` there is **at most one** hurdle event for each `merchant_id`, and the hurdle row count equals the merchant universe cardinality for that `{parameter_hash}` (from ingress). Writes are **append-only** to `part-*` shards.
+* **Exactly one hurdle row per merchant (per run).** Within `{seed, parameter_hash, run_id}` there is **exactly one** hurdle event for each `merchant_id`, and the hurdle row count equals the merchant universe cardinality **for the run’s `manifest_fingerprint`** (from ingress). Writes are **append-only** to `part-*` shards.
 * **Stable partitioning.** The hurdle event dataset is partitioned **only** by `{seed, parameter_hash, run_id}`; **do not** include `manifest_fingerprint`, `module`, or `substream_label` in the path (they are embedded in the envelope).
-* **Module/label stability.** `module` and `substream_label` are **registry-closed literals** (schema-typed as strings; closure enforced by validators/registry). For this stream, `substream_label == "hurdle_bernoulli"`; `module` is the registered producer id (e.g., `"1A.hurdle_sampler"`).
+* **Module/label stability.** `module` and `substream_label` are **registry-closed literals** (schema-typed as strings; closure enforced by validators/registry). For this stream, `substream_label == "hurdle_bernoulli"`; `module` **MUST** equal `"1A.hurdle_sampler"`.
 * **Trace linkage (cumulative, substream-scoped).** Maintain a **cumulative** `rng_trace_log` per `(module, substream_label)` (no merchant dimension) within the run, including `rng_counter_before_{lo,hi}` and `rng_counter_after_{lo,hi}`. Totals are **saturating uint64** and equal the **sums** over all hurdle events in the run:
 
   * `draws_total == Σ parse_u128(draws)` (diagnostic; saturating uint64),
   * `blocks_total == Σ blocks` (normative; saturating uint64),
-  * `events_total ==` hurdle event count,
+  * `events_total ==` hurdle event count (saturating uint64),
   * and the **u128** counter delta `u128(after)−u128(before)` **equals** `blocks_total`.
 
 ---
@@ -631,7 +631,7 @@ Deterministic ⇒ `u == null` and a **non-consuming event** (`draws="0"`, `block
   * `trace.events_total ==` hurdle event count,
   * `u128(trace.after) − u128(trace.before) == trace.blocks_total`.
 * **Gating invariant.** Downstream **1A RNG streams** must appear for a merchant **iff** that merchant’s hurdle event has `is_multi=true`. The set of gated stream IDs is obtained via the dataset dictionary/registry using `owner_subsegment="1A"` and the enumerated list of **gated** 1A RNG dataset ids (S1 does **not** enumerate names inline).
-* **Cardinality & uniqueness.** Hurdle row count equals ingress merchant count for `{parameter_hash}`; uniqueness key is `merchant_id` scoped by `{seed, parameter_hash, run_id}`.
+* **Cardinality & uniqueness.** Hurdle row count equals the ingress merchant count for the **run** (same `manifest_fingerprint`); uniqueness key is `merchant_id` scoped by `{seed, parameter_hash, run_id}`.
 
 ---
 
@@ -748,6 +748,7 @@ If `draws="1"`, regenerate $u$ and assert `(u < pi) == is_multi`. Assert counter
 
 * Every record contains the **full** RNG envelope required by `$defs.rng_envelope`. `draws` is **required**; `blocks` must equal `parse_u128(draws)` and for hurdle be `0` or `1`.
 * Embedded `{seed, parameter_hash, run_id}` **equal** the same keys in the dataset path. `module` and `substream_label` are registry literals checked **in the envelope** (they do **not** appear in the path).
+* **Flat record.** Hurdle records are a **single flat JSON object**. `merchant_id` is declared on the shared RNG envelope (nullable in the envelope) and is **required by the hurdle event schema**; listing it under “payload” is purely a conceptual grouping.
 
 ---
 
@@ -870,7 +871,7 @@ Layer schema (envelope anchor + hurdle event schema), dataset dictionary/registr
 **C4. `rng_trace_missing_or_totals_mismatch`**
 **Predicate.** Missing **final cumulative** `rng_trace_log` record for `(module, substream_label)` within the run, **or** its totals ≠ **sum of event budgets** for that key, **or** its **u128** counter delta `u128(after)−u128(before)` ≠ `blocks_total`.
 **Detect at.** Validator aggregate. **Abort run.**
-**Final-row selection rule.** The **final** trace row per `(module, substream_label)` is the row with the **maximum** `(after_hi, after_lo)` in unsigned lexicographic order; ties break by **latest** `ts_utc`.
+**Final-row selection rule.** The **final** trace row per `(module, substream_label)` is the row with the **maximum** `(after_hi, after_lo)` in unsigned lexicographic order; ties break by **latest** `ts_utc`; if `ts_utc` ties, pick the lexicographically largest tuple (`events_total`,`blocks_total`,`draws_total`); if still tied, pick the lexicographically largest part filename.
 
 **C5. `u_out_of_range`**
 **Predicate.** In a stochastic branch, payload `u` not in `(0,1)` (open-interval violation).
@@ -1048,7 +1049,7 @@ logs/rng/events/hurdle_bernoulli/
 * `deterministic` — **boolean**, derived: `true` iff `pi ∈ {0.0, 1.0}` (binary64).
 * `u` — **required** `number|null`: `u=null` iff `pi ∈ {0.0,1.0}`, else `u∈(0,1)` (open interval).
 
-> Diagnostic/context fields (e.g., `eta`, `mcc`, `channel`, `gdp_bucket_id`) are **not** part of this authoritative stream. If materialized, they live in diagnostic datasets only.
+> **Diagnostics policy.** Diagnostic/context fields (e.g., `eta`, `mcc`, `channel`, `gdp_bucket_id`) are **allowed by the schema as optional/nullable**, but they are **non-authoritative**: producers **SHOULD NOT** emit them, and validators **MUST ignore** them if present.
 
 **Companion trace (cumulative; per-substream, no merchant dimension):**
 Maintain a **cumulative** `rng_trace_log` row per `(module, substream_label)` within the run; its totals equal the **sum of event budgets** for that substream. *(No per-event trace rows; no merchant dimension in trace.)*
@@ -1182,9 +1183,11 @@ Validator logic is **order-invariant** (shard/emit order is irrelevant) and uses
   `{seed, parameter_hash, run_id}` **equal** the same path keys.
   `module` and `substream_label` are checked **in the envelope only** as registry literals (they do **not** appear in the path).
   `manifest_fingerprint` is **embedded only** (never a path partition).
-
 * **Schema anchors** are fixed by the layer schema set. Payload keys are exactly
   `{merchant_id, pi, is_multi, deterministic, u}`; the envelope is the layer-wide anchor.
+
+> **Diagnostics policy (schema-aligned).** Optional diagnostic fields permitted by the layer schema (e.g., `eta`, or categorical predictors such as `mcc`, `channel`, `gdp_bucket_id`) are **non-authoritative** for S1.
+> Producers **SHOULD NOT** emit them in `rng_event_hurdle_bernoulli`; validators **MUST ignore** such fields if present—they have no effect on outcome, gating, or validation predicates.
 
 **Discovery checks:**
 
@@ -1206,7 +1209,7 @@ Validate **every** hurdle record against:
   `is_multi` (**boolean**), `deterministic` (**boolean**, derived from `pi`),
   `u` (**required** with type **number|null**: `null` iff `pi ∈ {0.0,1.0}`, else `u∈(0,1)`).
 
-> No diagnostic/context fields (e.g., `eta`, `mcc`, `channel`, `gdp_bucket_id`) are allowed in this authoritative stream.
+> **Diagnostics policy.** Diagnostic/context fields (e.g., `eta`, `mcc`, `channel`, `gdp_bucket_id`) are **allowed by the schema as optional/nullable**, but they are **non-authoritative**: producers **SHOULD NOT** emit them, and validators **MUST ignore** them if present.
 
 ---
 
@@ -1270,7 +1273,7 @@ For **every** hurdle row:
 * **Path ↔ embed equality:** Embedded envelope keys
   `{seed, parameter_hash, run_id}` **must equal** the same keys in the dataset path.
   *(The hurdle dataset partitions by `{seed, parameter_hash, run_id}` only.)*
-* **Literal checks (envelope):** `substream_label == "hurdle_bernoulli"` (registry literal) and `module` equals the registered producer id (e.g., `"1A.hurdle_sampler"`).
+* **Literal checks (envelope):** `substream_label == "hurdle_bernoulli"` (registry literal) and `module` **MUST** equal `"1A.hurdle_sampler"`.
 * **No fingerprint in path:** `manifest_fingerprint` is **embedded only** (lineage), never a path partition.
 
 Mismatch is a lineage/partition failure.

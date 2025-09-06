@@ -115,6 +115,9 @@ rng:
     rng_trace_log:
       type: stream
       description: "Structured per-(module,substream_label) RNG consumption trace with cumulative totals: draws_total = Σ event draws (uniforms); blocks_total = Σ event counter deltas (PRNG blocks). No equality between the two is implied."
+      # Final-row selection (validator note): choose the row with the max (after_hi, after_lo) in unsigned lexicographic order;
+      # if tied, use latest ts_utc; if still tied, choose the row with the lexicographically largest (events_total, blocks_total, draws_total);
+      # if still tied, pick the lexicographically largest part filename. Informational comment; schema unchanged.
       record:
         type: object
         additionalProperties: false
