@@ -109,7 +109,7 @@ logs/rng/events/hurdle_bernoulli/
 
 **Uniqueness & completeness (per run).** Within `{seed, parameter_hash, run_id}`, there is **exactly one** hurdle event per `merchant_id`, and the hurdle row count equals the merchant universe count for the run (from S0 ingress for the same `manifest_fingerprint`).
 
-**Trace (totals; no merchant dimension).** The RNG **trace** is per `(module, substream_label)` and records cumulative totals keyed by `{seed, parameter_hash, run_id}`. `blocks_total` is the **normative** counter of cumulative consumption; `draws_total` (if recorded) is **diagnostic** (it must equal the saturating sum of per-event `draws`).
+**Trace (totals; no merchant dimension).** The RNG **trace** is per `(module, substream_label)` and records cumulative totals keyed by `{seed, parameter_hash, run_id}`. `blocks_total` is the **normative** counter of cumulative consumption; `draws_total` is **required** and **diagnostic** (it must equal the saturating sum of per-event `draws`).
 
 ---
 
@@ -221,7 +221,7 @@ S0.8 applies in full: **binary64**, RN-even, **no FMA**, **no FTZ/DAZ**, determi
 
 ---
 
-**Bottom line:** S1.2 fixes a single, portable way to compute $(\eta,\pi)$: a **fixed-order Neumaier** dot product followed by a **two-branch logistic** with **no ad-hoc clamp**. Exact `0.0/1.0` arises only from binary64 behavior, and $\pi$ then cleanly determines whether S1.3 consumes **one** uniform or **zero**.
+**Bottom line:** S1.2 fixes a single, portable way to compute $(\eta,\pi)$: a **fixed-order Neumaier** dot product followed by a **two-branch logistic** with **no ad-hoc clamp**. Exact `0.0/1.0` arises only from binary64 behavior, and $\pi$ then cleanly determines whether S1.3 consumes **one** uniform or **zero**. **MUST-NOT:** Implementations may **not** clamp $\eta$ or $\pi$ at any threshold (e.g., $|\eta|>40$) during S1 computation or emission; event payload `pi` is the exact logistic result.
 
 ---
 
@@ -342,12 +342,15 @@ $$
 with unsigned 128-bit arithmetic on counters. In the hurdle stream, `draws ∈ {"0","1"}` (the number of uniforms consumed).
 **`blocks` is required**; for hurdle (uint64) it **must** be `0` or `1` and **must equal** `parse_u128(draws)`.
 
-> **Trace model (reconciliation):** The RNG trace is **cumulative** per `(module, substream_label)` within the run (no merchant dimension) and includes `rng_counter_before_{lo,hi}` and `rng_counter_after_{lo,hi}`. For the **final** row per key in a run: *(as defined in S1.6: select the row with the **maximum** `(after_hi, after_lo)` in unsigned lexicographic order; tie-break by **latest** `ts_utc`)*:
-> 
-> * `draws_total == Σ parse_u128(draws)` (diagnostic; saturating uint64),
+> **Trace model (reconciliation):** The RNG trace is **cumulative** per `(module, substream_label)` within the run (no merchant dimension) and includes `rng_counter_before_{lo,hi}` and `rng_counter_after_{lo,hi}`. 
+> For the **final** row per key in a run (selection rule per `schemas.layer1.yaml#/rng/core/rng_trace_log`):
+>
+> * `draws_total == Σ parse_u128(draws)` (**required**; diagnostic; saturating uint64),
 > * `blocks_total == Σ blocks` (normative; saturating uint64),
-> * `u128(after) − u128(before) == blocks_total`.
-> 
+> * `events_total ==` hurdle event count.
+>
+> (Note: `u128(after) − u128(before)` on the final row is the **delta for that last emission only**; do **not** equate it to cumulative totals.)
+>
 > S1.3 does **not** emit per-event trace rows.
   
 **Field-order convention (names are authoritative):** JSON carries
@@ -424,9 +427,10 @@ For each hurdle record in the run, the validator performs:
    * If `draws="1"`: generate **one** 64-bit word from the keyed substream at `before` using S0’s lane policy (low lane), map via S0’s **open-interval** `u01`, assert `0<u<1`, assert `(u<pi) == is_multi`, and assert `after = before + 1`.
 
 3. **Trace reconciliation (cumulative).** Let `H` be all hurdle events in the run. For the **final** trace row for `(module, substream_label)`:
-   * Assert `trace.draws_total == Σ parse_u128(e.draws)` (diagnostic; saturating uint64),
+   * Assert `trace.draws_total == Σ parse_u128(e.draws)` (**required**; diagnostic; saturating uint64),
    * Assert `trace.blocks_total == Σ e.blocks` (normative; saturating uint64),
-   * Assert `u128(trace.after_hi,trace.after_lo) − u128(trace.before_hi,trace.before_lo) == trace.blocks_total`.
+   * Assert `trace.events_total ==` hurdle event count (saturating uint64).
+   * (No assertion that `u128(trace.after) − u128(trace.before)` on the final row equals any cumulative total; that delta is **per-row**.)
 
 4. **Partition/embedding equality.** Path partitions `{seed, parameter_hash, run_id}` match the embedded envelope fields; `module` / `substream_label` match the registry literals exactly.
 
@@ -612,10 +616,10 @@ Deterministic ⇒ `u == null` and a **non-consuming event** (`draws="0"`, `block
 * **Module/label stability.** `module` and `substream_label` are **registry-closed literals** (schema-typed as strings; closure enforced by validators/registry). For this stream, `substream_label == "hurdle_bernoulli"`; `module` **MUST** equal `"1A.hurdle_sampler"`.
 * **Trace linkage (cumulative, substream-scoped).** Maintain a **cumulative** `rng_trace_log` per `(module, substream_label)` (no merchant dimension) within the run, including `rng_counter_before_{lo,hi}` and `rng_counter_after_{lo,hi}`. Totals are **saturating uint64** and equal the **sums** over all hurdle events in the run:
 
-  * `draws_total == Σ parse_u128(draws)` (diagnostic; saturating uint64),
+  * `draws_total == Σ parse_u128(draws)` (diagnostic; **required**; saturating uint64),
   * `blocks_total == Σ blocks` (normative; saturating uint64),
-  * `events_total ==` hurdle event count (saturating uint64),
-  * and the **u128** counter delta `u128(after)−u128(before)` **equals** `blocks_total`.
+  * `events_total ==` hurdle event count (saturating uint64).
+  *(No assertion that `u128(after)−u128(before)` equals `blocks_total` on the final row; that delta is **per-row**.)*
 
 ---
 
@@ -630,12 +634,11 @@ Deterministic ⇒ `u == null` and a **non-consuming event** (`draws="0"`, `block
 
   * If `d_m=0` (deterministic): `pi∈{0.0,1.0}`, `u==null`, `deterministic=true`, `after==before`, and `is_multi == (pi==1.0)`.
   * If `d_m=1` (stochastic): regenerate **one** uniform from the keyed substream at `before` (low-lane policy), map via open-interval `u01`, assert `0<u<1` and `(u<pi) == is_multi`; assert `after = before + 1`.
-**Trace reconciliation (cumulative, substream-scoped).** For the run, aggregate hurdle events and assert on the **final** trace row (the row with the **maximum** `(after_hi, after_lo)` in unsigned lexicographic order; tie-break by **latest** `ts_utc`):
-
-  * `trace.draws_total == Σ parse_u128(draws)` (diagnostic; saturating uint64),
+* **Trace reconciliation (cumulative, substream-scoped).** For the run, aggregate hurdle events and assert on the **final** trace row (selected per `#/rng/core/rng_trace_log`):
+  * `trace.draws_total == Σ parse_u128(draws)` (**required**; diagnostic; saturating uint64),
   * `trace.blocks_total == Σ blocks` (normative; saturating uint64),
   * `trace.events_total ==` hurdle event count,
-  * `u128(trace.after) − u128(trace.before) == trace.blocks_total`.
+  * (no assertion on `u128(trace.after) − u128(trace.before)`; that difference is per-row, not cumulative).
 * **Gating invariant.** Downstream **1A RNG streams** must appear for a merchant **iff** that merchant’s hurdle event has `is_multi=true`. **Build the set programmatically** from the dataset dictionary by selecting entries with `owner_subsegment == "1A"` and `gating.gated_by == "rng_event_hurdle_bernoulli"`. If the dictionary is legacy and lacks `gating`, **fall back** to the artefact-registry enumeration. S1 does **not** enumerate names inline.
 * **Cardinality & uniqueness.** Hurdle row count equals the ingress merchant count for the **run** (same `manifest_fingerprint`); uniqueness key is `merchant_id` scoped by `{seed, parameter_hash, run_id}`.
 
@@ -660,7 +663,7 @@ Deterministic ⇒ `u == null` and a **non-consuming event** (`draws="0"`, `block
    * If `pi ∈ {0.0,1.0}`: set `draws="0"`, `blocks=0`, `after=before`, `u=null`, `deterministic=true`, `is_multi=(pi==1.0)`.
    * If `0 < pi < 1`: draw **one** uniform `u∈(0,1)` (low-lane, open-interval `u01`); set `draws="1"`, `blocks=1`, `after=before+1`, `deterministic=false`, `is_multi=(u<pi)`.
 3. **Emit hurdle event.** Envelope includes all required fields (`*_lo` and `*_hi` naming; object key order is non-semantic); payload includes `merchant_id` (JSON integer), `pi` (binary64 round-trip), `u:number|null`, `is_multi:boolean`, `deterministic:boolean`.
-4. **Update cumulative trace (substream-scoped).** Increase `draws_total` for `(module, substream_label)` by `parse_u128(draws)` (diagnostic; saturating uint64), and increase `blocks_total` by `blocks` (normative; saturating uint64). Increase `events_total` by 1. Ensure **exactly one** final cumulative record exists per `(module, substream_label)` at state completion.
+4. **Update cumulative trace (substream-scoped).** Increase `draws_total` and `blocks_total` as above and increment `events_total` by 1. *Producers update per event; validators select the final row using the rule in `#/rng/core/rng_trace_log`.*
 
 *(Procedure is normative; S0 remains the authority for PRNG keying, counter arithmetic, lane policy, and `u01`.)*
 
@@ -875,9 +878,9 @@ Layer schema (envelope anchor + hurdle event schema), dataset dictionary/registr
 **Forensics.** `{before_hi, before_lo, after_hi, after_lo, blocks, draws}`.
 
 **C4. `rng_trace_missing_or_totals_mismatch`**
-**Predicate.** Missing **final cumulative** `rng_trace_log` record for `(module, substream_label)` within the run, **or** its totals ≠ **sum of event budgets** for that key, **or** its **u128** counter delta `u128(after)−u128(before)` ≠ `blocks_total`.
+**Predicate.** Missing **final cumulative** `rng_trace_log` record for `(module, substream_label)` within the run, **or** its totals ≠ **sum of event budgets** for that key.
 **Detect at.** Validator aggregate. **Abort run.**
-**Final-row selection rule.** The **final** trace row per `(module, substream_label)` is the row with the **maximum** `(after_hi, after_lo)` in unsigned lexicographic order; ties break by **latest** `ts_utc`; if `ts_utc` ties, pick the lexicographically largest tuple (`events_total`,`blocks_total`,`draws_total`); if still tied, pick the lexicographically largest part filename.
+**Final-row selection rule.** Selection per schema anchor `schemas.layer1.yaml#/rng/core/rng_trace_log`.
 
 **C5. `u_out_of_range`**
 **Predicate.** In a stochastic branch, payload `u` not in `(0,1)` (open-interval violation).
@@ -970,22 +973,22 @@ Every S1 failure MUST emit a JSON object (alongside the validation bundle / `_FA
 
 ## Where to detect (first line) & who double-checks
 
-| Family / Code                  | First detector (runtime)         | Secondary (validator / CI)                                                                                                                                                                                                         |
-|--------------------------------|----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| A1–A3 design/β                 | S1.1/S1.2 guards                 | (optional) build lints                                                                                                                                                                                                             |
-| B1–B2 numeric invalid          | S1.2 evaluation guards           | Re-eval η, π                                                                                                                                                                                                                       |
-| C1 envelope schema             | Writer JSON-Schema check         | Validator schema pass                                                                                                                                                                                                              |
-| C2 label mismatch              | Writer assertion                 | Validator                                                                                                                                                                                                                          |
-| C3 counter mismatch            | Writer assertion                 | Validator counter math (u128(after)−u128(before) vs **blocks**, and **blocks == parse_u128(draws)**); trace `blocks_total` reconciliation                                                                                          |
-| C4 trace missing/totals mis    | —                                | Trace aggregate vs Σ(event budgets) & counter delta                                                                                                                                                                                |
-| C5 u out of range              | Writer check                     | `u01` + recompute                                                                                                                                                                                                                  |
-| D1 payload schema              | Writer JSON-Schema check         | Validator schema pass                                                                                                                                                                                                              |
-| D2 deterministic inconsistency | Writer assertion                 | Recompute branch from π                                                                                                                                                                                                            |
-| E1 partition mismatch          | Writer path/embed equality check | Path lint (only `{seed, parameter_hash, run_id}`)                                                                                                                                                                                  |
-| E2 wrong dataset path          | —                                | Dictionary/registry binding lint                                                                                                                                                                                                   |
-| F1 gating violation            | —                                | Cross-stream presence check using **dataset dictionary `gating:` blocks** (`owner_subsegment == "1A"` and `gating.gated_by == "rng_event_hurdle_bernoulli"`); **fallback** to artefact-registry enumeration if `gating` is absent  |
-| F2 duplicate record            | —                                | Uniqueness check                                                                                                                                                                                                                   |
-| F3 cardinality mismatch        | —                                | Row count vs ingress merchant set                                                                                                                                                                                                  |
+| Family / Code                  | First detector (runtime)         | Secondary (validator / CI)                                                                                                                                                                                                        |
+|--------------------------------|----------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| A1–A3 design/β                 | S1.1/S1.2 guards                 | (optional) build lints                                                                                                                                                                                                            |
+| B1–B2 numeric invalid          | S1.2 evaluation guards           | Re-eval η, π                                                                                                                                                                                                                      |
+| C1 envelope schema             | Writer JSON-Schema check         | Validator schema pass                                                                                                                                                                                                             |
+| C2 label mismatch              | Writer assertion                 | Validator                                                                                                                                                                                                                         |
+| C3 counter mismatch            | Writer assertion                 | Validator counter math (`u128(after)−u128(before)` vs **blocks**, and **`blocks == parse_u128(draws)`**); trace `blocks_total` reconciliation                                                                                     |
+| C4 trace missing/totals mis    | —                                | Trace aggregate vs Σ(event budgets)                                                                                                                                                                                               |
+| C5 u out of range              | Writer check                     | `u01` + recompute                                                                                                                                                                                                                 |
+| D1 payload schema              | Writer JSON-Schema check         | Validator schema pass                                                                                                                                                                                                             |
+| D2 deterministic inconsistency | Writer assertion                 | Recompute branch from π                                                                                                                                                                                                           |
+| E1 partition mismatch          | Writer path/embed equality check | Path lint (only `{seed, parameter_hash, run_id}`)                                                                                                                                                                                 |
+| E2 wrong dataset path          | —                                | Dictionary/registry binding lint                                                                                                                                                                                                  |
+| F1 gating violation            | —                                | Cross-stream presence check using **dataset dictionary `gating:` blocks** (`owner_subsegment == "1A"` and `gating.gated_by == "rng_event_hurdle_bernoulli"`); **fallback** to artefact-registry enumeration if `gating` is absent |
+| F2 duplicate record            | —                                | Uniqueness check                                                                                                                                                                                                                  |
+| F3 cardinality mismatch        | —                                | Row count vs ingress merchant set                                                                                                                                                                                                 |
 
 > **Gating note:** Enforcement is **presence-based**: downstream gated streams must exist **iff** hurdle `is_multi=true`. No temporal “prior” requirement.
 
@@ -998,7 +1001,8 @@ Using the dictionary/registry bindings and schema anchors:
 1. **Schema:** validate hurdle events **and** cumulative trace against the layer anchors (envelope + event + trace).
 2. **Counters & budget:** assert
    `u128(after) − u128(before) = parse_u128(draws)` and, for hurdle, `draws ∈ {"0","1"}`; **assert** `blocks = parse_u128(draws)` and `blocks ∈ {0,1}`.
-   **Trace reconciliation:** per `(module, substream_label)`, `blocks_total` equals **Σ(event blocks)** (saturating to uint64; normative) and `draws_total` (if recorded) equals **Σ(event draws)** (saturating to uint64; diagnostic); and `events_total` equals the **event count** (saturating to uint64; normative).
+   **Trace reconciliation:** per `(module, substream_label)`, `blocks_total` equals **Σ(event blocks)** (saturating to uint64; normative) and `draws_total` equals **Σ(event draws)** (saturating to uint64; **required**, diagnostic); and `events_total` equals the **event count** (saturating to uint64; normative).
+   **Note:** Do **not** assert any relationship between `u128(key.after) − u128(key.before)` on the **final trace row** and these cumulative totals; that per-row delta is not equal to a cumulative sum.
 3. **Decision:** recompute $\eta,\pi$ (S1.2 rules); if stochastic (`draws="1"`), regenerate one uniform from the keyed **base counter** (low-lane, open-interval `u01`) and assert `0<u<1` and `(u<pi) == is_multi`.
 4. **Deterministic regime:** if `draws="0"`, assert `pi ∈ {0.0,1.0}`, `deterministic=true`, and `u == null`.
 5. **Partition lint:** path partitions `{seed, parameter_hash, run_id}` equal the embedded envelope; path **must not** include `module`, `substream_label`, or `manifest_fingerprint`.
@@ -1066,12 +1070,7 @@ Maintain a **cumulative** `rng_trace_log` row per `(module, substream_label)` wi
   - `draws_total`  = **Σ(event.draws)** for that key in the run (saturating `uint64`).
   (Matches `schemas.layer1.yaml#/rng/core/rng_trace_log` and dictionary text for the trace dataset.) 
 
-* **Final-row selection (normative):** when multiple trace rows exist for the same `(module, substream_label)` in the run, **select the final row** by:
-  1) choosing the row with the maximum `(rng_counter_after_hi, rng_counter_after_lo)` in unsigned lexicographic order; if tied,
-  2) choosing the row with the latest `ts_utc`; if tied,
-  3) choosing the row with the lexicographically largest `(events_total, blocks_total, draws_total)`; if tied,
-  4) choosing the lexicographically largest part filename.
-  (Rule as defined at `schemas.layer1.yaml#/rng/core/rng_trace_log`.)
+* **Final-row selection rule.** Selection per schema anchor `schemas.layer1.yaml#/rng/core/rng_trace_log`.
  
 > The hurdle event is the **only authoritative source** of the decision and its **own** counter evolution.
 
@@ -1119,8 +1118,9 @@ If enabled, a diagnostic table may be persisted (often produced in S0.7):
 data/layer1/1A/hurdle_pi_probs/parameter_hash={parameter_hash}/…
 ```
 
-**Schema:** `#/model/hurdle_pi_probs`. **Contents (per merchant):** `{manifest_fingerprint, merchant_id, logit:eta, pi}`.
-This dataset is **read-only** and **non-authoritative**; samplers never consult it.
+**Schema:** `#/model/hurdle_pi_probs` (authoritative; see S0.7). **Contents (per merchant):**
+`{ parameter_hash (embedded; must equal path key), merchant_id, logit:float32, pi:float32, produced_by_fingerprint? }`.
+`manifest_fingerprint` is **not** part of this parameter-scoped dataset. This table is **read-only** and **non-authoritative**; samplers never consult it.
 
 ---
 
@@ -1276,7 +1276,7 @@ Let the label be the registry literal `substream_label="hurdle_bernoulli"`.
    * If `draws_expected = 1`: regenerate **one** uniform from the keyed substream at `before` (low lane), map via **open-interval** `u01`, assert `0<u<1` and `(u < pi) == is_multi`.
 
 **Trace reconciliation (cumulative):** For the **final** trace row per `(module, substream_label)`:
-`draws_total == Σ parse_u128(draws)` (diagnostic; saturating `uint64`), and `blocks_total == Σ blocks` (normative; saturating `uint64`); **and** `u128(after) − u128(before) == blocks_total`.
+`draws_total == Σ parse_u128(draws)` (**required**; diagnostic; saturating `uint64`) and `blocks_total == Σ blocks` (normative; saturating `uint64`). *(No assertion on `u128(after) − u128(before)` for the final row.)*
 
 > Naming: use `draws_expected` (from π), `blocks`/`draws` (from envelope), and `delta` for counter difference.
 
@@ -1434,9 +1434,9 @@ for e in H:
 
 # 6) trace reconciliation (final per (module, substream_label))
 for each key in final_rows(T):
-  assert key.draws_total == sum(parse_u128(e.draws) for e in H if e.module==key.module and e.substream_label==key.substream_label)   # diagnostic; saturating uint64
+  assert key.draws_total == sum(parse_u128(e.draws) for e in H if e.module==key.module and e.substream_label==key.substream_label)   # required; diagnostic; saturating uint64
   assert key.blocks_total == sum(e.blocks for e in H if e.module==key.module and e.substream_label==key.substream_label)             # normative; saturating uint64
-  assert u128(key.after) - u128(key.before) == key.blocks_total   # and, for hurdle, also equals key.draws_total
+  # no assertion relating (after−before) on the final row to cumulative totals
 
 # 7) gating (presence-based)
 H1 := { m | H[m].is_multi == true }
