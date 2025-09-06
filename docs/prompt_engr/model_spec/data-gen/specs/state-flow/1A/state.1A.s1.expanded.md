@@ -1114,7 +1114,7 @@ This dataset is **read-only** and **non-authoritative**; samplers never consult 
 1. **Single emit:** exactly one hurdle record per merchant per `{seed, parameter_hash, run_id}` and exactly one $\Xi_m$.
 2. **Cross-label independence:** downstream RNG events **derive** their base counters via S0’s keyed mapping for their **own** labels; there is **no** requirement that `before(next) == C^{\star}`.
 3. **Branch purity (gating):** gated downstream 1A RNG streams are **present iff** `is_multi=true`.
-4. **Lineage coherence:** dataset paths use `{seed, parameter_hash, run_id}`; embedded envelope keys equal the path keys; egress/validation later uses `fingerprint={manifest_fingerprint}`.
+4. **Lineage coherence:** dataset paths use `{seed, parameter_hash, run_id}`; embedded envelope keys equal the path keys (**see V2: Path ↔ embed equality**); egress/validation later uses `fingerprint={manifest_fingerprint}`.
 5. **Numeric consistency:** hurdle `pi` equals the S1.2 recomputed value (fixed-order dot + two-branch logistic (no clamp)).
 
 ---
@@ -1190,6 +1190,8 @@ Validator logic is **order-invariant** (shard/emit order is irrelevant) and uses
 * **Schema anchors** are fixed by the layer schema set. Payload keys are exactly
   `{merchant_id, pi, is_multi, deterministic, u}`; the envelope is the layer-wide anchor.
 
+> The **allowed literal set** for `module` and `substream_label` is resolved from the **dataset dictionary/registry**; S1 does **not** maintain a local enumerated list.
+
 > **Diagnostics policy (schema-aligned).** Optional diagnostic fields permitted by the layer schema (e.g., `eta`, or categorical predictors such as `mcc`, `channel`, `gdp_bucket_id`) are **non-authoritative** for S1.
 > Producers **SHOULD NOT** emit them in `rng_event_hurdle_bernoulli`; validators **MUST ignore** such fields if present—they have no effect on outcome, gating, or validation predicates.
 
@@ -1215,6 +1217,10 @@ Validate **every** hurdle record against:
 
 **Flat record reminder.** There is **one** top-level JSON object per row; the “envelope” vs “payload” lists above are **not** separate nested objects.
 
+**Authority.** The envelope/payload key sets above are the **single normative inventory** for S1 hurdle. Any other lists (e.g., in S1.4 or examples) are **non-authoritative recaps** and must not diverge from V3.
+
+**Counter fields.** `rng_counter_*_{lo,hi}` are **named** words; JSON object key order is **non-semantic**.
+
 > **Diagnostics policy.** Diagnostic/context fields (e.g., `eta`, `mcc`, `channel`, `gdp_bucket_id`) are **allowed by the schema as optional/nullable**, but they are **non-authoritative**: producers **SHOULD NOT** emit them, and validators **MUST ignore** them if present.
 
 ---
@@ -1224,7 +1230,7 @@ Validate **every** hurdle record against:
 For each merchant $m$:
 
 1. Rebuild $x_m$ using the **frozen encoders** (one-hot sums = 1; column order equals the fitting bundle).
-2. Load β atomically; assert $|β| = 1 + C_{\text{mcc}} + 2 + 5$ and **exact column alignment** with $x_m$.
+2. Load β atomically; assert $|β| = 1 + C_{\text{mcc}} + 2 + 5$ (**counts come from the frozen encoders/dictionaries pinned for this run**) and **exact column alignment** with $x_m$
 3. Compute $\eta_m = β^\top x_m$ in binary64 (fixed-order Neumaier).
 4. Compute $\pi_m$ with the **two-branch logistic (no clamp)**: assert finiteness and `0.0 ≤ pi ≤ 1.0`.
 
@@ -1240,7 +1246,7 @@ Let the label be the registry literal `substream_label="hurdle_bernoulli"`.
 2. **Budget from π:** set `draws_expected = 1` iff `0 < pi < 1`, else `0`.
 3. **Budget identity:** compute `delta = u128(after) − u128(before)` and assert
    `delta == parse_u128(draws) == draws_expected`.
-   Also assert `blocks == parse_u128(draws)` and `blocks ∈ {0,1}`.
+   Also assert `blocks == parse_u128(draws)` (specific to `rng_event_hurdle_bernoulli`) and `blocks ∈ {0,1}`.
 4. **Lane policy:** assert `delta ∈ {0,1}`.
 5. **Stochastic vs deterministic:**
 
