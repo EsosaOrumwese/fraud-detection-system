@@ -485,6 +485,9 @@ datasets:
       produced_by: "1A.nb_and_dirichlet_sampler"
       consumed_by: ["validation"]
       final_in_layer: false
+    gating:
+      gated_by: "rng_event_hurdle_bernoulli"
+      predicate: "is_multi == true"
     retention_days: 180
     pii: false
     licence: "Proprietary-Internal"
@@ -503,6 +506,9 @@ datasets:
       produced_by: "1A.nb_poisson_component"
       consumed_by: ["validation"]
       final_in_layer: false
+    gating:
+      gated_by: "rng_event_hurdle_bernoulli"
+      predicate: "is_multi == true"
     retention_days: 180
     pii: false
     licence: "Proprietary-Internal"
@@ -521,6 +527,9 @@ datasets:
       produced_by: "1A.nb_sampler"
       consumed_by: ["validation"]
       final_in_layer: false
+    gating:
+      gated_by: "rng_event_hurdle_bernoulli"
+      predicate: "is_multi == true"
     retention_days: 180
     pii: false
     licence: "Proprietary-Internal"
@@ -539,6 +548,9 @@ datasets:
       produced_by: "1A.ztp_sampler"
       consumed_by: ["validation"]
       final_in_layer: false
+    gating:
+      gated_by: "rng_event_hurdle_bernoulli"
+      predicate: "is_multi == true"
     retention_days: 180
     pii: false
     licence: "Proprietary-Internal"
@@ -557,6 +569,9 @@ datasets:
       produced_by: "1A.ztp_sampler"
       consumed_by: ["validation"]
       final_in_layer: false
+    gating:
+      gated_by: "rng_event_hurdle_bernoulli"
+      predicate: "is_multi == true"
     retention_days: 180
     pii: false
     licence: "Proprietary-Internal"
@@ -575,6 +590,9 @@ datasets:
       produced_by: "1A.foreign_country_selector"
       consumed_by: ["validation"]
       final_in_layer: false
+    gating:
+      gated_by: "rng_event_hurdle_bernoulli"
+      predicate: "is_multi == true"
     retention_days: 180
     pii: false
     licence: "Proprietary-Internal"
@@ -593,6 +611,9 @@ datasets:
       produced_by: "1A.dirichlet_allocator"
       consumed_by: ["validation"]
       final_in_layer: false
+    gating:
+      gated_by: "rng_event_hurdle_bernoulli"
+      predicate: "is_multi == true"
     retention_days: 180
     pii: false
     licence: "Proprietary-Internal"
@@ -611,6 +632,9 @@ datasets:
       produced_by: "1A.rng_stream_manager"
       consumed_by: ["validation"]
       final_in_layer: false
+    gating:
+      gated_by: "rng_event_hurdle_bernoulli"
+      predicate: "is_multi == true"
     retention_days: 180
     pii: false
     licence: "Proprietary-Internal"
@@ -629,6 +653,9 @@ datasets:
       produced_by: "L0.event_normal_box_muller"   # library helper; not called by S0 orchestration
       consumed_by: ["validation"]
       final_in_layer: false
+    gating:
+      gated_by: "rng_event_hurdle_bernoulli"
+      predicate: "is_multi == true"
     retention_days: 180
     pii: false
     licence: "Proprietary-Internal"
@@ -647,6 +674,9 @@ datasets:
       produced_by: "1A.site_id_allocator"
       consumed_by: ["validation"]
       final_in_layer: false
+    gating:
+      gated_by: "rng_event_hurdle_bernoulli"
+      predicate: "is_multi == true"
     retention_days: 180
     pii: false
     licence: "Proprietary-Internal"
@@ -665,6 +695,9 @@ datasets:
       produced_by: "1A.integerisation"
       consumed_by: ["validation"]
       final_in_layer: false
+    gating:
+      gated_by: "rng_event_hurdle_bernoulli"
+      predicate: "is_multi == true"
     retention_days: 180
     pii: false
     licence: "Proprietary-Internal"
@@ -683,6 +716,9 @@ datasets:
       produced_by: "1A.site_id_allocator"
       consumed_by: ["validation"]
       final_in_layer: false
+    gating:
+      gated_by: "rng_event_hurdle_bernoulli"
+      predicate: "is_multi == true"
     retention_days: 180
     pii: false
     licence: "Proprietary-Internal"
