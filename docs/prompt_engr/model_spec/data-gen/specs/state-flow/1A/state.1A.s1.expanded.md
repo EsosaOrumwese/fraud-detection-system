@@ -1169,7 +1169,7 @@ OUTPUT:
 
 ---
 
-**Bottom line:** S1 outputs **one** authoritative hurdle event per merchant (complete envelope + minimal payload) and a **typed, deterministic handoff tuple**. The boundary guarantees **gated presence**, **cross-label RNG independence** (no counter chaining), stable 3-key partitions, and numeric consistency—giving downstream states and validators a clean, replayable interface.
+**Scope recap:** S1 outputs **one** authoritative hurdle event per merchant (complete envelope + minimal payload) and a **typed, deterministic handoff tuple**. The boundary guarantees **gated presence**, **cross-label RNG independence** (no counter chaining), stable 3-key partitions, and numeric consistency—giving downstream states and validators a clean, replayable interface.
 
 ---
 
@@ -1184,6 +1184,7 @@ Validator logic is **order-invariant** (shard/emit order is irrelevant) and uses
 ---
 
 ## V1. Inputs the validator must read
+**Notation.** For any counter pair `{lo:uint64, hi:uint64}` (matching the envelope names `*_lo`, `*_hi`), define `u128(x) := (x.hi << 64) | x.lo` and `Δctr := u128(after) − u128(before)`. We use `Δctr` below for per-event counter deltas and reconciliation rules.
 
 1. **Locked specs:** the S1 state text (this document) and the combined journey spec (for cross-state joins).
 2. **Event datasets (logs):**
