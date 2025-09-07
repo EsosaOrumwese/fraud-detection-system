@@ -60,14 +60,14 @@ $defs:
   # Common envelope for all RNG JSONL events
   rng_envelope:
     type: object
-    additionalProperties: false
     required: [ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label,
                rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi,
                draws, blocks]
     properties:
       ts_utc:
         type: string
-        format: date-time
+        format: date-time  # Exactly 6 fractional digits (microseconds) plus trailing 'Z'
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$"
         description: "Event timestamp (UTC). MUST be RFC-3339 with 'Z' and EXACTLY 6 fractional digits (microseconds), e.g., 2025-08-15T10:03:12.345678Z."
       run_id:  { $ref: "#/$defs/hex32" }
       seed:   { $ref: "#/$defs/uint64", description: "Master Philox seed for this run." }
@@ -146,9 +146,15 @@ rng:
       allOf:
         - $ref: "#/$defs/rng_envelope"
         - type: object
-          additionalProperties: false
           required: [merchant_id, pi, u, is_multi, deterministic]   # deterministic flag is authoritative; 'u' becomes conditional
           properties:
+            # Envelope literal closure for this stream
+            module:          { const: "1A.hurdle_sampler" }
+            substream_label: { const: "hurdle_bernoulli" }
+            # Budget constraints for this family
+            blocks: { type: integer, enum: [0,1], description: "Exactly one or zero Philox blocks consumed." }
+            draws:  { type: string,  enum: ["0","1"], description: "Decimal-encoded uint128; exactly 0 or 1 uniform." }
+            # Payload
             merchant_id: { $ref: "#/$defs/id64" }
             pi: { $ref: "#/$defs/pct01", description: "Logistic probability of being multi-site." }
             is_multi: { type: boolean, description: "Outcome: true ⇒ multi-site." }
@@ -157,6 +163,7 @@ rng:
               oneOf:
                 - { type: "null", description: "Only valid when deterministic = true." }
                 - { $ref: "#/$defs/u01", description: "Open-interval uniform used only when deterministic = false." }
+            # optional diagnostics (non-authoritative)
             eta: { type: number, description: "Linear predictor (binary64).", nullable: true }
             gdp_bucket_id: { type: integer, minimum: 1, maximum: 5, description: "From design matrix.", nullable: true }
             mcc: { type: integer, minimum: 0, maximum: 9999, description: "MCC (from design).", nullable: true }
@@ -168,12 +175,13 @@ rng:
             - if: { properties: { deterministic: { const: false } } }
               then:
                 required: [u]
+        - type: object
+          unevaluatedProperties: false
 
     gamma_component:
       allOf:
         - $ref: "#/$defs/rng_envelope"
         - type: object
-          additionalProperties: false
           required: [merchant_id, context, index, alpha, gamma_value]
           properties:
             merchant_id: { $ref: "#/$defs/id64" }
@@ -182,24 +190,26 @@ rng:
             country_iso: { $ref: "#/$defs/iso2", nullable: true, description: "Present for Dirichlet components." }
             alpha:   { type: number, exclusiveMinimum: 0.0, description: "Gamma shape parameter." }
             gamma_value: { type: number, exclusiveMinimum: 0.0, description: "Sampled Gamma(α,1) deviate." }
+        - type: object
+          unevaluatedProperties: false
 
     poisson_component:
       allOf:
         - $ref: "#/$defs/rng_envelope"
         - type: object
-          additionalProperties: false
           required: [merchant_id, context, lambda, k]
           properties:
             merchant_id: { $ref: "#/$defs/id64" }
             context: { type: string, enum: ["nb","ztp"], description: "NB composition or ZTP sampler." }
             lambda:  { type: number, exclusiveMinimum: 0.0 }
             k:       { type: integer, minimum: 0, description: "Poisson draw (untruncated)." }
+        - type: object
+          unevaluatedProperties: false
 
     nb_final:
       allOf:
         - $ref: "#/$defs/rng_envelope"
         - type: object
-          additionalProperties: false
           required: [merchant_id, mu, dispersion_k, n_outlets, nb_rejections]
           properties:
             merchant_id:   { $ref: "#/$defs/id64" }
@@ -208,36 +218,39 @@ rng:
             n_outlets:     { type: integer, minimum: 2, description: "Accepted NB draw N (rejected if {0,1})." }
             nb_rejections: { type: integer, minimum: 0, description: "Count of rejected {0,1} draws before acceptance." }
             method:        { type: string, enum: ["poisson_gamma_mixture"] }
+        - type: object
+          unevaluatedProperties: false
 
     ztp_rejection:
       allOf:
         - $ref: "#/$defs/rng_envelope"
         - type: object
-          additionalProperties: false
           required: [merchant_id, lambda_extra, k, attempt]
           properties:
             merchant_id:  { $ref: "#/$defs/id64" }
             lambda_extra: { type: number, exclusiveMinimum: 0.0, description: "λ for extra-country count." }
             k:            { type: integer, const: 0, description: "Rejected draw (ZTP zero)." }
             attempt:      { type: integer, minimum: 1, maximum: 64 }
+        - type: object
+          unevaluatedProperties: false
 
     ztp_retry_exhausted:
       allOf:
         - $ref: "#/$defs/rng_envelope"
         - type: object
-          additionalProperties: false
           required: [merchant_id, lambda_extra, attempts, aborted]
           properties:
             merchant_id:  { $ref: "#/$defs/id64" }
             lambda_extra: { type: number, exclusiveMinimum: 0.0 }
             attempts:     { type: integer, const: 64 }
             aborted:      { type: boolean, const: true }
+        - type: object
+          unevaluatedProperties: false
 
     gumbel_key:
       allOf:
         - $ref: "#/$defs/rng_envelope"
         - type: object
-          additionalProperties: false
           required: [merchant_id, country_iso, weight, u, key, selected]
           properties:
             merchant_id: { $ref: "#/$defs/id64" }
@@ -247,13 +260,14 @@ rng:
             key:         { type: number, description: "log(w) - log(-log u)" }
             selected:    { type: boolean, description: "True if country among the top-K." }
             selection_order: { type: integer, minimum: 1, nullable: true, description: "1..K when selected; null otherwise." }
+        - type: object
+          unevaluatedProperties: false
 
     normal_box_muller:
       description: "Standard normal via Box–Muller; two-uniform event; sine mate discarded."
       allOf:
         - $ref: "#/$defs/rng_envelope"
         - type: object
-          additionalProperties: false
           properties:
             substream_label: { const: "normal_box_muller", description: "Fixed label for Box–Muller helper." }
             blocks: { const: 1, description: "Exactly one Philox block for two uniforms." }
@@ -265,12 +279,13 @@ rng:
               properties:
                 z: { type: number, description: "Standard normal deviate N(0,1) from Box–Muller (cosine branch); no caching." }
           required: [payload]
+        - type: object
+          unevaluatedProperties: false
 
     dirichlet_gamma_vector:
       allOf:
         - $ref: "#/$defs/rng_envelope"
         - type: object
-          additionalProperties: false
           required: [merchant_id, home_country_iso, country_isos, alpha, gamma_raw, weights]
           properties:
             merchant_id:      { $ref: "#/$defs/id64" }
@@ -302,23 +317,25 @@ rng:
             - type: sum_equals_one
               array: "weights"
               tolerance: 1e-6
+        - type: object
+          unevaluatedProperties: false
 
     stream_jump:
       allOf:
         - $ref: "#/$defs/rng_envelope"
         - type: object
-          additionalProperties: false
           required: [reason, jump_stride_lo, jump_stride_hi]
           properties:
             reason: { type: string, enum: ["init","module_start","reset","advance"], description: "Why jump occurred." }
             jump_stride_lo: { $ref: "#/$defs/uint64", description: "Lower 64 bits of stride (e.g., first 64b of SHA-256(label))." }
             jump_stride_hi: { $ref: "#/$defs/uint64", description: "Upper 64 bits of stride (if used)." }
+        - type: object
+          unevaluatedProperties: false
 
     sequence_finalize:
       allOf:
         - $ref: "#/$defs/rng_envelope"
         - type: object
-          additionalProperties: false
           required: [merchant_id, country_iso, site_count, start_sequence, end_sequence]
           properties:
             merchant_id:    { $ref: "#/$defs/id64" }
@@ -326,12 +343,13 @@ rng:
             site_count:     { type: integer, minimum: 0 }
             start_sequence: { $ref: "#/$defs/six_digit_seq" }
             end_sequence:   { $ref: "#/$defs/six_digit_seq" }
+        - type: object
+          unevaluatedProperties: false
 
     residual_rank:
       allOf:
         - $ref: "#/$defs/rng_envelope"
         - type: object
-          additionalProperties: false
           required: [merchant_id, country_iso, residual, residual_rank]
           properties:
             merchant_id:    { $ref: "#/$defs/id64" }
@@ -339,12 +357,13 @@ rng:
             # Note: residuals are quantised to 8 dp by the engine; rounding tolerance is validated in invariants, not in schema.
             residual:      { type: number, minimum: 0.0, maximum: 1.0, description: "Largest-remainder residual in [0,1)." }
             residual_rank: { type: integer, minimum: 1 }
+        - type: object
+          unevaluatedProperties: false
 
     site_sequence_overflow:
       allOf:
         - $ref: "#/$defs/rng_envelope"
         - type: object
-          additionalProperties: false
           required: [merchant_id, country_iso, attempted_count, max_seq, overflow_by, severity]
           properties:
             merchant_id:     { $ref: "#/$defs/id64" }
@@ -353,6 +372,8 @@ rng:
             max_seq:         { type: integer, const: 999999, description: "6-digit ceiling." }
             overflow_by:     { type: integer, minimum: 1 }
             severity:        { type: string, enum: ["ERROR"], description: "Hard guardrail triggers abort." }
+        - type: object
+          unevaluatedProperties: false
 
 
 governance:
