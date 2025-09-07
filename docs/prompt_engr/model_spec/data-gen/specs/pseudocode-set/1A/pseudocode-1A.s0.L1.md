@@ -361,12 +361,9 @@ function rng_bootstrap_audit(seed:u64,
 # Deterministic substream for an event family 'ℓ' and ordered 'ids' tuple.
 # Types/encodings for ids are fixed by schema (e.g., merchant_u64=LE64, iso=UER uppercase, i/j=LE32).
 function derive_substream(master: Master, label: string, ids: tuple) -> Stream:
-  ids_norm = SER(ids)                 # per schema: LE32 indices, LE64 u64 keys; ISO uppercased then UER.
-  msg = UER("mlr:1A") || UER(label) || ids_norm
-  H   = SHA256( master.M || msg )     # 32 bytes
-  key = LOW64(H)
-  ctr = ( BE64(H[16:24]), BE64(H[24:32]) )
-  return Stream{ key, ctr }
+  # Delegate to the **normative** L0 implementation (message layout + SER/UER contract).
+  # Note: L0.derive_substream expects the raw master bytes `M` (not the full Master struct).
+  return L0.derive_substream(master.M, label, ids)
 ```
 
 *Substreams are determined by `(seed, fingerprint, ℓ, ids)`—**never** by execution order.*
