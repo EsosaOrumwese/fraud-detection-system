@@ -1,8 +1,8 @@
 # L1 — State-1 Runtime Kernels (Merchant → Hurdle Decision)
 
-# Purpose
+## Purpose
 
-Specify the **runtime kernels** for State-1 that produce the *hurdle* decision (single- vs multi-site) and the in-memory handoff tuple used to route into later states. This document is **code-agnostic** but implementation-ready: inputs/outputs, exact algorithms, path templates, and literals are all fixed here.
+L1 defines the state-specific kernels for S1: inputs/outputs, exact algorithms, and literals are fixed here. **Paths are dictionary-resolved via L0 (no path strings/templates in L1)**; primitives and general helpers live in L0, and host wiring lives in L2.
 
 ## Scope (what’s in / out)
 
@@ -22,9 +22,6 @@ Specify the **runtime kernels** for State-1 that produce the *hurdle* decision (
 * **Module literal:** `"1A.hurdle_sampler"`
 * **Substream label literal:** `"hurdle_bernoulli"`
 * **Event schema ref:** `schemas.layer1.yaml#/rng/events/hurdle_bernoulli`
-* **Event path template (partitions only by run lineage):**
-  `logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
-  *(No `module`, `substream_label`, or `manifest_fingerprint` in the path.)*
 *Source of truth:* these literals and anchors are **registry/dictionary-backed**; L1 does not re-enumerate allowed values beyond referencing them here.
 
 ## Trace (cumulative) schema (used in S1.4)
@@ -67,21 +64,18 @@ type Context = {
   substream_label:string,        # "hurdle_bernoulli"
   event_dataset_id:string,       # "rng_event_hurdle_bernoulli"
   event_schema_ref:string,       # schemas.layer1.yaml#/rng/events/hurdle_bernoulli
-  event_path:string              # logs/rng/events/hurdle_bernoulli/seed=.../parameter_hash=.../run_id=.../part-*.jsonl
 }
 
 const MODULE            = "1A.hurdle_sampler"
 const SUBSTREAM_LABEL   = "hurdle_bernoulli"
 const EVENT_DATASET_ID  = "rng_event_hurdle_bernoulli"
 const EVENT_SCHEMA_REF  = "schemas.layer1.yaml#/rng/events/hurdle_bernoulli"
-const EVENT_PATH_TPL    = "logs/rng/events/hurdle_bernoulli/" +
-                          "seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
 ```
 
 ## Kernel index (what follows in this doc)
 
 * **S1.1 — Load & Guard (no RNG)**
-  Fix inputs and preconditions, bind module/label literals, resolve the event path. *(attached next)*
+  Fix inputs and preconditions; bind module/label literals and dataset id & schema ref (**no path formatting in L1**). *(attached next)*
 * **S1.2 — Probability Map ($n\rightarrow\pi$) (no RNG)**
   `eta = dot_neumaier(β,x)`, `pi = logistic_two_branch(eta)`, guard finite/bounds.
 * **S1.3 — RNG & Decision (≤1 draw)**
@@ -95,7 +89,7 @@ const EVENT_PATH_TPL    = "logs/rng/events/hurdle_bernoulli/" +
 
 # S1.1 — Load & Guard (no RNG)
 
-**Intent.** Fix all inputs and preconditions for the hurdle sampler **before any draw**: (a) obtain $x_m$ built by S0.5, (b) atomically load the single hurdle coefficient vector $\beta$, (c) assert strict shape/alignment, (d) assert the RNG audit row exists for `{seed, parameter_hash, run_id}`, (e) bind the **module/substream** literals and **event stream path + schema**, and (f) hard-check frozen **block orders** and **path partitions**.
+**Intent.** Fix all inputs and preconditions for the hurdle sampler **before any draw**: (a) obtain $x_m$ built by S0.5, (b) atomically load the single hurdle coefficient vector $\beta$, (c) assert strict shape/alignment, (d) assert the RNG audit row exists for `{seed, parameter_hash, run_id}`, (e) bind the **module/substream** literals and **event dataset id + schema ref** (no path strings in L1), and (f) hard-check frozen **block orders**.
 
 ---
 
@@ -110,11 +104,10 @@ const EVENT_PATH_TPL    = "logs/rng/events/hurdle_bernoulli/" +
 
 * `beta : f64[D]` — single YAML vector (intercept + MCC + channel + **5** bucket dummies).
 * `x_m : f64[D]` — hurdle design for merchant `m`, **exactly** $[1,\phi_{\text{mcc}},\phi_{\text{ch}},\phi_{\text{dev}}(b_m)]^\top$.
-* `ctx : Context` — writer context with literals & resolved paths:
+* `ctx : Context` — writer context with **literals & anchors** (no path strings in L1):
 
   * `module="1A.hurdle_sampler"`, `substream_label="hurdle_bernoulli"`
   * `event_dataset_id="rng_event_hurdle_bernoulli"`, `event_schema_ref="schemas.layer1.yaml#/rng/events/hurdle_bernoulli"`
-  * `event_path="logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"`
 
 ---
 
@@ -138,7 +131,6 @@ function S1_1_load_and_guard(merchant_id:u64,
   substream_label   = SUBSTREAM_LABEL
   event_dataset_id  = EVENT_DATASET_ID
   event_schema_ref  = EVENT_SCHEMA_REF
-  event_path_tpl    = EVENT_PATH_TPL
 
   # 1) Obtain x_m built by S0.5 (preferred: in-memory handle; fallback: parameter-scoped cache)
   #    Exactly: [1, phi_mcc(mcc_m), phi_ch(channel_sym in ["CP","CNP"]), phi_dev(b_m in {1..5})]
@@ -174,12 +166,9 @@ function S1_1_load_and_guard(merchant_id:u64,
     substream_label: substream_label,
     event_dataset_id: event_dataset_id,
     event_schema_ref: event_schema_ref,
-    event_path: format(event_path_tpl, {seed, parameter_hash, run_id})
   }
 
-  # 5a) **NEW**: Path-partition lint — must be exactly {seed, parameter_hash, run_id}
-  assert has_exact_partitions(ctx.event_path, {"seed","parameter_hash","run_id"}),
-         E_S1_EVENT_PATH_PARTITIONS
+  # (No path lint in L1 — path resolution & partition equality are enforced by dictionary/L0 at write time)
 
   return (beta, x_m, ctx)
 ```
@@ -190,7 +179,6 @@ function S1_1_load_and_guard(merchant_id:u64,
 * `atomic_load_yaml_vector(path)` — all-or-nothing load of the single β vector.
 * `load_hurdle_design_metadata()` — returns `{channel_order:[…], bucket_order:[…]}` as pinned by the fitting bundle.
 * `exists_rng_audit_row(seed, parameter_hash, run_id)` — discover audit presence by dictionary path.
-* `has_exact_partitions(path, required_set)` — lints that the directory partitions are **exactly** the required set.
 
 ---
 
@@ -209,7 +197,6 @@ function S1_1_load_and_guard(merchant_id:u64,
 * `E_S1_CHANNEL_ORDER_DRIFT(exp, got)` — channel dict order drifted from `["CP","CNP"]`.
 * `E_S1_BUCKET_ORDER_DRIFT(exp, got)` — bucket order drifted from `[1,2,3,4,5]`.
 * `E_S1_RNG_AUDIT_MISSING(seed, parameter_hash, run_id)` — audit row absent.
-* `E_S1_EVENT_PATH_PARTITIONS` — event path partitions are not **exactly** `{seed, parameter_hash, run_id}`.
 
 ---
 
@@ -443,8 +430,9 @@ function S1_3_rng_and_decision(pi:f64, merchant_id:u64, ctx:Context) -> Decision
 
 * **Dataset id:** `rng_event_hurdle_bernoulli`
 * **Schema:** `schemas.layer1.yaml#/rng/events/hurdle_bernoulli`
-* **Path:** `logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
-  *(Partitions are exactly `{seed, parameter_hash, run_id}`.)*
+* **Path authority:** resolved at write-time by the dataset **dictionary** using
+  `event_dataset_id` and lineage `{seed, parameter_hash, run_id}` (L0 helpers).
+  *(No hard-coded templates in L1; partitions remain exactly `{seed, parameter_hash, run_id}`.)*
 
 ---
 
@@ -480,17 +468,21 @@ function S1_3_rng_and_decision(pi:f64, merchant_id:u64, ctx:Context) -> Decision
     substream_label:"hurdle_bernoulli",
     event_dataset_id:"rng_event_hurdle_bernoulli",
     event_schema_ref:"schemas.layer1.yaml#/rng/events/hurdle_bernoulli",
-    event_path:string
   }
   ```
 * `prev_totals : {draws_total:u64, blocks_total:u64, events_total:u64}` — running totals maintained by the orchestrator (L2) per `(module, substream_label)` for this run.
 
 ### Outputs
 
-* **Side-effect:** one JSONL row appended to `ctx.event_path` (hurdle event).
+* **Side-effect:** one JSONL row appended to the **dictionary-resolved** hurdle event dataset (`event_dataset_id="rng_event_hurdle_bernoulli"`).
   *Note:* `module=="1A.hurdle_sampler"` and `substream_label=="hurdle_bernoulli"` are **envelope literals** (per registry); **path partitions** remain exactly `{seed, parameter_hash, run_id}`.
-* **Side-effect:** one JSONL row appended to `rng_trace_log` (cumulative trace).
+* **Side-effect:** one JSONL row appended to `rng_trace_log` — **one cumulative row per event**;
+  totals are **saturating `uint64`**; **consumers select the final row per `(module, substream_label)`** as defined by `schemas.layer1.yaml#/rng/core/rng_trace_log`.
 * `new_totals : {draws_total:u64, blocks_total:u64, events_total:u64}` — totals after this emission (return to L2).
+
+**Serialization rules (explicit):**
+* `pi` and (if non-deterministic) `u` are emitted as **JSON numbers** using `f64_to_json_shortest` (binary64 round-trip).
+* Lineage ids and counters are emitted as **JSON integers** (never strings).
 
 ---
 
@@ -501,7 +493,8 @@ function S1_3_rng_and_decision(pi:f64, merchant_id:u64, ctx:Context) -> Decision
 3. `decision.is_multi == ((decision.deterministic and pi==1.0) or (!decision.deterministic and decision.u < pi))`.
 4. `decision.blocks ∈ {0,1}` and `decision.blocks == parse_u128(decision.draws)`.
 5. `u128(after) − u128(before) == parse_u128(decision.draws)` using the provided counters.
-6. `ctx.event_path` has **exactly** partitions `{seed, parameter_hash, run_id}` (should already be linted in S1.1).
+6. **Embed-equality is enforced by the writer:** the embedded `{seed, parameter_hash, run_id}` in the event envelope
+   must equal the dictionary partitions for the resolved path, byte-for-byte (checked inside L0 `end_event_emit`).
 
 ---
 
@@ -555,7 +548,7 @@ function S1_4_emit_event_and_update_trace(merchant_id:u64, pi:f64,
                  /*stream_after*/ decision.stream_after,
                  /*draws_hi*/ draws_hi, /*draws_lo*/ draws_lo,
                  /*payload*/ payload)
-  # Writer resolves dataset path from dictionary + lineage partitions (seed/parameter_hash/run_id); ctx.event_path used only for debug/logs
+  # Writer resolves dataset path from dictionary + lineage partitions (seed/parameter_hash/run_id)
   # and embeds the full envelope: ts_utc(μs), module, substream_label, lineage keys,
   # before/after counters, blocks (computed), draws (decimal u128), + payload.
 
@@ -580,7 +573,8 @@ function S1_4_emit_event_and_update_trace(merchant_id:u64, pi:f64,
   `u128(after) − u128(before) = parse_u128(draws)` and, for hurdle, `blocks == parse_u128(draws) ∈ {0,1}`.
 * **Timestamp precision.** `begin_event_micro` stamps `ts_utc` with **exactly 6 fractional digits** (microseconds).
 * **Float round-trip.** `pi` and (if present) `u` are serialized with `f64_to_json_shortest`, ensuring reparse → **bit-exact** binary64.
-* **Trace semantics.** One cumulative row per emission; totals are **saturating** `uint64` and reconcile with event sums and counter deltas.
+* **Trace semantics.** One cumulative row **per emission**; totals are **saturating** `uint64` and reconcile with event sums and counter deltas.
+  Consumers select the **final** row per `(module, substream_label)` key per the trace schema.
 
 ---
 
