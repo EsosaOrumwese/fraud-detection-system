@@ -213,7 +213,7 @@ blocks = u128_to_uint64_or_abort(decimal_string_to_u128(draws)) ∈ {0,1}
 Reject the write if these fail.
 
 5. **Timestamp precision and typing.**
-   Emit `ts_utc` with **microsecond** precision (`… .ffffffZ`). Emit ids/counters as integers; emit `π` and `u` as shortest-round-trip JSON numbers.
+   Emit `ts_utc` with **microsecond** precision (`… .ffffffZ`). Emit **counters** (and `seed`) as **integers**; emit **hex lineage ids** (`run_id`, `parameter_hash`, `manifest_fingerprint`) as **lowercase hex strings**; emit `π` and `u` as **shortest round-trip** JSON numbers.
 
 ---
 
@@ -498,7 +498,7 @@ S1.4(m): Emit Event + Update Cumulative Trace
 
 * **Uniqueness key:** `(seed, parameter_hash, run_id, merchant_id)` — **writer must abort** on a second attempt (no upsert/silent skip).
 * **Partitions:** event path partitions are **exactly** `{seed, parameter_hash, run_id}`; `module="1A.hurdle_sampler"`, `substream_label="hurdle_bernoulli"` are in the **envelope**, not the path.
-* **Typing & time:** `ts_utc` uses **microseconds**; ids/counters are JSON **integers**; `pi`/`u` are JSON numbers with **binary64 round-trip**.
+* **Typing & time:** `ts_utc` uses **microseconds**; **counters** are JSON integers; **lineage types:** `seed` is a JSON integer, and `run_id`/`parameter_hash`/`manifest_fingerprint` are lowercase **hex strings**; `pi`/`u` are JSON numbers serialized as **shortest round-trip** binary64.
 
 ---
 
@@ -738,7 +738,8 @@ Schema: `#/rng/core/rng_trace_log`. No merchant dimension; **per (module, substr
 * Adding extra fields to the event or trace rows beyond the schema.
 * Placing `fingerprint`, `module`, or `substream_label` in the **path**.
 * Emitting per-event trace rows.
-* Serializing `pi`/`u` as strings, or emitting ids/counters as strings.
+* Serializing `pi`/`u` as **strings**, or emitting **counters** as strings.  
+  (Lineage ids `run_id`, `parameter_hash`, `manifest_fingerprint` **must** be lowercase **hex strings** per schema.)
 * Writing `u=0` or `u=1` (mapping is strict-open (0,1)).
 * Emitting hurdle rows without a prior **audit row** for the run.
 
@@ -901,7 +902,7 @@ A State-1 run is **done** (spec-true) only if **all** checks below pass. Treat t
 * [ ] **Uniqueness key:** no duplicate `(seed, parameter_hash, run_id, merchant_id)`; a second emit for the same key **fails**.
 * [ ] **Partition ↔ embed equality:** path partitions are **exactly** `{seed, parameter_hash, run_id}` and **match** embedded values; `manifest_fingerprint` is embedded (not in path); `module="1A.hurdle_sampler"` and `substream_label="hurdle_bernoulli"` are **envelope** literals (not path).
 * [ ] **Envelope completeness:** `ts_utc` (UTC, microseconds), counters `rng_counter_before_{lo,hi}` & `rng_counter_after_{lo,hi}`, `draws` (decimal u128 string), `blocks` (u64).
-* [ ] **Payload minimality & typing:** fields are exactly `{merchant_id:u64, pi:number, is_multi:bool, deterministic:bool, u:number|null}` with JSON integers for ids/counters and binary64 round-trip numbers for `pi`/`u`.
+* [ ] **Payload minimality & typing:** payload fields are exactly `{merchant_id:u64, pi:number, is_multi:bool, deterministic:bool, u:number|null}` with `pi`/`u` serialized as shortest round-trip binary64 numbers. **Envelope lineage types:** `seed` is a JSON integer; `run_id`, `parameter_hash`, `manifest_fingerprint` are hex strings. **Counters** are JSON integers.
 * [ ] **Budget identities per row:** `u128(after) − u128(before) = decimal_string_to_u128(draws)` and **for hurdle**
       `blocks = u128_to_uint64_or_abort(decimal_string_to_u128(draws)) ∈ {0,1}`.
 * [ ] **Determinism law per row:**
@@ -1002,7 +1003,7 @@ These exclusions are intentional: they prevent over-engineering, reduce surface 
 
 * Cumulative per (module, substream). Totals are **saturating u64**.
 
-*(All ids/counters are JSON integers; `pi`/`u` are round-trip binary64 numbers; `ts_utc` has exactly 6 fractional digits.)*
+*(Counters and `seed` are JSON integers; `run_id`/`parameter_hash`/`manifest_fingerprint` are hex strings; `pi`/`u` are round-trip binary64 numbers; `ts_utc` has exactly 6 fractional digits.)*
 
 ---
 
