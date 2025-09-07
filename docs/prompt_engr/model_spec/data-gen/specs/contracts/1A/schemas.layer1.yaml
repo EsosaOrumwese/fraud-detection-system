@@ -1,6 +1,7 @@
 # schemas.layer1.yaml
 version: "1.0"
 $id: "schemas.layer1.yaml"
+${schema}: "https://json-schema.org/draft/2020-12/schema"
 description: "Layer-wide schemas used by Layer 1 (shared logs and RNG event streams)."
 
 # -- Reusable primitives ---------------------------------------------------

@@ -575,7 +575,7 @@ subsegments:
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: null
+        schema: schemas.layer1.yaml#/rng/core/rng_trace_log
         cross_layer: true
         notes: null
 
