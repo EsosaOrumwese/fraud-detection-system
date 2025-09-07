@@ -79,7 +79,7 @@ function f64_to_json_shortest(x:f64) -> string
 
 ### B3. `decimal_string_to_u128(s:string) -> (hi:u64, lo:u64)`
 
-**Intent:** Parse non-negative base-10 string (no sign; `"0"` or no leading zeros) into u128; used by the **authoritative** budget identity `u128(after) − u128(before) = parse_u128(draws)`.
+**Intent:** Parse non-negative base-10 string (no sign; `"0"` or no leading zeros) into u128; used by the **authoritative** budget identity `u128(after) − u128(before) = parse_u128(draws)`. **Partner encoder:** reuse S0-L0 `u128_to_decimal_string`.
 
 ```pseudocode
 function decimal_string_to_u128(s:string) -> (hi:u64, lo:u64)
@@ -179,7 +179,7 @@ function update_rng_trace_totals(
   new_draws_total  = sat_add_u64(prev_draws_total,  delta_draws)
   new_events_total = sat_add_u64(prev_events_total, 1)
 
-  # 4) Emit trace row (MICROsecond ts; **truncate**, exactly 6 digits; exact field names)
+  # 4) Emit trace row (MICROsecond ts; exactly 6 digits (**truncate**), per S0 capsule; exact field names)
   row = {
     ts_utc:                  ts_utc_now_rfc3339_micro(),
     run_id:                  run_id,
@@ -208,7 +208,7 @@ function update_rng_trace_totals(
 * **Event start:** use `begin_event_micro(...)` (not the nano variant) to satisfy S1’s **exactly 6 digits** rule.
 * **Budget identity:** always compute `draws` as **decimal u128** via the existing encoder (or `"0"/"1"` for hurdle) and uphold
   `u128(after) − u128(before) = parse_u128(draws)` (with `decimal_string_to_u128`). For hurdle, also enforce `blocks == parse_u128(draws) ∈ {0,1}`.
-* **Trace:** after `end_event_emit(...)`, call `update_rng_trace_totals(...)` once per event to reconcile **draws/blocks/events** totals (saturating).
+* **Trace:** after `end_event_emit(...)`, call `update_rng_trace_totals(...)` **once per event** to reconcile **draws/blocks/events** totals (saturating). Consumers then select the **final** row per `(module, substream_label)` as defined by the `rng_trace_log` schema.
 * **Floats to JSON:** when building the **payload** (in L1), serialize `pi` and stochastic `u` with `f64_to_json_shortest` so they **round-trip** to the exact binary64.
 
 ---
