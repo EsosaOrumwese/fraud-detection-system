@@ -556,7 +556,7 @@ subsegments:
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: rng_audit_schema
+        schema: schemas.layer1.yaml#/rng/core/rng_audit_log
         cross_layer: true
         notes: null
 
@@ -594,7 +594,7 @@ subsegments:
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: rng_event_schema_catalog
+        schema: schemas.layer1.yaml#/rng/events/hurdle_bernoulli
         cross_layer: true
         notes: null
 
@@ -613,7 +613,7 @@ subsegments:
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: rng_event_schema_catalog
+        schema: schemas.layer1.yaml#/rng/events/gamma_component
         cross_layer: true
         notes: null
 
@@ -632,7 +632,7 @@ subsegments:
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: rng_event_schema_catalog
+        schema: schemas.layer1.yaml#/rng/events/poisson_component
         cross_layer: true
         notes: null
 
@@ -651,7 +651,7 @@ subsegments:
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: rng_event_schema_catalog
+        schema: schemas.layer1.yaml#/rng/events/nb_final
         cross_layer: true
         notes: null
 
@@ -670,7 +670,7 @@ subsegments:
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: rng_event_schema_catalog
+        schema: schemas.layer1.yaml#/rng/events/ztp_rejection
         cross_layer: true
         notes: null
 
@@ -689,7 +689,7 @@ subsegments:
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: rng_event_schema_catalog
+        schema: schemas.layer1.yaml#/rng/events/ztp_retry_exhausted
         cross_layer: true
         notes: null
 
@@ -708,7 +708,7 @@ subsegments:
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: rng_event_schema_catalog
+        schema: schemas.layer1.yaml#/rng/events/gumbel_key
         cross_layer: true
         notes: null
 
@@ -727,7 +727,7 @@ subsegments:
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: rng_event_schema_catalog
+        schema: schemas.layer1.yaml#/rng/events/normal_box_muller
         cross_layer: true
         notes: "Budget (blocks=1, draws=\"2\"); library helper; S0 orchestration does not call it."
 
@@ -746,7 +746,7 @@ subsegments:
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: rng_event_schema_catalog
+        schema: schemas.layer1.yaml#/rng/events/dirichlet_gamma_vector
         cross_layer: true
         notes: null
 
@@ -765,7 +765,7 @@ subsegments:
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: rng_event_schema_catalog
+        schema: schemas.layer1.yaml#/rng/events/stream_jump
         cross_layer: true
         notes: null
 
@@ -784,7 +784,7 @@ subsegments:
         owner: { platform_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: rng_event_schema_catalog
+        schema: schemas.layer1.yaml#/rng/events/sequence_finalize
         cross_layer: true
         notes: null
 
