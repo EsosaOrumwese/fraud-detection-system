@@ -43,7 +43,7 @@ L1 defines the state-specific kernels for S1: inputs/outputs, exact algorithms, 
 
 ## L0 dependencies (to be called by L1 kernels)
 
-* **Substreams/RNG:** `derive_master_material`, `derive_substream`, `uniform1` (low lane), `u01`, `philox_block`.
+* **Substreams/RNG:** `derive_master_material`, `derive_substream`, `uniform1` (low lane).
 * **Envelope/trace:** `begin_event_micro`, `end_event_emit`, `update_rng_trace_totals`, `decimal_string_to_u128`, `u128_to_decimal_string`.
 * **Numeric:** `dot_neumaier`, `logistic_branch_stable` *(two-branch, overflow-safe logistic; alias used only in prose)*, `u128_to_uint64_or_abort`.
 * **Formatting:** `f64_to_json_shortest`, `ts_utc_now_rfc3339_micro`.
@@ -505,8 +505,8 @@ function S1_3_rng_and_decision(pi:f64, merchant_id:u64, ctx:Context) -> Decision
 3. `decision.is_multi == ((decision.deterministic and pi==1.0) or (!decision.deterministic and decision.u < pi))`.
 4. `decision.blocks ∈ {0,1}` and `decision.blocks == u128_to_uint64_or_abort(decimal_string_to_u128(decision.draws))`.
 5. `u128(after) − u128(before) == decimal_string_to_u128(decision.draws)` using the provided counters.
-6. **Embed-equality is enforced by the writer:** the embedded `{seed, parameter_hash, run_id}` in the event envelope
-   must equal the dictionary partitions for the resolved path, byte-for-byte (checked inside L0 `end_event_emit`).
+6. **Embed-equality is ensured by construction in the writer:** the embedded `{seed, parameter_hash, run_id}` in the event envelope
+   equals the dictionary partitions for the resolved path, byte-for-byte (driven by the same `ctx` in L0 `end_event_emit`).
 
 ---
 
@@ -555,7 +555,7 @@ function S1_4_emit_event_and_update_trace(merchant_id:u64, pi:f64,
   # --- 3) Emit hurdle event (end_event computes blocks from counters & writes) --
   (draws_hi, draws_lo) = decimal_string_to_u128(decision.draws)
 
-  end_event_emit(/*dataset_id*/ "rng_event_hurdle_bernoulli",
+  end_event_emit(/*dataset_id*/ ctx.event_dataset_id,
                  /*ctx*/     ev_ctx,
                  /*stream_after*/ decision.stream_after,
                  /*draws_hi*/ draws_hi, /*draws_lo*/ draws_lo,
@@ -565,7 +565,7 @@ function S1_4_emit_event_and_update_trace(merchant_id:u64, pi:f64,
   # before/after counters, blocks (computed), draws (decimal u128), + payload.
 
   # --- 4) Update cumulative trace totals (saturating u64) -----------------------
-  (new_draws_total, new_blocks_total, new_events_total) =
+  (new_blocks_total, new_draws_total, new_events_total) =
       update_rng_trace_totals(ctx.module, ctx.substream_label,
                               ctx.seed, ctx.parameter_hash, ctx.run_id,
                               decision.before_hi, decision.before_lo,
@@ -575,7 +575,7 @@ function S1_4_emit_event_and_update_trace(merchant_id:u64, pi:f64,
   # Reminder: trace totals are saturating u64. Per-event budget checks above use exact u128
   # arithmetic (with u128_to_uint64_or_abort) and do not saturate.    
 
-  return { draws_total:new_draws_total, blocks_total:new_blocks_total, events_total:new_events_total }
+  return { blocks_total:new_blocks_total, draws_total:new_draws_total, events_total:new_events_total }
 ```
 
 ---

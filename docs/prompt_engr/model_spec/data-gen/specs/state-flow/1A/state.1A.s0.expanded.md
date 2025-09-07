@@ -673,8 +673,8 @@ Two cross-cut logs in addition to per-event logs:
 2. **`rng_trace_log`** (**one row per** $(\texttt{module},\texttt{substream_label})$; cumulative **blocks** (unsigned 64-bit), with the *current* `(counter_before, counter_after)`.  
    *(schema: `schemas.layer1.yaml#/rng/core/rng_trace_log`).*  
 
-    **Reconciliation (normative):** For each `(module, substream_label)`, `rng_trace_log.blocks_total` MUST be monotone non-decreasing across emissions, and the **final** `blocks_total` MUST equal the **sum of per-event `blocks`** over `rng_event_*` in the same `{seed, parameter_hash, run_id}`. Budget checks use **event `draws`**, not the trace.
-   **Lineage binding (normative):** Producers and consumers **MUST** bind `{ seed, parameter_hash, run_id }` from the enclosing **partition path**. These lineage fields are **not duplicated** as columns in `rng_trace_log` rows. (Drift is a hard F5 failure.)
+   **Reconciliation (normative):** For each `(module, substream_label)`, `rng_trace_log.blocks_total` MUST be monotone non-decreasing across emissions, and the **final** `blocks_total` MUST equal the **sum of per-event `blocks`** over `rng_event_*` in the same `{seed, parameter_hash, run_id}`. Budget checks use **event `draws`**, not the trace.
+   **Lineage binding (normative):** Producers and consumers **MUST** bind `{seed, parameter_hash, run_id}` from the partition path. In `rng_trace_log`, the record also **embeds** `seed` and `run_id` (these **must equal** the path values); **`parameter_hash` remains path-only** (not a column). Trace rows do **not** embed the full RNG *event* envelope. (Drift is a hard F5 failure.)
 
 > **Practical bound (normative):** `rng_trace_log.blocks_total` is `uint64`; emitters MUST ensure totals fit this width or abort with `F4d:rng_budget_violation`.
 

@@ -24,7 +24,7 @@
 **Envelope & writers (authoritative counters/budgets)**
 
 * `emit_rng_audit_row(...)` — S0 audit; **must exist** before S1’s first event.
-* `begin_event_ctx(module, substream_label, seed, parameter_hash, manifest_fingerprint, run_id, stream) -> EventCtx` — captures `ts_utc` (nanoseconds in S0).
+* `begin_event_ctx(module, substream_label, seed, parameter_hash, manifest_fingerprint, run_id, stream) -> EventCtx` — captures `ts_utc` (microseconds in S0).
 * `end_event_emit(family, ctx, stream_after, draws_hi, draws_lo, payload)` — writes envelope+payload; **internal** `blocks = after − before` (u128); **emitted** `blocks` field is `u64` per event (hurdle: `0` or `1`).
 
 **Dictionary resolver (paths)**
@@ -42,6 +42,8 @@ Clock/formatting: `clock_utc_posix`, `format_utc_calendar`, `pad_left`, `to_deci
 Shortest-decimal: `decompose_binary64`, `floor_log10_pow2`, `compute_roundtrip_interval`, `generate_shortest_decimal`, `format_decimal_with_exponent`.  
 u128 math: `mul_u128_by_small`, `divmod_u128_by_small`.  
 Dictionary paths: `dict_path_for_family`.
+
+> **Note:** The *Shortest-decimal* helpers do **not** exist in S0-L0; they are **vendored/new in S1-L0** here.
 
 **Clock & timestamps**
 `ts_utc_now_rfc3339_micro()` — **reuse S0-L0** F1 capsule (UTC, **exactly 6** fractional digits; **truncate, don’t round**; trailing `Z`).
@@ -63,6 +65,15 @@ Dictionary paths: `dict_path_for_family`.
 **Intent:** Shortest JSON decimal that **round-trips** to the same binary64 when parsed (used for `pi` and stochastic `u`). Inputs must be finite.
 
 ```pseudocode
+# aux: integer base-10 exponent for positive mantissa m (u64)
+function floor_log10(m:u64) -> i32
+  # pre: m > 0
+  k = 0
+  while m >= 10:
+    m = m / 10
+    k = k + 1
+  return k
+
 function f64_to_json_shortest(x:f64) -> string
   assert is_finite(x)
   # preserve -0.0 sign explicitly
@@ -82,6 +93,11 @@ function f64_to_json_shortest(x:f64) -> string
 **Intent:** Parse non-negative base-10 string (no sign; `"0"` or no leading zeros) into u128; used by the **authoritative** budget identity `u128(after) − u128(before) = parse_u128(draws)`. **Partner encoder:** reuse S0-L0 `u128_to_decimal_string`.
 
 ```pseudocode
+function all_digits(s:string) -> bool
+  for ch in s:
+    if ch < '0' or ch > '9': return false
+  return true
+
 function decimal_string_to_u128(s:string) -> (hi:u64, lo:u64)
   assert s != "" and all_digits(s)
   if length(s) > 1 and s[0]=='0': abort(E_U128_FORMAT)
@@ -124,8 +140,8 @@ function begin_event_micro(module:string, substream_label:string,
     parameter_hash:       parameter_hash,
     manifest_fingerprint: manifest_fingerprint,
     run_id:               run_id,
-    before_lo:            stream.ctr.lo,
-    before_hi:            stream.ctr.hi
+    before_hi:            stream.ctr.hi,
+    before_lo:            stream.ctr.lo
   }
 ```
 
@@ -142,12 +158,9 @@ function sat_add_u64(x:u64, y:u64) -> u64
   s = x + y
   if s < x: return UINT64_MAX
   return s
-
-function u128_to_uint64_saturate(hi:u64, lo:u64) -> u64
-  return (hi != 0) ? UINT64_MAX : lo
 ```
 
-### B7. `update_rng_trace_totals(...) -> (draws_total:u64, blocks_total:u64, events_total:u64)`
+### B7. `update_rng_trace_totals(...) -> (blocks_total:u64, draws_total:u64, events_total:u64)`
 
 **Intent:** Schema-accurate trace row with **microsecond** timestamp and **saturating u64 totals** (trace-only). Replaces the S0 “blocks-only” updater for S1 producers.  
 **S1 contract:** totals **saturate** at `UINT64_MAX`; per-event deltas still use `u128_to_uint64_or_abort`. Do **not** use S0’s non-saturating totals updater here.
@@ -198,7 +211,7 @@ function update_rng_trace_totals(
   path = dict_path_for_family("rng_trace_log", seed, parameter_hash, run_id)
   write_jsonl(path, row)
 
-  return (new_draws_total, new_blocks_total, new_events_total)
+  return (new_blocks_total, new_draws_total, new_events_total)
 ```
 
 ---
