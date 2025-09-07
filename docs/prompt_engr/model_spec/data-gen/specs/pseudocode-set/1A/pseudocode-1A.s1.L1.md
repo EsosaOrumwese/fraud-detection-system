@@ -28,6 +28,7 @@ L1 defines the state-specific kernels for S1: inputs/outputs, exact algorithms, 
 
 * **Trace dataset id:** `rng_trace_log`
 * **Semantics:** one **cumulative** row per emission call, keyed by `(seed, parameter_hash, run_id)` and `(module, substream_label)`.
+* **Final-row selection:** consumers select the **final** row per `(module, substream_label)` as defined by `schemas.layer1.yaml#/rng/core/rng_trace_log`.
 * **Totals (saturating u64):** `draws_total`, `blocks_total`, `events_total`.
 * **Counters:** `rng_counter_before_{lo,hi}`, `rng_counter_after_{lo,hi}`.
 * **Timestamp:** RFC-3339 UTC with **exactly 6 fractional digits** (microseconds).
@@ -44,7 +45,7 @@ L1 defines the state-specific kernels for S1: inputs/outputs, exact algorithms, 
 
 * **Substreams/RNG:** `derive_master_material`, `derive_substream`, `uniform1` (low lane), `u01`, `philox_block`.
 * **Envelope/trace:** `begin_event_micro`, `end_event_emit`, `update_rng_trace_totals`, `decimal_string_to_u128`, `u128_to_decimal_string`.
-* **Numeric:** `dot_neumaier`, `logistic_branch_stable` (two-branch logistic), `u128_to_uint64_or_abort`.
+* **Numeric:** `dot_neumaier`, `logistic_branch_stable` *(two-branch, overflow-safe logistic; alias used only in prose)*, `u128_to_uint64_or_abort`.
 * **Formatting:** `f64_to_json_shortest`, `ts_utc_now_rfc3339_micro`.
 * **Predicates:** `is_binary64_extreme01`, `is_open_interval_01`.
 
@@ -77,7 +78,7 @@ const EVENT_SCHEMA_REF  = "schemas.layer1.yaml#/rng/events/hurdle_bernoulli"
 * **S1.1 — Load & Guard (no RNG)**
   Fix inputs and preconditions; bind module/label literals and dataset id & schema ref (**no path formatting in L1**). *(attached next)*
 * **S1.2 — Probability Map ($n\rightarrow\pi$) (no RNG)**
-  `eta = dot_neumaier(β,x)`, `pi = logistic_two_branch(eta)`, guard finite/bounds.
+  `eta = dot_neumaier(β,x)`, `pi = logistic_branch_stable(eta)` (two-branch, overflow-safe logistic), guard finite/bounds.
 * **S1.3 — RNG & Decision (≤1 draw)**
   Derive base counter; zero-draw if `pi∈{0,1}` else one uniform; compute `is_multi`.
 * **S1.4 — Emit Event + Update Trace**
