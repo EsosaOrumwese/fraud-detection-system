@@ -29,6 +29,9 @@
 **128-bit helpers & numeric kernels**
 `add_u128`, `u128_delta`, `u128_to_uint64_or_abort`, `u128_to_decimal_string`; `dot_neumaier`, `logistic_branch_stable` (two-branch). Math policy: binary64, RNE, no FMA, no FTZ/DAZ.
 
+**Clock & timestamps**
+`ts_utc_now_rfc3339_micro()` — **reuse S0-L0** F1 capsule (UTC, **exactly 6** fractional digits; **truncate, don’t round**; trailing `Z`).
+
 > S1 envelope/payload invariants: **microsecond** `ts_utc`, decimal-string **u128 draws**, `blocks == parse_u128(draws)` for hurdle, one event per merchant, and keyed substreams with **no cross-label chaining**. Use the new helpers below where noted.
 
 ---
@@ -39,22 +42,7 @@
 
 **Intent:** RFC-3339 UTC with **exactly 6** fractional digits (`… .ffffffZ`) for S1 event `ts_utc`.
 
-```pseudocode
-function ts_utc_now_rfc3339_micro() -> string
-  (sec:int64, nano:int32) = clock_utc_posix()            # [0..999,999,999]
-    # integer-domain ties-to-even rounding: ns -> μs (deterministic across runtimes)
-  q = nano // 1_000                                      # quotient in μs
-  r = nano %  1_000                                      # remainder in ns
-  if r < 500: micros = q
-  elif r > 500: micros = q + 1
-  else: micros = q + (q % 2)                             # tie to even
-  if micros == 1_000_000:
-      sec = sec + 1
-      micros = 0
-  ymd_hms = format_utc_calendar(sec)                     # "YYYY-MM-DDTHH:MM:SS"
-  frac6   = pad_left(to_decimal(micros), 6, '0')         # exactly 6 digits
-  return ymd_hms + "." + frac6 + "Z"
-```
+**Implementation:** **Alias to S0-L0** `ts_utc_now_rfc3339_micro()` (F1 capsule). S1 does **not** reimplement this; behavior is **truncate** from ns→µs (no rounding).
 
 ### B2. `f64_to_json_shortest(x:f64) -> string`
 
@@ -130,7 +118,7 @@ function begin_event_micro(module:string, substream_label:string,
                            seed:u64, parameter_hash:hex64, manifest_fingerprint:hex64, run_id:hex32,
                            stream:Stream) -> EventCtx
   return {
-    ts_utc:               ts_utc_now_rfc3339_micro(),   # exactly 6 fractional digits
+    ts_utc:               ts_utc_now_rfc3339_micro(),   # exactly 6 fractional digits (**truncate; no rounding**)
     module:               module,
     substream_label:      substream_label,
     seed:                 seed,
@@ -186,7 +174,7 @@ function update_rng_trace_totals(
   new_draws_total  = sat_add_u64(prev_draws_total,  delta_draws)
   new_events_total = sat_add_u64(prev_events_total, 1)
 
-  # 4) Emit trace row (MICROsecond ts; exact field names)
+  # 4) Emit trace row (MICROsecond ts; **truncate**, exactly 6 digits; exact field names)
   row = {
     ts_utc:                  ts_utc_now_rfc3339_micro(),
     run_id:                  run_id,
