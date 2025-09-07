@@ -25,6 +25,7 @@ Specify the **runtime kernels** for State-1 that produce the *hurdle* decision (
 * **Event path template (partitions only by run lineage):**
   `logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
   *(No `module`, `substream_label`, or `manifest_fingerprint` in the path.)*
+*Source of truth:* these literals and anchors are **registry/dictionary-backed**; L1 does not re-enumerate allowed values beyond referencing them here.
 
 ## Trace (cumulative) schema (used in S1.4)
 
@@ -133,12 +134,11 @@ function S1_1_load_and_guard(merchant_id:u64,
                               manifest_fingerprint:hex64, manifest_fingerprint_bytes: bytes[32], run_id:hex32)
 
   # 0) Bind registry literals & dataset anchors (no I/O yet)
-  module            = "1A.hurdle_sampler"
-  substream_label   = "hurdle_bernoulli"
-  event_dataset_id  = "rng_event_hurdle_bernoulli"
-  event_schema_ref  = "schemas.layer1.yaml#/rng/events/hurdle_bernoulli"
-  event_path_tpl    = "logs/rng/events/hurdle_bernoulli/" +
-                      "seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
+  module            = MODULE
+  substream_label   = SUBSTREAM_LABEL
+  event_dataset_id  = EVENT_DATASET_ID
+  event_schema_ref  = EVENT_SCHEMA_REF
+  event_path_tpl    = EVENT_PATH_TPL
 
   # 1) Obtain x_m built by S0.5 (preferred: in-memory handle; fallback: parameter-scoped cache)
   #    Exactly: [1, phi_mcc(mcc_m), phi_ch(channel_sym in ["CP","CNP"]), phi_dev(b_m in {1..5})]
@@ -488,6 +488,7 @@ function S1_3_rng_and_decision(pi:f64, merchant_id:u64, ctx:Context) -> Decision
 ### Outputs
 
 * **Side-effect:** one JSONL row appended to `ctx.event_path` (hurdle event).
+  *Note:* `module=="1A.hurdle_sampler"` and `substream_label=="hurdle_bernoulli"` are **envelope literals** (per registry); **path partitions** remain exactly `{seed, parameter_hash, run_id}`.
 * **Side-effect:** one JSONL row appended to `rng_trace_log` (cumulative trace).
 * `new_totals : {draws_total:u64, blocks_total:u64, events_total:u64}` — totals after this emission (return to L2).
 
