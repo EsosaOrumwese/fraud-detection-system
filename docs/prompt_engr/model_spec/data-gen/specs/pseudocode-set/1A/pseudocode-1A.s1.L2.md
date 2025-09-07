@@ -44,9 +44,11 @@ Coordinate **S1.1 → S1.5** to (a) emit **exactly one** hurdle event per mercha
 
 6. **Serialization & typing rules (apply everywhere):**
 
-   * **JSON integers** (not strings) for all ids and counters: `merchant_id`, `seed`, `rng_counter_*_{lo,hi}`, `blocks`, and all totals.
-   * **Float numbers** for `pi` and (if present) `u`, serialized with **shortest round-trip** decimal to reproduce the exact binary64 when parsed.
-   * **Timestamp** `ts_utc` is RFC-3339 **UTC** with **exactly 6** fractional digits (microseconds) and a trailing `Z`.
+   * **Lineage types:** `seed` is a **JSON integer**; `run_id`, `parameter_hash`, `manifest_fingerprint` are **hex strings**.
+   * **Counters & totals:** `rng_counter_*_{lo,hi}`, `blocks`, and all *_total fields are **JSON integers**.
+   * **Trace embedding:** the trace row embeds **`seed` and `run_id`** (and they **must equal** the path keys); **`parameter_hash` is path-only**.
+   * **Floats:** `pi` and (if present) `u` are **JSON numbers** serialized with **shortest round-trip** decimal.
+   * **Timestamp:** `ts_utc` is RFC-3339 **UTC** with **exactly 6** fractional digits (microseconds) and a trailing `Z`.
    * **Counter field names** are normative: `rng_counter_before_lo`, `rng_counter_before_hi`, `rng_counter_after_lo`, `rng_counter_after_hi`. Producers **must** use these exact keys.
 
 ---
@@ -118,7 +120,7 @@ That’s the contract your implementer can wire to: fixed inputs, fixed outputs,
    For each merchant `m`, the RNG **base counter** is derived from the frozen mapping:
 
    ```
-   master = derive_master_material(seed, manifest_fingerprint_bytes); base = derive_substream(master, substream_label="hurdle_bernoulli", ids=(merchant_id=m))
+   master = derive_master_material(seed, manifest_fingerprint_bytes); merchant_u64 = merchant_u64_from_id64(m); base = derive_substream(master, substream_label="hurdle_bernoulli", ids=(merchant_u64))
    ```
 
    This removes any dependence on execution order, batching, or concurrency. Two runs with the same `(seed, parameter_hash, manifest_fingerprint)` produce identical counters for every `m`.
@@ -148,7 +150,8 @@ That’s the contract your implementer can wire to: fixed inputs, fixed outputs,
 5. **Serialization contracts.**
 
    * `ts_utc` is RFC-3339 **UTC** with **exactly 6** fractional digits (microseconds).
-   * All identifiers and counters are **JSON integers** (not strings): `merchant_id`, `seed`, `rng_counter_*_{lo,hi}`, `blocks`, `events_total`, `blocks_total`, `draws_total`.
+   * **Lineage & counters:** `seed` is a **JSON integer**; `run_id`, `parameter_hash`, and `manifest_fingerprint` are **hex strings**. Event/trace counters and totals are **JSON integers**.
+   * For `rng_trace_log`, only **`seed` (int)** and **`run_id` (hex string)** are embedded; **`parameter_hash` is path-only**.
    * `π` and (if present) `u` are **JSON numbers** emitted with **shortest binary64 round-trip** decimal.
 
 ---
@@ -261,14 +264,16 @@ This section shows, with no gaps, **how S1.1→S1.5 are wired for each merchant*
                  │        → (η, π)                                                
                  │
                  ├─ S1.3  RNG & decision
-                 │        • master = derive_master_material(seed, manifest_fingerprint_bytes); s_base = derive_substream(master, "hurdle_bernoulli", (m))
+                 │        • master = derive_master_material(seed, manifest_fingerprint_bytes);
+                 │          merchant_u64 = merchant_u64_from_id64(m);
+                 │          s_base = derive_substream(master, "hurdle_bernoulli", (merchant_u64))
                  │        • if π∈{0,1}: draws="0", blocks=0, u=null, after=before
                  │          else: (u, s_after, draws="1"), blocks=1 with low lane, u∈(0,1), is_multi=(u<π)
                  │        → Decision{deterministic, is_multi, u|null, draws, blocks,
                  │                     before_hi/lo, after_hi/lo, stream_before, stream_after}        
                  │
                  ├─ S1.4  Emit event + update cumulative trace   (serialization point; do not parallelize)
-                 │        • write hurdle event to:
+                 │        • write hurdle event to:  *(resolved via the dataset **dictionary** at runtime — do **not** hard-code path strings)*
                  │          logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
                  │          with full envelope (microsecond ts_utc, counters, draws u128 string, blocks) and minimal payload
                  │        • identities:
@@ -286,7 +291,7 @@ This section shows, with no gaps, **how S1.1→S1.5 are wired for each merchant*
 
 **Non-negotiables enforced along the path:**
 
-* **Order-invariant substreams:** `master = derive_master_material(seed, manifest_fingerprint_bytes); base = derive_substream(master, "hurdle_bernoulli", (m))`; no cross-label chaining.
+* **Order-invariant substreams:** `master = derive_master_material(seed, manifest_fingerprint_bytes); merchant_u64 = merchant_u64_from_id64(m); base = derive_substream(master, "hurdle_bernoulli", (merchant_u64))`; no cross-label chaining.
 * **Single-uniform law + lane policy:** 0 draws if π∈{0,1}; else 1 draw using **low lane**; `u∈(0,1)`.
 * **Budget identities:** `u128(after)−u128(before) = decimal_string_to_u128(draws)` and `blocks = u128_to_uint64_or_abort(decimal_string_to_u128(draws)) ∈ {0,1}` (hurdle).
 * **Authoritative paths/schemas:** hurdle events under `{seed, parameter_hash, run_id}`; `module="1A.hurdle_sampler"`, `substream_label="hurdle_bernoulli"` in envelope; trace is cumulative (no merchant dimension).
@@ -371,7 +376,7 @@ function run_S1(seed:u64, parameter_hash:hex64, manifest_fingerprint:hex64, mani
 * **Do not** run S1.4 in parallel; emission + trace update is the single serialization point.
 * Enforce **duplicate guard** in the event writer: a second write for the same `(seed, parameter_hash, run_id, merchant_id)` **must abort** (no upsert/skip).
 * The event **path partitions are exactly** `{seed, parameter_hash, run_id}`; envelope embeds the same plus `module`/`substream_label` literals; `manifest_fingerprint` is **embedded only**.
-* `ts_utc` uses **microseconds** (6 fractional digits). `pi` and (if present) `u` are JSON numbers with **binary64 round-trip** decimals. Counters and ids are JSON **integers**.
+* `ts_utc` uses **microseconds** (6 fractional digits). `pi` and (if present) `u` are JSON numbers with **binary64 round-trip** decimals. **Counters are JSON integers; lineage types are `seed`=integer and `run_id`/`parameter_hash`/`manifest_fingerprint`=hex strings (trace embeds only `seed` & `run_id`).**
 
 ---
 
@@ -653,7 +658,8 @@ Schema: `#/rng/events/hurdle_bernoulli`. Partitions are **exactly** `{seed, para
 
 **Typing discipline:**
 
-* All ids and counters are **JSON integers** (never strings).
+* **Counters** and **`seed`** are **JSON integers**.
+* **Hex lineage ids** — `run_id`, `parameter_hash`, `manifest_fingerprint` — are lowercase **hex strings** (per schema).
 * `pi` and `u` are **JSON numbers** that parse back to the same binary64.
 * Object key order is non-semantic; **field names are normative** (use the exact schema names).
 
@@ -782,15 +788,18 @@ struct EmittedHurdle {
 * `has_duplicates(list<u64>): bool`
 * `offending_ids(list<u64>): list<u64>`  # only if duplicates
 * `is_valid_iso_alpha2(str): bool`
-* `decimal_string_to_u128(str_dec): (u64 hi, u64 lo)`  # parses decimal u128
+
+**Frozen L0 helpers referenced by L2 (not host-provided):**
+* `decimal_string_to_u128(str_dec): (u64 hi, u64 lo)`  # parses decimal u128 (draws)
 * `u128_to_uint64_or_abort(hi:u64, lo:u64): u64`       # casts per-event u128 to u64 or aborts (hurdle draws ∈ {0,1})
 
 ---
 
 ## 8.3 What this guarantees (and why it’s enough)
 
-* **Replayability:** RNG outcomes are fixed by `master = derive_master_material(seed, manifest_fingerprint_bytes); base = derive_substream(master, label="hurdle_bernoulli", (merchant_id))`; independent of loop schedule; single-uniform law; schedule only affects file append order.
-* **Validator-friendliness:** Every row obeys budget identities; partitions exactly match embedded lineage keys; `ts_utc` uses microseconds; ids/counters are integers; floats round-trip in binary64. The cumulative trace is trivially reconcilable because it’s updated **immediately after** each event in the same loop.
+* **Replayability:** RNG outcomes are fixed by **keyed substreams** and the **single-uniform law**; scheduling only affects append order, not values. Concretely:  
+  `master = derive_master_material(seed, manifest_fingerprint_bytes); merchant_u64 = merchant_u64_from_id64(merchant_id); base = derive_substream(master, label="hurdle_bernoulli", (merchant_u64))`.
+* **Validator-friendliness:** Every row obeys budget identities; partitions exactly match embedded lineage keys; `ts_utc` uses microseconds; counters are integers; floats round-trip in binary64. The cumulative trace is trivially reconcilable because it’s updated **immediately after** each event in the same loop.
 * **Idempotency & coverage:** One hurdle row per merchant per run; duplicates abort; empty universes are valid no-op runs.
 
 This is the orchestrator an implementer can paste and fill with the L1 calls exactly as specified—nothing more, nothing less.
