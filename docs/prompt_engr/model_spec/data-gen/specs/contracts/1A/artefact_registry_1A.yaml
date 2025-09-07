@@ -569,7 +569,7 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.rng.trace
         license: "{spdx_or_internal}"
-        role: Philox sub‑stream jump offsets per module/merchant.
+        role: Philox sub-stream jump offsets per (module, substream_label); cumulative draws/blocks/events.
         dependencies: [ philox_master_counter ]
         source: internal
         owner: { platform_team }
