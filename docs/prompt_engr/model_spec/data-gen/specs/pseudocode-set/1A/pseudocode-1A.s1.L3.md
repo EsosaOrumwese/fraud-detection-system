@@ -2,13 +2,13 @@
 
 **Purpose.** Prove a State-1 run is correct using **read-only** checks over the persisted artefacts. Concretely, L3 verifies that hurdle events and the cumulative RNG trace:
 
-* obey the **authoritative schema & envelope** (complete envelope, minimal payload; microsecond `ts_utc`; field types/encodings), and use the **correct dataset/partitions** (`seed/parameter_hash/run_id`) with **path ↔ embed equality**, keeping `module/substream_label` and `manifest_fingerprint` in the **envelope only**, not the path.&#x20;
-* satisfy **budget identities** per row (`u128(after)−u128(before)=parse_u128(draws)`; for hurdle `draws∈{"0","1"}` and `blocks==draws`) and the **determinism law** (`π∈{0,1} ⇒ draws="0", u=null, deterministic=true`).&#x20;
-* are **replayable**: rebuild the keyed **base counter** from `(seed, manifest_fingerprint, "hurdle_bernoulli", merchant_id)`, and when `draws="1"` regenerate the single uniform (low-lane, strict-open `(0,1)`) so `(u<π)==is_multi`.&#x20;
-* reconcile with the **cumulative trace** per `(module, substream_label)` (no merchant dimension): cumulative `events_total`, `blocks_total`, `draws_total` are consistent with the event stream and with the **counter delta** on the final trace row.&#x20;
-* meet **cardinality/uniqueness** (one hurdle row per merchant; count equals ingress universe) and **branch purity/gating** (downstream 1A RNG streams present **iff** hurdle `is_multi=true`, discovered via the registry filter).&#x20;
+* obey the **authoritative schema & envelope** (complete envelope, minimal payload; microsecond `ts_utc`; field types/encodings), and use the **correct dataset/partitions** (`seed/parameter_hash/run_id`) with **path ↔ embed equality**, keeping `module/substream_label` and `manifest_fingerprint` in the **envelope only**, not the path.
+* satisfy **budget identities** per row (`u128(after)−u128(before)=decimal_string_to_u128(draws)`; for hurdle `draws∈{"0","1"}` and `blocks==u128_to_uint64_or_abort(decimal_string_to_u128(draws))`) and the **determinism law** (`π∈{0,1} ⇒ draws="0", u=null, deterministic=true`).
+* are **replayable**: rebuild the keyed **base counter** from `(seed, manifest_fingerprint, "hurdle_bernoulli", merchant_id)`, and when `draws="1"` regenerate the single uniform (low-lane, strict-open `(0,1)`) so `(u<π)==is_multi`.
+* reconcile with the **cumulative trace** per `(module, substream_label)` (no merchant dimension): cumulative `events_total`, `blocks_total`, `draws_total` are consistent with the event stream and with the **counter delta** on the final trace row.
+* meet **cardinality/uniqueness** (one hurdle row per merchant; count equals ingress universe) and **branch purity/gating** (downstream 1A RNG streams present **iff** hurdle `is_multi=true`, discovered via the registry filter).
 
-**Nature.** L3 is deterministic and idempotent: it reads artefacts, recomputes/compares (including exact binary64 for `π`/`u`), and emits a verdict/report bundle. It **does not** mutate event/trace datasets or “fix” anything.&#x20;
+**Nature.** L3 is deterministic and idempotent: it reads artefacts, recomputes/compares (including exact binary64 for `π`/`u`), and emits a verdict/report bundle. It **does not** mutate event/trace datasets or “fix” anything.
 
 ---
 
@@ -17,23 +17,23 @@
 ## Inputs (closed set)
 
 * **Hurdle events** (`rng_event_hurdle_bernoulli`) for the run:
-  path `logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`; schema `schemas.layer1.yaml#/rng/events/hurdle_bernoulli`; envelope + payload as frozen.&#x20;
-* **RNG trace (cumulative)** per `(module, substream_label)` for the same `{seed, parameter_hash, run_id}`; no merchant dimension; used for totals and final **counter-delta** reconciliation.&#x20;
-* **RNG audit row** for `{seed, parameter_hash, run_id}` (gate: must exist before first event).&#x20;
+  path `logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`; schema `schemas.layer1.yaml#/rng/events/hurdle_bernoulli`; envelope + payload as frozen.
+* **RNG trace (cumulative)** per `(module, substream_label)` for the same `{seed, parameter_hash, run_id}`; no merchant dimension; used for totals and final **counter-delta** reconciliation.
+* **RNG audit row** for `{seed, parameter_hash, run_id}` (gate: must exist before first event).
 * **Model/feature artefacts** required to recompute `η` and `π`:
-  the single-YAML hurdle **β** vector (atomic load; aligned to S0.5 design) and the S0.5 **design vectors** `x_m` with the exact hurdle feature set `[1, φ_mcc, φ_channel, φ_dev(b_m∈{1..5})]`.&#x20;
-* **Run lineage keys:** `{seed, parameter_hash, manifest_fingerprint, run_id}` from path + envelope; `module="1A.hurdle_sampler"`, `substream_label="hurdle_bernoulli"` literals.&#x20;
-* **Registry filter** to enumerate **gated downstream 1A streams** (for presence checks tied to `is_multi`).&#x20;
-* **Ingress merchant universe** `M` (and `home_iso`) for the run, to check coverage and to build the handoff admissibility surface (audit only).&#x20;
+  the single-YAML hurdle **β** vector (atomic load; aligned to S0.5 design) and the S0.5 **design vectors** `x_m` with the exact hurdle feature set `[1, φ_mcc, φ_channel, φ_dev(b_m∈{1..5})]`.
+* **Run lineage keys:** `{seed, parameter_hash, manifest_fingerprint, run_id}` from path + envelope; `module="1A.hurdle_sampler"`, `substream_label="hurdle_bernoulli"` literals.
+* **Registry filter** to enumerate **gated downstream 1A streams** (for presence checks tied to `is_multi`).
+* **Ingress merchant universe** `M` (and `home_iso`) for the run, to check coverage and to build the handoff admissibility surface (audit only).
 
-> Validator logic is order-invariant and uses the dataset dictionary/registry + S1 invariants; it treats event-shard order as irrelevant.&#x20;
+> Validator logic is order-invariant and uses the dataset dictionary/registry + S1 invariants; it treats event-shard order as irrelevant.
 
 ## Non-goals (explicit)
 
-* No mutations: L3 **never** edits/deletes/re-emits event/trace rows; it only writes a **validation bundle** (report, failures, `_passed.flag` when all validators pass).&#x20;
-* No retries, backfills, or compensation; failures are **diagnostic** only. (E.g., if a trace append failed after an event was written, L3 reports the trace reconciliation error; it does not try to repair.)&#x20;
-* No alternate math or RNG: L3 uses the exact S1/S0 rules (Neumaier dot, two-branch logistic, keyed substreams, open-interval `u01`); it does not re-define policies.&#x20;
-* No reliance on diagnostics for authority: optional `hurdle_pi_probs` (if present) may be compared for sanity but is **non-authoritative** for validation decisions.&#x20;
+* No mutations: L3 **never** edits/deletes/re-emits event/trace rows; it only writes a **validation bundle** (report, failures, `_passed.flag` when all validators pass).
+* No retries, backfills, or compensation; failures are **diagnostic** only. (E.g., if a trace append failed after an event was written, L3 reports the trace reconciliation error; it does not try to repair.)
+* No alternate math or RNG: L3 uses the exact S1/S0 rules (Neumaier dot, two-branch logistic, keyed substreams, open-interval `u01`); it does not re-define policies.
+* No reliance on diagnostics for authority: optional `hurdle_pi_probs` (if present) may be compared for sanity but is **non-authoritative** for validation decisions.
 
 ---
 
@@ -50,47 +50,47 @@
 
 **Intent.** Assert the run wrote an **RNG audit** before any hurdle event; without it, S1 must not have emitted events. The audit is run-scoped and partitioned by `{seed, parameter_hash, run_id}`.
 
-**Inputs.** `{seed, parameter_hash, run_id}`; registry/dictionary entry for `rng_audit_log` (path + schema anchor).&#x20;
+**Inputs.** `{seed, parameter_hash, run_id}`; registry/dictionary entry for `rng_audit_log` (path + schema anchor).
 
 **PASS iff**
 
 * Exactly **one** audit file exists at
   `logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl`.
-* (Optional) The audit row’s embedded `{seed, parameter_hash, run_id}` **equals** the path partitions.&#x20;
+* (Optional) The audit row’s embedded `{seed, parameter_hash, run_id}` **equals** the path partitions.
 
 **FAIL if** missing or path↔embed mismatch.
 
 **Algorithm (sketch).**
 
 1. Resolve path from dictionary; `exists(path)`. If no → **FAIL**.
-2. Read first (and only) line; ensure embedded `{seed, parameter_hash, run_id}` equals path. → **PASS**.&#x20;
+2. Read first (and only) line; ensure embedded `{seed, parameter_hash, run_id}` equals path. → **PASS**.
 
 ---
 
 ## 2. V-Schema — Event & trace line validity
 
-**Intent.** Every hurdle **event** line and every **trace** line must validate against the authoritative layer schemas; enforce typing rules: JSON integers for ids/counters; `pi`/`u` as JSON numbers; `ts_utc` microsecond precision.&#x20;
+**Intent.** Every hurdle **event** line and every **trace** line must validate against the authoritative layer schemas; enforce typing rules: JSON integers for ids/counters; `pi`/`u` as JSON numbers; `ts_utc` microsecond precision.
 
 **Inputs.**
 
 * Event dataset: `rng_event_hurdle_bernoulli`
   Path: `logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
-  Schema: `schemas.layer1.yaml#/rng/events/hurdle_bernoulli`.&#x20;
+  Schema: `schemas.layer1.yaml#/rng/events/hurdle_bernoulli`.
 * Trace dataset: `rng_trace_log`
   Path: `logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl`
-  Schema: `schemas.layer1.yaml#/rng/core/rng_trace_log`.&#x20;
+  Schema: `schemas.layer1.yaml#/rng/core/rng_trace_log`.
 
 **PASS iff**
 
-* Every event JSONL line validates the hurdle schema; envelope is **complete** (required fields present); `merchant_id`, `seed`, and counter words are **JSON integers**; `pi`/`u` are JSON numbers; `ts_utc` is RFC-3339 **UTC with exactly 6 fractional digits**; `draws` is a **decimal u128 string**; `blocks` is `uint64`.&#x20;
-* Every trace JSONL line validates its schema; cumulative fields have correct types.&#x20;
+* Every event JSONL line validates the hurdle schema; envelope is **complete** (required fields present); `merchant_id`, `seed`, and counter words are **JSON integers**; `pi`/`u` are JSON numbers; `ts_utc` is RFC-3339 **UTC with exactly 6 fractional digits**; `draws` is a **decimal u128 string**; `blocks` is `uint64`.
+* Every trace JSONL line validates its schema; cumulative fields have correct types.
 
 **FAIL if** any line fails schema or typing.
 
 **Algorithm (sketch).**
 
 1. Stream shards; for each line, validate against the corresponding schema anchor (strict mode).
-2. For events, additionally check `ts_utc` microsecond format and the **binary64 round-trip** property for `pi`/`u` (parse→format→parse yields identical bits).&#x20;
+2. For events, additionally check `ts_utc` microsecond format and the **binary64 round-trip** property for `pi`/`u` (parse→format→parse yields identical bits).
 
 ---
 
@@ -98,12 +98,12 @@
 
 **Intent.** Enforce the partitioning contract and literal placement: events and trace are partitioned **only** by `{seed, parameter_hash, run_id}`; those fields inside the envelope must **equal** the path values; `manifest_fingerprint` is **embedded** (never in the path); `module` and `substream_label` are envelope literals, not path segments.
 
-**Inputs.** Event & trace datasets (paths above) plus the embedded envelopes.&#x20;
+**Inputs.** Event & trace datasets (paths above) plus the embedded envelopes.
 
 **PASS iff**
 
-* For **every** event line: embedded `{seed, parameter_hash, run_id}` equals path values byte-for-byte; path does **not** include `manifest_fingerprint` or `module/substream_label`; envelope `module="1A.hurdle_sampler"` and `substream_label="hurdle_bernoulli"` match registry literals.&#x20;
-* For **every** trace line: same equality for `{seed, parameter_hash, run_id}`; no merchant dimension; `(module, substream_label)` fixed within the run for the hurdle trace.&#x20;
+* For **every** **event** line: embedded `{seed, parameter_hash, run_id}` equals path values byte-for-byte; path does **not** include `manifest_fingerprint` or `module/substream_label`; envelope `module="1A.hurdle_sampler"` and `substream_label="hurdle_bernoulli"` match registry literals.
+* For **every** **trace** line: embedded `{seed, run_id}` equals path values; `parameter_hash` is **path-only** for `rng_trace_log` (must be present in the path but is **not** embedded in the row). No merchant dimension; `(module, substream_label)` fixed within the run for the hurdle trace.
 
 **FAIL if** any mismatch or if forbidden fields appear in paths.
 
@@ -116,59 +116,59 @@
 
 ## 4. V-Cardinality & Uniqueness
 
-**Intent.** Ensure exactly one hurdle row per merchant in the run, and total rows equal the ingress merchant universe size for the same `{seed, parameter_hash, run_id}`.&#x20;
+**Intent.** Ensure exactly one hurdle row per merchant in the run, and total rows equal the ingress merchant universe size for the same `{seed, parameter_hash, run_id}`.
 
 **Inputs.**
-Event dataset `rng_event_hurdle_bernoulli` (scoped by `{seed, parameter_hash, run_id}`) and the ingress merchant set `M` for the run.&#x20;
+Event dataset `rng_event_hurdle_bernoulli` (scoped by `{seed, parameter_hash, run_id}`) and the ingress merchant set `M` for the run.
 
 **PASS iff**
 
 * Row count equals `|M|`.
-* Uniqueness on key `(seed, parameter_hash, run_id, merchant_id)` holds (no duplicates).&#x20;
+* Uniqueness on key `(seed, parameter_hash, run_id, merchant_id)` holds (no duplicates).
 
 **FAIL if** missing merchants, extra merchants, or any duplicate `merchant_id` within the run.
 
 **Algorithm (sketch).**
 
 1. Stream all hurdle rows; build a `seen` set of `merchant_id`s; detect duplicates.
-2. Compare `seen` with `M` → produce `missing_merchants` and `extra_merchants`; **PASS** only if both are empty and no duplicates.&#x20;
+2. Compare `seen` with `M` → produce `missing_merchants` and `extra_merchants`; **PASS** only if both are empty and no duplicates.
 
 ---
 
 ## 5. V-Design & π recompute
 
-**Intent.** Recompute `η=β·x_m` (Neumaier, fixed order) and `π` (two-branch logistic). Require **bit-exact binary64** equality with the stored `pi`. Enforce finiteness and `[0,1]` range.&#x20;
+**Intent.** Recompute `η=β·x_m` (Neumaier, fixed order) and `π` (two-branch logistic). Require **bit-exact binary64** equality with the stored `pi`. Enforce finiteness and `[0,1]` range.
 
 **Inputs.**
-Hurdle β (single YAML vector), design vectors `x_m` from S0.5 (intercept+MCC+channel+5 GDP-bucket), event rows’ `pi`.&#x20;
+Hurdle β (single YAML vector), design vectors `x_m` from S0.5 (intercept+MCC+channel+5 GDP-bucket), event rows’ `pi`.
 
 **PASS iff**
 
 * Each recomputed `η` is finite; recomputed `π∈[0,1]`.
-* Recomputed `π` equals persisted `pi` **bit-for-bit** (binary64 round-trip).&#x20;
+* Recomputed `π` equals persisted `pi` **bit-for-bit** (binary64 round-trip).
 
 **FAIL if** any non-finite, out-of-range, or mismatch.
 
 **Algorithm (sketch).**
 
 1. For each merchant `m`, load `x_m` and β; compute `η` via fixed-order Neumaier; compute `π` via two-branch logistic.
-2. Parse event `pi` as binary64; compare bit patterns; count failures (emit first N examples deterministically).&#x20;
+2. Parse event `pi` as binary64; compare bit patterns; count failures (emit first N examples deterministically).
 
 ---
 
 ## 6. V-Budget identities (per row)
 
 **Intent.** Check the unsigned-128 envelope identity and the hurdle law:
-`u128(after) − u128(before) = parse_u128(draws)` and **for hurdle** `blocks = parse_u128(draws) ∈ {0,1}`. Also enforce the determinism law for `π∈{0,1}` vs `(0,1)`.
+`u128(after) − u128(before) = decimal_string_to_u128(draws)` and **for hurdle** `blocks = u128_to_uint64_or_abort(decimal_string_to_u128(draws)) ∈ {0,1}`. Also enforce the determinism law for `π∈{0,1}` vs `(0,1)`.
 
 **Inputs.**
-Per-event counters (`rng_counter_*`), `draws` (decimal u128 string), `blocks` (u64), `pi`, `u`, `is_multi`, `deterministic`.&#x20;
+Per-event counters (`rng_counter_*`), `draws` (decimal u128 string), `blocks` (u64), `pi`, `u`, `is_multi`, `deterministic`.
 
 **PASS iff**
 
 * Identity holds for every row; `blocks` matches `draws` and is `0` or `1`.
 * If `π∈{0,1}`: `draws="0"`, `blocks=0`, `after=before`, `u=null`, `deterministic=true`, `is_multi=(π==1.0)`.
-* If `0<π<1`: `draws="1"`, `blocks=1`, `after=before+1`, `0<u<1`, `deterministic=false`, `is_multi=(u<π)`.&#x20;
+* If `0<π<1`: `draws="1"`, `blocks=1`, `after=before+1`, `0<u<1`, `deterministic=false`, `is_multi=(u<π)`.
 
 **FAIL if** any identity or law is violated.
 
@@ -219,13 +219,13 @@ Trace JSONL (per `(module="1A.hurdle_sampler", substream_label="hurdle_bernoulli
 * Totals are **monotone, saturating u64** and evolve as:
 
   * `events_total(i) = events_total(i-1) + 1`
-  * `blocks_total(i)  = blocks_total(i-1) + (after_i − before_i)` (unsigned 128 → u64 saturating)
-  * `draws_total(i)   = draws_total(i-1)  + parse_u128(e_i.draws)` (0 or 1)
+  * `blocks_total(i)  = blocks_total(i-1) + u128_to_uint64_or_abort( u128(after_i) − u128(before_i) )`
+  * `draws_total(i)   = draws_total(i-1)  + u128_to_uint64_or_abort( decimal_string_to_u128(e_i.draws) )`
 * Final totals reconcile with events:
 
   * last `events_total == |events|`
-  * last `blocks_total == Σ(after − before) over events`
-  * last `draws_total  == Σparse_u128(draws) over events`
+  * last `blocks_total == Σ u128_to_uint64_or_abort( u128(after) − u128(before) )`
+  * last `draws_total  == Σ u128_to_uint64_or_abort( decimal_string_to_u128(draws) )`
 * The final trace `after_{hi,lo}` equals the **last** event’s `after_{hi,lo}`.
 
 **FAIL if**
@@ -877,15 +877,18 @@ function json_number_roundtrips_to_same_binary64(x:any) -> bool
 # Partitions helper
 function parse_partitions_from_path(path:string) -> {seed:u64, parameter_hash:hex64, run_id:hex32}
 
-# 128-bit helpers (decimal string ↔ u128; subtraction; equality)
-function parse_u128_dec(str_dec:string) -> u128
-function u128_sub(a:u128, b:u128) -> u128
-function u128_eq(a:u128, b:u128) -> bool
+# 128-bit helpers (decimal string → (hi,lo); add/sub/eq; delta; u128→u64 with overflow-abort)
+function decimal_string_to_u128(str_dec:string) -> (hi:u64, lo:u64)
+function u128_add(a_hi:u64, a_lo:u64, b_hi:u64, b_lo:u64) -> (hi:u64, lo:u64)
+function u128_sub(a_hi:u64, a_lo:u64, b_hi:u64, b_lo:u64) -> (hi:u64, lo:u64)
+function u128_eq(a_hi:u64, a_lo:u64, b_hi:u64, b_lo:u64) -> bool
+function u128_delta(after_hi:u64, after_lo:u64, before_hi:u64, before_lo:u64) -> (hi:u64, lo:u64)
+function u128_to_uint64_or_abort(hi:u64, lo:u64) -> u64
 
 # RNG replay helpers (placeholders; identical to S0/S1 kernels)
 function derive_substream(seed:u64, manifest_fingerprint:hex64, label:string, merchant_id:u64) -> {ctr_hi:u64, ctr_lo:u64}
 function philox_block(ctr_hi:u64, ctr_lo:u64) -> {lane0:u64, lane1:u64, next_hi:u64, next_lo:u64}
-function u01_open_interval(low_lane:u64) -> f64   # strict-open (0,1), binary64
+function u01(low_lane:u64) -> f64   # strict-open (0,1), binary64
 
 # Stable sort keys
 function key_by_merchant_id(s:map) -> tuple       # e.g., (s.merchant_id)
@@ -992,7 +995,8 @@ function V_Partitions_check(L, events_glob, trace_file, chunk_size, sample_cap) 
   for batch in stream_jsonl(trace_file, chunk_size):
     for line in batch:
       obj = json_parse(line); checked += 1
-      ok = (obj.seed == p.seed and obj.parameter_hash == p.parameter_hash and obj.run_id == p.run_id)
+      # Trace embeds {seed, run_id}; parameter_hash is path-only for rng_trace_log (per S1-L0).
+      ok = (obj.seed == p.seed and obj.run_id == p.run_id)
       if not ok:
         fails += 1
         add_sample(samples, sample_cap, {code:"PARTITIONS_TRACE", before_hi:obj.rng_counter_before_hi, before_lo:obj.rng_counter_before_lo}, key_by_counters)
@@ -1074,9 +1078,10 @@ function V_Budget_identities(L, events_glob, chunk_size, sample_cap) -> VResult
       e = json_parse(line); checked += 1
       before = make_u128(e.envelope.rng_counter_before_hi, e.envelope.rng_counter_before_lo)
       after  = make_u128(e.envelope.rng_counter_after_hi,  e.envelope.rng_counter_after_lo)
-      draws  = parse_u128_dec(e.envelope.draws)            # "0" or "1" for hurdle
-      delta  = u128_sub(after, before)
-      ok = u128_eq(delta, draws) and (e.envelope.blocks == to_u64(draws))
+      (dhi, dlo) = decimal_string_to_u128(e.envelope.draws)   # "0" or "1" for hurdle
+      (Δhi, Δlo) = u128_sub(after.hi, after.lo, before.hi, before.lo)
+      ok = u128_eq(Δhi, Δlo, dhi, dlo) and
+           (e.envelope.blocks == u128_to_uint64_or_abort(dhi, dlo))
       if e.payload.pi == 0.0 or e.payload.pi == 1.0:
          ok = ok and (e.payload.u == null) and e.payload.deterministic
          ok = ok and ( (e.payload.pi == 1.0 and e.payload.is_multi==true) or
@@ -1111,10 +1116,10 @@ function V_Substream_replay(L, events_glob, chunk_size, sample_cap) -> VResult
                                           before_hi:e.envelope.rng_counter_before_hi, before_lo:e.envelope.rng_counter_before_lo,
                                           expected_hi:s.ctr_hi, expected_lo:s.ctr_lo}, key_by_merchant_id)
          continue
-      draws = parse_u128_dec(e.envelope.draws)
-      if draws == 1u128:
+      (dhi, dlo) = decimal_string_to_u128(e.envelope.draws)
+      if u128_to_uint64_or_abort(dhi, dlo) == 1:
          blk = philox_block(s.ctr_hi, s.ctr_lo)
-         u   = u01_open_interval(blk.lane0)    # low-lane policy
+         u   = u01(blk.lane0)    # low-lane policy (strict-open)
          # binary64-exact equality
          if not binary64_equal(u, e.payload.u) or ((u < e.payload.pi) != e.payload.is_multi):
             fails += 1
@@ -1140,8 +1145,8 @@ function V_Substream_replay(L, events_glob, chunk_size, sample_cap) -> VResult
 ```pseudocode
 function V_Trace_reconciliation(L, trace_file, events_glob, chunk_size, sample_cap) -> VResult
   # Build quick index of events by (before,after) counters and aggregates
-  E = map<(u64,u64,u64,u64) -> {draws:u128, merchant_id:u64}>()
-  sum_draws = 0u128; sum_blocks = 0u64; total_events = 0u64
+  E = map<(u64,u64,u64,u64) -> {draws_u64:u64, merchant_id:u64}>()
+  sum_draws = (hi:0u64, lo:0u64); sum_blocks = 0u64; total_events = 0u64
   first_before = null; last_after = null
 
   for batch in stream_jsonl(events_glob, chunk_size):
@@ -1149,11 +1154,13 @@ function V_Trace_reconciliation(L, trace_file, events_glob, chunk_size, sample_c
       e = json_parse(line)
       key = (e.envelope.rng_counter_before_hi, e.envelope.rng_counter_before_lo,
              e.envelope.rng_counter_after_hi,  e.envelope.rng_counter_after_lo)
-      E[key] = {draws:parse_u128_dec(e.envelope.draws), merchant_id:e.payload.merchant_id}
+      (dhi, dlo) = decimal_string_to_u128(e.envelope.draws)
+      draws_u64  = u128_to_uint64_or_abort(dhi, dlo)   # hurdle: 0 or 1
+      E[key]     = {draws_u64:draws_u64, merchant_id:e.payload.merchant_id}
       if first_before == null: first_before = {hi:key.0, lo:key.1}
       last_after  = {hi:key.2, lo:key.3}
-      sum_draws  = u128_add(sum_draws, parse_u128_dec(e.envelope.draws))
-      sum_blocks = saturating_u64_add(sum_blocks, to_u64(parse_u128_dec(e.envelope.draws)))  # {0,1}
+      sum_draws  = u128_add(sum_draws.hi, sum_draws.lo, dhi, dlo)
+      sum_blocks = sat_add_u64(sum_blocks, draws_u64)  # {0,1}
       total_events += 1
 
   samples = []; checked = 0; fails = 0
@@ -1168,10 +1175,11 @@ function V_Trace_reconciliation(L, trace_file, events_glob, chunk_size, sample_c
          add_sample(samples, sample_cap, {code:"TRACE_NO_MATCH", before_hi:key.0, before_lo:key.1, after_hi:key.2, after_lo:key.3}, key_by_counters)
          continue
       # Update totals (saturating)
-      events_total = saturating_u64_add(events_total, 1)
-      delta = to_u64(u128_sub(make_u128(key.2,key.3), make_u128(key.0,key.1)))   # 0 or 1 here
-      blocks_total = saturating_u64_add(blocks_total, delta)
-      draws_total  = saturating_u64_add(draws_total, to_u64(E[key].draws))
+      events_total = sat_add_u64(events_total, 1)
+      (dhi, dlo)   = u128_delta(key.2, key.3, key.0, key.1)
+      delta        = u128_to_uint64_or_abort(dhi, dlo)   # 0 or 1 here
+      blocks_total = sat_add_u64(blocks_total, delta)
+      draws_total  = sat_add_u64(draws_total, E[key].draws_u64)
 
   # Final reconciliation against event aggregates
   metrics = {
