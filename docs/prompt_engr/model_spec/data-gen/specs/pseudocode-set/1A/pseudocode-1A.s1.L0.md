@@ -1,5 +1,9 @@
 # L0 — Shared primitives for 1A / State-1 (authoritative)
 
+> **Importing note (name collision):** This file defines `update_rng_trace_totals` with **S1 semantics** (cumulative **saturating** `uint64` totals).
+> S0 also provides a function named `update_rng_trace_totals` with **non-saturating** semantics and monotonicity asserts.
+> When both modules are available, **import this module qualified** and call the S1 variant explicitly. Do **not** re-export or alias S0’s totals updater in S1 contexts.
+
 ## A) Reuse from S0-L0 (don’t redefine; call as-is)
 
 **PRNG core & keyed substreams** (order-invariant)
@@ -23,11 +27,20 @@
 * `begin_event_ctx(module, substream_label, seed, parameter_hash, manifest_fingerprint, run_id, stream) -> EventCtx` — captures `ts_utc` (nanoseconds in S0).
 * `end_event_emit(family, ctx, stream_after, draws_hi, draws_lo, payload)` — writes envelope+payload; **internal** `blocks = after − before` (u128); **emitted** `blocks` field is `u64` per event (hurdle: `0` or `1`).
 
+**Dictionary resolver (paths)**
+`dict_path_for_family(family:string, seed:u64, parameter_hash:hex64, run_id:hex32) -> path` — reuse S0-L0 to resolve all RNG audit/trace/event paths from the dataset dictionary.
+
 **Legacy trace updater (blocks only; S0) — DEPRECATED for S1 producers**
 `update_rng_trace(...) -> new_blocks_total:uint64` — cumulative **blocks** (S0). S1 replaces this with a totals variant below.
 
 **128-bit helpers & numeric kernels**
 `add_u128`, `u128_delta`, `u128_to_uint64_or_abort`, `u128_to_decimal_string`; `dot_neumaier`, `logistic_branch_stable` (two-branch). Math policy: binary64, RNE, no FMA, no FTZ/DAZ.
+
+**Additional primitives used by this file (reuse from S0-L0)**
+Clock/formatting: `clock_utc_posix`, `format_utc_calendar`, `pad_left`, `to_decimal`.  
+Shortest-decimal: `decompose_binary64`, `floor_log10_pow2`, `compute_roundtrip_interval`, `generate_shortest_decimal`, `format_decimal_with_exponent`.  
+u128 math: `mul_u128_by_small`, `divmod_u128_by_small`.  
+Dictionary paths: `dict_path_for_family`.
 
 **Clock & timestamps**
 `ts_utc_now_rfc3339_micro()` — **reuse S0-L0** F1 capsule (UTC, **exactly 6** fractional digits; **truncate, don’t round**; trailing `Z`).
@@ -75,24 +88,6 @@ function decimal_string_to_u128(s:string) -> (hi:u64, lo:u64)
      (hi, lo) = add_u128(hi, lo, d)
   return (hi, lo)
 ```
-
-### B3a. `u128_to_decimal_string(hi:u64, lo:u64) -> string`
-
-**Intent:** Emit plain base-10 decimal string for a non-negative 128-bit integer. No grouping, no sign, no exponent form, no leading zeros (except `"0"`). Deterministic across platforms.
-
-```pseudocode
-function u128_to_decimal_string(hi:u64, lo:u64) -> string
-  if hi == 0 and lo == 0: return "0"
-  buf = []    # characters in reverse
-  (a_hi, a_lo) = (hi, lo)
-  while (a_hi != 0) or (a_lo != 0):
-     # divide a 128-bit integer by 10: quotient q, remainder r in [0..9]
-     (q_hi, q_lo, r) = divmod_u128_by_small(a_hi, a_lo, 10)
-     push(buf, char('0' + r))
-     (a_hi, a_lo) = (q_hi, q_lo)
-  return reverse_chars(buf)
-```
-
 
 ### B4. Tiny predicates used by S1 producers/validator
 
@@ -148,11 +143,14 @@ function u128_to_uint64_saturate(hi:u64, lo:u64) -> u64
 
 ### B7. `update_rng_trace_totals(...) -> (draws_total:u64, blocks_total:u64, events_total:u64)`
 
-**Intent:** Schema-accurate trace row with **microsecond** timestamp and **saturating u64 totals** (trace-only). Replaces the S0 “blocks-only” updater for S1 producers.
+**Intent:** Schema-accurate trace row with **microsecond** timestamp and **saturating u64 totals** (trace-only). Replaces the S0 “blocks-only” updater for S1 producers.  
+**S1 contract:** totals **saturate** at `UINT64_MAX`; per-event deltas still use `u128_to_uint64_or_abort`. Do **not** use S0’s non-saturating totals updater here.
 
 ```pseudocode
 # Schema anchor: schemas.layer1.yaml#/rng/core/rng_trace_log
-# Row keys: {seed, parameter_hash, run_id} and (module, substream_label) in the payload.
+# Partition keys: {seed, parameter_hash, run_id} (dictionary path). Embedded equality: row.seed == seed and row.run_id == run_id; **parameter_hash** is path-only.
+# Payload literals: module, substream_label.
+# Consumer selects the **final** row per (module, substream_label) as defined by the schema.
 
 function update_rng_trace_totals(
     module:string, substream_label:string,
@@ -167,7 +165,7 @@ function update_rng_trace_totals(
 
   # 2) Parse per-event draws (authoritative uniforms consumed)
   (draws_hi, draws_lo) = decimal_string_to_u128(draws_str)
-  delta_draws = u128_to_uint64_saturate(draws_hi, draws_lo)
+  delta_draws = u128_to_uint64_or_abort(draws_hi, draws_lo)
 
   # 3) Saturating totals
   new_blocks_total = sat_add_u64(prev_blocks_total, delta_blocks)
@@ -190,7 +188,8 @@ function update_rng_trace_totals(
     rng_counter_after_hi:    after_hi,
     }
   
-  write_jsonl("logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl", row)
+  path = dict_path_for_family("rng_trace_log", seed, parameter_hash, run_id)
+  write_jsonl(path, row)
 
   return (new_draws_total, new_blocks_total, new_events_total)
 ```
