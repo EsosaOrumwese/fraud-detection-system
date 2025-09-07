@@ -37,7 +37,7 @@ L1 defines the state-specific kernels for S1: inputs/outputs, exact algorithms, 
 * **Base counter** derived from `master = derive_master_material(seed, manifest_fingerprint_bytes)`; then `base = derive_substream(master, label="hurdle_bernoulli", (merchant_id))`.
 * **Deterministic case:** if `pi ∈ {0.0,1.0}` → **zero** uniforms; `before==after`; `draws="0"`, `blocks=0`.
 * **Stochastic case:** if `0<pi<1` → consume **exactly one** uniform with **low lane**; `u∈(0,1)`; `draws="1"`, `blocks=1`.
-* **Authoritative identity:** `u128(after) − u128(before) == parse_u128(draws)`; and **for hurdle**: `blocks == parse_u128(draws) ∈ {0,1}`.
+* **Authoritative identity:** `u128(after) − u128(before) == decimal_string_to_u128(draws)`; and **for hurdle**: `blocks == u128_to_uint64_or_abort(decimal_string_to_u128(draws)) ∈ {0,1}`.
 * **No counter chaining** across labels or states.
 
 ## L0 dependencies (to be called by L1 kernels)
@@ -312,7 +312,7 @@ Decision {
   is_multi: bool,                # (u < pi) when stochastic; else (pi == 1.0)
   u: f64|null,                   # null iff deterministic
   draws: string,                 # decimal u128: "0" or "1"
-  blocks: u64,                   # 0 or 1; must equal parse_u128(draws)
+  blocks: u64,                   # 0 or 1; must equal u128_to_uint64_or_abort(decimal_string_to_u128(draws))
   before_hi: u64,
   before_lo: u64,
   after_hi: u64,
@@ -322,7 +322,7 @@ Decision {
 }
 ```
 
-(Budget identity `u128(after)-u128(before) == parse_u128(draws)` must hold.)
+(Budget identity `u128(after)-u128(before) == decimal_string_to_u128(draws)` must hold.)
 
 ---
 
@@ -340,6 +340,9 @@ function S1_3_rng_and_decision(pi:f64, merchant_id:u64, ctx:Context) -> Decision
   # 0) Derive order-invariant base counter for this (label, merchant)
   master = derive_master_material(ctx.seed, ctx.manifest_fingerprint_bytes)
   base = derive_substream(master, ctx.substream_label, (merchant_id))
+  # Substream keying is the canonical L0 encoding: the third element is merchant_id as typed u64
+  # (never stringified). Label must be exactly "hurdle_bernoulli" per registry.
+
   before_hi = base.ctr.hi
   before_lo = base.ctr.lo
 
@@ -356,7 +359,7 @@ function S1_3_rng_and_decision(pi:f64, merchant_id:u64, ctx:Context) -> Decision
       stream_after  = base
       stream_before = base
 
-      # Budget identity: Δcounters == parse_u128("0")
+      # Budget identity: Δcounters == decimal_string_to_u128("0")
       (dhi, dlo) = u128_delta(after_hi, after_lo, before_hi, before_lo)
       assert (dhi == 0 and dlo == 0), E_S1_BUDGET_IDENTITY
       assert (blocks == 0), E_S1_BLOCKS_MISMATCH
@@ -375,7 +378,7 @@ function S1_3_rng_and_decision(pi:f64, merchant_id:u64, ctx:Context) -> Decision
       # Normative blocks from counter delta
       (dhi, dlo) = u128_delta(after_hi, after_lo, before_hi, before_lo)
       blocks = u128_to_uint64_or_abort(dhi, dlo)
-      # For hurdle, blocks must equal parse_u128(draws)
+      # For hurdle, blocks must equal u128_to_uint64_or_abort(decimal_string_to_u128(draws))
       (p_hi, p_lo) = decimal_string_to_u128(draws_str)
       assert (blocks == u128_to_uint64_or_abort(p_hi, p_lo)), E_S1_BLOCKS_MISMATCH
 
@@ -406,7 +409,7 @@ function S1_3_rng_and_decision(pi:f64, merchant_id:u64, ctx:Context) -> Decision
 * **Keyed base counter.** `master = derive_master_material(seed, manifest_fingerprint_bytes); base = derive_substream(master, label="hurdle_bernoulli", (merchant_id))` fixes the **order-invariant** starting counter for the merchant/label pair; no cross-label chaining.
 * **Uniform policy.** Single-uniform events consume **one** Philox block and take the **low lane**; mapping to `U(0,1)` is strict-open, so `u` is never exactly `0` or `1`.
 * **Branch law.** `pi∈{0,1}` ⇒ **zero** draw; `0<pi<1` ⇒ **exactly one** draw; outcome `is_multi = (u < pi)`; `u` is **null** iff deterministic.
-* **Budget identity.** We compute `after` from the stream and check `u128(after)−u128(before) = parse_u128(draws)`; for hurdle also `blocks == parse_u128(draws) ∈ {0,1}`. (S1.4 will persist these fields verbatim.)
+* **Budget identity.** We compute `after` from the stream and check `u128(after)−u128(before) = decimal_string_to_u128(draws)`; for hurdle also `blocks == u128_to_uint64_or_abort(decimal_string_to_u128(draws)) ∈ {0,1}`. (S1.4 will persist these fields verbatim.)
 * **No per-event trace write here.** Trace is **cumulative** and handled at S1.4; S1.3 only prepares envelope values.
 
 ---
@@ -414,8 +417,8 @@ function S1_3_rng_and_decision(pi:f64, merchant_id:u64, ctx:Context) -> Decision
 ## Failure semantics (raised here if violated)
 
 * `E_S1_U_OOB` — stochastic branch produced `u ≤ 0` or `u ≥ 1` (violates open-interval mapping).
-* `E_S1_BLOCKS_MISMATCH` — delta blocks not in `{0,1}` or not equal to `parse_u128(draws)` for hurdle.
-* `E_S1_BUDGET_IDENTITY` — `u128(after) − u128(before) ≠ parse_u128(draws)`.
+* `E_S1_BLOCKS_MISMATCH` — `blocks` not equal to `u128_to_uint64_or_abort(decimal_string_to_u128(draws))` or not in `{0,1}`.
+* `E_S1_BUDGET_IDENTITY` — counter delta not equal to `decimal_string_to_u128(draws)`.
 
 ---
 
@@ -455,10 +458,15 @@ function S1_3_rng_and_decision(pi:f64, merchant_id:u64, ctx:Context) -> Decision
     before_lo: u64,
     after_hi: u64,
     after_lo: u64,
-    stream_before: Stream,         # from derive_substream(...)
+    stream_before: Stream,         # from derive_substream(...); carries the same counters as {before_hi, before_lo}
     stream_after:  Stream          # after uniform1(base) or == base
   }
   ```
+
+> Authority note: `before_*` / `after_*` counters are the single source of truth for budget identities.
+> `stream_before` / `stream_after` are transport handles only; they must match the counters.
+> If they disagree, the counters win and the kernel aborts.
+
 * `ctx : Context` — from S1.1:
 
   ```pseudocode
@@ -470,6 +478,9 @@ function S1_3_rng_and_decision(pi:f64, merchant_id:u64, ctx:Context) -> Decision
     event_schema_ref:"schemas.layer1.yaml#/rng/events/hurdle_bernoulli",
   }
   ```
+> Note: `manifest_fingerprint_bytes` is in-memory only (derivation input). Logs always emit the hex64
+> `manifest_fingerprint` in the envelope; never the raw bytes.
+
 * `prev_totals : {draws_total:u64, blocks_total:u64, events_total:u64}` — running totals maintained by the orchestrator (L2) per `(module, substream_label)` for this run.
 
 ### Outputs
@@ -491,8 +502,8 @@ function S1_3_rng_and_decision(pi:f64, merchant_id:u64, ctx:Context) -> Decision
 1. `decision.deterministic == (pi == 0.0 or pi == 1.0)`.
 2. If `decision.deterministic` then `decision.u == null`; else `decision.u != null` and `0 < decision.u < 1`.
 3. `decision.is_multi == ((decision.deterministic and pi==1.0) or (!decision.deterministic and decision.u < pi))`.
-4. `decision.blocks ∈ {0,1}` and `decision.blocks == parse_u128(decision.draws)`.
-5. `u128(after) − u128(before) == parse_u128(decision.draws)` using the provided counters.
+4. `decision.blocks ∈ {0,1}` and `decision.blocks == u128_to_uint64_or_abort(decimal_string_to_u128(decision.draws))`.
+5. `u128(after) − u128(before) == decimal_string_to_u128(decision.draws)` using the provided counters.
 6. **Embed-equality is enforced by the writer:** the embedded `{seed, parameter_hash, run_id}` in the event envelope
    must equal the dictionary partitions for the resolved path, byte-for-byte (checked inside L0 `end_event_emit`).
 
@@ -560,6 +571,8 @@ function S1_4_emit_event_and_update_trace(merchant_id:u64, pi:f64,
                               decision.after_hi,  decision.after_lo,
                               prev_totals.draws_total, prev_totals.blocks_total, prev_totals.events_total,
                               /*draws_str*/ decision.draws)
+  # Reminder: trace totals are saturating u64. Per-event budget checks above use exact u128
+  # arithmetic (with u128_to_uint64_or_abort) and do not saturate.    
 
   return { draws_total:new_draws_total, blocks_total:new_blocks_total, events_total:new_events_total }
 ```
@@ -570,7 +583,7 @@ function S1_4_emit_event_and_update_trace(merchant_id:u64, pi:f64,
 
 * **Single source of counters.** We use the exact `stream_before/stream_after` from S1.3; no recomputation.
 * **Envelope identity.** `blocks` in the envelope is computed from counters; `draws` is the decimal u128 from S1.3; both satisfy
-  `u128(after) − u128(before) = parse_u128(draws)` and, for hurdle, `blocks == parse_u128(draws) ∈ {0,1}`.
+  `u128(after) − u128(before) = decimal_string_to_u128(draws)` and, for hurdle, `blocks == u128_to_uint64_or_abort(decimal_string_to_u128(draws)) ∈ {0,1}`.
 * **Timestamp precision.** `begin_event_micro` stamps `ts_utc` with **exactly 6 fractional digits** (microseconds).
 * **Float round-trip.** `pi` and (if present) `u` are serialized with `f64_to_json_shortest`, ensuring reparse → **bit-exact** binary64.
 * **Trace semantics.** One cumulative row **per emission**; totals are **saturating** `uint64` and reconcile with event sums and counter deltas.
@@ -584,8 +597,8 @@ function S1_4_emit_event_and_update_trace(merchant_id:u64, pi:f64,
 * `E_S1_U_SHOULD_BE_NULL` — deterministic branch carried a non-null `u`.
 * `E_S1_U_OOB` — stochastic `u` not in the **open** interval `(0,1)`.
 * `E_S1_IS_MULTI_INCONSISTENT` — `is_multi` not equal to `(u < pi)` in stochastic case (or `pi==1.0` in deterministic).
-* `E_S1_BLOCKS_MISMATCH` — `blocks` not equal to `parse_u128(draws)` or not in `{0,1}`.
-* `E_S1_BUDGET_IDENTITY` — counter delta not equal to `parse_u128(draws)`.
+* `E_S1_BLOCKS_MISMATCH` — `blocks` not equal to `u128_to_uint64_or_abort(decimal_string_to_u128(draws))` or not in `{0,1}`.
+* `E_S1_BUDGET_IDENTITY` — counter delta not equal to `decimal_string_to_u128(draws)`.
 
 ---
 
