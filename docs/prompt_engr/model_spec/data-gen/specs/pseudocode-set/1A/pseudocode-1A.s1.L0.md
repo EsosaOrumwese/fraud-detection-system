@@ -32,6 +32,7 @@
 
 **Legacy trace updater (blocks only; S0) — DEPRECATED for S1 producers**
 `update_rng_trace(...) -> new_blocks_total:uint64` — cumulative **blocks** (S0). S1 replaces this with a totals variant below.
+S0 also provides a **non-saturating** totals updater with monotonicity asserts; **S1 producers must use the S1 totals updater** (saturating) defined below and import this module **qualified** to avoid mixing the two.
 
 **128-bit helpers & numeric kernels**
 `add_u128`, `u128_delta`, `u128_to_uint64_or_abort`, `u128_to_decimal_string`; `dot_neumaier`, `logistic_branch_stable` (two-branch). Math policy: binary64, RNE, no FMA, no FTZ/DAZ.
@@ -64,7 +65,10 @@ Dictionary paths: `dict_path_for_family`.
 ```pseudocode
 function f64_to_json_shortest(x:f64) -> string
   assert is_finite(x)
-  if x == 0.0: return "0"
+  # preserve -0.0 sign explicitly
+  if x == 0.0:
+    (sign, _, _) = decompose_binary64(x)
+    return (sign < 0) ? "-0" : "0"
   (sign, m, e2) = decompose_binary64(x)                   # x = sign * m * 2^e2
   k = floor_log10_pow2(e2) + floor_log10(m)
   (lo, hi) = compute_roundtrip_interval(m, e2)            # exact interval
@@ -125,9 +129,11 @@ function begin_event_micro(module:string, substream_label:string,
   }
 ```
 
+> Note: `end_event_emit(...)` maps `before_lo/hi` → `rng_counter_before_lo/hi` in the envelope and writes `rng_counter_after_*` from the **post** stream.
+
 ### B6. Saturating totals helpers (trace)
 
-**Intent:** S1 trace uses **saturating** `uint64` totals.
+**Intent:** S1 trace uses **saturating** `uint64` totals. These helpers are for **cumulative trace totals**; **per-event** deltas use `u128_to_uint64_or_abort` (failure-on-overflow).
 
 ```pseudocode
 const UINT64_MAX = 18446744073709551615
@@ -162,6 +168,7 @@ function update_rng_trace_totals(
   # 1) Counter delta → blocks (must fit u64 per single event)
   (dhi, dlo) = u128_delta(after_hi, after_lo, before_hi, before_lo)
   delta_blocks = u128_to_uint64_or_abort(dhi, dlo)
+  assert delta_blocks <= 1     # hurdle-only: at most one 64-bit uniform
 
   # 2) Parse per-event draws (authoritative uniforms consumed)
   (draws_hi, draws_lo) = decimal_string_to_u128(draws_str)
