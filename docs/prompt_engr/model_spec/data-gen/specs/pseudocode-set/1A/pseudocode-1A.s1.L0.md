@@ -24,7 +24,7 @@
 **Envelope & writers (authoritative counters/budgets)**
 
 * `emit_rng_audit_row(...)` — S0 audit; **must exist** before S1’s first event.
-* `begin_event_ctx(module, substream_label, seed, parameter_hash, manifest_fingerprint, run_id, stream) -> EventCtx` — captures `ts_utc` (microseconds in S0).
+* `begin_event_ctx(module, substream_label, seed, parameter_hash, manifest_fingerprint, run_id, stream) -> EventCtx` — captures `ts_utc` (microseconds in S0). **For S1 producers, prefer `begin_event_micro` (see §B5) to enforce the exactly-6-digit microsecond stamp.**
 * `end_event_emit(family, ctx, stream_after, draws_hi, draws_lo, payload)` — writes envelope+payload; **internal** `blocks = after − before` (u128); **emitted** `blocks` field is `u64` per event (hurdle: `0` or `1`).
 
 **Dictionary resolver (paths)**
@@ -37,7 +37,7 @@ S0 also provides a **non-saturating** totals updater with monotonicity asserts; 
 **128-bit helpers & numeric kernels**
 `add_u128`, `u128_delta`, `u128_to_uint64_or_abort`, `u128_to_decimal_string`; `dot_neumaier`, `logistic_branch_stable` (two-branch). Math policy: binary64, RNE, no FMA, no FTZ/DAZ.
 
-**Additional primitives used by this file (reuse from S0-L0)**
+**Additional primitives used by this file (S0-L0 reuse + vendored for S1-L0)**
 Clock/formatting: `clock_utc_posix`, `format_utc_calendar`, `pad_left`, `to_decimal`.  
 Shortest-decimal: `decompose_binary64`, `floor_log10_pow2`, `compute_roundtrip_interval`, `generate_shortest_decimal`, `format_decimal_with_exponent`.  
 u128 math: `mul_u128_by_small`, `divmod_u128_by_small`.  
@@ -181,11 +181,14 @@ function update_rng_trace_totals(
   # 1) Counter delta → blocks (must fit u64 per single event)
   (dhi, dlo) = u128_delta(after_hi, after_lo, before_hi, before_lo)
   delta_blocks = u128_to_uint64_or_abort(dhi, dlo)
-  assert delta_blocks <= 1     # hurdle-only: at most one 64-bit uniform
+  if substream_label == "hurdle_bernoulli":
+      assert delta_blocks <= 1     # hurdle-only: at most one 64-bit uniform
 
   # 2) Parse per-event draws (authoritative uniforms consumed)
   (draws_hi, draws_lo) = decimal_string_to_u128(draws_str)
   delta_draws = u128_to_uint64_or_abort(draws_hi, draws_lo)
+  if substream_label == "hurdle_bernoulli":
+      assert delta_draws <= 1      # hurdle-only: draws ∈ {0,1}
 
   # 3) Saturating totals
   new_blocks_total = sat_add_u64(prev_blocks_total, delta_blocks)
@@ -219,8 +222,8 @@ function update_rng_trace_totals(
 ## C) How S1 uses L0 (minimal guidance)
 
 * **Event start:** use `begin_event_micro(...)` (not the nano variant) to satisfy S1’s **exactly 6 digits** rule.
-* **Budget identity:** always compute `draws` as **decimal u128** via the existing encoder (or `"0"/"1"` for hurdle) and uphold
-  `u128(after) − u128(before) = parse_u128(draws)` (with `decimal_string_to_u128`). For hurdle, also enforce `blocks == parse_u128(draws) ∈ {0,1}`.
+* **Budget identity:** pass the event’s uniform count to the writer as **u128** `(draws_hi, draws_lo)`; the writer encodes the **decimal** `draws` string. Uphold
+  `u128(after) − u128(before) = parse_u128(draws)` (validators use `decimal_string_to_u128`). For hurdle, this u128 is **0 or 1** and **must** also satisfy `blocks == parse_u128(draws) ∈ {0,1}`.
 * **Trace:** after `end_event_emit(...)`, call `update_rng_trace_totals(...)` **once per event** to reconcile **draws/blocks/events** totals (saturating). Consumers then select the **final** row per `(module, substream_label)` as defined by the `rng_trace_log` schema.
 * **Floats to JSON:** when building the **payload** (in L1), serialize `pi` and stochastic `u` with `f64_to_json_shortest` so they **round-trip** to the exact binary64.
 
