@@ -72,8 +72,8 @@ Coordinate **S1.1 → S1.5** to (a) emit **exactly one** hurdle event per mercha
      * `u:number|null` with **presence rule**: present iff `0 < pi < 1`, else `null`.
    * **Mandatory identities per row:**
 
-     * `u128(after) − u128(before) = parse_u128(draws)`,
-     * **Hurdle law:** `blocks = parse_u128(draws) ∈ {0,1}`,
+     * `u128(after) − u128(before) = decimal_string_to_u128(draws)`,
+     * **Hurdle law:** `blocks = u128_to_uint64_or_abort(decimal_string_to_u128(draws)) ∈ {0,1}`,
      * **Determinism law:**
        `pi ∈ {0.0,1.0} ⇒ u=null ∧ deterministic=true ∧ is_multi=(pi==1.0)`;
        `0 < pi < 1 ⇒ u∈(0,1) ∧ deterministic=false ∧ is_multi=(u < pi)`.
@@ -81,7 +81,7 @@ Coordinate **S1.1 → S1.5** to (a) emit **exactly one** hurdle event per mercha
 2. **Cumulative RNG trace (persisted):**
 
    * **Granularity:** cumulative per `(module, substream_label)` within `{seed, parameter_hash, run_id}`; **no merchant dimension**, **no per-event trace rows**.
-   * **Totals (saturating `u64`):** `events_total`, `blocks_total`, `draws_total`.
+   * **Totals (saturating `u64`):** `blocks_total`, `draws_total`, `events_total`.
    * **Counter words for reconciliation:** `rng_counter_before_{lo,hi}`, `rng_counter_after_{lo,hi}`.
    * **Reconciliation duties:**
      `blocks_total` equals the unsigned counter delta across all emitted events; `draws_total` equals the saturating sum of per-event `draws`; `events_total` counts emissions (saturating).
@@ -130,13 +130,13 @@ That’s the contract your implementer can wire to: fixed inputs, fixed outputs,
    * The envelope must satisfy the **budget identity**:
 
      ```
-     u128(after) − u128(before) = parse_u128(draws)
+     u128(after) − u128(before) = decimal_string_to_u128(draws)
      ```
 
      and for hurdle specifically:
 
      ```
-     blocks = parse_u128(draws) ∈ {0,1}
+     blocks = u128_to_uint64_or_abort(decimal_string_to_u128(draws)) ∈ {0,1}
      ```
 
 3. **Numeric profile (relied on from S0).**
@@ -203,8 +203,8 @@ substream_label = "hurdle_bernoulli"
    Persist the exact `rng_counter_before_{lo,hi}` and `rng_counter_after_{lo,hi}` from S1.3’s streams. Enforce on write:
 
 ```
-u128(after) − u128(before) = parse_u128(draws)
-blocks = parse_u128(draws) ∈ {0,1}
+u128(after) − u128(before) = decimal_string_to_u128(draws)
+blocks = u128_to_uint64_or_abort(decimal_string_to_u128(draws)) ∈ {0,1}
 ```
 
 Reject the write if these fail.
@@ -271,12 +271,15 @@ This section shows, with no gaps, **how S1.1→S1.5 are wired for each merchant*
                  │        • write hurdle event to:
                  │          logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
                  │          with full envelope (microsecond ts_utc, counters, draws u128 string, blocks) and minimal payload
-                 │        • identity: u128(after)-u128(before)=parse_u128(draws); blocks==parse_u128(draws)∈{0,1}
+                 │        • identities:
+                 │            u128(after) − u128(before) = decimal_string_to_u128(draws);
+                 │            blocks == u128_to_uint64_or_abort(decimal_string_to_u128(draws)) ∈ {0,1}
                  │        • append cumulative rng_trace_log row (saturating totals; per (module,substream))
-                 │        → (totals' (events_total, blocks_total, draws_total), emitted:EmittedHurdle)                                 
+                 │        → (totals' (blocks_total, draws_total, events_total), emitted:EmittedHurdle)                                 
                  │
                  └─ S1.5  Handoff (in-memory only)
-                          • Xi_m = (is_multi, N, K, 𝓒, C*) from the **emitted** hurdle event (C* = post counter)
+                          • Read **is_multi** (payload) and **C*** = post counter (envelope) **from the emitted event**.
+                          • Set **N,K,𝓒 by rule**: if single-site, `N=1, K=0, 𝓒={home_iso(m)}`; else leave `N,K` unassigned and route `NegativeBinomialS2`.
                           • next_state = SingleHomePlacement (formerly S7) if single-site; else NegativeBinomialS2 (formerly S2) (multi-site)
                           → append (m, Xi_m, next_state)                                                           
 ```
@@ -285,7 +288,7 @@ This section shows, with no gaps, **how S1.1→S1.5 are wired for each merchant*
 
 * **Order-invariant substreams:** `master = derive_master_material(seed, manifest_fingerprint_bytes); base = derive_substream(master, "hurdle_bernoulli", (m))`; no cross-label chaining.
 * **Single-uniform law + lane policy:** 0 draws if π∈{0,1}; else 1 draw using **low lane**; `u∈(0,1)`.
-* **Budget identities:** per event `u128(after)−u128(before)=parse_u128(draws)` and for hurdle `blocks==parse_u128(draws)∈{0,1}`.
+* **Budget identities:** `u128(after)−u128(before) = decimal_string_to_u128(draws)` and `blocks = u128_to_uint64_or_abort(decimal_string_to_u128(draws)) ∈ {0,1}` (hurdle).
 * **Authoritative paths/schemas:** hurdle events under `{seed, parameter_hash, run_id}`; `module="1A.hurdle_sampler"`, `substream_label="hurdle_bernoulli"` in envelope; trace is cumulative (no merchant dimension).
 
 ---
@@ -294,9 +297,7 @@ This section shows, with no gaps, **how S1.1→S1.5 are wired for each merchant*
 
 ```pseudocode
 # Types used in this section
-struct Totals { draws_total:u64, blocks_total:u64, events_total:u64 }
-
-
+struct Totals { blocks_total:u64, draws_total:u64, events_total:u64 }    # L0 order: (blocks, draws, events)
 
 # Minimal projection for routing (authoritative fields for S1.5 consumption)
 # Note: Full envelope includes before_* counters, draws, blocks; L2 reads only the subset it needs here.
@@ -319,6 +320,7 @@ struct EmittedHurdle {
     u: f64|null                      # null iff deterministic
   }
 }
+
 # Entry: orchestrate State-1 over the merchant universe
 function run_S1(seed:u64, parameter_hash:hex64, manifest_fingerprint:hex64, manifest_fingerprint_bytes: bytes[32], run_id:hex32,
                 merchants:list<u64>, home_iso_of: map<u64,string>)
@@ -327,10 +329,10 @@ function run_S1(seed:u64, parameter_hash:hex64, manifest_fingerprint:hex64, mani
 
   # Pre-loop hygiene
   if has_duplicates(merchants):
-      abort(E_S1_DUPLICATE_MERCHANT_IN_UNIVERSE, offending_ids(merchants))
+      abort_run(E_S1_DUPLICATE_MERCHANT_IN_UNIVERSE, offending_ids(merchants))
   for m in merchants:
       if not is_valid_iso_alpha2(home_iso_of.get(m)):
-          abort(E_S1_HOME_ISO_INVALID, {merchant_id:m, home_iso:home_iso_of.get(m)})
+          abort_run(E_S1_HOME_ISO_INVALID, {merchant_id:m, home_iso:home_iso_of.get(m)})
 
   # Empty-universe early return
   if merchants.is_empty():
@@ -430,8 +432,8 @@ S1.4(m): Emit Event + Update Cumulative Trace
 
 **Edge invariants (enforced across S1.3→S1.4):**
 
-* `u128(after) − u128(before) = parse_u128(draws)`
-* `blocks = parse_u128(draws) ∈ {0,1}`
+* `u128(after) − u128(before) = decimal_string_to_u128(draws)`
+* `blocks = u128_to_uint64_or_abort(decimal_string_to_u128(draws)) ∈ {0,1}`
 * if `0 < π < 1`: `u ∈ (0,1)`, `deterministic=false`, `is_multi = (u < π)`
 * if `π ∈ {0,1}`: `u=null`, `deterministic=true`, `is_multi = (π == 1.0)`
 
@@ -501,13 +503,13 @@ L2 carries *only* what it must to wire S1.1→S1.5 deterministically and return 
 
 ## 5.1 Run-lifetime state
 
-* `totals : { draws_total:u64, blocks_total:u64, events_total:u64 }`
+* `totals : { blocks_total:u64, draws_total:u64, events_total:u64 }`
   Initialized to `{0,0,0}` and **updated only by S1.4** (cumulative, saturating).
   Invariants each iteration `i`:
 
   * `events_total[i] = events_total[i-1] + 1` (exactly one event per merchant).
   * `blocks_total[i] = blocks_total[i-1] + decision.blocks` (0 or 1).
-  * `draws_total[i] = draws_total[i-1] + parse_u128(decision.draws)` (0 or 1 for hurdle).
+  * `draws_total[i] = draws_total[i-1] + u128_to_uint64_or_abort(decimal_string_to_u128(decision.draws))` (0 or 1 for hurdle).
     *(L2 can assert these deltas cheaply; S1.4 already enforces the per-event identities.)*
 
 * `handoffs : list<(merchant_id:u64, Xi, next_state:{SingleHomePlacement|NegativeBinomialS2})>`
@@ -542,7 +544,7 @@ If the merchant universe is empty:
 
 * L2 still enforces **Gate-A** (audit-before-first-event).
 * L2 performs **no writes** (no hurdle events, no trace rows).
-* L2 returns `handoffs = []` and `totals = { draws_total:0, blocks_total:0, events_total:0 }`.
+* L2 returns `handoffs = []` and `totals = { blocks_total:0, draws_total:0, events_total:0 }`.
 * Validators MUST accept a run with zero emissions as valid.
 
 **Pseudocode patch (early return):**
@@ -550,7 +552,7 @@ If the merchant universe is empty:
 ```pseudocode
 assert exists_rng_audit_row(seed, parameter_hash, run_id)
 if merchants.is_empty():
-    return ([], {draws_total:0, blocks_total:0, events_total:0})
+    return ([], {blocks_total:0, draws_total:0, events_total:0})
 ```
 
 ---
@@ -642,8 +644,8 @@ Schema: `#/rng/events/hurdle_bernoulli`. Partitions are **exactly** `{seed, para
 
 **Row identities enforced at write (reject row if any fail):**
 
-* `u128(after) − u128(before) = parse_u128(draws)`.
-* **Hurdle law:** `blocks = parse_u128(draws) ∈ {0,1}`.
+* `u128(after) − u128(before) = decimal_string_to_u128(draws)`.
+* **Hurdle law:** `blocks = u128_to_uint64_or_abort(decimal_string_to_u128(draws)) ∈ {0,1}`.
 * Determinism law:
 
   * `pi ∈ {0,1} ⇒ u=null ∧ deterministic=true ∧ is_multi=(pi==1.0)`.
@@ -677,6 +679,8 @@ Schema: `#/rng/core/rng_trace_log`. No merchant dimension; **per (module, substr
 
 * `module="1A.hurdle_sampler"`, `substream_label="hurdle_bernoulli"`.
 * Lineage keys: `{seed, parameter_hash, run_id}`.
+* **Embedded lineage subset (trace schema):** row **embeds** `seed` and `run_id`; **`parameter_hash` is path-only**.
+  Writers MUST ensure `row.seed == seed` and `row.run_id == run_id` (byte-for-byte).
 * Counters: `rng_counter_before_{lo,hi}`, `rng_counter_after_{lo,hi}` (words taken from the same event’s `before/after`).
 * Totals (saturating `u64`):
 
@@ -686,9 +690,9 @@ Schema: `#/rng/core/rng_trace_log`. No merchant dimension; **per (module, substr
 
 **Trace identities (enforced at write):**
 
-* `blocks_total(new) = blocks_total(prev) + (u128(after) − u128(before))`.
+* `blocks_total(new) = blocks_total(prev) + u128_to_uint64_or_abort(u128(after) − u128(before))`.
 * `events_total(new) = events_total(prev) + 1`.
-* `draws_total(new) = draws_total(prev) + parse_u128(draws_event)`.
+* `draws_total(new) = draws_total(prev) + u128_to_uint64_or_abort(decimal_string_to_u128(draws_event))`.
 
 **I/O discipline:**
 
@@ -748,8 +752,8 @@ This is the **final, consolidated** State-1 orchestrator. It wires the frozen L1
 
 ```pseudocode
 struct Totals {
-  draws_total: u64,   # saturating
   blocks_total: u64,  # saturating; normative (matches counter deltas)
+  draws_total: u64,   # saturating
   events_total: u64   # saturating
 }
 
@@ -778,7 +782,8 @@ struct EmittedHurdle {
 * `has_duplicates(list<u64>): bool`
 * `offending_ids(list<u64>): list<u64>`  # only if duplicates
 * `is_valid_iso_alpha2(str): bool`
-* `parse_u128(str_dec): u64`             # for hurdle, only "0" or "1"
+* `decimal_string_to_u128(str_dec): (u64 hi, u64 lo)`  # parses decimal u128
+* `u128_to_uint64_or_abort(hi:u64, lo:u64): u64`       # casts per-event u128 to u64 or aborts (hurdle draws ∈ {0,1})
 
 ---
 
@@ -808,19 +813,19 @@ L2’s failure policy is simple: **detect early, write atomically, and bubble th
 
 ## 9.2 Failure taxonomy (source → example → L2 action)
 
-| Source                      | Example error (symbolic)                                                 | When it triggers                                        | L2 action         | Side-effect state at abort                                                                   |
-|-----------------------------|--------------------------------------------------------------------------|---------------------------------------------------------|-------------------|----------------------------------------------------------------------------------------------|
-| **Gate**                    | `E_S1_RNG_AUDIT_MISSING`                                                 | Audit row not present before first event                | Abort immediately | No S1 writes happened                                                                        |
-| **Hygiene (pre-loop)**      | `E_S1_DUPLICATE_MERCHANT_IN_UNIVERSE`                                    | `merchants` contains duplicates                         | Abort immediately | No S1 writes happened                                                                        |
-|                             | `E_S1_HOME_ISO_INVALID`                                                  | Missing/invalid `home_iso(m)`                           | Abort immediately | No S1 writes happened                                                                        |
-| **Hygiene (in-loop)**       | `E_S1_DUPLICATE_MERCHANT_RUNTIME`                                        | Same `m` encountered again                              | Abort immediately | Prior merchants’ rows remain; current merchant not written                                   |
-| **S1.1**                    | `E_S1_INPUT_MISSING_XM`, `E_S1_DSGN_SHAPE_MISMATCH`, path/partition lint | x-vector absent; β/x mismatch; bad partitions           | Bubble error      | Nothing written for this merchant                                                            |
-| **S1.2**                    | `E_S1_NUMERIC_NONFINITE_ETA`, `E_S1_PI_OOB`                              | Dot/logistic produced bad values                        | Bubble error      | Nothing written for this merchant                                                            |
-| **S1.3**                    | `E_S1_U_OOB`, `E_S1_DTRM_INCONSISTENT`                                   | RNG boundary/consistency failures                       | Bubble error      | Nothing written for this merchant                                                            |
-| **S1.4 (pre-write checks)** | `E_S1_BLOCKS_MISMATCH`, `E_S1_BUDGET_IDENTITY`                           | Envelope identities fail                                | Bubble error      | Nothing written for this merchant                                                            |
-| **S1.4 (event write)**      | `E_IO_EVENT_WRITE`, `E_S1_EVENT_DUPLICATE`                               | Append fails; duplicate key                             | Bubble error      | Event not written (I/O failure) **or** duplication rejected; no trace append attempted       |
-| **S1.4 (trace write)**      | `E_IO_TRACE_WRITE`                                                       | Cumulative trace append fails                           | Bubble error      | Event row **persisted**; trace for this merchant **missing** (allowed; validators reconcile) |
-| **S1.5**                    | `E_S1_INPUT_EVENT_KIND_MISMATCH`                                         | Emitted summary isn’t a hurdle event (shouldn’t happen) | Bubble error      | Event already persisted; handoff not produced                                                |
+| Source                      | Example error (symbolic)                                                 | When it triggers                                        | L2 action        | Side-effect state at abort                                                                   |
+|-----------------------------|--------------------------------------------------------------------------|---------------------------------------------------------|------------------|----------------------------------------------------------------------------------------------|
+| **Gate**                    | `E_S1_RNG_AUDIT_MISSING`                                                 | Audit row not present before first event                | `abort_run(...)` | No S1 writes happened                                                                        |
+| **Hygiene (pre-loop)**      | `E_S1_DUPLICATE_MERCHANT_IN_UNIVERSE`                                    | `merchants` contains duplicates                         | `abort_run(...)` | No S1 writes happened                                                                        |
+|                             | `E_S1_HOME_ISO_INVALID`                                                  | Missing/invalid `home_iso(m)`                           | `abort_run(...)` | No S1 writes happened                                                                        |
+| **Hygiene (in-loop)**       | `E_S1_DUPLICATE_MERCHANT_RUNTIME`                                        | Same `m` encountered again                              | `abort_run(...)` | Prior merchants’ rows remain; current merchant not written                                   |
+| **S1.1**                    | `E_S1_INPUT_MISSING_XM`, `E_S1_DSGN_SHAPE_MISMATCH`, path/partition lint | x-vector absent; β/x mismatch; bad partitions           | Bubble error     | Nothing written for this merchant                                                            |
+| **S1.2**                    | `E_S1_NUMERIC_NONFINITE_ETA`, `E_S1_PI_OOB`                              | Dot/logistic produced bad values                        | Bubble error     | Nothing written for this merchant                                                            |
+| **S1.3**                    | `E_S1_U_OOB`, `E_S1_DTRM_INCONSISTENT`                                   | RNG boundary/consistency failures                       | Bubble error     | Nothing written for this merchant                                                            |
+| **S1.4 (pre-write checks)** | `E_S1_BLOCKS_MISMATCH`, `E_S1_BUDGET_IDENTITY`                           | Envelope identities fail                                | Bubble error     | Nothing written for this merchant                                                            |
+| **S1.4 (event write)**      | `E_IO_EVENT_WRITE`, `E_S1_EVENT_DUPLICATE`                               | Append fails; duplicate key                             | Bubble error     | Event not written (I/O failure) **or** duplication rejected; no trace append attempted       |
+| **S1.4 (trace write)**      | `E_IO_TRACE_WRITE`                                                       | Cumulative trace append fails                           | Bubble error     | Event row **persisted**; trace for this merchant **missing** (allowed; validators reconcile) |
+| **S1.5**                    | `E_S1_INPUT_EVENT_KIND_MISMATCH`                                         | Emitted summary isn’t a hurdle event (shouldn’t happen) | Bubble error     | Event already persisted; handoff not produced                                                |
 
 **Notes**
 
@@ -888,7 +893,8 @@ A State-1 run is **done** (spec-true) only if **all** checks below pass. Treat t
 * [ ] **Partition ↔ embed equality:** path partitions are **exactly** `{seed, parameter_hash, run_id}` and **match** embedded values; `manifest_fingerprint` is embedded (not in path); `module="1A.hurdle_sampler"` and `substream_label="hurdle_bernoulli"` are **envelope** literals (not path).
 * [ ] **Envelope completeness:** `ts_utc` (UTC, microseconds), counters `rng_counter_before_{lo,hi}` & `rng_counter_after_{lo,hi}`, `draws` (decimal u128 string), `blocks` (u64).
 * [ ] **Payload minimality & typing:** fields are exactly `{merchant_id:u64, pi:number, is_multi:bool, deterministic:bool, u:number|null}` with JSON integers for ids/counters and binary64 round-trip numbers for `pi`/`u`.
-* [ ] **Budget identities per row:** `u128(after) − u128(before) = parse_u128(draws)` and **for hurdle** `blocks = parse_u128(draws) ∈ {0,1}`.
+* [ ] **Budget identities per row:** `u128(after) − u128(before) = decimal_string_to_u128(draws)` and **for hurdle**
+      `blocks = u128_to_uint64_or_abort(decimal_string_to_u128(draws)) ∈ {0,1}`.
 * [ ] **Determinism law per row:**
   `pi∈{0,1} ⇒ (u=null ∧ deterministic=true ∧ is_multi=(pi==1.0))`;
   `0<pi<1 ⇒ (u∈(0,1) ∧ deterministic=false ∧ is_multi=(u<pi))`.
@@ -897,6 +903,7 @@ A State-1 run is **done** (spec-true) only if **all** checks below pass. Treat t
 ## 10.3 RNG trace (cumulative)
 
 * [ ] **Granularity:** cumulative rows per `(module="1A.hurdle_sampler", substream_label="hurdle_bernoulli")` within `{seed, parameter_hash, run_id}` (no merchant dimension).
+* [ ] **Embed/path equality (trace):** embedded `seed` and `run_id` match path keys; **`parameter_hash` is path-only**.
 * [ ] **Totals progression:** after each emission, the appended line updates **saturating** `events_total`, `blocks_total`, `draws_total` and includes the matching before/after counter words.
 * [ ] **Reconciliation:** final `blocks_total` equals the unsigned counter delta across all emitted events; final `draws_total` equals the saturating sum of `draws` over all events; `events_total == |M|`.
 * [ ] **Ordering:** event write precedes trace append for each merchant; if the event write fails, **no** trace append is attempted.
@@ -905,7 +912,7 @@ A State-1 run is **done** (spec-true) only if **all** checks below pass. Treat t
 
 * [ ] **Deterministic loop order:** merchants processed in ascending `merchant_id`.
 * [ ] **Serialized emission:** **S1.4** is not run in parallel; exactly one call → one event line → one trace line.
-* [ ] **Loop-level delta checks executed:** `events_total` +1, `blocks_total` + `decision.blocks`, `draws_total` + `parse_u128(decision.draws)` after each S1.4.
+* [ ] **Loop-level delta checks executed:** `events_total` +1, `blocks_total` + `decision.blocks`,`draws_total` + `u128_to_uint64_or_abort(decimal_string_to_u128(decision.draws))` after each S1.4.
 * [ ] **Typed handoff:** S1.4 returns `EmittedHurdle`; S1.5 consumes it directly (no ad-hoc reconstruction).
 * [ ] **Handoff correctness:** for each merchant, $\Xi_m=(\text{is_multi},N,K,\mathcal C,C^\star)$ is produced; `C*` is the **post** hurdle counter (audit-only); next_state is `SingleHomePlacement` (formerly S7) iff single-site else `NegativeBinomialS2` (formerly S2).
 
@@ -939,24 +946,24 @@ These exclusions are intentional: they prevent over-engineering, reduce surface 
 
 # Appendix A — Error → Class mapping (operational taxonomy)
 
-| Error code                            | Class                 | Owner / where raised | Typical cause                 | Retry |
-|---------------------------------------|-----------------------|----------------------|-------------------------------|-------|
-| `E_S1_RNG_AUDIT_MISSING`              | `S1.PRECONDITION`     | L2 gate              | Audit row absent              | No    |
-| `E_S1_DUPLICATE_MERCHANT_IN_UNIVERSE` | `S1.PRECONDITION`     | L2 pre-loop          | Duplicate IDs in `M`          | No    |
-| `E_S1_HOME_ISO_INVALID`               | `S1.PRECONDITION`     | L2 pre-loop          | Missing/invalid ISO           | No    |
-| `E_S1_DUPLICATE_MERCHANT_RUNTIME`     | `S1.PRECONDITION`     | L2 in-loop           | Same merchant twice           | No    |
-| `E_S1_INPUT_MISSING_XM`               | `S1.INPUT`            | S1.1                 | Missing design vector         | No    |
-| `E_S1_DSGN_SHAPE_MISMATCH`            | `S1.DESIGN.ALIGNMENT` | S1.1                 | `β ≠ dim(x_m)`                | No    |
-| `E_S1_NUMERIC_NONFINITE_ETA`          | `S1.NUMERIC`          | S1.2                 | Non-finite `η`                | No    |
-| `E_S1_PI_OOB`                         | `S1.NUMERIC`          | S1.2                 | `π∉[0,1]`                     | No    |
-| `E_S1_U_OOB`                          | `S1.RNG.BOUNDARY`     | S1.3                 | `u∉(0,1)`                     | No    |
-| `E_S1_DTRM_INCONSISTENT`              | `S1.RNG.CONSISTENCY`  | S1.3/1.4             | Deterministic branch mismatch | No    |
-| `E_S1_BLOCKS_MISMATCH`                | `S1.BUDGET.IDENTITY`  | S1.4                 | `blocks≠parse_u128(draws)`    | No    |
-| `E_S1_BUDGET_IDENTITY`                | `S1.BUDGET.IDENTITY`  | S1.4                 | `after−before≠draws`          | No    |
-| `E_S1_EVENT_DUPLICATE`                | `IO.WRITE.DUPLICATE`  | S1.4 writer          | 2nd emit for same key         | No    |
-| `E_IO_EVENT_WRITE`                    | `IO.WRITE.FAIL`       | S1.4 writer          | Append/rename failed          | No    |
-| `E_IO_TRACE_WRITE`                    | `IO.WRITE.FAIL`       | S1.4 writer          | Trace append failed           | No    |
-| `E_S1_INPUT_EVENT_KIND_MISMATCH`      | `S1.PRECONDITION`     | S1.5                 | Not a hurdle event            | No    |
+| Error code                            | Class                 | Owner / where raised | Typical cause                                                   | Retry |
+|---------------------------------------|-----------------------|----------------------|-----------------------------------------------------------------|-------|
+| `E_S1_RNG_AUDIT_MISSING`              | `S1.PRECONDITION`     | L2 gate              | Audit row absent                                                | No    |
+| `E_S1_DUPLICATE_MERCHANT_IN_UNIVERSE` | `S1.PRECONDITION`     | L2 pre-loop          | Duplicate IDs in `M`                                            | No    |
+| `E_S1_HOME_ISO_INVALID`               | `S1.PRECONDITION`     | L2 pre-loop          | Missing/invalid ISO                                             | No    |
+| `E_S1_DUPLICATE_MERCHANT_RUNTIME`     | `S1.PRECONDITION`     | L2 in-loop           | Same merchant twice                                             | No    |
+| `E_S1_INPUT_MISSING_XM`               | `S1.INPUT`            | S1.1                 | Missing design vector                                           | No    |
+| `E_S1_DSGN_SHAPE_MISMATCH`            | `S1.DESIGN.ALIGNMENT` | S1.1                 | `β ≠ dim(x_m)`                                                  | No    |
+| `E_S1_NUMERIC_NONFINITE_ETA`          | `S1.NUMERIC`          | S1.2                 | Non-finite `η`                                                  | No    |
+| `E_S1_PI_OOB`                         | `S1.NUMERIC`          | S1.2                 | `π∉[0,1]`                                                       | No    |
+| `E_S1_U_OOB`                          | `S1.RNG.BOUNDARY`     | S1.3                 | `u∉(0,1)`                                                       | No    |
+| `E_S1_DTRM_INCONSISTENT`              | `S1.RNG.CONSISTENCY`  | S1.3/1.4             | Deterministic branch mismatch                                   | No    |
+| `E_S1_BLOCKS_MISMATCH`                | `S1.BUDGET.IDENTITY`  | S1.4                 | `blocks≠u128_to_uint64_or_abort(decimal_string_to_u128(draws))` | No    |
+| `E_S1_BUDGET_IDENTITY`                | `S1.BUDGET.IDENTITY`  | S1.4                 | `after−before≠decimal_string_to_u128(draws)`                    | No    |
+| `E_S1_EVENT_DUPLICATE`                | `IO.WRITE.DUPLICATE`  | S1.4 writer          | 2nd emit for same key                                           | No    |
+| `E_IO_EVENT_WRITE`                    | `IO.WRITE.FAIL`       | S1.4 writer          | Append/rename failed                                            | No    |
+| `E_IO_TRACE_WRITE`                    | `IO.WRITE.FAIL`       | S1.4 writer          | Trace append failed                                             | No    |
+| `E_S1_INPUT_EVENT_KIND_MISMATCH`      | `S1.PRECONDITION`     | S1.5                 | Not a hurdle event                                              | No    |
 
 ---
 
