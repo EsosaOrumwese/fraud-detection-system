@@ -35,7 +35,10 @@ L1 defines the state-specific kernels for S1: inputs/outputs, exact algorithms, 
 
 ## Budget & RNG invariants (hurdle stream)
 
-* **Base counter** derived from `master = derive_master_material(seed, manifest_fingerprint_bytes)`; then `base = derive_substream(master, label="hurdle_bernoulli", (merchant_id))`.
+* **Base counter** derived from `master = derive_master_material(seed, manifest_fingerprint_bytes)`; then
+  compute `merchant_u64 = merchant_u64_from_id64(merchant_id)`, set
+  `ids = [ { tag:"merchant_u64", value: merchant_u64 } ]` (SER **typed 1-tuple**), and call
+  `base = derive_substream(master, label="hurdle_bernoulli", ids)`.
 * **Deterministic case:** if `pi ∈ {0.0,1.0}` → **zero** uniforms; `before==after`; `draws="0"`, `blocks=0`.
 * **Stochastic case:** if `0<pi<1` → consume **exactly one** uniform with **low lane**; `u∈(0,1)`; `draws="1"`, `blocks=1`.
 * **Authoritative identity:** `u128(after) − u128(before) == decimal_string_to_u128(draws)`; and **for hurdle**: `blocks == u128_to_uint64_or_abort(decimal_string_to_u128(draws)) ∈ {0,1}`.
@@ -43,9 +46,9 @@ L1 defines the state-specific kernels for S1: inputs/outputs, exact algorithms, 
 
 ## L0 dependencies (to be called by L1 kernels)
 
-* **Substreams/RNG:** `derive_master_material`, `derive_substream`, `uniform1` (low lane).
+* **Substreams/RNG:** `derive_master_material`, `derive_substream`, `merchant_u64_from_id64`, `uniform1` (low lane).
 * **Envelope/trace:** `begin_event_micro`, `end_event_emit`, `update_rng_trace_totals`, `decimal_string_to_u128`, `u128_to_decimal_string`.
-* **Numeric:** `dot_neumaier`, `logistic_branch_stable` *(two-branch, overflow-safe logistic; alias used only in prose)*, `u128_to_uint64_or_abort`.
+* **Numeric:** `dot_neumaier`, `logistic_branch_stable` *(two-branch, overflow-safe logistic; alias used only in prose)*, `u128_to_uint64_or_abort`, `u128_delta`.
 * **Formatting:** `f64_to_json_shortest`, `ts_utc_now_rfc3339_micro`.
 * **Predicates:** `is_binary64_extreme01`, `is_open_interval_01`.
 
@@ -340,9 +343,11 @@ Decision {
 function S1_3_rng_and_decision(pi:f64, merchant_id:u64, ctx:Context) -> Decision
   # 0) Derive order-invariant base counter for this (label, merchant)
   master = derive_master_material(ctx.seed, ctx.manifest_fingerprint_bytes)
-  base = derive_substream(master, ctx.substream_label, (merchant_id))
-  # Substream keying is the canonical L0 encoding: the third element is merchant_id as typed u64
-  # (never stringified). Label must be exactly "hurdle_bernoulli" per registry.
+  # Canonical typed id for SER(ids): merchant_u64 = LOW64(SHA256(LE64(merchant_id)))  (S0-L0)
+  merchant_u64 = merchant_u64_from_id64(merchant_id)
+  ids = [ { tag: "merchant_u64", value: merchant_u64 } ]    # explicit SER tag (typed 1-tuple)
+  base = derive_substream(master, ctx.substream_label, ids)
+  # Label must be exactly "hurdle_bernoulli" per registry/schema; ids uses tag "merchant_u64".
 
   before_hi = base.ctr.hi
   before_lo = base.ctr.lo
@@ -407,7 +412,7 @@ function S1_3_rng_and_decision(pi:f64, merchant_id:u64, ctx:Context) -> Decision
 
 ## Determinism & budgeting guarantees (why this matches the spec)
 
-* **Keyed base counter.** `master = derive_master_material(seed, manifest_fingerprint_bytes); base = derive_substream(master, label="hurdle_bernoulli", (merchant_id))` fixes the **order-invariant** starting counter for the merchant/label pair; no cross-label chaining.
+* **Keyed base counter.** `master = derive_master_material(seed, manifest_fingerprint_bytes); merchant_u64 = merchant_u64_from_id64(merchant_id); ids = [{tag:"merchant_u64", value: merchant_u64}]; base = derive_substream(master, label="hurdle_bernoulli", ids)` fixes the **order-invariant** starting counter for the merchant/label pair; no cross-label chaining.
 * **Uniform policy.** Single-uniform events consume **one** Philox block and take the **low lane**; mapping to `U(0,1)` is strict-open, so `u` is never exactly `0` or `1`.
 * **Branch law.** `pi∈{0,1}` ⇒ **zero** draw; `0<pi<1` ⇒ **exactly one** draw; outcome `is_multi = (u < pi)`; `u` is **null** iff deterministic.
 * **Budget identity.** We compute `after` from the stream and check `u128(after)−u128(before) = decimal_string_to_u128(draws)`; for hurdle also `blocks == u128_to_uint64_or_abort(decimal_string_to_u128(draws)) ∈ {0,1}`. (S1.4 will persist these fields verbatim.)
@@ -494,7 +499,8 @@ function S1_3_rng_and_decision(pi:f64, merchant_id:u64, ctx:Context) -> Decision
 
 **Serialization rules (explicit):**
 * `pi` and (if non-deterministic) `u` are emitted as **JSON numbers** using `f64_to_json_shortest` (binary64 round-trip).
-* Lineage ids and counters are emitted as **JSON integers** (never strings).
+* **Lineage & counters:** `seed` is a **JSON integer**; `run_id`, `parameter_hash`, and `manifest_fingerprint` are **hex strings**. Counters are **JSON integers**.
+  For `rng_trace_log`, only `seed` and `run_id` are embedded (and must equal the path keys); **`parameter_hash` is path-only**.
 
 ---
 
