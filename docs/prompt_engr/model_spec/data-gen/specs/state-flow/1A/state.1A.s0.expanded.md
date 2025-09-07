@@ -407,7 +407,7 @@ S0.3 derives the master RNG seed/counters using `manifest_fingerprint_bytes` and
 
 ## Purpose
 
-S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we carve it into **keyed, order-invariant** substreams, how we map bits to **(0,1)**, how we generate $Z\sim\mathcal N(0,1)$, $\Gamma(\alpha,1)$, and $\text{Poisson}(\lambda)$, and how every draw is **counted, logged, and reproducible**. This sub-state **does** consume RNG.
+S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we carve it into **keyed, order-invariant** substreams, how we map bits to **(0,1)**, how we generate $Z\sim\mathcal N(0,1)$, $\Gamma(\alpha,1)$, and $\text{Poisson}(\lambda)$, and how every draw is **counted, logged, and reproducible**. **S0.3 does not consume RNG events; it defines the contracts and writes the single audit row only (no draws in S0).**
 
 ---
 
@@ -674,7 +674,7 @@ Two cross-cut logs in addition to per-event logs:
    *(schema: `schemas.layer1.yaml#/rng/core/rng_trace_log`).*  
 
    **Reconciliation (normative):** For each `(module, substream_label)`, `rng_trace_log.blocks_total` MUST be monotone non-decreasing across emissions, and the **final** `blocks_total` MUST equal the **sum of per-event `blocks`** over `rng_event_*` in the same `{seed, parameter_hash, run_id}`. Budget checks use **event `draws`**, not the trace.
-   **Lineage binding (normative):** Producers and consumers **MUST** bind `{seed, parameter_hash, run_id}` from the partition path. In `rng_trace_log`, the record also **embeds** `seed` and `run_id` (these **must equal** the path values); **`parameter_hash` remains path-only** (not a column). Trace rows do **not** embed the full RNG *event* envelope. (Drift is a hard F5 failure.)
+   **Lineage binding (normative):** Producers and consumers **MUST** bind `{ seed, parameter_hash, run_id }` from the enclosing **partition path**. In `rng_trace_log`, **`seed` and `run_id` are also embedded columns** and **must equal** the path keys byte-for-byte; **`parameter_hash` is path-only**. (Drift is a hard F5 failure.)
 
 > **Practical bound (normative):** `rng_trace_log.blocks_total` is `uint64`; emitters MUST ensure totals fit this width or abort with `F4d:rng_budget_violation`.
 
