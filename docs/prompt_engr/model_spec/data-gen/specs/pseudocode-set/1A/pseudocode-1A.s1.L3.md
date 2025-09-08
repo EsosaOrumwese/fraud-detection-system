@@ -417,7 +417,8 @@ Tiny provenance to make the bundle self-certifying:
 
 ## 5.1 Streaming & memory
 
-* Read JSONL in **chunks** (default 100k lines). O(1) extra memory per validator.
+* Read JSONL in **chunks** (default 100k lines). **Small memory footprint** overall; most validators are O(1) extra memory.
+  *Exception:* **V-Trace** maintains an O(|events|) in-memory index of `(before,after)` → event for reconciliation.
 * Event shard order is irrelevant; validators consume in any order but **report** in a fixed order (see below).
 
 ## 5.2 Scheduling (simple phases)
@@ -737,7 +738,7 @@ function fixed_validator_order() -> list<VId>
 function publish_bundle(L:RunLineage, C, VZ, M:set<u64>, res:list<VResult>, failures_jsonl:bytes|null) -> Bundle
   # Compute verdict & metrics
   verdict = (any_fail(res) ? "FAIL" : "PASS")
-  metrics = compute_metrics(L, res)  # events_observed, first/last counters, totals from V-TRACE
+  metrics = compute_metrics(L, res, M)  # events_observed, first/last counters, totals from V-TRACE
 
   # Build report.json (deterministic key order; microsecond timestamp)
   report = {
@@ -813,7 +814,7 @@ function V_Handoff_preconditions(L, events_glob, home_iso_of, chunk_size, sample
 # ---------------------------------------------
 # Deterministic metrics (summary convenience)
 # ---------------------------------------------
-function compute_metrics(L, res:list<VResult>) -> map
+function compute_metrics(L, res:list<VResult>, M_expected:set<u64>) -> map
   # Pull from V-TRACE (final totals, last-after), V-CARDINALITY (events_observed),
   # and any row-level counters surfaced in samples. Keep it deterministic.
   events_observed   = find_metric(res, V_CARDINALITY, "events_observed", default=0)
@@ -823,7 +824,7 @@ function compute_metrics(L, res:list<VResult>) -> map
   blocks_total      = find_metric(res, V_TRACE, "blocks_total", default=0)
   draws_total       = find_metric(res, V_TRACE, "draws_total",  default=0)
   return {
-    merchants_expected: size(inputs.merchants_expected),
+    merchants_expected: size(M_expected),
     events_observed: events_observed,
     first_counter_before: first_before,
     last_counter_after: last_after,
@@ -889,12 +890,16 @@ function u128_sub(a_hi:u64, a_lo:u64, b_hi:u64, b_lo:u64) -> (hi:u64, lo:u64)
 function u128_eq(a_hi:u64, a_lo:u64, b_hi:u64, b_lo:u64) -> bool
 function u128_delta(after_hi:u64, after_lo:u64, before_hi:u64, before_lo:u64) -> (hi:u64, lo:u64)
 function u128_to_uint64_or_abort(hi:u64, lo:u64) -> u64
+function sat_add_u64(a:u64, b:u64) -> u64    # saturating addition on u64
 
 # RNG replay helpers (placeholders; identical to S0/S1 kernels)
 function derive_master_material(seed:u64, manifest_fingerprint_bytes:bytes[32]) -> (M:any, root_key:u64, root_ctr:{hi:u64,lo:u64})
 function derive_substream(M:any, label:string, ids:tuple) -> {ctr_hi:u64, ctr_lo:u64}
 function philox_block(stream:{ctr_hi:u64, ctr_lo:u64}) -> (x0:u64, x1:u64, next:{ctr_hi:u64, ctr_lo:u64})
-function u01(low_lane:u64) -> f64   # strict-open (0,1), binary64
+function u01(low_lane:u64) -> f64   # strict-open (0,1), 
+function binary64_equal(a:f64, b:f64) -> bool
+function to_json_number(x:f64) -> number
+function hex_to_bytes(h:hex64) -> bytes[32]
 
 # Stable sort keys
 function key_by_merchant_id(s:map) -> tuple       # e.g., (s.merchant_id)
@@ -966,7 +971,7 @@ function V_Schema_trace(L, trace_file, chunk_size, sample_cap, schema_root) -> V
          add_sample(samples, sample_cap, {code:"IO.JSON_PARSE", shard:get_shard(line)}, key_by_counters)
          continue
       ok = validate_trace_schema(obj)
-      ok = ok and is_integer(obj.seed) and is_integer(obj.events_total)
+      ok = ok and is_integer(obj.seed) and is_integer(obj.events_total) and is_integer(obj.blocks_total) and is_integer(obj.draws_total)
       if not ok:
          fails += 1
          add_sample(samples, sample_cap, {code:"SCHEMA", before_hi:obj.rng_counter_before_hi, before_lo:obj.rng_counter_before_lo}, key_by_counters)
@@ -998,6 +1003,13 @@ function V_Partitions_check(L, events_glob, trace_file, chunk_size, sample_cap) 
 
   # Trace
   p = parse_partitions_from_path(trace_file)
+  # Path hygiene for trace: no fingerprint/module/label in path
+  if path_contains(trace_file, "fingerprint=") or
+     path_contains(trace_file, "module=") or
+     path_contains(trace_file, "substream_label="):
+      fails += 1
+      add_sample(samples, sample_cap, {code:"PARTITIONS_TRACE_PATH", path:trace_file}, key_by_counters)
+
   for batch in stream_jsonl(trace_file, chunk_size):
     for line in batch:
       obj = json_parse(line); checked += 1
@@ -1121,7 +1133,7 @@ function V_Substream_replay(L, events_glob, chunk_size, sample_cap) -> VResult
       if s.ctr_hi != e.rng_counter_before_hi or s.ctr_lo != e.rng_counter_before_lo:            
          fails += 1
          add_sample(samples, sample_cap, {code:"BASE_COUNTER_MISMATCH", merchant_id:m,
-                                          before_hi:e.envelope.rng_counter_before_hi, before_lo:e.envelope.rng_counter_before_lo,
+                                          before_hi:e.rng_counter_before_hi, before_lo:e.rng_counter_before_lo,
                                           expected_hi:s.ctr_hi, expected_lo:s.ctr_lo}, key_by_merchant_id)
          continue
       (dhi, dlo) = decimal_string_to_u128(e.draws)
@@ -1154,8 +1166,10 @@ function V_Substream_replay(L, events_glob, chunk_size, sample_cap) -> VResult
 function V_Trace_reconciliation(L, trace_file, events_glob, chunk_size, sample_cap) -> VResult
   # Build quick index of events by (before,after) counters and aggregates
   E = map<(u64,u64,u64,u64) -> {draws_u64:u64, merchant_id:u64}>()
-  sum_draws = (hi:0u64, lo:0u64); sum_blocks = 0u64; total_events = 0u64
+  sum_draws = (hi:0u64, lo:0u64); sum_draws_u64 = 0u64
+  sum_blocks = 0u64; total_events = 0u64
   first_before = null; last_after = null
+  samples = []; checked = 0; fails = 0   # move up so we can record index-time errors
 
   for batch in stream_jsonl(events_glob, chunk_size):
     for line in batch:
@@ -1164,14 +1178,21 @@ function V_Trace_reconciliation(L, trace_file, events_glob, chunk_size, sample_c
              e.rng_counter_after_hi,  e.rng_counter_after_lo)
       (dhi, dlo) = decimal_string_to_u128(e.draws)
       draws_u64  = u128_to_uint64_or_abort(dhi, dlo)   # hurdle: 0 or 1
-      E[key]     = {draws_u64:draws_u64, merchant_id:e.merchant_id}
+      if contains(E, key):
+         fails += 1
+         add_sample(samples, sample_cap, {code:"EVENT_KEY_DUP", before_hi:key.0, before_lo:key.1,
+                                          after_hi:key.2, after_lo:key.3,
+                                          m_prev:E[key].merchant_id, m_curr:e.merchant_id}, key_by_counters)
+      else:
+         E[key] = {draws_u64:draws_u64, merchant_id:e.merchant_id}
       if first_before == null: first_before = {hi:key.0, lo:key.1}
       last_after  = {hi:key.2, lo:key.3}
       sum_draws  = u128_add(sum_draws.hi, sum_draws.lo, dhi, dlo)
-      sum_blocks = sat_add_u64(sum_blocks, draws_u64)  # {0,1}
+      sum_draws_u64 = sat_add_u64(sum_draws_u64, draws_u64)  # saturating u64 mirror of Σdraws
+      sum_blocks = sat_add_u64(sum_blocks, draws_u64)        # {0,1}
       total_events += 1
 
-  samples = []; checked = 0; fails = 0
+  # continue with trace scan using the same (samples, checked, fails)
   events_total = 0u64; blocks_total = 0u64; draws_total = 0u64
 
   last_trace_after = null
@@ -1192,6 +1213,15 @@ function V_Trace_reconciliation(L, trace_file, events_glob, chunk_size, sample_c
       blocks_total = sat_add_u64(blocks_total, delta)
       draws_total  = sat_add_u64(draws_total, E[key].draws_u64)
       last_trace_after = {hi:key.2, lo:key.3}
+      # Check embedded cumulative totals match our running accumulators
+      if t.events_total != events_total or t.blocks_total != blocks_total or t.draws_total != draws_total:
+         fails += 1
+         add_sample(samples, sample_cap, {code:"TRACE_TOTALS_STEP",
+                                          before_hi:key.0, before_lo:key.1,
+                                          after_hi:key.2,  after_lo:key.3,
+                                          t_events:t.events_total, c_events:events_total,
+                                          t_blocks:t.blocks_total, c_blocks:blocks_total,
+                                          t_draws:t.draws_total,  c_draws:draws_total}, key_by_counters)
 
   # Final reconciliation against event aggregates
   metrics = {
@@ -1205,11 +1235,12 @@ function V_Trace_reconciliation(L, trace_file, events_glob, chunk_size, sample_c
   if size(seen_series) != 1 or
      events_total != total_events or
      blocks_total != sum_blocks or
-     draws_total != u128_to_uint64_or_abort(sum_draws.hi, sum_draws.lo) or
+     draws_total != sum_draws_u64 or
      (last_after != null and last_trace_after != null and (last_after.hi != last_trace_after.hi or last_after.lo != last_trace_after.lo)):
      fails += 1
-     add_sample(samples, sample_cap, {code:"TRACE_RECONCILE", events_total, total_events, blocks_total, sum_blocks, draws_total, sum_draws:u128_to_uint64_or_abort(sum_draws.hi, sum_draws.lo), series_count:size(seen_series)}, key_by_counters)
-
+     add_sample(samples, sample_cap, {code:"TRACE_RECONCILE", events_total, total_events, blocks_total, sum_blocks, draws_total,
+                                      sum_draws_sat:sum_draws_u64, series_count:size(seen_series)}, key_by_counters)
+                                      
   return make_result(V_TRACE, (fails==0), checked, fails, samples, metrics)
 ```
 
