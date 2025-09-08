@@ -1,8 +1,13 @@
+# S1.L3 — State-1 Validator Suite (Hurdle Bernoulli)
+
+* Scope: Validation layer for State-1 (rng audit, schema checks, partitions, cardinality, design/π recompute, budget identities, substream replay, trace reconciliation, and handoff preconditions) with deterministic publish of a PASS/FAIL bundle.
+* Inputs/outputs/types are consistent with S1.L0/L1/L2 and the frozen layer schemas.
+
 # 1) Purpose & scope
 
 **Purpose.** Prove a State-1 run is correct using **read-only** checks over the persisted artefacts. Concretely, L3 verifies that hurdle events and the cumulative RNG trace:
 
-* obey the **authoritative schema & envelope** (complete envelope, minimal payload; microsecond `ts_utc`; field types/encodings), and use the **correct dataset/partitions** (`seed/parameter_hash/run_id`) with **path ↔ embed equality**, keeping `module/substream_label` and `manifest_fingerprint` in the **envelope only**, not the path.
+* obey the **authoritative schema & envelope** (complete envelope, minimal payload; microsecond `ts_utc`; field types/encodings), and use the **correct dataset/partitions** (`seed/parameter_hash/run_id`) with **path ↔ embed equality**, keeping `module/substream_label` and `manifest_fingerprint` **out of dataset paths**.
 * satisfy **budget identities** per row (`u128(after)−u128(before)=decimal_string_to_u128(draws)`; for hurdle `draws∈{"0","1"}` and `blocks==u128_to_uint64_or_abort(decimal_string_to_u128(draws))`) and the **determinism law** (`π∈{0,1} ⇒ draws="0", u=null, deterministic=true`).
 * are **replayable**: rebuild the keyed **base counter** from `(seed, manifest_fingerprint, "hurdle_bernoulli", merchant_u64)` 
   where `merchant_u64 = merchant_u64_from_id64(merchant_id)`, and when `draws="1"` regenerate the single uniform (low-lane, strict-open `(0,1)`) so `(u<π)==is_multi`.
@@ -317,7 +322,7 @@ Outputs of validators 1–9; schema/model/validator version digests; numeric pro
 
 ---
 
-# 4) Outputs — Validation bundle (self-certifying) [Not sure if this should exist here]
+# 4) Outputs — Validation bundle (self-certifying)
 
 **Goal.** Emit a small, deterministic bundle that lets an operator (or CI) understand *exactly* what was checked, what passed/failed, and why—without touching the authoritative datasets.
 
@@ -453,12 +458,12 @@ Tiny provenance to make the bundle self-certifying:
 ## 5.6 Atomic publish & idempotency
 
 ```pseudocode
-tmp = mkdtemp()
-write(tmp/report.json)
-write(tmp/breadcrumbs.json)
-if all_pass: write(tmp/_passed.flag)
-if any_fail: write(tmp/failures.jsonl)
-fsync(tmp); rename(tmp, final_path)   # atomic dir swap
+tmp = mkdtemp_near(final_path)
+write_file(path_join(tmp, "report.json"),      report_bytes)
+write_file(path_join(tmp, "breadcrumbs.json"), breadcrumbs_bytes)
+if all_pass: write_file(path_join(tmp, "_passed.flag"), passed_flag_bytes)
+if any_fail: write_file(path_join(tmp, "failures.jsonl"), failures_jsonl_or_empty)
+fsync_dir(tmp); atomic_rename(tmp, final_path)   # atomic dir swap
 ```
 
 * Re-running with identical inputs regenerates **byte-identical** bundle files.
@@ -564,7 +569,7 @@ Each failing sample in `failures.jsonl` includes `validator_id`, `class`, `code 
 
 ---
 
-# 7) Validator Orchestrator Stub
+# 8) Validator Orchestrator Stub
 
 ```pseudocode
 # ---------------------------------------------
@@ -747,7 +752,7 @@ function publish_bundle(L:RunLineage, C, VZ, M:set<u64>, res:list<VResult>, fail
                manifest_fingerprint:L.manifest_fingerprint, run_id:L.run_id },
     metrics: metrics,
     validators: to_map(res),            # id → {status, checked_rows, failures_count, samples}
-    reason: (|M| == 0 ? "empty_universe" : null),
+    reason: (size(M) == 0 ? "empty_universe" : null),
     generated_at_utc: now_utc_microseconds(),
     version: { schema_commit:VZ.schema_commit, validator_commit:VZ.validator_commit,
                numeric_profile:VZ.numeric_profile }
@@ -843,6 +848,8 @@ function compute_metrics(L, res:list<VResult>, M_expected:set<u64>) -> map
 
 ## Common bits (helpers & result builder)
 
+*Scope note:* **Core RNG and encoding helpers are imported from S1.L0** (e.g., `derive_master_material`, `derive_substream`, `philox_block`, `u01`, `decimal_string_to_u128`, `sat_add_u64`). **Do not reimplement them here.** The remaining names below are small, validator-local shims (JSON/FS predicates, formatting, sorting) that are intentionally defined in L3 for convenience.
+
 ```pseudocode
 struct VResult {
   id: VId
@@ -874,11 +881,31 @@ function add_sample(samples:list<map>, cap:u32, item:map, key:fn(map)->tuple)
 function stream_jsonl(glob_or_file:string, chunk_size:u32) -> iterator<list<string>>
   # yields lists of raw lines (up to chunk_size) across all matching shards/files
 
+# Host shims & JSON helpers (read-only where noted)
+function file_exists(path:string) -> bool                  # existence check (alias of S0-L3 exists)
+function read_single_line(path:string) -> string           # exactly one line; used by V-Gate
+function json_parse(line:string) -> map
+function safe_json_parse(line:string) -> map | ERROR
+function json_encode(x:any) -> bytes
+function json_encode_sorted(x:any) -> bytes               # stable key order for report/breadcrumbs
+function now_utc_microseconds() -> string                 # RFC3339 with exactly 6 fractional digits
+function sha256_hex(b:bytes) -> bytes
+function glob_files(pattern:string) -> list<string>
+function path_contains(path:string, needle:string) -> bool
+function get_shard(line_or_path:any) -> string
+function to_map(res:list<VResult>) -> map                 # id → {status, checked_rows, failures_count, samples}
+function path_join(parts:...) -> string
+function mkdtemp_near(final_dir:string) -> string
+function write_file(path:string, b:bytes)
+function fsync_dir(dir:string)
+function atomic_rename(tmp:string, final:string)
+
 # Schema helpers (placeholders; strict validation)
 function validate_event_schema(obj:map) -> bool
 function validate_trace_schema(obj:map) -> bool
 function ts_has_exact_microseconds(ts:string) -> bool
 function json_number_roundtrips_to_same_binary64(x:any) -> bool
+function is_integer(x:any) -> bool
 
 # Partitions helper
 function parse_partitions_from_path(path:string) -> {seed:u64, parameter_hash:hex64, run_id:hex32}
@@ -896,10 +923,11 @@ function sat_add_u64(a:u64, b:u64) -> u64    # saturating addition on u64
 function derive_master_material(seed:u64, manifest_fingerprint_bytes:bytes[32]) -> (M:any, root_key:u64, root_ctr:{hi:u64,lo:u64})
 function derive_substream(M:any, label:string, ids:tuple) -> {ctr_hi:u64, ctr_lo:u64}
 function philox_block(stream:{ctr_hi:u64, ctr_lo:u64}) -> (x0:u64, x1:u64, next:{ctr_hi:u64, ctr_lo:u64})
-function u01(low_lane:u64) -> f64   # strict-open (0,1), 
+function u01(low_lane:u64) -> f64   # strict-open (0,1), binary64
 function binary64_equal(a:f64, b:f64) -> bool
 function to_json_number(x:f64) -> number
 function hex_to_bytes(h:hex64) -> bytes[32]
+function merchant_u64_from_id64(id:u64) -> u64            # typed id helper used by substream replay
 
 # Stable sort keys
 function key_by_merchant_id(s:map) -> tuple       # e.g., (s.merchant_id)
