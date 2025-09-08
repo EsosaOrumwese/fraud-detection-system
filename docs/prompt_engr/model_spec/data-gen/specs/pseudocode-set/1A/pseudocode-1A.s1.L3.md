@@ -4,11 +4,14 @@
 
 * obey the **authoritative schema & envelope** (complete envelope, minimal payload; microsecond `ts_utc`; field types/encodings), and use the **correct dataset/partitions** (`seed/parameter_hash/run_id`) with **path ↔ embed equality**, keeping `module/substream_label` and `manifest_fingerprint` in the **envelope only**, not the path.
 * satisfy **budget identities** per row (`u128(after)−u128(before)=decimal_string_to_u128(draws)`; for hurdle `draws∈{"0","1"}` and `blocks==u128_to_uint64_or_abort(decimal_string_to_u128(draws))`) and the **determinism law** (`π∈{0,1} ⇒ draws="0", u=null, deterministic=true`).
-* are **replayable**: rebuild the keyed **base counter** from `(seed, manifest_fingerprint, "hurdle_bernoulli", merchant_id)`, and when `draws="1"` regenerate the single uniform (low-lane, strict-open `(0,1)`) so `(u<π)==is_multi`.
+* are **replayable**: rebuild the keyed **base counter** from `(seed, manifest_fingerprint, "hurdle_bernoulli", merchant_u64)` 
+  where `merchant_u64 = merchant_u64_from_id64(merchant_id)`, and when `draws="1"` regenerate the single uniform (low-lane, strict-open `(0,1)`) so `(u<π)==is_multi`.
 * reconcile with the **cumulative trace** per `(module, substream_label)` (no merchant dimension): cumulative `events_total`, `blocks_total`, `draws_total` are consistent with the event stream and with the **counter delta** on the final trace row.
 * meet **cardinality/uniqueness** (one hurdle row per merchant; count equals ingress universe) and **branch purity/gating** (downstream 1A RNG streams present **iff** hurdle `is_multi=true`, discovered via the registry filter).
 
 **Nature.** L3 is deterministic and idempotent: it reads artefacts, recomputes/compares (including exact binary64 for `π`/`u`), and emits a verdict/report bundle. It **does not** mutate event/trace datasets or “fix” anything.
+
+**Record shape (events).** Each hurdle event row is a **single flat JSON object** containing both envelope and payload fields at top level (no `envelope`/`payload` nesting). Validators must read fields directly (e.g., `ts_utc`, `merchant_id`, `draws`, `blocks`, `rng_counter_*`). 
 
 ---
 
@@ -69,7 +72,7 @@
 
 ## 2. V-Schema — Event & trace line validity
 
-**Intent.** Every hurdle **event** line and every **trace** line must validate against the authoritative layer schemas; enforce typing rules: JSON integers for ids/counters; `pi`/`u` as JSON numbers; `ts_utc` microsecond precision.
+**Intent.** Every hurdle **event** line and every **trace** line must validate against the authoritative layer schemas; enforce typing rules: **`seed` is a JSON integer; `run_id`/`parameter_hash`/`manifest_fingerprint` are hex strings; counters/totals are JSON integers; `pi`/`u` are JSON numbers; `ts_utc` has microsecond precision.** For the trace, only **`seed` and `run_id`** are embedded; **`parameter_hash` is path-only**.
 
 **Inputs.**
 
@@ -89,7 +92,7 @@
 
 **Algorithm (sketch).**
 
-1. Stream shards; for each line, validate against the corresponding schema anchor (strict mode).
+1. Stream shards; for each line, validate against the corresponding schema anchor (strict mode). 
 2. For events, additionally check `ts_utc` microsecond format and the **binary64 round-trip** property for `pi`/`u` (parse→format→parse yields identical bits).
 
 ---
@@ -181,7 +184,7 @@ Per-event counters (`rng_counter_*`), `draws` (decimal u128 string), `blocks` (u
 
 ## 7. V-Substream replay
 
-**Intent.** Rebuild the keyed **base counter** for `(seed, manifest_fingerprint, "hurdle_bernoulli", merchant_id)` using S0’s substream mapping; ensure it equals the envelope’s `before`. If `draws="1"`, regenerate the single uniform (low-lane, strict-open `u01`) and check `u` and decision `(u<π)==is_multi`.
+**Intent.** Rebuild the keyed **base counter** for `(seed, manifest_fingerprint, "hurdle_bernoulli", merchant_u64)` (with `merchant_u64 = merchant_u64_from_id64(merchant_id)`) using S0’s substream mapping; ensure it equals the envelope’s `before`. If `draws="1"`, regenerate the single uniform (low-lane, strict-open `u01`) and check `u` and decision `(u<π)==is_multi`.
 
 **Inputs.**
 Run lineage keys, event envelope counters, payload `u`, `pi`, `is_multi`. L0 substream/PRNG primitives (`derive_substream`, `philox_block`, `u01`, low-lane policy).
@@ -196,7 +199,9 @@ Run lineage keys, event envelope counters, payload `u`, `pi`, `is_multi`. L0 sub
 
 **Algorithm (sketch).**
 
-1. For each merchant: `s = derive_substream(master(seed, fingerprint), "hurdle_bernoulli", (merchant_id))`; assert `s.ctr == before`.
+1. For each merchant: compute `merchant_u64 = merchant_u64_from_id64(merchant_id)`, then
+   `s = derive_substream( derive_master_material(seed, fingerprint_bytes), "hurdle_bernoulli", (merchant_u64) )`;
+   assert `s.ctr == before`.
 2. If `draws="1"`: `(x0, x1, s1) = philox_block(s)`; `u = u01(x0)`; assert binary64 equality with payload `u` and decision `(u<π)==is_multi`; assert `s1.ctr == after`.
 3. If `draws="0"`: assert `after==before` and `u==null`.
 
@@ -886,8 +891,9 @@ function u128_delta(after_hi:u64, after_lo:u64, before_hi:u64, before_lo:u64) ->
 function u128_to_uint64_or_abort(hi:u64, lo:u64) -> u64
 
 # RNG replay helpers (placeholders; identical to S0/S1 kernels)
-function derive_substream(seed:u64, manifest_fingerprint:hex64, label:string, merchant_id:u64) -> {ctr_hi:u64, ctr_lo:u64}
-function philox_block(ctr_hi:u64, ctr_lo:u64) -> {lane0:u64, lane1:u64, next_hi:u64, next_lo:u64}
+function derive_master_material(seed:u64, manifest_fingerprint_bytes:bytes[32]) -> (M:any, root_key:u64, root_ctr:{hi:u64,lo:u64})
+function derive_substream(M:any, label:string, ids:tuple) -> {ctr_hi:u64, ctr_lo:u64}
+function philox_block(stream:{ctr_hi:u64, ctr_lo:u64}) -> (x0:u64, x1:u64, next:{ctr_hi:u64, ctr_lo:u64})
 function u01(low_lane:u64) -> f64   # strict-open (0,1), binary64
 
 # Stable sort keys
@@ -932,15 +938,15 @@ function V_Schema_events(L, events_glob, chunk_size, sample_cap, schema_root) ->
          add_sample(samples, sample_cap, {code:"IO.JSON_PARSE", shard:get_shard(line)}, key_by_merchant_id)
          continue
       ok = validate_event_schema(obj)
-      ok = ok and ts_has_exact_microseconds(obj.envelope.ts_utc)
-      ok = ok and is_integer(obj.payload.merchant_id)
-      ok = ok and is_integer(obj.envelope.seed)
-      ok = ok and json_number_roundtrips_to_same_binary64(obj.payload.pi)
-      if obj.payload.u != null:
-          ok = ok and json_number_roundtrips_to_same_binary64(obj.payload.u)
+      ok = ok and ts_has_exact_microseconds(obj.ts_utc)
+      ok = ok and is_integer(obj.merchant_id)
+      ok = ok and is_integer(obj.seed)
+      ok = ok and json_number_roundtrips_to_same_binary64(obj.pi)
+      if obj.u != null:
+          ok = ok and json_number_roundtrips_to_same_binary64(obj.u)
       if not ok:
          fails += 1
-         add_sample(samples, sample_cap, {code:"SCHEMA", merchant_id:obj.payload.merchant_id}, key_by_merchant_id)
+         add_sample(samples, sample_cap, {code:"SCHEMA", merchant_id:obj.merchant_id}, key_by_merchant_id)
       checked += 1
   return make_result(V_SCHEMA_EVENTS, (fails==0), checked, fails, samples, null)
 ```
@@ -982,13 +988,13 @@ function V_Partitions_check(L, events_glob, trace_file, chunk_size, sample_cap) 
     for batch in stream_jsonl(shard, chunk_size):
       for line in batch:
         obj = json_parse(line); checked += 1
-        ok = (obj.envelope.seed == p.seed and obj.envelope.parameter_hash == p.parameter_hash and obj.envelope.run_id == p.run_id)
+        ok = (obj.seed == p.seed and obj.parameter_hash == p.parameter_hash and obj.run_id == p.run_id)
         ok = ok and (not path_contains(shard, "fingerprint="))
         ok = ok and (not path_contains(shard, "module=") and not path_contains(shard, "substream_label="))
-        ok = ok and (obj.envelope.module == "1A.hurdle_sampler" and obj.envelope.substream_label == "hurdle_bernoulli")
+        ok = ok and (obj.module == "1A.hurdle_sampler" and obj.substream_label == "hurdle_bernoulli")
         if not ok:
           fails += 1
-          add_sample(samples, sample_cap, {code:"PARTITIONS", merchant_id:obj.payload.merchant_id, path_seed:p.seed, embed_seed:obj.envelope.seed}, key_by_merchant_id)
+          add_sample(samples, sample_cap, {code:"PARTITIONS", merchant_id:obj.merchant_id, path_seed:p.seed, embed_seed:obj.seed}, key_by_merchant_id)
 
   # Trace
   p = parse_partitions_from_path(trace_file)
@@ -1016,7 +1022,7 @@ function V_Cardinality_uniqueness(L, events_glob, M_expected:set<u64>, chunk_siz
   for batch in stream_jsonl(events_glob, chunk_size):
     for line in batch:
       obj = json_parse(line); checked += 1
-      m = obj.payload.merchant_id
+      m = obj.merchant_id
       if m in seen:
          add(dups, m)
       else:
@@ -1047,7 +1053,7 @@ function V_Design_and_pi_recompute(L, events_glob, beta_yaml, design_store, chun
   for batch in stream_jsonl(events_glob, chunk_size):
     for line in batch:
       e = json_parse(line); checked += 1
-      m = e.payload.merchant_id
+      m = e.merchant_id
       x = load_design_vector(design_store, m)               # S0.5 materialized vector
       if length(x) != length(beta):
          fails += 1
@@ -1058,11 +1064,11 @@ function V_Design_and_pi_recompute(L, events_glob, beta_yaml, design_store, chun
          fails += 1
          add_sample(samples, sample_cap, {code:"NUM_NONFINITE_ETA", merchant_id:m}, key_by_merchant_id)
          continue
-      pi_re = sigmoid_two_branch(eta)
+      pi_re = logistic_branch_stable(eta)
       # binary64-exact compare with persisted pi
-      if not binary64_equal(pi_re, e.payload.pi):
+      if not binary64_equal(pi_re, e.pi):
          fails += 1
-         add_sample(samples, sample_cap, {code:"PI_MISMATCH", merchant_id:m, expected:to_json_number(pi_re), observed:to_json_number(e.payload.pi)}, key_by_merchant_id)
+         add_sample(samples, sample_cap, {code:"PI_MISMATCH", merchant_id:m, expected:to_json_number(pi_re), observed:to_json_number(e.pi)}, key_by_merchant_id)
   return make_result(V_DESIGN_PI, (fails==0), checked, fails, samples, null)
 ```
 
@@ -1076,24 +1082,24 @@ function V_Budget_identities(L, events_glob, chunk_size, sample_cap) -> VResult
   for batch in stream_jsonl(events_glob, chunk_size):
     for line in batch:
       e = json_parse(line); checked += 1
-      before = make_u128(e.envelope.rng_counter_before_hi, e.envelope.rng_counter_before_lo)
-      after  = make_u128(e.envelope.rng_counter_after_hi,  e.envelope.rng_counter_after_lo)
-      (dhi, dlo) = decimal_string_to_u128(e.envelope.draws)   # "0" or "1" for hurdle
+      before = make_u128(e.rng_counter_before_hi, e.rng_counter_before_lo)
+      after  = make_u128(e.rng_counter_after_hi,  e.rng_counter_after_lo)
+      (dhi, dlo) = decimal_string_to_u128(e.draws)   # "0" or "1" for hurdle
       (Δhi, Δlo) = u128_sub(after.hi, after.lo, before.hi, before.lo)
       ok = u128_eq(Δhi, Δlo, dhi, dlo) and
-           (e.envelope.blocks == u128_to_uint64_or_abort(dhi, dlo))
-      if e.payload.pi == 0.0 or e.payload.pi == 1.0:
-         ok = ok and (e.payload.u == null) and e.payload.deterministic
-         ok = ok and ( (e.payload.pi == 1.0 and e.payload.is_multi==true) or
-                       (e.payload.pi == 0.0 and e.payload.is_multi==false) )
+           (e.blocks == u128_to_uint64_or_abort(dhi, dlo))
+      if e.pi == 0.0 or e.pi == 1.0:
+         ok = ok and (e.u == null) and e.deterministic
+         ok = ok and ( (e.pi == 1.0 and e.is_multi==true) or
+                       (e.pi == 0.0 and e.is_multi==false) )
       else:
-         ok = ok and (e.payload.u != null) and (0.0 < e.payload.u and e.payload.u < 1.0) and (e.payload.deterministic==false)
-         ok = ok and ( (e.payload.u < e.payload.pi) == e.payload.is_multi )
+         ok = ok and (e.u != null) and (0.0 < e.u and e.u < 1.0) and (e.deterministic==false)
+         ok = ok and ( (e.u < e.pi) == e.is_multi )
       if not ok:
          fails += 1
-         add_sample(samples, sample_cap, {code:"BUDGET_OR_LAW", merchant_id:e.payload.merchant_id,
-                                          before_hi:e.envelope.rng_counter_before_hi, before_lo:e.envelope.rng_counter_before_lo,
-                                          after_hi:e.envelope.rng_counter_after_hi, after_lo:e.envelope.rng_counter_after_lo}, key_by_merchant_id)
+         add_sample(samples, sample_cap, {code:"BUDGET_OR_LAW", merchant_id:e.merchant_id,
+                                          before_hi:e.rng_counter_before_hi, before_lo:e.rng_counter_before_lo,
+                                          after_hi:e.rng_counter_after_hi, after_lo:e.rng_counter_after_lo}, key_by_merchant_id)
   return make_result(V_BUDGET, (fails==0), checked, fails, samples, null)
 ```
 
@@ -1107,32 +1113,34 @@ function V_Substream_replay(L, events_glob, chunk_size, sample_cap) -> VResult
   for batch in stream_jsonl(events_glob, chunk_size):
     for line in batch:
       e = json_parse(line); checked += 1
-      m = e.payload.merchant_id
-      # Reconstruct base counter from lineage and label
-      s = derive_substream(L.seed, L.manifest_fingerprint, "hurdle_bernoulli", m)
-      if s.ctr_hi != e.envelope.rng_counter_before_hi or s.ctr_lo != e.envelope.rng_counter_before_lo:
+      m = e.merchant_id
+      # Reconstruct base counter from lineage and label (typed id)
+      mu = merchant_u64_from_id64(m)      
+      M  = derive_master_material(L.seed, hex_to_bytes(L.manifest_fingerprint))
+      s  = derive_substream(M, "hurdle_bernoulli", [ { tag:"merchant_u64", value: mu } ])
+      if s.ctr_hi != e.rng_counter_before_hi or s.ctr_lo != e.rng_counter_before_lo:            
          fails += 1
          add_sample(samples, sample_cap, {code:"BASE_COUNTER_MISMATCH", merchant_id:m,
                                           before_hi:e.envelope.rng_counter_before_hi, before_lo:e.envelope.rng_counter_before_lo,
                                           expected_hi:s.ctr_hi, expected_lo:s.ctr_lo}, key_by_merchant_id)
          continue
-      (dhi, dlo) = decimal_string_to_u128(e.envelope.draws)
+      (dhi, dlo) = decimal_string_to_u128(e.draws)
       if u128_to_uint64_or_abort(dhi, dlo) == 1:
-         blk = philox_block(s.ctr_hi, s.ctr_lo)
-         u   = u01(blk.lane0)    # low-lane policy (strict-open)
+         (x0, x1, s1) = philox_block(s)
+         u   = u01(x0)    # low-lane policy (strict-open)
          # binary64-exact equality
-         if not binary64_equal(u, e.payload.u) or ((u < e.payload.pi) != e.payload.is_multi):
+         if not binary64_equal(u, e.u) or ((u < e.pi) != e.is_multi):
             fails += 1
             add_sample(samples, sample_cap, {code:"REPLAY_MISMATCH", merchant_id:m,
-                                             u_expected:to_json_number(u), u_observed:to_json_number(e.payload.u)}, key_by_merchant_id)
-         # after must match next counter
-         if blk.next_hi != e.envelope.rng_counter_after_hi or blk.next_lo != e.envelope.rng_counter_after_lo:
+                                             u_expected:to_json_number(u), u_observed:to_json_number(e.u)}, key_by_merchant_id)
+         # after must match the next stream counter
+         if s1.ctr_hi != e.rng_counter_after_hi or s1.ctr_lo != e.rng_counter_after_lo:
             fails += 1
             add_sample(samples, sample_cap, {code:"AFTER_COUNTER_MISMATCH", merchant_id:m}, key_by_merchant_id)
       else:  # draws == 0
-         if e.payload.u != null or e.payload.deterministic != true or
-            (e.envelope.rng_counter_after_hi != e.envelope.rng_counter_before_hi) or
-            (e.envelope.rng_counter_after_lo != e.envelope.rng_counter_before_lo):
+         if e.u != null or e.deterministic != true or
+            (e.rng_counter_after_hi != e.rng_counter_before_hi) or
+            (e.rng_counter_after_lo != e.rng_counter_before_lo):
             fails += 1
             add_sample(samples, sample_cap, {code:"DETERMINISTIC_BRANCH", merchant_id:m}, key_by_merchant_id)
   return make_result(V_SUBSTREAM, (fails==0), checked, fails, samples, null)
@@ -1152,11 +1160,11 @@ function V_Trace_reconciliation(L, trace_file, events_glob, chunk_size, sample_c
   for batch in stream_jsonl(events_glob, chunk_size):
     for line in batch:
       e = json_parse(line)
-      key = (e.envelope.rng_counter_before_hi, e.envelope.rng_counter_before_lo,
-             e.envelope.rng_counter_after_hi,  e.envelope.rng_counter_after_lo)
-      (dhi, dlo) = decimal_string_to_u128(e.envelope.draws)
+      key = (e.rng_counter_before_hi, e.rng_counter_before_lo,
+             e.rng_counter_after_hi,  e.rng_counter_after_lo)
+      (dhi, dlo) = decimal_string_to_u128(e.draws)
       draws_u64  = u128_to_uint64_or_abort(dhi, dlo)   # hurdle: 0 or 1
-      E[key]     = {draws_u64:draws_u64, merchant_id:e.payload.merchant_id}
+      E[key]     = {draws_u64:draws_u64, merchant_id:e.merchant_id}
       if first_before == null: first_before = {hi:key.0, lo:key.1}
       last_after  = {hi:key.2, lo:key.3}
       sum_draws  = u128_add(sum_draws.hi, sum_draws.lo, dhi, dlo)
@@ -1166,9 +1174,12 @@ function V_Trace_reconciliation(L, trace_file, events_glob, chunk_size, sample_c
   samples = []; checked = 0; fails = 0
   events_total = 0u64; blocks_total = 0u64; draws_total = 0u64
 
+  last_trace_after = null
+  seen_series = set<(string,string)>()   # (module, substream_label)
   for batch in stream_jsonl(trace_file, chunk_size):
     for line in batch:
       t = json_parse(line); checked += 1
+      add(seen_series, (t.module, t.substream_label))
       key = (t.rng_counter_before_hi, t.rng_counter_before_lo, t.rng_counter_after_hi, t.rng_counter_after_lo)
       if not contains(E, key):
          fails += 1
@@ -1180,6 +1191,7 @@ function V_Trace_reconciliation(L, trace_file, events_glob, chunk_size, sample_c
       delta        = u128_to_uint64_or_abort(dhi, dlo)   # 0 or 1 here
       blocks_total = sat_add_u64(blocks_total, delta)
       draws_total  = sat_add_u64(draws_total, E[key].draws_u64)
+      last_trace_after = {hi:key.2, lo:key.3}
 
   # Final reconciliation against event aggregates
   metrics = {
@@ -1190,11 +1202,13 @@ function V_Trace_reconciliation(L, trace_file, events_glob, chunk_size, sample_c
     draws_total: draws_total
   }
 
-  if events_total != total_events or blocks_total != sum_blocks or draws_total != to_u64(sum_draws) or
-     (last_after != null and (last_after.hi != key.2 or last_after.lo != key.3) == false): 
-     # (the last clause is a no-op placeholder if you don't keep the last trace line separately)
+  if size(seen_series) != 1 or
+     events_total != total_events or
+     blocks_total != sum_blocks or
+     draws_total != u128_to_uint64_or_abort(sum_draws.hi, sum_draws.lo) or
+     (last_after != null and last_trace_after != null and (last_after.hi != last_trace_after.hi or last_after.lo != last_trace_after.lo)):
      fails += 1
-     add_sample(samples, sample_cap, {code:"TRACE_RECONCILE", events_total, total_events, blocks_total, sum_blocks, draws_total, sum_draws:to_u64(sum_draws)}, key_by_counters)
+     add_sample(samples, sample_cap, {code:"TRACE_RECONCILE", events_total, total_events, blocks_total, sum_blocks, draws_total, sum_draws:u128_to_uint64_or_abort(sum_draws.hi, sum_draws.lo), series_count:size(seen_series)}, key_by_counters)
 
   return make_result(V_TRACE, (fails==0), checked, fails, samples, metrics)
 ```
@@ -1209,7 +1223,7 @@ function V_Handoff_preconditions(L, events_glob, home_iso_of:map<u64,string>, ch
   for batch in stream_jsonl(events_glob, chunk_size):
     for line in batch:
       e = json_parse(line); checked += 1
-      m = e.payload.merchant_id
+      m = e.merchant_id
       # C* equals post counter
       C_star_ok = true  # (always true here; we read post counters from the event itself)
       # home_iso present & valid
@@ -1218,9 +1232,9 @@ function V_Handoff_preconditions(L, events_glob, home_iso_of:map<u64,string>, ch
          fails += 1
          add_sample(samples, sample_cap, {code:"HOME_ISO_INVALID", merchant_id:m, home_iso:iso}, key_by_merchant_id)
       # is_multi consistency (redundant with other validators but kept here for the handoff view)
-      ok_multi = ( (e.payload.pi == 1.0 and e.payload.is_multi==true and e.payload.u==null) or
-                   (e.payload.pi == 0.0 and e.payload.is_multi==false and e.payload.u==null) or
-                   (0.0 < e.payload.pi and e.payload.pi < 1.0 and e.payload.u != null and (e.payload.u < e.payload.pi) == e.payload.is_multi) )
+      ok_multi = ( (e.pi == 1.0 and e.is_multi==true and e.u==null) or
+                   (e.pi == 0.0 and e.is_multi==false and e.u==null) or
+                   (0.0 < e.pi and e.pi < 1.0 and e.u != null and (e.u < e.pi) == e.is_multi) )
       if not ok_multi:
          fails += 1
          add_sample(samples, sample_cap, {code:"HANDOFF_IS_MULTI", merchant_id:m}, key_by_merchant_id)
