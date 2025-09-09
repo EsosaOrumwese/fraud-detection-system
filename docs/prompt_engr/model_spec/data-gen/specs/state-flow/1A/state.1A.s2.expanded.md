@@ -1,161 +1,141 @@
-# S2.1 — Scope, Preconditions, and Inputs (final, implementation-ready)
+# S2.1 — Scope, Preconditions, and Inputs (implementation-ready)
 
 ## 1) Scope & intent
 
-S2 samples the **home-country (domestic) multi-site outlet count** $N_m$ for merchants that cleared S1 as **multi-site**. S2 is stochastic (NB via Poisson–Gamma); **S2.1 itself is deterministic** — it gates eligibility and assembles the exact numeric inputs required by S2.2–S2.5. Single-site merchants **do not** enter S2.
-
-**Terminology note.** “Domestic” here means the **home-country** total **pre-split** anchor used by S3/S4; foreign outlets (if any) are added later and logged under their own streams. The NB **final** event emitted by S2 is authoritative for domestic count and is never re-sampled downstream.
+S2 generates the **total pre-split multi-site outlet count** $N_m$ for merchants that passed the hurdle as **multi-site** in S1. It is a *stochastic* state (NB via Poisson–Gamma), but **S2.1 itself** is deterministic: it gates who enters S2 and assembles the numeric inputs needed for S2.2–S2.5. Only merchants with `is_multi=1` (per S1’s authoritative event) may enter S2; single-site merchants bypass S2 entirely.
 
 ---
 
 ## 2) Entry preconditions (MUST)
 
-For merchant $m$ to enter S2:
+For a merchant $m$ to enter S2:
 
-1. **Canonical hurdle record present & positive.** Exactly one hurdle event exists in
-   `logs/rng/events/hurdle_bernoulli/...` with payload `is_multi=true` for $m$. Absence or `is_multi=false` ⇒ S2 MUST NOT run for $m$. This is the **only** gate.
-2. **Branch-purity guarantee.** If `is_multi=false`, **no S2 events** for $m$ may exist; any presence is a structural failure (validator enforces).
-3. **Lineage anchors available.** The process exposes `seed`, `parameter_hash`, and `manifest_fingerprint` for envelope joins later. (All S2 streams are partitioned by `{seed, parameter_hash, run_id}` per dictionary.)
+1. **Hurdle provenance.** There exists exactly one S1 event record under
+   `logs/rng/events/hurdle_bernoulli/…` with the merchant key and payload containing `is_multi=true`. This is the canonical gate from S1. **Absence** or `is_multi=false` ⇒ S2 MUST NOT run for $m$. (Branch purity.)
+2. **Branch purity guarantee.** For `is_multi=0`, **no S2 events** may exist for $m$ in any stream; any presence constitutes a structural failure detected by validation.
+3. **Lineage anchors available.** The run exposes `run_id`, `seed`, `parameter_hash`, and `manifest_fingerprint` (used in RNG envelopes and joins). S2.1 **does not** recompute any lineage keys.
 
 **Abort codes (preflight):**
 
-* `ERR_S2_ENTRY_MISSING_HURDLE` — no hurdle record for $m$.
-* `ERR_S2_ENTRY_NOT_MULTI` — hurdle record exists but `is_multi=false`.
-
-Either abort **skips S2** for $m$ and will surface under branch-purity checks in validation.
+* `ERR_S2_ENTRY_NOT_MULTI` — hurdle present but `is_multi=false`.
+* `ERR_S2_ENTRY_MISSING_HURDLE` — no S1 hurdle record for $m$.
+* On either, S2 is **skipped** for $m$ (no S2 emission); the global validator will also enforce branch purity.
 
 ---
 
 ## 3) Mathematical inputs (MUST)
 
-### 3.1 Fixed design vectors (prepared in S0; re-assembled here)
+For each $m$ that satisfies the preconditions:
+
+### 3.1 Design vectors (from S0/S1 encoders; column order frozen)
+
+Form the **fixed** design vectors using the frozen one-hot encoders and column dictionaries established in S0/S1 (no re-definition here):
 
 $$
-\boxed{x^{(\mu)}_m=\big[1,\ \phi_{\mathrm{mcc}}(\texttt{mcc}_m),\ \phi_{\mathrm{ch}}(\texttt{channel}_m)\big]^\top},\quad
-\boxed{x^{(\phi)}_m=\big[1,\ \phi_{\mathrm{mcc}}(\texttt{mcc}_m),\ \phi_{\mathrm{ch}}(\texttt{channel}_m),\ \log g_c\big]^\top}.
+\boxed{x^{(\mu)}_m=\big[1,\ \Phi_{\mathrm{mcc}}(\texttt{mcc}_m),\ \Phi_{\mathrm{ch}}(\texttt{channel\_sym}_m)\big]^\top},\quad
+\boxed{x^{(\phi)}_m=\big[1,\ \Phi_{\mathrm{mcc}}(\texttt{mcc}_m),\ \Phi_{\mathrm{ch}}(\texttt{channel\_sym}_m),\ \ln g_c\big]^\top}.
 $$
 
-Where $g_c>0$ is GDP-per-capita for the **home** ISO $c=\texttt{home_country_iso}_m$. NB **mean** excludes GDP; NB **dispersion** includes $\log g_c$. Column order and dummy encodings are frozen by the fitting bundle.
+* $g_c$ is the GDP-per-capita scalar for the **home country** $c=\texttt{home_country_iso}_m$; the GDP term is **excluded** from the mean and **included** in the dispersion. Its sign and magnitude are exactly those encoded in the governed $\beta_\phi$ (§3.2).
 
-### 3.2 Coefficient vectors (governed artefacts; parameter-scoped)
+**Domain & shapes:** $\Phi_{\mathrm{mcc}},\ \Phi_{\mathrm{ch}}$ are fixed-length **one-hot blocks** (sum to 1; column order frozen by the fitting bundle). $g_c>0$ so that $\ln g_c$ is defined. *(Here and below, $\ln$ denotes the natural log.)*
 
-* **NB mean coefficients $\beta_\mu$** are loaded from **`hurdle_coefficients.yaml`** (the **nb-mean** block lives alongside the logistic vector; one provenance point), keyed by `parameter_hash`.
-* **NB dispersion coefficients $\beta_\phi$** are loaded from **`nb_dispersion_coefficients.yaml`**, also keyed by `parameter_hash`.
+**FKs (deterministic):**
+`mcc_m` and `channel_sym_m` come from ingress/S0 feature prep; $g_c$ is keyed by `home_country_iso`. (S0 established these and the parameter lineage via `parameter_hash`.)
 
-> Rationale: the assumptions explicitly state that logistic (hurdle) and **NB mean** coefficients co-reside in the same YAML, while dispersion lives in its own YAML. This removes the ambiguity around an “`hurdle_nb.beta_mu`” pseudo-source.
+### 3.2 Coefficient vectors (governed artefacts)
 
-### 3.3 RNG discipline & authoritative streams (for later S2 steps)
+Load the **approved** coefficient vectors $\beta_\mu$ and $\beta_\phi$ from governed artefacts referenced by the run’s `parameter_hash`. Concretely: NB-mean coefficients from `hurdle_coefficients.yaml` (**key:** `beta_mu`), and NB-dispersion coefficients from `nb_dispersion_coefficients.yaml` (**key:** `beta_phi`). These are the only sources used to compute $\mu_m,\phi_m$ in S2.2.
 
-Pin the contracts S2.3–S2.5 will use:
+### 3.3 RNG discipline & authoritative schemas (for later S2 steps)
 
-* **RNG:** Philox $2\times64$-10 with the **shared RNG envelope** (`seed, parameter_hash, manifest_fingerprint, module, substream_label, rng_counter_before_*, rng_counter_after_*`).
-* **Authoritative event streams (JSONL):**
+Pin the RNG/stream contracts that S2.3–S2.5 will rely on:
 
-  * `gamma_component` (context=`"nb"`) → `schemas.layer1.yaml#/rng/events/gamma_component`. **Produced by** `1A.nb_and_dirichlet_sampler`.
-  * `poisson_component` (context=`"nb"`) → `#/rng/events/poisson_component`. **Produced by** `1A.nb_poisson_component`.
-  * `nb_final` (accepted NB outcome) → `#/rng/events/nb_final`. **Produced by** `1A.nb_sampler`.
-
-All streams are partitioned by `{seed, parameter_hash, run_id}` as per the dataset dictionary. S2.1 **does not** write to any of them.
+* **RNG:** Philox $2\times 64$-10 with the **shared RNG envelope** (`run_id`, `seed`, `parameter_hash`, `manifest_fingerprint`, `substream_label`, counters). Open-interval uniforms $U(0,1)$ and normals follow S0 primitives.
+  The **full envelope** (including `module`, `substream_label`, `rng_counter_before_*`, `rng_counter_after_*`, `draws` as decimal u128, and `blocks` as u64) is governed by the layer schema and is the one S2.3–S2.5 will use when writing events.
+* **Event streams (authoritative, JSONL):**
+  `gamma_component` (context=`"nb"`), `poisson_component` (context=`"nb"`), and `nb_final` — each with schema refs in `schemas.layer1.yaml#/rng/events/...` and paths partitioned by `{seed, parameter_hash, run_id}`. These will be **written later** (S2.3–S2.5), not in S2.1.
 
 ---
 
-## 4) Numeric requirements (MUST)
+## 4) Numeric evaluation requirements (MUST)
 
-* **Arithmetic:** Evaluate linear predictors in **IEEE-754 binary64** only. No mixed precision. (Numeric environment policy is part of the registry.)
-* **Sanity guards (enforced in S2.2 but predeclared here):** After exponentiation, $\mu_m>0$ and $\phi_m>0$; non-finite or $\le 0$ → `ERR_S2_NUMERIC_INVALID`.
+* **Policy:** Numeric policy is **exactly S0’s** (binary64, RNE, FMA-OFF, fixed-order Neumaier dot; deterministic libm surface).
+* **Sanity guards:** After exponentiation in S2.2, $\mu_m>0,\ \phi_m>0$. If either is non-finite or $\le 0$, abort for $m$ with `ERR_S2_NUMERIC_INVALID`. (S2.2 will restate this as part of the link spec; S2.1 ensures the inputs exist to compute them.)
 
 ---
 
-## 5) Pseudocode (normative preflight & assembly; RNG draws = 0)
+## 5) Pseudocode (normative preflight & assembly)
 
 ```pseudo
+# Preflight gate + input assembly; emits no RNG events (draws=0)
+
 function s2_1_prepare_inputs(m):
-    # 1) Gate on the authoritative S1 event
-    hb := read_event("logs/rng/events/hurdle_bernoulli", m)
-    if hb is None:             raise ERR_S2_ENTRY_MISSING_HURDLE
-    if hb.is_multi != true:    raise ERR_S2_ENTRY_NOT_MULTI
+    # 1) Entry gate from S1
+    hb := read_hurdle_event(m)                     # select within {seed, parameter_hash, run_id}, then merchant_id=m
+                                                   # and verify the in-row envelope `manifest_fingerprint`
+                                                   # equals the current run's `manifest_fingerprint` (explicit lineage check).
+    if hb is None:           raise ERR_S2_ENTRY_MISSING_HURDLE
+    if hb.is_multi != true:  raise ERR_S2_ENTRY_NOT_MULTI   # branch purity
 
-    # 2) Deterministic features (S0-prepared keys)
+    # 2) Load deterministic features
     c  := ingress.home_country_iso[m]
-    g  := gdp_per_capita[c]             # > 0 guaranteed by S0 load
-    xm := [1, phi_mcc(ingress.mcc[m]), phi_ch(ingress.channel[m])]
-    xk := [1, phi_mcc(ingress.mcc[m]), phi_ch(ingress.channel[m]), log(g)]
+    g  := gdp_per_capita[c]                        # > 0 (checked when loaded in S0)
+    xm := [1, enc_mcc(ingress.mcc[m]), enc_ch(ingress.channel_sym[m])]   # channel_sym ∈ {CP,CNP}
+    xk := [1, enc_mcc(ingress.mcc[m]), enc_ch(ingress.channel_sym[m]), ln(g)]  # ln = natural log
 
-    # Shape checks (deterministic)
-    assert finite_all(xm) and finite_all(xk)
+    # 3) Load governed coefficients (parameter-scoped by parameter_hash)
+    beta_mu  := artefacts.hurdle_coefficients.beta_mu           # from hurdle_coefficients.yaml
+    beta_phi := artefacts.nb_dispersion_coefficients.beta_phi   # from nb_dispersion_coefficients.yaml
 
-    # 3) Governed coefficients (scoped by parameter_hash)
-    beta_mu  := load_yaml("hurdle_coefficients.yaml").nb_mean       # β_μ
-    beta_phi := load_yaml("nb_dispersion_coefficients.yaml").coeffs # β_φ
-
-    # 4) Final S2 context (immutable; consumed by S2.2+)
+    # 4) Produce the S2 context (consumed by S2.2+)
     return NBContext{
         merchant_id: m,
         x_mu: xm, x_phi: xk,
         beta_mu: beta_mu, beta_phi: beta_phi,
-        lineage: {seed, parameter_hash, manifest_fingerprint},
-        module_labels: {
-            gamma_substream: "gamma_component",
-            poisson_substream: "poisson_component",
-            writer_module: "1A.nb_sampler"
-        }
+        lineage: {seed, parameter_hash, manifest_fingerprint, run_id}
     }
 ```
 
-*Emissions:* **None.** S2.1 consumes **no RNG** and writes **no** S2 events. Paths and schemas are pinned only for downstream use.
+**Emissions:** S2.1 emits **no** event records and consumes **no** RNG draws (draws=0).
 
 ---
 
-## 6) Invariants & MUST-NOTs
+## 6) Invariants & MUST-NOTs (checked locally, and again by the validator)
 
-* **I-S2.1-A (Entry determinism).** Only merchants with `is_multi=true` hurdle records may run S2; any S2 stream row for `is_multi=false` is a structural failure.
-* **I-S2.1-B (Inputs completeness).** $\phi_{\mathrm{mcc}}, \phi_{\mathrm{ch}}, g_c, \beta_\mu, \beta_\phi$ MUST be present and finite; else `ERR_S2_INPUTS_INCOMPLETE:{key}` (merchant-scoped abort).
-* **I-S2.1-C (No persistence yet).** S2.1 MUST NOT write `gamma_component`, `poisson_component`, or `nb_final`; those are written only in S2.3–S2.5.
+* **I-S2.1-A (Entry determinism).** S2 only runs for merchants with an S1 hurdle record where `is_multi=true`. Any S2 event for `is_multi=false` is a **structural failure**.
+* **I-S2.1-B (Inputs completeness).** $x_m^{(\mu)},\ x_m^{(\phi)},\ \beta_\mu,\ \beta_\phi$ MUST all be available (encoders used to form $x$ are the frozen S0/S1 one-hots). Missing → abort for $m$ with `ERR_S2_INPUTS_INCOMPLETE`. (The expanded doc’s validator also enforces this via schema/path checks downstream.)
+* **I-S2.1-C (No persistence yet).** S2.1 MUST NOT write any of the S2 event streams nor any sidecar tables; persistence happens only in S2.3–S2.5 (events) and the state boundary in S2.9.
 
 ---
 
 ## 7) Errors & abort semantics (merchant-scoped)
 
-* `ERR_S2_ENTRY_MISSING_HURDLE`
-* `ERR_S2_ENTRY_NOT_MULTI`
-* `ERR_S2_INPUTS_INCOMPLETE:{key}`
-* `ERR_S2_NUMERIC_INVALID` (raised in S2.2 on non-finite/≤0 $\mu$ or $\phi$)
-
-**Effect:** Abort S2 for $m$ with **no S2 events** written; validator separately enforces branch-purity and coverage.
+* `ERR_S2_ENTRY_MISSING_HURDLE` — no S1 hurdle record for $m$.
+* `ERR_S2_ENTRY_NOT_MULTI` — S1 shows `is_multi=false`.
+* `ERR_S2_INPUTS_INCOMPLETE:{key}` — missing design feature or coefficient.
+* `ERR_S2_NUMERIC_INVALID` — later, if $\mu$ or $\phi$ evaluate non-finite/≤0 (S2.2).
+  **Effect:** For any of the above, **skip S2** for $m$ (no S2 events written). The run-level validator will additionally fail branch-purity or coverage if contradictions appear.
 
 ---
 
 ## 8) Hand-off contract to S2.2+
 
-On success, expose the immutable **NB context**:
+If S2.1 succeeds for $m$, the engine must expose an **NB context** containing:
 
 $$
-\left(x^{(\mu)}_m,\ x^{(\phi)}_m,\ \beta_\mu,\ \beta_\phi,\ \text{seed},\ \text{parameter_hash},\ \text{manifest_fingerprint}\right),
+(x^{(\mu)}_m,\ x^{(\phi)}_m,\ \beta_\mu,\ \beta_\phi,\ \text{seed},\ \text{parameter_hash},\ \text{manifest_fingerprint},\ \text{run_id})
 $$
 
-which S2.2 uses to compute $\mu_m,\phi_m$ before sampling; later `nb_final` must **echo** $\mu$ and `dispersion_k` **byte-exactly** for the validator’s echo test.
+for use in S2.2 (NB link evaluation), S2.3 (Gamma/Poisson samplers), and S2.4 (rejection loop). **No additional mutable state** may be consulted when sampling.
 
 ---
 
 ## 9) Conformance spot-checks (writer & validator)
 
-* **Gate correctness.** Pick a known `is_multi=0` merchant and confirm **no** S2 streams contain its key.
-* **Inputs reproducibility.** Recompute $x^{(\mu)}, x^{(\phi)}$ and verify byte-exact equality with values that lead to `nb_final.mu` and `nb_final.dispersion_k`.
-* **Lineage presence.** Ensure `(seed, parameter_hash, manifest_fingerprint)` are carried forward to enable exact envelope joins.
-
----
-
-### What changed vs. your draft (quick diff in words)
-
-* **Pinned coefficient sources** unambiguously: $\beta_\mu$ from `hurdle_coefficients.yaml` (**nb-mean** block), $\beta_\phi$ from `nb_dispersion_coefficients.yaml`. (Removes the informal `artefacts.hurdle_nb.*` reference.)
-* **Fixed feature typo** $\phi_{\mathrm{ch}}$ (was `\phi_{\mathrm{ch)}`) and reiterated column-order freeze.
-* **Bound module/substream labels** to dictionary `produced_by` for later S2 writers (`1A.nb_sampler`, `1A.nb_and_dirichlet_sampler`, `1A.nb_poisson_component`).
-* **Explicit numeric policy** (binary64) tied to the numeric environment registry.
-* **Clarified “domestic/pre-split”** to match the global S2/S3/S4 narrative and prevent downstream reinterpretation.
-
-If this is good, I’m ready to apply the same standard to S2.2 next.
-
----
+* **Gate correctness:** pick a known single-site merchant (`is_multi=0`); confirm **no** S2 streams contain its key. (Structural fail otherwise.)
+* **Inputs reproducibility:** recompute $x^{(\mu)},x^{(\phi)}$ for a sample of merchants and verify byte-exact equality with the values used to compute `nb_final.mu` / `nb_final.dispersion_k` later.
+* **Lineage presence:** ensure the S2 context carries `(seed, parameter_hash, manifest_fingerprint, run_id)` so later events can include a consistent envelope.
 
 # S2.2 — NB2 parameterisation (final, deterministic)
 
