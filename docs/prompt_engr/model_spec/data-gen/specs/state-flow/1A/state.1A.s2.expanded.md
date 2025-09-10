@@ -159,18 +159,21 @@ Provided by **S2.1** and artefacts keyed by `parameter_hash`:
 * **Design vectors** (from S0/S2.1):
 
   $$
-  x^{(\mu)}_m=\big[1,\ \phi_{\mathrm{mcc}}(\texttt{mcc}_m),\ \phi_{\mathrm{ch}}(\texttt{channel}_m)\big]^\top,\quad
-  x^{(\phi)}_m=\big[1,\ \phi_{\mathrm{mcc}}(\texttt{mcc}_m),\ \phi_{\mathrm{ch}}(\texttt{channel}_m),\ \log g_c\big]^\top,
+  x^{(\mu)}_m=\big[1,\ \Phi_{\mathrm{mcc}}(\texttt{mcc}_m),\ \Phi_{\mathrm{ch}}(\texttt{channel\_sym}_m)\big]^\top,\quad
+  x^{(\phi)}_m=\big[1,\ \Phi_{\mathrm{mcc}}(\texttt{mcc}_m),\ \Phi_{\mathrm{ch}}(\texttt{channel\_sym}_m),\ \ln g_c\big]^\top,
   $$
 
-  where $g_c>0$ is the GDP-per-capita scalar for the home ISO $c$. (NB mean **excludes** GDP; dispersion **includes** $\log g_c$.)
-* **Coefficient vectors:** $\beta_\mu,\ \beta_\phi$ from the governed coefficient artefacts named in S2.1 (bound to the run via `parameter_hash`).
-* **Lineage:** `seed`, `parameter_hash`, `manifest_fingerprint` (for later event joins).
+  where $g_c > 0$ is the GDP-per-capita scalar for the home ISO $c$. (NB mean **excludes** GDP; dispersion **includes** $\ln g_c$.)  
+  *Notation:* $\Phi_{\mathrm{mcc}}(\cdot)$ and $\Phi_{\mathrm{ch}}(\cdot)$ denote **frozen one-hot encoder functions** from S0/S1; they are **not** the NB dispersion $\phi_m$ used below.
+* **Coefficient vectors:** $\beta_\mu,\ \beta_\phi$ from governed artefacts **keyed by `parameter_hash`**:
+  * `hurdle_coefficients.yaml` → key **`beta_mu`** (maps to $\beta_\mu$),
+  * `nb_dispersion_coefficients.yaml` → key **`beta_phi`** (maps to $\beta_\phi$).
+* **Lineage:** `seed`, `parameter_hash`, `manifest_fingerprint`, `run_id` (for later event joins and partition equality).
 
 **Preconditions (MUST):**
 
 1. All elements of $x^{(\mu)}_m$, $x^{(\phi)}_m$, $\beta_\mu$, $\beta_\phi$ are **finite** binary64 numbers.
-2. $g_c>0$ so that $\log g_c$ is defined.
+2. $g_c > 0$ so that $\ln g_c$ is defined.  (Here and below, $\ln$ denotes the natural log.)
 3. Vector lengths match (inner products defined).
 
 ---
@@ -179,7 +182,7 @@ Provided by **S2.1** and artefacts keyed by `parameter_hash`:
 
 Let $\eta^{(\mu)}_m=\beta_\mu^\top x^{(\mu)}_m$ and $\eta^{(\phi)}_m=\beta_\phi^\top x^{(\phi)}_m$.
 
-1. **Evaluate linear predictors** in **binary64** with fused operations permitted (does not change the value model).
+1. **Evaluate linear predictors** in **binary64** with **FMA disabled** and **fixed-order, serial Neumaier accumulation** for dot products. Do **not** reorder summands or use non-deterministic BLAS paths; this mirrors S0’s numeric contract (binary64, RNE, FMA-OFF; deterministic libm).
 2. **Exponentiate** safely in binary64:
 
    $$
@@ -197,7 +200,7 @@ Let $\eta^{(\mu)}_m=\beta_\mu^\top x^{(\mu)}_m$ and $\eta^{(\phi)}_m=\beta_\phi^
 On success, expose the immutable NB2 context:
 
 $$
-\big(m,\ x^{(\mu)}_m,\ x^{(\phi)}_m,\ \beta_\mu,\ \beta_\phi,\ \mu_m,\ \phi_m,\ \text{seed},\ \text{parameter_hash},\ \text{manifest_fingerprint}\big).
+\big(m,\ x^{(\mu)}_m,\ x^{(\phi)}_m,\ \beta_\mu,\ \beta_\phi,\ \mu_m,\ \phi_m,\ \text{seed},\ \text{parameter_hash},\ \text{manifest_fingerprint},\ \text{run_id}\big).
 $$
 
 S2.3 (Gamma/Poisson attempt), S2.4 (rejection rule), and S2.5 (finalisation) **must** use **exactly** these $\mu_m,\phi_m$ values (binary64 bit-pattern) without re-computation from different inputs.
@@ -206,8 +209,9 @@ S2.3 (Gamma/Poisson attempt), S2.4 (rejection rule), and S2.5 (finalisation) **m
 
 ## 5) Invariants (MUST)
 
-* **I-NB2-POS:** $\mu_m>0$ and $\phi_m>0$.
+* **I-NB2-POS:** $\mu_m > 0$ and $\phi_m > 0$.
 * **I-NB2-B64:** $\mu_m,\phi_m$ are representable as IEEE-754 binary64 and remain unchanged when round-tripped through the eventual JSONL `nb_final` record. (Validator re-parses numbers and compares the binary64 bit pattern.)
+* **I-NB2-SER (binding):** Producers **MUST** serialize `mu` and `dispersion_k` using the **shortest round-trip decimal for binary64** (same rule as S1; L0 helper `f64_to_json_shortest`), so that parsing yields the **exact** original bit pattern.
 * **I-NB2-ECHO:** The `nb_final` payload **must echo** these exact values in fields `mu` and `dispersion_k`. Any mismatch is a structural failure at validation.
 
 ---
@@ -217,10 +221,10 @@ S2.3 (Gamma/Poisson attempt), S2.4 (rejection rule), and S2.5 (finalisation) **m
 When S2.5 emits the single `nb_final` event for $m$, it **MUST** include:
 
 ```
-{ mu: <binary64>, dispersion_k: <binary64>, n_outlets: N_m, nb_rejections: r_m, ... }
+{ mu: <binary64>, dispersion_k: <binary64>, n_outlets: N_m, nb_rejections: R_m, ... }
 ```
 
-with `mu == μ_m` and `dispersion_k == φ_m` as produced here. (Event schema: `schemas.layer1.yaml#/rng/events/nb_final`; partitioning `{seed, parameter_hash, run_id}` per dictionary.)
+with `mu == μ_m` and `dispersion_k == φ_m` as produced here. Here **$R_m$** denotes the integer **rejection tally** (number of rejected attempts), distinct from the dispersion/shape $\phi_m$. (Event schema: `schemas.layer1.yaml#/rng/events/nb_final`; partitioning `{seed, parameter_hash, run_id}` per dictionary.)
 
 ---
 
@@ -237,13 +241,13 @@ with `mu == μ_m` and `dispersion_k == φ_m` as produced here. (Event schema: `s
 function s2_2_eval_links(ctx: NBContext) -> NBContext:
     # Inputs from S2.1
     xm   := ctx.x_mu          # vector
-    xk   := ctx.x_phi         # vector includes log(gdp_pc)
+    xk   := ctx.x_phi         # vector includes ln(gdp_pc)
     bmu  := ctx.beta_mu       # vector
     bphi := ctx.beta_phi      # vector
 
-    # 1) Linear predictors in binary64
-    eta_mu  := dot64(bmu,  xm)      # finite or error
-    eta_phi := dot64(bphi, xk)      # finite or error
+    # 1) Linear predictors in binary64 (fixed-order Neumaier; FMA disabled)
+    eta_mu  := dot64_no_fma(bmu,  xm)      # deterministic Neumaier reduction
+    eta_phi := dot64_no_fma(bphi, xk)      # deterministic Neumaier reduction
 
     # 2) Exponentiate safely (no clamping on overflow)
     mu  := exp64(eta_mu)
@@ -271,7 +275,7 @@ function s2_2_eval_links(ctx: NBContext) -> NBContext:
 
 1. Force $\eta^{(\mu)}$ above \~709.78 (binary64 overflow threshold for `exp`) → `ERR_S2_NUMERIC_INVALID`.
 2. Force $\eta^{(\phi)}\to -\infty$ via extreme negative coefficients → $\phi\to 0^+$ underflow; if non-finite or $\le 0$, error.
-3. Remove GDP $g_c$ (so $\log g_c$ undefined) or set $g_c\le 0$ in features → `ERR_S2_NUMERIC_INVALID`.
+3. Remove GDP $g_c$ (so $\ln g_c$ undefined) or set $g_c\le 0$ in features → `ERR_S2_NUMERIC_INVALID`.
 
 **Structural.**
 

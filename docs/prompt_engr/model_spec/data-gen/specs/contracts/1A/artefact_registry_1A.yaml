@@ -15,7 +15,7 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.1A.hurdle.coefficients
         license: "{spdx_or_internal}"
-        role: Coefficients for the logistic hurdle (single vs multi).
+        role: Coefficients for the logistic hurdle (π, single vs multi) and NB-mean coefficients (β_μ). NB-mean is available at key `beta_mu`.
         dependencies: [ ]
         source: internal
         owner: { owner_team }
