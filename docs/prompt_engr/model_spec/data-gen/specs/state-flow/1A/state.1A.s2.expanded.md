@@ -53,6 +53,8 @@ Pin the RNG/stream contracts that S2.3–S2.5 will rely on:
 
 * **RNG:** Philox $2\times 64$-10 with the **shared RNG envelope** (`run_id`, `seed`, `parameter_hash`, `manifest_fingerprint`, `substream_label`, counters). Open-interval uniforms $U(0,1)$ and normals follow S0 primitives.
   The **full envelope** (including `module`, `substream_label`, `rng_counter_before_*`, `rng_counter_after_*`, `draws` as decimal u128, and `blocks` as u64) is governed by the layer schema and is the one S2.3–S2.5 will use when writing events.
+  For S2 streams in 1A, the `module` literal MUST be `"1A.nb_sampler"`.
+
 * **Event streams (authoritative, JSONL):**
   `gamma_component` (context=`"nb"`), `poisson_component` (context=`"nb"`), and `nb_final` — each with schema refs in `schemas.layer1.yaml#/rng/events/...` and paths partitioned by `{seed, parameter_hash, run_id}`. These will be **written later** (S2.3–S2.5), not in S2.1.
 
@@ -335,7 +337,7 @@ Use the **MT1998** algorithm with **open-interval uniforms** (S0.3.4) and **Box�
   3. Return $G = G'\, U^{1/\alpha}$.
      **Additional uniform:** **+1 per variate** for the power step U^{1/α}
 
-* **Eventing (Gamma):** emit **one** `gamma_component` with `context="nb"` and `attempt=t` per attempt; payload includes `alpha=φ_m` and `gamma_value=G`. 
+* **Eventing (Gamma):** emit **one** `gamma_component` with `context="nb"`; payload includes `alpha=φ_m` and `gamma_value=G`.
 * **Draw accounting (per event):** for attempt $t$, $\mathrm{draws}_\gamma(t)=2J_t + A_t + \mathbf{1}[\phi_m<1]$, where $J_t\ge1$ is the number of MT1998 iterations and $A_t$ is the count of iterations with $V>0$ (only those iterations draw the accept-$U$).
 
 ### 3.2 Poisson $\mathrm{Poisson}(\lambda)$ — S0.3.7 (deterministic regimes)
@@ -371,16 +373,23 @@ Given merchant $m$ with $(\mu_m,\phi_m)$ from S2.2:
    ```json
    {
      "merchant_id": "<m>",
+     "index": 0,
      "context": "nb",
-     "attempt": <t>,
      "alpha": <phi_m as binary64>,
      "gamma_value": <G as binary64>,
-     "...rng_envelope...": { "seed": "...", "parameter_hash": "...", "run_id": "...", "manifest_fingerprint": "...",
-      "module": "1A.nb_sampler", "substream_label": "gamma_nb",
-      "rng_counter_before_hi": "...", "rng_counter_before_lo": "...",
-      "rng_counter_after_hi":  "...", "rng_counter_after_lo":  "...",
-      "blocks": <u64>, "draws": "<after-before unsigned 128-bit>"
-     }
+     "seed": "...",
+     "parameter_hash": "...",
+     "run_id": "...",
+     "manifest_fingerprint": "...",
+     "ts_utc": "2025-01-01T00:00:00.000000Z",
+     "module": "1A.nb_sampler",
+     "substream_label": "gamma_nb",
+     "rng_counter_before_hi": "...",
+     "rng_counter_before_lo": "...",
+     "rng_counter_after_hi":  "...",
+      "rng_counter_after_lo":  "...",
+     "blocks": <u64>,
+     "draws": "<uniforms consumed, decimal u128>"
    }
    ```
 
@@ -394,15 +403,21 @@ Given merchant $m$ with $(\mu_m,\phi_m)$ from S2.2:
    {
      "merchant_id": "<m>",
      "context": "nb",
-     "attempt": <t>,
      "lambda": <lambda as binary64>,
      "k": <K as int64>,
-     "...rng_envelope...": { "seed": "...", "parameter_hash": "...", "run_id": "...", "manifest_fingerprint": "...",
-      "module": "1A.nb_sampler", "substream_label": "poisson_nb",
-      "rng_counter_before_hi": "...", "rng_counter_before_lo": "...",
-      "rng_counter_after_hi":  "...", "rng_counter_after_lo":  "...",
-      "blocks": <u64>, "draws": "<after-before unsigned 128-bit>"
-     }
+     "seed": "...",
+     "parameter_hash": "...",
+     "run_id": "...",
+     "manifest_fingerprint": "...",
+     "ts_utc": "2025-01-01T00:00:00.000000Z",
+     "module": "1A.nb_sampler",
+     "substream_label": "poisson_nb",
+     "rng_counter_before_hi": "...",
+     "rng_counter_before_lo": "...",
+     "rng_counter_after_hi":  "...",
+     "rng_counter_after_lo":  "...",
+     "blocks": <u64>,
+     "draws": "<uniforms consumed, decimal u128>"
    }
    ```
 
@@ -414,7 +429,7 @@ Given merchant $m$ with $(\mu_m,\phi_m)$ from S2.2:
 
 ## 6) Draw accounting & reconciliation (MUST)
 
-* **Trace rule:** For every event, `blocks = (after_hi, after_lo) − (before_hi, before_lo)` (unsigned 128-bit). Validators may aggregate per `(seed, parameter_hash, run_id, merchant_id, substream_label)` and compare to algorithmic budgets:
+* **Trace rule:** For every event, `blocks = u128(after) − u128(before)`; `draws` is the decimal-encoded count of uniforms consumed by that event. Reconcile merchant-level budgets by summing event `draws`; cross-check against the cumulative **rng_trace_log**, which is per `(module, substream_label)` for the run.
 * **Gamma:** per attempt $t$, $\mathrm{draws}_\gamma(t)=2J_t + A_t + \mathbf{1}[\phi_m<1]$.  
 * **Poisson:** consumption is measured by counters (inversion vs PTRS). `nb_final` has `draws=0`.
 * **nb_final:** `draws_final = 0` (non-consuming).
@@ -423,8 +438,8 @@ Given merchant $m$ with $(\mu_m,\phi_m)$ from S2.2:
 ## 7) Determinism & ordering (MUST)
 
 * **Emission cardinality:** Emit exactly one `gamma_component` (with `substream_label="gamma_nb"`, `context="nb"`) then one `poisson_component` (with `substream_label="poisson_nb"`, `context="nb"`) per attempt for the merchant (no parallelization per merchant). Both events must carry the same lineage and the authoritative RNG envelope (before/after counters; `draws` computed).
-* **Label order:** Gamma **precedes** Poisson; **`attempt` is stored in payload** and strictly increases by 1 per merchant. File order and envelope counters **must** be consistent with `attempt`.
-* **Bit-replay:** For fixed $(x_m^{(\mu)},x_m^{(\phi)},\beta_\mu,\beta_\phi,\texttt{seed},\texttt{parameter_hash},\texttt{manifest_fingerprint})$, the entire `(G_t,K_t)` attempt stream is **bit-identical** across replays. (Counter-based Philox + fixed labels + variable, actual-use budgets)
+* **Label order:** Gamma **precedes** Poisson; ordering is determined solely by each event’s **envelope counter interval** (`rng_counter_before_*` → `rng_counter_after_*`). There is **no `attempt` field in the payload** for these streams.
+* **Bit-replay:** For fixed $(x_m^{(\mu)},x_m^{(\phi)},\beta_\mu,\beta_\phi,\texttt{seed},\texttt{parameter_hash},\texttt{manifest_fingerprint})$, the entire $(G_t,K_t)$ attempt stream is **bit-identical** across replays. (Counter-based Philox + fixed labels + variable, actual-use budgets)
 * *(Reminder)* NB substream **labels are closed**: `gamma_nb` / `poisson_nb` under `module="1A.nb_sampler"` with `context="nb"`.
 
 ---
@@ -448,7 +463,7 @@ function s2_3_attempt_once(ctx: NBContext, t: int) -> AttemptRecord:
     G := gamma_mt1998(alpha=phi)              # uses S0.3.4/5; variable attempts internally
     emit_gamma_component(
         merchant_id=ctx.merchant_id,
-        context="nb", attempt=t, alpha=phi, gamma_value=G,
+        context="nb", index=0, alpha=phi, gamma_value=G,
         envelope=substream_envelope(module="1A.nb_sampler", label="gamma_nb")
     )
 
@@ -458,7 +473,7 @@ function s2_3_attempt_once(ctx: NBContext, t: int) -> AttemptRecord:
     K := poisson_s0_3_7(lambda)               # regimes per S0.3.7
     emit_poisson_component(
         merchant_id=ctx.merchant_id,
-        context="nb", attempt=t, lambda=lambda, k=K,
+        context="nb", lambda=lambda, k=K,
         envelope=substream_envelope(module="1A.nb_sampler", label="poisson_nb")
     )
 
@@ -467,8 +482,8 @@ function s2_3_attempt_once(ctx: NBContext, t: int) -> AttemptRecord:
 
 * `gamma_mt1998` implements §3.1 including α<1 power-step and **draw budgets**.
 * `poisson_s0_3_7` implements §3.2 (inversion / PTRS; **normative constants**).
-* `emit_*` attach the **rng envelope** (before/after counters; `draws` computed as the 128-bit delta).  
-  The envelope **includes lineage keys** `seed`, `parameter_hash`, `run_id`, and `manifest_fingerprint`, plus `counters` and **`blocks`** (the 128-bit delta). `draws` is carried as a separate field equal to the sampler’s **actual uniforms used** for that event (as specified in §6).
+* `emit_*` attach the **rng envelope** (before/after counters; `blocks = u128(after) − u128(before)` **cast to uint64**).
+  The envelope **includes lineage keys** `seed`, `parameter_hash`, `run_id`, and `manifest_fingerprint`, plus `counters` and **`blocks`** (= u128(after) − u128(before), cast to uint64). `draws` (decimal u128) for that event (as specified in §6).
 
 ---
 
@@ -481,8 +496,8 @@ function s2_3_attempt_once(ctx: NBContext, t: int) -> AttemptRecord:
 
 ## 11) Conformance tests (KATs)
 
-* **Gamma budgets.** Let `attempts` be the number of Gamma variates emitted for the merchant. For $\phi\ge1$, assert `draws` in `gamma_component` equals $\sum_{t=1}^{\text{attempts}} \big(2 J_t + A_t\big)$; for $0<\phi<1$, assert $\sum_{t=1}^{\text{attempts}} \big(2 J_t + A_t + 1\big)$. 
-  Here $J_t$ is the number of Box–Muller iterations for attempt $t$, and $A_t$ is the number of those iterations with $V>0$ (i.e., the iterations that consume the accept-$U$). (Use envelope deltas; the validator recomputes $J_t, A_t$ by bit-replay.)
+* **Gamma budgets.** Let `attempts` be the number of Gamma variates emitted for the merchant. For $\phi\ge1$, assert the **sum of `draws` across all `gamma_component` events for the merchant** equals $\sum_{t=1}^{\text{attempts}} \big(2 J_t + A_t\big)$; for $0<\phi<1$, assert the **sum of `draws` across all `gamma_component` events** equals $\sum_{t=1}^{\text{attempts}} \big(2 J_t + A_t + 1\big)$.
+  Here $J_t$ is the number of Box–Muller iterations for attempt $t$, and $A_t$ is the number of those iterations with $V>0$ (i.e., the iterations that consume the accept-$U$). The validator recomputes $J_t$ and $A_t$ by bit-replay and compares them to the **sum of per-event `draws`** reported by `gamma_component`.
 * **Poisson regimes.** Choose $\lambda=5$ (inversion) and $\lambda=50$ (PTRS); confirm `poisson_component` bit-replays and that the counters advance with variable consumption.
 * **Ordering.** Verify each attempt produces **two** events in the `gamma`→`poisson` order for the same merchant and that `nb_final` (later) appears once at acceptance.
 
