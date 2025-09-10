@@ -301,7 +301,8 @@ $$
 G\sim\mathrm{Gamma}(\alpha{=}\phi_m,1),\quad \lambda=(\mu_m/\phi_m)\,G,\quad K\sim\mathrm{Poisson}(\lambda).
 $$
 
-Emit exactly **one** `gamma_component` and **one** `poisson_component` event (context=`"nb"`) for this attempt, with **authoritative RNG envelope** and draw accounting. Acceptance of the attempt is decided in **S2.4** (accept if $K\ge2$).
+Emit exactly **one** `gamma_component` and **one** `poisson_component` event (context=`"nb"`) for this attempt, with **authoritative RNG envelope** and draw accounting.  
+**Envelope must include:** `seed`, `parameter_hash`, `run_id`, `manifest_fingerprint`, `module`, `substream_label`, `rng_counter_before_hi/lo`, `rng_counter_after_hi/lo`, and per-event `blocks` (u64) and `draws` (decimal u128). Acceptance of the attempt is decided in **S2.4** (accept if $K\ge2$).
 
 ---
 
@@ -315,7 +316,7 @@ Emit exactly **one** `gamma_component` and **one** `poisson_component` event (co
 
 ### 3.1 Gamma $\Gamma(\alpha,1)$ — Marsaglia–Tsang MT1998
 
-Use the **MT1998** algorithm with **open-interval uniforms** (S0.3.4) and **Box–Muller** normals (S0.3.5). **No normal caching**. Draw budgets are **fixed per attempt** (except for the α<1 power-step).
+Use the **MT1998** algorithm with **open-interval uniforms** (S0.3.4) and **Box–Muller** normals (S0.3.5). **No normal caching**. Draw budgets are **variable per attempt** (actual-use; see counters).
 
 * **Case $\alpha\ge 1$**
   Let $d=\alpha-\frac{1}{3}$, $c=(9d)^{-1/2}$. Repeat:
@@ -324,34 +325,38 @@ Use the **MT1998** algorithm with **open-interval uniforms** (S0.3.4) and **Box�
   2. $V=(1+cZ)^3$; if $V\le0$ reject.
   3. $U\sim U(0,1)$ (**1 uniform**).
   4. Accept if $\ln U < \tfrac{1}{2}Z^2 + d - dV + d\ln V$; return $G=dV$.
-     Uniform consumption (one Gamma variate): **3×J**, where **J≥1** is the number of internal MT98 iterations for that variate (each iteration draws **2 uniforms** for the Box–Muller normal and **1 uniform** for U). J is random and ≥1.
+     Uniform consumption (one Gamma variate): **2×J + A**, where **J≥1** is the number of MT98 iterations and **A** is the count of iterations with $V>0$ (only those iterations draw the accept-$U$).  
+     If $0<\alpha<1$, add **+1** uniform for the power step $U^{1/\alpha}$.
 
 * **Case $0 < \alpha < 1$**
 
-  1. Draw $G'\sim\Gamma(\alpha+1,1)$ via the $\alpha\ge1$ branch (variable MT98 iterations; **3 uniforms per iteration**).
+  1. Draw $G'\sim\Gamma(\alpha+1,1)$ via the $\alpha\ge1$ branch (variable MT98 iterations; 2 uniforms per iteration; accept-$U$ only when $V>0$).
   2. Draw $U\sim U(0,1)$ (**1 uniform**).
   3. Return $G = G'\, U^{1/\alpha}$.
      **Additional uniform:** **+1 per variate** for the power step U^{1/α}
 
-* **Eventing (Gamma):** emit **one** `gamma_component` with `context="nb"` and `index=0` per attempt; payload includes `alpha=φ_m` and `gamma_value=G`. 
-* **Draw accounting (per merchant):** $\text{draws} = \sum_t \left( 3 \times J_t + \mathbf{1}[\phi_m < 1] \right)$ , where the sum is over NB attempts $t$ (one Gamma variate per attempt) and $J_t≥1$ is the MT98 iteration count for attempt $t$. Envelope counters reconcile the actual uniforms consumed.
+* **Eventing (Gamma):** emit **one** `gamma_component` with `context="nb"` and `attempt=t` per attempt; payload includes `alpha=φ_m` and `gamma_value=G`. 
+* **Draw accounting (per event):** for attempt $t$, $\mathrm{draws}_\gamma(t)=2J_t + A_t + \mathbf{1}[\phi_m<1]$, where $J_t\ge1$ is the number of MT1998 iterations and $A_t$ is the count of iterations with $V>0$ (only those iterations draw the accept-$U$).
 
 ### 3.2 Poisson $\mathrm{Poisson}(\lambda)$ — S0.3.7 (deterministic regimes)
 
 Use **S0.3.7** regime split: **inversion** for $\lambda<10$; **PTRS** (Hörmann transformed-rejection) for $\lambda\ge 10$. Constants in PTRS are **normative**; they are *not* tunables. Uniform consumption is **variable** and is measured by the envelope counters. Emit `poisson_component` with `context="nb"`.
 
 * **Inversion ($\lambda<10$)**: multiplicative $p$ until $p\le e^{-\lambda}$.
-* **PTRS ($\lambda\ge10$)**: use $b=0.931+2.53\sqrt\lambda$, $a=-0.059+0.02483\,b$, $\text{inv}\alpha=1.1239+1.1328/(b-3.4)$, $v_r=0.9277-3.6224/(b-2)$; draw $u,v\sim U(0,1)$; apply the squeeze/acceptance tests from S0.3.7. **Uniforms:** 2 per *attempt* of PTRS; attempts geometric. **Logging:** `poisson_component` with `context="nb"`.
+* **PTRS ($\lambda\ge10$)**: use $b=0.931+2.53\sqrt\lambda$, $a=-0.059+0.02483\,b$, $\text{inv}\alpha=1.1239+1.1328/(b-3.4)$, $v_r=0.9277-3.6224/(b-2)$; draw $u,v\sim U(0,1)$; apply the squeeze/acceptance tests from S0.3.7. 
+* **Uniforms:** **variable** — each PTRS **iteration** uses 2 uniforms; the number of iterations is geometric; total per event is measured by envelope counters. 
+* **Logging:** `poisson_component` with `context="nb"`.
 
 ---
 
 ## 4) RNG substreams & labels (MUST)
 
-Substream mapping is **keyed** per S0.3.3. For S2 NB attempts:
-
-* $\ell_\gamma=$ `"gamma_component"` (Gamma sampler),
-* $\ell_\pi=$ `"poisson_component"` (Poisson sampler).
-  For each attempt, **emit exactly two** component events in this order: `gamma_component` → `poisson_component`. Counters advance deterministically within each $(\text{merchant},\ell)$ stream; there is **no stride** across labels. **All uniforms** are generated by `u01` (open interval) and all normals by Box–Muller, per S0.3.4–S0.3.5.
+* **Module:** all S2 mixture emissions use `module="1A.nb_sampler"`.
+* **NB substreams (disjoint from ZTP):**
+  * Gamma: `substream_label="gamma_nb"`
+  * Poisson: `substream_label="poisson_nb"`
+* **Order per attempt:** emit exactly two component events: `gamma_component` → `poisson_component`.  
+Counters advance deterministically within each `(merchant, substream_label)` stream; there is **no stride** across labels. All uniforms use S0.3.4 `u01`; all normals use Box–Muller.
 
 ---
 
@@ -360,21 +365,21 @@ Substream mapping is **keyed** per S0.3.3. For S2 NB attempts:
 Given merchant $m$ with $(\mu_m,\phi_m)$ from S2.2:
 
 1. **Gamma step (context=`"nb"`)**
-   Draw $G\sim\Gamma(\alpha{=}\phi_m,1)$ via **3.1** on $\ell_\gamma$.
+   Draw $G\sim\Gamma(\alpha{=}\phi_m,1)$ via **3.1** on `substream_label="gamma_nb"`.
    Emit:
 
    ```json
    {
      "merchant_id": "<m>",
      "context": "nb",
-     "index": 0,
+     "attempt": <t>,
      "alpha": <phi_m as binary64>,
      "gamma_value": <G as binary64>,
-     "...rng_envelope...": { "seed": "...", "parameter_hash": "...", "manifest_fingerprint": "...",
-       "module": "S2", "substream_label": "gamma_component",
-       "rng_counter_before_hi": "...", "rng_counter_before_lo": "...",
-       "rng_counter_after_hi":  "...", "rng_counter_after_lo":  "...",
-       "draws": "<after-before unsigned 128-bit>"
+     "...rng_envelope...": { "seed": "...", "parameter_hash": "...", "run_id": "...", "manifest_fingerprint": "...",
+      "module": "1A.nb_sampler", "substream_label": "gamma_nb",
+      "rng_counter_before_hi": "...", "rng_counter_before_lo": "...",
+      "rng_counter_after_hi":  "...", "rng_counter_after_lo":  "...",
+      "blocks": <u64>, "draws": "<after-before unsigned 128-bit>"
      }
    }
    ```
@@ -382,20 +387,21 @@ Given merchant $m$ with $(\mu_m,\phi_m)$ from S2.2:
    Schema (authoritative): `schemas.layer1.yaml#/rng/events/gamma_component`. **Partition:** `logs/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/...`. **Draws:** per §3.1 above.
 
 2. **Poisson step (context=`"nb"`)**
-   Compute $\lambda=\frac{\mu_m}{\phi_m}\,G$ in binary64. Draw $K\sim\mathrm{Poisson}(\lambda)$ via **3.2** on $\ell_\pi$.
+   Compute $\lambda=\frac{\mu_m}{\phi_m}\,G$ in binary64. Draw $K\sim\mathrm{Poisson}(\lambda)$ via **3.2** on `substream_label="poisson_nb"`.
    Emit:
 
    ```json
    {
      "merchant_id": "<m>",
      "context": "nb",
+     "attempt": <t>,
      "lambda": <lambda as binary64>,
      "k": <K as int64>,
-     "...rng_envelope...": { "seed": "...", "parameter_hash": "...", "manifest_fingerprint": "...",
-       "module": "S2", "substream_label": "poisson_component",
-       "rng_counter_before_hi": "...", "rng_counter_before_lo": "...",
-       "rng_counter_after_hi":  "...", "rng_counter_after_lo":  "...",
-       "draws": "<after-before unsigned 128-bit>"
+     "...rng_envelope...": { "seed": "...", "parameter_hash": "...", "run_id": "...", "manifest_fingerprint": "...",
+      "module": "1A.nb_sampler", "substream_label": "poisson_nb",
+      "rng_counter_before_hi": "...", "rng_counter_before_lo": "...",
+      "rng_counter_after_hi":  "...", "rng_counter_after_lo":  "...",
+      "blocks": <u64>, "draws": "<after-before unsigned 128-bit>"
      }
    }
    ```
@@ -408,16 +414,16 @@ Given merchant $m$ with $(\mu_m,\phi_m)$ from S2.2:
 
 ## 6) Draw accounting & reconciliation (MUST)
 
-* **Trace rule:** For every event, `draws = (after_hi,after_lo) − (before_hi,before_lo)` in unsigned 128-bit arithmetic. Persist a **trace** row per `(module, substream_label)` including this `draws`. Validators aggregate $\sum\text{draws}$ per $(m,\ell)$ and compare to expected budgets:
-  $\text{gamma draws} = 3\times\text{attempts} + 1[\phi_m<1]$; $\text{poisson draws}$ = **measured** by counters. `nb_final` later has `draws=0`.
-
+* **Trace rule:** For every event, `draws = (after_hi,after_lo) − (before_hi,before_lo)` (unsigned 128-bit). Validators may aggregate per `(seed, parameter_hash, run_id, merchant_id, substream_label)` and compare to algorithmic budgets:
+  **Gamma:** per attempt $t$, $\mathrm{draws}_\gamma(t)=2J_t + A_t + \mathbf{1}[\phi_m<1]$.  **Poisson:** consumption is measured by counters (inversion vs PTRS). `nb_final` has `draws=0`.
 ---
 
 ## 7) Determinism & ordering (MUST)
 
-* **Emission cardinality:** per attempt emit **exactly one** `gamma_component` then **exactly one** `poisson_component`.
-* **Label order:** Gamma **precedes** Poisson; attempts are indexed by S2.4’s loop counter (not stored in payload; ordering is by file order + envelope counters).
-* **Bit-replay:** For fixed $(x_m^{(\mu)},x_m^{(\phi)},\beta_\mu,\beta_\phi,\texttt{seed},\texttt{parameter_hash},\texttt{manifest_fingerprint})$, the entire `(G_t,K_t)` attempt stream is **bit-identical** across replays. (Counter-based Philox + fixed labels + fixed budgets.)
+* **Emission cardinality:** Emit exactly one `gamma_component` (with `substream_label="gamma_nb"`, `context="nb"`) then one `poisson_component` (with `substream_label="poisson_nb"`, `context="nb"`) per attempt for the merchant (no parallelization per merchant). Both events must carry the same lineage and the authoritative RNG envelope (before/after counters; `draws` computed).
+* **Label order:** Gamma **precedes** Poisson; **`attempt` is stored in payload** and strictly increases by 1 per merchant. File order and envelope counters **must** be consistent with `attempt`.
+* **Bit-replay:** For fixed $(x_m^{(\mu)},x_m^{(\phi)},\beta_\mu,\beta_\phi,\texttt{seed},\texttt{parameter_hash},\texttt{manifest_fingerprint})$, the entire `(G_t,K_t)` attempt stream is **bit-identical** across replays. (Counter-based Philox + fixed labels + variable, actual-use budgets)
+* *(Reminder)* NB substream **labels are closed**: `gamma_nb` / `poisson_nb` under `module="1A.nb_sampler"` with `context="nb"`.
 
 ---
 
@@ -431,27 +437,27 @@ Given merchant $m$ with $(\mu_m,\phi_m)$ from S2.2:
 ## 9) Reference pseudocode (one attempt; emissions included)
 
 ```pseudo
-function s2_3_attempt_once(ctx: NBContext) -> AttemptRecord:
+function s2_3_attempt_once(ctx: NBContext, t: int) -> AttemptRecord:
     # Inputs
     mu  := ctx.mu      # >0, binary64
     phi := ctx.phi     # >0, binary64
 
-    # --- Gamma step on substream "gamma_component"
+    # --- Gamma step on substream "gamma_nb"
     G := gamma_mt1998(alpha=phi)              # uses S0.3.4/5; variable attempts internally
     emit_gamma_component(
         merchant_id=ctx.merchant_id,
-        context="nb", index=0, alpha=phi, gamma_value=G,
-        envelope=substream_envelope("gamma_component")
+        context="nb", attempt=t, alpha=phi, gamma_value=G,
+        envelope=substream_envelope(module="1A.nb_sampler", label="gamma_nb")
     )
 
-    # --- Poisson step on substream "poisson_component"
+    # --- Poisson step on substream "poisson_nb"
     lambda := (mu / phi) * G                  # binary64
     if not isfinite(lambda) or lambda <= 0: raise ERR_S2_NUMERIC_INVALID
     K := poisson_s0_3_7(lambda)               # regimes per S0.3.7
     emit_poisson_component(
         merchant_id=ctx.merchant_id,
-        context="nb", lambda=lambda, k=K,
-        envelope=substream_envelope("poisson_component")
+        context="nb", attempt=t, lambda=lambda, k=K,
+        envelope=substream_envelope(module="1A.nb_sampler", label="poisson_nb")
     )
 
     return AttemptRecord{G: G, lambda: lambda, K: K}
@@ -459,29 +465,31 @@ function s2_3_attempt_once(ctx: NBContext) -> AttemptRecord:
 
 * `gamma_mt1998` implements §3.1 including α<1 power-step and **draw budgets**.
 * `poisson_s0_3_7` implements §3.2 (inversion / PTRS; **normative constants**).
-* `emit_*` attach the **rng envelope** (before/after counters; `draws` computed as the 128-bit delta).
+* `emit_*` attach the **rng envelope** (before/after counters; `draws` computed as the 128-bit delta).  
+  The envelope **includes lineage keys** `seed`, `parameter_hash`, `run_id`, and `manifest_fingerprint` in addition to `blocks/counters/draws`.
 
 ---
 
 ## 10) Errors & abort semantics (merchant-scoped)
 
 * `ERR_S2_NUMERIC_INVALID` — non-finite or $\le0$ $\lambda$.
-  **Effect:** abort S2 for $m$; **no** S2 events should exist for that merchant (validator will also enforce coverage).
+  **Effect:** abort S2 for $m$; **no further** S2 events are emitted for that merchant (validator will also enforce coverage).
 
 ---
 
 ## 11) Conformance tests (KATs)
 
-**Gamma budgets.** For a case with $\phi\ge1$, assert `draws` in `gamma_component` equals $3\times$attempts; for $\phi<1$, equals $3\times$attempts $+1$. (Use envelope deltas.)
-**Poisson regimes.** Choose $\lambda=5$ (inversion) and $\lambda=50$ (PTRS); confirm `poisson_component` bit-replays and that the counters advance with variable consumption.
-**Ordering.** Verify each attempt produces **two** events in the `gamma`→`poisson` order for the same merchant and that `nb_final` (later) appears once at acceptance.
+* **Gamma budgets.** Using the reference MT1998 sampler, let $J_t$ be the number of MT iterations and $A_t=\mathbf{1}\{V_t>0\}$ the “accept-U” indicator on attempt $t$. Assert the envelope delta satisfies  
+$\text{draws\_gamma} == 2 \sum_t J_t + \sum_t A_t + \mathbf{1}[\phi < 1]$ (i.e., **actual-use**; not a fixed multiple of attempts).
+* **Poisson regimes.** Choose $\lambda=5$ (inversion) and $\lambda=50$ (PTRS); confirm `poisson_component` bit-replays and that the counters advance with variable consumption.
+* **Ordering.** Verify each attempt produces **two** events in the `gamma`→`poisson` order for the same merchant and that `nb_final` (later) appears once at acceptance.
 
 ---
 
 ## 12) Complexity
 
-* Gamma MT1998: expected constant attempts (depends on $\alpha$); 3 uniforms/attempt (+1 if $\alpha<1$).
-* Poisson S0.3.7: inversion cost $\approx \lambda$ uniforms; PTRS constant expected attempts (2 uniforms/attempt).
+* Gamma MT1998: expected constant iterations (depends on $\alpha$); per-attempt uniforms are **variable**: Box–Muller uses 2 uniforms per iteration; accept-$U$ is drawn only when $V>0$; add **+1** if $0<\alpha<1$.
+* Poisson S0.3.7: inversion costs $\approx \lambda$ uniforms; PTRS has constant expected attempts but **variable** uniform consumption; budgets are measured by envelope counters.
 * One attempt is $O(1)$ expected time and $O(1)$ memory.
 
 ---
