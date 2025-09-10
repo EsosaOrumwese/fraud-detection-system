@@ -414,8 +414,10 @@ Given merchant $m$ with $(\mu_m,\phi_m)$ from S2.2:
 
 ## 6) Draw accounting & reconciliation (MUST)
 
-* **Trace rule:** For every event, `draws = (after_hi,after_lo) − (before_hi,before_lo)` (unsigned 128-bit). Validators may aggregate per `(seed, parameter_hash, run_id, merchant_id, substream_label)` and compare to algorithmic budgets:
-  **Gamma:** per attempt $t$, $\mathrm{draws}_\gamma(t)=2J_t + A_t + \mathbf{1}[\phi_m<1]$.  **Poisson:** consumption is measured by counters (inversion vs PTRS). `nb_final` has `draws=0`.
+* **Trace rule:** For every event, `blocks = (after_hi, after_lo) − (before_hi, before_lo)` (unsigned 128-bit). Validators may aggregate per `(seed, parameter_hash, run_id, merchant_id, substream_label)` and compare to algorithmic budgets:
+* **Gamma:** per attempt $t$, $\mathrm{draws}_\gamma(t)=2J_t + A_t + \mathbf{1}[\phi_m<1]$.  
+* **Poisson:** consumption is measured by counters (inversion vs PTRS). `nb_final` has `draws=0`.
+* **nb_final:** `draws_final = 0` (non-consuming).
 ---
 
 ## 7) Determinism & ordering (MUST)
@@ -466,7 +468,7 @@ function s2_3_attempt_once(ctx: NBContext, t: int) -> AttemptRecord:
 * `gamma_mt1998` implements §3.1 including α<1 power-step and **draw budgets**.
 * `poisson_s0_3_7` implements §3.2 (inversion / PTRS; **normative constants**).
 * `emit_*` attach the **rng envelope** (before/after counters; `draws` computed as the 128-bit delta).  
-  The envelope **includes lineage keys** `seed`, `parameter_hash`, `run_id`, and `manifest_fingerprint` in addition to `blocks/counters/draws`.
+  The envelope **includes lineage keys** `seed`, `parameter_hash`, `run_id`, and `manifest_fingerprint`, plus `counters` and **`blocks`** (the 128-bit delta). `draws` is carried as a separate field equal to the sampler’s **actual uniforms used** for that event (as specified in §6).
 
 ---
 
@@ -479,8 +481,8 @@ function s2_3_attempt_once(ctx: NBContext, t: int) -> AttemptRecord:
 
 ## 11) Conformance tests (KATs)
 
-* **Gamma budgets.** Using the reference MT1998 sampler, let $J_t$ be the number of MT iterations and $A_t=\mathbf{1}\{V_t>0\}$ the “accept-U” indicator on attempt $t$. Assert the envelope delta satisfies  
-$\text{draws\_gamma} == 2 \sum_t J_t + \sum_t A_t + \mathbf{1}[\phi < 1]$ (i.e., **actual-use**; not a fixed multiple of attempts).
+* **Gamma budgets.** Let `attempts` be the number of Gamma variates emitted for the merchant. For $\phi\ge1$, assert `draws` in `gamma_component` equals $\sum_{t=1}^{\text{attempts}} \big(2 J_t + A_t\big)$; for $0<\phi<1$, assert $\sum_{t=1}^{\text{attempts}} \big(2 J_t + A_t + 1\big)$. 
+  Here $J_t$ is the number of Box–Muller iterations for attempt $t$, and $A_t$ is the number of those iterations with $V>0$ (i.e., the iterations that consume the accept-$U$). (Use envelope deltas; the validator recomputes $J_t, A_t$ by bit-replay.)
 * **Poisson regimes.** Choose $\lambda=5$ (inversion) and $\lambda=50$ (PTRS); confirm `poisson_component` bit-replays and that the counters advance with variable consumption.
 * **Ordering.** Verify each attempt produces **two** events in the `gamma`→`poisson` order for the same merchant and that `nb_final` (later) appears once at acceptance.
 
