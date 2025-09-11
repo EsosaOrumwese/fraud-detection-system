@@ -304,7 +304,9 @@ G\sim\mathrm{Gamma}(\alpha{=}\phi_m,1),\quad \lambda=(\mu_m/\phi_m)\,G,\quad K\s
 $$
 
 Emit exactly **one** `gamma_component` and **one** `poisson_component` event (context=`"nb"`) for this attempt, with **authoritative RNG envelope** and draw accounting.  
-**Envelope must include:** `seed`, `parameter_hash`, `run_id`, `manifest_fingerprint`, `module`, `substream_label`, `rng_counter_before_hi/lo`, `rng_counter_after_hi/lo`, and per-event `blocks` (u64) and `draws` (decimal u128). Acceptance of the attempt is decided in **S2.4** (accept if $K\ge2$).
+**Envelope must include:** `seed`, `parameter_hash`, `run_id`, `manifest_fingerprint`, `module`, `substream_label`, `ts_utc`, `rng_counter_before_hi/lo`, `rng_counter_after_hi/lo`, and per-event `blocks` (u64) and `draws` (decimal u128). Acceptance of the attempt is decided in **S2.4** (accept if $K\ge2$).
+
+**Index semantics:** For `gamma_component`, set `index=0` for the NB mixture; for Dirichlet (elsewhere in 1A) `index=i≥1` denotes the i-th category component.
 
 ---
 
@@ -358,7 +360,7 @@ Use **S0.3.7** regime split: **inversion** for $\lambda<10$; **PTRS** (Hörmann 
   * Gamma: `substream_label="gamma_nb"`
   * Poisson: `substream_label="poisson_nb"`
 * **Order per attempt:** emit exactly two component events: `gamma_component` → `poisson_component`.  
-Counters advance deterministically within each `(merchant, substream_label)` stream; there is **no stride** across labels. All uniforms use S0.3.4 `u01`; all normals use Box–Muller.
+Counters advance deterministically within each `(merchant, substream_label)` stream; there is **no cross-label counter chaining**. All uniforms use S0.3.4 `u01`; all normals use Box–Muller.
 
 ---
 
@@ -387,9 +389,9 @@ Given merchant $m$ with $(\mu_m,\phi_m)$ from S2.2:
      "rng_counter_before_hi": "...",
      "rng_counter_before_lo": "...",
      "rng_counter_after_hi":  "...",
-      "rng_counter_after_lo":  "...",
-     "blocks": <u64>,
-     "draws": "<uniforms consumed, decimal u128>"
+     "rng_counter_after_lo":  "...",
+     "blocks": 2,
+     "draws": "2"
    }
    ```
 
@@ -416,8 +418,8 @@ Given merchant $m$ with $(\mu_m,\phi_m)$ from S2.2:
      "rng_counter_before_lo": "...",
      "rng_counter_after_hi":  "...",
      "rng_counter_after_lo":  "...",
-     "blocks": <u64>,
-     "draws": "<uniforms consumed, decimal u128>"
+     "blocks": 1,
+     "draws": "1"
    }
    ```
 
@@ -431,8 +433,8 @@ Given merchant $m$ with $(\mu_m,\phi_m)$ from S2.2:
 
 * **Trace rule:** For every event, `blocks = u128(after) − u128(before)`; `draws` is the decimal-encoded count of uniforms consumed by that event. Reconcile merchant-level budgets by summing event `draws`; cross-check against the cumulative **rng_trace_log**, which is per `(module, substream_label)` for the run.
 * **Gamma:** per attempt $t$, $\mathrm{draws}_\gamma(t)=2J_t + A_t + \mathbf{1}[\phi_m<1]$.  
-* **Poisson:** consumption is measured by counters (inversion vs PTRS). `nb_final` has `draws=0`.
-* **nb_final:** `draws_final = 0` (non-consuming).
+* **Poisson:** consumption is measured by counters (inversion vs PTRS). `nb_final` has `draws="0"`.
+* **nb_final:** `draws = "0"` (non-consuming).
 ---
 
 ## 7) Determinism & ordering (MUST)
