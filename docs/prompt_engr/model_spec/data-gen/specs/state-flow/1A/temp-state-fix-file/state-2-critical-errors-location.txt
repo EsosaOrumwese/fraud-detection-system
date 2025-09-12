@@ -1,0 +1,261 @@
+Here are the location of 16 Critical-class issues in `state.1A.s2.expanded.txt`. Issues listed in `state-2-critical-errors.txt`
+
+# Batch 1
+Got it—Batch 1 mapped exhaustively. Below, for **each Critical #1–#5**, I list **every place it appears in S2** (by section/quote) and the **binding anchor** it conflicts with (from S0/S1), so we know exactly where patches land.
+
+---
+
+## 1) Counters = draws (wrong per-event law)
+
+### Where it appears in S2 (commission)
+
+* **S2.6 §3 — “Envelope arithmetic (per event)”**
+
+  > “(after\_hi, after\_lo) = (before\_hi, before\_lo) + **draws** … where `draws` equals the number of uniforms … **required for every RNG event**.”
+* **S2.5 §5 — Construction & emission examples** (`gamma_component`, `poisson_component`)
+  Example envelopes annotate `"draws": "<after-before unsigned 128-bit>"` (i.e., equate `draws` with the counter delta).
+* **S2.6 §6 — “Draw budgets & reconciliation (normative)”**
+
+  > “**Per S0.3.6** the event’s **`draws` equals** the 128-bit delta …” (repeats the same wrong law).
+
+### Authority it contradicts
+
+* **S0 — RNG invariants** (“Blocks vs draws (normative)”)
+
+  > `blocks = (after − before)`; `draws = uniforms used` (independent). Single-uniform: `(blocks=1, draws="1")`; two-uniform (Box–Muller): `(blocks=1, draws="2")`.
+
+---
+
+## 2) Counters = draws (wrong “Trace rule”)
+
+### Where it appears in S2 (commission)
+
+* **S2.3 §6 — “Trace rule”**
+
+  > “For every event, **`draws = (after − before)`** … validators sum `draws` …”
+* **S2.6 §6 — “Draw budgets & reconciliation (normative)”**
+  Reasserts the same equality (see #1).
+
+### Authority it contradicts
+
+* **S1 — Trace reconciliation model** (cumulative budgets vs per-event deltas; `blocks_total` and `draws_total`)—draws are **not** the counter delta; counters certify **blocks**.
+
+---
+
+## 3) Counters = draws (wrong in pseudocode)
+
+### Where it appears in S2 (commission)
+
+* **S2.3 §9 — Reference pseudocode (one attempt)**
+  Comment under `emit_*`:
+
+  > “`emit_*` attach the rng envelope … **`draws` computed as the 128-bit delta**.”
+* **S2.5 §5 — Emission examples**
+  Inline examples show `"draws":"<after-before …>"` reinforcing the pseudocode guidance.
+
+### Authority it contradicts
+
+* **S0 — RNG invariants** (`blocks` checked by counters; `draws` by family budgets), not interchangeable.
+
+---
+
+## 4) Lane policy mis-specified globally
+
+### Where it appears in S2 (commission)
+
+* **S2.6 §4 — “Uniform & normal primitives (normative)”**
+
+  > “**One counter increment ⇒ one uniform**; **we do not reuse** Philox’s spare lane.” (This forbids Box–Muller’s two-uniforms-from-one-block.)
+* **S2.6 §10 — Reference implementation**
+  `u01(s)` pulls **one 64-bit lane per call** and increments `i` by 1; Box–Muller is stated to “use two `u01(s)`,” which would imply **two block increments** rather than one block/2 draws.
+
+### Authority it contradicts
+
+* **S0 — Box–Muller budgeting (normative)**
+
+  > **Exactly 2 uniforms per Z, 1 block**; envelope must set `blocks=1` and `draws="2"`.
+
+---
+
+## 5) u01 mapping formulated as $(x+1)/(2^{64}+1)$ (forbidden)
+
+### Where it appears in S2 (commission)
+
+* **S2.6 §4 — “Open-interval uniform (exclusive bounds)”**
+
+  > $u = \frac{x+1}{2^{64}+1}$. (Also paired with the wrong lane rule above.)
+* **S2.6 §10 — Reference implementation**
+  `return (x + 1) / (2^64 + 1)` inside `u01(s)` (pseudocode).
+
+### Authority it contradicts
+
+* **S0 — u01 mapping (normative)**
+
+  > `u = ((x + 1) * 0x1.0000000000000p-64)` and **forbids computing `1/(2^64+1)`** at runtime/decimals. (Also requires the 1.0 clamp—tracked separately as Critical #6.)
+
+---
+
+### Notes
+
+* I intentionally **did not** fold Critical #6 (missing the **1.0 clamp**) into #5; we’ll map it in the next batch.
+* All citations above point to the **exact passages** to patch (S2), and to the **binding canon** (S0/S1) that defines the correct law.
+
+---
+
+# Batch 2
+Here’s **Batch 2** — exhaustive locations for **Critical #6–#10**, with the **binding authority** each violates.
+
+## 6) u01 mapping **missing the 1.0 clamp**
+
+**Where in S2 (commission/omission):**
+
+* **S2.6 §4 “Open-interval uniform”** defines $u=\frac{x+1}{2^{64}+1}$ with **no** `u==1.0` remap.
+* **S2.6 §10 pseudocode `u01`** returns `(x + 1) / (2^64 + 1)` with **no** clamp.
+
+**Binding authority (violated):**
+
+* **S0.3.4 (normative):** `u = ((x+1) * 0x1.0000000000000p-64)` **then** `if u == 1.0: u := 0x1.fffffffffffffp-1` (i.e., $1-2^{-53}$).
+
+---
+
+## 7) Numeric profile drift — **FMA allowed**
+
+**Where in S2 (commission):**
+
+* **S2.2 §3(1) Algorithm:** “Evaluate linear predictors in **binary64 with fused operations permitted**.” (Appears in both S2.2 blocks.)
+
+**Binding authority (violated):**
+
+* **S0.8 (numeric policy):** **binary64, RNE, FMA off, no FTZ/DAZ**, deterministic libm; serial/fixed-order reductions.
+
+---
+
+## 8) RNG envelope field list **omits `blocks` and `draws`**
+
+**Where in S2 (commission):**
+
+* **S2.5 §2 (“RNG envelope (from S0 infra)”)** lists envelope fields but **does not** include `blocks` or `draws`.
+
+* **S2.9 §2 “Persisted outputs …” → “Envelope (must on every row)”** lists the envelope fields but **still omits** `blocks` and `draws`.
+
+**Binding authority (violated):**
+
+* **S0.3.1 Event envelope (mandatory):** envelope **must** include both `blocks:uint64` and `draws:"uint128-dec"`.
+
+---
+
+## 9) `nb_final` **normative example** missing **`blocks`**
+
+**Where in S2 (commission):**
+
+* **S2.5 §5 “Wire-format example (normative shape)”** for `nb_final` omits `blocks`.
+
+**Binding authority (violated):**
+
+* **S0.3.1 Event envelope (mandatory fields):** `blocks` is required on **every** RNG event row.
+
+---
+
+## 10) `nb_final` **normative example** missing **`draws`**
+
+**Where in S2 (commission):**
+
+* **S2.5 §5 “Wire-format example (normative shape)”** for `nb_final` omits `draws`.
+
+**Binding authority (violated):**
+
+* **S0.3.1 Event envelope (mandatory fields):** `draws` (decimal `uint128`) is required on **every** RNG event row.
+
+---
+
+# Batch 3
+Here’s **Batch 3** — exhaustive mapping for **Critical #11–#16**, with every affected spot in **S2** and the **binding authority** each violates.
+
+---
+
+## 11) `ts_utc` precision wrong (must be exactly 6 fractional digits)
+
+**Where in S2 (commission):**
+
+* **S2.5 §5 “Wire-format example (normative shape)”** shows
+  `"ts_utc": "2025-08-15T13:22:19.481Z"` (3 dp; should be 6).
+
+**Binding authority (violated):**
+
+* Layer schema **rng\_envelope.ts\_utc**: RFC-3339 with **exactly 6 fractional digits** (pattern enforced).
+
+---
+
+## 12) `seed` typed as a **string** (must be JSON integer `uint64`)
+
+**Where in S2 (commission):**
+
+* **S2.5 §5 `nb_final` example** uses
+  `"seed": "00000000-0000-0000-0000-000000000042"` (UUID string).
+
+**Binding authority (violated):**
+
+* Layer schema **rng\_envelope.seed** → `$defs/uint64` (JSON integer).
+
+---
+
+## 13) `run_id` not **hex32**
+
+**Where in S2 (commission):**
+
+* **S2.5 §5 `nb_final` example** uses
+  `"run_id": "2025-08-15T13-20-00Z"` (ISO-like string).
+
+**Binding authority (violated):**
+
+* Layer schema `$defs/hex32` and S0 **run\_id** definition: **hex32** only.
+
+---
+
+## 14) Counter words emitted as **strings** (must be `uint64` numbers)
+
+**Where in S2 (commission):**
+
+* **S2.5 §5 `nb_final` example**: `"rng_counter_before_lo": "00000002"` etc. (strings).
+
+**Binding authority (violated):**
+
+* Layer schema requires **`rng_counter_*`** as `uint64` fields (numbers).
+
+---
+
+## 15) `parameter_hash` / `manifest_fingerprint` not **hex64** (truncated with ellipses)
+
+**Where in S2 (commission):**
+
+* **S2.5 §5 `nb_final` example** uses shortened digests:
+  `"parameter_hash": "3aa1f3…c0de"`, `"manifest_fingerprint": "a9c6…6f"`.
+
+**Binding authority (violated):**
+
+* Layer schema `$defs/hex64` for both; S0/S0.2 formal definitions (hex64).
+
+---
+
+## 16) Abort semantics vs emission order (self-contradiction)
+
+**Where in S2 (commission):**
+
+* **S2.3 §9 Reference pseudocode** emits **`gamma_component`** *before* computing `λ` and performing the numeric guard:
+  emits Gamma → computes `lambda` → **then** raises `ERR_S2_NUMERIC_INVALID` if `λ` non-finite/≤0.
+* **S2.3 §10 Errors & abort semantics** says:
+  **“abort S2 for m; no S2 events should exist for that merchant.”**
+* (Echoed constraint in S2.1: skip S2 on numeric invalid ⇒ **no S2 events written**.)
+
+**Why it’s Critical:** The pseudocode **already emitted** `gamma_component` when the text requires **no S2 events should exist** on this error → mutually exclusive behaviors (two compliant readers would diverge).
+
+**Binding authority (violated):**
+
+* S0.9 failure semantics (consistent abort; no partial trails), plus S2’s own **normative** abort statements.
+
+---
+
+### Notes
+
+* Items **#11–#15** are all within the **normative `nb_final` example** (S2.5), so they are binding (not illustrative) and therefore **Critical** against the layer schema.
+* Item **#16** spans **S2.3 pseudocode vs S2.3/S2.1 abort clauses**; this is the exact spot to reconcile emission order vs “no events on error.”

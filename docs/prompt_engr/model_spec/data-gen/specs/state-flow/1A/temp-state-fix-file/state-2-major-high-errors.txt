@@ -1,0 +1,9 @@
+Here are the **2 Major/High** issues in S2:
+
+1. **Attempt pairing rule is ambiguous (“time/file-order vs counter”).**
+   Authoritative pairing for Gamma→Poisson attempts must be defined **solely by counter intervals** (or by a persisted `nb_attempt` id). Any reliance on file/emit order or wall-time is non-contractual under concurrency.
+
+2. **Component stream metadata under-specified.**
+   Two things must be pinned to avoid divergent but “reasonable” implementations:
+   • the exact **`module`** registry literal for `gamma_component` and `poisson_component` (not just `1A.nb_*` placeholders), and
+   • the **`index`** field’s meaning in NB (Gamma is **scalar**; `index` is a fixed placeholder `0`, not a selector).
