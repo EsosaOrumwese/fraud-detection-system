@@ -1,0 +1,34 @@
+Fair point — I shouldn’t have overwritten our base. Here’s the **merged, final** Minor resolution that keeps everything from our original (scope + acceptance checks) and **adds** the extra specificity from the “correct stuff” (the canonical envelope list + flat-record note).
+
+# Minor-01 — Envelope vs payload wording for `merchant_id` (grouping only)
+
+## Normative rule (final)
+
+* The **shared RNG envelope** for every S2 event contains **only lineage/counter/stream keys**:
+
+  ```
+  ts_utc, seed, parameter_hash, manifest_fingerprint, run_id,
+  module, substream_label,
+  rng_counter_before_lo, rng_counter_before_hi,
+  rng_counter_after_lo,  rng_counter_after_hi,
+  blocks (uint64), draws ("uint128-dec")
+  ```
+* **`merchant_id` is not part of the envelope.** It is an **event-specific field** and therefore belongs in the **payload** of the same flat JSON record.
+* The record remains a **single flat object** (envelope fields + payload fields in one JSON row); “envelope” and “payload” are conceptual groupings only (no nesting).
+
+## Scope of applicability (from our base, retained)
+
+* **S2.9 (“Envelope (must on every row)”):** **remove `merchant_id`** from the envelope list; keep it only in each stream’s **payload** list.
+* **S2.5 (“RNG envelope (from S0 infra)” & “Payload (must)”):** **no change**; it already reflects the correct split and remains the canonical pattern.
+
+## Definitions & notes (retained)
+
+* Path↔embed equality and partitioning apply **only** to `{seed, parameter_hash, run_id}`; `merchant_id` is **not** a path key and appears **only** in payload. *(No schema change; types/domains for `merchant_id` unchanged.)*
+
+## Acceptance criteria (retained + tightened)
+
+1. Nowhere in S2 is `merchant_id` listed inside the **Envelope**; it appears **only** in **Payload**.
+2. All envelope inventories in S2 include **exactly** the keys above (including `blocks` and `draws`).
+3. All examples remain a **single flat JSON object**; no nested “envelope” object and no duplication of `merchant_id`.
+
+This keeps our original intent and adds the precise envelope enumeration so the fix is unambiguous.
