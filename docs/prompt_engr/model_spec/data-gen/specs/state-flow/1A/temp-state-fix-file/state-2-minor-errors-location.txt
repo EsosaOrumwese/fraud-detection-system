@@ -1,0 +1,23 @@
+Here’s the **exhaustive map** for the single **Minor** issue (envelope vs payload wording for `merchant_id`)—every place it’s implicated in **S2** by **commission** (what’s written) and **omission** (what’s missing). No fixes yet; this is just where to patch.
+
+# Minor-01 — `merchant_id` mixed into the **envelope** (wording/structure only)
+
+## Commission (where the doc says it)
+
+* **S2.9 — “Envelope (must on every row)”** lists `merchant_id` **inside the envelope** alongside `ts_utc, seed, …, rng_counter_*`. This double counts `merchant_id` (envelope **and** payload).&#x20;
+
+## What the same doc says elsewhere (the correct pattern to mirror)
+
+* **S2.5 — “RNG envelope (from S0 infra)”** lists the **shared envelope fields** **without** `merchant_id`. (Correct.)&#x20;
+* **S2.5 — “Payload (must)”** then enumerates per-event payloads, each including **`merchant_id`** (correct: it’s a payload field on the flat JSON record).&#x20;
+* **S2.5 — Writer algorithm / persist call** shows the flat record pattern: envelope provided separately, **payload contains `merchant_id`** with the business fields. (Reinforces the intended split.)&#x20;
+
+## Omission (what’s missing that lets the confusion slip in)
+
+* **S2.9** does **not** restate the “envelope vs payload” split it used correctly in **S2.5**; instead it folds `merchant_id` into the envelope list for all three streams. (Omission to mirror S2.5’s split here.)&#x20;
+
+## Background anchor (why the split matters, even if bytes wouldn’t change)
+
+* The layer’s discipline treats the **envelope** as the shared lineage/counter block keyed by `{seed, parameter_hash, run_id}`; event-specific fields (like `merchant_id`) belong to the **payload** of the same flat JSON object. (Path↔embed equality is on the three envelope keys only.)&#x20;
+
+**Scope to patch later:** just the **S2.9** “Envelope (must on every row)” line—remove `merchant_id` from the envelope list (it remains in payload lists/examples). The other locations already express the correct split.
