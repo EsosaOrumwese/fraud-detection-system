@@ -390,7 +390,7 @@ Given merchant $m$ with $(\mu_m,\phi_m)$ from S2.2:
      "rng_counter_before_lo": "...",
      "rng_counter_after_hi":  "...",
      "rng_counter_after_lo":  "...",
-     "blocks": 2,
+     "blocks": 1,
      "draws": "2"
    }
    ```
@@ -431,10 +431,12 @@ Given merchant $m$ with $(\mu_m,\phi_m)$ from S2.2:
 
 ## 6) Draw accounting & reconciliation (MUST)
 
-* **Trace rule:** For every event, `blocks = u128(after) − u128(before)`; `draws` is the decimal-encoded count of uniforms consumed by that event. Reconcile merchant-level budgets by summing event `draws`; cross-check against the cumulative **rng_trace_log**, which is per `(module, substream_label)` for the run.
-* **Gamma:** per attempt $t$, $\mathrm{draws}_\gamma(t)=2J_t + A_t + \mathbf{1}[\phi_m<1]$.  
-* **Poisson:** consumption is measured by counters (inversion vs PTRS). `nb_final` has `draws="0"`.
-* **nb_final:** `draws = "0"` (non-consuming).
+**Trace rule (cumulative).** Persist one **trace** row per `(module, substream_label)` carrying
+`blocks_total = Σ blocks_event` and `draws_total = Σ draws_event`. The stream’s 128-bit
+counter span **must** satisfy `u128(last_after) − u128(first_before) = blocks_total`.
+There is **no** identity deriving `draws` (or `draws_total`) from counter deltas.
+Validators compare `draws_total` to the sampler budgets (Gamma/Poisson as specified),
+and verify the counter-span equality for `blocks_total`. `nb_final` is non-consuming.
 ---
 
 ## 7) Determinism & ordering (MUST)
@@ -484,8 +486,7 @@ function s2_3_attempt_once(ctx: NBContext, t: int) -> AttemptRecord:
 
 * `gamma_mt1998` implements §3.1 including α<1 power-step and **draw budgets**.
 * `poisson_s0_3_7` implements §3.2 (inversion / PTRS; **normative constants**).
-* `emit_*` attach the **rng envelope** (before/after counters; `blocks = u128(after) − u128(before)` **cast to uint64**).
-  The envelope **includes lineage keys** `seed`, `parameter_hash`, `run_id`, and `manifest_fingerprint`, plus `counters` and **`blocks`** (= u128(after) − u128(before), cast to uint64). `draws` (decimal u128) for that event (as specified in §6).
+* `emit_*` attach the **rng envelope** with `blocks = u128(after)−u128(before)` and`draws` equal to the **actual uniforms consumed** by that event (decimal uint128 string).
 
 ---
 
@@ -866,27 +867,35 @@ All sub-streams are derived by the **S0.3.3 keyed mapping** from run lineage + l
 
 1. **Base counter for a (label, merchant)**
 
-$$
-(c^{\mathrm{base}}_{\mathrm{hi}},c^{\mathrm{base}}_{\mathrm{lo}})
-=\mathrm{split64}\!\Big(\mathrm{SHA256}\big(\text{"ctr:1A"}\,\|\,\texttt{manifest_fingerprint_bytes}\,\|\,\mathrm{LE64}(\texttt{seed})\,\|\,\ell\,\|\,\mathrm{LE64}(m)\big)[0{:}16]\Big).
-$$
+    $$
+    (c^{\mathrm{base}}_{\mathrm{hi}},c^{\mathrm{base}}_{\mathrm{lo}})
+    =\mathrm{split64}\!\Big(\mathrm{SHA256}\big(\text{"ctr:1A"}\,\|\,\texttt{manifest_fingerprint_bytes}\,\|\,\mathrm{LE64}(\texttt{seed})\,\|\,\ell\,\|\,\mathrm{LE64}(m)\big)[0{:}16]\Big).
+    $$
 
-2. **i-th uniform** for that pair uses
+2. **b-th block** for that pair uses
 
-$$
-(c_{\mathrm{hi}},c_{\mathrm{lo}})=(c^{\mathrm{base}}_{\mathrm{hi}},\,c^{\mathrm{base}}_{\mathrm{lo}}+i),
-$$
-
-with 64-bit carry into $c_{\mathrm{hi}}$. Mapping is **pure** in $(\texttt{seed},\texttt{fingerprint},\ell,m,i)$.
+    $$
+    (c_{\mathrm{hi}},c_{\mathrm{lo}})=(c^{\mathrm{base}}_{\mathrm{hi}},\,c^{\mathrm{base}}_{\mathrm{lo}}+b),
+    $$
+    
+    with 64-bit carry into $c_{\mathrm{hi}}$; this block yields two lanes $(x_0,x_1)$.
+    **Single-uniform events** consume $x_0$ and **discard** $x_1$ ($\texttt{blocks}=1$, $\texttt{draws}="1"$);
+    **two-uniform events** (e.g., Box–Muller) consume **both** $x_0,x_1$ from the **same** block
+    ($\texttt{blocks}=1$, $\texttt{draws}="2"$). Mapping is **pure** in $(\texttt{seed},\texttt{fingerprint},\ell,m,b)$.
 
 **Envelope arithmetic (per event):**
 
 $$
-(\texttt{after_hi},\texttt{after_lo})=(\texttt{before_hi},\texttt{before_lo})+\texttt{draws}
+\boxed{\texttt{blocks}\;:=\;u128(\texttt{after})-u128(\texttt{before})}
 $$
 
-in **unsigned 128-bit** arithmetic, where `draws` equals the number of uniforms consumed by that event. This is required for **every** RNG event.
+in **unsigned 128-bit** arithmetic. The envelope **must** carry both:
+`blocks` (**uint64**) and `draws` (decimal **uint128** string).
+Here `draws` records the **actual count of U(0,1)** uniforms consumed by
+the event’s sampler(s) and is **independent** of the counter delta.
 
+Examples: Box–Muller → `blocks=1`, `draws="2"`; single-uniform → `blocks=1`,
+`draws="1"`; non-consuming finaliser → `blocks=0`, `draws="0"`.
 ---
 
 ## 4) Uniform & normal primitives (normative)
@@ -894,10 +903,16 @@ in **unsigned 128-bit** arithmetic, where `draws` equals the number of uniforms 
 * **Open-interval uniform** (exclusive bounds):
 
 $$
-u=\frac{x+1}{2^{64}+1}\in(0,1),\quad x\in\{0,\dots,2^{64}\!-\!1\}.
+\boxed{\,u = ((x+1)\times 0x1.0000000000000p-64)\ \in (0,1)\,},\quad x\in\{0,\dots,2^{64}\!-\!1\}.
 $$
 
-**One counter increment ⇒ one uniform**; we **do not** reuse Philox’s spare lane.
+The multiplier **must** be written as the **binary64 hex literal** `0x1.0000000000000p-64`
+(no decimal substitutes).
+
+**Lane policy.** A Philox **block** yields two 64-bit lanes `(x0,x1)` then advances by **1**.
+* **Single-uniform events:** use `x0`, **discard** `x1` → `blocks=1`, `draws="1"`.
+* **Two-uniform events (e.g., Box–Muller):** use **both** `x0,x1` from the **same** block
+→ `blocks=1`, `draws="2"`; **no caching** across events.
 
 * **Standard normal** $Z$ via Box–Muller: exactly **2 uniforms per $Z$**; **no caching** of the sine deviate.
 
@@ -917,8 +932,10 @@ For attempt index $t=0,1,2,\dots$ of merchant $m$:
 
 ## 6) Draw budgets & reconciliation (normative)
 
-**Per S0.3.6** the event’s `draws` equals the 128-bit delta of envelope counters. Validators sum draws per $(m,\ell)$ and reconcile to algorithmic budgets:
-
+For each `(module, substream_label)`, validators reconcile **two independent totals**:
+`blocks_total = Σ blocks_event` (which equals the stream’s 128-bit counter span) and
+`draws_total = Σ draws_event` (which equals the uniforms implied by the sampler budgets).
+No identity ties `draws` to the counter delta.
 * **`gamma_component` (context="nb")**
 
   $$
@@ -977,7 +994,7 @@ For `nb_final`, enforce **non-consumption** (`before == after`).
 
 ```pseudo
 # Substream state (derived, not stored):
-# base_gamma, base_pois: (hi, lo) from S0.3.3; i_gamma, i_pois: u64 counters (uniform index)
+# base_gamma, base_pois: (hi, lo) from S0.3.3; i_gamma, i_pois: u64 counters (block index)
 struct Substream {
   base_hi: u64; base_lo: u64; i: u128
 }
@@ -985,28 +1002,54 @@ struct Substream {
 function substream_begin(s: Substream) -> (before_hi, before_lo):
     return add128((s.base_hi, s.base_lo), s.i)   # 128-bit
 
-function substream_end(s: Substream, draws: u128) -> (after_hi, after_lo):
-    return add128((s.base_hi, s.base_lo), s.i + draws)
+function substream_end(s: Substream, blocks: u128) -> (after_hi, after_lo):
+    return add128((s.base_hi, s.base_lo), s.i + blocks)
 
-# u01 pulls one uniform and increments s.i
-function u01(s: inout Substream) -> float64:
+# Each Philox block yields two 64-bit lanes (x0,x1); s.i advances by **1 block** per call.
+# Single-uniform events use the **low lane** and **discard** the high lane; two-uniform families use **both lanes from one block**.
+struct Substream { base_hi:u64; base_lo:u64; i:u128 }
+
+# Map lane to u in (0,1) using the hex-float multiplier (Crit #5). Clamp (Crit #6) is added elsewhere.
+function u01_map(x: u64) -> f64:
+    return ((x + 1) * 0x1.0000000000000p-64)
+
+# Advance by **one block**, return both lanes.
+function philox_block(s: inout Substream) -> (x0:u64, x1:u64):
     ctr = add128((s.base_hi, s.base_lo), s.i)
-    x = philox64(ctr)                            # 64-bit lane
+    (x0, x1) = philox64x2(ctr)
     s.i += 1
-    return (x + 1) / (2^64 + 1)
+    return (x0, x1)
 
-# Box–Muller uses two u01(s); Poisson/Gamma samplers call u01(s) internally.
+# Two uniforms from **one** block (e.g., Box–Muller).
+function u01_pair(s: inout Substream) -> (u0:f64, u1:f64, blocks_used:u128, draws_used:u128):
+    (x0, x1) = philox_block(s)                   # consumes 1 block
+    return (u01_map(x0), u01_map(x1), 1, 2)     # blocks=1, draws=2
+
+# Single uniform: use **low lane** from a fresh block; **discard** the high lane.
+function u01_single(s: inout Substream) -> (u:f64, blocks_used:u128, draws_used:u128):
+    (x0, _x1) = philox_block(s)                  # consumes 1 block; high lane discarded
+    return (u01_map(x0), 1, 1)                   # blocks=1, draws=1
 
 # Event emission for Gamma component (per attempt):
-function emit_gamma_component(ctx, s_gamma: inout Substream, alpha_phi: f64, G: f64, draws_used: u128):
-    before = substream_begin(s_gamma)
-    after  = substream_end(s_gamma, draws_used)
-    s_gamma.i += draws_used
-    write_jsonl("gamma_component", envelope={..., before, after, substream_label="gamma_component"}, 
-                payload={merchant_id, context:"nb", index:0, alpha:alpha_phi, gamma_value:G})
+# The sampler returns actual budgets; the emitter stamps counters independently.
+function emit_gamma_component(ctx, s_gamma: inout Substream, alpha_phi: f64):
+    (before_hi, before_lo) = substream_begin(s_gamma)
+    (G, blocks_used, draws_used) = gamma_mt98_with_budget(alpha_phi, s_gamma)  # uses u01_single/u01_pair internally
+    (after_hi,  after_lo)  = substream_end(s_gamma, blocks_used)
+    assert u128((after_hi,after_lo)) - u128((before_hi,before_lo)) == blocks_used
+    write_jsonl("gamma_component",
+        envelope={
+          ...,
+          "rng_counter_before_lo": before_lo, "rng_counter_before_hi": before_hi,
+          "rng_counter_after_lo":  after_lo,  "rng_counter_after_hi":  after_hi,
+          "blocks": blocks_used, "draws": stringify_u128(draws_used),
+          "substream_label": "gamma_component"
+        },
+        payload={ merchant_id, context:"nb", index:0, alpha:alpha_phi, gamma_value:G }
+    )
 
-# Poisson component is analogous but uses s_pois and payload {lambda, k}.
-# nb_final uses the last known counter and emits with before == after (draws_used = 0).
+# Poisson component is analogous, using its sampler’s (blocks_used, draws_used) and payload {lambda, k}.
+# nb_final is non-consuming: before == after, blocks=0, draws="0".
 ```
 
 **Notes.**
