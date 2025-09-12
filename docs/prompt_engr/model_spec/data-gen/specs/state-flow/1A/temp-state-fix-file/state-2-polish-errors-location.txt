@@ -1,0 +1,61 @@
+Got it—here’s the **final, exhaustive map** of the **Polish (QoL)** items in `state.1A.s2.expanded.txt`, showing exactly **where** each applies by **omission** (where to add) and **commission anchors** (what existing text it hangs on). This is **not** a fix doc—just locations.
+
+---
+
+# Polish-01 — Add a 5–6 step **operation capsule** (one screen)
+
+* **Omission (primary insertion point):**
+  **Top of S2.2**, immediately before its Scope/Algorithm block—natural on-ramp for a one-screen capsule that stitches S2.2→S2.3→S2.4→S2.5→S2.9.
+* **Commission anchors (what the capsule summarizes):**
+  S2.3 attempt structure (Gamma→Poisson, per-attempt emissions) ; S2.4 accept/reject rule (enforces $K\ge2$) ; S2.5 finalisation/writer pattern (non-consuming `nb_final`) ; S2.9 outputs/hand-off notes.&#x20;
+
+---
+
+# Polish-02 — **Substreams & producers** mini-table (legend)
+
+* **Omission (primary legend):**
+  **S2.6 §2 (around substreams/labels)**—insert a 2–4 row table with columns: *label* (`gamma_component (context="nb")`; `poisson_component (context="nb")`; `nb_final`) → *module literal* (to be filled once pinned by the Major fix) → *schema ref* → *partitions*.&#x20;
+* **Commission anchors (to populate columns):**
+  S2.4/S2.3 mention the two component labels & `context="nb"` ; S2.9 lists streams/partitioning and writer pattern for `nb_final`.&#x20;
+
+---
+
+# Polish-03 — **Inline dtype hints** (mirror schema exactly)
+
+* **Omission (where to annotate):**
+  S2.2 at first mention of $\mu,\phi$: add `(float64)`; keep binary64 note intact.
+  S2.5 writer/payload keys: add `mu, dispersion_k: float64; n_outlets, nb_rejections: int64`.&#x20;
+* **Commission anchors (context already present):**
+  S2.2 “binary64-stable / round-trip & echo” invariants.&#x20;
+
+---
+
+# Polish-04 — Cross-reference **S0.3.3** for keyed substream mapping (don’t restate)
+
+* **Omission (one-liner to add):**
+  S2.6 “Deterministic keyed mapping”: prepend/append “Base counter derivation is **as per S0.3.3** (not restated here).”&#x20;
+* **Commission anchors (where mapping is implied):**
+  S2.6 reference implementation comments derive `base_hi/lo` from **S0.3.3**; `substream_label="gamma_component"` shown in the envelope write.&#x20;
+
+---
+
+# Polish-05 — Note on **shortest binary64 round-trippable decimals** (example hygiene)
+
+* **Omission (where to place the note):**
+  S2.2 under invariants/echo (right after binary64 statements).&#x20;
+  S2.5 just before the writer/example.&#x20;
+
+---
+
+# Polish-06 — **Standardize example key ordering** (envelope → payload)
+
+* **Commission (where to harmonize formatting):**
+  S2.5 writer/example: show envelope fields first—`ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, module, substream_label, rng_counter_before_{lo,hi}, rng_counter_after_{lo,hi}, blocks, draws`—then payload keys.&#x20;
+* **Secondary check (keep same order if examples appear):**
+  S2.9 outputs/hand-off snippets.&#x20;
+
+---
+
+## Coverage confirmation
+
+* **S2.1 → S2.9** were re-opened; no additional QoL locations beyond the six items above were found. All anchors/insert points are mapped by **commission** or **omission** as requested.
