@@ -1,0 +1,9 @@
+Here is the **1 Minor** issue in S2:
+
+**Minor-01 — Envelope vs payload wording for `merchant_id` (grouping inconsistency, no byte impact).**
+
+* In **S2.5** you list the RNG **envelope** fields **without** `merchant_id` (correct per S0): `ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, module, substream_label, rng_counter_before_*, rng_counter_after_*`.&#x20;
+* Elsewhere in S2 you present an “Envelope (must on every row)” list that **includes `merchant_id`** alongside envelope items, then also list `merchant_id` again in the **payload** spec. That double-counts `merchant_id` conceptually as envelope+payload.&#x20;
+* S0’s contract defines the **shared envelope** (no `merchant_id`) and treats event-specific fields (including `merchant_id`) as **payload** on the same flat JSON object. So this is a **wording/structure mismatch only**, not a schema change.&#x20;
+
+**Confidence:** For this snapshot and rubric, that’s the **only Minor**; everything else we found is already in Critical/Major, and any remaining phrasing tweaks fall under Low/Polish/Nits.
