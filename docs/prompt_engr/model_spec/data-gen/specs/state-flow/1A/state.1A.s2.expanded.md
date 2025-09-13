@@ -695,7 +695,9 @@ where $(\mu_m,\phi_m)$ come **verbatim** from S2.2 and $(N_m,r_m)$ from S2.4’s
 
 * From **S2.2**: $\mu_m$, $\phi_m$ as IEEE-754 binary64, both $>0$.
 * From **S2.4**: $N_m \ge 2$, $r_m \ge 0$ (integers). S2.4 has already ensured acceptance $K\ge2$.
-* **RNG envelope** (from S0 infra): `ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, module, substream_label, rng_counter_before_{lo,hi}, rng_counter_after_{lo,hi}`. For `nb_final`, **before == after** (non-consuming).
+* **RNG envelope** (from S0 infra): `ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, module, substream_label, rng_counter_before_{lo,hi}, rng_counter_after_{lo,hi}, blocks, draws`.  
+Types: `blocks` is **uint64**; `draws` is **"uint128-dec"** (decimal string).  
+For `nb_final`, **before == after** (non-consuming) ⇒ `blocks = 0`, `draws = "0"`.
 
 ---
 
@@ -751,7 +753,9 @@ $$
   "rng_counter_before_lo": "00000002",
   "rng_counter_before_hi": "00000000",
   "rng_counter_after_lo":  "00000002",
-  "rng_counter_after_hi":  "00000000"
+  "rng_counter_after_hi":  "00000000",
+  "blocks": 0,
+  "draws": "0"
 }
 ```
 
@@ -908,6 +912,9 @@ $$
 
 The multiplier **must** be written as the **binary64 hex literal** `0x1.0000000000000p-64`
 (no decimal substitutes).
+**Clamp to strict open interval.** After computing `u`, perform:
+`if u == 1.0: u := 0x1.fffffffffffffp-1` (i.e., \(1-2^{-53}\)).
+This does not affect `blocks`/`draws`; it guarantees \(u\in(0,1)\) in binary64.
 
 **Lane policy.** A Philox **block** yields two 64-bit lanes `(x0,x1)` then advances by **1**.
 * **Single-uniform events:** use `x0`, **discard** `x1` → `blocks=1`, `draws="1"`.
@@ -1011,7 +1018,10 @@ struct Substream { base_hi:u64; base_lo:u64; i:u128 }
 
 # Map lane to u in (0,1) using the hex-float multiplier (Crit #5). Clamp (Crit #6) is added elsewhere.
 function u01_map(x: u64) -> f64:
-    return ((x + 1) * 0x1.0000000000000p-64)
+    u = ((x + 1) * 0x1.0000000000000p-64)
+    if u == 1.0:
+        u = 0x1.fffffffffffffp-1
+    return u
 
 # Advance by **one block**, return both lanes.
 function philox_block(s: inout Substream) -> (x0:u64, x1:u64):
@@ -1564,7 +1574,7 @@ Write **exactly** these streams, **partitioned** by `["seed","parameter_hash","r
    Schema: `schemas.layer1.yaml#/rng/events/nb_final`
    Cardinality: **exactly 1** row **per merchant** (echoes `mu`, `dispersion_k`, `n_outlets`, `nb_rejections`). 
 
-**Envelope (must on every row).** `ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, module, substream_label, rng_counter_before_{lo,hi}, rng_counter_after_{lo,hi}, merchant_id`. (`nb_final` is **non-consuming**: `before == after`.)
+**Envelope (must on every row).** `ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, module, substream_label, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi, blocks (uint64), draws ("uint128-dec")`. (`nb_final` is **non-consuming**: `before == after`, so `blocks=0`, `draws="0"`.)
 
 **Payload (must).**
 
