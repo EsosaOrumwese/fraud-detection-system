@@ -139,6 +139,15 @@ for use in S2.2 (NB link evaluation), S2.3 (Gamma/Poisson samplers), and S2.4 (r
 * **Inputs reproducibility:** recompute $x^{(\mu)},x^{(\phi)}$ for a sample of merchants and verify byte-exact equality with the values used to compute `nb_final.mu` / `nb_final.dispersion_k` later.
 * **Lineage presence:** ensure the S2 context carries `(seed, parameter_hash, manifest_fingerprint, run_id)` so later events can include a consistent envelope.
 
+> **S2 in 6 steps (informative overview)**  
+> 1) Compute links: $\mu=\exp(\beta_\mu^\top x^{(\mu)}),\ \phi=\exp(\beta_\phi^\top x^{(\phi)})$. *(§S2.2)*
+> 2) Start attempt loop: draw $G\sim\Gamma(\phi,1)$, set $\lambda=(\mu/\phi)\,G$. *(§S2.3)*
+> 3) Draw $K\sim\mathrm{Poisson}(\lambda)$; accept iff $K\ge 2$. *(§S2.3)*
+> 4) On reject, repeat step 2; count rejections $r$. *(§S2.4)*
+> 5) On acceptance, **emit** non-consuming `nb_final` with `n_outlets = K` and `nb_rejections = r`. *(§S2.5)*
+> 6) **Hand off** $(N=K,r)$ in-memory to the next state (no egress here). *(§S2.9)*
+> *(See §S2.2, §S2.3–S2.5, and §S2.9 for the normative details.)*
+
 # S2.2 — NB2 parameterisation (links, domains, guards)
 
 ## 1) Scope & intent
@@ -216,6 +225,7 @@ S2.3 (Gamma/Poisson attempt), S2.4 (rejection rule), and S2.5 (finalisation) **m
 * **I-NB2-SER (binding):** Producers **MUST** serialize `mu` and `dispersion_k` using the **shortest round-trip decimal for binary64** (same rule as S1; L0 helper `f64_to_json_shortest`), so that parsing yields the **exact** original bit pattern.
 * **I-NB2-ECHO:** The `nb_final` payload **must echo** these exact values in fields `mu` and `dispersion_k`. Any mismatch is a structural failure at validation.
 
+* **Numeric examples (formatting only):** Example numbers use the **shortest binary64 round-trippable decimals**; consumers parse as binary64.
 ---
 
 ## 6) Downstream echo (binding reference)
@@ -371,30 +381,33 @@ Counters advance deterministically within each `(merchant, substream_label)` str
 
 Given merchant $m$ with $(\mu_m,\phi_m)$ from S2.2:
 
+* **Numeric examples (formatting only):** Example numbers use the **shortest binary64 round-trippable decimals**; consumers parse as binary64.
+
 1. **Gamma step (context=`"nb"`)**
    Draw $G\sim\Gamma(\alpha{=}\phi_m,1)$ via **3.1** on `substream_label="gamma_nb"`.
    Emit:
 
    ```json
    {
-     "merchant_id": "<m>",
-     "index": 0,
-     "context": "nb",
-     "alpha": <phi_m as binary64>,
-     "gamma_value": <G as binary64>,
-     "seed": "...",
-     "parameter_hash": "...",
-     "run_id": "...",
-     "manifest_fingerprint": "...",
-     "ts_utc": "2025-01-01T00:00:00.000000Z",
-     "module": "1A.nb_and_dirichlet_sampler",
-     "substream_label": "gamma_nb",
-     "rng_counter_before_hi": "...",
-     "rng_counter_before_lo": "...",
-     "rng_counter_after_hi":  "...",
-     "rng_counter_after_lo":  "...",
-     "blocks": 1,
-     "draws": "2"
+          "seed": "...",
+          "parameter_hash": "...",
+          "run_id": "...",
+          "manifest_fingerprint": "...",
+          "ts_utc": "2025-01-01T00:00:00.000000Z",
+          "module": "1A.nb_and_dirichlet_sampler",
+          "substream_label": "gamma_nb",
+          "rng_counter_before_hi": "...",
+          "rng_counter_before_lo": "...",
+          "rng_counter_after_hi":  "...",
+          "rng_counter_after_lo":  "...",
+          "blocks": 1,
+          "draws": "2",
+
+          "merchant_id": "<m>",
+          "index": 0,
+          "context": "nb",
+          "alpha": <phi_m as binary64>,
+          "gamma_value": <G as binary64>
    }
    ```
 
@@ -406,23 +419,24 @@ Given merchant $m$ with $(\mu_m,\phi_m)$ from S2.2:
 
    ```json
    {
-     "merchant_id": "<m>",
-     "context": "nb",
-     "lambda": <lambda as binary64>,
-     "k": <K as int64>,
-     "seed": "...",
-     "parameter_hash": "...",
-     "run_id": "...",
-     "manifest_fingerprint": "...",
-     "ts_utc": "2025-01-01T00:00:00.000000Z",
-     "module": "1A.nb_poisson_component",
-     "substream_label": "poisson_nb",
-     "rng_counter_before_hi": "...",
-     "rng_counter_before_lo": "...",
-     "rng_counter_after_hi":  "...",
-     "rng_counter_after_lo":  "...",
-     "blocks": 1,
-     "draws": "1"
+          "seed": "...",
+          "parameter_hash": "...",
+          "run_id": "...",
+          "manifest_fingerprint": "...",
+          "ts_utc": "2025-01-01T00:00:00.000000Z",
+          "module": "1A.nb_poisson_component",
+          "substream_label": "poisson_nb",
+          "rng_counter_before_hi": "...",
+          "rng_counter_before_lo": "...",
+          "rng_counter_after_hi":  "...",
+          "rng_counter_after_lo":  "...",
+          "blocks": 1,
+          "draws": "1",
+
+          "merchant_id": "<m>",
+          "context": "nb",
+          "lambda": <lambda as binary64>,
+          "k": <K as int64>
    }
    ```
 
@@ -750,26 +764,25 @@ $$
 
 ```json
 {
-  "merchant_id": "M12345",
-  "mu": 7.0,
-  "dispersion_k": 2.25,
-  "n_outlets": 5,
-  "nb_rejections": 1,
+    "ts_utc": "2025-08-15T13:22:19.000000Z",
+    "seed": 42,
+    "parameter_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "manifest_fingerprint": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+    "run_id": "6e1f3a5b9d0c2e7f3d4a1b2c3e4f5a6b",
+    "module": "1A.nb_sampler",
+    "substream_label": "nb_final",
+    "rng_counter_before_lo": 2,
+    "rng_counter_before_hi": 0,
+    "rng_counter_after_lo":  2,
+    "rng_counter_after_hi":  0,
+    "blocks": 0,
+    "draws": "0",
 
-  "ts_utc": "2025-08-15T13:22:19.000000Z",
-  "seed": 42,
-  "parameter_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-  "manifest_fingerprint": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
-  "run_id": "6e1f3a5b9d0c2e7f3d4a1b2c3e4f5a6b",
-  "module": "1A.nb_sampler",
-  "substream_label": "nb_final",
-
-  "rng_counter_before_lo": 2,
-  "rng_counter_before_hi": 0,
-  "rng_counter_after_lo":  2,
-  "rng_counter_after_hi":  0,
-  "blocks": 0,
-  "draws": "0"
+    "merchant_id": "M12345",
+    "mu": 7.0,
+    "dispersion_k": 2.25,
+    "n_outlets": 5,
+    "nb_rejections": 1
 }
 ```
 
@@ -870,6 +883,16 @@ Guarantee **bit-replay** and **auditability** of the NB sampler by fixing (i) wh
 ## 2) Inputs & label set (must)
 
 * **Labels (NB):** `ℓ_γ = "gamma_nb"`, `ℓ_π = "poisson_nb"`. Exactly these two substreams are used by S2 attempts; `nb_final` is **non-consuming**.
+
+    > **Legend (informative; mirrors registry & schemas)**
+    >
+    > | substream_label | producer `module` (registry)  | schema ref                       | partitions                     |
+    > |-----------------|-------------------------------|----------------------------------|--------------------------------|
+    > | `gamma_nb`      | `1A.nb_and_dirichlet_sampler` | `#/rng/events/gamma_component`   | `seed, parameter_hash, run_id` |
+    > | `poisson_nb`    | `1A.nb_poisson_component`     | `#/rng/events/poisson_component` | `seed, parameter_hash, run_id` |
+    > | `nb_final`      | `1A.nb_sampler`               | `#/rng/events/nb_final`          | `seed, parameter_hash, run_id` |
+    >
+    > *Note:* This table is a convenience only; authoritative semantics remain in S2 text + S0/S1 + schema/dictionary.
 * **Schemas (authoritative):** `schemas.layer1.yaml#/rng/events/gamma_component`, `#/rng/events/poisson_component`, `#/rng/events/nb_final`. Each includes the **rng envelope** with pre/post 128-bit counters.
 * **Dictionary paths/partitions:**
 
@@ -1584,7 +1607,7 @@ Write **exactly** these streams, **partitioned** by `["seed","parameter_hash","r
 2. **Poisson components (NB mixture)**
    Path: `logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
    Schema: `schemas.layer1.yaml#/rng/events/poisson_component`
-   Cardinality: **≥ 1** (one row **per attempt**). (This stream id is **reused by S4** with a different `context`, hence the dictionary description "NB composition / ZTP".)
+   Cardinality: **≥ 1** (one row **per attempt**). (This stream id is **reused by S4** with a different `context`, hence the dictionary description `NB composition / ZTP`.)
 
 3. **NB final (accepted outcome)**
    Path: `logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
