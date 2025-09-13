@@ -53,7 +53,7 @@ Pin the RNG/stream contracts that S2.3–S2.5 will rely on:
 
 * **RNG:** Philox $2\times 64$-10 with the **shared RNG envelope** (`run_id`, `seed`, `parameter_hash`, `manifest_fingerprint`, `substream_label`, counters). Open-interval uniforms $U(0,1)$ and normals follow S0 primitives.
   The **full envelope** (including `module`, `substream_label`, `rng_counter_before_*`, `rng_counter_after_*`, `draws` as decimal u128, and `blocks` as u64) is governed by the layer schema and is the one S2.3–S2.5 will use when writing events.
-  For S2 streams in 1A, the `module` literal MUST be `"1A.nb_sampler"`.
+  For S2 streams in 1A, the `module` literal is **registry-closed per stream** (data dictionary): `gamma_component` → "1A.nb_and_dirichlet_sampler", `poisson_component` → "1A.nb_poisson_component", `nb_final` → "1A.nb_sampler".
 
 * **Event streams (authoritative, JSONL):**
   `gamma_component` (context=`"nb"`), `poisson_component` (context=`"nb"`), and `nb_final` — each with schema refs in `schemas.layer1.yaml#/rng/events/...` and paths partitioned by `{seed, parameter_hash, run_id}`. These will be **written later** (S2.3–S2.5), not in S2.1.
@@ -355,7 +355,10 @@ Use **S0.3.7** regime split: **inversion** for $\lambda<10$; **PTRS** (Hörmann 
 
 ## 4) RNG substreams & labels (MUST)
 
-* **Module:** all S2 mixture emissions use `module="1A.nb_sampler"`.
+* **Module (registry-closed per stream):**
+  * `gamma_component`  → `module="1A.nb_and_dirichlet_sampler"`
+  * `poisson_component` → `module="1A.nb_poisson_component"`
+  * `nb_final` → `module="1A.nb_sampler"`
 * **NB substreams (disjoint from ZTP):**
   * Gamma: `substream_label="gamma_nb"`
   * Poisson: `substream_label="poisson_nb"`
@@ -384,7 +387,7 @@ Given merchant $m$ with $(\mu_m,\phi_m)$ from S2.2:
      "run_id": "...",
      "manifest_fingerprint": "...",
      "ts_utc": "2025-01-01T00:00:00.000000Z",
-     "module": "1A.nb_sampler",
+     "module": "1A.nb_and_dirichlet_sampler",
      "substream_label": "gamma_nb",
      "rng_counter_before_hi": "...",
      "rng_counter_before_lo": "...",
@@ -412,7 +415,7 @@ Given merchant $m$ with $(\mu_m,\phi_m)$ from S2.2:
      "run_id": "...",
      "manifest_fingerprint": "...",
      "ts_utc": "2025-01-01T00:00:00.000000Z",
-     "module": "1A.nb_sampler",
+     "module": "1A.nb_poisson_component",
      "substream_label": "poisson_nb",
      "rng_counter_before_hi": "...",
      "rng_counter_before_lo": "...",
@@ -444,8 +447,11 @@ and verify the counter-span equality for `blocks_total`. `nb_final` is non-consu
 * **Emission cardinality:** Emit exactly one `gamma_component` (with `substream_label="gamma_nb"`, `context="nb"`) then one `poisson_component` (with `substream_label="poisson_nb"`, `context="nb"`) per attempt for the merchant (no parallelization per merchant). Both events must carry the same lineage and the authoritative RNG envelope (before/after counters; `draws` computed).
 * **Label order:** Gamma **precedes** Poisson; ordering is determined solely by each event’s **envelope counter interval** (`rng_counter_before_*` → `rng_counter_after_*`). There is **no `attempt` field in the payload** for these streams.
 * **Bit-replay:** For fixed $(x_m^{(\mu)},x_m^{(\phi)},\beta_\mu,\beta_\phi,\texttt{seed},\texttt{parameter_hash},\texttt{manifest_fingerprint})$, the entire $(G_t,K_t)$ attempt stream is **bit-identical** across replays. (Counter-based Philox + fixed labels + variable, actual-use budgets)
-* *(Reminder)* NB substream **labels are closed**: `gamma_nb` / `poisson_nb` under `module="1A.nb_sampler"` with `context="nb"`.
-
+* (Reminder) NB substream **labels are closed**: `gamma_nb` / `poisson_nb` with `context="nb"`.  
+* Producers are registry-closed per stream (see §4):  
+  - `gamma_component → "1A.nb_and_dirichlet_sampler"`,  
+  - `poisson_component → "1A.nb_poisson_component"`,  
+  - `nb_final → "1A.nb_sampler"`.
 ---
 
 ## 8) Preconditions & guards (MUST)
@@ -475,7 +481,7 @@ function s2_3_attempt_once(ctx: NBContext, t: int) -> AttemptRecord:
     emit_gamma_component(
         merchant_id=ctx.merchant_id,
         context="nb", index=0, alpha=phi, gamma_value=G,
-        envelope=substream_envelope(module="1A.nb_sampler", label="gamma_nb")
+        envelope=substream_envelope(module="1A.nb_and_dirichlet_sampler", label="gamma_nb")
     )
 
     # --- Poisson step on substream "poisson_nb"
@@ -485,7 +491,7 @@ function s2_3_attempt_once(ctx: NBContext, t: int) -> AttemptRecord:
     emit_poisson_component(
         merchant_id=ctx.merchant_id,
         context="nb", lambda=lambda, k=K,
-        envelope=substream_envelope(module="1A.nb_sampler", label="poisson_nb")
+        envelope=substream_envelope(module="1A.nb_poisson_component", label="poisson_nb")
     )
 
     return AttemptRecord{G: G, lambda: lambda, K: K}
@@ -666,13 +672,14 @@ function s2_4_accept(mu, phi, merchant_id, lineage) -> (N, r):
             t := t + 1                   # rejection; continue loop
 ```
 
-**Notes.** Attempt indices are implicit (reconstructed by alternating Gamma/Poisson events per merchant). S2.4 itself **consumes 0 RNG**, writes **no** rows.
+**Notes.** Attempt indices are not persisted; reconstructions **must** be by **counter intervals** per sub-stream
+only (no reliance on time/file order). S2.4 itself **consumes 0 RNG**, writes **no** rows.
 
 ---
 
 ## 10) Conformance tests (KATs)
 
-1. **Coverage & ordering.** For a sample merchant, ensure the file order (or envelope counters) shows $a$ pairs of `gamma_component`→`poisson_component` followed by **one** `nb_final`; reconstruct $r_m=a-1$; verify `nb_final.nb_rejections == r_m`.
+1. **Coverage & ordering.** For a sample merchant, use **envelope counter intervals only** to show a pairs of `gamma_component`→`poisson_component` followed by **one** `nb_final`; reconstruct `r_m=a-1`; verify `nb_final.nb_rejections == r_m`.
 2. **Numeric consistency.** For each attempt $t$, confirm `poisson_component.lambda == (μ/φ)*gamma_value` as binary64; for the accepted attempt, confirm `nb_final.n_outlets == k` from the corresponding Poisson event.
 3. **Corridor metrics.** On a synthetic run, compute overall rejection rate and empirical p99; intentionally increase low-μ merchants to trigger a breach and verify the validator aborts.
 
@@ -862,7 +869,7 @@ Guarantee **bit-replay** and **auditability** of the NB sampler by fixing (i) wh
 
 ## 2) Inputs & label set (must)
 
-* **Labels (NB):** $\ell_\gamma=$ `"gamma_component"`, $\ell_\pi=$ `"poisson_component"`. Exactly these two sub-streams are used by S2 attempts; `nb_final` is **non-consuming**.
+* **Labels (NB):** `ℓ_γ = "gamma_nb"`, `ℓ_π = "poisson_nb"`. Exactly these two sub-streams are used by S2 attempts; `nb_final` is **non-consuming**.
 * **Schemas (authoritative):** `schemas.layer1.yaml#/rng/events/gamma_component`, `#/rng/events/poisson_component`, `#/rng/events/nb_final`. Each includes the **rng envelope** with pre/post 128-bit counters.
 * **Dictionary paths/partitions:**
 
@@ -985,7 +992,11 @@ For `nb_final`, enforce **non-consumption** (`before == after`).
 **Replay proof (per merchant):**
 
 1. Collect all `gamma_component` and `poisson_component` rows for the key $(\texttt{seed},\texttt{parameter_hash},\texttt{run_id},\texttt{merchant_id})$. Enforce **monotone, non-overlapping** intervals per sub-stream.
-2. Interleave by time/counter to reconstruct attempt pairs (Gamma→Poisson) and derive the first $t$ with $K_t\ge2$.
+2. Reconstruct attempt pairs (Gamma→Poisson) **solely by counter intervals**:
+   per merchant, sort each substream strictly by `rng_counter_before` (lexicographic on
+   `(before_hi,before_lo)`), then pair the *t*-th Gamma with the *t*-th Poisson subject to
+   `u128(before)_Γ[t] < u128(after)_Γ[t] ≤ u128(before)_Π[t] < u128(after)_Π[t]`.
+   **No reliance on time/file order.** Derive the first $t$ with $K_t\ge2$.
 3. Join to the single `nb_final`; assert `n_outlets` and `nb_rejections` match the reconstruction; assert `mu, dispersion_k` **echo** S2.2. **Pass iff identical.**
 
 **Discipline checks (hard):**
@@ -1060,7 +1071,7 @@ function emit_gamma_component(ctx, s_gamma: inout Substream, alpha_phi: f64):
           "rng_counter_before_lo": before_lo, "rng_counter_before_hi": before_hi,
           "rng_counter_after_lo":  after_lo,  "rng_counter_after_hi":  after_hi,
           "blocks": blocks_used, "draws": stringify_u128(draws_used),
-          "substream_label": "gamma_component"
+          "substream_label": "gamma_nb"
         },
         payload={ merchant_id, context:"nb", index:0, alpha:alpha_phi, gamma_value:G }
     )
@@ -1504,7 +1515,7 @@ function validate_S2(nb_gamma, nb_pois, nb_final, hurdle, dictionary, policy):
         # parameter echo & composition
         (mu,phi) := (F[0].mu, F[0].dispersion_k)
         for a in A: assert_ulps_equal(a.alpha, phi, 1)
-        pairwise_by_time_or_counter(A, B, (a, b) => assert_ulps_equal(b.lambda, (mu/phi)*a.gamma_value, 1))
+        pairwise_by_counter_intervals(A, B, (a, b) => assert_ulps_equal(b.lambda, (mu/phi)*a.gamma_value, 1))
         # acceptance reconstruction
         t := first i with B[i].k >= 2
         assert t exists && F[0].n_outlets == B[t].k && F[0].nb_rejections == t
@@ -1590,7 +1601,10 @@ Write **exactly** these streams, **partitioned** by `["seed","parameter_hash","r
 * `nb_final`: `{ merchant_id, mu=μ_m, dispersion_k=φ_m, n_outlets=N_m, nb_rejections=r_m }`.
   Types & domains per schema (positivity for `mu`,`dispersion_k`; `n_outlets≥2`; `nb_rejections≥0`).  
 
-**Retention & lineage.** These streams are **not final in layer**, carry 180-day retention, and are produced by `1A.nb_*` modules (dictionary lineage).
+**Index semantics (binding).** For `gamma_component` with `context="nb"`, the Gamma is **scalar** per attempt; therefore
+`index` is the fixed value **`0`** (scalar placeholder), not a component selector.
+
+**Retention & lineage.** These streams are **not final in layer**, carry 180-day retention, and are produced by registry-closed producers (dictionary lineage): `gamma_component` → "1A.nb_and_dirichlet_sampler", `poisson_component` → "1A.nb_poisson_component", `nb_final` → "1A.nb_sampler".
 
 ---
 
@@ -1684,7 +1698,7 @@ Before S3 consumes $(N_m,r_m)$ in-memory, the S2 validator must have already:
 
 2. **Final echo & non-consumption.** For a sample of merchants, check `nb_final.mu == S2.2.mu` and `nb_final.dispersion_k == S2.2.phi`, and envelope counters are equal (`before==after`). 
 
-3. **Reconstruction of $(N_m,r_m)$.** Rebuild attempts by interleaving component events; find the first Poisson with `k>=2`; assert its `k` equals `nb_final.n_outlets` and the attempt index equals `nb_final.nb_rejections`.
+3. **Reconstruction of $(N_m,r_m)$.** Rebuild attempts by **counter-interval pairing** as above; confirm `nb_final.n_outlets == k` and the attempt index equals `nb_final.nb_rejections`.
 
 4. **S3 readiness.** Ensure all `is_multi=1` merchants with `nb_final` also have a row in `crossborder_eligibility_flags(parameter_hash)`; single-site merchants have **no** S2 events. 
 
