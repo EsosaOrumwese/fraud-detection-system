@@ -1,8 +1,0 @@
-Here’s the **final Polish (QoL) list** — all readability/ergonomics, **zero** semantic change:
-
-1. **Add an “operation capsule”** (5–6 steps at the top of S2): compute (μ, φ) → attempt loop (Gamma→Poisson) → accept on k≥2 → emit `nb_final` (non-consuming) → hand off (N, r).
-2. **Mini table: substreams & producers**: `gamma_component (context="nb")`, `poisson_component (context="nb")`, `nb_final`; include pinned **module** literal (once fixed), schema ref, and partition keys.
-3. **Inline dtype hints at first use/payload keys**: `mu, dispersion_k, lambda: float64`; `k, n_outlets, nb_rejections: int64` (mirror schema exactly).
-4. **Cross-ref S0 for keyed mapping (don’t restate)**: one line—“Base counter derivation is as per S0.3.3.”
-5. **Round-trippable decimals note**: “Examples use the shortest binary64 round-trippable decimals; consumers parse as binary64.”
-6. **Standardize example key ordering (envelope → payload)**: always list envelope fields first (`ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, module, substream_label, rng_counter_before/after, blocks, draws`), then payload.
