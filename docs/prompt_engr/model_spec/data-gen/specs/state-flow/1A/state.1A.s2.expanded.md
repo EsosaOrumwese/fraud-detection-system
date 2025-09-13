@@ -465,6 +465,13 @@ function s2_3_attempt_once(ctx: NBContext, t: int) -> AttemptRecord:
 
     # --- Gamma step on substream "gamma_nb"
     G := gamma_mt1998(alpha=phi)              # uses S0.3.4/5; variable attempts internally
+    # --- Compute λ and guard numeric validity BEFORE any emission
+    lambda := (mu/phi) * G
+    if (!isfinite(lambda) or lambda <= 0.0):
+        raise ERR_S2_NUMERIC_INVALID          # no S2 events should exist for this merchant
+        return
+
+    # --- Now emit gamma (envelope from the substream at this point)
     emit_gamma_component(
         merchant_id=ctx.merchant_id,
         context="nb", index=0, alpha=phi, gamma_value=G,
@@ -742,18 +749,18 @@ $$
   "n_outlets": 5,
   "nb_rejections": 1,
 
-  "ts_utc": "2025-08-15T13:22:19.481Z",
-  "seed": "00000000-0000-0000-0000-000000000042",
-  "parameter_hash": "3aa1f3…c0de",
-  "manifest_fingerprint": "a9c6…6f",
-  "run_id": "2025-08-15T13-20-00Z",
+  "ts_utc": "2025-08-15T13:22:19.000000Z",
+  "seed": 42,
+  "parameter_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "manifest_fingerprint": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+  "run_id": "6e1f3a5b9d0c2e7f3d4a1b2c3e4f5a6b",
   "module": "1A.nb_sampler",
   "substream_label": "nb_final",
 
-  "rng_counter_before_lo": "00000002",
-  "rng_counter_before_hi": "00000000",
-  "rng_counter_after_lo":  "00000002",
-  "rng_counter_after_hi":  "00000000",
+  "rng_counter_before_lo": 2,
+  "rng_counter_before_hi": 0,
+  "rng_counter_after_lo":  2,
+  "rng_counter_after_hi":  0,
   "blocks": 0,
   "draws": "0"
 }
