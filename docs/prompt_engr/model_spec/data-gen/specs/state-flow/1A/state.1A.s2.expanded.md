@@ -165,7 +165,7 @@ Provided by **S2.1** and artefacts keyed by `parameter_hash`:
   x^{(\phi)}_m=\big[1,\ \Phi_{\mathrm{mcc}}(\texttt{mcc}_m),\ \Phi_{\mathrm{ch}}(\texttt{channel\_sym}_m),\ \ln g_c\big]^\top,
   $$
 
-  where $g_c > 0$ is the GDP-per-capita scalar for the home ISO $c$. (NB mean **excludes** GDP; dispersion **includes** $\ln g_c$.)  
+  where $g_c > 0$ is the GDP-per-capita scalar for the home ISO $c$. (NB mean **excludes** GDP; dispersion **includes** $\ln g_c$.)
   *Notation:* $\Phi_{\mathrm{mcc}}(\cdot)$ and $\Phi_{\mathrm{ch}}(\cdot)$ denote **frozen one-hot encoder functions** from S0/S1; they are **not** the NB dispersion $\phi_m$ used below.
 * **Coefficient vectors:** $\beta_\mu,\ \beta_\phi$ from governed artefacts **keyed by `parameter_hash`**:
   * `hurdle_coefficients.yaml` → key **`beta_mu`** (maps to $\beta_\mu$),
@@ -303,7 +303,7 @@ $$
 G\sim\mathrm{Gamma}(\alpha{=}\phi_m,1),\quad \lambda=(\mu_m/\phi_m)\,G,\quad K\sim\mathrm{Poisson}(\lambda).
 $$
 
-Emit exactly **one** `gamma_component` and **one** `poisson_component` event (context=`"nb"`) for this attempt, with **authoritative RNG envelope** and draw accounting.  
+Emit exactly **one** `gamma_component` and **one** `poisson_component` event (context=`"nb"`) for this attempt, with **authoritative RNG envelope** and draw accounting.
 **Envelope must include:** `seed`, `parameter_hash`, `run_id`, `manifest_fingerprint`, `module`, `substream_label`, `ts_utc`, `rng_counter_before_hi/lo`, `rng_counter_after_hi/lo`, and per-event `blocks` (u64) and `draws` (decimal u128). Acceptance of the attempt is decided in **S2.4** (accept if $K\ge2$).
 
 **Index semantics:** For `gamma_component`, set `index=0` for the NB mixture; for Dirichlet (elsewhere in 1A) `index=i≥1` denotes the i-th category component.
@@ -329,7 +329,7 @@ Use the **MT1998** algorithm with **open-interval uniforms** (S0.3.4) and **Box�
   2. $V=(1+cZ)^3$; if $V\le0$ reject.
   3. $U\sim U(0,1)$ (**1 uniform**).
   4. Accept if $\ln U < \tfrac{1}{2}Z^2 + d - dV + d\ln V$; return $G=dV$.
-     Uniform consumption (one Gamma variate): **2×J + A**, where **J≥1** is the number of MT98 iterations and **A** is the count of iterations with $V>0$ (only those iterations draw the accept-$U$).  
+     Uniform consumption (one Gamma variate): **2×J + A**, where **J≥1** is the number of MT98 iterations and **A** is the count of iterations with $V>0$ (only those iterations draw the accept-$U$).
      If $0<\alpha<1$, add **+1** uniform for the power step $U^{1/\alpha}$.
 
 * **Case $0 < \alpha < 1$**
@@ -347,8 +347,8 @@ Use the **MT1998** algorithm with **open-interval uniforms** (S0.3.4) and **Box�
 Use **S0.3.7** regime split: **inversion** for $\lambda<10$; **PTRS** (Hörmann transformed-rejection) for $\lambda\ge 10$. Constants in PTRS are **normative**; they are *not* tunables. Uniform consumption is **variable** and is measured by the envelope counters. Emit `poisson_component` with `context="nb"`.
 
 * **Inversion ($\lambda<10$)**: multiplicative $p$ until $p\le e^{-\lambda}$.
-* **PTRS ($\lambda\ge10$)**: use $b=0.931+2.53\sqrt\lambda$, $a=-0.059+0.02483\,b$, $\text{inv}\alpha=1.1239+1.1328/(b-3.4)$, $v_r=0.9277-3.6224/(b-2)$; draw $u,v\sim U(0,1)$; apply the squeeze/acceptance tests from S0.3.7. 
-* **Uniforms:** **variable** — each PTRS **iteration** uses 2 uniforms; the number of iterations is geometric; total per event is measured by envelope counters. 
+* **PTRS ($\lambda\ge10$)**: use $b=0.931+2.53\sqrt\lambda$, $a=-0.059+0.02483\,b$, $\text{inv}\alpha=1.1239+1.1328/(b-3.4)$, $v_r=0.9277-3.6224/(b-2)$; draw $u,v\sim U(0,1)$; apply the squeeze/acceptance tests from S0.3.7.
+* **Uniforms:** **variable** — each PTRS **iteration** uses 2 uniforms; the number of iterations is geometric; total per event is measured by envelope counters.
 * **Logging:** `poisson_component` with `context="nb"`.
 
 ---
@@ -362,7 +362,7 @@ Use **S0.3.7** regime split: **inversion** for $\lambda<10$; **PTRS** (Hörmann 
 * **NB substreams (disjoint from ZTP):**
   * Gamma: `substream_label="gamma_nb"`
   * Poisson: `substream_label="poisson_nb"`
-* **Order per attempt:** emit exactly two component events: `gamma_component` → `poisson_component`.  
+* **Order per attempt:** emit exactly two component events: `gamma_component` → `poisson_component`.
 Counters advance deterministically within each `(merchant, substream_label)` stream; there is **no cross-label counter chaining**. All uniforms use S0.3.4 `u01`; all normals use Box–Muller.
 
 ---
@@ -447,10 +447,10 @@ and verify the counter-span equality for `blocks_total`. `nb_final` is non-consu
 * **Emission cardinality:** Emit exactly one `gamma_component` (with `substream_label="gamma_nb"`, `context="nb"`) then one `poisson_component` (with `substream_label="poisson_nb"`, `context="nb"`) per attempt for the merchant (no parallelization per merchant). Both events must carry the same lineage and the authoritative RNG envelope (before/after counters; `draws` computed).
 * **Label order:** Gamma **precedes** Poisson; ordering is determined solely by each event’s **envelope counter interval** (`rng_counter_before_*` → `rng_counter_after_*`). There is **no `attempt` field in the payload** for these streams.
 * **Bit-replay:** For fixed $(x_m^{(\mu)},x_m^{(\phi)},\beta_\mu,\beta_\phi,\texttt{seed},\texttt{parameter_hash},\texttt{manifest_fingerprint})$, the entire $(G_t,K_t)$ attempt stream is **bit-identical** across replays. (Counter-based Philox + fixed labels + variable, actual-use budgets)
-* (Reminder) NB substream **labels are closed**: `gamma_nb` / `poisson_nb` with `context="nb"`.  
-* Producers are registry-closed per stream (see §4):  
-  - `gamma_component → "1A.nb_and_dirichlet_sampler"`,  
-  - `poisson_component → "1A.nb_poisson_component"`,  
+* (Reminder) NB substream **labels are closed**: `gamma_nb` / `poisson_nb` with `context="nb"`.
+* Producers are registry-closed per stream (see §4):
+  - `gamma_component → "1A.nb_and_dirichlet_sampler"`,
+  - `poisson_component → "1A.nb_poisson_component"`,
   - `nb_final → "1A.nb_sampler"`.
 ---
 
@@ -679,7 +679,7 @@ only (no reliance on time/file order). S2.4 itself **consumes 0 RNG**, writes **
 
 ## 10) Conformance tests (KATs)
 
-1. **Coverage & ordering.** For a sample merchant, use **envelope counter intervals only** to show a pairs of `gamma_component`→`poisson_component` followed by **one** `nb_final`; reconstruct `r_m=a-1`; verify `nb_final.nb_rejections == r_m`.
+1. **Coverage & ordering.** For a sample merchant, use **envelope counter intervals only** to show a pair of `gamma_component`→`poisson_component` followed by **one** `nb_final`; reconstruct `r_m=a-1`; verify `nb_final.nb_rejections == r_m`.
 2. **Numeric consistency.** For each attempt $t$, confirm `poisson_component.lambda == (μ/φ)*gamma_value` as binary64; for the accepted attempt, confirm `nb_final.n_outlets == k` from the corresponding Poisson event.
 3. **Corridor metrics.** On a synthetic run, compute overall rejection rate and empirical p99; intentionally increase low-μ merchants to trigger a breach and verify the validator aborts.
 
@@ -701,7 +701,7 @@ $$
 \boxed{\,\mu_m>0,\ \phi_m>0,\ N_m\in\{2,3,\dots\},\ r_m\in\mathbb{N}_0\,}
 $$
 
-where $(\mu_m,\phi_m)$ come **verbatim** from S2.2 and $(N_m,r_m)$ from S2.4’s acceptance. This event is **non-consuming** (RNG counters unchanged) and is the sole persisted echo of S2’s accepted NB draw. 
+where $(\mu_m,\phi_m)$ come **verbatim** from S2.2 and $(N_m,r_m)$ from S2.4’s acceptance. This event is **non-consuming** (RNG counters unchanged) and is the sole persisted echo of S2’s accepted NB draw.
 
 ---
 
@@ -709,8 +709,8 @@ where $(\mu_m,\phi_m)$ come **verbatim** from S2.2 and $(N_m,r_m)$ from S2.4’s
 
 * From **S2.2**: $\mu_m$, $\phi_m$ as IEEE-754 binary64, both $>0$.
 * From **S2.4**: $N_m \ge 2$, $r_m \ge 0$ (integers). S2.4 has already ensured acceptance $K\ge2$.
-* **RNG envelope** (from S0 infra): `ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, module, substream_label, rng_counter_before_{lo,hi}, rng_counter_after_{lo,hi}, blocks, draws`.  
-Types: `blocks` is **uint64**; `draws` is **"uint128-dec"** (decimal string).  
+* **RNG envelope** (from S0 infra): `ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, module, substream_label, rng_counter_before_{lo,hi}, rng_counter_after_{lo,hi}, blocks, draws`.
+Types: `blocks` is **uint64**; `draws` is **"uint128-dec"** (decimal string).
 For `nb_final`, **before == after** (non-consuming) ⇒ `blocks = 0`, `draws = "0"`.
 
 ---
@@ -725,7 +725,7 @@ logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run
 
 * **Schema (authoritative):** `schemas.layer1.yaml#/rng/events/nb_final`.
 * **Partitions:** `["seed","parameter_hash","run_id"]` (no other partition keys).
-* **Stream status:** approved, retention 180 days, consumed by `validation`. 
+* **Stream status:** approved, retention 180 days, consumed by `validation`.
 
 ---
 
@@ -774,7 +774,7 @@ $$
 ```
 
 * Schema anchor: `#/rng/events/nb_final`.
-* Counters unchanged → **non-consuming** evidence. 
+* Counters unchanged → **non-consuming** evidence.
 
 ---
 
@@ -839,7 +839,7 @@ function s2_5_emit_nb_final(m, mu, phi, N, r, envelope):
 ## 9) Validator joins & downstream usage (binding)
 
 * **Joins:** Validator left-joins `nb_final` to NB **component** streams by $(\texttt{seed},\texttt{parameter_hash},\texttt{run_id},\texttt{merchant_id})$ to (i) prove coverage/cardinality, (ii) verify $\lambda_t = (\mu/\phi)\cdot\texttt{gamma_value}$ per attempt, and (iii) compute corridors (overall rejection rate, $p_{99}(r_m)$, CUSUM). On any hard failure, the validation bundle is written **without** `_passed.flag`.
-* **Hand-off:** $N_m,r_m$ continue **in-memory** to S3+; S2 writes **no** Parquet/Delta tables. 
+* **Hand-off:** $N_m,r_m$ continue **in-memory** to S3+; S2 writes **no** Parquet/Delta tables.
 
 ---
 
@@ -859,7 +859,7 @@ O(1) time and memory per merchant (field checks + single JSONL write). No RNG, n
 
 ---
 
-# S2.6 — RNG sub-streams & consumption discipline (keyed mapping; budgeted/reconciled draws)
+# S2.6 — RNG substreams & consumption discipline (keyed mapping; budgeted/reconciled draws)
 
 ## 1) Scope & intent
 
@@ -869,7 +869,7 @@ Guarantee **bit-replay** and **auditability** of the NB sampler by fixing (i) wh
 
 ## 2) Inputs & label set (must)
 
-* **Labels (NB):** `ℓ_γ = "gamma_nb"`, `ℓ_π = "poisson_nb"`. Exactly these two sub-streams are used by S2 attempts; `nb_final` is **non-consuming**.
+* **Labels (NB):** `ℓ_γ = "gamma_nb"`, `ℓ_π = "poisson_nb"`. Exactly these two substreams are used by S2 attempts; `nb_final` is **non-consuming**.
 * **Schemas (authoritative):** `schemas.layer1.yaml#/rng/events/gamma_component`, `#/rng/events/poisson_component`, `#/rng/events/nb_final`. Each includes the **rng envelope** with pre/post 128-bit counters.
 * **Dictionary paths/partitions:**
 
@@ -895,7 +895,7 @@ All sub-streams are derived by the **S0.3.3 keyed mapping** from run lineage + l
     $$
     (c_{\mathrm{hi}},c_{\mathrm{lo}})=(c^{\mathrm{base}}_{\mathrm{hi}},\,c^{\mathrm{base}}_{\mathrm{lo}}+b),
     $$
-    
+
     with 64-bit carry into $c_{\mathrm{hi}}$; this block yields two lanes $(x_0,x_1)$.
     **Single-uniform events** consume $x_0$ and **discard** $x_1$ ($\texttt{blocks}=1$, $\texttt{draws}="1"$);
     **two-uniform events** (e.g., Box–Muller) consume **both** $x_0,x_1$ from the **same** block
@@ -963,7 +963,7 @@ No identity ties `draws` to the counter delta.
   \text{draws} = \sum_t \left( 3 \times J_t + \mathbf{1}[\phi_m < 1] \right)
   $$
   where the sum is over NB attempts $t$ (one Gamma variate per attempt) and $J_t≥1$ is the number of MT98 internal iterations for that variate.
-    
+
   Rationale: each MT98 iteration uses **2 uniforms** for the Box–Muller normal and **1 uniform** for the accept-$U$; when $\phi_m < 1$, add **+1 uniform per variate** for the power step $U^{1/\alpha}$.
 * **`poisson_component` (context="nb")**
   **Variable** (inversion for $\lambda<10$; PTRS otherwise). Envelope counters measure actual consumption; there is **no fixed budget**.
@@ -1032,9 +1032,8 @@ function substream_end(s: Substream, blocks: u128) -> (after_hi, after_lo):
 
 # Each Philox block yields two 64-bit lanes (x0,x1); s.i advances by **1 block** per call.
 # Single-uniform events use the **low lane** and **discard** the high lane; two-uniform families use **both lanes from one block**.
-struct Substream { base_hi:u64; base_lo:u64; i:u128 }
 
-# Map lane to u in (0,1) using the hex-float multiplier (Crit #5). Clamp (Crit #6) is added elsewhere.
+# Map lane to u in (0,1) using the hex-float multiplier (Crit #5).
 function u01_map(x: u64) -> f64:
     u = ((x + 1) * 0x1.0000000000000p-64)
     if u == 1.0:
@@ -1406,7 +1405,7 @@ We categorize failures as **merchant-scoped aborts** (S2 stops for that merchant
 **Condition.** $\mu_m\le 0$ or $\phi_m\le 0$, or either linear predictor/exponential is NaN/Inf in binary64.
 **Code.** `ERR_S2_NUMERIC_INVALID`.
 **Action.** **Abort S2 for m**; **no** S2.3 events should be emitted for that merchant.
-**Evidence.** Validator recomputes $(\mu_m,\phi_m)$ from S2.1 inputs + governed artefacts (by `parameter_hash`) and flags `invalid_nb_parameters(m)`. 
+**Evidence.** Validator recomputes $(\mu_m,\phi_m)$ from S2.1 inputs + governed artefacts (by `parameter_hash`) and flags `invalid_nb_parameters(m)`.
 
 **F-S2.2 — Sampler numeric invalid** (S2.3)
 **Condition.** `gamma_component.alpha ≤ 0` or `gamma_value ≤ 0`, or `poisson_component.lambda ≤ 0` / non-finite. (Should not occur if S2.2 passed.)
@@ -1430,12 +1429,12 @@ We categorize failures as **merchant-scoped aborts** (S2 stops for that merchant
 **C-S2.4 — Coverage & cardinality gap**
 **Condition.** Any `nb_final` **without** at least one prior `gamma_component` **and** one prior `poisson_component` (both with `context="nb"`), or **duplicate** `nb_final` for the same `(seed, parameter_hash, run_id, merchant_id)`.
 **Action.** **Structural failure** → **abort run**.
-**Evidence.** Coverage join across the three streams indicates absence/duplication. 
+**Evidence.** Coverage join across the three streams indicates absence/duplication.
 
 **C-S2.5 — Consumption discipline breach** (S2.6 invariants)
 **Condition.** Any of: `after < before`; overlapping intervals within a sub-stream; `nb_final` advances counters (`before≠after`); per-attempt cardinality differs from **exactly one** Gamma + **exactly one** Poisson.
 **Action.** **Structural failure** → **abort run**.
-**Evidence.** Envelope counter scans on Gamma/Poisson/Final prove the violation. 
+**Evidence.** Envelope counter scans on Gamma/Poisson/Final prove the violation.
 
 **C-S2.6 — Composition mismatch (Gamma→Poisson)**
 **Condition.** For attempt $t$:
@@ -1456,7 +1455,7 @@ with `mu, dispersion_k` taken from `nb_final`; mismatch under strict binary64 eq
 **C-S2.9 — Single-site hygiene breach (branch purity)**
 **Condition.** A merchant with S1 `is_multi=0` has **any** S2 NB event.
 **Action.** **Structural failure** → **abort run**.
-**Evidence.** Cross-check hurdle stream vs S2 streams; hurdle is authoritative first RNG stream. 
+**Evidence.** Cross-check hurdle stream vs S2 streams; hurdle is authoritative first RNG stream.
 
 ### C) Run-scoped corridor failures (validator, S2.7)
 
@@ -1478,7 +1477,7 @@ with `mu, dispersion_k` taken from `nb_final`; mismatch under strict binary64 eq
 | `schema_violation`                | run (row) | envelope/payload/context missing/invalid                    | Validator                     | abort run       |
 | `event_coverage_gap`              | run       | `nb_final` lacks prior Gamma & Poisson; or duplicate finals | Validator                     | abort run       |
 | `rng_consumption_violation`       | run       | counter overlap/regression; `nb_final` consumes             | Validator                     | abort run       |
-| `composition_mismatch`            | run       | $\lambda\neq (\mu/\phi)\cdot \texttt{gamma_value}$         | Validator                     | abort run       |
+| `composition_mismatch`            | run       | $\lambda\neq (\mu/\phi)\cdot \texttt{gamma_value}$          | Validator                     | abort run       |
 | `partition_misuse`                | run       | wrong path/partitions                                       | Validator                     | abort run       |
 | `branch_purity_violation`         | run       | single-site merchant has S2 events                          | Validator                     | abort run       |
 | `corridor_breach:{rho,p99,cusum}` | run       | corridor thresholds trip                                    | Validator                     | abort run       |
@@ -1488,7 +1487,7 @@ with `mu, dispersion_k` taken from `nb_final`; mismatch under strict binary64 eq
 ## 4) Detection loci and evidence (binding)
 
 1. **During S2** (writer-side, merchant-scoped): S2.2/S2.3/S2.5 must **raise** their errors and **avoid emitting** downstream S2 events for the merchant. (No partial S2 trails.)
-2. **After S2** (validator): perform, at minimum, the following checks in order—schema, coverage/cardinality, counter discipline, composition, corridors, path partitions, branch purity. A failure in **any** step ⇒ run fails; bundle still written without `_passed.flag`. 
+2. **After S2** (validator): perform, at minimum, the following checks in order—schema, coverage/cardinality, counter discipline, composition, corridors, path partitions, branch purity. A failure in **any** step ⇒ run fails; bundle still written without `_passed.flag`.
 
 ---
 
@@ -1524,7 +1523,7 @@ function validate_S2(nb_gamma, nb_pois, nb_final, hurdle, dictionary, policy):
     assert rho_hat <= 0.06 && p99 <= 3 && Smax < policy.cusum.threshold_h
 ```
 
-**Fail fast:** Any violated assertion returns a typed failure with the corresponding code in §3. 
+**Fail fast:** Any violated assertion returns a typed failure with the corresponding code in §3.
 
 ---
 
@@ -1569,7 +1568,7 @@ function validate_S2(nb_gamma, nb_pois, nb_final, hurdle, dictionary, policy):
 
 ## 1) Scope & intent (normative)
 
-S2 closes by (i) **persisting only the authoritative RNG event streams** for the NB sampler and (ii) exporting the accepted domestic outlet count $N_m$ (and rejection tally $r_m$) **in-memory** to S3. **No Parquet data product** is written by S2. All persistence is via three JSONL **event** streams defined in the dictionary and validated against canonical schema anchors. 
+S2 closes by (i) **persisting only the authoritative RNG event streams** for the NB sampler and (ii) exporting the accepted domestic outlet count $N_m$ (and rejection tally $r_m$) **in-memory** to S3. **No Parquet data product** is written by S2. All persistence is via three JSONL **event** streams defined in the dictionary and validated against canonical schema anchors.
 
 ---
 
@@ -1580,17 +1579,17 @@ Write **exactly** these streams, **partitioned** by `["seed","parameter_hash","r
 1. **Gamma components (NB mixture)**
    Path: `logs/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
    Schema: `schemas.layer1.yaml#/rng/events/gamma_component`
-   Cardinality per multi-site merchant: **≥ 1** (one row **per attempt**). 
+   Cardinality per multi-site merchant: **≥ 1** (one row **per attempt**).
 
 2. **Poisson components (NB mixture)**
    Path: `logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
    Schema: `schemas.layer1.yaml#/rng/events/poisson_component`
-   Cardinality: **≥ 1** (one row **per attempt**). (This stream id is **reused by S4** with a different `context`, hence the dictionary description “NB composition / ZTP”.) 
+   Cardinality: **≥ 1** (one row **per attempt**). (This stream id is **reused by S4** with a different `context`, hence the dictionary description "NB composition / ZTP".)
 
 3. **NB final (accepted outcome)**
    Path: `logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
    Schema: `schemas.layer1.yaml#/rng/events/nb_final`
-   Cardinality: **exactly 1** row **per merchant** (echoes `mu`, `dispersion_k`, `n_outlets`, `nb_rejections`). 
+   Cardinality: **exactly 1** row **per merchant** (echoes `mu`, `dispersion_k`, `n_outlets`, `nb_rejections`).
 
 **Envelope (must on every row).** `ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, module, substream_label, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi, blocks (uint64), draws ("uint128-dec")`. (`nb_final` is **non-consuming**: `before == after`, so `blocks=0`, `draws="0"`.)
 
@@ -1599,7 +1598,7 @@ Write **exactly** these streams, **partitioned** by `["seed","parameter_hash","r
 * `gamma_component`: `{ merchant_id, context="nb", index=0, alpha=φ_m, gamma_value }`.
 * `poisson_component`: `{ merchant_id, context="nb", lambda, k }`.
 * `nb_final`: `{ merchant_id, mu=μ_m, dispersion_k=φ_m, n_outlets=N_m, nb_rejections=r_m }`.
-  Types & domains per schema (positivity for `mu`,`dispersion_k`; `n_outlets≥2`; `nb_rejections≥0`).  
+  Types & domains per schema (positivity for `mu`,`dispersion_k`; `n_outlets≥2`; `nb_rejections≥0`).
 
 **Index semantics (binding).** For `gamma_component` with `context="nb"`, the Gamma is **scalar** per attempt; therefore
 `index` is the fixed value **`0`** (scalar placeholder), not a component selector.
@@ -1617,7 +1616,7 @@ $$
 $$
 
 * $N_m$ = **authoritative** domestic outlet count for downstream branches; it **must not be re-sampled** downstream.
-* $r_m$ = diagnostic only (corridor metrics); no modelling effect beyond validation. 
+* $r_m$ = diagnostic only (corridor metrics); no modelling effect beyond validation.
 
 **Downstream use.**
 
@@ -1644,7 +1643,7 @@ $$
 
 **Eligibility of a merchant to enter S3:**
 
-* Must have `is_multi=1` from S1 and a valid S2 `nb_final`. (Branch purity is enforced globally; single-site merchants must have **no** S2/S4–S6 events.) 
+* Must have `is_multi=1` from S1 and a valid S2 `nb_final`. (Branch purity is enforced globally; single-site merchants must have **no** S2/S4–S6 events.)
 * S3 receives $(N_m,r_m)$ **in-memory** and reads `crossborder_eligibility_flags(parameter_hash)` to determine the branch. **S3 persists nothing**; it fixes the policy branch that later must be reflected when `country_set` is materialised.
 
 > **Note.** The **1A→1B hand-off** (egress consumption) is governed later by S9: `_passed.flag` must match `SHA256(validation_bundle_1A)` for the same fingerprint before 1B can read `outlet_catalogue`. S2 does not write egress and therefore cannot authorise 1B directly.
@@ -1687,7 +1686,7 @@ write_jsonl(
 Before S3 consumes $(N_m,r_m)$ in-memory, the S2 validator must have already:
 
 * **Schema-validated** all three streams.
-* Checked **coverage & cardinality** and **consumption discipline**; verified **composition** identity per attempt. 
+* Checked **coverage & cardinality** and **consumption discipline**; verified **composition** identity per attempt.
 * Computed **corridor metrics** $\widehat{\rho}_{\text{rej}}$, $p_{99}(r_m)$, and **CUSUM**; **hard-fail** on any breach.
 
 ---
@@ -1696,11 +1695,11 @@ Before S3 consumes $(N_m,r_m)$ in-memory, the S2 validator must have already:
 
 1. **Streams present & partitioned.** For a shard, assert that for every merchant with `nb_final`, there exist matching `gamma_component` and `poisson_component` rows under the same `(seed, parameter_hash, run_id)` partitions; no rows exist under any other path.
 
-2. **Final echo & non-consumption.** For a sample of merchants, check `nb_final.mu == S2.2.mu` and `nb_final.dispersion_k == S2.2.phi`, and envelope counters are equal (`before==after`). 
+2. **Final echo & non-consumption.** For a sample of merchants, check `nb_final.mu == S2.2.mu` and `nb_final.dispersion_k == S2.2.phi`, and envelope counters are equal (`before==after`).
 
 3. **Reconstruction of $(N_m,r_m)$.** Rebuild attempts by **counter-interval pairing** as above; confirm `nb_final.n_outlets == k` and the attempt index equals `nb_final.nb_rejections`.
 
-4. **S3 readiness.** Ensure all `is_multi=1` merchants with `nb_final` also have a row in `crossborder_eligibility_flags(parameter_hash)`; single-site merchants have **no** S2 events. 
+4. **S3 readiness.** Ensure all `is_multi=1` merchants with `nb_final` also have a row in `crossborder_eligibility_flags(parameter_hash)`; single-site merchants have **no** S2 events.
 
 ---
 
