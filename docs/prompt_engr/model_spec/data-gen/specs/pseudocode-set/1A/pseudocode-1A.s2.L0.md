@@ -15,7 +15,7 @@
 
 ## 1.3 Typing, naming, and JSON encoding
 
-* **Scalars.** `u64` (unsigned 64-bit), `i64` (signed 64-bit), `f64` (binary64), `hex64`/`hex32` (lowercase fixed-length hex). Payload floats **must round-trip** as binary64 (emit shortest round-trip decimals).
+* **Scalars.** `u64` (unsigned 64-bit), `i64` (signed 64-bit), `f64` (binary64), `hex64`/`hex32` (lowercase fixed-length hex **strings**; in type declarations we write `Hex64`/`Hex32`). Payload floats **must round-trip** as binary64 (emit shortest round-trip decimals).
 * **`draws` (decimal u128).** Event-level `draws` is a **decimal string** in the **dec_u128** domain: **no sign**, **no leading zeros** (except `"0"`), **≤39 digits**; regex `^(0|[1-9][0-9]{0,38})$`. **Never** infer `draws` from counters; use the S1 parser/formatter.
 * **Timestamps.** `ts_utc` is **RFC 3339 UTC** with **exactly 6 fractional digits** and a trailing **`Z`**; *truncate, don’t round*. Pattern:
   `^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$` (writer `begin_event_micro`).
@@ -26,7 +26,7 @@
 * **Counters vs draws (independent identities).**
   `blocks := u128(after) − u128(before)` (unsigned-128); `draws := actual uniforms consumed`. Validators reconcile **both**; **no identity** ties `draws` to the counter delta.
 * **Lane policy & `U(0,1)`.** Single-uniform **events** use the **low lane** only (`blocks=1`, `draws="1"`). Box–Muller consumes **both lanes from one block** (`blocks=1`, `draws="2"`). The `u01` map is **strict-open (0,1)**:
-  `u=((x+1)*0x1.0000000000000p-64); if u==1.0 → 0x1.fffffffffffffp-1`.
+  `u=((as_f64(x)+1.0)*0x1.0000000000000p-64); if u==1.0 → 0x1.fffffffffffffp-1`.
 * **Gamma budgets (MT98, exact actual-use).** Case A (α≥1): per iteration **+2 uniforms** (BM) then **+1** for accept-U; Case B (α<1): boost Γ(α+1) then **+1** for power step; **no padding/dummies**.
 * **Poisson budgets.** **Inversion** for λ<10, **PTRS** otherwise; budgets vary per attempt and are recorded as `draws`.
 * **Non-consuming events.** Keep `before == after`, set `blocks=0`, `draws="0"` (applies to `nb_final`).
@@ -130,19 +130,19 @@ Freeze all S2-specific **labels**, **modules**, **schema refs**, and **partition
 
 * **Gamma component**
   id: `rng_event_gamma_component`
-  path: `logs/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+  path: `logs/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` *(example; resolved via dictionary)*
   partitions: `["seed","parameter_hash","run_id"]`
   produced_by: `1A.nb_and_dirichlet_sampler`
   gated by: `rng_event_hurdle_bernoulli` with `is_multi == true`.
 * **Poisson component**
   id: `rng_event_poisson_component`
-  path: `logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+  path: `logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` *(example; resolved via dictionary)*
   partitions: `["seed","parameter_hash","run_id"]`
   produced_by: `1A.nb_poisson_component`
   gated by: `rng_event_hurdle_bernoulli` with `is_multi == true`.
 * **Finaliser**
   id: `rng_event_nb_final`
-  path: `logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+  path: `logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` *(example; resolved via dictionary)*
   partitions: `["seed","parameter_hash","run_id"]`
   produced_by: `1A.nb_sampler`
   gated by: `rng_event_hurdle_bernoulli` with `is_multi == true`.
@@ -454,11 +454,11 @@ Emitters in §10 reference these **symbolically** (no literals elsewhere):
 * **Gamma component**
   id `rng_event_gamma_component`, schema `schemas.layer1.yaml#/rng/events/gamma_component`, path `logs/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`, partitions `["seed","parameter_hash","run_id"]`, produced_by `"1A.nb_and_dirichlet_sampler"`, gated by hurdle `is_multi==true`.
 * **Poisson component**
-  id `rng_event_poisson_component`, schema `#/rng/events/poisson_component`, path as above under `poisson_component`, partitions `["seed","parameter_hash","run_id"]`, produced_by `"1A.nb_poisson_component"`, gated by hurdle `is_multi==true`.
+  id `rng_event_poisson_component`, schema `schemas.layer1.yaml#/rng/events/poisson_component`, path `logs/rng/events/poisson_component/...`, module `"1A.nb_poisson_component"`, gated by hurdle `is_multi==true`.
 * **Finaliser**
-  id `rng_event_nb_final`, schema `#/rng/events/nb_final`, path `logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`, partitions `["seed","parameter_hash","run_id"]`, produced_by `"1A.nb_sampler"`, **non-consuming** (`blocks=0`, `draws:"0"`).
+  id `rng_event_nb_final`, schema `schemas.layer1.yaml#/rng/events/nb_final`, path `logs/rng/events/nb_final/...`, module `"1A.nb_sampler"`, **non-consuming** (`blocks=0`, `draws:"0"`).
 * **Trace (cumulative)**
-  id `rng_trace_log`, schema `#/rng/core/rng_trace_log`, path `logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl`, partitions `["seed","parameter_hash","run_id"]`; **embedded** fields include only `{seed, run_id}`.
+  id `rng_trace_log`, schema `schemas.layer1.yaml#/rng/core/rng_trace_log`, partitions `["seed","parameter_hash","run_id"]`; **embedded** fields include only `{seed, run_id}`.
 
 ---
 
@@ -501,6 +501,10 @@ Emitters in §10 reference these **symbolically** (no literals elsewhere):
 ## 8.1 Purpose
 
 Pure helper (no RNG, no I/O) that deterministically computes **NB2** parameters
+
+*Symbols used in §8–§10:*  
+`μ` (NB mean), `φ` (NB dispersion), `λ` (Poisson mean),  
+`G` (Gamma draw), `N` (accepted outlets), `r` (rejections).
 
 $$
 \mu=\exp(\beta_\mu^\top x^{(\mu)}),\qquad \phi=\exp(\beta_\phi^\top x^{(\phi)})
@@ -568,7 +572,7 @@ function nb2_params_from_design(
 
 * Uses **only** deterministic FP ops (binary64, RNE, **FMA-OFF**, fixed order); **no RNG, no I/O**.
 * Guards enforce **finite & positive** outputs; numeric violations map to `ERR_S2_NUMERIC_INVALID` (merchant-scoped).
-* Returned values are suitable to be **echoed byte-for-byte** in `nb_final` (schema `#/rng/events/nb_final`).
+* Returned values are suitable to be **echoed byte-for-byte** in `nb_final` (schema `schemas.layer1.yaml#/rng/events/nb_final`).
 
 *(Optionally, in DEV_ASSERTS builds only: assert equal lengths of vectors and finiteness of all inputs to surface upstream encoding errors early. No-ops in prod, responsibility for shape checks remains with S2.1.)*
 
@@ -671,7 +675,7 @@ This keeps §9 strictly helper-level, returns everything §10 needs to stamp sch
 
 ## 10.1 What these do
 
-Turn **one attempt** (Gamma or Poisson) into a single JSONL **event row** (envelope + payload), then append **one** cumulative **saturating** trace row. The **finaliser** emits a **non-consuming** event that echoes \( \mu,\phi,N,r \). Schema anchors, modules, labels, and partitions are taken from §3 + dictionary. *Emitters call writer+trace explicitly; the §11 `emit_then_trace_s2` wrapper is optional.*
+Turn **one attempt** (Gamma or Poisson) into a single JSONL **event row** and then append the **cumulative trace**. Emit these explicitly; there is **no separate wrapper** in L0.*
 
 ---
 
@@ -732,7 +736,7 @@ function event_gamma_nb(
 
 ## 10.3 `event_poisson_nb(...)` — component event (context `"nb"`)
 
-**Schema/Path/Lineage.** dataset id **`rng_event_poisson_component`**, schema `#/rng/events/poisson_component`, path `logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`. Envelope: `module="1A.nb_poisson_component"`, `substream_label="poisson_nb"`.
+**Schema/Path/Lineage.** dataset id **`rng_event_poisson_component`**, schema `schemas.layer1.yaml#/rng/events/poisson_component`; partitions `{seed,parameter_hash,run_id}`; set `module="1A.nb_poisson_component"`, `substream_label="poisson_nb"`.
 
 **Payload (must):** `{ merchant_id, context:"nb", lambda, k }`. **Compute** `lambda=(mu/phi)*G` **in the caller** (binary64), then this emitter samples and emits.
 
@@ -779,7 +783,7 @@ function event_poisson_nb(
 
 ## 10.4 `emit_nb_final_nonconsuming(...)` — finaliser (no RNG)
 
-**Schema/Path/Lineage.** dataset id **`rng_event_nb_final`**, schema `#/rng/events/nb_final`, path `logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`. Envelope: `module="1A.nb_sampler"`, `substream_label="nb_final"`. **Non-consuming**: `before==after`, `blocks=0`, `draws:"0"`.
+**Schema/Path/Lineage.** dataset id **`rng_event_nb_final`**, schema `schemas.layer1.yaml#/rng/events/nb_final`; partitions `{seed,parameter_hash,run_id}`; set `module="1A.nb_sampler"`, `substream_label="nb_final"`. **Non-consuming**: `before==after`, `blocks=0`, `draws:"0"`.
 
 **Payload (must):** `{ merchant_id, mu, dispersion_k, n_outlets, nb_rejections }` where `mu, dispersion_k` **bit-match** §8 outputs; `n_outlets≥2`, `nb_rejections≥0`.
 
@@ -835,95 +839,18 @@ All three streams are **gated** by the hurdle result: only merchants with `is_mu
 
 ---
 
-# §11 Utilities
+# §11 Failure Payload Builders
 
 ## 11.1 Purpose
-
-Keep L1/L2/L3 free of formatting glue. Provide (a) exact **u128↔decimal** helpers and **shortest round-trip** float printing (**imported**), and (b) a **tiny wrapper** that sequences the event writer and the **S1 saturating** trace update. No RNG here.
-
----
-
-## 11.2 Imported helpers (authoritative names)
-
-* From **S0.L0**
-
-  * `u128_to_decimal_string(hi:u64, lo:u64) -> string` — decimal encoder for `draws`.
-  * `u128_to_uint64_or_abort(hi:u64, lo:u64) -> u64` — safe cast (overflow abort).
-  * `u128_delta(after_hi,after_lo,before_hi,before_lo) -> (d_hi,d_lo)` — 128-bit delta.
-* From **S1.L0**
-
-  * `decimal_string_to_u128(s:string) -> (hi:u64, lo:u64)` — parse `"uint128-dec"`.
-  * `f64_to_json_shortest(x:f64) -> string` — shortest round-trip JSON for `f64`.
-
-*(We import these; no re-implementation in S2.)*
-
----
-
-## 11.3 Glue wrapper: write the event **then** append the saturating trace (one call)
-
-**Why a new name?** S0 ships a similarly named helper; to avoid import/semantic confusion, we expose an S2-scoped wrapper `emit_then_trace_s2` that calls the **S0/S1 writer** and the **S1 saturating** totals updater in the correct order.
-
-```pseudocode
-# Thin wrapper: write one RNG event row, then append the cumulative trace row.
-# family: dataset id, e.g., "rng_event_gamma_component"
-# ctx:    EventCtx from begin_event_micro(...)
-# stream_after: post-event Stream (provides after_{hi,lo})
-# draws_hi/lo:  uniforms actually consumed by THIS event (u128 words)
-# payload:      schema-accurate JSON object for the event family
-# prev:         TraceTotals {draws_total, blocks_total, events_total}
-# return:       new TraceTotals (saturating u64)
-function emit_then_trace_s2(family:string,
-                            ctx:EventCtx,
-                            stream_after:Stream,
-                            draws_hi:u64, draws_lo:u64,
-                            payload:object,
-                            prev:TraceTotals) -> TraceTotals
-  # 1) Emit the event row (envelope+payload). Writer computes blocks from counters and serializes draws.
-  end_event_emit(family, ctx, stream_after, draws_hi, draws_lo, payload)               # S0 writer (authoritative)
-
-  # 2) Append the cumulative trace row (S1 semantics: saturating totals; parameter_hash path-only).
-  draws_str = u128_to_decimal_string(draws_hi, draws_lo)                               # decimal u128 for S1 updater
-  (blk, drw, evt) =
-    update_rng_trace_totals(ctx.module, ctx.substream_label,
-                            ctx.seed, ctx.parameter_hash, ctx.run_id,                  # partitions: {seed,parameter_hash,run_id} per dictionary
-                            ctx.before_hi, ctx.before_lo, stream_after.ctr.hi, stream_after.ctr.lo,
-                            /*prev_draws*/  prev.draws_total,
-                            /*prev_blocks*/ prev.blocks_total,
-                            /*prev_events*/ prev.events_total,
-                            /*draws_str*/   draws_str)                                 # S1 updater (saturating u64)
-
-  return TraceTotals{ blocks_total: blk, draws_total: drw, events_total: evt }
-```
-
-**Notes.**
-
-* For **non-consuming** events (e.g., `nb_final`), pass `draws_hi=0, draws_lo=0`; the writer will **assert** `after==before`.
-* Paths are resolved inside the writer/trace via the **dataset dictionary**; event and trace partitions are exactly `{seed, parameter_hash, run_id}`; the trace row **embeds** only `{seed, run_id}` (parameter_hash is path-only).
-
----
-
-## 11.4 Acceptance (for §11)
-
-* Only **imports** + one **glue** wrapper; **no RNG**, no business rules, no loops.
-* The wrapper calls **exactly** `end_event_emit(...)` then **S1’s** `update_rng_trace_totals(...)`, deriving `draws_str` via `u128_to_decimal_string(...)`.
-* Float payload fields are passed as **numbers**; the writer emits shortest-decimal JSON. **Do not** pre-serialize with `f64_to_json_shortest(...)`.
-
-If you want, I can now fold this into your §10 emitters (replace the two explicit calls with `emit_then_trace_s2`)—or we can keep §10 as-is; both are schema-correct and deterministic.
-
----
-
-# §12 Failure Payload Builders
-
-## 12.1 Purpose
 
 Expose the **single, canonical** failure/abort interface for 1A so S2 surfaces errors in the exact forensic format defined in **S0.9**. We **import** the Batch-F helpers from S0/L0—**no local variants, no new classes, no shape tweaks**—so every state aborts identically.
 
 ---
 
-## 12.2 Imported helpers (authoritative names & behavior)
+## 11.2 Imported helpers (authoritative names & behavior)
 
 * `build_failure_payload(failure_class, failure_code, ctx) -> object`
-  Returns the normative **failure JSON** envelope. Timestamp domain is **epoch-ns** (`now_ns()`), not RFC-3339. Required fields are fixed (see §12.3).
+  Returns the normative **failure JSON** envelope. Timestamp domain is **epoch-ns** (`now_ns()`), not RFC-3339. Required fields are fixed (see §11.3).
 
 * `abort_run(failure_class, failure_code, seed, parameter_hash, manifest_fingerprint, run_id, detail, partial_partitions[])`
   **Atomically** commits the run-scoped failure bundle and terminates the run non-zero; writes optional `_FAILED.json` sentinels in any leaked partitions. (Legacy alias `abort(...)` forwards to `abort_run`.)
@@ -938,7 +865,7 @@ Expose the **single, canonical** failure/abort interface for 1A so S2 surfaces e
 
 ---
 
-## 12.3 Canonical failure JSON (shape & fields)
+## 11.3 Canonical failure JSON (shape & fields)
 
 `build_failure_payload(...)` yields this uniform envelope (required unless noted optional):
 
@@ -963,7 +890,7 @@ This schema (including **epoch-ns** `ts_utc`) is fixed by S0; **do not** add ad-
 
 ---
 
-## 12.4 Where failures live (paths, partitions, atomics)
+## 11.4 Where failures live (paths, partitions, atomics)
 
 Run-scoped failure bundles are **fingerprint-scoped** and committed atomically at:
 `data/layer1/1A/validation/failures/fingerprint={manifest_fingerprint}/seed={seed}/run_id={run_id}/`
@@ -982,7 +909,7 @@ Validation bundles themselves are under
 
 ---
 
-## 12.5 Failure taxonomy to use from S2
+## 11.5 Failure taxonomy to use from S2
 
 Use **S0.9 classes F1–F10** with **S2 concrete codes**. Examples grounded in the spec & validator crosswalk:
 
@@ -994,7 +921,7 @@ Use **S0.9 classes F1–F10** with **S2 concrete codes**. Examples grounded in t
 
 ---
 
-## 12.6 Usage in S2 (call sites)
+## 11.6 Usage in S2 (call sites)
 
 * **L1/L2:** On an S2 error, assemble `ctx` (state/module + lineage + `detail`) →
   `payload = build_failure_payload(failure_class, failure_code, ctx)` →
@@ -1002,7 +929,7 @@ Use **S0.9 classes F1–F10** with **S2 concrete codes**. Examples grounded in t
 
 ---
 
-### §12 Acceptance
+### §11 Acceptance
 
 * Only the **four** helpers above are exposed; **no** local variants/tweaks.
 * Failure JSON uses **epoch-ns** `ts_utc`, includes **both** `failure_class` and `failure_code`, and carries the required lineage keys.
@@ -1013,9 +940,9 @@ All checks out against your S0/L0 Batch-F definitions, S0.9 expanded spec, and t
 
 ---
 
-# §13 Public API Index
+# §12 Public API Index
 
-## 13.1 Constants (single source; no hand-typing elsewhere)
+## 12.1 Constants (single source; no hand-typing elsewhere)
 
 * `LABEL_GAMMA = "gamma_nb"`; `LABEL_POISSON = "poisson_nb"`; `LABEL_FINAL = "nb_final"`.
 * `MODULE_GAMMA = "1A.nb_and_dirichlet_sampler"`; `MODULE_POISSON = "1A.nb_poisson_component"`; `MODULE_FINAL = "1A.nb_sampler"`.
@@ -1024,7 +951,7 @@ All checks out against your S0/L0 Batch-F definitions, S0.9 expanded spec, and t
 
 ---
 
-## 13.2 Types (records only; no logic)
+## 12.2 Types (records only; no logic)
 
 * `Stream { key:u64, ctr:{hi:u64, lo:u64} }` — Philox-2×64 stream (one **block** per `philox_block`).
 * `Ids = list[{tag∈{iso,merchant_u64,i,j}, value:u64|string}]` — typed tuple for `derive_substream`.
@@ -1035,7 +962,7 @@ All checks out against your S0/L0 Batch-F definitions, S0.9 expanded spec, and t
 
 ---
 
-## 13.3 Numeric shims (REUSE unless noted)
+## 12.3 Numeric shims (REUSE unless noted)
 
 | Helper                           | Inputs       | Output             | Side-effects | Used by | Origin |
 |----------------------------------|--------------|--------------------|--------------|---------|--------|
@@ -1048,7 +975,7 @@ All checks out against your S0/L0 Batch-F definitions, S0.9 expanded spec, and t
 
 ---
 
-## 13.4 PRNG primitives (REUSE)
+## 12.4 PRNG primitives (REUSE)
 
 | Helper                          | Inputs              | Output                        | Side-effects                  | Used by | Origin |
 |---------------------------------|---------------------|-------------------------------|-------------------------------|---------|--------|
@@ -1063,21 +990,20 @@ All checks out against your S0/L0 Batch-F definitions, S0.9 expanded spec, and t
 
 ---
 
-## 13.5 I/O surface (REUSE writer/trace)
+## 12.5 I/O surface (REUSE writer/trace)
 
-| Helper                                                                   | Inputs                                                                    | Output                                    | Side-effects                                                                | Used by    | Origin |
-|--------------------------------------------------------------------------|---------------------------------------------------------------------------|-------------------------------------------|-----------------------------------------------------------------------------|------------|--------|
-| `begin_event_micro(...)`                                                 | module, label, seed, parameter_hash, manifest_fingerprint, run_id, stream | `EventCtx`                                | stamps **microsecond** `ts_utc` (6 digits; truncate)                        | §10        | S1.L0  |
-| `end_event_emit(family, ctx, stream_after, draws_hi, draws_lo, payload)` | —                                                                         | —                                         | writes **one** JSONL event; computes `blocks=after−before`; encodes `draws` | §10        | S0/S1  |
-| `update_rng_trace_totals(...)`                                           | lineage + counters + `draws_str`                                          | (blocks_total, draws_total, events_total) | appends **saturating** trace row; trace embed `{seed,run_id}` only          | §10/§11    | S1.L0  |
-| `dict_path_for_family(family, seed, parameter_hash, run_id)`             | ids                                                                       | path                                      | resolves dictionary path (no hard-coding)                                   | §7/§10/§11 | S0/S1  |
-| `emit_then_trace_s2(...)`                                                | see §11.3                                                                 | `TraceTotals`                             | **composition**: `end_event_emit` then `update_rng_trace_totals`            | §10        | NEW    |
+| Helper                                                                   | Inputs                                                                    | Output                                                  | Side-effects                                                                | Used by | Origin |
+|--------------------------------------------------------------------------|---------------------------------------------------------------------------|---------------------------------------------------------|-----------------------------------------------------------------------------|---------|--------|
+| `begin_event_micro(...)`                                                 | module, label, seed, parameter_hash, manifest_fingerprint, run_id, stream | `EventCtx`                                              | stamps **microsecond** `ts_utc` (6 digits; truncate)                        | §10     | S1.L0  |
+| `end_event_emit(family, ctx, stream_after, draws_hi, draws_lo, payload)` | —                                                                         | —                                                       | writes **one** JSONL event; computes `blocks=after−before`; encodes `draws` | §10     | S0/S1  |
+| `update_rng_trace_totals(...)`                                           | lineage + counters + `draws_str`                                          | (blocks_total, draws_total, events_total)               | appends **saturating** trace row; trace embed `{seed,run_id}` only          | §10     | S1.L0  |
+| `dict_path_for_family(family, seed, parameter_hash, run_id)`             | ids                                                                       | path                                                    | resolves dictionary path (no hard-coding)                                   | §7/§10  | S0/S1  |
 
 (Trace schema/path & partitions per dictionary.)
 
 ---
 
-## 13.6 NB2 math (NEW)
+## 12.6 NB2 math (NEW)
 
 | Helper                                                   | Inputs     | Output                       | Side-effects | Used by              | Origin |
 |----------------------------------------------------------|------------|------------------------------|--------------|----------------------|--------|
@@ -1087,7 +1013,7 @@ All checks out against your S0/L0 Batch-F definitions, S0.9 expanded spec, and t
 
 ---
 
-## 13.7 Attempt capsules (pure; no I/O)
+## 12.7 Attempt capsules (pure; no I/O)
 
 | Helper                                        | Inputs      | Output                      | Side-effects                            | Used by | Origin              |
 |-----------------------------------------------|-------------|-----------------------------|-----------------------------------------|---------|---------------------|
@@ -1098,31 +1024,30 @@ All checks out against your S0/L0 Batch-F definitions, S0.9 expanded spec, and t
 
 ---
 
-## 13.8 Event emitters (NEW, thin wrappers)
+## 12.8 Event emitters (NEW, thin wrappers)
 
-| Helper                            | Inputs                                                     | Output                   | Side-effects                                                                                                                  | Used by | Schema/Dict                      |
-|-----------------------------------|------------------------------------------------------------|--------------------------|-------------------------------------------------------------------------------------------------------------------------------|---------|----------------------------------|
-| `event_gamma_nb(...)`             | merchant_id, lineage, `s_before`, φ, `prev_totals`         | (G, s_after, new_totals) | writes **`rng_event_gamma_component`** row; updates trace; payload `{merchant_id, context:"nb", index:0, alpha, gamma_value}` | L1/L2   | `#/rng/events/gamma_component`   |
-| `event_poisson_nb(...)`           | merchant_id, lineage, `s_before`, λ, `prev_totals`         | (k, s_after, new_totals) | samples; writes **`rng_event_poisson_component`**; payload `{merchant_id, context:"nb", lambda, k}`; updates trace            | L1/L2   | `#/rng/events/poisson_component` |
-| `emit_nb_final_nonconsuming(...)` | merchant_id, lineage, `s_final`, μ, φ, N, r, `prev_totals` | new_totals               | writes **`rng_event_nb_final`**; **non-consuming** (`blocks=0`, `draws:"0"`); echoes μ,φ bit-exactly                          | L1/L2   | `#/rng/events/nb_final`          |
+| Helper                            | Inputs                                                     | Output                   | Side-effects                                                                                                                  | Used by | Schema/Dict                                         |
+|-----------------------------------|------------------------------------------------------------|--------------------------|-------------------------------------------------------------------------------------------------------------------------------|---------|-----------------------------------------------------|
+| `event_gamma_nb(...)`             | merchant_id, lineage, `s_before`, φ, `prev_totals`         | (G, s_after, new_totals) | writes **`rng_event_gamma_component`** row; updates trace; payload `{merchant_id, context:"nb", index:0, alpha, gamma_value}` | L1/L2   | `schemas.layer1.yaml#/rng/events/gamma_component`   |
+| `event_poisson_nb(...)`           | merchant_id, lineage, `s_before`, λ, `prev_totals`         | (k, s_after, new_totals) | samples; writes **`rng_event_poisson_component`**; payload `{merchant_id, context:"nb", lambda, k}`; updates trace            | L1/L2   | `schemas.layer1.yaml#/rng/events/poisson_component` |
+| `emit_nb_final_nonconsuming(...)` | merchant_id, lineage, `s_final`, μ, φ, N, r, `prev_totals` | new_totals               | writes **`rng_event_nb_final`**; **non-consuming** (`blocks=0`, `draws:"0"`); echoes μ,φ bit-exactly                          | L1/L2   | `schemas.layer1.yaml#/rng/events/nb_final`          |
 
 (IDs/paths/partitions and payload literals per S2 spec & dictionary.)
 
 ---
 
-## 13.9 Utilities (REUSE + tiny glue)
+## 12.9 Utilities (REUSE + tiny glue)
 
-| Helper                                                        | Inputs        | Output           | Side-effects         | Used by    | Origin  |
-|---------------------------------------------------------------|---------------|------------------|----------------------|------------|---------|
-| `u128_to_decimal_string(hi,lo)` / `decimal_string_to_u128(s)` | u128 / string | string / (hi,lo) | —                    | §7/§10/§11 | S0 / S1 |
-| `u128_to_uint64_or_abort(hi,lo)` / `u128_delta(...)`          | u128          | u64 / u128       | —                    | §7/§11     | S1      |
-| `emit_then_trace_s2(...)`                                     | see §11.3     | `TraceTotals`    | **composition only** | §10        | NEW     |
+| Helper                                                        | Inputs            | Output           | Side-effects         | Used by    | Origin  |
+|---------------------------------------------------------------|-------------------|------------------|----------------------|------------|---------|
+| `u128_to_decimal_string(hi,lo)` / `decimal_string_to_u128`    | (hi,lo) / string  | string / (hi,lo) | —                    | §7/§10     | S0 / S1 |
+| `u128_to_uint64_or_abort(hi,lo)` / `u128_delta(...)`          | (hi,lo) / (4×u64) | u64 / u128       | —                    | §7         | S1      |
 
 (Decimal-u128 & saturating trace per S1.)
 
 ---
 
-## 13.10 Failure payloads (REUSE; no new shapes)
+## 12.10 Failure payloads (REUSE; no new shapes)
 
 | Helper                                           | Inputs            | Output      | Side-effects                                   | Used by  | Origin |
 |--------------------------------------------------|-------------------|-------------|------------------------------------------------|----------|--------|
@@ -1134,7 +1059,7 @@ All checks out against your S0/L0 Batch-F definitions, S0.9 expanded spec, and t
 
 ---
 
-### §13 Acceptance
+### §12 Acceptance
 
 * Every callable exposed by S2·L0 appears **exactly once** with inputs/outputs/side-effects & provenance (REUSE vs NEW).
 * Schemas/paths/partitions for RNG events match the **frozen S2 legend + dataset dictionary**; no hand-typed paths elsewhere.
