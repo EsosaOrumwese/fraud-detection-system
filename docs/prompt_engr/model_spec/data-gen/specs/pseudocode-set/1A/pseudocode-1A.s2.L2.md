@@ -33,7 +33,7 @@ After each event row is persisted, the **L1/L0 writer** appends the **saturating
 `gamma_nb / 1A.nb_and_dirichlet_sampler`, `poisson_nb / 1A.nb_poisson_component`, `nb_final / 1A.nb_sampler`. (Pinned in S2·L0 §3; do not hand-type elsewhere.)
 
 **Schemas (authoritative).**
-`schemas.layer1.yaml#/rng/events/gamma_component`, `#/rng/events/poisson_component`, `#/rng/events/nb_final`. Payload number fields are JSON **numbers**, not strings.
+`schemas.layer1.yaml#/rng/events/gamma_component`, `schemas.layer1.yaml#/rng/events/poisson_component`, `schemas.layer1.yaml#/rng/events/nb_final`. Payload number fields are JSON **numbers**, not strings.
 
 **Dictionary partitions & gating.**
 All three **event** families are partitioned by **`["seed","parameter_hash","run_id"]`** and **gated** by the hurdle (`is_multi==true`). **Trace** rows live under the same partitions but **embed only** `{seed, run_id}` (the `parameter_hash` is path-only). L2 never embeds path strings; writers resolve paths from the dictionary.
@@ -101,12 +101,12 @@ Event path partitions must equal the embedded envelope fields `{seed, parameter_
 
   1. **S2.1 Load & Guard** (no RNG, no writes)
   2. **S2.2 Links → Parameters** (deterministic, no writes)
-  3. **Loop:** **S2.3 Attempt** (emit **Gamma → Poisson**; Poisson **only if** `λ>0` and finite) then **S2.4 Accept** (deterministic check) until first `K≥2`
+  3. **Loop:** **S2.3 Attempt** (**emit only if** `λ>0` and finite; order **Gamma → Poisson**) then **S2.4 Accept** (deterministic check) until first `K≥2`
   4. **S2.5 Finalise** (emit **one** `nb_final`, non-consuming)
 * **Per attempt (valid):** exactly **two** events, **in order**
   **Γ step** → write `gamma_component` → writer **immediately** appends trace →
   **Π step** → write `poisson_component` → writer **immediately** appends trace.
-* **λ-invalid attempt:** emit **Gamma only**, signal numeric error, **stop** S2 for that merchant (no Poisson, no Final).
+* **λ-invalid attempt:** **emit no S2 events** (no Gamma, no Poisson), signal the numeric error, and **stop** S2 for that merchant (no final).
 * **Finaliser:** write `nb_final` (non-consuming) → writer **immediately** appends trace.
   All evidence I/O (event + trace) is performed by L1 emitters via L0’s writer/trace.
 
@@ -134,7 +134,7 @@ Event path partitions must equal the embedded envelope fields `{seed, parameter_
 ### 6.7 Acceptance for §6
 
 * Parallel **across** merchants is allowed; **within** a merchant the order **S2.1→S2.2→(S2.3/S2.4)\*→S2.5** is enforced.
-* Every **valid** attempt produces **exactly two** events **in Γ→Π order**, each immediately followed by a **single** writer-driven trace append. For a λ-invalid attempt, **Gamma only** is emitted and the merchant is stopped.
+* Every **valid** attempt produces **exactly two** events **in Γ→Π order**, each immediately followed by a **single** writer-driven trace append. For a λ-invalid case, **no S2 events are emitted** and the merchant is stopped.
 * Exactly **one** `nb_final` is ever written per merchant/run; merchants with an existing finaliser are **skipped**; partial component-only merchants are **not** backfilled by L2.
 * No cross-label counter chaining; no batching/reordering of *(event→trace)* pairs; **no path literals** in L2.
 
@@ -205,7 +205,7 @@ function orchestrate_S2(lineage, merchant_iter, nb_inputs_provider, host_opts) -
     while true:
         attempt = S2_3_attempt_once(ctx, s_gamma, totals_gamma, s_pois, totals_pois)
         if attempt.is_error():
-            # e.g., λ invalid (Gamma emitted, Poisson suppressed). Stop for this merchant.
+            # e.g., λ invalid (**no S2 events emitted**). Stop for this merchant.
             yield Result.fail(merchant_id, attempt.signal)
             break
 
@@ -229,7 +229,7 @@ function orchestrate_S2(lineage, merchant_iter, nb_inputs_provider, host_opts) -
 ### 7.3 Notes (determinism, idempotence, evidence discipline)
 
 * **Within-merchant ordering is strict:** S2.1 → S2.2 → (S2.3/S2.4)\* → S2.5. Each **valid** attempt produces **exactly two** events in order (**Gamma → Poisson**), each immediately followed by a **single** saturating trace append (performed inside L1 via L0).
-* **λ-invalid attempt:** Gamma may be emitted; **do not** emit Poisson; **stop** S2 for that merchant and surface the signal (no final).
+* **λ-invalid:** **emit no S2 events** for that merchant (no Gamma, no Poisson, no final) and stop S2 for that merchant; surface the signal.
 * **Idempotent resume:** merchants with an existing `nb_final` for `(seed, parameter_hash, run_id)` are **skipped**. L2 **must not** “backfill” additional component events for partial merchants; route to the canonical failure path instead.
 * **No cross-label counter chaining:** substreams are per family (`gamma_nb`, `poisson_nb`, `nb_final`); replay does not rely on wall-clock or file order—only counters and keyed substreams.
 * **L2 never writes evidence:** all writes occur in L1 using L0’s writer; L2 only calls kernels and processes signals.
@@ -272,18 +272,19 @@ S2.2(m): Links → Parameters              # no RNG, no writes
     ▼
 (loop t = 0,1,2, …)  Attempt t
     │
-    ├─► Γ step (label "gamma_nb")                        # S2.3
-    │     side-effects:
-    │       • emit 1 row to rng_event_gamma_component (authoritative envelope)
-    │       • append 1 row to rng_trace_log (cumulative, saturating)
-    │     outputs:  G_t, updated {s_gamma, totals_gamma}
+    ├─► Capsule: draw G_t (no emission yet)              # S2.3
+    │     outputs:  G_t, updated {s_gamma, totals_gamma} (budgets tracked, no rows written)
     │
     ├─► Compose λ_t = (mu / phi) * G_t                  # binary64, fixed order
     │     guard: if λ_t ≤ 0 or non-finite → signal numeric invalid,
-    │            DO NOT emit Π, STOP S2 for merchant m (no S2.4 / no S2.5)
-    │            └── (Gamma event for this attempt may already exist for evidence)
+    │            **emit no S2 events** and STOP S2 for merchant m (no S2.4 / no S2.5)
     │
-    ├─► Π step (label "poisson_nb")                     # S2.3 (valid attempt only)
+    ├─► Γ step (label "gamma_nb")                        # S2.3 (valid λ only)
+    │     side-effects:
+    │       • emit 1 row to rng_event_gamma_component (authoritative envelope)
+    │       • append 1 row to rng_trace_log (cumulative, saturating)
+    │
+    ├─► Π step (label "poisson_nb")                     # S2.3 (valid λ only)
     │     side-effects:
     │       • emit 1 row to rng_event_poisson_component (authoritative envelope)
     │       • append 1 row to rng_trace_log (cumulative, saturating)
@@ -305,7 +306,7 @@ S2.2(m): Links → Parameters              # no RNG, no writes
 **Edge invariants (enforced by writers/validators):**
 
 * **Per valid attempt:** exactly **two** component events in order **Γ → Π**, each immediately followed by **one** trace append.
-  If λ is invalid (≤0 or non-finite): **Gamma only** is emitted; **no** Poisson; merchant **stops** (no final).
+  If λ is invalid (≤0 or non-finite): **no events** are emitted (no Gamma, no Poisson) and the merchant **stops** (no final).
 * **Partitions & equality:** all RNG **event** families are written under `{seed, parameter_hash, run_id}` with **path↔embed equality**; **trace** rows embed only `{seed, run_id}` (`parameter_hash` is path-only).
 * **Budgets vs counters:** `blocks = u128(after) − u128(before)` (counters) and `draws =` **actual uniforms consumed** (decimal u128) are **independent** checks—never inferred from one another.
 * **Finaliser:** `nb_final` is **non-consuming** and **echoes** `{ mu, dispersion_k := phi }` **bit-for-bit**; at most **one** finaliser per `(run, merchant)`.
@@ -353,16 +354,17 @@ Gate-2: presence gate ⇒ M* = { m | is_multi(m) == true }
 
 **Per-attempt contract (from L1).**
 
-* **Gamma step** on label `gamma_nb` → emits one `gamma_component` row (authoritative envelope), updates trace.
-* Compute $\lambda = (\mu/\phi)\,G$ in fixed binary64 order (inside L1).
-* **Poisson step** on label `poisson_nb` → emits one `poisson_component` row, updates trace.
-* Returns `(G, λ, K)` plus updated per-family substreams/totals **or** a **signal** (e.g., λ-invalid: Gamma emitted; Poisson suppressed).
+* **Draw $G$ (capsule, no emission yet)** inside L1.
+* Compute and **guard** $\lambda = (\mu/\phi)\,G$ in fixed binary64 order.
+* **If λ is valid:** emit **Gamma** then **Poisson** (each immediately followed by a single trace append).
+* **If λ is non-finite or ≤0:** **emit no S2 events** for that merchant (no Gamma, no Poisson, no final) and stop S2 for that merchant.
+* Returns `(G, λ, K)` plus updated per-family substreams/totals **or** a **signal** (e.g., λ-invalid: **no S2 events emitted**).
 
 **Acceptance rule (deterministic).**
 
 * **Accept first `K ≥ 2`**, set `N := K`, `r := #rejections` (count of `K ∈ {0,1}` seen).
 * **Reject** if `K ∈ {0,1}` and loop again (no hidden caps; corridor checks live in validation).
-* On **numeric-invalid λ** (Gamma emitted, Poisson suppressed), **stop** S2 for that merchant and route the signal to failure handling (L2/L3 policy).
+* On **numeric-invalid λ** (**no S2 events emitted**), **stop** S2 for that merchant and route the signal to failure handling (L2/L3 policy).
 
 **What L2 must not do.**
 
@@ -378,7 +380,7 @@ rejections := 0
 while true:
     attempt = S2_3_attempt_once(ctx, s_gamma, totals_gamma, s_pois, totals_pois)
     if attempt.is_error():
-        # e.g., ERR_S2_NUMERIC_INVALID for lambda (Gamma emitted; Poisson suppressed)
+        # e.g., ERR_S2_NUMERIC_INVALID for lambda (no S2 events emitted)
         signal = attempt.signal
         return Result.fail(merchant_id, signal)   # L2 routes to Batch-F as policy dictates
 
@@ -484,17 +486,17 @@ if components_exist_without_finaliser(merchant_id, lineage):
 
 ### 11.1 Signal → action map (minimal, complete)
 
-| Source               | Typical signal (code)            | Scope        | When it triggers                                                           | L2 action                                                                              |
-|----------------------|----------------------------------|--------------|----------------------------------------------------------------------------|----------------------------------------------------------------------------------------|
-| **Gate**             | `ERR_S2_GATING_VIOLATION`        | merchant     | Missing/duplicate hurdle; or `is_multi==false`                             | **Stop** merchant; **record** via Batch-F merchant log (no run abort); do not enter S2 |
-| **Inputs**           | `ERR_S2_INPUTS_INCOMPLETE:{key}` | merchant     | Missing/ill-typed `x_mu/x_phi/β_mu/β_phi`                                  | **Stop** merchant; **record** via Batch-F merchant log                                 |
-| **Numeric**          | `ERR_S2_NUMERIC_INVALID`         | merchant     | Non-finite/≤0 `mu/phi`, or invalid `λ` (Gamma emitted; Poisson suppressed) | **Stop** merchant; **record** via Batch-F merchant log                                 |
-| **Branch purity**    | `ERR_S2_BRANCH_PURITY`           | run          | Any S2 event observed for a non-gated merchant                             | **Abort run** (atomic failure bundle)                                                  |
-| **Partition/embed**  | `ERR_PARTITION_EMBED_MISMATCH`   | run          | Path partitions ≠ envelope `{seed, parameter_hash, run_id}`                | **Abort run** (atomic)                                                                 |
-| **Trace discipline** | `ERR_TRACE_APPEND_FAILED`        | run          | Event written but trace append failed                                      | **Abort run** (atomic)                                                                 |
-| **Schema/type**      | `ERR_SCHEMA_VIOLATION`           | run          | Writer rejects row on schema/type grounds (payload/fields/shape)           | **Abort run** (atomic)                                                                 |
-| **Resume hygiene**   | `ERR_PARTIAL_COMPONENTS`         | run (policy) | Components exist without a finaliser                                       | Treat as **terminal** per policy (route to run abort); **no backfill**                 |
-| **Idempotence**      | *(not an error)*                 | —            | `nb_final` already exists for merchant/run                                 | **Skip** merchant (no emissions)                                                       |
+| Source               | Typical signal (code)            | Scope        | When it triggers                                                 | L2 action                                                                              |
+|----------------------|----------------------------------|--------------|------------------------------------------------------------------|----------------------------------------------------------------------------------------|
+| **Gate**             | `ERR_S2_GATING_VIOLATION`        | merchant     | Missing/duplicate hurdle; or `is_multi==false`                   | **Stop** merchant; **record** via Batch-F merchant log (no run abort); do not enter S2 |
+| **Inputs**           | `ERR_S2_INPUTS_INCOMPLETE:{key}` | merchant     | Missing/ill-typed `x_mu/x_phi/β_mu/β_phi`                        | **Stop** merchant; **record** via Batch-F merchant log                                 |
+| **Numeric**          | `ERR_S2_NUMERIC_INVALID`         | merchant     | Non-finite/≤0 `mu/phi`, or invalid `λ` (no S2 events emitted)    | **Stop** merchant; **record** via Batch-F merchant log                                 |
+| **Branch purity**    | `ERR_S2_BRANCH_PURITY`           | run          | Any S2 event observed for a non-gated merchant                   | **Abort run** (atomic failure bundle)                                                  |
+| **Partition/embed**  | `ERR_PARTITION_EMBED_MISMATCH`   | run          | Path partitions ≠ envelope `{seed, parameter_hash, run_id}`      | **Abort run** (atomic)                                                                 |
+| **Trace discipline** | `ERR_TRACE_APPEND_FAILED`        | run          | Event written but trace append failed                            | **Abort run** (atomic)                                                                 |
+| **Schema/type**      | `ERR_SCHEMA_VIOLATION`           | run          | Writer rejects row on schema/type grounds (payload/fields/shape) | **Abort run** (atomic)                                                                 |
+| **Resume hygiene**   | `ERR_PARTIAL_COMPONENTS`         | run (policy) | Components exist without a finaliser                             | Treat as **terminal** per policy (route to run abort); **no backfill**                 |
+| **Idempotence**      | *(not an error)*                 | —            | `nb_final` already exists for merchant/run                       | **Skip** merchant (no emissions)                                                       |
 
 > Notes: (i) Corridor breaches (rejection-rate, p99, CUSUM) are **L3** validator failures, not L2. (ii) Merchant-scoped recordings use the Batch-F **merchant log** (no run abort). (iii) L2 never mutates evidence to “recover”.
 
