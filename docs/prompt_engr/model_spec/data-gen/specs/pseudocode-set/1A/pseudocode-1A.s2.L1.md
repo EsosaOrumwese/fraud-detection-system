@@ -566,6 +566,7 @@ S2_5_finalise(
 
 **L0 dependencies (called by L1):**
 `nb2_params_from_design`, `event_gamma_nb`, `event_poisson_nb`, `emit_nb_final_nonconsuming`, `begin_event_micro`, `end_event_emit`, `update_rng_trace_totals` (saturating), dictionary resolver.
+(*Note:* In **S2.3**, L1 performs **Γ via `gamma_attempt_with_budget` → guard λ → writer**, and therefore does **not** call `event_gamma_nb` to avoid any pre-guard emission.)
 **Never** re-implement helpers; payload floats are passed as **numbers** (writer prints shortest-decimal JSON).
 
 ---
