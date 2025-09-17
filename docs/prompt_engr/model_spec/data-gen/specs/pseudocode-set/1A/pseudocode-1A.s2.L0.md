@@ -151,7 +151,7 @@ Freeze all S2-specific **labels**, **modules**, **schema refs**, and **partition
 
 ## 3.6 Payload literals (must-carry fields)
 
-* **Gamma events** carry `context:"nb"` and **`index:0` (fixed scalar placeholder)**; payload fields: `alpha` = φ (binary64), `gamma_value` = G (binary64).
+* **Gamma events** carry `context:"nb"` and **`index:0` (fixed component id)**; payload fields: `alpha` = φ (binary64), `gamma_value` = G (binary64).
 * **Poisson events** carry `context:"nb"`, with `lambda` (binary64) and `k` (int64).
 * **Finaliser** carries `{mu, dispersion_k, n_outlets, nb_rejections}` and is **non-consuming** (`before==after`, `blocks=0`, `draws:"0"`).
 
@@ -311,7 +311,7 @@ Deterministic numeric utilities used in S2·L0 (no RNG, no I/O): rounding policy
 * IEEE-754 **binary64**, **RNE** (ties-to-even), **FMA OFF**, **no FTZ/DAZ**, and **fixed evaluation order** exactly as written in pseudocode. Decision-critical reductions must **not** be parallelised or re-ordered (no topology-dependent BLAS). Mixed-precision contraction is forbidden. Violations (e.g., FMA enabled, FTZ/DAZ, non-deterministic libm) are run-abort conditions in S0.
 * All accumulations use **serial Neumaier** (fixed order) for sums/dots.
 * **Sealed libm surface** (`exp`, `log`, `log1p`, `expm1`, `sqrt`, `sin`, `cos`, `atan2`, `pow`, `tanh`, `erf` if used, `lgamma`) comes from the pinned **math profile** attested in S0 (bit-pattern checks). We do **not** re-wrap these here.
-* All `f64` payloads must serialize as **shortest round-trip** JSON and parse back to the **identical** binary64. (Use S1’s printer.)
+* All `f64` payloads are serialized by the **writer** as **shortest round-trip** JSON and parse back to identical binary64. (S1 printer.)
 
 ---
 
@@ -697,14 +697,14 @@ function event_gamma_nb(
   # 1) One attempt (pure capsule: value + budgets + updated stream)
   (G, s_after, bud) = gamma_attempt_with_budget(phi, s_before)                                  # MT1998, strict budgets
 
-  # 2) Payload (binary64 shortest round-trip)
+  # 2) Payload (pass numbers; writer emits shortest-decimal JSON)
   payload = {
     merchant_id: merchant_id,
     context: "nb",
     index: 0,
     alpha: phi,
     gamma_value: G
-  }                                                                                            # float printer (round-trip)
+  }                                                                                            # pass numbers; writer prints shortest-decimal
 
   # 3) Emit event row (writer computes blocks from counters; 'draws' from budgets)
   end_event_emit(/*family*/ "rng_event_gamma_component",
@@ -756,7 +756,7 @@ function event_poisson_nb(
     context: "nb",
     lambda: lambda,
     k: k
-  }                                                                                            # round-trip float printer
+  }                                                                                            # pass numbers; writer prints shortest-decimal
 
   end_event_emit("rng_event_poisson_component", ctx, s_after,
                  bud.draws_hi, bud.draws_lo, payload)                                          # writer computes blocks
@@ -1037,12 +1037,12 @@ All checks out against your S0/L0 Batch-F definitions, S0.9 expanded spec, and t
 
 ## 13.3 Numeric shims (REUSE unless noted)
 
-| Helper                           | Inputs         | Output             | Side-effects | Used by | Origin |
-|----------------------------------|----------------|--------------------|--------------|---------|--------|
-| `sum_neumaier(xs)`               | f64\[]         | f64                | —            | §8      | S0.L0  |
-| `dot_neumaier(a,b)`              | f64\[], f64\[] | f64                | —            | §8      | S0.L0  |
-| `f64_to_json_shortest(x)`        | f64            | string             | —            | §10     | S1.L0  |
-| `assert_finite_positive(x,name)` | f64, string    | — (throws on fail) | —            | §8/§9   | NEW    |
+| Helper                           | Inputs       | Output             | Side-effects | Used by | Origin |
+|----------------------------------|--------------|--------------------|--------------|---------|--------|
+| `sum_neumaier(xs)`               | f64[]        | f64                | —            | §8      | S0.L0  |
+| `dot_neumaier(a,b)`              | f64[], f64[] | f64                | —            | §8      | S0.L0  |
+| `f64_to_json_shortest(x)`        | f64          | string             | —            | -       | S1.L0  |
+| `assert_finite_positive(x,name)` | f64, string  | — (throws on fail) | —            | §8/§9   | NEW    |
 
 (Shortest-round-trip printer & saturating discipline per S1.)
 
@@ -1050,14 +1050,14 @@ All checks out against your S0/L0 Batch-F definitions, S0.9 expanded spec, and t
 
 ## 13.4 PRNG primitives (REUSE)
 
-| Helper                          | Inputs              | Output                          | Side-effects                  | Used by | Origin |
-|---------------------------------|---------------------|---------------------------------|-------------------------------|---------|--------|
-| `derive_substream(M,label,Ids)` | master, string, Ids | Stream                          | —                             | §10     | S0.L0  |
-| `philox_block(s)`               | Stream              | (x0\:u64, x1\:u64, s’)          | advances counter **+1 block** | §6/§9   | S0.L0  |
-| `u01(x)`                        | u64                 | f64 **strict-open (0,1)**       | —                             | §6/§9   | S0.L0  |
-| `uniform1(s)`                   | Stream              | (u\:f64, s’, draws=1)           | +1 block; **low lane**        | §9      | S0.L0  |
-| `uniform2(s)`                   | Stream              | (u1\:f64, u2\:f64, s’, draws=2) | +1 block; **both lanes**      | §9      | S0.L0  |
-| `normal_box_muller(s)`          | Stream              | (z\:f64, s’, draws=2)           | +1 block; **no cache**        | §9      | S0.L0  |
+| Helper                          | Inputs              | Output                        | Side-effects                  | Used by | Origin |
+|---------------------------------|---------------------|-------------------------------|-------------------------------|---------|--------|
+| `derive_substream(M,label,Ids)` | master, string, Ids | Stream                        | —                             | §10     | S0.L0  |
+| `philox_block(s)`               | Stream              | (x0:u64, x1:u64, s’)          | advances counter **+1 block** | §6/§9   | S0.L0  |
+| `u01(x)`                        | u64                 | f64 **strict-open (0,1)**     | —                             | §6/§9   | S0.L0  |
+| `uniform1(s)`                   | Stream              | (u:f64, s’, draws=1)          | +1 block; **low lane**        | §9      | S0.L0  |
+| `uniform2(s)`                   | Stream              | (u1:f64, u2:f64, s’, draws=2) | +1 block; **both lanes**      | §9      | S0.L0  |
+| `normal_box_muller(s)`          | Stream              | (z:f64, s’, draws=2)          | +1 block; **no cache**        | §9      | S0.L0  |
 
 (Strict-open map & lane policy per S0.)
 
