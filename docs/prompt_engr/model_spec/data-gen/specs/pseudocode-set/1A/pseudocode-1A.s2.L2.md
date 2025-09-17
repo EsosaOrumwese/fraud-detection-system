@@ -184,10 +184,14 @@ function orchestrate_S2(lineage, merchant_iter, nb_inputs_provider, host_opts) -
         continue
     ctx = ctx_or_error.value
 
-    # Initialise per-family substreams & trace totals (using L0 derive_substream; no writes)
-    s_gamma = derive_substream(/*master*/, label="gamma_nb",  /*ids for merchant*/ )
-    s_pois  = derive_substream(/*master*/, label="poisson_nb",/*ids for merchant*/ )
-    s_final = derive_substream(/*master*/, label="nb_final",  /*ids for merchant*/ )
+    # Initialise per-family substreams & trace totals (L0; no writes)
+    # Derive run master from seed + raw 32 bytes of manifest_fingerprint (not the hex text)
+    M = derive_master_material(lineage.seed, hex64_to_raw32(lineage.manifest_fingerprint))
+    # Use a typed Ids tuple; merchant_u64 is the canonical key from S0
+    ids = [ { tag:"merchant_u64", value: merchant_u64_from_id64(merchant_id) } ]
+    s_gamma = derive_substream(M, label="gamma_nb",  ids)
+    s_pois  = derive_substream(M, label="poisson_nb",ids)
+    s_final = derive_substream(M, label="nb_final",  ids)
 
     totals_gamma = TraceTotals{draws_total:0, blocks_total:0, events_total:0}
     totals_pois  = TraceTotals{draws_total:0, blocks_total:0, events_total:0}
