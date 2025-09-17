@@ -1491,19 +1491,19 @@ with `mu, dispersion_k` taken from `nb_final`; mismatch under strict binary64 eq
 
 ## 3) Consolidated error code table (normative)
 
-| Code                              | Scope     | Trigger                                                     | Detection locus               | Action          |
-|-----------------------------------|-----------|-------------------------------------------------------------|-------------------------------|-----------------|
-| `ERR_S2_ENTRY_MISSING_HURDLE`     | merchant  | no hurdle record for $m$                                    | S2.1                          | skip S2 for $m$ |
-| `ERR_S2_ENTRY_NOT_MULTI`          | merchant  | hurdle `is_multi=false`                                     | S2.1                          | skip S2 for $m$ |
-| `ERR_S2_NUMERIC_INVALID`          | merchant  | $\mu\le0$ or $\phi\le0$ or NaN/Inf                          | S2.2 (+defensive in S2.3/2.5) | abort $m$       |
-| `ERR_S2_SAMPLER_NUMERIC_INVALID`  | run (row) | gamma/poisson numeric domains violated                      | Validator (schema)            | abort run       |
-| `schema_violation`                | run (row) | envelope/payload/context missing/invalid                    | Validator                     | abort run       |
-| `event_coverage_gap`              | run       | `nb_final` lacks prior Gamma & Poisson; or duplicate finals | Validator                     | abort run       |
-| `rng_consumption_violation`       | run       | counter overlap/regression; `nb_final` consumes             | Validator                     | abort run       |
-| `composition_mismatch`            | run       | $\lambda\neq (\mu/\phi)\cdot \texttt{gamma_value}$          | Validator                     | abort run       |
-| `partition_misuse`                | run       | wrong path/partitions                                       | Validator                     | abort run       |
-| `branch_purity_violation`         | run       | single-site merchant has S2 events                          | Validator                     | abort run       |
-| `corridor_breach:{rho,p99,cusum}` | run       | corridor thresholds trip                                    | Validator                     | abort run       |
+| Code                                | Scope     | Trigger                                                     | Detection locus               | Action          |
+|-------------------------------------|-----------|-------------------------------------------------------------|-------------------------------|-----------------|
+| `ERR_S2_ENTRY_MISSING_HURDLE`       | merchant  | no hurdle record for $m$                                    | S2.1                          | skip S2 for $m$ |
+| `ERR_S2_ENTRY_NOT_MULTI`            | merchant  | hurdle `is_multi=false`                                     | S2.1                          | skip S2 for $m$ |
+| `ERR_S2_NUMERIC_INVALID`            | merchant  | $\mu\le0$ or $\phi\le0$ or NaN/Inf                          | S2.2 (+defensive in S2.3/2.5) | abort $m$       |
+| `ERR_S2_SAMPLER_NUMERIC_INVALID`    | run (row) | gamma/poisson numeric domains violated                      | Validator (schema)            | abort run       |
+| `schema_violation`                  | run (row) | envelope/payload/context missing/invalid                    | Validator                     | abort run       |
+| `event_coverage_gap`                | run       | `nb_final` lacks prior Gamma & Poisson; or duplicate finals | Validator                     | abort run       |
+| `rng_consumption_violation`         | run       | counter overlap/regression; `nb_final` consumes             | Validator                     | abort run       |
+| `composition_mismatch`              | run       | $\lambda\neq (\mu/\phi)\cdot \texttt{gamma_value}$          | Validator                     | abort run       |
+| `partition_misuse`                  | run       | wrong path/partitions                                       | Validator                     | abort run       |
+| `branch_purity_violation`           | run       | single-site merchant has S2 events                          | Validator                     | abort run       |
+| `corridor_breach:{rho\|p99\|cusum}` | run       | corridor thresholds trip                                    | Validator                     | abort run       |
 
 ---
 
