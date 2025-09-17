@@ -107,7 +107,7 @@ All file discovery (events, trace, hurdle, coeff/design inputs, and validation-b
 **Streaming, bounded memory.**
 Validators stream JSONL and fold statistics with bounded state:
 
-* Iterate **per (seed, parameter\_hash, run\_id, merchant\_id, family)** window.
+* Iterate **per (seed, parameter_hash, run_id, merchant_id, family)** window.
 * Keep only rolling state needed for a check (e.g., last `(before_hi, before_lo)`, a tiny Γ→Π pairing window per family, and per-merchant counters for coverage).
 * For bundle hashing, read files in a **stable order** (below); never load the whole bundle in memory.
 
@@ -120,7 +120,7 @@ When order is required for determinism (bundle hashing, per-merchant logs, pairi
 **Enumerate only evidence the dictionary says exists.**
 
 * **Events (Gamma/Poisson/Final):** partitions are **exactly** `{seed, parameter_hash, run_id}`.
-* **Trace:** same path partitions; **envelope embeds only `{seed, run_id}`** (parameter\_hash is **path-only**).
+* **Trace:** same path partitions; **envelope embeds only `{seed, run_id}`** (parameter_hash is **path-only**).
 * **Hurdle:** presence/uniqueness and `is_multi` for branch purity.
   If the dictionary marks a dataset **required** for S2 and it’s missing, fail **immediately** (structural).
 
@@ -248,9 +248,9 @@ On any V0 failure: write **one** Batch-F record (run-scoped) with a minimal, can
 
 **Failure mapping (fail-fast):**
 
-* Unknown dataset / partition-set mismatch → **F\_schema\_or\_partition** (run).
-* Schema/type violation (stringified float, bad `draws`, missing/extra fields, bad `ts_utc`) → **F\_schema\_or\_partition** (run).
-* Trace envelope contains `parameter_hash` or otherwise malformed → **F\_schema\_or\_partition** (run).
+* Unknown dataset / partition-set mismatch → **F_schema_or_partition** (run).
+* Schema/type violation (stringified float, bad `draws`, missing/extra fields, bad `ts_utc`) → **F_schema_or_partition** (run).
+* Trace envelope contains `parameter_hash` or otherwise malformed → **F_schema_or_partition** (run).
 
 ---
 
@@ -290,8 +290,8 @@ On any V0 failure: write **one** Batch-F record (run-scoped) with a minimal, can
 
 **Failure mapping (fail-fast):**
 
-* Hurdle absent/non-unique or `is_multi==false` with any S2 evidence → **F\_branch\_purity** (run).
-* Multiple `nb_final` for a merchant/run → **F\_multiple\_finaliser** (run).
+* Hurdle absent/non-unique or `is_multi==false` with any S2 evidence → **F_branch_purity** (run).
+* Multiple `nb_final` for a merchant/run → **F_multiple_finaliser** (run).
 
 **Notes & boundaries:**
 
@@ -307,7 +307,7 @@ On any V0 failure: write **one** Batch-F record (run-scoped) with a minimal, can
 **What to prove per *event* row (streaming):**
 
 * **Path↔embed equality (events).** Path partitions are **exactly** `{seed, parameter_hash, run_id}` and **equal** the envelope trio `seed`, `parameter_hash`, `run_id`.
-* **Embed set (trace).** Trace files use the same path partitions, but each **trace row’s envelope embeds only `{seed, run_id}`** (parameter\_hash is path-only).
+* **Embed set (trace).** Trace files use the same path partitions, but each **trace row’s envelope embeds only `{seed, run_id}`** (parameter_hash is path-only).
 * **Counters & blocks.**
   Parse `rng_counter_before_{hi,lo}` and `rng_counter_after_{hi,lo}` as u64 halves; form u128 `before`, `after`. Require `after > before` for **all** component events; require `after == before` for the finaliser.
   Check **identity:** `blocks == (after − before)` (as u128 → u64) for every row.
@@ -427,8 +427,8 @@ These two sections together guarantee that each event row is self-consistent (V3
 
 **Failure mapping (fail-fast):**
 
-* Any of `{after≠before, blocks≠0, draws≠"0"}` → **F\_finaliser\_contract** (merchant; terminal for that merchant).
-* Echo mismatch (bitwise) or bad shapes/NaNs in inputs → **F\_finaliser\_contract** (merchant).
+* Any of `{after≠before, blocks≠0, draws≠"0"}` → **F_finaliser_contract** (merchant; terminal for that merchant).
+* Echo mismatch (bitwise) or bad shapes/NaNs in inputs → **F_finaliser_contract** (merchant).
 
 ---
 
@@ -471,10 +471,10 @@ These two sections together guarantee that each event row is self-consistent (V3
 
 **Failure mapping (fail-fast):**
 
-* `n_outlets` or `nb_rejections` mismatch → **F\_coverage** (merchant).
-* Components after finaliser → **F\_coverage** (merchant) or **F\_envelope\_invariant** if counters regress.
-* Missing finaliser when `accepted == true` → **F\_coverage** (merchant).
-* Partial components (no finaliser; some attempts present but no acceptance) → **F\_partial\_components** (run policy: usually run abort).
+* `n_outlets` or `nb_rejections` mismatch → **F_coverage** (merchant).
+* Components after finaliser → **F_coverage** (merchant) or **F_envelope_invariant** if counters regress.
+* Missing finaliser when `accepted == true` → **F_coverage** (merchant).
+* Partial components (no finaliser; some attempts present but no acceptance) → **F_partial_components** (run policy: usually run abort).
 
 **Outputs to later checks:**
 
@@ -502,14 +502,14 @@ These two sections together guarantee that each event row is self-consistent (V3
     * `t.after  == e.after`
   * No extra trace rows without a matching event interval; no missing trace rows.
 
-* **Monotone, saturating totals (per (module, substream\_label))**
+* **Monotone, saturating totals (per (module, substream_label))**
 
   * Let `(events_total, blocks_total, draws_total)` be the trace totals in counter order.
   * **Monotone:** all three totals are non-decreasing; `events_total` increments by **1** per matched event.
   * **Exact or saturated sums:**
 
-    * `blocks_total` equals the running sum of `blocks` (from event envelopes), or **UINT64\_MAX** once the sum would overflow (saturation).
-    * `draws_total` equals the running sum of `draws_u64`, where `draws_u64 := u128_to_uint64_or_abort(draws)`; after overflow, it remains **UINT64\_MAX** (saturation).
+    * `blocks_total` equals the running sum of `blocks` (from event envelopes), or **UINT64_MAX** once the sum would overflow (saturation).
+    * `draws_total` equals the running sum of `draws_u64`, where `draws_u64 := u128_to_uint64_or_abort(draws)`; after overflow, it remains **UINT64_MAX** (saturation).
   * **Finaliser effect:** for `nb_final` rows, `blocks == 0` and `draws == "0"`, so only `events_total` increments; `blocks_total`/`draws_total` remain unchanged.
 
 * **No per-event “extra” trace streams**
@@ -524,8 +524,8 @@ These two sections together guarantee that each event row is self-consistent (V3
 
 **Failure mapping (fail-fast):**
 
-* Trace row embeds `parameter_hash`, wrong embed set, or wrong partitions → **F\_schema\_or\_partition** (run).
-* Missing/extra trace row for an event interval; non-monotone totals; wrong increments; wrong saturation; or duplicate trace streams → **F\_trace\_discipline** (run).
+* Trace row embeds `parameter_hash`, wrong embed set, or wrong partitions → **F_schema_or_partition** (run).
+* Missing/extra trace row for an event interval; non-monotone totals; wrong increments; wrong saturation; or duplicate trace streams → **F_trace_discipline** (run).
 
 ---
 
@@ -564,7 +564,7 @@ These two sections together guarantee that each event row is self-consistent (V3
 
 **Edge handling:**
 
-* If **no merchants finalised** (`M=0`): corridors are **undefined**; treat as terminal (run incomplete) or skip corridors per your policy. (In practice, V6/V9 will already fail this run; corridors can mark as **F\_corridor\_breach\:insufficient\_data** if you require an explicit code.)
+* If **no merchants finalised** (`M=0`): corridors are **undefined**; treat as terminal (run incomplete) or skip corridors per your policy. (In practice, V6/V9 will already fail this run; corridors can mark as **F_corridor_breach\:insufficient_data** if you require an explicit code.)
 * Exclude any **non-finalised** merchants from these metrics (their outcomes aren’t defined).
 
 **Procedure (read-only):**
@@ -575,10 +575,10 @@ These two sections together guarantee that each event row is self-consistent (V3
 
 **Failure mapping (fail-fast):**
 
-* `ρ > 0.06` → **F\_corridor\_breach\:rho** (run).
-* `p99(r) > 3` → **F\_corridor\_breach\:p99** (run).
-* CUSUM threshold exceeded → **F\_corridor\_breach\:cusum** (run).
-* Corridor computation impossible due to no finals (policy) → **F\_corridor\_breach\:insufficient\_data** (run), unless explicitly disabled.
+* `ρ > 0.06` → **F_corridor_breach\:rho** (run).
+* `p99(r) > 3` → **F_corridor_breach\:p99** (run).
+* CUSUM threshold exceeded → **F_corridor_breach\:cusum** (run).
+* Corridor computation impossible due to no finals (policy) → **F_corridor_breach\:insufficient_data** (run), unless explicitly disabled.
 
 **Outputs to publish bundle:**
 
@@ -615,7 +615,7 @@ These two sections together guarantee that each event row is self-consistent (V3
 * Re-open the published bundle, recompute `SHA-256` over the same ASCII-sorted file list, and confirm it equals the `_passed.flag` content.
 * Confirm path partitions equal `{seed, parameter_hash, run_id}` and match the run descriptor.
 
-**Fail-fast mapping:** any mismatch, partial publish, missing `_passed.flag`, stale temp files, or wrong partitions ⇒ **F\_publish\_atomicity** (run-scoped, atomic abort).
+**Fail-fast mapping:** any mismatch, partial publish, missing `_passed.flag`, stale temp files, or wrong partitions ⇒ **F_publish_atomicity** (run-scoped, atomic abort).
 
 ---
 
@@ -631,7 +631,7 @@ These two sections together guarantee that each event row is self-consistent (V3
 * No `nb_final` for *m*.
 
 **Interpretation:** the Poisson step was suppressed because $\lambda=(\mu/\phi)\,G$ was **non-finite or ≤0**.
-**Action:** classify as **ERR\_S2\_NUMERIC\_INVALID** (merchant scope). L3 writes a merchant-scoped failure (unless policy escalates).
+**Action:** classify as **ERR_S2_NUMERIC_INVALID** (merchant scope). L3 writes a merchant-scoped failure (unless policy escalates).
 
 **B. Partial components (not λ-invalid) — policy terminal (usually run abort)**
 **Pattern:** for merchant *m*
@@ -639,11 +639,11 @@ These two sections together guarantee that each event row is self-consistent (V3
 * One or more **valid pairs** (Γ→Π) exist, **but no finaliser**,
 * Or only Poisson rows exist with **no eligible Γ** (ordering violation already caught earlier),
 * Or a mixture of Γ/Π that cannot yield acceptance yet the stream ends (crash/resume), and the situation is **not** explained by λ-invalid.
-  **Action:** **ERR\_PARTIAL\_COMPONENTS** under your policy (commonly run-scoped atomic abort). L3 does **not** backfill.
+  **Action:** **ERR_PARTIAL_COMPONENTS** under your policy (commonly run-scoped atomic abort). L3 does **not** backfill.
 
 **C. Accepted attempt but missing finaliser — coverage failure**
 **Pattern:** a pair with $K\ge2$ exists, **no** `nb_final`.
-**Action:** **F\_coverage** (merchant), not λ-invalid; evidence says acceptance occurred but finalisation didn’t.
+**Action:** **F_coverage** (merchant), not λ-invalid; evidence says acceptance occurred but finalisation didn’t.
 
 > These classifications are computed **after** V4 pairing and **before** corridor roll-ups, and they never require timestamps or producer logs—only counters and payloads.
 
