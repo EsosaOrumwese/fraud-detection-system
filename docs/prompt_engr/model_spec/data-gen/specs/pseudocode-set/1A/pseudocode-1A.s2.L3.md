@@ -20,9 +20,9 @@ L3 **proves**—from **bytes on disk**—that S2 satisfied its contract: lineage
 
 **Evidence streams (dictionary-pinned RNG families).**
 
-* `rng_event_gamma_component` (`#/rng/events/gamma_component`)
-* `rng_event_poisson_component` (`#/rng/events/poisson_component`)
-* `rng_event_nb_final` (`#/rng/events/nb_final`)
+* `rng_event_gamma_component` (`schemas.layer1.yaml#/rng/events/gamma_component`)
+* `rng_event_poisson_component` (`schemas.layer1.yaml#/rng/events/poisson_component`)
+* `rng_event_nb_final` (`schemas.layer1.yaml#/rng/events/nb_final`)
   All three live under partitions **`{seed, parameter_hash, run_id}`**; presence is **gated** by the S1 hurdle (`is_multi==true`). L3 lists/reads these **only via the dictionary** (no path literals).
 
 **Trace stream.** `rng_trace_log` under the **same path partitions**, but its **envelope embeds only `{seed, run_id}`** (`parameter_hash` is **path-only**). Used to verify event→trace pairing and **saturating** totals.
@@ -373,8 +373,8 @@ for each Gamma row G in ascending before:
 **What must hold after pairing:**
 
 * **Cardinality per attempt:** exactly **one** Γ and exactly **one** Π per **valid** attempt (in order Γ→Π).
-  – A **Gamma-only terminal** (no subsequent Π satisfying the inequality) is permitted **only** as the λ-invalid pattern handled later (see §17).
-  – A Π with **no preceding** Γ interval satisfying `after(Γ) ≤ before(Π)` is **invalid** (ordering error).
+  - A **Gamma-only** row without an eligible Π is **invalid** (ordering/pairing error). λ-invalid produces **no** S2 events, so pairing sees no Γ/Π (see §17A). 
+  - A Π with **no preceding** Γ interval satisfying `after(Γ) ≤ before(Π)` is **invalid** (ordering error).
 * **Monotone/Non-overlap per family:** within each label, intervals are strictly monotone by `before`, and **non-overlapping**:
   $\text{after}(r_k) \le \text{before}(r_{k+1})$ for consecutive rows in the **same** family.
 * **No cross-label counter chaining:** counters advance independently per substream; do **not** rely on Γ’s counters to explain Π’s beyond the pairing law above. (Pairing is a constraint, not a shared counter.)
@@ -453,11 +453,12 @@ These two sections together guarantee that each event row is self-consistent (V3
   * **Outcome match:**
     `nb_final.n_outlets == N` and `nb_final.nb_rejections == r`.
   * **No components after finaliser:** there must be **no Γ/Π rows whose intervals begin after** the finaliser’s `before` counter (producer must stop emitting once finalised).
-* **If no finaliser exists:**
+* If no finaliser exists:
 
   * If an **accepted attempt** exists (some $K\ge 2$), then the run is **incomplete** → failure (finaliser missing).
   * If **all observed attempts are rejected** and the stream ends (crash/partial), treat as **partial components** (policy terminal; usually run abort).
-  * If a **Gamma-only terminal** (λ-invalid) was detected (Gamma present without an eligible Π per V4’s pairing law), classify as **numeric invalid** for that merchant (already handled by earlier stage/policy).
+  * If the merchant is **gated** and **no S2 events exist at all** (no Γ, no Π), classify as **λ-invalid (numeric invalid)** per §17.
+  * If a **Gamma-only** component is observed, treat as an **ordering/coverage violation** (producer bug), not λ-invalid (caught by V4/V18).
 
 **Procedure (streaming, read-only):**
 
@@ -623,15 +624,15 @@ These two sections together guarantee that each event row is self-consistent (V3
 
 **Goal.** Classify edge cases from evidence without guessing producer state; keep rules orthogonal to acceptance.
 
-**A. λ-invalid (Gamma-only terminal) — merchant-scoped numeric invalid**
-**Pattern (provable from counters):**
+**A. λ-invalid (no-emission terminal) — merchant-scoped numeric invalid**
+**Pattern (provable from evidence):**
 
-* A **Gamma row** exists for merchant *m* with interval $[b_\Gamma,a_\Gamma)$,
-* **No Poisson row** exists with `before ≥ a_Γ` that satisfies the Γ→Π inequalities for pairing (V4),
-* No `nb_final` for *m*.
+* The S1 hurdle for merchant *m* exists and `is_multi==true` (gate passed).
+* For merchant *m*, **no rows** exist in `rng_event_gamma_component`,
+  **no rows** exist in `rng_event_poisson_component`, and **no** `rng_event_nb_final`.
 
-**Interpretation:** the Poisson step was suppressed because $\lambda=(\mu/\phi)\,G$ was **non-finite or ≤0**.
-**Action:** classify as **ERR_S2_NUMERIC_INVALID** (merchant scope). L3 writes a merchant-scoped failure (unless policy escalates).
+**Interpretation:** S2 guarded $\lambda=(\mu/\phi)\,G$ **before any emission**, found it **non-finite or ≤ 0**, and therefore emitted **no S2 events** (spec law).
+**Action:** classify as **ERR\_S2\_NUMERIC\_INVALID** (merchant scope). L3 writes a merchant-scoped failure (unless policy escalates).
 
 **B. Partial components (not λ-invalid) — policy terminal (usually run abort)**
 **Pattern:** for merchant *m*
@@ -667,7 +668,7 @@ These two sections together guarantee that each event row is self-consistent (V3
 | **Coverage**               | `n_outlets`/`nb_rejections` don’t match reconstructed `(N,r)`; components after final            | `F_coverage`                                                | Merchant                       |     
 | **Trace discipline**       | Missing/extra trace rows; non-monotone totals; wrong saturation                                  | `F_trace_discipline`                                        | Run                            |     
 | **Corridors**              | `ρ>0.06`; `p99(r)>3`; CUSUM > `h`                                                                | `F_corridor_breach:{rho\|p99\|cusum}`                       | Run                            |      
-| **λ-invalid**              | Gamma-only terminal per V4/V6 pattern                                                            | `F_numeric_invalid_lambda` (alias `ERR_S2_NUMERIC_INVALID`) | Merchant                       |     
+| **λ-invalid**              | No-emission terminal per §17A (gated hurdle, no Γ, no Π, no final)                               | `F_numeric_invalid_lambda` (alias `ERR_S2_NUMERIC_INVALID`) | Merchant                       |     
 | **Partial components**     | Components without final not explained by λ-invalid                                              | `F_partial_components`                                      | Run (policy)                   |     
 | **Publish**                | `_passed.flag` bad/missing; temp debris; wrong bundle scope                                      | `F_publish_atomicity`                                       | Run                            |     
 
