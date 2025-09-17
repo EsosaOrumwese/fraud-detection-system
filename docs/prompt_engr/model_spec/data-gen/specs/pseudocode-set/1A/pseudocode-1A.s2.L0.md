@@ -56,7 +56,7 @@
 
 ### PRNG core & substreams
 
-* `derive_master_material(seed_u64, manifest_fingerprint_bytes)` — **S0.L0**. Audit-only master; input is **raw 32 bytes** of the fingerprint.
+* `derive_master_material(seed_u64, manifest_fingerprint_bytes)` — **S0.L0**. Audit-only master; input is **raw 32 bytes** of the fingerprint (**imported, unused in S2·L0**).
 * `derive_substream(M, label, ids)` — **S0.L0**. Typed IDs via **SER**; order-invariant message `UER("mlr:1A") || UER(label) || SER(ids)`.
 * `philox_block(stream) -> (x0, x1, next)` — **S0.L0**. Advances counter by **+1 block** per call.
 * `u01(x:u64) -> f64` — **S0.L0**. **Strict-open (0,1)**; never 0.0 / 1.0.
@@ -345,7 +345,7 @@ function assert_finite_positive(x:f64, name:string):
 * **Links (→ §8 NB2 Parameter Transform).**
   `eta_mu = dot_neumaier(β_mu, x_mu)`; `eta_phi = dot_neumaier(β_phi, x_phi)`; then `mu = exp(eta_mu)`, `phi = exp(eta_phi)`; guard each with `assert_finite_positive`.
 * **Emitters (→ §10).**
-  Use `f64_to_json_shortest` when placing `mu`, `dispersion_k`, `lambda`, `gamma_value` into payloads, to ensure exact round-trip.
+  Pass payload floats as **numbers**; the writer emits **shortest round-trip** decimals. **Do not** pre-serialize with `f64_to_json_shortest`.
 * **Attempt capsules (→ §9).**
   Sampler kernels internally use sealed libm (`log`, `sqrt`, optional `lgamma`) via the reused S0 routines—no wrappers here.
 
@@ -671,7 +671,7 @@ This keeps §9 strictly helper-level, returns everything §10 needs to stamp sch
 
 ## 10.1 What these do
 
-Turn **one attempt** (Gamma or Poisson) into a single JSONL **event row** (envelope + payload), then append **one** cumulative **saturating** trace row. The **finaliser** emits a **non-consuming** event that echoes $\mu,\phi,N,r$. Schema anchors, modules, labels, and partitions are taken from §3 + dictionary.
+Turn **one attempt** (Gamma or Poisson) into a single JSONL **event row** (envelope + payload), then append **one** cumulative **saturating** trace row. The **finaliser** emits a **non-consuming** event that echoes \( \mu,\phi,N,r \). Schema anchors, modules, labels, and partitions are taken from §3 + dictionary. *Emitters call writer+trace explicitly; the §11 `emit_then_trace_s2` wrapper is optional.*
 
 ---
 
@@ -702,8 +702,8 @@ function event_gamma_nb(
     merchant_id: merchant_id,
     context: "nb",
     index: 0,
-    alpha: f64_to_json_shortest(phi),
-    gamma_value: f64_to_json_shortest(G)
+    alpha: phi,
+    gamma_value: G
   }                                                                                            # float printer (round-trip)
 
   # 3) Emit event row (writer computes blocks from counters; 'draws' from budgets)
@@ -754,7 +754,7 @@ function event_poisson_nb(
   payload = {
     merchant_id: merchant_id,
     context: "nb",
-    lambda: f64_to_json_shortest(lambda),
+    lambda: lambda,
     k: k
   }                                                                                            # round-trip float printer
 
@@ -797,8 +797,8 @@ function emit_nb_final_nonconsuming(
 
   payload = {
     merchant_id: merchant_id,
-    mu: f64_to_json_shortest(mu),
-    dispersion_k: f64_to_json_shortest(dispersion_k),
+    mu: mu,
+    dispersion_k: dispersion_k,
     n_outlets: n_outlets,
     nb_rejections: nb_rejections
   }                                                                                            # echo μ,φ exactly
@@ -906,7 +906,7 @@ function emit_then_trace_s2(family:string,
 
 * Only **imports** + one **glue** wrapper; **no RNG**, no business rules, no loops.
 * The wrapper calls **exactly** `end_event_emit(...)` then **S1’s** `update_rng_trace_totals(...)`, deriving `draws_str` via `u128_to_decimal_string(...)`.
-* All float payload fields elsewhere are serialized using `f64_to_json_shortest(...)`; no bespoke printers.
+* Float payload fields are passed as **numbers**; the writer emits shortest-decimal JSON. **Do not** pre-serialize with `f64_to_json_shortest(...)`.
 
 If you want, I can now fold this into your §10 emitters (replace the two explicit calls with `emit_then_trace_s2`)—or we can keep §10 as-is; both are schema-correct and deterministic.
 
@@ -1100,11 +1100,11 @@ All checks out against your S0/L0 Batch-F definitions, S0.9 expanded spec, and t
 
 ## 13.8 Event emitters (NEW, thin wrappers)
 
-| Helper                            | Inputs                                                     | Output                   | Side-effects                                                                                                              | Used by | Schema/Dict |
-|-----------------------------------|------------------------------------------------------------|--------------------------|---------------------------------------------------------------------------------------------------------------------------|---------|-------------|
-| `event_gamma_nb(...)`             | merchant_id, lineage, `s_before`, φ, `prev_totals`         | (G, s_after, new_totals) | writes **`rng_event_gamma_component`**; payload `{merchant_id, context:"nb", index:0, alpha, gamma_value}`; updates trace | L1/L2   |             |
-| `event_poisson_nb(...)`           | merchant_id, lineage, `s_before`, λ, `prev_totals`         | (k, s_after, new_totals) | samples; writes **`rng_event_poisson_component`**; payload `{merchant_id, context:"nb", lambda, k}`; updates trace        | L1/L2   |             |
-| `emit_nb_final_nonconsuming(...)` | merchant_id, lineage, `s_final`, μ, φ, N, r, `prev_totals` | new_totals               | writes **`rng_event_nb_final`**; **non-consuming** (`blocks=0`, `draws:"0"`); echoes μ,φ bit-exactly                      | L1/L2   |             |
+| Helper                            | Inputs                                                     | Output                   | Side-effects                                                                                                                  | Used by | Schema/Dict                      |
+|-----------------------------------|------------------------------------------------------------|--------------------------|-------------------------------------------------------------------------------------------------------------------------------|---------|----------------------------------|
+| `event_gamma_nb(...)`             | merchant_id, lineage, `s_before`, φ, `prev_totals`         | (G, s_after, new_totals) | writes **`rng_event_gamma_component`** row; updates trace; payload `{merchant_id, context:"nb", index:0, alpha, gamma_value}` | L1/L2   | `#/rng/events/gamma_component`   |
+| `event_poisson_nb(...)`           | merchant_id, lineage, `s_before`, λ, `prev_totals`         | (k, s_after, new_totals) | samples; writes **`rng_event_poisson_component`**; payload `{merchant_id, context:"nb", lambda, k}`; updates trace            | L1/L2   | `#/rng/events/poisson_component` |
+| `emit_nb_final_nonconsuming(...)` | merchant_id, lineage, `s_final`, μ, φ, N, r, `prev_totals` | new_totals               | writes **`rng_event_nb_final`**; **non-consuming** (`blocks=0`, `draws:"0"`); echoes μ,φ bit-exactly                          | L1/L2   | `#/rng/events/nb_final`          |
 
 (IDs/paths/partitions and payload literals per S2 spec & dictionary.)
 
