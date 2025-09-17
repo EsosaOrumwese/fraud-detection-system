@@ -36,12 +36,12 @@ Define the **state-specific kernels** for S2 that (a) consume S0/S1 lineage + S2
   `gamma_nb / 1A.nb_and_dirichlet_sampler`, `poisson_nb / 1A.nb_poisson_component`, `nb_final / 1A.nb_sampler`. Fixed for S2; reference **symbolically** (no hand-typing in kernels).
 
 * **Schemas (authoritative).**
-  `schemas.layer1.yaml#/rng/events/gamma_component`, `#/rng/events/poisson_component`, `#/rng/events/nb_final`.
+  `schemas.layer1.yaml#/rng/events/gamma_component`, `schemas.layer1.yaml#/rng/events/poisson_component`, `schemas.layer1.yaml#/rng/events/nb_final`.
 
 * **Dictionary IDs / paths / partitions (no literals in L1).**
-  `rng_event_gamma_component` → `logs/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
-  `rng_event_poisson_component` → `logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
-  `rng_event_nb_final` → `logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+  `rng_event_gamma_component` → `logs/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` *(example; resolved via dictionary)*
+  `rng_event_poisson_component` → `logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` *(example; resolved via dictionary)*
+  `rng_event_nb_final` → `logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` *(example; resolved via dictionary)*
   **Partitions for all RNG streams:** `["seed","parameter_hash","run_id"]`. **Gated by** hurdle: `is_multi == true` (per dictionary `gating` block). **Paths are resolved via the dictionary in L0; L1 never embeds path strings.**
 
 * **Payload literals (family specifics).**
@@ -56,7 +56,8 @@ Define the **state-specific kernels** for S2 that (a) consume S0/S1 lineage + S2
 L1 **calls**, never re-implements, the following **S2·L0** helpers; envelope math, path resolution, and trace semantics are handled by L0/writer:
 
 * **NB math.** `nb2_params_from_design(x_mu,x_phi,β_mu,β_phi) → {mu, dispersion_k}` (binary64, fixed-order Neumaier; values later **echoed** in `nb_final`).
-* **Attempt capsules.** `gamma_attempt_with_budget(φ, sγ)`; `poisson_attempt_with_budget(λ, sπ)` — **performed inside the emitters**; L1 does not call them directly. (strict-open `u∈(0,1)`, lane policy; budgets = **actual uniforms**).
+* **Attempt capsules.** `gamma_attempt_with_budget(φ, sγ)`; `poisson_attempt_with_budget(λ, sπ)`.  
+  L1 **calls the Γ capsule pre-guard (no emission)** to obtain `G` and budgets; after λ passes the guard, L1 emits `gamma_component` using the writer/trace surface and proceeds to `event_poisson_nb(λ, …)` (whose emitter performs the Π attempt). (strict-open `u∈(0,1)`, lane policy; budgets = **actual uniforms**).
 * **Emitters.** `event_gamma_nb(...)`, `event_poisson_nb(...)`, `emit_nb_final_nonconsuming(...)` (writer computes `blocks` from counters; **payload numbers remain numbers**; trace totals are **saturating u64**).
 * **Writer / trace surface (single I/O).** `begin_event_micro(...)` → `end_event_emit(...)` → `update_rng_trace_totals(...)`; dictionary resolver (`dict_path_for_family(...)`). **No path strings in L1.** (Trace rows embed only `{seed, run_id}`; `parameter_hash` is path-only.)
 * **Dictionary reality check.** IDs, paths, partitions, and **gating** for the three families are pinned in the dataset dictionary—L1 relies on it (no inline name lists).
@@ -66,7 +67,7 @@ L1 **calls**, never re-implements, the following **S2·L0** helpers; envelope ma
 
 * **S2.1 — Load & Guard (no RNG):** verify gate; load `x_mu,x_phi,β_mu,β_phi`; assemble lineage; signal numeric/input issues upward (no S2 events).
 * **S2.2 — NB Links → Parameters (no RNG):** compute $\mu,\phi$ via L0; guard `>0`; retain exact floats for `nb_final`.
-* **S2.3 — One Attempt: Γ then Poisson (RNG; emit-as-you-go):** `event_gamma_nb` (emitter performs Γ attempt); compute $\lambda=(\mu/\phi)G$; `event_poisson_nb` (emitter performs Π attempt). **Two events per valid attempt**; writer/trace via L0.
+* **S2.3 — One Attempt: Γ then Poisson (RNG; guarded emission):** draw $G\sim\Gamma(\phi,1)$ via the **capsule** (no emission), compute/guard $\lambda=(\mu/\phi)G$, then **emit** `gamma_component` and **emit** `poisson_component`. **Two events per valid attempt**; writer/trace via L0.
 * **S2.4 — Acceptance Control (deterministic):** accept iff `k ≥ 2`; else increment `r` and repeat S2.3.
 * **S2.5 — Finalise (non-consuming) & Handoff:** emit one `nb_final` (`blocks=0`, `draws:"0"`) echoing `(μ,φ,N,r)`; return `(N,r)` to downstream.
 
@@ -100,7 +101,7 @@ function S2_1_load_and_guard(merchant_id:u64, lineage, inputs) -> NBContext
   # inputs  = { x_mu:f64[], x_phi:f64[], beta_mu:f64[], beta_phi:f64[] }
 
   # 0) Hurdle gate (no RNG, no writes)
-  hurdle = lookup_hurdle_event(merchant_id, lineage)              # schema: #/rng/events/hurdle_bernoulli
+  hurdle = lookup_hurdle_event(merchant_id, lineage)              # schemas.layer1.yaml#/rng/events/hurdle_bernoulli
   require(hurdle.exists)                                          # present
   require_unique_hurdle_per_merchant(merchant_id, lineage)        # uniqueness
   require(hurdle.payload.is_multi == true)                        # gate pass (dictionary gating)
@@ -193,18 +194,19 @@ function S2_2_links_to_params(ctx: NBContext) -> NBContext
 
 * **No RNG**, **no path strings**, **no schema writes** here.
 * Downstream forms $\lambda = (\mu/\phi)\,G$ in **binary64** (fixed order) using these exact values—**no recompute drift**.
-* `nb_final` will echo `mu` and `dispersion_k` **bit-for-bit** and is schema-pinned (`#/rng/events/nb_final`) and **non-consuming** (`before==after`, `blocks=0`, `draws:"0"`).
+* `nb_final` will echo `mu` and `dispersion_k` **bit-for-bit** and is schema-pinned (`schemas.layer1.yaml#/rng/events/nb_final`) and **non-consuming** (`before==after`, `blocks=0`, `draws:"0"`).
 * Payload floats remain **numbers**; the writer emits shortest-round-trip decimals (L0 surface).
 
 **Why this is correct:** It mirrors the frozen S2 links (mean/dispersion roles and positivity), relies on L0’s deterministic numeric profile, and enforces the “compute once, echo exactly” contract that L3 will validate.
 
 ---
 
-# S2.3 — One Attempt: Γ then Poisson (RNG; emit-as-you-go)
+# S2.3 — One Attempt: Γ then Poisson (RNG; guarded emission)
+*Symbols:* `G` (Gamma draw), `λ` (Poisson mean), `K` (Poisson count), `N` (accepted), `r` (rejections).
 
 ## Intent
 
-For a **single attempt** at merchant scope, (1) draw $G\sim\Gamma(\phi,1)$ and **emit** `gamma_component`, then (2) compute $\lambda=(\mu/\phi)\,G$ and, if λ>0 and finite, **emit** `poisson_component` for K~Poisson(λ). Exactly **two events per valid attempt**, always in **gamma → poisson** order, using label-scoped substreams and authoritative RNG envelopes via L0. No path strings.
+For a **single attempt** at merchant scope: (1) draw $G\sim\Gamma(\phi,1)$ via the **capsule** (no emission), (2) compute $\lambda=(\mu/\phi)\,G$ and **guard BEFORE any emission**; only if λ>0 & finite do we **emit** `gamma_component` and then **emit** `poisson_component` for K~Poisson(λ). Exactly **two events per valid attempt**, in **gamma → poisson** order, using label-scoped substreams and authoritative RNG envelopes via L0. No path strings.
 
 ## Inputs (from S2.2 / context)
 
@@ -227,31 +229,42 @@ function S2_3_attempt_once(ctx: NBContext,
       s_gamma':Stream, totals_gamma':TraceTotals,
       s_pois': Stream, totals_pois': TraceTotals)
 
-  # 1) Γ step (label "gamma_nb") — attempt + component event (L0 emitter performs the attempt)
-  (G, s_gamma', totals_gamma') =
-      event_gamma_nb(
-        merchant_id = ctx.merchant_id,
-        seed        = ctx.lineage.seed,
-        parameter_hash        = ctx.lineage.parameter_hash,
-        manifest_fingerprint  = ctx.lineage.manifest_fingerprint,
-        run_id      = ctx.lineage.run_id,
-        s_before    = s_gamma,
-        phi         = ctx.phi,
-        prev_totals = totals_gamma
-      )
+  # 1) Γ draw (label "gamma_nb") — draw via capsule, no emission yet
+  #    Capture 'before' envelope first; capsule advances the stream and returns actual-use budgets.
+  ctx_gamma = begin_event_micro(MODULE_GAMMA, LABEL_GAMMA,
+                                ctx.lineage.seed, ctx.lineage.parameter_hash,
+                                ctx.lineage.manifest_fingerprint, ctx.lineage.run_id,
+                                /*s_before*/ s_gamma)                                                # writer prelude
+  (G, s_gamma', bud_gamma) = gamma_attempt_with_budget(ctx.phi, s_gamma)  
 
-  # 2) Compose λ in binary64 (fixed order; no RNG, no FMA)
-  #    Enforce exact operation order to avoid recompute drift later:
-  #      tmp = ctx.mu / ctx.phi;  lambda = tmp * G
-  tmp    = ctx.mu / ctx.phi
+ # 2) Compose λ in binary64 (fixed order; guard BEFORE any emission)
+  tmp    = ctx.mu / ctx.phi                # fixed evaluation order
   lambda = tmp * G
 
-  # Guard λ > 0 and finite — signal up and SKIP Poisson if invalid (no emission)
+  # Guard λ > 0 and finite — if invalid, emit NOTHING and stop (no Gamma, no Poisson, no final)
   if not is_finite(lambda) or (lambda <= 0.0):
       signal(ERR_S2_NUMERIC_INVALID, { merchant_id: ctx.merchant_id, where: "lambda" })
-      return (G, lambda, K := -1, s_gamma', totals_gamma', s_pois, totals_pois)
+      return (G, lambda, K := -1, s_gamma', totals_gamma, s_pois, totals_pois) 
 
-  # 3) Π step (label "poisson_nb") — attempt + component event (L0 emitter performs the attempt)
+  # 3) Emit Gamma now (writer computes blocks from counters; 'draws' from budgets), then Π step
+  payload_gamma = { merchant_id: ctx.merchant_id, context:"nb", index:0,
+                    alpha: ctx.phi, gamma_value: G }
+  end_event_emit(/*family*/ "rng_event_gamma_component",
+                 /*ctx*/ ctx_gamma,
+                 /*stream_after*/ s_gamma',
+                 /*draws_hi*/ bud_gamma.draws_hi, /*draws_lo*/ bud_gamma.draws_lo,
+                 /*payload*/ payload_gamma)                                                            # envelope+payload write
+  draws_str_gamma = u128_to_decimal_string(bud_gamma.draws_hi, bud_gamma.draws_lo)
+  (_, _, evt_gamma) = update_rng_trace_totals(ctx_gamma.module, ctx_gamma.substream_label,
+                                             ctx.lineage.seed, ctx.lineage.parameter_hash, ctx.lineage.run_id,
+                                             ctx_gamma.before_hi, ctx_gamma.before_lo, s_gamma'.ctr.hi, s_gamma'.ctr.lo,
+                                             totals_gamma.draws_total, totals_gamma.blocks_total, totals_gamma.events_total,
+                                             draws_str_gamma)
+  totals_gamma' = TraceTotals{ blocks_total: totals_gamma.blocks_total /*+Δ*/,  # writer computes Δ internally
+                              draws_total:  totals_gamma.draws_total  /*+draws*/,
+                              events_total: evt_gamma }
+
+  # 4) Π step (label "poisson_nb") — emit Poisson component for valid λ
   (K, s_pois', totals_pois') =
       event_poisson_nb(
         merchant_id = ctx.merchant_id,
@@ -279,7 +292,7 @@ The schema/dictionary define `gamma_component` and `poisson_component` as approv
 
 ## Outputs (per attempt)
 
-* **Emitted:** for a **valid attempt**, exactly **1** `gamma_component` **then** **1** `poisson_component` (schema-true, dictionary-gated/partitioned). If λ is non-finite or ≤0, **emit Gamma only** and signal the numeric error (no Poisson).
+* **Emitted:** for a **valid attempt**, exactly **1** `gamma_component` **then** **1** `poisson_component` (schema-true, dictionary-gated/partitioned). If λ is non-finite or ≤0, **emit nothing** and signal the numeric error (no Gamma, no Poisson).
 * **Returned (in-memory):** `(G, λ, K)` and updated substreams/totals for both families (used by S2.4 acceptance).
 
 ## Invariants & budgeting discipline
@@ -290,7 +303,7 @@ The schema/dictionary define `gamma_component` and `poisson_component` as approv
 
 ## Failure signals (to caller; L2/L3 decide aborts)
 
-* `ERR_S2_NUMERIC_INVALID` — non-finite or $\le 0$ $\lambda$; **do not** emit Poisson in that case (gamma event may already be emitted), and **skip** this merchant for S2.
+* `ERR_S2_NUMERIC_INVALID` — any **non-finite** or **≤ 0** λ; **emit no S2 events** for that merchant (**no Gamma, no Poisson, no final**) and stop S2 for that merchant.
 
 ---
 
@@ -303,12 +316,12 @@ Turn the stream of **attempts** from S2.3 into a single **accepted** domestic ou
 ## Inputs (from S2.2/S2.3)
 
 * `mu, phi` (binary64, >0) from S2.2.
-* The S2.3 **attempt** function that **emits** component events per attempt in strict order: **`gamma_component` → `poisson_component`**, on their label-scoped substreams (`gamma_nb`, `poisson_nb`). *In the special numeric-invalid case (non-finite or ≤0 λ), S2.3 emits **Gamma only** and signals up (no Poisson emission).*
+* The S2.3 **attempt** function that **emits** component events per valid attempt in strict order: **`gamma_component` → `poisson_component`**, on their label-scoped substreams (`gamma_nb`, `poisson_nb`). *In the numeric-invalid case (non-finite or ≤0 λ), S2.3 **emits nothing** and signals up.*
 
 ## Preconditions (must hold)
 
 * $\mu>0,\ \phi>0$ (guarded in S2.2).
-* Per attempt: **Gamma event always**; **Poisson event iff λ is valid**. Within each `(merchant, substream_label)` stream, counters are monotone and **attempt intervals do not overlap**. **No cross-label counter chaining.**
+* Per attempt (valid): **Gamma then Poisson**; if λ is invalid: **no emissions**. Within each `(merchant, substream_label)` stream, counters are monotone and **attempt intervals do not overlap**. **No cross-label counter chaining.**
 
 ## Procedure (code-agnostic; **no RNG**, **no I/O**)
 
@@ -323,17 +336,17 @@ function S2_4_accept(ctx: NBContext,
   t := 0   # number of rejections so far
 
   loop:
-      # One attempt (S2.3): emits Gamma (always) then Poisson (iff λ valid)
+      # One attempt (S2.3): if λ is valid, emits Gamma then Poisson; otherwise emits nothing
       (G, lambda, K,
        s_gamma, totals_gamma,
        s_pois,  totals_pois) := S2_3_attempt_once(ctx, s_gamma, totals_gamma, s_pois, totals_pois)
 
       # DEV_ASSERTS (no-op in prod):
-      #   totals_gamma.events_total increased by +1 exactly
-      #   totals_pois.events_total increased by +1 iff K >= 0 (λ valid branch)
+      #   totals_gamma.events_total increased by +1 iff λ is valid
+      #   totals_pois.events_total increased by +1 iff λ is valid
 
       if K < 0:
-          # Numeric-invalid λ branch: S2.3 skipped Poisson emission and signalled
+          # Numeric-invalid λ branch: S2.3 emitted nothing and signalled
           # S2.4 must NOT proceed to finalise; surface the failure upward.
           signal(ERR_S2_NUMERIC_INVALID, { merchant_id: ctx.merchant_id, where: "lambda" })
           return (N := -1, r := t, s_gamma, totals_gamma, s_pois, totals_pois)
@@ -419,7 +432,7 @@ function S2_5_finalise(ctx: NBContext,
 
 ## Outputs
 
-* **Emitted:** exactly **one** `nb_final` event for this merchant (schema `#/rng/events/nb_final`), presence-gated by S1 hurdle (`is_multi==true`) under the dictionary partitions `{seed, parameter_hash, run_id}`.
+* **Emitted:** exactly **one** `nb_final` event for this merchant (schema `schemas.layer1.yaml#/rng/events/nb_final`), presence-gated by S1 hurdle (`is_multi==true`) under the dictionary partitions `{seed, parameter_hash, run_id}`.
 * **In-memory:** typed handoff `{N, r}` for downstream (e.g., cross-border stage **S3**).
 * **Trace:** cumulative totals updated once for the `nb_final` substream: `events_total += 1`; `draws_total` unchanged (zero); `blocks_total` reconciles **0** via `after==before`.
 
@@ -445,8 +458,8 @@ L1 does **not** commit failure bundles or abort runs. It **signals** typed failu
 
 * `ERR_S2_GATING_VIOLATION` — missing or non-unique hurdle event, or `is_multi == false` at entry.
 * `ERR_S2_INPUTS_INCOMPLETE:{key}` — required NB inputs absent or shape-mismatched (`x_mu`, `x_phi`, `β_mu`, `β_phi`).
-* `ERR_S2_NUMERIC_INVALID` — any **non-finite** or **≤ 0** value in NB inputs or derived values (`mu`, `phi`, or `λ`). In the λ case, **do not emit** the Poisson event for that attempt (the Gamma event may already have been emitted).
-* `ERR_S2_COMPOSITION_INVALID` — `λ = (mu/phi)·G` computed as a **finite** but **≤ 0** value (distinct from non-finite). **Do not emit** the Poisson event for that attempt.
+* `ERR_S2_NUMERIC_INVALID` — any **non-finite** or **≤ 0** λ; **emit no S2 events** for that merchant (**no Gamma, no Poisson, no final**) and stop S2 for that merchant.
+* `ERR_S2_COMPOSITION_INVALID` — `λ = (mu/phi)·G` computed as a **finite** but **≤ 0** value (distinct from non-finite). **Emit no S2 events** for that merchant and stop S2 for that merchant.
 * `ERR_S2_BRANCH_PURITY` (run-scoped if systemic) — any NB event observed for a merchant without the gating hurdle `is_multi == true`.
 
 > **On signal:** return a typed failure to the caller. L2 constructs the canonical failure payload and commits/aborts; L3 enforces coverage/corridors. L1 never writes failure files and never “fixes” data by clamping or retrying outside the acceptance rule.
@@ -464,7 +477,7 @@ L1 does **not** commit failure bundles or abort runs. It **signals** typed failu
 
 * Substreams are **keyed by (label, merchant)** and order-invariant; **no counter chaining across labels**.
 * `u01` is **strict-open (0,1)**; single-uniform events consume the **low lane**; Box–Muller consumes **both lanes from the same block** (no caching).
-* **Per valid attempt:** exactly **two** component events in order — `gamma_component` then `poisson_component`. (If λ is invalid, only the Gamma event is emitted and the attempt is considered failed.)
+* **Per valid attempt:** exactly **two** component events in order — `gamma_component` then `poisson_component`. (If λ is invalid, **no S2 events are emitted** for that merchant, and S2 stops for that merchant.)
 * **Envelope identities:**
   `blocks = u128(after) − u128(before)` (counters),
   `draws =` **actual uniforms consumed** (decimal u128).
@@ -515,7 +528,7 @@ merchant_nb_outlet_count(
 
 * Emits **two RNG events per valid attempt** in order: `gamma_component` → `poisson_component`.
 * Emits **exactly one** `nb_final` (non-consuming) per merchant.
-* If λ is **non-finite or ≤ 0** for an attempt: **emit Gamma only**, signal `ERR_S2_NUMERIC_INVALID`, and **stop** S2 for that merchant (no Poisson, no final).
+* If λ is **non-finite or ≤ 0** for an attempt: **emit nothing**, signal `ERR_S2_NUMERIC_INVALID`, and **stop** S2 for that merchant (no Gamma, no Poisson, no final).
 
 ## Kernel surface (callable internally or by a thin L2)
 
@@ -578,7 +591,7 @@ L1 is **green** when all of the following hold:
 
   * Gamma: `{merchant_id, context:"nb", index:0, alpha, gamma_value}` (numbers).
   * Poisson: `{merchant_id, context:"nb", lambda, k}` (numbers).
-* **λ-invalid attempt:** Gamma may be emitted, **no** Poisson; L1 signals `ERR_S2_NUMERIC_INVALID` and **stops** S2 for that merchant (no final).
+* **λ-invalid attempt:** **no emissions**; L1 signals `ERR_S2_NUMERIC_INVALID` and **stops** S2 for that merchant (no final).
 * **Finaliser:** exactly **1** `nb_final` with `{merchant_id, mu, dispersion_k, n_outlets, nb_rejections}` (numbers), and a **non-consuming** envelope (`before==after`, `blocks=0`, `draws:"0"`).
 
 **Numeric & echo binding**
