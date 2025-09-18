@@ -50,7 +50,7 @@ context  ───────────────────────�
 | Dataset (upstream) | `schemas.ingress.layer1.yaml#/merchant_ids` | Merchant scope & keys                           | From S0                 |
 | Policy artefact    | `policy.s3.rule_ladder.yaml`                | Ordered rules, precedence, reason codes         | Semver + SHA-256        |
 | Static ref         | `static.iso.countries.json`                 | ISO3166 canonical list/order                    | Versioned snapshot      |
-| Static ref         | `static.currency_to_country.map.json`       | Deterministic currency→country mapping          | Versioned snapshot      |
+| Static ref         | `static.currency_to_country.map.json`       | Deterministic currency-to-country mapping       | Versioned snapshot      |
 | (Optional) Params  | `policy.s3.base_weight.yaml`                | Deterministic prior formula/coeffs + dp         | Semver + SHA-256        |
 | Output table       | `schemas.1A.yaml#/s3/candidate_set`         | Ordered candidates with `candidate_rank` & tags | New schema              |
 | (Optional) Output  | `schemas.1A.yaml#/s3/base_weight_priors`    | Deterministic priors per candidate              | New schema              |
@@ -75,7 +75,7 @@ context  ───────────────────────�
 **Required**
 
 * `s3_candidate_set` — rows:
-  `merchant_id`, `country_iso`, **`candidate_rank`**, `reason_codes[]`, `filter_tags[]`, *(optional)* `base_weight_dp`, lineage fields.
+  `merchant_id`, `country_iso`, **`candidate_rank`**, `reason_codes[]`, `filter_tags[]`, lineage fields.
   **Partition:** `{parameter_hash}`. **Embedded lineage:** includes `{manifest_fingerprint}`.
   **Row order guarantee:** `(merchant_id, candidate_rank, country_iso)`.
 
@@ -130,14 +130,14 @@ context  ───────────────────────�
 
 ### 1.2.1 Required: ordered candidate set
 
-| Dataset id         | JSON-Schema anchor                  | Partitions (path)    | Embedded lineage (columns)                           | Row order                                                          | Columns (name : type : semantics)                                                                                                                                                                                                                                                                                                                                                                                                 |
-|--------------------|-------------------------------------|----------------------|------------------------------------------------------|--------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `s3_candidate_set` | `schemas.1A.yaml#/s3/candidate_set` | `parameter_hash={…}` | `manifest_fingerprint:hex64`, `parameter_hash:hex64` | Sorted by `(merchant_id ASC, candidate_rank ASC, country_iso ASC)` | `merchant_id:u64` — key; `country_iso:string(ISO-3166-1)` — candidate; **`candidate_rank:u32`** — **total, contiguous order** with `candidate_rank==0` for home; `reason_codes:array<string>` — **closed set** from policy; `filter_tags:array<string>` — deterministic tags (**closed set** defined by policy); *(optional)* `base_weight_dp:decimal(string)` — quantised deterministic prior (if §12 enabled); lineage as above |
+| Dataset id         | JSON-Schema anchor                  | Partitions (path)    | Embedded lineage (columns)                           | Row order                                                          | Columns (name : type : semantics)                                                                                                                                                                                                                                                                                                  |
+|--------------------|-------------------------------------|----------------------|------------------------------------------------------|--------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `s3_candidate_set` | `schemas.1A.yaml#/s3/candidate_set` | `parameter_hash={…}` | `manifest_fingerprint:hex64`, `parameter_hash:hex64` | Sorted by `(merchant_id ASC, candidate_rank ASC, country_iso ASC)` | `merchant_id:u64` — key; `country_iso:string(ISO-3166-1)` — candidate; **`candidate_rank:u32`** — **total, contiguous order** with `candidate_rank==0` for home; `reason_codes:array<string>` — **closed set** from policy; `filter_tags:array<string>` — deterministic tags (**closed set** defined by policy); lineage as above  |
 
 **Contract:**
 
 * **Total order:** `candidate_rank` is total and contiguous per merchant; **no duplicates**; **`candidate_rank(home)=0`**.
-* **No RNG meaning:** `base_weight_dp` (if present) is a **deterministic, quantised prior**; **not** a probability.
+* **No priors here:** deterministic priors (if enabled) are emitted only in **`s3_base_weight_priors`** (§12.3).
 * **Single authority for inter-country order:** downstream **must use `candidate_rank` only** (never file order or ISO).
 
 ### 1.2.2 Optional: deterministic base-weight priors (if enabled)
@@ -329,7 +329,7 @@ These rules are **definition-level**. If any item below is violated, S3’s outp
 
 Whenever S3 requires ordering (e.g., candidate ordering, residual ranking), apply a **total order**:
 
-1. Primary key(s) as specified for that step (e.g., rule priority ↑, then `base_weight_dp` ↓ if present—state the direction in that section).
+1. Primary key(s) as specified for that step. **For candidate ordering, see §9 (admission-order key; priors are not used).** Other sorts (e.g., residual ranking) follow the keys stated in their sections.
 2. If equal **after any required quantisation**, fall back to **ISO code** (`iso_alpha2`, ASCII A–Z).
 3. If still tied: break by `merchant_id` ↑ then **original index** (stable: input sequence index in that step’s source list).
 
@@ -339,12 +339,14 @@ All sorts must be **stable** when keys compare equal.
 
 ## 3.5 Quantisation & dp policy
 
-* If S3 computes deterministic **priors/scores**, it must **quantise** them to a fixed **decimal dp** **before** they are used for ordering or residuals.
+* If S3 computes deterministic **priors/scores**, it must **quantise** them to a fixed **decimal dp** **before** they are used for numeric steps (e.g., residual ordering in §10)—**not** for candidate ordering (see §9).
 * The **dp value** for each context is declared once in that context’s section (e.g., §12 if priors exist).
 * Quantise via `round_to_dp(value, dp)` under RNE, then use the **quantised** number for downstream sort/ties.
 
 **Decimal rounding algorithm (binding):**
 Let `s = 10^dp`. Compute `q = round_RNE(value * s) / s` in binary64, where `round_RNE` is ties-to-even on the **binary64** value of `value * s`. The emitted field is the binary64 `q` (or its shortest JSON representation if serialized).
+
+*If a value is emitted as a **prior**, its on-disk representation is the **fixed-dp decimal string** defined in §12.3; the binary64 `q` above is for in-memory computation only.*
 
 ---
 
@@ -382,7 +384,7 @@ Let `s = 10^dp`. Compute `q = round_RNE(value * s) / s` in binary64, where `roun
 * [ ] Process uses **binary64, RNE, FMA-off, no FTZ/DAZ**.
 * [ ] Formulas follow **spelled evaluation order**; Neumaier used where specified.
 * [ ] All ordering uses the **total-order stack** in §3.4; sorts are **stable**.
-* [ ] Any priors/scores used for ordering were **quantised to dp** first (dp declared), then used.
+* [ ] Any priors/scores used in **numeric steps** (e.g., integerisation shares) were **quantised to dp** first (dp declared). *(Candidate ordering does **not** use priors; see §9.)*
 * [ ] If integerising: residuals computed **after** dp; **ISO alpha-2** tiebreak; `residual_rank` persisted (if emitted).
 * [ ] Outputs embed lineage matching path partitions; **no path literals** anywhere.
 * [ ] RNG: **absent** in S3 (or, if later enabled, L0 surfaces + guard-before-emit are in place).
@@ -393,16 +395,16 @@ Let `s = 10^dp`. Compute `q = round_RNE(value * s) / s` in binary64, where `roun
 
 ## 4.1 Scalar symbols (used throughout S3)
 
-| Symbol             | Type                                   | Meaning                                                                                        | Bounds / Notes                                                                        |
-|--------------------|----------------------------------------|------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
-| `N`                | `i64`                                  | Total outlets accepted for the merchant from S2 `nb_final.n_outlets`                           | `N ≥ 2`                                                                               |
-| `K`                | `u32`                                  | Number of **foreign** countries admitted into the candidate set (after rules)                  | `K ≥ 0` (if cross-border not eligible ⇒ `K = 0`)                                      |
-| `w_i`              | `f64`                                  | Deterministic base score/weight for country `i` (if §12 enabled) **before quantisation**       | Units & evaluation order fixed in §12                                                 |
-| `w_i^⋄`            | `f64` (quantised) or `decimal(string)` | `w_i` **after** quantisation to `dp` decimal places (see §3.5, §12)                            | Used for ordering/ties; if emitted (priors table), use decimal string with fixed `dp` |
-| `ρ_i`              | `f64`                                  | Residual for country `i` in integerisation (if §13 used) computed **after** quantising weights | Used only for residual ranking                                                        |
-| `candidate_rank_i` | `u32`                                  | Total order position for country `i` in the candidate set                                      | `candidate_rank(home) = 0`; contiguous; no ties                                       |
-| `dp`               | `u8`                                   | Decimal places used to quantise `w` (if priors exist)                                          | Declared once in §12                                                                  |
-| `ε`                | `f64`                                  | Small closed-form constants if needed (e.g., clamp)                                            | Declared where used; hex literal                                                      |
+| Symbol             | Type                                   | Meaning                                                                                        | Bounds / Notes                                                                                                                                                |
+|--------------------|----------------------------------------|------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `N`                | `i64`                                  | Total outlets accepted for the merchant from S2 `nb_final.n_outlets`                           | `N ≥ 2`                                                                                                                                                       |
+| `K`                | `u32`                                  | Number of **foreign** countries admitted into the candidate set (after rules)                  | `K ≥ 0` (if cross-border not eligible ⇒ `K = 0`)                                                                                                              |
+| `w_i`              | `f64`                                  | Deterministic base score/weight for country `i` (if §12 enabled) **before quantisation**       | Units & evaluation order fixed in §12                                                                                                                         |
+| `w_i^⋄`            | `f64` (quantised) or `decimal(string)` | `w_i` **after** quantisation to `dp` decimal places (see §3.5, §12)                            | Used for **integerisation/residual ordering** (§10); **not** used for candidate ordering (§9). If emitted (priors table), use decimal string with fixed `dp`. |
+| `ρ_i`              | `f64`                                  | Residual for country `i` in integerisation (if §13 used) computed **after** quantising weights | Used only for residual ranking                                                                                                                                |
+| `candidate_rank_i` | `u32`                                  | Total order position for country `i` in the candidate set                                      | `candidate_rank(home) = 0`; contiguous; no ties                                                                                                               |
+| `dp`               | `u8`                                   | Decimal places used to quantise `w` (if priors exist)                                          | Declared once in §12                                                                                                                                          |
+| `ε`                | `f64`                                  | Small closed-form constants if needed (e.g., clamp)                                            | Declared where used; hex literal                                                                                                                              |
 
 **Type conventions:** `u64` unsigned 64-bit, `i64` signed 64-bit, `u32/u8` unsigned, `f64` IEEE-754 binary64 (RNE, FMA-off; §3).
 
@@ -435,11 +437,11 @@ Let `s = 10^dp`. Compute `q = round_RNE(value * s) / s` in binary64, where `roun
 
 When S3 requires a total order over countries:
 
-1. **Primary key(s)** (as specified in §11): e.g., rule priority → `w_i^⋄` (if present; state direction there).
+1. **Primary key(s)** as specified in the relevant section. **For candidate ordering, §9 applies (admission-order key; priors not used).** For residual ranking see §10.5.
 2. **Secondary (stable) key:** `country_iso` **lexicographic A–Z**.
 3. **Tertiary (stable) key:** `merchant_id` then original input index (stable: input sequence index).
 
-This yields a **total, contiguous ranking** `candidate_rank_i ∈ {0,1,…,|C|−1}`, with **`candidate_rank(home) = 0`**. (See §11.3 proof obligation.)
+This yields a **total, contiguous ranking** `candidate_rank_i ∈ {0,1,…,|C|−1}`, with **`candidate_rank(home) = 0`**. (See **§9.4** proof obligation.)
 
 ---
 
@@ -563,10 +565,11 @@ context         ┌────────────────┐    ┌─
 ### S3.3 Order & rank (total order; deterministic)
 
 * **Inputs:** `C`.
-* **Algorithm:** apply **primary keys** (as defined in §11; e.g., rule priority → `w_i^⋄` if priors exist), then **ISO lexicographic** tie-break, then merchant/id stability. Produce contiguous **`candidate_rank`** with **`candidate_rank(home) = 0`**.
+* **Algorithm:** apply the **admission-order comparator** of §9 (priors are **not** used for ranking), then **ISO lexicographic** tie-break, then stability. Produce contiguous **`candidate_rank`** with **`candidate_rank(home) = 0`**.
 * **Outputs:** `C_ranked = C + candidate_rank`.
 * **Side-effects:** none.
-* **Fail:** duplicate ranks or missing `candidate_rank(home)=0` ⇒ `ERR_S3_ORDERING`.
+* **Fail:** duplicate ranks ⇒ **`ERR_S3_ORDERING_NONCONTIGUOUS`**;
+  missing `candidate_rank(home)=0` ⇒ **`ERR_S3_ORDERING_HOME_MISSING`**.
 
 > If S3 **does not** compute priors, **skip S3.4**.
 
@@ -586,7 +589,8 @@ context         ┌────────────────┐    ┌─
 * **Algorithm:** largest-remainder: floor, compute residuals **after** dp (if any), sort residuals **desc** with ISO tie-break, bump +1 until Σ count = `N`; persist `residual_rank`.
 * **Outputs:** `C_counts` = per-country `count` (≥0) summing to `N`, plus `residual_rank`.
 * **Side-effects:** none.
-* **Fail:** Σ count ≠ `N` or negative count ⇒ `ERR_S3_INTEGERISATION`.
+* **Fail:** Σ `count` ≠ `N` ⇒ `ERR_S3_INTEGER_SUM_MISMATCH`;
+  any `count < 0` ⇒ `ERR_S3_INTEGER_NEGATIVE`.
 
 ### S3.6 Emit tables (authoritative)
 
@@ -976,7 +980,7 @@ S3.2 yields an **unordered** list of candidate rows for the merchant:
 
 ---
 
-**Hand-off to §9:** §8 yields the **unordered** candidate rows `C`. §9 will impose a **total, deterministic order** (**`candidate_rank`**), proving `candidate_rank(home)=0` and contiguity, and (if configured) incorporating **quantised deterministic priors** when sorting.
+**Hand-off to §9:** §8 yields the **unordered** candidate rows `C`. §9 will impose a **total, deterministic order** (**`candidate_rank`**)—**priors are not used for sorting**. If configured, priors may be computed later and are used in **integerisation** (§10).
 
 ---
 
@@ -1084,12 +1088,12 @@ Augment each candidate row with:
 
 ## 9.8 Failure vocabulary (merchant-scoped; non-emitting)
 
-| Code                            | Trigger                                                                                            | Action                              |      |                                     |
-|---------------------------------|----------------------------------------------------------------------------------------------------|-------------------------------------|------|-------------------------------------|
-| `ERR_S3_ORDERING_HOME_MISSING`  | No row with `country_iso == home` in §8 output                                                     | Stop S3 for merchant; no S3 outputs |      |                                     |
-| `ERR_S3_ORDERING_NONCONTIGUOUS` | Assigned ranks are not contiguous from \`0..                                                       | C                                   | −1\` | Stop S3 for merchant; no S3 outputs |
-| `ERR_S3_ORDERING_KEY_UNDEFINED` | Cannot reconstruct the **admission key** (no priors and no closed mapping from reasons → rule ids) | Stop S3 for merchant; no S3 outputs |      |                                     |
-| `ERR_S3_ORDERING_UNSTABLE`      | Artefact inconsistency prevents a single total order (e.g., ambiguous mapping that yields ties)    | Stop S3 for merchant; no S3 outputs |      |                                     |
+| Code                            | Trigger                                                                                            | Action                              |
+|---------------------------------|----------------------------------------------------------------------------------------------------|-------------------------------------|
+| `ERR_S3_ORDERING_HOME_MISSING`  | No row with `country_iso == home` in §8 output                                                     | Stop S3 for merchant; no S3 outputs |
+| `ERR_S3_ORDERING_NONCONTIGUOUS` | Assigned **candidate_rank** values are not contiguous `0..\|C\|−1`                                 | Stop S3 for merchant; no S3 outputs |
+| `ERR_S3_ORDERING_KEY_UNDEFINED` | Cannot reconstruct the **admission key** (no priors and no closed mapping from reasons → rule ids) | Stop S3 for merchant; no S3 outputs |
+| `ERR_S3_ORDERING_UNSTABLE`      | Artefact inconsistency prevents a single total order (e.g., ambiguous mapping that yields ties)    | Stop S3 for merchant; no S3 outputs |
 
 ---
 
@@ -1663,34 +1667,35 @@ This locks S3’s operational guarantees: **deterministic**, **parallel-safe**, 
 
 ## 14.2 Merchant-scoped failures (authoritative list)
 
-| Code                              | Trigger (precise)                                                                                                                | Section source | Effect                           |           |                           |
-|-----------------------------------|----------------------------------------------------------------------------------------------------------------------------------|----------------|----------------------------------|-----------|---------------------------|
-| `ERR_S3_AUTHORITY_MISSING`        | Any governed artefact in §2/§6 cannot be opened, lacks semver/digest, or the BOM is incomplete                                   | §6.2–§6.3      | **Stop merchant**; no S3 outputs |           |                           |
-| `ERR_S3_PRECONDITION`             | `is_multi==false` or `N<2` at read time                                                                                          | §6.3.2         | Stop merchant; no outputs        |           |                           |
-| `ERR_S3_PARTITION_MISMATCH`       | For S1/S2 inputs, embedded `{seed,parameter_hash,run_id}` ≠ path partitions                                                      | §6.3.3         | Stop merchant; no outputs        |           |                           |
-| `ERR_S3_VOCAB_INVALID`            | `channel∉{"CP","CNP"}` or `home_country_iso` not in ISO set                                                                      | §6.3.4         | Stop merchant; no outputs        |           |                           |
-| `ERR_S3_RULE_LADDER_INVALID`      | Rule artefact missing `DEFAULT`, precedence not total, duplicate `rule_id`, unknown `reason_code`/`filter_tag`, or out-of-window | §7.3–§7.4      | Stop merchant; no outputs        |           |                           |
-| `ERR_S3_RULE_EVAL_DOMAIN`         | Rule predicate references an undeclared feature or named set/map                                                                 | §7.9           | Stop merchant; no outputs        |           |                           |
-| `ERR_S3_CANDIDATE_CONSTRUCTION`   | Candidate set empty **or** missing `home`                                                                                        | §8.6           | Stop merchant; no outputs        |           |                           |
-| `ERR_S3_COUNTRY_CODE_INVALID`     | Named set/list expands to a non-ISO code                                                                                         | §8.8           | Stop merchant; no outputs        |           |                           |
-| `ERR_S3_POLICY_REFERENCE_INVALID` | Fired rule references an undefined named set/list                                                                                | §8.8           | Stop merchant; no outputs        |           |                           |
-| `ERR_S3_ORDERING_HOME_MISSING`    | No row with `country_iso==home` when ranking                                                                                     | §9.8           | Stop merchant; no outputs        |           |                           |
-| `ERR_S3_ORDERING_NONCONTIGUOUS`   | Assigned **`candidate_rank`** values are not contiguous \`0..                                                                    | C              | −1\`                             | §9.4–§9.8 | Stop merchant; no outputs |
-| `ERR_S3_ORDERING_KEY_UNDEFINED`   | Cannot reconstruct the **admission key** for a foreign row (no closed mapping from reasons → admitting rule ids)                 | §9.3–§9.8      | Stop merchant; no outputs        |           |                           |
-| `ERR_S3_ORDERING_UNSTABLE`        | Artefact/mapping ambiguity prevents a single total order (e.g., reasons cannot map to rule ids deterministically)                | §9.3, §9.9     | Stop merchant; no outputs        |           |                           |
-| `ERR_S3_WEIGHT_ZERO`              | Priors enabled but `Σ w_i^⋄ == 0`                                                                                                | §10.3.A        | Stop merchant; no outputs        |           |                           |
-| `ERR_S3_INTEGER_FEASIBILITY`      | Bounds provided but `Σ L_i > N` or `N > Σ U_i`                                                                                   | §10.6          | Stop merchant; no outputs        |           |                           |
-| `ERR_S3_INTEGER_SUM_MISMATCH`     | After allocation, `Σ_i count_i ≠ N`                                                                                              | §10.8–§12.4    | Stop merchant; no outputs        |           |                           |
-| `ERR_S3_INTEGER_NEGATIVE`         | Any `count_i < 0`                                                                                                                | §10.8          | Stop merchant; no outputs        |           |                           |
-| `ERR_S3_SITE_SEQUENCE_OVERFLOW`   | `count_i > 999999` when `site_id` is 6-digit                                                                                     | §11.4, §11.8   | Stop merchant; no outputs        |           |                           |
-| `ERR_S3_SEQUENCE_GAP`             | Missing any integer in `{1..count_i}` within a `(merchant,country)` block                                                        | §11.5–§11.8    | Stop merchant; no outputs        |           |                           |
-| `ERR_S3_SEQUENCE_DUPLICATE`       | Duplicate `site_order` (or `site_id`, if enabled) within a `(merchant,country)` block                                            | §11.5–§11.8    | Stop merchant; no outputs        |           |                           |
-| `ERR_S3_SEQUENCE_ORDER_DRIFT`     | Sequencing permutes inter-country order (contradicts §9 **candidate\_rank**)                                                     | §11.3, §11.9   | Stop merchant; no outputs        |           |                           |
-| `ERR_S3_EGRESS_SHAPE`             | Schema violation; wrong JSON types; path↔embed mismatch; forbidden lineage in path; wrong fixed-dp representation                | §12.1–§12.6    | Stop merchant; no outputs        |           |                           |
-| `ERR_S3_DUPLICATE_ROW`            | Duplicate dataset key per §12.7 (e.g., duplicate `(candidate_rank)` or `(country_iso)`)                                          | §12.7          | Stop merchant; no outputs        |           |                           |
-| `ERR_S3_ORDER_MISMATCH`           | Emitted `s3_candidate_set` violates `candidate_rank(home)=0` or contiguity                                                       | §12.9          | Stop merchant; no outputs        |           |                           |
-| `ERR_S3_IDEMPOTENCE_VIOLATION`    | Existing rows for `(merchant_id, manifest_fingerprint)` differ byte-wise from would-be output (skip-if-final breach)             | §13.4          | Stop merchant; no outputs        |           |                           |
-| `ERR_S3_PUBLISH_ATOMICITY`        | Atomic publish discipline (stage→fsync→rename) cannot be guaranteed                                                              | §13.6          | Stop merchant; no outputs        |           |                           |
+| Code                              | Trigger (precise)                                                                                                                | Section source | Effect                               |
+|-----------------------------------|----------------------------------------------------------------------------------------------------------------------------------|----------------|--------------------------------------|
+| `ERR_S3_AUTHORITY_MISSING`        | Any governed artefact in §2/§6 cannot be opened, lacks semver/digest, or the BOM is incomplete                                   | §6.2–§6.3      | **Stop merchant**; no S3 outputs     |
+| `ERR_S3_PRECONDITION`             | `is_multi==false` or `N<2` at read time                                                                                          | §6.3.2         | Stop merchant; no outputs            |
+| `ERR_S3_PARTITION_MISMATCH`       | For S1/S2 inputs, embedded `{seed,parameter_hash,run_id}` ≠ path partitions                                                      | §6.3.3         | Stop merchant; no outputs            |
+| `ERR_S3_VOCAB_INVALID`            | `channel∉{"CP","CNP"}` or `home_country_iso` not in ISO set                                                                      | §6.3.4         | Stop merchant; no outputs            |
+| `ERR_S3_RULE_LADDER_INVALID`      | Rule artefact missing `DEFAULT`, precedence not total, duplicate `rule_id`, unknown `reason_code`/`filter_tag`, or out-of-window | §7.3–§7.4      | Stop merchant; no outputs            |
+| `ERR_S3_RULE_EVAL_DOMAIN`         | Rule predicate references an undeclared feature or named set/map                                                                 | §7.9           | Stop merchant; no outputs            |
+| `ERR_S3_CANDIDATE_CONSTRUCTION`   | Candidate set empty **or** missing `home`                                                                                        | §8.6           | Stop merchant; no outputs            |
+| `ERR_S3_COUNTRY_CODE_INVALID`     | Named set/list expands to a non-ISO code                                                                                         | §8.8           | Stop merchant; no outputs            |
+| `ERR_S3_POLICY_REFERENCE_INVALID` | Fired rule references an undefined named set/list                                                                                | §8.8           | Stop merchant; no outputs            |
+| `ERR_S3_ORDERING_HOME_MISSING`    | No row with `country_iso==home` when ranking                                                                                     | §9.8           | Stop merchant; no outputs            |
+| `ERR_S3_ORDERING_NONCONTIGUOUS`   | Assigned **`candidate_rank`** values are not contiguous `0..\|C\|−1\`                                                            | §9.4–§9.8      | Stop merchant; no outputs            |
+| `ERR_S3_ORDERING_KEY_UNDEFINED`   | Cannot reconstruct the **admission key** for a foreign row (no closed mapping from reasons → admitting rule ids)                 | §9.3–§9.8      | Stop merchant; no outputs            |
+| `ERR_S3_ORDERING_UNSTABLE`        | Artefact/mapping ambiguity prevents a single total order (e.g., reasons cannot map to rule ids deterministically)                | §9.3, §9.9     | Stop merchant; no outputs            |
+| `ERR_S3_WEIGHT_ZERO`              | Priors enabled but `Σ w_i^⋄ == 0`                                                                                                | §10.3.A        | Stop merchant; no outputs            |
+| `ERR_S3_WEIGHT_CONFIG`            | Priors enabled but policy config invalid (unknown coeff/param, or required `dp` not declared)                                    | §5.2, §12      | Stop S3 for merchant; no S3 outputs  |
+| `ERR_S3_INTEGER_FEASIBILITY`      | Bounds provided but `Σ L_i > N` or `N > Σ U_i`                                                                                   | §10.6          | Stop merchant; no outputs            |
+| `ERR_S3_INTEGER_SUM_MISMATCH`     | After allocation, `Σ_i count_i ≠ N`                                                                                              | §10.8–§12.4    | Stop merchant; no outputs            |
+| `ERR_S3_INTEGER_NEGATIVE`         | Any `count_i < 0`                                                                                                                | §10.8          | Stop merchant; no outputs            |
+| `ERR_S3_SITE_SEQUENCE_OVERFLOW`   | `count_i > 999999` when `site_id` is 6-digit                                                                                     | §11.4, §11.8   | Stop merchant; no outputs            |
+| `ERR_S3_SEQUENCE_GAP`             | Missing any integer in `{1..count_i}` within a `(merchant,country)` block                                                        | §11.5–§11.8    | Stop merchant; no outputs            |
+| `ERR_S3_SEQUENCE_DUPLICATE`       | Duplicate `site_order` (or `site_id`, if enabled) within a `(merchant,country)` block                                            | §11.5–§11.8    | Stop merchant; no outputs            |
+| `ERR_S3_SEQUENCE_ORDER_DRIFT`     | Sequencing permutes inter-country order (contradicts §9 **candidate\_rank**)                                                     | §11.3, §11.9   | Stop merchant; no outputs            |
+| `ERR_S3_EGRESS_SHAPE`             | Schema violation; wrong JSON types; path↔embed mismatch; forbidden lineage in path; wrong fixed-dp representation                | §12.1–§12.6    | Stop merchant; no outputs            |
+| `ERR_S3_DUPLICATE_ROW`            | Duplicate dataset key per §12.7 (e.g., duplicate `(candidate_rank)` or `(country_iso)`)                                          | §12.7          | Stop merchant; no outputs            |
+| `ERR_S3_ORDER_MISMATCH`           | Emitted `s3_candidate_set` violates `candidate_rank(home)=0` or contiguity                                                       | §12.9          | Stop merchant; no outputs            |
+| `ERR_S3_IDEMPOTENCE_VIOLATION`    | Existing rows for `(merchant_id, manifest_fingerprint)` differ byte-wise from would-be output (skip-if-final breach)             | §13.4          | Stop merchant; no outputs            |
+| `ERR_S3_PUBLISH_ATOMICITY`        | Atomic publish discipline (stage→fsync→rename) cannot be guaranteed                                                              | §13.6          | Stop merchant; no outputs            |
 
 **Effect (all rows):** **no S3 tables** are published for that merchant in this run/fingerprint. Downstream must not see partial S3 state.
 
@@ -1734,6 +1739,7 @@ Run-scoped failures abort the **entire S3 run** (all merchants).
 
 ## 14.7 Mapping index (where each failure originates)
 
+* **§5.2 / §12 (Priors config):** `WEIGHT_CONFIG`
 * **§6 (Load scopes):** `AUTHORITY_MISSING`, `PRECONDITION`, `PARTITION_MISMATCH`, `VOCAB_INVALID`
 * **§7 (Rule ladder):** `RULE_LADDER_INVALID`, `RULE_EVAL_DOMAIN`
 * **§8 (Candidates):** `CANDIDATE_CONSTRUCTION`, `COUNTRY_CODE_INVALID`, `POLICY_REFERENCE_INVALID`
