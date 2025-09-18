@@ -49,7 +49,7 @@ context  ───────────────────────�
 | Dataset (upstream) | `schemas.layer1.yaml#/rng/events/nb_final`  | Source of **N** (accepted outlet count)         | From S2 run             |
 | Dataset (upstream) | `schemas.ingress.layer1.yaml#/merchant_ids` | Merchant scope & keys                           | From S0                 |
 | Policy artefact    | `policy.s3.rule_ladder.yaml`                | Ordered rules, precedence, reason codes         | Semver + SHA-256        |
-| Static ref         | `static.iso.countries.json`                 | ISO3166 canonical list/order                    | Versioned snapshot      |
+| Static ref         | `iso3166_canonical_2024`                 | ISO3166 canonical list/order                    | Versioned snapshot      |
 | Static ref         | `static.currency_to_country.map.json`       | Deterministic currency-to-country mapping       | Versioned snapshot      |
 | (Optional) Params  | `policy.s3.base_weight.yaml`                | Deterministic prior formula/coeffs + dp         | Semver + SHA-256        |
 | Output table       | `schemas.1A.yaml#/s3/candidate_set`         | Ordered candidates with `candidate_rank` & tags | New schema              |
@@ -106,15 +106,15 @@ context  ───────────────────────�
 
 **Purpose:** define the **closed** set of inputs S3 may read. No alternative sources; no re-deriving.
 
-| Source                                 | JSON-Schema anchor (authoritative)                     | Required columns (name : type)                                                                 | Invariants & notes                                                        | Cardinality (per merchant, within `{seed, parameter_hash, run_id}`) |
-|----------------------------------------|--------------------------------------------------------|------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------|---------------------------------------------------------------------|
-| Merchant scope                         | `schemas.ingress.layer1.yaml#/merchant_ids`            | `merchant_id:u64`, `home_country_iso:string(ISO-3166-1)`, `mcc:string`, `channel:{"CP","CNP"}` | `home_country_iso` must be ISO; `channel` in the closed vocabulary        | **Exactly 1**                                                       |
-| Hurdle decision (S1)                   | `schemas.layer1.yaml#/rng/events/hurdle_bernoulli`     | `merchant_id:u64`, `is_multi:bool` plus standard envelope/lineage fields                       | Presence **required**; **gate:** `is_multi==true`                         | **Exactly 1**                                                       |
-| Accepted outlet count (S2)             | `schemas.layer1.yaml#/rng/events/nb_final`             | `merchant_id:u64`, `n_outlets:i64 (≥2)` plus standard envelope/lineage fields                  | Finaliser is **non-consuming**; `n_outlets ≥ 2` to enter S3               | **Exactly 1**                                                       |
-| Policy: S3 rule ladder                 | `artefact_registry_1A.yaml:policy.s3.rule_ladder.yaml` | `rules[]` (ordered), `precedence`, `reason_codes[]` (**closed set**), validity window          | Load **atomically**; precedence is **total**; reason codes are **closed** | **Exactly 1** artefact                                              |
-| Static refs (ISO, etc.)                | `static.iso.countries.json`                            | `iso_alpha2:string`, `iso_alpha3:string`, canonical ISO ordering                               | Versioned snapshot; no mutation                                           | **Exactly 1** artefact                                              |
-| Currency→country map (if used)         | `static.currency_to_country.map.json`                  | `currency_code:string` → `countries:[iso_alpha2]`                                              | Deterministic map; **no RNG** smoothing                                   | **Exactly 1** artefact                                              |
-| (Optional) deterministic weight params | `policy.s3.base_weight.yaml`                           | explicitly named coefficients/thresholds; **units & bounds**                                   | Only authority if S3 computes deterministic priors                        | **0 or 1** artefact                                                 |
+| Source                                 | JSON-Schema anchor (authoritative)                      | Required columns (name : type)                                                                                          | Invariants & notes                                                        | Cardinality (per merchant, within `{seed, parameter_hash, run_id}`) |
+|----------------------------------------|---------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------|---------------------------------------------------------------------|
+| Merchant scope                         | `schemas.ingress.layer1.yaml#/merchant_ids`             | `merchant_id:u64`, `home_country_iso:string(ISO-3166-1)`, `mcc:string`, `channel:(ingress schema’s closed vocabulary)`  | `home_country_iso` must be ISO; `channel` in the closed vocabulary        | **Exactly 1**                                                       |
+| Hurdle decision (S1)                   | `schemas.layer1.yaml#/rng/events/hurdle_bernoulli`      | `merchant_id:u64`, `is_multi:bool` plus standard envelope/lineage fields                                                | Presence **required**; **gate:** `is_multi==true`                         | **Exactly 1**                                                       |
+| Accepted outlet count (S2)             | `schemas.layer1.yaml#/rng/events/nb_final`              | `merchant_id:u64`, `n_outlets:i64 (≥2)` plus standard envelope/lineage fields                                           | Finaliser is **non-consuming**; `n_outlets ≥ 2` to enter S3               | **Exactly 1**                                                       |
+| Policy: S3 rule ladder                 | `artefact_registry_1A.yaml:policy.s3.rule_ladder.yaml`  | `rules[]` (ordered), `precedence`, `reason_codes[]` (**closed set**), validity window                                   | Load **atomically**; precedence is **total**; reason codes are **closed** | **Exactly 1** artefact                                              |
+| Static refs (ISO, etc.)                | `iso3166_canonical_2024`                                | `iso_alpha2:string`, `iso_alpha3:string`, canonical ISO ordering                                                        | Versioned snapshot; no mutation                                           | **Exactly 1** artefact                                              |
+| Currency→country map (if used)         | `static.currency_to_country.map.json`                   | `currency_code:string` → `countries:[iso_alpha2]`                                                                       | Deterministic map; **no RNG** smoothing                                   | **Exactly 1** artefact                                              |
+| (Optional) deterministic weight params | `policy.s3.base_weight.yaml`                            | explicitly named coefficients/thresholds; **units & bounds**                                                            | Only authority if S3 computes deterministic priors                        | **0 or 1** artefact                                                 |
 
 **Path resolution:** via the **dataset dictionary** only; **no hard-coded paths**.
 
@@ -193,11 +193,11 @@ context  ───────────────────────�
 | Artefact (registry id)                | Purpose in S3                                                                                                          | SemVer | Digest (SHA-256, hex64) | Evidence / Notes                                           |
 |---------------------------------------|------------------------------------------------------------------------------------------------------------------------|-------:|-------------------------|------------------------------------------------------------|
 | `policy.s3.rule_ladder.yaml`          | Ordered deterministic rules (deny ≻ allow ≻ class ≻ legal/geo ≻ thresholds), precedence law, **closed** `reason_codes` |  x.y.z | …                       | Must be **total order**; reason codes are a **closed set** |
-| `static.iso.countries.json`           | ISO-3166-1 alpha-2/alpha-3 canonical list + canonical ISO order                                                        |  x.y.z | …                       | Versioned snapshot; no mutation                            |
+| `iso3166_canonical_2024`              | ISO-3166-1 alpha-2/alpha-3 canonical list + canonical ISO order                                                        |  x.y.z | …                       | Versioned snapshot; no mutation                            |
 | `static.currency_to_country.map.json` | Deterministic **currency-to-country** mapping (if used by rules)                                                       |  x.y.z | …                       | Deterministic only; **no RNG** smoothing                   |
 | `schemas.layer1.yaml`                 | **JSON-Schema source of truth** (includes all `#/s3/*` anchors)                                                        |  x.y.z | …                       | Schema authority; Avro (if any) is build-artefact only     |
 | `schema.index.layer1.json` *(opt)*    | **Derived** schema index for faster lookups (non-authoritative)                                                        |  x.y.z | …                       | Convenience only                                           |
-| `dataset_dictionary.layer1.1A.yaml`      | Dataset IDs → partition spec → physical path template                                                                  |  x.y.z | …                       | Resolves *all* IO; **no hard-coded paths**                 |
+| `dataset_dictionary.layer1.1A.yaml`   | Dataset IDs → partition spec → physical path template                                                                  |  x.y.z | …                       | Resolves *all* IO; **no hard-coded paths**                 |
 | `artefact_registry_1A.yaml`           | Full registry (this BOM appears in it)                                                                                 |  x.y.z | …                       | Names, semver, digests must match this table               |
 
 **Atomic open:** S3 **must** open all artefacts above *before* any processing and record their `(id, semver, digest)` into the run’s `manifest_fingerprint`.
@@ -246,7 +246,7 @@ If you **do not** compute deterministic priors in S3, omit this subsection (do *
 * **`parameter_hash`** = hash of *parameter* artefacts (e.g., rule ladder, thresholds, prior coeffs). Changing it **re-partitions** parameter-scoped outputs.
 * **`manifest_fingerprint`** = composite of **all opened artefacts** (this BOM), plus parameter bytes and git commit (as your project defines). It is **embedded** in every S3 row.
 * **Inclusion rule (explicit):** the following **must** contribute to `manifest_fingerprint`:
-  `policy.s3.rule_ladder.yaml`, `static.iso.countries.json`, `static.currency_to_country.map.json` (if used),
+  `policy.s3.rule_ladder.yaml`, `iso3166_canonical_2024`, `static.currency_to_country.map.json` (if used),
   `schemas.layer1.yaml` (and `schema.index.layer1.json` if used), `dataset_dictionary.layer1.1A.yaml`, `artefact_registry_1A.yaml`, and any artefact in §2.3.
   Missing inclusion ⇒ **abort**.
 * **No path literals:** all IO resolves via the dataset dictionary; paths never appear in code or outputs.
@@ -258,7 +258,7 @@ If you **do not** compute deterministic priors in S3, omit this subsection (do *
 | Artefact                              | Valid from | Valid to   | Action on out-of-window      |
 |---------------------------------------|------------|------------|------------------------------|
 | `policy.s3.rule_ladder.yaml`          | YYYY-MM-DD | YYYY-MM-DD | **Abort** (binding policy)   |
-| `static.iso.countries.json`           | YYYY-MM-DD | YYYY-MM-DD | **Warn + abort** if mismatch |
+| `iso3166_canonical_2024`              | YYYY-MM-DD | YYYY-MM-DD | **Warn + abort** if mismatch |
 | `static.currency_to_country.map.json` | YYYY-MM-DD | YYYY-MM-DD | **Abort** if version drifts  |
 
 If no validity windows are governed for an artefact, state: **“No validity window — pinned by digest only (binding).”**
@@ -269,7 +269,7 @@ If no validity windows are governed for an artefact, state: **“No validity win
 
 | Artefact                              | Licence                                | Provenance URL / descriptor | Notes                                       |
 |---------------------------------------|----------------------------------------|-----------------------------|---------------------------------------------|
-| `static.iso.countries.json`           | e.g., “ISO data under licence …”       | …                           | Attach licence text in repo if required     |
+| `iso3166_canonical_2024`              | e.g., “ISO data under licence …”       | …                           | Attach licence text in repo if required     |
 | `policy.s3.rule_ladder.yaml`          | Project licence (e.g., MIT/Apache-2.0) | internal                    | Generated artefact; provenance = commit SHA |
 | `static.currency_to_country.map.json` | e.g., ODbL / CC-BY / internal          | …                           | Ensure redistribution rights are clear      |
 
@@ -283,7 +283,7 @@ If external licences restrict redistribution, record the policy you follow (e.g.
 * [ ] **Resolve datasets via dictionary**; **no literal paths**.
 * [ ] **Equality check** path partitions ↔ embedded lineage for S1/S2 inputs.
 * [ ] **Fingerprint inclusion test:** all artefact digests listed in §2.5 are included in `manifest_fingerprint`.
-* [ ] **Closed vocab check:** `reason_codes` (policy), `filter_tags` (policy), channels `{CP,CNP}`, ISO set.
+* [ ] **Closed vocab check:** `reason_codes` (policy), `filter_tags` (policy), channels (ingress schema closed vocabulary), ISO set.
 * [ ] **Version pin check:** artefacts within validity windows (if defined) or explicitly “digest-pinned only”.
 * [ ] **No RNG in S3:** confirm **no RNG families/labels** are referenced anywhere in S3 (events, budgets, envelopes).
 * [ ] **Abort vocabulary loaded:** `ERR_S3_*` symbols available to callers.
@@ -449,7 +449,7 @@ This yields a **total, contiguous ranking** `candidate_rank_i ∈ {0,1,…,|C|�
 
 | Vocabulary       | Values (closed set)                                                                                 | Where used                  | Notes                                                  |
 |------------------|-----------------------------------------------------------------------------------------------------|-----------------------------|--------------------------------------------------------|
-| `channel`        | `{ "CP", "CNP" }`                                                                                   | Read from ingress in §2     | Case-sensitive; order fixed                            |
+| `channel`        | `(closed vocabulary from ingress schema)`                                                           | Read from ingress in §2     | Case-sensitive; order fixed                            |
 | `reason_codes`   | e.g., `["DENY_SANCTIONED","ALLOW_WHITELIST","CLASS_RULE_XYZ","LEGAL_EXCLUSION","THRESHOLD_LT_GDP"]` | Emitted with candidate rows | **Closed set** defined by `policy.s3.rule_ladder.yaml` |
 | `rule_id`        | e.g., `"RL_DENY_SANCTIONED"`, `"RL_CLASS_MCC_XXXX"`                                                 | Rule ladder trace & tags    | Stable identifiers; no spaces                          |
 | `filter_tags`    | e.g., `"SANCTIONED"`, `"GEO_OK"`, `"ADMISSIBLE"`                                                    | Candidate tagging           | Deterministic, documented list                         |
@@ -640,7 +640,7 @@ Establish the **closed** set of inputs S3 may read, verify **gates and vocabular
 ## 6.2 Inputs (authoritative anchors; read-only)
 
 * **Merchant scope:** `schemas.ingress.layer1.yaml#/merchant_ids`
-  Required: `merchant_id:u64`, `home_country_iso:string(ISO-3166-1 alpha-2)`, `mcc:string`, `channel ∈ {"CP","CNP"}`.
+  Required: `merchant_id:u64`, `home_country_iso:string(ISO-3166-1 alpha-2)`, `mcc:string`, `channel ∈ (ingress schema’s closed vocabulary)`.
 * **S1 hurdle:** `schemas.layer1.yaml#/rng/events/hurdle_bernoulli`
   Required: payload `is_multi:bool`, embedded `{seed, parameter_hash, run_id}`.
 * **S2 finaliser:** `schemas.layer1.yaml#/rng/events/nb_final`
@@ -648,7 +648,7 @@ Establish the **closed** set of inputs S3 may read, verify **gates and vocabular
 * **Policy artefact:** registry id `policy.s3.rule_ladder.yaml`
   Required: ordered `rules[]`, precedence law (total), **closed** `reason_codes[]`, optional validity window.
 * **Static references:**
-  `static.iso.countries.json` (canonical ISO set & lexicographic order).
+  `iso3166_canonical_2024` (canonical ISO set & lexicographic order).
   *(Optional)* `static.currency_to_country.map.json` (deterministic map) if referenced by policy.
 * **Dictionary & registry:**
   `dataset_dictionary.layer1.1A.yaml` (dataset-id → partition spec → path template).
@@ -664,7 +664,7 @@ Establish the **closed** set of inputs S3 may read, verify **gates and vocabular
    exactly one S1 hurdle row **and** exactly one S2 `nb_final` row per merchant; exactly one ingress merchant row.
 2. **Gate conditions:** `is_multi == true` and `n_outlets (N) ≥ 2`.
 3. **Path↔embed equality (read side):** for S1 and S2 rows, embedded `{seed, parameter_hash, run_id}` **byte-equal** the path partitions.
-4. **Closed vocabularies:** `channel ∈ {"CP","CNP"}` (case-sensitive); `home_country_iso ∈` ISO set from the static artefact.
+4. **Closed vocabularies:** `channel ∈ (ingress schema’s closed vocabulary)` (case-sensitive); `home_country_iso ∈` ISO set from the static artefact.
 5. **Artefact integrity:** rule ladder precedence is a **total order**; `reason_codes[]` is a **closed set**; any configured validity windows are satisfied.
 6. **Lineage availability:** run’s `parameter_hash` and `manifest_fingerprint` exist; every artefact opened in §6.2 will be included in the fingerprint inputs for embedding later.
 
@@ -688,19 +688,19 @@ S3.0 **shall**:
 
 **Fields and semantics (all required unless marked optional):**
 
-| Field                              | Type                   | Source                  | Semantics                                                       |
-|------------------------------------|------------------------|-------------------------|-----------------------------------------------------------------|
-| `merchant_id`                      | `u64`                  | ingress                 | Canonical key                                                   |
-| `home_country_iso`                 | `string (ISO-3166-1)`  | ingress                 | Must exist in ISO artefact; uppercase A–Z                       |
-| `mcc`                              | `string`               | ingress                 | Merchant category code (read-only)                              |
-| `channel`                          | `"CP"` \| `"CNP"`      | ingress                 | Closed vocabulary (read-only)                                   |
-| `N`                                | `i64 (≥2)`             | S2 `nb_final.n_outlets` | Total outlets accepted by S2                                    |
-| `seed`                             | `u64`                  | S1/S2 embed             | For lineage joins only; S3 outputs are **not** seed-partitioned |
-| `parameter_hash`                   | `Hex64`                | S1/S2 embed / run       | Partition key for all S3 outputs                                |
-| `manifest_fingerprint`             | `Hex64`                | run                     | Embedded in every S3 output row                                 |
-| `artefacts.rule_ladder`            | `{id, semver, digest}` | registry                | Governance attest                                               |
-| `artefacts.iso_countries`          | `{id, semver, digest}` | registry                | Governance attest                                               |
-| `artefacts.ccy_to_country` *(opt)* | `{id, semver, digest}` | registry                | Present only if used                                            |
+| Field                              | Type                                      | Source                  | Semantics                                                       |
+|------------------------------------|-------------------------------------------|-------------------------|-----------------------------------------------------------------|
+| `merchant_id`                      | `u64`                                     | ingress                 | Canonical key                                                   |
+| `home_country_iso`                 | `string (ISO-3166-1)`                     | ingress                 | Must exist in ISO artefact; uppercase A–Z                       |
+| `mcc`                              | `string`                                  | ingress                 | Merchant category code (read-only)                              |
+| `channel`                          | `(closed vocabulary from ingress schema)` | ingress                 | Closed vocabulary (read-only)                                   |
+| `N`                                | `i64 (≥2)`                                | S2 `nb_final.n_outlets` | Total outlets accepted by S2                                    |
+| `seed`                             | `u64`                                     | S1/S2 embed             | For lineage joins only; S3 outputs are **not** seed-partitioned |
+| `parameter_hash`                   | `Hex64`                                   | S1/S2 embed / run       | Partition key for all S3 outputs                                |
+| `manifest_fingerprint`             | `Hex64`                                   | run                     | Embedded in every S3 output row                                 |
+| `artefacts.rule_ladder`            | `{id, semver, digest}`                    | registry                | Governance attest                                               |
+| `artefacts.iso_countries`          | `{id, semver, digest}`                    | registry                | Governance attest                                               |
+| `artefacts.ccy_to_country` *(opt)* | `{id, semver, digest}`                    | registry                | Present only if used                                            |
 
 > **Deliberate omission:** S3 does **not** carry S2’s `mu`/`dispersion_k` in context; S3 never re-derives or uses them.
 
@@ -720,13 +720,13 @@ S3.0 **shall**:
 
 ## 6.7 Failure vocabulary (merchant-scoped; non-emitting)
 
-| Code                         | Trigger                                                                   | Effect                           |
-|------------------------------|---------------------------------------------------------------------------|----------------------------------|
-| `ERR_S3_AUTHORITY_MISSING`   | Any governed artefact in §6.2 missing/unopenable or lacking semver/digest | Stop S3 for merchant; no outputs |
-| `ERR_S3_PRECONDITION`        | `is_multi=false` or `N<2`                                                 | Stop S3 for merchant; no outputs |
-| `ERR_S3_PARTITION_MISMATCH`  | Path partitions ≠ embedded lineage on S1/S2 rows                          | Stop S3 for merchant; no outputs |
-| `ERR_S3_VOCAB_INVALID`       | `channel` not in `{"CP","CNP"}` or `home_country_iso` not in ISO set      | Stop S3 for merchant; no outputs |
-| `ERR_S3_RULE_LADDER_INVALID` | Ladder not total, unknown `reason_codes`, or out-of-window                | Stop S3 for merchant; no outputs |
+| Code                         | Trigger                                                                                    | Effect                           |
+|------------------------------|--------------------------------------------------------------------------------------------|----------------------------------|
+| `ERR_S3_AUTHORITY_MISSING`   | Any governed artefact in §6.2 missing/unopenable or lacking semver/digest                  | Stop S3 for merchant; no outputs |
+| `ERR_S3_PRECONDITION`        | `is_multi=false` or `N<2`                                                                  | Stop S3 for merchant; no outputs |
+| `ERR_S3_PARTITION_MISMATCH`  | Path partitions ≠ embedded lineage on S1/S2 rows                                           | Stop S3 for merchant; no outputs |
+| `ERR_S3_VOCAB_INVALID`       | `channel` not in (ingress schema’s closed vocabulary) or `home_country_iso` not in ISO set | Stop S3 for merchant; no outputs |
+| `ERR_S3_RULE_LADDER_INVALID` | Ladder not total, unknown `reason_codes`, or out-of-window                                 | Stop S3 for merchant; no outputs |
 
 **Non-emission guarantee:** S3.0 never writes tables or events; failures here do not produce partial S3 artefacts.
 
@@ -736,7 +736,7 @@ S3.0 **shall**:
 
 1. Open atomically: rule ladder, ISO set, (optional) currency-to-country map, dataset dictionary, artefact registry.
 2. Read exactly one row each (dictionary-resolved IDs): ingress merchant, S1 hurdle, S2 `nb_final`.
-3. Check: uniqueness; path partitions equal embedded lineage (S1/S2); `is_multi==true`; `N≥2`; `channel∈{CP,CNP}`; `home` ISO in set; ladder is a total order with **closed** reason codes (within window if configured).
+3. Check: uniqueness; path partitions equal embedded lineage (S1/S2); `is_multi==true`; `N≥2`; `channel∈(ingress schema’s closed vocabulary)`; `home` ISO in set; ladder is a total order with **closed** reason codes (within window if configured).
 4. Assemble `Context` per §6.5.
 5. Stop (no RNG, no writes). Pass `Context` to S3.1.
 
@@ -885,7 +885,7 @@ Construct, for a single merchant, the **unordered** candidate country set `C` th
   • **Named country sets** (e.g., `SANCTIONED`, `EEA`, `WHITELIST_X`);
   • Per-rule **admit/deny lists** (`admit_countries[]`, `deny_countries[]`) and/or references to named sets;
   • **Closed vocabularies**: `reason_codes[]`, `filter_tags[]`; mapping notes for row-level tagging.
-* **ISO reference** `static.iso.countries.json` (opened in §6): authoritative ISO set and lexicographic order (alpha-2, uppercase).
+* **ISO reference** `iso3166_canonical_2024` (opened in §6): authoritative ISO set and lexicographic order (alpha-2, uppercase).
 
 > **Resolution rule:** S3.2 consults **only** the policy artefact’s named sets/lists and the ISO set; **no other source** is permitted.
 
@@ -1672,7 +1672,7 @@ This locks S3’s operational guarantees: **deterministic**, **parallel-safe**, 
 | `ERR_S3_AUTHORITY_MISSING`        | Any governed artefact in §2/§6 cannot be opened, lacks semver/digest, or the BOM is incomplete                                   | §6.2–§6.3      | **Stop merchant**; no S3 outputs     |
 | `ERR_S3_PRECONDITION`             | `is_multi==false` or `N<2` at read time                                                                                          | §6.3.2         | Stop merchant; no outputs            |
 | `ERR_S3_PARTITION_MISMATCH`       | For S1/S2 inputs, embedded `{seed,parameter_hash,run_id}` ≠ path partitions                                                      | §6.3.3         | Stop merchant; no outputs            |
-| `ERR_S3_VOCAB_INVALID`            | `channel∉{"CP","CNP"}` or `home_country_iso` not in ISO set                                                                      | §6.3.4         | Stop merchant; no outputs            |
+| `ERR_S3_VOCAB_INVALID`            | `channel∉(ingress schema’s closed vocabulary)` or `home_country_iso` not in ISO set                                              | §6.3.4         | Stop merchant; no outputs            |
 | `ERR_S3_RULE_LADDER_INVALID`      | Rule artefact missing `DEFAULT`, precedence not total, duplicate `rule_id`, unknown `reason_code`/`filter_tag`, or out-of-window | §7.3–§7.4      | Stop merchant; no outputs            |
 | `ERR_S3_RULE_EVAL_DOMAIN`         | Rule predicate references an undeclared feature or named set/map                                                                 | §7.9           | Stop merchant; no outputs            |
 | `ERR_S3_CANDIDATE_CONSTRUCTION`   | Candidate set empty **or** missing `home`                                                                                        | §8.6           | Stop merchant; no outputs            |
@@ -2240,7 +2240,7 @@ Feasibility ok; `L_i ≤ count_i ≤ U_i`; ISO tiebreak visible; sum equals `N`.
 ## 18.2 Inputs L3 must read (authoritative)
 
 * **Schema authority & dictionary** (run-scoped gate): `schemas.layer1.yaml` containing all `#/s3/*` anchors; **optional** schema index if used; dataset dictionary resolving all S3 IDs.
-* **Governed artefacts** listed in the S3 BOM (§2): `policy.s3.rule_ladder.yaml`, `static.iso.countries.json`, and any optional policy bundles (priors, bounds).
+* **Governed artefacts** listed in the S3 BOM (§2): `policy.s3.rule_ladder.yaml`, `iso3166_canonical_2024`, and any optional policy bundles (priors, bounds).
 * **S3 datasets (egress)** for the target `parameter_hash`, **filtered by `manifest_fingerprint == <this run>`**:
   `s3_candidate_set` (required); and optionally `s3_base_weight_priors`, `s3_integerised_counts`, `s3_site_sequence`.
 * **Upstream evidence (read-only)** for cross-checks: S1 `hurdle_bernoulli` (gate) and S2 `nb_final` (for **N only**) for the same `{seed, parameter_hash, run_id}`.

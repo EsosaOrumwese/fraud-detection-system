@@ -35,13 +35,13 @@ $defs:
 
 # NOTE: All 1A-produced tables (model/prep/alloc/egress) carry a non-null
 #       manifest_fingerprint column to embed build lineage in each row.
-# REPLACED (S0.10.3 normative):
-#   • Parameter-scoped and seed-scoped datasets DO NOT embed manifest_fingerprint.
+# NORMATIVE (S0.10.3 updated):
+#   • All 1A-produced parameter-scoped datasets embed manifest_fingerprint (embedded lineage);
+#     partitioning remains solely by parameter_hash.
 #   • Fingerprint-scoped outputs (e.g., validation_bundle_1A, egress/outlet_catalogue)
-#     are the only places where the partition uses fingerprint=… and the column
-#     name is manifest_fingerprint (when present in row payloads).
-#   • Some parameter-scoped caches MAY include an OPTIONAL produced_by_fingerprint
-#     (hex64) for provenance; it is informational only and never part of equality/partitioning.
+#     may also use fingerprint in the partition key as specified by their dictionary entries.
+#   • Some parameter-scoped caches MAY include an OPTIONAL produced_by_fingerprint (hex64);
+#     it is informational only and never part of equality/partitioning.
 
 
 # 1) Modelling / predictors
@@ -238,7 +238,7 @@ egress:
       - { name: single_vs_multi_flag, type: boolean, nullable: false,
           description: "1 if multi-site (hurdle success), else 0." }
       - { name: raw_nb_outlet_draw, type: int32, nullable: false,
-          description: "Accepted NB draw N before cross-border allocation.", minimum: 1 }
+          description: "Accepted NB draw N before cross-border allocation.", minimum: 2 }
       - { name: final_country_outlet_count, type: int32, nullable: false,
           description: "Integer outlet count allocated to this legal_country (per persisted row).", minimum: 1, maximum: 999999 }
       - { name: site_order,     type: int32,           nullable: false, description: "Stable per-country site order (1..n_i).", minimum: 1 }

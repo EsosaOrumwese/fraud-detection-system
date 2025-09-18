@@ -62,7 +62,7 @@ reference_data:
     path: "reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet"
     partitioning: []
     ordering: []
-    schema_ref: "schemas.ingress.layer1.yaml#/iso3166_1_alpha2"
+    schema_ref: "schemas.ingress.layer1.yaml#/iso3166_canonical_2024"
     lineage:
       produced_by: null
       consumed_by: ["1A"]
@@ -385,7 +385,7 @@ datasets:
     description: "Deterministic per-country integer counts summing to N; includes residual_rank."
     version: "{parameter_hash}"
     format: "parquet"
-    path: "data/layer1/1A/s3_integerised_counts/parameter_hash=={parameter_hash}/"
+    path: "data/layer1/1A/s3_integerised_counts/parameter_hash={parameter_hash}/"
     partitioning: ["parameter_hash"]
     ordering: ["merchant_id","country_iso"]
     schema_ref: "schemas.1A.yaml#/s3/integerised_counts"
