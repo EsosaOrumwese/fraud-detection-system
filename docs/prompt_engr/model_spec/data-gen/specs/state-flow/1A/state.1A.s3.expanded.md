@@ -1,1463 +1,2389 @@
-# S3.1 — Inputs & canonical materialisation (deterministic, no RNG)
+# 0) One-page quick map (for implementers)
 
-## 1) Purpose & scope (normative)
+## 0.1 What S3 does (one breath)
 
-This sub-state **binds** the authoritative, deterministic inputs the S3 gate needs for each merchant $m$ that exited **S2** with an **accepted multi-site** outlet count. It **reads**:
-
-* the ingress merchant identity/features,
-* the **parameter-scoped** eligibility flags materialised in **S0**, and
-* the **accepted count $N_m$** from **S2**,
-
-and produces an **in-memory** bundle for **S3.2**. **No datasets are written** and **no RNG is consumed** in S3.1.
+Given a gated **multi-site** merchant with accepted outlet count **N** from S2, **S3 deterministically builds the cross-border candidate country universe and its total order** (an ordered list with reasons/tags and, if enabled, deterministic base-weight priors). **S3 uses no RNG.** If your design keeps integerisation in S3, it converts priors to **integer per-country counts** that sum to **N** using the fixed largest-remainder discipline.
 
 ---
 
-## 2) Authoritative contracts (what we read, exactly)
-
-### 2.1 Ingress merchant record (canonical)
-
-Read the following columns from the **ingress** table referenced by `schemas.ingress.layer1.yaml#/merchant_ids`:
-
-* `merchant_id: int64` (PK)
-* `mcc: int32`
-* `channel: string ∈ {"card_present","card_not_present"}`
-* `home_country_iso: ISO-3166-1 alpha-2` (FK to canonical ISO)
-
-> **Notes.** Channel values are the two enumerants above (not “CP/CNP” strings). ISO must be uppercase `[A–Z]{2}` and FK-valid against the canonical ISO list defined in the ingress schema.
-
-### 2.2 Eligibility flags (parameter-scoped, produced in S0)
-
-Read **exactly one** row per merchant from:
+## 0.2 Inputs → Outputs (at a glance)
 
 ```
-data/layer1/1A/crossborder_eligibility_flags/parameter_hash={parameter_hash}/
-  schema_ref: schemas.1A.yaml#/prep/crossborder_eligibility_flags
-  partition_keys: ["parameter_hash"]
+Ingress (read-only)                       S3 core (deterministic)                          Egress (authoritative)
+
+S1 hurdle  ─┐
+            ├─► Gate: is_multi == true ───┐
+S2 nb_final │                             │
+(N)         │   Policy artefacts &        │
+            │   static refs (IDs only)    │
+Merchant    ┘                             ▼
+context  ────────────────────────►  S3.1 Rule ladder (deny ≻ allow ≻ class ≻ legal/geo ≻ thresholds)
+                                     │
+                                     ▼
+                      S3.2 Candidate universe (home + admissible foreigns; tags/reasons)
+                                     │
+                                     ▼
+                      S3.3 Ordering & tie-break (total order; candidate_rank(home)=0)
+                                     │
+                      ├──────────────┴──────────────┐
+                      ▼                             ▼
+        (optional) S3.4 Base-weight priors   (optional) S3.5 Integerisation to counts (sum = N)
+
+                                             ▼
+                                  ┌──────────────────────────────────────┐
+                                  │ Outputs (dictionary-partitioned):    │
+                                  │ • s3_candidate_set (ordered)         │
+                                  │ • (opt) s3_base_weight_priors        │
+                                  │ • (opt) s3_integerised_counts        │
+                                  └──────────────────────────────────────┘
 ```
 
-**Required columns (governed types):**
+*Downstream reads the **ordered** candidate set; inter-country order lives **only** in `candidate_rank`.*
 
-* `merchant_id: int64`
-* `is_eligible: boolean`      // maps to math symbol eₘ
-* `eligibility_rule_id: string` (non-null)
-* `eligibility_hash: string` (hex; non-null)
-* `reason_code: string|null` with **enum** when non-null:
-  `{"mcc_blocked","cnp_blocked","home_iso_blocked"}`
-* `reason_text: string|null` (optional free-text complement)
+---
 
-This table is the **single source of truth** for the S3 gate; it is **parameter-scoped** (filtered by the **current** `{parameter_hash}`).
+## 0.3 Bill of Materials (IDs only; no paths)
 
-### 2.3 Accepted outlet count from S2 (multi-site only)
+| Kind               | ID / Anchor                                 | Purpose                                         | Notes (semver / digest) |
+|--------------------|---------------------------------------------|-------------------------------------------------|-------------------------|
+| Dataset (upstream) | `schemas.layer1.yaml#/rng/events/nb_final`  | Source of **N** (accepted outlet count)         | From S2 run             |
+| Dataset (upstream) | `schemas.ingress.layer1.yaml#/merchant_ids` | Merchant scope & keys                           | From S0                 |
+| Policy artefact    | `policy.s3.rule_ladder.yaml`                | Ordered rules, precedence, reason codes         | Semver + SHA-256        |
+| Static ref         | `static.iso.countries.json`                 | ISO3166 canonical list/order                    | Versioned snapshot      |
+| Static ref         | `static.currency_to_country.map.json`       | Deterministic currency→country mapping          | Versioned snapshot      |
+| (Optional) Params  | `policy.s3.base_weight.yaml`                | Deterministic prior formula/coeffs + dp         | Semver + SHA-256        |
+| Output table       | `schemas.1A.yaml#/s3/candidate_set`         | Ordered candidates with `candidate_rank` & tags | New schema              |
+| (Optional) Output  | `schemas.1A.yaml#/s3/base_weight_priors`    | Deterministic priors per candidate              | New schema              |
+| (Optional) Output  | `schemas.1A.yaml#/s3/integerised_counts`    | Integer counts per country (sum=N)              | New schema              |
 
-S2 emits **exactly one** RNG event row per merchant carrying the accepted NB draw:
+> All IO resolves via the **dataset dictionary**. **No hard-coded paths** in S3.
+
+---
+
+## 0.4 Control gates & invariants (must hold to run)
+
+* **Presence gate:** exactly one S1 hurdle row and **`is_multi == true`** for the merchant.
+* **S2 gate:** exactly one **`nb_final`** with **`N ≥ 2`** for the same `{seed, parameter_hash, run_id, merchant}`.
+* **Artefact gates:** rule ladder + static refs **loaded atomically** with pinned versions/digests.
+* **No RNG:** S3 defines **no RNG families** (no labels, no budgets, no envelopes).
+* **Ordering law:** **`candidate_rank(home) = 0`**, ranks are **total** and **contiguous**; **no duplicates**.
+
+---
+
+## 0.5 Outputs (authoritative, dictionary-partitioned)
+
+**Required**
+
+* `s3_candidate_set` — rows:
+  `merchant_id`, `country_iso`, **`candidate_rank`**, `reason_codes[]`, `filter_tags[]`, *(optional)* `base_weight_dp`, lineage fields.
+  **Partition:** `{parameter_hash}`. **Embedded lineage:** includes `{manifest_fingerprint}`.
+  **Row order guarantee:** `(merchant_id, candidate_rank, country_iso)`.
+
+**Optional (enable only if S3 owns them)**
+
+* `s3_base_weight_priors` — deterministic, quantised priors (dp is fixed in §12; **not probabilities**).
+* `s3_integerised_counts` — integer counts per country with `residual_rank` if S3 performs integerisation (else defer downstream).
+
+---
+
+## 0.6 Definition of Done (tick before leaving S3)
+
+* [ ] Every input/output cites a **JSON-Schema anchor** (no prose names).
+* [ ] Rule ladder is **ordered** with explicit precedence and closed **reason codes**.
+* [ ] Candidate construction is **deterministic**; **tie-break** and **quantisation dp** (if any) are stated.
+* [ ] **Total order** proven: `candidate_rank(home)=0`, contiguous ranks, no duplicates.
+* [ ] If priors exist: formula, units, bounds, **evaluation order**, and **dp** fixed.
+* [ ] If integerising: **largest-remainder**, **lexicographic ISO** tie-break, and `residual_rank` persisted; **Σ counts = N**.
+* [ ] Partitions & embedded lineage fixed for each dataset; **no path literals**.
+* [ ] Non-emission failure shapes listed (`ERR_S3_*`, merchant-scoped).
+* [ ] Two tiny **worked examples** included (illustrative row shapes).
+
+---
+
+# 1) Interfaces (hard contracts)
+
+## 1.1 Upstream interface (read-only)
+
+**Purpose:** define the **closed** set of inputs S3 may read. No alternative sources; no re-deriving.
+
+| Source                                 | JSON-Schema anchor (authoritative)                     | Required columns (name : type)                                                                 | Invariants & notes                                                        | Cardinality (per merchant, within `{seed, parameter_hash, run_id}`) |
+|----------------------------------------|--------------------------------------------------------|------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------|---------------------------------------------------------------------|
+| Merchant scope                         | `schemas.ingress.layer1.yaml#/merchant_ids`            | `merchant_id:u64`, `home_country_iso:string(ISO-3166-1)`, `mcc:string`, `channel:{"CP","CNP"}` | `home_country_iso` must be ISO; `channel` in the closed vocabulary        | **Exactly 1**                                                       |
+| Hurdle decision (S1)                   | `schemas.layer1.yaml#/rng/events/hurdle_bernoulli`     | `merchant_id:u64`, `is_multi:bool` plus standard envelope/lineage fields                       | Presence **required**; **gate:** `is_multi==true`                         | **Exactly 1**                                                       |
+| Accepted outlet count (S2)             | `schemas.layer1.yaml#/rng/events/nb_final`             | `merchant_id:u64`, `n_outlets:i64 (≥2)` plus standard envelope/lineage fields                  | Finaliser is **non-consuming**; `n_outlets ≥ 2` to enter S3               | **Exactly 1**                                                       |
+| Policy: S3 rule ladder                 | `artefact_registry_1A.yaml:policy.s3.rule_ladder.yaml` | `rules[]` (ordered), `precedence`, `reason_codes[]` (**closed set**), validity window          | Load **atomically**; precedence is **total**; reason codes are **closed** | **Exactly 1** artefact                                              |
+| Static refs (ISO, etc.)                | `static.iso.countries.json`                            | `iso_alpha2:string`, `iso_alpha3:string`, canonical ISO ordering                               | Versioned snapshot; no mutation                                           | **Exactly 1** artefact                                              |
+| Currency→country map (if used)         | `static.currency_to_country.map.json`                  | `currency_code:string` → `countries:[iso_alpha2]`                                              | Deterministic map; **no RNG** smoothing                                   | **Exactly 1** artefact                                              |
+| (Optional) deterministic weight params | `policy.s3.base_weight.yaml`                           | explicitly named coefficients/thresholds; **units & bounds**                                   | Only authority if S3 computes deterministic priors                        | **0 or 1** artefact                                                 |
+
+**Path resolution:** via the **dataset dictionary** only; **no hard-coded paths**.
+
+**Partition equality (read side):** embedded `{seed, parameter_hash, run_id}` in S1/S2 events must **byte-equal** their path partitions.
+
+**RNG note:** S3 defines **no RNG families** (no labels, no budgets, no envelopes).
+
+---
+
+## 1.2 Downstream interface (egress S3 produces)
+
+**Purpose:** define exactly what S3 emits and how consumers must read it. Consumers **must not** infer or reinterpret beyond this.
+
+### 1.2.1 Required: ordered candidate set
+
+| Dataset id         | JSON-Schema anchor                  | Partitions (path)    | Embedded lineage (columns)                           | Row order                                                          | Columns (name : type : semantics)                                                                                                                                                                                                                                                                                                                                                                                                 |
+|--------------------|-------------------------------------|----------------------|------------------------------------------------------|--------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `s3_candidate_set` | `schemas.1A.yaml#/s3/candidate_set` | `parameter_hash={…}` | `manifest_fingerprint:hex64`, `parameter_hash:hex64` | Sorted by `(merchant_id ASC, candidate_rank ASC, country_iso ASC)` | `merchant_id:u64` — key; `country_iso:string(ISO-3166-1)` — candidate; **`candidate_rank:u32`** — **total, contiguous order** with `candidate_rank==0` for home; `reason_codes:array<string>` — **closed set** from policy; `filter_tags:array<string>` — deterministic tags (**closed set** defined by policy); *(optional)* `base_weight_dp:decimal(string)` — quantised deterministic prior (if §12 enabled); lineage as above |
+
+**Contract:**
+
+* **Total order:** `candidate_rank` is total and contiguous per merchant; **no duplicates**; **`candidate_rank(home)=0`**.
+* **No RNG meaning:** `base_weight_dp` (if present) is a **deterministic, quantised prior**; **not** a probability.
+* **Single authority for inter-country order:** downstream **must use `candidate_rank` only** (never file order or ISO).
+
+### 1.2.2 Optional: deterministic base-weight priors (if enabled)
+
+| Dataset id              | JSON-Schema anchor                       | Partitions           | Embedded lineage                         | Row order                    | Columns                                                                                                           |
+|-------------------------|------------------------------------------|----------------------|------------------------------------------|------------------------------|-------------------------------------------------------------------------------------------------------------------|
+| `s3_base_weight_priors` | `schemas.1A.yaml#/s3/base_weight_priors` | `parameter_hash={…}` | `manifest_fingerprint`, `parameter_hash` | `(merchant_id, country_iso)` | `merchant_id:u64`, `country_iso:string`, `base_weight_dp:decimal(string)`, `dp:u8` (quantisation places), lineage |
+
+**Contract:** evaluation order and quantisation **dp** fixed in §12; consumers treat as **deterministic scores** only.
+
+### 1.2.3 Optional: integerised counts (if S3 performs integerisation)
+
+| Dataset id              | JSON-Schema anchor                       | Partitions           | Embedded lineage                         | Row order                    | Columns                                                                                                              |
+|-------------------------|------------------------------------------|----------------------|------------------------------------------|------------------------------|----------------------------------------------------------------------------------------------------------------------|
+| `s3_integerised_counts` | `schemas.1A.yaml#/s3/integerised_counts` | `parameter_hash={…}` | `manifest_fingerprint`, `parameter_hash` | `(merchant_id, country_iso)` | `merchant_id:u64`, `country_iso:string`, `count:i64 (≥0)`, `residual_rank:u32` (largest-remainder tie rank), lineage |
+
+**Contract:**
+
+* Per merchant, `Σ count = N` from S2.
+* `residual_rank` captures the exact bump order (quantised residuals + ISO tiebreak) and is **persisted**.
+
+---
+
+## 1.3 Immutability & non-reinterpretation (binding)
+
+**What S3 must not reinterpret**
+
+* **Upstream decisions:** S1 hurdle (`is_multi`) and S2 `nb_final.n_outlets` are **authoritative**; S3 **must not** recompute or override them.
+* **Upstream numerics:** inherit S0 numeric policy (binary64, RNE, FMA-off, no FTZ/DAZ).
+
+**What downstream must not reinterpret**
+
+* **Inter-country order:** lives **only** in `s3_candidate_set.candidate_rank`.
+* **Priors (if any):** `base_weight_dp` are deterministic **priors**, not probabilities; consumers must not normalise or treat them as stochastic unless a later state explicitly says so.
+* **Integerised counts (if emitted):** are **final for S3**; later stages treat them as read-only unless a new fingerprint changes.
+
+**Partition ↔ embed equality (write side)**
+
+* All S3 tables are partitioned by **`parameter_hash`** (no `seed`); each row **embeds** `parameter_hash` and `manifest_fingerprint`. Embedded values must **byte-equal** the path partition and the run’s fingerprint.
+
+**No paths in code**
+
+* All IO resolves via the **dataset dictionary**. This spec names **dataset IDs and schema anchors only**.
+
+---
+
+# 2) Bill of Materials (BOM)
+
+> **Goal:** freeze *exactly* what S3 may open and the versioning/lineage rules that make runs reproducible. If it isn’t listed here, S3 must not read it.
+
+## 2.1 Governed artefacts (authorities S3 must open atomically)
+
+| Artefact (registry id)                | Purpose in S3                                                                                                          | SemVer | Digest (SHA-256, hex64) | Evidence / Notes                                           |
+|---------------------------------------|------------------------------------------------------------------------------------------------------------------------|-------:|-------------------------|------------------------------------------------------------|
+| `policy.s3.rule_ladder.yaml`          | Ordered deterministic rules (deny ≻ allow ≻ class ≻ legal/geo ≻ thresholds), precedence law, **closed** `reason_codes` |  x.y.z | …                       | Must be **total order**; reason codes are a **closed set** |
+| `static.iso.countries.json`           | ISO-3166-1 alpha-2/alpha-3 canonical list + canonical ISO order                                                        |  x.y.z | …                       | Versioned snapshot; no mutation                            |
+| `static.currency_to_country.map.json` | Deterministic **currency-to-country** mapping (if used by rules)                                                       |  x.y.z | …                       | Deterministic only; **no RNG** smoothing                   |
+| `schemas.layer1.yaml`                 | **JSON-Schema source of truth** (includes all `#/s3/*` anchors)                                                        |  x.y.z | …                       | Schema authority; Avro (if any) is build-artefact only     |
+| `schema.index.layer1.json` *(opt)*    | **Derived** schema index for faster lookups (non-authoritative)                                                        |  x.y.z | …                       | Convenience only                                           |
+| `dataset_dictionary.layer1.json`      | Dataset IDs → partition spec → physical path template                                                                  |  x.y.z | …                       | Resolves *all* IO; **no hard-coded paths**                 |
+| `artefact_registry_1A.yaml`           | Full registry (this BOM appears in it)                                                                                 |  x.y.z | …                       | Names, semver, digests must match this table               |
+
+**Atomic open:** S3 **must** open all artefacts above *before* any processing and record their `(id, semver, digest)` into the run’s `manifest_fingerprint`.
+
+---
+
+## 2.2 Datasets consumed from prior states (read-only)
+
+| Dataset id                        | JSON-Schema anchor                                 | Partition keys (path)            | Embedded lineage (must equal)    | Used fields                                         |
+|-----------------------------------|----------------------------------------------------|----------------------------------|----------------------------------|-----------------------------------------------------|
+| `rng_event_hurdle_bernoulli` (S1) | `schemas.layer1.yaml#/rng/events/hurdle_bernoulli` | `{seed, parameter_hash, run_id}` | `{seed, parameter_hash, run_id}` | `merchant_id`, payload `is_multi`                   |
+| `rng_event_nb_final` (S2)         | `schemas.layer1.yaml#/rng/events/nb_final`         | `{seed, parameter_hash, run_id}` | `{seed, parameter_hash, run_id}` | `merchant_id`, payload `n_outlets` (≥2)             |
+| `merchant_ids` (S0)               | `schemas.ingress.layer1.yaml#/merchant_ids`        | registry-defined                 | —                                | `merchant_id`, `home_country_iso`, `mcc`, `channel` |
+
+**Read-side law:** for S1/S2 events, **embedded** `{seed, parameter_hash, run_id}` must **byte-equal** the path partitions.
+
+---
+
+## 2.3 Optional parameter bundles (only if S3 computes deterministic priors)
+
+| Artefact (registry id)       | Purpose                                               | SemVer | Digest (SHA-256) | Notes                                            |
+|------------------------------|-------------------------------------------------------|-------:|------------------|--------------------------------------------------|
+| `policy.s3.base_weight.yaml` | Deterministic prior formula, constants/coeffs, **dp** |  x.y.z | …                | **No RNG**; evaluation order & **dp** in §12     |
+| `policy.s3.thresholds.yaml`  | Deterministic cutoffs (GDP floors, market limits)     |  x.y.z | …                | If used by the rule ladder; closed numbers+units |
+
+If you **do not** compute deterministic priors in S3, omit this subsection (do **not** keep unused knobs).
+
+---
+
+## 2.4 Outputs S3 produces (tables — shape authorities)
+
+| Output dataset                | JSON-Schema anchor                       | Partition keys (path) | Embedded lineage                         | Consuming notes                                                                                      |
+|-------------------------------|------------------------------------------|-----------------------|------------------------------------------|------------------------------------------------------------------------------------------------------|
+| `s3_candidate_set`            | `schemas.1A.yaml#/s3/candidate_set`      | `parameter_hash`      | `manifest_fingerprint`, `parameter_hash` | **Inter-country order lives only in `candidate_rank`**; `candidate_rank(home)=0`; total & contiguous |
+| (opt) `s3_base_weight_priors` | `schemas.1A.yaml#/s3/base_weight_priors` | `parameter_hash`      | `manifest_fingerprint`, `parameter_hash` | Deterministic, quantised **priors** (not probabilities); join on `(merchant_id, country_iso)`        |
+| (opt) `s3_integerised_counts` | `schemas.1A.yaml#/s3/integerised_counts` | `parameter_hash`      | `manifest_fingerprint`, `parameter_hash` | Counts per country; **Σ count = N (from S2)**; persist `residual_rank`                               |
+
+> **Single source of truth for priors:** We keep priors in **`s3_base_weight_priors`** only (no `base_weight_dp` column in `s3_candidate_set`) to avoid duplication and drift.
+
+**Write-side law:** path partitions and embedded lineage must **match byte-for-byte**. **No `seed`** in S3 partitions.
+
+---
+
+## 2.5 Lineage & fingerprint rules (binding)
+
+* **`parameter_hash`** = hash of *parameter* artefacts (e.g., rule ladder, thresholds, prior coeffs). Changing it **re-partitions** parameter-scoped outputs.
+* **`manifest_fingerprint`** = composite of **all opened artefacts** (this BOM), plus parameter bytes and git commit (as your project defines). It is **embedded** in every S3 row.
+* **Inclusion rule (explicit):** the following **must** contribute to `manifest_fingerprint`:
+  `policy.s3.rule_ladder.yaml`, `static.iso.countries.json`, `static.currency_to_country.map.json` (if used),
+  `schemas.layer1.yaml` (and `schema.index.layer1.json` if used), `dataset_dictionary.layer1.json`, `artefact_registry_1A.yaml`, and any artefact in §2.3.
+  Missing inclusion ⇒ **abort**.
+* **No path literals:** all IO resolves via the dataset dictionary; paths never appear in code or outputs.
+
+---
+
+## 2.6 Validity windows & version pinning
+
+| Artefact                              | Valid from | Valid to   | Action on out-of-window      |
+|---------------------------------------|------------|------------|------------------------------|
+| `policy.s3.rule_ladder.yaml`          | YYYY-MM-DD | YYYY-MM-DD | **Abort** (binding policy)   |
+| `static.iso.countries.json`           | YYYY-MM-DD | YYYY-MM-DD | **Warn + abort** if mismatch |
+| `static.currency_to_country.map.json` | YYYY-MM-DD | YYYY-MM-DD | **Abort** if version drifts  |
+
+If no validity windows are governed for an artefact, state: **“No validity window — pinned by digest only (binding).”**
+
+---
+
+## 2.7 Licensing & provenance (must be auditable)
+
+| Artefact                              | Licence                                | Provenance URL / descriptor | Notes                                       |
+|---------------------------------------|----------------------------------------|-----------------------------|---------------------------------------------|
+| `static.iso.countries.json`           | e.g., “ISO data under licence …”       | …                           | Attach licence text in repo if required     |
+| `policy.s3.rule_ladder.yaml`          | Project licence (e.g., MIT/Apache-2.0) | internal                    | Generated artefact; provenance = commit SHA |
+| `static.currency_to_country.map.json` | e.g., ODbL / CC-BY / internal          | …                           | Ensure redistribution rights are clear      |
+
+If external licences restrict redistribution, record the policy you follow (e.g., embed digests, not full copies).
+
+---
+
+## 2.8 Open/verify checklist (run-time gates)
+
+* [ ] **Open all governed artefacts** in §2.1 and record `(id, semver, digest)`.
+* [ ] **Resolve datasets via dictionary**; **no literal paths**.
+* [ ] **Equality check** path partitions ↔ embedded lineage for S1/S2 inputs.
+* [ ] **Fingerprint inclusion test:** all artefact digests listed in §2.5 are included in `manifest_fingerprint`.
+* [ ] **Closed vocab check:** `reason_codes` (policy), `filter_tags` (policy), channels `{CP,CNP}`, ISO set.
+* [ ] **Version pin check:** artefacts within validity windows (if defined) or explicitly “digest-pinned only”.
+* [ ] **No RNG in S3:** confirm **no RNG families/labels** are referenced anywhere in S3 (events, budgets, envelopes).
+* [ ] **Abort vocabulary loaded:** `ERR_S3_*` symbols available to callers.
+
+---
+
+> **Practical note:** This BOM is intentionally minimal but binding. If later sections call for an artefact or parameter not listed here, either (a) add it here with semver/digest, or (b) remove the dependency. No “ghost inputs.”
+
+---
+
+# 3) Determinism & numeric policy (carry-forward)
+
+## 3.1 Scope (what this section fixes)
+
+These rules are **definition-level**. If any item below is violated, S3’s outputs are **out of spec** (even if the program “works”).
+
+* Applies to **all** numeric work in S3 (feature transforms, thresholds, base-weight priors, ordering keys, integerisation residuals).
+* **S3 uses no RNG.** If a future variant introduces RNG, it **must** adopt L0’s RNG/trace surfaces verbatim (see §3.7).
+
+---
+
+## 3.2 Floating-point environment (binding)
+
+* **Format:** IEEE-754 **binary64** (`f64`) for all real computations and emitted JSON numbers.
+* **Rounding mode:** **Round-to-Nearest, ties-to-Even (RNE)**.
+* **FMA:** **disabled** (no fused multiply-add).
+* **Denormals:** **no FTZ/DAZ** (do not flush subnormals to zero).
+* **Shortest-round-trip emission:** emit `f64` as JSON **numbers** (not strings) using shortest round-trip formatting.
+
+> Implementation: pin a math/runtime profile that guarantees the above; do not rely on host defaults.
+
+---
+
+## 3.3 Evaluation order & reductions
+
+* **Evaluation order is normative.** Evaluate formulas in the **spelled order**; no algebraic reordering or “fast-math”.
+* **Reductions:** when summing/aggregating, use **serial Neumaier** in the **documented iteration order** (explicitly: the order defined by the section that invokes the reduction).
+* **Clamp / winsorise / quantise:** apply **exactly** in the written sequence (e.g., compute → clamp → **quantise**)—never fused.
+
+---
+
+## 3.4 Total-order sorting (stable & reproducible)
+
+Whenever S3 requires ordering (e.g., candidate ordering, residual ranking), apply a **total order**:
+
+1. Primary key(s) as specified for that step (e.g., rule priority ↑, then `base_weight_dp` ↓ if present—state the direction in that section).
+2. If equal **after any required quantisation**, fall back to **ISO code** (`iso_alpha2`, ASCII A–Z).
+3. If still tied: break by `merchant_id` ↑ then **original index** (stable: input sequence index in that step’s source list).
+
+All sorts must be **stable** when keys compare equal.
+
+---
+
+## 3.5 Quantisation & dp policy
+
+* If S3 computes deterministic **priors/scores**, it must **quantise** them to a fixed **decimal dp** **before** they are used for ordering or residuals.
+* The **dp value** for each context is declared once in that context’s section (e.g., §12 if priors exist).
+* Quantise via `round_to_dp(value, dp)` under RNE, then use the **quantised** number for downstream sort/ties.
+
+**Decimal rounding algorithm (binding):**
+Let `s = 10^dp`. Compute `q = round_RNE(value * s) / s` in binary64, where `round_RNE` is ties-to-even on the **binary64** value of `value * s`. The emitted field is the binary64 `q` (or its shortest JSON representation if serialized).
+
+---
+
+## 3.6 Integerisation residuals (only if S3 allocates counts)
+
+* **Residuals:** compute residuals **after dp-quantisation** of any priors used for fractional shares.
+* **Residual ranking:** sort **descending** by residual; tiebreak by **ISO code** (alpha-2, ASCII A–Z). Persist `residual_rank` if integerisation is emitted.
+* **Bump discipline:** add +1 to the top `R` residuals until integer totals sum to **N** (from S2). (State where `R` comes from in the integerisation section.)
+
+---
+
+## 3.7 Optional RNG clause (future-proof, off by default)
+
+* **Default:** **No RNG families** in S3. No event envelopes, no `draws/blocks`, no trace rows.
+* **If (and only if) S3 ever adds RNG:**
+
+  * Use L0’s writer/trace surface; events under `{seed, parameter_hash, run_id}`; embed `manifest_fingerprint`.
+  * Fix `substream_label` names; document **budget law** (draws vs blocks) and **consuming status** for each family.
+  * **Guard-before-emit**: compute all predicates that can invalidate an attempt **before** emitting any event.
+
+*(This subsection is a guardrail; today it’s a no-op.)*
+
+---
+
+## 3.8 Path↔embed equality & lineage keys
+
+* Every S3 output row **embeds** `{parameter_hash, manifest_fingerprint}` that must **byte-equal** the path partition (`parameter_hash`) and the run’s fingerprint.
+* S3 outputs are **parameter-scoped** (no `seed` in partitions).
+* **No path literals**: all IO resolves via the **dataset dictionary**.
+
+---
+
+## 3.9 Compliance self-check (tick at build/run)
+
+* [ ] Process uses **binary64, RNE, FMA-off, no FTZ/DAZ**.
+* [ ] Formulas follow **spelled evaluation order**; Neumaier used where specified.
+* [ ] All ordering uses the **total-order stack** in §3.4; sorts are **stable**.
+* [ ] Any priors/scores used for ordering were **quantised to dp** first (dp declared), then used.
+* [ ] If integerising: residuals computed **after** dp; **ISO alpha-2** tiebreak; `residual_rank` persisted (if emitted).
+* [ ] Outputs embed lineage matching path partitions; **no path literals** anywhere.
+* [ ] RNG: **absent** in S3 (or, if later enabled, L0 surfaces + guard-before-emit are in place).
+
+---
+
+# 4) Symbols & vocab (legend)
+
+## 4.1 Scalar symbols (used throughout S3)
+
+| Symbol             | Type                                   | Meaning                                                                                        | Bounds / Notes                                                                        |
+|--------------------|----------------------------------------|------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|
+| `N`                | `i64`                                  | Total outlets accepted for the merchant from S2 `nb_final.n_outlets`                           | `N ≥ 2`                                                                               |
+| `K`                | `u32`                                  | Number of **foreign** countries admitted into the candidate set (after rules)                  | `K ≥ 0` (if cross-border not eligible ⇒ `K = 0`)                                      |
+| `w_i`              | `f64`                                  | Deterministic base score/weight for country `i` (if §12 enabled) **before quantisation**       | Units & evaluation order fixed in §12                                                 |
+| `w_i^⋄`            | `f64` (quantised) or `decimal(string)` | `w_i` **after** quantisation to `dp` decimal places (see §3.5, §12)                            | Used for ordering/ties; if emitted (priors table), use decimal string with fixed `dp` |
+| `ρ_i`              | `f64`                                  | Residual for country `i` in integerisation (if §13 used) computed **after** quantising weights | Used only for residual ranking                                                        |
+| `candidate_rank_i` | `u32`                                  | Total order position for country `i` in the candidate set                                      | `candidate_rank(home) = 0`; contiguous; no ties                                       |
+| `dp`               | `u8`                                   | Decimal places used to quantise `w` (if priors exist)                                          | Declared once in §12                                                                  |
+| `ε`                | `f64`                                  | Small closed-form constants if needed (e.g., clamp)                                            | Declared where used; hex literal                                                      |
+
+**Type conventions:** `u64` unsigned 64-bit, `i64` signed 64-bit, `u32/u8` unsigned, `f64` IEEE-754 binary64 (RNE, FMA-off; §3).
+
+---
+
+## 4.2 Sets, indices, and keys
+
+| Symbol         | Type                          | Meaning                                                        | Notes                      |
+|----------------|-------------------------------|----------------------------------------------------------------|----------------------------|
+| `C`            | set of ISO country codes      | The admissible **country universe** for a merchant after rules | `home ∈ C` always          |
+| `home`         | `string` (ISO-3166-1 alpha-2) | Merchant’s home country from ingress                           | Uppercase `A–Z`            |
+| `i, j`         | index                         | Index over countries in `C`                                    | Used consistently in loops |
+| `merchant_id`  | `u64`                         | Canonical merchant identifier (from ingress)                   | Key in all S3 outputs      |
+| `merchant_u64` | `u64`                         | Derived key per S0 (read-only)                                 | Not recomputed here        |
+
+---
+
+## 4.3 Deterministic priors / weights (if enabled)
+
+* **Symbols:** `w_i` (pre-quantisation), `w_i^⋄` (post-quantisation).
+* **Evaluation order:** exactly as written in §12 (no re-ordering).
+* **Quantisation:** `w_i^⋄ = round_to_dp(w_i, dp)` under binary64 RNE (see §3.5).
+* **Emission:** if persisted, emit `w_i^⋄` in **`s3_base_weight_priors`** as a **decimal string** with exactly `dp` places; do **not** emit raw `w_i`.
+
+> **No stochastic meaning:** `w` are **deterministic priors/scores**, **not probabilities**.
+
+---
+
+## 4.4 Ordering & tie-breaker keys (total order contract)
+
+When S3 requires a total order over countries:
+
+1. **Primary key(s)** (as specified in §11): e.g., rule priority → `w_i^⋄` (if present; state direction there).
+2. **Secondary (stable) key:** `country_iso` **lexicographic A–Z**.
+3. **Tertiary (stable) key:** `merchant_id` then original input index (stable: input sequence index).
+
+This yields a **total, contiguous ranking** `candidate_rank_i ∈ {0,1,…,|C|−1}`, with **`candidate_rank(home) = 0`**. (See §11.3 proof obligation.)
+
+---
+
+## 4.5 Closed vocabularies & identifiers
+
+| Vocabulary       | Values (closed set)                                                                                 | Where used                  | Notes                                                  |
+|------------------|-----------------------------------------------------------------------------------------------------|-----------------------------|--------------------------------------------------------|
+| `channel`        | `{ "CP", "CNP" }`                                                                                   | Read from ingress in §2     | Case-sensitive; order fixed                            |
+| `reason_codes`   | e.g., `["DENY_SANCTIONED","ALLOW_WHITELIST","CLASS_RULE_XYZ","LEGAL_EXCLUSION","THRESHOLD_LT_GDP"]` | Emitted with candidate rows | **Closed set** defined by `policy.s3.rule_ladder.yaml` |
+| `rule_id`        | e.g., `"RL_DENY_SANCTIONED"`, `"RL_CLASS_MCC_XXXX"`                                                 | Rule ladder trace & tags    | Stable identifiers; no spaces                          |
+| `filter_tags`    | e.g., `"SANCTIONED"`, `"GEO_OK"`, `"ADMISSIBLE"`                                                    | Candidate tagging           | Deterministic, documented list                         |
+| `country_iso`    | ISO-3166-1 alpha-2                                                                                  | All S3 tables               | Uppercase `A–Z`; canonical ISO list from artefact      |
+| `candidate_rank` | non-negative integer                                                                                | `s3_candidate_set`          | `candidate_rank(home)=0`; no gaps                      |
+
+> The exact **enumerations** for `reason_codes`, `rule_id`, and `filter_tags` are defined in the policy artefact (§2.1). S3 treats them as **closed**; encountering an unknown code is a **failure**.
+
+---
+
+## 4.6 Encodings & JSON types
+
+| Field                                    | JSON type         | Encoding details                                         |
+|------------------------------------------|-------------------|----------------------------------------------------------|
+| `f64` payload numbers                    | **number**        | Shortest round-trip decimal (never strings)              |
+| `base_weight_dp` (in priors table)       | **string**        | Decimal string with exactly `dp` places (deterministic)  |
+| `manifest_fingerprint`, `parameter_hash` | **string**        | Lowercase hex (`Hex64`); fixed length                    |
+| `country_iso`                            | **string**        | Uppercase ISO-3166-1 alpha-2                             |
+| `reason_codes`, `filter_tags`            | **array<string>** | Each element in **closed set**; order preserved (stable) |
+| `candidate_rank`, `residual_rank`        | **integer**       | Non-negative; `candidate_rank` contiguous from 0         |
+
+---
+
+## 4.7 Units, bounds, and invariants (quick checks)
+
+* `N` from S2: integer, **`N ≥ 2`**.
+* `K`: integer, `K ≥ 0`; if cross-border not eligible ⇒ `K = 0`.
+* Candidate set: **non-empty**; contains `home`.
+* `candidate_rank`: contiguous per merchant; **no duplicates**, **no ties**.
+* If integerising in S3: `∑_i count_i = N`; `count_i ≥ 0`; `residual_rank` persisted (unique per merchant–country).
+* If priors exist: `dp` stated; **quantise before** any ordering or residual logic.
+
+---
+
+## 4.8 Shorthand functions (names used later)
+
+| Name                    | Signature                         | Meaning                                                     |
+|-------------------------|-----------------------------------|-------------------------------------------------------------|
+| `round_to_dp`           | `(x:f64, dp:u8) -> f64`           | Quantise to `dp` decimals under RNE (binary64)              |
+| `iso_lex_less`          | `(a:string, b:string) -> bool`    | `true` iff `a` < `b` in A–Z lexicographic order             |
+| `assign_candidate_rank` | `(C:list) -> list<u32>`           | Produce contiguous ranks using §4.4 total-order             |
+| `residual_rank_sort`    | `(ρ:list, iso:list) -> list<u32>` | Sort residuals desc; ISO-lex tie-break; return stable ranks |
+
+*(Symbolic names; concrete implementations live in L0/L1 as appropriate.)*
+
+---
+
+# 5) Control flow (S3 only)
+
+## 5.1 Mini-DAG (one merchant, deterministic)
 
 ```
-logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/...
-  schema_ref: schemas.layer1.yaml#/rng/events/nb_final
+Ingress (read-only)                 S3 pipeline (deterministic)                          Egress (authoritative)
+
+S1 hurdle ─┐
+           ├─ is_multi == true ? ──► [ENTER S3]
+S2 nb_final│
+(N ≥ 2)    │
+Merchant   ┘
+context         ┌────────────────┐    ┌──────────────────────────┐   ┌───────────────────────────┐
+                │ S3.0 Load ctx  │ →  │ S3.1 Rule ladder (deny…) │ → │ S3.2 Candidate universe   │
+                └────────────────┘    └──────────────────────────┘   └──────────────┬────────────┘
+                                                                                    │
+                                                                                    ▼
+                                                        ┌───────────────────────────┐
+                                                        │ S3.3 Order & rank (total) │
+                                                        └──────────────┬────────────┘
+                                                                       │
+                        (optional, if enabled)                         ▼
+                   ┌───────────────────────────┐        ┌────────────────────────────┐
+                   │ S3.4 Base-weight priors   │  →     │ S3.5 Integerise to counts  │
+                   └──────────────┬────────────┘        └───────────────┬────────────┘
+                                  │                                     │
+                                  └──────────────┬──────────────────────┘
+                                                 ▼
+                                      ┌──────────────────────────────┐
+                                      │ S3.6 Emit tables             │
+                                      │ (candidate_set, opt. priors/ │
+                                      │  opt. integerised_counts)    │
+                                      └──────────────────────────────┘
 ```
 
-* **Presence requirement:** exactly one row for `(merchant_id, seed, parameter_hash, run_id)`.
-* **Authoritative value of N:** read `nb_final.value:int64` from that row.
-
-> Reading the event payload does **not** consume RNG; it’s a deterministic log read.
-
-### 2.4 Lineage keys (carried through)
-
-Carry these untouched for downstream joins and provenance:
-
-* `seed: int64` (RNG family key)
-* `run_id: string/uuid` (run-scoped log partition)
-* `parameter_hash: string` (parameter-set scope; partitions flags/caches)
-* `manifest_fingerprint: string` (parameter-set/artefact fingerprint; embedded later in persisted outputs)
+**Writes:** only in **S3.6** (tables). **No RNG**; no event streams.
 
 ---
 
-## 3) Preconditions (MUST hold before S3.1 binds)
+## 5.2 Step-by-step (inputs → outputs → side-effects)
 
-1. **Multi-site only.** Merchant must have `is_multi=1` from **S1** **and** an accepted S2 draw:
-   `count_rows(nb_final where merchant_id=m and seed and parameter_hash and run_id) == 1`.
-   Otherwise abort `E_NOT_MULTISITE_OR_MISSING_S2`.
-2. **Ingress schema conformance.** The projected columns conform to `schemas.ingress.layer1.yaml#/merchant_ids` (reject unknown enumerants; enforce ISO pattern + FK).
-3. **Flags partition ready.** A **single** row for `(parameter_hash, merchant_id)` exists in `crossborder_eligibility_flags`. S3 reads **after** S0 has committed the partition.
+### S3.0 Load context (deterministic)
+
+* **Inputs:** merchant row (ingress), S1 hurdle (`is_multi == true`), S2 `nb_final` (`N ≥ 2`), governed artefacts opened atomically (BOM §2).
+* **Outputs:**
+  `Ctx = { merchant_id, home_country_iso, mcc, channel, N, artefact_versions, parameter_hash, manifest_fingerprint }`.
+* **Side-effects:** none (read-only).
+* **Fail:** missing/invalid artefact or gates ⇒ `ERR_S3_AUTHORITY_MISSING` (stop merchant).
+
+### S3.1 Rule ladder (deterministic policy)
+
+* **Inputs:** `Ctx`, rule-ladder artefact.
+* **Algorithm:** evaluate **ordered** rules (deny ≻ allow ≻ class ≻ legal/geo ≻ thresholds) per precedence; record `rule_id` & `reason_code`.
+* **Outputs:** `RuleTrace` (ordered list) and `eligible_crossborder: bool`.
+* **Side-effects:** none.
+* **Fail:** unknown `rule_id`/`reason_code` ⇒ `ERR_S3_RULE_LADDER_INVALID`.
+
+### S3.2 Candidate universe construction (deterministic)
+
+* **Inputs:** `Ctx`, `RuleTrace`, static refs (ISO; currency-to-country map if used).
+* **Algorithm:** start set `{home}`; if `eligible_crossborder`, add admissible foreign ISO codes; de-dup; tag with deterministic `filter_tags` & `reason_codes`.
+* **Outputs:** `C` = list of candidate rows (unordered yet) with tags per row.
+* **Side-effects:** none.
+* **Fail:** empty `C` or missing `home` ⇒ `ERR_S3_CANDIDATE_CONSTRUCTION`.
+
+### S3.3 Order & rank (total order; deterministic)
+
+* **Inputs:** `C`.
+* **Algorithm:** apply **primary keys** (as defined in §11; e.g., rule priority → `w_i^⋄` if priors exist), then **ISO lexicographic** tie-break, then merchant/id stability. Produce contiguous **`candidate_rank`** with **`candidate_rank(home) = 0`**.
+* **Outputs:** `C_ranked = C + candidate_rank`.
+* **Side-effects:** none.
+* **Fail:** duplicate ranks or missing `candidate_rank(home)=0` ⇒ `ERR_S3_ORDERING`.
+
+> If S3 **does not** compute priors, **skip S3.4**.
+
+### S3.4 Base-weight priors (deterministic; optional)
+
+* **Inputs:** `C_ranked`, `policy.s3.base_weight.yaml`.
+* **Algorithm:** compute `w_i` per §12 in **spelled evaluation order**; **quantise** to `dp` ⇒ `w_i^⋄`; attach to each candidate (for the priors table).
+* **Outputs:** `C_weighted = C_ranked + w_i^⋄` (for emission only; priors live in their own table).
+* **Side-effects:** none.
+* **Fail:** unknown coeff/param or missing `dp` ⇒ `ERR_S3_WEIGHT_CONFIG`.
+
+> If S3 **does not** integerise, **skip S3.5**.
+
+### S3.5 Integerise to counts (optional; sum to N)
+
+* **Inputs:** `C_weighted` (or `C_ranked` if no priors), `N`.
+* **Algorithm:** largest-remainder: floor, compute residuals **after** dp (if any), sort residuals **desc** with ISO tie-break, bump +1 until Σ count = `N`; persist `residual_rank`.
+* **Outputs:** `C_counts` = per-country `count` (≥0) summing to `N`, plus `residual_rank`.
+* **Side-effects:** none.
+* **Fail:** Σ count ≠ `N` or negative count ⇒ `ERR_S3_INTEGERISATION`.
+
+### S3.6 Emit tables (authoritative)
+
+* **Inputs:** whichever of `C_ranked` / `C_weighted` / `C_counts` applies; `Ctx` lineage keys.
+* **Algorithm:** write **tables** via dictionary-resolved paths, partitioned by **`parameter_hash`**; embed `{parameter_hash, manifest_fingerprint}` (must byte-equal path partition and run fingerprint).
+* **Outputs (tables):**
+
+  * **Required:** `s3_candidate_set` (ranked, tagged candidates with `candidate_rank`).
+  * **Optional:** `s3_base_weight_priors` (if S3.4 ran; emit `w_i^⋄` as **decimal string** with exactly `dp` places) and/or `s3_integerised_counts` (if S3.5 ran; includes `residual_rank`).
+* **Side-effects:** none beyond writes (no RNG events).
+* **Fail:** path↔embed mismatch or schema violation ⇒ `ERR_S3_EGRESS_SHAPE`.
 
 ---
 
-## 4) Determinism & invariants
+## 5.3 Looping & stopping conditions
 
-* **No-RNG invariant.** S3.1 consumes **no** RNG streams; it is a pure function of ingress + parameter-scoped flags + S2 acceptance.
-* **I-S3.1-Uniq.** Exactly **one** flags row exists per `(parameter_hash, merchant_id)`. Missing/duplicate rows are structural errors.
-* **I-S3.1-Schema.** `is_eligible` **boolean**; `eligibility_rule_id`/`eligibility_hash` **non-null**; when non-null, `reason_code` ∈ the governed enum; `reason_text` optional.
-* **I-S3.1-ISO-FK (precondition for later S6 write).** `home_country_iso` is FK-valid against the canonical ISO table.
+* **Per merchant:** S3 runs **once**; there are **no stochastic attempts**.
+* **Stop-early:** if rule ladder denies cross-border, candidate set is `{home}` with `candidate_rank=0`; optional steps (priors, integerisation) still obey invariants.
 
 ---
 
-## 5) Canonical materialisation procedure (normative)
+## 5.4 Concurrency & idempotence
 
-**Inputs (to this sub-state):**
-`merchant_id, mcc, channel, home_country_iso` (ingress); `seed, run_id, parameter_hash, manifest_fingerprint` (lineage).
+* **Read joins:** keyed by `{seed, parameter_hash, run_id, merchant_id}` for S1/S2 inputs (equality on path↔embed).
+* **Outputs:** **parameter-scoped** only (partitioned by `parameter_hash`); S3 has **no finaliser**.
+* **Parallelism invariance:** deterministic, no RNG ⇒ re-partitioning/concurrency **cannot** change bytes.
 
-**Output (in-memory for S3.2):**
+---
+
+## 5.5 Evidence cadence (what is written where)
+
+* **Events:** none in S3.
+* **Tables (only in S3.6):** fully-qualified JSON-Schema anchors; numbers as JSON numbers; **priors** (if emitted) as **decimal strings** with fixed `dp` in **`s3_base_weight_priors`**.
+
+---
+
+
+
+# 6) S3.0 — Load scopes (deterministic)
+
+## 6.1 Purpose (binding)
+
+Establish the **closed** set of inputs S3 may read, verify **gates and vocabularies**, and assemble a single, immutable **Context** record for subsequent S3 steps. S3.0 performs **no writes** and uses **no RNG**.
+
+---
+
+## 6.2 Inputs (authoritative anchors; read-only)
+
+* **Merchant scope:** `schemas.ingress.layer1.yaml#/merchant_ids`
+  Required: `merchant_id:u64`, `home_country_iso:string(ISO-3166-1 alpha-2)`, `mcc:string`, `channel ∈ {"CP","CNP"}`.
+* **S1 hurdle:** `schemas.layer1.yaml#/rng/events/hurdle_bernoulli`
+  Required: payload `is_multi:bool`, embedded `{seed, parameter_hash, run_id}`.
+* **S2 finaliser:** `schemas.layer1.yaml#/rng/events/nb_final`
+  Required: payload `n_outlets:i64 (≥2)`, embedded `{seed, parameter_hash, run_id}`.
+* **Policy artefact:** registry id `policy.s3.rule_ladder.yaml`
+  Required: ordered `rules[]`, precedence law (total), **closed** `reason_codes[]`, optional validity window.
+* **Static references:**
+  `static.iso.countries.json` (canonical ISO set & lexicographic order).
+  *(Optional)* `static.currency_to_country.map.json` (deterministic map) if referenced by policy.
+* **Dictionary & registry:**
+  `dataset_dictionary.layer1.json` (dataset-id → partition spec → path template).
+  `artefact_registry_1A.yaml` (audit of artefacts and semver/digests).
+
+**Resolution rule:** all physical locations resolve via the **dataset dictionary**. **No literal paths** in S3.
+
+---
+
+## 6.3 Preconditions & gates (must hold before S3 continues)
+
+1. **Presence & uniqueness** (within `{seed, parameter_hash, run_id}`):
+   exactly one S1 hurdle row **and** exactly one S2 `nb_final` row per merchant; exactly one ingress merchant row.
+2. **Gate conditions:** `is_multi == true` and `n_outlets (N) ≥ 2`.
+3. **Path↔embed equality (read side):** for S1 and S2 rows, embedded `{seed, parameter_hash, run_id}` **byte-equal** the path partitions.
+4. **Closed vocabularies:** `channel ∈ {"CP","CNP"}` (case-sensitive); `home_country_iso ∈` ISO set from the static artefact.
+5. **Artefact integrity:** rule ladder precedence is a **total order**; `reason_codes[]` is a **closed set**; any configured validity windows are satisfied.
+6. **Lineage availability:** run’s `parameter_hash` and `manifest_fingerprint` exist; every artefact opened in §6.2 will be included in the fingerprint inputs for embedding later.
+
+**If any precondition fails, S3 stops for this merchant** (see §6.7). S3.0 produces **no S3 outputs**.
+
+---
+
+## 6.4 Normative behavior (spec, not algorithm)
+
+S3.0 **shall**:
+
+* Open all governed artefacts in §6.2 **atomically**; record each `(id, semver, digest)` for fingerprint inclusion.
+* Resolve S1/S2 datasets via the dictionary and read the **single** row per merchant from each (no scanning outside the partition scope).
+* Enforce §6.3 exactly as written (no “best effort”).
+* Construct an immutable **Context** with the fields in §6.5.
+* Perform **no writes** and **no RNG** activity.
+
+---
+
+## 6.5 Context (immutable; passed to S3.1+)
+
+**Fields and semantics (all required unless marked optional):**
+
+| Field                              | Type                   | Source                  | Semantics                                                       |
+|------------------------------------|------------------------|-------------------------|-----------------------------------------------------------------|
+| `merchant_id`                      | `u64`                  | ingress                 | Canonical key                                                   |
+| `home_country_iso`                 | `string (ISO-3166-1)`  | ingress                 | Must exist in ISO artefact; uppercase A–Z                       |
+| `mcc`                              | `string`               | ingress                 | Merchant category code (read-only)                              |
+| `channel`                          | `"CP"` \| `"CNP"`      | ingress                 | Closed vocabulary (read-only)                                   |
+| `N`                                | `i64 (≥2)`             | S2 `nb_final.n_outlets` | Total outlets accepted by S2                                    |
+| `seed`                             | `u64`                  | S1/S2 embed             | For lineage joins only; S3 outputs are **not** seed-partitioned |
+| `parameter_hash`                   | `Hex64`                | S1/S2 embed / run       | Partition key for all S3 outputs                                |
+| `manifest_fingerprint`             | `Hex64`                | run                     | Embedded in every S3 output row                                 |
+| `artefacts.rule_ladder`            | `{id, semver, digest}` | registry                | Governance attest                                               |
+| `artefacts.iso_countries`          | `{id, semver, digest}` | registry                | Governance attest                                               |
+| `artefacts.ccy_to_country` *(opt)* | `{id, semver, digest}` | registry                | Present only if used                                            |
+
+> **Deliberate omission:** S3 does **not** carry S2’s `mu`/`dispersion_k` in context; S3 never re-derives or uses them.
+
+**Immutability:** later S3 steps must not modify `Context` nor re-open authorities beyond §6.2.
+
+---
+
+## 6.6 Postconditions (must be true after S3.0)
+
+* Governed artefacts are open, version-pinned, and slated for inclusion in the run `manifest_fingerprint`.
+* Merchant has passed gates: `is_multi==true`, `N≥2`.
+* Path partitions equal embedded lineage on S1/S2 rows.
+* Closed vocabularies validated; ISO presence confirmed.
+* A complete **Context** exists with lineage fields ready to embed in S3 egress.
+
+---
+
+## 6.7 Failure vocabulary (merchant-scoped; non-emitting)
+
+| Code                         | Trigger                                                                   | Effect                           |
+|------------------------------|---------------------------------------------------------------------------|----------------------------------|
+| `ERR_S3_AUTHORITY_MISSING`   | Any governed artefact in §6.2 missing/unopenable or lacking semver/digest | Stop S3 for merchant; no outputs |
+| `ERR_S3_PRECONDITION`        | `is_multi=false` or `N<2`                                                 | Stop S3 for merchant; no outputs |
+| `ERR_S3_PARTITION_MISMATCH`  | Path partitions ≠ embedded lineage on S1/S2 rows                          | Stop S3 for merchant; no outputs |
+| `ERR_S3_VOCAB_INVALID`       | `channel` not in `{"CP","CNP"}` or `home_country_iso` not in ISO set      | Stop S3 for merchant; no outputs |
+| `ERR_S3_RULE_LADDER_INVALID` | Ladder not total, unknown `reason_codes`, or out-of-window                | Stop S3 for merchant; no outputs |
+
+**Non-emission guarantee:** S3.0 never writes tables or events; failures here do not produce partial S3 artefacts.
+
+---
+
+## 6.8 Spec-rehearsal (non-authoritative; for clarity only)
+
+1. Open atomically: rule ladder, ISO set, (optional) currency-to-country map, dataset dictionary, artefact registry.
+2. Read exactly one row each (dictionary-resolved IDs): ingress merchant, S1 hurdle, S2 `nb_final`.
+3. Check: uniqueness; path partitions equal embedded lineage (S1/S2); `is_multi==true`; `N≥2`; `channel∈{CP,CNP}`; `home` ISO in set; ladder is a total order with **closed** reason codes (within window if configured).
+4. Assemble `Context` per §6.5.
+5. Stop (no RNG, no writes). Pass `Context` to S3.1.
+
+*(End non-authoritative rehearsal.)*
+
+---
+
+# 7) S3.1 — Rule ladder (deterministic policy)
+
+## 7.1 Purpose (binding)
+
+Evaluate an **ordered, deterministic** set of policy rules to decide the merchant’s **cross-border eligibility** and to produce a **trace** of which rules fired (with reason codes/tags) for S3.2. **No RNG** and **no I/O** occur in S3.1.
+
+---
+
+## 7.2 Inputs (authoritative; read-only)
+
+* **Context** from §6.5 (immutable):
+  `merchant_id, home_country_iso, mcc, channel, N, seed, parameter_hash, manifest_fingerprint`, plus artefact digests. *(Deliberate omission: S3 does not use S2’s `μ, dispersion_k`.)*
+* **Policy artefact** `policy.s3.rule_ladder.yaml` (opened in §6):
+  – an **ordered** array `rules[]` with a **total order**;
+  – a **closed set** `reason_codes[]`;
+  – a **closed set** `filter_tags[]` (merchant/candidate tags the rules may emit);
+  – optional **validity window**;
+  – if used, named constant sets/maps (e.g., sanctioned lists) and deterministic thresholds declared inside the artefact or via static artefacts from §2.
+
+**Resolution rule:** this artefact is the **only** policy authority for S3.1.
+
+---
+
+## 7.3 Rule artefact — shape & fields (binding)
+
+Each element of `rules[]` **must** have:
+
+| Field                 | Type                             | Semantics                                                                                              |
+|-----------------------|----------------------------------|--------------------------------------------------------------------------------------------------------|
+| `rule_id`             | `string` (ASCII `[A-Z0-9_]+`)    | Unique and version-stable within the artefact                                                          |
+| `precedence`          | enum (closed)                    | One of `{ "DENY","ALLOW","CLASS","LEGAL","THRESHOLD","DEFAULT" }`                                      |
+| `priority`            | integer                          | Strict order **within** the same `precedence`; lower number = higher priority                          |
+| `is_decision_bearing` | `bool`                           | If `true`, this rule may set `eligible_crossborder` under §7.4; else it only contributes to tags/trace |
+| `predicate`           | deterministic boolean expression | Over **Context** fields and named sets/maps in the artefact (e.g., `home_country_iso ∈ SANCTIONED`)    |
+| `outcome.reason_code` | `string`                         | Element of the artefact’s **closed** `reason_codes[]`                                                  |
+| `outcome.tags?`       | array<string>                    | Zero or more **closed** `filter_tags[]` to emit if the rule fires                                      |
+| `notes?`              | string                           | Non-normative commentary (ignored by S3)                                                               |
+
+**Determinism constraints**
+
+* Predicates may use **only** equality/inequality, set membership, ISO lexicographic comparisons, and numeric comparisons on §6.5 fields or artefact-declared constants.
+* **No RNG**, no external calls, no clock/host state.
+* Numeric comparisons follow §3 (binary64, RNE, FMA-off).
+
+---
+
+## 7.4 Precedence law & conflict resolution (binding)
+
+Let `Fired = { r ∈ rules : r.predicate == true }`. Define `eligible_crossborder` and the **decision source** as:
+
+1. **DENY ≻ ALLOW ≻ {CLASS,LEGAL,THRESHOLD,DEFAULT}**
+
+   * If any `DENY` fires ⇒ `eligible_crossborder = false` (decision source = the first decision-bearing `DENY`).
+   * Else if any `ALLOW` fires ⇒ `eligible_crossborder = true` (decision source = the first decision-bearing `ALLOW`).
+   * Else ⇒ choose from `{CLASS,LEGAL,THRESHOLD,DEFAULT}` by the ordering below.
+
+2. **Within each precedence**, order rules by **priority asc**, then **rule\_id lexicographic A→Z**.
+
+   * The **first** rule under this order whose `is_decision_bearing==true` becomes the decision source.
+   * Rules with `is_decision_bearing==false` never set the decision but **do** contribute tags/reasons.
+
+3. **DEFAULT terminal (mandatory, exactly one)**
+
+   * Artefact **must** include exactly one `DEFAULT` with `is_decision_bearing==true` that **always fires** (or is otherwise guaranteed to catch the remainder). It provides the fallback decision (e.g., `eligible_crossborder=false`).
+
+4. **Trace ordering (stable)**
+
+   * `rule_trace` lists **all fired rules** sorted by `(precedence order, priority asc, rule_id asc)` — not evaluation time.
+   * Mark the **single** decision source explicitly (`is_decision_source=true`).
+
+---
+
+## 7.5 Evaluation semantics (deterministic; no side-effects)
+
+* Evaluate **all** predicates; collect `Fired`.
+* Set `eligible_crossborder` **once** per §7.4.
+* Compute `merchant_tags` as the **set-union** of `outcome.tags` from `Fired`, keeping a stable **A→Z** order for emission.
+* **No I/O, no RNG**; results are in-memory outputs for S3.2.
+
+---
+
+## 7.6 Outputs to S3.2 (binding)
+
+S3.1 yields the following immutable values:
+
+| Name                   | Type            | Semantics                                                                                                                                |
+|------------------------|-----------------|------------------------------------------------------------------------------------------------------------------------------------------|
+| `eligible_crossborder` | `bool`          | Merchant-level decision per §7.4                                                                                                         |
+| `rule_trace`           | list of structs | Each: `{rule_id, precedence, priority, is_decision_bearing, reason_code, is_decision_source:bool, tags:array<string>}` ordered as §7.4.4 |
+| `merchant_tags`        | array<string>   | Deterministic union of all fired rule tags; **closed** vocabulary; **A→Z** order                                                         |
+
+**Consumption:**
+S3.2 uses `eligible_crossborder` to decide whether to add foreign countries. `rule_trace`/`merchant_tags` drive candidate-row `reason_codes[]`/`filter_tags[]` (mapping to per-country tags is defined in §8/§10).
+
+---
+
+## 7.7 Invariants (must hold)
+
+* Artefact precedence is a **total order**; `reason_codes[]` and `filter_tags[]` are **closed**.
+* Exactly **one** terminal, decision-bearing `DEFAULT` rule exists.
+* `eligible_crossborder` is **always defined**.
+* `rule_trace` ordering is **stable** and independent of evaluation order/data layout.
+* No rule references fields/sets outside §6.2/§2.1.
+* No randomness or host state influences the outcome.
+
+---
+
+## 7.8 Failure vocabulary (merchant-scoped; non-emitting)
+
+| Code                         | Trigger                                                                                                                       | Action                              |
+|------------------------------|-------------------------------------------------------------------------------------------------------------------------------|-------------------------------------|
+| `ERR_S3_RULE_LADDER_INVALID` | Missing/duplicate `DEFAULT`; non-total precedence; duplicate `rule_id`; `reason_code`/`filter_tag` not in the **closed** sets | Stop S3 for merchant; no S3 outputs |
+| `ERR_S3_RULE_EVAL_DOMAIN`    | Predicate references unknown feature/value (e.g., unknown `channel`, ISO not in artefact, undeclared named set/map)           | Stop S3 for merchant; no S3 outputs |
+| `ERR_S3_RULE_CONFLICT`       | Multiple **decision-bearing** rules tie after priority and lexicographic tiebreak (malformed artefact)                        | Stop S3 for merchant; no S3 outputs |
+
+---
+
+## 7.9 Notes (clarifications; binding where stated)
+
+* **Numeric thresholds:** comparisons are evaluated in **binary64** per §3. If thresholds are decimal, the artefact must state inclusivity (`>=` vs `>`).
+* **No re-derivation:** if a rule needs an input (e.g., GDP bucket), it must appear in §2/§6; otherwise the rule is invalid.
+* **Trace vs emission:** S3.1 **does not write** traces; `rule_trace`/`merchant_tags` are handed to S3.2 to annotate candidate rows.
+
+---
+
+# 8) S3.2 — Candidate universe construction (deterministic)
+
+## 8.1 Purpose (binding)
+
+Construct, for a single merchant, the **unordered** candidate country set `C` that §9 will **rank** (and, if enabled, §12 will weight / §13 will integerise). The set is **deterministic**, **non-empty**, and **always contains `home`**. **No RNG** and **no egress** occur in S3.2.
+
+---
+
+## 8.2 Inputs (authoritative; read-only)
+
+* **`Context`** from §6.5 (immutable): `merchant_id`, `home_country_iso`, `mcc`, `channel`, `N`, lineage fields, artefact digests.
+* **`eligible_crossborder : bool`** and **`rule_trace`** from §7.6 (immutable): ordered fired rules `{rule_id, precedence, priority, is_decision_bearing, reason_code, is_decision_source, tags[]}`.
+* **Policy artefact** `policy.s3.rule_ladder.yaml` (opened in §6):
+  • **Named country sets** (e.g., `SANCTIONED`, `EEA`, `WHITELIST_X`);
+  • Per-rule **admit/deny lists** (`admit_countries[]`, `deny_countries[]`) and/or references to named sets;
+  • **Closed vocabularies**: `reason_codes[]`, `filter_tags[]`; mapping notes for row-level tagging.
+* **ISO reference** `static.iso.countries.json` (opened in §6): authoritative ISO set and lexicographic order (alpha-2, uppercase).
+
+> **Resolution rule:** S3.2 consults **only** the policy artefact’s named sets/lists and the ISO set; **no other source** is permitted.
+
+---
+
+## 8.3 Preconditions (must hold before S3.2 runs)
+
+* `home_country_iso ∈ ISO` (already verified in §6).
+* `eligible_crossborder` and `rule_trace` are present (from §7).
+* Every named set/list referenced by **fired** rules exists in the policy artefact and expands **only** to ISO codes.
+
+---
+
+## 8.4 Deterministic construction (spec, not algorithm)
+
+### 8.4.1 Start set (invariant)
+
+* Initialise `C := { home }` with `home = Context.home_country_iso`.
+* Tag the `home` row with `filter_tags += ["HOME"]` (from the policy’s **closed** `filter_tags`) and include the **decision source** `reason_code` (from §7) in `reason_codes` for traceability.
+
+### 8.4.2 Foreign admission when `eligible_crossborder == false`
+
+* **No foreign country is admitted.**
+* `C = { home }`; define `K_foreign := 0`.
+
+### 8.4.3 Foreign admission when `eligible_crossborder == true`
+
+Let `Fired` be the set of fired rules (from `rule_trace`). Build deterministic admits/denies using only **fired** rules and the artefact:
+
+* `ADMITS`  = ⋃ over fired rules of: explicit `admit_countries[]` ∪ expansions of referenced **admit** named sets.
+
+* `DENIES`  = ⋃ over fired rules of: explicit `deny_countries[]`  ∪ expansions of referenced **deny** named sets **including legal/geo constraints** (e.g., `SANCTIONED`).
+
+* **Precedence reflection:** since §7 already applies **DENY ≻ ALLOW**, S3.2 forms the foreign set as
+  `FOREIGN := (ADMITS \ DENIES) \ {home}`. *(No re-evaluation of precedence; this is a set-level reflection.)*
+
+* **ISO filter:** `FOREIGN := FOREIGN ∩ ISO`. Any element not in ISO is a **policy artefact error** (see §8.8).
+
+* Add every `c ∈ FOREIGN` to `C`. For each added row, attach deterministic `filter_tags` and `reason_codes` per the artefact’s mapping rules (e.g., per-rule `row_tags`, plus a **stable union** of fired rules’ `reason_code` values that justify inclusion; both vocabularies are **closed** and must appear in **A→Z** order).
+
+* Define `K_foreign := |FOREIGN|`.
+
+### 8.4.4 De-duplication & casing
+
+* `C` contains **unique** ISO alpha-2 codes (uppercase `A–Z`).
+* If multiple fired rules admit the same country, merge tags/reasons via **stable union** (A→Z for strings), no duplicates.
+
+---
+
+## 8.5 Outputs to §9 (binding; still unordered)
+
+S3.2 yields an **unordered** list of candidate rows for the merchant:
+
+| Field                             | Type                 | Semantics                                                                                                     |
+|-----------------------------------|----------------------|---------------------------------------------------------------------------------------------------------------|
+| `merchant_id`                     | `u64`                | From `Context`                                                                                                |
+| `country_iso`                     | `string(ISO-3166-1)` | `home` or admitted foreign                                                                                    |
+| `is_home`                         | `bool`               | `true` iff `country_iso == home`                                                                              |
+| `filter_tags`                     | `array<string>`      | Deterministic tags (**closed** set from policy); **A→Z** order; includes `"HOME"` for the home row            |
+| `reason_codes`                    | `array<string>`      | Deterministic union (**closed** set); **A→Z** order                                                           |
+| *(optional)* `base_weight_inputs` | struct               | Only if §12 computes deterministic priors later; contains **declared** numeric inputs (no RNG, no host state) |
+
+> **No `candidate_rank` is assigned in §8**; ranking happens in §9. If S3 does not implement priors (§12) or integerisation (§13), omit their optional fields.
+
+---
+
+## 8.6 Invariants (must hold after S3.2)
+
+* `C` is **non-empty** and **contains `home`**.
+* If `eligible_crossborder == false` ⇒ `C == {home}` and `K_foreign == 0`.
+* If `eligible_crossborder == true` ⇒ `C == {home} ∪ FOREIGN`; `K_foreign == |C| − 1`; `FOREIGN` is deterministic per fired rules.
+* Every `country_iso ∈ ISO`; **no duplicates** in `C`.
+* `filter_tags` and `reason_codes` per row are drawn **only** from the artefact’s **closed** vocabularies and are in **A→Z** order.
+
+---
+
+## 8.7 Notes (clarifications; binding where stated)
+
+* **No re-derivation:** S3.2 does not derive features beyond §6/§2. If a rule needs, e.g., *GDP bucket*, it must be provided via governed artefacts; otherwise the rule is invalid for S3.
+* **No RNG:** Country selection in S3.2 is policy-driven, not stochastic. Any stochastic selection (e.g., Gumbel-top-K) belongs in a later state; S3 here is deterministic.
+* **Admit/deny scope:** Admit/deny operate at **country-level** only. Merchant-level tags from rules apply to **all** candidate rows; per-row tags follow the artefact’s mapping.
+
+---
+
+## 8.8 Failure vocabulary (merchant-scoped; non-emitting)
+
+| Code                              | Trigger                                                     | Action                              |
+|-----------------------------------|-------------------------------------------------------------|-------------------------------------|
+| `ERR_S3_CANDIDATE_CONSTRUCTION`   | Candidate set becomes empty **or** `home` missing from `C`  | Stop S3 for merchant; no S3 outputs |
+| `ERR_S3_COUNTRY_CODE_INVALID`     | A named set/list expands to a value not in the ISO artefact | Stop S3 for merchant; no S3 outputs |
+| `ERR_S3_POLICY_REFERENCE_INVALID` | Fired rule references an undefined named set/list           | Stop S3 for merchant; no S3 outputs |
+
+---
+
+**Hand-off to §9:** §8 yields the **unordered** candidate rows `C`. §9 will impose a **total, deterministic order** (**`candidate_rank`**), proving `candidate_rank(home)=0` and contiguity, and (if configured) incorporating **quantised deterministic priors** when sorting.
+
+---
+
+# 9) S3.3 — Ordering & tie-break (total order)
+
+## 9.1 Purpose (binding)
+
+Impose a **total, deterministic order** over the **unordered** candidate rows from §8 so that every merchant’s candidates receive a **contiguous** **`candidate_rank ∈ {0,…,|C|−1}`** with **`candidate_rank(home) = 0`**. **No RNG** and **no I/O** occur in S3.3.
+
+> Canonical S3 flow (per §5): **rank first, then priors (§12)**. Therefore, ranking **does not** use weights.
+
+---
+
+## 9.2 Inputs (authoritative; read-only)
+
+* **Candidate rows `C` from §8.5** (unordered), each with:
+  `merchant_id`, `country_iso`, `is_home`, `filter_tags[]`, `reason_codes[]`, *(optional)* `base_weight_inputs` (only if §12 will run later; not used here).
+* **Context** from §6.5 (read-only): includes `home_country_iso`.
+* **Policy artefact `policy.s3.rule_ladder.yaml`** (read-only): precedence class order, per-rule `priority`, `rule_id`, and the **closed mapping** from row `reason_codes[]` to the admitting rule id(s) (see 9.3.2).
+
+> Resolution rule: S3.3 consults **only** §8 outputs and the artefact fields listed above. No external sources.
+
+---
+
+## 9.3 Comparator (single path to a total order)
+
+Define one deterministic comparator. Sorting must be **stable**.
+
+### 9.3.1 Home override (rank 0)
+
+* The row with `country_iso == home_country_iso` **must** receive **`candidate_rank = 0`**.
+* All other countries are ranked **strictly after** home (beginning at `candidate_rank = 1`).
+
+### 9.3.2 Primary key — **admission order key** (weights are not used)
+
+For each foreign row `i`, derive a deterministic **admission key** from the artefact:
+
+* Let `AdmitRules(i)` be the set of **admit-bearing** fired rules (from §7/§8 mapping) that justify inclusion of `i`.
+  If the artefact’s `reason_codes[]` alone are not sufficient to reconstruct `AdmitRules(i)`, the artefact **must** provide an explicit, closed mapping (e.g., per-row `admit_rule_ids[]`). If this mapping is missing, the artefact is **invalid** for S3 (§9.8).
+
+* For each `r ∈ AdmitRules(i)`, compute the triplet
+  `K(r) = ⟨ precedence_rank(r), priority(r), rule_id_ASC ⟩`,
+  where `precedence_rank` is the numeric index of the artefact’s precedence class (lower = earlier).
+
+* Define the row’s primary key as the **minimum** (lexicographic) triplet over `AdmitRules(i)`:
+
+  ```
+  Key1(i) = min_lex { K(r) : r ∈ AdmitRules(i) }
+  ```
+
+  (Intuition: if multiple rules justify inclusion, the earliest under artefact order wins deterministically.)
+
+### 9.3.3 Secondary & tertiary keys (shared)
+
+* **Key 2 (ISO tiebreak):** `country_iso` **lexicographic A→Z** (ISO alpha-2).
+* **Key 3 (stability):** the row’s **original index** in §8’s output (or, equivalently, `(merchant_id, original_index)`) to guarantee **stable** order under equal keys.
+
+---
+
+## 9.4 Rank assignment (binding)
+
+After sorting with §9.3 for a given merchant:
+
+* Assign **`candidate_rank = 0`** to `home`.
+* Assign **`candidate_rank = 1,2,…`** in sorted order to the remaining rows **with no gaps**.
+
+**Contiguity:** per merchant, `candidate_rank` spans `0..|C|−1`.
+**Uniqueness:** per merchant, **no two rows share the same `(candidate_rank, country_iso)`**; **no duplicate `country_iso`** exist by §8.
+
+---
+
+## 9.5 Deterministic numeric discipline (binding)
+
+* Priors/weights, if later computed in §12, are **not** used here.
+* All string and integer comparisons follow §3’s environment (binary64 rules are irrelevant in §9 unless later sections add numeric keys).
+* Sorting is **stable**; do not rely on host/library unspecified stability—**stability is part of the contract**.
+
+---
+
+## 9.6 Outputs to §12/§13/§15 (binding)
+
+Augment each candidate row with:
+
+| Field                    | Type   | Semantics                                                                                             |
+|--------------------------|--------|-------------------------------------------------------------------------------------------------------|
+| `candidate_rank`         | `u32`  | Contiguous per merchant; `home` is `0`                                                                |
+| *(optional)* `order_key` | struct | Non-emitted diagnostic tuple capturing `Key1` (for debugging only; include only if schema defines it) |
+
+**Consumption:**
+
+* §12 (if enabled) may compute **priors** over the already ranked list (does **not** affect `candidate_rank`).
+* §13 (if enabled) consumes the ranked list (and, if present, priors) to integerise to counts.
+* §15 egress always emits **`candidate_rank`** as the **sole authority** for inter-country order.
+
+---
+
+## 9.7 Invariants (must hold after S3.3)
+
+* **`candidate_rank(home) = 0`**.
+* Ranks are **contiguous** with no gaps; total order holds even when keys tie (via ISO then stability key).
+* Comparator uses **admission order key** (no priors); sorting is **stable** and host-invariant under §3.
+* If the artefact cannot provide a closed mapping from `reason_codes[]` to admit rules for any foreign row, the run is invalid for S3.
+
+---
+
+## 9.8 Failure vocabulary (merchant-scoped; non-emitting)
+
+| Code                            | Trigger                                                                                            | Action                              |      |                                     |
+|---------------------------------|----------------------------------------------------------------------------------------------------|-------------------------------------|------|-------------------------------------|
+| `ERR_S3_ORDERING_HOME_MISSING`  | No row with `country_iso == home` in §8 output                                                     | Stop S3 for merchant; no S3 outputs |      |                                     |
+| `ERR_S3_ORDERING_NONCONTIGUOUS` | Assigned ranks are not contiguous from \`0..                                                       | C                                   | −1\` | Stop S3 for merchant; no S3 outputs |
+| `ERR_S3_ORDERING_KEY_UNDEFINED` | Cannot reconstruct the **admission key** (no priors and no closed mapping from reasons → rule ids) | Stop S3 for merchant; no S3 outputs |      |                                     |
+| `ERR_S3_ORDERING_UNSTABLE`      | Artefact inconsistency prevents a single total order (e.g., ambiguous mapping that yields ties)    | Stop S3 for merchant; no S3 outputs |      |                                     |
+
+---
+
+## 9.9 Notes (clarifications; binding where stated)
+
+* **Home-first is an override, not a key:** assign `candidate_rank=0` to home **before** comparing the remainder.
+* **Admission key derivation** depends on a **closed mapping** from row-level `reason_codes[]` (or explicit `admit_rule_ids[]`) to admitting rules. If your policy expresses reasons at a coarser grain, add explicit `admit_rule_ids[]`.
+* **No probabilistic meaning** attaches to `candidate_rank`. It is a deterministic ordering surface only.
+
+---
+
+# 10) S3.4 — Integerisation (include only if S3 allocates counts)
+
+## 10.1 Purpose (binding)
+
+Convert a merchant’s **ranked** candidate universe and a total outlet count **`N`** (from S2) into **non-negative integer per-country counts** that sum to **`N`**, using a **deterministic largest-remainder** method with fixed quantisation and tie-break rules. **No RNG** and **no I/O** occur in S3.4.
+
+---
+
+## 10.2 Inputs (authoritative; read-only)
+
+* **Context** (from §6.5): `merchant_id`, `home_country_iso`, `N (≥2)`, lineage fields.
+* **Ranked candidates** (from §9): rows `⟨country_iso, candidate_rank, …⟩`, with `candidate_rank(home)=0`, contiguous ranks, no duplicates.
+* **Deterministic priors (optional):** **quantised** weights `w_i^⋄` (post-quantisation per §3.5 / §12) **if** priors are enabled in S3.
+* **(Optional) bounds / policy knobs:** per-country integer bounds `L_i, U_i` with `0 ≤ L_i ≤ U_i ≤ N` **if** the policy artefact defines them for integerisation.
+
+> **Resolution rule:** If priors are **not** enabled in S3, integerisation uses the **equal-weight** path (§10.3.B). If bounds exist, apply §10.6 (bounded Hamilton).
+
+---
+
+## 10.3 Ideal (fractional) allocation — two primary paths
+
+Let `M = |C|` be the number of candidate countries.
+
+### 10.3.A Priors present (preferred when enabled)
+
+* Use **quantised** priors `w_i^⋄ > 0` (dp fixed where produced).
+* Normalise: `s_i = w_i^⋄ / (Σ_j w_j^⋄)`.
+* Ideal fractional counts: `a_i = N · s_i`.
+
+**Guard:** If `Σ_j w_j^⋄ == 0` (policy error), fall back to §10.3.B (equal-weight) and raise `ERR_S3_WEIGHT_ZERO` (see §10.9).
+
+### 10.3.B No priors (equal-weight discipline)
+
+* Set `s_i = 1 / M` for all `i`.
+* Ideal counts: `a_i = N / M` (identical for all countries).
+
+*(Either path yields `a = (a_1,…,a_M)` used below.)*
+
+---
+
+## 10.4 Floor step, residuals, and remainder
+
+* **Floor counts:** `b_i = ⌊ a_i ⌋` (integer).
+* **Remainder to distribute:** `d = N − Σ_i b_i` (integer, `0 ≤ d < M`).
+* **Residuals:** `r_i = a_i − b_i` (fractional part in `[0,1)`).
+* **Residual quantisation (binding):** quantise residuals to fixed **`dp_resid = 8`** decimal places under binary64 RNE (§3.5):
+  `r_i^⋄ = round_to_dp(r_i, 8)`.
+
+> Residuals are **always** computed **after** using the **quantised** priors (if any). The value of `dp_resid` is **binding**.
+
+---
+
+## 10.5 Deterministic bump rule (largest-remainder with fixed tie-break)
+
+Distribute the `d` remaining units by adding **+1** to exactly `d` countries according to this deterministic order:
+
+1. Sort by **`r_i^⋄` descending**.
+2. Break ties by **`country_iso`** lexicographic **A→Z** (ISO alpha-2).
+3. If still tied (should not occur with fixed dp + ISO key), break by **`candidate_rank` ascending** (home first), then by the stable original input index from §8.
+
+Let `S` be the resulting order. Bump the top `d` entries (`S[1..d]`) by +1. Final integer **count**:
 
 ```
-S3Inputs = {
-  merchant_id,
-  home_country_iso,
-  mcc, channel,
-  N,  # accepted in S2 from nb_final.value
-  flags: {
-    is_eligible,              # boolean
-    eligibility_rule_id,      # string
-    eligibility_hash,         # hex string
-    reason_code,              # enum or null
-    reason_text               # optional
-  },
-  seed, run_id,
-  parameter_hash,
-  manifest_fingerprint
-}
+count_i = b_i + 1[i ∈ top d].
 ```
 
-**Algorithm (reference pseudocode, language-agnostic):**
-
-```pseudo
-function s3_1_bind_inputs(m: MerchantID,
-                          seed: int64,
-                          parameter_hash: hex64,
-                          run_id: uuid) -> S3Inputs:
-    # 1) Verify S2 acceptance (multi-site) and read N
-    rowN := select value
-            from logs.rng.events.nb_final
-            where merchant_id = m
-              and seed = seed
-              and parameter_hash = parameter_hash
-              and run_id = run_id
-    if count(rowN) != 1:
-        abort E_NOT_MULTISITE_OR_MISSING_S2(m)
-    N := rowN.value
-    assert N >= 2                                    # multi-site
-
-    # 2) Read ingress projection (strict schema)
-    (mid, mcc, channel, home_iso) :=
-        select merchant_id, mcc, channel, home_country_iso
-        from ingress.merchant_ids
-        where merchant_id = m
-    assert channel in {"card_present","card_not_present"}
-    assert iso2_regex_match(home_iso) and fk_iso2_exists(home_iso)
-
-    # 3) Lookup the parameter-scoped eligibility row
-    flags := select merchant_id,
-                     is_eligible,
-                     eligibility_rule_id,
-                     eligibility_hash,
-                     reason_code,
-                     reason_text
-             from data.layer1.1A.crossborder_eligibility_flags
-             where parameter_hash = parameter_hash
-               and merchant_id = m
-    if count(flags) == 0: abort E_FLAGS_MISSING(m)
-    if count(flags) >  1: abort E_FLAGS_DUPLICATE(m)
-    f := flags[0]
-    assert typeof(f.is_eligible) == BOOLEAN
-    assert f.eligibility_rule_id is not NULL
-    assert f.eligibility_hash   is not NULL
-    assert f.reason_code is NULL
-           or f.reason_code in {"mcc_blocked","cnp_blocked","home_iso_blocked"}
-
-    # 4) Bind and return the in-memory bundle (no writes here)
-    return {
-      merchant_id: mid,
-      home_country_iso: home_iso,
-      mcc: mcc,
-      channel: channel,
-      N: N,
-      flags: {
-        is_eligible: f.is_eligible,
-        eligibility_rule_id: f.eligibility_rule_id,
-        eligibility_hash: f.eligibility_hash,
-        reason_code: f.reason_code,
-        reason_text: f.reason_text
-      },
-      seed: seed,
-      run_id: run_id,
-      parameter_hash: parameter_hash,
-      manifest_fingerprint: current_manifest_fingerprint()
-    }
-```
-
-**Joins/keys (MUST use):**
-
-* S2 acceptance & value of `N`: equality on `(merchant_id, seed, parameter_hash, run_id)` into `logs/rng/events/nb_final`.
-* Flags lookup: equality on `(parameter_hash, merchant_id)` into `crossborder_eligibility_flags`.
+**Persisted residual order:** define `residual_rank_i` as the **1-based position** of country `i` in `S` (the bump set is `{ i | residual_rank_i ≤ d }`). Persist `residual_rank` for **all** countries to make replay and tie reviews byte-deterministic downstream.
 
 ---
 
-## 6) Failure taxonomy (detected in S3.1; all are **abort**)
+## 10.6 Optional bounds (lower/upper) — bounded Hamilton method
 
-* `E_NOT_MULTISITE_OR_MISSING_S2(m)` — Missing/duplicate `nb_final` acceptance or `N < 2`.
-* `E_FLAGS_MISSING(m)` — No row in `crossborder_eligibility_flags/parameter_hash={parameter_hash}` for `merchant_id=m`.
-* `E_FLAGS_DUPLICATE(m)` — >1 row for `(parameter_hash, merchant_id)`.
-* `E_INGRESS_SCHEMA(channel|home_country_iso)` — Channel not in enum or ISO not FK-valid per ingress schema.
+If the policy artefact supplies per-country integer bounds `(L_i, U_i)`:
 
-Each abort MUST surface a minimal diagnostic payload including the probed keys and the dictionary pointer (dataset id + `schema_ref`).
+1. **Feasibility guard:** require `Σ_i L_i ≤ N ≤ Σ_i U_i`. If violated ⇒ `ERR_S3_INTEGER_FEASIBILITY`.
+2. **Initial allocation:** set `b_i = L_i`. Let `N′ = N − Σ_i L_i`. Define **capacities** `cap_i = U_i − L_i`.
+3. **Reweighting set:** consider only countries with `cap_i > 0`. Recompute **shares** over that set:
 
----
-
-## 7) Observability (structured log; optional, non-authoritative)
-
-Emit one **system log** record per merchant to assist incident response (validator does **not** rely on this):
-
-```
-logs/system/eligibility_gate.v1.jsonl
-{
-  event: "s3_inputs_bound",
-  merchant_id, seed, run_id, parameter_hash, manifest_fingerprint,
-  ingress: { mcc, channel, home_country_iso },
-  flags: {
-    is_eligible, eligibility_rule_id, eligibility_hash,
-    reason_code, reason_text
-  },
-  N_from_S2: N
-}
-```
+   * With priors: `s_i = w_i^⋄ / Σ_{cap_j>0} w_j^⋄`; else `s_i = 1 / |{j : cap_j>0}|`.
+   * Ideal increments: `a_i′ = N′ · s_i`.
+   * Floors: `f_i = ⌊ a_i′ ⌋`, limited by capacity: `f_i = min(f_i, cap_i)`; set `b_i ← b_i + f_i`.
+   * Remainder `d′ = N′ − Σ_i f_i`.
+4. **Residuals and bump:** compute `r_i′ = a_i′ − f_i`, quantise to **`dp_resid = 8`**, and apply §10.5 **restricted to countries with remaining capacity** (`cap_i − f_i > 0`) to distribute the remaining `d′`.
+5. **Final counts:** `count_i = b_i` after bumps; each satisfies `L_i ≤ count_i ≤ U_i` and `Σ_i count_i = N`.
 
 ---
 
-## 8) Conformance tests (suite skeleton)
+## 10.7 Outputs to egress (§15) (binding)
 
-1. **Happy path.** Ingress valid; flags row present with
-   `{is_eligible=true, eligibility_rule_id="default_v1", eligibility_hash="…", reason_code=null}`; exactly one `nb_final` with `value≥2` → **bind succeeds** and returns the bundle.
-2. **Missing flags.** Remove the flags row under current `{parameter_hash}` → **abort `E_FLAGS_MISSING`**.
-3. **Duplicate flags.** Duplicate the row (same `merchant_id`, same `parameter_hash`) → **abort `E_FLAGS_DUPLICATE`**.
-4. **Wrong channel literal.** Set `channel="CP"` in ingress → **abort `E_INGRESS_SCHEMA(channel)`**.
-5. **Single-site merchant.** Remove `nb_final` (or set S1 `is_multi=0`) → **abort `E_NOT_MULTISITE_OR_MISSING_S2`**.
-6. **ISO FK failure.** Set `home_country_iso="UK"` (not ISO-2) → **abort `E_INGRESS_SCHEMA(home_country_iso)`**.
+For each candidate row:
 
----
+| Field           | Type       | Semantics                                                        |
+|-----------------|------------|------------------------------------------------------------------|
+| `count`         | `i64 (≥0)` | Final integer allocation for `country_iso`                       |
+| `residual_rank` | `u32`      | Position in the residual order `S` of §10.5 (1 = highest resid.) |
 
-## 9) Complexity & performance
-
-O(1) lookups per merchant: one key read in ingress, one partition-filtered point lookup in `crossborder_eligibility_flags`, and a single-row lookup in `nb_final`. All I/O is **parameter-scoped** or **run-scoped** via partitions, so lookups are index-friendly.
+If S3 emits a dedicated table **`s3_integerised_counts`**, include `merchant_id`, `country_iso`, `count`, `residual_rank`, and lineage fields, partitioned per §2.
 
 ---
 
-## 10) Output to S3.2 (state boundary)
+## 10.8 Invariants (must hold)
 
-S3.1 produces an **in-memory** structure (no persistence):
-
-```
-{
-  merchant_id,
-  home_country_iso,
-  mcc, channel,
-  N,   # accepted in S2 (nb_final.value)
-  flags: { is_eligible, eligibility_rule_id, eligibility_hash,
-           reason_code, reason_text },
-  seed, run_id,
-  parameter_hash,
-  manifest_fingerprint
-}
-```
-
-**S3.2** consumes this bundle; it reads `eₘ ← flags.is_eligible` and applies the branch policy (eligible → **S4**; ineligible → **S6** per single-writer doctrine).
+* `Σ_i count_i = N`; `count_i ≥ 0`.
+* **`candidate_rank(home) = 0`** still holds from §9; integerisation **does not** alter ranks.
+* Residuals quantised at **`dp_resid = 8`** before ordering; tie-break exactly as §10.5.
+* If bounds are used: `L_i ≤ count_i ≤ U_i` for all `i`, and feasibility guard passed.
+* `{ i | residual_rank_i ≤ d }` matches exactly the set of bumped countries.
 
 ---
 
-# S3.2 — Eligibility function & deterministic branch decision (no RNG)
+## 10.9 Failure vocabulary (merchant-scoped; non-emitting)
 
-## 1) Purpose & scope (normative)
-
-Decide the branch for each **multi-site** merchant $m$ using the **parameter-scoped** eligibility flags:
-
-* **eligible** → proceed to **S4**;
-* **domestic-only** → route to **S6** with $K^*=0$ so **S6** (single writer) persists `country_set` with **home @ rank 0**, then proceed to S7.
-  S3.2 is **purely deterministic** and **writes nothing**.
-
-**Predecessor:** S3.1 produced:
-
-```
-S3Inputs = {
-  merchant_id, home_country_iso, mcc, channel, N,
-  flags: {
-    is_eligible,               # boolean
-    eligibility_rule_id,       # string
-    eligibility_hash,          # hex
-    reason_code,               # enum|null
-    reason_text                # optional
-  },
-  seed, run_id,
-  parameter_hash, manifest_fingerprint
-}
-```
-
-
+| Code                          | Trigger                                            | Action                              |
+|-------------------------------|----------------------------------------------------|-------------------------------------|
+| `ERR_S3_WEIGHT_ZERO`          | Priors enabled but `Σ_i w_i^⋄ == 0` (policy error) | Stop S3 for merchant; no S3 outputs |
+| `ERR_S3_INTEGER_FEASIBILITY`  | Bounds specified but `Σ L_i > N` or `N > Σ U_i`    | Stop S3 for merchant; no S3 outputs |
+| `ERR_S3_INTEGER_SUM_MISMATCH` | After allocation, `Σ_i count_i ≠ N`                | Stop S3 for merchant; no S3 outputs |
+| `ERR_S3_INTEGER_NEGATIVE`     | Any `count_i < 0`                                  | Stop S3 for merchant; no S3 outputs |
 
 ---
 
-## 2) Formal definition (policy set and indicator)
+## 10.10 Notes (clarifications; binding where stated)
 
-Let $\mathcal{I}$ be ISO-3166-1 alpha-2 (uppercase). The governed rule family is:
-
-$$
-\mathcal{E}\subseteq \underbrace{\mathbb{N}}_{\text{MCC}}\times
-\underbrace{\{\texttt{card_present},\texttt{card_not_present}\}}_{\text{channel}}\times
-\underbrace{\mathcal{I}}_{\text{home ISO-2}},
-$$
-
-compiled in S0 into `crossborder_eligibility_flags` under the current `{parameter_hash}`. The indicator
-
-$$
-\boxed{\,e_m=\mathbf{1}\{(\texttt{mcc}_m,\texttt{channel}_m,\texttt{home_country_iso}_m)\in\mathcal{E}\}\,}
-$$
-
-is **read**, not recomputed: `e_m ≡ flags.is_eligible`.
+* **dp selection:** `dp_resid = 8` is binding for residuals to ensure cross-host determinism; change only via policy artefact **and** update this section.
+* **Home minimum:** If policy requires a **home floor** (e.g., `L_home ≥ 1`), encode via §10.6; do **not** hand-wave it in code.
+* **No probabilistic meaning:** counts are deterministic integers; priors (if any) are deterministic scores, *not* probabilities.
 
 ---
 
-## 3) Inputs (authoritative sources)
+# 11) S3.5 — Sequencing & IDs (deterministic)
 
-* **Flags (parameter-scoped):** `crossborder_eligibility_flags/parameter_hash={parameter_hash}` with exactly one row per merchant; governed types: `is_eligible:boolean`, `eligibility_rule_id:string`, `eligibility_hash:string`, `reason_code ∈ {"mcc_blocked","cnp_blocked","home_iso_blocked"}|null`, `reason_text:string|null`.
-* **Ingress fields (validated in S3.1):** `mcc:int32`, `channel ∈ {"card_present","card_not_present"}`, `home_country_iso: ISO2`.
-* **S2 acceptance (precondition):** exactly one `nb_final` under `(merchant_id, seed, parameter_hash, run_id)`; `N ≥ 2`.
+## 11.1 Purpose (binding)
 
----
-
-## 4) Preconditions (MUST hold)
-
-1. Multi-site branch only (`is_multi=1` in S1) **and** accepted S2 draw (`nb_final` present).
-2. Unique flags row under active `{parameter_hash}`.
-3. Flags schema satisfied (types, non-nulls, enum).
-4. Ingress enum/FK already satisfied by S3.1.
+Given per-country **integer counts** `count_i` (from §10) for a multi-site merchant, define a **deterministic, contiguous within-country sequence** `site_order ∈ {1..count_i}`, and—if enabled—a **deterministic identifier** `site_id` per `(merchant_id, country_iso, site_order)`. **No RNG**; **no gaps**; ordering is reproducible across hosts.
 
 ---
 
-## 5) Branch function (normative)
+## 11.2 Preconditions (must hold)
 
-$$
-\boxed{\ \text{if } e_m=1 \Rightarrow \textsf{eligible};\ \text{else } \textsf{domestic_only}\ }
-$$
-
-* **Eligible (`e=1`):** proceed to **S4** for ZTP on $K\ge1$; later S6 selects/ordains foreign ISOs; `country_set` persists order with home at rank 0.
-* **Domestic-only (`e=0`):** **route to S6** with $K^*=0$ so S6 writes `country_set` with only the home ISO at `rank=0` (single-writer doctrine), then proceed to S7. This replaces older “skip S4–S6 → S7” wording to avoid orphaning the home row.
+* Inputs from §6.5 (**Context**) and **ranked candidate rows** from §9.
+* Integer counts from §10 present and valid: for each `country_iso` in the merchant’s set, `count_i ≥ 0` and `Σ_i count_i = N`.
+* **`candidate_rank(home) = 0`** still holds (sequencing must not change inter-country order).
 
 ---
 
-## 6) Determinism & validator hooks
+## 11.3 Sequencing (deterministic; no side-effects)
 
-* **No RNG:** S3.2 consumes **no** RNG; output is a pure function of `(ingress, flags)` under `{parameter_hash}`.
-* **Branch coherence (checked in S9):**
+* **Per-country domain:** For each `(merchant_id, country_iso)` with `count_i > 0`, define a **contiguous** within-country sequence `site_order ∈ {1,2,…,count_i}`.
+* **Logical row grouping:** Within a merchant block, rows are *logically* grouped by `(country_iso, site_order)`; inter-country order remains §9’s **`candidate_rank`** and is **not** encoded here.
+* **Zero counts:** If `count_i = 0`, **no rows** exist for that `(merchant_id, country_iso)` in any sequencing output.
 
-  * If `e=0` ⇒ **no** S4–S6 RNG events (`poisson_component(context="ztp")`, `ztp_*`, `gumbel_key`, `dirichlet_gamma_vector`).
-  * If `e=1` ⇒ evidence of entering S4 (presence of `poisson_component(context="ztp")` **or** `ztp_retry_exhausted`).
-    Joins: `(merchant_id, seed, parameter_hash, run_id)`.
-
----
-
-## 7) Procedure (reference pseudocode)
-
-```pseudo
-function s3_2_decide_gate(inp: S3Inputs) -> S3Branch:
-    assert typeof(inp.flags.is_eligible) == BOOLEAN
-    assert inp.flags.eligibility_rule_id != NULL
-    assert inp.flags.eligibility_hash    != NULL
-    assert inp.flags.reason_code == NULL
-           or inp.flags.reason_code in {"mcc_blocked","cnp_blocked","home_iso_blocked"}
-
-    e := inp.flags.is_eligible
-
-    if e == true:
-        next_state := "S4"
-        K := null          # unknown until S4 (JSON null)
-        C := [inp.home_country_iso]  # rank 0 reserved
-    else:
-        next_state := "S6" # single-writer persists country_set (home only)
-        K := 0
-        C := [inp.home_country_iso]
-
-    return {
-      merchant_id: inp.merchant_id,
-      e: e,
-      eligibility_rule_id: inp.flags.eligibility_rule_id,
-      eligibility_hash:    inp.flags.eligibility_hash,
-      reason_code: inp.flags.reason_code,
-      reason_text: inp.flags.reason_text,
-      home_country_iso: inp.home_country_iso,
-      mcc: inp.mcc, channel: inp.channel,
-      N: inp.N,
-      C: C, K: K,
-      next_state: next_state,
-      seed: inp.seed, run_id: inp.run_id,
-      parameter_hash: inp.parameter_hash,
-      manifest_fingerprint: inp.manifest_fingerprint
-    }
-```
-
-Notes: JSON-native `null` is used for “unknown” $K$ to avoid non-serialisable sentinels; `C` is ordered, dup-free, with rank 0 = home.
+> **Binding:** Sequencing **never** reorders countries: inter-country order remains the **`candidate_rank`** from §9; sequencing only establishes the order **within** each country.
 
 ---
 
-## 8) Failure taxonomy (at/around S3.2)
+## 11.4 Identifier policy (if `site_id` is enabled)
 
-* `E_NOT_MULTISITE_OR_MISSING_S2` — precondition fail (no `nb_final` / not multi-site).
-* `E_FLAGS_MISSING` / `E_FLAGS_DUPLICATE` / `E_FLAGS_SCHEMA` — flags issues under active `{parameter_hash}`.
-* `F_EL_BRANCH_INCONSISTENT` (validator): S4–S6 RNG present for `e=0`, or no S4 evidence for `e=1`.
-
----
-
-## 9) Outputs (to S3.3)
-
-S3.2 returns an **in-memory** `S3Branch`:
-
-```
-{
-  merchant_id, e,
-  eligibility_rule_id, eligibility_hash,
-  reason_code, reason_text,
-  home_country_iso, mcc, channel,
-  N, C, K, next_state,
-  seed, run_id, parameter_hash, manifest_fingerprint
-}
-```
-
-S3.3 initialises/maintains the **country-set container** `C` (rank 0 = home). For `e=0`, **S6** will persist `country_set` with only rank 0; for `e=1`, S4 will determine $K\ge1$ and S6 will extend/persist order.
+* **Format:** `site_id` is a **fixed-width, zero-padded 6-digit string**: `"{site_order:06d}"`.
+  Examples: `1 → "000001"`, `42 → "000042"`, `999999 → "999999"`.
+* **Scope of uniqueness:** Unique **within** each `(merchant_id, country_iso)`. The same `site_id` string may appear in another country or merchant.
+* **Overflow rule (binding):** If `count_i > 999999`, raise `ERR_S3_SITE_SEQUENCE_OVERFLOW` and **stop S3 for that merchant**; no partial sequencing/outputs.
+* **Immutability:** Given identical inputs/lineage, the mapping `(merchant_id, country_iso, site_order) → site_id` is a pure function (no host/time dependence).
 
 ---
 
-# S3.3 — Country-set container initialisation (deterministic, no RNG)
+## 11.5 Emitted dataset (Variant A — S3 owns sequencing)
 
-## 1) Purpose & scope (normative)
+If S3 emits sequencing, it **must** produce the following table; otherwise skip to §11.6.
 
-Create, per merchant $m$, an **in-memory, ordered, duplicate-free** container $\mathcal{C}_m$ of ISO-2 country codes that:
+| Dataset id         | JSON-Schema anchor                  | Partitions (path)    | Embedded lineage (columns)                           | Row order (physical)                                 | Columns (name : type : semantics)                                                                                                                                                             |
+|--------------------|-------------------------------------|----------------------|------------------------------------------------------|------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `s3_site_sequence` | `schemas.1A.yaml#/s3/site_sequence` | `parameter_hash={…}` | `manifest_fingerprint:Hex64`, `parameter_hash:Hex64` | `(merchant_id ASC, country_iso ASC, site_order ASC)` | `merchant_id:u64` — key; `country_iso:string(ISO-3166-1 alpha-2)`; `site_order:u32` — **contiguous 1..count\_i**; *(optional)* `site_id:string(len=6)` — zero-padded; lineage fields as above |
 
-* anchors **home** at **rank 0** **now**,
-* is **append-only** (never reordered) in S4–S6, and
-* will be **persisted only after S6** as `alloc/country_set`, the **sole authority** for inter-country order (`rank: 0 = home; 1..K` for foreigns).
+**Contracts**
 
-S3.3 **performs no writes** and **consumes no RNG**. Inter-country order is **not** encoded in egress; consumers (incl. 1B) **must** join `country_set.rank`.
-
----
-
-## 2) Inputs (from S3.2; authoritative)
-
-From S3.2 we receive (in-memory):
-
-```
-S3Branch {
-  merchant_id, home_country_iso = c,
-  mcc, channel, N,
-  e,                              # boolean eligibility bit
-  eligibility_rule_id,            # string
-  eligibility_hash,               # hex string
-  reason_code, reason_text,       # enum|null + optional text
-  C, K,                           # may be set by S3.2; see below
-  next_state,                     # may be set by S3.2; re-derived here
-  seed, run_id,
-  parameter_hash, manifest_fingerprint
-}
-```
-
-Contracts already enforced in S3.1–S3.2:
-
-* `e:boolean` is read from `crossborder_eligibility_flags` (parameter-scoped; exactly one row per `(parameter_hash, merchant_id)`); `channel ∈ {"card_present","card_not_present"}`.
-* `home_country_iso = c` is uppercase ISO-3166-1 alpha-2 and FK-valid against the canonical ISO dataset referenced by the schemas.
+* **Contiguity:** For each `(merchant_id, country_iso)`, the set of `site_order` values is **exactly** `{1..count_i}`.
+* **Uniqueness:** No duplicate `site_order` within a `(merchant_id, country_iso)` block; if `site_id` present, no duplicate `site_id` within that block.
+* **Read scope:** Consumers **must not** infer inter-country order from this table; inter-country order is **only** `candidate_rank` from §9 (available via `s3_candidate_set`).
 
 ---
 
-## 3) Formal definition (container, rank, mapping)
+## 11.6 Deferred emission (Variant B — sequencing implemented later)
 
-Let $\mathcal{I}$ be the canonical ISO-2 universe. Define the **country-set container** for merchant $m$:
+If S3 does **not** emit `s3_site_sequence`, it must still fix the **binding rules** in §§11.3–11.4. A later state (e.g., S7 “Sequence & IDs”) must:
 
-$$
-\boxed{\,\mathcal{C}_m = (c_0, c_1, \dots, c_{K_m})\quad\text{with}\quad c_i \in \mathcal{I},\ c_i\neq c_j\ (i\neq j)\,}
-$$
-
-with rank function $\mathrm{rank}_{\mathcal{C}_m}(c_i)=i$. By construction $c_0$ is **home**. Persistence (after S6) maps position $i$ to `country_set`:
-
-$$
-(\texttt{merchant_id}=m,\ \texttt{country_iso}=c_i,\ \texttt{is_home}=[i=0],\ \texttt{rank}=i),
-$$
-
-partitioned by `seed, parameter_hash`, PK `(merchant_id,country_iso)`.
+* Use **exactly** the same within-country sequencing (contiguous `1..count_i`),
+* Enforce the **same** `site_id` format and **overflow** rule, and
+* Preserve lineage/path rules from §2 (parameter-scoped partitions; embed `manifest_fingerprint` and `parameter_hash`).
 
 ---
 
-## 4) Preconditions (MUST hold)
+## 11.7 Lineage & ordering (write-side discipline, Variant A)
 
-1. **Branch decision available.** S3.2 completed; `e ∈ {true,false}`; flags are schema-valid.
-2. **Home ISO FK.** `c ∈ 𝓘` and passes the ISO FK referenced by schema.
-3. **No RNG.** S3.3 neither reads nor writes RNG streams. (S4–S6 evidence for `e=false` is a validation failure, not an S3.3 action.)
-
----
-
-## 5) Deterministic procedure (normative pseudocode)
-
-```pseudo
-# Output (in-memory): CountryInit {
-#   merchant_id, C, K, home_country_iso, e, next_state,
-#   seed, run_id, parameter_hash, manifest_fingerprint
-# }
-
-function s3_3_init_country_container(x: S3Branch) -> CountryInit:
-    assert iso2_fk_valid(x.home_country_iso)
-
-    C := []                     # ordered, dup-free
-    C.append(x.home_country_iso)  # rank 0 reserved
-
-    if x.e == false:            # domestic-only path
-        K := 0
-        next_state := "S6"      # single-writer persists country_set (home only)
-    else:                       # eligible
-        K := null               # unknown until S4 (JSON null)
-        next_state := "S4"
-
-    return {
-      merchant_id: x.merchant_id,
-      C: C,                     # e.g. ["GB"] (len 1 at init)
-      K: K,                     # 0 or null
-      home_country_iso: x.home_country_iso,
-      e: x.e,
-      next_state: next_state,
-      seed: x.seed, run_id: x.run_id,
-      parameter_hash: x.parameter_hash,
-      manifest_fingerprint: x.manifest_fingerprint
-    }
-```
-
-**Container rules (MUST).**
-Append-only thereafter (S4–S6); `C[0]` never changes; before any append, assert the candidate ISO isn’t already in `C`; no reordering/deletes; persistence after S6 writes one row per position with `rank=i`.
+* **Partitions:** `parameter_hash` only (parameter-scoped).
+* **Embedded lineage:** each row embeds `{parameter_hash, manifest_fingerprint}` equal to the run.
+* **No path literals:** dictionary resolves the dataset id to a physical path.
+* **JSON types:** numbers as JSON **numbers**; `site_id` as JSON **string** of length 6.
 
 ---
 
-## 6) Determinism & evidence (validator hooks)
+## 11.8 Failure vocabulary (merchant-scoped; non-emitting)
 
-* **No-RNG invariant (S3).** S3.1–S3.3 emit **no** RNG. For `e=false`, S9 asserts **absence** of S4–S6 events (`poisson_component(context="ztp")`, `ztp_*`, `gumbel_key`, `dirichlet_gamma_vector`) under `(merchant_id, seed, parameter_hash, run_id)`. Violation ⇒ branch inconsistency.
-* **Country-set at write-time.** After S6, `country_set` contains exactly one home row `(is_home=true, rank=0)` and, if eligible, **contiguous** foreign ranks `1..K` with no gaps/dupes; order equals S6’s selection order. (Checked in S9.)
-
----
-
-## 7) Failure taxonomy (abort; S3.3 is side-effect-free)
-
-* `E_HOME_ISO_INVALID(m)` — `home_country_iso` fails ISO FK.
-* `E_CONTAINER_DUP_HOME(m)` — container unexpectedly non-empty before init (runner bug).
-* `E_BRANCH_UNSET(m)` — S3.2 didn’t supply `e ∈ {true,false}`.
+| Code                            | Trigger                                                                                       | Action                                               |
+|---------------------------------|-----------------------------------------------------------------------------------------------|------------------------------------------------------|
+| `ERR_S3_SITE_SEQUENCE_OVERFLOW` | `count_i > 999999` for any `(merchant_id, country_iso)`                                       | Stop S3 for merchant; emit **no** sequencing outputs |
+| `ERR_S3_SEQUENCE_GAP`           | A `(merchant_id, country_iso)` block is missing any integer in `{1..count_i}`                 | Stop S3 for merchant; no outputs                     |
+| `ERR_S3_SEQUENCE_DUPLICATE`     | Duplicate `site_order` (or `site_id`, if enabled) within a `(merchant_id, country_iso)` block | Stop S3 for merchant; no outputs                     |
+| `ERR_S3_SEQUENCE_ORDER_DRIFT`   | Sequencing attempts to alter inter-country order (i.e., contradict §9 **candidate\_rank**)    | Stop S3 for merchant; no outputs                     |
 
 ---
 
-## 8) Persistence mapping (for **S6** single writer; normative contract)
+## 11.9 Invariants (must hold after sequencing)
 
-When **S6** completes (foreign selection for `e=true` **or** domestic-only persistence for `e=false`), persist `C` to:
-
-```
-path: data/layer1/1A/country_set/seed={seed}/parameter_hash={parameter_hash}/
-schema_ref: schemas.1A.yaml#/alloc/country_set
-PK: ["merchant_id","country_iso"]
-```
-
-`country_set` is the **ONLY** authoritative store of cross-country order; readers **must** join it.
+* For every country with `count_i > 0`, `site_order` is **exactly** `1..count_i` (contiguous, no gaps).
+* **Inter-country order remains §9’s `candidate_rank`**; sequencing does not permute countries.
+* If `site_id` is emitted, it is a deterministic function of `(merchant_id, country_iso, site_order)` with the 6-digit zero-padded format; overflow is impossible by construction or triggers §11.8.
+* Outputs (Variant A) follow §2 lineage/partition rules; **no path literals**.
 
 ---
 
-## 9) Conformance tests (suite skeleton)
-
-1. **Domestic-only anchor.** `e=false`, `c="GB"` → `C=["GB"]`, `K=0`, `next_state="S6"`. After S6, `country_set` has exactly `(GB, rank=0)`. **Pass.**
-2. **Eligible anchor.** `e=true`, `c="US"` → `C=["US"]`, `K=null`, `next_state="S4"`. After S6, `country_set` shows `("US", rank=0)` + contiguous `1..K`. **Pass.**
-3. **No-RNG invariant.** For `e=false`, ensure no `gumbel_key`, `dirichlet_gamma_vector`, or `poisson_component(context="ztp")` exist for `(merchant_id, seed, parameter_hash, run_id)`. **Pass if absent.**
-4. **ISO FK negative.** `c="UK"` (non-canonical) → `E_HOME_ISO_INVALID`. **Fail.**
+*Implementation note (non-authoritative):* If you anticipate future requirements for a check digit or namespace change, nest `site_id` under a versioned object in the schema (e.g., `{ "v": 1, "id": "000123" }`). Until then, the flat 6-digit string above is the **binding** representation.
 
 ---
 
-## 10) Output (to next state)
+# 12) Emissions (authoritative)
 
-```
-CountryInit {
-  merchant_id,
-  C = [home_country_iso],
-  K ∈ {0, null},
-  home_country_iso, e,
-  next_state ∈ {"S4","S6"},
-  seed, run_id,
-  parameter_hash, manifest_fingerprint
-}
-```
+## 12.1 General write discipline (binding)
 
-S4 consumes this for ZTP when `e=true`; **S6** persists `country_set` (home-only when `e=false`, extended when `e=true`) using the partition keys `{seed, parameter_hash}`.
+* **Dictionary-resolved paths only.** All physical locations resolve via the dataset dictionary by dataset **ID**; no hard-coded paths.
+* **Partition scope:** all S3 datasets are **parameter-scoped** — partitioned by `parameter_hash` only (**no `seed`**).
+* **Embedded lineage:** every S3 row **embeds** `{parameter_hash: Hex64, manifest_fingerprint: Hex64}` that must **byte-equal** the run’s values and, for `parameter_hash`, the path partition.
+* **Numbers:** payload numbers are JSON **numbers** (not strings), except where a **decimal string** is required for deterministic fixed-dp representation (explicitly called out below).
+* **Atomic publish:** stage → fsync → atomic rename into the dictionary location. No partials or mismatched partitions.
+* **Idempotence:** identical inputs + lineage ⇒ **byte-identical** outputs.
 
 ---
 
-**Notes on deviations fixed:**
+## 12.2 Required table — `s3_candidate_set`
 
-* Replaced prior “domestic → S7” routing with **domestic → S6** (single writer of `country_set`), eliminating the orphaned home row risk.
-* Replaced the non-serialisable `⊥` sentinel with JSON-native **`null`** for unknown `K`.
-* Inputs aligned to S3.2’s governed fields; lineage now explicitly carries **`seed`** and **`run_id`** for downstream joins.
+**Dataset id:** `s3_candidate_set`
+**JSON-Schema anchor:** `schemas.1A.yaml#/s3/candidate_set`
+**Partitions (path):** `parameter_hash={…}`
+**Embedded lineage (columns):** `parameter_hash: Hex64`, `manifest_fingerprint: Hex64`
+**Row ordering guarantee (logical):** `(merchant_id ASC, candidate_rank ASC, country_iso ASC)`
 
----
+**Columns (binding):**
 
-# S3.4 — Determinism, lineage, and validator hooks (no RNG)
+| Name                   | Type                      | Semantics                                                                   |
+|------------------------|---------------------------|-----------------------------------------------------------------------------|
+| `merchant_id`          | `u64`                     | Canonical merchant key                                                      |
+| `country_iso`          | `string(ISO-3166-1, A–Z)` | Candidate country code                                                      |
+| `candidate_rank`       | `u32`                     | **Total, contiguous order** per merchant; **`candidate_rank(home)=0`** (§9) |
+| `is_home`              | `bool`                    | `true` iff `country_iso == home_country_iso`                                |
+| `reason_codes`         | `array<string>`           | Deterministic union (A→Z) from policy’s **closed** set                      |
+| `filter_tags`          | `array<string>`           | Deterministic tags (A→Z) from policy’s **closed** set                       |
+| `parameter_hash`       | `Hex64`                   | Embedded lineage (must equal path)                                          |
+| `manifest_fingerprint` | `Hex64`                   | Embedded lineage                                                            |
 
-## 1) Purpose & scope (normative)
+**Contracts**
 
-S3 is a **deterministic gate**. S3.4 formalises:
+* Per merchant: ≥1 row (candidate set **non-empty**) and exactly one row with `is_home==true` and `candidate_rank==0`.
+* No duplicate `(merchant_id, country_iso)` and no duplicate `candidate_rank` within a merchant block.
+* Inter-country order is **authoritatively** given by `candidate_rank` only. Consumers must **not** infer order from file order.
 
-* the **lineage model** (which keys scope data vs logs),
-* the **no-RNG invariant** for S3,
-* the **evidence contracts** S9 uses to prove S3’s decision matches downstream behaviour (presence/absence of S4–S6 RNG events), and
-* the **failure taxonomy** & **conformance probes** tied to the dictionary & schemas.
-
-S3.4 **reads/writes no datasets** and **consumes no RNG**.
-
----
-
-## 2) Lineage model (keys, scopes, partitions)
-
-**Keys & scopes (normative):**
-
-* `parameter_hash` — **parameter scope** (all governed configuration, including **eligibility rules**). All parameter-scoped datasets (e.g., `crossborder_eligibility_flags`, `country_set`, `ranking_residual_cache_1A`) partition by this key and embed it per row.
-* `manifest_fingerprint` — **artefact fingerprint** (complete artefact set + VCS + parameter hash). Embedded in persisted outputs/validation bundle; not a partition key for logs.
-* `seed` — RNG universe key; partitions RNG event logs and seed-dependent artefacts.
-* `run_id` — **logs-only** execution id (partitions logs/audits); **must not** influence results.
-
-**Partitioning contracts (from dictionary/spec):**
-
-* Parameter-scoped dataset:
-  `data/layer1/1A/crossborder_eligibility_flags/parameter_hash={parameter_hash}/` (schema `#/prep/crossborder_eligibility_flags`).
-* RNG events (logs):
-  `logs/rng/events/<label>/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…` (schema `schemas.layer1.yaml#/rng/events/<label>`).
-* `country_set` (persisted by **S6**):
-  `data/layer1/1A/country_set/seed={seed}/parameter_hash={parameter_hash}/` (schema `#/alloc/country_set`).
-* Validation bundle binds to `{manifest_fingerprint}`; gate to 1B passes only when `_passed.flag == SHA256(bundle)`.
+> **No priors in this table.** Deterministic priors (if any) live in `s3_base_weight_priors` (12.3) as the **single source of truth**.
 
 ---
 
-## 3) No-RNG invariant & replay posture
+## 12.3 Optional table — `s3_base_weight_priors` (deterministic scores)
 
-**I-EL1 (No RNG in S3).** Sub-states **S3.1–S3.3** perform **zero** random draws. Their outputs are a pure function of:
+Emit **only** if S3 computes deterministic priors (see §12 / §3.5 for `dp` selection). Priors are deterministic scores, not probabilities.
 
-$$
-(\text{merchant_ids projection},\ \text{crossborder_eligibility_flags}[{\parameter_hash}],\ N_m \text{ from S2}),
-$$
+**Dataset id:** `s3_base_weight_priors`
+**JSON-Schema anchor:** `schemas.1A.yaml#/s3/base_weight_priors`
+**Partitions (path):** `parameter_hash={…}`
+**Embedded lineage (columns):** `parameter_hash`, `manifest_fingerprint`
+**Row ordering guarantee:** `(merchant_id ASC, country_iso ASC)`
 
-under fixed `(seed, parameter_hash, manifest_fingerprint)`. S3 is therefore **bit-replayable** by data alone. (S2 acceptance is evidenced by exactly one `nb_final` event.)
+**Columns (binding):**
 
----
+| Name                   | Type                      | Semantics                                                               |
+|------------------------|---------------------------|-------------------------------------------------------------------------|
+| `merchant_id`          | `u64`                     | Canonical merchant key                                                  |
+| `country_iso`          | `string(ISO-3166-1, A–Z)` | Candidate country code                                                  |
+| `base_weight_dp`       | **string (fixed-dp)**     | Deterministic prior **after quantisation**; exactly `dp` decimal places |
+| `dp`                   | `u8`                      | Decimal places used for quantisation (constant within a run)            |
+| `parameter_hash`       | `Hex64`                   | Embedded lineage                                                        |
+| `manifest_fingerprint` | `Hex64`                   | Embedded lineage                                                        |
 
-## 4) Evidence contracts for S9 (presence/absence rules)
+**Contracts**
 
-S9 must **prove** that S3’s branch decision
-
-$$
-\boxed{\ \text{branch}_m = \begin{cases}
-\textsf{eligible}      & \text{if } e_m=1,\\
-\textsf{domestic_only} & \text{if } e_m=0
-\end{cases}}
-$$
-
-is **consistent** with downstream stochastic activity (S4–S6), using only logs/datasets, joined on `(merchant_id, seed, parameter_hash, run_id)`.
-
-### 4.1 Authoritative RNG event streams
-
-* **ZTP (S4):** `rng_event_poisson_component` (`context="ztp"`), `rng_event_ztp_rejection`, `rng_event_ztp_retry_exhausted`.
-* **Selection (S6):** `rng_event_gumbel_key` (Gumbel-top-k keys).
-* **Dirichlet (S7 evidence):** `rng_event_dirichlet_gamma_vector`.
-  *Note:* for **domestic-only** (`|C|=1`) **S7 must not emit Dirichlet events**.
-
-(All partitioned by `seed, parameter_hash, run_id` and typed per `schemas.layer1.yaml#/rng/events/<label>`.)
-
-### 4.2 Coherence rules (normative)
-
-* **I-EL3-DOM (domestic-only coherence).** If `e_m == false`, then **no** S4–S6 RNG events may exist for merchant $m$ under the same `(seed, parameter_hash, run_id)`:
-
-  $$
-  \forall \ell \in \{\texttt{poisson_component(ztp)},\ \texttt{ztp_rejection},\ \texttt{ztp_retry_exhausted},\ \texttt{gumbel_key},\ \texttt{dirichlet_gamma_vector}\}:\ |T_\ell(m)| = 0.
-  $$
-
-  Violation ⇒ `branch_inconsistent_domestic`.
-
-* **I-EL3-ELIG (eligible coherence).** If `e_m == true`, **S4 is entered**; S9 must find **at least one** `poisson_component(context="ztp")` **or** a terminal `ztp_retry_exhausted`. Absence of both ⇒ `branch_inconsistent_eligible`.
-
-* **I-EL2 (flags uniqueness & schema).** For each `(parameter_hash, merchant_id)` there is **exactly one** flags row with governed types:
-  `is_eligible:boolean`, `eligibility_rule_id:string (non-null)`, `eligibility_hash:string (non-null)`, `reason_code ∈ {"mcc_blocked","cnp_blocked","home_iso_blocked"}|null`, optional `reason_text`. Missing/duplicate/typedrift ⇒ structural fail.
-
-* **I-EL4 (home ISO FK guard).** `home_country_iso` is ISO-2 canonical (pre-FK for later `country_set.country_iso`).
+* `dp` is constant within a run (may change **only** with policy change + new fingerprint/param hash).
+* This table is the **only** authority for priors in S3; `s3_candidate_set` must not carry a `base_weight_dp` field.
 
 ---
 
-## 5) Join semantics (validator)
+## 12.4 Optional table — `s3_integerised_counts` (if S3 allocates counts)
 
-Validators **must** join on:
+Emit **only** if S3 performs integerisation (see §10). Otherwise, counts belong to the later state that owns allocation.
 
-$$
-(\texttt{merchant_id},\ \texttt{seed},\ \texttt{parameter_hash},\ \texttt{run_id})
-$$
+**Dataset id:** `s3_integerised_counts`
+**JSON-Schema anchor:** `schemas.1A.yaml#/s3/integerised_counts`
+**Partitions (path):** `parameter_hash={…}`
+**Embedded lineage (columns):** `parameter_hash`, `manifest_fingerprint`
+**Row ordering guarantee:** `(merchant_id ASC, country_iso ASC)`
 
-with event qualifiers (e.g., `context="ztp"`). The join domain is merchants with S2 acceptance (exactly one `nb_final`).
+**Columns (binding):**
 
----
+| Name                   | Type                      | Semantics                                                 |
+|------------------------|---------------------------|-----------------------------------------------------------|
+| `merchant_id`          | `u64`                     | Canonical merchant key                                    |
+| `country_iso`          | `string(ISO-3166-1, A–Z)` | Candidate country code                                    |
+| `count`                | `i64 (≥0)`                | Final integer allocation for this country                 |
+| `residual_rank`        | `u32`                     | Rank in residual order (`1`=highest), as defined in §10.5 |
+| `parameter_hash`       | `Hex64`                   | Embedded lineage                                          |
+| `manifest_fingerprint` | `Hex64`                   | Embedded lineage                                          |
 
-## 6) Structured invariants (validator-facing)
+**Contracts**
 
-For each merchant $m$ in S3’s domain:
-
-* **I-EL1 (No RNG in S3):** zero S3-labelled RNG streams.
-* **I-EL2 (Flags):** uniqueness + governed schema satisfied.
-* **I-EL3 (Branch):** DOM ⇒ absence of S4–S6 events; ELIG ⇒ presence of S4 evidence or explicit exhaustion.
-* **I-EL4 (Home ISO FK):** home ISO in canonical list.
-
-Any breach is a **hard fail**; `_passed.flag` is not written.
-
----
-
-## 7) Reference validator routine (language-agnostic)
-
-```pseudo
-INPUTS:
-  Flags := read_table("crossborder_eligibility_flags", part={parameter_hash})
-  NB    := read_log("rng_event_nb_final",            part={seed,parameter_hash,run_id})
-  ZTP   := union(
-             read_log("rng_event_poisson_component").where(context="ztp"),
-             read_log("rng_event_ztp_rejection"),
-             read_log("rng_event_ztp_retry_exhausted")
-           )
-  SEL   := read_log("rng_event_gumbel_key")
-  DIR   := read_log("rng_event_dirichlet_gamma_vector")
-  ISO   := canonical_iso2_table()
-
-M3 := distinct(NB.merchant_id)   # S3 domain
-
-for m in M3:
-  f := Flags.lookup(parameter_hash, m)
-  if |f| != 1: fail("eligibility_flags_cardinality", m)          # I-EL2
-  assert type(f.is_eligible)==BOOLEAN
-  assert f.eligibility_rule_id != NULL and f.eligibility_hash != NULL
-  assert f.reason_code == NULL or f.reason_code in {"mcc_blocked","cnp_blocked","home_iso_blocked"}
-
-  if f.is_eligible == false:                                      # I-EL3-DOM
-     assert ZTP.none(m) and SEL.none(m) and DIR.none(m)
-     else fail("branch_inconsistent_domestic", m)
-  else:                                                           # I-EL3-ELIG
-     assert ZTP.any(m) or ZTP.retry_exhausted(m)
-     else fail("branch_inconsistent_eligible", m)
-
-  assert ISO.contains(home_iso(m)) else fail("illegal_home_iso", m)  # I-EL4
-
-emit_rng_accounting_summary()
-return PASS
-```
-
-All `read_*` calls use the partition keys above; accounting summarises per-label counts by merchant and is embedded in the validation bundle.
+* Per merchant: `Σ_i count_i = N` from S2; `count_i ≥ 0`.
+* `residual_rank` is present for **every** row and deterministically reconstructs the bump set `{ i | residual_rank_i ≤ d }`.
 
 ---
 
-## 8) Failure taxonomy (names, conditions, evidence)
+## 12.5 Optional table — `s3_site_sequence` (if S3 owns sequencing; see §11)
 
-* **`eligibility_flags_cardinality`** — 0 or >1 flags rows for `(parameter_hash, merchant_id)`.
-  *Evidence:* offending subset of `crossborder_eligibility_flags`.
-* **`branch_inconsistent_domestic`** — `is_eligible=false` but any of {`poisson_component(ztp)`, `ztp_rejection`, `ztp_retry_exhausted`, `gumbel_key`, `dirichlet_gamma_vector`} present.
-  *Evidence:* offending JSONL rows.
-* **`branch_inconsistent_eligible`** — `is_eligible=true` but **no** `poisson_component(ztp)` and **no** `ztp_retry_exhausted`.
-  *Evidence:* zero-row proof under the same partitions.
-* **`illegal_home_iso`** — home ISO not in canonical set.
-  *Evidence:* FK target id + offending value.
+If sequencing is deferred to a later state, **do not** emit this table here. If S3 owns sequencing (Variant A in §11):
 
-Any hard fail ⇒ bundle with diagnostics; `_passed.flag` **not** written; 1B must not consume egress for the fingerprint.
+**Dataset id:** `s3_site_sequence`
+**JSON-Schema anchor:** `schemas.1A.yaml#/s3/site_sequence`
+**Partitions (path):** `parameter_hash={…}`
+**Embedded lineage (columns):** `parameter_hash`, `manifest_fingerprint`
+**Row ordering guarantee:** `(merchant_id ASC, country_iso ASC, site_order ASC)`
 
----
+**Columns (binding):**
 
-## 9) Optional observability (non-authoritative)
+| Name                   | Type                      | Semantics                                           |
+|------------------------|---------------------------|-----------------------------------------------------|
+| `merchant_id`          | `u64`                     | Canonical merchant key                              |
+| `country_iso`          | `string(ISO-3166-1, A–Z)` | Country                                             |
+| `site_order`           | `u32`                     | Contiguous `1..count_i` within country (from §11.3) |
+| `site_id` *(optional)* | `string(6)`               | Zero-padded 6-digit ID; overflow triggers §11.8     |
+| `parameter_hash`       | `Hex64`                   | Embedded lineage                                    |
+| `manifest_fingerprint` | `Hex64`                   | Embedded lineage                                    |
 
-Runners **may** emit per-merchant system logs (validators don’t rely on them):
-
-```
-logs/system/eligibility_gate.v1.jsonl
-{ event:"s3_decision",
-  merchant_id, parameter_hash, manifest_fingerprint,
-  e:true|false, eligibility_rule_id, eligibility_hash,
-  reason_code:null|"mcc_blocked", reason_text:"...", branch:"eligible"|"domestic_only" }
-```
+**Contracts:** see §11.5–§11.9.
 
 ---
 
-## 10) Conformance tests (suite skeleton)
+## 12.6 Path↔embed equality (write-side checks)
 
-1. **Domestic coherence (pass):** `is_eligible=false`; zero S4–S6 events ⇒ pass.
-2. **Domestic inconsistency (fail):** inject one `gumbel_key` ⇒ `branch_inconsistent_domestic`.
-3. **Eligible via ZTP (pass):** `is_eligible=true`; at least one `poisson_component(ztp)` ⇒ pass.
-4. **Eligible exhaustion (pass):** `is_eligible=true`; no `poisson_component(ztp)` but a `ztp_retry_exhausted` ⇒ pass.
-5. **Eligible inconsistency (fail):** `is_eligible=true`; neither ZTP evidence nor exhaustion ⇒ `branch_inconsistent_eligible`.
-6. **Flags cardinality (fail):** duplicate flags rows ⇒ `eligibility_flags_cardinality`.
-7. **ISO FK (fail):** home ISO `"UK"` ⇒ `illegal_home_iso`.
+For every written row in all S3 datasets:
 
----
+* `row.parameter_hash` (embedded) **equals** the `parameter_hash` path partition (string-equal).
+* `row.manifest_fingerprint` **equals** the run’s fingerprint used to derive all S3 inputs.
+* No other lineage fields appear in the path (e.g., **no `seed`**); any additional lineage fields must be **embedded** only.
 
-## 11) Complexity & performance
-
-Presence/absence probes are O(1) per merchant per stream with indices on `(seed, parameter_hash, run_id, merchant_id)`. Bundle hashing is linear in bundle size.
+Violation ⇒ **`ERR_S3_EGRESS_SHAPE`**.
 
 ---
 
-## 12) Outputs & hand-off
+## 12.7 Non-duplication & uniqueness (binding)
 
-S3.4 writes nothing. **S9**:
+Per merchant:
 
-* compiles `validation_bundle_1A(fingerprint)`,
-* writes `_passed.flag = SHA256(bundle)`, and
-* **authorises** 1B consumption only when the flag matches the bundle for the same fingerprint.
-
-Cross-country order is **only** in `country_set.rank`; egress does **not** encode it.
-
----
-
-# S3.5 — Failure modes & operator playbook (normative, no RNG)
-
-## 1) Scope
-
-S3 is a **deterministic gate**. Failures fall into two buckets:
-
-* **Immediate S3 aborts** — stop the merchant **before** any S4–S6 work (pure data/contract issues).
-* **Validation hard-fails (S9)** — caught post-write by the validator via event presence/absence & cross-dataset checks; these **block** the 1A→1B hand-off (`_passed.flag` not written).
-
-S3 writes **no datasets**; failures produce **diagnostic logs** and terminate the merchant’s path for the current run.
+* `s3_candidate_set`: unique `(country_iso)` and unique `(candidate_rank)`; exactly one `is_home==true` with `candidate_rank==0`.
+* `s3_base_weight_priors` (if emitted): unique `(country_iso)`.
+* `s3_integerised_counts` (if emitted): unique `(country_iso)`.
+* `s3_site_sequence` (if emitted): unique `(country_iso, site_order)` (and `(country_iso, site_id)` if `site_id` present).
 
 ---
 
-## 2) Legend (keys, loci, severity)
+## 12.8 Example row *shapes* (illustrative; dictionary resolves paths)
 
-* **Locus:** `S3.1` (bind), `S3.2` (decide), `S3.3` (container init), `S9` (validator).
-* **Join keys:**
+> Illustrative JSON snippets (not full rows). Exact schemas are normative via the anchors.
 
-  * **Logs:** `(merchant_id, seed, parameter_hash, run_id)`
-  * **Parameter-scoped tables:** `(merchant_id, parameter_hash)`
-* **Severity:** **Hard fail** blocks bundle sign-off; **Soft warn** — *none for S3*.
-
----
-
-## 3) Error taxonomy (canonical)
-
-### E_NOT_MULTISITE_OR_MISSING_S2 — *Immediate abort*
-
-**Locus.** S3.1 precondition.
-**Condition.** `count_rows(rng_event_nb_final where keys match) != 1` or `nb_final.value < 2`.
-**Evidence.** `logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…` (schema `#/rng/events/nb_final`).
-**Diagnostics.**
+**`s3_candidate_set`:**
 
 ```json
 {
-  "error":"E_NOT_MULTISITE_OR_MISSING_S2",
-  "merchant_id": "M", "seed": "S", "parameter_hash": "P", "run_id": "R",
-  "probe":{"stream":"nb_final","count":0}
+  "merchant_id": 123456789,
+  "country_iso": "GB",
+  "candidate_rank": 0,
+  "is_home": true,
+  "reason_codes": ["ALLOW_WHITELIST"],
+  "filter_tags": ["GEO_OK","HOME"],
+  "parameter_hash": "ab12...ef",
+  "manifest_fingerprint": "cd34...90"
 }
 ```
 
-**Remediation.** Ensure S1 flagged multi-site and S2 wrote **exactly one** `nb_final` with `value ≥ 2`. Re-run S1–S3 for the merchant partition.
-
----
-
-### E_FLAGS_MISSING — *Immediate abort*
-
-**Locus.** S3.1 lookup.
-**Condition.** No row in `crossborder_eligibility_flags` for `(parameter_hash, merchant_id)`.
-**Evidence.** Empty result under `…/crossborder_eligibility_flags/parameter_hash={parameter_hash}/` (schema `#/prep/crossborder_eligibility_flags`).
-**Diagnostics.**
+**`s3_base_weight_priors`:**
 
 ```json
 {
-  "error":"E_FLAGS_MISSING",
-  "table":"crossborder_eligibility_flags",
-  "parameter_hash":"P", "merchant_id":"M"
+  "merchant_id": 123456789,
+  "country_iso": "FR",
+  "base_weight_dp": "0.180000",
+  "dp": 6,
+  "parameter_hash": "ab12...ef",
+  "manifest_fingerprint": "cd34...90"
 }
 ```
 
-**Remediation.** (Re)build S0 flags for the active `{parameter_hash}`; verify PK coverage; re-run S3.
-
----
-
-### E_FLAGS_DUPLICATE — *Immediate abort*
-
-**Locus.** S3.1 lookup.
-**Condition.** >1 row in `crossborder_eligibility_flags` for `(parameter_hash, merchant_id)`.
-**Evidence.** Duplicate rows in the same partition; violates uniqueness.
-**Diagnostics.**
+**`s3_integerised_counts`:**
 
 ```json
 {
-  "error":"E_FLAGS_DUPLICATE",
-  "table":"crossborder_eligibility_flags",
-  "parameter_hash":"P", "merchant_id":"M", "row_count":2
+  "merchant_id": 123456789,
+  "country_iso": "FR",
+  "count": 3,
+  "residual_rank": 2,
+  "parameter_hash": "ab12...ef",
+  "manifest_fingerprint": "cd34...90"
 }
 ```
 
-**Remediation.** Deduplicate upstream flags (S0); enforce uniqueness; re-run S3.
-
----
-
-### E_FLAGS_SCHEMA — *Immediate abort*
-
-**Locus.** S3.2 guard (defensive).
-**Condition.** Flags row violates governed schema:
-`is_eligible` not boolean, **or** `eligibility_rule_id`/`eligibility_hash` NULL, **or** non-null `reason_code` not in enum `{"mcc_blocked","cnp_blocked","home_iso_blocked"}`.
-**Evidence.** Row mismatches `schemas.1A.yaml#/prep/crossborder_eligibility_flags`.
-**Diagnostics.**
+**`s3_site_sequence`:**
 
 ```json
 {
-  "error":"E_FLAGS_SCHEMA",
-  "table":"crossborder_eligibility_flags",
-  "parameter_hash":"P", "merchant_id":"M",
-  "violations":["eligibility_rule_id:null","reason_code:invalid_enum"]
+  "merchant_id": 123456789,
+  "country_iso": "FR",
+  "site_order": 1,
+  "site_id": "000001",
+  "parameter_hash": "ab12...ef",
+  "manifest_fingerprint": "cd34...90"
 }
 ```
 
-**Remediation.** Fix the S0 compiler; rebuild the partition; re-run S3.
+---
+
+## 12.9 Failure vocabulary (write-time)
+
+| Code                              | Trigger                                                                            | Action                                            |
+|-----------------------------------|------------------------------------------------------------------------------------|---------------------------------------------------|
+| `ERR_S3_EGRESS_SHAPE`             | Schema violation; path↔embed mismatch; forbidden lineage in path; wrong JSON types | Stop S3 for merchant; **no** S3 outputs published |
+| `ERR_S3_DUPLICATE_ROW`            | Duplicate key per dataset (e.g., duplicate `(country_iso)` or `(candidate_rank)`)  | Stop S3 for merchant; no outputs                  |
+| `ERR_S3_ORDER_MISMATCH`           | `candidate_rank(home)≠0` or ranks not contiguous in emitted candidate set          | Stop S3 for merchant; no outputs                  |
+| `ERR_S3_INTEGER_SUM_MISMATCH`     | Emitted counts don’t sum to `N` (when integerising)                                | Stop S3 for merchant; no outputs                  |
+| `ERR_S3_SEQUENCE_GAP`/`…OVERFLOW` | See §11 sequencing errors                                                          | Stop S3 for merchant; no outputs                  |
 
 ---
 
-### E_HOME_ISO_INVALID — *Immediate abort*
+## 12.10 Consumability notes (binding where stated)
 
-**Locus.** S3.1/S3.3 FK pre-guard.
-**Condition.** `home_country_iso ∉ ISO-3166-1 alpha-2` canonical set.
-**Evidence.** FK miss against ingress ISO table (schema FK target).
-**Diagnostics.**
+* **Authority of order:** Consumers must use **`candidate_rank`** for inter-country order; file order is non-normative.
+* **Priors meaning:** `base_weight_dp` are deterministic **priors**; consumers must not treat them as probabilities or re-normalise unless a later state explicitly says so.
+* **Counts immutability:** If `s3_integerised_counts` is present, those counts are final for this stage and read-only downstream unless a new fingerprint changes.
+
+---
+
+This section gives implementers the **exact** shapes, partitions, lineage rules, and publish discipline for S3 outputs. Paired with §§8–11, it completes the blueprint so L0–L3 can be lifted directly without ambiguity.
+
+---
+
+# 13) Idempotence, concurrency, and skip-if-final
+
+## 13.1 Scope (binding)
+
+These rules apply to **all** S3 outputs defined in §12 (required and optional tables). They ensure **re-runs** and **parallelism** produce **byte-identical** results, with no double-writes, no order-dependence, and no cross-merchant interference. S3 uses **no RNG**.
+
+---
+
+## 13.2 Idempotence surface (what defines a unique result)
+
+For a given merchant, S3’s outputs are a **pure function** of:
+
+* The **Context** (§6.5) including `N`, `home_country_iso`, `mcc`, `channel`.
+* The opened **artefacts** and **static references** listed in the BOM (§2), by *content bytes* (semver + digest).
+* The **policy** (rule ladder) content bytes.
+* The run’s **lineage keys** used at write time: `parameter_hash` (partition), `manifest_fingerprint` (embedded).
+
+**Idempotence rule:** Given identical inputs above, S3 **must** produce **byte-identical** rows for the same merchant (same JSON number spellings, same order guarantees, same embedded lineage).
+
+---
+
+## 13.3 Concurrency invariance (parallel-safe by construction)
+
+* **Merchant independence:** Every merchant’s S3 decisions depend only on that merchant’s Context and the governed artefacts. No global mutable state is read or written.
+* **No cross-merchant ordering effects:** Sorting/selection rules operate **within merchant** (e.g., `candidate_rank` contiguity), never across merchants.
+* **Stable determinism:** Because S3 is deterministic and does not use RNG, **re-partitioning** or changing thread counts **cannot** change bytes.
+* **No speculative writes:** A merchant’s rows are written **only after** all its S3 steps succeed (no partial or incremental writes within S3).
+
+---
+
+## 13.4 Skip-if-final (at-most-one per merchant & run)
+
+**Goal:** prevent duplicate rows when resuming or re-running the same logical work.
+
+* **Key for skip:** `(merchant_id, manifest_fingerprint)` within the target dataset and partition `parameter_hash`.
+* **Rule:** If rows already exist for a merchant **with the same `manifest_fingerprint`** in the target dataset, S3 **must not** write additional rows for that merchant to the same dataset. Treat as **success** (idempotent no-op).
+* **Conflict rule:** If rows exist for `(merchant_id, manifest_fingerprint)` but their bytes **do not** match the would-be output, this is a violation (`ERR_S3_IDEMPOTENCE_VIOLATION`) and S3 must **stop for that merchant** without publishing changes.
+
+> Rationale: S3 tables are **parameter-scoped** in path (`parameter_hash`) and **embed** `manifest_fingerprint`. Multiple manifests may legitimately coexist under the same `parameter_hash`; **skip-if-final** prevents duplicates **within a single manifest**.
+
+---
+
+## 13.5 Dataset-specific uniqueness (per merchant)
+
+Per §12 schemas, the following **must** be unique for each `(merchant_id, manifest_fingerprint)` pair:
+
+* `s3_candidate_set`: keys `(country_iso)` **and** `(candidate_rank)` within a merchant block.
+* `s3_base_weight_priors` (if emitted): key `(country_iso)`.
+* `s3_integerised_counts` (if emitted): key `(country_iso)`; counts sum to `N`.
+* `s3_site_sequence` (if emitted): key `(country_iso, site_order)` (and `(country_iso, site_id)` if present).
+
+Any duplicate key in the same manifest is a shape error (`ERR_S3_DUPLICATE_ROW`) and must abort the merchant’s publish.
+
+---
+
+## 13.6 Publish protocol (atomic; resume-friendly)
+
+* **Stage → fsync → atomic rename.** All S3 tables follow the same publish discipline; partial files are forbidden.
+* **Row grouping:** A merchant’s rows **may** be appended to the same output file as other merchants (writer-side batching), but **logical uniqueness** is per keys in §13.5 and skip rule in §13.4.
+* **Resume semantics:** On resume, S3 inspects the destination partition for `(merchant_id, manifest_fingerprint)`; if present and byte-identical, it **skips** emitting that merchant (no-op). If missing, it writes the rows atomically.
+* **No deletions:** S3 does not delete or rewrite prior manifests; coexistence is allowed (partitioned by `parameter_hash`, distinguished by embedded `manifest_fingerprint`).
+
+---
+
+## 13.7 Read-side selection (downstream hygiene)
+
+Downstream readers **must** select rows for the **intended manifest** by filtering `manifest_fingerprint == <current_run>` in addition to the `parameter_hash` partition. File order is **non-normative**; **`candidate_rank`** is the sole inter-country order (§12.2).
+
+---
+
+## 13.8 Failure vocabulary (merchant-scoped; non-emitting)
+
+| Code                           | Trigger                                                                                           | Action                                   |
+|--------------------------------|---------------------------------------------------------------------------------------------------|------------------------------------------|
+| `ERR_S3_IDEMPOTENCE_VIOLATION` | Existing rows for `(merchant_id, manifest_fingerprint)` differ byte-wise from the would-be output | Stop S3 for merchant; do **not** publish |
+| `ERR_S3_DUPLICATE_ROW`         | Any dataset in §12 detects a key duplicate within `(merchant_id, manifest_fingerprint)`           | Stop S3 for merchant; do **not** publish |
+| `ERR_S3_PUBLISH_ATOMICITY`     | Writer cannot guarantee atomic rename / fsync discipline                                          | Stop S3 for merchant; do **not** publish |
+
+---
+
+## 13.9 Invariants (must hold)
+
+* Re-running S3 with the **same** artefacts, parameters, and Context produces **byte-identical** rows for each merchant.
+* Parallelism and partitioning **do not** affect outputs.
+* For any merchant and manifest, S3 emits **at most one** logical set of rows per dataset (skip-if-final enforced); dataset-specific keys in §13.5 are **unique**.
+* All rows embed lineage equal to the run; path partition equals embedded `parameter_hash`.
+
+---
+
+This locks S3’s operational guarantees: **deterministic**, **parallel-safe**, and **resume-safe** with clear failure shapes—so implementers can scale and re-run without drift or surprises.
+
+---
+
+# 14) Failure signals (definition-level)
+
+## 14.1 Scope & principles (binding)
+
+* These failures are **definition-level**, not CI corridors. They represent **violations of the S3 spec** (inputs, ordering, shapes, lineage, determinism).
+* **Non-emission rule:** On any failure below, **S3 must not publish any S3 outputs** for that merchant (no partial tables).
+* **Granularity:** Failures are **merchant-scoped** unless explicitly marked **run-scoped**.
+* **Evidence:** S3 may record a **merchant-scoped failure record** for operator visibility (outside S3 egress); this never relaxes the non-emission rule.
+
+---
+
+## 14.2 Merchant-scoped failures (authoritative list)
+
+| Code                              | Trigger (precise)                                                                                                                | Section source | Effect                           |           |                           |
+|-----------------------------------|----------------------------------------------------------------------------------------------------------------------------------|----------------|----------------------------------|-----------|---------------------------|
+| `ERR_S3_AUTHORITY_MISSING`        | Any governed artefact in §2/§6 cannot be opened, lacks semver/digest, or the BOM is incomplete                                   | §6.2–§6.3      | **Stop merchant**; no S3 outputs |           |                           |
+| `ERR_S3_PRECONDITION`             | `is_multi==false` or `N<2` at read time                                                                                          | §6.3.2         | Stop merchant; no outputs        |           |                           |
+| `ERR_S3_PARTITION_MISMATCH`       | For S1/S2 inputs, embedded `{seed,parameter_hash,run_id}` ≠ path partitions                                                      | §6.3.3         | Stop merchant; no outputs        |           |                           |
+| `ERR_S3_VOCAB_INVALID`            | `channel∉{"CP","CNP"}` or `home_country_iso` not in ISO set                                                                      | §6.3.4         | Stop merchant; no outputs        |           |                           |
+| `ERR_S3_RULE_LADDER_INVALID`      | Rule artefact missing `DEFAULT`, precedence not total, duplicate `rule_id`, unknown `reason_code`/`filter_tag`, or out-of-window | §7.3–§7.4      | Stop merchant; no outputs        |           |                           |
+| `ERR_S3_RULE_EVAL_DOMAIN`         | Rule predicate references an undeclared feature or named set/map                                                                 | §7.9           | Stop merchant; no outputs        |           |                           |
+| `ERR_S3_CANDIDATE_CONSTRUCTION`   | Candidate set empty **or** missing `home`                                                                                        | §8.6           | Stop merchant; no outputs        |           |                           |
+| `ERR_S3_COUNTRY_CODE_INVALID`     | Named set/list expands to a non-ISO code                                                                                         | §8.8           | Stop merchant; no outputs        |           |                           |
+| `ERR_S3_POLICY_REFERENCE_INVALID` | Fired rule references an undefined named set/list                                                                                | §8.8           | Stop merchant; no outputs        |           |                           |
+| `ERR_S3_ORDERING_HOME_MISSING`    | No row with `country_iso==home` when ranking                                                                                     | §9.8           | Stop merchant; no outputs        |           |                           |
+| `ERR_S3_ORDERING_NONCONTIGUOUS`   | Assigned **`candidate_rank`** values are not contiguous \`0..                                                                    | C              | −1\`                             | §9.4–§9.8 | Stop merchant; no outputs |
+| `ERR_S3_ORDERING_KEY_UNDEFINED`   | Cannot reconstruct the **admission key** for a foreign row (no closed mapping from reasons → admitting rule ids)                 | §9.3–§9.8      | Stop merchant; no outputs        |           |                           |
+| `ERR_S3_ORDERING_UNSTABLE`        | Artefact/mapping ambiguity prevents a single total order (e.g., reasons cannot map to rule ids deterministically)                | §9.3, §9.9     | Stop merchant; no outputs        |           |                           |
+| `ERR_S3_WEIGHT_ZERO`              | Priors enabled but `Σ w_i^⋄ == 0`                                                                                                | §10.3.A        | Stop merchant; no outputs        |           |                           |
+| `ERR_S3_INTEGER_FEASIBILITY`      | Bounds provided but `Σ L_i > N` or `N > Σ U_i`                                                                                   | §10.6          | Stop merchant; no outputs        |           |                           |
+| `ERR_S3_INTEGER_SUM_MISMATCH`     | After allocation, `Σ_i count_i ≠ N`                                                                                              | §10.8–§12.4    | Stop merchant; no outputs        |           |                           |
+| `ERR_S3_INTEGER_NEGATIVE`         | Any `count_i < 0`                                                                                                                | §10.8          | Stop merchant; no outputs        |           |                           |
+| `ERR_S3_SITE_SEQUENCE_OVERFLOW`   | `count_i > 999999` when `site_id` is 6-digit                                                                                     | §11.4, §11.8   | Stop merchant; no outputs        |           |                           |
+| `ERR_S3_SEQUENCE_GAP`             | Missing any integer in `{1..count_i}` within a `(merchant,country)` block                                                        | §11.5–§11.8    | Stop merchant; no outputs        |           |                           |
+| `ERR_S3_SEQUENCE_DUPLICATE`       | Duplicate `site_order` (or `site_id`, if enabled) within a `(merchant,country)` block                                            | §11.5–§11.8    | Stop merchant; no outputs        |           |                           |
+| `ERR_S3_SEQUENCE_ORDER_DRIFT`     | Sequencing permutes inter-country order (contradicts §9 **candidate\_rank**)                                                     | §11.3, §11.9   | Stop merchant; no outputs        |           |                           |
+| `ERR_S3_EGRESS_SHAPE`             | Schema violation; wrong JSON types; path↔embed mismatch; forbidden lineage in path; wrong fixed-dp representation                | §12.1–§12.6    | Stop merchant; no outputs        |           |                           |
+| `ERR_S3_DUPLICATE_ROW`            | Duplicate dataset key per §12.7 (e.g., duplicate `(candidate_rank)` or `(country_iso)`)                                          | §12.7          | Stop merchant; no outputs        |           |                           |
+| `ERR_S3_ORDER_MISMATCH`           | Emitted `s3_candidate_set` violates `candidate_rank(home)=0` or contiguity                                                       | §12.9          | Stop merchant; no outputs        |           |                           |
+| `ERR_S3_IDEMPOTENCE_VIOLATION`    | Existing rows for `(merchant_id, manifest_fingerprint)` differ byte-wise from would-be output (skip-if-final breach)             | §13.4          | Stop merchant; no outputs        |           |                           |
+| `ERR_S3_PUBLISH_ATOMICITY`        | Atomic publish discipline (stage→fsync→rename) cannot be guaranteed                                                              | §13.6          | Stop merchant; no outputs        |           |                           |
+
+**Effect (all rows):** **no S3 tables** are published for that merchant in this run/fingerprint. Downstream must not see partial S3 state.
+
+---
+
+## 14.3 Run-scoped failures (rare; binding)
+
+Run-scoped failures abort the **entire S3 run** (all merchants).
+
+| Code                              | Trigger                                                                                                   | Effect                         |
+|-----------------------------------|-----------------------------------------------------------------------------------------------------------|--------------------------------|
+| `ERR_S3_SCHEMA_AUTHORITY_MISSING` | `schemas.layer1.yaml` (authoritative) is unavailable or inconsistent **(or the optional index, if used)** | **Abort run**; publish nothing |
+| `ERR_S3_DICTIONARY_INCONSISTENT`  | Dataset dictionary cannot resolve required IDs or partitions for S3                                       | Abort run                      |
+| `ERR_S3_BOM_INCONSISTENT`         | BOM claims artefacts that cannot be opened atomically across the run                                      | Abort run                      |
+
+> Prefer merchant-scoped failure whenever the issue is isolated to a merchant; use run-scoped only for global authority problems.
+
+---
+
+## 14.4 Non-emission & logging contract (binding)
+
+* **Non-emission:** On any failure above, S3 writes **no S3 datasets** for that merchant.
+* **Logging:** A merchant-scoped failure **may** be recorded to an operator log with `{merchant_id, manifest_fingerprint, code, message, ts_utc}`; this log is **not** part of S3 egress.
+* **No retries inside S3:** S3 does not auto-retry/auto-correct; recovery is orchestration policy.
+
+---
+
+## 14.5 Determinism & idempotence under failure
+
+* Failures are **deterministic** given the same inputs; re-running with the same `parameter_hash` and artefacts must yield the **same** failure code.
+* Skip-if-final (§13.4) applies only to **successful** publishes; on failure, there are **no** S3 rows to skip.
+
+---
+
+## 14.6 Consumer expectations (downstream hygiene)
+
+* Downstream states **must not** infer intent from absence of S3 rows; orchestration should provide an explicit succeeded/failed roster.
+* Consumers **must** filter by the intended `manifest_fingerprint` (§13.7); **do not** join across fingerprints.
+
+---
+
+## 14.7 Mapping index (where each failure originates)
+
+* **§6 (Load scopes):** `AUTHORITY_MISSING`, `PRECONDITION`, `PARTITION_MISMATCH`, `VOCAB_INVALID`
+* **§7 (Rule ladder):** `RULE_LADDER_INVALID`, `RULE_EVAL_DOMAIN`
+* **§8 (Candidates):** `CANDIDATE_CONSTRUCTION`, `COUNTRY_CODE_INVALID`, `POLICY_REFERENCE_INVALID`
+* **§9 (Ordering):** `ORDERING_HOME_MISSING`, `ORDERING_NONCONTIGUOUS`, `ORDERING_KEY_UNDEFINED`, `ORDERING_UNSTABLE`
+* **§10 (Integerisation):** `WEIGHT_ZERO`, `INTEGER_FEASIBILITY`, `INTEGER_SUM_MISMATCH`, `INTEGER_NEGATIVE`
+* **§11 (Sequencing/IDs):** `SITE_SEQUENCE_OVERFLOW`, `SEQUENCE_GAP`, `SEQUENCE_DUPLICATE`, `SEQUENCE_ORDER_DRIFT`
+* **§12 (Emissions):** `EGRESS_SHAPE`, `DUPLICATE_ROW`, `ORDER_MISMATCH`
+* **§13 (Ops):** `IDEMPOTENCE_VIOLATION`, `PUBLISH_ATOMICITY`
+* **Run-scoped (§14.3):** `SCHEMA_AUTHORITY_MISSING`, `DICTIONARY_INCONSISTENT`, `BOM_INCONSISTENT`
+
+---
+
+This is a **closed catalogue** of S3 failure shapes with crisp triggers and effects, so implementations cannot drift on error handling and L3 can validate outcomes unambiguously.
+
+---
+
+# 15) Handoff to S4+
+
+## 15.1 Scope (binding)
+
+This section defines **how downstream states (S4+)** must consume S3 outputs. It is the only authority for:
+
+* which S3 datasets to read,
+* the **join keys** and **filters**,
+* what fields are **binding** vs **illustrative**, and
+* what downstream must **never** reinterpret.
+
+Downstream may not infer semantics outside what is stated here.
+
+---
+
+## 15.2 What downstream must read
+
+### 15.2.1 Required dataset (always)
+
+| Dataset id         | Purpose                                                 | Filter (must)                                                                  | Ordering (must)                                                                       | Keys for joins               |
+|--------------------|---------------------------------------------------------|--------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|------------------------------|
+| `s3_candidate_set` | Inter-country **order of record** + policy tags/reasons | Partition by `parameter_hash`; **filter `manifest_fingerprint == <this run>`** | **Order by `(merchant_id ASC, candidate_rank ASC, country_iso ASC)`**; home at rank 0 | `(merchant_id, country_iso)` |
+
+**Binding:** **`candidate_rank`** is the **sole** authority for inter-country order.
+
+### 15.2.2 Optional datasets (present only if S3 owns them)
+
+| Dataset id              | Purpose                                                        | Filter (must)        | Keys                                       |
+|-------------------------|----------------------------------------------------------------|----------------------|--------------------------------------------|
+| `s3_base_weight_priors` | Deterministic **priors** (fixed-dp strings), not probabilities | same filter as above | `(merchant_id, country_iso)`               |
+| `s3_integerised_counts` | **Final integer counts** per country (sum to `N`)              | same filter as above | `(merchant_id, country_iso)`               |
+| `s3_site_sequence`      | Within-country **site\_order** (and optional `site_id`)        | same filter as above | `(merchant_id, country_iso[, site_order])` |
+
+> If an optional dataset is **not** produced by S3, downstream must not invent or guess it. The later state that owns it must produce it under its own spec.
+
+---
+
+## 15.3 Consumer recipe (minimal, closed)
+
+### 15.3.1 Recover the ordered country list (always)
+
+1. Select `s3_candidate_set` where `parameter_hash = <run.parameter_hash>`.
+2. Filter `manifest_fingerprint == <run.manifest_fingerprint>`.
+3. For each merchant, read rows ordered by `(candidate_rank ASC, country_iso ASC)`.
+4. **Home row:** exactly one row with `candidate_rank == 0` and `is_home == true`.
+
+Outcome: `⟨country_iso[0..M-1]⟩` with `country_iso[0] == home`.
+
+### 15.3.2 If deterministic priors are present
+
+* Read `s3_base_weight_priors.base_weight_dp` as a **score only** (fixed-dp string).
+* Do **not** normalise to probabilities unless a later state explicitly requires it.
+
+### 15.3.3 If integerised counts are present
+
+* Join `s3_integerised_counts` on `(merchant_id, country_iso)` to get `count`.
+* Trust `Σ_i count_i = N`; **do not recompute**. Treat counts as **final** for this stage.
+
+### 15.3.4 If site sequencing is present
+
+* Join `s3_site_sequence` on `(merchant_id, country_iso)`; rows sorted by `(country_iso, site_order)`.
+* Within a country, `site_order` is **contiguous** `1..count_i`.
+* If `site_id` exists, it is a **6-digit zero-padded string**; do not change format.
+
+---
+
+## 15.4 What downstream must **not** reinterpret (binding)
+
+* **Inter-country order:** must come **only** from `candidate_rank`. Do not use file order or lexicographic `country_iso`.
+* **Priors:** `base_weight_dp` are deterministic **priors**, not probabilities; do not normalise or rescale unless a later state says so.
+* **Counts:** if `s3_integerised_counts` exists, counts are **final** for this stage; do not re-integerise or change bump policy.
+* **Sequencing:** if `s3_site_sequence` exists, within-country order/IDs are binding; do not renumber or reformat IDs.
+* **Policy evidence:** `reason_codes`/`filter_tags` are from **closed vocabularies**; do not remap outside a documented consumer map.
+
+---
+
+## 15.5 Lineage & selection (consumer hygiene)
+
+Consumers **must** filter by both:
+
+* the partition `parameter_hash = <run.parameter_hash>`, **and**
+* `manifest_fingerprint == <run.manifest_fingerprint>`.
+
+Do not join across **different fingerprints** unless explicitly implementing a multi-manifest analysis tool (out of scope here).
+
+---
+
+## 15.6 Allowed consumer transforms (safe)
+
+* **Projection:** select a subset of columns.
+* **Join:** equi-joins on keys in §15.2/§15.3.
+* **Filtering:** by `merchant_id`, `candidate_rank` ranges, or `country_iso` subsets.
+* **Stable sorting:** re-sorts that **do not** contradict `candidate_rank` (e.g., group by region but preserve `candidate_rank` within groups).
+
+Any transform that would change `candidate_rank`, `count`, `site_order`, `site_id` format, or the fixed-dp representation of `base_weight_dp` is **not allowed** unless a later state’s spec explicitly authorises it.
+
+---
+
+## 15.7 Variant matrix (S3 configuration → consumer expectations)
+
+| S3 config                                       | candidate\_set | base\_weight\_priors | counts | sequencing | Consumer expectation                                                  |
+|-------------------------------------------------|----------------|----------------------|--------|------------|-----------------------------------------------------------------------|
+| **A**: order-only                               | ✅              | ❌                    | ❌      | ❌          | Consumer uses **`candidate_rank`** only.                              |
+| **B**: order + priors                           | ✅              | ✅                    | ❌      | ❌          | Use `base_weight_dp` as deterministic **prior**; do not normalise.    |
+| **C**: order + counts                           | ✅              | ❌                    | ✅      | ❌          | Use `count` as final; no integerisation downstream.                   |
+| **D**: order + counts + sequencing              | ✅              | ❌                    | ✅      | ✅          | Read `site_order`/`site_id` as binding within country.                |
+| **E**: order + priors + counts (+/− sequencing) | ✅              | ✅                    | ✅      | ±          | Join by keys; priors are scores; counts final; sequencing if present. |
+
+---
+
+## 15.8 Failure surface for consumers (must stop)
+
+A downstream consumer **must** treat these as **fatal** (merchant- or run-scoped per its own policy):
+
+* Missing `s3_candidate_set` rows for the intended fingerprint.
+* No `candidate_rank == 0` home row or duplicate `candidate_rank` within a merchant block.
+* Present but malformed optional datasets (schema/type mismatches).
+* Inconsistent priors (if duplicated elsewhere) or `Σ count ≠ N` (should not happen if S3 is green).
+* Path/lineage inconsistencies (enforce §12/§13 read-side hygiene).
+
+---
+
+## 15.9 Forward-compat & evolution (practical guardrails)
+
+* **Adding columns** to S3 tables requires a **schema semver bump** and backward-compatible defaults (or fields marked optional).
+* **Changing dp** for priors requires a policy/artefact bump and thus a new `parameter_hash` (and new fingerprint).
+* **Changing ID format** (e.g., `site_id`) requires a new schema version and migration note; until then, the 6-digit string is binding.
+
+---
+
+## 15.10 Consumer “green” checklist (quick)
+
+* [ ] Filter by `parameter_hash` and **`manifest_fingerprint`**.
+* [ ] Use **`candidate_rank`** as the only inter-country order.
+* [ ] If priors exist: treat as deterministic scores (fixed-dp strings).
+* [ ] If counts exist: treat as final; sum equals S2 `N`.
+* [ ] If sequencing exists: `site_order` contiguous; `site_id` 6-digit string.
+* [ ] Do not reinterpret tags/reasons; closed vocabularies only.
+* [ ] No cross-fingerprint joins unless expressly required.
+
+---
+
+This handoff locks the **consumer contract** so S4+ can plug in with zero guesswork, zero reinterpretation, and guaranteed reproducibility.
+
+---
+
+# 16) Governance & publish
+
+## 16.1 Scope (binding)
+
+Fixes **how S3 is governed and published**: what must be opened and pinned, how lineage is formed, how outputs are staged and atomically committed, and what constitutes a valid publish. Applies to **all S3 datasets** defined in §12.
+
+---
+
+## 16.2 Artefact closure (BOM must be complete)
+
+* S3 **may only** open artefacts explicitly listed in the BOM (§2).
+* **Atomic open:** all governed artefacts (§2.1) are opened **before** any S3 processing starts. A missing/changed artefact after S3 begins is `ERR_S3_AUTHORITY_MISSING` (merchant-scoped stop).
+* **No late opens:** later S3 steps **must not** open artefacts beyond §2.
+
+---
+
+## 16.3 Lineage keys (definitions & scope)
+
+* **`parameter_hash` (path partition)** — hash of **parameter artefacts only** that affect S3 semantics (e.g., `policy.s3.rule_ladder.yaml`, `policy.s3.base_weight.yaml`, integerisation bounds). Changing any such parameter **changes the partition**.
+* **`manifest_fingerprint` (embedded)** — composite derived from **all opened artefacts** (BOM closure), **parameter bytes**, and code/commit identity (project-defined). Any byte change flips the fingerprint.
+* **No `seed` in S3 paths:** S3 outputs are **parameter-scoped**; `seed` appears only as an embedded lineage field if carried for joins.
+
+**Binding equality:** every emitted row **embeds** `{parameter_hash, manifest_fingerprint}` that **byte-equal** the path partition (for `parameter_hash`) and the run’s fingerprint (§12.6).
+
+---
+
+## 16.4 Versioning & change policy
+
+* **SemVer on artefacts:** governed artefacts carry semantic versions. Backward-compatible additions (that don’t change outcomes) may bump patch/minor. Any change that *can* alter S3 outputs **must** bump minor/major and will flip both `parameter_hash` and `manifest_fingerprint`.
+* **Closed vocab drift:** adding/changing a `reason_code` / `filter_tag` / `rule_id` is *governed*; bump policy version and expect lineage flips.
+* **Schema evolution:** any column addition/removal/type change is a **schema semver bump**; see consumer guidance in §15.9.
+
+---
+
+## 16.5 Publish protocol (atomic; resume-safe)
+
+* **Resolution:** writers resolve dataset **IDs** to paths using the **dataset dictionary** (no literals).
+* **Stage → fsync → atomic rename:** write to a staging area on the same filesystem, fsync, then atomically rename into `parameter_hash=…`.
+* **All-or-nothing per dataset:** for a merchant, either the complete row-set for that dataset is present **byte-identical** to computed rows, or nothing is written. Partials are forbidden.
+* **Skip-if-final:** before writing, check for existing rows for `(merchant_id, manifest_fingerprint)` in the target partition. If present and **byte-identical**, **skip** (idempotent no-op). If present but bytes differ ⇒ `ERR_S3_IDEMPOTENCE_VIOLATION` (no publish).
+* **No deletes:** S3 never deletes prior manifests. Multiple manifests may coexist under the same `parameter_hash`; selection is via `manifest_fingerprint` (§15.5).
+
+---
+
+## 16.6 Partitioning & embedded lineage (write-side checks)
+
+For every emitted dataset:
+
+* **Partition:** `parameter_hash` only (no `seed`, no `run_id` in the path).
+* **Embed:** each row embeds `{parameter_hash, manifest_fingerprint}` that **byte-equal** the path partition (for `parameter_hash`) and the run fingerprint.
+* **Types:** lineage fields are **lowercase Hex64** strings; payload numbers are JSON **numbers**; fixed-dp priors are JSON **strings**.
+
+Mismatch ⇒ **`ERR_S3_EGRESS_SHAPE`** and blocks publish for that merchant.
+
+---
+
+## 16.7 Governance attest (minimal, binding)
+
+At publish time S3 must retain (operator audit; **outside S3 egress**):
+
+* the **BOM snapshot** used (artefact ids, semver, digests),
+* the **dictionary version** used to resolve paths, and
+* the **schema authority/version** (`schemas.layer1.yaml`) and, if used, the **schema index** version.
+
+---
+
+## 16.8 Licence & provenance (must be auditable)
+
+* Every external static reference (e.g., ISO list) must have recorded **licence** and **provenance** (§2.7).
+* If licence constraints limit redistribution, embed **digests** and refer to artefacts by **id/version** (not copies).
+
+---
+
+## 16.9 Operator-visible publish receipt (optional; non-egress)
+
+Optionally record a **publish receipt** per merchant (outside S3 datasets) with:
+
+* `merchant_id`, `manifest_fingerprint`, `parameter_hash`, dataset ids written, row counts, and `ts_utc`.
+  This improves observability only; presence/absence does **not** alter S3 semantics.
+
+---
+
+## 16.10 Run gating & dependencies (what S3 requires before start)
+
+* **Schema authority present:** `schemas.layer1.yaml` containing all `#/s3/*` anchors is available and consistent; the **schema index** (if used) is also consistent.
+* **Dictionary present:** required dataset IDs/partitions resolve.
+* **BOM complete:** governed artefacts can be opened atomically.
+
+Violation of any of the above is **run-scoped** failure (§14.3): `ERR_S3_SCHEMA_AUTHORITY_MISSING`, `ERR_S3_DICTIONARY_INCONSISTENT`, or `ERR_S3_BOM_INCONSISTENT`.
+
+---
+
+## 16.11 Governance “green” checklist (tick before publish)
+
+* [ ] All governed artefacts from §2.1 opened **before** processing; no late opens.
+* [ ] `parameter_hash` reflects all **parameter** artefacts; `manifest_fingerprint` reflects **all opened artefacts + parameters + code id**.
+* [ ] All datasets resolved via the **dictionary**; **no path literals**.
+* [ ] Partition and embedded lineage **match** (byte-equal).
+* [ ] Skip-if-final performed; no duplicate logical writes.
+* [ ] Atomic stage→fsync→rename completed without error.
+* [ ] Optional receipts/attestations captured for operator audit.
+
+---
+
+## 16.12 Invariants (must hold)
+
+* Given identical Context and artefact bytes, two S3 publishes produce **byte-identical** outputs.
+* Re-partitioning or concurrency does **not** change outputs (no RNG; deterministic rules).
+* For any dataset and merchant, there exists **at most one** logical row-set per `(manifest_fingerprint)`; duplicates are prevented by skip-if-final.
+* All S3 outputs are parameter-scoped in path and carry embedded lineage equal to the run.
+
+---
+
+This governance & publish contract keeps S3 **reproducible**, **auditable**, and **operator-safe**—so implementers’ bytes are accepted or rejected in a predictable, deterministic way.
+
+---
+
+# 17) Worked micro-examples (illustrative)
+
+These are **non-normative** sanity checks that show how the spec behaves on small inputs. Shapes and numbers are **illustrative** only; the **normative** behavior is in §§6–16. All paths resolve via the **dataset dictionary**; examples show **logical rows** only.
+
+---
+
+## 17.1 Minimal “allow” example — order + priors + integerisation
+
+**Context.**
+Merchant `m=123456789`, `home=GB`, `N=7` (from S2). Rule ladder fires `ALLOW_WHITELIST` (decision source) and `LEGAL_OK`; cross-border **eligible**.
+
+**Candidate universe (§8).**
+`C = { GB, DE, FR }`, each row tagged (closed vocab):
+
+* `reason_codes`: `["ALLOW_WHITELIST","LEGAL_OK"]` (A→Z),
+* `filter_tags`: `["GEO_OK"]` plus `"HOME"` for GB.
+
+**Priors enabled (§12, dp=6).**
+Deterministic priors are computed and **quantised** (RNE, binary64):
+
+| country | conceptual `w_i` | **emitted** `w_i^⋄` (fixed-dp string) |
+|:-------:|-----------------:|--------------------------------------:|
+|   GB    |           0.275… |                          `"0.275000"` |
+|   DE    |           0.180… |                          `"0.180000"` |
+|   FR    |           0.120… |                          `"0.120000"` |
+
+Sum of quantised priors = `0.575000`.
+
+**Ordering (§9 — ranking is independent of priors).**
+`candidate_rank(GB)=0`. For foreigns, the **admission key** (precedence→priority→rule\_id) ties; break by **ISO A→Z**: `DE` before `FR`.
+Final order: `GB(0) → DE(1) → FR(2)`.
+
+**Integerisation (§10, dp\_resid=8).**
+Use quantised priors for shares: `a_i = N * w_i^⋄ / Σ w^⋄`.
+
+* GB: `7*(0.275/0.575)=3.348…` → `b=3`, `r=0.348…`
+* DE: `7*(0.180/0.575)=2.191…` → `b=2`, `r=0.191…`
+* FR: `7*(0.120/0.575)=1.460…` → `b=1`, `r=0.460…`
+  Remainder `d = 7 − (3+2+1) = 1`. Quantise residuals to **8 dp**; bump highest (`FR`) by +1.
+
+**Final counts & residual ranks.**
+
+* `GB: 3` (residual\_rank=2)
+* `DE: 2` (residual\_rank=3)
+* `FR: 2` (residual\_rank=1)
+  Sum = 7 = `N`. **`candidate_rank` unchanged.**
+
+**Illustrative rows (egress; §12).**
+
+*`s3_candidate_set` (subset):*
 
 ```json
-{
-  "error":"E_HOME_ISO_INVALID",
-  "merchant_id":"M", "home_country_iso":"UK",
-  "fk_target":"schemas.ingress.layer1.yaml#/iso3166_canonical_2024"
-}
+{ "merchant_id": 123456789, "country_iso": "GB", "candidate_rank": 0, "is_home": true,
+  "reason_codes": ["ALLOW_WHITELIST","LEGAL_OK"], "filter_tags": ["GEO_OK","HOME"],
+  "parameter_hash": "ab12...ef", "manifest_fingerprint": "cd34...90" }
+{ "merchant_id": 123456789, "country_iso": "DE", "candidate_rank": 1, "is_home": false,
+  "reason_codes": ["ALLOW_WHITELIST","LEGAL_OK"], "filter_tags": ["GEO_OK"],
+  "parameter_hash": "ab12...ef", "manifest_fingerprint": "cd34...90" }
+{ "merchant_id": 123456789, "country_iso": "FR", "candidate_rank": 2, "is_home": false,
+  "reason_codes": ["ALLOW_WHITELIST","LEGAL_OK"], "filter_tags": ["GEO_OK"],
+  "parameter_hash": "ab12...ef", "manifest_fingerprint": "cd34...90" }
 ```
 
-**Remediation.** Correct ingress mapping to valid ISO-2 (e.g., `GB` vs `UK`); re-ingest; re-run S3.
-
----
-
-### F_EL_BRANCH_INCONSISTENT — *Validation hard-fail (S9)*
-
-**Locus.** S9 presence/absence proof.
-**Condition.**
-
-* **Case A (domestic-only):** `is_eligible=false` **but** any of
-  `poisson_component(context="ztp")`, `ztp_rejection`, `ztp_retry_exhausted`, `gumbel_key`, `dirichlet_gamma_vector` exist.
-* **Case B (eligible):** `is_eligible=true` **and** no `poisson_component(context="ztp")` **and** no `ztp_retry_exhausted`.
-
-(Join on `(merchant_id, seed, parameter_hash, run_id)`; filter `context` as applicable.)
-
-**Evidence.** Offending JSONL rows (or zero-row proofs), the merchant’s flags row, and RNG accounting in the validation bundle.
-**Diagnostics (validator emits).**
+*`s3_base_weight_priors`:*
 
 ```json
-{
-  "fail":"F_EL_BRANCH_INCONSISTENT",
-  "merchant_id":"M","seed":"S","parameter_hash":"P","run_id":"R",
-  "flags":{
-    "is_eligible":false,
-    "eligibility_rule_id":"default_v1","eligibility_hash":"…",
-    "reason_code":"mcc_blocked","reason_text":null
-  },
-  "rng_evidence":{
-    "ztp_poisson_component": 1,
-    "ztp_rejection": 0,
-    "ztp_retry_exhausted": 0,
-    "gumbel_key": 0,
-    "dirichlet_gamma_vector": 0
-  }
-}
+{ "merchant_id": 123456789, "country_iso": "GB", "base_weight_dp": "0.275000", "dp": 6,
+  "parameter_hash": "ab12...ef", "manifest_fingerprint": "cd34...90" }
+{ "merchant_id": 123456789, "country_iso": "DE", "base_weight_dp": "0.180000", "dp": 6,
+  "parameter_hash": "ab12...ef", "manifest_fingerprint": "cd34...90" }
+{ "merchant_id": 123456789, "country_iso": "FR", "base_weight_dp": "0.120000", "dp": 6,
+  "parameter_hash": "ab12...ef", "manifest_fingerprint": "cd34...90" }
 ```
 
-**Remediation.**
-
-* **A (domestic but events present):** fix runner to **route domestic multi-site to S6** (home-only write) and **emit no S4–S6 RNG**; purge stray logs for this `(seed,parameter_hash,run_id)`; re-run S3→S9.
-* **B (eligible but no S4 evidence):** ensure S4 executes and logs ZTP (or exhaustion) for `e=true`; re-run S3→S9.
-
----
-
-## 4) Detection & joins (authoritative sources)
-
-* **Flags table (parameter-scoped).**
-  `data/layer1/1A/crossborder_eligibility_flags/parameter_hash={parameter_hash}/` — the **only** source of truth for `is_eligible`; governed fields: `eligibility_rule_id`, `eligibility_hash`, `reason_code|reason_text`. Schema `#/prep/crossborder_eligibility_flags`.
-* **RNG events (logs).**
-  `logs/rng/events/<label>/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…` — `poisson_component`, `ztp_*`, `gumbel_key`, `dirichlet_gamma_vector`. Validators must filter `context="ztp"` where shared.
-* **Validator artefacts.**
-  `validation_bundle_1A(fingerprint)` with `rng_accounting.json` and diagnostics; `_passed.flag` must equal `SHA256(bundle)` to authorise 1B.
-
----
-
-## 5) Diagnostics (runner system log; mandatory shape)
-
-On any **immediate S3 abort**, emit a JSONL record (non-authoritative; for ops only):
-
-```
-logs/system/eligibility_gate.v1.jsonl
-{
-  "event":"s3_abort",
-  "error": "<ID>",
-  "merchant_id":"M",
-  "parameter_hash":"P",
-  "manifest_fingerprint":"F",
-  "seed":"S","run_id":"R",
-  "dataset": "crossborder_eligibility_flags" | "rng_event_nb_final" | "ingress",
-  "details": { … minimal, redaction-safe … },
-  "ts_utc":"..."
-}
-```
-
-Authoritative evidence remains the tables/log streams and the validation bundle.
-
----
-
-## 6) Operator playbook (step-by-step)
-
-**A) Flags missing/duplicate/schema (E_FLAGS_\*)**
-
-1. Inspect `…/crossborder_eligibility_flags/parameter_hash={P}/`.
-2. Fix S0 compiler (coverage, PK uniqueness, governed types: `is_eligible`, `eligibility_rule_id`, `eligibility_hash`, `reason_code`).
-3. Rebuild the partition; **re-run S3**.
-
-**B) Not multi-site / missing S2 (E_NOT_MULTISITE_OR_MISSING_S2)**
-
-1. Check `nb_final` at `…/rng_event_nb_final/seed={S}/parameter_hash={P}/run_id={R}/`.
-2. If missing: re-run S1–S2; if duplicate: fix re-entry/transactionality.
-3. Re-run S3 after exactly one acceptance exists with `value ≥ 2`.
-
-**C) Illegal ISO (E_HOME_ISO_INVALID)**
-
-1. Verify `home_country_iso` against the canonical ISO FK target.
-2. Correct ingress mapping (`UK→GB`, etc.).
-3. Re-ingest; re-run S3.
-
-**D) Branch inconsistency (F_EL_BRANCH_INCONSISTENT)**
-
-1. Open the bundle’s `rng_accounting.json` to see which stream tripped.
-2. If `e=false` but any S4–S6 RNG exists: update runner to **short-circuit S4** and **persist via S6 (home-only)**; clean logs.
-3. If `e=true` but no S4 evidence: ensure S4 emits `poisson_component(context="ztp")` or `ztp_retry_exhausted`.
-4. Re-run S3→S9; `_passed.flag` will only be written once the bundle passes.
-
----
-
-## 7) Idempotence & retries
-
-* **S3 idempotence.** S3 uses **no RNG** and writes **no datasets**; repeating S3 with the same `(seed, parameter_hash, manifest_fingerprint)` and identical inputs yields identical outputs.
-* **Validation retries.** Fixes to flags or runner logic require re-running S3→S9; 1B remains **locked out** until the new `validation_bundle_1A` passes and `_passed.flag` matches its digest for the same fingerprint.
-
----
-
-## 8) Conformance tests (suite skeleton)
-
-1. **E_FLAGS_MISSING.** Remove the flags row for `M` → S3.1 aborts `E_FLAGS_MISSING`.
-2. **E_FLAGS_DUPLICATE.** Duplicate `(M,P)` row → S3.1 aborts `E_FLAGS_DUPLICATE`.
-3. **E_FLAGS_SCHEMA.** Set `eligibility_rule_id=NULL` → S3.2 aborts `E_FLAGS_SCHEMA`.
-4. **E_HOME_ISO_INVALID.** `home_country_iso="UK"` → S3.1/S3.3 aborts.
-5. **F_EL_BRANCH_INCONSISTENT (domestic).** Flags `is_eligible=false` but emit one `gumbel_key` → S9 hard-fails; `_passed.flag` not written.
-6. **F_EL_BRANCH_INCONSISTENT (eligible).** Flags `is_eligible=true` but **no** ZTP evidence or exhaustion → S9 hard-fails.
-
----
-
-## 9) Why this is safe
-
-* Flags are **parameter-scoped**; identical `{parameter_hash}` ⇒ identical `e_m` across replays.
-* S3 emits **no RNG**; stochastic evidence is confined to S4–S6 logs that S9 inspects via fixed schemas/paths.
-* Hand-off to 1B is cryptographically gated via `_passed.flag == SHA256(bundle)` for the same `manifest_fingerprint`.
-
----
-
-# S3.6 — Outputs (state boundary, deterministic, no RNG)
-
-## 1) Purpose & scope (normative)
-
-S3 is a **deterministic gate** that **writes no datasets** and **consumes no RNG**. S3.6 defines the **state boundary**: the *only* thing that leaves S3 is an **in-memory export** (per merchant) carrying the **branch decision**, the **seeded lineage**, and the **initialised country-set container** (home at rank 0). Persistence of cross-country order happens **later** in `alloc/country_set` after **S6**; egress `outlet_catalogue` is **order-agnostic** and must be joined to `country_set.rank`.
-
----
-
-## 2) Inputs to S3.6 (provenance recap; already bound)
-
-From S3.1–S3.3 (all **deterministic**, parameter/run-scoped):
-
-* `merchant_id:int64`
-* `home_country_iso = c` (ISO-3166-1 alpha-2, FK-valid)
-* `mcc:int32`, `channel ∈ {"card_present","card_not_present"}`
-* `N:int32` — accepted **NB** outlet count from S2 (`N ≥ 2`, evidenced by exactly one `nb_final`)
-* `flags` (governed):
-  `is_eligible:boolean` ≡ `e`,
-  `eligibility_rule_id:string`, `eligibility_hash:string`,
-  `reason_code ∈ {"mcc_blocked","cnp_blocked","home_iso_blocked"}|null`, `reason_text:string|null`
-* Lineage: `seed:uint64`, `run_id:string/uuid`, `parameter_hash:hex64`, `manifest_fingerprint:hex64`
-
----
-
-## 3) Formal outputs (per merchant) — **export object**
-
-Define the S3 **export** (non-persisted; passed by value/reference to the next state):
-
-```
-S3Export {
-  merchant_id: int64,
-  home_country_iso: string[ISO2],
-  mcc: int32,
-  channel: enum{"card_present","card_not_present"},
-  N: int32,                               # accepted in S2 (N >= 2)
-  e: boolean,                             # eligibility bit from flags
-  eligibility_rule_id: string,            # governed code
-  eligibility_hash: string,               # hex
-  reason_code: enum{"mcc_blocked","cnp_blocked","home_iso_blocked"} | null,
-  reason_text: string | null,
-  C: list[string[ISO2]],                  # ordered, dup-free; rank 0 = home
-  K: int32 | null,                        # 0 if domestic-only; null until S4 otherwise
-  next_state: enum{"S4","S6"},            # S6 is single writer for country_set
-  seed: uint64,
-  run_id: string,
-  parameter_hash: hex64,
-  manifest_fingerprint: hex64
-}
-```
-
-**Construction rules (deterministic, no RNG):**
-
-* Initialise `C := [home_country_iso]` (rank 0 = home).
-* If `e == false`: set `K := 0` and `next_state := "S6"` (**route domestic multi-site to S6** so it persists `country_set` with home-only).
-* If `e == true`: set `K := null` (unknown; determined by S4) and `next_state := "S4"`.
-* Duplicates in `C` are forbidden (assert before any later append).
-
----
-
-## 4) What S3 **does not** do (normative non-actions)
-
-* **No persistence.** S3 writes **no** rows to any dataset; in particular, it does **not** write `country_set`. Cross-country order is persisted **after S6** to `data/layer1/1A/country_set/seed={seed}/parameter_hash={parameter_hash}/` (schema `#/alloc/country_set`), which is the **only** authoritative store of inter-country rank.
-* **No RNG.** S3 emits **no** RNG event streams. Any S4–S6 RNG evidence for a merchant with `e==false` causes validator fail `branch_inconsistent_domestic`.
-* **No egress.** `outlet_catalogue` is S8’s responsibility and is **order-agnostic**; consumers must verify the 1A validation gate before reading and must join `country_set.rank` for cross-country order.
-
----
-
-## 5) Downstream contracts (who consumes which fields, exactly)
-
-### 5.1 S4 (eligible only; `next_state="S4"`)
-
-**Consumes:** `merchant_id, C=[home], N, mcc, channel, home_country_iso, seed, run_id, parameter_hash, manifest_fingerprint`.
-**Produces:** ZTP draws to determine `K ≥ 1` and logs: `poisson_component(context="ztp")`, `ztp_rejection`, optionally `ztp_retry_exhausted`. **Never** modifies `C[0]`.
-
-### 5.2 S6 (domestic-only; `next_state="S6"`)
-
-**Consumes:** `merchant_id, C=[home], K=0, N, seed, run_id, parameter_hash, manifest_fingerprint`.
-**Produces (domestic path):** persists `country_set` with exactly one row `{country_iso=home, is_home=true, rank=0}`. **No RNG** on this path. Then hands off to S7 for within-country sequencing.
-
-### 5.3 S7 (post-S6 integerisation)
-
-**Consumes:** ordered `country_set` (home at rank 0; possibly foreigns if eligible).
-**Produces:** within-country sequencing & integerisation. When `|C| = 1` (domestic-only), S7 emits **no** Dirichlet events (`dirichlet_gamma_vector` / `gamma_component(context="dirichlet")` are absent).
-
----
-
-## 6) State-boundary invariants (validator-facing; MUST hold)
-
-For every merchant $m$ admitted to S3:
-
-1. **Flags cardinality & schema.** Exactly one row in `crossborder_eligibility_flags` for `(parameter_hash, merchant_id)` with governed fields (`is_eligible`, `eligibility_rule_id`, `eligibility_hash`, `reason_code|reason_text`).
-2. **Branch coherence.**
-
-   * If `e==false` ⇒ **no** S4–S6 RNG events under `(merchant_id, seed, parameter_hash, run_id)`.
-   * If `e==true` ⇒ **at least one** `poisson_component(context="ztp")` **or** a `ztp_retry_exhausted` exists.
-3. **Country-set shape at persistence time.** When `country_set` is later written, it must contain exactly one home row `(is_home=true, rank=0, country_iso=c)` and, if eligible, **contiguous** foreign ranks `1..K`. `country_set` is the **only** authoritative store of inter-country order.
-4. **Egress separation.** `outlet_catalogue` never encodes cross-country order; readers must recover it via join to `country_set.rank` and must verify `_passed.flag == SHA256(validation_bundle_1A)` for the same fingerprint **before** reading.
-
----
-
-## 7) Reference procedure (language-agnostic pseudocode)
-
-```pseudo
-# S3.6: finalise the export and route
-function s3_6_state_boundary(x: S3Export) -> (route, S3Export):
-    assert typeof(x.e) == BOOLEAN
-    assert x.C == [x.home_country_iso] and iso2_fk_valid(x.home_country_iso)
-
-    if x.e == false:
-        x.K = 0
-        x.next_state = "S6"     # single writer for country_set (home-only)
-        route = "S6"
-    else:
-        x.K = null              # determined by S4
-        x.next_state = "S4"
-        route = "S4"
-
-    # preserve lineage for downstream writes/logs
-    assert x.seed != null and x.run_id != null and x.parameter_hash != null and x.manifest_fingerprint != null
-    return (route, x)           # pass by value/reference; no persistence
-```
-
-**Preserved keys:** `(merchant_id, seed, run_id, parameter_hash, manifest_fingerprint)` accompany the export so S4/S6/S7 writes can embed them in datasets/logs.
-
----
-
-## 8) Failure surface at the boundary
-
-S3.6 introduces **no new** errors (it only packages decisions). All S3 failures are those in **S3.5** (flags missing/duplicate/schema, illegal ISO, branch inconsistency), plus any schema/PK/FK checks performed later at `country_set` persistence and S9 validation.
-
----
-
-## 9) Conformance tests (suite skeleton)
-
-1. **Domestic routing.** `e=false`, `C=["GB"]` ⇒ route `S6`, export has `K=0`, `next_state="S6"`. After S6, `country_set` contains only `(GB, rank=0)`. **Pass.**
-2. **Eligible routing.** `e=true`, `C=["US"]` ⇒ route `S4`, export has `K=null`, `next_state="S4"`. S4 emits ZTP evidence or exhaustion. **Pass.**
-3. **No Dirichlet when `|C|=1`.** For `e=false` (domestic-only), assert **zero** rows in `dirichlet_gamma_vector` and `gamma_component(context="dirichlet")` under `(merchant_id, seed, parameter_hash, run_id)`. **Pass if absent.**
-4. **Order authority separation.** End-to-end, confirm `outlet_catalogue` lacks cross-country order columns and order is recovered exclusively via `country_set.rank`. **Pass.**
-5. **No-RNG invariant in S3.** Confirm no S3-labelled RNG streams exist; any S4–S6 events for `e=false` trip `branch_inconsistent_domestic`. **Pass/Fail accordingly.**
-
----
-
-## 10) Complexity & performance
-
-O(1) per merchant (set scalars, return a struct). **Zero I/O** and **zero RNG** at this boundary. All heavy lifting is deferred to S4/S6/S7.
-
----
-
-## 11) Why this clean boundary matters
-
-* Keeps S3 **replayable**: decisions derive solely from ingress + parameter-scoped flags + S2 acceptance; with fixed `parameter_hash` and `seed`, the export is deterministic.
-* Enforces a **single source of truth** for order: `country_set.rank` (partitioned by `{seed, parameter_hash}`) is the **only** authority; egress and downstream layers don’t duplicate or drift inter-country order.
-
----
-
-# S3.A — Eligibility gate system log (non-authoritative, no RNG)
-
-## 1) Purpose & scope (normative)
-
-Emit **structured JSONL ops events** around the S3 gate:
-
-* `s3_inputs_bound` (after S3.1),
-* `s3_decision` (after S3.2),
-* `s3_abort` (when S3.1/S3.2 abort deterministically per S3.5).
-
-This log is **for incident response only**; validators and readers **must not** use it as input. Inter-country order remains solely in `alloc/country_set.rank`; `outlet_catalogue` is order-agnostic and may be consumed only when `_passed.flag == SHA256(validation_bundle_1A)` for the same fingerprint.
-
-**Zero RNG.** S3.A never emits `rng_event_*` and has no read-after-write coupling into modelling.
-
----
-
-## 2) Storage layout (pathing, partitions, rotation)
-
-```
-logs/system/eligibility_gate.v1/run_id={run_id}/part-*.jsonl.gz
-```
-
-* **Partition key:** `run_id` (scopes incident triage to a single execution).
-* **Envelope lineage in every record:** `seed`, `parameter_hash`, `manifest_fingerprint`, `run_id`.
-* **Compression:** gzip; **rotation:** \~256 MiB per part; **retention:** ≥30 days (ops).
-* **Non-interference:** not listed as an authoritative dataset in registry/dictionary; **never** read by pipeline components.
-
----
-
-## 3) Event model (closed set + envelopes)
-
-### 3.1 Types
-
-```
-"type" ∈ {"s3_inputs_bound","s3_decision","s3_abort"}
-```
-
-Exactly one of `payload_inputs`, `payload_decision`, `payload_abort` is present.
-
-### 3.2 Common envelope (required on every record)
-
-`event_id: hex64`, `type`, `ts_utc (RFC3339)`, `merchant_id`, `seed`, `parameter_hash`, `manifest_fingerprint`, `run_id (uuid)`, `module:"1A.S3"`, `version:"v1"`.
-
-### 3.3 Type-specific payloads
-
-**A) `s3_inputs_bound` → `payload_inputs`**
-
-* `home_country_iso: ISO2 (uppercase)`
-* `mcc:int32`, `channel ∈ {"card_present","card_not_present"}`
-* `N:int32 (≥2)` (S2 acceptance, context only)
-* `flags:{ is_eligible:boolean, eligibility_rule_id:string, eligibility_hash:string, reason_code ∈ {"mcc_blocked","cnp_blocked","home_iso_blocked"}|null, reason_text:string|null }` (from `crossborder_eligibility_flags`, parameter-scoped).
-
-**B) `s3_decision` → `payload_decision`**
-
-* `e:boolean` (alias of flags.is_eligible)
-* `branch ∈ {"eligible","domestic_only"}`
-* `home_country_iso: ISO2`
-* `eligibility_rule_id:string`, `eligibility_hash:string`
-* `reason_code: enum|null`, `reason_text:string|null` (**must be null when `e==true`**)
-* `C0: ISO2` (home anchored at rank 0 in the in-memory container; **country order is later persisted only in `country_set`**).
-
-**C) `s3_abort` → `payload_abort`**
-
-* `error: enum{E_NOT_MULTISITE_OR_MISSING_S2,E_FLAGS_MISSING,E_FLAGS_DUPLICATE,E_FLAGS_SCHEMA,E_HOME_ISO_INVALID}`
-* `dataset: string` (e.g., `"crossborder_eligibility_flags"`, `"rng_event_nb_final"`)
-* `details: object` (small, redaction-safe probe).
-
-**Invariants.** Envelope fields always present; payload shape matches `type`. Values mirror authoritative tables; schema-violating ingress would already trigger `s3_abort`.
-
----
-
-## 4) Deterministic `event_id` (idempotent per run)
-
-For dedupe within a run:
-
-$$
-\text{event_id}=\mathrm{hex}_{64}(\mathrm{SHA256}(K\ \|\ M\ \|\ R\ \|\ \text{bytes}(T)))
-$$
-
-with `K` ∈ {01,02,03} for inputs/decision/abort, `M`=`merchant_id` (8-byte BE), `R`=`run_id` (16 bytes RFC-4122), `T` literal type. Same (merchant,run,type) ⇒ same `event_id`; different `run_id` ⇒ different `event_id`. Ops-only; never enters parameter hashing or validation.
-
----
-
-## 5) JSON-Schema (normative for this log; non-authoritative overall)
-
-Abridged here; enforce at write time. Authoritative **dataset** schemas remain `schemas.ingress.layer1.yaml`, `schemas.1A.yaml`, `schemas.layer1.yaml`.
+*`s3_integerised_counts`:*
 
 ```json
-{
-  "$id":"schemas.ops.1A.s3_log.v1",
-  "type":"object",
-  "required":["event_id","type","ts_utc","merchant_id","seed","parameter_hash",
-              "manifest_fingerprint","run_id","module","version"],
-  "properties":{
-    "event_id":{"type":"string","pattern":"^[a-f0-9]{64}$"},
-    "type":{"enum":["s3_inputs_bound","s3_decision","s3_abort"]},
-    "ts_utc":{"type":"string","format":"date-time"},
-    "merchant_id":{"$ref":"schemas.1A.yaml#/$defs/id64"},
-    "seed":{"$ref":"schemas.1A.yaml#/$defs/uint64"},
-    "parameter_hash":{"type":"string","pattern":"^[a-f0-9]{64}$"},
-    "manifest_fingerprint":{"type":"string","pattern":"^[a-f0-9]{64}$"},
-    "run_id":{"type":"string","format":"uuid"},
-    "module":{"const":"1A.S3"},
-    "version":{"const":"v1"},
-
-    "payload_inputs":{
-      "type":"object",
-      "required":["home_country_iso","mcc","channel","N","flags"],
-      "properties":{
-        "home_country_iso":{"$ref":"schemas.1A.yaml#/$defs/iso2"},
-        "mcc":{"type":"integer"},
-        "channel":{"enum":["card_present","card_not_present"]},
-        "N":{"type":"integer","minimum":2},
-        "flags":{
-          "type":"object",
-          "required":["is_eligible","eligibility_rule_id","eligibility_hash"],
-          "properties":{
-            "is_eligible":{"type":"boolean"},
-            "eligibility_rule_id":{"type":"string","minLength":1},
-            "eligibility_hash":{"type":"string","minLength":1},
-            "reason_code":{"enum":["mcc_blocked","cnp_blocked","home_iso_blocked",null]},
-            "reason_text":{"type":["string","null"]}
-          },
-          "additionalProperties":false
-        }
-      },
-      "additionalProperties":false
-    },
-
-    "payload_decision":{
-      "type":"object",
-      "required":["e","branch","home_country_iso","eligibility_rule_id","eligibility_hash"],
-      "properties":{
-        "e":{"type":"boolean"},
-        "branch":{"enum":["eligible","domestic_only"]},
-        "home_country_iso":{"$ref":"schemas.1A.yaml#/$defs/iso2"},
-        "eligibility_rule_id":{"type":"string","minLength":1},
-        "eligibility_hash":{"type":"string","minLength":1},
-        "reason_code":{"enum":["mcc_blocked","cnp_blocked","home_iso_blocked",null]},
-        "reason_text":{"type":["string","null"]},
-        "C0":{"$ref":"schemas.1A.yaml#/$defs/iso2"}
-      },
-      "allOf":[
-        {"if":{"properties":{"e":{"const":true}}},
-         "then":{"properties":{"reason_code":{"const":null},"reason_text":{"const":null}}}}
-      ],
-      "additionalProperties":false
-    },
-
-    "payload_abort":{
-      "type":"object",
-      "required":["error","dataset"],
-      "properties":{
-        "error":{"enum":[
-          "E_NOT_MULTISITE_OR_MISSING_S2","E_FLAGS_MISSING","E_FLAGS_DUPLICATE",
-          "E_FLAGS_SCHEMA","E_HOME_ISO_INVALID"
-        ]},
-        "dataset":{"type":"string"},
-        "details":{"type":"object"}
-      },
-      "additionalProperties":false
-    }
-  },
-  "oneOf":[
-    {"properties":{"type":{"const":"s3_inputs_bound"},"payload_inputs":{"type":"object"}}, "required":["payload_inputs"]},
-    {"properties":{"type":{"const":"s3_decision"},"payload_decision":{"type":"object"}},   "required":["payload_decision"]},
-    {"properties":{"type":{"const":"s3_abort"},"payload_abort":{"type":"object"}},         "required":["payload_abort"]}
-  ],
-  "additionalProperties":false
-}
+{ "merchant_id": 123456789, "country_iso": "GB", "count": 3, "residual_rank": 2,
+  "parameter_hash": "ab12...ef", "manifest_fingerprint": "cd34...90" }
+{ "merchant_id": 123456789, "country_iso": "DE", "count": 2, "residual_rank": 3,
+  "parameter_hash": "ab12...ef", "manifest_fingerprint": "cd34...90" }
+{ "merchant_id": 123456789, "country_iso": "FR", "count": 2, "residual_rank": 1,
+  "parameter_hash": "ab12...ef", "manifest_fingerprint": "cd34...90" }
 ```
 
----
+*(If S3 also owns sequencing; §11):*
 
-## 6) Reference emission procedure (language-agnostic)
-
-```pseudo
-function emit_s3_log(type, ctx, payload):
-  rec := {
-    event_id: derive_event_id(type, ctx.merchant_id, ctx.run_id),
-    type, ts_utc: now_rfc3339_utc(),
-    merchant_id: ctx.merchant_id,
-    seed: ctx.seed,
-    parameter_hash: ctx.parameter_hash,
-    manifest_fingerprint: ctx.manifest_fingerprint,
-    run_id: ctx.run_id,
-    module: "1A.S3", version: "v1"
-  }
-  if type == "s3_inputs_bound": rec.payload_inputs   = payload
-  if type == "s3_decision":     rec.payload_decision = payload
-  if type == "s3_abort":        rec.payload_abort    = payload
-
-  assert validate_json_schema(rec, "schemas.ops.1A.s3_log.v1")
-  try append_jsonl_gz("logs/system/eligibility_gate.v1/run_id="+ctx.run_id+"/part-*.jsonl.gz", rec)
-  catch IOErr: warn("S3.A log write failed; continuing (non-authoritative)")
+```json
+{ "merchant_id": 123456789, "country_iso": "FR", "site_order": 1, "site_id": "000001",
+  "parameter_hash": "ab12...ef", "manifest_fingerprint": "cd34...90" }
+{ "merchant_id": 123456789, "country_iso": "FR", "site_order": 2, "site_id": "000002",
+  "parameter_hash": "ab12...ef", "manifest_fingerprint": "cd34...90" }
 ```
 
-**Emit points:** end of S3.1 (`s3_inputs_bound`), end of S3.2 or S3.6 (`s3_decision`), and at abort sites (`s3_abort`). **Idempotence:** same (merchant, run, type) ⇒ same `event_id`.
+**Quick checks.**
+`candidate_rank(home)=0`; ranks contiguous; priors are fixed-dp strings but **not used for ranking**; residuals use **dp\_resid=8**; counts sum to `N`; lineage embeds match partition.
 
 ---
 
-## 7) Determinism & non-interference guarantees
+## 17.2 Tie-heavy example — no priors, ISO tiebreak
 
-* No module is allowed to read from `logs/system/eligibility_gate.v1/*`.
-* S9 ignores this log; 1B consumption requires `_passed.flag` for the fingerprinted bundle.
-* **Schema authority** remains the three JSON-Schemas for ingress, 1A, and RNG events; this ops schema is **not** authoritative.
+**Context.**
+Merchant `m=555`, `home=US`, `N=5`. Ladder admits `{CA, CH}` under the same admit rule, so admission keys tie.
 
----
+**Candidate universe (§8).**
+`C = { US, CA, CH }`; unioned `reason_codes` equal across CA/CH.
 
-## 8) Privacy & redaction
+**Ordering (§9).**
+Home gets `candidate_rank=0`. Foreigns tie on admission key; break by **ISO A→Z** → `CA` then `CH`.
+Final order: `US(0) → CA(1) → CH(2)`.
 
-No PII (merchant_id is internal). `payload_abort.details` must stay **small** (counts/keys only).
+**Integerisation (equal-weights; §10).**
+`M=3`; `a_i = 5/3 = 1.666…`. Floors `[1,1,1]`, remainder `d=2`.
+Residuals equal; ISO tiebreak bumps `CA` then `CH`.
+Counts: `US=1`, `CA=2`, `CH=2`; residual ranks: `CA:1`, `CH:2`, `US:3`.
 
----
+*`s3_integerised_counts`:*
 
-## 9) Failure semantics (logging must not affect modelling)
+```json
+{ "merchant_id": 555, "country_iso": "US", "count": 1, "residual_rank": 3,
+  "parameter_hash": "aa00...11", "manifest_fingerprint": "bb22...33" }
+{ "merchant_id": 555, "country_iso": "CA", "count": 2, "residual_rank": 1,
+  "parameter_hash": "aa00...11", "manifest_fingerprint": "bb22...33" }
+{ "merchant_id": 555, "country_iso": "CH", "count": 2, "residual_rank": 2,
+  "parameter_hash": "aa00...11", "manifest_fingerprint": "bb22...33" }
+```
 
-Best-effort policy: failures to write/validate logs **never** abort S3. Buffer a small in-RAM queue and drop on persistent outage; timestamps are advisory.
-
----
-
-## 10) Example records
-
-Examples mirror governed fields and lineage:
-
-* **`s3_inputs_bound`** with governed flags (eligibility ids & reason codes)
-* **`s3_decision`** with `e=true` ⇒ `reason_code=null, reason_text=null`
-* **`s3_abort`** for `E_FLAGS_MISSING` with minimal `details`
-
-(Examples follow the same shapes shown in the expanded spec and ops schema).
-
----
-
-## 11) Conformance tests (suite skeleton)
-
-1. **Schema pass:** one record of each type validates against `schemas.ops.1A.s3_log.v1`.
-2. **Branch rule:** `e=true` ⇒ `reason_code=null`, `reason_text=null`; `e=false` ⇒ governed `reason_code` allowed.
-3. **ID idempotence:** same merchant+run+type ⇒ same `event_id`; different `run_id` ⇒ different `event_id`.
-4. **Non-interference:** remove the entire log folder and rerun S3 → modelling outputs & S9 unchanged.
-5. **Rotation:** >256 MiB produces multiple parts; each is valid JSONL.
+**Quick checks.**
+Ties resolved by ISO; **`candidate_rank`** is the authority; counts sum to `N`; `residual_rank` reconstructs bump set `{CA,CH}`.
 
 ---
 
-### Why this is safe
+## 17.3 No-foreign example — deny cross-border
 
-* Log remains **non-authoritative**; schema authority is unchanged.
-* Country order stays single-sourced in `country_set` and is **not** encoded in egress; consumers must join `country_set.rank`.
+**Context.**
+Merchant `m=777`, `home=AE`, `N=4`. Ladder’s `DENY_SANCTIONED` (decision source) yields `eligible_crossborder=false`.
+
+**Candidate universe (§8).**
+`C = { AE }` only; `K_foreign=0`.
+
+**Ordering (§9).**
+Trivial: `candidate_rank(AE)=0`.
+
+**Integerisation (§10).**
+If S3 owns counts: `count(AE) = 4`. No residuals (single row).
+
+*Illustrative rows:*
+
+```json
+{ "merchant_id": 777, "country_iso": "AE", "candidate_rank": 0, "is_home": true,
+  "reason_codes": ["DENY_SANCTIONED"], "filter_tags": ["HOME"],
+  "parameter_hash": "fe98...76", "manifest_fingerprint": "dc54...32" }
+```
+
+```json
+{ "merchant_id": 777, "country_iso": "AE", "count": 4, "residual_rank": 1,
+  "parameter_hash": "fe98...76", "manifest_fingerprint": "dc54...32" }
+```
+
+**Quick checks.**
+Candidate set non-empty with `home`; **`candidate_rank(home)=0`**; counts (if present) sum to `N`.
+
+---
+
+## 17.4 Edge case with bounds — bounded Hamilton (optional)
+
+**Context.**
+Merchant `m=888`, `home=GB`, `N=6`, candidates `{GB, IE, NL}` with fixed-dp priors (`dp=6`):
+`"0.500000"`, `"0.300000"`, `"0.200000"`. Bounds: `L = {1,0,0}`, `U = {6,3,3}`.
+
+**Step 1 (floor to L).** `b = {1,0,0}`, remaining `N′=5`, capacities `{5,3,3}`.
+**Step 2 (shares over cap>0).** Same priors; `a′ = 5 * {0.5,0.3,0.2} = {2.5,1.5,1.0}` → `f = {2,1,1}` (cap-limited), `d′ = 5 − 4 = 1`.
+**Step 3 (residuals, dp\_resid=8).** Residuals `{0.5,0.5,0.0}` → ISO tiebreak: `GB` before `IE`. Bump `GB` by +1.
+**Final counts.** `GB=1+2+1=4`, `IE=0+1=1`, `NL=0+1=1` (within bounds; sum=6).
+
+*`s3_integerised_counts`:*
+
+```json
+{ "merchant_id": 888, "country_iso": "GB", "count": 4, "residual_rank": 1,
+  "parameter_hash": "1357...9b", "manifest_fingerprint": "2468...ac" }
+{ "merchant_id": 888, "country_iso": "IE", "count": 1, "residual_rank": 2,
+  "parameter_hash": "1357...9b", "manifest_fingerprint": "2468...ac" }
+{ "merchant_id": 888, "country_iso": "NL", "count": 1, "residual_rank": 3,
+  "parameter_hash": "1357...9b", "manifest_fingerprint": "2468...ac" }
+```
+
+**Quick checks.**
+Feasibility ok; `L_i ≤ count_i ≤ U_i`; ISO tiebreak visible; sum equals `N`.
+
+---
+
+## 17.5 “Green” checklist for examples (what to verify quickly)
+
+* [ ] **`candidate_rank(home)=0`**; ranks contiguous; no duplicate `country_iso`.
+* [ ] If priors shown: fixed-dp **strings**; **ranking never uses priors** (priors affect integerisation only).
+* [ ] Integerisation: residuals computed **after** dp; **`dp_resid=8`**; ties by ISO; counts sum to `N`.
+* [ ] `residual_rank` present for **every** row when counts are emitted.
+* [ ] Embedded lineage present and matches the active partition (`parameter_hash`) and run (`manifest_fingerprint`).
+* [ ] No event streams (S3 uses none); only tables per §12.
+
+---
+
+*End of illustrative examples.*
+
+---
+
+# 18) Validator proof obligations (what L3 will re-derive)
+
+## 18.1 Scope (binding)
+
+* L3 is **read-only**. It **does not** mutate S3 outputs or produce S3 datasets.
+* L3 **re-derives** the deterministic facts S3 promised in §§6–16 and either:
+  • emits a **PASS** (run-scoped receipt outside S3 egress), or
+  • raises the **precise** failure code(s) in §14 (merchant-scoped unless marked run-scoped).
+* **No RNG**, no time dependence, no host state.
+
+---
+
+## 18.2 Inputs L3 must read (authoritative)
+
+* **Schema authority & dictionary** (run-scoped gate): `schemas.layer1.yaml` containing all `#/s3/*` anchors; **optional** schema index if used; dataset dictionary resolving all S3 IDs.
+* **Governed artefacts** listed in the S3 BOM (§2): `policy.s3.rule_ladder.yaml`, `static.iso.countries.json`, and any optional policy bundles (priors, bounds).
+* **S3 datasets (egress)** for the target `parameter_hash`, **filtered by `manifest_fingerprint == <this run>`**:
+  `s3_candidate_set` (required); and optionally `s3_base_weight_priors`, `s3_integerised_counts`, `s3_site_sequence`.
+* **Upstream evidence (read-only)** for cross-checks: S1 `hurdle_bernoulli` (gate) and S2 `nb_final` (for **N only**) for the same `{seed, parameter_hash, run_id}`.
+
+*(All locations resolve via the dictionary; no literal paths.)*
+
+---
+
+## 18.3 What L3 must *never* do
+
+* Must **not** “fix” data, interpolate, or re-emit S3 rows.
+* Must **not** derive features not declared in §§2/6.
+* Must **not** treat file order as semantic; only spec’d keys/order count.
+
+---
+
+## 18.4 Proof obligations (per merchant unless stated)
+
+> Ordered **shape → lineage → order/math → cross-dataset coherence**. Each item cites the failure code on breach.
+
+### V1 — Schema & JSON typing (shape)
+
+* Every S3 row conforms to its **JSON-Schema** (§12).
+* Numeric payload fields are JSON **numbers**; fixed-dp priors (if present) are JSON **strings** with exactly `dp` places.
+  → `ERR_S3_EGRESS_SHAPE`.
+
+### V2 — Partition ↔ embed equality (lineage)
+
+* Embedded `parameter_hash` equals the **path partition**; embedded `manifest_fingerprint` equals the run fingerprint.
+* S3 paths contain **no `seed`**.
+  → `ERR_S3_EGRESS_SHAPE`.
+
+### V3 — Gating & presence
+
+* Join to S1: merchants with `is_multi==false` have **no S3 rows**.
+* Join to S2: merchants used by S3 have exactly one `nb_final` with **`N ≥ 2`**.
+  → `ERR_S3_PRECONDITION`.
+
+### V4 — Candidate coverage & uniqueness
+
+* `s3_candidate_set` exists; includes **exactly one** home row; **no duplicate** `(country_iso)`; all `country_iso ∈ ISO`.
+  → `ERR_S3_CANDIDATE_CONSTRUCTION` or `ERR_S3_COUNTRY_CODE_INVALID`.
+
+### V5 — Rank law (total order)
+
+* Per merchant, **`candidate_rank`** is **contiguous** `0..|C|−1`; exactly one row has `candidate_rank==0` and `is_home==true`.
+  → `ERR_S3_ORDERING_NONCONTIGUOUS` or `ERR_S3_ORDERING_HOME_MISSING`.
+
+### V6 — Ordering proof (primary key = admission order key)
+
+* Reconstruct each foreign row’s **admission key** from the artefact’s **closed mapping** (row `reason_codes[]` → admitting rule id(s)), then compute:
+
+  ```
+  K(r) = ⟨ precedence_rank(r), priority(r), rule_id_ASC ⟩
+  Key1(i) = min_lex { K(r) : r ∈ AdmitRules(i) }
+  ```
+* Sort foreign rows by `Key1` → ISO A→Z; pin `home → candidate_rank=0`. The resulting order must match **`candidate_rank`**.
+  → `ERR_S3_ORDERING_KEY_UNDEFINED` (cannot reconstruct key) or `ERR_S3_ORDERING_UNSTABLE` (mismatch).
+
+### V7 — Priors surface (if present)
+
+* If `s3_base_weight_priors` exists:
+  • `base_weight_dp` parses as a fixed-dp decimal; **dp is constant within the run**.
+  • Values are deterministic strings; no duplicate `(merchant_id,country_iso)`.
+  *(No equality check vs candidate\_set — priors live **only** here.)*
+  → `ERR_S3_EGRESS_SHAPE`.
+
+### V8 — Integerisation reconstruction (if counts present)
+
+* From S2 **N** and §10 policy:
+  • If priors exist: use **quantised** `w_i^⋄` (from `base_weight_dp`) for shares; else equal shares.
+  • Compute `a_i`, floors `b_i`, remainder `d`, residuals `r_i`; **quantise residuals to `dp_resid=8`**; apply bump rule (residual DESC → ISO A→Z → `candidate_rank` → stability).
+  • Reconstruct `count_i`; verify **`Σ count_i = N`**, `count_i ≥ 0`; and `residual_rank` matches the bump order for **all** rows.
+  → `ERR_S3_INTEGER_SUM_MISMATCH`, `ERR_S3_INTEGER_NEGATIVE`.
+
+### V9 — Bounds (optional policy)
+
+* If `(L_i,U_i)` are declared: verify `Σ L_i ≤ N ≤ Σ U_i` and `L_i ≤ count_i ≤ U_i`.
+  → `ERR_S3_INTEGER_FEASIBILITY`.
+
+### V10 — Sequencing (if S3 emits it)
+
+* For each `(merchant_id,country_iso)` in `s3_site_sequence`:
+  • `site_order` is **exactly** `1..count_i` (use counts if present; else check contiguity alone).
+  • If `site_id` present: **6-digit zero-padded string**; uniqueness within the block.
+  • Every `(merchant_id,country_iso)` also appears in `s3_candidate_set`.
+  → `ERR_S3_SEQUENCE_GAP`, `ERR_S3_SEQUENCE_DUPLICATE`, or `ERR_S3_SITE_SEQUENCE_OVERFLOW`.
+
+### V11 — Cross-dataset coherence
+
+* Keys align across datasets (where present): `candidate_set` ↔ `base_weight_priors` ↔ `integerised_counts` ↔ `site_sequence`.
+* No extra countries appear in optional tables that are absent from `candidate_set`.
+  → `ERR_S3_EGRESS_SHAPE`.
+
+### V12 — Dataset-specific uniqueness (write-side)
+
+* Enforce §12.7 uniqueness:
+  `candidate_set`: unique `(country_iso)` **and** `(candidate_rank)`;
+  `base_weight_priors`: unique `(country_iso)`;
+  `integerised_counts`: unique `(country_iso)`;
+  `site_sequence`: unique `(country_iso, site_order)` (and `(country_iso, site_id)` if present).
+  → `ERR_S3_DUPLICATE_ROW`.
+
+### V13 — Idempotence surface (semantic)
+
+* Re-compute a **content hash** of each merchant’s would-be rows from artefacts+Context to demonstrate outputs are a pure function (no dependency on file order/concurrency/host).
+* If the same `(merchant_id, manifest_fingerprint)` already exists and bytes **differ**, classify as idempotence breach.
+  → `ERR_S3_IDEMPOTENCE_VIOLATION`.
+
+### V14 — Publish discipline (run-scoped sanity)
+
+* Stage→fsync→atomic rename in use; no partials; no forbidden lineage in paths.
+  → `ERR_S3_PUBLISH_ATOMICITY` (run-scoped) or `ERR_S3_EGRESS_SHAPE` (lineage/path issues).
+
+---
+
+## 18.5 Non-emission confirmation
+
+On any merchant-scoped failure above, **no S3 tables** for that merchant are valid for this fingerprint. L3 treats the merchant as **failed** and excludes them from PASS.
+
+---
+
+## 18.6 PASS criteria (per merchant and run)
+
+A merchant **PASS** iff **all** applicable obligations V1–V12 succeed.
+The run **PASS** iff:
+
+* all merchants PASS, and
+* V14 (publish discipline) holds.
+
+*(L3 may publish a small PASS/FAIL receipt outside S3 egress; content & location are governance-side and non-normative.)*
+
+---
+
+## 18.7 Validator “green” checklist (quick)
+
+* [ ] All S3 rows conform to schemas; JSON numbers/strings as specified.
+* [ ] Path partitions = embedded lineage; no `seed` in paths.
+* [ ] Candidate coverage: non-empty; unique countries; home present.
+* [ ] **`candidate_rank`** contiguous; `candidate_rank(home)=0`.
+* [ ] Ordering proof matches (admission-key path).
+* [ ] If priors present: fixed-dp strings; **dp constant** within run.
+* [ ] If counts present: sum to **N**; `residual_rank` reconstructs bumps (`dp_resid=8`); bounds respected (if any).
+* [ ] If sequencing present: contiguous `site_order`; 6-digit `site_id`; keys coherent.
+* [ ] Dataset-specific uniqueness holds.
+* [ ] No idempotence/publish breaches detected.
+
+---
+
+With these obligations, L3 can **mechanically** prove S3 kept its promises—no RNG, no ambiguity, byte-replayable ordering & integerisation, correct lineage, and run-safe publishing—so downstream can rely on S3 without surprises.
 
 ---
