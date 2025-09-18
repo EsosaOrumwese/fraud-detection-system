@@ -290,9 +290,9 @@ datasets:
     licence: "Proprietary-Internal"
 
   - id: "country_set"
-    status: "approved"
+    status: "deprecated"
     owner_subsegment: "1A"
-    description: "Per-merchant ordered set of countries participating in allocation. This dataset is the ONLY authoritative place for cross-country order (rank: 0=home, then Gumbel-selected foreigns). 1B MUST join here if it needs country order."
+    description: "Legacy RNG-dependent allocation set; superseded by S3 ordered candidate set. Not authoritative for inter-country order."
     version: "{parameter_hash}"
     format: "parquet"
     path: "data/layer1/1A/country_set/seed={seed}/parameter_hash={parameter_hash}/"
@@ -308,9 +308,9 @@ datasets:
     licence: "Proprietary-Internal"
 
   - id: "ranking_residual_cache_1A"
-    status: "approved"
+    status: "deprecated"
     owner_subsegment: "1A"
-    description: "Largest-remainder residual cache to stabilise RNG lineage."
+    description: "Legacy residual cache for RNG integerisation; superseded by S3 deterministic integerised counts (parameter-scoped)."
     version: "{parameter_hash}"
     format: "parquet"
     path: "data/layer1/1A/ranking_residual_cache_1A/seed={seed}/parameter_hash={parameter_hash}/"
@@ -328,7 +328,7 @@ datasets:
   - id: "outlet_catalogue"
     status: "approved"
     owner_subsegment: "1A"
-    description: "Immutable outlet stubs per merchant × legal_country. Does NOT encode cross-country order; 1B MUST join `country_set.rank` for that. Consumers MUST only read after verifying `_passed.flag` matches SHA256(`validation_bundle_1A`) for the same fingerprint (see S9.9)."
+    description: "Immutable outlet stubs per merchant × legal_country. Does NOT encode cross-country order; consumers MUST join `s3_candidate_set.candidate_rank` for that. Consumers MUST only read after verifying `_passed.flag` matches SHA256(`validation_bundle_1A`) for the same fingerprint (see S9.9)."
     version: "{manifest_fingerprint}"
     format: "parquet"
     path: "data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/"
@@ -338,6 +338,78 @@ datasets:
     lineage:
       produced_by: "1A"
       consumed_by: ["1B"]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: "Proprietary-Internal"
+
+  - id: "s3_candidate_set"
+    status: "approved"
+    owner_subsegment: "1A"
+    description: "Deterministic ordered candidate set per merchant; single authority for inter-country order (`candidate_rank`)."
+    version: "{parameter_hash}"
+    format: "parquet"
+    path: "data/layer1/1A/s3_candidate_set/parameter_hash={parameter_hash}/"
+    partitioning: ["parameter_hash"]
+    ordering: ["merchant_id","candidate_rank","country_iso"]
+    schema_ref: "schemas.1A.yaml#/s3/candidate_set"
+    lineage:
+      produced_by: "1A.S3"
+      consumed_by: ["1A","1B"]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: "Proprietary-Internal"
+
+  - id: "s3_base_weight_priors"
+    status: "approved"
+    owner_subsegment: "1A"
+    description: "Deterministic base-weight priors (fixed-dp strings) per candidate; not probabilities."
+    version: "{parameter_hash}"
+    format: "parquet"
+    path: "data/layer1/1A/s3_base_weight_priors/parameter_hash={parameter_hash}/"
+    partitioning: ["parameter_hash"]
+    ordering: ["merchant_id","country_iso"]
+    schema_ref: "schemas.1A.yaml#/s3/base_weight_priors"
+    lineage:
+      produced_by: "1A.S3"
+      consumed_by: ["1A"]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: "Proprietary-Internal"
+
+  - id: "s3_integerised_counts"
+    status: "approved"
+    owner_subsegment: "1A"
+    description: "Deterministic per-country integer counts summing to N; includes residual_rank."
+    version: "{parameter_hash}"
+    format: "parquet"
+    path: "data/layer1/1A/s3_integerised_counts/parameter_hash=={parameter_hash}/"
+    partitioning: ["parameter_hash"]
+    ordering: ["merchant_id","country_iso"]
+    schema_ref: "schemas.1A.yaml#/s3/integerised_counts"
+    lineage:
+      produced_by: "1A.S3"
+      consumed_by: ["1A"]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: "Proprietary-Internal"
+
+  - id: "s3_site_sequence"
+    status: "approved"
+    owner_subsegment: "1A"
+    description: "Deterministic within-country site sequence (and optional 6-digit site_id)."
+    version: "{parameter_hash}"
+    format: "parquet"
+    path: "data/layer1/1A/s3_site_sequence/parameter_hash={parameter_hash}/"
+    partitioning: ["parameter_hash"]
+    ordering: ["merchant_id","country_iso","site_order"]
+    schema_ref: "schemas.1A.yaml#/s3/site_sequence"
+    lineage:
+      produced_by: "1A.S3"
+      consumed_by: ["1A"]
       final_in_layer: false
     retention_days: 365
     pii: false
@@ -726,7 +798,7 @@ datasets:
 # ── Governance / integrity ────────────────────────────────────────────────
 integrity:
   bundled_schema_sha256: null
-  dataset_count: 35
+  dataset_count: 40
 
 open_questions: []
 

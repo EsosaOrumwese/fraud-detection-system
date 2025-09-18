@@ -130,9 +130,9 @@ context  ───────────────────────�
 
 ### 1.2.1 Required: ordered candidate set
 
-| Dataset id         | JSON-Schema anchor                  | Partitions (path)    | Embedded lineage (columns)                           | Row order                                                          | Columns (name : type : semantics)                                                                                                                                                                                                                                                                                                  |
-|--------------------|-------------------------------------|----------------------|------------------------------------------------------|--------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `s3_candidate_set` | `schemas.1A.yaml#/s3/candidate_set` | `parameter_hash={…}` | `manifest_fingerprint:hex64`, `parameter_hash:hex64` | Sorted by `(merchant_id ASC, candidate_rank ASC, country_iso ASC)` | `merchant_id:u64` — key; `country_iso:string(ISO-3166-1)` — candidate; **`candidate_rank:u32`** — **total, contiguous order** with `candidate_rank==0` for home; `reason_codes:array<string>` — **closed set** from policy; `filter_tags:array<string>` — deterministic tags (**closed set** defined by policy); lineage as above  |
+| Dataset id         | JSON-Schema anchor                  | Partitions (path)    | Embedded lineage (columns)                           | Row order                                                                                      | Columns (name : type : semantics)                                                                                                                                                                                                                                                                                                 |
+|--------------------|-------------------------------------|----------------------|------------------------------------------------------|------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `s3_candidate_set` | `schemas.1A.yaml#/s3/candidate_set` | `parameter_hash={…}` | `manifest_fingerprint:hex64`, `parameter_hash:hex64` | **Row ordering guarantee (logical):** `(merchant_id ASC, candidate_rank ASC, country_iso ASC)` | `merchant_id:u64` — key; `country_iso:string(ISO-3166-1)` — candidate; **`candidate_rank:u32`** — **total, contiguous order** with `candidate_rank==0` for home; `reason_codes:array<string>` — **closed set** from policy; `filter_tags:array<string>` — deterministic tags (**closed set** defined by policy); lineage as above |
 
 **Contract:**
 
@@ -197,7 +197,7 @@ context  ───────────────────────�
 | `static.currency_to_country.map.json` | Deterministic **currency-to-country** mapping (if used by rules)                                                       |  x.y.z | …                       | Deterministic only; **no RNG** smoothing                   |
 | `schemas.layer1.yaml`                 | **JSON-Schema source of truth** (includes all `#/s3/*` anchors)                                                        |  x.y.z | …                       | Schema authority; Avro (if any) is build-artefact only     |
 | `schema.index.layer1.json` *(opt)*    | **Derived** schema index for faster lookups (non-authoritative)                                                        |  x.y.z | …                       | Convenience only                                           |
-| `dataset_dictionary.layer1.json`      | Dataset IDs → partition spec → physical path template                                                                  |  x.y.z | …                       | Resolves *all* IO; **no hard-coded paths**                 |
+| `dataset_dictionary.layer1.1A.yaml`      | Dataset IDs → partition spec → physical path template                                                                  |  x.y.z | …                       | Resolves *all* IO; **no hard-coded paths**                 |
 | `artefact_registry_1A.yaml`           | Full registry (this BOM appears in it)                                                                                 |  x.y.z | …                       | Names, semver, digests must match this table               |
 
 **Atomic open:** S3 **must** open all artefacts above *before* any processing and record their `(id, semver, digest)` into the run’s `manifest_fingerprint`.
@@ -247,7 +247,7 @@ If you **do not** compute deterministic priors in S3, omit this subsection (do *
 * **`manifest_fingerprint`** = composite of **all opened artefacts** (this BOM), plus parameter bytes and git commit (as your project defines). It is **embedded** in every S3 row.
 * **Inclusion rule (explicit):** the following **must** contribute to `manifest_fingerprint`:
   `policy.s3.rule_ladder.yaml`, `static.iso.countries.json`, `static.currency_to_country.map.json` (if used),
-  `schemas.layer1.yaml` (and `schema.index.layer1.json` if used), `dataset_dictionary.layer1.json`, `artefact_registry_1A.yaml`, and any artefact in §2.3.
+  `schemas.layer1.yaml` (and `schema.index.layer1.json` if used), `dataset_dictionary.layer1.1A.yaml`, `artefact_registry_1A.yaml`, and any artefact in §2.3.
   Missing inclusion ⇒ **abort**.
 * **No path literals:** all IO resolves via the dataset dictionary; paths never appear in code or outputs.
 
@@ -651,7 +651,7 @@ Establish the **closed** set of inputs S3 may read, verify **gates and vocabular
   `static.iso.countries.json` (canonical ISO set & lexicographic order).
   *(Optional)* `static.currency_to_country.map.json` (deterministic map) if referenced by policy.
 * **Dictionary & registry:**
-  `dataset_dictionary.layer1.json` (dataset-id → partition spec → path template).
+  `dataset_dictionary.layer1.1A.yaml` (dataset-id → partition spec → path template).
   `artefact_registry_1A.yaml` (audit of artefacts and semver/digests).
 
 **Resolution rule:** all physical locations resolve via the **dataset dictionary**. **No literal paths** in S3.

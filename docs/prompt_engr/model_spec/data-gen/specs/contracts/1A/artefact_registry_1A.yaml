@@ -63,6 +63,63 @@ subsegments:
         cross_layer: false
         notes: null
 
+      - name: policy.s3.rule_ladder.yaml
+        path: config/policy.s3.rule_ladder.yaml
+        type: policy
+        category: policy
+        semver: "{semver}"
+        version: "{policy_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.1A.policy.s3.rule_ladder
+        license: "{spdx_or_internal}"
+        role: Deterministic S3 rule ladder (ordered rules, closed reason_codes/filter_tags).
+        dependencies: [ iso3166_canonical_2024 ]
+        source: internal
+        owner: { product_policy_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci, dev, staging, prod ]
+        schema: null
+        cross_layer: false
+        notes: null
+
+      - name: policy.s3.base_weight.yaml
+        path: config/policy.s3.base_weight.yaml
+        type: policy
+        category: policy
+        semver: "{semver}"
+        version: "{policy_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.1A.policy.s3.base_weight
+        license: "{spdx_or_internal}"
+        role: Deterministic base-weight prior coefficients and fixed-dp selection.
+        dependencies: [ iso3166_canonical_2024 ]
+        source: internal
+        owner: { product_policy_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci, dev, staging, prod ]
+        schema: null
+        cross_layer: false
+        notes: "Optional; only if priors are enabled."
+
+      - name: policy.s3.thresholds.yaml
+        path: config/policy.s3.thresholds.yaml
+        type: policy
+        category: policy
+        semver: "{semver}"
+        version: "{policy_version}"
+        digest: "{sha256}"
+        manifest_key: mlr.1A.policy.s3.thresholds
+        license: "{spdx_or_internal}"
+        role: Deterministic lower/upper bounds and feasibility thresholds for integerisation.
+        dependencies: [ iso3166_canonical_2024 ]
+        source: internal
+        owner: { product_policy_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ ci, dev, staging, prod ]
+        schema: null
+        cross_layer: false
+        notes: "Optional; only if bounds are enabled."
+
       # ---------------------------
       # EXTERNAL & REFERENCE DATA
       # ---------------------------
@@ -968,7 +1025,7 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.1A.allocation.country_set
         license: "{spdx_or_internal}"
-        role: Ordered list of home + selected foreign ISO codes per merchant.
+        role: Legacy RNG-dependent allocation set; superseded by S3 candidate set for inter-country order.
         dependencies: [ crossborder_allocation, rng_event_gumbel_key, rng_event_dirichlet_gamma_vector, rng_event_residual_rank ]
         source: internal
         owner: { owner_team }
@@ -976,7 +1033,7 @@ subsegments:
         environment: [ runtime ]
         schema: schemas.1A.yaml#/alloc/country_set
         cross_layer: false
-        notes: "Persist to avoid extra RNG in downstream routing."
+        notes: "Deprecated as order authority; retained for backward compatibility."
 
       - name: dirichlet_lrr_proof
         path: docs/derivations/dirichlet_lrr_proof.md
@@ -1036,6 +1093,82 @@ subsegments:
         notes: "ZSTD level 3; path pattern enforced by `storage_path_pattern`. \
                 Consumption gate: 1B MUST verify that `_passed.flag` content hash equals SHA256(`validation_bundle_1A`) \
                 for the same `fingerprint` before reading this dataset."
+
+      - name: s3_candidate_set
+        path: data/layer1/1A/s3_candidate_set/parameter_hash={parameter_hash}/
+        type: dataset
+        category: allocation
+        semver: "{semver}"
+        version: "{parameter_hash}"
+        digest: "{sha256}"
+        manifest_key: mlr.1A.s3.candidate_set
+        license: "{spdx_or_internal}"
+        role: Deterministic ordered candidate set per merchant (authority for inter-country order).
+        dependencies: [ policy.s3.rule_ladder.yaml, iso3166_canonical_2024 ]
+        source: internal
+        owner: { owner_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.1A.yaml#/s3/candidate_set
+        cross_layer: false
+        notes: null
+
+      - name: s3_base_weight_priors
+        path: data/layer1/1A/s3_base_weight_priors/parameter_hash=={parameter_hash}/
+        type: dataset
+        category: allocation
+        semver: "{semver}"
+        version: "{parameter_hash}"
+        digest: "{sha256}"
+        manifest_key: mlr.1A.s3.base_weight_priors
+        license: "{spdx_or_internal}"
+        role: Deterministic base-weight priors per candidate (fixed-dp strings).
+        dependencies: [ policy.s3.base_weight.yaml ]
+        source: internal
+        owner: { owner_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.1A.yaml#/s3/base_weight_priors
+        cross_layer: false
+        notes: "Optional."
+
+      - name: s3_integerised_counts
+        path: data/layer1/1A/s3_integerised_counts/parameter_hash={parameter_hash}/
+        type: dataset
+        category: allocation
+        semver: "{semver}"
+        version: "{parameter_hash}"
+        digest: "{sha256}"
+        manifest_key: mlr.1A.s3.integerised_counts
+        license: "{spdx_or_internal}"
+        role: Deterministic per-country integer counts summing to N; includes residual_rank.
+        dependencies: [ s3_candidate_set ]
+        source: internal
+        owner: { owner_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.1A.yaml#/s3/integerised_counts
+        cross_layer: false
+        notes: "Optional; only if S3 owns integerisation."
+
+      - name: s3_site_sequence
+        path: data/layer1/1A/s3_site_sequence/parameter_hash={parameter_hash}/
+        type: dataset
+        category: output_id
+        semver: "{semver}"
+        version: "{parameter_hash}"
+        digest: "{sha256}"
+        manifest_key: mlr.1A.s3.site_sequence
+        license: "{spdx_or_internal}"
+        role: Deterministic within-country site sequence (and optional 6-digit site_id).
+        dependencies: [ s3_integerised_counts ]
+        source: internal
+        owner: { engineering_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.1A.yaml#/s3/site_sequence
+        cross_layer: false
+        notes: "Optional; only if S3 owns sequencing."
 
 # Prune CI-time artefacts (planning phase)
 #      - name: post_write_validation_routine
