@@ -64,7 +64,7 @@ subsegments:
         notes: null
 
       - name: policy.s3.rule_ladder.yaml
-        path: config/policy.s3.rule_ladder.yaml
+        path: configs/policy.s3.rule_ladder.yaml
         type: policy
         category: policy
         semver: "{semver}"
@@ -83,7 +83,7 @@ subsegments:
         notes: null
 
       - name: policy.s3.base_weight.yaml
-        path: config/policy.s3.base_weight.yaml
+        path: configs/policy.s3.base_weight.yaml
         type: policy
         category: policy
         semver: "{semver}"
@@ -102,7 +102,7 @@ subsegments:
         notes: "Optional; only if priors are enabled."
 
       - name: policy.s3.thresholds.yaml
-        path: config/policy.s3.thresholds.yaml
+        path: configs/policy.s3.thresholds.yaml
         type: policy
         category: policy
         semver: "{semver}"
@@ -1114,7 +1114,7 @@ subsegments:
         notes: null
 
       - name: s3_base_weight_priors
-        path: data/layer1/1A/s3_base_weight_priors/parameter_hash=={parameter_hash}/
+        path: data/layer1/1A/s3_base_weight_priors/parameter_hash={parameter_hash}/
         type: dataset
         category: allocation
         semver: "{semver}"
@@ -1316,7 +1316,7 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.1A.cache.ranking_residual
         license: "{spdx_or_internal}"
-        role: Largest‑remainder residuals preserved to avoid re‑rolling RNG.
+        role: Largest‑remainder residuals preserved to avoid re‑rolling RNG. Deprecated as order authority.
         dependencies: [ rng_event_dirichlet_gamma_vector, residual_quantisation_policy ]
         source: internal
         owner: { platform_team }
@@ -1324,7 +1324,7 @@ subsegments:
         environment: [ runtime ]
         schema: schemas.1A.yaml#/alloc/ranking_residual_cache
         cross_layer: true
-        notes: null
+        notes: "Deprecated; superseded by S3 deterministic `s3_integerised_counts` (parameter-scoped). Retained for backward compatibility."
 
       - name: datasets_table
         path: db/schema/datasets.sql

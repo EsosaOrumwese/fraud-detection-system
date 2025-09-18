@@ -79,5 +79,5 @@ Eliminate schema drift and confusion. Define a **single source of truth** for al
 * Remove AVSC entries from `artefact_registry_1A.yaml`.
 * Ensure every 1A dataset’s `schema:` / `schema_ref:` points to **JSON-Schema** (paths above).
 * Confirm `residual_rank` and `site_order` names in all schema, dictionary, and prose.
-* Append the egress note: *“Inter-country order is not encoded; use `country_set.rank`.”*
+* Append the egress note: *"Inter-country order is not encoded; use `s3_candidate_set.candidate_rank`."*
 
