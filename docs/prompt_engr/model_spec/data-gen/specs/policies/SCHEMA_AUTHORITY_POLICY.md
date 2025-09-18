@@ -43,6 +43,10 @@ Eliminate schema drift and confusion. Define a **single source of truth** for al
 * `country_set` → `schemas.1A.yaml#/alloc/country_set`
 * `outlet_catalogue` → `schemas.1A.yaml#/egress/outlet_catalogue`
 * `rng_event_residual_rank` → `schemas.layer1.yaml#/rng/events/residual_rank`
+* `s3_candidate_set` → `schemas.1A.yaml#/s3/candidate_set`
+* `s3_base_weight_priors` → `schemas.1A.yaml#/s3/base_weight_priors`
+* `s3_integerised_counts` → `schemas.1A.yaml#/s3/integerised_counts`
+* `s3_site_sequence` → `schemas.1A.yaml#/s3/site_sequence`
 
 > Note on upstream `transaction_schema.avsc`: it is a **cross-layer/external** contract and **not** consumed directly by 1A. 1A consumes the **normalised merchant snapshot** defined by `merchant_ids` above.
 
@@ -50,7 +54,7 @@ Eliminate schema drift and confusion. Define a **single source of truth** for al
 
 * `residual_rank` = rank (1..m) of **largest-remainder residuals** used during integerisation (per merchant×country).
 * `site_order` = deterministic **within-country** outlet sequence (1..nᵢ) used by `outlet_catalogue`.
-* **Inter-country order is not encoded** in `outlet_catalogue`; consumers **must** use `country_set.rank` (0 = home; foreigns follow Gumbel selection order).
+* **Inter-country order is not encoded** in `outlet_catalogue`; consumers **must** use `s3_candidate_set.candidate_rank` (0 = home; contiguous foreign order from S3).
 
 ## Evolution Rules (planning phase)
 

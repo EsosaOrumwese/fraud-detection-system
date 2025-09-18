@@ -167,7 +167,7 @@ alloc:
 
   country_set:
     type: table
-    description: "Ordered set of legal countries per merchant (home + K foreign)."
+    description: "Ordered set of legal countries per merchant (home + K foreign). Legacy/RNG-dependent; not authoritative for inter-country order (use S3 `s3_candidate_set`)."
     primary_key: ["merchant_id","country_iso"]
     partition_keys: ["seed","parameter_hash"]
     sort_keys: []     # order is carried by 'rank'
@@ -179,7 +179,7 @@ alloc:
         description: "Country in the merchant's legal set."
         fk: { dataset_ref: "schemas.ingress.layer1.yaml#/iso3166_canonical_2024", column: "country_iso" }
       - { name: is_home,     type: boolean,         nullable: false, description: "True for the home/registration country." }
-      - { name: rank,        type: int32,           nullable: false, description: "Stable order: 0=home; 1..K for foreigns (Gumbel order).", minimum: 0 }
+      - { name: rank,        type: int32,           nullable: false, description: "Stable order: 0=home; 1..K for foreigns (legacy RNG-dependent order; superseded by S3 `candidate_rank`).", minimum: 0 }
       - { name: prior_weight, type: float64,        nullable: true,  description: "Selection prior weight before sampling (diagnostic).", minimum: 0.0, maximum: 1.0 }
 
   ranking_residual_cache:
@@ -209,7 +209,7 @@ alloc:
 egress:
   outlet_catalogue:
     type: table
-    description: "Immutable outlet stubs per merchant and legal country. NOTE: Inter-country order is NOT encoded here; consumers must read `country_set.rank` (0=home, then foreigns in Gumbel order)."
+    description: "Immutable outlet stubs per merchant and legal country. NOTE: Inter-country order is NOT encoded here; consumers must join `s3_candidate_set.candidate_rank` (authoritative order from S3)."
     primary_key: ["merchant_id","legal_country_iso","site_order"]
     unique_keys:
       - ["merchant_id","legal_country_iso","site_order"]
@@ -247,10 +247,85 @@ egress:
     notes:
       - "Rows are immutable for a given (seed,fingerprint) partition."
       - "Only 1A->1B handoff; 1B adds coordinates."
-      - "Inter-country order is NOT represented here; consumers MUST join `alloc/country_set.rank` (0=home; foreigns follow Gumbel order)."
+      - "Inter-country order is NOT represented here; consumers MUST join `s3_candidate_set.candidate_rank` (authoritative order from S3)."
 
+# 5) S3 deterministic outputs (parameter-scoped; RNG-free)
+s3:
+  candidate_set:
+    type: table
+    description: "Deterministic, ordered candidate country set per merchant. Single authority for inter-country order (`candidate_rank`)."
+    primary_key: ["merchant_id","country_iso"]
+    partition_keys: ["parameter_hash"]
+    sort_keys: ["merchant_id","candidate_rank","country_iso"]
+    columns:
+      - { name: merchant_id, $ref: "#/$defs/id64",  nullable: false, description: "Merchant ID." }
+      - name: country_iso
+        $ref: "#/$defs/iso2"
+        nullable: false
+        description: "Candidate country (home or admissible foreign)."
+        fk: { dataset_ref: "schemas.ingress.layer1.yaml#/iso3166_canonical_2024", column: "country_iso" }
+      - { name: candidate_rank, type: int32, nullable: false, description: "Total, contiguous order per merchant; 0 = home.", minimum: 0 }
+      - { name: is_home,        type: boolean, nullable: false, description: "True iff country_iso equals home." }
+      - { name: reason_codes,   type: array,   items: { type: string }, nullable: false, description: "Closed set from policy; sorted A→Z." }
+      - { name: filter_tags,    type: array,   items: { type: string }, nullable: false, description: "Closed set from policy; sorted A→Z." }
+      - { name: parameter_hash, type: string,  nullable: false, description: "Parameter-set hash; must equal the partition key.", pattern: "^[a-f0-9]{64}$" }
+      - { name: manifest_fingerprint, type: string,  nullable: false, description: "Run fingerprint embedded per-row.", pattern: "^[a-f0-9]{64}$" }
 
-# 5) Diagnostics / validation
+  base_weight_priors:
+    type: table
+    description: "Deterministic base-weight priors per candidate (fixed-dp decimal strings). Not probabilities."
+    primary_key: ["merchant_id","country_iso"]
+    partition_keys: ["parameter_hash"]
+    sort_keys: ["merchant_id","country_iso"]
+    columns:
+      - { name: merchant_id, $ref: "#/$defs/id64",  nullable: false, description: "Merchant ID." }
+      - name: country_iso
+        $ref: "#/$defs/iso2"
+        nullable: false
+        description: "Candidate country."
+        fk: { dataset_ref: "schemas.ingress.layer1.yaml#/iso3166_canonical_2024", column: "country_iso" }
+      - { name: base_weight_dp, type: string, nullable: false, description: "Fixed-dp decimal string per §12; deterministic.", pattern: "^[0-9]+(\\.[0-9]+)?$" }
+      - { name: dp, type: int32, nullable: false, description: "Number of decimal places used in quantisation.", minimum: 0 }
+      - { name: parameter_hash, type: string,  nullable: false, description: "Parameter-set hash; must equal the partition key.", pattern: "^[a-f0-9]{64}$" }
+      - { name: manifest_fingerprint, type: string,  nullable: false, description: "Run fingerprint embedded per-row.", pattern: "^[a-f0-9]{64}$" }
+
+  integerised_counts:
+    type: table
+    description: "Deterministic integer counts per candidate that sum to N from S2; includes residual_rank for tie order."
+    primary_key: ["merchant_id","country_iso"]
+    partition_keys: ["parameter_hash"]
+    sort_keys: ["merchant_id","country_iso"]
+    columns:
+      - { name: merchant_id, $ref: "#/$defs/id64",  nullable: false, description: "Merchant ID." }
+      - name: country_iso
+        $ref: "#/$defs/iso2"
+        nullable: false
+        description: "Candidate country."
+        fk: { dataset_ref: "schemas.ingress.layer1.yaml#/iso3166_canonical_2024", column: "country_iso" }
+      - { name: count, type: int32, nullable: false, description: "Integerised outlet count for this country (≥0).", minimum: 0 }
+      - { name: residual_rank, type: int32, nullable: false, description: "Largest-remainder bump order (1=largest residual)." }
+      - { name: parameter_hash, type: string,  nullable: false, description: "Parameter-set hash; must equal the partition key.", pattern: "^[a-f0-9]{64}$" }
+      - { name: manifest_fingerprint, type: string,  nullable: false, description: "Run fingerprint embedded per-row.", pattern: "^[a-f0-9]{64}$" }
+
+  site_sequence:
+    type: table
+    description: "Deterministic within-country sequence (and optional 6-digit site_id) for each merchant×country."
+    primary_key: ["merchant_id","country_iso","site_order"]
+    partition_keys: ["parameter_hash"]
+    sort_keys: ["merchant_id","country_iso","site_order"]
+    columns:
+      - { name: merchant_id, $ref: "#/$defs/id64",  nullable: false, description: "Merchant ID." }
+      - name: country_iso
+        $ref: "#/$defs/iso2"
+        nullable: false
+        description: "Country."
+        fk: { dataset_ref: "schemas.ingress.layer1.yaml#/iso3166_canonical_2024", column: "country_iso" }
+      - { name: site_order, type: int32, nullable: false, description: "Contiguous 1..count_i within country.", minimum: 1 }
+      - { name: site_id, type: string, nullable: true, description: "Optional 6-digit zero-padded ID.", pattern: "^[0-9]{6}$" }
+      - { name: parameter_hash, type: string,  nullable: false, description: "Parameter-set hash; must equal the partition key.", pattern: "^[a-f0-9]{64}$" }
+      - { name: manifest_fingerprint, type: string,  nullable: false, description: "Run fingerprint embedded per-row.", pattern: "^[a-f0-9]{64}$" }
+
+# 6) Diagnostics / validation
 validation:
   hurdle_stationarity_tests:
     type: table
