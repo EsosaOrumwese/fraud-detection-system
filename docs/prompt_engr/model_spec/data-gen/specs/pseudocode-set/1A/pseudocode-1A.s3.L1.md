@@ -123,7 +123,7 @@ These invariants hold for all S3 · L1 kernels to guarantee **replayability, por
 * `ASSERT_ADMISSION_META_DOMAIN(m:AdmissionMeta)`
 * `ADMISSION_ORDER_KEY(m:AdmissionMeta) -> tuple`  *(precedence, priority, rule_id, ISO, stable_idx)*
 * `ASSIGN_STABLE_IDX(foreigns[]) -> foreigns[]`
-* `SORT_FOREIGNS_BY_ADMISSION_KEY(foreigns[]) -> foreigns[]`
+* `ORDER_FOREIGNS(foreigns[], metas[]) -> foreigns[]`
 * `RANK_CANDIDATES(rows:array<CandidateRow>, meta_src:Map<ISO2,AdmissionMeta>, home_iso:ISO2) -> array<RankedCandidateRow>`
   *(home = 0; foreigns contiguous; contiguity asserted)*
 
@@ -682,7 +682,7 @@ PROC s3_process_merchant(ingress, s1, s2, bom, flags) ->
   cand   := s3_make_candidate_set(ctx, trace, bom.iso_universe)
 
   // derive admission metadata (precedence, priority, rule_id) per foreign from ladder—pure, no I/O
-  meta   := derive_admission_meta_from_ladder(bom.ladder)
+  meta   := admission_meta_from_ladder(bom.ladder)
 
   ranked := s3_rank_candidates(cand, meta, ctx.home_country_iso)
   out    := { candidate_set: ranked }
@@ -865,6 +865,7 @@ END PROC
 ## 6.7 Edge cases (explicit)
 
 * **`N ∈ {0,1}`**: rejected by `ASSERT_S2_ACCEPTED_N` (S2 guarantees accepted **N ≥ 2**).
+  *(Any references to `N=0` behavior in later optional kernels are **defensive** only and **unreachable under S3 gates**.)*
 * **Channel missing or unknown**: `ERR_S3_RULE_EVAL_DOMAIN`.
 * **Home ISO lower-case or aliased**: normalised to **uppercase**, then membership-checked; invalid raises `ERR_S3_ISO_*`.
 * **Mixed lineage or merchant IDs**: `ERR_S3_CTX_LINEAGE_MISMATCH` / `ERR_S3_CTX_ID_MISMATCH`; the merchant is skipped by L2.
@@ -875,7 +876,7 @@ END PROC
 
 `Ctx` provides everything S3 needs, so downstream kernels take **only** `Ctx` and the relevant BOM handles:
 
-* `s3_evaluate_rule_ladder(Ctx, bom.ladder)`
+* `s3_evaluate_rule_ladder(Ctx, bom.ladder, channel_vocab)`
 * `s3_make_candidate_set(Ctx, DecisionTrace, bom.iso_universe)`
 * `s3_rank_candidates(CandidateRow[], admission_meta_from_ladder(bom.ladder), Ctx.home_country_iso)`
 * *(optional)* `s3_compute_priors(RankedCandidateRow[], Ctx, bom.priors_cfg)`
@@ -1151,6 +1152,18 @@ END PROC
 
 ---
 
+### 9.1a Policy Hooks Index (reference; all pure, data-driven, no I/O)
+
+| Hook name                    | Inputs                                                  | Output                                    | Notes                                          |
+|------------------------------|---------------------------------------------------------|-------------------------------------------|------------------------------------------------|
+| `admission_meta_from_ladder` | `ladder: Ladder`                                        | `Map<ISO2,{precedence,priority,rule_id}>` | Derived deterministically from ladder; no I/O  |
+| `ADMIT_FOREIGN`              | `ctx:Ctx, iso:ISO2, ladder:Ladder, trace:DecisionTrace` | `bool`                                    | Admission predicate; pure                      |
+| `MATCHES_RULE`               | `ctx:Ctx, rule:Rule`                                    | `bool`                                    | Ladder evaluation; pure                        |
+| `RULE_OUTCOME`               | `rule:Rule`                                             | `{reason_code?:string, tags?:string[]}`   | Closed sets only                               |
+| `EVAL_PRIOR_SCORE`           | `c:RankedCandidateRow, ctx:Ctx, priors_cfg:PriorsCfg`   | `f64 \| null`                             | Score (not probability); null = no selection   |
+
+---
+
 ## 9.2 Inputs & outputs (values only)
 
 **Inputs**
@@ -1179,7 +1192,7 @@ END PROC
 * `ASSERT_CANDIDATE_SET_SHAPE(rows)` — one home; no duplicate ISO *(defensive)*.
 * `ASSIGN_STABLE_IDX(foreigns[]) -> foreigns[]` — sets `stable_idx = enumeration order`.
 * `ADMISSION_ORDER_KEY(meta) -> tuple` — `(precedence, priority, rule_id, country_iso, stable_idx)`.
-* `RANK_CANDIDATES(candidates[], admission_meta_map, home_iso:ISO2) -> array<RankedCandidateRow>` — assigns `candidate_rank` *(home=0; foreigns contiguous)* and performs contiguity checks.
+* `RANK_CANDIDATES(candidates[], admission_meta_map, home_iso:ISO2) -> array<RankedCandidateRow>` — assigns `candidate_rank` *(home = 0; foreigns contiguous)* and performs contiguity checks.
 
 ---
 
