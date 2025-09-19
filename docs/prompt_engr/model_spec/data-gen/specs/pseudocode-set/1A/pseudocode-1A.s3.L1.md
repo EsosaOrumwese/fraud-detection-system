@@ -123,7 +123,7 @@ These invariants hold for all S3 · L1 kernels to guarantee **replayability, por
 * `ASSERT_ADMISSION_META_DOMAIN(m:AdmissionMeta)`
 * `ADMISSION_ORDER_KEY(m:AdmissionMeta) -> tuple`  *(precedence, priority, rule_id, ISO, stable_idx)*
 * `ASSIGN_STABLE_IDX(foreigns[]) -> foreigns[]`
-* `ORDER_FOREIGNS(foreigns[], metas[]) -> foreigns[]`
+* `SORT_FOREIGNS_BY_ADMISSION_KEY(foreigns[]) -> foreigns[]`
 * `RANK_CANDIDATES(rows:array<CandidateRow>, meta_src:Map<ISO2,AdmissionMeta>, home_iso:ISO2) -> array<RankedCandidateRow>`
   *(home = 0; foreigns contiguous; contiguity asserted)*
 
@@ -171,7 +171,7 @@ These invariants hold for all S3 · L1 kernels to guarantee **replayability, por
 | `s3_build_ctx`               | `BUILD_CTX`                                                                                                                              |
 | `s3_evaluate_rule_ladder`    | `BUILD_VOCAB_VIEWS`, `NORMALISE_REASON_CODES`, `NORMALISE_FILTER_TAGS`, `ASSERT_CHANNEL_IN_INGRESS_VOCAB`, `NORMALISE_AND_VALIDATE_ISO2` |
 | `s3_make_candidate_set`      | `NORMALISE_AND_VALIDATE_ISO2`, `MAKE_REASON_CODES_FOR_CANDIDATE`, `MAKE_FILTER_TAGS_FOR_CANDIDATE`                                       |
-| `s3_rank_candidates`         | `ASSIGN_STABLE_IDX`, `ADMISSION_ORDER_KEY`, `SORT_FOREIGNS_BY_ADMISSION_KEY`, `RANK_CANDIDATES` *(uses `home_iso` from `Ctx`)*           |
+| `s3_rank_candidates`         | `ASSIGN_STABLE_IDX`, `ADMISSION_ORDER_KEY`, `ORDER_FOREIGNS`, `RANK_CANDIDATES` *(uses `home_iso` from `Ctx`)*                           |
 | `s3_compute_priors` (opt)    | `SELECT_PRIOR_DP`, `EVAL_PRIOR_SCORE`, `QUANTIZE_WEIGHT_TO_DP`, `ASSERT_PRIORS_BLOCK_SHAPE`                                              |
 | `s3_integerise_counts` (opt) | `MAKE_SHARES_FOR_INTEGERISATION`, `MAKE_BOUNDS_FOR_INTEGERISATION`, `LRR_INTEGERISE`, `ASSERT_COUNTS_SUM_AND_RESIDUAL_RANK`              |
 | `s3_sequence_sites` (opt)    | `BUILD_SITE_SEQUENCE_FOR_COUNTRY`, `FORMAT_SITE_ID_ZEROPAD6`, `ASSERT_CONTIGUOUS_SITE_ORDER`                                             |
@@ -571,7 +571,7 @@ Raised by: pre-flight flag checks, `s3_package_outputs`.
 
 ## 5.1 One-screen call graph (per merchant)
 
-```t
+```
 OPEN_BOM_S3        BUILD_CTX                     // L0 (done once per run/slice; no I/O in L1)
      │                 │
      └──► s3_build_ctx(Ctx) ────────────────────────────────────────┐
@@ -781,7 +781,7 @@ PROC s3_process_merchant(ingress, s1, s2, bom, flags) ->
 
 ## 6.3 Errors this kernel may raise (merchant-scoped)
 
-* `ERR_S3_CTX_MISSING_INPUTS`, `ERR_S3_CTX_MULTIPLE_INPUTS`, `ERR_S3_CTX_LINEAGE_MISMATCH`, `ERR_S3_CTX_ENTRY_GATES`, `ERR_S3_CTX_ID_MISMATCH`
+* `ERR_S3_CTX_MISSING_INPUTS`, `ERR_S3_CTX_MULTIPLE_INPUTS`, `ERR_S3_CTX_LINEAGE_MISMATCH`, `ERR_S3_CTX_ENTRY_GATES`
 * `ERR_S3_AUTHORITY_MISSING` (if `bom` lacks required handles), `ERR_S3_RULE_EVAL_DOMAIN` (channel), `ERR_S3_ISO_INVALID_FORMAT`, `ERR_S3_ISO_NOT_IN_UNIVERSE`
 
 ---
@@ -790,7 +790,6 @@ PROC s3_process_merchant(ingress, s1, s2, bom, flags) ->
 
 * `ASSERT_SINGLETON(rows,label)`
 * `ASSERT_LINEAGE_EQUAL(a,b)`
-* `ASSERT_SAME_MERCHANT_ID(a,b)`
 * `ASSERT_CHANNEL_IN_INGRESS_VOCAB(ch, channel_vocab:Set<string>)`
 * `NORMALISE_AND_VALIDATE_ISO2(s, bom.iso_universe.set) -> ISO2`
 * `ASSERT_S2_ACCEPTED_N(N)` *(checks N≥2)*
@@ -817,8 +816,9 @@ PROC s3_build_ctx(ingress_rows, s1_hurdle_rows, s2_nb_final_rows, bom, channel_v
   LET s2      := s2_nb_final_rows[0]
 
   // ---- 2) Merchant & lineage equality ----
-  CALL ASSERT_SAME_MERCHANT_ID(ingress, s1)
-  CALL ASSERT_SAME_MERCHANT_ID(ingress, s2)
+  // Inline merchant-id equality (L0 has no dedicated helper for ID equality)
+  IF ingress.merchant_id != s1.merchant_id: RAISE ERR_S3_CTX_LINEAGE_MISMATCH
+  IF ingress.merchant_id != s2.merchant_id: RAISE ERR_S3_CTX_LINEAGE_MISMATCH
   CALL ASSERT_LINEAGE_EQUAL(ingress, s1)
   CALL ASSERT_LINEAGE_EQUAL(ingress, s2)
 
@@ -868,7 +868,7 @@ END PROC
   *(Any references to `N=0` behavior in later optional kernels are **defensive** only and **unreachable under S3 gates**.)*
 * **Channel missing or unknown**: `ERR_S3_RULE_EVAL_DOMAIN`.
 * **Home ISO lower-case or aliased**: normalised to **uppercase**, then membership-checked; invalid raises `ERR_S3_ISO_*`.
-* **Mixed lineage or merchant IDs**: `ERR_S3_CTX_LINEAGE_MISMATCH` / `ERR_S3_CTX_ID_MISMATCH`; the merchant is skipped by L2.
+* **Mixed lineage or merchant IDs**: `ERR_S3_CTX_LINEAGE_MISMATCH`; the merchant is skipped by L2.
 
 ---
 
@@ -1869,7 +1869,7 @@ These helpers **never** add `{parameter_hash, manifest_fingerprint}`. L2 must:
 ## 14.6 Edge-case behaviour (performance-relevant)
 
 * **k = 1 (home only).** Ranking O(1); integerisation assigns all N to home; sequencing builds a single contiguous block. Fast path.
-* **N = 0.** Integerisation returns all zeros; sequencing returns empty array. Sorting still applies but arrays are tiny.
+* **N = 0.** **Unreachable under S3 entry gates** (S2 enforces `N ≥ 2`). Documented defensively only: if ever encountered, integerisation would return zeros and sequencing would be empty.
 * **Tight bounds.** Detect infeasibility early (`Σ floors > N` or ceiling saturation) to avoid wasted passes.
 
 ---
