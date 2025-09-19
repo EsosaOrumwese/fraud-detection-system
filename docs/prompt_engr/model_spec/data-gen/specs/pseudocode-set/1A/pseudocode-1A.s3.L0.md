@@ -90,10 +90,10 @@ This pins the symbols, field shapes, and string forms that S3 helpers use/return
   **Partition:** `parameter_hash={…}` (parameter-scoped only) • **Logical order:** `(merchant_id ASC, candidate_rank ASC, country_iso ASC)` • **Authority:** inter-country order lives **only** in `candidate_rank`.
 
 * **`s3_base_weight_priors`** *(optional)* → `schemas.1A.yaml#/s3/base_weight_priors`
-  **Partition:** `parameter_hash={…}` • **Logical order:** `(merchant_id ASC, country_iso ASC)` • Carries fixed-dp **decimal strings** for priors (scores, **not** probabilities).&#x20;
+  **Partition:** `parameter_hash={…}` • **Logical order:** `(merchant_id ASC, country_iso ASC)` • Carries fixed-dp **decimal strings** for priors (scores, **not** probabilities).
 
 * **`s3_integerised_counts`** *(optional)* → `schemas.1A.yaml#/s3/integerised_counts`
-  **Partition:** `parameter_hash={…}` • Contains integer `count` and `residual_rank` (largest-remainder bump order).&#x20;
+  **Partition:** `parameter_hash={…}` • Contains integer `count` and `residual_rank` (largest-remainder bump order).
 
 * **`s3_site_sequence`** *(optional)* → `schemas.1A.yaml#/s3/site_sequence`
   **Partition:** `parameter_hash={…}` • Per-(merchant,country) contiguous `site_order` (1..nᵢ); optional zero-padded 6-digit `site_id`.
@@ -102,59 +102,64 @@ This pins the symbols, field shapes, and string forms that S3 helpers use/return
 
 ## 2.2 Canonical type aliases
 
-* **`ISO2`** = uppercase ISO-3166-1 alpha-2 code. Helpers normalise to uppercase; validators check membership in the canonical ISO set.&#x20;
-* **`Hex64`** = 64-hexchar SHA-256 string (for `parameter_hash`, `manifest_fingerprint`). **Rows embed both**; `parameter_hash` **must equal** the path partition.&#x20;
-* **`FixedDpDecStr`** = decimal **string** with fixed places (e.g., `"0.275000"`), used **only** for priors; dp is carried in an integer field `dp`.&#x20;
-* **`CandidateRank`** = non-negative **int32**; **contiguous per merchant** with **home at 0**.&#x20;
+* **`ISO2`** = uppercase ISO-3166-1 alpha-2 code. Helpers normalise to uppercase; validators check membership in the canonical ISO set.
+* **`Hex64`** = 64-hexchar SHA-256 string (for `parameter_hash`, `manifest_fingerprint`). **Rows embed both**; `parameter_hash` **must equal** the path partition.
+* **`FixedDpDecStr`** = decimal **string** with fixed places (e.g., `"0.275000"`), used **only** for priors; dp is carried in an integer field `dp`.
+* **`CandidateRank`** = non-negative **int32**; **contiguous per merchant** with **home at 0**.
 
 ---
 
 ## 2.3 Records used across helpers (shape only)
 
 * **`Lineage`**
-  `{ parameter_hash: Hex64, manifest_fingerprint: Hex64 }` — embed in every S3 row; helpers enforce **embed = path** for `parameter_hash`.&#x20;
+  `{ parameter_hash: Hex64, manifest_fingerprint: Hex64 }` — embed in every S3 row; helpers enforce **embed = path** for `parameter_hash`.
 
 * **`BOM`** *(process-local read-only)*
-  `{ ladder: Ladder, iso_universe: set<ISO2>, … }` — deterministic caches; no clocks.&#x20;
+  `{ ladder: Ladder, iso_universe: set<ISO2>, … }` — deterministic caches; no clocks.
 
 * **`Ladder`** *(opaque here; parsed in L1)*
-  Closed sets for `reason_codes` / `filter_tags`, precedence/priority ordering. Helpers expose normalisers/checks only.&#x20;
+  Closed sets for `reason_codes` / `filter_tags`, precedence/priority ordering. Helpers expose normalisers/checks only.
 
 * **`DecisionTrace`**
-  `{ reason_codes: string[], filter_tags: string[] }` — arrays are **closed-vocab, A→Z sorted**.&#x20;
+  `{ reason_codes: string[], filter_tags: string[] }` — arrays are **closed-vocab, A→Z sorted**.
 
 * **`CandidateRow`** *(unordered; before ranking)*
-  `{ merchant_id:u64, country_iso:ISO2, is_home:bool, DecisionTrace, Lineage }` — **no priors here**; ranking later adds `candidate_rank`.&#x20;
+  `{ merchant_id:u64, country_iso:ISO2, is_home:bool, DecisionTrace, Lineage }` — **no priors here**; ranking later adds `candidate_rank`.
 
 * **`PriorRow`** *(optional; deterministic scores, not probabilities)*
-  `{ merchant_id:u64, country_iso:ISO2, base_weight_dp:FixedDpDecStr, dp:int32, Lineage }`.&#x20;
+  `{ merchant_id:u64, country_iso:ISO2, base_weight_dp:FixedDpDecStr, dp:int32, Lineage }`.
 
 * **`CountRow`** *(optional; largest-remainder result)*
-  `{ merchant_id:u64, country_iso:ISO2, count:int32≥0, residual_rank:int32, Lineage }` — **Σ count = N** from S2.&#x20;
+  `{ merchant_id:u64, country_iso:ISO2, count:int32≥0, residual_rank:int32, Lineage }` — **Σ count = N** from S2.
 
 * **`SequenceRow`** *(optional)*
   `{ merchant_id:u64, country_iso:ISO2, site_order:int32≥1, site_id?:string("^[0-9]{6}$"), Lineage }`.
 
+* **`RankedCandidateRow`** *(used after ranking in §11)*
+  `{ merchant_id:u64, country_iso:ISO2, is_home:bool,
+     reason_codes: string[], filter_tags: string[],
+     candidate_rank:int32≥0, Lineage }`.
+
 * **`Ctx`** *(merchant context fed to L1 kernels)*
-  `{ ingress_row, s1_hurdle_row, s2_nb_final_row{N≥2}, home_country_iso:ISO2, channel:ingress_vocab, BOM, Lineage }`. (Numbers are JSON numbers; lineage equality must already hold.)&#x20;
+  `{ ingress_row, s1_hurdle_row, s2_nb_final_row{N≥2}, home_country_iso:ISO2, channel:ingress_vocab, BOM, Lineage }`. (Numbers are JSON numbers; lineage equality must already hold.)
 
 ---
 
 ## 2.4 Canonical representation rules (apply to all S3 rows)
 
-* **Numbers vs strings.** Payload numbers are JSON **numbers**, **except** priors, which are emitted as **fixed-dp decimal strings** with an explicit `dp`. **Do not** store probabilities or renormalise in S3.&#x20;
-* **Order authority.** Inter-country order is represented **only** by `candidate_rank` in `s3_candidate_set`; file order is non-authoritative. **Ranks are contiguous** `0..|C|−1` with **home=0**.&#x20;
-* **Residual precision.** When integerising, **quantise residuals to `dp_resid = 8`** before bumping; record `residual_rank` (strict descending residual → ISO A→Z tie-break).&#x20;
-* **Lineage embedding.** Every row embeds `{parameter_hash, manifest_fingerprint}`; **row `parameter_hash` == path key**. Idempotent runs with the same lineage are **byte-identical**.&#x20;
+* **Numbers vs strings.** Payload numbers are JSON **numbers**, **except** priors, which are emitted as **fixed-dp decimal strings** with an explicit `dp`. **Do not** store probabilities or renormalise in S3.
+* **Order authority.** Inter-country order is represented **only** by `candidate_rank` in `s3_candidate_set`; file order is non-authoritative. **Ranks are contiguous** `0..|C|−1` with **home=0**.
+* **Residual precision.** When integerising, **quantise residuals to `dp_resid = 8`** before bumping; record `residual_rank` (strict descending residual → ISO A→Z tie-break).
+* **Lineage embedding.** Every row embeds `{parameter_hash, manifest_fingerprint}`; **row `parameter_hash` == path key**. Idempotent runs with the same lineage are **byte-identical**.
 
 ---
 
 ## 2.5 Minimal constants (names only; bodies elsewhere)
 
-* **Dataset IDs:** `"s3_candidate_set"`, `"s3_base_weight_priors"`, `"s3_integerised_counts"`, `"s3_site_sequence"`.&#x20;
-* **Schema anchors:** `#/s3/candidate_set`, `#/s3/base_weight_priors`, `#/s3/integerised_counts`, `#/s3/site_sequence`.&#x20;
-* **Tie-break tuple for ranking:** `(precedence, priority, rule_id_ASC, country_iso_ASC, stable_idx)` (L1 computes; L0 exposes the comparator key signature).&#x20;
-* **Fixed-dp example (illustrative only):** `"0.275000"` with `dp=6`; **do not** infer probabilities; priors live only in `s3_base_weight_priors`.&#x20;
+* **Dataset IDs:** `"s3_candidate_set"`, `"s3_base_weight_priors"`, `"s3_integerised_counts"`, `"s3_site_sequence"`.
+* **Schema anchors:** `#/s3/candidate_set`, `#/s3/base_weight_priors`, `#/s3/integerised_counts`, `#/s3/site_sequence`.
+* **Tie-break tuple for ranking:** `(precedence, priority, rule_id_ASC, country_iso_ASC, stable_idx)` (L1 computes; L0 exposes the comparator key signature).
+* **Fixed-dp example (illustrative only):** `"0.275000"` with `dp=6`; **do not** infer probabilities; priors live only in `s3_base_weight_priors`.
 
 *This contract surface is what S3·L0 exports and enforces so L1/L2/L3 can operate without ambiguity.*
 
@@ -167,7 +172,7 @@ This pins the symbols, field shapes, and string forms that S3 helpers use/return
 * `REQUIRES`, `ENSURES`, `RAISE` = contracts; `//` = comment.
 * All artefacts are **dictionary/registry resolved by ID** (no path literals). S3 opens exactly:
   `policy.s3.rule_ladder.yaml` (required), `iso3166_canonical_2024` (required), and optionally `policy.s3.base_weight.yaml`, `policy.s3.thresholds.yaml`.
-* S3 egress is **parameter-scoped**; this BOM is read-only and opened in **S3.0** before any S3 logic.&#x20;
+* S3 egress is **parameter-scoped**; this BOM is read-only and opened in **S3.0** before any S3 logic.
 
 ---
 
@@ -197,7 +202,7 @@ TYPE BOM         = { ladder: Ladder, iso_universe: ISOUniverse, priors_cfg?: Pri
 
 ---
 
-## 3.2 PROC OPEN\_BOM\_S3(feature\_flags) → BOM
+## 3.2 PROC OPEN_BOM_S3(feature_flags) → BOM
 
 ```
 INPUTS:
@@ -207,7 +212,7 @@ STATE:
   static MEMO_BOM := null   // process-local memo
 
 REQUIRES:
-  DICT.is_available() == true
+  DICT.IS_AVAILABLE() == true
 
 IF MEMO_BOM != null:
   RETURN MEMO_BOM
@@ -228,7 +233,7 @@ COMPLEXITY: O(|rules| log |rules| + |iso|)
 
 ---
 
-## 3.3 PROC LOAD\_RULE\_LADDER() → Ladder
+## 3.3 PROC LOAD_RULE_LADDER() → Ladder
 
 ```
 LET id  := "policy.s3.rule_ladder.yaml"
@@ -253,11 +258,11 @@ ON ERROR: RAISE ERR_S3_RULE_LADDER_INVALID
 COMPLEXITY: O(|rules| log |rules| + |reason| log |reason| + |tags| log |tags|)
 ```
 
-*(Ladder is a deterministic **total order** by `(precedence, priority, rule_id)`; reason/tags are **closed sets**.)*&#x20;
+*(Ladder is a deterministic **total order** by `(precedence, priority, rule_id)`; reason/tags are **closed sets**.)*
 
 ---
 
-## 3.4 PROC LOAD\_ISO\_UNIVERSE() → ISOUniverse
+## 3.4 PROC LOAD_ISO_UNIVERSE() → ISOUniverse
 
 ```
 LET id  := "iso3166_canonical_2024"
@@ -279,11 +284,11 @@ ON ERROR: RAISE ERR_S3_AUTHORITY_MISSING
 COMPLEXITY: O(|rows|)
 ```
 
-*(The canonical ISO set is a required authority for S3.)*&#x20;
+*(The canonical ISO set is a required authority for S3.)*
 
 ---
 
-## 3.5 PROC LOAD\_PRIORS\_POLICY() → PriorsCfg      // optional
+## 3.5 PROC LOAD_PRIORS_POLICY() → PriorsCfg      // optional
 
 ```
 LET id  := "policy.s3.base_weight.yaml"
@@ -303,11 +308,11 @@ ON ERROR: RAISE ERR_S3_AUTHORITY_MISSING
 COMPLEXITY: O(|doc|)
 ```
 
-*(S3 emits priors only in `s3_base_weight_priors` as fixed-dp strings.)*&#x20;
+*(S3 emits priors only in `s3_base_weight_priors` as fixed-dp strings.)*
 
 ---
 
-## 3.6 PROC LOAD\_INTEGERISATION\_THRESHOLDS() → BoundsCfg   // optional
+## 3.6 PROC LOAD_INTEGERISATION_THRESHOLDS() → BoundsCfg   // optional
 
 ```
 LET id  := "policy.s3.thresholds.yaml"
@@ -318,11 +323,11 @@ LET doc := READ_YAML(res.path)
 
 IF HAS_KEY(doc, "floors"):
   FOR EACH (k,v) IN doc.floors:
-    REQUIRES: IS_ISO2(k) AND IS_INT(v) AND v >= 0
+    REQUIRES: IS_ISO2_CANONICAL(k) AND IS_INT(v) AND v >= 0
 
 IF HAS_KEY(doc, "ceilings"):
   FOR EACH (k,v) IN doc.ceilings:
-    REQUIRES: IS_ISO2(k) AND IS_INT(v) AND v >= 0
+    REQUIRES: IS_ISO2_CANONICAL(k) AND IS_INT(v) AND v >= 0
 
 IF HAS_KEY(doc, "dp_resid"):
   REQUIRES: IS_INT(doc.dp_resid) AND 0 <= doc.dp_resid <= 18
@@ -336,7 +341,7 @@ ON ERROR: RAISE ERR_S3_AUTHORITY_MISSING
 COMPLEXITY: O(|floors| + |ceilings|)
 ```
 
-*(Threshold semantics line up with S3’s optional integerised counts table.)*&#x20;
+*(Threshold semantics line up with S3’s optional integerised counts table.)*
 
 ---
 
@@ -351,8 +356,8 @@ ERR_S3_RULE_LADDER_INVALID  // ladder fails total-order / vocab checks
 
 ## 3.8 Guarantees to downstream
 
-* **Idempotent inputs ⇒ identical BOM** (same `{id, semver, digest}` per artefact), consistent with S3.0’s “open, validate, assemble Context; no writes”.&#x20;
-* BOM aligns with the **authoritative S3 egress datasets** and their **parameter-scoped** partitions; later emitters rely on this.&#x20;
+* **Idempotent inputs ⇒ identical BOM** (same `{id, semver, digest}` per artefact), consistent with S3.0’s “open, validate, assemble Context; no writes”.
+* BOM aligns with the **authoritative S3 egress datasets** and their **parameter-scoped** partitions; later emitters rely on this.
 
 ---
 
@@ -431,13 +436,11 @@ COMPLEXITY: O(n log n)
 
 ## 4.4 Channel vocabulary (ingress-inherited; read-only checks)
 
-S3 defines no channel enum; it inherits from **ingress**: `"card_present"`, `"card_not_present"`.
+S3 defines **no** channel enum; it inherits the **ingress** schema vocabulary. To avoid drift, the vocabulary is **passed in** (e.g., from an ingress constants module), not hard-coded here.
 
 ```
-CONST CHANNEL_VOCAB := {"card_present","card_not_present"}  // from ingress schema
-
-PROC ASSERT_CHANNEL_IN_INGRESS_VOCAB(ch: string)
-REQUIRES: ch != ""
+PROC ASSERT_CHANNEL_IN_INGRESS_VOCAB(ch: string, CHANNEL_VOCAB: Set<string>)
+REQUIRES: ch != ""  AND  CHANNEL_VOCAB != null
 IF NOT CONTAINS(CHANNEL_VOCAB, ch): RAISE ERR_S3_RULE_EVAL_DOMAIN
 ENSURES: true
 ```
@@ -1152,7 +1155,7 @@ RETURN LRR_INTEGERISE(shares, iso, N, bounds?, stable?)
 * **Exactness.** Rational arithmetic + base-10 half-even quantisation ⇒ cross-language identical.
 * **Bound-aware.** Floors/ceilings enforced up front; infeasibility detected early (no silent drift).
 * **Traceable.** Emits a full **`residual_rank`** consistent with the bump order.
-* **Deterministic ties.** Residual bin (quantised) → ISO A→Z → caller-supplied **stable\_idx**.
+* **Deterministic ties.** Residual bin (quantised) → ISO A→Z → caller-supplied **stable_idx**.
 
 ---
 
@@ -1311,7 +1314,7 @@ ENSURES: true
 * Contracts: `REQUIRES`, `ENSURES`, `RAISE`; `//` comments.
 * Inputs are **rows already read** by L2 (no path literals here).
 * Lineage equality = same `parameter_hash` and same `manifest_fingerprint` across all inputs.
-* Channel vocabulary is inherited from **ingress**; ISO membership comes from **BOM.iso\_universe**.
+* Channel vocabulary is inherited from **ingress**; ISO membership comes from **BOM.iso_universe**.
 
 ---
 
@@ -1375,8 +1378,8 @@ ENSURES: true
 ## 10.3 Entry-gate & field validators (compose from §§4–5)
 
 ```
-PROC ASSERT_CHANNEL_IN_INGRESS_VOCAB(ch: string)
-... // §4.4 — inherited ingress vocabulary
+PROC ASSERT_CHANNEL_IN_INGRESS_VOCAB(ch: string, CHANNEL_VOCAB: Set<string>)
+... // §4.4 — inherited ingress vocabulary; pass vocab set to avoid hard-coding
 
 PROC NORMALISE_AND_VALIDATE_ISO2(s: string, iso_universe: Set<ISO2>) -> ISO2
 ... // §5.5 — uppercase ASCII + membership in BOM set
@@ -1396,7 +1399,8 @@ PROC BUILD_CTX(
   ingress_rows      : array<Record>,     // 0..1 row for merchant (fetched by L2)
   s1_hurdle_rows    : array<Record>,     // 0..1
   s2_nb_final_rows  : array<Record>,     // 0..1 (the non-consuming final)
-  bom               : BOM
+  bom               : BOM,
+  channel_vocab     : Set<string>        // ingress vocabulary, passed in to avoid hard-coding
 ) -> Ctx
 
 REQUIRES: bom != null
@@ -1421,7 +1425,7 @@ IF s1.is_multi != true: RAISE ERR_S3_CTX_ENTRY_GATES
 CALL ASSERT_S2_ACCEPTED_N(s2.n_outlets)
 
 // ---- 4) Canonicalise & validate closed vocabularies ----
-CALL ASSERT_CHANNEL_IN_INGRESS_VOCAB(ingress.channel)
+CALL ASSERT_CHANNEL_IN_INGRESS_VOCAB(ingress.channel, channel_vocab)
 LET home_iso := NORMALISE_AND_VALIDATE_ISO2(ingress.home_country_iso, bom.iso_universe.set)
 
 // ---- 5) Assemble lineage object (path↔embed equality verified by L2) ----
@@ -1458,7 +1462,7 @@ COMPLEXITY: O(1) per merchant
 
 ---
 
-# 11) Deterministic Ranking (single source of order)
+# 11) Deterministic Ranking (assign `candidate_rank`, single source of inter-country order)
 
 **Goal.** Assign a **total, contiguous order** to a merchant’s candidate countries with **home at rank 0**, and foreigns ranked deterministically using the §6 key. The resulting `candidate_rank` vector is the **only authority** for inter-country order in `s3_candidate_set`. No RNG. No I/O.
 
@@ -1529,7 +1533,7 @@ REQUIRES: home != null
 RETURN (home, foreigns)
 ```
 
-*(Home ISO comes from §10 Ctx; S3 guarantees exactly one home candidate.)*&#x20;
+*(Home ISO comes from §10 Ctx; S3 guarantees exactly one home candidate.)*
 
 ---
 
@@ -1576,14 +1580,14 @@ RETURN out
 
 ---
 
-## 11.5 Assign contiguous candidate\_rank (home=0)
+## 11.5 Assign contiguous candidate_rank (home=0)
 
 ```
 /*
  * RANK_CANDIDATES — single source of inter-country order
  */
-PROC RANK_CANDIDATES(rows: array<CandidateRow>, meta_src: Map<ISO2, {precedence:int, priority:int, rule_id:string}>) 
-    -> array<CandidateRow>  // now with candidate_rank attached (as an out-of-band vector)
+PROC RANK_CANDIDATES(rows: array<CandidateRow>, meta_src: Map<ISO2, {precedence:int, priority:int, rule_id:string}>)
+    -> array<RankedCandidateRow>  // explicit return type with candidate_rank field
 
 REQUIRES: ASSERT_RANK_DOMAIN(rows)
 LET home_iso := FIND(r IN rows WHERE r.is_home==true).country_iso
@@ -1608,11 +1612,17 @@ REQUIRES: SET_EQUALS( SET(ranks), SET( [0..LENGTH(rows)-1] ) )
 ENSURES:
   COUNT(r IN rows WHERE ranks[INDEX_OF(rows,r)] == 0 AND r.is_home) == 1
   IS_NONDECREASING( SORT(ranks) )  // implicitly 0..K contiguous
-RETURN ZIP_ROWS_WITH_RANK(rows, ranks)   // host-specific struct combine in L1
+
+// Build ranked rows with field attached (host may map to schema later)
+LET ranked := EMPTY_ARRAY<RankedCandidateRow>()
+FOR i FROM 0 TO LENGTH(rows)-1:
+  LET r := rows[i]
+  APPEND(ranked, r + { candidate_rank: ranks[i] })
+RETURN ranked
 ```
 
 **Complexity.** O(K log K) where K = #foreigns; linear otherwise.
-**Determinism.** Pure; relies only on §6 key, canonical ISO, and stable\_idx from enumeration.
+**Determinism.** Pure; relies only on §6 key, canonical ISO, and stable_idx from enumeration.
 
 ---
 
@@ -1622,7 +1632,7 @@ When L2 uses the ranked rows to emit `s3_candidate_set` it must ensure (enforced
 
 * `candidate_rank` is **total & contiguous** per merchant; **home rank = 0**.
 * **Single source of truth:** downstream **must use `candidate_rank` only** for inter-country order (never file order or ISO).
-* Table is parameter-scoped; row order `(merchant_id, candidate_rank, country_iso)` is **logical** only.&#x20;
+* Table is parameter-scoped; row order `(merchant_id, candidate_rank, country_iso)` is **logical** only.
 
 ---
 
@@ -1630,7 +1640,7 @@ When L2 uses the ranked rows to emit `s3_candidate_set` it must ensure (enforced
 
 * **One documented ordering**: `(precedence, priority, rule_id, ISO, stable_idx)`, same everywhere.
 * **No surprises**: home → 0; foreigns contiguous; duplicates and domain errors fail fast.
-* **Schema-aligned**: exactly matches `s3_candidate_set`’s “total, contiguous” rank contract and “single authority for order”.&#x20;
+* **Schema-aligned**: exactly matches `s3_candidate_set`’s “total, contiguous” rank contract and “single authority for order”.
 
 ---
 
@@ -2148,10 +2158,10 @@ ENSURES:
   `s3_candidate_set → #/s3/candidate_set`, `s3_base_weight_priors → #/s3/base_weight_priors`,
   `s3_integerised_counts → #/s3/integerised_counts`, `s3_site_sequence → #/s3/site_sequence`.
 * Logical orders:
-  • candidate\_set: `(merchant_id ASC, candidate_rank ASC, country_iso ASC)`
-  • base\_weight\_priors: `(merchant_id ASC, country_iso ASC)`
-  • integerised\_counts: `(merchant_id ASC, country_iso ASC)`
-  • site\_sequence: `(merchant_id ASC, country_iso ASC, site_order ASC)`
+  • candidate_set: `(merchant_id ASC, candidate_rank ASC, country_iso ASC)`
+  • base_weight_priors: `(merchant_id ASC, country_iso ASC)`
+  • integerised_counts: `(merchant_id ASC, country_iso ASC)`
+  • site_sequence: `(merchant_id ASC, country_iso ASC, site_order ASC)`
 
 ---
 
@@ -2458,7 +2468,7 @@ ENSURES: true
 
 ---
 
-## 16.5 Integerised-counts guards (sum = N, residual\_rank is permutation)
+## 16.5 Integerised-counts guards (sum = N, residual_rank is permutation)
 
 ```
 // Counts ≥0, sum equals N; residual_rank is 1..M permutation
@@ -2526,8 +2536,8 @@ PROC ASSERT_ISO_MEMBER_CANONICAL(iso: string, iso_set: Set<ISO2>)
 LET _ := NORMALISE_AND_VALIDATE_ISO2(iso, iso_set)  // raises on failure
 ENSURES: true
 
-PROC ASSERT_CHANNEL_VOCAB(ch: string)
-CALL ASSERT_CHANNEL_IN_INGRESS_VOCAB(ch)            // raises on failure
+PROC ASSERT_CHANNEL_VOCAB(ch: string, channel_vocab: Set<string>)
+CALL ASSERT_CHANNEL_IN_INGRESS_VOCAB(ch, channel_vocab)  // raises on failure
 ENSURES: true
 ```
 
@@ -2731,8 +2741,8 @@ FUNC FS.EXISTS(path:string) -> bool
 PROC FS.REMOVE_DIR(path:string)
 
 // Atomic publish: rename tmp dir to final dir (same filesystem/volume)
-PROC FS.ATOMIC_RENAME(tmp:string, final:string, overwrite_allowed:bool)
-REQUIRES: NOT FS.EXISTS(final) OR overwrite_allowed == true
+PROC FS.ATOMIC_RENAME(tmp:string, final:string)
+REQUIRES: NOT FS.EXISTS(final)
 ENSURES:  FS.EXISTS(final) AND NOT FS.EXISTS(tmp)
 ```
 
@@ -2864,7 +2874,7 @@ Use this as a **go/no-go** list. Every box must pass for S3·L0 to be declared *
 
 ## E. Ordering primitives (single source of order)
 
-* [ ] Admission-order key = **(precedence, priority, rule\_id, ISO, stable\_idx)** is implemented and documented (stable sort).
+* [ ] Admission-order key = **(precedence, priority, rule_id, ISO, stable_idx)** is implemented and documented (stable sort).
 * [ ] Ranking assigns **`candidate_rank`** with **home=0** and **contiguous** `0..K−1`; duplicate countries **fail**.
 
 ## F. Priors (optional; scores, not probabilities)
