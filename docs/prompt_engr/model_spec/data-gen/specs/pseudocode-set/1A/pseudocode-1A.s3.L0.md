@@ -995,7 +995,7 @@ FUNC QUANTISE_RESIDUAL(num:int, den:int, dp:int) -> int
 REQUIRES: 0 <= num AND num < den AND den > 0 AND dp >= 0
 LET scale := POW10(dp)                 // big-int
 LET t := num * scale                   // big-int
-LET q := FLOOR_DIV(t, den)             // 0..scale-1
+LET q := FLOOR_DIV(t, den)             // 0..scale (half-even tie can bump q to 'scale')
 LET rem := MOD(t, den)
 IF 2*rem < den:      RETURN q
 ELSE IF 2*rem > den: RETURN q + 1
@@ -1586,12 +1586,16 @@ RETURN out
 /*
  * RANK_CANDIDATES — single source of inter-country order
  */
-PROC RANK_CANDIDATES(rows: array<CandidateRow>, meta_src: Map<ISO2, {precedence:int, priority:int, rule_id:string}>)
-    -> array<RankedCandidateRow>  // explicit return type with candidate_rank field
+PROC RANK_CANDIDATES(
+  rows     : array<CandidateRow>,
+  meta_src : Map<ISO2, {precedence:int, priority:int, rule_id:string}>,
+  home_iso : ISO2
+) -> array<RankedCandidateRow>  // explicit return type with candidate_rank field
 
 REQUIRES: ASSERT_RANK_DOMAIN(rows)
-LET home_iso := FIND(r IN rows WHERE r.is_home==true).country_iso
+// Use canonical home ISO from §10 Ctx, and assert alignment with the single is_home row
 LET (home, foreigns) := SPLIT_HOME_FOREIGNS(rows, home_iso)
+REQUIRES: home.is_home == true
 LET metas := MAKE_ADMISSION_META(foreigns, meta_src)
 LET ordered_foreigns := ORDER_FOREIGNS(foreigns, metas)
 
@@ -2021,8 +2025,7 @@ ERR_S3_SEQ_DISABLED        // feature disabled but sequencing requested
 ERR_S3_SEQ_DOMAIN          // invalid inputs (mismatch, negative counts)
 ERR_S3_SEQ_RANGE           // count_i > 999_999 when site_id is requested
 ERR_S3_SEQ_NONCONTIGUOUS   // sequence is not 1..n_i
-CONST SITE_ID_WIDTH := 6
-CONST SITE_ID_MAX   := 999_999
+// Constants are defined once in §9.1: SITE_ID_WIDTH=6, SITE_ID_MAX=999_999
 ```
 
 ---
@@ -2186,13 +2189,22 @@ FUNC RESOLVE_S3_DATASET(dataset_id: string)
 REQUIRES: dataset_id ∈ {"s3_candidate_set","s3_base_weight_priors","s3_integerised_counts","s3_site_sequence"}
 RETURN DICT.METADATA(dataset_id)   // host-specific; carries schema_ref and expected logical order
 
+// Process-local monotonic counter for tmp-path disambiguation (no I/O, no wall clock).
+// Starts at 0 and increments by 1 on each call within the process.
+FUNC MONOTONIC_COUNTER() -> int
+STATE: static CTR := 0
+LET out := CTR
+CTR := CTR + 1
+RETURN out
+
 // Build final and temp paths for parameter-scoped partition (temp suffix is deterministic)
 FUNC BUILD_PARTITION_PATHS(base_path: string, parameter_hash: Hex64, manifest_fp: Hex64)
   -> { final: string, tmp: string }
 REQUIRES: parameter_hash matches ^[a-f0-9]{64}$ AND manifest_fp matches ^[a-f0-9]{64}$
-LET final := CONCAT(base_path, "/parameter_hash=", parameter_hash, "/")
+LET final := FINAL_PARTITION_PATH(base_path, parameter_hash)
 LET ctr   := MONOTONIC_COUNTER()   // process-local, starts at 0; deterministic within process
-LET tmp   := CONCAT(final, "_tmp_", parameter_hash[0:8], "_", manifest_fp[0:8], "_", DECIMAL_STRING(ctr))
+// tmp lives as a **sibling** of 'final', never inside it
+LET tmp   := CONCAT(base_path, "/_tmp_", parameter_hash[0:8], "_", manifest_fp[0:8], "_", DECIMAL_STRING(ctr), "/")
 RETURN { final, tmp }
 
 // Enforce embed=path lineage equality on all rows for the partition
@@ -2207,12 +2219,6 @@ PROC ASSERT_EMBED_FP_EQUALS(rows: array<Record>, manifest_fp: Hex64)
 REQUIRES: rows != null
 FOR EACH r IN rows:
   IF r.manifest_fingerprint != manifest_fp: RAISE ERR_S3_EMIT_DOMAIN
-ENSURES: true
-
-// Guard against volatile fields (S3 tables must not carry timestamps or run clocks)
-PROC ASSERT_NO_VOLATILE_FIELDS(rows: array<Record>)
-FOR EACH r IN rows:
-  IF HAS_ANY(r, ["created_at","updated_at","emitted_at","now_ts","wall_clock"]): RAISE ERR_S3_EMIT_VOLATILE
 ENSURES: true
 
 // Apply dataset’s logical order deterministically
@@ -2869,7 +2875,7 @@ Use this as a **go/no-go** list. Every box must pass for S3·L0 to be declared *
 ## D. Closed vocab & ISO helpers
 
 * [ ] Helpers **reject** unknown `reason_codes`/`filter_tags`; outputs are **A→Z**, deduped.
-* [ ] Channel checks **inherit ingress vocabulary** (`"card_present"|"card_not_present"`).
+* [ ] Channel checks **inherit ingress vocabulary** (use the ingress channel set; do not hard-code literals).
 * [ ] ISO helpers normalise to **ASCII uppercase** and validate **membership** in the BOM ISO set.
 
 ## E. Ordering primitives (single source of order)
