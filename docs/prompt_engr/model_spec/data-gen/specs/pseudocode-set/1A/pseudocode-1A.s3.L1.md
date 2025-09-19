@@ -162,6 +162,8 @@ These invariants hold for all S3 · L1 kernels to guarantee **replayability, por
 
 > If an equivalent helper exists in S3·L0, prefer **S3·L0**.
 
+**Provenance note.** Policy hooks used by S3·L1 (e.g., `ADMIT_FOREIGN`, `admission_meta_from_ladder`) are **sourced from the BOM handle opened in L0**; L1 evaluates policy data but **does not author or load** it.
+
 ---
 
 ## 1.4 Kernel → helper map (at a glance)
@@ -170,8 +172,8 @@ These invariants hold for all S3 · L1 kernels to guarantee **replayability, por
 |------------------------------|------------------------------------------------------------------------------------------------------------------------------------------|
 | `s3_build_ctx`               | `BUILD_CTX`                                                                                                                              |
 | `s3_evaluate_rule_ladder`    | `BUILD_VOCAB_VIEWS`, `NORMALISE_REASON_CODES`, `NORMALISE_FILTER_TAGS`, `ASSERT_CHANNEL_IN_INGRESS_VOCAB`, `NORMALISE_AND_VALIDATE_ISO2` |
-| `s3_make_candidate_set`      | `NORMALISE_AND_VALIDATE_ISO2`, `MAKE_REASON_CODES_FOR_CANDIDATE`, `MAKE_FILTER_TAGS_FOR_CANDIDATE`                                       |
-| `s3_rank_candidates`         | `ASSIGN_STABLE_IDX`, `ADMISSION_ORDER_KEY`, `ORDER_FOREIGNS`, `RANK_CANDIDATES` *(uses `home_iso` from `Ctx`)*                           |
+| `s3_make_candidate_set`      | `NORMALISE_AND_VALIDATE_ISO2`, `ADMIT_FOREIGN`                                                                                           |
+| `s3_rank_candidates`         | `RANK_CANDIDATES` *(L0 composite; internally uses the §6 key & ordering helpers; `home_iso` from `Ctx`)*                                 |
 | `s3_compute_priors` (opt)    | `SELECT_PRIOR_DP`, `EVAL_PRIOR_SCORE`, `QUANTIZE_WEIGHT_TO_DP`, `ASSERT_PRIORS_BLOCK_SHAPE`                                              |
 | `s3_integerise_counts` (opt) | `MAKE_SHARES_FOR_INTEGERISATION`, `MAKE_BOUNDS_FOR_INTEGERISATION`, `LRR_INTEGERISE`, `ASSERT_COUNTS_SUM_AND_RESIDUAL_RANK`              |
 | `s3_sequence_sites` (opt)    | `BUILD_SITE_SEQUENCE_FOR_COUNTRY`, `FORMAT_SITE_ID_ZEROPAD6`, `ASSERT_CONTIGUOUS_SITE_ORDER`                                             |
@@ -572,24 +574,24 @@ Raised by: pre-flight flag checks, `s3_package_outputs`.
 ## 5.1 One-screen call graph (per merchant)
 
 ```
-OPEN_BOM_S3        BUILD_CTX                     // L0 (done once per run/slice; no I/O in L1)
+OPEN_BOM_S3        BUILD_CTX                     // host/L0 (done once per run/slice; not an L1 call; no I/O in L1)
      │                 │
-     └──► s3_build_ctx(Ctx) ────────────────────────────────────────┐
-                               │                                     │
-                               ▼                                     │
-                     s3_evaluate_rule_ladder ──► DecisionTrace       │
-                               │                                     │
-                               ▼                                     │
-                        s3_make_candidate_set ──► CandidateRow[]     │
-                               │                                     │
-                               ▼                                     │
-                        s3_rank_candidates ────► RankedCandidateRow[]│
-                               │                 (candidate_rank)    │
-                 ┌─────────────┴──────────────┐                      │
-                 │ priors_enabled?            │                      │
-                 │        yes                 │ no                   │
-                 ▼                            │                      │
-             s3_compute_priors ───► PriorRow[]                       │
+     └──► s3_build_ctx(...) → Ctx ────────────────────────────────────┐
+                               │                                      │
+                               ▼                                      │
+                     s3_evaluate_rule_ladder ──► DecisionTrace        │
+                               │                                      │
+                               ▼                                      │
+                        s3_make_candidate_set ──► CandidateRow[]      │
+                               │                                      │
+                               ▼                                      │
+                        s3_rank_candidates ────► RankedCandidateRow[] │
+                               │                 (candidate_rank)     │
+                 ┌─────────────┴──────────────┐                       │
+                 │ priors_enabled?            │                       │
+                 │        yes                 │ no                    │
+                 ▼                            │                       │
+             s3_compute_priors ───► PriorRow[]                        │
                  │                                                    │
                  └───────────┬────────────────────────────────────────┘
                              │ integerisation_enabled?
@@ -679,7 +681,7 @@ PROC s3_process_merchant(ingress, s1, s2, bom, flags) ->
 
   ctx    := s3_build_ctx(ingress, s1, s2, bom, channel_vocab)
   trace  := s3_evaluate_rule_ladder(ctx, bom.ladder, channel_vocab)
-  cand   := s3_make_candidate_set(ctx, trace, bom.iso_universe)
+  cand   := s3_make_candidate_set(ctx, trace, bom.iso_universe, bom.ladder)
 
   // derive admission metadata (precedence, priority, rule_id) per foreign from ladder—pure, no I/O
   meta   := admission_meta_from_ladder(bom.ladder)
@@ -702,7 +704,7 @@ PROC s3_process_merchant(ingress, s1, s2, bom, flags) ->
   RETURN out
 ```
 
-> `derive_admission_meta_from_ladder(…)` is a **pure L1 derivation** of `(precedence, priority, rule_id)` per foreign ISO from the ladder (no I/O, no RNG).
+> `admission_meta_from_ladder(…)` is a **pure L1 derivation** that yields `(precedence, priority, rule_id)` per foreign ISO from the ladder (no I/O, no RNG).
 
 ---
 
@@ -877,7 +879,7 @@ END PROC
 `Ctx` provides everything S3 needs, so downstream kernels take **only** `Ctx` and the relevant BOM handles:
 
 * `s3_evaluate_rule_ladder(Ctx, bom.ladder, channel_vocab)`
-* `s3_make_candidate_set(Ctx, DecisionTrace, bom.iso_universe)`
+* `s3_make_candidate_set(Ctx, DecisionTrace, bom.iso_universe, bom.ladder)`
 * `s3_rank_candidates(CandidateRow[], admission_meta_from_ladder(bom.ladder), Ctx.home_country_iso)`
 * *(optional)* `s3_compute_priors(RankedCandidateRow[], Ctx, bom.priors_cfg)`
 * *(optional)* `s3_integerise_counts(RankedCandidateRow[], Ctx.N, priors?, bom.bounds_cfg?)`
@@ -1196,6 +1198,34 @@ END PROC
 
 ---
 
+### 9.4a Local helper (pure, policy-derived, no I/O) — `admission_meta_from_ladder`
+
+**Intent:** Deterministically derive `admission_meta_map : Map<ISO2, {precedence:int, priority:int, rule_id:string}>`
+from the governed **ladder** for the current parameter set. This helper is **pure**, **RNG-free**, and reads **no paths**;
+it evaluates the already-opened `ladder` value from BOM and produces a stable map used by ranking.
+
+```
+PROC admission_meta_from_ladder(ladder: Ladder)
+      -> Map<ISO2, { precedence:int, priority:int, rule_id:string }>
+
+  REQUIRES ladder != null
+  LET m := EMPTY_MAP()
+
+  FOR EACH rule IN ladder.rules:
+    LET rid := rule.id
+    LET prec := rule.precedence          // int per policy
+    LET pri  := rule.priority            // int per policy
+    FOR EACH iso IN rule.foreign_isos:   // subset of ISO universe; excluding home handled upstream
+      // First-hit wins for (precedence, priority); later ties resolved by RANK_CANDIDATES via (ISO, stable_idx)
+      IF NOT HAS_KEY(m, iso):
+        m[iso] := { precedence: prec, priority: pri, rule_id: rid }
+
+  RETURN m
+END PROC
+```
+
+---
+
 ## 9.5 Pseudocode (language-agnostic, I/O-free)
 
 ```
@@ -1206,7 +1236,7 @@ PROC s3_rank_candidates(candidates: array<CandidateRow>,
 
   // ---- 0) Defensive domain guards on the unordered set ----
   REQUIRES candidates != null AND LENGTH(candidates) >= 1
-  CALL ASSERT_CANDIDATE_SET_SHAPE(candidates)   // one home; no duplicate ISO
+  CALL ASSERT_SINGLE_HOME_NO_DUPES(candidates)  // pre-ranking: exactly one home, no duplicate ISO
 
   // There must be exactly one is_home row and it must match the ctx.home_country_iso
   LET home_rows := FILTER(candidates, r -> r.is_home == true)
@@ -2161,7 +2191,7 @@ ENSURES true
      ctx    := s3_build_ctx(ingress, s1, s2, bom, channel_vocab)
      trace  := s3_evaluate_rule_ladder(ctx, bom.ladder, channel_vocab)
      cand   := s3_make_candidate_set(ctx, trace, bom.iso_universe, bom.ladder)
-     ranked := s3_rank_candidates(cand, admission_meta_from_ladder(bom.ladder), ctx.home_country_iso)
+     ranked := s3_rank_candidates(cand, meta, ctx.home_country_iso)
 
      priors? := flags.priors_enabled
                 ? s3_compute_priors(ranked, ctx, bom.priors_cfg)
