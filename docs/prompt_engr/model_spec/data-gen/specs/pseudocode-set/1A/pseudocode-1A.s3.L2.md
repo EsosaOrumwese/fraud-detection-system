@@ -353,8 +353,8 @@ PROC process_merchant_S3(merchant_id, run_ctx) -> PublishBundle
 
 PROC package_for_emit(bundle: PublishBundle,
                       lineage: { parameter_hash: Hex64, manifest_fingerprint: Hex64 })
-                      -> { cand_rows: RankedCandidateRow[],
-                           prior_rows?: PriorRow[], count_rows?: CountRow[], seq_rows?: SequenceRow[] }
+                      -> { candidate_rows: RankedCandidateRow[],
+                           prior_rows?: PriorRow[], count_rows?: CountRow[], sequence_rows?: SequenceRow[] }
   Purpose: Attach lineage; apply dataset writer sorts; freeze rows for emit.
   Rule: No reshaping after this point.
 
@@ -472,6 +472,8 @@ This ledger gives a complete import map and stable names so the DAG (§4–§5) 
 | `EMIT_S3_SITE_SEQUENCE` (opt)      | L0     | Atomic publish; idempotent                 | §9 / N12                  |
 | `HOST_OPEN_BOM`                    | Host   | Open policy handles (read-only)            | §2 / §6 / N0              |
 | `HOST_WORKER_POOL`                 | Host   | Across-merchant worker pool                | §6                        |
+| `HOST_MERCHANT_LIST`               | Host   | Deterministic merchant worklist            | §6.4                      |
+| `OBSERVE_PARTITION_STATE`          | Host   | Read finals/toggles for resume guards      | §10.6                     |
 
 > Low-level L0 internals (`RESOLVE_S3_DATASET`, `OPEN_WRITER`, etc.) are **encapsulated** by the `EMIT_*` surfaces and are not called from L2.
 
@@ -667,7 +669,7 @@ This one-screen DAG is the human backbone. **§5 (Full DAG Specification)** will
 * **`N5 → {N6 or N8}`**: `PriorRow[]` *(if enabled; fixed-dp scores; one per `(merchant_id, country_iso)`)*
 * **`N6 → {N7 or N8}`**: `CountRow[]` *(if enabled; Σcount = N; each row carries `residual_rank`)*
 * **`N7 → N8`**: `SequenceRow[]` *(if enabled; per-country `site_order = 1..count_i`; optional zero-padded 6-digit `site_id`)*
-* **`N8 → N9/N10/N11/N12`**: `{ cand_rows, prior_rows?, count_rows?, seq_rows? }`
+* **`N8 → N9/N10/N11/N12`**: `{ candidate_rows, prior_rows?, count_rows?, sequence_rows? }`
   Lineage now attached to each row: `{ parameter_hash, manifest_fingerprint }`.
   Writer sorts applied:
 
@@ -930,9 +932,9 @@ END PROC
 ### 7.3.1 N1 — Build context (pure)
 
 ```
-ingress := HOST_GET_INGRESS(merchant_id)
-facts   := HOST_GET_S1S2_FACTS(merchant_id)
-ctx     := s3_build_ctx(ingress, facts, bom, bom.vocab)
+ingress := run_ctx.inputs.ingress_by_id[merchant_id]
+facts   := run_ctx.inputs.s1s2_by_id[merchant_id]
+ctx     := s3_build_ctx(ingress, facts, run_ctx.bom, run_ctx.bom.vocab)
 ```
 
 **Produces:** immutable `ctx` (includes `merchant_id`, `home_country_iso`, **`N`** from S2, etc.).
@@ -1693,20 +1695,20 @@ PROC package_for_emit(bundle, lineage):
   REQUIRE lineage.parameter_hash != NULL
   REQUIRE lineage.manifest_fingerprint != NULL
 
-  cand  := ATTACH_LINEAGE_AND_SORT(bundle.ranked,      lineage,
-                                   sort=(merchant_id, candidate_rank, country_iso))
-  prior := (bundle.priors_opt   ? ATTACH_LINEAGE_AND_SORT(bundle.priors_opt,   lineage,
-                                   sort=(merchant_id, country_iso)) : NULL)
-  cnt   := (bundle.counts_opt   ? ATTACH_LINEAGE_AND_SORT(bundle.counts_opt,   lineage,
-                                   sort=(merchant_id, country_iso)) : NULL)
-  seq   := (bundle.sequence_opt ? ATTACH_LINEAGE_AND_SORT(bundle.sequence_opt, lineage,
-                                   sort=(merchant_id, country_iso, site_order)) : NULL)
+  candidate_rows := ATTACH_LINEAGE_AND_SORT(bundle.ranked,      lineage,
+                                            sort=(merchant_id, candidate_rank, country_iso))
+  prior_rows     := (bundle.priors   ? ATTACH_LINEAGE_AND_SORT(bundle.priors,   lineage,
+                                            sort=(merchant_id, country_iso)) : NULL)
+  count_rows     := (bundle.counts   ? ATTACH_LINEAGE_AND_SORT(bundle.counts,   lineage,
+                                            sort=(merchant_id, country_iso)) : NULL)
+  sequence_rows  := (bundle.sequence ? ATTACH_LINEAGE_AND_SORT(bundle.sequence, lineage,
+                                            sort=(merchant_id, country_iso, site_order)) : NULL)
 
   // Pure self-checks (defensive; no I/O):
-  ASSERT_ALL_ROWS(lineage.parameter_hash,      IN [cand, prior?, cnt?, seq?])
-  ASSERT_ALL_ROWS(lineage.manifest_fingerprint,IN [cand, prior?, cnt?, seq?])
+  ASSERT_ALL_ROWS(lineage.parameter_hash,       IN [candidate_rows, prior_rows?, count_rows?, sequence_rows?])
+  ASSERT_ALL_ROWS(lineage.manifest_fingerprint, IN [candidate_rows, prior_rows?, count_rows?, sequence_rows?])
 
-  RETURN { candidate=cand, priors_opt=prior, counts_opt=cnt, sequence_opt=seq }
+  RETURN { candidate_rows, prior_rows?, count_rows?, sequence_rows? }
 END PROC
 ```
 
