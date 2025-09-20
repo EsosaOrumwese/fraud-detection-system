@@ -81,10 +81,10 @@ The **single legal wiring** of S3: invoke S3·L1 kernels in the only permitted o
 
 L2 invokes the **pure** S3·L1 kernels (serial per merchant) which return schema-shaped arrays **without lineage**:
 
-1. `Ctx` ← `s3_build_ctx(…)` — includes `merchant_id`, `home_country_iso`, and fields L2 will attach at publish.
+1. `Ctx` ← `s3_build_ctx(ingress_rows, s1_hurdle_rows, s2_nb_final_rows, bom, channel_vocab)` — includes `merchant_id`, `home_country_iso`, and fields L2 will attach at publish. — includes `merchant_id`, `home_country_iso`, and fields L2 will attach at publish.
 2. `DecisionTrace` ← `s3_evaluate_rule_ladder(Ctx, bom.ladder, bom.vocab)`.
 3. `CandidateRow[]` ← `s3_make_candidate_set(Ctx, DecisionTrace, bom.iso_universe, bom.ladder)` — includes **home** + admitted foreigns (closed vocab for reasons/tags).
-4. `RankedCandidateRow[]` ← `s3_rank_candidates(CandidateRow[], meta_from_ladder, Ctx.home_country_iso)` — **total order**, `candidate_rank` contiguous with home=0.
+4. `RankedCandidateRow[]` ← `s3_rank_candidates(CandidateRow[], bom.admission_meta_map, Ctx.home_country_iso)` — **total order**, `candidate_rank` contiguous with home=0.
 5. *(opt)* `PriorRow[]` ← `s3_compute_priors(RankedCandidateRow[], Ctx, bom.priors_cfg)` — fixed-dp **scores** (no renorm).
 6. *(opt)* `CountRow[]` ← `s3_integerise_counts(RankedCandidateRow[], Ctx.N, PriorRow[]?, bom.bounds?)` — LRR integerisation; **Σ count = Ctx.N**.
 7. *(opt)* `SequenceRow[]` ← `s3_sequence_sites(RankedCandidateRow[], CountRow[], Ctx, with_site_id)` — per-country `site_order` 1..nᵢ (optional 6-digit `site_id`).
@@ -273,7 +273,7 @@ PROC s3_compute_priors(ranked: array<RankedCandidateRow>, ctx: Ctx, priors_cfg: 
   Determinism: Pure.
 
 PROC s3_integerise_counts(ranked: array<RankedCandidateRow>, N: int,
-                          priors?: array<PriorRow>, bounds_cfg?: BoundsCfg) -> CountRow[]   # optional
+                          priors?: array<PriorRow>, bounds?: BoundsConfig) -> CountRow[]   # optional
   Purpose: Largest-remainder integerisation; Σ count = N; `residual_rank` recorded; bounds optional.
   Determinism: Pure.
 
@@ -615,7 +615,7 @@ This one-screen DAG is the human backbone. **§5 (Full DAG Specification)** will
 | N4  | Rank candidates               | `s3_rank_candidates` (L1)         | pure              | No       | Impose total order; **`candidate_rank` contiguous; home=0**.       |
 | N5  | Compute priors                | `s3_compute_priors` (L1)          | pure              | Yes      | Fixed-dp **scores** (no renorm).                                   |
 | N6  | Integerise counts             | `s3_integerise_counts` (L1)       | pure              | Yes      | LRR integerisation; Σcount = **N**; apply bounds if provided.      |
-| N7  | Sequence within country       | ` s3_sequence_sites` (L1) | pure              | Yes      | Per-country `site_order` 1..nᵢ; optional 6-digit `site_id`.        |
+| N7  | Sequence within country       | `s3_sequence_sites` (L1) | pure              | Yes      | Per-country `site_order` 1..nᵢ; optional 6-digit `site_id`.        |
 | N8  | Package for emit              | `package_for_emit` (L2)           | pure              | No       | Attach lineage; apply writer sorts; freeze rows for emit.          |
 | N9  | Emit candidate_set            | `EMIT_S3_CANDIDATE_SET` (L0)      | side-effect (I/O) | No       | Atomic/idempotent publish of `s3_candidate_set`.                   |
 | N10 | Emit base_weight_priors (opt) | `EMIT_S3_BASE_WEIGHT_PRIORS` (L0) | side-effect (I/O) | Yes      | Atomic/idempotent publish of `s3_base_weight_priors`.              |
@@ -858,10 +858,10 @@ END PROC
 
 PROC process_merchant_S3(merchant_id, run_ctx):
   // Kernels (pure; L2 does no I/O)
-  ingress := run_ctx.inputs.ingress_by_id[merchant_id]
-  facts   := run_ctx.inputs.s1s2_by_id[merchant_id]
-
-  ctx    := s3_build_ctx(ingress, facts, run_ctx.bom, run_ctx.bom.vocab)
+  ingress_rows     := run_ctx.inputs.ingress_rows_by_id[merchant_id]       // 0..1
+s1_hurdle_rows   := run_ctx.inputs.s1_hurdle_rows_by_id[merchant_id]     // 0..1
+s2_nb_final_rows := run_ctx.inputs.s2_nb_final_rows_by_id[merchant_id]   // 0..1
+ctx := s3_build_ctx(ingress_rows, s1_hurdle_rows, s2_nb_final_rows, run_ctx.bom, run_ctx.bom.vocab)
   trace  := s3_evaluate_rule_ladder(ctx, run_ctx.bom.ladder, run_ctx.bom.vocab)
   cands  := s3_make_candidate_set(ctx, trace, run_ctx.bom.iso_universe, run_ctx.bom.ladder)
   ranked := s3_rank_candidates(cands, run_ctx.bom.admission_meta_map, ctx.home_country_iso)
@@ -933,9 +933,10 @@ END PROC
 ### 7.3.1 N1 — Build context (pure)
 
 ```
-ingress := run_ctx.inputs.ingress_by_id[merchant_id]
-facts   := run_ctx.inputs.s1s2_by_id[merchant_id]
-ctx     := s3_build_ctx(ingress, facts, run_ctx.bom, run_ctx.bom.vocab)
+ingress_rows     := run_ctx.inputs.ingress_rows_by_id[merchant_id]       // 0..1
+s1_hurdle_rows   := run_ctx.inputs.s1_hurdle_rows_by_id[merchant_id]     // 0..1
+s2_nb_final_rows := run_ctx.inputs.s2_nb_final_rows_by_id[merchant_id]   // 0..1
+ctx := s3_build_ctx(ingress_rows, s1_hurdle_rows, s2_nb_final_rows, run_ctx.bom, run_ctx.bom.vocab)
 ```
 
 **Produces:** immutable `ctx` (includes `merchant_id`, `home_country_iso`, **`N`** from S2, etc.).
@@ -1467,7 +1468,7 @@ If a lane is enabled but produces **zero rows** for a merchant, the emitter **mu
 PROC guard_resume(run_cfg, observed_partition_state):
   // 1) If any dataset partition is already final for this parameter_hash,
   //    its metadata must match the current run.
-  IF observed_partition_state.has_any_final_for(run_cfg.parameter_hash):
+  IF observed_partition_state.has_any_final:
       IF observed_partition_state.manifest_fingerprint != run_cfg.manifest_fingerprint:
           RAISE ERROR IDEMP-MANIFEST-MISMATCH
       IF observed_partition_state.toggles_snapshot != run_cfg.toggles:
@@ -1484,7 +1485,7 @@ END PROC
 **Notes.**
 
 * `observed_partition_state` is a **host/L0 read-only** summariser (e.g., a small sidecar or controller view) and may return:
-  `has_any_final_for(parameter_hash): bool`,
+  `has_any_final(parameter_hash): bool`,
   `manifest_fingerprint: Hex64 (if final exists)`,
   `toggles_snapshot: {emit_priors, emit_counts, emit_sequence} (if final exists)`,
   `has_mixed_final_metadata: bool`.
@@ -1801,7 +1802,9 @@ PROC HOST_OPEN_BOM()
        iso_universe: Set[ISO2],
        dp: int,
        dp_resid: int,
-       bounds?: BoundsConfig,
+       
+       priors_cfg: PriorsCfg,
+bounds?: BoundsConfig,
        toggles: { emit_priors: bool, emit_counts: bool, emit_sequence: bool },
        vocab: Vocab,                         // ingress/channel/etc. vocab used by L1
        admission_meta_map: Map[ISO2,{precedence:int,priority:int,rule_id:str}],
@@ -1827,16 +1830,17 @@ PROC HOST_MERCHANT_LIST(parameter_hash: Hex64)
 
 ---
 
-### 13.3.3 Ingress & prior-state facts (read-only views)
+### 13.3.3 Ingress & prior-state rows (read-only views)
 
 ```
-PROC HOST_GET_INGRESS(merchant_id)
-  -> IngressRecord       // minimal fields required by s3_build_ctx
+PROC HOST_GET_INGRESS_ROWS(merchant_id)
+  -> array<Record>       // 0..1 row; includes lineage fields used by s3_build_ctx
 
-PROC HOST_GET_S1S2_FACTS(merchant_id)
-  -> { is_multi: bool,
-       N: int,          // accepted NB count (≥2) for multi merchants
-       r: int }         // NB rejections (≥0)
+PROC HOST_GET_S1_HURDLE_ROWS(merchant_id)
+  -> array<Record>       // 0..1 row; includes lineage fields used by s3_build_ctx
+
+PROC HOST_GET_S2_NB_FINAL_ROWS(merchant_id)
+  -> array<Record>       // 0..1 row; non-consuming final; includes lineage fields
 ```
 
 **Purpose.** Supply the **exact facts** S3·L1 expects for kernels; no RNG log reads.
@@ -1903,8 +1907,11 @@ PROC HOST_LOG(level: {"INFO","WARN","ERROR"}, message: string, kv?: Map)
 |---------------------------|--------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------|
 | `HOST_OPEN_BOM`           | §6 run entry; §7.3 N1/N4 | Acquire run policy/materials (`vocab`, `ladder`, `iso_universe`, `dp`, `dp_resid`, `bounds?`, `toggles`, `admission_meta_map`, `site_id_cfg?`). |
 | `HOST_MERCHANT_LIST`      | §6.4                     | Deterministic worklist for dispatch.                                                                                                            |
-| `HOST_GET_INGRESS`        | §6.13 (payload build)                  | Populate `run_ctx.inputs.ingress_by_id`.                                                                                                               |
-| `HOST_GET_S1S2_FACTS`     | §6.13 (payload build)                  | Populate `run_ctx.inputs.s1s2_by_id`.                                                                                                           |
+| `HOST_GET_INGRESS_ROWS`       | §6.13 (payload build) | Populate `run_ctx.inputs.ingress_rows_by_id`.
+|
+| `HOST_GET_S1_HURDLE_ROWS`     | §6.13 (payload build) | Populate `run_ctx.inputs.s1_hurdle_rows_by_id`.
+| `HOST_GET_S2_NB_FINAL_ROWS`   | §6.13 (payload build) | Populate `run_ctx.inputs.s2_nb_final_rows_by_id`.
+|
 | `HOST_WORKER_POOL`        | §6.3                     | Across-merchant parallelism.                                                                                                                    |
 | `HOST_DICTIONARY_HANDLE`  | §9 (via L0 emitters)     | Dictionary resolution inside emitters.                                                                                                          |
 | `OBSERVE_PARTITION_STATE` | §10.6                    | Enforce idempotent resume guards.                                                                                                               |
@@ -2118,7 +2125,7 @@ Expose these counters via §16 logging (do **not** influence logic):
 | Code                        | Trigger (Where)                                       | Required Action            | Retryability                                 |
 |-----------------------------|-------------------------------------------------------|----------------------------|----------------------------------------------|
 | `KERNEL-INGRESS-MISSING`    | `HOST_GET_INGRESS` lacks required fields (N1)         | Fail merchant; skip N8–N12 | yes                                          |
-| `KERNEL-S1S2-MISSING`       | `HOST_GET_S1S2_FACTS` lacks `is_multi`/`N`/`r` (N1)   | Fail merchant              | yes                                          |
+| `KERNEL-S1S2-MISSING`       | `HOST_GET_S1_HURDLE_ROWS / HOST_GET_S2_NB_FINAL_ROWS` lacks `is_multi`/`N`/`r` (N1)   | Fail merchant              | yes                                          |
 | `KERNEL-LADDER-FAIL`        | Ladder evaluation cannot produce a decision (N2)      | Fail merchant              | yes                                          |
 | `KERNEL-CANDIDATE-NO-HOME`  | Candidate set lacks exactly one home ISO (N3 assert)  | Fail merchant              | yes (data/policy fix)                        |
 | `KERNEL-CANDIDATE-DUP-ISO`  | Duplicate ISO in candidate set (N3 assert)            | Fail merchant              | yes                                          |
@@ -2544,6 +2551,7 @@ bom := HOST_OPEN_BOM()
   iso_universe  = {"GB","IE","FR","NL","DE"}
   dp            = 6
   dp_resid      = 8
+  priors_cfg    = <run-constant priors settings>
   bounds        = { min: {GB:1}, max: {} }   // optional; example only
 ```
 
@@ -2790,12 +2798,12 @@ INFO RUN_SUMMARY            kv={merchants_total:2, merchants_ok:2, merchants_fai
 
 ### L1 kernels (import only; pure)
 
-* `s3_build_ctx(ingress, s1_s2_facts, bom, vocab) -> Ctx`
+* `s3_build_ctx(ingress_rows, s1_hurdle_rows, s2_nb_final_rows, bom, channel_vocab) -> Ctx`
 * `s3_evaluate_rule_ladder(Ctx, ladder, channel_vocab) -> DecisionTrace`
 * `s3_make_candidate_set(Ctx, DecisionTrace, iso_universe, ladder) -> CandidateRow[]`
 * `s3_rank_candidates(CandidateRow[], admission_meta_map, home_iso) -> RankedCandidateRow[]`
 * `s3_compute_priors(RankedCandidateRow[], Ctx, priors_cfg) -> PriorRow[]` *(opt)*
-* `s3_integerise_counts(RankedCandidateRow[], N, priors?, bounds_cfg?) -> CountRow[]` *(opt)*
+* `s3_integerise_counts(RankedCandidateRow[], N, priors?, bounds?) -> CountRow[]` *(opt)*
 * `s3_sequence_sites(RankedCandidateRow[], CountRow[], Ctx, with_site_id) -> SequenceRow[]` *(opt)*
 
 ### L2 glue (this doc; orchestration only)
@@ -2813,7 +2821,7 @@ INFO RUN_SUMMARY            kv={merchants_total:2, merchants_ok:2, merchants_fai
 
 ### Host shims (read-only)
 
-* `HOST_OPEN_BOM()` · `HOST_MERCHANT_LIST(parameter_hash)` · `HOST_GET_INGRESS(merchant_id)` · `HOST_GET_S1S2_FACTS(merchant_id)` · `HOST_WORKER_POOL(N_WORKERS)` · `HOST_DICTIONARY_HANDLE()` · `OBSERVE_PARTITION_STATE(parameter_hash)` · `HOST_LOG(level,msg,kv?)`
+* `HOST_OPEN_BOM()` · `HOST_MERCHANT_LIST(parameter_hash)` · `HOST_GET_INGRESS_ROWS(merchant_id)` · `HOST_GET_S1_HURDLE_ROWS / HOST_GET_S2_NB_FINAL_ROWS(merchant_id)` · `HOST_WORKER_POOL(N_WORKERS)` · `HOST_DICTIONARY_HANDLE()` · `OBSERVE_PARTITION_STATE(parameter_hash)` · `HOST_LOG(level,msg,kv?)`
 
 ---
 
