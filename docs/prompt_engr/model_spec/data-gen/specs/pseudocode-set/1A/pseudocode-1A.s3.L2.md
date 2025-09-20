@@ -136,7 +136,7 @@ L2 **fails fast** (merchant- or run-scoped) when:
 
 * Illegal option combo (e.g., `emit_sequence=true` with `emit_counts=false`).
 * Required BOM element missing.
-* Attempted publish where **final already exists** (should be a no-op if checked prior; error only if invariants are violated).
+* Attempted publish where **final already exists** ⇒ **no-op skip** by design (`skip_if_final=true`); **not a failure**. Fail only on invariant breaches (e.g., embed≠path, manifest mismatch).
 * **Embed ≠ path** lineage mismatch detected at publish time.
 
 ---
@@ -319,6 +319,16 @@ PROC EMIT_S3_SITE_SEQUENCE(rows: SequenceRow[],
 PROC HOST_OPEN_BOM() -> { ladder: Ladder, iso_universe: Set[ISO2],
                           dp: int, dp_resid: int, bounds?: BoundsConfig,
                           toggles: { emit_priors: bool, emit_counts: bool, emit_sequence: bool } }
+
+PROC HOST_MERCHANT_LIST(parameter_hash: Hex64) -> List[merchant_id]
+  Purpose: Provide the deterministic merchant worklist for this partition (e.g., ascending order).
+  Determinism: order is stable for the run; returns values, not paths.
+
+PROC OBSERVE_PARTITION_STATE(parameter_hash: Hex64)
+  -> { has_any_final: bool,
+       manifest_fingerprint?: Hex64,
+       toggles_snapshot?: { emit_priors: bool, emit_counts: bool, emit_sequence: bool } }
+  Purpose: Read-only probe for §10 resume guards; reflects on-disk truth; no writes.
 
 PROC HOST_WORKER_POOL(N_WORKERS: int) -> Pool
   Purpose: Parallelise across merchants only; within-merchant work stays serial.
@@ -809,7 +819,7 @@ Option-guarded nodes (`?`) are included/excluded per **§3B** and **§5.4**. **N
 ## 6.12 Practical Defaults & Safe Ranges
 
 * `N_WORKERS`: default = `min(physical_cores, 8)`; safe range 1–32.
-* `batch_rows`: default = `20_000` (if emitters support chunking); safe range 5 000–100 000.
+* `batch_rows`: default = `20_000` (if emitters support chunking); safe range 5_000–100_000.
 * `mem_watermark`: choose to keep per-worker peak below available RAM / `N_WORKERS` (e.g., 256–512 MB per worker), given expected merchant slice sizes.
 
 ## 6.13 Task Payload (what each worker receives)
@@ -831,9 +841,11 @@ Each submitted task gets a **run context** with **values only** (no paths):
 PROC run_S3_L2(run_cfg):
   bom := HOST_OPEN_BOM()
   guard_options(run_cfg.toggles)
+  part_state := OBSERVE_PARTITION_STATE(parameter_hash = run_cfg.parameter_hash)
+  guard_resume(run_cfg, part_state)
 
   pool := HOST_WORKER_POOL(run_cfg.N_WORKERS)
-  FOR merchant_id IN DETERMINISTIC_ORDER(run_cfg.merchants):
+  FOR merchant_id IN HOST_MERCHANT_LIST(run_cfg.parameter_hash):
     pool.submit( TASK process_merchant_S3(merchant_id,
                   run_ctx = {bom, toggles=run_cfg.toggles,
                              inputs=run_cfg.inputs,
@@ -918,10 +930,9 @@ END PROC
 ### 7.3.1 N1 — Build context (pure)
 
 ```
-ctx := s3_build_ctx(ingress_for(merchant_id),
-                    s1_s2_facts(merchant_id),
-                    bom,
-                    bom.vocab)
+ingress := HOST_GET_INGRESS(merchant_id)
+facts   := HOST_GET_S1S2_FACTS(merchant_id)
+ctx     := s3_build_ctx(ingress, facts, bom, bom.vocab)
 ```
 
 **Produces:** immutable `ctx` (includes `merchant_id`, `home_country_iso`, **`N`** from S2, etc.).
@@ -1000,7 +1011,7 @@ rows := package_for_emit(
                       manifest_fingerprint= run.lineage.manifest_fingerprint })
 ```
 
-**`package_for_emit` responsibilities:**
+**`package_for_emit` responsibilities (and return shape):**
 
 * Attach lineage to every row.
 * Apply **writer sorts** (logical row ordering) for each dataset:
@@ -1009,6 +1020,11 @@ rows := package_for_emit(
   * `base_weight_priors`: `(merchant_id, country_iso)`
   * `integerised_counts`: `(merchant_id, country_iso)`
   * `site_sequence`: `(merchant_id, country_iso, site_order)`
+* **Return**:
+  - `candidate_rows   : RankedCandidateRow[]`
+  - `prior_rows?      : PriorRow[]`
+  - `count_rows?      : CountRow[]`
+  - `sequence_rows?   : SequenceRow[]`
 * **Freeze** rows; no reshaping after packaging.
 
 ---
@@ -1016,11 +1032,11 @@ rows := package_for_emit(
 ## 7.6 Emit sequence (N9 → N12): idempotent, atomic (side-effect via L0)
 
 ```
-EMIT_S3_CANDIDATE_SET   (rows.candidate,  run.lineage.parameter_hash, run.lineage.manifest_fingerprint, TRUE)
+EMIT_S3_CANDIDATE_SET   (rows.candidate_rows,  run.lineage.parameter_hash, run.lineage.manifest_fingerprint, TRUE)
 
-IF rows.priors   != NULL: EMIT_S3_BASE_WEIGHT_PRIORS (rows.priors,   run.lineage.parameter_hash, run.lineage.manifest_fingerprint, TRUE)
-IF rows.counts   != NULL: EMIT_S3_INTEGERISED_COUNTS (rows.counts,   run.lineage.parameter_hash, run.lineage.manifest_fingerprint, TRUE)
-IF rows.sequence != NULL: EMIT_S3_SITE_SEQUENCE      (rows.sequence, run.lineage.parameter_hash, run.lineage.manifest_fingerprint, TRUE)
+IF rows.prior_rows    != NULL: EMIT_S3_BASE_WEIGHT_PRIORS (rows.prior_rows,    run.lineage.parameter_hash, run.lineage.manifest_fingerprint, TRUE)
+IF rows.count_rows    != NULL: EMIT_S3_INTEGERISED_COUNTS (rows.count_rows,    run.lineage.parameter_hash, run.lineage.manifest_fingerprint, TRUE)
+IF rows.sequence_rows != NULL: EMIT_S3_SITE_SEQUENCE      (rows.sequence_rows, run.lineage.parameter_hash, run.lineage.manifest_fingerprint, TRUE)
 ```
 
 **Rules:** fixed dataset order **candidate → \[priors] → \[counts] → \[sequence]**; each emit is idempotent (`skip_if_final=true`), atomic (tmp→fsync→rename), and enforces **embed=path**.
@@ -1321,31 +1337,31 @@ EMIT_S3_CANDIDATE_SET
 PROC emit_slice_in_order(rows_by_dataset, lineage, skip_if_final = TRUE):
   // 1) candidate_set (always)
   EMIT_S3_CANDIDATE_SET(
-      rows_by_dataset.candidate,
+      rows_by_dataset.candidate_rows,
       lineage.parameter_hash,
       lineage.manifest_fingerprint,
       skip_if_final)
 
   // 2) priors (optional)
-  IF rows_by_dataset.priors_opt != NULL:
+  IF rows_by_dataset.prior_rows != NULL:
       EMIT_S3_BASE_WEIGHT_PRIORS(
-          rows_by_dataset.priors_opt,
+          rows_by_dataset.prior_rows,
           lineage.parameter_hash,
           lineage.manifest_fingerprint,
           skip_if_final)
 
   // 3) counts (optional)
-  IF rows_by_dataset.counts_opt != NULL:
+  IF rows_by_dataset.count_rows != NULL:
       EMIT_S3_INTEGERISED_COUNTS(
-          rows_by_dataset.counts_opt,
+          rows_by_dataset.count_rows,
           lineage.parameter_hash,
           lineage.manifest_fingerprint,
           skip_if_final)
 
   // 4) sequence (optional; requires counts)
-  IF rows_by_dataset.sequence_opt != NULL:
+  IF rows_by_dataset.sequence_rows != NULL:
       EMIT_S3_SITE_SEQUENCE(
-          rows_by_dataset.sequence_opt,
+          rows_by_dataset.sequence_rows,
           lineage.parameter_hash,
           lineage.manifest_fingerprint,
           skip_if_final)
@@ -2783,8 +2799,8 @@ INFO RUN_SUMMARY            kv={merchants_total:2, merchants_ok:2, merchants_fai
 
 * `run_S3_L2(run_cfg) -> void`
 * `process_merchant_S3(merchant_id, run_ctx) -> PublishBundle`
-* `package_for_emit(bundle, lineage) -> {cand, priors?, counts?, seq?}`
-* `emit_slice_in_order(rows_by_dataset, lineage, skip_if_final=true) -> void`
+* `package_for_emit(bundle, lineage) -> { candidate_rows, prior_rows?, count_rows?, sequence_rows? }`
+* `emit_slice_in_order({candidate_rows, prior_rows?, count_rows?, sequence_rows?}, lineage, skip_if_final=true) -> void`
 * `guard_options(toggles) -> void`
 * `guard_resume(run_cfg, observed_partition_state) -> void`   ← *(resume guard from §10)*
 
