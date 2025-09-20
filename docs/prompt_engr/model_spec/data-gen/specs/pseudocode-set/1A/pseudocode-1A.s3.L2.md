@@ -71,6 +71,7 @@ The **single legal wiring** of S3: invoke S3·L1 kernels in the only permitted o
 * `bom.ladder : Ladder` — governed rule family used by L1.
 * `bom.iso_universe : Set[ISO2]` — closed country universe.
 * `bom.dp : int`, `bom.dp_resid : int` — fixed decimals (run-constant).
+* `bom.priors_cfg : PriorsCfg` — run-constant priors configuration (e.g., dp, feature flags) used by the L1 priors kernel.
 * `bom.bounds? : BoundsConfig` — optional per-country L/U for counts.
 * `options.emit_priors : bool`, `options.emit_counts : bool`, `options.emit_sequence : bool`.
 * `runtime.N_WORKERS : int`, `runtime.batch_rows : int`, `runtime.mem_watermark : bytes` — practical throughput knobs with deterministic defaults.
@@ -81,7 +82,7 @@ The **single legal wiring** of S3: invoke S3·L1 kernels in the only permitted o
 
 L2 invokes the **pure** S3·L1 kernels (serial per merchant) which return schema-shaped arrays **without lineage**:
 
-1. `Ctx` ← `s3_build_ctx(ingress_rows, s1_hurdle_rows, s2_nb_final_rows, bom, channel_vocab)` — includes `merchant_id`, `home_country_iso`, and fields L2 will attach at publish. — includes `merchant_id`, `home_country_iso`, and fields L2 will attach at publish.
+1. `Ctx` ← `s3_build_ctx(ingress_rows, s1_hurdle_rows, s2_nb_final_rows, bom, channel_vocab)` — includes `merchant_id`, `home_country_iso`, and fields L2 will attach at publish. `merchant_id`, `home_country_iso`, and fields L2 will attach at publish.
 2. `DecisionTrace` ← `s3_evaluate_rule_ladder(Ctx, bom.ladder, bom.vocab)`.
 3. `CandidateRow[]` ← `s3_make_candidate_set(Ctx, DecisionTrace, bom.iso_universe, bom.ladder)` — includes **home** + admitted foreigns (closed vocab for reasons/tags).
 4. `RankedCandidateRow[]` ← `s3_rank_candidates(CandidateRow[], bom.admission_meta_map, Ctx.home_country_iso)` — **total order**, `candidate_rank` contiguous with home=0.
@@ -246,7 +247,7 @@ Before wiring emit calls, confirm the dictionary exposes for each dataset ID: **
 ## 3A.1 Imported from S3·L1 (pure, deterministic, no I/O)
 
 ```
-PROC s3_build_ctx(ingress, s1_s2_facts, bom, vocab) -> Ctx
+PROC s3_build_ctx(ingress_rows, s1_hurdle_rows, s2_nb_final_rows, bom, channel_vocab) -> Ctx
   Purpose: Immutable per-merchant context (merchant_id, home_country_iso, N, etc.).
   Determinism: Pure (no side effects).
   Errors: Missing ingress/vocab fields ⇒ deterministic error (no partials).
@@ -830,8 +831,10 @@ Each submitted task gets a **run context** with **values only** (no paths):
 
 * `lineage`: `{ parameter_hash, manifest_fingerprint }`
 * `toggles`: `{ emit_priors, emit_counts, emit_sequence }`
-* `bom`: `{ ladder, iso_universe, dp, dp_resid, bounds?, site_id_cfg?, admission_meta_map, vocab }`
-* `inputs`: `{ ingress_by_id : Map[merchant_id → IngressRow], s1s2_by_id : Map[merchant_id → S1S2Facts] }`
+* `bom`: `{ ladder, iso_universe, dp, dp_resid, priors_cfg, bounds?, site_id_cfg?, admission_meta_map, vocab }`
+* `inputs`: `{ ingress_rows_by_id      : Map[merchant_id → array<Record>>,   // 0..1
+               s1_hurdle_rows_by_id    : Map[merchant_id → array<Record>>,   // 0..1
+               s2_nb_final_rows_by_id  : Map[merchant_id → array<Record>> }  // 0..1`
 
 > These come from **Host/L0** set-up prior to orchestration (see §2 and §3A.3). L2 reads values from this context; it never opens files or resolves paths.
 
@@ -914,8 +917,8 @@ END PROC
 
 * `merchant_id`
 * `run.lineage`: `{ parameter_hash: Hex64, manifest_fingerprint: Hex64 }`
-* `bom`: `{ ladder, iso_universe, dp, dp_resid, bounds?, site_id_cfg?, admission_meta_map, vocab }`
-* `ingress`, `s1_s2_facts` (the minimal facts L1 expects)
+* `bom`: `{ ladder, iso_universe, dp, dp_resid, priors_cfg, bounds?, site_id_cfg?, admission_meta_map, vocab }`
+* `ingress_rows`, `s1_hurdle_rows`, `s2_nb_final_rows` (0..1 each; the minimal L1 expects)
 
 **Outputs (after emit, if lanes enabled):**
 
@@ -1433,7 +1436,7 @@ If a lane is enabled but produces **zero rows** for a merchant, the emitter **mu
 | **R1**   | Crash **before** any emit                                                          | Re-run: all merchants flow through kernels; emitters write normally (no finals exist).                                                                                     |
 | **R2**   | Crash **after** some emits for some merchants                                      | Re-run: non-final partitions continue to accept slices; already-final partitions are **skipped** by emitters.                                                              |
 | **R3**   | Re-run with **same** `{parameter_hash, manifest_fingerprint}` and **same toggles** | Fully idempotent: kernels may recompute; emitters no-op where finals exist; any remaining merchants publish exactly once.                                                  |
-| **R4**   | Re-run with **same** `parameter_hash` but **different manifest_fingerprint**      | **Illegal resume.** Abort with `IDEMP-MANIFEST-MISMATCH`. Changing the manifest under the same partition risks mixed manifests embedded in rows.                           |
+| **R4**   | Re-run with **same** `parameter_hash` but **different manifest_fingerprint**       | **Illegal resume.** Abort with `IDEMP-MANIFEST-MISMATCH`. Changing the manifest under the same partition risks mixed manifests embedded in rows.                           |
 | **R5**   | Re-run with **same** lineage but **different toggles**                             | **Illegal resume if any dataset for this partition is final.** Abort with `IDEMP-TOGGLE-MISMATCH`. Change toggles only on a clean partition or use a new `parameter_hash`. |
 | **R6**   | Re-run with **new** `parameter_hash`                                               | Treated as a **new target**; all emits proceed; old partitions remain immutable.                                                                                           |
 
@@ -1843,7 +1846,7 @@ PROC HOST_GET_S2_NB_FINAL_ROWS(merchant_id)
   -> array<Record>       // 0..1 row; non-consuming final; includes lineage fields
 ```
 
-**Purpose.** Supply the **exact facts** S3·L1 expects for kernels; no RNG log reads.
+**Purpose.** Supply the **exact rows** S3·L1 expects for `s3_build_ctx`; no RNG log reads.
 **Determinism.** Facts reflect the controller’s authoritative state for this run.
 **Failure.** Missing facts ⇒ merchant-scoped failure; L2 skips emits for that merchant.
 
@@ -1903,19 +1906,17 @@ PROC HOST_LOG(level: {"INFO","WARN","ERROR"}, message: string, kv?: Map)
 
 ## 13.4 Usage map (where each shim is called)
 
-| Shim                      | Used in § / Node         | Purpose                                                                                                                                         |
-|---------------------------|--------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------|
-| `HOST_OPEN_BOM`           | §6 run entry; §7.3 N1/N4 | Acquire run policy/materials (`vocab`, `ladder`, `iso_universe`, `dp`, `dp_resid`, `bounds?`, `toggles`, `admission_meta_map`, `site_id_cfg?`). |
-| `HOST_MERCHANT_LIST`      | §6.4                     | Deterministic worklist for dispatch.                                                                                                            |
-| `HOST_GET_INGRESS_ROWS`       | §6.13 (payload build) | Populate `run_ctx.inputs.ingress_rows_by_id`.
-|
-| `HOST_GET_S1_HURDLE_ROWS`     | §6.13 (payload build) | Populate `run_ctx.inputs.s1_hurdle_rows_by_id`.
-| `HOST_GET_S2_NB_FINAL_ROWS`   | §6.13 (payload build) | Populate `run_ctx.inputs.s2_nb_final_rows_by_id`.
-|
-| `HOST_WORKER_POOL`        | §6.3                     | Across-merchant parallelism.                                                                                                                    |
-| `HOST_DICTIONARY_HANDLE`  | §9 (via L0 emitters)     | Dictionary resolution inside emitters.                                                                                                          |
-| `OBSERVE_PARTITION_STATE` | §10.6                    | Enforce idempotent resume guards.                                                                                                               |
-| `HOST_LOG`                | §16                      | Operational progress output.                                                                                                                    |
+| Shim                        | Used in § / Node         | Purpose                                                                                                                                         |
+|-----------------------------|--------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------|
+| `HOST_OPEN_BOM`             | §6 run entry; §7.3 N1/N4 | Acquire run policy/materials (`vocab`, `ladder`, `iso_universe`, `dp`, `dp_resid`, `bounds?`, `toggles`, `admission_meta_map`, `site_id_cfg?`). |
+| `HOST_MERCHANT_LIST`        | §6.4                     | Deterministic worklist for dispatch.                                                                                                            |
+| `HOST_GET_INGRESS_ROWS`     | §6.13 (payload build)    | Populate `run_ctx.inputs.ingress_rows_by_id`.                                                                                                   |
+| `HOST_GET_S1_HURDLE_ROWS`   | §6.13 (payload build)    | Populate `run_ctx.inputs.s1_hurdle_rows_by_id`.                                                                                                 |
+| `HOST_GET_S2_NB_FINAL_ROWS` | §6.13 (payload build)    | Populate `run_ctx.inputs.s2_nb_final_rows_by_id`.                                                                                               |
+| `HOST_WORKER_POOL`          | §6.3                     | Across-merchant parallelism.                                                                                                                    |
+| `HOST_DICTIONARY_HANDLE`    | §9 (via L0 emitters)     | Dictionary resolution inside emitters.                                                                                                          |
+| `OBSERVE_PARTITION_STATE`   | §10.6                    | Enforce idempotent resume guards.                                                                                                               |
+| `HOST_LOG`                  | §16                      | Operational progress output.                                                                                                                    |
 
 ---
 
