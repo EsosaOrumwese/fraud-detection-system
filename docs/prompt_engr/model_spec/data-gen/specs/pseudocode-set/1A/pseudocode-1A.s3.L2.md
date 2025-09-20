@@ -251,7 +251,7 @@ PROC s3_build_ctx(ingress, s1_s2_facts, bom, vocab) -> Ctx
   Determinism: Pure (no side effects).
   Errors: Missing ingress/vocab fields ⇒ deterministic error (no partials).
 
-PROC s3_evaluate_rule_ladder(ctx: Ctx, ladder: Ladder) -> DecisionTrace
+PROC s3_evaluate_rule_ladder(ctx: Ctx, ladder: Ladder, channel_vocab: Set<string>) -> DecisionTrace
   Purpose: Deterministic ladder decision + closed-vocab reason/filter tags.
   Determinism: Pure.
 
@@ -268,17 +268,17 @@ PROC s3_rank_candidates(cands: CandidateRow[],
   Source of admission_meta_map: from ladder/BOM (passed through; not constructed in L2).
   Determinism: Pure.
 
-PROC s3_compute_priors(ranked: RankedCandidateRow[], dp: int) -> PriorRow[]   # optional
-  Purpose: Fixed-decimal **scores** (not probabilities); run-constant dp; no renorm.
+PROC s3_compute_priors(ranked: array<RankedCandidateRow>, ctx: Ctx, priors_cfg: PriorsCfg) -> PriorRow[]   # optional
+  Purpose: Fixed-decimal **scores** (not probabilities); dp is run-constant in priors_cfg; no renorm.
   Determinism: Pure.
 
-PROC s3_integerise_counts(ranked: RankedCandidateRow[], N: int,
-                          bounds?: BoundsConfig, dp_resid: int) -> CountRow[]   # optional
-  Purpose: Largest-remainder integerisation; Σ count = N; `residual_rank` recorded.
+PROC s3_integerise_counts(ranked: array<RankedCandidateRow>, N: int,
+                          priors?: array<PriorRow>, bounds_cfg?: BoundsCfg) -> CountRow[]   # optional
+  Purpose: Largest-remainder integerisation; Σ count = N; `residual_rank` recorded; bounds optional.
   Determinism: Pure.
 
-PROC s3_sequence_within_country(counts: CountRow[], site_id_cfg?) -> SequenceRow[]   # optional
-  Purpose: Within-country `site_order` = 1..nᵢ; optional 6-digit `site_id`.
+PROC s3_sequence_sites(ranked: array<RankedCandidateRow>, counts: array<CountRow>, ctx: Ctx, with_site_id: bool) -> SequenceRow[]   # optional
+  Purpose: Within-country `site_order` = 1..nᵢ; optional 6-digit `site_id`; countries never permuted.
   Determinism: Pure.
 ```
 
@@ -382,7 +382,7 @@ PROC guard_options(toggles) -> void
 | `N4_rank_candidates`    | `s3_rank_candidates`         |
 | `N5_priors_opt`         | `s3_compute_priors`          |
 | `N6_counts_opt`         | `s3_integerise_counts`       |
-| `N7_sequence_opt`       | `s3_sequence_within_country` |
+| `N7_sequence_opt`       | `s3_sequence_sites`          |
 | `N8_package`            | `package_for_emit`           |
 | `N9_emit_candidates`    | `EMIT_S3_CANDIDATE_SET`      |
 | `N10_emit_priors_opt`   | `EMIT_S3_BASE_WEIGHT_PRIORS` |
@@ -561,7 +561,7 @@ Constraints: open BOM once; parallelism is **across merchants only**; each merch
 [◇ N6_counts_opt: s3_integerise_counts]   (Σ count = N; bounds if provided)     │
         │                                                                       │
         ▼                                                                       │
-[◇ N7_sequence_opt: s3_sequence_within_country]   (requires counts)             │
+[◇ N7_sequence_opt: s3_sequence_sites]            (requires counts)             │
         │                                                                       │
         └───────────────────────────────────────────────────────────────────────┘
                                      │
@@ -862,13 +862,13 @@ PROC process_merchant_S3(merchant_id, run_ctx):
   facts   := run_ctx.inputs.s1s2_by_id[merchant_id]
 
   ctx    := s3_build_ctx(ingress, facts, run_ctx.bom, run_ctx.bom.vocab)
-  trace  := s3_evaluate_rule_ladder(ctx, run_ctx.bom.ladder)
+  trace  := s3_evaluate_rule_ladder(ctx, run_ctx.bom.ladder, run_ctx.bom.vocab)
   cands  := s3_make_candidate_set(ctx, trace, run_ctx.bom.iso_universe, run_ctx.bom.ladder)
   ranked := s3_rank_candidates(cands, run_ctx.bom.admission_meta_map, ctx.home_country_iso)
 
-  priors   := run_ctx.toggles.emit_priors   ? s3_compute_priors(ranked, run_ctx.bom.dp) : NULL
-  counts   := run_ctx.toggles.emit_counts   ? s3_integerise_counts(ranked, ctx.N, run_ctx.bom.bounds?, run_ctx.bom.dp_resid) : NULL
-  sequence := run_ctx.toggles.emit_sequence ? s3_sequence_within_country(counts, run_ctx.bom.site_id_cfg?) : NULL
+  priors   := run_ctx.toggles.emit_priors   ? s3_compute_priors(ranked, ctx, run_ctx.bom.priors_cfg) : NULL
+  counts   := run_ctx.toggles.emit_counts   ? s3_integerise_counts(ranked, ctx.N, priors, run_ctx.bom.bounds_cfg?) : NULL
+  sequence := run_ctx.toggles.emit_sequence ? s3_sequence_sites(ranked, counts, ctx, /* with_site_id from policy */ true) : NULL
 
   // Package (attach lineage; writer sorts)
   rows := package_for_emit(
@@ -942,7 +942,7 @@ ctx     := s3_build_ctx(ingress, facts, run_ctx.bom, run_ctx.bom.vocab)
 ### 7.3.2 N2 — Evaluate rule ladder (pure)
 
 ```
-trace := s3_evaluate_rule_ladder(ctx, bom.ladder)
+trace := s3_evaluate_rule_ladder(ctx, bom.ladder, bom.vocab)
 ```
 
 **Produces:** deterministic `DecisionTrace` with closed-vocab tags.
@@ -975,7 +975,7 @@ ranked := s3_rank_candidates(cands,
 
 ```
 priors := bom.toggles.emit_priors
-          ? s3_compute_priors(ranked, bom.dp)
+          ? s3_compute_priors(ranked, ctx, bom.priors_cfg)
           : NULL
 ```
 
@@ -985,7 +985,7 @@ priors := bom.toggles.emit_priors
 
 ```
 counts := bom.toggles.emit_counts
-          ? s3_integerise_counts(ranked, ctx.N, bom.bounds?, bom.dp_resid)
+          ? s3_integerise_counts(ranked, ctx.N, priors, bom.bounds_cfg?)
           : NULL
 ```
 
@@ -995,7 +995,7 @@ counts := bom.toggles.emit_counts
 
 ```
 sequence := bom.toggles.emit_sequence
-            ? s3_sequence_within_country(counts, bom.site_id_cfg?)
+            ? s3_sequence_sites(ranked, counts, ctx, /* with_site_id from policy */ true)
             : NULL
 ```
 
@@ -2566,7 +2566,7 @@ HOST_MERCHANT_LIST(parameter_hash="ab12…") = ["M123","M456"]
 Ctx = { merchant_id:"M123", home_country_iso:"GB", … }
 ```
 
-**N2 `s3_evaluate_rule_ladder` → `DecisionTrace`**
+**N2 `s3_evaluate_rule_ladder(ctx, ladder, channel_vocab)` → `DecisionTrace`**
 
 ```
 DecisionTrace = { eligible:true, tags:["ALLOW:EU","DEFAULT"], … }
@@ -2596,7 +2596,7 @@ DecisionTrace = { eligible:true, tags:["ALLOW:EU","DEFAULT"], … }
 
 Contiguous ranks; **home=0**; this is the **sole inter-country order**.
 
-**N5 `s3_compute_priors` (scores; dp=6)**
+**N5 `s3_compute_priors(ranked, ctx, priors_cfg)` (scores)**
 
 ```
 [
@@ -2620,7 +2620,7 @@ Scores are **not probabilities**; no renorm.
 ]  // sum = 37
 ```
 
-**N7 `s3_sequence_within_country` (requires counts)**
+**N7 `s3_sequence_sites(ranked, counts, ctx, with_site_id)` (requires counts)**
 
 ```
 [
@@ -2774,7 +2774,7 @@ INFO RUN_SUMMARY            kv={merchants_total:2, merchants_ok:2, merchants_fai
 | N4  | `s3_rank_candidates` (L1)              | pure           | Total order; **`candidate_rank`** contiguous; home=0. |
 | N5  | `s3_compute_priors` (L1, opt)          | pure           | Fixed-dp **scores**; no renorm.                       |
 | N6  | `s3_integerise_counts` (L1, opt)       | pure           | LRR; Σcount=N; bounds optional.                       |
-| N7  | `s3_sequence_within_country` (L1, opt) | pure           | `site_order` 1..nᵢ; optional 6-digit `site_id`.       |
+| N7  | `s3_sequence_sites` (L1, opt)          | pure           | `site_order` 1..nᵢ; optional 6-digit `site_id`.       |
 | N8  | `package_for_emit` (L2)                | pure           | Attach lineage; apply writer sorts; freeze rows.      |
 | N9  | `EMIT_S3_CANDIDATE_SET` (L0)           | I/O            | Publish candidates; idempotent; atomic.               |
 | N10 | `EMIT_S3_BASE_WEIGHT_PRIORS` (L0, opt) | I/O            | Publish priors; idempotent; atomic.                   |
@@ -2790,12 +2790,12 @@ INFO RUN_SUMMARY            kv={merchants_total:2, merchants_ok:2, merchants_fai
 ### L1 kernels (import only; pure)
 
 * `s3_build_ctx(ingress, s1_s2_facts, bom, vocab) -> Ctx`
-* `s3_evaluate_rule_ladder(Ctx, ladder) -> DecisionTrace`
+* `s3_evaluate_rule_ladder(Ctx, ladder, channel_vocab) -> DecisionTrace`
 * `s3_make_candidate_set(Ctx, DecisionTrace, iso_universe, ladder) -> CandidateRow[]`
 * `s3_rank_candidates(CandidateRow[], admission_meta_map, home_iso) -> RankedCandidateRow[]`
-* `s3_compute_priors(RankedCandidateRow[], dp) -> PriorRow[]` *(opt)*
-* `s3_integerise_counts(RankedCandidateRow[], N, bounds?, dp_resid) -> CountRow[]` *(opt)*
-* `s3_sequence_within_country(CountRow[], site_id_cfg?) -> SequenceRow[]` *(opt)*
+* `s3_compute_priors(RankedCandidateRow[], Ctx, priors_cfg) -> PriorRow[]` *(opt)*
+* `s3_integerise_counts(RankedCandidateRow[], N, priors?, bounds_cfg?) -> CountRow[]` *(opt)*
+* `s3_sequence_sites(RankedCandidateRow[], CountRow[], Ctx, with_site_id) -> SequenceRow[]` *(opt)*
 
 ### L2 glue (this doc; orchestration only)
 
