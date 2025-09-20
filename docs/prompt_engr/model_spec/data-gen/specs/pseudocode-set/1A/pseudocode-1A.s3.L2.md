@@ -82,12 +82,12 @@ The **single legal wiring** of S3: invoke S3·L1 kernels in the only permitted o
 L2 invokes the **pure** S3·L1 kernels (serial per merchant) which return schema-shaped arrays **without lineage**:
 
 1. `Ctx` ← `s3_build_ctx(…)` — includes `merchant_id`, `home_country_iso`, and fields L2 will attach at publish.
-2. `DecisionTrace` ← `s3_evaluate_rule_ladder(Ctx, bom.ladder)`.
+2. `DecisionTrace` ← `s3_evaluate_rule_ladder(Ctx, bom.ladder, bom.vocab)`.
 3. `CandidateRow[]` ← `s3_make_candidate_set(Ctx, DecisionTrace, bom.iso_universe, bom.ladder)` — includes **home** + admitted foreigns (closed vocab for reasons/tags).
 4. `RankedCandidateRow[]` ← `s3_rank_candidates(CandidateRow[], meta_from_ladder, Ctx.home_country_iso)` — **total order**, `candidate_rank` contiguous with home=0.
-5. *(opt)* `PriorRow[]` ← `s3_compute_priors(RankedCandidateRow[], bom.dp)` — fixed-dp **scores** (no renorm).
-6. *(opt)* `CountRow[]` ← `s3_integerise_counts(RankedCandidateRow[], N, bom.bounds?, bom.dp_resid)` — LRR integerisation; **Σ count = N**.
-7. *(opt)* `SequenceRow[]` ← `s3_sequence_within_country(CountRow[], site_id_cfg?)` — per-country `site_order` 1..nᵢ (optional 6-digit `site_id`).
+5. *(opt)* `PriorRow[]` ← `s3_compute_priors(RankedCandidateRow[], Ctx, bom.priors_cfg)` — fixed-dp **scores** (no renorm).
+6. *(opt)* `CountRow[]` ← `s3_integerise_counts(RankedCandidateRow[], Ctx.N, PriorRow[]?, bom.bounds?)` — LRR integerisation; **Σ count = Ctx.N**.
+7. *(opt)* `SequenceRow[]` ← `s3_sequence_sites(RankedCandidateRow[], CountRow[], Ctx, with_site_id)` — per-country `site_order` 1..nᵢ (optional 6-digit `site_id`).
 
 > L2 **never edits** these arrays except to **attach lineage** (`parameter_hash`, `manifest_fingerprint`) immediately before publish.
 
@@ -464,7 +464,7 @@ This ledger gives a complete import map and stable names so the DAG (§4–§5) 
 | `s3_rank_candidates`               | L1     | Total order; set `candidate_rank` (home=0) | §7.4 / N4                 |
 | `s3_compute_priors` (opt)          | L1     | Fixed-dp scores (no renorm)                | §7.5 / N5                 |
 | `s3_integerise_counts` (opt)       | L1     | LRR integerisation; Σ = N                  | §7.6 / N6                 |
-| `s3_sequence_within_country` (opt) | L1     | Contiguous `site_order`; optional IDs      | §7.7 / N7                 |
+| `s3_sequence_sites` (opt) | L1     | Contiguous `site_order`; optional IDs      | §7.7 / N7                 |
 | `package_for_emit`                 | L2     | Attach lineage; apply writer sorts         | §7.8 / N8                 |
 | `EMIT_S3_CANDIDATE_SET`            | L0     | Atomic publish; idempotent                 | §9 / N9                   |
 | `EMIT_S3_BASE_WEIGHT_PRIORS` (opt) | L0     | Atomic publish; idempotent                 | §9 / N10                  |
@@ -615,7 +615,7 @@ This one-screen DAG is the human backbone. **§5 (Full DAG Specification)** will
 | N4  | Rank candidates               | `s3_rank_candidates` (L1)         | pure              | No       | Impose total order; **`candidate_rank` contiguous; home=0**.       |
 | N5  | Compute priors                | `s3_compute_priors` (L1)          | pure              | Yes      | Fixed-dp **scores** (no renorm).                                   |
 | N6  | Integerise counts             | `s3_integerise_counts` (L1)       | pure              | Yes      | LRR integerisation; Σcount = **N**; apply bounds if provided.      |
-| N7  | Sequence within country       | `s3_sequence_within_country` (L1) | pure              | Yes      | Per-country `site_order` 1..nᵢ; optional 6-digit `site_id`.        |
+| N7  | Sequence within country       | ` s3_sequence_sites` (L1) | pure              | Yes      | Per-country `site_order` 1..nᵢ; optional 6-digit `site_id`.        |
 | N8  | Package for emit              | `package_for_emit` (L2)           | pure              | No       | Attach lineage; apply writer sorts; freeze rows for emit.          |
 | N9  | Emit candidate_set            | `EMIT_S3_CANDIDATE_SET` (L0)      | side-effect (I/O) | No       | Atomic/idempotent publish of `s3_candidate_set`.                   |
 | N10 | Emit base_weight_priors (opt) | `EMIT_S3_BASE_WEIGHT_PRIORS` (L0) | side-effect (I/O) | Yes      | Atomic/idempotent publish of `s3_base_weight_priors`.              |
@@ -867,8 +867,9 @@ PROC process_merchant_S3(merchant_id, run_ctx):
   ranked := s3_rank_candidates(cands, run_ctx.bom.admission_meta_map, ctx.home_country_iso)
 
   priors   := run_ctx.toggles.emit_priors   ? s3_compute_priors(ranked, ctx, run_ctx.bom.priors_cfg) : NULL
-  counts   := run_ctx.toggles.emit_counts   ? s3_integerise_counts(ranked, ctx.N, priors, run_ctx.bom.bounds_cfg?) : NULL
-  sequence := run_ctx.toggles.emit_sequence ? s3_sequence_sites(ranked, counts, ctx, /* with_site_id from policy */ true) : NULL
+  counts   := run_ctx.toggles.emit_counts   ? s3_integerise_counts(ranked, ctx.N, priors, run_ctx.bom.bounds?) : NULL
+  with_site_id := (run_ctx.bom.site_id_cfg?.enabled == true)
+  sequence := run_ctx.toggles.emit_sequence ? s3_sequence_sites(ranked, counts, ctx, with_site_id) : NULL
 
   // Package (attach lineage; writer sorts)
   rows := package_for_emit(
@@ -985,7 +986,7 @@ priors := bom.toggles.emit_priors
 
 ```
 counts := bom.toggles.emit_counts
-          ? s3_integerise_counts(ranked, ctx.N, priors, bom.bounds_cfg?)
+          ? s3_integerise_counts(ranked, ctx.N, priors, bom.bounds?)
           : NULL
 ```
 
@@ -994,8 +995,8 @@ counts := bom.toggles.emit_counts
 ### 7.4.3 N7 — Sequence within country (pure, optional; requires counts)
 
 ```
-sequence := bom.toggles.emit_sequence
-            ? s3_sequence_sites(ranked, counts, ctx, /* with_site_id from policy */ true)
+with_site_id := (bom.site_id_cfg?.enabled == true)
+sequence := bom.toggles.emit_sequence ? s3_sequence_sites(ranked, counts, ctx, with_site_id)
             : NULL
 ```
 
@@ -1473,7 +1474,7 @@ PROC guard_resume(run_cfg, observed_partition_state):
           RAISE ERROR IDEMP-TOGGLE-MISMATCH
 
   // 2) Consistency across datasets: all finals (if any) must agree.
-  IF observed_partition_state.has_mixed_final_metadata_for(run_cfg.parameter_hash):
+  IF observed_partition_state.has_mixed_final_metadata:
       RAISE ERROR IDEMP-INCONSISTENT-FINALS
 
   RETURN OK
@@ -1486,7 +1487,7 @@ END PROC
   `has_any_final_for(parameter_hash): bool`,
   `manifest_fingerprint: Hex64 (if final exists)`,
   `toggles_snapshot: {emit_priors, emit_counts, emit_sequence} (if final exists)`,
-  `has_mixed_final_metadata_for(parameter_hash): bool`.
+  `has_mixed_final_metadata: bool`.
 * If no finals exist, the guard passes vacuously.
 
 ---
@@ -1902,8 +1903,8 @@ PROC HOST_LOG(level: {"INFO","WARN","ERROR"}, message: string, kv?: Map)
 |---------------------------|--------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------|
 | `HOST_OPEN_BOM`           | §6 run entry; §7.3 N1/N4 | Acquire run policy/materials (`vocab`, `ladder`, `iso_universe`, `dp`, `dp_resid`, `bounds?`, `toggles`, `admission_meta_map`, `site_id_cfg?`). |
 | `HOST_MERCHANT_LIST`      | §6.4                     | Deterministic worklist for dispatch.                                                                                                            |
-| `HOST_GET_INGRESS`        | §7.3 N1                  | Supply ingress to `s3_build_ctx`.                                                                                                               |
-| `HOST_GET_S1S2_FACTS`     | §7.3 N1                  | Supply S1/S2 facts to `s3_build_ctx`.                                                                                                           |
+| `HOST_GET_INGRESS`        | §6.13 (payload build)                  | Populate `run_ctx.inputs.ingress_by_id`.                                                                                                               |
+| `HOST_GET_S1S2_FACTS`     | §6.13 (payload build)                  | Populate `run_ctx.inputs.s1s2_by_id`.                                                                                                           |
 | `HOST_WORKER_POOL`        | §6.3                     | Across-merchant parallelism.                                                                                                                    |
 | `HOST_DICTIONARY_HANDLE`  | §9 (via L0 emitters)     | Dictionary resolution inside emitters.                                                                                                          |
 | `OBSERVE_PARTITION_STATE` | §10.6                    | Enforce idempotent resume guards.                                                                                                               |
