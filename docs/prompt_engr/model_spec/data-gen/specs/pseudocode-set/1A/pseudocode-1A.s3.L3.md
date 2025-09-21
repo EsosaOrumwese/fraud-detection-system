@@ -550,16 +550,16 @@ File order is **non-authoritative** for inter-country order; authority checks ha
 
 ```
 PROC v_check_structural(run_args, dict, read, toggles):
-  presence := DATASET_PRESENCE_MATRIX(dict, run_args.parameter_hash)
+  presence := DATASET_PRESENCE_MATRIX(dict.dict_handle, run_args.parameter_hash)
 
   // 1) Presence vs toggles (fail-fast)
   // Required/forbidden: candidate_set always required; priors iff emit_priors;
   // counts iff emit_counts; sequence iff emit_sequence AND emit_counts.
-  IF !presence.candidate_set: FAIL("DATASET-PRESENCE-MISMATCH", dataset_id="s3_candidate_set")
-  IF toggles.emit_priors   AND !presence.base_weight_priors:   FAIL("DATASET-PRESENCE-MISMATCH", dataset_id="s3_base_weight_priors")
-  IF toggles.emit_counts   AND !presence.integerised_counts:   FAIL("DATASET-PRESENCE-MISMATCH", dataset_id="s3_integerised_counts")
-  IF toggles.emit_sequence AND !toggles.emit_counts:           FAIL("DATASET-PRESENCE-MISMATCH", dataset_id="s3_site_sequence")
-  IF toggles.emit_sequence AND !presence.site_sequence:        FAIL("DATASET-PRESENCE-MISMATCH", dataset_id="s3_site_sequence")
+  IF !presence.candidate_set: FAIL("DATASET-PRESENCE-MISMATCH","RUN","s3_candidate_set",NULL,{"required":true,"present":false})
+  IF toggles.emit_priors   AND !presence.base_weight_priors:   FAIL("DATASET-PRESENCE-MISMATCH","RUN","s3_base_weight_priors",NULL,{"required":true,"present":false})
+  IF toggles.emit_counts   AND !presence.integerised_counts:   FAIL("DATASET-PRESENCE-MISMATCH","RUN","s3_integerised_counts",NULL,{"required":true,"present":false})
+  IF toggles.emit_sequence AND !toggles.emit_counts:           FAIL("DATASET-PRESENCE-MISMATCH","RUN","s3_site_sequence",NULL,{"required":true,"present":false})
+  IF toggles.emit_sequence AND !presence.site_sequence:        FAIL("DATASET-PRESENCE-MISMATCH","RUN","s3_site_sequence",NULL,{"required":true,"present":false})
 
   // 2) Resolve anchors & templates (fail-fast)
   required_ids := ["s3_candidate_set"]
@@ -567,9 +567,11 @@ PROC v_check_structural(run_args, dict, read, toggles):
   IF toggles.emit_counts:   required_ids.append("s3_integerised_counts")
   IF toggles.emit_sequence: required_ids.append("s3_site_sequence")
   for ds in required_ids:
-      r := DICT_RESOLVE(dict, ds)
-      IF r == NULL: FAIL("DICT-RESOLVE-FAIL", ds)
-      IF r.partition_keys != ["parameter_hash"]: FAIL("PARTITION-TEMPLATE-MISMATCH", ds)
+      r := DICT_RESOLVE(dict.dict_handle, ds)
+      IF r == NULL:
+           FAIL("DICT-RESOLVE-FAIL","RUN",ds,NULL)
+      IF r.partition_keys != ["parameter_hash"]:
+           FAIL("PARTITION-TEMPLATE-MISMATCH","RUN",ds,NULL)
 
   // 3) Stream lineage rows per present dataset
   row_counts := {
@@ -764,7 +766,7 @@ seen := map merchant -> set()  // countries seen in priors
 for row in stream(priors, order=("merchant_id","country_iso")):
   // writer-sort sanity
   assert non-decreasing (merchant_id, country_iso)
-    else FAIL("DATASET-UNSORTED","s3_base_weight_priors", merchant=row.merchant_id)
+    else FAIL("DATASET-UNSORTED","DATASET","s3_base_weight_priors", row.merchant_id)
 
   key := (row.merchant_id, row.country_iso)
   // ensure per-merchant set exists
@@ -814,7 +816,7 @@ for row in stream(counts, order=("merchant_id","country_iso")):
   IF row.merchant_id NOT IN sum_by_m: sum_by_m[row.merchant_id] := 0
   // writer-sort sanity
   assert non-decreasing (merchant_id, country_iso)
-    else FAIL("DATASET-UNSORTED","s3_integerised_counts", merchant=row.merchant_id)
+    else FAIL("DATASET-UNSORTED","DATASET","s3_integerised_counts", row.merchant_id)
 
   // join coverage (no extras; no dupes)
   IF row.merchant_id NOT IN cand_set_map OR
@@ -879,11 +881,11 @@ for row in stream(sequence, order=("merchant_id","country_iso","site_order")):
 
   // writer-sort sanity
   assert non-decreasing (merchant_id, country_iso, site_order)
-    else FAIL("DATASET-UNSORTED","s3_site_sequence", merchant=row.merchant_id)
+    else FAIL("DATASET-UNSORTED","DATASET","s3_site_sequence", row.merchant_id)
 
   // legality & extras
   IF key NOT IN count_i:
-     FAIL("SEQ-EXTRA-COUNTRY", merchant=row.merchant_id, iso=row.country_iso)
+     FAIL("SEQ-COUNTRY-NOT-IN-COUNTS", merchant=row.merchant_id, iso=row.country_iso)
 
   // contiguity within (merchant,country)
   expected := seen_site[key] + 1
@@ -1017,7 +1019,7 @@ for each merchant_id in MERCHANT_ORDER:
     for row in stream(sequence where merchant_id,
                       order=("merchant_id","country_iso","site_order")):
       if (merchant_id,row.country_iso) not in count_i:
-        FAIL("SEQ-EXTRA-COUNTRY", merchant=merchant_id, iso=row.country_iso)
+        FAIL("SEQ-COUNTRY-NOT-IN-COUNTS", merchant=merchant_id, iso=row.country_iso)
       seq_len_by_country[row.country_iso] += 1
 
     for iso in cand_set:
