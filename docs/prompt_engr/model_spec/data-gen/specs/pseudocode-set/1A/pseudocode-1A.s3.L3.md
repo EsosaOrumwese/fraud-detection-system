@@ -917,7 +917,7 @@ for (m, iso) IN KEYS(count_i):
 * **Candidate set:** `CAND-DUPE-ISO`, `CAND-DUPE-RANK`, `HOME-MISSING`, `HOME-DUPE`, `HOME-RANK-NEQ-0`, `CAND-RANK-START-NEQ-0`, `CAND-RANK-GAP`, `DATASET-UNSORTED`.
 * **Priors:** `PRIORS-EXTRA-COUNTRY`, `PRIORS-MISSING-COUNTRY`, `PRIORS-DP-VIOL`, `PRIORS-DUPE-COUNTRY`, `DATASET-UNSORTED`.
 * **Counts:** `COUNTS-EXTRA-COUNTRY`, `COUNTS-MISSING-COUNTRY`, `COUNTS-DUPE-COUNTRY`, `COUNTS-NONNEG-INT`, `COUNTS-SUM-NEQ-N`, `COUNTS-RESID-DUPE`, `COUNTS-RESID-GAP`, `BOUNDS-VIOL`, `DATASET-UNSORTED`.
-* **Sequence:** `SEQ-EXTRA-COUNTRY`, `SEQ-GAP`, `SEQ-LENGTH-NEQ-COUNT`, `SEQ-ID-FORMAT`, `SEQ-ID-DUPE`, `SEQ-NO-COUNTS`, `DATASET-UNSORTED`.
+* **Sequence:** `SEQ-COUNTRY-NOT-IN-COUNTS`, `SEQ-GAP`, `SEQ-LENGTH-NEQ-COUNT`, `SEQ-ID-FORMAT`, `SEQ-ID-DUPE`, `SEQ-NO-COUNTS`, `DATASET-UNSORTED`.
 
 Each failure carries `{code, dataset_id, merchant_id?, details{…}}` and stops validation (fail-fast).
 
@@ -1063,7 +1063,7 @@ for each merchant_id in MERCHANT_ORDER:
 
 * `PRIORS-EXTRA-COUNTRY` / `PRIORS-MISSING-COUNTRY`
 * `COUNTS-EXTRA-COUNTRY` / `COUNTS-MISSING-COUNTRY`
-* `SEQ-EXTRA-COUNTRY` / `SEQ-COUNTRY-NOT-IN-COUNTS` / `SEQ-LENGTH-NEQ-COUNT`
+* `SEQ-COUNTRY-NOT-IN-COUNTS` / `SEQ-LENGTH-NEQ-COUNT`
 
 **Authority**
 
@@ -2210,7 +2210,7 @@ PROC v_check_structural(run: RunArgs, dict: DictCtx, read: ReadCtx) -> OK | Fail
     "s3_site_sequence": run.toggles.emit_sequence
   }
   if required["s3_site_sequence"] and not required["s3_integerised_counts"]:
-    return FAIL("DATASET-PRESENCE-MISMATCH","RUN")
+    return FAIL("DATASET-PRESENCE-MISMATCH","RUN","s3_site_sequence",NULL,{"required":true,"present":false})
 
   // Resolve schema & template; enforce parameter-only partitioning
   for ds, must in required:
@@ -2482,7 +2482,7 @@ PROC v_check_crosslane(run: RunArgs, m: MerchantID,
 
 ```
 PROC v_build_bundle(run: RunArgs, tallies, maybe_failure) -> { files: Map<string→bytes>, pass: bool }:
-  summary := CANONICAL_JSON({
+  summary_bytes := CANONICAL_JSON({
      "component":"S3.L3",
      "parameter_hash": run.parameter_hash,
      "manifest_fingerprint": run.manifest_fingerprint,
@@ -2497,14 +2497,14 @@ PROC v_build_bundle(run: RunArgs, tallies, maybe_failure) -> { files: Map<string
   })
 
   if maybe_failure == NULL:
-     d_summary := SHA256_HEX(summary).lower()
+     d_summary := SHA256_HEX(summary_bytes).lower()
      manifest  := CONCAT("summary.json", NUL, d_summary)
      flag_line := CONCAT("sha256=", SHA256_HEX(BYTES(manifest)).lower(), "\n")
-     return { files: { "summary.json": summary,
+     return { files: { "summary.json": summary_bytes,
                        "_passed.flag": BYTES(flag_line) }, pass:true }
   else:
      fail_line := CANONICAL_JSON_LINE(maybe_failure) + "\n"
-     return { files: { "summary.json": summary,
+     return { files: { "summary.json": summary_bytes,
                        "failures.jsonl": BYTES(fail_line) }, pass:false }
 ```
 
