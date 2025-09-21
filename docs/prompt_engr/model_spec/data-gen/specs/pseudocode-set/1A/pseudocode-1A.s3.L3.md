@@ -54,7 +54,7 @@ All must be true:
 ## 1.6 Cross-references (for implementers)
 
 * **Where it runs & triggers:** §2 (pipeline placement & gating), §10 (validator DAG), §18 (wiring map).
-* **What it validates:** §5–§7 (contracts), §11 (cross-lane), §6 (structural/lineage).
+* **What it validates:** §5 (structural/lineage), §6 (dataset contracts), §7 (cross-lane).
 * **How it stays fast:** §8 (streaming algorithms), §9 (knobs).
 * **What it emits:** §4 (bundle & `_passed.flag`), §16 (atomicity & idempotence).
 * **Errors & logs:** §15 (error taxonomy), §17 (operational logging).
@@ -432,12 +432,16 @@ PROC build_and_publish_bundle(run_args, tallies, maybe_failure):
       d_summary := SHA256_HEX(summary_bytes).lower()
       manifest  := CONCAT("summary.json", NUL, d_summary)
       flag_line := CONCAT("sha256=", SHA256_HEX(BYTES(manifest)).lower(), "\n")
-      ATOMIC_PUBLISH({ "summary.json": summary_bytes,
-                       "_passed.flag": BYTES(flag_line) })
+      PUBLISH_VALIDATION_BUNDLE(run_args.parameter_hash,
+                                run_args.manifest_fingerprint,
+                                { "summary.json": summary_bytes,
+                                  "_passed.flag": BYTES(flag_line) })
   ELSE:
       failure_bytes := BYTES(CANONICAL_JSON_LINE(maybe_failure) + "\n")
-      ATOMIC_PUBLISH({ "summary.json": summary_bytes,
-                       "failures.jsonl": failure_bytes })
+      PUBLISH_VALIDATION_BUNDLE(run_args.parameter_hash,
+                                run_args.manifest_fingerprint,
+                                { "summary.json": summary_bytes,
+                                  "failures.jsonl": failure_bytes })
 END PROC
 ```
 
@@ -545,35 +549,37 @@ File order is **non-authoritative** for inter-country order; authority checks ha
 **Columns:** lineage pair (`parameter_hash`, `manifest_fingerprint`) + optionally `merchant_id` for tallies.
 
 ```
-PROC v_check_structural_and_lineage(run_args, dict, schemas, handles, toggles):
-  presence := discover_datasets(dict, run_args.parameter_hash)
+PROC v_check_structural(run_args, dict, read, toggles):
+  presence := DATASET_PRESENCE_MATRIX(dict, run_args.parameter_hash)
 
   // 1) Presence vs toggles (fail-fast)
   assert_presence_matrix(presence, toggles)  // missing required / forbidden present / seq-without-counts
 
   // 2) Resolve anchors & templates (fail-fast)
-  for ds in presence.required:
-      anchor, template, sort_keys := dict.resolve(ds)
-      IF anchor == NULL: FAIL("DICT-RESOLVE-FAIL", ds)
-      IF template.partitions != ["parameter_hash"]: FAIL("PARTITION-TEMPLATE-MISMATCH", ds)
+  required_ids := required_dataset_ids(presence, toggles)  // derive from presence + toggles
+  for ds in required_ids:
+      r := DICT_RESOLVE(dict, ds)
+      IF r == NULL: FAIL("DICT-RESOLVE-FAIL", ds)
+      IF r.partition_keys != ["parameter_hash"]: FAIL("PARTITION-TEMPLATE-MISMATCH", ds)
 
   // 3) Stream lineage rows per present dataset
   row_counts := {
-    candidate_set: 0,
-    base_weight_priors: 0,
-    integerised_counts: 0,
-    site_sequence: 0
+    "candidate_set": 0,
+    "base_weight_priors": 0,
+    "integerised_counts": 0,
+    "site_sequence": 0
   }
 
   for ds in presence.present:
-      it := handles.open(ds, parameter_hash=run_args.parameter_hash,
-                         columns=["parameter_hash","manifest_fingerprint"])
+      it := OPEN_ITER(ds, run_args.parameter_hash,
+                      ["parameter_hash","manifest_fingerprint"], order=NULL)
       for row in it:
           IF row.parameter_hash != run_args.parameter_hash:
               FAIL("EMBED-PATH-MISMATCH", ds, details={expected: run_args.parameter_hash, observed: row.parameter_hash})
           IF row.manifest_fingerprint != run_args.manifest_fingerprint:
               FAIL("MIXED-MANIFEST", ds, details={expected: run_args.manifest_fingerprint, observed: row.manifest_fingerprint})
           row_counts[ds] += 1
+      it.close()
 
   RETURN { datasets_present: presence.flags, row_counts }
 END PROC
@@ -607,10 +613,10 @@ Each error carries: `{code, dataset_id?, parameter_hash, manifest_fingerprint, d
 ## 5.10 What this section does **not** check (by design)
 
 * Candidate rank contiguity and `home=0` (see §6).
-* Priors fixed-dp / one-to-one (see §7).
-* Counts Σ=N & residual ranks/bounds (see §8).
-* Sequence 1..countᵢ gaps/dupes and cross-country stability (see §9).
-* Cross-lane joins/legality beyond the presence matrix (see §10).
+* Priors fixed-dp / one-to-one (see §6).
+* Counts Σ=N & residual ranks/bounds (see §6).
+* Sequence 1..countᵢ gaps/dupes and cross-country stability (see §6).
+* Cross-lane joins/legality beyond the presence matrix (see §7).
 
 ---
 
@@ -677,7 +683,7 @@ for row in stream(candidate_set, order=("merchant_id","candidate_rank","country_
   // writer-sort sanity (non-decreasing key)
   key := (row.merchant_id, row.candidate_rank, row.country_iso)
   IF state.last_key != null AND key < state.last_key:
-     FAIL("DATASET-UNSORTED", dataset="candidate_set", merchant=row.merchant_id)
+     FAIL("DATASET-UNSORTED", dataset="s3_candidate_set", merchant=row.merchant_id)
   state.last_key := key
 
   // uniqueness
@@ -726,14 +732,18 @@ for row in stream(priors, order=("merchant_id","country_iso")):
     else FAIL("DATASET-UNSORTED","s3_base_weight_priors", merchant=row.merchant_id)
 
   key := (row.merchant_id, row.country_iso)
+  // ensure per-merchant set exists
+  IF row.merchant_id NOT IN seen:
+     seen[row.merchant_id] := set()
   IF row.merchant_id NOT IN needed_candidates OR
      row.country_iso NOT IN needed_candidates[row.merchant_id]:
        FAIL("PRIORS-EXTRA-COUNTRY", merchant=row.merchant_id, iso=row.country_iso)
 
-  IF key IN seen[row.merchant_id]: FAIL("PRIORS-DUPE-COUNTRY", merchant=row.merchant_id, iso=row.country_iso)
+  IF row.country_iso IN seen[row.merchant_id]:
+       FAIL("PRIORS-DUPE-COUNTRY", merchant=row.merchant_id, iso=row.country_iso)
   INSERT row.country_iso INTO seen[row.merchant_id]
 
-  IF !is_fixed_dp_decimal(row.score, dp=priors_cfg.dp):
+  IF !is_fixed_dp_score(row.score, dp=priors_cfg.dp):
        FAIL("PRIORS-DP-VIOL", merchant=row.merchant_id, iso=row.country_iso)
 
 // completeness: every candidate country must appear once in priors
@@ -763,6 +773,10 @@ seen_res  := map merchant -> set()
 sum_by_m  := map merchant -> 0
 
 for row in stream(counts, order=("merchant_id","country_iso")):
+  // defaults for unseen merchants
+  IF row.merchant_id NOT IN seen_iso: seen_iso[row.merchant_id] := set()
+  IF row.merchant_id NOT IN seen_res: seen_res[row.merchant_id] := set()
+  IF row.merchant_id NOT IN sum_by_m: sum_by_m[row.merchant_id] := 0
   // writer-sort sanity
   assert non-decreasing (merchant_id, country_iso)
     else FAIL("DATASET-UNSORTED","s3_integerised_counts", merchant=row.merchant_id)
@@ -776,7 +790,7 @@ for row in stream(counts, order=("merchant_id","country_iso")):
   INSERT row.country_iso INTO seen_iso[row.merchant_id]
 
   // count type & sum
-  IF !is_integer(row.count) OR row.count < 0:
+  IF !is_int(row.count) OR row.count < 0:
        FAIL("COUNTS-NONNEG-INT", merchant=row.merchant_id, iso=row.country_iso, value=row.count)
   sum_by_m[row.merchant_id] += row.count
 
@@ -798,7 +812,7 @@ for m in needed_candidates:
      FAIL("COUNTS-SUM-NEQ-N", merchant=m, expected=N_map[m], observed=sum_by_m[m])
   // Residual-rank totality & contiguity (1..#countries)
   c := |needed_candidates[m]|
-  IF |seen_res[m]| != c OR min(seen_res[m]) != 1 OR max(seen_res[m]) != c:
+  IF |seen_res[m]| != c OR (c > 0 AND (min(seen_res[m]) != 1 OR max(seen_res[m]) != c)):
      FAIL("COUNTS-RESID-GAP", merchant=m)
   // Join completeness (no missing)
   FOR iso IN needed_candidates[m]:
@@ -2167,7 +2181,7 @@ PROC v_check_structural(run: RunArgs, dict: DictCtx, read: ReadCtx) -> OK | Fail
   // Lineage streaming check (embed=path; dataset-scoped manifest equality)
   for ds, has in present:
     if not has: continue
-    it := read.open_iter(ds, /*columns*/["parameter_hash","manifest_fingerprint"])
+    it := read.open_iter(ds, run.parameter_hash, ["parameter_hash","manifest_fingerprint"], order=NULL)
     while row := it.next():
       if row.parameter_hash != run.parameter_hash:
         return FAIL("EMBED-PATH-MISMATCH","DATASET", ds, NULL, {"got":row.parameter_hash})
@@ -2187,6 +2201,7 @@ PROC v_check_candidates(run: RunArgs, dict: DictCtx, read: ReadCtx, m: MerchantI
   -> { ok:true, cand_set:Set<ISO2>, K:int } | Fail:
 
   it   := read.open_iter("s3_candidate_set",
+                         run.parameter_hash,
                          ["merchant_id","country_iso","candidate_rank","is_home"],
                          order=["merchant_id","candidate_rank","country_iso"])
   rows := ITER_GROUP_BY(it, ["merchant_id"]).get(m)
@@ -2241,6 +2256,7 @@ PROC v_check_priors(run: RunArgs, dict: DictCtx, read: ReadCtx,
   if not run.toggles.emit_priors: return OK()
 
   it   := read.open_iter("s3_base_weight_priors",
+                         run.parameter_hash,
                          ["merchant_id","country_iso","score"],
                          order=["merchant_id","country_iso"])
   rows := ITER_GROUP_BY(it, ["merchant_id"]).get(m)
@@ -2281,6 +2297,7 @@ PROC v_check_counts(run: RunArgs, dict: DictCtx, read: ReadCtx,
   if not run.toggles.emit_counts: return { ok:true, count_i: {} }
 
   it   := read.open_iter("s3_integerised_counts",
+                         run.parameter_hash,
                          ["merchant_id","country_iso","count","residual_rank"],
                          order=["merchant_id","country_iso"])
   rows := ITER_GROUP_BY(it, ["merchant_id"]).get(m)
@@ -2347,6 +2364,7 @@ PROC v_check_sequence(run: RunArgs, dict: DictCtx, read: ReadCtx,
     return FAIL("SEQ-NO-COUNTS","MERCHANT","s3_site_sequence", m)
 
   it   := read.open_iter("s3_site_sequence",
+                         run.parameter_hash,
                          ["merchant_id","country_iso","site_order","site_id"],
                          order=["merchant_id","country_iso","site_order"])
   groups := ITER_GROUP_BY(it, ["merchant_id","country_iso"])
