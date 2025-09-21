@@ -449,7 +449,7 @@ END PROC
 
 * `CANONICAL_JSON(*)` sorts keys recursively; emits **LF** and **no BOM**.
 * `CANONICAL_JSON_LINE` same, on one line.
-* `ATOMIC_PUBLISH` does temp write → fsync → rename; **refuses** to overwrite a different bundle for the same lineage/toggles.
+* `PUBLISH_VALIDATION_BUNDLE` performs temp write → fsync → rename and **refuses** to overwrite a different bundle for the same lineage/toggles.
 
 ---
 
@@ -553,10 +553,19 @@ PROC v_check_structural(run_args, dict, read, toggles):
   presence := DATASET_PRESENCE_MATRIX(dict, run_args.parameter_hash)
 
   // 1) Presence vs toggles (fail-fast)
-  assert_presence_matrix(presence, toggles)  // missing required / forbidden present / seq-without-counts
+  // Required/forbidden: candidate_set always required; priors iff emit_priors;
+  // counts iff emit_counts; sequence iff emit_sequence AND emit_counts.
+  IF !presence.candidate_set: FAIL("DATASET-PRESENCE-MISMATCH", dataset_id="s3_candidate_set")
+  IF toggles.emit_priors   AND !presence.base_weight_priors:   FAIL("DATASET-PRESENCE-MISMATCH", dataset_id="s3_base_weight_priors")
+  IF toggles.emit_counts   AND !presence.integerised_counts:   FAIL("DATASET-PRESENCE-MISMATCH", dataset_id="s3_integerised_counts")
+  IF toggles.emit_sequence AND !toggles.emit_counts:           FAIL("DATASET-PRESENCE-MISMATCH", dataset_id="s3_site_sequence")
+  IF toggles.emit_sequence AND !presence.site_sequence:        FAIL("DATASET-PRESENCE-MISMATCH", dataset_id="s3_site_sequence")
 
   // 2) Resolve anchors & templates (fail-fast)
-  required_ids := required_dataset_ids(presence, toggles)  // derive from presence + toggles
+  required_ids := ["s3_candidate_set"]
+  IF toggles.emit_priors:   required_ids.append("s3_base_weight_priors")
+  IF toggles.emit_counts:   required_ids.append("s3_integerised_counts")
+  IF toggles.emit_sequence: required_ids.append("s3_site_sequence")
   for ds in required_ids:
       r := DICT_RESOLVE(dict, ds)
       IF r == NULL: FAIL("DICT-RESOLVE-FAIL", ds)
@@ -570,18 +579,44 @@ PROC v_check_structural(run_args, dict, read, toggles):
     "site_sequence": 0
   }
 
-  for ds in presence.present:
+  // Map dataset_id → summary key used by row_counts / summary.json
+  summary_key := {
+    "s3_candidate_set":       "candidate_set",
+    "s3_base_weight_priors":  "base_weight_priors",
+    "s3_integerised_counts":  "integerised_counts",
+    "s3_site_sequence":       "site_sequence"
+  }
+
+  // Presence map (dataset_id → boolean), to drive streaming below
+  present_flag := {
+    "s3_candidate_set":       presence.candidate_set,
+    "s3_base_weight_priors":  presence.base_weight_priors,
+    "s3_integerised_counts":  presence.integerised_counts,
+    "s3_site_sequence":       presence.site_sequence
+  }
+
+  for ds in ["s3_candidate_set","s3_base_weight_priors","s3_integerised_counts","s3_site_sequence"]:
+      IF !present_flag[ds]: continue
       it := OPEN_ITER(ds, run_args.parameter_hash,
                       ["parameter_hash","manifest_fingerprint"], order=NULL)
       for row in it:
           IF row.parameter_hash != run_args.parameter_hash:
-              FAIL("EMBED-PATH-MISMATCH", ds, details={expected: run_args.parameter_hash, observed: row.parameter_hash})
+              FAIL("EMBED-PATH-MISMATCH", "DATASET", ds, NULL,
+                   details={expected: run_args.parameter_hash, observed: row.parameter_hash})
           IF row.manifest_fingerprint != run_args.manifest_fingerprint:
-              FAIL("MIXED-MANIFEST", ds, details={expected: run_args.manifest_fingerprint, observed: row.manifest_fingerprint})
-          row_counts[ds] += 1
+              FAIL("MIXED-MANIFEST", "DATASET", ds, NULL,
+                   details={expected: run_args.manifest_fingerprint, observed: row.manifest_fingerprint})
+          row_counts[ summary_key[ds] ] += 1
       it.close()
 
-  RETURN { datasets_present: presence.flags, row_counts }
+  // Build datasets_present map for summary.json explicitly
+  datasets_present := {
+    "candidate_set":       present_flag["s3_candidate_set"],
+    "base_weight_priors":  present_flag["s3_base_weight_priors"],
+    "integerised_counts":  present_flag["s3_integerised_counts"],
+    "site_sequence":       present_flag["s3_site_sequence"]
+  }
+  RETURN { datasets_present: datasets_present, row_counts }
 END PROC
 ```
 
@@ -668,16 +703,16 @@ state := {
 
 PROC flush_merchant(m):
   IF m == null: RETURN
-  IF !home0_seen: FAIL("HOME-MISSING", merchant=m)
-  IF min_rank != 0: FAIL("CAND-RANK-START-NEQ-0", merchant=m)
-  IF |seen_ranks| != (max_rank - min_rank + 1):
+  IF !state.home0_seen: FAIL("HOME-MISSING", merchant=m)
+  IF state.min_rank != 0: FAIL("CAND-RANK-START-NEQ-0", merchant=m)
+  IF |state.seen_ranks| != (state.max_rank - state.min_rank + 1):
        FAIL("CAND-RANK-GAP", merchant=m)
 
 for row in stream(candidate_set, order=("merchant_id","candidate_rank","country_iso")):
   IF row.merchant_id != state.cur:
      flush_merchant(state.cur)
      // reset for new merchant
-     state := {cur: row.merchant_id, seen_countries: {}, seen_ranks: {},
+     state := {cur: row.merchant_id, seen_countries: set(), seen_ranks: set(),
                min_rank: +INF, max_rank: -INF, home0_seen: false, last_key: null}
 
   // writer-sort sanity (non-decreasing key)
@@ -708,7 +743,7 @@ for row in stream(candidate_set, order=("merchant_id","candidate_rank","country_
 flush_merchant(state.cur)
 ```
 
-**Outputs for later lanes:** build (in the same pass) `needed_candidates[merchant] = set(country_iso)` for priors/counts joins.
+**Outputs for later lanes:** build (in the same pass) `cand_set_map[merchant_id] = set(country_iso)` for priors/counts joins.
 
 ---
 
@@ -735,8 +770,8 @@ for row in stream(priors, order=("merchant_id","country_iso")):
   // ensure per-merchant set exists
   IF row.merchant_id NOT IN seen:
      seen[row.merchant_id] := set()
-  IF row.merchant_id NOT IN needed_candidates OR
-     row.country_iso NOT IN needed_candidates[row.merchant_id]:
+  IF row.merchant_id NOT IN cand_set_map OR
+     row.country_iso NOT IN cand_set_map[row.merchant_id]:
        FAIL("PRIORS-EXTRA-COUNTRY", merchant=row.merchant_id, iso=row.country_iso)
 
   IF row.country_iso IN seen[row.merchant_id]:
@@ -747,8 +782,8 @@ for row in stream(priors, order=("merchant_id","country_iso")):
        FAIL("PRIORS-DP-VIOL", merchant=row.merchant_id, iso=row.country_iso)
 
 // completeness: every candidate country must appear once in priors
-for m in needed_candidates:
-  for iso in needed_candidates[m]:
+for m in cand_set_map:
+  for iso in cand_set_map[m]:
     IF iso NOT IN seen[m]: FAIL("PRIORS-MISSING-COUNTRY", merchant=m, iso=iso)
 ```
 
@@ -782,8 +817,8 @@ for row in stream(counts, order=("merchant_id","country_iso")):
     else FAIL("DATASET-UNSORTED","s3_integerised_counts", merchant=row.merchant_id)
 
   // join coverage (no extras; no dupes)
-  IF row.merchant_id NOT IN needed_candidates OR
-     row.country_iso NOT IN needed_candidates[row.merchant_id]:
+  IF row.merchant_id NOT IN cand_set_map OR
+     row.country_iso NOT IN cand_set_map[row.merchant_id]:
        FAIL("COUNTS-EXTRA-COUNTRY", merchant=row.merchant_id, iso=row.country_iso)
   IF row.country_iso IN seen_iso[row.merchant_id]:
        FAIL("COUNTS-DUPE-COUNTRY", merchant=row.merchant_id, iso=row.country_iso)
@@ -806,16 +841,16 @@ for row in stream(counts, order=("merchant_id","country_iso")):
         FAIL("BOUNDS-VIOL", merchant=row.merchant_id, iso=row.country_iso, count=row.count, lo=lo, hi=hi)
 
 // post-merchant checks
-for m in needed_candidates:
+for m in cand_set_map:
   // Sum rule
   IF sum_by_m[m] != N_map[m]:
      FAIL("COUNTS-SUM-NEQ-N", merchant=m, expected=N_map[m], observed=sum_by_m[m])
   // Residual-rank totality & contiguity (1..#countries)
-  c := |needed_candidates[m]|
+  c := |cand_set_map[m]|
   IF |seen_res[m]| != c OR (c > 0 AND (min(seen_res[m]) != 1 OR max(seen_res[m]) != c)):
      FAIL("COUNTS-RESID-GAP", merchant=m)
   // Join completeness (no missing)
-  FOR iso IN needed_candidates[m]:
+  FOR iso IN cand_set_map[m]:
     IF iso NOT IN seen_iso[m]:
        FAIL("COUNTS-MISSING-COUNTRY", merchant=m, iso=iso)
 ```
@@ -866,9 +901,11 @@ for row in stream(sequence, order=("merchant_id","country_iso","site_order")):
      INSERT row.site_id INTO seen_ids[key]
 
 // post-keys: exact length per (merchant,country)
-for key IN count_i:
-  IF seen_site[key] != count_i[key]:
-     FAIL("SEQ-LENGTH-NEQ-COUNT", merchant=key.merchant, iso=key.country, expected=count_i[key], observed=seen_site[key])
+for (m, iso) IN KEYS(count_i):
+  IF seen_site[(m, iso)] != count_i[(m, iso)]:
+     FAIL("SEQ-LENGTH-NEQ-COUNT",
+          merchant=m, iso=iso,
+          expected=count_i[(m, iso)], observed=seen_site[(m, iso)])
 ```
 
 ---
@@ -930,7 +967,7 @@ All checks are **read-only**, **O(rows)**, and **fail-fast**.
 * **Sequence (if present):** `merchant_id, country_iso, site_order`
 * **From §6 results (in-memory, deterministic):**
 
-  * `needed_candidates[m] = set(country_iso)` built while validating candidates (§6.2.2)
+  * `cand_set_map[m] = set(country_iso)` built while validating candidates (§6.2.2)
   * `count_i[(m, iso)] = count` built while validating counts (§6.4.2)
 
 > If your implementation separates modules, you may rebuild these maps by streaming the minimal columns again; the algorithms below assume reuse to avoid a second pass.
@@ -944,7 +981,7 @@ Iterate merchants in deterministic order; reuse the sets/maps from §6 to avoid 
 ```
 for each merchant_id in MERCHANT_ORDER:
 
-  cand_set := needed_candidates[merchant_id]           // from §6.2.2
+  cand_set := cand_set_map[merchant_id]                // from §6.2.2
   K := |cand_set|
 
   // (A) Priors (if present at run-level and present for this merchant)
@@ -1089,7 +1126,7 @@ ITER group_by(iter, key_cols: List[str])
 
 ```
 PROC build_candidate_country_set():
-  it := open_iter("s3_candidate_set", H,
+  it := open_iter("s3_candidate_set", run_args.parameter_hash,
                   ["merchant_id","country_iso","candidate_rank","is_home"],
                   order=["merchant_id","candidate_rank","country_iso"])
   for (m), rows in group_by(it, ["merchant_id"]):
@@ -1122,7 +1159,7 @@ Use the §6 algorithm to validate uniqueness/contiguity/home\@0; **while streami
 
 ```
 PROC v_check_priors(cand_set, priors_cfg):
-  it := open_iter("s3_base_weight_priors", H,
+  it := open_iter("s3_base_weight_priors", run_args.parameter_hash,
                   ["merchant_id","country_iso","score"],
                   order=["merchant_id","country_iso"])
   for (m), rows in group_by(it, ["merchant_id"]):
@@ -1155,7 +1192,7 @@ bool is_fixed_dp_score(s, dp):
 
 ```
 PROC v_check_counts(cand_set, N_map, bounds?):
-  it := open_iter("s3_integerised_counts", H,
+  it := open_iter("s3_integerised_counts", run_args.parameter_hash,
                   ["merchant_id","country_iso","count","residual_rank"],
                   order=["merchant_id","country_iso"])
   for (m), rows in group_by(it, ["merchant_id"]):
@@ -1201,7 +1238,7 @@ PROC v_check_counts(cand_set, N_map, bounds?):
 
 ```
 PROC v_check_sequence(counts_index):
-  it := open_iter("s3_site_sequence", H,
+  it := open_iter("s3_site_sequence", run_args.parameter_hash,
                   ["merchant_id","country_iso","site_order","site_id"],
                   order=["merchant_id","country_iso","site_order"])
   for (m, iso), rows in group_by(it, ["merchant_id","country_iso"]):
@@ -2157,7 +2194,13 @@ All iterators return **projected** columns only. `ITER_GROUP_BY` tolerates chunk
 ```
 PROC v_check_structural(run: RunArgs, dict: DictCtx, read: ReadCtx) -> OK | Fail:
   // Presence vs toggles
-  present := DATASET_PRESENCE_MATRIX(dict.dict_handle, run.parameter_hash)
+  present_raw := DATASET_PRESENCE_MATRIX(dict.dict_handle, run.parameter_hash)
+  present := {
+    "s3_candidate_set":       present_raw.candidate_set,
+    "s3_base_weight_priors":  present_raw.base_weight_priors,
+    "s3_integerised_counts":  present_raw.integerised_counts,
+    "s3_site_sequence":       present_raw.site_sequence
+  }
   required := {
     "s3_candidate_set": true,
     "s3_base_weight_priors": run.toggles.emit_priors,
@@ -2206,7 +2249,7 @@ PROC v_check_candidates(run: RunArgs, dict: DictCtx, read: ReadCtx, m: MerchantI
                          order=["merchant_id","candidate_rank","country_iso"])
   rows := ITER_GROUP_BY(it, ["merchant_id"]).get(m)
 
-  seen_iso := {}, seen_rank := {}
+  seen_iso := set(), seen_rank := set()
   min_rank := +INF, max_rank := -INF
   home_seen := false
   prev_key := NULL
@@ -2261,7 +2304,7 @@ PROC v_check_priors(run: RunArgs, dict: DictCtx, read: ReadCtx,
                          order=["merchant_id","country_iso"])
   rows := ITER_GROUP_BY(it, ["merchant_id"]).get(m)
 
-  seen := {}
+  seen := set()
   prev_key := NULL
 
   for row in rows:
@@ -2302,7 +2345,7 @@ PROC v_check_counts(run: RunArgs, dict: DictCtx, read: ReadCtx,
                          order=["merchant_id","country_iso"])
   rows := ITER_GROUP_BY(it, ["merchant_id"]).get(m)
 
-  seen_iso := {}, seen_resid := {}
+  seen_iso := set(), seen_resid := set()
   count_i := {}
   sum := 0
   prev_key := NULL
@@ -2377,7 +2420,7 @@ PROC v_check_sequence(run: RunArgs, dict: DictCtx, read: ReadCtx,
 
     prev_key := NULL
     seen_len := 0
-    seen_ids := {}
+    seen_ids := set()
 
     for row in rows:
       key := (row.merchant_id, row.country_iso, row.site_order)
@@ -2533,80 +2576,80 @@ Every failure record must conform to:
 
 ### V0–V2 (open/resolve/presence/lineage) — run-wide
 
-| Code                          | Scope   | Where it arises                                        | details{} hints                  |
-|-------------------------------|---------|--------------------------------------------------------|----------------------------------|
-| `DICT-OPEN-FAIL`              | RUN     | open dictionary                                        | {reason}                         |
-| `PRESENCE-MATRIX-FAIL`        | RUN     | presence matrix resolution                             | {parameter_hash}                |
-| `DATASET-PRESENCE-MISMATCH`   | RUN     | presence vs toggles (incl. `sequence ⇒ counts`)        | {dataset_id, required, present} |
-| `DICT-RESOLVE-FAIL`           | RUN     | resolve schema/partition template                      | {dataset_id}                    |
-| `PARTITION-TEMPLATE-MISMATCH` | RUN     | partition keys ≠ `["parameter_hash"]`                  | {dataset_id, partition_keys}   |
+| Code                          | Scope   | Where it arises                                      | details{} hints                 |
+|-------------------------------|---------|------------------------------------------------------|---------------------------------|
+| `DICT-OPEN-FAIL`              | RUN     | open dictionary                                      | {reason}                        |
+| `PRESENCE-MATRIX-FAIL`        | RUN     | presence matrix resolution                           | {parameter_hash}                |
+| `DATASET-PRESENCE-MISMATCH`   | RUN     | presence vs toggles (incl. `sequence ⇒ counts`)      | {dataset_id, required, present} |
+| `DICT-RESOLVE-FAIL`           | RUN     | resolve schema/partition template                    | {dataset_id}                    |
+| `PARTITION-TEMPLATE-MISMATCH` | RUN     | partition keys ≠ `["parameter_hash"]`                | {dataset_id, partition_keys}    |
 | `EMBED-PATH-MISMATCH`         | DATASET | row\.parameter_hash ≠ run parameter_hash             | {dataset_id, got}               |
 | `MIXED-MANIFEST`              | DATASET | row\.manifest_fingerprint ≠ run manifest_fingerprint | {dataset_id, got}               |
-| `BOM-OPEN-FAIL`               | RUN     | open BOM (priors_cfg/bounds)                          | {reason}                         |
-| `S2-NMAP-FAIL`                | RUN     | build S2 merchant→N map                                | {reason}                         |
+| `BOM-OPEN-FAIL`               | RUN     | open BOM (priors_cfg/bounds)                         | {reason}                        |
+| `S2-NMAP-FAIL`                | RUN     | build S2 merchant→N map                              | {reason}                        |
 
 ### V3 (candidates) — per merchant
 
-| Code                    | Scope    | Description                  | details{}     |
-|-------------------------|----------|------------------------------|---------------|
+| Code                    | Scope    | Description                  | details{}    |
+|-------------------------|----------|------------------------------|--------------|
 | `DATASET-UNSORTED`      | DATASET  | writer-sort broken           | {dataset_id} |
-| `CAND-DUPE-ISO`         | MERCHANT | duplicate `country_iso`      | {iso}         |
-| `CAND-DUPE-RANK`        | MERCHANT | duplicate `candidate_rank`   | {rank}        |
-| `CAND-RANK-START-NEQ-0` | MERCHANT | min rank ≠ 0                 | {}            |
-| `CAND-RANK-GAP`         | MERCHANT | ranks not contiguous 0..K−1  | {}            |
-| `HOME-MISSING`          | MERCHANT | no `is_home=true@rank0` row  | {}            |
-| `HOME-DUPE`             | MERCHANT | more than one `is_home=true` | {}            |
-| `HOME-RANK-NEQ-0`       | MERCHANT | home row exists but rank≠0   | {rank}        |
+| `CAND-DUPE-ISO`         | MERCHANT | duplicate `country_iso`      | {iso}        |
+| `CAND-DUPE-RANK`        | MERCHANT | duplicate `candidate_rank`   | {rank}       |
+| `CAND-RANK-START-NEQ-0` | MERCHANT | min rank ≠ 0                 | {}           |
+| `CAND-RANK-GAP`         | MERCHANT | ranks not contiguous 0..K−1  | {}           |
+| `HOME-MISSING`          | MERCHANT | no `is_home=true@rank0` row  | {}           |
+| `HOME-DUPE`             | MERCHANT | more than one `is_home=true` | {}           |
+| `HOME-RANK-NEQ-0`       | MERCHANT | home row exists but rank≠0   | {rank}       |
 
 ### V4 (priors) — per merchant (optional)
 
-| Code                     | Scope    | Description                              | details{}                                |
-|--------------------------|----------|------------------------------------------|------------------------------------------|
+| Code                     | Scope    | Description                              | details{}                            |
+|--------------------------|----------|------------------------------------------|--------------------------------------|
 | `DATASET-UNSORTED`       | DATASET  | writer-sort broken                       | {dataset_id:"s3_base_weight_priors"} |
-| `PRIORS-EXTRA-COUNTRY`   | MERCHANT | priors row not in candidate countries    | {iso}                                    |
-| `PRIORS-MISSING-COUNTRY` | MERCHANT | candidate country missing in priors      | {}                                       |
-| `PRIORS-DUPE-COUNTRY`    | MERCHANT | duplicate priors row for a country       | {iso}                                    |
-| `PRIORS-DP-VIOL`         | MERCHANT | score not fixed-dp (dp per `priors_cfg`) | {iso, value}                             |
+| `PRIORS-EXTRA-COUNTRY`   | MERCHANT | priors row not in candidate countries    | {iso}                                |
+| `PRIORS-MISSING-COUNTRY` | MERCHANT | candidate country missing in priors      | {}                                   |
+| `PRIORS-DUPE-COUNTRY`    | MERCHANT | duplicate priors row for a country       | {iso}                                |
+| `PRIORS-DP-VIOL`         | MERCHANT | score not fixed-dp (dp per `priors_cfg`) | {iso, value}                         |
 
 ### V5 (counts) — per merchant (optional)
 
-| Code                     | Scope    | Description                           | details{}                               |
-|--------------------------|----------|---------------------------------------|-----------------------------------------|
+| Code                     | Scope    | Description                           | details{}                            |
+|--------------------------|----------|---------------------------------------|--------------------------------------|
 | `DATASET-UNSORTED`       | DATASET  | writer-sort broken                    | {dataset_id:"s3_integerised_counts"} |
-| `COUNTS-EXTRA-COUNTRY`   | MERCHANT | counts row not in candidate countries | {iso}                                   |
-| `COUNTS-MISSING-COUNTRY` | MERCHANT | candidate country missing in counts   | {}                                      |
-| `COUNTS-DUPE-COUNTRY`    | MERCHANT | duplicate counts row for a country    | {iso}                                   |
-| `COUNTS-NONNEG-INT`      | MERCHANT | count not a non-negative integer      | {iso, value}                            |
-| `COUNTS-SUM-NEQ-N`       | MERCHANT | Σ count ≠ N (from S2)                 | {expected, observed}                    |
-| `COUNTS-RESID-DUPE`      | MERCHANT | duplicate `residual_rank`             | {resid}                                 |
-| `COUNTS-RESID-GAP`       | MERCHANT | residual ranks not contiguous 1..K    | {}                                      |
-| `BOUNDS-VIOL`            | MERCHANT | count outside configured (lo,hi)      | {iso, count, lo?, hi?}                  |
+| `COUNTS-EXTRA-COUNTRY`   | MERCHANT | counts row not in candidate countries | {iso}                                |
+| `COUNTS-MISSING-COUNTRY` | MERCHANT | candidate country missing in counts   | {}                                   |
+| `COUNTS-DUPE-COUNTRY`    | MERCHANT | duplicate counts row for a country    | {iso}                                |
+| `COUNTS-NONNEG-INT`      | MERCHANT | count not a non-negative integer      | {iso, value}                         |
+| `COUNTS-SUM-NEQ-N`       | MERCHANT | Σ count ≠ N (from S2)                 | {expected, observed}                 |
+| `COUNTS-RESID-DUPE`      | MERCHANT | duplicate `residual_rank`             | {resid}                              |
+| `COUNTS-RESID-GAP`       | MERCHANT | residual ranks not contiguous 1..K    | {}                                   |
+| `BOUNDS-VIOL`            | MERCHANT | count outside configured (lo,hi)      | {iso, count, lo?, hi?}               |
 
 ### V6 (sequence) — per merchant (optional; requires counts)
 
-| Code                        | Scope    | Description                                  | details{}                          |
-|-----------------------------|----------|----------------------------------------------|------------------------------------|
-| `DATASET-UNSORTED`          | DATASET  | writer-sort broken                           | {dataset_id:"s3_site_sequence"} |
-| `SEQ-NO-COUNTS`             | MERCHANT | sequence present while counts absent         | {}                                 |
-| `SEQ-COUNTRY-NOT-IN-COUNTS` | MERCHANT | sequence row for country without counts      | {iso}                              |
-| `SEQ-GAP`                   | MERCHANT | site_order not contiguous (expected vs got) | {iso, expected, observed}          |
-| `SEQ-LENGTH-NEQ-COUNT`      | MERCHANT | per-country length ≠ countᵢ                  | {iso, expected, observed}          |
-| `SEQ-ID-FORMAT`             | MERCHANT | site_id not zero-padded 6-digit             | {iso, id}                          |
-| `SEQ-ID-DUPE`               | MERCHANT | duplicate site_id within a country          | {iso, id}                          |
+| Code                        | Scope    | Description                                 | details{}                       |
+|-----------------------------|----------|---------------------------------------------|---------------------------------|
+| `DATASET-UNSORTED`          | DATASET  | writer-sort broken                          | {dataset_id:"s3_site_sequence"} |
+| `SEQ-NO-COUNTS`             | MERCHANT | sequence present while counts absent        | {}                              |
+| `SEQ-COUNTRY-NOT-IN-COUNTS` | MERCHANT | sequence row for country without counts     | {iso}                           |
+| `SEQ-GAP`                   | MERCHANT | site_order not contiguous (expected vs got) | {iso, expected, observed}       |
+| `SEQ-LENGTH-NEQ-COUNT`      | MERCHANT | per-country length ≠ countᵢ                 | {iso, expected, observed}       |
+| `SEQ-ID-FORMAT`             | MERCHANT | site_id not zero-padded 6-digit             | {iso, id}                       |
+| `SEQ-ID-DUPE`               | MERCHANT | duplicate site_id within a country          | {iso, id}                       |
 
 ### V7 (cross-lane legality & authority) — per merchant
 
-| Code                   | Scope    | Description                                       | details{}     |
-|------------------------|----------|---------------------------------------------------|---------------|
-| `SEQ-NO-COUNTS`        | MERCHANT | sequence lane without counts (per merchant)       | {}            |
+| Code                   | Scope    | Description                                       | details{}    |
+|------------------------|----------|---------------------------------------------------|--------------|
+| `SEQ-NO-COUNTS`        | MERCHANT | sequence lane without counts (per merchant)       | {}           |
 | `AUTH-ORDER-VIOLATION` | RUN      | non-candidate dataset encodes inter-country order | {dataset_id} |
 
 ### V8–V9 (bundle publish) — run-wide
 
-| Code                          | Scope | Description                              | details{}          |
-|-------------------------------|-------|------------------------------------------|--------------------|
-| `BUNDLE-PUBLISH-FAIL`         | RUN   | failure to atomically publish bundle     | {reason}           |
-| `BUNDLE-FINGERPRINT-MISMATCH` | RUN   | attempted publish for mixed fingerprints | {got, expected}    |
+| Code                          | Scope | Description                              | details{}         |
+|-------------------------------|-------|------------------------------------------|-------------------|
+| `BUNDLE-PUBLISH-FAIL`         | RUN   | failure to atomically publish bundle     | {reason}          |
+| `BUNDLE-FINGERPRINT-MISMATCH` | RUN   | attempted publish for mixed fingerprints | {got, expected}   |
 | `BUNDLE-PARTIAL-REFUSED`      | RUN   | attempted partial commit                 | {members_present} |
 
 ---
