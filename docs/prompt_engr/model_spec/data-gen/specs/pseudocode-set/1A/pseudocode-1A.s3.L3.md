@@ -10,7 +10,7 @@ From **bytes on disk only**, prove that the S3 outputs for a given `{parameter_h
 * **Order authority:** `candidate_rank` is the **only** inter-country order; ranks are **contiguous** with **home=0** and unique per merchant; file order is **non-authoritative** (writer sorts listed below).
 * **Optional lanes (as enabled):**
 
-  * **Priors:** values are **fixed-dp scores** (dp per `priors_cfg`); no renormalisation; one-to-one with candidate countries.
+  * **Priors:** values are **fixed-dp weights** (`base_weight_dp` string with **dp = priors_cfg.dp** per row); **subset of candidates allowed** (no extras/dupes); no renormalisation.
   * **Counts:** per-country integers, **Σ count = N** where **N comes from S2 `nb_final`** (merchant→N authority); `residual_rank` total & contiguous; (if bounds configured) all bounds respected.
   * **Sequence:** for each `(merchant,country)`, `site_order = 1..count_i` (no gaps/dupes), optional zero-padded 6-digit `site_id` unique within country; **never** permutes the inter-country order.
 * **Lane legality:** `emit_sequence ⇒ emit_counts` holds in the produced datasets.
@@ -211,7 +211,7 @@ RunArgs = {
 Read **only** these columns; anything else is wasteful.
 
 * **Candidates:** `merchant_id, country_iso, candidate_rank, is_home, parameter_hash, manifest_fingerprint`
-* **Priors (if present):** `merchant_id, country_iso, score, parameter_hash, manifest_fingerprint`
+* **Priors (if present):** `merchant_id, country_iso, base_weight_dp, dp, parameter_hash, manifest_fingerprint`
 * **Counts (if present):** `merchant_id, country_iso, count, residual_rank, parameter_hash, manifest_fingerprint`
 * **Sequence (if present):** `merchant_id, country_iso, site_order, site_id?, parameter_hash, manifest_fingerprint`
 
@@ -676,7 +676,7 @@ This section runs **after** the global structural/lineage checks (presence, sche
 **Columns required (re-stated for clarity):**
 
 * **Candidates:** `merchant_id, country_iso, candidate_rank, is_home`
-* **Priors:** `merchant_id, country_iso, score`
+* **Priors:** `merchant_id, country_iso, base_weight_dp, dp`
 * **Counts:** `merchant_id, country_iso, count, residual_rank`
 * **Sequence:** `merchant_id, country_iso, site_order, site_id?`
   *(Lineage was already checked globally.)*
@@ -753,8 +753,8 @@ flush_merchant(state.cur)
 
 ### 6.3.1 Contract
 
-* **Presence & join:** exists iff `emit_priors=true`; **exactly one** row per `(merchant_id,country_iso)` in the candidate set; **no extras, no missing**.
-* **Fixed-dp scores:** `score` parses as a **base-10 fixed-precision decimal**; dp equals `priors_cfg.dp`; no exponents/locale.
+* **Presence & join:** exists iff `emit_priors=true`; **subset of** candidate countries per merchant (no extras; duplicates forbidden).
+* **Fixed-dp weights:** `base_weight_dp` parses as a **base-10 fixed-precision decimal string**; on-row `dp` **equals `priors_cfg.dp` for every row**; no exponents/locale.
 * **No renormalisation:** priors are **scores**, not probabilities.
 * **Writer sort:** `(merchant_id, country_iso)` order.
 
@@ -780,13 +780,12 @@ for row in stream(priors, order=("merchant_id","country_iso")):
        FAIL("PRIORS-DUPE-COUNTRY", merchant=row.merchant_id, iso=row.country_iso)
   INSERT row.country_iso INTO seen[row.merchant_id]
 
-  IF !is_fixed_dp_score(row.score, dp=priors_cfg.dp):
+  IF !is_fixed_dp_score(row.base_weight_dp, dp=priors_cfg.dp):
+       FAIL("PRIORS-DP-VIOL", merchant=row.merchant_id, iso=row.country_iso)
+  IF row.dp != priors_cfg.dp:
        FAIL("PRIORS-DP-VIOL", merchant=row.merchant_id, iso=row.country_iso)
 
-// completeness: every candidate country must appear once in priors
-for m in cand_set_map:
-  for iso in cand_set_map[m]:
-    IF iso NOT IN seen[m]: FAIL("PRIORS-MISSING-COUNTRY", merchant=m, iso=iso)
+// completeness not required for priors: subset allowed (no extras, no duplicates)
 ```
 
 ---
@@ -935,7 +934,7 @@ If a toggled lane is **enabled** but yields **zero rows** (e.g., sequence for co
 ## 6.8 Acceptance checklist (for this section)
 
 * [ ] Candidate set: uniqueness, contiguity `0..K−1`, and **home\@0** verified; writer-sort sanity enforced.
-* [ ] Priors: one-to-one with candidates; **fixed-dp** parsed; **no renorm**; completeness + no extras; writer-sort sanity.
+* [ ] Priors: **subset of candidates** (no extras/dupes); **fixed-dp** parsed on `base_weight_dp`; on-row **dp == priors_cfg.dp**; **no renorm**; writer-sort sanity.
 * [ ] Counts: one-to-one with candidates; **Σ=N**; non-negative integers; residual ranks total & contiguous; bounds respected; writer-sort sanity; completeness + no extras.
 * [ ] Sequence: per-country `1..count_i`; extras rejected; optional ID format/uniqueness; never cross-country reorder; writer-sort sanity.
 * [ ] All algorithms are **single-pass streaming**, column-projected, O(rows), and fail-fast.
@@ -994,9 +993,7 @@ for each merchant_id in MERCHANT_ORDER:
       if row.country_iso not in cand_set:
         FAIL("PRIORS-EXTRA-COUNTRY", merchant=merchant_id, iso=row.country_iso)
       seen_priors += 1
-    if seen_priors != K:
-      // missing countries are tracked per §6; cross-lane we hard-fail too
-      FAIL("PRIORS-MISSING-COUNTRY", merchant=merchant_id)
+    // completeness not required for priors; subset allowed (no extras/dupes)
 
   // (B) Counts (if present)
   if counts lane present:
@@ -1061,7 +1058,7 @@ for each merchant_id in MERCHANT_ORDER:
 
 **Cross-lane joins**
 
-* `PRIORS-EXTRA-COUNTRY` / `PRIORS-MISSING-COUNTRY`
+* `PRIORS-EXTRA-COUNTRY`
 * `COUNTS-EXTRA-COUNTRY` / `COUNTS-MISSING-COUNTRY`
 * `SEQ-COUNTRY-NOT-IN-COUNTS` / `SEQ-LENGTH-NEQ-COUNT`
 
@@ -1157,12 +1154,12 @@ Use the §6 algorithm to validate uniqueness/contiguity/home\@0; **while streami
 
 ## 8.5 Priors streaming (when enabled)
 
-**Columns:** `merchant_id, country_iso, score`
+**Columns:** `merchant_id, country_iso, base_weight_dp, dp`
 
 ```
 PROC v_check_priors(cand_set, priors_cfg):
   it := open_iter("s3_base_weight_priors", run_args.parameter_hash,
-                  ["merchant_id","country_iso","score"],
+                  ["merchant_id","country_iso","base_weight_dp","dp"],
                   order=["merchant_id","country_iso"])
   for (m), rows in group_by(it, ["merchant_id"]):
       need := cand_set[m]       // expected countries from candidates
@@ -1170,11 +1167,12 @@ PROC v_check_priors(cand_set, priors_cfg):
       for row in rows:
           if row.country_iso not in need:
              FAIL("PRIORS-EXTRA-COUNTRY", merchant=m, iso=row.country_iso)
-          if !is_fixed_dp_score(row.score, priors_cfg.dp):
+          if !is_fixed_dp_score(row.base_weight_dp, priors_cfg.dp):
+             FAIL("PRIORS-DP-VIOL", merchant=m, iso=row.country_iso)
+          if row.dp != priors_cfg.dp:
              FAIL("PRIORS-DP-VIOL", merchant=m, iso=row.country_iso)
           insert(row.country_iso, seen)
-      if size(seen) != size(need):
-          FAIL("PRIORS-MISSING-COUNTRY", merchant=m)
+      // completeness not required for priors; subset allowed (no extras, no dupes)
 ```
 
 **Fixed-dp parser (deterministic)**
@@ -1303,7 +1301,7 @@ Reuse the §6 artifacts to avoid extra scans:
 
 * If a lane is toggled **on** but yields **zero rows**, it is valid **only** if cross-lane constraints make it logically empty (e.g., sequence for `count_i=0`).
 * Counts: zero total rows with `N_map[m] > 0` ⇒ **FAIL** (`COUNTS-MISSING-COUNTRY` and/or `COUNTS-SUM-NEQ-N`).
-* Priors: zero rows but candidates non-empty ⇒ **FAIL** (`PRIORS-MISSING-COUNTRY`).
+* Priors: zero rows are **allowed** (subset policy); ensure no extras or dupes if present.
 
 ---
 
@@ -2031,7 +2029,7 @@ PROC v_check_priors(run: RunArgs, dict: DictCtx, read: ReadCtx,
                     m: MerchantID, cand_set: Set<ISO2>, priors_cfg) -> OK | Fail
 ```
 
-**Purpose.** Enforce **one-to-one** with candidates and **fixed-dp scores** (base-10, exact `dp`); no extras, no missing.
+**Purpose.** Enforce **subset of candidates** (no extras/dupes) and **fixed-dp weights** on `base_weight_dp` with on-row **dp == `priors_cfg.dp`**; no renorm.
 
 **Columns.** `merchant_id, country_iso, score`.
 
@@ -2143,13 +2141,13 @@ PROC v_build_bundle(run: RunArgs,
 
 So implementers never guess, each kernel calls the reader with **exact** columns:
 
-| Kernel               | Dataset              | Columns (projection)                                | Order hint                                       |
-|----------------------|----------------------|-----------------------------------------------------|--------------------------------------------------|
-| v_check_structural | all present          | `parameter_hash, manifest_fingerprint`              | none                                             |
-| v_check_candidates | candidate_set       | `merchant_id, country_iso, candidate_rank, is_home` | `["merchant_id","candidate_rank","country_iso"]` |
-| v_check_priors     | base_weight_priors | `merchant_id, country_iso, score`                   | `["merchant_id","country_iso"]`                  |
-| v_check_counts     | integerised_counts  | `merchant_id, country_iso, count, residual_rank`    | `["merchant_id","country_iso"]`                  |
-| v_check_sequence   | site_sequence       | `merchant_id, country_iso, site_order, site_id?`    | `["merchant_id","country_iso","site_order"]`     |
+| Kernel             | Dataset            | Columns (projection)                                | Order hint                                       |
+|--------------------|--------------------|-----------------------------------------------------|--------------------------------------------------|
+| v_check_structural | all present        | `parameter_hash, manifest_fingerprint`              | none                                             |
+| v_check_candidates | candidate_set      | `merchant_id, country_iso, candidate_rank, is_home` | `["merchant_id","candidate_rank","country_iso"]` |
+| v_check_priors     | base_weight_priors | `merchant_id, country_iso, base_weight_dp, dp`      | `["merchant_id","country_iso"]`                  |
+| v_check_counts     | integerised_counts | `merchant_id, country_iso, count, residual_rank`    | `["merchant_id","country_iso"]`                  |
+| v_check_sequence   | site_sequence      | `merchant_id, country_iso, site_order, site_id?`    | `["merchant_id","country_iso","site_order"]`     |
 
 If the reader cannot honor `order`, the kernel performs a **minimal local sort per merchant** on the listed keys within `mem_watermark`.
 
@@ -2302,7 +2300,7 @@ PROC v_check_priors(run: RunArgs, dict: DictCtx, read: ReadCtx,
 
   it   := read.open_iter("s3_base_weight_priors",
                          run.parameter_hash,
-                         ["merchant_id","country_iso","score"],
+                         ["merchant_id","country_iso","base_weight_dp","dp"],
                          order=["merchant_id","country_iso"])
   rows := ITER_GROUP_BY(it, ["merchant_id"]).get(m)
 
@@ -2317,14 +2315,18 @@ PROC v_check_priors(run: RunArgs, dict: DictCtx, read: ReadCtx,
 
     if row.country_iso not in cand_set:
       return FAIL("PRIORS-EXTRA-COUNTRY","MERCHANT","s3_base_weight_priors", m, {"iso":row.country_iso})
-    if not is_fixed_dp_score(row.score, priors_cfg.dp):
+    if not is_fixed_dp_score(row.base_weight_dp, priors_cfg.dp):
       return FAIL("PRIORS-DP-VIOL","MERCHANT","s3_base_weight_priors", m,
-                  {"iso":row.country_iso,"value":row.score})
+                  {"iso":row.country_iso,"value":row.base_weight_dp})
+    if row.dp != priors_cfg.dp:
+      return FAIL("PRIORS-DP-VIOL","MERCHANT","s3_base_weight_priors", m,
+                  {"iso":row.country_iso,"dp":row.dp,"expected":priors_cfg.dp})
 
     insert(row.country_iso, seen)
 
   if SIZE(seen) != SIZE(cand_set):
     return FAIL("PRIORS-MISSING-COUNTRY","MERCHANT","s3_base_weight_priors", m)
+  // completeness not required for priors; subset allowed (no extras, no dupes)
 
   it.close()
   return OK()
@@ -2605,13 +2607,13 @@ Every failure record must conform to:
 
 ### V4 (priors) — per merchant (optional)
 
-| Code                     | Scope    | Description                              | details{}                            |
-|--------------------------|----------|------------------------------------------|--------------------------------------|
-| `DATASET-UNSORTED`       | DATASET  | writer-sort broken                       | {dataset_id:"s3_base_weight_priors"} |
-| `PRIORS-EXTRA-COUNTRY`   | MERCHANT | priors row not in candidate countries    | {iso}                                |
-| `PRIORS-MISSING-COUNTRY` | MERCHANT | candidate country missing in priors      | {}                                   |
-| `PRIORS-DUPE-COUNTRY`    | MERCHANT | duplicate priors row for a country       | {iso}                                |
-| `PRIORS-DP-VIOL`         | MERCHANT | score not fixed-dp (dp per `priors_cfg`) | {iso, value}                         |
+| Code                     | Scope    | Description                                               | details{}                            |
+|--------------------------|----------|-----------------------------------------------------------|--------------------------------------|
+| `DATASET-UNSORTED`       | DATASET  | writer-sort broken                                        | {dataset_id:"s3_base_weight_priors"} |
+| `PRIORS-EXTRA-COUNTRY`   | MERCHANT | priors row not in candidate countries                     | {iso}                                |
+| `PRIORS-MISSING-COUNTRY` | MERCHANT | candidate country missing in priors                       | {}                                   |
+| `PRIORS-DUPE-COUNTRY`    | MERCHANT | duplicate priors row for a country                        | {iso}                                |
+| `PRIORS-DP-VIOL`         | MERCHANT | `base_weight_dp` not fixed-dp **or** `dp`≠`priors_cfg.dp` | {iso, value?\|dp?, expected?}        |
 
 ### V5 (counts) — per merchant (optional)
 
@@ -3604,7 +3606,7 @@ All fuzz runs are **seeded** (`SEED=...`) so failures reproduce exactly.
 | Partition template & embed=path (5.4–5.5)  | G0, G11             |
 | Manifest equality (5.5)                    | G0, G10             |
 | Candidate uniqueness/contiguity/home (6.2) | G0, G1, G2          |
-| Priors fixed-dp & 1:1 (6.3)                | G0, G3, G4          |
+| Priors fixed-dp & subset (6.3)             | G0, G3, G4          |
 | Counts Σ=N, residuals, bounds (6.4)        | G0, G5, G6, G7      |
 | Sequence 1..countᵢ and IDs (6.5)           | G0, G8              |
 | Lane legality & cross-lane joins (7)       | G0, G9              |
@@ -4000,13 +4002,12 @@ PUBLISH_VALIDATION_BUNDLE(parameter_hash, manifest_fingerprint, files: Map<name�
 
 ## F. Column Maps & Adapters (Per State)
 
-| State | Kernel family   | Canonical columns (→ adapter maps)                                                                                                                                                                                                       |
-|------:|-----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|    S0 | Structural only | `parameter_hash`, `manifest_fingerprint` (for each artifact under validation)                                                                                                                                                            |
-|    S1 | Event streams   | `merchant_id`, `module`, `substream_label`, `before`, `after`, `draws`, payload fields `(η,π,u?,is_multi)`                                                                                                                               |
-|    S2 | Event streams   | `merchant_id`, attempt index, `before/after/draws`, Γ/Π payloads `(μ,φ,λ)`, finaliser `(μ,φ,N,r)`                                                                                                                                        |
-|    S3 | Datasets        | **Candidates**: `merchant_id,country_iso,candidate_rank,is_home` · **Priors**: `merchant_id,country_iso,score` · **Counts**: `merchant_id,country_iso,count,residual_rank` · **Sequence**: `merchant_id,country_iso,site_order,site_id?` |
-
+| State | Kernel family   | Canonical columns (→ adapter maps)                                                                                                                                                                                                                   |
+|------:|-----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|    S0 | Structural only | `parameter_hash`, `manifest_fingerprint` (for each artifact under validation)                                                                                                                                                                        |
+|    S1 | Event streams   | `merchant_id`, `module`, `substream_label`, `before`, `after`, `draws`, payload fields `(η,π,u?,is_multi)`                                                                                                                                           |
+|    S2 | Event streams   | `merchant_id`, attempt index, `before/after/draws`, Γ/Π payloads `(μ,φ,λ)`, finaliser `(μ,φ,N,r)`                                                                                                                                                    |
+|    S3 | Datasets        | **Candidates**: `merchant_id,country_iso,candidate_rank,is_home` · **Priors**: `merchant_id,country_iso,base_weight_dp,dp` · **Counts**: `merchant_id,country_iso,count,residual_rank` · **Sequence**: `merchant_id,country_iso,site_order,site_id?` |
 **Adapter pattern**
 
 ```
