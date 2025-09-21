@@ -192,7 +192,7 @@ RunArgs = {
 * **Schema anchors** — JSON-Schema objects for each S3 dataset.
 * **BOM values** *(values only)*:
 
-  * `priors_cfg` (fixed-dp score rules; **dp = priors_cfg.dp**, base-10 strings)
+  * `priors_cfg` (fixed-dp weight rules; **dp = priors_cfg.dp**, base-10 strings)
   * `bounds?` (per-country min/max for counts; optional)
 * **S2 N map** — immutable `Map<merchant_id → N>` built from **S2 `nb_final` rows** for **this `parameter_hash`** (authority for Σ counts).
 
@@ -650,7 +650,7 @@ Each error carries: `{code, dataset_id?, parameter_hash, manifest_fingerprint, d
 ## 5.10 What this section does **not** check (by design)
 
 * Candidate rank contiguity and `home=0` (see §6).
-* Priors fixed-dp / one-to-one (see §6).
+* Priors fixed-dp / **subset** (see §6).
 * Counts Σ=N & residual ranks/bounds (see §6).
 * Sequence 1..countᵢ gaps/dupes and cross-country stability (see §6).
 * Cross-lane joins/legality beyond the presence matrix (see §7).
@@ -755,7 +755,7 @@ flush_merchant(state.cur)
 
 * **Presence & join:** exists iff `emit_priors=true`; **subset of** candidate countries per merchant (no extras; duplicates forbidden).
 * **Fixed-dp weights:** `base_weight_dp` parses as a **base-10 fixed-precision decimal string**; on-row `dp` **equals `priors_cfg.dp` for every row**; no exponents/locale.
-* **No renormalisation:** priors are **scores**, not probabilities.
+* **No renormalisation:** priors are **weights**, not probabilities.
 * **Writer sort:** `(merchant_id, country_iso)` order.
 
 ### 6.3.2 Streaming algorithm (single pass with join coverage)
@@ -914,7 +914,7 @@ for (m, iso) IN KEYS(count_i):
 ## 6.6 Failure codes (dataset-scoped; deterministic)
 
 * **Candidate set:** `CAND-DUPE-ISO`, `CAND-DUPE-RANK`, `HOME-MISSING`, `HOME-DUPE`, `HOME-RANK-NEQ-0`, `CAND-RANK-START-NEQ-0`, `CAND-RANK-GAP`, `DATASET-UNSORTED`.
-* **Priors:** `PRIORS-EXTRA-COUNTRY`, `PRIORS-MISSING-COUNTRY`, `PRIORS-DP-VIOL`, `PRIORS-DUPE-COUNTRY`, `DATASET-UNSORTED`.
+* **Priors:** `PRIORS-EXTRA-COUNTRY`, `PRIORS-DP-VIOL`, `PRIORS-DUPE-COUNTRY`, `DATASET-UNSORTED`.
 * **Counts:** `COUNTS-EXTRA-COUNTRY`, `COUNTS-MISSING-COUNTRY`, `COUNTS-DUPE-COUNTRY`, `COUNTS-NONNEG-INT`, `COUNTS-SUM-NEQ-N`, `COUNTS-RESID-DUPE`, `COUNTS-RESID-GAP`, `BOUNDS-VIOL`, `DATASET-UNSORTED`.
 * **Sequence:** `SEQ-COUNTRY-NOT-IN-COUNTS`, `SEQ-GAP`, `SEQ-LENGTH-NEQ-COUNT`, `SEQ-ID-FORMAT`, `SEQ-ID-DUPE`, `SEQ-NO-COUNTS`, `DATASET-UNSORTED`.
 
@@ -949,8 +949,10 @@ Across the four S3 datasets for a given `{parameter_hash, manifest_fingerprint}`
 
 1. **Lane legality:** datasets present exactly match toggles and the dependency holds **per merchant**:
    **`emit_sequence ⇒ emit_counts`** (both run-wide and per merchant).
-2. **Cross-lane joins:** when a lane is present, its country set for a merchant equals the candidate set—no extras, no omissions.
-   *(§6 already enforces this inside each lane; here we assert it **across** lanes and per-merchant legality.)*
+2. **Cross-lane joins:** when a lane is present:
+   - **Priors:** country set is a **subset** of the candidate-set countries (no extras/dupes).
+   - **Counts:** country set **equals** the candidate-set countries (no extras/missing).
+   *(§6 enforces the lane-internal parts; here we assert the **across-lane** legality per merchant.)*
 3. **Order authorities:**
 
    * **Inter-country:** the **only** authority is `candidate_rank` in **candidate_set**; other datasets must not imply cross-country order.
@@ -1081,7 +1083,8 @@ Each error carries `{code, dataset_id?, merchant_id, details{country_iso?, expec
 ## 7.7 Acceptance checklist (for this section)
 
 * [ ] `emit_sequence ⇒ emit_counts` enforced **per merchant**.
-* [ ] Priors/Counts/Sequence country sets equal candidate countries—no extras/omissions.
+* [ ] Priors country set is a **subset** of candidate countries (no extras/dupes).
+* [ ] Counts country set equals candidates; Sequence countries ⊆ counts and lengths equal `countᵢ`.
 * [ ] Sequence rows per country equal `countᵢ` (from counts); no countries outside counts.
 * [ ] Inter-country order authority remains solely the candidate set; sequence is within-country only.
 * [ ] Streaming, column-projected implementation; O(rows); fail-fast on first breach.
@@ -1532,18 +1535,18 @@ Fail-fast: any node may emit the single canonical failure → **⟂ stop** (no n
 
 ## 10.2 Node registry (stable IDs, purposes, surfaces)
 
-| ID | Name                            | Type     | Optional | Purpose (one-liner)                                  | Surface / Kernel     |
-| -- | ------------------------------- | -------- | -------- | ---------------------------------------------------- | -------------------- |
-| V0 | Open handles                    | run-wide | No       | Open dictionary/schemas/BOM; build `N_map`.          | (host shims)         |
-| V1 | Discover datasets               | run-wide | No       | Presence vs toggles for the 4 datasets.              | internal             |
-| V2 | Structural & lineage            | run-wide | No       | Schema/partition; embed=path; **manifest equality**. | `v_check_structural` |
-| V3 | Candidate-set checks            | per-m    | No       | Uniqueness, contiguity 0..K−1, home\@0.              | `v_check_candidates` |
-| V4 | Priors checks                   | per-m    | Yes      | One-to-one with candidates; fixed-dp scores.         | `v_check_priors`     |
-| V5 | Counts checks                   | per-m    | Yes      | One-to-one; integers; **Σ=N**; residual totality.    | `v_check_counts`     |
-| V6 | Sequence checks                 | per-m    | Yes      | Per-country 1..countᵢ; IDs; uses counts map.         | `v_check_sequence`   |
-| V7 | Cross-lane legality & authority | per-m    | No       | Lane legality; country-set equality; authority.      | `v_check_crosslane`  |
-| V8 | Build bundle                    | run-wide | No       | Compose canonical `summary.json`/failure.            | `v_build_bundle`     |
-| V9 | Atomic publish                  | run-wide | No       | Write PASS/FAIL artifacts atomically.                | (host shim)          |
+| ID | Name                            | Type     | Optional | Purpose (one-liner)                                                   | Surface / Kernel     |
+|----|---------------------------------|----------|----------|-----------------------------------------------------------------------|----------------------|
+| V0 | Open handles                    | run-wide | No       | Open dictionary/schemas/BOM; build `N_map`.                           | (host shims)         |
+| V1 | Discover datasets               | run-wide | No       | Presence vs toggles for the 4 datasets.                               | internal             |
+| V2 | Structural & lineage            | run-wide | No       | Schema/partition; embed=path; **manifest equality**.                  | `v_check_structural` |
+| V3 | Candidate-set checks            | per-m    | No       | Uniqueness, contiguity 0..K−1, home\@0.                               | `v_check_candidates` |
+| V4 | Priors checks                   | per-m    | Yes      | **Subset of candidates;** fixed-dp `base_weight_dp` with dp-constant. | `v_check_priors`     |
+| V5 | Counts checks                   | per-m    | Yes      | One-to-one; integers; **Σ=N**; residual totality.                     | `v_check_counts`     |
+| V6 | Sequence checks                 | per-m    | Yes      | Per-country 1..countᵢ; IDs; uses counts map.                          | `v_check_sequence`   |
+| V7 | Cross-lane legality & authority | per-m    | No       | Lane legality; country-set equality; authority.                       | `v_check_crosslane`  |
+| V8 | Build bundle                    | run-wide | No       | Compose canonical `summary.json`/failure.                             | `v_build_bundle`     |
+| V9 | Atomic publish                  | run-wide | No       | Write PASS/FAIL artifacts atomically.                                 | (host shim)          |
 
 *Types:* “run-wide” scans across datasets; “per-m” streams grouped by merchant in deterministic order.
 
@@ -2031,10 +2034,10 @@ PROC v_check_priors(run: RunArgs, dict: DictCtx, read: ReadCtx,
 
 **Purpose.** Enforce **subset of candidates** (no extras/dupes) and **fixed-dp weights** on `base_weight_dp` with on-row **dp == `priors_cfg.dp`**; no renorm.
 
-**Columns.** `merchant_id, country_iso, score`.
+**Columns.** `merchant_id, country_iso, base_weight_dp, dp`.
 
 **Failure codes.**
-`PRIORS-EXTRA-COUNTRY`, `PRIORS-MISSING-COUNTRY`, `PRIORS-DP-VIOL`, `PRIORS-DUPE-COUNTRY`, `DATASET-UNSORTED`.
+`PRIORS-EXTRA-COUNTRY`, `PRIORS-DP-VIOL`, `PRIORS-DUPE-COUNTRY`, `DATASET-UNSORTED`.
 
 **Complexity.** Single pass; memory O(K).
 
@@ -2098,7 +2101,7 @@ PROC v_check_crosslane(run: RunArgs,
 **Purpose.** Enforce **lane legality** and **country-set equality** across lanes; protect **order authorities**:
 
 * `emit_sequence ⇒ emit_counts` (per merchant).
-* If priors present: priors countries == candidates.
+* If priors present: priors country set is a **subset** of candidate countries (no extras/dupes).
 * If counts present: counts countries == candidates.
 * If sequence present: sequence countries ⊆ counts and lengths equal `count_i`.
 * No non-candidate dataset may encode inter-country order.
@@ -2106,7 +2109,7 @@ PROC v_check_crosslane(run: RunArgs,
 **Inputs.** Lane presence booleans per merchant, `cand_set`, and `count_i` when present.
 
 **Failure codes.**
-`SEQ-NO-COUNTS`, `PRIORS-EXTRA-COUNTRY`, `PRIORS-MISSING-COUNTRY`,
+`SEQ-NO-COUNTS`, `PRIORS-EXTRA-COUNTRY`,
 `COUNTS-EXTRA-COUNTRY`, `COUNTS-MISSING-COUNTRY`,
 `SEQ-COUNTRY-NOT-IN-COUNTS`, `SEQ-LENGTH-NEQ-COUNT`,
 `AUTH-ORDER-VIOLATION`.
@@ -2213,13 +2216,13 @@ PROC v_check_structural(run: RunArgs, dict: DictCtx, read: ReadCtx) -> OK | Fail
   // Resolve schema & template; enforce parameter-only partitioning
   for ds, must in required:
     has := present[ds]
-    if  must and not has:  return FAIL("DATASET-PRESENCE-MISMATCH","RUN", ds)
-    if !must and     has:  return FAIL("DATASET-PRESENCE-MISMATCH","RUN", ds)
+    if  must and not has:  return FAIL("DATASET-PRESENCE-MISMATCH","RUN", ds, NULL, {"required":true,"present":false})
+    if !must and     has:  return FAIL("DATASET-PRESENCE-MISMATCH","RUN", ds, NULL, {"required":false,"present":true})
     if has:
       r := DICT_RESOLVE(dict.dict_handle, ds)
-      if r == NULL: return FAIL("DICT-RESOLVE-FAIL","RUN", ds)
+      if r == NULL: return FAIL("DICT-RESOLVE-FAIL","RUN", ds, NULL, {})
       if r.partition_keys != ["parameter_hash"]:
-         return FAIL("PARTITION-TEMPLATE-MISMATCH","RUN", ds)
+         return FAIL("PARTITION-TEMPLATE-MISMATCH","RUN", ds, NULL, {"partition_keys":r.partition_keys})
 
   // Lineage streaming check (embed=path; dataset-scoped manifest equality)
   for ds, has in present:
@@ -2324,8 +2327,6 @@ PROC v_check_priors(run: RunArgs, dict: DictCtx, read: ReadCtx,
 
     insert(row.country_iso, seen)
 
-  if SIZE(seen) != SIZE(cand_set):
-    return FAIL("PRIORS-MISSING-COUNTRY","MERCHANT","s3_base_weight_priors", m)
   // completeness not required for priors; subset allowed (no extras, no dupes)
 
   it.close()
@@ -2468,8 +2469,7 @@ PROC v_check_crosslane(run: RunArgs, m: MerchantID,
   if sequence_present and not counts_present:
     return FAIL("SEQ-NO-COUNTS","MERCHANT",NULL, m)
 
-  if priors_present and SIZE(cand_set) == 0:
-    return FAIL("PRIORS-MISSING-COUNTRY","MERCHANT","s3_base_weight_priors", m)
+  // Priors completeness is not required (subset policy). Candidate set is always present in S3.
 
   if counts_present and SIZE(cand_set) == 0:
     return FAIL("COUNTS-MISSING-COUNTRY","MERCHANT","s3_integerised_counts", m)
@@ -2611,7 +2611,6 @@ Every failure record must conform to:
 |--------------------------|----------|-----------------------------------------------------------|--------------------------------------|
 | `DATASET-UNSORTED`       | DATASET  | writer-sort broken                                        | {dataset_id:"s3_base_weight_priors"} |
 | `PRIORS-EXTRA-COUNTRY`   | MERCHANT | priors row not in candidate countries                     | {iso}                                |
-| `PRIORS-MISSING-COUNTRY` | MERCHANT | candidate country missing in priors                       | {}                                   |
 | `PRIORS-DUPE-COUNTRY`    | MERCHANT | duplicate priors row for a country                        | {iso}                                |
 | `PRIORS-DP-VIOL`         | MERCHANT | `base_weight_dp` not fixed-dp **or** `dp`≠`priors_cfg.dp` | {iso, value?\|dp?, expected?}        |
 
@@ -3473,7 +3472,7 @@ prefetch_next    = false
 
 ### G3 — Priors dp violation
 
-* Score `0.1` when dp=2 (should be `0.10`).
+* `base_weight_dp = "0.1"` when `dp=2` (should be `"0.10"`), or any row with `dp != priors_cfg.dp`.
 * **Expect:** `PRIORS-DP-VIOL` (MERCHANT, `s3_base_weight_priors`).
 
 ### G4 — Priors extra country
@@ -3559,7 +3558,7 @@ For each mutation:
 
 ## 20.5 Fuzz & property checks (bounded, deterministic)
 
-* **Priors score property:** generate random ASCII decimals and assert `is_fixed_dp_score(s,dp)` agrees with a reference parser; reject exponents/locale digits; accept exactly `dp` fractional digits (or integer form if `dp==0`).
+* **Priors fixed-dp property:** generate random ASCII decimals and assert `is_fixed_dp_score(s,dp)` agrees with a reference parser; reject exponents/locale digits; accept exactly `dp` fractional digits (or integer form if `dp==0`). Use these strings as `base_weight_dp`; also assert an on-row `dp` equals `priors_cfg.dp`.
 * **Residual ranks property:** for random K up to 32, create sets with exactly one duplicate or a gap; validator must flag `COUNTS-RESID-DUPE` or `COUNTS-RESID-GAP` respectively.
 * **Sequence contiguity property:** for random `count_i` up to 200, emit stream with either perfect `1..count_i` or a single off-by-1; validator must flag `SEQ-GAP`.
 * **Σ=N property:** generate random per-country counts summing to `N±δ`; validator must accept δ=0 and reject otherwise.
@@ -3708,7 +3707,7 @@ A small tool to assert bundle shape and bytes:
 * [ ] Contiguity `candidate_rank = 0..K−1`; exactly one `is_home=true` at rank 0.
 * [ ] Writer-sort sanity enforced.
   **Priors (if present)**
-* [ ] One-to-one with candidates; **fixed-dp scores** parse correctly; no renorm.
+* [ ] **Subset of candidates** (no extras/dupes); **base_weight_dp** parses as fixed-dp and per-row `dp == priors_cfg.dp`; no renorm.
 * [ ] Writer-sort sanity enforced.
   **Counts (if present)**
 * [ ] One-to-one with candidates; non-negative integers; **Σ count = N_map\[m]**.
@@ -3721,7 +3720,7 @@ A small tool to assert bundle shape and bytes:
 ### §7 Cross-Dataset Legality & Authority
 
 * [ ] `emit_sequence ⇒ emit_counts` holds **per merchant**.
-* [ ] Priors and counts country sets equal candidates; sequence countries ⊆ counts and lengths equal `count_i`.
+* [ ] Priors country set is a **subset** of candidates (no extras/dupes); Counts country set **equals** candidates; Sequence countries ⊆ counts and lengths equal `count_i`.
 * [ ] Inter-country authority is **only** `candidate_rank`; within-country authority is **only** `site_order`.
 
 ### §8 Streaming Algorithms
