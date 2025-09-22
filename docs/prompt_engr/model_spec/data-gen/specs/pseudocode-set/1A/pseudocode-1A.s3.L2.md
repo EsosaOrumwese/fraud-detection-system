@@ -70,9 +70,9 @@ The **single legal wiring** of S3: invoke S3·L1 kernels in the only permitted o
 * `manifest_fingerprint : str` — embedded in rows; must equal the run’s value.
 * `bom.ladder : Ladder` — governed rule family used by L1.
 * `bom.iso_universe : Set[ISO2]` — closed country universe.
-* `bom.dp : int`, `bom.dp_resid : int` — fixed decimals (run-constant).
+  // dp lives in priors_cfg (if present); dp_resid lives in bounds_cfg (if present).
 * `bom.priors_cfg : PriorsCfg` — run-constant priors configuration (e.g., dp, feature flags) used by the L1 priors kernel.
-* `bom.bounds? : BoundsConfig` — optional per-country L/U for counts.
+* `bom.bounds_cfg? : BoundsCfg` — optional per-country floors/ceilings and `dp_resid` for integerisation.
 * `options.emit_priors : bool`, `options.emit_counts : bool`, `options.emit_sequence : bool`.
 * `runtime.N_WORKERS : int`, `runtime.batch_rows : int`, `runtime.mem_watermark : bytes` — practical throughput knobs with deterministic defaults.
 
@@ -82,19 +82,19 @@ The **single legal wiring** of S3: invoke S3·L1 kernels in the only permitted o
 
 L2 invokes the **pure** S3·L1 kernels (serial per merchant) which return schema-shaped arrays **without lineage**:
 
-1. `Ctx` ← `s3_build_ctx(ingress_rows, s1_hurdle_rows, s2_nb_final_rows, bom, channel_vocab)` — includes `merchant_id`, `home_country_iso`, and fields L2 will attach at publish. `merchant_id`, `home_country_iso`, and fields L2 will attach at publish.
-2. `DecisionTrace` ← `s3_evaluate_rule_ladder(Ctx, bom.ladder, bom.vocab)`.
+1. `Ctx` ← `s3_build_ctx(ingress_rows, s1_hurdle_rows, s2_nb_final_rows, bom, channel_vocab)` — includes `merchant_id`, `home_country_iso`, and fields L2 will attach at publish.
+2. `DecisionTrace` ← `s3_evaluate_rule_ladder(Ctx, bom.ladder, channel_vocab)`.
 3. `CandidateRow[]` ← `s3_make_candidate_set(Ctx, DecisionTrace, bom.iso_universe, bom.ladder)` — includes **home** + admitted foreigns (closed vocab for reasons/tags).
-4. `RankedCandidateRow[]` ← `s3_rank_candidates(CandidateRow[], bom.admission_meta_map, Ctx.home_country_iso)` — **total order**, `candidate_rank` contiguous with home=0.
+4. `RankedCandidateRow[]` ← `s3_rank_candidates(CandidateRow[], admission_meta_from_ladder(bom.ladder), Ctx.home_country_iso)` — **total order**, `candidate_rank` contiguous with home=0.
 5. *(opt)* `PriorRow[]` ← `s3_compute_priors(RankedCandidateRow[], Ctx, bom.priors_cfg)` — fixed-dp **scores** (no renorm).
-6. *(opt)* `CountRow[]` ← `s3_integerise_counts(RankedCandidateRow[], Ctx.N, PriorRow[]?, bom.bounds?)` — LRR integerisation; **Σ count = Ctx.N**.
+6. *(opt)* `CountRow[]` ← `s3_integerise_counts(RankedCandidateRow[], Ctx.N, PriorRow[]?, bom.bounds_cfg?)` — LRR integerisation; **Σ count = Ctx.N**.
 7. *(opt)* `SequenceRow[]` ← `s3_sequence_sites(RankedCandidateRow[], CountRow[], Ctx, with_site_id)` — per-country `site_order` 1..nᵢ (optional 6-digit `site_id`).
 
 > L2 **never edits** these arrays except to **attach lineage** (`parameter_hash`, `manifest_fingerprint`) immediately before publish.
 
 ## 2.4 Preconditions (checked by L2 before orchestration)
 
-* **BOM complete:** `ladder`, `iso_universe`, `dp`, `dp_resid` present.
+* **BOM complete:** `ladder`, `iso_universe` present; if configured, `priors_cfg.dp` and `bounds_cfg.dp_resid`.
 * **Options legal:**
 
   * If `emit_sequence = true` ⇒ **`emit_counts = true`**.
@@ -266,15 +266,20 @@ PROC s3_rank_candidates(cands: CandidateRow[],
                         admission_meta_map: Map[ISO2,{precedence:int,priority:int,rule_id:str}],
                         home_iso: ISO2) -> RankedCandidateRow[]
   Purpose: Impose total order; `candidate_rank` contiguous; home=0.
-  Source of admission_meta_map: from ladder/BOM (passed through; not constructed in L2).
+  Source of admission_meta_map: derived from ladder (see `admission_meta_from_ladder`); passed through; not constructed in L2.
   Determinism: Pure.
+
+PROC admission_meta_from_ladder(ladder: Ladder)
+  -> Map<ISO2, { precedence:int, priority:int, rule_id:string }>
+  Purpose: Deterministically derive admission metadata per foreign ISO from the governed ladder.
+  Determinism: Pure; no I/O; policy-derived.
 
 PROC s3_compute_priors(ranked: array<RankedCandidateRow>, ctx: Ctx, priors_cfg: PriorsCfg) -> PriorRow[]   # optional
   Purpose: Fixed-decimal **scores** (not probabilities); dp is run-constant in priors_cfg; no renorm.
   Determinism: Pure.
 
 PROC s3_integerise_counts(ranked: array<RankedCandidateRow>, N: int,
-                          priors?: array<PriorRow>, bounds?: BoundsConfig) -> CountRow[]   # optional
+                          priors?: array<PriorRow>, bounds_cfg?: BoundsCfg) -> CountRow[]   # optional
   Purpose: Largest-remainder integerisation; Σ count = N; `residual_rank` recorded; bounds optional.
   Determinism: Pure.
 
@@ -318,8 +323,12 @@ PROC EMIT_S3_SITE_SEQUENCE(rows: SequenceRow[],
 
 ```
 PROC HOST_OPEN_BOM() -> { ladder: Ladder, iso_universe: Set[ISO2],
-                          dp: int, dp_resid: int, bounds?: BoundsConfig,
+                          priors_cfg?: PriorsCfg, bounds_cfg?: BoundsCfg,
                           toggles: { emit_priors: bool, emit_counts: bool, emit_sequence: bool } }
+
+PROC HOST_CHANNEL_VOCAB() -> Set<string>
+  Purpose: Return the closed channel vocabulary used by policy; host-provided; not part of BOM.
+  Determinism: Stable for the run; values, not paths.
 
 PROC HOST_MERCHANT_LIST(parameter_hash: Hex64) -> List[merchant_id]
   Purpose: Provide the deterministic merchant worklist for this partition (e.g., ascending order).
@@ -607,21 +616,21 @@ This one-screen DAG is the human backbone. **§5 (Full DAG Specification)** will
 
 ## 5.1 Node registry (stable IDs, types, sources)
 
-| ID  | Human name                    | Function ID (source)              | Type              | Optional | Purpose (one-liner)                                                |
-|-----|-------------------------------|-----------------------------------|-------------------|----------|--------------------------------------------------------------------|
-| N0  | Open BOM                      | `HOST_OPEN_BOM` (Host)            | side-effect (RO)  | No       | Open ladder/ISO/dp/bounds/toggles for the run (read-only values).  |
-| N1  | Build context                 | `s3_build_ctx` (L1)               | pure              | No       | Build immutable per-merchant `Ctx` (IDs, home ISO, lineage tuple). |
-| N2  | Evaluate rule ladder          | `s3_evaluate_rule_ladder` (L1)    | pure              | No       | Deterministic rule decision → `DecisionTrace`.                     |
-| N3  | Make candidate set            | `s3_make_candidate_set` (L1)      | pure              | No       | `{home} ∪ admitted foreigns` with reason/filter tags.              |
-| N4  | Rank candidates               | `s3_rank_candidates` (L1)         | pure              | No       | Impose total order; **`candidate_rank` contiguous; home=0**.       |
-| N5  | Compute priors                | `s3_compute_priors` (L1)          | pure              | Yes      | Fixed-dp **scores** (no renorm).                                   |
-| N6  | Integerise counts             | `s3_integerise_counts` (L1)       | pure              | Yes      | LRR integerisation; Σcount = **N**; apply bounds if provided.      |
-| N7  | Sequence within country       | `s3_sequence_sites` (L1) | pure              | Yes      | Per-country `site_order` 1..nᵢ; optional 6-digit `site_id`.        |
-| N8  | Package for emit              | `package_for_emit` (L2)           | pure              | No       | Attach lineage; apply writer sorts; freeze rows for emit.          |
-| N9  | Emit candidate_set            | `EMIT_S3_CANDIDATE_SET` (L0)      | side-effect (I/O) | No       | Atomic/idempotent publish of `s3_candidate_set`.                   |
-| N10 | Emit base_weight_priors (opt) | `EMIT_S3_BASE_WEIGHT_PRIORS` (L0) | side-effect (I/O) | Yes      | Atomic/idempotent publish of `s3_base_weight_priors`.              |
-| N11 | Emit integerised_counts (opt) | `EMIT_S3_INTEGERISED_COUNTS` (L0) | side-effect (I/O) | Yes      | Atomic/idempotent publish of `s3_integerised_counts`.              |
-| N12 | Emit site_sequence (opt)      | `EMIT_S3_SITE_SEQUENCE` (L0)      | side-effect (I/O) | Yes      | Atomic/idempotent publish of `s3_site_sequence`.                   |
+| ID  | Human name                    | Function ID (source)              | Type              | Optional | Purpose (one-liner)                                                           |
+|-----|-------------------------------|-----------------------------------|-------------------|----------|-------------------------------------------------------------------------------|
+| N0  | Open BOM                      | `HOST_OPEN_BOM` (Host)            | side-effect (RO)  | No       | Open ladder/ISO/priors_cfg/bounds_cfg/toggles for the run (read-only values). |
+| N1  | Build context                 | `s3_build_ctx` (L1)               | pure              | No       | Build immutable per-merchant `Ctx` (IDs, home ISO, lineage tuple).            |
+| N2  | Evaluate rule ladder          | `s3_evaluate_rule_ladder` (L1)    | pure              | No       | Deterministic rule decision → `DecisionTrace`.                                |
+| N3  | Make candidate set            | `s3_make_candidate_set` (L1)      | pure              | No       | `{home} ∪ admitted foreigns` with reason/filter tags.                         |
+| N4  | Rank candidates               | `s3_rank_candidates` (L1)         | pure              | No       | Impose total order; **`candidate_rank` contiguous; home=0**.                  |
+| N5  | Compute priors                | `s3_compute_priors` (L1)          | pure              | Yes      | Fixed-dp **scores** (no renorm).                                              |
+| N6  | Integerise counts             | `s3_integerise_counts` (L1)       | pure              | Yes      | LRR integerisation; Σcount = **N**; apply bounds if provided.                 |
+| N7  | Sequence within country       | `s3_sequence_sites` (L1)          | pure              | Yes      | Per-country `site_order` 1..nᵢ; optional 6-digit `site_id`.                   |
+| N8  | Package for emit              | `package_for_emit` (L2)           | pure              | No       | Attach lineage; apply writer sorts; freeze rows for emit.                     |
+| N9  | Emit candidate_set            | `EMIT_S3_CANDIDATE_SET` (L0)      | side-effect (I/O) | No       | Atomic/idempotent publish of `s3_candidate_set`.                              |
+| N10 | Emit base_weight_priors (opt) | `EMIT_S3_BASE_WEIGHT_PRIORS` (L0) | side-effect (I/O) | Yes      | Atomic/idempotent publish of `s3_base_weight_priors`.                         |
+| N11 | Emit integerised_counts (opt) | `EMIT_S3_INTEGERISED_COUNTS` (L0) | side-effect (I/O) | Yes      | Atomic/idempotent publish of `s3_integerised_counts`.                         |
+| N12 | Emit site_sequence (opt)      | `EMIT_S3_SITE_SEQUENCE` (L0)      | side-effect (I/O) | Yes      | Atomic/idempotent publish of `s3_site_sequence`.                              |
 
 *Notes:* “pure” = deterministic, no I/O; “side-effect (RO)” = read-only side effect (opening handles/values); “side-effect (I/O)” = writer emit via L0.
 
@@ -831,7 +840,8 @@ Each submitted task gets a **run context** with **values only** (no paths):
 
 * `lineage`: `{ parameter_hash, manifest_fingerprint }`
 * `toggles`: `{ emit_priors, emit_counts, emit_sequence }`
-* `bom`: `{ ladder, iso_universe, dp, dp_resid, priors_cfg, bounds?, site_id_cfg?, admission_meta_map, vocab }`
+* `bom`: `{ ladder, iso_universe, priors_cfg?, bounds_cfg?, site_id_cfg? }`
+* `channel_vocab`: `Set<string>`   // ingress-provided closed set (host supplies; not in BOM)
 * `inputs`: `{ ingress_rows_by_id      : Map[merchant_id → array<Record>>,   // 0..1
                s1_hurdle_rows_by_id    : Map[merchant_id → array<Record>>,   // 0..1
                s2_nb_final_rows_by_id  : Map[merchant_id → array<Record>> }  // 0..1`
@@ -852,7 +862,8 @@ PROC run_S3_L2(run_cfg):
   pool := HOST_WORKER_POOL(run_cfg.N_WORKERS)
   FOR merchant_id IN HOST_MERCHANT_LIST(run_cfg.parameter_hash):
     pool.submit( TASK process_merchant_S3(merchant_id,
-                  run_ctx = {bom, toggles=run_cfg.toggles,
+                  run_ctx = {bom, channel_vocab=HOST_CHANNEL_VOCAB(),
+                             toggles=run_cfg.toggles,
                              inputs=run_cfg.inputs,
                              lineage={parameter_hash=run_cfg.parameter_hash,
                                       manifest_fingerprint=run_cfg.manifest_fingerprint}}) )
@@ -864,13 +875,14 @@ PROC process_merchant_S3(merchant_id, run_ctx):
   ingress_rows     := run_ctx.inputs.ingress_rows_by_id[merchant_id]       // 0..1
 s1_hurdle_rows   := run_ctx.inputs.s1_hurdle_rows_by_id[merchant_id]     // 0..1
 s2_nb_final_rows := run_ctx.inputs.s2_nb_final_rows_by_id[merchant_id]   // 0..1
-ctx := s3_build_ctx(ingress_rows, s1_hurdle_rows, s2_nb_final_rows, run_ctx.bom, run_ctx.bom.vocab)
-  trace  := s3_evaluate_rule_ladder(ctx, run_ctx.bom.ladder, run_ctx.bom.vocab)
+ctx := s3_build_ctx(ingress_rows, s1_hurdle_rows, s2_nb_final_rows, run_ctx.bom, run_ctx.channel_vocab)
+  trace  := s3_evaluate_rule_ladder(ctx, run_ctx.bom.ladder, run_ctx.channel_vocab)
   cands  := s3_make_candidate_set(ctx, trace, run_ctx.bom.iso_universe, run_ctx.bom.ladder)
-  ranked := s3_rank_candidates(cands, run_ctx.bom.admission_meta_map, ctx.home_country_iso)
+  meta   := admission_meta_from_ladder(run_ctx.bom.ladder)
+  ranked := s3_rank_candidates(cands, meta, ctx.home_country_iso)
 
   priors   := run_ctx.toggles.emit_priors   ? s3_compute_priors(ranked, ctx, run_ctx.bom.priors_cfg) : NULL
-  counts   := run_ctx.toggles.emit_counts   ? s3_integerise_counts(ranked, ctx.N, priors, run_ctx.bom.bounds?) : NULL
+  counts   := run_ctx.toggles.emit_counts   ? s3_integerise_counts(ranked, ctx.N, priors, run_ctx.bom.bounds_cfg?) : NULL
   with_site_id := (run_ctx.bom.site_id_cfg?.enabled == true)
   sequence := run_ctx.toggles.emit_sequence ? s3_sequence_sites(ranked, counts, ctx, with_site_id) : NULL
 
@@ -917,7 +929,8 @@ END PROC
 
 * `merchant_id`
 * `run.lineage`: `{ parameter_hash: Hex64, manifest_fingerprint: Hex64 }`
-* `bom`: `{ ladder, iso_universe, dp, dp_resid, priors_cfg, bounds?, site_id_cfg?, admission_meta_map, vocab }`
+* `bom`: `{ ladder, iso_universe, priors_cfg?, bounds_cfg?, site_id_cfg? }`
+* `channel_vocab`: `Set<string>`   // ingress-provided closed set (host supplies; not in BOM)
 * `ingress_rows`, `s1_hurdle_rows`, `s2_nb_final_rows` (0..1 each; the minimal L1 expects)
 
 **Outputs (after emit, if lanes enabled):**
@@ -939,7 +952,7 @@ END PROC
 ingress_rows     := run_ctx.inputs.ingress_rows_by_id[merchant_id]       // 0..1
 s1_hurdle_rows   := run_ctx.inputs.s1_hurdle_rows_by_id[merchant_id]     // 0..1
 s2_nb_final_rows := run_ctx.inputs.s2_nb_final_rows_by_id[merchant_id]   // 0..1
-ctx := s3_build_ctx(ingress_rows, s1_hurdle_rows, s2_nb_final_rows, run_ctx.bom, run_ctx.bom.vocab)
+ctx := s3_build_ctx(ingress_rows, s1_hurdle_rows, s2_nb_final_rows, run_ctx.bom, run_ctx.channel_vocab)
 ```
 
 **Produces:** immutable `ctx` (includes `merchant_id`, `home_country_iso`, **`N`** from S2, etc.).
@@ -947,7 +960,7 @@ ctx := s3_build_ctx(ingress_rows, s1_hurdle_rows, s2_nb_final_rows, run_ctx.bom,
 ### 7.3.2 N2 — Evaluate rule ladder (pure)
 
 ```
-trace := s3_evaluate_rule_ladder(ctx, bom.ladder, bom.vocab)
+trace := s3_evaluate_rule_ladder(ctx, bom.ladder, channel_vocab)
 ```
 
 **Produces:** deterministic `DecisionTrace` with closed-vocab tags.
@@ -963,9 +976,8 @@ cands := s3_make_candidate_set(ctx, trace, bom.iso_universe, bom.ladder)
 ### 7.3.4 N4 — Rank candidates (pure)
 
 ```
-ranked := s3_rank_candidates(cands,
-                             bom.admission_meta_map,   // from BOM (policy), not built in L2
-                             ctx.home_country_iso)
+meta   := admission_meta_from_ladder(bom.ladder)
+ranked := s3_rank_candidates(cands, meta, ctx.home_country_iso)
 ```
 
 **Guarantees (post-rank):** `candidate_rank` is total and **contiguous**; home has rank **0**; per-merchant uniqueness across `(country_iso)` and `(candidate_rank)`.
@@ -990,7 +1002,7 @@ priors := bom.toggles.emit_priors
 
 ```
 counts := bom.toggles.emit_counts
-          ? s3_integerise_counts(ranked, ctx.N, priors, bom.bounds?)
+          ? s3_integerise_counts(ranked, ctx.N, priors, bom.bounds_cfg?)
           : NULL
 ```
 
@@ -1052,17 +1064,17 @@ IF rows.sequence_rows != NULL: EMIT_S3_SITE_SEQUENCE      (rows.sequence_rows, r
 
 ## 7.7 Pre/Postconditions (per step)
 
-| Step   | Preconditions                     | Postconditions                                                               |
-|--------|-----------------------------------|------------------------------------------------------------------------------|
-| N1     | ingress + s1/s2 facts; BOM opened | `ctx` built; immutable; includes `home_country_iso`, `N`                     |
-| N2     | `ctx`                             | `trace` produced; pure                                                       |
-| N3     | `ctx`, `trace`, `iso_universe`    | `cands` non-empty; exactly one home; no duplicate ISO                        |
-| N4     | `cands`, `bom.admission_meta_map` | `ranked` with contiguous `candidate_rank`; home=0; per-merchant uniqueness   |
-| N5     | `ranked`; `emit_priors==true`     | `priors` (scores, fixed-dp) or `NULL`                                        |
-| N6     | `ranked`; `emit_counts==true`     | `counts` with **Σ count = ctx.N**; `residual_rank`; or `NULL`                |
-| N7     | `counts`; `emit_sequence==true`   | `sequence` with per-country `site_order = 1..nᵢ`; optional 6-digit `site_id` |
-| N8     | arrays ready                      | lineage attached; writer sorts applied; rows frozen                          |
-| N9–N12 | packaged rows by dataset          | idempotent, atomic publishes in fixed order; partitions are parameter-scoped |
+| Step   | Preconditions                           | Postconditions                                                               |
+|--------|-----------------------------------------|------------------------------------------------------------------------------|
+| N1     | ingress + s1/s2 facts; BOM opened       | `ctx` built; immutable; includes `home_country_iso`, `N`                     |
+| N2     | `ctx`                                   | `trace` produced; pure                                                       |
+| N3     | `ctx`, `trace`, `iso_universe`          | `cands` non-empty; exactly one home; no duplicate ISO                        |
+| N4     | `cands`, admission metadata from ladder | `ranked` with contiguous `candidate_rank`; home=0; per-merchant uniqueness   |
+| N5     | `ranked`; `emit_priors==true`           | `priors` (scores, fixed-dp) or `NULL`                                        |
+| N6     | `ranked`; `emit_counts==true`           | `counts` with **Σ count = ctx.N**; `residual_rank`; or `NULL`                |
+| N7     | `counts`; `emit_sequence==true`         | `sequence` with per-country `site_order = 1..nᵢ`; optional 6-digit `site_id` |
+| N8     | arrays ready                            | lineage attached; writer sorts applied; rows frozen                          |
+| N9–N12 | packaged rows by dataset                | idempotent, atomic publishes in fixed order; partitions are parameter-scoped |
 
 ---
 
@@ -1803,15 +1815,10 @@ L2 calls **only** these shims (plus L0 emitters and L1 kernels). No other host A
 PROC HOST_OPEN_BOM()
   -> { ladder: Ladder,
        iso_universe: Set[ISO2],
-       dp: int,
-       dp_resid: int,
-       
-       priors_cfg: PriorsCfg,
-bounds?: BoundsConfig,
+       priors_cfg?: PriorsCfg,
+       bounds_cfg?: BoundsCfg,
        toggles: { emit_priors: bool, emit_counts: bool, emit_sequence: bool },
-       vocab: Vocab,                         // ingress/channel/etc. vocab used by L1
-       admission_meta_map: Map[ISO2,{precedence:int,priority:int,rule_id:str}],
-       site_id_cfg?: SiteIdConfig }          // optional sequencing config
+       site_id_cfg?: SiteIdConfig }
 ```
 
 **Purpose.** Open all **policy values** needed by S3; read-only for the run.
@@ -1906,17 +1913,18 @@ PROC HOST_LOG(level: {"INFO","WARN","ERROR"}, message: string, kv?: Map)
 
 ## 13.4 Usage map (where each shim is called)
 
-| Shim                        | Used in § / Node         | Purpose                                                                                                                                         |
-|-----------------------------|--------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------|
-| `HOST_OPEN_BOM`             | §6 run entry; §7.3 N1/N4 | Acquire run policy/materials (`vocab`, `ladder`, `iso_universe`, `dp`, `dp_resid`, `bounds?`, `toggles`, `admission_meta_map`, `site_id_cfg?`). |
-| `HOST_MERCHANT_LIST`        | §6.4                     | Deterministic worklist for dispatch.                                                                                                            |
-| `HOST_GET_INGRESS_ROWS`     | §6.13 (payload build)    | Populate `run_ctx.inputs.ingress_rows_by_id`.                                                                                                   |
-| `HOST_GET_S1_HURDLE_ROWS`   | §6.13 (payload build)    | Populate `run_ctx.inputs.s1_hurdle_rows_by_id`.                                                                                                 |
-| `HOST_GET_S2_NB_FINAL_ROWS` | §6.13 (payload build)    | Populate `run_ctx.inputs.s2_nb_final_rows_by_id`.                                                                                               |
-| `HOST_WORKER_POOL`          | §6.3                     | Across-merchant parallelism.                                                                                                                    |
-| `HOST_DICTIONARY_HANDLE`    | §9 (via L0 emitters)     | Dictionary resolution inside emitters.                                                                                                          |
-| `OBSERVE_PARTITION_STATE`   | §10.6                    | Enforce idempotent resume guards.                                                                                                               |
-| `HOST_LOG`                  | §16                      | Operational progress output.                                                                                                                    |
+| Shim                        | Used in § / Node         | Purpose                                                                                     |
+|-----------------------------|--------------------------|---------------------------------------------------------------------------------------------|
+| `HOST_OPEN_BOM`             | §6 run entry; §7.3 N1/N4 | Acquires `ladder`, `iso_universe`, `priors_cfg?`, `bounds_cfg?`, `toggles`, `site_id_cfg?`. |
+| `HOST_CHANNEL_VOCAB`        | §6.13 payload build      | Provides the closed channel vocabulary (ingress-owned; not part of BOM).                    |
+| `HOST_MERCHANT_LIST`        | §6.4                     | Deterministic worklist for dispatch.                                                        |
+| `HOST_GET_INGRESS_ROWS`     | §6.13 (payload build)    | Populate `run_ctx.inputs.ingress_rows_by_id`.                                               |
+| `HOST_GET_S1_HURDLE_ROWS`   | §6.13 (payload build)    | Populate `run_ctx.inputs.s1_hurdle_rows_by_id`.                                             |
+| `HOST_GET_S2_NB_FINAL_ROWS` | §6.13 (payload build)    | Populate `run_ctx.inputs.s2_nb_final_rows_by_id`.                                           |
+| `HOST_WORKER_POOL`          | §6.3                     | Across-merchant parallelism.                                                                |
+| `HOST_DICTIONARY_HANDLE`    | §9 (via L0 emitters)     | Dictionary resolution inside emitters.                                                      |
+| `OBSERVE_PARTITION_STATE`   | §10.6                    | Enforce idempotent resume guards.                                                           |
+| `HOST_LOG`                  | §16                      | Operational progress output.                                                                |
 
 ---
 
@@ -1944,7 +1952,9 @@ PROC HOST_LOG(level: {"INFO","WARN","ERROR"}, message: string, kv?: Map)
 * Signatures are explicit; inputs/outputs typed; failure modes stated.
 * Mapping from shims → DAG nodes/sections is complete.
 * No overlap with L0 emitters or L1 kernels; no redundant definitions.
-* BOM includes `vocab`, `admission_meta_map`, and (optional) `site_id_cfg?`; resume probe exposes `has_mixed_final_metadata`.
+* BOM includes `ladder`, `iso_universe`, and optional `priors_cfg?`, `bounds_cfg?`, `site_id_cfg?`.
+  Host provides `channel_vocab`; `admission_meta_map` is derived from the ladder.
+  Resume probe exposes `has_mixed_final_metadata`.
 
 ---
 
@@ -2113,7 +2123,7 @@ Expose these counters via §16 logging (do **not** influence logic):
 
 | Code                           | Trigger (Where)                                                   | Required Action                   | Retryability                                     |
 |--------------------------------|-------------------------------------------------------------------|-----------------------------------|--------------------------------------------------|
-| `HOST-BOM-MISSING`             | Missing ladder/ISO/dp/dp_resid/bounds/toggles (N0)               | Abort run; report missing keys    | yes (after host fix)                             |
+| `HOST-BOM-MISSING`             | Missing ladder/ISO (and priors_cfg/bounds_cfg if required)        | Abort run; report missing keys    | yes (after host fix)                             |
 | `HOST-POOL-FAILURE`            | Worker pool cannot be created (§6.3)                              | Abort run                         | yes                                              |
 | `HOST-DICT-HANDLE-FAIL`        | Dictionary handle unavailable (§13.3.5)                           | Abort run                         | yes                                              |
 | `O-ILLEGAL-SEQ-WITHOUT-COUNTS` | Toggles violate §8 rule (pre-dispatch)                            | Abort run; do not queue merchants | yes (fix toggles)                                |
@@ -2297,7 +2307,7 @@ Each log entry **must** include:
 * **`RUN_START`** — L2 starting.
   `kv: { "toggles": {emit_priors, emit_counts, emit_sequence}, "workers": N_WORKERS }`
 * **`BOM_OPENED`** — `HOST_OPEN_BOM` succeeded.
-  `kv: { "dp": dp, "dp_resid": dp_resid, "bounds": <bool> }`
+   `kv: { "priors_cfg": <bool>, "bounds_cfg": <bool>, "dp": priors_cfg?.dp, "dp_resid": bounds_cfg?.dp_resid }`
 * **`RESUME_GUARDS_OK`** — §10 guards passed (or no finals).
   `kv: { "has_any_final": <bool> }`
 * **`POOL_STARTED`** — worker pool created.
@@ -2550,10 +2560,9 @@ toggles               = { emit_priors: true, emit_counts: true, emit_sequence: t
 bom := HOST_OPEN_BOM()
   ladder        = <governed ruleset>
   iso_universe  = {"GB","IE","FR","NL","DE"}
-  dp            = 6
-  dp_resid      = 8
-  priors_cfg    = <run-constant priors settings>
-  bounds        = { min: {GB:1}, max: {} }   // optional; example only
+  priors_cfg    = { dp: 6, selection_rules: …, constants: … }   // optional
+  bounds_cfg    = { floors: {GB:1}, ceilings: {}, dp_resid: 8 } // optional
+channel_vocab := HOST_CHANNEL_VOCAB()  // ingress-provided closed set
 ```
 
 **Merchant domain (stable order)**
@@ -2606,14 +2615,14 @@ DecisionTrace = { eligible:true, tags:["ALLOW:EU","DEFAULT"], … }
 
 Contiguous ranks; **home=0**; this is the **sole inter-country order**.
 
-**N5 `s3_compute_priors(ranked, ctx, priors_cfg)` (scores)**
+**N5 `s3_compute_priors(ranked, ctx, priors_cfg)` (weights; dp=6)**
 
 ```
 [
-  {iso:"GB", score:"0.402500"},
-  {iso:"IE", score:"0.215000"},
-  {iso:"FR", score:"0.230000"},
-  {iso:"NL", score:"0.152500"}
+  {iso:"GB", base_weight_dp:"0.402500", dp:6},
+  {iso:"IE", base_weight_dp:"0.215000", dp:6},
+  {iso:"FR", base_weight_dp:"0.230000", dp:6},
+  {iso:"NL", base_weight_dp:"0.152500", dp:6}
 ]
 ```
 
@@ -2726,7 +2735,7 @@ ERROR IDEMP-TOGGLE-MISMATCH   // abort before scheduling
 
 ```
 INFO RUN_START              kv={toggles:{priors:1,counts:1,sequence:1}, workers:4}
-INFO BOM_OPENED             kv={dp:6, dp_resid:8, bounds:true}
+INFO BOM_OPENED             kv={priors_cfg:true, bounds_cfg:true, dp:6, dp_resid:8}`
 INFO RESUME_GUARDS_OK       kv={has_any_final:false}
 INFO MERCHANT_START         kv={merchant_id:"M123"}
 INFO MERCHANT_START         kv={merchant_id:"M456"}
@@ -2777,7 +2786,7 @@ INFO RUN_SUMMARY            kv={merchants_total:2, merchants_ok:2, merchants_fai
 
 | ID  | Function ID (Source)                   | Type           | Summary                                               |
 |-----|----------------------------------------|----------------|-------------------------------------------------------|
-| N0  | `HOST_OPEN_BOM` (Host)                 | side-effect RO | Open ladder/ISO/dp/bounds/toggles for the run.        |
+| N0  | `HOST_OPEN_BOM` (Host)                 | side-effect RO | Open ladder/ISO/priors_cfg/bounds_cfg/toggles         |
 | N1  | `s3_build_ctx` (L1)                    | pure           | Build `Ctx` (ids, home ISO, lineage tuple).           |
 | N2  | `s3_evaluate_rule_ladder` (L1)         | pure           | Deterministic policy decision → `DecisionTrace`.      |
 | N3  | `s3_make_candidate_set` (L1)           | pure           | `{home} ∪ admitted foreigns` with tags.               |
@@ -2804,7 +2813,7 @@ INFO RUN_SUMMARY            kv={merchants_total:2, merchants_ok:2, merchants_fai
 * `s3_make_candidate_set(Ctx, DecisionTrace, iso_universe, ladder) -> CandidateRow[]`
 * `s3_rank_candidates(CandidateRow[], admission_meta_map, home_iso) -> RankedCandidateRow[]`
 * `s3_compute_priors(RankedCandidateRow[], Ctx, priors_cfg) -> PriorRow[]` *(opt)*
-* `s3_integerise_counts(RankedCandidateRow[], N, priors?, bounds?) -> CountRow[]` *(opt)*
+* `s3_integerise_counts(RankedCandidateRow[], N, priors?, bounds_cfg?: BoundsCfg)` *(opt)*
 * `s3_sequence_sites(RankedCandidateRow[], CountRow[], Ctx, with_site_id) -> SequenceRow[]` *(opt)*
 
 ### L2 glue (this doc; orchestration only)
