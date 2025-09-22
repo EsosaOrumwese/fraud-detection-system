@@ -416,7 +416,7 @@ bom_handles: {
 
 **Pre-flight checks (once at L1 entry):**
 
-* If `priors_enabled`, assert `priors_cfg` present and `dp ∈ [0..18]`.
+* If `priors_enabled`, assert `priors_cfg` present and $dp \in [0..18]$.
 * If `sequencing_enabled`, assert `integerisation_enabled` is `true`.
 * If `bounds_cfg` present, assert floors/ceilings consistency; set `dp_resid := bounds_cfg.dp_resid ?? 8`.
 
@@ -733,7 +733,7 @@ PROC s3_process_merchant(ingress, s1, s2, bom, flags) ->
 
 * **(opt) `s3_compute_priors` → `PriorRow[]`**
   Each: `{ merchant_id:u64, country_iso:ISO2, base_weight_dp:FixedDpDecStr, dp:int }`
-  *(**Scores, not probabilities**; `dp` ∈ `[0..18]`, **constant per run/parameter set**.)*
+  *(**Scores, not probabilities**; $dp \in [0..18]$, **constant per run/parameter set**.)*
 
 * **(opt) `s3_integerise_counts` → `CountRow[]`**
   Each: `{ merchant_id:u64, country_iso:ISO2, count:int≥0, residual_rank:int≥1 }`
@@ -1338,7 +1338,7 @@ END PROC
 
 * `SELECT_PRIOR_DP(priors_cfg) -> int`
 * `EVAL_PRIOR_SCORE(c: RankedCandidateRow, ctx: Ctx, priors_cfg) -> f64 | null`  *(policy hook; deterministic; `null` = “no score”)*
-* `ASSERT_DP_RANGE(dp)` — `dp ∈ [0..18]`
+* `ASSERT_DP_RANGE(dp)` — $dp \in [0..18]$
 * `ASSERT_SCORE_DOMAIN(w)` — finite, non-negative
 * `QUANTIZE_WEIGHT_TO_DP(w, dp) -> FixedDpDecStr` — base-10 **half-even** via integer/rational path
 * `ASSERT_PRIORS_BLOCK_SHAPE(rows[])` — `dp` constant; strings parse *(uses fixed-dp parser internally)*
@@ -1892,7 +1892,7 @@ These helpers **never** add `{parameter_hash, manifest_fingerprint}`. L2 must:
 
 * **Ranking key (foreigns):** `(precedence, priority, rule_id, ISO, stable_idx)` — ints asc; strings A→Z; `stable_idx` set by deterministic enumeration.
 * **Residual bins (LRR):** quantise fractional remainders with **`dp_resid`** (default 8; or from policy) using base-10 half-even; tie-break by ISO A→Z, then `stable_idx`.
-* **Fixed-dp priors:** `dp ∈ [0..18]`, base-10 half-even; **constant `dp` per run/parameter set**.
+* **Fixed-dp priors:** $dp \in [0..18]$, base-10 half-even; **constant `dp` per run/parameter set**.
 
 ---
 
@@ -2323,7 +2323,7 @@ Use this as the **go/no-go** gate for S3·L1. Every box must pass before you fre
 ## E. Determinism & Numeric Discipline
 
 * [ ] **Ordering**: stable sorts with fully specified keys; inter-country order is **only** `candidate_rank`.
-* [ ] **Fixed-dp**: base-10 **half-even** via integer/rational arithmetic; `dp ∈ [0..18]`, **constant per run/parameter set**.
+* [ ] **Fixed-dp**: base-10 **half-even** via integer/rational arithmetic; $dp \in [0..18]$, **constant per run/parameter set**.
 * [ ] **LRR residuals**: quantised at `dp_resid` (default 8 or policy), tie-break `(residual_q DESC, ISO A→Z, stable_idx)`.
 
 ---

@@ -2281,8 +2281,13 @@ REQUIRES: meta.partitions == ["parameter_hash"] ELSE RAISE ERR_S3_EMIT_DOMAIN
 
 LET paths := BUILD_PARTITION_PATHS(meta.base_path, parameter_hash, manifest_fp)
 
-// idempotence gate
-IF skip_if_final AND FS.EXISTS(paths.final): RAISE ERR_S3_EMIT_CONFLICT
+// empty-slice ⇒ no-op (do not write 0-row files)
+IF rows == NULL OR LENGTH(rows) == 0:
+  RETURN
+
+// idempotence gate ⇒ no-op skip when final exists
+IF skip_if_final AND FS.EXISTS(paths.final):
+  RETURN  // deterministic skip: final already exists (idempotent no-op)
 
 CALL ASSERT_EMBED_EQUALS_PATH(rows, parameter_hash)
 CALL ASSERT_EMBED_FP_EQUALS(rows, manifest_fp)
@@ -2349,8 +2354,8 @@ CALL EMIT_S3_DATASET("s3_site_sequence", parameter_hash, rows, manifest_fp, skip
 ## 15.5 How L2 uses this (one-liner per table)
 
 * L2 computes rows (from L1), **sets lineage fields**, and calls the matching `EMIT_S3_*` with `skip_if_final = true` for idempotence.
-* On `ERR_S3_EMIT_CONFLICT`, L2 skips the partition; on other errors, L2 surfaces a state-level failure (S3 stays non-emitting for that partition).
-
+* If a final exists and `skip_if_final=true`, the emitter returns success without writing (deterministic skip).
+* 
 ---
 
 # 16) Assertions & Guards (unit-sized, reusable)
