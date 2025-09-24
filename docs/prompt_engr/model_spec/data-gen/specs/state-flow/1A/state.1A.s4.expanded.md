@@ -33,7 +33,7 @@
 
 ```
 S1 hurdle      S3 eligibility        S3 admissible set size A
-is_multi? ──►  is_eligible? ──►  compute A := size(candidate_set \ {home})
+is_multi? ──►  is_eligible? ──►  compute A := size(S3.candidate_set \ {home})
    │ no             │ no                     │
    └──────────► BYPASS S4 (domestic only) ◄──┘
 
@@ -74,7 +74,7 @@ is_multi? ──►  is_eligible? ──►  compute A := size(candidate_set \ {
 
 * **S1 hurdle** (gate): `is_multi=true` ⇒ in scope.
 * **S2 `nb_final`** (fact): authoritative **`N ≥ 2`** (non-consuming).
-* **S3 eligibility** (gate) and **A** definition: **`A := size(candidate_set \ {home})`**.
+* **S3 eligibility** (gate) and **A** definition: **`A := size(S3.candidate_set \ {home})`**.
 * **Hyper-parameters** `θ`, **cap** `MAX_ZTP_ZERO_ATTEMPTS` (governed), **policy** `ztp_exhaustion_policy`.
 * **Features** `X ∈ [0,1]` (default **0.0** if missing).
 
@@ -193,11 +193,13 @@ Pairing and replay are determined **only by counters** in the RNG envelopes (hi/
 > These literals fix **module / substream / context** so replay and budgeting are stable across releases. Changing any is a **breaking change**.
 
 | Stream                           | **module**  | **substream_label** | **context** |
-|----------------------------------|-------------|----------------------|-------------|
-| `rng/events/poisson_component`   | `1A.s4.ztp` | `poisson_component`  | `"ztp"`     |
-| `rng/events/ztp_rejection`       | `1A.s4.ztp` | `poisson_component`  | `"ztp"`     |
-| `rng/events/ztp_retry_exhausted` | `1A.s4.ztp` | `poisson_component`  | `"ztp"`     |
-| `rng/events/ztp_final`           | `1A.s4.ztp` | `poisson_component`  | `"ztp"`     |
+|----------------------------------|-------------|---------------------|-------------|
+| `rng/events/poisson_component`   | `1A.s4.ztp` | `poisson_component` | `"ztp"`     |
+| `rng/events/ztp_rejection`       | `1A.s4.ztp` | `poisson_component` | `"ztp"`     |
+| `rng/events/ztp_retry_exhausted` | `1A.s4.ztp` | `poisson_component` | `"ztp"`     |
+| `rng/events/ztp_final`           | `1A.s4.ztp` | `poisson_component` | `"ztp"`     |
+
+**Note.** All S4 events share `substream_label="poisson_component"` to aggregate budgets/trace under one domain; event type is distinguished by the table/anchor and `context:"ztp"`.
 
 **Budgeting, envelopes & trace (MUST).**
 
@@ -224,19 +226,19 @@ Pairing and replay are determined **only by counters** in the RNG envelopes (hi/
 
 ### 2B.2 Authorities (schema & dictionary) — **N**
 
-| Name                                                                                                                                             | Role                                                                             | Kind                    | Scope     | Source of truth       | Participates in `parameter_hash` | Notes                                                            |
-|--------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------|-------------------------|-----------|-----------------------|----------------------------------|------------------------------------------------------------------|
-| RNG event schemas (`#/rng/events/poisson_component`, `#/rng/events/ztp_rejection`, `#/rng/events/ztp_retry_exhausted`, `#/rng/events/ztp_final`) | Define row/envelope shapes for all S4 logs                                       | **JSON-Schema anchors** | authority | `schemas.layer1.yaml` | No                               | Serialization authority only (row shape/keys)                    |
-| Data Dictionary entries (S4 logs)                                                                                                                | Define dataset IDs, **partitions** `{seed, parameter_hash, run_id}`, writer sort | Dictionary              | authority | Data Dictionary       | No                               | Paths, partitions, writer sort; **file order non-authoritative** |
+| Name                                                                                                                                                                                                                         | Role                                                                             | Kind                    | Scope     | Source of truth       | Participates in `parameter_hash` | Notes                                                            |
+|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------|-------------------------|-----------|-----------------------|----------------------------------|------------------------------------------------------------------|
+| RNG event schemas (`schemas.layer1.yaml#/rng/events/poisson_component`, `schemas.layer1.yaml#/rng/events/ztp_rejection`, `schemas.layer1.yaml#/rng/events/ztp_retry_exhausted`, `schemas.layer1.yaml#/rng/events/ztp_final`) | Define row/envelope shapes for all S4 logs                                       | **JSON-Schema anchors** | authority | `schemas.layer1.yaml` | No                               | Serialization authority only (row shape/keys)                    |
+| Data Dictionary entries (S4 logs)                                                                                                                                                                                            | Define dataset IDs, **partitions** `{seed, parameter_hash, run_id}`, writer sort | Dictionary              | authority | Data Dictionary       | No                               | Paths, partitions, writer sort; **file order non-authoritative** |
 
 ### 2B.3 Upstream runtime surfaces S4 must read (gates & facts) — **N**
 
-| Name                               | Role in S4                             | Kind                     | Partitions / Scope               | Source of truth | Participates in `parameter_hash` | Notes                         |                         |                                                   |
-|------------------------------------|----------------------------------------|--------------------------|----------------------------------|-----------------|----------------------------------|-------------------------------|-------------------------|---------------------------------------------------|
-| S1 hurdle events                   | **Gate**: `is_multi = true` ⇒ in scope | RNG log                  | `{seed, parameter_hash, run_id}` | S1 producer     | No                               | Path↔embed equality on read   |                         |                                                   |
-| S2 `nb_final`                      | **Fixes** `N ≥ 2` (non-consuming)      | RNG log                  | `{seed, parameter_hash, run_id}` | S2 producer     | No                               | Single finaliser per merchant |                         |                                                   |
-| S3 `crossborder_eligibility_flags` | **Gate**: `is_eligible = true`         | Parameter-scoped dataset | `parameter_hash`                 | S3 producer     | No                               | Deterministic, no RNG         |                         |                                                   |
-| S3 `candidate_set`                 | Defines admissible universe size **A** | Parameter-scoped dataset | `parameter_hash`                 | S3 producer     | No                               | \*\*A :=                      | candidate_set \ {home} | \*\* (S4 uses **A** only for `A=0` short-circuit) |
+| Name                               | Role in S4                             | Kind                     | Partitions / Scope               | Source of truth | Notes                                                                                         |
+|------------------------------------|----------------------------------------|--------------------------|----------------------------------|-----------------|-----------------------------------------------------------------------------------------------|
+| S1 hurdle events                   | **Gate**: `is_multi = true` ⇒ in scope | RNG log                  | `{seed, parameter_hash, run_id}` | S1 producer     | Enforce path↔embed equality on read                                                           |
+| S2 `nb_final`                      | **Fixes** `N ≥ 2` (non-consuming)      | RNG log                  | `{seed, parameter_hash, run_id}` | S2 producer     | Exactly one non-consuming finaliser per merchant                                              |
+| S3 `crossborder_eligibility_flags` | **Gate**: `is_eligible = true`         | Parameter-scoped dataset | `parameter_hash`                 | S3 producer     | Deterministic; no RNG                                                                         |
+| S3 `candidate_set`                 | Defines admissible universe size **A** | Parameter-scoped dataset | `parameter_hash`                 | S3 producer     | **A := size(S3.candidate_set \ {home})** (foreigns only). S4 uses **A** only for the `A=0` check |
 
 ### 2B.4 Hard literals & spec constants (breaking if changed) — **N**
 
@@ -255,6 +257,8 @@ Pairing and replay are determined **only by counters** in the RNG envelopes (hi/
 |-----------------------|-----------------------------------------------------------------------|------------------|----------------------------------|----------------------------------|--------------------------------------------------------------------------------------------------------------------------------|
 | `rng_trace_log`       | **Cumulative** budget/coverage totals per `(module, substream_label)` | RNG trace stream | `{seed, parameter_hash, run_id}` | No                               | **MUST append exactly one row after every S4 event append** (saturating)                                                       |
 | Run counters (`s4.*`) | Ops/telemetry                                                         | Values           | per-run                          | No                               | e.g., `s4.merchants_in_scope`, `s4.accepted`, `s4.rejections`, `s4.retry_exhausted`, `s4.policy.*`, `s4.ms.*`, `s4.trace.rows` |
+
+**Definition.** "Saturating totals" = cumulative counters that never decrease per `(module, substream_label)`; validators reconcile these against event budgets.
 
 **BOM discipline (MUST).**
 
@@ -283,8 +287,9 @@ Pairing and replay are determined **only by counters** in the RNG envelopes (hi/
 * **ZTP link parameters** `θ = (θ₀, θ₁, θ₂, …)` — real-valued; **governed**.
   **MUST.** The bytes of `θ` **participate in `parameter_hash`**.
   **Informative.** Governance MAY prefer a sub-linear size effect; this is **not** a protocol constraint.
-* **Merchant feature** `X_m ∈ [0,1]` (e.g., “openness”) — governed mapping & provenance (document monotone transform, cohort, scaling).
+* **Merchant feature** `X_m ∈ [0,1]` (e.g., "openness") — governed mapping & provenance (document monotone transform, cohort, scaling).
   **Default.** If `X_m` is missing, **MUST use `X_m := 0.0`**. A different default MAY be supplied by governance and **MUST** participate in `parameter_hash`.
+  **Precedence.** If governance provides `X_default`, it **overrides** 0.0; otherwise **use 0.0**.
 * **Exhaustion cap** `MAX_ZTP_ZERO_ATTEMPTS ∈ ℕ⁺` — **governed** (default **64**); **participates** in `parameter_hash`.
 * **Exhaustion policy** `ztp_exhaustion_policy ∈ {"abort","downgrade_domestic"}` — **governed**; **participates** in `parameter_hash`.
 
@@ -386,13 +391,14 @@ S4 is a **logs-only** producer. It emits **RNG event rows** (serialization per J
 
 1. **`poisson_component`** (with `context:"ztp"`) — **consuming** attempt rows.
    **Payload (minimum):** `{ merchant_id, attempt:int≥1, k:int≥0, lambda_extra:float64, regime:"inversion"|"ptrs" }`
+   **Domain:** `merchant_id` is **int64** per ingress `merchant_ids` (see `schemas.ingress.layer1.yaml#/merchant_ids`).
    **Envelope (minimum):** `{ ts_utc, module, substream_label, context, before, after, blocks, draws }`.
 2. **`ztp_rejection`** — **non-consuming** marker for a **zero** draw.
    **Payload:** `{ merchant_id, attempt, k:0, lambda_extra }` + non-consuming envelope.
 3. **`ztp_retry_exhausted`** — **non-consuming** marker when the zero-draw **cap** is hit.
    **Payload:** `{ merchant_id, attempts:int, lambda_extra }` + non-consuming envelope.
 4. **`ztp_final`** — **non-consuming** **finaliser** that **fixes** the outcome for the merchant.
-   **Payload:** `{ merchant_id, K_target:int, lambda_extra, attempts:int, regime, exhausted?:bool }` + non-consuming envelope.
+   **Payload:** `{ merchant_id, K_target:int, lambda_extra, attempts:int, regime, exhausted?:bool [ , reason:"no_admissible"]? }` + non-consuming envelope.
 
 ### Partitioning & path↔embed equality (MUST).
 
@@ -414,7 +420,7 @@ S4 is a **logs-only** producer. It emits **RNG event rows** (serialization per J
 ### Zero-row discipline & idempotence (MUST).
 
 * **Zero-row files are forbidden.** If no rows are produced for a slice, write nothing.
-* Re-runs with identical inputs produce byte-identical content; if the partition already exists and is complete, the writer **must** no-op (“skip-if-final”).
+* Re-runs with identical inputs produce byte-identical content; if the partition already exists and is complete, the writer **must** no-op ("skip-if-final").
 
 ### Non-authority of file order (MUST).
 **File order is non-authoritative;** pairing/replay **MUST** use **envelope counters** (hi/lo and deltas) only.
@@ -458,6 +464,7 @@ After each S4 event append, append exactly **one** cumulative `rng_trace_log` ro
 **Trace duty (MUST).**
 
 * **After each S4 event append, append exactly one cumulative `rng_trace_log` record** (saturating totals) for **`(module, substream_label)`**.
+* **Responsibility:** the writer that commits the event row **MUST** immediately append the single cumulative `rng_trace_log` row; higher-level sinks **MUST NOT** emit additional trace rows.
 
 ---
 
@@ -534,7 +541,9 @@ For each merchant **m** on the multi-site, cross-border path, S4 deterministical
 If **`A_m = 0`**, S4 **MUST NOT** sample. It **MUST** immediately write a **non-consuming**
 `ztp_final{ K_target=0, lambda_extra: computed λ (see 9.3), attempts:0, regime: "inversion"|"ptrs" (from λ), exhausted:false [ , reason:"no_admissible"]? }`
 and **skip** S6 (domestic-only downstream).
-*Note:* Computing λ is still required for observability/trace uniformity (see 9.3). The optional `reason` field is written **only if present** in the schema.
+
+*Note:* Computing λ is still required for observability/trace uniformity; the optional `reason` field is written **only if present** in the schema.
+The `regime` is derived once from λ for observability/validator uniformity; it **does not imply** that a Poisson attempt occurred.
 
 ---
 
@@ -636,7 +645,7 @@ For each `(seed, parameter_hash, run_id)`:
 
 ## 9A) Universe awareness & short-circuits
 
-### What “A” is (precise).
+### What "A" is (precise).
 Let **`A := size(S3.candidate_set \ {home})`** be the count of *foreign* ISO2s in the merchant’s admissible universe (home excluded). S4 **does not** use `candidate_rank` here—only the set size.
 
 ### How S4 obtains A (read-side discipline).
@@ -925,13 +934,15 @@ Use these values-only keys for failure lines:
 ```
 s4.fail.code, s4.fail.scope, s4.fail.reason,
 s4.fail.attempts, s4.fail.lambda_extra, s4.fail.regime,
-s4.run.seed, s4.run.parameter_hash, s4.run.run_id, s4.run.fingerprint,
+s4.run.seed, s4.run.parameter_hash, s4.run.run_id, s4.run.manifest_fingerprint,
 s4.fail.merchant_id?
 ```
 
 ### 12.5 Mapping to validation — **Informative**
 
 Validator checks for `ATTEMPT_GAPS`, `FINAL_MISSING`, `RNG_ACCOUNTING`, `TRACE_MISSING` mirror these producer codes; failures should correlate 1:1.
+
+**Informative.** S4 codes are the canonical names for this state and appear **as-is** in the global ledger; the run’s failure record also carries the S0 global `failure_class` per the validation schema.
 
 ---
 
@@ -999,6 +1010,7 @@ s4.merchant.summary = {
 * Increment outcome counters **exactly once per merchant**: on writing `ztp_final` (accepted/downgrade/short-circuit) **or** on logging `ZTP_EXHAUSTED_ABORT`.
 * Update attempt/rejection counters **immediately after** writing each corresponding row.
 * Write histogram samples **once per merchant** at resolution (on final/abort).
+* **Emission responsibility:** Metrics **MUST** be emitted by the same process that writes the event rows, **after** the event fsync completes.
 
 ### 13.7 Cardinality & privacy — **MUST**
 
@@ -1025,31 +1037,32 @@ All metrics are emitted as structured values (e.g., JSON lines) with the lineage
 
 ### 14.1 Streams S4 **writes** (logs-only)
 
-| Stream ID                                             | Schema anchor (authoritative)                         | Partitions (path keys)         | Required envelope fields (all rows)                                      | Required payload (minimum)                                                                                                                  | Writer sort keys (stable)     | Consumers                                             |
-|-------------------------------------------------------|-------------------------------------------------------|--------------------------------|--------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------|-------------------------------------------------------|
-| `rng/events/poisson_component` (with `context:"ztp"`) | `schemas.layer1.yaml#/rng/events/poisson_component`   | `seed, parameter_hash, run_id` | `ts_utc, module, substream_label, context, before, after, blocks, draws` | `{ merchant_id, attempt:int≥1, k:int≥0, lambda_extra:float64, regime:"inversion" \| "ptrs" }`                                          | `(merchant_id, attempt)`      | S4 validator, observability                           |
-| `rng/events/ztp_rejection`                            | `schemas.layer1.yaml#/rng/events/ztp_rejection`       | `seed, parameter_hash, run_id` | *(same envelope fields as above)*                                        | `{ merchant_id, attempt:int≥1, k:0, lambda_extra }`                                                                                         | `(merchant_id, attempt)`      | S4 validator, observability                           |                                                       |
-| `rng/events/ztp_retry_exhausted`                      | `schemas.layer1.yaml#/rng/events/ztp_retry_exhausted` | `seed, parameter_hash, run_id` | *(same envelope fields as above)*                                        | `{ merchant_id, attempts:int≥1, lambda_extra }`                                                                                             | `(merchant_id, attempts)`     | S4 validator, observability                           |                                                       |
-| `rng/events/ztp_final`                                | `schemas.layer1.yaml#/rng/events/ztp_final`           | `seed, parameter_hash, run_id` | *(same envelope fields as above)*                                        | `{ merchant_id, K_target:int≥0, lambda_extra:float64, attempts:int≥0, regime:"inversion" \| "ptrs", exhausted?:bool, reason?:str }` | `(merchant_id)`               | **S6** (reads `K_target,…`), validator, observability |
+| Stream ID                                             | Schema anchor (authoritative)                         | Partitions (path keys)                     | Required envelope fields (all rows)                                      | Required payload (minimum)                                                                                                                          | Writer sort keys (stable)                                               | Consumers                                             |
+|-------------------------------------------------------|-------------------------------------------------------|--------------------------------------------|--------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------|-------------------------------------------------------|
+| `rng/events/poisson_component` (with `context:"ztp"`) | `schemas.layer1.yaml#/rng/events/poisson_component`   | `seed, parameter_hash, run_id`             | `ts_utc, module, substream_label, context, before, after, blocks, draws` | `{ merchant_id, attempt:int≥1, k:int≥0, lambda_extra:float64, regime:"inversion" \| "ptrs" }`                                                       | `(merchant_id, attempt)`                                                | S4 validator, observability                           |
+| `rng/events/ztp_rejection`                            | `schemas.layer1.yaml#/rng/events/ztp_rejection`       | `seed, parameter_hash, run_id`             | *(same envelope fields as above)*                                        | `{ merchant_id, attempt:int≥1, k:0, lambda_extra }`                                                                                                 | `(merchant_id, attempt)`                                                | S4 validator, observability                           |
+| `rng/core/rng_trace_log`                              | `schemas.layer1.yaml#/rng/core/rng_trace_log`         | `seed, parameter_hash, run_id`             | `ts_utc, module, substream_label`                                        | `{ module, substream_label, rng_counter_after_hi:u128, rng_counter_after_lo:u128 }`                                                                 | `(module, substream_label, rng_counter_after_hi, rng_counter_after_lo)` | S4 validator, observability                           |
+| `rng/events/ztp_retry_exhausted`                      | `schemas.layer1.yaml#/rng/events/ztp_retry_exhausted` | `seed, parameter_hash, run_id`             | *(same envelope fields as above)*                                        | `{ merchant_id, attempts:int≥1, lambda_extra }`                                                                                                     | `(merchant_id, attempts)`                                               | S4 validator, observability                           |
+| `rng/events/ztp_final`                                | `schemas.layer1.yaml#/rng/events/ztp_final`           | `seed, parameter_hash, run_id`             | *(same envelope fields as above)*                                        | `{ merchant_id, K_target:int≥0, lambda_extra:float64, attempts:int≥0, regime:"inversion" \| "ptrs", exhausted?:bool [ , reason:"no_admissible"]? }` | `(merchant_id)`                                                         | **S6** (reads `K_target,…`), validator, observability |
 
 **MUST.**
 
 * **Path↔embed equality:** Embedded `{seed, parameter_hash, run_id}` **must equal** path tokens **byte-for-byte**.
-* **Label registry:** `module`, `substream_label`, `context` **must** match §2A’s frozen literals for all four streams.
-* **Zero-row files are forbidden:** If a slice is empty, write nothing.
+* **Label registry:** `module`, `substream_label`, `context` **must** match §2A’s frozen literals for **all streams**.
 * **File order is non-authoritative:** Pairing/replay **MUST** use **envelope counters** only.
 * **Trace duty:** After each event append, **append exactly one** cumulative `rng_trace_log` row (see §§7/10).
+* **Failure records sink:** On abort, write values-only `failure.json` under the S0 bundle path `data/layer1/1A/validation/failures/fingerprint={manifest_fingerprint}/seed={seed}/run_id={run_id}/` using the payload keys in §12.1/§12.4. *(Not a stream.)*
 
 ---
 
 ### 14.2 Surfaces S4 **reads** (gates / facts)
 
-| Surface                            | Schema anchor                                       | Partitions                     | What S4 uses (only)                                                                          | Notes                             |
-|------------------------------------|-----------------------------------------------------|--------------------------------|----------------------------------------------------------------------------------------------|-----------------------------------|
-| S1 hurdle events                   | `schemas.layer1.yaml#/rng/events/hurdle_bernoulli`  | `seed, parameter_hash, run_id` | **Gate:** `is_multi==true` to enter S4                                                       | S4 writes nothing for singles     |
-| S2 `nb_final`                      | `schemas.layer1.yaml#/rng/events/nb_final`          | `seed, parameter_hash, run_id` | **Fact:** authoritative `N_m≥2` (non-consuming; one per merchant)                            | Read-only; S4 must not alter `N`  |
-| S3 `crossborder_eligibility_flags` | `schemas.1A.yaml#/s3/crossborder_eligibility_flags` | `parameter_hash`               | **Gate:** `is_eligible==true`                                                                | Deterministic; no RNG             |
-| S3 `candidate_set`                 | `schemas.1A.yaml#/s3/candidate_set`                 | `parameter_hash`               | **Context:**  `A := size(candidate_set \ {home})` (foreign count only); S4 doesn’t use order | File order non-authoritative      |
+| Surface                            | Schema anchor                                       | Partitions                     | What S4 uses (only)                                                                             | Notes                            |
+|------------------------------------|-----------------------------------------------------|--------------------------------|-------------------------------------------------------------------------------------------------|----------------------------------|
+| S1 hurdle events                   | `schemas.layer1.yaml#/rng/events/hurdle_bernoulli`  | `seed, parameter_hash, run_id` | **Gate:** `is_multi==true` to enter S4                                                          | S4 writes nothing for singles    |
+| S2 `nb_final`                      | `schemas.layer1.yaml#/rng/events/nb_final`          | `seed, parameter_hash, run_id` | **Fact:** authoritative `N_m≥2` (non-consuming; one per merchant)                               | Read-only; S4 must not alter `N` |
+| S3 `crossborder_eligibility_flags` | `schemas.1A.yaml#/s3/crossborder_eligibility_flags` | `parameter_hash`               | **Gate:** `is_eligible==true`                                                                   | Deterministic; no RNG            |
+| S3 `candidate_set`                 | `schemas.1A.yaml#/s3/candidate_set`                 | `parameter_hash`               | **Context:**  `A := size(S3.candidate_set \ {home})` (foreign count only); S4 doesn’t use order | File order non-authoritative     |
 
 **MUST.** When reading S1/S2 logs, enforce **path↔embed** equality on `{seed, parameter_hash, run_id}`; treat violations as structural failures (run-scoped).
 
@@ -1057,7 +1070,7 @@ All metrics are emitted as structured values (e.g., JSON lines) with the lineage
 
 ### 14.3 Ordering & idempotence requirements (writer)
 
-* **Sort before write** per table above; merges must be **stable** w\.r.t. sort keys.
+* **Sort before write** per table above; merges must be **stable** w.r.t. sort keys.
 * **Skip-if-final:** if a complete partition already exists with byte-identical content, **no-op**.
 * **Uniqueness per merchant:** ≤1 `poisson_component` per `(merchant_id, attempt)`; ≤1 `ztp_rejection` per `(merchant_id, attempt)`; ≤1 `ztp_retry_exhausted`; ≤1 `ztp_final` if the merchant is **resolved** (absent only under hard abort).
 
@@ -1082,10 +1095,11 @@ All metrics are emitted as structured values (e.g., JSON lines) with the lineage
   **Informative.** Governance MAY prefer a sub-linear size effect; this is **not** a protocol constraint.
 * **Intensity:** $\lambda_{\text{extra}}=\exp(\eta)$ (**finite, >0** required).
 * **Regime (spec-fixed threshold):**
-
   * If $\lambda_{\text{extra}} < 10$ → `regime="inversion"`
   * Else (including `==10`) → `regime="ptrs"`
     Regime is **fixed per merchant** (no switching mid-loop).
+  *(Primary rule.)* See **§15.6 Payload constancy within a merchant** for the one-time evaluation and constancy of `regime` and `lambda_extra`.
+* **Informative.** PTRS constants are normative and pinned upstream in **S0.3.7**; **S2 §3.2** implements that profile for NB Poisson.
 
 ---
 
@@ -1297,7 +1311,7 @@ Require a **major** bump + migration (see §19.5):
 ### 19.4 Deprecation policy — **MUST**
 
 * Any additive field later removed is **breaking**.
-* Announce deprecations as **“present but ignored”** for at least **one minor** release before removal; keep validators tolerant during the window.
+* Announce deprecations as **"present but ignored"** for at least **one minor** release before removal; keep validators tolerant during the window.
 * Record deprecations in the **Data Dictionary** and **artefact registry** changelog.
 
 ### 19.5 Migration playbook (for breaking changes) — **MUST**
@@ -1325,7 +1339,7 @@ Require a **major** bump + migration (see §19.5):
 
 ### 19.6 Coexistence rules — **MUST**
 
-* Consumers **must** pin on one of: `(module, schema version)` or `(context, schema version)`; never “best-effort”.
+* Consumers **must** pin on one of: `(module, schema version)` or `(context, schema version)`; never "best-effort".
 * Producers **must not** interleave v1 and v2 rows within the same `(seed, parameter_hash, run_id)` partition.
 
 ### 19.7 Consumer & validator impact — **MUST**
@@ -1388,7 +1402,7 @@ From `ztp_final` for merchant *m*:
 
 * *MUST NOT* derive **`K_target`** by counting Poisson attempts or rejections; the **only** authoritative target is `ztp_final.K_target`. *(S6 later realises `K_realized = min(K_target, A)`.)*
 * *MUST NOT* treat `lambda_extra` as a probabilistic weight for later selection.
-* *MUST NOT* exceed `A` when realising K (enforced in S6 via `min(K_target, A)`).
+* *MUST NOT* exceed `A` when realising K (enforced in **S6 (Top-K selection)** via `min(K_target, A)`).
 * *MUST NOT* process a merchant **without a `ztp_final`** (e.g., `NUMERIC_INVALID` or cap + policy=`"abort"`).
 
 ### 20.6 Lineage continuity (MUST).
@@ -1404,7 +1418,8 @@ All downstream states (S6+) *must* carry forward `{seed, parameter_hash, run_id}
 * `regime ∈ {"inversion","ptrs"}` — Poisson sampler branch; set once per merchant from the λ threshold.
 * `context == "ztp"` — fixed context string on all S4 events.
 * `module == "1A.s4.ztp"`, `substream_label == "poisson_component"` — fixed label literals (see §2A).
-* `reason ∈ {"no_admissible"}` — optional `ztp_final` payload enum for A=0 short-circuit.
+* `reason ∈ {"no_admissible"}` — optional `ztp_final` payload enum for A=0 short-circuit. 
+  *(Schema presence.)* The `reason` field is optional and **absent in this schema version**; adding it in a later schema revision is **additive-safe**; this document fixes the vocabulary in advance.
 
 ### 21.2 Terms (precise meanings) — MUST/SHOULD
 
@@ -1432,8 +1447,8 @@ All downstream states (S6+) *must* carry forward `{seed, parameter_hash, run_id}
 
 ### 21.4 Prohibitions (terminology drift) — MUST NOT
 
-* *MUST NOT* call `K_target` “realised K” in S4; **only S6** realises K vis-à-vis `A`.
-* *MUST NOT* use “probability” for `base_weight_dp` (priors live outside S4); S4 has no priors and no Dirichlet.
-* *MUST NOT* use “order” to describe any S4 output; cross-country order belongs exclusively to S3 `candidate_rank`.
+* *MUST NOT* call `K_target` "realised K" in S4; **only S6** realises K vis-à-vis `A`.
+* *MUST NOT* use "probability" for `base_weight_dp` (priors live outside S4); S4 has no priors and no Dirichlet.
+* *MUST NOT* use "order" to describe any S4 output; cross-country order belongs exclusively to S3 `candidate_rank`.
 
 ---
