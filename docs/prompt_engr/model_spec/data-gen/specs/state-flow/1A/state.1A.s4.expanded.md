@@ -167,6 +167,7 @@ For 1A, **JSON-Schema is the only schema authority**. Every dataset/stream S4 re
 * `schemas.layer1.yaml#/rng/events/ztp_rejection` — **non-consuming** zero-draw marker (`k=0`, `attempt`).
 * `schemas.layer1.yaml#/rng/events/ztp_retry_exhausted` — **non-consuming** cap-hit marker (`attempts=…`).
 * `schemas.layer1.yaml#/rng/events/ztp_final` — **non-consuming** finaliser fixing `{K_target, lambda_extra, attempts, regime, exhausted?}` for the merchant (mirrors S2’s non-consuming finaliser pattern).
+* `schemas.layer1.yaml#/rng/core/rng_trace_log` — **trace stream** with cumulative totals per `(module, substream_label)`; append **exactly one** row after each S4 event (saturating).
 
 ### What S4 reads / gates it respects.
 
@@ -384,8 +385,8 @@ $$
 ## 6) Outputs (streams) & partitions
 
 ### What S4 writes.
-S4 is a **logs-only** producer. It emits **RNG event rows** (serialization per JSON-Schema). **No 1A egress tables.** Every S4 stream is partitioned by
-**`{ seed, parameter_hash, run_id }`**, and each row carries a full **RNG envelope**.
+S4 is a **logs-only** producer. It emits **RNG event rows** (serialization per JSON-Schema). **No 1A egress tables.** 
+Every S4 stream is partitioned by **`{ seed, parameter_hash, run_id }`**. Every S4 **event** row carries a full **RNG envelope**; trace rows carry only `ts_utc, module, substream_label` and cumulative counters per **§14.1**.
 
 ### Streams (authoritative event anchors).
 
@@ -746,7 +747,7 @@ Logs only, all partitioned by `{seed, parameter_hash, run_id}` with a full RNG *
 * `ztp_final`: **non-consuming** finaliser that **fixes** `{K_target, …}`.
 
 ### 10.2 Envelope fields (MUST).
-Every S4 row **must** carry:
+Every S4 event row **must** carry:
 
 * `ts_utc` (microsecond; observational only—never used for ordering).
 * `module`, `substream_label`, `context` — **must match** the frozen identifiers in §2A.
@@ -887,7 +888,7 @@ Each failure record **MUST** include:
   code,
   scope ∈ {"merchant","run"},
   reason : str,
-  merchant_id? : u64,
+  merchant_id? : int64,
   seed : u64, parameter_hash : hex64, run_id : str, manifest_fingerprint : hex64,
   attempts? : int,          // present if any attempts occurred; 0 for A=0 short-circuit; omitted otherwise
   lambda_extra? : float64,  // present if computed (§9.3) or any attempts were made
@@ -1047,11 +1048,15 @@ All metrics are emitted as structured values (e.g., JSON lines) with the lineage
 
 **MUST.**
 
-* **Path↔embed equality:** Embedded `{seed, parameter_hash, run_id}` **must equal** path tokens **byte-for-byte**.
-* **Label registry:** `module`, `substream_label`, `context` **must** match §2A’s frozen literals for **all streams**.
+* **Path↔embed equality:** For **event streams**, embedded `{seed, parameter_hash, run_id}` **must equal** path tokens **byte-for-byte**.  
+  `rng_trace_log` **omits** these fields by design; lineage equality for trace rows is enforced via the partition path keys.
+* **Label registry:** For **event streams**, `module`, `substream_label`, `context` **must** match §2A’s frozen literals.  
+  `rng_trace_log` carries only `module` and `substream_label` (no `context`).
 * **File order is non-authoritative:** Pairing/replay **MUST** use **envelope counters** only.
 * **Trace duty:** After each event append, **append exactly one** cumulative `rng_trace_log` row (see §§7/10).
 * **Failure records sink:** On abort, write values-only `failure.json` under the S0 bundle path `data/layer1/1A/validation/failures/fingerprint={manifest_fingerprint}/seed={seed}/run_id={run_id}/` using the payload keys in §12.1/§12.4. *(Not a stream.)*
+
+**Schema versioning note.** The optional `reason:"no_admissible"` field on `ztp_final` is **present only** in schema versions that include it (per §21.1 it is absent in this version). Its mention in the table is **forward-compatible**; producers must omit it unless the bound schema version defines it.
 
 ---
 
