@@ -33,7 +33,7 @@
 
 ```
 S1 hurdle      S3 eligibility        S3 admissible set size A
-is_multi? ──►  is_eligible? ──►  compute A := |candidate_set \ {home}|
+is_multi? ──►  is_eligible? ──►  compute A := size(candidate_set \ {home})
    │ no             │ no                     │
    └──────────► BYPASS S4 (domestic only) ◄──┘
 
@@ -44,7 +44,7 @@ is_multi? ──►  is_eligible? ──►  compute A := |candidate_set \ {home
   λ = exp(η) ; if non-finite/≤0 → NUMERIC_INVALID (abort S4 for m)
 
                  ▼
-       A == 0 ? ────────────── yes ──►  emit ztp_final{K_target=0, reason="no_admissible"} (non-consuming)
+       A == 0 ? ────────────── yes ──►  emit ztp_final{K_target=0[, reason:"no_admissible"]?} (non-consuming)
            │ no
            ▼
      ZTP attempt loop (attempt = 1..)
@@ -74,7 +74,7 @@ is_multi? ──►  is_eligible? ──►  compute A := |candidate_set \ {home
 
 * **S1 hurdle** (gate): `is_multi=true` ⇒ in scope.
 * **S2 `nb_final`** (fact): authoritative **`N ≥ 2`** (non-consuming).
-* **S3 eligibility** (gate) and **A** definition: **`A := |candidate_set \ {home}|`**.
+* **S3 eligibility** (gate) and **A** definition: **`A := size(candidate_set \ {home})`**.
 * **Hyper-parameters** `θ`, **cap** `MAX_ZTP_ZERO_ATTEMPTS` (governed), **policy** `ztp_exhaustion_policy`.
 * **Features** `X ∈ [0,1]` (default **0.0** if missing).
 
@@ -91,7 +91,7 @@ is_multi? ──►  is_eligible? ──►  compute A := |candidate_set \ {home
 ### Hard literals & regimes (so no one guesses)
 
 * **module:** `1A.s4.ztp`
-* **substream\_label:** `poisson_component`
+* **substream_label:** `poisson_component`
 * **context:** `"ztp"`
 * **Poisson regimes:** **Inversion** if `λ < 10`, **PTRS** if `λ ≥ 10` (spec-fixed threshold/constants).
 * **Budget law:** `draws` = uniforms consumed; `blocks` = `after − before`.
@@ -102,7 +102,7 @@ is_multi? ──►  is_eligible? ──►  compute A := |candidate_set \ {home
 ### Handoff (what downstream consumes)
 
 * S4 exports **`K_target`** (or `K_target=0` via `A=0` short-circuit or policy **downgrade**).
-* **S6 MUST realise** `K* = min(K_target, A)` (select up to `K*` foreigns); S5/S6 own selection/weights.
+* **S6 MUST realise** `K* = min(K_target, A)` (select up to `K*` foreigns); S6 owns selection/weights.
 * S4 **never** encodes inter-country order (still only in S3 `candidate_rank`).
 
 ---
@@ -115,6 +115,7 @@ For each merchant `m` on the eligible multi-site branch, compute a deterministic
 $$
 \eta_m=\theta_0+\theta_1\log N_m+\theta_2 X_m+\cdots\quad\text{(binary64, fixed order)}
 $$
+**MUST.** Enforce **θ₁ ∈ (0,1)** (sub-linear size effect).
 
 and set $\lambda_{\text{extra},m}=\exp(\eta_m)>0$; then **sample ZTP** by drawing from Poisson$(\lambda)$ and **rejecting zeros** until acceptance or a governed **zero-draw cap** is hit. Record the attempt stream(s), zero-rejection markers, and a **non-consuming finaliser** that fixes **`K_target`** and run facts. S4 writes **no Parquet egress**—only RNG event logs under dictionary partitions `{seed, parameter_hash, run_id}`.
 **By definition ZTP yields `K ≥ 1`; `K_target = 0` occurs only via (a) the `A=0` short-circuit or (b) the exhaustion policy = `"downgrade_domestic"` (never from ZTP itself).**
@@ -141,7 +142,7 @@ and set $\lambda_{\text{extra},m}=\exp(\eta_m)>0$; then **sample ZTP** by drawin
 ### Branch & universe awareness (clarifying notes).
 
 * **Definition of the admissible foreign universe.** Let **`A := |S3.candidate_set \ {home}|`**.
-* **Eligibility short-circuit (`A=0`).** If **A=0** for a merchant, S4 **MUST NOT** sample and **MUST** resolve the merchant with a finaliser carrying **`K_target=0`** and `reason="no_admissible"` (domestic-only downstream).
+* **Eligibility short-circuit (`A=0`).** If **A=0** for a merchant, S4 **MUST NOT** sample and must resolve the merchant with a **finaliser carrying `K_target=0`** and, if the schema includes this optional field, `reason:"no_admissible"` (domestic-only downstream).
 * **Cap governance.** The zero-draw cap **`MAX_ZTP_ZERO_ATTEMPTS`** is a **governed value** (default **64**) that **participates in `parameter_hash`**; the **exhaustion policy** `ztp_exhaustion_policy ∈ {"abort","downgrade_domestic"}` is also governed and participates in `parameter_hash`.
 
 ### Hand-off contract (forward-looking pointer).
@@ -191,7 +192,7 @@ Pairing and replay are determined **only by counters** in the RNG envelopes (hi/
 
 > These literals fix **module / substream / context** so replay and budgeting are stable across releases. Changing any is a **breaking change**.
 
-| Stream                           | **module**  | **substream\_label** | **context** |
+| Stream                           | **module**  | **substream_label** | **context** |
 |----------------------------------|-------------|----------------------|-------------|
 | `rng/events/poisson_component`   | `1A.s4.ztp` | `poisson_component`  | `"ztp"`     |
 | `rng/events/ztp_rejection`       | `1A.s4.ztp` | `poisson_component`  | `"ztp"`     |
@@ -235,7 +236,7 @@ Pairing and replay are determined **only by counters** in the RNG envelopes (hi/
 | S1 hurdle events                   | **Gate**: `is_multi = true` ⇒ in scope | RNG log                  | `{seed, parameter_hash, run_id}` | S1 producer     | No                               | Path↔embed equality on read   |                         |                                                   |
 | S2 `nb_final`                      | **Fixes** `N ≥ 2` (non-consuming)      | RNG log                  | `{seed, parameter_hash, run_id}` | S2 producer     | No                               | Single finaliser per merchant |                         |                                                   |
 | S3 `crossborder_eligibility_flags` | **Gate**: `is_eligible = true`         | Parameter-scoped dataset | `parameter_hash`                 | S3 producer     | No                               | Deterministic, no RNG         |                         |                                                   |
-| S3 `candidate_set`                 | Defines admissible universe size **A** | Parameter-scoped dataset | `parameter_hash`                 | S3 producer     | No                               | \*\*A :=                      | candidate\_set \ {home} | \*\* (S4 uses **A** only for `A=0` short-circuit) |
+| S3 `candidate_set`                 | Defines admissible universe size **A** | Parameter-scoped dataset | `parameter_hash`                 | S3 producer     | No                               | \*\*A :=                      | candidate_set \ {home} | \*\* (S4 uses **A** only for `A=0` short-circuit) |
 
 ### 2B.4 Hard literals & spec constants (breaking if changed) — **N**
 
@@ -281,7 +282,7 @@ Pairing and replay are determined **only by counters** in the RNG envelopes (hi/
 
 * **ZTP link parameters** `θ = (θ₀, θ₁, θ₂, …)` — real-valued; **governed**.
   **MUST.** The bytes of `θ` **participate in `parameter_hash`**.
-  **Informative.** Governance MAY prefer sub-linear size effect; this is not a protocol constraint.
+  **MUST.** The size-effect coefficient satisfies **θ₁ ∈ (0,1)** (sub-linear w.r.t. `log N`).
 * **Merchant feature** `X_m ∈ [0,1]` (e.g., “openness”) — governed mapping & provenance (document monotone transform, cohort, scaling).
   **Default.** If `X_m` is missing, **MUST use `X_m := 0.0`**. A different default MAY be supplied by governance and **MUST** participate in `parameter_hash`.
 * **Exhaustion cap** `MAX_ZTP_ZERO_ATTEMPTS ∈ ℕ⁺` — **governed** (default **64**); **participates** in `parameter_hash`.
@@ -347,8 +348,8 @@ $$
 ### 5.3 Draw outcomes (targets vs realisation)
 
 * `K_target,m ∈ {0,1,2,…}` — result recorded by S4:
-  **ZTP yields `K≥1`;** `K_target=0` appears only from **A=0 short-circuit** or policy **"downgrade\_domestic"** (never from ZTP itself).
-* `K_realized,m = min(K_target,m, A_m)` — applied later by **S6** (top-K selection).
+  **ZTP yields `K≥1`;** `K_target=0` appears only from **A=0 short-circuit** or policy **"downgrade_domestic"** (never from ZTP itself).
+* `K_realized,m = min(K_target, A_m)` — applied later by **S6** (top-K selection).
 
 ### 5.4 Attempting & regimes
 
@@ -473,8 +474,7 @@ After each S4 event append, append exactly **one** cumulative `rng_trace_log` ro
   in **binary64** with a **fixed operation order**.
 * Set $\lambda_{\text{extra},m} = \exp(\eta_m)$. If $\lambda$ is **NaN/Inf/≤0**, fail the merchant in S4 with `NUMERIC_INVALID`.
 
-### Informative (governance guidance).
-Governance MAY prefer sub-linear size effect (e.g., θ₁ tuned to <1), but this is **not** a protocol constraint.
+**MUST.** The size-effect coefficient satisfies **θ₁ ∈ (0,1)** (sub-linear w.r.t. `log N`).
 
 ### Target distribution (ZTP) (MUST).
 
@@ -541,7 +541,7 @@ and **skip** S6 (domestic-only downstream).
 ### 9.3 Deterministic parameterisation — **MUST**
 
 * **Link:** $\eta_m = \theta_0 + \theta_1 \log N_m + \theta_2 X_m + \cdots$ evaluated in **binary64**, fixed operation order (no FMA/FTZ/DAZ).
-  **Informative:** Governance MAY prefer a sub-linear size effect; this is **not** a protocol constraint.
+  **MUST.** The size-effect coefficient satisfies **θ₁ ∈ (0,1)** (sub-linear w.r.t. `log N`).
 * **Intensity:** $\lambda_{\text{extra},m}=\exp(\eta_m)$.
 * **Guard:** If $\lambda$ is **NaN/Inf/≤0**, fail merchant in S4 with `NUMERIC_INVALID` (no attempts written).
 * **Regime selection (fixed threshold):** if $\lambda < 10$ ⇒ **regime = "inversion"**; else **"ptrs"**. The chosen **regime is constant per merchant** (no mid-loop switching).
@@ -568,8 +568,8 @@ Repeat until **acceptance** or **cap**:
 
    * If **`K_a == 0`**: **emit** a **non-consuming** `ztp_rejection{ merchant_id, attempt:a, k:0, lambda_extra }`.
      **Cap check (now):**
-     • If **`a == MAX_ZTP_ZERO_ATTEMPTS`** ⇒ **emit** a **non-consuming** `ztp_retry_exhausted{ merchant_id, attempts:a, lambda_extra }` and apply policy (see below).
-     • Else **set `a := a+1`** and continue.
+     - If **`a == MAX_ZTP_ZERO_ATTEMPTS`** ⇒ **emit** a **non-consuming** `ztp_retry_exhausted{ merchant_id, attempts:a, lambda_extra }` and apply policy (see below).
+     - Else **set `a := a+1`** and continue.
    * If **`K_a ≥ 1`** (**ACCEPT**): set `K_target := K_a`; **emit** a **non-consuming**
      `ztp_final{ merchant_id, K_target, lambda_extra, attempts:a, regime, exhausted:false }` and **STOP**.
 
@@ -602,7 +602,7 @@ Repeat until **acceptance** or **cap**:
 For a resolved merchant:
 
 * Either **`K_target ≥ 1`** via acceptance, with exactly one `ztp_final{…, exhausted:false}`, or
-* **`K_target = 0`** via **A=0** short-circuit or **"downgrade\_domestic"** policy, with exactly one `ztp_final{…, exhausted:true [ , reason:"no_admissible"]? }`, or
+* **`K_target = 0`** via **A=0** short-circuit or **"downgrade_domestic"** policy, with exactly one `ztp_final{…, exhausted:true [ , reason:"no_admissible"]? }`, or
 * **Abort** under `"abort"` policy at cap: **no `ztp_final`**; exactly one `ztp_retry_exhausted`.
 * In all acceptance/short-circuit/downgrade cases, **exactly one** `ztp_final` exists for the merchant.
 * No S4 Parquet products exist; only the four event streams.
@@ -685,7 +685,7 @@ fields from **`ztp_final`** for the merchant:
 * `lambda_extra : float64` — intensity used (audit/diagnostics; not a decision gate in S6).
 * `attempts : int≥0` — number of Poisson attempts written by S4 (0 iff short-circuit).
 * `regime : "inversion"|"ptrs"` — Poisson regime S4 used (closed enum).
-* `exhausted? : bool` — present and `true` only when cap hit and policy was **"downgrade\_domestic"**.
+* `exhausted? : bool` — present and `true` only when cap hit and policy was **"downgrade_domestic"**.
 
 ### What S6 must combine with its own inputs:
 
@@ -742,6 +742,7 @@ Every S4 row **must** carry:
 * `ts_utc` (microsecond; observational only—never used for ordering).
 * `module`, `substream_label`, `context` — **must match** the frozen identifiers in §2A.
 * `before` (u128), `after` (u128), `blocks` (u64), `draws` (decimal-u128 as **string**).
+* **MUST.** `draws` uses the S0 **canonical decimal-u128** format (no sign, no exponent, no leading zeros except `"0"`).
 * Path↔embed equality: embedded `{seed, parameter_hash, run_id}` **must equal** path tokens **byte-for-byte**.
 
 ### 10.3 Budget identities (MUST).
@@ -757,8 +758,8 @@ Every S4 row **must** carry:
 * If that attempt’s `k == 0`, write exactly **one** `ztp_rejection{attempt}` **after** the attempt row.
 * If that attempt’s `k ≥ 1` (acceptance), **no rejection marker** for that attempt; instead write exactly **one** `ztp_final{attempts := a}` after the attempt row.
 * If the **cap** is reached with all zeros, write exactly **one** `ztp_retry_exhausted{attempts := MAX}` and then:
-  • **no** `ztp_final` if policy=`"abort"`, or
-  • `ztp_final{K_target=0, exhausted:true}` if policy=`"downgrade_domestic"`.
+  - **no** `ztp_final` if policy=`"abort"`, or
+  - `ztp_final{K_target=0, exhausted:true}` if policy=`"downgrade_domestic"`.
 
 ### 10.5 Monotone, non-overlapping counters (MUST).
 
@@ -769,26 +770,26 @@ Every S4 row **must** carry:
 
 * **Attempt rows** (`poisson_component`, `ztp_rejection`): `attempt:int≥1`.
 * **Finaliser / cap rows** (`ztp_final`, `ztp_retry_exhausted`): `attempts:int≥0` (==0 only on A=0 short-circuit).
-* Common fields: `k:int≥0`, `K_target:int≥0`, `lambda_extra:float64 (finite, >0)`, `regime ∈ {"inversion","ptrs"}`.
+* Common fields (where present): `k:int≥0`, `K_target:int≥0`, `lambda_extra:float64 (finite, >0)`, `regime ∈ {"inversion","ptrs"}`.
 * For a given merchant, `lambda_extra` and `regime` **must** be identical across all S4 rows for that merchant (computed once in §9.3).
 
 ### 10.7 Writer sort & uniqueness (MUST).
 
 * Sort keys (as in §6):
-  • attempts/rejections by `(merchant_id, attempt)` (stable),
-  • cap marker by `(merchant_id, attempts)`,
-  • finaliser by `(merchant_id)`.
+  - attempts/rejections by `(merchant_id, attempt)` (stable),
+  - cap marker by `(merchant_id, attempts)`,
+  - finaliser by `(merchant_id)`.
 * Uniqueness constraints:
-  • ≤1 `poisson_component` per `(merchant_id, attempt)`,
-  • ≤1 `ztp_rejection` per `(merchant_id, attempt)`,
-  • ≤1 `ztp_retry_exhausted` per merchant,
-  • ≤1 `ztp_final` per **resolved** merchant.
+  - ≤1 `poisson_component` per `(merchant_id, attempt)`,
+  - ≤1 `ztp_rejection` per `(merchant_id, attempt)`,
+  - ≤1 `ztp_retry_exhausted` per merchant,
+  - ≤1 `ztp_final` per **resolved** merchant.
 
 ### 10.8 Trace duty (MUST).
 
 * After **each** S4 row append, write one cumulative `rng_trace_log` record (saturating totals) keyed by `(module, substream_label)`.
-  • Consuming attempt: trace counters **increase** by the event’s `blocks`/`draws`.
-  • Non-consuming marker/final: trace counters **do not increase**; only the event count increments.
+  - Consuming attempt: trace counters **increase** by the event’s `blocks`/`draws`.
+  - Non-consuming marker/final: trace counters **do not increase**; only the event count increments.
 
 ### 10.9 Zero-row files & idempotence (MUST).
 
@@ -812,15 +813,15 @@ Every S4 row **must** carry:
 ### 11.3 Attempts, markers, finalisers.
 
 * **Acceptance path:**
-  • ≥1 consuming `poisson_component(context:"ztp")`, with the **last** having `k ≥ 1`.
-  • Exactly **one** non-consuming `ztp_final{K_target≥1, exhausted:false}`.
-  • No `ztp_retry_exhausted`.
+  - ≥1 consuming `poisson_component(context:"ztp")`, with the **last** having `k ≥ 1`.
+  - Exactly **one** non-consuming `ztp_final{K_target≥1, exhausted:false}`.
+  - No `ztp_retry_exhausted`.
 * **Cap path:**
-  • A sequence of `poisson_component` with `k=0` and matching `ztp_rejection`s, then exactly **one** `ztp_retry_exhausted`.
-  • Policy=`"abort"` ⇒ **no** `ztp_final`.
+  - A sequence of `poisson_component` with `k=0` and matching `ztp_rejection`s, then exactly **one** `ztp_retry_exhausted`.
+  - Policy=`"abort"` ⇒ **no** `ztp_final`.
   Policy=`"downgrade_domestic"` ⇒ exactly **one** `ztp_final{K_target=0, exhausted:true}`.
 * **A=0 short-circuit:**
-  • Exactly **one** `ztp_final{K_target=0, attempts:0 [ , reason:"no_admissible"]? }`; **no** attempts, **no** rejections, **no** cap marker.
+  - Exactly **one** `ztp_final{K_target=0, attempts:0 [ , reason:"no_admissible"]? }`; **no** attempts, **no** rejections, **no** cap marker.
 
 ### 11.4 Counter & budget identities.
 
@@ -863,10 +864,10 @@ Every S4 row **must** carry:
 ## 12) Failure vocabulary (stable codes)
 
 > **Principles.**
-> • Fail **deterministically**; never emit partial merchant output.
-> • **Scope** every failure (Merchant vs Run).
-> • Emit **values-only** context (no paths), with stable keys.
-> • Prefer **merchant-scoped** failure; reserve **run-scoped** for structural/authority violations.
+> - Fail **deterministically**; never emit partial merchant output.
+> - **Scope** every failure (Merchant vs Run).
+> - Emit **values-only** context (no paths), with stable keys.
+> - Prefer **merchant-scoped** failure; reserve **run-scoped** for structural/authority violations.
 
 ### 12.1 Required failure payload (all codes) — **MUST**
 
@@ -881,7 +882,7 @@ Each failure record **MUST** include:
   seed : u64, parameter_hash : hex64, run_id : str, manifest_fingerprint : hex64,
   attempts? : int,          // present if any attempts occurred; 0 for A=0 short-circuit; omitted otherwise
   lambda_extra? : float64,  // present if computed (§9.3) or any attempts were made
-  regime? : "inversion"|"ptrs"
+  regime? : "inversion" \| "ptrs"
 }
 ```
 
@@ -889,27 +890,28 @@ Each failure record **MUST** include:
 
 ### 12.2 Stable codes — **MUST**
 
-| Code                    | Scope    | Condition (trigger)                                                                                      | Required producer behavior                                                  |
-|-------------------------|----------|----------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
-| `NUMERIC_INVALID`       | Merchant | $\lambda_{\text{extra}}$ is NaN/Inf/≤0 after §9.3                                                        | **Abort** merchant; **no** attempts; **no** `ztp_final`; log failure.       |
-| `BRANCH_PURITY`         | Merchant | Any S4 event for `is_multi=false` or `is_eligible=false`                                                 | **Abort** merchant; suppress further S4 events; log failure.                |
-| `A_ZERO_MISSHANDLED`    | Merchant | `A=0` **and** (any attempts **or** `K_target≠0` **or** *(if schema has field)* `reason≠"no_admissible"`) | **Abort** merchant; log failure (implementation bug).                       |
-| `ATTEMPT_GAPS`          | Merchant | Attempt indices not contiguous from 1..a                                                                 | **Abort** merchant; log failure.                                            |
-| `FINAL_MISSING`         | Merchant | Acceptance observed (last `poisson_component.k≥1`) but **no** `ztp_final`                                | **Abort** merchant; log failure.                                            |
-| `MULTIPLE_FINAL`        | Merchant | >1 `ztp_final` for merchant                                                                              | **Abort** merchant; log failure.                                            |
-| `CAP_WITH_FINAL_ABORT`  | Merchant | `ztp_retry_exhausted` present and policy=`abort` **but** a `ztp_final` exists                            | **Abort** merchant; log failure.                                            |
-| `ZTP_EXHAUSTED_ABORT`   | Merchant | Cap hit and policy=`abort`                                                                               | **Stop** merchant; **no** `ztp_final`; log this code (outcome; not a bug).  |
-| `TRACE_MISSING`         | Merchant | Event append without a corresponding **cumulative** `rng_trace_log` update                               | **Abort** merchant; log failure; trace duty breached.                       |
-| `POLICY_INVALID`        | Run      | `ztp_exhaustion_policy` **missing or** ∉ {"abort","downgrade\_domestic"}                                 | **Abort run**; configuration/artefact error.                                |
-| `REGIME_INVALID`        | Merchant | `regime` ∉ {"inversion","ptrs"} **or** regime switched mid-merchant                                      | **Abort** merchant; log failure.                                            |
-| `RNG_ACCOUNTING`        | Merchant | Consuming row with `draws≤0` **or** `blocks≠after−before`; **or** non-consuming marker advanced counters | **Abort** merchant; log failure; counters must be monotone/non-overlapping. |
-| `STREAM_ID_MISMATCH`    | Run      | `module/substream_label/context` deviate from §2A registry                                               | **Abort run**; label registry violated.                                     |
-| `PARTITION_MISMATCH`    | Run      | Path tokens `{seed,parameter_hash,run_id}` ≠ embedded envelope fields                                    | **Abort run**; structural violation.                                        |
-| `DICT_BYPASS_FORBIDDEN` | Run      | Producer used literal paths (bypassed dictionary)                                                        | **Abort run**; structural violation.                                        |
-| `UPSTREAM_MISSING_S2`   | Merchant | S2 `nb_final` absent for merchant entering S4                                                            | **Abort** merchant; upstream coverage error.                                |
-| `UPSTREAM_MISSING_A`    | Merchant | **`s3_candidate_set`** unavailable/ill-formed for the merchant (A cannot be derived)                     | **Abort** merchant; upstream S3 error.                                      |
-| `ZERO_ROW_FILE`         | Run      | Any S4 stream wrote a zero-row file                                                                      | **Abort run**; zero-row files forbidden.                                    |
-| `UNKNOWN_CONTEXT`       | Run      | S4 events have `context≠"ztp"`                                                                           | **Abort run**; schema/producer bug.                                         |
+| Code                     | Scope    | Condition (trigger)                                                                                      | Required producer behavior                                                  |
+|--------------------------|----------|----------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
+| `UPSTREAM_MISSING_S1`    | Merchant | No authoritative hurdle decision found for merchant (S1)                                                 | **Abort** merchant; write no S4 events; upstream coverage error.            |
+| `NUMERIC_INVALID`        | Merchant | $\lambda_{\text{extra}}$ is NaN/Inf/≤0 after §9.3                                                        | **Abort** merchant; **no** attempts; **no** `ztp_final`; log failure.       |
+| `BRANCH_PURITY`          | Merchant | Any S4 event for `is_multi=false` or `is_eligible=false`                                                 | **Abort** merchant; suppress further S4 events; log failure.                |
+| `A_ZERO_MISSHANDLED`     | Merchant | `A=0` **and** (any attempts **or** `K_target≠0` **or** *(if schema has field)* `reason≠"no_admissible"`) | **Abort** merchant; log failure (implementation bug).                       |
+| `ATTEMPT_GAPS`           | Merchant | Attempt indices not contiguous from 1..a                                                                 | **Abort** merchant; log failure.                                            |
+| `FINAL_MISSING`          | Merchant | Acceptance observed (last `poisson_component.k≥1`) but **no** `ztp_final`                                | **Abort** merchant; log failure.                                            |
+| `MULTIPLE_FINAL`         | Merchant | >1 `ztp_final` for merchant                                                                              | **Abort** merchant; log failure.                                            |
+| `CAP_WITH_FINAL_ABORT`   | Merchant | `ztp_retry_exhausted` present and policy=`abort` **but** a `ztp_final` exists                            | **Abort** merchant; log failure.                                            |
+| `ZTP_EXHAUSTED_ABORT`    | Merchant | Cap hit and policy=`abort`                                                                               | **Stop** merchant; **no** `ztp_final`; log this code (outcome; not a bug).  |
+| `TRACE_MISSING`          | Merchant | Event append without a corresponding **cumulative** `rng_trace_log` update                               | **Abort** merchant; log failure; trace duty breached.                       |
+| `POLICY_INVALID`         | Run      | `ztp_exhaustion_policy` **missing or** ∉ {"abort","downgrade_domestic"}                                 | **Abort run**; configuration/artefact error.                                |
+| `REGIME_INVALID`         | Merchant | `regime` ∉ {"inversion","ptrs"} **or** regime switched mid-merchant                                      | **Abort** merchant; log failure.                                            |
+| `RNG_ACCOUNTING`         | Merchant | Consuming row with `draws≤0` **or** `blocks≠after−before`; **or** non-consuming marker advanced counters | **Abort** merchant; log failure; counters must be monotone/non-overlapping. |
+| `STREAM_ID_MISMATCH`     | Run      | `module/substream_label/context` deviate from §2A registry                                               | **Abort run**; label registry violated.                                     |
+| `PARTITION_MISMATCH`     | Run      | Path tokens `{seed,parameter_hash,run_id}` ≠ embedded envelope fields                                    | **Abort run**; structural violation.                                        |
+| `DICT_BYPASS_FORBIDDEN`  | Run      | Producer used literal paths (bypassed dictionary)                                                        | **Abort run**; structural violation.                                        |
+| `UPSTREAM_MISSING_S2`    | Merchant | S2 `nb_final` absent for merchant entering S4                                                            | **Abort** merchant; upstream coverage error.                                |
+| `UPSTREAM_MISSING_A`     | Merchant | **`s3_candidate_set`** unavailable/ill-formed for the merchant (A cannot be derived)                     | **Abort** merchant; upstream S3 error.                                      |
+| `ZERO_ROW_FILE`          | Run      | Any S4 stream wrote a zero-row file                                                                      | **Abort run**; zero-row files forbidden.                                    |
+| `UNKNOWN_CONTEXT`        | Run      | S4 events have `context≠"ztp"`                                                                           | **Abort run**; schema/producer bug.                                         |
 
 ### 12.3 No partial writes — **MUST**
 
@@ -1023,12 +1025,12 @@ All metrics are emitted as structured values (e.g., JSON lines) with the lineage
 
 ### 14.1 Streams S4 **writes** (logs-only)
 
-| Stream ID                                             | Schema anchor (authoritative)                         | Partitions (path keys)         | Required envelope fields (all rows)                                      | Required payload (minimum)                                                                      | Writer sort keys (stable)                  | Consumers                   |                                                       |
-|-------------------------------------------------------|-------------------------------------------------------|--------------------------------|--------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|--------------------------------------------|-----------------------------|-------------------------------------------------------|
-| `rng/events/poisson_component` (with `context:"ztp"`) | `schemas.layer1.yaml#/rng/events/poisson_component`   | `seed, parameter_hash, run_id` | `ts_utc, module, substream_label, context, before, after, blocks, draws` | \`{ merchant\_id, attempt\:int≥1, k\:int≥0, lambda\_extra\:float64, regime:"inversion"          | "ptrs" }\`                                 | `(merchant_id, attempt)`    | S4 validator, observability                           |
-| `rng/events/ztp_rejection`                            | `schemas.layer1.yaml#/rng/events/ztp_rejection`       | `seed, parameter_hash, run_id` | *(same envelope fields as above)*                                        | `{ merchant_id, attempt:int≥1, k:0, lambda_extra }`                                             | `(merchant_id, attempt)`                   | S4 validator, observability |                                                       |
-| `rng/events/ztp_retry_exhausted`                      | `schemas.layer1.yaml#/rng/events/ztp_retry_exhausted` | `seed, parameter_hash, run_id` | *(same envelope fields as above)*                                        | `{ merchant_id, attempts:int≥1, lambda_extra }`                                                 | `(merchant_id, attempts)`                  | S4 validator, observability |                                                       |
-| `rng/events/ztp_final`                                | `schemas.layer1.yaml#/rng/events/ztp_final`           | `seed, parameter_hash, run_id` | *(same envelope fields as above)*                                        | \`{ merchant\_id, K\_target\:int≥0, lambda\_extra\:float64, attempts\:int≥0, regime:"inversion" | "ptrs", exhausted?\:bool, reason?\:str }\` | `(merchant_id)`             | **S6** (reads `K_target,…`), validator, observability |
+| Stream ID                                             | Schema anchor (authoritative)                         | Partitions (path keys)         | Required envelope fields (all rows)                                      | Required payload (minimum)                                                                                                                  | Writer sort keys (stable)     | Consumers                                             |
+|-------------------------------------------------------|-------------------------------------------------------|--------------------------------|--------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------|-------------------------------------------------------|
+| `rng/events/poisson_component` (with `context:"ztp"`) | `schemas.layer1.yaml#/rng/events/poisson_component`   | `seed, parameter_hash, run_id` | `ts_utc, module, substream_label, context, before, after, blocks, draws` | `{ merchant_id, attempt\:int≥1, k\:int≥0, lambda_extra\:float64, regime:"inversion" \| "ptrs" }`                                          | `(merchant_id, attempt)`      | S4 validator, observability                           |
+| `rng/events/ztp_rejection`                            | `schemas.layer1.yaml#/rng/events/ztp_rejection`       | `seed, parameter_hash, run_id` | *(same envelope fields as above)*                                        | `{ merchant_id, attempt:int≥1, k:0, lambda_extra }`                                                                                         | `(merchant_id, attempt)`      | S4 validator, observability                           |                                                       |
+| `rng/events/ztp_retry_exhausted`                      | `schemas.layer1.yaml#/rng/events/ztp_retry_exhausted` | `seed, parameter_hash, run_id` | *(same envelope fields as above)*                                        | `{ merchant_id, attempts:int≥1, lambda_extra }`                                                                                             | `(merchant_id, attempts)`     | S4 validator, observability                           |                                                       |
+| `rng/events/ztp_final`                                | `schemas.layer1.yaml#/rng/events/ztp_final`           | `seed, parameter_hash, run_id` | *(same envelope fields as above)*                                        | `{ merchant_id, K_target\:int≥0, lambda_extra\:float64, attempts\:int≥0, regime:"inversion" \| "ptrs", exhausted?\:bool, reason?\:str }` | `(merchant_id)`               | **S6** (reads `K_target,…`), validator, observability |
 
 **MUST.**
 
@@ -1042,12 +1044,12 @@ All metrics are emitted as structured values (e.g., JSON lines) with the lineage
 
 ### 14.2 Surfaces S4 **reads** (gates / facts)
 
-| Surface                            | Schema anchor                                       | Partitions                     | What S4 uses (only)                                               | Notes                            |                                                   |                              |
-|------------------------------------|-----------------------------------------------------|--------------------------------|-------------------------------------------------------------------|----------------------------------|---------------------------------------------------|------------------------------|
-| S1 hurdle events                   | `schemas.layer1.yaml#/rng/events/hurdle_bernoulli`  | `seed, parameter_hash, run_id` | **Gate:** `is_multi==true` to enter S4                            | S4 writes nothing for singles    |                                                   |                              |
-| S2 `nb_final`                      | `schemas.layer1.yaml#/rng/events/nb_final`          | `seed, parameter_hash, run_id` | **Fact:** authoritative `N_m≥2` (non-consuming; one per merchant) | Read-only; S4 must not alter `N` |                                                   |                              |
-| S3 `crossborder_eligibility_flags` | `schemas.1A.yaml#/s3/crossborder_eligibility_flags` | `parameter_hash`               | **Gate:** `is_eligible==true`                                     | Deterministic; no RNG            |                                                   |                              |
-| S3 `candidate_set`                 | `schemas.1A.yaml#/s3/candidate_set`                 | `parameter_hash`               | **Context:** \*\*\`A :=                                           | S3.candidate\_set \ {home}       | \`\*\* (foreign count only); S4 doesn’t use order | File order non-authoritative |
+| Surface                            | Schema anchor                                       | Partitions                     | What S4 uses (only)                                                                          | Notes                             |
+|------------------------------------|-----------------------------------------------------|--------------------------------|----------------------------------------------------------------------------------------------|-----------------------------------|
+| S1 hurdle events                   | `schemas.layer1.yaml#/rng/events/hurdle_bernoulli`  | `seed, parameter_hash, run_id` | **Gate:** `is_multi==true` to enter S4                                                       | S4 writes nothing for singles     |
+| S2 `nb_final`                      | `schemas.layer1.yaml#/rng/events/nb_final`          | `seed, parameter_hash, run_id` | **Fact:** authoritative `N_m≥2` (non-consuming; one per merchant)                            | Read-only; S4 must not alter `N`  |
+| S3 `crossborder_eligibility_flags` | `schemas.1A.yaml#/s3/crossborder_eligibility_flags` | `parameter_hash`               | **Gate:** `is_eligible==true`                                                                | Deterministic; no RNG             |
+| S3 `candidate_set`                 | `schemas.1A.yaml#/s3/candidate_set`                 | `parameter_hash`               | **Context:**  `A := size(candidate_set \ {home})` (foreign count only); S4 doesn’t use order | File order non-authoritative      |
 
 **MUST.** When reading S1/S2 logs, enforce **path↔embed** equality on `{seed, parameter_hash, run_id}`; treat violations as structural failures (run-scoped).
 
@@ -1077,7 +1079,7 @@ All metrics are emitted as structured values (e.g., JSON lines) with the lineage
 ### 15.2 Link evaluation & regime threshold
 
 * **Link:** $\eta = \theta_0 + \theta_1 \log N + \theta_2 X + \cdots$ evaluated in **binary64**, fixed order.
-  **Informative:** Governance MAY prefer sub-linear size effect (e.g., θ tuned); this is **not** a protocol constraint.
+  **MUST.** The size-effect coefficient satisfies **θ₁ ∈ (0,1)** (sub-linear w.r.t. `log N`).
 * **Intensity:** $\lambda_{\text{extra}}=\exp(\eta)$ (**finite, >0** required).
 * **Regime (spec-fixed threshold):**
 
@@ -1220,7 +1222,7 @@ Pin exactly which governed inputs S4 depends on, how they are versioned and norm
 | Label/stream registry     | `module`, `substream_label`, `context` | Engine      | x.y.z  | SHA-256     | **NO** (code contract)           | Changes are **breaking**; see §19                 |
 | S0 numeric/RNG profile    | FP & PRNG law                          | Engine      | x.y.z  | SHA-256     | **NO** (code contract)           | Changes are **breaking**; see §19                 |
 
-**Informative.** Governance MAY prefer a sub-linear size effect in practice; this is guidance, **not** a protocol constraint.
+**MUST.** The size-effect coefficient satisfies **θ₁ ∈ (0,1)** (sub-linear w.r.t. `log N`).
 
 ### 18.3 Normalisation & hashing — MUST
 
@@ -1348,7 +1350,7 @@ Require a **major** bump + migration (see §19.5):
 
 ---
 
-## 20) Handoff to later stateS
+## 20) Handoff to later states
 
 ### 20.1 Purpose.
 Freeze exactly what S4 exports, who consumes it, and how downstream must interpret it. S4 is **logs-only**; it fixes a **target** foreign count and nothing else.
@@ -1357,8 +1359,8 @@ Freeze exactly what S4 exports, who consumes it, and how downstream must interpr
 From `ztp_final` for merchant *m*:
 
 * `K_target : int≥0` — target foreign count (**authoritative outcome of S4**).
-  • `≥1` on acceptance;
-  • `=0` only via **A=0 short-circuit** or **exhaustion policy = "downgrade\_domestic"**.
+  - `≥1` on acceptance;
+  - `=0` only via **A=0 short-circuit** or **exhaustion policy = "downgrade_domestic"**.
 * `lambda_extra : float64` — intensity used (audit/diagnostics only; not a gate downstream).
 * `attempts : int≥0` — number of Poisson attempts written by S4 (`0` iff short-circuit).
 * `regime : "inversion"|"ptrs"` — Poisson sampler branch (closed enum).
@@ -1368,9 +1370,9 @@ From `ztp_final` for merchant *m*:
 ### 20.3 Who consumes S4 and how.
 
 * **S6 (top-K selection)** — *MUST* read `ztp_final{K_target, lambda_extra, attempts, regime, exhausted?, reason?}` and combine with its own admissible foreign set of size `A`.
-  • *Realisation rule (binding):* **`K_realized = min(K_target, A)`**.
-  • If `K_target = 0` (short-circuit/downgrade): *MUST* skip top-K and continue domestic-only.
-  • If `K_target > A` (shortfall): *MUST* select **all A**; **MAY** log a non-consuming `topk_shortfall{K_target, A}` marker **in S6**.
+  - *Realisation rule (binding):* **`K_realized = min(K_target, A)`**.
+  - If `K_target = 0` (short-circuit/downgrade): *MUST* skip top-K and continue domestic-only.
+  - If `K_target > A` (shortfall): *MUST* select **all A**; **MAY** log a non-consuming `topk_shortfall{K_target, A}` marker **in S6**.
 * **S7 (allocation / integerisation)** — *MUST NOT* infer any probability from S4 logs. It receives the set chosen by S6 and later allocates **N** across {home + chosen foreigns} (outside S4’s scope).
 * **S8 (sequencing / IDs)** — unaffected by S4 semantics; it operates on per-country counts.
 * **S9 (egress / handoff to 1B)** — S4 contributes no egress rows. S9’s `outlet_catalogue` contains **no** inter-country order; consumers recover order from S3 `candidate_rank`.
@@ -1386,6 +1388,7 @@ From `ztp_final` for merchant *m*:
 * *MUST NOT* derive **`K_target`** by counting Poisson attempts or rejections; the **only** authoritative target is `ztp_final.K_target`. *(S6 later realises `K* = min(K_target, A)`.)*
 * *MUST NOT* treat `lambda_extra` as a probabilistic weight for later selection.
 * *MUST NOT* exceed `A` when realising K (enforced in S6 via `min(K_target, A)`).
+* *MUST NOT* process a merchant **without a `ztp_final`** (e.g., `NUMERIC_INVALID` or cap + policy=`"abort"`).
 
 ### 20.6 Lineage continuity (MUST).
 All downstream states (S6+) *must* carry forward `{seed, parameter_hash, run_id}` as read from S4; they *must not* reinterpret or recompute `lambda_extra` or `regime`.
