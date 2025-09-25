@@ -2374,7 +2374,7 @@ This catalogue makes the weird corners **boring**: each is turned into a tiny, r
 
 * **Event families (set & consuming semantics):**
   `rng_event_poisson_component` (**consuming**),
-  `rng_event_ztp_final` / `rng_event_ztp_retry_exhausted` / `rng_event_ztp_final` (**non-consuming**).
+  `rng_event_ztp_rejection` / `rng_event_ztp_retry_exhausted` / `rng_event_ztp_final` (**non-consuming**).
   **Breaking** to add/remove or flip consuming semantics. *(Short names map 1:1 to these dataset families.)*
 
 * **Trace family:** `rng_trace_log`. **Breaking** to alter semantics/identity.
