@@ -750,6 +750,25 @@ subsegments:
         cross_layer: true
         notes: null
 
+      - name: rng_event_ztp_final
+        path: logs/rng/events/ztp_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+        type: log
+        category: rng_event
+        semver: "{semver}"
+        version: "{run_id}"
+        digest: "{sha256}"
+        manifest_key: mlr.rng.events.ztp_final
+        license: "{spdx_or_internal}"
+        role: Single acceptance record per resolved merchant (S4). Non-consuming; fixes {K_target, lambda_extra, attempts, regime, exhausted?}.
+        dependencies: [ rng_event_schema_catalog ]
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.layer1.yaml#/rng/events/ztp_final
+        cross_layer: true
+        notes: "Exactly one per resolved merchant; absent only under cap policy=abort."
+
       - name: rng_event_gumbel_key
         path: logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
         type: log

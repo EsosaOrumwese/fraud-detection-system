@@ -648,6 +648,27 @@ datasets:
     pii: false
     licence: "Proprietary-Internal"
 
+  - id: "rng_event_ztp_final"
+    status: "approved"
+    owner_subsegment: "1A"
+    description: "Event stream: S4 single acceptance record per resolved merchant (fixes K_target and run facts)."
+    version: "{run_id}"
+    format: "jsonl"
+    path: "logs/rng/events/ztp_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
+    partitioning: ["seed","parameter_hash","run_id"]
+    ordering: []                     # total order from envelope counters; file order non-authoritative
+    schema_ref: "schemas.layer1.yaml#/rng/events/ztp_final"
+    lineage:
+      produced_by: "1A.ztp_sampler"
+      consumed_by: ["validation","1A.S6"]
+      final_in_layer: false
+    gating:
+      gated_by: "rng_event_hurdle_bernoulli"
+      predicate: "is_multi == true"
+    retention_days: 180
+    pii: false
+    licence: "Proprietary-Internal"
+
   - id: "rng_event_gumbel_key"
     status: "approved"
     owner_subsegment: "1A"
@@ -798,7 +819,7 @@ datasets:
 # ── Governance / integrity ────────────────────────────────────────────────
 integrity:
   bundled_schema_sha256: null
-  dataset_count: 40
+  dataset_count: 41
 
 open_questions: []
 

@@ -248,6 +248,35 @@ rng:
         - type: object
           unevaluatedProperties: false
 
+    ztp_final:
+      $id: "/rng/events/ztp_final"
+      title: "S4 ZTP finaliser (non-consuming)"
+      description: >
+        Single acceptance record per resolved merchant in S4. Non-consuming row that fixes
+        {K_target, lambda_extra, attempts, regime, exhausted?[, reason?]} and closes the ZTP loop.
+        Envelope identities for non-consuming rows MUST hold: before==after, blocks=0, draws="0".
+      type: object
+      allOf:
+        # Reuse the standard RNG envelope for event rows (ts_utc, module, substream_label, context, counters, blocks, draws)
+        - $ref: "#/rng/core/envelope_min"
+        - type: object
+          properties:
+            module: { const: "1A.s4.ztp" }
+            substream_label: { const: "poisson_component" }
+            context: { const: "ztp" }
+            merchant_id: { type: integer, minimum: -9223372036854775808, maximum: 9223372036854775807 }
+            K_target: { type: integer, minimum: 0 }
+            lambda_extra: { type: number }
+            attempts: { type: integer, minimum: 0 }
+            regime: { type: string, enum: [ "inversion","ptrs" ] }
+            exhausted: { type: boolean }
+            reason:
+              description: "Optional A=0 audit reason; only present in schema versions that include it."
+              type: string
+              enum: ["no_admissible"]
+          required: [ module, substream_label, context, merchant_id, K_target, lambda_extra, attempts, regime ]
+          additionalProperties: false
+
     gumbel_key:
       allOf:
         - $ref: "#/$defs/rng_envelope"
