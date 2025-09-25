@@ -34,7 +34,7 @@ All RNG logs are written under `…/seed={seed}/parameter_hash={parameter_hash}/
 
 * **`schemas.layer1.yaml#/rng/events/poisson_component`** — **consuming** attempt rows with `context:"ztp"`.
   **Payload (min):** `{ merchant_id:int64, attempt:int≥1, k:int≥0, lambda:float64 }`
-  **Envelope (min):** `{ ts_utc, module, substream_label, context, before, after, blocks, draws }`
+  **Envelope (min):** `{ ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, context, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo,  rng_counter_after_hi, blocks, draws }`
   **Writer sort:** `(merchant_id, attempt)`.
 
 * **`schemas.layer1.yaml#/rng/events/ztp_rejection`** — **non-consuming** zero marker (`k=0`); 
@@ -47,7 +47,7 @@ All RNG logs are written under `…/seed={seed}/parameter_hash={parameter_hash}/
   **Writer sort:** `(merchant_id)`.
 
 * **`schemas.layer1.yaml#/rng/core/rng_trace_log`** — cumulative **trace** per `(module, substream_label)`; **append exactly one** row **after every** S4 event append. 
-  Trace row fields (per schema): `ts_utc, run_id, seed, module, substream_label` + cumulative counters; **no `context`**. Trace embeds `run_id` and `seed` and is also path-consistent (parameter_hash via the partition path).
+  Trace row fields (per schema): `ts_utc, run_id, seed, module, substream_label, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi, draws_total, blocks_total, events_total`; **no `context`**. Trace embeds `run_id` and `seed` and is also path-consistent (parameter_hash via the partition path).
 
 **Label/stream registry (frozen identifiers).**
 All S4 **events** use: `module = "1A.s4.ztp"`, `substream_label = "poisson_component"`, `context = "ztp"`. **Consuming vs non-consuming** is fixed: attempts consume (`draws>0` & `blocks=after−before`); markers/final are non-consuming (`draws:"0"`, `blocks=0`, `before==after`). After each append, **one** cumulative trace row is required.
@@ -99,7 +99,8 @@ The **Data Dictionary** defines dataset IDs, **partitions** (`{seed, parameter_h
 
 * `begin_event_micro(module, substream_label, seed, parameter_hash, manifest_fingerprint, run_id, stream) → EventCtx` — microsecond `ts_utc` (exactly 6 digits; **truncate**); captures **before** counters and lineage.
 * `end_event_emit(family, ctx, stream_after, draws_hi, draws_lo, payload)` — writes exactly **one** JSONL event row (envelope + payload); computes `blocks = u128(after) − u128(before)`; encodes **decimal-u128** `draws`. If `draws == "0"`, asserts `after == before` (**non-consuming**).
-* `update_rng_trace_totals(draws_str, module, substream_label, seed, parameter_hash, run_id) → TraceTotals` — **S1 variant only (qualified import)**. **Consumes `draws_str` (decimal-u128)**, returns **saturating u64** totals, and appends **exactly one** cumulative `rng_trace_log` row per event; **same writer** must append the trace **immediately after** the event. **Trace rows do not carry the full event envelope**: they contain only `ts_utc, module, substream_label` and cumulative counters (**no `context`**; lineage via partition path). **Do not** use the S0 updater in S4.
+* `update_rng_trace_totals(draws_str, module, substream_label, seed, parameter_hash, run_id, rng_counter_before_hi, rng_counter_before_lo, rng_counter_after_hi,  rng_counter_after_lo) → TraceTotals` — **S1 variant only (qualified import)**. 
+  **Consumes `draws_str` (decimal-u128)**, returns **saturating u64** totals, and appends **exactly one** cumulative `rng_trace_log` row per event; **same writer** must append the trace **immediately after** the event. **Trace rows do not carry the full event envelope**: they contain only `ts_utc, module, substream_label` and cumulative counters (**no `context`**; lineage via partition path). **Do not** use the S0 updater in S4.
 * `dict_path_for_family(family, seed, parameter_hash, run_id) → path` — **only** way to resolve paths; **no embedded literals** anywhere in S4·L0. All RNG logs (events and trace) are **JSONL** under `{seed, parameter_hash, run_id}`.
 
 > **Single serialization point.** Event writer + trace updater are the **only** serialization surface; orchestrators ensure no parallel double-writes. The **same writer** appends the trace **immediately after** the event for crash-safety.
@@ -174,7 +175,7 @@ This import map keeps S4·L0 **thin and deterministic**: we reuse PRNG/substream
 
 * `schemas.layer1.yaml#/rng/events/poisson_component` — **consuming** attempt rows (`context:"ztp"`).
   **Payload (min):** `{ merchant_id:int64, attempt:int≥1, k:int≥0, lambda:float64 }`
-  **Envelope (min):** `{ ts_utc, module, substream_label, context, before, after, blocks, draws }`
+  **Envelope (min):** `{ ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, context, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo,  rng_counter_after_hi, blocks, draws }`
   **Writer sort:** `(merchant_id, attempt)`.
 * `schemas.layer1.yaml#/rng/events/ztp_rejection` — **non-consuming** zero marker.
   **Payload (min):** `{ merchant_id:int64, attempt:int≥1, k:0, lambda_extra:float64 }`
@@ -192,7 +193,7 @@ This import map keeps S4·L0 **thin and deterministic**: we reuse PRNG/substream
   **Trace row fields:** `ts_utc, run_id, seed, module, substream_label, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi, draws_total, blocks_total, events_total` (**no `context`**).  Path↔embed equality holds for `run_id` and `seed`; `parameter_hash` is via the partition path.
   **Writer sort:** `(module, substream_label, rng_counter_after_hi, rng_counter_after_lo)`.
 
-**Partitions (path keys) — logs only.** All S4 streams are written under `{ seed, parameter_hash, run_id }` (Dictionary). For **event streams**, embedded `{seed, parameter_hash, run_id}` **must byte-match** path tokens. `rng_trace_log` omits embedded lineage; lineage is enforced by the partition path. **File order is non-authoritative**; order/replay use envelope counters.
+**Partitions (path keys) — logs only.** All S4 streams are written under `{ seed, parameter_hash, run_id }` (Dictionary). For **event streams**, embedded `{seed, parameter_hash, run_id}` **must byte-match** path tokens. **Trace rows embed `run_id` and `seed`; `parameter_hash` is path-only** (no `context` on trace). **File order is non-authoritative**; order/replay use envelope counters.
 
 **Budget identities.**
 
@@ -202,7 +203,7 @@ This import map keeps S4·L0 **thin and deterministic**: we reuse PRNG/substream
 ## 3.3 Closed enums & constants (frozen vocabularies)
 
 * `regime ∈ {"inversion","ptrs"}` — chosen by a **spec-fixed** threshold at **λ★ = 10**; fixed per merchant (no mid-loop switching).
-* `ztp_exhaustion_policy ∈ {"abort","downgrade_domestic"}` — governed in cross-border config; participates in `parameter_hash`. Default cap **64** unless governance overrides.
+* `ztp_exhaustion_policy ∈ {"abort","downgrade_domestic"}` — governed in cross-border config; participates in `parameter_hash`. **Cap is 64 in schema v2**; changing this requires a **schema / dictionary bump**.
 * `reason ∈ {"no_admissible"}` (optional on `ztp_final`) — **present only** if the bound schema version defines it.
 * **Numeric profile literals (binding):** **binary64, RNE, FMA-off, no FTZ/DAZ;** strict-open `u∈(0,1)`; budgets are **measured, not inferred**.
 
@@ -503,7 +504,7 @@ type ZtpFinal = {
 * **Domain rule:** All four S4 families (attempt, zero-marker, cap-marker, finaliser) **share** this `(module, substream_label)` so budgeting/trace live under one domain; event type is distinguished by the schema anchor and `context:"ztp"`.
 * **Trace duty:** After **each** event append, the **same writer** appends the cumulative `rng_trace_log` row **immediately after** the event row (one-per-event).
 
-**Dictionary & partitions.** All RNG logs (events and trace) are dictionary-resolved under partitions `{seed, parameter_hash, run_id}`. For **event streams**, embedded `{seed, parameter_hash, run_id}` **must byte-match** path tokens. `rng_trace_log` omits embedded lineage; lineage is enforced by the partition path. Trace rows have **no** `context`.
+**Dictionary & partitions.** All RNG logs (events and trace) are dictionary-resolved under partitions `{seed, parameter_hash, run_id}`. For **event streams**, embedded `{seed, parameter_hash, run_id}` **must byte-match** path tokens. **Trace rows embed `run_id` & `seed`; `parameter_hash` is path-only**. Trace has **no** `context`.
 
 ---
 
@@ -783,7 +784,7 @@ type AttemptBudget = { blocks:u64, draws_hi:u64, draws_lo:u64 }            # §8
 type TraceTotals   = { blocks_total:u64, draws_total:u64, events_total:u64 }# saturating
 ```
 
-*Writer/trace surfaces from S1·L0:* `begin_event_micro`, `end_event_emit`, `update_rng_trace_totals(draws_str, module, substream_label, seed, parameter_hash, run_id) -> TraceTotals`, `u128_delta`, `u128_to_uint64_or_abort`, `u128_to_decimal_string`.
+*Writer/trace surfaces from S1·L0:* `begin_event_micro`, `end_event_emit`, `update_rng_trace_totals(draws_str, module, substream_label, seed, parameter_hash, run_id, rng_counter_before_hi, rng_counter_before_lo, rng_counter_after_hi, rng_counter_after_lo) -> TraceTotals`, `u128_delta`, `u128_to_uint64_or_abort`, `u128_to_decimal_string`.
 
 ---
 
@@ -1006,17 +1007,16 @@ const FAM_TRACE       = "rng_trace_log"   # schemas.layer1.yaml#/rng/core/rng_tr
 *The trace domain is exactly `(MODULE, SUBSTREAM_LABEL)` for **all** S4 events. Paths are dictionary-resolved.*
 
 ### Imported writer (authoritative)
-```
+
 * `update_rng_trace_totals(draws_str: string,
                            module: string, substream_label: string,
                            seed: u64, parameter_hash: hex64, run_id: hex32,
                            rng_counter_before_hi: u64, rng_counter_before_lo: u64,
                            rng_counter_after_hi:  u64, rng_counter_after_lo:  u64)
   -> TraceTotals`
-  — **S1 variant (saturating)**; **call once per event** on the exact `(MODULE,SUBSTREAM_LABEL)`;
-    writer stamps schema-required fields (`run_id`, `seed`) and persists the before/after counters; paths are Dictionary-resolved.
-  Do **not** use the S0 non-saturating updater.
-```
+  — **S1 variant only (qualified import)**. Appends **exactly one** cumulative `rng_trace_log` row **per event** (saturating totals), with **embedded `run_id` & `seed`** and the **before/after** counters (no `context`; **`parameter_hash` is path-only**). 
+    The **same writer** must append the trace **immediately after** the event. **Do not** use the S0 updater in S4.  (Matches the v2 `rng_trace_log` schema.)
+
 ---
 
 ## 10.1 Pseudocode wrapper — one-event → one-trace (S4-scoped)
@@ -1074,7 +1074,7 @@ end
 ## 10.3 Partition & lineage rules for trace
 
 * **Partitions (path keys):** `rng_trace_log` writes under **`{seed, parameter_hash, run_id}`** (dictionary-resolved).
-* **Trace lineage fields.** Trace rows **embed `run_id` and `seed`** (schema-required) and carry **no `context`**; `parameter_hash` is enforced by the partition path.
+* **Trace lineage fields.** Trace rows **embed `run_id` and `seed`** (schema-required) and carry **no `context`**; **`parameter_hash` is path-only**.
 * **No `context` on trace.** Trace rows include `ts_utc`, `run_id`, `seed`, `(module, substream_label)`, before/after counters, and cumulative totals.
 
 ---
@@ -1384,7 +1384,7 @@ Envelope (event rows only):
 }
 ```
 
-`rng_trace_log` **trace rows embed `run_id` and `seed`** (no `seed/parameter_hash/run_id`) and carry **no `context`**; lineage is enforced by the **partition path**.
+`rng_trace_log` **trace rows embed `run_id` and `seed`** (no `context`); **`parameter_hash` is path-only**; lineage is enforced by the **partition path**.
 
 ---
 
@@ -2820,7 +2820,7 @@ end loop
 
 ```pseudocode
 attempt := 1
-while attempt ≤ MAX_ZTP_ZERO_ATTEMPTS:             # from crossborder_hyperparams (governed; in parameter_hash)
+while attempt ≤ MAX_ZTP_ZERO_ATTEMPTS:             # cap is 64 in schema v2; changing it requires a schema/dictionary bump
   (k, s_after, bud) := poisson_attempt_once(lr.lambda_extra, lr.regime, s)
   tot := event_poisson_ztp(merchant_id, lineage, s, s_after, lr, attempt, k, bud)
   metrics_after_event_append({lineage..., merchant_id}, "poisson_component")
@@ -2934,7 +2934,7 @@ These scaffolds let an implementer (or intern) wire S4 with **zero ambiguity**, 
 | `rng_event_ztp_final`           | `schemas.layer1.yaml#/rng/events/ztp_final`           | No (finaliser) | `{seed, parameter_hash, run_id}` | `(merchant_id)`                   |
 | `rng_trace_log`                 | `schemas.layer1.yaml#/rng/core/rng_trace_log`         | (trace)        | `{seed, parameter_hash, run_id}` | n/a (cumulative per module/label) |
 
-**Mandatory equalities.** For **event rows**, embedded `{seed, parameter_hash, run_id}` **byte-match** the path tokens; trace rows **omit** embedded lineage (lineage via partition path) and have **no `context`**. All paths are **dictionary-resolved** (no literals). **File order is non-authoritative**; counters give total order.
+**Mandatory equalities.** For **event rows**, embedded `{seed, parameter_hash, run_id}` **byte-match** the path tokens. **Trace rows embed `run_id` and `seed`** (no `context`); **`parameter_hash` is path-only**. All paths are **dictionary-resolved** (no literals). **File order is non-authoritative**; counters give total order.
 
 ---
 
@@ -2963,7 +2963,7 @@ Non-consuming rows: `before==after`, `blocks=0`, `draws="0"`.
 
 | Family                          | Payload (minimum fields)                                                                                |
 |---------------------------------|---------------------------------------------------------------------------------------------------------|
-| `rng_event_poisson_component`   | `{ merchant_id, attempt, k, lambda_extra, regime }`                                                     |
+| `rng_event_poisson_component`   | `{ merchant_id, attempt, k, lambda }`                                                                   |
 | `rng_event_ztp_rejection`       | `{ merchant_id, attempt, k:0, lambda_extra }`                                                           |
 | `rng_event_ztp_retry_exhausted` | `{ merchant_id, attempts, lambda_extra, aborted:true }` *(abort-only marker; required in bound schema)* |
 | `rng_event_ztp_final`           | `{ merchant_id, K_target, lambda_extra, attempts, regime, exhausted? [, reason?] }`                     |
@@ -3019,7 +3019,7 @@ Non-consuming rows: `before==after`, `blocks=0`, `draws="0"`.
 |---------------------------|-------------------------------------------------------------------------------------------------------|----------------------------------|
 | `crossborder_hyperparams` | `θ` (ZTP link params), `MAX_ZTP_ZERO_ATTEMPTS`, `ztp_exhaustion_policy` (and `X_default` if governed) | **Yes**                          |
 
-**Default cap**: `MAX_ZTP_ZERO_ATTEMPTS = 64` unless governance overrides.
+**Cap (schema v2)**: `MAX_ZTP_ZERO_ATTEMPTS = 64`. Changing this requires a **schema/dictionary** version bump.
 
 ---
 
@@ -3304,7 +3304,7 @@ For **event rows**, the embedded `{seed, parameter_hash, run_id}` **byte-match**
  "run_id":"deab12deab12deab12deab12deab12de",
  "rng_counter_before_lo":1,"rng_counter_before_hi":0,"rng_counter_after_lo":3,"rng_counter_after_hi":0,
  "blocks":2,"draws":"3",
- "merchant_id":12345,"attempt":2,"k":2,"lambda_extra":3.5,"regime":"inversion"}
+ "merchant_id":12345,"attempt":2,"k":2,"lambda":3.5}
 ```
 
 **Zero marker (non-consuming):**
