@@ -940,7 +940,7 @@ END
 
 **K-7** will:
 
-1. call **K-2** to get `(k, s_after, bud)`,
+1. call **K-2** to get `(k, s_before, s_after, bud)`,
 2. call **K-3** to emit the **consuming attempt** with payload `{merchant_id, attempt, k, lambda}` where `lambda := lr.lambda_extra`, supplying `(s_before, s_after, bud)` for the envelope,
 3. branch to **K-4** (rejection) if `k==0`, or to **K-6** (finaliser) if `k>0`.
 
@@ -1028,8 +1028,8 @@ END
 ### Schema/Dictionary facts (reference; enforced by L0)
 
 * **Schema anchor:** `#/rng/events/poisson_component` (attempt payload).
-* **Dictionary ID & partitions:** `rng_event_poisson_component` under `{seed, parameter_hash, run_id, manifest_fingerprint}`; writer-sort `(merchant_id,attempt)`.
-* **Trace dataset:** `rng_trace_log` (same partitions); no mandated writer-sort.
+* **Dictionary ID & partitions:** `rng_event_poisson_component` under `{seed, parameter_hash, run_id}`; writer-sort `(merchant_id,attempt)`.
+* **Trace dataset:** `rng_trace_log` (partitions `{seed, parameter_hash, run_id}`); no mandated writer-sort.
 
 ---
 
@@ -1105,8 +1105,8 @@ END
 ### Schema/Dictionary facts (reference; enforced by L0)
 
 * **Schema anchor:** `#/rng/events/ztp_rejection` (non-consuming marker).
-* **Dictionary ID & partitions:** `rng_event_ztp_rejection` under `{seed, parameter_hash, run_id, manifest_fingerprint}`; writer-sort `(merchant_id,attempt)`.
-* **Trace dataset:** `rng_trace_log` (same partitions); no mandated writer-sort.
+* **Dictionary ID & partitions:** `rng_event_ztp_rejection` under `{seed, parameter_hash, run_id}`; writer-sort `(merchant_id,attempt)`.
+* **Trace dataset:** `rng_trace_log` (partitions `{seed, parameter_hash, run_id}`); no mandated writer-sort.
 
 ---
 
@@ -1204,8 +1204,8 @@ END
 ### Schema/Dictionary facts (reference; enforced by L0)
 
 * **Schema anchor:** `#/rng/events/ztp_retry_exhausted` (non-consuming cap-hit).
-* **Dictionary ID & partitions:** `rng_event_ztp_retry_exhausted` under `{seed, parameter_hash, run_id, manifest_fingerprint}`; writer-sort `(merchant_id,attempts)` (attempts = 64).
-* **Trace dataset:** `rng_trace_log` (same partitions); no mandated writer-sort.
+* **Dictionary ID & partitions:** `rng_event_ztp_retry_exhausted` under `{seed, parameter_hash, run_id}`; writer-sort `(merchant_id,attempts)` (attempts = 64).
+* **Trace dataset:** `rng_trace_log` (partitions `{seed, parameter_hash, run_id}`); no mandated writer-sort.
 
 ---
 
