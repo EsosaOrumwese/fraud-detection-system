@@ -1039,7 +1039,7 @@ proc trace_after_event_s4(
             lineage.seed, lineage.parameter_hash, lineage.run_id)
 
   # 2) Postconditions (MUST)
-  # - Exactly one rng/core/rng_trace_log row appended in partition {seed, parameter_hash, run_id}
+  # - Exactly one rng_trace_log row appended in partition {seed, parameter_hash, run_id}
   # - Totals are saturating u64; consumer selects the FINAL row per (module, substream_label)
   return next
 end
@@ -1167,9 +1167,9 @@ proc metrics_record_regime_once(dims: MetricsDims, regime: "inversion"|"ptrs"):
 
 ```pseudocode
 # family ∈ {"poisson_component","ztp_rejection","ztp_retry_exhausted","ztp_final"}
-# (maps 1:1 to rng/events/* IDs)
+# (families map 1:1 to schema anchors '#/rng/events/*'; dataset IDs are rng_event_*)
 proc metrics_after_event_append(dims: MetricsDims, family: string):
-  # One event → one trace: equals rows appended to rng/core/rng_trace_log
+  # One event → one trace: equals rows appended to rng_trace_log
   metrics_emit_counter(dims, M_TRACE_ROWS, +1)
 
   if family == "poisson_component":
@@ -1626,7 +1626,7 @@ POSTCONDITIONS: Consuming identities (after>before; blocks==Δ; draws>"0")
 TRACE RULE   : Same writer, append TRACE immediately after EVENT fsync (once)
 ```
 
-### f) `emit_ztp_rejection_nonconsuming(...) → rng/events/ztp_rejection`
+### f) `emit_ztp_rejection_nonconsuming(...) → rng_event_ztp_rejection`
 
 ```
 IDEMPOTENT   : NO
@@ -1636,7 +1636,7 @@ POSTCONDITIONS: Non-consuming identities (before==after; blocks=0; draws="0")
 TRACE RULE   : Same writer, append TRACE immediately after EVENT fsync (once)
 ```
 
-### g) `emit_ztp_retry_exhausted_nonconsuming(...) → rng/events/ztp_retry_exhausted`
+### g) `emit_ztp_retry_exhausted_nonconsuming(...) → rng_event_ztp_retry_exhausted`
 
 ```
 IDEMPOTENT   : NO  (≤1 per merchant)
@@ -1647,7 +1647,7 @@ PAYLOAD NOTE : Includes policy flag per bound schema (we use aborted:true)
 TRACE RULE   : Same writer, append TRACE immediately after EVENT fsync (once)
 ```
 
-### h) `emit_ztp_final_nonconsuming(...) → rng/events/ztp_final`
+### h) `emit_ztp_final_nonconsuming(...) → rng_event_ztp_final`
 
 ```
 IDEMPOTENT   : NO  (exactly 1 per resolved merchant)
@@ -1663,7 +1663,7 @@ TRACE RULE   : Same writer, append TRACE immediately after EVENT fsync (once)
 
 ## 14.4 Trace wrapper (append-only; **not** idempotent)
 
-### i) `trace_after_event_s4(...) → rng/core/rng_trace_log`
+### i) `trace_after_event_s4(...) → rng_trace_log`
 
 ```
 IDEMPOTENT   : NO  (appends a new cumulative row)
@@ -2740,7 +2740,7 @@ lr := freeze_lambda_regime(lambda_extra_raw)                                  # 
 metrics_record_regime_once({lineage..., merchant_id}, lr.regime)
 
 # 2) Short-circuit check (A=0 handled in Scenario D)
-# 3) Initialize totals accumulator (optional; or read current from tail of rng/core/rng_trace_log)
+# 3) Initialize totals accumulator (optional; or read current from tail of rng_trace_log)
 tot := { blocks_total:=0, draws_total:=0, events_total:=0 }
 ```
 
