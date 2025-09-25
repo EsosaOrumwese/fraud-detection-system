@@ -572,7 +572,7 @@ datasets:
     format: "jsonl"
     path: "logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
     partitioning: ["seed","parameter_hash","run_id"]
-    ordering: []
+    ordering: ["merchant_id","attempt"]
     schema_ref: "schemas.layer1.yaml#/rng/events/poisson_component"
     lineage:
       produced_by: "1A.nb_poisson_component"
@@ -614,7 +614,7 @@ datasets:
     format: "jsonl"
     path: "logs/rng/events/ztp_rejection/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
     partitioning: ["seed","parameter_hash","run_id"]
-    ordering: []
+    ordering: ["merchant_id","attempt"]
     schema_ref: "schemas.layer1.yaml#/rng/events/ztp_rejection"
     lineage:
       produced_by: "1A.ztp_sampler"
@@ -635,7 +635,7 @@ datasets:
     format: "jsonl"
     path: "logs/rng/events/ztp_retry_exhausted/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
     partitioning: ["seed","parameter_hash","run_id"]
-    ordering: []
+    ordering: ["merchant_id","attempts"]
     schema_ref: "schemas.layer1.yaml#/rng/events/ztp_retry_exhausted"
     lineage:
       produced_by: "1A.ztp_sampler"
@@ -656,7 +656,7 @@ datasets:
     format: "jsonl"
     path: "logs/rng/events/ztp_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
     partitioning: ["seed","parameter_hash","run_id"]
-    ordering: []                     # total order from envelope counters; file order non-authoritative
+    ordering: ["merchant_id"]
     schema_ref: "schemas.layer1.yaml#/rng/events/ztp_final"
     lineage:
       produced_by: "1A.ztp_sampler"
