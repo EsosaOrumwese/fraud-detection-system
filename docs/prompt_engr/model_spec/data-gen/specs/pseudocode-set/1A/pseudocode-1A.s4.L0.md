@@ -792,7 +792,6 @@ proc event_poisson_ztp(
     attempt     : int,                  # ≥1, strictly increasing per merchant
     k           : int,                  # ≥0 (0 ⇒ caller will emit ztp_rejection)
     bud         : AttemptBudget,        # {blocks, draws_hi, draws_lo} — measured
-    prev        : TraceTotals
 ) -> next: TraceTotals
 
   # Preconditions (MUST)
@@ -830,8 +829,7 @@ proc event_poisson_ztp(
   next := trace_after_event_s4(lineage,
                                   ctx.before_hi, ctx.before_lo,
                                   s_after.ctr.hi, s_after.ctr.lo,
-                                  draws_str,
-                                  prev)
+                                  draws_str)
 
   # Writer-sort key respected: (merchant_id, attempt)
   return next
@@ -853,7 +851,6 @@ proc emit_ztp_rejection_nonconsuming(
     s_current   : Stream,       # counters stay the same (before==after)
     lr          : LambdaRegime,
     attempt     : int,          # == attempt of the preceding consuming row
-    prev        : TraceTotals
 ) -> next: TraceTotals
 
   assert attempt ≥ 1
@@ -876,8 +873,7 @@ proc emit_ztp_rejection_nonconsuming(
   next := trace_after_event_s4(lineage,
                                   ctx.before_hi, ctx.before_lo,
                                   s_current.ctr.hi, s_current.ctr.lo,
-                                  "0",
-                                  prev)
+                                  "0")
 
   # Writer-sort key: (merchant_id, attempt)
   return next
@@ -897,7 +893,6 @@ proc emit_ztp_retry_exhausted_nonconsuming(
     s_current   : Stream,       # counters unchanged
     lr          : LambdaRegime,
     attempts    : int,          # == last attempt index (≥1)
-    prev        : TraceTotals
 ) -> next: TraceTotals
 
   assert attempts ≥ 1
@@ -919,8 +914,7 @@ proc emit_ztp_retry_exhausted_nonconsuming(
   next := trace_after_event_s4(lineage,
                                   ctx.before_hi, ctx.before_lo,
                                   s_current.ctr.hi, s_current.ctr.lo,
-                                  "0",
-                                  prev)
+                                  "0")
 
   # Writer-sort key: (merchant_id, attempts)
   return next
@@ -943,7 +937,6 @@ proc emit_ztp_final_nonconsuming(
     attempts      : int,                    # ≥0; 0 only on A=0
     exhausted_opt : optional<bool>,         # present/true only for downgrade policy
     reason_opt    : optional<"no_admissible">, # only if schema version includes it (A=0 only)
-    prev          : TraceTotals
 ) -> next: TraceTotals
 
   assert K_target ≥ 0
@@ -972,8 +965,7 @@ proc emit_ztp_final_nonconsuming(
   next := trace_after_event_s4(lineage,
                                   ctx.before_hi, ctx.before_lo,
                                   s_current.ctr.hi, s_current.ctr.lo,
-                                  "0",
-                                  prev)
+                                  "0")
 
   # Writer-sort key: (merchant_id)
   return next
@@ -993,14 +985,14 @@ end
 
 # 10) Trace duty (writer responsibility; saturating)
 
-> **What this section does.** It pins the **one-event → one-trace** contract for S4, using the **S1·L0 trace writer** with **saturating** totals. The trace is cumulative per **(module, substream_label)** and uses the same partition keys as S4 event streams—**`{seed, parameter_hash, run_id}`**—resolved via the **Data Dictionary**. After **every** S4 event append, the **same writer** must append **exactly one** `rng/core/rng_trace_log` row **immediately after** the event; no other sink may emit trace rows. File order is **non-authoritative**; counters drive replay.
+> **What this section does.** It pins the **one-event → one-trace** contract for S4, using the **S1·L0 trace writer** with **saturating** totals. The trace is cumulative per **(module, substream_label)** and uses the same partition keys as S4 event streams—**`{seed, parameter_hash, run_id}`**—resolved via the **Data Dictionary**. After **every** S4 event append, the **same writer** must append **exactly one** `rng_trace_log` row **immediately after** the event; no other sink may emit trace rows. File order is **non-authoritative**; counters drive replay.
 
 ### Shared literals (recall)
 
 ```pseudocode
 const MODULE          = "1A.s4.ztp"
 const SUBSTREAM_LABEL = "poisson_component"
-const FAM_TRACE       = "rng/core/rng_trace_log"   # schemas.layer1.yaml#/rng/core/rng_trace_log
+const FAM_TRACE       = "rng_trace_log"   # schemas.layer1.yaml#/rng/core/rng_trace_log
 ```
 
 *The trace domain is exactly `(MODULE, SUBSTREAM_LABEL)` for **all** S4 events. Paths are dictionary-resolved.*
@@ -1023,7 +1015,6 @@ proc trace_after_event_s4(
     before_hi : u64, before_lo : u64,
     after_hi  : u64, after_lo  : u64,
     draws_str : string,         # decimal-u128 for THIS event; "0" if non-consuming
-    prev      : TraceTotals     # cumulative totals BEFORE this event (saturating)
 ) -> next: TraceTotals
 
   # 0) Envelope identities (frozen in S4)
@@ -1044,11 +1035,8 @@ proc trace_after_event_s4(
 
   # 1) Single cumulative-trace append (S1·L0 — saturating totals)
   next := update_rng_trace_totals(
-            MODULE, SUBSTREAM_LABEL,
-            lineage.seed, lineage.parameter_hash, lineage.run_id,
-            before_hi, before_lo, after_hi, after_lo,
-            prev.draws_total, prev.blocks_total, prev.events_total,
-            draws_str)
+            draws_str, MODULE, SUBSTREAM_LABEL,
+            lineage.seed, lineage.parameter_hash, lineage.run_id)
 
   # 2) Postconditions (MUST)
   # - Exactly one rng/core/rng_trace_log row appended in partition {seed, parameter_hash, run_id}
@@ -1062,7 +1050,7 @@ end
 ## 10.2 Where to call it (emitters)
 
 * **Immediately after** each event append (`poisson_component`, `ztp_rejection`, `ztp_retry_exhausted`, `ztp_final`), call
-  `trace_after_event_s4(lineage, before_hi, before_lo, after_hi, after_lo, draws_str, prev)`.
+  `trace_after_event_s4(lineage, before_hi, before_lo, after_hi, after_lo, draws_str)`.
 
   * **Consuming attempts:** pass sampler-measured draws (e.g., `"3"` for inversion with $K=2$).
   * **Non-consuming markers/final:** pass `"0"`; counters must be unchanged.
@@ -1073,7 +1061,7 @@ end
 ## 10.3 Partition & lineage rules for trace
 
 * **Partitions (path keys):** `rng_trace_log` writes under **`{seed, parameter_hash, run_id}`** (dictionary-resolved).
-* **Trace lineage fields.** Trace rows embed `seed` & `run_id` (per schema); `parameter_hash` is path-only; lineage is enforced by the partition path.
+* **Trace lineage fields.** Trace rows **omit** embedded lineage (no `seed/parameter_hash/run_id`) and carry **no `context`**; lineage is enforced by the partition path.
 * **No `context` on trace.** Trace rows include `ts_utc`, `module`, `substream_label`, `rng_counter_after_{hi,lo}`, and cumulative totals only.
 
 ---
@@ -1102,7 +1090,7 @@ end
 
 * After **each** S4 event append, the **same writer immediately calls** `trace_after_event_s4(...)` (or `update_rng_trace_totals` with identical args) **exactly once**.
 * **Consuming vs non-consuming identities** enforced: attempts increase `blocks_total` & `draws_total`; markers/final increase **only** `events_total`.
-* **Dictionary-resolved** path for `rng/core/rng_trace_log`; partitions = `{seed, parameter_hash, run_id}`; trace rows have **no embedded lineage** and **no `context`**.
+* **Dictionary-resolved** path for `rng_trace_log`; partitions = `{seed, parameter_hash, run_id}`; trace rows have **no embedded lineage** and **no `context`**.
 * **Saturating totals** semantics (S1 writer) only; **do not** use S0’s non-saturating updater.
 
 ---
@@ -1300,9 +1288,7 @@ proc dict_expected_partitions(family: string) -> list[string]           # e.g., 
 proc dict_path_for_family   (family: string, parts: map) -> string      # resolves to full path; no literals
 ```
 
-*For all S4 streams (`rng/events/poisson_component`, `rng/events/ztp_rejection`,
-`rng/events/ztp_retry_exhausted`, `rng/events/ztp_final`, and `rng/core/rng_trace_log`),
-the dictionary declares partitions = **`["seed","parameter_hash","run_id"]`**. S4 must not embed physical paths; all locations are dictionary-resolved.*
+*For all S4 streams (`rng_event_poisson_component`, `rng_event_ztp_rejection`, `rng_event_ztp_retry_exhausted`, `rng_event_ztp_final`, and `rng_trace_log`), the dictionary declares partitions = **`["seed","parameter_hash","run_id"]`**. S4 must not embed physical paths; all locations are dictionary-resolved.*
 
 ---
 
@@ -1325,9 +1311,9 @@ proc extract_partition_tokens(path: string, keys: list[string]) -> map:
 # Enforce dictionary partitions AND path↔embed equality BEFORE writing.
 #
 # family ∈ {
-#   "rng/events/poisson_component","rng/events/ztp_rejection",
-#   "rng/events/ztp_retry_exhausted","rng/events/ztp_final",
-#   "rng/core/rng_trace_log"
+#   "rng_event_poisson_component","rng_event_ztp_rejection",
+#   "rng_event_ztp_retry_exhausted","rng_event_ztp_final",
+#   `rng_trace_log`
 # }
 # lineage = { seed:u64, parameter_hash:hex64, run_id:hex32, manifest_fingerprint:hex64 }
 #
@@ -1385,7 +1371,7 @@ Envelope (event rows only):
 }
 ```
 
-`rng/core/rng_trace_log` **trace rows do not embed lineage** (no `seed/parameter_hash/run_id`) and carry **no `context`**; lineage is enforced by the **partition path**. File order is **non-authoritative**; counters provide the total order.
+`rng_trace_log` **trace rows omit embedded lineage** (no `seed/parameter_hash/run_id`) and carry **no `context`**; lineage is enforced by the **partition path**.
 
 ---
 
@@ -1393,7 +1379,7 @@ Envelope (event rows only):
 
 ```pseudocode
 # S4 MUST enforce path↔embed equality when reading S1/S2 RNG logs (gates/facts).
-# family ∈ {"rng/events/hurdle_bernoulli","rng/events/nb_final"}
+# family ∈ {"rng_event_hurdle_bernoulli","rng_event_nb_final"}
 proc verify_upstream_row_path_embed(family: string, row: map, path: string):
   keys ← ["seed","parameter_hash","run_id"]
   tok  ← extract_partition_tokens(path, keys)
@@ -1426,7 +1412,7 @@ end
 
 * **Dictionary-resolved only**; no path literals anywhere.
 * **Expected partitions** for every S4 stream are exactly **`seed, parameter_hash, run_id`**; verified before write.
-* **Path↔embed equality** holds on **event rows**: embedded `{seed, parameter_hash, run_id}` **byte-match** path tokens; `rng/core/rng_trace_log` **trace rows omit embedded lineage** and have **no `context`** (lineage via partition path).
+* **Path↔embed equality** holds on **event rows**: embedded `{seed, parameter_hash, run_id}` **byte-match** path tokens; `rng_trace_log` **trace rows omit embedded lineage** and have **no `context`** (lineage via partition path).
 * **Read-side equality** is enforced for S1/S2 inputs S4 reads (gates/facts).
 * **File order non-authoritative**; counters drive replay.
 * **Logs-only posture**; no egress/validation writes here. (Fingerprint-scoped content belongs to S0/validators.)
@@ -1444,7 +1430,7 @@ These guards make it mechanically hard to drift from the partition contract: the
 ## 13.1 Writer domains & locks (no concurrent appends per domain)
 
 **Domain key (logs-only partition):**
-`dom = ( family ∈ { "rng/events/poisson_component", "rng/events/ztp_rejection", "rng/events/ztp_retry_exhausted", "rng/events/ztp_final", "rng/core/rng_trace_log" }, seed, parameter_hash, run_id )`
+`dom = ( family ∈ { "rng_event_poisson_component", "rng_event_ztp_rejection", "rng_event_ztp_retry_exhausted", "rng_event_ztp_final", `rng_trace_log` }, seed, parameter_hash, run_id )`
 
 ```pseudocode
 # Host-provided lock; exact primitive is platform-specific (mutex/file lock/shard gate).
@@ -1556,7 +1542,7 @@ Trace rows are **cumulative (saturating)**; a single append per event is require
 ## 13.9 Acceptance for §13 (checklist)
 
 * **Single writer per domain** `(family, seed, parameter_hash, run_id)`; no concurrent appends. Families use full IDs:
-  `rng/events/poisson_component`, `rng/events/ztp_rejection`, `rng/events/ztp_retry_exhausted`, `rng/events/ztp_final`, `rng/core/rng_trace_log`.
+  `rng_event_poisson_component`, `rng_event_ztp_final`, `rng_event_ztp_retry_exhausted`, `rng_event_ztp_final`, `rng_trace_log`.
 * **Either** serial appends with **fdatasync per row**, **or** worker segments + **stable** merge with **stage → fsync → rename** publish.
 * **One event → one trace** by the **same writer, immediately after** the event; if a crash occurs after EVENT fsync and before TRACE append, **repair the trace only** using the event’s persisted envelope counters and `draws_str` (no duplicate events, no resampling).
 * **Idempotence & zero-row ban** honored; **skip-if-final** respected.
@@ -2387,11 +2373,11 @@ This catalogue makes the weird corners **boring**: each is turned into a tiny, r
 * **Numeric profile:** IEEE-754 **binary64**, **RNE**, **FMA-off**, **no FTZ/DAZ**; **strict-open** $u\in(0,1)$. **Breaking** to change.
 
 * **Event families (set & consuming semantics):**
-  `rng/events/poisson_component` (**consuming**),
-  `rng/events/ztp_rejection` / `rng/events/ztp_retry_exhausted` / `rng/events/ztp_final` (**non-consuming**).
+  `rng_event_poisson_component` (**consuming**),
+  `rng_event_ztp_final` / `rng_event_ztp_retry_exhausted` / `rng_event_ztp_final` (**non-consuming**).
   **Breaking** to add/remove or flip consuming semantics. *(Short names map 1:1 to these dataset families.)*
 
-* **Trace family:** `rng/core/rng_trace_log`. **Breaking** to alter semantics/identity.
+* **Trace family:** `rng_trace_log`. **Breaking** to alter semantics/identity.
 
 * **Partitions (logs only):** all S4 streams (incl. trace) are written under `{seed, parameter_hash, run_id}`. **Breaking** to alter.
 
@@ -2537,13 +2523,13 @@ This section locks S4’s evolution path so future edits are **predictable for i
 1. **Scope fence:** L0 contains **no orchestration loops**, **no validators**, **no path literals**.
 2. **Reuse fence:** All PRNG/trace/dictionary/codec/sampler functions are **imported** from S0/S1/S2; only S4-specific helpers/adapters/emitters are new.
 3. **Literal fence:** `module="1A.s4.ztp"`, `substream_label="poisson_component"`, `context="ztp"` are fixed for **event** rows; **trace** carries `module/substream_label` only (no `context`).
-4. **Partition fence:** All streams write under `{seed, parameter_hash, run_id}` resolved via **dictionary**; **path↔embed equality** holds on **event rows**; `rng/core/rng_trace_log` omits embedded lineage (lineage via partition path).
+4. **Partition fence:** All streams write under `{seed, parameter_hash, run_id}` resolved via **dictionary**; **path↔embed equality** holds on **event rows**; `rng_trace_log` omits embedded lineage (lineage via partition path).
 5. **Substream fence:** All S4 events derive the **same** merchant-scoped substream (label `"poisson_component"`, Ids `[merchant_u64]`), order-invariant.
 6. **Envelope fence:** **Consuming** rows: `after>before, blocks==Δ, draws>"0"`; **non-consuming** rows: `before==after, blocks=0, draws="0"`.
 7. **Trace fence:** After **every** event append, the **same writer** appends **exactly one** cumulative trace row **immediately after** the event (saturating totals).
 8. **Numeric/RNG fence:** binary64 (RNE), FMA-off, strict-open $u\in(0,1)$; λ guard (finite & >0); regime fixed by $\lambda^\star=10$; budgets **measured, not inferred**.
 9. **Idempotence fence:** zero-row ban; re-runs produce **byte-identical** logs; **skip-if-final** respected; crash window repaired by appending **trace only**.
-10. **Uniqueness fence:** ≤1 `rng/events/poisson_component` per `(merchant_id,attempt)`, ≤1 `rng/events/ztp_rejection` per `(merchant_id,attempt)`, ≤1 `rng/events/ztp_retry_exhausted` per merchant, **exactly one** `rng/events/ztp_final` per resolved merchant.
+10. **Uniqueness fence:** ≤1 `rng_event_poisson_component` per `(merchant_id,attempt)`, ≤1 `rng_event_ztp_rejection` per `(merchant_id,attempt)`, ≤1 `rng_event_ztp_retry_exhausted` per merchant, **exactly one** `rng_event_ztp_final` per resolved merchant.
 
 ---
 
@@ -2603,9 +2589,9 @@ end
 
 ```pseudocode
 proc gate_partition_and_lineage(lineage:Lineage, s_current:Stream):
-  vp  := prewrite_verify_partition_and_lineage("rng/events/ztp_final", lineage)   # asserts dict keys = ["seed","parameter_hash","run_id"]
+  vp  := prewrite_verify_partition_and_lineage("rng_event_ztp_final", lineage)   # asserts dict keys = ["seed","parameter_hash","run_id"]
   ctx := begin_event_micro(MODULE,SUBSTREAM_LABEL, lineage.seed, lineage.parameter_hash, lineage.manifest_fingerprint, lineage.run_id, s_current)
-  end_event_emit("rng/events/ztp_final", ctx, s_current, 0, 0, payload_min())
+  end_event_emit("rng_event_ztp_final", ctx, s_current, 0, 0, payload_min())
   row := tail_read(vp.path)                                    # last EVENT row written
   assert to_string(row.seed)                  == to_string(lineage.seed)
   assert lowercase_hex(row.parameter_hash)    == lowercase_hex(lineage.parameter_hash)
@@ -2638,7 +2624,7 @@ end
 ```pseudocode
 proc gate_one_event_one_trace(lineage:Lineage, prev:TraceTotals):
   # Append a consuming attempt event
-  ctx := begin_event_micro(...); end_event_emit("rng/events/poisson_component", ctx, s_after, bud.draws_hi, bud.draws_lo, payload_attempt())
+  ctx := begin_event_micro(...); end_event_emit("rng_event_poisson_component", ctx, s_after, bud.draws_hi, bud.draws_lo, payload_attempt())
   next := trace_after_event_s4(lineage, ctx.before_hi,ctx.before_lo, s_after.ctr.hi,s_after.ctr.lo,
                                u128_to_decimal_string(bud.draws_hi,bud.draws_lo))
   (hi,lo) := u128_delta(s_after.ctr.hi,s_after.ctr.lo, ctx.before_hi,ctx.before_lo)
@@ -2649,7 +2635,7 @@ proc gate_one_event_one_trace(lineage:Lineage, prev:TraceTotals):
   assert next.draws_total  == prev.draws_total  + du
 
   # Crash window: event fsynced, trace missing → repair by appending trace only once
-  ctx2 := begin_event_micro(...); end_event_emit("rng/events/ztp_rejection", ctx2, s_current, 0,0, payload_rej())
+  ctx2 := begin_event_micro(...); end_event_emit("rng_event_ztp_rejection", ctx2, s_current, 0,0, payload_rej())
   repaired := trace_after_event_s4(lineage, s_current.ctr.hi, s_current.ctr.lo, s_current.ctr.hi, s_current.ctr.lo, "0")
   assert repaired.events_total == next.events_total + 1
 end
@@ -2690,10 +2676,10 @@ proc gate_uniqueness_and_sort():
   emit ztp_final(K_target=3, attempts=2, exhausted:false)
 
   # Read back and verify on dataset families
-  rows := read_partition("rng/events/poisson_component");   assert unique_keys(rows, key=(merchant_id,attempt))
-  rej  := read_partition("rng/events/ztp_rejection");       assert unique_keys(rej,  key=(merchant_id,attempt))
-  ex   := read_partition("rng/events/ztp_retry_exhausted"); assert at_most_one(ex, key=merchant_id)
-  fin  := read_partition("rng/events/ztp_final");           assert exactly_one(fin,  key=merchant_id)
+  rows := read_partition("rng_event_poisson_component");   assert unique_keys(rows, key=(merchant_id,attempt))
+  rej  := read_partition("rng_event_ztp_rejection");       assert unique_keys(rej,  key=(merchant_id,attempt))
+  ex   := read_partition("rng_event_ztp_retry_exhausted"); assert at_most_one(ex, key=merchant_id)
+  fin  := read_partition("rng_event_ztp_final");           assert exactly_one(fin,  key=merchant_id)
 
   # Sort keys must be respected
   assert is_sorted(rows, key=(merchant_id,attempt))
@@ -2771,7 +2757,7 @@ attempt := 1
 # Consuming event (emitter writes event + trace; returns updated totals)
 tot := event_poisson_ztp(merchant_id, lineage, s, s_after, lr, attempt, k, bud, prev:=tot)   # §9.1
 # Metrics fire AFTER the emitter returns (after event+trace fsync)
-metrics_after_event_append({lineage..., merchant_id}, "rng/events/poisson_component")     # §11
+metrics_after_event_append({lineage..., merchant_id}, "rng_event_poisson_component")     # §11
 
 # Finaliser (non-consuming) — acceptance path
 emit_ztp_final_nonconsuming(merchant_id, lineage, s_after, lr,
@@ -2792,12 +2778,12 @@ attempt := 1
 loop:
   (k, s_after, bud) := poisson_attempt_once(lr.lambda_extra, lr.regime, s)
   tot := event_poisson_ztp(merchant_id, lineage, s, s_after, lr, attempt, k, bud, prev:=tot)
-  metrics_after_event_append({lineage..., merchant_id}, "rng/events/poisson_component")
+  metrics_after_event_append({lineage..., merchant_id}, "rng_event_poisson_component")
 
   if k == 0 then
      # Zero marker (non-consuming), same counters; writer-sort key (merchant_id, attempt)
      tot := emit_ztp_rejection_nonconsuming(merchant_id, lineage, s_after, lr, attempt)
-     metrics_after_event_append({lineage..., merchant_id}, "rng/events/ztp_rejection")
+     metrics_after_event_append({lineage..., merchant_id}, "rng_event_ztp_rejection")
      attempt := attempt + 1
      s := s_after
      continue loop
@@ -2824,11 +2810,11 @@ attempt := 1
 while attempt ≤ MAX_ZTP_ZERO_ATTEMPTS:             # from crossborder_hyperparams (governed; in parameter_hash)
   (k, s_after, bud) := poisson_attempt_once(lr.lambda_extra, lr.regime, s)
   tot := event_poisson_ztp(merchant_id, lineage, s, s_after, lr, attempt, k, bud, prev:=tot)
-  metrics_after_event_append({lineage..., merchant_id}, "rng/events/poisson_component")
+  metrics_after_event_append({lineage..., merchant_id}, "rng_event_poisson_component")
 
   if k == 0:
     tot := emit_ztp_rejection_nonconsuming(merchant_id, lineage, s_after, lr, attempt)
-    metrics_after_event_append({lineage..., merchant_id}, "rng/events/ztp_rejection")
+    metrics_after_event_append({lineage..., merchant_id}, "rng_event_ztp_rejection")
     attempt := attempt + 1
     s := s_after
     continue
@@ -2842,7 +2828,7 @@ end while
 
 # Cap hit — write exhausted marker (non-consuming), once
 tot := emit_ztp_retry_exhausted_nonconsuming(merchant_id, lineage, s, lr, attempts:=attempt-1)
-metrics_after_event_append({lineage..., merchant_id}, "rng/events/ztp_retry_exhausted")
+metrics_after_event_append({lineage..., merchant_id}, "rng_event_ztp_retry_exhausted")
 
 if ztp_exhaustion_policy == "abort":
    # NO final written
@@ -2928,13 +2914,13 @@ These scaffolds let an implementer (or intern) wire S4 with **zero ambiguity**, 
 
 ## 21.2 Stream families → schema anchors → partitions → writer sort keys
 
-| Family (Dictionary ID)           | JSON-Schema anchor (JSON-Pointer)                     | Consuming?     | Partitions (logs)                | Writer sort key                   |
-|----------------------------------|-------------------------------------------------------|----------------|----------------------------------|-----------------------------------|
-| `rng/events/poisson_component`   | `schemas.layer1.yaml#/rng/events/poisson_component`   | **Yes**        | `{seed, parameter_hash, run_id}` | `(merchant_id, attempt)`          |
-| `rng/events/ztp_rejection`       | `schemas.layer1.yaml#/rng/events/ztp_rejection`       | No (marker)    | `{seed, parameter_hash, run_id}` | `(merchant_id, attempt)`          |
-| `rng/events/ztp_retry_exhausted` | `schemas.layer1.yaml#/rng/events/ztp_retry_exhausted` | No (marker)    | `{seed, parameter_hash, run_id}` | `(merchant_id, attempts)`         |
-| `rng/events/ztp_final`           | `schemas.layer1.yaml#/rng/events/ztp_final`           | No (finaliser) | `{seed, parameter_hash, run_id}` | `(merchant_id)`                   |
-| `rng/core/rng_trace_log`         | `schemas.layer1.yaml#/rng/core/rng_trace_log`         | (trace)        | `{seed, parameter_hash, run_id}` | n/a (cumulative per module/label) |
+| Family (Dictionary ID)          | JSON-Schema anchor (JSON-Pointer)                     | Consuming?     | Partitions (logs)                | Writer sort key                   |
+|---------------------------------|-------------------------------------------------------|----------------|----------------------------------|-----------------------------------|
+| `rng_event_poisson_component`   | `schemas.layer1.yaml#/rng/events/poisson_component`   | **Yes**        | `{seed, parameter_hash, run_id}` | `(merchant_id, attempt)`          |
+| `rng_event_ztp_rejection`       | `schemas.layer1.yaml#/rng/events/ztp_rejection`       | No (marker)    | `{seed, parameter_hash, run_id}` | `(merchant_id, attempt)`          |
+| `rng_event_ztp_retry_exhausted` | `schemas.layer1.yaml#/rng/events/ztp_retry_exhausted` | No (marker)    | `{seed, parameter_hash, run_id}` | `(merchant_id, attempts)`         |
+| `rng_event_ztp_final`           | `schemas.layer1.yaml#/rng/events/ztp_final`           | No (finaliser) | `{seed, parameter_hash, run_id}` | `(merchant_id)`                   |
+| `rng_trace_log`                 | `schemas.layer1.yaml#/rng/core/rng_trace_log`         | (trace)        | `{seed, parameter_hash, run_id}` | n/a (cumulative per module/label) |
 
 **Mandatory equalities.** For **event rows**, embedded `{seed, parameter_hash, run_id}` **byte-match** the path tokens; trace rows **omit** embedded lineage (lineage via partition path) and have **no `context`**. All paths are **dictionary-resolved** (no literals). **File order is non-authoritative**; counters give total order.
 
@@ -2965,10 +2951,10 @@ Non-consuming rows: `before==after`, `blocks=0`, `draws="0"`.
 
 | Family                           | Payload (minimum fields)                                                               |
 |----------------------------------|----------------------------------------------------------------------------------------|
-| `rng/events/poisson_component`   | `{ merchant_id, attempt, k, lambda_extra, regime }`                                    |
-| `rng/events/ztp_rejection`       | `{ merchant_id, attempt, k:0, lambda_extra }`                                          |
-| `rng/events/ztp_retry_exhausted` | `{ merchant_id, attempts, lambda_extra [, aborted:true]? }` *(policy flag if defined)* |
-| `rng/events/ztp_final`           | `{ merchant_id, K_target, lambda_extra, attempts, regime, exhausted? [, reason?] }`    |
+| `rng_event_poisson_component`   | `{ merchant_id, attempt, k, lambda_extra, regime }`                                    |
+| `rng_event_ztp_rejection`       | `{ merchant_id, attempt, k:0, lambda_extra }`                                          |
+| `rng_event_ztp_retry_exhausted` | `{ merchant_id, attempts, lambda_extra [, aborted:true]? }` *(policy flag if defined)* |
+| `rng_event_ztp_final`           | `{ merchant_id, K_target, lambda_extra, attempts, regime, exhausted? [, reason?] }`    |
 
 **Cardinality.** ≤1 `poisson_component` per `(merchant_id,attempt)`; ≤1 `ztp_rejection` per `(merchant_id,attempt)`; ≤1 `ztp_retry_exhausted` per merchant; **exactly one** `ztp_final` per **resolved** merchant (absent only on hard abort).
 
@@ -3043,23 +3029,23 @@ All numbers **stay numbers**; use shortest **round-trip** JSON.
 
 | Family                           | Consuming? | Counters change?            | `draws` value            |
 |----------------------------------|------------|-----------------------------|--------------------------|
-| `rng/events/poisson_component`   | **Yes**    | `after>before`, `blocks>0`  | `>"0"` (actual uniforms) |
-| `rng/events/ztp_rejection`       | No         | `before==after`, `blocks=0` | `"0"`                    |
-| `rng/events/ztp_retry_exhausted` | No         | `before==after`, `blocks=0` | `"0"`                    |
-| `rng/events/ztp_final`           | No         | `before==after`, `blocks=0` | `"0"`                    |
+| `rng_event_poisson_component`   | **Yes**    | `after>before`, `blocks>0`  | `>"0"` (actual uniforms) |
+| `rng_event_ztp_rejection`       | No         | `before==after`, `blocks=0` | `"0"`                    |
+| `rng_event_ztp_retry_exhausted` | No         | `before==after`, `blocks=0` | `"0"`                    |
+| `rng_event_ztp_final`           | No         | `before==after`, `blocks=0` | `"0"`                    |
 
-One event append **→** one cumulative `rng/core/rng_trace_log` append (same `(module, substream_label)`); **same writer** performs both **immediately**.
+One event append **→** one cumulative `rng_trace_log` append (same `(module, substream_label)`); **same writer** performs both **immediately**.
 
 ---
 
 ## 21.11 Writer sort keys & uniqueness
 
-| Family                           | Writer sort key           | Uniqueness per merchant     |
-|----------------------------------|---------------------------|-----------------------------|
-| `rng/events/poisson_component`   | `(merchant_id, attempt)`  | ≤1 per key                  |
-| `rng/events/ztp_rejection`       | `(merchant_id, attempt)`  | ≤1 per key                  |
-| `rng/events/ztp_retry_exhausted` | `(merchant_id, attempts)` | ≤1 total                    |
-| `rng/events/ztp_final`           | `(merchant_id)`           | **Exactly 1** when resolved |
+| Family                          | Writer sort key           | Uniqueness per merchant     |
+|---------------------------------|---------------------------|-----------------------------|
+| `rng_event_poisson_component`   | `(merchant_id, attempt)`  | ≤1 per key                  |
+| `rng_event_ztp_rejection`       | `(merchant_id, attempt)`  | ≤1 per key                  |
+| `rng_event_ztp_retry_exhausted` | `(merchant_id, attempts)` | ≤1 total                    |
+| `rng_event_ztp_final`           | `(merchant_id)`           | **Exactly 1** when resolved |
 
 Violations are producer bugs; see §16 for failure signals.
 
