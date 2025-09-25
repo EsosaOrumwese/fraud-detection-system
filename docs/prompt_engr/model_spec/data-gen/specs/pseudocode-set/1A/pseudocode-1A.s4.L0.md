@@ -82,10 +82,10 @@ The **Data Dictionary** defines dataset IDs, **partitions** (`{seed, parameter_h
 * `derive_master_material(seed_u64, manifest_fingerprint_bytes) → (M, root_key, root_ctr)` — audit-only master derivation (raw 32 bytes; referenced here only as provenance for substreams).
 * `derive_substream(M, label:string, ids:Ids) → Stream{ key:u64, ctr:{hi:u64,lo:u64} }` — **order-invariant** keyed substream; message is exactly `UER("mlr:1A") || UER(label) || SER(ids)`. **SER tag set is closed**: `{iso, merchant_u64, i, j}`; **`iso` must be UPPERCASE ASCII before encoding**; any other tag → hard error.
 * `philox_block(s) → (x0:u64, x1:u64, s')` — **PHILOX-2×64-10**; advances the 128-bit counter by **+1 block** per call.
-* `u01(x:u64) → f64` — **strict-open** (0,1) mapping in binary64; never 0.0/1.0; endpoint remap is normative.
-* `uniform1(s) → (u:f64, s', draws:u128)` — **low lane** from one block; **draws=1** (actual uniforms).
-* `uniform2(s) → (u1:f64, u2:f64, s', draws:u128)` — both lanes from one block; **draws=2**; **no cache**.
-* `normal_box_muller(s) → (z:f64, s', draws:u128)` — consumes **one** block; **draws=2**; cosine branch; hex-literal `TAU`.
+* `u01(x:u64) → float64` — **strict-open** (0,1) mapping in binary64; never 0.0/1.0; endpoint remap is normative.
+* `uniform1(s) → (u:float64, s', draws:u128)` — **low lane** from one block; **draws=1** (actual uniforms).
+* `uniform2(s) → (u1:float64, u2:float64, s', draws:u128)` — both lanes from one block; **draws=2**; **no cache**.
+* `normal_box_muller(s) → (z:float64, s', draws:u128)` — consumes **one** block; **draws=2**; cosine branch; hex-literal `TAU`.
 
 > **Lane/budget law (MUST):** Single-uniform events use **low lane**; Box–Muller uses **both lanes** from one block. **Budgets are actual uniforms** (independent of counter delta); `blocks = after − before`.
 
@@ -104,8 +104,8 @@ The **Data Dictionary** defines dataset IDs, **partitions** (`{seed, parameter_h
 
 ## 2.3 Attempt capsules & guards — **S2·L0 (pure; no I/O)**
 
-* `poisson_attempt_with_budget(lambda:f64, s_pois:Stream) → (k:i64, s':Stream, AttemptBudget)` — regime split **inversion** if `λ < 10`, **PTRS** otherwise; **budgets measured** (actual uniforms); `blocks` from counter delta. **Two uniforms per PTRS iteration**.
-* `assert_finite_positive(x:f64, name:string)` — hard error if NaN/±Inf or `x ≤ 0`; used to guard `λ` before any emission.
+* `poisson_attempt_with_budget(lambda:float64, s_pois:Stream) → (k:i64, s':Stream, AttemptBudget)` — regime split **inversion** if `λ < 10`, **PTRS** otherwise; **budgets measured** (actual uniforms); `blocks` from counter delta. **Two uniforms per PTRS iteration**.
+* `assert_finite_positive(x:float64, name:string)` — hard error if NaN/±Inf or `x ≤ 0`; used to guard `λ` before any emission.
 
 > **PTRS constants & threshold are spec-fixed**; we inherit them unchanged.
 
@@ -155,12 +155,12 @@ This import map keeps S4·L0 **thin and deterministic**: we reuse PRNG/substream
 
 ## 3.1 Frozen label set (shared by all S4 events)
 
-| Stream family                    | **module**  | **substream_label** | **context** |
-|----------------------------------|-------------|----------------------|-------------|
-| `rng/events/poisson_component`   | `1A.s4.ztp` | `poisson_component`  | `"ztp"`     |
-| `rng/events/ztp_rejection`       | `1A.s4.ztp` | `poisson_component`  | `"ztp"`     |
-| `rng/events/ztp_retry_exhausted` | `1A.s4.ztp` | `poisson_component`  | `"ztp"`     |
-| `rng/events/ztp_final`           | `1A.s4.ztp` | `poisson_component`  | `"ztp"`     |
+| Stream family                   | **module**  | **substream_label** | **context** |
+|---------------------------------|-------------|---------------------|-------------|
+| `rng_event_poisson_component`   | `1A.s4.ztp` | `poisson_component` | `"ztp"`     |
+| `rng_event_ztp_rejection`       | `1A.s4.ztp` | `poisson_component` | `"ztp"`     |
+| `rng_event_ztp_retry_exhausted` | `1A.s4.ztp` | `poisson_component` | `"ztp"`     |
+| `rng_event_ztp_final`           | `1A.s4.ztp` | `poisson_component` | `"ztp"`     |
 
 **Notes.** All S4 events share `substream_label="poisson_component"` to keep budgeting/trace under one domain; event type is distinguished by the **table/anchor** and `context:"ztp"`. After *each* event append, the **same writer** emits **exactly one** cumulative `rng_trace_log` row for this `(module, substream_label)`.
 
@@ -177,7 +177,7 @@ This import map keeps S4·L0 **thin and deterministic**: we reuse PRNG/substream
   **Envelope (min):** as above
   **Writer sort:** `(merchant_id, attempt)`.
 * `schemas.layer1.yaml#/rng/events/ztp_retry_exhausted` — **non-consuming** cap-hit marker.
-  **Payload (min):** `{ merchant_id:int64, attempts:int≥1, lambda_extra:float64, aborted:true }`
+  **Payload (min):** `{ merchant_id:int64, attempts:int≥1, lambda_extra:float64 [ , aborted:true ]? }` *(include policy flag only if the bound schema defines it / policy=abort)*  
   **Envelope (min):** as above
   **Writer sort:** `(merchant_id, attempts)`.
 * `schemas.layer1.yaml#/rng/events/ztp_final` — **non-consuming** single acceptance record.
@@ -346,7 +346,7 @@ type exhausted  = bool
 type reason     = "no_admissible"  # optional (schema-versioned)
 ```
 
-### a) `rng/events/poisson_component` — **consuming attempt**
+### a) `rng_event_poisson_component` — **consuming attempt**
 
 ```text
 type PoissonComponent = {
@@ -359,7 +359,7 @@ type PoissonComponent = {
 # Writer sort: (merchant_id, attempt) ; Envelope: consuming identities must hold
 ```
 
-### b) `rng/events/ztp_rejection` — **non-consuming zero marker**
+### b) `rng_event_ztp_rejection` — **non-consuming zero marker**
 
 ```text
 type ZtpRejection = {
@@ -371,7 +371,7 @@ type ZtpRejection = {
 # Writer sort: (merchant_id, attempt) ; Envelope: non-consuming identities must hold
 ```
 
-### c) `rng/events/ztp_retry_exhausted` — **non-consuming cap-hit**
+### c) `rng_event_ztp_retry_exhausted` — **non-consuming cap-hit**
 
 ```text
 type ZtpRetryExhausted = {
@@ -383,7 +383,7 @@ type ZtpRetryExhausted = {
 # Writer sort: (merchant_id, attempts) ; Envelope: non-consuming identities must hold
 ```
 
-### d) `rng/events/ztp_final` — **non-consuming finaliser**
+### d) `rng_event_ztp_final` — **non-consuming finaliser**
 
 ```text
 type ZtpFinal = {
@@ -622,7 +622,7 @@ type LambdaRegime = {
 **Reuse (from S2·L0):**
 `assert_finite_positive(x: float64, name: string) -> float64 | NUMERIC_INVALID`
 
-* Fails with **NUMERICINVALID** if `x` is NaN/±Inf or $x \le 0$.
+* Fails with **NUMERIC_INVALID** if `x` is NaN/±Inf or $x \le 0$.
 * Producer uses binary64, RNE, FMA-off; **no epsilons**.
 
 ---
@@ -647,7 +647,7 @@ type LambdaRegime = {
 
 **Steps**
 
-1. $\lambda \leftarrow$ `assert_finite_positive(lambda_extra_raw, "lambda_extra")`; else **NUMERICINVALID**.
+1. $\lambda \leftarrow$ `assert_finite_positive(lambda_extra_raw, "lambda_extra")`; else **NUMERIC_INVALID**.
 2. $r \leftarrow$ `compute_poisson_regime(λ)`.
 3. Return `{ lambda_extra: λ, regime: r }`.
    **Invariant:** Use the returned `LambdaRegime` **verbatim** for all S4 rows (attempts, markers, finaliser) for that merchant.
@@ -755,11 +755,11 @@ const SUBSTREAM_LABEL = "poisson_component"         # shared by all S4 events
 const CONTEXT         = "ztp"                       # stamped in envelope by the writer
 
 # Dictionary families (Data Dictionary resolves these IDs to paths)
-const FAM_POISSON     = "rng/events/poisson_component"   # schema: schemas.layer1.yaml#/rng/events/poisson_component
-const FAM_REJECTION   = "rng/events/ztp_rejection"       # schema: schemas.layer1.yaml#/rng/events/ztp_rejection
-const FAM_EXHAUSTED   = "rng/events/ztp_retry_exhausted" # schema: schemas.layer1.yaml#/rng/events/ztp_retry_exhausted
-const FAM_FINAL       = "rng/events/ztp_final"           # schema: schemas.layer1.yaml#/rng/events/ztp_final
-const FAM_TRACE       = "rng/core/rng_trace_log"         # schema: schemas.layer1.yaml#/rng/core/rng_trace_log
+const FAM_POISSON     = "rng_event_poisson_component"   # schema: schemas.layer1.yaml#/rng/events/poisson_component
+const FAM_REJECTION   = "rng_event_ztp_rejection"       # schema: schemas.layer1.yaml#/rng/events/ztp_rejection
+const FAM_EXHAUSTED   = "rng_event_ztp_retry_exhausted" # schema: schemas.layer1.yaml#/rng/events/ztp_retry_exhausted
+const FAM_FINAL       = "rng_event_ztp_final"           # schema: schemas.layer1.yaml#/rng/events/ztp_final
+const FAM_TRACE       = "rng_trace_log"                 # schema: schemas.layer1.yaml#/rng/core/rng_trace_log
 ```
 
 *All four families share one trace domain `(MODULE, SUBSTREAM_LABEL)`. After **each** event append, the **same writer immediately appends** **exactly one** cumulative trace row (saturating totals). File order is non-authoritative; counters give total order. Budgets are **measured, not inferred**.*
@@ -791,7 +791,8 @@ proc event_poisson_ztp(
     lr          : LambdaRegime,         # {lambda_extra>0 finite, regime}
     attempt     : int,                  # ≥1, strictly increasing per merchant
     k           : int,                  # ≥0 (0 ⇒ caller will emit ztp_rejection)
-    bud         : AttemptBudget         # {blocks, draws_hi, draws_lo} — measured
+    bud         : AttemptBudget,        # {blocks, draws_hi, draws_lo} — measured
+    prev        : TraceTotals
 ) -> next: TraceTotals
 
   # Preconditions (MUST)
@@ -826,8 +827,11 @@ proc event_poisson_ztp(
 
   # One-event → one-trace (saturating totals). Draws_total adds this event’s draws.
   draws_str := u128_to_decimal_string(bud.draws_hi, bud.draws_lo)
-  next := update_rng_trace_totals(draws_str, MODULE, SUBSTREAM_LABEL,
-                                  lineage.seed, lineage.parameter_hash, lineage.run_id)
+  next := trace_after_event_s4(lineage,
+                                  ctx.before_hi, ctx.before_lo,
+                                  s_after.ctr.hi, s_after.ctr.lo,
+                                  draws_str,
+                                  prev)
 
   # Writer-sort key respected: (merchant_id, attempt)
   return next
@@ -848,7 +852,8 @@ proc emit_ztp_rejection_nonconsuming(
     lineage     : Lineage,
     s_current   : Stream,       # counters stay the same (before==after)
     lr          : LambdaRegime,
-    attempt     : int           # == attempt of the preceding consuming row
+    attempt     : int,          # == attempt of the preceding consuming row
+    prev        : TraceTotals
 ) -> next: TraceTotals
 
   assert attempt ≥ 1
@@ -868,8 +873,11 @@ proc emit_ztp_rejection_nonconsuming(
 
   end_event_emit(FAM_REJECTION, ctx, /*stream_after*/ s_current, /*draws_hi,draws_lo*/ 0, 0, payload)
 
-  next := update_rng_trace_totals("0", MODULE, SUBSTREAM_LABEL,
-                                  lineage.seed, lineage.parameter_hash, lineage.run_id)
+  next := trace_after_event_s4(lineage,
+                                  ctx.before_hi, ctx.before_lo,
+                                  s_current.ctr.hi, s_current.ctr.lo,
+                                  "0",
+                                  prev)
 
   # Writer-sort key: (merchant_id, attempt)
   return next
@@ -888,7 +896,8 @@ proc emit_ztp_retry_exhausted_nonconsuming(
     lineage     : Lineage,
     s_current   : Stream,       # counters unchanged
     lr          : LambdaRegime,
-    attempts    : int           # == last attempt index (≥1)
+    attempts    : int,          # == last attempt index (≥1)
+    prev        : TraceTotals
 ) -> next: TraceTotals
 
   assert attempts ≥ 1
@@ -907,8 +916,11 @@ proc emit_ztp_retry_exhausted_nonconsuming(
 
   end_event_emit(FAM_EXHAUSTED, ctx, /*stream_after*/ s_current, /*draws_hi,draws_lo*/ 0, 0, payload)
 
-  next := update_rng_trace_totals("0", MODULE, SUBSTREAM_LABEL,
-                                  lineage.seed, lineage.parameter_hash, lineage.run_id)
+  next := trace_after_event_s4(lineage,
+                                  ctx.before_hi, ctx.before_lo,
+                                  s_current.ctr.hi, s_current.ctr.lo,
+                                  "0",
+                                  prev)
 
   # Writer-sort key: (merchant_id, attempts)
   return next
@@ -930,7 +942,8 @@ proc emit_ztp_final_nonconsuming(
     K_target      : int,                    # ≥1 on acceptance; 0 on A=0 or downgrade
     attempts      : int,                    # ≥0; 0 only on A=0
     exhausted_opt : optional<bool>,         # present/true only for downgrade policy
-    reason_opt    : optional<"no_admissible">  # only if schema version includes it (A=0 only)
+    reason_opt    : optional<"no_admissible">, # only if schema version includes it (A=0 only)
+    prev          : TraceTotals
 ) -> next: TraceTotals
 
   assert K_target ≥ 0
@@ -956,8 +969,11 @@ proc emit_ztp_final_nonconsuming(
 
   end_event_emit(FAM_FINAL, ctx, /*stream_after*/ s_current, /*draws_hi,draws_lo*/ 0, 0, payload)
 
-  next := update_rng_trace_totals("0", MODULE, SUBSTREAM_LABEL,
-                                  lineage.seed, lineage.parameter_hash, lineage.run_id)
+  next := trace_after_event_s4(lineage,
+                                  ctx.before_hi, ctx.before_lo,
+                                  s_current.ctr.hi, s_current.ctr.lo,
+                                  "0",
+                                  prev)
 
   # Writer-sort key: (merchant_id)
   return next
@@ -1006,7 +1022,8 @@ proc trace_after_event_s4(
     lineage   : Lineage,        # {seed, parameter_hash, run_id, manifest_fingerprint}
     before_hi : u64, before_lo : u64,
     after_hi  : u64, after_lo  : u64,
-    draws_str : string          # decimal-u128 for THIS event; "0" if non-consuming
+    draws_str : string,         # decimal-u128 for THIS event; "0" if non-consuming
+    prev      : TraceTotals     # cumulative totals BEFORE this event (saturating)
 ) -> next: TraceTotals
 
   # 0) Envelope identities (frozen in S4)
@@ -1027,8 +1044,11 @@ proc trace_after_event_s4(
 
   # 1) Single cumulative-trace append (S1·L0 — saturating totals)
   next := update_rng_trace_totals(
-            draws_str, MODULE, SUBSTREAM_LABEL,
-            lineage.seed, lineage.parameter_hash, lineage.run_id)
+            MODULE, SUBSTREAM_LABEL,
+            lineage.seed, lineage.parameter_hash, lineage.run_id,
+            before_hi, before_lo, after_hi, after_lo,
+            prev.draws_total, prev.blocks_total, prev.events_total,
+            draws_str)
 
   # 2) Postconditions (MUST)
   # - Exactly one rng/core/rng_trace_log row appended in partition {seed, parameter_hash, run_id}
@@ -1042,7 +1062,7 @@ end
 ## 10.2 Where to call it (emitters)
 
 * **Immediately after** each event append (`poisson_component`, `ztp_rejection`, `ztp_retry_exhausted`, `ztp_final`), call
-  `trace_after_event_s4(lineage, before_hi, before_lo, after_hi, after_lo, draws_str)`.
+  `trace_after_event_s4(lineage, before_hi, before_lo, after_hi, after_lo, draws_str, prev)`.
 
   * **Consuming attempts:** pass sampler-measured draws (e.g., `"3"` for inversion with $K=2$).
   * **Non-consuming markers/final:** pass `"0"`; counters must be unchanged.
@@ -1052,8 +1072,8 @@ end
 
 ## 10.3 Partition & lineage rules for trace
 
-* **Partitions (path keys):** `rng/core/rng_trace_log` writes under **`{seed, parameter_hash, run_id}`** (dictionary-resolved).
-* **No embedded lineage on trace.** Trace rows **do not** embed `{seed, parameter_hash, run_id}`; lineage is enforced by the partition path.
+* **Partitions (path keys):** `rng_trace_log` writes under **`{seed, parameter_hash, run_id}`** (dictionary-resolved).
+* **Trace lineage fields.** Trace rows embed `seed` & `run_id` (per schema); `parameter_hash` is path-only; lineage is enforced by the partition path.
 * **No `context` on trace.** Trace rows include `ts_utc`, `module`, `substream_label`, `rng_counter_after_{hi,lo}`, and cumulative totals only.
 
 ---
@@ -1499,13 +1519,13 @@ Crash between `fsync(tmp)` and `rename` leaves either prior `final_path` or inta
 * **After TRACE fsync:** both present; idempotent.
 
 ```pseudocode
-# Optional repair utility (recovery tooling / orchestrator only)
 proc repair_trace_for_last_event(lineage: Lineage, last_event: Envelope):
+  # last_event has canonical envelope fields and decimal-u128 draws, already durable
   trace_after_event_s4(
     lineage,
     last_event.rng_counter_before_hi, last_event.rng_counter_before_lo,
     last_event.rng_counter_after_hi,  last_event.rng_counter_after_lo,
-    last_event.draws_str )
+    last_event.draws )
 ```
 
 Trace rows are **cumulative (saturating)**; a single append per event is required in steady state (see §10).
@@ -1607,7 +1627,7 @@ BUDGET LAW   : bud.blocks == u128(after)−u128(before); bud.draws encodes ACTUA
 * ≤1 `ztp_final` per **resolved** merchant
   *(Short names map 1:1 to families `rng/events/*`.)*
 
-### e) `event_poisson_ztp(...) → rng/events/poisson_component`
+### e) `event_poisson_ztp(...) → rng_event_poisson_component`
 
 ```
 IDEMPOTENT   : NO  (appends a new row)
@@ -2623,14 +2643,14 @@ proc gate_one_event_one_trace(lineage:Lineage, prev:TraceTotals):
                                u128_to_decimal_string(bud.draws_hi,bud.draws_lo))
   (hi,lo) := u128_delta(s_after.ctr.hi,s_after.ctr.lo, ctx.before_hi,ctx.before_lo)
   db      := u128_to_uint64_or_abort(hi,lo)
-  du      := u128_to_uint64_or_abort(decimal_string_to_u128(u128_to_decimal_string(bud.draws_hi,bud.draws_lo)))
+  du      := u128_to_uint64_or_abort(bud.draws_hi,bud.draws_lo)
   assert next.events_total == prev.events_total + 1
   assert next.blocks_total == prev.blocks_total + db
   assert next.draws_total  == prev.draws_total  + du
 
   # Crash window: event fsynced, trace missing → repair by appending trace only once
   ctx2 := begin_event_micro(...); end_event_emit("rng/events/ztp_rejection", ctx2, s_current, 0,0, payload_rej())
-  repaired := trace_after_event_s4(lineage, s_current.ctr.hi,s_current.ctr.lo, s_current.ctr.hi,s_current.ctr.lo, "0")
+  repaired := trace_after_event_s4(lineage, s_current.ctr.hi, s_current.ctr.lo, s_current.ctr.hi, s_current.ctr.lo, "0")
   assert repaired.events_total == next.events_total + 1
 end
 ```
@@ -2749,7 +2769,7 @@ attempt := 1
 (k, s_after, bud) := poisson_attempt_once(lr.lambda_extra, lr.regime, s)    # §8
 
 # Consuming event (emitter writes event + trace; returns updated totals)
-tot := event_poisson_ztp(merchant_id, lineage, s, s_after, lr, attempt, k, bud)   # §9.1
+tot := event_poisson_ztp(merchant_id, lineage, s, s_after, lr, attempt, k, bud, prev:=tot)   # §9.1
 # Metrics fire AFTER the emitter returns (after event+trace fsync)
 metrics_after_event_append({lineage..., merchant_id}, "rng/events/poisson_component")     # §11
 
@@ -2771,7 +2791,7 @@ metrics_on_final({lineage..., merchant_id},
 attempt := 1
 loop:
   (k, s_after, bud) := poisson_attempt_once(lr.lambda_extra, lr.regime, s)
-  tot := event_poisson_ztp(merchant_id, lineage, s, s_after, lr, attempt, k, bud)
+  tot := event_poisson_ztp(merchant_id, lineage, s, s_after, lr, attempt, k, bud, prev:=tot)
   metrics_after_event_append({lineage..., merchant_id}, "rng/events/poisson_component")
 
   if k == 0 then
@@ -2803,7 +2823,7 @@ end loop
 attempt := 1
 while attempt ≤ MAX_ZTP_ZERO_ATTEMPTS:             # from crossborder_hyperparams (governed; in parameter_hash)
   (k, s_after, bud) := poisson_attempt_once(lr.lambda_extra, lr.regime, s)
-  tot := event_poisson_ztp(merchant_id, lineage, s, s_after, lr, attempt, k, bud)
+  tot := event_poisson_ztp(merchant_id, lineage, s, s_after, lr, attempt, k, bud, prev:=tot)
   metrics_after_event_append({lineage..., merchant_id}, "rng/events/poisson_component")
 
   if k == 0:
@@ -2983,13 +3003,13 @@ Non-consuming rows: `before==after`, `blocks=0`, `draws="0"`.
 
 ## 21.7 Dictionary dataset IDs (no path literals)
 
-| Constant        | Dictionary family (ID)           |
-|-----------------|----------------------------------|
-| `FAM_POISSON`   | `rng/events/poisson_component`   |
-| `FAM_REJECTION` | `rng/events/ztp_rejection`       |
-| `FAM_EXHAUSTED` | `rng/events/ztp_retry_exhausted` |
-| `FAM_FINAL`     | `rng/events/ztp_final`           |
-| `FAM_TRACE`     | `rng/core/rng_trace_log`         |
+| Constant        | Dictionary family (ID)          |
+|-----------------|---------------------------------|
+| `FAM_POISSON`   | `rng_event_poisson_component`   |
+| `FAM_REJECTION` | `rng_event_ztp_rejection`       |
+| `FAM_EXHAUSTED` | `rng_event_ztp_retry_exhausted` |
+| `FAM_FINAL`     | `rng_event_ztp_final`           |
+| `FAM_TRACE`     | `rng_trace_log`                 |
 
 **Partitions declared by Dictionary:** always `{seed, parameter_hash, run_id}` for S4 logs; **path↔embed equality** enforced (events; trace omits embedded lineage).
 
@@ -3064,14 +3084,14 @@ This appendix is the **single source** of S4 literals and closed vocabularies—
 
 ## A) PRNG core & substreams (REUSE from S0·L0)
 
-| S4 surface (used in §§6–9,15)             | Origin    | Contract we depend on                                                                       |   |            |   |                                                                                                                                                    |
-|-------------------------------------------|-----------|---------------------------------------------------------------------------------------------|---|------------|---|----------------------------------------------------------------------------------------------------------------------------------------------------|
-| `derive_substream(M,label,Ids) -> Stream` | **S0·L0** | Order-invariant message \`UER("mlr:1A")                                                     |   | UER(label) |   | SER(Ids)`; SER v1 tags `{iso, merchant_u64, i, j}`only. Returns`{ key\:u64, ctr:{hi\:u64,lo\:u64} }\`. **ISO must be UPPERCASE ASCII** when used. |
-| `philox_block(s) -> (x0,x1,s')`           | **S0·L0** | PHILOX-2×64-10; **advances counter by +1 block**.                                           |   |            |   |                                                                                                                                                    |
-| `u01(x) -> float64`                       | **S0·L0** | **Strict-open** mapping to (0,1); if it rounds to 1.0, remap to `1−2⁻⁵³`.                   |   |            |   |                                                                                                                                                    |
-| `uniform1(s)` / `uniform2(s)`             | **S0·L0** | **Low lane** single / **both lanes** from one block; budgets = **actual uniforms** (1 / 2). |   |            |   |                                                                                                                                                    |
-| `normal_box_muller(s)`                    | **S0·L0** | Consumes **exactly one block**; **2 uniforms**; **no cache**; `TAU` hex literal.            |   |            |   |                                                                                                                                                    |
-| `merchant_u64_from_id64(id64)`            | **S0·L0** | Canonical typed scalar: `LOW64(SHA256(LE64(id64)))` for SER.                                |   |            |   |                                                                                                                                                    |
+| S4 surface (used in §§6–9,15)             | Origin    | Contract we depend on                                                                                       |     
+|-------------------------------------------|-----------|-------------------------------------------------------------------------------------------------------------|
+| `derive_substream(M,label,Ids) -> Stream` | **S0·L0** | Order-invariant: `UER("mlr:1A") \|\| UER(label) \|\| SER(Ids)`; SER v1 tags `{iso,merchant_u64,i,j}` only.  |     
+| `philox_block(s) -> (x0,x1,s')`           | **S0·L0** | PHILOX-2×64-10; **advances counter by +1 block**.                                                           |     
+| `u01(x) -> float64`                       | **S0·L0** | **Strict-open** mapping to (0,1); if it rounds to 1.0, remap to `1−2⁻⁵³`.                                   |     
+| `uniform1(s)` / `uniform2(s)`             | **S0·L0** | **Low lane** single / **both lanes** from one block; budgets = **actual uniforms** (1 / 2).                 |     
+| `normal_box_muller(s)`                    | **S0·L0** | Consumes **exactly one block**; **2 uniforms**; **no cache**; `TAU` hex literal.                            |     
+| `merchant_u64_from_id64(id64)`            | **S0·L0** | Canonical typed scalar: `LOW64(SHA256(LE64(id64)))` for SER.                                                |     
 
 ---
 
@@ -3185,8 +3205,8 @@ This appendix is the **single source** of S4 literals and closed vocabularies—
 
 **Mandatory equalities (identities):**
 
-* **Consuming** (`rng/events/poisson_component`): `after > before`, `blocks == u128(after) − u128(before)`, `parse_u128(draws) > 0`.
-* **Non-consuming** (`rng/events/ztp_rejection`, `rng/events/ztp_retry_exhausted`, `rng/events/ztp_final`): `before == after`, `blocks == 0`, `draws == "0"`. **File order is non-authoritative**; counters drive replay.
+* **Consuming** (`rng_event_poisson_component`): `after > before`, `blocks == u128(after) − u128(before)`, `parse_u128(draws) > 0`.
+* **Non-consuming** (`rng_event_ztp_rejection`, `rng_event_ztp_retry_exhausted`, `rng_event_ztp_final`): `before == after`, `blocks == 0`, `draws == "0"`. **File order is non-authoritative**; counters drive replay.
 
 ---
 
@@ -3250,12 +3270,12 @@ This mapping does **not** affect `blocks`/`draws` identities (budgets remain mea
 
 ## C.8 Consuming vs non-consuming **budget tables** (quick crib)
 
-| Family                           | Consuming? | Counter delta                    | `draws`                      |
-|----------------------------------|------------|----------------------------------|------------------------------|
-| `rng/events/poisson_component`   | **Yes**    | `after > before` → `blocks > 0`  | `>"0"` (**actual uniforms**) |
-| `rng/events/ztp_rejection`       | No         | `before == after` → `blocks = 0` | `"0"`                        |
-| `rng/events/ztp_retry_exhausted` | No         | `before == after` → `blocks = 0` | `"0"`                        |
-| `rng/events/ztp_final`           | No         | `before == after` → `blocks = 0` | `"0"`                        |
+| Family                          | Consuming? | Counter delta                    | `draws`                      |
+|---------------------------------|------------|----------------------------------|------------------------------|
+| `rng_event_poisson_component`   | Yes        | `after > before` → `blocks > 0`  | `>"0"` (**actual uniforms**) |
+| `rng_event_ztp_rejection`       | No         | `before == after` → `blocks = 0` | `"0"`                        |
+| `rng_event_ztp_retry_exhausted` | No         | `before == after` → `blocks = 0` | `"0"`                        |
+| `rng_event_ztp_final`           | No         | `before == after` → `blocks = 0` | `"0"`                        |
 
 **Budgets are measured, not inferred**: `draws` comes from the sampler; `blocks` from counter delta.
 
