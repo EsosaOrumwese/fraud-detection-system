@@ -176,8 +176,8 @@ This import map keeps S4·L0 **thin and deterministic**: we reuse PRNG/substream
   **Payload (min):** `{ merchant_id:int64, attempt:int≥1, k:0, lambda_extra:float64 }`
   **Envelope (min):** as above
   **Writer sort:** `(merchant_id, attempt)`.
-* `schemas.layer1.yaml#/rng/events/ztp_retry_exhausted` — **non-consuming** cap-hit marker.
-  **Payload (min):** `{ merchant_id:int64, attempts:int≥1, lambda_extra:float64 [ , aborted:true ]? }` *(include policy flag only if the bound schema defines it / policy=abort)*  
+* `schemas.layer1.yaml#/rng/events/ztp_retry_exhausted` — **non-consuming** cap-hit marker **(abort-only)**.
+  **Payload (min):** `{ merchant_id:int64, attempts:int≥1, lambda_extra:float64, aborted:true }`
   **Envelope (min):** as above
   **Writer sort:** `(merchant_id, attempts)`.
 * `schemas.layer1.yaml#/rng/events/ztp_final` — **non-consuming** single acceptance record.
@@ -882,7 +882,7 @@ end
 
 ---
 
-## 9.3 `emit_ztp_retry_exhausted_nonconsuming` — **cap-hit marker** → `ztp_retry_exhausted`
+## 9.3 `emit_ztp_retry_exhausted_nonconsuming` — **cap-hit marker (abort-only)** → `ztp_retry_exhausted`
 
 **When:** the governed zero-draw **cap** is reached before acceptance. There is at most **one** such row per merchant. Policy application (abort vs downgrade) is handled upstream; this is only the marker.
 
@@ -906,7 +906,7 @@ proc emit_ztp_retry_exhausted_nonconsuming(
     merchant_id  : merchant_id,
     attempts     : attempts,
     lambda_extra : lr.lambda_extra,
-    aborted      : true          # present when governance chooses hard abort; keep schema-consistent
+    aborted      : true          # abort-only marker; required by bound schema
   }
 
   end_event_emit(FAM_EXHAUSTED, ctx, /*stream_after*/ s_current, /*draws_hi,draws_lo*/ 0, 0, payload)
@@ -2226,9 +2226,9 @@ fail_multiple_final(dims)
 **Symptom.** Zero-draw **cap** reached before acceptance.
 **Allowed behaviour.**
 
-* After the **last zero attempt**, write the **non-consuming** `ztp_retry_exhausted{attempts, lambda_extra[, aborted:true]?}` marker.
-* **Policy `"abort"`** ⇒ **no `ztp_final`**; **exactly one** exhausted marker exists.
-* **Policy `"downgrade_domestic"`** ⇒ write **one** `ztp_final{K_target=0, exhausted:true}` (non-consuming).
+* After the **last zero attempt**:
+  * **Policy `"abort"`** ⇒ write the **non-consuming** `ztp_retry_exhausted{attempts, lambda_extra, aborted:true}` marker and **no `ztp_final`** (exactly one exhausted marker exists).
+  * **Policy `"downgrade_domestic"`** ⇒ **do not** write an exhausted marker; write **one** `ztp_final{K_target=0, exhausted:true}` (non-consuming).
 
 **Signals.**
 
@@ -2239,7 +2239,7 @@ note_ztp_exhausted_abort(dims, attempts, lambda_extra, regime)
 fail_cap_with_final_abort(dims, attempts)
 ```
 
-*(If `aborted:true` is not in the bound schema, omit it.)*
+*(`ztp_retry_exhausted` is an abort-only stream in the bound schema; `aborted:true` is required.)*
 
 ---
 
@@ -2826,15 +2826,14 @@ while attempt ≤ MAX_ZTP_ZERO_ATTEMPTS:             # from crossborder_hyperpar
   end if
 end while
 
-# Cap hit — write exhausted marker (non-consuming), once
-tot := emit_ztp_retry_exhausted_nonconsuming(merchant_id, lineage, s, lr, attempts:=attempt-1)
-metrics_after_event_append({lineage..., merchant_id}, "rng_event_ztp_retry_exhausted")
-
 if ztp_exhaustion_policy == "abort":
-   # NO final written
+   # Cap hit — ABORT: write exhausted marker (non-consuming), once; no final
+   tot := emit_ztp_retry_exhausted_nonconsuming(merchant_id, lineage, s, lr, attempts:=attempt-1)
+   metrics_after_event_append({lineage..., merchant_id}, "rng_event_ztp_retry_exhausted")
    metrics_on_cap_abort({lineage..., merchant_id}, attempts:=attempt-1)
    return
 else:  # "downgrade_domestic"
+   # Cap hit — DOWNGRADE: no exhausted marker; write final only
    emit_ztp_final_nonconsuming(merchant_id, lineage, s, lr,
                                K_target:=0, attempts:=attempt-1, exhausted_opt:=true, reason_opt:=absent)
    metrics_on_final({lineage..., merchant_id},

@@ -57,10 +57,9 @@ is_multi? ──►  is_eligible? ──►  compute A := size(S3.candidate_set 
              │          STOP
              │
              └─ attempts == MAX_ZTP_ZERO_ATTEMPTS ?
-                    │ yes → emit ztp_retry_exhausted{attempts} (non-consuming)
-                    │        policy:
-                    │        • "abort"  → ZTP_EXHAUSTED_ABORT (no final; merchant leaves S4+)
-                    │        • "downgrade_domestic" → emit ztp_final{K_target=0, exhausted=true}
+                    │ yes → policy:
+                    │        • "abort"  → emit ztp_retry_exhausted{attempts, aborted:true} (non-consuming); ZTP_EXHAUSTED_ABORT (no final)
+                    │        • "downgrade_domestic" → emit ztp_final{K_target=0, exhausted:true} (non-consuming)
                     └ no  → next attempt
 ```
 
@@ -396,8 +395,8 @@ Every S4 stream is partitioned by **`{ seed, parameter_hash, run_id }`**. Every 
    **Envelope (minimum):** `{ ts_utc, module, substream_label, context, before, after, blocks, draws }`.
 2. **`ztp_rejection`** — **non-consuming** marker for a **zero** draw.
    **Payload:** `{ merchant_id, attempt, k:0, lambda_extra }` + non-consuming envelope.
-3. **`ztp_retry_exhausted`** — **non-consuming** marker when the zero-draw **cap** is hit.
-   **Payload:** `{ merchant_id, attempts:int, lambda_extra }` + non-consuming envelope.
+3. **`ztp_retry_exhausted`** — **non-consuming** marker when the zero-draw **cap** is hit **and policy="abort"**.
+   **Payload:** `{ merchant_id, attempts:int, lambda_extra, aborted:true }` + non-consuming envelope.
 4. **`ztp_final`** — **non-consuming** **finaliser** that **fixes** the outcome for the merchant.
    **Payload:** `{ merchant_id, K_target:int, lambda_extra, attempts:int, regime, exhausted?:bool [ , reason:"no_admissible"]? }` + non-consuming envelope.
 
@@ -498,10 +497,9 @@ After each S4 event append, append exactly **one** cumulative `rng_trace_log` ro
 
 * Realise ZTP by **sampling Poisson** and **rejecting zeros** until acceptance or the governed **zero-draw cap** is hit.
 * On acceptance at attempt `a`: write the consuming `poisson_component` for that attempt and then write a **non-consuming `ztp_final`** echoing `{K_target, lambda_extra, attempts=a, regime, exhausted:false}`.
-* On cap: write `ztp_retry_exhausted{attempts}` and follow the governed **exhaustion policy**:
-
-  * `"abort"` ⇒ no `ztp_final` (merchant leaves S4 with `ZTP_EXHAUSTED_ABORT`).
-  * `"downgrade_domestic"` ⇒ write `ztp_final{K_target=0, exhausted:true}` (domestic-only downstream).
+* On cap: follow the governed **exhaustion policy**:
+  * `"abort"` ⇒ write `ztp_retry_exhausted{attempts, aborted:true}` and **no** `ztp_final` (merchant leaves S4 with `ZTP_EXHAUSTED_ABORT`).
+  * `"downgrade_domestic"` ⇒ **do not** write `ztp_retry_exhausted`; write `ztp_final{K_target=0, exhausted:true}` (domestic-only downstream).
 
 ### Universe-aware short-circuit (MUST).
 
@@ -767,9 +765,9 @@ Every S4 event row **must** carry:
 * Exactly **one** consuming `poisson_component` row **per attempt index** for the merchant (attempts are **1-based** and contiguous).
 * If that attempt’s `k == 0`, write exactly **one** `ztp_rejection{attempt}` **after** the attempt row.
 * If that attempt’s `k ≥ 1` (acceptance), **no rejection marker** for that attempt; instead write exactly **one** `ztp_final{attempts := a}` after the attempt row.
-* If the **cap** is reached with all zeros, write exactly **one** `ztp_retry_exhausted{attempts := MAX}` and then:
-  - **no** `ztp_final` if policy=`"abort"`, or
-  - `ztp_final{K_target=0, exhausted:true}` if policy=`"downgrade_domestic"`.
+* If the **cap** is reached with all zeros:
+  - if policy=`"abort"` → write exactly **one** `ztp_retry_exhausted{attempts := MAX, aborted:true}` and **no** `ztp_final`;
+  - if policy=`"downgrade_domestic"` → **do not** write an exhausted marker; write `ztp_final{K_target=0, exhausted:true}` (non-consuming).
 
 ### 10.5 Monotone, non-overlapping counters (MUST).
 
@@ -827,9 +825,9 @@ Every S4 event row **must** carry:
   - Exactly **one** non-consuming `ztp_final{K_target≥1, exhausted:false}`.
   - No `ztp_retry_exhausted`.
 * **Cap path:**
-  - A sequence of `poisson_component` with `k=0` and matching `ztp_rejection`s, then exactly **one** `ztp_retry_exhausted`.
-  - Policy=`"abort"` ⇒ **no** `ztp_final`.
-  Policy=`"downgrade_domestic"` ⇒ exactly **one** `ztp_final{K_target=0, exhausted:true}`.
+  - A sequence of `poisson_component` with `k=0` and matching `ztp_rejection`s.
+  - Policy=`"abort"` ⇒ exactly **one** `ztp_retry_exhausted{aborted:true}` and **no** `ztp_final`.
+  - Policy=`"downgrade_domestic"` ⇒ **no** exhausted marker; exactly **one** `ztp_final{K_target=0, exhausted:true}`.
 * **A=0 short-circuit:**
   - Exactly **one** `ztp_final{K_target=0, attempts:0 [ , reason:"no_admissible"]? }`; **no** attempts, **no** rejections, **no** cap marker.
 
@@ -1043,8 +1041,8 @@ All metrics are emitted as structured values (e.g., JSON lines) with the lineage
 | `rng_event_poisson_component` (with `context:"ztp"`) | `schemas.layer1.yaml#/rng/events/poisson_component`   | `seed, parameter_hash, run_id` | `ts_utc, module, substream_label, context, before, after, blocks, draws` | `{ merchant_id, attempt:int≥1, k:int≥0, lambda_extra:float64, regime:"inversion" \| "ptrs" }`                                                       | `(merchant_id, attempt)`                                                | S4 validator, observability                           |
 | `rng_event_ztp_rejection`                            | `schemas.layer1.yaml#/rng/events/ztp_rejection`       | `seed, parameter_hash, run_id` | *(same envelope fields as above)*                                        | `{ merchant_id, attempt:int≥1, k:0, lambda_extra }`                                                                                                 | `(merchant_id, attempt)`                                                | S4 validator, observability                           |
 | `rng_trace_log`                                      | `schemas.layer1.yaml#/rng/core/rng_trace_log`         | `seed, parameter_hash, run_id` | `ts_utc, module, substream_label`                                        | `{ module, substream_label, rng_counter_after_hi:u128, rng_counter_after_lo:u128 }`                                                                 | `(module, substream_label, rng_counter_after_hi, rng_counter_after_lo)` | S4 validator, observability                           |
-| `rng_event_ztp_retry_exhausted`                      | `schemas.layer1.yaml#/rng/events/ztp_retry_exhausted` | `seed, parameter_hash, run_id` | *(same envelope fields as above)*                                        | `{ merchant_id, attempts:int≥1, lambda_extra }`                                                                                                     | `(merchant_id, attempts)`                                               | S4 validator, observability                           |
-| `rng_event_ztp_final` `                              | `schemas.layer1.yaml#/rng/events/ztp_final`           | `seed, parameter_hash, run_id` | *(same envelope fields as above)*                                        | `{ merchant_id, K_target:int≥0, lambda_extra:float64, attempts:int≥0, regime:"inversion" \| "ptrs", exhausted?:bool [ , reason:"no_admissible"]? }` | `(merchant_id)`                                                         | **S6** (reads `K_target,…`), validator, observability |
+| `rng_event_ztp_retry_exhausted`                      | `schemas.layer1.yaml#/rng/events/ztp_retry_exhausted` | `seed, parameter_hash, run_id` | *(same envelope fields as above)*                                        | `{ merchant_id, attempts:int≥1, lambda_extra, aborted:true }`                                                                                       | `(merchant_id, attempts)`                                               | S4 validator, observability (abort-only)              |
+| `rng_event_ztp_final`                                | `schemas.layer1.yaml#/rng/events/ztp_final`           | `seed, parameter_hash, run_id` | *(same envelope fields as above)*                                        | `{ merchant_id, K_target:int≥0, lambda_extra:float64, attempts:int≥0, regime:"inversion" \| "ptrs", exhausted?:bool [ , reason:"no_admissible"]? }` | `(merchant_id)`                                                         | **S6** (reads `K_target,…`), validator, observability |
 
 **MUST.**
 
