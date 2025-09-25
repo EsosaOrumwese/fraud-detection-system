@@ -37,13 +37,17 @@ All RNG logs are written under `…/seed={seed}/parameter_hash={parameter_hash}/
   **Envelope (min):** `{ ts_utc, module, substream_label, context, before, after, blocks, draws }`
   **Writer sort:** `(merchant_id, attempt)`.
 
-* **`schemas.layer1.yaml#/rng/events/ztp_rejection`** — **non-consuming** zero marker (`k=0`); **Writer sort:** `(merchant_id, attempt)`.
+* **`schemas.layer1.yaml#/rng/events/ztp_rejection`** — **non-consuming** zero marker (`k=0`); 
+  **Writer sort:** `(merchant_id, attempt)`.
 
-* **`schemas.layer1.yaml#/rng/events/ztp_retry_exhausted`** — **non-consuming** cap-hit marker; **Writer sort:** `(merchant_id, attempts)`.
+* **`schemas.layer1.yaml#/rng/events/ztp_retry_exhausted`** — **non-consuming** cap-hit marker;
+  **Writer sort:** `(merchant_id, attempts)`.
 
-* **`schemas.layer1.yaml#/rng/events/ztp_final`** — **non-consuming** finaliser fixing `{K_target:int≥0, lambda_extra, attempts:int≥0, regime, exhausted?:bool [, reason:"no_admissible"]?}` (emit `reason` **only** if present in the bound schema version); **Writer sort:** `(merchant_id)`.
+* **`schemas.layer1.yaml#/rng/events/ztp_final`** — **non-consuming** finaliser fixing `{K_target:int≥0, lambda_extra, attempts:int≥0, regime, exhausted?:bool [, reason:"no_admissible"]?}` (emit `reason` **only** if present in the bound schema version); 
+  **Writer sort:** `(merchant_id)`.
 
-* **`schemas.layer1.yaml#/rng/core/rng_trace_log`** — cumulative **trace** per `(module, substream_label)`; **append exactly one** row **after every** S4 event append. **Trace row fields (per schema):** `ts_utc, module, substream_label` + cumulative counters; **no `context`**, and embedded lineage is not required (lineage is enforced by the partition path).
+* **`schemas.layer1.yaml#/rng/core/rng_trace_log`** — cumulative **trace** per `(module, substream_label)`; **append exactly one** row **after every** S4 event append. 
+  Trace row fields (per schema): `ts_utc, run_id, seed, module, substream_label` + cumulative counters; **no `context`**. Trace embeds `run_id` and `seed` and is also path-consistent (parameter_hash via the partition path).
 
 **Label/stream registry (frozen identifiers).**
 All S4 **events** use: `module = "1A.s4.ztp"`, `substream_label = "poisson_component"`, `context = "ztp"`. **Consuming vs non-consuming** is fixed: attempts consume (`draws>0` & `blocks=after−before`); markers/final are non-consuming (`draws:"0"`, `blocks=0`, `before==after`). After each append, **one** cumulative trace row is required.

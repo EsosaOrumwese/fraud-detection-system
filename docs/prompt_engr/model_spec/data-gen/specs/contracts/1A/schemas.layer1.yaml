@@ -198,12 +198,13 @@ rng:
       allOf:
         - $ref: "#/$defs/rng_envelope"
         - type: object
-          required: [merchant_id, context, lambda, k]
+          required: [merchant_id, context, lambda, k, attempt]
           properties:
             merchant_id: { $ref: "#/$defs/id64" }
             context: { type: string, enum: ["nb","ztp"], description: "NB composition or ZTP sampler." }
             lambda:  { type: number, exclusiveMinimum: 0.0 }
             k:       { type: integer, minimum: 0, description: "Poisson draw (untruncated)." }
+            attempt: { type: integer, minimum: 1, description: "1-based attempt index for context='ztp'." }
         - type: object
           unevaluatedProperties: false
 
@@ -258,7 +259,7 @@ rng:
       type: object
       allOf:
         # Reuse the standard RNG envelope for event rows (ts_utc, module, substream_label, context, counters, blocks, draws)
-        - $ref: "#/rng/core/envelope_min"
+        - $ref: "#/$defs/rng_envelope"
         - type: object
           properties:
             module: { const: "1A.s4.ztp" }
