@@ -13,7 +13,7 @@
 
 **What L1 does *not* do**
 
-* **No file paths/partitions/lineage stamping** in L1. L2 **supplies** `{seed, parameter_hash, run_id, manifest_fingerprint}` to L1, and the **L0 emitters** stamp the event envelope and append the **immediate** cumulative trace under dictionary-resolved `{seed, parameter_hash, run_id}`. 
+* **No file paths/partitions/lineage stamping** in L1. L2 **supplies** `{seed, parameter_hash, run_id, manifest_fingerprint}` to L1, and the **L0 emitters** stamp the event envelope and append the **immediate** cumulative trace under dictionary-resolved `{seed, parameter_hash, run_id, manifest_fingerprint}`. 
 * **No envelope/trace internals** in L1 (the emitters do event + immediate trace). 
 * **No validation/CI** (L3 proves identities and corridors). S4 provides **logs only** and **never encodes inter-country order** (S3 remains order authority). 
 
@@ -169,7 +169,7 @@ All pseudo-random numbers are strict-open **$u\in(0,1)$**. L0 measures budgets; 
 
 **Regime expectations (L1 codes to these; L0 measures):**
 
-* **PTRS:** consumes **exactly 2** uniforms **per attempt** (per the pinned sampler); acceptance/rejection is internal to those two. **Budgets are measured, not inferred.** The sampler may take multiple iterations within an attempt. **Budgets are measured, not inferred.**
+* **PTRS:** consumes a **variable (≥2)** number of uniforms **per attempt** (two per PTRS iteration; iterations may exceed one). **Budgets are measured, not inferred.**
 * **Inversion:** consumes a **variable** number of uniforms (include the stopping draw). Route every uniform through the RNG lane so measured counts match what’s written.
 
 > L1 never fabricates `draws`/`blocks`; it **routes** sampling through the provided RNG lane so L0 can measure and stamp the envelope.
@@ -251,7 +251,7 @@ Per merchant $m$, L1 requires these **value-level** inputs (no paths/IO):
 * `policy : {"abort","downgrade_domestic"}` — exhaustion policy (**participates in `parameter_hash`**).
   **Cap = 64 (spec-fixed)**; schema pins this in the exhausted marker via `attempts: 64`.
 
-*(Lineage tokens `{seed, parameter_hash, run_id}` are made available to L0 for envelopes; L1 does not mint/compare them.)*
+*(Lineage tokens `{seed, parameter_hash, run_id, manifest_fingerprint}` are made available to L0 for envelopes; L1 does not mint/compare them.)*
 
 ---
 
@@ -303,17 +303,17 @@ This section lists the **exact values** S4·L1 needs per merchant and the **fail
 
 ### 6.1 Value inputs (per merchant $m$)
 
-| Name                           | Type                               | Meaning / Source                                                                                                                                               |
-|--------------------------------|------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `merchant_id`                  | `int64`                            | Ingress merchant key (used in all S4 payloads).                                                                                                                |
-| `is_multi`                     | `bool`                             | S1 hurdle outcome; **must be true** for S4 to run. (Dictionary presence-gate ties S4 streams to hurdle `is_multi==true`.)                                      |
-| `is_eligible`                  | `bool`                             | S3 cross-border eligibility; **must be true**. If false, S4 **emits nothing**.                                                                                 |
-| `N`                            | `int ≥ 2`                          | Total outlets from S2 **`nb_final`** (read-only in S4).                                                                                                        |
-| `A`                            | `int ≥ 0`                          | **Admissible foreign count** = number of S3 candidates **excluding home**. If `A==0` ⇒ short-circuit S4 (no attempts). Inter-country order stays S3 authority. |
-| `X_m`                          | `float`                            | Openness/feature term used in the S4 link $\lambda_{\text{extra}}$. *(Governed feature; default policy in S4 expanded; default to 0.0 if missing.)*            |
-| `θ = (θ0, θ1, θ2)`             | `tuple(float)`                     | S4 ZTP link parameters *(governed; participate in `parameter_hash`)*.                                                                                          |
-| `policy`                       | `{"abort","downgrade_domestic"}`   | Exhaustion policy *(participates in `parameter_hash`)*. **Cap = 64 (spec-fixed)**; schema v2 pins this on the exhausted marker via `attempts: 64`.             |
-| `lineage` (pass-through to L0) | `{seed, parameter_hash, run_id}`   | Provided to L0 for envelope/trace stamping; L1 **does not** mint or compare.                                                                                   |
+| Name                           | Type                                                   | Meaning / Source                                                                                                                                               |
+|--------------------------------|--------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `merchant_id`                  | `int64`                                                | Ingress merchant key (used in all S4 payloads).                                                                                                                |
+| `is_multi`                     | `bool`                                                 | S1 hurdle outcome; **must be true** for S4 to run. (Dictionary presence-gate ties S4 streams to hurdle `is_multi==true`.)                                      |
+| `is_eligible`                  | `bool`                                                 | S3 cross-border eligibility; **must be true**. If false, S4 **emits nothing**.                                                                                 |
+| `N`                            | `int ≥ 2`                                              | Total outlets from S2 **`nb_final`** (read-only in S4).                                                                                                        |
+| `A`                            | `int ≥ 0`                                              | **Admissible foreign count** = number of S3 candidates **excluding home**. If `A==0` ⇒ short-circuit S4 (no attempts). Inter-country order stays S3 authority. |
+| `X_m`                          | `float`                                                | Openness/feature term used in the S4 link $\lambda_{\text{extra}}$. *(Governed feature; default policy in S4 expanded; default to 0.0 if missing.)*            |
+| `θ = (θ0, θ1, θ2)`             | `tuple(float)`                                         | S4 ZTP link parameters *(governed; participate in `parameter_hash`)*.                                                                                          |
+| `policy`                       | `{"abort","downgrade_domestic"}`                       | Exhaustion policy *(participates in `parameter_hash`)*. **Cap = 64 (spec-fixed)**; schema v2 pins this on the exhausted marker via `attempts: 64`.             |
+| `lineage` (pass-through to L0) | `{seed, parameter_hash, run_id, manifest_fingerprint}` | Provided to L0 for envelope/trace stamping; L1 **does not** mint or compare.                                                                                   |
 
 > **Why only these?** S4 is **logs-only**: it fixes `K_target` via `ztp_final` and provides audit events. Cross-country order remains in S3; S4 never emits order or probabilities.
 
@@ -325,7 +325,7 @@ This section lists the **exact values** S4·L1 needs per merchant and the **fail
 * **Eligibility (S3):** `is_eligible==true` is a hard precondition; if false, **no S4 events**.
 * **Total `N` (S2):** from the S2 `nb_final` row; S4 treats it as read-only.
 * **Admissible `A` (S3):** candidate set valid (**home rank 0; ranks contiguous**), then $A=\lvert\text{candidates}\setminus\{\text{home}\}\rvert$. If S3 failed rank/home checks, S4 **must not** run.
-* **(Reference — enforced by dictionary/L0; L2 orchestrates):** all S4 logs write under partitions `{seed, parameter_hash, run_id}`; writer-sort keys are fixed per family (attempts/rejections `(merchant_id,attempt)`, exhausted `(merchant_id,attempts)`, final `(merchant_id)`).
+* **(Reference — enforced by dictionary/L0; L2 orchestrates):** all S4 logs write under partitions `{seed, parameter_hash, run_id, manifest_fingerprint}`; writer-sort keys are fixed per family (attempts/rejections `(merchant_id,attempt)`, exhausted `(merchant_id,attempts)`, final `(merchant_id)`).
 
 ---
 
@@ -424,7 +424,7 @@ S4’s **only** authoritative decision is `K_target` (in `ztp_final`). S4 **does
 
 1. **Do not call emitters.** 
    L1 kernels (K-3..K-6) call L0 emitters and stamp **event + immediate trace (same writer)**. L2 supplies lineage/values to L1 **(including `manifest_fingerprint`)**, and manages parallelism, dedupe and resume.
-   **Do not invoke emitters in L2.** **L0** resolves dictionary IDs and writes events + trace under `{seed, parameter_hash, run_id}`; L2 does **not** stamp lineage, resolve paths, or reshape payloads.
+   **Do not invoke emitters in L2.** **L0** resolves dictionary IDs and writes events + trace under `{seed, parameter_hash, run_id, manifest_fingerprint}`; L2 does **not** stamp lineage, resolve paths, or reshape payloads.
 
 2. **Ordering & adjacency discipline.**
    Maintain the call order so that **each event** is immediately followed by its trace (as L0 already does). When batching across merchants, follow dictionary writer-sort keys to reduce merge churn: attempts/rejections `(merchant_id,attempt)`, exhausted `(merchant_id,attempts)`, final `(merchant_id)`. (Counters remain the authoritative order.)
@@ -593,7 +593,7 @@ Below is the **concise map of every L1 routine** you will implement for S4. Each
 ### K-0 — `short_circuit_A0(ctx)`: A=0 path (emit final only)
 
 * **Purity:** Emits
-* **Input:** `ctx = { merchant_id, is_eligible=true, is_multi=true, A=0, N, X_m, θ, policy, lineage:{seed,parameter_hash,run_id} }`
+* **Input:** `ctx = { merchant_id, is_eligible=true, is_multi=true, A=0, N, X_m, θ, policy, lineage:{seed,parameter_hash,run_id,manifest_fingerprint} }`
 * **Output (value):** `Finaliser{K_target=0, attempts=0, regime, reason?}`
 * **Emits:** `emit_ztp_final_nonconsuming(merchant_id, K_target=0, lambda_extra, attempts=0, regime [, reason])`
 * **Notes:** No attempts, no rejections, **no exhausted** marker. O(1).
@@ -615,7 +615,7 @@ Below is the **concise map of every L1 routine** you will implement for S4. Each
 * **Purity:** **RNG-consuming (no event I/O)**
 * **Input:** `lr={lambda_extra, regime}`, `s_before` (current substream counter)
 * **Calls (L0 sampler):** `poisson_attempt_with_budget(lambda_extra, regime, s_before)`
-* **Output:** `(k, s_before, s_after, bud)` where `bud` contains the measured blocks/draws for this attempt
+* **Output:** `(k, s_after, bud)` where `bud` contains the measured blocks/draws for this attempt
 * **Notes:** Strict-open uniforms; PTRS/inversion per `regime`. Attempt index is supplied by the caller (K-7). O(1).
 
 ---
@@ -623,7 +623,7 @@ Below is the **concise map of every L1 routine** you will implement for S4. Each
 ### K-3 — `emit_poisson_attempt(ctx, lr, attempt, k, s_before, s_after, bud)`
 
 * **Purity:** Emits
-* **Input:** `merchant_id`, `lineage:{seed,parameter_hash,run_id}`, `lr.lambda_extra`, `attempt`, `k`, `s_before`, `s_after`, `bud`
+* **Input:** `merchant_id`, `lineage:{seed,parameter_hash,run_id,manifest_fingerprint}`, `lr.lambda_extra`, `attempt`, `k`, `s_before`, `s_after`, `bud`
 * **Emits:** `event_poisson_ztp(...)` → payload `{ merchant_id, attempt, k, lambda }` (where **`lambda = lr.lambda_extra`**; attempts use key **`lambda`** per schema v2).
   The **emitter** stamps the envelope and **immediately** appends one cumulative trace row (same writer).
 * **Identities:** Consuming envelope (`after>before`, `blocks=after−before`, `draws>"0"`). O(1).
@@ -633,7 +633,7 @@ Below is the **concise map of every L1 routine** you will implement for S4. Each
 ### K-4 — `emit_ztp_rejection_nonconsuming(ctx, lr, attempt)`
 
 * **Purity:** Emits
-* **Input:** `merchant_id`, `lineage:{seed,parameter_hash,run_id}`, `attempt`, `lr.lambda_extra`
+* **Input:** `merchant_id`, `lineage:{seed,parameter_hash,run_id,manifest_fingerprint}`, `attempt`, `lr.lambda_extra`
 * **Emits:** `emit_ztp_rejection_nonconsuming(...)` → `{ merchant_id, attempt, k:0, lambda_extra }` (+ immediate trace)
 * **Identities:** Non-consuming (`before==after`, `blocks=0`, `draws="0"`). O(1).
 
@@ -642,7 +642,7 @@ Below is the **concise map of every L1 routine** you will implement for S4. Each
 ### K-5 — `emit_ztp_retry_exhausted_nonconsuming(ctx, lr)`
 
 * **Purity:** Emits
-* **Input:** `merchant_id`, `lineage:{seed,parameter_hash,run_id}`, `lr.lambda_extra`
+* **Input:** `merchant_id`, `lineage:{seed,parameter_hash,run_id,manifest_fingerprint}`, `lr.lambda_extra`
 * **Emits:** `emit_ztp_retry_exhausted_nonconsuming(...)` → `{ merchant_id, attempts:64, lambda_extra, aborted:true }` (+ immediate trace)
 * **Precondition:** `policy=="abort"` and attempts reached 64 with all `k==0`. O(1).
 
@@ -651,7 +651,7 @@ Below is the **concise map of every L1 routine** you will implement for S4. Each
 ### K-6 — `emit_ztp_final_nonconsuming(ctx, fin, lr)`
 
 * **Purity:** Emits
-* **Input:** `merchant_id`, `lineage:{seed,parameter_hash,run_id}`, `fin:Finaliser{K_target, attempts, regime [, exhausted?, reason?]}`, `lr.lambda_extra`
+* **Input:** `merchant_id`, `lineage:{seed,parameter_hash,run_id,manifest_fingerprint}`, `fin:Finaliser{K_target, attempts, regime [, exhausted?, reason?]}`, `lr.lambda_extra`
 * **Output (value):** `Finaliser` (echo)
 * **Emits:** `emit_ztp_final_nonconsuming(...)` → `{ merchant_id, K_target, lambda_extra, attempts, regime [, exhausted?, reason?] }` (+ immediate trace)
 * **Cardinality:** **Exactly one** final per resolved merchant (absent on **abort**). O(1).
@@ -661,7 +661,7 @@ Below is the **concise map of every L1 routine** you will implement for S4. Each
 ### K-7 — `run_ztp_for_merchant(ctx)`
 
 * **Purity:** Emits (drives the whole attempt loop)
-* **Input:** `ctx = { merchant_id, is_eligible, is_multi, N, A, X_m, θ, policy, lineage:{seed,parameter_hash,run_id} }`
+* **Input:** `ctx = { merchant_id, is_eligible, is_multi, N, A, X_m, θ, policy, lineage:{seed,parameter_hash,run_id,manifest_fingerprint} }`
 * **Output (value):** `Finaliser` **or** `null` (abort policy)
 * **Control flow:**
 
@@ -670,7 +670,7 @@ Below is the **concise map of every L1 routine** you will implement for S4. Each
   3. `lr := K-1(ctx)` (freeze λ & regime).
   4. For `attempt = 1..64`:
 
-     * `(k, s_before, s_after, bud) := K-2(lr, s_before)` *(for `attempt=1`, obtain `s_before` from the substream’s current counter)*
+     * `(k, s_after, bud) := K-2(lr, s_before)` *(for `attempt=1`, obtain `s_before` from the substream’s current counter)*
      * **K-3** emit attempt (consuming).
      * If `k>0`: build `fin := Finaliser{K_target=k, attempts=attempt, regime=lr.regime}` → **K-6** emit final → return `fin`.
      * Else: **K-4** emit rejection (non-consuming) and continue.
@@ -708,7 +708,7 @@ Handle merchants with **no admissible foreign countries** $(A=0)$. We **do not**
   N:int, A:int (=0),  
   X_m:float64, θ0:float64, θ1:float64, θ2:float64,  
   policy:{"abort","downgrade_domestic"},   # irrelevant on this branch  
-  lineage:{seed:u64, parameter_hash:hex64, run_id:hex32}  # pass-through to L0  
+  lineage:{seed:u64, parameter_hash:hex64, run_id:hex32, manifest_fingerprint:hex64}  # pass-through to L0  
 }`
 
 ---
@@ -778,7 +778,7 @@ END
 
 ### Envelope & schema facts (L0 responsibility; L1 must respect)
 
-* All S4 logs are written under partitions `{seed, parameter_hash, run_id}` (dictionary-resolved).
+* All S4 logs are written under partitions `{seed, parameter_hash, run_id, manifest_fingerprint}` (dictionary-resolved).
 * **Event envelope** (stamped by L0) embeds `run_id, seed, parameter_hash, manifest_fingerprint` + counters; **trace** rows embed `run_id & seed` and have **no `context`**. One event → one trace. *(Trace dataset has no mandated writer-sort.)*
 
 ---
@@ -930,7 +930,7 @@ PROC poisson_attempt_once(lr: LambdaRegime, s_before: Stream)
                          s_before     = s_before)
 
   # 2) Return values for the caller (K-7); attempt index is supplied by K-7.
-  RETURN (k, s_before, s_after, bud)
+  RETURN (k, s_after, bud)
 END
 ```
 
@@ -940,7 +940,7 @@ END
 
 **K-7** will:
 
-1. call **K-2** to get `(k, s_before, s_after, bud)`,
+1. call **K-2** to get `(k, s_after, bud)`,
 2. call **K-3** to emit the **consuming attempt** with payload `{merchant_id, attempt, k, lambda}` where `lambda := lr.lambda_extra`, supplying `(s_before, s_after, bud)` for the envelope,
 3. branch to **K-4** (rejection) if `k==0`, or to **K-6** (finaliser) if `k>0`.
 
@@ -1028,7 +1028,7 @@ END
 ### Schema/Dictionary facts (reference; enforced by L0)
 
 * **Schema anchor:** `#/rng/events/poisson_component` (attempt payload).
-* **Dictionary ID & partitions:** `rng_event_poisson_component` under `{seed, parameter_hash, run_id}`; writer-sort `(merchant_id,attempt)`.
+* **Dictionary ID & partitions:** `rng_event_poisson_component` under `{seed, parameter_hash, run_id, manifest_fingerprint}`; writer-sort `(merchant_id,attempt)`.
 * **Trace dataset:** `rng_trace_log` (same partitions); no mandated writer-sort.
 
 ---
@@ -1105,7 +1105,7 @@ END
 ### Schema/Dictionary facts (reference; enforced by L0)
 
 * **Schema anchor:** `#/rng/events/ztp_rejection` (non-consuming marker).
-* **Dictionary ID & partitions:** `rng_event_ztp_rejection` under `{seed, parameter_hash, run_id}`; writer-sort `(merchant_id,attempt)`.
+* **Dictionary ID & partitions:** `rng_event_ztp_rejection` under `{seed, parameter_hash, run_id, manifest_fingerprint}`; writer-sort `(merchant_id,attempt)`.
 * **Trace dataset:** `rng_trace_log` (same partitions); no mandated writer-sort.
 
 ---
@@ -1204,7 +1204,7 @@ END
 ### Schema/Dictionary facts (reference; enforced by L0)
 
 * **Schema anchor:** `#/rng/events/ztp_retry_exhausted` (non-consuming cap-hit).
-* **Dictionary ID & partitions:** `rng_event_ztp_retry_exhausted` under `{seed, parameter_hash, run_id}`; writer-sort `(merchant_id,attempts)` (attempts = 64).
+* **Dictionary ID & partitions:** `rng_event_ztp_retry_exhausted` under `{seed, parameter_hash, run_id, manifest_fingerprint}`; writer-sort `(merchant_id,attempts)` (attempts = 64).
 * **Trace dataset:** `rng_trace_log` (same partitions); no mandated writer-sort.
 
 ---
@@ -1315,7 +1315,7 @@ END
 ### Schema / Dictionary facts (reference; enforced by L0)
 
 * **Schema anchor:** `#/rng/events/ztp_final` (non-consuming finaliser).
-* **Dictionary:** `rng_event_ztp_final` under partitions `{seed, parameter_hash, run_id}`; writer-sort `(merchant_id)`.
+* **Dictionary:** `rng_event_ztp_final` under partitions `{seed, parameter_hash, run_id, manifest_fingerprint}`; writer-sort `(merchant_id)`.
 * **Trace dataset:** `rng_trace_log` (same partitions); no mandated writer-sort.
 
 ---
@@ -1349,7 +1349,7 @@ Drive the **entire S4 realisation** for a merchant: enforce preflight (including
 
 ### Inputs (values; no I/O)
 
-`Ctx { merchant_id, is_eligible, is_multi, N, A, X_m, θ0, θ1, θ2, policy ∈ {"abort","downgrade_domestic"}, lineage:{seed,parameter_hash,run_id} }`
+`Ctx { merchant_id, is_eligible, is_multi, N, A, X_m, θ0, θ1, θ2, policy ∈ {"abort","downgrade_domestic"}, lineage:{seed,parameter_hash,run_id,manifest_fingerprint} }`
 
 ### Output (values)
 
@@ -1390,7 +1390,7 @@ PROC run_ztp_for_merchant(ctx) -> Finaliser | null:
   lr := freeze_lambda_regime({N:ctx.N, X_m:ctx.X_m, θ0:ctx.θ0, θ1:ctx.θ1, θ2:ctx.θ2})
 
   # 3) Attempt loop (1..64, strictly increasing; cap is SPEC-FIXED 64)
-  s_before := get_substream_counter(ctx.merchant_id, MODULE="1A.s4.ztp", SUBSTREAM_LABEL="poisson_component")
+  s_before := L0.get_substream_counter(ctx.merchant_id, MODULE="1A.s4.ztp", SUBSTREAM_LABEL="poisson_component")
 
   FOR attempt IN 1..64:
       # 3.1 Sample once (RNG-consuming, no event I/O)
@@ -1566,7 +1566,7 @@ Additionally:
 
 ### 19.8 Partitions, lineage & ordering (reference; enforced by L0)
 
-* [ ] All S4 logs write under partitions `{seed, parameter_hash, run_id}` (dictionary-resolved).
+* [ ] All S4 logs write under partitions `{seed, parameter_hash, run_id, manifest_fingerprint}` (dictionary-resolved).
 * [ ] **Event** rows’ embedded lineage equals path tokens; **trace** rows embed `run_id & seed`; `parameter_hash` is path-only.
 * [ ] Writer-sort keys respected: attempts/rejections `(merchant_id,attempt)`, exhausted `(merchant_id,attempts)`, final `(merchant_id)`; trace has **no mandated** writer-sort.
 
@@ -1768,7 +1768,7 @@ PROC run_or_resume_s4_for_merchant(ctx):
         fin := Finaliser{K_target:0, attempts:0, regime:lr.regime
                          [, reason:"no_admissible" ]}   # include reason only if schema defines it
         emit_ztp_final_nonconsuming(ctx.merchant_id, ctx.lineage,
-                                    L0.get_substream_counter(ctx.merchant_id), lr, fin)
+                                    L0.get_substream_counter(ctx.merchant_id, MODULE="1A.s4.ztp", SUBSTREAM_LABEL="poisson_component"), lr, fin)
      RETURN RESOLVED
 
   # Freeze λ & regime once
@@ -1885,7 +1885,7 @@ END
 
 ### 22.6 Batching & I/O posture (L2-assisted)
 
-* **Dictionary-resolved paths** only; partitions = `{seed, parameter_hash, run_id}`. *(Reference; enforced by L0.)*
+* **Dictionary-resolved paths** only; partitions = `{seed, parameter_hash, run_id, manifest_fingerprint}`. *(Reference; enforced by L0.)*
 * **Writer-sort keys** when batching: attempts/rejections `(merchant_id,attempt)`, exhausted `(merchant_id,attempts)`, final `(merchant_id)`. File order is non-authoritative, but following it simplifies audits/merges.
 * **Micro-batches:** flush in small batches (e.g., 128–512 events) per writer **without** breaking **event↔trace pair adjacency**. Pairs must remain adjacent; batching must never reorder event/trace.
 
