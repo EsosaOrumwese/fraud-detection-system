@@ -272,6 +272,10 @@ type Envelope = {
   module: "1A.s4.ztp",
   substream_label: "poisson_component",
   context: "ztp",
+  run_id: hex32,
+  seed: u64,
+  parameter_hash: Hex64,
+  manifest_fingerprint: Hex64,
   rng_counter_before_lo: u64,
   rng_counter_before_hi: u64,
   rng_counter_after_lo:  u64,
@@ -600,7 +604,7 @@ Given one S4 row with `{seed, parameter_hash, manifest_fingerprint, run_id}` and
 * **Single substream domain** for all S4 events: `label="poisson_component"`, `Ids=[merchant_u64]`.
 * **Mapping is S0-normative**: `UER("mlr:1A") || UER(label) || SER(Ids)`; **SER tag set is closed**.
 * **No cross-label chaining**; **order-invariant** derivation; counters advance **one block per call**.
-* **Dictionary partitions** `{seed, parameter_hash, run_id}`; **event** rows embed lineage that **byte-matches** path tokens; trace rows omit embedded lineage and `context`.
+* **Dictionary partitions** `{seed, parameter_hash, run_id}`; **event** rows embed lineage that **byte-matches** path tokens; **trace rows embed `run_id` & `seed`** (no `context`); **`parameter_hash` is path-only**.
 * **Trace duty:** after **every** event append, the **same writer** appends **one** cumulative trace row **immediately after** the event.
 
 ---
@@ -1014,8 +1018,7 @@ const FAM_TRACE       = "rng_trace_log"   # schemas.layer1.yaml#/rng/core/rng_tr
                            rng_counter_before_hi: u64, rng_counter_before_lo: u64,
                            rng_counter_after_hi:  u64, rng_counter_after_lo:  u64)
   -> TraceTotals`
-  — **S1 variant only (qualified import)**. Appends **exactly one** cumulative `rng_trace_log` row **per event** (saturating totals), with **embedded `run_id` & `seed`** and the **before/after** counters (no `context`; **`parameter_hash` is path-only**). 
-    The **same writer** must append the trace **immediately after** the event. **Do not** use the S0 updater in S4.  (Matches the v2 `rng_trace_log` schema.)
+  — **S1 variant only (qualified import)**. Appends **exactly one** cumulative `rng_trace_log` row **per event** (saturating totals), with **embedded `run_id` & `seed`** and the **before/after** counters (no `context`; **`parameter_hash` is path-only**). The **same writer** must append the trace **immediately after** the event. **Do not** use the S0 updater in S4.
 
 ---
 
@@ -1103,7 +1106,7 @@ end
 
 * After **each** S4 event append, the **same writer immediately calls** `trace_after_event_s4(...)` (or `update_rng_trace_totals` with identical args) **exactly once**.
 * **Consuming vs non-consuming identities** enforced: attempts increase `blocks_total` & `draws_total`; markers/final increase **only** `events_total`.
-* **Dictionary-resolved** path for `rng_trace_log`; partitions = `{seed, parameter_hash, run_id}`; trace rows have **no embedded lineage** and **no `context`**.
+* **Dictionary-resolved** path for `rng_trace_log`; partitions = `{seed, parameter_hash, run_id}`; trace rows **embed `run_id` & `seed`** and **have no `context`**; **`parameter_hash` is path-only**.
 * **Saturating totals** semantics (S1 writer) only; **do not** use S0’s non-saturating updater.
 
 ---
@@ -1425,7 +1428,7 @@ end
 
 * **Dictionary-resolved only**; no path literals anywhere.
 * **Expected partitions** for every S4 stream are exactly **`seed, parameter_hash, run_id`**; verified before write.
-* **Path↔embed equality** holds on **event rows**: embedded `{seed, parameter_hash, run_id}` **byte-match** path tokens; `rng_trace_log` **trace rows omit embedded lineage** and have **no `context`** (lineage via partition path).
+* **Path↔embed equality** holds on **event rows**: embedded `{seed, parameter_hash, run_id}` **byte-match** path tokens; **`rng_trace_log` trace rows embed `run_id` & `seed`** (no `context`); **`parameter_hash` via the path**.
 * **Read-side equality** is enforced for S1/S2 inputs S4 reads (gates/facts).
 * **File order non-authoritative**; counters drive replay.
 * **Logs-only posture**; no egress/validation writes here. (Fingerprint-scoped content belongs to S0/validators.)
@@ -1864,12 +1867,12 @@ end
 * **Consuming attempt (authoritative write):**
   `reconcile_consuming_budget` → `assert_envelope_identities("consuming", …)` →
   `end_event_emit(...)` → *(optional test/audit)* `reconcile_trace_step(prev, blocks_delta, draws_str)` →
-  **`update_rng_trace_totals(draws_str, MODULE, SUBSTREAM_LABEL, lineage.seed, lineage.parameter_hash, lineage.run_id)`**.
+  **`update_rng_trace_totals(draws_str, MODULE, SUBSTREAM_LABEL, lineage.seed, lineage.parameter_hash, lineage.run_id, before_hi, before_lo, after_hi, after_lo)`**.
 
 * **Non-consuming marker/final (authoritative write):**
   `reconcile_nonconsuming_budget` → `assert_envelope_identities("nonconsuming", …)` →
   `end_event_emit(...)` → *(optional test/audit)* `reconcile_trace_step(prev, 0, "0")` →
-  **`update_rng_trace_totals("0", MODULE, SUBSTREAM_LABEL, lineage.seed, lineage.parameter_hash, lineage.run_id)`**.
+  **`update_rng_trace_totals("0", MODULE, SUBSTREAM_LABEL, lineage.seed, lineage.parameter_hash, lineage.run_id, before_hi, before_lo, after_hi, after_lo)`**.
 
 *Only `update_rng_trace_totals(...)` performs the trace write; `reconcile_trace_step(...)` is **optional** and used for tests/audits.*
 
@@ -2402,7 +2405,7 @@ This catalogue makes the weird corners **boring**: each is turned into a tiny, r
 
 ## 18.2 Governance artefacts & `parameter_hash` (value-level evolution)
 
-* **Governed container:** `crossborder_hyperparams` carries $\theta$, `MAX_ZTP_ZERO_ATTEMPTS`, `ztp_exhaustion_policy`. Its **serialized bytes participate in `parameter_hash`**. Defaults: cap **64** unless governance overrides.
+* **Governed container:** `crossborder_hyperparams` carries $\theta$ and `ztp_exhaustion_policy`; participates in **`parameter_hash`**. **Cap is 64 in schema v2.** Changing it requires a **schema/data-dictionary version bump** (then mirror the new constant here).
 
 * **Features:** governed $X_m \in [0,1]$ mapping and optional `X_default` participate in `parameter_hash` (precedence: governed `X_default` overrides 0.0; else use 0.0).
 
@@ -3095,12 +3098,12 @@ This appendix is the **single source** of S4 literals and closed vocabularies—
 
 ## B) Writer / trace / dictionary (REUSE S0/S1)
 
-| S4 surface (used in §§9–12,15)                                                                             | Origin               | Contract we depend on                                                                                                                                                                                                                              |
-|------------------------------------------------------------------------------------------------------------|----------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `begin_event_micro(...) -> EventCtx`                                                                       | **S1·L0**            | **Microsecond** `ts_utc` (exactly 6 digits; **truncate**), captures `{seed, parameter_hash, manifest_fingerprint, run_id}` and `rng_counter_before_{hi,lo}`.                                                                                       |
-| `end_event_emit(family, ctx, stream_after, draws_hi, draws_lo, payload)`                                   | **S1·L0 (required)** | Writes one JSONL row; writer computes `blocks = u128(after) − u128(before)`; encodes **decimal-u128 `draws`**; asserts non-consuming equality when `draws=="0"`.                                                                                   |
-| `update_rng_trace_totals(draws_str, MODULE, SUBSTREAM_LABEL, seed, parameter_hash, run_id) -> TraceTotals` | **S1·L0 (required)** | **Saturating `u64`** cumulative trace; **one row per event** by the **same writer immediately after** the event; partitions `{seed, parameter_hash, run_id}`; trace rows **do not embed lineage** (no `seed/parameter_hash/run_id`; no `context`). |
-| `dict_path_for_family(family,seed,parameter_hash,run_id)`                                                  | **S0·L0**            | **Dictionary-resolved** paths only; no literals.                                                                                                                                                                                                   |
+| S4 surface (used in §§9–12,15)                                                                                                                                                                       | Origin               | Contract we depend on                                                                                                                                                                                                                                   |
+|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `begin_event_micro(...) -> EventCtx`                                                                                                                                                                 | **S1·L0**            | **Microsecond** `ts_utc` (exactly 6 digits; **truncate**), captures `{seed, parameter_hash, manifest_fingerprint, run_id}` and `rng_counter_before_{hi,lo}`.                                                                                            |
+| `end_event_emit(family, ctx, stream_after, draws_hi, draws_lo, payload)`                                                                                                                             | **S1·L0 (required)** | Writes one JSONL row; writer computes `blocks = u128(after) − u128(before)`; encodes **decimal-u128 `draws`**; asserts non-consuming equality when `draws=="0"`.                                                                                        |
+| `update_rng_trace_totals(draws_str, MODULE, SUBSTREAM_LABEL, seed, parameter_hash, run_id, rng_counter_before_hi, rng_counter_before_lo, rng_counter_after_hi, rng_counter_after_lo) -> TraceTotals` | **S1·L0 (required)** | **Saturating `u64`** cumulative trace; **one row per event** by the **same writer immediately after** the event; partitions `{seed, parameter_hash, run_id}`; trace rows **embed `run_id` & `seed`** (no `context`); **`parameter_hash` is path-only**. |
+| `dict_path_for_family(family,seed,parameter_hash,run_id)`                                                                                                                                            | **S0·L0**            | **Dictionary-resolved** paths only; no literals.                                                                                                                                                                                                        |
 
 ---
 
@@ -3287,7 +3290,7 @@ All S4 streams write under:
 .../seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
 ```
 
-For **event rows**, the embedded `{seed, parameter_hash, run_id}` **byte-match** the path tokens (dictionary-resolved; **no** path literals). Trace rows **omit** embedded lineage (lineage via partition path) and carry **no `context`**.
+For **event rows**, the embedded `{seed, parameter_hash, run_id}` **byte-match** the path tokens (dictionary-resolved; **no** path literals). **Trace rows embed `run_id` & `seed`** (no `context`); **`parameter_hash` is via the partition path**.
 
 ---
 
