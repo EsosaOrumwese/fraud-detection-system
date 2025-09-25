@@ -1542,7 +1542,7 @@ Trace rows are **cumulative (saturating)**; a single append per event is require
 ## 13.9 Acceptance for §13 (checklist)
 
 * **Single writer per domain** `(family, seed, parameter_hash, run_id)`; no concurrent appends. Families use full IDs:
-  `rng_event_poisson_component`, `rng_event_ztp_final`, `rng_event_ztp_retry_exhausted`, `rng_event_ztp_final`, `rng_trace_log`.
+  `rng_event_poisson_component`, `rng_event_ztp_rejection`, `rng_event_ztp_retry_exhausted`, `rng_event_ztp_final`, `rng_trace_log`.
 * **Either** serial appends with **fdatasync per row**, **or** worker segments + **stable** merge with **stage → fsync → rename** publish.
 * **One event → one trace** by the **same writer, immediately after** the event; if a crash occurs after EVENT fsync and before TRACE append, **repair the trace only** using the event’s persisted envelope counters and `draws_str` (no duplicate events, no resampling).
 * **Idempotence & zero-row ban** honored; **skip-if-final** respected.
@@ -2755,9 +2755,9 @@ attempt := 1
 (k, s_after, bud) := poisson_attempt_once(lr.lambda_extra, lr.regime, s)    # §8
 
 # Consuming event (emitter writes event + trace; returns updated totals)
-tot := event_poisson_ztp(merchant_id, lineage, s, s_after, lr, attempt, k, bud, prev:=tot)   # §9.1
+tot := event_poisson_ztp(merchant_id, lineage, s, s_after, lr, attempt, k, bud)   # §9.1
 # Metrics fire AFTER the emitter returns (after event+trace fsync)
-metrics_after_event_append({lineage..., merchant_id}, "rng_event_poisson_component")     # §11
+metrics_after_event_append({lineage..., merchant_id}, "poisson_component")        # §11
 
 # Finaliser (non-consuming) — acceptance path
 emit_ztp_final_nonconsuming(merchant_id, lineage, s_after, lr,
@@ -2777,13 +2777,13 @@ metrics_on_final({lineage..., merchant_id},
 attempt := 1
 loop:
   (k, s_after, bud) := poisson_attempt_once(lr.lambda_extra, lr.regime, s)
-  tot := event_poisson_ztp(merchant_id, lineage, s, s_after, lr, attempt, k, bud, prev:=tot)
-  metrics_after_event_append({lineage..., merchant_id}, "rng_event_poisson_component")
+  tot := event_poisson_ztp(merchant_id, lineage, s, s_after, lr, attempt, k, bud)
+  metrics_after_event_append({lineage..., merchant_id}, "poisson_component")
 
   if k == 0 then
      # Zero marker (non-consuming), same counters; writer-sort key (merchant_id, attempt)
      tot := emit_ztp_rejection_nonconsuming(merchant_id, lineage, s_after, lr, attempt)
-     metrics_after_event_append({lineage..., merchant_id}, "rng_event_ztp_rejection")
+     metrics_after_event_append({lineage..., merchant_id}, "ztp_rejection")
      attempt := attempt + 1
      s := s_after
      continue loop
@@ -2809,12 +2809,12 @@ end loop
 attempt := 1
 while attempt ≤ MAX_ZTP_ZERO_ATTEMPTS:             # from crossborder_hyperparams (governed; in parameter_hash)
   (k, s_after, bud) := poisson_attempt_once(lr.lambda_extra, lr.regime, s)
-  tot := event_poisson_ztp(merchant_id, lineage, s, s_after, lr, attempt, k, bud, prev:=tot)
-  metrics_after_event_append({lineage..., merchant_id}, "rng_event_poisson_component")
+  tot := event_poisson_ztp(merchant_id, lineage, s, s_after, lr, attempt, k, bud)
+  metrics_after_event_append({lineage..., merchant_id}, "poisson_component")
 
   if k == 0:
     tot := emit_ztp_rejection_nonconsuming(merchant_id, lineage, s_after, lr, attempt)
-    metrics_after_event_append({lineage..., merchant_id}, "rng_event_ztp_rejection")
+    metrics_after_event_append({lineage..., merchant_id}, "ztp_rejection")
     attempt := attempt + 1
     s := s_after
     continue
@@ -2829,7 +2829,7 @@ end while
 if ztp_exhaustion_policy == "abort":
    # Cap hit — ABORT: write exhausted marker (non-consuming), once; no final
    tot := emit_ztp_retry_exhausted_nonconsuming(merchant_id, lineage, s, lr, attempts:=attempt-1)
-   metrics_after_event_append({lineage..., merchant_id}, "rng_event_ztp_retry_exhausted")
+   metrics_after_event_append({lineage..., merchant_id}, "ztp_retry_exhausted")
    metrics_on_cap_abort({lineage..., merchant_id}, attempts:=attempt-1)
    return
 else:  # "downgrade_domestic"
@@ -2948,12 +2948,12 @@ Non-consuming rows: `before==after`, `blocks=0`, `draws="0"`.
 
 **Types used:** `merchant_id:int64`, `attempt:int≥1`, `attempts:int≥0`, `k:int≥0`, `K_target:int≥0`, `lambda_extra:float64`, `regime∈{"inversion","ptrs"}`, `exhausted:bool`, `reason∈{"no_admissible"}` *(optional; only if that schema version defines it)*.
 
-| Family                           | Payload (minimum fields)                                                               |
-|----------------------------------|----------------------------------------------------------------------------------------|
-| `rng_event_poisson_component`   | `{ merchant_id, attempt, k, lambda_extra, regime }`                                    |
-| `rng_event_ztp_rejection`       | `{ merchant_id, attempt, k:0, lambda_extra }`                                          |
-| `rng_event_ztp_retry_exhausted` | `{ merchant_id, attempts, lambda_extra [, aborted:true]? }` *(policy flag if defined)* |
-| `rng_event_ztp_final`           | `{ merchant_id, K_target, lambda_extra, attempts, regime, exhausted? [, reason?] }`    |
+| Family                          | Payload (minimum fields)                                                                                |
+|---------------------------------|---------------------------------------------------------------------------------------------------------|
+| `rng_event_poisson_component`   | `{ merchant_id, attempt, k, lambda_extra, regime }`                                                     |
+| `rng_event_ztp_rejection`       | `{ merchant_id, attempt, k:0, lambda_extra }`                                                           |
+| `rng_event_ztp_retry_exhausted` | `{ merchant_id, attempts, lambda_extra, aborted:true }` *(abort-only marker; required in bound schema)* |
+| `rng_event_ztp_final`           | `{ merchant_id, K_target, lambda_extra, attempts, regime, exhausted? [, reason?] }`                     |
 
 **Cardinality.** ≤1 `poisson_component` per `(merchant_id,attempt)`; ≤1 `ztp_rejection` per `(merchant_id,attempt)`; ≤1 `ztp_retry_exhausted` per merchant; **exactly one** `ztp_final` per **resolved** merchant (absent only on hard abort).
 
