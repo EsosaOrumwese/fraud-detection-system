@@ -80,10 +80,10 @@ is_multi? ──►  is_eligible? ──►  compute A := size(S3.candidate_set 
 
 **Writes (logs only; partitions from dictionary = `{seed, parameter_hash, run_id}`):**
 
-* `rng/events/poisson_component` (context=`"ztp"`) — **consuming** attempts (`attempt` is **1-based**).
-* `rng/events/ztp_rejection` — **non-consuming** zero markers.
-* `rng/events/ztp_retry_exhausted` — **non-consuming** cap marker.
-* `rng/events/ztp_final` — **non-consuming** finaliser fixing `{K_target, lambda_extra, attempts, regime, exhausted?}`.
+* `rng_event_poisson_component` (context=`"ztp"`) — **consuming** attempts (`attempt` is **1-based**).
+* `rng_event_ztp_rejection` — **non-consuming** zero markers.
+* `rng_events_ztp_retry_exhausted` — **non-consuming** cap marker.
+* `rng_events_ztp_final` — **non-consuming** finaliser fixing `{K_target, lambda_extra, attempts, regime, exhausted?}`.
 * `rng_trace_log` — **one row per event append** (cumulative, saturating).
 
 ---
@@ -195,10 +195,10 @@ Pairing and replay are determined **only by counters** in the RNG envelopes (hi/
 
 | Stream                           | **module**  | **substream_label** | **context** |
 |----------------------------------|-------------|---------------------|-------------|
-| `rng/events/poisson_component`   | `1A.s4.ztp` | `poisson_component` | `"ztp"`     |
-| `rng/events/ztp_rejection`       | `1A.s4.ztp` | `poisson_component` | `"ztp"`     |
-| `rng/events/ztp_retry_exhausted` | `1A.s4.ztp` | `poisson_component` | `"ztp"`     |
-| `rng/events/ztp_final`           | `1A.s4.ztp` | `poisson_component` | `"ztp"`     |
+| `rng_event_poisson_component`   | `1A.s4.ztp` | `poisson_component` | `"ztp"`     |
+| `rng_event_ztp_rejection`       | `1A.s4.ztp` | `poisson_component` | `"ztp"`     |
+| `rng_events_ztp_retry_exhausted` | `1A.s4.ztp` | `poisson_component` | `"ztp"`     |
+| `rng_events_ztp_final`           | `1A.s4.ztp` | `poisson_component` | `"ztp"`     |
 
 **Note.** All S4 events share `substream_label="poisson_component"` to aggregate budgets/trace under one domain; event type is distinguished by the table/anchor and `context:"ztp"`.
 
@@ -1040,11 +1040,11 @@ All metrics are emitted as structured values (e.g., JSON lines) with the lineage
 
 | Stream ID                                             | Schema anchor (authoritative)                         | Partitions (path keys)                     | Required envelope fields (all rows)                                      | Required payload (minimum)                                                                                                                          | Writer sort keys (stable)                                               | Consumers                                             |
 |-------------------------------------------------------|-------------------------------------------------------|--------------------------------------------|--------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------|-------------------------------------------------------|
-| `rng/events/poisson_component` (with `context:"ztp"`) | `schemas.layer1.yaml#/rng/events/poisson_component`   | `seed, parameter_hash, run_id`             | `ts_utc, module, substream_label, context, before, after, blocks, draws` | `{ merchant_id, attempt:int≥1, k:int≥0, lambda_extra:float64, regime:"inversion" \| "ptrs" }`                                                       | `(merchant_id, attempt)`                                                | S4 validator, observability                           |
-| `rng/events/ztp_rejection`                            | `schemas.layer1.yaml#/rng/events/ztp_rejection`       | `seed, parameter_hash, run_id`             | *(same envelope fields as above)*                                        | `{ merchant_id, attempt:int≥1, k:0, lambda_extra }`                                                                                                 | `(merchant_id, attempt)`                                                | S4 validator, observability                           |
-| `rng/core/rng_trace_log`                              | `schemas.layer1.yaml#/rng/core/rng_trace_log`         | `seed, parameter_hash, run_id`             | `ts_utc, module, substream_label`                                        | `{ module, substream_label, rng_counter_after_hi:u128, rng_counter_after_lo:u128 }`                                                                 | `(module, substream_label, rng_counter_after_hi, rng_counter_after_lo)` | S4 validator, observability                           |
-| `rng/events/ztp_retry_exhausted`                      | `schemas.layer1.yaml#/rng/events/ztp_retry_exhausted` | `seed, parameter_hash, run_id`             | *(same envelope fields as above)*                                        | `{ merchant_id, attempts:int≥1, lambda_extra }`                                                                                                     | `(merchant_id, attempts)`                                               | S4 validator, observability                           |
-| `rng/events/ztp_final`                                | `schemas.layer1.yaml#/rng/events/ztp_final`           | `seed, parameter_hash, run_id`             | *(same envelope fields as above)*                                        | `{ merchant_id, K_target:int≥0, lambda_extra:float64, attempts:int≥0, regime:"inversion" \| "ptrs", exhausted?:bool [ , reason:"no_admissible"]? }` | `(merchant_id)`                                                         | **S6** (reads `K_target,…`), validator, observability |
+| `rng_event_poisson_component` (with `context:"ztp"`) | `schemas.layer1.yaml#/rng/events/poisson_component`   | `seed, parameter_hash, run_id`             | `ts_utc, module, substream_label, context, before, after, blocks, draws` | `{ merchant_id, attempt:int≥1, k:int≥0, lambda_extra:float64, regime:"inversion" \| "ptrs" }`                                                       | `(merchant_id, attempt)`                                                | S4 validator, observability                           |
+| `rng_event_ztp_rejection`                            | `schemas.layer1.yaml#/rng/events/ztp_rejection`       | `seed, parameter_hash, run_id`             | *(same envelope fields as above)*                                        | `{ merchant_id, attempt:int≥1, k:0, lambda_extra }`                                                                                                 | `(merchant_id, attempt)`                                                | S4 validator, observability                           |
+| `rng_trace_log`                              | `schemas.layer1.yaml#/rng/core/rng_trace_log`         | `seed, parameter_hash, run_id`             | `ts_utc, module, substream_label`                                        | `{ module, substream_label, rng_counter_after_hi:u128, rng_counter_after_lo:u128 }`                                                                 | `(module, substream_label, rng_counter_after_hi, rng_counter_after_lo)` | S4 validator, observability                           |
+| `rng_events_ztp_retry_exhausted`                      | `schemas.layer1.yaml#/rng/events/ztp_retry_exhausted` | `seed, parameter_hash, run_id`             | *(same envelope fields as above)*                                        | `{ merchant_id, attempts:int≥1, lambda_extra }`                                                                                                     | `(merchant_id, attempts)`                                               | S4 validator, observability                           |
+| `rng_events_ztp_final`                                | `schemas.layer1.yaml#/rng/events/ztp_final`           | `seed, parameter_hash, run_id`             | *(same envelope fields as above)*                                        | `{ merchant_id, K_target:int≥0, lambda_extra:float64, attempts:int≥0, regime:"inversion" \| "ptrs", exhausted?:bool [ , reason:"no_admissible"]? }` | `(merchant_id)`                                                         | **S6** (reads `K_target,…`), validator, observability |
 
 **MUST.**
 
