@@ -13,7 +13,7 @@
 
 **What L1 does *not* do**
 
-* **No file paths/partitions/lineage stamping** in L1. L2 **supplies** `{seed, parameter_hash, run_id, manifest_fingerprint}` to L1, and the **L0 emitters** stamp the event envelope and append the **immediate** cumulative trace under dictionary-resolved `{seed, parameter_hash, run_id, manifest_fingerprint}`. 
+* **No file paths/partitions/lineage stamping** in L1. L2 **supplies** `{seed, parameter_hash, run_id, manifest_fingerprint}` to L1, and the **L0 emitters** stamp the event envelope and append the **immediate** cumulative trace under dictionary-resolved `{seed, parameter_hash, run_id}`. 
 * **No envelope/trace internals** in L1 (the emitters do event + immediate trace). 
 * **No validation/CI** (L3 proves identities and corridors). S4 provides **logs only** and **never encodes inter-country order** (S3 remains order authority). 
 
@@ -325,7 +325,7 @@ This section lists the **exact values** S4·L1 needs per merchant and the **fail
 * **Eligibility (S3):** `is_eligible==true` is a hard precondition; if false, **no S4 events**.
 * **Total `N` (S2):** from the S2 `nb_final` row; S4 treats it as read-only.
 * **Admissible `A` (S3):** candidate set valid (**home rank 0; ranks contiguous**), then $A=\lvert\text{candidates}\setminus\{\text{home}\}\rvert$. If S3 failed rank/home checks, S4 **must not** run.
-* **(Reference — enforced by dictionary/L0; L2 orchestrates):** all S4 logs write under partitions `{seed, parameter_hash, run_id, manifest_fingerprint}`; writer-sort keys are fixed per family (attempts/rejections `(merchant_id,attempt)`, exhausted `(merchant_id,attempts)`, final `(merchant_id)`).
+* **(Reference — enforced by dictionary/L0; L2 orchestrates):** all S4 logs write under partitions `{seed, parameter_hash, run_id}`; writer-sort keys are fixed per family (attempts/rejections `(merchant_id,attempt)`, exhausted `(merchant_id,attempts)`, final `(merchant_id)`).
 
 ---
 
@@ -423,8 +423,8 @@ S4’s **only** authoritative decision is `K_target` (in `ztp_final`). S4 **does
 **For each merchant completed by L1:**
 
 1. **Do not call emitters.** 
-   L1 kernels (K-3..K-6) call L0 emitters and stamp **event + immediate trace (same writer)**. L2 supplies lineage/values to L1 **(including `manifest_fingerprint`)**, and manages parallelism, dedupe and resume.
-   **Do not invoke emitters in L2.** **L0** resolves dictionary IDs and writes events + trace under `{seed, parameter_hash, run_id, manifest_fingerprint}`; L2 does **not** stamp lineage, resolve paths, or reshape payloads.
+   L1 kernels (K-3..K-6) call the **L0 emitters**, which stamp **event + immediate trace (same writer)**. L2 supplies lineage/values to L1 **(including `manifest_fingerprint`)**, and manages parallelism, dedupe and resume.
+   **Do not invoke emitters in L2.** **L0** resolves dictionary IDs and writes events + trace under `{seed, parameter_hash, run_id}`; L2 does **not** stamp lineage, resolve paths, or reshape payloads.
 
 2. **Ordering & adjacency discipline.**
    Maintain the call order so that **each event** is immediately followed by its trace (as L0 already does). When batching across merchants, follow dictionary writer-sort keys to reduce merge churn: attempts/rejections `(merchant_id,attempt)`, exhausted `(merchant_id,attempts)`, final `(merchant_id)`. (Counters remain the authoritative order.)
@@ -615,7 +615,7 @@ Below is the **concise map of every L1 routine** you will implement for S4. Each
 * **Purity:** **RNG-consuming (no event I/O)**
 * **Input:** `lr={lambda_extra, regime}`, `s_before` (current substream counter)
 * **Calls (L0 sampler):** `poisson_attempt_with_budget(lambda_extra, regime, s_before)`
-* **Output:** `(k, s_after, bud)` where `bud` contains the measured blocks/draws for this attempt
+* **Output:** `(k, s_before, s_after, bud)` where `bud` contains the measured blocks/draws for this attempt
 * **Notes:** Strict-open uniforms; PTRS/inversion per `regime`. Attempt index is supplied by the caller (K-7). O(1).
 
 ---
@@ -778,7 +778,7 @@ END
 
 ### Envelope & schema facts (L0 responsibility; L1 must respect)
 
-* All S4 logs are written under partitions `{seed, parameter_hash, run_id, manifest_fingerprint}` (dictionary-resolved).
+* All S4 logs are written under partitions `{seed, parameter_hash, run_id}` (dictionary-resolved).
 * **Event envelope** (stamped by L0) embeds `run_id, seed, parameter_hash, manifest_fingerprint` + counters; **trace** rows embed `run_id & seed` and have **no `context`**. One event → one trace. *(Trace dataset has no mandated writer-sort.)*
 
 ---
@@ -930,7 +930,7 @@ PROC poisson_attempt_once(lr: LambdaRegime, s_before: Stream)
                          s_before     = s_before)
 
   # 2) Return values for the caller (K-7); attempt index is supplied by K-7.
-  RETURN (k, s_after, bud)
+  RETURN (k, s_before, s_after, bud)
 END
 ```
 
@@ -1007,7 +1007,7 @@ PROC emit_poisson_attempt(merchant_id, lineage, s_before, s_after, lr, attempt, 
 
   # Single emitter call: writes event, stamps envelope, appends immediate cumulative trace
   event_poisson_ztp(
-      lineage = lineage,               # {seed, parameter_hash, run_id}
+      lineage = lineage,               # {seed, parameter_hash, run_id, manifest_fingerprint}
       s_before = s_before,
       s_after  = s_after,
       budget   = bud,                  # {blocks, draws_hi, draws_lo}
@@ -1083,7 +1083,7 @@ PROC emit_ztp_rejection_nonconsuming(merchant_id, lineage, s_curr, lr, attempt):
 
   # Single emitter call: non-consuming event + immediate cumulative trace
   emit_ztp_rejection_nonconsuming(
-      lineage  = lineage,          # {seed, parameter_hash, run_id}
+      lineage  = lineage,          # {seed, parameter_hash, run_id, manifest_fingerprint}
       s_before = s_curr,           # non-consuming: before == after
       s_after  = s_curr,
       payload  = { merchant_id: merchant_id,
@@ -1187,7 +1187,7 @@ PROC emit_ztp_retry_exhausted_nonconsuming(merchant_id, lineage, s_curr, lr, pol
 
   # Single emitter call: non-consuming exhausted marker + immediate cumulative trace
   emit_ztp_retry_exhausted_nonconsuming(
-      lineage  = lineage,         # {seed, parameter_hash, run_id}
+      lineage  = lineage,         # {seed, parameter_hash, run_id, manifest_fingerprint}
       s_before = s_curr,          # non-consuming: before == after
       s_after  = s_curr,
       payload  = { merchant_id:  merchant_id,
@@ -1294,7 +1294,7 @@ PROC emit_ztp_final_nonconsuming(merchant_id, lineage, s_curr, lr, fin) -> Final
 
   # Single emitter call: non-consuming final + immediate cumulative trace
   emit_ztp_final_nonconsuming(
-      lineage  = lineage,         # {seed, parameter_hash, run_id}
+      lineage  = lineage,         # {seed, parameter_hash, run_id, manifest_fingerprint}
       s_before = s_curr,          # non-consuming: before == after
       s_after  = s_curr,
       payload  = { merchant_id:  merchant_id,
@@ -1315,8 +1315,8 @@ END
 ### Schema / Dictionary facts (reference; enforced by L0)
 
 * **Schema anchor:** `#/rng/events/ztp_final` (non-consuming finaliser).
-* **Dictionary:** `rng_event_ztp_final` under partitions `{seed, parameter_hash, run_id, manifest_fingerprint}`; writer-sort `(merchant_id)`.
-* **Trace dataset:** `rng_trace_log` (same partitions); no mandated writer-sort.
+* **Dictionary:** `rng_event_ztp_final` under partitions `{seed, parameter_hash, run_id}`; writer-sort `(merchant_id)`.
+* **Trace dataset:** `rng_trace_log` (partitions `{seed, parameter_hash, run_id}`); no mandated writer-sort.
 
 ---
 
@@ -1566,7 +1566,7 @@ Additionally:
 
 ### 19.8 Partitions, lineage & ordering (reference; enforced by L0)
 
-* [ ] All S4 logs write under partitions `{seed, parameter_hash, run_id, manifest_fingerprint}` (dictionary-resolved).
+* [ ] All S4 logs write under partitions `{seed, parameter_hash, run_id}` (dictionary-resolved).
 * [ ] **Event** rows’ embedded lineage equals path tokens; **trace** rows embed `run_id & seed`; `parameter_hash` is path-only.
 * [ ] Writer-sort keys respected: attempts/rejections `(merchant_id,attempt)`, exhausted `(merchant_id,attempts)`, final `(merchant_id)`; trace has **no mandated** writer-sort.
 
@@ -1885,7 +1885,7 @@ END
 
 ### 22.6 Batching & I/O posture (L2-assisted)
 
-* **Dictionary-resolved paths** only; partitions = `{seed, parameter_hash, run_id, manifest_fingerprint}`. *(Reference; enforced by L0.)*
+* **Dictionary-resolved paths** only; partitions = `{seed, parameter_hash, run_id}`. *(Reference; enforced by L0.)*
 * **Writer-sort keys** when batching: attempts/rejections `(merchant_id,attempt)`, exhausted `(merchant_id,attempts)`, final `(merchant_id)`. File order is non-authoritative, but following it simplifies audits/merges.
 * **Micro-batches:** flush in small batches (e.g., 128–512 events) per writer **without** breaking **event↔trace pair adjacency**. Pairs must remain adjacent; batching must never reorder event/trace.
 
