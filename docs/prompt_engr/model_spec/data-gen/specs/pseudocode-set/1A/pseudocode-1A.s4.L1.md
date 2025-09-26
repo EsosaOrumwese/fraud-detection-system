@@ -654,7 +654,7 @@ Below is the **concise map of every L1 routine** you will implement for S4. Each
 
 ---
 
-### K-6 — `emit_ztp_final_nonconsuming(ctx, fin, lr)`
+### K-6 — `do_emit_ztp_final(ctx, lr, fin)`  *(wrapper calls `L0.emit_ztp_final_nonconsuming`)*
 
 * **Purity:** Emits
 * **Input:** `merchant_id`, `lineage:{seed,parameter_hash,run_id,manifest_fingerprint}`, `fin:Finaliser{K_target, attempts, regime [, exhausted?, reason?]}`, `lr.lambda_extra`
@@ -760,7 +760,7 @@ PROC short_circuit_A0(ctx):
   fin := Finaliser{ K_target: 0, attempts: 0, regime }
 
   # 3) Emit exactly one non-consuming final via L0 (emitter stamps envelope + immediate trace)
-  emit_ztp_final_nonconsuming(
+  L0.emit_ztp_final_nonconsuming(
       merchant_id = ctx.merchant_id,
       lineage     = { seed:ctx.lineage.seed, parameter_hash:ctx.lineage.parameter_hash, run_id:ctx.lineage.run_id, manifest_fingerprint:ctx.lineage.manifest_fingerprint  },
       lr          = { lambda_extra:lambda_extra, regime:regime },
@@ -921,8 +921,8 @@ Perform **one Poisson attempt** for the merchant using the frozen $\lambda_{\tex
 ### Pseudocode (language-agnostic; **RNG-consuming, no event I/O**)
 
 ```text
-PROC poisson_attempt_once(lr: LambdaRegime, s_before: Stream)
-  -> (k:int, s_before:Stream, s_after:Stream, bud:AttemptBudget):
+PROC do_poisson_attempt_once(lr: LambdaRegime, s_before: Stream)
+  -> (k:int, s_after:Stream, bud:AttemptBudget):
 
   # 0) Defensive guards (should already hold if K-1 ran)
   REQUIRE isfinite(lr.lambda_extra) AND lr.lambda_extra > 0
@@ -930,13 +930,10 @@ PROC poisson_attempt_once(lr: LambdaRegime, s_before: Stream)
 
   # 1) Delegate to the sampler capsule (inversion if λ<10, else PTRS)
   #    Capsule advances the substream and measures budgets.
-  (k, s_after, bud) := poisson_attempt_with_budget(
-                         lambda_extra = lr.lambda_extra,
-                         regime       = lr.regime,
-                         s_before     = s_before)
+  (k, s_after, bud) := L0.poisson_attempt_once(lr.lambda_extra, lr.regime, s_before)
 
   # 2) Return values for the caller (K-7); attempt index is supplied by K-7.
-  RETURN (k, s_before, s_after, bud)
+  RETURN (k, s_after, bud)
 END
 ```
 
@@ -946,7 +943,7 @@ END
 
 **K-7** will:
 
-1. call **K-2** to get `(k, s_before, s_after, bud)`,
+1. call **K-2** (`do_poisson_attempt_once`) to get `(k, s_after, bud)`,
 2. call **K-3** to emit the **consuming attempt** with payload `{merchant_id, attempt, k, lambda}` where `lambda := lr.lambda_extra`, supplying `(s_before, s_after, bud)` for the envelope,
 3. branch to **K-4** (rejection) if `k==0`, or to **K-6** (finaliser) if `k>0`.
 
@@ -1012,7 +1009,7 @@ PROC emit_poisson_attempt(merchant_id, lineage, s_before, s_after, lr, attempt, 
                lambda: lr.lambda_extra }
 
   # Single emitter call: writes event, stamps envelope, appends immediate cumulative trace
-  event_poisson_ztp(
+  L0.event_poisson_ztp(
       lineage = lineage,               # {seed, parameter_hash, run_id, manifest_fingerprint}
       s_before = s_before,
       s_after  = s_after,
@@ -1088,7 +1085,7 @@ PROC emit_ztp_rejection_nonconsuming(merchant_id, lineage, s_curr, lr, attempt):
   REQUIRE isfinite(lr.lambda_extra) AND lr.lambda_extra > 0
 
   # Single emitter call: non-consuming event + immediate cumulative trace
-  emit_ztp_rejection_nonconsuming(
+  L0.emit_ztp_rejection_nonconsuming(
       lineage  = lineage,          # {seed, parameter_hash, run_id, manifest_fingerprint}
       s_before = s_curr,           # non-consuming: before == after
       s_after  = s_curr,
@@ -1192,7 +1189,7 @@ PROC emit_ztp_retry_exhausted_nonconsuming(merchant_id, lineage, s_curr, lr, pol
   REQUIRE isfinite(lr.lambda_extra) AND lr.lambda_extra > 0
 
   # Single emitter call: non-consuming exhausted marker + immediate cumulative trace
-  emit_ztp_retry_exhausted_nonconsuming(
+  L0.emit_ztp_retry_exhausted_nonconsuming(
       lineage  = lineage,         # {seed, parameter_hash, run_id, manifest_fingerprint}
       s_before = s_curr,          # non-consuming: before == after
       s_after  = s_curr,
@@ -1285,7 +1282,7 @@ Publish the **non-consuming finaliser** that fixes the authoritative **`K_target
 ### Pseudocode (language-agnostic; **one emitter call = one event → one trace**)
 
 ```text
-PROC emit_ztp_final_nonconsuming(merchant_id, lineage, s_curr, lr, fin) -> Finaliser OR UNIT:
+PROC do_emit_ztp_final(merchant_id, lineage, s_curr, lr, fin) -> Finaliser OR UNIT:
   # Preconditions (value-level; envelope identities enforced by the emitter)
   REQUIRE isfinite(lr.lambda_extra) AND lr.lambda_extra > 0
   REQUIRE fin.K_target >= 0 AND fin.attempts >= 0
@@ -1299,7 +1296,7 @@ PROC emit_ztp_final_nonconsuming(merchant_id, lineage, s_curr, lr, fin) -> Final
      REQUIRE fin.K_target == 0 AND NOT present(fin.exhausted)
 
   # Single emitter call: non-consuming final + immediate cumulative trace
-  emit_ztp_final_nonconsuming(
+  L0.emit_ztp_final_nonconsuming(
       lineage  = lineage,         # {seed, parameter_hash, run_id, manifest_fingerprint}
       s_before = s_curr,          # non-consuming: before == after
       s_after  = s_curr,
@@ -1387,49 +1384,56 @@ PROC run_ztp_for_merchant(ctx) -> Finaliser | null:
       # freeze_lambda_regime RAISEs NUMERIC_INVALID if λ non-finite/≤0
       fin := Finaliser{ K_target:0, attempts:0, regime:lr.regime
                         [, reason:"no_admissible" ] }   # include 'reason' only if schema version defines it
-      emit_ztp_final_nonconsuming(
+      # Derive merchant-scoped substream once (S0)
+      merchant_u64 := LOW64( SHA256( LE64(ctx.merchant_id) ) )
+      M := S0.derive_master_material(ctx.lineage.seed, BYTES(ctx.lineage.manifest_fingerprint))
+      s0 := S0.derive_substream(M, "poisson_component", [ { tag:"merchant_u64", value:merchant_u64 } ])
+      L0.emit_ztp_final_nonconsuming(
         ctx.merchant_id, ctx.lineage,
-        L0.get_substream_counter(ctx.merchant_id, MODULE="1A.s4.ztp", SUBSTREAM_LABEL="poisson_component"), lr, fin)
+        s0, lr, fin)
       RETURN fin
 
   # 2) Freeze λ & regime once (constant across loop)
   lr := freeze_lambda_regime({N:ctx.N, X_m:ctx.X_m, θ0:ctx.θ0, θ1:ctx.θ1, θ2:ctx.θ2})
 
   # 3) Attempt loop (1..64, strictly increasing; cap is SPEC-FIXED 64)
-  s_before := L0.get_substream_counter(ctx.merchant_id, MODULE="1A.s4.ztp", SUBSTREAM_LABEL="poisson_component")
+  # Derive merchant-scoped substream once (S0)
+  merchant_u64 := LOW64( SHA256( LE64(ctx.merchant_id) ) )
+  M := S0.derive_master_material(ctx.lineage.seed, BYTES(ctx.lineage.manifest_fingerprint))
+  s_before := S0.derive_substream(M, "poisson_component", [ { tag:"merchant_u64", value:merchant_u64 } ])
 
   FOR attempt IN 1..64:
       # 3.1 Sample once (RNG-consuming, no event I/O)
-      (k, s_before_echo, s_after, bud) := poisson_attempt_once(lr, s_before)
+      (k, s_after, bud) := L0.poisson_attempt_once(lr.lambda_extra, lr.regime, s_before)
       # poisson_attempt_once RAISEs RNG_SAMPLER_FAIL on capsule/runtime error
 
       # 3.2 Emit consuming attempt (payload uses 'lambda' per schema v2)
-      emit_poisson_attempt(ctx.merchant_id, ctx.lineage, s_before_echo, s_after, lr, attempt, k, bud)
+      L0.event_poisson_ztp(ctx.merchant_id, ctx.lineage, s_before, s_after, lr, attempt, k, bud)
 
       # 3.3 Branch on result
       IF k > 0:
           fin := Finaliser{ K_target:k, attempts:attempt, regime:lr.regime }
-          emit_ztp_final_nonconsuming(ctx.merchant_id, ctx.lineage, s_after, lr, fin)
+          L0.emit_ztp_final_nonconsuming(ctx.merchant_id, ctx.lineage, s_after, lr, fin)
           RETURN fin
 
       # k == 0 → publish non-consuming rejection for the same index
-      emit_ztp_rejection_nonconsuming(ctx.merchant_id, ctx.lineage, s_after, lr, attempt)
+      L0.emit_ztp_rejection_nonconsuming(ctx.merchant_id, ctx.lineage, s_after, lr, attempt)
 
       # 3.4 Advance stream and continue
       s_before := s_after
 
   # 4) Cap reached with no acceptance (attempt 64 ended with k==0; K-4 already emitted for attempt=64)
   IF ctx.policy == "abort":
-      emit_ztp_retry_exhausted_nonconsuming(ctx.merchant_id, ctx.lineage, s_before, lr, policy="abort")
+      L0.emit_ztp_retry_exhausted_nonconsuming(ctx.merchant_id, ctx.lineage, s_before, lr, policy="abort")
       RETURN null                               # no finaliser on abort path
   ELSE:
       fin := Finaliser{ K_target:0, attempts:64, regime:lr.regime, exhausted:true }
-      emit_ztp_final_nonconsuming(ctx.merchant_id, ctx.lineage, s_before, lr, fin)
+      L0.emit_ztp_final_nonconsuming(ctx.merchant_id, ctx.lineage, s_before, lr, fin)
       RETURN fin
 END
 ```
 
-> **Substream counters:** obtain via the **L0 helper** `get_substream_counter(...)`; do **not** read or mint counters in L1.
+> **Stream derivation:** derive the merchant stream once via **S0.derive_master_material** → **S0.derive_substream**; do **not** mint ad-hoc counters in L1. Read counters only from the derived `Stream`.
 
 ---
 
@@ -1731,7 +1735,7 @@ For each prospective emit, **check the natural key first** (before any RNG):
 
 **Pattern B — Continue from last attempt (envelope-driven):**
 Let $t_{\max}$ be the largest attempt index on disk.
-Set `s_before := L0.read_attempt_envelope_after(merchant_id, t_max)` (or `L0.get_substream_counter(..)` if none).
+Set `s_before := L0.read_attempt_envelope_after(merchant_id, t_max)` (or `S0.derive_substream(..)` if none).
 Resume at `attempt = t_max + 1`. *(Never resample for already-written attempts.)*
 
 ---
@@ -1758,7 +1762,8 @@ If present, **skip** the emit (treat as already done). Dedupe **must** occur **b
 
 ---
 
-### 21.6 Pseudocode (idempotent resume loop, Pattern A)
+### 21.6 (L2 reference) Pseudocode (idempotent resume loop, Pattern A)
+> **Lives in L2 orchestrator; not implemented in L1.**
 
 ```text
 PROC run_or_resume_s4_for_merchant(ctx):
@@ -1773,15 +1778,22 @@ PROC run_or_resume_s4_for_merchant(ctx):
         lr  := freeze_lambda_regime({N:ctx.N, X_m:ctx.X_m, θ0:ctx.θ0, θ1:ctx.θ1, θ2:ctx.θ2})
         fin := Finaliser{K_target:0, attempts:0, regime:lr.regime
                          [, reason:"no_admissible" ]}   # include reason only if schema defines it
-        emit_ztp_final_nonconsuming(ctx.merchant_id, ctx.lineage,
-                                    L0.get_substream_counter(ctx.merchant_id, MODULE="1A.s4.ztp", SUBSTREAM_LABEL="poisson_component"), lr, fin)
+     # Derive merchant-scoped substream once (S0)
+     merchant_u64 := LOW64( SHA256( LE64(ctx.merchant_id) ) )
+     M := S0.derive_master_material(ctx.lineage.seed, BYTES(ctx.lineage.manifest_fingerprint))
+     s0 := S0.derive_substream(M, "poisson_component", [ { tag:"merchant_u64", value:merchant_u64 } ])
+     L0.emit_ztp_final_nonconsuming(ctx.merchant_id, ctx.lineage,
+                                    s0, lr, fin)
      RETURN RESOLVED
 
   # Freeze λ & regime once
   lr := freeze_lambda_regime({N:ctx.N, X_m:ctx.X_m, θ0:ctx.θ0, θ1:ctx.θ1, θ2:ctx.θ2})
 
   # Start from current substream counter
-  s_before := L0.get_substream_counter(ctx.merchant_id, MODULE, SUBSTREAM_LABEL)
+  # Derive merchant-scoped substream once (S0)
+  merchant_u64 := LOW64( SHA256( LE64(ctx.merchant_id) ) )
+  M := S0.derive_master_material(ctx.lineage.seed, BYTES(ctx.lineage.manifest_fingerprint))
+  s_before := S0.derive_substream(M, "poisson_component", [ { tag:"merchant_u64", value:merchant_u64 } ])
 
   FOR attempt IN 1..64:
 
@@ -1800,12 +1812,12 @@ PROC run_or_resume_s4_for_merchant(ctx):
         IF NOT exists_final(ctx.merchant_id):
            fin := Finaliser{K_target:(k>0 ? k : L0.read_final_K(ctx.merchant_id)),
                             attempts:attempt, regime:lr.regime}
-           emit_ztp_final_nonconsuming(ctx.merchant_id, ctx.lineage, s_after, lr, fin)
+           L0.emit_ztp_final_nonconsuming(ctx.merchant_id, ctx.lineage, s_after, lr, fin)
         RETURN RESOLVED
 
      # k == 0 ⇒ ensure rejection exists for this attempt (dedupe)
      IF NOT exists_rejection(ctx.merchant_id, attempt):
-        emit_ztp_rejection_nonconsuming(ctx.merchant_id, ctx.lineage, s_after, lr, attempt)
+        L0.emit_ztp_rejection_nonconsuming(ctx.merchant_id, ctx.lineage, s_after, lr, attempt)
 
      # Advance stream
      s_before := s_after
@@ -1813,12 +1825,12 @@ PROC run_or_resume_s4_for_merchant(ctx):
   # --- Cap reached with no acceptance ---
   IF ctx.policy == "abort":
      IF NOT exists_exhausted(ctx.merchant_id):
-        emit_ztp_retry_exhausted_nonconsuming(ctx.merchant_id, ctx.lineage, s_before, lr, "abort")
+        L0.emit_ztp_retry_exhausted_nonconsuming(ctx.merchant_id, ctx.lineage, s_before, lr, "abort")
      RETURN RESOLVED_ABORT
   ELSE:
      IF NOT exists_final(ctx.merchant_id):
         fin := Finaliser{K_target:0, attempts:64, regime:lr.regime, exhausted:true}
-        emit_ztp_final_nonconsuming(ctx.merchant_id, ctx.lineage, s_before, lr, fin)
+        L0.emit_ztp_final_nonconsuming(ctx.merchant_id, ctx.lineage, s_before, lr, fin)
      RETURN RESOLVED
 END
 ```
