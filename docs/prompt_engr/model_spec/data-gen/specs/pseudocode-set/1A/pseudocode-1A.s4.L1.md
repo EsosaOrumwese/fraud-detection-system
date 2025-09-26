@@ -616,7 +616,7 @@ Below is the **concise map of every L1 routine** you will implement for S4. Each
 
 ---
 
-### K-2 — `poisson_attempt_once(lambda_extra, regime, s_before)`: sample one attempt
+### K-2 — `do_poisson_attempt_once(lambda_extra, regime, s_before)`: sample one attempt
 
 * **Purity:** **RNG-consuming (no event I/O)**
 * **Input:** `lambda_extra`, `regime`, `s_before` (current substream)
@@ -742,28 +742,24 @@ $$
 
 ---
 
-### Pseudocode (language-agnostic)
+### Pseudocode (language-agnostic; **calls K-1 for λ/regime**)
 
 ```text
 PROC short_circuit_A0(ctx):
   # Precondition: ctx.is_eligible == true, ctx.is_multi == true, ctx.A == 0
 
-  # 1) Compute λ and regime (value-only)
-  lambda_extra := exp(ctx.θ0 + ctx.θ1 * log(ctx.N) + ctx.θ2 * ctx.X_m)
-  IF NOT isfinite(lambda_extra) OR lambda_extra <= 0:
-      RAISE NUMERIC_INVALID(lambda_extra)          # emit nothing for S4
-      RETURN null
-
-  regime := IF lambda_extra < 10 THEN "inversion" ELSE "ptrs"
+  # 1) Compute λ and regime via K-1 (single source of truth)
+  lr := freeze_lambda_regime({N:ctx.N, X_m:ctx.X_m, θ0:ctx.θ0, θ1:ctx.θ1, θ2:ctx.θ2})
+  # freeze_lambda_regime RAISEs NUMERIC_INVALID if λ non-finite/≤0
 
   # 2) Build finaliser value
-  fin := Finaliser{ K_target: 0, attempts: 0, regime }
+  fin := Finaliser{ K_target: 0, attempts: 0, regime: lr.regime }
 
   # 3) Emit exactly one non-consuming final via L0 (emitter stamps envelope + immediate trace)
   L0.emit_ztp_final_nonconsuming(
       merchant_id = ctx.merchant_id,
       lineage     = { seed:ctx.lineage.seed, parameter_hash:ctx.lineage.parameter_hash, run_id:ctx.lineage.run_id, manifest_fingerprint:ctx.lineage.manifest_fingerprint  },
-      lr          = { lambda_extra:lambda_extra, regime:regime },
+      lr          = { lambda_extra:lr.lambda_extra, regime:lr.regime },
       K_target    = 0,
       attempts    = 0,
       exhausted?  = absent,
@@ -1770,6 +1766,7 @@ If present, **skip** the emit (treat as already done). Dedupe **must** occur **b
 
 ### 21.6 (L2 reference) Pseudocode (idempotent resume loop, Pattern A)
 > **Lives in L2 orchestrator; not implemented in L1.**
+> **Note:** Per §8.2, L2 should **not** call L0 emitters directly. The sample below routes via **L1 kernels** (K-2/3/4/5/6).
 
 ```text
 PROC run_or_resume_s4_for_merchant(ctx):
@@ -1788,14 +1785,13 @@ PROC run_or_resume_s4_for_merchant(ctx):
      merchant_u64 := LOW64( SHA256( LE64(ctx.merchant_id) ) )
      M := S0.derive_master_material(ctx.lineage.seed, BYTES(ctx.lineage.manifest_fingerprint))
      s0 := S0.derive_substream(M, "poisson_component", [ { tag:"merchant_u64", value:merchant_u64 } ])
-     L0.emit_ztp_final_nonconsuming(ctx.merchant_id, ctx.lineage,
-                                    s0, lr, fin)
+     do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s0, lr, fin)   # K-6
      RETURN RESOLVED
 
   # Freeze λ & regime once
   lr := freeze_lambda_regime({N:ctx.N, X_m:ctx.X_m, θ0:ctx.θ0, θ1:ctx.θ1, θ2:ctx.θ2})
 
-  # Start from current substream counter
+  # Start from current substream
   # Derive merchant-scoped substream once (S0)
   merchant_u64 := LOW64( SHA256( LE64(ctx.merchant_id) ) )
   M := S0.derive_master_material(ctx.lineage.seed, BYTES(ctx.lineage.manifest_fingerprint))
@@ -1809,21 +1805,21 @@ PROC run_or_resume_s4_for_merchant(ctx):
         k        := L0.read_attempt_payload_k(ctx.merchant_id, attempt)
         s_after  := L0.read_attempt_envelope_after(ctx.merchant_id, attempt)
      ELSE:
-        (k, s_before_echo, s_after, bud) := poisson_attempt_once(lr, s_before)
-        emit_poisson_attempt(ctx.merchant_id, ctx.lineage,
-                             s_before_echo, s_after, lr, attempt, k, bud)
+        (k, s_after, bud) := do_poisson_attempt_once(lr, s_before)                    # K-2
+        emit_poisson_attempt(ctx.merchant_id, ctx.lineage,                            # K-3
+                             s_before, s_after, lr, attempt, k, bud)
 
      # --- Branch: accept vs reject ---
      IF k > 0 OR exists_final(ctx.merchant_id):
         IF NOT exists_final(ctx.merchant_id):
            fin := Finaliser{K_target:(k>0 ? k : L0.read_final_K(ctx.merchant_id)),
                             attempts:attempt, regime:lr.regime}
-           L0.emit_ztp_final_nonconsuming(ctx.merchant_id, ctx.lineage, s_after, lr, fin)
+           do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s_after, lr, fin)         # K-6
         RETURN RESOLVED
 
      # k == 0 ⇒ ensure rejection exists for this attempt (dedupe)
      IF NOT exists_rejection(ctx.merchant_id, attempt):
-        L0.emit_ztp_rejection_nonconsuming(ctx.merchant_id, ctx.lineage, s_after, lr, attempt)
+        emit_ztp_rejection_nonconsuming(ctx.merchant_id, ctx.lineage, s_after, lr, attempt)   # K-4
 
      # Advance stream
      s_before := s_after
@@ -1831,12 +1827,12 @@ PROC run_or_resume_s4_for_merchant(ctx):
   # --- Cap reached with no acceptance ---
   IF ctx.policy == "abort":
      IF NOT exists_exhausted(ctx.merchant_id):
-        L0.emit_ztp_retry_exhausted_nonconsuming(ctx.merchant_id, ctx.lineage, s_before, lr)
+        emit_ztp_retry_exhausted_nonconsuming(ctx.merchant_id, ctx.lineage, s_before, lr, policy="abort")  # K-5
      RETURN RESOLVED_ABORT
   ELSE:
      IF NOT exists_final(ctx.merchant_id):
         fin := Finaliser{K_target:0, attempts:64, regime:lr.regime, exhausted:true}
-        L0.emit_ztp_final_nonconsuming(ctx.merchant_id, ctx.lineage, s_before, lr, fin)
+        do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s_before, lr, fin)  
      RETURN RESOLVED
 END
 ```
