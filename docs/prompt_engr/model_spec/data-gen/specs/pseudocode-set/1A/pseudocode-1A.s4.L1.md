@@ -621,12 +621,12 @@ Below is the **concise map of every L1 routine** you will implement for S4. Each
 * **Purity:** **RNG-consuming (no event I/O)**
 * **Input:** `lambda_extra`, `regime`, `s_before` (current substream)
 * **Calls (L0 adapter):** `L0.poisson_attempt_once(lambda_extra, regime, s_before)`
-* **Output:** `(k, s_after, bud)` where `bud` contains the measured blocks/draws for this attempt
+* **Output:** `(k, s_after:Stream, bud:AttemptBudget)` where `bud` contains the measured blocks/draws for this attempt
 * **Notes:** Strict-open uniforms; PTRS/inversion per `regime`. Attempt index is supplied by the caller (K-7). O(1).
 
 ---
 
-### K-3 — `do_emit_poisson_attempt(ctx, lr, attempt, k, s_before, s_after, bud)`
+### K-3 — `emit_poisson_attempt(ctx, lr, attempt, k, s_before, s_after, bud)`
 
 * **Purity:** Emits
 * **Input:** `merchant_id`, `lineage:{seed,parameter_hash,run_id,manifest_fingerprint}`, `lr.lambda_extra`, `attempt`, `k`, `s_before`, `s_after`, `bud`
@@ -636,7 +636,7 @@ Below is the **concise map of every L1 routine** you will implement for S4. Each
 
 ---
 
-### K-4 — `L0.emit_ztp_rejection_nonconsuming(ctx, lr, attempt)`
+### K-4 — `emit_ztp_rejection_nonconsuming(ctx, lr, attempt)`
 
 * **Purity:** Emits
 * **Input:** `merchant_id`, `lineage:{seed,parameter_hash,run_id,manifest_fingerprint}`, `attempt`, `lr.lambda_extra`
@@ -645,7 +645,7 @@ Below is the **concise map of every L1 routine** you will implement for S4. Each
 
 ---
 
-### K-5 — `L0.emit_ztp_retry_exhausted_nonconsuming(ctx, lr)`
+### K-5 — `emit_ztp_retry_exhausted_nonconsuming(ctx, lr)`
 
 * **Purity:** Emits
 * **Input:** `merchant_id`, `lineage:{seed,parameter_hash,run_id,manifest_fingerprint}`, `lr.lambda_extra`
@@ -897,9 +897,9 @@ Perform **one Poisson attempt** for the merchant using the frozen $\lambda_{\tex
 
 ### Outputs (values only)
 
-* `(k:int, s_before:Stream, s_after:Stream, bud:AttemptBudget)` where
+* `(k:int, s_after:Stream, bud:AttemptBudget)` where
   `AttemptBudget = { blocks:u64, draws_hi:u64, draws_lo:u64 }`.
-  *`s_before` is echoed unchanged for emission; `bud` holds **measured** (actual-use) uniforms for this attempt.*
+  *Caller retains `s_before`; `bud` holds **measured** (actual-use) uniforms for this attempt.*
 
 > K-2 **does not** decide acceptance, emit rows, append trace, or increment the attempt index. The **caller (K-7)** supplies the 1-based `attempt` index and immediately calls **K-3**/**K-4**.
 
