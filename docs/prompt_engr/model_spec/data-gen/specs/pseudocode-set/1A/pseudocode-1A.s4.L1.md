@@ -26,10 +26,16 @@ For each **resolved** merchant, emit **exactly one** `ztp_final` — **except** 
 
 **L0 emitters L1 calls (names are normative; trace is appended by the emitter wrapper):**
 
-* `event_poisson_ztp(…)` — **consuming attempt** → `rng_event_poisson_component`. 
-* `emit_ztp_rejection_nonconsuming(…)` — **non-consuming zero marker** → `rng_event_ztp_rejection`. 
-* `emit_ztp_retry_exhausted_nonconsuming(…)` — **non-consuming cap-hit marker (abort-only)** with **`attempts:64`** and **`aborted:true`** → `rng_event_ztp_retry_exhausted`. 
-* `emit_ztp_final_nonconsuming(…)` — **non-consuming finaliser** → `rng_event_ztp_final`. *(Absent only on policy=`abort`.)* 
+* `L0.event_poisson_ztp(…)` — **consuming attempt** → `rng_event_poisson_component`. 
+* `L0.emit_ztp_rejection_nonconsuming(…)` — **non-consuming zero marker** → `rng_event_ztp_rejection`. 
+* `L0.emit_ztp_retry_exhausted_nonconsuming(…)` — **non-consuming cap-hit marker (abort-only)** with **`attempts:64`** and **`aborted:true`** → `rng_event_ztp_retry_exhausted`. 
+* `L0.emit_ztp_final_nonconsuming(…)` — **non-consuming finaliser** → `rng_event_ztp_final`. *(Absent only on policy=`abort`.)* 
+
+**S0 PRNG functions L1 calls (value-only):**
+
+* `S0.derive_master_material(seed, manifest_fingerprint_bytes)` → 32-byte master for substreams.
+* `S0.derive_substream(M, "poisson_component", [{merchant_u64}])` → merchant-scoped `Stream` used for all S4 families.
+* `merchant_u64 := LOW64(SHA256(LE64(merchant_id)))` (S0 rule; used in `Ids`).
 
 > **Trace discipline.** L0 emitters append **one** cumulative `rng_trace_log` row **immediately after** each event (same writer); L1 never calls the trace writer directly. 
 
@@ -610,40 +616,40 @@ Below is the **concise map of every L1 routine** you will implement for S4. Each
 
 ---
 
-### K-2 — `poisson_attempt_once(lr, s_before)`: sample one attempt
+### K-2 — `poisson_attempt_once(lambda_extra, regime, s_before)`: sample one attempt
 
 * **Purity:** **RNG-consuming (no event I/O)**
-* **Input:** `lr={lambda_extra, regime}`, `s_before` (current substream counter)
-* **Calls (L0 sampler):** `poisson_attempt_with_budget(lambda_extra, regime, s_before)`
-* **Output:** `(k, s_before, s_after, bud)` where `bud` contains the measured blocks/draws for this attempt
+* **Input:** `lambda_extra`, `regime`, `s_before` (current substream)
+* **Calls (L0 adapter):** `L0.poisson_attempt_once(lambda_extra, regime, s_before)`
+* **Output:** `(k, s_after, bud)` where `bud` contains the measured blocks/draws for this attempt
 * **Notes:** Strict-open uniforms; PTRS/inversion per `regime`. Attempt index is supplied by the caller (K-7). O(1).
 
 ---
 
-### K-3 — `emit_poisson_attempt(ctx, lr, attempt, k, s_before, s_after, bud)`
+### K-3 — `do_emit_poisson_attempt(ctx, lr, attempt, k, s_before, s_after, bud)`
 
 * **Purity:** Emits
 * **Input:** `merchant_id`, `lineage:{seed,parameter_hash,run_id,manifest_fingerprint}`, `lr.lambda_extra`, `attempt`, `k`, `s_before`, `s_after`, `bud`
-* **Emits:** `event_poisson_ztp(...)` → payload `{ merchant_id, attempt, k, lambda }` (where **`lambda = lr.lambda_extra`**; attempts use key **`lambda`** per schema v2).
+* **Emits:** `L0.event_poisson_ztp(...)` → payload `{ merchant_id, attempt, k, lambda }` (+ immediate trace; **payload uses `lambda`**, not `lambda_extra`, per schema v2).
   The **emitter** stamps the envelope and **immediately** appends one cumulative trace row (same writer).
 * **Identities:** Consuming envelope (`after>before`, `blocks=after−before`, `draws>"0"`). O(1).
 
 ---
 
-### K-4 — `emit_ztp_rejection_nonconsuming(ctx, lr, attempt)`
+### K-4 — `L0.emit_ztp_rejection_nonconsuming(ctx, lr, attempt)`
 
 * **Purity:** Emits
 * **Input:** `merchant_id`, `lineage:{seed,parameter_hash,run_id,manifest_fingerprint}`, `attempt`, `lr.lambda_extra`
-* **Emits:** `emit_ztp_rejection_nonconsuming(...)` → `{ merchant_id, attempt, k:0, lambda_extra }` (+ immediate trace)
+* **Emits:** `L0.emit_ztp_rejection_nonconsuming(...)` → `{ merchant_id, attempt, k:0, lambda_extra }` (+ immediate trace)
 * **Identities:** Non-consuming (`before==after`, `blocks=0`, `draws="0"`). O(1).
 
 ---
 
-### K-5 — `emit_ztp_retry_exhausted_nonconsuming(ctx, lr)`
+### K-5 — `L0.emit_ztp_retry_exhausted_nonconsuming(ctx, lr)`
 
 * **Purity:** Emits
 * **Input:** `merchant_id`, `lineage:{seed,parameter_hash,run_id,manifest_fingerprint}`, `lr.lambda_extra`
-* **Emits:** `emit_ztp_retry_exhausted_nonconsuming(...)` → `{ merchant_id, attempts:64, lambda_extra, aborted:true }` (+ immediate trace)
+* **Emits:** `L0.emit_ztp_retry_exhausted_nonconsuming(...)` → `{ merchant_id, attempts:64, lambda_extra, aborted:true }` (+ immediate trace)
 * **Precondition:** `policy=="abort"` and attempts reached 64 with all `k==0`. O(1).
 
 ---
