@@ -1424,7 +1424,7 @@ PROC run_ztp_for_merchant(ctx) -> Finaliser | null:
 
   # 4) Cap reached with no acceptance (attempt 64 ended with k==0; K-4 already emitted for attempt=64)
   IF ctx.policy == "abort":
-      L0.emit_ztp_retry_exhausted_nonconsuming(ctx.merchant_id, ctx.lineage, s_before, lr, policy="abort")
+      L0.emit_ztp_retry_exhausted_nonconsuming(ctx.merchant_id, ctx.lineage, s_before, lr)
       RETURN null                               # no finaliser on abort path
   ELSE:
       fin := Finaliser{ K_target:0, attempts:64, regime:lr.regime, exhausted:true }
@@ -1825,7 +1825,7 @@ PROC run_or_resume_s4_for_merchant(ctx):
   # --- Cap reached with no acceptance ---
   IF ctx.policy == "abort":
      IF NOT exists_exhausted(ctx.merchant_id):
-        L0.emit_ztp_retry_exhausted_nonconsuming(ctx.merchant_id, ctx.lineage, s_before, lr, "abort")
+        L0.emit_ztp_retry_exhausted_nonconsuming(ctx.merchant_id, ctx.lineage, s_before, lr)
      RETURN RESOLVED_ABORT
   ELSE:
      IF NOT exists_final(ctx.merchant_id):
