@@ -1388,7 +1388,7 @@ PROC run_ztp_for_merchant(ctx) -> Finaliser | null:
       merchant_u64 := LOW64( SHA256( LE64(ctx.merchant_id) ) )
       M := S0.derive_master_material(ctx.lineage.seed, BYTES(ctx.lineage.manifest_fingerprint))
       s0 := S0.derive_substream(M, "poisson_component", [ { tag:"merchant_u64", value:merchant_u64 } ])
-      L0.emit_ztp_final_nonconsuming(
+      do_emit_ztp_final(           # K-6 wrapper; calls L0 emitter internally
         ctx.merchant_id, ctx.lineage,
         s0, lr, fin)
       RETURN fin
@@ -1403,32 +1403,38 @@ PROC run_ztp_for_merchant(ctx) -> Finaliser | null:
   s_before := S0.derive_substream(M, "poisson_component", [ { tag:"merchant_u64", value:merchant_u64 } ])
 
   FOR attempt IN 1..64:
-      # 3.1 Sample once (RNG-consuming, no event I/O)
-      (k, s_after, bud) := L0.poisson_attempt_once(lr.lambda_extra, lr.regime, s_before)
-      # poisson_attempt_once RAISEs RNG_SAMPLER_FAIL on capsule/runtime error
+      # 3.1 Sample once (RNG-consuming, no event I/O) — via K-2
+      (k, s_after, bud) := do_poisson_attempt_once(lr, s_before)            # K-2
+      # do_poisson_attempt_once RAISEs RNG_SAMPLER_FAIL on capsule/runtime error
 
-      # 3.2 Emit consuming attempt (payload uses 'lambda' per schema v2)
-      L0.event_poisson_ztp(ctx.merchant_id, ctx.lineage, s_before, s_after, lr, attempt, k, bud)
+      # 3.2 Emit consuming attempt (payload uses 'lambda' per schema v2) — via K-3
+      emit_poisson_attempt(
+          ctx.merchant_id, ctx.lineage,
+          s_before, s_after, lr, attempt, k, bud)                           # K-3
 
       # 3.3 Branch on result
       IF k > 0:
           fin := Finaliser{ K_target:k, attempts:attempt, regime:lr.regime }
-          L0.emit_ztp_final_nonconsuming(ctx.merchant_id, ctx.lineage, s_after, lr, fin)
+          do_emit_ztp_final(                                                # K-6
+              ctx.merchant_id, ctx.lineage, s_after, lr, fin)
           RETURN fin
 
-      # k == 0 → publish non-consuming rejection for the same index
-      L0.emit_ztp_rejection_nonconsuming(ctx.merchant_id, ctx.lineage, s_after, lr, attempt)
+      # k == 0 → publish non-consuming rejection for the same index — via K-4
+      emit_ztp_rejection_nonconsuming(
+          ctx.merchant_id, ctx.lineage, s_after, lr, attempt)               # K-4
 
       # 3.4 Advance stream and continue
       s_before := s_after
 
   # 4) Cap reached with no acceptance (attempt 64 ended with k==0; K-4 already emitted for attempt=64)
   IF ctx.policy == "abort":
-      L0.emit_ztp_retry_exhausted_nonconsuming(ctx.merchant_id, ctx.lineage, s_before, lr)
+      emit_ztp_retry_exhausted_nonconsuming(                                 # K-5
+          ctx.merchant_id, ctx.lineage, s_before, lr, policy="abort")
       RETURN null                               # no finaliser on abort path
   ELSE:
       fin := Finaliser{ K_target:0, attempts:64, regime:lr.regime, exhausted:true }
-      L0.emit_ztp_final_nonconsuming(ctx.merchant_id, ctx.lineage, s_before, lr, fin)
+      do_emit_ztp_final(                                                      # K-6
+          ctx.merchant_id, ctx.lineage, s_before, lr, fin)
       RETURN fin
 END
 ```
