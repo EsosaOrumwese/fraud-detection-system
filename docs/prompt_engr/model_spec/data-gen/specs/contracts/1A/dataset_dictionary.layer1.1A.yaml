@@ -510,7 +510,7 @@ datasets:
   - id: "rng_trace_log"
     status: "approved"
     owner_subsegment: "1A"
-    description: "Structured per-(module,substream_label) RNG trace with cumulative totals for reproducibility and forensics (draws_total = sum of event-level draws; blocks_total reconciled via counters)."
+    description: "Structured per-(module,substream_label) RNG trace (saturating totals for draws/blocks/events; `draws_total` equals the sum of event-level draws; `blocks_total` reconciled via counters). Emit exactly one cumulative row after each RNG event append (per S4 §2A)."
     version: "{run_id}"
     format: "jsonl"
     path: "logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl"
@@ -576,6 +576,7 @@ datasets:
     schema_ref: "schemas.layer1.yaml#/rng/events/poisson_component"
     lineage:
       produced_by: "1A.nb_poisson_component"
+      allowed_producers: ["1A.nb_poisson_component","1A.ztp_sampler"]
       consumed_by: ["validation"]
       final_in_layer: false
     gating:
@@ -623,6 +624,9 @@ datasets:
     gating:
       gated_by: "rng_event_hurdle_bernoulli"
       predicate: "is_multi == true"
+      also_requires:
+        - id: "crossborder_eligibility_flags"
+          predicate: "is_eligible == true"
     retention_days: 180
     pii: false
     licence: "Proprietary-Internal"
@@ -644,6 +648,9 @@ datasets:
     gating:
       gated_by: "rng_event_hurdle_bernoulli"
       predicate: "is_multi == true"
+      also_requires:
+        - id: "crossborder_eligibility_flags"
+          predicate: "is_eligible == true"
     retention_days: 180
     pii: false
     licence: "Proprietary-Internal"
@@ -665,6 +672,9 @@ datasets:
     gating:
       gated_by: "rng_event_hurdle_bernoulli"
       predicate: "is_multi == true"
+      also_requires:
+        - id: "crossborder_eligibility_flags"
+          predicate: "is_eligible == true"
     retention_days: 180
     pii: false
     licence: "Proprietary-Internal"
