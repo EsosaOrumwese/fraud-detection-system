@@ -129,12 +129,12 @@ PROC orchestrate_s4_for_merchant(ctx):
 
 ## 2.3 Separation of duties (allowed vs forbidden)
 
-| Layer                            | Owns                                                                                                                                                                             | May call                                                                            | **Must not**                                                                   |                                                                                                                                                                            |
-|----------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------|--------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **L0 (emitters & trace writer)** | Stamp authoritative **envelopes**; write **event** row; append **one immediate** cumulative **trace**; enforce consuming vs non-consuming identities; enforce partitions/lineage | —                                                                                   | Expose no orchestration; never rely on file order (counters rule)              |                                                                                                                                                                            |
-| **L1 (kernels)**                 | Compute values/assemble **payloads**; call **exactly one** L0 emitter per kernel; keep payload keys schema-true (`lambda` for attempts; `lambda_extra` for markers/final)        | L0                                                                                  | Never stamp envelopes/trace directly; never recompute λ/Regime outside **K-1** |                                                                                                                                                                            |
-| **L2 (this file)**               | **Orchestrate**: gates, substream derivation, idempotence/resume, **K-1 → (A=0? K-6 : loop[K-2 → K-3 → (K-6                                                                      | K-4)] → cap[K-5/K-6])**, single-writer discipline, exactly **one** terminal outcome | L1 (K-1..K-6)                                                                  | **Never call L0** directly; never craft payloads; never stamp envelopes/trace; never encode inter-country order (S4 sets **K_target** only; S6 realises `min(K_target,A)`) |
-| **L3 (validator)**               | Read-only checks on structure, lineage, counters vs draws, identities, corridors; gate downstream                                                                                | —                                                                                   | Never write or restamp; no path literals (dictionary only)                     |                                                                                                                                                                            |
+| Layer                            | Owns                                                                                                                                                                                               | May call      | **Must not**                                                                                                                                                               |
+|----------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **L0 (emitters & trace writer)** | Stamp authoritative **envelopes**; write **event** row; append **one immediate** cumulative **trace**; enforce consuming vs non-consuming identities; enforce partitions/lineage                   | —             | Expose no orchestration; never rely on file order (counters rule)                                                                                                          |
+| **L1 (kernels)**                 | Compute values/assemble **payloads**; call **exactly one** L0 emitter per kernel; keep payload keys schema-true (`lambda` for attempts; `lambda_extra` for markers/final)                          | L0            | Never stamp envelopes/trace directly; never recompute λ/Regime outside **K-1**                                                                                             |
+| **L2 (this file)**               | **Orchestrate**: gates, substream derivation, idempotence/resume, **K-1 → (A=0? K-6 : loop[K-2 → K-3 → (K-6 \| K-4)] → cap[K-5/K-6])**, single-writer discipline, exactly **one** terminal outcome | L1 (K-1..K-6) | **Never call L0** directly; never craft payloads; never stamp envelopes/trace; never encode inter-country order (S4 sets **K_target** only; S6 realises `min(K_target,A)`) |
+| **L3 (validator)**               | Read-only checks on structure, lineage, counters vs draws, identities, corridors; gate downstream                                                                                                  | —             | Never write or restamp; no path literals (dictionary only)                                                                                                                 |
 
 **Why this matters:** keeping L2 **kernel-only** ensures (a) **one event → one immediate trace** remains invariant, (b) payload field names and consuming identities stay **schema-true**, and (c) resumes/dedupes can rely on **counters** and natural keys rather than fragile file order. All three are mandated by your L0/L1 contracts.  
 
@@ -146,17 +146,17 @@ PROC orchestrate_s4_for_merchant(ctx):
 
 ## 3.1 Required fields (per merchant `m`) — types, source, constraints
 
-| Field              | Type                                                                           | Source / Meaning                                                   | Must hold                                                     |
-|--------------------|--------------------------------------------------------------------------------|--------------------------------------------------------------------|---------------------------------------------------------------|
-| `merchant_id`      | `int64`                                                                        | Ingress key used in all S4 payloads.                               | present                                                       |
-| `lineage`          | `{ seed:u64, parameter_hash:hex64, run_id:hex32, manifest_fingerprint:hex64 }` | Pass-through to emitters; L0 stamps envelopes using these tokens.  | present                                                       |
-| `is_multi`         | `bool`                                                                         | S1 hurdle outcome; S4 runs only for `true`.                        | `true`                                                        |
-| `is_eligible`      | `bool`                                                                         | S3 eligibility; if `false`, S4 writes no events.                   | `true`                                                        |
-| `N`                | `int ≥ 2`                                                                      | S2 **`nb_final`**; S4 never alters `N`.                            | `≥ 2`                                                         |
-| `A`                | `int ≥ 0`                                                                      | S3 admissible foreigns size: `A = size(S3.candidate_set \\ {home})` | `≥ 0`                                                         |
-| `θ = (θ0, θ1, θ2)` | tuple(`float`)                                                                 | S4 ZTP link params (governed; participate in `parameter_hash`).    | finite                                                        |  
-| `X_m`              | `float ∈ [0,1]`                                                                | Feature for link; **default 0.0 if missing** (expanded spec).      | in [0,1]                                                      |
-| `policy`           | `"abort"`                                                                      | `"downgrade_domestic"`                                             | Exhaustion policy (governed). **Cap pinned at 64** by schema. |
+| Field              | Type                                                                           | Source / Meaning                                                    | Must hold                       |
+|--------------------|--------------------------------------------------------------------------------|---------------------------------------------------------------------|---------------------------------|
+| `merchant_id`      | `int64`                                                                        | Ingress key used in all S4 payloads.                                | present                         |
+| `lineage`          | `{ seed:u64, parameter_hash:hex64, run_id:hex32, manifest_fingerprint:hex64 }` | Pass-through to emitters; L0 stamps envelopes using these tokens.   | present                         |
+| `is_multi`         | `bool`                                                                         | S1 hurdle outcome; S4 runs only for `true`.                         | `true`                          |
+| `is_eligible`      | `bool`                                                                         | S3 eligibility; if `false`, S4 writes no events.                    | `true`                          |
+| `N`                | `int ≥ 2`                                                                      | S2 **`nb_final`**; S4 never alters `N`.                             | `≥ 2`                           |
+| `A`                | `int ≥ 0`                                                                      | S3 admissible foreigns size: `A = size(S3.candidate_set \\ {home})` | `≥ 0`                           |
+| `θ = (θ0, θ1, θ2)` | tuple(`float`)                                                                 | S4 ZTP link params (governed; participate in `parameter_hash`).     | finite                          |  
+| `X_m`              | `float ∈ [0,1]`                                                                | Feature for link; **default 0.0 if missing** (expanded spec).       | in [0,1]                        |
+| `policy`           | `"abort" \| "downgrade_domestic"`                                              | Exhaustion policy (governed).                                       | **Cap pinned at 64** by schema. |
 
 > **Authority boundaries.** S4 is **logs-only**: it fixes `K_target` via `ztp_final` and never encodes cross-country order; S6 later realises `K_realized = min(K_target, A)` using S3’s order authority. 
 
@@ -189,7 +189,7 @@ Ctx = {
 * All values are read-only to S4 and **dictionary-resolved** (no path literals); L0 will enforce partitions `{seed, parameter_hash, run_id}` and stamp envelopes/trace. 
 * L2 **does not** add payload keys or envelope fields here; those are assembled by L1 kernels and stamped by L0 emitters. 
 
-**Outcome of §3.** If all gates pass, L2 has a complete `Ctx` and can proceed to §4 (DAG) and §6–§9 (substream, resume, and loop); otherwise it must **emit nothing** for S4 and return.  
+**Outcome of §3.** If all gates pass, L2 has a complete `Ctx` and can proceed to §4 (DAG) and §6-§9 (substream, resume, and loop); otherwise it must **emit nothing** for S4 and return.  
 
 ---
 
@@ -232,7 +232,7 @@ If all gates in **4.1** pass **and** `A ≥ 1`, L2 may orchestrate S4:
 
 * Derive the merchant-scoped substream once (S0).
 * Compute `λ, regime` via **K-1** (no inline math in L2).
-* Enter the bounded attempt loop **1..64** using **kernels only** (details in §§9–10).
+* Enter the bounded attempt loop **1..64** using **kernels only** (details in §§9-10).
 
 ---
 
@@ -826,19 +826,19 @@ K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s, lr, fin)
 ```text
 # Attempt (new index)
 (k, s_after, bud) := K2.do_poisson_attempt_once(lr, s_before)         # RNG-consuming
-K3.emit_poisson_attempt(mid, lineage, s_before, s_after, lr, attempt, k, bud)
+K3.emit_poisson_attempt(merchant_id, lineage, s_before, s_after, lr, attempt, k, bud)
 # → writes rng_event_poisson_component + immediate trace; counters advance
 
 # Rejection (k == 0 and row missing)
-K4.emit_ztp_rejection_nonconsuming(mid, lineage, s_after, lr, attempt)
+K4.emit_ztp_rejection_nonconsuming(merchant_id, lineage, s_after, lr, attempt)
 # → writes rng_event_ztp_rejection + immediate trace; non-consuming (before==after)
 
 # Cap-abort terminal (64 zeros)
-K5.emit_ztp_retry_exhausted_nonconsuming(mid, lineage, s, lr, policy="abort")
+K5.emit_ztp_retry_exhausted_nonconsuming(merchant_id, lineage, s, lr, policy="abort")
 # → writes rng_event_ztp_retry_exhausted + immediate trace; no final allowed afterward
 
 # Finaliser (A=0, accept, or downgrade)
-K6.do_emit_ztp_final(mid, lineage, s_curr, lr, fin)
+K6.do_emit_ztp_final(merchant_id, lineage, s_curr, lr, fin)
 # → writes rng_event_ztp_final + immediate trace; non-consuming (before==after)
 ```
 
@@ -854,7 +854,7 @@ This is the **only** set of emissions L2 can cause in S4. Everything else (paylo
 
 ## 10.1 Loop shape (authoritative)
 
-* **Start:** `attempt := resume_attempt_index(mid)` (1 if none on disk; else `max+1`) and `s_before := resume_stream_or_fresh(ctx)` (persisted `s_after` if any; else merchant `s0`). See §7. 
+* **Start:** `attempt := resume_attempt_index(merchant_id)` (1 if none on disk; else `max+1`) and `s_before := resume_stream_or_fresh(ctx)` (persisted `s_after` if any; else merchant `s0`). See §7.
 
 * **Bound:** iterate **attempt ∈ {1,…,64}**; 64 is **schema-pinned** for the exhausted marker (`attempts:64`). 
 
@@ -864,13 +864,13 @@ This is the **only** set of emissions L2 can cause in S4. Everything else (paylo
      **K-2**: `(k, s_after, bud) := do_poisson_attempt_once(lr, s_before)` (RNG-consuming; no I/O). 
   2. If we sampled in step (1), **K-3**: `emit_poisson_attempt(…, s_before, s_after, lr, attempt, k, bud)` (consuming **attempt**; payload key `lambda`; **immediate** trace). 
   3. **Branch:**
-     – If `k > 0` → **K-6** finaliser `{K_target=k, attempts=attempt}` (non-consuming; **no `exhausted`**) and **return**. 
-     – Else (`k == 0`) → ensure one **K-4** rejection for this index (non-consuming; `lambda_extra`; **immediate** trace). 
+     - If `k > 0` → **K-6** finaliser `{K_target=k, attempts=attempt}` (non-consuming; **no `exhausted`**) and **return**. 
+     - Else (`k == 0`) → ensure one **K-4** rejection for this index (non-consuming; `lambda_extra`; **immediate** trace). 
   4. **Advance:** `s_before := s_after` and continue.
 
 * **Cap reached (no acceptance by 64):**
-  – If `policy=="abort"` → **K-5** exhausted only (`attempts=64`, `aborted:true`) and **stop**.
-  – Else (`"downgrade_domestic"`) → **K-6** finaliser `{K_target=0, attempts=64, exhausted:true}` and **stop**. 
+  - If `policy=="abort"` → **K-5** exhausted only (`attempts=64`, `aborted:true`) and **stop**.
+  - Else (`"downgrade_domestic"`) → **K-6** finaliser `{K_target=0, attempts=64, exhausted:true}` and **stop**. 
 
 ---
 
@@ -908,33 +908,33 @@ This is the **only** set of emissions L2 can cause in S4. Everything else (paylo
 **Single-writer discipline (this merchant):** serialize emits; after each event append, the **same writer immediately appends one** cumulative trace row (no interleaving).
 
 ```text
-FOR attempt IN resume_attempt_index(mid) .. 64:
-  pre := pre_emit_dedupe(mid, attempt)        # §7; maybe {k, s_after}
+FOR attempt IN resume_attempt_index(merchant_id) .. 64:
+  pre := pre_emit_dedupe(merchant_id, attempt)        # §7; maybe {k, s_after}
   IF pre != null:
      k := pre.k; s := pre.s_after
   ELSE:
-     (k, s_next, bud) := K2.do_poisson_attempt_once(lr, s)
-     K3.emit_poisson_attempt(mid, lineage, s, s_next, lr, attempt, k, bud)
-     s := s_next
+     (k, s_after, bud) := K2.do_poisson_attempt_once(lr, s)
+     K3.emit_poisson_attempt(merchant_id, lineage, s, s_after, lr, attempt, k, bud)
+     s := s_after
 
   IF k > 0:
-     K6.do_emit_ztp_final(mid, lineage, s, lr, {K_target:k, attempts:attempt})
+     K6.do_emit_ztp_final(merchant_id, lineage, s, lr, {K_target:0, attempts:64, exhausted:true})
      RETURN
 
-  IF NOT exists_rejection(mid, attempt):
-     K4.emit_ztp_rejection_nonconsuming(mid, lineage, s, lr, attempt)
+  IF NOT exists_rejection(merchant_id, attempt):
+     K4.emit_ztp_rejection_nonconsuming(merchant_id, lineage, s, lr, attempt)
 # end loop
 
 IF policy == "abort":
-   IF NOT exists_exhausted(mid):
-      K5.emit_ztp_retry_exhausted_nonconsuming(mid, lineage, s, lr, policy="abort")
+   IF NOT exists_exhausted(merchant_id):
+      K5.emit_ztp_retry_exhausted_nonconsuming(merchant_id, lineage, s, lr, policy="abort")
 ELSE:
-   IF NOT exists_final(mid):
-      K6.do_emit_ztp_final(mid, lineage, s, lr, {K_target:0, attempts:64, exhausted:true})
+   IF NOT exists_final(merchant_id):
+      K6.do_emit_ztp_final(merchant_id, lineage, s, lr, {K_target:0, attempts:64, exhausted:true})
 RETURN
 ```
 
-This loop contract, together with §6–§9 and the identities above, is sufficient for any implementer/LLM to produce **byte-identical**, validator-passing S4 runs. It is anchored to **L1 v12** (kernel surfaces & attempt payload `lambda`) and **L0 v15** (consuming/non-consuming identities, trace adjacency, budgets), with the cap and A=0 semantics mandated by the **expanded S4** spec.  
+This loop contract, together with §6-§9 and the identities above, is sufficient for any implementer/LLM to produce **byte-identical**, validator-passing S4 runs. It is anchored to **L1 v12** (kernel surfaces & attempt payload `lambda`) and **L0 v15** (consuming/non-consuming identities, trace adjacency, budgets), with the cap and A=0 semantics mandated by the **expanded S4** spec.  
 
 ---
 
@@ -1228,7 +1228,7 @@ These rules align exactly with your L1 contract (idempotence, adjacency, identit
 | **ATTEMPT_GAPS** *(L2)*                 | Resume scan       | Attempts on disk non-contiguous (e.g., 1,2,4)                                                                                         |    MERCHANT     | **Stop** merchant; surface standardized failure; operator triage.                                |
 | **POLICY_CONFLICT (logic)** *(K-5/K-6)* | Cap routing       | Abort policy but finaliser attempted; or downgrade policy but exhausted attempted                                                     |    MERCHANT     | **Quarantine** merchant; fix orchestration.                                                      |
 
-> **Run-level** structural/systemic breaches (dictionary/path, numeric policy, coverage corridors) are handled by S0 classes **F7–F10**: `numeric_rounding_mode|fma_detected|…` (F7), `event_family_missing|corridor_breach` (F8), `dictionary_path_violation` (F9), `io_write_failure|incomplete_dataset_instance` (F10). L2 must surface these via S0’s failure framework and abort the run. 
+> **Run-level** structural/systemic breaches (dictionary/path, numeric policy, coverage corridors) are handled by S0 classes **F7-F10**: `numeric_rounding_mode|fma_detected|…` (F7), `event_family_missing|corridor_breach` (F8), `dictionary_path_violation` (F9), `io_write_failure|incomplete_dataset_instance` (F10). L2 must surface these via S0’s failure framework and abort the run. 
 
 ---
 
@@ -1240,7 +1240,7 @@ These rules align exactly with your L1 contract (idempotence, adjacency, identit
 * **I/O/trace anomalies** (event written, trace missing):
   *Action:* **do not** re-emit event; invoke **trace-only repair** exactly once, then resume (§13). 
 
-* **Run-scoped failures** (S0 F7–F10):
+* **Run-scoped failures** (S0 F7-F10):
   *Action:* call S0 failure framework → **abort bundle**; halt emitters; stop run atomically.  
 
 ---
@@ -1269,7 +1269,7 @@ S3’s validator taxonomy (shape/keys/scopes) is the precedent for stable payloa
    * Emit rejection; advance.
 5. **Cap:** at 64 zeros → route by policy: **K-5** (abort) *or* **K-6** (downgrade). If mixed → **POLICY_CONFLICT (logic)** → **quarantine**. 
 6. **Crash on append:** event present, trace missing → **trace-repair once**; resume. 
-7. **Systemic breach:** dictionary/path/numeric policy/corridor → S0 **F7–F10** run-abort. 
+7. **Systemic breach:** dictionary/path/numeric policy/corridor → S0 **F7-F10** run-abort. 
 
 ---
 
@@ -1679,10 +1679,10 @@ This handoff ensures validation is **deterministic, read-only, and authority-tru
 ## G. Policy handling & terminal exclusivity
 
 * [ ] Exactly **one** terminal per merchant:
-  – **Accept:** `ztp_final{K_target≥1, attempts=t}` (no `exhausted`).
-  – **Cap-abort:** `ztp_retry_exhausted{attempts:64, aborted:true}` (**no** final).
-  – **Cap-downgrade:** `ztp_final{K_target=0, attempts=64, exhausted:true}` (**no** exhausted marker).
-  – **A=0:** `ztp_final{K_target=0, attempts=0 [,reason?]}` (no attempts/markers).
+  - **Accept:** `ztp_final{K_target≥1, attempts=t}` (no `exhausted`).
+  - **Cap-abort:** `ztp_retry_exhausted{attempts:64, aborted:true}` (**no** final).
+  - **Cap-downgrade:** `ztp_final{K_target=0, attempts=64, exhausted:true}` (**no** exhausted marker).
+  - **A=0:** `ztp_final{K_target=0, attempts=0 [,reason?]}` (no attempts/markers).
 * [ ] Cap is treated as **64** (schema-pinned); no runtime override in L2.
 
 ## H. Concurrency & single-writer discipline
@@ -1699,11 +1699,11 @@ This handoff ensures validation is **deterministic, read-only, and authority-tru
 ## J. Store interfaces (read-only)
 
 * [ ] L2 uses only dictionary-resolved datasets and minimal projections:
-  – attempts `(merchant_id, attempt) → {k, s_after}`;
-  – rejection existence;
-  – exhausted `(merchant_id, attempts=64)` existence;
-  – final `(merchant_id) → {K_target, attempts, regime [,exhausted?]}`;
-  – `max(attempt)` for resume.
+  - attempts `(merchant_id, attempt) → {k, s_after}`;
+  - rejection existence;
+  - exhausted `(merchant_id, attempts=64)` existence;
+  - final `(merchant_id) → {K_target, attempts, regime [,exhausted?]}`;
+  - `max(attempt)` for resume.
 * [ ] No payload reconstruction beyond these projections; no budget inference.
 
 ## K. Telemetry & run metrics
@@ -1733,14 +1733,14 @@ This handoff ensures validation is **deterministic, read-only, and authority-tru
 
 | Role               | You confirm…                                                                       | Sign   |
 |--------------------|------------------------------------------------------------------------------------|--------|
-| **Author**         | L2 calls only K-1..K-6; no direct L0 calls; all invariants in A–L hold.            | ______ |
+| **Author**         | L2 calls only K-1..K-6; no direct L0 calls; all invariants in A-L hold.            | ______ |
 | **Reviewer**       | Orchestration matches DAG; identities & terminals exclusive; resume/dedupe obeyed. | ______ |
 | **Ops**            | Concurrency, metrics, and crash-repair are implementable and monitored.            | ______ |
 | **Validator (L3)** | Preconditions met; L3 passes on the canonical scenarios above.                     | ______ |
 
 ---
 
-**Outcome:** When every box in **A–L** is checked and the **self-tests** pass, this L2 is **freeze-ready**.
+**Outcome:** When every box in **A-L** is checked and the **self-tests** pass, this L2 is **freeze-ready**.
 
 ---
 
@@ -1913,10 +1913,10 @@ All entry points **call kernels only** (K-1…K-6). L2 never calls L0 emitters d
 2. **A=0**: **K-1** → **K-6** final-only; stop.
 
 3. **Else**: derive merchant stream; run attempt loop **1..64**:
-   – new attempt ⇒ **K-2** sample once (RNG-consuming) → **K-3** emit attempt (payload key **`lambda`**; immediate trace).
-   – `k>0` ⇒ **K-6** emit final (non-consuming; uses **`lambda_extra`**; no `exhausted`).
-   – `k==0` ⇒ ensure one **K-4** rejection (non-consuming; **`lambda_extra`**).
-   – at cap: `policy=="abort"` ⇒ **K-5** exhausted only (`attempts:64, aborted:true`); else ⇒ **K-6** final `{attempts:64, exhausted:true}`. 
+   - new attempt ⇒ **K-2** sample once (RNG-consuming) → **K-3** emit attempt (payload key **`lambda`**; immediate trace).
+   - `k>0` ⇒ **K-6** emit final (non-consuming; uses **`lambda_extra`**; no `exhausted`).
+   - `k==0` ⇒ ensure one **K-4** rejection (non-consuming; **`lambda_extra`**).
+   - at cap: `policy=="abort"` ⇒ **K-5** exhausted only (`attempts:64, aborted:true`); else ⇒ **K-6** final `{attempts:64, exhausted:true}`. 
 
 4. **Resume semantics** (if mode=Resume): use `max(attempt)` and persisted `{k, s_after}`; **never resample** existing attempts; counters define order, not file timestamps. 
 
@@ -1950,7 +1950,7 @@ This section keeps L2 **hands-on and unambiguous** while staying faithful to the
 
 # Appendix A — Kernel Call Sheet (L2 → L1)
 
-**Goal.** Make the callable surface from **L2 → L1** unambiguous. L2 **only** calls these kernels. Each kernel calls **exactly one** L0 emitter (or sampler) internally. L2 passes **values + stream**—never crafts payloads, never stamps envelopes/trace.
+**Goal.** Make the callable surface from **L2 → L1** unambiguous. L2 **only** calls these kernels. Each kernel calls **exactly one** L0 emitter (or sampler) internally. L2 passes **values + stream**—never crafts payloads, never stamps envelopes/trace.  
 **If any example conflicts with this call sheet, the call sheet wins.**
 
 ---
@@ -1986,7 +1986,7 @@ Ctx          = { merchant_id:i64, lineage:Lineage, is_multi:bool, is_eligible:bo
 
 ### K-2 — `do_poisson_attempt_once(lr: LambdaRegime, s_before: Stream) -> (k:int≥0, s_after: Stream, bud: AttemptBudget)`
 
-* **REQUIRES:** `isfinite(lr.lambda_extra) ∧ lr.lambda_extra>0`; `compute_poisson_regime(lr.lambda_extra)==lr.regime`.
+* **REQUIRES:** `isfinite(lr.lambda_extra) ∧ lr.lambda_extra>0` and `compute_poisson_regime(lr.lambda_extra)==lr.regime`.
 * **REQUIRES:** `lambda_extra>0`, finite; `regime` consistent with `lambda_extra`; `s_before` from §6 stream.
 * **ENSURES:** calls the sampler **once**; advances the stream; returns **measured** `bud` (actual-use).
 * **SIDE EFFECTS:** none (no event I/O here).
@@ -2021,9 +2021,9 @@ Ctx          = { merchant_id:i64, lineage:Lineage, is_multi:bool, is_eligible:bo
 ### K-6 — `do_emit_ztp_final(merchant_id:i64, lineage:Lineage, s_curr:Stream, lr:LambdaRegime, fin:Finaliser) -> Finaliser`
 
 * **REQUIRES:** terminal path chosen:
-  – **A=0**: `fin={K_target:0, attempts:0, regime [,reason?]}`;
-  – **Accept@t**: `fin={K_target:k≥1, attempts:t, regime}` (no `exhausted`);
-  – **Downgrade**: `fin={K_target:0, attempts:64, regime, exhausted:true}`.
+  - **A=0**: `fin={K_target:0, attempts:0, regime [,reason?]}`;
+  - **Accept@t**: `fin={K_target:k≥1, attempts:t, regime}` (no `exhausted`);
+  - **Downgrade**: `fin={K_target:0, attempts:64, regime, exhausted:true}`.
 * **EMITS:** **finaliser** → `rng_event_ztp_final` with `{ merchant_id, K_target, **lambda_extra**, attempts, regime [,exhausted?, reason?] }` + **immediate** trace.
 * **ENSURES:** **exactly one** final per resolved merchant (absent on abort path); returns `fin` (echo).
 * **IDENTITY:** non-consuming.
@@ -2034,15 +2034,15 @@ Ctx          = { merchant_id:i64, lineage:Lineage, is_multi:bool, is_eligible:bo
 
 * **Lineage**: `{ seed, parameter_hash, run_id, manifest_fingerprint }` to every emitter kernel.
 * **Stream**:
-  – Attempts: pass **`s_before`** and the **`s_after`** returned by K-2;
-  – Markers/finals: pass the **current** stream `s_curr` (non-consuming → `before==after`).
+  - Attempts: pass **`s_before`** and the **`s_after`** returned by K-2;
+  - Markers/finals: pass the **current** stream `s_curr` (non-consuming → `before==after`).
 * **Values**:
-  – K-1 takes `{N, X_m, θ0..2}`;
-  – K-2 takes `{lambda_extra, regime, s_before}`;
-  – K-3 takes `{attempt, k, bud, s_before, s_after, lr}`;
-  – K-4 takes `{attempt, lr}`;
-  – K-5 takes `{lr}` (policy precondition checked in L2 before call);
-  – K-6 takes `{fin, lr}`.
+  - K-1 takes `{N, X_m, θ0..2}`;
+  - K-2 takes `{lr, s_before}`;
+  - K-3 takes `{attempt, k, bud, s_before, s_after, lr}`;
+  - K-4 takes `{attempt, lr}`;
+  - K-5 takes `{lr, policy="abort"}` (L2 checks policy before call);
+  - K-6 takes `{fin, lr}`.
 
 ---
 
@@ -2067,9 +2067,9 @@ FOR attempt IN resume_attempt_index(ctx.merchant_id) .. 64:
   IF pre != null:
      k := pre.k; s := pre.s_after
   ELSE:
-     (k, s_next, bud) := K2.do_poisson_attempt_once(lr.lambda_extra, lr.regime, s)
-     K3.emit_poisson_attempt(ctx.merchant_id, ctx.lineage, s, s_next, lr, attempt, k, bud)
-     s := s_next
+     (k, s_after, bud) := K2.do_poisson_attempt_once(lr, s)
+     K3.emit_poisson_attempt(ctx.merchant_id, ctx.lineage, s, s_after, lr, attempt, k, bud)
+     s := s_after
 
   IF k > 0:
      K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s, lr, {K_target:k, attempts:attempt, regime:lr.regime})
@@ -2081,7 +2081,7 @@ FOR attempt IN resume_attempt_index(ctx.merchant_id) .. 64:
 # Cap
 IF ctx.policy == "abort":
    IF NOT exists_exhausted(ctx.merchant_id):
-      K5.emit_ztp_retry_exhausted_nonconsuming(ctx.merchant_id, ctx.lineage, s, lr)
+      K5.emit_ztp_retry_exhausted_nonconsuming(ctx.merchant_id, ctx.lineage, s, lr, policy="abort")
 ELSE:
    IF NOT exists_final(ctx.merchant_id):
       K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s, lr, {K_target:0, attempts:64, regime:lr.regime, exhausted:true})
