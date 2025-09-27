@@ -72,7 +72,7 @@ These are the **only** literals and fixed constants L1 should ever type. Everyth
 
 | Surface           | Value               | Where it applies            | Notes                                    |
 |-------------------|---------------------|-----------------------------|------------------------------------------|
-| `module`          | `1A.s4.ztp`         | **All S4 events** & trace   | **Spec-pinned** (frozen label registry). |
+| `module`          | `1A.ztp_sampler`    | **All S4 events** & trace   | **Spec-pinned** (frozen label registry). |
 | `substream_label` | `poisson_component` | **All S4 events** & trace   | **Spec-pinned** (frozen label registry). |
 | `context`         | `ztp`               | **Events only** (not trace) | Trace has **no** `context`.              |
 
@@ -110,7 +110,7 @@ Use **exactly** these payload keys when forming inputs to L0 emitters (L1 provid
 
 ```text
 # Literals (spec-pinned)
-MODULE              := "1A.s4.ztp"                 # events & trace
+MODULE              := "1A.ztp_sampler"                 # events & trace
 SUBSTREAM_LABEL     := "poisson_component"         # events & trace
 EVENT_CONTEXT       := "ztp"                       # events only (trace has no context)
 
@@ -182,7 +182,7 @@ All pseudo-random numbers are strict-open **$u\in(0,1)$**. L0 measures budgets; 
 
 ### 4.5 Substreams & isolation (where randomness comes from)
 
-* S4 uses **one merchant-keyed substream** defined by the pair `(module="1A.s4.ztp", substream_label="poisson_component")` **shared by all S4 events**.
+* S4 uses **one merchant-keyed substream** defined by the pair `(module="1A.ztp_sampler", substream_label="poisson_component")` **shared by all S4 events**.
 * **Only attempts consume** on this substream; **rejection**, **exhausted**, and **final** are **non-consuming** under the **same label**.
 * Do **not** mix labels or reuse substreams from other states; do **not** chain counters across families—each event is measured independently.
 
@@ -1668,7 +1668,7 @@ For every L1 failure, log this minimal tuple to help L2/ops triage:
   attempt? (if in loop), A, N, policy,
   lambda_extra? (if computed), regime? (if frozen),
   last_stream_before? (hi, lo), last_stream_after? (hi, lo),
-  writer: module="1A.s4.ztp", substream_label="poisson_component" }
+  writer: module="1A.ztp_sampler", substream_label="poisson_component" }
 ```
 
 * Omit fields you haven’t computed yet (e.g., `lambda_extra` on gate failures).

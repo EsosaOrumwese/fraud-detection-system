@@ -50,7 +50,7 @@ All RNG logs are written under `…/seed={seed}/parameter_hash={parameter_hash}/
   Trace row fields (per schema): `ts_utc, run_id, seed, module, substream_label, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi, draws_total, blocks_total, events_total`; **no `context`**. Trace embeds `run_id` and `seed` and is also path-consistent (parameter_hash via the partition path).
 
 **Label/stream registry (frozen identifiers).**
-All S4 **events** use: `module = "1A.s4.ztp"`, `substream_label = "poisson_component"`, `context = "ztp"`. **Consuming vs non-consuming** is fixed: attempts consume (`draws>0` & `blocks=after−before`); markers/final are non-consuming (`draws:"0"`, `blocks=0`, `before==after`). After each append, **one** cumulative trace row is required.
+All S4 **events** use: `module = "1A.ztp_sampler"`, `substream_label = "poisson_component"`, `context = "ztp"`. **Consuming vs non-consuming** is fixed: attempts consume (`draws>0` & `blocks=after−before`); markers/final are non-consuming (`draws:"0"`, `blocks=0`, `before==after`). After each append, **one** cumulative trace row is required.
 
 **Dictionary authority (MUST).**
 The **Data Dictionary** defines dataset IDs, **partitions** (`{seed, parameter_hash, run_id}`), writer sort keys, and JSONL format for RNG logs. L0 **never** hard-codes paths.
@@ -136,7 +136,7 @@ The **Data Dictionary** defines dataset IDs, **partitions** (`{seed, parameter_h
 
 ## 2.6 Explicitly **not** imported (to prevent drift)
 
-* Any **event wrappers** for ZTP from S0 (their modules/labels differ) — S4 defines **its own** ZTP emitters with `module="1A.s4.ztp"`, `substream_label="poisson_component"`, `context:"ztp"`.
+* Any **event wrappers** for ZTP from S0 (their modules/labels differ) — S4 defines **its own** ZTP emitters with `module="1A.ztp_sampler"`, `substream_label="poisson_component"`, `context:"ztp"`.
 * Any alternative **trace updaters** (S0 variant) — use **S1’s saturating** updater only (call `S1.update_rng_trace_totals` explicitly).
 * Any **dictionary path literals** — all I/O must call `dict_path_for_family`.
 
@@ -160,12 +160,12 @@ This import map keeps S4·L0 **thin and deterministic**: we reuse PRNG/substream
 
 ## 3.1 Frozen label set (shared by all S4 events)
 
-| Stream family                   | **module**  | **substream_label** | **context** |
-|---------------------------------|-------------|---------------------|-------------|
-| `rng_event_poisson_component`   | `1A.s4.ztp` | `poisson_component` | `"ztp"`     |
-| `rng_event_ztp_rejection`       | `1A.s4.ztp` | `poisson_component` | `"ztp"`     |
-| `rng_event_ztp_retry_exhausted` | `1A.s4.ztp` | `poisson_component` | `"ztp"`     |
-| `rng_event_ztp_final`           | `1A.s4.ztp` | `poisson_component` | `"ztp"`     |
+| Stream family                   | **module**       | **substream_label** | **context** |
+|---------------------------------|------------------|---------------------|-------------|
+| `rng_event_poisson_component`   | `1A.ztp_sampler` | `poisson_component` | `"ztp"`     |
+| `rng_event_ztp_rejection`       | `1A.ztp_sampler` | `poisson_component` | `"ztp"`     |
+| `rng_event_ztp_retry_exhausted` | `1A.ztp_sampler` | `poisson_component` | `"ztp"`     |
+| `rng_event_ztp_final`           | `1A.ztp_sampler` | `poisson_component` | `"ztp"`     |
 
 **Notes.** All S4 events share `substream_label="poisson_component"` to keep budgeting/trace under one domain; event type is distinguished by the **table/anchor** and `context:"ztp"`. After *each* event append, the **same writer** emits **exactly one** cumulative `rng_trace_log` row for this `(module, substream_label)`.
 
@@ -269,7 +269,7 @@ type Ids = list[{ tag: "merchant_u64" | "iso" | "i" | "j", value: u64 | string }
 ```text
 type Envelope = {
   ts_utc: string,              # UTC timestamp, exactly 6 fractional digits (truncate)
-  module: "1A.s4.ztp",
+  module: "1A.ztp_sampler",
   substream_label: "poisson_component",
   context: "ztp",
   run_id: hex32,
@@ -315,7 +315,7 @@ type Trace = {
   ts_utc: string,
   run_id: hex32,
   seed:   u64,
-  module: "1A.s4.ztp",
+  module: "1A.ztp_sampler",
   substream_label: "poisson_component",
   rng_counter_before_hi: u64,
   rng_counter_before_lo: u64,
@@ -503,7 +503,7 @@ type ZtpFinal = {
 ## 6.1 One label, one domain (all S4 events share one substream)
 
 * **Label (ℓ):** `"poisson_component"`
-* **Module:** `"1A.s4.ztp"` (event/trace rows share this module; the **label** keys the PRNG)
+* **Module:** `"1A.ztp_sampler"` (event/trace rows share this module; the **label** keys the PRNG)
 * **Context:** `"ztp"` (payload/anchor only; **not** part of the PRNG key)
 * **Domain rule:** All four S4 families (attempt, zero-marker, cap-marker, finaliser) **share** this `(module, substream_label)` so budgeting/trace live under one domain; event type is distinguished by the schema anchor and `context:"ztp"`.
 * **Trace duty:** After **each** event append, the **same writer** appends the cumulative `rng_trace_log` row **immediately after** the event row (one-per-event).
@@ -764,7 +764,7 @@ If admissible foreign set size **$A=0$**, **do not sample**. Still compute $\lam
 ### Shared literals
 
 ```pseudocode
-const MODULE          = "1A.s4.ztp"
+const MODULE          = "1A.ztp_sampler"
 const SUBSTREAM_LABEL = "poisson_component"         # shared by all S4 events
 const CONTEXT         = "ztp"                       # stamped in envelope by the writer
 
@@ -1003,7 +1003,7 @@ end
 ### Shared literals (recall)
 
 ```pseudocode
-const MODULE          = "1A.s4.ztp"
+const MODULE          = "1A.ztp_sampler"
 const SUBSTREAM_LABEL = "poisson_component"
 const FAM_TRACE       = "rng_trace_log"   # schemas.layer1.yaml#/rng/core/rng_trace_log
 ```
@@ -1380,7 +1380,7 @@ All RNG **event** rows **embed** lineage in the **envelope**, and that lineage *
 Envelope (event rows only):
 {
   seed:u64, parameter_hash:hex64, run_id:hex32,   # embedded = path tokens
-  module:"1A.s4.ztp", substream_label:"poisson_component", context:"ztp",
+  module:"1A.ztp_sampler", substream_label:"poisson_component", context:"ztp",
   rng_counter_before_lo:u64, rng_counter_before_hi:u64,
   rng_counter_after_lo:u64,  rng_counter_after_hi:u64,
   blocks:u64, draws:dec_u128, ts_utc
@@ -2334,7 +2334,7 @@ fail_rng_accounting(dims, attempt_or_attempts, "budget reconciliation failed")
 
 ## 17.13 Stream identifiers
 
-**Symptom.** `module`, `substream_label`, or `context` don’t match the frozen identifiers (`1A.s4.ztp`, `poisson_component`, `"ztp"`).
+**Symptom.** `module`, `substream_label`, or `context` don’t match the frozen identifiers (`1A.ztp_sampler`, `poisson_component`, `"ztp"`).
 **Allowed behaviour.** Reject and log run-scoped failure.
 **Signal.**
 
@@ -2381,8 +2381,8 @@ This catalogue makes the weird corners **boring**: each is turned into a tiny, r
 ## 18.1 Frozen literals & constants — **breaking if changed**
 
 * **Identifiers (events vs trace):**
-  **Events:** `module = "1A.s4.ztp"`, `substream_label = "poisson_component"`, `context = "ztp"` — **breaking** to rename.
-  **Trace:** `module = "1A.s4.ztp"`, `substream_label = "poisson_component"` (**no `context`** on trace) — **breaking** to rename.
+  **Events:** `module = "1A.ztp_sampler"`, `substream_label = "poisson_component"`, `context = "ztp"` — **breaking** to rename.
+  **Trace:** `module = "1A.ztp_sampler"`, `substream_label = "poisson_component"` (**no `context`** on trace) — **breaking** to rename.
 
 * **Regime threshold:** $\lambda^\star = 10$ selects `inversion` vs `ptrs` (binary64 exact). **Breaking** to change.
 
@@ -2538,7 +2538,7 @@ This section locks S4’s evolution path so future edits are **predictable for i
 
 1. **Scope fence:** L0 contains **no orchestration loops**, **no validators**, **no path literals**.
 2. **Reuse fence:** All PRNG/trace/dictionary/codec/sampler functions are **imported** from S0/S1/S2; only S4-specific helpers/adapters/emitters are new.
-3. **Literal fence:** `module="1A.s4.ztp"`, `substream_label="poisson_component"`, `context="ztp"` are fixed for **event** rows. **Trace has no `context`** and uses the same `module/substream_label`; trace **still embeds** lineage fields `run_id` & `seed` per the trace schema.
+3. **Literal fence:** `module="1A.ztp_sampler"`, `substream_label="poisson_component"`, `context="ztp"` are fixed for **event** rows. **Trace has no `context`** and uses the same `module/substream_label`; trace **still embeds** lineage fields `run_id` & `seed` per the trace schema.
 4. **Partition fence:** All streams write under `{seed, parameter_hash, run_id}` resolved via **dictionary**; **path↔embed equality** holds on **event rows**; **trace rows embed `run_id` & `seed`** (no `context`); **`parameter_hash` is path-only**.
 5. **Substream fence:** All S4 events derive the **same** merchant-scoped substream (label `"poisson_component"`, Ids `[merchant_u64]`), order-invariant.
 6. **Envelope fence:** **Consuming** rows: `after>before, blocks==Δ, draws>"0"`; **non-consuming** rows: `before==after, blocks=0, draws="0"`.
@@ -2589,7 +2589,7 @@ end
 
 ```pseudocode
 proc gate_literals_and_substream():
-  assert MODULE == "1A.s4.ztp"
+  assert MODULE == "1A.ztp_sampler"
   assert SUBSTREAM_LABEL == "poisson_component"
   assert CONTEXT == "ztp"
   # Substream derivation is order-invariant and merchant-scoped (typed SER; order-insensitive)
@@ -2921,7 +2921,7 @@ These scaffolds let an implementer (or intern) wire S4 with **zero ambiguity**, 
 
 | Literal           | Value               | Notes                                                               |
 |-------------------|---------------------|---------------------------------------------------------------------|
-| `module`          | `1A.s4.ztp`         | Frozen identifier on every S4 event & trace row.                    |
+| `module`          | `1A.ztp_sampler`    | Frozen identifier on every S4 event & trace row.                    |
 | `substream_label` | `poisson_component` | Single label for all four S4 families (one budgeting/trace domain). |
 | `context`         | `ztp`               | Fixed context on S4 **events**; **trace has no context**.           |
 
@@ -2946,7 +2946,7 @@ These scaffolds let an implementer (or intern) wire S4 with **zero ambiguity**, 
 | Field                           | Type / Format                  | Notes                                                 |
 |---------------------------------|--------------------------------|-------------------------------------------------------|
 | `ts_utc`                        | string (UTC, **µs precision**) | Exactly 6 fractional digits (truncate); observational |
-| `module`                        | `1A.s4.ztp`                    | See §21.1.                                            |
+| `module`                        | `1A.ztp_sampler`               | See §21.1.                                            |
 | `substream_label`               | `poisson_component`            | See §21.1.                                            |
 | `context`                       | `ztp`                          | Events only; **trace has no context**.                |
 | `rng_counter_before_lo`, `…_hi` | `u64`                          | Philox 128-bit counter (start).                       |
@@ -2988,17 +2988,17 @@ Non-consuming rows: `before==after`, `blocks=0`, `draws="0"`.
 
 ## 21.6 Substream derivation (SER/UEL literals)
 
-| Element              | Literal / Rule                                                           | 
-|----------------------|--------------------------------------------------------------------------|
-| PRNG label           | `"poisson_component"` (all S4 families share it)                         |
+| Element              | Literal / Rule                                                          | 
+|----------------------|-------------------------------------------------------------------------|
+| PRNG label           | `"poisson_component"` (all S4 families share it)                        |
 | SER tag set (closed) | `{ "merchant_u64", "iso", "i", "j" }` *(S4 uses **merchant_u64** only)* |
-| `merchant_u64`       | `LOW64( SHA256( LE64(merchant_id:int64) ) )`                             |
-| Message layout       | `UER("mlr:1A") \|\| UER(label) \|\| SER(Ids)` (no delimiters)            |
-| Domain               | One substream per merchant; same for attempts, markers, final.           |
+| `merchant_u64`       | `LOW64( SHA256( LE64(merchant_id:int64) ) )`                            |
+| Message layout       | `UER("mlr:1A") \|\| UER(label) \|\| SER(Ids)` (no delimiters)           |
+| Domain               | One substream per merchant; same for attempts, markers, final.          |
 
 *If `iso` is ever used in other states, it must be **UPPERCASE ASCII** before UER/SER (S0 rule).*
 
-**Trace domain.** All events share one trace domain `(module="1A.s4.ztp", substream_label="poisson_component")`; **one cumulative trace row per event** appended by the **same writer, immediately after** the event.
+**Trace domain.** All events share one trace domain `(module="1A.ztp_sampler", substream_label="poisson_component")`; **one cumulative trace row per event** appended by the **same writer, immediately after** the event.
 
 ---
 
@@ -3042,8 +3042,8 @@ All numbers **stay numbers**; use shortest **round-trip** JSON.
 
 ## 21.10 Consuming vs non-consuming summary (quick crib)
 
-| Family                           | Consuming? | Counters change?            | `draws` value            |
-|----------------------------------|------------|-----------------------------|--------------------------|
+| Family                          | Consuming? | Counters change?            | `draws` value            |
+|---------------------------------|------------|-----------------------------|--------------------------|
 | `rng_event_poisson_component`   | **Yes**    | `after>before`, `blocks>0`  | `>"0"` (actual uniforms) |
 | `rng_event_ztp_rejection`       | No         | `before==after`, `blocks=0` | `"0"`                    |
 | `rng_event_ztp_retry_exhausted` | No         | `before==after`, `blocks=0` | `"0"`                    |
@@ -3192,7 +3192,7 @@ This appendix is the **single source** of S4 literals and closed vocabularies—
 | Field                        | Type / Encoding         | Rules                                                                                                                                                                     |
 |------------------------------|-------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `ts_utc`                     | string                  | RFC-3339 UTC with **exactly 6 fractional digits** (microseconds), trailing `Z`. **Truncate** to 6 digits (**no rounding**). Observational only—**not** used for ordering. |
-| `module`                     | string                  | **`"1A.s4.ztp"`** (frozen).                                                                                                                                               |
+| `module`                     | string                  | **`"1A.ztp_sampler"`** (frozen).                                                                                                                                          |
 | `substream_label`            | string                  | **`"poisson_component"`** (frozen; shared by all S4 events).                                                                                                              |
 | `context`                    | string                  | **`"ztp"`** on **event** rows; **trace has no context**.                                                                                                                  |
 | `seed`                       | uint64 (JSON number)    | Non-negative, 64-bit unsigned.                                                                                                                                            |
@@ -3301,7 +3301,7 @@ For **event rows**, the embedded `{seed, parameter_hash, run_id}` **byte-match**
 **Attempt (consuming):**
 
 ```json
-{"ts_utc":"2025-08-15T10:03:12.345678Z","module":"1A.s4.ztp","substream_label":"poisson_component","context":"ztp",
+{"ts_utc":"2025-08-15T10:03:12.345678Z","module":"1A.ztp_sampler","substream_label":"poisson_component","context":"ztp",
  "seed":7,"parameter_hash":"ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12",
  "manifest_fingerprint":"cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34",
  "run_id":"deab12deab12deab12deab12deab12de",
@@ -3313,7 +3313,7 @@ For **event rows**, the embedded `{seed, parameter_hash, run_id}` **byte-match**
 **Zero marker (non-consuming):**
 
 ```json
-{"ts_utc":"2025-08-15T10:03:12.345679Z","module":"1A.s4.ztp","substream_label":"poisson_component","context":"ztp",
+{"ts_utc":"2025-08-15T10:03:12.345679Z","module":"1A.ztp_sampler","substream_label":"poisson_component","context":"ztp",
  "seed":7,"parameter_hash":"ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12",
  "manifest_fingerprint":"cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34",
  "run_id":"deab12deab12deab12deab12deab12de",
@@ -3325,7 +3325,7 @@ For **event rows**, the embedded `{seed, parameter_hash, run_id}` **byte-match**
 **Finaliser (non-consuming):**
 
 ```json
-{"ts_utc":"2025-08-15T10:03:12.345680Z","module":"1A.s4.ztp","substream_label":"poisson_component","context":"ztp",
+{"ts_utc":"2025-08-15T10:03:12.345680Z","module":"1A.ztp_sampler","substream_label":"poisson_component","context":"ztp",
  "seed":7,"parameter_hash":"ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12",
  "manifest_fingerprint":"cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34",
  "run_id":"deab12deab12deab12deab12deab12de",
