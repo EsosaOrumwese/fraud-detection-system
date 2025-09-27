@@ -173,7 +173,7 @@ L2 MUST assert these before any sampling or emission (order doesn’t matter).
 * `A` is integer and `A ≥ 0`. 
 * `policy ∈ {"abort","downgrade_domestic"}`. 
 
-**A=0 path.** If `A == 0`, L2 must **not** drive attempts: call **K-1** (freeze λ/regime) then **K-6** to emit **one** non-consuming `ztp_final{K_target=0, attempts:0 [,reason]?}`; **no attempt or marker rows** are written.  
+**A=0 path.** If `A == 0`, L2 must **not** drive attempts: call **K-1** (freeze λ/regime) then **K-6** to emit **one** non-consuming `ztp_final{K_target=0, attempts:0, regime [,reason]?}`; **no attempt or marker rows** are written.
 
 ## 3.3 Context assembly (value-only; no paths)
 
@@ -877,7 +877,7 @@ This is the **only** set of emissions L2 can cause in S4. Everything else (paylo
 
 * **Cap reached (no acceptance by 64):**
   - If `policy=="abort"` → **K-5** exhausted only (`attempts=64`, `aborted:true`) and **stop**.
-  - Else (`"downgrade_domestic"`) → **K-6** finaliser `{K_target=0, attempts=64, exhausted:true}` and **stop**. 
+  - Else (`"downgrade_domestic"`) → **K-6** finaliser `{K_target=0, attempts=64, regime, exhausted:true}` and **stop**.
 
 ---
 
@@ -1549,7 +1549,7 @@ For the lineage `{seed, parameter_hash, run_id, manifest_fingerprint}` in scope:
    * **Acceptance final** (one `ztp_final` with `K_target≥1`, `attempts=t`, no `exhausted`), or
    * **Cap-abort** (one `ztp_retry_exhausted` with `attempts=64`, `aborted:true`, **no final**), or
    * **Cap-downgrade** (one `ztp_final` with `K_target=0`, `attempts=64`, `exhausted:true`, **no exhausted marker**), or
-   * **A=0 short-circuit** (one `ztp_final` with `K_target=0`, `attempts=0` [, `reason` only if schema allows]).
+   * **A=0 short-circuit** (one `ztp_final` with `K_target=0`, `attempts=0`, `regime` [, `reason` only if schema allows]).
 2. **No attempt gaps per merchant:** attempts present are contiguous from 1 to `t` (or none, for A=0).
 3. **Exactly one event → one immediate trace:** every event row has its adjacent cumulative trace row (same writer).
 4. **No pending work:** L2 has released per-merchant locks; no second K-7 loop is active for the same merchant.
@@ -1733,7 +1733,7 @@ This handoff ensures validation is **deterministic, read-only, and authority-tru
 
 ## M. Quick self-test (must pass before freeze)
 
-1. **A=0 case:** merchant with `A=0` produces exactly one `ztp_final{K_target=0, attempts=0}`; no attempt/rejection/exhausted rows.
+1. **A=0 case:** merchant with `A=0` produces exactly one `ztp_final{K_target=0, attempts=0, regime}`; no attempt/rejection/exhausted rows.
 2. **Accept@3 case:** attempts at 1 & 2 emit attempts+rejections; attempt 3 emits attempt+final; no `exhausted`.
 3. **Cap-abort case:** 64 attempts with rejections; terminal is exhausted only (no final).
 4. **Cap-downgrade case:** 64 attempts with rejections; terminal is final `{attempts=64, exhausted:true}`; no exhausted marker.
@@ -2351,7 +2351,7 @@ This appendix fixes the identifiers that make S4’s orchestration reproducible 
 ### 5) *“A=0 but the run sampled attempts.”*
 
 * **Check:** `A==0` after gates should emit **only** `ztp_final{K_target=0, attempts=0 [,reason?]}`.
-* **Action:** Fix L2 gate path to K-1→K-6 and **stop**; no attempts or markers allowed. 
+* **Action:** Fix L2 gate path to K-1→K-6 and **stop**; emit `ztp_final{K_target=0, attempts=0, regime [,reason?]}`; no attempts or markers allowed.
 
 ### 6) *“Attempt payload has `lambda_extra` (or rejection has `lambda`).”*
 
@@ -2444,7 +2444,7 @@ These read-only checks use the dictionary-resolved datasets and natural keys fro
 * **Accept@1:** `Attempt(1, k>0, λ) → Final(K=k, attempts=1, λ_extra, regime)`.
 * **Cap-Abort:** For `t=1..64: Attempt(t,k=0,λ) + Rejection(t,λ_extra) → Exhausted(attempts=64, aborted:true, λ_extra)`.
 * **Cap-Downgrade:** Same 64 pairs → `Final(K=0, attempts=64, exhausted:true, λ_extra)`.
-* **A=0:** `Final(K=0, attempts=0 [,reason])` only. 
+* **A=0:** `Final(K=0, attempts=0, regime [,reason])` only. 
 
 This appendix keeps ops **fast and safe**: no re-emits, no payload reconstruction, all decisions grounded in the authoritative **L0 v15** writer/trace contract, **L1 v12** kernel semantics, and the **S4 expanded** terminal rules.   
 
