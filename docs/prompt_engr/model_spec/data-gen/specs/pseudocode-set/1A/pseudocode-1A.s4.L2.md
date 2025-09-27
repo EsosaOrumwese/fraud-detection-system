@@ -8,7 +8,7 @@
 
 **A=0 short-circuit:** compute λ/regime once (K-1), then **final-only** `ztp_final{K_target=0, attempts:0, regime [,reason]?}`, **no attempts/markers**.  
 
-**Attempt loop (1..64):** per attempt call **K-2 → K-3 → (K-6 | K-4)**; on cap with no acceptance: **policy="abort" → K-5** (exhausted **only**), else **K-6** final `{K_target=0, attempts:64, exhausted:true}`. All emission appends **exactly one** immediate trace.   
+**Attempt loop (1..64):** per attempt call **K-2 → K-3 → (K-6 | K-4)**; on cap with no acceptance: **policy="abort" → K-5** (exhausted **only**), else **K-6** final `{K_target=0, attempts:64, regime, exhausted:true}`. All emission appends **exactly one** immediate trace.   
 
 ---
 
@@ -308,7 +308,7 @@ PROC s4_preflight(ctx):
    │   │            │                           v                       │
    │   │        yes v                      [K-4 emit rejection]         │
    │   │       [K-6 final]  ────────────────────┘                       │
-   │   │            │ (attempts=a; exhausted absent)                    │
+   │   │            │ (K_target=k, attempts=a, regime; exhausted absent)│
    │   │            v                                                   │
    │   │          [STOP]                                                │
    │   └────────────────────────────────────────────────────────────────┘
@@ -317,7 +317,7 @@ PROC s4_preflight(ctx):
    │  policy == "abort"         policy == "downgrade_domestic"
    │        v                              v
    │   [K-5 exhausted]               [K-6 final]
-   │   (attempts=64,                 (K_target=0, attempts=64,
+   │   (attempts=64,                 (K_target=0, attempts=64, regime,
    │    aborted=true)                 exhausted=true)
    │        v                              v
    └──────▶ [STOP]                    └────▶ [STOP]
@@ -344,12 +344,12 @@ Each edge is *(from → to | guard / action)*; all actions are **kernel calls** 
 * **E4.** `SUBSTREAM → K-2 | (a in 1..64 and attempt a not on disk) / sample once`
 * **E5.** `SUBSTREAM → BRANCH | (attempt a exists) / read{k, s_after} (no RNG)`
 * **E6.** `K-2 → K-3 | always / emit attempt (payload uses λ)`
-* **E7.** `K-3 → K-6 | (k>0) / final(K_target=k, attempts=a)`
+* **E7.** `K-3 → K-6 | (k>0) / final(K_target=k, attempts=a, regime)`
 * **E8.** `K-3 → K-4 | (k==0) / emit rejection (payload uses λ_extra)`
 * **E9.** `K-4 → NEXT | (a<64) / a:=a+1; s_before:=s_after`
 * **E10.** `K-4 → CAP | (a==64) / cap reached`
 * **E11.** `CAP → K-5 | (policy=="abort") / exhausted( attempts=64, aborted=true )`
-* **E12.** `CAP → K-6 | (policy=="downgrade_domestic") / final( K_target=0, attempts=64, exhausted=true )`
+* **E12.** `CAP → K-6 | (policy=="downgrade_domestic") / final( K_target=0, attempts=64, regime, exhausted:true )`
 * **E13.** `K-6 → STOP | always / return`
 * **E14.** `K-5 → STOP | always / return`
 
@@ -1546,10 +1546,10 @@ For the lineage `{seed, parameter_hash, run_id, manifest_fingerprint}` in scope:
 
 1. **Terminal fence satisfied per merchant:** each merchant is either
 
-   * **Acceptance final** (one `ztp_final` with `K_target≥1`, `attempts=t`, no `exhausted`), or
+   * **Acceptance final** (one `ztp_final` with `K_target≥1`, `attempts=t`, `regime`, no `exhausted`), or
    * **Cap-abort** (one `ztp_retry_exhausted` with `attempts=64`, `aborted:true`, **no final**), or
    * **Cap-downgrade** (one `ztp_final` with `K_target=0`, `attempts=64`, `exhausted:true`, **no exhausted marker**), or
-   * **A=0 short-circuit** (one `ztp_final` with `K_target=0`, `attempts=0`, `regime` [, `reason` only if schema allows]).
+   * **A=0 short-circuit** (one `ztp_final{K_target=0, attempts=0, regime [,reason]}`; **no attempts/markers** exist).
 2. **No attempt gaps per merchant:** attempts present are contiguous from 1 to `t` (or none, for A=0).
 3. **Exactly one event → one immediate trace:** every event row has its adjacent cumulative trace row (same writer).
 4. **No pending work:** L2 has released per-merchant locks; no second K-7 loop is active for the same merchant.
@@ -1588,10 +1588,10 @@ Per merchant (scoped by lineage):
 
 **Terminal exclusivity & correctness**
 
-* **Acceptance**: one `ztp_final{K_target≥1, attempts=t}`, `exhausted` absent; no exhausted marker exists.
+* **Acceptance**: one `ztp_final{K_target≥1, attempts=t, regime}`, `exhausted` absent; no exhausted marker exists.
 * **Cap-abort**: one `ztp_retry_exhausted{attempts=64, aborted:true}`; **no final** exists.
-* **Cap-downgrade**: one `ztp_final{K_target=0, attempts=64, exhausted:true}`; **no exhausted marker** exists.
-* **A=0**: one `ztp_final{K_target=0, attempts=0 [,reason?]}`; **no attempts/markers** exist.
+* **Cap-downgrade**: one `ztp_final{K_target=0, attempts=64, regime, exhausted:true}`; **no exhausted marker** exists.
+* **A=0**: one `ztp_final{K_target=0, attempts=0, regime [,reason?]}`; **no attempts/markers** exist.
 
 **Run-consistency & invariants**
 
@@ -1693,7 +1693,7 @@ This handoff ensures validation is **deterministic, read-only, and authority-tru
 * [ ] Exactly **one** terminal per merchant:
   - **Accept:** `ztp_final{K_target≥1, attempts=t, regime}` (no `exhausted`).
   - **Cap-abort:** `ztp_retry_exhausted{attempts:64, aborted:true}` (**no** final).
-  - **Cap-downgrade:** `ztp_final{K_target=0, attempts=64, exhausted:true}` (**no** exhausted marker).
+  - **Cap-downgrade:** `ztp_final{K_target=0, attempts=64, regime, exhausted:true}` (**no** exhausted marker).
   - **A=0:** `ztp_final{K_target=0, attempts=0, regime [,reason?]}` (no attempts/markers).
 * [ ] Cap is treated as **64** (schema-pinned); no runtime override in L2.
 
@@ -1736,7 +1736,7 @@ This handoff ensures validation is **deterministic, read-only, and authority-tru
 1. **A=0 case:** merchant with `A=0` produces exactly one `ztp_final{K_target=0, attempts=0, regime}`; no attempt/rejection/exhausted rows.
 2. **Accept@3 case:** attempts at 1 & 2 emit attempts+rejections; attempt 3 emits attempt+final; no `exhausted`.
 3. **Cap-abort case:** 64 attempts with rejections; terminal is exhausted only (no final).
-4. **Cap-downgrade case:** 64 attempts with rejections; terminal is final `{attempts=64, exhausted:true}`; no exhausted marker.
+4. **Cap-downgrade case:** 64 attempts with rejections; terminal is final `{attempts:64, regime, exhausted:true}`; no exhausted marker.
 5. **Crash window:** inject crash after an attempt event append; on resume, **no re-emit**; trace is repaired on the next emitter append; resume continues deterministically from persisted `s_after`.
 
 ---
@@ -2350,7 +2350,7 @@ This appendix fixes the identifiers that make S4’s orchestration reproducible 
 
 ### 5) *“A=0 but the run sampled attempts.”*
 
-* **Check:** `A==0` after gates should emit **only** `ztp_final{K_target=0, attempts=0 [,reason?]}`.
+* **Check:** `A==0` after gates should emit **only** `ztp_final{K_target=0, attempts:0, regime [,reason?]}`.
 * **Action:** Fix L2 gate path to K-1→K-6 and **stop**; emit `ztp_final{K_target=0, attempts=0, regime [,reason?]}`; no attempts or markers allowed.
 
 ### 6) *“Attempt payload has `lambda_extra` (or rejection has `lambda`).”*
@@ -2443,7 +2443,7 @@ These read-only checks use the dictionary-resolved datasets and natural keys fro
 
 * **Accept@1:** `Attempt(1, k>0, λ) → Final(K=k, attempts=1, λ_extra, regime)`.
 * **Cap-Abort:** For `t=1..64: Attempt(t,k=0,λ) + Rejection(t,λ_extra) → Exhausted(attempts=64, aborted:true, λ_extra)`.
-* **Cap-Downgrade:** Same 64 pairs → `Final(K=0, attempts=64, exhausted:true, λ_extra)`.
+* **Cap-Downgrade:** Same 64 pairs → `Final(K=0, attempts=64, regime, exhausted:true, λ_extra)`.
 * **A=0:** `Final(K=0, attempts=0, regime [,reason])` only. 
 
 This appendix keeps ops **fast and safe**: no re-emits, no payload reconstruction, all decisions grounded in the authoritative **L0 v15** writer/trace contract, **L1 v12** kernel semantics, and the **S4 expanded** terminal rules.   
