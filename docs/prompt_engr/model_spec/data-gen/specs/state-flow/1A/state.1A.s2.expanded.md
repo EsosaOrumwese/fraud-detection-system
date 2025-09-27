@@ -359,7 +359,7 @@ Use **S0.3.7** regime split: **inversion** for $\lambda<10$; **PTRS** (Hörmann 
 * **Inversion ($\lambda<10$)**: multiplicative $p$ until $p\le e^{-\lambda}$.
 * **PTRS ($\lambda\ge10$)**: use $b=0.931+2.53\sqrt\lambda$, $a=-0.059+0.02483\,b$, $\text{inv}\alpha=1.1239+1.1328/(b-3.4)$, $v_r=0.9277-3.6224/(b-2)$; draw $u,v\sim U(0,1)$; apply the squeeze/acceptance tests from S0.3.7.
 * **Uniforms:** **variable** — each PTRS **iteration** uses 2 uniforms; the number of iterations is geometric; total per event is measured by envelope counters.
-* **Logging:** `poisson_component` with `context="nb"`.
+* **Logging:** `poisson_component` with `context="nb"` and `attempt:int≥1` (1-based).
 
 ---
 
@@ -436,7 +436,8 @@ Given merchant $m$ with $(\mu_m,\phi_m)$ from S2.2:
           "merchant_id": "<m>",
           "context": "nb",
           "lambda": <lambda as binary64>,
-          "k": <K as int64>
+         "k": <K as int>,
+         "attempt": <t:int≥1>
    }
    ```
 
@@ -459,7 +460,7 @@ and verify the counter-span equality for `blocks_total`. `nb_final` is non-consu
 ## 7) Determinism & ordering (MUST)
 
 * **Emission cardinality:** Emit exactly one `gamma_component` (with `substream_label="gamma_nb"`, `context="nb"`) then one `poisson_component` (with `substream_label="poisson_nb"`, `context="nb"`) per attempt for the merchant (no parallelization per merchant). Both events must carry the same lineage and the authoritative RNG envelope (before/after counters; `draws` computed).
-* **Label order:** Gamma **precedes** Poisson; ordering is determined solely by each event’s **envelope counter interval** (`rng_counter_before_*` → `rng_counter_after_*`). There is **no `attempt` field in the payload** for these streams.
+* **Label order:** Gamma **precedes** Poisson; ordering is determined solely by each event’s **envelope counter interval** (`rng_counter_before_*` → `rng_counter_after_*`). An `attempt:int≥1` field **is present** (per schema) but is **non-authoritative**; validators must derive order from counters.
 * **Bit-replay:** For fixed $(x_m^{(\mu)},x_m^{(\phi)},\beta_\mu,\beta_\phi,\texttt{seed},\texttt{parameter_hash},\texttt{manifest_fingerprint})$, the entire $(G_t,K_t)$ attempt stream is **bit-identical** across replays. (Counter-based Philox + fixed labels + variable, actual-use budgets)
 * (Reminder) NB substream **labels are closed**: `gamma_nb` / `poisson_nb` with `context="nb"`.
 * Producers are registry-closed per stream (see §4):
@@ -504,7 +505,7 @@ function s2_3_attempt_once(ctx: NBContext, t: int) -> AttemptRecord:
     K := poisson_s0_3_7(lambda)               # regimes per S0.3.7
     emit_poisson_component(
         merchant_id=ctx.merchant_id,
-        context="nb", lambda=lambda, k=K,
+        context="nb", lambda=lambda, k=K, attempt=t,
         envelope=substream_envelope(module="1A.nb_poisson_component", label="poisson_nb")
     )
 
@@ -950,8 +951,8 @@ $$
 The multiplier **must** be written as the **binary64 hex literal** `0x1.0000000000000p-64`
 (no decimal substitutes).
 **Clamp to strict open interval.** After computing `u`, perform:
-`if u == 1.0: u := 0x1.fffffffffffffp-1` (i.e., \(1-2^{-53}\)).
-This does not affect `blocks`/`draws`; it guarantees \(u\in(0,1)\) in binary64.
+`if u == 1.0: u := 0x1.fffffffffffffp-1` (i.e., $1-2^{-53}$).
+This does not affect `blocks`/`draws`; it guarantees $u\in(0,1)$ in binary64.
 
 **Lane policy.** A Philox **block** yields two 64-bit lanes `(x0,x1)` then advances by **1**.
 * **Single-uniform events:** use `x0`, **discard** `x1` → `blocks=1`, `draws="1"`.
@@ -983,11 +984,11 @@ No identity ties `draws` to the counter delta.
 * **`gamma_component` (context="nb")**
 
   $$
-  \text{draws} = \sum_t \left( 3 \times J_t + \mathbf{1}[\phi_m < 1] \right)
+  \text{draws}=\sum_t\big(2\,J_t + A_t + \mathbf{1}[\phi_m<1]\big),
   $$
-  where the sum is over NB attempts $t$ (one Gamma variate per attempt) and $J_t≥1$ is the number of MT98 internal iterations for that variate.
+  where the sum is over NB attempts $t$; $J_t\ge1$ is the number of MT1998 iterations for that variate, and $A_t$ counts those iterations with $V>0$ (only those draw the accept-$U$).
 
-  Rationale: each MT98 iteration uses **2 uniforms** for the Box–Muller normal and **1 uniform** for the accept-$U$; when $\phi_m < 1$, add **+1 uniform per variate** for the power step $U^{1/\alpha}$.
+  **Rationale.** Each MT98 iteration consumes **2 uniforms** for the Box–Muller normal; it consumes **+1 uniform** only on iterations with $V>0$. If $0<\phi_m<1$, add **+1 uniform per variate** for the power step $U^{1/\alpha}$.
 * **`poisson_component` (context="nb")**
   **Variable** (inversion for $\lambda<10$; PTRS otherwise). Envelope counters measure actual consumption; there is **no fixed budget**.
 * **`nb_final`**
@@ -1025,7 +1026,7 @@ For `nb_final`, enforce **non-consumption** (`before == after`).
 **Discipline checks (hard):**
 
 * **Cardinality:** exactly 1 Gamma and 1 Poisson per attempt; exactly 1 `nb_final` per merchant key.
-* **Budgets:** Gamma draw totals equal $3\times$attempts $+\mathbf{1}[\phi_m<1]$; Poisson totals reconcile by counters; `nb_final` has `draws=0`.
+* **Budgets:** Gamma draw totals equal $\sum_t \big(2\,J_t + A_t + \mathbf{1}[\phi_m<1]\big)$; Poisson totals reconcile by counters; `nb_final` has `draws=0`.
 * **Coverage:** if `nb_final` exists, there is ≥1 `gamma_component` **and** ≥1 `poisson_component` with `context="nb"` and matching envelopes.
 
 ---
@@ -1098,13 +1099,13 @@ function emit_gamma_component(ctx, s_gamma: inout Substream, alpha_phi: f64):
         payload={ merchant_id, context:"nb", index:0, alpha:alpha_phi, gamma_value:G }
     )
 
-# Poisson component is analogous, using its sampler’s (blocks_used, draws_used) and payload {lambda, k}.
+# Poisson component is analogous, using its sampler’s (blocks_used, draws_used) and payload {lambda, k, attempt:int≥1}.
 # nb_final is non-consuming: before == after, blocks=0, draws="0".
 ```
 
 **Notes.**
 - The samplers do **not** see counters; they only call `u01(s)`; the event writer collects `draws_used` and stamps the envelope.
-- For Gamma with $\phi_m < 1$, add **one** `u01(s_gamma)` for the $U^{1/\alpha}$ power step **per variate (i.e., per attempt)**, not once per merchant. Hence the total budget aggregates as **$\sum_t \left( 3 \times J_t + \mathbf{1}[\phi_m < 1] \right)$**.
+- For Gamma with $\phi_m < 1$, add **one** `u01(s_gamma)` for the $U^{1/\alpha}$ power step **per variate (i.e., per attempt)**, not once per merchant. Hence the total budget aggregates as **$\sum_t \big( 2 J_t + A_t + \mathbf{1}[\phi_m < 1] \big)$**, where $A_t$ counts iterations with $V>0$.
 
 ---
 
@@ -1118,7 +1119,7 @@ function emit_gamma_component(ctx, s_gamma: inout Substream, alpha_phi: f64):
 
 ## 12) Conformance tests (KATs)
 
-1. **Budget check (Gamma).** For a case with $\phi\ge1$ and $a$ attempts, assert `Σ draws(gamma_component) == 3a`; with $\phi<1$, assert `== 3a+1`.
+1. **Budget check (Gamma).** Reconstruct $J_t$ and $A_t$ by **bit-replay** of the MT1998 loop; assert `Σ draws(gamma_component) == Σ_t (2·J_t + A_t)`; if $0<\phi<1$, assert `== Σ_t (2·J_t + A_t + 1)`.
 2. **Variable Poisson.** Choose $\lambda=5$ (inversion) and $\lambda=50$ (PTRS); verify envelope deltas are positive, monotone, and **not** fixed.
 3. **Non-consumption final.** Every `nb_final` has `before == after`.
 4. **Interval discipline.** Per $(m,\ell)$, counters are **non-overlapping** and **monotone**; reconstruct attempts (Gamma→Poisson) then join to `nb_final`; fail on any deviation.
@@ -1386,13 +1387,13 @@ function s2_7_corridors(nb_finals, policy) -> Result:
 1. Shuffle the input `nb_final` rows: $\widehat{\rho}_{\text{rej}}$ and $Q_{0.99}$ unchanged; $S_{\max}$ unchanged **iff** the order reconstruction is the same — hence the order is explicitly defined as merchant key bytes ascending.
 
 **Threshold triggers.**
-2\) Synthetic dataset with $r_m=0$ for all $m$: expect $\widehat{\rho}_{\text{rej}}=0$, $Q_{0.99}=0$, $S_{\max}=0$ ⇒ **pass**.
-3\) Inject 7% of attempts as rejections uniformly (increase many $r_m$ by 1): expect $\widehat{\rho}_{\text{rej}}>0.06$ ⇒ **fail** with breach `rho_rej`.
-4\) Make $1\%$ of merchants have $r_m=4$ and the rest ≤3: expect $Q_{0.99}=4$ ⇒ **fail** with breach `p99`.
-5\) Create a drift scenario: progressively inflate $r_m$ above $\mathbb{E}[r_m]$ late in the ordered sequence so that $S_{\max}\ge h$ ⇒ **fail** with breach `cusum`.
+2. Synthetic dataset with $r_m=0$ for all $m$: expect $\widehat{\rho}_{\text{rej}}=0$, $Q_{0.99}=0$, $S_{\max}=0$ ⇒ **pass**.
+3. Inject 7% of attempts as rejections uniformly (increase many $r_m$ by 1): expect $\widehat{\rho}_{\text{rej}}>0.06$ ⇒ **fail** with breach `rho_rej`.
+4. Make $1\%$ of merchants have $r_m=4$ and the rest ≤3: expect $Q_{0.99}=4$ ⇒ **fail** with breach `p99`.
+5. Create a drift scenario: progressively inflate $r_m$ above $\mathbb{E}[r_m]$ late in the ordered sequence so that $S_{\max}\ge h$ ⇒ **fail** with breach `cusum`.
 
 **Numerical guard.**
-6\) Force extreme $\mu$/$\phi$ to yield $\alpha$ near 0 or 1; verify computation remains finite; if not, those merchants are excluded and flagged `ERR_S2_CORRIDOR_ALPHA_INVALID`, but run proceeds if $M>0$.
+6. Force extreme $\mu$/$\phi$ to yield $\alpha$ near 0 or 1; verify computation remains finite; if not, those merchants are excluded and flagged `ERR_S2_CORRIDOR_ALPHA_INVALID`, but run proceeds if $M>0$.
 
 ---
 
@@ -1619,7 +1620,7 @@ Write **exactly** these streams, **partitioned** by `["seed","parameter_hash","r
 **Payload (must).**
 
 * `gamma_component`: `{ merchant_id, context="nb", index=0, alpha=φ_m, gamma_value }`.
-* `poisson_component`: `{ merchant_id, context="nb", lambda, k }`.
+* `poisson_component`: `{ merchant_id, context="nb", lambda, k, attempt:int≥1 }`.
 * `nb_final`: `{ merchant_id, mu=μ_m, dispersion_k=φ_m, n_outlets=N_m, nb_rejections=r_m }`.
   Types & domains per schema (positivity for `mu`,`dispersion_k`; `n_outlets≥2`; `nb_rejections≥0`).
 
