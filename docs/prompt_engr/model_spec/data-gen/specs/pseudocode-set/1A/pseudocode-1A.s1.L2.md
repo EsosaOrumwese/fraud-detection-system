@@ -982,7 +982,7 @@ These exclusions are intentional: they prevent over-engineering, reduce surface 
 ## B.1 Deterministic row (`π=1.0`, no draw)
 
 ```json
-{"envelope":{"ts_utc":"2025-08-30T12:34:56.123456Z","module":"1A.hurdle_sampler","substream_label":"hurdle_bernoulli","seed":12345,"parameter_hash":"ab…cd","manifest_fingerprint":"ff…01","run_id":"de…ad","rng_counter_before_lo":100,"rng_counter_before_hi":0,"rng_counter_after_lo":100,"rng_counter_after_hi":0,"draws":"0","blocks":0},"payload":{"merchant_id":9001,"pi":1.0,"is_multi":true,"deterministic":true,"u":null}}
+{"ts_utc":"2025-08-30T12:34:56.123456Z","module":"1A.hurdle_sampler","substream_label":"hurdle_bernoulli","seed":12345,"parameter_hash":"ab…cd","manifest_fingerprint":"ff…01","run_id":"de…ad","rng_counter_before_lo":100,"rng_counter_before_hi":0,"rng_counter_after_lo":100,"rng_counter_after_hi":0,"draws":"0","blocks":0,"merchant_id":9001,"pi":1.0,"is_multi":true,"deterministic":true,"u":null}
 ```
 
 * `draws:"0"`, `blocks:0`, counters unchanged; `is_multi=true` because `π==1.0`; `u:null`.
@@ -990,7 +990,7 @@ These exclusions are intentional: they prevent over-engineering, reduce surface 
 ## B.2 Stochastic row (`0<π<1`, one draw)
 
 ```json
-{"envelope":{"ts_utc":"2025-08-30T12:34:57.000001Z","module":"1A.hurdle_sampler","substream_label":"hurdle_bernoulli","seed":12345,"parameter_hash":"ab…cd","manifest_fingerprint":"ff…01","run_id":"de…ad","rng_counter_before_lo":101,"rng_counter_before_hi":0,"rng_counter_after_lo":102,"rng_counter_after_hi":0,"draws":"1","blocks":1},"payload":{"merchant_id":9002,"pi":0.34285714285714286,"is_multi":true,"deterministic":false,"u":0.12345678901234568}}
+{"ts_utc":"2025-08-30T12:34:57.000001Z","module":"1A.hurdle_sampler","substream_label":"hurdle_bernoulli","seed":12345,"parameter_hash":"ab…cd","manifest_fingerprint":"ff…01","run_id":"de…ad","rng_counter_before_lo":101,"rng_counter_before_hi":0,"rng_counter_after_lo":102,"rng_counter_after_hi":0,"draws":"1","blocks":1,"merchant_id":9002,"pi":0.34285714285714286,"is_multi":true,"deterministic":false,"u":0.12345678901234568}
 ```
 
 * `draws:"1"`, `blocks:1`, `after = before + 1`; `u∈(0,1)` and `is_multi = (u<π)`.
