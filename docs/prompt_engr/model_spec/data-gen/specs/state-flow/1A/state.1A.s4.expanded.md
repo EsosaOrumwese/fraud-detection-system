@@ -89,7 +89,7 @@ is_multi? ──►  is_eligible? ──►  compute A := size(S3.candidate_set 
 
 ### Hard literals & regimes (so no one guesses)
 
-* **module:** `1A.s4.ztp`
+* **module:** `1A.ztp_sampler`
 * **substream_label:** `poisson_component`
 * **context:** `"ztp"`
 * **Poisson regimes:** **Inversion** if `λ < 10`, **PTRS** if `λ ≥ 10` (spec-fixed threshold/constants).
@@ -192,12 +192,12 @@ Pairing and replay are determined **only by counters** in the RNG envelopes (hi/
 
 > These literals fix **module / substream / context** so replay and budgeting are stable across releases. Changing any is a **breaking change**.
 
-| Stream                          | **module**  | **substream_label** | **context** |
-|---------------------------------|-------------|---------------------|-------------|
-| `rng_event_poisson_component`   | `1A.s4.ztp` | `poisson_component` | `"ztp"`     |
-| `rng_event_ztp_rejection`       | `1A.s4.ztp` | `poisson_component` | `"ztp"`     |
-| `rng_event_ztp_retry_exhausted` | `1A.s4.ztp` | `poisson_component` | `"ztp"`     |
-| `rng_event_ztp_final`           | `1A.s4.ztp` | `poisson_component` | `"ztp"`     |
+| Stream                          | **module**       | **substream_label** | **context** |
+|---------------------------------|------------------|---------------------|-------------|
+| `rng_event_poisson_component`   | `1A.ztp_sampler` | `poisson_component` | `"ztp"`     |
+| `rng_event_ztp_rejection`       | `1A.ztp_sampler` | `poisson_component` | `"ztp"`     |
+| `rng_event_ztp_retry_exhausted` | `1A.ztp_sampler` | `poisson_component` | `"ztp"`     |
+| `rng_event_ztp_final`           | `1A.ztp_sampler` | `poisson_component` | `"ztp"`     |
 
 **Note.** All S4 events share `substream_label="poisson_component"` to aggregate budgets/trace under one domain; event type is distinguished by the table/anchor and `context:"ztp"`.
 
@@ -244,7 +244,7 @@ Pairing and replay are determined **only by counters** in the RNG envelopes (hi/
 
 | Literal / Constant                                   | Role                      | Kind          | Participates in `parameter_hash` | Notes                                                           |
 |------------------------------------------------------|---------------------------|---------------|----------------------------------|-----------------------------------------------------------------|
-| `module = "1A.s4.ztp"`                               | Envelope identity         | Spec literal  | No                               | Frozen identifier for replay/tooling                            |
+| `module = "1A.ztp_sampler"`                               | Envelope identity         | Spec literal  | No                               | Frozen identifier for replay/tooling                            |
 | `substream_label = "poisson_component"`              | Envelope identity         | Spec literal  | No                               | Family reuse; disambiguated by `context="ztp"`                  |
 | `context = "ztp"`                                    | Envelope identity         | Spec literal  | No                               | Tags S4 attempts/markers/final                                  |
 | Poisson regime threshold **λ★ = 10**                 | Selects Inversion vs PTRS | Spec constant | No                               | Regime constants/threshold are spec-fixed (breaking if changed) |
@@ -1321,7 +1321,7 @@ Require a **major** bump + migration (see §19.5):
 
 1. **Version & tag.**
 
-   * Bump the **module literal** (e.g., `1A.s4.ztp.v2`).
+   * Bump the **module literal** (e.g., `1A.ztp_sampler.v2`).
    * Introduce **versioned schema anchors** by **suffixing anchor IDs with `@vN`** (e.g., `schemas.layer1.yaml#/rng/events/poisson_component@v2`). 
    * S4 normatively uses this suffix scheme; path-segment anchor versioning is **not used** by S4. 
    * The **Data Dictionary must pin** the exact anchor version per stream.
@@ -1420,7 +1420,7 @@ All downstream states (S6+) *must* carry forward `{seed, parameter_hash, run_id}
 * `ztp_exhaustion_policy ∈ {"abort","downgrade_domestic"}` — governed policy when the zero-draw cap is hit.
 * `regime ∈ {"inversion","ptrs"}` — Poisson sampler branch; set once per merchant from the λ threshold.
 * `context == "ztp"` — fixed context string on all S4 events.
-* `module == "1A.s4.ztp"`, `substream_label == "poisson_component"` — fixed label literals (see §2A).
+* `module == "1A.ztp_sampler"`, `substream_label == "poisson_component"` — fixed label literals (see §2A).
 * `reason ∈ {"no_admissible"}` — optional `ztp_final` payload enum for A=0 short-circuit. 
   *(Schema presence.)* The `reason` field is optional and **absent in this schema version**; adding it in a later schema revision is **additive-safe**; this document fixes the vocabulary in advance.
 
