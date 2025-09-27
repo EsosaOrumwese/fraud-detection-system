@@ -6,7 +6,7 @@
 
 **Enter S4 only if (from S1/S2/S3):** `is_multi==true`, `is_eligible==true`, `N≥2`, `A≥0`. If any fail: **emit nothing** for S4.  
 
-**A=0 short-circuit:** compute λ/regime once (K-1), then **final-only** `ztp_final{K_target=0, attempts:0 [,reason]?}`, **no attempts/markers**.  
+**A=0 short-circuit:** compute λ/regime once (K-1), then **final-only** `ztp_final{K_target=0, attempts:0, regime [,reason]?}`, **no attempts/markers**.  
 
 **Attempt loop (1..64):** per attempt call **K-2 → K-3 → (K-6 | K-4)**; on cap with no acceptance: **policy="abort" → K-5** (exhausted **only**), else **K-6** final `{K_target=0, attempts:64, exhausted:true}`. All emission appends **exactly one** immediate trace.   
 
@@ -711,21 +711,21 @@ K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s0, lr, fin)
 
 ```text
 fin := { K_target:k, attempts:t, regime:lr.regime }     # exhausted absent
-K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s, lr, fin)
+K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s_curr, lr, fin)
 ```
 
 **Cap-abort**
 
 ```text
 K5.emit_ztp_retry_exhausted_nonconsuming(
-    ctx.merchant_id, ctx.lineage, s, lr, policy="abort")
+    ctx.merchant_id, ctx.lineage, s_curr, lr, policy="abort")
 ```
 
 **Cap-downgrade**
 
 ```text
 fin := { K_target:0, attempts:64, regime:lr.regime, exhausted:true }
-K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s, lr, fin)
+K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s_curr, lr, fin)
 ```
 
 *(In all cases the emitter, called by the kernel, writes the event and appends the **immediate** cumulative trace; L2 never touches trace.)*
@@ -795,8 +795,8 @@ K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s, lr, fin)
 * **K-6 → `ztp_final` (non-consuming).**
   Writes the finaliser and appends the immediate trace. Variants:
 
-  * A=0 → `{K_target=0, attempts=0 [,reason?]}`
-  * Accept@t → `{K_target=k≥1, attempts=t}` (no `exhausted`)
+  * A=0 → `{K_target=0, attempts=0, regime [,reason?]}`
+  * Accept@t → `{K_target=k≥1, attempts=t, regime}` (no `exhausted`)
   * Cap-downgrade → `{K_target=0, attempts=64, exhausted:true}`
 
 ---
