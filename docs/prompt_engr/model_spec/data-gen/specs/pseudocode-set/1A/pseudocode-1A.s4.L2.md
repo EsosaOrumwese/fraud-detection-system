@@ -1161,7 +1161,7 @@ This store-interface surface gives the orchestrator **everything** it needs to b
 |-------------------------------------------------------------------------------|---------------------------------------------------------------------------------|
 | `ztp_final` exists *(any payload)*                                            | **Stop** for this merchant (resolved).                                          |
 | `ztp_retry_exhausted{attempts:64,aborted:true}` exists and **no** final       | **Stop** (abort path resolved).                                                 |
-| An **event** exists **without** its adjacent trace                            | Trigger **trace-only repair** once (see 13.4). **Do not** re-emit the event.    |
+| An **event** exists **without** its adjacent trace                            | **Resume; next emit repairs** (see 13.4). **Do not** re-emit the event.         |
 | Partial progress (some attempts/rejections), **no** terminal                  | **Continue** with §7 Pattern-A/Pattern-B idempotent resume (dedupe before RNG). |
 
 ---
@@ -1261,9 +1261,9 @@ These rules align exactly with your L1 contract (idempotence, adjacency, identit
 
 L2 does **not** craft failure JSON. When a run- or dataset-level abort is required, L2 routes through S0’s canonical surfaces:
 
-* `L0.build_failure_payload(failure_class, failure_code, ctx)` → canonical JSON (stable keys, no floats, no PII/paths).
-* `L0.abort_run_atomic(payload, partial_partitions[])` → writes `validation/failures/fingerprint={...}/seed={...}/run_id={...}/failure.json` atomically.
-* Optional merchant-abort log (parameter-scoped): `L0.merchant_abort_log_write(rows, parameter_hash)`. 
+* `S0.build_failure_payload(failure_class, failure_code, ctx)` → canonical JSON (stable keys, no floats, no PII/paths).
+* `S0.abort_run_atomic(payload, partial_partitions[])` → writes `validation/failures/fingerprint={...}/seed={...}/run_id={...}/failure.json` atomically.
+* Optional merchant-abort log (parameter-scoped): `S0.merchant_abort_log_write(rows, parameter_hash)`. 
 
 S3’s validator taxonomy (shape/keys/scopes) is the precedent for stable payloads and routing. 
 
