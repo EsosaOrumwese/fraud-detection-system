@@ -64,7 +64,7 @@ function load_canonical_refs():
 
 ## 3) `authority_preflight(registry, dictionary) → authority`
 
-**Purpose:** enforce that **JSON-Schema** is the sole contract authority for 1A; record the “country order is never encoded outside `country_set`” rule.
+**Purpose:** enforce that **JSON-Schema** is the sole contract authority for 1A; record that **inter-country order lives only in `s3_candidate_set.candidate_rank`** (home=0; contiguous); S0/S8 **never** encode cross-country order.
 **Outputs:** `authority` object with the three authoritative schema anchors and the country-order rule.
 **Failure:** `E_AUTHORITY_BREACH` if any 1A dataset/event points to a non-JSON-Schema contract (e.g., `.avsc`).
 
@@ -79,16 +79,19 @@ function authority_preflight(registry, dictionary):
   for ds in dictionary.datasets_owned_by("1A"):
       assert L0.is_jsonschema_anchor(ds.schema_ref), "E_AUTHORITY_BREACH"    # predicate lives in L0
 
-  # Sanity: dictionary carries the explicit note that country order authority is 'country_set'
-  entry = dictionary.lookup("country_set")
-  assert L0.contains_text(entry.description, "ONLY authoritative"), "E_AUTHORITY_BREACH"  # micro-helper in L0
-  # (Dictionary indeed describes country_set as the ONLY authority for cross-country order.)
+  # Sanity: dictionary/registry must mark `country_set` as DEPRECATED (not authoritative)
+  cs = dictionary.lookup("country_set")
+  assert L0.contains_text(cs.status, "deprecated"), "E_AUTHORITY_BREACH"
+  # And `s3_candidate_set` must exist with the order-authority note
+  s3 = dictionary.lookup("s3_candidate_set")
+  assert s3 != null, "E_AUTHORITY_BREACH"
+  # (Sole authority for inter-country order is candidate_rank; see S3 spec.)
 
   return {
     "ingress_anchor": anchors[0],
     "layer1_anchor":  anchors[1],
     "rng_anchor":     anchors[2],
-    "country_order_authority": "country_set"
+    "country_order_authority": "s3_candidate_set.candidate_rank"
   }
 ```
 

@@ -722,9 +722,9 @@ function run_S0(seed: u64, cfg: Config):
   # Open governance anchors NOW so they are part of 𝓐 and available to L1:
   # (Exact locations are environment-configured; the host provides bytes. Parsing is pure.)
   reg_bytes  = host.read_bytes("governance/artefact_registry_1A.yaml")      # ensure opened for 𝓐
-  dict_bytes = host.read_bytes("governance/dataset_dictionary.layer1.1A.json")  # ensure opened for 𝓐
+  dict_bytes = host.read_bytes("governance/dataset_dictionary.layer1.1A.yaml")
   registry   = parse_registry_yaml(reg_bytes)
-  dictionary = parse_dictionary_json(dict_bytes)
+  dictionary = parse_dictionary_yaml(dict_bytes)
   authority = authority_preflight(registry, dictionary)
   M1 = enforce_domains_and_map_channel(M0, I)         # FK ISO, MCC domain, channel→{CP,CNP}
   M2 = derive_merchant_u64(M1)                        # canonical u64 per merchant
@@ -792,7 +792,9 @@ function run_S0(seed: u64, cfg: Config):
 
   # ---------- Branch B: S0.6 ----------
   taskB = async {
-    S0_6_apply_eligibility_rules(U.merchants, U.iso_set,
+    params = open_parameter_bundle(P_files)          # governed rule set (e.g., crossborder_hyperparams.yaml)
+    K      = ALL_MCC_CODES                           # or load from ingress/schema if surfaced
+    S0_6_apply_eligibility_rules(U.merchants, params, U.iso_set, K,
                                  param_hash_hex, produced_by_fp)   # writes parameter-scoped flags
     return "B_OK"
   }
