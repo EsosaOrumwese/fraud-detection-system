@@ -130,9 +130,9 @@ context  ───────────────────────�
 
 ### 1.2.1 Required: ordered candidate set
 
-| Dataset id         | JSON-Schema anchor                  | Partitions (path)    | Embedded lineage (columns)                           | Row order                                                                                      | Columns (name : type : semantics)                                                                                                                                                                                                                                                                                                 |
-|--------------------|-------------------------------------|----------------------|------------------------------------------------------|------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `s3_candidate_set` | `schemas.1A.yaml#/s3/candidate_set` | `parameter_hash={…}` | `manifest_fingerprint:hex64`, `parameter_hash:hex64` | **Row ordering guarantee (logical):** `(merchant_id ASC, candidate_rank ASC, country_iso ASC)` | `merchant_id:u64` — key; `country_iso:string(ISO-3166-1)` — candidate; **`candidate_rank:u32`** — **total, contiguous order** with `candidate_rank==0` for home; `reason_codes:array<string>` — **closed set** from policy; `filter_tags:array<string>` — deterministic tags (**closed set** defined by policy); lineage as above |
+| Dataset id         | JSON-Schema anchor                  | Partitions (path)    | Embedded lineage (columns)                                | Row order                                                                                      | Columns (name : type : semantics)                                                                                                                                                                                                                                                                                                 |
+|--------------------|-------------------------------------|----------------------|-----------------------------------------------------------|------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `s3_candidate_set` | `schemas.1A.yaml#/s3/candidate_set` | `parameter_hash={…}` | `parameter_hash:hex64`, `produced_by_fingerprint?:hex64`  | **Row ordering guarantee (logical):** `(merchant_id ASC, candidate_rank ASC, country_iso ASC)` | `merchant_id:u64` — key; `country_iso:string(ISO-3166-1)` — candidate; **`candidate_rank:u32`** — **total, contiguous order** with `candidate_rank==0` for home; `reason_codes:array<string>` — **closed set** from policy; `filter_tags:array<string>` — deterministic tags (**closed set** defined by policy); lineage as above |
 
 **Contract:**
 
@@ -142,17 +142,17 @@ context  ───────────────────────�
 
 ### 1.2.2 Optional: deterministic base-weight priors (if enabled)
 
-| Dataset id              | JSON-Schema anchor                       | Partitions           | Embedded lineage                         | Row order                    | Columns                                                                                                           |
-|-------------------------|------------------------------------------|----------------------|------------------------------------------|------------------------------|-------------------------------------------------------------------------------------------------------------------|
-| `s3_base_weight_priors` | `schemas.1A.yaml#/s3/base_weight_priors` | `parameter_hash={…}` | `manifest_fingerprint`, `parameter_hash` | `(merchant_id, country_iso)` | `merchant_id:u64`, `country_iso:string`, `base_weight_dp:decimal(string)`, `dp:u8` (quantisation places), lineage |
+| Dataset id              | JSON-Schema anchor                       | Partitions           | Embedded lineage                             | Row order                    | Columns                                                                                                           |
+|-------------------------|------------------------------------------|----------------------|----------------------------------------------|------------------------------|-------------------------------------------------------------------------------------------------------------------|
+| `s3_base_weight_priors` | `schemas.1A.yaml#/s3/base_weight_priors` | `parameter_hash={…}` | `parameter_hash`, `produced_by_fingerprint?` | `(merchant_id, country_iso)` | `merchant_id:u64`, `country_iso:string`, `base_weight_dp:decimal(string)`, `dp:u8` (quantisation places), lineage |
 
 **Contract:** evaluation order and quantisation **dp** fixed in §12; consumers treat as **deterministic scores** only.
 
 ### 1.2.3 Optional: integerised counts (if S3 performs integerisation)
 
-| Dataset id              | JSON-Schema anchor                       | Partitions           | Embedded lineage                         | Row order                    | Columns                                                                                                              |
-|-------------------------|------------------------------------------|----------------------|------------------------------------------|------------------------------|----------------------------------------------------------------------------------------------------------------------|
-| `s3_integerised_counts` | `schemas.1A.yaml#/s3/integerised_counts` | `parameter_hash={…}` | `manifest_fingerprint`, `parameter_hash` | `(merchant_id, country_iso)` | `merchant_id:u64`, `country_iso:string`, `count:i64 (≥0)`, `residual_rank:u32` (largest-remainder tie rank), lineage |
+| Dataset id              | JSON-Schema anchor                       | Partitions           | Embedded lineage                             | Row order                    | Columns                                                                                                              |
+|-------------------------|------------------------------------------|----------------------|----------------------------------------------|------------------------------|----------------------------------------------------------------------------------------------------------------------|
+| `s3_integerised_counts` | `schemas.1A.yaml#/s3/integerised_counts` | `parameter_hash={…}` | `parameter_hash`, `produced_by_fingerprint?` | `(merchant_id, country_iso)` | `merchant_id:u64`, `country_iso:string`, `count:i64 (≥0)`, `residual_rank:u32` (largest-remainder tie rank), lineage |
 
 **Contract:**
 
@@ -176,7 +176,7 @@ context  ───────────────────────�
 
 **Partition ↔ embed equality (write side)**
 
-* All S3 tables are partitioned by **`parameter_hash`** (no `seed`); each row **embeds** `parameter_hash` and `manifest_fingerprint`. Embedded values must **byte-equal** the path partition and the run’s fingerprint.
+* Each S3 row **embeds** `parameter_hash` (must **byte-equal** the path). If present, `produced_by_fingerprint` is informational and has no equality/partition role.
 
 **No paths in code**
 
@@ -229,11 +229,11 @@ If you **do not** compute deterministic priors in S3, omit this subsection (do *
 
 ## 2.4 Outputs S3 produces (tables — shape authorities)
 
-| Output dataset                | JSON-Schema anchor                       | Partition keys (path) | Embedded lineage                         | Consuming notes                                                                                      |
-|-------------------------------|------------------------------------------|-----------------------|------------------------------------------|------------------------------------------------------------------------------------------------------|
-| `s3_candidate_set`            | `schemas.1A.yaml#/s3/candidate_set`      | `parameter_hash`      | `manifest_fingerprint`, `parameter_hash` | **Inter-country order lives only in `candidate_rank`**; `candidate_rank(home)=0`; total & contiguous |
-| (opt) `s3_base_weight_priors` | `schemas.1A.yaml#/s3/base_weight_priors` | `parameter_hash`      | `manifest_fingerprint`, `parameter_hash` | Deterministic, quantised **priors** (not probabilities); join on `(merchant_id, country_iso)`        |
-| (opt) `s3_integerised_counts` | `schemas.1A.yaml#/s3/integerised_counts` | `parameter_hash`      | `manifest_fingerprint`, `parameter_hash` | Counts per country; **Σ count = N (from S2)**; persist `residual_rank`                               |
+| Output dataset                | JSON-Schema anchor                       | Partition keys (path) | Embedded lineage                             | Consuming notes                                                                                      |
+|-------------------------------|------------------------------------------|-----------------------|----------------------------------------------|------------------------------------------------------------------------------------------------------|
+| `s3_candidate_set`            | `schemas.1A.yaml#/s3/candidate_set`      | `parameter_hash`      | `parameter_hash`, `produced_by_fingerprint?` | **Inter-country order lives only in `candidate_rank`**; `candidate_rank(home)=0`; total & contiguous |
+| (opt) `s3_base_weight_priors` | `schemas.1A.yaml#/s3/base_weight_priors` | `parameter_hash`      | `parameter_hash`, `produced_by_fingerprint?` | Deterministic, quantised **priors** (not probabilities); join on `(merchant_id, country_iso)`        |
+| (opt) `s3_integerised_counts` | `schemas.1A.yaml#/s3/integerised_counts` | `parameter_hash`      | `parameter_hash`, `produced_by_fingerprint?` | Counts per country; **Σ count = N (from S2)**; persist `residual_rank`                               |
 
 > **Single source of truth for priors:** We keep priors in **`s3_base_weight_priors`** only (no `base_weight_dp` column in `s3_candidate_set`) to avoid duplication and drift.
 
@@ -244,7 +244,7 @@ If you **do not** compute deterministic priors in S3, omit this subsection (do *
 ## 2.5 Lineage & fingerprint rules (binding)
 
 * **`parameter_hash`** = hash of *parameter* artefacts (e.g., rule ladder, thresholds, prior coeffs). Changing it **re-partitions** parameter-scoped outputs.
-* **`manifest_fingerprint`** = composite of **all opened artefacts** (this BOM), plus parameter bytes and git commit (as your project defines). It is **embedded** in every S3 row.
+* **`manifest_fingerprint`** = composite of **all opened artefacts** (this BOM), plus parameter bytes and git commit (as your project defines). It versions **egress/validation**; **not required as a column in parameter-scoped S3 rows** (S0 policy). Rows may include **`produced_by_fingerprint`** (optional, informational).
 * **Inclusion rule (explicit):** the following **must** contribute to `manifest_fingerprint`:
   `policy.s3.rule_ladder.yaml`, `iso3166_canonical_2024`, `static.currency_to_country.map.json` (if used),
   `schemas.layer1.yaml` (and `schema.index.layer1.json` if used), `dataset_dictionary.layer1.1A.yaml`, `artefact_registry_1A.yaml`, and any artefact in §2.3.

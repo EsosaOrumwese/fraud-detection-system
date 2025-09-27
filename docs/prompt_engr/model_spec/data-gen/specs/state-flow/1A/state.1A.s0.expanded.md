@@ -10,7 +10,7 @@ S0.1 establishes the **canonical universe** (merchant rows and reference dataset
 * The immutable **reference artefacts**: ISO-3166 country set $\mathcal{I}$; GDP-per-capita vintage $G$ pinned to **2025-04-15**; a precomputed Jenks $K{=}5$ GDP bucket map $B$.
 * The **schema authority**: only JSON-Schema contracts in `schemas.ingress.layer1.yaml`, `schemas.1A.yaml`, and shared RNG/event schemas in `schemas.layer1.yaml` are authoritative; Avro (if any) is **non-authoritative**.
 
-> Downstream consequence (normative): **inter-country order is never encoded** in egress `outlet_catalogue`; consumers **MUST** join `country_set.rank` (0 = home; foreigns follow Gumbel selection order). S0.1 records that rule as part of the authority.
+> Downstream consequence (normative): **inter-country order is not encoded in `outlet_catalogue`**; consumers **MUST** join **`s3_candidate_set.candidate_rank`** to obtain the cross-country selection order. S0.1 records that rule as part of the authority (S3 is the sole authority for cross-country order).
 
 ---
 
@@ -78,7 +78,7 @@ Avro (`.avsc`) is **non-authoritative** for 1A and must not be referenced by reg
 
 ### Semantic clarifications (normative)
 
-* `country_set` is the **only** authority for **cross-country order** (rank: 0 = home, then foreigns). Egress `outlet_catalogue` does **not** carry cross-country order; consumers **must** join `country_set.rank`.
+* **Inter-country order authority:** **S3 `candidate_set.candidate_rank`** (home=0; contiguous). `country_set` is **legacy** and **non-authoritative** for order.
 * **Partitioning semantics** (recorded here as authority, implemented in S0.10): parameter-scoped datasets partition by `parameter_hash`; egress/validation partition by `manifest_fingerprint`.
 
 ---
@@ -2129,7 +2129,7 @@ function abort_run(failure_class, failure_code, ctx):
 # S0.10 — Outputs, Partitions & Validation Bundle (normative, fixed)
 
 ## S0.10.1 Lineage keys (recap; scope of use)
-> **Consumer note (normative):** Egress `outlet_catalogue` does **not** encode cross‑country order; consumers MUST join `country_set.rank` (materialized in S6; the authority rule is recorded in S0.1) to obtain rank (0=home; foreigns by Gumbel order).
+> **Consumer note (normative):** Egress `outlet_catalogue` does **not** encode cross-country order; consumers **MUST** join **`s3_candidate_set.candidate_rank`** (S3 is the sole authority; recorded in S0.1) to obtain rank (0=home; foreigns by Gumbel order).
 
 > **Tie-break (LRR, normative):** sort by quantised residual (desc), then **ISO code (ASCII) asc**. Do **not** use Gumbel rank as a secondary key.
 
@@ -2266,7 +2266,7 @@ validation/
 **`parameter_hash_resolved.json`**
 
 ```json
-{"parameter_hash":"<hex64>","filenames_sorted":["crossborder_hyperparams.yaml","hurdle_coefficients.yaml","nb_dispersion_coefficients.yaml"]}
+{"parameter_hash":"<hex64>","filenames_sorted":["crossborder_hyperparams.yaml","hurdle_coefficients.yaml","nb_dispersion_coefficients.yaml"],"artifact_count":3}
 ```
 
 **`manifest_fingerprint_resolved.json`**

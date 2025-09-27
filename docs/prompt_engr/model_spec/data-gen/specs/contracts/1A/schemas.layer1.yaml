@@ -265,7 +265,7 @@ rng:
             module: { const: "1A.s4.ztp" }
             substream_label: { const: "poisson_component" }
             context: { const: "ztp" }
-            merchant_id: { type: integer, minimum: -9223372036854775808, maximum: 9223372036854775807 }
+            merchant_id: { $ref: "#/$defs/id64" }
             K_target: { type: integer, minimum: 0 }
             lambda_extra: { type: number }
             attempts: { type: integer, minimum: 0 }
@@ -473,7 +473,8 @@ validation:
         minimum: 0
       git_commit_hex:
         type: string
-        pattern: "^[0-9a-f]{64}$"
+        pattern: "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+        description: "Git commit (SHA-1 hex40 or SHA-256 hex64)."
       parameter_hash:
         type: string
         pattern: "^[0-9a-f]{64}$"

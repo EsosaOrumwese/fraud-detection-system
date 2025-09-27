@@ -33,15 +33,10 @@ $defs:
     maximum: 18446744073709551615
     description: "Unsigned 64-bit integer."
 
-# NOTE: All 1A-produced tables (model/prep/alloc/egress) carry a non-null
-#       manifest_fingerprint column to embed build lineage in each row.
-# NORMATIVE (S0.10.3 updated):
-#   • All 1A-produced parameter-scoped datasets embed manifest_fingerprint (embedded lineage);
-#     partitioning remains solely by parameter_hash.
-#   • Fingerprint-scoped outputs (e.g., validation_bundle_1A, egress/outlet_catalogue)
-#     may also use fingerprint in the partition key as specified by their dictionary entries.
-#   • Some parameter-scoped caches MAY include an OPTIONAL produced_by_fingerprint (hex64);
-#     it is informational only and never part of equality/partitioning.
+# NOTE (aligned with S0): Parameter-scoped datasets partition by parameter_hash.
+#   • Row-level lineage: they MUST embed parameter_hash; they MAY include produced_by_fingerprint (hex64) as optional, informational lineage.
+#   • They MUST NOT require manifest_fingerprint as a column.
+#   • Fingerprint-scoped outputs (egress/validation) MUST embed manifest_fingerprint and use it in the partition key as specified by dictionary entries.
 
 
 # 1) Modelling / predictors
@@ -68,6 +63,12 @@ model:
     partition_keys: ["parameter_hash"]
     sort_keys: []
     columns:
+      - { name: parameter_hash, type: string,  nullable: false,
+          description: "Parameter-set hash; must equal the partition key.",
+          pattern: "^[a-f0-9]{64}$" }
+      - { name: produced_by_fingerprint, type: string,  nullable: true,
+          description: "Optional provenance (informational only; not a partition/equality key).",
+          pattern: "^[a-f0-9]{64}$" }
       - { name: merchant_id, $ref: "#/$defs/id64", nullable: false, description: "Synthetic merchant identifier." }
       - { name: logit,       type: float32,       nullable: false, description: "Linear predictor before logistic link." }
       - { name: pi,          $ref: "#/$defs/pct01", nullable: false, description: "Probability of being multi-site." }
@@ -79,11 +80,11 @@ model:
     partition_keys: [ "parameter_hash" ]
     sort_keys: [ ]
     columns:
-      - { name: merchant_id,   $ref: "#/$defs/id64",  nullable: false, description: "Synthetic merchant identifier from ingress." }
-      - { name: openness,      $ref: "#/$defs/pct01", nullable: false, description: "Scalar X_m ∈ [0,1] used in λ_extra." }
-      - { name: source,        type: string,          nullable: false, description: "Source/provenance label for feature construction." }
-      - { name: parameter_hash, type: string,         nullable: false, description: "Parameter-set hash that versioned the feature build.", pattern: "^[a-f0-9]{64}$" }
-      # no per-row manifest_fingerprint; dataset is parameter-scoped
+      - { name: merchant_id,          $ref: "#/$defs/id64",  nullable: false, description: "Synthetic merchant identifier from ingress." }
+      - { name: openness,             $ref: "#/$defs/pct01", nullable: false, description: "Scalar X_m ∈ [0,1] used in λ_extra." }
+      - { name: source,               type: string,          nullable: false, description: "Source/provenance label for feature construction." }
+      - { name: parameter_hash,       type: string,          nullable: false, description: "Parameter-set hash that versioned the feature build.", pattern: "^[a-f0-9]{64}$" }
+      - { name: produced_by_fingerprint, type: string,       nullable: true,  description: "Optional provenance (informational only).",          pattern: "^[a-f0-9]{64}$" }
     invariants:
       - "openness ∈ [0,1]"
       - "FK(merchant_id) → ingress.merchant_ids"
@@ -269,7 +270,7 @@ s3:
       - { name: reason_codes,   type: array,   items: { type: string }, nullable: false, description: "Closed set from policy; sorted A→Z." }
       - { name: filter_tags,    type: array,   items: { type: string }, nullable: false, description: "Closed set from policy; sorted A→Z." }
       - { name: parameter_hash, type: string,  nullable: false, description: "Parameter-set hash; must equal the partition key.", pattern: "^[a-f0-9]{64}$" }
-      - { name: manifest_fingerprint, type: string,  nullable: false, description: "Run fingerprint embedded per-row.", pattern: "^[a-f0-9]{64}$" }
+      - { name: produced_by_fingerprint, type: string, nullable: true, description: "Optional provenance (informational only).", pattern: "^[a-f0-9]{64}$" }
 
   base_weight_priors:
     type: table
@@ -287,7 +288,7 @@ s3:
       - { name: base_weight_dp, type: string, nullable: false, description: "Fixed-dp decimal string per §12; deterministic.", pattern: "^[0-9]+(\\.[0-9]+)?$" }
       - { name: dp, type: int32, nullable: false, description: "Number of decimal places used in quantisation.", minimum: 0 }
       - { name: parameter_hash, type: string,  nullable: false, description: "Parameter-set hash; must equal the partition key.", pattern: "^[a-f0-9]{64}$" }
-      - { name: manifest_fingerprint, type: string,  nullable: false, description: "Run fingerprint embedded per-row.", pattern: "^[a-f0-9]{64}$" }
+      - { name: produced_by_fingerprint, type: string, nullable: true, description: "Optional provenance (informational only).", pattern: "^[a-f0-9]{64}$" }
 
   integerised_counts:
     type: table
@@ -305,7 +306,7 @@ s3:
       - { name: count, type: int32, nullable: false, description: "Integerised outlet count for this country (≥0).", minimum: 0 }
       - { name: residual_rank, type: int32, nullable: false, description: "Largest-remainder bump order (1=largest residual)." }
       - { name: parameter_hash, type: string,  nullable: false, description: "Parameter-set hash; must equal the partition key.", pattern: "^[a-f0-9]{64}$" }
-      - { name: manifest_fingerprint, type: string,  nullable: false, description: "Run fingerprint embedded per-row.", pattern: "^[a-f0-9]{64}$" }
+      - { name: produced_by_fingerprint, type: string, nullable: true, description: "Optional provenance (informational only).", pattern: "^[a-f0-9]{64}$" }
 
   site_sequence:
     type: table
@@ -323,7 +324,7 @@ s3:
       - { name: site_order, type: int32, nullable: false, description: "Contiguous 1..count_i within country.", minimum: 1 }
       - { name: site_id, type: string, nullable: true, description: "Optional 6-digit zero-padded ID.", pattern: "^[0-9]{6}$" }
       - { name: parameter_hash, type: string,  nullable: false, description: "Parameter-set hash; must equal the partition key.", pattern: "^[a-f0-9]{64}$" }
-      - { name: manifest_fingerprint, type: string,  nullable: false, description: "Run fingerprint embedded per-row.", pattern: "^[a-f0-9]{64}$" }
+      - { name: produced_by_fingerprint, type: string, nullable: true, description: "Optional provenance (informational only).", pattern: "^[a-f0-9]{64}$" }
 
 # 6) Diagnostics / validation
 validation:
