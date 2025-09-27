@@ -76,7 +76,7 @@ context  ───────────────────────�
 
 * `s3_candidate_set` — rows:
   `merchant_id`, `country_iso`, **`candidate_rank`**, `reason_codes[]`, `filter_tags[]`, lineage fields.
-  **Partition:** `{parameter_hash}`. **Embedded lineage:** includes `{manifest_fingerprint}`.
+  **Partition:** `{parameter_hash}`. Embedded lineage: `parameter_hash`; `produced_by_fingerprint?` (optional provenance).
   **Row order guarantee:** `(merchant_id, candidate_rank, country_iso)`.
 
 **Optional (enable only if S3 owns them)**
@@ -243,8 +243,10 @@ If you **do not** compute deterministic priors in S3, omit this subsection (do *
 
 ## 2.5 Lineage & fingerprint rules (binding)
 
-* **`parameter_hash`** = hash of *parameter* artefacts (e.g., rule ladder, thresholds, prior coeffs). Changing it **re-partitions** parameter-scoped outputs.
-* **`manifest_fingerprint`** = composite of **all opened artefacts** (this BOM), plus parameter bytes and git commit (as your project defines). It versions **egress/validation**; **not required as a column in parameter-scoped S3 rows** (S0 policy). Rows may include **`produced_by_fingerprint`** (optional, informational).
+* **Dataset-level sidecar (required):** each S3 write MUST emit `_manifest.json` with `{manifest_fingerprint, parameter_hash, row_count, files_sorted, dataset_digest}`.
+* **Rows (parameter-scoped):** MUST embed `parameter_hash`; MAY include `produced_by_fingerprint` (informational only; equals the run’s `manifest_fingerprint` if present).
+* **Skip-if-final:** producers compare the intended `manifest_fingerprint` to the sidecar; if equal and `dataset_digest` matches, the write MAY be skipped.
+* **Consumers:** assert the sidecar’s `manifest_fingerprint` equals the selected run; do not filter on a row column.
 * **Inclusion rule (explicit):** the following **must** contribute to `manifest_fingerprint`:
   `policy.s3.rule_ladder.yaml`, `iso3166_canonical_2024`, `static.currency_to_country.map.json` (if used),
   `schemas.layer1.yaml` (and `schema.index.layer1.json` if used), `dataset_dictionary.layer1.1A.yaml`, `artefact_registry_1A.yaml`, and any artefact in §2.3.
@@ -373,8 +375,7 @@ Let `s = 10^dp`. Compute `q = round_RNE(value * s) / s` in binary64, where `roun
 
 ## 3.8 Path↔embed equality & lineage keys
 
-* Every S3 output row **embeds** `{parameter_hash, manifest_fingerprint}` that must **byte-equal** the path partition (`parameter_hash`) and the run’s fingerprint.
-* S3 outputs are **parameter-scoped** (no `seed` in partitions).
+* Every S3 output row **embeds** `parameter_hash` (must equal the path); if present, `produced_by_fingerprint` equals the run’s `manifest_fingerprint`. The manifest itself is always recorded in the dataset-level sidecar.* S3 outputs are **parameter-scoped** (no `seed` in partitions).
 * **No path literals**: all IO resolves via the **dataset dictionary**.
 
 ---
@@ -595,7 +596,7 @@ context         ┌────────────────┐    ┌─
 ### S3.6 Emit tables (authoritative)
 
 * **Inputs:** whichever of `C_ranked` / `C_weighted` / `C_counts` applies; `Ctx` lineage keys.
-* **Algorithm:** write **tables** via dictionary-resolved paths, partitioned by **`parameter_hash`**; embed `{parameter_hash, manifest_fingerprint}` (must byte-equal path partition and run fingerprint).
+* **Algorithm:** write **tables** via dictionary-resolved paths, partitioned by **`parameter_hash`**; embed `parameter_hash` (must byte-equal the path); MAY embed `produced_by_fingerprint` (informational).
 * **Outputs (tables):**
 
   * **Required:** `s3_candidate_set` (ranked, tagged candidates with `candidate_rank`).
@@ -688,19 +689,19 @@ S3.0 **shall**:
 
 **Fields and semantics (all required unless marked optional):**
 
-| Field                              | Type                                      | Source                  | Semantics                                                       |
-|------------------------------------|-------------------------------------------|-------------------------|-----------------------------------------------------------------|
-| `merchant_id`                      | `u64`                                     | ingress                 | Canonical key                                                   |
-| `home_country_iso`                 | `string (ISO-3166-1)`                     | ingress                 | Must exist in ISO artefact; uppercase A–Z                       |
-| `mcc`                              | `string`                                  | ingress                 | Merchant category code (read-only)                              |
-| `channel`                          | `(closed vocabulary from ingress schema)` | ingress                 | Closed vocabulary (read-only)                                   |
-| `N`                                | `i64 (≥2)`                                | S2 `nb_final.n_outlets` | Total outlets accepted by S2                                    |
-| `seed`                             | `u64`                                     | S1/S2 embed             | For lineage joins only; S3 outputs are **not** seed-partitioned |
-| `parameter_hash`                   | `Hex64`                                   | S1/S2 embed / run       | Partition key for all S3 outputs                                |
-| `manifest_fingerprint`             | `Hex64`                                   | run                     | Embedded in every S3 output row                                 |
-| `artefacts.rule_ladder`            | `{id, semver, digest}`                    | registry                | Governance attest                                               |
-| `artefacts.iso_countries`          | `{id, semver, digest}`                    | registry                | Governance attest                                               |
-| `artefacts.ccy_to_country` *(opt)* | `{id, semver, digest}`                    | registry                | Present only if used                                            |
+| Field                              | Type                                      | Source                  | Semantics                                                            |
+|------------------------------------|-------------------------------------------|-------------------------|----------------------------------------------------------------------|
+| `merchant_id`                      | `u64`                                     | ingress                 | Canonical key                                                        |
+| `home_country_iso`                 | `string (ISO-3166-1)`                     | ingress                 | Must exist in ISO artefact; uppercase A–Z                            |
+| `mcc`                              | `string`                                  | ingress                 | Merchant category code (read-only)                                   |
+| `channel`                          | `(closed vocabulary from ingress schema)` | ingress                 | Closed vocabulary (read-only)                                        |
+| `N`                                | `i64 (≥2)`                                | S2 `nb_final.n_outlets` | Total outlets accepted by S2                                         |
+| `seed`                             | `u64`                                     | S1/S2 embed             | For lineage joins only; S3 outputs are **not** seed-partitioned      |
+| `parameter_hash`                   | `Hex64`                                   | S1/S2 embed / run       | Partition key for all S3 outputs                                     |
+| `manifest_fingerprint`             | `Hex64`                                   | run                     | Recorded in the sidecar; rows MAY include `produced_by_fingerprint`. |
+| `artefacts.rule_ladder`            | `{id, semver, digest}`                    | registry                | Governance attest                                                    |
+| `artefacts.iso_countries`          | `{id, semver, digest}`                    | registry                | Governance attest                                                    |
+| `artefacts.ccy_to_country` *(opt)* | `{id, semver, digest}`                    | registry                | Present only if used                                                 |
 
 > **Deliberate omission:** S3 does **not** carry S2’s `mu`/`dispersion_k` in context; S3 never re-derives or uses them.
 
@@ -1335,7 +1336,7 @@ If S3 does **not** emit `s3_site_sequence`, it must still fix the **binding rule
 
 * **Dictionary-resolved paths only.** All physical locations resolve via the dataset dictionary by dataset **ID**; no hard-coded paths.
 * **Partition scope:** all S3 datasets are **parameter-scoped** — partitioned by `parameter_hash` only (**no `seed`**).
-* **Embedded lineage:** every S3 row **embeds** `{parameter_hash: Hex64, manifest_fingerprint: Hex64}` that must **byte-equal** the run’s values and, for `parameter_hash`, the path partition.
+* **Embedded lineage:** every S3 row **embeds** `parameter_hash`; MAY include `produced_by_fingerprint?`. A dataset-level sidecar `_manifest.json` is **required** (manifest, files, digest).
 * **Numbers:** payload numbers are JSON **numbers** (not strings), except where a **decimal string** is required for deterministic fixed-dp representation (explicitly called out below).
 * **Atomic publish:** stage → fsync → atomic rename into the dictionary location. No partials or mismatched partitions.
 * **Idempotence:** identical inputs + lineage ⇒ **byte-identical** outputs.
@@ -1380,19 +1381,19 @@ Emit **only** if S3 computes deterministic priors (see §12 / §3.5 for `dp` sel
 **Dataset id:** `s3_base_weight_priors`
 **JSON-Schema anchor:** `schemas.1A.yaml#/s3/base_weight_priors`
 **Partitions (path):** `parameter_hash={…}`
-**Embedded lineage (columns):** `parameter_hash`, `manifest_fingerprint`
+**Embedded lineage (columns):** `parameter_hash`, `produced_by_fingerprint?`
 **Row ordering guarantee:** `(merchant_id ASC, country_iso ASC)`
 
 **Columns (binding):**
 
-| Name                   | Type                      | Semantics                                                               |
-|------------------------|---------------------------|-------------------------------------------------------------------------|
-| `merchant_id`          | `u64`                     | Canonical merchant key                                                  |
-| `country_iso`          | `string(ISO-3166-1, A–Z)` | Candidate country code                                                  |
-| `base_weight_dp`       | **string (fixed-dp)**     | Deterministic prior **after quantisation**; exactly `dp` decimal places |
-| `dp`                   | `u8`                      | Decimal places used for quantisation (constant within a run)            |
-| `parameter_hash`       | `Hex64`                   | Embedded lineage                                                        |
-| `manifest_fingerprint` | `Hex64`                   | Embedded lineage                                                        |
+| Name                       | Type                      | Semantics                                                               |
+|----------------------------|---------------------------|-------------------------------------------------------------------------|
+| `merchant_id`              | `u64`                     | Canonical merchant key                                                  |
+| `country_iso`              | `string(ISO-3166-1, A–Z)` | Candidate country code                                                  |
+| `base_weight_dp`           | **string (fixed-dp)**     | Deterministic prior **after quantisation**; exactly `dp` decimal places |
+| `dp`                       | `u8`                      | Decimal places used for quantisation (constant within a run)            |
+| `parameter_hash`           | `Hex64`                   | Embedded lineage                                                        |
+| `produced_by_fingerprint?` | `Hex64`                   | Embedded lineage                                                        |
 
 **Contracts**
 
@@ -1408,19 +1409,19 @@ Emit **only** if S3 performs integerisation (see §10). Otherwise, counts belong
 **Dataset id:** `s3_integerised_counts`
 **JSON-Schema anchor:** `schemas.1A.yaml#/s3/integerised_counts`
 **Partitions (path):** `parameter_hash={…}`
-**Embedded lineage (columns):** `parameter_hash`, `manifest_fingerprint`
+**Embedded lineage (columns):** `parameter_hash`, `produced_by_fingerprint?`
 **Row ordering guarantee:** `(merchant_id ASC, country_iso ASC)`
 
 **Columns (binding):**
 
-| Name                   | Type                      | Semantics                                                 |
-|------------------------|---------------------------|-----------------------------------------------------------|
-| `merchant_id`          | `u64`                     | Canonical merchant key                                    |
-| `country_iso`          | `string(ISO-3166-1, A–Z)` | Candidate country code                                    |
-| `count`                | `i64 (≥0)`                | Final integer allocation for this country                 |
-| `residual_rank`        | `u32`                     | Rank in residual order (`1`=highest), as defined in §10.5 |
-| `parameter_hash`       | `Hex64`                   | Embedded lineage                                          |
-| `manifest_fingerprint` | `Hex64`                   | Embedded lineage                                          |
+| Name                       | Type                      | Semantics                                                 |
+|----------------------------|---------------------------|-----------------------------------------------------------|
+| `merchant_id`              | `u64`                     | Canonical merchant key                                    |
+| `country_iso`              | `string(ISO-3166-1, A–Z)` | Candidate country code                                    |
+| `count`                    | `i64 (≥0)`                | Final integer allocation for this country                 |
+| `residual_rank`            | `u32`                     | Rank in residual order (`1`=highest), as defined in §10.5 |
+| `parameter_hash`           | `Hex64`                   | Embedded lineage                                          |
+| `produced_by_fingerprint?` | `Hex64`                   | Embedded lineage                                          |
 
 **Contracts**
 
@@ -1436,19 +1437,19 @@ If sequencing is deferred to a later state, **do not** emit this table here. If 
 **Dataset id:** `s3_site_sequence`
 **JSON-Schema anchor:** `schemas.1A.yaml#/s3/site_sequence`
 **Partitions (path):** `parameter_hash={…}`
-**Embedded lineage (columns):** `parameter_hash`, `manifest_fingerprint`
+**Embedded lineage (columns):** `parameter_hash`, `produced_by_fingerprint?`
 **Row ordering guarantee:** `(merchant_id ASC, country_iso ASC, site_order ASC)`
 
 **Columns (binding):**
 
-| Name                   | Type                      | Semantics                                           |
-|------------------------|---------------------------|-----------------------------------------------------|
-| `merchant_id`          | `u64`                     | Canonical merchant key                              |
-| `country_iso`          | `string(ISO-3166-1, A–Z)` | Country                                             |
-| `site_order`           | `u32`                     | Contiguous `1..count_i` within country (from §11.3) |
-| `site_id` *(optional)* | `string(6)`               | Zero-padded 6-digit ID; overflow triggers §11.8     |
-| `parameter_hash`       | `Hex64`                   | Embedded lineage                                    |
-| `manifest_fingerprint` | `Hex64`                   | Embedded lineage                                    |
+| Name                       | Type                      | Semantics                                           |
+|----------------------------|---------------------------|-----------------------------------------------------|
+| `merchant_id`              | `u64`                     | Canonical merchant key                              |
+| `country_iso`              | `string(ISO-3166-1, A–Z)` | Country                                             |
+| `site_order`               | `u32`                     | Contiguous `1..count_i` within country (from §11.3) |
+| `site_id` *(optional)*     | `string(6)`               | Zero-padded 6-digit ID; overflow triggers §11.8     |
+| `parameter_hash`           | `Hex64`                   | Embedded lineage                                    |
+| `produced_by_fingerprint?` | `Hex64`                   | Embedded lineage                                    |
 
 **Contracts:** see §11.5–§11.9.
 
@@ -1459,7 +1460,7 @@ If sequencing is deferred to a later state, **do not** emit this table here. If 
 For every written row in all S3 datasets:
 
 * `row.parameter_hash` (embedded) **equals** the `parameter_hash` path partition (string-equal).
-* `row.manifest_fingerprint` **equals** the run’s fingerprint used to derive all S3 inputs.
+* If present, `row.produced_by_fingerprint` **equals** the run’s manifest fingerprint (informational only; not part of equality/partition).
 * No other lineage fields appear in the path (e.g., **no `seed`**); any additional lineage fields must be **embedded** only.
 
 Violation ⇒ **`ERR_S3_EGRESS_SHAPE`**.
@@ -1492,7 +1493,7 @@ Per merchant:
   "reason_codes": ["ALLOW_WHITELIST"],
   "filter_tags": ["GEO_OK","HOME"],
   "parameter_hash": "ab12...ef",
-  "manifest_fingerprint": "cd34...90"
+  "produced_by_fingerprint": "cd34...90"
 }
 ```
 
@@ -1505,7 +1506,7 @@ Per merchant:
   "base_weight_dp": "0.180000",
   "dp": 6,
   "parameter_hash": "ab12...ef",
-  "manifest_fingerprint": "cd34...90"
+  "produced_by_fingerprint": "cd34...90"
 }
 ```
 
@@ -1518,7 +1519,7 @@ Per merchant:
   "count": 3,
   "residual_rank": 2,
   "parameter_hash": "ab12...ef",
-  "manifest_fingerprint": "cd34...90"
+  "produced_by_fingerprint": "cd34...90"
 }
 ```
 
@@ -1531,7 +1532,7 @@ Per merchant:
   "site_order": 1,
   "site_id": "000001",
   "parameter_hash": "ab12...ef",
-  "manifest_fingerprint": "cd34...90"
+  "produced_by_fingerprint": "cd34...90"
 }
 ```
 
@@ -1595,9 +1596,9 @@ For a given merchant, S3’s outputs are a **pure function** of:
 
 **Goal:** prevent duplicate rows when resuming or re-running the same logical work.
 
-* **Key for skip:** `(merchant_id, manifest_fingerprint)` within the target dataset and partition `parameter_hash`.
-* **Rule:** If rows already exist for a merchant **with the same `manifest_fingerprint`** in the target dataset, S3 **must not** write additional rows for that merchant to the same dataset. Treat as **success** (idempotent no-op).
-* **Conflict rule:** If rows exist for `(merchant_id, manifest_fingerprint)` but their bytes **do not** match the would-be output, this is a violation (`ERR_S3_IDEMPOTENCE_VIOLATION`) and S3 must **stop for that merchant** without publishing changes.
+* Skip source: the dataset-level sidecar in the target partition (`parameter_hash`).
+* Rule: If the sidecar’s `manifest_fingerprint` and `dataset_digest` match the would-be output, **skip** writing (idempotent no-op). (If rows carry `produced_by_fingerprint`, you MAY sanity-check equality as a convenience.)
+* Conflict rule: If rows exist for `(merchant_id, manifest_fingerprint)` but their bytes **do not** match the would-be output, this is a violation (`ERR_S3_IDEMPOTENCE_VIOLATION`) and S3 must **stop for that merchant** without publishing changes.
 
 > Rationale: S3 tables are **parameter-scoped** in path (`parameter_hash`) and **embed** `manifest_fingerprint`. Multiple manifests may legitimately coexist under the same `parameter_hash`; **skip-if-final** prevents duplicates **within a single manifest**.
 
@@ -1605,7 +1606,7 @@ For a given merchant, S3’s outputs are a **pure function** of:
 
 ## 13.5 Dataset-specific uniqueness (per merchant)
 
-Per §12 schemas, the following **must** be unique for each `(merchant_id, manifest_fingerprint)` pair:
+For the manifest named in the sidecar, the following must be unique per `merchant_id`:
 
 * `s3_candidate_set`: keys `(country_iso)` **and** `(candidate_rank)` within a merchant block.
 * `s3_base_weight_priors` (if emitted): key `(country_iso)`.
@@ -1627,7 +1628,7 @@ Any duplicate key in the same manifest is a shape error (`ERR_S3_DUPLICATE_ROW`)
 
 ## 13.7 Read-side selection (downstream hygiene)
 
-Downstream readers **must** select rows for the **intended manifest** by filtering `manifest_fingerprint == <current_run>` in addition to the `parameter_hash` partition. File order is **non-normative**; **`candidate_rank`** is the sole inter-country order (§12.2).
+Downstream readers + Consumers assert the sidecar’s `manifest_fingerprint == <current_run>`. If rows include `produced_by_fingerprint`, they MAY also filter on it; otherwise read the whole `parameter_hash` partition.
 
 ---
 
@@ -1775,9 +1776,9 @@ Downstream may not infer semantics outside what is stated here.
 
 ### 15.2.1 Required dataset (always)
 
-| Dataset id         | Purpose                                                 | Filter (must)                                                                  | Ordering (must)                                                                       | Keys for joins               |
-|--------------------|---------------------------------------------------------|--------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|------------------------------|
-| `s3_candidate_set` | Inter-country **order of record** + policy tags/reasons | Partition by `parameter_hash`; **filter `manifest_fingerprint == <this run>`** | **Order by `(merchant_id ASC, candidate_rank ASC, country_iso ASC)`**; home at rank 0 | `(merchant_id, country_iso)` |
+| Dataset id         | Purpose                                                 | Filter (must)                                                                                                                                     | Ordering (must)                                                                       | Keys for joins               |
+|--------------------|---------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------|------------------------------|
+| `s3_candidate_set` | Inter-country **order of record** + policy tags/reasons | Partition by `parameter_hash`; MAY filter `produced_by_fingerprint == <this run>` if present; always assert the sidecar’s `manifest_fingerprint`. | **Order by `(merchant_id ASC, candidate_rank ASC, country_iso ASC)`**; home at rank 0 | `(merchant_id, country_iso)` |
 
 **Binding:** **`candidate_rank`** is the **sole** authority for inter-country order.
 
@@ -2241,7 +2242,7 @@ Feasibility ok; `L_i ≤ count_i ≤ U_i`; ISO tiebreak visible; sum equals `N`.
 
 * **Schema authority & dictionary** (run-scoped gate): `schemas.layer1.yaml` containing all `#/s3/*` anchors; **optional** schema index if used; dataset dictionary resolving all S3 IDs.
 * **Governed artefacts** listed in the S3 BOM (§2): `policy.s3.rule_ladder.yaml`, `iso3166_canonical_2024`, and any optional policy bundles (priors, bounds).
-* **S3 datasets (egress)** for the target `parameter_hash`, **filtered by `manifest_fingerprint == <this run>`**:
+* **S3 datasets (egress)** for the target `parameter_hash`, MAY filter by `produced_by_fingerprint == <this run>` if present; otherwise read the whole `parameter_hash` partition (selection is parameter-scoped):
   `s3_candidate_set` (required); and optionally `s3_base_weight_priors`, `s3_integerised_counts`, `s3_site_sequence`.
 * **Upstream evidence (read-only)** for cross-checks: S1 `hurdle_bernoulli` (gate) and S2 `nb_final` (for **N only**) for the same `{seed, parameter_hash, run_id}`.
 
