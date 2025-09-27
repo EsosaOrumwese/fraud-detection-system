@@ -25,8 +25,9 @@ PROC orchestrate_s4_for_merchant(ctx):
   IF A == 0:
     lr  := K1.freeze_lambda_regime(ctx.N, ctx.X_m, ctx.θ0, ctx.θ1, ctx.θ2)
     s   := derive_merchant_stream(ctx.lineage, ctx.merchant_id)
-    K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s, lr,
-                         {K_target:0, attempts:0 [,reason?]}) ; RETURN
+    s_curr := s   # non-consuming: use current stream as derived
+    K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s_curr, lr,
+                         {K_target:0, attempts:0, regime: lr.regime [,reason?]}) ; RETURN
 
   # Resume
   lr := K1.freeze_lambda_regime(ctx.N, ctx.X_m, ctx.θ0, ctx.θ1, ctx.θ2)
@@ -37,26 +38,28 @@ PROC orchestrate_s4_for_merchant(ctx):
     IF exists_attempt(ctx.merchant_id, attempt):
        {k, s_after} := read_attempt_k_after(ctx.merchant_id, attempt)  # no RNG
        s := s_after
+       s_curr := s_after   # current stream for any non-consuming emits this iteration
     ELSE:
        (k, s_after, bud) := K2.do_poisson_attempt_once(lr, s)          # RNG-consuming
-        K3.emit_poisson_attempt(ctx.merchant_id, ctx.lineage, s, s_after, lr, attempt, k, bud)
-        s := s_after
+       K3.emit_poisson_attempt(ctx.merchant_id, ctx.lineage, s, s_after, lr, attempt, k, bud)
+       s := s_after
+       s_curr := s_after   # current stream after the consuming attempt
     IF k > 0:
-       K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s, lr,
+       K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s_curr, lr,
                             {K_target:k, attempts:attempt, regime: lr.regime})
        RETURN
     IF NOT exists_rejection(ctx.merchant_id, attempt):
-       K4.emit_ztp_rejection_nonconsuming(ctx.merchant_id, ctx.lineage, s, lr, attempt)
+       K4.emit_ztp_rejection_nonconsuming(ctx.merchant_id, ctx.lineage, s_curr, lr, attempt)
 
   # Cap reached (64 zeros)
   IF ctx.policy == "abort":
      IF NOT exists_exhausted(ctx.merchant_id):
-        K5.emit_ztp_retry_exhausted_nonconsuming(ctx.merchant_id, ctx.lineage, s, lr, policy="abort")
+        K5.emit_ztp_retry_exhausted_nonconsuming(ctx.merchant_id, ctx.lineage, s_curr, lr, policy="abort")
      RETURN
   ELSE:
      IF NOT exists_final(ctx.merchant_id):
-        K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s, lr,
-                             {K_target:0, attempts:64, exhausted:true})
+        K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s_curr, lr,
+                             {K_target:0, attempts:64, regime: lr.regime, exhausted:true})
      RETURN
 ```
 
@@ -255,7 +258,9 @@ PROC s4_preflight(ctx):
       # Short-circuit: final-only; no attempts/markers
       lr := K1.freeze_lambda_regime(ctx.N, ctx.X_m, ctx.θ0, ctx.θ1, ctx.θ2)
       s  := derive_merchant_stream(ctx.lineage, ctx.merchant_id)
-      K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s, lr, {K_target:0, attempts:0 [,reason?]})
+      s_curr := s
+      K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s_curr, lr,
+                           {K_target:0, attempts:0, regime: lr.regime [,reason?]})
       RETURN SHORT_CIRCUIT_FINAL
 
   RETURN PROCEED   # all gates passed; go to loop setup
@@ -771,7 +776,7 @@ K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s, lr, fin)
 * **Stream handle:**
 
   * **Attempts (K-3):** pass `s_before` and `s_after` returned by K-2; this enforces consuming semantics and correct budget accounting.
-  * **Markers/finals (K-4/K-5/K-6):** pass **current** stream `s_curr` (non-consuming → `before==after`, `blocks=0`, `draws="0"`).
+  * **Markers/finals (K-4/K-5/K-6):** pass the **current** stream `s_curr` (non-consuming → `before==after`, `blocks=0`, `draws="0"`).
 * **No paths.** All paths/partitions are dictionary-resolved by L0; L2 provides **values only**.
 
 ---
@@ -830,12 +835,13 @@ K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s, lr, fin)
 K3.emit_poisson_attempt(merchant_id, lineage, s_before, s_after, lr, attempt, k, bud)
 # → writes rng_event_poisson_component + immediate trace; counters advance
 
-# Rejection (k == 0 and row missing)
-K4.emit_ztp_rejection_nonconsuming(merchant_id, lineage, s_after, lr, attempt)
+# Rejection (k == 0 and row missing) — non-consuming uses the current stream
+s_curr := s_after
+K4.emit_ztp_rejection_nonconsuming(merchant_id, lineage, s_curr, lr, attempt)
 # → writes rng_event_ztp_rejection + immediate trace; non-consuming (before==after)
 
 # Cap-abort terminal (64 zeros)
-K5.emit_ztp_retry_exhausted_nonconsuming(merchant_id, lineage, s, lr, policy="abort")
+K5.emit_ztp_retry_exhausted_nonconsuming(merchant_id, lineage, s_curr, lr, policy="abort")
 # → writes rng_event_ztp_retry_exhausted + immediate trace; no final allowed afterward
 
 # Finaliser (A=0, accept, or downgrade)
@@ -865,7 +871,7 @@ This is the **only** set of emissions L2 can cause in S4. Everything else (paylo
      **K-2**: `(k, s_after, bud) := do_poisson_attempt_once(lr, s_before)` (RNG-consuming; no I/O). 
   2. If we sampled in step (1), **K-3**: `emit_poisson_attempt(…, s_before, s_after, lr, attempt, k, bud)` (consuming **attempt**; payload key `lambda`; **immediate** trace). 
   3. **Branch:**
-     - If `k > 0` → **K-6** finaliser `{K_target=k, attempts=attempt}` (non-consuming; **no `exhausted`**) and **return**. 
+     - If `k > 0` → **K-6** finaliser `{K_target=k, attempts=attempt, regime}` (non-consuming; **no `exhausted`**) and **return**. 
      - Else (`k == 0`) → ensure one **K-4** rejection for this index (non-consuming; `lambda_extra`; **immediate** trace). 
   4. **Advance:** `s_before := s_after` and continue.
 
@@ -886,7 +892,7 @@ This is the **only** set of emissions L2 can cause in S4. Everything else (paylo
 ## 10.3 Stream discipline (what L2 must pass)
 
 * **K-2/K-3 (attempt):** pass both `s_before` and the returned `s_after` + `bud` (actual-use budgets). L2 must **not** fabricate counters or budgets. 
-* **K-4/K-5/K-6 (non-consuming):** pass the **current** stream `s_after` (identity: `before==after`, `draws="0"`, `blocks=0`). 
+* **K-4/K-5/K-6 (non-consuming):** pass the **current** stream `s_curr` (identity: `before==after`, `draws="0"`, `blocks=0`).
 * **One stream per merchant:** all S4 families share `(module="1A.s4.ztp", substream_label="poisson_component")`; trace rows share the same domain; **no cross-label chaining**. 
 
 ---
@@ -913,28 +919,30 @@ FOR attempt IN resume_attempt_index(merchant_id) .. 64:
   pre := pre_emit_dedupe(merchant_id, attempt)        # §7; maybe {k, s_after}
   IF pre != null:
      k := pre.k; s := pre.s_after
+     s_curr := s                        # current stream for any non-consuming emits
   ELSE:
      (k, s_after, bud) := K2.do_poisson_attempt_once(lr, s)
      K3.emit_poisson_attempt(merchant_id, lineage, s, s_after, lr, attempt, k, bud)
      s := s_after
+     s_curr := s_after                  # current stream after consuming attempt
 
   IF k > 0:
      # Acceptance final: K_target = k, attempts = current attempt, no 'exhausted'
      K6.do_emit_ztp_final(
-        merchant_id, lineage, s, lr,
+        merchant_id, lineage, s_curr, lr,
         { K_target: k, attempts: attempt, regime: lr.regime })
      RETURN
 
   IF NOT exists_rejection(merchant_id, attempt):
-     K4.emit_ztp_rejection_nonconsuming(merchant_id, lineage, s, lr, attempt)
+     K4.emit_ztp_rejection_nonconsuming(merchant_id, lineage, s_curr, lr, attempt)
 # end loop
 
 IF ctx.policy == "abort":
    IF NOT exists_exhausted(merchant_id):
-      K5.emit_ztp_retry_exhausted_nonconsuming(merchant_id, lineage, s, lr, policy="abort")
+      K5.emit_ztp_retry_exhausted_nonconsuming(merchant_id, lineage, s_curr, lr, policy="abort")
 ELSE:
    IF NOT exists_final(merchant_id):
-      K6.do_emit_ztp_final(merchant_id, lineage, s, lr, {K_target:0, attempts:64, exhausted:true})
+      K6.do_emit_ztp_final(merchant_id, lineage, s_curr, lr, {K_target:0, attempts:64, regime: lr.regime, exhausted:true})
 RETURN
 ```
 
@@ -2069,25 +2077,27 @@ FOR attempt IN resume_attempt_index(ctx.merchant_id) .. 64:
   pre := pre_emit_dedupe(ctx.merchant_id, attempt)
   IF pre != null:
      k := pre.k; s := pre.s_after
+     s_curr := s                        # current stream for any non-consuming emits
   ELSE:
      (k, s_after, bud) := K2.do_poisson_attempt_once(lr, s)
      K3.emit_poisson_attempt(ctx.merchant_id, ctx.lineage, s, s_after, lr, attempt, k, bud)
      s := s_after
+     s_curr := s_after                  # current stream after consuming attempt
 
   IF k > 0:
-     K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s, lr, {K_target:k, attempts:attempt, regime:lr.regime})
+     K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s_curr, lr, {K_target:k, attempts:attempt, regime:lr.regime})
      RETURN
 
   IF NOT exists_rejection(ctx.merchant_id, attempt):
-     K4.emit_ztp_rejection_nonconsuming(ctx.merchant_id, ctx.lineage, s, lr, attempt)
+     K4.emit_ztp_rejection_nonconsuming(ctx.merchant_id, ctx.lineage, s_curr, lr, attempt)
 
 # Cap
 IF ctx.policy == "abort":
    IF NOT exists_exhausted(ctx.merchant_id):
-      K5.emit_ztp_retry_exhausted_nonconsuming(ctx.merchant_id, ctx.lineage, s, lr, policy="abort")
+      K5.emit_ztp_retry_exhausted_nonconsuming(ctx.merchant_id, ctx.lineage, s_curr, lr, policy="abort")
 ELSE:
    IF NOT exists_final(ctx.merchant_id):
-      K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s, lr, {K_target:0, attempts:64, regime:lr.regime, exhausted:true})
+      K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s_curr, lr, {K_target:0, attempts:64, regime:lr.regime, exhausted:true})
 ```
 
 ---
