@@ -42,7 +42,8 @@ PROC orchestrate_s4_for_merchant(ctx):
         K3.emit_poisson_attempt(ctx.merchant_id, ctx.lineage, s, s_after, lr, attempt, k, bud)
         s := s_after
     IF k > 0:
-       K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s, lr, {K_target:k, attempts:attempt})
+       K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s, lr,
+                            {K_target:k, attempts:attempt, regime: lr.regime})
        RETURN
     IF NOT exists_rejection(ctx.merchant_id, attempt):
        K4.emit_ztp_rejection_nonconsuming(ctx.merchant_id, ctx.lineage, s, lr, attempt)
@@ -542,7 +543,7 @@ Use this to seed `s_before` (fresh runs) or as the base when no attempts exist. 
 
 3. **Resume stream.**
 
-   * If `t_max == null` → `s_before := derive_merchant_stream(lineage, mid)`.
+   * If `t_max == null` → `s_before := derive_merchant_stream(lineage, merchant_id)`.
    * Else → read `{k, s_after}` for `t_max` and set `s_before := s_after`.
 
 4. **Pre-emit dedupe each iteration.**
@@ -576,8 +577,8 @@ PROC resume_attempt_index(merchant_id) -> int:
   RETURN (t_max == null ? 1 : t_max + 1)
 
 PROC resume_stream_or_fresh(ctx) -> Stream:
-  mid := ctx.merchant_id
-  base := derive_merchant_stream(ctx.lineage, mid)                  # §6
+  merchant_id := ctx.merchant_id
+  base := derive_merchant_stream(ctx.lineage, merchant_id)          # §6
   t_max := max_attempt(merchant_id)
   IF t_max == null: RETURN base
   {k, s_after} := read_attempt_k_after(merchant_id, t_max)
@@ -928,7 +929,7 @@ FOR attempt IN resume_attempt_index(merchant_id) .. 64:
      K4.emit_ztp_rejection_nonconsuming(merchant_id, lineage, s, lr, attempt)
 # end loop
 
-IF policy == "abort":
+IF ctx.policy == "abort":
    IF NOT exists_exhausted(merchant_id):
       K5.emit_ztp_retry_exhausted_nonconsuming(merchant_id, lineage, s, lr, policy="abort")
 ELSE:
