@@ -121,7 +121,7 @@ If **A=0**, L2 must short-circuit: compute λ/regime via **K-1** and write **one
 * **Partitions & path↔embed:** All S4 logs are dictionary-resolved under `{seed, parameter_hash, run_id}`; **events’ envelopes** are stamped by L0; L2 passes lineage values, **never paths**.  
 
 * **Labels:** `(module, substream_label, context)` are **spec-pinned** for S4:
-  `module="1A.s4.ztp"`, `substream_label="poisson_component"` for **all S4 events and trace**; `context="ztp"` on **events only** (trace has none).  
+  `module="1A.s4.ztp_sampler"`, `substream_label="poisson_component"` for **all S4 events and trace**; `context="ztp"` on **events only** (trace has none).  
 
 ## 2.2 Version facts L2 must treat as constants
 
@@ -406,7 +406,7 @@ Each edge is *(from → to | guard / action)*; all actions are **kernel calls** 
 ## 6.1 Frozen literals (must match the spec)
 
 ```
-MODULE          = "1A.s4.ztp"
+MODULE          = "1A.s4.ztp_sampler"
 SUBSTREAM_LABEL = "poisson_component"     # used for every S4 event
 CONTEXT         = "ztp"                   # in EVENT envelopes only (trace has no context)
 ```
@@ -498,7 +498,7 @@ Use this to seed `s_before` (fresh runs) or as the base when no attempts exist. 
 
 ## 6.8 Acceptance checklist (for this section)
 
-* One merchant-scoped stream per merchant (`MODULE="1A.s4.ztp"`, `SUBSTREAM_LABEL="poisson_component"`).
+* One merchant-scoped stream per merchant (`MODULE="1A.s4.ztp_sampler"`, `SUBSTREAM_LABEL="poisson_component"`).
 * Derived via **S0** from `{seed, manifest_fingerprint}` + `merchant_u64`.
 * Attempts consume; markers/final are non-consuming (must receive the **current** stream).
 * Resume uses persisted `s_after`; **no resampling** of existing attempts.
@@ -893,7 +893,7 @@ This is the **only** set of emissions L2 can cause in S4. Everything else (paylo
 
 * **K-2/K-3 (attempt):** pass both `s_before` and the returned `s_after` + `bud` (actual-use budgets). L2 must **not** fabricate counters or budgets. 
 * **K-4/K-5/K-6 (non-consuming):** pass the **current** stream `s_curr` (identity: `before==after`, `draws="0"`, `blocks=0`).
-* **One stream per merchant:** all S4 families share `(module="1A.s4.ztp", substream_label="poisson_component")`; trace rows share the same domain; **no cross-label chaining**. 
+* **One stream per merchant:** all S4 families share `(module="1A.s4.ztp_sampler", substream_label="poisson_component")`; trace rows share the same domain; **no cross-label chaining**. 
 
 ---
 
@@ -1665,7 +1665,7 @@ This handoff ensures validation is **deterministic, read-only, and authority-tru
 
 ## C. Substream derivation (deterministic, S0 discipline)
 
-* [ ] Merchant-scoped stream derived **once** via S0 with `(module="1A.s4.ztp", substream_label="poisson_component")`.
+* [ ] Merchant-scoped stream derived **once** via S0 with `(module="1A.s4.ztp_sampler", substream_label="poisson_component")`.
 * [ ] **One stream per merchant**; attempts consume it; markers/finals are non-consuming and receive the **current** stream (before==after).
 * [ ] Resume uses **persisted** `s_after` from the last attempt (never re-derive+resample persisted attempts).
 
@@ -2161,7 +2161,7 @@ This sheet is the operative contract between **L2** and **L1** for **State-4**. 
 ## B.4 Label Domain (for both events & trace)
 
 ```
-module           = "1A.s4.ztp"
+module           = "1A.s4.ztp_sampler"
 substream_label  = "poisson_component"
 context (events) = "ztp"         # trace has no context
 ```
@@ -2206,7 +2206,7 @@ Lineage = {
 ## C.2 Label domain (shared by all S4 events & trace)
 
 ```
-module           = "1A.s4.ztp"
+module           = "1A.s4.ztp_sampler"
 substream_label  = "poisson_component"
 context (events) = "ztp"      # trace has no context
 ```
