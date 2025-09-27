@@ -81,10 +81,10 @@ PROC orchestrate_s4_for_merchant(ctx):
 **Intent (what L2 does):** Orchestrate **State-4 (ZTP)** deterministically, per merchant, by driving the **kernel call sequence** only—**K-1 → (A=0? K-6 : loop[K-2 → K-3 → (K-6 | K-4)] → cap: K-5|K-6)**—and by enforcing **gates, substream derivation, idempotence/resume, single-writer discipline**, and a **single terminal outcome**. L2 **never** constructs payloads or stamps envelopes/trace; those are owned by **L1→L0** emitters (one event → **one immediate** cumulative trace). Attempts use **`lambda`**; rejection/exhausted/final use **`lambda_extra`**.  
 
 **Entry gates (must hold or S4 writes nothing):**
-`is_multi==true` (from S1 hurdle), `is_eligible==true` (S3), `N≥2` (from S2 `nb_final`), and a valid admissible set size **A≥0** (from S3). If **A=0**, L2 must short-circuit: compute λ/regime via **K-1** and write **one** non-consuming `ztp_final{K_target=0, attempts:0 [,reason]?}`—**no attempts/markers**.  
+If **A=0**, L2 must short-circuit: compute λ/regime via **K-1** and write **one** non-consuming `ztp_final{K_target=0, attempts:0, regime [,reason]?}`—**no attempts/markers**.
 
 **Terminal outcomes (exactly one per merchant):**
-(1) **Acceptance** at attempt *t*: `ztp_final{K_target≥1, attempts:t}`; (2) **Cap-abort** (64 zeros, `policy="abort"`): `ztp_retry_exhausted{attempts:64, aborted:true}`, **no final**; (3) **Cap-downgrade** (64 zeros, `policy="downgrade_domestic"`): `ztp_final{K_target=0, attempts:64, exhausted:true}`. L2 must not invent other outcomes.  
+(1) **Acceptance** at attempt *t*: `ztp_final{K_target≥1, attempts:t, regime}`; (2) **Cap-abort** (64 zeros, `policy="abort"`): `ztp_retry_exhausted{attempts:64, aborted:true}`, **no final**; (3) **Cap-downgrade** (64 zeros, `policy="downgrade_domestic"`): `ztp_final{K_target=0, attempts:64, regime, exhausted:true}`. L2 must not invent other outcomes.  
 
 **Separation of duties (binding):**
 
@@ -225,7 +225,7 @@ When `A == 0`, L2 **must not** drive the attempt loop:
 
 1. Call **K-1** `freeze_lambda_regime(N, X_m, θ)` (single source of truth for `λ`, `regime`).
 2. Derive the merchant substream once (S0 discipline).
-3. Call **K-6** to emit **one** non-consuming `ztp_final{K_target=0, attempts=0 [,reason?]}`.
+3. Call **K-6** to emit **one** non-consuming `ztp_final{K_target=0, attempts:0, regime [,reason?]}`.
 4. **Stop** (no attempt or marker rows are written).
 
 ---
@@ -296,7 +296,7 @@ PROC s4_preflight(ctx):
 [K-1 freeze λ,regime]  (single source of truth; no inline math in L2)
    │
    │ A == 0 ?
-   │—— yes ─▶ [K-6 final]  (K_target=0, attempts=0 [,reason?]) ─▶ [STOP]
+   │—— yes ─▶ [K-6 final]  (K_target=0, attempts=0, regime [,reason?]) ─▶ [STOP]
    │
    v
 [Derive merchant substream once (S0)]
@@ -339,7 +339,7 @@ Each edge is *(from → to | guard / action)*; all actions are **kernel calls** 
 
 * **E0.** `ENTER → STOP | (¬is_multi ∨ ¬is_eligible ∨ N<2 ∨ A<0) / return`
 * **E1.** `ENTER → K-1 | (is_multi ∧ is_eligible ∧ N≥2 ∧ A≥0) / K-1`
-* **E2.** `K-1 → K-6 | (A==0) / final(K_target=0, attempts=0 [,reason?])`
+* **E2.** `K-1 → K-6 | (A==0) / final(K_target=0, attempts=0, regime [,reason?])`
 * **E3.** `K-1 → SUBSTREAM | (A≥1) / derive_merchant_stream(lineage, merchant_id)`
 * **E4.** `SUBSTREAM → K-2 | (a in 1..64 and attempt a not on disk) / sample once`
 * **E5.** `SUBSTREAM → BRANCH | (attempt a exists) / read{k, s_after} (no RNG)`
@@ -702,9 +702,9 @@ If attempts **1..64** all yield `k==0`, branch by **policy**:
 
 ```text
 lr  := K1.freeze_lambda_regime(ctx.N, ctx.X_m, ctx.θ0, ctx.θ1, ctx.θ2)
-s0  := derive_merchant_stream(ctx.lineage, ctx.merchant_id)
+s_curr  := derive_merchant_stream(ctx.lineage, ctx.merchant_id)
 fin := { K_target:0, attempts:0, regime:lr.regime [,reason:"no_admissible"] }
-K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s0, lr, fin)
+K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s_curr, lr, fin)
 ```
 
 **Acceptance @ attempt t**
@@ -797,7 +797,7 @@ K6.do_emit_ztp_final(ctx.merchant_id, ctx.lineage, s_curr, lr, fin)
 
   * A=0 → `{K_target=0, attempts=0, regime [,reason?]}`
   * Accept@t → `{K_target=k≥1, attempts=t, regime}` (no `exhausted`)
-  * Cap-downgrade → `{K_target=0, attempts=64, exhausted:true}`
+  * Cap-downgrade → `{K_target=0, attempts=64, regime, exhausted:true}`
 
 ---
 
@@ -1691,10 +1691,10 @@ This handoff ensures validation is **deterministic, read-only, and authority-tru
 ## G. Policy handling & terminal exclusivity
 
 * [ ] Exactly **one** terminal per merchant:
-  - **Accept:** `ztp_final{K_target≥1, attempts=t}` (no `exhausted`).
+  - **Accept:** `ztp_final{K_target≥1, attempts=t, regime}` (no `exhausted`).
   - **Cap-abort:** `ztp_retry_exhausted{attempts:64, aborted:true}` (**no** final).
   - **Cap-downgrade:** `ztp_final{K_target=0, attempts=64, exhausted:true}` (**no** exhausted marker).
-  - **A=0:** `ztp_final{K_target=0, attempts=0 [,reason?]}` (no attempts/markers).
+  - **A=0:** `ztp_final{K_target=0, attempts=0, regime [,reason?]}` (no attempts/markers).
 * [ ] Cap is treated as **64** (schema-pinned); no runtime override in L2.
 
 ## H. Concurrency & single-writer discipline
@@ -1914,7 +1914,7 @@ All entry points **call kernels only** (K-1…K-6). L2 never calls L0 emitters d
 ## 20.3 Required arguments (values only)
 
 * `lineage : { seed:u64, parameter_hash:hex64, run_id:hex32, manifest_fingerprint:hex64 }` (pass-through to emitters). 
-* Per-merchant `Ctx` fields: `{ merchant_id:i64, is_multi:bool, is_eligible:bool, N:int≥2, A:int≥0, θ0,θ1,θ2, X_m∈[0,1], policy∈{"abort","downgrade_domestic"} }`. A=0 triggers **final-only** (`ztp_final{K_target=0, attempts=0 [,reason]?}`) and **no attempts/markers**. 
+* Per-merchant `Ctx` fields: `{ merchant_id:i64, is_multi:bool, is_eligible:bool, N:int≥2, A:int≥0, θ0,θ1,θ2, X_m∈[0,1], policy∈{"abort","downgrade_domestic"} }`. A=0 triggers **final-only** (`ztp_final{K_target=0, attempts:0, regime [,reason]?}`) and **no attempts/markers**.
 
 ---
 
@@ -1928,7 +1928,7 @@ All entry points **call kernels only** (K-1…K-6). L2 never calls L0 emitters d
    - new attempt ⇒ **K-2** sample once (RNG-consuming) → **K-3** emit attempt (payload key **`lambda`**; immediate trace).
    - `k>0` ⇒ **K-6** emit final (non-consuming; uses **`lambda_extra`**; no `exhausted`).
    - `k==0` ⇒ ensure one **K-4** rejection (non-consuming; **`lambda_extra`**).
-   - at cap: `policy=="abort"` ⇒ **K-5** exhausted only (`attempts:64, aborted:true`); else ⇒ **K-6** final `{attempts:64, exhausted:true}`. 
+   - at cap: `policy=="abort"` ⇒ **K-5** exhausted only (`attempts:64, aborted:true`); else ⇒ **K-6** final `{attempts:64, regime, exhausted:true}`. 
 
 4. **Resume semantics** (if mode=Resume): use `max(attempt)` and persisted `{k, s_after}`; **never resample** existing attempts; counters define order, not file timestamps. 
 
