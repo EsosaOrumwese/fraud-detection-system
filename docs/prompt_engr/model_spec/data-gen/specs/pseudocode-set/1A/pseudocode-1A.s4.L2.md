@@ -532,10 +532,10 @@ Use this to seed `s_before` (fresh runs) or as the base when no attempts exist. 
 ## 7.3 Resume algorithm (attempt index & stream)
 
 1. **Resolve fence first.**
-   If `final_exists(mid)` or `exhausted_exists(mid)` → **return** (merchant done).
+   If `final_exists(merchant_id)` or `exhausted_exists(merchant_id)` → **return** (merchant done).
 
 2. **Resume attempt index.**
-   Let `t_max := max_attempt(mid)` (or `null` if none).
+   Let `t_max := max_attempt(merchant_id)` (or `null` if none).
 
    * If `null` → `attempt := 1`.
    * Else → `attempt := t_max + 1`.
@@ -546,7 +546,7 @@ Use this to seed `s_before` (fresh runs) or as the base when no attempts exist. 
    * Else → read `{k, s_after}` for `t_max` and set `s_before := s_after`.
 
 4. **Pre-emit dedupe each iteration.**
-   Before sampling attempt `a`, check `exists_attempt(mid,a)`.
+   Before sampling attempt `a`, check `exists_attempt(merchant_id,a)`.
 
    * If **exists** → read `{k, s_after}`; **do not** call K-2; branch using `k`; set `s_before := s_after`.
    * If **missing** → call **K-2** to sample once, then **K-3** to emit attempt (consuming), and continue.
@@ -578,9 +578,9 @@ PROC resume_attempt_index(merchant_id) -> int:
 PROC resume_stream_or_fresh(ctx) -> Stream:
   mid := ctx.merchant_id
   base := derive_merchant_stream(ctx.lineage, mid)                  # §6
-  t_max := max_attempt(mid)
+  t_max := max_attempt(merchant_id)
   IF t_max == null: RETURN base
-  {k, s_after} := read_attempt_k_after(mid, t_max)
+  {k, s_after} := read_attempt_k_after(merchant_id, t_max)
   RETURN s_after
 
 PROC pre_emit_dedupe(merchant_id, attempt) -> maybe<{k:int, s_after:Stream}>:
@@ -590,9 +590,9 @@ PROC pre_emit_dedupe(merchant_id, attempt) -> maybe<{k:int, s_after:Stream}>:
 
 *Usage inside the loop:*
 
-* `a0 := resume_attempt_index(mid)`; if `a0 == 0` → resolved, return.
+* `a0 := resume_attempt_index(merchant_id)`; if `a0 == 0` → resolved, return.
 * `s := resume_stream_or_fresh(ctx)`.
-* For each `a in a0..64`, call `pre_emit_dedupe(mid,a)` before K-2; branch accordingly.
+* For each `a in a0..64`, call `pre_emit_dedupe(merchant_id,a)` before K-2; branch accordingly.
 
 ---
 
@@ -918,7 +918,10 @@ FOR attempt IN resume_attempt_index(merchant_id) .. 64:
      s := s_after
 
   IF k > 0:
-     K6.do_emit_ztp_final(merchant_id, lineage, s, lr, {K_target:0, attempts:64, exhausted:true})
+     # Acceptance final: K_target = k, attempts = current attempt, no 'exhausted'
+     K6.do_emit_ztp_final(
+        merchant_id, lineage, s, lr,
+        { K_target: k, attempts: attempt, regime: lr.regime })
      RETURN
 
   IF NOT exists_rejection(merchant_id, attempt):
@@ -975,10 +978,10 @@ This loop contract, together with §6-§9 and the identities above, is sufficien
 
 ## 11.7 Copy-ready policy for the orchestrator
 
-* **Acquire:** `lock(mid)` before `orchestrate_s4_for_merchant`.
-* **Check resolution:** if `final_exists(mid)` **or** `exhausted_exists(mid)` → `unlock(mid)` and **return**.
+* **Acquire:** `lock(merchant_id)` before `orchestrate_s4_for_merchant`.
+* **Check resolution:** if `final_exists(merchant_id)` **or** `exhausted_exists(merchant_id)` → `unlock(merchant_id)` and **return**.
 * **Run:** execute K-7 serially for the merchant; inside the loop, call only **K-2/K-3/K-4**, then **K-6** (accept) or **K-5/K-6** (cap end) per policy. 
-* **Release:** `unlock(mid)` immediately after the terminal is written (no further S4 writes allowed for that merchant).
+* **Release:** `unlock(merchant_id)` immediately after the terminal is written (no further S4 writes allowed for that merchant).
 
 ## 11.8 Back-pressure & limits (operator guidance)
 
@@ -1069,27 +1072,27 @@ These are **read-only**; L2 never mutates rows or envelopes. File order is **non
 Define read-only helpers with clear idempotence:
 
 ```text
-exists_attempt(mid, a)        -> bool
-exists_rejection(mid, a)      -> bool
-exists_final(mid)             -> bool
-exists_exhausted(mid)         -> bool
-max_attempt(mid)              -> int | null
-read_attempt_k_after(mid, a)  -> { k:int, s_after:Stream }   # exact persisted projection
-read_final_K(mid)             -> int                         # K_target from final row
+exists_attempt(merchant_id, a)        -> bool
+exists_rejection(merchant_id, a)      -> bool
+exists_final(merchant_id)             -> bool
+exists_exhausted(merchant_id)         -> bool
+max_attempt(merchant_id)              -> int | null
+read_attempt_k_after(merchant_id, a)  -> { k:int, s_after:Stream }   # exact persisted projection
+read_final_K(merchant_id)             -> int                         # K_target from final row
 ```
 
 *Rules:*
 
-* **Deduplicate before RNG:** if `exists_attempt(mid,a)` → **do not** call K-2; use `read_attempt_k_after` to branch. 
-* **Terminal fence:** if `exists_final(mid)` **or** `exists_exhausted(mid)` → merchant is **resolved**; L2 writes nothing more. 
+* **Deduplicate before RNG:** if `exists_attempt(merchant_id,a)` → **do not** call K-2; use `read_attempt_k_after` to branch. 
+* **Terminal fence:** if `exists_final(merchant_id)` **or** `exists_exhausted(merchant_id)` → merchant is **resolved**; L2 writes nothing more. 
 
 ---
 
 ## 12.5 Resume recipe (index + stream)
 
 1. If terminal exists → **return** (resolved).
-2. `t_max := max_attempt(mid)` → `attempt := (t_max == null ? 1 : t_max + 1)`.
-3. If `t_max == null` → `s_before := derive_merchant_stream(...)`; else `s_before := read_attempt_k_after(mid, t_max).s_after`.
+2. `t_max := max_attempt(merchant_id)` → `attempt := (t_max == null ? 1 : t_max + 1)`.
+3. If `t_max == null` → `s_before := derive_merchant_stream(...)`; else `s_before := read_attempt_k_after(merchant_id, t_max).s_after`.
    *(Never resample existing attempts; never fabricate counters.)* 
 
 ---
@@ -1169,7 +1172,7 @@ This store-interface surface gives the orchestrator **everything** it needs to b
 
 ```text
 # Called at the start of orchestrate_s4_for_merchant(ctx)
-IF exists_final(mid) OR exists_exhausted(mid): RETURN RESOLVED
+IF exists_final(merchant_id) OR exists_exhausted(merchant_id): RETURN RESOLVED
 
 # Optional: scan last event for this merchant to detect missing-adjacent-trace
 # Optional: detect "event without adjacent trace" for ops visibility only.
@@ -1259,7 +1262,7 @@ S3’s validator taxonomy (shape/keys/scopes) is the precedent for stable payloa
 
 ## 14.5 Decision tree (L2—operational)
 
-1. **Resolution fence first:** if `final_exists(mid)` or `exhausted_exists(mid)` → **skip merchant** (resolved). 
+1. **Resolution fence first:** if `final_exists(merchant_id)` or `exhausted_exists(merchant_id)` → **skip merchant** (resolved). 
 2. **Gates:** if any gate fails → **POLICY_CONFLICT (gate)** → **quarantine**; no S4 rows. 
 3. **Freeze λ:** if **K-1** raises **NUMERIC_INVALID** → **quarantine**. 
 4. **Loop:**
@@ -1986,8 +1989,7 @@ Ctx          = { merchant_id:i64, lineage:Lineage, is_multi:bool, is_eligible:bo
 
 ### K-2 — `do_poisson_attempt_once(lr: LambdaRegime, s_before: Stream) -> (k:int≥0, s_after: Stream, bud: AttemptBudget)`
 
-* **REQUIRES:** `isfinite(lr.lambda_extra) ∧ lr.lambda_extra>0` and `compute_poisson_regime(lr.lambda_extra)==lr.regime`.
-* **REQUIRES:** `lambda_extra>0`, finite; `regime` consistent with `lambda_extra`; `s_before` from §6 stream.
+* **REQUIRES:** `isfinite(lr.lambda_extra) ∧ lr.lambda_extra>0 ∧ compute_poisson_regime(lr.lambda_extra)==lr.regime`; and `s_before` is the merchant substream per §6.
 * **ENSURES:** calls the sampler **once**; advances the stream; returns **measured** `bud` (actual-use).
 * **SIDE EFFECTS:** none (no event I/O here).
 
@@ -2317,10 +2319,10 @@ This appendix fixes the identifiers that make S4’s orchestration reproducible 
 
 ### 1) *“We crashed; now we see an event row but no trace.”*
 
-* **Check:** `poisson_component` exists for `(mid,a)`; adjacent `rng_trace_log` entry missing.
+* **Check:** `poisson_component` exists for `(merchant_id,a)`; adjacent `rng_trace_log` entry missing.
 * **Action:** **Do not re-emit**. Resume loop. The next emitter append writes the missing **trace** using the persisted envelope; adjacency restored. 
 
-### 2) *“Two attempt rows for the same (mid,a).”*
+### 2) *“Two attempt rows for the same (merchant_id,a).”*
 
 * **Check:** Uniqueness must be one attempt per `(merchant_id, attempt)`.
 * **Action:** Treat as **ATTEMPT_GAPS/duplicate**; stop merchant; fix writer stability/merge. L2 must dedupe-before-RNG to prevent a second sample. 
@@ -2352,7 +2354,7 @@ This appendix fixes the identifiers that make S4’s orchestration reproducible 
 
 ### 8) *“Resume resampled a persisted attempt.”*
 
-* **Check:** For existing `(mid,a)`, L2 must read `{k, s_after}` and **not** call K-2.
+* **Check:** For existing `(merchant_id,a)`, L2 must read `{k, s_after}` and **not** call K-2.
 * **Action:** Fix pre-emit dedupe (Pattern-A) and resume (Pattern-B). 
 
 ### 9) *“Terminal exists but loop continued.”*
@@ -2381,13 +2383,13 @@ This appendix fixes the identifiers that make S4’s orchestration reproducible 
 
 ```text
 # Resolution fence
-resolved(mid) := exists_final(mid) OR exists_exhausted(mid)
+resolved(merchant_id) := exists_final(merchant_id) OR exists_exhausted(merchant_id)
 
 # Contiguity check
-expect 1..t where t := max_attempt(mid)
+expect 1..t where t := max_attempt(merchant_id)
 
 # Branch projection
-{ k, s_after } := read_attempt_k_after(mid, a)
+{ k, s_after } := read_attempt_k_after(merchant_id, a)
 
 # A=0 sanity
 IF A==0 THEN assert attempts==0 AND no rejections/exhausted
