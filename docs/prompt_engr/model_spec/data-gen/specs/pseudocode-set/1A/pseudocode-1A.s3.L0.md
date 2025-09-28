@@ -1314,6 +1314,7 @@ ENSURES: true
 * Contracts: `REQUIRES`, `ENSURES`, `RAISE`; `//` comments.
 * Inputs are **rows already read** by L2 (no path literals here).
 * Lineage equality = same `parameter_hash` and same `manifest_fingerprint` across all inputs.
+* **Row lineage vs Ctx.** `Ctx` carries the run `manifest_fingerprint` (for sidecar/idempotence); **rows embed `parameter_hash`** and **may** include `produced_by_fingerprint` (optional provenance).
 * Channel vocabulary is inherited from **ingress**; ISO membership comes from **BOM.iso_universe**.
 
 ---
