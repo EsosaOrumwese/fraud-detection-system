@@ -217,8 +217,10 @@ type RunArgs = {
 }
 
 type GateSignals = {
-  is_multi: bool,      # from S1 hurdle
-  is_eligible: bool    # from S3 eligibility
+  is_multi: bool,       # from S1 hurdle
+  is_eligible: bool,    # from S3 eligibility
+  N?: int,              # OPTIONAL: S2 nb_final total (if host exposes it)
+  A?: int               # OPTIONAL: S3 admissible set size (if host exposes it)
 }
 
 # -- Counters, totals, enums ----------------------------------------------------
@@ -233,7 +235,7 @@ enum TerminalKind { "ACCEPT", "CAP_ABORT", "CAP_DOWNGRADE", "A0_FINAL_ONLY" }
 
 # -- S4 event records (partitions & literals are checked, not stored here) -----
 # Labels/literals are frozen: module="1A.ztp_sampler", substream="poisson_component".
-# context:"ztp" is present on ALL S4 events; absent on trace. :contentReference[oaicite:1]{index=1}
+# context:"ztp" is present on ALL S4 events; absent on trace.
 type BaseEvent = {
   merchant_id: u64,
   before: Counter,             # envelope before
@@ -242,10 +244,10 @@ type BaseEvent = {
   blocks: u64,                 # after − before (derived by writer)
   module:    string,           # must equal frozen literal
   substream: string            # must equal frozen literal
-  # NOTE: partitions are enforced externally via dictionary (seed,parameter_hash,run_id). :contentReference[oaicite:2]{index=2}
+  # NOTE: partitions are enforced externally via dictionary (seed,parameter_hash,run_id).
 }
 
-# Attempts — consuming; payload uses 'lambda' (NOT lambda_extra). :contentReference[oaicite:3]{index=3}
+# Attempts — consuming; payload uses 'lambda' (NOT lambda_extra).
 type AttemptEvent = BaseEvent & {
   family:  "attempt",
   context: "ztp",
@@ -253,7 +255,7 @@ type AttemptEvent = BaseEvent & {
   payload: { lambda: f64, regime: "inversion" | "ptrs" }
 }
 
-# Markers/Final — non-consuming; payload uses 'lambda_extra'. :contentReference[oaicite:4]{index=4}
+# Markers/Final — non-consuming; payload uses 'lambda_extra'.
 type MarkerEvent = BaseEvent & {
   family:   "rejection" | "exhausted" | "final",
   context:  "ztp",
@@ -270,7 +272,7 @@ type MarkerEvent = BaseEvent & {
 type S4Event = AttemptEvent | MarkerEvent
 
 # -- S4 trace rows (cumulative, per (module, substream)) -----------------------
-# Trace rows embed ONLY {seed, run_id}; parameter_hash is path-only; NO context. :contentReference[oaicite:5]{index=5}
+# Trace rows embed ONLY {seed, run_id}; parameter_hash is path-only; NO context.
 type TraceRow = {
   merchant_id: u64,
   module:      string,         # frozen literal
@@ -278,7 +280,7 @@ type TraceRow = {
   totals:      Totals,         # cumulative, saturating
   seed:        u64,
   run_id:      Hex32
-  # NOTE: Partitions are {seed,parameter_hash,run_id}; embed==path is enforced externally. :contentReference[oaicite:6]{index=6}
+  # NOTE: Partitions are {seed,parameter_hash,run_id}; embed==path is enforced externally.
 }
 
 # -- Verdicts, failures, and run stats -----------------------------------------
@@ -366,10 +368,10 @@ function list_merchants_with_s4(
 ) -> Set<u64> throws EnvError
 
 # -- Gate readers (S1/S3) -----------------------------------------------------
-# Read gating facts for a merchant (values-only).
+# Read gating facts for a merchant (values-only). MAY include N/A if the host provides them.
 function read_gates(
   run:{seed:u64, parameter_hash:Hex64, run_id:Hex32}, merchant_id:u64
-) -> { is_multi:bool, is_eligible:bool } throws EnvError
+) -> GateSignals throws EnvError
 
 # (Optional) S3 candidate set for A=0 corroboration; not required to PASS/FAIL.
 function read_candidate_set_size(
@@ -452,6 +454,17 @@ function MERGE_BY_COUNTERS(iters: List[Iterator[S4Event]]) -> Iterator[S4Event]:
             nkey = (n.before.hi, n.before.lo, n.after.hi, n.after.lo)
             HEAPPUSH(heap, (nkey, FAMILY_RANK[n.family], n, src))
     return ITER(out)   # wrap list as iterator
+
+# Wrap a list as a peekable iterator (used throughout this doc)
+function ITER(xs: List[Any]) -> Iterator[Any]:
+    i = 0
+    cache = null
+    return {
+      next:  () -> ( cache != null ? (tmp := cache, cache := null, tmp)
+                                   : (i < SIZE(xs) ? (tmp := xs[i], i := i+1, tmp) : null) ),
+      peek:  () -> ( cache != null ? cache
+                                   : (i < SIZE(xs) ? (cache := xs[i]) : null) )
+    }
 ```
 
 **Requirements & notes (for implementers):**
@@ -587,6 +600,9 @@ function validate_merchant(dict:Dictionary, schemas:Schemas, run:RunArgs, m:u64)
       # No S4 rows for this merchant (shouldn't be scheduled by §6 discovery). Treat as pass-noop.
       return PASS(terminal="A0_FINAL_ONLY")  # or a neutral terminal, never emitted as data
 
+  # Optional cross-state gate enforcement (will use A/N if the host supplies them)
+  CHECK_GATES(gates, SIZE(A)>0, SIZE(R)>0, SIZE(X)>0, run) or return FAIL_FROM_LAST()
+
   # V1 — SCHEMA/PARTITIONS/LINEAGE (events & trace) ---------------------------
   CHECK_SCHEMA_PARTITIONS_LINEAGE(ITER(A),  schemas, run)  or return FAIL_FROM_LAST()
   CHECK_SCHEMA_PARTITIONS_LINEAGE(ITER(R),  schemas, run)  or return FAIL_FROM_LAST()
@@ -609,7 +625,7 @@ function validate_merchant(dict:Dictionary, schemas:Schemas, run:RunArgs, m:u64)
   for ev in evs:
       if ev.family == "attempt":
           ASSERT_ATTEMPT_CONSUMES(ev)   or return FAIL_FROM_LAST()
-          CHECK_PAYLOAD_KEYS(ev)         or return FAIL_FROM_LAST()   # requires 'lambda', not 'lambda_extra'
+          CHECK_PAYLOAD_KEYS(ev, run)    or return FAIL_FROM_LAST()   # requires 'lambda', not 'lambda_extra'
       else:  # rejection/exhausted/final
           ASSERT_MARKER_NONCONSUMES(ev)    or return FAIL_FROM_LAST()
           CHECK_PAYLOAD_KEYS_MARKER(ev,run) or return FAIL_FROM_LAST()  # requires 'lambda_extra', not 'lambda'
@@ -628,6 +644,10 @@ function validate_merchant(dict:Dictionary, schemas:Schemas, run:RunArgs, m:u64)
   ok, term := CHECK_TERMINAL_POLICY(ITER(A), ITER(R), ITER(X), ITER(F))
   if not ok:
       return FAIL("E_TERMINAL_CARDINALITY", dataset="*", merchant_id=m, run=run, context=term)
+      
+  # V8 — HYGIENE (duplicates, late label drift) --------------------------------
+  CHECK_HYGIENE(MERGE_BY_COUNTERS([ITER(A), ITER(R), ITER(X), ITER(F)]), ITER(TR), run)
+    or return FAIL_FROM_LAST()      
 
   # PASS — record terminal kind (for run summary); emit _passed.flag upstream --
   return PASS(terminal=term)
@@ -654,20 +674,22 @@ function validate_merchant(dict:Dictionary, schemas:Schemas, run:RunArgs, m:u64)
 #   gates := read_gates(run, m)   # {is_multi:bool, is_eligible:bool, N:int, A:int, policy:str?}
 #   have_s4 := HAS_NEXT(it_attempts) or HAS_NEXT(it_reject) or HAS_NEXT(it_exhaust) or HAS_NEXT(it_final)
 
-function CHECK_GATES(gates, have_attempts:bool, have_rejects:bool, have_exhausts:bool) -> bool:
+function CHECK_GATES(gates, have_attempts:bool, have_rejects:bool, have_exhausts:bool, run:RunArgs) -> bool:
+    have_s4 = (have_attempts or have_rejects or have_exhausts)
     # 1) If any S4 rows exist, S1 and S3 must both have approved the merchant
     if have_s4 and not (gates.is_multi and gates.is_eligible):
-        return FAIL("E_GATING_BREACH", dataset="*", context={
-            "have_s4": true, "is_multi": gates.is_multi, "is_eligible": gates.is_eligible
-        })
+        return FAILC("E_GATING_BREACH", "*", /*merchant*/0, run,
+                     { "have_s4": true, "is_multi": gates.is_multi, "is_eligible": gates.is_eligible })
 
-    # 2) Scalar domain checks (must be integers in allowed ranges per S4 preflight)
-    if have_s4 and (gates.N < 2 or gates.A < 0):
-        return FAIL("E_GATING_BREACH", dataset="*", context={ "N": gates.N, "A": gates.A })
+    # 2) OPTIONAL scalar domain checks (only if host provided N/A)
+    if have_s4 and HAS_KEY(gates,"N") and gates.N < 2:
+        return FAILC("E_GATING_BREACH", "*", 0, run, { "N": gates.N })
+    if have_s4 and HAS_KEY(gates,"A") and gates.A < 0:
+        return FAILC("E_GATING_BREACH", "*", 0, run, { "A": gates.A })
 
     # 3) A==0 short-circuit rule (upstream says no admissible foreigns)
     #    If A==0, S4 must be final-only: no attempts, no rejection/exhausted markers.
-    if gates.A == 0:
+    if HAS_KEY(gates,"A") and gates.A == 0:
         if have_attempts or have_rejects or have_exhausts:
             return FAILC("E_A0_PROTOCOL", "*", 0, run, { "found": "attempt/marker with A==0" })
         # Final-only specifics (shape/value) are checked later in terminal policy.
@@ -1076,7 +1098,11 @@ for ev in evs:
 ```text
 # Numeric helpers for u128 totals (decimal strings)
 function u128_cmp(a:U128S, b:U128S) -> int:         # returns -1, 0, 1
-    return COMPARE(u128_from_dec(a), u128_from_dec(b))
+    aa = u128_from_dec(a)
+    bb = u128_from_dec(b)
+    if aa < bb: return -1
+    if aa > bb: return  1
+    return 0
 
 function u128_sub(a:U128S, b:U128S) -> U128S:       # assumes a >= b
     return to_dec( u128_from_dec(a) - u128_from_dec(b) )
