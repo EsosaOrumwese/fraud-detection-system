@@ -3,6 +3,7 @@
 ## 1) Scope & intent
 
 S2 generates the **total pre-split multi-site outlet count** $N_m$ for merchants that passed the hurdle as **multi-site** in S1. It is a *stochastic* state (NB via Poisson–Gamma), but **S2.1 itself** is deterministic: it gates who enters S2 and assembles the numeric inputs needed for S2.2–S2.5. Only merchants with `is_multi=1` (per S1’s authoritative event) may enter S2; single-site merchants bypass S2 entirely.
+Note that examples are informative; behaviour is defined by the normative rules in this spec
 
 ---
 
@@ -486,7 +487,7 @@ function s2_3_attempt_once(ctx: NBContext, t: int) -> AttemptRecord:
 
     # --- Gamma step on substream "gamma_nb"
     G := gamma_mt1998(alpha=phi)              # uses S0.3.4/5; variable attempts internally
-    # --- Compute λ and guard numeric validity BEFORE any emission
+    # --- Compute λ and guard numeric validity BEFORE any emission (compute once; reuse below)
     lambda := (mu/phi) * G
     if (!isfinite(lambda) or lambda <= 0.0):
         raise ERR_S2_NUMERIC_INVALID          # no S2 events should exist for this merchant
@@ -500,8 +501,7 @@ function s2_3_attempt_once(ctx: NBContext, t: int) -> AttemptRecord:
     )
 
     # --- Poisson step on substream "poisson_nb"
-    lambda := (mu / phi) * G                  # binary64
-    if not isfinite(lambda) or lambda <= 0: raise ERR_S2_NUMERIC_INVALID
+    # λ was already computed and validated above; reuse it here (no recompute drift).
     K := poisson_s0_3_7(lambda)               # regimes per S0.3.7
     emit_poisson_component(
         merchant_id=ctx.merchant_id,
@@ -901,7 +901,7 @@ Guarantee **bit-replay** and **auditability** of the NB sampler by fixing (i) wh
   * `logs/rng/events/nb_final/...` (approved; same partitions).
     (Gamma stream path is pinned similarly; consumers/partitions mirror Poisson.)
 
-**Trace duty (pointer):** After **each** RNG event append, emit **exactly one** cumulative `rng_trace_log` row (saturating totals) — see S4 §10.8 for the canonical wording.
+**Trace duty (pointer):** After **each** RNG event append, emit **exactly one** cumulative `rng_trace_log` row (saturating totals) — same 'one trace row per event' duty as S4 §2A; see S4 §10.8 for the canonical wording.
 
 ---
 
@@ -997,7 +997,7 @@ No identity ties `draws` to the counter delta.
 * **`nb_final`**
   **Non-consuming**: `before == after`; `draws = 0`. (Validator enforces.)
 
-Additionally, a run may emit **`rng_trace_log`** rows (per `(module, substream_label)`) carrying `draws` for fast aggregation; these are used by validation for reconciliation.
+Additionally, a run may emit **`rng_trace_log`** rows (per `(module, substream_label)`) carrying cumulative counters for fast aggregation; validators reconcile `draws` by summing event budgets.
 
 ---
 
