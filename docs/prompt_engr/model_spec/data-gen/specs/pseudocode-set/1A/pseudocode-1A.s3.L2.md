@@ -28,7 +28,8 @@ The **single legal wiring** of S3: invoke S3·L1 kernels in the only permitted o
 * **Parameter-scoped partitions + lineage.** S3 tables partition by `parameter_hash` only. Before publish, L2 **attaches lineage fields** to each row and L0 verifies **embed = path**:
 
   * `row.parameter_hash == partition.parameter_hash`
-  * `row.manifest_fingerprint == manifest_fingerprint_used`
+  * if present, `row.produced_by_fingerprint == manifest_fingerprint_used`
+  * `_manifest.json` sidecar records `manifest_fingerprint == manifest_fingerprint_used`
 * **Atomic, idempotent publish.** tmp → fsync → rename; per-dataset **skip-if-final** at the partition level; safe re-runs are no-ops.
 * **Dataset-specific logical row ordering at write:**
 

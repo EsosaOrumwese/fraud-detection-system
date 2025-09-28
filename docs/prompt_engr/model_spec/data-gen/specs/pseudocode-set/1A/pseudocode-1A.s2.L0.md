@@ -609,7 +609,7 @@ function gamma_attempt_with_budget(phi:f64, s_gamma:Stream)
   blocks_u64 = u128_to_uint64_or_abort(dhi, dlo)
 
   # DEV_ASSERTS (no-op in prod)
-  #   Case A (φ≥1): draws ≥ 3; Case B (φ<1): draws ≥ 4 (adds +1 for power step)
+  #   Case A (φ≥1): draws ≥ 2; Case B (φ<1): draws ≥ 3 (adds +1 for power step)
 
   return (G, s1, AttemptBudget{ blocks: blocks_u64,
                                 draws_hi: HI(draws_u128), draws_lo: LO(draws_u128) })
