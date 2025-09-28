@@ -120,16 +120,15 @@ If **A=0**, L2 must short-circuit: compute λ/regime via **K-1** and write **one
 
 * **Partitions & path↔embed:** All S4 logs are dictionary-resolved under `{seed, parameter_hash, run_id}`; **events’ envelopes** are stamped by L0; L2 passes lineage values, **never paths**.  
 
-* **Labels:** `(module, substream_label)` are **spec-pinned** for all S4 **events & trace**.
+* **Labels:** `(module, substream_label, context)` are **spec-pinned** for S4.
   `module="1A.ztp_sampler"`, `substream_label="poisson_component"`.  
-  **`context="ztp"`** is present on **attempt events only** (`rng_event_poisson_component`) and **omitted** on
-  `rng_event_ztp_rejection` / `rng_event_ztp_retry_exhausted` / `rng_event_ztp_final`. Trace has **no** `context`.  
+  **`context="ztp"`** is present on **all S4 events** — `rng_event_poisson_component`, `rng_event_ztp_rejection`, `rng_event_ztp_retry_exhausted`, `rng_event_ztp_final` — and **omitted** on **trace**. 
 
 ## 2.2 Version facts L2 must treat as constants
 
 * **Schema version (attempt payload key):** attempts carry `lambda` (not `lambda_extra`). This is a **schema-true field name** used by L1→L0 emitters. 
 
-* **Cap is fixed at 64 in this schema:** the abort marker **requires** `attempts:64` (const) and `aborted:true`; downgrade path writes a finaliser with `attempts:64, exhausted:true`. L2 treats 64 as **pinned** (no runtime override).  
+* **Cap is fixed:** `MAX_ZTP_ATTEMPTS = 64` in this schema; the abort marker **requires** `attempts:64` (const) and `aborted:true`; downgrade path writes a finaliser with `attempts:64, exhausted:true`. L2 treats this as **pinned** (no runtime override).  
 
 * **Trace lineage shape (v15):** trace rows embed `{run_id, seed}`, **no `context`**; partitions `{seed, parameter_hash, run_id}`; totals are **saturating** and monotone; consumer selects final row per `(module, substream_label)`.  
 
@@ -411,6 +410,7 @@ Each edge is *(from → to | guard / action)*; all actions are **kernel calls** 
 MODULE          = "1A.ztp_sampler"
 SUBSTREAM_LABEL = "poisson_component"     # used for every S4 event & trace (domain for adjacency/totals)
 CONTEXT (attempts only) = "ztp"           # present on rng_event_poisson_component; omitted on other event families; trace has no context
+MAX_ZTP_ATTEMPTS = 64                     # schema-pinned cap (see §2.2)
 ```
 
 > All S4 events use the same `(MODULE, SUBSTREAM_LABEL)`; **trace rows** share this domain and carry **no `context`**. One event → **one immediate** cumulative trace (same writer).
@@ -865,7 +865,7 @@ This is the **only** set of emissions L2 can cause in S4. Everything else (paylo
 
 * **Start:** `attempt := resume_attempt_index(merchant_id)` (1 if none on disk; else `max+1`) and `s_before := resume_stream_or_fresh(ctx)` (persisted `s_after` if any; else merchant `s0`). See §7.
 
-* **Bound:** iterate **attempt ∈ {1,…,64}**; 64 is **schema-pinned** for the exhausted marker (`attempts:64`). 
+* **Bound:** iterate **attempt ∈ {1,…,MAX_ZTP_ATTEMPTS}**; the cap is **schema-pinned** for the exhausted marker (`attempts:64`). 
 
 * **Per-iteration contract:**
 
