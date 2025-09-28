@@ -3,8 +3,6 @@
 
 ## 0) Document contract & status
 
-**Status.** Draft (to be Frozen).
-
 **Master spec.** This document is **normative** for S4. Any pseudocode shown here is **illustrative** only; the definitive, language-agnostic build guidance must **derive** from this spec.
 
 **Schema authority.** For 1A, **JSON-Schema is the single schema authority**; registry/dictionary entries point only to `schemas.*.yaml` anchors (JSON Pointer fragments). Avro, if generated, is **non-authoritative** and must **not** be referenced by 1A artefacts.

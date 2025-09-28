@@ -8,7 +8,7 @@ S2 generates the **total pre-split multi-site outlet count** $N_m$ for merchants
 
 ## 2) Entry preconditions (MUST)
 
-For a merchant $m$ to enter S2:
+For a merchant $m$ to enter S2 (where $m$ is the S0 canonical $merchant_{u64}$ key):
 
 1. **Hurdle provenance.** There exists exactly one S1 event record under
    `logs/rng/events/hurdle_bernoulli/…` with the merchant key and payload containing `is_multi=true`. This is the canonical gate from S1. **Absence** or `is_multi=false` ⇒ S2 MUST NOT run for $m$. (Branch purity.)
@@ -449,7 +449,7 @@ Given merchant $m$ with $(\mu_m,\phi_m)$ from S2.2:
 
 ## 6) Draw accounting & reconciliation (MUST)
 
-**Trace rule (cumulative).** Persist one **trace** row per `(module, substream_label)` carrying
+**Trace rule (cumulative).** Persist one **trace** row per `(module, substream_label)` carrying *(see also S4 §2A)*
 `blocks_total = Σ blocks_event` and `draws_total = Σ draws_event`. The stream’s 128-bit
 counter span **must** satisfy `u128(last_after) − u128(first_before) = blocks_total`.
 There is **no** identity deriving `draws` (or `draws_total`) from counter deltas.
@@ -901,6 +901,8 @@ Guarantee **bit-replay** and **auditability** of the NB sampler by fixing (i) wh
   * `logs/rng/events/nb_final/...` (approved; same partitions).
     (Gamma stream path is pinned similarly; consumers/partitions mirror Poisson.)
 
+**Trace duty (pointer):** After **each** RNG event append, emit **exactly one** cumulative `rng_trace_log` row (saturating totals) — see S4 §10.8 for the canonical wording.
+
 ---
 
 ## 3) Deterministic keyed mapping (normative)
@@ -908,6 +910,7 @@ Guarantee **bit-replay** and **auditability** of the NB sampler by fixing (i) wh
 All sub-streams are derived by the **S0.3.3 keyed mapping** from run lineage + label + merchant, order-invariant across partitions:
 
 1. **Base counter for a (label, merchant)**
+   *Where:* `m := merchant_u64` (**from S0.1 mapping**); `ℓ` is the exact substream label literal.
 
     $$
     (c^{\mathrm{base}}_{\mathrm{hi}},c^{\mathrm{base}}_{\mathrm{lo}})
