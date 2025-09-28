@@ -6,7 +6,7 @@
 
 From **bytes on disk only**, prove that the S3 outputs for a given `{parameter_hash, manifest_fingerprint}` satisfy **all state-3 contracts**:
 
-* **Structure & lineage:** schemas match their anchors; partitions are **parameter-scoped only**; every row’s lineage **embed = path** (**row\.parameter_hash == partition.parameter_hash**); all S3 datasets for this run share the same **manifest_fingerprint** (cross-dataset equality).
+* **Structure & lineage:** schemas match their anchors; partitions are **parameter-scoped only**; every row’s `parameter_hash` **embed = path**; rows **may** include `produced_by_fingerprint` (if present it equals the run fingerprint); the **sidecar**’s manifest equals the run fingerprint; all S3 datasets for this run share the same **manifest_fingerprint** (cross-dataset equality).
 * **Order authority:** `candidate_rank` is the **only** inter-country order; ranks are **contiguous** with **home=0** and unique per merchant; file order is **non-authoritative** (writer sorts listed below).
 * **Optional lanes (as enabled):**
 
@@ -526,11 +526,12 @@ For each **present** dataset:
 
 For every **present** dataset, **stream** the minimal lineage projection:
 
-* **Columns:** `parameter_hash, manifest_fingerprint`.
+* **Columns:** `parameter_hash` (and optionally `produced_by_fingerprint`).
 * **Per row checks:**
 
   * `row.parameter_hash == RunArgs.parameter_hash` → else **EMBED-PATH-MISMATCH** (dataset-scoped).
-  * `row.manifest_fingerprint == RunArgs.manifest_fingerprint` → else **MIXED-MANIFEST** (dataset-scoped).
+  * if `row.produced_by_fingerprint` is present: it `== RunArgs.manifest_fingerprint` → else **MIXED-MANIFEST** (dataset-scoped).
+  * additionally, **`sidecar.manifest_fingerprint == RunArgs.manifest_fingerprint`** (assert once per partition)
 
 *Because every row is checked against the run fingerprint, cross-dataset equality is guaranteed once all present datasets pass.*
 
@@ -2227,12 +2228,16 @@ PROC v_check_structural(run: RunArgs, dict: DictCtx, read: ReadCtx) -> OK | Fail
   // Lineage streaming check (embed=path; dataset-scoped manifest equality)
   for ds, has in present:
     if not has: continue
-    it := read.open_iter(ds, run.parameter_hash, ["parameter_hash","manifest_fingerprint"], order=NULL)
+    it := read.open_iter(ds, run.parameter_hash, ["parameter_hash","produced_by_fingerprint?"], order=NULL)
     while row := it.next():
       if row.parameter_hash != run.parameter_hash:
         return FAIL("EMBED-PATH-MISMATCH","DATASET", ds, NULL, {"got":row.parameter_hash})
-      if row.manifest_fingerprint != run.manifest_fingerprint:
-        return FAIL("MIXED-MANIFEST","DATASET", ds, NULL, {"got":row.manifest_fingerprint})
+    if HAS_KEY(row,"produced_by_fingerprint") and row.produced_by_fingerprint != run.manifest_fingerprint:
+      return FAIL("MIXED-MANIFEST","DATASET", ds, NULL, {"got":row.produced_by_fingerprint})
+  // Sidecar manifest is required and authoritative
+  sidecar = read.read_sidecar(ds, run.parameter_hash)
+  if sidecar.manifest_fingerprint != run.manifest_fingerprint:
+      return FAIL("MIXED-MANIFEST","DATASET", ds, NULL, {"got":sidecar.manifest_fingerprint})
     it.close()
 
   return OK()

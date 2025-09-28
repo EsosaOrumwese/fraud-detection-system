@@ -738,7 +738,7 @@ function event_gamma_nb(
 
 **Schema/Path/Lineage.** dataset id **`rng_event_poisson_component`**, schema `schemas.layer1.yaml#/rng/events/poisson_component`; partitions `{seed,parameter_hash,run_id}`; set `module="1A.nb_poisson_component"`, `substream_label="poisson_nb"`.
 
-**Payload (must):** `{ merchant_id, context:"nb", lambda, k }`. **Compute** `lambda=(mu/phi)*G` **in the caller** (binary64), then this emitter samples and emits.
+**Payload (must):** `{ merchant_id, context:"nb", lambda, k, attempt:int≥1 }`. **Compute** `lambda=(mu/phi)*G` **in the caller** (binary64), then this emitter samples and emits.
 
 ```pseudocode
 function event_poisson_nb(

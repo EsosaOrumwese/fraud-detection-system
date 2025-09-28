@@ -67,7 +67,7 @@ The **single legal wiring** of S3: invoke S3·L1 kernels in the only permitted o
 ## 2.2 Host inputs (values, not paths)
 
 * `parameter_hash : str` — sole partition key for all S3 outputs.
-* `manifest_fingerprint : str` — embedded in rows; must equal the run’s value.
+* `manifest_fingerprint : str` — recorded in the **sidecar**; rows **may** carry it as `produced_by_fingerprint` (optional provenance).
 * `bom.ladder : Ladder` — governed rule family used by L1.
 * `bom.iso_universe : Set[ISO2]` — closed country universe.
   // dp lives in priors_cfg (if present); dp_resid lives in bounds_cfg (if present).
@@ -167,10 +167,10 @@ L2 **fails fast** (merchant- or run-scoped) when:
 ## 3.2 Partition scope & lineage (binding)
 
 * **Partitioning:** **parameter-scoped only.** Every S3 dataset partitions *only* by `parameter_hash` (S3 has no `seed` partitions).
-* **Embedded lineage per row:** `{ parameter_hash: Hex64, manifest_fingerprint: Hex64 }`.
+* **Embedded lineage per row:** `parameter_hash: Hex64` (== path); `produced_by_fingerprint?: Hex64` (optional, informational).
 * **Equality rules at publish:** L2 attaches lineage, then L0 enforces
   `row.parameter_hash == partition.parameter_hash` and
-  `row.manifest_fingerprint == manifest_fingerprint_used_for_run`.
+  if present, `row.produced_by_fingerprint == manifest_fingerprint_used_for_run`. The **sidecar** carries the authoritative manifest.
   Any mismatch ⇒ write-side error (no partials).
 * **No path literals in L2.** L2 references **dataset IDs**; L0 resolves dictionary → (path, schema, partitions, sort keys).
 
@@ -1722,8 +1722,10 @@ PROC package_for_emit(bundle, lineage):
                                             sort=(merchant_id, country_iso, site_order)) : NULL)
 
   // Pure self-checks (defensive; no I/O):
-  ASSERT_ALL_ROWS(lineage.parameter_hash,       IN [candidate_rows, prior_rows?, count_rows?, sequence_rows?])
-  ASSERT_ALL_ROWS(lineage.manifest_fingerprint, IN [candidate_rows, prior_rows?, count_rows?, sequence_rows?])
+  ASSERT_ALL_ROWS(lineage.parameter_hash, IN [candidate_rows, prior_rows?, count_rows?, sequence_rows?])
+  // Optional row provenance: if present it must equal the run manifest
+  ASSERT_OPTIONAL_ALL_ROWS("produced_by_fingerprint", == lineage.manifest_fingerprint,
+                           IN [candidate_rows, prior_rows?, count_rows?, sequence_rows?])
 
   RETURN { candidate_rows, prior_rows?, count_rows?, sequence_rows? }
 END PROC
@@ -1738,7 +1740,8 @@ END PROC
 Each emitter **must** enforce:
 
 * **Embed = path:** reject if `row.parameter_hash` ≠ partition key.
-* **Manifest equality:** reject if `row.manifest_fingerprint` ≠ run fingerprint.
+* **Optional row provenance:** if a row has `produced_by_fingerprint`, reject if it ≠ run fingerprint.
+* **Sidecar manifest (required):** the dataset-level sidecar `_manifest.json` must record `manifest_fingerprint == run.manifest_fingerprint`.
 * **Schema & writer-sort sanity:** rows match schema; sort keys match §3.3.
 * **Atomicity & idempotence:** tmp → fsync → rename; `skip_if_final=true` yields a deterministic **skip**.
   L2 never bypasses emitters.
@@ -1759,7 +1762,7 @@ Each emitter **must** enforce:
 * Mixing different `manifest_fingerprint` values across datasets within the same `parameter_hash`.
 * Introducing additional partition dimensions (e.g., `seed`, date shards).
 * Attaching/mutating lineage **after** `package_for_emit`.
-* Publishing any row without both lineage fields present.
+* Publishing rows with `parameter_hash` missing/mismatched; treating `produced_by_fingerprint` as mandatory.
 
 ---
 

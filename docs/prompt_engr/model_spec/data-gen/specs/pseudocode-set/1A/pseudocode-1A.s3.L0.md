@@ -103,7 +103,7 @@ This pins the symbols, field shapes, and string forms that S3 helpers use/return
 ## 2.2 Canonical type aliases
 
 * **`ISO2`** = uppercase ISO-3166-1 alpha-2 code. Helpers normalise to uppercase; validators check membership in the canonical ISO set.
-* **`Hex64`** = 64-hexchar SHA-256 string (for `parameter_hash`, `manifest_fingerprint`). **Rows embed both**; `parameter_hash` **must equal** the path partition.
+* **`Hex64`** = 64-hexchar SHA-256 string (for `parameter_hash`, `manifest_fingerprint`). **Rows embed `parameter_hash`** (must equal path). Rows **may** include `produced_by_fingerprint` (optional provenance).
 * **`FixedDpDecStr`** = decimal **string** with fixed places (e.g., `"0.275000"`), used **only** for priors; dp is carried in an integer field `dp`.
 * **`CandidateRank`** = non-negative **int32**; **contiguous per merchant** with **home at 0**.
 
@@ -112,7 +112,7 @@ This pins the symbols, field shapes, and string forms that S3 helpers use/return
 ## 2.3 Records used across helpers (shape only)
 
 * **`Lineage`**
-  `{ parameter_hash: Hex64, manifest_fingerprint: Hex64 }` — embed in every S3 row; helpers enforce **embed = path** for `parameter_hash`.
+  `{ parameter_hash: Hex64, produced_by_fingerprint?: Hex64 }` — every S3 row **embeds** `parameter_hash` (== path key). Rows **may** include `produced_by_fingerprint` (informational; equals the run’s manifest if present).
 
 * **`BOM`** *(process-local read-only)*
   `{ ladder: Ladder, iso_universe: set<ISO2>, … }` — deterministic caches; no clocks.
@@ -150,7 +150,7 @@ This pins the symbols, field shapes, and string forms that S3 helpers use/return
 * **Numbers vs strings.** Payload numbers are JSON **numbers**, **except** priors, which are emitted as **fixed-dp decimal strings** with an explicit `dp`. **Do not** store probabilities or renormalise in S3.
 * **Order authority.** Inter-country order is represented **only** by `candidate_rank` in `s3_candidate_set`; file order is non-authoritative. **Ranks are contiguous** `0..|C|−1` with **home=0**.
 * **Residual precision.** When integerising, **quantise residuals to `dp_resid = 8`** before bumping; record `residual_rank` (strict descending residual → ISO A→Z tie-break).
-* **Lineage embedding.** Every row embeds `{parameter_hash, manifest_fingerprint}`; **row `parameter_hash` == path key**. Idempotent runs with the same lineage are **byte-identical**.
+* **Lineage embedding.** Every row embeds `parameter_hash` (**equals** the path key). Rows **may** include `produced_by_fingerprint`; the run’s **manifest** is recorded in the dataset-level sidecar.
 
 ---
 
@@ -2869,7 +2869,7 @@ Use this as a **go/no-go** list. Every box must pass for S3·L0 to be declared *
 * [ ] **Emit targets exist & match:** Emitters point to anchors
   `#/s3/candidate_set`, `#/s3/base_weight_priors`, `#/s3/integerised_counts`, `#/s3/site_sequence`.
 * [ ] **Dictionary-resolved paths:** No path literals; `schema_ref` is validated by the writer.
-* [ ] **Lineage fields embedded:** Rows carry `{parameter_hash, manifest_fingerprint}` (present and correctly typed).
+* [ ] **Lineage fields embedded:** Rows carry `parameter_hash`; `produced_by_fingerprint` is **optional**. The **sidecar** carries `manifest_fingerprint`.
 
 ## C. BOM loaders (read-only authorities)
 

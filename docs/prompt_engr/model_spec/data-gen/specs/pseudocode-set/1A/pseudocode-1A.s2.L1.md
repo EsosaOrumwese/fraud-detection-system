@@ -256,14 +256,12 @@ function S2_3_attempt_once(ctx: NBContext,
                  /*draws_hi*/ bud_gamma.draws_hi, /*draws_lo*/ bud_gamma.draws_lo,
                  /*payload*/ payload_gamma)                                                            # envelope+payload write
   draws_str_gamma = u128_to_decimal_string(bud_gamma.draws_hi, bud_gamma.draws_lo)
-  (_, _, evt_gamma) = update_rng_trace_totals(ctx_gamma.module, ctx_gamma.substream_label,
+  (blk_gamma, drw_gamma, evt_gamma) = update_rng_trace_totals(ctx_gamma.module, ctx_gamma.substream_label,
                                              ctx.lineage.seed, ctx.lineage.parameter_hash, ctx.lineage.run_id,
                                              ctx_gamma.before_hi, ctx_gamma.before_lo, s_gamma'.ctr.hi, s_gamma'.ctr.lo,
                                              totals_gamma.draws_total, totals_gamma.blocks_total, totals_gamma.events_total,
                                              draws_str_gamma)
-  totals_gamma' = TraceTotals{ blocks_total: totals_gamma.blocks_total /*+Δ*/,  # writer computes Δ internally
-                              draws_total:  totals_gamma.draws_total  /*+draws*/,
-                              events_total: evt_gamma }
+  totals_gamma' = TraceTotals{ blocks_total: blk_gamma, draws_total:  drw_gamma, events_total: evt_gamma }
 
   # 4) Π step (label "poisson_nb") — emit Poisson component for valid λ
   (K, s_pois', totals_pois') =
@@ -289,7 +287,7 @@ The schema/dictionary define `gamma_component` and `poisson_component` as approv
 ### Payload correctness
 
 * `gamma_component` payload: `{merchant_id, context:"nb", index:0, alpha, gamma_value}`.
-* `poisson_component` payload: `{merchant_id, context:"nb", lambda, k}`.
+* `poisson_component` payload: `{merchant_id, context:"nb", lambda, k, attempt:int≥1}`.
   Payload floats are **numbers**; the writer prints shortest-decimal JSON.
 
 ## Outputs (per attempt)
