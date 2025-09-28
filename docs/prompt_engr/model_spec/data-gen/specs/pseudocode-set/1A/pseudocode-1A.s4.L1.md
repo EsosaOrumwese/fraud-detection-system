@@ -87,7 +87,7 @@ These are the **only** literals and fixed constants L1 should ever type. Everyth
 ### 3.3 Numeric thresholds & caps
 
 * **Regime boundary:** $\lambda_{\text{extra}}^\star = 10$. If $\lambda_{\text{extra}} < 10 \Rightarrow$`inversion`; else `ptrs`. Binary64 decision (**no epsilons**).
-* **ZTP zero-draw cap:** **64 attempts** maximum (**spec-fixed**). The schema pins this via `ztp_retry_exhausted.attempts = 64` (const) in the abort marker.
+* **ZTP zero-draw cap:** **MAX_ZTP_ATTEMPTS = 64** (**spec-fixed**). The schema pins this via `ztp_retry_exhausted.attempts = 64` (const) in the abort marker.
 * **Attempt index domain:** `attempt ≥ 1` (**schema**). Enforce **1..64** by **spec** (loop cap), and ensure indices are **1-based, strictly increasing**.
 
 ### 3.4 Payload minima (field names are normative)
@@ -113,6 +113,7 @@ Use **exactly** these payload keys when forming inputs to L0 emitters (L1 provid
 MODULE              := "1A.ztp_sampler"                 # events & trace
 SUBSTREAM_LABEL     := "poisson_component"         # events & trace
 EVENT_CONTEXT       := "ztp"                       # events only (trace has no context)
+MAX_ZTP_ATTEMPTS    := 64                          # schema-pinned cap (used by loop/markers)
 
 # Enums
 REGIME              ∈ {"inversion","ptrs"}
@@ -967,6 +968,7 @@ END
 ### Intent
 
 Take the sampled attempt from K-2 and **write the consuming attempt event** via a single **L0 emitter**. The emitter stamps the envelope and **immediately appends one** cumulative trace row (same writer). Attempt payload **must** use the key **`lambda`** (attempts-only).
+> **Reminder:** non-attempt events (K-4/K-5/K-6) use **`lambda_extra`** per schema; only attempts use **`lambda`**.
 
 ---
 
