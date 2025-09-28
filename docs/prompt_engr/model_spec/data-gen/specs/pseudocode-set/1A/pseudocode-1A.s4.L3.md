@@ -339,7 +339,9 @@ function dict_resolve(dataset_id:str) -> {
 
 # Ensure anchor exists; optional light row validator for V1 checks.
 function schema_resolve(anchor:str) -> Schema throws EnvError
-function schema_validate_row(schema:Schema, row:Record) -> bool
+function SAMPLE(row:Record) -> any
+    # Implementer: return a truncated projection for error context, or just the row.
+    return row
 
 # -- Dataset readers (projected, streaming) ------------------------------------
 # Open S4 EVENT family iterator for a merchant. Projection keeps memory O(1).
@@ -626,10 +628,11 @@ function validate_merchant(dict:Dictionary, schemas:Schemas, run:RunArgs, m:u64)
 
   # V3 — MERGE BY COUNTERS; IDENTITIES & PAYLOAD KEYS -------------------------
   # File order is non-authoritative; counters define order & adjacency.
-  evs := MERGE_BY_COUNTERS([ ITER(A), ITER(R), ITER(X), ITER(F) ])
+  # Buffer once so we can iterate for identity checks and again for adjacency.
+  events_buf := BUF_ALL( MERGE_BY_COUNTERS([ ITER(A), ITER(R), ITER(X), ITER(F) ]) )
 
   # Per-event checks (consuming vs non-consuming; payload key discipline)
-  for ev in evs:
+  for ev in ITER(events_buf):
       if ev.family == "attempt":
           ASSERT_ATTEMPT_CONSUMES(ev)   or return FAIL_FROM_LAST()
           CHECK_PAYLOAD_KEYS(ev, run)    or return FAIL_FROM_LAST()   # requires 'lambda', not 'lambda_extra'
@@ -638,7 +641,7 @@ function validate_merchant(dict:Dictionary, schemas:Schemas, run:RunArgs, m:u64)
           CHECK_PAYLOAD_KEYS_MARKER(ev,run) or return FAIL_FROM_LAST()  # requires 'lambda_extra', not 'lambda'
 
   # V4 — EVENT → TRACE ADJACENCY (one-to-one, immediate, cumulative) ----------
-  CHECK_EVENT_TRACE_ADJACENCY(evs, ITER(TR), run) or return FAIL_FROM_LAST()
+  CHECK_EVENT_TRACE_ADJACENCY(ITER(events_buf), ITER(TR), run) or return FAIL_FROM_LAST()
 
   # V5 — ATTEMPT SEQUENCE & RESUME --------------------------------------------
   # Attempts must be contiguous 1..n (n ≤ 64); if resuming, start at max+1; no re-emits.
@@ -1380,13 +1383,9 @@ function CHECK_TERMINAL_POLICY(it_attempts, it_reject, it_exhaust, it_final)
         # Optional shape hints on final: attempts==0, reason:"no_admissible" if present
         f0 = tf.finals[0]
         if HAS_KEY(f0.payload,"attempts") and f0.payload.attempts != 0:
-            return FAIL("E_TERMINAL_CARDINALITY", dataset=DATASET.ztp_final,
-                        merchant_id=f0.merchant_id, run=run,
-                        context={ "where":"A0-final:attempts!=0", "attempts": f0.payload.attempts })
+            return (false, { "where":"A0-final:attempts!=0", "attempts": f0.payload.attempts })
         if HAS_KEY(f0.payload,"exhausted") and f0.payload.exhausted == true:
-            return FAIL("E_TERMINAL_CARDINALITY", dataset=DATASET.ztp_final,
-                        merchant_id=f0.merchant_id, run=run,
-                        context={ "where":"A0-final:exhausted-flag" })
+            return (false, { "where":"A0-final:exhausted-flag" })
         return (true, "A0_FINAL_ONLY")
 
     # If we have no terminal at all (and some events), that's invalid
@@ -1421,15 +1420,12 @@ function CHECK_TERMINAL_POLICY(it_attempts, it_reject, it_exhaust, it_final)
 
         # If present, final.attempts must equal number of attempts performed
         if HAS_KEY(f0.payload,"attempts") and f0.payload.attempts != nA:
-            return FAIL("E_TERMINAL_CARDINALITY", dataset=DATASET.ztp_final,
-                        merchant_id=f0.merchant_id, run=run,
-                        context={ "where":"final:attempts!=n_attempts", "final_attempts":f0.payload.attempts, "n_attempts":nA })
+            return (false, { "where":"final:attempts!=n_attempts",
+                             "final_attempts":f0.payload.attempts, "n_attempts":nA })
 
         # If present, final must NOT be marked exhausted
         if HAS_KEY(f0.payload,"exhausted") and f0.payload.exhausted == true:
-            return FAIL("E_TERMINAL_CARDINALITY", dataset=DATASET.ztp_final,
-                        merchant_id=f0.merchant_id, run=run,
-                        context={ "where":"final:unexpected-exhausted-flag" })
+            return (false, { "where":"final:unexpected-exhausted-flag" })
 
         # Optional mapping check: if attempts carry 'k', ensure final.K_target == k of the last attempt
         lastA = tf.attempts[nA-1]
@@ -1973,7 +1969,7 @@ Expect: **PASS**, terminal=`A0_FINAL_ONLY`.
 
 **KAT-H1:** Duplicate **event** row (identical family, counters, payload key/val) → **`E_HYGIENE`** (`where:"duplicate-event"`).
 **KAT-H2:** Duplicate **trace** row (identical cumulative totals) → **`E_HYGIENE`** (`where:"duplicate-trace-row"`).
-**KAT-H3:** Unknown family tag or late label drift → **`E_HYGIENE"`** (`where:"unknown-family|label-drift|trace-label-drift"`).
+**KAT-H3:** Unknown family tag or late label drift → **`E_HYGIENE`** (`where:"unknown-family|label-drift|trace-label-drift"`).
 
 ---
 
