@@ -22,7 +22,7 @@ Validate, **read-only**, that S4 outputs conform **byte-for-byte** to the S4 spe
   * **Rejection / Exhausted / Final** are **non-consuming** (`after == before`, `draws == "0"`)
 * **Event → Trace adjacency**
 
-  * After **every event**, there is **exactly one** immediate **cumulative** trace row (same `(module, substream)`), and trace deltas equal that event’s **measured** budgets & counter movement; totals are saturating & monotone
+  * After **every event**, there is **exactly one** immediate **cumulative** trace row (same `(module, substream_label)`), and trace deltas equal that event’s **measured** budgets & counter movement; totals are saturating & monotone
 * **Attempt sequence & resume**
 
   * Attempts contiguous **1..n** with **n ≤ 64**, no gaps/dupes
@@ -103,7 +103,7 @@ COUNTERS_AUTHORITATIVE  = true   # counters (before/after) define order & adjace
 
 **Terminal policy pins (exactly one legal outcome per merchant):**
 
-* **Accept:** first `K ≥ 2` → one **final** with `K_target == K` from that attempt; **no** exhausted marker.
+* **Accept:** first `K ≥ 1` → one **final** with `K_target == K` from that attempt; **no** exhausted marker.
 * **Cap–abort:** `attempts == 64` → one **exhausted** marker; **no** final.
 * **Cap–downgrade:** `attempts == 64` → one **final** flagged exhausted (or equivalent field); **no** exhausted marker.
 * **A = 0 short-circuit:** one **final** only (zero attempts & markers).
@@ -166,13 +166,8 @@ TRACE_EMBED_KEYS = ["seed","run_id"]                    # parameter_hash is path
 
 ### 3.4 Label/literal pins (from S4 contracts)
 
-```text
-MODULE           = "1A.ztp_sampler"
-SUBSTREAM        = "poisson_component"
-CONTEXT_EVENTS   = "ztp"      # present on all S4 events; absent on trace
-```
-
-(Fixed by your S4 spec/L0; L3 treats deviations as violations.) 
+> Resolved from **S4·L0** imports in §5 (single source of truth).  
+> L3 treats any deviation from those imported literals as a violation.
 
 ### 3.5 Per-family notes L3 will enforce
 
@@ -252,7 +247,7 @@ type AttemptEvent = BaseEvent & {
   family:  "attempt",
   context: "ztp",
   attempt: int,                # 1-based, contiguous
-  payload: { lambda: f64, regime: "inversion" | "ptrs" }
+  payload: { lambda: f64, regime?: "inversion" | "ptrs", k?: int }
 }
 
 # Markers/Final — non-consuming; payload uses 'lambda_extra'.
@@ -700,7 +695,7 @@ function validate_merchant(dict:Dictionary, schemas:Schemas, run:RunArgs, m:u64)
 ```text
 # Inputs
 #   gates := read_gates(run, m)   # {is_multi:bool, is_eligible:bool, N:int, A:int, policy:str?}
-#   have_s4 := HAS_NEXT(it_attempts) or HAS_NEXT(it_reject) or HAS_NEXT(it_exhaust) or HAS_NEXT(it_final)
+#   have_s4 := have_attempts or have_rejects or have_exhausts or have_finals
 
 function CHECK_GATES(gates, have_attempts:bool, have_rejects:bool, have_exhausts:bool, have_finals:bool, run:RunArgs) -> bool:
     have_s4 = (have_attempts or have_rejects or have_exhausts or have_finals)
@@ -1107,11 +1102,11 @@ for ev in evs:
 
 ## 13) V5 — Event → Trace Adjacency (one-to-one)
 
-+> After **every** S4 event, there must be **exactly one** immediate **cumulative** trace row for the same `(module, substream_label)`. Its totals **deltas** must equal that event’s measured budgets and counter movement; totals are **saturating** (never decrease).
+> After **every** S4 event, there must be **exactly one** immediate **cumulative** trace row for the same `(module, substream_label)`. Its totals **deltas** must equal that event’s measured budgets and counter movement; totals are **saturating** (never decrease).
 
 ### What this stage enforces
 
-* One-to-one cardinality: **|events| == |trace rows|** (per merchant, per `(MODULE,SUBSTREAM)`).
+* One-to-one cardinality: **|events| == |trace rows|** (per merchant, per `(module, substream_label)`).
 * For each event `eᵢ` paired with trace row `tᵢ`:
 
   * `Δblocks_total(tᵢ) == eᵢ.blocks`
@@ -1478,7 +1473,7 @@ function CHECK_TERMINAL_POLICY(it_attempts, it_reject, it_exhaust, it_final)
 ### What this stage enforces
 
 * **No duplicate S4 events** (same merchant, same envelope counters, same family, same payload key).
-* **No duplicate trace rows** (same merchant, same `(module,substream)`, same totals triplet).
+* **No duplicate trace rows** (same merchant, same `(module,substream_label)`, same totals triplet).
 * **No off-contract family tags** or label drift (belt-and-braces recheck).
 * Produces **clear, minimal** failures; otherwise passes silently.
 
@@ -1897,10 +1892,10 @@ Call this **only** on failure, with tiny `N` (e.g., 5). Never dump entire partit
 ### ✅ PASS cases (golden paths)
 
 **KAT-P1 (ACCEPT):**
-Setup: `att(1,…, K<2)`, `tr(Δblocks,Δdraws,Δevents=1)`; `att(2,…, K≥2)`, `tr(..)`; `fin(attempts=2, λx, Kt=K_of_att2)`; matching trace after final.
+Setup: `att(1,…, K=0)`, `tr(Δblocks,Δdraws,Δevents=1)`; `att(2,…, K≥1)`, `tr(..)`; `fin(attempts=2, λx, Kt=K_of_att2)`; matching trace after final.
 Expect: **PASS**, terminal=`ACCEPT`.
 
-**KAT-P2 (CAP_ABORT):**
+**KAT-P2 (CAP_ABORT):**  One-to-one cardinality: **|events| == |trace rows|** (per merchant, per `(module, substream_label)`).
 Setup: 64 attempts with `K<2`, each paired with trace; `exh(cap=64, aborted=true)` (no final); trace after marker.
 Expect: **PASS**, terminal=`CAP_ABORT`.
 
