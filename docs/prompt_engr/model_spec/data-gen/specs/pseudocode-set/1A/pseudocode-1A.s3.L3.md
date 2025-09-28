@@ -2232,8 +2232,12 @@ PROC v_check_structural(run: RunArgs, dict: DictCtx, read: ReadCtx) -> OK | Fail
     while row := it.next():
       if row.parameter_hash != run.parameter_hash:
         return FAIL("EMBED-PATH-MISMATCH","DATASET", ds, NULL, {"got":row.parameter_hash})
-    if HAS_KEY(row,"produced_by_fingerprint") and row.produced_by_fingerprint != run.manifest_fingerprint:
-      return FAIL("MIXED-MANIFEST","DATASET", ds, NULL, {"got":row.produced_by_fingerprint})
+      if HAS_KEY(row,"produced_by_fingerprint") and row.produced_by_fingerprint != run.manifest_fingerprint:
+        return FAIL("MIXED-MANIFEST","DATASET", ds, NULL, {"got":row.produced_by_fingerprint})
+    // Sidecar is required and authoritative for the manifest
+    sidecar := read.read_sidecar(ds, run.parameter_hash)
+    if sidecar.manifest_fingerprint != run.manifest_fingerprint:
+        return FAIL("MIXED-MANIFEST","DATASET", ds, NULL, {"got":sidecar.manifest_fingerprint})
   // Sidecar manifest is required and authoritative
   sidecar = read.read_sidecar(ds, run.parameter_hash)
   if sidecar.manifest_fingerprint != run.manifest_fingerprint:

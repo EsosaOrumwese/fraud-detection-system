@@ -1693,12 +1693,12 @@ Before freezing L2, verify:
 
 For each S3 dataset (`candidate_set`, optional `base_weight_priors`, `integerised_counts`, `site_sequence`):
 
-1. **Presence:** every row embeds both `parameter_hash` and `manifest_fingerprint`.
+1. **Presence:** every row embeds both `parameter_hash` and `manifest_fingerprint`.+1. **Presence:** every row embeds `parameter_hash`. Rows **may** include `produced_by_fingerprint` (optional provenance).
 2. **Equality (publish-time checks):**
-
    * `row.parameter_hash == target_partition.parameter_hash`
-   * `row.manifest_fingerprint == run.manifest_fingerprint`
-3. **Cross-dataset consistency (run-scoped):** within a run, all S3 datasets **embed the same** lineage tuple.
+   * if present: `row.produced_by_fingerprint == run.manifest_fingerprint`
+   * the **dataset-level sidecar** `_manifest.json` **must** record `manifest_fingerprint == run.manifest_fingerprint`
+3. **Cross-dataset consistency (run-scoped):** sidecar equality enforces a single manifest per run slice; row-level provenance is optional.
 4. **No transformation:** lineage strings are exact bytes; **no** case folding, trimming, or re-encoding.
 
 ---
