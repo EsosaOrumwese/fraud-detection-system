@@ -207,7 +207,8 @@ function orchestrate_S2(lineage, merchant_iter, nb_inputs_provider, host_opts) -
     # S2.3/S2.4 loop — emit-as-you-go Gamma→Poisson attempts until accept (K≥2)
     rejections = 0
     while true:
-        attempt = S2_3_attempt_once(ctx, s_gamma, totals_gamma, s_pois, totals_pois)
+        attempt = S2_3_attempt_once(ctx, s_gamma, totals_gamma, s_pois, totals_pois,
+                                   /*attempt_index=*/rejections + 1)
         if attempt.is_error():
             # e.g., λ invalid (**no S2 events emitted**). Stop for this merchant.
             yield Result.fail(merchant_id, attempt.signal)
@@ -382,7 +383,8 @@ Gate-2: presence gate ⇒ M* = { m | is_multi(m) == true }
 # Called inside §7 Main Orchestrator per merchant after S2.2 computed (mu, phi)
 rejections := 0
 while true:
-    attempt = S2_3_attempt_once(ctx, s_gamma, totals_gamma, s_pois, totals_pois)
+    attempt = S2_3_attempt_once(ctx, s_gamma, totals_gamma, s_pois, totals_pois,
+                               /*attempt_index=*/rejections + 1)
     if attempt.is_error():
         # e.g., ERR_S2_NUMERIC_INVALID for lambda (no S2 events emitted)
         signal = attempt.signal

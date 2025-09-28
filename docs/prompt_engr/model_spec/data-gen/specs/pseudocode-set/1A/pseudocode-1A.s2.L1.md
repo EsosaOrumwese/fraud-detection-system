@@ -45,7 +45,7 @@ Define the **state-specific kernels** for S2 that (a) consume S0/S1 lineage + S2
   **Partitions for all RNG streams:** `["seed","parameter_hash","run_id"]`. **Gated by** hurdle: `is_multi == true` (per dictionary `gating` block). **Paths are resolved via the dictionary in L0; L1 never embeds path strings.**
 
 * **Payload literals (family specifics).**
-  `gamma_component` payload **must include** `context:"nb"` and `index:0` (plus `alpha` and `gamma_value` as JSON numbers). `poisson_component` payload includes `context:"nb"`, `lambda` (number) and `k` (integer).
+  `gamma_component` payload **must include** `context:"nb"` and `index:0` (plus `alpha` and `gamma_value` as JSON numbers). `poisson_component` payload includes `context:"nb"`, `lambda` (number), `k` (integer), and `attempt:int≥1` (non-authoritative).
 
 * **Non-consuming finaliser.**
   `nb_final` **must** encode zero consumption: `before==after`, `blocks=0`, `draws:"0"`. `manifest_fingerprint` is embedded in the event envelope but **not** a path partition for RNG streams.
@@ -224,7 +224,8 @@ For a **single attempt** at merchant scope: (1) draw $G\sim\Gamma(\phi,1)$ via t
 ```pseudocode
 function S2_3_attempt_once(ctx: NBContext,
                            s_gamma: Stream, totals_gamma: TraceTotals,
-                           s_pois:  Stream, totals_pois:  TraceTotals)
+                           s_pois:  Stream, totals_pois:  TraceTotals,
+                           attempt_index:int)                     # 1-based
   -> (G:f64, lambda:f64, K:i64,
       s_gamma':Stream, totals_gamma':TraceTotals,
       s_pois': Stream, totals_pois': TraceTotals)
@@ -274,6 +275,7 @@ function S2_3_attempt_once(ctx: NBContext,
         run_id      = ctx.lineage.run_id,
         s_before    = s_pois,
         lambda      = lambda,
+        attempt     = attempt_index,
         prev_totals = totals_pois
       )
 
