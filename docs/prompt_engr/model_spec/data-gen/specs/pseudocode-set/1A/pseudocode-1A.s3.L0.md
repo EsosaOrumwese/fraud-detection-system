@@ -2187,73 +2187,74 @@ ERR_S3_EMIT_IO             // writer/rename failure
 // Resolve dataset metadata from dictionary (no path literals)
 FUNC RESOLVE_S3_DATASET(dataset_id: string)
   -> { base_path: string, schema_ref: string, partitions: array<string>, logical_order: Key }
-REQUIRES: dataset_id ∈ {"s3_candidate_set","s3_base_weight_priors","s3_integerised_counts","s3_site_sequence"}
-RETURN DICT.METADATA(dataset_id)   // host-specific; carries schema_ref and expected logical order
+  REQUIRES: dataset_id ∈ {"s3_candidate_set","s3_base_weight_priors","s3_integerised_counts","s3_site_sequence"}
+  RETURN DICT.METADATA(dataset_id)   // host-specific; carries schema_ref and expected logical order
 
 // Process-local monotonic counter for tmp-path disambiguation (no I/O, no wall clock).
 // Starts at 0 and increments by 1 on each call within the process.
 FUNC MONOTONIC_COUNTER() -> int
-STATE: static CTR := 0
-LET out := CTR
-CTR := CTR + 1
-RETURN out
+  STATE: static CTR := 0
+  LET out := CTR
+  CTR := CTR + 1
+  RETURN out
 
 // Build final and temp paths for parameter-scoped partition (temp suffix is deterministic)
 FUNC BUILD_PARTITION_PATHS(base_path: string, parameter_hash: Hex64, manifest_fp: Hex64)
   -> { final: string, tmp: string }
-REQUIRES: parameter_hash matches ^[a-f0-9]{64}$ AND manifest_fp matches ^[a-f0-9]{64}$
-LET final := FINAL_PARTITION_PATH(base_path, parameter_hash)
-LET ctr   := MONOTONIC_COUNTER()   // process-local, starts at 0; deterministic within process
-// tmp lives as a **sibling** of 'final', never inside it
-LET tmp   := CONCAT(base_path, "/_tmp_", parameter_hash[0:8], "_", manifest_fp[0:8], "_", DECIMAL_STRING(ctr), "/")
-RETURN { final, tmp }
+  REQUIRES: parameter_hash matches ^[a-f0-9]{64}$ AND manifest_fp matches ^[a-f0-9]{64}$
+  LET final := FINAL_PARTITION_PATH(base_path, parameter_hash)
+  LET ctr   := MONOTONIC_COUNTER()   // process-local, starts at 0; deterministic within process
+  // tmp lives as a **sibling** of 'final', never inside it
+  LET tmp   := CONCAT(base_path, "/_tmp_", parameter_hash[0:8], "_", manifest_fp[0:8], "_", DECIMAL_STRING(ctr), "/")
+  RETURN { final, tmp }
 
 // Enforce embed=path lineage equality on all rows for the partition
 PROC ASSERT_EMBED_EQUALS_PATH(rows: array<Record>, parameter_hash: Hex64)
-REQUIRES: rows != null
-FOR EACH r IN rows:
-  IF r.parameter_hash != parameter_hash: RAISE ERR_S3_EMIT_DOMAIN
-ENSURES: true
+  REQUIRES: rows != null
+  FOR EACH r IN rows:
+    IF r.parameter_hash != parameter_hash: RAISE ERR_S3_EMIT_DOMAIN
+  ENSURES: true
 
 // Enforce embed manifest fingerprint equality
-PROC ASSERT_EMBED_FP_EQUALS(rows: array<Record>, manifest_fp: Hex64)
-REQUIRES: rows != null
-FOR EACH r IN rows:
-  IF r.manifest_fingerprint != manifest_fp: RAISE ERR_S3_EMIT_DOMAIN
-ENSURES: true
+PROC ASSERT_OPTIONAL_ROW_PROVENANCE_EQUALS(rows: array<Record>, manifest_fp: Hex64)
+  REQUIRES: rows != null
+  FOR EACH r IN rows:
+    IF HAS_KEY(r,"produced_by_fingerprint") AND r.produced_by_fingerprint != manifest_fp:
+      RAISE ERR_S3_EMIT_DOMAIN
+  ENSURES: true
 
 // Apply dataset’s logical order deterministically
 FUNC SORT_TO_LOGICAL_ORDER(dataset_id: string, rows: array<Record>) -> array<Record>
-LET key :=
-  IF dataset_id == "s3_candidate_set":           (r -> (r.merchant_id, r.candidate_rank, r.country_iso))
-  ELSE IF dataset_id == "s3_base_weight_priors": (r -> (r.merchant_id, r.country_iso))
-  ELSE IF dataset_id == "s3_integerised_counts": (r -> (r.merchant_id, r.country_iso))
-  ELSE                                           (r -> (r.merchant_id, r.country_iso, r.site_order)) // site_sequence
-RETURN STABLE_SORT(rows, key)
+  LET key :=
+    IF dataset_id == "s3_candidate_set":           (r -> (r.merchant_id, r.candidate_rank, r.country_iso))
+    ELSE IF dataset_id == "s3_base_weight_priors": (r -> (r.merchant_id, r.country_iso))
+    ELSE IF dataset_id == "s3_integerised_counts": (r -> (r.merchant_id, r.country_iso))
+    ELSE                                           (r -> (r.merchant_id, r.country_iso, r.site_order)) // site_sequence
+  RETURN STABLE_SORT(rows, key)
 ```
 
 ```
 FUNC FINAL_PARTITION_PATH(base_path: string, parameter_hash: Hex64) -> string
-REQUIRES: parameter_hash matches ^[a-f0-9]{64}$
-RETURN CONCAT(base_path, "/parameter_hash=", parameter_hash, "/")
+  REQUIRES: parameter_hash matches ^[a-f0-9]{64}$
+  RETURN CONCAT(base_path, "/parameter_hash=", parameter_hash, "/")
 
 // Optional probe used by L2 to implement idempotence; exposed here for completeness
 FUNC SHOULD_SKIP_FINAL(dataset_id: string, parameter_hash: Hex64) -> bool
-LET meta  := RESOLVE_S3_DATASET(dataset_id)
-LET final := FINAL_PARTITION_PATH(meta.base_path, parameter_hash)
-RETURN FS.EXISTS(final)
+  LET meta  := RESOLVE_S3_DATASET(dataset_id)
+  LET final := FINAL_PARTITION_PATH(meta.base_path, parameter_hash)
+  RETURN FS.EXISTS(final)
 ```
 
 ```
 // Write rows to tmp, validate schema_ref, fsync, then atomic rename to final
 PROC WRITE_ATOMIC(dataset_id: string, schema_ref: string, tmp: string, final: string, rows: array<Record>)
-REQUIRES: rows != null AND LENGTH(rows) >= 0
-LET writer := OPEN_WRITER(tmp, schema_ref, options={compression:"zstd", row_group_target:"256K"})
-FOR EACH r IN rows: WRITER.APPEND(r)
-WRITER.CLOSE_AND_FSYNC()
-IF FS.EXISTS(final): FS.REMOVE_DIR(final)  // only reached when overwrite was allowed by caller
-FS.ATOMIC_RENAME(tmp, final)
-ENSURES: FS.EXISTS(final) AND NOT FS.EXISTS(tmp)
+  REQUIRES: rows != null AND LENGTH(rows) >= 0
+  LET writer := OPEN_WRITER(tmp, schema_ref, options={compression:"zstd", row_group_target:"256K"})
+  FOR EACH r IN rows: WRITER.APPEND(r)
+  WRITER.CLOSE_AND_FSYNC()
+  IF FS.EXISTS(final): FS.REMOVE_DIR(final)  // only reached when overwrite was allowed by caller
+  FS.ATOMIC_RENAME(tmp, final)
+  ENSURES: FS.EXISTS(final) AND NOT FS.EXISTS(tmp)
 ```
 
 ---
@@ -2291,7 +2292,7 @@ IF skip_if_final AND FS.EXISTS(paths.final):
   RETURN  // deterministic skip: final already exists (idempotent no-op)
 
 CALL ASSERT_EMBED_EQUALS_PATH(rows, parameter_hash)
-CALL ASSERT_EMBED_FP_EQUALS(rows, manifest_fp)
+CALL ASSERT_OPTIONAL_ROW_PROVENANCE_EQUALS(rows, manifest_fp)
 CALL ASSERT_NO_VOLATILE_FIELDS(rows)
 
 LET sorted := SORT_TO_LOGICAL_ORDER(dataset_id, rows)
@@ -2316,29 +2317,30 @@ ENSURES: FS.EXISTS(paths.final)
 ```
 // Candidate set — single source of inter-country order
 PROC EMIT_S3_CANDIDATE_SET(rows: array<Record>, parameter_hash: Hex64, manifest_fp: Hex64, skip_if_final: bool)
-REQUIRES:
-  FOR_ALL(rows, r -> HAS_KEYS(r, ["merchant_id","country_iso","candidate_rank","is_home","reason_codes","filter_tags","parameter_hash","manifest_fingerprint"]))
-CALL EMIT_S3_DATASET("s3_candidate_set", parameter_hash, rows, manifest_fp, skip_if_final)
+  REQUIRES:
+    FOR_ALL(rows, r -> HAS_KEYS(r, ["merchant_id","country_iso","candidate_rank","is_home","reason_codes","filter_tags","parameter_hash"]))
+    // optional row provenance: produced_by_fingerprint may be present
+  CALL EMIT_S3_DATASET("s3_candidate_set", parameter_hash, rows, manifest_fp, skip_if_final)
 
 // Base-weight priors (optional)
 PROC EMIT_S3_BASE_WEIGHT_PRIORS(rows: array<Record>, parameter_hash: Hex64, manifest_fp: Hex64, skip_if_final: bool)
-REQUIRES:
-  FOR_ALL(rows, r -> HAS_KEYS(r, ["merchant_id","country_iso","base_weight_dp","dp","parameter_hash","manifest_fingerprint"]))
-CALL EMIT_S3_DATASET("s3_base_weight_priors", parameter_hash, rows, manifest_fp, skip_if_final)
+  REQUIRES:
+    FOR_ALL(rows, r -> HAS_KEYS(r, ["merchant_id","country_iso","base_weight_dp","dp","parameter_hash","manifest_fingerprint"]))
+  CALL EMIT_S3_DATASET("s3_base_weight_priors", parameter_hash, rows, manifest_fp, skip_if_final)
 
 // Integerised counts (optional)
 PROC EMIT_S3_INTEGERISED_COUNTS(rows: array<Record>, parameter_hash: Hex64, manifest_fp: Hex64, skip_if_final: bool)
-REQUIRES:
-  FOR_ALL(rows, r -> HAS_KEYS(r, ["merchant_id","country_iso","count","residual_rank","parameter_hash","manifest_fingerprint"]))
-CALL EMIT_S3_DATASET("s3_integerised_counts", parameter_hash, rows, manifest_fp, skip_if_final)
+  REQUIRES:
+    FOR_ALL(rows, r -> HAS_KEYS(r, ["merchant_id","country_iso","count","residual_rank","parameter_hash","manifest_fingerprint"]))
+  CALL EMIT_S3_DATASET("s3_integerised_counts", parameter_hash, rows, manifest_fp, skip_if_final)
 
 // Site sequence (optional)
 PROC EMIT_S3_SITE_SEQUENCE(rows: array<Record>, parameter_hash: Hex64, manifest_fp: Hex64, skip_if_final: bool)
-REQUIRES:
-  FOR_ALL(rows, r -> HAS_KEYS(r, ["merchant_id","country_iso","site_order","parameter_hash","manifest_fingerprint"]))
-  // site_id is optional per schema; when present, must match ^[0-9]{6}$
-  FOR_ALL(rows, r -> NOT HAS_KEY(r,"site_id") OR MATCHES_REGEX(r.site_id, "^[0-9]{6}$"))
-CALL EMIT_S3_DATASET("s3_site_sequence", parameter_hash, rows, manifest_fp, skip_if_final)
+  REQUIRES:
+    FOR_ALL(rows, r -> HAS_KEYS(r, ["merchant_id","country_iso","site_order","parameter_hash","manifest_fingerprint"]))
+    // site_id is optional per schema; when present, must match ^[0-9]{6}$
+    FOR_ALL(rows, r -> NOT HAS_KEY(r,"site_id") OR MATCHES_REGEX(r.site_id, "^[0-9]{6}$"))
+  CALL EMIT_S3_DATASET("s3_site_sequence", parameter_hash, rows, manifest_fp, skip_if_final)
 ```
 
 ---
@@ -2390,34 +2392,34 @@ ERR_S3_EMIT_DOMAIN           // embed≠path, missing lineage, wrong columns bef
 ```
 // True iff a[0..n-1] is strictly increasing integers
 FUNC IS_STRICTLY_INCREASING_INT(a: array<int>) -> bool
-IF LENGTH(a) <= 1: RETURN true
-FOR i FROM 1 TO LENGTH(a)-1:
-  IF a[i] <= a[i-1]: RETURN false
-RETURN true
+  IF LENGTH(a) <= 1: RETURN true
+  FOR i FROM 1 TO LENGTH(a)-1:
+    IF a[i] <= a[i-1]: RETURN false
+  RETURN true
 ```
 
 ```
 // Contiguous check for ranks: {0,1,2,...,K-1}
 PROC ASSERT_RANKS_CONTIGUOUS_ZERO_BASE(ranks: array<int>)
-REQUIRES: ranks != null AND LENGTH(ranks) >= 1
-LET K := LENGTH(ranks)
-LET S := SET(ranks)
-IF SIZE(S) != K: RAISE ERR_S3_RANK_DOMAIN
-IF MIN(S) != 0 OR MAX(S) != K-1: RAISE ERR_S3_RANK_DOMAIN
-ENSURES: true
+  REQUIRES: ranks != null AND LENGTH(ranks) >= 1
+  LET K := LENGTH(ranks)
+  LET S := SET(ranks)
+  IF SIZE(S) != K: RAISE ERR_S3_RANK_DOMAIN
+  IF MIN(S) != 0 OR MAX(S) != K-1: RAISE ERR_S3_RANK_DOMAIN
+  ENSURES: true
 ```
 
 ```
 // Contiguous check for 1..n (sequencing)
 PROC ASSERT_CONTIGUOUS_ONE_TO_N(n: int, seq: array<int>)
-REQUIRES: n >= 0
-IF n == 0:
-  REQUIRES: LENGTH(seq) == 0
-  RETURN
-REQUIRES: LENGTH(seq) == n
-FOR i FROM 1 TO n:
-  IF seq[i-1] != i: RAISE ERR_S3_SEQ_NONCONTIGUOUS
-ENSURES: true
+  REQUIRES: n >= 0
+  IF n == 0:
+    REQUIRES: LENGTH(seq) == 0
+    RETURN
+  REQUIRES: LENGTH(seq) == n
+  FOR i FROM 1 TO n:
+    IF seq[i-1] != i: RAISE ERR_S3_SEQ_NONCONTIGUOUS
+  ENSURES: true
 ```
 
 ---
@@ -2427,11 +2429,11 @@ ENSURES: true
 ```
 // r.parameter_hash must equal the partition key; fingerprint consistent across rows
 PROC ASSERT_EMBED_EQUALS_PARTITION(rows: array<Record>, parameter_hash: Hex64, manifest_fp: Hex64)
-REQUIRES: rows != null
-FOR EACH r IN rows:
-  IF r.parameter_hash != parameter_hash:           RAISE ERR_S3_EMIT_DOMAIN
-  IF r.manifest_fingerprint != manifest_fp:        RAISE ERR_S3_CTX_LINEAGE_MISMATCH
-ENSURES: true
+  REQUIRES: rows != null
+  FOR EACH r IN rows:
+    IF r.parameter_hash != parameter_hash:           RAISE ERR_S3_EMIT_DOMAIN
+    IF r.manifest_fingerprint != manifest_fp:        RAISE ERR_S3_CTX_LINEAGE_MISMATCH
+  ENSURES: true
 ```
 
 ---
@@ -2441,24 +2443,24 @@ ENSURES: true
 ```
 // Exactly one home; home has candidate_rank==0; no duplicate countries; candidate_rank contiguous (0..K-1)
 PROC ASSERT_CANDIDATE_SET_SHAPE(rows: array<Record>)
-REQUIRES: rows != null AND LENGTH(rows) >= 1
-LET home_cnt := 0
-LET home_rank0 := 0
-LET seen_iso := EMPTY_SET()
-LET ranks := EMPTY_ARRAY()
-
-FOR EACH r IN rows:
-  IF r.is_home == true:
-    home_cnt := home_cnt + 1
-    IF r.candidate_rank == 0: home_rank0 := home_rank0 + 1
-  IF CONTAINS(seen_iso, r.country_iso): RAISE ERR_S3_RANK_DOMAIN
-  INSERT(seen_iso, r.country_iso)
-  APPEND(ranks, r.candidate_rank)
-
-IF home_cnt != 1:        RAISE ERR_S3_RANK_DOMAIN
-IF home_rank0 != 1:      RAISE ERR_S3_RANK_DOMAIN   // home must be rank 0
-CALL ASSERT_RANKS_CONTIGUOUS_ZERO_BASE(ranks)
-ENSURES: true
+  REQUIRES: rows != null AND LENGTH(rows) >= 1
+  LET home_cnt := 0
+  LET home_rank0 := 0
+  LET seen_iso := EMPTY_SET()
+  LET ranks := EMPTY_ARRAY()
+  
+  FOR EACH r IN rows:
+    IF r.is_home == true:
+      home_cnt := home_cnt + 1
+      IF r.candidate_rank == 0: home_rank0 := home_rank0 + 1
+    IF CONTAINS(seen_iso, r.country_iso): RAISE ERR_S3_RANK_DOMAIN
+    INSERT(seen_iso, r.country_iso)
+    APPEND(ranks, r.candidate_rank)
+  
+  IF home_cnt != 1:        RAISE ERR_S3_RANK_DOMAIN
+  IF home_rank0 != 1:      RAISE ERR_S3_RANK_DOMAIN   // home must be rank 0
+  CALL ASSERT_RANKS_CONTIGUOUS_ZERO_BASE(ranks)
+  ENSURES: true
 ```
 
 ---
@@ -2468,14 +2470,14 @@ ENSURES: true
 ```
 // All rows must share the same dp within the slice; strings must be valid fixed-dp
 PROC ASSERT_PRIORS_BLOCK_SHAPE(rows: array<Record>)
-REQUIRES: rows != null
-IF LENGTH(rows) == 0: RETURN
-LET d0 := rows[0].dp
-FOR EACH r IN rows:
-  IF r.dp != d0: RAISE ERR_S3_PRIOR_DP_INCONSISTENT
-  // structural validation of the decimal string
-  LET _ := PARSE_FIXED_DP(r.base_weight_dp)  // §7; raises on format error
-ENSURES: true
+  REQUIRES: rows != null
+  IF LENGTH(rows) == 0: RETURN
+  LET d0 := rows[0].dp
+  FOR EACH r IN rows:
+    IF r.dp != d0: RAISE ERR_S3_PRIOR_DP_INCONSISTENT
+    // structural validation of the decimal string
+    LET _ := PARSE_FIXED_DP(r.base_weight_dp)  // §7; raises on format error
+  ENSURES: true
 ```
 
 ---
@@ -2485,20 +2487,20 @@ ENSURES: true
 ```
 // Counts ≥0, sum equals N; residual_rank is 1..M permutation
 PROC ASSERT_COUNTS_SUM_AND_RESIDUAL_RANK(rows: array<Record>, N: int)
-REQUIRES: rows != null AND N >= 0
-LET sum := 0
-LET ranks := EMPTY_ARRAY()
-FOR EACH r IN rows:
-  IF r.count < 0: RAISE ERR_S3_ASSERT_DOMAIN
-  sum := sum + r.count
-  APPEND(ranks, r.residual_rank)
-
-IF sum != N: RAISE ERR_S3_ASSERT_DOMAIN
-
-LET M := LENGTH(rows)
-LET S := SET(ranks)
-IF SIZE(S) != M OR MIN(S) != 1 OR MAX(S) != M: RAISE ERR_S3_ASSERT_DOMAIN
-ENSURES: true
+  REQUIRES: rows != null AND N >= 0
+  LET sum := 0
+  LET ranks := EMPTY_ARRAY()
+  FOR EACH r IN rows:
+    IF r.count < 0: RAISE ERR_S3_ASSERT_DOMAIN
+    sum := sum + r.count
+    APPEND(ranks, r.residual_rank)
+  
+  IF sum != N: RAISE ERR_S3_ASSERT_DOMAIN
+  
+  LET M := LENGTH(rows)
+  LET S := SET(ranks)
+  IF SIZE(S) != M OR MIN(S) != 1 OR MAX(S) != M: RAISE ERR_S3_ASSERT_DOMAIN
+  ENSURES: true
 ```
 
 *(Full recomputation of residual ordering from residuals is done in L3; this guard ensures the basic permutation invariant.)*
@@ -2510,17 +2512,17 @@ ENSURES: true
 ```
 // Group by country and assert each group is 1..n contiguous; site_id, if present, matches order
 PROC ASSERT_SEQUENCE_TABLE_SHAPE(rows: array<Record>)
-REQUIRES: rows != null
-LET G := GROUP_BY(rows, key=(r -> r.country_iso))
-FOR EACH (iso, grp) IN G:
-  LET n := LENGTH(grp)
-  LET seq := MAP( SORT_ASC(grp, key=(r -> r.site_order)), r -> r.site_order )
-  CALL ASSERT_CONTIGUOUS_ONE_TO_N(n, seq)
-  // if site_id present, it must be zero-padded order
-  FOR EACH r IN grp:
-    IF HAS_KEY(r, "site_id") AND r.site_id != FORMAT_SITE_ID_ZEROPAD6(r.site_order):
-      RAISE ERR_S3_SEQ_NONCONTIGUOUS
-ENSURES: true
+  REQUIRES: rows != null
+  LET G := GROUP_BY(rows, key=(r -> r.country_iso))
+  FOR EACH (iso, grp) IN G:
+    LET n := LENGTH(grp)
+    LET seq := MAP( SORT_ASC(grp, key=(r -> r.site_order)), r -> r.site_order )
+    CALL ASSERT_CONTIGUOUS_ONE_TO_N(n, seq)
+    // if site_id present, it must be zero-padded order
+    FOR EACH r IN grp:
+      IF HAS_KEY(r, "site_id") AND r.site_id != FORMAT_SITE_ID_ZEROPAD6(r.site_order):
+        RAISE ERR_S3_SEQ_NONCONTIGUOUS
+  ENSURES: true
 ```
 
 ---
@@ -2530,12 +2532,12 @@ ENSURES: true
 ```
 // Ensure S3 rows do not carry volatile timestamps or RNG envelopes
 PROC ASSERT_NO_VOLATILE_FIELDS(rows: array<Record>)
-REQUIRES: rows != null
-FOR EACH r IN rows:
-  IF HAS_ANY(r, ["created_at","updated_at","emitted_at","now_ts",
-                 "before_counter","after_counter","blocks","draws"]):
-    RAISE ERR_S3_EMIT_DOMAIN
-ENSURES: true
+  REQUIRES: rows != null
+  FOR EACH r IN rows:
+    IF HAS_ANY(r, ["created_at","updated_at","emitted_at","now_ts",
+                   "before_counter","after_counter","blocks","draws"]):
+      RAISE ERR_S3_EMIT_DOMAIN
+  ENSURES: true
 ```
 
 ---
@@ -2545,12 +2547,12 @@ ENSURES: true
 ```
 // Wrap §5 + §4 so call-sites remain short
 PROC ASSERT_ISO_MEMBER_CANONICAL(iso: string, iso_set: Set<ISO2>)
-LET _ := NORMALISE_AND_VALIDATE_ISO2(iso, iso_set)  // raises on failure
-ENSURES: true
-
-PROC ASSERT_CHANNEL_VOCAB(ch: string, channel_vocab: Set<string>)
-CALL ASSERT_CHANNEL_IN_INGRESS_VOCAB(ch, channel_vocab)  // raises on failure
-ENSURES: true
+  LET _ := NORMALISE_AND_VALIDATE_ISO2(iso, iso_set)  // raises on failure
+  ENSURES: true
+  
+  PROC ASSERT_CHANNEL_VOCAB(ch: string, channel_vocab: Set<string>)
+  CALL ASSERT_CHANNEL_IN_INGRESS_VOCAB(ch, channel_vocab)  // raises on failure
+  ENSURES: true
 ```
 
 ---
@@ -2754,8 +2756,8 @@ PROC FS.REMOVE_DIR(path:string)
 
 // Atomic publish: rename tmp dir to final dir (same filesystem/volume)
 PROC FS.ATOMIC_RENAME(tmp:string, final:string)
-REQUIRES: NOT FS.EXISTS(final)
-ENSURES:  FS.EXISTS(final) AND NOT FS.EXISTS(tmp)
+  REQUIRES: NOT FS.EXISTS(final)
+  ENSURES:  FS.EXISTS(final) AND NOT FS.EXISTS(tmp)
 ```
 
 ---
