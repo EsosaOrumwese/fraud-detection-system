@@ -120,8 +120,10 @@ If **A=0**, L2 must short-circuit: compute λ/regime via **K-1** and write **one
 
 * **Partitions & path↔embed:** All S4 logs are dictionary-resolved under `{seed, parameter_hash, run_id}`; **events’ envelopes** are stamped by L0; L2 passes lineage values, **never paths**.  
 
-* **Labels:** `(module, substream_label, context)` are **spec-pinned** for S4:
-  `module="1A.s4.ztp_sampler"`, `substream_label="poisson_component"` for **all S4 events and trace**; `context="ztp"` on **events only** (trace has none).  
+* **Labels:** `(module, substream_label)` are **spec-pinned** for all S4 **events & trace**.
+  `module="1A.ztp_sampler"`, `substream_label="poisson_component"`.  
+  **`context="ztp"`** is present on **attempt events only** (`rng_event_poisson_component`) and **omitted** on
+  `rng_event_ztp_rejection` / `rng_event_ztp_retry_exhausted` / `rng_event_ztp_final`. Trace has **no** `context`.  
 
 ## 2.2 Version facts L2 must treat as constants
 
@@ -406,9 +408,9 @@ Each edge is *(from → to | guard / action)*; all actions are **kernel calls** 
 ## 6.1 Frozen literals (must match the spec)
 
 ```
-MODULE          = "1A.s4.ztp_sampler"
-SUBSTREAM_LABEL = "poisson_component"     # used for every S4 event
-CONTEXT         = "ztp"                   # in EVENT envelopes only (trace has no context)
+MODULE          = "1A.ztp_sampler"
+SUBSTREAM_LABEL = "poisson_component"     # used for every S4 event & trace (domain for adjacency/totals)
+CONTEXT (attempts only) = "ztp"           # present on rng_event_poisson_component; omitted on other event families; trace has no context
 ```
 
 > All S4 events use the same `(MODULE, SUBSTREAM_LABEL)`; **trace rows** share this domain and carry **no `context`**. One event → **one immediate** cumulative trace (same writer).
@@ -498,7 +500,7 @@ Use this to seed `s_before` (fresh runs) or as the base when no attempts exist. 
 
 ## 6.8 Acceptance checklist (for this section)
 
-* One merchant-scoped stream per merchant (`MODULE="1A.s4.ztp_sampler"`, `SUBSTREAM_LABEL="poisson_component"`).
+* One merchant-scoped stream per merchant (`MODULE="1A.ztp_sampler"`, `SUBSTREAM_LABEL="poisson_component"`).
 * Derived via **S0** from `{seed, manifest_fingerprint}` + `merchant_u64`.
 * Attempts consume; markers/final are non-consuming (must receive the **current** stream).
 * Resume uses persisted `s_after`; **no resampling** of existing attempts.
@@ -568,7 +570,7 @@ Use this to seed `s_before` (fresh runs) or as the base when no attempts exist. 
 
 ## 7.5 Concurrency & idempotence together
 
-* **Per-merchant single writer.** Never run two K-7 loops for the same merchant in parallel. Across merchants, parallelism is safe.
+* **Per-merchant single writer.** Never run two orchestrator loops for the same merchant in parallel. Across merchants, parallelism is safe.
 * **Stable writers.** Writer merges must be stable w.r.t. the family’s writer-sort; counters—not file order—remain the source of truth.
 
 ---
@@ -893,7 +895,7 @@ This is the **only** set of emissions L2 can cause in S4. Everything else (paylo
 
 * **K-2/K-3 (attempt):** pass both `s_before` and the returned `s_after` + `bud` (actual-use budgets). L2 must **not** fabricate counters or budgets. 
 * **K-4/K-5/K-6 (non-consuming):** pass the **current** stream `s_curr` (identity: `before==after`, `draws="0"`, `blocks=0`).
-* **One stream per merchant:** all S4 families share `(module="1A.s4.ztp_sampler", substream_label="poisson_component")`; trace rows share the same domain; **no cross-label chaining**. 
+* **One stream per merchant:** all S4 families share `(module="1A.ztp_sampler", substream_label="poisson_component")`; trace rows share the same domain; **no cross-label chaining**. 
 
 ---
 
@@ -958,7 +960,7 @@ This loop contract, together with §6-§9 and the identities above, is sufficien
 
 ## 11.1 Per-merchant serialism (non-negotiable)
 
-* The S4 attempt loop is **single-threaded** per merchant with a fixed iteration order (attempts 1..64, contiguous). Do **not** overlap two K-7 loops for the same `(seed, parameter_hash, run_id, merchant_id)`. 
+* The S4 attempt loop is **single-threaded** per merchant with a fixed iteration order (attempts 1..64, contiguous). Do **not** overlap two orchestrator loops for the same `(seed, parameter_hash, run_id, merchant_id)`. 
 * Counters—not timestamps or file order—define the total order; resume uses the **persisted `s_after`** for the last attempt. 
 
 ## 11.2 Across-merchant parallelism (allowed, with guardrails)
@@ -989,7 +991,7 @@ This loop contract, together with §6-§9 and the identities above, is sufficien
 
 * **Acquire:** `lock(merchant_id)` before `orchestrate_s4_for_merchant`.
 * **Check resolution:** if `final_exists(merchant_id)` **or** `exhausted_exists(merchant_id)` → `unlock(merchant_id)` and **return**.
-* **Run:** execute K-7 serially for the merchant; inside the loop, call only **K-2/K-3/K-4**, then **K-6** (accept) or **K-5/K-6** (cap end) per policy. 
+* **Run:** execute the orchestrator serially for the merchant; inside the loop, call only **K-2/K-3/K-4**, then **K-6** (accept) or **K-5/K-6** (cap end) per policy. 
 * **Release:** `unlock(merchant_id)` immediately after the terminal is written (no further S4 writes allowed for that merchant).
 
 ## 11.8 Back-pressure & limits (operator guidance)
@@ -1000,7 +1002,7 @@ This loop contract, together with §6-§9 and the identities above, is sufficien
 
 ## 11.9 Acceptance checklist (freeze gate for §11)
 
-* Per-merchant **single-threaded** K-7; no overlapping loops. 
+* Per-merchant **single-threaded** orchestrator; no overlapping loops. 
 * Across-merchant **parallel OK** with **stable** merges. 
 * **One event → one immediate trace (same writer)** invariant held. 
 * **Counters define order**; file order non-authoritative. 
@@ -1445,7 +1447,7 @@ s4.merchant.summary = {
 ## 16.1 Throughput levers L2 is allowed to use
 
 * **Across-merchant parallelism:** run many merchants in parallel.
-* **Within-merchant serialism:** one K-7 loop per merchant; attempts 1..64 are contiguous and single-threaded.
+* **Within-merchant serialism:** one orchestrator loop per merchant; attempts 1..64 are contiguous and single-threaded.
 * **Dedupe-before-RNG:** skip sampling for persisted attempts; this removes useless sampler work on resume.
 * **Early terminals:** return immediately on acceptance; short-circuit A=0 path up front.
 
@@ -1552,7 +1554,7 @@ For the lineage `{seed, parameter_hash, run_id, manifest_fingerprint}` in scope:
    * **A=0 short-circuit** (one `ztp_final{K_target=0, attempts=0, regime [,reason]}`; **no attempts/markers** exist).
 2. **No attempt gaps per merchant:** attempts present are contiguous from 1 to `t` (or none, for A=0).
 3. **Exactly one event → one immediate trace:** every event row has its adjacent cumulative trace row (same writer).
-4. **No pending work:** L2 has released per-merchant locks; no second K-7 loop is active for the same merchant.
+4. **No pending work:** L2 has released per-merchant locks; no second orchestrator loop is active for the same merchant.
 5. **No direct L0 usage by L2:** all emissions were via L1 kernels.
 
 > If any of the above is not true, L2 must resolve (resume/repair or quarantine that merchant per §14) **before** invoking L3.
@@ -1665,7 +1667,7 @@ This handoff ensures validation is **deterministic, read-only, and authority-tru
 
 ## C. Substream derivation (deterministic, S0 discipline)
 
-* [ ] Merchant-scoped stream derived **once** via S0 with `(module="1A.s4.ztp_sampler", substream_label="poisson_component")`.
+* [ ] Merchant-scoped stream derived **once** via S0 with `(module="1A.ztp_sampler", substream_label="poisson_component")`.
 * [ ] **One stream per merchant**; attempts consume it; markers/finals are non-consuming and receive the **current** stream (before==after).
 * [ ] Resume uses **persisted** `s_after` from the last attempt (never re-derive+resample persisted attempts).
 
@@ -1699,7 +1701,7 @@ This handoff ensures validation is **deterministic, read-only, and authority-tru
 
 ## H. Concurrency & single-writer discipline
 
-* [ ] Per-merchant K-7 is **single-threaded**; no overlapping loops for the same merchant.
+* [ ] Per-merchant orchestrator is **single-threaded**; no overlapping loops for the same merchant.
 * [ ] Across merchants: parallel OK; merges/writers are **stable** with the families’ natural keys.
 * [ ] L2 never interleaves other work between an event and its immediate trace append.
 
@@ -2066,7 +2068,7 @@ Ctx          = { merchant_id:i64, lineage:Lineage, is_multi:bool, is_eligible:bo
 
 ---
 
-## A.5 Example call sequence (from L2’s K-7 loop; kernels only)
+## A.5 Example call sequence (from L2’s orchestrator loop; kernels only)
 
 ```
 # Preflight & A=0 handled earlier
@@ -2161,7 +2163,7 @@ This sheet is the operative contract between **L2** and **L1** for **State-4**. 
 ## B.4 Label Domain (for both events & trace)
 
 ```
-module           = "1A.s4.ztp_sampler"
+module           = "1A.ztp_sampler"
 substream_label  = "poisson_component"
 context (events) = "ztp"         # trace has no context
 ```
@@ -2206,7 +2208,7 @@ Lineage = {
 ## C.2 Label domain (shared by all S4 events & trace)
 
 ```
-module           = "1A.s4.ztp_sampler"
+module           = "1A.ztp_sampler"
 substream_label  = "poisson_component"
 context (events) = "ztp"      # trace has no context
 ```
