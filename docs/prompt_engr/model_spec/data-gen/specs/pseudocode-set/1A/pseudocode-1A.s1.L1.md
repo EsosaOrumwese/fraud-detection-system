@@ -638,10 +638,10 @@ and select the next state: **SingleHomePlacement** (formerly S7) when single-sit
 ```pseudocode
 Xi {
   is_multi: bool,
-  N: int,              # ≥0
-  K: int,              # ≥0
-  C_set: set[string],  # set of ISO alpha-2
-  C_star: (hi:u64, lo:u64)  # u128 post-counter from hurdle (audit-only)
+  N: Optional<int> = None,      # set in S2 when multi-site; ==1 on single-site
+  K: Optional<int> = None,      # set downstream; ==0 on single-site
+  C_set: set[string],           # set of ISO alpha-2
+  C_star: (hi:u64, lo:u64)      # u128 post-counter from hurdle (audit-only)
 }
 next_state: enum { SingleHomePlacement, NegativeBinomialS2 }
 ```
@@ -675,8 +675,8 @@ function S1_5_build_handoff_and_route(hurdle_event, home_iso:string) -> (Xi, nex
       C_set = { home_iso }
       next_state = SingleHomePlacement      # formerly S7
   else:
-      N = UNASSIGNED         # set later in S2 (NB branch)
-      K = UNASSIGNED         # set later in cross-border/ranking
+      N = None               # set later in S2 (NB branch)
+      K = None               # set later in cross-border/ranking
       C_set = { home_iso }
       next_state = NegativeBinomialS2       # formerly S2 (multi-site)
 

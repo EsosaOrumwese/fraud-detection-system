@@ -169,6 +169,8 @@ function sat_add_u64(x:u64, y:u64) -> u64
 # Schema anchor: schemas.layer1.yaml#/rng/core/rng_trace_log
 # Partition keys: {seed, parameter_hash, run_id} (dictionary path). Embedded equality: row.seed == seed and row.run_id == run_id; **parameter_hash** is path-only.
 # Payload literals: module, substream_label.
+# NOTE: trace rows embed only {seed, run_id} (parameter_hash is path-only). Do NOT call S0’s
+#       generic verify_partition_keys() on trace rows; this S1 writer enforces the trace contract.
 # Consumer selects the **final** row per (module, substream_label) as defined by the schema.
 
 function update_rng_trace_totals(
