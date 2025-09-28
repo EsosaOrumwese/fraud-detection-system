@@ -409,7 +409,7 @@ Each edge is *(from → to | guard / action)*; all actions are **kernel calls** 
 ```
 MODULE          = "1A.ztp_sampler"
 SUBSTREAM_LABEL = "poisson_component"     # used for every S4 event & trace (domain for adjacency/totals)
-CONTEXT (attempts only) = "ztp"           # present on rng_event_poisson_component; omitted on other event families; trace has no context
+CONTEXT (events only)  = "ztp"            # present on all S4 events (attempt/rejection/exhausted/final); trace has no context
 MAX_ZTP_ATTEMPTS = 64                     # schema-pinned cap (see §2.2)
 ```
 
