@@ -2325,19 +2325,22 @@ PROC EMIT_S3_CANDIDATE_SET(rows: array<Record>, parameter_hash: Hex64, manifest_
 // Base-weight priors (optional)
 PROC EMIT_S3_BASE_WEIGHT_PRIORS(rows: array<Record>, parameter_hash: Hex64, manifest_fp: Hex64, skip_if_final: bool)
   REQUIRES:
-    FOR_ALL(rows, r -> HAS_KEYS(r, ["merchant_id","country_iso","base_weight_dp","dp","parameter_hash","manifest_fingerprint"]))
+      FOR_ALL(rows, r -> HAS_KEYS(r, ["merchant_id","country_iso","base_weight_dp","dp","parameter_hash"]))
+      // optional row provenance: produced_by_fingerprint may be present
   CALL EMIT_S3_DATASET("s3_base_weight_priors", parameter_hash, rows, manifest_fp, skip_if_final)
 
 // Integerised counts (optional)
 PROC EMIT_S3_INTEGERISED_COUNTS(rows: array<Record>, parameter_hash: Hex64, manifest_fp: Hex64, skip_if_final: bool)
   REQUIRES:
-    FOR_ALL(rows, r -> HAS_KEYS(r, ["merchant_id","country_iso","count","residual_rank","parameter_hash","manifest_fingerprint"]))
+      FOR_ALL(rows, r -> HAS_KEYS(r, ["merchant_id","country_iso","count","residual_rank","parameter_hash"]))
+      // optional row provenance: produced_by_fingerprint may be present
   CALL EMIT_S3_DATASET("s3_integerised_counts", parameter_hash, rows, manifest_fp, skip_if_final)
 
 // Site sequence (optional)
 PROC EMIT_S3_SITE_SEQUENCE(rows: array<Record>, parameter_hash: Hex64, manifest_fp: Hex64, skip_if_final: bool)
   REQUIRES:
-    FOR_ALL(rows, r -> HAS_KEYS(r, ["merchant_id","country_iso","site_order","parameter_hash","manifest_fingerprint"]))
+      FOR_ALL(rows, r -> HAS_KEYS(r, ["merchant_id","country_iso","site_order","parameter_hash"]))
+      // optional row provenance: produced_by_fingerprint may be present
     // site_id is optional per schema; when present, must match ^[0-9]{6}$
     FOR_ALL(rows, r -> NOT HAS_KEY(r,"site_id") OR MATCHES_REGEX(r.site_id, "^[0-9]{6}$"))
   CALL EMIT_S3_DATASET("s3_site_sequence", parameter_hash, rows, manifest_fp, skip_if_final)
@@ -2427,12 +2430,13 @@ PROC ASSERT_CONTIGUOUS_ONE_TO_N(n: int, seq: array<int>)
 ## 16.2 Lineage & partition equality (embed = path)
 
 ```
-// r.parameter_hash must equal the partition key; fingerprint consistent across rows
+// r.parameter_hash must equal the partition key; if present, row provenance must equal manifest; manifest itself is asserted via sidecar.
 PROC ASSERT_EMBED_EQUALS_PARTITION(rows: array<Record>, parameter_hash: Hex64, manifest_fp: Hex64)
   REQUIRES: rows != null
   FOR EACH r IN rows:
     IF r.parameter_hash != parameter_hash:           RAISE ERR_S3_EMIT_DOMAIN
-    IF r.manifest_fingerprint != manifest_fp:        RAISE ERR_S3_CTX_LINEAGE_MISMATCH
+    IF HAS_KEY(r, "produced_by_fingerprint"):
+      IF r.produced_by_fingerprint != manifest_fp:   RAISE ERR_S3_CTX_LINEAGE_MISMATCH
   ENSURES: true
 ```
 
@@ -2577,7 +2581,7 @@ PROC ASSERT_ISO_MEMBER_CANONICAL(iso: string, iso_set: Set<ISO2>)
 * **No wall-clock / environment.** Helpers never read time, tz, locale, env-vars, or host globals.
 * **Canonical encodings.** ISO2 is exactly two ASCII **uppercase** letters; closed-vocab arrays are **A→Z** and **deduped**; priors are **fixed-dp decimal strings** (with explicit `dp`).
 * **Ordering is explicit.** Every sort uses a **documented, total key** (e.g., `(precedence, priority, rule_id, ISO, stable_idx)`); all sorts are **stable**.
-* **Idempotence-ready.** Same inputs ⇒ same rows; emitters enforce **`embed == path`** (`parameter_hash`) and atomic rename; all rows embed `{parameter_hash, manifest_fingerprint}`.
+* **Idempotence-ready.** Same inputs ⇒ same rows; emitters enforce **`embed == path`** (`row.parameter_hash == partition key`); rows **may** include `produced_by_fingerprint` (optional), and the **sidecar** records `manifest_fingerprint`.
 
 ---
 
@@ -2973,7 +2977,7 @@ NOTES  : Within-country `site_order = 1..nᵢ`; optional 6-digit site_id == zero
 
 **Global guarantees (apply to all four):**
 
-* **Embed = path**: each row’s `parameter_hash` equals its partition key; `manifest_fingerprint` is embedded.
+* **Embed = path**: each row’s `parameter_hash` equals its partition key; rows **may** carry `produced_by_fingerprint` (optional); the **dataset-level sidecar** records `manifest_fingerprint`.
 * **No volatile fields** in S3 tables (no timestamps / RNG envelopes).
 * **Dictionary-resolved paths** only; schema anchors must match on write.
 * **Atomic publish**: temp → fsync → rename; idempotence via `skip_if_final`.
