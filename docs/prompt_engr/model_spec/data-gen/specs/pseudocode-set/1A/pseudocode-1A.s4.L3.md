@@ -30,7 +30,7 @@ Validate, **read-only**, that S4 outputs conform **byte-for-byte** to the S4 spe
   * Ordering & replay are derived from **counters**, not file order
 * **Terminal correctness (exactly one legal outcome)**
 
-  * **Accept:** first `K ≥ 2` → one **final**, **no** exhausted
+  * **Accept:** first `K ≥ 1` → one **final**, **no** exhausted
   * **Cap-abort:** attempts = 64 → one **exhausted**, **no** final
   * **Cap-downgrade:** attempts = 64 → one **final** flagged exhausted, **no** exhausted marker
   * **A = 0:** one **final** only (no attempts/markers)
@@ -66,12 +66,12 @@ Validate, **read-only**, that S4 outputs conform **byte-for-byte** to the S4 spe
 
 ```text
 # Label literals (apply to EVERY S4 row, events & trace)
-MODULE              = "1A.ztp_sampler"
-SUBSTREAM           = "poisson_component"
+# NOTE: Resolved from S4·L0 imports in §5 (single source of truth).
+#   MODULE            ← S4_L0.MODULE
+#   SUBSTREAM         ← alias of S4_L0.SUBSTREAM_LABEL
+#   CONTEXT_EVENTS    ← alias of S4_L0.EVENT_CONTEXT
 
-# Context placement
-CONTEXT_EVENTS      = "ztp"     # present on ALL S4 events (attempt/rejection/exhausted/final)
-CONTEXT_ON_TRACE    = false     # trace rows never carry 'context'
+# (The three label pins are not re-declared here; see §5 imports and aliases.)
 
 # Partitions (dictionary-pinned)
 EVENT_PART_KEYS     = ["seed","parameter_hash","run_id"]
@@ -243,7 +243,7 @@ type BaseEvent = {
   draws:  U128S,               # measured; "0" for non-consuming families
   blocks: u64,                 # after − before (derived by writer)
   module:    string,           # must equal frozen literal
-  substream: string            # must equal frozen literal
+  substream_label: string      # must equal frozen literal
   # NOTE: partitions are enforced externally via dictionary (seed,parameter_hash,run_id).
 }
 
@@ -276,7 +276,7 @@ type S4Event = AttemptEvent | MarkerEvent
 type TraceRow = {
   merchant_id: u64,
   module:      string,         # frozen literal
-  substream:   string,         # frozen literal
+  substream_label: string,     # frozen literal
   totals:      Totals,         # cumulative, saturating
   seed:        u64,
   run_id:      Hex32
@@ -343,6 +343,11 @@ function SAMPLE(row:Record) -> any
     # Implementer: return a truncated projection for error context, or just the row.
     return row
 
+# Validate one row against a resolved JSON-Schema (lightweight is fine here)
+function schema_validate_row(schema:Schema, row:Record) -> bool
+    # IMPLEMENTER: plug your JSON-Schema engine; return true/false only
+    return JSON_SCHEMA_VALIDATE(schema, row)
+
 # -- Dataset readers (projected, streaming) ------------------------------------
 # Open S4 EVENT family iterator for a merchant. Projection keeps memory O(1).
 # MUST read under dict_resolve(dataset_id).partitions (byte-equal keys).
@@ -360,7 +365,7 @@ function open_trace(
   merchant_id:u64,
   module:str, substream:str,
   projection:[str] = ["merchant_id","module","substream_label",
-                      "totals","seed","run_id","before","after"]
+                      "totals","seed","run_id"]
 ) -> Iterator<Record> throws EnvError
 
 # Enumerate merchants that have ANY S4 rows for this run slice.
@@ -402,6 +407,8 @@ function parallel_for_merchants(
 IMPORT S4_L0: MODULE, SUBSTREAM_LABEL, EVENT_CONTEXT, MAX_ZTP_ATTEMPTS
 alias SUBSTREAM       := SUBSTREAM_LABEL
 alias CONTEXT_EVENTS  := EVENT_CONTEXT
+# Optional guard (detects accidental drift at runtime; safe to omit)
+ASSERT( MODULE == "1A.ztp_sampler" and SUBSTREAM == "poisson_component" and CONTEXT_EVENTS == "ztp" )
 
 IMPORT S1_L0: decimal_string_to_u128
 alias u128_from_dec := decimal_string_to_u128
@@ -986,7 +993,7 @@ function ASSERT_MARKER_NONCONSUMES(ev:MarkerEvent, run:RunArgs) -> bool:
 ## 12) V4 — Payload Key Discipline
 
 > Enforce the **payload key contract** per family and basic value domains.
-> Attempts carry **`lambda`** (and no `lambda_extra`); markers/final carry **`lambda_extra`** (and no `lambda`). Optional `regime` must be in `{inversion, ptrs}`.
+> Attempts carry **`lambda`** (and no `lambda_extra`); markers/final carry **`lambda_extra`** (and no `lambda`). If present, `regime` must be in `{inversion, ptrs}`.
 
 ### Helpers
 
@@ -1023,11 +1030,11 @@ function CHECK_PAYLOAD_KEYS(ev:AttemptEvent, run:RunArgs) -> bool:
         return FAILC("E_PAYLOAD_VALUE", ds, ev.merchant_id, run,
                      { "family":"attempt", "where":"lambda", "got":L, "expect":"> 0, finite" })
 
-    # Regime (required in our event shape)
-    if not HAS_KEY(ev.payload, "regime") or not regime_ok(ev.payload.regime):
+    # Regime (optional; if present must be one of {"inversion","ptrs"})
+    if HAS_KEY(ev.payload, "regime") and not regime_ok(ev.payload.regime):
         return FAILC("E_PAYLOAD_VALUE", ds, ev.merchant_id, run,
                      { "family":"attempt", "where":"regime", "got":ev.payload.regime,
-                       "expect":"\"inversion\"|\"ptrs\"" })
+                       "expect":"optional: \"inversion\"|\"ptrs\"" })
 
     # Attempt index presence/type checked in sequence stage; ensure it's present & >= 1 here if provided
     if HAS_KEY(ev, "attempt") and (TYPEOF(ev.attempt) != "int" or ev.attempt < ATTEMPT_INDEX_BASE):
@@ -1100,7 +1107,7 @@ for ev in evs:
 
 ## 13) V5 — Event → Trace Adjacency (one-to-one)
 
-> After **every** S4 event, there must be **exactly one** immediate **cumulative** trace row for the same `(module, substream)`. Its totals **deltas** must equal that event’s measured budgets and counter movement; totals are **saturating** (never decrease).
++> After **every** S4 event, there must be **exactly one** immediate **cumulative** trace row for the same `(module, substream_label)`. Its totals **deltas** must equal that event’s measured budgets and counter movement; totals are **saturating** (never decrease).
 
 ### What this stage enforces
 
@@ -1497,7 +1504,7 @@ function FPRINT_EVENT(ev:S4Event) -> string:
 
 function FPRINT_TRACE(tr:TraceRow) -> string:
     # module|substream|m|blocks_total|draws_total|events_total
-    return CONCAT(tr.module, "|", tr.substream, "|", tr.merchant_id, "|",
+    return CONCAT(tr.module, "|", tr.substream_label, "|", tr.merchant_id, "|",
                   tr.totals.blocks_total, "|", tr.totals.draws_total, "|", tr.totals.events_total)
 
 function IN_ALLOWED_FAMILY(tag:string) -> bool:
@@ -1520,11 +1527,11 @@ function CHECK_HYGIENE(evs: Iterator[S4Event], tr_it: Iterator[TraceRow], run:Ru
                          { "where":"unknown-family", "family": ev.family })
 
         # Labels belt-and-braces (V2 already checked; keep a fast assert here)
-        if ev.module != MODULE or ev.substream != SUBSTREAM:
+        if ev.module != MODULE or ev.substream_label != SUBSTREAM:
             return FAILC("E_HYGIENE", DATASET_FOR_FAMILY(ev.family), ev.merchant_id, run,
                          { "where":"label-drift",
-                           "got":{ "module":ev.module, "substream":ev.substream },
-                           "expected":{ "module":MODULE, "substream":SUBSTREAM } })
+                           "got":{ "module":ev.module, "substream_label":ev.substream_label },
+                           "expected":{ "module":MODULE, "substream_label":SUBSTREAM } })
 
         # Duplicate detection
         fp = FPRINT_EVENT(ev)
@@ -1535,11 +1542,11 @@ function CHECK_HYGIENE(evs: Iterator[S4Event], tr_it: Iterator[TraceRow], run:Ru
 
     # 2) Trace: duplicates at the cumulative-totals level
     while tr := tr_it.next():
-        if tr.module != MODULE or tr.substream != SUBSTREAM:
+        if tr.module != MODULE or tr.substream_label != SUBSTREAM:
             return FAILC("E_HYGIENE", DATASET.rng_trace_log, tr.merchant_id, run,
                          { "where":"trace-label-drift",
-                           "got":{ "module":tr.module, "substream":tr.substream },
-                           "expected":{ "module":MODULE, "substream":SUBSTREAM } })
+                           "got":{ "module":tr.module, "substream_label":tr.substream_label },
+                           "expected":{ "module":MODULE, "substream_label":SUBSTREAM } })
 
         tfp = FPRINT_TRACE(tr)
         if tfp in seen_trace:
@@ -1883,7 +1890,7 @@ Call this **only** on failure, with tiny `N` (e.g., 5). Never dump entire partit
 * `att(t, before, after, draws, blocks, λ, regime)` → AttemptEvent (family=`"attempt"`, payload `{lambda:λ, regime}`, `attempt=t`).
 * `rej(t, before, λx)` / `exh(cap, before, λx, aborted=true)` / `fin(attempts, λx, Kt?, exhausted?)` → MarkerEvent with **non-consuming** counters (`after==before`) and payload `{lambda_extra:λx, …}`.
 * `tr(prevTotals → totals)` → TraceRow cumulative step.
-* All event rows carry `module=MODULE`, `substream=SUBSTREAM`, `context="ztp"`; trace rows never carry `context`. Partitions for all logs are `{seed, parameter_hash, run_id}`; events embed all three; trace embeds `{seed, run_id}` only.
+* All event rows carry `module=MODULE`, `substream_label=SUBSTREAM`, `context="ztp"`; trace rows never carry `context`. Partitions for all logs are `{seed, parameter_hash, run_id}`; events embed all three; trace embeds `{seed, run_id}` only.
 
 ---
 
