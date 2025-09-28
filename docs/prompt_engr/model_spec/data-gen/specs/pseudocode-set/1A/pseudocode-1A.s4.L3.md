@@ -395,9 +395,20 @@ function parallel_for_merchants(
 ) -> void
 
 # -- Small utilities (no business semantics) -----------------------------------
-# Parse/compare decimal u128 strings; used for > "0" and delta equality checks.
-function u128_from_dec(s:string) -> BigUInt
+# Parse/compare decimal u128 strings; reuse S1·L0 authoritative surfaces.
+# Expectation: u128_from_dec returns an opaque BigUInt supporting comparison & subtraction.
+# (Do not re-define here; import & alias for clarity/portability.)
+
+IMPORT S4_L0: MODULE, SUBSTREAM_LABEL, EVENT_CONTEXT, MAX_ZTP_ATTEMPTS
+alias SUBSTREAM       := SUBSTREAM_LABEL
+alias CONTEXT_EVENTS  := EVENT_CONTEXT
+
+IMPORT S1_L0: decimal_string_to_u128
+alias u128_from_dec := decimal_string_to_u128
+
 function u128_is_zero(s:string) -> bool
+    return u128_from_dec(s) == u128_from_dec("0")
+
 function to_dec(x:BigUInt) -> U128S           # convert BigUInt → canonical decimal string (no FP)
     # IMPLEMENTER: use a pure big-int to string; locale/rounding MUST NOT alter digits
     return BIGUINT_TO_DECIMAL(x)
@@ -603,7 +614,7 @@ function validate_merchant(dict:Dictionary, schemas:Schemas, run:RunArgs, m:u64)
       return PASS(terminal="A0_FINAL_ONLY")  # or a neutral terminal, never emitted as data
 
   # Optional cross-state gate enforcement (will use A/N if the host supplies them)
-  CHECK_GATES(gates, SIZE(A)>0, SIZE(R)>0, SIZE(X)>0, run) or return FAIL_FROM_LAST()
+  CHECK_GATES(gates, SIZE(A)>0, SIZE(R)>0, SIZE(X)>0, SIZE(F)>0, run) or return FAIL_FROM_LAST()
 
   # V1 — SCHEMA/PARTITIONS/LINEAGE (events & trace) ---------------------------
   # Resolve concrete schemas once (anchors preflighted in §6)
@@ -684,8 +695,8 @@ function validate_merchant(dict:Dictionary, schemas:Schemas, run:RunArgs, m:u64)
 #   gates := read_gates(run, m)   # {is_multi:bool, is_eligible:bool, N:int, A:int, policy:str?}
 #   have_s4 := HAS_NEXT(it_attempts) or HAS_NEXT(it_reject) or HAS_NEXT(it_exhaust) or HAS_NEXT(it_final)
 
-function CHECK_GATES(gates, have_attempts:bool, have_rejects:bool, have_exhausts:bool, run:RunArgs) -> bool:
-    have_s4 = (have_attempts or have_rejects or have_exhausts)
+function CHECK_GATES(gates, have_attempts:bool, have_rejects:bool, have_exhausts:bool, have_finals:bool, run:RunArgs) -> bool:
+    have_s4 = (have_attempts or have_rejects or have_exhausts or have_finals)
     # 1) If any S4 rows exist, S1 and S3 must both have approved the merchant
     if have_s4 and not (gates.is_multi and gates.is_eligible):
         return FAILC("E_GATING_BREACH", "*", /*merchant*/0, run,
@@ -1054,10 +1065,11 @@ function CHECK_PAYLOAD_KEYS_MARKER(ev:MarkerEvent, run:RunArgs) -> bool:
     # Optional counts fields sanity (do NOT enforce policy here; terminal policy handles it)
     if HAS_KEY(ev.payload, "attempts"):
         att = ev.payload.attempts
-        if TYPEOF(att) != "int" or att < ATTEMPT_INDEX_BASE or att > MAX_ZTP_ATTEMPTS:
+        min_allowed = (ev.family == "final") ? 0 : ATTEMPT_INDEX_BASE
+        if TYPEOF(att) != "int" or att < min_allowed or att > MAX_ZTP_ATTEMPTS:
             return FAILC("E_PAYLOAD_VALUE", ds, ev.merchant_id, run,
                          { "family":ev.family, "where":"attempts", "got":att,
-                           "expect":f"int in [{ATTEMPT_INDEX_BASE},{MAX_ZTP_ATTEMPTS}]" })
+                           "expect": f"int in [{min_allowed},{MAX_ZTP_ATTEMPTS}] (final allows 0 for A=0)" })
 
     return OK
 ```
@@ -1727,6 +1739,9 @@ enum FailureCode {
 
 function FAIL(code:FailureCode, dataset:string, merchant_id:u64, run:RunArgs, context:any={}) -> Verdict:
     return { ok:false, failure:{ code:code, dataset:dataset, merchant_id:merchant_id, context:context, run:run } }
+
+function PASS(terminal:TerminalKind) -> Verdict:
+    return { ok:true, terminal: terminal }
 ```
 
 ---
