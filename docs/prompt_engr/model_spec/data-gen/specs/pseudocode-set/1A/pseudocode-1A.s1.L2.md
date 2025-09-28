@@ -92,6 +92,7 @@ Coordinate **S1.1 → S1.5** to (a) emit **exactly one** hurdle event per mercha
 
    * For each merchant, return $\Xi_m=(\text{is_multi}:\mathbf{bool},\,N:\mathbb{N},\,K:\mathbb{N},\,\mathcal C:\text{set[ISO]},\,C^\star:\text{u128})$ and `next_state ∈ {SingleHomePlacement, NegativeBinomialS2}`.
    * **Construction:** `is_multi` from the emitted hurdle event; `N:=1, K:=0, 𝓒:={home_iso}` if single-site (`SingleHomePlacement`); `N,K` unassigned and route `NegativeBinomialS2` if multi-site.
+   * **Sentinel (explicit):** on the multi-site branch set `N := null`, `K := null` (JSON `null`; use language-idiomatic `None`/`nil` where applicable).
    * **Counter discipline:** `C*` is the **post** counter from the hurdle envelope; it is **audit-only** — **no counter chaining** to downstream RNG. All downstream streams derive their own base counters from their own labels.
 
 4. **Cardinality & coverage obligations (per run):**
@@ -152,6 +153,7 @@ That’s the contract your implementer can wire to: fixed inputs, fixed outputs,
    * `ts_utc` is RFC-3339 **UTC** with **exactly 6** fractional digits (microseconds).
    * **Lineage & counters:** `seed` is a **JSON integer**; `run_id`, `parameter_hash`, and `manifest_fingerprint` are **hex strings**. Event/trace counters and totals are **JSON integers**.
    * For `rng_trace_log`, only **`seed` (int)** and **`run_id` (hex string)** are embedded; **`parameter_hash` is path-only**.
+   * **Writer note:** do **not** reuse S0's generic partition-embed equality check for `rng_trace_log`; S1's trace rows embed only `{seed, run_id}` and keep `parameter_hash` path-only (the S1 writer already enforces this).
    * `π` and (if present) `u` are **JSON numbers** emitted with **shortest binary64 round-trip** decimal.
 
 ---
