@@ -394,6 +394,15 @@ function parallel_for_merchants(
 # Parse/compare decimal u128 strings; used for > "0" and delta equality checks.
 function u128_from_dec(s:string) -> BigUInt
 function u128_is_zero(s:string) -> bool
+function to_dec(x:BigUInt) -> U128S           # convert BigUInt → canonical decimal string (no FP)
+    # IMPLEMENTER: use a pure big-int to string; locale/rounding MUST NOT alter digits
+    return BIGUINT_TO_DECIMAL(x)
+
+# Stable binary64 encoding for fingerprints (locale/rounding agnostic)
+function f64_to_hexbits(x:f64) -> string
+    # IMPLEMENTER: reinterpret the IEEE-754 bits of x as 64-bit unsigned
+    # and return uppercase hex (16 nybbles). This is stable across ports.
+    return U64_TO_HEX( REINTERPRET_F64_AS_U64(x) )
 
 # -- Glue helpers for boolean-style checks ------------------------------------
 const OK = true
@@ -566,29 +575,35 @@ function validate_merchant(dict:Dictionary, schemas:Schemas, run:RunArgs, m:u64)
   it_exhaust   := open_events(DATASET.ztp_exhausted,     run, m)
   it_final     := open_events(DATASET.ztp_final,         run, m)
   it_trace     := open_trace(run, m, MODULE, SUBSTREAM)
+  # Buffer small per-merchant slices once (≤ ~130 rows typical) and reuse safely
+  A := BUF_ALL(it_attempts)
+  R := BUF_ALL(it_reject)
+  X := BUF_ALL(it_exhaust)
+  F := BUF_ALL(it_final)
+  TR := BUF_ALL(it_trace)
 
-  have_any := (HAS_NEXT(it_attempts) or HAS_NEXT(it_reject) or HAS_NEXT(it_exhaust) or HAS_NEXT(it_final))
+  have_any := (SIZE(A) > 0 or SIZE(R) > 0 or SIZE(X) > 0 or SIZE(F) > 0)
   if not have_any:
       # No S4 rows for this merchant (shouldn't be scheduled by §6 discovery). Treat as pass-noop.
       return PASS(terminal="A0_FINAL_ONLY")  # or a neutral terminal, never emitted as data
 
   # V1 — SCHEMA/PARTITIONS/LINEAGE (events & trace) ---------------------------
-  CHECK_SCHEMA_PARTITIONS_LINEAGE(it_attempts,  schemas, run)  or return FAIL_FROM_LAST()
-  CHECK_SCHEMA_PARTITIONS_LINEAGE(it_reject,    schemas, run)  or return FAIL_FROM_LAST()
-  CHECK_SCHEMA_PARTITIONS_LINEAGE(it_exhaust,   schemas, run)  or return FAIL_FROM_LAST()
-  CHECK_SCHEMA_PARTITIONS_LINEAGE(it_final,     schemas, run)  or return FAIL_FROM_LAST()
-  CHECK_TRACE_SCHEMA_PARTITIONS_LINEAGE(it_trace, schemas, run) or return FAIL_FROM_LAST()
+  CHECK_SCHEMA_PARTITIONS_LINEAGE(ITER(A),  schemas, run)  or return FAIL_FROM_LAST()
+  CHECK_SCHEMA_PARTITIONS_LINEAGE(ITER(R),  schemas, run)  or return FAIL_FROM_LAST()
+  CHECK_SCHEMA_PARTITIONS_LINEAGE(ITER(X),  schemas, run)  or return FAIL_FROM_LAST()
+  CHECK_SCHEMA_PARTITIONS_LINEAGE(ITER(F),  schemas, run)  or return FAIL_FROM_LAST()
+  CHECK_TRACE_SCHEMA_PARTITIONS_LINEAGE(ITER(TR), schemas, run) or return FAIL_FROM_LAST()
 
   # V2 — LITERALS (labels & context placement) --------------------------------
-  CHECK_LITERALS(it_attempts, DATASET.poisson_attempt) or return FAIL_FROM_LAST()
-  CHECK_LITERALS(it_reject,   DATASET.ztp_rejection)   or return FAIL_FROM_LAST()
-  CHECK_LITERALS(it_exhaust,  DATASET.ztp_exhausted)   or return FAIL_FROM_LAST()
-  CHECK_LITERALS(it_final,    DATASET.ztp_final)       or return FAIL_FROM_LAST()
-  CHECK_TRACE_LITERALS(it_trace) or return FAIL_FROM_LAST()
+  CHECK_LITERALS(ITER(A), DATASET.poisson_attempt) or return FAIL_FROM_LAST()
+  CHECK_LITERALS(ITER(R), DATASET.ztp_rejection)   or return FAIL_FROM_LAST()
+  CHECK_LITERALS(ITER(X), DATASET.ztp_exhausted)   or return FAIL_FROM_LAST()
+  CHECK_LITERALS(ITER(F), DATASET.ztp_final)       or return FAIL_FROM_LAST()
+  CHECK_TRACE_LITERALS(ITER(TR)) or return FAIL_FROM_LAST()
 
   # V3 — MERGE BY COUNTERS; IDENTITIES & PAYLOAD KEYS -------------------------
   # File order is non-authoritative; counters define order & adjacency.
-  evs := MERGE_BY_COUNTERS([it_attempts, it_reject, it_exhaust, it_final])
+  evs := MERGE_BY_COUNTERS([ ITER(A), ITER(R), ITER(X), ITER(F) ])
 
   # Per-event checks (consuming vs non-consuming; payload key discipline)
   for ev in evs:
@@ -600,17 +615,17 @@ function validate_merchant(dict:Dictionary, schemas:Schemas, run:RunArgs, m:u64)
           CHECK_PAYLOAD_KEYS_MARKER(ev,run) or return FAIL_FROM_LAST()  # requires 'lambda_extra', not 'lambda'
 
   # V4 — EVENT → TRACE ADJACENCY (one-to-one, immediate, cumulative) ----------
-  CHECK_EVENT_TRACE_ADJACENCY(evs, it_trace) or return FAIL_FROM_LAST()
+  CHECK_EVENT_TRACE_ADJACENCY(evs, ITER(TR), run) or return FAIL_FROM_LAST()
 
   # V5 — ATTEMPT SEQUENCE & RESUME --------------------------------------------
   # Attempts must be contiguous 1..n (n ≤ 64); if resuming, start at max+1; no re-emits.
-  seq_ok, max_attempt := CHECK_ATTEMPT_SEQUENCE_AND_RESUME(it_attempts)
+  seq_ok, max_attempt := CHECK_ATTEMPT_SEQUENCE_AND_RESUME(ITER(A), run)
   if not seq_ok:
       return FAIL("E_ATTEMPT_SEQUENCE", dataset=DATASET.poisson_attempt, merchant_id=m,
                   run=run, context={ "max_attempt": max_attempt })
 
   # V6 — TERMINAL OUTCOME (exactly one legal terminal) ------------------------
-  ok, term := CHECK_TERMINAL_POLICY(it_attempts, it_reject, it_exhaust, it_final)
+  ok, term := CHECK_TERMINAL_POLICY(ITER(A), ITER(R), ITER(X), ITER(F))
   if not ok:
       return FAIL("E_TERMINAL_CARDINALITY", dataset="*", merchant_id=m, run=run, context=term)
 
@@ -639,7 +654,7 @@ function validate_merchant(dict:Dictionary, schemas:Schemas, run:RunArgs, m:u64)
 #   gates := read_gates(run, m)   # {is_multi:bool, is_eligible:bool, N:int, A:int, policy:str?}
 #   have_s4 := HAS_NEXT(it_attempts) or HAS_NEXT(it_reject) or HAS_NEXT(it_exhaust) or HAS_NEXT(it_final)
 
-function CHECK_GATES(gates, have_s4:bool) -> Result<void, Failure>:
+function CHECK_GATES(gates, have_attempts:bool, have_rejects:bool, have_exhausts:bool) -> bool:
     # 1) If any S4 rows exist, S1 and S3 must both have approved the merchant
     if have_s4 and not (gates.is_multi and gates.is_eligible):
         return FAIL("E_GATING_BREACH", dataset="*", context={
@@ -653,8 +668,8 @@ function CHECK_GATES(gates, have_s4:bool) -> Result<void, Failure>:
     # 3) A==0 short-circuit rule (upstream says no admissible foreigns)
     #    If A==0, S4 must be final-only: no attempts, no rejection/exhausted markers.
     if gates.A == 0:
-        if HAS_NEXT(it_attempts) or HAS_NEXT(it_reject) or HAS_NEXT(it_exhaust):
-            return FAIL("E_A0_PROTOCOL", dataset="*", context={ "found": "attempt/marker with A==0" })
+        if have_attempts or have_rejects or have_exhausts:
+            return FAILC("E_A0_PROTOCOL", "*", 0, run, { "found": "attempt/marker with A==0" })
         # Final-only specifics (shape/value) are checked later in terminal policy.
 
     return OK
@@ -1064,7 +1079,7 @@ function u128_cmp(a:U128S, b:U128S) -> int:         # returns -1, 0, 1
     return COMPARE(u128_from_dec(a), u128_from_dec(b))
 
 function u128_sub(a:U128S, b:U128S) -> U128S:       # assumes a >= b
-    return TO_DEC( u128_from_dec(a) - u128_from_dec(b) )
+    return to_dec( u128_from_dec(a) - u128_from_dec(b) )
 
 # Order trace rows by cumulative events_total (ties broken by draws_total, then blocks_total)
 function ORDER_TRACE_ROWS(tr_it: Iterator[TraceRow]) -> List[TraceRow]:
@@ -1470,14 +1485,14 @@ function FPRINT_EVENT(ev:S4Event) -> string:
     if ev.family == "attempt":
         return CONCAT("A|", ev.merchant_id, "|",
                       ev.before.hi, ":", ev.before.lo, "|",
-                      ev.after.hi,  ":", ev.after.lo,  "|L|",
-                      FORMAT_F64(ev.payload.lambda))
+                      ev.after.hi,  ":", ev.after.lo,  "|LHEX|",
+                      f64_to_hexbits(ev.payload.lambda))
     else:
         # markers/final fingerprint by non-consuming anchor + lambda_extra
         return CONCAT("M:", ev.family, "|", ev.merchant_id, "|",
                       ev.before.hi, ":", ev.before.lo, "|",
-                      ev.after.hi,  ":", ev.after.lo,  "|LX|",
-                      FORMAT_F64(ev.payload.lambda_extra))
+                      ev.after.hi,  ":", ev.after.lo,  "|LXHEX|",
+                      f64_to_hexbits(ev.payload.lambda_extra))
 
 function FPRINT_TRACE(tr:TraceRow) -> string:
     # module|substream|m|blocks_total|draws_total|events_total
