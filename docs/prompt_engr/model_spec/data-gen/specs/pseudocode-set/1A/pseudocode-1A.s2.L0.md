@@ -474,7 +474,7 @@ Emitters in §10 reference these **symbolically** (no literals elsewhere):
 ## 7.5 Payload bindings for S2 families (what emitters must pass)
 
 * **Gamma (`gamma_component`)**: payload `{merchant_id, context:"nb", index:0, alpha:φ, gamma_value:G}`.
-* **Poisson (`poisson_component`)**: payload `{merchant_id, context:"nb", lambda, k}`.
+* **Poisson (`poisson_component`)**: payload `{merchant_id, context:"nb", lambda, k, attempt:int≥1}`.   # attempt is 1-based and non-authoritative
 * **Finaliser (`nb_final`)**: payload `{merchant_id, mu, dispersion_k, n_outlets, nb_rejections}` and **must be non-consuming** (`before==after`, `blocks=0`, `draws="0"`).
 
 ---
@@ -746,6 +746,7 @@ function event_poisson_nb(
   seed:u64, parameter_hash:Hex64, manifest_fingerprint:Hex64, run_id:Hex32,
   s_before:Stream,          # poisson_nb stream BEFORE attempt
   lambda:f64,               # > 0 (finite)
+  attempt:int,                    # 1-based attempt index
   prev:TraceTotals
 ) -> (k:i64, s_after:Stream, next:TraceTotals)
 
@@ -759,7 +760,8 @@ function event_poisson_nb(
     merchant_id: merchant_id,
     context: "nb",
     lambda: lambda,
-    k: k
+    k: k,
+    attempt: attempt
   }                                                                                            # pass numbers; writer prints shortest-decimal
 
   end_event_emit("rng_event_poisson_component", ctx, s_after,
