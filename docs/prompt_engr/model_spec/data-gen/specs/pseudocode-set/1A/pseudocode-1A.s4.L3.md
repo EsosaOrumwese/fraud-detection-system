@@ -604,18 +604,25 @@ function validate_merchant(dict:Dictionary, schemas:Schemas, run:RunArgs, m:u64)
   CHECK_GATES(gates, SIZE(A)>0, SIZE(R)>0, SIZE(X)>0, run) or return FAIL_FROM_LAST()
 
   # V1 — SCHEMA/PARTITIONS/LINEAGE (events & trace) ---------------------------
-  CHECK_SCHEMA_PARTITIONS_LINEAGE(ITER(A),  schemas, run)  or return FAIL_FROM_LAST()
-  CHECK_SCHEMA_PARTITIONS_LINEAGE(ITER(R),  schemas, run)  or return FAIL_FROM_LAST()
-  CHECK_SCHEMA_PARTITIONS_LINEAGE(ITER(X),  schemas, run)  or return FAIL_FROM_LAST()
-  CHECK_SCHEMA_PARTITIONS_LINEAGE(ITER(F),  schemas, run)  or return FAIL_FROM_LAST()
-  CHECK_TRACE_SCHEMA_PARTITIONS_LINEAGE(ITER(TR), schemas, run) or return FAIL_FROM_LAST()
+  # Resolve concrete schemas once (anchors preflighted in §6)
+  sch_attempt  := schema_resolve(SCHEMA.poisson_attempt)
+  sch_reject   := schema_resolve(SCHEMA.ztp_rejection)
+  sch_exhaust  := schema_resolve(SCHEMA.ztp_exhausted)
+  sch_final    := schema_resolve(SCHEMA.ztp_final)
+  sch_trace    := schema_resolve(SCHEMA.rng_trace_log)
+
+  CHECK_SCHEMA_PARTITIONS_LINEAGE(ITER(A),  sch_attempt, run, DATASET.poisson_attempt) or return FAIL_FROM_LAST()
+  CHECK_SCHEMA_PARTITIONS_LINEAGE(ITER(R),  sch_reject,  run, DATASET.ztp_rejection)   or return FAIL_FROM_LAST()
+  CHECK_SCHEMA_PARTITIONS_LINEAGE(ITER(X),  sch_exhaust, run, DATASET.ztp_exhausted)   or return FAIL_FROM_LAST()
+  CHECK_SCHEMA_PARTITIONS_LINEAGE(ITER(F),  sch_final,   run, DATASET.ztp_final)       or return FAIL_FROM_LAST()
+  CHECK_TRACE_SCHEMA_PARTITIONS_LINEAGE(ITER(TR), sch_trace, run)                      or return FAIL_FROM_LAST()
 
   # V2 — LITERALS (labels & context placement) --------------------------------
-  CHECK_LITERALS(ITER(A), DATASET.poisson_attempt) or return FAIL_FROM_LAST()
-  CHECK_LITERALS(ITER(R), DATASET.ztp_rejection)   or return FAIL_FROM_LAST()
-  CHECK_LITERALS(ITER(X), DATASET.ztp_exhausted)   or return FAIL_FROM_LAST()
-  CHECK_LITERALS(ITER(F), DATASET.ztp_final)       or return FAIL_FROM_LAST()
-  CHECK_TRACE_LITERALS(ITER(TR)) or return FAIL_FROM_LAST()
+  CHECK_LITERALS(ITER(A), DATASET.poisson_attempt, run) or return FAIL_FROM_LAST()
+  CHECK_LITERALS(ITER(R), DATASET.ztp_rejection,   run) or return FAIL_FROM_LAST()
+  CHECK_LITERALS(ITER(X), DATASET.ztp_exhausted,   run) or return FAIL_FROM_LAST()
+  CHECK_LITERALS(ITER(F), DATASET.ztp_final,       run) or return FAIL_FROM_LAST()
+  CHECK_TRACE_LITERALS(ITER(TR), run)                    or return FAIL_FROM_LAST()
 
   # V3 — MERGE BY COUNTERS; IDENTITIES & PAYLOAD KEYS -------------------------
   # File order is non-authoritative; counters define order & adjacency.
@@ -821,7 +828,7 @@ function _eq_str(a:any, b:string) -> bool:
 
 # -- Event families: literals + context placement ------------------------------
 function CHECK_LITERALS(
-    it: Iterator[Record], dataset_id: string
+    it: Iterator[Record], dataset_id: string, run: RunArgs
 ) -> bool:
 
     while row := it.next():
@@ -845,7 +852,7 @@ function CHECK_LITERALS(
 
 # -- Trace: literals + forbidden context field ---------------------------------
 function CHECK_TRACE_LITERALS(
-    it_trace: Iterator[Record]
+    it_trace: Iterator[Record], run: RunArgs
 ) -> bool:
 
     while tr := it_trace.next():
@@ -1232,31 +1239,26 @@ function ORDER_ATTEMPTS_BY_COUNTER(attempts: List[AttemptEvent]) -> List[Attempt
 
 ```text
 function CHECK_ATTEMPT_SEQUENCE_AND_RESUME(it_attempts: Iterator[AttemptEvent],
-                                           run:RunArgs)
-      -> Result<{max_attempt:int}, Failure>:
+                                           run:RunArgs) -> (bool, int):
 
     # Collect (≤ 64) — safe to buffer per merchant
     buf: List[AttemptEvent] = []
     while ev := it_attempts.next(): buf.push(ev)
 
     if SIZE(buf) == 0:
-        return OK({max_attempt: 0})   # A=0 final-only is handled elsewhere
+        return (true, 0)   # A=0 final-only is handled elsewhere
 
     # Basic field presence/domain (attempt is int ≥ 1)
     for ev in buf:
         if TYPEOF(ev.attempt) != "int" or ev.attempt < ATTEMPT_INDEX_BASE:
-            return FAIL("E_ATTEMPT_SEQUENCE", dataset=DATASET.poisson_attempt,
-                        merchant_id=ev.merchant_id, run=run,
-                        context={ "where":"attempt:domain", "got":ev.attempt, "expect":"int ≥ 1" })
+            return (false, 0)   # driver will raise E_ATTEMPT_SEQUENCE with max_attempt=0
 
     # Order by authoritative counters
     ordered = ORDER_ATTEMPTS_BY_COUNTER(buf)
 
     # 1) First attempt must be 1
     if ordered[0].attempt != 1:
-        return FAIL("E_ATTEMPT_SEQUENCE", dataset=DATASET.poisson_attempt,
-                    merchant_id=ordered[0].merchant_id, run=run,
-                    context={ "where":"first!=1", "first_attempt": ordered[0].attempt })
+        return (false, 1)
 
     # 2) No duplicates; contiguous 1..n; counter continuity between attempts
     seen: Set<int> = {}
@@ -1269,39 +1271,27 @@ function CHECK_ATTEMPT_SEQUENCE_AND_RESUME(it_attempts: Iterator[AttemptEvent],
 
         # Contiguous indices 1..n (no gaps/dupes)
         if curr.attempt != expected:
-            return FAIL("E_ATTEMPT_SEQUENCE", dataset=DATASET.poisson_attempt,
-                        merchant_id=curr.merchant_id, run=run,
-                        context={ "where":"contiguity", "expected": expected, "got": curr.attempt })
+            return (false, expected-1)
 
         if expected in seen:
-            return FAIL("E_ATTEMPT_SEQUENCE", dataset=DATASET.poisson_attempt,
-                        merchant_id=curr.merchant_id, run=run,
-                        context={ "where":"duplicate", "attempt": expected })
+            return (false, expected)
         seen.add(expected)
 
         # Counter continuity: next.before MUST equal prev.after (non-consuming markers may occur between; they don't move counters)
         if not COUNTERS_EQUAL(curr.before, prev.after):
-            return FAIL("E_ATTEMPT_SEQUENCE", dataset=DATASET.poisson_attempt,
-                        merchant_id=curr.merchant_id, run=run,
-                        context={ "where":"counter-gap",
-                                  "prev_after": prev.after, "curr_before": curr.before })
+            return (false, curr.attempt)
 
         # Monotone 'after' (redundant given continuity, but catches malformed rows)
         if CMP_COUNTER(prev.after, curr.after) >= 0:
-            return FAIL("E_ATTEMPT_SEQUENCE", dataset=DATASET.poisson_attempt,
-                        merchant_id=curr.merchant_id, run=run,
-                        context={ "where":"after-nonmonotone",
-                                  "prev_after": prev.after, "curr_after": curr.after })
+            return (false, curr.attempt)
 
     # 3) Cap: n ≤ MAX_ZTP_ATTEMPTS
     n = SIZE(ordered)
     if n > MAX_ZTP_ATTEMPTS:
-        return FAIL("E_ATTEMPT_SEQUENCE", dataset=DATASET.poisson_attempt,
-                    merchant_id=ordered[-1].merchant_id, run=run,
-                    context={ "where":"cap-exceeded", "n": n, "cap": MAX_ZTP_ATTEMPTS })
+        return (false, n)
 
     # Success — return max attempt for resume/summary hints
-    return OK({max_attempt: n})
+    return (true, n)
 ```
 
 **Why this is sufficient (and matches S4):**
@@ -1371,7 +1361,7 @@ function GATHER_TERMINAL_FACTS(atts_it, rej_it, ex_it, fin_it) -> TermFacts:
 
 ```text
 function CHECK_TERMINAL_POLICY(it_attempts, it_reject, it_exhaust, it_final)
-      -> Result<TerminalKind, Failure>:
+      -> (bool, any):
 
     tf = GATHER_TERMINAL_FACTS(it_attempts, it_reject, it_exhaust, it_final)
 
@@ -1383,13 +1373,7 @@ function CHECK_TERMINAL_POLICY(it_attempts, it_reject, it_exhaust, it_final)
     # ---- Cardinality sanity: cannot have more than one terminal row -----------
     # Terminals are: exhausted marker (abort) OR final (accept/downgrade/A0)
     if nX > 1 or nF > 1 or (nX == 1 and nF == 1):
-        return FAIL("E_TERMINAL_CARDINALITY", dataset="*",
-                    merchant_id=(nA>0 ? tf.attempts[0].merchant_id :
-                                 nX>0 ? tf.exhausted_markers[0].merchant_id :
-                                 nF>0 ? tf.finals[0].merchant_id : 0),
-                    run=run,
-                    context={ "where":"terminal-count",
-                              "exhausted_count": nX, "final_count": nF })
+        return (false, { "where":"terminal-count", "exhausted_count": nX, "final_count": nF })
 
     # ---- A=0 final-only -------------------------------------------------------
     if nA == 0 and nR == 0 and nX == 0 and nF == 1:
@@ -1403,43 +1387,33 @@ function CHECK_TERMINAL_POLICY(it_attempts, it_reject, it_exhaust, it_final)
             return FAIL("E_TERMINAL_CARDINALITY", dataset=DATASET.ztp_final,
                         merchant_id=f0.merchant_id, run=run,
                         context={ "where":"A0-final:exhausted-flag" })
-        return OK("A0_FINAL_ONLY")
+        return (true, "A0_FINAL_ONLY")
 
     # If we have no terminal at all (and some events), that's invalid
     if (nA > 0 or nR > 0) and (nX == 0 and nF == 0):
-        return FAIL("E_TERMINAL_CARDINALITY", dataset="*",
-                    merchant_id=tf.attempts[0].merchant_id, run=run,
-                    context={ "where":"no-terminal", "n_attempts": nA, "n_rejections": nR })
+        return (false, { "where":"no-terminal", "n_attempts": nA, "n_rejections": nR })
 
     # ---- Cap Abort: attempts == MAX, one exhausted, no final ------------------
     if nA == MAX_ZTP_ATTEMPTS and nX == 1 and nF == 0:
         x = tf.exhausted_markers[0]
         # If present, payload.attempts must equal cap
         if HAS_KEY(x.payload,"attempts") and x.payload.attempts != MAX_ZTP_ATTEMPTS:
-            return FAIL("E_TERMINAL_CARDINALITY", dataset=DATASET.ztp_exhausted,
-                        merchant_id=x.merchant_id, run=run,
-                        context={ "where":"exhausted:attempts!=cap", "got":x.payload.attempts, "cap":MAX_ZTP_ATTEMPTS })
+            return (false, { "where":"exhausted:attempts!=cap", "got":x.payload.attempts, "cap":MAX_ZTP_ATTEMPTS })
         # If present, aborted flag should be true (treat missing as acceptable)
         if HAS_KEY(x.payload,"aborted") and x.payload.aborted != true:
-            return FAIL("E_TERMINAL_CARDINALITY", dataset=DATASET.ztp_exhausted,
-                        merchant_id=x.merchant_id, run=run,
-                        context={ "where":"exhausted:aborted!=true" })
-        return OK("CAP_ABORT")
+            return (false, { "where":"exhausted:aborted!=true" })
+        return (true, "CAP_ABORT")
 
     # ---- Cap Downgrade: attempts == MAX, one final (flagged exhausted), no exhausted marker
     if nA == MAX_ZTP_ATTEMPTS and nF == 1 and nX == 0:
         f0 = tf.finals[0]
         # If present, final.attempts must equal cap
         if HAS_KEY(f0.payload,"attempts") and f0.payload.attempts != MAX_ZTP_ATTEMPTS:
-            return FAIL("E_TERMINAL_CARDINALITY", dataset=DATASET.ztp_final,
-                        merchant_id=f0.merchant_id, run=run,
-                        context={ "where":"final:attempts!=cap", "got":f0.payload.attempts, "cap":MAX_ZTP_ATTEMPTS })
+            return (false, { "where":"final:attempts!=cap", "got":f0.payload.attempts, "cap":MAX_ZTP_ATTEMPTS })
         # Must be flagged exhausted if field exists; absence is tolerated per schema-version
         if HAS_KEY(f0.payload,"exhausted") and f0.payload.exhausted != true:
-            return FAIL("E_TERMINAL_CARDINALITY", dataset=DATASET.ztp_final,
-                        merchant_id=f0.merchant_id, run=run,
-                        context={ "where":"final:exhausted-flag-missing-or-false" })
-        return OK("CAP_DOWNGRADE")
+            return (false, { "where":"final:exhausted-flag-missing-or-false" })
+        return (true, "CAP_DOWNGRADE")
 
     # ---- Accept: n_attempts >= 1, exactly one final, no exhausted ------------
     if nA >= 1 and nF == 1 and nX == 0:
@@ -1461,23 +1435,16 @@ function CHECK_TERMINAL_POLICY(it_attempts, it_reject, it_exhaust, it_final)
         lastA = tf.attempts[nA-1]
         if HAS_KEY(lastA.payload, "k") and HAS_KEY(f0.payload, "K_target"):
             if TYPEOF(lastA.payload.k) != "int" or lastA.payload.k < 1:
-                return FAIL("E_ACCEPT_MAPPING", dataset=DATASET.poisson_attempt,
-                            merchant_id=lastA.merchant_id, run=run,
-                            context={ "where":"attempt.k:domain", "k": lastA.payload.k })
+                return (false, { "where":"attempt.k:domain", "k": lastA.payload.k })
             if f0.payload.K_target != lastA.payload.k:
-                return FAIL("E_ACCEPT_MAPPING", dataset=DATASET.ztp_final,
-                            merchant_id=f0.merchant_id, run=run,
-                            context={ "where":"K_target!=k(accepting_attempt)",
-                                      "K_target": f0.payload.K_target, "k": lastA.payload.k })
+                return (false, { "where":"K_target!=k(accepting_attempt)",
+                                 "K_target": f0.payload.K_target, "k": lastA.payload.k })
 
-        return OK("ACCEPT")
+        return (true, "ACCEPT")
 
     # ---- Otherwise: illegal combination --------------------------------------
-    return FAIL("E_TERMINAL_CARDINALITY", dataset="*", merchant_id=(nA>0?tf.attempts[0].merchant_id:0),
-                run=run, context={
-                    "where":"illegal-combination",
-                    "n_attempts": nA, "n_rejections": nR, "n_exhausted": nX, "n_final": nF
-                })
+    return (false, { "where":"illegal-combination",
+                     "n_attempts": nA, "n_rejections": nR, "n_exhausted": nX, "n_final": nF })
 ```
 
 **Notes for implementers**
@@ -1532,8 +1499,7 @@ function IN_ALLOWED_FAMILY(tag:string) -> bool:
 ### Check
 
 ```text
-function CHECK_HYGIENE(evs: Iterator[S4Event], tr_it: Iterator[TraceRow], run:RunArgs)
-      -> Result<void, Failure>:
+function CHECK_HYGIENE(evs: Iterator[S4Event], tr_it: Iterator[TraceRow], run:RunArgs) -> bool:
 
     seen_events : Set[string] = {}
     seen_trace  : Set[string] = {}
@@ -1542,40 +1508,35 @@ function CHECK_HYGIENE(evs: Iterator[S4Event], tr_it: Iterator[TraceRow], run:Ru
     while ev := evs.next():
         # Family sanity (should already be enforced upstream)
         if not IN_ALLOWED_FAMILY(ev.family):
-            return FAIL("E_HYGIENE", dataset=DATASET_FOR_FAMILY(ev.family),
-                        merchant_id=ev.merchant_id, run=run,
-                        context={ "where":"unknown-family", "family": ev.family })
+            return FAILC("E_HYGIENE", DATASET_FOR_FAMILY(ev.family), ev.merchant_id, run,
+                         { "where":"unknown-family", "family": ev.family })
 
         # Labels belt-and-braces (V2 already checked; keep a fast assert here)
         if ev.module != MODULE or ev.substream != SUBSTREAM:
-            return FAIL("E_HYGIENE", dataset=DATASET_FOR_FAMILY(ev.family),
-                        merchant_id=ev.merchant_id, run=run,
-                        context={ "where":"label-drift",
-                                  "got":{ "module":ev.module, "substream":ev.substream },
-                                  "expected":{ "module":MODULE, "substream":SUBSTREAM } })
+            return FAILC("E_HYGIENE", DATASET_FOR_FAMILY(ev.family), ev.merchant_id, run,
+                         { "where":"label-drift",
+                           "got":{ "module":ev.module, "substream":ev.substream },
+                           "expected":{ "module":MODULE, "substream":SUBSTREAM } })
 
         # Duplicate detection
         fp = FPRINT_EVENT(ev)
         if fp in seen_events:
-            return FAIL("E_HYGIENE", dataset=DATASET_FOR_FAMILY(ev.family),
-                        merchant_id=ev.merchant_id, run=run,
-                        context={ "where":"duplicate-event", "fingerprint": fp })
+            return FAILC("E_HYGIENE", DATASET_FOR_FAMILY(ev.family), ev.merchant_id, run,
+                         { "where":"duplicate-event", "fingerprint": fp })
         seen_events.add(fp)
 
     # 2) Trace: duplicates at the cumulative-totals level
     while tr := tr_it.next():
         if tr.module != MODULE or tr.substream != SUBSTREAM:
-            return FAIL("E_HYGIENE", dataset=DATASET.rng_trace_log,
-                        merchant_id=tr.merchant_id, run=run,
-                        context={ "where":"trace-label-drift",
-                                  "got":{ "module":tr.module, "substream":tr.substream },
-                                  "expected":{ "module":MODULE, "substream":SUBSTREAM } })
+            return FAILC("E_HYGIENE", DATASET.rng_trace_log, tr.merchant_id, run,
+                         { "where":"trace-label-drift",
+                           "got":{ "module":tr.module, "substream":tr.substream },
+                           "expected":{ "module":MODULE, "substream":SUBSTREAM } })
 
         tfp = FPRINT_TRACE(tr)
         if tfp in seen_trace:
-            return FAIL("E_HYGIENE", dataset=DATASET.rng_trace_log,
-                        merchant_id=tr.merchant_id, run=run,
-                        context={ "where":"duplicate-trace-row", "fingerprint": tfp })
+            return FAILC("E_HYGIENE", DATASET.rng_trace_log, tr.merchant_id, run,
+                         { "where":"duplicate-trace-row", "fingerprint": tfp })
         seen_trace.add(tfp)
 
     return OK
