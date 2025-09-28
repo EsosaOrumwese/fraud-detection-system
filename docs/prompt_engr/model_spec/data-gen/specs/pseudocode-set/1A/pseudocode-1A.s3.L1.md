@@ -194,7 +194,7 @@ These invariants hold for all S3 · L1 kernels to guarantee **replayability, por
 
 # 2) Types & Shapes (+ IDs/Constants quick table)
 
-**Goal.** Pin the exact **in-memory shapes** that S3·L1 kernels return so **L2 can attach lineage and emit *without reshaping***. All rows below are **schema-shaped minus lineage** (L1 does **not** populate `parameter_hash` / `manifest_fingerprint`; L2 will).
+**Goal.** Pin the exact **in-memory shapes** that S3·L1 kernels return so **L2 can attach lineage and emit *without reshaping***. All rows below are **schema-shaped minus lineage**. L2 attaches **`parameter_hash`** to each row; rows **may** include **`produced_by_fingerprint`** (optional provenance). The **dataset-level sidecar** records **`manifest_fingerprint`**.
 
 ---
 
@@ -293,7 +293,7 @@ These invariants hold for all S3 · L1 kernels to guarantee **replayability, por
 * `s3_integerise_counts` *(opt)* → `CountRow[]` → **L2 emits → `s3_integerised_counts`**
 * `s3_sequence_sites` *(opt)* → `SequenceRow[]` → **L2 emits → `s3_site_sequence`**
 
-*(All four are **schema-shaped minus lineage**; L2 adds `{parameter_hash, manifest_fingerprint}` and calls L0 emitters.)*
+*(All four are **schema-shaped minus lineage**; L2 attaches **`parameter_hash`** and **may** attach **`produced_by_fingerprint`**; the **_sidecar_** records **`manifest_fingerprint`**; L2 then calls L0 emitters.)*
 
 ---
 
@@ -714,8 +714,8 @@ PROC s3_process_merchant(ingress, s1, s2, bom, flags) ->
 
 # 5a) Data Shapes at Each Step (one-liner map)
 
-> All arrays are **schema-shaped minus lineage** (`parameter_hash`, `manifest_fingerprint` are attached later by L2). ISO codes are **uppercase**; arrays marked “A→Z” are **deduped & sorted** (ASCII).
-
+> All arrays are **schema-shaped minus lineage**: L2 attaches `parameter_hash` to rows; rows **may** include `produced_by_fingerprint` (optional); the **sidecar** records `manifest_fingerprint`.
+>
 * **`s3_build_ctx` → `Ctx`**
   `{ merchant_id:u64, home_country_iso:ISO2, channel:string /* ingress closed set */, N:int≥2, … }`
   *(Plus pass-through refs to ingress/S1/S2 rows and BOM handle; **entry gates satisfied**.)*
@@ -1662,7 +1662,7 @@ END PROC
 
 # 13) Materialisation Helpers — Shape Rows for Emit
 
-**Mission.** Map kernel outputs into **schema-shaped arrays (minus lineage)** with the **logical orders** that L2’s emitters expect—**without I/O** and **without RNG**. These helpers are pure transforms + lightweight guards so L2 can attach `{parameter_hash, manifest_fingerprint}` and call S3·L0 emitters directly.
+**Mission.** Map kernel outputs into **schema-shaped arrays (minus lineage)** with the **logical orders** that L2’s emitters expect—**without I/O** and **without RNG**. These helpers are pure transforms + lightweight guards so L2 can attach **`parameter_hash`** (and may add **`produced_by_fingerprint`**) and call S3·L0 emitters directly; the **sidecar** asserts **`manifest_fingerprint`**.
 
 ---
 
@@ -1807,11 +1807,12 @@ END PROC
 
 ## 13.7 “Minus lineage” reminder (for L2)
 
-These helpers **never** add `{parameter_hash, manifest_fingerprint}`. L2 must:
+These helpers **never** add lineage fields. L2 must:
 
-1. attach lineage from `Ctx`;
-2. verify **embed = path** at emit time (S3·L0 §15);
-3. call the correct emitter with the already-sorted arrays:
+1. **attach row lineage** from `Ctx`: add `parameter_hash` (required); you **may** add `produced_by_fingerprint` (optional provenance);
+2. **verify embed = path** at emit time (S3·L0 §15);
+3. **write the dataset-level sidecar** `_manifest.json` in the partition, recording `manifest_fingerprint == run.manifest_fingerprint` (plus usual metadata);
+4. call the correct emitter with the already-sorted arrays:
 
    * `EMIT_S3_CANDIDATE_SET`, `EMIT_S3_BASE_WEIGHT_PRIORS`,
    * `EMIT_S3_INTEGERISED_COUNTS`, `EMIT_S3_SITE_SEQUENCE`.
