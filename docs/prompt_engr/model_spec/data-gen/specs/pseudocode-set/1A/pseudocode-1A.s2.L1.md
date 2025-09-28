@@ -231,30 +231,30 @@ function S2_3_attempt_once(ctx: NBContext,
       s_pois': Stream, totals_pois': TraceTotals)
 
   # 1) Γ draw (label "gamma_nb") — draw via capsule, no emission yet
-  #    Capture 'before' envelope first; capsule advances the stream and returns actual-use budgets.
-  ctx_gamma = begin_event_micro(MODULE_GAMMA, LABEL_GAMMA,
-                                ctx.lineage.seed, ctx.lineage.parameter_hash,
-                                ctx.lineage.manifest_fingerprint, ctx.lineage.run_id,
-                                /*s_before*/ s_gamma)                                                # writer prelude
-  (G, s_gamma', bud_gamma) = gamma_attempt_with_budget(ctx.phi, s_gamma)  
+  #    Capsule advances the stream and returns actual-use budgets (keep s_gamma for 'before' capture later).
+  (G, s_gamma', bud_gamma) = gamma_attempt_with_budget(ctx.phi, s_gamma)
 
  # 2) Compose λ in binary64 (fixed order; guard BEFORE any emission)
-  tmp    = ctx.mu / ctx.phi                # fixed evaluation order
-  lambda = tmp * G
+  mu_over_phi = ctx.mu / ctx.phi           # fixed evaluation order
+  lambda      = mu_over_phi * G
 
   # Guard λ > 0 and finite — if invalid, emit NOTHING and stop (no Gamma, no Poisson, no final)
   if not is_finite(lambda) or (lambda <= 0.0):
       signal(ERR_S2_NUMERIC_INVALID, { merchant_id: ctx.merchant_id, where: "lambda" })
       return (G, lambda, K := -1, s_gamma', totals_gamma, s_pois, totals_pois) 
-
-  # 3) Emit Gamma now (writer computes blocks from counters; 'draws' from budgets), then Π step
+  
+  # 3) Build event ctx now (capture 'before' from the original s_gamma), emit Gamma, then Π step
+  ctx_gamma = begin_event_micro(MODULE_GAMMA, LABEL_GAMMA,
+                                ctx.lineage.seed, ctx.lineage.parameter_hash,
+                                ctx.lineage.manifest_fingerprint, ctx.lineage.run_id,
+                                /*s_before*/ s_gamma)                                                # writer prelude
   payload_gamma = { merchant_id: ctx.merchant_id, context:"nb", index:0,
                     alpha: ctx.phi, gamma_value: G }
   end_event_emit(/*family*/ "rng_event_gamma_component",
                  /*ctx*/ ctx_gamma,
                  /*stream_after*/ s_gamma',
                  /*draws_hi*/ bud_gamma.draws_hi, /*draws_lo*/ bud_gamma.draws_lo,
-                 /*payload*/ payload_gamma)                                                            # envelope+payload write
+                 /*payload*/ payload_gamma)                                                           # envelope+payload write
   draws_str_gamma = u128_to_decimal_string(bud_gamma.draws_hi, bud_gamma.draws_lo)
   (blk_gamma, drw_gamma, evt_gamma) = update_rng_trace_totals(ctx_gamma.module, ctx_gamma.substream_label,
                                              ctx.lineage.seed, ctx.lineage.parameter_hash, ctx.lineage.run_id,
@@ -339,11 +339,13 @@ function S2_4_accept(ctx: NBContext,
       # One attempt (S2.3): if λ is valid, emits Gamma then Poisson; otherwise emits nothing
       (G, lambda, K,
        s_gamma, totals_gamma,
-       s_pois,  totals_pois) := S2_3_attempt_once(ctx, s_gamma, totals_gamma, s_pois, totals_pois)
+       s_pois,  totals_pois) :=
+          S2_3_attempt_once(ctx, s_gamma, totals_gamma, s_pois, totals_pois, /*attempt_index*/ t + 1)
 
       # DEV_ASSERTS (no-op in prod):
       #   totals_gamma.events_total increased by +1 iff λ is valid
       #   totals_pois.events_total increased by +1 iff λ is valid
+      #   attempt_index was 1-based and equals current (t + 1)
 
       if K < 0:
           # Numeric-invalid λ branch: S2.3 emitted nothing and signalled
@@ -544,7 +546,8 @@ S2_2_links_to_params(
 S2_3_attempt_once(
   ctx: NBContext,
   s_gamma:Stream, totals_gamma:TraceTotals,
-  s_pois: Stream, totals_pois: TraceTotals
+  s_pois: Stream, totals_pois: TraceTotals,
+  attempt_index:int
 ) -> (G:f64, lambda:f64, K:i64,
       s_gamma':Stream, totals_gamma':TraceTotals,
       s_pois': Stream,  totals_pois': TraceTotals)
@@ -591,7 +594,7 @@ L1 is **green** when all of the following hold:
 * **Per valid attempt:** exactly **2** events in order — `gamma_component` then `poisson_component`; payloads:
 
   * Gamma: `{merchant_id, context:"nb", index:0, alpha, gamma_value}` (numbers).
-  * Poisson: `{merchant_id, context:"nb", lambda, k}` (numbers).
+   * Poisson: `{merchant_id, context:"nb", lambda, k, attempt:int≥1}` (numbers; attempt is 1-based and non-authoritative).
 * **λ-invalid attempt:** **no emissions**; L1 signals `ERR_S2_NUMERIC_INVALID` and **stops** S2 for that merchant (no final).
 * **Finaliser:** exactly **1** `nb_final` with `{merchant_id, mu, dispersion_k, n_outlets, nb_rejections}` (numbers), and a **non-consuming** envelope (`before==after`, `blocks=0`, `draws:"0"`).
 
