@@ -616,7 +616,7 @@ function validate_merchant(dict:Dictionary, schemas:Schemas, run:RunArgs, m:u64)
       return PASS(terminal="A0_FINAL_ONLY")  # or a neutral terminal, never emitted as data
 
   # Optional cross-state gate enforcement (will use A/N if the host supplies them)
-  CHECK_GATES(gates, SIZE(A)>0, SIZE(R)>0, SIZE(X)>0, SIZE(F)>0, run) or return FAIL_FROM_LAST()
+  CHECK_GATES(gates, SIZE(A)>0, SIZE(R)>0, SIZE(X)>0, SIZE(F)>0, run, m) or return FAIL_FROM_LAST()
 
   # V1 — SCHEMA/PARTITIONS/LINEAGE (events & trace) ---------------------------
   # Resolve concrete schemas once (anchors preflighted in §6)
@@ -697,24 +697,24 @@ function validate_merchant(dict:Dictionary, schemas:Schemas, run:RunArgs, m:u64)
 #   gates := read_gates(run, m)   # {is_multi:bool, is_eligible:bool, N:int, A:int, policy:str?}
 #   have_s4 := have_attempts or have_rejects or have_exhausts or have_finals
 
-function CHECK_GATES(gates, have_attempts:bool, have_rejects:bool, have_exhausts:bool, have_finals:bool, run:RunArgs) -> bool:
+function CHECK_GATES(gates, have_attempts:bool, have_rejects:bool, have_exhausts:bool, have_finals:bool, run:RunArgs, merchant_id:u64) -> bool:
     have_s4 = (have_attempts or have_rejects or have_exhausts or have_finals)
     # 1) If any S4 rows exist, S1 and S3 must both have approved the merchant
     if have_s4 and not (gates.is_multi and gates.is_eligible):
-        return FAILC("E_GATING_BREACH", "*", /*merchant*/0, run,
+        return FAILC("E_GATING_BREACH", "*", merchant_id, run,
                      { "have_s4": true, "is_multi": gates.is_multi, "is_eligible": gates.is_eligible })
 
     # 2) OPTIONAL scalar domain checks (only if host provided N/A)
     if have_s4 and HAS_KEY(gates,"N") and gates.N < 2:
-        return FAILC("E_GATING_BREACH", "*", 0, run, { "N": gates.N })
+        return FAILC("E_GATING_BREACH", "*", merchant_id, run, { "N": gates.N })
     if have_s4 and HAS_KEY(gates,"A") and gates.A < 0:
-        return FAILC("E_GATING_BREACH", "*", 0, run, { "A": gates.A })
+        return FAILC("E_GATING_BREACH", "*", merchant_id, run, { "A": gates.A })
 
     # 3) A==0 short-circuit rule (upstream says no admissible foreigns)
     #    If A==0, S4 must be final-only: no attempts, no rejection/exhausted markers.
     if HAS_KEY(gates,"A") and gates.A == 0:
         if have_attempts or have_rejects or have_exhausts:
-            return FAILC("E_A0_PROTOCOL", "*", 0, run, { "found": "attempt/marker with A==0" })
+            return FAILC("E_A0_PROTOCOL", "*", merchant_id, run, { "found": "attempt/marker with A==0" })
         # Final-only specifics (shape/value) are checked later in terminal policy.
 
     return OK
@@ -1498,7 +1498,7 @@ function FPRINT_EVENT(ev:S4Event) -> string:
                       f64_to_hexbits(ev.payload.lambda_extra))
 
 function FPRINT_TRACE(tr:TraceRow) -> string:
-    # module|substream|m|blocks_total|draws_total|events_total
+    # module|substream_label|m|blocks_total|draws_total|events_total
     return CONCAT(tr.module, "|", tr.substream_label, "|", tr.merchant_id, "|",
                   tr.totals.blocks_total, "|", tr.totals.draws_total, "|", tr.totals.events_total)
 
