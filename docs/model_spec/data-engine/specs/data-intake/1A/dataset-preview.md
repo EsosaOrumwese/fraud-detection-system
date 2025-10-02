@@ -483,12 +483,14 @@ eligibility:
 **Field rules (must pass):**
 
 * `theta0/theta1/theta2` are **finite** binary64 numbers.
-* `MAX_ZTP_ZERO_ATTEMPTS ≥ 1` (**this spec sets 64; the validator enforces 64**).
+* `MAX_ZTP_ZERO_ATTEMPTS == 64` (**spec-fixed in this version; validator enforces 64**).
 * `ztp_exhaustion_policy ∈ {"abort","downgrade_domestic"}`.
   * `"abort"` → terminal **exhausted** marker, no final.
   * `"downgrade_domestic"` → terminal **final** with `K_target=0` and `exhausted:true`.
 
-**Not in this file:** S3/S0 **eligibility rules** (those live in governed policy artefacts; S0 writes `crossborder_eligibility_flags` which S3 reads as a gate).
+* **Eligibility precedence & tie-breaks (S0 DSL):** `DENY ≻ ALLOW`; then ascending `priority`; then `id` A→Z; the **first decision-bearing** rule under that order wins; `default_decision` is the fallback if none fire.
+
+**Also in this file:** the **`eligibility`** rule set that **S0.6** evaluates to produce `crossborder_eligibility_flags` (S3 reads those flags as a gate; S3 does not re-decide eligibility).
 * No regime threshold key (sampling regime split is fixed: `λ<10 → inversion`).
 
 ---
@@ -508,6 +510,7 @@ eligibility:
 ## Acceptance checklist (before S4 runs)
 
 * **Presence & parse:** File exists, loads, keys exactly `ztp_link.{theta0,theta1,theta2}`, `ztp_controls.{MAX_ZTP_ZERO_ATTEMPTS, ztp_exhaustion_policy}`, `eligibility.{rule_set_id, default_decision, rules[]}`.
+* **Channel domain:** `eligibility.rules[].channel` values must use **internal tokens** `CP`/`CNP` (post-S0 mapping), **not** ingress strings.
 * **Numeric sanity:** all θ finite; `MAX_ZTP_ZERO_ATTEMPTS == 64` (spec-fixed; attempts domain is 1..64).
 * **Policy value:** `ztp_exhaustion_policy` is one of the two allowed strings.
 * **Parameter sealing:** the file’s bytes are included in **`parameter_hash`** (changing it flips the hash).
@@ -525,7 +528,7 @@ eligibility:
 ## Example behaviour (one merchant)
 
 * Inputs: `N=4`, `X_m=0.3`, θ as above → `lambda_extra = exp(-1.10 + 0.75*ln 4 + 0.60*0.3)`.
-* Attempts: draws k = 0,0,2 → emits 2 **rejections**, then **final** `{K_target=2, attempts=3, regime:"ptrs"}` (all with proper attempt numbering and traces).
+* Attempts: draws k = 0,0,2 → emits 2 **rejections**, then **final** `{K_target=2, attempts=3, regime:"inversion"}` (all with proper attempt numbering and traces).
 * If 64 zeros in a row:
 
   * `"abort"` → **exhausted** marker only.
@@ -558,7 +561,7 @@ Each `Rule` **must** have:
 **Precedence law (how decisions are chosen).**
 `DENY ≻ ALLOW ≻ {CLASS,LEGAL,THRESHOLD,DEFAULT}`; within each precedence: sort by `priority` asc, then `rule_id` A→Z; the **first decision-bearing** rule under that order is the **decision source**. Exactly **one** terminal, decision-bearing `DEFAULT` must exist (catch-all). 
 
-**Determinism constraints.** Predicates may use only equality/inequality, set-membership, ISO lexicographic comparisons, and numeric comparisons over the S3 **Context** fields: `merchant_id, home_country_iso, mcc, channel, N` (plus artefact-declared constants). No RNG, no clock, no external calls. 
+**Determinism constraints.** Predicates may use only equality/inequality, set-membership, ISO lexicographic comparisons, and numeric comparisons over the S3 **Context** fields: `merchant_id, home_country_iso, mcc, channel, N` **and the candidate’s `country_iso`** (plus artefact-declared constants). No RNG, no clock, no external calls.
 
 ---
 
@@ -630,6 +633,7 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 * **Deterministic predicates:** use only allowed features/operations (Context fields + artefact constants). No external references. 
 * **ISO/Channel domains:** ISO lists use **uppercase ISO2**; `channel` predicates must use **internal tokens** `CP`/`CNP` (post-S0 mapping), **not** ingress strings.
 * **Predicate language (clarification):** allowed ops are **equality** (`==`), **set membership** (`IN [...]`), and **simple numeric comparisons** on numeric fields; **no regex** and **no range syntax inside strings**. Prefer **explicit finite sets** in rules to avoid ambiguity and drift.
+  *Note:* The **S0 `eligibility` DSL** (in Dataset 7) **does allow MCC range tokens** like `"5000-5999"`; the **S3 ladder DSL intentionally forbids them**. This difference is by design.
 * **Registry alignment:** artefact is listed in the registry (path/semver/digest) and depends on `iso3166_canonical_2024`. 
 
 **Failure modes the validator will raise**
@@ -1066,7 +1070,7 @@ constants:
 sets:
   EEA: ["AT","BE","DE","ES","FI","FR","IE","IT","NL","PT","SE"]
 
-# Ordered rules (first matching rule that yields a score wins; you may allow multiple that yield scores)
+# Ordered rules (evaluated in order; the **first** matching rule that yields a score wins)
 selection_rules:
   - id: "DENY_SANCTIONED_DEST"
     predicate: 'country_iso in {"IR","KP"}'
@@ -1124,13 +1128,13 @@ Schema anchor: **`schemas.1A.yaml#/s3/base_weight_priors`** (PK `merchant_id,cou
 
 ---
 
-# O2 — `policy.s3.bounds_or_thresholds.yaml`  [Model Param/Policy]
+# O2 — `policy.s3.thresholds.yaml`  [Model Param/Policy]
 
 **What it is (purpose).**
 Optional **integerisation policy** for S3 that supplies **per-ISO floors/ceilings** and the **residual quantisation precision** used by the **bounded Hamilton (Largest-Remainder)** step. No RNG; used only if you enable S3’s integerisation lane that emits `s3_integerised_counts`.
 
 **Where it lives (path).**
-`configs/policy.s3.bounds_or_thresholds.yaml` *(artefact registry id you choose; mark as “optional” and a dependency of the integerisation lane)*. The dataset it influences is `data/layer1/1A/s3_integerised_counts/parameter_hash={parameter_hash}/` with schema `schemas.1A.yaml#/s3/integerised_counts`.
+`configs/policy.s3.thresholds.yaml` *(artefact registry id: `mlr.1A.policy.s3.thresholds`; mark as “optional” and a dependency of the integerisation lane)*. The dataset it influences is `data/layer1/1A/s3_integerised_counts/parameter_hash={parameter_hash}/` with schema `schemas.1A.yaml#/s3/integerised_counts`.
 
 **Who consumes it.**
 S3·L0/§13 when building bounds and running **Largest-Remainder**; S3·L3 validates feasibility, sum to `N`, and `residual_rank`.
@@ -1155,7 +1159,7 @@ ceilings: { <ISO2>: <int≥0>, ... }     # optional; absent ISO ⇒ +INF (no cap
 ## Minimal, policy-true preview
 
 ```yaml
-# configs/policy.s3.bounds_or_thresholds.yaml  (preview)
+# configs/policy.s3.thresholds.yaml  (preview)
 semver: "1.0.0"
 version: "2025-10-01"
 
