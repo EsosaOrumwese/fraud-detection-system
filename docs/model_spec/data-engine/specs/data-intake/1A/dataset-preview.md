@@ -427,7 +427,7 @@ beta_phi:        # dispersion link coefficients (φ = exp(beta_phi · x_φ))
 # Dataset 7 — `crossborder_hyperparams.yaml` (governed parameter bundle)
 
 **What it is (purpose).**
-The **only** knobs S4 needs to turn the ZTP (Zero-Truncated Poisson) into a concrete **`K_target`** per merchant: the link coefficients **θ** and the **attempts cap / exhaustion policy**. It’s sealed in **`parameter_hash`** during S0 and then read in S4. *(Eligibility rules live in the S3 ladder, not here.)*
+The **only** knobs S4 needs to turn the ZTP (Zero-Truncated Poisson) into a concrete **`K_target`** per merchant: the link coefficients **θ** and the **attempts cap / exhaustion policy**. It’s sealed in **`parameter_hash`** during S0 and then read in S4. (Also carries the **eligibility rule set** that S0.6 consumes to produce `crossborder_eligibility_flags`.)
 
 **Where it lives (path).**
 `configs/allocation/crossborder_hyperparams.yaml`
@@ -460,27 +460,40 @@ ztp_link:
 ztp_controls:
   MAX_ZTP_ZERO_ATTEMPTS: 64          # hard cap on zero draws before resolution
   ztp_exhaustion_policy: "abort"     # "abort" | "downgrade_domestic"
+
+eligibility:
+  rule_set_id: "eligibility.v1.2025-04-15"
+  default_decision: "deny"   # "allow" | "deny"
+  rules:
+    - id: "sanctions_deny"
+      priority: 10
+      decision: "deny"
+      channel: ["CP","CNP"]     # internal tokens from S0 mapping
+      iso: ["RU","IR","KP"]     # ISO2 uppercase
+      mcc: ["*"]                # or ranges like "5000-5999"
+      reason: "sanctions"
 ```
 
 **Field rules (must pass):**
 
 * `theta0/theta1/theta2` are **finite** binary64 numbers.
-* `MAX_ZTP_ZERO_ATTEMPTS` is a **positive integer** (the engine and validator assume **64** as the cap for compliance).
+* `MAX_ZTP_ZERO_ATTEMPTS` **must equal 64** (spec-fixed in this version).
 * `ztp_exhaustion_policy ∈ {"abort","downgrade_domestic"}`.
+* `eligibility.rule_set_id` is non-empty; `eligibility.default_decision ∈ {"allow","deny"}`.
+* `eligibility.rules[]` predicates use **internal** channel tokens `CP`/`CNP` (post-S0 mapping), uppercase ISO2, and MCC specs as `"NNNN"` or ranges `"NNNN-NNNN"` only (**ranges are inclusive**); no ingress strings.
 
   * `"abort"` → terminal **exhausted** marker, no final.
   * `"downgrade_domestic"` → terminal **final** with `K_target=0` and `exhausted:true`.
 
-**Not in this file:**
-
-* No S3 eligibility rules.
-* No regime threshold (it’s fixed in code as `λ<10 → inversion`).
+**Also in this file:**
+* Eligibility rule set for S0.6 `crossborder_eligibility_flags`.
+* No regime threshold key (sampling regime split is fixed: `λ<10 → inversion`).
 
 ---
 
 ## How S0 and S4 use it
 
-* **S0 (sealing only):** opens and validates this YAML; bytes flow into **`parameter_hash`**. Any change here flips lineage.
+* **S0:** opens & validates this YAML and **evaluates `eligibility`** to write `crossborder_eligibility_flags` (parameter-scoped); bytes flow into **`parameter_hash`**. Any change here flips lineage.
 * **S4 (runtime):**
 
   1. For each gated merchant, compute **`lambda_extra`** once from the θ link.
@@ -492,15 +505,15 @@ ztp_controls:
 
 ## Acceptance checklist (before S4 runs)
 
-* **Presence & parse:** File exists, loads, keys exactly `ztp_link.{theta0,theta1,theta2}`, `ztp_controls.{MAX_ZTP_ZERO_ATTEMPTS, ztp_exhaustion_policy}`.
-* **Numeric sanity:** all θ finite; `MAX_ZTP_ZERO_ATTEMPTS ≥ 1` (recommended **64**).
+* **Presence & parse:** File exists, loads, keys exactly `ztp_link.{theta0,theta1,theta2}`, `ztp_controls.{MAX_ZTP_ZERO_ATTEMPTS, ztp_exhaustion_policy}`, `eligibility.{rule_set_id, default_decision, rules[]}`.
+* **Numeric sanity:** all θ finite; `MAX_ZTP_ZERO_ATTEMPTS == 64` (spec-fixed; attempts domain is 1..64).
 * **Policy value:** `ztp_exhaustion_policy` is one of the two allowed strings.
 * **Parameter sealing:** the file’s bytes are included in **`parameter_hash`** (changing it flips the hash).
 * **No extras:** no unexpected keys; loader should fail closed on unknown fields.
 
 **Common pitfalls to avoid**
 
-* Putting S3 **eligibility** rules here (they belong in `policy.s3.rule_ladder.yaml`).
+* Missing **eligibility** block (S0.6 cannot produce `crossborder_eligibility_flags`).
 * Setting the cap to something other than **64** while the validator enforces 64.
 * Non-finite θ values (NaN/Inf) or missing one of the three coefficients.
 * Adding a `regime_threshold` key (ignored/non-authoritative).
@@ -520,12 +533,12 @@ ztp_controls:
 
 # Dataset 8 — `policy.s3.rule_ladder.yaml` (governed policy artefact)
 
-**What it is (purpose).** The **sole policy authority** S3 uses to (a) decide a merchant’s **cross-border eligibility** and (b) produce **deterministic admission metadata** that later becomes the **only** inter-country order via `candidate_rank`. No RNG; pure, ordered rules; **closed vocabularies**.
+**What it is (purpose).** The **sole policy authority** S3 uses to produce **deterministic admission metadata** and the **only** inter-country order via `candidate_rank`. It does **not** re-decide eligibility (S0 writes `crossborder_eligibility_flags`). No RNG; pure, ordered rules; **closed vocabularies**.
 
 **Where it lives (path).** `configs/policy.s3.rule_ladder.yaml` (artefact registry id `mlr.1A.policy.s3.rule_ladder`).
 
 **Who consumes it.**
-S3.1 **evaluates** the ladder; S3.2 builds the candidate set; S3.3 **ranks** using a key derived from the ladder `(precedence, priority, rule_id, …)`. The resulting `candidate_rank` is the **only** inter-country order.
+S3.1 **evaluates** the ladder; S3.2 builds the candidate set; S3.3 **ranks** using a key derived from the ladder `(precedence, priority, rule_id, …)`. S3 **reads** `crossborder_eligibility_flags` (S0) as a gate; the ladder then builds admission metadata and ranking only. The resulting `candidate_rank` is the **only** inter-country order.
 
 ---
 
@@ -602,7 +615,7 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 
 ## What S3 produces from this artefact
 
-* **S3.1 (ladder eval)** → `eligible_crossborder`, `rule_trace` (ordered, flags decision source), `merchant_tags` (A→Z). 
+* **S3.1 (ladder eval)** → `admission_meta`, `rule_trace` (ordered, flags decision source), `merchant_tags` (A→Z). 
 * **S3.3 (ranking)** → per-foreign `AdmissionMeta = {precedence, priority, rule_id, country_iso, stable_idx}` and a **total, contiguous** `candidate_rank` with **home=0**. File order is non-authoritative; `candidate_rank` is the *only* order.
 
 ---
@@ -613,7 +626,8 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 * **Closed sets:** every `outcome.reason_code` ∈ `reason_codes`; every tag ∈ `filter_tags`. 
 * **Total order & terminal:** precedence is well-formed; exactly **one** `DEFAULT` rule with `is_decision_bearing==true` and a predicate that always fires. 
 * **Deterministic predicates:** use only allowed features/operations (Context fields + artefact constants). No external references. 
-* **ISO/Channel domains:** any ISO lists use **uppercase ISO2**; any `channel` tests use the ingress vocabulary (`"CP"|"CNP"` internally in S3). 
+* **ISO/Channel domains:** ISO lists use **uppercase ISO2**; `channel` predicates must use **internal tokens** `CP`/`CNP` (post-S0 mapping), **not** ingress strings.
+* **Predicate language (clarification):** allowed ops are **equality** (`==`), **set membership** (`IN [...]`), and **simple numeric comparisons** on numeric fields; **no regex** and **no range syntax inside strings**. Prefer **explicit finite sets** in rules to avoid ambiguity and drift.
 * **Registry alignment:** artefact is listed in the registry (path/semver/digest) and depends on `iso3166_canonical_2024`. 
 
 **Failure modes the validator will raise**
@@ -909,5 +923,104 @@ Pixel Unit: persons
 * Missing COG overviews (2/4/8/16). 
 * Using integer dtype or `nodata=0` (must be **Float32**, **−1.0**). 
 * Skipping the dictionary/registry entry (then S0 can’t include it in the **manifest fingerprint**). 
+
+---
+
+# Governance 1 - `numeric_policy.json`
+
+Here’s a drop-in **`numeric_policy.json`** that matches your S0.8 contract (binary64, RNE, FMA-off, no FTZ/DAZ, fixed-order reductions), plus the minimal extras your docs make normative (total-order for floats, shortest round-trip float printing). You’d store it at:
+
+`reference/governance/numeric_policy/{version}/numeric_policy.json` 
+
+```json
+{
+  "policy_id": "mlr.gov.numeric_policy@1",
+  "semver": "1.0.0",
+  "version": "2025-10-01",
+
+  "binary_format": "ieee754-binary64",
+  "rounding_mode": "rne",                     // Round-to-nearest, ties-to-even
+  "fma_allowed": false,                       // FMA contraction disabled on decision-critical paths
+  "flush_to_zero": false,                     // FTZ off
+  "denormals_are_zero": false,                // DAZ off
+  "endianness": "little",                     // For hashing/PRNG byte order invariants
+
+  "nan_inf_is_error": true,                   // Any NaN/±Inf in model computations is a hard error
+  "sum_policy": "serial_neumaier",            // Fixed-order Neumaier sums/dots
+  "reduction_order": "fixed_serial",          // No parallel reordering on decision-critical reductions
+  "parallel_decision_kernels": "disallowed",  // BLAS/LAPACK/auto-parallelism forbidden on those paths
+
+  "float_total_order": "ieee754_totalOrder",  // Sorting/comparisons use IEEE-754 totalOrder; NaNs forbidden
+  "json_float_printing": "shortest_roundtrip",// Writer prints floats as shortest round-trip decimals
+
+  "constants_encoding": "binary64_hex_literals", // Decision-critical constants as hex literals (no recompute)
+
+  "build_contract": {
+    "cflags": [
+      "-fno-fast-math",
+      "-fno-unsafe-math-optimizations",
+      "-ffp-contract=off",
+      "-fexcess-precision=standard",
+      "-frounding-math",
+      "-fno-associative-math",
+      "-fno-reciprocal-math",
+      "-fno-finite-math-only"
+    ],
+    "env": {
+      "MKL_NUM_THREADS": "1",
+      "OPENBLAS_NUM_THREADS": "1"
+    }
+  },
+
+  "self_tests": {
+    "require_attestation": true,              // S0 will emit numeric_policy_attest.json after passing tests
+    "suite": ["rounding", "ftz_daz", "fma_contraction", "libm_regression", "neumaier_consistency", "total_order"]
+  }
+}
+```
+
+Why this matches your spec (key points):
+
+* **binary64 + RNE**, **FMA off**, **no FTZ/DAZ** are the S0.8.1 must-holds; changing this file flips the fingerprint because S0 opens it in S0.2.
+* **Neumaier** fixed-order reductions and **no parallel BLAS** are required for any decision/ordering path. 
+* **Shortest round-trip float printing** (for payload numbers like `pi`, `u`) and **IEEE-754 totalOrder** are enforced downstream by S1/S2/validators; encoding them here keeps the policy single-sourced.
+* Compiler/env flags in **`build_contract`** mirror S0.8.4, and S0’s self-tests produce `numeric_policy_attest.json` capturing these plus digests of this file and the math profile manifest.
+
+---
+
+# Governance 2 - `math_profile_manifest.json`
+Here’s a drop-in **`math_profile_manifest.json`** that matches your S0.8 contract (pins a deterministic libm surface; exposes the exact function set the loader checks; carries artifact digests). Store it at:
+
+`reference/governance/math_profile/{version}/math_profile_manifest.json`. 
+
+```json
+{
+  "math_profile_id": "mlr-math-1.2.0",
+  "semver": "1.2.0",
+  "version": "2025-09-15",
+
+  "vendor": "acme-deterministic-libm",
+  "build": "glibc-2.38-toolchain-2025-04-10",
+
+  "functions": [
+    "exp", "log", "log1p", "expm1",
+    "sqrt", "sin", "cos", "atan2",
+    "pow", "tanh", "erf", "lgamma"
+  ],
+
+  "artifacts": [
+    { "name": "libmlr_math.so",  "sha256": "TBD_SHA256_LIB" },
+    { "name": "headers.tgz",     "sha256": "TBD_SHA256_HDRS" },
+    { "name": "tests_vectors.json", "sha256": "TBD_SHA256_TESTS" }
+  ],
+
+  "notes": "Deterministic across platforms; sqrt correctly rounded; others bit-identical under this profile."
+}
+```
+
+Why this is on-spec (tight):
+
+* S0 requires a **deterministic libm profile** covering exactly these functions (including **`lgamma`** and **`erf`**) and mandates that this manifest be folded into the **S0.2 artefact set**; the attestation later records its digest.
+* Your L1 loader reads `math_profile_id` and asserts the **function set** covers the required surface before proceeding; missing any of them raises `E_NUM_LIBM_PROFILE`. 
 
 ---
