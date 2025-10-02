@@ -1,5 +1,13 @@
 > A conceptual preview of the input datasets required for the start of the engine at subsegment 1A of layer 1 in state-0 (and through to S9)
 
+## Preview intent (non-binding, blueprint)
+This document is a **preview/blueprint** for hunting & wrangling. It mirrors what the engine expects at ingestion, but it is **not** a contract or schema. Examples (e.g., categories like “GROCERY”, specific ISO sets) are **illustrative**, not prescriptive.
+
+### Machine-use guidance
+- Do **not** constrain discovery to example tokens; treat examples as **representative**, not exhaustive (e.g., don’t search only for MCC 5411—use the *class* of relevant MCCs for your run/region).
+- Respect authority boundaries: **S0** owns **eligibility** (`crossborder_hyperparams.yaml`); **S3** produces **admission metadata & the only inter-country order** (`candidate_rank`).
+- Region scope is controlled via policy (e.g., R-EEA12) rather than hard-coding in datasets; switching scope means editing policy files, not schemas.
+
 ## Scope & governance (read me first)
 This pack previews **12 datasets** plus **2 governance inputs (non-datasets)** that S0 must open and seal **before S0.2**:
 1) `reference/governance/numeric_policy/{version}/numeric_policy.json`
@@ -451,33 +459,46 @@ Governed **config** (no JSON-Schema). The **shape and field names** below are en
 > Sampling regime is engine-constant: **inversion** if (\lambda<10), else **PTRS**.
 
 ```yaml
-# configs/allocation/crossborder_hyperparams.yaml  (preview)
+# configs/allocation/crossborder_hyperparams.yaml
+# Engine-ready: governs S0 eligibility and S4 ZTP link/controls. Part of parameter_hash.
 
 semver: "1.0.2"
-version: "2025-09-15"
-released: "2025-09-15T12:00:00Z"
+version: "2025-10-02"
+released: "2025-10-02T12:00:00Z"
 
+# S4 link: λ_extra = exp(θ0 + θ1 * ln N + θ2 * X_m)
 ztp_link:
-  # η = θ0 + θ1*ln(N) + θ2*openness
-  theta0: -1.10        # float64, finite
-  theta1:  0.75        # float64, finite
-  theta2:  0.60        # float64, finite
+  theta0: -1.10            # float64 (finite)
+  theta1:  0.75            # float64 (finite)
+  theta2:  0.60            # float64 (finite)
 
+# S4 controls (spec-fixed cap)
 ztp_controls:
-  MAX_ZTP_ZERO_ATTEMPTS: 64          # hard cap on zero draws before resolution
+  MAX_ZTP_ZERO_ATTEMPTS: 64
   ztp_exhaustion_policy: "abort"     # "abort" | "downgrade_domestic"
 
+# S0 ownership of eligibility (merchant-level gate to enter ZTP for foreign spread)
+# DSL: decision ∈ {"allow","deny"}, channel tokens ∈ {"CP","CNP"}, iso = merchant's home ISO2 (UPPER),
+#       mcc accepts "*" or inclusive ranges "NNNN-NNNN". Precedence: DENY ≻ ALLOW; then priority asc; then id A→Z.
 eligibility:
-  rule_set_id: "eligibility.v1.2025-04-15"
-  default_decision: "deny"   # "allow" | "deny"
+  rule_set_id: "eligibility.v1.2025-10-02"
+  default_decision: "deny"
   rules:
-    - id: "sanctions_deny"
+    # Regional scope: only merchants with home ISO in R-EEA12 are eligible to attempt foreign spread.
+    - id: "ALLOW_REGION_EEA12"
+      priority: 15
+      decision: "allow"
+      channel: ["CP","CNP"]
+      iso: ["AT","BE","DE","ES","FI","FR","IE","IT","NL","PT","SE","GB"]
+      mcc: ["*"]
+
+    # Sanctions: deny regardless of channel/MCC.
+    - id: "DENY_SANCTIONED_HOME"
       priority: 10
       decision: "deny"
-      channel: ["CP","CNP"]     # internal tokens from S0 mapping
-      iso: ["RU","IR","KP"]     # ISO2 uppercase
-      mcc: ["*"]                # or ranges like "5000-5999"
-      reason: "sanctions"
+      channel: ["CP","CNP"]
+      iso: ["IR","KP"]
+      mcc: ["*"]
 ```
 
 **Field rules (must pass):**
@@ -511,6 +532,8 @@ eligibility:
 
 * **Presence & parse:** File exists, loads, keys exactly `ztp_link.{theta0,theta1,theta2}`, `ztp_controls.{MAX_ZTP_ZERO_ATTEMPTS, ztp_exhaustion_policy}`, `eligibility.{rule_set_id, default_decision, rules[]}`.
 * **Channel domain:** `eligibility.rules[].channel` values must use **internal tokens** `CP`/`CNP` (post-S0 mapping), **not** ingress strings.
+* **ISO domain:** `eligibility.rules[].iso` values are **uppercase ISO2** and a subset of the canonical ISO set (Dataset #2).
+* **MCC tokens:** `eligibility.rules[].mcc` accepts either `"*"` or **inclusive ranges** of the form `"NNNN-NNNN"` within `0000–9999`; **no regex** and no free-form strings.
 * **Numeric sanity:** all θ finite; `MAX_ZTP_ZERO_ATTEMPTS == 64` (spec-fixed; attempts domain is 1..64).
 * **Policy value:** `ztp_exhaustion_policy` is one of the two allowed strings.
 * **Parameter sealing:** the file’s bytes are included in **`parameter_hash`** (changing it flips the hash).
@@ -568,47 +591,64 @@ Each `Rule` **must** have:
 ## Minimal, engine-ready preview (illustrative)
 
 ```yaml
-# configs/policy.s3.rule_ladder.yaml  (preview)
-# Optional metadata (not normative for the engine):
-rule_set_id: "CB-2025.09"
-notes: "Illustrative; closed vocab + total order + single DEFAULT"
+# configs/policy.s3.rule_ladder.yaml
+# Engine-ready: S3 builds admission metadata and the ONLY inter-country order (candidate_rank). No eligibility here.
 
-# Closed vocabularies (must be closed & stable A→Z)
+rule_set_id: "CB-2025.10"
+notes: "Closed vocabs, total order, single DEFAULT. Predicates use S3 Context + candidate.country_iso only."
+
+# Closed vocabularies (must be stable A→Z)
 reason_codes:
   - ALLOW_EEA_CNP_GROCERY
+  - DENY_NON_REGION
   - DENY_SANCTIONED_CP
   - DEFAULT_FALLBACK
 
 filter_tags:
   - EEA
   - GROCERY
+  - REGION_SCOPE
   - SANCTIONED
 
-# Total ordered rules
+# Total-ordered rules (first decision-bearing match under precedence/priority/id wins)
+# Precedence: DENY ≻ ALLOW ≻ CLASS/LEGAL/THRESHOLD/DEFAULT
 rules:
+  # Guard: never rank foreign destinations outside the region (belt-and-braces with S0 scope).
+  - rule_id: "DENY_NON_REGION"
+    precedence: "DENY"
+    priority: 5
+    is_decision_bearing: true
+    predicate: 'country_iso not in {"AT","BE","DE","ES","FI","FR","IE","IT","NL","PT","SE","GB"}'
+    outcome:
+      reason_code: "DENY_NON_REGION"
+      tags: ["REGION_SCOPE"]
+
+  # Example deny: CP to sanctioned destinations
   - rule_id: "DENY_SANCTIONED_CP"
     precedence: "DENY"
     priority: 10
     is_decision_bearing: true
-    predicate: 'channel == "CP" && home_country_iso in {"IR","KP"}'
+    predicate: 'channel == "CP" && country_iso in {"IR","KP"}'
     outcome:
       reason_code: "DENY_SANCTIONED_CP"
       tags: ["SANCTIONED"]
 
+  # Example allow: grocery (MCC 5411) CNP to EEA destinations
   - rule_id: "ALLOW_EEA_CNP_GROCERY"
     precedence: "ALLOW"
     priority: 20
     is_decision_bearing: true
-    predicate: 'channel == "CNP" && mcc == 5411 && home_country_iso in {"AT","BE","DE","ES","FI","FR","IE","IT","NL","PT","SE"}'
+    predicate: 'channel == "CNP" && mcc == 5411 && country_iso in {"AT","BE","DE","ES","FI","FR","IE","IT","NL","PT","SE","GB"}'
     outcome:
       reason_code: "ALLOW_EEA_CNP_GROCERY"
       tags: ["EEA","GROCERY"]
 
+  # Terminal catch-all (mandatory)
   - rule_id: "DEFAULT"
     precedence: "DEFAULT"
     priority: 9999
     is_decision_bearing: true
-    predicate: "true"   # guaranteed catch-all
+    predicate: "true"
     outcome:
       reason_code: "DEFAULT_FALLBACK"
       tags: []
@@ -1015,7 +1055,7 @@ Here’s a drop-in **`math_profile_manifest.json`** that matches your S0.8 contr
   "artifacts": [
     { "name": "libmlr_math.so", "sha256": "TBD_SHA256_LIB" },
     { "name": "headers.tgz", "sha256": "TBD_SHA256_HDRS" },
-    { "name": "tests_vectors.json", "sha256": "TBD_SHA256_TESTS" }
+    { "name": "test_vectors.json", "sha256": "TBD_SHA256_TESTS" }
   ],
   "notes": "Deterministic across platforms; sqrt correctly rounded; others bit-identical under this profile."
 }
@@ -1054,35 +1094,51 @@ Top-level keys your loader already expects:
 ### Minimal, policy-true preview
 
 ```yaml
-# configs/policy.s3.base_weight.yaml  (preview)
+# configs/policy.s3.base_weight.yaml
 semver: "1.0.0"
-version: "2025-10-01"
+version: "2025-10-02"
 
-dp: 4   # fixed decimal places for all priors emitted this run (0..18)
+# All priors are quantised to this many decimal places and emitted as strings.
+dp: 4
 
-# Named, non-negative constants you can reuse in rules
+# Non-negative constants used to build scores (scores are NOT probabilities; no renormalisation).
 constants:
-  base: 1.0
-  grocery_bonus: 0.25
-  eea_bonus: 0.10
+  base: 1.0000
+  grocery_bonus: 0.2500
+  eea_bonus: 0.1000
 
-# Reusable ISO sets for predicates (uppercase ISO2)
+# Reusable ISO2 sets (UPPERCASE) for predicates.
 sets:
-  EEA: ["AT","BE","DE","ES","FI","FR","IE","IT","NL","PT","SE"]
+  EEA12: ["AT","BE","DE","ES","FI","FR","IE","IT","NL","PT","SE","GB"]
+  SANCTIONED_DEST: ["IR","KP"]
 
-# Ordered rules (evaluated in order; the **first** matching rule that yields a score wins)
+# Ordered rules — evaluated in order; the FIRST matching rule that yields a score wins.
+# A rule with [] components EXCLUDES the candidate (no prior row).
 selection_rules:
+  # Block sanctioned destinations
   - id: "DENY_SANCTIONED_DEST"
-    predicate: 'country_iso in {"IR","KP"}'
-    score_components: []         # empty => exclude (no prior row for this candidate)
+    predicate: 'country_iso in SANCTIONED_DEST'
+    score_components: []
 
+  # Regional guard (belt-and-braces; aligns to your region scope)
+  - id: "DENY_NON_REGION"
+    predicate: 'country_iso not in EEA12'
+    score_components: []
+
+  # Category-specific bump: groceries (MCC 5411) over CNP to EEA12
   - id: "GROCERY_CNP_EEA"
-    predicate: 'channel == "CNP" && mcc == 5411 && country_iso in EEA'
+    predicate: 'channel == "CNP" && mcc == 5411 && country_iso in EEA12'
     score_components: ["base","grocery_bonus","eea_bonus"]
 
-  - id: "BASELINE"
-    predicate: "true"
+  # Baseline for any in-region destination
+  - id: "BASELINE_REGION"
+    predicate: 'country_iso in EEA12'
     score_components: ["base"]
+
+  # Terminal default (should never fire if region guard is in place, but kept for totality)
+  - id: "DEFAULT"
+    predicate: 'true'
+    score_components: []
 ```
 
 **How scores are formed (deterministic):**
@@ -1159,19 +1215,19 @@ ceilings: { <ISO2>: <int≥0>, ... }     # optional; absent ISO ⇒ +INF (no cap
 ## Minimal, policy-true preview
 
 ```yaml
-# configs/policy.s3.thresholds.yaml  (preview)
+# configs/policy.s3.thresholds.yaml
 semver: "1.0.0"
-version: "2025-10-01"
+version: "2025-10-02"
 
-# Residual quantisation (binding value in this spec = 8)
+# Quantisation for residuals BEFORE tie-breaks (binding value in spec = 8).
 dp_resid: 8
 
-# Optional integer bounds per ISO (uppercase ISO2)
-# Absent key ⇒ floor=0 or ceiling=+INF for that ISO.
+# Optional per-country integer floors (absent ISO ⇒ 0)
 floors:
   IE: 0
   NL: 0
 
+# Optional per-country integer ceilings (absent ISO ⇒ +INF)
 ceilings:
   IE: 3
   NL: 3
