@@ -1,6 +1,12 @@
 > A conceptual preview of the input datasets required for the start of the engine at subsegment 1A of layer 1 in state-0 (and through to S9)
 
-# Dataset 1 — `transaction_schema_merchant_ids` (processed preview)
+## Scope & governance (read me first)
+This pack previews **12 datasets** plus **2 governance inputs (non-datasets)** that S0 must open and seal **before S0.2**:
+1) `reference/governance/numeric_policy/{version}/numeric_policy.json`
+2) `reference/governance/math_profile/{version}/math_profile_manifest.json`
+Opening these, along with the **dataset dictionary** and **artefact registry** anchors, contributes to the `manifest_fingerprint`. No RNG events are permitted until S0.8 attests this surface.
+
+# Dataset 1 — `transaction_schema_merchant_ids`  [Internal Dataset]
 
 **What it is (purpose).** The **authoritative merchant seed** for 1A. It’s a *normalized* snapshot (not a raw dump) with just the four fields S0 needs to freeze the universe and build features. 
 
@@ -54,7 +60,7 @@
 
 ---
 
-# Dataset 2 — `iso3166_canonical_2024` (processed preview)
+# Dataset 2 — `iso3166_canonical_2024`  [External Dataset]
 
 **What it is (purpose).** The **canonical ISO-3166-1 country list** the engine uses for FK checks, deterministic tie-breaks, and as the join target for many other inputs/outputs. It’s pinned to the **2024-12-31** vintage and treated as immutable for the run. 
 
@@ -113,7 +119,7 @@
 
 ---
 
-# Dataset 3 — `world_bank_gdp_per_capita_20250415` (processed preview)
+# Dataset 3 — `world_bank_gdp_per_capita_20250415`  [External Dataset]
 
 **What it is (purpose).** Flattened **GDP per capita (constant 2015 USD)** by ISO2 and year. S0 uses this to look up **`g_c` at observation_year = 2024**; S0 never recomputes anything from it. 
 
@@ -166,7 +172,7 @@ Use the JSON-Schema anchor **`schemas.ingress.layer1.yaml#/world_bank_gdp_per_ca
 
 ---
 
-# Dataset 4 — `gdp_bucket_map_2024` (Jenks-5 lookup)
+# Dataset 4 — `gdp_bucket_map_2024`  [Internal Dataset]
 
 **What it is (purpose).** A **precomputed**, deterministic **country → GDP bucket** map used only as categorical predictors for the hurdle model. It’s built offline from the **same GDP vintage** (obs-year **2024**, const-2015 USD) and is **never recomputed at runtime**. 
 
@@ -225,7 +231,7 @@ Use **`schemas.ingress.layer1.yaml#/gdp_bucket_map_2024`**. (Alias **`#/gdp_buck
 
 ---
 
-# Dataset 5 — `hurdle_coefficients.yaml` (governed parameter bundle)
+# Dataset 5 — `hurdle_coefficients.yaml`  [Model Param/Policy]
 
 **What it is (purpose).** The **single logistic hurdle vector** β used in **S1** (intercept + MCC dummies + channel dummies + 5 GDP-bucket dummies) **and** the **NB-mean vector** `beta_mu` used in **S2**. Its bytes participate in `parameter_hash`, so any change flips run lineage.
 
@@ -336,7 +342,7 @@ If `dicts.mcc` has 6 entries (as above), then:
 
 ---
 
-# Dataset 6 — `nb_dispersion_coefficients.yaml` (governed parameter bundle)
+# Dataset 6 — `nb_dispersion_coefficients.yaml`  [Model Param/Policy]
 
 **What it is (purpose).** The **negative-binomial dispersion** coefficient vector, used by **S2** to compute
 (\phi=\exp(\beta_\phi^\top x_\phi)). Its bytes are part of `parameter_hash`, so any edit flips run lineage.
@@ -424,7 +430,7 @@ beta_phi:        # dispersion link coefficients (φ = exp(beta_phi · x_φ))
 
 ---
 
-# Dataset 7 — `crossborder_hyperparams.yaml` (governed parameter bundle)
+# Dataset 7 — `crossborder_hyperparams.yaml`  [Model Param/Policy]
 
 **What it is (purpose).**
 The **only** knobs S4 needs to turn the ZTP (Zero-Truncated Poisson) into a concrete **`K_target`** per merchant: the link coefficients **θ** and the **attempts cap / exhaustion policy**. It’s sealed in **`parameter_hash`** during S0 and then read in S4. (Also carries the **eligibility rule set** that S0.6 consumes to produce `crossborder_eligibility_flags`.)
@@ -477,16 +483,12 @@ eligibility:
 **Field rules (must pass):**
 
 * `theta0/theta1/theta2` are **finite** binary64 numbers.
-* `MAX_ZTP_ZERO_ATTEMPTS` **must equal 64** (spec-fixed in this version).
+* `MAX_ZTP_ZERO_ATTEMPTS ≥ 1` (**this spec sets 64; the validator enforces 64**).
 * `ztp_exhaustion_policy ∈ {"abort","downgrade_domestic"}`.
-* `eligibility.rule_set_id` is non-empty; `eligibility.default_decision ∈ {"allow","deny"}`.
-* `eligibility.rules[]` predicates use **internal** channel tokens `CP`/`CNP` (post-S0 mapping), uppercase ISO2, and MCC specs as `"NNNN"` or ranges `"NNNN-NNNN"` only (**ranges are inclusive**); no ingress strings.
-
   * `"abort"` → terminal **exhausted** marker, no final.
   * `"downgrade_domestic"` → terminal **final** with `K_target=0` and `exhausted:true`.
 
-**Also in this file:**
-* Eligibility rule set for S0.6 `crossborder_eligibility_flags`.
+**Not in this file:** S3/S0 **eligibility rules** (those live in governed policy artefacts; S0 writes `crossborder_eligibility_flags` which S3 reads as a gate).
 * No regime threshold key (sampling regime split is fixed: `λ<10 → inversion`).
 
 ---
@@ -531,14 +533,14 @@ eligibility:
 
 ---
 
-# Dataset 8 — `policy.s3.rule_ladder.yaml` (governed policy artefact)
+# Dataset 8 — `policy.s3.rule_ladder.yaml`  [Model Param/Policy]
 
 **What it is (purpose).** The **sole policy authority** S3 uses to produce **deterministic admission metadata** and the **only** inter-country order via `candidate_rank`. It does **not** re-decide eligibility (S0 writes `crossborder_eligibility_flags`). No RNG; pure, ordered rules; **closed vocabularies**.
 
 **Where it lives (path).** `configs/policy.s3.rule_ladder.yaml` (artefact registry id `mlr.1A.policy.s3.rule_ladder`).
 
 **Who consumes it.**
-S3.1 **evaluates** the ladder; S3.2 builds the candidate set; S3.3 **ranks** using a key derived from the ladder `(precedence, priority, rule_id, …)`. S3 **reads** `crossborder_eligibility_flags` (S0) as a gate; the ladder then builds admission metadata and ranking only. The resulting `candidate_rank` is the **only** inter-country order.
+S3.1 **evaluates** the ladder; S3.2 builds the candidate set; S3.3 **ranks** using a key derived from the ladder `(precedence, priority, rule_id, …)`. S3 **reads** `crossborder_eligibility_flags` (S0) as a gate; the ladder then builds admission metadata and ranking only. The resulting `candidate_rank` is the **only** inter-country order. **Egress `outlet_catalogue` never encodes cross-country order—consumers must join on `s3_candidate_set.candidate_rank`.**
 
 ---
 
@@ -641,7 +643,7 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 
 ---
 
-# Dataset 9 — `settlement_shares_2024Q4` (currency→country shares)
+# Dataset 9 — `settlement_shares_2024Q4`  [External Dataset]
 
 **What it is (purpose).** Long-form **currency→country settlement share vectors** with observation counts. Sealed in S0; consumed later in 1A (e.g., currency→country expansion, priors).
 
@@ -701,7 +703,7 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 
 ---
 
-# Dataset 10 — `ccy_country_shares_2024Q4` (intra-currency splits, long form)
+# Dataset 10 — `ccy_country_shares_2024Q4`  [External Dataset]
 
 **What it is (purpose).** Long-form **currency → country split “priors”** with observation counts. It’s sealed in S0 for hermeticity and later consumed in 1A (e.g., currency→country expansion / caches).
 
@@ -761,7 +763,7 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 
 ---
 
-# Dataset 11 — `world_countries` (GeoParquet polygons)
+# Dataset 11 — `world_countries`  [External Dataset]
 
 **What it is (purpose).** Canonical **country boundary polygons** used for geo-conformance checks and spatial joins. Pinned for Layer-1 hermeticity; consumed by **1A/1B/2A** (even if 1A only references it lightly now). 
 
@@ -807,7 +809,7 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 
 ---
 
-# Dataset 12a — `tz_world_2025a` (IANA time-zone polygons, GeoParquet)
+# Dataset 12a — `tz_world_2025a`  [External Dataset]
 
 **What it is (purpose).** Canonical **TZ-world** polygons (by IANA TZID) pinned for Layer-1 hermeticity and consumed downstream by **2A** (civil time-zone derivation). Not used by S0→S4 directly, but it **must** be sealed in the run’s manifest. 
 
@@ -866,7 +868,7 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 
 ---
 
-# Dataset 12b — `population_raster_2025` (Cloud-Optimized GeoTIFF)
+# Dataset 12b — `population_raster_2025`  [External Dataset]
 
 **What it is (purpose).** Canonical **population-density raster** pinned for Layer-1 hermeticity; consumed by **1B** as a spatial prior (or deterministic fallback) when placing outlets. Not read by S0→S4, but **must** be sealed in the run’s manifest. 
 
@@ -926,7 +928,7 @@ Pixel Unit: persons
 
 ---
 
-# Governance 1 - `numeric_policy.json`
+# G1 — `numeric_policy.json`  [Governance Input]
 
 Here’s a drop-in **`numeric_policy.json`** that matches your S0.8 contract (binary64, RNE, FMA-off, no FTZ/DAZ, fixed-order reductions), plus the minimal extras your docs make normative (total-order for floats, shortest round-trip float printing). You’d store it at:
 
@@ -937,24 +939,19 @@ Here’s a drop-in **`numeric_policy.json`** that matches your S0.8 contract (bi
   "policy_id": "mlr.gov.numeric_policy@1",
   "semver": "1.0.0",
   "version": "2025-10-01",
-
   "binary_format": "ieee754-binary64",
-  "rounding_mode": "rne",                     // Round-to-nearest, ties-to-even
-  "fma_allowed": false,                       // FMA contraction disabled on decision-critical paths
-  "flush_to_zero": false,                     // FTZ off
-  "denormals_are_zero": false,                // DAZ off
-  "endianness": "little",                     // For hashing/PRNG byte order invariants
-
-  "nan_inf_is_error": true,                   // Any NaN/±Inf in model computations is a hard error
-  "sum_policy": "serial_neumaier",            // Fixed-order Neumaier sums/dots
-  "reduction_order": "fixed_serial",          // No parallel reordering on decision-critical reductions
-  "parallel_decision_kernels": "disallowed",  // BLAS/LAPACK/auto-parallelism forbidden on those paths
-
-  "float_total_order": "ieee754_totalOrder",  // Sorting/comparisons use IEEE-754 totalOrder; NaNs forbidden
-  "json_float_printing": "shortest_roundtrip",// Writer prints floats as shortest round-trip decimals
-
-  "constants_encoding": "binary64_hex_literals", // Decision-critical constants as hex literals (no recompute)
-
+  "rounding_mode": "rne",
+  "fma_allowed": false,
+  "flush_to_zero": false,
+  "denormals_are_zero": false,
+  "endianness": "little",
+  "nan_inf_is_error": true,
+  "sum_policy": "serial_neumaier",
+  "reduction_order": "fixed_serial",
+  "parallel_decision_kernels": "disallowed",
+  "float_total_order": "ieee754_totalOrder",
+  "json_float_printing": "shortest_roundtrip",
+  "constants_encoding": "binary64_hex_literals",
   "build_contract": {
     "cflags": [
       "-fno-fast-math",
@@ -971,10 +968,16 @@ Here’s a drop-in **`numeric_policy.json`** that matches your S0.8 contract (bi
       "OPENBLAS_NUM_THREADS": "1"
     }
   },
-
   "self_tests": {
-    "require_attestation": true,              // S0 will emit numeric_policy_attest.json after passing tests
-    "suite": ["rounding", "ftz_daz", "fma_contraction", "libm_regression", "neumaier_consistency", "total_order"]
+    "require_attestation": true,
+    "suite": [
+      "rounding",
+      "ftz_daz",
+      "fma_contraction",
+      "libm_regression",
+      "neumaier_consistency",
+      "total_order"
+    ]
   }
 }
 ```
@@ -988,7 +991,7 @@ Why this matches your spec (key points):
 
 ---
 
-# Governance 2 - `math_profile_manifest.json`
+# G2 — `math_profile_manifest.json`  [Governance Input]
 Here’s a drop-in **`math_profile_manifest.json`** that matches your S0.8 contract (pins a deterministic libm surface; exposes the exact function set the loader checks; carries artifact digests). Store it at:
 
 `reference/governance/math_profile/{version}/math_profile_manifest.json`. 
@@ -998,22 +1001,18 @@ Here’s a drop-in **`math_profile_manifest.json`** that matches your S0.8 contr
   "math_profile_id": "mlr-math-1.2.0",
   "semver": "1.2.0",
   "version": "2025-09-15",
-
   "vendor": "acme-deterministic-libm",
   "build": "glibc-2.38-toolchain-2025-04-10",
-
   "functions": [
     "exp", "log", "log1p", "expm1",
     "sqrt", "sin", "cos", "atan2",
     "pow", "tanh", "erf", "lgamma"
   ],
-
   "artifacts": [
-    { "name": "libmlr_math.so",  "sha256": "TBD_SHA256_LIB" },
-    { "name": "headers.tgz",     "sha256": "TBD_SHA256_HDRS" },
+    { "name": "libmlr_math.so", "sha256": "TBD_SHA256_LIB" },
+    { "name": "headers.tgz", "sha256": "TBD_SHA256_HDRS" },
     { "name": "tests_vectors.json", "sha256": "TBD_SHA256_TESTS" }
   ],
-
   "notes": "Deterministic across platforms; sqrt correctly rounded; others bit-identical under this profile."
 }
 ```
@@ -1022,5 +1021,333 @@ Why this is on-spec (tight):
 
 * S0 requires a **deterministic libm profile** covering exactly these functions (including **`lgamma`** and **`erf`**) and mandates that this manifest be folded into the **S0.2 artefact set**; the attestation later records its digest.
 * Your L1 loader reads `math_profile_id` and asserts the **function set** covers the required surface before proceeding; missing any of them raises `E_NUM_LIBM_PROFILE`. 
+
+---
+
+# O1 — `policy.s3.base_weight.yaml`  [Model Param/Policy]
+
+**What it is (purpose).**
+Governed **priors policy** for S3. It supplies a **run-constant `dp`** and a **deterministic rule set** that decides which `(merchant_id, country_iso)` candidates receive a **non-negative base score** (not a probability). S3 turns those scores into **fixed-dp decimal strings** and emits them in `s3_base_weight_priors`. No RNG; no renormalisation.
+
+**Where it lives (path).**
+`configs/policy.s3.base_weight.yaml` (artefact registry id `mlr.1A.policy.s3.base_weight`; depends on `iso3166_canonical_2024`). 
+
+**Who consumes it.**
+S3 L1 kernel **`s3_compute_priors`** (optional lane). L2 emits `s3_base_weight_priors` if present. L3 validates writer sort, subset coverage vs candidates, `dp` consistency, and fixed-dp string shape.
+
+---
+
+## Required structure (engine-ready)
+
+Top-level keys your loader already expects:
+`{ dp:int, selection_rules: RuleSpec[], constants: Map<string,float>, sets?: Map<string, ISO2[]> }`
+
+* **`dp`** must be **int in [0..18]** and is **constant per run**. 
+* **`selection_rules`** are evaluated **in order**; each rule’s predicate is a deterministic, side-effect-free expression over **S3 Context** fields (`merchant_id, home_country_iso, mcc, channel, N`) **and the candidate’s `country_iso`** (plus any named ISO sets you define under `sets`). A rule either *excludes* (no score) or *assigns* a **non-negative** score (via constants). 
+* **`constants`** holds named non-negative float64 constants used to build scores. 
+* **Forbidden:** any key implying probabilities/renormalisation (loader enforces `NOT HAS_KEY(..., "renormalise")`). 
+
+### Minimal, policy-true preview
+
+```yaml
+# configs/policy.s3.base_weight.yaml  (preview)
+semver: "1.0.0"
+version: "2025-10-01"
+
+dp: 4   # fixed decimal places for all priors emitted this run (0..18)
+
+# Named, non-negative constants you can reuse in rules
+constants:
+  base: 1.0
+  grocery_bonus: 0.25
+  eea_bonus: 0.10
+
+# Reusable ISO sets for predicates (uppercase ISO2)
+sets:
+  EEA: ["AT","BE","DE","ES","FI","FR","IE","IT","NL","PT","SE"]
+
+# Ordered rules (first matching rule that yields a score wins; you may allow multiple that yield scores)
+selection_rules:
+  - id: "DENY_SANCTIONED_DEST"
+    predicate: 'country_iso in {"IR","KP"}'
+    score_components: []         # empty => exclude (no prior row for this candidate)
+
+  - id: "GROCERY_CNP_EEA"
+    predicate: 'channel == "CNP" && mcc == 5411 && country_iso in EEA'
+    score_components: ["base","grocery_bonus","eea_bonus"]
+
+  - id: "BASELINE"
+    predicate: "true"
+    score_components: ["base"]
+```
+
+**How scores are formed (deterministic):**
+Your L1 hook **`EVAL_PRIOR_SCORE`** computes `w ≥ 0` from the matching rule by **summing the named constants** in `score_components` (no variable or time-dependent terms). `w` is then quantised to a fixed-dp **string** via the exact decimal half-even routine and emitted as `base_weight_dp` with the same `dp` on every row. The output table shape and constraints are fixed by `schemas.1A.yaml#/s3/base_weight_priors`.
+
+---
+
+## Acceptance checklist (loader + validator)
+
+**Loader (S3·L0) must verify:**
+
+* `dp ∈ [0..18]` (else `ERR_S3_PRIOR_DOMAIN`). 
+* All `constants.*` are **finite, ≥ 0** (else `ERR_S3_PRIOR_DOMAIN`). 
+* Predicates only reference allowed fields/sets; `sets` contain **uppercase ISO2** and are a subset of canonical ISO. 
+* **No** `renormalise` key present. 
+
+**Kernel (S3·L1) guarantees & checks:**
+
+* Produces rows only for a **subset of the candidate set**; writer sort `(merchant_id, country_iso)`. 
+* `base_weight_dp` is a **fixed-dp decimal string** (half-even), and **`dp` is constant** within the run. 
+
+**Validator (S3·L3) will fail if:**
+
+* Priors contain a country **not in** `s3_candidate_set` for that merchant (`PRIORS-EXTRA-COUNTRY`).
+* File order is not non-decreasing `(merchant_id, country_iso)` (`DATASET-UNSORTED`).
+* Any `base_weight_dp` fails fixed-dp format or `dp` **isn’t constant** (`PRIORS-DP-VIOL` / `ERR_S3_FIXED_DP_FORMAT`). 
+
+---
+
+## Where it shows up on disk (downstream)
+
+If `priors_enabled=true`, L2 emits:
+`data/layer1/1A/s3_base_weight_priors/parameter_hash={parameter_hash}/…`
+Schema anchor: **`schemas.1A.yaml#/s3/base_weight_priors`** (PK `merchant_id,country_iso`; columns `merchant_id, country_iso, base_weight_dp, dp, parameter_hash[, produced_by_fingerprint]`). **Scores, not probabilities.**
+
+---
+
+### Notes & guardrails (to keep it friction-free)
+
+* Keep the rule algebra **simple and deterministic** (sums of named constants are ideal). If you later add multipliers, stay within pure arithmetic over constants and Context fields (no clocks, no random, no IO). 
+* It’s acceptable for **no rule** to assign a score for some merchants — L1 returns an **empty** priors array; integerisation (if enabled) falls back to **uniform** shares. 
+* Changing `dp` or the rule set **changes policy** → new `parameter_hash` (S0.2 sealing). 
+
+---
+
+# O2 — `policy.s3.bounds_or_thresholds.yaml`  [Model Param/Policy]
+
+**What it is (purpose).**
+Optional **integerisation policy** for S3 that supplies **per-ISO floors/ceilings** and the **residual quantisation precision** used by the **bounded Hamilton (Largest-Remainder)** step. No RNG; used only if you enable S3’s integerisation lane that emits `s3_integerised_counts`.
+
+**Where it lives (path).**
+`configs/policy.s3.bounds_or_thresholds.yaml` *(artefact registry id you choose; mark as “optional” and a dependency of the integerisation lane)*. The dataset it influences is `data/layer1/1A/s3_integerised_counts/parameter_hash={parameter_hash}/` with schema `schemas.1A.yaml#/s3/integerised_counts`.
+
+**Who consumes it.**
+S3·L0/§13 when building bounds and running **Largest-Remainder**; S3·L3 validates feasibility, sum to `N`, and `residual_rank`.
+
+---
+
+## Required structure (engine-ready)
+
+Top-level keys:
+
+```yaml
+dp_resid: <int>                 # quantisation places for residuals (binding spec value: 8)
+floors:   { <ISO2>: <int≥0>, ... }     # optional; absent ISO ⇒ floor 0
+ceilings: { <ISO2>: <int≥0>, ... }     # optional; absent ISO ⇒ +INF (no cap)
+```
+
+* **`dp_resid`** is the **residual quantisation precision** used after floors/ceilings and before tie-breaks. The spec binds this to **8**; if omitted, S3 defaults to 8. 
+* **`floors/ceilings`** are **per-country integers** applied merchant-locally during integerisation: floors are enforced first, ceilings clamp post-floor base counts, then the **Largest-Remainder** bump distributes the leftover subject to capacity (`base < ceiling`). Feasibility rules apply. 
+
+---
+
+## Minimal, policy-true preview
+
+```yaml
+# configs/policy.s3.bounds_or_thresholds.yaml  (preview)
+semver: "1.0.0"
+version: "2025-10-01"
+
+# Residual quantisation (binding value in this spec = 8)
+dp_resid: 8
+
+# Optional integer bounds per ISO (uppercase ISO2)
+# Absent key ⇒ floor=0 or ceiling=+INF for that ISO.
+floors:
+  IE: 0
+  NL: 0
+
+ceilings:
+  IE: 3
+  NL: 3
+```
+
+**How it behaves in S3.**
+
+1. Build exact fractional targets `t_i` from priors (or uniform if priors absent).
+2. Set **base** counts to `⌊t_i⌋`, raise to **floor** if needed; enforce `Σ floor_i ≤ N`, clamp to **ceiling**; if `Σ base > N` → **infeasible**.
+3. Compute **quantised residuals** at `dp_resid` (half-even), mark **eligible** (`base < ceiling`).
+4. Distribute the leftover `R = N − Σ base` by **Largest-Remainder**, at most **one bump per eligible**; if `R > eligible_count`, **infeasible**.
+5. Emit `count` and deterministic **`residual_rank`** (sort by residual↓, ISO↑, stable_idx↑).
+
+---
+
+## Acceptance checklist (loader + validator)
+
+**Loader (S3·L0) must verify:**
+
+* `dp_resid` is **int ≥ 0**; for this spec, **`dp_resid == 8`** (treat others as unsupported). 
+* `floors`/`ceilings` keys are **uppercase ISO2** present in the canonical ISO table; values are **ints ≥ 0**; for each ISO where both present, **`ceiling ≥ floor`**. 
+
+**Kernel/Validator guarantees:**
+
+* Integerisation uses priors→targets (or uniform), applies bounds, quantises residuals at **`dp_resid`**, and emits **`residual_rank`** with counts that **sum to `N`**. Feasibility checks enforce `Σ floors ≤ N`, and the **one-bump** capacity rule.
+
+---
+
+## Notes & guardrails
+
+* **No “home-aware” placeholders.** Bounds are keyed by **ISO**, not by “home”; S3 applies them to whichever ISO appear in the merchant’s candidate set. If you need home-specific logic, encode it in the **candidate ladder** or a separate policy stage, not here. 
+* **Priors/weights vs bounds.** Priors determine the ideal fractional split; bounds can still force non-zero counts where priors give zero weight (via floors). If **all priors zero**, S3 falls back to **uniform** shares deterministically. 
+* **Tie-break determinism.** Residual ties break by **ISO A→Z** (then **stable_idx** if provided), which is what the validator re-derives to produce `residual_rank`. 
+
+---
+
+# O3 — `ccy_smoothing_params.yaml`  [Model Param/Policy]
+
+**What it is (purpose).**
+Governed **smoothing policy** the S5/S6 currency→country expansion uses to turn the two external inputs
+(9) `settlement_shares_2024Q4` and (10) `ccy_country_shares_2024Q4` (with their `obs_count`s) into a single, deterministic **`ccy_country_weights_cache`** (shares that sum to 1 per currency). No RNG.
+
+**Where it lives (path).**
+`configs/policy.ccy_smoothing_params.yaml` (listed in the registry; sealed by S0; first consumed in S5/S6).
+
+**Who consumes it.**
+S5 **weights builder** and S6 **merchant_currency** cache builder. Changing this file **changes policy** → new `parameter_hash`.
+
+---
+
+## Required structure (engine-ready)
+
+Top-level keys your loader should support:
+
+```yaml
+semver: "1.0.0"
+version: "YYYY-MM-DD"
+
+dp: 6                             # fixed decimals for OUTPUT weights (0..18)
+
+defaults:
+  blend_weight: 0.60              # w in [0,1]: mix ccy_shares vs settlement_shares
+  alpha: 0.50                     # additive Dirichlet α per country (non-negative)
+  obs_floor: 1000                 # minimum effective observation mass (≥0)
+  min_share: 0.000001             # post-step floor per country (∈[0,1])
+  shrink_exponent: 1.0            # ≥0; 0=no shrink, >1 shrinks influence of huge obs
+
+per_currency:
+  USD:
+    blend_weight: 0.70
+    alpha: 0.20
+    obs_floor: 5000
+    min_share: 0.00001
+  EUR:
+    blend_weight: 0.65
+    alpha: 0.30
+    obs_floor: 4000
+
+overrides:                        # (optional) ISO-scoped α bumps or floors/caps
+  alpha_iso:
+    USD:
+      CA: 0.40
+      MX: 0.30
+  min_share_iso:
+    EUR:
+      IE: 0.00005
+```
+
+**Parameter domains (loader must enforce):**
+
+* `dp ∈ [0..18]`; `blend_weight ∈ [0,1]`; `alpha ≥ 0`; `obs_floor ≥ 0`; `min_share ∈ [0,1]`; `shrink_exponent ≥ 0`.
+* `overrides.alpha_iso.* ≥ 0`; `overrides.min_share_iso.* ∈ [0,1]`.
+
+---
+
+## Deterministic algorithm (what S5 does, per currency `cur`)
+
+Let from **(10)**: `s_ccy[c]` (share), `n_ccy[c]` (obs_count).
+From **(9)**: `s_settle[c]`, `n_settle[c]`. Missing rows imply zero. Define sets over **union of countries** seen in either input.
+
+1. **Blend the two sources (shares):**
+   `w ← per_currency[cur].blend_weight` (else `defaults.blend_weight`)
+   `q[c] = w * s_ccy[c] + (1 - w) * s_settle[c]` (for all countries `c` in union)
+
+2. **Effective evidence mass (robust to sparsity):**
+   `N0 = w * Σ n_ccy + (1 - w) * Σ n_settle`
+   `N_eff = max( obs_floor, N0^(1/shrink_exponent) )`
+   (with `shrink_exponent=1.0` ⇒ `N_eff = max(obs_floor, N0)`)
+
+3. **Dirichlet smoothing (additive α):**
+   Base `α_default ← per_currency[cur].alpha` (else `defaults.alpha`).
+   Per-ISO α override: `α[c] = alpha_iso[cur][c]` if present, else `α_default`.
+   `A = Σ_c α[c]`.
+   `posterior[c] = ( q[c] * N_eff + α[c] ) / ( N_eff + A )`.
+
+4. **Floor tiny mass & renormalise (deterministic):**
+   Apply ISO-specific `min_share_iso[cur][c]` if defined, else `min_share`.
+   `p'[c] = max( posterior[c], min_share_for_c )`.
+   **Renormalise**: `p[c] = p'[c] / Σ_c p'[c]` (required so Σ=1).
+
+5. **Quantise for output:**
+   Emit `weight_dp[c] = to_fixed_dp_string(p[c], dp)` (half-even).
+   Output table passes Σ weights = 1 within tolerance (`1e-6` at dp=6).
+
+---
+
+## Minimal, policy-true preview
+
+```yaml
+semver: "1.0.0"
+version: "2025-10-02"
+
+dp: 6
+
+defaults:
+  blend_weight: 0.60
+  alpha: 0.50
+  obs_floor: 1000
+  min_share: 0.000001
+  shrink_exponent: 1.0
+
+per_currency:
+  GBP:
+    blend_weight: 0.65
+    alpha: 0.30
+    obs_floor: 2500
+
+overrides:
+  alpha_iso:
+    GBP:
+      GI: 0.40
+      IM: 0.35
+  min_share_iso:
+    GBP:
+      GI: 0.000010
+      IM: 0.000010
+```
+
+---
+
+## Acceptance checklist (loader + validator)
+
+**Loader must reject if:**
+
+* Any parameter outside domain; any ISO not uppercase; override given for ISO not present in canonical ISO2.
+* `sum(min_share_iso[cur].values) > 1` for any currency (feasibility).
+* Duplicate keys / unknown fields (fail closed).
+
+**Validator will assert (on the built cache):**
+
+* For each currency, weights are **fixed-dp** strings with the declared `dp`; Σ weights = **1 ± 1e-6**; all `∈[0,1]`.
+* Coverage equals the **union of countries** in inputs 9 & 10 (unless you purposely restrict elsewhere).
+* Writer sort `(currency, country_iso)`; partition is **parameter_hash**.
+
+---
+
+## Notes & guardrails
+
+* Keep **renormalisation** explicit and last (after floors) so Σ=1 holds deterministically.
+* If a currency has **no rows** in both inputs, treat as configuration error (or require an explicit `per_currency` block for it).
+* Raising `alpha` increases smoothing toward uniform; raising `obs_floor` down-weights very sparse empirical signals; `blend_weight` controls the relative trust in inputs (10) vs (9).
 
 ---

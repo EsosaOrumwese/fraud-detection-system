@@ -82,7 +82,7 @@ world_bank_gdp_per_capita:
       type: float64
       nullable: false
       description: "GDP per capita (constant 2015 USD)."
-      minimum: 0.0
+      exclusiveMinimum: 0.0
     - name: source_series
       type: string
       nullable: false
