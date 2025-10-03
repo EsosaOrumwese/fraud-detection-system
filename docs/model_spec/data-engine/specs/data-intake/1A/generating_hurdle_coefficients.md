@@ -51,7 +51,7 @@ source   : string        # "OSM" | "STORE_LOCATOR" | "WIKIDATA"
 
 ### **T1. brand_country_mcc_outlet_census**  *(core labels; per‑MCC)*
 
-**Purpose:** give you `is_multi` and `outlet_count_domestic` by **(brand, home_country_iso, mcc)**.
+**Purpose:** give you `is_multi` and `outlet_count_domestic` by **(brand, country_iso, mcc)**.
 **Where to source:**
 
 * **OpenStreetMap (ODbL)** POIs with retail/food/service tags; use `brand` / `brand:wikidata` / `operator`; map each POI to **MCC** using your governed **OSM→MCC** rules before aggregation.
@@ -63,7 +63,7 @@ source   : string        # "OSM" | "STORE_LOCATOR" | "WIKIDATA"
 ```
 brand_id            : string   # stable ID (prefer Wikidata QID if available)
 brand_name          : string
-home_country_iso    : ISO2
+country_iso    : ISO2
 mcc                 : int32    # 4‑digit MCC assigned per POI before aggregation
 outlet_count_domestic : int32  # count of physical POIs in home country **for this MCC**
 is_multi            : int8     # 1 if outlet_count_domestic >= 2 else 0
@@ -75,10 +75,10 @@ licence             : string   # e.g., "ODbL-1.0", site TOS ref, etc.
 **Naming note:** if this country dimension is *presence* rather than *origin*, you may name it `country_iso` in the training tables. The engine uses **merchant home ISO** for GDP bucket at runtime—keep semantics consistent across training and runtime.
 
 **Acceptance:**
-1. **POI de-dup (store-level):** within each `(brand_id, country_iso|home_country_iso, mcc)` cluster, collapse POIs that either (a) share **identical address** OR (b) lie within **75 m** *and* share the same tag family (`shop` vs `amenity`) and any of `{opening_hours, phone}` if present — keep first-seen. **Dedup happens before aggregating** to `(brand, country, mcc)` counts.
+1. **POI de-dup (store-level):** within each `(brand_id, country_iso|country_iso, mcc)` cluster, collapse POIs that either (a) share **identical address** OR (b) lie within **75 m** *and* share the same tag family (`shop` vs `amenity`) and any of `{opening_hours, phone}` if present — keep first-seen. **Dedup happens before aggregating** to `(brand, country, mcc)` counts.
 2. **Country attribution:** 100% of POIs must resolve to a country via polygon clip; drop unresolved.  
 3. **Brand normalisation:** all POIs must be mapped through **T0 brand_aliases** to a single `brand_id`.
-4. **CNP presence rows:** for any `brand_id` that appears only in T3 (online-only) and not in T1, add a T1 stub per `(brand_id, home_country_iso)` in scope with `outlet_count_domestic=0`, `is_multi=0`, and the brand’s MCC (or a neutral MCC you govern for pure-online). This lets the logistic see true CNP negatives without duplicating rows.
+4. **CNP presence rows:** for any `brand_id` that appears only in T3 (online-only) and not in T1, add a T1 stub per `(brand_id, country_iso)` in scope with `outlet_count_domestic=0`, `is_multi=0`, and the brand’s MCC (or a neutral MCC you govern for pure-online). This lets the logistic see true CNP negatives without duplicating rows.
 
 ---
 
@@ -164,7 +164,7 @@ seed             : int32
 **Processed schema:**
 
 ```
-home_country_iso  : ISO2
+country_iso       : ISO2
 gdp_bucket        : int8  # 1..5
 gdp_pc_usd_2015   : float64  # 2024
 ```
@@ -263,12 +263,12 @@ SE,0.30
 ### 1) Logistic hurdle (learns `beta`) — **training frame preview**
 
 **File (suggested):** `hurdle.training_rows.parquet`
-**One row** = one *(brand, home_country_iso, mcc)* with the label `is_multi`.
+**One row** = one *(brand, country_iso, mcc)* with the label `is_multi`.
 
 **Columns (minimal, engine‑aligned):**
 
 * `brand_id : string` — canonical ID (prefer Wikidata QID)
-* `home_country_iso : string` — ISO2, uppercase
+* `country_iso : string` — ISO2, uppercase
 * `mcc : int32` — 4‑digit MCC in the engine dictionary
 * `channel : string ∈ {"CP","CNP"}` — engine’s internal tokens
 * `gdp_bucket : int8 ∈ {1,2,3,4,5}` — from your 2024 bucket map
@@ -278,7 +278,7 @@ SE,0.30
 **Tiny example:**
 
 ```
-brand_id  home_country_iso  mcc   channel  gdp_bucket  is_multi
+brand_id  country_iso  mcc   channel  gdp_bucket  is_multi
 Q12345    GB                5411  CP       5           1
 Q67890    IE                5812  CP       4           1
 Q99999    FR                5732  CP       3           0
@@ -302,7 +302,7 @@ and applies $\pi=\sigma(\beta^\top x)$. Your frame provides **exactly** those fi
 **Columns (minimal, engine‑aligned):**
 
 * `brand_id : string`
-* `home_country_iso : string`
+* `country_iso : string`
 * `mcc : int32`
 * `channel : "CP"|"CNP"`
 * `k_domestic : int32` — **target** (domestic outlet count, **≥ 2**)
@@ -310,7 +310,7 @@ and applies $\pi=\sigma(\beta^\top x)$. Your frame provides **exactly** those fi
 **Tiny example:**
 
 ```
-brand_id  home_country_iso  mcc   channel  k_domestic
+brand_id  country_iso  mcc   channel  k_domestic
 Q12345    GB                5411  CP       12
 Q67890    IE                5812  CP       3
 Q22222    DE                5942  CNP      2

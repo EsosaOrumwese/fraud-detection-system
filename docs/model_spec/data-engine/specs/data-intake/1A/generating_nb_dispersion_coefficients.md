@@ -209,12 +209,12 @@ You’ve already defined what to hunt (brand×country×MCC counts; channel; GDP;
 
 **Columns (exact, minimal).**
 
-* `brand_id : string` — canonical (prefer Wikidata QID)
-* `country_iso : string` — ISO2 uppercase
-* `mcc : int32` — must be in the engine MCC dictionary
-* `channel : string ∈ {"CP","CNP"}` — engine tokens
-* `ln_g_c : float64` — `ln(gdp_pc_usd_2015)` for `country_iso` (year 2024), strictly > 0
-* `outlet_count_domestic : int32 ≥ 0`
+- `brand_id : string` — canonical (prefer Wikidata QID)
+- `country_iso : string` — ISO2 uppercase
+- `mcc : int32` — must be in the engine MCC dictionary
+- `channel : string ∈ {"CP","CNP"}` — engine tokens
+- `ln_g_c : float64` — `ln(gdp_pc_usd_2015)` for `country_iso` (year 2024), strictly > 0
+- `outlet_count_domestic : int32 ≥ 0`
 
 **Dedup before counting (painted).**
 For each `(brand_id, country_iso, mcc)`: collapse POIs that either share **identical address**, or lie within **75 m** *and* share tag family (`shop` vs `amenity`) and any of `{opening_hours, phone}` if present → keep first-seen.
@@ -253,7 +253,7 @@ For each `(brand_id, country_iso, mcc)`: collapse POIs that either share **ident
 **Tiny preview.**
 
 | mcc  | channel | ln_g_c_bin_id | n_brands | k_mean | k_var | phi_mom | weight |
-| ---- | ------- | ------------- | -------: | -----: | ----: | ------: | -----: |
+|------|---------|---------------|---------:|-------:|------:|--------:|-------:|
 | 5411 | CP      | 5             |       42 |    9.6 |  38.7 |    2.59 |     42 |
 | 5812 | CP      | 3             |       18 |    3.7 |  11.8 |    1.46 |     18 |
 | 5732 | CP      | 4             |       10 |    2.5 |   3.0 |    5.00 |     10 |
@@ -266,10 +266,10 @@ For each `(brand_id, country_iso, mcc)`: collapse POIs that either share **ident
 **Target.** `y = log(phi_mom)` (or `log(phi_mle)` if you used the truncated MLE).
 
 **Features (one row per cell).**
-[
+$$
 \bar{x}_{\phi,C}=\big[1\ \big|\ \text{one-hot(MCC)}\ \big|\ \text{one-hot(channel: CP, CNP)}\ \big|\ \overline{\ln g_c}\big]
-]
-where (\overline{\ln g_c}) is the cell’s mean or bin centre.
+$$  
+where tables use `ln_g_c`; in the emitted YAML `feature_order` this appears as **`ln_gdp_pc`**.
 
 **Columns (wide is simplest; order must match engine dictionaries).**
 
@@ -316,6 +316,8 @@ Weighted **ridge regression** (L2) on
 `y ~ intercept + MCC + channel + ln_g_c_mean`.
 Choose λ by CV (k-fold over cells or leave-one-MCC-out). Robust alternative: weighted Huber regression.
 
+**Record provenance:** persist the chosen ridge **λ**, the **CV scheme** (e.g., K and folds/LOO), and any **random seed** alongside the coefficients for reproducibility.
+
 **Step 5 — QC (binding).**
 
 * **Vector shape & order:** length `1 + C_mcc + 2 + 1`; channel = CP then CNP; all finite.
@@ -342,7 +344,7 @@ dispersion:
     # ... rest of MCCs in dict order ...
     - <CP>      # channel effect for CP
     - <CNP>     # channel effect for CNP
-    - <ln_g_c>  # macro term coefficient
+    - <ln_g_c>  # macro term coefficient (tables' ln_g_c → YAML name ln_gdp_pc)
 ```
 
 Record λ (ridge) and any CV seeds with the artifact for reproducibility.
