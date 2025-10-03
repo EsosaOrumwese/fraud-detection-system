@@ -454,9 +454,9 @@ Governed **config** (no JSON-Schema). The **shape and field names** below are en
 ## Required structure (engine-ready)
 
 > S4 uses
-> (\lambda_{\text{extra}} = \exp(\theta_0 + \theta_1 \cdot \ln N + \theta_2 \cdot X_m))
-> where (N) is S2’s domestic site count and (X_m) is the (optional) openness feature from S0 (defaults to **0.0** if absent).
-> Sampling regime is engine-constant: **inversion** if (\lambda<10), else **PTRS**.
+> $\lambda_{\text{extra}} = \exp(\theta_0 + \theta_1 \cdot \ln N + \theta_2 \cdot X_m)$
+> where $N$ is S2’s domestic site count and $X_m$ is the (optional) openness feature from S0 (defaults to **0.0** if absent).
+> Sampling regime is engine-constant: **inversion** if $\lambda<10$, else **PTRS**.
 
 ```yaml
 # configs/allocation/crossborder_hyperparams.yaml
