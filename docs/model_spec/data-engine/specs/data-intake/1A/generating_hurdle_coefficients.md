@@ -1,0 +1,208 @@
+# Generating `hurdle_coefficients.yaml`
+
+Below is a tight, one-person, region-bounded plan: what extra data to hunt, why it matters, and the exact “training tables” to add to your preview so you know what to collect.
+
+---
+
+## What the coefficients must encode (so your training data must reflect it)
+
+* **Category (MCC) effect** on being **multi-site** and on the **mean number of outlets** when multi-site.
+* **Channel (CP vs CNP)** effect (CP tends to be more multi-site; CNP less so).
+* **Macro context (GDP bucket)** effect on being multi-site (hurdle only).
+
+So you need **examples of “merchants” (brand–country pairs)** with:
+
+1. a binary label **`is_multi`** (≥2 domestic outlets), and
+2. for those with `is_multi=1`, the **count** of domestic outlets (**`k_domestic`**) to fit the NB mean.
+
+---
+
+## Additional training-only inputs to add to your preview (what to hunt)
+
+> These do **not** go into the runtime engine. They exist to fit the two vectors (`beta`, `beta_mu`) and then disappear. You can list them under a new section like **“Training-only (not ingested at runtime)”** so your team knows to collect them.
+
+### **T0. brand_aliases**  *(normalize brand identity; training-only)*
+
+**Purpose:** collapse variant brand strings to a stable `brand_id` (prefer Wikidata QID) so counts/labels aren't fragmented.
+
+**Processed schema (preview):**
+```
+brand_id : string        # canonical ID, e.g., QID where available
+alias    : string        # raw 'brand'/'name'/'operator' from OSM / store locators
+source   : string        # "OSM" | "STORE_LOCATOR" | "WIKIDATA"
+```
+
+**Acceptance:** every POI used in T1 must map to exactly one `brand_id`; unresolved aliases are dropped from the corpus.
+
+---
+
+### **T1. brand_country_mcc_outlet_census**  *(core labels; per‑MCC)*
+
+**Purpose:** give you `is_multi` and `k_domestic` by **(brand, home_country_iso, mcc)**.
+**Where to source:**
+
+* **OpenStreetMap (ODbL)** POIs with retail/food/service tags; use `brand` / `brand:wikidata` / `operator`; map each POI to **MCC** using your governed **OSM→MCC** rules before aggregation.
+* **Official store locators** for large brands (CSV/JSON/HTML where redistribution allows).
+* **Wikidata** to normalize brands (QIDs) and infer country presence.
+
+**Processed schema (preview):**
+
+```
+brand_id            : string   # stable ID (prefer Wikidata QID if available)
+brand_name          : string
+home_country_iso    : ISO2
+mcc                 : int32    # 4‑digit MCC assigned per POI before aggregation
+outlet_count_domestic : int32  # count of physical POIs in home country
+is_multi            : int8     # 1 if outlet_count_domestic >= 2 else 0
+source_mask         : string   # e.g., "OSM|WIKIDATA|STORE_LOCATOR"
+asof_date           : date
+licence             : string   # e.g., "ODbL-1.0", site TOS ref, etc.
+```
+
+**Naming note:** if this country dimension is *presence* rather than *origin*, you may name it `country_iso` in the training tables. The engine uses **merchant home ISO** for GDP bucket at runtime—keep semantics consistent across training and runtime.
+
+**Acceptance:**
+1. **POI de-dup (store-level):** within each `(brand_id, country_iso|home_country_iso, mcc)` cluster, collapse POIs that either (a) share **identical address** OR (b) lie within **75 m** *and* share the same tag family (`shop` vs `amenity`) and any of `{opening_hours, phone}` if present — keep first-seen.  (Dedup happens **before** aggregating to the `(brand, country, mcc)` counts.)
+2. **Country attribution:** 100% of POIs must resolve to a country via polygon clip; drop unresolved.  
+3. **Brand normalisation:** all POIs must be mapped through **T0 brand_aliases** to a single `brand_id`.
+ 
+---
+
+### **T2. brand_to_mcc_map**  *(category signal / QC)*
+
+**Purpose:** govern the **tag→MCC** rules and (optionally) brand‑level MCC hints. T1 already includes `mcc` per aggregated row; use T2 primarily to **validate coverage/consistency** and maintain the mapping rules as governed policy.
+**Where to source:** MCC code lists (ISO 18245) + your own **tag→MCC** mapping.
+
+**Processed schema (preview):**
+
+```
+brand_id         : string      # or a tag pattern, but normalize into brand_id where possible
+mcc              : int32       # 4-digit MCC used by your engine
+mapping_confidence: float32    # 0..1 (optional)
+notes            : string
+```
+
+**Acceptance:** MCC must be one you plan to encode in the hurdle design. It’s fine if many brands map to a small MCC set at first; ridge/hierarchical shrinkage will handle sparsity.
+
+---
+
+### **T3. brand_channel_labels**  *(channel signal)*
+
+**Purpose:** assign **CP** (has physical presence) or **CNP** (online-only).
+**Where to source:**  
+- From **T1**: if `outlet_count_domestic > 0` ⇒ **CP**.  
+- Add CNP signal via **one (or both) of the following identifiability options**:
+
+**Option A — Online-only exemplars (light list):** curate 30–50 `brand_id`s that are digital-only (marketplaces, fintech, ticketing, SaaS). Mark them `channel_token="CNP"` with `evidence="ONLINE_ONLY_LIST"`.  
+**Option B — Macro anchor (single global offset):** after fitting the hurdle, calibrate a single `beta_channel_CNP` so the model’s implied CNP share by country matches a public series (e.g., Eurostat “% individuals who bought online” or ECB remote-vs-POS split) across your region.
+ 
+**Processed schema (preview):**
+
+```
+brand_id         : string
+channel_token    : string   # "CP" or "CNP" (engine’s internal tokens)
+evidence         : string   # "OSM_POI" | "ONLINE_ONLY_LIST" | "MACRO_CALIBRATION"
+```
+
+**Acceptance:** channel must be the engine’s **internal** tokens; no ingress strings.
+
+---
+
+### **T4. train_design_matrix.metadata**  *(freezes the dictionaries)*
+
+**Purpose:** lock the exact **MCC order**, channel order, and GDP bucket order used at fit time (**must match the engine’s dictionaries for the target run**; read them from the engine’s dataset dictionary to avoid drift).
+**Processed schema (YAML preview):**
+
+```yaml
+dicts:
+  channel: ["CP","CNP"]
+  gdp_bucket: [1,2,3,4,5]
+  mcc: [4111, 5411, 5732, 5812, 5942, 6011, ...]   # full order you train on
+design_notes: "Region universe: GB+EEA+US+CA; GDP year 2024; buckets: Jenks-5"
+```
+
+---
+
+### **T5. train_splits**  *(reproducible evaluation)*
+
+**Purpose:** group-aware splits to avoid leakage (e.g., **by brand**).
+**Processed schema (preview):**
+
+```
+brand_id         : string
+split            : string   # "train" | "valid" | "test"
+seed             : int32
+```
+
+---
+
+### **T6. macro_join_cache**  *(GDP bucket join)*
+
+**Purpose:** helper derived from your runtime GDP + bucket map for speed.
+**Processed schema:**
+
+```
+home_country_iso  : ISO2
+gdp_bucket        : int8  # 1..5
+gdp_pc_usd_2015   : float64  # 2024
+```
+
+*(This can be derived on the fly from your runtime tables; caching is optional.)*
+
+---
+
+## Why the current runtime data isn’t enough to *train*
+
+* Your runtime pack gives the **feature scaffolding** (ISO, GDP, buckets, MCC vocabulary, channel tokens) but **no labels** (`is_multi`, `k_domestic`) and **no brand-level rows**. Without labels, you can’t fit a logistic hurdle or a mean link.
+* The training corpus above fills exactly that gap while keeping features **identical** to the engine’s design (MCC, channel, GDP bucket).
+
+---
+
+## How the training corpus turns into the two vectors your engine wants
+
+1. **Assemble X, y for the hurdle**
+
+   * Join **T1** (labels with `mcc`) ⟂ **T3** (channel) ⟂ **T6** (bucket). *(T2 is used for governed mapping/QC, not required for this join if T1 already has `mcc`.)*
+   * Features `x = [1 | one-hot(MCC) | one-hot(channel CP,CNP) | one-hot(bucket 1..5)]`.
+   * Target `y = is_multi`.
+   * **Channel rows:** duplicate each `(brand_id, country, mcc)` row to both `channel=CP` and `channel=CNP` so the design matches the engine’s fixed 2-slot channel block; identify the CNP coefficient via **T3** evidence or **Option B** macro calibration.
+
+2. **Fit penalized logistic** (ridge or hierarchical).
+   * If `is_multi` is rare in your corpus, use **class weights** or stratified sampling.
+   * **Optional intercept calibration:** adjust the logistic intercept so the model’s implied multi‑site prevalence matches the observed rate in your training region (calibrate on the training design; do not re‑fit other coefficients).
+   * CV by **brand** or **brand×country** to avoid leakage.
+   * Export **`beta`** in the frozen order from **T4**.
+
+3. **Assemble X, y for the NB-mean** (multi-site only)
+
+   * Filter **T1** to `is_multi=1`; target `y = k_domestic`.
+   * Features `x_mu = [1 | one-hot(MCC) | one-hot(channel)]` *(no bucket)*.
+   * Fit **Poisson GLM with ridge** (good for the mean coefficients); the separate `nb_dispersion_coefficients.yaml` will later handle over-dispersion.
+   * Export **`beta_mu`** in the same MCC & channel order.
+
+4. **Package `hurdle_coefficients.yaml`**
+
+   * Include **T4’s dictionaries** and the two vectors (`beta`, `beta_mu`).
+   * Hit the engine’s acceptance checks: lengths, order, all finite, exact token sets.
+
+---
+
+## Minimal viable “hunt list” to start collecting now
+
+* **OSM POI dump** for your region universe; extract **brand** and **country**; count outlets per brand per country.
+* **A small list of online-only brands** to label **CNP** (even 30–50 well-known names is plenty to start).
+* **Your MCC mapping** for the OSM tag space and large brands (begin with the MCCs you expect in your merchant seed).
+* **GDP bucket year 2024** (already in your runtime pack).
+* *(Optional)* A few **store-locator CSVs** for big chains to validate or augment OSM counts.
+
+This is all doable by one person and gives you a credible, public-data proxy for the “essence” those coefficients need to encode. You can then iterate: add brands, refine MCC mapping, and re-fit.
+
+---
+
+## QC gates before exporting YAML  *(objective pass/fail)*
+
+* **Coverage floors (per country in region):** sum of `n_outlets` over top-20 brands ≥ **100** (catches empty/partial extracts).
+* **Observed bucket monotonicity:** empirical multi-site rate should weakly increase from bucket 1→5 (allow small deviations).
+* **Fitted bucket monotonicity:** enforce/post-process `β_bucket` to be non-decreasing (use isotonic regression on bucket effects if needed).
+* **Hold-out metrics (brand-level CV):** hurdle **AUC ≥ 0.70**, **Brier ≤ 0.20**; NB-mean **log-MAE ≤ 0.6** on the multi subset.
+* **Deterministic alignment:** pick 10 brand×country cases and verify \(\pi\) and \(\mu\) computed by your trainer match the YAML loader **bit-for-bit** (shortest round-trip printing).
