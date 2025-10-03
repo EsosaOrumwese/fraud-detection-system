@@ -243,6 +243,7 @@ You can do this in Pandas or DuckDB; here’s a clear, chunk-safe Pandas approac
 # build_transaction_schema_merchant_ids.py
 import pandas as pd
 from pathlib import Path
+import hashlib
 
 ART = Path("artifacts")  # folder where the inputs live
 OUT = Path("build")      # folder for build outputs
@@ -254,7 +255,7 @@ mcc_to_channel["mcc"] = mcc_to_channel["mcc"].astype("int32")
 iso2 = pd.read_csv(ART/"iso_country_codes.csv", dtype={"Name":"string","Code":"string"})
 iso2["Code"] = iso2["Code"].str.upper().str.strip()
 
-company2country = pd.read_csv(ART/"company_country_map.csv", dtype={"name":"string","country_code":"string"})
+company2country = pd.read_csv(ART/"company_country_map.csv", dtype={"name":"string","domain":"string","country_code":"string"})
 company2country["country_code"] = company2country["country_code"].str.upper().str.strip()
 
 # ---- Optional but recommended: overrides & exceptions (graceful if absent) ----
@@ -309,11 +310,25 @@ def norm_name(s: pd.Series) -> pd.Series:
             .str.replace(r"\s+", " ", regex=True)
             .str.strip())
 
+# Pre-normalize domain override join key ONCE (saves work per chunk)
+if not brand_domain_overrides.empty:
+    # brand_domain_overrides has column 'domain' by contract; normalize to '__dom_norm'
+    brand_domain_overrides["__dom_norm"] = norm_domain(brand_domain_overrides["domain"])
+
+
 company2country["__name_norm"] = norm_name(company2country["name"])
+# ensure domain join key exists (broadcast "" if no domain column)
+if "domain" in company2country.columns:
+    company2country["__dom_norm"] = norm_domain(company2country["domain"])
+else:
+    company2country["__dom_norm"] = ""
 
 # --- 2) Stream the merchant seed and enrich in chunks ---
 final_chunks = []
 seed_rows = 0
+# visibility counters (optional; no effect on output)
+override_changed = 0
+override_total = 0
 seed_iter = pd.read_csv(
                         ART/"merchant_seed.csv",
                         dtype={"merchant_id":"int64","mcc":"int32","merchant_domain":"string","merchant_name":"string"},
@@ -331,16 +346,10 @@ for df in seed_iter:
     df["channel"] = df["channel_exc"].combine_first(df["channel"])
     df.drop(columns=[c for c in ["channel_exc"] if c in df.columns], inplace=True)
 
-    # -- apply brand-level overrides (domain first, then name)
-    # domain precedence
-    if "merchant_domain" in df.columns and not brand_domain_overrides.empty:
-        brand_domain_overrides["__dom_norm"] = norm_domain(brand_domain_overrides["domain"])
-        df = df.merge(brand_domain_overrides[["__dom_norm","channel"]].rename(columns={"channel":"channel_override_dom"}),
-                      left_on="__dom_norm", right_on="__dom_norm", how="left")
-        df["channel"] = df["channel_override_dom"].combine_first(df["channel"])
-        df.drop(columns=["channel_override_dom"], inplace=True, errors="ignore")
-
-    # c) Build join keys for country
+    # capture pre-override channel for coverage metric
+    df["__channel_base"] = df["channel"]
+    
+    # c) Build join keys for country (needed for domain+name overrides & country join)
     if "merchant_domain" in df.columns:
         df["__dom_norm"] = norm_domain(df["merchant_domain"])
     else:
@@ -351,18 +360,29 @@ for df in seed_iter:
     else:
         df["__name_norm"] = ""
 
+    # -- apply brand-level overrides (domain first, then name)
+    # domain precedence
+    if "merchant_domain" in df.columns and not brand_domain_overrides.empty:
+        df = df.merge(
+            brand_domain_overrides[["__dom_norm","channel"]].rename(columns={"channel":"channel_override_dom"}),
+            left_on="__dom_norm", right_on="__dom_norm", how="left"
+        )
+        df["channel"] = df["channel_override_dom"].combine_first(df["channel"])
+        df.drop(columns=["channel_override_dom"], inplace=True, errors="ignore")
+        
+    
     # name overrides (only if still unmatched)
     if "merchant_name" in df.columns and not brand_overrides.empty:
         brand_overrides["__name_norm"] = norm_name(brand_overrides["brand"])
         df = df.merge(brand_overrides[["__name_norm","channel"]].rename(columns={"channel":"channel_override"}),
                       on="__name_norm", how="left")
         df["channel"] = df["channel_override"].combine_first(df["channel"])
-        df.drop(columns=["channel_override","__name_norm"], inplace=True, errors="ignore")
+        df.drop(columns=["channel_override"], inplace=True, errors="ignore")
 
     # d) Join country by domain first (preferred), then by name
     #    (two-step left join keeps precedence of domain)
-    dom_join = df.merge(company2country[["__name_norm","country_code"]]
-                        .rename(columns={"__name_norm":"__name_norm_unused"}), how="left", left_on="__dom_norm", right_on="__name_norm_unused")
+    dom_join = df.merge(company2country[["__dom_norm","country_code"]],
+                        how="left", left_on="__dom_norm", right_on="__dom_norm")
     dom_join.rename(columns={"country_code":"home_country_iso"}, inplace=True)
 
     name_join_mask = dom_join["home_country_iso"].isna() & dom_join["__name_norm"].ne("")
@@ -372,7 +392,12 @@ for df in seed_iter:
         name_slice = name_slice.merge(company2country[["__name_norm","country_code"]],
                                       on="__name_norm", how="left")
         dom_join.loc[name_join_mask, "home_country_iso"] = name_slice["country_code"].values
+    # we've now finished using __name_norm; safe to drop
+    dom_join.drop(columns=["__name_norm"], inplace=True, errors="ignore")
     seed_rows += len(df)
+    # visibility: accumulate override coverage (rows whose channel changed via overrides)
+    override_changed += (df["channel"] != df["__channel_base"]).sum()
+    override_total += len(df)
     final_chunks.append(dom_join[["merchant_id","mcc","channel","home_country_iso"]])
 
 final = pd.concat(final_chunks, ignore_index=True)
@@ -383,6 +408,18 @@ if not final["merchant_id"].is_unique:
     raise ValueError(f"merchant_id not unique; examples: {dupes}")
 final["merchant_id"] = final["merchant_id"].astype("int64")
 final["mcc"] = final["mcc"].astype("int32")
+
+# merchant_id must be >= 1 (ingress JSON-Schema minimum)
+_mid_bad = final["merchant_id"] < 1
+if _mid_bad.any():
+    bad = final.loc[_mid_bad, ["merchant_id"]].head(10)
+    raise ValueError(f"merchant_id < 1 for {_mid_bad.sum()} rows; first 10:\\n{bad.to_dict(orient='list')}")
+
+# mcc must be present in the master list (hard-fail)
+_mcc_bad = ~final["mcc"].isin(mcc_master)
+if _mcc_bad.any():
+    bad = final.loc[_mcc_bad, ["merchant_id","mcc"]].head(10)
+    raise ValueError(f"Invalid mcc for {_mcc_bad.sum()} rows; first 10:\\n{bad}")
 
 # channel must be one of {card_present, card_not_present} and fully populated
 if final["channel"].isna().any():
@@ -404,8 +441,38 @@ if final.shape[0] != seed_rows:
 
 # --- 4) Deterministic ordering & output ---
 final = final.sort_values(["merchant_id"], kind="mergesort").reset_index(drop=True)
+
+# visibility: quick QA counters (do not affect output)
+override_coverage = (100.0 * override_changed / override_total) if override_total else 0.0
+iso_coverage = 100.0 * final["home_country_iso"].isin(iso2["Code"]).mean()
+print(f"override_coverage: {override_coverage:.2f}%")
+print(f"iso_coverage: {iso_coverage:.2f}%")
+
 final.to_csv(OUT/"transaction_schema_merchant_ids.csv", index=False)
 print("Wrote:", OUT/"transaction_schema_merchant_ids.csv")
+
+# ---------- SHA-256 telemetry (manifest-friendly) ----------
+def _sha256(p: Path) -> str:
+    h = hashlib.sha256()
+    with open(p, "rb") as f:
+        for chunk in iter(lambda: f.read(1<<20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+inputs = [
+    ART/"mcc_codes.csv",
+    ART/"channel_classification.csv",
+    ART/"iso_country_codes.csv",
+    ART/"company_country_map.csv",
+    ART/"merchant_seed.csv",
+]
+print("sha256 inputs:")
+for q in inputs:
+    if q.exists():
+        print(f"  {q.name}: {_sha256(q)}")
+outp = OUT/"transaction_schema_merchant_ids.csv"
+print("sha256 output:")
+print(f"  {outp.name}: {_sha256(outp)}")
 ```
 
 > **Determinism notes**
