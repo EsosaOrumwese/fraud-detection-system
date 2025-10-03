@@ -4,6 +4,19 @@ Below is a tight, one-person, region-bounded plan: what extra data to hunt, why 
 
 ---
 
+## Lock-ins (project decisions)
+These choices are **fixed** for this build so the trainer and the engine stay byte-aligned:
+1) **Per‑MCC training granularity**: T1 rows are `(brand_id, country_iso, mcc)` (not just brand×country).  
+2) **CNP identifiability**: do **both** routes — a small **online-only exemplar** list *and* a **single global CNP macro calibration** after fitting.  
+3) **Dictionaries**: read MCC/channel/bucket dictionaries from the **engine’s dataset dictionary** and freeze them in T4; **never** infer order from map iteration.  
+4) **Channel duplication**: during feature assembly, duplicate each T1 row to `channel=CP` and `channel=CNP` so the engine’s 2-slot channel block is populated deterministically.  
+5) **Intercept calibration is required**: adjust the hurdle intercept to match observed multi-site prevalence in-region on the training design.  
+6) **QC gates are binding**: coverage floors, observed & fitted bucket monotonicity, brand-aware CV targets, and 10-row bit-match between trainer and engine loader must all pass before export.
+
+These lock-ins keep the learned `beta` and `beta_mu` exactly in the shape S1/S2 expect while giving CNP a real, measurable effect.  ⟶ (T1/T3/T4/T6 sections below implement this.) 
+
+---
+
 ## What the coefficients must encode (so your training data must reflect it)
 
 * **Category (MCC) effect** on being **multi-site** and on the **mean number of outlets** when multi-site.
@@ -62,7 +75,7 @@ licence             : string   # e.g., "ODbL-1.0", site TOS ref, etc.
 **Naming note:** if this country dimension is *presence* rather than *origin*, you may name it `country_iso` in the training tables. The engine uses **merchant home ISO** for GDP bucket at runtime—keep semantics consistent across training and runtime.
 
 **Acceptance:**
-1. **POI de-dup (store-level):** within each `(brand_id, country_iso|home_country_iso, mcc)` cluster, collapse POIs that either (a) share **identical address** OR (b) lie within **75 m** *and* share the same tag family (`shop` vs `amenity`) and any of `{opening_hours, phone}` if present — keep first-seen.  (Dedup happens **before** aggregating to the `(brand, country, mcc)` counts.)
+1. **POI de-dup (store-level):** within each `(brand_id, country_iso|home_country_iso, mcc)` cluster, collapse POIs that either (a) share **identical address** OR (b) lie within **75 m** *and* share the same tag family (`shop` vs `amenity`) and any of `{opening_hours, phone}` if present — keep first-seen. **Dedup happens before aggregating** to `(brand, country, mcc)` counts.
 2. **Country attribution:** 100% of POIs must resolve to a country via polygon clip; drop unresolved.  
 3. **Brand normalisation:** all POIs must be mapped through **T0 brand_aliases** to a single `brand_id`.
  
@@ -88,14 +101,19 @@ notes            : string
 
 ### **T3. brand_channel_labels**  *(channel signal)*
 
-**Purpose:** assign **CP** (has physical presence) or **CNP** (online-only).
-**Where to source:**  
-- From **T1**: if `outlet_count_domestic > 0` ⇒ **CP**.  
-- Add CNP signal via **one (or both) of the following identifiability options**:
+**Purpose:** assign **CP** (has physical presence) or **CNP** (online-only) with **identifiable** signal.
 
-**Option A — Online-only exemplars (light list):** curate 30–50 `brand_id`s that are digital-only (marketplaces, fintech, ticketing, SaaS). Mark them `channel_token="CNP"` with `evidence="ONLINE_ONLY_LIST"`.  
-**Option B — Macro anchor (single global offset):** after fitting the hurdle, calibrate a single `beta_channel_CNP` so the model’s implied CNP share by country matches a public series (e.g., Eurostat “% individuals who bought online” or ECB remote-vs-POS split) across your region.
- 
+**Where to source (both are required in this build):**
+* From **T1**: if `outlet_count_domestic > 0` ⇒ **CP**.  
+* **Online-only exemplars (A)** *and* **Macro anchor (B)**:
+
+**Option A — Online-only exemplars (light list):** curate 30–50 `brand_id`s that are digital-only (marketplaces, fintech, ticketing, SaaS). Mark them `channel_token="CNP"` with `evidence="ONLINE_ONLY_LIST"`.
+
+**Option B — Macro anchor (single global offset):** after fitting the hurdle, calibrate a single `beta_channel_CNP` so the model’s implied CNP share by country matches a public series (e.g., Eurostat “% individuals who bought online” or ECB remote-vs-POS split) across your region.  
+
+**Both A and B are mandatory** here: A pins the sign, B sets the magnitude as one global offset consistent with public evidence.
+
+> **Illustrative previews** for both A and B are included below (see: *Illustrative previews — do not commit as data*). They are blueprints to guide hunting/wrangling, **not** data to ship.
 **Processed schema (preview):**
 
 ```
@@ -110,7 +128,8 @@ evidence         : string   # "OSM_POI" | "ONLINE_ONLY_LIST" | "MACRO_CALIBRATIO
 
 ### **T4. train_design_matrix.metadata**  *(freezes the dictionaries)*
 
-**Purpose:** lock the exact **MCC order**, channel order, and GDP bucket order used at fit time (**must match the engine’s dictionaries for the target run**; read them from the engine’s dataset dictionary to avoid drift).
+**Purpose:** lock the exact **MCC order**, channel order, and GDP bucket order used at fit time. These **must match the engine’s dictionaries** for the target run; **read them directly from the engine’s dataset dictionary** (do not infer order from maps) to avoid drift.
+
 **Processed schema (YAML preview):**
 
 ```yaml
@@ -165,11 +184,11 @@ gdp_pc_usd_2015   : float64  # 2024
    * Join **T1** (labels with `mcc`) ⟂ **T3** (channel) ⟂ **T6** (bucket). *(T2 is used for governed mapping/QC, not required for this join if T1 already has `mcc`.)*
    * Features `x = [1 | one-hot(MCC) | one-hot(channel CP,CNP) | one-hot(bucket 1..5)]`.
    * Target `y = is_multi`.
-   * **Channel rows:** duplicate each `(brand_id, country, mcc)` row to both `channel=CP` and `channel=CNP` so the design matches the engine’s fixed 2-slot channel block; identify the CNP coefficient via **T3** evidence or **Option B** macro calibration.
+   * **Channel rows (required):** duplicate each `(brand_id, country, mcc)` row to both `channel=CP` and `channel=CNP` so the design matches the engine’s fixed 2-slot channel block; identify the CNP coefficient via **T3** (A+B).
 
 2. **Fit penalized logistic** (ridge or hierarchical).
-   * If `is_multi` is rare in your corpus, use **class weights** or stratified sampling.
-   * **Optional intercept calibration:** adjust the logistic intercept so the model’s implied multi‑site prevalence matches the observed rate in your training region (calibrate on the training design; do not re‑fit other coefficients).
+   * If `is_multi` is rare, use **class weights** or stratified sampling.
+   * **Intercept calibration (required):** adjust the logistic intercept so the model’s implied multi‑site prevalence matches the observed rate in-region on the training design; do **not** re‑fit other coefficients.
    * CV by **brand** or **brand×country** to avoid leakage.
    * Export **`beta`** in the frozen order from **T4**.
 
@@ -199,10 +218,43 @@ This is all doable by one person and gives you a credible, public-data proxy for
 
 ---
 
+## **Illustrative previews — do not commit as data**
+These examples show the **shape** of two training-only aids discussed in T3. They are **blueprints** to guide hunting; do **not** treat them as authoritative inputs.
+
+### Preview A — online-only exemplars (YAML shape)
+```yaml
+semver: "preview"
+version: "example"
+region_id: "R-EEA12@YYYY-MM-DD"
+brands:
+  - brand_id: "Q12345"
+    display_name: "AcmePay"
+    evidence_url: "https://en.wikipedia.org/wiki/AcmePay"
+  - brand_id: "Q67890"
+    display_name: "TicketNow"
+    evidence_url: "https://en.wikipedia.org/wiki/TicketNow"
+# When hunted, these entries feed T3 with:
+#   channel_token: "CNP"
+#   evidence: "ONLINE_ONLY_LIST"
+```
+
+### Preview B — macro anchor series (CSV shape)
+```csv
+country_iso,remote_share
+AT,0.22
+DE,0.20
+FR,0.23
+GB,0.31
+SE,0.30
+```
+*Use any reputable public series consistent with your region (e.g., Eurostat online-shopper share, ECB remote card share). The trainer uses this **once** to calibrate a single global `beta_channel_CNP`.*
+
+---
+
 ## QC gates before exporting YAML  *(objective pass/fail)*
 
-* **Coverage floors (per country in region):** sum of `n_outlets` over top-20 brands ≥ **100** (catches empty/partial extracts).
-* **Observed bucket monotonicity:** empirical multi-site rate should weakly increase from bucket 1→5 (allow small deviations).
-* **Fitted bucket monotonicity:** enforce/post-process `β_bucket` to be non-decreasing (use isotonic regression on bucket effects if needed).
-* **Hold-out metrics (brand-level CV):** hurdle **AUC ≥ 0.70**, **Brier ≤ 0.20**; NB-mean **log-MAE ≤ 0.6** on the multi subset.
-* **Deterministic alignment:** pick 10 brand×country cases and verify \(\pi\) and \(\mu\) computed by your trainer match the YAML loader **bit-for-bit** (shortest round-trip printing).
+* **Coverage floors (per country in region):** sum of `n_outlets` over top-20 brands ≥ **100** (catches empty/partial extracts). **Fail build** if not met.
+* **Observed bucket monotonicity:** empirical multi-site rate should weakly increase from bucket 1→5 (allow small deviations). **Warn** on small violations; **fail** on systematic reversals.
+* **Fitted bucket monotonicity:** enforce/post-process `β_bucket` to be non-decreasing (use isotonic regression on bucket effects if needed). **Fail** if post-processed order still violates monotonicity.
+* **Hold-out metrics (brand-level CV):** hurdle **AUC ≥ 0.70**, **Brier ≤ 0.20**; NB-mean **log-MAE ≤ 0.6** on the multi subset. **Fail** if thresholds are missed.
+* **Deterministic alignment:** pick 10 brand×country cases and verify $\pi$ and $\mu$ computed by your trainer match the YAML loader **bit-for-bit** (shortest round-trip printing). **Fail** on any mismatch.
