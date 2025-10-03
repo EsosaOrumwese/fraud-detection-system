@@ -241,7 +241,7 @@ For each `(brand_id, country_iso, mcc)`: collapse POIs that either share **ident
 * `k_mean` (mean of counts) and `k_var` (sample variance) using **all counts (≥0)**.
 * **Untruncated MoM dispersion**
   $$
-  \phi_{\text{mom}} = \max\big(\varepsilon,\ \frac{\bar{k}^{,2}}{\max(\varepsilon,\ s^2 - \bar{k})}\big)
+  \phi_{\text{mom}} = \max\big(\varepsilon,\ \frac{\bar{k}^{2}}{\max(\varepsilon,\ s^2 - \bar{k})}\big)
   $$
   If `s² ≤ k_mean`, mark **Poisson-like** → set a large sentinel φ and **down-weight** this cell.
 * `weight` default `n_brands` (cap if needed).
@@ -309,7 +309,7 @@ Optionally winsorize counts within `(mcc,channel)` at the 99th pct **for cell st
 Bin `ln_g_c` (e.g., 6–10 quantile bins). Compute **B) `cell_stats`**: `k_mean`, `k_var`, `phi_mom` (or `phi_mle`), `n_brands`, `weight`. Drop/merge sparse cells (e.g., `n_brands < 8`).
 
 **Step 3 — Build regression design.**
-For each cell, build **C) `regression_design`** with one-hot blocks and `ln_g_c_mean`. Target `y = log(phi_)`, weight = `weight`.
+For each cell, build **C) `regression_design`** with one-hot blocks and `ln_g_c_mean`. Target `y = log(phi_mom)` (or `log(phi_mle)` if you used truncated MLE), weight = `weight`.
 
 **Step 4 — Fit.**
 Weighted **ridge regression** (L2) on
