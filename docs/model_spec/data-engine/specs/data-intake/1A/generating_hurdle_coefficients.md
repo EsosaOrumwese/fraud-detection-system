@@ -258,6 +258,97 @@ SE,0.30
 
 ---
 
+## From hunted data to three training tables (deterministic)
+
+### 1) Logistic hurdle (learns `beta`) — **training frame preview**
+
+**File (suggested):** `hurdle.training_rows.parquet`
+**One row** = one *(brand, home_country_iso, mcc)* with the label `is_multi`.
+
+**Columns (minimal, engine‑aligned):**
+
+* `brand_id : string` — canonical ID (prefer Wikidata QID)
+* `home_country_iso : string` — ISO2, uppercase
+* `mcc : int32` — 4‑digit MCC in the engine dictionary
+* `channel : string ∈ {"CP","CNP"}` — engine’s internal tokens
+* `gdp_bucket : int8 ∈ {1,2,3,4,5}` — from your 2024 bucket map
+* `is_multi : int8 ∈ {0,1}` — **label** (1 if domestic outlets ≥ 2)
+* *(optional QC)* `asof_date`, `source_mask`
+
+**Tiny example:**
+
+```
+brand_id  home_country_iso  mcc   channel  gdp_bucket  is_multi
+Q12345    GB                5411  CP       5           1
+Q67890    IE                5812  CP       4           1
+Q99999    FR                5732  CP       3           0
+Q77777    DE                5942  CNP      5           0
+```
+
+**Why this is sufficient:**
+S1 builds the feature vector in this order:
+$$
+x = [1 \ \vert\ \text{one‑hot(MCC)} \ \vert\ \text{one‑hot(channel: CP,CNP)} \ \vert\ \text{one‑hot(bucket 1..5)}]
+$$
+and applies $\pi=\sigma(\beta^\top x)$. Your frame provides **exactly** those fields + the binary label. No other columns are needed. 
+
+---
+
+### 2) NB mean (learns `beta_mu`) — **training frame preview**
+
+**File (suggested):** `nb_mean.training_rows.parquet`
+**Filter:** take the **multi‑site subset** from the hurdle frame (`is_multi=1`), and expose counts.
+
+**Columns (minimal, engine‑aligned):**
+
+* `brand_id : string`
+* `home_country_iso : string`
+* `mcc : int32`
+* `channel : "CP"|"CNP"`
+* `k_domestic : int32` — **target** (domestic outlet count, **≥ 2**)
+
+**Tiny example:**
+
+```
+brand_id  home_country_iso  mcc   channel  k_domestic
+Q12345    GB                5411  CP       12
+Q67890    IE                5812  CP       3
+Q22222    DE                5942  CNP      2
+```
+
+**Why this is sufficient:**
+S2’s mean link uses
+$$
+x_\mu = [1 \ \vert\ \text{one‑hot(MCC)} \ \vert\ \text{one‑hot(channel)}]
+$$
+to learn $\mu=\exp(\beta_\mu^\top x_\mu)$. Buckets are **not** used here (by design). This table gives the count target `k_domestic` and exactly those covariates. 
+
+---
+
+### 10‑second validity check against your engine contracts
+
+* **Logistic (`beta`) length identity:** $1 + C_\text{mcc} + 2 + 5$. Your frame supplies MCC, channel (CP,CNP order), and 5 buckets. ✔︎ 
+* **NB mean (`beta_mu`) length identity:** $1 + C_\text{mcc} + 2$. Your frame supplies MCC and channel only. ✔︎ 
+* **Token vocabularies:** channel uses **internal** `["CP","CNP"]`; MCC values come from the engine dictionary and will be frozen into the YAML dicts; buckets are **1..5**. ✔︎ 
+* **No synthetic CP/CNP duplication:** you keep observed channel and add genuine CNP exemplars via your roster; that’s exactly what we locked earlier. ✔︎ 
+
+---
+
+### (Optional) design‑matrix view (if you prefer a “wide” fit table)
+
+If your trainer likes a pre‑expanded matrix, you can emit:
+
+**File:** `hurdle.design_matrix.parquet`
+**Columns:**
+`intercept=1`, `mcc__{code}∈{0,1}...`, `channel__CP`, `channel__CNP`, `bucket__1..bucket__5`, **label** `is_multi`.
+
+And similarly for **`nb_mean.design_matrix.parquet`** with
+`intercept`, `mcc__*`, `channel__CP`, `channel__CNP`, **target** `k_domestic`.
+
+This is just a different *presentation* of the two frames above; the information content is identical.
+
+---
+
 ## QC gates before exporting YAML  *(objective pass/fail)*
 
 * **Coverage floors (per country in region):** sum of `n_outlets` over top-20 brands ≥ **100** (catches empty/partial extracts). **Fail build** if not met.
