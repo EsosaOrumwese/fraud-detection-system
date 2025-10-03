@@ -257,6 +257,43 @@ iso2["Code"] = iso2["Code"].str.upper().str.strip()
 company2country = pd.read_csv(ART/"company_country_map.csv", dtype={"name":"string","country_code":"string"})
 company2country["country_code"] = company2country["country_code"].str.upper().str.strip()
 
+# ---- Optional but recommended: overrides & exceptions (graceful if absent) ----
+from pathlib import Path
+def _maybe_csv(p, **kw):
+    p = Path(p)
+    if not p.exists():
+        cols = list((kw.get("dtype") or {}).keys())
+        return pd.DataFrame(columns=cols)
+    return pd.read_csv(p, **kw)
+
+# Brand overrides by name
+brand_overrides = _maybe_csv(ART/"channel_brand_overrides.csv",
+                             dtype={"brand":"string","channel":"string"})
+brand_overrides["channel"] = brand_overrides["channel"].str.lower().str.strip()
+assert set(brand_overrides["channel"].dropna().unique()) <= {"card_present","card_not_present"}, \
+       "brand_overrides: invalid channel token"
+
+# Brand overrides by domain (preferred when available)
+brand_domain_overrides = _maybe_csv(ART/"channel_brand_domain_overrides.csv",
+                                    dtype={"domain":"string","channel":"string"})
+brand_domain_overrides["channel"] = brand_domain_overrides["channel"].str.lower().str.strip()
+assert set(brand_domain_overrides["channel"].dropna().unique()) <= {"card_present","card_not_present"}, \
+       "brand_domain_overrides: invalid channel token"
+
+# MCC exceptions (override base MCC→channel mapping for specific codes)
+mcc_exceptions = _maybe_csv(ART/"channel_mcc_exceptions.csv",
+                            dtype={"mcc":"Int64","channel":"string"})
+mcc_exceptions["mcc"] = mcc_exceptions["mcc"].astype("int32")
+mcc_exceptions["channel"] = mcc_exceptions["channel"].str.lower().str.strip()
+assert set(mcc_exceptions["channel"].dropna().unique()) <= {"card_present","card_not_present"}, \
+       "mcc_exceptions: invalid channel token"
+
+# Validate exceptions reference real MCCs
+mcc_master = pd.read_csv(ART/"mcc_codes.csv", dtype={"mcc":"Int64"})["mcc"].astype("int32")
+_unknown_exc = set(mcc_exceptions["mcc"]) - set(mcc_master)
+if _unknown_exc:
+    raise ValueError(f"MCC exceptions contain unknown codes: {sorted(list(_unknown_exc))[:10]}")
+
 # Normalize company domain/name helpers for joining
 def norm_domain(s: pd.Series) -> pd.Series:
     return (s.fillna("")
@@ -276,7 +313,9 @@ company2country["__name_norm"] = norm_name(company2country["name"])
 
 # --- 2) Stream the merchant seed and enrich in chunks ---
 final_chunks = []
-seed_iter = pd.read_csv(ART/"merchant_seed.csv",
+seed_rows = 0
+seed_iter = pd.read_csv(
+                        ART/"merchant_seed.csv",
                         dtype={"merchant_id":"int64","mcc":"int32","merchant_domain":"string","merchant_name":"string"},
                         chunksize=250_000)
 
@@ -286,6 +325,20 @@ for df in seed_iter:
 
     # b) Join channel by MCC
     df = df.merge(mcc_to_channel, on="mcc", how="left")
+    
+    # -- apply MCC exceptions (overrides for specific codes)
+    df = df.merge(mcc_exceptions, on="mcc", how="left", suffixes=("","_exc"))
+    df["channel"] = df["channel_exc"].combine_first(df["channel"])
+    df.drop(columns=[c for c in ["channel_exc"] if c in df.columns], inplace=True)
+
+    # -- apply brand-level overrides (domain first, then name)
+    # domain precedence
+    if "merchant_domain" in df.columns and not brand_domain_overrides.empty:
+        brand_domain_overrides["__dom_norm"] = norm_domain(brand_domain_overrides["domain"])
+        df = df.merge(brand_domain_overrides[["__dom_norm","channel"]].rename(columns={"channel":"channel_override_dom"}),
+                      left_on="__dom_norm", right_on="__dom_norm", how="left")
+        df["channel"] = df["channel_override_dom"].combine_first(df["channel"])
+        df.drop(columns=["channel_override_dom"], inplace=True, errors="ignore")
 
     # c) Build join keys for country
     if "merchant_domain" in df.columns:
@@ -297,6 +350,14 @@ for df in seed_iter:
         df["__name_norm"] = norm_name(df["merchant_name"])
     else:
         df["__name_norm"] = ""
+
+    # name overrides (only if still unmatched)
+    if "merchant_name" in df.columns and not brand_overrides.empty:
+        brand_overrides["__name_norm"] = norm_name(brand_overrides["brand"])
+        df = df.merge(brand_overrides[["__name_norm","channel"]].rename(columns={"channel":"channel_override"}),
+                      on="__name_norm", how="left")
+        df["channel"] = df["channel_override"].combine_first(df["channel"])
+        df.drop(columns=["channel_override","__name_norm"], inplace=True, errors="ignore")
 
     # d) Join country by domain first (preferred), then by name
     #    (two-step left join keeps precedence of domain)
@@ -311,23 +372,35 @@ for df in seed_iter:
         name_slice = name_slice.merge(company2country[["__name_norm","country_code"]],
                                       on="__name_norm", how="left")
         dom_join.loc[name_join_mask, "home_country_iso"] = name_slice["country_code"].values
-
+    seed_rows += len(df)
     final_chunks.append(dom_join[["merchant_id","mcc","channel","home_country_iso"]])
 
 final = pd.concat(final_chunks, ignore_index=True)
 
-# --- 3) Type & domain validation ---
-# channel must be one of {card_present, card_not_present}
-final["channel"] = final["channel"].fillna("card_present")  # default rule
-assert set(final["channel"].unique()) <= {"card_present","card_not_present"}
+# Enforce PK uniqueness and core dtypes
+if not final["merchant_id"].is_unique:
+    dupes = final.loc[final["merchant_id"].duplicated(), "merchant_id"].head(10).tolist()
+    raise ValueError(f"merchant_id not unique; examples: {dupes}")
+final["merchant_id"] = final["merchant_id"].astype("int64")
+final["mcc"] = final["mcc"].astype("int32")
 
-# ISO-2 uppercase and valid
-final["home_country_iso"] = final["home_country_iso"].fillna("").str.upper().str.strip()
-final.loc[~final["home_country_iso"].isin(iso2["Code"]), "home_country_iso"] = ""  # leave blank if not matched
+# channel must be one of {card_present, card_not_present} and fully populated
+if final["channel"].isna().any():
+    bad = final.loc[final["channel"].isna(), ["merchant_id","mcc"]].head(10)
+    raise ValueError(f"Channel missing for {final['channel'].isna().sum()} rows; examples:\n{bad}")
+final["channel"] = final["channel"].astype("string").str.lower().str.strip()
+assert set(final["channel"].unique()) <= {"card_present","card_not_present"}, "channel contains invalid tokens"
 
-# If you require 100% coverage, fail here; otherwise allow blanks for manual fill or synthetic assignment
-coverage = (final["home_country_iso"]!="").mean()
-print(f"home_country_iso coverage: {coverage:.2%}")
+# ISO-2 uppercase and valid (hard-fail: no blanks, no invalids)
+final["home_country_iso"] = final["home_country_iso"].astype("string").str.upper().str.strip()
+_iso_bad = final["home_country_iso"].isna() | ~final["home_country_iso"].isin(iso2["Code"])
+if _iso_bad.any():
+    bad = final.loc[_iso_bad, ["merchant_id","home_country_iso"]].head(10)
+    raise ValueError(f"Invalid/missing home_country_iso for {_iso_bad.sum()} rows; first 10:\n{bad}")
+
+# Row-count invariant (no drops/dupes across the pipeline)
+if final.shape[0] != seed_rows:
+    raise ValueError(f"Row count changed (seed={seed_rows}, final={final.shape[0]})")
 
 # --- 4) Deterministic ordering & output ---
 final = final.sort_values(["merchant_id"], kind="mergesort").reset_index(drop=True)
