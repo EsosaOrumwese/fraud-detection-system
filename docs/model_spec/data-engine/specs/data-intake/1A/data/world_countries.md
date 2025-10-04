@@ -440,6 +440,7 @@ def geojson_to_parquet_with_ogr(in_geojson, out_parquet):
     cmd = [
         "ogr2ogr", "-f", "Parquet", out_parquet, in_geojson,
         "-nln", "world_countries",
+        "-t_srs", "EPSG:4326",
         "-lco", "COMPRESSION=ZSTD",
         "-lco", "GEOMETRY_NAME=geom",
         "-nlt", "MULTIPOLYGON"
@@ -450,11 +451,15 @@ def geojson_to_parquet_with_geopandas(in_geojson, out_parquet):
     import geopandas as gpd
     gdf = gpd.read_file(in_geojson)
     # enforce column order and names
-    cols = [c for c in gdf.columns if c not in ("country_iso","name","geom")]
-    if "geom" in gdf.columns:
-        gdf = gdf.rename(columns={"geom":"geometry"})
+    # if source has 'geom', normalize to active 'geometry' first
+    if "geom" in gdf.columns and "geometry" not in gdf.columns:
+        gdf = gdf.rename(columns={"geom": "geometry"})
     gdf = gdf[["country_iso","name","geometry"]]
     gdf = gdf.set_crs(4326, allow_override=True)
+    # standardize geometry column name to 'geom' (schema-aligned)
+    gdf = gdf.rename_geometry("geom")
+    # deterministic ordering
+    gdf = gdf.sort_values("country_iso", kind="mergesort").reset_index(drop=True)
     gdf.to_parquet(out_parquet, compression="zstd", index=False)
 
 def validate_parquet_minimal(out_parquet, iso_canon_txt, strict_coverage):
@@ -462,7 +467,12 @@ def validate_parquet_minimal(out_parquet, iso_canon_txt, strict_coverage):
     try:
         import geopandas as gpd
         gdf = gpd.read_parquet(out_parquet)
-        assert list(gdf.columns)[:3] == ["country_iso","name","geometry"], "columns mismatch"
+        # expect schema columns with geometry named 'geom'
+        must_have = ["country_iso","name","geom"]
+        assert all(c in gdf.columns for c in must_have), f"columns mismatch: {gdf.columns}"
+        # ensure 'geom' is the active geometry
+        if gdf.geometry.name != "geom":
+            gdf = gdf.set_geometry("geom")
         # PK uniqueness
         assert gdf["country_iso"].is_unique, "country_iso not unique"
         # FK to canonical
@@ -474,6 +484,12 @@ def validate_parquet_minimal(out_parquet, iso_canon_txt, strict_coverage):
         assert tset.issubset({"Polygon","MultiPolygon"}), f"bad geometry types: {tset}"
         # CRS
         assert (gdf.crs and int(gdf.crs.to_epsg())==4326), f"CRS not EPSG:4326: {gdf.crs}"
+        # strict coverage parity (optional)
+        if strict_coverage:
+            produced = set(gdf["country_iso"].str.upper())
+            missing  = sorted(canon - produced)
+            extras   = sorted(produced - canon)
+            assert not missing and not extras, f"coverage mismatch: missing={missing[:10]} extras={extras[:10]}"        
     except ImportError:
         # Fall back: shallow checks via parquet metadata not implemented here
         pass
@@ -514,6 +530,19 @@ def main():
             os.replace(final_tmp, args.out_parquet)
 
     # Manifest
+    # coverage stats (best-effort)
+    produced_iso = None; sealed_iso = None; missing = None; extras = None; feature_count = None
+    try:
+        import geopandas as gpd
+        gdf_pub = gpd.read_parquet(args.out_parquet)
+        feature_count = int(gdf_pub.shape[0])
+        produced_iso = sorted(gdf_pub["country_iso"].str.upper().unique().tolist())
+        sealed_iso   = sorted(ln.strip().upper() for ln in open(args.iso_canon, encoding="utf-8") if ln.strip())
+        missing = sorted(set(sealed_iso) - set(produced_iso))
+        extras  = sorted(set(produced_iso) - set(sealed_iso))
+    except Exception:
+        pass
+
     manifest = {
         "in_geojson": args.in_geojson,
         "in_geojson_sha256": sha256_file(args.in_geojson),
@@ -523,7 +552,12 @@ def main():
         "iso_canon": args.iso_canon,
         "iso_canon_sha256": sha256_file(args.iso_canon),
         "strict_coverage": args.strict_coverage == "true",
-        "tool": ("ogr2ogr" if have_ogr2ogr() else "geopandas_or_geojson_fallback")
+        "tool": ("ogr2ogr" if have_ogr2ogr() else "geopandas_or_geojson_fallback"),
+        "feature_count": feature_count,
+        "sealed_iso_size": (len(sealed_iso) if sealed_iso else None),
+        "produced_iso_count": (len(produced_iso) if produced_iso else None),
+        "coverage_missing": missing,
+        "coverage_extras": extras
     }
     os.makedirs(os.path.dirname(args.manifest), exist_ok=True)
     with open(args.manifest, "w", encoding="utf-8") as w:
