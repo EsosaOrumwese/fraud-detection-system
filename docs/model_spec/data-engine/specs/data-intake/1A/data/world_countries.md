@@ -309,6 +309,38 @@ def keep_geom(geom):
     t = geom.get("type")
     return t in ("Polygon","MultiPolygon")
 
+def geom_within_wgs84(geom, lon_range=(-180.0, 180.0), lat_range=(-90.0, 90.0)):
+    """
+    Lightweight bounds check: ensure every vertex lies within WGS84 lon/lat bounds.
+    Traverses Polygon/MultiPolygon coordinate arrays without external deps.
+    """
+    if not isinstance(geom, dict): 
+        return False
+    t = geom.get("type")
+    coords = geom.get("coordinates")
+    if t not in ("Polygon", "MultiPolygon") or not isinstance(coords, list):
+        return False
+    def _ok_lon_lat(pt):
+        try:
+            lon, lat = float(pt[0]), float(pt[1])
+            return (lon_range[0] <= lon <= lon_range[1]) and (lat_range[0] <= lat <= lat_range[1])
+        except Exception:
+            return False
+    def _walk(poly):
+        # poly is a list of rings; ring is a list of [lon,lat]
+        for ring in poly:
+            for pt in ring:
+                if not _ok_lon_lat(pt):
+                    return False
+        return True
+    if t == "Polygon":
+        return _walk(coords)
+    # MultiPolygon: list of polygons
+    for poly in coords:
+        if not _walk(poly):
+            return False
+    return True
+
 def augment_from_second_layer(missing_iso, augment_path):
     # Optionally pull features from a second admin layer by exact name. If absent, return {}
     if not augment_path or not os.path.exists(augment_path):
@@ -340,6 +372,8 @@ def main():
                     help="attempt to add BQ/CC/CX from a second admin layer")
     ap.add_argument("--augment-geojson", default=None,
                     help="path to second admin layer (e.g., NE map-units) for BQ/CC/CX")
+    ap.add_argument("--fail-on-bounds", default="false", choices=["true","false"],
+                    help="if 'true', hard-fail when any coordinates fall outside WGS84 bounds")    
     args = ap.parse_args()
 
     target = read_iso_list(args.iso_list)
@@ -350,10 +384,17 @@ def main():
     missing = set(target)
     fixups_applied = []
 
+    bounds_oob = []  # collect ISO2 that failed lon/lat bounds
     for feat in gj.get("features", []):
         iso2, name = coerce_iso2(feat)
         geom = feat.get("geometry")
         if iso2 in target and keep_geom(geom):
+            # WGS84 bounds check; if out-of-bounds, record and skip (or fail if requested)
+            if not geom_within_wgs84(geom):
+                bounds_oob.append(iso2)
+                if args.fail_on_bounds == "true":
+                    raise ValueError(f"Out-of-bounds geometry for {iso2}")
+                continue
             refined.append({
                 "type":"Feature",
                 "properties":{"country_iso": iso2, "name": name},
@@ -384,12 +425,18 @@ def main():
         json.dump(out, w, ensure_ascii=False)
 
     # QA CSV
+    import csv  # local import for the QA writer
     with open(args.qa_csv, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["metric","value"])
         w.writerow(["source_features_total", len(gj.get("features",[]))])
         w.writerow(["target_iso_count", len(target)])
         w.writerow(["refined_feature_count", len(refined)])
+        w.writerow(["bounds_oob_count", len(bounds_oob)])
+        if bounds_oob:
+            w.writerow([]); w.writerow(["bounds_oob_examples"])
+            for x in bounds_oob[:10]:
+                w.writerow([x])
         if fixups_applied:
             w.writerow([]); w.writerow(["fixup_by_name","mapped_iso"])
             for nm, code in fixups_applied:
@@ -475,8 +522,11 @@ def validate_parquet_minimal(out_parquet, iso_canon_txt, strict_coverage):
             gdf = gdf.set_geometry("geom")
         # PK uniqueness
         assert gdf["country_iso"].is_unique, "country_iso not unique"
-        # FK to canonical
-        canon = set([ln.strip().upper() for ln in open(iso_canon_txt, encoding="utf-8") if ln.strip()])
+        # FK to canonical: accept either a plain ISO2 list (one per line) or any text with ISO2 tokens
+        with open(iso_canon_txt, encoding="utf-8") as _f:
+            _txt = _f.read().upper()
+        # extract all ISO-2 tokens appearing anywhere in the file
+        canon = set(re.findall(r"\b[A-Z]{2}\b", _txt))
         bad_fk = sorted(set(gdf["country_iso"].str.upper()) - canon)
         assert not bad_fk, f"FK violation: {bad_fk}"
         # geometry type
@@ -497,7 +547,7 @@ def validate_parquet_minimal(out_parquet, iso_canon_txt, strict_coverage):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--in-geojson", required=True)
-    ap.add_argument("--iso-canon", required=True, help="iso3166 canonical ISO2 list (one per line or any txt with ISO2 tokens)")
+    ap.add_argument("--iso-canon", required=True, help="ISO-3166 canonical ISO2 list (plain list or any text file containing ISO2 tokens)")
     ap.add_argument("--out-parquet", required=True)
     ap.add_argument("--manifest", required=True)
     ap.add_argument("--strict-coverage", default="false", choices=["true","false"])
