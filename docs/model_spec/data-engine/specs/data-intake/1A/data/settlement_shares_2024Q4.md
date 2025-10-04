@@ -140,15 +140,16 @@ for currency, iso2_list in currency_countries.items():
     s = sum(adj)
     shares_vec = [(p/s if s > 0 else 0.0) for p in adj]
     for (iso2, _val), share in zip(tmp, shares_vec):
-        rows.append({'currency': currency,
-                     'country_iso': iso2,
-                     'share': round(share, 6),
-                     'obs_count': 1})
+        rows.append({"currency": currency,
+                     "country_iso": iso2,
+                     "share": f"{share:.{dp}f}",   # fixed-dp base-10 string
+                     "obs_count": 1})
 
 df = pd.DataFrame(rows, columns=['currency','country_iso','share','obs_count'])
-# (optional) group-sum check at dp=6, mirroring the validation text:
-dp = 8  # match your default
-assert df.groupby('currency')['share'].sum().sub(1.0).abs().le(10**(-dp)).all()
+# Group-sum check tied to chosen dp (default 8):
+dp = 8
+assert (df.groupby("currency")["share"].astype(float)
+          .sum().sub(1.0).abs().le(10**(-dp))).all()
 df.to_csv('settlement_shares_2024Q4_gdp_weighted.csv', index=False)
 ```
 

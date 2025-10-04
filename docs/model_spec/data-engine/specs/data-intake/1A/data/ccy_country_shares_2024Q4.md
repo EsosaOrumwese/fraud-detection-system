@@ -53,7 +53,10 @@ For each currency (c):
    \text{share}_{c,i} = \frac{P_i}{S_c}.
    $$
    If (S_c = 0), set all shares to zero.
-4. **Round** each share to six decimal places to match engine precision.
+4. **Serialize shares as base-10 fixed-dp strings** with **dp=8**.  
+   Apply an **epsilon floor** to non-zero proxies **before** renormalizing, then serialize:  
+   `share := format_decimal(sh, dp=8)` (exactly 8 fractional digits).  
+   *Never* round binary floats to mixed precision.
 5. Set `obs_count = 1` for all rows (indicating one data source per row).
 
 ---
@@ -73,7 +76,7 @@ For each currency (c):
 4. Domain & FK:  
    - `currency` matches `^[A-Z]{3}$` (ISO-4217 alpha-3)  
    - `country_iso` matches `^[A-Z]{2}$` (ISO-3166 alpha-2) and **FK → sealed ISO** (`iso3166_canonical_2024.country_iso`)  
-5. Per-currency sum: **Σ share = 1.0** with tolerance **≤ 10^(−dp)** (tie this to the rounding precision you use for `share`, e.g., dp=8 ⇒ 1e-8).
+5. Per-currency sum: **Σ share = 1.0** with tolerance **≤ 10^(−dp)** (here **dp=8 ⇒ 1e-8**).
 6. Save the file as `ccy_country_shares_2024Q4.csv`.
 
 ---
@@ -107,7 +110,7 @@ def get_indicator(iso3, indicator):
 
 rows = []
 dp = 8          # fixed-dp for share strings; Σ tolerance uses 10^(−dp)
-epsilon = 1e-6  # floor for non-zero entries; avoids brittle hard-zeros
+epsilon = 1e-6  # ε-floor for non-zero entries; avoids brittle hard-zeros
 for currency, iso2_list in currency_countries.items():
     proxies = []
     temp = []
@@ -126,13 +129,13 @@ for currency, iso2_list in currency_countries.items():
     # epsilon floor for non-zeros then renormalize
     adj = [max(p, epsilon) if p>0 else 0.0 for p in proxies]
     s = sum(adj)
-    shares = [(p/s if s>0 else 0.0) for p in adj]
+    shares = [(p/s if s>0 else 0.0) for p in adj]  # ε-floor already applied
     for (iso2, _value), share in zip(temp, shares):
         rows.append({
-            'currency': currency,
-            'country_iso': iso2,
-            'share': f"{share:.{dp}f}",  # fixed-dp base-10 string
-            'obs_count': 1
+            "currency": currency,
+            "country_iso": iso2,
+            "share": f"{share:.{dp}f}",  # fixed-dp base-10 string (dp=8)
+            "obs_count": 1
         })
 
 df = pd.DataFrame(rows, columns=['currency','country_iso','share','obs_count'])

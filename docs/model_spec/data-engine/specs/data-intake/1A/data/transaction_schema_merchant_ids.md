@@ -61,14 +61,26 @@ This sequence—from identifying sources, selecting a license‑compatible datas
 
 ## Channel (`card_present`, `card_not_present`)
 
-### Hunting
-Here's the focused “hunt” report for the **channel** field.  I have deliberately **not** pre‑processed or built a dataset yet – the goal at this stage is simply to identify where reliable information lives and what could be used later for gathering and processing.
+### Normative mapping (base rules — binding for 1A)
+**Authority:** Until we introduce brand/domain overrides, **MCC → channel** is derived deterministically.
+
+**CNP (card_not_present) base set (binding):**
+`{5815, 5816, 5817, 5818, 5960, 5962, 5963, 5964, 5965, 5966, 5967, 5968, 5969}`
+
+**Optional extensions (enable via feature flag):**
+`{7800, 7801, 7802, 9406}` — only if these MCCs are present in the sealed MCC master.
+
+**Rule:**  
+```
+channel = "card_not_present" if mcc ∈ CNP_SET else "card_present"
+```
+This yields a total function over the sealed MCC universe and is reproducible across runs.
 
 #### What we need
 
 The `channel` column in `transaction_schema_merchant_ids` is a binary indicator of whether a merchant primarily operates in a **card-present** (CP) environment (physical, face‑to‑face) or **card-not-present** (CNP) environment (remote, online, telemarketing).  Our task is to discover sources that reveal, or at least strongly signal, which MCC categories (and therefore merchants) are card‑present vs card‑not‑present.
 
-#### Sources hunted
+#### Sources (for provenance; not required at runtime)
 
 1. **Official MCC lists and explanatory guides**
 
@@ -100,9 +112,27 @@ The `channel` column in `transaction_schema_merchant_ids` is a binary indicator 
 
 At this stage, we have identified the *information surface*—structured lists and industry commentary that clearly delineate CNP MCCs—and confirmed that there is no ready‑made, merchant‑level channel dataset.  Let me know when you'd like me to proceed to the next stage (gathering the information into a usable format).
 
-### Reproducible Process of Gathering
+### Build logic (reproducible)
+**Inputs:**  
+`mcc_master.csv` (sealed), optional `remote_mcc_list.csv` (if you prefer to keep the CNP set external), and optional overrides:
+`channel_mcc_exceptions.csv`, `channel_brand_overrides.csv`, `channel_brand_domain_overrides.csv`.
 
-Here is a transparent, step‑by‑step record of how the **channel** mapping for MCC codes was produced.  Following this workflow will let anyone reproduce the same `remote_mcc_list.csv` and `channel_classification.csv` (or extend them) without hidden corners.
+**Algorithm (L0-style pseudocode):**
+1. `M ← set(all_mcc from mcc_master)`  
+2. `CNP_SET ← {5815,5816,5817,5818,5960,5962,5963,5964,5965,5966,5967,5968,5969}`  
+   If `feature.cnpext=true`: `CNP_SET ← CNP_SET ∪ {7800,7801,7802,9406} ∩ M`.
+3. For each `m ∈ M`: `base_channel[m] := ("card_not_present" if m∈CNP_SET else "card_present")`.
+4. **Apply optional overrides in precedence order** (all keys must exist in sealed domains; otherwise hard-fail):
+   a) `channel_mcc_exceptions.csv`  → overrides `base_channel[m]` for specific MCCs.  
+   b) `channel_brand_domain_overrides.csv` → resolves by `domain` at *merchant ingest time*; takes precedence.  
+   c) `channel_brand_overrides.csv` → resolves by `brand` (less preferred than domain).
+5. Emit `channel_classification.csv {mcc:int, channel:str∈{"card_present","card_not_present"}}` (no extras).
+
+**Validator hooks (L3):**
+* Domain: every `mcc` in classification must exist in the sealed MCC master; no duplicates.  
+* Range: `channel ∈ {"card_present","card_not_present"}` exactly.  
+* Coverage: |classification| == |M| (total function).  
+* Spot assertions: `5815,5967 → "card_not_present"`; a non-digital MCC (e.g., 0742) → `"card_present"`.
 
 ---
 
