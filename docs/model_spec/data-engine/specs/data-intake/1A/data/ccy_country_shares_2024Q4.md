@@ -180,7 +180,73 @@ def main():
                     help="fail (default) or warn if produced currencies != sealed set")
     ap.add_argument("--overrides-csv", default="", help="Optional CSV {currency,country_iso,delta}")
     args = ap.parse_args()
-    # … (reuse the outline above) …
+    # Build the 'out' DataFrame exactly as in the outline above (same logic):
+    #   - legal_tender_map  : dict[currency -> list[ISO2]]
+    #   - gdp_2024, pop_2024: dict[ISO2 -> float]
+    #   - generate rows: {currency,country_iso,share=f"{sh:.{args.dp}f}",obs_count=1}
+    #
+    # For parity with the rest of the pipeline, we now seal coverage, write Parquet, and emit a manifest.
+
+    # 1) Load sealed currency universe (list of ISO-4217 codes, one per line)
+    with open(args.currency_universe, "r", encoding="utf-8") as f:
+        currency_universe = [ln.strip().upper() for ln in f if ln.strip()]
+
+    # 2) OUT: DataFrame constructed per the outline (paste/import your outline code above this point)
+    #    Expected schema: ["currency","country_iso","share","obs_count"]
+    #    The name 'out' must refer to that final DataFrame.
+    #    Example final line in the outline:
+    #    out = pd.DataFrame(rows, columns=["currency","country_iso","share","obs_count"])
+
+    # 3) Coverage parity: produced currencies must match the sealed set
+    produced_currencies = sorted(out["currency"].unique().tolist())
+    if set(produced_currencies) != set(currency_universe):
+        extra   = sorted(set(produced_currencies) - set(currency_universe))
+        missing = sorted(set(currency_universe) - set(produced_currencies))
+        msg = f"produced != sealed: extra={extra} missing={missing}"
+        if args.coverage_policy == "fail":
+            raise ValueError(msg)
+        else:
+            print("[WARN]", msg, file=sys.stderr)
+
+    # 4) Deterministic Parquet write with explicit dtypes
+    if pa is None or pq is None:
+        raise RuntimeError("pyarrow required to write Parquet (pip install pyarrow)")
+    out = out.sort_values(["currency","country_iso"], kind="mergesort").reset_index(drop=True)
+    out["currency"]    = out["currency"].astype("string")
+    out["country_iso"] = out["country_iso"].astype("string")
+    out["share"]       = out["share"].astype("string")   # fixed-dp strings (dp = args.dp)
+    out["obs_count"]   = out["obs_count"].astype("int32")
+    pq.write_table(pa.Table.from_pandas(out, preserve_index=False), args.out_parquet)
+
+    # 5) Manifest with overrides provenance (if used)
+    ov_path = os.path.abspath(args.overrides_csv) if args.overrides_csv else ""
+    ov_sha  = _sha256(ov_path) if args.overrides_csv else ""
+    man = {
+        "dataset_id": "ccy_country_shares_2024Q4",
+        "sealed_currency_universe": currency_universe,
+        "currency_universe_path": os.path.abspath(args.currency_universe),
+        "currency_universe_sha256": _sha256(args.currency_universe),
+        "sealed_iso_path": os.path.abspath(args.iso_path),
+        "output_parquet": os.path.abspath(args.out_parquet),
+        "output_parquet_sha256": _sha256(args.out_parquet),
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "runtime": {
+            "python": sys.version.split()[0],
+            "pandas": pd.__version__,
+            "pyarrow": pa.__version__
+        },
+        "dp": args.dp,
+        "epsilon_floor": args.epsilon_floor,
+        "coverage_policy": args.coverage_policy,
+        "overrides_csv_path": ov_path,
+        "overrides_csv_sha256": ov_sha,
+        "produced_currencies": produced_currencies,
+        "produced_currency_count": len(produced_currencies)
+    }
+    os.makedirs(os.path.dirname(args.out_manifest) or ".", exist_ok=True)
+    with open(args.out_manifest, "w", encoding="utf-8") as f:
+        json.dump(man, f, indent=2, ensure_ascii=False)
+    print("[DONE] shares →", args.out_parquet, "manifest →", args.out_manifest)
 ```
 
 ---
