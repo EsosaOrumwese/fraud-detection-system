@@ -337,6 +337,21 @@ def main():
         "--out-parquet",
         default="",
         help="Optional Parquet output path (writes alongside CSV if provided)",
+    )
+    parser.add_argument(
+        "--out-manifest",
+        default="",
+        help="Optional path to write a manifest JSON with provenance (source, SHA-256, git/runtime, coverage).",
+    )
+    parser.add_argument(
+        "--version",
+        default="",
+        help="Dataset version tag (e.g., v2024-12-31) for provenance.",
+    )
+    parser.add_argument(
+        "--source-url",
+        default="",
+        help="Optional source URL/identifier (e.g., World Bank WDI export URL) for manifest.",
     )    
     args = parser.parse_args()
     # Download raw data.
@@ -362,6 +377,18 @@ def main():
             iso_sealed = pd.read_csv(args.iso_path, dtype=str, keep_default_na=False)
         if "country_iso" not in iso_sealed.columns:
             raise ValueError(f"Sealed ISO file missing 'country_iso': {args.iso_path}")
+        # Optional: if tidy_df has country_alpha3 and ISO has alpha3, map alpha3 -> ISO2 to repair/normalise
+        if "alpha3" in iso_sealed.columns and "country_alpha3" in tidy_df.columns:
+            a3_map = (iso_sealed[["alpha3","country_iso"]]
+                      .dropna()
+                      .assign(alpha3=lambda d: d["alpha3"].str.upper()))
+            tidy_df["country_alpha3"] = tidy_df["country_alpha3"].astype(str).str.upper()
+            tidy_df = tidy_df.merge(a3_map.rename(columns={"country_iso":"_iso2_from_a3"}),
+                                    how="left", left_on="country_alpha3", right_on="alpha3")
+            # fill country_iso where empty or malformed using the map
+            mask_fill = (~tidy_df["_iso2_from_a3"].isna()) & (~tidy_df["country_alpha3"].eq(""))
+            tidy_df.loc[mask_fill, "country_iso"] = tidy_df.loc[mask_fill, "_iso2_from_a3"]
+            tidy_df.drop(columns=[c for c in ["alpha3","_iso2_from_a3"] if c in tidy_df.columns], inplace=True)        
         iso_set = set(iso_sealed["country_iso"].astype(str).str.upper())
 
         # Uppercase tidy ISO2, filter to sealed set, and check coverage.
@@ -387,6 +414,12 @@ def main():
         "duplicate (country_iso, observation_year) pairs"
     tidy_df = tidy_df.sort_values(["country_iso"], kind="mergesort").reset_index(drop=True)
 
+    # Final sanity: uniqueness & deterministic order
+    assert tidy_df["country_iso"].is_unique, "duplicate country_iso rows after sealing"
+    assert tidy_df[["country_iso","observation_year"]].drop_duplicates().shape[0] == len(tidy_df), \
+        "duplicate (country_iso, observation_year) pairs"
+    tidy_df = tidy_df.sort_values(["country_iso"], kind="mergesort").reset_index(drop=True)
+
     # Write the result.
     output_path = write_output(tidy_df, args.year, args.output_dir)
     print(f"Wrote {len(tidy_df)} rows to {output_path}")
@@ -405,6 +438,48 @@ def main():
         table = pa.Table.from_pandas(df_parq, preserve_index=False)
         pq.write_table(table, args.out_parquet)
         print(f"Wrote Parquet: {args.out_parquet}")
+
+    # ---- Manifest (provenance) ----
+    if args.out_manifest:
+        # Gather coverage snapshot if ISO was provided
+        try:
+            sealed_size = len(iso_set)      # from coverage block
+            kept_size   = len(tidy_df)
+            missing_cnt = len(missing)
+            extras_cnt  = len(extras)
+            coverage_pct = round(100.0 * kept_size / max(1, sealed_size), 2)
+        except NameError:
+            sealed_size = kept_size = missing_cnt = extras_cnt = None
+            coverage_pct = None
+        mf = {
+            "dataset_id": "world_bank_gdp_pc_2024",
+            "version": args.version,
+            "source_url": args.source_url,
+            "sealed_iso_path": os.path.abspath(args.iso_path) if args.iso_path else "",
+            "output_csv": os.path.abspath(output_path),
+            "output_csv_sha256": _sha256(output_path),
+            "output_parquet": os.path.abspath(args.out_parquet) if args.out_parquet else "",
+            "output_parquet_sha256": _sha256(args.out_parquet) if args.out_parquet else "",
+            "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+            "generator_script": "scripts/world_bank_gdp_pc_2024.py",
+            "generator_git_sha": _git_sha_short(),
+            "runtime": {
+                "python": sys.version.split()[0],
+                "pandas": pd.__version__,
+                "pyarrow": pa.__version__ if args.out_parquet else ""
+            },
+            "expect_series": "NY.GDP.PCAP.KD",
+            "expect_year": int(args.year),
+            "sealed_iso_size": sealed_size,
+            "gdp_kept_rows": kept_size,
+            "coverage_pct": coverage_pct,
+            "missing_count": missing_cnt,
+            "extras_count": extras_cnt
+        }
+        os.makedirs(os.path.dirname(args.out_manifest) or ".", exist_ok=True)
+        with open(args.out_manifest, "w", encoding="utf-8") as f:
+            json.dump(mf, f, indent=2, ensure_ascii=False)
+        print("Wrote manifest:", args.out_manifest)
 
 
 if __name__ == "__main__":
