@@ -164,6 +164,21 @@ from typing import Optional
 
 import pandas as pd
 import requests
+import json, os, hashlib, subprocess
+from datetime import datetime, timezone
+
+def _sha256(path: str) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for ch in iter(lambda: f.read(1 << 20), b""):
+            h.update(ch)
+    return h.hexdigest()
+
+def _git_sha_short() -> str:
+    try:
+        return subprocess.check_output(["git","rev-parse","--short","HEAD"], text=True).strip()
+    except Exception:
+        return ""
 
 
 def download_world_bank_gdp_zip(url: str = None) -> pd.DataFrame:
@@ -305,6 +320,24 @@ def main():
         default=".",
         help="Directory where the output CSV will be written",
     )
+    parser.add_argument(
+        "--iso-path",
+        default="",
+        help="Sealed ISO canonical file (CSV or Parquet) with column 'country_iso' "
+             "(filters GDP to sealed universe and enforces coverage).",
+    )
+    parser.add_argument(
+        "--coverage-policy",
+        default="fail",
+        choices=["fail", "none"],
+        help="Coverage gate: 'fail' (default) aborts if any sealed ISO country is missing; "
+             "'none' only warns.",
+    )
+    parser.add_argument(
+        "--out-parquet",
+        default="",
+        help="Optional Parquet output path (writes alongside CSV if provided)",
+    )    
     args = parser.parse_args()
     # Download raw data.
     print("Downloading World Bank GDP data…")
@@ -314,9 +347,64 @@ def main():
     # Transform into tidy format.
     print(f"Building dataset for year {args.year}…")
     tidy_df = build_gdp_dataset(gdp_df, iso_df, year=args.year)
+
+    # ---- Seal to ISO universe & coverage gate (177 or whatever is sealed) ----
+    if args.iso_path:
+        # Read sealed ISO (CSV or Parquet), expect a 'country_iso' column (ISO2).
+        if args.iso_path.lower().endswith(".parquet"):
+            try:
+                import pyarrow.parquet as pq
+                iso_tbl = pq.read_table(args.iso_path)
+                iso_sealed = iso_tbl.to_pandas()
+            except Exception as e:
+                raise RuntimeError("pyarrow required to read Parquet ISO file") from e
+        else:
+            iso_sealed = pd.read_csv(args.iso_path, dtype=str, keep_default_na=False)
+        if "country_iso" not in iso_sealed.columns:
+            raise ValueError(f"Sealed ISO file missing 'country_iso': {args.iso_path}")
+        iso_set = set(iso_sealed["country_iso"].astype(str).str.upper())
+
+        # Uppercase tidy ISO2, filter to sealed set, and check coverage.
+        tidy_df["country_iso"] = tidy_df["country_iso"].astype(str).str.upper()
+        tidy_df = tidy_df[tidy_df["country_iso"].isin(iso_set)].copy()
+        gdp_set = set(tidy_df["country_iso"])
+        missing = sorted(iso_set - gdp_set)
+        extras  = sorted(gdp_set - iso_set)
+        if missing or extras:
+            msg = (f"Coverage mismatch vs sealed ISO: sealed={len(iso_set)}, "
+                   f"GDP kept={len(gdp_set)}, missing={len(missing)}, extras={len(extras)}; "
+                   f"missing[:10]={missing[:10]} extras[:10]={extras[:10]}")
+            if args.coverage_policy == "fail":
+                raise ValueError(msg)
+            else:
+                print("[WARN]", msg)
+    else:
+        print("[WARN] --iso-path not provided; skipping sealed-universe coverage gate.")
+
+    # Final sanity: uniqueness & deterministic order
+    assert tidy_df["country_iso"].is_unique, "duplicate country_iso rows after sealing"
+    assert tidy_df[["country_iso","observation_year"]].drop_duplicates().shape[0] == len(tidy_df), \
+        "duplicate (country_iso, observation_year) pairs"
+    tidy_df = tidy_df.sort_values(["country_iso"], kind="mergesort").reset_index(drop=True)
+
     # Write the result.
     output_path = write_output(tidy_df, args.year, args.output_dir)
     print(f"Wrote {len(tidy_df)} rows to {output_path}")
+
+    # Optional Parquet publish (explicit dtypes)
+    if args.out_parquet:
+        try:
+            import pyarrow as pa, pyarrow.parquet as pq
+        except Exception as e:
+            raise RuntimeError("pyarrow required to write Parquet (pip install pyarrow)") from e
+        df_parq = tidy_df.copy()
+        df_parq["country_iso"] = df_parq["country_iso"].astype("string")
+        df_parq["source_series"] = df_parq["source_series"].astype("string")
+        df_parq["observation_year"] = df_parq["observation_year"].astype("int16")
+        df_parq["gdp_pc_usd_2015"] = df_parq["gdp_pc_usd_2015"].astype("float64")
+        table = pa.Table.from_pandas(df_parq, preserve_index=False)
+        pq.write_table(table, args.out_parquet)
+        print(f"Wrote Parquet: {args.out_parquet}")
 
 
 if __name__ == "__main__":
