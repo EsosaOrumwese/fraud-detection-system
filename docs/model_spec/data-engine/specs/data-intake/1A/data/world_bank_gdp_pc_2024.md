@@ -203,8 +203,10 @@ def download_world_bank_gdp_zip(url: str = None) -> pd.DataFrame:
     # Fetch the ZIP archive from the World Bank.
     response = requests.get(download_url, stream=True)
     response.raise_for_status()
-    # Load ZIP content into an in‑memory buffer.
-    with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
+    # Load ZIP content into an in-memory buffer and compute SHA-256.
+    _zip_bytes = response.content
+    _source_zip_sha256 = hashlib.sha256(_zip_bytes).hexdigest()
+    with zipfile.ZipFile(io.BytesIO(_zip_bytes)) as zf:
         # Locate the main CSV containing the GDP data.
         csv_name: Optional[str] = None
         for name in zf.namelist():
@@ -223,7 +225,8 @@ def download_world_bank_gdp_zip(url: str = None) -> pd.DataFrame:
         # Read the CSV, skipping the first four lines of metadata.
         with zf.open(csv_name) as csv_file:
             gdp_df = pd.read_csv(csv_file, skiprows=4)
-    return gdp_df
+    # Return both the dataframe and the source archive SHA for manifesting
+    return gdp_df, _source_zip_sha256
 
 
 def download_iso_mapping(url: str = None) -> pd.DataFrame:
@@ -348,6 +351,7 @@ def main():
         default="",
         help="Dataset version tag (e.g., v2024-12-31) for provenance.",
     )
+    ## --source-url "https://api.worldbank.org/v2/en/indicator/NY.GDP.PCAP.KD?downloadformat=csv"
     parser.add_argument(
         "--source-url",
         default="",
@@ -356,7 +360,7 @@ def main():
     args = parser.parse_args()
     # Download raw data.
     print("Downloading World Bank GDP data…")
-    gdp_df = download_world_bank_gdp_zip()
+    gdp_df, source_zip_sha256 = download_world_bank_gdp_zip()
     print("Downloading ISO mapping…")
     iso_df = download_iso_mapping()
     # Transform into tidy format.
@@ -393,6 +397,8 @@ def main():
 
         # Uppercase tidy ISO2, filter to sealed set, and check coverage.
         tidy_df["country_iso"] = tidy_df["country_iso"].astype(str).str.upper()
+        _pre_filter_set = set(tidy_df["country_iso"])
+        extras_pre_filter = sorted(_pre_filter_set - iso_set)
         tidy_df = tidy_df[tidy_df["country_iso"].isin(iso_set)].copy()
         gdp_set = set(tidy_df["country_iso"])
         missing = sorted(iso_set - gdp_set)
@@ -407,6 +413,10 @@ def main():
                 print("[WARN]", msg)
     else:
         print("[WARN] --iso-path not provided; skipping sealed-universe coverage gate.")
+
+    # Optional: strict ISO-2 regex guard
+    assert tidy_df["country_iso"].str.match(r"^[A-Z]{2}$").all(), \
+        "country_iso must be uppercase ISO-2"
 
     # Final sanity: uniqueness & deterministic order
     assert tidy_df["country_iso"].is_unique, "duplicate country_iso rows after sealing"
@@ -441,14 +451,20 @@ def main():
             kept_size   = len(tidy_df)
             missing_cnt = len(missing)
             extras_cnt  = len(extras)
+            extras_pre_cnt = len(extras_pre_filter)
+            extras_pre_examples = extras_pre_filter[:10]
             coverage_pct = round(100.0 * kept_size / max(1, sealed_size), 2)
         except NameError:
             sealed_size = kept_size = missing_cnt = extras_cnt = None
+            extras_pre_cnt = None
+            extras_pre_examples = None
             coverage_pct = None
         mf = {
             "dataset_id": "world_bank_gdp_pc_2024",
             "version": args.version,
             "source_url": args.source_url,
+            "source_archive_sha256": source_zip_sha256,
+            "source_archive_format": "zip",
             "sealed_iso_path": os.path.abspath(args.iso_path) if args.iso_path else "",
             "output_csv": os.path.abspath(output_path),
             "output_csv_sha256": _sha256(output_path),
@@ -468,7 +484,9 @@ def main():
             "gdp_kept_rows": kept_size,
             "coverage_pct": coverage_pct,
             "missing_count": missing_cnt,
-            "extras_count": extras_cnt
+            "extras_count": extras_cnt,
+            "extras_pre_filter_count": extras_pre_cnt,
+            "extras_pre_filter_examples": extras_pre_examples
         }
         os.makedirs(os.path.dirname(args.out_manifest) or ".", exist_ok=True)
         with open(args.out_manifest, "w", encoding="utf-8") as f:
