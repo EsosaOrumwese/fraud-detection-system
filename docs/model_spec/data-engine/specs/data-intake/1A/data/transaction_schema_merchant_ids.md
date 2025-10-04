@@ -241,13 +241,59 @@ You can do this in Pandas or DuckDB; here’s a clear, chunk-safe Pandas approac
 
 ```python
 # build_transaction_schema_merchant_ids.py
+import argparse
 import pandas as pd
+from datetime import datetime, timezone
+import subprocess
+import os
+import json
 from pathlib import Path
 import hashlib
 
 ART = Path("artifacts")  # folder where the inputs live
 OUT = Path("build")      # folder for build outputs
 OUT.mkdir(exist_ok=True, parents=True)
+
+# ---------------------------- CLI / entrypoint ----------------------------
+def _parse_args():
+    p = argparse.ArgumentParser(
+        description="Build transaction_schema_merchant_ids reference dataset"
+    )
+    p.add_argument(
+        "--artifacts-dir",
+        default="artifacts",
+        help="Directory containing small inputs (MCC, overrides, company map, etc.)",
+    )
+    p.add_argument(
+        "--out-dir",
+        default="out",
+        help="Directory to write the output CSV + manifest",
+    )
+    p.add_argument(
+        "--version",
+        default="",
+        help="Dataset version tag (e.g., v2025-01-15)",
+    )
+    p.add_argument(
+        "--manifest",
+        default="_manifest.json",
+        help="Manifest JSON filename (written next to the CSV unless absolute)",
+    )
+    return p.parse_args()
+
+# These will be rebound in main() from CLI flags
+ART = Path("artifacts")
+OUT = Path("out")
+
+def main():
+    global ART, OUT
+    args = _parse_args()
+    ART = Path(args.artifacts_dir)
+    OUT = Path(args.out_dir)
+    OUT.mkdir(parents=True, exist_ok=True)
+    # expose args to later blocks (for manifest version/name)
+    os.environ["MERCHANT_IDS_VERSION"] = args.version
+    os.environ["MERCHANT_IDS_MANIFEST_NAME"] = args.manifest
 
 # --- 1) Load lookups (small tables fully in memory) ---
 mcc_to_channel = pd.read_csv(ART/"channel_classification.csv", dtype={"mcc":"Int64","channel":"string"})
@@ -442,6 +488,11 @@ if final.shape[0] != seed_rows:
 # --- 4) Deterministic ordering & output ---
 final = final.sort_values(["merchant_id"], kind="mergesort").reset_index(drop=True)
 
+
+# enforce exact column set & order
+assert final.columns.tolist() == ["merchant_id","mcc","channel","home_country_iso"], \
+       f"Unexpected columns: {final.columns.tolist()}"
+
 # visibility: quick QA counters (do not affect output)
 override_coverage = (100.0 * override_changed / override_total) if override_total else 0.0
 iso_coverage = 100.0 * final["home_country_iso"].isin(iso2["Code"]).mean()
@@ -473,6 +524,42 @@ for q in inputs:
 outp = OUT/"transaction_schema_merchant_ids.csv"
 print("sha256 output:")
 print(f"  {outp.name}: {_sha256(outp)}")
+
+# ---------- Write manifest JSON ----------
+_mf_name = os.environ.get("MERCHANT_IDS_MANIFEST_NAME", "_manifest.json")
+manifest_path = Path(_mf_name)
+if not manifest_path.is_absolute():
+    manifest_path = outp.parent / manifest_path
+manifest_path.parent.mkdir(parents=True, exist_ok=True)
+
+manifest = {
+    "dataset_id": "transaction_schema_merchant_ids",
+    "version": os.environ.get("MERCHANT_IDS_VERSION", ""),
+    "inputs": {
+        "mcc_master": str(ART/"mcc_codes.csv"),
+        "channel_classification": str(ART/"channel_classification.csv"),
+        "iso_country_codes": str(ART/"iso_country_codes.csv"),
+        "company_country_map": str(ART/"company_country_map.csv"),
+        "merchant_seed": str(ART/"merchant_seed.csv")
+    },
+    "input_sha256": {
+        "mcc_master": _sha256(ART/"mcc_codes.csv") if (ART/"mcc_codes.csv").exists() else "",
+        "channel_classification": _sha256(ART/"channel_classification.csv") if (ART/"channel_classification.csv").exists() else "",
+        "iso_country_codes": _sha256(ART/"iso_country_codes.csv") if (ART/"iso_country_codes.csv").exists() else "",
+        "company_country_map": _sha256(ART/"company_country_map.csv") if (ART/"company_country_map.csv").exists() else "",
+        "merchant_seed": _sha256(ART/"merchant_seed.csv") if (ART/"merchant_seed.csv").exists() else ""
+    },
+    "output_csv": str(outp.resolve()),
+    "output_csv_sha256": _sha256(outp),
+    "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+    "generator_script": "scripts/build_transaction_schema_merchant_ids.py",
+    "generator_git_sha": subprocess.check_output(["git","rev-parse","--short","HEAD"], text=True).strip(),
+    "row_count": int(final.shape[0]),
+    "column_order": ["merchant_id","mcc","channel","home_country_iso"]
+}
+with open(manifest_path, "w", encoding="utf-8") as f:
+    json.dump(manifest, f, indent=2, ensure_ascii=False)
+print("Wrote manifest:", manifest_path)
 ```
 
 > **Determinism notes**

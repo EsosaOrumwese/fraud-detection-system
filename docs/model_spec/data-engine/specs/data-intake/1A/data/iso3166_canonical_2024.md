@@ -431,7 +431,7 @@ def main():
         "--expect-min-rows",
         type=int,
         default=248,
-        help="Guardrail: minimum expected rows (default 240)",
+        help="Guardrail: minimum expected rows (default 248)",
     )
     args = parser.parse_args()
 
@@ -452,10 +452,10 @@ def main():
     qa = run_validations(dst)
 
     print(f"[INFO] Writing {args.out_csv}")
-    # Ensure exact column order
-    dst = dst[
-        ["country_iso", "alpha3", "numeric_code", "name", "region", "subregion", "start_date", "end_date"]
-    ]
+    # Ensure exact column set & order
+    expected_cols = ["country_iso","alpha3","numeric_code","name","region","subregion","start_date","end_date"]
+    assert dst.columns.tolist() == expected_cols, f"Unexpected columns: {dst.columns.tolist()}"
+    dst = dst[expected_cols]
     dst.to_csv(args.out_csv, index=False)
 
     print(f"[INFO] Writing QA sidecar {args.out_qa}")
@@ -463,6 +463,9 @@ def main():
         json.dump(qa, f, indent=2, ensure_ascii=False)
 
     # ---- Manifest (provenance) ----
+    # ensure manifest directory exists if user passed a nested path
+    out_manifest_dir = os.path.dirname(args.out_manifest) or "."
+    os.makedirs(out_manifest_dir, exist_ok=True)
     out_csv_sha = sha256_file(args.out_csv)
     out_qa_sha = sha256_file(args.out_qa)
     manifest = {
@@ -481,12 +484,11 @@ def main():
         "column_order": ["country_iso","alpha3","numeric_code","name","region","subregion","start_date","end_date"],
         "allowed_regions": qa.get("allowed_regions", []),
     }
-   print(f"[INFO] Writing manifest {args.out_manifest}")
-   with open(args.out_manifest, "w", encoding="utf-8") as f:
-       json.dump(manifest, f, indent=2, ensure_ascii=False)
-        
-        
-    print("[DONE] iso3166_canonical_2024 ready.")
+    print(f"[INFO] Writing manifest {args.out_manifest}")
+    with open(args.out_manifest, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=2, ensure_ascii=False)
+
+    print("[DONE] iso616_canonical_2024 ready.")
 
 
 if __name__ == "__main__":
