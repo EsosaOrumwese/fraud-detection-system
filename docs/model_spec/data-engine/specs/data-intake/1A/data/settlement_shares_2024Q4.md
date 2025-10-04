@@ -35,7 +35,7 @@ In sum, a GDP‑weighted proxy is the **best available option** given the lack o
    * **AUD:** [Oanda](https://www.oanda.com/currency-converter/en/currencies/majors/aud/#:~:text=Established%20in%201966%2C%20the%20Australian,traded%20currency%20in%20the%20world) listing Australia and several Pacific islands/territories for the Australian dollar.
    * **SGD:** [WorldData](https://www.worlddata.info/currencies/sgd-singapore-dollar.php#:~:text=The%20Singapore%20Dollar) noting the Singapore dollar is used in Singapore; the [MAS](https://www.mas.gov.sg/currency/brunei-singapore-currency-interchangeability-agreement) explains the Brunei dollar and Singapore dollar are interchangeable.
    * **CNY:** The renminbi is legal tender only in China, though it circulates informally in neighbors.
-3. From these sources, compile a mapping of `ccy_alpha3 → [ISO‑2 country codes]`.
+3. From these sources, compile a mapping of `currency → [ISO‑2 country codes]`.
 
 ### 2. Prepare ISO code lookup
 
@@ -59,7 +59,7 @@ In sum, a GDP‑weighted proxy is the **best available option** given the lack o
 3. Round shares to **dp decimals** (default **8**) – this matches the CLI flag and the Σ=1 tolerance of **≤ 10^(−dp)**.
 4. Create rows with columns:
 
-   * `ccy_alpha3`
+   * `currency`
    * `country_iso` (alpha‑2)
    * `share`
    * `obs_count` (set to 1 because we used a single proxy source per row).
@@ -73,7 +73,7 @@ In sum, a GDP‑weighted proxy is the **best available option** given the lack o
 
 ### 6. Validate against the ingestion schema
 
-1. Ensure the CSV has exactly the four required columns: `ccy_alpha3`, `country_iso`, `share`, `obs_count`.
+1. Ensure the CSV has exactly the four required columns: `currency`, `country_iso`, `share`, `obs_count`.
 2. Check that `country_iso` codes are uppercase and present in your canonical ISO table.
 3. Ensure each currency’s shares sum to 1 with tolerance **≤ 10^(-dp)** (e.g., dp=8 ⇒ tolerance ≤ 1e-8).
 4. Confirm that the dataset covers every currency used in your merchant universe; add missing ones if needed.
@@ -140,14 +140,15 @@ for currency, iso2_list in currency_countries.items():
     s = sum(adj)
     shares_vec = [(p/s if s > 0 else 0.0) for p in adj]
     for (iso2, _val), share in zip(tmp, shares_vec):
-        rows.append({'ccy_alpha3': currency,
+        rows.append({'currency': currency,
                      'country_iso': iso2,
                      'share': round(share, 6),
                      'obs_count': 1})
 
-df = pd.DataFrame(rows, columns=['ccy_alpha3','country_iso','share','obs_count'])
+df = pd.DataFrame(rows, columns=['currency','country_iso','share','obs_count'])
 # (optional) group-sum check at dp=6, mirroring the validation text:
-assert df.groupby('ccy_alpha3')['share'].sum().sub(1.0).abs().le(10**-6).all()
+dp = 8  # match your default
+assert df.groupby('currency')['share'].sum().sub(1.0).abs().le(10**(-dp)).all()
 df.to_csv('settlement_shares_2024Q4_gdp_weighted.csv', index=False)
 ```
 
@@ -189,13 +190,13 @@ def main():
     ap = argparse.ArgumentParser(description="Build Settlement Shares 2024Q4")
     ap.add_argument("--iso-path", required=True, help="Sealed ISO table (CSV/Parquet) with country_iso")
     ap.add_argument("--currency-universe", required=True, help="Text/CSV with one ISO-4217 per line used in this run")
-    ap.add_argument("--out-parquet", required=True, help="Parquet path for {ccy_alpha3,country_iso,share,obs_count}")
+    ap.add_argument("--out-parquet", required=True, help="Parquet path for {currency,country_iso,share,obs_count}")
     ap.add_argument("--out-manifest", required=True, help="Manifest JSON path")
     ap.add_argument("--dp", type=int, default=8, help="Fixed decimal places for shares (default 8)")
     ap.add_argument("--epsilon-floor", type=float, default=1e-6, help="Floor for non-zero shares before renorm")
     ap.add_argument("--coverage-policy", choices=["fail","none"], default="fail",
                     help="fail (default) or warn if a required currency has no vector")
-    ap.add_argument("--overrides-csv", default="", help="Optional CSV {ccy_alpha3,country_iso,delta} to tweak weights")
+    ap.add_argument("--overrides-csv", default="", help="Optional CSV {currency,country_iso,delta} to tweak weights")
     args = ap.parse_args()
 
     # 1) Load inputs
@@ -236,14 +237,14 @@ def main():
         shares = [(p/s if s>0 else 0.0) for p in adj]
 
         # apply overrides (optional)
-        # If --overrides-csv provided, expect columns: ccy_alpha3,country_iso,delta
+        # If --overrides-csv provided, expect columns: currency,country_iso,delta
         if args.overrides_csv:
             ov = pd.read_csv(args.overrides_csv, dtype=str, keep_default_na=False)
-            ov["ccy_alpha3"] = ov["ccy_alpha3"].str.upper()
+            ov["currency"] = ov["currency"].str.upper()
             ov["country_iso"] = ov["country_iso"].str.upper()
             # build a delta map for this currency
             deltas = {row["country_iso"]: float(row["delta"])
-                      for _, row in ov[ov["ccy_alpha3"]==ccy].iterrows()}
+                      for _, row in ov[ov["currency"]==ccy].iterrows()}
             # add deltas, clip at >=0, then renormalize
             adj2 = []
             for iso2, p in zip(countries, shares):
@@ -253,22 +254,22 @@ def main():
             shares = [(p/s2 if s2>0 else 0.0) for p in adj2]
 
         for iso2, sh in zip(countries, shares):
-            rows.append({"ccy_alpha3": ccy,
+            rows.append({"currency": ccy,
                          "country_iso": iso2,
                          "share": f"{sh:.{args.dp}f}",
                          "obs_count": 1})
 
-    out = pd.DataFrame(rows, columns=["ccy_alpha3","country_iso","share","obs_count"])
+    out = pd.DataFrame(rows, columns=["currency","country_iso","share","obs_count"])
     # FK and group-sum checks
     assert out["country_iso"].str.match(r"^[A-Z]{2}$").all()
-    assert out["ccy_alpha3"].str.match(r"^[A-Z]{3}$").all()
-    for ccy, grp in out.groupby("ccy_alpha3"):
+    assert out["currency"].str.match(r"^[A-Z]{3}$").all()
+    for ccy, grp in out.groupby("currency"):
         s = grp["share"].astype(float).sum()
         assert abs(s - 1.0) <= 10**(-args.dp), f"group sum != 1 for {ccy}: {s}"
 
     # 4) Write Parquet with explicit types
     if pa is None or pq is None: raise RuntimeError("pyarrow required: pip install pyarrow")
-    out["ccy_alpha3"] = out["ccy_alpha3"].astype("string")
+    out["currency"] = out["currency"].astype("string")
     out["country_iso"] = out["country_iso"].astype("string")
     out["share"] = out["share"].astype("string")  # fixed-dp strings
     out["obs_count"] = out["obs_count"].astype("int32")
@@ -276,7 +277,7 @@ def main():
 
     # 5) Manifest
     os.makedirs(os.path.dirname(args.out_manifest) or ".", exist_ok=True)
-    produced_currencies = sorted(out["ccy_alpha3"].unique().tolist())
+    produced_currencies = sorted(out["currency"].unique().tolist())
     ov_path = os.path.abspath(args.overrides_csv) if args.overrides_csv else ""
     ov_sha  = _sha256(ov_path) if args.overrides_csv else ""
     man = {
