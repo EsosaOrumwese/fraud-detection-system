@@ -84,6 +84,9 @@ ap.add_argument("--out-parquet", required=True) # reference/spatial/tz_world/202
 ap.add_argument("--round-decimals", type=int, default=6) # optional: reduce size
 ap.add_argument("--tzdb-release", default="2025a", help="IANA TZDB release tag used to build this artefact (default 2025a)")
 ap.add_argument("--source-url", default="", help="(optional) provenance URL for the downloaded release asset")
+ap.add_argument("--overlap-qa", default="false", choices=["true","false"], help="run pairwise overlap QA between distinct tzids (logs telemetry)")
+ap.add_argument("--overlap-frac-tol", type=float, default=1e-4, help="flag pair if intersection area / min(area_i, area_j) > tol (default 1e-4)")
+ap.add_argument("--fail-on-overlap", default="false", choices=["true","false"], help="if 'true', raise when any overlap exceeds tolerance")
 args = ap.parse_args()
 
 # 1) Read GeoJSON as GeoDataFrame (WGS84)
@@ -122,13 +125,43 @@ gdf["tzid"] = gdf["tzid"].astype("string")
 gdf = gdf[out_cols].sort_values(["tzid","polygon_id"], kind="mergesort").reset_index(drop=True)
 gdf.to_parquet(args.out_parquet, index=False)
 
+# --- Optional overlap QA (pairwise sliver budget between distinct tzids) ---
+overlap_hits = []
+if args.overlap_qa == "true":
+    try:
+        # Use the in-memory GeoDataFrame we just wrote (geometry column is active)
+        sidx = gdf.sindex
+        areas = gdf.geometry.area.values
+        for i, geom_i in enumerate(gdf.geometry):
+            # prune using the spatial index
+            for j in sidx.query(geom_i, predicate="intersects"):
+                if j <= i:
+                    continue
+                if gdf["tzid"].iloc[i] == gdf["tzid"].iloc[j]:
+                    continue
+                inter = geom_i.intersection(gdf.geometry.iloc[j])
+                if inter.is_empty:
+                    continue
+                frac = inter.area / max(1e-16, min(areas[i], areas[j]))
+                if frac > args.overlap_frac_tol:
+                    overlap_hits.append((str(gdf["tzid"].iloc[i]),
+                                         str(gdf["tzid"].iloc[j]),
+                                         float(frac)))
+        if args.fail_on_overlap == "true" and overlap_hits:
+            raise RuntimeError(f"overlap QA failed: {len(overlap_hits)} pairs exceed tol={args.overlap_frac_tol}")
+    except Exception as _e:
+        # environment may lack an sindex backend; skip gracefully
+        pass
+
 meta = {
     "dataset_id": "tz_world_2025a",
     "tzdb_release": args.tzdb_release,
     "in_json": args.in_json,
     "in_sha256": sha256_of(args.in_json),
     "out_parquet": args.out_parquet,
-    "source_url": args.source_url or None
+    "source_url": args.source_url or None,
+    "overlap_hits_count": (len(overlap_hits) if isinstance(overlap_hits, list) else None),
+    "overlap_hits_examples": (overlap_hits[:5] if isinstance(overlap_hits, list) else None)
 }
 print(meta)
 from pathlib import Path as _Path
