@@ -35,7 +35,7 @@ In sum, a GDP‑weighted proxy is the **best available option** given the lack o
    * **AUD:** [Oanda](https://www.oanda.com/currency-converter/en/currencies/majors/aud/#:~:text=Established%20in%201966%2C%20the%20Australian,traded%20currency%20in%20the%20world) listing Australia and several Pacific islands/territories for the Australian dollar.
    * **SGD:** [WorldData](https://www.worlddata.info/currencies/sgd-singapore-dollar.php#:~:text=The%20Singapore%20Dollar) noting the Singapore dollar is used in Singapore; the [MAS](https://www.mas.gov.sg/currency/brunei-singapore-currency-interchangeability-agreement) explains the Brunei dollar and Singapore dollar are interchangeable.
    * **CNY:** The renminbi is legal tender only in China, though it circulates informally in neighbors.
-3. From these sources, compile a mapping of `currency → [ISO‑2 country codes]`.
+3. From these sources, compile a mapping of `ccy_alpha3 → [ISO‑2 country codes]`.
 
 ### 2. Prepare ISO code lookup
 
@@ -59,7 +59,7 @@ In sum, a GDP‑weighted proxy is the **best available option** given the lack o
 3. Round shares to **six decimals**.
 4. Create rows with columns:
 
-   * `currency`
+   * `ccy_alpha3`
    * `country_iso` (alpha‑2)
    * `share`
    * `obs_count` (set to 1 because we used a single proxy source per row).
@@ -73,9 +73,9 @@ In sum, a GDP‑weighted proxy is the **best available option** given the lack o
 
 ### 6. Validate against the ingestion schema
 
-1. Ensure the CSV has exactly the four required columns: `currency`, `country_iso`, `share`, `obs_count`.
+1. Ensure the CSV has exactly the four required columns: `ccy_alpha3`, `country_iso`, `share`, `obs_count`.
 2. Check that `country_iso` codes are uppercase and present in your canonical ISO table.
-3. Ensure each currency’s shares sum to 1 (within a tolerance).
+3. Ensure each currency’s shares sum to 1 with tolerance **≤ 10^(-dp)** (e.g., dp=8 ⇒ tolerance ≤ 1e-8).
 4. Confirm that the dataset covers every currency used in your merchant universe; add missing ones if needed.
 5. **Sealed currency universe (this run):** enforce that all merchant `settlement_currency` values lie in a governed `shares_currency_universe` list (sealed in S0) and that every currency in this list has a share vector here. If a merchant currency is not covered, apply the governed **fallback** (see §9) or fail fast (policy).
 6. **Epsilon floor (optional):** after normalization, apply a tiny floor (e.g., `1e-6`) to non-zero entries then **renormalize** within each currency to avoid unintended hard zeros; serialize `share` as fixed-dp strings (e.g., dp=8) to prevent float drift when S3 writes priors.
@@ -193,7 +193,7 @@ def main():
     ap.add_argument("--epsilon-floor", type=float, default=1e-6, help="Floor for non-zero shares before renorm")
     ap.add_argument("--coverage-policy", choices=["fail","none"], default="fail",
                     help="fail (default) or warn if a required currency has no vector")
-    ap.add_argument("--overrides-csv", default="", help="Optional CSV {currency,country_iso,delta} to tweak weights")
+    ap.add_argument("--overrides-csv", default="", help="Optional CSV {ccy_alpha3,country_iso,delta} to tweak weights")
     args = ap.parse_args()
 
     # 1) Load inputs
@@ -234,24 +234,38 @@ def main():
         shares = [(p/s if s>0 else 0.0) for p in adj]
 
         # apply overrides (optional)
-        # merge deltas by (ccy, iso2), cap at >=0, then renorm; omitted for brevity.
+        # If --overrides-csv provided, expect columns: ccy_alpha3,country_iso,delta
+        if args.overrides_csv:
+            ov = pd.read_csv(args.overrides_csv, dtype=str, keep_default_na=False)
+            ov["ccy_alpha3"] = ov["ccy_alpha3"].str.upper()
+            ov["country_iso"] = ov["country_iso"].str.upper()
+            # build a delta map for this currency
+            deltas = {row["country_iso"]: float(row["delta"])
+                      for _, row in ov[ov["ccy_alpha3"]==ccy].iterrows()}
+            # add deltas, clip at >=0, then renormalize
+            adj2 = []
+            for iso2, p in zip(countries, shares):
+                p2 = max(p + deltas.get(iso2, 0.0), 0.0)
+                adj2.append(p2)
+            s2 = sum(adj2)
+            shares = [(p/s2 if s2>0 else 0.0) for p in adj2]
 
         for iso2, sh in zip(countries, shares):
-            rows.append({"currency": ccy,
+            rows.append({"ccy_alpha3": ccy,
                          "country_iso": iso2,
                          "share": f"{sh:.{args.dp}f}",
                          "obs_count": 1})
 
-    out = pd.DataFrame(rows, columns=["currency","country_iso","share","obs_count"])
+    out = pd.DataFrame(rows, columns=["ccy_alpha3","country_iso","share","obs_count"])
     # FK and group-sum checks
     assert out["country_iso"].str.match(r"^[A-Z]{2}$").all()
-    for ccy, grp in out.groupby("currency"):
+    for ccy, grp in out.groupby("ccy_alpha3"):
         s = grp["share"].astype(float).sum()
         assert abs(s - 1.0) <= 10**(-args.dp), f"group sum != 1 for {ccy}: {s}"
 
     # 4) Write Parquet with explicit types
     if pa is None or pq is None: raise RuntimeError("pyarrow required: pip install pyarrow")
-    out["currency"] = out["currency"].astype("string")
+    out["ccy_alpha3"] = out["ccy_alpha3"].astype("string")
     out["country_iso"] = out["country_iso"].astype("string")
     out["share"] = out["share"].astype("string")  # fixed-dp strings
     out["obs_count"] = out["obs_count"].astype("int32")
@@ -259,6 +273,7 @@ def main():
 
     # 5) Manifest
     os.makedirs(os.path.dirname(args.out_manifest) or ".", exist_ok=True)
+    produced_currencies = sorted(out["ccy_alpha3"].unique().tolist())
     man = {
         "dataset_id": "settlement_shares_2024Q4",
         "sealed_currency_universe": currency_universe,
@@ -269,7 +284,9 @@ def main():
         "runtime": {"python": sys.version.split()[0], "pandas": pd.__version__,
                     "pyarrow": pa.__version__},
         "dp": args.dp, "epsilon_floor": args.epsilon_floor,
-        "coverage_policy": args.coverage_policy
+        "coverage_policy": args.coverage_policy,
+        "produced_currencies": produced_currencies,
+        "produced_currency_count": len(produced_currencies)
     }
     with open(args.out_manifest, "w", encoding="utf-8") as f:
         json.dump(man, f, indent=2, ensure_ascii=False)
