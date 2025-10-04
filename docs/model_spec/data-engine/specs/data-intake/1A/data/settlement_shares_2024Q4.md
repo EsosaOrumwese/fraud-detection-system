@@ -160,4 +160,156 @@ This list (`shares_currency_universe`) is sealed in S0 and referenced by S3.
 * If a merchant’s `settlement_currency ∉ shares_currency_universe` → either **fail** or apply a governed **fallback**: `uniform` over legal-tender set, or `GDP-weighted` (same method as above), or a small **home-biased uniform** (documented).
 * In S3, left-join priors to candidates; when a currency is missing, apply the fallback **on the candidate set** and **renormalize**.
 * Record the chosen fallback + currency coverage in the shares manifest for provenance.
+
 ---
+
+### 10. CLI wrapper (drop-in)
+
+The outline above can be wrapped in a small CLI so this dataset behaves like ISO/GDP/IDs.
+
+```python
+#!/usr/bin/env python3
+import argparse, json, os, sys, hashlib
+from datetime import datetime, timezone
+import pandas as pd
+try:
+    import pyarrow as pa, pyarrow.parquet as pq
+except Exception:
+    pa = pq = None
+
+def _sha256(path: str) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for ch in iter(lambda: f.read(1<<20), b""): h.update(ch)
+    return h.hexdigest()
+
+def main():
+    ap = argparse.ArgumentParser(description="Build Settlement Shares 2024Q4")
+    ap.add_argument("--iso-path", required=True, help="Sealed ISO table (CSV/Parquet) with country_iso")
+    ap.add_argument("--currency-universe", required=True, help="Text/CSV with one ISO-4217 per line used in this run")
+    ap.add_argument("--out-parquet", required=True, help="Parquet path for {currency,country_iso,share,obs_count}")
+    ap.add_argument("--out-manifest", required=True, help="Manifest JSON path")
+    ap.add_argument("--dp", type=int, default=8, help="Fixed decimal places for shares (default 8)")
+    ap.add_argument("--epsilon-floor", type=float, default=1e-6, help="Floor for non-zero shares before renorm")
+    ap.add_argument("--coverage-policy", choices=["fail","none"], default="fail",
+                    help="fail (default) or warn if a required currency has no vector")
+    ap.add_argument("--overrides-csv", default="", help="Optional CSV {currency,country_iso,delta} to tweak weights")
+    args = ap.parse_args()
+
+    # 1) Load inputs
+    iso = (pd.read_parquet(args.iso_path) if args.iso_path.lower().endswith(".parquet")
+           else pd.read_csv(args.iso_path, dtype=str, keep_default_na=False))
+    iso_set = set(iso["country_iso"].astype(str).str.upper())
+    with open(args.currency_universe, "r", encoding="utf-8") as f:
+        currency_universe = [ln.strip().upper() for ln in f if ln.strip()]
+
+    # 2) Build legal-tender map and GDP/POP lookups (per your outline sections 3–5)
+    #    legal_tender: dict[str, list[str]], gdp_map: dict[ISO2->float], pop_map: dict[ISO2->float]
+    #    (Reuse your existing helper snippets; omitted here for brevity.)
+
+    # 3) Compute shares (GDP primary, POP fallback) with epsilon floor and renormalize
+    rows = []
+    for ccy in currency_universe:
+        countries = legal_tender.get(ccy, [])
+        if not countries:
+            msg = f"No legal-tender list for {ccy}"
+            if args.coverage_policy == "fail": raise ValueError(msg)
+            else: print("[WARN]", msg, file=sys.stderr); continue
+
+        # keep only sealed ISO countries
+        countries = [x.upper() for x in countries if x.upper() in iso_set]
+        proxies = []
+        for iso2 in countries:
+            v = gdp_map.get(iso2) or pop_map.get(iso2) or 0.0
+            proxies.append(max(v, 0.0))
+        total = sum(proxies)
+        if total == 0.0:
+            # uniform fallback
+            proxies = [1.0/len(countries) for _ in countries]
+            total = 1.0
+        # epsilon floor for nonzero entries, then renormalize
+        eps = args.epsilon_floor
+        adj = [max(p, eps) if p>0 else 0.0 for p in proxies]
+        s = sum(adj)
+        shares = [(p/s if s>0 else 0.0) for p in adj]
+
+        # apply overrides (optional)
+        # merge deltas by (ccy, iso2), cap at >=0, then renorm; omitted for brevity.
+
+        for iso2, sh in zip(countries, shares):
+            rows.append({"currency": ccy,
+                         "country_iso": iso2,
+                         "share": f"{sh:.{args.dp}f}",
+                         "obs_count": 1})
+
+    out = pd.DataFrame(rows, columns=["currency","country_iso","share","obs_count"])
+    # FK and group-sum checks
+    assert out["country_iso"].str.match(r"^[A-Z]{2}$").all()
+    for ccy, grp in out.groupby("currency"):
+        s = grp["share"].astype(float).sum()
+        assert abs(s - 1.0) <= 10**(-args.dp), f"group sum != 1 for {ccy}: {s}"
+
+    # 4) Write Parquet with explicit types
+    if pa is None or pq is None: raise RuntimeError("pyarrow required: pip install pyarrow")
+    out["currency"] = out["currency"].astype("string")
+    out["country_iso"] = out["country_iso"].astype("string")
+    out["share"] = out["share"].astype("string")  # fixed-dp strings
+    out["obs_count"] = out["obs_count"].astype("int32")
+    pq.write_table(pa.Table.from_pandas(out, preserve_index=False), args.out_parquet)
+
+    # 5) Manifest
+    os.makedirs(os.path.dirname(args.out_manifest) or ".", exist_ok=True)
+    man = {
+        "dataset_id": "settlement_shares_2024Q4",
+        "sealed_currency_universe": currency_universe,
+        "sealed_iso_path": os.path.abspath(args.iso_path),
+        "output_parquet": os.path.abspath(args.out_parquet),
+        "output_parquet_sha256": _sha256(args.out_parquet),
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "runtime": {"python": sys.version.split()[0], "pandas": pd.__version__,
+                    "pyarrow": pa.__version__},
+        "dp": args.dp, "epsilon_floor": args.epsilon_floor,
+        "coverage_policy": args.coverage_policy
+    }
+    with open(args.out_manifest, "w", encoding="utf-8") as f:
+        json.dump(man, f, indent=2, ensure_ascii=False)
+    print("[DONE] shares →", args.out_parquet, "manifest →", args.out_manifest)
+
+if __name__ == "__main__":
+    main()
+```
+
+---
+
+### 11. Bulk WDI download & caching (faster, reproducible)
+
+To avoid many per-country API calls, fetch **bulk CSV/ZIP** once per indicator and cache it with a SHA-256.
+
+*Indicators (2024):*  
+- GDP (current US$): `NY.GDP.MKTP.CD` (or GDP per capita if you prefer)  
+- Population: `SP.POP.TOTL`
+
+*Steps:*  
+1) Download bulk ZIP(s) for the indicator(s) and year into `cache/wdi/` and log their SHA-256.  
+2) Extract the country-level CSV, build a dict `{ISO2 → value}` for 2024, and reuse across runs until the ZIP changes.  
+3) Keep the ZIP SHA(s) in your **shares manifest** for full provenance.
+
+```python
+import io, zipfile, requests, hashlib, os, pandas as pd
+
+def fetch_wdi_zip(indicator: str, cache_dir="cache/wdi"):
+    os.makedirs(cache_dir, exist_ok=True)
+    url = f"https://api.worldbank.org/v2/en/indicator/{indicator}?downloadformat=csv"
+    r = requests.get(url, stream=True); r.raise_for_status()
+    zbytes = r.content; sha = hashlib.sha256(zbytes).hexdigest()
+    zip_path = os.path.join(cache_dir, f"{indicator}-{sha[:12]}.zip")
+    if not os.path.exists(zip_path):
+        with open(zip_path, "wb") as f: f.write(zbytes)
+    zf = zipfile.ZipFile(io.BytesIO(zbytes))
+    # find country data file (World Bank names it like: API_{indicator}_..._Data.csv)
+    name = [n for n in zf.namelist() if n.endswith("_Data.csv")][0]
+    df = pd.read_csv(zf.open(name), dtype=str, keep_default_na=False)
+    return df, sha
+```
+
+This lets your shares build be **fast and replayable** with exact input hashes in the manifest.
