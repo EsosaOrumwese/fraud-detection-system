@@ -82,6 +82,8 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--in-json",  required=True)   # tz_raw/combined-with-oceans.json
 ap.add_argument("--out-parquet", required=True) # reference/spatial/tz_world/2025a/tz_world.parquet
 ap.add_argument("--round-decimals", type=int, default=6) # optional: reduce size
+ap.add_argument("--tzdb-release", default="2025a", help="IANA TZDB release tag used to build this artefact (default 2025a)")
+ap.add_argument("--source-url", default="", help="(optional) provenance URL for the downloaded release asset")
 args = ap.parse_args()
 
 # 1) Read GeoJSON as GeoDataFrame (WGS84)
@@ -96,15 +98,16 @@ gdf = gdf[["tzid", "geometry"]]
 # 3) Explode MultiPolygons into individual polygons
 gdf = gdf.explode(index_parts=False, ignore_index=True)
 
-# 4) Optional: round coordinates to reduce file size
+# 4) Optional: round coordinates safely (via Shapely WKB rounding_precision)
+from shapely import wkb as _wkb
 if args.round_decimals is not None:
-    gdf["geometry"] = gdf["geometry"].apply(lambda geom:
-        type(geom)(
-            [[(round(x, args.round_decimals), round(y, args.round_decimals)) for (x,y) in ring.coords]
-             for ring in geom.geoms[0].interiors] # placeholder to ensure apply comp works
-        ) if geom.is_empty else geom
-    )
-    # NOTE: rounding is optional; you can skip if you prefer source precision.
+    def _round_geom(geom, nd=args.round_decimals):
+        if geom is None or geom.is_empty:
+            return geom
+        # WKB round-trip with rounding_precision preserves topology and types
+        return _wkb.loads(_wkb.dumps(geom, rounding_precision=nd))
+    gdf["geometry"] = gdf["geometry"].apply(_round_geom)
+# NOTE: rounding is optional; skip with --round-decimals omitted if you prefer source precision.
 
 # 5) Assign polygon_id per tzid (1..N)
 gdf["polygon_id"] = gdf.groupby("tzid").cumcount() + 1
@@ -115,14 +118,23 @@ gdf = gdf.rename_geometry("geom")    # geopandas >= 0.13
 
 # 7) Order columns and write GeoParquet (with GeoParquet metadata)
 out_cols = ["tzid", "polygon_id", "geom"]
-gdf = gdf[out_cols].sort_values(["tzid","polygon_id"]).reset_index(drop=True)
+gdf["tzid"] = gdf["tzid"].astype("string")
+gdf = gdf[out_cols].sort_values(["tzid","polygon_id"], kind="mergesort").reset_index(drop=True)
 gdf.to_parquet(args.out_parquet, index=False)
 
-print({
+meta = {
+    "dataset_id": "tz_world_2025a",
+    "tzdb_release": args.tzdb_release,
     "in_json": args.in_json,
     "in_sha256": sha256_of(args.in_json),
     "out_parquet": args.out_parquet,
-})
+    "source_url": args.source_url or None
+}
+print(meta)
+from pathlib import Path as _Path
+man_path = _Path(args.out_parquet).with_name("_manifest.json")
+with open(man_path, "w", encoding="utf-8") as _mf:
+    json.dump(meta, _mf, indent=2)
 ```
 
 Run it:
@@ -153,7 +165,9 @@ assert not g.duplicated(["tzid","polygon_id"]).any()
 # tzid domain looks like IANA TZIDs
 import re
 pat = re.compile(r"^[A-Za-z0-9_\+\-./]+$")
-assert g["tzid"].apply(lambda s: bool(pat.match(s))).all()
+assert g["tzid"].apply(lambda s: bool(pat.fullmatch(str(s)))).all()
+# deterministic order (nice for diffs)
+g = g.sort_values(["tzid","polygon_id"], kind="mergesort").reset_index(drop=True)
 ```
 
 That produces the **GeoParquet** exactly as your dictionary + schema require (format **parquet**, geometry column **`geom`**, CRS **EPSG:4326**, PK `["tzid","polygon_id"]`).  
