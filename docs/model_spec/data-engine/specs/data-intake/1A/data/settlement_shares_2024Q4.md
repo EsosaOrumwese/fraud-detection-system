@@ -54,9 +54,9 @@ In sum, a GDP‑weighted proxy is the **best available option** given the lack o
 
 ### 4. Compute per‑currency weights
 
-1. For each currency ( c ), sum the proxy values across its countries: ( S_c = \sum_{i} P_i ).
-2. Compute each country’s share: ( \text{share}_{c,i} = P_i / S_c ) (use zero if ( S_c ) is zero).
-3. Round shares to **six decimals**.
+1. For each currency $c$, sum the proxy values across its countries: $S_c = \sum_{i} P_i$.
+2. Compute each country’s share: $\text{share}_{c,i} = P_i / S_c$ (use zero if $S_c$ is zero).
+3. Round shares to **dp decimals** (default **8**) – this matches the CLI flag and the Σ=1 tolerance of **≤ 10^(−dp)**.
 4. Create rows with columns:
 
    * `ccy_alpha3`
@@ -261,6 +261,7 @@ def main():
     out = pd.DataFrame(rows, columns=["ccy_alpha3","country_iso","share","obs_count"])
     # FK and group-sum checks
     assert out["country_iso"].str.match(r"^[A-Z]{2}$").all()
+    assert out["ccy_alpha3"].str.match(r"^[A-Z]{3}$").all()
     for ccy, grp in out.groupby("ccy_alpha3"):
         s = grp["share"].astype(float).sum()
         assert abs(s - 1.0) <= 10**(-args.dp), f"group sum != 1 for {ccy}: {s}"
@@ -276,6 +277,8 @@ def main():
     # 5) Manifest
     os.makedirs(os.path.dirname(args.out_manifest) or ".", exist_ok=True)
     produced_currencies = sorted(out["ccy_alpha3"].unique().tolist())
+    ov_path = os.path.abspath(args.overrides_csv) if args.overrides_csv else ""
+    ov_sha  = _sha256(ov_path) if args.overrides_csv else ""
     man = {
         "dataset_id": "settlement_shares_2024Q4",
         "sealed_currency_universe": currency_universe,
@@ -289,6 +292,8 @@ def main():
                     "pyarrow": pa.__version__},
         "dp": args.dp, "epsilon_floor": args.epsilon_floor,
         "coverage_policy": args.coverage_policy,
+        "overrides_csv_path": ov_path,
+        "overrides_csv_sha256": ov_sha,
         "produced_currencies": produced_currencies,
         "produced_currency_count": len(produced_currencies)
     }
