@@ -165,6 +165,7 @@ from typing import Optional
 import pandas as pd
 import requests
 import json, os, hashlib, subprocess
+from pathlib import Path
 from datetime import datetime, timezone
 
 def _sha256(path: str) -> str:
@@ -188,8 +189,8 @@ def download_world_bank_gdp_zip(url: str = None) -> pd.DataFrame:
         url: Optional override for the World Bank CSV download URL.
 
     Returns:
-        DataFrame containing the wide GDP per‑capita data with ISO‑3
-        codes and year columns.
+        Tuple[pd.DataFrame, str] -> (wide GDP per-capita DataFrame with ISO-3 and year columns,
+                                     SHA-256 of the downloaded ZIP archive), used for provenance.
 
     Raises:
         HTTPError if the download fails or the ZIP lacks the expected
@@ -471,7 +472,7 @@ def main():
             "output_parquet": os.path.abspath(args.out_parquet) if args.out_parquet else "",
             "output_parquet_sha256": _sha256(args.out_parquet) if args.out_parquet else "",
             "generated_at_utc": datetime.now(timezone.utc).isoformat(),
-            "generator_script": "scripts/world_bank_gdp_pc_2024.py",
+            "generator_script": Path(__file__).as_posix() if '__file__' in globals() else "world_bank_gdp_pc_2024",
             "generator_git_sha": _git_sha_short(),
             "runtime": {
                 "python": sys.version.split()[0],
