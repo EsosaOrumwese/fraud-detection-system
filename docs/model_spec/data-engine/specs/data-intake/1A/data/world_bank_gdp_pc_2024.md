@@ -414,12 +414,6 @@ def main():
         "duplicate (country_iso, observation_year) pairs"
     tidy_df = tidy_df.sort_values(["country_iso"], kind="mergesort").reset_index(drop=True)
 
-    # Final sanity: uniqueness & deterministic order
-    assert tidy_df["country_iso"].is_unique, "duplicate country_iso rows after sealing"
-    assert tidy_df[["country_iso","observation_year"]].drop_duplicates().shape[0] == len(tidy_df), \
-        "duplicate (country_iso, observation_year) pairs"
-    tidy_df = tidy_df.sort_values(["country_iso"], kind="mergesort").reset_index(drop=True)
-
     # Write the result.
     output_path = write_output(tidy_df, args.year, args.output_dir)
     print(f"Wrote {len(tidy_df)} rows to {output_path}")
