@@ -1,0 +1,13 @@
+metric,value
+source_features_total,258
+target_iso_count,69
+refined_feature_count,66
+
+fixup_by_name,mapped_iso
+France,FR
+Norway,NO
+
+still_missing_iso
+BQ
+CC
+CX
