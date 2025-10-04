@@ -169,8 +169,12 @@ Gather script for iso3166_canonical_2024
 import argparse
 import io
 import json
+import os
 import re
 import sys
+import hashlib
+import subprocess
+from datetime import datetime, timezone
 from typing import List, Tuple
 
 import pandas as pd
@@ -198,6 +202,7 @@ ALLOWED_REGIONS = {"Africa", "Americas", "Asia", "Europe", "Oceania"}
 
 OUT_CSV = "iso3166_canonical_2024.csv"
 OUT_QA = "iso3166_canonical_2024.qa.json"
+OUT_MANIFEST = "_manifest.json"
 
 
 def fail(msg: str) -> None:
@@ -205,7 +210,7 @@ def fail(msg: str) -> None:
     sys.exit(1)
 
 
-def fetch_datahub_csv(url: str) -> pd.DataFrame:
+def fetch_datahub_csv(url: str) -> Tuple[pd.DataFrame, str]:
     try:
         r = requests.get(url, timeout=60)
         r.raise_for_status()
@@ -213,10 +218,12 @@ def fetch_datahub_csv(url: str) -> pd.DataFrame:
         fail(f"Failed to download source CSV from {url}: {e}")
     try:
         # Keep strings as strings; don’t auto-parse dates.
-        df = pd.read_csv(io.StringIO(r.text), dtype=str, keep_default_na=False)
+        source_bytes = r.content
+        source_sha256 = hashlib.sha256(source_bytes).hexdigest()
+        df = pd.read_csv(io.StringIO(source_bytes.decode("utf-8")), dtype=str, keep_default_na=False)
     except Exception as e:
         fail(f"Failed to parse CSV: {e}")
-    return df
+    return df, source_sha256
 
 
 def ensure_source_columns(df: pd.DataFrame, cols: List[str]) -> None:
@@ -399,6 +406,18 @@ def run_validations(df: pd.DataFrame) -> dict:
     qa["source"] = DATAHUB_RAW_URL
     return qa
 
+def sha256_file(path: str) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+def git_sha_short() -> str:
+    try:
+        return subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True).strip()
+    except Exception:
+        return ""
 
 def main():
     parser = argparse.ArgumentParser(
@@ -406,16 +425,18 @@ def main():
     )
     parser.add_argument("--out-csv", default=OUT_CSV, help="Output CSV path")
     parser.add_argument("--out-qa", default=OUT_QA, help="QA JSON sidecar path")
+    parser.add_argument("--out-manifest", default=OUT_MANIFEST, help="Manifest JSON path")
+    parser.add_argument("--version", default="", help="Dataset version tag (e.g., v2024-12-31)")    
     parser.add_argument(
         "--expect-min-rows",
         type=int,
-        default=240,
+        default=248,
         help="Guardrail: minimum expected rows (default 240)",
     )
     args = parser.parse_args()
 
     print(f"[INFO] Downloading source: {DATAHUB_RAW_URL}")
-    src = fetch_datahub_csv(DATAHUB_RAW_URL)
+    src, source_sha256 = fetch_datahub_csv(DATAHUB_RAW_URL)
 
     print("[INFO] Verifying required source columns exist")
     ensure_source_columns(src, REQUIRED_SOURCE_COLS)
@@ -441,6 +462,30 @@ def main():
     with open(args.out_qa, "w", encoding="utf-8") as f:
         json.dump(qa, f, indent=2, ensure_ascii=False)
 
+    # ---- Manifest (provenance) ----
+    out_csv_sha = sha256_file(args.out_csv)
+    out_qa_sha = sha256_file(args.out_qa)
+    manifest = {
+        "dataset_id": "iso3166_canonical_2024",
+        "version": args.version,
+        "source_url": DATAHUB_RAW_URL,
+        "source_sha256": source_sha256,
+        "output_csv": os.path.abspath(args.out_csv),
+        "output_csv_sha256": out_csv_sha,
+        "output_qa": os.path.abspath(args.out_qa),
+        "output_qa_sha256": out_qa_sha,
+        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "generator_script": "scripts/gather_iso3166_canonical_2024.py",
+        "generator_git_sha": git_sha_short(),
+        "row_count": int(qa["rows"]),
+        "column_order": ["country_iso","alpha3","numeric_code","name","region","subregion","start_date","end_date"],
+        "allowed_regions": qa.get("allowed_regions", []),
+    }
+   print(f"[INFO] Writing manifest {args.out_manifest}")
+   with open(args.out_manifest, "w", encoding="utf-8") as f:
+       json.dump(manifest, f, indent=2, ensure_ascii=False)
+        
+        
     print("[DONE] iso3166_canonical_2024 ready.")
 
 
