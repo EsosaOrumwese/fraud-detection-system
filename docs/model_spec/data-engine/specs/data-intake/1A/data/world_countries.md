@@ -341,6 +341,38 @@ def geom_within_wgs84(geom, lon_range=(-180.0, 180.0), lat_range=(-90.0, 90.0)):
             return False
     return True
 
+def rings_closed(geom, tol=1e-12):
+    """
+    Minimal ring-closure check for Polygon / MultiPolygon:
+    first point == last point for every ring (within tolerance).
+    """
+    if not isinstance(geom, dict):
+        return False
+    t = geom.get("type")
+    coords = geom.get("coordinates")
+    if t not in ("Polygon", "MultiPolygon") or not isinstance(coords, list):
+        return False
+    def _close(a, b):
+        try:
+            return abs(float(a[0]) - float(b[0])) <= tol and abs(float(a[1]) - float(b[1])) <= tol
+        except Exception:
+            return False
+    def _rings_ok(poly):
+        # poly is a list of rings; ring is a list of [lon,lat]
+        for ring in poly:
+            if not isinstance(ring, list) or len(ring) < 4:
+                return False
+            if not _close(ring[0], ring[-1]):
+                return False
+        return True
+    if t == "Polygon":
+        return _rings_ok(coords)
+    # MultiPolygon: list of polygons
+    for poly in coords:
+        if not _rings_ok(poly):
+            return False
+    return True
+
 def augment_from_second_layer(missing_iso, augment_path):
     # Optionally pull features from a second admin layer by exact name. If absent, return {}
     if not augment_path or not os.path.exists(augment_path):
@@ -373,7 +405,9 @@ def main():
     ap.add_argument("--augment-geojson", default=None,
                     help="path to second admin layer (e.g., NE map-units) for BQ/CC/CX")
     ap.add_argument("--fail-on-bounds", default="false", choices=["true","false"],
-                    help="if 'true', hard-fail when any coordinates fall outside WGS84 bounds")    
+                    help="if 'true', hard-fail when any coordinates fall outside WGS84 bounds")
+    ap.add_argument("--fail-on-rings", default="false", choices=["true","false"],
+                    help="if 'true', hard-fail when any polygon/multipolygon ring is not closed")
     args = ap.parse_args()
 
     target = read_iso_list(args.iso_list)
@@ -384,16 +418,28 @@ def main():
     missing = set(target)
     fixups_applied = []
 
-    bounds_oob = []  # collect ISO2 that failed lon/lat bounds
+    bounds_oob = []   # collect ISO2 that failed lon/lat bounds
+    rings_unclosed = []  # collect ISO2 whose rings are not closed
+    duplicates = []   # collect ISO2 seen more than once in the source
     for feat in gj.get("features", []):
         iso2, name = coerce_iso2(feat)
         geom = feat.get("geometry")
         if iso2 in target and keep_geom(geom):
+            # if a second feature arrives with the same ISO2, prefer the first and log the duplicate
+            if iso2 in seen:
+                duplicates.append(iso2)
+                continue
             # WGS84 bounds check; if out-of-bounds, record and skip (or fail if requested)
             if not geom_within_wgs84(geom):
                 bounds_oob.append(iso2)
                 if args.fail_on_bounds == "true":
                     raise ValueError(f"Out-of-bounds geometry for {iso2}")
+                continue
+            # ring-closure check; if any ring not closed, record and skip (or fail if requested)
+            if not rings_closed(geom):
+                rings_unclosed.append(iso2)
+                if args.fail_on_rings == "true":
+                    raise ValueError(f"Unclosed ring(s) in geometry for {iso2}")
                 continue
             refined.append({
                 "type":"Feature",
@@ -437,6 +483,16 @@ def main():
             w.writerow([]); w.writerow(["bounds_oob_examples"])
             for x in bounds_oob[:10]:
                 w.writerow([x])
+        w.writerow(["rings_unclosed_count", len(rings_unclosed)])
+        if rings_unclosed:
+            w.writerow([]); w.writerow(["rings_unclosed_examples"])
+            for x in sorted(set(rings_unclosed))[:10]:
+                w.writerow([x])
+        w.writerow(["duplicates_count", len(duplicates)])
+        if duplicates:
+            w.writerow([]); w.writerow(["duplicate_iso_examples"])
+            for x in sorted(set(duplicates))[:10]:
+                w.writerow([x])                
         if fixups_applied:
             w.writerow([]); w.writerow(["fixup_by_name","mapped_iso"])
             for nm, code in fixups_applied:
@@ -577,6 +633,12 @@ def main():
             final_tmp = args.out_parquet + ".tmp"
             if os.path.exists(final_tmp): os.remove(final_tmp)
             shutil.move(tmp_parquet, final_tmp)
+            # Best-effort fsync of the temp file before the atomic replace
+            try:
+                with open(final_tmp, "rb") as _fh:
+                    os.fsync(_fh.fileno())
+            except Exception:
+                pass
             os.replace(final_tmp, args.out_parquet)
 
     # Manifest
@@ -587,7 +649,10 @@ def main():
         gdf_pub = gpd.read_parquet(args.out_parquet)
         feature_count = int(gdf_pub.shape[0])
         produced_iso = sorted(gdf_pub["country_iso"].str.upper().unique().tolist())
-        sealed_iso   = sorted(ln.strip().upper() for ln in open(args.iso_canon, encoding="utf-8") if ln.strip())
+        # Accept a plain list or any text containing ISO2 tokens (mirror validator logic)
+        with open(args.iso_canon, encoding="utf-8") as _f:
+            _txt = _f.read().upper()
+        sealed_iso   = sorted(set(re.findall(r"\b[A-Z]{2}\b", _txt)))
         missing = sorted(set(sealed_iso) - set(produced_iso))
         extras  = sorted(set(produced_iso) - set(sealed_iso))
     except Exception:
