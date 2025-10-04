@@ -210,11 +210,8 @@ def main():
     # 3) Mosaic tiles in memory using rasterio
     print(f"Merging {len(tile_files)} tiles …")
     datasets = [rasterio.open(fp) for fp in tile_files]
-    mosaic, out_transform = merge(datasets)
-    # Cast to float32 and set nodata to −1.0
-    mosaic = mosaic.astype("float32")
-    # GHS‑POP uses 0 or −9999 for nodata; set values ≤0 to −1
-    mosaic[mosaic <= 0] = -1
+    # Merge tiles and stamp an explicit output nodata (do not clobber valid zeros)
+    mosaic, out_transform = merge(datasets, nodata=-1.0, dtype="float32")
 
     out_meta = datasets[0].meta.copy()
     out_meta.update({
