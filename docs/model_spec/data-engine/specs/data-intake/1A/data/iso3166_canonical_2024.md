@@ -167,6 +167,7 @@ Gather script for iso3166_canonical_2024
 """
 
 import argparse
+import sys
 import io
 import json
 import os
@@ -179,6 +180,12 @@ from typing import List, Tuple
 
 import pandas as pd
 import requests
+try:
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+except Exception as _e:
+    pa = None
+    pq = None
 
 
 # ----- Config -----
@@ -203,6 +210,7 @@ ALLOWED_REGIONS = {"Africa", "Americas", "Asia", "Europe", "Oceania"}
 OUT_CSV = "iso3166_canonical_2024.csv"
 OUT_QA = "iso3166_canonical_2024.qa.json"
 OUT_MANIFEST = "_manifest.json"
+OUT_PARQUET = "iso3166_canonical_2024.parquet"
 
 
 def fail(msg: str) -> None:
@@ -426,6 +434,7 @@ def main():
     parser.add_argument("--out-csv", default=OUT_CSV, help="Output CSV path")
     parser.add_argument("--out-qa", default=OUT_QA, help="QA JSON sidecar path")
     parser.add_argument("--out-manifest", default=OUT_MANIFEST, help="Manifest JSON path")
+    parser.add_argument("--out-parquet", default=OUT_PARQUET, help="Output Parquet path")
     parser.add_argument("--version", default="", help="Dataset version tag (e.g., v2024-12-31)")    
     parser.add_argument(
         "--expect-min-rows",
@@ -448,15 +457,41 @@ def main():
     if dst.shape[0] < args.expect_min_rows:
         fail(f"Too few rows after build: {dst.shape[0]} (< {args.expect_min_rows})")
 
+    # --- Cast dates to true nulls and datetime for Parquet ---
+    # Keep CSV as-is, but for Parquet we want proper date semantics (date32).
+    for _col in ("start_date", "end_date"):
+        # empty string -> NA -> datetime64[ns] (NaT where empty)
+        dst[_col] = pd.to_datetime(dst[_col].replace({"": pd.NA}), errors="coerce")
+
     print("[INFO] Running validations")
     qa = run_validations(dst)
 
+    # Ensure compact integer storage for numeric_code (int16)
+    dst["numeric_code"] = pd.to_numeric(dst["numeric_code"], errors="raise").astype("int16")
+   
     print(f"[INFO] Writing {args.out_csv}")
     # Ensure exact column set & order
     expected_cols = ["country_iso","alpha3","numeric_code","name","region","subregion","start_date","end_date"]
     assert dst.columns.tolist() == expected_cols, f"Unexpected columns: {dst.columns.tolist()}"
     dst = dst[expected_cols]
     dst.to_csv(args.out_csv, index=False)
+   
+    # --- Write Parquet (date32 for dates) ---
+    if pa is None or pq is None:
+        print("[WARN] pyarrow not available; skipping Parquet write.")
+        out_parquet_sha = ""
+    else:
+        # Create parent dir if needed
+        os.makedirs(os.path.dirname(args.out_parquet) or ".", exist_ok=True)
+        tbl = pa.Table.from_pandas(dst, preserve_index=False)
+        # cast date columns to date32 if present
+        for cname in ("start_date", "end_date"):
+            if cname in tbl.schema.names:
+                i = tbl.schema.get_field_index(cname)
+                if i != -1:
+                    tbl = tbl.set_column(i, cname, tbl.column(i).cast(pa.date32()))
+        pq.write_table(tbl, args.out_parquet)
+        out_parquet_sha = sha256_file(args.out_parquet)
 
     print(f"[INFO] Writing QA sidecar {args.out_qa}")
     with open(args.out_qa, "w", encoding="utf-8") as f:
@@ -475,11 +510,18 @@ def main():
         "source_sha256": source_sha256,
         "output_csv": os.path.abspath(args.out_csv),
         "output_csv_sha256": out_csv_sha,
+        "output_parquet": os.path.abspath(args.out_parquet),
+        "output_parquet_sha256": out_parquet_sha,       
         "output_qa": os.path.abspath(args.out_qa),
         "output_qa_sha256": out_qa_sha,
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "generator_script": "scripts/gather_iso3166_canonical_2024.py",
         "generator_git_sha": git_sha_short(),
+        "runtime": {
+            "python": sys.version.split()[0],
+            "pandas": pd.__version__,
+            "pyarrow": pa.__version__ if pa else ""
+        },
         "row_count": int(qa["rows"]),
         "column_order": ["country_iso","alpha3","numeric_code","name","region","subregion","start_date","end_date"],
         "allowed_regions": qa.get("allowed_regions", []),
@@ -488,7 +530,7 @@ def main():
     with open(args.out_manifest, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2, ensure_ascii=False)
 
-    print("[DONE] iso616_canonical_2024 ready.")
+    print("[DONE] iso3166_canonical_2024 ready.")
 
 
 if __name__ == "__main__":

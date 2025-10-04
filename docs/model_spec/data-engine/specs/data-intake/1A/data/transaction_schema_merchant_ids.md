@@ -243,6 +243,13 @@ You can do this in Pandas or DuckDB; here’s a clear, chunk-safe Pandas approac
 # build_transaction_schema_merchant_ids.py
 import argparse
 import pandas as pd
+import sys
+try:
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+except Exception:
+    pa = None
+    pq = None
 from datetime import datetime, timezone
 import subprocess
 import os
@@ -270,6 +277,11 @@ def _parse_args():
         help="Directory to write the output CSV + manifest",
     )
     p.add_argument(
+        "--out-parquet",
+        default="transaction_schema_merchant_ids.parquet",
+        help="Output Parquet filename (written in --out-dir unless absolute)",
+    )    
+    p.add_argument(
         "--version",
         default="",
         help="Dataset version tag (e.g., v2025-01-15)",
@@ -278,6 +290,11 @@ def _parse_args():
         "--manifest",
         default="_manifest.json",
         help="Manifest JSON filename (written next to the CSV unless absolute)",
+    )
+    p.add_argument(
+        "--iso-path",
+        default="",
+        help="Path to iso3166_canonical_2024 (CSV or Parquet) for final FK check",
     )
     return p.parse_args()
 
@@ -294,6 +311,8 @@ def main():
     # expose args to later blocks (for manifest version/name)
     os.environ["MERCHANT_IDS_VERSION"] = args.version
     os.environ["MERCHANT_IDS_MANIFEST_NAME"] = args.manifest
+    os.environ["MERCHANT_IDS_OUT_PARQUET"] = args.out_parquet
+    os.environ["MERCHANT_IDS_ISO_PATH"] = args.iso_path
 
 # --- 1) Load lookups (small tables fully in memory) ---
 mcc_to_channel = pd.read_csv(ART/"channel_classification.csv", dtype={"mcc":"Int64","channel":"string"})
@@ -493,6 +512,26 @@ final = final.sort_values(["merchant_id"], kind="mergesort").reset_index(drop=Tr
 assert final.columns.tolist() == ["merchant_id","mcc","channel","home_country_iso"], \
        f"Unexpected columns: {final.columns.tolist()}"
 
+# --- Final FK check against iso3166_canonical_2024 (authority) ---
+iso_path = os.environ.get("MERCHANT_IDS_ISO_PATH", "")
+if iso_path:
+    if iso_path.lower().endswith(".parquet"):
+        if pa is None or pq is None:
+            raise RuntimeError("pyarrow required to read Parquet ISO file")
+        import pyarrow.dataset as ds
+        iso_tab = pq.read_table(iso_path)
+        iso_df = iso_tab.to_pandas(types_mapper=pd.ArrowDtype)
+    else:
+        iso_df = pd.read_csv(iso_path, dtype=str, keep_default_na=False)
+    if "country_iso" not in iso_df.columns:
+        raise ValueError(f"ISO file missing 'country_iso' column: {iso_path}")
+    iso_set = set(iso_df["country_iso"].astype(str).str.upper())
+    bad_fk = final.loc[~final["home_country_iso"].astype(str).str.upper().isin(iso_set), ["merchant_id","home_country_iso"]]
+    if not bad_fk.empty:
+        raise ValueError(f"FK check failed: {len(bad_fk)} rows not in iso3166_canonical_2024; examples={bad_fk.head(10).to_dict(orient='records')}")
+else:
+    print("[WARN] --iso-path not provided; skipping final FK check.")
+
 # visibility: quick QA counters (do not affect output)
 override_coverage = (100.0 * override_changed / override_total) if override_total else 0.0
 iso_coverage = 100.0 * final["home_country_iso"].isin(iso2["Code"]).mean()
@@ -523,7 +562,27 @@ for q in inputs:
         print(f"  {q.name}: {_sha256(q)}")
 outp = OUT/"transaction_schema_merchant_ids.csv"
 print("sha256 output:")
-print(f"  {outp.name}: {_sha256(outp)}")
+print(f"  {outp.name}: {_sha256(outp) if outp.exists() else '(missing)'}")
+
+# --- Parquet publish ---
+parquet_path_env = os.environ.get("MERCHANT_IDS_OUT_PARQUET", "transaction_schema_merchant_ids.parquet")
+parquet_path = Path(parquet_path_env)
+if not parquet_path.is_absolute():
+    parquet_path = OUT / parquet_path
+if pa is None or pq is None:
+    print("[WARN] pyarrow not available; skipping Parquet write.")
+    parquet_sha = ""
+else:
+    # Explicit parquet dtypes
+    final["merchant_id"] = pd.to_numeric(final["merchant_id"], errors="raise").astype("int64")
+    final["mcc"] = pd.to_numeric(final["mcc"], errors="raise").astype("int32")
+    final["channel"] = final["channel"].astype("string")
+    final["home_country_iso"] = final["home_country_iso"].astype("string")
+    tbl = pa.Table.from_pandas(final, preserve_index=False)
+    pq.write_table(tbl, parquet_path)
+    parquet_sha = _sha256(parquet_path)
+print("sha256 parquet:")
+print(f"  {parquet_path.name}: {parquet_sha if parquet_sha else '(skipped)'}")
 
 # ---------- Write manifest JSON ----------
 _mf_name = os.environ.get("MERCHANT_IDS_MANIFEST_NAME", "_manifest.json")
@@ -551,9 +610,17 @@ manifest = {
     },
     "output_csv": str(outp.resolve()),
     "output_csv_sha256": _sha256(outp),
+    "output_parquet": str(parquet_path.resolve()),
+    "output_parquet_sha256": parquet_sha,
     "generated_at_utc": datetime.now(timezone.utc).isoformat(),
     "generator_script": "scripts/build_transaction_schema_merchant_ids.py",
     "generator_git_sha": subprocess.check_output(["git","rev-parse","--short","HEAD"], text=True).strip(),
+    "runtime": {
+        "python": sys.version.split()[0] if 'sys' in globals() else "",
+        "pandas": pd.__version__,
+        "pyarrow": pa.__version__ if pa else ""
+    },
+    "fk_checked_against": os.environ.get("MERCHANT_IDS_ISO_PATH", ""),
     "row_count": int(final.shape[0]),
     "column_order": ["merchant_id","mcc","channel","home_country_iso"]
 }
