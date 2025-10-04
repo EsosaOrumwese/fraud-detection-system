@@ -198,6 +198,7 @@ Determinism:
 
 from __future__ import annotations
 import argparse, csv, hashlib, os, sys
+import json
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_EVEN, getcontext
 from typing import List, Tuple
@@ -326,6 +327,17 @@ def main():
                     help="Destination path for official Parquet (schema mode). {year} is substituted.")
     ap.add_argument("--emit-research-csv", action="store_true", help="Also write research CSV to --out-dir (country_iso,bucket_id[,gdp]).")
     ap.add_argument("--echo-gdp", action="store_true", help="If writing research CSV, include gdp_pc_usd_2015.")
+    ap.add_argument(
+        "--iso-path",
+        default="",
+        help="Sealed ISO canonical file (CSV or Parquet) with column 'country_iso' (applies sealed-universe coverage gate)."
+    )
+    ap.add_argument(
+        "--coverage-policy",
+        default="fail",
+        choices=["fail","none"],
+        help="fail (default) aborts if sealed ISO coverage < 100%; none only warns."
+    )
 
     args = ap.parse_args()
 
@@ -343,6 +355,52 @@ def main():
     df["country_iso"] = df["country_iso"].str.upper()
     df = df[df["country_iso"].str.fullmatch(r"[A-Z]{2}")]
     df = df.sort_values(["country_iso","gdp_pc_usd_2015"], ascending=[True, False]).drop_duplicates("country_iso")
+
+    # --- semantic guards on GDP slice (series & year) ---
+    if "source_series" not in df.columns or "observation_year" not in df.columns:
+        raise ValueError("GDP CSV must contain: country_iso,gdp_pc_usd_2015,observation_year,source_series")
+    bad_series = df.loc[df["source_series"] != "NY.GDP.PCAP.KD", "source_series"].unique()
+    if bad_series.size:
+        raise ValueError(f"Unexpected source_series in GDP CSV: {bad_series[:5]}")
+    bad_year = df.loc[df["observation_year"].astype(str) != str(args.year), "observation_year"].unique()
+    if bad_year.size:
+        raise ValueError(f"Unexpected observation_year in GDP CSV: {bad_year[:5]} (expected {args.year})")
+
+    # --- sealed-universe coverage gate (parity with GDP job) ---
+    sealed_size = kept_size = None
+    missing = extras = None
+    if args.iso_path:
+        if args.iso_path.lower().endswith(".parquet"):
+            try:
+                import pyarrow.parquet as pq  # local import; optional
+                iso_tbl = pq.read_table(args.iso_path)
+                iso_df = iso_tbl.to_pandas()
+            except Exception as e:
+                raise RuntimeError("pyarrow required to read sealed ISO Parquet") from e
+        else:
+            iso_df = pd.read_csv(args.iso_path, dtype=str, keep_default_na=False)
+        if "country_iso" not in iso_df.columns:
+            raise ValueError(f"Sealed ISO file missing 'country_iso': {args.iso_path}")
+        iso_set = set(iso_df["country_iso"].astype(str).str.upper())
+        df["country_iso"] = df["country_iso"].astype(str).str.upper()
+        pre_set = set(df["country_iso"])
+        extras_pre = sorted(pre_set - iso_set)  # QA only
+        df = df[df["country_iso"].isin(iso_set)].copy()
+        sealed_size = len(iso_set)
+        kept_size   = len(df)
+        gdp_set     = set(df["country_iso"])
+        missing     = sorted(iso_set - gdp_set)
+        extras      = sorted(gdp_set - iso_set)
+        if missing or extras:
+            msg = (f"Coverage mismatch vs sealed ISO: sealed={sealed_size}, kept={kept_size}, "
+                   f"missing={len(missing)}, extras={len(extras)}; "
+                   f"missing[:10]={missing[:10]} extras_pre[:10]={extras_pre[:10]}")
+            if args.coverage_policy == "fail":
+                raise ValueError(msg)
+            else:
+                print("[warn]", msg)
+    else:
+        print("[warn] --iso-path not provided; skipping sealed-universe coverage gate.")
 
     vals = df["gdp_pc_usd_2015"].to_numpy(dtype=np.float64)
     if vals.size < 2:
@@ -362,6 +420,9 @@ def main():
     bucket_sorted = assign_buckets_by_index(x_sorted.size, jr)
     bucket_by_row = pd.Series(bucket_sorted, index=idx_sorted, dtype="int16")
     df["bucket_id"] = bucket_by_row.reindex(df.index).astype("int32")  # schema says int32
+    # QA: ensure all 5 buckets are populated (helps catch pathological inputs)
+    _counts = df["bucket_id"].value_counts().reindex([1,2,3,4,5], fill_value=0)
+    assert _counts.min() > 0, f"Empty bucket(s) detected: {_counts.to_dict()}"
 
     breaks_unrounded, class_mins = compute_breaks_from_classes(x_sorted, jr)
     breaks_rounded = [float(round_half_even(b, args.dp)) for b in breaks_unrounded]
@@ -408,6 +469,42 @@ def main():
         dest = args.ingestion_path.format(year=args.year)
         atomic_write_parquet(out.sort_values("country_iso").reset_index(drop=True), dest)
         print(f"[ok] Ingestion table written → {dest}")
+
+        # ---- Manifest (provenance) ----
+        parquet_sha = sha256_file(dest) if os.path.exists(dest) else ""
+        sidecar_sha = sha256_file(sidecar_path) if os.path.exists(sidecar_path) else ""
+        try:
+            coverage_pct = round(100.0 * kept_size / max(1, sealed_size), 2) if sealed_size else None
+        except Exception:
+            coverage_pct = None
+        manifest = {
+            "dataset_id": "gdp_bucket_map_2024",
+            "version": str(args.year),
+            "input_gdp_csv_path": os.path.abspath(args.gdp_csv),
+            "input_gdp_csv_sha256": sha256_file(args.gdp_csv),
+            "sealed_iso_path": os.path.abspath(args.iso_path) if args.iso_path else "",
+            "output_parquet": os.path.abspath(dest),
+            "output_parquet_sha256": parquet_sha,
+            "breaks_sidecar": os.path.abspath(sidecar_path),
+            "breaks_sidecar_sha256": sidecar_sha,
+            "generated_at_utc": pd.Timestamp.utcnow().isoformat(),
+            "runtime": { "python": sys.version.split()[0], "pandas": pd.__version__ },
+            "method": "jenks",
+            "k": int(k),
+            "breakpoints_unrounded": [float(b) for b in breaks_unrounded],
+            "breakpoints_rounded": [round_half_even(b, args.dp) for b in breaks_unrounded],
+            "breakpoints_dp": int(args.dp),
+            "tie_rule": "equals_internal_breakpoint_goes_to_upper_bucket",
+            "sealed_iso_size": sealed_size,
+            "bucketmap_rows": int(out.shape[0]),
+            "coverage_pct": coverage_pct,
+            "missing_count": len(missing) if missing is not None else None,
+            "extras_count": len(extras) if extras is not None else None
+        }
+        man_path = os.path.join(os.path.dirname(dest), "_manifest.json")
+        with open(man_path, "w", encoding="utf-8") as f:
+            json.dump(manifest, f, indent=2, ensure_ascii=False)
+        print(f"[ok] Manifest written → {man_path}")
 
     # ----- Emit research CSV (optional) -----
     if args.emit_research_csv:
