@@ -60,7 +60,7 @@ For each currency (c):
 
 ## 4. Build the CSV
 
-1. Create a table with columns `currency`, `country_iso`, `share`, `obs_count`.
+1. Create a table with columns **(exact)**: `currency`, `country_iso`, `share`, `obs_count`  — **PK**: (`currency`,`country_iso`).
 2. For each currency $c$ and country $i \in C_c$, add a row:
 
    ```
@@ -69,8 +69,12 @@ For each currency (c):
    USD           EC            0.005123    1
    …             …             …           …
    ```
-3. Ensure that the rows are unique on `(currency, country_iso)` and that the shares for each currency sum to 1 (within 1e‑6 tolerance).
-4. Save the file as `currency_country_shares_2024Q4.csv`.
+3. Ensure rows are unique on (`currency`,`country_iso`).  
+4. Domain & FK:  
+   - `currency` matches `^[A-Z]{3}$` (ISO-4217 alpha-3)  
+   - `country_iso` matches `^[A-Z]{2}$` (ISO-3166 alpha-2) and **FK → sealed ISO** (`iso3166_canonical_2024.country_iso`)  
+5. Per-currency sum: **Σ share = 1.0** with tolerance **≤ 10^(−dp)** (tie this to the rounding precision you use for `share`, e.g., dp=8 ⇒ 1e-8).
+6. Save the file as `ccy_country_shares_2024Q4.csv`.
 
 ---
 
@@ -102,6 +106,8 @@ def get_indicator(iso3, indicator):
     return None
 
 rows = []
+dp = 8          # fixed-dp for share strings; Σ tolerance uses 10^(−dp)
+epsilon = 1e-6  # floor for non-zero entries; avoids brittle hard-zeros
 for currency, iso2_list in currency_countries.items():
     proxies = []
     temp = []
@@ -113,20 +119,69 @@ for currency, iso2_list in currency_countries.items():
         proxies.append(gdp or 0)
         temp.append((iso2, gdp or 0))
     total = sum(proxies)
-    for iso2, value in temp:
-        share = (value / total) if total else 0.0
+    if total == 0.0 and proxies:
+        # governed fallback: uniform over the legal-tender set
+        proxies = [1.0/len(proxies) for _ in proxies]
+        total = 1.0
+    # epsilon floor for non-zeros then renormalize
+    adj = [max(p, epsilon) if p>0 else 0.0 for p in proxies]
+    s = sum(adj)
+    shares = [(p/s if s>0 else 0.0) for p in adj]
+    for (iso2, _value), share in zip(temp, shares):
         rows.append({
             'currency': currency,
             'country_iso': iso2,
-            'share': round(share, 6),
+            'share': f"{share:.{dp}f}",  # fixed-dp base-10 string
             'obs_count': 1
         })
 
-df = pd.DataFrame(rows)
-df.to_csv('currency_country_shares_2024Q4.csv', index=False)
+df = pd.DataFrame(rows, columns=['currency','country_iso','share','obs_count'])
+# Regex & FK checks
+assert df['currency'].str.match(r'^[A-Z]{3}$').all(), "bad ISO-4217 in currency"
+assert df['country_iso'].str.match(r'^[A-Z]{2}$').all(), "bad ISO-3166 in country_iso"
+assert set(df['country_iso']).issubset(set(iso_df['country_iso'].str.upper())), "FK→ISO failed"
+# Σ=1 per currency at dp tolerance
+assert (df.groupby('currency')['share'].astype(float).sum().sub(1.0).abs()
+        .le(10**(-dp))).all(), "Σ share != 1 within 10^(−dp)"
+# Deterministic order then write
+df = df.sort_values(['currency','country_iso'], kind='mergesort').reset_index(drop=True)
+df.to_csv('ccy_country_shares_2024Q4.csv', index=False)
 ```
 
 Replace the `currency_countries` lists with the legal‑tender country codes you compiled.
+
+### CLI wrapper (drop-in, parity with other gathers)
+
+```python
+#!/usr/bin/env python3
+import argparse, json, os, sys, hashlib
+from datetime import datetime, timezone
+import pandas as pd
+try:
+    import pyarrow as pa, pyarrow.parquet as pq
+except Exception:
+    pa = pq = None
+
+def _sha256(p):
+    h = hashlib.sha256()
+    with open(p, "rb") as f:
+        for ch in iter(lambda: f.read(1<<20), b""): h.update(ch)
+    return h.hexdigest()
+
+def main():
+    ap = argparse.ArgumentParser(description="Build CCY→Country Shares 2024Q4")
+    ap.add_argument("--iso-path", required=True, help="Sealed ISO table (CSV/Parquet) with country_iso")
+    ap.add_argument("--currency-universe", required=True, help="File with one ISO-4217 per line (sealed for this run)")
+    ap.add_argument("--out-parquet", required=True, help="Parquet path for {currency,country_iso,share,obs_count}")
+    ap.add_argument("--out-manifest", required=True, help="Manifest JSON path")
+    ap.add_argument("--dp", type=int, default=8, help="Fixed decimals for shares (default 8)")
+    ap.add_argument("--epsilon-floor", type=float, default=1e-6, help="Floor for non-zero shares then renorm")
+    ap.add_argument("--coverage-policy", choices=["fail","none"], default="fail",
+                    help="fail (default) or warn if produced currencies != sealed set")
+    ap.add_argument("--overrides-csv", default="", help="Optional CSV {currency,country_iso,delta}")
+    args = ap.parse_args()
+    # … (reuse the outline above) …
+```
 
 ---
 
