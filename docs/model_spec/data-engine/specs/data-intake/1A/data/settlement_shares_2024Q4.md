@@ -140,12 +140,14 @@ for currency, iso2_list in currency_countries.items():
     s = sum(adj)
     shares_vec = [(p/s if s > 0 else 0.0) for p in adj]
     for (iso2, _val), share in zip(tmp, shares_vec):
-        rows.append({'currency': currency,
+        rows.append({'ccy_alpha3': currency,
                      'country_iso': iso2,
                      'share': round(share, 6),
                      'obs_count': 1})
 
-df = pd.DataFrame(rows)
+df = pd.DataFrame(rows, columns=['ccy_alpha3','country_iso','share','obs_count'])
+# (optional) group-sum check at dp=6, mirroring the validation text:
+assert df.groupby('ccy_alpha3')['share'].sum().sub(1.0).abs().le(10**-6).all()
 df.to_csv('settlement_shares_2024Q4_gdp_weighted.csv', index=False)
 ```
 
@@ -187,7 +189,7 @@ def main():
     ap = argparse.ArgumentParser(description="Build Settlement Shares 2024Q4")
     ap.add_argument("--iso-path", required=True, help="Sealed ISO table (CSV/Parquet) with country_iso")
     ap.add_argument("--currency-universe", required=True, help="Text/CSV with one ISO-4217 per line used in this run")
-    ap.add_argument("--out-parquet", required=True, help="Parquet path for {currency,country_iso,share,obs_count}")
+    ap.add_argument("--out-parquet", required=True, help="Parquet path for {ccy_alpha3,country_iso,share,obs_count}")
     ap.add_argument("--out-manifest", required=True, help="Manifest JSON path")
     ap.add_argument("--dp", type=int, default=8, help="Fixed decimal places for shares (default 8)")
     ap.add_argument("--epsilon-floor", type=float, default=1e-6, help="Floor for non-zero shares before renorm")
@@ -277,6 +279,8 @@ def main():
     man = {
         "dataset_id": "settlement_shares_2024Q4",
         "sealed_currency_universe": currency_universe,
+        "currency_universe_path": os.path.abspath(args.currency_universe),
+        "currency_universe_sha256": _sha256(args.currency_universe),
         "sealed_iso_path": os.path.abspath(args.iso_path),
         "output_parquet": os.path.abspath(args.out_parquet),
         "output_parquet_sha256": _sha256(args.out_parquet),
