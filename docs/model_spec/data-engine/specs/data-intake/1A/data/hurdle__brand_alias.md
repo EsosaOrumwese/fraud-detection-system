@@ -400,6 +400,8 @@ def cmd_build(args):
         for line in open(j, "r", encoding="utf-8"):
             rows.append(json.loads(line))
     wd = pd.DataFrame(rows)  # qid,label,site,aliases[],mcc[]
+    if wd.empty:
+        sys.exit("[build] no Wikidata seed rows found. Run 'hunt-wd' (or relax --mcc-only).")
 
     # Canonical brands
     wd["website_domain"] = wd["site"].map(get_domain)
@@ -448,12 +450,16 @@ def cmd_build(args):
     osm = osm.merge(brands[["brand_id","wikidata_qid"]], left_on="brand_wikidata", right_on="wikidata_qid", how="left")
     osm_alias = osm[["brand_id","alias","alias_norm","alias_type","confidence","source","country_iso","mcc"]]
     # fill brand_id by exact alias_norm match when QID missing
-    known_alias = pd.DataFrame(alias_rows)[["brand_id","alias_norm"]]
-    if not known_alias.empty:
-        known_alias = known_alias.dropna().drop_duplicates()
-        osm_alias = osm_alias.merge(known_alias, on="alias_norm", how="left", suffixes=("","_by_alias"))
-        osm_alias["brand_id"] = osm_alias["brand_id"].fillna(osm_alias["brand_id_by_alias"])
-        osm_alias = osm_alias.drop(columns=["brand_id_by_alias"])
+    alias_df = pd.DataFrame(alias_rows)
+    if not alias_df.empty:
+        # guard against KeyError when alias_rows is empty
+        if not set(["brand_id","alias_norm"]).issubset(alias_df.columns):
+            alias_df = pd.DataFrame(columns=["brand_id","alias_norm"])
+        known_alias = alias_df[["brand_id","alias_norm"]].dropna().drop_duplicates()
+        if not known_alias.empty:
+            osm_alias = osm_alias.merge(known_alias, on="alias_norm", how="left", suffixes=("","_by_alias"))
+            osm_alias["brand_id"] = osm_alias["brand_id"].fillna(osm_alias["brand_id_by_alias"])
+            osm_alias = osm_alias.drop(columns=["brand_id_by_alias"])
     # optional fuzzy fallback (RapidFuzz) against brand_slug
     if HAS_FUZZ and getattr(args, "fuzzy_threshold", 0) > 0:
         from rapidfuzz import process
@@ -473,6 +479,11 @@ def cmd_build(args):
     aliases = pd.concat([pd.DataFrame(alias_rows), osm_alias], ignore_index=True)
     # drop empties/dupes
     aliases = aliases.dropna(subset=["alias"]).drop_duplicates()
+    # normalize ISO & drop blank normals
+    if "country_iso" in aliases.columns:
+        aliases["country_iso"] = aliases["country_iso"].astype("string").str.upper()
+    if "alias_norm" in aliases.columns:
+        aliases = aliases[aliases["alias_norm"].astype("string").str.len() > 0]
 
     # Write
     write_table_parquet_or_csv(brands, "t0_out/brands.parquet")
@@ -483,8 +494,8 @@ def cmd_build(args):
 def cmd_reconcile(args):
     """Apply overrides; report collisions before/after (alias_norm → >1 brand)."""
     ensure_dirs()
-    aliases = pd.read_parquet("t0_out/brand_aliases.parquet")
-    brands  = pd.read_parquet("t0_out/brands.parquet")
+    aliases = read_table("t0_out/brand_aliases.parquet")
+    brands  = read_table("t0_out/brands.parquet")
 
     # collisions
     col_before = (aliases.groupby("alias_norm")["brand_id"].nunique()
@@ -497,24 +508,41 @@ def cmd_reconcile(args):
         ovr = yaml.safe_load(open(ovr_path)) or []
         ovr_df = pd.DataFrame(ovr)
         if not ovr_df.empty:
-            aliases = aliases.merge(
-                ovr_df[["alias_norm","country_iso","force_brand_id"]],
-                on=["alias_norm","country_iso"], how="left"
-            )
-            aliases["brand_id"] = aliases["force_brand_id"].fillna(aliases["brand_id"])
-            aliases = aliases.drop(columns=["force_brand_id"])
+            # ensure columns exist
+            for c in ("alias_norm","country_iso","force_brand_id"):
+                if c not in ovr_df.columns: ovr_df[c] = pd.NA
+            # 1) global overrides: country_iso is null ⇒ apply to all countries for that alias
+            glob = (ovr_df[ovr_df["country_iso"].isna()]
+                        [["alias_norm","force_brand_id"]]
+                        .dropna(subset=["alias_norm","force_brand_id"])
+                        .drop_duplicates())
+            if not glob.empty:
+                aliases = aliases.merge(glob, on="alias_norm", how="left")
+                aliases["brand_id"] = aliases["force_brand_id"].fillna(aliases["brand_id"])
+                aliases = aliases.drop(columns=["force_brand_id"])
+            # 2) country-scoped overrides
+            loc = (ovr_df[ovr_df["country_iso"].notna()]
+                      [["alias_norm","country_iso","force_brand_id"]]
+                      .dropna(subset=["alias_norm","country_iso","force_brand_id"])
+                      .drop_duplicates())
+            if not loc.empty:
+                loc = loc.rename(columns={"force_brand_id":"force_brand_id_loc"})
+                aliases = aliases.merge(loc, on=["alias_norm","country_iso"], how="left")
+                aliases["brand_id"] = aliases["force_brand_id_loc"].fillna(aliases["brand_id"])
+                aliases = aliases.drop(columns=["force_brand_id_loc"])
     # collisions after
     col_after = (aliases.groupby("alias_norm")["brand_id"].nunique()
                         .reset_index(name="n").query("n>1").sort_values("n", ascending=False))
     col_after.to_csv("t0_out/qa_collisions_after.csv", index=False)
 
-    aliases.to_parquet("t0_out/brand_aliases.parquet", index=False)
+    write_table_parquet_or_csv(aliases, "t0_out/brand_aliases.parquet")
     print(f"[reconcile] collisions before: {len(col_before)}; after: {len(col_after)}")
 
 def cmd_qa(args):
     """Coverage proxy per ISO×MCC using OSM strings; report gaps under threshold."""
     ensure_dirs()
-    aliases = pd.read_parquet("t0_out/brand_aliases.parquet")
+    aliases = read_table("t0_out/brand_aliases.parquet")
+    brands  = read_table("t0_out/brands.parquet")
     osm     = pd.read_csv("work/osm/osm_brand_strings.csv")
 
     def norm(s):
@@ -537,8 +565,8 @@ def cmd_qa(args):
     cov = cov_alias.merge(cov_qid, on=["country_iso","mcc"], how="outer").fillna(0.0)
     cov["any_cov"] = cov[["alias_cov","qid_cov"]].max(axis=1)
     cov.to_csv("t0_out/qa_coverage_iso_mcc.csv", index=False)
-
-    gaps = cov[cov["coverage"] < args.cov_threshold].sort_values(["coverage"])
+    # gaps are based on the combined metric, not a non-existent 'coverage' column
+    gaps = cov[cov["any_cov"] < args.cov_threshold].sort_values(["any_cov"])
     gaps.to_csv("t0_out/qa_gaps.csv", index=False)
     print(f"[qa] wrote qa_coverage_iso_mcc.csv (rows={len(cov)})")
     print(f"[qa] gaps < {args.cov_threshold}: {len(gaps)}")
@@ -547,18 +575,25 @@ def cmd_publish(args):
     """Write manifest + gate hash flag for reproducible publication."""
     ensure_dirs()
     out = Path("t0_out")
-    need = ["brands.parquet","brand_aliases.parquet","qa_collisions_after.csv","qa_coverage_iso_mcc.csv"]
-    for f in need:
-        if not (out/f).exists():
-            sys.exit(f"[publish] missing {f}; run previous steps first.")
+    # accept parquet OR csv for the two tables (build may have fallen back to csv)
+    required = ["brands","brand_aliases","qa_collisions_after","qa_coverage_iso_mcc"]
+    files = {}
+    for base in required:
+        parq = out/f"{base}.parquet"
+        csv  = out/f"{base}.csv"
+        if parq.exists(): files[parq.name] = parq
+        elif csv.exists(): files[csv.name] = csv
+        else: sys.exit(f"[publish] missing {base} (parquet/csv); run previous steps first.")
 
     manifest = {
         "version": args.version,
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "outputs": { f: sha256(out/f) for f in need },
+        "outputs": { name: sha256(path) for name, path in files.items() },
         "inputs": {
             "run_scope":  sha256(Path("run_scope.yaml")),
-            "mcc_map":    sha256(Path("mcc_category_map.yaml"))
+            "mcc_map":    sha256(Path("mcc_category_map.yaml")),
+            **({"overrides": sha256(Path("overrides.brand_aliases.yaml"))}
+               if Path("overrides.brand_aliases.yaml").exists() else {})
         }
     }
     (out/"t0_manifest.json").write_text(json.dumps(manifest, indent=2))
