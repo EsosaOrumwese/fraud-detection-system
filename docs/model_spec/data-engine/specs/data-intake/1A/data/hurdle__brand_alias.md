@@ -419,8 +419,16 @@ def cmd_build(args):
     dup = brands["brand_slug"].duplicated(keep=False)
     if dup.any():
         brands.loc[dup, "brand_slug"] = brands.loc[dup].apply(lambda r: f"{r['brand_slug']}-{str(r['brand_id'])[:6]}", axis=1)    
-    # Sources col
-    brands["sources"] = brands.apply(lambda r: [f"wikidata:{r['wikidata_qid']}", "site:"+str(r["website_domain"])], axis=1)
+
+    # Sources col (POLISH: drop empties like wikidata:None / site:)
+    def _src(qid, dom):
+        s = []
+        if isinstance(qid, str) and qid:
+            s.append(f"wikidata:{qid}")
+        if isinstance(dom, str) and dom:
+            s.append(f"site:{dom}")
+        return s
+    brands["sources"] = brands.apply(lambda r: _src(r["wikidata_qid"], r["website_domain"]), axis=1)
 
     # Aliases: WD altLabels
     alias_rows=[]
@@ -442,6 +450,11 @@ def cmd_build(args):
 
     # Aliases: OSM strings (prefer human label; use QID ONLY for joining brand_id)
     osm = pd.read_csv(osm_csv)
+    # POLISH: keep MCC & ISO as strings (avoid 5411.0 drift from CSV inference)
+    if "mcc" in osm.columns:
+        osm["mcc"] = osm["mcc"].astype("string")
+    if "country_iso" in osm.columns:
+        osm["country_iso"] = osm["country_iso"].astype("string")
     # basic generic-name guardrail
     generics = {"restaurant","shop","store","market","mall","gas","fuel","electronics"}
     osm["alias"] = osm[["brand","operator","name"]].bfill(axis=1).iloc[:,0]
@@ -613,6 +626,9 @@ def cmd_qa(args):
         return s
 
     osm["alias_norm"] = osm[["brand","operator","name"]].bfill(axis=1).iloc[:,0].map(norm)
+    # OPTIONAL QA PARITY: apply same generic/length filter used in build()
+    generics = {"restaurant","shop","store","market","mall","gas","fuel","electronics"}
+    osm = osm[~osm["alias_norm"].isin(generics) & (osm["alias_norm"].str.len() >= 4)]
     ali = aliases[["brand_id","alias_norm"]].drop_duplicates()
     join = osm.merge(ali, on="alias_norm", how="left").assign(hit=lambda d: d["brand_id"].notna())
 
