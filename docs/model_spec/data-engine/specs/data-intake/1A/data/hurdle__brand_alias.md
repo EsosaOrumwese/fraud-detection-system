@@ -482,7 +482,8 @@ def cmd_build(args):
                     cand = slug_to_id[name]
                     mcc_ok = True
                     try:
-                        mcc_ok = (not osm_alias.at[idx,"mcc"]) or (osm_alias.at[idx,"mcc"] in brand_mcc.get(cand,set()))
+                        mcc_val = osm_alias.at[idx, "mcc"]
+                        mcc_ok = (pd.isna(mcc_val)) or (mcc_val in brand_mcc.get(cand, set()))
                     except Exception:
                         pass
                     if mcc_ok:
@@ -536,9 +537,20 @@ def cmd_build(args):
             if minted:
                 brands = pd.concat([brands, pd.DataFrame(minted)], ignore_index=True).drop_duplicates("brand_id")
                 write_table_parquet_or_csv(brands, "t0_out/brands.parquet")
-                # re-write aliases with minted rows included
-                write_table_parquet_or_csv(pd.concat([pd.DataFrame(alias_rows), osm_alias], ignore_index=True),
-                                           "t0_out/brand_aliases.parquet")
+                # rejoin minted aliases to OSM rows to populate brand_id
+                alias2 = pd.DataFrame(alias_rows)[["brand_id","alias_norm"]].dropna().drop_duplicates()
+                osm_alias = osm_alias.merge(alias2, on="alias_norm", how="left", suffixes=("","_mint"))
+                osm_alias["brand_id"] = osm_alias["brand_id"].fillna(osm_alias["brand_id_mint"])
+                osm_alias = osm_alias.drop(columns=["brand_id_mint"])
+                # rewrite aliases and REBUILD routes with minted matches included
+                all_alias = pd.concat([pd.DataFrame(alias_rows), osm_alias], ignore_index=True)
+                write_table_parquet_or_csv(all_alias, "t0_out/brand_aliases.parquet")
+                routes = (osm_alias.dropna(subset=["brand_id"])
+                                    .groupby(["brand_id","country_iso","mcc"], dropna=False)
+                                    .size().reset_index(name="n_poi"))
+                if not routes.empty and "country_iso" in routes:
+                    routes["country_iso"] = routes["country_iso"].astype("string").str.upper()
+                write_table_parquet_or_csv(routes, "t0_out/routes.parquet")
 
 def cmd_reconcile(args):
     """Apply overrides; report collisions before/after (alias_norm → >1 brand)."""
