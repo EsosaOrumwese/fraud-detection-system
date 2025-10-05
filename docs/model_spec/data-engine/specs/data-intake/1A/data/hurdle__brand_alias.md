@@ -204,6 +204,60 @@ def rate_sleep(rate_hz):
     if rate_hz <= 0: return
     time.sleep(1.0/rate_hz)
 
+
+def http_get(url, *, params=None, headers=None, timeout=30, retries=3, backoff=1.8):
+    """GET with simple retry/backoff for 429/5xx/timeouts."""
+    last = None
+    for i in range(retries):
+        try:
+            r = requests.get(url, params=params, headers=headers, timeout=timeout)
+            if r.status_code in (429,500,502,503,504):
+                raise requests.HTTPError(f"transient status {r.status_code}")
+            r.raise_for_status()
+            return r
+        except Exception as e:
+            last = e
+            time.sleep(backoff**i)
+    raise last
+
+def http_post(url, *, data=None, headers=None, timeout=120, retries=3, backoff=1.8):
+    """POST with simple retry/backoff for 429/5xx/timeouts."""
+    last = None
+    for i in range(retries):
+        try:
+            r = requests.post(url, data=data, headers=headers, timeout=timeout)
+            if r.status_code in (429,500,502,503,504):
+                raise requests.HTTPError(f"transient status {r.status_code}")
+            r.raise_for_status()
+            return r
+        except Exception as e:
+            last = e
+            time.sleep(backoff**i)
+    raise last
+
+def read_table(path: str):
+    """Read parquet if possible, else CSV."""
+    p = Path(path)
+    if p.suffix.lower() == ".csv":
+        return pd.read_csv(p)
+    try:
+        return pd.read_parquet(p)
+    except Exception:
+        # allow a CSV fallback at same location if parquet engine is unavailable
+        csv_p = p.with_suffix(".csv")
+        if csv_p.exists():
+            return pd.read_csv(csv_p)
+        raise
+
+def write_table_parquet_or_csv(df: pd.DataFrame, parquet_path: str):
+    """Try parquet; on failure (e.g., pyarrow missing), write CSV next to it."""
+    try:
+        df.to_parquet(parquet_path, index=False)
+    except Exception:
+        csv_path = str(Path(parquet_path).with_suffix(".csv"))
+        df.to_csv(csv_path, index=False)
+        print(f"[warn] parquet writer missing; wrote CSV {csv_path}")
+
 # ---------- Commands ----------
 
 def cmd_init(args):
@@ -233,15 +287,21 @@ def cmd_hunt_wd(args):
           OPTIONAL {{ ?brand skos:altLabel ?alt FILTER(LANG(?alt) IN ({lang_filter})) }}
           SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
         }}"""
-        r = requests.get(
+        r = http_get(
             "https://query.wikidata.org/sparql",
             params={"format":"json","query":q},
-            headers={"User-Agent":"brand-registry/1.0 (+you@example.com)"}
+            headers={"User-Agent":"brand-registry/1.0 (+you@example.com)"},
+            timeout=60, retries=4
         )
-        r.raise_for_status()
         return r.json()["results"]["bindings"]
 
-    for mcc, spec in cfg.get("mcc_groups",{}).items():
+    mcc_keys = list(cfg.get("mcc_groups",{}).keys())
+    if getattr(args, "mcc_only", None):
+        filter_set = {m.strip() for m in args.mcc_only.split(",")}
+        mcc_keys = [m for m in mcc_keys if m in filter_set]
+
+    for mcc in mcc_keys:
+        spec = cfg["mcc_groups"][mcc]
         cls = spec.get("wikidata_classes",[])
         if not cls: 
             print(f"[skip] MCC {mcc}: no wikidata_classes configured"); 
@@ -274,8 +334,15 @@ def cmd_hunt_osm(args):
     scope = load_yaml("run_scope.yaml")
     cfg   = load_yaml("mcc_category_map.yaml")
 
-    iso = pd.read_parquet(scope["iso_parquet"])
-    target_iso = iso.query("country_iso in @scope['iso_filter']")["country_iso"].tolist()
+    iso = read_table(scope["iso_parquet"])
+    if getattr(args, "iso_only", None):
+        target_iso = [c.strip().upper() for c in args.iso_only.split(",") if c.strip()]
+    else:
+        target_iso = iso.query("country_iso in @scope['iso_filter']")["country_iso"].tolist()
+    mcc_keys = list(cfg.get("mcc_groups",{}).keys())
+    if getattr(args, "mcc_only", None):
+        filter_set = {m.strip() for m in args.mcc_only.split(",")}
+        mcc_keys = [m for m in mcc_keys if m in filter_set]
     print(f"[osm] ISO list: {len(target_iso)}")
 
     out_csv = Path("work/osm/osm_brand_strings.csv")
@@ -283,20 +350,21 @@ def cmd_hunt_osm(args):
     rate = args.rate
 
     def overpass(iso2, key, value):
-        q = f"""
-        [out:json][timeout:180];
-        area["ISO3166-1"="{iso2}"]->.a;
-        ( node["{key}"="{value}"](area.a);
-          way["{key}"="{value}"](area.a);
-          relation["{key}"="{value}"](area.a); );
-        out tags qt;"""
-        r = requests.post("https://overpass-api.de/api/interpreter", data={"data":q},
-                          headers={"User-Agent":"brand-registry/1.0 (+you@example.com)"})
-        r.raise_for_status()
-        return r.json()
+        base = f'( node["{key}"="{value}"](area.a); way["{key}"="{value}"](area.a); relation["{key}"="{value}"](area.a); );'
+        def q(area_tag):
+            return f'[out:json][timeout:{args.timeout}]; area["{area_tag}"="{iso2}"]->.a; {base} out tags qt;'
+        ua = {"User-Agent":"brand-registry/1.0 (+you@example.com)"}
+        # try alpha2 first, then legacy tag
+        for tag in ("ISO3166-1:alpha2", "ISO3166-1"):
+            r = http_post("https://overpass-api.de/api/interpreter", data={"data": q(tag)}, headers=ua, timeout=args.timeout, retries=4)
+            j = r.json()
+            if j.get("elements"): 
+                return j
+        return {"elements":[]}
 
     for iso2 in target_iso:
-        for mcc, spec in cfg.get("mcc_groups",{}).items():
+        for mcc in mcc_keys:
+            spec = cfg["mcc_groups"][mcc]
             for tag in spec.get("osm", []):
                 (key, value), = tag.items()
                 try:
@@ -344,6 +412,10 @@ def cmd_build(args):
     brands = wd[["brand_id","brand_name","brand_slug","website_domain","qid","mcc"]].rename(
         columns={"qid":"wikidata_qid"}
     )
+    # ensure slug uniqueness across different brand_ids
+    dup = brands["brand_slug"].duplicated(keep=False)
+    if dup.any():
+        brands.loc[dup, "brand_slug"] = brands.loc[dup].apply(lambda r: f"{r['brand_slug']}-{str(r['brand_id'])[:6]}", axis=1)    
     # Sources col
     brands["sources"] = brands.apply(lambda r: [f"wikidata:{r['wikidata_qid']}", "site:"+str(r["website_domain"])], axis=1)
 
@@ -365,9 +437,9 @@ def cmd_build(args):
             alias_rows.append({"brand_id":b["brand_id"], "alias":v, "alias_norm":v,
                                "alias_type":"auto_variant", "confidence":0.99, "source":"auto"})
 
-    # Aliases: OSM strings (brand/operator/name). Map to brand_id via brand:wikidata when present.
+    # Aliases: OSM strings (prefer human label; use QID ONLY for joining brand_id)
     osm = pd.read_csv(osm_csv)
-    osm["alias"] = osm[["brand_wikidata","brand","operator","name"]].bfill(axis=1).iloc[:,0]
+    osm["alias"] = osm[["brand","operator","name"]].bfill(axis=1).iloc[:,0]
     osm["alias_norm"] = osm["alias"].map(norm_text)
     osm["alias_type"] = "poi_name"
     osm["confidence"] = 0.90
@@ -375,14 +447,36 @@ def cmd_build(args):
     # join brand_id by wikidata
     osm = osm.merge(brands[["brand_id","wikidata_qid"]], left_on="brand_wikidata", right_on="wikidata_qid", how="left")
     osm_alias = osm[["brand_id","alias","alias_norm","alias_type","confidence","source","country_iso","mcc"]]
+    # fill brand_id by exact alias_norm match when QID missing
+    known_alias = pd.DataFrame(alias_rows)[["brand_id","alias_norm"]]
+    if not known_alias.empty:
+        known_alias = known_alias.dropna().drop_duplicates()
+        osm_alias = osm_alias.merge(known_alias, on="alias_norm", how="left", suffixes=("","_by_alias"))
+        osm_alias["brand_id"] = osm_alias["brand_id"].fillna(osm_alias["brand_id_by_alias"])
+        osm_alias = osm_alias.drop(columns=["brand_id_by_alias"])
+    # optional fuzzy fallback (RapidFuzz) against brand_slug
+    if HAS_FUZZ and getattr(args, "fuzzy_threshold", 0) > 0:
+        from rapidfuzz import process
+        slug_to_id = dict(zip(brands["brand_slug"], brands["brand_id"]))
+        unmatched = osm_alias["brand_id"].isna()
+        for idx, s in osm_alias.loc[unmatched, "alias_norm"].items():
+            if not s: 
+                continue
+            res = process.extractOne(s, list(slug_to_id.keys()))
+            if res:
+                name, score, _ = res
+                if score >= args.fuzzy_threshold:
+                    osm_alias.at[idx,"brand_id"] = slug_to_id[name]
+                    osm_alias.at[idx,"source"] = "osm_fuzzy"
+                    osm_alias.at[idx,"confidence"] = max(osm_alias.at[idx,"confidence"], score/100.0)
     # concat
     aliases = pd.concat([pd.DataFrame(alias_rows), osm_alias], ignore_index=True)
     # drop empties/dupes
     aliases = aliases.dropna(subset=["alias"]).drop_duplicates()
 
     # Write
-    brands.to_parquet("t0_out/brands.parquet", index=False)
-    aliases.to_parquet("t0_out/brand_aliases.parquet", index=False)
+    write_table_parquet_or_csv(brands, "t0_out/brands.parquet")
+    write_table_parquet_or_csv(aliases, "t0_out/brand_aliases.parquet")
     print("[build] wrote t0_out/brands.parquet,", len(brands), "brands")
     print("[build] wrote t0_out/brand_aliases.parquet,", len(aliases), "aliases")
 
@@ -429,12 +523,19 @@ def cmd_qa(args):
         s = re.sub(r"[^\w\s]"," ", s); s = re.sub(r"\s+"," ", s).strip()
         return s
 
-    osm["alias_norm"] = osm[["brand_wikidata","brand","operator","name"]].bfill(axis=1).iloc[:,0].map(norm)
+    osm["alias_norm"] = osm[["brand","operator","name"]].bfill(axis=1).iloc[:,0].map(norm)
     ali = aliases[["brand_id","alias_norm"]].drop_duplicates()
     join = osm.merge(ali, on="alias_norm", how="left").assign(hit=lambda d: d["brand_id"].notna())
 
-    cov = (join.groupby(["country_iso","mcc"])["hit"].mean()
-                .reset_index(name="coverage"))
+    # coverage by alias AND by QID, and a combined "any" metric
+    cov_alias = (join.groupby(["country_iso","mcc"])["hit"].mean()
+                      .reset_index(name="alias_cov"))
+    cov_qid = (osm.merge(brands[["wikidata_qid","brand_id"]], left_on="brand_wikidata", right_on="wikidata_qid", how="left")
+                  .assign(qid_hit=lambda d: d["brand_id"].notna())
+                  .groupby(["country_iso","mcc"])["qid_hit"].mean()
+                  .reset_index(name="qid_cov"))
+    cov = cov_alias.merge(cov_qid, on=["country_iso","mcc"], how="outer").fillna(0.0)
+    cov["any_cov"] = cov[["alias_cov","qid_cov"]].max(axis=1)
     cov.to_csv("t0_out/qa_coverage_iso_mcc.csv", index=False)
 
     gaps = cov[cov["coverage"] < args.cov_threshold].sort_values(["coverage"])
@@ -477,13 +578,18 @@ def main():
     p1 = sub.add_parser("hunt-wd", help="Wikidata harvest by MCC classes")
     p1.add_argument("--rate", type=float, default=1.0, help="requests per second")
     p1.add_argument("--langs", default="en,fr,de,es,it,pt", help="altLabel languages (comma sep)")
+    p1.add_argument("--mcc-only", default="", help="comma-separated MCCs to limit harvest")
     p1.set_defaults(func=cmd_hunt_wd)
 
     p2 = sub.add_parser("hunt-osm", help="OSM Overpass harvest by ISO×MCC")
     p2.add_argument("--rate", type=float, default=1.0, help="requests per second")
+    p2.add_argument("--timeout", type=int, default=180, help="Overpass timeout seconds")
+    p2.add_argument("--iso-only", default="", help="comma-separated ISO2 codes to override run_scope filter")
+    p2.add_argument("--mcc-only", default="", help="comma-separated MCCs to limit harvest")
     p2.set_defaults(func=cmd_hunt_osm)
 
     p3 = sub.add_parser("build", help="Build brands.parquet + brand_aliases.parquet")
+    p3.add_argument("--fuzzy-threshold", type=int, default=0, help=">= score (0..100) to enable RapidFuzz fallback")
     p3.set_defaults(func=cmd_build)
 
     p4 = sub.add_parser("reconcile", help="Apply overrides; collisions before/after")
