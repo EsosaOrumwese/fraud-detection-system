@@ -282,7 +282,8 @@ def cmd_hunt_wd(args):
         q = f"""
         SELECT ?brand ?brandLabel ?site ?alt WHERE {{
           VALUES ?class {{ {values} }}
-          ?brand wdt:P31 ?class .
+          # broaden: instances of any subclass of the class (more seeds)
+          ?brand wdt:P31/wdt:P279* ?class .
           OPTIONAL {{ ?brand wdt:P856 ?site }}
           OPTIONAL {{ ?brand skos:altLabel ?alt FILTER(LANG(?alt) IN ({lang_filter})) }}
           SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
@@ -400,8 +401,8 @@ def cmd_build(args):
         for line in open(j, "r", encoding="utf-8"):
             rows.append(json.loads(line))
     wd = pd.DataFrame(rows)  # qid,label,site,aliases[],mcc[]
-    if wd.empty:
-        sys.exit("[build] no Wikidata seed rows found. Run 'hunt-wd' (or relax --mcc-only).")
+    # If WD is empty, we'll continue – we'll mint brands from OSM evidence below.
+    wd_empty = wd.empty
 
     # Canonical brands
     wd["website_domain"] = wd["site"].map(get_domain)
@@ -441,8 +442,12 @@ def cmd_build(args):
 
     # Aliases: OSM strings (prefer human label; use QID ONLY for joining brand_id)
     osm = pd.read_csv(osm_csv)
+    # basic generic-name guardrail
+    generics = {"restaurant","shop","store","market","mall","gas","fuel","electronics"}
     osm["alias"] = osm[["brand","operator","name"]].bfill(axis=1).iloc[:,0]
     osm["alias_norm"] = osm["alias"].map(norm_text)
+    osm["alias_len"]  = osm["alias_norm"].str.len()
+    osm = osm[~osm["alias_norm"].isin(generics) & (osm["alias_len"] >= 4)].copy()
     osm["alias_type"] = "poi_name"
     osm["confidence"] = 0.90
     osm["source"] = "osm"
@@ -460,10 +465,12 @@ def cmd_build(args):
             osm_alias = osm_alias.merge(known_alias, on="alias_norm", how="left", suffixes=("","_by_alias"))
             osm_alias["brand_id"] = osm_alias["brand_id"].fillna(osm_alias["brand_id_by_alias"])
             osm_alias = osm_alias.drop(columns=["brand_id_by_alias"])
-    # optional fuzzy fallback (RapidFuzz) against brand_slug
+    # optional fuzzy fallback (RapidFuzz) against brand_slug (with constraints)
     if HAS_FUZZ and getattr(args, "fuzzy_threshold", 0) > 0:
         from rapidfuzz import process
         slug_to_id = dict(zip(brands["brand_slug"], brands["brand_id"]))
+        # map brand_id -> MCC set for gating
+        brand_mcc = {bid: set(mccs or []) for bid, mccs in zip(brands["brand_id"], brands["mcc"])}
         unmatched = osm_alias["brand_id"].isna()
         for idx, s in osm_alias.loc[unmatched, "alias_norm"].items():
             if not s: 
@@ -472,9 +479,16 @@ def cmd_build(args):
             if res:
                 name, score, _ = res
                 if score >= args.fuzzy_threshold:
-                    osm_alias.at[idx,"brand_id"] = slug_to_id[name]
-                    osm_alias.at[idx,"source"] = "osm_fuzzy"
-                    osm_alias.at[idx,"confidence"] = max(osm_alias.at[idx,"confidence"], score/100.0)
+                    cand = slug_to_id[name]
+                    mcc_ok = True
+                    try:
+                        mcc_ok = (not osm_alias.at[idx,"mcc"]) or (osm_alias.at[idx,"mcc"] in brand_mcc.get(cand,set()))
+                    except Exception:
+                        pass
+                    if mcc_ok:
+                        osm_alias.at[idx,"brand_id"] = cand
+                        osm_alias.at[idx,"source"] = "osm_fuzzy"
+                        osm_alias.at[idx,"confidence"] = max(osm_alias.at[idx,"confidence"], score/100.0)
     # concat
     aliases = pd.concat([pd.DataFrame(alias_rows), osm_alias], ignore_index=True)
     # drop empties/dupes
@@ -490,6 +504,41 @@ def cmd_build(args):
     write_table_parquet_or_csv(aliases, "t0_out/brand_aliases.parquet")
     print("[build] wrote t0_out/brands.parquet,", len(brands), "brands")
     print("[build] wrote t0_out/brand_aliases.parquet,", len(aliases), "aliases")
+
+    # NEW: publish routes (brand presence) from the OSM-joined aliases
+    routes = (osm_alias.dropna(subset=["brand_id"])
+                        .groupby(["brand_id","country_iso","mcc"], dropna=False)
+                        .size()
+                        .reset_index(name="n_poi"))
+    if not routes.empty and "country_iso" in routes:
+        routes["country_iso"] = routes["country_iso"].astype("string").str.upper()
+    write_table_parquet_or_csv(routes, "t0_out/routes.parquet")
+    print("[build] wrote t0_out/routes.parquet,", len(routes), "rows")
+
+    # OPTIONAL: If WD was empty for this MCC/ISO, mint OSM-only brands from strong evidence
+    # (alias seen frequently) so they appear in brands & routes.
+    if wd_empty:
+        counts = (osm_alias.groupby(["alias_norm"], dropna=False)
+                            .size().reset_index(name="n"))
+        strong = counts[counts["n"] >= getattr(args, "osm_brand_threshold", 10)]
+        if not strong.empty:
+            minted = []
+            for _, row in strong.iterrows():
+                a = row["alias_norm"]
+                if not a: 
+                    continue
+                bid = mint_id(a)
+                minted.append({"brand_id": bid,
+                               "brand_name": a, "brand_slug": to_slug(a),
+                               "website_domain": "", "wikidata_qid": "", "mcc": []})
+                alias_rows.append({"brand_id":bid, "alias":a, "alias_norm":a,
+                                   "alias_type":"osm_minted", "confidence":0.7, "source":"osm"})
+            if minted:
+                brands = pd.concat([brands, pd.DataFrame(minted)], ignore_index=True).drop_duplicates("brand_id")
+                write_table_parquet_or_csv(brands, "t0_out/brands.parquet")
+                # re-write aliases with minted rows included
+                write_table_parquet_or_csv(pd.concat([pd.DataFrame(alias_rows), osm_alias], ignore_index=True),
+                                           "t0_out/brand_aliases.parquet")
 
 def cmd_reconcile(args):
     """Apply overrides; report collisions before/after (alias_norm → >1 brand)."""
@@ -576,7 +625,7 @@ def cmd_publish(args):
     ensure_dirs()
     out = Path("t0_out")
     # accept parquet OR csv for the two tables (build may have fallen back to csv)
-    required = ["brands","brand_aliases","qa_collisions_after","qa_coverage_iso_mcc"]
+    required = ["brands","brand_aliases","routes","qa_collisions_after","qa_coverage_iso_mcc"]
     files = {}
     for base in required:
         parq = out/f"{base}.parquet"
@@ -625,6 +674,7 @@ def main():
 
     p3 = sub.add_parser("build", help="Build brands.parquet + brand_aliases.parquet")
     p3.add_argument("--fuzzy-threshold", type=int, default=0, help=">= score (0..100) to enable RapidFuzz fallback")
+    p3.add_argument("--osm-brand-threshold", type=int, default=10, help="min POIs to mint an OSM-only brand when WD seeds are empty")
     p3.set_defaults(func=cmd_build)
 
     p4 = sub.add_parser("reconcile", help="Apply overrides; collisions before/after")
