@@ -33,7 +33,7 @@ Read in this exact order before making changes in this package:
 
 ### D) Data-intake specs (per sub-segment; **structure & intent**)
 - `docs/model_spec/data-engine/specs/data-intake/XX/`
-  - `preview/*.md` → **Preview**: examples/illustrations of the **intended ingested data shape** derived from the state docs.  
+  - `preview/*.md` → **Preview**: examples/illustrations of the **intended ingested data shape** derived from the state docs. Also try to infer the dataset's magnitude as well in order to design efficient systems
     *These are orientation, not contracts. Do **not** treat preview Markdown—or any sample CSV/JSON—as binding.*
   - `data/*.md` → **Conceptual flow**: how the **ingestion pipeline** should move from **raw → pre-processed** (sources, scraping/collection approaches, normalization, preprocessing).  
     *This is a plan for how we expect to ingest; it is **guiding**, not binding.*

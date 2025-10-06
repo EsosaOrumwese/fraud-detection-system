@@ -14,6 +14,31 @@ This pack previews **12 datasets** plus **2 governance inputs (non-datasets)** t
 2) `reference/governance/math_profile/{version}/math_profile_manifest.json`
 Opening these, along with the **dataset dictionary** and **artefact registry** anchors, contributes to the `manifest_fingerprint`. No RNG events are permitted until S0.8 attests this surface.
 
+
+## Scale & Coverage (magnitude) — macros & gates
+To make capacity planning explicit while data is still being sourced, define the following macros. These are **non-binding defaults** until written to the run manifest and/or `numeric_policy.json`; once recorded there, they become binding gates for S0.
+
+**Macro definitions (resolved at run-time):**
+* `RUN_ISO := distinct(country_iso)` from Dataset #2 (intersected with the policy-selected scope)
+* `N_ISO := |RUN_ISO|`
+* `N_CCY := |distinct(currency)| in Datasets #9/#10 (per policy scope)`
+* `N_MCC := |distinct(mcc)| in Dataset #1`
+* `K_BUCKETS := |distinct(bucket_id)| in Dataset #4`
+* `N_TZID := |distinct(tzid)| in Dataset #12a`
+* `N_POLY_TZ := row_count(Dataset #12a)`; `N_POLY_ISO := row_count(Dataset #11)`
+
+**Numeric policy hooks** (add under `magnitude` in `numeric_policy.json`; snippet in Appendix):
+* `merchants_min`, `merchants_max`, `min_merchants_per_iso`, `min_mccs_per_iso`
+* `iso_min_count`, `iso_max_count`
+* `gdp.required_year`, `gdp.min_years`, `gdp.k_buckets`, `gdp.min_countries_per_bucket`
+* `shares.min_obs_per_pair`, `shares.min_iso_per_currency`, `shares.min_mass_per_country`
+* `geom.max_vertices_per_polygon`, `geom.max_rings_per_polygon`, `geom.max_world_countries_rows`,
+  `tz.min_tzid`, `tz.max_tzid`, `tz.max_polygons`
+* `raster.max_bytes`, `raster.require_overviews`
+
+*Validation rule:* each dataset’s **Magnitude** section below adds *hard gates* that S0 must check **before** S0.8. If a hook is `TBD`, compute & record the observed value in the manifest (warning), then flip to hard-fail once the policy value is set.
+
+
 # Dataset 1 — `transaction_schema_merchant_ids`  [Internal Dataset]
 
 **What it is (purpose).** The **authoritative merchant seed** for 1A. It’s a *normalized* snapshot (not a raw dump) with just the four fields S0 needs to freeze the universe and build features. 
@@ -65,6 +90,14 @@ Opening these, along with the **dataset dictionary** and **artefact registry** a
 * Lower-case or mixed-case ISO codes (must be uppercase). 
 * Any channel values beyond the **two allowed** strings (S0 will hard-fail). 
 * Sneaking a `version` column into the table (it’s a **path** partition). 
+
+### Magnitude (Scale & Coverage)
+- **Expected rows (`N_MERCHANTS`)**: `merchants_min ≤ N_MERCHANTS ≤ merchants_max` (policy).
+- **Coverage by ISO**: for every `iso ∈ RUN_ISO`, `count(merchant_id where home_country_iso=iso) ≥ min_merchants_per_iso` (≥1 recommended).
+- **MCC breadth**: for every `iso ∈ RUN_ISO`, `|distinct(mcc)| ≥ min_mccs_per_iso`.
+- **Channel presence (global)**: both `"card_present"` and `"card_not_present"` must appear (per-ISO recommended, not hard-fail).
+- **Sanity**: `N_MCC = |distinct(mcc)|` and `N_MCC ∈ [1, 10_000]`; `channel ∈ {CP,CNP}` by map.
+- **Capacity note**: loaders must stream ≥10^6 rows without materialising all columns.
 
 ---
 
@@ -125,6 +158,10 @@ Opening these, along with the **dataset dictionary** and **artefact registry** a
 * Missing ISO rows that other tables FK to (e.g., GDP, bucket map, world_countries, egress).
 * Duplicates in `(alpha3,numeric_code)` — validator will hard-fail. 
 
+### Magnitude (Scale & Coverage)
+- **Expected rows (`N_ISO`)**: `iso_min_count ≤ N_ISO ≤ iso_max_count` (policy). This table is pinned to 2024-12-31 for the run.
+- **Linkage**: `RUN_ISO` is derived from this; all FK’ing datasets must cover *every* ISO in `RUN_ISO`.
+
 ---
 
 # Dataset 3 — `world_bank_gdp_per_capita_20250415`  [External Dataset]
@@ -177,6 +214,12 @@ Use the JSON-Schema anchor **`schemas.ingress.layer1.yaml#/world_bank_gdp_per_ca
 * **Authority hygiene:** dictionary/registry `schema_ref` uses the **JSON-Schema** (not Avro); aliasing is OK but must resolve to the canonical anchor.
 
 **Where it’s consumed downstream:** The hurdle **design matrix** depends on this GDP vintage (via the bucket map) and is explicitly wired in the artefact registry (`hurdle_design_matrix` depends on `world_bank_gdp_per_capita_20250415`). 
+
+### Magnitude (Scale & Coverage)
+- **Lower bound**: `row_count ≥ N_ISO · gdp.min_years` measured over `[gdp.required_year − (gdp.min_years − 1) .. gdp.required_year]`.
+- **Required year coverage**: for every `iso ∈ RUN_ISO`, ≥1 row where `observation_year == gdp.required_year`.
+- **Bucket linkage**: every `country_iso` in Dataset #4 must have that `source_year` present here.
+- **Sanity cap**: reject if `row_count > N_ISO · 200` (unexpected depth).
 
 ---
 
@@ -236,6 +279,12 @@ Use **`schemas.ingress.layer1.yaml#/gdp_bucket_map_2024`**. (Alias **`#/gdp_buck
 * `source_year` ≠ 2024 (must match the GDP lookup year S0 pins). 
 * Missing ISO rows that exist in your merchant set (S0.4 will hard-fail as `E_BUCKET_MISSING`). 
 * Recomputing Jenks during runtime (disallowed; rebuild is CI-only and must equal the shipped table). 
+
+### Magnitude (Scale & Coverage)
+- **Rows**: exactly `N_ISO` (one per ISO in scope).
+- **Buckets**: `|distinct(bucket_id)| == gdp.k_buckets` (policy; default 5).
+- **Per-bucket occupancy**: for each `b ∈ [1..K_BUCKETS]`, `count(country_iso where bucket_id=b) ≥ gdp.min_countries_per_bucket`.
+- **Integrity**: `method == "jenks"` and `k == gdp.k_buckets` for all rows.
 
 ---
 
@@ -348,12 +397,17 @@ If `dicts.mcc` has 6 entries (as above), then:
 * **S1** computes π and emits the hurdle Bernoulli event. 
 * **S2** uses `beta_mu` for ( \mu ); dispersion comes from `nb_dispersion_coefficients.yaml`. 
 
+### Magnitude (Scale & Coverage)
+- **Vector lengths**: `len(beta) == 1 + N_MCC + 2 + K_BUCKETS`; `len(beta_mu) == 1 + N_MCC + 2`.
+- **Block sizes**: channel block size **2** (`[CP,CNP]`), GDP bucket block **K_BUCKETS**, MCC block **N_MCC**.
+- **Completeness**: all coefficients present; no NaN/Inf.
+
 ---
 
 # Dataset 6 — `nb_dispersion_coefficients.yaml`  [Model Param/Policy]
 
 **What it is (purpose).** The **negative-binomial dispersion** coefficient vector, used by **S2** to compute
-(\phi=\exp(\beta_\phi^\top x_\phi)). Its bytes are part of `parameter_hash`, so any edit flips run lineage.
+$\phi=\exp(\beta_\phi^\top x_\phi)$. Its bytes are part of `parameter_hash`, so any edit flips run lineage.
 
 **Where it lives (path).**
 `configs/models/hurdle/nb_dispersion_coefficients.yaml` (artefact name typically `nb_dispersion_coefficients`).
@@ -412,7 +466,7 @@ beta_phi:        # dispersion link coefficients (φ = exp(beta_phi · x_φ))
 ## How it’s used
 
 * **S0 (prep only).** Freezes the column dictionaries and prepares `ln(g_c)` from the GDP table for each merchant’s home ISO; no stochastic use here.
-* **S2 (runtime).** Loads `beta_phi`, builds `x_φ` exactly in the frozen order, computes (\phi=\exp(\beta_\phi^\top x_\phi)) in binary64 (stable dot product), and **echoes (\phi)** (via μ/φ echo rules) in the **non-consuming** `nb_final`.
+* **S2 (runtime).** Loads `beta_phi`, builds `x_φ` exactly in the frozen order, computes $\phi=\exp(\beta_\phi^\top x_\phi)$ in binary64 (stable dot product), and **echoes (\phi)** (via μ/φ echo rules) in the **non-consuming** `nb_final`.
 
 ---
 
@@ -435,6 +489,10 @@ beta_phi:        # dispersion link coefficients (φ = exp(beta_phi · x_φ))
 **Where it’s consumed downstream**
 
 * Only **S2** consumes this at runtime. (Hurdle `beta`/`beta_mu` are in `hurdle_coefficients.yaml`; this file is **dispersion only**.)
+
+### Magnitude (Scale & Coverage)
+- **Vector length**: `len(beta_phi) == 1 + N_MCC + 2 + 1` (intercept + MCC + 2-channel + ln(GDP)).
+- **Block sizes**: as in Dataset #5 (`N_MCC`, channels=2).
 
 ---
 
@@ -556,6 +614,10 @@ eligibility:
 
   * `"abort"` → **exhausted** marker only.
   * `"downgrade_domestic"` → **final** `{K_target=0, exhausted:true}`.
+
+### Magnitude (Scale & Coverage)
+- **Parameter count cap**: `≤ max_hparams` (policy; e.g., 128).
+- **Required keys**: all keys referenced by S1/S2 kernels must exist; extras allowed but logged.
 
 ---
 
@@ -685,6 +747,10 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 * Introducing new reason codes or tags in a rule without adding them to the **closed** vocab arrays. 
 * Multiple `DEFAULT` rules or a `DEFAULT` that doesn’t always fire. 
 
+### Magnitude (Scale & Coverage)
+- **Rules count**: `1 ≤ rules ≤ rule_ladder.max_rules` (policy; e.g., 64).
+- **Universe match**: ISO and GDP bucket universes referenced here must equal `RUN_ISO` and `[1..K_BUCKETS]`.
+
 ---
 
 # Dataset 9 — `settlement_shares_2024Q4`  [External Dataset]
@@ -744,6 +810,12 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 * Lower/mixed-case ISO codes (must be uppercase). 
 * Rounding shares that cause group sums to drift beyond **1e-6**. 
 * Extra columns not defined in the schema (keep exactly the four required). 
+
+### Magnitude (Scale & Coverage)
+- **Currency set (`C`)**: `|C| ≥ 1`; if a policy currency universe exists, enforce `C ⊆ policy.ccy_universe`.
+- **Per-currency coverage**: for each `c ∈ C`, `count(country_iso where share>0 and country_iso ∈ RUN_ISO) ≥ shares.min_iso_per_currency`.
+- **Row cap**: `row_count ≤ N_ISO · |C|` (long-form envelope).
+- **Observation floor**: `obs_count ≥ shares.min_obs_per_pair` for every `(currency, country_iso)`.
 
 ---
 
@@ -805,6 +877,12 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 * Rounding that breaks the per-currency sum rule (>1e-6 drift). 
 * Extra columns not defined in the schema (keep exactly the four required). 
 
+### Magnitude (Scale & Coverage)
+- **Currency alignment**: `distinct(currency)` must equal the set `C` in Dataset #9 (or a documented policy subset/superset).
+- **Per-currency coverage**: same gate as Dataset #9.
+- **Row cap**: `row_count ≤ N_ISO · |C|`.
+- **Observation floor**: `obs_count ≥ shares.min_obs_per_pair` for every `(currency, country_iso)`.
+
 ---
 
 # Dataset 11 — `world_countries`  [External Dataset]
@@ -850,6 +928,11 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 * Mixed/invalid CRS (anything but **EPSG:4326** will fail). 
 * MultiLine/Point geometries (must be Polygon/MultiPolygon only). 
 * ISO2 not uppercased / missing in canonical ISO table. 
+
+### Magnitude (Scale & Coverage)
+- **Rows**: exactly `N_ISO` (one feature per ISO in scope).
+- **Geometry budgets**: for every row, `vertices ≤ geom.max_vertices_per_polygon` and `rings ≤ geom.max_rings_per_polygon`.
+- **CRS/type**: schema-gated (EPSG:4326; Polygon/MultiPolygon).
 
 ---
 
@@ -910,6 +993,12 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 * Omitting `polygon_id` (required for the composite PK). 
 * Using non-IANA strings or illegal characters in `tzid`. 
 
+### Magnitude (Scale & Coverage)
+- **Unique TZIDs**: `tz.min_tzid ≤ N_TZID ≤ tz.max_tzid` (policy).
+- **Polygons**: `N_POLY_TZ ≤ tz.max_polygons`.
+- **PK density**: for every `tzid`, `count(polygon_id) ≥ 1`.
+- **CRS/type**: schema-gated (EPSG:4326; Polygon/MultiPolygon).
+
 ---
 
 # Dataset 12b — `population_raster_2025`  [External Dataset]
@@ -969,6 +1058,12 @@ Pixel Unit: persons
 * Missing COG overviews (2/4/8/16). 
 * Using integer dtype or `nodata=0` (must be **Float32**, **−1.0**). 
 * Skipping the dictionary/registry entry (then S0 can’t include it in the **manifest fingerprint**). 
+
+### Magnitude (Scale & Coverage)
+- **File size**: `bytes ≤ raster.max_bytes` (policy).
+- **Overviews**: if `raster.require_overviews == true`, COG must advertise ≥1 overview level.
+- **Band/type**: Bands==1, dtype Float32 (schema); NoData present. S0 records `width`, `height`, `transform` in the manifest (no hard gate on exact dims).
+- **IO hint**: require tiled layout (COG); S0 must not attempt full in-memory load.
 
 ---
 
