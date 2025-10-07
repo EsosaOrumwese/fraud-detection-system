@@ -12,6 +12,7 @@ import pytest
 from engine.layers.l1.seg_1A.s0_foundations import (
     CrossborderEligibility,
     PhiloxEngine,
+    RNGLogWriter,
     SchemaAuthority,
     build_numeric_policy_attestation,
     build_run_context,
@@ -23,12 +24,14 @@ from engine.layers.l1.seg_1A.s0_foundations import (
     load_hurdle_coefficients,
     load_math_profile_manifest,
     load_numeric_policy,
+    rng_event,
     evaluate_eligibility,
 )
 from engine.layers.l1.seg_1A.s0_foundations.l0.artifacts import hash_artifacts
 from engine.layers.l1.seg_1A.s0_foundations.l1.context import RunContext
 from engine.layers.l1.seg_1A.s0_foundations.l2.output import S0Outputs, write_outputs
 from engine.layers.l1.seg_1A.s0_foundations.l2.runner import S0FoundationsRunner
+from engine.layers.l1.seg_1A.s0_foundations.exceptions import S0Error
 
 
 @pytest.fixture()
@@ -323,3 +326,88 @@ def test_run_id_uniqueness():
         existing_ids={run_id_a},
     )
     assert run_id_a != run_id_b
+
+
+def test_rng_logging_and_trace(tmp_path: Path):
+    seed = 42
+    parameter_hash = "a" * 64
+    manifest = "1" * 64
+    run_id = "b" * 32
+    base = tmp_path / "logs" / "rng"
+    logger = RNGLogWriter(
+        base_path=base,
+        seed=seed,
+        parameter_hash=parameter_hash,
+        manifest_fingerprint=manifest,
+        run_id=run_id,
+    )
+    engine = PhiloxEngine(seed=seed, manifest_fingerprint=bytes.fromhex(manifest))
+    substream = engine.derive_substream("unit_test", [])
+
+    with rng_event(
+        logger=logger,
+        substream=substream,
+        module="1A.s0",
+        family="core",
+        event="uniform",
+        substream_label="hurdle",
+        expected_blocks=1,
+        expected_draws=1,
+    ):
+        _ = substream.uniform()
+
+    events_file = (
+        base
+        / "events"
+        / "core"
+        / f"seed={seed}"
+        / f"parameter_hash={parameter_hash}"
+        / f"run_id={run_id}"
+        / "part-00000.jsonl"
+    )
+    trace_file = (
+        base
+        / "trace"
+        / f"seed={seed}"
+        / f"parameter_hash={parameter_hash}"
+        / f"run_id={run_id}"
+        / "rng_trace_log.jsonl"
+    )
+    assert events_file.exists()
+    assert trace_file.exists()
+
+    event_entry = json.loads(events_file.read_text(encoding="utf-8").strip())
+    assert event_entry["draws"] == "1"
+    assert event_entry["blocks"] == 1
+    assert event_entry["module"] == "1A.s0"
+    assert event_entry["manifest_fingerprint"] == manifest
+
+    trace_entry = json.loads(trace_file.read_text(encoding="utf-8").strip())
+    assert trace_entry["blocks_total"] == 1
+    assert trace_entry["module"] == "1A.s0"
+
+    with pytest.raises(S0Error):
+        with rng_event(
+            logger=logger,
+            substream=substream,
+            module="1A.s0",
+            family="core",
+            event="uniform",
+            substream_label="hurdle",
+            expected_draws=2,
+        ):
+            _ = substream.uniform()
+
+
+def test_numeric_policy_attestation_self_tests(governance_files, parameter_files):
+    policy_path, manifest_path = governance_files
+    policy, policy_digest = load_numeric_policy(policy_path)
+    profile, profile_digest = load_math_profile_manifest(manifest_path)
+    attestation = build_numeric_policy_attestation(
+        policy=policy,
+        policy_digest=policy_digest,
+        math_profile=profile,
+        math_digest=profile_digest,
+    )
+    for result in attestation.content["self_tests"].values():
+        assert result == "pass"

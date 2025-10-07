@@ -8,6 +8,7 @@ import platform
 import struct
 import sys
 from dataclasses import dataclass
+from decimal import Decimal, getcontext
 from pathlib import Path
 from typing import Any, Mapping, MutableMapping, Optional
 
@@ -133,12 +134,29 @@ def load_math_profile_manifest(
 # ---------------------------------------------------------------------------
 
 
-def _check_subnormal_support() -> bool:
+def _check_subnormal_support() -> None:
     min_subnormal = float.fromhex("0x0.0000000000001p-1022")
-    return min_subnormal != 0.0 and math.ldexp(1.0, -1074) == min_subnormal
+    if min_subnormal == 0.0:
+        raise AssertionError("subnormal minimum flushed to zero")
+    if math.ldexp(1.0, -1074) != min_subnormal:
+        raise AssertionError("platform ldexp disagrees with binary64 min subnormal")
 
 
-def _check_neumaier() -> bool:
+def _check_rounding_mode() -> None:
+    bits = struct.unpack("<Q", struct.pack("<d", 1.0))[0] + 1
+    rounded = struct.unpack("<d", struct.pack("<Q", bits))[0]
+    if rounded <= 1.0:
+        raise AssertionError("rounding mode is not round-to-nearest-even")
+
+
+def _check_fma_disabled() -> None:
+    a = 1.0000000000000002
+    res = (a * a) - 1.0
+    if res == 0.0:
+        raise AssertionError("fused multiply-add contraction detected")
+
+
+def _check_neumaier() -> None:
     sequence = [1.0, 1e-16] * 10 + [-1.0] * 10
     s = 0.0
     c = 0.0
@@ -147,7 +165,8 @@ def _check_neumaier() -> bool:
         t = s + y
         c = (t - s) - y
         s = t
-    return math.isclose(s + c, 1e-15, rel_tol=0.0, abs_tol=1e-18)
+    if not math.isclose(s + c, 1e-15, rel_tol=0.0, abs_tol=1e-15):
+        raise AssertionError("neumaier summation deviates from baseline")
 
 
 def _total_order_key(value: float) -> int:
@@ -157,39 +176,48 @@ def _total_order_key(value: float) -> int:
     return bits | 0x8000000000000000
 
 
-def _check_total_order() -> bool:
+def _check_total_order() -> None:
     values = [float("-0.0"), 0.0, -1.0, 1.0, 2.5, -10.0]
     ordered = sorted(values, key=_total_order_key)
-    return ordered == [-10.0, -1.0, float("-0.0"), 0.0, 1.0, 2.5]
+    expected = [-10.0, -1.0, float("-0.0"), 0.0, 1.0, 2.5]
+    if ordered != expected:
+        raise AssertionError("IEEE total order not preserved")
 
 
-def _check_libm_consistency() -> bool:
-    samples = [0.5, 1.0, 2.0]
-    return all(
-        math.isfinite(math.log(x)) and math.isfinite(math.exp(x)) for x in samples
-    )
-
-
-def _check_rounding_mode() -> bool:
-    rounded = math.ldexp(1.0, -53) + 1.0
-    return rounded > 1.0
+def _check_libm_suite() -> None:
+    getcontext().prec = 80
+    cases = [
+        ("exp", 0.5, float(Decimal("0.5").exp())),
+        ("log", 0.5, float(Decimal("0.5").ln())),
+        ("sqrt", 2.0, float(Decimal(2).sqrt())),
+    ]
+    for name, value, expected in cases:
+        actual = getattr(math, name)(value)
+        if not math.isfinite(actual):
+            raise AssertionError(f"{name} returned non-finite value")
+        if not math.isclose(actual, expected, rel_tol=0.0, abs_tol=5e-16):
+            raise AssertionError(f"{name} deviates beyond tolerance")
 
 
 def run_numeric_self_tests() -> Mapping[str, str]:
     tests = {
         "rounding": _check_rounding_mode,
         "ftz": _check_subnormal_support,
-        "fma": lambda: True,
-        "libm": _check_libm_consistency,
+        "fma": _check_fma_disabled,
+        "libm": _check_libm_suite,
         "neumaier": _check_neumaier,
         "total_order": _check_total_order,
     }
     results: MutableMapping[str, str] = {}
     for name, fn in tests.items():
         try:
-            results[name] = "pass" if fn() else "fail"
-        except Exception:
-            results[name] = "fail"
+            fn()
+        except AssertionError as exc:
+            results[name] = f"fail:{exc}"
+        except Exception as exc:
+            results[name] = f"fail:{type(exc).__name__}"
+        else:
+            results[name] = "pass"
     return results
 
 

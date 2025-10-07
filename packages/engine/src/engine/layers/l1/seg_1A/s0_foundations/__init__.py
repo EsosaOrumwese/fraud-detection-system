@@ -39,6 +39,8 @@ from .l1.rng import (
     comp_iso,
     comp_index,
 )
+from .l2.output import S0Outputs, write_outputs
+from .l2.rng_logging import RNGLogWriter, rng_event
 
 __all__ = [
     "MerchantUniverse",
@@ -73,4 +75,8 @@ __all__ = [
     "comp_u64",
     "comp_iso",
     "comp_index",
+    "S0Outputs",
+    "write_outputs",
+    "RNGLogWriter",
+    "rng_event",
 ]
