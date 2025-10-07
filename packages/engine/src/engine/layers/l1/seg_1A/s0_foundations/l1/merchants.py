@@ -1,4 +1,5 @@
 """State-0 universe resolution for Layer-1 Segment 1A."""
+
 from __future__ import annotations
 
 import hashlib
@@ -24,17 +25,25 @@ def _map_channel(raw: Optional[str], merchant_id: int) -> str:
     if raw is None:
         raise err("E_CHANNEL_VALUE", f"merchant {merchant_id} missing channel value")
     if raw not in _CHANNEL_MAP:
-        raise err("E_CHANNEL_VALUE", f"merchant {merchant_id} has unsupported channel '{raw}'")
+        raise err(
+            "E_CHANNEL_VALUE", f"merchant {merchant_id} has unsupported channel '{raw}'"
+        )
     return _CHANNEL_MAP[raw]
 
 
-def _validate_iso(value: Optional[str], merchant_id: int, iso_set: frozenset[str]) -> str:
+def _validate_iso(
+    value: Optional[str], merchant_id: int, iso_set: frozenset[str]
+) -> str:
     if value is None:
         raise err("E_FK_HOME_ISO", f"merchant {merchant_id} missing home_country_iso")
     if len(value) != 2 or not value.isascii() or value.upper() != value:
-        raise err("E_FK_HOME_ISO", f"merchant {merchant_id} has non-uppercase ISO '{value}'")
+        raise err(
+            "E_FK_HOME_ISO", f"merchant {merchant_id} has non-uppercase ISO '{value}'"
+        )
     if value not in iso_set:
-        raise err("E_FK_HOME_ISO", f"merchant {merchant_id} references unknown ISO '{value}'")
+        raise err(
+            "E_FK_HOME_ISO", f"merchant {merchant_id} references unknown ISO '{value}'"
+        )
     return value
 
 
@@ -48,7 +57,7 @@ def _validate_mcc(value: Optional[int], merchant_id: int) -> int:
 
 
 def _compute_merchant_u64(merchant_id: int) -> int:
-    if not (0 <= merchant_id < 2 ** 64):
+    if not (0 <= merchant_id < 2**64):
         raise err("E_MERCHANT_ID_RANGE", f"merchant_id {merchant_id} outside [0, 2^64)")
     le_bytes = merchant_id.to_bytes(length=8, byteorder="little", signed=False)
     digest = hashlib.sha256(le_bytes).digest()
@@ -59,7 +68,9 @@ def _compute_merchant_u64(merchant_id: int) -> int:
 def _ensure_columns(df: pl.DataFrame) -> None:
     missing = _EXPECTED_MERCHANT_COLUMNS - set(df.columns)
     if missing:
-        raise err("E_INGRESS_SCHEMA", f"merchant ingress missing columns {sorted(missing)}")
+        raise err(
+            "E_INGRESS_SCHEMA", f"merchant ingress missing columns {sorted(missing)}"
+        )
 
 
 def _iso_set(table: pl.DataFrame) -> frozenset[str]:
@@ -71,7 +82,9 @@ def _iso_set(table: pl.DataFrame) -> frozenset[str]:
         if value is None:
             raise err("E_ISO_TABLE_SCHEMA", "null country_iso entry")
         if len(value) != 2 or not value.isascii() or value.upper() != value:
-            raise err("E_ISO_TABLE_SCHEMA", f"country_iso '{value}' must be uppercase ASCII")
+            raise err(
+                "E_ISO_TABLE_SCHEMA", f"country_iso '{value}' must be uppercase ASCII"
+            )
         iso_values.append(value)
     return frozenset(iso_values)
 
@@ -93,11 +106,17 @@ def _gdp_map(table: pl.DataFrame, iso_set: frozenset[str]) -> Dict[str, float]:
         if value is None or not float(value) > 0.0:
             raise err("E_GDP_NONPOS", f"GDP value for {country} must be > 0")
         if country in mapping:
-            raise err("E_GDP_DUP", f"duplicate GDP row for ISO '{country}' at year {_GDP_OBSERVATION_YEAR}")
+            raise err(
+                "E_GDP_DUP",
+                f"duplicate GDP row for ISO '{country}' at year {_GDP_OBSERVATION_YEAR}",
+            )
         mapping[country] = float(value)
     missing_countries = iso_set - mapping.keys()
     if missing_countries:
-        raise err("E_GDP_MISSING", f"no GDP row for ISO(s) {sorted(missing_countries)} in {_GDP_OBSERVATION_YEAR}")
+        raise err(
+            "E_GDP_MISSING",
+            f"no GDP row for ISO(s) {sorted(missing_countries)} in {_GDP_OBSERVATION_YEAR}",
+        )
     return mapping
 
 
@@ -111,7 +130,9 @@ def _bucket_map(table: pl.DataFrame, iso_set: frozenset[str]) -> Dict[str, int]:
         country = row["country_iso"]
         bucket = row["bucket"]
         if country not in iso_set:
-            raise err("E_BUCKET_ISO_FK", f"bucket row ISO '{country}' not in run ISO set")
+            raise err(
+                "E_BUCKET_ISO_FK", f"bucket row ISO '{country}' not in run ISO set"
+            )
         ibucket = int(bucket)
         if ibucket not in _BUCKET_RANGE:
             raise err("E_BUCKET_RANGE", f"bucket for {country} must be in 1..5")
@@ -120,7 +141,9 @@ def _bucket_map(table: pl.DataFrame, iso_set: frozenset[str]) -> Dict[str, int]:
         mapping[country] = ibucket
     missing_iso = iso_set - mapping.keys()
     if missing_iso:
-        raise err("E_BUCKET_MISSING", f"no bucket mapping for ISO(s) {sorted(missing_iso)}")
+        raise err(
+            "E_BUCKET_MISSING", f"no bucket mapping for ISO(s) {sorted(missing_iso)}"
+        )
     return mapping
 
 
@@ -158,13 +181,16 @@ def build_run_context(
             }
         )
 
-    merchants_df = pl.DataFrame(records, schema={
-        "merchant_id": pl.Int64,
-        "mcc": pl.Int32,
-        "channel_sym": pl.String,
-        "home_country_iso": pl.String,
-        "merchant_u64": pl.UInt64,
-    })
+    merchants_df = pl.DataFrame(
+        records,
+        schema={
+            "merchant_id": pl.Int64,
+            "mcc": pl.Int32,
+            "channel_sym": pl.String,
+            "home_country_iso": pl.String,
+            "merchant_u64": pl.UInt64,
+        },
+    )
 
     merchant_universe = MerchantUniverse(merchants_df)
     gdp_map = _gdp_map(gdp_table, iso_set)

@@ -1,4 +1,5 @@
 """L2 orchestrator for S0 foundations."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -8,7 +9,7 @@ from typing import Iterable, Mapping, Optional, Sequence
 import polars as pl
 
 from ..exceptions import err
-from ..l0.artifacts import ArtifactDigest, hash_artifacts
+from ..l0.artifacts import hash_artifacts
 from ..l0.datasets import load_parquet_table, load_yaml
 from ..l1.context import RunContext, SchemaAuthority
 from ..l1.design import (
@@ -21,7 +22,10 @@ from ..l1.design import (
     load_hurdle_coefficients,
 )
 from ..l1.diagnostics import build_hurdle_diagnostics
-from ..l1.eligibility import CrossborderEligibility, evaluate_eligibility, load_crossborder_eligibility
+from ..l1.eligibility import (
+    evaluate_eligibility,
+    load_crossborder_eligibility,
+)
 from ..l1.hashing import (
     ManifestFingerprintResult,
     ParameterHashResult,
@@ -71,7 +75,9 @@ class S0FoundationsRunner:
         manifest_artifacts: Sequence[Path],
         git_commit_raw: bytes,
     ) -> SealedFoundations:
-        missing = [name for name in _REQUIRED_PARAMETER_FILES if name not in parameter_files]
+        missing = [
+            name for name in _REQUIRED_PARAMETER_FILES if name not in parameter_files
+        ]
         if missing:
             raise err("E_PARAM_MISSING", f"missing parameter files {missing}")
 
@@ -108,8 +114,12 @@ class S0FoundationsRunner:
         dispersion_config: Mapping[str, object],
     ) -> tuple[HurdleCoefficients, DispersionCoefficients, Sequence[DesignVectors]]:
         hurdle = load_hurdle_coefficients(hurdle_config)
-        dispersion = load_dispersion_coefficients(dispersion_config, reference=hurdle.dictionaries)
-        vectors = tuple(iter_design_vectors(context, hurdle=hurdle, dispersion=dispersion))
+        dispersion = load_dispersion_coefficients(
+            dispersion_config, reference=hurdle.dictionaries
+        )
+        vectors = tuple(
+            iter_design_vectors(context, hurdle=hurdle, dispersion=dispersion)
+        )
         return hurdle, dispersion, vectors
 
     @staticmethod
@@ -139,7 +149,9 @@ class S0FoundationsRunner:
         parameter_hash: str,
         produced_by_fingerprint: Optional[str] = None,
     ) -> pl.DataFrame:
-        bundle = load_crossborder_eligibility(crossborder_config, iso_set=set(context.iso_countries))
+        bundle = load_crossborder_eligibility(
+            crossborder_config, iso_set=set(context.iso_countries)
+        )
         return evaluate_eligibility(
             context,
             bundle=bundle,
@@ -163,8 +175,13 @@ class S0FoundationsRunner:
         )
 
     @staticmethod
-    def philox_engine(*, seed: int, manifest_fingerprint: ManifestFingerprintResult) -> PhiloxEngine:
-        return PhiloxEngine(seed=seed, manifest_fingerprint=manifest_fingerprint.manifest_fingerprint_bytes)
+    def philox_engine(
+        *, seed: int, manifest_fingerprint: ManifestFingerprintResult
+    ) -> PhiloxEngine:
+        return PhiloxEngine(
+            seed=seed,
+            manifest_fingerprint=manifest_fingerprint.manifest_fingerprint_bytes,
+        )
 
 
 __all__ = [

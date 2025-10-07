@@ -1,10 +1,11 @@
 """Philox-based RNG scaffolding for S0.3."""
+
 from __future__ import annotations
 
 import math
 import struct
 from dataclasses import dataclass
-from typing import Iterable, Sequence, Tuple
+from typing import Sequence, Tuple
 
 from ..exceptions import err
 from .hashing import _hash_sha256 as _sha256
@@ -59,13 +60,13 @@ SubstreamComponent = Tuple[str, object]
 
 
 def comp_u64(value: int) -> SubstreamComponent:
-    if not (0 <= value < 2 ** 64):
+    if not (0 <= value < 2**64):
         raise err("E_SUBSTREAM_U64", f"u64 component {value} outside [0, 2^64)")
     return ("u64", value)
 
 
 def comp_index(value: int) -> SubstreamComponent:
-    if not (0 <= value < 2 ** 32):
+    if not (0 <= value < 2**32):
         raise err("E_SUBSTREAM_INDEX", f"index component {value} outside [0, 2^32)")
     return ("index", value)
 
@@ -75,7 +76,10 @@ def comp_iso(value: str) -> SubstreamComponent:
         raise err("E_SUBSTREAM_ISO", "ISO component is null")
     upper = value.upper()
     if len(upper) != 2 or not upper.isascii():
-        raise err("E_SUBSTREAM_ISO", f"ISO component '{value}' must be uppercase ASCII length 2")
+        raise err(
+            "E_SUBSTREAM_ISO",
+            f"ISO component '{value}' must be uppercase ASCII length 2",
+        )
     return ("iso", upper)
 
 
@@ -100,7 +104,7 @@ def _encode_label(label: str) -> bytes:
 
 
 def _open_interval(u64_word: int) -> float:
-    u = (float(u64_word + 1) * _DOUBLE_SCALE)
+    u = float(u64_word + 1) * _DOUBLE_SCALE
     if u == 1.0:
         return _OPEN_INTERVAL_MAX
     return u
@@ -130,7 +134,9 @@ class PhiloxSubstream:
 
     def _next_block(self) -> Tuple[int, int]:
         x0, x1 = philox2x64_10(self.key, (self.counter_hi, self.counter_lo))
-        self.counter_hi, self.counter_lo = _add_u128(self.counter_hi, self.counter_lo, 1)
+        self.counter_hi, self.counter_lo = _add_u128(
+            self.counter_hi, self.counter_lo, 1
+        )
         self._blocks_consumed += 1
         return x0, x1
 
@@ -214,7 +220,7 @@ class PhiloxEngine:
     """Produces deterministic substreams following the S0.3 contract."""
 
     def __init__(self, *, seed: int, manifest_fingerprint: bytes | str) -> None:
-        if not (0 <= seed < 2 ** 64):
+        if not (0 <= seed < 2**64):
             raise err("E_SEED_RANGE", f"seed {seed} outside [0, 2^64)")
         if isinstance(manifest_fingerprint, str):
             manifest_bytes = bytes.fromhex(manifest_fingerprint)
@@ -233,7 +239,9 @@ class PhiloxEngine:
     def root_state(self) -> PhiloxState:
         return PhiloxState(self._root_key, self._root_counter_hi, self._root_counter_lo)
 
-    def derive_substream(self, label: str, components: Sequence[SubstreamComponent]) -> PhiloxSubstream:
+    def derive_substream(
+        self, label: str, components: Sequence[SubstreamComponent]
+    ) -> PhiloxSubstream:
         msg = _encode_label("mlr:1A") + _encode_label(label)
         for component in components:
             msg += _encode_component(component)

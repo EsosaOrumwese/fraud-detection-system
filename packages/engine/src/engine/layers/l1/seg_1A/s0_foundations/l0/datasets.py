@@ -1,4 +1,5 @@
 """Input helpers for S0 datasets."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -21,7 +22,9 @@ def load_parquet_table(path: Path) -> pl.DataFrame:
         try:
             return lf.collect()
         except FileNotFoundError as exc:
-            raise err("E_DATASET_EMPTY", f"no Parquet files found under '{path}'") from exc
+            raise err(
+                "E_DATASET_EMPTY", f"no Parquet files found under '{path}'"
+            ) from exc
     raise err("E_DATASET_NOT_FOUND", f"dataset path '{path}' does not exist")
 
 

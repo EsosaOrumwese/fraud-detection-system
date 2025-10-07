@@ -1,4 +1,5 @@
 """Lineage hashing helpers for S0.2."""
+
 from __future__ import annotations
 
 import struct
@@ -15,7 +16,7 @@ def _encode_str(value: str) -> bytes:
 
 
 def _encode_u64(value: int) -> bytes:
-    if not (0 <= value < 2 ** 64):
+    if not (0 <= value < 2**64):
         raise err("E_UINT64_RANGE", f"value {value} outside [0, 2^64)")
     return struct.pack("<Q", value)
 
@@ -64,7 +65,9 @@ def normalise_git_commit(raw_bytes: bytes) -> bytes:
         return raw_bytes
     if len(raw_bytes) == 20:
         return b"\x00" * 12 + raw_bytes
-    raise err("E_GIT_BYTES", f"git commit digest must be 20 or 32 bytes, got {len(raw_bytes)}")
+    raise err(
+        "E_GIT_BYTES", f"git commit digest must be 20 or 32 bytes, got {len(raw_bytes)}"
+    )
 
 
 def compute_manifest_fingerprint(
@@ -100,7 +103,7 @@ def compute_run_id(
     seed: int,
     start_time_ns: int,
     existing_ids: Iterable[str] = (),
-    max_attempts: int = 2 ** 16,
+    max_attempts: int = 2**16,
 ) -> str:
     if len(manifest_fingerprint_bytes) != 32:
         raise err("E_RUNID_INPUT", "manifest fingerprint must be 32 raw bytes")
@@ -109,13 +112,21 @@ def compute_run_id(
     timestamp = start_time_ns
     prefix = _encode_str("run:1A")
     while attempts < max_attempts:
-        payload = prefix + manifest_fingerprint_bytes + _encode_u64(seed) + _encode_u64(timestamp)
+        payload = (
+            prefix
+            + manifest_fingerprint_bytes
+            + _encode_u64(seed)
+            + _encode_u64(timestamp)
+        )
         candidate = _hash_sha256(payload)[:16].hex()
         if candidate not in used:
             return candidate
         timestamp += 1
         attempts += 1
-    raise err("E_RUNID_COLLISION_EXHAUSTED", f"exhausted {max_attempts} attempts computing run_id")
+    raise err(
+        "E_RUNID_COLLISION_EXHAUSTED",
+        f"exhausted {max_attempts} attempts computing run_id",
+    )
 
 
 __all__ = [

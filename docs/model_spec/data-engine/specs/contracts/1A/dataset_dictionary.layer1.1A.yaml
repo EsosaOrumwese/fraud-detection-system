@@ -1,455 +1,455 @@
 # dataset_dictionary.layer1.1A.yaml — consolidated after Patch #1
-version: "1.0"
+version: '1.0'
 
 lifecycle:
-  phase: "planning"
-  last_reviewed: null
-  approver: null
+  phase: planning
+  last_reviewed:
+  approver:
 
 ci_policy:
   allow_placeholders: true
-  placeholder_markers: ["TBD", null]
-  block_on_phase: ["beta","stable"]
+  placeholder_markers: [TBD, null]
+  block_on_phase: [beta, stable]
 
 layer:
-  id: "layer1"
-  name: "Merchant Location Realism"
+  id: layer1
+  name: Merchant Location Realism
 
 # ── External / seed / canonical inputs ─────────────────────────────────────
 reference_data:
-  - id: "transaction_schema_merchant_ids"
-    status: "approved"
-    owner_subsegment: "ingress"
-    description: "Authoritative merchant ID seed list derived from transaction schema."
-    version: "TBD"
-    format: "parquet"
-    path: "reference/layer1/transaction_schema_merchant_ids/{version}/"
-    partitioning: [ "version" ]
-    ordering: []
-    schema_ref: "schemas.ingress.layer1.yaml#/merchant_ids"
-    lineage:
-      produced_by: null
-      consumed_by: ["1A"]
-      final_in_layer: false
-    retention_days: 365
-    pii: false
-    licence: "Proprietary-Internal"
+- id: transaction_schema_merchant_ids
+  status: approved
+  owner_subsegment: ingress
+  description: Authoritative merchant ID seed list derived from transaction schema.
+  version: TBD
+  format: parquet
+  path: reference/layer1/transaction_schema_merchant_ids/{version}/
+  partitioning: [version]
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/merchant_ids
+  lineage:
+    produced_by:
+    consumed_by: [1A]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "world_bank_gdp_per_capita_20250415"
-    status: "approved"
-    owner_subsegment: "ingress"
-    description: "GDP-per-capita vintage used for GDP bucket assignment."
-    version: "2025-04-15"
-    format: "parquet"
-    path: "reference/economic/world_bank_gdp_per_capita/2025-04-15/gdp.parquet"
-    partitioning: []
-    ordering: []
-    schema_ref: "schemas.ingress.layer1.yaml#/world_bank_gdp"
-    lineage:
-      produced_by: null
-      consumed_by: ["1A"]
-      final_in_layer: false
-    retention_days: 1095
-    pii: false
-    licence: "CC-BY-4.0"
+- id: world_bank_gdp_per_capita_20250415
+  status: approved
+  owner_subsegment: ingress
+  description: GDP-per-capita vintage used for GDP bucket assignment.
+  version: '2025-04-15'
+  format: parquet
+  path: reference/economic/world_bank_gdp_per_capita/2025-04-15/gdp.parquet
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/world_bank_gdp
+  lineage:
+    produced_by:
+    consumed_by: [1A]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: CC-BY-4.0
 
-  - id: "iso3166_canonical_2024"
-    status: "approved"
-    owner_subsegment: "ingress"
-    description: "Canonical ISO 3166-1 alpha-2 country list for tie-breaks and validation."
-    version: "2024-12-31"
-    format: "parquet"
-    path: "reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet"
-    partitioning: []
-    ordering: []
-    schema_ref: "schemas.ingress.layer1.yaml#/iso3166_canonical_2024"
-    lineage:
-      produced_by: null
-      consumed_by: ["1A"]
-      final_in_layer: false
-    retention_days: 1095
-    pii: false
-    licence: "CC-BY-4.0"
+- id: iso3166_canonical_2024
+  status: approved
+  owner_subsegment: ingress
+  description: Canonical ISO 3166-1 alpha-2 country list for tie-breaks and validation.
+  version: '2024-12-31'
+  format: parquet
+  path: reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/iso3166_canonical_2024
+  lineage:
+    produced_by:
+    consumed_by: [1A]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: CC-BY-4.0
 
-  - id: "world_countries"
-    status: "approved"
-    owner_subsegment: "ingress"
-    description: "World country boundaries used for geo conformance checks."
-    version: "2024"
-    format: "parquet"
-    path: "reference/spatial/world_countries/2024/world_countries.parquet"
-    partitioning: []
-    ordering: []
-    schema_ref: "schemas.ingress.layer1.yaml#/world_countries_shp"
-    lineage:
-      produced_by: null
-      consumed_by: ["1A","1B","2A"]
-      final_in_layer: false
-    retention_days: 1095
-    pii: false
-    licence: "ODbL-1.0"
+- id: world_countries
+  status: approved
+  owner_subsegment: ingress
+  description: World country boundaries used for geo conformance checks.
+  version: '2024'
+  format: parquet
+  path: reference/spatial/world_countries/2024/world_countries.parquet
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/world_countries_shp
+  lineage:
+    produced_by:
+    consumed_by: [1A, 1B, 2A]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: ODbL-1.0
 
-  - id: "tz_world_2025a"
-    status: "approved"
-    owner_subsegment: "ingress"
-    description: "TZ world polygons used by downstream 2A but pinned for Layer 1 provenance."
-    version: "2025a"
-    format: "parquet"     # GeoParquet
-    path: "reference/spatial/tz_world/2025a/tz_world.parquet"
-    partitioning: []
-    ordering: []
-    schema_ref: "schemas.ingress.layer1.yaml#/tz_world_shp"
-    lineage:
-      produced_by: null
-      consumed_by: ["2A"]
-      final_in_layer: false
-    retention_days: 1095
-    pii: false
-    licence: "ODbL-1.0"
+- id: tz_world_2025a
+  status: approved
+  owner_subsegment: ingress
+  description: TZ world polygons used by downstream 2A but pinned for Layer 1 provenance.
+  version: 2025a
+  format: parquet         # GeoParquet
+  path: reference/spatial/tz_world/2025a/tz_world.parquet
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/tz_world_shp
+  lineage:
+    produced_by:
+    consumed_by: [2A]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: ODbL-1.0
 
-  - id: "population_raster_2025"
-    status: "approved"
-    owner_subsegment: "ingress"
-    description: "Population raster (HRSL/WorldPop) pinned for spatial priors in 1B; referenced for hermeticity."
-    version: "2025"
-    format: "tif"         # COG
-    path: "reference/spatial/population/2025/population.tif"
-    partitioning: []
-    ordering: []
-    schema_ref: "schemas.ingress.layer1.yaml#/population_raster"
-    lineage:
-      produced_by: null
-      consumed_by: ["1B"]
-      final_in_layer: false
-    retention_days: 1095
-    pii: false
-    licence: "ODbL-1.0"
+- id: population_raster_2025
+  status: approved
+  owner_subsegment: ingress
+  description: Population raster (HRSL/WorldPop) pinned for spatial priors in 1B; referenced for hermeticity.
+  version: '2025'
+  format: tif             # COG
+  path: reference/spatial/population/2025/population.tif
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/population_raster
+  lineage:
+    produced_by:
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: ODbL-1.0
 
-  - id: "gdp_bucket_map_2024"
-    status: "approved"
-    owner_subsegment: "ingress"
-    description: "Jenks or quantile-based GDP bucket mapping used as predictor."
-    version: "2024"
-    format: "parquet"
-    path: "reference/economic/gdp_bucket_map/2024/gdp_bucket_map.parquet"
-    partitioning: [ ]
-    ordering: [ ]
-    schema_ref: "schemas.ingress.layer1.yaml#/gdp_bucket_map"
-    lineage:
-      produced_by: null
-      consumed_by: [ "1A" ]
-      final_in_layer: false
-    retention_days: 1095
-    pii: false
-    licence: "Proprietary-Internal"
+- id: gdp_bucket_map_2024
+  status: approved
+  owner_subsegment: ingress
+  description: Jenks or quantile-based GDP bucket mapping used as predictor.
+  version: '2024'
+  format: parquet
+  path: reference/economic/gdp_bucket_map/2024/gdp_bucket_map.parquet
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/gdp_bucket_map
+  lineage:
+    produced_by:
+    consumed_by: [1A]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "settlement_shares_2024Q4"
-    status: "approved"
-    owner_subsegment: "ingress"
-    description: "Currency-level settlement share vectors."
-    version: "2024Q4"
-    format: "parquet"
-    path: "reference/network/settlement_shares/2024Q4/settlement_shares.parquet"
-    partitioning: [ ]
-    ordering: [ ]
-    schema_ref: "schemas.ingress.layer1.yaml#/settlement_shares"
-    lineage:
-      produced_by: null
-      consumed_by: [ "1A" ]
-      final_in_layer: false
-    retention_days: 1095
-    pii: false
-    licence: "Proprietary-Internal"
+- id: settlement_shares_2024Q4
+  status: approved
+  owner_subsegment: ingress
+  description: Currency-level settlement share vectors.
+  version: 2024Q4
+  format: parquet
+  path: reference/network/settlement_shares/2024Q4/settlement_shares.parquet
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/settlement_shares
+  lineage:
+    produced_by:
+    consumed_by: [1A]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "ccy_country_shares_2024Q4"
-    status: "approved"
-    owner_subsegment: "ingress"
-    description: "Intra-currency proportional splits with observation counts."
-    version: "2024Q4"
-    format: "parquet"
-    path: "reference/network/ccy_country_shares/2024Q4/ccy_country_shares.parquet"
-    partitioning: [ ]
-    ordering: [ ]
-    schema_ref: "schemas.ingress.layer1.yaml#/ccy_country_shares"
-    lineage:
-      produced_by: null
-      consumed_by: [ "1A" ]
-      final_in_layer: false
-    retention_days: 1095
-    pii: false
-    licence: "Proprietary-Internal"
+- id: ccy_country_shares_2024Q4
+  status: approved
+  owner_subsegment: ingress
+  description: Intra-currency proportional splits with observation counts.
+  version: 2024Q4
+  format: parquet
+  path: reference/network/ccy_country_shares/2024Q4/ccy_country_shares.parquet
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/ccy_country_shares
+  lineage:
+    produced_by:
+    consumed_by: [1A]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
 
 # ── Internally generated datasets (1A) ─────────────────────────────────────
 datasets:
-  - id: "ccy_country_weights_cache"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Deterministic cache of expanded currency→country weights."
-    version: "{parameter_hash}"
-    format: "parquet"
-    path: "data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/"
-    partitioning: [ "parameter_hash" ]
-    ordering: [ ]
-    schema_ref: "schemas.1A.yaml#/prep/ccy_country_weights_cache"
-    lineage:
-      produced_by: "1A.expand_currency_to_country"
-      consumed_by: [ "1A" ]
-      final_in_layer: false
-    retention_days: 365
-    pii: false
-    licence: "Proprietary-Internal"
+- id: ccy_country_weights_cache
+  status: approved
+  owner_subsegment: 1A
+  description: Deterministic cache of expanded currency→country weights.
+  version: '{parameter_hash}'
+  format: parquet
+  path: data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/
+  partitioning: [parameter_hash]
+  ordering: []
+  schema_ref: schemas.1A.yaml#/prep/ccy_country_weights_cache
+  lineage:
+    produced_by: 1A.expand_currency_to_country
+    consumed_by: [1A]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "merchant_currency"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Per-merchant settlement currency κₘ with provenance."
-    version: "{parameter_hash}"
-    format: "parquet"
-    path: "data/layer1/1A/merchant_currency/parameter_hash={parameter_hash}/"
-    partitioning: [ "parameter_hash" ]
-    ordering: [ ]
-    schema_ref: "schemas.1A.yaml#/prep/merchant_currency"
-    lineage:
-      produced_by: "1A.derive_merchant_currency"   # S5.0
-      consumed_by: [ "1A.expand_currency_to_country", "1A.select_gumbel_candidates" ]
-      final_in_layer: false
-    retention_days: 365
-    pii: false
-    licence: "Proprietary-Internal"
+- id: merchant_currency
+  status: approved
+  owner_subsegment: 1A
+  description: Per-merchant settlement currency κₘ with provenance.
+  version: '{parameter_hash}'
+  format: parquet
+  path: data/layer1/1A/merchant_currency/parameter_hash={parameter_hash}/
+  partitioning: [parameter_hash]
+  ordering: []
+  schema_ref: schemas.1A.yaml#/prep/merchant_currency
+  lineage:
+    produced_by: 1A.derive_merchant_currency       # S5.0
+    consumed_by: [1A.expand_currency_to_country, 1A.select_gumbel_candidates]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "hurdle_design_matrix"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Predictor matrix for hurdle (single vs multi-site) decision."
-    version: "{parameter_hash}"
-    format: "parquet"
-    path: "data/layer1/1A/hurdle_design_matrix/parameter_hash={parameter_hash}/"
-    partitioning: ["parameter_hash"]
-    ordering: []
-    schema_ref: "schemas.1A.yaml#/model/hurdle_design_matrix"
-    lineage:
-      produced_by: "1A.build_design_matrix"
-      consumed_by: ["1A"]
-      final_in_layer: false
-    retention_days: 365
-    pii: false
-    licence: "Proprietary-Internal"
+- id: hurdle_design_matrix
+  status: approved
+  owner_subsegment: 1A
+  description: Predictor matrix for hurdle (single vs multi-site) decision.
+  version: '{parameter_hash}'
+  format: parquet
+  path: data/layer1/1A/hurdle_design_matrix/parameter_hash={parameter_hash}/
+  partitioning: [parameter_hash]
+  ordering: []
+  schema_ref: schemas.1A.yaml#/model/hurdle_design_matrix
+  lineage:
+    produced_by: 1A.build_design_matrix
+    consumed_by: [1A]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "hurdle_pi_probs"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Per-merchant hurdle probabilities (π) after logistic model."
-    version: "{parameter_hash}"
-    format: "parquet"
-    path: "data/layer1/1A/hurdle_pi_probs/parameter_hash={parameter_hash}/"
-    partitioning: ["parameter_hash"]
-    ordering: []
-    schema_ref: "schemas.1A.yaml#/model/hurdle_pi_probs"
-    lineage:
-      produced_by: "1A.S0_7_build_hurdle_pi_probs"
-      consumed_by: ["1A"]
-      final_in_layer: false
-    retention_days: 365
-    pii: false
-    licence: "Proprietary-Internal"
+- id: hurdle_pi_probs
+  status: approved
+  owner_subsegment: 1A
+  description: Per-merchant hurdle probabilities (π) after logistic model.
+  version: '{parameter_hash}'
+  format: parquet
+  path: data/layer1/1A/hurdle_pi_probs/parameter_hash={parameter_hash}/
+  partitioning: [parameter_hash]
+  ordering: []
+  schema_ref: schemas.1A.yaml#/model/hurdle_pi_probs
+  lineage:
+    produced_by: 1A.S0_7_build_hurdle_pi_probs
+    consumed_by: [1A]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "sparse_flag"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Per-currency sparsity flags emitted by currency→country expansion."
-    version: "{parameter_hash}"
-    format: "parquet"
-    path: "data/layer1/1A/sparse_flag/parameter_hash={parameter_hash}/"
-    partitioning: ["parameter_hash"]
-    ordering: []
-    schema_ref: "schemas.1A.yaml#/prep/sparse_flag"
-    lineage:
-      produced_by: "1A.expand_currency_to_country"
-      consumed_by: ["1A","validation"]
-      final_in_layer: false
-    retention_days: 365
-    pii: false
-    licence: "Proprietary-Internal"
+- id: sparse_flag
+  status: approved
+  owner_subsegment: 1A
+  description: Per-currency sparsity flags emitted by currency→country expansion.
+  version: '{parameter_hash}'
+  format: parquet
+  path: data/layer1/1A/sparse_flag/parameter_hash={parameter_hash}/
+  partitioning: [parameter_hash]
+  ordering: []
+  schema_ref: schemas.1A.yaml#/prep/sparse_flag
+  lineage:
+    produced_by: 1A.expand_currency_to_country
+    consumed_by: [1A, validation]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "crossborder_eligibility_flags"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Flags enforcing cross-border eligibility rules prior to ZTP."
-    version: "{parameter_hash}"
-    format: "parquet"
-    path: "data/layer1/1A/crossborder_eligibility_flags/parameter_hash={parameter_hash}/"
-    partitioning: ["parameter_hash"]
-    ordering: []
-    schema_ref: "schemas.1A.yaml#/prep/crossborder_eligibility_flags"
-    lineage:
-      produced_by: "1A.apply_eligibility_rules"
-      consumed_by: ["1A","validation"]
-      final_in_layer: false
-    retention_days: 365
-    pii: false
-    licence: "Proprietary-Internal"
+- id: crossborder_eligibility_flags
+  status: approved
+  owner_subsegment: 1A
+  description: Flags enforcing cross-border eligibility rules prior to ZTP.
+  version: '{parameter_hash}'
+  format: parquet
+  path: data/layer1/1A/crossborder_eligibility_flags/parameter_hash={parameter_hash}/
+  partitioning: [parameter_hash]
+  ordering: []
+  schema_ref: schemas.1A.yaml#/prep/crossborder_eligibility_flags
+  lineage:
+    produced_by: 1A.apply_eligibility_rules
+    consumed_by: [1A, validation]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "country_set"
-    status: "deprecated"
-    owner_subsegment: "1A"
-    description: "Legacy RNG-dependent allocation set; superseded by S3 ordered candidate set. Not authoritative for inter-country order."
-    version: "{parameter_hash}"
-    format: "parquet"
-    path: "data/layer1/1A/country_set/seed={seed}/parameter_hash={parameter_hash}/"
-    partitioning: ["seed", "parameter_hash"]
-    ordering: []
-    schema_ref: "schemas.1A.yaml#/alloc/country_set"
-    lineage:
-      produced_by: "1A.select_foreign_countries"
-      consumed_by: ["1A","1B"]
-      final_in_layer: false
-    retention_days: 365
-    pii: false
-    licence: "Proprietary-Internal"
+- id: country_set
+  status: deprecated
+  owner_subsegment: 1A
+  description: Legacy RNG-dependent allocation set; superseded by S3 ordered candidate set. Not authoritative for inter-country order.
+  version: '{parameter_hash}'
+  format: parquet
+  path: data/layer1/1A/country_set/seed={seed}/parameter_hash={parameter_hash}/
+  partitioning: [seed, parameter_hash]
+  ordering: []
+  schema_ref: schemas.1A.yaml#/alloc/country_set
+  lineage:
+    produced_by: 1A.select_foreign_countries
+    consumed_by: [1A, 1B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "ranking_residual_cache_1A"
-    status: "deprecated"
-    owner_subsegment: "1A"
-    description: "Legacy residual cache for RNG integerisation; superseded by S3 deterministic integerised counts (parameter-scoped)."
-    version: "{parameter_hash}"
-    format: "parquet"
-    path: "data/layer1/1A/ranking_residual_cache_1A/seed={seed}/parameter_hash={parameter_hash}/"
-    partitioning: ["seed", "parameter_hash"]
-    ordering: []
-    schema_ref: "schemas.1A.yaml#/alloc/ranking_residual_cache"
-    lineage:
-      produced_by: "1A.integerise_allocations"
-      consumed_by: ["1A"]
-      final_in_layer: false
-    retention_days: 365
-    pii: false
-    licence: "Proprietary-Internal"
+- id: ranking_residual_cache_1A
+  status: deprecated
+  owner_subsegment: 1A
+  description: Legacy residual cache for RNG integerisation; superseded by S3 deterministic integerised counts (parameter-scoped).
+  version: '{parameter_hash}'
+  format: parquet
+  path: data/layer1/1A/ranking_residual_cache_1A/seed={seed}/parameter_hash={parameter_hash}/
+  partitioning: [seed, parameter_hash]
+  ordering: []
+  schema_ref: schemas.1A.yaml#/alloc/ranking_residual_cache
+  lineage:
+    produced_by: 1A.integerise_allocations
+    consumed_by: [1A]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "outlet_catalogue"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Immutable outlet stubs per merchant × legal_country. Does NOT encode cross-country order; consumers MUST join `s3_candidate_set.candidate_rank` for that. Consumers MUST only read after verifying `_passed.flag` matches SHA256(`validation_bundle_1A`) for the same fingerprint (see S9.9)."
-    version: "{manifest_fingerprint}"
-    format: "parquet"
-    path: "data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/"
-    partitioning: ["seed","fingerprint"]
-    ordering: ["merchant_id","legal_country_iso","site_order"]
-    schema_ref: "schemas.1A.yaml#/egress/outlet_catalogue"
-    lineage:
-      produced_by: "1A"
-      consumed_by: ["1B"]
-      final_in_layer: false
-    retention_days: 365
-    pii: false
-    licence: "Proprietary-Internal"
+- id: outlet_catalogue
+  status: approved
+  owner_subsegment: 1A
+  description: Immutable outlet stubs per merchant × legal_country. Does NOT encode cross-country order; consumers MUST join `s3_candidate_set.candidate_rank` for that. Consumers MUST only read after verifying `_passed.flag` matches SHA256(`validation_bundle_1A`) for the same fingerprint (see S9.9).
+  version: '{manifest_fingerprint}'
+  format: parquet
+  path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+  partitioning: [seed, fingerprint]
+  ordering: [merchant_id, legal_country_iso, site_order]
+  schema_ref: schemas.1A.yaml#/egress/outlet_catalogue
+  lineage:
+    produced_by: 1A
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "s3_candidate_set"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Deterministic ordered candidate set per merchant; single authority for inter-country order (`candidate_rank`)."
-    version: "{parameter_hash}"
-    format: "parquet"
-    path: "data/layer1/1A/s3_candidate_set/parameter_hash={parameter_hash}/"
-    partitioning: ["parameter_hash"]
-    ordering: ["merchant_id","candidate_rank","country_iso"]
-    schema_ref: "schemas.1A.yaml#/s3/candidate_set"
-    lineage:
-      produced_by: "1A.S3"
-      consumed_by: ["1A","1B"]
-      final_in_layer: false
-    retention_days: 365
-    pii: false
-    licence: "Proprietary-Internal"
+- id: s3_candidate_set
+  status: approved
+  owner_subsegment: 1A
+  description: Deterministic ordered candidate set per merchant; single authority for inter-country order (`candidate_rank`).
+  version: '{parameter_hash}'
+  format: parquet
+  path: data/layer1/1A/s3_candidate_set/parameter_hash={parameter_hash}/
+  partitioning: [parameter_hash]
+  ordering: [merchant_id, candidate_rank, country_iso]
+  schema_ref: schemas.1A.yaml#/s3/candidate_set
+  lineage:
+    produced_by: 1A.S3
+    consumed_by: [1A, 1B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "s3_base_weight_priors"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Deterministic base-weight priors (fixed-dp strings) per candidate; not probabilities."
-    version: "{parameter_hash}"
-    format: "parquet"
-    path: "data/layer1/1A/s3_base_weight_priors/parameter_hash={parameter_hash}/"
-    partitioning: ["parameter_hash"]
-    ordering: ["merchant_id","country_iso"]
-    schema_ref: "schemas.1A.yaml#/s3/base_weight_priors"
-    lineage:
-      produced_by: "1A.S3"
-      consumed_by: ["1A"]
-      final_in_layer: false
-    retention_days: 365
-    pii: false
-    licence: "Proprietary-Internal"
+- id: s3_base_weight_priors
+  status: approved
+  owner_subsegment: 1A
+  description: Deterministic base-weight priors (fixed-dp strings) per candidate; not probabilities.
+  version: '{parameter_hash}'
+  format: parquet
+  path: data/layer1/1A/s3_base_weight_priors/parameter_hash={parameter_hash}/
+  partitioning: [parameter_hash]
+  ordering: [merchant_id, country_iso]
+  schema_ref: schemas.1A.yaml#/s3/base_weight_priors
+  lineage:
+    produced_by: 1A.S3
+    consumed_by: [1A]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "s3_integerised_counts"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Deterministic per-country integer counts summing to N; includes residual_rank."
-    version: "{parameter_hash}"
-    format: "parquet"
-    path: "data/layer1/1A/s3_integerised_counts/parameter_hash={parameter_hash}/"
-    partitioning: ["parameter_hash"]
-    ordering: ["merchant_id","country_iso"]
-    schema_ref: "schemas.1A.yaml#/s3/integerised_counts"
-    lineage:
-      produced_by: "1A.S3"
-      consumed_by: ["1A"]
-      final_in_layer: false
-    retention_days: 365
-    pii: false
-    licence: "Proprietary-Internal"
+- id: s3_integerised_counts
+  status: approved
+  owner_subsegment: 1A
+  description: Deterministic per-country integer counts summing to N; includes residual_rank.
+  version: '{parameter_hash}'
+  format: parquet
+  path: data/layer1/1A/s3_integerised_counts/parameter_hash={parameter_hash}/
+  partitioning: [parameter_hash]
+  ordering: [merchant_id, country_iso]
+  schema_ref: schemas.1A.yaml#/s3/integerised_counts
+  lineage:
+    produced_by: 1A.S3
+    consumed_by: [1A]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "s3_site_sequence"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Deterministic within-country site sequence (and optional 6-digit site_id)."
-    version: "{parameter_hash}"
-    format: "parquet"
-    path: "data/layer1/1A/s3_site_sequence/parameter_hash={parameter_hash}/"
-    partitioning: ["parameter_hash"]
-    ordering: ["merchant_id","country_iso","site_order"]
-    schema_ref: "schemas.1A.yaml#/s3/site_sequence"
-    lineage:
-      produced_by: "1A.S3"
-      consumed_by: ["1A"]
-      final_in_layer: false
-    retention_days: 365
-    pii: false
-    licence: "Proprietary-Internal"
+- id: s3_site_sequence
+  status: approved
+  owner_subsegment: 1A
+  description: Deterministic within-country site sequence (and optional 6-digit site_id).
+  version: '{parameter_hash}'
+  format: parquet
+  path: data/layer1/1A/s3_site_sequence/parameter_hash={parameter_hash}/
+  partitioning: [parameter_hash]
+  ordering: [merchant_id, country_iso, site_order]
+  schema_ref: schemas.1A.yaml#/s3/site_sequence
+  lineage:
+    produced_by: 1A.S3
+    consumed_by: [1A]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "hurdle_stationarity_tests_2024Q4"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Diagnostics for hurdle model stability across vintages."
-    version: "{parameter_hash}"
-    format: "parquet"
-    path: "data/layer1/1A/hurdle_stationarity_tests/parameter_hash={parameter_hash}/"
-    partitioning: ["parameter_hash"]
-    ordering: []
-    schema_ref: "schemas.1A.yaml#/validation/hurdle_stationarity_tests"
-    lineage:
-      produced_by: "1A.validation"
-      consumed_by: ["validation"]
-      final_in_layer: false
-    retention_days: 365
-    pii: false
-    licence: "Proprietary-Internal"
+- id: hurdle_stationarity_tests_2024Q4
+  status: approved
+  owner_subsegment: 1A
+  description: Diagnostics for hurdle model stability across vintages.
+  version: '{parameter_hash}'
+  format: parquet
+  path: data/layer1/1A/hurdle_stationarity_tests/parameter_hash={parameter_hash}/
+  partitioning: [parameter_hash]
+  ordering: []
+  schema_ref: schemas.1A.yaml#/validation/hurdle_stationarity_tests
+  lineage:
+    produced_by: 1A.validation
+    consumed_by: [validation]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "crossborder_features"
-    status: "planning"
-    owner_subsegment: "1A"
-    description: "Per-merchant deterministic features used by cross-border K (currently: openness scalar X_m in [0,1])."
-    version: "{parameter_hash}"
-    format: "parquet"
-    path: "data/layer1/1A/crossborder_features/parameter_hash={parameter_hash}/"
-    partitioning: [ "parameter_hash" ]
-    ordering: [ "merchant_id" ]
-    schema_ref: "schemas.1A.yaml#/model/crossborder_features"
-    lineage:
-      produced_by: "1A.S0"
-      consumed_by: [ "1A.S4" ]
-      final_in_layer: false
-    retention_days: 365
-    pii: false
-    licence: "Proprietary-Internal"
+- id: crossborder_features
+  status: planning
+  owner_subsegment: 1A
+  description: 'Per-merchant deterministic features used by cross-border K (currently: openness scalar X_m in [0,1]).'
+  version: '{parameter_hash}'
+  format: parquet
+  path: data/layer1/1A/crossborder_features/parameter_hash={parameter_hash}/
+  partitioning: [parameter_hash]
+  ordering: [merchant_id]
+  schema_ref: schemas.1A.yaml#/model/crossborder_features
+  lineage:
+    produced_by: 1A.S0
+    consumed_by: [1A.S4]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
 
 # Prune CI-time artefacts (planning phase)
 #  - id: "nightly_ci_metrics"
@@ -470,365 +470,365 @@ datasets:
 #    pii: false
 #    licence: "Proprietary-Internal"
 
-  - id: "validation_bundle_1A"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Validator outputs for 1A (metrics, plots, diffs)."
-    version: "{manifest_fingerprint}"
-    format: "folder"
-    path: "data/layer1/1A/validation/fingerprint={manifest_fingerprint}/"
-    partitioning: ["fingerprint"]
-    ordering: []
-    schema_ref: "schemas.1A.yaml#/validation/validation_bundle"
-    lineage:
-      produced_by: "1A.validation"
-      consumed_by: ["release"]
-      final_in_layer: false
-    retention_days: 365
-    pii: false
-    licence: "Proprietary-Internal"
+- id: validation_bundle_1A
+  status: approved
+  owner_subsegment: 1A
+  description: Validator outputs for 1A (metrics, plots, diffs).
+  version: '{manifest_fingerprint}'
+  format: folder
+  path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.1A.yaml#/validation/validation_bundle
+  lineage:
+    produced_by: 1A.validation
+    consumed_by: [release]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
 
   # ── RNG audit & event logs (Patch #1) ────────────────────────────────────
-  - id: "rng_audit_log"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Run-scoped RNG audit log (master seed, counters, substream jumps)."
-    version: "{run_id}"
-    format: "jsonl"
-    path: "logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl"
-    partitioning: ["seed","parameter_hash","run_id"]
-    ordering: []
-    schema_ref: "schemas.layer1.yaml#/rng/core/rng_audit_log"
-    lineage:
-      produced_by: "1A.rng_audit_emitter"
-      consumed_by: ["validation"]
-      final_in_layer: false
-    retention_days: 365
-    pii: false
-    licence: "Proprietary-Internal"
+- id: rng_audit_log
+  status: approved
+  owner_subsegment: 1A
+  description: Run-scoped RNG audit log (master seed, counters, substream jumps).
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/core/rng_audit_log
+  lineage:
+    produced_by: 1A.rng_audit_emitter
+    consumed_by: [validation]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "rng_trace_log"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Structured per-(module,substream_label) RNG trace (saturating totals for draws/blocks/events; `draws_total` equals the sum of event-level draws; `blocks_total` reconciled via counters). Emit exactly one cumulative row after each RNG event append (per S4 §2A)."
-    version: "{run_id}"
-    format: "jsonl"
-    path: "logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl"
-    partitioning: ["seed","parameter_hash","run_id"]
-    ordering: []
-    schema_ref: "schemas.layer1.yaml#/rng/core/rng_trace_log"
-    lineage:
-      produced_by: "1A.rng_trace_emitter"
-      consumed_by: ["validation"]
-      final_in_layer: false
-    retention_days: 365
-    pii: false
-    licence: "Proprietary-Internal"
+- id: rng_trace_log
+  status: approved
+  owner_subsegment: 1A
+  description: Structured per-(module,substream_label) RNG trace (saturating totals for draws/blocks/events; `draws_total` equals the sum of event-level draws; `blocks_total` reconciled via counters). Emit exactly one cumulative row after each RNG event append (per S4 §2A).
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/core/rng_trace_log
+  lineage:
+    produced_by: 1A.rng_trace_emitter
+    consumed_by: [validation]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "rng_event_hurdle_bernoulli"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Event stream: hurdle Bernoulli draws per merchant (π)."
-    version: "{run_id}"
-    format: "jsonl"
-    path: "logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
-    partitioning: ["seed","parameter_hash","run_id"]
-    ordering: []
-    schema_ref: "schemas.layer1.yaml#/rng/events/hurdle_bernoulli"
-    lineage:
-      produced_by: "1A.hurdle_sampler"
-      consumed_by: ["validation"]
-      final_in_layer: false
-    retention_days: 180
-    pii: false
-    licence: "Proprietary-Internal"
+- id: rng_event_hurdle_bernoulli
+  status: approved
+  owner_subsegment: 1A
+  description: 'Event stream: hurdle Bernoulli draws per merchant (π).'
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/events/hurdle_bernoulli
+  lineage:
+    produced_by: 1A.hurdle_sampler
+    consumed_by: [validation]
+    final_in_layer: false
+  retention_days: 180
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "rng_event_gamma_component"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Event stream: gamma draws for NB/Dirichlet components."
-    version: "{run_id}"
-    format: "jsonl"
-    path: "logs/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
-    partitioning: ["seed","parameter_hash","run_id"]
-    ordering: []
-    schema_ref: "schemas.layer1.yaml#/rng/events/gamma_component"
-    lineage:
-      produced_by: "1A.nb_and_dirichlet_sampler"
-      consumed_by: ["validation"]
-      final_in_layer: false
-    gating:
-      gated_by: "rng_event_hurdle_bernoulli"
-      predicate: "is_multi == true"
-    retention_days: 180
-    pii: false
-    licence: "Proprietary-Internal"
+- id: rng_event_gamma_component
+  status: approved
+  owner_subsegment: 1A
+  description: 'Event stream: gamma draws for NB/Dirichlet components.'
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/events/gamma_component
+  lineage:
+    produced_by: 1A.nb_and_dirichlet_sampler
+    consumed_by: [validation]
+    final_in_layer: false
+  gating:
+    gated_by: rng_event_hurdle_bernoulli
+    predicate: is_multi == true
+  retention_days: 180
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "rng_event_poisson_component"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Event stream: Poisson draws used in NB composition / ZTP."
-    version: "{run_id}"
-    format: "jsonl"
-    path: "logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
-    partitioning: ["seed","parameter_hash","run_id"]
-    ordering: ["merchant_id","attempt"]
-    schema_ref: "schemas.layer1.yaml#/rng/events/poisson_component"
-    lineage:
-      produced_by: "1A.nb_poisson_component"
-      allowed_producers: ["1A.nb_poisson_component","1A.ztp_sampler"]
-      consumed_by: ["validation"]
-      final_in_layer: false
-    gating:
-      gated_by: "rng_event_hurdle_bernoulli"
-      predicate: "is_multi == true"
-    retention_days: 180
-    pii: false
-    licence: "Proprietary-Internal"
+- id: rng_event_poisson_component
+  status: approved
+  owner_subsegment: 1A
+  description: 'Event stream: Poisson draws used in NB composition / ZTP.'
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: [merchant_id, attempt]
+  schema_ref: schemas.layer1.yaml#/rng/events/poisson_component
+  lineage:
+    produced_by: 1A.nb_poisson_component
+    allowed_producers: [1A.nb_poisson_component, 1A.ztp_sampler]
+    consumed_by: [validation]
+    final_in_layer: false
+  gating:
+    gated_by: rng_event_hurdle_bernoulli
+    predicate: is_multi == true
+  retention_days: 180
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "rng_event_nb_final"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Event stream: final Negative Binomial draws for outlet counts."
-    version: "{run_id}"
-    format: "jsonl"
-    path: "logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
-    partitioning: ["seed","parameter_hash","run_id"]
-    ordering: []
-    schema_ref: "schemas.layer1.yaml#/rng/events/nb_final"
-    lineage:
-      produced_by: "1A.nb_sampler"
-      consumed_by: ["validation"]
-      final_in_layer: false
-    gating:
-      gated_by: "rng_event_hurdle_bernoulli"
-      predicate: "is_multi == true"
-    retention_days: 180
-    pii: false
-    licence: "Proprietary-Internal"
+- id: rng_event_nb_final
+  status: approved
+  owner_subsegment: 1A
+  description: 'Event stream: final Negative Binomial draws for outlet counts.'
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/events/nb_final
+  lineage:
+    produced_by: 1A.nb_sampler
+    consumed_by: [validation]
+    final_in_layer: false
+  gating:
+    gated_by: rng_event_hurdle_bernoulli
+    predicate: is_multi == true
+  retention_days: 180
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "rng_event_ztp_rejection"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Event stream: ZTP rejection samples and acceptance traces."
-    version: "{run_id}"
-    format: "jsonl"
-    path: "logs/rng/events/ztp_rejection/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
-    partitioning: ["seed","parameter_hash","run_id"]
-    ordering: ["merchant_id","attempt"]
-    schema_ref: "schemas.layer1.yaml#/rng/events/ztp_rejection"
-    lineage:
-      produced_by: "1A.ztp_sampler"
-      consumed_by: ["validation"]
-      final_in_layer: false
-    gating:
-      gated_by: "rng_event_hurdle_bernoulli"
-      predicate: "is_multi == true"
-      also_requires:
-        - id: "crossborder_eligibility_flags"
-          predicate: "is_eligible == true"
-    retention_days: 180
-    pii: false
-    licence: "Proprietary-Internal"
+- id: rng_event_ztp_rejection
+  status: approved
+  owner_subsegment: 1A
+  description: 'Event stream: ZTP rejection samples and acceptance traces.'
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/events/ztp_rejection/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: [merchant_id, attempt]
+  schema_ref: schemas.layer1.yaml#/rng/events/ztp_rejection
+  lineage:
+    produced_by: 1A.ztp_sampler
+    consumed_by: [validation]
+    final_in_layer: false
+  gating:
+    gated_by: rng_event_hurdle_bernoulli
+    predicate: is_multi == true
+    also_requires:
+    - id: crossborder_eligibility_flags
+      predicate: is_eligible == true
+  retention_days: 180
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "rng_event_ztp_retry_exhausted"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Event stream: ZTP retry exhaustion (diagnostic hard events)."
-    version: "{run_id}"
-    format: "jsonl"
-    path: "logs/rng/events/ztp_retry_exhausted/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
-    partitioning: ["seed","parameter_hash","run_id"]
-    ordering: ["merchant_id","attempts"]
-    schema_ref: "schemas.layer1.yaml#/rng/events/ztp_retry_exhausted"
-    lineage:
-      produced_by: "1A.ztp_sampler"
-      consumed_by: ["validation"]
-      final_in_layer: false
-    gating:
-      gated_by: "rng_event_hurdle_bernoulli"
-      predicate: "is_multi == true"
-      also_requires:
-        - id: "crossborder_eligibility_flags"
-          predicate: "is_eligible == true"
-    retention_days: 180
-    pii: false
-    licence: "Proprietary-Internal"
+- id: rng_event_ztp_retry_exhausted
+  status: approved
+  owner_subsegment: 1A
+  description: 'Event stream: ZTP retry exhaustion (diagnostic hard events).'
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/events/ztp_retry_exhausted/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: [merchant_id, attempts]
+  schema_ref: schemas.layer1.yaml#/rng/events/ztp_retry_exhausted
+  lineage:
+    produced_by: 1A.ztp_sampler
+    consumed_by: [validation]
+    final_in_layer: false
+  gating:
+    gated_by: rng_event_hurdle_bernoulli
+    predicate: is_multi == true
+    also_requires:
+    - id: crossborder_eligibility_flags
+      predicate: is_eligible == true
+  retention_days: 180
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "rng_event_ztp_final"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Event stream: S4 single acceptance record per resolved merchant (fixes K_target and run facts)."
-    version: "{run_id}"
-    format: "jsonl"
-    path: "logs/rng/events/ztp_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
-    partitioning: ["seed","parameter_hash","run_id"]
-    ordering: ["merchant_id"]
-    schema_ref: "schemas.layer1.yaml#/rng/events/ztp_final"
-    lineage:
-      produced_by: "1A.ztp_sampler"
-      consumed_by: ["validation","1A.S6"]
-      final_in_layer: false
-    gating:
-      gated_by: "rng_event_hurdle_bernoulli"
-      predicate: "is_multi == true"
-      also_requires:
-        - id: "crossborder_eligibility_flags"
-          predicate: "is_eligible == true"
-    retention_days: 180
-    pii: false
-    licence: "Proprietary-Internal"
+- id: rng_event_ztp_final
+  status: approved
+  owner_subsegment: 1A
+  description: 'Event stream: S4 single acceptance record per resolved merchant (fixes K_target and run facts).'
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/events/ztp_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: [merchant_id]
+  schema_ref: schemas.layer1.yaml#/rng/events/ztp_final
+  lineage:
+    produced_by: 1A.ztp_sampler
+    consumed_by: [validation, 1A.S6]
+    final_in_layer: false
+  gating:
+    gated_by: rng_event_hurdle_bernoulli
+    predicate: is_multi == true
+    also_requires:
+    - id: crossborder_eligibility_flags
+      predicate: is_eligible == true
+  retention_days: 180
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "rng_event_gumbel_key"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Event stream: Gumbel-top-k keys for foreign-country selection."
-    version: "{run_id}"
-    format: "jsonl"
-    path: "logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
-    partitioning: ["seed","parameter_hash","run_id"]
-    ordering: []
-    schema_ref: "schemas.layer1.yaml#/rng/events/gumbel_key"
-    lineage:
-      produced_by: "1A.foreign_country_selector"
-      consumed_by: ["validation"]
-      final_in_layer: false
-    gating:
-      gated_by: "rng_event_hurdle_bernoulli"
-      predicate: "is_multi == true"
-    retention_days: 180
-    pii: false
-    licence: "Proprietary-Internal"
+- id: rng_event_gumbel_key
+  status: approved
+  owner_subsegment: 1A
+  description: 'Event stream: Gumbel-top-k keys for foreign-country selection.'
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/events/gumbel_key
+  lineage:
+    produced_by: 1A.foreign_country_selector
+    consumed_by: [validation]
+    final_in_layer: false
+  gating:
+    gated_by: rng_event_hurdle_bernoulli
+    predicate: is_multi == true
+  retention_days: 180
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "rng_event_dirichlet_gamma_vector"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Event stream: Dirichlet gamma vectors for splitting outlets across countries."
-    version: "{run_id}"
-    format: "jsonl"
-    path: "logs/rng/events/dirichlet_gamma_vector/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
-    partitioning: ["seed","parameter_hash","run_id"]
-    ordering: []
-    schema_ref: "schemas.layer1.yaml#/rng/events/dirichlet_gamma_vector"
-    lineage:
-      produced_by: "1A.dirichlet_allocator"
-      consumed_by: ["validation"]
-      final_in_layer: false
-    gating:
-      gated_by: "rng_event_hurdle_bernoulli"
-      predicate: "is_multi == true"
-    retention_days: 180
-    pii: false
-    licence: "Proprietary-Internal"
+- id: rng_event_dirichlet_gamma_vector
+  status: approved
+  owner_subsegment: 1A
+  description: 'Event stream: Dirichlet gamma vectors for splitting outlets across countries.'
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/events/dirichlet_gamma_vector/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/events/dirichlet_gamma_vector
+  lineage:
+    produced_by: 1A.dirichlet_allocator
+    consumed_by: [validation]
+    final_in_layer: false
+  gating:
+    gated_by: rng_event_hurdle_bernoulli
+    predicate: is_multi == true
+  retention_days: 180
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "rng_event_stream_jump"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Event stream: explicit Philox stream/substream jump records."
-    version: "{run_id}"
-    format: "jsonl"
-    path: "logs/rng/events/stream_jump/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
-    partitioning: ["seed","parameter_hash","run_id"]
-    ordering: []
-    schema_ref: "schemas.layer1.yaml#/rng/events/stream_jump"
-    lineage:
-      produced_by: "1A.rng_stream_manager"
-      consumed_by: ["validation"]
-      final_in_layer: false
-    gating:
-      gated_by: "rng_event_hurdle_bernoulli"
-      predicate: "is_multi == true"
-    retention_days: 180
-    pii: false
-    licence: "Proprietary-Internal"
+- id: rng_event_stream_jump
+  status: approved
+  owner_subsegment: 1A
+  description: 'Event stream: explicit Philox stream/substream jump records.'
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/events/stream_jump/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/events/stream_jump
+  lineage:
+    produced_by: 1A.rng_stream_manager
+    consumed_by: [validation]
+    final_in_layer: false
+  gating:
+    gated_by: rng_event_hurdle_bernoulli
+    predicate: is_multi == true
+  retention_days: 180
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "rng_event_normal_box_muller"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Event stream: standard normal draws via Box–Muller (Z only; sine mate discarded)."
-    version: "{run_id}"
-    format: "jsonl"
-    path: "logs/rng/events/normal_box_muller/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
-    partitioning: ["seed","parameter_hash","run_id"]
-    ordering: []
-    schema_ref: "schemas.layer1.yaml#/rng/events/normal_box_muller"
-    lineage:
-      produced_by: "L0.event_normal_box_muller"   # library helper; not called by S0 orchestration
-      consumed_by: ["validation"]
-      final_in_layer: false
-    gating:
-      gated_by: "rng_event_hurdle_bernoulli"
-      predicate: "is_multi == true"
-    retention_days: 180
-    pii: false
-    licence: "Proprietary-Internal"
+- id: rng_event_normal_box_muller
+  status: approved
+  owner_subsegment: 1A
+  description: 'Event stream: standard normal draws via Box–Muller (Z only; sine mate discarded).'
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/events/normal_box_muller/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/events/normal_box_muller
+  lineage:
+    produced_by: L0.event_normal_box_muller       # library helper; not called by S0 orchestration
+    consumed_by: [validation]
+    final_in_layer: false
+  gating:
+    gated_by: rng_event_hurdle_bernoulli
+    predicate: is_multi == true
+  retention_days: 180
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "rng_event_sequence_finalize"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Event stream: final sequence allocation per (merchant,country) block."
-    version: "{run_id}"
-    format: "jsonl"
-    path: "logs/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
-    partitioning: ["seed","parameter_hash","run_id"]
-    ordering: []
-    schema_ref: "schemas.layer1.yaml#/rng/events/sequence_finalize"
-    lineage:
-      produced_by: "1A.site_id_allocator"
-      consumed_by: ["validation"]
-      final_in_layer: false
-    gating:
-      gated_by: "rng_event_hurdle_bernoulli"
-      predicate: "is_multi == true"
-    retention_days: 180
-    pii: false
-    licence: "Proprietary-Internal"
+- id: rng_event_sequence_finalize
+  status: approved
+  owner_subsegment: 1A
+  description: 'Event stream: final sequence allocation per (merchant,country) block.'
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/events/sequence_finalize
+  lineage:
+    produced_by: 1A.site_id_allocator
+    consumed_by: [validation]
+    final_in_layer: false
+  gating:
+    gated_by: rng_event_hurdle_bernoulli
+    predicate: is_multi == true
+  retention_days: 180
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "rng_event_residual_rank"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Event stream: deterministic ranks of largest-remainder residuals for per-country integerisation."
-    version: "{run_id}"
-    format: "jsonl"
-    path: "logs/rng/events/residual_rank/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
-    partitioning: ["seed","parameter_hash","run_id"]
-    ordering: []
-    schema_ref: "schemas.layer1.yaml#/rng/events/residual_rank"
-    lineage:
-      produced_by: "1A.integerisation"
-      consumed_by: ["validation"]
-      final_in_layer: false
-    gating:
-      gated_by: "rng_event_hurdle_bernoulli"
-      predicate: "is_multi == true"
-    retention_days: 180
-    pii: false
-    licence: "Proprietary-Internal"
+- id: rng_event_residual_rank
+  status: approved
+  owner_subsegment: 1A
+  description: 'Event stream: deterministic ranks of largest-remainder residuals for per-country integerisation.'
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/events/residual_rank/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/events/residual_rank
+  lineage:
+    produced_by: 1A.integerisation
+    consumed_by: [validation]
+    final_in_layer: false
+  gating:
+    gated_by: rng_event_hurdle_bernoulli
+    predicate: is_multi == true
+  retention_days: 180
+  pii: false
+  licence: Proprietary-Internal
 
-  - id: "rng_event_site_sequence_overflow"
-    status: "approved"
-    owner_subsegment: "1A"
-    description: "Event stream: guardrail events when site sequence space is exhausted."
-    version: "{run_id}"
-    format: "jsonl"
-    path: "logs/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl"
-    partitioning: ["seed","parameter_hash","run_id"]
-    ordering: []
-    schema_ref: "schemas.layer1.yaml#/rng/events/site_sequence_overflow"
-    lineage:
-      produced_by: "1A.site_id_allocator"
-      consumed_by: ["validation"]
-      final_in_layer: false
-    gating:
-      gated_by: "rng_event_hurdle_bernoulli"
-      predicate: "is_multi == true"
-    retention_days: 180
-    pii: false
-    licence: "Proprietary-Internal"
+- id: rng_event_site_sequence_overflow
+  status: approved
+  owner_subsegment: 1A
+  description: 'Event stream: guardrail events when site sequence space is exhausted.'
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/events/site_sequence_overflow
+  lineage:
+    produced_by: 1A.site_id_allocator
+    consumed_by: [validation]
+    final_in_layer: false
+  gating:
+    gated_by: rng_event_hurdle_bernoulli
+    predicate: is_multi == true
+  retention_days: 180
+  pii: false
+  licence: Proprietary-Internal
 
 # ── Governance / integrity ────────────────────────────────────────────────
 integrity:
-  bundled_schema_sha256: null
+  bundled_schema_sha256:
   dataset_count: 41
 
 open_questions: []

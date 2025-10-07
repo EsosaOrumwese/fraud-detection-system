@@ -1,4 +1,5 @@
 """Hurdle diagnostics cache (S0.7)."""
+
 from __future__ import annotations
 
 import math
@@ -38,7 +39,10 @@ def build_hurdle_diagnostics(
             eta = math.fsum([eta, coeff * value])
         pi = _logistic_branch(eta)
         if not (math.isfinite(eta) and math.isfinite(pi)):
-            raise err("E_PI_NAN_OR_INF", f"merchant {vector.merchant_id} produced non-finite output")
+            raise err(
+                "E_PI_NAN_OR_INF",
+                f"merchant {vector.merchant_id} produced non-finite output",
+            )
         row = {
             "parameter_hash": parameter_hash,
             "merchant_id": vector.merchant_id,

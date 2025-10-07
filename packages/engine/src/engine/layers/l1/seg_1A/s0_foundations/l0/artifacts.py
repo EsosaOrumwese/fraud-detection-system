@@ -1,4 +1,5 @@
 """Filesystem helpers for artefact hashing (S0.2)."""
+
 from __future__ import annotations
 
 import hashlib
@@ -56,7 +57,10 @@ def hash_artifact(path: Path, *, error_prefix: str) -> ArtifactDigest:
             hasher.update(chunk)
     digest = hasher.digest()
     stat_after = path.stat()
-    if stat_before.st_mtime_ns != stat_after.st_mtime_ns or stat_before.st_size != stat_after.st_size:
+    if (
+        stat_before.st_mtime_ns != stat_after.st_mtime_ns
+        or stat_before.st_size != stat_after.st_size
+    ):
         raise err(f"{error_prefix}_RACE", f"artefact '{path}' changed while hashing")
 
     basename = path.name
@@ -78,7 +82,10 @@ def hash_artifacts(paths: Iterable[Path], *, error_prefix: str) -> List[Artifact
     for path in paths:
         digest = hash_artifact(path, error_prefix=error_prefix)
         if digest.basename in seen:
-            raise err(f"{error_prefix}_DUP_BASENAME", f"duplicate basename '{digest.basename}'")
+            raise err(
+                f"{error_prefix}_DUP_BASENAME",
+                f"duplicate basename '{digest.basename}'",
+            )
         seen.add(digest.basename)
         digests.append(digest)
     return digests

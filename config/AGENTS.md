@@ -6,4 +6,3 @@ Guidance for future agents:
 - Keep secrets out of this tree; reference external secret stores instead.
 - Document every new file with who consumes it and how validation happens.
 - Preserve compatibility with scenario runner and CLI tooling when adjusting defaults.
-

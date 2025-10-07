@@ -1,4 +1,5 @@
 """Sanity tests for S0 foundations primitives."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -11,7 +12,6 @@ from engine.layers.l1.seg_1A.s0_foundations import (
     CrossborderEligibility,
     PhiloxEngine,
     SchemaAuthority,
-    build_hurdle_diagnostics,
     build_run_context,
     compute_parameter_hash,
     compute_run_id,
@@ -19,6 +19,7 @@ from engine.layers.l1.seg_1A.s0_foundations import (
     load_crossborder_eligibility,
     load_dispersion_coefficients,
     load_hurdle_coefficients,
+    evaluate_eligibility,
 )
 from engine.layers.l1.seg_1A.s0_foundations.l0.artifacts import hash_artifacts
 
@@ -104,7 +105,9 @@ def test_design_vectors(sample_context):
         "beta_phi": [0.3] + [0.0] * 2 + [0.0, 0.0] + [0.1],
     }
     hurdle = load_hurdle_coefficients(hurdle_yaml)
-    dispersion = load_dispersion_coefficients(dispersion_yaml, reference=hurdle.dictionaries)
+    dispersion = load_dispersion_coefficients(
+        dispersion_yaml, reference=hurdle.dictionaries
+    )
     vectors = list(iter_design_vectors(context, hurdle=hurdle, dispersion=dispersion))
     assert len(vectors) == 2
     assert math.isclose(vectors[0].log_gdp, math.log(50000.0))
@@ -130,14 +133,20 @@ def test_crossborder_eligibility(sample_context):
     }
     bundle = load_crossborder_eligibility(cb_yaml, iso_set=set(context.iso_countries))
     assert isinstance(bundle, CrossborderEligibility)
-    flags = evaluate_eligibility(context, bundle=bundle, parameter_hash="deadbeef", produced_by_fingerprint=None)
+    flags = evaluate_eligibility(
+        context, bundle=bundle, parameter_hash="deadbeef", produced_by_fingerprint=None
+    )
     assert flags.filter(pl.col("merchant_id") == 1).to_dicts()[0]["is_eligible"] is True
-    assert flags.filter(pl.col("merchant_id") == 2).to_dicts()[0]["is_eligible"] is False
+    assert (
+        flags.filter(pl.col("merchant_id") == 2).to_dicts()[0]["is_eligible"] is False
+    )
 
 
 def test_run_id_uniqueness():
     manifest_bytes = bytes.fromhex("12" * 32)
-    run_id_a = compute_run_id(manifest_fingerprint_bytes=manifest_bytes, seed=1, start_time_ns=100)
+    run_id_a = compute_run_id(
+        manifest_fingerprint_bytes=manifest_bytes, seed=1, start_time_ns=100
+    )
     run_id_b = compute_run_id(
         manifest_fingerprint_bytes=manifest_bytes,
         seed=1,

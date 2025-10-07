@@ -1,4 +1,5 @@
 """Typed state containers for S0 foundations."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
@@ -21,7 +22,8 @@ class SchemaAuthority:
 
     def validate(self) -> None:
         for ref in (self.ingress_ref, self.segment_ref, self.rng_ref):
-            if not ref.endswith(".yaml"):
+            base = ref.split("#", 1)[0]
+            if not base.endswith(".yaml"):
                 raise err("E_AUTHORITY_BREACH", f"non YAML schema ref '{ref}'")
 
 
@@ -32,15 +34,24 @@ class MerchantUniverse:
     table: pl.DataFrame
 
     def __post_init__(self) -> None:  # type: ignore[override]
-        expected = {"merchant_id", "mcc", "channel_sym", "home_country_iso", "merchant_u64"}
+        expected = {
+            "merchant_id",
+            "mcc",
+            "channel_sym",
+            "home_country_iso",
+            "merchant_u64",
+        }
         missing = expected - set(self.table.columns)
         if missing:
             raise err("E_INGRESS_SCHEMA", f"missing columns {sorted(missing)}")
-        allowed_mask = self.table.get_column("channel_sym").is_in(sorted(_CHANNEL_SYMBOLS))
+        allowed_mask = self.table.get_column("channel_sym").is_in(
+            sorted(_CHANNEL_SYMBOLS)
+        )
         if not bool(allowed_mask.all()):
             bad_rows = (
-                self.table
-                .filter(~pl.col("channel_sym").is_in(sorted(_CHANNEL_SYMBOLS)))
+                self.table.filter(
+                    ~pl.col("channel_sym").is_in(sorted(_CHANNEL_SYMBOLS))
+                )
                 .select("merchant_id", "channel_sym")
                 .to_dicts()
             )
@@ -63,10 +74,19 @@ class RunContext:
     parameter_hash: Optional[str] = None
     manifest_fingerprint: Optional[str] = None
 
-    def with_lineage(self, *, parameter_hash: Optional[str], manifest_fingerprint: Optional[str]) -> "RunContext":
+    def with_lineage(
+        self, *, parameter_hash: Optional[str], manifest_fingerprint: Optional[str]
+    ) -> "RunContext":
         if parameter_hash is None or manifest_fingerprint is None:
-            raise err("E_LINEAGE_INCOMPLETE", "parameter_hash and manifest_fingerprint required")
-        return replace(self, parameter_hash=parameter_hash, manifest_fingerprint=manifest_fingerprint)
+            raise err(
+                "E_LINEAGE_INCOMPLETE",
+                "parameter_hash and manifest_fingerprint required",
+            )
+        return replace(
+            self,
+            parameter_hash=parameter_hash,
+            manifest_fingerprint=manifest_fingerprint,
+        )
 
 
 __all__ = ["SchemaAuthority", "MerchantUniverse", "RunContext"]

@@ -1,8 +1,9 @@
 """Cross-border eligibility evaluation (S0.6)."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, List, Mapping, Optional, Sequence, Set
+from typing import List, Mapping, Optional, Sequence, Set
 
 import polars as pl
 
@@ -79,16 +80,20 @@ def _build_rule(raw: Mapping[str, object], iso_set: Set[str]) -> EligibilityRule
         raise err("E_ELIG_RULE_ID_EMPTY", "rule id missing")
     decision = str(raw.get("decision"))
     if decision not in {"allow", "deny"}:
-        raise err("E_ELIG_RULE_DECISION", f"rule {rule_id} has invalid decision '{decision}'")
+        raise err(
+            "E_ELIG_RULE_DECISION", f"rule {rule_id} has invalid decision '{decision}'"
+        )
     priority = int(raw.get("priority", 0))
-    if not (0 <= priority < 2 ** 31):
+    if not (0 <= priority < 2**31):
         raise err("E_ELIG_RULE_PRIORITY", f"rule {rule_id} priority {priority} invalid")
     mcc_raw = raw.get("mcc", ["*"])
     if not isinstance(mcc_raw, Sequence):
         raise err("E_ELIG_RULE_BAD_MCC", f"rule {rule_id} mcc must be list or '*'")
     channels_raw = raw.get("channel", ["*"])
     if not isinstance(channels_raw, Sequence):
-        raise err("E_ELIG_RULE_BAD_CHANNEL", f"rule {rule_id} channel must be list or '*'")
+        raise err(
+            "E_ELIG_RULE_BAD_CHANNEL", f"rule {rule_id} channel must be list or '*'"
+        )
     iso_raw = raw.get("iso", ["*"])
     if not isinstance(iso_raw, Sequence):
         raise err("E_ELIG_RULE_BAD_ISO", f"rule {rule_id} iso must be list or '*'")
@@ -110,7 +115,9 @@ def _build_rule(raw: Mapping[str, object], iso_set: Set[str]) -> EligibilityRule
     )
 
 
-def load_crossborder_eligibility(data: Mapping[str, object], *, iso_set: Set[str]) -> CrossborderEligibility:
+def load_crossborder_eligibility(
+    data: Mapping[str, object], *, iso_set: Set[str]
+) -> CrossborderEligibility:
     eligibility = data.get("eligibility")
     if not isinstance(eligibility, Mapping):
         raise err("E_ELIG_SCHEMA", "eligibility section missing")
@@ -119,7 +126,9 @@ def load_crossborder_eligibility(data: Mapping[str, object], *, iso_set: Set[str
         raise err("E_ELIG_RULESET_ID_EMPTY", "rule_set_id missing")
     default_decision = str(eligibility.get("default_decision"))
     if default_decision not in {"allow", "deny"}:
-        raise err("E_ELIG_DEFAULT_INVALID", "default_decision must be 'allow' or 'deny'")
+        raise err(
+            "E_ELIG_DEFAULT_INVALID", "default_decision must be 'allow' or 'deny'"
+        )
     rules_raw = eligibility.get("rules", [])
     if not isinstance(rules_raw, Sequence):
         raise err("E_ELIG_SCHEMA", "rules must be a sequence")
@@ -166,7 +175,10 @@ def evaluate_eligibility(
         channel = str(row["channel_sym"])
         iso = str(row["home_country_iso"])
         if channel not in _ALLOWED_CHANNELS:
-            raise err("E_ELIG_MISSING_MERCHANT", f"merchant {merchant_id} has invalid channel '{channel}'")
+            raise err(
+                "E_ELIG_MISSING_MERCHANT",
+                f"merchant {merchant_id} has invalid channel '{channel}'",
+            )
 
         winner_id: Optional[str] = None
         decision = bundle.default_decision

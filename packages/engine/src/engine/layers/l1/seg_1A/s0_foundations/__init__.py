@@ -17,6 +17,8 @@ from .l1.design import (
     DesignVectors,
     iter_design_vectors,
     design_dataframe,
+    load_hurdle_coefficients,
+    load_dispersion_coefficients,
 )
 from .l1.eligibility import (
     CrossborderEligibility,
@@ -50,6 +52,8 @@ __all__ = [
     "DesignVectors",
     "iter_design_vectors",
     "design_dataframe",
+    "load_hurdle_coefficients",
+    "load_dispersion_coefficients",
     "CrossborderEligibility",
     "load_crossborder_eligibility",
     "evaluate_eligibility",

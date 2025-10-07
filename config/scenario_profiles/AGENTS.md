@@ -6,4 +6,3 @@ Guidance for future agents:
 - Align profile structure with the scenario runner expectations before adding new keys.
 - Reference contract or policy versions explicitly so replays are reproducible.
 - Keep profiles small and composable; factor shared defaults into the parent config folder.
-

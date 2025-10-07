@@ -1,9 +1,10 @@
 """Design matrix construction for S0.4S0.7."""
+
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Dict, Iterable, Iterator, List, Mapping, Sequence, Tuple
+from typing import Iterable, Iterator, List, Mapping, Sequence, Tuple
 
 import polars as pl
 
@@ -27,11 +28,17 @@ class DesignDictionaries:
             channel = tuple(str(x) for x in data["channel"])
             gdp_bucket = tuple(int(x) for x in data["gdp_bucket"])
         except KeyError as exc:  # pragma: no cover - configuration error
-            raise err("E_DSGN_DICT_MISSING", f"dictionary missing key {exc.args[0]}") from exc
+            raise err(
+                "E_DSGN_DICT_MISSING", f"dictionary missing key {exc.args[0]}"
+            ) from exc
         if channel != _CHANNEL_ORDER:
-            raise err("E_DSGN_UNKNOWN_CHANNEL", f"channel order must be {_CHANNEL_ORDER}")
+            raise err(
+                "E_DSGN_UNKNOWN_CHANNEL", f"channel order must be {_CHANNEL_ORDER}"
+            )
         if gdp_bucket != _BUCKET_ORDER:
-            raise err("E_DSGN_BUCKET_ORDER", f"GDP bucket order must be {_BUCKET_ORDER}")
+            raise err(
+                "E_DSGN_BUCKET_ORDER", f"GDP bucket order must be {_BUCKET_ORDER}"
+            )
         if len(set(mcc)) != len(mcc):
             raise err("E_DSGN_DUP_MCC", "duplicate MCC entries in dictionary")
         return DesignDictionaries(mcc=mcc, channel=channel, gdp_bucket=gdp_bucket)
@@ -40,19 +47,25 @@ class DesignDictionaries:
         try:
             return self.mcc.index(code)
         except ValueError as exc:
-            raise err("E_DSGN_UNKNOWN_MCC", f"MCC {code} missing from dictionary") from exc
+            raise err(
+                "E_DSGN_UNKNOWN_MCC", f"MCC {code} missing from dictionary"
+            ) from exc
 
     def index_for_channel(self, symbol: str) -> int:
         try:
             return self.channel.index(symbol)
         except ValueError as exc:  # pragma: no cover - guarded upstream
-            raise err("E_DSGN_UNKNOWN_CHANNEL", f"channel {symbol} missing from dictionary") from exc
+            raise err(
+                "E_DSGN_UNKNOWN_CHANNEL", f"channel {symbol} missing from dictionary"
+            ) from exc
 
     def index_for_bucket(self, bucket: int) -> int:
         try:
             return self.gdp_bucket.index(bucket)
         except ValueError as exc:
-            raise err("E_DSGN_DOMAIN_BUCKET", f"bucket {bucket} not in dictionary") from exc
+            raise err(
+                "E_DSGN_DOMAIN_BUCKET", f"bucket {bucket} not in dictionary"
+            ) from exc
 
 
 @dataclass(frozen=True)
@@ -100,31 +113,51 @@ def load_hurdle_coefficients(data: Mapping[str, object]) -> HurdleCoefficients:
     expected_beta_len = 1 + len(dicts.mcc) + len(dicts.channel) + len(dicts.gdp_bucket)
     expected_beta_mu_len = 1 + len(dicts.mcc) + len(dicts.channel)
     if len(beta) != expected_beta_len:
-        raise err("E_DSGN_SHAPE_MISMATCH", f"beta expected length {expected_beta_len}, got {len(beta)}")
+        raise err(
+            "E_DSGN_SHAPE_MISMATCH",
+            f"beta expected length {expected_beta_len}, got {len(beta)}",
+        )
     if len(beta_mu) != expected_beta_mu_len:
-        raise err("E_DSGN_SHAPE_MISMATCH", f"beta_mu expected length {expected_beta_mu_len}, got {len(beta_mu)}")
+        raise err(
+            "E_DSGN_SHAPE_MISMATCH",
+            f"beta_mu expected length {expected_beta_mu_len}, got {len(beta_mu)}",
+        )
     beta_tuple = _ensure_finite(beta, error_code="E_DSGN_NONFINITE")
     beta_mu_tuple = _ensure_finite(beta_mu, error_code="E_DSGN_NONFINITE")
-    return HurdleCoefficients(dicts=dicts, beta=beta_tuple, beta_mu=beta_mu_tuple)
+    return HurdleCoefficients(
+        dictionaries=dicts, beta=beta_tuple, beta_mu=beta_mu_tuple
+    )
 
 
-def load_dispersion_coefficients(data: Mapping[str, object], *, reference: DesignDictionaries) -> DispersionCoefficients:
+def load_dispersion_coefficients(
+    data: Mapping[str, object], *, reference: DesignDictionaries
+) -> DispersionCoefficients:
     dicts_data = data.get("dicts", {})
     dicts = DesignDictionaries(
         mcc=tuple(int(x) for x in dicts_data.get("mcc", [])) or reference.mcc,
-        channel=tuple(str(x) for x in dicts_data.get("channel", [])) or reference.channel,
+        channel=tuple(str(x) for x in dicts_data.get("channel", []))
+        or reference.channel,
         gdp_bucket=reference.gdp_bucket,
     )
     if dicts.mcc != reference.mcc:
-        raise err("E_DSGN_DICT_MISMATCH", "dispersion MCC dictionary must match hurdle dictionary")
+        raise err(
+            "E_DSGN_DICT_MISMATCH",
+            "dispersion MCC dictionary must match hurdle dictionary",
+        )
     if dicts.channel != reference.channel:
-        raise err("E_DSGN_DICT_MISMATCH", "dispersion channel dictionary must match hurdle dictionary")
+        raise err(
+            "E_DSGN_DICT_MISMATCH",
+            "dispersion channel dictionary must match hurdle dictionary",
+        )
     beta_phi = data.get("beta_phi")
     if not isinstance(beta_phi, Sequence):
         raise err("E_DSGN_SCHEMA", "beta_phi must be a sequence")
     expected_len = 1 + len(dicts.mcc) + len(dicts.channel) + 1
     if len(beta_phi) != expected_len:
-        raise err("E_DSGN_SHAPE_MISMATCH", f"beta_phi expected length {expected_len}, got {len(beta_phi)}")
+        raise err(
+            "E_DSGN_SHAPE_MISMATCH",
+            f"beta_phi expected length {expected_len}, got {len(beta_phi)}",
+        )
     beta_phi_tuple = _ensure_finite(beta_phi, error_code="E_DSGN_NONFINITE")
     return DispersionCoefficients(dictionaries=dicts, beta_phi=beta_phi_tuple)
 
@@ -142,8 +175,14 @@ def iter_design_vectors(
     dispersion: DispersionCoefficients,
 ) -> Iterator[DesignVectors]:
     dicts = hurdle.dictionaries
-    if dispersion.dictionaries.mcc != dicts.mcc or dispersion.dictionaries.channel != dicts.channel:
-        raise err("E_DSGN_DICT_MISMATCH", "dispersion dictionaries must align with hurdle dictionaries")
+    if (
+        dispersion.dictionaries.mcc != dicts.mcc
+        or dispersion.dictionaries.channel != dicts.channel
+    ):
+        raise err(
+            "E_DSGN_DICT_MISMATCH",
+            "dispersion dictionaries must align with hurdle dictionaries",
+        )
     mcc_size = len(dicts.mcc)
     channel_size = len(dicts.channel)
     bucket_size = len(dicts.gdp_bucket)

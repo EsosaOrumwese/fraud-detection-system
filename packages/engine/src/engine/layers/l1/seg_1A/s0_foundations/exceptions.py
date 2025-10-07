@@ -5,6 +5,7 @@ These error identifiers mirror the normative abort codes defined in
 Keeping the codes close to the spec makes it easy for downstream
 validation to map raised errors back to the authoritative document.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
