@@ -38,6 +38,9 @@ dependencies = [
     "scipy (>=1.14.0,<1.16.0)",
 ]
 
+[project.scripts]
+engine-s0-run = "engine.cli.s0_foundations:main"
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
