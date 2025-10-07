@@ -26,6 +26,11 @@ from .l1.eligibility import (
     evaluate_eligibility,
 )
 from .l1.diagnostics import build_hurdle_diagnostics
+from .l1.numeric import (
+    load_numeric_policy,
+    load_math_profile_manifest,
+    build_numeric_policy_attestation,
+)
 from .l1.rng import (
     PhiloxEngine,
     PhiloxState,
@@ -54,6 +59,9 @@ __all__ = [
     "design_dataframe",
     "load_hurdle_coefficients",
     "load_dispersion_coefficients",
+    "load_numeric_policy",
+    "load_math_profile_manifest",
+    "build_numeric_policy_attestation",
     "CrossborderEligibility",
     "load_crossborder_eligibility",
     "evaluate_eligibility",

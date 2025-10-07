@@ -9,7 +9,7 @@ from typing import Iterable, Mapping, Optional, Sequence
 import polars as pl
 
 from ..exceptions import err
-from ..l0.artifacts import hash_artifacts
+from ..l0.artifacts import ArtifactDigest, hash_artifacts
 from ..l0.datasets import load_parquet_table, load_yaml
 from ..l1.context import RunContext, SchemaAuthority
 from ..l1.design import (
@@ -34,7 +34,13 @@ from ..l1.hashing import (
     compute_run_id,
 )
 from ..l1.merchants import build_run_context
+from ..l1.numeric import (
+    build_numeric_policy_attestation,
+    load_math_profile_manifest,
+    load_numeric_policy,
+)
 from ..l1.rng import PhiloxEngine
+from ..l2.output import S0Outputs
 
 _REQUIRED_PARAMETER_FILES = (
     "hurdle_coefficients.yaml",
@@ -48,6 +54,8 @@ class SealedFoundations:
     context: RunContext
     parameter_hash: ParameterHashResult
     manifest_fingerprint: ManifestFingerprintResult
+    numeric_policy_digest: Optional[ArtifactDigest] = None
+    math_profile_digest: Optional[ArtifactDigest] = None
 
 
 class S0FoundationsRunner:
@@ -74,6 +82,8 @@ class S0FoundationsRunner:
         parameter_files: Mapping[str, Path],
         manifest_artifacts: Sequence[Path],
         git_commit_raw: bytes,
+        numeric_policy_path: Optional[Path] = None,
+        math_profile_manifest_path: Optional[Path] = None,
     ) -> SealedFoundations:
         missing = [
             name for name in _REQUIRED_PARAMETER_FILES if name not in parameter_files
@@ -93,17 +103,50 @@ class S0FoundationsRunner:
         parameter_digests = hash_artifacts(param_paths, error_prefix="E_PARAM")
         parameter_hash = compute_parameter_hash(parameter_digests)
 
-        manifest_digests = hash_artifacts(manifest_artifacts, error_prefix="E_ARTIFACT")
+        manifest_paths = list(manifest_artifacts)
+        policy_obj = None
+        policy_digest = None
+        profile_obj = None
+        profile_digest = None
+        attestation = None
+
+        if numeric_policy_path is not None:
+            policy_obj, policy_digest = load_numeric_policy(numeric_policy_path)
+            manifest_paths.append(numeric_policy_path)
+        if math_profile_manifest_path is not None:
+            profile_obj, profile_digest = load_math_profile_manifest(
+                math_profile_manifest_path
+            )
+            manifest_paths.append(math_profile_manifest_path)
+        if policy_obj and profile_obj and policy_digest and profile_digest:
+            attestation = build_numeric_policy_attestation(
+                policy=policy_obj,
+                policy_digest=policy_digest,
+                math_profile=profile_obj,
+                math_digest=profile_digest,
+            )
+
+        manifest_digests = hash_artifacts(manifest_paths, error_prefix="E_ARTIFACT")
         manifest_fingerprint = compute_manifest_fingerprint(
             manifest_digests,
             git_commit_raw=git_commit_raw,
             parameter_hash_bytes=parameter_hash.parameter_hash_bytes,
         )
 
+        context = context.with_lineage(
+            parameter_hash=parameter_hash.parameter_hash,
+            manifest_fingerprint=manifest_fingerprint.manifest_fingerprint,
+            numeric_policy=policy_obj,
+            math_profile=profile_obj,
+            numeric_attestation=attestation,
+        )
+
         return SealedFoundations(
             context=context,
             parameter_hash=parameter_hash,
             manifest_fingerprint=manifest_fingerprint,
+            numeric_policy_digest=policy_digest,
+            math_profile_digest=profile_digest,
         )
 
     @staticmethod
@@ -139,6 +182,55 @@ class S0FoundationsRunner:
             beta=beta,
             parameter_hash=parameter_hash,
             produced_by_fingerprint=produced_by_fingerprint,
+        )
+
+    def build_outputs_bundle(
+        self,
+        *,
+        sealed: SealedFoundations,
+        parameter_files: Mapping[str, Path],
+        include_diagnostics: bool = True,
+    ) -> S0Outputs:
+        parameter_hash = sealed.parameter_hash.parameter_hash
+        manifest_fingerprint = sealed.manifest_fingerprint.manifest_fingerprint
+
+        hurdle_cfg = self.load_yaml_mapping(parameter_files["hurdle_coefficients.yaml"])
+        dispersion_cfg = self.load_yaml_mapping(
+            parameter_files["nb_dispersion_coefficients.yaml"]
+        )
+        crossborder_cfg = self.load_yaml_mapping(
+            parameter_files["crossborder_hyperparams.yaml"]
+        )
+
+        hurdle, dispersion, vectors = self.build_design_vectors(
+            sealed.context,
+            hurdle_config=hurdle_cfg,
+            dispersion_config=dispersion_cfg,
+        )
+        design_df = self.design_dataframe(vectors)
+        flags_df = self.build_eligibility_flags(
+            sealed.context,
+            crossborder_config=crossborder_cfg,
+            parameter_hash=parameter_hash,
+            produced_by_fingerprint=manifest_fingerprint,
+        )
+
+        diagnostics_df: Optional[pl.DataFrame] = None
+        if include_diagnostics:
+            diagnostics_df = self.logistic_diagnostics(
+                vectors,
+                beta=hurdle.beta,
+                parameter_hash=parameter_hash,
+                produced_by_fingerprint=manifest_fingerprint,
+            )
+
+        return S0Outputs(
+            crossborder_flags=flags_df,
+            design_matrix=design_df,
+            hurdle_coefficients=hurdle,
+            dispersion_coefficients=dispersion,
+            diagnostics=diagnostics_df,
+            numeric_attestation=sealed.context.numeric_attestation,
         )
 
     @staticmethod
