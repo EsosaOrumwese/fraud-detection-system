@@ -51,9 +51,9 @@ def sample_context() -> tuple[RunContext, SchemaAuthority]:
     )
     buckets = pl.DataFrame({"country_iso": ["GB", "DE"], "bucket": [4, 3]})
     authority = SchemaAuthority(
-        ingress_ref="schemas.ingress.layer1.yaml#/merchant_ids",
-        segment_ref="schemas.1A.yaml",
-        rng_ref="schemas.layer1.yaml#/rng/events/core",
+        ingress_ref="l1/seg_1A/merchant_ids.schema.json",
+        segment_ref=None,
+        rng_ref=None,
     )
     context = build_run_context(
         merchant_table=merchants,
@@ -169,9 +169,9 @@ def runner_and_context(parameter_files, governance_files):
     )
     buckets = pl.DataFrame({"country_iso": ["GB", "DE"], "bucket": [4, 3]})
     authority = SchemaAuthority(
-        ingress_ref="schemas.ingress.layer1.yaml#/merchant_ids",
-        segment_ref="schemas.1A.yaml",
-        rng_ref="schemas.layer1.yaml#/rng/events/core",
+        ingress_ref="l1/seg_1A/merchant_ids.schema.json",
+        segment_ref=None,
+        rng_ref=None,
     )
     runner = S0FoundationsRunner(schema_authority=authority)
     policy_path, manifest_path = governance_files

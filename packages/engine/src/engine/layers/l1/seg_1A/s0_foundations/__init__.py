@@ -1,6 +1,6 @@
 """State-0 foundations for Layer-1 Segment 1A."""
 
-from .l1.context import MerchantUniverse, RunContext, SchemaAuthority
+from .l1.context import MerchantUniverse, RunContext, SchemaAuthority, SchemaRef
 from .l1.merchants import build_run_context
 from .l1.hashing import (
     compute_manifest_fingerprint,
@@ -44,6 +44,7 @@ __all__ = [
     "MerchantUniverse",
     "RunContext",
     "SchemaAuthority",
+    "SchemaRef",
     "build_run_context",
     "compute_parameter_hash",
     "ParameterHashResult",

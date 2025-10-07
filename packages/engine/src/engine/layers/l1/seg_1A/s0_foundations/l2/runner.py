@@ -207,7 +207,12 @@ class S0FoundationsRunner:
             hurdle_config=hurdle_cfg,
             dispersion_config=dispersion_cfg,
         )
-        design_df = self.design_dataframe(vectors)
+        design_df = self.design_dataframe(vectors).with_columns(
+            [
+                pl.lit(parameter_hash).alias("parameter_hash"),
+                pl.lit(manifest_fingerprint).alias("produced_by_fingerprint"),
+            ]
+        )
         flags_df = self.build_eligibility_flags(
             sealed.context,
             crossborder_config=crossborder_cfg,

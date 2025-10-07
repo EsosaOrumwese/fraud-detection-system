@@ -1,9 +1,11 @@
-"""Typed state containers for S0 foundations."""
+"""Typed state containers and authority helpers for S0 foundations."""
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, replace
-from typing import FrozenSet, Mapping, Optional
+from pathlib import Path
+from typing import FrozenSet, Mapping, Optional, Tuple
 
 import polars as pl
 
@@ -14,18 +16,98 @@ _CHANNEL_SYMBOLS = {"CP", "CNP"}
 
 
 @dataclass(frozen=True)
+class SchemaRef:
+    """Resolved schema reference with optional JSON pointer."""
+
+    path: Path
+    pointer: Tuple[str, ...] | None = None
+
+    def load(self) -> object:
+        try:
+            with self.path.open("r", encoding="utf-8") as handle:
+                data = json.load(handle)
+        except FileNotFoundError as exc:  # pragma: no cover - guarded upstream
+            raise err("E_SCHEMA_NOT_FOUND", f"schema '{self.path}' missing") from exc
+        except json.JSONDecodeError as exc:
+            raise err(
+                "E_SCHEMA_FORMAT",
+                f"schema '{self.path}' is not valid JSON: {exc.msg}",
+            ) from exc
+
+        if not self.pointer:
+            return data
+
+        node: object = data
+        for token in self.pointer:
+            if isinstance(node, dict) and token in node:
+                node = node[token]
+                continue
+            raise err(
+                "E_SCHEMA_POINTER",
+                f"schema '{self.path}' missing json-pointer '/{'/'.join(self.pointer)}'",
+            )
+        return node
+
+
+def _normalise_pointer(pointer: str) -> Tuple[str, ...]:
+    if not pointer:
+        return tuple()
+    tokens = []
+    for raw in pointer.lstrip("/").split("/"):
+        if not raw:
+            continue
+        token = raw.replace("~1", "/").replace("~0", "~")
+        tokens.append(token)
+    return tuple(tokens)
+
+
+@dataclass(frozen=True)
 class SchemaAuthority:
     """Records the authoritative JSON-Schema anchors for S0."""
 
-    ingress_ref: str
-    segment_ref: str
-    rng_ref: str
+    ingress_ref: Optional[str]
+    segment_ref: Optional[str]
+    rng_ref: Optional[str]
+    contracts_root: Path = Path("contracts/schemas")
 
     def validate(self) -> None:
-        for ref in (self.ingress_ref, self.segment_ref, self.rng_ref):
-            base = ref.split("#", 1)[0]
-            if not base.endswith(".yaml"):
-                raise err("E_AUTHORITY_BREACH", f"non YAML schema ref '{ref}'")
+        """Ensure referenced schemas exist, are JSON, and load cleanly."""
+
+        for label, ref in (
+            ("ingress", self.ingress_ref),
+            ("segment", self.segment_ref),
+            ("rng", self.rng_ref),
+        ):
+            if ref is None:
+                continue
+            schema_ref = self._resolve(ref)
+            if schema_ref.path.suffix.lower() != ".json":
+                raise err(
+                    "E_AUTHORITY_BREACH",
+                    f"{label} schema '{schema_ref.path.name}' must be JSON",
+                )
+            schema_ref.load()  # ensures JSON parses and pointer resolves
+
+    def ingress_schema(self) -> SchemaRef:
+        if self.ingress_ref is None:
+            raise err("E_AUTHORITY_BREACH", "ingress schema reference is required")
+        return self._resolve(self.ingress_ref)
+
+    def _resolve(self, ref: str) -> SchemaRef:
+        base, pointer = ref.split("#", 1) if "#" in ref else (ref, "")
+        root = self.contracts_root.resolve()
+        path = (self.contracts_root / base).resolve()
+        try:
+            path.relative_to(root)
+        except ValueError as exc:
+            raise err(
+                "E_SCHEMA_NOT_FOUND",
+                f"schema reference '{ref}' escapes contracts root {root}",
+            ) from exc
+        if not path.is_file():
+            raise err("E_SCHEMA_NOT_FOUND", f"schema '{path}' not found")
+        tokens = _normalise_pointer(pointer)
+        return SchemaRef(path=path, pointer=tokens or None)
 
 
 @dataclass(frozen=True)
@@ -102,4 +184,4 @@ class RunContext:
         )
 
 
-__all__ = ["SchemaAuthority", "MerchantUniverse", "RunContext"]
+__all__ = ["SchemaAuthority", "SchemaRef", "MerchantUniverse", "RunContext"]

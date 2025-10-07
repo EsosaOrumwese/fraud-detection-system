@@ -9,6 +9,7 @@ from typing import Mapping, Optional, TYPE_CHECKING
 
 import polars as pl
 
+from ..exceptions import err
 from ..l1.context import RunContext
 from ..l1.design import DispersionCoefficients, HurdleCoefficients
 from ..l1.numeric import NumericPolicyAttestation
@@ -39,6 +40,24 @@ def _write_parquet(frame: pl.DataFrame, path: Path) -> None:
 def _write_json(payload: Mapping[str, object], path: Path) -> None:
     with path.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2, sort_keys=True)
+
+
+def _assert_partition_value(
+    frame: pl.DataFrame,
+    *,
+    column: str,
+    expected: str,
+    dataset: str,
+) -> None:
+    if column not in frame.columns:
+        raise err("E_PARTITION_COLUMN_MISSING", f"{dataset} missing column '{column}'")
+    if frame.height == 0:
+        return
+    if not bool((frame.get_column(column) == expected).all()):
+        raise err(
+            "E_PARTITION_MISMATCH",
+            f"{dataset} embeds {column} '{expected}' mismatch",
+        )
 
 
 def _audit_payload(
@@ -78,14 +97,53 @@ def write_outputs(
 
     parameter_dir = base_path / "parameter_scoped" / f"parameter_hash={parameter_hash}"
     _ensure_directory(parameter_dir)
+    _assert_partition_value(
+        outputs.crossborder_flags,
+        column="parameter_hash",
+        expected=parameter_hash,
+        dataset="crossborder_eligibility_flags",
+    )
+    if "produced_by_fingerprint" in outputs.crossborder_flags.columns:
+        _assert_partition_value(
+            outputs.crossborder_flags,
+            column="produced_by_fingerprint",
+            expected=manifest_fingerprint,
+            dataset="crossborder_eligibility_flags",
+        )
     _write_parquet(
         outputs.crossborder_flags,
         parameter_dir / "crossborder_eligibility_flags.parquet",
     )
+    _assert_partition_value(
+        outputs.design_matrix,
+        column="parameter_hash",
+        expected=parameter_hash,
+        dataset="hurdle_design_matrix",
+    )
+    if "produced_by_fingerprint" in outputs.design_matrix.columns:
+        _assert_partition_value(
+            outputs.design_matrix,
+            column="produced_by_fingerprint",
+            expected=manifest_fingerprint,
+            dataset="hurdle_design_matrix",
+        )
     _write_parquet(
         outputs.design_matrix, parameter_dir / "hurdle_design_matrix.parquet"
     )
     if outputs.diagnostics is not None:
+        _assert_partition_value(
+            outputs.diagnostics,
+            column="parameter_hash",
+            expected=parameter_hash,
+            dataset="hurdle_pi_probs",
+        )
+        if "produced_by_fingerprint" in outputs.diagnostics.columns:
+            _assert_partition_value(
+                outputs.diagnostics,
+                column="produced_by_fingerprint",
+                expected=manifest_fingerprint,
+                dataset="hurdle_pi_probs",
+            )
         _write_parquet(outputs.diagnostics, parameter_dir / "hurdle_pi_probs.parquet")
 
     validation_dir = (

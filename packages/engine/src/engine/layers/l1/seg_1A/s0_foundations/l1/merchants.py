@@ -6,6 +6,8 @@ import hashlib
 from typing import Dict, List, Optional
 
 import polars as pl
+from jsonschema import Draft202012Validator
+from jsonschema.exceptions import ValidationError
 
 from ..exceptions import err
 from .context import MerchantUniverse, RunContext, SchemaAuthority
@@ -71,6 +73,21 @@ def _ensure_columns(df: pl.DataFrame) -> None:
         raise err(
             "E_INGRESS_SCHEMA", f"merchant ingress missing columns {sorted(missing)}"
         )
+
+
+def _validate_ingress_schema(
+    table: pl.DataFrame, schema_authority: SchemaAuthority
+) -> None:
+    schema = schema_authority.ingress_schema().load()
+    validator = Draft202012Validator(schema)
+    payload = table.to_dicts()
+    try:
+        validator.validate(payload)
+    except ValidationError as exc:
+        raise err(
+            "E_INGRESS_SCHEMA",
+            f"merchant ingress violates schema: {exc.message}",
+        ) from exc
 
 
 def _iso_set(table: pl.DataFrame) -> frozenset[str]:
@@ -159,6 +176,7 @@ def build_run_context(
 
     schema_authority.validate()
     _ensure_columns(merchant_table)
+    _validate_ingress_schema(merchant_table, schema_authority)
     iso_set = _iso_set(iso_table)
 
     records: List[Dict[str, object]] = []

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/schemas/l1/seg_1A/merchant_ids.schema.json",
+  "title": "Layer 1 Segment 1A – Merchant IDs",
+  "description": "Normalized merchant ingress records consumed by the S0 foundations stage.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": true,
+    "required": [
+      "merchant_id",
+      "mcc",
+      "channel",
+      "home_country_iso"
+    ],
+    "properties": {
+      "merchant_id": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "mcc": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 9999
+      },
+      "channel": {
+        "type": "string",
+        "enum": [
+          "card_present",
+          "card_not_present"
+        ]
+      },
+      "home_country_iso": {
+        "type": "string",
+        "pattern": "^[A-Z]{2}$"
+      }
+    }
+  }
+}
+

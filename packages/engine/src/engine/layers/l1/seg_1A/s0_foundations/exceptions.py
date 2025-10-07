@@ -38,6 +38,13 @@ _FAILURE_CODE_MAP: Mapping[str, Tuple[FailureCategory, str]] = {
         FailureCategory.F6_AUTHORITY,
         "non_authoritative_schema_ref",
     ),
+    "E_SCHEMA_NOT_FOUND": (FailureCategory.F6_AUTHORITY, "schema_not_found"),
+    "E_SCHEMA_FORMAT": (FailureCategory.F6_AUTHORITY, "schema_invalid_json"),
+    "E_SCHEMA_POINTER": (FailureCategory.F6_AUTHORITY, "schema_pointer_missing"),
+    "E_PARTITION_COLUMN_MISSING": (
+        FailureCategory.F5_PARTITION,
+        "partition_column_missing",
+    ),
 }
 
 
