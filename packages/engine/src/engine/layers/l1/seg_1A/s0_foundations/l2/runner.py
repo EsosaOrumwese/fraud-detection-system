@@ -5,10 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Mapping, Optional, Sequence
+import time
 
 import polars as pl
 
-from ..exceptions import err
+from ..exceptions import S0Error, err
 from ..l0.artifacts import ArtifactDigest, hash_artifacts
 from ..l0.datasets import load_parquet_table, load_yaml
 from ..l1.context import RunContext, SchemaAuthority
@@ -40,7 +41,8 @@ from ..l1.numeric import (
     load_numeric_policy,
 )
 from ..l1.rng import PhiloxEngine
-from ..l2.output import S0Outputs
+from ..l2.failure import emit_failure_record
+from ..l2.output import S0Outputs, write_outputs
 
 _REQUIRED_PARAMETER_FILES = (
     "hurdle_coefficients.yaml",
@@ -58,6 +60,14 @@ class SealedFoundations:
     math_profile_digest: Optional[ArtifactDigest] = None
 
 
+@dataclass(frozen=True)
+class S0RunResult:
+    sealed: SealedFoundations
+    outputs: S0Outputs
+    run_id: str
+    base_path: Path
+
+
 class S0FoundationsRunner:
     """High-level helper that wires L0/L1 components together."""
 
@@ -71,6 +81,20 @@ class S0FoundationsRunner:
     @staticmethod
     def load_yaml_mapping(path: Path) -> Mapping[str, object]:
         return load_yaml(path)
+
+    @staticmethod
+    def _collect_manifest_artifacts(paths: Iterable[Path]) -> list[Path]:
+        artifacts: list[Path] = []
+        for raw in paths:
+            path = Path(raw)
+            if not path.exists():
+                continue
+            if path.is_file():
+                artifacts.append(path)
+            else:
+                for file_path in sorted(p for p in path.rglob("*") if p.is_file()):
+                    artifacts.append(file_path)
+        return artifacts
 
     def seal(
         self,
@@ -280,8 +304,116 @@ class S0FoundationsRunner:
             manifest_fingerprint=manifest_fingerprint.manifest_fingerprint_bytes,
         )
 
+    def run_from_paths(
+        self,
+        *,
+        base_path: Path,
+        merchant_table_path: Path,
+        iso_table_path: Path,
+        gdp_table_path: Path,
+        bucket_table_path: Path,
+        parameter_files: Mapping[str, Path],
+        git_commit_hex: str,
+        seed: int,
+        numeric_policy_path: Optional[Path] = None,
+        math_profile_manifest_path: Optional[Path] = None,
+        include_diagnostics: bool = True,
+        start_time_ns: Optional[int] = None,
+        validate: bool = True,
+        extra_manifest_artifacts: Sequence[Path] | None = None,
+    ) -> S0RunResult:
+        merchant_table = self.load_table(merchant_table_path)
+        iso_table = self.load_table(iso_table_path)
+        gdp_table = self.load_table(gdp_table_path)
+        bucket_table = self.load_table(bucket_table_path)
+
+        parameter_paths = {name: Path(path) for name, path in parameter_files.items()}
+
+        manifest_sources: list[Path] = list(parameter_paths.values()) + [
+            Path(merchant_table_path),
+            Path(iso_table_path),
+            Path(gdp_table_path),
+            Path(bucket_table_path),
+        ]
+        if extra_manifest_artifacts is not None:
+            manifest_sources.extend(Path(p) for p in extra_manifest_artifacts)
+        manifest_artifacts = self._collect_manifest_artifacts(manifest_sources)
+
+        try:
+            git_commit_raw = bytes.fromhex(git_commit_hex)
+        except ValueError as exc:  # pragma: no cover - invalid configuration
+            raise err("E_GIT_BYTES", f"invalid git commit hex '{git_commit_hex}'") from exc
+
+        sealed = self.seal(
+            merchant_table=merchant_table,
+            iso_table=iso_table,
+            gdp_table=gdp_table,
+            bucket_table=bucket_table,
+            parameter_files=parameter_paths,
+            manifest_artifacts=manifest_artifacts,
+            git_commit_raw=git_commit_raw,
+            numeric_policy_path=numeric_policy_path,
+            math_profile_manifest_path=math_profile_manifest_path,
+        )
+
+        start_ns = start_time_ns or time.time_ns()
+        run_id = self.issue_run_id(
+            manifest_fingerprint_bytes=sealed.manifest_fingerprint.manifest_fingerprint_bytes,
+            seed=seed,
+            start_time_ns=start_ns,
+        )
+        engine = self.philox_engine(
+            seed=seed, manifest_fingerprint=sealed.manifest_fingerprint
+        )
+
+        outputs = self.build_outputs_bundle(
+            sealed=sealed,
+            parameter_files=parameter_paths,
+            include_diagnostics=include_diagnostics,
+        )
+
+        try:
+            write_outputs(
+                base_path=base_path,
+                sealed=sealed,
+                outputs=outputs,
+                run_id=run_id,
+                seed=seed,
+                philox_engine=engine,
+            )
+            if validate:
+                from ..l3.validator import validate_outputs  # local import to avoid cycle
+
+                validate_outputs(
+                    base_path=base_path,
+                    sealed=sealed,
+                    outputs=outputs,
+                    seed=seed,
+                    run_id=run_id,
+                )
+        except S0Error as failure:
+            emit_failure_record(
+                base_path=base_path,
+                fingerprint=sealed.manifest_fingerprint.manifest_fingerprint,
+                seed=seed,
+                run_id=run_id,
+                failure=failure,
+                state="S0",
+                module="1A.s0.orchestrator",
+                parameter_hash=sealed.parameter_hash.parameter_hash,
+            )
+            raise
+
+        return S0RunResult(
+            sealed=sealed,
+            outputs=outputs,
+            run_id=run_id,
+            base_path=base_path,
+        )
+
 
 __all__ = [
     "S0FoundationsRunner",
     "SealedFoundations",
+    "S0RunResult",
 ]

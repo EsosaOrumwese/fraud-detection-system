@@ -82,6 +82,10 @@ _FAILURE_CODE_MAP: Mapping[str, Tuple[FailureCategory, str]] = {
         FailureCategory.F8_VALIDATION,
         "validation_digest_mismatch",
     ),
+    "E_VALIDATION_SCHEMA": (
+        FailureCategory.F8_VALIDATION,
+        "validation_schema_mismatch",
+    ),
 }
 
 

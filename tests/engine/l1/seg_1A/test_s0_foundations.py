@@ -57,7 +57,7 @@ def sample_context() -> tuple[RunContext, SchemaAuthority]:
     buckets = pl.DataFrame({"country_iso": ["GB", "DE"], "bucket": [4, 3]})
     authority = SchemaAuthority(
         ingress_ref="l1/seg_1A/merchant_ids.schema.json",
-        segment_ref=None,
+        segment_ref="l1/seg_1A/s0_outputs.schema.json",
         rng_ref=None,
     )
     context = build_run_context(
@@ -175,7 +175,7 @@ def runner_and_context(parameter_files, governance_files):
     buckets = pl.DataFrame({"country_iso": ["GB", "DE"], "bucket": [4, 3]})
     authority = SchemaAuthority(
         ingress_ref="l1/seg_1A/merchant_ids.schema.json",
-        segment_ref=None,
+        segment_ref="l1/seg_1A/s0_outputs.schema.json",
         rng_ref=None,
     )
     runner = S0FoundationsRunner(schema_authority=authority)
@@ -520,3 +520,74 @@ def test_validate_outputs_detects_corruption(
             seed=seed,
             run_id=run_id,
         )
+
+
+def test_run_from_paths_end_to_end(
+    tmp_path: Path, parameter_files: dict[str, Path], governance_files
+) -> None:
+    merchants = pl.DataFrame(
+        {
+            "merchant_id": [1, 2],
+            "mcc": [5411, 5732],
+            "channel": ["card_present", "card_not_present"],
+            "home_country_iso": ["GB", "DE"],
+        }
+    )
+    iso = pl.DataFrame({"country_iso": ["GB", "DE"]})
+    gdp = pl.DataFrame(
+        {
+            "country_iso": ["GB", "DE"],
+            "observation_year": [2024, 2024],
+            "gdp_pc_usd_2015": [50000.0, 48000.0],
+        }
+    )
+    buckets = pl.DataFrame({"country_iso": ["GB", "DE"], "bucket": [4, 3]})
+
+    merchants_path = tmp_path / "ingress" / "merchant_ids.parquet"
+    iso_path = tmp_path / "ingress" / "iso.parquet"
+    gdp_path = tmp_path / "ingress" / "gdp.parquet"
+    buckets_path = tmp_path / "ingress" / "buckets.parquet"
+    merchants_path.parent.mkdir(parents=True, exist_ok=True)
+    merchants.write_parquet(merchants_path)
+    iso.write_parquet(iso_path)
+    gdp.write_parquet(gdp_path)
+    buckets.write_parquet(buckets_path)
+
+    policy_path, manifest_path = governance_files
+
+    authority = SchemaAuthority(
+        ingress_ref="l1/seg_1A/merchant_ids.schema.json",
+        segment_ref="l1/seg_1A/s0_outputs.schema.json",
+        rng_ref=None,
+    )
+    runner = S0FoundationsRunner(schema_authority=authority)
+
+    result = runner.run_from_paths(
+        base_path=tmp_path / "outputs",
+        merchant_table_path=merchants_path,
+        iso_table_path=iso_path,
+        gdp_table_path=gdp_path,
+        bucket_table_path=buckets_path,
+        parameter_files=parameter_files,
+        git_commit_hex="0" * 64,
+        seed=1234,
+        numeric_policy_path=policy_path,
+        math_profile_manifest_path=manifest_path,
+    )
+
+    assert isinstance(result.outputs, S0Outputs)
+    assert result.outputs.crossborder_flags.height == 2
+    assert len(result.run_id) == 32
+
+    parameter_dir = (
+        result.base_path
+        / "parameter_scoped"
+        / f"parameter_hash={result.sealed.parameter_hash.parameter_hash}"
+    )
+    assert (parameter_dir / "crossborder_eligibility_flags.parquet").exists()
+    validation_dir = (
+        result.base_path
+        / "validation_bundle"
+        / f"manifest_fingerprint={result.sealed.manifest_fingerprint.manifest_fingerprint}"
+    )
+    assert (validation_dir / "_passed.flag").exists()

@@ -1,0 +1,154 @@
+{
+  "": "https://json-schema.org/draft/2020-12/schema",
+  "": "contracts/schemas/l1/seg_1A/s0_outputs.schema.json",
+  "title": "Layer 1 Segment 1A – State-0 Outputs",
+  "description": "Authoritative schemas for state-0 parameter-scoped artefacts emitted by the Layer 1 Segment 1A foundations stage.",
+  "": {
+    "hex64": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "id64": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9223372036854775807
+    },
+    "probability": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0
+    },
+    "iso2": {
+      "type": "string",
+      "pattern": "^[A-Z]{2}$"
+    },
+    "string_null": {
+      "type": ["string", "null"]
+    },
+    "float_array": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      }
+    }
+  },
+  "model": {
+    "hurdle_design_matrix": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "parameter_hash",
+          "merchant_id",
+          "bucket",
+          "gdp_pc_usd_2015",
+          "log_gdp_pc_usd_2015",
+          "x_hurdle",
+          "x_nb_mean",
+          "x_nb_dispersion"
+        ],
+        "properties": {
+          "parameter_hash": {
+            "": "#//hex64"
+          },
+          "produced_by_fingerprint": {
+            "": "#//string_null"
+          },
+          "merchant_id": {
+            "": "#//id64"
+          },
+          "bucket": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "gdp_pc_usd_2015": {
+            "type": "number",
+            "exclusiveMinimum": 0.0
+          },
+          "log_gdp_pc_usd_2015": {
+            "type": "number"
+          },
+          "x_hurdle": {
+            "": "#//float_array"
+          },
+          "x_nb_mean": {
+            "": "#//float_array"
+          },
+          "x_nb_dispersion": {
+            "": "#//float_array"
+          }
+        }
+      }
+    },
+    "hurdle_pi_probs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "parameter_hash",
+          "merchant_id",
+          "logit",
+          "pi"
+        ],
+        "properties": {
+          "parameter_hash": {
+            "": "#//hex64"
+          },
+          "produced_by_fingerprint": {
+            "": "#//string_null"
+          },
+          "merchant_id": {
+            "": "#//id64"
+          },
+          "logit": {
+            "type": "number"
+          },
+          "pi": {
+            "": "#//probability"
+          }
+        }
+      }
+    }
+  },
+  "prep": {
+    "crossborder_eligibility_flags": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "parameter_hash",
+          "merchant_id",
+          "is_eligible",
+          "reason",
+          "rule_set"
+        ],
+        "properties": {
+          "parameter_hash": {
+            "": "#//hex64"
+          },
+          "produced_by_fingerprint": {
+            "": "#//string_null"
+          },
+          "merchant_id": {
+            "": "#//id64"
+          },
+          "is_eligible": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "rule_set": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Iterable
 
 import polars as pl
+from jsonschema import Draft202012Validator, ValidationError
 
 from ..exceptions import err
 from ..l2.output import S0Outputs
@@ -41,6 +42,19 @@ def _assert_frame_equal(
     rhs = observed.to_pandas(use_pyarrow_extension_array=True)
     if not lhs.equals(rhs):
         raise err("E_VALIDATION_MISMATCH", f"{dataset} content mismatch")
+
+
+def _assert_schema(frame: pl.DataFrame, ref, *, dataset: str) -> None:
+    schema = ref.load()
+    validator = Draft202012Validator(schema)
+    data = frame.to_dicts()
+    try:
+        validator.validate(data)
+    except ValidationError as exc:  # pragma: no cover - exercised via corruption tests
+        raise err(
+            "E_VALIDATION_SCHEMA",
+            f"{dataset} schema violation: {exc.message}",
+        ) from exc
 
 
 def _verify_pass_flag(bundle_dir: Path) -> None:
@@ -84,6 +98,18 @@ def validate_outputs(
     )
     observed_design = _load_parquet(parameter_dir / "hurdle_design_matrix.parquet")
 
+    authority = sealed.context.schema_authority
+    _assert_schema(
+        observed_flags,
+        authority.segment_schema("/prep/crossborder_eligibility_flags"),
+        dataset="crossborder_eligibility_flags",
+    )
+    _assert_schema(
+        observed_design,
+        authority.segment_schema("/model/hurdle_design_matrix"),
+        dataset="hurdle_design_matrix",
+    )
+
     expected_flags = _sort_frame(outputs.crossborder_flags, ["merchant_id"])
     expected_design = _sort_frame(outputs.design_matrix, ["merchant_id"])
     _assert_frame_equal(
@@ -100,6 +126,11 @@ def validate_outputs(
     diag_path = parameter_dir / "hurdle_pi_probs.parquet"
     if outputs.diagnostics is not None:
         observed_diag = _load_parquet(diag_path)
+        _assert_schema(
+            observed_diag,
+            authority.segment_schema("/model/hurdle_pi_probs"),
+            dataset="hurdle_pi_probs",
+        )
         expected_diag = _sort_frame(outputs.diagnostics, ["merchant_id"])
         _assert_frame_equal(
             expected_diag,

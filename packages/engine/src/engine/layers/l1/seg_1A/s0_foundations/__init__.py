@@ -41,6 +41,7 @@ from .l1.rng import (
 )
 from .l2.failure import emit_failure_record
 from .l2.output import S0Outputs, write_outputs
+from .l2.runner import S0FoundationsRunner, SealedFoundations, S0RunResult
 from .l2.rng_logging import RNGLogWriter, rng_event
 from .l3.validator import validate_outputs
 
@@ -83,4 +84,7 @@ __all__ = [
     "rng_event",
     "emit_failure_record",
     "validate_outputs",
+    "S0FoundationsRunner",
+    "SealedFoundations",
+    "S0RunResult",
 ]

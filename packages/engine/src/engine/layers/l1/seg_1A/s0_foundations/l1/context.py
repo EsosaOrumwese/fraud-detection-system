@@ -93,6 +93,19 @@ class SchemaAuthority:
             raise err("E_AUTHORITY_BREACH", "ingress schema reference is required")
         return self._resolve(self.ingress_ref)
 
+    def segment_schema(self, pointer: str) -> SchemaRef:
+        if self.segment_ref is None:
+            raise err("E_AUTHORITY_BREACH", "segment schema reference is required")
+        pointer = pointer.lstrip("/")
+        if "#" in self.segment_ref:
+            base, existing = self.segment_ref.split("#", 1)
+            segments = [part for part in (existing, pointer) if part]
+            combined = "/".join(segments)
+            ref = base if not combined else f"{base}#{combined}"
+        else:
+            ref = self.segment_ref if not pointer else f"{self.segment_ref}#{pointer}"
+        return self._resolve(ref)
+
     def _resolve(self, ref: str) -> SchemaRef:
         base, pointer = ref.split("#", 1) if "#" in ref else (ref, "")
         root = self.contracts_root.resolve()
