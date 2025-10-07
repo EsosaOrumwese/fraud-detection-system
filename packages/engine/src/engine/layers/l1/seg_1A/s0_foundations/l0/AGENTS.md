@@ -6,4 +6,3 @@ Guidance for future agents:
 - Keep functions limited to validated reads and structured writes; route business rules to L1 kernels.
 - Honour contract paths from docs/model_spec when adding new inputs.
 - Surface deterministic metadata and hashes exactly as specified in the state docs.
-

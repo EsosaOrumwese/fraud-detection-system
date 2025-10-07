@@ -1,4 +1,5 @@
 """Numeric policy enforcement and deterministic math profile helpers for S0."""
+
 from __future__ import annotations
 
 import json
@@ -38,14 +39,19 @@ class NumericPolicy:
     def validate(self) -> None:
         for key, expected in _NUMERIC_POLICY_REQUIRED.items():
             if key not in self.raw:
-                raise err("E_NUMERIC_POLICY_MISSING", f"numeric_policy missing key '{key}'")
+                raise err(
+                    "E_NUMERIC_POLICY_MISSING", f"numeric_policy missing key '{key}'"
+                )
             if self.raw[key] != expected:
                 raise err(
                     "E_NUMERIC_POLICY_VALUE",
                     f"numeric_policy '{key}' expected {expected!r}, got {self.raw[key]!r}",
                 )
         if self.raw.get("nan_inf_is_error", True) is not True:
-            raise err("E_NUMERIC_POLICY_VALUE", "numeric_policy requires nan_inf_is_error = true")
+            raise err(
+                "E_NUMERIC_POLICY_VALUE",
+                "numeric_policy requires nan_inf_is_error = true",
+            )
 
 
 @dataclass(frozen=True)
@@ -62,14 +68,19 @@ class MathProfileManifest:
         required = {"math_profile_id", "functions", "artifacts"}
         missing = required - set(self.raw)
         if missing:
-            raise err("E_MATH_PROFILE_MISSING", f"math_profile_manifest missing keys {sorted(missing)}")
+            raise err(
+                "E_MATH_PROFILE_MISSING",
+                f"math_profile_manifest missing keys {sorted(missing)}",
+            )
         if not isinstance(self.raw["functions"], list) or not self.raw["functions"]:
             raise err("E_MATH_PROFILE_FUNCTIONS", "functions must be a non-empty list")
         if not isinstance(self.raw["artifacts"], list) or not self.raw["artifacts"]:
             raise err("E_MATH_PROFILE_ARTIFACTS", "artifacts must be a non-empty list")
         for artifact in self.raw["artifacts"]:
             if not isinstance(artifact, Mapping):
-                raise err("E_MATH_PROFILE_ARTIFACTS", "artifact entries must be mappings")
+                raise err(
+                    "E_MATH_PROFILE_ARTIFACTS", "artifact entries must be mappings"
+                )
             if "name" not in artifact or "sha256" not in artifact:
                 raise err("E_MATH_PROFILE_ARTIFACTS", "artifact missing name or sha256")
 
@@ -87,6 +98,7 @@ class NumericPolicyAttestation:
 # ---------------------------------------------------------------------------
 # Governance loading
 # ---------------------------------------------------------------------------
+
 
 def _load_json(path: Path) -> Mapping[str, Any]:
     if not path.exists():
@@ -106,7 +118,9 @@ def load_numeric_policy(path: Path) -> tuple[NumericPolicy, ArtifactDigest]:
     return policy, digest
 
 
-def load_math_profile_manifest(path: Path) -> tuple[MathProfileManifest, ArtifactDigest]:
+def load_math_profile_manifest(
+    path: Path,
+) -> tuple[MathProfileManifest, ArtifactDigest]:
     raw = _load_json(path)
     manifest = MathProfileManifest(raw=raw)
     manifest.validate()
@@ -117,6 +131,7 @@ def load_math_profile_manifest(path: Path) -> tuple[MathProfileManifest, Artifac
 # ---------------------------------------------------------------------------
 # Numeric self-tests (S0.8.9)
 # ---------------------------------------------------------------------------
+
 
 def _check_subnormal_support() -> bool:
     min_subnormal = float.fromhex("0x0.0000000000001p-1022")
@@ -136,21 +151,23 @@ def _check_neumaier() -> bool:
 
 
 def _total_order_key(value: float) -> int:
-    bits = struct.unpack('>Q', struct.pack('>d', value))[0]
+    bits = struct.unpack(">Q", struct.pack(">d", value))[0]
     if bits >> 63:
         return 0xFFFFFFFFFFFFFFFF - bits
     return bits | 0x8000000000000000
 
 
 def _check_total_order() -> bool:
-    values = [float('-0.0'), 0.0, -1.0, 1.0, 2.5, -10.0]
+    values = [float("-0.0"), 0.0, -1.0, 1.0, 2.5, -10.0]
     ordered = sorted(values, key=_total_order_key)
-    return ordered == [-10.0, -1.0, float('-0.0'), 0.0, 1.0, 2.5]
+    return ordered == [-10.0, -1.0, float("-0.0"), 0.0, 1.0, 2.5]
 
 
 def _check_libm_consistency() -> bool:
     samples = [0.5, 1.0, 2.0]
-    return all(math.isfinite(math.log(x)) and math.isfinite(math.exp(x)) for x in samples)
+    return all(
+        math.isfinite(math.log(x)) and math.isfinite(math.exp(x)) for x in samples
+    )
 
 
 def _check_rounding_mode() -> bool:
@@ -184,12 +201,15 @@ def build_numeric_policy_attestation(
     math_digest: ArtifactDigest,
     platform_info: Optional[Mapping[str, str]] = None,
 ) -> NumericPolicyAttestation:
-    platform_data = dict(platform_info or {
-        "os": platform.system().lower(),
-        "release": platform.release(),
-        "python": sys.version.split()[0],
-        "machine": platform.machine(),
-    })
+    platform_data = dict(
+        platform_info
+        or {
+            "os": platform.system().lower(),
+            "release": platform.release(),
+            "python": sys.version.split()[0],
+            "machine": platform.machine(),
+        }
+    )
     attestation = {
         "numeric_policy_version": policy.version,
         "math_profile_id": math_profile.profile_id,

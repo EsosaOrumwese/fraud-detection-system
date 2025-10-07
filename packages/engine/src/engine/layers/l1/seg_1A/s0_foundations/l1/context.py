@@ -1,4 +1,5 @@
 """Typed state containers for S0 foundations."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
@@ -34,15 +35,24 @@ class MerchantUniverse:
     table: pl.DataFrame
 
     def __post_init__(self) -> None:  # type: ignore[override]
-        expected = {"merchant_id", "mcc", "channel_sym", "home_country_iso", "merchant_u64"}
+        expected = {
+            "merchant_id",
+            "mcc",
+            "channel_sym",
+            "home_country_iso",
+            "merchant_u64",
+        }
         missing = expected - set(self.table.columns)
         if missing:
             raise err("E_INGRESS_SCHEMA", f"missing columns {sorted(missing)}")
-        allowed_mask = self.table.get_column("channel_sym").is_in(sorted(_CHANNEL_SYMBOLS))
+        allowed_mask = self.table.get_column("channel_sym").is_in(
+            sorted(_CHANNEL_SYMBOLS)
+        )
         if not bool(allowed_mask.all()):
             bad_rows = (
-                self.table
-                .filter(~pl.col("channel_sym").is_in(sorted(_CHANNEL_SYMBOLS)))
+                self.table.filter(
+                    ~pl.col("channel_sym").is_in(sorted(_CHANNEL_SYMBOLS))
+                )
                 .select("merchant_id", "channel_sym")
                 .to_dicts()
             )
@@ -78,7 +88,10 @@ class RunContext:
         numeric_attestation: Optional[NumericPolicyAttestation] = None,
     ) -> "RunContext":
         if parameter_hash is None or manifest_fingerprint is None:
-            raise err("E_LINEAGE_INCOMPLETE", "parameter_hash and manifest_fingerprint required")
+            raise err(
+                "E_LINEAGE_INCOMPLETE",
+                "parameter_hash and manifest_fingerprint required",
+            )
         return replace(
             self,
             parameter_hash=parameter_hash,

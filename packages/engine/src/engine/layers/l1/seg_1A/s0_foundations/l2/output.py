@@ -1,4 +1,5 @@
 """Materialisation helpers for S0 outputs (S0.10)."""
+
 from __future__ import annotations
 
 import json
@@ -81,11 +82,15 @@ def write_outputs(
         outputs.crossborder_flags,
         parameter_dir / "crossborder_eligibility_flags.parquet",
     )
-    _write_parquet(outputs.design_matrix, parameter_dir / "hurdle_design_matrix.parquet")
+    _write_parquet(
+        outputs.design_matrix, parameter_dir / "hurdle_design_matrix.parquet"
+    )
     if outputs.diagnostics is not None:
         _write_parquet(outputs.diagnostics, parameter_dir / "hurdle_pi_probs.parquet")
 
-    validation_dir = base_path / "validation_bundle" / f"manifest_fingerprint={manifest_fingerprint}"
+    validation_dir = (
+        base_path / "validation_bundle" / f"manifest_fingerprint={manifest_fingerprint}"
+    )
     _ensure_directory(validation_dir)
     validation_summary = {
         "parameter_hash": parameter_hash,
@@ -93,13 +98,17 @@ def write_outputs(
         "datasets": {
             "crossborder_eligibility_flags": int(outputs.crossborder_flags.height),
             "hurdle_design_matrix": int(outputs.design_matrix.height),
-            "hurdle_pi_probs": int(outputs.diagnostics.height if outputs.diagnostics is not None else 0),
+            "hurdle_pi_probs": int(
+                outputs.diagnostics.height if outputs.diagnostics is not None else 0
+            ),
         },
         "run_id": run_id,
     }
     if outputs.numeric_attestation is not None:
         attestation_path = validation_dir / "numeric_policy_attest.json"
-        attestation_path.write_text(outputs.numeric_attestation.to_json(), encoding="utf-8")
+        attestation_path.write_text(
+            outputs.numeric_attestation.to_json(), encoding="utf-8"
+        )
         validation_summary["numeric_attestation"] = outputs.numeric_attestation.content
 
     _write_json(validation_summary, validation_dir / "validation_summary.json")

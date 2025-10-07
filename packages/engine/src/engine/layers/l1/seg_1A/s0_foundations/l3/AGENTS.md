@@ -6,4 +6,3 @@ Guidance for future agents:
 - Treat all inputs as read-only; this layer should never mutate artefacts.
 - Encode assertions with clear failure messages tied to spec sections.
 - Keep checks deterministic so the validation bundle can be replayed byte for byte.
-

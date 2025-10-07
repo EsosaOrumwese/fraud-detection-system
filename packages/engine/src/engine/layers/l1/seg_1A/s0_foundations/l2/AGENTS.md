@@ -6,4 +6,3 @@ Guidance for future agents:
 - Maintain idempotent execution; reruns must not duplicate outputs.
 - Centralise error handling here and fail closed on any contract violation.
 - Emit structured logs for RNG seed derivations to support validation in L3.
-

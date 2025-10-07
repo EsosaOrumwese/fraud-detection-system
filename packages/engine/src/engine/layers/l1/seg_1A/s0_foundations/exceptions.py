@@ -34,7 +34,10 @@ _FAILURE_CODE_MAP: Mapping[str, Tuple[FailureCategory, str]] = {
     "E_ELIG_RULE_BAD_CHANNEL": (FailureCategory.F3_NUMERIC, "eligibility_rule_error"),
     "E_ELIG_RULE_BAD_ISO": (FailureCategory.F3_NUMERIC, "eligibility_rule_error"),
     "E_ELIG_RULE_BAD_MCC": (FailureCategory.F3_NUMERIC, "eligibility_rule_error"),
-    "E_AUTHORITY_BREACH": (FailureCategory.F6_AUTHORITY, "non_authoritative_schema_ref"),
+    "E_AUTHORITY_BREACH": (
+        FailureCategory.F6_AUTHORITY,
+        "non_authoritative_schema_ref",
+    ),
 }
 
 
@@ -50,11 +53,15 @@ class ErrorContext:
 
     @property
     def failure_category(self) -> FailureCategory:
-        return _FAILURE_CODE_MAP.get(self.code, (FailureCategory.F8_VALIDATION, self.code))[0]
+        return _FAILURE_CODE_MAP.get(
+            self.code, (FailureCategory.F8_VALIDATION, self.code)
+        )[0]
 
     @property
     def failure_code(self) -> str:
-        return _FAILURE_CODE_MAP.get(self.code, (FailureCategory.F8_VALIDATION, self.code))[1]
+        return _FAILURE_CODE_MAP.get(
+            self.code, (FailureCategory.F8_VALIDATION, self.code)
+        )[1]
 
 
 class S0Error(RuntimeError):

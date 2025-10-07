@@ -205,7 +205,9 @@ def test_outputs_bundle(tmp_path: Path, runner_and_context, parameter_files):
         seed=seed,
         start_time_ns=100,
     )
-    engine = runner.philox_engine(seed=seed, manifest_fingerprint=sealed.manifest_fingerprint)
+    engine = runner.philox_engine(
+        seed=seed, manifest_fingerprint=sealed.manifest_fingerprint
+    )
     write_outputs(
         base_path=tmp_path,
         sealed=sealed,
