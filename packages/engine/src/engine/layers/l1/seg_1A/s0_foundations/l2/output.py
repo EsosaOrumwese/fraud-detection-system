@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import shutil
+import time
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Optional, TYPE_CHECKING
@@ -42,6 +46,13 @@ def _write_json(payload: Mapping[str, object], path: Path) -> None:
         json.dump(payload, handle, indent=2, sort_keys=True)
 
 
+def _write_jsonl(path: Path, rows: list[Mapping[str, object]]) -> None:
+    with path.open("w", encoding="utf-8") as handle:
+        for row in rows:
+            handle.write(json.dumps(row, sort_keys=True))
+            handle.write("\n")
+
+
 def _assert_partition_value(
     frame: pl.DataFrame,
     *,
@@ -78,6 +89,128 @@ def _audit_payload(
         "rng_counter_hi": state.counter_hi,
         "rng_counter_lo": state.counter_lo,
     }
+
+
+def _materialise_validation_bundle(
+    *,
+    base_path: Path,
+    sealed: "SealedFoundations",
+    validation_summary: Mapping[str, object],
+    outputs: S0Outputs,
+) -> None:
+    parameter_hash = sealed.parameter_hash.parameter_hash
+    manifest_fingerprint = sealed.manifest_fingerprint.manifest_fingerprint
+    bundle_root = base_path / "validation_bundle"
+    bundle_root.mkdir(parents=True, exist_ok=True)
+
+    temp_dir = bundle_root / f"_tmp.{uuid.uuid4().hex}"
+    temp_dir.mkdir(parents=False, exist_ok=False)
+
+    try:
+        manifest_artefacts = sorted(
+            sealed.manifest_fingerprint.artefacts, key=lambda d: d.basename
+        )
+        parameter_artefacts = sorted(
+            sealed.parameter_hash.artefacts, key=lambda d: d.basename
+        )
+
+        manifest_payload: dict[str, object] = {
+            "version": "1A.validation.v1",
+            "manifest_fingerprint": manifest_fingerprint,
+            "parameter_hash": parameter_hash,
+            "git_commit_hex": sealed.manifest_fingerprint.git_commit_hex,
+            "artifact_count": len(manifest_artefacts),
+            "created_utc_ns": time.time_ns(),
+            "compiler_flags": {
+                "fma": False,
+                "ftz": False,
+                "rounding": "RNE",
+                "fast_math": False,
+                "blas": "none",
+            },
+        }
+        if sealed.context.numeric_policy is not None:
+            manifest_payload["numeric_policy_version"] = (
+                sealed.context.numeric_policy.version
+            )
+        if sealed.context.math_profile is not None:
+            manifest_payload["math_profile_id"] = sealed.context.math_profile.profile_id
+        _write_json(manifest_payload, temp_dir / "MANIFEST.json")
+
+        _write_json(
+            {
+                "parameter_hash": parameter_hash,
+                "filenames_sorted": [d.basename for d in parameter_artefacts],
+                "artifact_count": len(parameter_artefacts),
+            },
+            temp_dir / "parameter_hash_resolved.json",
+        )
+
+        _write_json(
+            {
+                "manifest_fingerprint": manifest_fingerprint,
+                "git_commit_hex": sealed.manifest_fingerprint.git_commit_hex,
+                "parameter_hash": parameter_hash,
+                "artifact_count": len(manifest_artefacts),
+            },
+            temp_dir / "manifest_fingerprint_resolved.json",
+        )
+
+        _write_jsonl(
+            temp_dir / "param_digest_log.jsonl",
+            [
+                {
+                    "filename": digest.basename,
+                    "path": str(digest.path),
+                    "size_bytes": digest.size_bytes,
+                    "sha256_hex": digest.sha256_hex,
+                    "mtime_ns": digest.mtime_ns,
+                }
+                for digest in parameter_artefacts
+            ],
+        )
+
+        _write_jsonl(
+            temp_dir / "fingerprint_artifacts.jsonl",
+            [
+                {
+                    "filename": digest.basename,
+                    "path": str(digest.path),
+                    "size_bytes": digest.size_bytes,
+                    "sha256_hex": digest.sha256_hex,
+                    "mtime_ns": digest.mtime_ns,
+                }
+                for digest in manifest_artefacts
+            ],
+        )
+
+        _write_json(validation_summary, temp_dir / "validation_summary.json")
+
+        if outputs.numeric_attestation is not None:
+            (temp_dir / "numeric_policy_attest.json").write_text(
+                outputs.numeric_attestation.to_json(),
+                encoding="utf-8",
+            )
+
+        files_for_hash = sorted(
+            [p for p in temp_dir.iterdir() if p.name != "_passed.flag"],
+            key=lambda p: p.name,
+        )
+        digest = hashlib.sha256()
+        for file_path in files_for_hash:
+            digest.update(file_path.read_bytes())
+        (temp_dir / "_passed.flag").write_text(
+            f"sha256_hex = {digest.hexdigest()}\n",
+            encoding="utf-8",
+        )
+
+        final_dir = bundle_root / f"manifest_fingerprint={manifest_fingerprint}"
+        if final_dir.exists():
+            shutil.rmtree(final_dir)
+        temp_dir.rename(final_dir)
+    except Exception:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+        raise
 
 
 def write_outputs(
@@ -146,10 +279,6 @@ def write_outputs(
             )
         _write_parquet(outputs.diagnostics, parameter_dir / "hurdle_pi_probs.parquet")
 
-    validation_dir = (
-        base_path / "validation_bundle" / f"manifest_fingerprint={manifest_fingerprint}"
-    )
-    _ensure_directory(validation_dir)
     validation_summary = {
         "parameter_hash": parameter_hash,
         "manifest_fingerprint": manifest_fingerprint,
@@ -162,14 +291,13 @@ def write_outputs(
         },
         "run_id": run_id,
     }
-    if outputs.numeric_attestation is not None:
-        attestation_path = validation_dir / "numeric_policy_attest.json"
-        attestation_path.write_text(
-            outputs.numeric_attestation.to_json(), encoding="utf-8"
-        )
-        validation_summary["numeric_attestation"] = outputs.numeric_attestation.content
 
-    _write_json(validation_summary, validation_dir / "validation_summary.json")
+    _materialise_validation_bundle(
+        base_path=base_path,
+        sealed=sealed,
+        validation_summary=validation_summary,
+        outputs=outputs,
+    )
 
     rng_dir = (
         base_path
