@@ -45,6 +45,43 @@ _FAILURE_CODE_MAP: Mapping[str, Tuple[FailureCategory, str]] = {
         FailureCategory.F5_PARTITION,
         "partition_column_missing",
     ),
+    "E_RNG_BUDGET": (FailureCategory.F4_RNG, "rng_budget_violation"),
+    "E_RNG_COUNTER": (FailureCategory.F4_RNG, "rng_counter_mismatch"),
+    "E_PARTITION_MISMATCH": (FailureCategory.F5_PARTITION, "partition_mismatch"),
+    "E_NUMERIC_POLICY_MISSING": (
+        FailureCategory.F7_NUMERIC_POLICY,
+        "numeric_policy_missing",
+    ),
+    "E_NUMERIC_POLICY_VALUE": (
+        FailureCategory.F7_NUMERIC_POLICY,
+        "numeric_policy_value",
+    ),
+    "E_GOVERNANCE_MISSING": (
+        FailureCategory.F2_PARAMETERS,
+        "governance_artifact_missing",
+    ),
+    "E_JSON_STRUCTURE": (FailureCategory.F6_AUTHORITY, "json_structure_invalid"),
+    "E_MATH_PROFILE_MISSING": (
+        FailureCategory.F7_NUMERIC_POLICY,
+        "math_profile_missing",
+    ),
+    "E_MATH_PROFILE_FUNCTIONS": (
+        FailureCategory.F7_NUMERIC_POLICY,
+        "math_profile_functions",
+    ),
+    "E_MATH_PROFILE_ARTIFACTS": (
+        FailureCategory.F7_NUMERIC_POLICY,
+        "math_profile_artifacts",
+    ),
+    "E_RUNID_COLLISION_EXHAUSTED": (
+        FailureCategory.F2_PARAMETERS,
+        "runid_collision_exhausted",
+    ),
+    "E_VALIDATION_MISMATCH": (FailureCategory.F8_VALIDATION, "validation_mismatch"),
+    "E_VALIDATION_DIGEST": (
+        FailureCategory.F8_VALIDATION,
+        "validation_digest_mismatch",
+    ),
 }
 
 

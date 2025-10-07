@@ -25,13 +25,15 @@ from engine.layers.l1.seg_1A.s0_foundations import (
     load_math_profile_manifest,
     load_numeric_policy,
     rng_event,
+    validate_outputs,
+    emit_failure_record,
     evaluate_eligibility,
 )
 from engine.layers.l1.seg_1A.s0_foundations.l0.artifacts import hash_artifacts
 from engine.layers.l1.seg_1A.s0_foundations.l1.context import RunContext
 from engine.layers.l1.seg_1A.s0_foundations.l2.output import S0Outputs, write_outputs
 from engine.layers.l1.seg_1A.s0_foundations.l2.runner import S0FoundationsRunner
-from engine.layers.l1.seg_1A.s0_foundations.exceptions import S0Error
+from engine.layers.l1.seg_1A.s0_foundations.exceptions import S0Error, err
 
 
 @pytest.fixture()
@@ -226,6 +228,9 @@ def test_outputs_bundle(tmp_path: Path, runner_and_context, parameter_files):
         / "numeric_policy_attest.json"
     )
     assert attest_path.exists()
+    validate_outputs(
+        base_path=tmp_path, sealed=sealed, outputs=outputs, seed=seed, run_id=run_id
+    )
 
 
 # Existing lightweight tests -------------------------------------------------
@@ -411,3 +416,107 @@ def test_numeric_policy_attestation_self_tests(governance_files, parameter_files
     )
     for result in attestation.content["self_tests"].values():
         assert result == "pass"
+
+
+def test_failure_record_emission(tmp_path: Path, runner_and_context):
+    runner, sealed = runner_and_context
+    failure = err("E_RNG_COUNTER", "counter mismatch")
+    out_dir = emit_failure_record(
+        base_path=tmp_path,
+        fingerprint=sealed.manifest_fingerprint.manifest_fingerprint,
+        seed=123,
+        run_id="deadbeefcafebabe",
+        failure=failure,
+        state="S0",
+        module="1A.s0.logger",
+        parameter_hash=sealed.parameter_hash.parameter_hash,
+        dataset_id="hurdle_design_matrix",
+        detail={"blocks": 1},
+    )
+
+    failure_path = out_dir / "failure.json"
+    sentinel_path = out_dir / "_FAILED.SENTINEL.json"
+    assert failure_path.exists()
+    assert sentinel_path.exists()
+
+    record = json.loads(failure_path.read_text(encoding="utf-8"))
+    assert record["failure_class"] == "F4_RNG"
+    assert record["failure_code"] == "rng_counter_mismatch"
+    assert record["dataset_id"] == "hurdle_design_matrix"
+    assert record["detail"]["message"] == "counter mismatch"
+    assert record["detail"]["blocks"] == 1
+    assert record["ts_utc"] > 0
+
+    sentinel = json.loads(sentinel_path.read_text(encoding="utf-8"))
+    assert sentinel == record
+
+    duplicate = emit_failure_record(
+        base_path=tmp_path,
+        fingerprint=sealed.manifest_fingerprint.manifest_fingerprint,
+        seed=123,
+        run_id="deadbeefcafebabe",
+        failure=failure,
+        state="S0",
+        module="1A.s0.logger",
+        parameter_hash=sealed.parameter_hash.parameter_hash,
+    )
+    assert duplicate == out_dir
+    assert (out_dir / "failure.json").exists()
+
+
+def test_validate_outputs_detects_corruption(
+    tmp_path: Path, runner_and_context, parameter_files
+):
+    runner, sealed = runner_and_context
+    outputs = runner.build_outputs_bundle(
+        sealed=sealed, parameter_files=parameter_files
+    )
+    seed = 9876
+    run_id = runner.issue_run_id(
+        manifest_fingerprint_bytes=sealed.manifest_fingerprint.manifest_fingerprint_bytes,
+        seed=seed,
+        start_time_ns=42,
+    )
+    engine = runner.philox_engine(
+        seed=seed, manifest_fingerprint=sealed.manifest_fingerprint
+    )
+    write_outputs(
+        base_path=tmp_path,
+        sealed=sealed,
+        outputs=outputs,
+        run_id=run_id,
+        seed=seed,
+        philox_engine=engine,
+    )
+
+    validate_outputs(
+        base_path=tmp_path,
+        sealed=sealed,
+        outputs=outputs,
+        seed=seed,
+        run_id=run_id,
+    )
+
+    flags_path = (
+        tmp_path
+        / "parameter_scoped"
+        / f"parameter_hash={sealed.parameter_hash.parameter_hash}"
+        / "crossborder_eligibility_flags.parquet"
+    )
+    frame = pl.read_parquet(flags_path)
+    frame = frame.with_columns(
+        pl.when(pl.col("merchant_id") == 1)
+        .then(~pl.col("is_eligible"))
+        .otherwise(pl.col("is_eligible"))
+        .alias("is_eligible")
+    )
+    frame.write_parquet(flags_path, compression="zstd")
+
+    with pytest.raises(S0Error):
+        validate_outputs(
+            base_path=tmp_path,
+            sealed=sealed,
+            outputs=outputs,
+            seed=seed,
+            run_id=run_id,
+        )
