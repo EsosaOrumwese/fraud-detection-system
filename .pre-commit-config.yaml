@@ -55,3 +55,12 @@ repos:
         name: gitleaks (pre-push)
         args: ["--config", "gitleaks.toml"]
         stages: [pre-push]
+
+  - repo: local
+    hooks:
+      - id: pytest-s0-foundations
+        name: pytest (s0 foundations)
+        entry: python -m pytest tests/engine/l1/seg_1A/test_s0_foundations.py
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
