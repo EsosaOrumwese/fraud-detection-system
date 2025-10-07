@@ -40,9 +40,10 @@ from ..l1.numeric import (
     load_math_profile_manifest,
     load_numeric_policy,
 )
-from ..l1.rng import PhiloxEngine
+from ..l1.rng import PhiloxEngine, comp_u64
 from ..l2.failure import emit_failure_record
 from ..l2.output import S0Outputs, write_outputs
+from ..l2.rng_logging import RNGLogWriter, rng_event
 
 _REQUIRED_PARAMETER_FILES = (
     "hurdle_coefficients.yaml",
@@ -342,7 +343,9 @@ class S0FoundationsRunner:
         try:
             git_commit_raw = bytes.fromhex(git_commit_hex)
         except ValueError as exc:  # pragma: no cover - invalid configuration
-            raise err("E_GIT_BYTES", f"invalid git commit hex '{git_commit_hex}'") from exc
+            raise err(
+                "E_GIT_BYTES", f"invalid git commit hex '{git_commit_hex}'"
+            ) from exc
 
         sealed = self.seal(
             merchant_table=merchant_table,
@@ -365,6 +368,25 @@ class S0FoundationsRunner:
         engine = self.philox_engine(
             seed=seed, manifest_fingerprint=sealed.manifest_fingerprint
         )
+        rng_logger = RNGLogWriter(
+            base_path=base_path / "rng_logs",
+            seed=seed,
+            parameter_hash=sealed.parameter_hash.parameter_hash,
+            manifest_fingerprint=sealed.manifest_fingerprint.manifest_fingerprint,
+            run_id=run_id,
+        )
+        anchor_stream = engine.derive_substream("s0.anchor", (comp_u64(0),))
+        with rng_event(
+            logger=rng_logger,
+            substream=anchor_stream,
+            module="1A.s0",
+            family="core",
+            event="anchor",
+            substream_label="s0.anchor",
+            expected_blocks=0,
+            expected_draws=0,
+        ):
+            pass
 
         outputs = self.build_outputs_bundle(
             sealed=sealed,
@@ -382,7 +404,9 @@ class S0FoundationsRunner:
                 philox_engine=engine,
             )
             if validate:
-                from ..l3.validator import validate_outputs  # local import to avoid cycle
+                from ..l3.validator import (
+                    validate_outputs,
+                )  # local import to avoid cycle
 
                 validate_outputs(
                     base_path=base_path,

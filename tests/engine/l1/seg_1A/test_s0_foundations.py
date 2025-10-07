@@ -213,6 +213,25 @@ def test_outputs_bundle(tmp_path: Path, runner_and_context, parameter_files):
     engine = runner.philox_engine(
         seed=seed, manifest_fingerprint=sealed.manifest_fingerprint
     )
+    rng_logger = RNGLogWriter(
+        base_path=tmp_path / "rng_logs",
+        seed=seed,
+        parameter_hash=sealed.parameter_hash.parameter_hash,
+        manifest_fingerprint=sealed.manifest_fingerprint.manifest_fingerprint,
+        run_id=run_id,
+    )
+    anchor_stream = engine.derive_substream("s0.anchor", ())
+    with rng_event(
+        logger=rng_logger,
+        substream=anchor_stream,
+        module="test",
+        family="core",
+        event="anchor",
+        substream_label="s0.anchor",
+        expected_blocks=0,
+        expected_draws=0,
+    ):
+        pass
     write_outputs(
         base_path=tmp_path,
         sealed=sealed,
@@ -480,6 +499,25 @@ def test_validate_outputs_detects_corruption(
     engine = runner.philox_engine(
         seed=seed, manifest_fingerprint=sealed.manifest_fingerprint
     )
+    rng_logger = RNGLogWriter(
+        base_path=tmp_path / "rng_logs",
+        seed=seed,
+        parameter_hash=sealed.parameter_hash.parameter_hash,
+        manifest_fingerprint=sealed.manifest_fingerprint.manifest_fingerprint,
+        run_id=run_id,
+    )
+    anchor_stream = engine.derive_substream("s0.anchor", ())
+    with rng_event(
+        logger=rng_logger,
+        substream=anchor_stream,
+        module="test",
+        family="core",
+        event="anchor",
+        substream_label="s0.anchor",
+        expected_blocks=0,
+        expected_draws=0,
+    ):
+        pass
     write_outputs(
         base_path=tmp_path,
         sealed=sealed,

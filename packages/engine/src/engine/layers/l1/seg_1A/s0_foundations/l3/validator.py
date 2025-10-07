@@ -11,6 +11,8 @@ import polars as pl
 from jsonschema import Draft202012Validator, ValidationError
 
 from ..exceptions import err
+from ..l0.artifacts import hash_artifact
+from ..l1.hashing import compute_manifest_fingerprint, compute_parameter_hash
 from ..l2.output import S0Outputs
 from ..l2.runner import SealedFoundations
 
@@ -73,6 +75,63 @@ def _load_json(path: Path) -> dict:
     if not path.exists():
         raise err("E_VALIDATION_MISMATCH", f"missing JSON artefact '{path.name}'")
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _load_jsonl(path: Path) -> list[dict]:
+    if not path.exists():
+        raise err("E_VALIDATION_MISMATCH", f"missing JSONL artefact '{path.name}'")
+    records = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        records.append(json.loads(line))
+    return records
+
+
+def _rehash_artifacts(records: list[dict]) -> list:
+    digests = []
+    for record in records:
+        path = Path(record["path"])
+        digest = hash_artifact(path, error_prefix="E_VALIDATION_DIGEST")
+        if digest.sha256_hex != record["sha256_hex"]:
+            raise err(
+                "E_VALIDATION_DIGEST",
+                f"artefact '{path}' digest mismatch",
+            )
+        digests.append(digest)
+    return digests
+
+
+def _verify_lineage(bundle_dir: Path, sealed: SealedFoundations) -> None:
+    param_records = _load_jsonl(bundle_dir / "param_digest_log.jsonl")
+    param_digests = _rehash_artifacts(param_records)
+    recomputed_param = compute_parameter_hash(param_digests)
+    if recomputed_param.parameter_hash != sealed.parameter_hash.parameter_hash:
+        raise err("E_VALIDATION_DIGEST", "parameter_hash mismatch")
+
+    manifest_records = _load_jsonl(bundle_dir / "fingerprint_artifacts.jsonl")
+    manifest_digests = _rehash_artifacts(manifest_records)
+    manifest_result = compute_manifest_fingerprint(
+        manifest_digests,
+        git_commit_raw=bytes.fromhex(sealed.manifest_fingerprint.git_commit_hex),
+        parameter_hash_bytes=bytes.fromhex(recomputed_param.parameter_hash),
+    )
+    if (
+        manifest_result.manifest_fingerprint
+        != sealed.manifest_fingerprint.manifest_fingerprint
+    ):
+        raise err("E_VALIDATION_DIGEST", "manifest_fingerprint mismatch")
+
+
+def _verify_numeric_attest(bundle_dir: Path) -> None:
+    attest = _load_json(bundle_dir / "numeric_policy_attest.json")
+    tests = attest.get("self_tests", {})
+    for name, result in tests.items():
+        if result != "pass":
+            raise err(
+                "E_VALIDATION_NUMERIC",
+                f"numeric self-test '{name}' reported {result}",
+            )
 
 
 def validate_outputs(
@@ -152,6 +211,8 @@ def validate_outputs(
     if summary.get("manifest_fingerprint") != manifest_fingerprint:
         raise err("E_VALIDATION_MISMATCH", "validation summary manifest mismatch")
     _verify_pass_flag(bundle_dir)
+    _verify_lineage(bundle_dir, sealed)
+    _verify_numeric_attest(bundle_dir)
 
     rng_dir = (
         base_path
@@ -172,7 +233,8 @@ def validate_outputs(
 
     events_root = base_path / "rng_logs" / "events"
     event_exists = any(events_root.rglob("part-00000.jsonl"))
-    # S0 foundations does not emit RNG events yet; tolerate absence.
+    if not event_exists:
+        raise err("E_VALIDATION_MISMATCH", "rng event logs missing")
 
 
 __all__ = ["validate_outputs"]
