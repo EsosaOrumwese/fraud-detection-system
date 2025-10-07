@@ -7,7 +7,7 @@ This file is a **router**, not a design doc. It tells you what to read (in what 
 
 ## 0) Scope (you are here)
 - You are in the **Data Engine**.
-- Current implementation focus: **Layer-1 → Segment 1A → States S0–S4**.
+- Current implementation focus: Layer-1 → Segment 1A → States S0–S4. (note this does not refer to the folder in the repo but to the conceptual breakdown of the engine into layers, subsegments and states). You are free to work/update whereever, as long as it's inline with the design goal.
 - Other engine segments (1B…4B) are **read-only for context**.
 - Note: "XX" here refers to the subsegment within 1A-4B. As we updated the contractual docs, more state-flow files will be added
 

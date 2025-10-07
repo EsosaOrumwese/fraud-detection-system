@@ -42,5 +42,6 @@ A. Data engine: Refer now to `packages/engine/AGENTS.md` as this is currently th
 - Ensure you're proactive, thinking ahead as a software engineer and not just depending on me to guide you every step of the way. This means suggesting TODOs where neccesary or not overrelying on a faulty contractual implementation but rather understanding the implementation goal and working towards the best way to acheive it.
 - As we build each component of the project, always remember how it fits into the enterprise system thereby ensuring that we're building with that goal in mind. 
 - Ensure to add comments (not too much though) where necessary, so that a human can easily scan through it and understand what's going on in the code.
+- You are to also manage the `pyproject.toml` file to ensure that it's up to date with the dependencies used during our implementation.
 
 _This file is intentionally light on mechanics and heavy on routing, so it won’t drift as the project grows._
