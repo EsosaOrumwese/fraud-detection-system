@@ -20,6 +20,14 @@ reference:
     partitioning: []
     owner: reference
     retention_days: 365
+  world_countries:
+    description: Global country polygons (EPSG:4326) derived from Natural Earth with synthetic coverage for microstates.
+    format: parquet
+    path: reference/spatial/world_countries/2025-10-08/world_countries.parquet
+    schema_ref: l1/seg_1A/world_countries.schema.json
+    partitioning: []
+    owner: reference
+    retention_days: 365
   settlement_shares_2024Q4:
     description: Currency-to-country settlement shares used by S0.
     format: parquet
