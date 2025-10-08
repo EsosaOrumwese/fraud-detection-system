@@ -28,6 +28,14 @@ reference:
     partitioning: []
     owner: reference
     retention_days: 365
+  tz_world_2025a:
+    description: IANA timezone polygons (2025a) intersected with world countries.
+    format: parquet
+    path: reference/spatial/tz_world/2025-10-08/tz_world_2025a.parquet
+    schema_ref: l1/seg_1A/tz_world_2025a.schema.json
+    partitioning: []
+    owner: reference
+    retention_days: 365
   settlement_shares_2024Q4:
     description: Currency-to-country settlement shares used by S0.
     format: parquet

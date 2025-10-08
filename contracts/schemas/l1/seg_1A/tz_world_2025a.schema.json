@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "$id": "contracts/schemas/l1/seg_1A/tz_world_2025a.schema.json",
+  "title": "Layer 1 Segment 1A – Timezone Polygons (2025a)",
+  "description": "Timezone polygons intersected with country ISO codes.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "tzid",
+      "country_iso",
+      "geometry"
+    ],
+    "properties": {
+      "tzid": {
+        "type": "string"
+      },
+      "country_iso": {
+        "type": "string",
+        "pattern": "^[A-Z]{2}$"
+      },
+      "geometry": {
+        "type": "string"
+      }
+    }
+  }
+}
