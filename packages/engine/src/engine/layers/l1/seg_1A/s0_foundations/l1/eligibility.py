@@ -9,7 +9,7 @@ as a governed dataset.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Mapping, Optional, Sequence, Set
+from typing import Mapping, Optional, Sequence, Set
 
 import polars as pl
 
@@ -97,7 +97,19 @@ def _build_rule(raw: Mapping[str, object], iso_set: Set[str]) -> EligibilityRule
         raise err(
             "E_ELIG_RULE_DECISION", f"rule {rule_id} has invalid decision '{decision}'"
         )
-    priority = int(raw.get("priority", 0))
+    priority_raw = raw.get("priority", 0)
+    if not isinstance(priority_raw, (int, str)):
+        raise err(
+            "E_ELIG_RULE_PRIORITY",
+            f"rule {rule_id} priority value '{priority_raw}' is not int/str",
+        )
+    try:
+        priority = int(priority_raw)
+    except (TypeError, ValueError) as exc:
+        raise err(
+            "E_ELIG_RULE_PRIORITY",
+            f"rule {rule_id} priority '{priority_raw}' cannot be parsed",
+        ) from exc
     if not (0 <= priority < 2**31):
         raise err("E_ELIG_RULE_PRIORITY", f"rule {rule_id} priority {priority} invalid")
     mcc_raw = raw.get("mcc", ["*"])
@@ -148,8 +160,8 @@ def load_crossborder_eligibility(
     if not isinstance(rules_raw, Sequence):
         raise err("E_ELIG_SCHEMA", "rules must be a sequence")
     seen_ids: Set[str] = set()
-    allow_rules: List[EligibilityRule] = []
-    deny_rules: List[EligibilityRule] = []
+    allow_rules: list[EligibilityRule] = []
+    deny_rules: list[EligibilityRule] = []
     for raw_rule in rules_raw:
         if not isinstance(raw_rule, Mapping):
             raise err("E_ELIG_SCHEMA", "rule entry must be mapping")
@@ -190,7 +202,7 @@ def evaluate_eligibility(
     when no rules match.  The resulting DataFrame is ready to write directly to
     the governed parquet dataset.
     """
-    rows: List[dict] = []
+    rows: list[dict] = []
     for row in context.merchants.merchants.iter_rows(named=True):
         merchant_id = int(row["merchant_id"])
         mcc = int(row["mcc"])

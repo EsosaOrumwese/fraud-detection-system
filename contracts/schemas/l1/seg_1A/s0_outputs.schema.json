@@ -1,37 +1,8 @@
 {
-  "": "https://json-schema.org/draft/2020-12/schema",
-  "": "contracts/schemas/l1/seg_1A/s0_outputs.schema.json",
-  "title": "Layer 1 Segment 1A – State-0 Outputs",
-  "description": "Authoritative schemas for state-0 parameter-scoped artefacts emitted by the Layer 1 Segment 1A foundations stage.",
-  "": {
-    "hex64": {
-      "type": "string",
-      "pattern": "^[0-9a-f]{64}$"
-    },
-    "id64": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 9223372036854775807
-    },
-    "probability": {
-      "type": "number",
-      "minimum": 0.0,
-      "maximum": 1.0
-    },
-    "iso2": {
-      "type": "string",
-      "pattern": "^[A-Z]{2}$"
-    },
-    "string_null": {
-      "type": ["string", "null"]
-    },
-    "float_array": {
-      "type": "array",
-      "items": {
-        "type": "number"
-      }
-    }
-  },
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "$id": "contracts/schemas/l1/seg_1A/s0_outputs.schema.json",
+  "title": "Layer 1 Segment 1A \u2013 State-0 Outputs",
+  "description": "Authoritative schemas for state-0 artefacts emitted by the Layer 1 Segment 1A foundations stage.",
   "model": {
     "hurdle_design_matrix": {
       "type": "array",
@@ -50,13 +21,24 @@
         ],
         "properties": {
           "parameter_hash": {
-            "": "#//hex64"
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
           },
           "produced_by_fingerprint": {
-            "": "#//string_null"
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "merchant_id": {
-            "": "#//id64"
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9223372036854775807
           },
           "bucket": {
             "type": "integer",
@@ -71,13 +53,22 @@
             "type": "number"
           },
           "x_hurdle": {
-            "": "#//float_array"
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
           },
           "x_nb_mean": {
-            "": "#//float_array"
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
           },
           "x_nb_dispersion": {
-            "": "#//float_array"
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
           }
         }
       }
@@ -95,19 +86,32 @@
         ],
         "properties": {
           "parameter_hash": {
-            "": "#//hex64"
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
           },
           "produced_by_fingerprint": {
-            "": "#//string_null"
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "merchant_id": {
-            "": "#//id64"
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9223372036854775807
           },
           "logit": {
             "type": "number"
           },
           "pi": {
-            "": "#//probability"
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
           }
         }
       }
@@ -128,13 +132,24 @@
         ],
         "properties": {
           "parameter_hash": {
-            "": "#//hex64"
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
           },
           "produced_by_fingerprint": {
-            "": "#//string_null"
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "merchant_id": {
-            "": "#//id64"
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9223372036854775807
           },
           "is_eligible": {
             "type": "boolean"
