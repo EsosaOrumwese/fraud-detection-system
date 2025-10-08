@@ -1,4 +1,11 @@
-"""RNG logging helpers for S0 foundations."""
+"""RNG logging helpers for S0 foundations.
+
+The design requires a structured audit/trace/event log for RNG usage.  This
+module provides a small writer that materialises those logs in the contract
+paths and a context manager that records the before/after counters for each
+event.  Keeping it separate from the Philox implementation keeps the concerns
+clean.
+"""
 
 from __future__ import annotations
 
@@ -23,7 +30,7 @@ def _utc_timestamp() -> str:
 
 @dataclass
 class RNGLogWriter:
-    """Materialises RNG audit, trace, and event logs."""
+    """Materialise RNG audit, trace, and event logs in their governed paths."""
 
     base_path: Path
     seed: int
@@ -129,6 +136,7 @@ def rng_event(
     expected_draws: Optional[int] = None,
     payload: Optional[Mapping[str, object]] = None,
 ) -> Iterator[PhiloxSubstream]:
+    """Context manager that logs Philox counters and payload for an event."""
     before_state = substream.snapshot()
     before_blocks = substream.blocks
     before_draws = substream.draws

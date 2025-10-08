@@ -1,4 +1,10 @@
-"""Typed state containers and authority helpers for S0 foundations."""
+"""Typed state containers and authority helpers for S0 foundations.
+
+The goal of this module is to keep the “shape” of S0 explicit: schema anchors,
+the merchant universe, and the immutable run context.  These classes are small
+data holders with validation baked in so that downstream code can assume the
+context is already well-formed.
+"""
 
 from __future__ import annotations
 
@@ -17,7 +23,12 @@ _CHANNEL_SYMBOLS = {"CP", "CNP"}
 
 @dataclass(frozen=True)
 class SchemaRef:
-    """Resolved schema reference with optional JSON pointer."""
+    """Resolved JSON Schema reference with an optional pointer fragment.
+
+    We keep the pointer as a tuple of tokens to avoid re-parsing on every load
+    and to make it trivial to render the canonical ``/a/b`` string when raising
+    errors.
+    """
 
     path: Path
     pointer: Tuple[str, ...] | None = None
@@ -50,6 +61,7 @@ class SchemaRef:
 
 
 def _normalise_pointer(pointer: str) -> Tuple[str, ...]:
+    """Convert a JSON pointer string into a tuple of unescaped tokens."""
     if not pointer:
         return tuple()
     tokens = []
@@ -63,7 +75,13 @@ def _normalise_pointer(pointer: str) -> Tuple[str, ...]:
 
 @dataclass(frozen=True)
 class SchemaAuthority:
-    """Records the authoritative JSON-Schema anchors for S0."""
+    """Records the authoritative JSON-Schema anchors for S0.
+
+    The design mandates that every dataset consults JSON Schema housed under
+    ``contracts/``.  This helper resolves those references, validates that the
+    files exist and parses cleanly, and offers convenience accessors for the
+    ingress and segment schemas.
+    """
 
     ingress_ref: Optional[str]
     segment_ref: Optional[str]
@@ -94,6 +112,7 @@ class SchemaAuthority:
         return self._resolve(self.ingress_ref)
 
     def segment_schema(self, pointer: str) -> SchemaRef:
+        """Return a schema reference rooted at the configured segment schema."""
         if self.segment_ref is None:
             raise err("E_AUTHORITY_BREACH", "segment schema reference is required")
         pointer = pointer.lstrip("/")
@@ -125,7 +144,12 @@ class SchemaAuthority:
 
 @dataclass(frozen=True)
 class MerchantUniverse:
-    """In-memory representation of the merchant ingress table."""
+    """In-memory representation of the merchant ingress table.
+
+    Instantiation performs the schema-level checks (column presence, channel
+    vocabulary) so that subsequent consumers can iterate over ``merchants``
+    without littering their code with guard clauses.
+    """
 
     table: pl.DataFrame
 
@@ -160,7 +184,14 @@ class MerchantUniverse:
 
 @dataclass(frozen=True)
 class RunContext:
-    """Immutable bundle handed from S0.1 into later states."""
+    """Immutable bundle handed from S0.1 into later states.
+
+    ``RunContext`` is the bridge between the normalised ingress data (S0.1) and
+    the subsequent hashing/model-building stages.  It keeps the original tables
+    around for convenience, but more importantly it records the sealed lineage
+    once S0.2 completes so that every downstream artefact can embed the same
+    keys.
+    """
 
     merchants: MerchantUniverse
     iso_countries: FrozenSet[str]

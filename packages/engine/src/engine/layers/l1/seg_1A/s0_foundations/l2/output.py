@@ -1,4 +1,10 @@
-"""Materialisation helpers for S0 outputs (S0.10)."""
+"""Materialisation helpers for S0 outputs (S0.10).
+
+The orchestration layer collects the in-memory outputs (eligibility flags,
+design matrices, diagnostics) and delegates the boring-but-essential work of
+partition checks, parquet writes, validation bundle construction and RNG audit
+logging to this module.
+"""
 
 from __future__ import annotations
 
@@ -25,6 +31,8 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class S0Outputs:
+    """Container that groups all in-memory artefacts produced by S0."""
+
     crossborder_flags: pl.DataFrame
     design_matrix: pl.DataFrame
     hurdle_coefficients: HurdleCoefficients
@@ -34,19 +42,23 @@ class S0Outputs:
 
 
 def _ensure_directory(path: Path) -> None:
+    """Create ``path`` (and parents) if it does not already exist."""
     path.mkdir(parents=True, exist_ok=True)
 
 
 def _write_parquet(frame: pl.DataFrame, path: Path) -> None:
+    """Write ``frame`` to ``path`` using zstd compression."""
     frame.write_parquet(path, compression="zstd")
 
 
 def _write_json(payload: Mapping[str, object], path: Path) -> None:
+    """Serialise ``payload`` as JSON with stable ordering."""
     with path.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2, sort_keys=True)
 
 
 def _write_jsonl(path: Path, rows: list[Mapping[str, object]]) -> None:
+    """Write a JSON Lines file from an iterable of mapping rows."""
     with path.open("w", encoding="utf-8") as handle:
         for row in rows:
             handle.write(json.dumps(row, sort_keys=True))
@@ -60,6 +72,7 @@ def _assert_partition_value(
     expected: str,
     dataset: str,
 ) -> None:
+    """Ensure ``frame[column]`` contains only ``expected`` (if non-empty)."""
     if column not in frame.columns:
         raise err("E_PARTITION_COLUMN_MISSING", f"{dataset} missing column '{column}'")
     if frame.height == 0:
@@ -79,6 +92,7 @@ def _audit_payload(
     seed: int,
     run_id: str,
 ) -> Mapping[str, object]:
+    """Build the payload recorded in ``rng_audit_log.json``."""
     return {
         "seed": seed,
         "run_id": run_id,
@@ -98,6 +112,7 @@ def _materialise_validation_bundle(
     validation_summary: Mapping[str, object],
     outputs: S0Outputs,
 ) -> None:
+    """Create the validation bundle, gate it with `_passed.flag`, and publish."""
     parameter_hash = sealed.parameter_hash.parameter_hash
     manifest_fingerprint = sealed.manifest_fingerprint.manifest_fingerprint
     bundle_root = base_path / "validation_bundle"
@@ -223,6 +238,7 @@ def write_outputs(
     philox_engine: PhiloxEngine,
     context: Optional[RunContext] = None,
 ) -> None:
+    """Persist parameter-scoped datasets, RNG audit logs, and the bundle."""
     if context is None:
         context = sealed.context
     parameter_hash = sealed.parameter_hash.parameter_hash

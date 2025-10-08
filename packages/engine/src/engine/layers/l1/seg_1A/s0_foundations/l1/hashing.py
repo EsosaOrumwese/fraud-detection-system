@@ -1,4 +1,9 @@
-"""Lineage hashing helpers for S0.2."""
+"""Lineage hashing helpers for S0.2.
+
+``parameter_hash`` and ``manifest_fingerprint`` underpin the replay/validation
+story.  This module provides small utilities for encoding the inputs and
+producing SHA-256 digests according to the rules laid out in the spec.
+"""
 
 from __future__ import annotations
 
@@ -29,12 +34,15 @@ def _hash_sha256(payload: bytes) -> bytes:
 
 @dataclass(frozen=True)
 class ParameterHashResult:
+    """Result object containing the computed parameter hash and inputs."""
+
     parameter_hash: str
     parameter_hash_bytes: bytes
     artefacts: Tuple[ArtifactDigest, ...]
 
 
 def compute_parameter_hash(artefacts: Sequence[ArtifactDigest]) -> ParameterHashResult:
+    """Compute the parameter hash from the ordered parameter artefact digests."""
     if not artefacts:
         raise err("E_PARAM_EMPTY", "parameter artefact set is empty")
 
@@ -54,6 +62,8 @@ def compute_parameter_hash(artefacts: Sequence[ArtifactDigest]) -> ParameterHash
 
 @dataclass(frozen=True)
 class ManifestFingerprintResult:
+    """Result object containing the computed manifest fingerprint and inputs."""
+
     manifest_fingerprint: str
     manifest_fingerprint_bytes: bytes
     artefacts: Tuple[ArtifactDigest, ...]
@@ -61,6 +71,7 @@ class ManifestFingerprintResult:
 
 
 def normalise_git_commit(raw_bytes: bytes) -> bytes:
+    """Normalise git commit bytes to 32 bytes (SHA-256) or raise."""
     if len(raw_bytes) == 32:
         return raw_bytes
     if len(raw_bytes) == 20:
@@ -76,6 +87,7 @@ def compute_manifest_fingerprint(
     git_commit_raw: bytes,
     parameter_hash_bytes: bytes,
 ) -> ManifestFingerprintResult:
+    """Compute the manifest fingerprint using name-aware tuple hashing."""
     if not artefacts:
         raise err("E_ARTIFACT_EMPTY", "manifest artefact set is empty")
     if len(parameter_hash_bytes) != 32:
@@ -105,6 +117,7 @@ def compute_run_id(
     existing_ids: Iterable[str] = (),
     max_attempts: int = 2**16,
 ) -> str:
+    """Derive a run_id that is unique for the given fingerprint/seed."""
     if len(manifest_fingerprint_bytes) != 32:
         raise err("E_RUNID_INPUT", "manifest fingerprint must be 32 raw bytes")
     attempts = 0

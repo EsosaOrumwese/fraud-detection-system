@@ -1,4 +1,4 @@
-"""Hurdle diagnostics cache (S0.7)."""
+"""Helpers for building the optional hurdle diagnostics cache (S0.7)."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from .design import DesignVectors
 
 
 def _logistic_branch(eta: float) -> float:
+    """Stable logistic implementation mirrored from the spec."""
     if eta >= 0.0:
         z = math.exp(-eta)
         return 1.0 / (1.0 + z)
@@ -26,6 +27,12 @@ def build_hurdle_diagnostics(
     parameter_hash: str,
     produced_by_fingerprint: Optional[str] = None,
 ) -> pl.DataFrame:
+    """Construct the hurdle probability cache for auditing and tuning.
+
+    The cache is optional but extremely handy during modelling; this helper
+    keeps the creation logic self-contained so that orchestration can request a
+    diagnostics DataFrame with a single call.
+    """
     rows = []
     beta_tuple = tuple(float(x) for x in beta)
     for vector in vectors:

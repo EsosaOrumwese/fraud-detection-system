@@ -1,4 +1,9 @@
-"""Failure record writer for S0 foundations."""
+"""Failure record writer for S0 foundations.
+
+The validation bundle spec mandates that every abort emit a structured record
+under ``validation_failures/``.  This helper centralises the atomic write logic
+so callers do not have to worry about temp directories or duplicate writes.
+"""
 
 from __future__ import annotations
 

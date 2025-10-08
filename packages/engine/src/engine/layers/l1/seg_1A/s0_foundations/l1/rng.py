@@ -1,4 +1,10 @@
-"""Philox-based RNG scaffolding for S0.3."""
+"""Philox-based RNG scaffolding for S0.3 and beyond.
+
+The engine relies on counter-based RNG so that every draw can be reproduced.
+This module provides the Philox implementation, helpers for deriving
+substreams, and a small streaming API used by the orchestration layer and RNG
+logging code.  The implementation mirrors the pseudocode in the design doc.
+"""
 
 from __future__ import annotations
 
@@ -21,6 +27,8 @@ _POISSON_THRESHOLD = 10.0
 
 @dataclass(frozen=True)
 class PhiloxState:
+    """Immutable snapshot of a Philox key/counter pair."""
+
     key: int
     counter_hi: int
     counter_lo: int
@@ -42,6 +50,7 @@ def _add_u128(hi: int, lo: int, increment: int) -> Tuple[int, int]:
 
 
 def philox2x64_10(key: int, counter: Tuple[int, int]) -> Tuple[int, int]:
+    """Reference implementation of the Philox 2x64 with 10 rounds."""
     key = key & _MASK64
     ctr_hi, ctr_lo = counter
     c0 = ctr_lo & _MASK64
@@ -60,18 +69,21 @@ SubstreamComponent = Tuple[str, object]
 
 
 def comp_u64(value: int) -> SubstreamComponent:
+    """Build a u64 component used when deriving substreams."""
     if not (0 <= value < 2**64):
         raise err("E_SUBSTREAM_U64", f"u64 component {value} outside [0, 2^64)")
     return ("u64", value)
 
 
 def comp_index(value: int) -> SubstreamComponent:
+    """Build an index component used when deriving substreams."""
     if not (0 <= value < 2**32):
         raise err("E_SUBSTREAM_INDEX", f"index component {value} outside [0, 2^32)")
     return ("index", value)
 
 
 def comp_iso(value: str) -> SubstreamComponent:
+    """Build an ISO country component used when deriving substreams."""
     if value is None:
         raise err("E_SUBSTREAM_ISO", "ISO component is null")
     upper = value.upper()
@@ -141,22 +153,26 @@ class PhiloxSubstream:
         return x0, x1
 
     def uniform(self) -> float:
+        """Return a single open-interval uniform deviate."""
         x0, _ = self._next_block()
         self._draws_consumed += 1
         return _open_interval(x0)
 
     def uniform_pair(self) -> Tuple[float, float]:
+        """Return two sequential open-interval uniforms."""
         x0, x1 = self._next_block()
         self._draws_consumed += 2
         return _open_interval(x0), _open_interval(x1)
 
     def normal_box_muller(self) -> float:
+        """Return a standard normal deviate using Box–Muller."""
         u1, u2 = self.uniform_pair()
         r = math.sqrt(-2.0 * math.log(u1))
         theta = _TAU * u2
         return r * math.cos(theta)
 
     def gamma(self, alpha: float) -> float:
+        """Sample Gamma(alpha, 1) using the Marsaglia/Tsang method."""
         if alpha <= 0.0:
             raise err("E_GAMMA_ALPHA", f"alpha must be > 0, got {alpha}")
         if alpha < 1.0:
@@ -177,6 +193,7 @@ class PhiloxSubstream:
                 return d * v
 
     def poisson(self, lam: float) -> int:
+        """Sample from a Poisson distribution with mean ``lam``."""
         if lam < 0.0:
             raise err("E_POISSON_LAMBDA", f"lambda must be >= 0, got {lam}")
         if lam == 0.0:

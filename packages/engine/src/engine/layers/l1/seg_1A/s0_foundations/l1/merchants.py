@@ -1,4 +1,11 @@
-"""State-0 universe resolution for Layer-1 Segment 1A."""
+"""Resolve the normalised merchant universe required by S0.
+
+The high-level job of S0.1 is to freeze the merchant universe: ingest the
+normalised table, apply schema validation, map ingress fields to internal
+symbols, and decorate each merchant with the deterministic ``merchant_u64``.
+This module keeps the logic together so that the rest of the pipeline can rely
+on the ``RunContext`` abstraction.
+"""
 
 from __future__ import annotations
 
@@ -24,6 +31,7 @@ _BUCKET_RANGE = range(1, 6)
 
 
 def _map_channel(raw: Optional[str], merchant_id: int) -> str:
+    """Map ingress channel tokens to internal CP/CNP symbols."""
     if raw is None:
         raise err("E_CHANNEL_VALUE", f"merchant {merchant_id} missing channel value")
     if raw not in _CHANNEL_MAP:
@@ -36,6 +44,7 @@ def _map_channel(raw: Optional[str], merchant_id: int) -> str:
 def _validate_iso(
     value: Optional[str], merchant_id: int, iso_set: frozenset[str]
 ) -> str:
+    """Validate that ``value`` is an ISO2 code present in ``iso_set``."""
     if value is None:
         raise err("E_FK_HOME_ISO", f"merchant {merchant_id} missing home_country_iso")
     if len(value) != 2 or not value.isascii() or value.upper() != value:
@@ -50,6 +59,7 @@ def _validate_iso(
 
 
 def _validate_mcc(value: Optional[int], merchant_id: int) -> int:
+    """Return a normalised MCC value and fail if it is missing or out of bounds."""
     if value is None:
         raise err("E_MCC_OUT_OF_DOMAIN", f"merchant {merchant_id} missing MCC")
     ivalue = int(value)
@@ -59,6 +69,12 @@ def _validate_mcc(value: Optional[int], merchant_id: int) -> int:
 
 
 def _compute_merchant_u64(merchant_id: int) -> int:
+    """Derive the Philox substream key for ``merchant_id``.
+
+    The mapping mirrors the spec: little-endian encode the merchant identifier,
+    hash with SHA-256 and use the low 64 bits as the RNG anchor.  Keeping the
+    code here ensures the exact procedure stays alongside the schema checks.
+    """
     if not (0 <= merchant_id < 2**64):
         raise err("E_MERCHANT_ID_RANGE", f"merchant_id {merchant_id} outside [0, 2^64)")
     le_bytes = merchant_id.to_bytes(length=8, byteorder="little", signed=False)
@@ -68,6 +84,7 @@ def _compute_merchant_u64(merchant_id: int) -> int:
 
 
 def _ensure_columns(df: pl.DataFrame) -> None:
+    """Ensure the ingress table exposes the columns required by the schema."""
     missing = _EXPECTED_MERCHANT_COLUMNS - set(df.columns)
     if missing:
         raise err(
@@ -78,6 +95,7 @@ def _ensure_columns(df: pl.DataFrame) -> None:
 def _validate_ingress_schema(
     table: pl.DataFrame, schema_authority: SchemaAuthority
 ) -> None:
+    """Validate that ``table`` conforms to the configured ingress schema."""
     schema = schema_authority.ingress_schema().load()
     validator = Draft202012Validator(schema)
     payload = table.to_dicts()
@@ -91,6 +109,7 @@ def _validate_ingress_schema(
 
 
 def _iso_set(table: pl.DataFrame) -> frozenset[str]:
+    """Extract the set of ISO codes from the canonical ISO table."""
     if "country_iso" not in table.columns:
         raise err("E_ISO_TABLE_SCHEMA", "country_iso column missing in ISO reference")
     iso_series = table.get_column("country_iso")
@@ -107,6 +126,7 @@ def _iso_set(table: pl.DataFrame) -> frozenset[str]:
 
 
 def _gdp_map(table: pl.DataFrame, iso_set: frozenset[str]) -> Dict[str, float]:
+    """Build a mapping ISO → GDP per capita and enforce presence/positivity."""
     required_cols = {"country_iso", "observation_year", "gdp_pc_usd_2015"}
     missing = required_cols - set(table.columns)
     if missing:
@@ -138,6 +158,7 @@ def _gdp_map(table: pl.DataFrame, iso_set: frozenset[str]) -> Dict[str, float]:
 
 
 def _bucket_map(table: pl.DataFrame, iso_set: frozenset[str]) -> Dict[str, int]:
+    """Build a mapping ISO → GDP bucket id from the precomputed table."""
     required_cols = {"country_iso", "bucket"}
     missing = required_cols - set(table.columns)
     if missing:
@@ -172,7 +193,13 @@ def build_run_context(
     bucket_table: pl.DataFrame,
     schema_authority: SchemaAuthority,
 ) -> RunContext:
-    """Resolve the immutable run context for S0."""
+    """Resolve the immutable run context for S0.
+
+    Aside from the obvious conversions, this function performs all the
+    guardrail checks called out in the spec (schema validation, FK checks,
+    channel normalisation, GDP positivity) and packages the results into a
+    ``RunContext`` dataclass ready for S0.2.
+    """
 
     schema_authority.validate()
     _ensure_columns(merchant_table)

@@ -1,4 +1,10 @@
-"""Design matrix construction for S0.4S0.7."""
+"""Design matrix construction utilities for the S0.4–S0.7 stages.
+
+The fitting bundles ship frozen dictionaries and coefficient vectors; this
+module converts those into strongly typed helpers that can build deterministic
+design vectors, diagnostics, and parameter objects.  Keeping the logic here
+means the orchestration layer stays declarative.
+"""
 
 from __future__ import annotations
 
@@ -17,12 +23,15 @@ _BUCKET_ORDER = (1, 2, 3, 4, 5)
 
 @dataclass(frozen=True)
 class DesignDictionaries:
+    """Container storing the frozen categorical dictionaries used in models."""
+
     mcc: Tuple[int, ...]
     channel: Tuple[str, ...]
     gdp_bucket: Tuple[int, ...]
 
     @staticmethod
     def from_mapping(data: Mapping[str, Sequence]) -> "DesignDictionaries":
+        """Construct dictionaries from a mapping typically loaded from YAML."""
         try:
             mcc = tuple(int(x) for x in data["mcc"])
             channel = tuple(str(x) for x in data["channel"])
@@ -44,6 +53,7 @@ class DesignDictionaries:
         return DesignDictionaries(mcc=mcc, channel=channel, gdp_bucket=gdp_bucket)
 
     def index_for_mcc(self, code: int) -> int:
+        """Return the MCC index or raise a spec-aligned error."""
         try:
             return self.mcc.index(code)
         except ValueError as exc:
@@ -52,6 +62,7 @@ class DesignDictionaries:
             ) from exc
 
     def index_for_channel(self, symbol: str) -> int:
+        """Return the channel index or raise a spec-aligned error."""
         try:
             return self.channel.index(symbol)
         except ValueError as exc:  # pragma: no cover - guarded upstream
@@ -60,6 +71,7 @@ class DesignDictionaries:
             ) from exc
 
     def index_for_bucket(self, bucket: int) -> int:
+        """Return the GDP bucket index or raise if the bucket is unknown."""
         try:
             return self.gdp_bucket.index(bucket)
         except ValueError as exc:
@@ -70,6 +82,8 @@ class DesignDictionaries:
 
 @dataclass(frozen=True)
 class HurdleCoefficients:
+    """Typed container for hurdle logistic coefficients."""
+
     dictionaries: DesignDictionaries
     beta: Tuple[float, ...]
     beta_mu: Tuple[float, ...]
@@ -77,12 +91,16 @@ class HurdleCoefficients:
 
 @dataclass(frozen=True)
 class DispersionCoefficients:
+    """Typed container for negative-binomial dispersion coefficients."""
+
     dictionaries: DesignDictionaries
     beta_phi: Tuple[float, ...]
 
 
 @dataclass(frozen=True)
 class DesignVectors:
+    """Immutable record describing the precomputed vectors per merchant."""
+
     merchant_id: int
     bucket: int
     gdp: float
@@ -93,6 +111,7 @@ class DesignVectors:
 
 
 def _ensure_finite(sequence: Sequence[float], *, error_code: str) -> Tuple[float, ...]:
+    """Convert ``sequence`` to floats and ensure every element is finite."""
     values: List[float] = []
     for value in sequence:
         f = float(value)
@@ -103,6 +122,7 @@ def _ensure_finite(sequence: Sequence[float], *, error_code: str) -> Tuple[float
 
 
 def load_hurdle_coefficients(data: Mapping[str, object]) -> HurdleCoefficients:
+    """Load hurdle coefficients from a decoded YAML mapping."""
     dicts = DesignDictionaries.from_mapping(data.get("dicts", {}))
     beta = data.get("beta")
     beta_mu = data.get("beta_mu")
@@ -132,6 +152,7 @@ def load_hurdle_coefficients(data: Mapping[str, object]) -> HurdleCoefficients:
 def load_dispersion_coefficients(
     data: Mapping[str, object], *, reference: DesignDictionaries
 ) -> DispersionCoefficients:
+    """Load dispersion coefficients, enforcing dictionary alignment."""
     dicts_data = data.get("dicts", {})
     dicts = DesignDictionaries(
         mcc=tuple(int(x) for x in dicts_data.get("mcc", [])) or reference.mcc,
@@ -174,6 +195,7 @@ def iter_design_vectors(
     hurdle: HurdleCoefficients,
     dispersion: DispersionCoefficients,
 ) -> Iterator[DesignVectors]:
+    """Yield deterministic design vectors for each merchant in ``context``."""
     dicts = hurdle.dictionaries
     if (
         dispersion.dictionaries.mcc != dicts.mcc
@@ -228,6 +250,7 @@ def iter_design_vectors(
 
 
 def design_dataframe(vectors: Iterable[DesignVectors]) -> pl.DataFrame:
+    """Materialise an iterable of design vectors into a Polars DataFrame."""
     rows = []
     for vector in vectors:
         rows.append(

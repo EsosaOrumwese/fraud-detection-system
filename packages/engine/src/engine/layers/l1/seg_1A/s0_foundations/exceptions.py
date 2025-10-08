@@ -1,4 +1,11 @@
-"""Custom exceptions and failure taxonomy for S0 foundations."""
+"""Custom exceptions and failure taxonomy used across S0 foundations.
+
+The end-state design requires that every failure bubble up with a stable
+category/code pair so that validation bundles, monitoring and downstream
+pipelines can react deterministically.  This module centralises that mapping
+and exposes a tiny ``S0Error`` wrapper which preserves the canonical failure
+context while still behaving like a normal ``RuntimeError``.
+"""
 
 from __future__ import annotations
 
@@ -8,7 +15,13 @@ from typing import Dict, Mapping, Tuple
 
 
 class FailureCategory(Enum):
-    """High-level failure buckets taken from §S0.9."""
+    """High-level failure buckets defined in the S0.9 specification.
+
+    The names mirror the language in the design document so that validation
+    dashboards and documentation stay in sync.  We intentionally keep the Enum
+    small and immutable rather than deriving it dynamically from the mapping
+    below; that way reviewers can audit the allowed categories at a glance.
+    """
 
     F1_INGRESS = "ingress_schema_violation"
     F2_PARAMETERS = "param_file_missing"
@@ -95,7 +108,12 @@ _FAILURE_CODE_MAP: Mapping[str, Tuple[FailureCategory, str]] = {
 
 @dataclass(frozen=True)
 class ErrorContext:
-    """Carries structured context for an S0 error."""
+    """Structured payload describing an S0 failure.
+
+    ``code`` refers to the local ``E_*`` identifier raised by the code; the
+    helper properties map that identifier onto the formal failure taxonomy so
+    that callers can emit a single, well-formed JSON record.
+    """
 
     code: str
     detail: str
@@ -117,7 +135,7 @@ class ErrorContext:
 
 
 class S0Error(RuntimeError):
-    """Base runtime error for S0 that preserves the canonical code."""
+    """Base runtime error that preserves the canonical failure context."""
 
     def __init__(self, context: ErrorContext) -> None:
         super().__init__(context.as_message())

@@ -1,4 +1,10 @@
-"""Cross-border eligibility evaluation (S0.6)."""
+"""Cross-border eligibility evaluation utilities (S0.6).
+
+The ``crossborder_hyperparams.yaml`` file expresses policy as a set of allow
+and deny rules.  This module parses that policy, expands the wildcard syntax
+and produces the deterministic per-merchant eligibility table that S0 persists
+as a governed dataset.
+"""
 
 from __future__ import annotations
 
@@ -15,6 +21,8 @@ _ALLOWED_CHANNELS = {"CP", "CNP"}
 
 @dataclass(frozen=True)
 class EligibilityRule:
+    """In-memory representation of a single eligibility rule."""
+
     rule_id: str
     decision: str
     priority: int
@@ -28,6 +36,8 @@ class EligibilityRule:
 
 @dataclass(frozen=True)
 class CrossborderEligibility:
+    """Bundle of parsed eligibility rules plus metadata."""
+
     rule_set_id: str
     default_decision: str
     rules_deny: Sequence[EligibilityRule]
@@ -35,6 +45,7 @@ class CrossborderEligibility:
 
 
 def _expand_mcc(entry: str) -> Sequence[int]:
+    """Expand a wildcard/range MCC entry into concrete integer codes."""
     if entry == "*":
         return range(0, 10000)
     if "-" in entry:
@@ -51,6 +62,7 @@ def _expand_mcc(entry: str) -> Sequence[int]:
 
 
 def _expand_channels(values: Sequence[str]) -> Set[str]:
+    """Normalise channel wildcards to the internal channel vocabulary."""
     if len(values) == 1 and values[0] == "*":
         return set(_ALLOWED_CHANNELS)
     expanded = {str(v) for v in values}
@@ -61,6 +73,7 @@ def _expand_channels(values: Sequence[str]) -> Set[str]:
 
 
 def _expand_iso(values: Sequence[str], iso_set: Set[str]) -> Set[str]:
+    """Normalise ISO tokens, ensuring they exist in the run ISO universe."""
     if len(values) == 1 and values[0] == "*":
         return set(iso_set)
     expanded: Set[str] = set()
@@ -75,6 +88,7 @@ def _expand_iso(values: Sequence[str], iso_set: Set[str]) -> Set[str]:
 
 
 def _build_rule(raw: Mapping[str, object], iso_set: Set[str]) -> EligibilityRule:
+    """Construct a validated ``EligibilityRule`` from raw rule data."""
     rule_id = str(raw.get("id"))
     if not rule_id:
         raise err("E_ELIG_RULE_ID_EMPTY", "rule id missing")
@@ -118,6 +132,7 @@ def _build_rule(raw: Mapping[str, object], iso_set: Set[str]) -> EligibilityRule
 def load_crossborder_eligibility(
     data: Mapping[str, object], *, iso_set: Set[str]
 ) -> CrossborderEligibility:
+    """Parse ``crossborder_hyperparams.yaml`` into ``CrossborderEligibility``."""
     eligibility = data.get("eligibility")
     if not isinstance(eligibility, Mapping):
         raise err("E_ELIG_SCHEMA", "eligibility section missing")
@@ -168,6 +183,13 @@ def evaluate_eligibility(
     parameter_hash: str,
     produced_by_fingerprint: Optional[str] = None,
 ) -> pl.DataFrame:
+    """Evaluate eligibility for every merchant in ``context``.
+
+    The implementation follows the precedence rules defined in the state spec:
+    deny rules win over allow rules, priority resolves ties, and defaults apply
+    when no rules match.  The resulting DataFrame is ready to write directly to
+    the governed parquet dataset.
+    """
     rows: List[dict] = []
     for row in context.merchants.merchants.iter_rows(named=True):
         merchant_id = int(row["merchant_id"])

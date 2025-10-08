@@ -1,4 +1,9 @@
-"""L2 orchestrator for S0 foundations."""
+"""L2 orchestration helpers for S0 foundations.
+
+``S0FoundationsRunner`` stitches together the L0/L1 helpers so that callers can
+drive state-0 from a handful of file paths.  The module also provides the
+``S0RunResult`` dataclass, making it easy to persist or forward lineage info.
+"""
 
 from __future__ import annotations
 
@@ -54,6 +59,8 @@ _REQUIRED_PARAMETER_FILES = (
 
 @dataclass(frozen=True)
 class SealedFoundations:
+    """Bundle of the run context plus the computed lineage digests."""
+
     context: RunContext
     parameter_hash: ParameterHashResult
     manifest_fingerprint: ManifestFingerprintResult
@@ -63,6 +70,8 @@ class SealedFoundations:
 
 @dataclass(frozen=True)
 class S0RunResult:
+    """Return value for ``run_from_paths`` with the essentials for bookkeeping."""
+
     sealed: SealedFoundations
     outputs: S0Outputs
     run_id: str
@@ -85,6 +94,7 @@ class S0FoundationsRunner:
 
     @staticmethod
     def _collect_manifest_artifacts(paths: Iterable[Path]) -> list[Path]:
+        """Expand directory inputs so the manifest can hash every file explicitly."""
         artifacts: list[Path] = []
         for raw in paths:
             path = Path(raw)
@@ -323,6 +333,7 @@ class S0FoundationsRunner:
         validate: bool = True,
         extra_manifest_artifacts: Sequence[Path] | None = None,
     ) -> S0RunResult:
+        """Execute the full S0 flow given concrete artefact paths on disk."""
         merchant_table = self.load_table(merchant_table_path)
         iso_table = self.load_table(iso_table_path)
         gdp_table = self.load_table(gdp_table_path)

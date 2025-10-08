@@ -1,4 +1,11 @@
-"""Numeric policy enforcement and deterministic math profile helpers for S0."""
+"""Numeric policy enforcement and deterministic math profile helpers for S0.
+
+Numeric correctness is a design requirement: the engine must attest that it is
+running with binary64, without silent FMA contraction, with subnormal support,
+etc.  This module centralises the helpers that load the governed
+``numeric_policy.json``/``math_profile_manifest.json`` artefacts and performs
+the self-tests described in S0.8.
+"""
 
 from __future__ import annotations
 
@@ -102,6 +109,7 @@ class NumericPolicyAttestation:
 
 
 def _load_json(path: Path) -> Mapping[str, Any]:
+    """Load a JSON file and ensure the root object is a mapping."""
     if not path.exists():
         raise err("E_GOVERNANCE_MISSING", f"governance artefact '{path}' not found")
     with path.open("r", encoding="utf-8") as handle:
@@ -112,6 +120,7 @@ def _load_json(path: Path) -> Mapping[str, Any]:
 
 
 def load_numeric_policy(path: Path) -> tuple[NumericPolicy, ArtifactDigest]:
+    """Load and validate the numeric policy artefact, returning its digest."""
     raw = _load_json(path)
     policy = NumericPolicy(raw=raw)
     policy.validate()
@@ -122,6 +131,7 @@ def load_numeric_policy(path: Path) -> tuple[NumericPolicy, ArtifactDigest]:
 def load_math_profile_manifest(
     path: Path,
 ) -> tuple[MathProfileManifest, ArtifactDigest]:
+    """Load and validate the math profile manifest, returning its digest."""
     raw = _load_json(path)
     manifest = MathProfileManifest(raw=raw)
     manifest.validate()
@@ -200,6 +210,7 @@ def _check_libm_suite() -> None:
 
 
 def run_numeric_self_tests() -> Mapping[str, str]:
+    """Execute the numeric self-tests required by S0.8, returning pass/fail."""
     tests = {
         "rounding": _check_rounding_mode,
         "ftz": _check_subnormal_support,
@@ -229,6 +240,7 @@ def build_numeric_policy_attestation(
     math_digest: ArtifactDigest,
     platform_info: Optional[Mapping[str, str]] = None,
 ) -> NumericPolicyAttestation:
+    """Construct the attestation payload emitted alongside the validation bundle."""
     platform_data = dict(
         platform_info
         or {

@@ -1,4 +1,11 @@
-"""Filesystem helpers for artefact hashing (S0.2)."""
+"""Filesystem helpers for the artefact hashing steps performed in S0.2.
+
+S0 treats every external file it opens (parameters, references, governance) as
+part of the manifest.  These utilities provide the deterministic hashing logic
+that underpins ``parameter_hash`` and ``manifest_fingerprint``.  Keeping the
+helpers close to the disk I/O layer keeps higher-level code focused on the
+business rules while still making the manifest logic easy to audit.
+"""
 
 from __future__ import annotations
 
@@ -14,7 +21,14 @@ _BUFFER_SIZE = 1024 * 1024
 
 @dataclass(frozen=True)
 class ArtifactDigest:
-    """Metadata captured while hashing an artefact."""
+    """Metadata captured while hashing an artefact.
+
+    The dataclass mirrors the columns we later emit into
+    ``param_digest_log.jsonl`` / ``fingerprint_artifacts.jsonl``.  Using a
+    strong typed container instead of a loose dict means upstream callers can
+    rely on attribute names and we get a tiny amount of linting support for
+    free.
+    """
 
     basename: str
     path: Path
@@ -35,14 +49,13 @@ def _ensure_ascii(name: str, *, error_code: str) -> None:
 
 
 def hash_artifact(path: Path, *, error_prefix: str) -> ArtifactDigest:
-    """Hash a file while guarding against TOCTOU races.
+    """Return the deterministic SHA-256 digest for ``path``.
 
-    Parameters
-    ----------
-    path:
-        Absolute or relative path to hash.
-    error_prefix:
-        Used when raising spec-aligned errors, e.g. ``E_PARAM`` or ``E_ARTIFACT``.
+    The helper double-checks file size and modification time before and after
+    reading so a racing writer cannot slip new bytes into the hash.  Any
+    anomaly is surfaced via the spec-aligned error code provided by
+    ``error_prefix`` (e.g. ``E_PARAM`` during parameter hashing or
+    ``E_ARTIFACT`` when computing the manifest fingerprint).
     """
 
     if not path.exists():
@@ -75,7 +88,12 @@ def hash_artifact(path: Path, *, error_prefix: str) -> ArtifactDigest:
 
 
 def hash_artifacts(paths: Iterable[Path], *, error_prefix: str) -> List[ArtifactDigest]:
-    """Hash a collection of artefacts and enforce basename uniqueness."""
+    """Hash a collection of artefacts and enforce basename uniqueness.
+
+    The manifest specs require that basenames are unique so that validation can
+    match rows back to files unambiguously.  This function performs that check
+    while preserving the order in which the caller supplied the paths.
+    """
 
     digests: List[ArtifactDigest] = []
     seen = set()

@@ -1,4 +1,9 @@
-"""Input helpers for S0 datasets."""
+"""Shared I/O helpers for loading the sealed S0 input datasets.
+
+The functions here purposely stay small and defensive: they wrap Polars' I/O
+with explicit error messages so that upstream orchestration code can present
+clear failures when a dataset is missing or empty.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +17,13 @@ from ..exceptions import err
 
 
 def load_parquet_table(path: Path) -> pl.DataFrame:
-    """Load a Parquet dataset from a file or directory."""
+    """Load a Parquet dataset from a file or directory.
+
+    S0 inputs may be published either as a single Parquet file or as a directory
+    containing ``part-*.parquet`` shards.  This helper gracefully supports both
+    layouts while surfacing a consistent error if the directory exists but
+    contains no files.
+    """
 
     if path.is_file():
         return pl.read_parquet(path)
@@ -29,6 +40,11 @@ def load_parquet_table(path: Path) -> pl.DataFrame:
 
 
 def load_yaml(path: Path) -> Dict[str, Any]:
+    """Parse a YAML file and assert the root node is a mapping.
+
+    Parameter bundles are treated as keyed documents (to line up with the
+    schema specs), so anything else should be considered a configuration bug.
+    """
     if not path.exists():
         raise err("E_PARAM_IO", f"YAML artefact '{path}' not found")
     with path.open("r", encoding="utf-8") as handle:

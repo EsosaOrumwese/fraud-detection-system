@@ -1,4 +1,12 @@
-"""State-0 foundations for Layer-1 Segment 1A."""
+"""Public surface for Layer-1 Segment 1A state-0 foundations.
+
+This package is intentionally small: it re-exports the core builders,
+orchestrators, and validation helpers so that higher layers (CLI, tests,
+future pipelines) can import a concise API without needing to understand the
+folder layout under ``l0``/``l1``/``l2``/``l3``.  Keeping these exports explicit
+also provides a single place for future reviewers to confirm what “state-0”
+actually exposes to the rest of the engine.
+"""
 
 from .l1.context import MerchantUniverse, RunContext, SchemaAuthority, SchemaRef
 from .l1.merchants import build_run_context

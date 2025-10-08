@@ -1,4 +1,10 @@
-"""CLI wrapper for running Layer-1 Segment 1A state-0 foundations."""
+"""CLI wrapper for running Layer-1 Segment 1A state-0 foundations.
+
+The command mirrors the orchestrator API: point it at the sealed artefacts and
+it will drive S0 to completion, optionally writing a small JSON blob so callers
+can chain runs together.  This keeps ad-hoc experimentation and CI flows simple
+without tying us to a heavy orchestration framework.
+"""
 
 from __future__ import annotations
 
@@ -15,6 +21,7 @@ from engine.layers.l1.seg_1A.s0_foundations.exceptions import S0Error
 
 
 def _parse_parameter_files(values: list[str]) -> dict[str, Path]:
+    """Parse NAME=PATH pairs into a mapping ready for the runner."""
     mapping: dict[str, Path] = {}
     for item in values:
         if "=" not in item:
@@ -31,6 +38,7 @@ def _parse_parameter_files(values: list[str]) -> dict[str, Path]:
 
 
 def _load_extra_manifest(values: list[str]) -> list[Path]:
+    """Normalise extra manifest artefact paths supplied on the CLI."""
     extras: list[Path] = []
     for raw in values:
         extras.append(Path(raw).expanduser().resolve())
