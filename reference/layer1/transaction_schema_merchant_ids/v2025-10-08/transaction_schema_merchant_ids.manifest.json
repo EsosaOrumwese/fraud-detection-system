@@ -1,9 +1,9 @@
 {
   "dataset_id": "transaction_schema_merchant_ids",
   "version": "2025-10-08",
-  "created_at_utc": "2025-10-08T18:31:03.110193+00:00",
+  "created_at_utc": "2025-10-08T18:40:46.811773+00:00",
   "generator_script": "scripts/build_transaction_schema_merchant_ids.py",
-  "git_commit_hex": "e331bec3f7d137a7361fcbd68af07e6d656f6619",
+  "git_commit_hex": "cf48a2e2710eeafb1509e2ea486ad6e28b646d4b",
   "row_count": 20000,
   "distinct_iso": 205,
   "distinct_mcc": 981,
