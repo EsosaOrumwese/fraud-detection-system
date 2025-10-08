@@ -46,12 +46,12 @@ def compute_stats(dataset: rasterio.DatasetReader) -> dict[str, float]:
             data_max = float(max(data_max, valid.max()))
 
     return {
-        "sum": data_sum,
-        "min": data_min if data_min != float("inf") else None,
-        "max": data_max if data_max != float("-inf") else None,
-        "valid_count": count,
-        "nodata_count": nodata_count,
-        "nodata": nodata,
+        "sum": float(data_sum),
+        "min": float(data_min) if data_min != float("inf") else None,
+        "max": float(data_max) if data_max != float("-inf") else None,
+        "valid_count": int(count),
+        "nodata_count": int(nodata_count),
+        "nodata": float(nodata) if nodata is not None else None,
     }
 
 
@@ -83,12 +83,13 @@ def main() -> None:
         profile = dst.profile
 
     qa_path = output_dir / "population_raster_2025.qa.json"
+    transform_vals = list(profile["transform"])
     qa_payload = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
-        "width": profile["width"],
-        "height": profile["height"],
+        "width": int(profile["width"]),
+        "height": int(profile["height"]),
         "crs": profile["crs"].to_string() if profile.get("crs") else None,
-        "transform": list(profile["transform"]),
+        "transform": [float(v) for v in transform_vals],
         "stats": stats,
     }
     qa_path.write_text(json.dumps(qa_payload, indent=2) + "\n", encoding="utf-8")
@@ -104,8 +105,8 @@ def main() -> None:
         "output_tif_sha256": sha256sum(output_tif),
         "qa_path": str(qa_path.relative_to(ROOT)),
         "qa_sha256": sha256sum(qa_path),
-        "width": profile["width"],
-        "height": profile["height"],
+        "width": int(profile["width"]),
+        "height": int(profile["height"]),
         "crs": profile["crs"].to_string() if profile.get("crs") else None,
     }
     (output_dir / "population_raster_2025.manifest.json").write_text(

@@ -154,4 +154,7 @@ outputs/
 /orchestration/airflow/**/__pycache__/
 /orchestration/airflow/config/
 docs/temp/scratch.md
- `nterraform-provider-aws_v*.zip`nterraform-provider-aws_v*.exe`nterraform-provider-aws_v*/ 
+terraform-provider-aws_v*.zip
+terraform-provider-aws_v*.exe
+terraform-provider-aws_v*/
+artefacts/spatial/population_raster/**/*.tif
