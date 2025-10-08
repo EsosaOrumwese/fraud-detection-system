@@ -1,0 +1,13 @@
+{
+  "math_profile_id": "numpy_scipy_ref-2025-10-08",
+  "version": "2025-10-08",
+  "functions": [
+    "numpy.sum",
+    "numpy.dot",
+    "scipy.special.logsumexp"
+  ],
+  "generated_at_utc": "2025-10-08T22:35:41.6311006Z",
+  "checksum": "0000000000000000000000000000000000000000000000000000000000000000",
+  "vendor": "Custom",
+  "notes": "Reference math profile for deterministic numeric tests."
+}
