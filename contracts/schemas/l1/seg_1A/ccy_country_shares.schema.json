@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "$id": "contracts/schemas/l1/seg_1A/ccy_country_shares.schema.json",
+  "title": "Layer 1 Segment 1A – Currency Country Shares 2024Q4",
+  "description": "Currency-to-country usage shares with observation counts.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "currency",
+      "country_iso",
+      "share",
+      "obs_count"
+    ],
+    "properties": {
+      "currency": {
+        "type": "string",
+        "pattern": "^[A-Z]{3}$"
+      },
+      "country_iso": {
+        "type": "string",
+        "pattern": "^[A-Z]{2}$"
+      },
+      "share": {
+        "type": "number",
+        "minimum": 0.0,
+        "maximum": 1.0
+      },
+      "obs_count": {
+        "type": "integer",
+        "minimum": 0
+      }
+    }
+  }
+}

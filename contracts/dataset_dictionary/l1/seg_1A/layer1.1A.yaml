@@ -28,6 +28,14 @@ reference:
     partitioning: []
     owner: reference
     retention_days: 365
+  ccy_country_shares_2024Q4:
+    description: Currency-to-country usage shares consumed by S5/S6 smoothing.
+    format: parquet
+    path: reference/network/ccy_country_shares/2025-10-08/ccy_country_shares.parquet
+    schema_ref: l1/seg_1A/ccy_country_shares.schema.json
+    partitioning: []
+    owner: reference
+    retention_days: 365
 
 model:
   crossborder_eligibility_flags:

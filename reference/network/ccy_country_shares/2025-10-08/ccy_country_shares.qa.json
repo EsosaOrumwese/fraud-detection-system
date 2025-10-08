@@ -1,9 +1,21 @@
 {
   "row_count": 80,
   "currency_count": 13,
-  "generated_at_utc": "2025-10-08T19:37:22.970221+00:00",
+  "generated_at_utc": "2025-10-08T19:38:18.448568+00:00",
   "per_currency": {
-    "USD": {
+    "AUD": {
+      "sum_share": 1.0
+    },
+    "CAD": {
+      "sum_share": 1.0
+    },
+    "CHF": {
+      "sum_share": 1.0
+    },
+    "CNY": {
+      "sum_share": 1.0
+    },
+    "DKK": {
       "sum_share": 1.0
     },
     "EUR": {
@@ -12,34 +24,22 @@
     "GBP": {
       "sum_share": 1.0
     },
-    "CHF": {
-      "sum_share": 1.0
-    },
-    "SEK": {
-      "sum_share": 1.0
-    },
-    "DKK": {
-      "sum_share": 1.0
-    },
-    "NOK": {
-      "sum_share": 1.0
-    },
-    "CAD": {
+    "HKD": {
       "sum_share": 1.0
     },
     "JPY": {
       "sum_share": 1.0
     },
-    "HKD": {
+    "NOK": {
       "sum_share": 1.0
     },
-    "AUD": {
+    "SEK": {
       "sum_share": 1.0
     },
     "SGD": {
       "sum_share": 1.0
     },
-    "CNY": {
+    "USD": {
       "sum_share": 1.0
     }
   }

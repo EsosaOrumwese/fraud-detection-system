@@ -1,7 +1,7 @@
 {
   "dataset_id": "settlement_shares_2024Q4",
   "version": "2025-10-08",
-  "generated_at_utc": "2025-10-08T19:30:01.945138+00:00",
+  "generated_at_utc": "2025-10-08T19:37:22.970221+00:00",
   "generator_script": "scripts/build_settlement_shares.py",
   "iso_table": "reference\\layer1\\iso_canonical\\v2025-10-08\\iso_canonical.parquet",
   "iso_table_sha256": "fbaf33fbf73d152ae2dc93e80f5d919034c27c566e7f4cfa0d8b13f374119748",
@@ -14,5 +14,5 @@
   "output_parquet": "reference\\network\\settlement_shares\\2025-10-08\\settlement_shares.parquet",
   "output_parquet_sha256": "bba1366dd62b07279a3fc158cbf6b9c0ae483b7f385836dc6b7b42c9ea3eb9df",
   "qa_path": "reference\\network\\settlement_shares\\2025-10-08\\settlement_shares.qa.json",
-  "qa_sha256": "0063cbc73dd3e5f0872f0572c6fa6daa786158d3fdf33a8b391d8968a01ff5a2"
+  "qa_sha256": "e21950c85ad51f449057855d6995578129326ccfd8aa72d531f239cb23a3f0c8"
 }
