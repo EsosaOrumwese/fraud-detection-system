@@ -154,3 +154,4 @@ outputs/
 /orchestration/airflow/**/__pycache__/
 /orchestration/airflow/config/
 docs/temp/scratch.md
+ `nterraform-provider-aws_v*.zip`nterraform-provider-aws_v*.exe`nterraform-provider-aws_v*/ 
