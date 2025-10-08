@@ -1,0 +1,33 @@
+{
+  "dataset_id": "iso3166_canonical_2024",
+  "version": "2025-10-08",
+  "source_url": "https://raw.githubusercontent.com/datasets/country-codes/master/data/country-codes.csv",
+  "source_sha256": "fa06be22c5d5346953faa82dcbe268869563a9a1bb47c77b414f03ac01bd29ab",
+  "generated_at_utc": "2025-10-08T19:08:20.876786+00:00",
+  "generator_script": "scripts/build_iso_canonical.py",
+  "generator_git_sha": "356788e375023f5e01cbdea42061ff41c0eb1d28",
+  "output_csv": "reference\\layer1\\iso_canonical\\v2025-10-08\\iso_canonical.csv",
+  "output_csv_sha256": "909896f36853f23f1002a6b13eeaaa2e343a297d00196d4440abb7d0ec70750d",
+  "output_parquet": "reference\\layer1\\iso_canonical\\v2025-10-08\\iso_canonical.parquet",
+  "output_parquet_sha256": "fbaf33fbf73d152ae2dc93e80f5d919034c27c566e7f4cfa0d8b13f374119748",
+  "qa_path": "reference\\layer1\\iso_canonical\\v2025-10-08\\iso_canonical.qa.json",
+  "qa_sha256": "f0a62f4f7b7ea40580f0417ec16ddfe57acacede13eb8cb4ac97a8989a5d7325",
+  "row_count": 249,
+  "column_order": [
+    "country_iso",
+    "alpha3",
+    "numeric_code",
+    "name",
+    "region",
+    "subregion",
+    "start_date",
+    "end_date"
+  ],
+  "allowed_regions": [
+    "Africa",
+    "Americas",
+    "Asia",
+    "Europe",
+    "Oceania"
+  ]
+}

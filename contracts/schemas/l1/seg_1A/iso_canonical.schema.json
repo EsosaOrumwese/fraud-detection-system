@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "$id": "contracts/schemas/l1/seg_1A/iso_canonical.schema.json",
+  "title": "Layer 1 Segment 1A – ISO Canonical Reference",
+  "description": "Canonical ISO-3166 reference (alpha-2/alpha-3/numeric) with UN region metadata.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "country_iso",
+      "alpha3",
+      "numeric_code",
+      "name",
+      "region",
+      "subregion",
+      "start_date",
+      "end_date"
+    ],
+    "properties": {
+      "country_iso": {
+        "type": "string",
+        "pattern": "^[A-Z]{2}$"
+      },
+      "alpha3": {
+        "type": "string",
+        "pattern": "^[A-Z]{3}$"
+      },
+      "numeric_code": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 999
+      },
+      "name": {
+        "type": "string",
+        "minLength": 1
+      },
+      "region": {
+        "type": "string",
+        "enum": [
+          "Africa",
+          "Americas",
+          "Asia",
+          "Europe",
+          "Oceania"
+        ]
+      },
+      "subregion": {
+        "type": ["string", "null"],
+        "minLength": 1
+      },
+      "start_date": {
+        "type": ["string", "null"],
+        "format": "date"
+      },
+      "end_date": {
+        "type": ["string", "null"],
+        "format": "date"
+      }
+    }
+  }
+}

@@ -12,6 +12,14 @@ reference:
     partitioning: []
     owner: reference
     retention_days: 365
+  iso_canonical:
+    description: Canonical ISO-3166 reference with UN region metadata.
+    format: parquet
+    path: reference/layer1/iso_canonical/v2025-10-08/iso_canonical.parquet
+    schema_ref: l1/seg_1A/iso_canonical.schema.json
+    partitioning: []
+    owner: reference
+    retention_days: 365
 
 model:
   crossborder_eligibility_flags:
