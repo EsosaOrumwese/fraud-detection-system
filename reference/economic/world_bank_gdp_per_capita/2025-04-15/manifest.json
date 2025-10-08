@@ -1,0 +1,12 @@
+{
+  "dataset_id": "world_bank_gdp_per_capita_2024",
+  "version": "v2025-04-15",
+  "observation_year": 2024,
+  "source_series": "NY.GDP.PCAP.KD",
+  "source_url": "offline://world_bank/NY.GDP.PCAP.KD/v2025-04-15",
+  "generated_at_utc": "2025-10-08T04:27:32.067620+00:00",
+  "output_csv": "/workspace/fraud-detection-system/reference/economic/world_bank_gdp_per_capita/2025-04-15/world_bank_gdp_pc_2024.csv",
+  "output_csv_sha256": "0fe4c9bd60a0ae8110260ead3c1c135e47605a930e0f5acc71936ab09a409798",
+  "output_parquet": "/workspace/fraud-detection-system/reference/economic/world_bank_gdp_per_capita/2025-04-15/gdp.parquet",
+  "output_parquet_sha256": "b307e12d82eb896fa8e9c353ffe5c2c81cd1a557b7bae4356210b5ddcd4a9867"
+}
