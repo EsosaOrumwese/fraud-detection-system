@@ -1,0 +1,43 @@
+# Channel assignment policy for 1A S0 merchant universe.
+#
+# This file is versioned and hashed into the S0 manifest. It defines default
+# channel categories by MCC with optional ISO overrides and aggregate targets
+# that the builder must satisfy (within tolerance).
+
+policy_version: "2025-10-07"
+default_channel: "card_present"
+
+targets:
+  global:
+    card_present:
+      min_ratio: 0.60
+      max_ratio: 0.90
+    card_not_present:
+      min_ratio: 0.10
+      max_ratio: 0.40
+
+  mcc_bands:
+    # MCC ranges inclusive (ISO 18245)
+    - range: [4800, 4899]
+      default_channel: card_not_present
+    - range: [5960, 5969]
+      default_channel: card_not_present
+    - range: [5990, 5999]
+      default_channel: card_not_present
+    - range: [7390, 7399]
+      default_channel: card_not_present
+
+  iso_overrides:
+    # Example override for markets with high CNP share
+    US:
+      card_not_present:
+        min_ratio: 0.25
+        max_ratio: 0.45
+    GB:
+      card_not_present:
+        min_ratio: 0.20
+        max_ratio: 0.40
+
+tolerance:
+  channel_ratio_abs: 0.02  # allowable absolute deviation when validating
+
