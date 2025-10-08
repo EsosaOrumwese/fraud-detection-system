@@ -153,3 +153,4 @@ outputs/
 /orchestration/airflow/**/*.py[cod]
 /orchestration/airflow/**/__pycache__/
 /orchestration/airflow/config/
+docs/temp/scratch.md
