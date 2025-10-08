@@ -1,239 +1,285 @@
-"""Deterministic builder for the transaction_schema_merchant_ids reference dataset.
+"""Policy-driven builder for the transaction_schema_merchant_ids dataset.
 
-The tool downloads open MCC and ISO sources, generates a reproducible merchant
-universe, validates it against the intake spec, and materialises CSV + Parquet
-outputs accompanied by a manifest and SHA256 fingerprints.
+The script consumes versioned governance artefacts (GDP tables, bucket map,
+channel and allocation policies, numeric gates) to deterministically generate
+the merchant ingress universe required by S0. Outputs are written under the
+reference tree with accompanying manifests and SHA256 sums.
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import math
 import subprocess
-from dataclasses import dataclass
+from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Iterable, List
+from typing import Dict, List
 
 import polars as pl
 import requests
+import yaml
 
-# ----------------------------- Configuration ---------------------------------
 
-VERSION = "2025-10-07"  # version label for artefact partitioning
-REFERENCE_VERSION = f"v{VERSION}"
+ROOT = Path(__file__).resolve().parents[1]
 DATASET_ID = "transaction_schema_merchant_ids"
+REFERENCE_BASE = ROOT / "reference" / "layer1" / DATASET_ID
+ARTEFACT_BASE = ROOT / "artefacts" / "data-intake" / "1A" / DATASET_ID
+
+
 RAW_SOURCES = {
     "mcc_codes": {
         "url": "https://raw.githubusercontent.com/greggles/mcc-codes/master/mcc_codes.csv",
         "filename": "mcc_codes.csv",
-        "sha256": None,
     },
     "iso_country_codes": {
         "url": "https://raw.githubusercontent.com/datasets/country-codes/master/data/country-codes.csv",
         "filename": "iso_country_codes.csv",
-        "sha256": None,
     },
 }
 
-# Deterministic keyword heuristics for channel assignment
-CNP_KEYWORDS = {
-    "mail order",
-    "direct marketing",
-    "internet",
-    "online",
-    "catalog",
-    "catalogue",
-    "telecom",
-    "telephone",
-    "subscription",
-    "digital",
-    "streaming",
-    "software",
-    "web",
-}
-CNP_MCC_OVERRIDES = {
-    4814,  # Telecommunication Service
-    4816,  # Computer Network/Information Services
-    4818,  # Telecommunication Equipment including Sell calling cards
-    4829,  # Money Transfer
-    4899,  # Cable, Satellite, and Other Pay Television
-    5960,  # Direct Marketing—Insurance
-    5962,  # Direct Marketing—Travel Related
-    5963,  # Door-to-Door Sales
-    5964,  # Direct Marketing—Catalog Merchant
-    5965,  # Direct Marketing—Combination Catalog and Retail Merchant
-    5966,  # Direct Marketing—Outbound Telemarketing Merchant
-    5967,  # Direct Marketing—Inbound Teleservices Merchant
-    5968,  # Direct Marketing—Continuity/Subscription Merchant
-    5969,  # Direct Marketing—Other Direct Marketers
-    5977,  # Cosmetic Stores (often self-service / online)
-    5994,  # News Dealers and Newsstands (digital subscriptions)
-    5999,  # Miscellaneous Retail Stores (CNP leaning for aggregated marketplaces)
-    7299,  # Miscellaneous Personal Services
-    7994,  # Video Game Arcades (digital/online)
-    7995,  # Betting (online/wagering)
-    8398,  # Charitable and Social Service Organisations (recurring donations)
-    8651,  # Political Organisations
-}
 
-ROOT = Path(__file__).resolve().parents[1]
-ARTEFACT_BASE = ROOT / "artefacts" / "data-intake" / "1A" / DATASET_ID / VERSION
-RAW_DIR = ARTEFACT_BASE / "raw"
-REFERENCE_DIR = ROOT / "reference" / "layer1" / DATASET_ID / REFERENCE_VERSION
-REFERENCE_DIR.mkdir(parents=True, exist_ok=True)
-RAW_DIR.mkdir(parents=True, exist_ok=True)
-
-CSV_PATH = REFERENCE_DIR / f"{DATASET_ID}.csv"
-PARQUET_PATH = REFERENCE_DIR / f"{DATASET_ID}.parquet"
-MANIFEST_PATH = REFERENCE_DIR / f"{DATASET_ID}.manifest.json"
-SHA_PATH = REFERENCE_DIR / "SHA256SUMS"
-
-# ----------------------------- Utility helpers ------------------------------
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--version", default="2025-10-07", help="Version tag for output partition")
+    parser.add_argument("--gdp-version", default="2025-10-07", help="GDP reference version")
+    parser.add_argument("--bucket-version", default="2025-10-07", help="GDP bucket map version")
+    parser.add_argument("--channel-policy", default="config/policy/channel_policy.1A.yaml")
+    parser.add_argument("--allocation-policy", default="config/policy/merchant_allocation.1A.yaml")
+    parser.add_argument("--numeric-policy", default="reference/governance/numeric_policy/2025-10-07/numeric_policy.json")
+    parser.add_argument("--rebuild", action="store_true", help="Remove existing outputs before building")
+    return parser.parse_args()
 
 
 def sha256sum(path: Path) -> str:
-    """Compute the SHA-256 digest for the given file."""
-    h = hashlib.sha256()
-    with path.open("rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def ensure_download(url: str, destination: Path) -> None:
-    """Download *url* to *destination* if the file does not yet exist."""
     if destination.exists():
         return
-    response = requests.get(url, timeout=120)
-    response.raise_for_status()
-    destination.write_bytes(response.content)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    resp = requests.get(url, timeout=120)
+    resp.raise_for_status()
+    destination.write_bytes(resp.content)
 
 
-@dataclass(frozen=True)
-class MerchantRecord:
-    merchant_id: int
-    mcc: int
-    channel: str
-    home_country_iso: str
+def load_yaml(path: Path) -> dict:
+    return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
-# ----------------------------- Core pipeline ---------------------------------
+def load_json(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
-def load_mcc_table(path: Path) -> pl.DataFrame:
-    df = pl.read_csv(path, infer_schema_length=0, ignore_errors=False)
-    if "mcc" not in df.columns:
-        raise ValueError("mcc column missing in MCC codes dataset")
-    desc_cols = [
-        col
-        for col in (
-            "edited_description",
-            "combined_description",
-            "usda_description",
-            "irs_description",
+def load_mcc_table(path: Path) -> List[int]:
+    table = pl.read_csv(path, infer_schema_length=0, ignore_errors=False)
+    if "mcc" not in table.columns:
+        raise ValueError("MCC table missing 'mcc' column")
+    return sorted(table["mcc"].cast(pl.Int32).to_list())
+
+
+def load_gdp_table(version: str) -> pl.DataFrame:
+    path = ROOT / "reference" / "economic" / "world_bank_gdp_per_capita" / version / "gdp.parquet"
+    if not path.exists():
+        raise FileNotFoundError(f"GDP parquet not found: {path}")
+    return pl.read_parquet(path).select(
+        pl.col("country_iso").alias("iso"),
+        pl.col("gdp_pc_usd_2015").alias("gdp_pc"),
+    )
+
+
+def load_bucket_map(version: str) -> Dict[str, int]:
+    path = ROOT / "reference" / "economic" / "gdp_bucket_map" / version / "gdp_bucket_map.parquet"
+    if not path.exists():
+        raise FileNotFoundError(f"GDP bucket map missing: {path}")
+    df = pl.read_parquet(path).select("country_iso", "bucket_id")
+    return dict(zip(df["country_iso"].to_list(), df["bucket_id"].to_list()))
+
+
+def compute_weights(gdp_df: pl.DataFrame, allocation_policy: dict) -> Dict[str, float]:
+    exponent = float(allocation_policy["weighting"]["exponent"])
+    weights = {row[0]: max(row[1], 0.0) ** exponent for row in gdp_df.iter_rows()}
+
+    total = sum(weights.values())
+    if total <= 0:
+        raise ValueError("GDP weights sum to zero")
+    for iso in weights:
+        weights[iso] /= total
+
+    adjustments = allocation_policy.get("regional_adjustments", {}) or {}
+    for cfg in adjustments.values():
+        iso_codes = cfg.get("iso_codes", [])
+        multiplier = float(cfg.get("multiplier", 1.0))
+        if multiplier == 1.0:
+            continue
+        for iso in iso_codes:
+            if iso in weights:
+                weights[iso] *= multiplier
+        total = sum(weights.values())
+        weights = {iso: weight / total for iso, weight in weights.items()}
+
+    heavy_tail = float(allocation_policy["weighting"].get("heavy_tail", 0.0))
+    if heavy_tail > 0:
+        iso_sorted = sorted(weights.items(), key=lambda kv: kv[1], reverse=True)
+        top_n = max(1, int(len(iso_sorted) * heavy_tail))
+        boost = 1.0 + heavy_tail
+        for iso, _ in iso_sorted[:top_n]:
+            weights[iso] *= boost
+        total = sum(weights.values())
+        weights = {iso: weight / total for iso, weight in weights.items()}
+
+    return weights
+
+
+def allocate_merchants(weights: Dict[str, float], allocation_policy: dict) -> Dict[str, int]:
+    total_merchants = int(allocation_policy["total_merchants"])
+    min_per_iso = int(allocation_policy["min_per_iso"])
+    max_per_iso = int(allocation_policy["max_per_iso"])
+
+    iso_list = sorted(weights.keys())
+    baseline_total = min_per_iso * len(iso_list)
+    if baseline_total > total_merchants:
+        raise ValueError("Total merchants below minimum per ISO requirement")
+
+    counts = {iso: min_per_iso for iso in iso_list}
+    remaining = total_merchants - baseline_total
+
+    if remaining == 0:
+        return counts
+
+    capacity = {iso: max(0, max_per_iso - counts[iso]) for iso in iso_list}
+    if sum(capacity.values()) < remaining:
+        raise ValueError("Total merchants exceed available capacity given max_per_iso")
+
+    usable_weights = {iso: weights[iso] if capacity[iso] > 0 else 0.0 for iso in iso_list}
+    total_weight = sum(usable_weights.values())
+    if total_weight <= 0:
+        raise ValueError("No weight available for allocation")
+
+    raw_extra = {iso: (usable_weights[iso] / total_weight) * remaining for iso in iso_list}
+    extra = {iso: min(capacity[iso], math.floor(raw_extra[iso])) for iso in iso_list}
+    leftover = remaining - sum(extra.values())
+
+    if leftover > 0:
+        fractional = {
+            iso: raw_extra[iso] - math.floor(raw_extra[iso]) if capacity[iso] > extra[iso] else 0.0
+            for iso in iso_list
+        }
+        eligible = [iso for iso in iso_list if capacity[iso] > extra[iso]]
+        eligible.sort(key=lambda iso: (-fractional[iso], iso))
+        for iso in eligible:
+            if leftover <= 0:
+                break
+            counts_available = capacity[iso] - extra[iso]
+            grant = min(counts_available, leftover)
+            extra[iso] += grant
+            leftover -= grant
+
+    if leftover != 0:
+        raise RuntimeError("Unable to reconcile merchant allocation totals")
+
+    for iso in iso_list:
+        counts[iso] += extra[iso]
+
+    return counts
+
+
+def deterministic_id(iso: str, idx: int, seed: str) -> int:
+    payload = f"{iso}:{idx}:{seed}".encode("utf-8")
+    digest = hashlib.sha256(payload).digest()
+    return int.from_bytes(digest[:8], "big")
+
+
+def assign_mcc_sequence(count: int, mccs: List[int], iso: str, bucket: int, seed: str) -> List[int]:
+    total = len(mccs)
+    if total == 0:
+        raise ValueError("No MCC codes available")
+    assigned = []
+    for idx in range(count):
+        payload = hashlib.sha256(f"{iso}:{bucket}:{seed}:{idx}:mcc".encode("utf-8")).digest()
+        assigned.append(mccs[int.from_bytes(payload[:4], "big") % total])
+    return assigned
+
+
+def initial_channel(mcc: int, policy: dict) -> str:
+    default = policy.get("default_channel", "card_present")
+    for band in policy.get("targets", {}).get("mcc_bands", []):
+        start, end = band.get("range", [0, 0])
+        if start <= mcc <= end:
+            return band.get("default_channel", default)
+    return default
+
+
+def adjust_iso_channels(records: List[Dict[str, object]], iso: str, policy: dict) -> None:
+    total = len(records)
+    if total == 0:
+        return
+    tol = float(policy["tolerance"]["channel_ratio_abs"])
+    global_bounds = policy["targets"]["global"]["card_not_present"]
+    override = policy["targets"].get("iso_overrides", {}).get(iso)
+    bounds = override.get("card_not_present") if override else global_bounds
+    min_ratio = float(bounds["min_ratio"])
+    max_ratio = float(bounds["max_ratio"])
+
+    min_count = max(0, math.floor((min_ratio - tol) * total))
+    max_count = min(total, math.ceil((max_ratio + tol) * total))
+    target_ratio = (min_ratio + max_ratio) / 2
+    desired = min(max(round(target_ratio * total), min_count), max_count)
+    current = sum(1 for rec in records if rec["channel"] == "card_not_present")
+
+    if desired == current:
+        return
+
+    delta = desired - current
+
+    if delta > 0:
+        candidates = [rec for rec in records if rec["channel"] == "card_present"]
+        if len(candidates) < delta:
+            raise ValueError(f"ISO {iso} lacks CP merchants to reach CNP target")
+        ordered = sorted(
+            candidates,
+            key=lambda rec: hashlib.sha256(f"{rec['merchant_id']}:flip-up".encode("utf-8")).digest(),
         )
-        if col in df.columns
-    ]
-    if not desc_cols:
-        raise ValueError("No description column found in MCC dataset")
-    desc_expr = pl.col(desc_cols[0])
-    for col in desc_cols[1:]:
-        desc_expr = desc_expr.fill_null(pl.col(col))
-    df = df.with_columns(
-        pl.col("mcc").cast(pl.Int32),
-        desc_expr.fill_null("").alias("description"),
-    )
-    if df.height == 0:
-        raise ValueError("MCC codes dataset is empty")
-    return df
+        for rec in ordered[:delta]:
+            rec["channel"] = "card_not_present"
+    elif delta < 0:
+        amount = -delta
+        candidates = [rec for rec in records if rec["channel"] == "card_not_present"]
+        if len(candidates) < amount:
+            raise ValueError(f"ISO {iso} lacks CNP merchants to reduce")
+        ordered = sorted(
+            candidates,
+            key=lambda rec: hashlib.sha256(f"{rec['merchant_id']}:flip-down".encode("utf-8")).digest(),
+        )
+        for rec in ordered[:amount]:
+            rec["channel"] = "card_present"
+
+    final = sum(1 for rec in records if rec["channel"] == "card_not_present")
+    if not (min_count <= final <= max_count):
+        raise ValueError(f"ISO {iso} channel adjustment failed to reach bounds")
 
 
-def load_iso_table(path: Path) -> pl.DataFrame:
-    df = pl.read_csv(path, infer_schema_length=0, ignore_errors=False)
-    alpha2_col = None
-    for cand in ("ISO3166-1-Alpha-2", "ISO3166-1-Alpha-2 code", "Alpha-2 code"):
-        if cand in df.columns:
-            alpha2_col = cand
-            break
-    if alpha2_col is None:
-        raise ValueError("Alpha-2 ISO column not found in ISO dataset")
-    df = df.select(
-        pl.col(alpha2_col).alias("iso2"),
-        pl.col("CLDR display name").alias("name").fill_null(pl.col("official_name_en")),
-        pl.col("Region Name").alias("region").fill_null("")
-    )
-    df = df.filter(pl.col("iso2").str.len_bytes() == 2)
-    df = df.filter(pl.col("iso2").str.contains(r"^[A-Z]{2}$"))
-    return df.unique("iso2").sort("iso2")
-
-
-def derive_channel(description: str, mcc: int) -> str:
-    if description is None:
-        description = ""
-    lowered = description.lower()
-    if mcc in CNP_MCC_OVERRIDES:
-        return "card_not_present"
-    if any(keyword in lowered for keyword in CNP_KEYWORDS):
-        return "card_not_present"
-    return "card_present"
-
-
-def build_channel_map(mcc_df: pl.DataFrame) -> Dict[int, str]:
-    channels = {}
-    for row in mcc_df.iter_rows(named=True):
-        mcc = int(row["mcc"])
-        desc = row.get("description") or ""
-        channel = derive_channel(desc, mcc)
-        channels[mcc] = channel
-    return channels
-
-
-def deterministic_int(seed_text: str, modulo: int, offset: int = 0) -> int:
-    value = int.from_bytes(hashlib.sha256(seed_text.encode("utf-8")).digest()[:8], "big")
-    return offset + (value % modulo)
-
-
-def generate_merchants(iso_df: pl.DataFrame, mcc_list: List[int], channel_map: Dict[int, str]) -> List[MerchantRecord]:
-    records: List[MerchantRecord] = []
-    total_mcc = len(mcc_list)
-    if total_mcc == 0:
-        raise ValueError("No MCC codes available for merchant generation")
-    for iso_index, iso_code in enumerate(iso_df["iso2"].to_list(), start=1):
-        merchant_count = 2 + deterministic_int(f"count::{iso_code}", modulo=4, offset=0)
-        for local_idx in range(merchant_count):
-            mcc_idx = deterministic_int(f"mcc::{iso_code}::{local_idx}", modulo=total_mcc)
-            mcc = mcc_list[mcc_idx]
-            channel = channel_map.get(mcc, "card_present")
-            merchant_id = iso_index * 10_000 + local_idx + 1
-            records.append(
-                MerchantRecord(
-                    merchant_id=merchant_id,
-                    mcc=mcc,
-                    channel=channel,
-                    home_country_iso=iso_code,
-                )
-            )
-    return records
-
-
-def validate_records(records: Iterable[MerchantRecord], iso_df: pl.DataFrame, mcc_set: set[int]) -> None:
-    seen_ids = set()
-    iso_set = set(iso_df["iso2"].to_list())
-    allowed_channels = {"card_present", "card_not_present"}
+def compute_channel_mix(records: List[Dict[str, object]]) -> Dict[str, float]:
+    counts = defaultdict(int)
     for rec in records:
-        if rec.merchant_id in seen_ids:
-            raise ValueError(f"Duplicate merchant_id detected: {rec.merchant_id}")
-        seen_ids.add(rec.merchant_id)
-        if rec.mcc not in mcc_set:
-            raise ValueError(f"Unknown MCC code: {rec.mcc}")
-        if rec.home_country_iso not in iso_set:
-            raise ValueError(f"Unknown ISO country code: {rec.home_country_iso}")
-        if rec.channel not in allowed_channels:
-            raise ValueError(f"Invalid channel value: {rec.channel}")
+        counts[rec["channel"]] += 1
+    total = len(records)
+    return {channel: count / total for channel, count in counts.items()}
 
 
-# ----------------------------- Manifest builder ------------------------------
+def enforce_global_mix(records: List[Dict[str, object]], policy: dict) -> None:
+    mix = compute_channel_mix(records)
+    tol = float(policy["tolerance"]["channel_ratio_abs"])
+    for channel, bounds in policy["targets"]["global"].items():
+        ratio = mix.get(channel, 0.0)
+        if not (bounds["min_ratio"] - tol <= ratio <= bounds["max_ratio"] + tol):
+            raise ValueError(f"Global channel mix for {channel} out of bounds: {ratio:.4f}")
 
 
 def git_commit_hex() -> str:
@@ -247,99 +293,157 @@ def git_commit_hex() -> str:
         return "unknown"
 
 
-def write_manifest(
-    *,
-    row_count: int,
-    iso_df: pl.DataFrame,
-    records_df: pl.DataFrame,
-    artefact_digests: Dict[str, str],
-    output_digests: Dict[str, str],
-) -> None:
-    channel_counts = (
-        records_df.group_by("channel")
-        .len()
-        .sort("channel")
-        .to_dict(as_series=False)
-    )
+def build_dataset(args: argparse.Namespace) -> None:
+    output_dir = REFERENCE_BASE / f"v{args.version}"
+    raw_dir = ARTEFACT_BASE / args.version / "raw"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    raw_dir.mkdir(parents=True, exist_ok=True)
+
+    csv_path = output_dir / f"{DATASET_ID}.csv"
+    parquet_path = output_dir / f"{DATASET_ID}.parquet"
+    manifest_path = output_dir / f"{DATASET_ID}.manifest.json"
+    sha_path = output_dir / "SHA256SUMS"
+
+    if args.rebuild:
+        for path in (csv_path, parquet_path, manifest_path, sha_path):
+            if path.exists():
+                path.unlink()
+
+    # Acquire raw artefacts
+    for spec in RAW_SOURCES.values():
+        ensure_download(spec["url"], raw_dir / spec["filename"])
+
+    mccs = load_mcc_table(raw_dir / RAW_SOURCES["mcc_codes"]["filename"])
+    gdp_df = load_gdp_table(args.gdp_version)
+    bucket_map = load_bucket_map(args.bucket_version)
+
+    channel_policy = load_yaml(ROOT / args.channel_policy)
+    allocation_policy = load_yaml(ROOT / args.allocation_policy)
+    numeric_policy = load_json(ROOT / args.numeric_policy)
+
+    weights = compute_weights(gdp_df, allocation_policy)
+    counts = allocate_merchants(weights, allocation_policy)
+
+    missing_buckets = [iso for iso in counts if iso not in bucket_map]
+    if missing_buckets:
+        raise ValueError(f"Bucket map missing ISO entries: {missing_buckets[:5]}")
+
+    seed = allocation_policy.get("seed", f"{DATASET_ID}.seed")
+    records: List[Dict[str, object]] = []
+    iso_records: Dict[str, List[Dict[str, object]]] = {}
+    seen_ids: set[int] = set()
+
+    for iso in sorted(counts.keys()):
+        count = counts[iso]
+        assigned_mccs = assign_mcc_sequence(count, mccs, iso, bucket_map[iso], seed)
+        iso_list: List[Dict[str, object]] = []
+        for idx, mcc in enumerate(assigned_mccs):
+            merchant_id = deterministic_id(iso, idx, seed)
+            if merchant_id in seen_ids:
+                raise ValueError(f"Duplicate merchant_id generated: {merchant_id}")
+            seen_ids.add(merchant_id)
+            iso_list.append(
+                {
+                    "merchant_id": merchant_id,
+                    "mcc": int(mcc),
+                    "channel": initial_channel(mcc, channel_policy),
+                    "home_country_iso": iso,
+                }
+            )
+        adjust_iso_channels(iso_list, iso, channel_policy)
+        iso_records[iso] = iso_list
+        records.extend(iso_list)
+
+    enforce_global_mix(records, channel_policy)
+
+    df = pl.DataFrame(records).sort("merchant_id")
+
+    # Policy gates from numeric manifest
+    merchants_policy = numeric_policy.get("merchants", {})
+    if df.height < merchants_policy.get("total_min", 0):
+        raise ValueError("Merchant count below numeric policy gate")
+    iso_counts = df.group_by("home_country_iso").len()
+    min_iso = iso_counts["len"].min()
+    max_iso = iso_counts["len"].max()
+    if min_iso < merchants_policy.get("min_per_iso", 0):
+        raise ValueError("Per-ISO merchant minimum violated")
+    if max_iso > merchants_policy.get("max_per_iso", 10**9):
+        raise ValueError("Per-ISO merchant maximum violated")
+
+    # Persist outputs
+    df.write_csv(csv_path)
+    df.write_parquet(parquet_path, compression="zstd", statistics=True)
+
+    channel_mix = compute_channel_mix(records)
+    channel_counts = df.group_by("channel").len().sort("channel").to_dict(as_series=False)
+
+    channel_policy_numeric = numeric_policy.get("channel", {})
+    cnp_ratio = channel_mix.get("card_not_present", 0.0)
+    if "card_not_present_min" in channel_policy_numeric and cnp_ratio < channel_policy_numeric["card_not_present_min"]:
+        raise ValueError("Global card_not_present ratio below numeric governance minimum")
+    if "card_not_present_max" in channel_policy_numeric and cnp_ratio > channel_policy_numeric["card_not_present_max"]:
+        raise ValueError("Global card_not_present ratio above numeric governance maximum")
+
+    iso_stats = {
+        "iso_count": iso_counts.height,
+        "min_merchants_per_iso": int(min_iso),
+        "max_merchants_per_iso": int(max_iso),
+    }
+
+    artefact_digests = {}
+    for spec in RAW_SOURCES.values():
+        path = raw_dir / spec["filename"]
+        artefact_digests[str(path.relative_to(ROOT))] = sha256sum(path)
+
+    policy_paths = {
+        str((ROOT / args.channel_policy).relative_to(ROOT)): sha256sum(ROOT / args.channel_policy),
+        str((ROOT / args.allocation_policy).relative_to(ROOT)): sha256sum(ROOT / args.allocation_policy),
+        str((ROOT / args.numeric_policy).relative_to(ROOT)): sha256sum(ROOT / args.numeric_policy),
+        f"reference/economic/world_bank_gdp_per_capita/{args.gdp_version}/gdp.parquet": sha256sum(
+            ROOT / "reference" / "economic" / "world_bank_gdp_per_capita" / args.gdp_version / "gdp.parquet"
+        ),
+        f"reference/economic/gdp_bucket_map/{args.bucket_version}/gdp_bucket_map.parquet": sha256sum(
+            ROOT / "reference" / "economic" / "gdp_bucket_map" / args.bucket_version / "gdp_bucket_map.parquet"
+        ),
+    }
+
+    output_digests = {
+        str(csv_path.relative_to(ROOT)): sha256sum(csv_path),
+        str(parquet_path.relative_to(ROOT)): sha256sum(parquet_path),
+    }
+
     manifest = {
         "dataset_id": DATASET_ID,
-        "version": VERSION,
+        "version": args.version,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "generator_script": "scripts/build_transaction_schema_merchant_ids.py",
         "git_commit_hex": git_commit_hex(),
-        "row_count": row_count,
-        "distinct_iso": records_df.select(pl.col("home_country_iso").n_unique()).item(),
-        "distinct_mcc": records_df.select(pl.col("mcc").n_unique()).item(),
-        "channel_counts": dict(zip(channel_counts["channel"], channel_counts["len"])),
-        "iso_coverage": iso_df["iso2"].to_list(),
-        "input_artifacts": artefact_digests,
+        "row_count": int(df.height),
+        "distinct_iso": int(df.select(pl.col("home_country_iso").n_unique()).item()),
+        "distinct_mcc": int(df.select(pl.col("mcc").n_unique()).item()),
+        "channel_counts": dict(zip(channel_counts.get("channel", []), channel_counts.get("len", []))),
+        "channel_mix": channel_mix,
+        "iso_stats": iso_stats,
+        "input_artifacts": {**artefact_digests, **policy_paths},
         "output_files": output_digests,
+        "gdp_version": args.gdp_version,
+        "bucket_version": args.bucket_version,
+        "allocation_policy": allocation_policy,
+        "channel_policy": {
+            "policy_version": channel_policy.get("policy_version"),
+            "targets": channel_policy.get("targets", {}).get("global"),
+        },
     }
-    MANIFEST_PATH.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    (output_dir / f"{DATASET_ID}.manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
-
-# ----------------------------- Main entrypoint -------------------------------
-
-
-def build_dataset() -> None:
-    # Acquire raw artefacts
-    for source in RAW_SOURCES.values():
-        ensure_download(source["url"], RAW_DIR / source["filename"])
-
-    # Load canonical tables
-    mcc_df = load_mcc_table(RAW_DIR / RAW_SOURCES["mcc_codes"]["filename"])
-    iso_df = load_iso_table(RAW_DIR / RAW_SOURCES["iso_country_codes"]["filename"])
-
-    # Build deterministic merchants
-    channel_map = build_channel_map(mcc_df)
-    records = generate_merchants(iso_df, mcc_df["mcc"].to_list(), channel_map)
-    validate_records(records, iso_df, set(channel_map.keys()))
-
-    records_df = pl.DataFrame(records).sort("merchant_id")
-
-    # Persist outputs
-    records_df.write_csv(CSV_PATH, include_header=True)
-    records_df.write_parquet(PARQUET_PATH, compression="zstd", statistics=True)
-
-    artefact_digests = {
-        str((RAW_DIR / data["filename"]).relative_to(ROOT)): sha256sum(RAW_DIR / data["filename"])
-        for data in RAW_SOURCES.values()
-    }
-    output_digests = {
-        str(CSV_PATH.relative_to(ROOT)): sha256sum(CSV_PATH),
-        str(PARQUET_PATH.relative_to(ROOT)): sha256sum(PARQUET_PATH),
-    }
-    write_manifest(
-        row_count=records_df.height,
-        iso_df=iso_df,
-        records_df=records_df,
-        artefact_digests=artefact_digests,
-        output_digests=output_digests,
-    )
-
-    # Collate SHA256 sums for convenience
-    combined = {**artefact_digests, **output_digests}
-    sha_lines = [f"{digest}  {name}" for name, digest in sorted(combined.items())]
-    SHA_PATH.write_text("\n".join(sha_lines) + "\n", encoding="utf-8")
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--rebuild",
-        action="store_true",
-        help="Force regeneration by deleting existing outputs before running",
-    )
-    return parser.parse_args()
+    combined = {**artefact_digests, **policy_paths, **output_digests}
+    sha_lines = [f"{digest}  {path}" for path, digest in sorted(combined.items())]
+    sha_path.write_text("\n".join(sha_lines) + "\n", encoding="utf-8")
 
 
 def main() -> None:
     args = parse_args()
-    if args.rebuild:
-        for path in (CSV_PATH, PARQUET_PATH, MANIFEST_PATH, SHA_PATH):
-            if path.exists():
-                path.unlink()
-    build_dataset()
+    build_dataset(args)
 
 
 if __name__ == "__main__":
