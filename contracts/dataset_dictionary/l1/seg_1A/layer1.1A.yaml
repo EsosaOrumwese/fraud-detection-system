@@ -20,6 +20,14 @@ reference:
     partitioning: []
     owner: reference
     retention_days: 365
+  settlement_shares_2024Q4:
+    description: Currency-to-country settlement shares used by S0.
+    format: parquet
+    path: reference/network/settlement_shares/2025-10-08/settlement_shares.parquet
+    schema_ref: l1/seg_1A/settlement_shares.schema.json
+    partitioning: []
+    owner: reference
+    retention_days: 365
 
 model:
   crossborder_eligibility_flags:
