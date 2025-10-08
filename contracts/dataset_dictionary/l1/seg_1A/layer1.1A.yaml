@@ -3,6 +3,16 @@ layer: layer1
 segment: seg_1A
 state: s0
 
+reference:
+  transaction_schema_merchant_ids:
+    description: Normalised merchant universe used to seed S0 ingress.
+    format: parquet
+    path: reference/layer1/transaction_schema_merchant_ids/v2025-10-07/transaction_schema_merchant_ids.parquet
+    schema_ref: schemas.ingress.layer1.yaml#/merchant_ids
+    partitioning: []
+    owner: reference
+    retention_days: 365
+
 model:
   crossborder_eligibility_flags:
     description: Parameter-scoped eligibility flags for cross-border expansion policy.
