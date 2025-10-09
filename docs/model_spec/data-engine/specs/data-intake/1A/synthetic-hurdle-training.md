@@ -24,3 +24,6 @@ When richer data becomes available (e.g., curated brand census, partner datasets
 ## Current export
 
 The latest synthetic fit is published under `configs/models/hurdle/exports/version=2025-10-09/20251009T120000Z/`, which contains `hurdle_coefficients.yaml` and `nb_dispersion_coefficients.yaml`.
+## Cross-border policy
+
+A synthetic eligibility ladder is staged at `configs/policy/crossborder_hyperparams.yaml`. It denies high-risk CNP MCCs globally, whitelists CP merchants across the synthetic EEA subset, and defaults to allow.
