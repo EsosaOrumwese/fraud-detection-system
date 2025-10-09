@@ -43,6 +43,7 @@ RAW_SOURCES = {
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", default="2025-10-07", help="Version tag for output partition")
+    parser.add_argument("--iso-version", default="2025-10-08", help="ISO canonical version")
     parser.add_argument("--gdp-version", default="2025-10-07", help="GDP reference version")
     parser.add_argument("--bucket-version", default="2025-10-07", help="GDP bucket map version")
     parser.add_argument("--channel-policy", default="config/policy/channel_policy.1A.yaml")
@@ -100,6 +101,14 @@ def load_bucket_map(version: str) -> Dict[str, int]:
         raise FileNotFoundError(f"GDP bucket map missing: {path}")
     df = pl.read_parquet(path).select("country_iso", "bucket_id")
     return dict(zip(df["country_iso"].to_list(), df["bucket_id"].to_list()))
+
+
+def load_iso_set(version: str) -> set[str]:
+    path = ROOT / "reference" / "layer1" / "iso_canonical" / version / "iso_canonical.parquet"
+    if not path.exists():
+        raise FileNotFoundError(f"ISO canonical parquet not found: {path}")
+    df = pl.read_parquet(path).select("country_iso")
+    return set(df["country_iso"].to_list())
 
 
 def compute_weights(gdp_df: pl.DataFrame, allocation_policy: dict) -> Dict[str, float]:
@@ -314,14 +323,23 @@ def build_dataset(args: argparse.Namespace) -> None:
         ensure_download(spec["url"], raw_dir / spec["filename"])
 
     mccs = load_mcc_table(raw_dir / RAW_SOURCES["mcc_codes"]["filename"])
+    iso_set = load_iso_set(args.iso_version)
     gdp_df = load_gdp_table(args.gdp_version)
     bucket_map = load_bucket_map(args.bucket_version)
+
+    valid_iso = sorted(set(bucket_map.keys()) & iso_set)
+    if not valid_iso:
+        raise ValueError("No overlapping ISO codes between canonical list and bucket map")
+
+    gdp_df = gdp_df.filter(pl.col("iso").is_in(valid_iso))
+    bucket_map = {iso: bucket_map[iso] for iso in valid_iso}
 
     channel_policy = load_yaml(ROOT / args.channel_policy)
     allocation_policy = load_yaml(ROOT / args.allocation_policy)
     numeric_policy = load_json(ROOT / args.numeric_policy)
 
     weights = compute_weights(gdp_df, allocation_policy)
+    weights = {iso: weight for iso, weight in weights.items() if iso in valid_iso}
     counts = allocate_merchants(weights, allocation_policy)
 
     missing_buckets = [iso for iso in counts if iso not in bucket_map]
@@ -405,6 +423,9 @@ def build_dataset(args: argparse.Namespace) -> None:
         f"reference/economic/gdp_bucket_map/{args.bucket_version}/gdp_bucket_map.parquet": sha256sum(
             ROOT / "reference" / "economic" / "gdp_bucket_map" / args.bucket_version / "gdp_bucket_map.parquet"
         ),
+        f"reference/layer1/iso_canonical/{args.iso_version}/iso_canonical.parquet": sha256sum(
+            ROOT / "reference" / "layer1" / "iso_canonical" / args.iso_version / "iso_canonical.parquet"
+        ),
     }
 
     output_digests = {
@@ -428,6 +449,7 @@ def build_dataset(args: argparse.Namespace) -> None:
         "output_files": output_digests,
         "gdp_version": args.gdp_version,
         "bucket_version": args.bucket_version,
+        "iso_version": args.iso_version,
         "allocation_policy": allocation_policy,
         "channel_policy": {
             "policy_version": channel_policy.get("policy_version"),
