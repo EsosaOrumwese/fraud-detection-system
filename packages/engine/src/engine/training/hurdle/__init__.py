@@ -8,8 +8,13 @@ from .config import (
     SimulationConfig,
     load_simulation_config,
 )
-from .design import DesignDictionaries, DesignMatrices, build_design_matrices
-from .fit import HurdleFit, FitDiagnostics, fit_hurdle_coefficients
+from .design import (
+    DesignDictionaries,
+    DesignMatrices,
+    build_design_matrices,
+)
+from .exports import HurdleExportBundle, generate_export_bundle
+from .fit import FitDiagnostics, HurdleFit, fit_hurdle_coefficients
 from .persist import (
     SimulationArtefacts,
     load_persisted_corpus,
@@ -41,4 +46,6 @@ __all__ = [
     "HurdleFit",
     "FitDiagnostics",
     "fit_hurdle_coefficients",
+    "HurdleExportBundle",
+    "generate_export_bundle",
 ]

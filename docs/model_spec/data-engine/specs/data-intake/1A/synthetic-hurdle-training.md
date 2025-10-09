@@ -19,3 +19,8 @@ As it currently stands, the hurdle and NB-dispersion coefficients are backed by 
 ## Future work
 
 When richer data becomes available (e.g., curated brand census, partner datasets), the simulator can be swapped out for a real training pipeline by updating the priors and manifest schema while keeping the same orchestration hooks. Until then, the synthetic corpora unblock the YAML coefficient export without compromising the closed-world governance principles.
+
+
+## Current export
+
+The latest synthetic fit is published under `configs/models/hurdle/exports/version=2025-10-09/20251009T120000Z/`, which contains `hurdle_coefficients.yaml` and `nb_dispersion_coefficients.yaml`.
