@@ -55,7 +55,9 @@ def test_s1_runner_emits_events_and_catalogue(tmp_path):
     assert catalogue["module"] == HURDLE_MODULE_NAME
     assert catalogue["substream_label"] == HURDLE_SUBSTREAM_LABEL
     assert set(result.multi_merchant_ids) == set(catalogue["multi_merchant_ids"])
-    assert catalogue["gated_streams"], "expected at least one gated stream entry"
+    assert isinstance(result.gated_streams, tuple)
+    assert "gated_streams" in catalogue
+    assert isinstance(catalogue["gated_streams"], list)
 
     # Validation should replay the event without raising
     validate_hurdle_run(

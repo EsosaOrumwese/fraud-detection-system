@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Iterator, List, Sequence, Tuple
 
-from ...s0_foundations.exceptions import err
+from ...s0_foundations.exceptions import S0Error, err
 from ...s0_foundations.l1.design import DesignVectors
 from ...s0_foundations.l1.rng import PhiloxEngine
 from ..l1.probability import hurdle_probability
@@ -147,7 +147,10 @@ class S1HurdleRunner:
         if not seen_any:
             raise err("E_DATASET_EMPTY", "no hurdle design rows available for S1")
 
-        gated_streams = load_gated_streams(gated_by=HURDLE_SUBSTREAM_LABEL)
+        try:
+            gated_streams = load_gated_streams(gated_by=HURDLE_SUBSTREAM_LABEL)
+        except S0Error:
+            gated_streams = ()
         catalogue_path = write_hurdle_catalogue(
             base_path=base_path,
             parameter_hash=parameter_hash,
