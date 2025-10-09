@@ -318,6 +318,16 @@ class S0FoundationsRunner:
             manifest_fingerprint=manifest_fingerprint.manifest_fingerprint_bytes,
         )
 
+    @staticmethod
+    def _log_progress(message: str, start_time: float, last_checkpoint: float) -> float:
+        """Emit a deterministic progress log with cumulative and step timing."""
+
+        now = time.perf_counter()
+        total = now - start_time
+        delta = now - last_checkpoint
+        logger.info("%s (elapsed=%.2fs, delta=%.2fs)", message, total, delta)
+        return now
+
     def run_from_paths(
         self,
         *,
@@ -337,11 +347,23 @@ class S0FoundationsRunner:
         extra_manifest_artifacts: Sequence[Path] | None = None,
     ) -> S0RunResult:
         """Execute the full S0 flow given concrete artefact paths on disk."""
-        logger.info("S0: loading ingress tables")
+        start_perf = time.perf_counter()
+        last_checkpoint = start_perf
+        last_checkpoint = self._log_progress(
+            "S0: run initialised",
+            start_perf,
+            last_checkpoint,
+        )
+
         merchant_table = self.load_table(merchant_table_path)
         iso_table = self.load_table(iso_table_path)
         gdp_table = self.load_table(gdp_table_path)
         bucket_table = self.load_table(bucket_table_path)
+        last_checkpoint = self._log_progress(
+            "S0: loaded ingress tables",
+            start_perf,
+            last_checkpoint,
+        )
 
         parameter_paths = {name: Path(path) for name, path in parameter_files.items()}
 
@@ -362,7 +384,6 @@ class S0FoundationsRunner:
                 "E_GIT_BYTES", f"invalid git commit hex '{git_commit_hex}'"
             ) from exc
 
-        logger.info("S0: sealing run context and computing lineage digests")
         sealed = self.seal(
             merchant_table=merchant_table,
             iso_table=iso_table,
@@ -373,6 +394,11 @@ class S0FoundationsRunner:
             git_commit_raw=git_commit_raw,
             numeric_policy_path=numeric_policy_path,
             math_profile_manifest_path=math_profile_manifest_path,
+        )
+        last_checkpoint = self._log_progress(
+            "S0: sealed run context and computed lineage digests",
+            start_perf,
+            last_checkpoint,
         )
 
         start_ns = start_time_ns or time.time_ns()
@@ -404,19 +430,19 @@ class S0FoundationsRunner:
         ):
             pass
 
-        logger.info(
-            "S0: building outputs bundle (run_id=%s, parameter_hash=%s)",
-            run_id,
-            sealed.parameter_hash.parameter_hash,
-        )
         outputs = self.build_outputs_bundle(
             sealed=sealed,
             parameter_files=parameter_paths,
             include_diagnostics=include_diagnostics,
         )
+        last_checkpoint = self._log_progress(
+            "S0: built outputs bundle "
+            f"(run_id={run_id}, parameter_hash={sealed.parameter_hash.parameter_hash})",
+            start_perf,
+            last_checkpoint,
+        )
 
         try:
-            logger.info("S0: writing outputs to %s", base_path)
             write_outputs(
                 base_path=base_path,
                 sealed=sealed,
@@ -425,8 +451,12 @@ class S0FoundationsRunner:
                 seed=seed,
                 philox_engine=engine,
             )
+            last_checkpoint = self._log_progress(
+                f"S0: wrote outputs to {base_path}",
+                start_perf,
+                last_checkpoint,
+            )
             if validate:
-                logger.info("S0: validating persisted artefacts")
                 from ..l3.validator import (
                     validate_outputs,
                 )  # local import to avoid cycle
@@ -437,6 +467,11 @@ class S0FoundationsRunner:
                     outputs=outputs,
                     seed=seed,
                     run_id=run_id,
+                )
+                last_checkpoint = self._log_progress(
+                    "S0: validated persisted artefacts",
+                    start_perf,
+                    last_checkpoint,
                 )
         except S0Error as failure:
             emit_failure_record(
@@ -451,10 +486,11 @@ class S0FoundationsRunner:
             )
             raise
 
-        logger.info(
-            "S0: completed run (run_id=%s, manifest_fingerprint=%s)",
-            run_id,
-            sealed.manifest_fingerprint.manifest_fingerprint,
+        self._log_progress(
+            "S0: completed run "
+            f"(run_id={run_id}, manifest_fingerprint={sealed.manifest_fingerprint.manifest_fingerprint})",
+            start_perf,
+            last_checkpoint,
         )
         return S0RunResult(
             sealed=sealed,
