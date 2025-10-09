@@ -53,6 +53,20 @@ def _load_config(path: Path) -> Dict[str, object]:
     return data
 
 
+def _normalise_config_path(value: object) -> Path:
+    """Return an absolute path from a JSON config value.
+
+    The config files are authored with Windows-style path separators (``\\``)
+    so we normalise them to POSIX (``/``) before handing them to ``Path``.
+    Relative paths are interpreted relative to the repository root.
+    """
+
+    candidate = Path(str(value).replace("\\", "/")).expanduser()
+    if not candidate.is_absolute():
+        candidate = ROOT / candidate
+    return candidate.resolve()
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -77,7 +91,7 @@ def main(argv: list[str] | None = None) -> int:
     config = _load_config(config_path)
 
     def _as_path(key: str) -> Path:
-        return Path(str(config[key])).expanduser().resolve()
+        return _normalise_config_path(config[key])
 
     authority = SchemaAuthority(
         ingress_ref="l1/seg_1A/merchant_ids.schema.json",
