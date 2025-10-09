@@ -1,7 +1,7 @@
 version: '1.0'
 layer: layer1
 segment: seg_1A
-state: s0
+states: [s0, s1]
 
 reference:
   transaction_schema_merchant_ids:
@@ -126,3 +126,12 @@ rng_logs:
     partitioning: [seed, parameter_hash, run_id]
     owner: 1A
     retention_days: 365
+
+  rng_event_hurdle_bernoulli:
+    description: Merchant-keyed Bernoulli draws that decide single vs multi-site (S1 output).
+    format: jsonl
+    path: logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/hurdle_bernoulli
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 180
