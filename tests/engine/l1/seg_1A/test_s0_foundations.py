@@ -629,3 +629,94 @@ def test_run_from_paths_end_to_end(
         / f"manifest_fingerprint={result.sealed.manifest_fingerprint.manifest_fingerprint}"
     )
     assert (validation_dir / "_passed.flag").exists()
+
+
+def test_config_driven_smoke_run(
+    tmp_path: Path, parameter_files: dict[str, Path], governance_files
+) -> None:
+    """Ensure a JSON config spin-up drives the orchestrator end-to-end."""
+
+    merchants = pl.DataFrame(
+        {
+            "merchant_id": [1, 2],
+            "mcc": [5411, 5732],
+            "channel": ["card_present", "card_not_present"],
+            "home_country_iso": ["GB", "DE"],
+        }
+    )
+    iso = pl.DataFrame({"country_iso": ["GB", "DE"]})
+    gdp = pl.DataFrame(
+        {
+            "country_iso": ["GB", "DE"],
+            "observation_year": [2024, 2024],
+            "gdp_pc_usd_2015": [50000.0, 48000.0],
+        }
+    )
+    buckets = pl.DataFrame({"country_iso": ["GB", "DE"], "bucket": [4, 3]})
+
+    ingress_dir = tmp_path / "ingress"
+    ingress_dir.mkdir(parents=True, exist_ok=True)
+    merchant_path = ingress_dir / "merchant_ids.parquet"
+    iso_path = ingress_dir / "iso.parquet"
+    gdp_path = ingress_dir / "gdp.parquet"
+    bucket_path = ingress_dir / "buckets.parquet"
+    merchants.write_parquet(merchant_path)
+    iso.write_parquet(iso_path)
+    gdp.write_parquet(gdp_path)
+    buckets.write_parquet(bucket_path)
+
+    policy_path, manifest_path = governance_files
+
+    config = {
+        "merchant_table": str(merchant_path),
+        "iso_table": str(iso_path),
+        "gdp_table": str(gdp_path),
+        "bucket_table": str(bucket_path),
+        "numeric_policy": str(policy_path),
+        "math_profile_manifest": str(manifest_path),
+        "hurdle_coefficients": str(parameter_files["hurdle_coefficients.yaml"]),
+        "nb_dispersion_coefficients": str(
+            parameter_files["nb_dispersion_coefficients.yaml"]
+        ),
+        "crossborder_policy": str(parameter_files["crossborder_hyperparams.yaml"]),
+        "output_dir": str(tmp_path / "outputs"),
+        "git_commit": "0" * 64,
+        "seed": 4321,
+    }
+
+    config_path = tmp_path / "s0_config.json"
+    config_path.write_text(json.dumps(config, indent=2), encoding="utf-8")
+    loaded = json.loads(config_path.read_text(encoding="utf-8"))
+
+    authority = SchemaAuthority(
+        ingress_ref="l1/seg_1A/merchant_ids.schema.json",
+        segment_ref="l1/seg_1A/s0_outputs.schema.json",
+        rng_ref="layer1/schemas.layer1.yaml",
+    )
+    runner = S0FoundationsRunner(schema_authority=authority)
+
+    parameter_mapping = {
+        "hurdle_coefficients.yaml": Path(loaded["hurdle_coefficients"]),
+        "nb_dispersion_coefficients.yaml": Path(loaded["nb_dispersion_coefficients"]),
+        "crossborder_hyperparams.yaml": Path(loaded["crossborder_policy"]),
+    }
+
+    result = runner.run_from_paths(
+        base_path=Path(loaded["output_dir"]),
+        merchant_table_path=Path(loaded["merchant_table"]),
+        iso_table_path=Path(loaded["iso_table"]),
+        gdp_table_path=Path(loaded["gdp_table"]),
+        bucket_table_path=Path(loaded["bucket_table"]),
+        parameter_files=parameter_mapping,
+        git_commit_hex=loaded["git_commit"],
+        seed=int(loaded["seed"]),
+        numeric_policy_path=Path(loaded["numeric_policy"]),
+        math_profile_manifest_path=Path(loaded["math_profile_manifest"]),
+    )
+
+    parameter_dir = (
+        result.base_path
+        / "parameter_scoped"
+        / f"parameter_hash={result.sealed.parameter_hash.parameter_hash}"
+    )
+    assert (parameter_dir / "hurdle_design_matrix.parquet").exists()

@@ -9,6 +9,6 @@
   "nb_dispersion_coefficients": "configs\\models\\hurdle\\exports\\version=2025-10-09\\20251009T120000Z\\nb_dispersion_coefficients.yaml",
   "crossborder_policy": "configs\\policy\\crossborder_hyperparams.yaml",
   "output_dir": "artefacts/s0_runs/2025-10-09_synthetic",
-  "git_commit": "TODO",
+  "git_commit": "1dc31c0e76779718d322e4f4f6fb854d9b10fc3e",
   "seed": 9248923
 }

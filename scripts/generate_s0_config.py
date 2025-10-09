@@ -20,6 +20,8 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import subprocess
+from typing import Optional
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -132,6 +134,33 @@ def discover_paths(
     }
 
 
+def _resolve_git_commit(explicit: Optional[str]) -> str:
+    """Return the git commit to embed in the config.
+
+    If the caller provided an explicit value we trust it; otherwise we resolve
+    ``HEAD`` relative to the repository root.  Failures raise ``RuntimeError`` so
+    callers notice instead of silently emitting a placeholder.
+    """
+
+    if explicit:
+        return explicit
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"failed to resolve git commit: {result.stderr.strip() or result.stdout.strip()}"
+        )
+    commit = result.stdout.strip()
+    if not commit:
+        raise RuntimeError("git rev-parse returned an empty commit string")
+    return commit
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -150,7 +179,7 @@ def main() -> None:
     parser.add_argument("--model-timestamp")
     parser.add_argument("--output-dir", default="artefacts/s0_runs/2025-10-09_synthetic")
     parser.add_argument("--seed", type=int, default=9248923)
-    parser.add_argument("--git-commit", default="TODO")
+    parser.add_argument("--git-commit")
     args = parser.parse_args()
 
     paths = discover_paths(
@@ -169,7 +198,7 @@ def main() -> None:
     config = {
         **paths,
         "output_dir": args.output_dir,
-        "git_commit": args.git_commit,
+        "git_commit": _resolve_git_commit(args.git_commit),
         "seed": args.seed,
     }
 

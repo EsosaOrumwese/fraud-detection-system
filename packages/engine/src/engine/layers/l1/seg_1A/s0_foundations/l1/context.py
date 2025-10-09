@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import FrozenSet, Mapping, Optional, Tuple
 
 import polars as pl
+import yaml
 
 from ..exceptions import err
 from .numeric import MathProfileManifest, NumericPolicy, NumericPolicyAttestation
@@ -34,15 +35,29 @@ class SchemaRef:
     pointer: Tuple[str, ...] | None = None
 
     def load(self) -> object:
+        suffix = self.path.suffix.lower()
         try:
             with self.path.open("r", encoding="utf-8") as handle:
-                data = json.load(handle)
+                if suffix == ".json":
+                    data = json.load(handle)
+                elif suffix in {".yaml", ".yml"}:
+                    data = yaml.safe_load(handle)
+                else:  # pragma: no cover - safeguarded by validate()
+                    raise err(
+                        "E_SCHEMA_FORMAT",
+                        f"schema '{self.path}' must be JSON or YAML, got '{suffix}'",
+                    )
         except FileNotFoundError as exc:  # pragma: no cover - guarded upstream
             raise err("E_SCHEMA_NOT_FOUND", f"schema '{self.path}' missing") from exc
         except json.JSONDecodeError as exc:
             raise err(
                 "E_SCHEMA_FORMAT",
                 f"schema '{self.path}' is not valid JSON: {exc.msg}",
+            ) from exc
+        except yaml.YAMLError as exc:
+            raise err(
+                "E_SCHEMA_FORMAT",
+                f"schema '{self.path}' is not valid YAML: {exc}",
             ) from exc
 
         if not self.pointer:
@@ -99,10 +114,10 @@ class SchemaAuthority:
             if ref is None:
                 continue
             schema_ref = self._resolve(ref)
-            if schema_ref.path.suffix.lower() != ".json":
+            if schema_ref.path.suffix.lower() not in {".json", ".yaml", ".yml"}:
                 raise err(
                     "E_AUTHORITY_BREACH",
-                    f"{label} schema '{schema_ref.path.name}' must be JSON",
+                    f"{label} schema '{schema_ref.path.name}' must be JSON or YAML",
                 )
             schema_ref.load()  # ensures JSON parses and pointer resolves
 
