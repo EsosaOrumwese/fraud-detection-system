@@ -43,6 +43,7 @@ dependencies = [
 
 [project.scripts]
 engine-s0-run = "engine.cli.s0_foundations:main"
+engine-s1-run = "engine.cli.s1_hurdle:main"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
