@@ -8,6 +8,7 @@ from .l1.rng import (
     derive_hurdle_substream,
 )
 from .l2.runner import HurdleDecision, HurdleDesignRow, S1HurdleRunner, S1RunResult
+from .l3.catalogue import GatedStream, load_gated_streams, write_hurdle_catalogue
 
 __all__ = [
     "HURDLE_MODULE_NAME",
@@ -15,9 +16,12 @@ __all__ = [
     "HurdleDecision",
     "HurdleDesignRow",
     "HurdleProbability",
+    "GatedStream",
     "S1HurdleRunner",
     "S1RunResult",
     "counters",
     "derive_hurdle_substream",
     "hurdle_probability",
+    "load_gated_streams",
+    "write_hurdle_catalogue",
 ]

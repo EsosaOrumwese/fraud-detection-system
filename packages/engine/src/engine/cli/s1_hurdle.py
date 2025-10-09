@@ -126,7 +126,19 @@ def main(argv: list[str] | None = None) -> int:
             "seed": result.seed,
             "events_path": str(result.events_path),
             "trace_path": str(result.trace_path),
+            "catalogue_path": str(result.catalogue_path),
             "multi_merchant_ids": list(result.multi_merchant_ids),
+            "gated_streams": [
+                {
+                    "dataset_id": stream.dataset_id,
+                    "path": stream.path,
+                    "predicate": stream.predicate,
+                    "also_requires": list(stream.also_requires),
+                    "owner": stream.owner,
+                    "section": stream.section,
+                }
+                for stream in result.gated_streams
+            ],
         }
         args.result_json.expanduser().resolve().write_text(
             json.dumps(summary, indent=2, sort_keys=True),

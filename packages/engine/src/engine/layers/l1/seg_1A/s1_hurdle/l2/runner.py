@@ -10,7 +10,8 @@ from ...s0_foundations.exceptions import err
 from ...s0_foundations.l1.design import DesignVectors
 from ...s0_foundations.l1.rng import PhiloxEngine
 from ..l1.probability import hurdle_probability
-from ..l1.rng import counters, derive_hurdle_substream
+from ..l1.rng import HURDLE_MODULE_NAME, HURDLE_SUBSTREAM_LABEL, counters, derive_hurdle_substream
+from ..l3.catalogue import GatedStream, load_gated_streams, write_hurdle_catalogue
 from .output import HurdleEventWriter
 
 
@@ -51,6 +52,8 @@ class S1RunResult:
     multi_merchant_ids: Tuple[int, ...]
     events_path: Path
     trace_path: Path
+    gated_streams: Tuple[GatedStream, ...]
+    catalogue_path: Path
 
 
 class S1HurdleRunner:
@@ -144,6 +147,16 @@ class S1HurdleRunner:
         if not seen_any:
             raise err("E_DATASET_EMPTY", "no hurdle design rows available for S1")
 
+        gated_streams = load_gated_streams(gated_by=HURDLE_SUBSTREAM_LABEL)
+        catalogue_path = write_hurdle_catalogue(
+            base_path=base_path,
+            parameter_hash=parameter_hash,
+            module=HURDLE_MODULE_NAME,
+            substream_label=HURDLE_SUBSTREAM_LABEL,
+            multi_merchant_ids=multi_ids,
+            gated_streams=gated_streams,
+        )
+
         return S1RunResult(
             seed=seed,
             run_id=run_id,
@@ -153,6 +166,8 @@ class S1HurdleRunner:
             multi_merchant_ids=tuple(multi_ids),
             events_path=writer.events_path,
             trace_path=writer.trace_path,
+            gated_streams=gated_streams,
+            catalogue_path=catalogue_path,
         )
 
     @staticmethod
