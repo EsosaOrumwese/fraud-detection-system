@@ -30,6 +30,10 @@ def _append_jsonl(path: Path, record: Mapping[str, object]) -> None:
         handle.write("\n")
 
 
+def _u128_state(state: PhiloxState) -> int:
+    return (int(state.counter_hi) << 64) | int(state.counter_lo)
+
+
 @dataclass
 class HurdleEventWriter:
     """Write hurdle Bernoulli events and maintain the cumulative trace."""
@@ -100,6 +104,13 @@ class HurdleEventWriter:
             raise err("E_RNG_BUDGET", "deterministic hurdle rows must omit 'u'")
         if (not deterministic) and u_value is None:
             raise err("E_RNG_BUDGET", "stochastic hurdle rows require 'u'")
+
+        delta = _u128_state(counter_after) - _u128_state(counter_before)
+        if delta != blocks:
+            raise err(
+                "E_RNG_COUNTER",
+                f"counter delta {delta} does not match blocks {blocks}",
+            )
 
         ts_utc = _utc_timestamp()
         event_record = {

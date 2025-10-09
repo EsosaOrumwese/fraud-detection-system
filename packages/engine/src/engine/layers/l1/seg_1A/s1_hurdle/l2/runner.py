@@ -4,16 +4,23 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Tuple
+from typing import Iterable, Iterator, List, Sequence, Tuple
 
 from ...s0_foundations.exceptions import err
-from ...s0_foundations.l1.design import DesignVectors, iter_design_vectors
+from ...s0_foundations.l1.design import DesignVectors
 from ...s0_foundations.l1.rng import PhiloxEngine
-from ...s0_foundations.l2.output import S0Outputs
-from ...s0_foundations.l2.runner import SealedFoundations
 from ..l1.probability import hurdle_probability
 from ..l1.rng import counters, derive_hurdle_substream
 from .output import HurdleEventWriter
+
+
+@dataclass(frozen=True)
+class HurdleDesignRow:
+    """Minimal hurdle design row consumed by the S1 runner."""
+
+    merchant_id: int
+    bucket_id: int
+    design_vector: Tuple[float, ...]
 
 
 @dataclass(frozen=True)
@@ -53,17 +60,15 @@ class S1HurdleRunner:
         self,
         *,
         base_path: Path,
-        sealed: SealedFoundations,
-        outputs: S0Outputs,
+        manifest_fingerprint: str,
+        parameter_hash: str,
+        beta: Sequence[float],
+        design_rows: Iterable[HurdleDesignRow],
         seed: int,
         run_id: str,
     ) -> S1RunResult:
-        parameter_hash = sealed.parameter_hash.parameter_hash
-        manifest_fingerprint = sealed.manifest_fingerprint.manifest_fingerprint
-        engine = PhiloxEngine(
-            seed=seed,
-            manifest_fingerprint=sealed.manifest_fingerprint.manifest_fingerprint_bytes,
-        )
+        self._ensure_audit_exists(base_path, seed, parameter_hash, run_id)
+        engine = PhiloxEngine(seed=seed, manifest_fingerprint=manifest_fingerprint)
         writer = HurdleEventWriter(
             base_path=base_path / "logs" / "rng",
             seed=seed,
@@ -74,16 +79,17 @@ class S1HurdleRunner:
 
         decisions: List[HurdleDecision] = []
         multi_ids: List[int] = []
-        vectors = self._design_vectors(sealed, outputs)
+        seen_any = False
 
-        for vector in vectors:
+        for row in design_rows:
+            seen_any = True
             probability = hurdle_probability(
-                coefficients=outputs.hurdle_coefficients.beta,
-                design_vector=vector.x_hurdle,
+                coefficients=beta,
+                design_vector=row.design_vector,
             )
             substream = derive_hurdle_substream(
                 engine,
-                merchant_id=vector.merchant_id,
+                merchant_id=row.merchant_id,
             )
             before_state = substream.snapshot()
             blocks_before = substream.blocks
@@ -97,7 +103,7 @@ class S1HurdleRunner:
                 if not (0.0 < u_value < 1.0):
                     raise err(
                         "E_RNG_BUDGET",
-                        f"uniform not in (0,1) for merchant {vector.merchant_id}",
+                        f"uniform not in (0,1) for merchant {row.merchant_id}",
                     )
                 is_multi = u_value < probability.pi
 
@@ -106,13 +112,13 @@ class S1HurdleRunner:
             draws = substream.draws - draws_before
 
             writer.write_event(
-                merchant_id=vector.merchant_id,
+                merchant_id=row.merchant_id,
                 pi=probability.pi,
                 eta=probability.eta,
                 deterministic=probability.deterministic,
                 is_multi=is_multi,
                 u_value=u_value,
-                bucket_id=vector.bucket,
+                bucket_id=row.bucket_id,
                 counter_before=before_state,
                 counter_after=after_state,
                 draws=draws,
@@ -120,7 +126,7 @@ class S1HurdleRunner:
             )
 
             decision = HurdleDecision(
-                merchant_id=vector.merchant_id,
+                merchant_id=row.merchant_id,
                 eta=probability.eta,
                 pi=probability.pi,
                 deterministic=probability.deterministic,
@@ -133,10 +139,10 @@ class S1HurdleRunner:
             )
             decisions.append(decision)
             if is_multi:
-                multi_ids.append(vector.merchant_id)
+                multi_ids.append(row.merchant_id)
 
-        if not decisions:
-            raise err("E_DATASET_EMPTY", "no hurdle design vectors available for S1")
+        if not seen_any:
+            raise err("E_DATASET_EMPTY", "no hurdle design rows available for S1")
 
         return S1RunResult(
             seed=seed,
@@ -150,15 +156,46 @@ class S1HurdleRunner:
         )
 
     @staticmethod
-    def _design_vectors(
-        sealed: SealedFoundations,
-        outputs: S0Outputs,
-    ) -> Iterable[DesignVectors]:
-        return iter_design_vectors(
-            sealed.context,
-            hurdle=outputs.hurdle_coefficients,
-            dispersion=outputs.dispersion_coefficients,
-        )
+    def from_design_vectors(vectors: Iterable[DesignVectors]) -> Iterator[HurdleDesignRow]:
+        for vector in vectors:
+            yield HurdleDesignRow(
+                merchant_id=vector.merchant_id,
+                bucket_id=vector.bucket,
+                design_vector=tuple(vector.x_hurdle),
+            )
+
+    @staticmethod
+    def _ensure_audit_exists(
+        base_path: Path, seed: int, parameter_hash: str, run_id: str
+    ) -> None:
+        root = base_path.resolve()
+        candidates = [
+            root
+            / "logs"
+            / "rng"
+            / "audit"
+            / f"seed={seed}"
+            / f"parameter_hash={parameter_hash}"
+            / f"run_id={run_id}"
+            / "rng_audit_log.jsonl",
+            root
+            / "rng_logs"
+            / f"seed={seed}"
+            / f"parameter_hash={parameter_hash}"
+            / f"run_id={run_id}"
+            / "rng_audit_log.json",
+        ]
+        if not any(path.exists() for path in candidates):
+            raise err(
+                "E_RNG_COUNTER",
+                "rng audit log missing for hurdle run "
+                f"(seed={seed}, parameter_hash={parameter_hash}, run_id={run_id})",
+            )
 
 
-__all__ = ["HurdleDecision", "S1HurdleRunner", "S1RunResult"]
+__all__ = [
+    "HurdleDecision",
+    "HurdleDesignRow",
+    "S1HurdleRunner",
+    "S1RunResult",
+]

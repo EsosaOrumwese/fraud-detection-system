@@ -7,12 +7,13 @@ from .l1.rng import (
     counters,
     derive_hurdle_substream,
 )
-from .l2.runner import HurdleDecision, S1HurdleRunner, S1RunResult
+from .l2.runner import HurdleDecision, HurdleDesignRow, S1HurdleRunner, S1RunResult
 
 __all__ = [
     "HURDLE_MODULE_NAME",
     "HURDLE_SUBSTREAM_LABEL",
     "HurdleDecision",
+    "HurdleDesignRow",
     "HurdleProbability",
     "S1HurdleRunner",
     "S1RunResult",
