@@ -1,3 +1,6 @@
+semver: "0.1.0"
+version: "2025-10-09"
+
 
 eligibility:
   rule_set_id: synthetic_s0_2025_10
