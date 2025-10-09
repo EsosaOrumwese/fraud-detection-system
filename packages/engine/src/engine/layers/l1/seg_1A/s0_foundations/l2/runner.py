@@ -7,6 +7,7 @@ drive state-0 from a handful of file paths.  The module also provides the
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Mapping, Optional, Sequence
@@ -55,6 +56,8 @@ _REQUIRED_PARAMETER_FILES = (
     "nb_dispersion_coefficients.yaml",
     "crossborder_hyperparams.yaml",
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -334,6 +337,7 @@ class S0FoundationsRunner:
         extra_manifest_artifacts: Sequence[Path] | None = None,
     ) -> S0RunResult:
         """Execute the full S0 flow given concrete artefact paths on disk."""
+        logger.info("S0: loading ingress tables")
         merchant_table = self.load_table(merchant_table_path)
         iso_table = self.load_table(iso_table_path)
         gdp_table = self.load_table(gdp_table_path)
@@ -358,6 +362,7 @@ class S0FoundationsRunner:
                 "E_GIT_BYTES", f"invalid git commit hex '{git_commit_hex}'"
             ) from exc
 
+        logger.info("S0: sealing run context and computing lineage digests")
         sealed = self.seal(
             merchant_table=merchant_table,
             iso_table=iso_table,
@@ -399,6 +404,11 @@ class S0FoundationsRunner:
         ):
             pass
 
+        logger.info(
+            "S0: building outputs bundle (run_id=%s, parameter_hash=%s)",
+            run_id,
+            sealed.parameter_hash.parameter_hash,
+        )
         outputs = self.build_outputs_bundle(
             sealed=sealed,
             parameter_files=parameter_paths,
@@ -406,6 +416,7 @@ class S0FoundationsRunner:
         )
 
         try:
+            logger.info("S0: writing outputs to %s", base_path)
             write_outputs(
                 base_path=base_path,
                 sealed=sealed,
@@ -415,6 +426,7 @@ class S0FoundationsRunner:
                 philox_engine=engine,
             )
             if validate:
+                logger.info("S0: validating persisted artefacts")
                 from ..l3.validator import (
                     validate_outputs,
                 )  # local import to avoid cycle
@@ -439,6 +451,11 @@ class S0FoundationsRunner:
             )
             raise
 
+        logger.info(
+            "S0: completed run (run_id=%s, manifest_fingerprint=%s)",
+            run_id,
+            sealed.manifest_fingerprint.manifest_fingerprint,
+        )
         return S0RunResult(
             sealed=sealed,
             outputs=outputs,

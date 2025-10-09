@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
 from typing import Dict
@@ -67,6 +68,14 @@ def _normalise_config_path(value: object) -> Path:
     return candidate.resolve()
 
 
+def _configure_logging(level_name: str) -> None:
+    level = getattr(logging, level_name.upper(), logging.INFO)
+    logging.basicConfig(
+        level=level,
+        format="%(levelname)s %(message)s",
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -85,7 +94,15 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Skip re-opening persisted artefacts after the run.",
     )
+    parser.add_argument(
+        "--log-level",
+        default="INFO",
+        choices=["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"],
+        help="Logging level for progress messages (default: INFO).",
+    )
     args = parser.parse_args(argv)
+
+    _configure_logging(args.log_level)
 
     config_path = args.config.expanduser().resolve()
     config = _load_config(config_path)
