@@ -1,5 +1,14 @@
 {
   "policy_version": "2025-10-07",
+  "version": "2025-10-07",
+  "binary_format": "ieee754-binary64",
+  "rounding_mode": "rne",
+  "fma_allowed": false,
+  "flush_to_zero": false,
+  "denormals_are_zero": false,
+  "sum_policy": "serial_neumaier",
+  "parallel_decision_kernels": "disallowed",
+  "nan_inf_is_error": true,
   "merchants": {
     "total_min": 10000,
     "min_per_iso": 3,
@@ -11,7 +20,7 @@
     "k_buckets": 5
   },
   "channel": {
-    "card_not_present_min": 0.10,
-    "card_not_present_max": 0.40
+    "card_not_present_min": 0.1,
+    "card_not_present_max": 0.4
   }
 }
