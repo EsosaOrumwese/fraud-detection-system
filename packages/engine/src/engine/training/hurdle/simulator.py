@@ -142,10 +142,10 @@ def _build_brand_ids(merchant_ids: pl.Series) -> list[str]:
     brand_ids: list[str] = []
     for idx, value in enumerate(merchant_ids):
         if value is None:
-            base = idx
+            base = f"SIM_BRAND_{idx}"
         else:
-            base = int(value)
-        brand_ids.append(f"SIM_BRAND_{base}")
+            base = f"SIM_BRAND_{value}"
+        brand_ids.append(base)
     return brand_ids
 
 

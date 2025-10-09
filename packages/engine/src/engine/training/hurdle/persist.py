@@ -12,6 +12,7 @@ import polars as pl
 
 from .config import SimulationConfig, load_simulation_config
 from .simulator import SimulatedHurdleCorpus, simulate_hurdle_corpus
+from .validate import validate_simulation_run
 from .universe import MerchantUniverseSources
 
 
@@ -36,6 +37,7 @@ def _manifest_payload(
     corpus: SimulatedHurdleCorpus,
     dataset_paths: Mapping[str, Path],
     generated_at: str,
+    run_dir: Path,
 ) -> dict:
     return {
         "simulation_config": {
@@ -51,7 +53,10 @@ def _manifest_payload(
             "bucket_table": str(sources.bucket_table),
         },
         "generated_at_utc": generated_at,
-        "datasets": {name: str(path) for name, path in dataset_paths.items()},
+        "datasets": {
+            name: str(path.relative_to(run_dir)) if path.is_relative_to(run_dir) else str(path)
+            for name, path in dataset_paths.items()
+        },
         "summary": corpus.summary(),
     }
 
@@ -97,8 +102,14 @@ def materialise_simulated_corpus(
         corpus=corpus,
         dataset_paths=datasets,
         generated_at=ts_label,
+        run_dir=run_dir,
     )
     manifest_path.write_text(json.dumps(manifest_payload, indent=2, sort_keys=True), encoding="utf-8")
+
+    validation = validate_simulation_run(run_dir)
+    if not validation.ok:
+        detailed = "\n".join(f"- {msg}" for msg in validation.messages)
+        raise ValueError(f"persisted corpus failed validation:\n{detailed}")
 
     return SimulationArtefacts(
         base_path=output_base,

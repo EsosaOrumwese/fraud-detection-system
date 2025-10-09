@@ -44,7 +44,7 @@ def load_enriched_universe(
 
     merchants = load_parquet_table(resolved.merchant_table).with_columns(
         [
-            pl.col("merchant_id").cast(pl.Int64, strict=False),
+            pl.col("merchant_id").cast(pl.Utf8),
             pl.col("home_country_iso").alias("country_iso"),
             pl.col("channel").replace(_CHANNEL_MAP).alias("channel"),
         ]

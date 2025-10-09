@@ -10,6 +10,7 @@ from .config import (
 )
 from .persist import SimulationArtefacts, materialise_simulated_corpus
 from .simulator import SimulatedHurdleCorpus, simulate_hurdle_corpus
+from .validate import ValidationResult, validate_simulation_run
 from .universe import MerchantUniverseSources, load_enriched_universe
 
 __all__ = [
@@ -25,4 +26,6 @@ __all__ = [
     "simulate_hurdle_corpus",
     "SimulationArtefacts",
     "materialise_simulated_corpus",
+    "ValidationResult",
+    "validate_simulation_run",
 ]

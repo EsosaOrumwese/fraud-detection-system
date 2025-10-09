@@ -53,3 +53,9 @@ def test_materialise_simulated_corpus(tmp_path: Path) -> None:
     assert manifest["simulation_config"]["rng"]["seed"] == load_simulation_config(config_path).rng.seed
     assert manifest["summary"]["rows_logistic"] == logistic.height
     assert manifest["summary"]["rows_nb"] == nb_mean.height
+    assert not Path(manifest["datasets"]["logistic"]).is_absolute()
+
+    from engine.training.hurdle import validate_simulation_run
+
+    validation = validate_simulation_run(artefacts.run_path)
+    validation.raise_for_status()
