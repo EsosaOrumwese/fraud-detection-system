@@ -1,0 +1,35 @@
+{
+  "digests": [
+    {
+      "name": "numeric_policy.json",
+      "sha256": "f3c6c94f339893f68174470d9718a6e0600834db478a60a2a1bdd345d79397c5"
+    },
+    {
+      "name": "math_profile_manifest.json",
+      "sha256": "67d562c6be63c9071b5cc0b51ee88830ee07e79d45269d8534840501e512eae4"
+    }
+  ],
+  "flags": {
+    "binary_format": "ieee754-binary64",
+    "denormals_are_zero": false,
+    "flush_to_zero": false,
+    "fma_allowed": false,
+    "rounding": "rne"
+  },
+  "math_profile_id": "numpy_scipy_ref-2025-10-08",
+  "numeric_policy_version": "2025-10-07",
+  "platform": {
+    "machine": "AMD64",
+    "os": "windows",
+    "python": "3.11.11",
+    "release": "10"
+  },
+  "self_tests": {
+    "fma": "pass",
+    "ftz": "pass",
+    "libm": "pass",
+    "neumaier": "pass",
+    "rounding": "pass",
+    "total_order": "pass"
+  }
+}

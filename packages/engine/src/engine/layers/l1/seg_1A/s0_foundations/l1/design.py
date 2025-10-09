@@ -264,7 +264,15 @@ def design_dataframe(vectors: Iterable[DesignVectors]) -> pl.DataFrame:
                 "x_nb_dispersion": vector.x_nb_dispersion,
             }
         )
-    return pl.DataFrame(rows)
+    return pl.from_dicts(
+        rows,
+        schema_overrides={
+            "merchant_id": pl.UInt64,
+            "bucket": pl.UInt8,
+            "gdp_pc_usd_2015": pl.Float64,
+            "log_gdp_pc_usd_2015": pl.Float64,
+        },
+    )
 
 
 __all__ = [

@@ -244,17 +244,17 @@ def evaluate_eligibility(
             row_data["produced_by_fingerprint"] = produced_by_fingerprint
         rows.append(row_data)
 
-    schema = {
+    schema_overrides = {
         "parameter_hash": pl.String,
-        "merchant_id": pl.Int64,
+        "merchant_id": pl.UInt64,
         "is_eligible": pl.Boolean,
         "reason": pl.String,
         "rule_set": pl.String,
     }
     if produced_by_fingerprint is not None:
-        schema["produced_by_fingerprint"] = pl.String
+        schema_overrides["produced_by_fingerprint"] = pl.String
 
-    return pl.DataFrame(rows, schema=schema)
+    return pl.from_dicts(rows, schema_overrides=schema_overrides)
 
 
 __all__ = [

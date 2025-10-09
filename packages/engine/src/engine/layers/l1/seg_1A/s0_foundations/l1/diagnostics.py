@@ -60,16 +60,16 @@ def build_hurdle_diagnostics(
             row["produced_by_fingerprint"] = produced_by_fingerprint
         rows.append(row)
 
-    schema = {
+    schema_overrides = {
         "parameter_hash": pl.String,
-        "merchant_id": pl.Int64,
+        "merchant_id": pl.UInt64,
         "logit": pl.Float32,
         "pi": pl.Float32,
     }
     if produced_by_fingerprint is not None:
-        schema["produced_by_fingerprint"] = pl.String
+        schema_overrides["produced_by_fingerprint"] = pl.String
 
-    return pl.DataFrame(rows, schema=schema)
+    return pl.from_dicts(rows, schema_overrides=schema_overrides)
 
 
 __all__ = ["build_hurdle_diagnostics"]

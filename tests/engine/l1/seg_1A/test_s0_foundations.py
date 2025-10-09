@@ -54,7 +54,7 @@ def sample_context() -> tuple[RunContext, SchemaAuthority]:
             "gdp_pc_usd_2015": [50000.0, 48000.0],
         }
     )
-    buckets = pl.DataFrame({"country_iso": ["GB", "DE"], "bucket": [4, 3]})
+    buckets = pl.DataFrame({"country_iso": ["GB", "DE"], "bucket_id": [4, 3]})
     authority = SchemaAuthority(
         ingress_ref="l1/seg_1A/merchant_ids.schema.json",
         segment_ref="l1/seg_1A/s0_outputs.schema.json",
@@ -172,7 +172,7 @@ def runner_and_context(parameter_files, governance_files):
             "gdp_pc_usd_2015": [50000.0, 48000.0],
         }
     )
-    buckets = pl.DataFrame({"country_iso": ["GB", "DE"], "bucket": [4, 3]})
+    buckets = pl.DataFrame({"country_iso": ["GB", "DE"], "bucket_id": [4, 3]})
     authority = SchemaAuthority(
         ingress_ref="l1/seg_1A/merchant_ids.schema.json",
         segment_ref="l1/seg_1A/s0_outputs.schema.json",
@@ -579,7 +579,7 @@ def test_run_from_paths_end_to_end(
             "gdp_pc_usd_2015": [50000.0, 48000.0],
         }
     )
-    buckets = pl.DataFrame({"country_iso": ["GB", "DE"], "bucket": [4, 3]})
+    buckets = pl.DataFrame({"country_iso": ["GB", "DE"], "bucket_id": [4, 3]})
 
     merchants_path = tmp_path / "ingress" / "merchant_ids.parquet"
     iso_path = tmp_path / "ingress" / "iso.parquet"
@@ -652,7 +652,7 @@ def test_config_driven_smoke_run(
             "gdp_pc_usd_2015": [50000.0, 48000.0],
         }
     )
-    buckets = pl.DataFrame({"country_iso": ["GB", "DE"], "bucket": [4, 3]})
+    buckets = pl.DataFrame({"country_iso": ["GB", "DE"], "bucket_id": [4, 3]})
 
     ingress_dir = tmp_path / "ingress"
     ingress_dir.mkdir(parents=True, exist_ok=True)

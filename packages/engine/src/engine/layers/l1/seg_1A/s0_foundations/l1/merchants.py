@@ -125,8 +125,10 @@ def _iso_set(table: pl.DataFrame) -> frozenset[str]:
     return frozenset(iso_values)
 
 
-def _gdp_map(table: pl.DataFrame, iso_set: frozenset[str]) -> Dict[str, float]:
-    """Build a mapping ISO → GDP per capita and enforce presence/positivity."""
+def _gdp_map(
+    table: pl.DataFrame, required_iso: frozenset[str], *, iso_set: frozenset[str]
+) -> Dict[str, float]:
+    """Build a mapping ISO → GDP per capita for the required ISO set."""
     required_cols = {"country_iso", "observation_year", "gdp_pc_usd_2015"}
     missing = required_cols - set(table.columns)
     if missing:
@@ -148,7 +150,7 @@ def _gdp_map(table: pl.DataFrame, iso_set: frozenset[str]) -> Dict[str, float]:
                 f"duplicate GDP row for ISO '{country}' at year {_GDP_OBSERVATION_YEAR}",
             )
         mapping[country] = float(value)
-    missing_countries = iso_set - mapping.keys()
+    missing_countries = required_iso - mapping.keys()
     if missing_countries:
         raise err(
             "E_GDP_MISSING",
@@ -157,16 +159,18 @@ def _gdp_map(table: pl.DataFrame, iso_set: frozenset[str]) -> Dict[str, float]:
     return mapping
 
 
-def _bucket_map(table: pl.DataFrame, iso_set: frozenset[str]) -> Dict[str, int]:
+def _bucket_map(
+    table: pl.DataFrame, required_iso: frozenset[str], *, iso_set: frozenset[str]
+) -> Dict[str, int]:
     """Build a mapping ISO → GDP bucket id from the precomputed table."""
-    required_cols = {"country_iso", "bucket"}
+    required_cols = {"country_iso", "bucket_id"}
     missing = required_cols - set(table.columns)
     if missing:
         raise err("E_BUCKET_SCHEMA", f"bucket table missing columns {sorted(missing)}")
     mapping: Dict[str, int] = {}
     for row in table.iter_rows(named=True):
         country = row["country_iso"]
-        bucket = row["bucket"]
+        bucket = row["bucket_id"]
         if country not in iso_set:
             raise err(
                 "E_BUCKET_ISO_FK", f"bucket row ISO '{country}' not in run ISO set"
@@ -177,7 +181,7 @@ def _bucket_map(table: pl.DataFrame, iso_set: frozenset[str]) -> Dict[str, int]:
         if country in mapping:
             raise err("E_BUCKET_DUP", f"duplicate bucket row for ISO '{country}'")
         mapping[country] = ibucket
-    missing_iso = iso_set - mapping.keys()
+    missing_iso = required_iso - mapping.keys()
     if missing_iso:
         raise err(
             "E_BUCKET_MISSING", f"no bucket mapping for ISO(s) {sorted(missing_iso)}"
@@ -206,7 +210,11 @@ def build_run_context(
     _validate_ingress_schema(merchant_table, schema_authority)
     iso_set = _iso_set(iso_table)
 
-    records: List[Dict[str, object]] = []
+    merchant_ids: List[int] = []
+    mccs: List[int] = []
+    channels: List[str] = []
+    iso_codes: List[str] = []
+    merchant_u64s: List[int] = []
     for row in merchant_table.iter_rows(named=True):
         raw_id = row["merchant_id"]
         if raw_id is None:
@@ -216,30 +224,28 @@ def build_run_context(
         channel_sym = _map_channel(row["channel"], merchant_id)
         home_iso = _validate_iso(row["home_country_iso"], merchant_id, iso_set)
         merchant_u64 = _compute_merchant_u64(merchant_id)
-        records.append(
-            {
-                "merchant_id": merchant_id,
-                "mcc": mcc,
-                "channel_sym": channel_sym,
-                "home_country_iso": home_iso,
-                "merchant_u64": merchant_u64,
-            }
-        )
+        merchant_ids.append(merchant_id)
+        mccs.append(mcc)
+        channels.append(channel_sym)
+        iso_codes.append(home_iso)
+        merchant_u64s.append(merchant_u64)
 
     merchants_df = pl.DataFrame(
-        records,
-        schema={
-            "merchant_id": pl.Int64,
-            "mcc": pl.Int32,
-            "channel_sym": pl.String,
-            "home_country_iso": pl.String,
-            "merchant_u64": pl.UInt64,
-        },
+        {
+            "merchant_id": pl.Series(merchant_ids, dtype=pl.UInt64),
+            "mcc": pl.Series(mccs, dtype=pl.Int32),
+            "channel_sym": pl.Series(channels, dtype=pl.String),
+            "home_country_iso": pl.Series(iso_codes, dtype=pl.String),
+            "merchant_u64": pl.Series(merchant_u64s, dtype=pl.UInt64),
+        }
     )
 
     merchant_universe = MerchantUniverse(merchants_df)
-    gdp_map = _gdp_map(gdp_table, iso_set)
-    bucket_map = _bucket_map(bucket_table, iso_set)
+    run_iso = frozenset(
+        merchant_universe.merchants.get_column("home_country_iso").unique().to_list()
+    )
+    gdp_map = _gdp_map(gdp_table, run_iso, iso_set=iso_set)
+    bucket_map = _bucket_map(bucket_table, run_iso, iso_set=iso_set)
 
     return RunContext(
         merchants=merchant_universe,

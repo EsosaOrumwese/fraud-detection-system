@@ -38,7 +38,7 @@
           "merchant_id": {
             "type": "integer",
             "minimum": 0,
-            "maximum": 9223372036854775807
+            "maximum": 18446744073709551615
           },
           "bucket": {
             "type": "integer",
@@ -103,7 +103,7 @@
           "merchant_id": {
             "type": "integer",
             "minimum": 0,
-            "maximum": 9223372036854775807
+            "maximum": 18446744073709551615
           },
           "logit": {
             "type": "number"
@@ -149,7 +149,7 @@
           "merchant_id": {
             "type": "integer",
             "minimum": 0,
-            "maximum": 9223372036854775807
+            "maximum": 18446744073709551615
           },
           "is_eligible": {
             "type": "boolean"
