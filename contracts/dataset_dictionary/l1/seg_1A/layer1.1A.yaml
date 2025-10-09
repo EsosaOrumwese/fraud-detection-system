@@ -1,7 +1,7 @@
 version: '1.0'
 layer: layer1
 segment: seg_1A
-states: [s0, s1]
+states: [s0, s1, s2]
 
 reference:
   transaction_schema_merchant_ids:
@@ -135,3 +135,40 @@ rng_logs:
     partitioning: [seed, parameter_hash, run_id]
     owner: 1A
     retention_days: 180
+
+  rng_event_gamma_component:
+    description: Gamma draws used by the NB sampler for multi-site merchants.
+    format: jsonl
+    path: logs/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/gamma_component
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 180
+    gating:
+      gated_by: rng_event_hurdle_bernoulli
+      predicate: is_multi == true
+
+  rng_event_poisson_component:
+    description: Poisson draws used in NB composition and ZTP fallback.
+    format: jsonl
+    path: logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/poisson_component
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    ordering: [merchant_id, attempt]
+    retention_days: 180
+    gating:
+      gated_by: rng_event_hurdle_bernoulli
+      predicate: is_multi == true
+
+  rng_event_nb_final:
+    description: Final Negative Binomial outlet counts (accepted draws).
+    format: jsonl
+    path: logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/nb_final
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 180
+    gating:
+      gated_by: rng_event_hurdle_bernoulli
+      predicate: is_multi == true
