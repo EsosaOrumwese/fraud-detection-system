@@ -93,6 +93,7 @@ def simulate_hurdle_corpus(
             "mcc": mcc_codes,
             "channel": channels,
             "gdp_bucket": gdp_bucket,
+            "ln_gdp_pc_usd_2015": ln_gdp,
             "is_multi": is_multi,
         }
     )
@@ -103,6 +104,8 @@ def simulate_hurdle_corpus(
             "country_iso": countries,
             "mcc": mcc_codes,
             "channel": channels,
+            "gdp_bucket": gdp_bucket,
+            "ln_gdp_pc_usd_2015": ln_gdp,
             "k_domestic": k_domestic,
         }
     ).filter(pl.col("k_domestic") > 0)

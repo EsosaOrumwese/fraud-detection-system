@@ -117,3 +117,34 @@ def materialise_simulated_corpus(
         manifest_path=manifest_path,
         dataset_paths=datasets,
     )
+
+
+def load_persisted_corpus(manifest_path: Path) -> SimulatedHurdleCorpus:
+    """Re-open a persisted synthetic corpus from a manifest.json path."""
+    if not manifest_path.exists():
+        raise FileNotFoundError(f"manifest not found: {manifest_path}")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    datasets = manifest.get("datasets", {})
+    base_dir = manifest_path.parent
+
+    def _resolve(name: str) -> Path:
+        raw = datasets.get(name)
+        if raw is None:
+            raise ValueError(f"manifest missing dataset entry for '{name}'")
+        path = Path(raw)
+        if not path.is_absolute():
+            path = (base_dir / path).resolve()
+        if not path.exists():
+            raise FileNotFoundError(f"dataset '{name}' not found at {path}")
+        return path
+
+    logistic = pl.read_parquet(_resolve("logistic"))
+    nb_mean = pl.read_parquet(_resolve("nb_mean"))
+    aliases = pl.read_parquet(_resolve("brand_aliases"))
+    channel_roster = pl.read_parquet(_resolve("channel_roster"))
+    return SimulatedHurdleCorpus(
+        logistic=logistic,
+        nb_mean=nb_mean,
+        brand_aliases=aliases,
+        channel_roster=channel_roster,
+    )
