@@ -1,0 +1,76 @@
+Here’s the **TTS-friendly narration** of the **first half of S0.5**, with equations and rules explained in natural spoken flow.
+
+---
+
+State S0 point 5. Design matrices, for the hurdle and the negative binomial. This section is normative and fixed.
+
+Purpose and scope.
+The task here is to deterministically construct column-aligned design vectors for every merchant. These vectors are used in two places. First, in the hurdle logistic regression that decides whether a merchant is single-site or multi-site, which will be used in state 1. And second, in the negative binomial branch, which will be used in state 2, for both the mean and the dispersion links.
+
+The key point is that column dictionaries and their ordering come frozen from the model-fitting bundle. They are never recomputed at runtime. No randomness is consumed here.
+
+---
+
+Inputs, all read-only, pinned by states S0 point 1 through S0 point 4.
+
+From ingress and state S0 point 1, which have already validated and mapped: merchant id, merchant category code, the channel symbol which is either CP or CNP, and the home country ISO code.
+
+From state S0 point 4: g sub c, which is the GDP per capita for the merchant’s home country c, and b sub m, which is the Jenks five-class bucket for that home country. Both are pure lookups.
+
+From the fitting bundle. These are parameter-scoped artefacts, and their bytes contribute to the parameter hash.
+
+First, the column dictionaries, which define the order of the one-hot encodings. These are: merchant category code dummies of size C sub m c c; channel dummies of size two, with the canonical order exactly “C P” then “C N P”; and GDP bucket dummies of size five, with the order one through five. These dictionaries are shipped together with the fitted coefficients, and the byte order is authoritative.
+
+Second, the coefficient vectors. For the hurdle, there is a single YAML vector beta that contains: the intercept, the MCC block, the channel block, and all five bucket dummies. For the negative binomial dispersion, the coefficients include an intercept, the MCC block, the channel block, and a slope on the natural log of g sub c. By design, the negative binomial mean excludes GDP bucket.
+
+Global design rule. The GDP bucket enters only into the hurdle design. The natural log of g sub c enters only into the negative binomial dispersion. The builder must assert this at construction time.
+
+---
+
+Encoders. Deterministic one-hot encodings with frozen columns.
+
+The frozen dictionaries give column indices. Define three one-hot functions.
+
+Phi sub m c c maps a merchant category code into a binary vector of length C sub m c c.
+Phi sub c h maps the channel symbol, either C P or C N P, into a binary vector of length two.
+Phi sub dev maps the GDP bucket, one through five, into a binary vector of length five.
+
+Each of these functions returns exactly one entry equal to one at the index dictated by its dictionary. The intercept is always the leading scalar one.
+
+Channel vocabulary is normative. The only internal symbols are C P and C N P, coming from the mapping defined in state S0 point 1. The channel dictionary must be exactly, in order, C P then C N P.
+
+---
+
+Design vectors. Definitions, dimensions, and strict order.
+
+For merchant m with home country c, GDP per capita g sub c strictly greater than zero, and bucket b sub m between one and five.
+
+First, the hurdle design vector. x sub m equals the concatenation of: the intercept one, the merchant category code one-hot, the channel one-hot, and the bucket one-hot. So x sub m lives in real space of dimension one plus C sub m c c plus two plus five.
+
+The linear predictor eta sub m equals beta transpose times x sub m. Then pi sub m equals sigma of eta sub m, which is the logistic function. That is, one over one plus e to the minus eta. All hurdle coefficients, including the five bucket dummies, are contained in the single ordered vector beta.
+
+Next, the negative binomial designs.
+
+For the mean link, x superscript mu sub m equals the concatenation of: intercept one, the merchant category code one-hot, and the channel one-hot. This vector has dimension one plus C sub m c c plus two.
+
+For the dispersion link, x superscript phi sub m equals intercept one, plus merchant category code one-hot, plus channel one-hot, and finally the natural log of g sub c. This vector has dimension one plus C sub m c c plus two plus one.
+
+The leakage guard is enforced. Bucket dummies are not present in the mean design. The log of g sub c appears only in the dispersion design.
+
+---
+
+Safe logistic evaluation. Notation is consistent with section S0 point 3: “ln” means natural logarithm.
+
+The branch-stable form is as follows.
+
+If eta is greater than or equal to zero, sigma of eta equals one divided by one plus e to the power minus eta.
+
+If eta is less than zero, sigma of eta equals e to the power eta divided by one plus e to the power eta.
+
+There is no clamping in the compute path. This ensures that extreme values of eta can legitimately underflow or overflow, producing pi equal to zero or one. State 1 will treat those as zero-draw Bernoulli cases, per state S0 point 3.
+
+For display or logging purposes, it is allowed to format pi as zero or one whenever the absolute value of eta is greater than forty. But this formatting must not affect computation.
+
+---
+
+That completes the first half of S0 point 5. The next half will continue with materialisation, validation hooks, and the reference routine.

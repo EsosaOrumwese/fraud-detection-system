@@ -1,0 +1,120 @@
+Here’s the **TTS-friendly narration** of the **first half of S0.6**, with all technical content preserved and explained for listening clarity:
+
+---
+
+State S0 point 6. Purpose.
+
+The goal here is to decide, without any randomness, whether each merchant m is permitted to attempt cross-border expansion later. In other words, whether that merchant is allowed to proceed into states S4 through S6.
+
+We persist exactly one row per merchant into the parameter-scoped dataset called “crossborder underscore eligibility underscore flags.” Each row has the following fields:
+
+Parameter hash, which is the sixty-four-character hex string. This must equal the partition path key.
+Produced underscore by underscore fingerprint, which is another sixty-four-character hex string. This field is optional and only for provenance; it never enters partitioning or equality checks.
+Merchant id, which is the primary key. Each merchant must have exactly one row.
+Is underscore eligible, a boolean.
+Reason, a string which may be null. It is either the winning rule identifier, or the literal string default underscore allow, or default underscore deny.
+Rule underscore set, a non-empty string copied directly from the eligibility rule set identifier in the parameter bundle.
+
+Because this dataset is parameter-scoped, it partitions only by parameter hash, and the rows must embed the same parameter hash in the data itself. No randomness is consumed in this state.
+
+---
+
+Inputs, all read-only and already pinned.
+
+The merchant tuple t of m equals merchant category code, channel symbol, and home country ISO, from the merchant ids table of state S0 point 1. The channel symbol is either C P or C N P, with the mapping from ingress strings fixed in state S0 point 1.
+
+The parameter bundle “crossborder underscore hyperparams dot yaml,” governed by the parameter hash. This contains the eligibility rule set.
+
+Lineage keys: parameter hash, used both in the partition path and as an embedded column.
+
+Schema and dictionary: the dataset crossborder eligibility flags, partitioned by parameter hash, with schema at “schemas dot 1A dot yaml, anchor prep slash crossborder underscore eligibility underscore flags.”
+
+---
+
+Output, which is authoritative.
+
+We write one row per merchant m to the path: crossborder underscore eligibility underscore flags, parameter underscore hash equals the hash, followed by part star dot parquet.
+
+The columns, as defined in the schema, are: parameter hash, fingerprint optional, merchant id, is eligible, reason, and rule set.
+
+---
+
+Domains and symbols.
+
+Channels. The set capital C equals left brace C P, C N P right brace. These are the only internal symbols; the ingress strings were mapped in S0 point 1.
+Countries. The set capital I, the ISO 3166 alpha two codes, uppercase ASCII, pinned in S0 point 1.
+Merchant category codes. The set capital K of four-digit codes, domain pinned in S0 point 1.
+
+---
+
+Rule family and configuration semantics.
+
+All eligibility rules live in the file “crossborder underscore hyperparams dot yaml” under the eligibility section.
+
+This section has the following structure.
+Rule underscore set underscore id. For example, “eligibility dot v one dot two zero two five dash zero four dash fifteen.” This is non-empty ASCII and becomes the rule underscore set column value.
+Default underscore decision, which must be either allow or deny.
+And then a list of rules. Each rule has an id, which is ASCII and unique within the bundle. A priority, an integer between zero and two to the thirty-one minus one. A decision, either allow or deny. A channel field, which is either a star wildcard or a subset of the set C P, C N P. An iso field, either a star or a subset of the ISO set in uppercase. An m c c field, either a star or a list of four-digit strings or inclusive ranges like “five thousand dash five thousand nine hundred ninety nine.” Finally, a reason string, such as “sanctions.”
+
+Bundle validation at load time requires that all of these conditions hold. Reject any merchant category code not in the set capital K after expanding ranges. Reject any ISO code not in capital I.
+
+---
+
+Set interpretation and matching.
+
+After expanding wildcards and MCC ranges, each rule r defines three sets: S sub m c c, a subset of the merchant category codes; S sub c h, a subset of the channels; and S sub iso, a subset of the ISO countries. The rule also carries a decision d, which is either allow or deny.
+
+A rule r matches a merchant m if and only if the merchant’s MCC is in S sub m c c, the channel symbol is in S sub c h, and the home country ISO is in S sub iso.
+
+Range semantics for MCC. A range like “five thousand dash five thousand nine hundred ninety nine” means all integer codes from five thousand up to five thousand nine hundred ninety nine inclusive. Codes are compared numerically after parsing the four-digit strings.
+
+---
+
+Conflict resolution and determinism.
+
+When multiple rules match a merchant, choose the winning one using this total order.
+
+First tier, decision. A deny rule always outranks an allow rule.
+Second tier, priority. Lower integer priority outranks higher. For example, priority ten beats fifty.
+Third tier, tie-break. If still tied, use ASCII lexical order on the rule id.
+
+Let best deny of m be the top-ranked deny rule that matches merchant m, or none if none match. Let best allow of m be the top-ranked allow rule that matches m, or none if none match.
+
+Decision procedure.
+If best deny exists, then is eligible equals false, and reason equals that rule’s id.
+Else if best deny is none, and best allow exists, then is eligible equals true, and reason equals that rule’s id.
+Else, fall back to the default decision. Is eligible is true if the default decision is allow, otherwise false. The reason is either default underscore allow or default underscore deny accordingly.
+
+This procedure is order-invariant and safe to run in parallel.
+
+---
+
+Algorithm, exact and streaming safe.
+
+For each merchant m:
+Step one. Fetch the merchant tuple t of m.
+Step two. Build candidate sets of deny rules and allow rules by matching against the merchant.
+Step three. Choose the winner per the conflict resolution logic. Determine the reason string.
+Step four. Write a row partitioned by parameter hash, with the fields we listed earlier: parameter hash, optional produced by fingerprint, merchant id, is eligible, reason, and rule set.
+
+Performance notes. For efficiency, index rules by channel and home ISO, and keep merchant category ranges in an interval set. This gives logarithmic matching. At current scale, a naive linear scan of rules is also acceptable.
+
+---
+
+Formal specification, the decision function.
+
+We define an order relation called “prec.” It is a tuple ordering over decision, priority, and identifier. In this ordering, deny is less than allow. Priority is compared in ascending order. If priorities are equal, then the ASCII identifier order is used.
+
+Then, best deny of m equals the minimum under this order among all deny rules that match merchant m.
+Best allow of m equals the minimum under this order among all allow rules that match merchant m.
+
+Finally, the eligibility outcome, called e sub m, is defined as follows.
+Case one, if best deny of m exists, then e sub m equals zero.
+Case two, if best deny of m is empty and best allow of m exists, then e sub m equals one.
+Case three, otherwise, e sub m equals one if the default decision is allow, and zero if the default decision is deny.
+
+The reason is the winning rule identifier, or the default allow or default deny string.
+
+---
+
+That concludes the **first half of S0 point 6**. The next half will cover determinism, validation, failure semantics, and the reference routine.

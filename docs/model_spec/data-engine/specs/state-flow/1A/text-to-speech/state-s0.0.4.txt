@@ -1,0 +1,136 @@
+Here’s the **TTS-friendly narration** of **S0.4, Deterministic GDP Bucket Assignment**. I’ve preserved all the technical detail, but read it out as a natural flow, with the equations explained in words so it’s easier to follow when listening.
+
+---
+
+State S0 point 4. Deterministic GDP bucket assignment. Normative and fixed.
+
+Purpose.
+In this state we attach to every merchant two deterministic, non-stochastic features, both drawn from pinned reference data.
+
+First, g sub c. That is the GDP per capita level for the merchant’s home country, call it c, taken from the World Bank data extract pinned to April fifteenth, twenty twenty-five, at a fixed observation year.
+
+Second, b sub m. This is an integer bucket identifier between one and five. It comes from a precomputed Jenks classification with K equals five, mapping each home country into one of the five buckets.
+
+No randomness is consumed here. Everything is a pure lookup, determined by the frozen bytes from state S0 point 1 and point 2.
+
+---
+
+Inputs and domains, read-only and pinned.
+
+The ingress universe is the merchant underscore ids table, carrying merchant id, merchant category code, channel, and home country ISO. The home country ISO is uppercase ASCII, two characters, and is foreign-key validated against the ISO set fixed in state S0 point 1.
+
+The GDP vintage, a total function called capital G. The artefact is “world underscore bank underscore g d p underscore per underscore capita underscore 2025 04 15.” Its schema guarantees exactly one row per country code and observation year, and every value must be strictly positive.
+
+The normative pinning for this run is observation year equals two thousand twenty-four, in constant 2015 U.S. dollars. So the map capital G goes from each country code to a positive real number, written as GDP per capita of country c, year 2024, in constant 2015 U.S. dollars.
+
+The bucket map, a total function B. This is the artefact “g d p underscore bucket underscore map underscore 2024.” Its primary key is the country code, and it stores a bucket value between one and five. This map is a precomputed Jenks five-class classification built from the same GDP values, same countries, same observation year, and same units. It is never recomputed at runtime.
+
+Both artefacts are enumerated in the registry and dictionary as runtime, read-only inputs, and are included in the manifest fingerprint from state S0 point 2. Any change in their bytes flips the fingerprint.
+
+---
+
+Canonical definition of what this state does.
+
+For a merchant m in the set of merchants, with home country code c in the ISO set:
+
+g sub c is defined as G of c. This is a positive real value.
+
+b sub m is defined as B of c. This is one of the integers from one to five.
+
+These are lookups only. No thresholds are calculated at runtime.
+
+---
+
+Semantics and downstream usage.
+
+The Jenks bucket b sub m is used only in the hurdle design, where it appears as five one-hot encoded dummy variables. Their column order is frozen by the fitting bundle.
+
+The natural logarithm of g sub c, the GDP per capita, is used only in the negative binomial dispersion stage, never in the mean.
+
+If these features are materialised into a dataset, they live under the path partitioned by the parameter hash. They are parameter-scoped model artefacts, governed by schemas in “schemas dot 1A dot yaml,” for example the hurdle design matrix and the hurdle pi probabilities. Otherwise, they remain transient and pass directly into state S0 point 5.
+
+---
+
+Determinism and numeric policy.
+
+There is no randomness here. The outputs are identical across shards and reruns as long as the manifest fingerprint is the same.
+
+Any derived transforms, such as the logarithm of g sub c used later, must use binary sixty-four arithmetic, with round-to-nearest, ties to even, fused multiply-add disabled, and serial evaluation order, as laid out in state S0 point 8.
+
+Class semantics, for continuous-integration intuition only. If the bucket map B were to be recomputed, then the Jenks thresholds tau zero through tau five satisfy: the bucket for country c equals k if and only if G of c lies strictly above tau k minus one and less than or equal to tau k. In other words, classes are right-closed. The authoritative truth, however, is always the shipped table B, not a runtime recomputation.
+
+---
+
+Failure semantics. Abort with a clear message, including the offending dataset and key, if any of the following occur.
+
+Error code E home ISO foreign key, if a merchant’s home country code is not in the ISO set from state S0 point 1.
+Error code E GDP missing for country c, if there is no GDP row for c at observation year twenty twenty-four.
+Error code E GDP non-positive, if the GDP value for c is less than or equal to zero. This is a double guard, since the schema already forbids it.
+Error code E bucket missing, if there is no bucket row for c in the g d p bucket map.
+Error code E bucket range, if the bucket value is not between one and five. Again, a double guard.
+
+---
+
+Validation hooks, both runtime and continuous integration.
+
+One, coverage. Every home country ISO in the merchant table must have both a GDP value and a bucket.
+Two, foreign key integrity. All country codes in the GDP and bucket tables must be members of the ISO set.
+Three, lineage evidence. Both artefacts must appear in the manifest fingerprint enumeration; their counts and digests are logged by state S0 point 2.
+Four, optional CI rebuild, not at runtime. Recompute the Jenks five-class partition from the pinned GDP values and assert equality with the g d p bucket map. Fail with a per-country difference if not identical.
+
+---
+
+Optional rebuild spec for the bucket map, continuous integration only, deterministic.
+
+The goal is to build the optimal one-dimensional five-class partition using Jenks, which is equivalent to optimal k-means dynamic programming, over the GDP values.
+
+Procedure.
+Step one. Build a sorted vector y one through y n of GDP values, using a stable sort by value then by country code to make ties deterministic.
+Step two. Compute prefix sums. S sub k equals the sum of y one through y k. Q sub k equals the sum of squares from y one through y k.
+Step three. Define S S E of interval a through b equals Q sub b minus Q sub a minus one, minus the square of the difference S sub b minus S sub a minus one, divided by b minus a plus one. Then fill a dynamic programming table: D b one equals S S E of one through b. And in general, D b j equals the minimum over a between j and b of D a minus one comma j minus one plus S S E of a through b. Keep backpointers P b j.
+Step four. Backtrack at b equals n, j equals five, to get the split indices t one through t four.
+Step five. Thresholds are tau one equals y at t one, up through tau four equals y at t four. Classes are right-closed.
+Step six. Tie handling. If multiple optimal partitions exist in flat regions, choose the lexicographically smallest tuple of split points, preferring earlier splits.
+Step seven. Map bucket of country c equals k if and only if G of c is between tau k minus one and tau k inclusive. Emit a deterministic diff if any country’s bucket differs from the shipped map.
+
+This rebuild spec is only for CI verification. Runtime never recomputes the bucket map.
+
+---
+
+Reference routine for the runtime path, language-agnostic.
+
+Function S0 underscore 4 underscore attach underscore gdp underscore features of merchants, ISO set, GDP map, and bucket map.
+
+Inputs.
+M: the merchant underscore ids table, containing merchant id, merchant category code, channel, and home country ISO.
+I: the ISO two-character set in uppercase ASCII.
+G: the map from ISO code to positive real GDP value for observation year twenty twenty-four, in constant 2015 U.S. dollars.
+B: the map from ISO code to integer bucket from one through five, drawn from g d p bucket map twenty twenty-four.
+
+Output. An iterator of merchant id, g sub c, and b sub m.
+
+For each row in the merchant table:
+Read m, the merchant id, and c, the home country ISO code.
+Assert that c is in the ISO set, otherwise raise error E home ISO foreign key.
+Lookup g equals G of c. If g is missing, raise error E GDP missing. If g is not strictly greater than zero, raise error E GDP non-positive.
+Lookup b equals B of c. If missing, raise error E bucket missing. If not between one and five, raise error E bucket range.
+Yield the triple of merchant id, g sub c, and b sub m. These are then carried forward into state S0 point 5, or optionally materialised under the parameter hash.
+
+---
+
+Complexity, concurrency, and partitions.
+
+Time complexity is order of the number of merchants, since it is just hash lookups. Space complexity is constant per row, since only the looked-up values are kept.
+Parallelism. The work is embarrassingly parallel; determinism still holds, since these are pure lookups.
+Lineage and partitions. Both GDP and bucket artefacts are in the manifest fingerprint. Changing either flips egress partitions. If features are materialised into design artefacts, they are parameter-scoped only, meaning they partition by parameter hash but must not embed the manifest fingerprint.
+
+---
+
+Bottom line.
+State S0 point 4 is a strict, zero-randomness lookup that attaches two features per merchant: GDP per capita for the home country at observation year twenty twenty-four in constant 2015 dollars, and the Jenks five-class bucket identifier for that same country. Rebuild rules are deterministic and used only in continuous integration. The class intervals are right-closed. Failure codes are explicit. Storage and lineage boundaries are clear. This makes sure that state S0 point 5 and later states can consume these features as immutable, reproducible inputs.
+
+---
+
+That’s the TTS-ready version of **S0.4**. It flows cleanly from where we left off in S0.3, and sets up the GDP-driven features that 1A’s hurdle and negative binomial routines will consume in S0.5 and beyond.
+
+Would you like me to proceed with **S0.5** next in the same style?
