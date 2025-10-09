@@ -1,0 +1,15 @@
+{
+  "dataset_id": "population_raster_2025",
+  "version": "2025",
+  "generated_at_utc": "2025-10-08T22:20:39.390670+00:00",
+  "generator_script": "scripts/build_population_raster.py",
+  "source_tif": "artefacts\\spatial\\population_raster\\2025\\raw\\global_2020_1km_UNadj_uncounstrained.tif",
+  "source_tif_sha256": "5132a0399d62e75670594f5cfabd6fa6a1ec75b019735797b809d682f60f95c7",
+  "output_tif": "reference\\spatial\\population_raster\\2025\\population_raster_2025.tif",
+  "output_tif_sha256": "a1b619bd867a83ee5c222c24edce00feed388cb90b23fadd5d245a2ff1e9ef8b",
+  "qa_path": "reference\\spatial\\population_raster\\2025\\population_raster_2025.qa.json",
+  "qa_sha256": "b2330a28cbebf7359c11d60007096f16f9b63308d0300557d7fc7cb3a3447f9c",
+  "width": 43199,
+  "height": 16755,
+  "crs": "GEOGCS[\"WGS 84\",DATUM[\"World Geodetic System 1984\",SPHEROID[\"WGS 84\",6378137,298.257223563]],PRIMEM[\"Greenwich\",0],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AXIS[\"Latitude\",NORTH],AXIS[\"Longitude\",EAST]]"
+}

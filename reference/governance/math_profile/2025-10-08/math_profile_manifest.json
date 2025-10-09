@@ -1,0 +1,23 @@
+{
+  "math_profile_id": "numpy_scipy_ref-2025-10-08",
+  "version": "2025-10-08",
+  "functions": [
+    "numpy.sum",
+    "numpy.dot",
+    "scipy.special.logsumexp"
+  ],
+  "artifacts": [
+    {
+      "name": "numpy-1.26.4",
+      "sha256": "3a1f6d8f2f9640d8d4a0b0b8f5a0a733c1d1a4ef2d4bc724a3a8f976b9e5c123"
+    },
+    {
+      "name": "scipy-1.13.0",
+      "sha256": "8b9d92b8893d6b45f2f279ef4fd1f1c80c1720024ae2bde48c9eaef45d0b7f42"
+    }
+  ],
+  "generated_at_utc": "2025-10-08T22:35:41.6311006Z",
+  "checksum": "0000000000000000000000000000000000000000000000000000000000000000",
+  "vendor": "Custom",
+  "notes": "Reference math profile for deterministic numeric tests."
+}

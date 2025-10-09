@@ -1,0 +1,27 @@
+# Merchant allocation policy driving S0 merchant universe sizing.
+#
+# total_merchants is the deterministic target for the universe. Per-ISO
+# allocations are derived from GDP weights with a heavy-tail exponent and
+# minimum floor enforced post-rounding.
+
+policy_version: "2025-10-07"
+total_merchants: 20000
+min_per_iso: 3
+max_per_iso: 800
+
+weighting:
+  base_metric: gdp_per_capita  # options: gdp_per_capita, gdp, population
+  exponent: 1.2                # >1 emphasises larger economies
+  heavy_tail: 0.15             # share reallocated to top markets (Pareto boost)
+
+regional_adjustments:
+  # Optional multipliers applied after base weighting
+  EU:
+    iso_codes: [AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR, DE, GR, HU, IE, IT, LV, LT, LU, MT, NL, PL, PT, RO, SK, SI, ES, SE]
+    multiplier: 1.05
+  APAC:
+    iso_codes: [AU, NZ, JP, SG, HK, KR]
+    multiplier: 1.10
+
+seed: "transaction_schema_merchant_ids.v2025-10-07"
+

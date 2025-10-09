@@ -1,0 +1,22 @@
+{
+  "dataset_id": "gdp_bucket_map_2024",
+  "version": "2025-10-07",
+  "source_version": "2025-10-07",
+  "classification": "jenks",
+  "num_classes": 5,
+  "breaks": [
+    255.598395837897,
+    10313.4868482109,
+    26045.885218566,
+    49956.5967466462,
+    79670.1420042301,
+    117661.27172681
+  ],
+  "generated_at_utc": "2025-10-08T18:14:23.602397+00:00",
+  "input_parquet": "reference\\economic\\world_bank_gdp_per_capita\\2025-10-07\\gdp.parquet",
+  "input_parquet_sha256": "982f45c84fbdb20b6c7a9fd0704d6d1eafeeb43d80ade138209b6fcfa76059dd",
+  "output_csv": "reference\\economic\\gdp_bucket_map\\2025-10-07\\gdp_bucket_map_2024.csv",
+  "output_csv_sha256": "ce4044d42402e51131d4fe0e54fe8094e64e5f12cd4038a043fb572e36b2e194",
+  "output_parquet": "reference\\economic\\gdp_bucket_map\\2025-10-07\\gdp_bucket_map.parquet",
+  "output_parquet_sha256": "bcd3feb3330bc2bb0a5571f20c4fea41d74d7a5b66b74d98607b119a29a1fc92"
+}

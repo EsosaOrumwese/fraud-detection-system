@@ -1,0 +1,116 @@
+semver: "1.0.0"
+version: "2024-Q4"
+defaults:
+  total_obs: 100000
+  min_obs_per_pair: 50
+  epsilon_share: 1e-6
+currencies:
+  USD:
+    total_obs: 150000
+    iso:
+      - "US"
+      - "PR"
+      - "GU"
+      - "MP"
+      - "AS"
+      - "VI"
+      - "EC"
+      - "SV"
+      - "PA"
+      - "TL"
+      - "FM"
+      - "MH"
+      - "PW"
+      - "BQ"
+      - "VG"
+      - "TC"
+      - "ZW"
+  EUR:
+    total_obs: 200000
+    iso:
+      - "AT"
+      - "BE"
+      - "HR"
+      - "CY"
+      - "EE"
+      - "FI"
+      - "FR"
+      - "DE"
+      - "GR"
+      - "IE"
+      - "IT"
+      - "LV"
+      - "LT"
+      - "LU"
+      - "MT"
+      - "NL"
+      - "PT"
+      - "SK"
+      - "SI"
+      - "ES"
+      - "AD"
+      - "MC"
+      - "SM"
+      - "VA"
+      - "ME"
+      - "GF"
+      - "MQ"
+      - "GP"
+      - "RE"
+      - "YT"
+      - "PM"
+      - "PF"
+      - "NC"
+      - "WF"
+      - "BL"
+      - "MF"
+  GBP:
+    total_obs: 80000
+    iso:
+      - "GB"
+      - "GG"
+      - "JE"
+      - "IM"
+      - "GI"
+      - "FK"
+      - "SH"
+  CHF:
+    iso:
+      - "CH"
+      - "LI"
+  SEK:
+    iso:
+      - "SE"
+  DKK:
+    iso:
+      - "DK"
+      - "FO"
+      - "GL"
+  NOK:
+    iso:
+      - "NO"
+      - "SJ"
+  CAD:
+    iso:
+      - "CA"
+  JPY:
+    iso:
+      - "JP"
+  HKD:
+    iso:
+      - "HK"
+  AUD:
+    iso:
+      - "AU"
+      - "CX"
+      - "CC"
+      - "HM"
+      - "NF"
+      - "KI"
+      - "TV"
+  SGD:
+    iso:
+      - "SG"
+  CNY:
+    iso:
+      - "CN"

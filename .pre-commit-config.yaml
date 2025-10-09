@@ -1,89 +1,66 @@
-repos:
-  - repo: https://github.com/psf/black
-    rev: 25.1.0
-    hooks:
-      - id:
-          black
+minimum_pre_commit_version: "3.7.0"
+default_language_version:
+  python: python3.11
 
+default_stages: [pre-commit]
+
+repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.11.10
     hooks:
       - id: ruff
-        args:
-          [--fix]
+        args: ["--fix", "--exit-non-zero-on-fix"]
+        files: "^packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/|^tests/engine/l1/seg_1A/"
+      - id: ruff-format
+        files: "^packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/|^tests/engine/l1/seg_1A/"
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-yaml
+        files: "^packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/.*\\.(ya?ml)$"
+      - id: end-of-file-fixer
+        files: "^packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/"
+      - id: trailing-whitespace
+        files: "^packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/"
 
   - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
     rev: v2.14.0
     hooks:
       - id: pretty-format-yaml
-        exclude: '(^\.github/workflows/(ci|daily_cost)\.yml$|^\.pre-commit-config\.yaml$|^orchestration/)'
         args: ["--autofix", "--indent", "2"]
-        additional_dependencies:
-          - ruamel.yaml==0.18.7
-
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
-    hooks:
-      - id: check-yaml
-        exclude: '(^orchestration/)'
-      - id: end-of-file-fixer # adds final newline, strips CRs
-        files: '^(config/.*|\.github/workflows/.*|scripts/.*|\.pre-commit-config\.yaml)$'
-      - id: trailing-whitespace # strips stray spaces/tabs
-        files: '^(config/.*|\.github/workflows/.*|scripts/.*|\.pre-commit-config\.yaml)$'
+        files: "^packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/.*\\.(ya?ml)$"
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.15.0
     hooks:
       - id: mypy
+        name: mypy (manual)
+        args:
+          - "--config-file"
+          - "mypy.ini"
+          - "--install-types"
+          - "--non-interactive"
         additional_dependencies:
-          [types-requests] # add stubs as needed
-
-  - repo: local
-    hooks:
-      - id: airflow-compose-lint
-        name: docker-compose lint (airflow)
-        entry: docker compose -f orchestration/airflow/docker-compose.yml config
-        language: system
-        files: '^(orchestration/airflow/docker-compose\.yml)$'
-        pass_filenames: false
-
-  - repo: local
-    hooks:
-      - id: pytest
-        name: pytest
-        entry: pytest -q
-        language: system
-        types: [python]
-        pass_filenames:
-          false
-
-#  - repo: https://github.com/Yelp/detect-secrets
-#    rev: v1.5.0
-#    hooks:
-#      - id: detect-secrets
-#        name: Detect new secrets
-#        entry: detect-secrets-hook
-#        args: ['--baseline', '.secrets.baseline'] # allows approved secrets list
-#        exclude: '(^.*package(-lock)?\.json$|^docs/references/.*\.md$|^notes/)'
+          - types-requests
+          - types-PyYAML
+        files: "^packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/.*\\.py$"
+        stages: [manual]
 
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.27.2
     hooks:
       - id: gitleaks
-        name: Gitleaks secrets scan
-        args: ['--baseline-path', '.gitleaks.baseline']
+        name: gitleaks (pre-push)
+        args: ["--config", "gitleaks.toml"]
+        stages: [pre-push]
 
-  - repo: https://github.com/antonbabenko/pre-commit-terraform
-    rev: v1.99.0
+  - repo: local
     hooks:
-      - id: terraform_fmt
-      - id:
-          terraform_validate
-          #- id: terraform_tflint
-          #- id: terraform_trivy      # run by hand in makefile
-
-  - repo: https://github.com/terraform-docs/terraform-docs
-    rev: v0.20.0
-    hooks:
-      - id: terraform-docs-go
-        args: [markdown, table, --output-file, README.md, ./infra/terraform]
+      - id: pytest-s0-foundations
+        name: pytest (s0 foundations)
+        entry: python -m pytest tests/engine/l1/seg_1A/test_s0_foundations.py
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]

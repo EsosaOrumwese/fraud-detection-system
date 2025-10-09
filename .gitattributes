@@ -1,0 +1,9 @@
+reference/spatial/tz_world/**/*.parquet filter=lfs diff=lfs merge=lfs -text
+reference/spatial/world_countries/**/*.parquet filter=lfs diff=lfs merge=lfs -text
+artefacts/spatial/tz_world/**/*.json filter=lfs diff=lfs merge=lfs -text
+artefacts/spatial/tz_world/**/*.zip filter=lfs diff=lfs merge=lfs -text
+artefacts/spatial/tz_world/2025-10-08/tmp/*.json filter=lfs diff=lfs merge=lfs -text
+reference/spatial/tz_world/2025-10-08/*.parquet filter=lfs diff=lfs merge=lfs -text
+artefacts/spatial/tz_world/2025a/raw/*.zip filter=lfs diff=lfs merge=lfs -text
+artefacts/spatial/tz_world/2025a/raw/extracted/*.json filter=lfs diff=lfs merge=lfs -text
+reference/spatial/population_raster/**/*.tif filter=lfs diff=lfs merge=lfs -text

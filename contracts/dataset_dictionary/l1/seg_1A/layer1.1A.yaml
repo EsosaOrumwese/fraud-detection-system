@@ -1,0 +1,128 @@
+version: '1.0'
+layer: layer1
+segment: seg_1A
+state: s0
+
+reference:
+  transaction_schema_merchant_ids:
+    description: Normalised merchant universe used to seed S0 ingress.
+    format: parquet
+    path: reference/layer1/transaction_schema_merchant_ids/v2025-10-08/transaction_schema_merchant_ids.parquet
+    schema_ref: schemas.ingress.layer1.yaml#/merchant_ids
+    partitioning: []
+    owner: reference
+    retention_days: 365
+  iso_canonical:
+    description: Canonical ISO-3166 reference with UN region metadata.
+    format: parquet
+    path: reference/layer1/iso_canonical/v2025-10-08/iso_canonical.parquet
+    schema_ref: l1/seg_1A/iso_canonical.schema.json
+    partitioning: []
+    owner: reference
+    retention_days: 365
+  world_countries:
+    description: Global country polygons (EPSG:4326) derived from Natural Earth with synthetic coverage for microstates.
+    format: parquet
+    path: reference/spatial/world_countries/2025-10-08/world_countries.parquet
+    schema_ref: l1/seg_1A/world_countries.schema.json
+    partitioning: []
+    owner: reference
+    retention_days: 365
+  tz_world_2025a:
+    description: IANA timezone polygons (2025a) intersected with world countries.
+    format: parquet
+    path: reference/spatial/tz_world/2025-10-08/tz_world_2025a.parquet
+    schema_ref: l1/seg_1A/tz_world_2025a.schema.json
+    partitioning: []
+    owner: reference
+    retention_days: 365
+  population_raster_2025:
+    description: Global population raster (2025) in EPSG:4326.
+    format: tif
+    path: reference/spatial/population_raster/2025/population_raster_2025.tif
+    schema_ref: l1/seg_1A/population_raster.schema.json
+    partitioning: []
+    owner: reference
+    retention_days: 365
+  settlement_shares_2024Q4:
+    description: Currency-to-country settlement shares used by S0.
+    format: parquet
+    path: reference/network/settlement_shares/2025-10-08/settlement_shares.parquet
+    schema_ref: l1/seg_1A/settlement_shares.schema.json
+    partitioning: []
+    owner: reference
+    retention_days: 365
+  ccy_country_shares_2024Q4:
+    description: Currency-to-country usage shares consumed by S5/S6 smoothing.
+    format: parquet
+    path: reference/network/ccy_country_shares/2025-10-08/ccy_country_shares.parquet
+    schema_ref: l1/seg_1A/ccy_country_shares.schema.json
+    partitioning: []
+    owner: reference
+    retention_days: 365
+
+model:
+  crossborder_eligibility_flags:
+    description: Parameter-scoped eligibility flags for cross-border expansion policy.
+    format: parquet
+    path: data/layer1/1A/crossborder_eligibility_flags/parameter_hash={parameter_hash}/part-*.parquet
+    schema_ref: l1/seg_1A/s0_outputs.schema.json#/prep/crossborder_eligibility_flags
+    partitioning: [parameter_hash]
+    owner: 1A
+    retention_days: 180
+
+  hurdle_design_matrix:
+    description: Deterministic design vectors for hurdle/NB models.
+    format: parquet
+    path: data/layer1/1A/hurdle_design_matrix/parameter_hash={parameter_hash}/part-*.parquet
+    schema_ref: l1/seg_1A/s0_outputs.schema.json#/model/hurdle_design_matrix
+    partitioning: [parameter_hash]
+    owner: 1A
+    retention_days: 90
+
+  hurdle_pi_probs:
+    description: Optional per-merchant hurdle logistic outputs (diagnostics).
+    format: parquet
+    path: data/layer1/1A/hurdle_pi_probs/parameter_hash={parameter_hash}/part-*.parquet
+    schema_ref: l1/seg_1A/s0_outputs.schema.json#/model/hurdle_pi_probs
+    partitioning: [parameter_hash]
+    owner: 1A
+    retention_days: 30
+
+validation:
+  validation_bundle:
+    description: Fingerprint-scoped validation pack emitted at the end of S0.
+    format: directory
+    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+    schema_ref: l1/seg_1A/s0_outputs.schema.json#/validation_bundle
+    partitioning: [fingerprint]
+    owner: 1A
+    retention_days: 365
+
+rng_logs:
+  rng_audit_log:
+    description: Run-scoped RNG audit envelope.
+    format: jsonl
+    path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/core/rng_audit_log/record
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 365
+
+  rng_trace_log:
+    description: Cumulative RNG trace by module/substream.
+    format: jsonl
+    path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/core/rng_trace_log/record
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 365
+
+  rng_event_anchor:
+    description: Anchor event emitted once per run to prove stream availability.
+    format: jsonl
+    path: logs/rng/events/core/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/anchor
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 365

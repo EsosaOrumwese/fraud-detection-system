@@ -1,0 +1,16 @@
+{
+  "dataset_id": "ccy_country_shares_2024Q4",
+  "version": "2025-10-08",
+  "generated_at_utc": "2025-10-08T19:38:18.449589+00:00",
+  "generator_script": "scripts/build_ccy_country_shares.py",
+  "iso_table": "reference\\layer1\\iso_canonical\\v2025-10-08\\iso_canonical.parquet",
+  "iso_table_sha256": "fbaf33fbf73d152ae2dc93e80f5d919034c27c566e7f4cfa0d8b13f374119748",
+  "settlement_shares": "reference\\network\\settlement_shares\\2025-10-08\\settlement_shares.parquet",
+  "settlement_shares_sha256": "bba1366dd62b07279a3fc158cbf6b9c0ae483b7f385836dc6b7b42c9ea3eb9df",
+  "output_csv": "reference\\network\\ccy_country_shares\\2025-10-08\\ccy_country_shares.csv",
+  "output_csv_sha256": "ccab4e2d2dfd3e13b45d34c8a7a77cb3e8961413ac1e5a2f31a1c95f48dafeed",
+  "output_parquet": "reference\\network\\ccy_country_shares\\2025-10-08\\ccy_country_shares.parquet",
+  "output_parquet_sha256": "bba1366dd62b07279a3fc158cbf6b9c0ae483b7f385836dc6b7b42c9ea3eb9df",
+  "qa_path": "reference\\network\\ccy_country_shares\\2025-10-08\\ccy_country_shares.qa.json",
+  "qa_sha256": "415abd2d35efae8a02548488680e8f16b9a391bcf83e156cb2589174666b5725"
+}

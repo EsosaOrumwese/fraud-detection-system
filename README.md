@@ -314,3 +314,27 @@ Legend:
 ```
 
 
+---
+
+## Developer Tooling
+
+We ship a lean pre-commit configuration that focuses on the active engine work:
+
+- `ruff` / `ruff-format` for linting and formatting Python sources.
+- `pre-commit-hooks` + `pretty-format-yaml` for newline, whitespace, and YAML hygiene limited to governed folders.
+- `mypy` scoped to `packages/engine/**` (run manually via `pre-commit run mypy --hook-stage manual`).
+- `gitleaks` runs on pre-push for secrets scanning (config in `gitleaks.toml`).
+
+Install or refresh the hooks locally with:
+
+```bash
+python -m pre_commit install --install-hooks
+```
+
+Run them on demand with:
+
+```bash
+python -m pre_commit run --all-files
+```
+
+These commands keep the hook environments reproducible without blocking commits for tooling issues outside the governed paths.

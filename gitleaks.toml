@@ -1,0 +1,8 @@
+title = "fraud-detection-system gitleaks config"
+
+[allowlist]
+  description = "Ignore manifest keys stored in contract specifications"
+  paths = [
+    '''docs/model_spec/data-engine/specs/contracts/.*''',
+    '''docs/references/design-contract-templates\.md'''
+  ]

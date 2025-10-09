@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "$id": "contracts/schemas/l1/seg_1A/population_raster.schema.json",
+  "title": "Layer 1 Segment 1A – Population Raster 2025",
+  "description": "GeoTIFF population counts (CRS EPSG:4326).",
+  "type": "object",
+  "properties": {
+    "path": {"type": "string"},
+    "crs": {"type": "string"},
+    "resolution": {
+      "type": "array",
+      "items": {"type": "number"},
+      "minItems": 2,
+      "maxItems": 2
+    }
+  },
+  "required": ["path", "crs", "resolution"],
+  "additionalProperties": false
+}

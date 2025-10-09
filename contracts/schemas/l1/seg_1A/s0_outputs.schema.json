@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "$id": "contracts/schemas/l1/seg_1A/s0_outputs.schema.json",
+  "title": "Layer 1 Segment 1A \u2013 State-0 Outputs",
+  "description": "Authoritative schemas for state-0 artefacts emitted by the Layer 1 Segment 1A foundations stage.",
+  "model": {
+    "hurdle_design_matrix": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "parameter_hash",
+          "merchant_id",
+          "bucket",
+          "gdp_pc_usd_2015",
+          "log_gdp_pc_usd_2015",
+          "x_hurdle",
+          "x_nb_mean",
+          "x_nb_dispersion"
+        ],
+        "properties": {
+          "parameter_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "produced_by_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "merchant_id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 18446744073709551615
+          },
+          "bucket": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "gdp_pc_usd_2015": {
+            "type": "number",
+            "exclusiveMinimum": 0.0
+          },
+          "log_gdp_pc_usd_2015": {
+            "type": "number"
+          },
+          "x_hurdle": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "x_nb_mean": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "x_nb_dispersion": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    },
+    "hurdle_pi_probs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "parameter_hash",
+          "merchant_id",
+          "logit",
+          "pi"
+        ],
+        "properties": {
+          "parameter_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "produced_by_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "merchant_id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 18446744073709551615
+          },
+          "logit": {
+            "type": "number"
+          },
+          "pi": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
+          }
+        }
+      }
+    }
+  },
+  "prep": {
+    "crossborder_eligibility_flags": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "parameter_hash",
+          "merchant_id",
+          "is_eligible",
+          "reason",
+          "rule_set"
+        ],
+        "properties": {
+          "parameter_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "produced_by_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "merchant_id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 18446744073709551615
+          },
+          "is_eligible": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "rule_set": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

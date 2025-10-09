@@ -1,1193 +1,1191 @@
 subsegments:
-  - id: "1A"
-    name: "Merchants to Physical Sites"
-    artifacts:
+- id: 1A
+  name: Merchants to Physical Sites
+  artifacts:
 
       # ---------------------------
       # MODEL COEFFICIENTS & PARAMS
       # ---------------------------
-      - name: hurdle_coefficients
-        path: configs/models/hurdle/hurdle_coefficients.yaml
-        type: config
-        category: hurdle_model
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.hurdle.coefficients
-        license: "{spdx_or_internal}"
-        role: Coefficients for the logistic hurdle (π, single vs multi) and NB-mean coefficients (β_μ). NB-mean is available at key `beta_mu`.
-        dependencies: [ ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: hurdle_coefficients
+    path: configs/models/hurdle/hurdle_coefficients.yaml
+    type: config
+    category: hurdle_model
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.hurdle.coefficients
+    license: '{spdx_or_internal}'
+    role: Coefficients for the logistic hurdle (π, single vs multi) and NB-mean coefficients (β_μ). NB-mean is available at key `beta_mu`.
+    dependencies: []
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
 
-      - name: nb_dispersion_coefficients
-        path: configs/models/hurdle/nb_dispersion_coefficients.yaml
-        type: config
-        category: hurdle_model
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.hurdle.dispersion
-        license: "{spdx_or_internal}"
-        role: Dispersion coefficients for the NB component.
-        dependencies: [ hurdle_coefficients ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: nb_dispersion_coefficients
+    path: configs/models/hurdle/nb_dispersion_coefficients.yaml
+    type: config
+    category: hurdle_model
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.hurdle.dispersion
+    license: '{spdx_or_internal}'
+    role: Dispersion coefficients for the NB component.
+    dependencies: [hurdle_coefficients]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
 
-      - name: crossborder_hyperparams
-        path: configs/allocation/crossborder_hyperparams.yaml
-        type: config
-        category: allocation
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.allocation.hyperparams
-        license: "{spdx_or_internal}"
-        role: Dirichlet α, Gumbel‑top‑k and λ_extra params for country allocation.
-        dependencies: [ nb_dispersion_coefficients ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: crossborder_hyperparams
+    path: configs/allocation/crossborder_hyperparams.yaml
+    type: config
+    category: allocation
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.allocation.hyperparams
+    license: '{spdx_or_internal}'
+    role: Dirichlet α, Gumbel‑top‑k and λ_extra params for country allocation.
+    dependencies: [nb_dispersion_coefficients]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
 
-      - name: policy.s3.rule_ladder.yaml
-        path: configs/policy.s3.rule_ladder.yaml
-        type: policy
-        category: policy
-        semver: "{semver}"
-        version: "{policy_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.policy.s3.rule_ladder
-        license: "{spdx_or_internal}"
-        role: Deterministic S3 rule ladder (ordered rules, closed reason_codes/filter_tags).
-        dependencies: [ iso3166_canonical_2024 ]
-        source: internal
-        owner: { product_policy_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci, dev, staging, prod ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: policy.s3.rule_ladder.yaml
+    path: configs/policy.s3.rule_ladder.yaml
+    type: policy
+    category: policy
+    semver: '{semver}'
+    version: '{policy_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.policy.s3.rule_ladder
+    license: '{spdx_or_internal}'
+    role: Deterministic S3 rule ladder (ordered rules, closed reason_codes/filter_tags).
+    dependencies: [iso3166_canonical_2024]
+    source: internal
+    owner: {product_policy_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, dev, staging, prod]
+    schema:
+    cross_layer: false
+    notes:
 
-      - name: policy.s3.base_weight.yaml
-        path: configs/policy.s3.base_weight.yaml
-        type: policy
-        category: policy
-        semver: "{semver}"
-        version: "{policy_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.policy.s3.base_weight
-        license: "{spdx_or_internal}"
-        role: Deterministic base-weight prior coefficients and fixed-dp selection.
-        dependencies: [ iso3166_canonical_2024 ]
-        source: internal
-        owner: { product_policy_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci, dev, staging, prod ]
-        schema: null
-        cross_layer: false
-        notes: "Optional; only if priors are enabled."
+  - name: policy.s3.base_weight.yaml
+    path: configs/policy.s3.base_weight.yaml
+    type: policy
+    category: policy
+    semver: '{semver}'
+    version: '{policy_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.policy.s3.base_weight
+    license: '{spdx_or_internal}'
+    role: Deterministic base-weight prior coefficients and fixed-dp selection.
+    dependencies: [iso3166_canonical_2024]
+    source: internal
+    owner: {product_policy_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, dev, staging, prod]
+    schema:
+    cross_layer: false
+    notes: Optional; only if priors are enabled.
 
-      - name: policy.s3.thresholds.yaml
-        path: configs/policy.s3.thresholds.yaml
-        type: policy
-        category: policy
-        semver: "{semver}"
-        version: "{policy_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.policy.s3.thresholds
-        license: "{spdx_or_internal}"
-        role: Deterministic lower/upper bounds and feasibility thresholds for integerisation.
-        dependencies: [ iso3166_canonical_2024 ]
-        source: internal
-        owner: { product_policy_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci, dev, staging, prod ]
-        schema: null
-        cross_layer: false
-        notes: "Optional; only if bounds are enabled."
+  - name: policy.s3.thresholds.yaml
+    path: configs/policy.s3.thresholds.yaml
+    type: policy
+    category: policy
+    semver: '{semver}'
+    version: '{policy_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.policy.s3.thresholds
+    license: '{spdx_or_internal}'
+    role: Deterministic lower/upper bounds and feasibility thresholds for integerisation.
+    dependencies: [iso3166_canonical_2024]
+    source: internal
+    owner: {product_policy_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, dev, staging, prod]
+    schema:
+    cross_layer: false
+    notes: Optional; only if bounds are enabled.
 
       # ---------------------------
       # EXTERNAL & REFERENCE DATA
       # ---------------------------
-      - name: dirichlet_alpha_policy
-        path: configs/models/allocation/dirichlet_alpha_policy.yaml
-        type: config
-        category: allocation_policy
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.allocation.dirichlet_alpha_policy
-        license: "{spdx_or_internal}"
-        role: Dirichlet α-vector policy and fallback ladder for country allocation.
-        dependencies: [ crossborder_hyperparams ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: dirichlet_alpha_policy
+    path: configs/models/allocation/dirichlet_alpha_policy.yaml
+    type: config
+    category: allocation_policy
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.allocation.dirichlet_alpha_policy
+    license: '{spdx_or_internal}'
+    role: Dirichlet α-vector policy and fallback ladder for country allocation.
+    dependencies: [crossborder_hyperparams]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
 
-      - name: world_bank_gdp_per_capita_20250415
-        path: reference/economic/world_bank_gdp_per_capita/2025-04-15/gdp.parquet
-        type: reference
-        category: economic_indicators
-        semver: "{semver}"
-        version: "2025-04-15"
-        digest: "{sha256}"
-        manifest_key: mlr.ref.wb_gdp_pc_20250415
-        license: SPDX:CC-BY-4.0
-        role: GDP‑per‑capita vintage used for GDP buckets.
-        dependencies: [ ]
-        source: external
-        owner: { data_governance_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: world_bank_gdp_per_capita_20250415
+    path: reference/economic/world_bank_gdp_per_capita/2025-04-15/gdp.parquet
+    type: reference
+    category: economic_indicators
+    semver: '{semver}'
+    version: '2025-04-15'
+    digest: '{sha256}'
+    manifest_key: mlr.ref.wb_gdp_pc_20250415
+    license: SPDX:CC-BY-4.0
+    role: GDP‑per‑capita vintage used for GDP buckets.
+    dependencies: []
+    source: external
+    owner: {data_governance_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: world_countries
-        path: reference/spatial/world_countries/2024/world_countries.parquet
-        type: reference
-        category: spatial
-        semver: "2024.0.0"
-        version: "2024"
-        digest: "{sha256}"
-        manifest_key: mlr.ref.spatial.world_countries_2024
-        license: ODbL-1.0
-        role: Country polygons for downstream TZ & geovalidations.
-        dependencies: [ ]
-        source: external
-        owner: { data_governance_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: world_countries
+    path: reference/spatial/world_countries/2024/world_countries.parquet
+    type: reference
+    category: spatial
+    semver: 2024.0.0
+    version: '2024'
+    digest: '{sha256}'
+    manifest_key: mlr.ref.spatial.world_countries_2024
+    license: ODbL-1.0
+    role: Country polygons for downstream TZ & geovalidations.
+    dependencies: []
+    source: external
+    owner: {data_governance_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: tz_world_2025a
-        path: reference/spatial/tz_world/2025a/tz_world.parquet
-        type: reference
-        category: spatial
-        semver: "2025.0.0"
-        version: "2025a"
-        digest: "{sha256}"
-        manifest_key: mlr.ref.spatial.tz_world_2025
-        license: ODbL-1.0
-        role: IANA TZ polygons consumed by later sub‑segments.
-        dependencies: [ ]
-        source: external
-        owner: { data_governance_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: tz_world_2025a
+    path: reference/spatial/tz_world/2025a/tz_world.parquet
+    type: reference
+    category: spatial
+    semver: 2025.0.0
+    version: 2025a
+    digest: '{sha256}'
+    manifest_key: mlr.ref.spatial.tz_world_2025
+    license: ODbL-1.0
+    role: IANA TZ polygons consumed by later sub‑segments.
+    dependencies: []
+    source: external
+    owner: {data_governance_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: population_raster_2025
-        path: reference/spatial/population/2025/population.tif
-        type: reference
-        category: spatial
-        semver: "2025.0.0"
-        version: "2025"
-        digest: "{sha256}"
-        manifest_key: mlr.ref.spatial.population_raster_2025
-        license: CC-BY-4.0
-        role: Population density raster used for spatial priors in 1B.
-        dependencies: [ ]
-        source: external
-        owner: { data_governance_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: population_raster_2025
+    path: reference/spatial/population/2025/population.tif
+    type: reference
+    category: spatial
+    semver: 2025.0.0
+    version: '2025'
+    digest: '{sha256}'
+    manifest_key: mlr.ref.spatial.population_raster_2025
+    license: CC-BY-4.0
+    role: Population density raster used for spatial priors in 1B.
+    dependencies: []
+    source: external
+    owner: {data_governance_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: gdp_bucket_map_2024
-        path: reference/economic/gdp_bucket_map/2024/gdp_bucket_map.parquet
-        type: reference
-        category: economic_indicators
-        semver: "{semver}"
-        version: "2024"
-        digest: "{sha256}"
-        manifest_key: mlr.ref.gdp_bucket_map_2024
-        license: "{spdx_or_internal}"
-        role: Country → GDP bucket mapping for 2024.
-        dependencies: [ world_bank_gdp_per_capita_20250415 ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: gdp_bucket_map_2024
+    path: reference/economic/gdp_bucket_map/2024/gdp_bucket_map.parquet
+    type: reference
+    category: economic_indicators
+    semver: '{semver}'
+    version: '2024'
+    digest: '{sha256}'
+    manifest_key: mlr.ref.gdp_bucket_map_2024
+    license: '{spdx_or_internal}'
+    role: Country → GDP bucket mapping for 2024.
+    dependencies: [world_bank_gdp_per_capita_20250415]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: gdp_bucket_map_semver
-        path: configs/versioning/gdp_bucket_map.semver
-        type: config
-        category: versioning
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.ref.gdp_bucket_map.semver
-        license: "{spdx_or_internal}"
-        role: Semver for `gdp_bucket_map_2024`.
-        dependencies: [ gdp_bucket_map_2024 ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: gdp_bucket_map_semver
+    path: configs/versioning/gdp_bucket_map.semver
+    type: config
+    category: versioning
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.ref.gdp_bucket_map.semver
+    license: '{spdx_or_internal}'
+    role: Semver for `gdp_bucket_map_2024`.
+    dependencies: [gdp_bucket_map_2024]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: gdp_bucket_map_digest
-        path: configs/versioning/gdp_bucket_map.digest
-        type: config
-        category: versioning
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.ref.gdp_bucket_map.digest
-        license: "{spdx_or_internal}"
-        role: SHA‑256 digest record for `gdp_bucket_map_2024`.
-        dependencies: [ gdp_bucket_map_2024 ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: gdp_bucket_map_digest
+    path: configs/versioning/gdp_bucket_map.digest
+    type: config
+    category: versioning
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.ref.gdp_bucket_map.digest
+    license: '{spdx_or_internal}'
+    role: SHA‑256 digest record for `gdp_bucket_map_2024`.
+    dependencies: [gdp_bucket_map_2024]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: hurdle_stationarity_tests_2024Q4
-        path: data/layer1/1A/hurdle_stationarity_tests/parameter_hash={parameter_hash}/
-        type: dataset
-        category: diagnostics
-        semver: "{semver}"
-        version: "{parameter_hash}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.diagnostics.stationarity_2024Q4
-        license: "{spdx_or_internal}"
-        role: Stationarity diagnostics for hurdle residuals.
-        dependencies: [ hurdle_coefficients, nb_dispersion_coefficients ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: hurdle_stationarity_tests_2024Q4
+    path: data/layer1/1A/hurdle_stationarity_tests/parameter_hash={parameter_hash}/
+    type: dataset
+    category: diagnostics
+    semver: '{semver}'
+    version: '{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.diagnostics.stationarity_2024Q4
+    license: '{spdx_or_internal}'
+    role: Stationarity diagnostics for hurdle residuals.
+    dependencies: [hurdle_coefficients, nb_dispersion_coefficients]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
 
-      - name: hurdle_stationarity_semver
-        path: configs/versioning/hurdle_stationarity.semver
-        type: config
-        category: versioning
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.diagnostics.stationarity.semver
-        license: "{spdx_or_internal}"
-        role: Semver for stationarity dataset.
-        dependencies: [ hurdle_stationarity_tests_2024Q4 ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: hurdle_stationarity_semver
+    path: configs/versioning/hurdle_stationarity.semver
+    type: config
+    category: versioning
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.diagnostics.stationarity.semver
+    license: '{spdx_or_internal}'
+    role: Semver for stationarity dataset.
+    dependencies: [hurdle_stationarity_tests_2024Q4]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci]
+    schema:
+    cross_layer: false
+    notes:
 
-      - name: hurdle_stationarity_digest
-        path: configs/versioning/hurdle_stationarity.digest
-        type: config
-        category: versioning
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.diagnostics.stationarity.digest
-        license: "{spdx_or_internal}"
-        role: SHA‑256 record for stationarity dataset.
-        dependencies: [ hurdle_stationarity_tests_2024Q4 ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: hurdle_stationarity_digest
+    path: configs/versioning/hurdle_stationarity.digest
+    type: config
+    category: versioning
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.diagnostics.stationarity.digest
+    license: '{spdx_or_internal}'
+    role: SHA‑256 record for stationarity dataset.
+    dependencies: [hurdle_stationarity_tests_2024Q4]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci]
+    schema:
+    cross_layer: false
+    notes:
 
-      - name: settlement_shares_2024Q4
-        path: reference/network/settlement_shares/2024Q4/settlement_shares.parquet
-        type: reference
-        category: allocation
-        semver: "{semver}"
-        version: "2024Q4"
-        digest: "{sha256}"
-        manifest_key: mlr.ref.settlement_shares_2024Q4
-        license: "{spdx_or_internal}"
-        role: Country merchant settlement share vectors.
-        dependencies: [ ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: settlement_shares_2024Q4
+    path: reference/network/settlement_shares/2024Q4/settlement_shares.parquet
+    type: reference
+    category: allocation
+    semver: '{semver}'
+    version: 2024Q4
+    digest: '{sha256}'
+    manifest_key: mlr.ref.settlement_shares_2024Q4
+    license: '{spdx_or_internal}'
+    role: Country merchant settlement share vectors.
+    dependencies: []
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: ccy_country_shares_2024Q4
-        path: reference/network/ccy_country_shares/2024Q4/ccy_country_shares.parquet
-        type: reference
-        category: allocation
-        semver: "{semver}"
-        version: "2024Q4"
-        digest: "{sha256}"
-        manifest_key: mlr.ref.ccy_country_shares_2024Q4
-        license: "{spdx_or_internal}"
-        role: Currency→country split proportions.
-        dependencies: [ ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: ccy_country_shares_2024Q4
+    path: reference/network/ccy_country_shares/2024Q4/ccy_country_shares.parquet
+    type: reference
+    category: allocation
+    semver: '{semver}'
+    version: 2024Q4
+    digest: '{sha256}'
+    manifest_key: mlr.ref.ccy_country_shares_2024Q4
+    license: '{spdx_or_internal}'
+    role: Currency→country split proportions.
+    dependencies: []
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: ccy_smoothing_params
-        path: configs/allocation/ccy_smoothing_params.yaml
-        type: config
-        category: allocation
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.params.ccy_smoothing
-        license: "{spdx_or_internal}"
-        role: Additive Dirichlet α and sparsity thresholds for ccy→country expansion.
-        dependencies: [ ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: false
-        notes: "Default α≈0.5; tune tails per D."
+  - name: ccy_smoothing_params
+    path: configs/allocation/ccy_smoothing_params.yaml
+    type: config
+    category: allocation
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.params.ccy_smoothing
+    license: '{spdx_or_internal}'
+    role: Additive Dirichlet α and sparsity thresholds for ccy→country expansion.
+    dependencies: []
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes: Default α≈0.5; tune tails per D.
 
-      - name: ccy_country_weights_cache
-        path: data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/
-        type: dataset
-        category: allocation
-        semver: "{semver}"
-        version: "{parameter_hash}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.cache.ccy_country_weights
-        license: "{spdx_or_internal}"
-        role: Deterministic cache of expanded currency→country weights (avoid extra RNG).
-        dependencies: [ ccy_country_shares_2024Q4, settlement_shares_2024Q4, ccy_smoothing_params ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.1A.yaml#/prep/ccy_country_weights_cache
-        cross_layer: false
-        notes: null
+  - name: ccy_country_weights_cache
+    path: data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/
+    type: dataset
+    category: allocation
+    semver: '{semver}'
+    version: '{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.cache.ccy_country_weights
+    license: '{spdx_or_internal}'
+    role: Deterministic cache of expanded currency→country weights (avoid extra RNG).
+    dependencies: [ccy_country_shares_2024Q4, settlement_shares_2024Q4, ccy_smoothing_params]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1A.yaml#/prep/ccy_country_weights_cache
+    cross_layer: false
+    notes:
 
-      - name: merchant_currency
-        path: data/layer1/1A/merchant_currency/parameter_hash={parameter_hash}/
-        type: dataset
-        category: preparation
-        semver: "{semver}"
-        version: "{parameter_hash}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.cache.merchant_currency
-        license: "{spdx_or_internal}"
-        role: Deterministic κₘ cache (per-merchant settlement currency).
-        dependencies: [ settlement_shares_2024Q4, iso3166_canonical_2024 ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.1A.yaml#/prep/merchant_currency
-        cross_layer: false
-        notes: null
+  - name: merchant_currency
+    path: data/layer1/1A/merchant_currency/parameter_hash={parameter_hash}/
+    type: dataset
+    category: preparation
+    semver: '{semver}'
+    version: '{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.cache.merchant_currency
+    license: '{spdx_or_internal}'
+    role: Deterministic κₘ cache (per-merchant settlement currency).
+    dependencies: [settlement_shares_2024Q4, iso3166_canonical_2024]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1A.yaml#/prep/merchant_currency
+    cross_layer: false
+    notes:
 
-      - name: storage_path_pattern
-        path: configs/storage/storage_path_pattern.yaml
-        type: config
-        category: storage
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.storage.path_pattern
-        license: "{spdx_or_internal}"
-        role: Parquet path template with `{seed}` and `{manifest_fingerprint}` tokens.
-        dependencies: [ manifest_fingerprint, philox_master_counter ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: true
-        notes: "e.g., data/outputs/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/"
+  - name: storage_path_pattern
+    path: configs/storage/storage_path_pattern.yaml
+    type: config
+    category: storage
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.storage.path_pattern
+    license: '{spdx_or_internal}'
+    role: Parquet path template with `{seed}` and `{manifest_fingerprint}` tokens.
+    dependencies: [manifest_fingerprint, philox_master_counter]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes: e.g., data/outputs/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
 
-      - name: compression_zstd_level3
-        path: configs/storage/compression.yaml
-        type: config
-        category: storage
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.storage.compression.zstd3
-        license: "{spdx_or_internal}"
-        role: Output parquet compression policy (ZSTD level 3).
-        dependencies: [ ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: compression_zstd_level3
+    path: configs/storage/compression.yaml
+    type: config
+    category: storage
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.storage.compression.zstd3
+    license: '{spdx_or_internal}'
+    role: Output parquet compression policy (ZSTD level 3).
+    dependencies: []
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: git_commit_hash
-        path: ci/manifests/git_commit_hash.txt
-        type: manifest
-        category: reproducibility
-        semver: "{semver}"
-        version: "{git_sha}"
-        digest: "{sha256}"
-        manifest_key: mlr.ci.git_commit_hash
-        license: "{spdx_or_internal}"
-        role: Git tree SHA of source repo used for the build.
-        dependencies: [ ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: git_commit_hash
+    path: ci/manifests/git_commit_hash.txt
+    type: manifest
+    category: reproducibility
+    semver: '{semver}'
+    version: '{git_sha}'
+    digest: '{sha256}'
+    manifest_key: mlr.ci.git_commit_hash
+    license: '{spdx_or_internal}'
+    role: Git tree SHA of source repo used for the build.
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: run_seed
-        path: configs/rng/run_seed.yaml
-        type: config
-        category: rng
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.rng.run_seed
-        license: "{spdx_or_internal}"
-        role: User‑provided seed from which Philox streams are derived.
-        dependencies: [ ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: run_seed
+    path: configs/rng/run_seed.yaml
+    type: config
+    category: rng
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.run_seed
+    license: '{spdx_or_internal}'
+    role: User‑provided seed from which Philox streams are derived.
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: parameter_hash
-        path: ci/manifests/parameter_hash.txt
-        type: manifest
-        category: versioning
-        semver: "{semver}"
-        version: "{hash_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.ci.parameter_hash
-        license: "{spdx_or_internal}"
-        role: SHA‑256 of concatenated parameter digests.
-        dependencies: [ hurdle_coefficients, nb_dispersion_coefficients, crossborder_hyperparams ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: parameter_hash
+    path: ci/manifests/parameter_hash.txt
+    type: manifest
+    category: versioning
+    semver: '{semver}'
+    version: '{hash_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.ci.parameter_hash
+    license: '{spdx_or_internal}'
+    role: SHA‑256 of concatenated parameter digests.
+    dependencies: [hurdle_coefficients, nb_dispersion_coefficients, crossborder_hyperparams]
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: manifest_fingerprint
-        path: ci/manifests/_manifest.json
-        type: manifest
-        category: reproducibility
-        semver: "{semver}"
-        version: "{manifest_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.ci.manifest_fingerprint
-        license: "{spdx_or_internal}"
-        role: Composite fingerprint of inputs (artefact digests + git + param hash).
-        dependencies: [ git_commit_hash, parameter_hash, hurdle_coefficients, nb_dispersion_coefficients, crossborder_hyperparams, world_bank_gdp_per_capita_20250415, gdp_bucket_map_2024, settlement_shares_2024Q4, ccy_country_shares_2024Q4 ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci, runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: manifest_fingerprint
+    path: ci/manifests/_manifest.json
+    type: manifest
+    category: reproducibility
+    semver: '{semver}'
+    version: '{manifest_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.ci.manifest_fingerprint
+    license: '{spdx_or_internal}'
+    role: Composite fingerprint of inputs (artefact digests + git + param hash).
+    dependencies: [git_commit_hash, parameter_hash, hurdle_coefficients, nb_dispersion_coefficients, crossborder_hyperparams, world_bank_gdp_per_capita_20250415, gdp_bucket_map_2024, settlement_shares_2024Q4, ccy_country_shares_2024Q4]
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, runtime]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: philox_master_counter
-        path: ci/manifests/philox_master_counter.txt
-        type: config
-        category: rng
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.rng.philox_master_counter
-        license: "{spdx_or_internal}"
-        role: Derived seed/counter from `manifest_fingerprint` and `run_seed`.
-        dependencies: [ manifest_fingerprint, run_seed ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: philox_master_counter
+    path: ci/manifests/philox_master_counter.txt
+    type: config
+    category: rng
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.philox_master_counter
+    license: '{spdx_or_internal}'
+    role: Derived seed/counter from `manifest_fingerprint` and `run_seed`.
+    dependencies: [manifest_fingerprint, run_seed]
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: rng_audit_schema
-        path: logs/rng/schemas/rng_audit_schema-{semver}.json
-        type: schema
-        category: rng
-        semver: "{semver}"
-        version: "{schema_version}"
-        digest: "{schema_digest}"
-        manifest_key: mlr.rng.audit.schema
-        license: "{spdx_or_internal}"
-        role: JSON schema validating `rng_audit.log`.
-        dependencies: [ ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ dev, staging, prod ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: rng_audit_schema
+    path: logs/rng/schemas/rng_audit_schema-{semver}.json
+    type: schema
+    category: rng
+    semver: '{semver}'
+    version: '{schema_version}'
+    digest: '{schema_digest}'
+    manifest_key: mlr.rng.audit.schema
+    license: '{spdx_or_internal}'
+    role: JSON schema validating `rng_audit.log`.
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [dev, staging, prod]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: rng_event_schema_catalog
-        path: logs/rng/events/schemas/{event_name}-{semver}.json
-        type: schema
-        category: rng_event
-        semver: "{semver}"
-        version: "{schema_version}"
-        digest: "{catalog_digest}"
-        manifest_key: mlr.rng.events.schema_catalog
-        license: "{spdx_or_internal}"
-        role: Catalog of per‑event JSON Schemas (e.g., hurdle_bernoulli, nb_final, rng_event_dirichlet_gamma_vector, rng_event_sequence_finalize).
-        dependencies: [ ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ dev, staging, prod ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: rng_event_schema_catalog
+    path: logs/rng/events/schemas/{event_name}-{semver}.json
+    type: schema
+    category: rng_event
+    semver: '{semver}'
+    version: '{schema_version}'
+    digest: '{catalog_digest}'
+    manifest_key: mlr.rng.events.schema_catalog
+    license: '{spdx_or_internal}'
+    role: Catalog of per‑event JSON Schemas (e.g., hurdle_bernoulli, nb_final, rng_event_dirichlet_gamma_vector, rng_event_sequence_finalize).
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [dev, staging, prod]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: rng_audit_log
-        path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
-        type: log
-        category: rng
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.rng.audit
-        license: "{spdx_or_internal}"
-        role: Run-scoped audit row emitted before any RNG event (seed, context, optional key/counter).
-        dependencies: [ philox_master_counter, rng_audit_schema ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.layer1.yaml#/rng/core/rng_audit_log
-        cross_layer: true
-        notes: null
+  - name: rng_audit_log
+    path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+    type: log
+    category: rng
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.audit
+    license: '{spdx_or_internal}'
+    role: Run-scoped audit row emitted before any RNG event (seed, context, optional key/counter).
+    dependencies: [philox_master_counter, rng_audit_schema]
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/core/rng_audit_log
+    cross_layer: true
+    notes:
 
-      - name: rng_trace_log
-        path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
-        type: log
-        category: rng
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.rng.trace
-        license: "{spdx_or_internal}"
-        role: Philox sub-stream jump offsets per (module, substream_label); cumulative draws/blocks/events.
-        dependencies: [ philox_master_counter ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.layer1.yaml#/rng/core/rng_trace_log
-        cross_layer: true
-        notes: null
+  - name: rng_trace_log
+    path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+    type: log
+    category: rng
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.trace
+    license: '{spdx_or_internal}'
+    role: Philox sub-stream jump offsets per (module, substream_label); cumulative draws/blocks/events.
+    dependencies: [philox_master_counter]
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/core/rng_trace_log
+    cross_layer: true
+    notes:
 
-      - name: rng_event_hurdle_bernoulli
-        path: logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
-        type: log
-        category: rng_event
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.rng.events.hurdle_bernoulli
-        license: "{spdx_or_internal}"
-        role: Bernoulli draws per merchant for the hurdle decision (pi).
-        dependencies: [ rng_audit_log, rng_event_schema_catalog ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.layer1.yaml#/rng/events/hurdle_bernoulli
-        cross_layer: true
-        notes: null
+  - name: rng_event_hurdle_bernoulli
+    path: logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    type: log
+    category: rng_event
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.events.hurdle_bernoulli
+    license: '{spdx_or_internal}'
+    role: Bernoulli draws per merchant for the hurdle decision (pi).
+    dependencies: [rng_audit_log, rng_event_schema_catalog]
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/events/hurdle_bernoulli
+    cross_layer: true
+    notes:
 
-      - name: rng_event_gamma_component
-        path: logs/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
-        type: log
-        category: rng_event
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.rng.events.gamma_component
-        license: "{spdx_or_internal}"
-        role: Gamma draws used in NB and Dirichlet composition.
-        dependencies: [ rng_event_schema_catalog ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.layer1.yaml#/rng/events/gamma_component
-        cross_layer: true
-        notes: null
+  - name: rng_event_gamma_component
+    path: logs/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    type: log
+    category: rng_event
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.events.gamma_component
+    license: '{spdx_or_internal}'
+    role: Gamma draws used in NB and Dirichlet composition.
+    dependencies: [rng_event_schema_catalog]
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/events/gamma_component
+    cross_layer: true
+    notes:
 
-      - name: rng_event_poisson_component
-        path: logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
-        type: log
-        category: rng_event
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.rng.events.poisson_component
-        license: "{spdx_or_internal}"
-        role: Poisson draws used in NB composition / ZTP.
-        dependencies: [ rng_event_schema_catalog ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.layer1.yaml#/rng/events/poisson_component
-        cross_layer: true
-        notes: null
+  - name: rng_event_poisson_component
+    path: logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    type: log
+    category: rng_event
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.events.poisson_component
+    license: '{spdx_or_internal}'
+    role: Poisson draws used in NB composition / ZTP.
+    dependencies: [rng_event_schema_catalog]
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/events/poisson_component
+    cross_layer: true
+    notes:
 
-      - name: rng_event_nb_final
-        path: logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
-        type: log
-        category: rng_event
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.rng.events.nb_final
-        license: "{spdx_or_internal}"
-        role: Final Negative Binomial draws for outlet counts.
-        dependencies: [ rng_event_gamma_component, rng_event_poisson_component, rng_event_schema_catalog ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.layer1.yaml#/rng/events/nb_final
-        cross_layer: true
-        notes: null
+  - name: rng_event_nb_final
+    path: logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    type: log
+    category: rng_event
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.events.nb_final
+    license: '{spdx_or_internal}'
+    role: Final Negative Binomial draws for outlet counts.
+    dependencies: [rng_event_gamma_component, rng_event_poisson_component, rng_event_schema_catalog]
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/events/nb_final
+    cross_layer: true
+    notes:
 
-      - name: rng_event_ztp_rejection
-        path: logs/rng/events/ztp_rejection/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
-        type: log
-        category: rng_event
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.rng.events.ztp_rejection
-        license: "{spdx_or_internal}"
-        role: Rejected zero draws from the ZTP sampler.
-        dependencies: [ rng_event_schema_catalog ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.layer1.yaml#/rng/events/ztp_rejection
-        cross_layer: true
-        notes: null
+  - name: rng_event_ztp_rejection
+    path: logs/rng/events/ztp_rejection/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    type: log
+    category: rng_event
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.events.ztp_rejection
+    license: '{spdx_or_internal}'
+    role: Rejected zero draws from the ZTP sampler.
+    dependencies: [rng_event_schema_catalog]
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/events/ztp_rejection
+    cross_layer: true
+    notes:
 
-      - name: rng_event_ztp_retry_exhausted
-        path: logs/rng/events/ztp_retry_exhausted/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
-        type: log
-        category: rng_event
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.rng.events.ztp_retry_exhausted
-        license: "{spdx_or_internal}"
-        role: Hard events when ZTP exceeds max retries.
-        dependencies: [ rng_event_ztp_rejection, rng_event_schema_catalog ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.layer1.yaml#/rng/events/ztp_retry_exhausted
-        cross_layer: true
-        notes: null
+  - name: rng_event_ztp_retry_exhausted
+    path: logs/rng/events/ztp_retry_exhausted/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    type: log
+    category: rng_event
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.events.ztp_retry_exhausted
+    license: '{spdx_or_internal}'
+    role: Hard events when ZTP exceeds max retries.
+    dependencies: [rng_event_ztp_rejection, rng_event_schema_catalog]
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/events/ztp_retry_exhausted
+    cross_layer: true
+    notes:
 
-      - name: rng_event_ztp_final
-        path: logs/rng/events/ztp_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
-        type: log
-        category: rng_event
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.rng.events.ztp_final
-        license: "{spdx_or_internal}"
-        role: Single acceptance record per resolved merchant (S4). Non-consuming; fixes {K_target, lambda_extra, attempts, regime, exhausted?}.
-        dependencies: [ rng_event_schema_catalog ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.layer1.yaml#/rng/events/ztp_final
-        cross_layer: true
-        notes: "Exactly one per resolved merchant; absent only under cap policy=abort."
+  - name: rng_event_ztp_final
+    path: logs/rng/events/ztp_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    type: log
+    category: rng_event
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.events.ztp_final
+    license: '{spdx_or_internal}'
+    role: Single acceptance record per resolved merchant (S4). Non-consuming; fixes {K_target, lambda_extra, attempts, regime, exhausted?}.
+    dependencies: [rng_event_schema_catalog]
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/events/ztp_final
+    cross_layer: true
+    notes: Exactly one per resolved merchant; absent only under cap policy=abort.
 
-      - name: rng_event_gumbel_key
-        path: logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
-        type: log
-        category: rng_event
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.rng.events.gumbel_key
-        license: "{spdx_or_internal}"
-        role: Gumbel-top-k keys used to select foreign countries.
-        dependencies: [ rng_event_schema_catalog ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.layer1.yaml#/rng/events/gumbel_key
-        cross_layer: true
-        notes: null
+  - name: rng_event_gumbel_key
+    path: logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    type: log
+    category: rng_event
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.events.gumbel_key
+    license: '{spdx_or_internal}'
+    role: Gumbel-top-k keys used to select foreign countries.
+    dependencies: [rng_event_schema_catalog]
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/events/gumbel_key
+    cross_layer: true
+    notes:
 
-      - name: rng_event_normal_box_muller
-        path: logs/rng/events/normal_box_muller/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
-        type: log
-        category: rng_event
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.rng.events.normal_box_muller
-        license: "{spdx_or_internal}"
-        role: Standard normal draws via Box–Muller (Z only; sine mate discarded).
-        dependencies: [ rng_event_schema_catalog ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.layer1.yaml#/rng/events/normal_box_muller
-        cross_layer: true
-        notes: "Budget (blocks=1, draws=\"2\"); library helper; S0 orchestration does not call it."
+  - name: rng_event_normal_box_muller
+    path: logs/rng/events/normal_box_muller/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    type: log
+    category: rng_event
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.events.normal_box_muller
+    license: '{spdx_or_internal}'
+    role: Standard normal draws via Box–Muller (Z only; sine mate discarded).
+    dependencies: [rng_event_schema_catalog]
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/events/normal_box_muller
+    cross_layer: true
+    notes: Budget (blocks=1, draws="2"); library helper; S0 orchestration does not call it.
 
-      - name: rng_event_dirichlet_gamma_vector
-        path: logs/rng/events/dirichlet_gamma_vector/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
-        type: log
-        category: rng_event
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.rng.events.dirichlet_gamma_vector
-        license: "{spdx_or_internal}"
-        role: Gamma vectors underlying Dirichlet splits across countries.
-        dependencies: [ rng_event_schema_catalog ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.layer1.yaml#/rng/events/dirichlet_gamma_vector
-        cross_layer: true
-        notes: null
+  - name: rng_event_dirichlet_gamma_vector
+    path: logs/rng/events/dirichlet_gamma_vector/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    type: log
+    category: rng_event
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.events.dirichlet_gamma_vector
+    license: '{spdx_or_internal}'
+    role: Gamma vectors underlying Dirichlet splits across countries.
+    dependencies: [rng_event_schema_catalog]
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/events/dirichlet_gamma_vector
+    cross_layer: true
+    notes:
 
-      - name: rng_event_stream_jump
-        path: logs/rng/events/stream_jump/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
-        type: log
-        category: rng_event
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.rng.events.stream_jump
-        license: "{spdx_or_internal}"
-        role: Explicit Philox stream/substream jump records.
-        dependencies: [ rng_event_schema_catalog ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.layer1.yaml#/rng/events/stream_jump
-        cross_layer: true
-        notes: null
+  - name: rng_event_stream_jump
+    path: logs/rng/events/stream_jump/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    type: log
+    category: rng_event
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.events.stream_jump
+    license: '{spdx_or_internal}'
+    role: Explicit Philox stream/substream jump records.
+    dependencies: [rng_event_schema_catalog]
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/events/stream_jump
+    cross_layer: true
+    notes:
 
-      - name: rng_event_sequence_finalize
-        path: logs/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
-        type: log
-        category: rng_event
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.rng.events.sequence_finalize
-        license: "{spdx_or_internal}"
-        role: Final sequence allocation per (merchant,country) block.
-        dependencies: [ rng_event_schema_catalog ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.layer1.yaml#/rng/events/sequence_finalize
-        cross_layer: true
-        notes: null
+  - name: rng_event_sequence_finalize
+    path: logs/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    type: log
+    category: rng_event
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.events.sequence_finalize
+    license: '{spdx_or_internal}'
+    role: Final sequence allocation per (merchant,country) block.
+    dependencies: [rng_event_schema_catalog]
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/events/sequence_finalize
+    cross_layer: true
+    notes:
 
-      - name: rng_event_site_sequence_overflow
-        path: logs/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
-        type: log
-        category: rng_event
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.rng.events.site_sequence_overflow
-        license: "{spdx_or_internal}"
-        role: Guardrail events when site sequence space is exhausted.
-        dependencies: [ ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.layer1.yaml#/rng/events/site_sequence_overflow
-        cross_layer: true
-        notes: null
+  - name: rng_event_site_sequence_overflow
+    path: logs/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    type: log
+    category: rng_event
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.events.site_sequence_overflow
+    license: '{spdx_or_internal}'
+    role: Guardrail events when site sequence space is exhausted.
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/events/site_sequence_overflow
+    cross_layer: true
+    notes:
 
-      - name: transaction_schema_merchant_ids
-        path: reference/layer1/transaction_schema_merchant_ids/{version}/
-        type: dataset
-        category: input
-        semver: "{semver}"
-        version: "{data_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.input.transaction_schema.merchant_ids
-        license: "{spdx_or_internal}"
-        role: List of all `merchant_id` values consumed by 1A.
-        dependencies: [ ]
-        source: external
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.ingress.layer1.yaml#/merchant_ids
-        cross_layer: true
-        notes: null
+  - name: transaction_schema_merchant_ids
+    path: reference/layer1/transaction_schema_merchant_ids/{version}/
+    type: dataset
+    category: input
+    semver: '{semver}'
+    version: '{data_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.input.transaction_schema.merchant_ids
+    license: '{spdx_or_internal}'
+    role: List of all `merchant_id` values consumed by 1A.
+    dependencies: []
+    source: external
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.ingress.layer1.yaml#/merchant_ids
+    cross_layer: true
+    notes:
 
-      - name: hurdle_design_matrix
-        path: data/layer1/1A/hurdle_design_matrix/parameter_hash={parameter_hash}/
-        type: dataset
-        category: model_input
-        semver: "{semver}"
-        version: "{parameter_hash}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.hurdle.design_matrix
-        license: "{spdx_or_internal}"
-        role: Predictors (intercept + MCC + channel + GDP bucket).
-        dependencies: [ transaction_schema_merchant_ids, hurdle_coefficients, world_bank_gdp_per_capita_20250415, gdp_bucket_map_2024 ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.1A.yaml#/model/hurdle_design_matrix
-        cross_layer: true
-        notes: null
+  - name: hurdle_design_matrix
+    path: data/layer1/1A/hurdle_design_matrix/parameter_hash={parameter_hash}/
+    type: dataset
+    category: model_input
+    semver: '{semver}'
+    version: '{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.hurdle.design_matrix
+    license: '{spdx_or_internal}'
+    role: Predictors (intercept + MCC + channel + GDP bucket).
+    dependencies: [transaction_schema_merchant_ids, hurdle_coefficients, world_bank_gdp_per_capita_20250415, gdp_bucket_map_2024]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1A.yaml#/model/hurdle_design_matrix
+    cross_layer: true
+    notes:
 
-      - name: hurdle_pi_probs
-        path: data/layer1/1A/hurdle_pi_probs/parameter_hash={parameter_hash}/
-        type: dataset
-        category: hurdle_model
-        semver: "{semver}"
-        version: "{parameter_hash}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.hurdle.pi_probs
-        license: "{spdx_or_internal}"
-        role: Logistic‑hurdle π (single vs multi) per merchant.
-        dependencies: [ hurdle_design_matrix, hurdle_coefficients ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.1A.yaml#/model/hurdle_pi_probs
-        cross_layer: true
-        notes: null
+  - name: hurdle_pi_probs
+    path: data/layer1/1A/hurdle_pi_probs/parameter_hash={parameter_hash}/
+    type: dataset
+    category: hurdle_model
+    semver: '{semver}'
+    version: '{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.hurdle.pi_probs
+    license: '{spdx_or_internal}'
+    role: Logistic‑hurdle π (single vs multi) per merchant.
+    dependencies: [hurdle_design_matrix, hurdle_coefficients]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1A.yaml#/model/hurdle_pi_probs
+    cross_layer: true
+    notes:
 
-      - name: hurdle_nb_model
-        path: src/models/hurdle/hurdle_nb_model.py
-        type: code
-        category: hurdle_model
-        semver: "{code_semver}"
-        version: "{git_commit}"
-        digest: "{git_tree_hash}"
-        manifest_key: mlr.1A.hurdle.nb_model
-        license: "{spdx_or_internal}"
-        role: NB sampler implementation (links, mixture draws, ZTP).
-        dependencies: [ hurdle_coefficients, nb_dispersion_coefficients ]
-        source: internal
-        owner: { engineering_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci, dev, staging, prod ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: hurdle_nb_model
+    path: src/models/hurdle/hurdle_nb_model.py
+    type: code
+    category: hurdle_model
+    semver: '{code_semver}'
+    version: '{git_commit}'
+    digest: '{git_tree_hash}'
+    manifest_key: mlr.1A.hurdle.nb_model
+    license: '{spdx_or_internal}'
+    role: NB sampler implementation (links, mixture draws, ZTP).
+    dependencies: [hurdle_coefficients, nb_dispersion_coefficients]
+    source: internal
+    owner: {engineering_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, dev, staging, prod]
+    schema:
+    cross_layer: false
+    notes:
 
-      - name: sparse_flag
-        path: data/layer1/1A/sparse_flag/parameter_hash={parameter_hash}/
-        type: dataset
-        category: allocation
-        semver: "{semver}"
-        version: "{parameter_hash}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.allocation.sparse_flag
-        license: "{spdx_or_internal}"
-        role: Indicator for equal‑split fallback under low observation counts.
-        dependencies: [ ccy_country_shares_2024Q4 ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.1A.yaml#/prep/sparse_flag
-        cross_layer: false
-        notes: null
+  - name: sparse_flag
+    path: data/layer1/1A/sparse_flag/parameter_hash={parameter_hash}/
+    type: dataset
+    category: allocation
+    semver: '{semver}'
+    version: '{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.allocation.sparse_flag
+    license: '{spdx_or_internal}'
+    role: Indicator for equal‑split fallback under low observation counts.
+    dependencies: [ccy_country_shares_2024Q4]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1A.yaml#/prep/sparse_flag
+    cross_layer: false
+    notes:
 
-      - name: crossborder_allocation
-        path: src/allocation/crossborder_allocation.py
-        type: code
-        category: allocation
-        semver: "{code_semver}"
-        version: "{git_commit}"
-        digest: "{git_tree_hash}"
-        manifest_key: mlr.1A.allocation.crossborder_allocation
-        license: "{spdx_or_internal}"
-        role: Implements λ_extra, Dirichlet sampling, Gumbel‑top‑k, tie‑break.
-        dependencies: [ crossborder_hyperparams ]
-        source: internal
-        owner: { engineering_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci, dev, staging, prod ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: crossborder_allocation
+    path: src/allocation/crossborder_allocation.py
+    type: code
+    category: allocation
+    semver: '{code_semver}'
+    version: '{git_commit}'
+    digest: '{git_tree_hash}'
+    manifest_key: mlr.1A.allocation.crossborder_allocation
+    license: '{spdx_or_internal}'
+    role: Implements λ_extra, Dirichlet sampling, Gumbel‑top‑k, tie‑break.
+    dependencies: [crossborder_hyperparams]
+    source: internal
+    owner: {engineering_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, dev, staging, prod]
+    schema:
+    cross_layer: false
+    notes:
 
-      - name: crossborder_features
-        path: data/layer1/1A/crossborder_features/parameter_hash={parameter_hash}/
-        type: dataset
-        category: model_features
-        semver: "{dataset_semver}"
-        version: "{parameter_hash}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.model.crossborder_features
-        license: "{spdx_or_internal}"
-        role: Deterministic per-merchant features for S4; currently the openness scalar X_m ∈ [0,1].
-        dependencies: [ transaction_schema_merchant_ids ]
-        source: internal
-        owner: { engineering_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci, dev, staging, prod ]
-        schema: schemas.1A.yaml#/model/crossborder_features
-        cross_layer: false
-        notes: "Produced in S0; consumed in S4. Deterministic, parameter-scoped."
+  - name: crossborder_features
+    path: data/layer1/1A/crossborder_features/parameter_hash={parameter_hash}/
+    type: dataset
+    category: model_features
+    semver: '{dataset_semver}'
+    version: '{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.model.crossborder_features
+    license: '{spdx_or_internal}'
+    role: Deterministic per-merchant features for S4; currently the openness scalar X_m ∈ [0,1].
+    dependencies: [transaction_schema_merchant_ids]
+    source: internal
+    owner: {engineering_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, dev, staging, prod]
+    schema: schemas.1A.yaml#/model/crossborder_features
+    cross_layer: false
+    notes: Produced in S0; consumed in S4. Deterministic, parameter-scoped.
 
-      - name: rng_event_residual_rank
-        path: logs/rng/events/residual_rank/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
-        type: log
-        category: rng_event
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.rng.events.residual_rank
-        license: "{spdx_or_internal}"
-        role: Deterministic residual ranks used in largest-remainder integerisation.
-        dependencies: [ residual_quantisation_policy ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.layer1.yaml#/rng/events/residual_rank
-        cross_layer: true
-        notes: null
+  - name: rng_event_residual_rank
+    path: logs/rng/events/residual_rank/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    type: log
+    category: rng_event
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.events.residual_rank
+    license: '{spdx_or_internal}'
+    role: Deterministic residual ranks used in largest-remainder integerisation.
+    dependencies: [residual_quantisation_policy]
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/events/residual_rank
+    cross_layer: true
+    notes:
 
-      - name: country_set
-        path: data/layer1/1A/country_set/seed={seed}/parameter_hash={parameter_hash}/
-        type: dataset
-        category: allocation
-        semver: "{semver}"
-        version: "{parameter_hash}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.allocation.country_set
-        license: "{spdx_or_internal}"
-        role: Legacy RNG-dependent allocation set; superseded by S3 candidate set for inter-country order.
-        dependencies: [ crossborder_allocation, rng_event_gumbel_key, rng_event_dirichlet_gamma_vector, rng_event_residual_rank ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.1A.yaml#/alloc/country_set
-        cross_layer: false
-        notes: "Deprecated as order authority; retained for backward compatibility."
+  - name: country_set
+    path: data/layer1/1A/country_set/seed={seed}/parameter_hash={parameter_hash}/
+    type: dataset
+    category: allocation
+    semver: '{semver}'
+    version: '{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.allocation.country_set
+    license: '{spdx_or_internal}'
+    role: Legacy RNG-dependent allocation set; superseded by S3 candidate set for inter-country order.
+    dependencies: [crossborder_allocation, rng_event_gumbel_key, rng_event_dirichlet_gamma_vector, rng_event_residual_rank]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1A.yaml#/alloc/country_set
+    cross_layer: false
+    notes: Deprecated as order authority; retained for backward compatibility.
 
-      - name: dirichlet_lrr_proof
-        path: docs/derivations/dirichlet_lrr_proof.md
-        type: documentation
-        category: documentation
-        semver: "{semver}"
-        version: "{doc_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.docs.dirichlet_lrr_proof
-        license: "{spdx_or_internal}"
-        role: Proof of determinism for largest‑remainder rounding.
-        dependencies: [ crossborder_allocation ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci, dev ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: dirichlet_lrr_proof
+    path: docs/derivations/dirichlet_lrr_proof.md
+    type: documentation
+    category: documentation
+    semver: '{semver}'
+    version: '{doc_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.docs.dirichlet_lrr_proof
+    license: '{spdx_or_internal}'
+    role: Proof of determinism for largest‑remainder rounding.
+    dependencies: [crossborder_allocation]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, dev]
+    schema:
+    cross_layer: false
+    notes:
 
-      - name: site_id_allocator
-        path: src/mlr/1A/site_id_allocator.py
-        type: code
-        category: output_id
-        semver: "{code_semver}"
-        version: "{git_commit}"
-        digest: "{git_tree_hash}"
-        manifest_key: mlr.1A.output_id.site_id_allocator
-        license: "{spdx_or_internal}"
-        role: Deterministic per‑(merchant,country) sequence generator (zero‑padding, overflow checks).
-        dependencies: [ iso3166_canonical_2024 ]
-        source: internal
-        owner: { engineering_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci, dev, staging, prod ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: site_id_allocator
+    path: src/mlr/1A/site_id_allocator.py
+    type: code
+    category: output_id
+    semver: '{code_semver}'
+    version: '{git_commit}'
+    digest: '{git_tree_hash}'
+    manifest_key: mlr.1A.output_id.site_id_allocator
+    license: '{spdx_or_internal}'
+    role: Deterministic per‑(merchant,country) sequence generator (zero‑padding, overflow checks).
+    dependencies: [iso3166_canonical_2024]
+    source: internal
+    owner: {engineering_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, dev, staging, prod]
+    schema:
+    cross_layer: false
+    notes:
 
-      - name: outlet_catalogue
-        path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
-        type: dataset
-        category: output
-        semver: "{semver}"
-        version: "{manifest_fingerprint}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.output.outlet_catalogue
-        license: "{spdx_or_internal}"
-        role: Final outlet stubs (one row per site), deterministic partitions by seed & fingerprint.
-        dependencies: [ country_set, site_id_allocator, rng_event_sequence_finalize ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.1A.yaml#/egress/outlet_catalogue
-        cross_layer: true
-        notes: "ZSTD level 3; path pattern enforced by `storage_path_pattern`. \
-                Consumption gate: 1B MUST verify that `_passed.flag` content hash equals SHA256(`validation_bundle_1A`) \
-                for the same `fingerprint` before reading this dataset."
+  - name: outlet_catalogue
+    path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: output
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.output.outlet_catalogue
+    license: '{spdx_or_internal}'
+    role: Final outlet stubs (one row per site), deterministic partitions by seed & fingerprint.
+    dependencies: [country_set, site_id_allocator, rng_event_sequence_finalize]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1A.yaml#/egress/outlet_catalogue
+    cross_layer: true
+    notes: 'ZSTD level 3; path pattern enforced by `storage_path_pattern`. Consumption gate: 1B MUST verify that `_passed.flag` content hash equals SHA256(`validation_bundle_1A`) for the same `fingerprint` before reading this dataset.'
 
-      - name: s3_candidate_set
-        path: data/layer1/1A/s3_candidate_set/parameter_hash={parameter_hash}/
-        type: dataset
-        category: allocation
-        semver: "{semver}"
-        version: "{parameter_hash}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.s3.candidate_set
-        license: "{spdx_or_internal}"
-        role: Deterministic ordered candidate set per merchant (authority for inter-country order).
-        dependencies: [ policy.s3.rule_ladder.yaml, iso3166_canonical_2024 ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.1A.yaml#/s3/candidate_set
-        cross_layer: false
-        notes: null
+  - name: s3_candidate_set
+    path: data/layer1/1A/s3_candidate_set/parameter_hash={parameter_hash}/
+    type: dataset
+    category: allocation
+    semver: '{semver}'
+    version: '{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.s3.candidate_set
+    license: '{spdx_or_internal}'
+    role: Deterministic ordered candidate set per merchant (authority for inter-country order).
+    dependencies: [policy.s3.rule_ladder.yaml, iso3166_canonical_2024]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1A.yaml#/s3/candidate_set
+    cross_layer: false
+    notes:
 
-      - name: s3_base_weight_priors
-        path: data/layer1/1A/s3_base_weight_priors/parameter_hash={parameter_hash}/
-        type: dataset
-        category: allocation
-        semver: "{semver}"
-        version: "{parameter_hash}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.s3.base_weight_priors
-        license: "{spdx_or_internal}"
-        role: Deterministic base-weight priors per candidate (fixed-dp strings).
-        dependencies: [ policy.s3.base_weight.yaml ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.1A.yaml#/s3/base_weight_priors
-        cross_layer: false
-        notes: "Optional."
+  - name: s3_base_weight_priors
+    path: data/layer1/1A/s3_base_weight_priors/parameter_hash={parameter_hash}/
+    type: dataset
+    category: allocation
+    semver: '{semver}'
+    version: '{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.s3.base_weight_priors
+    license: '{spdx_or_internal}'
+    role: Deterministic base-weight priors per candidate (fixed-dp strings).
+    dependencies: [policy.s3.base_weight.yaml]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1A.yaml#/s3/base_weight_priors
+    cross_layer: false
+    notes: Optional.
 
-      - name: s3_integerised_counts
-        path: data/layer1/1A/s3_integerised_counts/parameter_hash={parameter_hash}/
-        type: dataset
-        category: allocation
-        semver: "{semver}"
-        version: "{parameter_hash}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.s3.integerised_counts
-        license: "{spdx_or_internal}"
-        role: Deterministic per-country integer counts summing to N; includes residual_rank.
-        dependencies: [ s3_candidate_set ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.1A.yaml#/s3/integerised_counts
-        cross_layer: false
-        notes: "Optional; only if S3 owns integerisation."
+  - name: s3_integerised_counts
+    path: data/layer1/1A/s3_integerised_counts/parameter_hash={parameter_hash}/
+    type: dataset
+    category: allocation
+    semver: '{semver}'
+    version: '{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.s3.integerised_counts
+    license: '{spdx_or_internal}'
+    role: Deterministic per-country integer counts summing to N; includes residual_rank.
+    dependencies: [s3_candidate_set]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1A.yaml#/s3/integerised_counts
+    cross_layer: false
+    notes: Optional; only if S3 owns integerisation.
 
-      - name: s3_site_sequence
-        path: data/layer1/1A/s3_site_sequence/parameter_hash={parameter_hash}/
-        type: dataset
-        category: output_id
-        semver: "{semver}"
-        version: "{parameter_hash}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.s3.site_sequence
-        license: "{spdx_or_internal}"
-        role: Deterministic within-country site sequence (and optional 6-digit site_id).
-        dependencies: [ s3_integerised_counts ]
-        source: internal
-        owner: { engineering_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.1A.yaml#/s3/site_sequence
-        cross_layer: false
-        notes: "Optional; only if S3 owns sequencing."
+  - name: s3_site_sequence
+    path: data/layer1/1A/s3_site_sequence/parameter_hash={parameter_hash}/
+    type: dataset
+    category: output_id
+    semver: '{semver}'
+    version: '{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.s3.site_sequence
+    license: '{spdx_or_internal}'
+    role: Deterministic within-country site sequence (and optional 6-digit site_id).
+    dependencies: [s3_integerised_counts]
+    source: internal
+    owner: {engineering_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1A.yaml#/s3/site_sequence
+    cross_layer: false
+    notes: Optional; only if S3 owns sequencing.
 
 # Prune CI-time artefacts (planning phase)
 #      - name: post_write_validation_routine
@@ -1209,46 +1207,43 @@ subsegments:
 #        cross_layer: false
 #        notes: null
 
-      - name: validation_bundle_1A
-        path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
-        type: dataset
-        category: validation
-        semver: "{semver}"
-        version: "{manifest_fingerprint}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.validation.bundle
-        license: "{spdx_or_internal}"
-        role: Validator outputs for 1A (metrics, diffs, plots).
-        dependencies: [ outlet_catalogue, rng_audit_log ]
-        source: internal
-        owner: { qa_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci, runtime ]
-        schema: null
-        cross_layer: false
-        notes: "Contains validator outputs for 1A (incl. `rng_accounting.json` event coverage) \
-        and serves as the basis for the hand-off gate to 1B. The `_passed.flag` in this folder MUST have \
-        content hash equal to SHA256(bundle) for the same `fingerprint`; consumers must verify this prior \
-        to reading `outlet_catalogue`."
+  - name: validation_bundle_1A
+    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.validation.bundle
+    license: '{spdx_or_internal}'
+    role: Validator outputs for 1A (metrics, diffs, plots).
+    dependencies: [outlet_catalogue, rng_audit_log]
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, runtime]
+    schema:
+    cross_layer: false
+    notes: Contains validator outputs for 1A (incl. `rng_accounting.json` event coverage) and serves as the basis for the hand-off gate to 1B. The `_passed.flag` in this folder MUST have content hash equal to SHA256(bundle) for the same `fingerprint`; consumers must verify this prior to reading `outlet_catalogue`.
 
-      - name: validation_passed_flag
-        path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
-        type: manifest
-        category: validation
-        semver: "{semver}"
-        version: "{manifest_fingerprint}"
-        digest: "{sha256_of_bundle}"
-        manifest_key: mlr.1A.validation.passed
-        license: "{spdx_or_internal}"
-        role: Boolean flag indicating that 1A validation passed for the config hash.
-        dependencies: [ validation_bundle_1A ]
-        source: internal
-        owner: { qa_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci, runtime ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: validation_passed_flag
+    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    type: manifest
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256_of_bundle}'
+    manifest_key: mlr.1A.validation.passed
+    license: '{spdx_or_internal}'
+    role: Boolean flag indicating that 1A validation passed for the config hash.
+    dependencies: [validation_bundle_1A]
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, runtime]
+    schema:
+    cross_layer: false
+    notes:
 
 #      - name: nightly_ci_metrics
 #        path: ci/metrics/layer1/1A/nightly/run_id={run_id}/metrics.parquet
@@ -1269,270 +1264,270 @@ subsegments:
 #        cross_layer: true
 #        notes: null
 
-      - name: ieee754_binary64
-        path: null
-        type: exception
-        category: numeric_environment
-        semver: "{semver}"
-        version: "{policy_version}"
-        digest: null
-        manifest_key: mlr.numeric.ieee754_binary64
-        license: null
-        role: Enforce IEEE‑754 binary64 arithmetic for stochastic & residual ops.
-        dependencies: [ ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: ieee754_binary64
+    path:
+    type: exception
+    category: numeric_environment
+    semver: '{semver}'
+    version: '{policy_version}'
+    digest:
+    manifest_key: mlr.numeric.ieee754_binary64
+    license:
+    role: Enforce IEEE‑754 binary64 arithmetic for stochastic & residual ops.
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: fma_disabled
-        path: null
-        type: exception
-        category: numeric_environment
-        semver: "{semver}"
-        version: "{policy_version}"
-        digest: null
-        manifest_key: mlr.numeric.fma_disabled
-        license: null
-        role: Disable fused‑multiply‑add in Dirichlet/residual computations.
-        dependencies: [ ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: fma_disabled
+    path:
+    type: exception
+    category: numeric_environment
+    semver: '{semver}'
+    version: '{policy_version}'
+    digest:
+    manifest_key: mlr.numeric.fma_disabled
+    license:
+    role: Disable fused‑multiply‑add in Dirichlet/residual computations.
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: residual_quantisation_policy
-        path: configs/numeric/residual_quantisation.yaml
-        type: config
-        category: numeric_environment
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.numeric.residual_quantisation.policy
-        license: "{spdx_or_internal}"
-        role: Round residual fractions to 8 decimals before sorting (LRR determinism).
-        dependencies: [ ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: residual_quantisation_policy
+    path: configs/numeric/residual_quantisation.yaml
+    type: config
+    category: numeric_environment
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.numeric.residual_quantisation.policy
+    license: '{spdx_or_internal}'
+    role: Round residual fractions to 8 decimals before sorting (LRR determinism).
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: ranking_residual_cache_1A
-        path: data/layer1/1A/ranking_residual_cache_1A/seed={seed}/parameter_hash={parameter_hash}/
-        type: dataset
-        category: cache
-        semver: "{semver}"
-        version: "{parameter_hash}"
-        digest: "{sha256}"
-        manifest_key: mlr.1A.cache.ranking_residual
-        license: "{spdx_or_internal}"
-        role: Largest‑remainder residuals preserved to avoid re‑rolling RNG. Deprecated as order authority.
-        dependencies: [ rng_event_dirichlet_gamma_vector, residual_quantisation_policy ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.1A.yaml#/alloc/ranking_residual_cache
-        cross_layer: true
-        notes: "Deprecated; superseded by S3 deterministic `s3_integerised_counts` (parameter-scoped). Retained for backward compatibility."
+  - name: ranking_residual_cache_1A
+    path: data/layer1/1A/ranking_residual_cache_1A/seed={seed}/parameter_hash={parameter_hash}/
+    type: dataset
+    category: cache
+    semver: '{semver}'
+    version: '{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.cache.ranking_residual
+    license: '{spdx_or_internal}'
+    role: Largest‑remainder residuals preserved to avoid re‑rolling RNG. Deprecated as order authority.
+    dependencies: [rng_event_dirichlet_gamma_vector, residual_quantisation_policy]
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1A.yaml#/alloc/ranking_residual_cache
+    cross_layer: true
+    notes: Deprecated; superseded by S3 deterministic `s3_integerised_counts` (parameter-scoped). Retained for backward compatibility.
 
-      - name: datasets_table
-        path: db/schema/datasets.sql
-        type: schema
-        category: registry
-        semver: "{semver}"
-        version: "{schema_version}"
-        digest: "{schema_digest}"
-        manifest_key: mlr.registry.datasets_table
-        license: "{spdx_or_internal}"
-        role: DDL for internal dataset registry (collision audits).
-        dependencies: [ ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: datasets_table
+    path: db/schema/datasets.sql
+    type: schema
+    category: registry
+    semver: '{semver}'
+    version: '{schema_version}'
+    digest: '{schema_digest}'
+    manifest_key: mlr.registry.datasets_table
+    license: '{spdx_or_internal}'
+    role: DDL for internal dataset registry (collision audits).
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: dataset_registry_connection
-        path: configs/registry/dataset_registry_connection.yaml
-        type: config
-        category: registry
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.registry.connection
-        license: "{spdx_or_internal}"
-        role: Connection/config for registry lookups during collision audits & lineage checks.
-        dependencies: [ ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci, runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: dataset_registry_connection
+    path: configs/registry/dataset_registry_connection.yaml
+    type: config
+    category: registry
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.registry.connection
+    license: '{spdx_or_internal}'
+    role: Connection/config for registry lookups during collision audits & lineage checks.
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, runtime]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: license_map
-        path: licenses/license_map.yaml
-        type: mapping
-        category: governance
-        semver: "{semver}"
-        version: "{map_version}"
-        digest: "{map_digest}"
-        manifest_key: mlr.gov.license_map
-        license: CC-BY-4.0-and-Proprietary
-        role: Artefact→license map referenced by validation & release manifests.
-        dependencies: [ ]
-        source: internal
-        owner: { legal_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ dev, staging, prod ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: license_map
+    path: licenses/license_map.yaml
+    type: mapping
+    category: governance
+    semver: '{semver}'
+    version: '{map_version}'
+    digest: '{map_digest}'
+    manifest_key: mlr.gov.license_map
+    license: CC-BY-4.0-and-Proprietary
+    role: Artefact→license map referenced by validation & release manifests.
+    dependencies: []
+    source: internal
+    owner: {legal_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [dev, staging, prod]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: docker_base_image_digest
-        path: ci/container/base_image.lock
-        type: manifest
-        category: reproducibility
-        semver: "{image_semver}"
-        version: "{image_tag}"
-        digest: "{sha256}"
-        manifest_key: mlr.ci.base_image
-        license: "{spdx_or_internal}"
-        role: Pinned base image digest used to run 1A.
-        dependencies: [ ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci, dev, staging, prod ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: docker_base_image_digest
+    path: ci/container/base_image.lock
+    type: manifest
+    category: reproducibility
+    semver: '{image_semver}'
+    version: '{image_tag}'
+    digest: '{sha256}'
+    manifest_key: mlr.ci.base_image
+    license: '{spdx_or_internal}'
+    role: Pinned base image digest used to run 1A.
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, dev, staging, prod]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: iso3166_canonical_2024
-        path: reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet
-        type: reference
-        category: reference
-        semver: "2024.12.31"
-        version: "2024-12-31"
-        digest: "{reference_digest}"
-        manifest_key: mlr.ref.iso3166_canonical_2024
-        license: SPDX:CC-BY-4.0
-        role: Canonical ISO‑3166 with deterministic lexicographic order for tie‑breaks.
-        dependencies: [ ]
-        source: external
-        owner: { data_governance_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ dev, staging, prod ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: iso3166_canonical_2024
+    path: reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet
+    type: reference
+    category: reference
+    semver: 2024.12.31
+    version: '2024-12-31'
+    digest: '{reference_digest}'
+    manifest_key: mlr.ref.iso3166_canonical_2024
+    license: SPDX:CC-BY-4.0
+    role: Canonical ISO‑3166 with deterministic lexicographic order for tie‑breaks.
+    dependencies: []
+    source: external
+    owner: {data_governance_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [dev, staging, prod]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: crossborder_eligibility_rules
-        path: configs/allocation/crossborder_eligibility_rules.yaml
-        type: config
-        category: allocation
-        semver: { semver }
-        version: { config_version }
-        digest: { sha256 }
-        manifest_key: mlr.1A.params.crossborder_eligibility
-        license: "{spdx_or_internal}"
-        role: Rules that determine which merchants attempt cross‑border expansion.
-        dependencies: [ ]
-        source: internal
-        owner: { product_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: crossborder_eligibility_rules
+    path: configs/allocation/crossborder_eligibility_rules.yaml
+    type: config
+    category: allocation
+    semver: {semver: null}
+    version: {config_version: null}
+    digest: {sha256: null}
+    manifest_key: mlr.1A.params.crossborder_eligibility
+    license: '{spdx_or_internal}'
+    role: Rules that determine which merchants attempt cross‑border expansion.
+    dependencies: []
+    source: internal
+    owner: {product_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
 
-      - name: crossborder_eligibility_flags
-        path: data/layer1/1A/crossborder_eligibility_flags/parameter_hash={parameter_hash}/
-        type: dataset
-        category: allocation
-        semver: { semver }
-        version: { parameter_hash }
-        digest: { sha256 }
-        manifest_key: mlr.1A.derived.crossborder_eligibility_flags
-        license: "{spdx_or_internal}"
-        role: Per‑merchant eligibility flags after applying rules.
-        dependencies: [ crossborder_eligibility_rules ]
-        source: internal
-        owner: { product_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: schemas.1A.yaml#/prep/crossborder_eligibility_flags
-        cross_layer: false
-        notes: null
+  - name: crossborder_eligibility_flags
+    path: data/layer1/1A/crossborder_eligibility_flags/parameter_hash={parameter_hash}/
+    type: dataset
+    category: allocation
+    semver: {semver: null}
+    version: {parameter_hash: null}
+    digest: {sha256: null}
+    manifest_key: mlr.1A.derived.crossborder_eligibility_flags
+    license: '{spdx_or_internal}'
+    role: Per‑merchant eligibility flags after applying rules.
+    dependencies: [crossborder_eligibility_rules]
+    source: internal
+    owner: {product_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1A.yaml#/prep/crossborder_eligibility_flags
+    cross_layer: false
+    notes:
 
-      - name: license_files
-        path: LICENSES/
-        type: directory
-        category: licensing
-        semver: { semver }
-        version: { run_id }
-        digest: { sha256 }
-        manifest_key: mlr.1A.licenses
-        license: Mixed
-        role: License texts referenced by license_map; validated in CI.
-        dependencies: [ license_map ]
-        source: internal
-        owner: { legal_team }
-        environment: [ ci, runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: license_files
+    path: LICENSES/
+    type: directory
+    category: licensing
+    semver: {semver: null}
+    version: {run_id: null}
+    digest: {sha256: null}
+    manifest_key: mlr.1A.licenses
+    license: Mixed
+    role: License texts referenced by license_map; validated in CI.
+    dependencies: [license_map]
+    source: internal
+    owner: {legal_team: null}
+    environment: [ci, runtime]
+    schema:
+    cross_layer: true
+    notes:
 
       # ---------------------------
       # GOVERNANCE (NUMERIC/MATH)
       # ---------------------------
-      - name: numeric_policy_profile
-        path: reference/governance/numeric_policy/{version}/numeric_policy.json
-        type: reference
-        category: governance
-        semver: "{semver}"
-        version: "{version}"
-        digest: "{sha256}"
-        manifest_key: mlr.gov.numeric_policy_profile
-        license: "{spdx_or_internal}"
-        role: Pinned numeric environment policy (RNE, FMA off, FTZ/DAZ off, subnormals preserved). Included in manifest_fingerprint as an opened artefact.
-        dependencies: [ ]
-        source: internal
-        owner: { data_governance_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: numeric_policy_profile
+    path: reference/governance/numeric_policy/{version}/numeric_policy.json
+    type: reference
+    category: governance
+    semver: '{semver}'
+    version: '{version}'
+    digest: '{sha256}'
+    manifest_key: mlr.gov.numeric_policy_profile
+    license: '{spdx_or_internal}'
+    role: Pinned numeric environment policy (RNE, FMA off, FTZ/DAZ off, subnormals preserved). Included in manifest_fingerprint as an opened artefact.
+    dependencies: []
+    source: internal
+    owner: {data_governance_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: math_profile_manifest
-        path: reference/governance/math_profile/{version}/math_profile_manifest.json
-        type: reference
-        category: governance
-        semver: "{semver}"
-        version: "{version}"
-        digest: "{sha256}"
-        manifest_key: mlr.gov.math_profile_manifest
-        license: "{spdx_or_internal}"
-        role: Pinned deterministic libm profile (function set + expected signatures). Included in manifest_fingerprint as an opened artefact.
-        dependencies: [ ]
-        source: internal
-        owner: { data_governance_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: math_profile_manifest
+    path: reference/governance/math_profile/{version}/math_profile_manifest.json
+    type: reference
+    category: governance
+    semver: '{semver}'
+    version: '{version}'
+    digest: '{sha256}'
+    manifest_key: mlr.gov.math_profile_manifest
+    license: '{spdx_or_internal}'
+    role: Pinned deterministic libm profile (function set + expected signatures). Included in manifest_fingerprint as an opened artefact.
+    dependencies: []
+    source: internal
+    owner: {data_governance_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:

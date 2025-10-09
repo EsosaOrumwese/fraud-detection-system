@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "$id": "contracts/schemas/l1/seg_1A/world_countries.schema.json",
+  "title": "Layer 1 Segment 1A – World Countries",
+  "description": "Country polygons in EPSG:4326 with ISO-2 codes",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "country_iso",
+      "name",
+      "geometry"
+    ],
+    "properties": {
+      "country_iso": {
+        "type": "string",
+        "pattern": "^[A-Z]{2}$"
+      },
+      "name": {
+        "type": "string"
+      },
+      "geometry": {
+        "type": "string"
+      }
+    }
+  }
+}

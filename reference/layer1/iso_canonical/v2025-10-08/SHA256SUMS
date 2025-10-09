@@ -1,0 +1,4 @@
+fa06be22c5d5346953faa82dcbe268869563a9a1bb47c77b414f03ac01bd29ab  artefacts\data-intake\1A\iso_canonical\2025-10-08\raw\country-codes.csv
+909896f36853f23f1002a6b13eeaaa2e343a297d00196d4440abb7d0ec70750d  reference\layer1\iso_canonical\v2025-10-08\iso_canonical.csv
+fbaf33fbf73d152ae2dc93e80f5d919034c27c566e7f4cfa0d8b13f374119748  reference\layer1\iso_canonical\v2025-10-08\iso_canonical.parquet
+f0a62f4f7b7ea40580f0417ec16ddfe57acacede13eb8cb4ac97a8989a5d7325  reference\layer1\iso_canonical\v2025-10-08\iso_canonical.qa.json

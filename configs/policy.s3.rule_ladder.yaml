@@ -1,0 +1,75 @@
+semver: "0.1.0"
+version: "2025-10-09"
+
+rule_set_id: "CB-2025.10"
+notes: "Synthetic ladder: deny non-region/sanctioned, prioritise home then EEA grocery CNP, closed vocab and default fallback."
+
+reason_codes:
+  - ALLOW_HOME
+  - ALLOW_EEA_CNP_GROCERY
+  - CLASS_BASELINE
+  - DENY_NON_REGION
+  - DENY_SANCTIONED_CP
+  - DEFAULT_FALLBACK
+
+filter_tags:
+  - HOME
+  - EEA
+  - GROCERY
+  - REGION_SCOPE
+  - SANCTIONED
+
+rules:
+  - rule_id: "DENY_NON_REGION"
+    precedence: "DENY"
+    priority: 5
+    is_decision_bearing: true
+    predicate: 'country_iso not in {"AT","BE","BG","CY","CZ","DE","DK","EE","ES","FI","FR","GR","HR","HU","IE","IT","LT","LU","LV","MT","NL","PL","PT","RO","SE","SI"} && country_iso != home_country_iso'
+    outcome:
+      reason_code: "DENY_NON_REGION"
+      tags: ["REGION_SCOPE"]
+
+  - rule_id: "DENY_SANCTIONED_CP"
+    precedence: "DENY"
+    priority: 10
+    is_decision_bearing: true
+    predicate: 'channel == "CP" && country_iso in {"IR","KP","RU"}'
+    outcome:
+      reason_code: "DENY_SANCTIONED_CP"
+      tags: ["SANCTIONED"]
+
+  - rule_id: "ALLOW_HOME"
+    precedence: "ALLOW"
+    priority: 10
+    is_decision_bearing: true
+    predicate: 'country_iso == home_country_iso'
+    outcome:
+      reason_code: "ALLOW_HOME"
+      tags: ["HOME"]
+
+  - rule_id: "ALLOW_EEA_CNP_GROCERY"
+    precedence: "ALLOW"
+    priority: 20
+    is_decision_bearing: true
+    predicate: 'channel == "CNP" && mcc == 5411 && country_iso != home_country_iso && country_iso in {"AT","BE","BG","CY","CZ","DE","DK","EE","ES","FI","FR","GR","HR","HU","IE","IT","LT","LU","LV","MT","NL","PL","PT","RO","SE","SI"}'
+    outcome:
+      reason_code: "ALLOW_EEA_CNP_GROCERY"
+      tags: ["EEA","GROCERY"]
+
+  - rule_id: "CLASS_BASELINE"
+    precedence: "CLASS"
+    priority: 30
+    is_decision_bearing: false
+    predicate: 'country_iso != home_country_iso'
+    outcome:
+      reason_code: "CLASS_BASELINE"
+      tags: []
+
+  - rule_id: "DEFAULT"
+    precedence: "DEFAULT"
+    priority: 9999
+    is_decision_bearing: true
+    predicate: "true"
+    outcome:
+      reason_code: "DEFAULT_FALLBACK"
+      tags: []

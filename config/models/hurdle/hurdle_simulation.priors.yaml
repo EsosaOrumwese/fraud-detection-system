@@ -1,0 +1,45 @@
+semver: "0.1.0"
+version: "2025-10-09"
+
+rng:
+  algorithm: "philox2x64-10"
+  seed: 9248923
+
+hurdle:
+  base_logit: -1.20
+  channel_offsets:
+    CP: 0.0
+    CNP: -1.05
+  bucket_offsets:
+    "1": -0.60
+    "2": -0.30
+    "3": 0.0
+    "4": 0.25
+    "5": 0.55
+  mcc_offsets:
+    "5411": 0.45
+    "5812": 0.65
+    "5732": -0.20
+    "6011": -0.10
+
+nb_mean:
+  base_log_mean: 0.95
+  channel_offsets:
+    CP: 0.05
+    CNP: -0.25
+  mcc_offsets:
+    "5411": 0.35
+    "5812": 0.50
+    "5732": -0.15
+    "6011": -0.10
+
+dispersion:
+  base_log_phi: -0.70
+  gdp_log_slope: -0.12
+  channel_offsets:
+    CP: 0.0
+    CNP: 0.30
+  mcc_offsets:
+    "5411": -0.05
+    "5812": -0.10
+    "5732": 0.15

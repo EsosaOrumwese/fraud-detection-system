@@ -1,646 +1,646 @@
 subsegments:
-  - id: "3A"
-    name: "Capturing Cross‑Zone Merchants"
-    artifacts:
+- id: 3A
+  name: Capturing Cross‑Zone Merchants
+  artifacts:
 
       # 1 CROSS‑LAYER INPUT
-      - name: site_catalogue
-        path: data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
-        type: dataset
-        category: input
-        semver: "{semver}"
-        version: "{manifest_fingerprint}"
-        digest: "{sha256}"
-        manifest_key: mlr.1B.output.site_catalogue
-        license: "{spdx_or_internal}"
-        role: Site-catalogue rows from 1B (coords, tzid, footfall, provenance) for zone splitting
-        dependencies: [ site_catalogue_schema ]
-        source: internal
-        owner: { owner_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: site_catalogue_schema
-        cross_layer: true
-        notes: null
+  - name: site_catalogue
+    path: data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: input
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.1B.output.site_catalogue
+    license: '{spdx_or_internal}'
+    role: Site-catalogue rows from 1B (coords, tzid, footfall, provenance) for zone splitting
+    dependencies: [site_catalogue_schema]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: site_catalogue_schema
+    cross_layer: true
+    notes:
 
       # 2 GOVERNING CONFIG BLOBS
-      - name: zone_mixture_policy
-        path: config/zone/zone_mixture_policy.yml
-        type: config
-        category: zone_allocation
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.3A.config.zone_mixture
-        license: "{spdx_or_internal}"
-        role: θ_mix hyper‑parameters controlling single‑zone vs multi‑zone merchants.
-        dependencies: []
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: zone_mixture_policy
+    path: config/zone/zone_mixture_policy.yml
+    type: config
+    category: zone_allocation
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.config.zone_mixture
+    license: '{spdx_or_internal}'
+    role: θ_mix hyper‑parameters controlling single‑zone vs multi‑zone merchants.
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: country_zone_alphas
-        path: config/zone/country_zone_alphas.yaml
-        type: config
-        category: zone_allocation
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.3A.config.country_zone_alphas
-        license: "{spdx_or_internal}"
-        role: Dirichlet α vectors per (country, channel) for zone share draws.
-        dependencies: []
-        source: internal
-        owner: { data_science_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: country_zone_alphas
+    path: config/zone/country_zone_alphas.yaml
+    type: config
+    category: zone_allocation
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.config.country_zone_alphas
+    license: '{spdx_or_internal}'
+    role: Dirichlet α vectors per (country, channel) for zone share draws.
+    dependencies: []
+    source: internal
+    owner: {data_science_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: zone_floor
-        path: config/zone/zone_floor.yml
-        type: config
-        category: zone_allocation
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.3A.config.zone_floor
-        license: "{spdx_or_internal}"
-        role: Minimum share per major zone to avoid extinction in small N.
-        dependencies: []
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: zone_floor
+    path: config/zone/zone_floor.yml
+    type: config
+    category: zone_allocation
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.config.zone_floor
+    license: '{spdx_or_internal}'
+    role: Minimum share per major zone to avoid extinction in small N.
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
 
-      - name: country_major_zone
-        path: data/reference/geo/country_major_zone.csv
-        type: reference
-        category: spatial
-        semver: "2025.0.0"
-        version: "2025"
-        digest: "{sha256}"
-        manifest_key: mlr.ref.geo.country_major_zone
-        license: CC‑BY‑4.0
-        role: Mapping ISO → major time‑zone used for zone_floor enforcement.
-        dependencies: []
-        source: external
-        owner: { data_governance_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: country_major_zone
+    path: data/reference/geo/country_major_zone.csv
+    type: reference
+    category: spatial
+    semver: 2025.0.0
+    version: '2025'
+    digest: '{sha256}'
+    manifest_key: mlr.ref.geo.country_major_zone
+    license: CC‑BY‑4.0
+    role: Mapping ISO → major time‑zone used for zone_floor enforcement.
+    dependencies: []
+    source: external
+    owner: {data_governance_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: routing_day_effect
-        path: config/routing/routing_day_effect.yml
-        type: config
-        category: routing
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.2B.config.routing_day_effect
-        license: "{spdx_or_internal}"
-        role: γ_d variance reused to keep 3A consistent with 2B arrival scaling.
-        dependencies: []
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: routing_day_effect
+    path: config/routing/routing_day_effect.yml
+    type: config
+    category: routing
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.2B.config.routing_day_effect
+    license: '{spdx_or_internal}'
+    role: γ_d variance reused to keep 3A consistent with 2B arrival scaling.
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: rng_policy
-        path: config/routing/rng_policy.yml
-        type: config
-        category: rng_policy
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.2B.config.rng_policy
-        license: "{spdx_or_internal}"
-        role: Philox sub‑stream derivation (used again for 3A Dirichlet draws).
-        dependencies: []
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: rng_policy
+    path: config/routing/rng_policy.yml
+    type: config
+    category: rng_policy
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.2B.config.rng_policy
+    license: '{spdx_or_internal}'
+    role: Philox sub‑stream derivation (used again for 3A Dirichlet draws).
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
 
       # 3 PER‑MERCHANT ZONE‑ALLOCATION OUTPUTS
-      - name: merchant_zone_alloc_pattern
-        path: artefacts/zone_alloc/output/{merchant_id}_zone_alloc.parquet
-        type: dataset
-        category: zone_allocation
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.3A.zone_alloc.parquet_pattern
-        license: "{spdx_or_internal}"
-        role: Final Dirichlet‑rounded zone shares per merchant.
-        dependencies:
-         - country_zone_alphas
-         - zone_floor
-         - zone_mixture_policy
-         - zone_alloc_schema
-         - site_catalogue
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: zone_alloc_schema
-        cross_layer: true
-        notes: "Pattern expands: one parquet per merchant."
+  - name: merchant_zone_alloc_pattern
+    path: artefacts/zone_alloc/output/{merchant_id}_zone_alloc.parquet
+    type: dataset
+    category: zone_allocation
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.zone_alloc.parquet_pattern
+    license: '{spdx_or_internal}'
+    role: Final Dirichlet‑rounded zone shares per merchant.
+    dependencies:
+    - country_zone_alphas
+    - zone_floor
+    - zone_mixture_policy
+    - zone_alloc_schema
+    - site_catalogue
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: zone_alloc_schema
+    cross_layer: true
+    notes: 'Pattern expands: one parquet per merchant.'
 
-      - name: zone_alloc_index
-        path: artefacts/zone_alloc/index/zone_alloc_index.csv
-        type: mapping
-        category: zone_allocation
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.3A.zone_alloc.index
-        license: "{spdx_or_internal}"
-        role: Lookup table merchant_id → parquet rel‑path (for downstream joins).
-        dependencies: [ merchant_zone_alloc_pattern ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: zone_alloc_index
+    path: artefacts/zone_alloc/index/zone_alloc_index.csv
+    type: mapping
+    category: zone_allocation
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.zone_alloc.index
+    license: '{spdx_or_internal}'
+    role: Lookup table merchant_id → parquet rel‑path (for downstream joins).
+    dependencies: [merchant_zone_alloc_pattern]
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
 
-      - name: zone_alloc_schema
-        path: schema/zone_alloc.schema.json
-        type: schema
-        category: zone_allocation
-        semver: "{schema_semver}"
-        version: "{schema_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.3A.schema.zone_alloc
-        license: "{spdx_or_internal}"
-        role: JSON‑Schema enforcing column names & dtypes in zone‑alloc parquet.
-        dependencies: [ ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: zone_alloc_schema
+    path: schema/zone_alloc.schema.json
+    type: schema
+    category: zone_allocation
+    semver: '{schema_semver}'
+    version: '{schema_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.schema.zone_alloc
+    license: '{spdx_or_internal}'
+    role: JSON‑Schema enforcing column names & dtypes in zone‑alloc parquet.
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
 
       # 4 MANIFESTS & PROVENANCE
-      - name: allocation_manifest
-        path: artefacts/manifests/allocation_manifest.json
-        type: manifest
-        category: provenance
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.3A.manifest.allocation
-        license: "{spdx_or_internal}"
-        role: Digest bundle of all zone‑allocation parquet & index files.
-        dependencies:
-         - merchant_zone_alloc_pattern
-         - zone_alloc_index
-         - zone_mixture_policy
-         - country_zone_alphas
-         - zone_floor
-         - country_major_zone
-         - routing_day_effect
-         - rng_policy
-         - zone_alloc_schema
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: allocation_manifest
+    path: artefacts/manifests/allocation_manifest.json
+    type: manifest
+    category: provenance
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.manifest.allocation
+    license: '{spdx_or_internal}'
+    role: Digest bundle of all zone‑allocation parquet & index files.
+    dependencies:
+    - merchant_zone_alloc_pattern
+    - zone_alloc_index
+    - zone_mixture_policy
+    - country_zone_alphas
+    - zone_floor
+    - country_major_zone
+    - routing_day_effect
+    - rng_policy
+    - zone_alloc_schema
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
 
-      - name: allocation_licenses_manifest
-        path: artefacts/manifests/allocation_licenses_manifest.json
-        type: manifest
-        category: licensing
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.3A.manifest.licenses
-        license: "{spdx_or_internal}"
-        role: License provenance for external data used in 3A.
-        dependencies:
-          - country_major_zone
-          - visa_mcx_license_text
-          - allocation_licenses_dir
-        source: internal
-        owner: { data_governance_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: allocation_licenses_manifest
+    path: artefacts/manifests/allocation_licenses_manifest.json
+    type: manifest
+    category: licensing
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.manifest.licenses
+    license: '{spdx_or_internal}'
+    role: License provenance for external data used in 3A.
+    dependencies:
+    - country_major_zone
+    - visa_mcx_license_text
+    - allocation_licenses_dir
+    source: internal
+    owner: {data_governance_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
 
-      - name: universe_hash_policy
-        path: docs/universe_hash_policy.md
-        type: documentation
-        category: proof
-        semver: "{semver}"
-        version: "{doc_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.3A.docs.universe_hash_policy
-        license: "{spdx_or_internal}"
-        role: Defines how `universe_hash` is computed for cross‑segment lineage.
-        dependencies: [ ]
-        source: internal
-        owner: { qa_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ dev, ci, runtime ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: universe_hash_policy
+    path: docs/universe_hash_policy.md
+    type: documentation
+    category: proof
+    semver: '{semver}'
+    version: '{doc_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.docs.universe_hash_policy
+    license: '{spdx_or_internal}'
+    role: Defines how `universe_hash` is computed for cross‑segment lineage.
+    dependencies: []
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [dev, ci, runtime]
+    schema:
+    cross_layer: false
+    notes:
 
-      - name: routing_validation_policy
-        path: config/validation/cross_zone_validation.yml
-        type: config
-        category: validation
-        semver: "{semver}"
-        version: "{config_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.3A.config.cross_zone_validation
-        license: "{spdx_or_internal}"
-        role: Tolerances for share convergence and barcode slope checks used by 3A.
-        dependencies: [ ]
-        source: internal
-        owner: { qa_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: routing_validation_policy
+    path: config/validation/cross_zone_validation.yml
+    type: config
+    category: validation
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.config.cross_zone_validation
+    license: '{spdx_or_internal}'
+    role: Tolerances for share convergence and barcode slope checks used by 3A.
+    dependencies: []
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci]
+    schema:
+    cross_layer: false
+    notes:
 
       # 6 GOVERNED CODE & HELPER SCRIPTS
-      - name: make_zone_alphas_py
-        path: src/zone/make_zone_alphas.py
-        type: code
-        category: data_prep
-        semver: "{code_semver}"
-        version: "{git_commit}"
-        digest: "{git_tree_hash}"
-        manifest_key: mlr.3A.code.make_zone_alphas
-        license: "{spdx_or_internal}"
-        role: Generates Dirichlet α YAML from anonymised JPM data.
-        dependencies: [ country_major_zone ]
-        source: internal
-        owner: { data_science_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ dev, staging, prod ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: make_zone_alphas_py
+    path: src/zone/make_zone_alphas.py
+    type: code
+    category: data_prep
+    semver: '{code_semver}'
+    version: '{git_commit}'
+    digest: '{git_tree_hash}'
+    manifest_key: mlr.3A.code.make_zone_alphas
+    license: '{spdx_or_internal}'
+    role: Generates Dirichlet α YAML from anonymised JPM data.
+    dependencies: [country_major_zone]
+    source: internal
+    owner: {data_science_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [dev, staging, prod]
+    schema:
+    cross_layer: false
+    notes:
 
-      - name: replay_zone_alloc_py
-        path: tools/replay_zone_alloc.py
-        type: code
-        category: replay_tool
-        semver: "{code_semver}"
-        version: "{git_commit}"
-        digest: "{git_tree_hash}"
-        manifest_key: mlr.3A.code.replay_zone_alloc
-        license: "{spdx_or_internal}"
-        role: Deterministically re‑runs allocation for audit diff.
-        dependencies: [ merchant_zone_alloc_pattern, rng_policy ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ dev, ci ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: replay_zone_alloc_py
+    path: tools/replay_zone_alloc.py
+    type: code
+    category: replay_tool
+    semver: '{code_semver}'
+    version: '{git_commit}'
+    digest: '{git_tree_hash}'
+    manifest_key: mlr.3A.code.replay_zone_alloc
+    license: '{spdx_or_internal}'
+    role: Deterministically re‑runs allocation for audit diff.
+    dependencies: [merchant_zone_alloc_pattern, rng_policy]
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [dev, ci]
+    schema:
+    cross_layer: false
+    notes:
 
       # 7 CI/UNIT/INTEGRATION TESTS
-      - name: test_mix_threshold_py
-        path: ci/tests/test_mix_threshold.py
-        type: ci_test
-        category: zone_allocation
-        semver: "{code_semver}"
-        version: "{git_commit}"
-        digest: "{git_tree_hash}"
-        manifest_key: mlr.3A.ci.mix_threshold
-        license: "{spdx_or_internal}"
-        role: Ensures θ_mix > threshold and CI fails if drifted.
-        dependencies: [ zone_mixture_policy ]
-        source: internal
-        owner: { qa_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: test_mix_threshold_py
+    path: ci/tests/test_mix_threshold.py
+    type: ci_test
+    category: zone_allocation
+    semver: '{code_semver}'
+    version: '{git_commit}'
+    digest: '{git_tree_hash}'
+    manifest_key: mlr.3A.ci.mix_threshold
+    license: '{spdx_or_internal}'
+    role: Ensures θ_mix > threshold and CI fails if drifted.
+    dependencies: [zone_mixture_policy]
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci]
+    schema:
+    cross_layer: false
+    notes:
 
-      - name: test_zone_floor_py
-        path: ci/tests/test_zone_floor.py
-        type: ci_test
-        category: zone_allocation
-        semver: "{code_semver}"
-        version: "{git_commit}"
-        digest: "{git_tree_hash}"
-        manifest_key: mlr.3A.ci.zone_floor
-        license: "{spdx_or_internal}"
-        role: Asserts zone_floor shares respected in outputs.
-        dependencies: [ zone_floor, merchant_zone_alloc_pattern ]
-        source: internal
-        owner: { qa_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: test_zone_floor_py
+    path: ci/tests/test_zone_floor.py
+    type: ci_test
+    category: zone_allocation
+    semver: '{code_semver}'
+    version: '{git_commit}'
+    digest: '{git_tree_hash}'
+    manifest_key: mlr.3A.ci.zone_floor
+    license: '{spdx_or_internal}'
+    role: Asserts zone_floor shares respected in outputs.
+    dependencies: [zone_floor, merchant_zone_alloc_pattern]
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci]
+    schema:
+    cross_layer: false
+    notes:
 
-      - name: test_cross_zone_validation_py
-        path: ci/tests/test_cross_zone_validation.py
-        type: ci_test
-        category: validation
-        semver: "{code_semver}"
-        version: "{git_commit}"
-        digest: "{git_tree_hash}"
-        manifest_key: mlr.3A.ci.cross_zone_validation
-        license: "{spdx_or_internal}"
-        role: Runs validator on sample output parquet and checks pass flag.
-        dependencies: [ routing_day_effect, routing_validation_policy ]
-        source: internal
-        owner: { qa_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: test_cross_zone_validation_py
+    path: ci/tests/test_cross_zone_validation.py
+    type: ci_test
+    category: validation
+    semver: '{code_semver}'
+    version: '{git_commit}'
+    digest: '{git_tree_hash}'
+    manifest_key: mlr.3A.ci.cross_zone_validation
+    license: '{spdx_or_internal}'
+    role: Runs validator on sample output parquet and checks pass flag.
+    dependencies: [routing_day_effect, routing_validation_policy]
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci]
+    schema:
+    cross_layer: false
+    notes:
 
       # 8 METRICS & VISUALISATIONS
-      - name: barcode_heatmap_png
-        path: artefacts/metrics/barcode_heatmap_{run_id}.png
-        type: documentation
-        category: visualisation
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.3A.viz.barcode_heatmap
-        license: "{spdx_or_internal}"
-        role: Heat‑map of zone‑share distribution for QC dashboards.
-        dependencies: [ merchant_zone_alloc_pattern ]
-        source: internal
-        owner: { qa_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci, runtime ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: barcode_heatmap_png
+    path: artefacts/metrics/barcode_heatmap_{run_id}.png
+    type: documentation
+    category: visualisation
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.viz.barcode_heatmap
+    license: '{spdx_or_internal}'
+    role: Heat‑map of zone‑share distribution for QC dashboards.
+    dependencies: [merchant_zone_alloc_pattern]
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, runtime]
+    schema:
+    cross_layer: false
+    notes:
 
       # 9 DOCUMENTATION / PROOFS
-      - name: round_ints_md
-        path: docs/round_ints.md
-        type: documentation
-        category: guidelines
-        semver: "{semver}"
-        version: "{doc_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.3A.docs.round_ints
-        license: "{spdx_or_internal}"
-        role: Guidance on deterministic integer rounding in Dirichlet outputs.
-        dependencies: [ ]
-        source: internal
-        owner: { qa_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ dev, ci ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: round_ints_md
+    path: docs/round_ints.md
+    type: documentation
+    category: guidelines
+    semver: '{semver}'
+    version: '{doc_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.docs.round_ints
+    license: '{spdx_or_internal}'
+    role: Guidance on deterministic integer rounding in Dirichlet outputs.
+    dependencies: []
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [dev, ci]
+    schema:
+    cross_layer: false
+    notes:
 
-      - name: rng_proof_md
-        path: docs/rng_proof.md
-        type: documentation
-        category: proof
-        semver: "{semver}"
-        version: "{doc_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.3A.docs.rng_proof
-        license: "{spdx_or_internal}"
-        role: Demonstrates independence of zone Dirichlet draws from previous streams.
-        dependencies: [ ]
-        source: internal
-        owner: { qa_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ dev, ci, runtime ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: rng_proof_md
+    path: docs/rng_proof.md
+    type: documentation
+    category: proof
+    semver: '{semver}'
+    version: '{doc_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.docs.rng_proof
+    license: '{spdx_or_internal}'
+    role: Demonstrates independence of zone Dirichlet draws from previous streams.
+    dependencies: []
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [dev, ci, runtime]
+    schema:
+    cross_layer: false
+    notes:
 
       # 10 ERROR / EXCEPTION CONTRACTS
-      - name: UniverseHashError
-        path: null
-        type: exception
-        category: exception_contract
-        semver: null
-        version: null
-        digest: null
-        manifest_key: mlr.3A.exception.universe_hash
-        license: null
-        role: Raised when universe_hash mismatch detected in replay.
-        dependencies: [ ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: UniverseHashError
+    path:
+    type: exception
+    category: exception_contract
+    semver:
+    version:
+    digest:
+    manifest_key: mlr.3A.exception.universe_hash
+    license:
+    role: Raised when universe_hash mismatch detected in replay.
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
 
-      - name: ZoneAllocDriftError
-        path: null
-        type: exception
-        category: exception_contract
-        semver: null
-        version: null
-        digest: null
-        manifest_key: mlr.3A.exception.alloc_drift
-        license: null
-        role: Raised when validation detects drift > tolerance.
-        dependencies: [ ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: ZoneAllocDriftError
+    path:
+    type: exception
+    category: exception_contract
+    semver:
+    version:
+    digest:
+    manifest_key: mlr.3A.exception.alloc_drift
+    license:
+    role: Raised when validation detects drift > tolerance.
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
 
-      - name: visa_mcx_memo_md
-        path: docs/visa_mcx.md
-        type: documentation
-        category: licensing
-        semver: "{semver}"
-        version: "{doc_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.3A.docs.visa_mcx_memo
-        license: "CC-BY-4.0"
-        role: License memo covering Visa MCX dataset usage in α derivation.
-        dependencies: [ ]
-        source: internal
-        owner: { data_governance_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ dev, ci, runtime ]
-        schema: null
-        cross_layer: false
-        notes: null
-        
-      - name: allocation_licenses_dir
-        path: LICENSES/
-        type: directory
-        category: licensing
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256_tree}"
-        manifest_key: mlr.3A.licenses
-        license: "SEE-FILES"
-        role: SPDX texts for any external refs used in zone allocation (e.g., geo refs).
-        dependencies: [ ]
-        source: internal
-        owner: { legal_team }
-        environment: [ ci, runtime ]
-        schema: null
-        cross_layer: true
-        notes: null
+  - name: visa_mcx_memo_md
+    path: docs/visa_mcx.md
+    type: documentation
+    category: licensing
+    semver: '{semver}'
+    version: '{doc_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.docs.visa_mcx_memo
+    license: CC-BY-4.0
+    role: License memo covering Visa MCX dataset usage in α derivation.
+    dependencies: []
+    source: internal
+    owner: {data_governance_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [dev, ci, runtime]
+    schema:
+    cross_layer: false
+    notes:
+
+  - name: allocation_licenses_dir
+    path: LICENSES/
+    type: directory
+    category: licensing
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256_tree}'
+    manifest_key: mlr.3A.licenses
+    license: SEE-FILES
+    role: SPDX texts for any external refs used in zone allocation (e.g., geo refs).
+    dependencies: []
+    source: internal
+    owner: {legal_team: null}
+    environment: [ci, runtime]
+    schema:
+    cross_layer: true
+    notes:
 
       # 11 DETERMINISTIC ROUNDING & CI
-      - name: round_ints_spec_md
-        path: docs/round_ints.md
-        type: documentation
-        category: proof
-        semver: "{semver}"
-        version: "{doc_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.3A.docs.round_ints_spec
-        license: "{spdx_or_internal}"
-        role: Formal spec for largest-remainder + “bump” rule used in 3A.
-        dependencies: [ ]
-        source: internal
-        owner: { qa_team }
-        environment: [ ci, runtime ]
+  - name: round_ints_spec_md
+    path: docs/round_ints.md
+    type: documentation
+    category: proof
+    semver: '{semver}'
+    version: '{doc_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.docs.round_ints_spec
+    license: '{spdx_or_internal}'
+    role: Formal spec for largest-remainder + “bump” rule used in 3A.
+    dependencies: []
+    source: internal
+    owner: {qa_team: null}
+    environment: [ci, runtime]
 
-      - name: test_rounding_conservation_py
-        path: ci/tests/test_rounding_conservation.py
-        type: ci_test
-        category: allocation_validation
-        semver: "{code_semver}"
-        version: "{git_commit}"
-        digest: "{git_tree_hash}"
-        manifest_key: mlr.3A.ci.rounding_conservation
-        license: "{spdx_or_internal}"
-        role: Property test (10k vectors) that sum of integerised shares == target.
-        dependencies: [ round_ints_spec_md ]
+  - name: test_rounding_conservation_py
+    path: ci/tests/test_rounding_conservation.py
+    type: ci_test
+    category: allocation_validation
+    semver: '{code_semver}'
+    version: '{git_commit}'
+    digest: '{git_tree_hash}'
+    manifest_key: mlr.3A.ci.rounding_conservation
+    license: '{spdx_or_internal}'
+    role: Property test (10k vectors) that sum of integerised shares == target.
+    dependencies: [round_ints_spec_md]
 
       # 13 HIDDEN γ-DAY TABLE
-      - name: gamma_day_table_schema
-        path: schema/gamma_day_table.schema.json
-        type: schema
-        category: routing_gamma
-        semver: "{semver}"
-        version: "{schema_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.3A.schema.gamma_day_table
-        license: "{spdx_or_internal}"
-        role:
-          Columns: merchant_id STRING, day_index INT16, gamma_value FLOAT64.
-        dependencies: [ ]
-        source: internal
-        owner: { platform_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ dev, ci, runtime ]
-        schema: null
-        cross_layer: false
-        notes: null
+  - name: gamma_day_table_schema
+    path: schema/gamma_day_table.schema.json
+    type: schema
+    category: routing_gamma
+    semver: '{semver}'
+    version: '{schema_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.schema.gamma_day_table
+    license: '{spdx_or_internal}'
+    role:
+      Columns: merchant_id STRING, day_index INT16, gamma_value FLOAT64.
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [dev, ci, runtime]
+    schema:
+    cross_layer: false
+    notes:
 
-      - name: gamma_day_table
-        path: artefacts/metrics/gamma_day_table_{run_id}.parquet
-        type: dataset
-        category: routing_gamma
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.3A.metrics.gamma_day_table
-        license: "{spdx_or_internal}"
-        role: Forensic record of per-day γ draws for replay.
-        dependencies: [ routing_day_effect, rng_policy, gamma_day_table_schema ]
-        source: internal
-        owner: { qa_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci, runtime ]
-        schema: gamma_day_table_schema
-        cross_layer: false
-        notes: null
+  - name: gamma_day_table
+    path: artefacts/metrics/gamma_day_table_{run_id}.parquet
+    type: dataset
+    category: routing_gamma
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.metrics.gamma_day_table
+    license: '{spdx_or_internal}'
+    role: Forensic record of per-day γ draws for replay.
+    dependencies: [routing_day_effect, rng_policy, gamma_day_table_schema]
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, runtime]
+    schema: gamma_day_table_schema
+    cross_layer: false
+    notes:
 
       # 14 LICENSES
-      - name: visa_mcx_license_text
-        path: LICENSES/visa_mcx.md
-        type: documentation
-        category: licensing
-        semver: "{semver}"
-        version: "{doc_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.3A.licensing.visa_mcx
-        license: CC-BY-4.0
-        role: License text referenced by allocation_licenses_manifest.
-        dependencies: [ ]
-        source: external
-        owner: { data_governance_team }
+  - name: visa_mcx_license_text
+    path: LICENSES/visa_mcx.md
+    type: documentation
+    category: licensing
+    semver: '{semver}'
+    version: '{doc_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.licensing.visa_mcx
+    license: CC-BY-4.0
+    role: License text referenced by allocation_licenses_manifest.
+    dependencies: []
+    source: external
+    owner: {data_governance_team: null}
 
       # 3A  SCHEMAS FOR ESCALATION QUEUE
-      - name: zone_escalation_queue_schema
-        path: schema/zone_escalation_queue.schema.json
-        type: schema
-        category: zone_allocation
-        semver: "{schema_semver}"
-        version: "{schema_version}"
-        digest: "{sha256}"
-        manifest_key: mlr.3A.schema.zone_escalation_queue
-        license: "{spdx_or_internal}"
-        role: JSON Schema for escalation queue rows flagged by θ_mix checks.
-        dependencies: [ ]
-        source: internal
-        owner: { qa_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ ci, runtime ]
-        schema: null
-        cross_layer: false
-        notes: "Columns: merchant_id, reason, mix_score, threshold, created_at."
+  - name: zone_escalation_queue_schema
+    path: schema/zone_escalation_queue.schema.json
+    type: schema
+    category: zone_allocation
+    semver: '{schema_semver}'
+    version: '{schema_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.schema.zone_escalation_queue
+    license: '{spdx_or_internal}'
+    role: JSON Schema for escalation queue rows flagged by θ_mix checks.
+    dependencies: []
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, runtime]
+    schema:
+    cross_layer: false
+    notes: 'Columns: merchant_id, reason, mix_score, threshold, created_at.'
 
       # 3A  DATASET PERSISTING THE ESCALATION QUEUE
-      - name: zone_escalation_queue_csv
-        path: artefacts/zone_alloc/escalation_queue_{run_id}.csv
-        type: dataset
-        category: zone_allocation
-        semver: "{semver}"
-        version: "{run_id}"
-        digest: "{sha256}"
-        manifest_key: mlr.3A.output.zone_escalation_queue
-        license: "{spdx_or_internal}"
-        role: Snapshot of merchants requiring manual review due to θ_mix threshold.
-        dependencies: [ zone_mixture_policy, merchant_zone_alloc_pattern, zone_escalation_queue_schema ]
-        source: internal
-        owner: { qa_team }
-        last_updated: "{iso8601_timestamp}"
-        environment: [ runtime ]
-        schema: zone_escalation_queue_schema
-        cross_layer: true
-        notes: "Materialised for audit; compared by ci/tests/test_mix_threshold.py."
+  - name: zone_escalation_queue_csv
+    path: artefacts/zone_alloc/escalation_queue_{run_id}.csv
+    type: dataset
+    category: zone_allocation
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.3A.output.zone_escalation_queue
+    license: '{spdx_or_internal}'
+    role: Snapshot of merchants requiring manual review due to θ_mix threshold.
+    dependencies: [zone_mixture_policy, merchant_zone_alloc_pattern, zone_escalation_queue_schema]
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: zone_escalation_queue_schema
+    cross_layer: true
+    notes: Materialised for audit; compared by ci/tests/test_mix_threshold.py.

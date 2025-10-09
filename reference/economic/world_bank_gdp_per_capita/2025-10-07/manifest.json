@@ -1,0 +1,19 @@
+{
+  "dataset_id": "world_bank_gdp_per_capita_2024",
+  "version": "2025-10-07",
+  "observation_year": 2024,
+  "source_series": "NY.GDP.PCAP.KD",
+  "source_url": "https://api.worldbank.org/v2/",
+  "generated_at_utc": "2025-10-08T18:14:05.626651+00:00",
+  "row_count": 205,
+  "output_csv": "reference\\economic\\world_bank_gdp_per_capita\\2025-10-07\\world_bank_gdp_pc_2024.csv",
+  "output_csv_sha256": "643c42029a984dab767473f75a82cd1e53d2cf3a21ab44d112179534118197ad",
+  "output_parquet": "reference\\economic\\world_bank_gdp_per_capita\\2025-10-07\\gdp.parquet",
+  "output_parquet_sha256": "982f45c84fbdb20b6c7a9fd0704d6d1eafeeb43d80ade138209b6fcfa76059dd",
+  "raw_artifacts": {
+    "artefacts\\economic\\world_bank_gdp_per_capita\\2025-10-07\\countries-excluded.json": "3ae69458da7fd901f7ec11f630ece9f3ea7bb5bf996d522da5f1420426e55152",
+    "artefacts\\economic\\world_bank_gdp_per_capita\\2025-10-07\\countries.json": "340b9d3d3015d91066d81217b2aa8bb1b30d6fe26e35e2fdb69df951d671fa61",
+    "artefacts\\economic\\world_bank_gdp_per_capita\\2025-10-07\\gdp_2024.json": "6e1ebd78be2f58283abc40d35e547ed7e185ba805c45f55e1d90b51dce81333d",
+    "artefacts\\economic\\world_bank_gdp_per_capita\\2025-10-07\\gdp_2024_missing_iso3.json": "051a208ee5bb350506f14e1a427209c02c546660fa9a0e6176594ea05095b257"
+  }
+}
