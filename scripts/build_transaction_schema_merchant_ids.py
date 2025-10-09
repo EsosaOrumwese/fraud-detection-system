@@ -104,7 +104,7 @@ def load_bucket_map(version: str) -> Dict[str, int]:
 
 
 def load_iso_set(version: str) -> set[str]:
-    path = ROOT / "reference" / "layer1" / "iso_canonical" / version / "iso_canonical.parquet"
+    path = ROOT / "reference" / "layer1" / "iso_canonical" / f'v{version}' / 'iso_canonical.parquet'
     if not path.exists():
         raise FileNotFoundError(f"ISO canonical parquet not found: {path}")
     df = pl.read_parquet(path).select("country_iso")
@@ -424,7 +424,7 @@ def build_dataset(args: argparse.Namespace) -> None:
             ROOT / "reference" / "economic" / "gdp_bucket_map" / args.bucket_version / "gdp_bucket_map.parquet"
         ),
         f"reference/layer1/iso_canonical/{args.iso_version}/iso_canonical.parquet": sha256sum(
-            ROOT / "reference" / "layer1" / "iso_canonical" / args.iso_version / "iso_canonical.parquet"
+            ROOT / "reference" / "layer1" / "iso_canonical" / f"v{args.iso_version}" / "iso_canonical.parquet"
         ),
     }
 
