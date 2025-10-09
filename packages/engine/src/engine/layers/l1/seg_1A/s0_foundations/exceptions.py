@@ -103,6 +103,11 @@ _FAILURE_CODE_MAP: Mapping[str, Tuple[FailureCategory, str]] = {
         FailureCategory.F7_NUMERIC_POLICY,
         "numeric_policy_value",
     ),
+    "E_DATASET_NOT_FOUND": (FailureCategory.F9_IO, "dataset_missing"),
+    "E_DATASET_EMPTY": (FailureCategory.F9_IO, "dataset_empty"),
+    "E_DATASET_IO": (FailureCategory.F9_IO, "dataset_read_failure"),
+    "E_PARAM_IO": (FailureCategory.F2_PARAMETERS, "param_file_missing"),
+    "E_YAML_ROOT": (FailureCategory.F2_PARAMETERS, "yaml_root_not_mapping"),
 }
 
 
