@@ -27,3 +27,7 @@ The latest synthetic fit is published under `configs/models/hurdle/exports/versi
 ## Related policies
 
 See `docs/model_spec/data-engine/specs/policies/synthetic-crossborder-policies.md` for the synthetic S0/S3 cross-border policies.
+
+## Run configuration
+
+Use `python scripts/generate_s0_config.py` to emit `configs/runs/s0_synthetic_config.json` with the latest versioned artefacts before running the S0 orchestrator.
