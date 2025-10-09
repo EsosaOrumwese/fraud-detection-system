@@ -159,3 +159,4 @@ terraform-provider-aws_v*.exe
 terraform-provider-aws_v*/
 artefacts/spatial/population_raster/**/*.tif
 temp/scratch.md
+scratch_files/
