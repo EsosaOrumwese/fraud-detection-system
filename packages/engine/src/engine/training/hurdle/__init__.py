@@ -8,6 +8,7 @@ from .config import (
     SimulationConfig,
     load_simulation_config,
 )
+from .persist import SimulationArtefacts, materialise_simulated_corpus
 from .simulator import SimulatedHurdleCorpus, simulate_hurdle_corpus
 from .universe import MerchantUniverseSources, load_enriched_universe
 
@@ -22,4 +23,6 @@ __all__ = [
     "load_enriched_universe",
     "SimulatedHurdleCorpus",
     "simulate_hurdle_corpus",
+    "SimulationArtefacts",
+    "materialise_simulated_corpus",
 ]
