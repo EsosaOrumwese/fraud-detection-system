@@ -9,6 +9,7 @@ from .config import (
     load_simulation_config,
 )
 from .design import DesignDictionaries, DesignMatrices, build_design_matrices
+from .fit import HurdleFit, FitDiagnostics, fit_hurdle_coefficients
 from .persist import (
     SimulationArtefacts,
     load_persisted_corpus,
@@ -37,4 +38,7 @@ __all__ = [
     "DesignDictionaries",
     "DesignMatrices",
     "build_design_matrices",
+    "HurdleFit",
+    "FitDiagnostics",
+    "fit_hurdle_coefficients",
 ]
