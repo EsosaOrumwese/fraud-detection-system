@@ -55,7 +55,10 @@ def test_simulate_hurdle_corpus_structure() -> None:
     assert corpus.logistic["is_multi"].dtype == pl.Boolean
 
     if corpus.nb_mean.height > 0:
-        assert corpus.nb_mean["k_domestic"].min() >= 2
+        k_domestic_min = (
+            corpus.nb_mean.select(pl.col("k_domestic").cast(pl.Int32).min()).item()
+        )
+        assert k_domestic_min is not None and k_domestic_min >= 2
 
     summary = corpus.summary()
     assert summary["rows_logistic"] == corpus.logistic.height
