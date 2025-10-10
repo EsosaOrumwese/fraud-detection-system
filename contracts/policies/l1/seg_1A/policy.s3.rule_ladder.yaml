@@ -34,6 +34,8 @@ rules:
     outcome:
       reason_code: DENY_SANCTIONED
       tags: ["SANCTIONED"]
+      crossborder: false
+      deny_named_sets: ["SANCTIONED"]
   - rule_id: RL_ALLOW_BASE
     precedence: ALLOW
     priority: 100
@@ -42,6 +44,8 @@ rules:
     outcome:
       reason_code: ALLOW_DEFAULT
       tags: ["ADMISSIBLE", "CROSS_BORDER_ELIGIBLE"]
+      crossborder: true
+      admit_named_sets: ["PREFERRED_FOREIGN"]
   - rule_id: RL_DEFAULT_FALLBACK
     precedence: DEFAULT
     priority: 1000
@@ -50,3 +54,4 @@ rules:
     outcome:
       reason_code: DEFAULT_DENY
       tags: []
+      crossborder: false

@@ -79,6 +79,14 @@ Read in this exact order before making changes in this package:
 
 ---
 
+## 6) S3 quick reference (cross-border universe)
+- Contract/artefacts: `contracts/policies/l1/seg_1A/policy.s3.rule_ladder.yaml` (rule ladder) plus optional base-weight/threshold policies.
+- Runner: `Segment1AOrchestrator` wires deterministic context → S3. The combined CLI (`python -m engine.cli.segment1a --param policy.s3.rule_ladder.yaml=...`) emits `parameter_scoped/parameter_hash=*/s3_candidate_set.parquet`.
+- Validator: `engine.layers.l1.seg_1A.s3_crossborder_universe.l3.validator.validate_s3_candidate_set` (requires deterministic context + rule ladder artefact).
+- Tests: `python -m pytest tests/engine/layers/l1/seg_1A/test_s3_runner.py`.
+
+---
+
 ## House style (soft guidance - optional)
 - I leave it to you to work with your best practices as a pro MLOPs Engineer and Software Engineer when dealing with this project. 
 

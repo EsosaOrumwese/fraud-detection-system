@@ -1,4 +1,4 @@
-"""CLI runner for Segment 1A (S0 foundations → S2 NB outlets)."""
+"""CLI runner for Segment 1A (S0 foundations – S3 cross-border universe)."""
 
 from __future__ import annotations
 
@@ -36,36 +36,86 @@ def _normalise_paths(values: List[str]) -> List[Path]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Run Segment 1A states S0→S1→S2 over prepared artefacts.",
+        description="Run Segment 1A states S0–S1–S2–S3 over prepared artefacts.",
     )
-    parser.add_argument("--output-dir", required=True, type=Path, help="Base directory for parameter-scoped outputs and validation bundles.")
-    parser.add_argument("--merchant-table", required=True, type=Path, help="Path to the merchant ingress parquet table.")
-    parser.add_argument("--iso-table", required=True, type=Path, help="Path to the canonical ISO parquet table.")
-    parser.add_argument("--gdp-table", required=True, type=Path, help="Path to the GDP parquet table (obs-year 2024).")
-    parser.add_argument("--bucket-table", required=True, type=Path, help="Path to the GDP bucket parquet table (Jenks-5).")
+    parser.add_argument(
+        "--output-dir",
+        required=True,
+        type=Path,
+        help="Base directory for parameter-scoped outputs and validation bundles.",
+    )
+    parser.add_argument(
+        "--merchant-table",
+        required=True,
+        type=Path,
+        help="Path to the merchant ingress parquet table.",
+    )
+    parser.add_argument(
+        "--iso-table",
+        required=True,
+        type=Path,
+        help="Path to the canonical ISO parquet table.",
+    )
+    parser.add_argument(
+        "--gdp-table",
+        required=True,
+        type=Path,
+        help="Path to the GDP parquet table (obs-year 2024).",
+    )
+    parser.add_argument(
+        "--bucket-table",
+        required=True,
+        type=Path,
+        help="Path to the GDP bucket parquet table (Jenks-5).",
+    )
     parser.add_argument(
         "--param",
         dest="parameter_files",
         action="append",
         default=[],
-        help="Parameter artefacts in NAME=PATH form (repeat per file).",
+        help=(
+            "Parameter artefacts in NAME=PATH form (repeat per file, "
+            "e.g. policy.s3.rule_ladder.yaml)."
+        ),
     )
-    parser.add_argument("--git-commit", required=True, help="Git commit SHA the run should record as lineage.")
-    parser.add_argument("--seed", type=int, required=True, help="Philox master seed (uint64).")
-    parser.add_argument("--numeric-policy", dest="numeric_policy_path", type=Path, help="Optional numeric_policy.json path.")
-    parser.add_argument("--math-profile", dest="math_profile_manifest_path", type=Path, help="Optional math_profile_manifest.json path.")
+    parser.add_argument(
+        "--git-commit",
+        required=True,
+        help="Git commit SHA the run should record as lineage.",
+    )
+    parser.add_argument(
+        "--seed", type=int, required=True, help="Philox master seed (uint64)."
+    )
+    parser.add_argument(
+        "--numeric-policy",
+        dest="numeric_policy_path",
+        type=Path,
+        help="Optional numeric_policy.json path.",
+    )
+    parser.add_argument(
+        "--math-profile",
+        dest="math_profile_manifest_path",
+        type=Path,
+        help="Optional math_profile_manifest.json path.",
+    )
     parser.add_argument(
         "--validation-policy",
         required=True,
         type=Path,
-        help="Path to validation policy YAML for S2 corridors (e.g. contracts/policies/l1/seg_1A/s2_validation_policy.yaml).",
+        help=(
+            "Path to validation policy YAML for S2 corridors "
+            "(e.g. contracts/policies/l1/seg_1A/s2_validation_policy.yaml)."
+        ),
     )
     parser.add_argument(
         "--extra-manifest",
         dest="extra_manifest",
         action="append",
         default=[],
-        help="Additional artefacts to include when computing the manifest fingerprint (repeat per path).",
+        help=(
+            "Additional artefacts to include when computing the manifest "
+            "fingerprint (repeat per path)."
+        ),
     )
     parser.add_argument(
         "--no-validate-s0",
@@ -98,7 +148,9 @@ def main(argv: list[str] | None = None) -> int:
         help="Optional JSON file to persist the combined run summary.",
     )
 
-    parser.set_defaults(validate_s0=True, validate_s1=True, validate_s2=True, include_diagnostics=True)
+    parser.set_defaults(
+        validate_s0=True, validate_s1=True, validate_s2=True, include_diagnostics=True
+    )
 
     args = parser.parse_args(argv)
 
@@ -147,9 +199,13 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     logger.info(
-        "Segment1A CLI: run completed (run_id=%s, accepted_merchants=%d)",
+        "Segment1A CLI: run completed (run_id=%s, accepted_merchants=%d, s3_merchants=%d)",
         result.s2_result.deterministic.run_id,
         len(result.nb_context.finals),
+        len(result.s3_context.deterministic.merchants),
+    )
+    logger.info(
+        "Segment1A CLI: S3 candidate set %s", result.s3_context.candidate_set_path
     )
     if result.nb_context.metrics:
         logger.info("Segment1A CLI: S2 metrics %s", result.nb_context.metrics)
@@ -189,6 +245,12 @@ def main(argv: list[str] | None = None) -> int:
                     else None
                 ),
                 "metrics": result.nb_context.metrics,
+            },
+            "s3": {
+                "candidate_set_path": str(result.s3_context.candidate_set_path),
+                "merchants": len(result.s3_context.deterministic.merchants),
+                "parameter_hash": result.s3_context.parameter_hash,
+                "manifest_fingerprint": result.s3_context.manifest_fingerprint,
             },
         }
         args.result_json.expanduser().resolve().write_text(

@@ -336,7 +336,7 @@ class Segment1AOrchestrator:
 
         hurdle_context = build_hurdle_context(s1_result)
 
-        deterministic_context = build_s2_deterministic_context(
+        deterministic_context = build_deterministic_context(
             parameter_hash=s1_result.parameter_hash,
             manifest_fingerprint=s1_result.manifest_fingerprint,
             run_id=s1_result.run_id,
@@ -407,75 +407,6 @@ class Segment1AOrchestrator:
             catalogue_path=catalogue_path,
             validation_artifacts_path=validation_artifacts_path,
         )
-
-        rule_ladder_path = param_mapping.get("policy.s3.rule_ladder.yaml")
-        if rule_ladder_path is None:
-            raise err(
-                "ERR_S3_AUTHORITY_MISSING",
-                "parameter 'policy.s3.rule_ladder.yaml' is required for S3",
-            )
-        multi_ids = set(s1_result.multi_merchant_ids)
-        merchant_rows = (
-            s0_result.sealed.context.merchants.merchants.sort("merchant_id").to_dicts()
-        )
-        merchant_profiles: list[MerchantProfile] = []
-        for row in merchant_rows:
-            merchant_id = int(row["merchant_id"])
-            if merchant_id not in multi_ids:
-                continue
-            merchant_profiles.append(
-                MerchantProfile(
-                    merchant_id=merchant_id,
-                    home_country_iso=str(row["home_country_iso"]),
-                    mcc=str(row["mcc"]),
-                    channel=str(row["channel_sym"]),
-                )
-            )
-
-        if not merchant_profiles:
-            raise err(
-                "ERR_S3_PRECONDITION",
-                "no multi-site merchants available for S3",
-            )
-
-        s3_deterministic = build_s3_deterministic_context(
-            parameter_hash=s2_result.deterministic.parameter_hash,
-            manifest_fingerprint=s2_result.deterministic.manifest_fingerprint,
-            run_id=s2_result.deterministic.run_id,
-            seed=s2_result.deterministic.seed,
-            merchant_profiles=merchant_profiles,
-            decisions=s1_result.decisions,
-            nb_finals=s2_result.finals,
-            iso_countries=s0_result.sealed.context.iso_countries,
-            rule_ladder_spec=S3ArtefactSpec(
-                artefact_id="policy.s3.rule_ladder.yaml",
-                path=rule_ladder_path,
-            ),
-            iso_countries_spec=S3ArtefactSpec(
-                artefact_id="iso3166_canonical_2024",
-                path=iso_table.expanduser().resolve(),
-            ),
-        )
-
-        logger.info(
-            "Segment1A S3 deterministic context built (merchants=%d)",
-            len(s3_deterministic.merchants),
-        )
-
-        s3_result = self._s3_runner.run(
-            base_path=base_path,
-            deterministic=s3_deterministic,
-            rule_ladder_path=rule_ladder_path,
-            toggles=S3FeatureToggles(),
-        )
-
-        logger.info(
-            "Segment1A S3 completed (merchants=%d)",
-            len(s3_deterministic.merchants),
-        )
-
-        s3_context = build_s3_context(s3_result)
-
         logger.info(
             "Segment1A orchestrator finished (run_id=%s)",
             s2_result.deterministic.run_id,
@@ -486,18 +417,14 @@ class Segment1AOrchestrator:
             s2_result=s2_result,
             hurdle_context=hurdle_context,
             nb_context=nb_context,
-            s3_result=s3_result,
-            s3_context=s3_context,
         )
 
 
 __all__ = [
     "HurdleStateContext",
     "S2StateContext",
-    "S3StateContext",
     "Segment1ARunResult",
     "Segment1AOrchestrator",
     "build_hurdle_context",
     "build_s2_context",
-    "build_s3_context",
 ]
