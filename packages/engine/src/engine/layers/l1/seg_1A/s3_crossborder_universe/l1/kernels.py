@@ -117,7 +117,7 @@ def _compute_priors(
                 dp=policy.dp,
             )
         )
-        weights.append(score)
+        weights.append(quant)
 
     weight_list: Optional[List[Decimal]]
     if not ranked:
