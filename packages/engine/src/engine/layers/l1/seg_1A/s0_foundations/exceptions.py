@@ -120,6 +120,26 @@ _FAILURE_CODE_MAP: Mapping[str, Tuple[FailureCategory, str]] = {
         FailureCategory.F8_VALIDATION,
         "s2_corridor_breach",
     ),
+    "ERR_S3_AUTHORITY_MISSING": (
+        FailureCategory.F6_AUTHORITY,
+        "s3_authority_missing",
+    ),
+    "ERR_S3_PRECONDITION": (
+        FailureCategory.F8_VALIDATION,
+        "s3_precondition",
+    ),
+    "ERR_S3_PARTITION_MISMATCH": (
+        FailureCategory.F5_PARTITION,
+        "s3_partition_mismatch",
+    ),
+    "ERR_S3_VOCAB_INVALID": (
+        FailureCategory.F1_INGRESS,
+        "s3_vocab_invalid",
+    ),
+    "ERR_S3_RULE_LADDER_INVALID": (
+        FailureCategory.F6_AUTHORITY,
+        "s3_rule_ladder_invalid",
+    ),
 }
 
 
