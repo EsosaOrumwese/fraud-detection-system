@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Mapping
+from typing import Mapping, Sequence
 
 from ...s0_foundations.l2.output import refresh_validation_bundle_flag
 from ...shared.dictionary import load_dictionary, resolve_dataset_path
@@ -22,6 +22,7 @@ def publish_s3_validation_artifacts(
     passed: bool,
     failed_merchants: Mapping[int, str] | None = None,
     error_message: str | None = None,
+    diagnostics: Sequence[Mapping[str, object]] | None = None,
 ) -> Path | None:
     """Persist S3 validation metrics into the validation bundle.
 
@@ -78,6 +79,13 @@ def publish_s3_validation_artifacts(
         json.dumps(summary, indent=2, sort_keys=True),
         encoding="utf-8",
     )
+
+    if diagnostics:
+        diagnostics_path = target_dir / "integerisation_diagnostics.jsonl"
+        with diagnostics_path.open("w", encoding="utf-8") as handle:
+            for row in diagnostics:
+                handle.write(json.dumps(row, sort_keys=True))
+                handle.write("\n")
 
     refresh_validation_bundle_flag(bundle_dir)
     return target_dir

@@ -176,6 +176,7 @@ class S3StateContext:
     validation_passed: bool | None = None
     validation_failed_merchants: Dict[int, str] | None = None
     validation_artifacts_path: Path | None = None
+    validation_diagnostics: Tuple[Mapping[str, object], ...] | None = None
 
     @property
     def parameter_hash(self) -> str:
@@ -201,6 +202,7 @@ def build_s3_context(
     validation_passed: bool | None = None,
     validation_failed_merchants: Dict[int, str] | None = None,
     validation_artifacts_path: Path | None = None,
+    validation_diagnostics: Tuple[Mapping[str, object], ...] | None = None,
 ) -> S3StateContext:
     """Construct the downstream-facing context bundle from the S3 run."""
 
@@ -214,6 +216,7 @@ def build_s3_context(
         validation_passed=validation_passed,
         validation_failed_merchants=validation_failed_merchants,
         validation_artifacts_path=validation_artifacts_path,
+        validation_diagnostics=validation_diagnostics,
     )
 
 
@@ -561,6 +564,7 @@ class Segment1AOrchestrator:
         s3_validation_artifacts_path: Path | None = None
         s3_validation_passed: bool | None = None
         s3_failed_merchants: Dict[int, str] | None = None
+        s3_diagnostics: Tuple[Mapping[str, object], ...] | None = None
         if validate_s3:
             try:
                 validation = validate_s3_outputs(
@@ -584,12 +588,14 @@ class Segment1AOrchestrator:
                     passed=False,
                     failed_merchants={},
                     error_message=str(exc),
+                    diagnostics=None,
                 )
                 raise
             else:
                 s3_metrics = dict(validation.metrics)
                 s3_validation_passed = validation.passed
                 s3_failed_merchants = dict(validation.failed_merchants)
+                s3_diagnostics = tuple(validation.diagnostics)
                 logger.info(
                     "Segment1A S3 validation %s",
                     "passed" if s3_validation_passed else "completed with issues",
@@ -600,6 +606,7 @@ class Segment1AOrchestrator:
                     metrics=s3_metrics,
                     passed=s3_validation_passed,
                     failed_merchants=s3_failed_merchants,
+                    diagnostics=validation.diagnostics,
                 )
                 if s3_validation_artifacts_path is not None:
                     logger.info(
@@ -615,6 +622,7 @@ class Segment1AOrchestrator:
             validation_passed=s3_validation_passed,
             validation_failed_merchants=s3_failed_merchants,
             validation_artifacts_path=s3_validation_artifacts_path,
+            validation_diagnostics=s3_diagnostics,
         )
 
         logger.info(

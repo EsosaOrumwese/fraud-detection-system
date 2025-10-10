@@ -2,20 +2,28 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass, field
+from decimal import Decimal
 from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, Sequence, Tuple
 
 import polars as pl
+from jsonschema import Draft201909Validator, ValidationError
 
 from ...s0_foundations.exceptions import err
 from ..l0.policy import BaseWeightPolicy, ThresholdsPolicy
 from ..l0.types import CountRow, PriorRow, RankedCandidateRow
 from ..l1.kernels import S3FeatureToggles, run_kernels
 from ..l2.deterministic import S3DeterministicContext
+from ...shared.dictionary import get_repo_root
 
 logger = logging.getLogger(__name__)
+
+_SCHEMA_VALIDATORS: Dict[str, Draft201909Validator] | None = None
+_SCHEMA_FILE_RELATIVE = Path("contracts/schemas/l1/seg_1A/s3_outputs.schema.json")
+_SCHEMA_SKIP_KEYS = {"$schema", "$id", "title", "description"}
 
 
 @dataclass(frozen=True)
@@ -25,6 +33,58 @@ class S3ValidationResult:
     metrics: Mapping[str, float]
     passed: bool = True
     failed_merchants: Mapping[int, str] = field(default_factory=dict, repr=False)
+    diagnostics: Tuple[Mapping[str, object], ...] = field(default_factory=tuple, repr=False)
+
+
+def _schema_validators() -> Dict[str, Draft201909Validator]:
+    """Lazily load and cache JSON-Schema validators for S3 outputs."""
+
+    global _SCHEMA_VALIDATORS
+    if _SCHEMA_VALIDATORS is not None:
+        return _SCHEMA_VALIDATORS
+
+    schema_path = get_repo_root() / _SCHEMA_FILE_RELATIVE
+    try:
+        raw = schema_path.read_text(encoding="utf-8")
+    except FileNotFoundError as exc:
+        raise err("E_SCHEMA_NOT_FOUND", f"S3 schema file missing at '{schema_path}'") from exc
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise err("E_SCHEMA_FORMAT", f"S3 schema file '{schema_path}' is not valid JSON") from exc
+
+    validators: Dict[str, Draft201909Validator] = {}
+    for key, schema in payload.items():
+        if key in _SCHEMA_SKIP_KEYS:
+            continue
+        try:
+            validators[key] = Draft201909Validator(schema)
+        except Exception as exc:  # pragma: no cover - jsonschema raises various subclasses
+            raise err(
+                "E_SCHEMA_FORMAT",
+                f"S3 schema '{schema_path}' key '{key}' could not be compiled: {exc}",
+            ) from exc
+    _SCHEMA_VALIDATORS = validators
+    return validators
+
+
+def _validate_schema_array(section: str, rows: Sequence[Mapping[str, object]]) -> None:
+    """Validate ``rows`` against the named schema section."""
+
+    validators = _schema_validators()
+    validator = validators.get(section)
+    if validator is None:
+        raise err(
+            "E_SCHEMA_POINTER",
+            f"S3 schema does not define section '{section}'",
+        )
+    try:
+        validator.validate(list(rows))
+    except ValidationError as exc:
+        raise err(
+            "ERR_S3_SCHEMA_VALIDATION",
+            f"S3 schema validation failed for '{section}': {exc.message}",
+        ) from exc
 
 
 def _ensure_dataset_exists(path: Path | None, dataset: str) -> Path:
@@ -116,6 +176,7 @@ def _assert_unique(
         )
 
 
+
 def validate_s3_outputs(
     *,
     deterministic: S3DeterministicContext,
@@ -132,12 +193,14 @@ def validate_s3_outputs(
 
     toggles.validate()
 
-    candidate_path = _ensure_dataset_exists(candidate_set_path, "s3_candidate_set")
-    candidate_frame = pl.read_parquet(candidate_path)
-    if candidate_frame.height == 0:
-        raise err("ERR_S3_EGRESS_SHAPE", "s3_candidate_set is empty")
-    if any(candidate_frame[col].null_count() > 0 for col in candidate_frame.columns):
-        raise err("ERR_S3_EGRESS_SHAPE", "s3_candidate_set contains null values")
+    merchants_map = {merchant.merchant_id: merchant for merchant in deterministic.merchants}
+
+    candidate_root = _ensure_dataset_exists(candidate_set_path, "s3_candidate_set")
+    candidate_frame = (
+        pl.read_parquet(candidate_root)
+        .sort(["merchant_id", "candidate_rank", "country_iso"])
+    )
+    _validate_schema_array("candidate_set", candidate_frame.to_dicts())
     _assert_partition_column(
         candidate_frame,
         column="parameter_hash",
@@ -151,17 +214,8 @@ def validate_s3_outputs(
             expected=deterministic.manifest_fingerprint,
             dataset="s3_candidate_set",
         )
-
-    _assert_unique(
-        candidate_frame,
-        ["merchant_id", "country_iso"],
-        "s3_candidate_set",
-    )
-    _assert_unique(
-        candidate_frame,
-        ["merchant_id", "candidate_rank"],
-        "s3_candidate_set",
-    )
+    _assert_unique(candidate_frame, ["merchant_id", "country_iso"], "s3_candidate_set")
+    _assert_unique(candidate_frame, ["merchant_id", "candidate_rank"], "s3_candidate_set")
 
     kernel_result = run_kernels(
         deterministic=deterministic,
@@ -172,10 +226,141 @@ def validate_s3_outputs(
     )
 
     expected_candidates = _group_expected_candidates(kernel_result.ranked_candidates)
+    expected_priors = _group_expected_priors(kernel_result.priors)
+    expected_counts = _group_expected_counts(kernel_result.counts)
+    expected_sequence = _group_expected_sequence(kernel_result.sequence)
+
     actual_candidates: Dict[int, List[dict]] = {}
-    for row in candidate_frame.sort(["merchant_id", "candidate_rank"]).to_dicts():
+    for row in candidate_frame.to_dicts():
         merchant_id = int(row["merchant_id"])
         actual_candidates.setdefault(merchant_id, []).append(row)
+
+    actual_priors: Dict[Tuple[int, str], Mapping[str, object]] = {}
+    priors_by_merchant: Dict[int, List[Mapping[str, object]]] = {}
+    priors_rows = 0
+    priors_merchants = 0
+    priors_total_weight = Decimal("0")
+
+    if toggles.priors_enabled:
+        priors_root = _ensure_dataset_exists(base_weight_priors_path, "s3_base_weight_priors")
+        priors_frame = pl.read_parquet(priors_root).sort(["merchant_id", "country_iso"])
+        _validate_schema_array("base_weight_priors", priors_frame.to_dicts())
+        _assert_partition_column(
+            priors_frame,
+            column="parameter_hash",
+            expected=deterministic.parameter_hash,
+            dataset="s3_base_weight_priors",
+        )
+        if "produced_by_fingerprint" in priors_frame.columns:
+            _assert_partition_column(
+                priors_frame,
+                column="produced_by_fingerprint",
+                expected=deterministic.manifest_fingerprint,
+                dataset="s3_base_weight_priors",
+            )
+        _assert_unique(priors_frame, ["merchant_id", "country_iso"], "s3_base_weight_priors")
+        for row in priors_frame.to_dicts():
+            merchant_id = int(row["merchant_id"])
+            country = str(row["country_iso"])
+            actual_priors[(merchant_id, country)] = row
+            priors_by_merchant.setdefault(merchant_id, []).append(row)
+            priors_total_weight += Decimal(str(row["base_weight_dp"]))
+        priors_rows = len(actual_priors)
+        priors_merchants = len(priors_by_merchant)
+    else:
+        if base_weight_priors_path is not None and base_weight_priors_path.exists():
+            raise err(
+                "ERR_S3_PRIOR_DISABLED",
+                "base-weight priors output present but priors disabled",
+            )
+
+    actual_counts: Dict[Tuple[int, str], Mapping[str, object]] = {}
+    counts_by_merchant: Dict[int, List[Mapping[str, object]]] = {}
+    counts_rows = 0
+    counts_merchants = 0
+
+    if toggles.integerisation_enabled:
+        counts_root = _ensure_dataset_exists(integerised_counts_path, "s3_integerised_counts")
+        counts_frame = pl.read_parquet(counts_root).sort(["merchant_id", "country_iso"])
+        _validate_schema_array("integerised_counts", counts_frame.to_dicts())
+        _assert_partition_column(
+            counts_frame,
+            column="parameter_hash",
+            expected=deterministic.parameter_hash,
+            dataset="s3_integerised_counts",
+        )
+        if "produced_by_fingerprint" in counts_frame.columns:
+            _assert_partition_column(
+                counts_frame,
+                column="produced_by_fingerprint",
+                expected=deterministic.manifest_fingerprint,
+                dataset="s3_integerised_counts",
+            )
+        _assert_unique(counts_frame, ["merchant_id", "country_iso"], "s3_integerised_counts")
+        for row in counts_frame.to_dicts():
+            merchant_id = int(row["merchant_id"])
+            country = str(row["country_iso"])
+            actual_counts[(merchant_id, country)] = row
+            counts_by_merchant.setdefault(merchant_id, []).append(row)
+        counts_rows = len(actual_counts)
+        counts_merchants = len(counts_by_merchant)
+    else:
+        if integerised_counts_path is not None and integerised_counts_path.exists():
+            raise err(
+                "ERR_S3_INTEGER_SUM_MISMATCH",
+                "integerised counts output present but integerisation disabled",
+            )
+
+    actual_sequence: Dict[Tuple[int, str, int], Mapping[str, object]] = {}
+    sequence_by_merchant: Dict[int, List[Mapping[str, object]]] = {}
+    sequence_rows = 0
+    sequence_merchants = 0
+
+    if toggles.sequencing_enabled:
+        sequence_root = _ensure_dataset_exists(site_sequence_path, "s3_site_sequence")
+        sequence_frame = pl.read_parquet(sequence_root).sort(
+            ["merchant_id", "country_iso", "site_order"]
+        )
+        _validate_schema_array("site_sequence", sequence_frame.to_dicts())
+        _assert_partition_column(
+            sequence_frame,
+            column="parameter_hash",
+            expected=deterministic.parameter_hash,
+            dataset="s3_site_sequence",
+        )
+        if "produced_by_fingerprint" in sequence_frame.columns:
+            _assert_partition_column(
+                sequence_frame,
+                column="produced_by_fingerprint",
+                expected=deterministic.manifest_fingerprint,
+                dataset="s3_site_sequence",
+            )
+        _assert_unique(
+            sequence_frame,
+            ["merchant_id", "country_iso", "site_order"],
+            "s3_site_sequence",
+        )
+        if "site_id" in sequence_frame.columns:
+            _assert_unique(
+                sequence_frame.drop_nulls("site_id"),
+                ["merchant_id", "country_iso", "site_id"],
+                "s3_site_sequence",
+            )
+        for row in sequence_frame.to_dicts():
+            merchant_id = int(row["merchant_id"])
+            country = str(row["country_iso"])
+            site_order = int(row["site_order"])
+            key = (merchant_id, country, site_order)
+            actual_sequence[key] = row
+            sequence_by_merchant.setdefault(merchant_id, []).append(row)
+        sequence_rows = len(actual_sequence)
+        sequence_merchants = len(sequence_by_merchant)
+    else:
+        if site_sequence_path is not None and site_sequence_path.exists():
+            raise err(
+                "ERR_S3_SEQUENCE_GAP",
+                "site sequence output present but sequencing disabled",
+            )
 
     expected_merchants = set(expected_candidates.keys())
     actual_merchants = set(actual_candidates.keys())
@@ -192,7 +377,19 @@ def validate_s3_outputs(
             f"s3_candidate_set contains unexpected merchants {sorted(extra)}",
         )
 
+    floors_map = thresholds_policy.floors if thresholds_policy else {}
+    ceilings_map = thresholds_policy.ceilings if thresholds_policy else {}
+
     eligible_crossborder = 0
+    floor_hits_total = 0
+    ceiling_hits_total = 0
+    residual_rows_total = 0
+    diagnostics: List[Mapping[str, object]] = []
+
+    remaining_priors = set(actual_priors.keys())
+    remaining_counts = set(actual_counts.keys())
+    remaining_sequence = set(actual_sequence.keys())
+
     for merchant_id, expected_rows in expected_candidates.items():
         actual_rows = actual_candidates.get(merchant_id, [])
         if len(actual_rows) != len(expected_rows):
@@ -202,7 +399,9 @@ def validate_s3_outputs(
                 f"(expected {len(expected_rows)}, found {len(actual_rows)})",
             )
         seen_countries: set[str] = set()
-        for index, (expected_row, actual_row) in enumerate(zip(expected_rows, actual_rows)):
+        for index, (expected_row, actual_row) in enumerate(
+            zip(expected_rows, actual_rows)
+        ):
             country = str(actual_row["country_iso"])
             if country in seen_countries:
                 raise err(
@@ -244,229 +443,185 @@ def validate_s3_outputs(
         if len(expected_rows) > 1:
             eligible_crossborder += 1
 
-    priors_map = _group_expected_priors(kernel_result.priors)
-    priors_rows = len(priors_map)
-    priors_root: Path | None = None
-    if toggles.priors_enabled:
-        if base_weight_policy is None:
-            raise err(
-                "ERR_S3_PRIOR_DISABLED",
-                "base-weight policy required when priors are enabled",
-            )
-        priors_root = _ensure_dataset_exists(base_weight_priors_path, "s3_base_weight_priors")
-        priors_frame = pl.read_parquet(priors_root)
-        if priors_frame.height == 0:
-            raise err("ERR_S3_PRIOR_DOMAIN", "s3_base_weight_priors is empty")
-        _assert_partition_column(
-            priors_frame,
-            column="parameter_hash",
-            expected=deterministic.parameter_hash,
-            dataset="s3_base_weight_priors",
-        )
-        if "produced_by_fingerprint" in priors_frame.columns:
-            _assert_partition_column(
-                priors_frame,
-                column="produced_by_fingerprint",
-                expected=deterministic.manifest_fingerprint,
-                dataset="s3_base_weight_priors",
-            )
-        _assert_unique(
-            priors_frame,
-            ["merchant_id", "country_iso"],
-            "s3_base_weight_priors",
-        )
-        actual_keys = set()
-        for row in priors_frame.to_dicts():
-            merchant_id = int(row["merchant_id"])
-            country = str(row["country_iso"])
-            dp_value = int(row["dp"])
-            key = (merchant_id, country)
-            actual_keys.add(key)
-            expected_row = priors_map.get(key)
-            if expected_row is None:
+        diag_entry: Dict[str, object] = {
+            "merchant_id": merchant_id,
+            "candidate_count": len(actual_rows),
+            "eligible_crossborder": len(expected_rows) > 1,
+            "total_outlets": merchants_map.get(merchant_id, None).n_outlets
+            if merchant_id in merchants_map
+            else None,
+        }
+
+        if toggles.priors_enabled:
+            merchant_priors = priors_by_merchant.get(merchant_id, [])
+            expected_keys = {
+                (merchant_id, row.country_iso)
+                for row in expected_rows
+                if (merchant_id, row.country_iso) in expected_priors
+            }
+            actual_keys = {
+                (merchant_id, str(row["country_iso"])) for row in merchant_priors
+            }
+            if expected_keys != actual_keys:
+                missing = expected_keys - actual_keys
+                extra = actual_keys - expected_keys
+                if missing:
+                    raise err(
+                        "ERR_S3_EGRESS_SHAPE",
+                        f"s3_base_weight_priors missing rows {sorted(missing)}",
+                    )
                 raise err(
                     "ERR_S3_EGRESS_SHAPE",
-                    f"s3_base_weight_priors has unexpected row ({merchant_id}, {country})",
+                    f"s3_base_weight_priors contains unexpected rows {sorted(extra)}",
                 )
-            if dp_value != expected_row.dp:
+            prior_sum = Decimal("0")
+            for key in expected_keys:
+                expected_prior = expected_priors[key]
+                actual_row = actual_priors[key]
+                remaining_priors.discard(key)
+                if str(actual_row["base_weight_dp"]) != expected_prior.base_weight_dp:
+                    raise err(
+                        "ERR_S3_EGRESS_SHAPE",
+                        f"s3_base_weight_priors mismatch for {key} "
+                        f"(expected {expected_prior.base_weight_dp}, "
+                        f"found {actual_row['base_weight_dp']})",
+                    )
+                if int(actual_row["dp"]) != expected_prior.dp:
+                    raise err(
+                        "ERR_S3_EGRESS_SHAPE",
+                        f"s3_base_weight_priors dp mismatch for {key} "
+                        f"(expected {expected_prior.dp}, found {actual_row['dp']})",
+                    )
+                prior_sum += Decimal(expected_prior.base_weight_dp)
+            diag_entry["prior_row_count"] = len(expected_keys)
+            diag_entry["prior_weight_sum"] = str(prior_sum)
+        elif expected_priors:
+            if priors_rows:
                 raise err(
-                    "ERR_S3_PRIOR_DOMAIN",
-                    f"s3_base_weight_priors dp mismatch for ({merchant_id}, {country})",
+                    "ERR_S3_PRIOR_DISABLED",
+                    "priors disabled but kernel produced priors",
                 )
-            actual_weight = str(row["base_weight_dp"])
-            if actual_weight != expected_row.base_weight_dp:
-                raise err(
-                    "ERR_S3_PRIOR_DOMAIN",
-                    f"s3_base_weight_priors weight mismatch for ({merchant_id}, {country})",
-                )
-        if actual_keys != set(priors_map.keys()):
-            missing = set(priors_map.keys()) - actual_keys
-            raise err(
-                "ERR_S3_EGRESS_SHAPE",
-                f"s3_base_weight_priors missing rows {sorted(missing)}",
-            )
-    else:
-        if base_weight_priors_path is not None and base_weight_priors_path.exists():
-            raise err(
-                "ERR_S3_PRIOR_DISABLED",
-                "priors output present but priors feature disabled",
-            )
 
-    counts_map = _group_expected_counts(kernel_result.counts)
-    counts_rows = len(counts_map)
-    counts_root: Path | None = None
-    if toggles.integerisation_enabled:
-        counts_root = _ensure_dataset_exists(integerised_counts_path, "s3_integerised_counts")
-        counts_frame = pl.read_parquet(counts_root)
-        if counts_frame.height == 0:
-            raise err("ERR_S3_INTEGER_SUM_MISMATCH", "s3_integerised_counts is empty")
-        _assert_partition_column(
-            counts_frame,
-            column="parameter_hash",
-            expected=deterministic.parameter_hash,
-            dataset="s3_integerised_counts",
-        )
-        if "produced_by_fingerprint" in counts_frame.columns:
-            _assert_partition_column(
-                counts_frame,
-                column="produced_by_fingerprint",
-                expected=deterministic.manifest_fingerprint,
-                dataset="s3_integerised_counts",
-            )
-        _assert_unique(
-            counts_frame,
-            ["merchant_id", "country_iso"],
-            "s3_integerised_counts",
-        )
-        counts_by_merchant: Dict[int, int] = {}
-        actual_keys = set()
-        for row in counts_frame.to_dicts():
-            merchant_id = int(row["merchant_id"])
-            country = str(row["country_iso"])
-            key = (merchant_id, country)
-            actual_keys.add(key)
-            expected_row = counts_map.get(key)
-            if expected_row is None:
-                raise err(
-                    "ERR_S3_EGRESS_SHAPE",
-                    f"s3_integerised_counts has unexpected row ({merchant_id}, {country})",
-                )
-            actual_count = int(row["count"])
-            if actual_count != expected_row.count:
+        if toggles.integerisation_enabled:
+            merchant_counts = counts_by_merchant.get(merchant_id, [])
+            if not merchant_counts and expected_counts:
                 raise err(
                     "ERR_S3_INTEGER_SUM_MISMATCH",
-                    f"count mismatch for ({merchant_id}, {country})",
+                    f"s3_integerised_counts missing merchant {merchant_id}",
                 )
-            actual_rank = int(row["residual_rank"])
-            if actual_rank != expected_row.residual_rank:
+            floor_hits = 0
+            ceiling_hits = 0
+            residual_hits = 0
+            total_count = 0
+            for row in merchant_counts:
+                key = (merchant_id, str(row["country_iso"]))
+                remaining_counts.discard(key)
+                expected = expected_counts.get(key)
+                if expected is None:
+                    raise err(
+                        "ERR_S3_INTEGER_SUM_MISMATCH",
+                        f"s3_integerised_counts unexpected row {key}",
+                    )
+                count_value = int(row["count"])
+                if count_value != expected.count:
+                    raise err(
+                        "ERR_S3_INTEGER_SUM_MISMATCH",
+                        f"integerised count mismatch for {key}",
+                    )
+                total_count += count_value
+                if floors_map.get(key[1]) is not None and count_value == floors_map[key[1]]:
+                    floor_hits += 1
+                ceiling = ceilings_map.get(key[1])
+                if ceiling is not None and count_value == ceiling:
+                    ceiling_hits += 1
+                if int(row["residual_rank"]) > 0:
+                    residual_hits += 1
+            expected_total = merchants_map.get(merchant_id, None)
+            if expected_total is not None and total_count != expected_total.n_outlets:
                 raise err(
                     "ERR_S3_INTEGER_SUM_MISMATCH",
-                    f"residual rank mismatch for ({merchant_id}, {country})",
+                    f"integerised counts sum {total_count} != N {expected_total.n_outlets} "
+                    f"for merchant {merchant_id}",
                 )
-            counts_by_merchant[merchant_id] = (
-                counts_by_merchant.get(merchant_id, 0) + actual_count
-            )
-        if actual_keys != set(counts_map.keys()):
-            missing = set(counts_map.keys()) - actual_keys
-            raise err(
-                "ERR_S3_EGRESS_SHAPE",
-                f"s3_integerised_counts missing rows {sorted(missing)}",
-            )
-        expected_totals = {merchant.merchant_id: merchant.n_outlets for merchant in deterministic.merchants}
-        for merchant_id, total in counts_by_merchant.items():
-            expected_total = expected_totals.get(merchant_id)
-            if expected_total is None:
+            floor_hits_total += floor_hits
+            ceiling_hits_total += ceiling_hits
+            residual_rows_total += residual_hits
+            diag_entry["integerised_count_rows"] = len(merchant_counts)
+            diag_entry["integerisation_floor_hits"] = floor_hits
+            diag_entry["integerisation_ceiling_hits"] = ceiling_hits
+            diag_entry["integerisation_residual_rows"] = residual_hits
+        elif expected_counts:
+            if counts_rows:
                 raise err(
                     "ERR_S3_INTEGER_SUM_MISMATCH",
-                    f"integerised count found for unknown merchant {merchant_id}",
+                    "integerisation disabled but kernel produced counts",
                 )
-            if total != expected_total:
-                raise err(
-                    "ERR_S3_INTEGER_SUM_MISMATCH",
-                    f"integerised counts sum {total} != N {expected_total} for merchant {merchant_id}",
-                )
-    else:
-        if integerised_counts_path is not None and integerised_counts_path.exists():
-            raise err(
-                "ERR_S3_INTEGER_SUM_MISMATCH",
-                "integerised counts output present but integerisation disabled",
-            )
 
-    sequence_rows = 0
-    sequence_root: Path | None = None
-    if toggles.sequencing_enabled:
-        sequence_root = _ensure_dataset_exists(site_sequence_path, "s3_site_sequence")
-        sequence_frame = pl.read_parquet(sequence_root)
-        _assert_partition_column(
-            sequence_frame,
-            column="parameter_hash",
-            expected=deterministic.parameter_hash,
-            dataset="s3_site_sequence",
-        )
-        if "produced_by_fingerprint" in sequence_frame.columns:
-            _assert_partition_column(
-                sequence_frame,
-                column="produced_by_fingerprint",
-                expected=deterministic.manifest_fingerprint,
-                dataset="s3_site_sequence",
-            )
-        _assert_unique(
-            sequence_frame,
-            ["merchant_id", "country_iso", "site_order"],
-            "s3_site_sequence",
-        )
-        if "site_id" in sequence_frame.columns:
-            _assert_unique(
-                sequence_frame.drop_nulls("site_id"),
-                ["merchant_id", "country_iso", "site_id"],
-                "s3_site_sequence",
-            )
-        expected_sequence = _group_expected_sequence(kernel_result.sequence)
-        sequence_rows = len(expected_sequence)
-        actual_keys = set()
-        for row in sequence_frame.to_dicts():
-            merchant_id = int(row["merchant_id"])
-            country = str(row["country_iso"])
-            site_order = int(row["site_order"])
-            site_id = row.get("site_id")
-            key = (merchant_id, country, site_order)
-            actual_keys.add(key)
-            expected = expected_sequence.get(key)
-            if expected is None:
+        if toggles.sequencing_enabled:
+            merchant_sequence = sequence_by_merchant.get(merchant_id, [])
+            for row in merchant_sequence:
+                key = (merchant_id, str(row["country_iso"]), int(row["site_order"]))
+                remaining_sequence.discard(key)
+                if key not in expected_sequence:
+                    raise err(
+                        "ERR_S3_SEQUENCE_GAP",
+                        f"s3_site_sequence unexpected row {key}",
+                    )
+                site_id = row.get("site_id")
+                if site_id is None or str(site_id) != f"{key[2]:06d}":
+                    raise err(
+                        "ERR_S3_SITE_SEQUENCE_OVERFLOW",
+                        f"s3_site_sequence site_id mismatch for {key}",
+                    )
+            diag_entry["site_sequence_rows"] = len(merchant_sequence)
+        elif expected_sequence:
+            if sequence_rows:
                 raise err(
                     "ERR_S3_SEQUENCE_GAP",
-                    f"s3_site_sequence has unexpected row ({merchant_id}, {country}, {site_order})",
+                    "sequencing disabled but kernel produced sequence rows",
                 )
-            if site_id is None or str(site_id) != f"{site_order:06d}":
-                raise err(
-                    "ERR_S3_SITE_SEQUENCE_OVERFLOW",
-                    f"s3_site_sequence site_id mismatch for ({merchant_id}, {country}, {site_order})",
-                )
-        if actual_keys != set(expected_sequence.keys()):
-            missing = set(expected_sequence.keys()) - actual_keys
-            raise err(
-                "ERR_S3_SEQUENCE_GAP",
-                f"s3_site_sequence missing rows {sorted(missing)}",
-            )
-    else:
-        if site_sequence_path is not None and site_sequence_path.exists():
-            raise err(
-                "ERR_S3_SEQUENCE_GAP",
-                "site sequence output present but sequencing disabled",
-            )
+
+        diagnostics.append(diag_entry)
+
+    if remaining_priors:
+        raise err(
+            "ERR_S3_EGRESS_SHAPE",
+            f"s3_base_weight_priors contains extra rows {sorted(remaining_priors)}",
+        )
+    if remaining_counts:
+        raise err(
+            "ERR_S3_EGRESS_SHAPE",
+            f"s3_integerised_counts contains extra rows {sorted(remaining_counts)}",
+        )
+    if remaining_sequence:
+        raise err(
+            "ERR_S3_SEQUENCE_GAP",
+            f"s3_site_sequence contains extra rows {sorted(remaining_sequence)}",
+        )
 
     metrics: Dict[str, float] = {
         "version": 1.0,
-        "merchant_count": float(len(expected_merchants)),
-        "candidate_rows": float(len(kernel_result.ranked_candidates)),
+        "schema_validated": 1.0,
+        "merchant_count": float(len(expected_candidates)),
+        "candidate_rows": float(candidate_frame.height),
         "eligible_crossborder_merchants": float(eligible_crossborder),
         "priors_enabled": 1.0 if toggles.priors_enabled else 0.0,
         "priors_rows": float(priors_rows),
+        "priors_merchants": float(priors_merchants),
+        "priors_total_weight": float(priors_total_weight) if toggles.priors_enabled else 0.0,
         "integerisation_enabled": 1.0 if toggles.integerisation_enabled else 0.0,
         "integerised_rows": float(counts_rows),
+        "integerised_merchants": float(counts_merchants),
+        "integerisation_floor_hits": float(floor_hits_total),
+        "integerisation_ceiling_hits": float(ceiling_hits_total),
+        "integerisation_residual_rows": float(residual_rows_total),
         "sequencing_enabled": 1.0 if toggles.sequencing_enabled else 0.0,
         "sequence_rows": float(sequence_rows),
-        "total_outlets": float(sum(merchant.n_outlets for merchant in deterministic.merchants)),
+        "sequence_merchants": float(sequence_merchants),
+        "total_outlets": float(
+            sum(merchant.n_outlets for merchant in deterministic.merchants)
+        ),
+        "diagnostic_rows": float(len(diagnostics)),
     }
     logger.info(
         "S3 validator: merchants=%d candidates=%d priors=%d counts=%d sequence=%d",
@@ -476,7 +631,8 @@ def validate_s3_outputs(
         int(metrics["integerised_rows"]),
         int(metrics["sequence_rows"]),
     )
-    return S3ValidationResult(metrics=metrics)
+    return S3ValidationResult(metrics=metrics, diagnostics=tuple(diagnostics))
+
 
 
 def validate_s3_candidate_set(

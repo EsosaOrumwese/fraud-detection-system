@@ -140,6 +140,14 @@ _FAILURE_CODE_MAP: Mapping[str, Tuple[FailureCategory, str]] = {
         FailureCategory.F6_AUTHORITY,
         "s3_rule_ladder_invalid",
     ),
+    "ERR_S3_SCHEMA_VALIDATION": (
+        FailureCategory.F8_VALIDATION,
+        "s3_schema_validation",
+    ),
+    "ERR_S3_PRIOR_DISABLED": (
+        FailureCategory.F8_VALIDATION,
+        "s3_prior_disabled",
+    ),
 }
 
 

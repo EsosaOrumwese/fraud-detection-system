@@ -14,7 +14,12 @@ from ..l0 import (
     load_rule_ladder,
     rank_candidates,
 )
-from ..l0.policy import BaseWeightPolicy, ThresholdsPolicy, evaluate_base_weight
+from ..l0.policy import (
+    BaseWeightPolicy,
+    PolicyNormalisation,
+    ThresholdsPolicy,
+    evaluate_base_weight,
+)
 from ..l0.types import (
     CountRow,
     PriorRow,
@@ -79,6 +84,27 @@ def _format_fixed_dp(value: Decimal, dp: int) -> str:
     return f"{quantized:.{dp}f}"
 
 
+def _apply_normalisation(
+    config: PolicyNormalisation,
+    scores: Sequence[Decimal],
+) -> List[Decimal]:
+    if not scores:
+        return list(scores)
+    if config.method == "none":
+        return [Decimal(score) for score in scores]
+    if config.method == "sum_to_target":
+        total = sum(scores)
+        if total <= Decimal("0"):
+            return [Decimal(score) for score in scores]
+        target = config.target if config.target is not None else Decimal("1")
+        scale = target / total
+        return [score * scale for score in scores]
+    raise err(
+        "ERR_S3_PRIOR_DOMAIN",
+        f"unsupported normalisation method '{config.method}'",
+    )
+
+
 def _compute_priors(
     ranked: Sequence[RankedCandidateRow],
     *,
@@ -86,9 +112,7 @@ def _compute_priors(
     policy: BaseWeightPolicy,
     merchant_tags: Tuple[str, ...],
 ) -> Tuple[List[PriorRow], Optional[List[Decimal]]]:
-    priors: List[PriorRow] = []
-    weights: List[Decimal] = []
-    scored_any = False
+    evaluations: List[Tuple[RankedCandidateRow, Optional[Decimal]]] = []
     for candidate in ranked:
         score = evaluate_base_weight(
             policy,
@@ -103,12 +127,24 @@ def _compute_priors(
             filter_tags=candidate.filter_tags,
             merchant_tags=merchant_tags,
         )
+        if score is not None and score < Decimal("0"):
+            raise err("ERR_S3_PRIOR_DOMAIN", "prior score produced negative weight")
+        evaluations.append((candidate, score))
+
+    raw_scores: List[Decimal] = [
+        Decimal("0") if score is None else score for _, score in evaluations
+    ]
+    if policy.normalisation is not None and raw_scores:
+        raw_scores = _apply_normalisation(policy.normalisation, raw_scores)
+
+    priors: List[PriorRow] = []
+    weights: List[Decimal] = []
+    scored_any = False
+    for (candidate, score), normalised in zip(evaluations, raw_scores):
         if score is None:
             weights.append(Decimal("0"))
             continue
-        if score < Decimal("0"):
-            raise err("ERR_S3_PRIOR_DOMAIN", "prior score produced negative weight")
-        quant = _quantize_decimal(score, policy.dp)
+        quant = _quantize_decimal(normalised, policy.dp)
         priors.append(
             PriorRow(
                 merchant_id=candidate.merchant_id,

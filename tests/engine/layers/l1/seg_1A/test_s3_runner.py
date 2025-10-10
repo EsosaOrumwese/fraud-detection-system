@@ -359,6 +359,13 @@ def test_s3_optional_lanes(tmp_path):
     assert metrics["priors_rows"] > 0
     assert metrics["integerised_rows"] > 0
     assert metrics["sequence_rows"] > 0
+    assert metrics["schema_validated"] == 1.0
+    assert metrics["diagnostic_rows"] == float(len(validation.diagnostics))
+    assert len(validation.diagnostics) == 1
+    diag = validation.diagnostics[0]
+    assert diag["merchant_id"] == deterministic.merchants[0].merchant_id
+    assert diag["integerised_count_rows"] > 0
+    assert isinstance(diag["prior_weight_sum"], str)
 
 
 def test_s3_validator_detects_count_breach(tmp_path):
@@ -506,3 +513,146 @@ def test_compute_priors_no_scores(tmp_path):
     )
     assert priors == []
     assert weights is None
+
+
+def test_s3_validator_schema_violation(tmp_path):
+    deterministic, result, policy_path, toggles, base_weight_policy, thresholds_policy = _build_optional_run(tmp_path)
+
+    candidate_rows = pl.read_parquet(result.candidate_set_path).to_dicts()
+    candidate_rows[0]["country_iso"] = "g1"  # violates ISO schema pattern
+    pl.DataFrame(candidate_rows).write_parquet(result.candidate_set_path, compression="zstd")
+
+    with pytest.raises(S0Error) as exc:
+        validate_s3_outputs(
+            deterministic=deterministic,
+            candidate_set_path=result.candidate_set_path,
+            rule_ladder_path=policy_path,
+            toggles=toggles,
+            base_weight_policy=base_weight_policy,
+            thresholds_policy=thresholds_policy,
+            base_weight_priors_path=result.base_weight_priors_path,
+            integerised_counts_path=result.integerised_counts_path,
+            site_sequence_path=result.site_sequence_path,
+        )
+    assert exc.value.context.code == "ERR_S3_SCHEMA_VALIDATION"
+
+
+def test_base_weight_score_value(tmp_path):
+    policy_path = tmp_path / "policy.score_value.yaml"
+    policy_path.write_text(
+        "\n".join(
+            [
+                'semver: "1.0.0"',
+                'version: "2025-10-10"',
+                "dp: 2",
+                "constants:",
+                "  base: 1.00",
+                "selection_rules:",
+                "  - id: HOME_RULE",
+                "    predicate: 'is_home'",
+                "    score_value: 2.50",
+                "  - id: DEFAULT",
+                "    predicate: 'true'",
+                "    score_components: ['base']",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    policy = load_base_weight_policy(policy_path)
+    merchant = MerchantContext(
+        merchant_id=42,
+        home_country_iso="GB",
+        mcc="5411",
+        channel="CP",
+        n_outlets=3,
+    )
+    ranked = [
+        RankedCandidateRow(
+            merchant_id=42,
+            country_iso="GB",
+            is_home=True,
+            candidate_rank=0,
+            filter_tags=("HOME",),
+            reason_codes=(),
+            admitting_rules=(),
+        ),
+        RankedCandidateRow(
+            merchant_id=42,
+            country_iso="US",
+            is_home=False,
+            candidate_rank=1,
+            filter_tags=("ADMISSIBLE",),
+            reason_codes=(),
+            admitting_rules=(),
+        ),
+    ]
+    priors, weights = _compute_priors(
+        ranked,
+        merchant=merchant,
+        policy=policy,
+        merchant_tags=("HOME",),
+    )
+    assert [row.base_weight_dp for row in priors] == ["2.50", "1.00"]
+    assert weights == [Decimal("2.50"), Decimal("1.00")]
+
+
+def test_base_weight_normalisation(tmp_path):
+    policy_path = tmp_path / "policy.normalisation.yaml"
+    policy_path.write_text(
+        "\n".join(
+            [
+                'semver: "1.0.0"',
+                'version: "2025-10-10"',
+                "dp: 2",
+                "constants:",
+                "  base: 1.00",
+                "normalisation:",
+                "  method: sum_to_target",
+                "  target: 4.00",
+                "selection_rules:",
+                "  - id: HOME_RULE",
+                "    predicate: 'is_home'",
+                "    score_components: ['base']",
+                "  - id: FOREIGN_RULE",
+                "    predicate: 'true'",
+                "    score_components: ['base']",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    policy = load_base_weight_policy(policy_path)
+    merchant = MerchantContext(
+        merchant_id=7,
+        home_country_iso="GB",
+        mcc="5411",
+        channel="CP",
+        n_outlets=2,
+    )
+    ranked = [
+        RankedCandidateRow(
+            merchant_id=7,
+            country_iso="GB",
+            is_home=True,
+            candidate_rank=0,
+            filter_tags=("HOME",),
+            reason_codes=(),
+            admitting_rules=(),
+        ),
+        RankedCandidateRow(
+            merchant_id=7,
+            country_iso="US",
+            is_home=False,
+            candidate_rank=1,
+            filter_tags=("ADMISSIBLE",),
+            reason_codes=(),
+            admitting_rules=(),
+        ),
+    ]
+    priors, weights = _compute_priors(
+        ranked,
+        merchant=merchant,
+        policy=policy,
+        merchant_tags=(),
+    )
+    assert [row.base_weight_dp for row in priors] == ["2.00", "2.00"]
+    assert weights == [Decimal("2.00"), Decimal("2.00")]

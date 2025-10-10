@@ -22,6 +22,12 @@ def _discover_repo_root(current: Path | None = None) -> Path:
     )
 
 
+def get_repo_root() -> Path:
+    """Return the repository root inferred from the current module location."""
+
+    return _discover_repo_root()
+
+
 def default_dictionary_path() -> Path:
     """Return the default dataset dictionary path for Segment 1A."""
     repo_root = _discover_repo_root()
@@ -138,4 +144,9 @@ def _format_template(
     return path
 
 
-__all__ = ["default_dictionary_path", "load_dictionary", "resolve_dataset_path"]
+__all__ = [
+    "default_dictionary_path",
+    "get_repo_root",
+    "load_dictionary",
+    "resolve_dataset_path",
+]

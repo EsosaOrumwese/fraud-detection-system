@@ -31,6 +31,15 @@ class BaseWeightRule:
     predicate: str
     predicate_ast: ast.Expression
     components: Tuple[str, ...]
+    score_value: Decimal | None = None
+
+
+@dataclass(frozen=True)
+class PolicyNormalisation:
+    """Optional normalisation directive applied to rule outputs."""
+
+    method: str
+    target: Decimal | None = None
 
 
 @dataclass(frozen=True)
@@ -43,6 +52,7 @@ class BaseWeightPolicy:
     constants: Mapping[str, Decimal]
     sets: Mapping[str, Tuple[str, ...]]
     rules: Tuple[BaseWeightRule, ...]
+    normalisation: PolicyNormalisation | None = None
 
 
 @dataclass(frozen=True)
@@ -763,6 +773,41 @@ def load_base_weight_policy(
                 )
         sets[set_name] = normalised
 
+    normalisation_spec = payload.get("normalisation")
+    normalisation: PolicyNormalisation | None = None
+    if normalisation_spec is not None:
+        if not isinstance(normalisation_spec, Mapping):
+            raise err(
+                "ERR_S3_PRIOR_DOMAIN",
+                "normalisation must be a mapping when present",
+            )
+        raw_method = normalisation_spec.get("method", "none")
+        if not isinstance(raw_method, str) or not raw_method.strip():
+            raise err(
+                "ERR_S3_PRIOR_DOMAIN",
+                "normalisation.method must be a non-empty string",
+            )
+        method = raw_method.strip().lower()
+        target_value = normalisation_spec.get("target")
+        target_decimal: Decimal | None = None
+        if method in {"l1", "sum_to_target"}:
+            if target_value is None:
+                target_value = 1
+            target_decimal = _as_decimal(target_value, error="ERR_S3_PRIOR_DOMAIN")
+            if target_decimal <= Decimal("0"):
+                raise err(
+                    "ERR_S3_PRIOR_DOMAIN",
+                    "normalisation target must be positive when specified",
+                )
+            if method == "l1":
+                method = "sum_to_target"
+        elif method != "none":
+            raise err(
+                "ERR_S3_PRIOR_DOMAIN",
+                f"unsupported normalisation method '{method}'",
+            )
+        normalisation = PolicyNormalisation(method=method, target=target_decimal)
+
     raw_rules = payload.get("selection_rules")
     if not isinstance(raw_rules, Sequence) or not raw_rules:
         raise err("ERR_S3_PRIOR_DOMAIN", "selection_rules must be a non-empty sequence")
@@ -809,12 +854,23 @@ def load_base_weight_policy(
                 )
             components.append(key)
 
+        score_value_raw = entry.get("score_value")
+        score_value: Decimal | None = None
+        if score_value_raw is not None:
+            score_value = _as_decimal(score_value_raw, error="ERR_S3_PRIOR_DOMAIN")
+            if score_value < Decimal("0"):
+                raise err(
+                    "ERR_S3_PRIOR_DOMAIN",
+                    f"rule '{rule_id_norm}' score_value must be non-negative",
+                )
+
         rules.append(
             BaseWeightRule(
                 rule_id=rule_id_norm,
                 predicate=predicate,
                 predicate_ast=predicate_ast,
                 components=tuple(components),
+                score_value=score_value,
             )
         )
 
@@ -825,6 +881,7 @@ def load_base_weight_policy(
         constants=constants,
         sets=sets,
         rules=tuple(rules),
+        normalisation=normalisation,
     )
 
 
@@ -1016,11 +1073,18 @@ def _select_base_weight_score(
 ) -> Optional[Decimal]:
     for rule in policy.rules:
         if _evaluate_compiled_predicate(rule.predicate_ast, context):
-            if not rule.components:
+            if not rule.components and rule.score_value is None:
                 return None
             total = Decimal("0")
             for component in rule.components:
                 total += policy.constants[component]
+            if rule.score_value is not None:
+                total += rule.score_value
+            if total < Decimal("0"):
+                raise err(
+                    "ERR_S3_PRIOR_DOMAIN",
+                    f"rule '{rule.rule_id}' produced negative weight",
+                )
             return total
     return None
 
@@ -1063,6 +1127,7 @@ __all__ = [
     "evaluate_rule_ladder",
     "BaseWeightRule",
     "BaseWeightPolicy",
+    "PolicyNormalisation",
     "ThresholdsPolicy",
     "load_base_weight_policy",
     "load_thresholds_policy",
