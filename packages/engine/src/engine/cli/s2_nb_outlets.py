@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
 from typing import Sequence
@@ -25,6 +26,8 @@ from engine.layers.l1.seg_1A.s2_nb_outlets import (
     build_deterministic_context,
     validate_nb_run,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _load_context(path: Path | None) -> dict[str, object]:
@@ -196,6 +199,13 @@ def main(argv: list[str] | None = None) -> int:
     hurdle_coefficients = _load_coefficients(hurdle_coeff_path)
     dispersion_coefficients = _load_dispersion(dispersion_coeff_path, hurdle=hurdle_coefficients)
 
+    logger.info(
+        "S2 CLI starting (run_id=%s, parameter_hash=%s, output_dir=%s)",
+        run_id,
+        parameter_hash,
+        output_dir,
+    )
+
     hurdle_events = _hurdle_events_path(
         output_dir=output_dir,
         seed=seed,
@@ -224,8 +234,14 @@ def main(argv: list[str] | None = None) -> int:
             deterministic=deterministic_context,
         )
     except S0Error as exc:  # pragma: no cover - exercised in integration tests
+        logger.exception("S2 CLI run failed")
         print(f"[s2-run] failed: {exc}", file=sys.stderr)
         return 1
+
+    logger.info(
+        "S2 CLI completed sampling (accepted_merchants=%d)",
+        len(result.finals),
+    )
 
     if args.validate:
         validate_nb_run(
@@ -233,6 +249,7 @@ def main(argv: list[str] | None = None) -> int:
             deterministic=deterministic_context,
             expected_finals=result.finals,
         )
+        logger.info("S2 CLI validation completed successfully")
 
     if args.result_json:
         summary = {
@@ -260,6 +277,9 @@ def main(argv: list[str] | None = None) -> int:
             json.dumps(summary, indent=2, sort_keys=True),
             encoding="utf-8",
         )
+        logger.info("S2 CLI wrote result summary to %s", args.result_json)
+
+    logger.info("S2 CLI finished (run_id=%s)", run_id)
 
     return 0
 

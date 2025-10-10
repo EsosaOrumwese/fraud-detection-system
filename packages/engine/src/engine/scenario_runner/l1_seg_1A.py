@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Mapping, Sequence, Tuple
@@ -21,6 +22,8 @@ from engine.layers.l1.seg_1A.s2_nb_outlets import (
     build_deterministic_context,
     validate_nb_run,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -177,6 +180,13 @@ class Segment1AOrchestrator:
             else []
         )
 
+        logger.info(
+            "Segment1A orchestrator starting (seed=%d, git_commit=%s, base_path=%s)",
+            seed,
+            git_commit_hex,
+            base_path,
+        )
+
         s0_result = self._s0_runner.run_from_paths(
             base_path=base_path,
             merchant_table_path=merchant_table.expanduser().resolve(),
@@ -199,6 +209,12 @@ class Segment1AOrchestrator:
             include_diagnostics=include_diagnostics,
             validate=validate_s0,
             extra_manifest_artifacts=extras,
+        )
+
+        logger.info(
+            "Segment1A S0 completed (run_id=%s, parameter_hash=%s)",
+            s0_result.run_id,
+            s0_result.sealed.parameter_hash.parameter_hash,
         )
 
         design_vectors = tuple(
@@ -227,6 +243,11 @@ class Segment1AOrchestrator:
             run_id=s0_result.run_id,
         )
 
+        logger.info(
+            "Segment1A S1 completed (multi_merchants=%d)",
+            len(s1_result.multi_merchant_ids),
+        )
+
         if validate_s1:
             validate_hurdle_run(
                 base_path=base_path,
@@ -237,6 +258,7 @@ class Segment1AOrchestrator:
                 beta=s0_result.outputs.hurdle_coefficients.beta,
                 design_rows=design_rows,
             )
+            logger.info("Segment1A S1 validation passed")
 
         hurdle_context = build_hurdle_context(s1_result)
 
@@ -252,9 +274,19 @@ class Segment1AOrchestrator:
             dispersion=s0_result.outputs.dispersion_coefficients,
         )
 
+        logger.info(
+            "Segment1A S2 deterministic context built (merchants=%d)",
+            len(deterministic_context.rows),
+        )
+
         s2_result = self._s2_runner.run(
             base_path=base_path,
             deterministic=deterministic_context,
+        )
+
+        logger.info(
+            "Segment1A S2 completed (accepted_merchants=%d)",
+            len(s2_result.finals),
         )
 
         if validate_s2:
@@ -263,8 +295,13 @@ class Segment1AOrchestrator:
                 deterministic=deterministic_context,
                 expected_finals=s2_result.finals,
             )
+            logger.info("Segment1A S2 validation passed")
 
         nb_context = build_s2_context(s2_result)
+        logger.info(
+            "Segment1A orchestrator finished (run_id=%s)",
+            s2_result.deterministic.run_id,
+        )
         return Segment1ARunResult(
             s0_result=s0_result,
             s1_result=s1_result,
