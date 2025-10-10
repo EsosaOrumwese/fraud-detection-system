@@ -19,23 +19,14 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
+@dataclass(frozen=True)
+@dataclass(frozen=True)
 class S3ValidationResult:
     """Summary of S3 validation outcomes."""
 
     metrics: Mapping[str, float]
-    _failed_merchants: Mapping[int, str] = field(default_factory=dict, repr=False)
-
-    @property
-    def failed_merchants(self) -> Mapping[int, str]:
-        return getattr(self, "_failed_merchants", {})
-
-    @failed_merchants.setter
-    def failed_merchants(self, value: Mapping[int, str]) -> None:
-        object.__setattr__(self, "_failed_merchants", value)
-
-    @property
-    def passed(self) -> bool:
-        return not bool(getattr(self, "_failed_merchants", {}))
+    passed: bool = True
+    failed_merchants: Mapping[int, str] = field(default_factory=dict, repr=False)
 
 
 def _ensure_dataset_exists(path: Path | None, dataset: str) -> Path:

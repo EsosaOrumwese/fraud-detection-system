@@ -253,6 +253,16 @@ def main(argv: list[str] | None = None) -> int:
         )
     if result.s3_context.metrics:
         logger.info("Segment1A CLI: S3 metrics %s", result.s3_context.metrics)
+    if result.s3_context.validation_passed is not None:
+        if result.s3_context.validation_passed:
+            logger.info("Segment1A CLI: S3 validation PASS")
+        else:
+            logger.warning("Segment1A CLI: S3 validation FAIL")
+            if result.s3_context.validation_failed_merchants:
+                logger.warning(
+                    "Segment1A CLI: S3 failed merchants %s",
+                    result.s3_context.validation_failed_merchants,
+                )
     if result.s3_context.validation_artifacts_path:
         logger.info(
             "Segment1A CLI: S3 validation artefacts %s",
@@ -318,6 +328,12 @@ def main(argv: list[str] | None = None) -> int:
                     else None
                 ),
                 "metrics": result.s3_context.metrics,
+                "validation_passed": result.s3_context.validation_passed,
+                "validation_failed_merchants": (
+                    dict(result.s3_context.validation_failed_merchants)
+                    if result.s3_context.validation_failed_merchants is not None
+                    else None
+                ),
                 "validation_artifacts_path": (
                     str(result.s3_context.validation_artifacts_path)
                     if result.s3_context.validation_artifacts_path is not None

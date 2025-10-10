@@ -18,6 +18,9 @@ def publish_s3_validation_artifacts(
     base_path: Path,
     manifest_fingerprint: str,
     metrics: Mapping[str, float] | None,
+    passed: bool,
+    failed_merchants: Mapping[int, str] | None = None,
+    error_message: str | None = None,
 ) -> Path | None:
     """Persist S3 validation metrics into the validation bundle.
 
@@ -28,8 +31,13 @@ def publish_s3_validation_artifacts(
     manifest_fingerprint:
         Fingerprint identifying the sealed run (directory name).
     metrics:
-        Metrics emitted by ``validate_s3_outputs``. ``None`` implies validation
-        was skipped.
+        Metrics emitted by ``validate_s3_outputs`` (optional).
+    passed:
+        Overall validation outcome.
+    failed_merchants:
+        Optional mapping of merchant ids to error codes/messages.
+    error_message:
+        Optional run-scoped error description when validation fails.
 
     Returns
     -------
@@ -53,15 +61,20 @@ def publish_s3_validation_artifacts(
     target_dir = bundle_dir / _S3_BUNDLE_DIRNAME
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    if metrics is not None:
-        payload = {
-            "version": "1A.S3.validation.v1",
-            "metrics": dict(metrics),
-        }
-        (target_dir / "metrics.json").write_text(
-            json.dumps(payload, indent=2, sort_keys=True),
-            encoding="utf-8",
-        )
+    summary = {
+        "version": "1A.S3.validation.v1",
+        "passed": passed,
+        "metrics": dict(metrics) if metrics is not None else {},
+    }
+    if failed_merchants:
+        summary["failed_merchants"] = dict(failed_merchants)
+    if error_message is not None:
+        summary["error_message"] = error_message
+
+    (target_dir / "validation_summary.json").write_text(
+        json.dumps(summary, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
 
     refresh_validation_bundle_flag(bundle_dir)
     return target_dir

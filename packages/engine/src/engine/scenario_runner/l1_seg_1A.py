@@ -173,6 +173,8 @@ class S3StateContext:
     integerised_counts_path: Path | None
     site_sequence_path: Path | None
     metrics: Dict[str, float] | None = None
+    validation_passed: bool | None = None
+    validation_failed_merchants: Dict[int, str] | None = None
     validation_artifacts_path: Path | None = None
 
     @property
@@ -196,6 +198,8 @@ def build_s3_context(
     result: S3RunResult,
     *,
     metrics: Dict[str, float] | None = None,
+    validation_passed: bool | None = None,
+    validation_failed_merchants: Dict[int, str] | None = None,
     validation_artifacts_path: Path | None = None,
 ) -> S3StateContext:
     """Construct the downstream-facing context bundle from the S3 run."""
@@ -207,6 +211,8 @@ def build_s3_context(
         integerised_counts_path=result.integerised_counts_path,
         site_sequence_path=result.site_sequence_path,
         metrics=metrics,
+        validation_passed=validation_passed,
+        validation_failed_merchants=validation_failed_merchants,
         validation_artifacts_path=validation_artifacts_path,
     )
 
@@ -553,36 +559,61 @@ class Segment1AOrchestrator:
 
         s3_metrics: Dict[str, float] | None = None
         s3_validation_artifacts_path: Path | None = None
+        s3_validation_passed: bool | None = None
+        s3_failed_merchants: Dict[int, str] | None = None
         if validate_s3:
-            validation = validate_s3_outputs(
-                deterministic=s3_deterministic,
-                candidate_set_path=s3_result.candidate_set_path,
-                rule_ladder_path=rule_ladder_path,
-                toggles=s3_toggles,
-                base_weight_policy=base_weight_policy,
-                thresholds_policy=thresholds_policy,
-                base_weight_priors_path=s3_result.base_weight_priors_path,
-                integerised_counts_path=s3_result.integerised_counts_path,
-                site_sequence_path=s3_result.site_sequence_path,
-            )
-            s3_metrics = dict(validation.metrics)
-            logger.info("Segment1A S3 validation passed")
-            s3_validation_artifacts_path = publish_s3_validation_artifacts(
-                base_path=base_path,
-                manifest_fingerprint=s3_result.deterministic.manifest_fingerprint,
-                metrics=s3_metrics,
-            )
-            if s3_validation_artifacts_path is not None:
-                logger.info(
-                    "Segment1A S3 validation artefacts %s",
-                    s3_validation_artifacts_path,
+            try:
+                validation = validate_s3_outputs(
+                    deterministic=s3_deterministic,
+                    candidate_set_path=s3_result.candidate_set_path,
+                    rule_ladder_path=rule_ladder_path,
+                    toggles=s3_toggles,
+                    base_weight_policy=base_weight_policy,
+                    thresholds_policy=thresholds_policy,
+                    base_weight_priors_path=s3_result.base_weight_priors_path,
+                    integerised_counts_path=s3_result.integerised_counts_path,
+                    site_sequence_path=s3_result.site_sequence_path,
                 )
+            except S0Error as exc:
+                s3_validation_passed = False
+                logger.exception("Segment1A S3 validation failed")
+                s3_validation_artifacts_path = publish_s3_validation_artifacts(
+                    base_path=base_path,
+                    manifest_fingerprint=s3_result.deterministic.manifest_fingerprint,
+                    metrics=None,
+                    passed=False,
+                    failed_merchants={},
+                    error_message=str(exc),
+                )
+                raise
+            else:
+                s3_metrics = dict(validation.metrics)
+                s3_validation_passed = validation.passed
+                s3_failed_merchants = dict(validation.failed_merchants)
+                logger.info(
+                    "Segment1A S3 validation %s",
+                    "passed" if s3_validation_passed else "completed with issues",
+                )
+                s3_validation_artifacts_path = publish_s3_validation_artifacts(
+                    base_path=base_path,
+                    manifest_fingerprint=s3_result.deterministic.manifest_fingerprint,
+                    metrics=s3_metrics,
+                    passed=s3_validation_passed,
+                    failed_merchants=s3_failed_merchants,
+                )
+                if s3_validation_artifacts_path is not None:
+                    logger.info(
+                        "Segment1A S3 validation artefacts %s",
+                        s3_validation_artifacts_path,
+                    )
         else:
             logger.info("Segment1A S3 validation skipped (validate_s3=False)")
 
         s3_context = build_s3_context(
             s3_result,
             metrics=s3_metrics,
+            validation_passed=s3_validation_passed,
+            validation_failed_merchants=s3_failed_merchants,
             validation_artifacts_path=s3_validation_artifacts_path,
         )
 
