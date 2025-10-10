@@ -8,6 +8,9 @@ import math
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, Iterable, Mapping, MutableMapping, Sequence
+import csv
+import math
+import json
 
 from ...s0_foundations.exceptions import err
 from ...s0_foundations.l1.rng import PhiloxEngine
@@ -88,8 +91,40 @@ def validate_nb_run(
     base_path: Path,
     deterministic: S2DeterministicContext,
     expected_finals: Sequence[NBFinalRecord] | None = None,
+    policy: Mapping[str, object] | None = None,
+    output_dir: Path | None = None,
 ) -> Dict[str, float]:
-    """Replay the NB sampler to confirm envelope, RNG, and payload integrity."""
+    """Replay the NB sampler to confirm envelope, RNG, and payload integrity.
+
+    Parameters
+    ----------
+    policy:
+        Validation policy providing corridor thresholds. Must expose
+        ``corridors.rho_reject_max``, ``corridors.p99_max`` and
+        ``cusum.reference_k`` / ``cusum.threshold_h``.
+    output_dir:
+        Optional directory where metrics and the CUSUM trace will be written
+        (CSV). Directories are created if they do not exist.
+    """
+
+    if policy is None:
+        raise err("ERR_S2_CORRIDOR_POLICY_MISSING", "validation policy missing for S2 corridor checks")
+
+    corridors = policy.get("corridors")
+    if not isinstance(corridors, Mapping):
+        raise err("ERR_S2_CORRIDOR_POLICY_MISSING", "corridors section missing from validation policy")
+    rho_reject_max = corridors.get("rho_reject_max")
+    p99_max = corridors.get("p99_max")
+    if rho_reject_max is None or p99_max is None:
+        raise err("ERR_S2_CORRIDOR_POLICY_MISSING", "rho_reject_max or p99_max missing from validation policy")
+
+    cusum_policy = policy.get("cusum")
+    if not isinstance(cusum_policy, Mapping):
+        raise err("ERR_S2_CORRIDOR_POLICY_MISSING", "cusum section missing from validation policy")
+    reference_k = cusum_policy.get("reference_k")
+    threshold_h = cusum_policy.get("threshold_h")
+    if reference_k is None or threshold_h is None:
+        raise err("ERR_S2_CORRIDOR_POLICY_MISSING", "cusum.reference_k/threshold_h missing from validation policy")
 
     root = base_path.expanduser().resolve()
     gamma_path = _partition_path(
@@ -131,6 +166,9 @@ def validate_nb_run(
             "p99_rejections": 0.0,
             "cusum_max": 0.0,
             "merchant_count": 0.0,
+            "total_rejections": 0.0,
+            "total_attempts": 0.0,
+            "invalid_alpha_merchants": 0.0,
         }
         logger.info(
             "S2 validator: metrics rho_reject=%.4f, p99_rejections=%.2f, cusum_max=%.4f, merchants=%d",
@@ -139,6 +177,13 @@ def validate_nb_run(
             metrics["cusum_max"],
             int(metrics["merchant_count"]),
         )
+        if output_dir is not None:
+            output_dir.mkdir(parents=True, exist_ok=True)
+            metrics_path = output_dir / "metrics.csv"
+            with metrics_path.open("w", newline="", encoding="utf-8") as handle:
+                writer = csv.writer(handle)
+                writer.writerow(metrics.keys())
+                writer.writerow(metrics.values())
         return metrics
 
     if not final_records:
@@ -210,6 +255,10 @@ def validate_nb_run(
         seed=deterministic.seed,
         manifest_fingerprint=deterministic.manifest_fingerprint,
     )
+
+    inclusion_rows: list[dict[str, float]] = []
+    invalid_alpha_merchants: list[int] = []
+    cusum_trace: list[dict[str, float]] = []
 
     for merchant_id in sorted(expected_merchants):
         deterministic_row = deterministic_map[merchant_id]
@@ -415,6 +464,37 @@ def validate_nb_run(
                 f"rejection count mismatch for merchant {merchant_id}",
             )
 
+        alpha_mu = deterministic_row.links.mu
+        alpha_phi = deterministic_row.links.phi
+        p = alpha_phi / (alpha_mu + alpha_phi)
+        log_p0 = alpha_phi * math.log(p)
+        p0 = math.exp(log_p0)
+        q = 1.0 - p
+        p1 = p0 * alpha_phi * q
+        alpha_prob = 1.0 - p0 - p1
+        if (
+            not math.isfinite(alpha_prob)
+            or alpha_prob <= 0.0
+            or alpha_prob > 1.0
+        ):
+            logger.warning(
+                "S2 validator: alpha invalid for merchant %d (mu=%r, phi=%r, alpha=%r)",
+                merchant_id,
+                alpha_mu,
+                alpha_phi,
+                alpha_prob,
+            )
+            invalid_alpha_merchants.append(merchant_id)
+            continue
+
+        inclusion_rows.append(
+            {
+                "merchant_id": merchant_id,
+                "rejections": float(nb_rejections),
+                "alpha": float(alpha_prob),
+            }
+        )
+
         if expected_map:
             expected_record = expected_map.get(merchant_id)
             if expected_record is None:
@@ -450,32 +530,96 @@ def validate_nb_run(
             f"S2 RNG trace log missing at '{trace_path}'",
         )
 
-    rejection_counts = [final_by_merchant[mid]["nb_rejections"] for mid in sorted(final_by_merchant)]
-    rejection_counts = [int(value) for value in rejection_counts]
-    attempts_counts = [count + 1 for count in rejection_counts]
-    total_attempts = sum(attempts_counts)
-    total_rejections = sum(rejection_counts)
-    rho_reject = total_rejections / total_attempts if total_attempts else 0.0
-    if rejection_counts:
-        sorted_counts = sorted(rejection_counts)
-        index = math.ceil(0.99 * len(sorted_counts)) - 1
-        index = max(0, min(index, len(sorted_counts) - 1))
-        p99_rejections = float(sorted_counts[index])
-    else:
-        p99_rejections = 0.0
+    if not inclusion_rows:
+        raise err("ERR_S2_CORRIDOR_EMPTY", "no nb_final rows with valid alpha for corridor metrics")
 
-    cusum_value = 0.0
-    cusum_max = 0.0
-    for rejection_count in rejection_counts:
-        cusum_value = max(0.0, cusum_value + (rejection_count - rho_reject))
-        cusum_max = max(cusum_max, cusum_value)
+    R = sum(int(row["rejections"]) for row in inclusion_rows)
+    A = sum(int(row["rejections"]) + 1 for row in inclusion_rows)
+    rho_reject = R / A
+
+    sorted_rejections = sorted(int(row["rejections"]) for row in inclusion_rows)
+    index = max(0, min(len(sorted_rejections) - 1, math.ceil(0.99 * len(sorted_rejections)) - 1))
+    p99_rejections = float(sorted_rejections[index])
+
+    Ms = sorted(inclusion_rows, key=lambda row: row["merchant_id"])
+    S = 0.0
+    Smax = 0.0
+    for row in Ms:
+        alpha_prob = row["alpha"]
+        r_value = row["rejections"]
+        expected_r = (1.0 - alpha_prob) / alpha_prob
+        variance_r = (1.0 - alpha_prob) / (alpha_prob * alpha_prob)
+        if variance_r <= 0.0 or not math.isfinite(variance_r):
+            logger.warning(
+                "S2 validator: variance invalid for merchant %d (alpha=%r)",
+                int(row["merchant_id"]),
+                alpha_prob,
+            )
+            continue
+        z_value = (r_value - expected_r) / math.sqrt(variance_r)
+        S = max(0.0, S + (z_value - float(reference_k)))
+        Smax = max(Smax, S)
+        cusum_trace.append(
+            {
+                "merchant_id": row["merchant_id"],
+                "alpha": alpha_prob,
+                "rejections": r_value,
+                "expected": expected_r,
+                "variance": variance_r,
+                "z_score": z_value,
+                "cusum": S,
+            }
+        )
+
+    breaches: list[str] = []
+    if rho_reject > float(rho_reject_max):
+        breaches.append("rho")
+    if p99_rejections > float(p99_max):
+        breaches.append("p99")
+    if Smax >= float(threshold_h):
+        breaches.append("cusum")
 
     metrics = {
         "rho_reject": float(rho_reject),
         "p99_rejections": float(p99_rejections),
-        "cusum_max": float(cusum_max),
-        "merchant_count": float(len(rejection_counts)),
+        "cusum_max": float(Smax),
+        "merchant_count": float(len(inclusion_rows)),
+        "total_rejections": float(R),
+        "total_attempts": float(A),
+        "invalid_alpha_merchants": float(len(invalid_alpha_merchants)),
     }
+
+    if breaches:
+        raise err(
+            "ERR_S2_CORRIDOR_BREACH",
+            f"breaches={','.join(breaches)}; metrics={json.dumps(metrics, sort_keys=True)}",
+        )
+
+    if output_dir is not None:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        metrics_path = output_dir / "metrics.csv"
+        with metrics_path.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(metrics.keys())
+            writer.writerow(metrics.values())
+        trace_path_csv = output_dir / "cusum_trace.csv"
+        with trace_path_csv.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(
+                handle,
+                fieldnames=[
+                    "merchant_id",
+                    "alpha",
+                    "rejections",
+                    "expected",
+                    "variance",
+                    "z_score",
+                    "cusum",
+                ],
+            )
+            writer.writeheader()
+            for row in cusum_trace:
+                writer.writerow(row)
+
     logger.info(
         "S2 validator: metrics rho_reject=%.4f, p99_rejections=%.2f, cusum_max=%.4f, merchants=%d",
         metrics["rho_reject"],
@@ -483,6 +627,7 @@ def validate_nb_run(
         metrics["cusum_max"],
         int(metrics["merchant_count"]),
     )
+
     return metrics
 
 

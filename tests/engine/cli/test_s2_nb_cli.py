@@ -86,6 +86,12 @@ def test_s2_cli_runs_and_writes_outputs(tmp_path: Path) -> None:
     dispersion_path = tmp_path / "dispersion.yaml"
     _write_yaml(hurdle_path, hurdle_yaml)
     _write_yaml(dispersion_path, dispersion_yaml)
+    validation_policy = {
+        "corridors": {"rho_reject_max": 1.0, "p99_max": 100},
+        "cusum": {"reference_k": 0.5, "threshold_h": 100.0},
+    }
+    validation_policy_path = tmp_path / "validation_policy.yaml"
+    _write_yaml(validation_policy_path, validation_policy)
 
     hurdle_log_path = (
         tmp_path
@@ -124,6 +130,8 @@ def test_s2_cli_runs_and_writes_outputs(tmp_path: Path) -> None:
             str(hurdle_path),
             "--dispersion-coeff",
             str(dispersion_path),
+            "--validation-policy",
+            str(validation_policy_path),
             "--parameter-hash",
             parameter_hash,
             "--manifest-fingerprint",
@@ -145,6 +153,8 @@ def test_s2_cli_runs_and_writes_outputs(tmp_path: Path) -> None:
     assert payload["manifest_fingerprint"] == manifest_fingerprint
     assert payload["seed"] == seed
     assert len(payload["finals"]) == 1
+    assert payload["metrics"]["merchant_count"] >= 1
+    validation_artifacts_path = payload["validation_artifacts_path"]
 
     nb_final_path = Path(payload["nb_final_path"])
     gamma_path = Path(payload["gamma_events_path"])
@@ -153,3 +163,32 @@ def test_s2_cli_runs_and_writes_outputs(tmp_path: Path) -> None:
 
     for path in (nb_final_path, gamma_path, poisson_path, trace_path):
         assert path.exists(), f"Expected output file missing: {path}"
+
+    validation_dir = (
+        tmp_path
+        / "validation"
+        / f"parameter_hash={parameter_hash}"
+        / f"run_id={run_id}"
+        / "s2"
+    )
+    assert (validation_dir / "metrics.csv").exists()
+    assert (validation_dir / "cusum_trace.csv").exists()
+
+    catalogue_path = (
+        tmp_path
+        / "parameter_scoped"
+        / f"parameter_hash={parameter_hash}"
+        / "s2_nb_catalogue.json"
+    )
+    assert catalogue_path.exists()
+
+    if validation_artifacts_path:
+        bundle_dir = (
+            tmp_path
+            / "validation_bundle"
+            / f"manifest_fingerprint={manifest_fingerprint}"
+        )
+        s2_bundle_dir = bundle_dir / "s2_nb_outlets"
+        assert (s2_bundle_dir / "metrics.json").exists()
+        assert (s2_bundle_dir / "metrics.csv").exists()
+        assert (s2_bundle_dir / "cusum_trace.csv").exists()

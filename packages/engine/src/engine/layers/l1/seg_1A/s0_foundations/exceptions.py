@@ -108,6 +108,18 @@ _FAILURE_CODE_MAP: Mapping[str, Tuple[FailureCategory, str]] = {
     "E_DATASET_IO": (FailureCategory.F9_IO, "dataset_read_failure"),
     "E_PARAM_IO": (FailureCategory.F2_PARAMETERS, "param_file_missing"),
     "E_YAML_ROOT": (FailureCategory.F2_PARAMETERS, "yaml_root_not_mapping"),
+    "ERR_S2_CORRIDOR_POLICY_MISSING": (
+        FailureCategory.F8_VALIDATION,
+        "s2_corridor_policy_missing",
+    ),
+    "ERR_S2_CORRIDOR_EMPTY": (
+        FailureCategory.F8_VALIDATION,
+        "s2_corridor_empty",
+    ),
+    "ERR_S2_CORRIDOR_BREACH": (
+        FailureCategory.F8_VALIDATION,
+        "s2_corridor_breach",
+    ),
 }
 
 

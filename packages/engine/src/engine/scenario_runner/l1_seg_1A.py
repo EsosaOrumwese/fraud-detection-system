@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import logging
-import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Mapping, Sequence, Tuple
 
+import yaml
+
 from engine.layers.l1.seg_1A.s0_foundations import S0FoundationsRunner, SchemaAuthority
+from engine.layers.l1.seg_1A.s0_foundations.exceptions import err
 from engine.layers.l1.seg_1A.s0_foundations.l1.design import iter_design_vectors
 from engine.layers.l1.seg_1A.s0_foundations.l2.runner import S0RunResult
 from engine.layers.l1.seg_1A.s1_hurdle import HurdleDesignRow, S1HurdleRunner
@@ -24,6 +26,8 @@ from engine.layers.l1.seg_1A.s2_nb_outlets import (
     build_deterministic_context,
     validate_nb_run,
 )
+from engine.layers.l1.seg_1A.s2_nb_outlets.l3.bundle import publish_s2_validation_artifacts
+from engine.layers.l1.seg_1A.s2_nb_outlets.l3.catalogue import write_nb_catalogue
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +81,8 @@ class S2StateContext:
     final_events_path: Path
     trace_path: Path
     metrics: Dict[str, float] | None
+    catalogue_path: Path | None
+    validation_artifacts_path: Path | None
 
     @property
     def parameter_hash(self) -> str:
@@ -116,7 +122,13 @@ class S2StateContext:
         }
 
 
-def build_s2_context(result: S2RunResult, *, metrics: Dict[str, float] | None) -> S2StateContext:
+def build_s2_context(
+    result: S2RunResult,
+    *,
+    metrics: Dict[str, float] | None,
+    catalogue_path: Path | None,
+    validation_artifacts_path: Path | None,
+) -> S2StateContext:
     """Construct the downstream-facing context from an ``S2RunResult``."""
 
     return S2StateContext(
@@ -127,6 +139,8 @@ def build_s2_context(result: S2RunResult, *, metrics: Dict[str, float] | None) -
         final_events_path=result.final_events_path,
         trace_path=result.trace_path,
         metrics=metrics,
+        catalogue_path=catalogue_path,
+        validation_artifacts_path=validation_artifacts_path,
     )
 
 
@@ -173,6 +187,7 @@ class Segment1AOrchestrator:
         validate_s1: bool = True,
         validate_s2: bool = True,
         extra_manifest_artifacts: Sequence[Path] | None = None,
+        validation_policy_path: Path | None = None,
     ) -> Segment1ARunResult:
         base_path = base_path.expanduser().resolve()
         param_mapping = {
@@ -183,6 +198,16 @@ class Segment1AOrchestrator:
             if extra_manifest_artifacts
             else []
         )
+        validation_policy: Mapping[str, object] | None = None
+        if validation_policy_path is not None:
+            policy_path = validation_policy_path.expanduser().resolve()
+            data = yaml.safe_load(policy_path.read_text(encoding="utf-8")) or {}
+            if not isinstance(data, Mapping):
+                raise err(
+                    "ERR_S2_CORRIDOR_POLICY_MISSING",
+                    f"validation policy at {policy_path} must decode to a mapping",
+                )
+            validation_policy = data
 
         logger.info(
             "Segment1A orchestrator starting (seed=%d, git_commit=%s, base_path=%s)",
@@ -294,15 +319,49 @@ class Segment1AOrchestrator:
         )
 
         metrics: Dict[str, float] | None = None
+        validation_output_dir: Path | None = None
+        validation_artifacts_path: Path | None = None
         if validate_s2:
+            if validation_policy is None:
+                raise err(
+                    "ERR_S2_CORRIDOR_POLICY_MISSING",
+                    "validation policy path must be supplied when validate_s2=True",
+                )
+            validation_output_dir = (
+                base_path
+                / "validation"
+                / f"parameter_hash={deterministic_context.parameter_hash}"
+                / f"run_id={deterministic_context.run_id}"
+                / "s2"
+            )
             metrics = validate_nb_run(
                 base_path=base_path,
                 deterministic=deterministic_context,
                 expected_finals=s2_result.finals,
+                policy=validation_policy,
+                output_dir=validation_output_dir,
             )
             logger.info("Segment1A S2 validation passed")
 
-        nb_context = build_s2_context(s2_result, metrics=metrics)
+        catalogue_path = write_nb_catalogue(
+            base_path=base_path,
+            parameter_hash=s2_result.deterministic.parameter_hash,
+            multi_merchant_ids=hurdle_context.multi_merchant_ids,
+            metrics=metrics,
+        )
+        if metrics is not None:
+            validation_artifacts_path = publish_s2_validation_artifacts(
+                base_path=base_path,
+                manifest_fingerprint=s2_result.deterministic.manifest_fingerprint,
+                metrics=metrics,
+                validation_output_dir=validation_output_dir,
+            )
+        nb_context = build_s2_context(
+            s2_result,
+            metrics=metrics,
+            catalogue_path=catalogue_path,
+            validation_artifacts_path=validation_artifacts_path,
+        )
         logger.info(
             "Segment1A orchestrator finished (run_id=%s)",
             s2_result.deterministic.run_id,

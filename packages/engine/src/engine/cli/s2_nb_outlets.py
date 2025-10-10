@@ -26,6 +26,8 @@ from engine.layers.l1.seg_1A.s2_nb_outlets import (
     build_deterministic_context,
     validate_nb_run,
 )
+from engine.layers.l1.seg_1A.s2_nb_outlets.l3.bundle import publish_s2_validation_artifacts
+from engine.layers.l1.seg_1A.s2_nb_outlets.l3.catalogue import write_nb_catalogue
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +59,16 @@ def _hurdle_events_path(
         / partition
         / "part-00000.jsonl"
     )
+
+
+def _load_validation_policy(path: Path) -> dict[str, object]:
+    policy = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    if not isinstance(policy, dict):
+        raise err(
+            "ERR_S2_CORRIDOR_POLICY_MISSING",
+            f"validation policy at {path} must decode to a mapping",
+        )
+    return policy
 
 
 def _design_vectors_from_parquet(path: Path) -> tuple[DesignVectors, ...]:
@@ -158,6 +170,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--design-matrix", required=True, type=Path, help="Path to the hurdle design matrix parquet emitted by S0.")
     parser.add_argument("--hurdle-coeff", required=True, type=Path, help="Path to hurdle_coefficients.yaml.")
     parser.add_argument("--dispersion-coeff", required=True, type=Path, help="Path to nb_dispersion_coefficients.yaml.")
+    parser.add_argument(
+        "--validation-policy",
+        required=True,
+        type=Path,
+        help="Path to validation policy YAML (e.g. contracts/policies/l1/seg_1A/s2_validation_policy.yaml).",
+    )
     parser.add_argument("--parameter-hash", help="Parameter hash for the run (overrides context JSON).")
     parser.add_argument("--manifest-fingerprint", help="Manifest fingerprint for the run (overrides context JSON).")
     parser.add_argument("--run-id", help="Run identifier (overrides context JSON).")
@@ -194,10 +212,12 @@ def main(argv: list[str] | None = None) -> int:
     design_matrix_path = args.design_matrix.expanduser().resolve()
     hurdle_coeff_path = args.hurdle_coeff.expanduser().resolve()
     dispersion_coeff_path = args.dispersion_coeff.expanduser().resolve()
+    validation_policy_path = args.validation_policy.expanduser().resolve()
 
     design_vectors = _design_vectors_from_parquet(design_matrix_path)
     hurdle_coefficients = _load_coefficients(hurdle_coeff_path)
     dispersion_coefficients = _load_dispersion(dispersion_coeff_path, hurdle=hurdle_coefficients)
+    validation_policy = _load_validation_policy(validation_policy_path)
 
     logger.info(
         "S2 CLI: run initialised (run_id=%s, parameter_hash=%s, output_dir=%s)",
@@ -243,13 +263,39 @@ def main(argv: list[str] | None = None) -> int:
         len(result.finals),
     )
 
+    validation_output_dir = (
+        output_dir
+        / "validation"
+        / f"parameter_hash={parameter_hash}"
+        / f"run_id={run_id}"
+        / "s2"
+    )
+
+    metrics: dict[str, object] | None = None
+    validation_artifacts_path: Path | None = None
     if args.validate:
-        validate_nb_run(
+        metrics = validate_nb_run(
             base_path=output_dir,
             deterministic=deterministic_context,
             expected_finals=result.finals,
+            policy=validation_policy,
+            output_dir=validation_output_dir,
         )
         logger.info("S2 CLI: validation completed successfully")
+
+    write_nb_catalogue(
+        base_path=output_dir,
+        parameter_hash=str(parameter_hash),
+        multi_merchant_ids=multi_ids,
+        metrics=metrics,
+    )
+    if metrics is not None:
+        validation_artifacts_path = publish_s2_validation_artifacts(
+            base_path=output_dir,
+            manifest_fingerprint=str(manifest_fingerprint),
+            metrics=metrics,
+            validation_output_dir=validation_output_dir,
+        )
 
     if args.result_json:
         summary = {
@@ -261,6 +307,10 @@ def main(argv: list[str] | None = None) -> int:
             "poisson_events_path": str(result.poisson_events_path),
             "nb_final_path": str(result.final_events_path),
             "trace_path": str(result.trace_path),
+            "metrics": metrics,
+            "validation_artifacts_path": str(validation_artifacts_path)
+            if validation_artifacts_path is not None
+            else None,
             "finals": [
                 {
                     "merchant_id": record.merchant_id,

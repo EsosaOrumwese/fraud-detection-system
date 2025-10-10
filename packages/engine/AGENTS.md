@@ -70,7 +70,16 @@ Read in this exact order before making changes in this package:
 
 ---
 
-## House style (soft guidance — optional)
+## 5) S2 quick reference (domestic outlet counts)
+- Test plan: `docs/test-plan/segment1a.md`.
+- Policy file: `contracts/policies/l1/seg_1A/s2_validation_policy.yaml` (rho≤0.06, p99≤3, cusum≤8). Always load it when validating.
+- CLI: `python -m engine.cli.s2_nb_outlets --validation-policy …` consumes the S0 design matrix + governed coefficients and emits RNG logs plus `parameter_scoped/parameter_hash=*/s2_nb_catalogue.json`.
+- Validation artefacts land in `validation/parameter_hash=*/run_id=*/s2/` and the sealed bundle (`validation_bundle/manifest_fingerprint=*/s2_nb_outlets/`).
+- Tests: `python -m pytest tests/engine/layers/l1/seg_1A/test_s2_nb_validator.py tests/engine/cli/test_s2_nb_cli.py`.
+
+---
+
+## House style (soft guidance - optional)
 - I leave it to you to work with your best practices as a pro MLOPs Engineer and Software Engineer when dealing with this project. 
 
 

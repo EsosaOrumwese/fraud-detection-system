@@ -55,6 +55,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--numeric-policy", dest="numeric_policy_path", type=Path, help="Optional numeric_policy.json path.")
     parser.add_argument("--math-profile", dest="math_profile_manifest_path", type=Path, help="Optional math_profile_manifest.json path.")
     parser.add_argument(
+        "--validation-policy",
+        required=True,
+        type=Path,
+        help="Path to validation policy YAML for S2 corridors (e.g. contracts/policies/l1/seg_1A/s2_validation_policy.yaml).",
+    )
+    parser.add_argument(
         "--extra-manifest",
         dest="extra_manifest",
         action="append",
@@ -98,6 +104,7 @@ def main(argv: list[str] | None = None) -> int:
 
     parameter_files = _parse_parameter_files(args.parameter_files)
     extra_manifest = _normalise_paths(args.extra_manifest)
+    validation_policy_path = args.validation_policy.expanduser().resolve()
 
     orchestrator = Segment1AOrchestrator()
 
@@ -132,6 +139,7 @@ def main(argv: list[str] | None = None) -> int:
             validate_s1=args.validate_s1,
             validate_s2=args.validate_s2,
             extra_manifest_artifacts=extra_manifest,
+            validation_policy_path=validation_policy_path,
         )
     except S0Error as exc:
         logger.exception("Segment1A CLI: run failed")
@@ -147,6 +155,12 @@ def main(argv: list[str] | None = None) -> int:
         logger.info("Segment1A CLI: S2 metrics %s", result.nb_context.metrics)
 
     if args.result_json:
+        catalogue_path = (
+            args.output_dir.expanduser().resolve()
+            / "parameter_scoped"
+            / f"parameter_hash={result.s2_result.deterministic.parameter_hash}"
+            / "s2_nb_catalogue.json"
+        )
         summary = {
             "seed": args.seed,
             "output_dir": str(args.output_dir.expanduser().resolve()),
@@ -168,6 +182,12 @@ def main(argv: list[str] | None = None) -> int:
                 "gamma_path": str(result.nb_context.gamma_events_path),
                 "poisson_path": str(result.nb_context.poisson_events_path),
                 "trace_path": str(result.nb_context.trace_path),
+                "catalogue_path": str(catalogue_path),
+                "validation_artifacts_path": (
+                    str(result.nb_context.validation_artifacts_path)
+                    if result.nb_context.validation_artifacts_path is not None
+                    else None
+                ),
                 "metrics": result.nb_context.metrics,
             },
         }

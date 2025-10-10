@@ -108,16 +108,25 @@ def test_validate_nb_run_passes(tmp_path: Path) -> None:
     result = runner.run(base_path=tmp_path, deterministic=deterministic)
 
     # should not raise
+    policy = {
+        "corridors": {"rho_reject_max": 1.0, "p99_max": 100},
+        "cusum": {"reference_k": 0.5, "threshold_h": 100.0},
+    }
+    validation_dir = tmp_path / "validation"
     metrics = validate_nb_run(
         base_path=tmp_path,
         deterministic=deterministic,
         expected_finals=result.finals,
+        policy=policy,
+        output_dir=validation_dir,
     )
 
     assert {record.merchant_id for record in result.finals} == {1, 2}
     assert all(record.n_outlets >= 2 for record in result.finals)
     assert metrics["merchant_count"] == pytest.approx(2.0)
     assert 0.0 <= metrics["rho_reject"] <= 1.0
+    assert (validation_dir / "metrics.csv").exists()
+    assert (validation_dir / "cusum_trace.csv").exists()
 
 
 def test_validate_nb_run_detects_tampered_final(tmp_path: Path) -> None:
@@ -146,9 +155,78 @@ def test_validate_nb_run_detects_tampered_final(tmp_path: Path) -> None:
     lines[0] = json.dumps(tampered, sort_keys=True)
     final_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
+    policy = {
+        "corridors": {"rho_reject_max": 1.0, "p99_max": 100},
+        "cusum": {"reference_k": 0.5, "threshold_h": 100.0},
+    }
     with pytest.raises(S0Error):
         validate_nb_run(
             base_path=tmp_path,
             deterministic=deterministic,
             expected_finals=result.finals,
+            policy=policy,
+            output_dir=tmp_path / "validation",
+        )
+
+
+def test_validate_nb_run_requires_policy(tmp_path: Path) -> None:
+    hurdle, dispersion = _make_coefficients()
+    design_vectors = _design_vectors()
+    decisions = _decisions()
+    deterministic = build_deterministic_context(
+        parameter_hash="f" * 64,
+        manifest_fingerprint="e" * 64,
+        run_id="d" * 32,
+        seed=192837465,
+        multi_merchant_ids=[decision.merchant_id for decision in decisions],
+        decisions=decisions,
+        design_vectors=design_vectors,
+        hurdle=hurdle,
+        dispersion=dispersion,
+    )
+
+    runner = S2NegativeBinomialRunner()
+    result = runner.run(base_path=tmp_path, deterministic=deterministic)
+
+    with pytest.raises(S0Error):
+        validate_nb_run(
+            base_path=tmp_path,
+            deterministic=deterministic,
+            expected_finals=result.finals,
+            policy=None,
+            output_dir=None,
+        )
+
+
+def test_validate_nb_run_detects_corridor_breach(tmp_path: Path) -> None:
+    hurdle, dispersion = _make_coefficients()
+    design_vectors = _design_vectors()
+    decisions = _decisions()
+    deterministic = build_deterministic_context(
+        parameter_hash="1" * 64,
+        manifest_fingerprint="2" * 64,
+        run_id="3" * 32,
+        seed=246813579,
+        multi_merchant_ids=[decision.merchant_id for decision in decisions],
+        decisions=decisions,
+        design_vectors=design_vectors,
+        hurdle=hurdle,
+        dispersion=dispersion,
+    )
+
+    runner = S2NegativeBinomialRunner()
+    result = runner.run(base_path=tmp_path, deterministic=deterministic)
+
+    # Force breach by setting zero thresholds
+    policy = {
+        "corridors": {"rho_reject_max": 0.0, "p99_max": 0},
+        "cusum": {"reference_k": 0.0, "threshold_h": 0.0},
+    }
+    with pytest.raises(S0Error):
+        validate_nb_run(
+            base_path=tmp_path,
+            deterministic=deterministic,
+            expected_finals=result.finals,
+            policy=policy,
+            output_dir=tmp_path / "validation",
         )
