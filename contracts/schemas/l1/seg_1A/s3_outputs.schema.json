@@ -1,0 +1,226 @@
+{
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "$id": "contracts/schemas/l1/seg_1A/s3_outputs.schema.json",
+  "title": "Layer 1 Segment 1A – State-3 Outputs",
+  "description": "Authoritative schemas for deterministic S3 artefacts emitted by the Layer 1 Segment 1A cross-border universe state.",
+  "candidate_set": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parameter_hash",
+        "merchant_id",
+        "country_iso",
+        "candidate_rank",
+        "is_home",
+        "reason_codes",
+        "filter_tags"
+      ],
+      "properties": {
+        "parameter_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "produced_by_fingerprint": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "merchant_id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "country_iso": {
+          "type": "string",
+          "pattern": "^[A-Z]{2}$"
+        },
+        "candidate_rank": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "is_home": {
+          "type": "boolean"
+        },
+        "reason_codes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z0-9_]+$",
+            "minLength": 1
+          }
+        },
+        "filter_tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z0-9_]+$",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  },
+  "base_weight_priors": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parameter_hash",
+        "merchant_id",
+        "country_iso",
+        "base_weight_dp",
+        "dp"
+      ],
+      "properties": {
+        "parameter_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "produced_by_fingerprint": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "merchant_id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "country_iso": {
+          "type": "string",
+          "pattern": "^[A-Z]{2}$"
+        },
+        "base_weight_dp": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+$",
+          "minLength": 3
+        },
+        "dp": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18
+        }
+      }
+    }
+  },
+  "integerised_counts": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parameter_hash",
+        "merchant_id",
+        "country_iso",
+        "count",
+        "residual_rank"
+      ],
+      "properties": {
+        "parameter_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "produced_by_fingerprint": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "merchant_id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "country_iso": {
+          "type": "string",
+          "pattern": "^[A-Z]{2}$"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "residual_rank": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        }
+      }
+    }
+  },
+  "site_sequence": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "parameter_hash",
+        "merchant_id",
+        "country_iso",
+        "site_order"
+      ],
+      "properties": {
+        "parameter_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "produced_by_fingerprint": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "merchant_id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "country_iso": {
+          "type": "string",
+          "pattern": "^[A-Z]{2}$"
+        },
+        "site_order": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        },
+        "site_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[0-9]{6}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

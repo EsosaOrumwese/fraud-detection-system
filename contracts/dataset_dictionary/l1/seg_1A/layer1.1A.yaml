@@ -1,7 +1,7 @@
 version: '1.0'
 layer: layer1
 segment: seg_1A
-states: [s0, s1, s2]
+states: [s0, s1, s2, s3]
 
 reference:
   transaction_schema_merchant_ids:
@@ -172,3 +172,41 @@ rng_logs:
     gating:
       gated_by: rng_event_hurdle_bernoulli
       predicate: is_multi == true
+
+crossborder:
+
+  s3_candidate_set:
+    description: Ordered cross-border candidate universe (home + admissible foreign countries).
+    format: parquet
+    path: data/layer1/1A/s3_candidate_set/parameter_hash={parameter_hash}/part-*.parquet
+    schema_ref: l1/seg_1A/s3_outputs.schema.json#/candidate_set
+    partitioning: [parameter_hash]
+    owner: 1A
+    retention_days: 365
+
+  s3_base_weight_priors:
+    description: Deterministic base-weight priors per candidate country (fixed-dp strings).
+    format: parquet
+    path: data/layer1/1A/s3_base_weight_priors/parameter_hash={parameter_hash}/part-*.parquet
+    schema_ref: l1/seg_1A/s3_outputs.schema.json#/base_weight_priors
+    partitioning: [parameter_hash]
+    owner: 1A
+    retention_days: 365
+
+  s3_integerised_counts:
+    description: Integer outlet allocations per candidate country (sum equals S2 N) with residual ranking.
+    format: parquet
+    path: data/layer1/1A/s3_integerised_counts/parameter_hash={parameter_hash}/part-*.parquet
+    schema_ref: l1/seg_1A/s3_outputs.schema.json#/integerised_counts
+    partitioning: [parameter_hash]
+    owner: 1A
+    retention_days: 365
+
+  s3_site_sequence:
+    description: Deterministic within-country site sequencing (optional; zero-padded IDs when enabled).
+    format: parquet
+    path: data/layer1/1A/s3_site_sequence/parameter_hash={parameter_hash}/part-*.parquet
+    schema_ref: l1/seg_1A/s3_outputs.schema.json#/site_sequence
+    partitioning: [parameter_hash]
+    owner: 1A
+    retention_days: 365

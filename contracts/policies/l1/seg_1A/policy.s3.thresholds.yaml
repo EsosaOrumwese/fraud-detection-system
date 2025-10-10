@@ -1,0 +1,13 @@
+semver: "1.0.0"
+version: "2025-10-10"
+integerisation:
+  residual_dp: 8
+bounds:
+  default_lower: 0
+  default_upper: 999999
+  overrides:
+    - countries: ["GB", "US"]
+      lower: 1
+      upper: 999999
+gdp_thresholds:
+  usd_per_capita_min: 2500.0

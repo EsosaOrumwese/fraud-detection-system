@@ -1,0 +1,14 @@
+semver: "1.0.0"
+version: "2025-10-10"
+dp: 6
+weights:
+  base_home: 0.600000
+  base_foreign: 0.250000
+  min_weight: 0.050000
+tag_multipliers:
+  SANCTIONED: 0.0
+  CROSS_BORDER_ELIGIBLE: 1.200000
+  ADMISSIBLE: 1.000000
+normalisation:
+  method: proportional
+  floor: 0.000001

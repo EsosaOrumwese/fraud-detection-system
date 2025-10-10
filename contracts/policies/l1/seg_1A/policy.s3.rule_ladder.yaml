@@ -1,0 +1,52 @@
+semver: "1.0.0"
+version: "2025-10-10"
+reason_codes:
+  - DENY_SANCTIONED
+  - ALLOW_DEFAULT
+  - DEFAULT_DENY
+filter_tags:
+  - HOME
+  - SANCTIONED
+  - ADMISSIBLE
+  - CROSS_BORDER_ELIGIBLE
+named_sets:
+  SANCTIONED:
+    countries: ["RU", "IR", "KP"]
+  PREFERRED_FOREIGN:
+    countries: ["GB", "DE", "FR", "CA", "US", "IE", "NL", "AU", "JP"]
+precedence_order:
+  - DENY
+  - ALLOW
+  - CLASS
+  - LEGAL
+  - THRESHOLD
+  - DEFAULT
+reason_code_map:
+  DENY_SANCTIONED: ["RL_DENY_SANCTIONED_HOME"]
+  ALLOW_DEFAULT: ["RL_ALLOW_BASE"]
+  DEFAULT_DENY: ["RL_DEFAULT_FALLBACK"]
+rules:
+  - rule_id: RL_DENY_SANCTIONED_HOME
+    precedence: DENY
+    priority: 10
+    is_decision_bearing: true
+    predicate: "home_country_iso in SANCTIONED"
+    outcome:
+      reason_code: DENY_SANCTIONED
+      tags: ["SANCTIONED"]
+  - rule_id: RL_ALLOW_BASE
+    precedence: ALLOW
+    priority: 100
+    is_decision_bearing: true
+    predicate: "channel == \"card_present\""
+    outcome:
+      reason_code: ALLOW_DEFAULT
+      tags: ["ADMISSIBLE", "CROSS_BORDER_ELIGIBLE"]
+  - rule_id: RL_DEFAULT_FALLBACK
+    precedence: DEFAULT
+    priority: 1000
+    is_decision_bearing: true
+    predicate: "true"
+    outcome:
+      reason_code: DEFAULT_DENY
+      tags: []
