@@ -93,6 +93,27 @@ def _group_expected_sequence(
     }
 
 
+def _assert_unique(
+    frame: pl.DataFrame,
+    columns: list[str],
+    dataset: str,
+    error_code: str = "ERR_S3_DUPLICATE_ROW",
+) -> None:
+    if frame.height == 0:
+        return
+    dup_counts = (
+        frame.group_by(columns)
+        .agg(pl.len().alias("_count"))
+        .filter(pl.col("_count") > 1)
+    )
+    if dup_counts.height > 0:
+        keys = dup_counts.select(pl.struct(columns)).to_series().to_list()
+        raise err(
+            error_code,
+            f"{dataset} contains duplicate keys {keys}",
+        )
+
+
 def validate_s3_outputs(
     *,
     deterministic: S3DeterministicContext,
@@ -113,6 +134,8 @@ def validate_s3_outputs(
     candidate_frame = pl.read_parquet(candidate_path)
     if candidate_frame.height == 0:
         raise err("ERR_S3_EGRESS_SHAPE", "s3_candidate_set is empty")
+    if any(candidate_frame[col].null_count() > 0 for col in candidate_frame.columns):
+        raise err("ERR_S3_EGRESS_SHAPE", "s3_candidate_set contains null values")
     _assert_partition_column(
         candidate_frame,
         column="parameter_hash",
@@ -126,6 +149,17 @@ def validate_s3_outputs(
             expected=deterministic.manifest_fingerprint,
             dataset="s3_candidate_set",
         )
+
+    _assert_unique(
+        candidate_frame,
+        ["merchant_id", "country_iso"],
+        "s3_candidate_set",
+    )
+    _assert_unique(
+        candidate_frame,
+        ["merchant_id", "candidate_rank"],
+        "s3_candidate_set",
+    )
 
     kernel_result = run_kernels(
         deterministic=deterministic,
@@ -234,6 +268,11 @@ def validate_s3_outputs(
                 expected=deterministic.manifest_fingerprint,
                 dataset="s3_base_weight_priors",
             )
+        _assert_unique(
+            priors_frame,
+            ["merchant_id", "country_iso"],
+            "s3_base_weight_priors",
+        )
         actual_keys = set()
         for row in priors_frame.to_dicts():
             merchant_id = int(row["merchant_id"])
@@ -292,6 +331,11 @@ def validate_s3_outputs(
                 expected=deterministic.manifest_fingerprint,
                 dataset="s3_integerised_counts",
             )
+        _assert_unique(
+            counts_frame,
+            ["merchant_id", "country_iso"],
+            "s3_integerised_counts",
+        )
         counts_by_merchant: Dict[int, int] = {}
         actual_keys = set()
         for row in counts_frame.to_dicts():
@@ -363,6 +407,17 @@ def validate_s3_outputs(
                 column="produced_by_fingerprint",
                 expected=deterministic.manifest_fingerprint,
                 dataset="s3_site_sequence",
+            )
+        _assert_unique(
+            sequence_frame,
+            ["merchant_id", "country_iso", "site_order"],
+            "s3_site_sequence",
+        )
+        if "site_id" in sequence_frame.columns:
+            _assert_unique(
+                sequence_frame.drop_nulls("site_id"),
+                ["merchant_id", "country_iso", "site_id"],
+                "s3_site_sequence",
             )
         expected_sequence = _group_expected_sequence(kernel_result.sequence)
         sequence_rows = len(expected_sequence)
