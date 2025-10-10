@@ -19,8 +19,6 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-@dataclass(frozen=True)
-@dataclass(frozen=True)
 class S3ValidationResult:
     """Summary of S3 validation outcomes."""
 

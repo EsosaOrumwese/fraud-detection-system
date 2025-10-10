@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Tuple
+from typing import Mapping, Tuple
 
 import polars as pl
 
@@ -16,6 +16,7 @@ from ..l1.kernels import (
     run_kernels,
 )
 from ..l2.deterministic import S3DeterministicContext
+from ...shared.dictionary import load_dictionary, resolve_dataset_path
 
 
 @dataclass(frozen=True)
@@ -44,6 +45,7 @@ class S3CrossBorderRunner:
     ) -> S3RunResult:
         base_path = base_path.expanduser().resolve()
         toggles = toggles or S3FeatureToggles()
+        dictionary = load_dictionary()
         kernel_result = run_kernels(
             deterministic=deterministic,
             artefact_path=rule_ladder_path.expanduser().resolve(),
@@ -55,12 +57,14 @@ class S3CrossBorderRunner:
             base_path=base_path,
             deterministic=deterministic,
             kernel_result=kernel_result,
+            dictionary=dictionary,
         )
         priors_path = (
             self._write_priors(
                 base_path=base_path,
                 deterministic=deterministic,
                 priors=kernel_result.priors,
+                dictionary=dictionary,
             )
             if kernel_result.priors is not None
             else None
@@ -70,6 +74,7 @@ class S3CrossBorderRunner:
                 base_path=base_path,
                 deterministic=deterministic,
                 counts=kernel_result.counts,
+                dictionary=dictionary,
             )
             if kernel_result.counts is not None
             else None
@@ -79,6 +84,7 @@ class S3CrossBorderRunner:
                 base_path=base_path,
                 deterministic=deterministic,
                 sequence=kernel_result.sequence,
+                dictionary=dictionary,
             )
             if kernel_result.sequence is not None
             else None
@@ -97,14 +103,10 @@ class S3CrossBorderRunner:
         base_path: Path,
         deterministic: S3DeterministicContext,
         kernel_result: S3KernelResult,
+        dictionary: Mapping[str, object],
     ) -> Path:
         parameter_hash = deterministic.parameter_hash
         manifest_fingerprint = deterministic.manifest_fingerprint
-
-        parameter_dir = (
-            base_path / "parameter_scoped" / f"parameter_hash={parameter_hash}"
-        )
-        parameter_dir.mkdir(parents=True, exist_ok=True)
 
         data = {
             "parameter_hash": [],
@@ -143,8 +145,13 @@ class S3CrossBorderRunner:
             expected=manifest_fingerprint,
             dataset="s3_candidate_set",
         )
-
-        output_path = parameter_dir / "s3_candidate_set.parquet"
+        output_path = resolve_dataset_path(
+            "s3_candidate_set",
+            base_path=base_path,
+            template_args=self._template_args(deterministic),
+            dictionary=dictionary,
+        )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         frame.write_parquet(output_path, compression="zstd")
         return output_path
 
@@ -154,13 +161,10 @@ class S3CrossBorderRunner:
         base_path: Path,
         deterministic: S3DeterministicContext,
         priors: Tuple,
+        dictionary: Mapping[str, object],
     ) -> Path:
         parameter_hash = deterministic.parameter_hash
         manifest_fingerprint = deterministic.manifest_fingerprint
-        parameter_dir = (
-            base_path / "parameter_scoped" / f"parameter_hash={parameter_hash}"
-        )
-        parameter_dir.mkdir(parents=True, exist_ok=True)
 
         data = {
             "parameter_hash": [],
@@ -191,7 +195,13 @@ class S3CrossBorderRunner:
             expected=manifest_fingerprint,
             dataset="s3_base_weight_priors",
         )
-        output_path = parameter_dir / "s3_base_weight_priors.parquet"
+        output_path = resolve_dataset_path(
+            "s3_base_weight_priors",
+            base_path=base_path,
+            template_args=self._template_args(deterministic),
+            dictionary=dictionary,
+        )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         frame.write_parquet(output_path, compression="zstd")
         return output_path
 
@@ -201,13 +211,10 @@ class S3CrossBorderRunner:
         base_path: Path,
         deterministic: S3DeterministicContext,
         counts: Tuple,
+        dictionary: Mapping[str, object],
     ) -> Path:
         parameter_hash = deterministic.parameter_hash
         manifest_fingerprint = deterministic.manifest_fingerprint
-        parameter_dir = (
-            base_path / "parameter_scoped" / f"parameter_hash={parameter_hash}"
-        )
-        parameter_dir.mkdir(parents=True, exist_ok=True)
 
         data = {
             "parameter_hash": [],
@@ -238,7 +245,13 @@ class S3CrossBorderRunner:
             expected=manifest_fingerprint,
             dataset="s3_integerised_counts",
         )
-        output_path = parameter_dir / "s3_integerised_counts.parquet"
+        output_path = resolve_dataset_path(
+            "s3_integerised_counts",
+            base_path=base_path,
+            template_args=self._template_args(deterministic),
+            dictionary=dictionary,
+        )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         frame.write_parquet(output_path, compression="zstd")
         return output_path
 
@@ -248,13 +261,10 @@ class S3CrossBorderRunner:
         base_path: Path,
         deterministic: S3DeterministicContext,
         sequence: Tuple,
+        dictionary: Mapping[str, object],
     ) -> Path:
         parameter_hash = deterministic.parameter_hash
         manifest_fingerprint = deterministic.manifest_fingerprint
-        parameter_dir = (
-            base_path / "parameter_scoped" / f"parameter_hash={parameter_hash}"
-        )
-        parameter_dir.mkdir(parents=True, exist_ok=True)
 
         data = {
             "parameter_hash": [],
@@ -285,9 +295,26 @@ class S3CrossBorderRunner:
             expected=manifest_fingerprint,
             dataset="s3_site_sequence",
         )
-        output_path = parameter_dir / "s3_site_sequence.parquet"
+        output_path = resolve_dataset_path(
+            "s3_site_sequence",
+            base_path=base_path,
+            template_args=self._template_args(deterministic),
+            dictionary=dictionary,
+        )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         frame.write_parquet(output_path, compression="zstd")
         return output_path
+
+    @staticmethod
+    def _template_args(deterministic: S3DeterministicContext) -> Mapping[str, object]:
+        """Build template arguments for dataset dictionary rendering."""
+
+        return {
+            "parameter_hash": deterministic.parameter_hash,
+            "manifest_fingerprint": deterministic.manifest_fingerprint,
+            "seed": deterministic.seed,
+            "run_id": deterministic.run_id,
+        }
 
     @staticmethod
     def _assert_partition_value(

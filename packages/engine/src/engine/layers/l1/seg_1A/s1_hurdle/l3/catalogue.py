@@ -7,9 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Tuple
 
-import yaml
-
 from ...s0_foundations.exceptions import err
+from ...shared.dictionary import default_dictionary_path, load_dictionary
 
 
 @dataclass(frozen=True)
@@ -25,28 +24,6 @@ class GatedStream:
     section: str
 
 
-def _default_dictionary_path() -> Path:
-    current = Path(__file__).resolve()
-    repo_root: Path | None = None
-    for parent in current.parents:
-        if parent.name == "packages":
-            repo_root = parent.parent
-            break
-    if repo_root is None:
-        raise err(
-            "E_DATASET_NOT_FOUND",
-            "unable to locate repository root for dataset dictionary discovery",
-        )
-    return (
-        repo_root
-        / "contracts"
-        / "dataset_dictionary"
-        / "l1"
-        / "seg_1A"
-        / "layer1.1A.yaml"
-    )
-
-
 def load_gated_streams(
     *,
     gated_by: str,
@@ -54,10 +31,8 @@ def load_gated_streams(
 ) -> Tuple[GatedStream, ...]:
     """Discover all dataset dictionary entries gated by ``gated_by``."""
 
-    path = dictionary_path or _default_dictionary_path()
-    if not path.exists():
-        raise err("E_DATASET_NOT_FOUND", f"dataset dictionary '{path}' missing")
-    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    path = dictionary_path or default_dictionary_path()
+    data = load_dictionary(path)
     streams: list[GatedStream] = []
     for section_name, section in data.items():
         if not isinstance(section, dict):

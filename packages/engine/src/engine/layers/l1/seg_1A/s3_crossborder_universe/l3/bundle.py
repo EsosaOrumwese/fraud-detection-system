@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Mapping
 
 from ...s0_foundations.l2.output import refresh_validation_bundle_flag
+from ...shared.dictionary import load_dictionary, resolve_dataset_path
 
 _S3_BUNDLE_DIRNAME = "s3_crossborder_universe"
 logger = logging.getLogger(__name__)
@@ -46,10 +47,12 @@ def publish_s3_validation_artifacts(
         the bundle location is unavailable.
     """
 
-    bundle_dir = (
-        base_path.expanduser().resolve()
-        / "validation_bundle"
-        / f"manifest_fingerprint={manifest_fingerprint}"
+    dictionary = load_dictionary()
+    bundle_dir = resolve_dataset_path(
+        "validation_bundle",
+        base_path=base_path.expanduser().resolve(),
+        template_args={"manifest_fingerprint": manifest_fingerprint},
+        dictionary=dictionary,
     )
     if not bundle_dir.exists():
         logger.warning(
