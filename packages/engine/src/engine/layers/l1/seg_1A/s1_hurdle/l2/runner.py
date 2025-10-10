@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Iterator, List, Sequence, Tuple
@@ -13,6 +15,8 @@ from ..l1.probability import hurdle_probability
 from ..l1.rng import HURDLE_MODULE_NAME, HURDLE_SUBSTREAM_LABEL, counters, derive_hurdle_substream
 from ..l3.catalogue import GatedStream, load_gated_streams, write_hurdle_catalogue
 from .output import HurdleEventWriter
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -59,6 +63,16 @@ class S1RunResult:
 class S1HurdleRunner:
     """High-level orchestrator that emits the hurdle Bernoulli stream."""
 
+    @staticmethod
+    def _log_progress(message: str, start_time: float, last_checkpoint: float) -> float:
+        """Emit a deterministic progress log with cumulative and step timing."""
+
+        now = time.perf_counter()
+        total = now - start_time
+        delta = now - last_checkpoint
+        logger.info("S1: %s (elapsed=%.2fs, delta=%.2fs)", message, total, delta)
+        return now
+
     def run(
         self,
         *,
@@ -70,6 +84,10 @@ class S1HurdleRunner:
         seed: int,
         run_id: str,
     ) -> S1RunResult:
+        start_perf = time.perf_counter()
+        last_checkpoint = start_perf
+        last_checkpoint = self._log_progress("run initialised", start_perf, last_checkpoint)
+
         self._ensure_audit_exists(base_path, seed, parameter_hash, run_id)
         engine = PhiloxEngine(seed=seed, manifest_fingerprint=manifest_fingerprint)
         writer = HurdleEventWriter(
@@ -79,6 +97,8 @@ class S1HurdleRunner:
             manifest_fingerprint=manifest_fingerprint,
             run_id=run_id,
         )
+
+        last_checkpoint = self._log_progress("configured RNG writer", start_perf, last_checkpoint)
 
         decisions: List[HurdleDecision] = []
         multi_ids: List[int] = []
@@ -147,6 +167,12 @@ class S1HurdleRunner:
         if not seen_any:
             raise err("E_DATASET_EMPTY", "no hurdle design rows available for S1")
 
+        last_checkpoint = self._log_progress(
+            f"emitted hurdle events (total={len(decisions)}, multi={len(multi_ids)})",
+            start_perf,
+            last_checkpoint,
+        )
+
         try:
             gated_streams = load_gated_streams(gated_by=HURDLE_SUBSTREAM_LABEL)
         except S0Error:
@@ -159,6 +185,10 @@ class S1HurdleRunner:
             multi_merchant_ids=multi_ids,
             gated_streams=gated_streams,
         )
+
+        last_checkpoint = self._log_progress("wrote hurdle catalogue", start_perf, last_checkpoint)
+
+        last_checkpoint = self._log_progress("completed run", start_perf, last_checkpoint)
 
         return S1RunResult(
             seed=seed,
@@ -175,6 +205,7 @@ class S1HurdleRunner:
 
     @staticmethod
     def from_design_vectors(vectors: Iterable[DesignVectors]) -> Iterator[HurdleDesignRow]:
+        logger.info("S1: deriving design rows from sealed vectors")
         for vector in vectors:
             yield HurdleDesignRow(
                 merchant_id=vector.merchant_id,

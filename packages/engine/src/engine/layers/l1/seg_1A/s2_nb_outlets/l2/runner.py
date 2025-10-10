@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import math
 import logging
+import math
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Tuple
@@ -63,19 +64,21 @@ class S2NegativeBinomialRunner:
             run_id=deterministic.run_id,
         )
 
-        logger.info(
-            "S2 NB runner starting (merchants=%d, parameter_hash=%s, run_id=%s)",
-            len(deterministic.rows),
-            deterministic.parameter_hash,
-            deterministic.run_id,
-        )
+        start_perf = time.perf_counter()
+        last_checkpoint = start_perf
+
+        def log_progress(message: str) -> None:
+            nonlocal last_checkpoint
+            now = time.perf_counter()
+            total = now - start_perf
+            delta = now - last_checkpoint
+            logger.info("S2: %s (elapsed=%.2fs, delta=%.2fs)", message, total, delta)
+            last_checkpoint = now
+
+        log_progress(f"run initialised (merchants={len(deterministic.rows)})")
 
         finals: list[NBFinalRecord] = []
         for row in deterministic.rows:
-            logger.info(
-                "S2 NB merchant %d: starting sampling loop",
-                row.merchant_id,
-            )
             gamma_substream = nb_rng.derive_gamma_substream(
                 engine, merchant_id=row.merchant_id
             )
@@ -159,26 +162,11 @@ class S2NegativeBinomialRunner:
                         )
                     )
                     accepted = True
-                    logger.info(
-                        "S2 NB merchant %d accepted with n_outlets=%d after %d attempts (rejections=%d)",
-                        row.merchant_id,
-                        int(k_value),
-                        attempts,
-                        rejection_count,
-                    )
                 else:
                     rejection_count += 1
-                    logger.debug(
-                        "S2 NB merchant %d rejected attempt %d (k=%d)",
-                        row.merchant_id,
-                        attempts,
-                        int(k_value),
-                    )
 
-        logger.info(
-            "S2 NB runner completed (accepted_merchants=%d)",
-            len(finals),
-        )
+        log_progress(f"emitted nb events (accepted_merchants={len(finals)})")
+        log_progress("completed run")
 
         return S2RunResult(
             deterministic=deterministic,

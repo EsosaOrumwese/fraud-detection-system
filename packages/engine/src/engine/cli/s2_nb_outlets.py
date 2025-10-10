@@ -200,7 +200,7 @@ def main(argv: list[str] | None = None) -> int:
     dispersion_coefficients = _load_dispersion(dispersion_coeff_path, hurdle=hurdle_coefficients)
 
     logger.info(
-        "S2 CLI starting (run_id=%s, parameter_hash=%s, output_dir=%s)",
+        "S2 CLI: run initialised (run_id=%s, parameter_hash=%s, output_dir=%s)",
         run_id,
         parameter_hash,
         output_dir,
@@ -234,12 +234,12 @@ def main(argv: list[str] | None = None) -> int:
             deterministic=deterministic_context,
         )
     except S0Error as exc:  # pragma: no cover - exercised in integration tests
-        logger.exception("S2 CLI run failed")
+        logger.exception("S2 CLI: run failed")
         print(f"[s2-run] failed: {exc}", file=sys.stderr)
         return 1
 
     logger.info(
-        "S2 CLI completed sampling (accepted_merchants=%d)",
+        "S2 CLI: completed sampling (accepted_merchants=%d)",
         len(result.finals),
     )
 
@@ -249,7 +249,7 @@ def main(argv: list[str] | None = None) -> int:
             deterministic=deterministic_context,
             expected_finals=result.finals,
         )
-        logger.info("S2 CLI validation completed successfully")
+        logger.info("S2 CLI: validation completed successfully")
 
     if args.result_json:
         summary = {
@@ -277,9 +277,9 @@ def main(argv: list[str] | None = None) -> int:
             json.dumps(summary, indent=2, sort_keys=True),
             encoding="utf-8",
         )
-        logger.info("S2 CLI wrote result summary to %s", args.result_json)
+        logger.info("S2 CLI: wrote result summary to %s", args.result_json)
 
-    logger.info("S2 CLI finished (run_id=%s)", run_id)
+    logger.info("S2 CLI: completed run (run_id=%s)", run_id)
 
     return 0
 
