@@ -90,16 +90,26 @@ def _write_base_weight_policy(path):
                 'semver: "1.0.0"',
                 'version: "2025-10-10"',
                 "dp: 4",
-                "weights:",
-                "  base_home: 1.0000",
-                "  base_foreign: 0.4000",
-                "  min_weight: 0.0500",
-                "tag_multipliers:",
-                "  CROSS_BORDER_ELIGIBLE: 1.2000",
-                "  SANCTIONED: 0.0000",
-                "normalisation:",
-                "  method: proportional",
-                "  floor: 0.0001",
+                "constants:",
+                "  base: 1.0000",
+                "  grocery_bonus: 0.2500",
+                "  eea_bonus: 0.1000",
+                "sets:",
+                "  EEA12: [\"GB\",\"DE\",\"FR\",\"IE\",\"NL\",\"US\",\"CA\",\"AU\",\"JP\"]",
+                "  SANCTIONED: [\"JP\"]",
+                "selection_rules:",
+                "  - id: \"DENY_SANCTIONED\"",
+                "    predicate: 'country_iso in SANCTIONED'",
+                "    score_components: []",
+                "  - id: \"GROCERY_CNP_EEA\"",
+                "    predicate: 'channel == \"CNP\" && mcc == 5411 && country_iso in EEA12'",
+                "    score_components: [\"base\",\"grocery_bonus\",\"eea_bonus\"]",
+                "  - id: \"BASELINE_REGION\"",
+                "    predicate: 'country_iso in EEA12'",
+                "    score_components: [\"base\"]",
+                "  - id: \"DEFAULT\"",
+                "    predicate: 'true'",
+                "    score_components: [\"base\"]",
             ]
         ),
         encoding="utf-8",
@@ -112,11 +122,13 @@ def _write_thresholds_policy(path):
             [
                 'semver: "1.0.0"',
                 'version: "2025-10-10"',
-                "integerisation:",
-                "  residual_dp: 8",
-                "bounds:",
-                "  default_lower: 0",
-                "  default_upper: 999999",
+                "dp_resid: 8",
+                "floors:",
+                "  GB: 1",
+                "  US: 1",
+                "ceilings:",
+                "  GB: 999999",
+                "  US: 999999",
             ]
         ),
         encoding="utf-8",
@@ -198,8 +210,12 @@ def _build_optional_run(tmp_path):
         integerisation_enabled=True,
         sequencing_enabled=True,
     )
-    base_weight_policy = load_base_weight_policy(base_weight_path)
-    thresholds_policy = load_thresholds_policy(thresholds_path)
+    base_weight_policy = load_base_weight_policy(
+        base_weight_path, iso_countries=deterministic.iso_countries
+    )
+    thresholds_policy = load_thresholds_policy(
+        thresholds_path, iso_countries=deterministic.iso_countries
+    )
 
     runner = S3CrossBorderRunner()
     result = runner.run(

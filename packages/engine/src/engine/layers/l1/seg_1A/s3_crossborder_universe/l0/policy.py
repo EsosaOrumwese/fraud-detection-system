@@ -6,7 +6,7 @@ import ast
 from dataclasses import dataclass
 from functools import total_ordering
 from pathlib import Path
-from typing import Dict, Iterable, Mapping, MutableMapping, Sequence, Tuple
+from typing import Dict, Iterable, Mapping, MutableMapping, Sequence, Tuple, List, Optional
 
 from decimal import Decimal
 
@@ -24,35 +24,36 @@ _ASCII_UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 
 @dataclass(frozen=True)
-class BaseWeightPolicy:
-    """Determinisitic configuration for base-weight priors."""
+class BaseWeightRule:
+    """Single deterministic scoring rule for priors."""
 
-    dp: int
-    base_home: Decimal
-    base_foreign: Decimal
-    min_weight: Decimal
-    tag_multipliers: Mapping[str, Decimal]
-    normalisation_method: str
-    normalisation_floor: Decimal
+    rule_id: str
+    predicate: str
+    predicate_ast: ast.Expression
+    components: Tuple[str, ...]
 
 
 @dataclass(frozen=True)
-class BoundsOverride:
-    """Lower/upper overrides for a set of ISO countries."""
+class BaseWeightPolicy:
+    """Deterministic configuration for base-weight priors."""
 
-    countries: Tuple[str, ...]
-    lower: int | None
-    upper: int | None
+    semver: str | None
+    version: str | None
+    dp: int
+    constants: Mapping[str, Decimal]
+    sets: Mapping[str, Tuple[str, ...]]
+    rules: Tuple[BaseWeightRule, ...]
 
 
 @dataclass(frozen=True)
 class ThresholdsPolicy:
-    """Integerisation thresholds and residual policy."""
+    """Integerisation bounds and residual configuration."""
 
+    semver: str | None
+    version: str | None
     residual_dp: int
-    default_lower: int
-    default_upper: int
-    overrides: Tuple[BoundsOverride, ...]
+    floors: Mapping[str, int]
+    ceilings: Mapping[str, Optional[int]]
 
 
 @dataclass(frozen=True)
@@ -65,6 +66,48 @@ class _EvaluationContext:
     mcc: str
     n_outlets: int
     named_sets: Mapping[str, Tuple[str, ...]]
+
+    def variable_mapping(self) -> Mapping[str, object]:
+        mapping = {
+            "merchant_id": self.merchant_id,
+            "home_country_iso": self.home_country_iso,
+            "channel": self.channel,
+            "mcc": self.mcc,
+            "n_outlets": self.n_outlets,
+        }
+        return mapping
+
+
+@dataclass(frozen=True)
+class _BaseWeightContext:
+    """Predicate evaluation context for base-weight policies."""
+
+    merchant_id: int
+    home_country_iso: str
+    channel: str
+    mcc: str
+    n_outlets: int
+    country_iso: str
+    is_home: bool
+    candidate_rank: int
+    filter_tags: Tuple[str, ...]
+    merchant_tags: Tuple[str, ...]
+    named_sets: Mapping[str, Tuple[str, ...]]
+
+    def variable_mapping(self) -> Mapping[str, object]:
+        mapping = {
+            "merchant_id": self.merchant_id,
+            "home_country_iso": self.home_country_iso,
+            "channel": self.channel,
+            "mcc": self.mcc,
+            "n_outlets": self.n_outlets,
+            "country_iso": self.country_iso,
+            "is_home": self.is_home,
+            "candidate_rank": self.candidate_rank,
+            "filter_tags": self.filter_tags,
+            "merchant_tags": self.merchant_tags,
+        }
+        return mapping
 
 
 def _normalise_iso(code: str) -> str:
@@ -389,8 +432,21 @@ class _PredicateEvaluator(ast.NodeVisitor):
     named country sets.  Any other construct raises ``ERR_S3_RULE_EVAL_DOMAIN``.
     """
 
-    def __init__(self, context: _EvaluationContext) -> None:
+    def __init__(self, context: object) -> None:
         self.context = context
+        variables: Dict[str, object] = {}
+        if hasattr(context, "variable_mapping"):
+            base_mapping = getattr(context, "variable_mapping")()
+            for key, value in base_mapping.items():
+                if value is None:
+                    continue
+                variables[key] = value
+                variables[key.lower()] = value
+        self._variables = variables
+        named_sets = getattr(context, "named_sets", {})
+        self._named_sets = {
+            name.upper(): tuple(values) for name, values in named_sets.items()
+        }
 
     def visit(self, node: ast.AST) -> object:
         method = "visit_" + node.__class__.__name__
@@ -422,19 +478,11 @@ class _PredicateEvaluator(ast.NodeVisitor):
             return False
         if lowered == "none":
             return None
-        mapping = {
-            "merchant_id": self.context.merchant_id,
-            "home_country_iso": self.context.home_country_iso,
-            "channel": self.context.channel,
-            "mcc": self.context.mcc,
-            "n_outlets": self.context.n_outlets,
-        }
-        if lowered in mapping:
-            return mapping[lowered]
-        # Named sets are uppercase; compare case-insensitively
+        if lowered in self._variables:
+            return self._variables[lowered]
         upper = ident.strip().upper()
-        if upper in self.context.named_sets:
-            return self.context.named_sets[upper]
+        if upper in self._named_sets:
+            return self._named_sets[upper]
         raise err(
             "ERR_S3_RULE_EVAL_DOMAIN",
             f"unknown symbol '{ident}' in predicate",
@@ -499,17 +547,26 @@ class _PredicateEvaluator(ast.NodeVisitor):
         )
 
 
-def _evaluate_predicate(predicate: str, context: _EvaluationContext) -> bool:
+def _compile_predicate(predicate: str) -> ast.Expression:
+    normalised = predicate.replace("&&", " and ").replace("||", " or ")
     try:
-        expr = ast.parse(predicate, mode="eval")
+        return ast.parse(normalised, mode="eval")
     except SyntaxError as exc:  # pragma: no cover - configuration error
         raise err(
             "ERR_S3_RULE_EVAL_DOMAIN",
             f"invalid predicate syntax '{predicate}': {exc}",
         ) from exc
+
+
+def _evaluate_compiled_predicate(expr: ast.Expression, context: object) -> bool:
     evaluator = _PredicateEvaluator(context)
     result = evaluator.visit(expr)
     return bool(result)
+
+
+def _evaluate_predicate(predicate: str, context: object) -> bool:
+    expr = _compile_predicate(predicate)
+    return _evaluate_compiled_predicate(expr, context)
 
 
 def evaluate_rule_ladder(
@@ -634,67 +691,217 @@ def _as_decimal(value: object, *, error: str) -> Decimal:
         raise err(error, f"unable to parse decimal value '{value}'") from exc
 
 
-def load_base_weight_policy(path: Path) -> BaseWeightPolicy:
+def load_base_weight_policy(
+    path: Path,
+    *,
+    iso_countries: Iterable[str] | None = None,
+) -> BaseWeightPolicy:
     """Load the optional base-weight policy artefact."""
 
     payload = _load_yaml(path)
+    semver = payload.get("semver")
+    if semver is not None and not isinstance(semver, str):
+        raise err("ERR_S3_PRIOR_DOMAIN", "base-weight policy semver must be a string")
+    version = payload.get("version")
+    if version is not None and not isinstance(version, str):
+        raise err("ERR_S3_PRIOR_DOMAIN", "base-weight policy version must be a string")
+
+    if "renormalise" in payload:
+        raise err("ERR_S3_PRIOR_DOMAIN", "base-weight policy may not declare renormalise")
+
     dp = payload.get("dp")
     if not isinstance(dp, int) or dp < 0 or dp > 18:
         raise err("ERR_S3_PRIOR_DOMAIN", "base-weight policy dp must be 0..18")
 
-    weights = payload.get("weights")
-    if not isinstance(weights, Mapping):
-        raise err("ERR_S3_PRIOR_DOMAIN", "base-weight policy missing weights mapping")
-    if "base_home" not in weights or "base_foreign" not in weights:
-        raise err(
-            "ERR_S3_PRIOR_DOMAIN",
-            "base-weight policy weights must include base_home and base_foreign",
-        )
-    base_home = _as_decimal(weights["base_home"], error="ERR_S3_PRIOR_DOMAIN")
-    base_foreign = _as_decimal(weights["base_foreign"], error="ERR_S3_PRIOR_DOMAIN")
-    min_weight = _as_decimal(weights.get("min_weight", 0), error="ERR_S3_PRIOR_DOMAIN")
+    raw_constants = payload.get("constants")
+    if not isinstance(raw_constants, Mapping) or not raw_constants:
+        raise err("ERR_S3_PRIOR_DOMAIN", "base-weight policy must declare constants mapping")
+    constants: Dict[str, Decimal] = {}
+    for name, value in raw_constants.items():
+        key = str(name).strip()
+        if not key:
+            raise err("ERR_S3_PRIOR_DOMAIN", "constant names must be non-empty strings")
+        constant = _as_decimal(value, error="ERR_S3_PRIOR_DOMAIN")
+        if constant < Decimal("0"):
+            raise err("ERR_S3_PRIOR_DOMAIN", f"constant '{key}' must be non-negative")
+        constants[key] = constant
 
-    raw_tag_multipliers = payload.get("tag_multipliers", {})
-    if not isinstance(raw_tag_multipliers, Mapping):
-        raise err(
-            "ERR_S3_PRIOR_DOMAIN",
-            "tag_multipliers must be a mapping when present",
-        )
-    tag_multipliers: Dict[str, Decimal] = {}
-    for tag, value in raw_tag_multipliers.items():
-        tag_multipliers[_normalise_tag(str(tag))] = _as_decimal(
-            value, error="ERR_S3_PRIOR_DOMAIN"
-        )
+    iso_allowed = {code.upper() for code in iso_countries} if iso_countries else None
+    raw_sets = payload.get("sets", {})
+    if raw_sets is None:
+        raw_sets = {}
+    if not isinstance(raw_sets, Mapping):
+        raise err("ERR_S3_PRIOR_DOMAIN", "sets must be a mapping when present")
+    sets: Dict[str, Tuple[str, ...]] = {}
+    for name, values in raw_sets.items():
+        set_name = _normalise_tag(str(name))
+        if not isinstance(values, Sequence) or not values:
+            raise err("ERR_S3_PRIOR_DOMAIN", f"set '{set_name}' must be a non-empty sequence")
+        normalised = tuple(_normalise_iso(str(value)) for value in values)
+        if iso_allowed is not None:
+            unknown = [iso for iso in normalised if iso not in iso_allowed]
+            if unknown:
+                raise err(
+                    "ERR_S3_PRIOR_DOMAIN",
+                    f"set '{set_name}' references ISO not present in canonical set: {sorted(unknown)}",
+                )
+        sets[set_name] = normalised
 
-    normalisation = payload.get("normalisation", {})
-    if normalisation is None:
-        normalisation = {}
-    if not isinstance(normalisation, Mapping):
-        raise err(
-            "ERR_S3_PRIOR_DOMAIN",
-            "normalisation block must be a mapping when present",
+    raw_rules = payload.get("selection_rules")
+    if not isinstance(raw_rules, Sequence) or not raw_rules:
+        raise err("ERR_S3_PRIOR_DOMAIN", "selection_rules must be a non-empty sequence")
+
+    seen_rule_ids: set[str] = set()
+    rules: List[BaseWeightRule] = []
+    for entry in raw_rules:
+        if not isinstance(entry, Mapping):
+            raise err("ERR_S3_PRIOR_DOMAIN", "selection rules must be mappings")
+        rule_id = entry.get("id")
+        if not isinstance(rule_id, str) or not rule_id.strip():
+            raise err("ERR_S3_PRIOR_DOMAIN", "rule id must be a non-empty string")
+        rule_id_norm = rule_id.strip()
+        if rule_id_norm in seen_rule_ids:
+            raise err("ERR_S3_PRIOR_DOMAIN", f"duplicate rule id '{rule_id_norm}'")
+        seen_rule_ids.add(rule_id_norm)
+
+        predicate = entry.get("predicate")
+        if not isinstance(predicate, str) or not predicate.strip():
+            raise err("ERR_S3_PRIOR_DOMAIN", f"rule '{rule_id_norm}' missing predicate")
+        predicate = predicate.strip()
+        predicate_ast = _compile_predicate(predicate)
+
+        components_raw = entry.get("score_components", [])
+        if components_raw is None:
+            components_raw = []
+        if not isinstance(components_raw, Sequence):
+            raise err(
+                "ERR_S3_PRIOR_DOMAIN",
+                f"rule '{rule_id_norm}' score_components must be a sequence when present",
+            )
+        components: List[str] = []
+        for name in components_raw:
+            key = str(name).strip()
+            if not key:
+                raise err(
+                    "ERR_S3_PRIOR_DOMAIN",
+                    f"rule '{rule_id_norm}' contains empty score component reference",
+                )
+            if key not in constants:
+                raise err(
+                    "ERR_S3_PRIOR_DOMAIN",
+                    f"rule '{rule_id_norm}' references unknown constant '{key}'",
+                )
+            components.append(key)
+
+        rules.append(
+            BaseWeightRule(
+                rule_id=rule_id_norm,
+                predicate=predicate,
+                predicate_ast=predicate_ast,
+                components=tuple(components),
+            )
         )
-    method = str(normalisation.get("method", "proportional")).strip()
-    norm_floor = _as_decimal(
-        normalisation.get("floor", 0), error="ERR_S3_PRIOR_DOMAIN"
-    )
 
     return BaseWeightPolicy(
+        semver=str(semver) if semver is not None else None,
+        version=str(version) if version is not None else None,
         dp=dp,
-        base_home=base_home,
-        base_foreign=base_foreign,
-        min_weight=min_weight,
-        tag_multipliers=tag_multipliers,
-        normalisation_method=method,
-        normalisation_floor=norm_floor,
+        constants=constants,
+        sets=sets,
+        rules=tuple(rules),
     )
 
 
-def load_thresholds_policy(path: Path) -> ThresholdsPolicy:
+def load_thresholds_policy(
+    path: Path,
+    *,
+    iso_countries: Iterable[str] | None = None,
+) -> ThresholdsPolicy:
     """Load the optional integerisation thresholds/override policy."""
 
     payload = _load_yaml(path)
+    semver = payload.get("semver")
+    if semver is not None and not isinstance(semver, str):
+        raise err("ERR_S3_INTEGER_FEASIBILITY", "threshold policy semver must be a string")
+    version = payload.get("version")
+    if version is not None and not isinstance(version, str):
+        raise err("ERR_S3_INTEGER_FEASIBILITY", "threshold policy version must be a string")
 
+    iso_allowed = {code.upper() for code in iso_countries} if iso_countries else None
+
+    def _validate_iso_mapping(
+        data: Mapping[str, object],
+        field: str,
+        allow_none: bool = False,
+    ) -> Dict[str, Optional[int]]:
+        result: Dict[str, Optional[int]] = {}
+        for key, raw_value in data.items():
+            iso = _normalise_iso(str(key))
+            value: Optional[int]
+            if raw_value is None and allow_none:
+                value = None
+            else:
+                if not isinstance(raw_value, int):
+                    raise err(
+                        "ERR_S3_INTEGER_FEASIBILITY",
+                        f"{field} for '{iso}' must be an integer"
+                        if not allow_none
+                        else f"{field} for '{iso}' must be an integer or null",
+                    )
+                if raw_value < 0:
+                    raise err(
+                        "ERR_S3_INTEGER_FEASIBILITY",
+                        f"{field} for '{iso}' must be non-negative",
+                    )
+                value = int(raw_value)
+            if iso_allowed is not None and iso not in iso_allowed:
+                raise err(
+                    "ERR_S3_INTEGER_FEASIBILITY",
+                    f"{field} references ISO not present in canonical set: '{iso}'",
+                )
+            result[iso] = value
+        return result
+
+    def _load_new_format() -> ThresholdsPolicy:
+        residual_dp = payload.get("dp_resid", 8)
+        if not isinstance(residual_dp, int) or residual_dp < 0 or residual_dp > 18:
+            raise err(
+                "ERR_S3_INTEGER_FEASIBILITY",
+                "dp_resid must be an integer in 0..18",
+            )
+        raw_floors = payload.get("floors", {})
+        if raw_floors is None:
+            raw_floors = {}
+        if not isinstance(raw_floors, Mapping):
+            raise err("ERR_S3_INTEGER_FEASIBILITY", "floors must be a mapping when present")
+        floors = {
+            iso: int(value)
+            for iso, value in _validate_iso_mapping(raw_floors, "floors").items()
+        }
+        raw_ceilings = payload.get("ceilings", {})
+        if raw_ceilings is None:
+            raw_ceilings = {}
+        if not isinstance(raw_ceilings, Mapping):
+            raise err("ERR_S3_INTEGER_FEASIBILITY", "ceilings must be a mapping when present")
+        ceilings = _validate_iso_mapping(raw_ceilings, "ceilings", allow_none=True)
+        for iso, ceiling in ceilings.items():
+            if ceiling is not None and iso in floors and ceiling < floors[iso]:
+                raise err(
+                    "ERR_S3_INTEGER_FEASIBILITY",
+                    f"ceiling for '{iso}' is below its floor",
+                )
+        return ThresholdsPolicy(
+            semver=str(semver) if semver is not None else None,
+            version=str(version) if version is not None else None,
+            residual_dp=residual_dp,
+            floors=floors,
+            ceilings=ceilings,
+        )
+
+    if any(key in payload for key in ("dp_resid", "floors", "ceilings")):
+        return _load_new_format()
+
+    # Fallback for legacy format (integerisation/bounds overrides).
     integerisation = payload.get("integerisation", {})
     if integerisation is None:
         integerisation = {}
@@ -728,9 +935,9 @@ def load_thresholds_policy(path: Path) -> ThresholdsPolicy:
             "ERR_S3_INTEGER_FEASIBILITY",
             "bounds.default_upper must be an integer >= default_lower",
         )
-
     overrides_block = bounds.get("overrides", [])
-    overrides: list[BoundsOverride] = []
+    floors: Dict[str, int] = {}
+    ceilings: Dict[str, Optional[int]] = {}
     if overrides_block is not None:
         if not isinstance(overrides_block, Sequence):
             raise err(
@@ -750,39 +957,98 @@ def load_thresholds_policy(path: Path) -> ThresholdsPolicy:
                     "bounds override missing countries list",
                 )
             countries = tuple(_normalise_iso(str(code)) for code in raw_countries)
-            lower = entry.get("lower")
-            upper = entry.get("upper")
-            if lower is not None and (not isinstance(lower, int) or lower < 0):
-                raise err(
-                    "ERR_S3_INTEGER_FEASIBILITY",
-                    "bounds override lower must be non-negative integer",
-                )
-            if upper is not None and (not isinstance(upper, int) or upper < 0):
-                raise err(
-                    "ERR_S3_INTEGER_FEASIBILITY",
-                    "bounds override upper must be non-negative integer",
-                )
+            lower = entry.get("lower", default_lower)
+            upper = entry.get("upper", default_upper)
+            if lower is not None:
+                if not isinstance(lower, int) or lower < 0:
+                    raise err(
+                        "ERR_S3_INTEGER_FEASIBILITY",
+                        "bounds override lower must be non-negative integer",
+                    )
+            if upper is not None:
+                if not isinstance(upper, int) or upper < 0:
+                    raise err(
+                        "ERR_S3_INTEGER_FEASIBILITY",
+                        "bounds override upper must be non-negative integer",
+                    )
             if lower is not None and upper is not None and lower > upper:
                 raise err(
                     "ERR_S3_INTEGER_FEASIBILITY",
                     "bounds override lower cannot exceed upper",
                 )
-            overrides.append(BoundsOverride(countries=countries, lower=lower, upper=upper))
+            for iso in countries:
+                if iso_allowed is not None and iso not in iso_allowed:
+                    raise err(
+                        "ERR_S3_INTEGER_FEASIBILITY",
+                        f"override references ISO not present in canonical set: '{iso}'",
+                    )
+                floors[iso] = lower if lower is not None else 0
+                ceilings[iso] = upper
 
     return ThresholdsPolicy(
+        semver=str(semver) if semver is not None else None,
+        version=str(version) if version is not None else None,
         residual_dp=residual_dp,
-        default_lower=default_lower,
-        default_upper=default_upper,
-        overrides=tuple(overrides),
+        floors=floors,
+        ceilings=ceilings,
     )
+
+
+def _select_base_weight_score(
+    policy: BaseWeightPolicy,
+    context: _BaseWeightContext,
+) -> Optional[Decimal]:
+    for rule in policy.rules:
+        if _evaluate_compiled_predicate(rule.predicate_ast, context):
+            if not rule.components:
+                return None
+            total = Decimal("0")
+            for component in rule.components:
+                total += policy.constants[component]
+            return total
+    return None
+
+
+def evaluate_base_weight(
+    policy: BaseWeightPolicy,
+    *,
+    merchant_id: int,
+    home_country_iso: str,
+    channel: str,
+    mcc: str,
+    n_outlets: int,
+    country_iso: str,
+    is_home: bool,
+    candidate_rank: int,
+    filter_tags: Tuple[str, ...],
+    merchant_tags: Tuple[str, ...],
+) -> Optional[Decimal]:
+    """Evaluate deterministic base-weight rules for a single candidate."""
+
+    context = _BaseWeightContext(
+        merchant_id=merchant_id,
+        home_country_iso=home_country_iso,
+        channel=channel,
+        mcc=mcc,
+        n_outlets=n_outlets,
+        country_iso=country_iso,
+        is_home=is_home,
+        candidate_rank=candidate_rank,
+        filter_tags=filter_tags,
+        merchant_tags=merchant_tags,
+        named_sets=policy.sets,
+    )
+    return _select_base_weight_score(policy, context)
 
 
 __all__ = [
     "RuleLadder",
     "load_rule_ladder",
     "evaluate_rule_ladder",
+    "BaseWeightRule",
     "BaseWeightPolicy",
     "ThresholdsPolicy",
     "load_base_weight_policy",
     "load_thresholds_policy",
+    "evaluate_base_weight",
 ]

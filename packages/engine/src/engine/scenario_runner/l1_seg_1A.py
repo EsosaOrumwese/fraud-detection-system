@@ -477,18 +477,7 @@ class Segment1AOrchestrator:
         )
         s3_toggles.validate()
 
-        base_weight_policy = (
-            load_base_weight_policy(base_weight_path)
-            if base_weight_path is not None
-            else None
-        )
-        thresholds_policy = (
-            load_thresholds_policy(thresholds_path)
-            if thresholds_path is not None
-            else None
-        )
-
-        if s3_toggles.priors_enabled and base_weight_policy is None:
+        if s3_toggles.priors_enabled and base_weight_path is None:
             raise err(
                 "ERR_S3_AUTHORITY_MISSING",
                 "policy.s3.base_weight.yaml required when priors are enabled",
@@ -533,6 +522,20 @@ class Segment1AOrchestrator:
             "Segment1A S3 deterministic context built (merchants=%d)",
             len(s3_deterministic.merchants),
         )
+
+        base_weight_policy = None
+        if s3_toggles.priors_enabled:
+            base_weight_policy = load_base_weight_policy(
+                base_weight_path,
+                iso_countries=s3_deterministic.iso_countries,
+            )
+
+        thresholds_policy = None
+        if thresholds_path is not None:
+            thresholds_policy = load_thresholds_policy(
+                thresholds_path,
+                iso_countries=s3_deterministic.iso_countries,
+            )
 
         s3_result = self._s3_runner.run(
             base_path=base_path,

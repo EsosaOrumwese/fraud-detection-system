@@ -14,7 +14,7 @@ from ..l0 import (
     load_rule_ladder,
     rank_candidates,
 )
-from ..l0.policy import BaseWeightPolicy, ThresholdsPolicy
+from ..l0.policy import BaseWeightPolicy, ThresholdsPolicy, evaluate_base_weight
 from ..l0.types import (
     CountRow,
     PriorRow,
@@ -81,22 +81,34 @@ def _format_fixed_dp(value: Decimal, dp: int) -> str:
 
 def _compute_priors(
     ranked: Sequence[RankedCandidateRow],
+    *,
+    merchant: MerchantContext,
     policy: BaseWeightPolicy,
-) -> Tuple[List[PriorRow], List[Decimal]]:
+    merchant_tags: Tuple[str, ...],
+) -> Tuple[List[PriorRow], Optional[List[Decimal]]]:
     priors: List[PriorRow] = []
     weights: List[Decimal] = []
+    all_scored = True
     for candidate in ranked:
-        weight = policy.base_home if candidate.is_home else policy.base_foreign
-        for tag in candidate.filter_tags:
-            multiplier = policy.tag_multipliers.get(tag, Decimal("1"))
-            weight *= multiplier
-        if weight < policy.min_weight:
-            weight = policy.min_weight
-        if weight < policy.normalisation_floor:
-            weight = policy.normalisation_floor
-        quant = _quantize_decimal(weight, policy.dp)
-        if quant < Decimal("0"):
+        score = evaluate_base_weight(
+            policy,
+            merchant_id=merchant.merchant_id,
+            home_country_iso=merchant.home_country_iso,
+            channel=merchant.channel,
+            mcc=merchant.mcc,
+            n_outlets=merchant.n_outlets,
+            country_iso=candidate.country_iso,
+            is_home=candidate.is_home,
+            candidate_rank=candidate.candidate_rank,
+            filter_tags=candidate.filter_tags,
+            merchant_tags=merchant_tags,
+        )
+        if score is None:
+            all_scored = False
+            continue
+        if score < Decimal("0"):
             raise err("ERR_S3_PRIOR_DOMAIN", "prior score produced negative weight")
+        quant = _quantize_decimal(score, policy.dp)
         priors.append(
             PriorRow(
                 merchant_id=candidate.merchant_id,
@@ -105,24 +117,16 @@ def _compute_priors(
                 dp=policy.dp,
             )
         )
-        weights.append(quant)
-    return priors, weights
+        weights.append(score)
 
-
-def _build_overrides_map(
-    policy: ThresholdsPolicy | None,
-) -> Tuple[dict[str, int | None], dict[str, int | None]]:
-    lower: dict[str, int | None] = {}
-    upper: dict[str, int | None] = {}
-    if policy is None:
-        return lower, upper
-    for override in policy.overrides:
-        for iso in override.countries:
-            if override.lower is not None:
-                lower[iso] = override.lower
-            if override.upper is not None:
-                upper[iso] = override.upper
-    return lower, upper
+    weight_list: Optional[List[Decimal]]
+    if not ranked:
+        weight_list = []
+    elif not all_scored or len(weights) != len(ranked):
+        weight_list = None
+    else:
+        weight_list = weights
+    return priors, weight_list
 
 
 def _compute_integerised_counts(
@@ -136,69 +140,78 @@ def _compute_integerised_counts(
         raise err("ERR_S3_INTEGER_FEASIBILITY", "S2 outlet count must be non-negative")
     dp_resid = policy.residual_dp if policy else 8
 
-    default_lower = policy.default_lower if policy else 0
-    default_upper = policy.default_upper if policy else 10**9
-    lower_override, upper_override = _build_overrides_map(policy)
+    num_candidates = len(ranked)
+    if num_candidates == 0:
+        if n_outlets != 0:
+            raise err(
+                "ERR_S3_INTEGER_FEASIBILITY",
+                "no candidates available to satisfy outlet count",
+            )
+        return [], []
 
-    lower_bounds: List[int] = []
-    upper_bounds: List[int] = []
+    floors_map = policy.floors if policy else {}
+    ceilings_map = policy.ceilings if policy else {}
+
+    floors: List[int] = []
+    ceilings: List[Optional[int]] = []
     for candidate in ranked:
         iso = candidate.country_iso
-        lower = lower_override.get(iso, default_lower)
-        upper = upper_override.get(iso, default_upper)
-        lower = lower if lower is not None else default_lower
-        upper = upper if upper is not None else default_upper
-        if lower < 0 or upper < 0:
+        floor_value = floors_map.get(iso, 0)
+        if floor_value < 0:
             raise err(
                 "ERR_S3_INTEGER_FEASIBILITY",
-                "bounds must be non-negative integers",
+                f"floor for {iso} must be non-negative",
             )
-        if upper < lower:
+        ceiling_value = ceilings_map.get(iso) if policy else None
+        if ceiling_value is not None and ceiling_value < 0:
             raise err(
                 "ERR_S3_INTEGER_FEASIBILITY",
-                f"upper bound {upper} below lower bound {lower} for {iso}",
+                f"ceiling for {iso} must be non-negative",
             )
-        lower_bounds.append(lower)
-        upper_bounds.append(upper)
+        if ceiling_value is not None and ceiling_value < floor_value:
+            raise err(
+                "ERR_S3_INTEGER_FEASIBILITY",
+                f"ceiling for {iso} below its floor",
+            )
+        floors.append(floor_value)
+        ceilings.append(ceiling_value)
 
-    lower_sum = sum(lower_bounds)
-    upper_sum = sum(upper_bounds)
-    if lower_sum > n_outlets:
+    floor_sum = sum(floors)
+    if floor_sum > n_outlets:
         raise err(
             "ERR_S3_INTEGER_FEASIBILITY",
             "sum of lower bounds exceeds available outlets",
         )
-    if upper_sum < n_outlets:
-        raise err(
-            "ERR_S3_INTEGER_FEASIBILITY",
-            "sum of upper bounds below required outlets",
-        )
 
-    counts = lower_bounds[:]
-    capacities = [u - c for u, c in zip(upper_bounds, counts)]
-    remaining = n_outlets - sum(counts)
+    counts = floors[:]
+    capacities: List[int] = []
+    for floor_value, ceiling_value in zip(floors, ceilings):
+        if ceiling_value is None:
+            capacities.append(10**9)
+        else:
+            capacities.append(ceiling_value - floor_value)
 
-    num_candidates = len(ranked)
-    if weights is None:
+    remaining = n_outlets - floor_sum
+
+    if weights is None or len(weights) != num_candidates:
         weights = [Decimal("1")] * num_candidates
-    elif len(weights) != num_candidates:
+    elif any(weight < Decimal("0") for weight in weights):
         raise err(
-            "ERR_S3_INTEGER_FEASIBILITY",
-            "weights length mismatch for integerisation",
+            "ERR_S3_WEIGHT_ZERO",
+            "prior weights must be non-negative",
         )
 
     residuals: List[Decimal] = [Decimal("0")] * num_candidates
 
-    capacity_flag = {idx for idx, cap in enumerate(capacities) if cap > 0}
-    available_indices = sorted(capacity_flag)
-    if remaining > 0 and not available_indices:
+    eligible_indices = [idx for idx, cap in enumerate(capacities) if cap > 0]
+    if remaining > 0 and not eligible_indices:
         raise err(
             "ERR_S3_INTEGER_FEASIBILITY",
             "no capacity available for remaining outlets",
         )
 
-    if remaining > 0 and available_indices:
-        total_weight = sum(weights[idx] for idx in available_indices)
+    if remaining > 0 and eligible_indices:
+        total_weight = sum(weights[idx] for idx in eligible_indices)
         if total_weight <= Decimal("0"):
             raise err(
                 "ERR_S3_WEIGHT_ZERO",
@@ -206,28 +219,22 @@ def _compute_integerised_counts(
             )
         remaining_decimal = Decimal(remaining)
         floors_used = 0
-        for idx in available_indices:
+        for idx in eligible_indices:
             share = weights[idx] / total_weight
             ideal = remaining_decimal * share
-            floor = int(ideal.to_integral_value(rounding=ROUND_DOWN))
-            if floor > capacities[idx]:
-                floor = capacities[idx]
-            counts[idx] += floor
-            capacities[idx] -= floor
-            residual = ideal - Decimal(floor)
+            floor_allocation = int(ideal.to_integral_value(rounding=ROUND_DOWN))
+            if floor_allocation > capacities[idx]:
+                floor_allocation = capacities[idx]
+            counts[idx] += floor_allocation
+            capacities[idx] -= floor_allocation
+            residual = ideal - Decimal(floor_allocation)
             if capacities[idx] > 0:
                 residuals[idx] = _quantize_decimal(residual, dp_resid)
-            else:
-                residuals[idx] = Decimal("0")
-            floors_used += floor
+            floors_used += floor_allocation
         remaining_units = remaining - floors_used
         if remaining_units > 0:
             order = sorted(
-                (
-                    idx
-                    for idx in available_indices
-                    if capacities[idx] > 0
-                ),
+                (idx for idx in eligible_indices if capacities[idx] > 0),
                 key=lambda idx: (
                     -residuals[idx],
                     ranked[idx].country_iso,
@@ -235,16 +242,19 @@ def _compute_integerised_counts(
                     idx,
                 ),
             )
+            if remaining_units > len(order):
+                raise err(
+                    "ERR_S3_INTEGER_FEASIBILITY",
+                    "residual capacity exhausted before distributing all outlets",
+                )
             for idx in order[:remaining_units]:
-                if capacities[idx] <= 0:
-                    continue
                 counts[idx] += 1
                 capacities[idx] -= 1
-    # Assign residual ranks (1-based) using deterministic ordering
+
     order_all = sorted(
         range(num_candidates),
         key=lambda idx: (
-            0 if idx in capacity_flag else 1,
+            0 if capacities[idx] > 0 else 1,
             -residuals[idx],
             ranked[idx].country_iso,
             ranked[idx].candidate_rank,
@@ -265,7 +275,13 @@ def _compute_integerised_counts(
                 "ERR_S3_INTEGER_NEGATIVE",
                 f"negative count for {ranked[idx].country_iso}",
             )
-        if count > upper_bounds[idx]:
+        if count < floors[idx]:
+            raise err(
+                "ERR_S3_INTEGER_FEASIBILITY",
+                f"count falls below floor for {ranked[idx].country_iso}",
+            )
+        ceiling_value = ceilings[idx]
+        if ceiling_value is not None and count > ceiling_value:
             raise err(
                 "ERR_S3_INTEGER_FEASIBILITY",
                 f"count exceeds upper bound for {ranked[idx].country_iso}",
@@ -343,8 +359,14 @@ def evaluate_merchant(
                 "ERR_S3_PRIOR_DISABLED",
                 "priors toggled on but no base-weight policy provided",
             )
-        priors, weights = _compute_priors(ranked, base_weight_policy)
+        priors, weight_list = _compute_priors(
+            ranked,
+            merchant=merchant,
+            policy=base_weight_policy,
+            merchant_tags=evaluation.merchant_tags,
+        )
         priors_rows = tuple(priors)
+        weights = weight_list
 
     counts_rows: Tuple[CountRow, ...] | None = None
     sequence_rows: Tuple[SequenceRow, ...] | None = None

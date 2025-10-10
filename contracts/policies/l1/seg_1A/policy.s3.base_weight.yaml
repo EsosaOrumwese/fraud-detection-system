@@ -1,14 +1,30 @@
 semver: "1.0.0"
 version: "2025-10-10"
+
 dp: 6
-weights:
-  base_home: 0.600000
-  base_foreign: 0.250000
-  min_weight: 0.050000
-tag_multipliers:
-  SANCTIONED: 0.0
-  CROSS_BORDER_ELIGIBLE: 1.200000
-  ADMISSIBLE: 1.000000
-normalisation:
-  method: proportional
-  floor: 0.000001
+
+constants:
+  home_anchor: 1.000000
+  base_score: 0.250000
+  core_bonus: 0.150000
+
+sets:
+  OECD_CORE: ["GB","US","DE","FR","CA","NL","IE","JP","AU"]
+  SANCTIONED: ["IR","KP"]
+
+selection_rules:
+  - id: "HOME_BASE"
+    predicate: 'is_home'
+    score_components: ["home_anchor"]
+
+  - id: "DENY_SANCTIONED"
+    predicate: 'country_iso in SANCTIONED'
+    score_components: []
+
+  - id: "CORE_FOREIGN"
+    predicate: 'country_iso in OECD_CORE'
+    score_components: ["base_score","core_bonus"]
+
+  - id: "DEFAULT_FOREIGN"
+    predicate: 'true'
+    score_components: ["base_score"]
