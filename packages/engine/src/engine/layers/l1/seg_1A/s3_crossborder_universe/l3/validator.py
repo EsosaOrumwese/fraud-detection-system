@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, Sequence, Tuple
 
@@ -23,6 +23,19 @@ class S3ValidationResult:
     """Summary of S3 validation outcomes."""
 
     metrics: Mapping[str, float]
+    _failed_merchants: Mapping[int, str] = field(default_factory=dict, repr=False)
+
+    @property
+    def failed_merchants(self) -> Mapping[int, str]:
+        return getattr(self, "_failed_merchants", {})
+
+    @failed_merchants.setter
+    def failed_merchants(self, value: Mapping[int, str]) -> None:
+        object.__setattr__(self, "_failed_merchants", value)
+
+    @property
+    def passed(self) -> bool:
+        return not bool(getattr(self, "_failed_merchants", {}))
 
 
 def _ensure_dataset_exists(path: Path | None, dataset: str) -> Path:
