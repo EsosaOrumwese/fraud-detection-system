@@ -53,7 +53,7 @@ class S2NegativeBinomialRunner:
             manifest_fingerprint=deterministic.manifest_fingerprint,
         )
         writer = NBEventWriter(
-            base_path=base_path / "logs" / "rng",
+            base_path=base_path,
             seed=deterministic.seed,
             parameter_hash=deterministic.parameter_hash,
             manifest_fingerprint=deterministic.manifest_fingerprint,

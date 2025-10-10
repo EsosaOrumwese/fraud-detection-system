@@ -13,6 +13,14 @@ from engine.layers.l1.seg_1A.s1_hurdle import HurdleDesignRow, S1HurdleRunner
 from engine.layers.l1.seg_1A.s1_hurdle.l2.runner import S1RunResult
 from engine.layers.l1.seg_1A.s1_hurdle.l3.catalogue import GatedStream
 from engine.layers.l1.seg_1A.s1_hurdle.l3.validator import validate_hurdle_run
+from engine.layers.l1.seg_1A.s2_nb_outlets import (
+    NBFinalRecord,
+    S2DeterministicContext,
+    S2NegativeBinomialRunner,
+    S2RunResult,
+    build_deterministic_context,
+    validate_nb_run,
+)
 
 
 @dataclass(frozen=True)
@@ -54,12 +62,76 @@ def build_hurdle_context(result: S1RunResult) -> HurdleStateContext:
 
 
 @dataclass(frozen=True)
+class S2StateContext:
+    """Downstream context bundle produced after S2 NB sampling completes."""
+
+    deterministic: S2DeterministicContext
+    finals: Tuple[NBFinalRecord, ...]
+    gamma_events_path: Path
+    poisson_events_path: Path
+    final_events_path: Path
+    trace_path: Path
+
+    @property
+    def parameter_hash(self) -> str:
+        """Parameter hash carried across the S2 deterministic context."""
+
+        return self.deterministic.parameter_hash
+
+    @property
+    def manifest_fingerprint(self) -> str:
+        """Manifest fingerprint for the run."""
+
+        return self.deterministic.manifest_fingerprint
+
+    @property
+    def run_id(self) -> str:
+        """Run identifier used by the RNG envelopes."""
+
+        return self.deterministic.run_id
+
+    @property
+    def seed(self) -> int:
+        """Philox seed associated with the run."""
+
+        return self.deterministic.seed
+
+    def final_by_merchant(self) -> Dict[int, NBFinalRecord]:
+        """Return the accepted NB outcome per merchant."""
+
+        return {record.merchant_id: record for record in self.finals}
+
+    def counts_by_merchant(self) -> Dict[int, Tuple[int, int]]:
+        """Return ``(n_outlets, nb_rejections)`` for quick downstream use."""
+
+        return {
+            record.merchant_id: (record.n_outlets, record.nb_rejections)
+            for record in self.finals
+        }
+
+
+def build_s2_context(result: S2RunResult) -> S2StateContext:
+    """Construct the downstream-facing context from an ``S2RunResult``."""
+
+    return S2StateContext(
+        deterministic=result.deterministic,
+        finals=result.finals,
+        gamma_events_path=result.gamma_events_path,
+        poisson_events_path=result.poisson_events_path,
+        final_events_path=result.final_events_path,
+        trace_path=result.trace_path,
+    )
+
+
+@dataclass(frozen=True)
 class Segment1ARunResult:
-    """Combined result for running S0 Foundations followed by S1 hurdle."""
+    """Combined result for running S0 foundations, S1 hurdle, and S2 NB sampling."""
 
     s0_result: S0RunResult
     s1_result: S1RunResult
+    s2_result: S2RunResult
     hurdle_context: HurdleStateContext
+    nb_context: S2StateContext
 
 
 class Segment1AOrchestrator:
@@ -74,6 +146,7 @@ class Segment1AOrchestrator:
         self._authority = authority
         self._s0_runner = S0FoundationsRunner(schema_authority=authority)
         self._s1_runner = S1HurdleRunner()
+        self._s2_runner = S2NegativeBinomialRunner()
 
     def run(
         self,
@@ -91,6 +164,7 @@ class Segment1AOrchestrator:
         include_diagnostics: bool = True,
         validate_s0: bool = True,
         validate_s1: bool = True,
+        validate_s2: bool = True,
         extra_manifest_artifacts: Sequence[Path] | None = None,
     ) -> Segment1ARunResult:
         base_path = base_path.expanduser().resolve()
@@ -127,17 +201,20 @@ class Segment1AOrchestrator:
             extra_manifest_artifacts=extras,
         )
 
+        design_vectors = tuple(
+            iter_design_vectors(
+                s0_result.sealed.context,
+                hurdle=s0_result.outputs.hurdle_coefficients,
+                dispersion=s0_result.outputs.dispersion_coefficients,
+            )
+        )
         design_rows: Tuple[HurdleDesignRow, ...] = tuple(
             HurdleDesignRow(
                 merchant_id=vector.merchant_id,
                 bucket_id=vector.bucket,
                 design_vector=vector.x_hurdle,
             )
-            for vector in iter_design_vectors(
-                s0_result.sealed.context,
-                hurdle=s0_result.outputs.hurdle_coefficients,
-                dispersion=s0_result.outputs.dispersion_coefficients,
-            )
+            for vector in design_vectors
         )
 
         s1_result = self._s1_runner.run(
@@ -162,16 +239,46 @@ class Segment1AOrchestrator:
             )
 
         hurdle_context = build_hurdle_context(s1_result)
+
+        deterministic_context = build_deterministic_context(
+            parameter_hash=s1_result.parameter_hash,
+            manifest_fingerprint=s1_result.manifest_fingerprint,
+            run_id=s1_result.run_id,
+            seed=s1_result.seed,
+            multi_merchant_ids=s1_result.multi_merchant_ids,
+            decisions=s1_result.decisions,
+            design_vectors=design_vectors,
+            hurdle=s0_result.outputs.hurdle_coefficients,
+            dispersion=s0_result.outputs.dispersion_coefficients,
+        )
+
+        s2_result = self._s2_runner.run(
+            base_path=base_path,
+            deterministic=deterministic_context,
+        )
+
+        if validate_s2:
+            validate_nb_run(
+                base_path=base_path,
+                deterministic=deterministic_context,
+                expected_finals=s2_result.finals,
+            )
+
+        nb_context = build_s2_context(s2_result)
         return Segment1ARunResult(
             s0_result=s0_result,
             s1_result=s1_result,
+            s2_result=s2_result,
             hurdle_context=hurdle_context,
+            nb_context=nb_context,
         )
 
 
 __all__ = [
     "HurdleStateContext",
+    "S2StateContext",
     "Segment1ARunResult",
     "Segment1AOrchestrator",
     "build_hurdle_context",
+    "build_s2_context",
 ]

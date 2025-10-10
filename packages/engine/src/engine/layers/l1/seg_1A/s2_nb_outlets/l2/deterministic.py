@@ -18,7 +18,7 @@ from ...s0_foundations.l1.design import (
     DispersionCoefficients,
     HurdleCoefficients,
 )
-from ..s1_hurdle.l2.runner import HurdleDecision
+from engine.layers.l1.seg_1A.s1_hurdle.l2.runner import HurdleDecision
 from ..l1.links import NBLinks, compute_links_from_design
 
 
@@ -67,10 +67,10 @@ def _design_map(vectors: Iterable[DesignVectors]) -> Dict[int, DesignVectors]:
     for vector in vectors:
         merchant_id = int(vector.merchant_id)
         if merchant_id in mapping:
-        raise err(
-            "E_VALIDATION_MISMATCH",
-            f"duplicate design vector for merchant {merchant_id}",
-        )
+            raise err(
+                "E_VALIDATION_MISMATCH",
+                f"duplicate design vector for merchant {merchant_id}",
+            )
         mapping[merchant_id] = vector
     return mapping
 
