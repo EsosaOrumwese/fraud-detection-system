@@ -325,7 +325,7 @@ class S0FoundationsRunner:
         now = time.perf_counter()
         total = now - start_time
         delta = now - last_checkpoint
-        logger.info("%s (elapsed=%.2fs, delta=%.2fs)", message, total, delta)
+        logger.info("S0: %s (elapsed=%.2fs, delta=%.2fs)", message, total, delta)
         return now
 
     def run_from_paths(
@@ -350,7 +350,7 @@ class S0FoundationsRunner:
         start_perf = time.perf_counter()
         last_checkpoint = start_perf
         last_checkpoint = self._log_progress(
-            "S0: run initialised",
+            "run initialised",
             start_perf,
             last_checkpoint,
         )
@@ -360,7 +360,7 @@ class S0FoundationsRunner:
         gdp_table = self.load_table(gdp_table_path)
         bucket_table = self.load_table(bucket_table_path)
         last_checkpoint = self._log_progress(
-            "S0: loaded ingress tables",
+            "loaded ingress tables",
             start_perf,
             last_checkpoint,
         )
@@ -396,7 +396,7 @@ class S0FoundationsRunner:
             math_profile_manifest_path=math_profile_manifest_path,
         )
         last_checkpoint = self._log_progress(
-            "S0: sealed run context and computed lineage digests",
+            "sealed run context and computed lineage digests",
             start_perf,
             last_checkpoint,
         )
@@ -436,7 +436,7 @@ class S0FoundationsRunner:
             include_diagnostics=include_diagnostics,
         )
         last_checkpoint = self._log_progress(
-            "S0: built outputs bundle "
+            "built outputs bundle "
             f"(run_id={run_id}, parameter_hash={sealed.parameter_hash.parameter_hash})",
             start_perf,
             last_checkpoint,
@@ -452,7 +452,7 @@ class S0FoundationsRunner:
                 philox_engine=engine,
             )
             last_checkpoint = self._log_progress(
-                f"S0: wrote outputs to {base_path}",
+                f"wrote outputs to {base_path}",
                 start_perf,
                 last_checkpoint,
             )
@@ -469,7 +469,7 @@ class S0FoundationsRunner:
                     run_id=run_id,
                 )
                 last_checkpoint = self._log_progress(
-                    "S0: validated persisted artefacts",
+                    "validated persisted artefacts",
                     start_perf,
                     last_checkpoint,
                 )
@@ -486,8 +486,8 @@ class S0FoundationsRunner:
             )
             raise
 
-        self._log_progress(
-            "S0: completed run "
+        last_checkpoint = self._log_progress(
+            "completed run "
             f"(run_id={run_id}, manifest_fingerprint={sealed.manifest_fingerprint.manifest_fingerprint})",
             start_perf,
             last_checkpoint,

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import logging
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Mapping, Sequence, Tuple
@@ -74,6 +76,7 @@ class S2StateContext:
     poisson_events_path: Path
     final_events_path: Path
     trace_path: Path
+    metrics: Dict[str, float] | None
 
     @property
     def parameter_hash(self) -> str:
@@ -113,7 +116,7 @@ class S2StateContext:
         }
 
 
-def build_s2_context(result: S2RunResult) -> S2StateContext:
+def build_s2_context(result: S2RunResult, *, metrics: Dict[str, float] | None) -> S2StateContext:
     """Construct the downstream-facing context from an ``S2RunResult``."""
 
     return S2StateContext(
@@ -123,6 +126,7 @@ def build_s2_context(result: S2RunResult) -> S2StateContext:
         poisson_events_path=result.poisson_events_path,
         final_events_path=result.final_events_path,
         trace_path=result.trace_path,
+        metrics=metrics,
     )
 
 
@@ -289,15 +293,16 @@ class Segment1AOrchestrator:
             len(s2_result.finals),
         )
 
+        metrics: Dict[str, float] | None = None
         if validate_s2:
-            validate_nb_run(
+            metrics = validate_nb_run(
                 base_path=base_path,
                 deterministic=deterministic_context,
                 expected_finals=s2_result.finals,
             )
             logger.info("Segment1A S2 validation passed")
 
-        nb_context = build_s2_context(s2_result)
+        nb_context = build_s2_context(s2_result, metrics=metrics)
         logger.info(
             "Segment1A orchestrator finished (run_id=%s)",
             s2_result.deterministic.run_id,

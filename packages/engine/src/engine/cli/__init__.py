@@ -9,5 +9,6 @@ own wrappers without inflating the public API.
 from .s0_foundations import main as run_s0_foundations
 from .s1_hurdle import main as run_s1_hurdle
 from .s2_nb_outlets import main as run_s2_nb_outlets
+from .segment1a import main as run_segment1a
 
-__all__ = ["run_s0_foundations", "run_s1_hurdle", "run_s2_nb_outlets"]
+__all__ = ["run_s0_foundations", "run_s1_hurdle", "run_s2_nb_outlets", "run_segment1a"]

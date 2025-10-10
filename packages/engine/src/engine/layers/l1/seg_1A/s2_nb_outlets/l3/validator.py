@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 from collections import defaultdict
 from pathlib import Path
@@ -13,6 +14,8 @@ from ...s0_foundations.l1.rng import PhiloxEngine
 from ..l1 import rng as nb_rng
 from ..l2.deterministic import S2DeterministicContext, S2DeterministicRow
 from ..l2.runner import NBFinalRecord
+
+logger = logging.getLogger(__name__)
 
 
 def _load_jsonl(path: Path) -> list[dict]:
@@ -85,7 +88,7 @@ def validate_nb_run(
     base_path: Path,
     deterministic: S2DeterministicContext,
     expected_finals: Sequence[NBFinalRecord] | None = None,
-) -> None:
+) -> Dict[str, float]:
     """Replay the NB sampler to confirm envelope, RNG, and payload integrity."""
 
     root = base_path.expanduser().resolve()
@@ -123,7 +126,20 @@ def validate_nb_run(
                 "E_VALIDATION_MISMATCH",
                 "S2 emitted RNG events despite having no multi-site merchants",
             )
-        return
+        metrics = {
+            "rho_reject": 0.0,
+            "p99_rejections": 0.0,
+            "cusum_max": 0.0,
+            "merchant_count": 0.0,
+        }
+        logger.info(
+            "S2 validator: metrics rho_reject=%.4f, p99_rejections=%.2f, cusum_max=%.4f, merchants=%d",
+            metrics["rho_reject"],
+            metrics["p99_rejections"],
+            metrics["cusum_max"],
+            int(metrics["merchant_count"]),
+        )
+        return metrics
 
     if not final_records:
         raise err(
@@ -433,6 +449,41 @@ def validate_nb_run(
             "E_DATASET_NOT_FOUND",
             f"S2 RNG trace log missing at '{trace_path}'",
         )
+
+    rejection_counts = [final_by_merchant[mid]["nb_rejections"] for mid in sorted(final_by_merchant)]
+    rejection_counts = [int(value) for value in rejection_counts]
+    attempts_counts = [count + 1 for count in rejection_counts]
+    total_attempts = sum(attempts_counts)
+    total_rejections = sum(rejection_counts)
+    rho_reject = total_rejections / total_attempts if total_attempts else 0.0
+    if rejection_counts:
+        sorted_counts = sorted(rejection_counts)
+        index = math.ceil(0.99 * len(sorted_counts)) - 1
+        index = max(0, min(index, len(sorted_counts) - 1))
+        p99_rejections = float(sorted_counts[index])
+    else:
+        p99_rejections = 0.0
+
+    cusum_value = 0.0
+    cusum_max = 0.0
+    for rejection_count in rejection_counts:
+        cusum_value = max(0.0, cusum_value + (rejection_count - rho_reject))
+        cusum_max = max(cusum_max, cusum_value)
+
+    metrics = {
+        "rho_reject": float(rho_reject),
+        "p99_rejections": float(p99_rejections),
+        "cusum_max": float(cusum_max),
+        "merchant_count": float(len(rejection_counts)),
+    }
+    logger.info(
+        "S2 validator: metrics rho_reject=%.4f, p99_rejections=%.2f, cusum_max=%.4f, merchants=%d",
+        metrics["rho_reject"],
+        metrics["p99_rejections"],
+        metrics["cusum_max"],
+        int(metrics["merchant_count"]),
+    )
+    return metrics
 
 
 __all__ = ["validate_nb_run"]

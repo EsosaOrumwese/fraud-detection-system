@@ -108,7 +108,7 @@ def test_validate_nb_run_passes(tmp_path: Path) -> None:
     result = runner.run(base_path=tmp_path, deterministic=deterministic)
 
     # should not raise
-    validate_nb_run(
+    metrics = validate_nb_run(
         base_path=tmp_path,
         deterministic=deterministic,
         expected_finals=result.finals,
@@ -116,6 +116,8 @@ def test_validate_nb_run_passes(tmp_path: Path) -> None:
 
     assert {record.merchant_id for record in result.finals} == {1, 2}
     assert all(record.n_outlets >= 2 for record in result.finals)
+    assert metrics["merchant_count"] == pytest.approx(2.0)
+    assert 0.0 <= metrics["rho_reject"] <= 1.0
 
 
 def test_validate_nb_run_detects_tampered_final(tmp_path: Path) -> None:
