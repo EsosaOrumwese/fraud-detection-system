@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Tuple
 
 import polars as pl
 
 from ...s0_foundations.exceptions import err
+from ..l0.policy import BaseWeightPolicy, ThresholdsPolicy
 from ..l1.kernels import (
     S3FeatureToggles,
     S3KernelResult,
@@ -22,6 +24,9 @@ class S3RunResult:
 
     deterministic: S3DeterministicContext
     candidate_set_path: Path
+    base_weight_priors_path: Path | None = None
+    integerised_counts_path: Path | None = None
+    site_sequence_path: Path | None = None
 
 
 class S3CrossBorderRunner:
@@ -34,6 +39,8 @@ class S3CrossBorderRunner:
         deterministic: S3DeterministicContext,
         rule_ladder_path: Path,
         toggles: S3FeatureToggles | None = None,
+        base_weight_policy: BaseWeightPolicy | None = None,
+        thresholds_policy: ThresholdsPolicy | None = None,
     ) -> S3RunResult:
         base_path = base_path.expanduser().resolve()
         toggles = toggles or S3FeatureToggles()
@@ -41,15 +48,47 @@ class S3CrossBorderRunner:
             deterministic=deterministic,
             artefact_path=rule_ladder_path.expanduser().resolve(),
             toggles=toggles,
+            base_weight_policy=base_weight_policy,
+            thresholds_policy=thresholds_policy,
         )
         candidate_path = self._write_candidate_set(
             base_path=base_path,
             deterministic=deterministic,
             kernel_result=kernel_result,
         )
+        priors_path = (
+            self._write_priors(
+                base_path=base_path,
+                deterministic=deterministic,
+                priors=kernel_result.priors,
+            )
+            if kernel_result.priors is not None
+            else None
+        )
+        counts_path = (
+            self._write_counts(
+                base_path=base_path,
+                deterministic=deterministic,
+                counts=kernel_result.counts,
+            )
+            if kernel_result.counts is not None
+            else None
+        )
+        sequence_path = (
+            self._write_sequence(
+                base_path=base_path,
+                deterministic=deterministic,
+                sequence=kernel_result.sequence,
+            )
+            if kernel_result.sequence is not None
+            else None
+        )
         return S3RunResult(
             deterministic=deterministic,
             candidate_set_path=candidate_path,
+            base_weight_priors_path=priors_path,
+            integerised_counts_path=counts_path,
+            site_sequence_path=sequence_path,
         )
 
     def _write_candidate_set(
@@ -106,6 +145,147 @@ class S3CrossBorderRunner:
         )
 
         output_path = parameter_dir / "s3_candidate_set.parquet"
+        frame.write_parquet(output_path, compression="zstd")
+        return output_path
+
+    def _write_priors(
+        self,
+        *,
+        base_path: Path,
+        deterministic: S3DeterministicContext,
+        priors: Tuple,
+    ) -> Path:
+        parameter_hash = deterministic.parameter_hash
+        manifest_fingerprint = deterministic.manifest_fingerprint
+        parameter_dir = (
+            base_path / "parameter_scoped" / f"parameter_hash={parameter_hash}"
+        )
+        parameter_dir.mkdir(parents=True, exist_ok=True)
+
+        data = {
+            "parameter_hash": [],
+            "produced_by_fingerprint": [],
+            "merchant_id": [],
+            "country_iso": [],
+            "base_weight_dp": [],
+            "dp": [],
+        }
+        for row in priors:
+            data["parameter_hash"].append(parameter_hash)
+            data["produced_by_fingerprint"].append(manifest_fingerprint)
+            data["merchant_id"].append(row.merchant_id)
+            data["country_iso"].append(row.country_iso)
+            data["base_weight_dp"].append(row.base_weight_dp)
+            data["dp"].append(row.dp)
+
+        frame = pl.DataFrame(data).sort(["merchant_id", "country_iso"])
+        self._assert_partition_value(
+            frame,
+            column="parameter_hash",
+            expected=parameter_hash,
+            dataset="s3_base_weight_priors",
+        )
+        self._assert_partition_value(
+            frame,
+            column="produced_by_fingerprint",
+            expected=manifest_fingerprint,
+            dataset="s3_base_weight_priors",
+        )
+        output_path = parameter_dir / "s3_base_weight_priors.parquet"
+        frame.write_parquet(output_path, compression="zstd")
+        return output_path
+
+    def _write_counts(
+        self,
+        *,
+        base_path: Path,
+        deterministic: S3DeterministicContext,
+        counts: Tuple,
+    ) -> Path:
+        parameter_hash = deterministic.parameter_hash
+        manifest_fingerprint = deterministic.manifest_fingerprint
+        parameter_dir = (
+            base_path / "parameter_scoped" / f"parameter_hash={parameter_hash}"
+        )
+        parameter_dir.mkdir(parents=True, exist_ok=True)
+
+        data = {
+            "parameter_hash": [],
+            "produced_by_fingerprint": [],
+            "merchant_id": [],
+            "country_iso": [],
+            "count": [],
+            "residual_rank": [],
+        }
+        for row in counts:
+            data["parameter_hash"].append(parameter_hash)
+            data["produced_by_fingerprint"].append(manifest_fingerprint)
+            data["merchant_id"].append(row.merchant_id)
+            data["country_iso"].append(row.country_iso)
+            data["count"].append(row.count)
+            data["residual_rank"].append(row.residual_rank)
+
+        frame = pl.DataFrame(data).sort(["merchant_id", "country_iso"])
+        self._assert_partition_value(
+            frame,
+            column="parameter_hash",
+            expected=parameter_hash,
+            dataset="s3_integerised_counts",
+        )
+        self._assert_partition_value(
+            frame,
+            column="produced_by_fingerprint",
+            expected=manifest_fingerprint,
+            dataset="s3_integerised_counts",
+        )
+        output_path = parameter_dir / "s3_integerised_counts.parquet"
+        frame.write_parquet(output_path, compression="zstd")
+        return output_path
+
+    def _write_sequence(
+        self,
+        *,
+        base_path: Path,
+        deterministic: S3DeterministicContext,
+        sequence: Tuple,
+    ) -> Path:
+        parameter_hash = deterministic.parameter_hash
+        manifest_fingerprint = deterministic.manifest_fingerprint
+        parameter_dir = (
+            base_path / "parameter_scoped" / f"parameter_hash={parameter_hash}"
+        )
+        parameter_dir.mkdir(parents=True, exist_ok=True)
+
+        data = {
+            "parameter_hash": [],
+            "produced_by_fingerprint": [],
+            "merchant_id": [],
+            "country_iso": [],
+            "site_order": [],
+            "site_id": [],
+        }
+        for row in sequence:
+            data["parameter_hash"].append(parameter_hash)
+            data["produced_by_fingerprint"].append(manifest_fingerprint)
+            data["merchant_id"].append(row.merchant_id)
+            data["country_iso"].append(row.country_iso)
+            data["site_order"].append(row.site_order)
+            data["site_id"].append(row.site_id)
+
+        frame = pl.DataFrame(data).sort(["merchant_id", "country_iso", "site_order"])
+        self._assert_partition_value(
+            frame,
+            column="parameter_hash",
+            expected=parameter_hash,
+            dataset="s3_site_sequence",
+        )
+        self._assert_partition_value(
+            frame,
+            column="produced_by_fingerprint",
+            expected=manifest_fingerprint,
+            dataset="s3_site_sequence",
+        )
+        output_path = parameter_dir / "s3_site_sequence.parquet"
         frame.write_parquet(output_path, compression="zstd")
         return output_path
 

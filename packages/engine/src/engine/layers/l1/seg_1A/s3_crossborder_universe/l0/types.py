@@ -148,3 +148,33 @@ class RankedCandidateRow:
     filter_tags: Tuple[str, ...]
     reason_codes: Tuple[str, ...]
     admitting_rules: Tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class PriorRow:
+    """Deterministic prior score emitted for a candidate."""
+
+    merchant_id: int
+    country_iso: str
+    base_weight_dp: str
+    dp: int
+
+
+@dataclass(frozen=True)
+class CountRow:
+    """Integerised count allocation for a candidate country."""
+
+    merchant_id: int
+    country_iso: str
+    count: int
+    residual_rank: int
+
+
+@dataclass(frozen=True)
+class SequenceRow:
+    """Within-country site sequencing row."""
+
+    merchant_id: int
+    country_iso: str
+    site_order: int
+    site_id: str | None

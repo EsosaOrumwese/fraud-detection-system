@@ -6,7 +6,7 @@ import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Mapping, Sequence, Tuple
+from typing import Dict, Mapping, Optional, Sequence, Tuple
 
 import yaml
 
@@ -36,6 +36,16 @@ from engine.layers.l1.seg_1A.s3_crossborder_universe import (
     S3FeatureToggles,
     S3RunResult,
     build_deterministic_context as build_s3_deterministic_context,
+)
+from engine.layers.l1.seg_1A.s3_crossborder_universe.l0.policy import (
+    load_base_weight_policy,
+    load_thresholds_policy,
+)
+from engine.layers.l1.seg_1A.s3_crossborder_universe.l3.bundle import (
+    publish_s3_validation_artifacts,
+)
+from engine.layers.l1.seg_1A.s3_crossborder_universe.l3.validator import (
+    validate_s3_outputs,
 )
 
 logger = logging.getLogger(__name__)
@@ -159,6 +169,11 @@ class S3StateContext:
 
     deterministic: S3DeterministicContext
     candidate_set_path: Path
+    base_weight_priors_path: Path | None
+    integerised_counts_path: Path | None
+    site_sequence_path: Path | None
+    metrics: Dict[str, float] | None = None
+    validation_artifacts_path: Path | None = None
 
     @property
     def parameter_hash(self) -> str:
@@ -177,12 +192,22 @@ class S3StateContext:
         return self.deterministic.seed
 
 
-def build_s3_context(result: S3RunResult) -> S3StateContext:
+def build_s3_context(
+    result: S3RunResult,
+    *,
+    metrics: Dict[str, float] | None = None,
+    validation_artifacts_path: Path | None = None,
+) -> S3StateContext:
     """Construct the downstream-facing context bundle from the S3 run."""
 
     return S3StateContext(
         deterministic=result.deterministic,
         candidate_set_path=result.candidate_set_path,
+        base_weight_priors_path=result.base_weight_priors_path,
+        integerised_counts_path=result.integerised_counts_path,
+        site_sequence_path=result.site_sequence_path,
+        metrics=metrics,
+        validation_artifacts_path=validation_artifacts_path,
     )
 
 
@@ -233,6 +258,10 @@ class Segment1AOrchestrator:
         validate_s2: bool = True,
         extra_manifest_artifacts: Sequence[Path] | None = None,
         validation_policy_path: Path | None = None,
+        validate_s3: bool = True,
+        s3_priors: bool = False,
+        s3_integerisation: bool = False,
+        s3_sequencing: bool = False,
     ) -> Segment1ARunResult:
         base_path = base_path.expanduser().resolve()
         param_mapping = {
@@ -438,6 +467,33 @@ class Segment1AOrchestrator:
                 "no multi-site merchants available for S3",
             )
 
+        base_weight_path = param_mapping.get("policy.s3.base_weight.yaml")
+        thresholds_path = param_mapping.get("policy.s3.thresholds.yaml")
+
+        s3_toggles = S3FeatureToggles(
+            priors_enabled=s3_priors,
+            integerisation_enabled=s3_integerisation,
+            sequencing_enabled=s3_sequencing,
+        )
+        s3_toggles.validate()
+
+        base_weight_policy = (
+            load_base_weight_policy(base_weight_path)
+            if base_weight_path is not None
+            else None
+        )
+        thresholds_policy = (
+            load_thresholds_policy(thresholds_path)
+            if thresholds_path is not None
+            else None
+        )
+
+        if s3_toggles.priors_enabled and base_weight_policy is None:
+            raise err(
+                "ERR_S3_AUTHORITY_MISSING",
+                "policy.s3.base_weight.yaml required when priors are enabled",
+            )
+
         s3_deterministic = build_s3_deterministic_context(
             parameter_hash=s2_result.deterministic.parameter_hash,
             manifest_fingerprint=s2_result.deterministic.manifest_fingerprint,
@@ -455,6 +511,22 @@ class Segment1AOrchestrator:
                 artefact_id="iso3166_canonical_2024",
                 path=iso_table.expanduser().resolve(),
             ),
+            base_weight_spec=(
+                S3ArtefactSpec(
+                    artefact_id="policy.s3.base_weight.yaml",
+                    path=base_weight_path,
+                )
+                if base_weight_path is not None
+                else None
+            ),
+            thresholds_spec=(
+                S3ArtefactSpec(
+                    artefact_id="policy.s3.thresholds.yaml",
+                    path=thresholds_path,
+                )
+                if thresholds_path is not None
+                else None
+            ),
         )
 
         logger.info(
@@ -466,7 +538,9 @@ class Segment1AOrchestrator:
             base_path=base_path,
             deterministic=s3_deterministic,
             rule_ladder_path=rule_ladder_path,
-            toggles=S3FeatureToggles(),
+            toggles=s3_toggles,
+            base_weight_policy=base_weight_policy,
+            thresholds_policy=thresholds_policy,
         )
 
         logger.info(
@@ -474,7 +548,40 @@ class Segment1AOrchestrator:
             len(s3_deterministic.merchants),
         )
 
-        s3_context = build_s3_context(s3_result)
+        s3_metrics: Dict[str, float] | None = None
+        s3_validation_artifacts_path: Path | None = None
+        if validate_s3:
+            validation = validate_s3_outputs(
+                deterministic=s3_deterministic,
+                candidate_set_path=s3_result.candidate_set_path,
+                rule_ladder_path=rule_ladder_path,
+                toggles=s3_toggles,
+                base_weight_policy=base_weight_policy,
+                thresholds_policy=thresholds_policy,
+                base_weight_priors_path=s3_result.base_weight_priors_path,
+                integerised_counts_path=s3_result.integerised_counts_path,
+                site_sequence_path=s3_result.site_sequence_path,
+            )
+            s3_metrics = dict(validation.metrics)
+            logger.info("Segment1A S3 validation passed")
+            s3_validation_artifacts_path = publish_s3_validation_artifacts(
+                base_path=base_path,
+                manifest_fingerprint=s3_result.deterministic.manifest_fingerprint,
+                metrics=s3_metrics,
+            )
+            if s3_validation_artifacts_path is not None:
+                logger.info(
+                    "Segment1A S3 validation artefacts %s",
+                    s3_validation_artifacts_path,
+                )
+        else:
+            logger.info("Segment1A S3 validation skipped (validate_s3=False)")
+
+        s3_context = build_s3_context(
+            s3_result,
+            metrics=s3_metrics,
+            validation_artifacts_path=s3_validation_artifacts_path,
+        )
 
         logger.info(
             "Segment1A orchestrator finished (run_id=%s)",

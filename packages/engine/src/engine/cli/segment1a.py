@@ -136,10 +136,34 @@ def main(argv: list[str] | None = None) -> int:
         help="Skip S2 validation.",
     )
     parser.add_argument(
+        "--no-validate-s3",
+        dest="validate_s3",
+        action="store_false",
+        help="Skip S3 validation.",
+    )
+    parser.add_argument(
         "--no-diagnostics",
         dest="include_diagnostics",
         action="store_false",
         help="Disable optional diagnostic outputs from S0.",
+    )
+    parser.add_argument(
+        "--s3-priors",
+        dest="s3_priors",
+        action="store_true",
+        help="Enable base-weight priors (requires policy.s3.base_weight.yaml).",
+    )
+    parser.add_argument(
+        "--s3-integerisation",
+        dest="s3_integerisation",
+        action="store_true",
+        help="Enable deterministic integerisation of S3 candidates.",
+    )
+    parser.add_argument(
+        "--s3-sequencing",
+        dest="s3_sequencing",
+        action="store_true",
+        help="Enable S3 site sequencing (requires integerisation).",
     )
     parser.add_argument(
         "--result-json",
@@ -149,7 +173,11 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     parser.set_defaults(
-        validate_s0=True, validate_s1=True, validate_s2=True, include_diagnostics=True
+        validate_s0=True,
+        validate_s1=True,
+        validate_s2=True,
+        validate_s3=True,
+        include_diagnostics=True,
     )
 
     args = parser.parse_args(argv)
@@ -190,8 +218,12 @@ def main(argv: list[str] | None = None) -> int:
             validate_s0=args.validate_s0,
             validate_s1=args.validate_s1,
             validate_s2=args.validate_s2,
+            validate_s3=args.validate_s3,
             extra_manifest_artifacts=extra_manifest,
             validation_policy_path=validation_policy_path,
+            s3_priors=args.s3_priors,
+            s3_integerisation=args.s3_integerisation,
+            s3_sequencing=args.s3_sequencing,
         )
     except S0Error as exc:
         logger.exception("Segment1A CLI: run failed")
@@ -207,6 +239,25 @@ def main(argv: list[str] | None = None) -> int:
     logger.info(
         "Segment1A CLI: S3 candidate set %s", result.s3_context.candidate_set_path
     )
+    if result.s3_context.base_weight_priors_path:
+        logger.info(
+            "Segment1A CLI: S3 priors %s", result.s3_context.base_weight_priors_path
+        )
+    if result.s3_context.integerised_counts_path:
+        logger.info(
+            "Segment1A CLI: S3 counts %s", result.s3_context.integerised_counts_path
+        )
+    if result.s3_context.site_sequence_path:
+        logger.info(
+            "Segment1A CLI: S3 sequence %s", result.s3_context.site_sequence_path
+        )
+    if result.s3_context.metrics:
+        logger.info("Segment1A CLI: S3 metrics %s", result.s3_context.metrics)
+    if result.s3_context.validation_artifacts_path:
+        logger.info(
+            "Segment1A CLI: S3 validation artefacts %s",
+            result.s3_context.validation_artifacts_path,
+        )
     if result.nb_context.metrics:
         logger.info("Segment1A CLI: S2 metrics %s", result.nb_context.metrics)
 
@@ -251,6 +302,33 @@ def main(argv: list[str] | None = None) -> int:
                 "merchants": len(result.s3_context.deterministic.merchants),
                 "parameter_hash": result.s3_context.parameter_hash,
                 "manifest_fingerprint": result.s3_context.manifest_fingerprint,
+                "base_weight_priors_path": (
+                    str(result.s3_context.base_weight_priors_path)
+                    if result.s3_context.base_weight_priors_path is not None
+                    else None
+                ),
+                "integerised_counts_path": (
+                    str(result.s3_context.integerised_counts_path)
+                    if result.s3_context.integerised_counts_path is not None
+                    else None
+                ),
+                "site_sequence_path": (
+                    str(result.s3_context.site_sequence_path)
+                    if result.s3_context.site_sequence_path is not None
+                    else None
+                ),
+                "metrics": result.s3_context.metrics,
+                "validation_artifacts_path": (
+                    str(result.s3_context.validation_artifacts_path)
+                    if result.s3_context.validation_artifacts_path is not None
+                    else None
+                ),
+                "toggles": {
+                    "priors": args.s3_priors,
+                    "integerisation": args.s3_integerisation,
+                    "sequencing": args.s3_sequencing,
+                },
+                "validation_enabled": args.validate_s3,
             },
         }
         args.result_json.expanduser().resolve().write_text(

@@ -130,4 +130,8 @@
   - **Layers:** `layers/l1/seg_1A/s0…s4/{l0,l1,l2,l3}` for the foundation.  
   - **Core, Validation, Scenario Runner, Registry/CLI:** conceptual scaffolds you’ll unlock as you implement.
 
-> **Current focus:** **Layer-1 / Segment 1A, States S0–S4** (foundation). Everything else remains intentionally conceptual so future choices stay optimal.
+> **Current focus:** **Layer-1 / Segment 1A, States S0-S4** (foundation). Everything else remains intentionally conceptual so future choices stay optimal.
+
+### Segment 1A execution highlights
+- **S3 cross-border universe outputs:** the runner now emits the deterministic `s3_candidate_set.parquet` plus optional `s3_base_weight_priors`, `s3_integerised_counts`, and `s3_site_sequence` tables. Toggle the extra surfaces via the Segment1A CLI (`--s3-priors`, `--s3-integerisation`, `--s3-sequencing`). Sequencing remains gated on integerisation.
+- **Validation bundle:** `validate_s3_outputs` replays the deterministic kernels (candidates, priors, counts, sequences) and stores metrics under `validation_bundle/manifest_fingerprint=*/s3_crossborder_universe/`. Disable via `--no-validate-s3` when debugging, but release runs should keep it enabled.

@@ -8,6 +8,8 @@ from functools import total_ordering
 from pathlib import Path
 from typing import Dict, Iterable, Mapping, MutableMapping, Sequence, Tuple
 
+from decimal import Decimal
+
 import yaml
 
 from ...s0_foundations.exceptions import err
@@ -19,6 +21,38 @@ from .types import (
 )
 
 _ASCII_UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+
+@dataclass(frozen=True)
+class BaseWeightPolicy:
+    """Determinisitic configuration for base-weight priors."""
+
+    dp: int
+    base_home: Decimal
+    base_foreign: Decimal
+    min_weight: Decimal
+    tag_multipliers: Mapping[str, Decimal]
+    normalisation_method: str
+    normalisation_floor: Decimal
+
+
+@dataclass(frozen=True)
+class BoundsOverride:
+    """Lower/upper overrides for a set of ISO countries."""
+
+    countries: Tuple[str, ...]
+    lower: int | None
+    upper: int | None
+
+
+@dataclass(frozen=True)
+class ThresholdsPolicy:
+    """Integerisation thresholds and residual policy."""
+
+    residual_dp: int
+    default_lower: int
+    default_upper: int
+    overrides: Tuple[BoundsOverride, ...]
 
 
 @dataclass(frozen=True)
@@ -593,5 +627,162 @@ def evaluate_rule_ladder(
     )
 
 
-__all__ = ["RuleLadder", "load_rule_ladder", "evaluate_rule_ladder"]
+def _as_decimal(value: object, *, error: str) -> Decimal:
+    try:
+        return Decimal(str(value))
+    except Exception as exc:  # pragma: no cover - defensive
+        raise err(error, f"unable to parse decimal value '{value}'") from exc
 
+
+def load_base_weight_policy(path: Path) -> BaseWeightPolicy:
+    """Load the optional base-weight policy artefact."""
+
+    payload = _load_yaml(path)
+    dp = payload.get("dp")
+    if not isinstance(dp, int) or dp < 0 or dp > 18:
+        raise err("ERR_S3_PRIOR_DOMAIN", "base-weight policy dp must be 0..18")
+
+    weights = payload.get("weights")
+    if not isinstance(weights, Mapping):
+        raise err("ERR_S3_PRIOR_DOMAIN", "base-weight policy missing weights mapping")
+    if "base_home" not in weights or "base_foreign" not in weights:
+        raise err(
+            "ERR_S3_PRIOR_DOMAIN",
+            "base-weight policy weights must include base_home and base_foreign",
+        )
+    base_home = _as_decimal(weights["base_home"], error="ERR_S3_PRIOR_DOMAIN")
+    base_foreign = _as_decimal(weights["base_foreign"], error="ERR_S3_PRIOR_DOMAIN")
+    min_weight = _as_decimal(weights.get("min_weight", 0), error="ERR_S3_PRIOR_DOMAIN")
+
+    raw_tag_multipliers = payload.get("tag_multipliers", {})
+    if not isinstance(raw_tag_multipliers, Mapping):
+        raise err(
+            "ERR_S3_PRIOR_DOMAIN",
+            "tag_multipliers must be a mapping when present",
+        )
+    tag_multipliers: Dict[str, Decimal] = {}
+    for tag, value in raw_tag_multipliers.items():
+        tag_multipliers[_normalise_tag(str(tag))] = _as_decimal(
+            value, error="ERR_S3_PRIOR_DOMAIN"
+        )
+
+    normalisation = payload.get("normalisation", {})
+    if normalisation is None:
+        normalisation = {}
+    if not isinstance(normalisation, Mapping):
+        raise err(
+            "ERR_S3_PRIOR_DOMAIN",
+            "normalisation block must be a mapping when present",
+        )
+    method = str(normalisation.get("method", "proportional")).strip()
+    norm_floor = _as_decimal(
+        normalisation.get("floor", 0), error="ERR_S3_PRIOR_DOMAIN"
+    )
+
+    return BaseWeightPolicy(
+        dp=dp,
+        base_home=base_home,
+        base_foreign=base_foreign,
+        min_weight=min_weight,
+        tag_multipliers=tag_multipliers,
+        normalisation_method=method,
+        normalisation_floor=norm_floor,
+    )
+
+
+def load_thresholds_policy(path: Path) -> ThresholdsPolicy:
+    """Load the optional integerisation thresholds/override policy."""
+
+    payload = _load_yaml(path)
+
+    integerisation = payload.get("integerisation", {})
+    if integerisation is None:
+        integerisation = {}
+    if not isinstance(integerisation, Mapping):
+        raise err(
+            "ERR_S3_INTEGER_FEASIBILITY",
+            "integerisation section must be a mapping when present",
+        )
+    residual_dp = integerisation.get("residual_dp", 8)
+    if not isinstance(residual_dp, int) or residual_dp < 0 or residual_dp > 18:
+        raise err(
+            "ERR_S3_INTEGER_FEASIBILITY",
+            "integerisation.residual_dp must be an integer in 0..18",
+        )
+
+    bounds = payload.get("bounds", {})
+    if not isinstance(bounds, Mapping):
+        raise err(
+            "ERR_S3_INTEGER_FEASIBILITY",
+            "bounds section must be a mapping when present",
+        )
+    default_lower = bounds.get("default_lower", 0)
+    default_upper = bounds.get("default_upper", 10**9)
+    if not isinstance(default_lower, int) or default_lower < 0:
+        raise err(
+            "ERR_S3_INTEGER_FEASIBILITY",
+            "bounds.default_lower must be a non-negative integer",
+        )
+    if not isinstance(default_upper, int) or default_upper < default_lower:
+        raise err(
+            "ERR_S3_INTEGER_FEASIBILITY",
+            "bounds.default_upper must be an integer >= default_lower",
+        )
+
+    overrides_block = bounds.get("overrides", [])
+    overrides: list[BoundsOverride] = []
+    if overrides_block is not None:
+        if not isinstance(overrides_block, Sequence):
+            raise err(
+                "ERR_S3_INTEGER_FEASIBILITY",
+                "bounds.overrides must be a sequence when present",
+            )
+        for entry in overrides_block:
+            if not isinstance(entry, Mapping):
+                raise err(
+                    "ERR_S3_INTEGER_FEASIBILITY",
+                    "bounds overrides must be mappings",
+                )
+            raw_countries = entry.get("countries", [])
+            if not isinstance(raw_countries, Sequence) or not raw_countries:
+                raise err(
+                    "ERR_S3_INTEGER_FEASIBILITY",
+                    "bounds override missing countries list",
+                )
+            countries = tuple(_normalise_iso(str(code)) for code in raw_countries)
+            lower = entry.get("lower")
+            upper = entry.get("upper")
+            if lower is not None and (not isinstance(lower, int) or lower < 0):
+                raise err(
+                    "ERR_S3_INTEGER_FEASIBILITY",
+                    "bounds override lower must be non-negative integer",
+                )
+            if upper is not None and (not isinstance(upper, int) or upper < 0):
+                raise err(
+                    "ERR_S3_INTEGER_FEASIBILITY",
+                    "bounds override upper must be non-negative integer",
+                )
+            if lower is not None and upper is not None and lower > upper:
+                raise err(
+                    "ERR_S3_INTEGER_FEASIBILITY",
+                    "bounds override lower cannot exceed upper",
+                )
+            overrides.append(BoundsOverride(countries=countries, lower=lower, upper=upper))
+
+    return ThresholdsPolicy(
+        residual_dp=residual_dp,
+        default_lower=default_lower,
+        default_upper=default_upper,
+        overrides=tuple(overrides),
+    )
+
+
+__all__ = [
+    "RuleLadder",
+    "load_rule_ladder",
+    "evaluate_rule_ladder",
+    "BaseWeightPolicy",
+    "ThresholdsPolicy",
+    "load_base_weight_policy",
+    "load_thresholds_policy",
+]
