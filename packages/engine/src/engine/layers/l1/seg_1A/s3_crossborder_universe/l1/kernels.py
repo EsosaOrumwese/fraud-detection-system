@@ -157,18 +157,14 @@ def _compute_integerised_counts(
     ceilings: List[Optional[int]] = []
     for candidate in ranked:
         iso = candidate.country_iso
-        floor_value = floors_map.get(iso, 0)
+        floor_value = int(floors_map.get(iso, 0))
         if floor_value < 0:
             raise err(
                 "ERR_S3_INTEGER_FEASIBILITY",
                 f"floor for {iso} must be non-negative",
             )
-        ceiling_value = ceilings_map.get(iso) if policy else None
-        if ceiling_value is not None and ceiling_value < 0:
-            raise err(
-                "ERR_S3_INTEGER_FEASIBILITY",
-                f"ceiling for {iso} must be non-negative",
-            )
+        ceiling_value_raw = ceilings_map.get(iso)
+        ceiling_value = None if ceiling_value_raw is None else int(ceiling_value_raw)
         if ceiling_value is not None and ceiling_value < floor_value:
             raise err(
                 "ERR_S3_INTEGER_FEASIBILITY",
@@ -185,57 +181,84 @@ def _compute_integerised_counts(
         )
 
     counts = floors[:]
-    capacities: List[int] = []
-    for floor_value, ceiling_value in zip(floors, ceilings):
-        if ceiling_value is None:
-            capacities.append(10**9)
-        else:
-            capacities.append(ceiling_value - floor_value)
-
     remaining = n_outlets - floor_sum
 
-    if weights is None or len(weights) != num_candidates:
-        weights = [Decimal("1")] * num_candidates
-    elif any(weight < Decimal("0") for weight in weights):
-        raise err(
-            "ERR_S3_WEIGHT_ZERO",
-            "prior weights must be non-negative",
-        )
+    cap_remaining: List[int] = []
+    for floor_value, ceiling_value in zip(floors, ceilings):
+        if ceiling_value is None:
+            cap_remaining.append(max(0, n_outlets - floor_value))
+        else:
+            cap_remaining.append(ceiling_value - floor_value)
+
+    weights_seq: Optional[List[Decimal]]
+    if weights is None:
+        weights_seq = None
+    else:
+        weights_seq = [Decimal(weight) for weight in weights]
+        if len(weights_seq) != num_candidates:
+            raise err(
+                "ERR_S3_INTEGER_FEASIBILITY",
+                "weights length mismatch for integerisation",
+            )
+        if any(weight < Decimal("0") for weight in weights_seq):
+            raise err(
+                "ERR_S3_WEIGHT_ZERO",
+                "prior weights must be non-negative",
+            )
+        if sum(weights_seq) <= Decimal("0"):
+            raise err(
+                "ERR_S3_WEIGHT_ZERO",
+                "sum of prior weights is zero",
+            )
 
     residuals: List[Decimal] = [Decimal("0")] * num_candidates
 
-    eligible_indices = [idx for idx, cap in enumerate(capacities) if cap > 0]
-    if remaining > 0 and not eligible_indices:
+    eligible = [idx for idx, cap in enumerate(cap_remaining) if cap > 0]
+    if remaining > 0 and not eligible:
         raise err(
             "ERR_S3_INTEGER_FEASIBILITY",
             "no capacity available for remaining outlets",
         )
 
-    if remaining > 0 and eligible_indices:
-        total_weight = sum(weights[idx] for idx in eligible_indices)
-        if total_weight <= Decimal("0"):
-            raise err(
-                "ERR_S3_WEIGHT_ZERO",
-                "sum of prior weights is zero for integerisation",
-            )
+    bump_set: set[int] = set()
+    if eligible:
+        if weights_seq is None:
+            eligible_weights = [Decimal("1")] * len(eligible)
+            weight_sum = Decimal(len(eligible))
+        else:
+            eligible_weights = [weights_seq[idx] for idx in eligible]
+            weight_sum = sum(eligible_weights)
+            if weight_sum <= Decimal("0"):
+                raise err(
+                    "ERR_S3_WEIGHT_ZERO",
+                    "sum of prior weights is zero for integerisation",
+                )
         remaining_decimal = Decimal(remaining)
         floors_used = 0
-        for idx in eligible_indices:
-            share = weights[idx] / total_weight
+        for idx, weight in zip(eligible, eligible_weights):
+            share = weight / weight_sum if weight_sum else Decimal("0")
             ideal = remaining_decimal * share
-            floor_allocation = int(ideal.to_integral_value(rounding=ROUND_DOWN))
-            if floor_allocation > capacities[idx]:
-                floor_allocation = capacities[idx]
-            counts[idx] += floor_allocation
-            capacities[idx] -= floor_allocation
-            residual = ideal - Decimal(floor_allocation)
-            if capacities[idx] > 0:
+            floor_amt = int(ideal.to_integral_value(rounding=ROUND_DOWN))
+            if floor_amt > cap_remaining[idx]:
+                floor_amt = cap_remaining[idx]
+            counts[idx] += floor_amt
+            cap_remaining[idx] -= floor_amt
+            residual = ideal - Decimal(floor_amt)
+            if cap_remaining[idx] > 0:
                 residuals[idx] = _quantize_decimal(residual, dp_resid)
-            floors_used += floor_allocation
+            floors_used += floor_amt
         remaining_units = remaining - floors_used
+
+        eligible_for_bump = [idx for idx in eligible if cap_remaining[idx] > 0]
+        if remaining_units > 0 and not eligible_for_bump:
+            raise err(
+                "ERR_S3_INTEGER_FEASIBILITY",
+                "no capacity available for remaining outlets",
+            )
+
         if remaining_units > 0:
             order = sorted(
-                (idx for idx in eligible_indices if capacities[idx] > 0),
+                eligible_for_bump,
                 key=lambda idx: (
                     -residuals[idx],
                     ranked[idx].country_iso,
@@ -250,18 +273,22 @@ def _compute_integerised_counts(
                 )
             for idx in order[:remaining_units]:
                 counts[idx] += 1
-                capacities[idx] -= 1
+                cap_remaining[idx] -= 1
+            bump_set = set(order)
 
-    order_all = sorted(
-        range(num_candidates),
-        key=lambda idx: (
-            0 if capacities[idx] > 0 else 1,
-            -residuals[idx],
-            ranked[idx].country_iso,
-            ranked[idx].candidate_rank,
-            idx,
-        ),
-    )
+        order_all = sorted(
+            range(num_candidates),
+            key=lambda idx: (
+                0 if idx in bump_set else 1 if idx in eligible else 2,
+                -residuals[idx],
+                ranked[idx].country_iso,
+                ranked[idx].candidate_rank,
+                idx,
+            ),
+        )
+    else:
+        order_all = list(range(num_candidates))
+
     residual_rank = {idx: position + 1 for position, idx in enumerate(order_all)}
 
     total = sum(counts)
@@ -299,7 +326,6 @@ def _compute_integerised_counts(
             )
         )
     return count_rows, counts
-
 
 def _build_sequence_rows(
     ranked: Sequence[RankedCandidateRow],
