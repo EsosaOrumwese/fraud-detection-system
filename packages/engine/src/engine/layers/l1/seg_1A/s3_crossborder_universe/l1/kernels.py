@@ -88,7 +88,7 @@ def _compute_priors(
 ) -> Tuple[List[PriorRow], Optional[List[Decimal]]]:
     priors: List[PriorRow] = []
     weights: List[Decimal] = []
-    all_scored = True
+    scored_any = False
     for candidate in ranked:
         score = evaluate_base_weight(
             policy,
@@ -104,7 +104,7 @@ def _compute_priors(
             merchant_tags=merchant_tags,
         )
         if score is None:
-            all_scored = False
+            weights.append(Decimal("0"))
             continue
         if score < Decimal("0"):
             raise err("ERR_S3_PRIOR_DOMAIN", "prior score produced negative weight")
@@ -118,11 +118,12 @@ def _compute_priors(
             )
         )
         weights.append(quant)
+        scored_any = True
 
     weight_list: Optional[List[Decimal]]
     if not ranked:
         weight_list = []
-    elif not all_scored or len(weights) != len(ranked):
+    elif not scored_any:
         weight_list = None
     else:
         weight_list = weights

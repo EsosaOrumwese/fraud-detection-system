@@ -1,5 +1,6 @@
 import polars as pl
 import pytest
+from decimal import Decimal
 
 from engine.layers.l1.seg_1A.s1_hurdle.l2.runner import HurdleDecision
 from engine.layers.l1.seg_1A.s2_nb_outlets.l2.runner import NBFinalRecord
@@ -18,7 +19,11 @@ from engine.layers.l1.seg_1A.s3_crossborder_universe.l0.policy import (
 from engine.layers.l1.seg_1A.s3_crossborder_universe.l3.validator import (
     validate_s3_outputs,
 )
-
+from engine.layers.l1.seg_1A.s3_crossborder_universe.l1.kernels import _compute_priors
+from engine.layers.l1.seg_1A.s3_crossborder_universe.l0.types import RankedCandidateRow
+from engine.layers.l1.seg_1A.s3_crossborder_universe.l2.deterministic import (
+    MerchantContext,
+)
 
 def _write_policy(path):
     path.write_text(
@@ -388,3 +393,116 @@ def test_s3_feature_toggles_validation():
         toggles.validate()
     assert exc.value.context.code == "ERR_S3_PRECONDITION"
 
+
+
+
+
+
+def test_compute_priors_exclusion(tmp_path):
+    policy_path = tmp_path / "policy.s3.base_weight.yaml"
+    _write_base_weight_policy(policy_path)
+    policy = load_base_weight_policy(
+        policy_path, iso_countries={"GB", "FR", "JP", "US", "CA", "NL", "IE", "DE", "AU"}
+    )
+    merchant = MerchantContext(
+        merchant_id=1,
+        home_country_iso="GB",
+        mcc="5411",
+        channel="CNP",
+        n_outlets=6,
+    )
+    ranked = [
+        RankedCandidateRow(
+            merchant_id=1,
+            country_iso="GB",
+            is_home=True,
+            candidate_rank=0,
+            filter_tags=("HOME",),
+            reason_codes=(),
+            admitting_rules=(),
+        ),
+        RankedCandidateRow(
+            merchant_id=1,
+            country_iso="FR",
+            is_home=False,
+            candidate_rank=1,
+            filter_tags=("ADMISSIBLE",),
+            reason_codes=(),
+            admitting_rules=(),
+        ),
+        RankedCandidateRow(
+            merchant_id=1,
+            country_iso="JP",
+            is_home=False,
+            candidate_rank=2,
+            filter_tags=("ADMISSIBLE",),
+            reason_codes=(),
+            admitting_rules=(),
+        ),
+    ]
+    priors, weights = _compute_priors(
+        ranked,
+        merchant=merchant,
+        policy=policy,
+        merchant_tags=("ADMISSIBLE",),
+    )
+    assert {row.country_iso for row in priors} == {"GB", "FR"}
+    assert weights[2] == Decimal("0")
+    assert weights[0] == Decimal("1.3500")
+    assert weights[1] == Decimal("1.3500")
+
+
+def test_compute_priors_no_scores(tmp_path):
+    policy_path = tmp_path / "policy.none.yaml"
+    policy_path.write_text(
+        "\n".join(
+            [
+                'semver: "1.0.0"',
+                'version: "2025-10-10"',
+                "dp: 4",
+                "constants:",
+                "  base: 1.0000",
+                "selection_rules:",
+                "  - id: \"DENY_ALL\"",
+                "    predicate: 'true'",
+                "    score_components: []",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    policy = load_base_weight_policy(policy_path, iso_countries={"GB", "US"})
+    merchant = MerchantContext(
+        merchant_id=1,
+        home_country_iso="GB",
+        mcc="5411",
+        channel="CP",
+        n_outlets=4,
+    )
+    ranked = [
+        RankedCandidateRow(
+            merchant_id=1,
+            country_iso="GB",
+            is_home=True,
+            candidate_rank=0,
+            filter_tags=("HOME",),
+            reason_codes=(),
+            admitting_rules=(),
+        ),
+        RankedCandidateRow(
+            merchant_id=1,
+            country_iso="US",
+            is_home=False,
+            candidate_rank=1,
+            filter_tags=("ADMISSIBLE",),
+            reason_codes=(),
+            admitting_rules=(),
+        ),
+    ]
+    priors, weights = _compute_priors(
+        ranked,
+        merchant=merchant,
+        policy=policy,
+        merchant_tags=(),
+    )
+    assert priors == []
+    assert weights is None

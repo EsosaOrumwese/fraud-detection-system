@@ -448,6 +448,21 @@ class _PredicateEvaluator(ast.NodeVisitor):
             name.upper(): tuple(values) for name, values in named_sets.items()
         }
 
+    @staticmethod
+    def _coerce_comparable(left: object, right: object) -> tuple[object, object]:
+        numeric_types = (int, float, Decimal)
+        if isinstance(left, str) and isinstance(right, numeric_types):
+            try:
+                return type(right)(left), right
+            except Exception:
+                pass
+        if isinstance(right, str) and isinstance(left, numeric_types):
+            try:
+                return left, type(left)(right)
+            except Exception:
+                pass
+        return left, right
+
     def visit(self, node: ast.AST) -> object:
         method = "visit_" + node.__class__.__name__
         visitor = getattr(self, method, None)
@@ -524,6 +539,7 @@ class _PredicateEvaluator(ast.NodeVisitor):
             )
         left = self.visit(node.left)
         right = self.visit(node.comparators[0])
+        left, right = self._coerce_comparable(left, right)
         op = node.ops[0]
         if isinstance(op, ast.In):
             return left in right
