@@ -270,6 +270,7 @@ The policy file **MUST** contain exactly the following top-level structure (no e
 * All currency codes in `per_currency` and under `overrides.*` **MUST** be uppercase ISO-4217; all ISO2 codes under `overrides.*.*` **MUST** be uppercase and FK-valid to the canonical ISO set. 
 
 **4.3 Override precedence (deterministic resolution)**
+*Quantities resolved at **currency level only**: `blend_weight`, `obs_floor`, `shrink_exponent`. ISO-level overrides apply **only** to `alpha` and `min_share`.*
 For any policy quantity **Q** and a given **currency** `cur` and **ISO** `iso` (when relevant), the effective value is resolved in this exact order:
 
 1. **ISO override**: `overrides.<Q>_iso[cur][iso]` if present (where defined for `Q`), else
@@ -519,7 +520,7 @@ If neither declared source exists in the dictionary for a given deployment, do n
 
 **7.9 RNG non-interaction**
 
-* S5 **MUST NOT** emit any `rng_*` streams or alter RNG traces; the RNG log families defined for Layer-1 remain untouched across S5. The validator in §9 MUST be able to demonstrate no change in RNG trace length versus the S4 manifest. 
+* S5 **MUST NOT** emit any `rng_*` streams or alter RNG traces; the RNG log families defined for Layer-1 remain untouched across S5. The validator in §9 MUST be able to demonstrate **no change** in RNG trace length versus the **pre-S5 snapshot of `rng_trace_log`** for the same `{seed, parameter_hash, run_id}`.
 
 **7.10 Order authority separation (no implicit order in S5)**
 
@@ -593,7 +594,7 @@ When a per-currency degrade in **8.4** is used, S5 MUST:
 
 ## 8.8 RNG non-interaction breaches (hard FAIL)
 
-Any presence of `rng_*` streams written under S5 tasking, or a **change in RNG trace length** vs the S4 manifest, is a breach. **Error:** `E_RNG_INTERACTION`. 
+Any presence of `rng_*` streams written under S5 tasking, or a **change in RNG trace length** vs the **pre-S5 snapshot of `rng_trace_log`** (same `{seed, parameter_hash, run_id}`), is a breach. **Error:** `E_RNG_INTERACTION`. 
 
 ## 8.9 Path/lineage equality breaches (hard FAIL)
 
@@ -625,6 +626,7 @@ S5 MUST emit, alongside outputs:
    - If present, `merchant_currency` and `sparse_flag` obey their PKs and domains. 
 3. **Partition & path discipline.** Parameter-scoped outputs live under `…/parameter_hash={parameter_hash}/` and **embed the same `parameter_hash`** byte-for-byte. Writes are **atomic** (stage→fsync→single rename). 
 4. **No RNG interaction.** No `rng_*` streams for S5; RNG trace length is **unchanged** vs S4’s manifest. Any delta is a run-fail.
+   **Clarification:** Compare against the **pre-S5 snapshot of `rng_trace_log`** for the same `{seed, parameter_hash, run_id}`.
 
 ## 9.2 Content checks (weights, sums, quantisation)
 
@@ -760,7 +762,7 @@ Re-running S5 with identical inputs and **identical policy bytes** produces **by
 
 **11.4 Trace invariants (proof of non-interaction)**
 
-* The **cumulative RNG trace** (per `(module, substream_label)`) defined by `rng_trace_log` **MUST** be **unchanged** across an S5 run relative to the preceding S4 manifest: totals (`events_total`, `draws_total`, `blocks_total`) and final `(before/after)` counters per key are **identical**. Any delta indicates an RNG interaction and is a **run-fail** (§9).
+* The **cumulative RNG trace** (per `(module, substream_label)`) defined by `rng_trace_log` **MUST** be **unchanged** across an S5 run relative to the **pre-S5 snapshot of `rng_trace_log`** for the same `{seed, parameter_hash, run_id}`: totals (`events_total`, `draws_total`, `blocks_total`) and final `(before/after)` counters per key are **identical**. Any delta indicates an RNG interaction and is a **run-fail** (§9).
 
 **11.5 Envelope & budgeting law (reference; S5 does not produce)**
 
@@ -778,7 +780,7 @@ Re-running S5 with identical inputs and **identical policy bytes** produces **by
 
 * The S5 validator (§9) MUST assert **both**:
   (a) **Absence** of any new/modified files under `logs/rng/**/seed=*/parameter_hash=*/run_id=*` for the run; and
-  (b) **Unchanged** final rows in `rng_trace_log` (per key) vs the S4 manifest. Any breach ⇒ `E_RNG_INTERACTION` (hard FAIL). 
+  (b) **Unchanged** final rows in `rng_trace_log` (per key) vs the **pre-S5 snapshot of `rng_trace_log`** (same `{seed, parameter_hash, run_id}`). Any breach ⇒ `E_RNG_INTERACTION` (hard FAIL). 
     - This validator read is the **only** permitted RNG log read in S5 and is **read-only**.
 
 **11.9 Separation from order authority**
@@ -916,7 +918,7 @@ Re-running S5 with identical inputs and **identical policy bytes** produces **by
 * `65` — **INPUT_SCHEMA**: ingress dataset breach (schema/PK/FK/Σ) detected pre-flight. 
 * `66` — **POLICY_DOMAIN**: policy file domain/feasibility error (e.g., `Σ min_share_iso>1`). 
 * `67` — **OUTPUT_SCHEMA**: any S5 output fails its schema or lineage partition rules. 
-* `68` — **RNG_INTERACTION**: any RNG log written/changed or trace length delta vs S4 manifest. 
+* `68` — **RNG_INTERACTION**: any RNG log written/changed or trace length delta vs the **pre-S5 snapshot of `rng_trace_log`**.
 * `1` — **GENERAL_FAIL**: any other invariant breach in §7/§8/§9.
 
 **Emitted artefacts on PASS (parameter-scoped, alongside weights cache):**

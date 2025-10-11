@@ -968,7 +968,7 @@ subsegments:
     digest: '{sha256}'
     manifest_key: mlr.1A.allocation.sparse_flag
     license: '{spdx_or_internal}'
-    role: Indicator for equal‑split fallback under low observation counts.
+    role: Per-currency sparsity **diagnostic** for S5; no algorithmic fallback is implied by this dataset.
     dependencies: [ccy_country_shares_2024Q4]
     source: internal
     owner: {owner_team: null}
