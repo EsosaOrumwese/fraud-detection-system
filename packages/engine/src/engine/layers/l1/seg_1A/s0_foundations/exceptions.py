@@ -148,6 +148,22 @@ _FAILURE_CODE_MAP: Mapping[str, Tuple[FailureCategory, str]] = {
         FailureCategory.F8_VALIDATION,
         "s3_prior_disabled",
     ),
+    "ERR_S4_BRANCH_PURITY": (
+        FailureCategory.F8_VALIDATION,
+        "s4_branch_purity",
+    ),
+    "ERR_S4_FEATURE_DOMAIN": (
+        FailureCategory.F3_NUMERIC,
+        "s4_feature_domain",
+    ),
+    "ERR_S4_NUMERIC_INVALID": (
+        FailureCategory.F3_NUMERIC,
+        "s4_numeric_invalid",
+    ),
+    "ERR_S4_POLICY_INVALID": (
+        FailureCategory.F2_PARAMETERS,
+        "s4_policy_invalid",
+    ),
 }
 
 
