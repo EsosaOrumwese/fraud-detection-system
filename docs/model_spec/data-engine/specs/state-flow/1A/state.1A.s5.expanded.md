@@ -19,12 +19,12 @@
 **0.3 Sources of authority (single schema authority)**
 
 * **Only JSON-Schema is authoritative** for 1A. Avro (if present) is **non-authoritative** and MUST NOT be referenced in registry/dictionary contracts. The following schema sets and IDs are the sole authorities:
-  – Ingress schemas: **`schemas.ingress.layer1.yaml`** (`$id: schemas.ingress.layer1.yaml`). 
-  – 1A schemas: **`schemas.1A.yaml`** (`$id: schemas.1A.yaml`). 
-  – Layer-wide RNG/log schemas: **`schemas.layer1.yaml`** (`$id: schemas.layer1.yaml`). *(S5 does not emit RNG but remains bound to layer conventions.)* 
+  - Ingress schemas: **`schemas.ingress.layer1.yaml`** (`$id: schemas.ingress.layer1.yaml`). 
+  - 1A schemas: **`schemas.1A.yaml`** (`$id: schemas.1A.yaml`). 
+  - Layer-wide RNG/log schemas: **`schemas.layer1.yaml`** (`$id: schemas.layer1.yaml`). *(S5 does not emit RNG but remains bound to layer conventions.)* 
   Your S0/S4 documents already establish JSON-Schema as the only authority; this spec inherits that rule.
 
-**0.4 Compatibility window (what this spec binds to in S0–S4)**
+**0.4 Compatibility window (what this spec binds to in S0-S4)**
 This S5 spec is **compatible with** and **assumes** the following already-ratified contracts remain on their **v1.* line**:
 
 * **Dictionary:** `dataset_dictionary.layer1.1A.yaml` **v1.0** (IDs, paths, partitioning). 
@@ -36,13 +36,13 @@ This S5 spec is **compatible with** and **assumes** the following already-ratifi
 **0.5 Schema anchors & dataset IDs in scope (read/write set)**
 
 * **Inputs (ingress; parameter-scoped read):**
-  – `settlement_shares_2024Q4` → `schemas.ingress.layer1.yaml#/settlement_shares`. 
-  – `ccy_country_shares_2024Q4` → `schemas.ingress.layer1.yaml#/ccy_country_shares`. 
-  – `iso3166_canonical_2024` (FK target) → `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`. 
+  - `settlement_shares_2024Q4` → `schemas.ingress.layer1.yaml#/settlement_shares`. 
+  - `ccy_country_shares_2024Q4` → `schemas.ingress.layer1.yaml#/ccy_country_shares`. 
+  - `iso3166_canonical_2024` (FK target) → `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`. 
 * **Outputs (parameter-scoped; produced by S5):**
-  – `ccy_country_weights_cache` → `schemas.1A.yaml#/prep/ccy_country_weights_cache`; **PK** `(currency, country_iso)`; path `data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/`.
-  – `merchant_currency` (S5.0) → `schemas.1A.yaml#/prep/merchant_currency`; path `data/layer1/1A/merchant_currency/parameter_hash={parameter_hash}/`. 
-  – `sparse_flag` (per-currency diagnostics) → `schemas.1A.yaml#/prep/sparse_flag`; path `data/layer1/1A/sparse_flag/parameter_hash={parameter_hash}/`. 
+  - `ccy_country_weights_cache` → `schemas.1A.yaml#/prep/ccy_country_weights_cache`; **PK** `(currency, country_iso)`; path `data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/`.
+  - `merchant_currency` (S5.0) → `schemas.1A.yaml#/prep/merchant_currency`; path `data/layer1/1A/merchant_currency/parameter_hash={parameter_hash}/`. 
+  - `sparse_flag` (per-currency diagnostics) → `schemas.1A.yaml#/prep/sparse_flag`; path `data/layer1/1A/sparse_flag/parameter_hash={parameter_hash}/`. 
   All IDs, schema `$ref`s, PK/FK rules, and paths above are **normative** and MUST match the dictionary. 
 
 **0.6 Hash canonicalisation (applies to the S5 policy file)**
@@ -54,7 +54,7 @@ This S5 spec is **compatible with** and **assumes** the following already-ratifi
 **0.7 Document status & lifecycle**
 
 * **Status:** `planning → beta → stable`. Publication on `stable` requires Section 9 PASS on a representative run and dictionary/schema lint clean for all `$ref`s noted above. 
-* **Change control:** governed by §16 (semver triggers, deprecation, rollback); S5 remains **Binding** for the `v1.*` family of S0–S4 contracts cited in **0.4**.
+* **Change control:** governed by §16 (semver triggers, deprecation, rollback); S5 remains **Binding** for the `v1.*` family of S0-S4 contracts cited in **0.4**.
 
 ---
 
@@ -65,7 +65,7 @@ S5 produces a **deterministic, parameter-scoped authority** of **currency→coun
 
 **1.2 Scope (what S5 covers)**
 S5 SHALL:
-a) Read only **parameter-scoped** S0-sealed datasets and policy named in this spec (§3–§4). Inputs include **`settlement_shares_2024Q4`** and **`ccy_country_shares_2024Q4`** as defined by the **ingress JSON-Schemas** and the dataset dictionary.
+a) Read only **parameter-scoped** S0-sealed datasets and policy named in this spec (§3-§4). Inputs include **`settlement_shares_2024Q4`** and **`ccy_country_shares_2024Q4`** as defined by the **ingress JSON-Schemas** and the dataset dictionary.
 b) Optionally materialise a **`merchant_currency`** cache (S5.0) that provides each merchant’s settlement currency κₘ for downstream joins; it is parameter-scoped and listed in the dictionary. 
 c) Produce **`ccy_country_weights_cache`** with **PK `(currency, country_iso)`**, **numeric `weight` (pct01) with dp rounding semantics (§6.7)**, and embedded `parameter_hash`, at the **parameter-scoped** path declared in the dictionary. 
 d) Enforce that **coverage per currency equals the union** of ISO codes appearing in either input surface, unless policy narrows it (see §5.5/§6.10).
@@ -239,7 +239,7 @@ If any of the following are observed in either share surface, S5 **MUST** fail c
 **4.1 Policy file (location, consumers, version pinning)**
 
 * **ID & path (registry):** `ccy_smoothing_params` at `configs/allocation/ccy_smoothing_params.yaml`. This artefact **MUST** appear in the **Artefact Registry** with a manifest key (e.g., `mlr.1A.params.ccy_smoothing`) and metadata (semver, version, digest). It is **first consumed in S5/S6** and governs the build of `ccy_country_weights_cache` (and the optional `merchant_currency` cache).  
-* **Authority scope:** This document defines the **normative key set and domains** for the file. (JSON-Schema for this config may be added to the schema authority; until then, the rules in §4.2–§4.6 are binding.) 
+* **Authority scope:** This document defines the **normative key set and domains** for the file. (JSON-Schema for this config may be added to the schema authority; until then, the rules in §4.2-§4.6 are binding.) 
 * **Consumers:** S5 **weights builder** and S6 **merchant_currency** cache builder. Changing this file **changes policy** → **new `parameter_hash`**. 
 * **Versioning fields in-file:** `semver: "MAJOR.MINOR.PATCH"` and `version: "YYYY-MM-DD"` **MUST** be present. 
 
@@ -458,7 +458,7 @@ If neither declared source exists in the dictionary for a given deployment, do n
 
 * **RNG prohibition:** S5 **MUST NOT** emit or consume any RNG events (§11).  
 * **Stable iteration:** Processing is defined **per currency**; within a currency, the canonical **evaluation order is `country_iso` A→Z**. Parallelism is **permitted by currency** only; merges **MUST** preserve `(currency ASC, country_iso ASC)` writer order.  
-* **Numeric consistency:** Use IEEE-754 **binary64** throughout §6.1–§6.6; quantisation behaviour is fixed by §6.7.
+* **Numeric consistency:** Use IEEE-754 **binary64** throughout §6.1-§6.6; quantisation behaviour is fixed by §6.7.
 
 ## 6.9 Idempotence & re-run semantics
 
@@ -602,7 +602,7 @@ S5 MUST emit, alongside outputs:
 ## 8.11 Run outcome
 
 * **PASS:** No hard FAILs; all outputs meet §7; diagnostics present; (some currencies may have `degrade_mode ≠ none`).
-* **FAIL:** Any error in 8.1–8.3, 8.8–8.9, or invariant breach → **no read** by downstream until Section §9 PASS is recorded for the same `parameter_hash`. 
+* **FAIL:** Any error in 8.1-8.3, 8.8-8.9, or invariant breach → **no read** by downstream until Section §9 PASS is recorded for the same `parameter_hash`. 
 
 ---
 
@@ -614,8 +614,8 @@ S5 MUST emit, alongside outputs:
 
 1. **Schema conformance.** Every S5 dataset passes its JSON-Schema anchor (e.g., `schemas.1A.yaml#/prep/ccy_country_weights_cache`). Fail closed on any field/type/nullable/required mismatch. 
 2. **PK/FK & domains.**
-   – `ccy_country_weights_cache` has unique **PK** `(currency, country_iso)`; `currency ∈ ISO-4217`, `country_iso ∈ ISO2` and FK-valid to canonical ISO. 
-   – If present, `merchant_currency` and `sparse_flag` obey their PKs and domains. 
+   - `ccy_country_weights_cache` has unique **PK** `(currency, country_iso)`; `currency ∈ ISO-4217`, `country_iso ∈ ISO2` and FK-valid to canonical ISO. 
+   - If present, `merchant_currency` and `sparse_flag` obey their PKs and domains. 
 3. **Partition & path discipline.** Parameter-scoped outputs live under `…/parameter_hash={parameter_hash}/` and **embed the same `parameter_hash`** byte-for-byte. Writes are **atomic** (stage→fsync→single rename). 
 4. **No RNG interaction.** No `rng_*` streams for S5; RNG trace length is **unchanged** vs S4’s manifest. Any delta is a run-fail.
 
@@ -651,14 +651,14 @@ data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/
 `_passed.flag` contains the **SHA-256** over the **ASCII-lexicographic** concatenation of all other files in this small receipt (exclude the flag itself). This mirrors the layer-wide gate pattern in S0’s validation bundle, but is **parameter-scoped** for S5. **Atomic publish** applies. 
 
 *Notes.*
-– This S5 receipt **does not replace** the 1A **fingerprint-scoped** validation bundle (`validation_bundle_1A`) and its `_passed.flag`; that layer-wide gate remains the authority for egress consumption (e.g., `outlet_catalogue`). 
-– The dictionary continues to govern dataset paths; the S5 receipt is a **sidecar manifest** within the approved dataset path, consistent with S0’s publish/atomicity discipline. 
+- This S5 receipt **does not replace** the 1A **fingerprint-scoped** validation bundle (`validation_bundle_1A`) and its `_passed.flag`; that layer-wide gate remains the authority for egress consumption (e.g., `outlet_catalogue`). 
+- The dictionary continues to govern dataset paths; the S5 receipt is a **sidecar manifest** within the approved dataset path, consistent with S0’s publish/atomicity discipline. 
 
 ## 9.7 PASS/FAIL semantics
 
-* **S5 PASS (parameter-scoped):** All checks in §§9.1–9.5 succeed **and** the S5 receipt is present with a valid `_passed.flag` whose hash matches its contents. Downstream parameter-scoped readers (**e.g., S6**) MUST verify this receipt **for the same `parameter_hash`** before reading (`no PASS → no read`). 
+* **S5 PASS (parameter-scoped):** All checks in §§9.1-9.5 succeed **and** the S5 receipt is present with a valid `_passed.flag` whose hash matches its contents. Downstream parameter-scoped readers (**e.g., S6**) MUST verify this receipt **for the same `parameter_hash`** before reading (`no PASS → no read`). 
 * **Layer-wide PASS (unchanged):** For egress reads (e.g., `outlet_catalogue`), consumers MUST verify `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag` matches `validation_bundle_1A` for that fingerprint, per S0. 
-* **FAIL:** Any breach in §§9.1–9.5, or missing/invalid `_passed.flag`, aborts the run; no partial publishes. Follow S0 abort semantics (write failure sentinel; freeze; exit non-zero). 
+* **FAIL:** Any breach in §§9.1-9.5, or missing/invalid `_passed.flag`, aborts the run; no partial publishes. Follow S0 abort semantics (write failure sentinel; freeze; exit non-zero). 
 
 ## 9.8 Minimal validator report content (normative fields)
 
@@ -683,16 +683,16 @@ Re-running S5 with identical inputs and **identical policy bytes** produces **by
 **10.1 Partitioning law (parameter-scoped only)**
 
 * All S5 datasets are **parameter-scoped** with **partition key = `parameter_hash`**. No `{seed}` or `{fingerprint}` partitions are permitted for S5 outputs. The dictionary pins the paths and partitions:
-  – `ccy_country_weights_cache → data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/` with `partitioning: [parameter_hash]`. 
-  – `merchant_currency → data/layer1/1A/merchant_currency/parameter_hash={parameter_hash}/` with `partitioning: [parameter_hash]`. 
-  – `sparse_flag → data/layer1/1A/sparse_flag/parameter_hash={parameter_hash}/` with `partitioning: [parameter_hash]`. 
+  - `ccy_country_weights_cache → data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/` with `partitioning: [parameter_hash]`. 
+  - `merchant_currency → data/layer1/1A/merchant_currency/parameter_hash={parameter_hash}/` with `partitioning: [parameter_hash]`. 
+  - `sparse_flag → data/layer1/1A/sparse_flag/parameter_hash={parameter_hash}/` with `partitioning: [parameter_hash]`. 
   The **contrast** (for clarity): RNG/egress families are **not** in scope here and remain `{seed,parameter_hash,run_id}` or `{seed,fingerprint}` per S0/S3/S9.
 
 **10.2 Embedded lineage fields & path↔embed equality**
 
 * Where a schema **includes** lineage columns, their values are **normative**:
-  – `parameter_hash` **MUST equal** the partition key byte-for-byte (hex64).
-  – `produced_by_fingerprint?` (if present in the schema) is **informational only** and MUST equal the run’s `manifest_fingerprint` when populated. 
+  - `parameter_hash` **MUST equal** the partition key byte-for-byte (hex64).
+  - `produced_by_fingerprint?` (if present in the schema) is **informational only** and MUST equal the run’s `manifest_fingerprint` when populated. 
 * S0’s partition lint applies: parameter-scoped datasets live under `parameter_hash=…` and **rows embed the same `parameter_hash`** wherever the schema defines that column. 
 * Readers MUST treat **physical file order as non-authoritative** (dictionary `ordering: []`). Writers emit rows sorted `(currency ASC, country_iso ASC)` for byte-stable reruns (§6.8/§7.7). 
 
@@ -705,9 +705,9 @@ Re-running S5 with identical inputs and **identical policy bytes** produces **by
 **10.4 Paths & schemas (authority alignment)**
 
 * Paths and partition keys for S5 datasets **MUST** match the Dataset Dictionary entries and their schema anchors:
-  – `ccy_country_weights_cache → schemas.1A.yaml#/prep/ccy_country_weights_cache` (PK `(currency,country_iso)`, partition_keys `[parameter_hash]`).
-  – `merchant_currency → schemas.1A.yaml#/prep/merchant_currency` (PK `(merchant_id)`, partition_keys `[parameter_hash]`).
-  – `sparse_flag → schemas.1A.yaml#/prep/sparse_flag` (PK `(currency)`, partition_keys `[parameter_hash]`).
+  - `ccy_country_weights_cache → schemas.1A.yaml#/prep/ccy_country_weights_cache` (PK `(currency, country_iso)`, partition_keys `[parameter_hash]`).
+  - `merchant_currency → schemas.1A.yaml#/prep/merchant_currency` (PK `(merchant_id)`, partition_keys `[parameter_hash]`).
+  - `sparse_flag → schemas.1A.yaml#/prep/sparse_flag` (PK `(currency)`, partition_keys `[parameter_hash]`).
 * **JSON-Schema remains authoritative** for lineage columns: some tables enumerate `parameter_hash` explicitly; others declare it as a `partition_keys` property. Both are binding, and S0’s partition lint enforces equality to the path. 
 
 **10.5 Immutability & atomic publish**
@@ -725,7 +725,7 @@ Re-running S5 with identical inputs and **identical policy bytes** produces **by
 
 **10.8 Registry & dictionary consistency (governance)**
 
-* The **artefact registry** entries for `ccy_country_weights_cache`, `merchant_currency`, `sparse_flag`, and `ccy_smoothing_params` MUST exist and reflect path, version (`{parameter_hash}`), and schema refs exactly.
+* The **Artefact Registry** entries for `ccy_country_weights_cache`, `merchant_currency`, `sparse_flag`, and `ccy_smoothing_params` MUST exist and reflect path, version (`{parameter_hash}`), and schema refs exactly.
 * The **dataset dictionary** is the single authority for dataset **IDs, paths, partitioning, owners, and retention**; S5 must not deviate. 
 
 **10.9 Downstream gates (read discipline)**
@@ -748,7 +748,7 @@ Re-running S5 with identical inputs and **identical policy bytes** produces **by
 
 **11.3 No consumption of RNG logs**
 
-* S5 **MUST NOT** read `rng_audit_log`, `rng_trace_log`, or `rng_event_*` streams. S5’s computation depends only on the ingress share surfaces and S5 policy (§3–§4). 
+* S5 **MUST NOT** read `rng_audit_log`, `rng_trace_log`, or `rng_event_*` streams. S5’s computation depends only on the ingress share surfaces and S5 policy (§3-§4). 
 
 **11.4 Trace invariants (proof of non-interaction)**
 
@@ -786,14 +786,14 @@ Re-running S5 with identical inputs and **identical policy bytes** produces **by
 
 * Currencies in scope: O(10²).
 * Countries per currency (union of the two ingress surfaces): O(10²); practical maximum ≲ a few ×10².
-* Total pairs processed per run: O(currencies × countries) → typically ≤ O(10⁴–10⁵).
+* Total pairs processed per run: O(currencies × countries) → typically ≤ O(10⁴-10⁵).
 * Policy overrides: sparse relative to total pairs (expected << 10%).
 
 **12.2 Concurrency scope & determinism** *(Binding)*
 
 * **Concurrency boundary:** Parallelism is **per currency only** (no parallel reductions within a single currency). (§6.8)
 * **Deterministic merge:** Independent currency shards **MUST** converge to outputs that are **byte-identical** to a single-threaded run, with writer order `(currency ASC, country_iso ASC)`. (§6.8/§7.7)
-* **Within-currency evaluation:** The effective computation **MUST** be equivalent to evaluating §6.1–§6.7 in `country_iso` A→Z order using binary64, then applying the §6.7 tie-break. No alternative evaluation order is permitted.
+* **Within-currency evaluation:** The effective computation **MUST** be equivalent to evaluating §6.1-§6.7 in `country_iso` A→Z order using binary64, then applying the §6.7 tie-break. No alternative evaluation order is permitted.
 * **Shard-count invariance:** Changing the number of worker shards **MUST NOT** change any output byte.
 
 **12.3 Time complexity** *(Informative)*
@@ -842,7 +842,7 @@ Re-running S5 with identical inputs and **identical policy bytes** produces **by
 
 **12.11 Failure domains** *(Informative)*
 
-* Pre-flight hard FAILs (§8.1–§8.2) short-circuit the run before any writes.
+* Pre-flight hard FAILs (§8.1-§8.2) short-circuit the run before any writes.
 * Per-currency errors in §8.3 escalate to **run abort** (no partial publish).
 * Degrades (§8.4/§8.6) are **per currency** and do not affect others, but PASS requires all invariants (§7) to hold on emitted outputs.
 
@@ -919,7 +919,7 @@ Re-running S5 with identical inputs and **identical policy bytes** produces **by
 
 ---
 
-## 13.4 DAG wiring — internal & S0–S4 integration
+## 13.4 DAG wiring — internal & S0-S4 integration
 
 *(Binding at interfaces; Informative for scheduling)*
 
@@ -939,7 +939,7 @@ All are registered/approved in the dictionary/registry.
 
 **P4 — RNG stance.** No RNG streams are to be produced by S5; S5 will later verify **no change** in `rng_trace_log` totals vs the pre-run snapshot for this run context (see §11 / §9). 
 
-> **Note.** S5 has **no hard data dependency** on S1–S4 datasets to compute weights. S3’s order authority and S4’s ZTP logs are relevant only to **downstream** readers and the **non-interaction proof**, respectively.
+> **Note.** S5 has **no hard data dependency** on S1-S4 datasets to compute weights. S3’s order authority and S4’s ZTP logs are relevant only to **downstream** readers and the **non-interaction proof**, respectively.
 
 ---
 
@@ -951,12 +951,12 @@ Responsibilities: (a) validate policy keys/domains/overrides (§4), (b) assert i
 
 **N1 — Pre-flight ingress checks (Binding).**
 Inputs: `settlement_shares_2024Q4`, `ccy_country_shares_2024Q4`, `iso3166_canonical_2024`.
-Responsibilities: enforce §3.2–§3.4 (PK/FK, domains, **Σ=1±1e-6** per currency). **On failure:** `E_INPUT_SCHEMA`/`E_INPUT_SUM` (abort). 
+Responsibilities: enforce §3.2-§3.4 (PK/FK, domains, **Σ=1±1e-6** per currency). **On failure:** `E_INPUT_SCHEMA`/`E_INPUT_SUM` (abort). 
 **Edge:** `N0 → N1`.
 
 **N2 — Build `ccy_country_weights_cache` (Binding).**
 Inputs: N1 datasets + N0 policy.
-Responsibilities: apply §6.1–§6.7 (union coverage; blend; effective mass; α smoothing; floors; renormalise; **fixed-dp + deterministic largest-remainder**; writer sort `(currency,country_iso)` ASC). **Output dataset:** `data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/` with **PK `(currency,country_iso)`** and **path↔embed equality**. 
+Responsibilities: apply §6.1-§6.7 (union coverage; blend; effective mass; α smoothing; floors; renormalise; **fixed-dp + deterministic largest-remainder**; writer sort `(currency, country_iso)` ASC). **Output dataset:** `data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/` with **PK `(currency, country_iso)`** and **path↔embed equality**.
 **Edge:** `N1 → N2`.
 
 **N2b — (Optional) Build `merchant_currency` (Binding).**
@@ -974,7 +974,7 @@ Publish S5 datasets by **staging → single atomic rename**; ensure **write-once
 
 ---
 
-### 13.4.3 Wiring to S0–S4 (Binding)
+### 13.4.3 Wiring to S0-S4 (Binding)
 
 * **S0 (governance & gates).** S5 inherits S0’s partition law and atomicity: parameter-scoped outputs embed the same `parameter_hash` as the path, and validation receipts use the `_passed.flag` pattern (**ASCII-lexicographic** hash over the sidecar files). 
 
@@ -988,7 +988,7 @@ Publish S5 datasets by **staging → single atomic rename**; ensure **write-once
 
 ### 13.4.4 Concurrency & idempotence (Binding)
 
-* **Shard boundary:** currencies may be processed in parallel **by currency** only; merges must yield **byte-identical** results to a single-threaded run and preserve writer sort `(currency,country_iso)` ASC. 
+* **Shard boundary:** currencies may be processed in parallel **by currency** only; merges must yield **byte-identical** results to a single-threaded run and preserve writer sort `(currency, country_iso)` ASC.
 * **Re-runs:** a completed `parameter_hash` partition is **immutable**; re-running with identical inputs/policy must be **byte-identical** or refused. 
 
 ---
@@ -1005,7 +1005,7 @@ Publish S5 datasets by **staging → single atomic rename**; ensure **write-once
 
 ### 13.4.7 ASCII overview *(Informative; non-authoritative)*
 
-> This diagram is for **reader orientation only**. It does **not** add requirements. On any discrepancy, §§6–11 and §§13.1–13.4.6 (Binding) prevail.
+> This diagram is for **reader orientation only**. It does **not** add requirements. On any discrepancy, §§6-11 and §§13.1-13.4.6 (Binding) prevail.
 
 ```
 [ENTER S5]
@@ -1071,7 +1071,7 @@ Publish S5 datasets by **staging → single atomic rename**; ensure **write-once
 ## 14.1 Surfaces (where metrics appear)
 
 * **S5 receipt (Binding):** `S5_VALIDATION.json` adjacent to `ccy_country_weights_cache/parameter_hash={parameter_hash}/` (same partition), plus `_passed.flag`. This file **MUST** contain the run-level summary (§14.3) and per-currency records (§14.4). No separate metrics dataset is created. 
-* **Structured logs (Binding for fields, Informative for transport):** JSON-lines emitted during N0–N4 (see §13.4) with the required fields in §14.5. Transport/backends are out of scope.
+* **Structured logs (Binding for fields, Informative for transport):** JSON-lines emitted during N0-N4 (see §13.4) with the required fields in §14.5. Transport/backends are out of scope.
 * **Layer-wide bundle (Informative):** fingerprint-scoped validation bundle remains unchanged and separate; it is not a sink for S5 parameter-scoped metrics. 
 
 ## 14.2 Dimensions & identity (Binding)
@@ -1165,8 +1165,8 @@ Operators SHOULD maintain one tiny, public-derivable fixture (≤ 3 currencies, 
 ---
 
 **Notes.**
-– Nothing in §14 alters dataset contracts; the **weights cache** remains the only persisted authority for currency→country weights, and **order** continues to be owned by S3’s candidate set (not by S5 metrics).
-– RNG logs (audit/trace/event) are **unchanged**; S5 merely proves non-interaction via zero deltas.
+- Nothing in §14 alters dataset contracts; the **weights cache** remains the only persisted authority for currency→country weights, and **order** continues to be owned by S3’s candidate set (not by S5 metrics).
+- RNG logs (audit/trace/event) are **unchanged**; S5 merely proves non-interaction via zero deltas.
 
 ---
 
@@ -1182,9 +1182,9 @@ Operators SHOULD maintain one tiny, public-derivable fixture (≤ 3 currencies, 
 ## 15.2 Licensing (inputs, outputs, and registry alignment)
 
 * **Ingress licences (examples relevant to S5):**
-  – `iso3166_canonical_2024` → **CC-BY-4.0** (external reference). 
-  – `settlement_shares_2024Q4` → **Proprietary-Internal**. 
-  – `ccy_country_shares_2024Q4` → **Proprietary-Internal**. 
+  - `iso3166_canonical_2024` → **CC-BY-4.0** (external reference). 
+  - `settlement_shares_2024Q4` → **Proprietary-Internal**. 
+  - `ccy_country_shares_2024Q4` → **Proprietary-Internal**. 
 * **S5 outputs’ licence class:** `ccy_country_weights_cache`, `merchant_currency`, and `sparse_flag` are **Proprietary-Internal**, retained 365 days; S5 MUST publish under those exact classes and retention windows declared in the dictionary. 
 * **Licence mapping artefact:** the registry exposes `licenses/license_map.yaml` for tracing artefact→licence during validation/release. S5 MUST confirm the **presence** of a licence entry for every input it consumes; absence is a **run-fail**. (No need to interpret legal text—presence + ID match is required.) 
 
@@ -1296,8 +1296,8 @@ Before merging a change that would bump **MAJOR**, ensure all are true:
 
 ## 17.1 Build-time (before first run)
 
-* [ ] **Parameter scope fixed** and communicated (`parameter_hash` chosen for this run). (§0.6, §10.1–§10.3)
-* [ ] **Policy file present** at `ccy_smoothing_params.yaml`; has `semver`, `version`, `dp`; passes key/domain rules and feasibility (**Σ min_share_iso ≤ 1**); all codes upper-case and valid. (§4.2–§4.6)
+* [ ] **Parameter scope fixed** and communicated (`parameter_hash` chosen for this run). (§0.6, §10.1-§10.3)
+* [ ] **Policy file present** at `ccy_smoothing_params.yaml`; has `semver`, `version`, `dp`; passes key/domain rules and feasibility (**Σ min_share_iso ≤ 1**); all codes upper-case and valid. (§4.2-§4.6)
 * [ ] **Dictionary + schema bundles** available and readable; S5 will treat **JSON-Schema as the only authority**. (§0.3, §5, §13.1)
 * [ ] **Artefact registry** entries exist for: `ccy_country_weights_cache`, `merchant_currency` (if used), `sparse_flag` (if used), and `ccy_smoothing_params`. (§10.8)
 * [ ] **CLI wiring**: required flags supplied (`--parameter-hash`, `--input-root`, `--output-root`, `--policy-file`, `--dictionary`, `--schemas`). No implicit defaults. (§13.1)
@@ -1305,25 +1305,25 @@ Before merging a change that would bump **MAJOR**, ensure all are true:
 
 ## 17.2 Run-time (execution checks)
 
-* [ ] **Ingress pre-flight passes** for both share surfaces: PK/FK, domains, **Σ share = 1 ± 1e-6** per currency; schema-exact columns. (§3.2–§3.4, §8.1)
+* [ ] **Ingress pre-flight passes** for both share surfaces: PK/FK, domains, **Σ share = 1 ± 1e-6** per currency; schema-exact columns. (§3.2-§3.4, §8.1)
 * [ ] **Union coverage formed** per currency (countries = union of both surfaces; missing treated as 0). (§6.1)
 * [ ] **Degrade rules respected** when one surface is missing: `degrade_mode ∈ {ccy_only, settlement_only}` with reason code; otherwise no degrade. (§8.4, §8.7)
-* [ ] **Numeric discipline**: all math in **binary64** through blend → effective mass → α-smoothing → floors → renormalise. (§6.2–§6.6)
+* [ ] **Numeric discipline**: all math in **binary64** through blend → effective mass → α-smoothing → floors → renormalise. (§6.2-§6.6)
 * [ ] **Feasibility guard** enforced for floors (Σ min_share_iso ≤ 1). (§6.5, §8.2)
 * [ ] **Quantisation** uses fixed-dp **round-half-even** then deterministic **largest-remainder** tie-break; per-currency **decimal Σ@dp = 1**. (§6.7)
 * [ ] **Determinism**: no RNG usage; stable order within currency (ISO A→Z); parallelism only **by currency**; writer sort `(currency ASC, country_iso ASC)`. (§6.8, §12.2, §11)
-* [ ] **Outputs conform** to schemas and dictionary: IDs, paths, PKs, partitioning (parameter-scoped only). (§5, §10.1, §7.2–§7.5)
+* [ ] **Outputs conform** to schemas and dictionary: IDs, paths, PKs, partitioning (parameter-scoped only). (§5, §10.1, §7.2-§7.5)
 * [ ] **Path↔embed equality** for `parameter_hash` holds byte-for-byte. (§7.8, §10.2)
-* [ ] **RNG non-interaction**: S5 writes **no** `rng_*`; `rng_trace_log` totals unchanged vs pre-run snapshot. (§11.1–§11.4)
-* [ ] *(Optional if enabled)* `merchant_currency` and/or `sparse_flag` built and schema-valid. (§5.2–§5.3)
+* [ ] **RNG non-interaction**: S5 writes **no** `rng_*`; `rng_trace_log` totals unchanged vs pre-run snapshot. (§11.1-§11.4)
+* [ ] *(Optional if enabled)* `merchant_currency` and/or `sparse_flag` built and schema-valid. (§5.2-§5.3)
 
 ## 17.3 Validator & PASS artefacts (publish gate)
 
 * [ ] **Re-derivation succeeds**: validator recomputes weights from inputs+policy per §6 and matches **byte-for-byte** at `dp`. (§9.4)
-* [ ] **Structural/content checks pass**: schema, PK/FK, domain, **numeric Σ**, **decimal Σ@dp**, coverage parity (or recorded policy-narrowing). (§9.1–§9.3)
+* [ ] **Structural/content checks pass**: schema, PK/FK, domain, **numeric Σ**, **decimal Σ@dp**, coverage parity (or recorded policy-narrowing). (§9.1-§9.3)
 * [ ] **Degrade/override attestations** present for every affected currency. (§9.5)
 * [ ] **S5 receipt written** under the weights cache partition: `S5_VALIDATION.json` (required fields present) and `_passed.flag` with a valid hash computed as specified. (§9.6, §9.8)
-* [ ] **Write-once + atomic publish** observed; no partial visibility; retry semantics respected. (§10.5–§10.6)
+* [ ] **Write-once + atomic publish** observed; no partial visibility; retry semantics respected. (§10.5-§10.6)
 * [ ] **Downstream gate armed**: policy that **no PASS → no read** is enforced for S6 by contract. (§9.7)
 
 ## 17.4 Operability & compliance (post-run sign-off)
@@ -1346,8 +1346,8 @@ Before merging a change that would bump **MAJOR**, ensure all are true:
 
 ## A.1 Identifiers & partitions
 
-* **`parameter_hash` (Hex64)** — The sole **parameter-scoped** partition key for S5 outputs and related caches. It is embedded (where the schema includes it) and must equal the path key byte-for-byte. Changing governed policy bytes flips this value. Paths using `parameter_hash` are pinned in the dictionary (e.g., S3 deterministic surfaces). 
-* **`manifest_fingerprint` (Hex64)** — Layer-wide run fingerprint used for **egress** gating (e.g., `outlet_catalogue`). Not a partition for S5 outputs.
+* **`parameter_hash` (hex64)** — The sole **parameter-scoped** partition key for S5 outputs and related caches. It is embedded (where the schema includes it) and must equal the path key byte-for-byte. Changing governed policy bytes flips this value. Paths using `parameter_hash` are pinned in the dictionary (e.g., S3 deterministic surfaces).
+* **`manifest_fingerprint` (hex64)** — Layer-wide run fingerprint used for **egress** gating (e.g., `outlet_catalogue`). Not a partition for S5 outputs.
 * **`run_id`** — Per-run identifier **only** for RNG log partitions `{seed, parameter_hash, run_id}`; S5 does not read/write these. 
 
 ## A.2 Schema, dictionary & domains
@@ -1572,7 +1572,7 @@ Each log record is a single JSON object with at least:
 
 # Appendix C. Worked example (tiny, numeric) *(Non-normative)*
 
-> Purpose: illustrate §6 behaviour with small numbers. This appendix does **not** add requirements; if any discrepancy appears, §§6–11 control.
+> Purpose: illustrate §6 behaviour with small numbers. This appendix does **not** add requirements; if any discrepancy appears, §§6-11 control.
 
 ## C.1 No tie-break needed (USD; dp=3)
 
