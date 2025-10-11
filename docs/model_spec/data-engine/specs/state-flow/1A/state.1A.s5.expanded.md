@@ -77,7 +77,7 @@ S5 SHALL NOT:
 a) **Consume RNG** or write any `rng_*` streams; RNG traces and counters are out of scope for S5. (S5 is deterministic by construction.)
 b) **Create, alter, or encode inter-country order**; the only order authority remains S3’s `candidate_rank`. 
 c) **Make merchant-level choices** (e.g., selecting countries for a merchant, setting K, or allocating counts). Those belong to S6+ and remain gated by S3/S4 contracts. 
-d) **Re-derive S0/S3 invariants** (e.g., ISO enumerations, Σ=1 constraints of ingress surfaces); S5 validates them pre-flight and fails closed if violated (see §3.6/§9). 
+d) **Re-derive S0/S3 invariants** (e.g., ISO enumerations, Σ=1 constraints of ingress surfaces); S5 validates them pre-flight and fails closed if violated (see §3.3/§3.4 and §9). 
 e) **Write egress artifacts** (e.g., `outlet_catalogue`) or any dataset partitioned by `{seed,fingerprint}`; S5 is **parameter-scoped only**. 
 
 **1.4 Success criteria (what “done right” means)**
@@ -498,7 +498,7 @@ If neither declared source exists in the dictionary for a given deployment, do n
 
 **7.6 Quantisation & dp exactness (output discipline)**
 
-* Although `weight` is stored as a numeric (`pct01`), each value **MUST** be the round-half-even quantisation of the pre-quantised probability to the configured **`dp`** from S5 policy; when the `weight`s are expressed to exactly `dp` decimal places as strings, their **decimal sum MUST equal `1` at `dp`**. (This is stricter than the schema tolerance and is required by this spec.) 
+* Although `weight` is stored as a numeric (`pct01`), each value **MUST** be the round-half-even quantisation of the pre-quantised probability to the configured **`dp`** from S5 policy; when `weight` values are expressed to exactly `dp` decimal places as strings, their **decimal sum MUST equal `1` at `dp`**. (This is stricter than the schema tolerance and is required by this spec.)
 
 **7.7 Sorting & deterministic writer order**
 
@@ -1116,7 +1116,7 @@ Top-level object **MUST** include these keys (types/semantics fixed):
 
 * **RNG non-interaction:**
 
-  * `rng_trace_delta_events : int` — sum of deltas in `rng_trace_log.events_total` across all (module,substream) keys (MUST be 0).
+  * `rng_trace_delta_events : int` — sum of deltas in `rng_trace_log.events_total` across all (module, substream) keys (MUST be 0).
   * `rng_trace_delta_draws : int` — sum of deltas in `draws_total` (MUST be 0). 
 
 * **Lists (for operator visibility):**
@@ -1143,7 +1143,7 @@ Top-level object **MUST** include these keys (types/semantics fixed):
 
 Each log line **MUST** be a single JSON object with at least:
 
-* `ts : string(ISO8601)`; `level : "INFO"|"WARN"|"ERROR"`;
+* `ts : string (ISO 8601)`; `level : "INFO"|"WARN"|"ERROR"`;
 * `component : "1A.expand_currency_to_country"`;
 * `stage : "N0"|"N1"|"N2"|"N2b"|"N3"|"N4"` (see §13.4);
 * `parameter_hash : hex64`; `currency? : ISO4217`;
@@ -1428,7 +1428,7 @@ Before merging a change that would bump **MAJOR**, ensure all are true:
 ## B.1 Read/write dataset anchors (IDs, `$ref`, PKs, partitions)
 
 | Role                   | Dataset ID                  | `$ref` (schema anchor)                                | Primary key (per partition) | Partitions         | Dictionary path (prefix)                                                    |
-| ---------------------- | --------------------------- | ----------------------------------------------------- | --------------------------- | ------------------ | --------------------------------------------------------------------------- |
+|------------------------|-----------------------------|-------------------------------------------------------|-----------------------------|--------------------|-----------------------------------------------------------------------------|
 | **Input**              | `settlement_shares_2024Q4`  | `schemas.ingress.layer1.yaml#/settlement_shares`      | `(currency, country_iso)`   | —                  | `reference/network/settlement_shares/2024Q4/…`                              |
 | **Input**              | `ccy_country_shares_2024Q4` | `schemas.ingress.layer1.yaml#/ccy_country_shares`     | `(currency, country_iso)`   | —                  | `reference/network/ccy_country_shares/2024Q4/…`                             |
 | **FK target**          | `iso3166_canonical_2024`    | `schemas.ingress.layer1.yaml#/iso3166_canonical_2024` | `(country_iso)`             | —                  | `reference/iso/iso3166_canonical/2024-12-31/…`                              |
@@ -1443,7 +1443,7 @@ Before merging a change that would bump **MAJOR**, ensure all are true:
 ## B.2 Code domains & FK constraints
 
 | Symbol              | Closed domain                                                                                   | Enforcement / source of truth                         |
-| ------------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+|---------------------|-------------------------------------------------------------------------------------------------|-------------------------------------------------------|
 | `country_iso`       | ISO-3166-1 **alpha-2**, **uppercase**; placeholders such as `XX`, `ZZ`, `UNK` are **forbidden** | FK to `iso3166_canonical_2024.country_iso`            |
 | `currency`          | ISO-4217, **uppercase** 3-letter                                                                | Ingress schema for both share surfaces                |
 | Inter-country order | **S3** `s3_candidate_set.candidate_rank` (home=0; contiguous)                                   | Sole order authority; S5 must not encode/ imply order |
@@ -1454,19 +1454,19 @@ Before merging a change that would bump **MAJOR**, ensure all are true:
 
 **Artefact:** `configs/allocation/ccy_smoothing_params.yaml` (the **only** S5 file that contributes to `parameter_hash`). Keys/domains/precedence are **closed** as below.
 
-| Key                                    | Type / Domain                        | Scope    | Precedence              |
-| -------------------------------------- | ------------------------------------ | -------- | ----------------------- |
-| `semver`                               | string `MAJOR.MINOR.PATCH`           | file     | —                       |
-| `version`                              | date `YYYY-MM-DD`                    | file     | —                       |
-| `dp`                                   | int **[0,18]**                       | global   | —                       |
-| `defaults.blend_weight`                | number **[0,1]**                     | currency | global → currency       |
-| `defaults.alpha`                       | number **≥ 0**                       | ISO      | global → currency → ISO |
-| `defaults.obs_floor`                   | int **≥ 0**                          | currency | global → currency       |
-| `defaults.min_share`                   | number **[0,1]**                     | ISO      | global → currency → ISO |
+| Key                                    | Type / Domain                                                     | Scope    | Precedence              |
+|----------------------------------------|-------------------------------------------------------------------|----------|-------------------------|
+| `semver`                               | string `MAJOR.MINOR.PATCH`                                        | file     | —                       |
+| `version`                              | date `YYYY-MM-DD`                                                 | file     | —                       |
+| `dp`                                   | int **[0,18]**                                                    | global   | —                       |
+| `defaults.blend_weight`                | number **[0,1]**                                                  | currency | global → currency       |
+| `defaults.alpha`                       | number **≥ 0**                                                    | ISO      | global → currency → ISO |
+| `defaults.obs_floor`                   | int **≥ 0**                                                       | currency | global → currency       |
+| `defaults.min_share`                   | number **[0,1]**                                                  | ISO      | global → currency → ISO |
 | `defaults.shrink_exponent`             | number **≥ 0** *(values < 1 are treated as 1 at evaluation time)* | currency | global → currency       |
-| `per_currency.<CCY>.{…}`               | subset of `defaults` keys            | currency | overrides `defaults`    |
-| `overrides.alpha_iso.<CCY>.<ISO2>`     | number **≥ 0**                       | ISO      | **top priority**        |
-| `overrides.min_share_iso.<CCY>.<ISO2>` | number **[0,1]** (with Σ floors ≤ 1) | ISO      | **top priority**        |
+| `per_currency.<CCY>.{…}`               | subset of `defaults` keys                                         | currency | overrides `defaults`    |
+| `overrides.alpha_iso.<CCY>.<ISO2>`     | number **≥ 0**                                                    | ISO      | **top priority**        |
+| `overrides.min_share_iso.<CCY>.<ISO2>` | number **[0,1]** (with Σ floors ≤ 1)                              | ISO      | **top priority**        |
 
 **Strictness:** unknown keys → **error**; codes must be uppercase and exist in the ISO domains.
 
@@ -1475,7 +1475,7 @@ Before merging a change that would bump **MAJOR**, ensure all are true:
 ## B.4 Degrade & reason vocabularies (per-currency)
 
 | Field                 | Allowed values (closed)                                              | Semantics                                                        |
-| --------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------- |
+|-----------------------|----------------------------------------------------------------------|------------------------------------------------------------------|
 | `degrade_mode`        | `{none, settlement_only, ccy_only}`                                  | Used when only one ingress surface exists for a currency (§8.4). |
 | `degrade_reason_code` | `{SRC_MISSING_SETTLEMENT, SRC_MISSING_CCY, POLICY_NARROWING, OTHER}` | Machine-readable reason recorded in S5 metrics.                  |
 
@@ -1483,22 +1483,22 @@ Before merging a change that would bump **MAJOR**, ensure all are true:
 
 ## B.5 Error code taxonomy (producer & validator)
 
-| Code                                      | Raised when                                                                         |
-| ----------------------------------------- | ----------------------------------------------------------------------------------- |
-| `USAGE`                                   | CLI contract violation (missing/unknown flags, missing paths).                      |
-| `E_INPUT_SCHEMA` / `E_INPUT_SUM`          | Ingress schema/PK/FK breach or **Σ share** constraint violated on an input surface. |
-| `E_POLICY_DOMAIN`                         | Policy key/domain invalid (incl. unknown currency/ISO in overrides).                |
+| Code                                      | Raised when                                                                             |
+|-------------------------------------------|-----------------------------------------------------------------------------------------|
+| `USAGE`                                   | CLI contract violation (missing/unknown flags, missing paths).                          |
+| `E_INPUT_SCHEMA` / `E_INPUT_SUM`          | Ingress schema/PK/FK breach or **Σ share** constraint violated on an input surface.     |
+| `E_POLICY_DOMAIN`                         | Policy key/domain invalid (incl. unknown currency/ISO in overrides).                    |
 | `E_POLICY_UNKNOWN_CODE`                   | Policy references an unknown currency or ISO code not present in the canonical domains. |
-| `E_POLICY_MINSHARE_FEASIBILITY`           | For a currency, **Σ min_share_iso > 1.0**.                                          |
-| `E_POLICY_MISSING_Q`                      | Required policy quantity `Q` not found after precedence resolution (§4.3).          |
-| `E_ZERO_MASS`                             | Post-floor mass sums to 0 before renormalisation.                                   |
-| `E_QUANT_SUM_MISMATCH`                    | After quantisation + tie-break, decimal Σ at `dp` ≠ `1`.                            |
-| `E_OUTPUT_SCHEMA`                         | Any S5 output breaches its schema/PK/FK.                                            |
-| `E_RNG_INTERACTION`                       | RNG logs changed or new RNG streams appeared during S5.                             |
-| `E_LINEAGE_PATH_MISMATCH` / `E_ATOMICITY` | Path↔embed inequality or non-atomic publish.                                        |
-| `E_PARTITION_EXISTS`                      | Target partition exists with non-identical content (write-once rule).               |
-| `E_MCURR_CARDINALITY`                     | `merchant_currency` missing/duplicate row(s) for a merchant.                        |
-| `E_MCURR_RESOLUTION`                      | κₘ missing/invalid after deterministic resolution.                                  |
+| `E_POLICY_MINSHARE_FEASIBILITY`           | For a currency, **Σ min_share_iso > 1.0**.                                              |
+| `E_POLICY_MISSING_Q`                      | Required policy quantity `Q` not found after precedence resolution (§4.3).              |
+| `E_ZERO_MASS`                             | Post-floor mass sums to 0 before renormalisation.                                       |
+| `E_QUANT_SUM_MISMATCH`                    | After quantisation + tie-break, decimal Σ at `dp` ≠ `1`.                                |
+| `E_OUTPUT_SCHEMA`                         | Any S5 output breaches its schema/PK/FK.                                                |
+| `E_RNG_INTERACTION`                       | RNG logs changed or new RNG streams appeared during S5.                                 |
+| `E_LINEAGE_PATH_MISMATCH` / `E_ATOMICITY` | Path↔embed inequality or non-atomic publish.                                            |
+| `E_PARTITION_EXISTS`                      | Target partition exists with non-identical content (write-once rule).                   |
+| `E_MCURR_CARDINALITY`                     | `merchant_currency` missing/duplicate row(s) for a merchant.                            |
+| `E_MCURR_RESOLUTION`                      | κₘ missing/invalid after deterministic resolution.                                      |
 
 ---
 
@@ -1507,7 +1507,7 @@ Before merging a change that would bump **MAJOR**, ensure all are true:
 Each log record is a single JSON object with at least:
 
 | Field            | Values / Type                                                                      |
-| ---------------- | ---------------------------------------------------------------------------------- |
+|------------------|------------------------------------------------------------------------------------|
 | `level`          | `{INFO, WARN, ERROR}`                                                              |
 | `component`      | `"1A.expand_currency_to_country"`                                                  |
 | `stage`          | `{N0, N1, N2, N2b, N3, N4}` (see §13.4)                                            |
@@ -1545,7 +1545,7 @@ Each log record is a single JSON object with at least:
 ## B.8 Rounding & tie-break settings (closed)
 
 | Setting           | Allowed value                                                               |
-| ----------------- | --------------------------------------------------------------------------- |
+|-------------------|-----------------------------------------------------------------------------|
 | Rounding mode     | **Round-half-even** (banker’s rounding)                                     |
 | Tie-break order   | **Descending** fractional remainder (pre-round), then `country_iso` **A→Z** |
 | Decimal exact-sum | **Required:** sum of fixed-dp decimals equals `1` exactly at `dp`           |
@@ -1555,7 +1555,7 @@ Each log record is a single JSON object with at least:
 ## B.9 Receipt artefacts (parameter-scoped gate)
 
 | File                 | Placement                          | Content                                                                                       |
-| -------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------- |
+|----------------------|------------------------------------|-----------------------------------------------------------------------------------------------|
 | `S5_VALIDATION.json` | In the weights partition directory | Run-level + per-currency metrics; schema/Σ/coverage attestations; RNG non-interaction deltas. |
 | `_passed.flag`       | Same directory                     | Single line: `sha256_hex = <hex64>` over the receipt files (excluding the flag itself).       |
 
@@ -1564,7 +1564,7 @@ Each log record is a single JSON object with at least:
 ## B.10 Cross-state authority references
 
 | Surface             | Authority                         | Notes                                                                            |
-| ------------------- | --------------------------------- | -------------------------------------------------------------------------------- |
+|---------------------|-----------------------------------|----------------------------------------------------------------------------------|
 | Inter-country order | `s3_candidate_set.candidate_rank` | Sole order source (home=0, contiguous; stable). S5 must not encode/ imply order. |
 | Egress outlet stubs | `outlet_catalogue`                | No cross-country order; readers must join S3 order; fingerprint-scoped gate.     |
 
@@ -1579,7 +1579,7 @@ Each log record is a single JSON object with at least:
 **Inputs (per currency USD):**
 
 | ISO2 | `s_settle` | `s_ccy` |
-| ---- | ---------: | ------: |
+|------|-----------:|--------:|
 | US   |       0.50 |    0.48 |
 | DE   |       0.30 |    0.32 |
 | JP   |       0.20 |    0.20 |
@@ -1609,7 +1609,7 @@ Each log record is a single JSON object with at least:
 Assume after §6.6 renormalisation we have:
 
 | ISO2 | pre-quant `p[c]` |
-| ---- | ---------------: |
+|------|-----------------:|
 | US   |           0.3334 |
 | DE   |           0.3333 |
 | JP   |           0.3333 |
@@ -1633,12 +1633,12 @@ Assume after §6.6 renormalisation we have:
 
 # Appendix D. Degrade decision table *(Non-normative)*
 
-| Scenario                               | Degrade           | Reason                  | Notes                                 |
-|----------------------------------------|-------------------|-------------------------|---------------------------------------|
-| Only `ccy_country_shares` has currency | `ccy_only`        | `SRC_MISSING_SETTLEMENT`| Must still meet §6.6/§6.7             |
-| Only `settlement_shares` has currency  | `settlement_only` | `SRC_MISSING_CCY`       | Must still meet §6.6/§6.7             |
-| Neither has currency                   | —                 | —                       | Currency out of scope (no rows)       |
-| Policy narrowed set                    | `none`            | `POLICY_NARROWING`      | Record via metrics; S6 ephemeral renorm |
+| Scenario                               | Degrade           | Reason                   | Notes                                   |
+|----------------------------------------|-------------------|--------------------------|-----------------------------------------|
+| Only `ccy_country_shares` has currency | `ccy_only`        | `SRC_MISSING_SETTLEMENT` | Must still meet §6.6/§6.7               |
+| Only `settlement_shares` has currency  | `settlement_only` | `SRC_MISSING_CCY`        | Must still meet §6.6/§6.7               |
+| Neither has currency                   | —                 | —                        | Currency out of scope (no rows)         |
+| Policy narrowed set                    | `none`            | `POLICY_NARROWING`       | Record via metrics; S6 ephemeral renorm |
 
 # Appendix E. Policy audit fields *(Non-normative)*
 
