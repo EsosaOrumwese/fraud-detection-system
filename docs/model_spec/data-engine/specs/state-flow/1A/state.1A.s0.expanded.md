@@ -2266,7 +2266,7 @@ validation/
 **`parameter_hash_resolved.json`**
 
 ```json
-{"parameter_hash":"<hex64>","filenames_sorted":["crossborder_hyperparams.yaml","hurdle_coefficients.yaml","nb_dispersion_coefficients.yaml"],"artifact_count":3}
+{"parameter_hash":"<hex64>","filenames_sorted":["crossborder_hyperparams.yaml","hurdle_coefficients.yaml","nb_dispersion_coefficients.yaml","ccy_smoothing_params.yaml"],"artifact_count":4}
 ```
 
 **`manifest_fingerprint_resolved.json`**

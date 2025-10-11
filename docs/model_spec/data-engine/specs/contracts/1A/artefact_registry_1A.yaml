@@ -513,7 +513,7 @@ subsegments:
     manifest_key: mlr.ci.parameter_hash
     license: '{spdx_or_internal}'
     role: SHA‑256 of concatenated parameter digests.
-    dependencies: [hurdle_coefficients, nb_dispersion_coefficients, crossborder_hyperparams]
+    dependencies: [hurdle_coefficients, nb_dispersion_coefficients, crossborder_hyperparams, ccy_smoothing_params]
     source: internal
     owner: {platform_team: null}
     last_updated: '{iso8601_timestamp}'

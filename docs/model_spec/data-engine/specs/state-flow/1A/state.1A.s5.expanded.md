@@ -48,7 +48,7 @@ This S5 spec is **compatible with** and **assumes** the following already-ratifi
 **0.6 Hash canonicalisation (applies to the S5 policy file)**
 
 * S5 inherits **S0.2** hashing rules: **SHA-256 over exact bytes**, names included, sorted by **ASCII basename**, encoded by the **Universal Encoding Rule (UER)** (UTF-8 length-prefixed strings; LE64 integers; concatenation without delimiters).
-* **Parameter hash contribution:** Only `configs/allocation/ccy_smoothing_params.yaml` contributes to `parameter_hash`; changing its bytes **MUST** flip `parameter_hash`. *(This is a contract on bytes, not YAML semantics; no normalisation is permitted.)*
+* **Parameter hash contribution:** `configs/allocation/ccy_smoothing_params.yaml` is a **required member of 𝓟**; changing its bytes **MUST** flip `parameter_hash`. *(Other 𝓟 members per S0.2.2 may also cause flips. This is a contract on bytes, not YAML semantics; no normalisation is permitted.)*
 * **Path↔embed equality:** For all S5 outputs, the embedded `parameter_hash` column **MUST equal** the `parameter_hash={…}` partition value byte-for-byte. 
 
 **0.7 Document status & lifecycle**
@@ -92,7 +92,8 @@ A run of S5 satisfies this spec iff all of the following hold:
 **1.5 Practical constraints (binding guardrails)**
 
 * Inputs must already pass their **ingress schema constraints**, notably **Σ share = 1.0 ± 1e-6 per currency** and ISO/CCY domain checks; otherwise S5 MUST fail closed. 
-* Only `configs/allocation/ccy_smoothing_params.yaml` contributes to the **parameter hash**; changing its bytes MUST change `parameter_hash`. (S5 is sealed by parameter-scope only.)
+* `configs/allocation/ccy_smoothing_params.yaml` is a **required member of 𝓟**; changing its bytes **MUST** flip `parameter_hash`. *(Other 𝓟 members per S0.2.2 may also cause flips; S5 is sealed by parameter-scope only.)*
+
 ---
 
 # 2. Interfaces & “no re-derive” boundaries
@@ -625,7 +626,7 @@ S5 MUST emit, alongside outputs:
    - `ccy_country_weights_cache` has unique **PK** `(currency, country_iso)`; `currency ∈ ISO-4217`, `country_iso ∈ ISO2` and FK-valid to canonical ISO. 
    - If present, `merchant_currency` and `sparse_flag` obey their PKs and domains. 
 3. **Partition & path discipline.** Parameter-scoped outputs live under `…/parameter_hash={parameter_hash}/` and **embed the same `parameter_hash`** byte-for-byte. Writes are **atomic** (stage→fsync→single rename). 
-4. **No RNG interaction.** No `rng_*` streams for S5; RNG trace length is **unchanged** vs S4’s manifest. Any delta is a run-fail.
+4. **No RNG interaction.** No `rng_*` streams for S5; RNG trace length is **unchanged** vs the **pre-S5 snapshot of `rng_trace_log`** (same `{seed, parameter_hash, run_id}`). Any delta is a run-fail.
    **Clarification:** Compare against the **pre-S5 snapshot of `rng_trace_log`** for the same `{seed, parameter_hash, run_id}`.
 
 ## 9.2 Content checks (weights, sums, quantisation)
