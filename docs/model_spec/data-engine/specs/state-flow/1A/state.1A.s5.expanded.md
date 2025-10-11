@@ -78,7 +78,7 @@ a) **Consume RNG** or write any `rng_*` streams; RNG traces and counters are out
 b) **Create, alter, or encode inter-country order**; the only order authority remains S3’s `candidate_rank`. 
 c) **Make merchant-level choices** (e.g., selecting countries for a merchant, setting K, or allocating counts). Those belong to S6+ and remain gated by S3/S4 contracts. 
 d) **Re-derive S0/S3 invariants** (e.g., ISO enumerations, Σ=1 constraints of ingress surfaces); S5 validates them pre-flight and fails closed if violated (see §3.3/§3.4 and §9). 
-e) **Write egress artifacts** (e.g., `outlet_catalogue`) or any dataset partitioned by `{seed,fingerprint}`; S5 is **parameter-scoped only**. 
+e) **Write egress artefacts** (e.g., `outlet_catalogue`) or any dataset partitioned by `{seed,fingerprint}`; S5 is **parameter-scoped only**.
 
 **1.4 Success criteria (what “done right” means)**
 A run of S5 satisfies this spec iff all of the following hold:
@@ -238,7 +238,7 @@ If any of the following are observed in either share surface, S5 **MUST** fail c
 
 **4.1 Policy file (location, consumers, version pinning)**
 
-* **ID & path (registry):** `ccy_smoothing_params` at `configs/allocation/ccy_smoothing_params.yaml`. This artefact **MUST** appear in the artefact registry with a manifest key (e.g., `mlr.1A.params.ccy_smoothing`) and metadata (semver, version, digest). It is **first consumed in S5/S6** and governs the build of `ccy_country_weights_cache` (and the optional `merchant_currency` cache).  
+* **ID & path (registry):** `ccy_smoothing_params` at `configs/allocation/ccy_smoothing_params.yaml`. This artefact **MUST** appear in the **Artefact Registry** with a manifest key (e.g., `mlr.1A.params.ccy_smoothing`) and metadata (semver, version, digest). It is **first consumed in S5/S6** and governs the build of `ccy_country_weights_cache` (and the optional `merchant_currency` cache).  
 * **Authority scope:** This document defines the **normative key set and domains** for the file. (JSON-Schema for this config may be added to the schema authority; until then, the rules in §4.2–§4.6 are binding.) 
 * **Consumers:** S5 **weights builder** and S6 **merchant_currency** cache builder. Changing this file **changes policy** → **new `parameter_hash`**. 
 * **Versioning fields in-file:** `semver: "MAJOR.MINOR.PATCH"` and `version: "YYYY-MM-DD"` **MUST** be present. 
@@ -277,7 +277,7 @@ For any policy quantity **Q** and a given **currency** `cur` and **ISO** `iso` (
 **4.4 Parameter hashing (governed-set membership)**
 
 * **Governed files (hash set).** Only `configs/allocation/ccy_smoothing_params.yaml` contributes to `parameter_hash` for S5. Its raw bytes MUST be included in the S0 parameter set that feeds `parameter_hash`; changing its bytes MUST flip `parameter_hash`. No normalisation is permitted: hash the exact bytes. No other S5 files contribute unless this spec is amended.
-* **Registry alignment:** the artefact registry entry for `ccy_smoothing_params` MUST include its current digest and path; S0 seals that digest into lineage. 
+* **Registry alignment:** the **Artefact Registry** entry for `ccy_smoothing_params` MUST include its current digest and path; S0 seals that digest into lineage. 
 
 **4.5 Domain ranges & value rules (cross-checks)**
 
@@ -664,7 +664,7 @@ data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/
 
 `S5_VALIDATION.json` MUST include at least:
 
-* `parameter_hash` (Hex64); `policy_digest` (Hex64 of `ccy_smoothing_params.yaml` bytes). 
+* `parameter_hash` (hex64); `policy_digest` (hex64 of `ccy_smoothing_params.yaml` bytes). 
 * `currencies_processed`, `rows_written`, `degrade_mode_counts{none,settlement_only,ccy_only}`. 
 * `sum_check`: counts of currencies passing the numeric Σ test and the **decimal @dp** test.
 * `coverage_check`: counts passing union-coverage (and a list of any policy-narrowed currencies). 
@@ -698,8 +698,8 @@ Re-running S5 with identical inputs and **identical policy bytes** produces **by
 
 **10.3 Identifier semantics (source of truth)**
 
-* **`parameter_hash` (Hex64)** — the **only** partition key for S5 outputs; produced by S0 as SHA-256 over the governed parameter-set bytes **including** `ccy_smoothing_params.yaml`. Changing `ccy_smoothing_params.yaml` **MUST** flip `parameter_hash`.
-* **`manifest_fingerprint` (Hex64)** — global run fingerprint used by the **layer-wide** validation bundle (`validation_bundle_1A`). S5 is parameter-scoped; any `produced_by_fingerprint` field, when present, is optional provenance only. 
+* **`parameter_hash` (hex64)** — the **only** partition key for S5 outputs; produced by S0 as SHA-256 over the governed parameter-set bytes **including** `ccy_smoothing_params.yaml`. Changing `ccy_smoothing_params.yaml` **MUST** flip `parameter_hash`.
+* **`manifest_fingerprint` (hex64)** — global run fingerprint used by the **layer-wide** validation bundle (`validation_bundle_1A`). S5 is parameter-scoped; any `produced_by_fingerprint` field, when present, is optional provenance only.
 * **`run_id`** — used only in RNG logs (not produced by S5). 
 
 **10.4 Paths & schemas (authority alignment)**
@@ -824,7 +824,7 @@ Re-running S5 with identical inputs and **identical policy bytes** produces **by
 
   * keep per-currency processing isolated (avoid cross-currency buffers),
   * ensure renormalisation (§6.6) and quantisation + tie-break (§6.7) do not allocate super-linear intermediates,
-  * surface **metrics** on renormalisation magnitude and largest-remainder placements (see §14.2).
+  * surface **metrics** on renormalisation magnitude and largest-remainder placements (see §14.3).
 
 **12.8 Retry cost & atomicity** *(Informative → Binding where referenced)*
 
@@ -885,7 +885,7 @@ Re-running S5 with identical inputs and **identical policy bytes** produces **by
 
 ---
 
-## 13.2 Idempotent rerun & temp-artifact policy (Binding)
+## 13.2 Idempotent rerun & temp-artefact policy (Binding)
 
 * **Write-once per partition.** If `…/parameter_hash={H}/` exists for any S5 dataset, the producer **MUST** refuse to overwrite; re-runs with identical inputs/policy must be **byte-identical** (§10). 
 
@@ -976,7 +976,7 @@ Publish S5 datasets by **staging → single atomic rename**; ensure **write-once
 
 ### 13.4.3 Wiring to S0–S4 (Binding)
 
-* **S0 (governance & gates).** S5 inherits S0’s partition law and atomicity: parameter-scoped outputs embed the same `parameter_hash` as the path, and validation receipts use the `_passed.flag` pattern (ASCII-sorted hash over sidecar files). 
+* **S0 (governance & gates).** S5 inherits S0’s partition law and atomicity: parameter-scoped outputs embed the same `parameter_hash` as the path, and validation receipts use the `_passed.flag` pattern (**ASCII-lexicographic** hash over the sidecar files). 
 
 * **S1/S2 (no direct data dependency).** S5 does not read hurdle/NB artefacts. Their RNG streams and budgets remain untouched during S5. 
 
@@ -1081,7 +1081,7 @@ Every record in `S5_VALIDATION.json` **MUST** carry:
 * `parameter_hash : hex64` — the partition key for S5 outputs. 
 * `policy_digest : hex64` — SHA-256 of the **bytes** of `ccy_smoothing_params.yaml` consumed by the run. 
 * `producer : "1A.expand_currency_to_country"` — matches dictionary `produced_by`. 
-* `schema_refs : object` — anchors used to validate inputs/outputs (must include `schemas.ingress.layer1.yaml#/settlement_shares`, `#/ccy_country_shares`, and `schemas.1A.yaml#/prep/ccy_country_weights_cache`).
+* `schema_refs : object` — anchors used to validate inputs/outputs (must include `schemas.ingress.layer1.yaml#/settlement_shares`, `schemas.ingress.layer1.yaml#/ccy_country_shares`, and `schemas.1A.yaml#/prep/ccy_country_weights_cache`).
 
 ## 14.3 Run-level metrics (Binding)
 
