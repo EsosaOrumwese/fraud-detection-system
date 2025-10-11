@@ -177,6 +177,9 @@ S5 SHALL read **only** the following sealed artefacts, exactly as registered in 
   **Schema ref (dictionary):** `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`.
   **PK:** `(country_iso)`. 
 
+* **(Optional, only if producing `merchant_currency`)** `iso_legal_tender_2024` — canonical ISO2→primary legal tender map.
+  **Schema ref:** `schemas.ingress.layer1.yaml#/iso_legal_tender_2024`. **PK:** `(country_iso)`.
+
 * **Policy/config:** **`ccy_smoothing_params`** — governed parameters file for S5 (alpha/floors/overrides).
   **Path:** `configs/allocation/ccy_smoothing_params.yaml`.
   **Contribution to lineage:** **MUST** contribute to `parameter_hash`. 
@@ -322,7 +325,7 @@ All outputs in this section are **parameter-scoped** and governed by the **datas
 * `currency : ISO4217` (uppercase).
 * `country_iso : ISO2` (uppercase; **FK →** `iso3166_canonical_2024.country_iso`).
 * `weight : pct01` (numeric in **[0,1]**; **Σ=1** per currency under tolerance).
-* `obs_count? : int64 (≥0)` — optional, observations supporting merged/smoothed surface.
+* `obs_count? : int64 (≥0)` — **rounded blended evidence mass** supporting the surface: `obs_count = round_half_even(N0)` where `N0 = w·Σ n_ccy + (1−w)·Σ n_settle` for the currency.
 * `smoothing? : string` — optional provenance note (e.g., `"alpha=0.5"`). 
 
 **Invariants (binding):**
@@ -352,6 +355,8 @@ All outputs in this section are **parameter-scoped** and governed by the **datas
 * `kappa : ISO4217` — settlement currency κₘ.
 * `source : enum{"ingress_share_vector","home_primary_legal_tender"}` — provenance.
 * `tie_break_used : boolean` — true iff lexicographic tie-break applied. 
+
+**Precedence (Binding).** If **both** sources are available for a merchant, set `source="ingress_share_vector"` and use that value. If that source yields multiple maxima, break ties lexicographically (A→Z) and set `tie_break_used=true`. If `ingress_share_vector` is unavailable, fall back to `home_primary_legal_tender`.
 
 **Retention & ownership (dictionary):** retention 365 days; owner `1A`; produced by `1A.derive_merchant_currency`. 
 
@@ -409,7 +414,7 @@ If neither declared source exists in the dictionary for a given deployment, do n
 
 # 6. Deterministic processing specification — no pseudocode
 
-> This section fixes **what must be computed and how it must behave**, without prescribing implementation code. All math is **IEEE-754 binary64** until the final quantisation step. JSON-Schema remains the single authority for all field types and constraints. 
+> This section fixes **what must be computed and how it must behave**, without prescribing implementation code. All math is **IEEE-754 binary64** until the final quantisation step. JSON-Schema remains the single authority for all field types and constraints. **S5 inherits S0.8 numeric environment controls** (RNE/half-even, **FMA off**, **no FTZ/DAZ**, deterministic libm, fixed-order reductions).
 
 ## 6.1 Currency scope & country-set construction
 
@@ -449,10 +454,12 @@ If neither declared source exists in the dictionary for a given deployment, do n
 
 ## 6.7 Quantisation for output (fixed-dp; deterministic tie-break)
 
-* **Fixed-dp rounding:** Convert `p[c]` to **`weight`** in **fixed-dp** with the configured `dp` using **round-half-even** (banker’s rounding).  
-* **Group-sum property at dp:** After rounding, the **decimal** sum **MUST** equal **`1` to exactly `dp` places**. If direct half-even rounding induces a residual drift, apply a **deterministic largest-remainder placement** of ±1 ULP adjustments **within the currency** until the decimal sum equals **`1`** at `dp`.  
-* **Tie-break order (closed):** sort candidates by **descending fractional remainder (pre-round)**, then by **`country_iso` A→Z**. This rule ensures **byte-identical** outputs across runs and shard counts.  
-* **Persistence type:** `weight` is persisted as a **numeric** (`pct01`) per schema; the **decimal exact-sum at `dp`** requirement is a property of the quantised **values**, not a storage of strings.
+* **Fixed-dp rounding:** Convert `p[c]` to **`weight`** in **fixed-dp** with the configured `dp` using **round-half-even** (banker’s rounding).
+* **Define fractional remainder:** Let `r[c] := frac(10^dp · p[c]) ∈ [0,1)`. One **ULP** equals `10^-dp`.
+* **Group-sum at dp (shortfall vs overshoot):** After half-even rounding to integer ULPs `u[c]`, let `S = Σ u[c]` and target `T = 10^dp`.  
+  - If `S < T` (**shortfall**), add `T−S` one-ULP increments: pick countries by **descending** `r[c]`, tie-break by `country_iso` A→Z.  
+  - If `S > T` (**overshoot**), subtract `S−T` one-ULP: pick countries by **ascending** `r[c]`, tie-break by `country_iso` Z→A.  
+* **Persistence type:** `weight` is persisted as a **numeric** (`pct01`) per schema; the **decimal** exact-sum at `dp` is a property of the quantised values, not of stored strings.
 
 ## 6.8 Determinism requirements (no RNG; stable evaluation)
 
@@ -648,7 +655,7 @@ data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/
   _passed.flag                  # single line: 'sha256_hex = <hex64>'
 ```
 
-`_passed.flag` contains the **SHA-256** over the **ASCII-lexicographic** concatenation of all other files in this small receipt (exclude the flag itself). This mirrors the layer-wide gate pattern in S0’s validation bundle, but is **parameter-scoped** for S5. **Atomic publish** applies. 
+`_passed.flag` contains the **SHA-256** over the **ASCII-lexicographic** concatenation of all other files in this receipt (currently **`S5_VALIDATION.json`**; exclude the flag itself). This mirrors the layer-wide gate pattern in S0’s validation bundle, but is **parameter-scoped** for S5. **Atomic publish** applies. 
 
 *Notes.*
 - This S5 receipt **does not replace** the 1A **fingerprint-scoped** validation bundle (`validation_bundle_1A`) and its `_passed.flag`; that layer-wide gate remains the authority for egress consumption (e.g., `outlet_catalogue`). 
@@ -656,7 +663,7 @@ data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/
 
 ## 9.7 PASS/FAIL semantics
 
-* **S5 PASS (parameter-scoped):** All checks in §§9.1-9.5 succeed **and** the S5 receipt is present with a valid `_passed.flag` whose hash matches its contents. Downstream parameter-scoped readers (**e.g., S6**) MUST verify this receipt **for the same `parameter_hash`** before reading (`no PASS → no read`). 
+* **S5 PASS (parameter-scoped):** All checks in §§9.1–9.5 succeed **and** the S5 receipt is present with a valid `_passed.flag` whose hash matches its contents. **Downstream reads additionally require that the `ccy_country_weights_cache` dataset exists for the same `parameter_hash`.**
 * **Layer-wide PASS (unchanged):** For egress reads (e.g., `outlet_catalogue`), consumers MUST verify `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag` matches `validation_bundle_1A` for that fingerprint, per S0. 
 * **FAIL:** Any breach in §§9.1-9.5, or missing/invalid `_passed.flag`, aborts the run; no partial publishes. Follow S0 abort semantics (write failure sentinel; freeze; exit non-zero). 
 
@@ -746,9 +753,10 @@ Re-running S5 with identical inputs and **identical policy bytes** produces **by
 
 * S5 **MUST NOT** write to paths partitioned by **`{seed, parameter_hash, run_id}`** reserved for RNG audit, trace, and event logs; those paths are owned by S1/S2/S4/S6/S7/S8 producers per the dataset dictionary. S5 outputs are **parameter-scoped only** (§10). 
 
-**11.3 No consumption of RNG logs**
+**11.3 No consumption of RNG logs (producer-only)**
 
-* S5 **MUST NOT** read `rng_audit_log`, `rng_trace_log`, or `rng_event_*` streams. S5’s computation depends only on the ingress share surfaces and S5 policy (§3-§4). 
+* S5 **producers** MUST NOT read `rng_audit_log`, `rng_trace_log`, or any `rng_event_*` streams; S5 computation depends only on the ingress share surfaces and S5 policy (§3–§4).
+* **Validator exception:** the S5 validator **MAY** read `rng_trace_log` **read-only** to prove non-interaction (§11.8/§13.4), but MUST NOT write to any RNG partitions.
 
 **11.4 Trace invariants (proof of non-interaction)**
 
@@ -771,6 +779,7 @@ Re-running S5 with identical inputs and **identical policy bytes** produces **by
 * The S5 validator (§9) MUST assert **both**:
   (a) **Absence** of any new/modified files under `logs/rng/**/seed=*/parameter_hash=*/run_id=*` for the run; and
   (b) **Unchanged** final rows in `rng_trace_log` (per key) vs the S4 manifest. Any breach ⇒ `E_RNG_INTERACTION` (hard FAIL). 
+    - This validator read is the **only** permitted RNG log read in S5 and is **read-only**.
 
 **11.9 Separation from order authority**
 
@@ -807,10 +816,10 @@ Re-running S5 with identical inputs and **identical policy bytes** produces **by
 * Per-currency working set is O(#countries) for a small number of vectors (blend `q`, priors `α`, floors, `p′`, `p`).
 * Implementations SHOULD bound peak memory by processing **one currency at a time** (or a small batch) and streaming rows; global, all-currency in-memory accumulation is discouraged.
 
-**12.5 I/O & file layout** *(Informative)*
+**12.5 I/O & file layout** *(Binding where noted)*
 
 * Inputs are reference tables (no partitions); outputs are parameter-scoped directories (§10).
-* Producers MAY write multiple files per partition for I/O efficiency, but **MUST** preserve dataset-level sort and produce **identical bytes** regardless of file splitting.
+* **Single-file or pinned writer policy (Binding):** Producers **MUST** either (a) publish **a single file per partition**, or (b) pin a **writer policy** (codec/level, row-group/page sizes, writer threads, dictionary encoding) via the Artefact Registry so reruns are **byte-identical**. If no writer policy is pinned, option (a) applies.
 * Readers MUST treat physical file boundaries as non-semantic (dictionary `ordering: []`).
 
 **12.6 Streaming vs. in-memory** *(Informative)*
@@ -858,7 +867,7 @@ Re-running S5 with identical inputs and **identical policy bytes** produces **by
 
 **Invocation (normative flags — no implicit defaults for locations):**
 
-* `--parameter-hash <HEX64>` **(required)** — selects the **parameter-scoped** partition for all S5 outputs. **Must** match the embedded `parameter_hash` written into rows. 
+* `--parameter-hash <hex64>` **(required)** — selects the **parameter-scoped** partition for all S5 outputs. **Must** match the embedded `parameter_hash` written into rows. 
 * `--input-root <DIR>` **(required)** — root under which **reference inputs** are resolved, e.g.
   `reference/network/settlement_shares/2024Q4/settlement_shares.parquet`,
   `reference/network/ccy_country_shares/2024Q4/ccy_country_shares.parquet`,
@@ -874,7 +883,7 @@ Re-running S5 with identical inputs and **identical policy bytes** produces **by
 **Optional interface switches (Binding where stated):**
 
 * `--emit-sparse-flag` *(MAY; default off)* — if set, produce `sparse_flag` per dictionary/schema. 
-* `--validate-only` *(MAY)* — perform §9 validation and emit the S5 receipt **without** writing the weights cache; returns the same exit code semantics as a full run.
+* `--validate-only` *(MAY)* — perform §9 validation and emit the S5 receipt **under** the weights cache partition path (create the partition directory if absent) **without writing data files**; returns the same exit code semantics as a full run. This receipt does **not** authorise S6 reads unless the weights cache exists.
 * `--fail-on-degrade` *(MAY)* — if any per-currency `degrade_mode ≠ none` (per §8.4), exit as FAIL even if §7 invariants hold (used in strict CI).
 
 **Argument rules (Binding):**
@@ -988,7 +997,7 @@ Publish S5 datasets by **staging → single atomic rename**; ensure **write-once
 
 ### 13.4.4 Concurrency & idempotence (Binding)
 
-* **Shard boundary:** currencies may be processed in parallel **by currency** only; merges must yield **byte-identical** results to a single-threaded run and preserve writer sort `(currency, country_iso)` ASC.
+* **Shard boundary:** currencies may be processed in parallel **by currency** only; merges must yield **byte-identical** results to a single-threaded run and preserve writer sort `(currency, country_iso)` ASC. If a pinned writer policy is not in force, producers MUST publish one file per partition to preserve byte identity.
 * **Re-runs:** a completed `parameter_hash` partition is **immutable**; re-running with identical inputs/policy must be **byte-identical** or refused. 
 
 ---
@@ -1390,8 +1399,10 @@ Before merging a change that would bump **MAJOR**, ensure all are true:
 ## A.7 Quantisation & exact-sum discipline
 
 * **Round-half-even (banker’s rounding)** — Required rounding mode when converting `p[c]` to fixed-dp decimals.
-* **Largest-remainder tie-break** — Deterministic placement of ±1 ULP adjustments **within a currency** when the fixed-dp decimal sum deviates from exactly `1.00…0` at `dp`. Sort by **descending** fractional remainder (pre-round), then by `country_iso` A→Z. Output must become **byte-identical** across shard counts after applying this rule.
-* **ULP** — One **unit in the last place** of the fixed-dp decimal representation used for the Σ=1 exactness step.
+* **Largest-remainder tie-break** — Deterministic placement of ±1 ULP adjustments **within a currency** when the fixed-dp decimal sum deviates from exactly `1.00…0` at `dp`. Let `r[c] = frac(10^dp · p[c])`.  
+  - **Shortfall (add):** allocate +1 ULP to countries in **descending** `r[c]`, ties by `country_iso` **A→Z**.  
+  - **Overshoot (subtract):** take −1 ULP from countries in **ascending** `r[c]`, ties by `country_iso` **Z→A**.  
+  Output must become **byte-identical** across shard counts after applying this rule.* **ULP** — One **unit in the last place** of the fixed-dp decimal representation used for the Σ=1 exactness step.
 * **Σ (sum) tolerance** — Schema-level numeric group constraint of `1.0 ± 1e-6`; S5 additionally requires **decimal** Σ at `dp` to equal **exactly** `"1"` after tie-break. 
 
 ## A.8 Coverage, joins & scope
