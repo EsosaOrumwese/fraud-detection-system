@@ -107,6 +107,14 @@
 
 ---
 
+## State S2 (Domestic Outlet Counts)
+- CLI: `python -m engine.cli.s2_nb_outlets --validation-policy contracts/policies/l1/seg_1A/s2_validation_policy.yaml …`  
+- Emits RNG streams (`gamma_component`, `poisson_component`, `nb_final`), a presence catalogue (`parameter_scoped/parameter_hash=*/s2_nb_catalogue.json`), and corridor metrics.  
+- Validation writes `metrics.csv` + `cusum_trace.csv` under `validation/parameter_hash=*/run_id=*/s2/` and mirrors them into the sealed bundle at `validation_bundle/manifest_fingerprint=*/s2_nb_outlets/`.  
+- Policy thresholds (`rho_reject_max=0.06`, `p99_max=3`, `cusum.threshold_h=8.0`) are enforced via `ERR_S2_CORRIDOR_BREACH`; runs skip `_passed.flag` on failure.
+
+---
+
 ## Interfaces & Run Contract (high-level)
 - **Run manifest (sealing):** `{ fingerprint, seed, parameter_hashes[], git_tree, artefact_digests, created_at }`.  
 - **Event envelope & trace:** per-event `{ before/after counters, blocks, draws }` with one **immediate** cumulative trace row; **counters define sequence**.  
@@ -122,4 +130,9 @@
   - **Layers:** `layers/l1/seg_1A/s0…s4/{l0,l1,l2,l3}` for the foundation.  
   - **Core, Validation, Scenario Runner, Registry/CLI:** conceptual scaffolds you’ll unlock as you implement.
 
-> **Current focus:** **Layer-1 / Segment 1A, States S0–S4** (foundation). Everything else remains intentionally conceptual so future choices stay optimal.
+> **Current focus:** **Layer-1 / Segment 1A, States S0-S4** (foundation). Everything else remains intentionally conceptual so future choices stay optimal.
+
+### Segment 1A execution highlights
+- **S3 cross-border universe outputs:** the runner now emits the deterministic `s3_candidate_set.parquet` plus optional `s3_base_weight_priors`, `s3_integerised_counts`, and `s3_site_sequence` tables. Toggle the extra surfaces via the Segment1A CLI (`--s3-priors`, `--s3-integerisation`, `--s3-sequencing`). Sequencing remains gated on integerisation.
+- **Validation bundle:** `validate_s3_outputs` replays the deterministic kernels (candidates, priors, counts, sequences) and stores metrics under `validation_bundle/manifest_fingerprint=*/s3_crossborder_universe/`. Disable via `--no-validate-s3` when debugging, but release runs should keep it enabled.
+- **Diagnostics & schema enforcement:** the S3 validator now enforces the JSON-Schema anchors for every parquet, emits per-merchant integerisation diagnostics in `integerisation_diagnostics.jsonl`, and records aggregated metrics (floors, ceilings, residual usage) in the validation summary.

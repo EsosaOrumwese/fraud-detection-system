@@ -108,6 +108,66 @@ _FAILURE_CODE_MAP: Mapping[str, Tuple[FailureCategory, str]] = {
     "E_DATASET_IO": (FailureCategory.F9_IO, "dataset_read_failure"),
     "E_PARAM_IO": (FailureCategory.F2_PARAMETERS, "param_file_missing"),
     "E_YAML_ROOT": (FailureCategory.F2_PARAMETERS, "yaml_root_not_mapping"),
+    "ERR_S2_CORRIDOR_POLICY_MISSING": (
+        FailureCategory.F8_VALIDATION,
+        "s2_corridor_policy_missing",
+    ),
+    "ERR_S2_CORRIDOR_EMPTY": (
+        FailureCategory.F8_VALIDATION,
+        "s2_corridor_empty",
+    ),
+    "ERR_S2_CORRIDOR_BREACH": (
+        FailureCategory.F8_VALIDATION,
+        "s2_corridor_breach",
+    ),
+    "ERR_S3_AUTHORITY_MISSING": (
+        FailureCategory.F6_AUTHORITY,
+        "s3_authority_missing",
+    ),
+    "ERR_S3_PRECONDITION": (
+        FailureCategory.F8_VALIDATION,
+        "s3_precondition",
+    ),
+    "ERR_S3_PARTITION_MISMATCH": (
+        FailureCategory.F5_PARTITION,
+        "s3_partition_mismatch",
+    ),
+    "ERR_S3_VOCAB_INVALID": (
+        FailureCategory.F1_INGRESS,
+        "s3_vocab_invalid",
+    ),
+    "ERR_S3_RULE_LADDER_INVALID": (
+        FailureCategory.F6_AUTHORITY,
+        "s3_rule_ladder_invalid",
+    ),
+    "ERR_S3_SCHEMA_VALIDATION": (
+        FailureCategory.F8_VALIDATION,
+        "s3_schema_validation",
+    ),
+    "ERR_S3_PRIOR_DISABLED": (
+        FailureCategory.F8_VALIDATION,
+        "s3_prior_disabled",
+    ),
+    "ERR_S4_BRANCH_PURITY": (
+        FailureCategory.F8_VALIDATION,
+        "s4_branch_purity",
+    ),
+    "ERR_S4_FEATURE_DOMAIN": (
+        FailureCategory.F3_NUMERIC,
+        "s4_feature_domain",
+    ),
+    "ERR_S4_NUMERIC_INVALID": (
+        FailureCategory.F3_NUMERIC,
+        "s4_numeric_invalid",
+    ),
+    "ERR_S4_POLICY_INVALID": (
+        FailureCategory.F2_PARAMETERS,
+        "s4_policy_invalid",
+    ),
+    "ERR_S4_PARTIAL_RESUME": (
+        FailureCategory.F8_VALIDATION,
+        "s4_partial_resume",
+    ),
 }
 
 

@@ -1,0 +1,12 @@
+semver: "1.0.0"
+version: "2025-10-10"
+
+dp_resid: 8
+
+floors:
+  GB: 1
+  US: 1
+
+ceilings:
+  GB: 999999
+  US: 999999

@@ -1,7 +1,7 @@
 version: '1.0'
 layer: layer1
 segment: seg_1A
-state: s0
+states: [s0, s1, s2, s3, s4]
 
 reference:
   transaction_schema_merchant_ids:
@@ -124,5 +124,125 @@ rng_logs:
     path: logs/rng/events/core/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     schema_ref: layer1/schemas.layer1.yaml#/rng/events/anchor
     partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 365
+
+  rng_event_hurdle_bernoulli:
+    description: Merchant-keyed Bernoulli draws that decide single vs multi-site (S1 output).
+    format: jsonl
+    path: logs/rng/events/hurdle_bernoulli/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/hurdle_bernoulli
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 180
+
+  rng_event_gamma_component:
+    description: Gamma draws used by the NB sampler for multi-site merchants.
+    format: jsonl
+    path: logs/rng/events/gamma_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/gamma_component
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 180
+    gating:
+      gated_by: rng_event_hurdle_bernoulli
+      predicate: is_multi == true
+
+  rng_event_poisson_component:
+    description: Poisson draws used in NB composition (context="nb") and S4 ZTP sampling (context="ztp").
+    format: jsonl
+    path: logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/poisson_component
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    ordering: [merchant_id, attempt]
+    retention_days: 180
+    gating:
+      gated_by: rng_event_hurdle_bernoulli
+      predicate: is_multi == true
+
+  rng_event_nb_final:
+    description: Final Negative Binomial outlet counts (accepted draws).
+    format: jsonl
+    path: logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/nb_final
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 180
+    gating:
+      gated_by: rng_event_hurdle_bernoulli
+      predicate: is_multi == true
+
+  rng_event_ztp_rejection:
+    description: Zero rejection markers emitted by the S4 ZTP sampler.
+    format: jsonl
+    path: logs/rng/events/ztp_rejection/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/ztp_rejection
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 180
+    gating:
+      gated_by: rng_event_hurdle_bernoulli
+      predicate: is_multi == true
+
+  rng_event_ztp_retry_exhausted:
+    description: Retry exhaustion markers emitted when S4 hits the governed zero-attempt cap.
+    format: jsonl
+    path: logs/rng/events/ztp_retry_exhausted/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/ztp_retry_exhausted
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 180
+    gating:
+      gated_by: rng_event_hurdle_bernoulli
+      predicate: is_multi == true
+
+  rng_event_ztp_final:
+    description: Non-consuming finaliser emitted by the S4 ZTP sampler (fixes K_target and regime).
+    format: jsonl
+    path: logs/rng/events/ztp_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/ztp_final
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 180
+    gating:
+      gated_by: rng_event_hurdle_bernoulli
+      predicate: is_multi == true
+
+crossborder:
+
+  s3_candidate_set:
+    description: Ordered cross-border candidate universe (home + admissible foreign countries).
+    format: parquet
+    path: data/layer1/1A/s3_candidate_set/parameter_hash={parameter_hash}/part-*.parquet
+    schema_ref: l1/seg_1A/s3_outputs.schema.json#/candidate_set
+    partitioning: [parameter_hash]
+    owner: 1A
+    retention_days: 365
+
+  s3_base_weight_priors:
+    description: Deterministic base-weight priors per candidate country (fixed-dp strings).
+    format: parquet
+    path: data/layer1/1A/s3_base_weight_priors/parameter_hash={parameter_hash}/part-*.parquet
+    schema_ref: l1/seg_1A/s3_outputs.schema.json#/base_weight_priors
+    partitioning: [parameter_hash]
+    owner: 1A
+    retention_days: 365
+
+  s3_integerised_counts:
+    description: Integer outlet allocations per candidate country (sum equals S2 N) with residual ranking.
+    format: parquet
+    path: data/layer1/1A/s3_integerised_counts/parameter_hash={parameter_hash}/part-*.parquet
+    schema_ref: l1/seg_1A/s3_outputs.schema.json#/integerised_counts
+    partitioning: [parameter_hash]
+    owner: 1A
+    retention_days: 365
+
+  s3_site_sequence:
+    description: Deterministic within-country site sequencing (optional; zero-padded IDs when enabled).
+    format: parquet
+    path: data/layer1/1A/s3_site_sequence/parameter_hash={parameter_hash}/part-*.parquet
+    schema_ref: l1/seg_1A/s3_outputs.schema.json#/site_sequence
+    partitioning: [parameter_hash]
     owner: 1A
     retention_days: 365

@@ -144,6 +144,7 @@ def main(argv: list[str] | None = None) -> int:
             "parameter_hash": result.sealed.parameter_hash.parameter_hash,
             "manifest_fingerprint": result.sealed.manifest_fingerprint.manifest_fingerprint,
             "output_dir": str(result.base_path),
+            "seed": args.seed,
         }
         args.context_json.expanduser().resolve().write_text(
             json.dumps(payload, indent=2, sort_keys=True),

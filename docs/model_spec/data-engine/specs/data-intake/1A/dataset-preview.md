@@ -1188,6 +1188,8 @@ Top-level keys your loader already expects:
 
 ### Minimal, policy-true preview
 
+
+*Optional extensions:* Rules may declare `score_value` for literal deterministic weights, and a top-level `normalisation` block (for example `method: sum_to_target` with an optional positive `target`) can rescale the resulting scores without introducing probabilities.
 ```yaml
 # configs/policy.s3.base_weight.yaml
 semver: "1.0.0"

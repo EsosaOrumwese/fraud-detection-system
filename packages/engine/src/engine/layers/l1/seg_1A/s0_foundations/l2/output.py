@@ -65,6 +65,26 @@ def _write_jsonl(path: Path, rows: list[Mapping[str, object]]) -> None:
             handle.write("\n")
 
 
+def refresh_validation_bundle_flag(bundle_dir: Path) -> None:
+    """Recompute the validation bundle digest and overwrite ``_passed.flag``."""
+
+    files_for_hash = sorted(
+        (
+            path
+            for path in bundle_dir.rglob("*")
+            if path.is_file() and path.name != "_passed.flag"
+        ),
+        key=lambda path: path.relative_to(bundle_dir).as_posix(),
+    )
+    digest = hashlib.sha256()
+    for file_path in files_for_hash:
+        digest.update(file_path.read_bytes())
+    (bundle_dir / "_passed.flag").write_text(
+        f"sha256_hex = {digest.hexdigest()}\n",
+        encoding="utf-8",
+    )
+
+
 def _assert_partition_value(
     frame: pl.DataFrame,
     *,
@@ -207,17 +227,7 @@ def _materialise_validation_bundle(
                 encoding="utf-8",
             )
 
-        files_for_hash = sorted(
-            [p for p in temp_dir.iterdir() if p.name != "_passed.flag"],
-            key=lambda p: p.name,
-        )
-        digest = hashlib.sha256()
-        for file_path in files_for_hash:
-            digest.update(file_path.read_bytes())
-        (temp_dir / "_passed.flag").write_text(
-            f"sha256_hex = {digest.hexdigest()}\n",
-            encoding="utf-8",
-        )
+        refresh_validation_bundle_flag(temp_dir)
 
         final_dir = bundle_root / f"manifest_fingerprint={manifest_fingerprint}"
         if final_dir.exists():
@@ -330,4 +340,4 @@ def write_outputs(
     )
 
 
-__all__ = ["S0Outputs", "write_outputs"]
+__all__ = ["S0Outputs", "refresh_validation_bundle_flag", "write_outputs"]
