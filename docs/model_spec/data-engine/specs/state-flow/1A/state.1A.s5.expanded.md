@@ -99,9 +99,9 @@ A run of S5 satisfies this spec iff all of the following hold:
 
 **2.1 Upstream dependencies & invariants (what S5 may read and must assume)**
 a) **Authoritative inputs (parameter-scoped; JSON-Schema bound).** S5 MAY read only the following sealed datasets and FK references, exactly as registered in the dictionary and bound by the ingress schema set:
-• `settlement_shares_2024Q4` → `schemas.ingress.layer1.yaml#/settlement_shares` (PK: `(currency,country_iso)`).
-• `ccy_country_shares_2024Q4` → `schemas.ingress.layer1.yaml#/ccy_country_shares` (PK: `(currency,country_iso)`).
-• `iso3166_canonical_2024` → `schemas.ingress.layer1.yaml#/iso3166_canonical_2024` (FK target for `country_iso`).
+- `settlement_shares_2024Q4` → `schemas.ingress.layer1.yaml#/settlement_shares` (PK: `(currency,country_iso)`).
+- `ccy_country_shares_2024Q4` → `schemas.ingress.layer1.yaml#/ccy_country_shares` (PK: `(currency,country_iso)`).
+- `iso3166_canonical_2024` → `schemas.ingress.layer1.yaml#/iso3166_canonical_2024` (FK target for `country_iso`).
 All three are listed as **approved** in the dataset dictionary. JSON-Schema is the **single authority** for domains and constraints.
 
 b) **Ingress pre-flight constraints (must hold before S5 runs).** For each input surface, S5 SHALL require: (i) PK uniqueness, (ii) `currency ∈ ISO-4217` and uppercase, (iii) `country_iso ∈ ISO2` uppercase and FK-valid, (iv) `share ∈ [0,1]`, `obs_count ≥ 0`, and (v) **group sum** `Σ share = 1.0 ± 1e-6` per `currency`. Violations are **hard FAIL** (S5 does not repair ingress).
@@ -116,8 +116,8 @@ e) **Lineage & partition law inherited.** S5 operates **parameter-scoped only**;
 
 **2.2 Downstream usage (what S6+ may consume and how)**
 a) **Consumable S5 outputs.** S6 and later 1A states MAY consume:
-• `ccy_country_weights_cache` (`schemas.1A.yaml#/prep/ccy_country_weights_cache`, **PK** `(currency,country_iso)`), parameter-scoped path under `…/ccy_country_weights_cache/parameter_hash={parameter_hash}/`.
-• (Optionally) `merchant_currency` cache (`schemas.1A.yaml#/prep/merchant_currency`) if present for κₘ joins.
+- `ccy_country_weights_cache` (`schemas.1A.yaml#/prep/ccy_country_weights_cache`, **PK** `(currency,country_iso)`), parameter-scoped path under `…/ccy_country_weights_cache/parameter_hash={parameter_hash}/`.
+- (Optionally) `merchant_currency` cache (`schemas.1A.yaml#/prep/merchant_currency`) if present for κₘ joins.
 These dataset IDs, schema refs, and paths are normative per the dictionary.
 
 b) **Join pattern required.** Downstream selection/allocation MUST: (i) obtain **order** from `s3_candidate_set.candidate_rank`; (ii) obtain **weights** from `ccy_country_weights_cache`; (iii) if merchant-scoped joins are needed, obtain κₘ from `merchant_currency`; and (iv) perform joins using the keys defined by the respective schemas (e.g., `(currency,country_iso)` for weights; `merchant_id` for κₘ). No other source may be used for order or weights.
@@ -130,24 +130,24 @@ d) **Scope of permissible transforms.** Downstream MAY **restrict** weights to e
 
 **2.3 “No re-derive” guarantees & prohibitions (who owns which truth)**
 a) **S5 guarantees to downstream:**
-• A complete per-currency coverage equal to the **union** of countries present in either ingress surface (unless explicitly narrowed by policy recorded in lineage/metrics).
-• Schema-valid rows with a weight column exactly as specified by `schemas.1A.yaml#/prep/ccy_country_weights_cache` (field names and types per schema), partitioned by `parameter_hash`, with path↔embed equality. 
+- A complete per-currency coverage equal to the **union** of countries present in either ingress surface (unless explicitly narrowed by policy recorded in lineage/metrics).
+- Schema-valid rows with a weight column exactly as specified by `schemas.1A.yaml#/prep/ccy_country_weights_cache` (field names and types per schema), partitioned by `parameter_hash`, with path↔embed equality. 
 
 b) **S5 will NOT:**
-• Emit, encode, or imply inter-country order.
-• Use RNG or write any RNG traces/events.
-• Alter or “repair” ingress surfaces that violate schema or Σ-constraints (S5 fails closed instead).
+- Emit, encode, or imply inter-country order.
+- Use RNG or write any RNG traces/events.
+- Alter or “repair” ingress surfaces that violate schema or Σ-constraints (S5 fails closed instead).
 
 c) **Downstream MUST NOT:**
-• Recompute weights from `settlement_shares_2024Q4` or `ccy_country_shares_2024Q4`, or apply alternative smoothing policies not included in the `parameter_hash`.
-• Infer order from S5 outputs or any source other than `s3_candidate_set.candidate_rank`.
-• Persist renormalised/re-weighted copies as substitutes for `ccy_country_weights_cache` (any persisted variant would constitute a new dataset and MUST NOT shadow S5).
+- Recompute weights from `settlement_shares_2024Q4` or `ccy_country_shares_2024Q4`, or apply alternative smoothing policies not included in the `parameter_hash`.
+- Infer order from S5 outputs or any source other than `s3_candidate_set.candidate_rank`.
+- Persist renormalised/re-weighted copies as substitutes for `ccy_country_weights_cache` (any persisted variant would constitute a new dataset and MUST NOT shadow S5).
 
 d) **Ownership matrix (normative):**
-• **Order (inter-country)** → **S3** (`s3_candidate_set.candidate_rank`).
-• **Weights (currency→country)** → **S5** (`ccy_country_weights_cache`).
-• **Merchant settlement currency κₘ** → **S5.0** (`merchant_currency`).
-• **Egress outlet ordering & counts** → **S3/S4/S7/S8** surfaces; `outlet_catalogue` encodes **within-country** order only.
+- **Order (inter-country)** → **S3** (`s3_candidate_set.candidate_rank`).
+- **Weights (currency→country)** → **S5** (`ccy_country_weights_cache`).
+- **Merchant settlement currency κₘ** → **S5.0** (`merchant_currency`).
+- **Egress outlet ordering & counts** → **S3/S4/S7/S8** surfaces; `outlet_catalogue` encodes **within-country** order only.
 
 **2.4 Forward contracts to S6 (selection hand-off).**
 a) **Domain.** S6 MUST select from the **intersection** of S5 weights and S3’s `s3_candidate_set` for each merchant. Weights present for **non-admissible** countries are **ignored** (not an error).
@@ -250,15 +250,15 @@ The policy file **MUST** contain exactly the following top-level structure (no e
 * `version : string` — date string `YYYY-MM-DD`. 
 * `dp : int` — **fixed decimals for OUTPUT weights**; **domain:** `0…18` inclusive. 
 * `defaults : object` — global defaults used unless overridden:
-  • `blend_weight : number ∈ [0,1]`
-  • `alpha : number ≥ 0` (additive Dirichlet α per ISO)
-  • `obs_floor : integer ≥ 0` (minimum effective mass)
-  • `min_share : number ∈ [0,1]` (per-ISO floors applied post-smoothing)
-  • `shrink_exponent : number ≥ 0` (0=no shrink; >1 reduces impact of huge masses) 
+  - `blend_weight : number ∈ [0,1]`
+  - `alpha : number ≥ 0` (additive Dirichlet α per ISO)
+  - `obs_floor : integer ≥ 0` (minimum effective mass)
+  - `min_share : number ∈ [0,1]` (per-ISO floors applied post-smoothing)
+  - `shrink_exponent : number ≥ 0` (0 = no shrink; >1 reduces impact of large masses; **values < 1 are treated as 1 at evaluation time**) 
 * `per_currency : object` — optional per-ISO-4217 blocks (uppercase 3-letter) overriding any subset of `defaults` for that **currency**; keys **MUST** be valid ISO-4217 codes (uppercase). 
 * `overrides : object` — optional **ISO-scoped** adjustments for a given currency:
-  • `alpha_iso : { <CCY> : { <ISO2> : number ≥ 0 } }`
-  • `min_share_iso : { <CCY> : { <ISO2> : number ∈ [0,1] } }`
+  - `alpha_iso : { <CCY> : { <ISO2> : number ≥ 0 } }`
+  - `min_share_iso : { <CCY> : { <ISO2> : number ∈ [0,1] } }`
   All ISO2 keys **MUST** be uppercase and exist in `iso3166_canonical_2024`. 
 
 **Conformance & hygiene:**
@@ -298,7 +298,7 @@ For any policy quantity **Q** and a given **currency** `cur` and **ISO** `iso` (
 
 **4.8 Interaction with inputs & dictionary (cross-references)**
 
-* This policy is used to blend **(9)** `settlement_shares_2024Q4` and **(10)** `ccy_country_shares_2024Q4` (both with `Σ share = 1 ± 1e-6` per currency) into `ccy_country_weights_cache` under **parameter scope**; dictionary IDs and schema anchors are binding.   
+* This policy is used to blend `settlement_shares_2024Q4` and `ccy_country_shares_2024Q4` (both with `Σ share = 1 ± 1e-6` per currency) into `ccy_country_weights_cache` under **parameter scope**; dictionary IDs and schema anchors are binding. 
 * The output dataset contract (ID, path, PK) is fixed by the dataset dictionary and `schemas.1A.yaml#/prep/ccy_country_weights_cache`.  
 
 ---
@@ -413,7 +413,7 @@ If neither declared source exists in the dictionary for a given deployment, do n
 
 ## 6.1 Currency scope & country-set construction
 
-* **Per-currency working set.** For each `currency`, form the **union** of `country_iso` present in **(9)** `settlement_shares_2024Q4` and **(10)** `ccy_country_shares_2024Q4`. Missing pairs are treated as **share=0, obs_count=0** for that surface. **Duplicates are forbidden** by the inputs’ PK rule. Writers must process the union in **`country_iso` A→Z** order (determinism); readers must not rely on file order.
+* **Per-currency working set.** For each `currency`, form the **union** of `country_iso` present in `settlement_shares_2024Q4` and `ccy_country_shares_2024Q4`. Missing pairs are treated as **share=0, obs_count=0** for that surface. **Duplicates are forbidden** by the inputs’ PK rule. Writers must process the union in **`country_iso` A→Z** order (determinism); readers must not rely on file order.
 * **Domain & FK.** All `country_iso` values **must** be uppercase ISO-3166 and FK-valid to `iso3166_canonical_2024`. All `currency` values **must** be uppercase ISO-4217. These are inherited ingress constraints S5 **validates** before any processing (§3). 
 
 ## 6.2 Numeric type & blending of share surfaces
@@ -425,8 +425,10 @@ If neither declared source exists in the dictionary for a given deployment, do n
 
 ## 6.3 Effective evidence mass (sparsity robustness)
 
-* Compute a per-currency effective mass from observed counts:
-  **`N0 = w · Σ n_ccy + (1−w) · Σ n_settle`** and **`N_eff = max(obs_floor, N0^(1/shrink_exponent))`** with `shrink_exponent ≥ 0` (policy). `shrink_exponent = 1.0` ⇒ `N_eff = max(obs_floor, N0)`. 
+* Compute a per-currency effective mass from observed counts. Let **`e = max(shrink_exponent, 1.0)`**:
+  **`N0 = w · Σ n_ccy + (1−w) · Σ n_settle`** and **`N_eff = max(obs_floor, N0^(1/e))`** with `e ≥ 1`.  
+  *If `shrink_exponent < 1` (including `0`), treat as `1` (no shrink).*  
+  `shrink_exponent = 1.0` ⇒ `N_eff = max(obs_floor, N0)`.
 
 ## 6.4 Prior / smoothing policy (Dirichlet-style add-α)
 
@@ -579,7 +581,7 @@ If policy explicitly **narrows** the country set for a currency (e.g., removing 
 
 When a per-currency degrade in **8.4** is used, S5 MUST:
 
-* Record **`degrade_mode ∈ {none, settlement_only, ccy_only, abort}`** and **`degrade_reason_code`** (closed set: `{SRC_MISSING_SETTLEMENT, SRC_MISSING_CCY, POLICY_NARROWING}` plus `OTHER` as last resort) in run-level metrics (§14).
+* Record **`degrade_mode ∈ {none, settlement_only, ccy_only}`** and **`degrade_reason_code`** (closed set: `{SRC_MISSING_SETTLEMENT, SRC_MISSING_CCY, POLICY_NARROWING}` plus `OTHER` as last resort) in run-level metrics (§14).
 * Ensure outputs still satisfy §7 invariants; otherwise escalate to **`abort`** (run FAIL). 
 
 ## 8.8 RNG non-interaction breaches (hard FAIL)
@@ -696,7 +698,7 @@ Re-running S5 with identical inputs and **identical policy bytes** produces **by
 
 **10.3 Identifier semantics (source of truth)**
 
-* **`parameter_hash` (Hex64)** — the **only** partition key for S5 outputs; produced by S0 as SHA-256 over the governed parameter-set bytes (policy files included). Changing `ccy_smoothing_params.yaml` **MUST** flip `parameter_hash`.
+* **`parameter_hash` (Hex64)** — the **only** partition key for S5 outputs; produced by S0 as SHA-256 over the governed parameter-set bytes **including** `ccy_smoothing_params.yaml`. Changing `ccy_smoothing_params.yaml` **MUST** flip `parameter_hash`.
 * **`manifest_fingerprint` (Hex64)** — global run fingerprint used by the **layer-wide** validation bundle (`validation_bundle_1A`). S5 is parameter-scoped; any `produced_by_fingerprint` field, when present, is optional provenance only. 
 * **`run_id`** — used only in RNG logs (not produced by S5). 
 
@@ -928,9 +930,9 @@ Re-running S5 with identical inputs and **identical policy bytes** produces **by
 **P1 — Parameter scope fixed.** A concrete **`parameter_hash`** is selected (CLI §13.1) and corresponds to the governed parameter set sealed by S0. Policy bytes **`ccy_smoothing_params.yaml`** must be part of that set; changing its bytes flips `parameter_hash`. 
 
 **P2 — Inputs exist and are sealed.** The ingress surfaces listed in §3 are present and conform to their schema anchors:
-• `settlement_shares_2024Q4` → `schemas.ingress.layer1.yaml#/settlement_shares`
-• `ccy_country_shares_2024Q4` → `schemas.ingress.layer1.yaml#/ccy_country_shares`
-• `iso3166_canonical_2024` (FK target)
+- `settlement_shares_2024Q4` → `schemas.ingress.layer1.yaml#/settlement_shares`
+- `ccy_country_shares_2024Q4` → `schemas.ingress.layer1.yaml#/ccy_country_shares`
+- `iso3166_canonical_2024` (FK target)
 All are registered/approved in the dictionary/registry.
 
 **P3 — Dictionary & schema availability.** The producer has the **Dataset Dictionary** (`dataset_dictionary.layer1.1A.yaml`) and schema bundle(s) at run start; S0’s path/partition lints apply. 
@@ -1218,7 +1220,7 @@ The S5 validator (§9) MUST additionally assert:
 
 ---
 
-**Compliance note.** These clauses do not expand legal obligations; they operationalise what is already declared in the **Dataset Dictionary** and **Artefact Registry** so that S5 remains sealed, non-PII, licenced, and auditable.
+**Compliance note.** These clauses do not expand legal obligations; they operationalise what is already declared in the **Dataset Dictionary** and **Artefact Registry** so that S5 remains sealed, non-PII, **licensed**, and auditable.
 
 ---
 
@@ -1378,7 +1380,7 @@ Before merging a change that would bump **MAJOR**, ensure all are true:
 * **`s_settle[c]`, `s_ccy[c]`** — Input share for country `c` from the settlement and currency-country surfaces, respectively; each surface individually satisfies Σ=1 per currency by ingress contract. 
 * **`q[c]`** — Blended share: `q[c] = w·s_ccy[c] + (1−w)·s_settle[c]`.
 * **`N0`** — Evidence mass from counts: `N0 = w·Σ n_ccy + (1−w)·Σ n_settle`.
-* **`N_eff`** — Effective mass: `max(obs_floor, N0^(1/shrink_exponent))`.
+* **`N_eff`** — Effective mass: `max(obs_floor, N0^(1/max(shrink_exponent, 1)))`.
 * **`posterior[c]`** — Smoothed value: `(q[c]·N_eff + α[c]) / (N_eff + Σ α)`.
 * **`p′[c]`** — Post-floor value: `max(posterior[c], min_share_for_c)`.
 * **`p[c]`** — Renormalised value: `p′[c] / Σ p′`.
@@ -1486,7 +1488,9 @@ Before merging a change that would bump **MAJOR**, ensure all are true:
 | `USAGE`                                   | CLI contract violation (missing/unknown flags, missing paths).                      |
 | `E_INPUT_SCHEMA` / `E_INPUT_SUM`          | Ingress schema/PK/FK breach or **Σ share** constraint violated on an input surface. |
 | `E_POLICY_DOMAIN`                         | Policy key/domain invalid (incl. unknown currency/ISO in overrides).                |
+| `E_POLICY_UNKNOWN_CODE`                   | Policy references an unknown currency or ISO code not present in the canonical domains. |
 | `E_POLICY_MINSHARE_FEASIBILITY`           | For a currency, **Σ min_share_iso > 1.0**.                                          |
+| `E_POLICY_MISSING_Q`                      | Required policy quantity `Q` not found after precedence resolution (§4.3).          |
 | `E_ZERO_MASS`                             | Post-floor mass sums to 0 before renormalisation.                                   |
 | `E_QUANT_SUM_MISMATCH`                    | After quantisation + tie-break, decimal Σ at `dp` ≠ `1`.                            |
 | `E_OUTPUT_SCHEMA`                         | Any S5 output breaches its schema/PK/FK.                                            |
@@ -1510,7 +1514,7 @@ Each log record is a single JSON object with at least:
 | `event`          | Stable names (e.g., `POLICY_OVERRIDES_APPLIED`, `DEGRADE_USED`, `QUANT_TIE_BREAK`) |
 | `parameter_hash` | hex64                                                                              |
 | `currency?`      | ISO-4217 (optional, when applicable)                                               |
-| `reason_code?`   | one of B.4 (optional, when applicable)                                             |
+| `reason_code?`   | one of B.4, or `SPARSITY_LOW_MASS` (optional, when applicable)                     |
 
 ---
 
