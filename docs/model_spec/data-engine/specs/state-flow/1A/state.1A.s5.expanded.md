@@ -99,8 +99,8 @@ A run of S5 satisfies this spec iff all of the following hold:
 
 **2.1 Upstream dependencies & invariants (what S5 may read and must assume)**
 a) **Authoritative inputs (parameter-scoped; JSON-Schema bound).** S5 MAY read only the following sealed datasets and FK references, exactly as registered in the dictionary and bound by the ingress schema set:
-- `settlement_shares_2024Q4` → `schemas.ingress.layer1.yaml#/settlement_shares` (PK: `(currency,country_iso)`).
-- `ccy_country_shares_2024Q4` → `schemas.ingress.layer1.yaml#/ccy_country_shares` (PK: `(currency,country_iso)`).
+- `settlement_shares_2024Q4` → `schemas.ingress.layer1.yaml#/settlement_shares` (PK: `(currency, country_iso)`).
+- `ccy_country_shares_2024Q4` → `schemas.ingress.layer1.yaml#/ccy_country_shares` (PK: `(currency, country_iso)`).
 - `iso3166_canonical_2024` → `schemas.ingress.layer1.yaml#/iso3166_canonical_2024` (FK target for `country_iso`).
 All three are listed as **approved** in the dataset dictionary. JSON-Schema is the **single authority** for domains and constraints.
 
@@ -116,11 +116,11 @@ e) **Lineage & partition law inherited.** S5 operates **parameter-scoped only**;
 
 **2.2 Downstream usage (what S6+ may consume and how)**
 a) **Consumable S5 outputs.** S6 and later 1A states MAY consume:
-- `ccy_country_weights_cache` (`schemas.1A.yaml#/prep/ccy_country_weights_cache`, **PK** `(currency,country_iso)`), parameter-scoped path under `…/ccy_country_weights_cache/parameter_hash={parameter_hash}/`.
+- `ccy_country_weights_cache` (`schemas.1A.yaml#/prep/ccy_country_weights_cache`, **PK** `(currency, country_iso)`), parameter-scoped path under `…/ccy_country_weights_cache/parameter_hash={parameter_hash}/`.
 - (Optionally) `merchant_currency` cache (`schemas.1A.yaml#/prep/merchant_currency`) if present for κₘ joins.
 These dataset IDs, schema refs, and paths are normative per the dictionary.
 
-b) **Join pattern required.** Downstream selection/allocation MUST: (i) obtain **order** from `s3_candidate_set.candidate_rank`; (ii) obtain **weights** from `ccy_country_weights_cache`; (iii) if merchant-scoped joins are needed, obtain κₘ from `merchant_currency`; and (iv) perform joins using the keys defined by the respective schemas (e.g., `(currency,country_iso)` for weights; `merchant_id` for κₘ). No other source may be used for order or weights.
+b) **Join pattern required.** Downstream selection/allocation MUST: (i) obtain **order** from `s3_candidate_set.candidate_rank`; (ii) obtain **weights** from `ccy_country_weights_cache`; (iii) if merchant-scoped joins are needed, obtain κₘ from `merchant_currency`; and (iv) perform joins using the keys defined by the respective schemas (e.g., `(currency, country_iso)` for weights; `merchant_id` for κₘ). No other source may be used for order or weights.
 
 c) **Read gate.** Downstream MUST read S5 outputs **only after** the S5 PASS artefact defined in §9 is present for the same `parameter_hash` (**no PASS → no read**). (This mirrors Layer-1 egress gating already used for other 1A surfaces.) 
 
@@ -195,7 +195,7 @@ For both share surfaces (`settlement_shares_2024Q4`, `ccy_country_shares_2024Q4`
 * `country_iso` **MUST** be ISO-3166 **uppercase** alpha-2 and **FK-valid** to `iso3166_canonical_2024.country_iso`.
 * `share` **MUST** be numeric **in [0,1]**.
 * `obs_count` **MUST** be integer **≥ 0** (presence and type per ingress schema).
-* **Primary key** uniqueness: no duplicate `(currency,country_iso)` rows.
+* **Primary key** uniqueness: no duplicate `(currency, country_iso)` rows.
 
 No row-order requirements apply (dictionary `ordering: []`). 
 
@@ -217,7 +217,7 @@ If any of the following are observed in either share surface, S5 **MUST** fail c
 * Unknown `country_iso` or FK violation against `iso3166_canonical_2024`.
 * Any `share` outside [0,1], NaN/Inf, or null where disallowed.
 * Any `obs_count < 0` or non-integer where disallowed.
-* **PK collision** on `(currency,country_iso)`.
+* **PK collision** on `(currency, country_iso)`.
 * **Group sum** outside tolerance for any `currency`.
 * Columns missing or extra vs schema anchor. 
 
@@ -543,7 +543,7 @@ If neither declared source exists in the dictionary for a given deployment, do n
 
 S5 MUST **abort the run** before writing any outputs if **either** share surface violates its ingress contract (§3). Violations include:
 
-* PK collision on `(currency,country_iso)`; unknown or non-uppercase `ISO2/ISO-4217`; `share∉[0,1]`; `obs_count<0`; or **Σ share ≠ 1.0 ± 1e-6** per currency. **Error:** `E_INPUT_SCHEMA` / `E_INPUT_SUM`.
+* PK collision on `(currency, country_iso)`; unknown or non-uppercase `ISO2/ISO-4217`; `share∉[0,1]`; `obs_count<0`; or **Σ share ≠ 1.0 ± 1e-6** per currency. **Error:** `E_INPUT_SCHEMA` / `E_INPUT_SUM`.
 
 ## 8.2 Policy file errors (hard FAIL)
 
@@ -1402,7 +1402,8 @@ Before merging a change that would bump **MAJOR**, ensure all are true:
 * **Largest-remainder tie-break** — Deterministic placement of ±1 ULP adjustments **within a currency** when the fixed-dp decimal sum deviates from exactly `1.00…0` at `dp`. Let `r[c] = frac(10^dp · p[c])`.  
   - **Shortfall (add):** allocate +1 ULP to countries in **descending** `r[c]`, ties by `country_iso` **A→Z**.  
   - **Overshoot (subtract):** take −1 ULP from countries in **ascending** `r[c]`, ties by `country_iso` **Z→A**.  
-  Output must become **byte-identical** across shard counts after applying this rule.* **ULP** — One **unit in the last place** of the fixed-dp decimal representation used for the Σ=1 exactness step.
+  Output must become **byte-identical** across shard counts after applying this rule.
+* **ULP** — One **unit in the last place** of the fixed-dp decimal representation used for the Σ=1 exactness step.
 * **Σ (sum) tolerance** — Schema-level numeric group constraint of `1.0 ± 1e-6`; S5 additionally requires **decimal** Σ at `dp` to equal **exactly** `"1"` after tie-break. 
 
 ## A.8 Coverage, joins & scope
