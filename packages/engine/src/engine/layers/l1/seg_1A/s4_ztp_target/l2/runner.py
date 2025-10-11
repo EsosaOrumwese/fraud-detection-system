@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import time
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Tuple
+from typing import Iterable, Mapping, MutableMapping, Tuple
 
 from ...s0_foundations.exceptions import err
 from ...s0_foundations.l1.rng import PhiloxEngine
 from ..contexts import S4DeterministicContext, S4MerchantTarget
+from ..l0 import constants as c
 from ..l0 import writer as l0_writer
 from ..l1 import (
     SamplerOutcome,
@@ -50,6 +53,159 @@ class S4RunResult:
     trace_path: Path
 
 
+def _partition_path(
+    base_path: Path,
+    stream: str,
+    *,
+    deterministic: S4DeterministicContext,
+) -> Path:
+    partition = (
+        Path(f"seed={deterministic.seed}")
+        / f"parameter_hash={deterministic.parameter_hash}"
+        / f"run_id={deterministic.run_id}"
+    )
+    return (
+        base_path
+        / "logs"
+        / "rng"
+        / "events"
+        / stream
+        / partition
+        / "part-00000.jsonl"
+    )
+
+
+def _load_jsonl(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+
+def _group_records(records: Iterable[dict]) -> MutableMapping[int, list[dict]]:
+    grouped: MutableMapping[int, list[dict]] = defaultdict(list)
+    for record in records:
+        if record.get("module") != c.MODULE_NAME or record.get("context") != c.CONTEXT:
+            continue
+        grouped[int(record["merchant_id"])].append(record)
+    return grouped
+
+
+def _load_existing_outcomes(
+    *,
+    base_path: Path,
+    deterministic: S4DeterministicContext,
+) -> tuple[list[ZTPFinalRecord], set[int], set[int]]:
+    attempts = _group_records(
+        _load_jsonl(
+            _partition_path(
+                base_path, c.STREAM_POISSON_COMPONENT, deterministic=deterministic
+            )
+        )
+    )
+    rejections = _group_records(
+        _load_jsonl(
+            _partition_path(
+                base_path, c.STREAM_ZTP_REJECTION, deterministic=deterministic
+            )
+        )
+    )
+    retries = _group_records(
+        _load_jsonl(
+            _partition_path(
+                base_path,
+                c.STREAM_ZTP_RETRY_EXHAUSTED,
+                deterministic=deterministic,
+            )
+        )
+    )
+    finals = _group_records(
+        _load_jsonl(
+            _partition_path(
+                base_path, c.STREAM_ZTP_FINAL, deterministic=deterministic
+            )
+        )
+    )
+
+    resolved_merchants = set(finals.keys()) | set(retries.keys())
+    partial_merchants = {
+        merchant_id
+        for merchant_id in (set(attempts.keys()) | set(rejections.keys()))
+        if merchant_id not in resolved_merchants
+    }
+
+    existing_records: list[ZTPFinalRecord] = []
+    if resolved_merchants:
+        lookup = {merchant.merchant_id: merchant for merchant in deterministic.merchants}
+        for merchant_id in resolved_merchants:
+            merchant = lookup.get(merchant_id)
+            if merchant is None:
+                raise err(
+                    "ERR_S4_BRANCH_PURITY",
+                    f"existing S4 logs reference unknown merchant {merchant_id}",
+                )
+            lambda_regime = compute_lambda_regime(
+                hyperparams=deterministic.hyperparams,
+                n_outlets=merchant.n_outlets,
+                feature_value=merchant.feature_value,
+            )
+            rejection_count = len(rejections.get(merchant_id, []))
+            final_records = finals.get(merchant_id)
+            if final_records:
+                if len(final_records) > 1:
+                    raise err(
+                        "ERR_S4_NUMERIC_INVALID",
+                        f"multiple S4 final records found for merchant {merchant_id}",
+                    )
+                record = final_records[0]
+                existing_records.append(
+                    ZTPFinalRecord(
+                        merchant_id=merchant_id,
+                        lambda_extra=float(
+                            record.get("lambda_extra", lambda_regime.lambda_extra)
+                        ),
+                        regime=str(record.get("regime", lambda_regime.regime)),
+                        attempts=int(record.get("attempts", 0)),
+                        rejections=rejection_count,
+                        k_target=int(record["K_target"])
+                        if record.get("K_target") is not None
+                        else None,
+                        exhausted=bool(record.get("exhausted", False)),
+                        policy=deterministic.hyperparams.exhaustion_policy,
+                        reason=record.get("reason"),
+                    )
+                )
+            else:
+                retry_list = retries[merchant_id]
+                if len(retry_list) > 1:
+                    raise err(
+                        "ERR_S4_NUMERIC_INVALID",
+                        f"multiple S4 retry_exhausted records for merchant {merchant_id}",
+                    )
+                retry_record = retry_list[0]
+                existing_records.append(
+                    ZTPFinalRecord(
+                        merchant_id=merchant_id,
+                        lambda_extra=float(
+                            retry_record.get("lambda_extra", lambda_regime.lambda_extra)
+                        ),
+                        regime=lambda_regime.regime,
+                        attempts=int(retry_record.get("attempts", 0)),
+                        rejections=rejection_count,
+                        k_target=None,
+                        exhausted=True,
+                        policy=deterministic.hyperparams.exhaustion_policy,
+                        reason=None,
+                    )
+                )
+
+    existing_records.sort(key=lambda record: record.merchant_id)
+    return existing_records, resolved_merchants, partial_merchants
+
+
 class S4ZTPTargetRunner:
     """Drive the S4 attempt loop for all eligible merchants."""
 
@@ -85,8 +241,24 @@ class S4ZTPTargetRunner:
 
         log_progress(f"run initialised (merchants={len(deterministic.merchants)})")
 
-        finals: list[ZTPFinalRecord] = []
+        existing_records, resolved_merchants, partial_merchants = _load_existing_outcomes(
+            base_path=base_path,
+            deterministic=deterministic,
+        )
+        if partial_merchants:
+            raise err(
+                "ERR_S4_PARTIAL_RESUME",
+                f"partial S4 logs detected for merchants {sorted(partial_merchants)}",
+            )
+        if resolved_merchants:
+            log_progress(
+                f"resume detected (resolved_merchants={len(resolved_merchants)})"
+            )
+
+        finals: list[ZTPFinalRecord] = list(existing_records)
         for merchant in deterministic.merchants:
+            if merchant.merchant_id in resolved_merchants:
+                continue
             if not _merchant_in_scope(merchant):
                 continue
 
@@ -121,7 +293,11 @@ class S4ZTPTargetRunner:
                 )
             )
 
-        log_progress(f"emitted s4 events (processed_merchants={len(finals)})")
+        processed_total = len(finals)
+        processed_new = processed_total - len(existing_records)
+        log_progress(
+            f"emitted s4 events (new_merchants={processed_new}, total_merchants={processed_total})"
+        )
         log_progress("completed run")
 
         return S4RunResult(

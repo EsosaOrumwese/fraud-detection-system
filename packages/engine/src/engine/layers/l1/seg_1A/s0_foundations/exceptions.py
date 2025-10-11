@@ -164,6 +164,10 @@ _FAILURE_CODE_MAP: Mapping[str, Tuple[FailureCategory, str]] = {
         FailureCategory.F2_PARAMETERS,
         "s4_policy_invalid",
     ),
+    "ERR_S4_PARTIAL_RESUME": (
+        FailureCategory.F8_VALIDATION,
+        "s4_partial_resume",
+    ),
 }
 
 

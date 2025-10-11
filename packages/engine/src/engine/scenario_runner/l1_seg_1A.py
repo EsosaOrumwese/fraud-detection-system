@@ -11,7 +11,7 @@ from typing import Dict, Mapping, Optional, Sequence, Tuple
 import yaml
 
 from engine.layers.l1.seg_1A.s0_foundations import S0FoundationsRunner, SchemaAuthority
-from engine.layers.l1.seg_1A.s0_foundations.exceptions import err
+from engine.layers.l1.seg_1A.s0_foundations.exceptions import S0Error, err
 from engine.layers.l1.seg_1A.s0_foundations.l1.design import iter_design_vectors
 from engine.layers.l1.seg_1A.s0_foundations.l2.runner import S0RunResult
 from engine.layers.l1.seg_1A.s1_hurdle import HurdleDesignRow, S1HurdleRunner
@@ -47,6 +47,19 @@ from engine.layers.l1.seg_1A.s3_crossborder_universe.l3.bundle import (
 from engine.layers.l1.seg_1A.s3_crossborder_universe.l3.validator import (
     validate_s3_outputs,
 )
+from engine.layers.l1.seg_1A.s4_ztp_target import (
+    S4ZTPTargetRunner,
+    build_deterministic_context as build_s4_deterministic_context,
+)
+from engine.layers.l1.seg_1A.s4_ztp_target.contexts import S4DeterministicContext
+from engine.layers.l1.seg_1A.s4_ztp_target.l2 import (
+    S4RunResult,
+    ZTPFinalRecord,
+)
+from engine.layers.l1.seg_1A.s4_ztp_target.l3.bundle import (
+    publish_s4_validation_artifacts,
+)
+from engine.layers.l1.seg_1A.s4_ztp_target.l3.validator import validate_s4_run
 
 logger = logging.getLogger(__name__)
 
@@ -195,6 +208,30 @@ class S3StateContext:
         return self.deterministic.seed
 
 
+@dataclass(frozen=True)
+class S4StateContext:
+    """Downstream context bundle after S4 target sampling completes."""
+
+    deterministic: S4DeterministicContext
+    finals: Tuple[ZTPFinalRecord, ...]
+    poisson_events_path: Path
+    rejection_events_path: Path
+    retry_exhausted_events_path: Path
+    final_events_path: Path
+    trace_path: Path
+    metrics: Dict[str, float] | None = None
+    validation_passed: bool | None = None
+    validation_artifacts_path: Path | None = None
+
+    @property
+    def run_id(self) -> str:
+        return self.deterministic.run_id
+
+    @property
+    def seed(self) -> int:
+        return self.deterministic.seed
+
+
 def build_s3_context(
     result: S3RunResult,
     *,
@@ -220,9 +257,32 @@ def build_s3_context(
     )
 
 
+def build_s4_context(
+    result: S4RunResult,
+    *,
+    metrics: Dict[str, float] | None = None,
+    validation_passed: bool | None = None,
+    validation_artifacts_path: Path | None = None,
+) -> S4StateContext:
+    """Construct the downstream-facing context from an ``S4RunResult``."""
+
+    return S4StateContext(
+        deterministic=result.deterministic,
+        finals=result.finals,
+        poisson_events_path=result.poisson_events_path,
+        rejection_events_path=result.rejection_events_path,
+        retry_exhausted_events_path=result.retry_exhausted_events_path,
+        final_events_path=result.final_events_path,
+        trace_path=result.trace_path,
+        metrics=metrics,
+        validation_passed=validation_passed,
+        validation_artifacts_path=validation_artifacts_path,
+    )
+
+
 @dataclass(frozen=True)
 class Segment1ARunResult:
-    """Combined result for running S0 foundations, S1 hurdle, and S2 NB sampling."""
+    """Combined result for running S0 foundations through S4 target sampling."""
 
     s0_result: S0RunResult
     s1_result: S1RunResult
@@ -231,6 +291,8 @@ class Segment1ARunResult:
     nb_context: S2StateContext
     s3_result: S3RunResult
     s3_context: S3StateContext
+    s4_result: S4RunResult
+    s4_context: S4StateContext
 
 
 class Segment1AOrchestrator:
@@ -247,6 +309,8 @@ class Segment1AOrchestrator:
         self._s1_runner = S1HurdleRunner()
         self._s2_runner = S2NegativeBinomialRunner()
         self._s3_runner = S3CrossBorderRunner()
+        self._s4_runner = S4ZTPTargetRunner()
+
 
     def run(
         self,
@@ -271,6 +335,9 @@ class Segment1AOrchestrator:
         s3_priors: bool = False,
         s3_integerisation: bool = False,
         s3_sequencing: bool = False,
+        s4_features: Path | None = None,
+        validate_s4: bool = True,
+        s4_validation_output: Path | None = None,
     ) -> Segment1ARunResult:
         base_path = base_path.expanduser().resolve()
         param_mapping = {
@@ -281,6 +348,9 @@ class Segment1AOrchestrator:
             if extra_manifest_artifacts
             else []
         )
+        feature_path_input = s4_features.expanduser().resolve() if s4_features else None
+        if feature_path_input is not None:
+            extras.append(feature_path_input)
         validation_policy: Mapping[str, object] | None = None
         if validation_policy_path is not None:
             policy_path = validation_policy_path.expanduser().resolve()
@@ -616,6 +686,68 @@ class Segment1AOrchestrator:
         else:
             logger.info("Segment1A S3 validation skipped (validate_s3=False)")
 
+        hyperparams_path = param_mapping.get('crossborder_hyperparams.yaml')
+        if hyperparams_path is None:
+            raise err(
+                "ERR_S4_POLICY_INVALID",
+                "parameter 'crossborder_hyperparams.yaml' required for S4",
+            )
+
+        feature_path = feature_path_input
+        s4_deterministic, _ = build_s4_deterministic_context(
+            parameter_hash=s2_result.deterministic.parameter_hash,
+            manifest_fingerprint=s2_result.deterministic.manifest_fingerprint,
+            run_id=s2_result.deterministic.run_id,
+            seed=s2_result.deterministic.seed,
+            hyperparams_path=hyperparams_path,
+            nb_finals=s2_result.finals,
+            hurdle_decisions=s1_result.decisions,
+            crossborder_flags=s0_result.outputs.crossborder_flags,
+            candidate_set_path=s3_result.candidate_set_path,
+            feature_view_path=feature_path,
+        )
+
+        s4_result = self._s4_runner.run(
+            base_path=base_path,
+            deterministic=s4_deterministic,
+        )
+
+        s4_metrics: Dict[str, float] | None = None
+        s4_validation_passed: bool | None = None
+        s4_validation_artifacts_path: Path | None = None
+        validation_output_dir = (
+            s4_validation_output.expanduser().resolve() if s4_validation_output else None
+        )
+        if validate_s4:
+            try:
+                s4_metrics = validate_s4_run(
+                    base_path=base_path,
+                    deterministic=s4_result.deterministic,
+                    expected_outcomes=s4_result.finals,
+                    output_dir=validation_output_dir,
+                )
+                s4_validation_passed = True
+            except S0Error as exc:
+                s4_validation_passed = False
+                logger.exception("Segment1A S4 validation failed")
+                raise
+            else:
+                s4_validation_artifacts_path = publish_s4_validation_artifacts(
+                    base_path=base_path,
+                    manifest_fingerprint=s4_result.deterministic.manifest_fingerprint,
+                    metrics=s4_metrics,
+                    validation_output_dir=validation_output_dir,
+                )
+        else:
+            logger.info("Segment1A S4 validation skipped (validate_s4=False)")
+
+        s4_context = build_s4_context(
+            s4_result,
+            metrics=s4_metrics,
+            validation_passed=s4_validation_passed,
+            validation_artifacts_path=s4_validation_artifacts_path,
+        )
+
         s3_context = build_s3_context(
             s3_result,
             metrics=s3_metrics,
@@ -637,6 +769,8 @@ class Segment1AOrchestrator:
             nb_context=nb_context,
             s3_result=s3_result,
             s3_context=s3_context,
+            s4_result=s4_result,
+            s4_context=s4_context,
         )
 
 
@@ -644,9 +778,11 @@ __all__ = [
     "HurdleStateContext",
     "S2StateContext",
     "S3StateContext",
+    "S4StateContext",
     "Segment1ARunResult",
     "Segment1AOrchestrator",
     "build_hurdle_context",
     "build_s2_context",
     "build_s3_context",
+    "build_s4_context",
 ]

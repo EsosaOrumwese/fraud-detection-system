@@ -57,3 +57,15 @@ eligibility:
       mcc: ["*"]
       channel: ["*"]
       iso: ["*"]
+
+
+ztp_link:
+  theta0: -1.10
+  theta1: 0.75
+  theta2: 0.60
+
+ztp_controls:
+  MAX_ZTP_ZERO_ATTEMPTS: 64
+  ztp_exhaustion_policy: "abort"
+
+X_default: 0.20

@@ -166,6 +166,24 @@ def main(argv: list[str] | None = None) -> int:
         help="Enable S3 site sequencing (requires integerisation).",
     )
     parser.add_argument(
+        "--s4-features",
+        dest="s4_features",
+        type=Path,
+        help="Optional parquet providing X feature values for S4 (defaults to policy value).",
+    )
+    parser.add_argument(
+        "--no-validate-s4",
+        dest="validate_s4",
+        action="store_false",
+        help="Skip S4 validation.",
+    )
+    parser.add_argument(
+        "--s4-validation-output",
+        dest="s4_validation_output",
+        type=Path,
+        help="Optional directory for S4 validation artefacts.",
+    )
+    parser.add_argument(
         "--result-json",
         dest="result_json",
         type=Path,
@@ -224,6 +242,13 @@ def main(argv: list[str] | None = None) -> int:
             s3_priors=args.s3_priors,
             s3_integerisation=args.s3_integerisation,
             s3_sequencing=args.s3_sequencing,
+            s4_features=args.s4_features,
+            validate_s4=args.validate_s4,
+            s4_validation_output=(
+                args.s4_validation_output.expanduser().resolve()
+                if args.s4_validation_output is not None
+                else None
+            ),
         )
     except S0Error as exc:
         logger.exception("Segment1A CLI: run failed")
@@ -231,10 +256,11 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     logger.info(
-        "Segment1A CLI: run completed (run_id=%s, accepted_merchants=%d, s3_merchants=%d)",
+        "Segment1A CLI: run completed (run_id=%s, accepted_merchants=%d, s3_merchants=%d, s4_merchants=%d)",
         result.s2_result.deterministic.run_id,
         len(result.nb_context.finals),
         len(result.s3_context.deterministic.merchants),
+        len(result.s4_context.deterministic.merchants),
     )
     logger.info(
         "Segment1A CLI: S3 candidate set %s", result.s3_context.candidate_set_path
@@ -268,6 +294,16 @@ def main(argv: list[str] | None = None) -> int:
             "Segment1A CLI: S3 validation artefacts %s",
             result.s3_context.validation_artifacts_path,
         )
+    logger.info("Segment1A CLI: S4 poisson events %s", result.s4_context.poisson_events_path)
+    if result.s4_context.metrics:
+        logger.info("Segment1A CLI: S4 metrics %s", result.s4_context.metrics)
+    if result.s4_context.validation_passed is not None:
+        if result.s4_context.validation_passed:
+            logger.info("Segment1A CLI: S4 validation PASS")
+        else:
+            logger.warning("Segment1A CLI: S4 validation FAIL")
+    if result.s4_context.validation_artifacts_path:
+        logger.info("Segment1A CLI: S4 validation artefacts %s", result.s4_context.validation_artifacts_path)
     if result.nb_context.metrics:
         logger.info("Segment1A CLI: S2 metrics %s", result.nb_context.metrics)
 
@@ -345,6 +381,27 @@ def main(argv: list[str] | None = None) -> int:
                     "sequencing": args.s3_sequencing,
                 },
                 "validation_enabled": args.validate_s3,
+            },
+            "s4": {
+                "merchants": len(result.s4_context.deterministic.merchants),
+                "poisson_path": str(result.s4_context.poisson_events_path),
+                "rejection_path": str(result.s4_context.rejection_events_path),
+                "retry_exhausted_path": str(result.s4_context.retry_exhausted_events_path),
+                "final_path": str(result.s4_context.final_events_path),
+                "trace_path": str(result.s4_context.trace_path),
+                "metrics": result.s4_context.metrics,
+                "validation_passed": result.s4_context.validation_passed,
+                "validation_artifacts_path": (
+                    str(result.s4_context.validation_artifacts_path)
+                    if result.s4_context.validation_artifacts_path is not None
+                    else None
+                ),
+                "validation_enabled": args.validate_s4,
+                "features_path": (
+                    str(args.s4_features.expanduser().resolve())
+                    if args.s4_features is not None
+                    else None
+                ),
             },
         }
         args.result_json.expanduser().resolve().write_text(

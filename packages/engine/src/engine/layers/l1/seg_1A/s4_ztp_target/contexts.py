@@ -16,6 +16,7 @@ class S4HyperParameters:
     theta2: float | None = None  # optional feature weight (defaults handled upstream)
     max_zero_attempts: int = 64
     exhaustion_policy: str = "abort"  # {"abort", "downgrade_domestic"}
+    default_feature_value: float = 0.0
     source_path: Path | None = None
     semver: str | None = None
 
