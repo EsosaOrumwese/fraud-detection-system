@@ -1,7 +1,7 @@
 version: '1.0'
 layer: layer1
 segment: seg_1A
-states: [s0, s1, s2, s3]
+states: [s0, s1, s2, s3, s4]
 
 reference:
   transaction_schema_merchant_ids:
@@ -149,7 +149,7 @@ rng_logs:
       predicate: is_multi == true
 
   rng_event_poisson_component:
-    description: Poisson draws used in NB composition and ZTP fallback.
+    description: Poisson draws used in NB composition (context="nb") and S4 ZTP sampling (context="ztp").
     format: jsonl
     path: logs/rng/events/poisson_component/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     schema_ref: layer1/schemas.layer1.yaml#/rng/events/poisson_component
@@ -166,6 +166,42 @@ rng_logs:
     format: jsonl
     path: logs/rng/events/nb_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     schema_ref: layer1/schemas.layer1.yaml#/rng/events/nb_final
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 180
+    gating:
+      gated_by: rng_event_hurdle_bernoulli
+      predicate: is_multi == true
+
+  rng_event_ztp_rejection:
+    description: Zero rejection markers emitted by the S4 ZTP sampler.
+    format: jsonl
+    path: logs/rng/events/ztp_rejection/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/ztp_rejection
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 180
+    gating:
+      gated_by: rng_event_hurdle_bernoulli
+      predicate: is_multi == true
+
+  rng_event_ztp_retry_exhausted:
+    description: Retry exhaustion markers emitted when S4 hits the governed zero-attempt cap.
+    format: jsonl
+    path: logs/rng/events/ztp_retry_exhausted/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/ztp_retry_exhausted
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 180
+    gating:
+      gated_by: rng_event_hurdle_bernoulli
+      predicate: is_multi == true
+
+  rng_event_ztp_final:
+    description: Non-consuming finaliser emitted by the S4 ZTP sampler (fixes K_target and regime).
+    format: jsonl
+    path: logs/rng/events/ztp_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/ztp_final
     partitioning: [seed, parameter_hash, run_id]
     owner: 1A
     retention_days: 180
