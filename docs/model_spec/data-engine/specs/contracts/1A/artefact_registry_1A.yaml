@@ -532,7 +532,7 @@ subsegments:
     manifest_key: mlr.ci.manifest_fingerprint
     license: '{spdx_or_internal}'
     role: Composite fingerprint of inputs (artefact digests + git + param hash).
-    dependencies: [git_commit_hash, parameter_hash, hurdle_coefficients, nb_dispersion_coefficients, crossborder_hyperparams, world_bank_gdp_per_capita_20250415, gdp_bucket_map_2024, settlement_shares_2024Q4, ccy_country_shares_2024Q4]
+    dependencies: [git_commit_hash, parameter_hash, hurdle_coefficients, nb_dispersion_coefficients, crossborder_hyperparams, world_bank_gdp_per_capita_20250415, gdp_bucket_map_2024, settlement_shares_2024Q4, ccy_country_shares_2024Q4, numeric_policy_profile, math_profile_manifest]
     source: internal
     owner: {platform_team: null}
     last_updated: '{iso8601_timestamp}'
@@ -969,7 +969,7 @@ subsegments:
     manifest_key: mlr.1A.allocation.sparse_flag
     license: '{spdx_or_internal}'
     role: Per-currency sparsity **diagnostic** for S5; no algorithmic fallback is implied by this dataset.
-    dependencies: [ccy_country_shares_2024Q4]
+    dependencies: [ccy_country_shares_2024Q4, ccy_smoothing_params]
     source: internal
     owner: {owner_team: null}
     last_updated: '{iso8601_timestamp}'

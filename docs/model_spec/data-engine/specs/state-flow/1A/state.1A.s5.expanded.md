@@ -35,7 +35,7 @@ This S5 spec is **compatible with** and **assumes** the following already-ratifi
 
 **0.5 Schema anchors & dataset IDs in scope (read/write set)**
 
-* **Inputs (ingress; parameter-scoped read):**
+* **Inputs (ingress; sealed reference reads):**
   - `settlement_shares_2024Q4` → `schemas.ingress.layer1.yaml#/settlement_shares`. 
   - `ccy_country_shares_2024Q4` → `schemas.ingress.layer1.yaml#/ccy_country_shares`. 
   - `iso3166_canonical_2024` (FK target) → `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`. 
@@ -99,7 +99,7 @@ A run of S5 satisfies this spec iff all of the following hold:
 # 2. Interfaces & “no re-derive” boundaries
 
 **2.1 Upstream dependencies & invariants (what S5 may read and must assume)**
-a) **Authoritative inputs (parameter-scoped; JSON-Schema bound).** S5 MAY read only the following sealed datasets and FK references, exactly as registered in the dictionary and bound by the ingress schema set:
+a) **Authoritative inputs (sealed reference; JSON-Schema bound).** S5 MAY read only the following sealed datasets and FK references, exactly as registered in the dictionary and bound by the ingress schema set:
 - `settlement_shares_2024Q4` → `schemas.ingress.layer1.yaml#/settlement_shares` (PK: `(currency, country_iso)`).
 - `ccy_country_shares_2024Q4` → `schemas.ingress.layer1.yaml#/ccy_country_shares` (PK: `(currency, country_iso)`).
 - `iso3166_canonical_2024` → `schemas.ingress.layer1.yaml#/iso3166_canonical_2024` (FK target for `country_iso`).
@@ -281,7 +281,7 @@ For any policy quantity **Q** and a given **currency** `cur` and **ISO** `iso` (
 
 **4.4 Parameter hashing (governed-set membership)**
 
-* **Governed files (hash set).** Only `configs/allocation/ccy_smoothing_params.yaml` contributes to `parameter_hash` for S5. Its raw bytes MUST be included in the S0 parameter set that feeds `parameter_hash`; changing its bytes MUST flip `parameter_hash`. No normalisation is permitted: hash the exact bytes. No other S5 files contribute unless this spec is amended.
+* **Governed files (hash set).** `configs/allocation/ccy_smoothing_params.yaml` is a **required member of 𝓟**; changing its bytes **MUST** flip `parameter_hash`. *(Other 𝓟 members per S0.2.2 also flip `parameter_hash`. No normalisation is permitted: hash the exact bytes.)*
 * **Registry alignment:** the **Artefact Registry** entry for `ccy_smoothing_params` MUST include its current digest and path; S0 seals that digest into lineage. 
 
 **4.5 Domain ranges & value rules (cross-checks)**
