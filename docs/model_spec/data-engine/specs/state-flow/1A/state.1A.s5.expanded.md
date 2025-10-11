@@ -1555,11 +1555,11 @@ Each log record is a single JSON object with at least:
 
 ## B.8 Rounding & tie-break settings (closed)
 
-| Setting           | Allowed value                                                               |
-|-------------------|-----------------------------------------------------------------------------|
-| Rounding mode     | **Round-half-even** (banker’s rounding)                                     |
-| Tie-break order   | **Descending** fractional remainder (pre-round), then `country_iso` **A→Z** |
-| Decimal exact-sum | **Required:** sum of fixed-dp decimals equals `1` exactly at `dp`           |
+| Setting           | Allowed value                                                                                                  |
+|-------------------|----------------------------------------------------------------------------------------------------------------|
+| Rounding mode     | **Round-half-even** (banker’s rounding)                                                                        |
+| Tie-break order   | **Shortfall (add)**: descending `r[c]`, ties **A→Z**; **Overshoot (subtract)**: ascending `r[c]`, ties **Z→A** |
+| Decimal exact-sum | **Required:** sum of fixed-dp decimals equals `1` exactly at `dp`                                              |
 
 ---
 
