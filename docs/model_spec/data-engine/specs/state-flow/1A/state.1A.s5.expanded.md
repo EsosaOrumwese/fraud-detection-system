@@ -67,7 +67,7 @@ S5 produces a **deterministic, parameter-scoped authority** of **currency→coun
 S5 SHALL:
 a) Read only **parameter-scoped** S0-sealed datasets and policy named in this spec (§3–§4). Inputs include **`settlement_shares_2024Q4`** and **`ccy_country_shares_2024Q4`** as defined by the **ingress JSON-Schemas** and the dataset dictionary.
 b) Optionally materialise a **`merchant_currency`** cache (S5.0) that provides each merchant’s settlement currency κₘ for downstream joins; it is parameter-scoped and listed in the dictionary. 
-c) Produce **`ccy_country_weights_cache`** with **PK `(currency, country_iso)`**, **fixed-dp `weight_dp`**, and embedded `parameter_hash`, at the **parameter-scoped** path declared in the dictionary. 
+c) Produce **`ccy_country_weights_cache`** with **PK `(currency, country_iso)`**, **numeric `weight` (pct01) with dp rounding semantics (§6.7)**, and embedded `parameter_hash`, at the **parameter-scoped** path declared in the dictionary. 
 d) Enforce that **coverage per currency equals the union** of ISO codes appearing in either input surface, unless policy narrows it (see §5.5/§6.10).
 e) Preserve **S3’s sole authority over inter-country order**; S5 emits **no order** and SHALL NOT modify or imply order. S6 MUST continue to obtain order exclusively from **`s3_candidate_set.candidate_rank`**.
 f) Adhere to **JSON-Schema as the single schema authority** for all inputs/outputs referenced in this document. 
@@ -107,7 +107,7 @@ All three are listed as **approved** in the dataset dictionary. JSON-Schema is t
 
 b) **Ingress pre-flight constraints (must hold before S5 runs).** For each input surface, S5 SHALL require: (i) PK uniqueness, (ii) `currency ∈ ISO-4217` and uppercase, (iii) `country_iso ∈ ISO2` uppercase and FK-valid, (iv) `share ∈ [0,1]`, `obs_count ≥ 0`, and (v) **group sum** `Σ share = 1.0 ± 1e-6` per `currency`. Violations are **hard FAIL** (S5 does not repair ingress).
 
-c) **Policy/config inputs (parameter-scoped).** S5 MAY read the governed smoothing policy at `configs/policy.ccy_smoothing_params.yaml` (domains and precedence will be defined in §4). Any byte change to this file contributes to `parameter_hash`. 
+c) **Policy/config inputs (parameter-scoped).** S5 MAY read the governed smoothing policy at `configs/allocation/ccy_smoothing_params.yaml` (domains and precedence will be defined in §4). Any byte change to this file contributes to `parameter_hash`. 
 
 d) **Order authority is upstream (S3).** Inter-country order is defined **only** by `s3_candidate_set.candidate_rank` (parameter-scoped). The egress `outlet_catalogue` explicitly **does not** encode cross-country order. S5 MUST neither read nor infer any alternative ordering.
 
@@ -149,7 +149,6 @@ d) **Ownership matrix (normative):**
 • **Weights (currency→country)** → **S5** (`ccy_country_weights_cache`).
 • **Merchant settlement currency κₘ** → **S5.0** (`merchant_currency`).
 • **Egress outlet ordering & counts** → **S3/S4/S7/S8** surfaces; `outlet_catalogue` encodes **within-country** order only.
-
 
 **2.4 Forward contracts to S6 (selection hand-off).**
 a) **Domain.** S6 MUST select from the **intersection** of S5 weights and S3’s `s3_candidate_set` for each merchant. Weights present for **non-admissible** countries are **ignored** (not an error).
@@ -335,9 +334,7 @@ All outputs in this section are **parameter-scoped** and governed by the **datas
 
 **Retention & ownership (dictionary):** retention 365 days; owner `1A`; produced by `1A.expand_currency_to_country`; status `approved`. 
 
-
 *Path↔embed equality is enforced by the validator; atomic promote is required; no append on re-run.*
-
 
 ---
 
@@ -369,8 +366,6 @@ If neither declared source exists in the dictionary for a given deployment, do n
 
 ---
 
-
-
 ## 5.3 `sparse_flag` (per-currency sparsity diagnostics)
 
 **Dataset ID (dictionary):** `sparse_flag`
@@ -400,6 +395,8 @@ If neither declared source exists in the dictionary for a given deployment, do n
 
 ## 5.5 Coverage & join contracts (downstream read expectations)
 
+* **Weights authority:** `ccy_country_weights_cache` is the **only** persisted authority for **currency→country weights**. Downstream MAY restrict to a merchant’s candidate set from S3 and renormalise **ephemerally**; persisted weights remain S5’s authority. 
+* **Order authority:** Inter-country order MUST be read only from **`s3_candidate_set.candidate_rank`**; S5 outputs MUST NOT be used to infer order. 
 
 ---
 
@@ -412,10 +409,6 @@ If neither declared source exists in the dictionary for a given deployment, do n
 * **Order authority:** Inter-country order MUST be read only from **`s3_candidate_set.candidate_rank`**; S5 outputs MUST NOT be used to infer order. 
 
 ---
-
-## 5.6 Validity constraints (Σ and domains)
-
-* For `ccy_country_weights_cache`, validators MUST enforce the **schema constraint**: per currency, `Σ weight = 1.0 ± 1e-6`, with all codes FK-valid to the canonical ISO table. (This mirrors the ingress constraints on the two input share surfaces.)
 
 ---
 
@@ -456,107 +449,6 @@ If neither declared source exists in the dictionary for a given deployment, do n
 ## 6.6 Renormalisation (Σ = 1 before quantisation)
 
 * **Required renormalisation (binary64):** After floors, compute a single normaliser **`Z = Σ_c p′[c]`** and set **`p[c] = p′[c] / Z`** for all countries of the currency so that **`Σ_c p[c] = 1`** in binary64. Renormalisation **must occur after floors** and **before** any quantisation. 
-
-
-
-**Persistence type.** `weight` is persisted as a numeric (`pct01`) per schema; the decimal exact-sum at `dp` requirement is a property of the quantised values, not of storing strings. Pre-quant arithmetic remains binary64 with tolerances per §3.3/§7.4; post-quant the decimal sum MUST equal exactly `1` at `dp` after tie-break.
-s_count : int64 (≥0)` — observed mass used in the decision.
-* `threshold : int64 (≥0)` — cutoff used. 
-
-**Retention & ownership (dictionary):** retention 365 days; produced by `1A.expand_currency_to_country`; consumed by 1A/validation. 
-
----
-
-## 5.4 Partitioning, paths, and lineage (common to all S5 outputs)
-
-* **Partitioning law:** **parameter-scoped only**; S5 outputs MUST NOT include `{seed}` or `{fingerprint}` partitions. Paths MUST be exactly those in the dictionary; **path↔embed equality** is required for `parameter_hash`.
-* **Immutability & write semantics:** Partitions are **write-once**. Any retry stages under a temp path and atomically promotes on success (S0 rule). Re-runs with identical inputs/policy MUST yield **byte-identical** content. 
-* **Schema authority:** Only **JSON-Schema** anchors cited above are authoritative for fields, domains, PK/FK, and the Σ constraint. Avro (if any) is non-authoritative. 
-
----
-
-## 5.5 Coverage & join contracts (downstream read expectations)
-
-
----
-
-## 5.6 Validity constraints (Σ and domains)
-
-* For `ccy_country_weights_cache`, validators MUST enforce the schema constraint: per currency, `Σ weight = 1.0 ± 1e-6`, with all codes FK-valid to the canonical ISO table. (This mirrors the ingress constraints on the two input share surfaces.)
-* *Path↔embed equality is enforced by the validator; atomic promote is required; no append on re-run.*
-
-* **Weights authority:** `ccy_country_weights_cache` is the **only** persisted authority for **currency→country weights**. Downstream MAY restrict to a merchant’s candidate set from S3 and renormalise **ephemerally**; persisted weights remain S5’s authority. 
-* **Order authority:** Inter-country order MUST be read only from **`s3_candidate_set.candidate_rank`**; S5 outputs MUST NOT be used to infer order. 
-
----
-
-## 5.6 Validity constraints (Σ and domains)
-
-* For `ccy_country_weights_cache`, validators MUST enforce the **schema constraint**: per currency, `Σ weight = 1.0 ± 1e-6`, with all codes FK-valid to the canonical ISO table. (This mirrors the ingress constraints on the two input share surfaces.)
-
----
-
-# 6. Deterministic processing specification — no pseudocode
-
-> This section fixes **what must be computed and how it must behave**, without prescribing implementation code. All math is **IEEE-754 binary64** until the final quantisation step. JSON-Schema remains the single authority for all field types and constraints. 
-
-## 6.1 Currency scope & country-set construction
-
-* **Per-currency working set.** For each `currency`, form the **union** of `country_iso` present in **(9)** `settlement_shares_2024Q4` and **(10)** `ccy_country_shares_2024Q4`. Missing pairs are treated as **share=0, obs_count=0** for that surface. **Duplicates are forbidden** by the inputs’ PK rule. Writers must process the union in **`country_iso` A→Z** order (determinism); readers must not rely on file order.
-* **Domain & FK.** All `country_iso` values **must** be uppercase ISO-3166 and FK-valid to `iso3166_canonical_2024`. All `currency` values **must** be uppercase ISO-4217. These are inherited ingress constraints S5 **validates** before any processing (§3). 
-
-## 6.2 Numeric type & blending of share surfaces
-
-* **Numeric type:** All arithmetic through §6.6 is in **binary64**. 
-* **Blending rule (per currency).** Let `w ∈ [0,1]` be the effective `blend_weight` resolved by §4.3. For each `country_iso` in the union:
-  **`q[c] = w · s_ccy[c] + (1−w) · s_settle[c]`** (missing shares treated as 0). 
-* **Input discipline:** Each input surface must already satisfy **Σ share = 1.0 ± 1e-6** per currency; S5 does not repair ingress (§3.3/§3.4). 
-
-## 6.3 Effective evidence mass (sparsity robustness)
-
-* Compute a per-currency effective mass from observed counts:
-  **`N0 = w · Σ n_ccy + (1−w) · Σ n_settle`** and **`N_eff = max(obs_floor, N0^(1/shrink_exponent))`** with `shrink_exponent ≥ 0` (policy). `shrink_exponent = 1.0` ⇒ `N_eff = max(obs_floor, N0)`. 
-
-## 6.4 Prior / smoothing policy (Dirichlet-style add-α)
-
-* Resolve **α** using §4 precedence: base per-currency `alpha` with optional **per-ISO** overrides. Let **`α[c] ≥ 0`**, and **`A = Σ_c α[c]`**.
-* Compute the **smoothed posterior** per ISO (binary64):
-  **`posterior[c] = ( q[c] · N_eff + α[c] ) / ( N_eff + A )`.** 
-
-## 6.5 Floors & feasibility (apply then prove)
-
-* Resolve **minimum shares** per §4 (`min_share` global, with optional **`min_share_iso`** per currency/ISO). For each country:
-  **`p′[c] = max( posterior[c], min_share_for_c )`.**
-* **Feasibility:** For every currency with any ISO-level floors, it **must** hold that
-  **`Σ_c min_share_iso[cur][c] ≤ 1.0`** (policy guard). Otherwise **hard FAIL** (`E_POLICY_MINSHARE_FEASIBILITY`). 
-
-## 6.6 Renormalisation (Σ = 1 before quantisation)
-
-* **Required renormalisation (binary64):** After floors, compute a single normaliser **`Z = Σ_c p′[c]`** and set **`p[c] = p′[c] / Z`** for all countries of the currency so that **`Σ_c p[c] = 1`** in binary64. Renormalisation **must occur after floors** and **before** any quantisation. 
-
-## 6.7 Quantisation for output (fixed-dp; deterministic tie-break)
-
-* **Fixed-dp rounding:** Convert `p[c]` to **`weight`** in **fixed-dp** with the configured `dp` using **round-half-even** (no other rounding mode allowed). 
-* **Group-sum property at dp.** After rounding, the **decimal** sum **MUST** equal **`1` to exactly `dp` places**. If direct half-even rounding induces a residual drift, apply a **deterministic largest-remainder placement** of ±1 ULP adjustments on the rounded decimal values **within the currency** until the decimal sum equals **`1`** at `dp`.
-  **Tie-break order (closed):** sort candidates by **descending** fractional remainder (pre-round), then **`country_iso` A→Z**. This rule ensures **byte-identical** outputs across runs and shard counts. *(This is stricter than the schema’s tolerance and is required by this spec.)* 
-
-## 6.8 Determinism requirements (no RNG; stable evaluation)
-
-* **RNG prohibition:** S5 **MUST NOT** emit or consume any RNG events or alter RNG traces. 
-* **Stable iteration:** Processing is defined **per currency**; within a currency, the canonical **evaluation order is `country_iso` A→Z**. Parallelism is **permitted by currency** only; merges **MUST** preserve `(currency ASC, country_iso ASC)` writer order. 
-* **Numeric consistency:** Use binary64 throughout; no alternative rounding or fused-multiply-add modes on decision paths (inherits S0 numeric policy). 
-
-## 6.9 Idempotence & re-run semantics
-
-* **Byte-identity:** Given identical inputs and **identical policy bytes** (contributing to `parameter_hash`), S5 **MUST** produce **byte-identical** outputs (rows, values, and file boundaries) at the same parameter-scoped path(s). 
-* **Path↔embed equality:** For every S5 dataset, embedded `parameter_hash` **MUST** equal the path partition key **byte-for-byte**. 
-* **Writer sort:** Writers **MUST** emit rows sorted `(currency ASC, country_iso ASC)`; readers **MUST NOT** treat file order as authoritative. 
-
-## 6.10 Coverage rule (what rows must exist)
-
-* **Per-currency coverage:** The set of `country_iso` emitted for each `currency` **MUST** equal the **union** of countries observed in (9) and (10), unless **explicitly narrowed by policy** recorded in lineage/metrics. Any narrowing must be **discoverable** via §14 metrics and §10 lineage. 
-
----
 
 # 7. Invariants & integrity constraints
 
@@ -1585,7 +1477,6 @@ Before merging a change that would bump **MAJOR**, ensure all are true:
 | `E_MCURR_CARDINALITY`                     | Missing or duplicate `merchant_id` rows in `merchant_currency`; partial table forbidden. |
 | `E_MCURR_RESOLUTION`                      | Merchant currency κₘ missing/invalid after applying the deterministic rule.               |
 | `E_PARTITION_EXISTS`                      | Target partition exists with non-identical content; overwrite/append is forbidden.        |
-
 
 ---
 
