@@ -48,7 +48,7 @@ This S5 spec is **compatible with** and **assumes** the following already-ratifi
 **0.6 Hash canonicalisation (applies to the S5 policy file)**
 
 * S5 inherits **S0.2** hashing rules: **SHA-256 over exact bytes**, names included, sorted by **ASCII basename**, encoded by the **Universal Encoding Rule (UER)** (UTF-8 length-prefixed strings; LE64 integers; concatenation without delimiters).
-* **Parameter hash contribution:** Only `configs/allocation/ccy_smoothing_params.yaml` contributes to `parameter_hash`; changing its bytes **MUST** flip `parameter_hash`. *(This is a contract on bytes, not YAML semantics; no normalization is permitted.)*
+* **Parameter hash contribution:** Only `configs/allocation/ccy_smoothing_params.yaml` contributes to `parameter_hash`; changing its bytes **MUST** flip `parameter_hash`. *(This is a contract on bytes, not YAML semantics; no normalisation is permitted.)*
 * **Path↔embed equality:** For all S5 outputs, the embedded `parameter_hash` column **MUST equal** the `parameter_hash={…}` partition value byte-for-byte. 
 
 **0.7 Document status & lifecycle**
@@ -276,7 +276,7 @@ For any policy quantity **Q** and a given **currency** `cur` and **ISO** `iso` (
 
 **4.4 Parameter hashing (governed-set membership)**
 
-* **Governed files (hash set).** Only `configs/allocation/ccy_smoothing_params.yaml` contributes to `parameter_hash` for S5. Its raw bytes MUST be included in the S0 parameter set that feeds `parameter_hash`; changing its bytes MUST flip `parameter_hash`. No normalization is permitted: hash the exact bytes. No other S5 files contribute unless this spec is amended.
+* **Governed files (hash set).** Only `configs/allocation/ccy_smoothing_params.yaml` contributes to `parameter_hash` for S5. Its raw bytes MUST be included in the S0 parameter set that feeds `parameter_hash`; changing its bytes MUST flip `parameter_hash`. No normalisation is permitted: hash the exact bytes. No other S5 files contribute unless this spec is amended.
 * **Registry alignment:** the artefact registry entry for `ccy_smoothing_params` MUST include its current digest and path; S0 seals that digest into lineage. 
 
 **4.5 Domain ranges & value rules (cross-checks)**
@@ -468,7 +468,7 @@ If neither declared source exists in the dictionary for a given deployment, do n
 
 ## 6.10 Coverage rule (what rows must exist)
 
-* **Per-currency coverage:** The set of `country_iso` emitted for each `currency` **MUST** equal the **union** of countries observed in (9) and (10), unless **explicitly narrowed by policy** recorded in lineage/metrics. Any narrowing must be **discoverable** via §14 metrics and §10 lineage.
+* **Per-currency coverage:** The set of `country_iso` emitted for each `currency` **MUST** equal the **union** of countries observed in `settlement_shares_2024Q4` and `ccy_country_shares_2024Q4`, unless **explicitly narrowed by policy** recorded in lineage/metrics. Any narrowing must be **discoverable** via §14 metrics and §10 lineage.
 
 # 7. Invariants & integrity constraints
 
@@ -823,7 +823,7 @@ Re-running S5 with identical inputs and **identical policy bytes** produces **by
 * For currencies with very wide support (e.g., ≳200 ISO codes), implementers SHOULD:
 
   * keep per-currency processing isolated (avoid cross-currency buffers),
-  * ensure renormalisation (§6.6) and quantisation+tiebreak (§6.7) do not allocate super-linear intermediates,
+  * ensure renormalisation (§6.6) and quantisation + tie-break (§6.7) do not allocate super-linear intermediates,
   * surface **metrics** on renormalisation magnitude and largest-remainder placements (see §14.2).
 
 **12.8 Retry cost & atomicity** *(Informative → Binding where referenced)*
@@ -1160,7 +1160,7 @@ Each log line **MUST** be a single JSON object with at least:
 
 ## 14.7 Golden fixtures & audit snapshots *(Informative)*
 
-Operators SHOULD maintain one tiny, public-derivable fixture (≤ 3 currencies, ≤ 6 ISO codes) with a frozen `ccy_smoothing_params.yaml` to sanity-check: (a) union coverage, (b) floors/overrides application, (c) largest-remainder behavior, and (d) exact decimal Σ at `dp`. The fixture’s outputs and `S5_VALIDATION.json` live in the same parameter-scoped partition as the weights cache and are versioned by `parameter_hash`. 
+Operators SHOULD maintain one tiny, public-derivable fixture (≤ 3 currencies, ≤ 6 ISO codes) with a frozen `ccy_smoothing_params.yaml` to sanity-check: (a) union coverage, (b) floors/overrides application, (c) largest-remainder behaviour, and (d) exact decimal Σ at `dp`. The fixture’s outputs and `S5_VALIDATION.json` live in the same parameter-scoped partition as the weights cache and are versioned by `parameter_hash`.
 
 ---
 
@@ -1172,7 +1172,7 @@ Operators SHOULD maintain one tiny, public-derivable fixture (≤ 3 currencies, 
 
 # 15. Security, licensing & compliance
 
-> Purpose: ensure S5’s inputs/outputs obey the platform’s **closed-world, contract-governed** posture; keep artefacts licenced, non-PII, immutable by key, and auditable. JSON-Schema and the Dataset Dictionary remain the single authorities for shapes, paths, owners, **retention**, and **licence** fields. 
+> Purpose: ensure S5’s inputs/outputs obey the platform’s **closed-world, contract-governed** posture; keep artefacts **licensed**, non-PII, immutable by key, and auditable.
 
 ## 15.1 Data provenance & closed-world stance
 
@@ -1463,7 +1463,7 @@ Before merging a change that would bump **MAJOR**, ensure all are true:
 | `defaults.alpha`                       | number **≥ 0**                       | ISO      | global → currency → ISO |
 | `defaults.obs_floor`                   | int **≥ 0**                          | currency | global → currency       |
 | `defaults.min_share`                   | number **[0,1]**                     | ISO      | global → currency → ISO |
-| `defaults.shrink_exponent`             | number **≥ 0**                       | currency | global → currency       |
+| `defaults.shrink_exponent`             | number **≥ 0** *(values < 1 are treated as 1 at evaluation time)* | currency | global → currency       |
 | `per_currency.<CCY>.{…}`               | subset of `defaults` keys            | currency | overrides `defaults`    |
 | `overrides.alpha_iso.<CCY>.<ISO2>`     | number **≥ 0**                       | ISO      | **top priority**        |
 | `overrides.min_share_iso.<CCY>.<ISO2>` | number **[0,1]** (with Σ floors ≤ 1) | ISO      | **top priority**        |
