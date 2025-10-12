@@ -565,6 +565,7 @@ data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
 * `_passed.flag` contains the **SHA-256** over the **ASCII-lexicographic** concatenation of all other files in this receipt (currently **`S6_VALIDATION.json`**; exclude the flag itself). This mirrors the **parameter-scoped** receipt pattern used in S5 and the layer-wide gate pattern used for egress. **Atomic publish** applies.
 * **Minimum required fields (normative) in `S6_VALIDATION.json`:**
   `seed`, `parameter_hash`, `policy_digest` (hex64 of S6 policy bytes), `merchants_processed`, `events_written`, `gumbel_key_expected` vs `written` (by mode), `shortfall_count`, `reason_code_counts{NO_CANDIDATES,K_ZERO,ZERO_WEIGHT_DOMAIN,CAPPED_BY_MAX_CANDIDATES}`, `rng_isolation_ok: bool`, `trace_reconciled: bool`, `re_derivation_ok: bool`. (Per-merchant detail may be emitted to a sibling `S6_VALIDATION_DETAIL.jsonl`.)
+* **`policy_digest` construction (binding):** compute as **`sha256_hex` of the byte-concatenation of all S6 policy files, sorted by ASCII basename**. This ordering is binding to avoid toolchain drift.
 
 ---
 

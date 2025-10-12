@@ -798,14 +798,14 @@ subsegments:
     manifest_key: mlr.rng.events.gumbel_key
     license: '{spdx_or_internal}'
     role: Gumbel-top-k keys used to select foreign countries.
-    dependencies: [rng_event_schema_catalog]
+    dependencies: [rng_event_schema_catalog, compression_zstd_level3]
     source: internal
     owner: {platform_team: null}
     last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.layer1.yaml#/rng/events/gumbel_key
     cross_layer: true
-    notes:
+    notes: Writer policy pinned; ZSTD level 3 (byte-identity across re-runs).
 
   - name: rng_event_normal_box_muller
     path: logs/rng/events/normal_box_muller/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
