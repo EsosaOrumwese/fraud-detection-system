@@ -284,7 +284,7 @@ rng:
           properties:
             merchant_id: {$ref: '#/$defs/id64'}
             country_iso: {$ref: '#/$defs/iso2'}
-            weight: {$ref: '#/$defs/pct01', description: 'Renormalised candidate weight on the considered subset.'}
+            weight: {$ref: '#/$defs/pct01', description: 'Renormalised candidate weight on the considered subset (numerically equal to renormalisation on the eligible subset because zero-weights add 0 to the sum).'}
             u: {$ref: '#/$defs/u01'}
             key: {type: [number, "null"], description: 'Gumbel score: ln(w) - ln(-ln u); null only when weight==0.'}
             selected: {type: boolean, description: 'True if country among the top-K.'}

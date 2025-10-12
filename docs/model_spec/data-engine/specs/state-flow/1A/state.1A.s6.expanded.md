@@ -283,7 +283,7 @@ S6 **MUST** proceed for a merchant only if all are true:
   * `"include"`: such countries may be **considered** (keys may be logged), but are **not eligible** for selection (see score rule below).
     *(Considered set is for logging expectations; eligible set is for selection.)*
 * **Subset renormalisation:** within the **eligible** subset *(eligible ⊂ considered)*, **ephemerally renormalise** weights in **binary64** for scoring; **MUST NOT** persist any new weights (persisted weight authority remains S5).
-
+  *Equivalence note:* renormalising on the **considered** subset yields identical numeric results because candidates with `w==0` contribute **0** to the normaliser; we write “eligible” to emphasise the selection domain.
 ---
 
 **6.3 RNG substreams, numeric law, and scoring (authoritative).**
