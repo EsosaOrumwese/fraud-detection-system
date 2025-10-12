@@ -181,7 +181,7 @@ The policy **MUST** define the following keys in the **`defaults`** block, with 
 
     * **Considered set** = S3 candidates after cap and policy filters (**may** include zero-weights if `"include"`).
     * **Eligible set** = considered set **with weight > 0**. Selection **MUST** draw from the **eligible set** only; the validator **MUST** treat expected event counts using the **considered** set, and cardinality using the **eligible** set.
-* `dp_score_print : int ∈ [0,18]` — **optional**. If present, S6 **MUST** persist a **diagnostic** decimal rendering of the binary64 score in `score_dp` using **round-half-even** to the specified `dp`. (The authoritative `score` remains binary64.) **No rounding** of the selection decision is permitted here (diagnostic only).
+
 * **Domain rules (binding).**
 
   * Currency overrides: `per_currency["[A–Z]{3}"]` **MAY** override any key above **except** `log_all_candidates` (global only, to keep validator mode uniform).
@@ -220,7 +220,7 @@ S6 **produces** the following RNG artefacts; these are the **sole authoritative 
 
   * **Schema anchor:** `schemas.layer1.yaml#/rng/events/gumbel_key`.
   * **Dictionary entry & path pattern:** `logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`.
-  * **Payload (binding semantics):** `merchant_id`, `country_iso`, **`weight` (S5 subset-renormalised)**, the **uniform `u`**, the **Gumbel `key`**, a **`selected`** flag, and optional `selection_order` (1..K for selected; null otherwise); plus the standard envelope fields.
+  * **Payload (binding semantics):** `merchant_id`, `country_iso`, **`weight` (S5 subset-renormalised)**, the **uniform `u`**, the **Gumbel `key`**, a **`selected`** flag, and optional `selection_order` (**1..K when `selected=true`; omitted otherwise**); plus the standard envelope fields.
     **Budgets:** `draws="1"`, `blocks=1` for each event.
     **Zero-weight rows:** if `weight==0` (allowed only when `zero_weight_rule="include"`), S6 **MUST NOT** emit a numeric key — set `key: null`. Such rows are **diagnostic only** and **never eligible**; `selection_order` MUST be absent.
 * **Core RNG logs (updated by S6):**
@@ -299,12 +299,12 @@ S6 **MUST** proceed for a merchant only if all are true:
 **6.4 Selection rule (K-realisation).**
 
 * Let $A$ be the **foreign** candidate count after policy filters/cap; let $K_{\text{target}}$ come from S4.
-* S6 **MUST** select the **top $K_{\text{target}}$** countries by `S` from the **eligible** subset; if $A < K_{\text{target}}$, select **all $A$** (shortfall). 
+* S6 **MUST** select the **top $K_{\text{target}}$** countries by **`key`** from the **eligible** subset; if $A < K_{\text{target}}$, select **all $A$** (shortfall).
 
 ---
 
 **6.5 Tie-breaks (total order).**
-When two candidates have equal `S` in binary64:
+When two candidates have equal **`key`** in binary64:
 
 1. choose lower **S3 `candidate_rank`** (ascending);
 2. then `country_iso` **A→Z**.
@@ -839,7 +839,7 @@ data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
 * **`STRUCTURAL_FAIL`** — Any §8.2/§8.3 failure (inputs, schema, policy, lineage) encountered. 
 * **`RNG_ACCOUNTING_FAIL`** — Envelope/trace mismatch (S6 families). 
 * **`RE_DERIVATION_FAIL`** — Unable to reconstruct membership from events (+ counter-replay when reduced logging). 
-* **`SHORTFALL_NOTED`** — Non-error; ≥1 merchant had $A_{\text{filtered}} < K_{\text{target}}$ (selection proceeded with all $A_{\text{filtered}})$. 
+* **`SHORTFALL_NOTED`** — Non-error; ≥1 merchant had $A_{\text{filtered}} < K_{\text{target}}$ (selection proceeded with all $A_{\text{filtered}}$).
 
 **Published artefacts (mandatory on SUCCESS):**
 
@@ -903,7 +903,7 @@ data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
 │ [Draw keys (RNG events)]                                                      │
 │   Iterate considered in S3 candidate_rank order                               │
 │   For each candidate c:                                                       │
-│     u ~ U(0,1) (open interval); G = -ln(-ln u); score S = ln(w_c)+G           │
+│     u ~ U(0,1) (open interval); G = -ln(-ln u); key = ln(w_c) - ln(-ln u)     │
 │     log_all_candidates?                                                       │
 │       • true  → write rng_event.gumbel_key for every considered c             │
 │       • false → write rng_event.gumbel_key only for selected set (below)      │
@@ -912,7 +912,7 @@ data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
 │   v                                                                           │
 │ [Select]                                                                      │
 │   K_realized := min(K_target, |Eligible|)                                     │
-│   Choose top-K_realized by S; ties → S3 candidate_rank, then country_iso      │
+│   Choose top-K_realized by key; ties → S3 candidate_rank, then country_iso    │
 │   (No order is created; S3 remains sole authority for inter-country order)    │
 │   │                                                                           │
 │   v                                                                           │
@@ -1298,7 +1298,7 @@ K_{\text{realized}}=\min\big(K_{\text{target}},\ |\text{Eligible}|\big).
 $$
 If the eligible set is smaller than $K_{\text{target}}$ (shortfall), S6 selects **all** eligible countries.
 
-**Score $S$ and Gumbel key.**
+**Gumbel `key` (a.k.a. score $S$).**
 S6 scores each **considered** candidate $c$ (with S5 weight $w_c$) using:
 $$
 S_c = \ln(w_c) + G_c,\qquad G_c = -\ln\big(-\ln u_c\big),\quad u_c\in(0,1).
