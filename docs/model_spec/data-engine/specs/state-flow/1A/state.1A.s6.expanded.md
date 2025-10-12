@@ -41,7 +41,7 @@
   * Canonical ISO FK table per dictionary (e.g., `iso3166_canonical_2024`). 
 * **Outputs (write):**
 
-  * **RNG events:** `rng_event.gumbel_key` → `schemas.layer1.yaml#/rng/events/gumbel_key` (partitions `{seed, parameter_hash, run_id}`); one per **considered** candidate; envelope fields (`before/after/blocks/draws`) per layer law; **trace row appended after each event**.
+  * **RNG events:** `rng_event.gumbel_key` → `schemas.layer1.yaml#/rng/events/gumbel_key` (partitions `{seed, parameter_hash, run_id}`); **logging mode:** if `log_all_candidates=true`, one per **considered** candidate; if `false`, keys only for **selected** candidates. Envelope fields (`before/after/blocks/draws`) per layer law; **trace row appended after each event**.
   * **Core RNG logs updated:** `rng_audit_log`, `rng_trace_log` per layer schemas; cumulative **trace** by `(module, substream_label)`. 
   * *(Optional)* **`s6_membership`** → `schemas.1A.yaml#/s6/membership` (PK `(merchant_id, country_iso)`, partitions `{seed, parameter_hash}`); **authority note:** must be re-derivable from RNG events; **no** inter-country order (*order remains in S3 `candidate_rank`*).
 
@@ -369,7 +369,9 @@ When `key` values are exactly equal in **binary64**, order **MUST** resolve by *
 
 **7.5 RNG event/logging invariants (authoritative evidence).**
 
-* **Per-merchant event count:** number of `rng_event.gumbel_key` events **MUST equal** the size of the **considered** domain after policy/cap (`A_filtered`; if `log_all_candidates=false`, only selected keys are written and the validator counter-replays the rest). 
+* **Per-merchant event count:**  
+  - if `log_all_candidates=true`, equals the **considered** domain size after policy/cap (`A_filtered`).  
+  - if `false`, equals **`K_realized`** (validator **counter-replays** the missing keys).
 * **Isolation:** S6 **MUST NOT** write to any RNG families other than those declared for S6; validator finds **only** S6 families and matching trace deltas. 
 * **Trace duty:** **exactly one** cumulative `rng_trace_log` row is appended **after each event**; pairing/replay relies on **envelope counters**, not file order. 
 
