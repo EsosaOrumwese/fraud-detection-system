@@ -213,12 +213,12 @@ Create the three lineage keys that make 1A reproducible and auditable:
 ## S0.2.2 `parameter_hash` (canonical, normative)
 
 **Governed set 𝓟 (canonical basenames):**
-`hurdle_coefficients.yaml`, `nb_dispersion_coefficients.yaml`, `crossborder_hyperparams.yaml`, `ccy_smoothing_params.yaml`.
+`hurdle_coefficients.yaml`, `nb_dispersion_coefficients.yaml`, `crossborder_hyperparams.yaml`, `ccy_smoothing_params.yaml`, `s6_selection_policy.yaml`.
 
 **Algorithm (tuple-hash; includes names):**
 
 1. Validate: basenames are **ASCII** and **unique**; error if not.
-2. Sort 𝓟 by **basename** using bytewise ASCII lexicographic order → `(p₁,…,pₙ)`, where here `n=4`.
+2. Sort 𝓟 by **basename** using bytewise ASCII lexicographic order → `(p₁,…,pₙ)`, where here `n=5`.
 3. For each `pᵢ`:
 
    * `dᵢ = SHA256(bytes(pᵢ))`  (32 bytes)
@@ -2266,7 +2266,7 @@ validation/
 **`parameter_hash_resolved.json`**
 
 ```json
-{"parameter_hash":"<hex64>","filenames_sorted":["crossborder_hyperparams.yaml","hurdle_coefficients.yaml","nb_dispersion_coefficients.yaml","ccy_smoothing_params.yaml"],"artifact_count":4}
+{"parameter_hash":"<hex64>","filenames_sorted":["crossborder_hyperparams.yaml","hurdle_coefficients.yaml","nb_dispersion_coefficients.yaml","ccy_smoothing_params.yaml","s6_selection_policy.yaml"],"artifact_count":5}
 ```
 
 **`manifest_fingerprint_resolved.json`**

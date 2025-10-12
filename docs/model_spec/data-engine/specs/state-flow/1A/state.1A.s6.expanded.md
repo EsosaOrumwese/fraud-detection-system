@@ -64,7 +64,7 @@
 **1.1 Goal (what S6 does).**
 For each **eligible multi-site** merchant, S6 selects a **subset of foreign ISO2 countries** of size
 $$
-K_{\text{realized}}=\min\big(K_{\text{target}},,A\big)
+K_{\text{realized}}=\min\big(K_{\text{target}}, A\big)
 $$
 where **$K_{\text{target}}$** comes from **S4’s `rng_event.ztp_final`** and **$A$** is the count of admissible **foreign** candidates from **S3’s `s3_candidate_set`** (home has `candidate_rank=0` and is not selectable). The **selection domain** is the **intersection** of S3’s candidate set and **S5’s `ccy_country_weights_cache`** for the merchant’s settlement currency; weights are taken from S5. **S5 must have PASSed** for the same `parameter_hash` before S6 reads.
 
@@ -109,7 +109,7 @@ where **$K_{\text{target}}$** comes from **S4’s `rng_event.ztp_final`** and **
 
 * **Selection size:** S6 **MUST** realise
   $$
-  K_{\text{realized}}=\min!\big(K_{\text{target}},,A\big)
+  K_{\text{realized}}=\min\big(K_{\text{target}}, A\big)
   $$
   using the S3 foreign domain and S5 weights; if `A < K_target`, S6 selects **all `A`** (shortfall).
 * **Provenance & replay:** For each **considered** candidate, S6 writes exactly **one** `rng_event.gumbel_key` under `{seed,parameter_hash,run_id}`; selection is re-derivable from these keys + S3/S5. (Membership dataset, if emitted, is convenience-only and must be exactly re-derivable.) 
@@ -231,13 +231,13 @@ When enabled by policy (`emit_membership_dataset=true`), S6 **MAY** write a **me
 
 * **Authority note (binding):** this surface is **entirely re-derivable** from `rng_event.gumbel_key` + S3/S5 inputs and **MUST NOT** encode or imply inter-country order; consumers **MUST** continue to obtain order exclusively from **S3 `candidate_rank`**. 
 * **Schema & dictionary:** **MUST** have an approved dataset ID and JSON-Schema `$ref` registered **before** any consumer reads.
-* **Primary key & partitions:** **PK** `(merchant_id, country_iso)` per `{seed, parameter_hash}` (optionally `,run_id` if policy requires); **path↔embed equality** is binding.
+* **Primary key & partitions:** **PK** `(merchant_id, country_iso)` per `{seed, parameter_hash}`; **path↔embed equality** is binding.
 * **Writer sort (non-semantic to readers):** `(merchant_id ASC, country_iso ASC)`.
 
 **5.3 Partition law & path discipline (binding)**
 
 * **Events/logs:** `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…` for `rng_event.gumbel_key`, `rng_audit_log`, `rng_trace_log`; embedded lineage fields **MUST** equal the path tokens byte-for-byte. 
-* **Membership (if produced):** `…/parameter_hash={parameter_hash}/…` (optionally `,run_id`) and embeds the **same** `parameter_hash`.
+* **Membership (if produced):** `…/seed={seed}/parameter_hash={parameter_hash}/…` and embeds the **same** `parameter_hash`.
 
 **5.4 Sort, stability & byte policy**
 
@@ -335,7 +335,7 @@ With identical `{seed, parameter_hash, run_id}`, the **considered** set, the seq
 
 **6.9 Write semantics (publish discipline).**
 
-* **Write-once partitions.** On success, atomically publish event/log files under `{seed, parameter_hash, run_id}`; optional membership dataset under `{parameter_hash}[,run_id]`. 
+* **Write-once partitions.** On success, atomically publish event/log files under `{seed, parameter_hash, run_id}`; optional membership dataset under `{seed, parameter_hash}`.
 * **Row/byte stability.** Reader semantics are set-based; if a registry writer policy is pinned (codec/level/row-group), producers **MUST** adhere to it; otherwise **value-identity** across re-runs is sufficient. 
 
 ---
@@ -373,11 +373,11 @@ When scores are exactly equal in **binary64**, order **MUST** resolve by **S3 `c
 **7.6 Partitioning & lineage equality.**
 
 * **Events/logs:** paths are `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`; embedded lineage fields (where present) **MUST** equal the path tokens **byte-for-byte**; for `rng_trace_log`, lineage is enforced via partition keys. 
-* **Tables (parameter-scoped):** any convenience **membership** dataset is partitioned by `{parameter_hash}` (optionally `,run_id`) and **MUST** embed the **same** `parameter_hash`. 
+* **Tables (parameter-scoped):** any convenience **membership** dataset is partitioned by `{seed, parameter_hash}` and **MUST** embed the **same** `parameter_hash`. 
 
 **7.7 Primary key & uniqueness.**
 
-* If the **membership** surface is produced: **PK** `(merchant_id, country_iso)` is **unique** per `{parameter_hash}[,run_id]`; **no duplicates** per merchant. (Authority remains the RNG events; membership is re-derivable.) 
+* If the **membership** surface is produced: **PK** `(merchant_id, country_iso)` is **unique** per `{seed, parameter_hash}`; **no duplicates** per merchant. (Authority remains the RNG events; membership is re-derivable.) 
 
 **7.8 Order-authority separation.**
 No S6 output **may encode or imply** inter-country order; consumers **MUST** continue to obtain order exclusively from **S3 `candidate_rank`**. `outlet_catalogue` carries **no** cross-country order.
@@ -511,7 +511,7 @@ Downstream states **MUST** verify the **S6 PASS** receipt before reading S6 conv
 **S6 outputs/logs (produced here).**
 
 * `rng_event.gumbel_key`, `rng_audit_log`, `rng_trace_log` validate against registered schema anchors; partitions are `{seed,parameter_hash,run_id}`; **path↔embed equality** holds where embedded (trace lineage enforced via partition keys). 
-* If the optional **membership** dataset is enabled, it validates against its `$ref`, is partitioned by `{parameter_hash}[,run_id]`, and embeds the **same** `parameter_hash`. **PK** `(merchant_id,country_iso)` is unique. 
+* If the optional **membership** dataset is enabled, it validates against its `$ref`, is partitioned by `{seed, parameter_hash}`, and embeds the **same** `parameter_hash`. **PK** `(merchant_id,country_iso)` is unique. 
 
 **Lineage discipline.** For all produced artefacts, embedded `{seed,parameter_hash,run_id}` (if present) **MUST** equal path tokens **byte-for-byte**. Violations are **hard FAIL**. 
 
@@ -596,7 +596,7 @@ data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
   **Applies to:** `rng_event.gumbel_key`, `rng_audit_log`, `rng_trace_log`. **These IDs and partition keys are already defined in the Dictionary/Registry.** 
 
 * **S6 convenience membership dataset (if produced).**
-  **Path:** `…/seed={seed}/parameter_hash={parameter_hash}/…` (optionally `,run_id` if policy demands) — seed is required because membership is **seed-dependent**; `parameter_hash` binds the parameter scope. **S3 deterministic inputs remain parameter-scoped only** (`parameter_hash` partition), per their contracts. 
+  **Path:** `…/seed={seed}/parameter_hash={parameter_hash}/…` — seed is required because membership is **seed-dependent**; `parameter_hash` binds the parameter scope. **S3 deterministic inputs remain parameter-scoped only** (`parameter_hash` partition), per their contracts. 
 
 ---
 
@@ -1263,7 +1263,7 @@ Use this **tick-box** list to sign off S6 before hand-off to implementation/ops.
 * [ ] **Receipt written** — under `…/s6/seed={seed}/parameter_hash={parameter_hash}/`:
   `S6_VALIDATION.json` + `_passed.flag` (SHA-256 over ASCII-lexicographic concat of other receipt files). **Atomic publish**; no partials. 
 * [ ] **Events/logs partitions** — `rng_event.gumbel_key`, `rng_audit_log`, `rng_trace_log` under `{seed,parameter_hash,run_id}`; embedded lineage equals path tokens.
-* [ ] **Optional membership surface** — if enabled, partitioned by `{seed,parameter_hash}` (optionally `,run_id`), **writer-sorted**, and **re-derivable** from RNG events; **no order** encoded. 
+* [ ] **Optional membership surface** — if enabled, partitioned by `{seed,parameter_hash}`, **writer-sorted**, and **re-derivable** from RNG events; **no order** encoded.
 * [ ] **Downstream gates armed** — S7/S8 must verify **S6 PASS** (seed+parameter) and continue to enforce **S5 PASS** for weight joins (**no PASS → no read**). 
 
 ---
@@ -1299,7 +1299,7 @@ If the eligible set is smaller than $K_{\text{target}}$ (shortfall), S6 selects 
 **Score $S$ and Gumbel key.**
 S6 scores each **considered** candidate $c$ (with S5 weight $w_c$) using:
 $$
-S_c = \ln(w_c) + G_c,\qquad G_c = -\ln!\big(-\ln u_c\big),\quad u_c\in(0,1).
+S_c = \ln(w_c) + G_c,\qquad G_c = -\ln\big(-\ln u_c\big),\quad u_c\in(0,1).
 $$
 
 * **Uniforms:** $u_c$ come from the layer’s **strict-open** (U(0,1)) mapping (never 0 or 1).

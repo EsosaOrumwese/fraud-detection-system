@@ -120,6 +120,25 @@ subsegments:
     cross_layer: false
     notes: Optional; only if bounds are enabled.
 
+  - name: s6_selection_policy
+    path: configs/policy.s6.selection.yaml
+    type: policy
+    category: policy
+    semver: '{semver}'
+    version: '{policy_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.policy.s6.selection
+    license: '{spdx_or_internal}'
+    role: S6 selection knobs (emit_membership_dataset, log_all_candidates, max_candidates_cap, zero_weight_rule, dp_score_print).
+    dependencies: []
+    source: internal
+    owner: {product_policy_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, dev, staging, prod]
+    schema: schemas.layer1.yaml#/policy/s6_selection
+    cross_layer: false
+    notes:
+
       # ---------------------------
       # EXTERNAL & REFERENCE DATA
       # ---------------------------
@@ -513,7 +532,7 @@ subsegments:
     manifest_key: mlr.ci.parameter_hash
     license: '{spdx_or_internal}'
     role: SHA‑256 of concatenated parameter digests.
-    dependencies: [hurdle_coefficients, nb_dispersion_coefficients, crossborder_hyperparams, ccy_smoothing_params]
+    dependencies: [hurdle_coefficients, nb_dispersion_coefficients, crossborder_hyperparams, ccy_smoothing_params, s6_selection_policy]
     source: internal
     owner: {platform_team: null}
     last_updated: '{iso8601_timestamp}'
