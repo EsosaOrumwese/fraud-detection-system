@@ -696,6 +696,9 @@ datasets:
   gating:
     gated_by: rng_event_hurdle_bernoulli
     predicate: is_multi == true
+    also_requires:
+     - id: crossborder_eligibility_flags
+       predicate: is_eligible == true
   retention_days: 180
   pii: false
   licence: Proprietary-Internal

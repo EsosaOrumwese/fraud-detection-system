@@ -220,7 +220,9 @@ S6 **produces** the following RNG artefacts; these are the **sole authoritative 
 
   * **Schema anchor:** `schemas.layer1.yaml#/rng/events/gumbel_key`.
   * **Dictionary entry & path pattern:** `logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`.
-  * **Payload (binding semantics):** `merchant_id`, `country_iso`, **`weight` (from S5 for that currency)**, **`score` (binary64)**, optional `score_dp` (diagnostic decimal rendering per §4.2), plus standard envelope fields. **Module/substream** follow the 1A registry conventions.
+  * **Payload (binding semantics):** `merchant_id`, `country_iso`, **`weight` (from S5 for that currency)**, **`score`**, optional `score_dp`, plus standard envelope fields. **Module/substream** follow the 1A registry conventions.
+    **Zero-weight rows (binding):** if `weight==0` (allowed only when `zero_weight_rule="include"`), the event is **diagnostic only** —
+    **set `score: null` and omit `score_dp`**. Such rows are **never eligible** for selection and exist only for coverage accounting.
 * **Core RNG logs (updated by S6):**
 
   * **`rng_audit_log`** — run-scoped audit entries; one per run context per policy.
@@ -291,8 +293,8 @@ S6 **MUST** proceed for a merchant only if all are true:
   $$
   S_c = \ln(w_c) + G_c,\quad G_c=-\ln(-\ln u_c),\ u_c\in(0,1).
   $$
-  If `zero_weight_rule="include"`, treat $\ln(0)=-\infty$ (never selected, but keys may be logged per policy). *(`score_dp`, if emitted, is diagnostic only; the authoritative `score` remains binary64.)* 
-
+  **Zero-weight convention (binding):** when `zero_weight_rule="include"` and `w_c==0`, producers **do not emit** a numeric score (`score: null`, no `score_dp`).
+  Validators **MUST** treat `score:null` as **−∞** for ordering, ensuring these rows can never be selected.
 ---
 
 **6.4 Selection rule (K-realisation).**
