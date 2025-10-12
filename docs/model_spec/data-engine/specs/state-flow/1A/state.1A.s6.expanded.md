@@ -175,6 +175,7 @@ The policy **MUST** define the following keys in the **`defaults`** block, with 
   * **false:** write keys **only for selected candidates**; the validator **MUST** use **counter-replay** in stable iteration order to regenerate the missing keys (§9.3).
 * `max_candidates_cap : int ≥ 0` — default **0** (no cap). If >0, S6 **MUST** truncate the S3 domain to the first **`max_candidates_cap`** countries by **S3 `candidate_rank`** (no re-order).
 * `zero_weight_rule : enum{"exclude","include"}` — default **"exclude"**.
+* `dp_score_print : int ≥ 0` — **optional, diagnostic-only** (formatting for logs/UI). It MUST NOT affect scoring, selection, RNG budgets, or any validator checks.
 
   * **"exclude":** candidates with **S5 weight == 0** are **dropped** from the domain (no key written; they do not contribute to selection or event counts).
   * **"include":** zero-weight candidates are **considered for logging** (keys may be written per `log_all_candidates`) but are **not eligible for selection** (`ln(0) = −∞`).
@@ -185,7 +186,7 @@ The policy **MUST** define the following keys in the **`defaults`** block, with 
 
 * **Domain rules (binding).**
 
-  * Currency overrides: `per_currency["[A–Z]{3}"]` **MAY** override any key above **except** `log_all_candidates` (global only, to keep validator mode uniform).
+  * Currency overrides: `per_currency["[A–Z]{3}"]` **MAY** override any key above except `log_all_candidates` and `dp_score_print` (both global-only, to keep validator mode uniform).
   * ISO-level overrides (per country) are **not allowed** unless a future schema explicitly adds them (presently prohibited).
   * Unknown currency codes, non-uppercase keys, or out-of-range values are **policy validation failures** (see 4.4).
 

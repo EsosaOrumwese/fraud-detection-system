@@ -465,6 +465,7 @@ policy:
           log_all_candidates:     {type: boolean}
           max_candidates_cap:     {$ref: '#/$defs/uint32'}
           zero_weight_rule:       {type: string, enum: [exclude, include]}
+          dp_score_print:         {type: integer, minimum: 0, description: 'Diagnostic only: decimal places when printing scores; MUST NOT affect selection or RNG.'}
       per_currency:
         type: object
         additionalProperties:
