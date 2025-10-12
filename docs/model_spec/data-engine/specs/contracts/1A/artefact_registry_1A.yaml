@@ -1092,6 +1092,25 @@ subsegments:
     cross_layer: false
     notes: Emitted only when S6 policy `emit_membership_dataset=true`; consumers must verify S6 PASS; order must be joined from S3 `candidate_rank`.
 
+  - name: s6_validation_receipt
+    path: data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
+    type: dataset
+    category: validation
+    semver: '{semver}'
+    version: '{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.s6.receipt
+    license: Proprietary-Internal
+    role: PASS receipt for S6 (folder with S6_VALIDATION.json and _passed.flag).
+    dependencies: [rng_event_gumbel_key, s3_candidate_set, ccy_country_weights_cache]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/validation/s6_receipt
+    cross_layer: false
+    notes: Consumers must verify `_passed.flag` content hash equals SHA256(S6_VALIDATION.json) before reading any S6-derived convenience surface.
+
   - name: dirichlet_lrr_proof
     path: docs/derivations/dirichlet_lrr_proof.md
     type: documentation

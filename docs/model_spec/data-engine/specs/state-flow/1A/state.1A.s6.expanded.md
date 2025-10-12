@@ -43,7 +43,7 @@
 
   * **RNG events:** `rng_event.gumbel_key` → `schemas.layer1.yaml#/rng/events/gumbel_key` (partitions `{seed, parameter_hash, run_id}`); one per **considered** candidate; envelope fields (`before/after/blocks/draws`) per layer law; **trace row appended after each event**.
   * **Core RNG logs updated:** `rng_audit_log`, `rng_trace_log` per layer schemas; cumulative **trace** by `(module, substream_label)`. 
-  * *(Optional convenience surface)* Selection **membership** dataset (PK `(merchant_id, country_iso)`, partition `{seed, parameter_hash}`), **authority note:** must be recomputable from RNG events; **no** inter-country order in this dataset. *(If produced, a dictionary entry and JSON-Schema `$ref` MUST be registered before consumption.)*
+  * *(Optional)* **`s6_membership`** → `schemas.1A.yaml#/s6/membership` (PK `(merchant_id, country_iso)`, partitions `{seed, parameter_hash}`); **authority note:** must be re-derivable from RNG events; **no** inter-country order (*order remains in S3 `candidate_rank`*).
 
 **0.6 Hashing & manifests (lineage identifiers & participation)**
 
@@ -138,9 +138,10 @@ where **$K_{\text{target}}$** comes from **S4’s `rng_event.ztp_final`** and **
 Per `{seed, parameter_hash[, run_id]}`:
 a) **Presence & schema pass** for **all** inputs above; **path↔embed equality** holds (where embedded).
 b) **S3**: for each merchant, `candidate_rank` is present, **home=0**, contiguous, no dups; compute **A = #foreign candidates**. 
-c) **S4**: exactly **one** `ztp_final` for each merchant that is multi+eligible (per S1/S3 gating upstream). 
-d) **S5**: weights cache exists for the **same `parameter_hash`** and **S5 PASS receipt** is present and valid under that partition (`S5_VALIDATION.json` + `_passed.flag`); otherwise **no read**. 
-e) **Domains/FK**: ISO codes uppercase and FK-valid to `iso3166_canonical_2024`; currencies uppercase ISO-4217.
+c) **S0 eligibility (explicit)**: `crossborder_eligibility_flags.is_eligible == true` for the merchant under the same `parameter_hash`; otherwise **do not run S6** (`E_UPSTREAM_GATE`). 
+d) **S4**: exactly **one** `ztp_final` for each merchant that is multi+eligible (per S1/S0 gating upstream). 
+e) **S5**: weights cache exists for the **same `parameter_hash`** and **S5 PASS receipt** is present and valid under that partition (`S5_VALIDATION.json` + `_passed.flag`); otherwise **no read**. 
+f) **Domains/FK**: ISO codes uppercase and FK-valid to `iso3166_canonical_2024`; currencies uppercase ISO-4217.
 
 **3.4 Hard rejections (fail-closed).**
 
@@ -673,7 +674,7 @@ data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
 * **Optional control event:** **`rng_event.stream_jump`** — explicit Philox stream/substream jump records (enabled only if the registry entry is present for 1A). 
 
 * **Module & substreams (naming convention for S6):**
-  **`module="l1.s6"`**, **`substream_label ∈ {"gumbel_key","stream_jump"}`**; IDs & partitions follow the registry/dictionary listings above. 
+  **`module="1A.foreign_country_selector"`**, **`substream_label ∈ {"gumbel_key","stream_jump"}`**; IDs & partitions follow the registry/dictionary listings above. 
 
 ---
 
@@ -976,7 +977,7 @@ Emit the following **per run** (dimensions: `{seed, parameter_hash, run_id}`):
 
 * `s6.run.events.gumbel_key.expected : counter` — if `log_all_candidates=true`, Σ `A_filtered`; else Σ `K_realized`.
 * `s6.run.events.gumbel_key.written : counter` — number of `rng_event.gumbel_key` rows written.
-* `s6.run.trace.events_total : counter` — final `events_total` from `rng_trace_log` for `(module="l1.s6", substream_label="gumbel_key")`.
+* `s6.run.trace.events_total : counter` — final `events_total` from `rng_trace_log` for `(module="1A.foreign_country_selector", substream_label="gumbel_key")`.
 * `s6.run.trace.blocks_total : counter` — final blocks total for the same key.
 * `s6.run.trace.draws_total : counter` — final draws total for the same key. *(Trace fields mirror the core RNG schema; one trace append per event is required.)* 
 
@@ -1016,7 +1017,7 @@ Emit as **structured log rows** (JSONL) or a per-run detail file; do **not** exp
 
 ## 14.3 RNG audit metrics (Binding)
 
-For each `(module="l1.s6", substream_label∈{"gumbel_key","stream_jump"})`, expose:
+For each `(module="1A.foreign_country_selector", substream_label∈{"gumbel_key","stream_jump"})`, expose:
 
 * `s6.rng.trace.events_total : counter`
 * `s6.rng.trace.blocks_total : counter`
@@ -1031,7 +1032,7 @@ For each `(module="l1.s6", substream_label∈{"gumbel_key","stream_jump"})`, exp
 Every S6 structured log line (INFO/WARN/ERROR) **MUST** include:
 
 * **Lineage:** `seed`, `parameter_hash`, `run_id`.
-* **Context:** `stage:enum{"preflight","draw","select","write","validate","publish"}`, `module:"l1.s6"`.
+* **Context:** `stage:enum{"preflight","draw","select","write","validate","publish"}`, `module:"1A.foreign_country_selector"`.
 * **Keys:** `merchant_id` *(omit on run-level messages)*, optional `country_iso` on candidate-level messages.
 * **Reasoning:** `reason_code` (from the closed set above) when emitting empties or diagnostics.
 * **Counters (when applicable):** `A`, `A_filtered`, `K_target`, `K_realized`, `gumbel_key_written`, `considered_expected_events`.
@@ -1321,7 +1322,7 @@ Every RNG event row carries a **lineage envelope**:
 * **Non-consuming markers (if any):** `before==after`, `blocks=0`, `draws="0"`.
 
 **RNG trace *budget totals*.**
-For each `(module="l1.s6", substream_label∈{"gumbel_key","stream_jump"})`, S6 appends **exactly one** cumulative row to **`rng_trace_log`** **after each event**; validators check:
+For each `(module="1A.foreign_country_selector", substream_label∈{"gumbel_key","stream_jump"})`, S6 appends **exactly one** cumulative row to **`rng_trace_log`** **after each event**; validators check:
 
 * `events_total` increments by 1 per event append,
 * `draws_total = Σ parse_u128(draws)`,
@@ -1361,7 +1362,7 @@ For each `(module="l1.s6", substream_label∈{"gumbel_key","stream_jump"})`, S6 
 
 ## B.2 RNG family names and substream conventions
 
-* **Module name (S6):** `module="l1.s6"` *(normative)*.
+* **Module name (S6):** `module="1A.foreign_country_selector"` *(normative)*.
 * **Substream labels (S6):** `substream_label ∈ {"gumbel_key","stream_jump"}` *(if `stream_jump` is registered)*. 
 * **Families touched by S6:**
 
@@ -1467,7 +1468,7 @@ Since `K_target=2`, **$K_{\text{realized}}=\min(2,4)=2$** → selected set = **{
 
 * With `log_all_candidates=true`, **one** `rng_event.gumbel_key` per **considered** candidate (here 4 events), appended in **S3-rank order**: FR → DE → ES → IT.
 * **Budgets:** each event consumes **`blocks=1`, `draws="1"`** (single-uniform family).
-* **Trace:** exactly **4** `rng_trace_log` appends; final totals for `(module="l1.s6", substream_label="gumbel_key")` are:
+* **Trace:** exactly **4** `rng_trace_log` appends; final totals for `(module="1A.foreign_country_selector", substream_label="gumbel_key")` are:
   `events_total=4`, `blocks_total=4`, `draws_total=4`.
 * Validator **re-derives** the membership from logged keys + S3/S5 and matches **{ES, DE}**.
 

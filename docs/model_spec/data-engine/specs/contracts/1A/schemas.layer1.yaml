@@ -293,7 +293,7 @@ rng:
         # 3) Pin module/label and single-uniform budget (draws=1, blocks=1)
         - type: object
           properties:
-            module: {const: "l1.s6"}
+            module: {const: "1A.foreign_country_selector"}
             substream_label: {const: "gumbel_key"}
             blocks: {const: 1}
             draws:  {const: "1"}
@@ -450,6 +450,32 @@ governance:
         pattern: ^[0-9a-f]{64}$
 
 
+policy:
+  s6_selection:
+    type: object
+    additionalProperties: false
+    required: [defaults]
+    properties:
+      defaults:
+        type: object
+        additionalProperties: false
+        required: [emit_membership_dataset, log_all_candidates, max_candidates_cap, zero_weight_rule]
+        properties:
+          emit_membership_dataset: {type: boolean}
+          log_all_candidates:     {type: boolean}
+          max_candidates_cap:     {$ref: '#/$defs/uint32'}
+          zero_weight_rule:       {type: string, enum: [exclude, include]}
+      per_currency:
+        type: object
+        additionalProperties:
+          type: object
+          additionalProperties: false
+          properties:
+            emit_membership_dataset: {type: boolean}
+            max_candidates_cap:     {$ref: '#/$defs/uint32'}
+            zero_weight_rule:       {type: string, enum: [exclude, include]}
+
+
 validation:
   numeric_policy_attest:
     type: object
@@ -516,3 +542,7 @@ validation:
       code_digest:
         type: string
         pattern: ^[0-9a-f]{64}$
+  s6_receipt:
+    type: object
+    description: 'PASS receipt for S6 (S6_VALIDATION.json); used with _passed.flag in same folder.'
+    additionalProperties: true
