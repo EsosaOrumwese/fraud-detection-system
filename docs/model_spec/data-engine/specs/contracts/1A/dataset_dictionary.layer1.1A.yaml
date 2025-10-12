@@ -307,6 +307,24 @@ datasets:
   pii: false
   licence: Proprietary-Internal
 
+- id: s6_membership
+  status: approved
+  owner_subsegment: 1A
+  description: Optional convenience surface of selected foreign ISO2s per merchant; authority remains S6 RNG events; no inter-country order encoded.
+  version: '{parameter_hash}'
+  format: parquet
+  path: data/layer1/1A/s6/membership/seed={seed}/parameter_hash={parameter_hash}/
+  partitioning: [seed, parameter_hash]
+  ordering: [merchant_id, country_iso]
+  schema_ref: schemas.1A.yaml#/s6/membership
+  lineage:
+    produced_by: 1A.S6
+    consumed_by: [1A]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
 - id: ranking_residual_cache_1A
   status: deprecated
   owner_subsegment: 1A

@@ -276,19 +276,41 @@ rng:
 
     gumbel_key:
       allOf:
-      - $ref: '#/$defs/rng_envelope'
-      - type: object
-        required: [merchant_id, country_iso, weight, u, key, selected]
-        properties:
-          merchant_id: {$ref: '#/$defs/id64'}
-          country_iso: {$ref: '#/$defs/iso2'}
-          weight: {$ref: '#/$defs/pct01', description: Renormalised candidate weight.}
-          u: {$ref: '#/$defs/u01'}
-          key: {type: number, description: log(w) - log(-log u)}
-          selected: {type: boolean, description: True if country among the top-K.}
-          selection_order: {type: integer, minimum: 1, nullable: true, description: 1..K when selected; null otherwise.}
-      - type: object
-        unevaluatedProperties: false
+        # 1) Bring in the standard RNG envelope (before/after/blocks/draws, lineage, etc.)
+        - $ref: '#/$defs/rng_envelope'
+        # 2) Core shape for this event family
+        - type: object
+          required: [merchant_id, country_iso, weight, u, key, selected]
+          properties:
+            merchant_id: {$ref: '#/$defs/id64'}
+            country_iso: {$ref: '#/$defs/iso2'}
+            weight: {$ref: '#/$defs/pct01', description: 'Renormalised candidate weight on the considered subset.'}
+            u: {$ref: '#/$defs/u01'}
+            key: {type: [number, "null"], description: 'Gumbel score: ln(w) - ln(-ln u); null only when weight==0.'}
+            selected: {type: boolean, description: 'True if country among the top-K.'}
+            selection_order: {type: integer, minimum: 1, description: '1..K when selected; absent otherwise.'}
+          unevaluatedProperties: false
+        # 3) Pin module/label and single-uniform budget (draws=1, blocks=1)
+        - type: object
+          properties:
+            module: {const: "l1.s6"}
+            substream_label: {const: "gumbel_key"}
+            blocks: {const: 1}
+            draws:  {const: "1"}
+        # 4) JSON-safe zero-weight: key must be null; cannot be selected; no selection_order
+        - if:
+            properties: { weight: { const: 0 } }
+          then:
+            properties:
+              key: { type: "null" }
+              selected: { const: false }
+            not:
+              required: ["selection_order"]
+        # 5) If selected==true, selection_order must be present
+        - if:
+            properties: { selected: { const: true } }
+          then:
+            required: ["selection_order"]
 
     normal_box_muller:
       description: Standard normal via Box–Muller; two-uniform event; sine mate discarded.

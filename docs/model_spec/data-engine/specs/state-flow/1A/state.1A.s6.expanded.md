@@ -220,9 +220,9 @@ S6 **produces** the following RNG artefacts; these are the **sole authoritative 
 
   * **Schema anchor:** `schemas.layer1.yaml#/rng/events/gumbel_key`.
   * **Dictionary entry & path pattern:** `logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`.
-  * **Payload (binding semantics):** `merchant_id`, `country_iso`, **`weight` (from S5 for that currency)**, **`score`**, optional `score_dp`, plus standard envelope fields. **Module/substream** follow the 1A registry conventions.
-    **Zero-weight rows (binding):** if `weight==0` (allowed only when `zero_weight_rule="include"`), the event is **diagnostic only** —
-    **set `score: null` and omit `score_dp`**. Such rows are **never eligible** for selection and exist only for coverage accounting.
+  * **Payload (binding semantics):** `merchant_id`, `country_iso`, **`weight` (S5 subset-renormalised)**, the **uniform `u`**, the **Gumbel `key`**, a **`selected`** flag, and optional `selection_order` (1..K for selected; null otherwise); plus the standard envelope fields.
+    **Budgets:** `draws="1"`, `blocks=1` for each event.
+    **Zero-weight rows:** if `weight==0` (allowed only when `zero_weight_rule="include"`), S6 **MUST NOT** emit a numeric key — set `key: null`. Such rows are **diagnostic only** and **never eligible**; `selection_order` MUST be absent.
 * **Core RNG logs (updated by S6):**
 
   * **`rng_audit_log`** — run-scoped audit entries; one per run context per policy.
@@ -289,12 +289,11 @@ S6 **MUST** proceed for a merchant only if all are true:
 * **Numeric environment:** **inherit S0.8** — IEEE-754 **binary64**, round-to-nearest-ties-even, **FMA off**, **no FTZ/DAZ**, deterministic libm; decision kernels run in fixed order. 
 * **Iteration order:** when drawing, **iterate in S3 `candidate_rank` order** to keep substream counters reproducible. 
 * **Event family:** for each **considered** candidate, write exactly **one** `rng_event.gumbel_key` with full envelope; append **exactly one** trace row after each event (per RNG trace law). 
-* **Score definition (selection key):** For candidate $c$ with weight $w_c>0$, compute **binary64**
+* **Score (`key`) definition:** For candidate $c$ with weight $w_c>0$, compute **binary64**
   $$
-  S_c = \ln(w_c) + G_c,\quad G_c=-\ln(-\ln u_c),\ u_c\in(0,1).
+  \text{key}_c = \ln(w_c) - \ln\!\big(-\ln u_c\big),\quad u_c\in(0,1).
   $$
-  **Zero-weight convention (binding):** when `zero_weight_rule="include"` and `w_c==0`, producers **do not emit** a numeric score (`score: null`, no `score_dp`).
-  Validators **MUST** treat `score:null` as **−∞** for ordering, ensuring these rows can never be selected.
+  **Zero-weight convention:** when `zero_weight_rule="include"` and `w_c==0`, producers set `key: null`. Validators **MUST** treat `key:null` as $-\infty$ for ordering.
 ---
 
 **6.4 Selection rule (K-realisation).**
