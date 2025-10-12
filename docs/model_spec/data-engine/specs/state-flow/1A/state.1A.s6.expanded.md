@@ -80,7 +80,7 @@ where **$K_{\text{target}}$** comes from **S4’s `rng_event.ztp_final`** and **
 
 * **Deterministic-under-seed:** For a fixed `{seed, parameter_hash, run_id}`, the realized foreign set equals the **top-`K_target`** countries by the S6 scoring rule over the domain (ties broken per §6), or **all `|\text{Eligible}|`** when `|\text{Eligible}| < K_target`. Inputs (`s3_candidate_set`, `rng_event.ztp_final`, `ccy_country_weights_cache`) are consumed exactly as registered in the dictionary/schemas.
 * **Membership-only output:** Any optional S6 “membership” surface contains **no order** and is provably **re-derivable from S6 RNG events + S3/S5 inputs**. 
-* **RNG logging completeness & isolation:** Exactly one `rng_event.gumbel_key` is written **per considered candidate** (domain after policy), and only S6’s declared RNG families appear; envelopes/trace totals reconcile. 
+* **RNG logging completeness & isolation:** If `log_all_candidates=true`, write exactly one `rng_event.gumbel_key` **per considered candidate** (domain after policy). If `false`, write keys **only for selected candidates** and rely on §9.3 counter-replay. In both modes, only S6 families appear; envelopes/trace totals reconcile.
 * **Upstream gate honored:** S6 reads S5 only after verifying the **S5 PASS** receipt for the same `parameter_hash` (**no PASS → no read**).
 
 ---
@@ -113,7 +113,7 @@ where **$K_{\text{target}}$** comes from **S4’s `rng_event.ztp_final`** and **
   $$
   using the S3 foreign domain and S5 weights; if `|\text{Eligible}| < K_target`, S6 selects **all `|\text{Eligible}|`** (shortfall).
 
-* **Provenance & replay:** For each **considered** candidate, S6 writes exactly **one** `rng_event.gumbel_key` under `{seed,parameter_hash,run_id}`; selection is re-derivable from these keys + S3/S5. (Membership dataset, if emitted, is convenience-only and must be exactly re-derivable.) 
+* **Provenance & replay:** If `log_all_candidates=true`, write exactly **one** `rng_event.gumbel_key` per **considered** candidate; if `false`, write keys **only for selected** candidates and rely on §9.3 counter-replay. Selection is re-derivable from events + S3/S5 in both modes. (Membership, if emitted, is convenience-only and exactly re-derivable.)
 
 ---
 
@@ -219,7 +219,7 @@ The policy **MUST** define the following keys in the **`defaults`** block, with 
 **5.1 RNG event families (authoritative; partitions `{seed, parameter_hash, run_id}`)**
 S6 **produces** the following RNG artefacts; these are the **sole authoritative evidence** of selection and are governed by the layer RNG envelope law (open-interval mapping; `before/after/blocks/draws`; one **trace** append per event).
 
-* **`rng_event.gumbel_key`** — **one event per considered candidate** (post-cap, post policy filters).
+* **`rng_event.gumbel_key`** — **logging mode:** if `log_all_candidates=true`, one event per **considered** candidate (post-cap, post-policy); if `false`, keys only for **selected** candidates (budgets unchanged; validator uses §9.3 counter-replay).
 
   * **Schema anchor:** `schemas.layer1.yaml#/rng/events/gumbel_key`.
   * **Dictionary entry & path pattern:** `logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`.
@@ -282,7 +282,7 @@ S6 **MUST** proceed for a merchant only if all are true:
   * `"exclude"` (default): drop candidates with S5 weight `== 0` from the **considered** set (hence also from the eligible set); **no key written**.
   * `"include"`: such countries may be **considered** (keys may be logged), but are **not eligible** for selection (see score rule below).
     *(Considered set is for logging expectations; eligible set is for selection.)*
-* **Subset renormalisation:** within the **considered∩eligible** subset, **ephemerally renormalise** weights in **binary64** for scoring; **MUST NOT** persist any new weights (persisted weight authority remains S5). 
+* **Subset renormalisation:** within the **eligible** subset *(eligible ⊂ considered)*, **ephemerally renormalise** weights in **binary64** for scoring; **MUST NOT** persist any new weights (persisted weight authority remains S5).
 
 ---
 
@@ -291,7 +291,7 @@ S6 **MUST** proceed for a merchant only if all are true:
 * **Uniforms:** S6 **MUST** use the S0 **open-interval** mapping $u\in(0,1)$ for all uniforms (never exact 0 or 1). 
 * **Numeric environment:** **inherit S0.8** — IEEE-754 **binary64**, round-to-nearest-ties-even, **FMA off**, **no FTZ/DAZ**, deterministic libm; decision kernels run in fixed order. 
 * **Iteration order:** when drawing, **iterate in S3 `candidate_rank` order** to keep substream counters reproducible. 
-* **Event family:** for each **considered** candidate, write exactly **one** `rng_event.gumbel_key` with full envelope; append **exactly one** trace row after each event (per RNG trace law). 
+* **Event family (logging mode):** if `log_all_candidates=true`, write exactly **one** `rng_event.gumbel_key` for each **considered** candidate; if `false`, write keys **only for selected** candidates (validator counter-replays per §9.3). Append **exactly one** trace row after each event (per RNG trace law).
 * **Score (`key`) definition:** For candidate $c$ with weight $w_c>0$, compute **binary64**
   $$
   \text{key}_c = \ln(w_c) - \ln\!\big(-\ln u_c\big),\quad u_c\in(0,1).
@@ -322,12 +322,11 @@ S6 **MUST NOT** persist or imply inter-country order. Any projected order for di
 
 **6.7 Logging discipline (budgeting & modes).**
 
-* **Stable loop:** produce keys in **S3 `candidate_rank`** order; **one** `gumbel_key` per **considered** candidate. 
-* **Expected event count per merchant:**
-  $$
-  \mathrm{events}(\texttt{gumbel_key})=A_{\text{filtered}}
-  $$
-  (after zero-weight policy and cap). *(If `log_all_candidates=false`, only selected keys are written; the validator will **counter-replay** the missing keys in the same order — see §9.)* 
+* **Stable loop:** produce keys in **S3 `candidate_rank`** order; **logging mode** → if `log_all_candidates=true`, **one** `gumbel_key` per **considered** candidate; if `false`, keys only for **selected** candidates. 
+* **Expected event count per merchant:**  
+  - if `log_all_candidates=true`: $\mathrm{events}(\texttt{gumbel\_key})=A_{\text{filtered}}$;  
+  - if `false`: $\mathrm{events}(\texttt{gumbel\_key})=K_{\text{realized}}$.  
+  (after zero-weight policy and cap). The validator **counter-replays** missing keys in reduced-logging mode (§9.3).
 * **Trace rule:** emit **exactly one** `rng_trace_log` row **after each event**; cumulative totals reconcile to sum of event budgets for the `(module, substream_label)` key. 
 
 ---
@@ -668,7 +667,7 @@ data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
 ## 11.1 Event families & substream taxonomy (authoritative)
 
 * **Produced by S6 (events):**
-  **`rng_event.gumbel_key`** — one event **per considered candidate** (post-cap & policy filter). **Schema anchor:** `schemas.layer1.yaml#/rng/events/gumbel_key`. **Partition:** `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`.
+  **`rng_event.gumbel_key`** — **logging mode:** if `log_all_candidates=true`, one event **per considered candidate** (post-cap & policy filter); if `false`, keys only for **selected** candidates (validator counter-replays missing keys per §9.3). **Schema anchor:** `schemas.layer1.yaml#/rng/events/gumbel_key`. **Partition:** `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`.
 
 * **Core logs updated by S6:**
   **`rng_audit_log`** and **`rng_trace_log`**, both under `{seed, parameter_hash, run_id}` per the Dataset Dictionary. **Trace is cumulative per `(module, substream_label)`** and **emits exactly one row after each RNG event append** (saturating totals). 
@@ -758,7 +757,7 @@ data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
 * **12.2.3 Deterministic merges (Binding).** Independent of shard count, producers **MUST**:
 
   * iterate candidates in **S3 `candidate_rank`** order when drawing;
-  * write one `gumbel_key` per **considered** candidate;
+  * logging mode: if `log_all_candidates=true`, write one `gumbel_key` per **considered** candidate; if `false`, write keys only for **selected** candidates;
   * append **exactly one** `rng_trace_log` row **after each** event;
   * ensure any optional membership surface is **writer-sorted** `(merchant_id, country_iso)` (row order non-semantic to readers).
 * **12.2.4 Writer policy (Binding when pinned).** If the Registry pins codec/level/row-group policy for an S6 family, producers **MUST** use it (byte-identity); otherwise value-identity suffices. 
@@ -860,7 +859,7 @@ data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
 
 **Nodes & order (single run):**
 
-1. **Draw keys** — iterate S3 domain (policy-filtered/capped) in **S3-rank** order; write one `rng_event.gumbel_key` **per considered candidate**; append **one** `rng_trace_log` row **after each** event. 
+1. **Draw keys** — iterate S3 domain (policy-filtered/capped) in **S3-rank** order; if `log_all_candidates=true`, write one `rng_event.gumbel_key` **per considered candidate**; if `false`, write keys only for **selected** candidates; append **one** `rng_trace_log` row **after each** event.
 2. **Select** — compute keys, apply top-`K_target` rule with tie-breaks; (optional) write membership surface (authority note: re-derivable; no order). 
 3. **Validate** — run §9 structural/content/RNG isolation & (re)derivation checks.
 4. **Publish** — atomic publish of S6 receipt (and membership if enabled). **On FAIL:** publish nothing; return appropriate exit code (above). 
@@ -1345,18 +1344,18 @@ For each `(module="1A.foreign_country_selector", substream_label∈{"gumbel_key"
 
 ## B.1 Dataset IDs and schema anchors (read/write set)
 
-| ID (Dictionary)                      | Type         | Partitions                     | Schema `$ref`                                            | Notes                                                                                          |
-|--------------------------------------|--------------|--------------------------------|----------------------------------------------------------|------------------------------------------------------------------------------------------------|
-| `s3_candidate_set`                   | dataset      | `parameter_hash`               | `schemas.1A.yaml#/s3/candidate_set`                      | Order & admissible set **A** (home `candidate_rank=0`, ranks total & contiguous).              |
-| `rng_event_ztp_final`                | rng_event    | `seed, parameter_hash, run_id` | `schemas.layer1.yaml#/rng/events/ztp_final`              | S4 **fixes `K_target`**; exactly one per resolved merchant. **Consumed by S6.**                |
-| `rng_event_gumbel_key`               | rng_event    | `seed, parameter_hash, run_id` | `schemas.layer1.yaml#/rng/events/gumbel_key`             | S6 Gumbel keys (one per **considered** candidate).                                             |
-| `rng_audit_log`                      | rng core log | `seed, parameter_hash, run_id` | `schemas.layer1.yaml#/rng/core/rng_audit_log`            | Run-scoped audit; emitted before events.                                                       |
-| `rng_trace_log`                      | rng core log | `seed, parameter_hash, run_id` | `schemas.layer1.yaml#/rng/core/rng_trace_log`            | Cumulative per `(module, substream_label)`; **one append after each event**.                   |
-| `ccy_country_weights_cache`          | dataset      | `parameter_hash`               | `schemas.1A.yaml#/prep/ccy_country_weights_cache`        | S5 currency→country **weights**; **S5 PASS** required before S6 reads (**no PASS → no read**). |
-| `merchant_currency` *(optional)*     | dataset      | `parameter_hash`               | `schemas.1A.yaml#/prep/merchant_currency`                | Deterministic κₘ cache for S5/S6 joins.                                                        |
-| `rng_event_dirichlet_gamma_vector`   | rng_event    | `seed, parameter_hash, run_id` | `schemas.layer1.yaml#/rng/events/dirichlet_gamma_vector` | S7 allocator (downstream of S6).                                                               |
-| `rng_event_stream_jump` *(optional)* | rng_event    | `seed, parameter_hash, run_id` | `schemas.layer1.yaml#/rng/events/stream_jump`            | Explicit Philox stream/substream jump records.                                                 |
-| `country_set` *(legacy/compat)*      | dataset      | `seed, parameter_hash`         | `schemas.1A.yaml#/alloc/country_set`                     | **Deprecated as order authority;** S3 remains sole order source.                               |
+| ID (Dictionary)                      | Type         | Partitions                     | Schema `$ref`                                            | Notes                                                                                                                                                            |
+|--------------------------------------|--------------|--------------------------------|----------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `s3_candidate_set`                   | dataset      | `parameter_hash`               | `schemas.1A.yaml#/s3/candidate_set`                      | Order & admissible set **A** (home `candidate_rank=0`, ranks total & contiguous).                                                                                |
+| `rng_event_ztp_final`                | rng_event    | `seed, parameter_hash, run_id` | `schemas.layer1.yaml#/rng/events/ztp_final`              | S4 **fixes `K_target`**; exactly one per resolved merchant. **Consumed by S6.**                                                                                  |
+| `rng_event_gumbel_key`               | rng_event    | `seed, parameter_hash, run_id` | `schemas.layer1.yaml#/rng/events/gumbel_key`             | **Logging mode:** if `log_all_candidates=true`, one per **considered** candidate; if `false`, keys only for **selected** candidates (validator counter-replays). |
+| `rng_audit_log`                      | rng core log | `seed, parameter_hash, run_id` | `schemas.layer1.yaml#/rng/core/rng_audit_log`            | Run-scoped audit; emitted before events.                                                                                                                         |
+| `rng_trace_log`                      | rng core log | `seed, parameter_hash, run_id` | `schemas.layer1.yaml#/rng/core/rng_trace_log`            | Cumulative per `(module, substream_label)`; **one append after each event**.                                                                                     |
+| `ccy_country_weights_cache`          | dataset      | `parameter_hash`               | `schemas.1A.yaml#/prep/ccy_country_weights_cache`        | S5 currency→country **weights**; **S5 PASS** required before S6 reads (**no PASS → no read**).                                                                   |
+| `merchant_currency` *(optional)*     | dataset      | `parameter_hash`               | `schemas.1A.yaml#/prep/merchant_currency`                | Deterministic κₘ cache for S5/S6 joins.                                                                                                                          |
+| `rng_event_dirichlet_gamma_vector`   | rng_event    | `seed, parameter_hash, run_id` | `schemas.layer1.yaml#/rng/events/dirichlet_gamma_vector` | S7 allocator (downstream of S6).                                                                                                                                 |
+| `rng_event_stream_jump` *(optional)* | rng_event    | `seed, parameter_hash, run_id` | `schemas.layer1.yaml#/rng/events/stream_jump`            | Explicit Philox stream/substream jump records.                                                                                                                   |
+| `country_set` *(legacy/compat)*      | dataset      | `seed, parameter_hash`         | `schemas.1A.yaml#/alloc/country_set`                     | **Deprecated as order authority;** S3 remains sole order source.                                                                                                 |
 
 > **Authority reminder:** JSON-Schema + Dataset Dictionary govern IDs, shapes, and paths; S6 **must not** encode inter-country order—consumers **must** join S3 `candidate_rank`. 
 
