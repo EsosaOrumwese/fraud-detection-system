@@ -1073,6 +1073,25 @@ subsegments:
     cross_layer: false
     notes: Deprecated as order authority; retained for backward compatibility.
 
+  - name: s6_membership
+    path: data/layer1/1A/s6/membership/seed={seed}/parameter_hash={parameter_hash}/
+    type: dataset
+    category: selection
+    semver: '{semver}'
+    version: '{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.selection.membership
+    license: Proprietary-Internal
+    role: Optional convenience surface of selected foreign ISO2s per merchant; authority remains S6 RNG events; no inter-country order encoded.
+    dependencies: [s3_candidate_set, ccy_country_weights_cache, rng_event_gumbel_key]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1A.yaml#/s6/membership
+    cross_layer: false
+    notes: Emitted only when S6 policy `emit_membership_dataset=true`; consumers must verify S6 PASS; order must be joined from S3 `candidate_rank`.
+
   - name: dirichlet_lrr_proof
     path: docs/derivations/dirichlet_lrr_proof.md
     type: documentation
