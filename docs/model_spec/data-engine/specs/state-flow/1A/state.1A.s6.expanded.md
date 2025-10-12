@@ -330,7 +330,7 @@ S6 **MUST NOT** persist or imply inter-country order. Any projected order for di
 ---
 
 **6.8 Determinism & idempotence.**
-With identical `{seed, parameter_hash, run_id}`, the **considered** set, the sequence of uniforms, the scores, and the selected membership **MUST** be identical across re-runs; envelopes satisfy S0 budget/counter invariants; path↔embed equality holds. 
+With identical `{seed, parameter_hash, run_id}`, the **considered** set, the sequence of uniforms, the **keys**, and the selected membership **MUST** be identical across re-runs; envelopes satisfy S0 budget/counter invariants; path↔embed equality holds. 
 
 ---
 
@@ -363,7 +363,7 @@ $$
 where $A_{\text{filtered}}$ is the candidate count after applying `max_candidates_cap` and the `zero_weight_rule`. Shortfall $A_{\text{filtered}} < K_{target}$ **MUST** result in selecting **all $A_{\text{filtered}}$**. 
 
 **7.4 Tie-break determinism.**
-When scores are exactly equal in **binary64**, order **MUST** resolve by **S3 `candidate_rank`** (ascending), then `country_iso` A→Z, ensuring a **total order consistent with S3**. 
+When `key` values are exactly equal in **binary64**, order **MUST** resolve by **S3 `candidate_rank`** (ascending), then `country_iso` A→Z, ensuring a **total order consistent with S3**. 
 
 **7.5 RNG event/logging invariants (authoritative evidence).**
 
@@ -384,7 +384,7 @@ When scores are exactly equal in **binary64**, order **MUST** resolve by **S3 `c
 No S6 output **may encode or imply** inter-country order; consumers **MUST** continue to obtain order exclusively from **S3 `candidate_rank`**. `outlet_catalogue` carries **no** cross-country order.
 
 **7.9 Idempotence & stability.**
-With identical `{seed, parameter_hash, run_id}` and identical inputs, the **considered** set, uniform sequence, scores, and selected membership are **identical** across re-runs. If a writer policy is pinned in the registry, producers **MUST** adhere to it; otherwise **value-identity** suffices. 
+With identical `{seed, parameter_hash, run_id}` and identical inputs, the **considered** set, uniform sequence, **keys**, and selected membership are **identical** across re-runs. If a writer policy is pinned in the registry, producers **MUST** adhere to it; otherwise **value-identity** suffices.
 
 **7.10 S5 weight authority preserved.**
 Any subset renormalisation used during selection is **ephemeral** and **MUST NOT** be persisted; persisted currency→country weights remain **S5** (`Σ=1±1e-6`, bounds). 
@@ -526,7 +526,7 @@ Downstream states **MUST** verify the **S6 PASS** receipt before reading S6 conv
   |{\text{selected}}| = K_{\text{realized}} = \min(K_{\text{target}},A_{\text{filtered}}),
   $$
   where $A_{\text{filtered}}$ reflects policy filters and any S3-rank cap. Shortfall (`A_filtered < K_target`) **MUST** result in selecting **all `A_filtered`**. 
-* **Tie-break determinism:** When scores are equal in **binary64**, break by **S3 `candidate_rank`** (ascending), then by `country_iso` A→Z. (Ensures a total order consistent with S3.) 
+* **Tie-break determinism:** When **`key`** values are equal in **binary64**, break by **S3 `candidate_rank`** (ascending), then by `country_iso` A→Z. (Ensures a total order consistent with S3.)
 * **No order encoding:** Any S6 surface (incl. membership) **MUST NOT** encode or imply inter-country order; downstream MUST continue to read order **exclusively** from S3 `candidate_rank`. 
 
 ---
@@ -535,11 +535,11 @@ Downstream states **MUST** verify the **S6 PASS** receipt before reading S6 conv
 
 **Mode A – `log_all_candidates = true` (recommended).**
 
-* **Expectations:** For each merchant, **exactly one** `rng_event.gumbel_key` exists **per considered candidate** (`A_filtered`). The validator recomputes scores from **logged `u`/keys + S5 weights + S3 domain** in the **same iteration order (S3 rank)** and recomputes the **top-`K_target`** set. The recomputed membership **MUST** equal the published membership (or, if no membership surface is written, the validator must derive the same set from events). 
+* **Expectations:** For each merchant, **exactly one** `rng_event.gumbel_key` exists **per considered candidate** (`A_filtered`). The validator recomputes **`key` values** from **logged `u` (or verifies logged `key`) + S5 weights + S3 domain** in the **same iteration order (S3 rank)** and recomputes the **top-`K_target`** set. The recomputed membership **MUST** equal the published membership (or, if no membership surface is written, the validator must derive the same set from events). 
 
 **Mode B – `log_all_candidates = false` (reduced logging).**
 
-* **Expectations:** Only **selected** candidates have logged keys. The validator performs **counter-replay** on the S6 substream in **S3-rank order** to regenerate the missing keys, recomputes scores, and verifies the selected set equals the run’s published membership. Any divergence is **FAIL**. (This mirrors S5’s “re-derive to byte equality” posture, adapted to S6’s stochastic key logs.) 
+* **Expectations:** Only **selected** candidates have logged keys. The validator performs **counter-replay** on the S6 substream in **S3-rank order** to regenerate the missing keys, recomputes **key values**, and verifies the selected set equals the run’s published membership. Any divergence is **FAIL**. (This mirrors S5’s “re-derive to byte equality” posture, adapted to S6’s stochastic key logs.)
 
 **Numeric/RNG law:** Re-derivation runs under the S0.8 numeric profile; uniforms use the S0 open-interval mapping; pairing uses **envelope counters**, not file order. 
 
@@ -762,8 +762,8 @@ data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
 
 ## 12.3 Memory envelope (per merchant)
 
-* **Working set.** Implementation **should** bound peak memory to **O(A_filtered)** per merchant: weights (read-only), one uniform, one score per candidate, plus small envelope state.
-* **Streaming discipline.** **Prefer** streaming: compute→emit events per candidate in order; avoid accumulating all scores when `A_filtered` is large (use online top-K).
+* **Working set.** Implementation **should** bound peak memory to **O(A_filtered)** per merchant: weights (read-only), one uniform, one **key** per candidate, plus small envelope state.
+* **Streaming discipline.** **Prefer** streaming: compute→emit events per candidate in order; avoid accumulating all **keys** when `A_filtered` is large (use online top-K).
 * **Join posture.** Reads should stream-join **S3 domain** with **S5 weights** by `country_iso` (both uppercase, FK-valid) to avoid full materialisations. (Authority on domains from schemas/dictionary remains binding.) 
 
 ## 12.4 CPU envelope & algorithmic shape
@@ -783,7 +783,7 @@ data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
 
 ## 12.7 Practical sizing guidance (non-binding, recommended)
 
-* **Shard sizing.** Size shard counts to keep **A_filtered** × (score+weight) within memory headroom; prefer many small shards to avoid per-shard spikes.
+* **Shard sizing.** Size shard counts to keep `A_filtered` × (`key`+`weight`) within memory headroom; prefer many small shards to avoid per-shard spikes.
 * **Caps.** Use `max_candidates_cap` to bound worst-case `A_filtered` in extreme markets without changing S3 order (cap applies as S3-rank prefix only).
 * **Diagnostics.** Enable `log_all_candidates=true` in early runs for simpler validation and performance sizing; switch to reduced logging only with §9 counter-replay wired.
 
@@ -858,7 +858,7 @@ data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
 **Nodes & order (single run):**
 
 1. **Draw keys** — iterate S3 domain (policy-filtered/capped) in **S3-rank** order; write one `rng_event.gumbel_key` **per considered candidate**; append **one** `rng_trace_log` row **after each** event. 
-2. **Select** — compute scores, apply **top-`K_target`** rule with tie-breaks; (optional) write **membership** surface (authority note: re-derivable; no order). 
+2. **Select** — compute keys, apply top-`K_target` rule with tie-breaks; (optional) write membership surface (authority note: re-derivable; no order). 
 3. **Validate** — run §9 structural/content/RNG isolation & (re)derivation checks.
 4. **Publish** — atomic publish of S6 receipt (and membership if enabled). **On FAIL:** publish nothing; return appropriate exit code (above). 
 
@@ -1006,7 +1006,7 @@ Emit as **structured log rows** (JSONL) or a per-run detail file; do **not** exp
 * `merchant_id:u64`, `A:int`, `A_filtered:int`, `K_target:int`, `K_realized:int`.
 * `considered_expected_events:int`, `gumbel_key_written:int` (equals `considered_expected_events` only when `log_all_candidates=true`).
 * `is_shortfall:bool`, `reason_code:enum{NO_CANDIDATES,K_ZERO,ZERO_WEIGHT_DOMAIN,CAPPED_BY_MAX_CANDIDATES,none}`.
-* `ties_resolved:int` — count of score ties broken by S3 `candidate_rank` / ISO.
+* `ties_resolved:int` — count of key ties broken by S3 `candidate_rank` / ISO.
 * `policy_cap_applied:bool`, `cap_value:int`.
 * `zero_weight_considered:int` — count of considered candidates with `w==0` (under `"include"` mode).
 * `rng.trace.delta.{events,blocks,draws}:int` — deltas observed in `rng_trace_log` for this merchant’s S6 substream.
@@ -1120,8 +1120,7 @@ The S6 validator (§9) **MUST additionally assert**:
 * **SemVer scope (this spec & its public interfaces).**
 
   * **MAJOR** — breaking changes to: dataset **IDs/paths/partitions**, schema shapes/required fields, **RNG event family** payloads or budgeting law, **tie-break rules**, **substream naming**, PASS-gate semantics, or adding **new required** CLI args.
-  * **MINOR** — additive, backwards-compatible changes: optional fields/metrics, enabling the **optional membership** dataset, adding **diagnostic** fields (e.g., `score_dp`), enabling **reduced logging** mode provided §9 supports counter-replay, registering a **writer policy** in the Registry.
-  * **PATCH** — wording clarifications and operational guidance with **zero** behavioural/schema impact.
+  * **MINOR** — additive, backwards-compatible changes: optional fields/metrics, enabling the **optional membership** dataset, adding **diagnostic** fields, enabling **reduced logging** mode provided §9 supports counter-replay, registering a **writer policy** in the Registry.
 * **Lineage keys are separate from SemVer.**
 
   * **`parameter_hash`** flips whenever **any** member of the governed set **𝓟** changes **bytes** (S0.2.2). S6 policy files are **required** 𝓟 members. 
@@ -1244,7 +1243,7 @@ Use this **tick-box** list to sign off S6 before hand-off to implementation/ops.
 * [ ] **Domain built correctly** — foreign = S3 candidates ∖ home, ∩ S5 weight support; optional cap is **S3-rank prefix only**. No out-of-domain countries admitted. 
 * [ ] **Event coverage** — if `log_all_candidates=true`: **one** `rng_event.gumbel_key` **per considered candidate** (`A_filtered`). If false: keys only for selected, and validator will **counter-replay**. 
 * [ ] **Trace duty** — **one** `rng_trace_log` append **after each** RNG event; totals reconcile per `(module, substream_label)`. 
-* [ ] **Top-K rule** — select `min(K_target, A_filtered)` by score; ties → S3 `candidate_rank`, then ISO A→Z. `K_target` read **only** from `rng_event_ztp_final`. 
+* [ ] **Top-K rule** — select `min(K_target, A_filtered)` by **`key`**; ties → S3 `candidate_rank`, then ISO A→Z. `K_target` read **only** from `rng_event_ztp_final`.
 * [ ] **No order encoding** — S6 writes **no** cross-country order; membership surface (if emitted) is **authority-free** and re-derivable from events. 
 
 **Validator (§9):**
@@ -1306,6 +1305,7 @@ $$
 
 * **Uniforms:** $u_c$ come from the layer’s **strict-open** (U(0,1)) mapping (never 0 or 1).
 * **Zero weights:** if `zero_weight_rule="include"`, treat $\ln(0)=-\infty$ (loggable, **not** selectable).
+  *Event payload note (binding cross-ref to §§5.1/6.3): when `weight==0`, the event **MUST** encode `key: null` (never $\pm\infty$); such rows are diagnostic only and cannot be selected.*
 * **Tie-breaks (total order):** higher $S$ first; exact tie → lower **S3 `candidate_rank`**; then `country_iso` A→Z.
 
 **ULP (Unit in the Last Place).**
@@ -1447,7 +1447,7 @@ S6 **fails closed** with these canonical codes; map to S0 failure classes in ops
   FR 0.454545…, DE 0.272727…, ES 0.181818…, IT 0.090909… (sum = 1.0).
 * **Policy:** `log_all_candidates=true`, `max_candidates_cap=0`, `zero_weight_rule="exclude"`.
 
-## Gumbel keys & scores
+## Gumbel keys & key values
 
 For each **considered** candidate $c$: draw $u_c\in(0,1)$, compute
 $G_c=-\ln(-\ln u_c)$, $S_c=\ln(w_c)+G_c$ (binary64). Stable iteration = **S3 rank**.
