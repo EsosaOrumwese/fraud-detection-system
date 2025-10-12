@@ -64,9 +64,9 @@
 **1.1 Goal (what S6 does).**
 For each **eligible multi-site** merchant, S6 selects a **subset of foreign ISO2 countries** of size
 $$
-K_{\text{realized}}=\min\big(K_{\text{target}}, A\big)
+K_{\text{realized}}=\min\big(K_{\text{target}},\,|\text{Eligible}|\big)
 $$
-where **$K_{\text{target}}$** comes from **S4’s `rng_event.ztp_final`** and **$A$** is the count of admissible **foreign** candidates from **S3’s `s3_candidate_set`** (home has `candidate_rank=0` and is not selectable). The **selection domain** is the **intersection** of S3’s candidate set and **S5’s `ccy_country_weights_cache`** for the merchant’s settlement currency; weights are taken from S5. **S5 must have PASSed** for the same `parameter_hash` before S6 reads.
+where **$K_{\text{target}}$** comes from **S4’s `rng_event.ztp_final`** and **Eligible** is the set of S3 **foreign** candidates (home excluded) with **strictly positive** S5 weight **after** applying policy filters/caps (§4.2; Appendix A). The **selection domain** is the **intersection** of S3’s candidate set and **S5’s `ccy_country_weights_cache`** for the merchant’s settlement currency; weights are taken from S5. **S5 must have PASSed** for the same `parameter_hash` before S6 reads.
 
 **1.2 Out of scope (what S6 will not do).**
 
@@ -78,7 +78,7 @@ where **$K_{\text{target}}$** comes from **S4’s `rng_event.ztp_final`** and **
 
 **1.3 Success criteria (how we know S6 is correct).**
 
-* **Deterministic-under-seed:** For a fixed `{seed, parameter_hash, run_id}`, the realized foreign set equals the **top-`K_target`** countries by the S6 scoring rule over the domain (ties broken per §6), or **all A** when `A < K_target`. Inputs (`s3_candidate_set`, `rng_event.ztp_final`, `ccy_country_weights_cache`) are consumed exactly as registered in the dictionary/schemas.
+* **Deterministic-under-seed:** For a fixed `{seed, parameter_hash, run_id}`, the realized foreign set equals the **top-`K_target`** countries by the S6 scoring rule over the domain (ties broken per §6), or **all `|\text{Eligible}|`** when `|\text{Eligible}| < K_target`. Inputs (`s3_candidate_set`, `rng_event.ztp_final`, `ccy_country_weights_cache`) are consumed exactly as registered in the dictionary/schemas.
 * **Membership-only output:** Any optional S6 “membership” surface contains **no order** and is provably **re-derivable from S6 RNG events + S3/S5 inputs**. 
 * **RNG logging completeness & isolation:** Exactly one `rng_event.gumbel_key` is written **per considered candidate** (domain after policy), and only S6’s declared RNG families appear; envelopes/trace totals reconcile. 
 * **Upstream gate honored:** S6 reads S5 only after verifying the **S5 PASS** receipt for the same `parameter_hash` (**no PASS → no read**).
@@ -109,9 +109,10 @@ where **$K_{\text{target}}$** comes from **S4’s `rng_event.ztp_final`** and **
 
 * **Selection size:** S6 **MUST** realise
   $$
-  K_{\text{realized}}=\min\big(K_{\text{target}}, A\big)
+  K_{\text{realized}}=\min\!\big(K_{\text{target}},\,|\text{Eligible}|\big)
   $$
-  using the S3 foreign domain and S5 weights; if `A < K_target`, S6 selects **all `A`** (shortfall).
+  using the S3 foreign domain and S5 weights; if `|\text{Eligible}| < K_target`, S6 selects **all `|\text{Eligible}|`** (shortfall).
+
 * **Provenance & replay:** For each **considered** candidate, S6 writes exactly **one** `rng_event.gumbel_key` under `{seed,parameter_hash,run_id}`; selection is re-derivable from these keys + S3/S5. (Membership dataset, if emitted, is convenience-only and must be exactly re-derivable.) 
 
 ---
@@ -278,7 +279,7 @@ S6 **MUST** proceed for a merchant only if all are true:
 * **Cap (optional):** if `max_candidates_cap>0`, **truncate by S3 `candidate_rank` prefix** to the first `A_cap` foreigns. **No re-order is permitted.** 
 * **Zero-weight policy:**
 
-  * `"exclude"` (default): drop candidates with S5 weight `== 0` from the **eligible** set (no key written).
+  * `"exclude"` (default): drop candidates with S5 weight `== 0` from the **considered** set (hence also from the eligible set); **no key written**.
   * `"include"`: such countries may be **considered** (keys may be logged), but are **not eligible** for selection (see score rule below).
     *(Considered set is for logging expectations; eligible set is for selection.)*
 * **Subset renormalisation:** within the **considered∩eligible** subset, **ephemerally renormalise** weights in **binary64** for scoring; **MUST NOT** persist any new weights (persisted weight authority remains S5). 
@@ -300,8 +301,8 @@ S6 **MUST** proceed for a merchant only if all are true:
 
 **6.4 Selection rule (K-realisation).**
 
-* Let $A$ be the **foreign** candidate count after policy filters/cap; let $K_{\text{target}}$ come from S4.
-* S6 **MUST** select the **top $K_{\text{target}}$** countries by **`key`** from the **eligible** subset; if $A < K_{\text{target}}$, select **all $A$** (shortfall).
+* Let $A_{\text{filtered}}$ be the **considered** foreign candidate count after policy filters/cap, and let $|\text{Eligible}|$ be the number of **eligible** candidates with $w>0$ in that domain; let $K_{\text{target}}$ come from S4.
+* S6 **MUST** select the **top $K_{\text{target}}$** countries by **`key`** from the **eligible** subset; if $|\text{Eligible}| < K_{\text{target}}$, select **all $|\text{Eligible}|$** (shortfall).
 
 ---
 
@@ -360,9 +361,9 @@ With identical `{seed, parameter_hash, run_id}`, the **considered** set, the seq
 **7.3 Cardinality invariant.**
 For each merchant, the realized set size is
 $$
-|\text{selected}| = K_{\text{realized}}=\min(K_{\text{target}}, A_{\text{filtered}}),
+|\text{selected}| = K_{\text{realized}}=\min\!\big(K_{\text{target}},\,|\text{Eligible}|\big),
 $$
-where $A_{\text{filtered}}$ is the candidate count after applying `max_candidates_cap` and the `zero_weight_rule`. Shortfall $A_{\text{filtered}} < K_{target}$ **MUST** result in selecting **all $A_{\text{filtered}}$**. 
+where $|\text{Eligible}|$ is the eligible-count **after** applying `max_candidates_cap` and the `zero_weight_rule` (positives only). Shortfall $|\text{Eligible}| < K_{\text{target}}$ **MUST** result in selecting **all $|\text{Eligible}|$**. 
 
 **7.4 Tie-break determinism.**
 When `key` values are exactly equal in **binary64**, order **MUST** resolve by **S3 `candidate_rank`** (ascending), then `country_iso` A→Z, ensuring a **total order consistent with S3**. 
@@ -416,7 +417,7 @@ When these conditions hold, S6 **MUST** emit a **valid, empty selection** for th
 * **`ZERO_WEIGHT_DOMAIN`** — After applying S6 policy filters (cap + `zero_weight_rule`), **no candidate with weight>0** remains in the eligible set (S5 is still PASS). 
 * **`CAPPED_BY_MAX_CANDIDATES`** *(diagnostic only)* — Domain truncated by `max_candidates_cap` (selection still proceeds if any eligible >0 remain).
 
-Shortfall **is not an error**: if $A_{\text{filtered}} < K_{\text{target}}$, S6 MUST select **all $A_{\text{filtered}}$** (validator may log `SHORTFALL_A_LT_K`). 
+Shortfall **is not an error**: if $|\text{Eligible}| < K_{\text{target}}$, S6 MUST select **all $|\text{Eligible}|$** (validator may log `SHORTFALL_ELIG_LT_K`). 
 
 ---
 
@@ -485,7 +486,7 @@ These are **diagnostics**; they **do not** authorize re-ordering, re-weighting, 
 * **`STRUCTURAL_FAIL`** — Any of §8.2/§8.3 failures encountered (per-merchant aborts allowed; run fails if policy dictates).
 * **`RNG_ACCOUNTING_FAIL`** — Envelope/trace breaches.
 * **`RE_DERIVATION_FAIL`** — Validator cannot reconstruct membership from events + S3/S5 (or counter-replay when `log_all_candidates=false`).
-* **`SHORTFALL_NOTED`** — Non-error; at least one merchant had $A_{\text{filtered}} < K_{\text{target}}$.
+* **`SHORTFALL_NOTED`** — Non-error; at least one merchant had $|\text{Eligible}| < K_{\text{target}}$.
 
 (Exact numeric codes enumerated in Appendix **B** alongside RNG family names and schema anchors.) 
 
@@ -525,9 +526,9 @@ Downstream states **MUST** verify the **S6 PASS** receipt before reading S6 conv
 * **Subset law:** Selected foreigns ⊆ S3 **foreign** candidates and ⊆ S5 weight support for the merchant’s currency. (Home is never selectable.) 
 * **Cardinality:** For each merchant,
   $$
-  |{\text{selected}}| = K_{\text{realized}} = \min(K_{\text{target}},A_{\text{filtered}}),
+  |{\text{selected}}| = K_{\text{realized}} = \min(K_{\text{target}},\,|\text{Eligible}|),
   $$
-  where $A_{\text{filtered}}$ reflects policy filters and any S3-rank cap. Shortfall (`A_filtered < K_target`) **MUST** result in selecting **all `A_filtered`**. 
+  where $|\text{Eligible}|$ is the count of candidates with $w>0$ **after** policy filters and any S3-rank cap. Shortfall (`|\text{Eligible}| < K_{\text{target}}`) **MUST** result in selecting **all `|\text{Eligible}|`**. 
 * **Tie-break determinism:** When **`key`** values are equal in **binary64**, break by **S3 `candidate_rank`** (ascending), then by `country_iso` A→Z. (Ensures a total order consistent with S3.)
 * **No order encoding:** Any S6 surface (incl. membership) **MUST NOT** encode or imply inter-country order; downstream MUST continue to read order **exclusively** from S3 `candidate_rank`. 
 
@@ -841,7 +842,7 @@ data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
 * **`STRUCTURAL_FAIL`** — Any §8.2/§8.3 failure (inputs, schema, policy, lineage) encountered. 
 * **`RNG_ACCOUNTING_FAIL`** — Envelope/trace mismatch (S6 families). 
 * **`RE_DERIVATION_FAIL`** — Unable to reconstruct membership from events (+ counter-replay when reduced logging). 
-* **`SHORTFALL_NOTED`** — Non-error; ≥1 merchant had $A_{\text{filtered}} < K_{\text{target}}$ (selection proceeded with all $A_{\text{filtered}}$).
+* **`SHORTFALL_NOTED`** — Non-error; ≥1 merchant had $|\text{Eligible}| < K_{\text{target}}$.
 
 **Published artefacts (mandatory on SUCCESS):**
 
@@ -968,7 +969,7 @@ Emit the following **per run** (dimensions: `{seed, parameter_hash, run_id}`):
 
 **Shortfall & reasons**
 
-* `s6.run.shortfall_merchants : counter` — count where `A_filtered < K_target` (selection proceeded with all `A_filtered`).
+* `s6.run.shortfall_merchants : counter` — count where `|Eligible| < K_target` (selection proceeded with all `|Eligible|`).
 * `s6.run.reason.NO_CANDIDATES : counter` — (A=0).
 * `s6.run.reason.K_ZERO : counter` — `K_target=0`.
 * `s6.run.reason.ZERO_WEIGHT_DOMAIN : counter` — eligible set empty after policy.
@@ -1007,7 +1008,7 @@ Emit as **structured log rows** (JSONL) or a per-run detail file; do **not** exp
 
 * `merchant_id:u64`, `A:int`, `A_filtered:int`, `K_target:int`, `K_realized:int`.
 * `considered_expected_events:int`, `gumbel_key_written:int` (equals `considered_expected_events` only when `log_all_candidates=true`).
-* `is_shortfall:bool`, `reason_code:enum{NO_CANDIDATES,K_ZERO,ZERO_WEIGHT_DOMAIN,CAPPED_BY_MAX_CANDIDATES,none}`.
+* `is_shortfall:bool` — true iff `|Eligible| < K_target`, `reason_code:enum{NO_CANDIDATES,K_ZERO,ZERO_WEIGHT_DOMAIN,CAPPED_BY_MAX_CANDIDATES,none}`.
 * `ties_resolved:int` — count of key ties broken by S3 `candidate_rank` / ISO.
 * `policy_cap_applied:bool`, `cap_value:int`.
 * `zero_weight_considered:int` — count of considered candidates with `w==0` (under `"include"` mode).
@@ -1245,7 +1246,7 @@ Use this **tick-box** list to sign off S6 before hand-off to implementation/ops.
 * [ ] **Domain built correctly** — foreign = S3 candidates ∖ home, ∩ S5 weight support; optional cap is **S3-rank prefix only**. No out-of-domain countries admitted. 
 * [ ] **Event coverage** — if `log_all_candidates=true`: **one** `rng_event.gumbel_key` **per considered candidate** (`A_filtered`). If false: keys only for selected, and validator will **counter-replay**. 
 * [ ] **Trace duty** — **one** `rng_trace_log` append **after each** RNG event; totals reconcile per `(module, substream_label)`. 
-* [ ] **Top-K rule** — select `min(K_target, A_filtered)` by **`key`**; ties → S3 `candidate_rank`, then ISO A→Z. `K_target` read **only** from `rng_event_ztp_final`.
+* [ ] **Top-K rule** — select `min(K_target, |Eligible|)` by **`key`**; ties → S3 `candidate_rank`, then ISO A→Z. `K_target` read **only** from `rng_event_ztp_final`.
 * [ ] **No order encoding** — S6 writes **no** cross-country order; membership surface (if emitted) is **authority-free** and re-derivable from events. 
 
 **Validator (§9):**
