@@ -227,6 +227,11 @@ rng:
           nb_rejections: {type: integer, minimum: 0, description: 'Count of rejected {0,1} draws before acceptance.'}
           method: {type: string, enum: [poisson_gamma_mixture]}
       - type: object
+        # S2 finaliser is non-consuming; envelope must reflect that (parity with ztp_final).
+        properties:
+          blocks: {const: 0}
+          draws:  {const: "0"}
+      - type: object
         unevaluatedProperties: false
 
     ztp_rejection:

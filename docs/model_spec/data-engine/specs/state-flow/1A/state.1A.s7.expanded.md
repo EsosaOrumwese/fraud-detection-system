@@ -189,6 +189,7 @@ Reading any S6 convenience surface requires a **valid S6 PASS**; reading S5 weig
 
 * `rng_event.residual_rank` → `module="1A.integerisation"`, `substream_label="residual_rank"`. (Dictionary shows producer lineage **1A.integerisation**.) 
 * `rng_event.dirichlet_gamma_vector` (if enabled) → `module="1A.dirichlet_allocator"`, `substream_label="dirichlet_gamma_vector"`. (Dictionary shows producer lineage **1A.dirichlet_allocator**.) 
+Frozen literals are declared once in **Appendix A** (A.1 `module`, A.2 `substream_label`). Producers and validators **MUST** use exactly those values; do not introduce variants here. See Appendix A for the binding pairs used by S7.
 
 **5.6 Publishing discipline & retention.**
 
@@ -211,6 +212,8 @@ S7 MUST confirm presence/schema-pass of: `nb_final` (read `N`), `s3_candidate_se
 a) Start from **S3** candidates for the merchant; this is the **sole** inter-country order authority (`candidate_rank` total & contiguous; `home=0`). 
 b) Membership of foreigns comes from **S6**: if the `s6_membership` convenience dataset is emitted (and PASSed), use it; else reconstruct **exactly** from S6 RNG events (selected flags in `gumbel_key`, or counter-replay per S6 rules). In all cases, **order remains from S3**.  
 c) Define the **domain** $D$ = {home} ∪ (S6-selected foreigns) as an **ordered set** keyed by S3 `candidate_rank` (home first). If $K_{target}=0$ or S6 selected set is empty, set $D={\text{home}}$.  
+
+> **Order is S3 `candidate_rank` (home=0). File order is non-authoritative.**
 
 ---
 
