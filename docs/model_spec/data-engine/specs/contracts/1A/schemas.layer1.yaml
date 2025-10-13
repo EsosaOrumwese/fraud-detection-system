@@ -99,7 +99,10 @@ rng:
         additionalProperties: false
         required: [ts_utc, run_id, seed, manifest_fingerprint, parameter_hash, algorithm, build_commit]
         properties:
-          ts_utc: {type: string, format: date-time}
+          ts_utc:
+            type: string
+            format: date-time
+            pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z$
           run_id: {$ref: '#/$defs/hex32'}
           seed: {$ref: '#/$defs/uint64'}
           manifest_fingerprint: {$ref: '#/$defs/hex64'}
@@ -122,7 +125,10 @@ rng:
         additionalProperties: false
         required: [ts_utc, run_id, seed, module, substream_label, rng_counter_before_lo, rng_counter_before_hi, rng_counter_after_lo, rng_counter_after_hi, draws_total, blocks_total, events_total]
         properties:
-          ts_utc: {type: string, format: date-time}
+          ts_utc:
+            type: string
+            format: date-time
+            pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z$
           run_id: {$ref: '#/$defs/hex32'}
           seed: {$ref: '#/$defs/uint64'}
           module: {type: string}
@@ -343,7 +349,7 @@ rng:
             type: array
             minItems: 1
             items: {$ref: '#/$defs/iso2'}
-            description: 'Order: home first, then foreigns in Gumbel order.'
+            description: 'Order: home first, then foreigns in S3 `candidate_rank` order filtered to membership.'
           alpha:
             type: array
             minItems: 1
@@ -404,7 +410,7 @@ rng:
           merchant_id: {$ref: '#/$defs/id64'}
           country_iso: {$ref: '#/$defs/iso2'}
             # Note: residuals are quantised to 8 dp by the engine; rounding tolerance is validated in invariants, not in schema.
-          residual: {type: number, minimum: 0.0, maximum: 1.0, description: 'Largest-remainder residual in [0,1).'}
+          residual: {type: number, minimum: 0.0, maximum: 1.0, exclusiveMaximum: true, description: 'Largest-remainder residual in [0,1).'}
           residual_rank: {type: integer, minimum: 1}
       - type: object
         unevaluatedProperties: false

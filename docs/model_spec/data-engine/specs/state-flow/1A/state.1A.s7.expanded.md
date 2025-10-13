@@ -1,5 +1,36 @@
 # S7 — Integer Allocation Across Legal Country Set (Layer 1 · Segment 1A)
 
+# 0) Document metadata & status **(Binding)**
+
+**0.1 State ID, semver, effective date**
+
+* **State ID (canonical):** `layer1.1A.S7` — “Integer Allocation Across Legal Country Set.”
+* **SemVer:** **MAJOR.MINOR.PATCH**. **MAJOR** when any binding interface changes (dataset IDs or `$ref` schema anchors, partition law, PASS-gate semantics, tie-break rules, or event family shapes); **MINOR** for backward-compatible additions (optional fields/metrics); **PATCH** for clarifications with zero behavioural or schema impact. 
+* **Effective date:** set by release management at ratification (`effective_date: YYYY-MM-DD`). 
+
+**0.2 Normative language**
+This spec uses RFC 2119/8174 terms (**MUST/SHALL/SHOULD/MAY**) with their normative meanings. Unless explicitly labelled *Informative*, every clause here is **Binding**. 
+
+**0.3 Sources of authority (precedence)**
+
+1. **JSON-Schema is the single schema authority** for all 1A inputs/outputs/logs: `schemas.ingress.layer1.yaml`, `schemas.1A.yaml`, `schemas.layer1.yaml`. Avro (if present) is non-authoritative. 2) The **Dataset Dictionary** (`dataset_dictionary.layer1.1A.yaml`) governs dataset IDs, paths, partitions, writer sorts, PK/FK, retention, and licence classes. 3) **This S7 spec** (behavioural rules) sits beneath those authorities.  
+
+**0.4 Compatibility window (S0–S6 baselines; numeric environment)**
+
+* **Schema/Dictionary lines:** This S7 spec assumes `schemas.ingress.layer1.yaml v1.0`, `schemas.1A.yaml v1.0`, `schemas.layer1.yaml v1.0`, and `dataset_dictionary.layer1.1A.yaml v1.0` remain on their **v1.* line**; a **MAJOR** bump in any of these requires S7 re-ratification.  
+* **Numeric environment:** S7 **inherits S0.8 verbatim** — IEEE-754 **binary64**, **round-to-nearest ties-to-even (RNE)**, **FMA off**, **no FTZ/DAZ**, deterministic libm profile; decision/ordering kernels execute in fixed serial order. The artefacts `numeric_policy.json` and `math_profile_manifest.json` are part of the S0 manifest and flipping either changes the fingerprint.  
+
+**0.5 Run sealing & lineage (identifiers, partitions, equality)**
+
+* **Lineage keys:** Use `{seed, parameter_hash, run_id}` exactly as defined layer-wide: `run_id` partitions **logs**; `parameter_hash` scopes parameter-derived datasets; `manifest_fingerprint` keys layer-egress/validation artefacts. 
+* **RNG envelope (for any S7 events):** envelope fields are mandatory (incl. `run_id`, `seed`, `parameter_hash`, `manifest_fingerprint`) with **UTC timestamps carrying exactly 6 fractional digits**. 
+* **Path↔embed equality:** Where lineage fields are embedded, their values **MUST** equal the partition tokens byte-for-byte; violations are **hard FAIL** during pre-flight. 
+* **Gated consumption (platform rule):** Producers publish validation bundles and a PASS flag; consumers refuse to read otherwise (**no PASS → no read**). 
+
+*(IDs and `$ref` anchors read/written by S7 are enumerated in §3; this section only freezes identity, authority, compatibility, and lineage law.)*
+
+---
+
 # 1) Intent, scope, non-goals **(Binding)**
 
 **Intent (what S7 does).**
@@ -32,12 +63,12 @@ On completion, for every merchant S7 provides: (i) per-country **integer counts*
 **2.1 Upstream authorities S7 MUST trust (read-side contracts).**
 S7 reads **only** the artefacts below, at the stated `$ref` anchors and partitions. Embedded lineage fields (where present) **MUST** byte-equal the path tokens (path↔embed equality).
 
-* **Domestic count (fact):** `rng_event_nb_final` → `schemas.layer1.yaml#/rng/events/nb_final`, partitioned by `{seed, parameter_hash, run_id}`. **Exactly one** per resolved merchant; `n_outlets (N) ≥ 2`; **non-consuming** envelope. 
-* **Foreign target (fact):** `rng_event_ztp_final` → `schemas.layer1.yaml#/rng/events/ztp_final`, partitioned by `{seed, parameter_hash, run_id}`. **Exactly one** per resolved merchant **unless** S4 aborted; S7 treats only `K_target` as a decision fact (other fields audit-only).
+* **Domestic count (fact):** `rng_event.nb_final` → `schemas.layer1.yaml#/rng/events/nb_final`, partitioned by `{seed, parameter_hash, run_id}`. **Exactly one** per resolved merchant; `n_outlets (N) ≥ 2`; **non-consuming** envelope. 
+* **Foreign target (fact):** `rng_event.ztp_final` → `schemas.layer1.yaml#/rng/events/ztp_final`, partitioned by `{seed, parameter_hash, run_id}`. **Exactly one** per resolved merchant **unless** S4 aborted; S7 treats only `K_target` as a decision fact (other fields audit-only).
 * **Inter-country order & domain base:** `s3_candidate_set` → `schemas.1A.yaml#/s3/candidate_set`, partitioned by `[parameter_hash]`. **Sole authority** for inter-country order; rank is **total & contiguous** per merchant with `home=0`. 
 * **Weights authority:** `ccy_country_weights_cache` → `schemas.1A.yaml#/prep/ccy_country_weights_cache`, partitioned by `[parameter_hash]`. Group-sum per currency **= 1 ± 1e-6**; **no order is implied**. **Gate:** S7 MUST read only when **S5 PASS** is present for the same `parameter_hash`.
 * **Selected-foreign membership (optional convenience):** `s6_membership` → `schemas.1A.yaml#/s6/membership`, partitioned by `{seed, parameter_hash}`. **Gate:** S7 MAY read **only** if **S6 PASS** exists for the same `{seed, parameter_hash}`. When absent, S7 **MUST** reconstruct membership from `rng_event.gumbel_key` (selected rows). **Order remains from S3.**
-* **Membership via events (authoritative log):** `rng_event_gumbel_key` → `schemas.layer1.yaml#/rng/events/gumbel_key`, partitioned by `{seed, parameter_hash, run_id}`; single-uniform budget (`blocks=1`, `draws="1"`); if `selected=true` then `selection_order ∈ [1..K]`. Zero-weights **must** carry `key:null` and can’t be selected. 
+* **Membership via events (authoritative log):** `rng_event.gumbel_key` → `schemas.layer1.yaml#/rng/events/gumbel_key`, partitioned by `{seed, parameter_hash, run_id}`; single-uniform budget (`blocks=1`, `draws="1"`); if `selected=true` then `selection_order ∈ [1..K]`. Zero-weights **must** carry `key:null` and can’t be selected. 
 * **Merchant→currency map (if produced):** `merchant_currency` → `schemas.1A.yaml#/prep/merchant_currency`, partitioned by `[parameter_hash]`; **PK `(merchant_id)`**; κₘ in ISO-4217. If present, S7 **MUST NOT** override it. 
 
 **2.2 Downstream consumers (write-side promises).**
@@ -64,15 +95,15 @@ S7 reads **only** the artefacts below, at the stated `$ref` anchors and partitio
 
 **3.1 Required inputs (ID → `$ref`, partitions, what S7 uses).**
 
-* **Domestic count (fact):** `rng_event_nb_final` → `schemas.layer1.yaml#/rng/events/nb_final` — **partitions:** `{seed, parameter_hash, run_id}`. S7 reads **`n_outlets (N) ≥ 2`** as the total to allocate; one record per resolved merchant.  
+* **Domestic count (fact):** `rng_event.nb_final` → `schemas.layer1.yaml#/rng/events/nb_final` — **partitions:** `{seed, parameter_hash, run_id}`. S7 reads **`n_outlets (N) ≥ 2`** as the total to allocate; one record per resolved merchant.  
 * **Order & domain base (sole authority):** `s3_candidate_set` → `schemas.1A.yaml#/s3/candidate_set` — **partitions:** `[parameter_hash]`. Guarantees a **total, contiguous** `candidate_rank` with **home=0**; S7 reads only order + admissible set.  
-* **Foreign-target fact (for consistency checks):** `rng_event_ztp_final` → `schemas.layer1.yaml#/rng/events/ztp_final` — **partitions:** `{seed, parameter_hash, run_id}`. S7 may assert `|membership| = min(K_target, |Eligible|)`; other fields remain audit-only. 
+* **Foreign-target fact (for consistency checks):** `rng_event.ztp_final` → `schemas.layer1.yaml#/rng/events/ztp_final` — **partitions:** `{seed, parameter_hash, run_id}`. S7 may assert `|membership| = min(K_target, |Eligible|)`; other fields remain audit-only. 
 * **Weights authority:** `ccy_country_weights_cache` → `schemas.1A.yaml#/prep/ccy_country_weights_cache` — **partitions:** `[parameter_hash]`. Per-currency group sum **= 1 ± 1e-6**; S7 **ephemerally** restricts/renormalises to the S7 domain (no persistence). **Gate:** **S5 PASS required.**  
 
 **3.2 Conditional / optional inputs.**
 
-* **Selected-foreign membership (convenience only):** `s6_membership` → `schemas.1A.yaml#/s6/membership` — **partitions:** `{seed, parameter_hash}`. **Gate:** **S6 PASS** for same `{seed, parameter_hash}`. If absent, S7 reconstructs membership from `rng_event_gumbel_key` selections; **order still comes from S3.**  
-* **Membership via events (authoritative log when needed):** `rng_event_gumbel_key` → `schemas.layer1.yaml#/rng/events/gumbel_key` — **partitions:** `{seed, parameter_hash, run_id}`. Used only when `s6_membership` is not emitted. 
+* **Selected-foreign membership (convenience only):** `s6_membership` → `schemas.1A.yaml#/s6/membership` — **partitions:** `{seed, parameter_hash}`. **Gate:** **S6 PASS** for same `{seed, parameter_hash}`. If absent, S7 reconstructs membership from `rng_event.gumbel_key` selections; **order still comes from S3.**    
+* **Membership via events (authoritative log when needed):** `rng_event.gumbel_key` → `schemas.layer1.yaml#/rng/events/gumbel_key` — **partitions:** `{seed, parameter_hash, run_id}`. Used only when `s6_membership` is not emitted. 
 * **Merchant→currency map (if produced):** `merchant_currency` → `schemas.1A.yaml#/prep/merchant_currency` — **partitions:** `[parameter_hash]`. If present, S7 **MUST NOT** override it when resolving the merchant’s currency for the S5 weight vector. 
 
 **3.3 Gates S7 MUST verify before reading.**
@@ -157,7 +188,7 @@ Reading any S6 convenience surface requires a **valid S6 PASS**; reading S5 weig
 **5.6 Publishing discipline & retention.**
 
 * **Atomic publish:** stage → fsync → **atomic rename** into the Dictionary path; no partials. (Same discipline as S3/S6; inherited layer convention.) 
-* **Retention:** event streams (e.g., `residual_rank`, `dirichlet_gamma_vector`) keep **180 days**; core RNG logs keep **365 days**.
+* **Retention (Informative):** event streams (e.g., `residual_rank`, `dirichlet_gamma_vector`) typically **180 days**; core RNG logs **365 days**.
 
 **5.7 Prohibitions (isolation).**
 S7 writes **only** the families above. It **MUST NOT** write S1–S6 event families (e.g., `gumbel_key`, `poisson_component`, `nb_final`, `ztp_*`) nor any S8 egress. Those are owned by their respective states. 
@@ -180,7 +211,7 @@ c) Define the **domain** $D$ = {home} ∪ (S6-selected foreigns) as an **ordered
 
 **6.2 Share vector for allocation (ephemeral; not persisted).**
 a) Resolve the merchant’s currency (from S5, e.g., `merchant_currency` if produced); read the **weights authority** `ccy_country_weights_cache`. 
-b) **Restrict** the S5 weight vector to countries in (D) and **ephemerally renormalise** (binary64, RNE) so that $\sum_{i\in D} s_i = 1.0$ (subject to rounding). **Do not persist** the restricted or renormalised vector. 
+b) **Restrict** the S5 weight vector to countries in $D$ and **ephemerally renormalise** (binary64, RNE) so that $\sum_{i\in D} s_i = 1.0$ (subject to rounding). **Do not persist** the restricted or renormalised vector. 
 c) **Feasibility guard:** if $\sum_{i\in D} s_i = 0$ (should not occur given S5’s per-currency $\sum=1$), S7 **MUST** hard-fail this merchant (`E_ZERO_SUPPORT`). 
 
 ---
@@ -201,7 +232,7 @@ Define residuals $r_i = a_i - b_i$. Quantise each residual to **`dp_resid = 8`**
 ---
 
 **6.6 Deterministic bump rule (no new order is created).**
-Distribute the remainder by awarding **+1** to exactly **$d$** countries, using the **total order defined in §4.3** (residual first, then the declared tie-breakers). The resulting per-country counts are $c_i = b_i + \mathbf{1}{i\ \text{is in the top } d}$.
+Distribute the remainder by awarding **+1** to exactly **$d$** countries, using the **total order defined in §4.3** (residual first, then the declared tie-breakers). The resulting per-country counts are $c_i = b_i + \mathbf{1}\{ i \text{ is in the top } d \}$.
 **Persist** a `residual_rank` for every $i\in D$ as the **1-based** position in that total order (1 = highest residual after quantisation). **Inter-country order remains S3 `candidate_rank`; S7 writes no order surface.** 
 
 ---
@@ -501,6 +532,55 @@ S8 **MUST** verify, for the same `{seed, parameter_hash[, run_id]}`:
 
 ---
 
+# 11) Observability & metrics **(SHOULD)**
+
+**Aim.** Minimal, stable, values-only metrics for S7 health/cost/behaviour without PII or duplicating validator logic. Metrics are keyed to run lineage and do not change any authority boundaries (order remains S3; weights remain S5).
+
+**11.1 Run-lineage dimensions — MUST**
+Include on every metric line: `{ seed, parameter_hash, run_id, manifest_fingerprint }`.
+
+**11.2 Counters & gauges — MUST**
+- `s7.merchants_in_scope` — # merchants that passed S7 pre-flight.
+- `s7.single_country` — # merchants with domain = {home}.
+- `s7.events.residual_rank.rows` — total `residual_rank` rows emitted (should equal Σ|domain|).
+- `s7.trace.rows` — total S7 trace appends (should equal `s7.events.residual_rank.rows` + `s7.events.dirichlet_gamma_vector.rows` when the feature-lane is ON).
+- `s7.events.dirichlet_gamma_vector.rows` — rows of `dirichlet_gamma_vector` (feature-flag lane; default OFF).
+- `s7.bounds.enabled` — # merchants processed with bounds variant enabled.
+- `s7.failures.structural` · `s7.failures.integerisation` · `s7.failures.rng_accounting` · `s7.failures.bounds` — counts mapped to §8 outcome classes (expected 0).
+
+**11.3 Histograms / distributions — SHOULD**
+- `s7.domain.size.hist` — per-merchant |D|.
+- `s7.remainder.d.hist` — per-merchant remainder d.
+- `s7.ms.integerisation` — time spent in LRR step per merchant.
+
+**11.4 Instrumentation invariants — SHOULD**
+- `s7.events.residual_rank.rows = Σ|D|` over all merchants.
+- `s7.trace.rows = s7.events.residual_rank.rows` when Dirichlet lane is OFF; add one per merchant when the lane is ON.
+
+---
+
+# 12) Schema & dictionary deltas **(Binding)**
+
+**12.1 `residual_rank.residual` — tighten upper bound**
+* **File:** `schemas.layer1.yaml`
+* **Anchor:** `#/rng/events/residual_rank/properties/residual`
+* **Change:** add `exclusiveMaximum: true` (keep description ‘in [0,1)’).
+* **Rationale:** align schema with spec (§5.1, §7.4).
+
+**12.2 `dirichlet_gamma_vector.country_isos` help-text — fix order wording**
+* **File:** `schemas.layer1.yaml`
+* **Anchor:** `#/rng/events/dirichlet_gamma_vector/properties/country_isos/description`
+* **Change:** replace “home first, then foreigns in Gumbel order.” with “home first, then foreigns in S3 `candidate_rank` order filtered to membership.”
+* **Rationale:** match §5.1 ordering note; prevent validator ambiguity.
+
+**12.3 `rng_audit_log.record.ts_utc` — enforce microsecond precision**
+* **File:** `schemas.layer1.yaml`
+* **Anchor:** `#/rng/core/rng_audit_log/record/properties/ts_utc`
+* **Change:** require RFC-3339 `Z` with exactly 6 fractional digits via the same `pattern` as the layer envelope.
+* **Rationale:** make audit rows consistent with envelope strictness (§5.4, §7.5, §8.10, §9.1).
+
+---
+
 # Appendix A — Enumerations & literal labels (Normative)
 
 All literals below are **case-sensitive** and **binding**. Producers and validators **MUST** use them exactly as written.
@@ -630,7 +710,7 @@ Assume domain $D={\text{GB (home)}, \text{DE}, \text{FR}}$ with S3 `candidate_ra
 ## B2) Tie on residuals (ISO tie-break)
 
 * Inputs: $N=10$; weights: GB 0.35, FR 0.35, DE 0.30.
-* $a$: GB 3.50, FR 3.50, DE 3.00 → $b$: 3,3,3 → (d=1)
+* $a$: GB 3.50, FR 3.50, DE 3.00 → $b$: 3,3,3 → $d=1$
   Residuals (dp=8): GB **0.50000000**, FR **0.50000000**, DE **0.00000000**
 * Tie between GB and FR on residual → ISO A→Z decides: **FR** < GB.
   Bump goes to **FR**.
@@ -656,7 +736,7 @@ Assume domain $D={\text{GB (home)}, \text{DE}, \text{FR}}$ with S3 `candidate_ra
 ## B4) Zero-remainder (diagnostic)
 
 * Inputs: $N=10$; weights: GB 0.40, DE 0.30, FR 0.30.
-  (a): 4.00, 3.00, 3.00 → (b): 4,3,3 → (d=0).
+  $a$: 4.00, 3.00, 3.00 → $b$: 4,3,3 → $d=0$.
   Residuals (dp=8): **0.00000000** each → no bumps applied.
 * **Final counts:** GB 4, DE 3, FR 3.
   **Residual ranks:** determined solely by ISO A→Z then `candidate_rank` (used only for tie bookkeeping; (d=0)).
