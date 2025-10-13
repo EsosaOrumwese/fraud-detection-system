@@ -13,7 +13,9 @@ This spec uses RFC 2119/8174 terms (**MUST/SHALL/SHOULD/MAY**) with their normat
 
 **0.3 Sources of authority (precedence)**
 
-1. **JSON-Schema is the single schema authority** for all 1A inputs/outputs/logs: `schemas.ingress.layer1.yaml`, `schemas.1A.yaml`, `schemas.layer1.yaml`. Avro (if present) is non-authoritative. 2) The **Dataset Dictionary** (`dataset_dictionary.layer1.1A.yaml`) governs dataset IDs, paths, partitions, writer sorts, PK/FK, retention, and licence classes. 3) **This S7 spec** (behavioural rules) sits beneath those authorities.  
+1) **JSON-Schema is the single schema authority** for all 1A inputs/outputs/logs: `schemas.ingress.layer1.yaml`, `schemas.1A.yaml`, `schemas.layer1.yaml`. Avro (if present) is non-authoritative.
+2) The **Dataset Dictionary** (`dataset_dictionary.layer1.1A.yaml`) governs dataset IDs, paths, partitions, writer sorts, PK/FK, retention, and licence classes.
+3) **This S7 spec** (behavioural rules) sits beneath those authorities.
 
 **0.4 Compatibility window (S0–S6 baselines; numeric environment)**
 
@@ -739,7 +741,7 @@ Assume domain $D={\text{GB (home)}, \text{DE}, \text{FR}}$ with S3 `candidate_ra
   $a$: 4.00, 3.00, 3.00 → $b$: 4,3,3 → $d=0$.
   Residuals (dp=8): **0.00000000** each → no bumps applied.
 * **Final counts:** GB 4, DE 3, FR 3.
-  **Residual ranks:** determined solely by ISO A→Z then `candidate_rank` (used only for tie bookkeeping; (d=0)).
+  **Residual ranks:** determined solely by ISO A→Z then `candidate_rank` (used only for tie bookkeeping; $d=0$).
 
 These examples illustrate exactly how dp=8 quantisation, tie-breaking, and the bounded Hamilton variant behave—without any reliance on code execution.
 
