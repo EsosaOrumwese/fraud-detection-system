@@ -265,8 +265,10 @@ rng:
       - type: object
         properties:
           module: {const: 1A.ztp_sampler}
-          substream_label: {const: poisson_component}
+          substream_label: {const: ztp_final}
           context: {const: ztp}
+          blocks: {const: 0}
+          draws:  {const: "0"}
           merchant_id: {$ref: '#/$defs/id64'}
           K_target: {type: integer, minimum: 0}
           lambda_extra: {type: number}
@@ -294,7 +296,7 @@ rng:
             u: {$ref: '#/$defs/u01'}
             key: {type: [number, "null"], description: 'Gumbel score: ln(w) - ln(-ln u); null only when weight==0.'}
             selected: {type: boolean, description: 'True if country among the top-K.'}
-            selection_order: {type: integer, minimum: 1, description: '1..K when selected; absent otherwise.'}
+            selection_order: {type: integer, minimum: 1, description: 'Present iff selected=true; integer order 1 ≤ selection_order ≤ K.'}
           unevaluatedProperties: false
         # 3) Pin module/label and single-uniform budget (draws=1, blocks=1)
         - type: object
@@ -312,6 +314,12 @@ rng:
               selected: { const: false }
             not:
               required: ["selection_order"]
+        # 5a) If selected==false, selection_order MUST NOT be present
+        - if:
+            properties: { selected: { const: false } }
+          then:
+            properties:
+              selection_order: false
         # 5) If selected==true, selection_order must be present
         - if:
             properties: { selected: { const: true } }
@@ -366,12 +374,11 @@ rng:
             items: {$ref: '#/$defs/pct01'}
             description: Normalised w_i; Σ w_i == 1 to 1e-6.
           n_domestic: {type: integer, minimum: 1, nullable: true, description: 'Optional diagnostic: domestic outlet count N used to scale.'}
-        constraints:
-        - type: equal_length
-          arrays: [country_isos, alpha, gamma_raw, weights]
-        - type: sum_equals_one
-          array: weights
-          tolerance: 1e-6
+    # Pin the emitting lineage for this S7 feature-lane
+      - type: object
+        properties:
+          module: {const: "1A.dirichlet_allocator"}
+          substream_label: {const: "dirichlet_gamma_vector"}
       - type: object
         unevaluatedProperties: false
 
@@ -412,6 +419,13 @@ rng:
             # Note: residuals are quantised to 8 dp by the engine; rounding tolerance is validated in invariants, not in schema.
           residual: {type: number, minimum: 0.0, maximum: 1.0, exclusiveMaximum: true, description: 'Largest-remainder residual in [0,1).'}
           residual_rank: {type: integer, minimum: 1}
+      # Pin the emitting lineage and assert non-consuming envelope (S7 deterministic lane)
+      - type: object
+        properties:
+          module: {const: "1A.integerisation"}
+          substream_label: {const: "residual_rank"}
+          blocks: {const: 0}
+          draws:  {const: "0"}
       - type: object
         unevaluatedProperties: false
 

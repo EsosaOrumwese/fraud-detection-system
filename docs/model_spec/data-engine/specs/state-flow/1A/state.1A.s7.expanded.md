@@ -70,7 +70,7 @@ S7 reads **only** the artefacts below, at the stated `$ref` anchors and partitio
 * **Inter-country order & domain base:** `s3_candidate_set` → `schemas.1A.yaml#/s3/candidate_set`, partitioned by `[parameter_hash]`. **Sole authority** for inter-country order; rank is **total & contiguous** per merchant with `home=0`. 
 * **Weights authority:** `ccy_country_weights_cache` → `schemas.1A.yaml#/prep/ccy_country_weights_cache`, partitioned by `[parameter_hash]`. Group-sum per currency **= 1 ± 1e-6**; **no order is implied**. **Gate:** S7 MUST read only when **S5 PASS** is present for the same `parameter_hash`.
 * **Selected-foreign membership (optional convenience):** `s6_membership` → `schemas.1A.yaml#/s6/membership`, partitioned by `{seed, parameter_hash}`. **Gate:** S7 MAY read **only** if **S6 PASS** exists for the same `{seed, parameter_hash}`. When absent, S7 **MUST** reconstruct membership from `rng_event.gumbel_key` (selected rows). **Order remains from S3.**
-* **Membership via events (authoritative log):** `rng_event.gumbel_key` → `schemas.layer1.yaml#/rng/events/gumbel_key`, partitioned by `{seed, parameter_hash, run_id}`; single-uniform budget (`blocks=1`, `draws="1"`); if `selected=true` then `selection_order ∈ [1..K]`. Zero-weights **must** carry `key:null` and can’t be selected. 
+* **Membership via events (authoritative log):** `rng_event.gumbel_key` → `schemas.layer1.yaml#/rng/events/gumbel_key`, partitioned by `{seed, parameter_hash, run_id}`; single-uniform budget (`blocks=1`, `draws="1"`); if `selected=true` then `1 ≤ selection_order ≤ K`. Zero-weights **must** carry `key:null` and can’t be selected.
 * **Merchant→currency map (if produced):** `merchant_currency` → `schemas.1A.yaml#/prep/merchant_currency`, partitioned by `[parameter_hash]`; **PK `(merchant_id)`**; κₘ in ISO-4217. If present, S7 **MUST NOT** override it. 
 
 **2.2 Downstream consumers (write-side promises).**
@@ -105,7 +105,7 @@ S7 reads **only** the artefacts below, at the stated `$ref` anchors and partitio
 **3.2 Conditional / optional inputs.**
 
 * **Selected-foreign membership (convenience only):** `s6_membership` → `schemas.1A.yaml#/s6/membership` — **partitions:** `{seed, parameter_hash}`. **Gate:** **S6 PASS** for same `{seed, parameter_hash}`. If absent, S7 reconstructs membership from `rng_event.gumbel_key` selections; **order still comes from S3.**    
-* **Membership via events (authoritative log when needed):** `rng_event.gumbel_key` → `schemas.layer1.yaml#/rng/events/gumbel_key` — **partitions:** `{seed, parameter_hash, run_id}`. Used only when `s6_membership` is not emitted. 
+* **Membership via events (authoritative log when needed):** `rng_event.gumbel_key` → `schemas.layer1.yaml#/rng/events/gumbel_key` — **partitions:** `{seed, parameter_hash, run_id}`. Used only when `s6_membership` is not emitted; if `selected=true` then `1 ≤ selection_order ≤ K`.
 * **Merchant→currency map (if produced):** `merchant_currency` → `schemas.1A.yaml#/prep/merchant_currency` — **partitions:** `[parameter_hash]`. If present, S7 **MUST NOT** override it when resolving the merchant’s currency for the S5 weight vector. 
 
 **3.3 Gates S7 MUST verify before reading.**
@@ -136,7 +136,10 @@ Quantise via the fixed **ties-to-even** decimal rule: let `s = 10^dp_resid`; com
 **4.3 Deterministic tie-break order (binding).**
 When ranking residuals to distribute the remainder, apply a **total** and **stable** order:
 
-1. **Residual** (quantised) **descending**; 2) **ISO-3166-1 alpha-2** code **A→Z**; 3) **`candidate_rank` ascending**; 4) stable input index. Persist `residual_rank` as the **1-based** position in this order. 
+1. **Residual** (quantised) **descending**; 
+2. **ISO-3166-1 alpha-2** code **A→Z**; 
+3. **`candidate_rank` ascending**; 
+4. stable input index. Persist `residual_rank` as the **1-based** position in this order.
 
 **4.4 Optional bounds policy (Hamilton-style) (feature-flag; default: OFF).**
 If enabled, S7 enforces per-country integer **floors/ceilings** and uses a bounded Hamilton procedure with a hard feasibility guard `ΣL_i ≤ N ≤ ΣU_i`; capacities restrict bumps and residual ranking is applied only to countries with remaining capacity. If infeasible at any step, S7 **MUST** fail the merchant (no partial outputs).
