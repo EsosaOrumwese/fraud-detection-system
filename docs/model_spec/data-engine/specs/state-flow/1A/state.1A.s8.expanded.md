@@ -361,7 +361,7 @@ This section freezes **exactly what S8 is allowed to read** (IDs → schema anch
 
 * **Membership of foreigns (domain members beyond home):**
   **Option 1 (convenience surface):** **`s6_membership`** → `schemas.1A.yaml#/s6/membership` → **partition:** `seed={seed}, parameter_hash={parameter_hash}`. **Gate required** (see §6.3). Order still comes from S3. 
-  **Option 2 (authoritative log reconstruction):** **`rng_event.gumbel_key`** → `schemas.layer1.yaml#/rng/events/gumbel_key` and **`rng_event.ztp_final`** → `#/rng/events/ztp_final` → **partition:** `{seed, parameter_hash, run_id}`. Use keys + `K_target` to recover membership when `s6_membership` is absent. 
+  **Option 2 (authoritative log reconstruction):** **`rng_event.gumbel_key`** → `schemas.layer1.yaml#/rng/events/gumbel_key` and **`rng_event.ztp_final`** → `schemas.layer1.yaml#/rng/events/ztp_final` → **partition:** `{seed, parameter_hash, run_id}`. Use keys + `K_target` to recover membership when `s6_membership` is absent. 
 
 > **FK sources** are enforced by schema on egress (ISO2); S8 needn’t read ISO directly. (FK target: `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`.) 
 
@@ -801,7 +801,7 @@ On any **Abort** action:
 
 * **Subject of validation:** `outlet_catalogue` → `schemas.1A.yaml#/egress/outlet_catalogue` (PK/UK, partitions `[seed,fingerprint]`, writer sort). 
 * **Order authority:** `s3_candidate_set` → `schemas.1A.yaml#/s3/candidate_set` (total, contiguous ranks; `home` at 0). 
-* **Count facts:** `rng_event.nb_final` → `schemas.layer1.yaml#/rng/events/nb_final` (exactly one per merchant; **non-consuming**). If present, also read `s3_integerised_counts` → `#/s3/integerised_counts`. Otherwise, use S7 residual evidence (`rng_event.residual_rank`).
+* **Count facts:** `rng_event.nb_final` → `schemas.layer1.yaml#/rng/events/nb_final` (exactly one per merchant; **non-consuming**). If present, also read `s3_integerised_counts` → `schemas.1A.yaml#/s3/integerised_counts`. Otherwise, use S7 residual evidence (`rng_event.residual_rank`).
 * **S8 instrumentation:** `rng_event.sequence_finalize`, `rng_event.site_sequence_overflow` (S8-emitted families). Also `rng_trace_log` and `rng_audit_log` for coverage.
 * **Gates (if conveniences were used upstream):** `s6_validation_receipt` when `s6_membership` was read by S8. **No PASS → no read.** 
 
@@ -1094,7 +1094,7 @@ This appendix freezes the **exact strings** S8 producers/validators must use in 
 ## A.4 Gate & bundle identifiers (hand-off)
 
 * **Validation bundle (fingerprint-scoped):** `validation_bundle_1A`
-  Path: `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` (schema `#/validation/validation_bundle`). 
+  Path: `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` (schema `schemas.layer1.yaml#/validation/validation_bundle`).
 
 * **Consumer gate flag:** `validation_passed_flag` (file: `_passed.flag`)
   Rule: content hash equals `SHA256(validation_bundle_1A)` for the **same** fingerprint (**no PASS → no read**). 
