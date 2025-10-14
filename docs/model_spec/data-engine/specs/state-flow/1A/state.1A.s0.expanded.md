@@ -20,7 +20,9 @@ S0.1 establishes the **canonical universe** (merchant rows and reference dataset
 
 Let $\mathcal{M}$ be the finite set of merchants from the normalised ingress table:
 
-$$\texttt{merchant\_ids}\subset\{(\texttt{merchant\_id},\ \texttt{mcc},\ \texttt{channel},\ \texttt{home\_country\_iso})\},$$
+\begin{math}
+\texttt{merchant\_ids}\subset\{(\texttt{merchant\_id},\ \texttt{mcc},\ \texttt{channel},\ \texttt{home\_country\_iso})\},
+\end{math}
 
 validated by `schemas.ingress.layer1.yaml#/merchant_ids`.
 
@@ -56,7 +58,9 @@ validated by `schemas.ingress.layer1.yaml#/merchant_ids`.
 
 For $m\in\mathcal{M}$, define the typed quadruple used downstream:
 
-$$t(m):=\big(\texttt{mcc}_m,\ \texttt{channel}_m\in\{\mathrm{CP},\mathrm{CNP}\},\ \texttt{home\_country\_iso}_m,\ \texttt{merchant\_u64}_m\big)\in\mathcal{K}\times\mathcal{C}\times\mathcal{I}\times\mathbb{U}_{64}.$$
+$$
+t(m):=\big(\texttt{mcc}_m,\ \texttt{channel}_m\in\{\mathrm{CP},\mathrm{CNP}\},\ \texttt{home\_country\_iso}_m,\ \texttt{merchant\_u64}_m\big)\in\mathcal{K}\times\mathcal{C}\times\mathcal{I}\times\mathbb{U}_{64}.
+$$
 
 ---
 
@@ -999,17 +1003,25 @@ For merchant $m$ with $c=\texttt{home\_country\_iso}(m)$, $g_c>0$, $b_m\in\{1,\d
 
 ### Hurdle (logit) design
 
-$$\boxed{\,x_m=\big[1,\ \phi_{\text{mcc}}(\texttt{mcc}_m),\ \phi_{\text{ch}}(\texttt{channel\_sym}_m),\ \phi_{\text{dev}}(b_m)\big]^\top\,}\in\mathbb R^{1+C_{\text{mcc}}+2+5}.$$
+$$
+\boxed{\,x_m=\big[1,\ \phi_{\text{mcc}}(\texttt{mcc}_m),\ \phi_{\text{ch}}(\texttt{channel\_sym}_m),\ \phi_{\text{dev}}(b_m)\big]^\top\,}\in\mathbb R^{1+C_{\text{mcc}}+2+5}.
+$$
 
-$$\eta_m=\beta^\top x_m,\qquad \pi_m=\sigma(\eta_m)=\frac{1}{1+e^{-\eta_m}}.$$
+$$
+\eta_m=\beta^\top x_m,\qquad \pi_m=\sigma(\eta_m)=\frac{1}{1+e^{-\eta_m}}.
+$$
 
 All hurdle coefficients, including the 5 bucket dummies, are in **one** ordered vector $\beta$.
 
 ### Negative-Binomial (used in S2)
 
-$$\boxed{\,x^{(\mu)}_m=\big[1,\ \phi_{\text{mcc}}(\texttt{mcc}_m),\ \phi_{\text{ch}}(\texttt{channel\_sym}_m)\big]^\top\,}\in\mathbb R^{1+C_{\text{mcc}}+2},$$
+$$
+\boxed{\,x^{(\mu)}_m=\big[1,\ \phi_{\text{mcc}}(\texttt{mcc}_m),\ \phi_{\text{ch}}(\texttt{channel\_sym}_m)\big]^\top\,}\in\mathbb R^{1+C_{\text{mcc}}+2},
+$$
 
-$$\boxed{\,x^{(\phi)}_m=\big[1,\ \phi_{\text{mcc}}(\texttt{mcc}_m),\ \phi_{\text{ch}}(\texttt{channel\_sym}_m),\ \ln g_c\big]^\top\,}\in\mathbb R^{1+C_{\text{mcc}}+2+1}.$$
+$$
+\boxed{\,x^{(\phi)}_m=\big[1,\ \phi_{\text{mcc}}(\texttt{mcc}_m),\ \phi_{\text{ch}}(\texttt{channel\_sym}_m),\ \ln g_c\big]^\top\,}\in\mathbb R^{1+C_{\text{mcc}}+2+1}.
+$$
 
 **Leakage guard (enforced):** bucket dummies **not** present in $x^{(\mu)}$; $\ln g_c$ present **only** in $x^{(\phi)}$.
 
@@ -1409,7 +1421,9 @@ function S0_6_apply_eligibility_rules(merchants, params, parameter_hash, produce
 
 Materialise a **read-only diagnostics table** with per-merchant logistic-hurdle outputs
 
-$$(\texttt{merchant\_id},\ \eta_m,\ \pi_m),\quad \eta_m=\beta^\top x_m,\ \pi_m=\sigma(\eta_m)\in[0,1],$$
+$$
+(\texttt{merchant\_id},\ \eta_m,\ \pi_m),\quad \eta_m=\beta^\top x_m,\ \pi_m=\sigma(\eta_m)\in[0,1],
+$$
 
 so monitoring/validation can inspect the hurdle surface **without** recomputing on the hot path. This artefact is **never consulted by samplers**; it is **optional** and lives under the **parameter-scoped** partition.
 
