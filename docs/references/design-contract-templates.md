@@ -184,7 +184,7 @@ subsegments:
     artifacts:
       # Example entry — repeat pattern for all artefacts in 1A
       - name: hurdle_coefficients                 # [string] Short name (no spaces; code-usable)
-        path: configs/models/hurdle/hurdle_coefficients.yaml
+        path: config/models/hurdle/exports/version={config_version}/{iso8601_timestamp}/hurdle_coefficients.yaml
         type: config                             # [enum] config, data, schema, manifest, log, license, ci_test, script, directory, code, reference, raster, mapping, etc.
         category: hurdle_model                   # [string] High-level grouping for artefact
         semver: "{semver}"                       # [string] Semantic version (placeholder until pinned)

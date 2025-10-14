@@ -48,7 +48,7 @@ This S5 spec is **compatible with** and **assumes** the following already-ratifi
 **0.6 Hash canonicalisation (applies to the S5 policy file)**
 
 * S5 inherits **S0.2** hashing rules: **SHA-256 over exact bytes**, names included, sorted by **ASCII basename**, encoded by the **Universal Encoding Rule (UER)** (UTF-8 length-prefixed strings; LE64 integers; concatenation without delimiters).
-* **Parameter hash contribution:** `configs/allocation/ccy_smoothing_params.yaml` is a **required member of 𝓟**; changing its bytes **MUST** flip `parameter_hash`. *(Other 𝓟 members per S0.2.2 may also cause flips. This is a contract on bytes, not YAML semantics; no normalisation is permitted.)*
+* **Parameter hash contribution:** `config/allocation/ccy_smoothing_params.yaml` is a **required member of 𝓟**; changing its bytes **MUST** flip `parameter_hash`. *(Other 𝓟 members per S0.2.2 may also cause flips. This is a contract on bytes, not YAML semantics; no normalisation is permitted.)*
 * **Path↔embed equality:** For all S5 outputs, the embedded `parameter_hash` column **MUST equal** the `parameter_hash={…}` partition value byte-for-byte. 
 
 **0.7 Document status & lifecycle**
@@ -92,7 +92,7 @@ A run of S5 satisfies this spec iff all of the following hold:
 **1.5 Practical constraints (binding guardrails)**
 
 * Inputs must already pass their **ingress schema constraints**, notably **Σ share = 1.0 ± 1e-6 per currency** and ISO/CCY domain checks; otherwise S5 MUST fail closed. 
-* `configs/allocation/ccy_smoothing_params.yaml` is a **required member of 𝓟**; changing its bytes **MUST** flip `parameter_hash`. *(Other 𝓟 members per S0.2.2 may also cause flips; S5 is sealed by parameter-scope only.)*
+* `config/allocation/ccy_smoothing_params.yaml` is a **required member of 𝓟**; changing its bytes **MUST** flip `parameter_hash`. *(Other 𝓟 members per S0.2.2 may also cause flips; S5 is sealed by parameter-scope only.)*
 
 ---
 
@@ -107,7 +107,7 @@ All three are listed as **approved** in the dataset dictionary. JSON-Schema is t
 
 b) **Ingress pre-flight constraints (must hold before S5 runs).** For each input surface, S5 SHALL require: (i) PK uniqueness, (ii) `currency ∈ ISO-4217` and uppercase, (iii) `country_iso ∈ ISO2` uppercase and FK-valid, (iv) `share ∈ [0,1]`, `obs_count ≥ 0`, and (v) **group sum** `Σ share = 1.0 ± 1e-6` per `currency`. Violations are **hard FAIL** (S5 does not repair ingress).
 
-c) **Policy/config inputs (parameter-scoped).** S5 MAY read the governed smoothing policy at `configs/allocation/ccy_smoothing_params.yaml` (domains and precedence will be defined in §4). Any byte change to this file contributes to `parameter_hash`. 
+c) **Policy/config inputs (parameter-scoped).** S5 MAY read the governed smoothing policy at `config/allocation/ccy_smoothing_params.yaml` (domains and precedence will be defined in §4). Any byte change to this file contributes to `parameter_hash`. 
 
 d) **Order authority is upstream (S3).** Inter-country order is defined **only** by `s3_candidate_set.candidate_rank` (parameter-scoped). The egress `outlet_catalogue` explicitly **does not** encode cross-country order. S5 MUST neither read nor infer any alternative ordering.
 
@@ -182,7 +182,7 @@ S5 SHALL read **only** the following sealed artefacts, exactly as registered in 
   **Schema ref:** `schemas.ingress.layer1.yaml#/iso_legal_tender_2024`. **PK:** `(country_iso)`.
 
 * **Policy/config:** **`ccy_smoothing_params`** — governed parameters file for S5 (alpha/floors/overrides).
-  **Path:** `configs/allocation/ccy_smoothing_params.yaml`.
+  **Path:** `config/allocation/ccy_smoothing_params.yaml`.
   **Contribution to lineage:** **MUST** contribute to `parameter_hash`. 
 
 > **Authority note.** JSON-Schema is the **only** schema authority for these inputs; Avro (if any) is non-authoritative. 
@@ -242,7 +242,7 @@ If any of the following are observed in either share surface, S5 **MUST** fail c
 
 **4.1 Policy file (location, consumers, version pinning)**
 
-* **ID & path (registry):** `ccy_smoothing_params` at `configs/allocation/ccy_smoothing_params.yaml`. This artefact **MUST** appear in the **Artefact Registry** with a manifest key (e.g., `mlr.1A.params.ccy_smoothing`) and metadata (semver, version, digest). It is **first consumed in S5/S6** and governs the build of `ccy_country_weights_cache` (and the optional `merchant_currency` cache).  
+* **ID & path (registry):** `ccy_smoothing_params` at `config/allocation/ccy_smoothing_params.yaml`. This artefact **MUST** appear in the **Artefact Registry** with a manifest key (e.g., `mlr.1A.params.ccy_smoothing`) and metadata (semver, version, digest). It is **first consumed in S5/S6** and governs the build of `ccy_country_weights_cache` (and the optional `merchant_currency` cache).  
 * **Authority scope:** This document defines the **normative key set and domains** for the file. (JSON-Schema for this config may be added to the schema authority; until then, the rules in §4.2-§4.6 are binding.) 
 * **Consumers:** S5 **weights builder** and S6 **merchant_currency** cache builder. Changing this file **changes policy** → **new `parameter_hash`**. 
 * **Versioning fields in-file:** `semver: "MAJOR.MINOR.PATCH"` and `version: "YYYY-MM-DD"` **MUST** be present. 
@@ -281,7 +281,7 @@ For any policy quantity **Q** and a given **currency** `cur` and **ISO** `iso` (
 
 **4.4 Parameter hashing (governed-set membership)**
 
-* **Governed files (hash set).** `configs/allocation/ccy_smoothing_params.yaml` is a **required member of 𝓟**; changing its bytes **MUST** flip `parameter_hash`. *(Other 𝓟 members per S0.2.2 also flip `parameter_hash`. No normalisation is permitted: hash the exact bytes.)*
+* **Governed files (hash set).** `config/allocation/ccy_smoothing_params.yaml` is a **required member of 𝓟**; changing its bytes **MUST** flip `parameter_hash`. *(Other 𝓟 members per S0.2.2 also flip `parameter_hash`. No normalisation is permitted: hash the exact bytes.)*
 * **Registry alignment:** the **Artefact Registry** entry for `ccy_smoothing_params` MUST include its current digest and path; S0 seals that digest into lineage. 
 
 **4.5 Domain ranges & value rules (cross-checks)**
@@ -1467,7 +1467,7 @@ Before merging a change that would bump **MAJOR**, ensure all are true:
 
 ## B.3 Policy file keys (top-level & overrides)
 
-**Artefact:** `configs/allocation/ccy_smoothing_params.yaml` (the **only** S5 file that contributes to `parameter_hash`). Keys/domains/precedence are **closed** as below.
+**Artefact:** `config/allocation/ccy_smoothing_params.yaml` (the **only** S5 file that contributes to `parameter_hash`). Keys/domains/precedence are **closed** as below.
 
 | Key                                    | Type / Domain                                                     | Scope    | Precedence              |
 |----------------------------------------|-------------------------------------------------------------------|----------|-------------------------|

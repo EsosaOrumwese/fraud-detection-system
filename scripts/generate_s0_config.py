@@ -9,7 +9,7 @@ directly into the S0 orchestrator.
 
 Usage:
     python scripts/generate_s0_config.py \
-        --output configs/runs/s0_synthetic_config.json
+        --output config/runs/s0_synthetic_config.json
 
 Optional flags let you override specific versions if you want to pin an older
 artefact (see --help).
@@ -105,7 +105,7 @@ def discover_paths(
     math_path = math_dir / "math_profile_manifest.json"
 
     # Model exports (hurdle / dispersion)
-    model_root = ROOT / "configs" / "models" / "hurdle" / "exports"
+    model_root = ROOT / "config" / "models" / "hurdle" / "exports"
     version_dir = (
         model_root / f"version={model_version}"
         if model_version
@@ -119,7 +119,7 @@ def discover_paths(
     hurdle_yaml = timestamp_dir / "hurdle_coefficients.yaml"
     nb_disp_yaml = timestamp_dir / "nb_dispersion_coefficients.yaml"
 
-    crossborder_policy = ROOT / "configs" / "policy/crossborder_hyperparams.yaml"
+    crossborder_policy = ROOT / "config" / "policy" / "crossborder_hyperparams.yaml"
 
     return {
         "merchant_table": str(merchant_path.relative_to(ROOT)),
@@ -165,7 +165,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--output",
-        default=ROOT / "configs" / "runs" / "s0_synthetic_config.json",
+        default=ROOT / "config" / "runs" / "s0_synthetic_config.json",
         type=Path,
         help="Path to write the generated JSON config.",
     )

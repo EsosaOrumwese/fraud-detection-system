@@ -292,7 +292,7 @@ Use **`schemas.ingress.layer1.yaml#/gdp_bucket_map_2024`**. (Alias **`#/gdp_buck
 
 **What it is (purpose).** The **single logistic hurdle vector** β used in **S1** (intercept + MCC dummies + channel dummies + 5 GDP-bucket dummies) **and** the **NB-mean vector** `beta_mu` used in **S2**. Its bytes participate in `parameter_hash`, so any change flips run lineage.
 
-**Where it lives (path).** `configs/models/hurdle/hurdle_coefficients.yaml` (artefact registry name: `hurdle_coefficients`). 
+**Where it lives (path).** `config/models/hurdle/exports/version={config_version}/{iso8601_timestamp}/hurdle_coefficients.yaml` (artefact registry name: `hurdle_coefficients`). 
 
 **Schema authority.** This is a governed **config** (registry lists `schema: null`). The **shape and ordering constraints** come from S0.5/S1/S2 and the fitting bundle’s **frozen column dictionaries**. Loaders must hard-check lengths and block orders.
 
@@ -304,7 +304,7 @@ Use **`schemas.ingress.layer1.yaml#/gdp_bucket_map_2024`**. (Alias **`#/gdp_buck
 > `len(beta) == 1 + C_mcc + 2 + 5` (hurdle) and `len(beta_mu) == 1 + C_mcc + 2` (NB mean). Channel order **exactly** `["CP","CNP"]`; bucket order **exactly** `[1,2,3,4,5]`.
 
 ```yaml
-# configs/models/hurdle/hurdle_coefficients.yaml  (preview)
+# config/models/hurdle/exports/version={config_version}/{iso8601_timestamp}/hurdle_coefficients.yaml  (preview)
 
 semver: "1.3.0"
 version: "2025-09-15"
@@ -410,7 +410,7 @@ If `dicts.mcc` has 6 entries (as above), then:
 $\phi=\exp(\beta_\phi^\top x_\phi)$. Its bytes are part of `parameter_hash`, so any edit flips run lineage.
 
 **Where it lives (path).**
-`configs/models/hurdle/nb_dispersion_coefficients.yaml` (artefact name typically `nb_dispersion_coefficients`).
+`config/models/hurdle/nb_dispersion_coefficients.yaml` (artefact name typically `nb_dispersion_coefficients`).
 
 **Authority model.** It’s a governed **config** (no JSON-Schema authority); **shape & order** are enforced by S0/S2 using the **frozen column dictionaries** from the fitting bundle.
 
@@ -424,7 +424,7 @@ $\phi=\exp(\beta_\phi^\top x_\phi)$. Its bytes are part of `parameter_hash`, so 
 > Channel order **must be** `["CP","CNP"]`.
 
 ```yaml
-# configs/models/hurdle/nb_dispersion_coefficients.yaml  (preview)
+# config/models/hurdle/nb_dispersion_coefficients.yaml  (preview)
 
 semver: "1.1.0"
 version: "2025-09-15"
@@ -502,7 +502,7 @@ beta_phi:        # dispersion link coefficients (φ = exp(beta_phi · x_φ))
 The **only** knobs S4 needs to turn the ZTP (Zero-Truncated Poisson) into a concrete **`K_target`** per merchant: the link coefficients **θ** and the **attempts cap / exhaustion policy**. It’s sealed in **`parameter_hash`** during S0 and then read in S4. (Also carries the **eligibility rule set** that S0.6 consumes to produce `crossborder_eligibility_flags`.)
 
 **Where it lives (path).**
-`configs/allocation/crossborder_hyperparams.yaml`
+`config/policy/crossborder_hyperparams.yaml`
 
 **Authority model.**
 Governed **config** (no JSON-Schema). The **shape and field names** below are enforced by the S0/S4 loaders.
@@ -517,7 +517,7 @@ Governed **config** (no JSON-Schema). The **shape and field names** below are en
 > Sampling regime is engine-constant: **inversion** if $\lambda<10$, else **PTRS**.
 
 ```yaml
-# configs/allocation/crossborder_hyperparams.yaml
+# config/policy/crossborder_hyperparams.yaml
 # Engine-ready: governs S0 eligibility and S4 ZTP link/controls. Part of parameter_hash.
 
 semver: "1.0.2"
@@ -625,7 +625,7 @@ eligibility:
 
 **What it is (purpose).** The **sole policy authority** S3 uses to produce **deterministic admission metadata** and the **only** inter-country order via `candidate_rank`. It does **not** re-decide eligibility (S0 writes `crossborder_eligibility_flags`). No RNG; pure, ordered rules; **closed vocabularies**.
 
-**Where it lives (path).** `configs/policy.s3.rule_ladder.yaml` (artefact registry id `mlr.1A.policy.s3.rule_ladder`).
+**Where it lives (path).** `config/policy/s3.rule_ladder.yaml` (artefact registry id `mlr.1A.policy.s3.rule_ladder`).
 
 **Who consumes it.**
 S3.1 **evaluates** the ladder; S3.2 builds the candidate set; S3.3 **ranks** using a key derived from the ladder `(precedence, priority, rule_id, …)`. S3 **reads** `crossborder_eligibility_flags` (S0) as a gate; the ladder then builds admission metadata and ranking only. The resulting `candidate_rank` is the **only** inter-country order. **Egress `outlet_catalogue` never encodes cross-country order—consumers must join on `s3_candidate_set.candidate_rank`.**
@@ -653,7 +653,7 @@ Each `Rule` **must** have:
 ## Minimal, engine-ready preview (illustrative)
 
 ```yaml
-# configs/policy.s3.rule_ladder.yaml
+# config/policy/s3.rule_ladder.yaml
 # Engine-ready: S3 builds admission metadata and the ONLY inter-country order (candidate_rank). No eligibility here.
 
 rule_set_id: "CB-2025.10"
@@ -1169,7 +1169,7 @@ Why this is on-spec (tight):
 Governed **priors policy** for S3. It supplies a **run-constant `dp`** and a **deterministic rule set** that decides which `(merchant_id, country_iso)` candidates receive a **non-negative base score** (not a probability). S3 turns those scores into **fixed-dp decimal strings** and emits them in `s3_base_weight_priors`. No RNG; no renormalisation.
 
 **Where it lives (path).**
-`configs/policy.s3.base_weight.yaml` (artefact registry id `mlr.1A.policy.s3.base_weight`; depends on `iso3166_canonical_2024`). 
+`config/policy/s3.base_weight.yaml` (artefact registry id `mlr.1A.policy.s3.base_weight`; depends on `iso3166_canonical_2024`). 
 
 **Who consumes it.**
 S3 L1 kernel **`s3_compute_priors`** (optional lane). L2 emits `s3_base_weight_priors` if present. L3 validates writer sort, subset coverage vs candidates, `dp` consistency, and fixed-dp string shape.
@@ -1191,7 +1191,7 @@ Top-level keys your loader already expects:
 
 *Optional extensions:* Rules may declare `score_value` for literal deterministic weights, and a top-level `normalisation` block (for example `method: sum_to_target` with an optional positive `target`) can rescale the resulting scores without introducing probabilities.
 ```yaml
-# configs/policy.s3.base_weight.yaml
+# config/policy/s3.base_weight.yaml
 semver: "1.0.0"
 version: "2025-10-02"
 
@@ -1287,7 +1287,7 @@ Schema anchor: **`schemas.1A.yaml#/s3/base_weight_priors`** (PK `merchant_id,cou
 Optional **integerisation policy** for S3 that supplies **per-ISO floors/ceilings** and the **residual quantisation precision** used by the **bounded Hamilton (Largest-Remainder)** step. No RNG; used only if you enable S3’s integerisation lane that emits `s3_integerised_counts`.
 
 **Where it lives (path).**
-`configs/policy.s3.thresholds.yaml` *(artefact registry id: `mlr.1A.policy.s3.thresholds`; mark as “optional” and a dependency of the integerisation lane)*. The dataset it influences is `data/layer1/1A/s3_integerised_counts/parameter_hash={parameter_hash}/` with schema `schemas.1A.yaml#/s3/integerised_counts`.
+`config/policy/s3.thresholds.yaml` *(artefact registry id: `mlr.1A.policy.s3.thresholds`; mark as “optional” and a dependency of the integerisation lane)*. The dataset it influences is `data/layer1/1A/s3_integerised_counts/parameter_hash={parameter_hash}/` with schema `schemas.1A.yaml#/s3/integerised_counts`.
 
 **Who consumes it.**
 S3·L0/§13 when building bounds and running **Largest-Remainder**; S3·L3 validates feasibility, sum to `N`, and `residual_rank`.
@@ -1312,7 +1312,7 @@ ceilings: { <ISO2>: <int≥0>, ... }     # optional; absent ISO ⇒ +INF (no cap
 ## Minimal, policy-true preview
 
 ```yaml
-# configs/policy.s3.thresholds.yaml
+# config/policy/s3.thresholds.yaml
 semver: "1.0.0"
 version: "2025-10-02"
 
@@ -1368,7 +1368,7 @@ Governed **smoothing policy** the S5/S6 currency→country expansion uses to tur
 (9) `settlement_shares_2024Q4` and (10) `ccy_country_shares_2024Q4` (with their `obs_count`s) into a single, deterministic **`ccy_country_weights_cache`** (shares that sum to 1 per currency). No RNG.
 
 **Where it lives (path).**
-`configs/policy.ccy_smoothing_params.yaml` (listed in the registry; sealed by S0; first consumed in S5/S6).
+`config/policy.ccy_smoothing_params.yaml` (listed in the registry; sealed by S0; first consumed in S5/S6).
 
 **Who consumes it.**
 S5 **weights builder** and S6 **merchant_currency** cache builder. Changing this file **changes policy** → new `parameter_hash`.

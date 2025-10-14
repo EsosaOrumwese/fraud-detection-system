@@ -239,8 +239,11 @@ fraud-enterprise/
 │  ├─ terraform/…                # modules + env compositions (network/compute/storage/observability)
 │  └─ docker/…                   # image definitions (one image per package/service)
 │
-├─ config/                       # non-secret runtime config (concept)
-│  └─ scenario_profiles/…        # sealed-world traffic profiles for the Scenario Runner
+├─ config/                       # canonical non-secret configs + replayable run manifests
+│  ├─ models/…                  # governed priors + versioned model exports (e.g., hurdle)
+│  ├─ policy/…                  # channel/allocation/cross-border knobs (s3.rule_ladder.yaml, etc.)
+│  ├─ runs/…                    # sealed JSON configs (e.g., s0_synthetic_config.json)
+│  └─ scenario_profiles/…       # sealed-world traffic profiles for the Scenario Runner
 │
 ├─ artefacts/                    # external artefact manifests & licenses (no raw data)
 │  ├─ registry/…                 # logical name → manifest mapping (hash, license)

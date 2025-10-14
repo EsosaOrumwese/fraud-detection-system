@@ -54,7 +54,7 @@ subsegments:
 
     # ----------- Spatial references, CRS, grid, boundaries -----------
   - name: crs_policy
-    path: configs/spatial/crs_policy.yaml
+    path: config/spatial/crs_policy.yaml
     type: config
     category: spatial
     semver: '{semver}'
@@ -73,7 +73,7 @@ subsegments:
     notes:
 
   - name: global_grid_spec
-    path: configs/spatial/global_grid_spec.yaml
+    path: config/spatial/global_grid_spec.yaml
     type: config
     category: spatial
     semver: '{semver}'
@@ -131,7 +131,7 @@ subsegments:
     notes:
 
   - name: boundary_topology_fix_policy
-    path: configs/spatial/boundary_topology_fix_policy.yaml
+    path: config/spatial/boundary_topology_fix_policy.yaml
     type: config
     category: spatial
     semver: '{semver}'
@@ -152,7 +152,7 @@ subsegments:
 
     # ----------- Spatial priors & blending -----------
   - name: spatial_manifest
-    path: configs/manifests/spatial_manifest.json
+    path: config/manifests/spatial_manifest.json
     type: manifest
     category: spatial_prior
     semver: '{manifest_key}'
@@ -172,7 +172,7 @@ subsegments:
     notes: Reuses prior bundle registered under 1A.
 
   - name: sibling_sha256s
-    path: configs/manifests/spatial/sibling_sha256s/
+    path: config/manifests/spatial/sibling_sha256s/
     type: directory
     category: versioning
     semver:
@@ -297,7 +297,7 @@ subsegments:
     notes:
 
   - name: spatial_blend
-    path: configs/spatial/spatial_blend.yaml
+    path: config/spatial/spatial_blend.yaml
     type: config
     category: spatial_prior
     semver: '{semver}'
@@ -320,7 +320,7 @@ subsegments:
     notes:
 
   - name: prior_blend_recipe
-    path: configs/spatial/priors/prior_blend_recipe.yaml
+    path: config/spatial/priors/prior_blend_recipe.yaml
     type: config
     category: spatial_prior
     semver: '{semver}'
@@ -506,7 +506,7 @@ subsegments:
 
     # ----------- Acceptance / fallback governance & metrics -----------
   - name: acceptance_policy
-    path: configs/spatial/acceptance_policy.yaml
+    path: config/spatial/acceptance_policy.yaml
     type: config
     category: acceptance
     semver: '{semver}'
@@ -548,7 +548,7 @@ subsegments:
     notes:
 
   - name: fallback_policy
-    path: configs/spatial/fallback_policy.yml
+    path: config/spatial/fallback_policy.yml
     type: config
     category: fallback
     semver: '{semver}'
@@ -649,7 +649,7 @@ subsegments:
     notes:
 
   - name: road_proximity_config
-    path: configs/spatial/road_proximity_config.yaml
+    path: config/spatial/road_proximity_config.yaml
     type: config
     category: acceptance
     semver: '{semver}'
@@ -688,7 +688,7 @@ subsegments:
     notes:
 
   - name: road_distance_method
-    path: configs/spatial/road_distance_method.yaml
+    path: config/spatial/road_distance_method.yaml
     type: config
     category: acceptance
     semver: '{semver}'
@@ -728,7 +728,7 @@ subsegments:
     notes: 'Fields: iso2, role_type, primary_flag, lat, lon.'
 
   - name: remoteness_method
-    path: configs/spatial/remoteness_method.yaml
+    path: config/spatial/remoteness_method.yaml
     type: config
     category: acceptance
     semver: '{semver}'
@@ -790,7 +790,7 @@ subsegments:
     notes: Pinned to tz_world 2025a; harmonised with 2A shapefile bundle.
 
   - name: tz_override_table
-    path: configs/spatial/tz_override_table.yaml
+    path: config/spatial/tz_override_table.yaml
     type: config
     category: spatial
     semver: '{semver}'
@@ -832,7 +832,7 @@ subsegments:
 
     # ----------- Footfall & winsorisation -----------
   - name: footfall_coefficients
-    path: configs/spatial/footfall_coefficients.yaml
+    path: config/spatial/footfall_coefficients.yaml
     type: config
     category: footfall
     semver: '{semver}'
@@ -851,7 +851,7 @@ subsegments:
     notes:
 
   - name: winsor_policy
-    path: configs/spatial/winsor_policy.yaml
+    path: config/spatial/winsor_policy.yaml
     type: config
     category: footfall
     semver: '{semver}'
@@ -1000,7 +1000,7 @@ subsegments:
 
     # ----------- Master seed & end-of-run manifest -----------
   - name: master_seed
-    path: configs/spatial/master_seed.yaml
+    path: config/spatial/master_seed.yaml
     type: config
     category: rng
     semver: '{semver}'
@@ -1020,7 +1020,7 @@ subsegments:
     notes:
 
   - name: final_parquet_file_pattern
-    path: configs/storage/final_parquet_file_pattern.yaml
+    path: config/storage/final_parquet_file_pattern.yaml
     type: config
     category: storage
     semver: '{semver}'
@@ -1141,7 +1141,7 @@ subsegments:
     notes:
 
   - name: temp_write_policy
-    path: configs/storage/temp_write_policy.yaml
+    path: config/storage/temp_write_policy.yaml
     type: config
     category: storage
     semver: '{semver}'

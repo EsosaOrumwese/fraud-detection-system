@@ -119,20 +119,20 @@ The table keeps the same four‑column convention you use for 1A → 3B.
 |------------------------------|-------------------------------------------------------|------------------------------------------------------------|--------------------------------|
 | Dockerfile.lock              | Dockerfile.lock                                       | Pins base‑image & layer digests for reproducible container | dockerfile_lock_digest         |
 | pipeline_launcher.sh         | ci/pipeline_launcher.sh                               | Kicks off run & writes initial build.manifest              | git_tree_hash                  |
-| validate_container_hash CI   | configs/ci/validate_container_hash.yml                | Asserts built image digest == Dockerfile.lock              | validate_container_hash_digest |
+| validate_container_hash CI   | config/ci/validate_container_hash.yml                | Asserts built image digest == Dockerfile.lock              | validate_container_hash_digest |
 | build.manifest               | artefacts/manifests/build.manifest                    | Per‑run roll‑up of all digests (code, configs, outputs)    | build_manifest_digest          |
-| artefact_registry_schema     | configs/registry/artefact_registry.schema.json        | JSON Schema for registry files                             | registry_schema_digest         |
-| artefact_registry.yaml       | configs/registry/artefact_registry.yaml               | Live registry instance (validated at runtime)              | registry_yaml_digest           |
+| artefact_registry_schema     | config/registry/artefact_registry.schema.json        | JSON Schema for registry files                             | registry_schema_digest         |
+| artefact_registry.yaml       | config/registry/artefact_registry.yaml               | Live registry instance (validated at runtime)              | registry_yaml_digest           |
 | schemas/ bundle              | schemas/                                              | All domain schemas (transaction, outlet, etc.)             | schemas_dir_digest             |
 | artefact_loader.py           | src/registry/artefact_loader.py                       | Loads registry, validates & hashes artefacts               | git_tree_hash                  |
 | compare_registry.py          | src/registry/compare_registry.py                      | Diffs registry vs build.manifest in CI                     | git_tree_hash                  |
 | register_dataset.sh          | scripts/register_dataset.sh                           | Helper to append dataset entries & re‑hash registry        | git_tree_hash                  |
 | dataset_catalog_ddl.sql      | db/dataset_catalog.ddl.sql                            | Postgres DDL mapping manifest_key → storage_uri            | dataset_catalog_digest         |
-| rng_logging_policy           | configs/rng/rng_logging.yml                           | Enables Philox counter dumps (size budget)                 | rng_logging_digest             |
+| rng_logging_policy           | config/rng/rng_logging.yml                           | Enables Philox counter dumps (size budget)                 | rng_logging_digest             |
 | global_rng_trace.log         | logs/rng/{run_id}/global_rng_trace.log                | Full Philox key+counter trace                              | (run‑specific)                 |
 | replay_rng.py                | tools/replay_rng.py                                   | Replays RNG trace for determinism audit                    | git_tree_hash                  |
-| zoneinfo_version.yml         | configs/runtime/zoneinfo_version.yml                  | Pins IANA tzdata/ICU build                                 | zoneinfo_version_digest        |
-| firewall_rules               | configs/infra/firewall.yml                            | Ingress allow / egress deny list for workers               | firewall_digest                |
+| zoneinfo_version.yml         | config/runtime/zoneinfo_version.yml                  | Pins IANA tzdata/ICU build                                 | zoneinfo_version_digest        |
+| firewall_rules               | config/infra/firewall.yml                            | Ingress allow / egress deny list for workers               | firewall_digest                |
 | nfs_export_policy.md         | docs/infra/nfs_export_policy.md                       | Human contract for read‑only NFS exports                   | nfs_export_policy_digest       |
 | failure_reproducer.py        | tools/failure_reproducer.py                           | Generates local reproducer from failing RNG/state          | git_tree_hash                  |
 | geo_audit.py                 | tools/geo_audit.py                                    | Scans outputs for impossible lat/lon coordinates           | git_tree_hash                  |
@@ -145,9 +145,9 @@ The table keeps the same four‑column convention you use for 1A → 3B.
 | licences/ directory          | LICENSES/                                             | All third‑party licence texts                              | licences_dir_digest            |
 | validate_licences.py         | ci/tests/validate_licences.py                         | CI check: every external artefact has licence & digest     | git_tree_hash                  |
 | upload_to_hashgate.sh        | scripts/deploy/upload_to_hashgate.sh                  | Uploads build.manifest to notarisation service             | git_tree_hash                  |
-| block_merge.yaml             | configs/ci/block_merge.yaml                           | GH action blocking merge until Hashgate receipt            | block_merge_digest             |
+| block_merge.yaml             | config/ci/block_merge.yaml                           | GH action blocking merge until Hashgate receipt            | block_merge_digest             |
 | edge_sampler_metrics         | artefacts/metrics/edge_sampler_{run_id}.parquet       | Perf budget metrics for edge sampler (cross‑segment)       | (run‑specific)                 |
-| performance_config           | configs/routing/performance.yml                       | Throughput & memory SLA thresholds (cross‑layer)           | perf_config_digest             |
+| performance_config           | config/routing/performance.yml                       | Throughput & memory SLA thresholds (cross‑layer)           | perf_config_digest             |
 | site_catalogue (ref)         | artefacts/catalogue/site_catalogue.parquet            | Cross‑layer site catalogue for GLM harness                 | site_catalogue_digest          |
 | allocation_licences_manifest | artefacts/manifests/allocation_licences_manifest.json | Licence roll‑up from segment 3A                            | allocation_licences_digest     |
 | VirtualUniverseMismatchError | exception (contract)                                  | Thrown when universe hash ≠ replay hash                    | n/a                            |

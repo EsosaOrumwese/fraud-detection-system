@@ -23,11 +23,11 @@ When richer data becomes available (e.g., curated brand census, partner datasets
 
 ## Current export
 
-The latest synthetic fit is published under `configs/models/hurdle/exports/version=2025-10-09/20251009T120000Z/`, which contains `hurdle_coefficients.yaml` and `nb_dispersion_coefficients.yaml`.
+The latest synthetic fit is published under `config/models/hurdle/exports/version=2025-10-09/20251009T120000Z/`, which contains `hurdle_coefficients.yaml` and `nb_dispersion_coefficients.yaml`.
 ## Related policies
 
 See `docs/model_spec/data-engine/specs/policies/synthetic-crossborder-policies.md` for the synthetic S0/S3 cross-border policies.
 
 ## Run configuration
 
-Use `python scripts/generate_s0_config.py` to emit `configs/runs/s0_synthetic_config.json` with the latest versioned artefacts before running the S0 orchestrator.
+Use `python scripts/generate_s0_config.py` to emit `config/runs/s0_synthetic_config.json` with the latest versioned artefacts before running the S0 orchestrator.
