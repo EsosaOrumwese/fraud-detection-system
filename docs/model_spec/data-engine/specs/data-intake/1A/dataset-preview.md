@@ -9,7 +9,8 @@ This document is a **preview/blueprint** for hunting & wrangling. It mirrors wha
 - Region scope is controlled via policy (e.g., R-EEA12) rather than hard-coding in datasets; switching scope means editing policy files, not schemas.
 
 ## Scope & governance (read me first)
-This pack previews **12 datasets** plus **2 governance inputs (non-datasets)** that S0 must open and seal **before S0.2**:
+This pack previews **14 datasets** plus **4 governance inputs** (G1–G4) and **3 optional policy surfaces** (O1–O3).
+S0 **must** open and seal **G1 numeric_policy** and **G2 math_profile** before S0.2; **G3** (S6) is required only if the S6 lane is enabled; **G4** (S7 bounds) is optional. O1–O3 are optional S3/S5 policies captured here for hunt precision.
 1) `reference/governance/numeric_policy/{version}/numeric_policy.json`
 2) `reference/governance/math_profile/{version}/math_profile_manifest.json`
 Opening these, along with the **dataset dictionary** and **artefact registry** anchors, contributes to the `manifest_fingerprint`. No RNG events are permitted until S0.8 attests this surface.
@@ -1067,6 +1068,69 @@ Pixel Unit: persons
 
 ---
 
+## Dataset 13 — `ccy_smoothing_params.yaml`  [Model Param/Policy · **Required by S5**]
+
+**What it is (purpose).** S5’s governed policy for blending, smoothing, floors and fixed-dp. **Changing its bytes flips `parameter_hash`**; S5 will not run without it. 
+
+**Where it lives (canonical path).** `config/allocation/ccy_smoothing_params.yaml`
+
+**Schema/authority.** Governed config (enforced by S5 loader; JSON-Schema optional). Keys and domains **must** match the contract below.
+
+**Required structure (exact keys).**
+
+```yaml
+semver: "<MAJOR.MINOR.PATCH>"
+version: "YYYY-MM-DD"
+dp: <int 0..18>                       # fixed decimals for OUTPUT weights
+defaults:
+  blend_weight: <0..1>
+  alpha:        <≥0>                  # Dirichlet mass (per-ISO via overrides)
+  obs_floor:    <int ≥0>
+  min_share:    <0..1>                # floor applied post-smoothing
+  shrink_exponent: <≥0>               # <1 treated as 1 at eval
+per_currency:                          # OPTIONAL; ISO-4217 uppercase keys
+  <CCY>:
+    blend_weight|alpha|obs_floor|min_share|shrink_exponent: <…>
+overrides:                             # OPTIONAL fine-grain ISO floors/alphas
+  alpha_iso:     { <CCY>: { <ISO2>: <≥0> } }
+  min_share_iso: { <CCY>: { <ISO2>: <0..1> } }
+```
+
+**Acceptance checklist.**
+
+* Keys present: `semver, version, dp, defaults` (required). Values in domain above.
+* All CCYs **uppercase ISO-4217**; all ISO2 **uppercase** and FK-valid to canonical ISO.
+* **Feasibility:** for each currency, Σ `min_share_iso[cur][iso] ≤ 1.0`.
+* **Override resolution:** ISO-override → per-currency → defaults (deterministic).
+* **Lineage:** file is listed in artefact registry and included in the governed set **𝓟**; bytes **must** flip `parameter_hash`. 
+
+**Where it’s used.** S5 builds `ccy_country_weights_cache` (and optional `merchant_currency`) deterministically from Dataset #9/#10 + this policy. 
+
+---
+
+## Dataset 14 — `iso_legal_tender_2024`  [External Dataset · **Optional for S5.0 `merchant_currency`**]
+
+**What it is (purpose).** Canonical **ISO2 → primary legal tender** map used only if you emit `merchant_currency` (κₘ provenance fallback). 
+
+**Where it lives (path).** `reference/iso/iso_legal_tender/2024/iso_legal_tender.parquet`
+
+**Schema authority (must match).** `schemas.ingress.layer1.yaml#/iso_legal_tender_2024` (add this anchor if not already present).
+
+**Columns & types (exact).**
+
+* `country_iso : ISO2` (uppercase; **PK**; **FK →** `iso3166_canonical_2024.country_iso`)
+* `primary_ccy : ISO4217` (uppercase)
+
+**Acceptance checklist.**
+
+* Schema pass; PK uniqueness on `country_iso`; FK to canonical ISO; both codes uppercase.
+* Coverage: all `home_country_iso` in merchant seed appear.
+* Registry/dictionary entries present (schema_ref, licence, retention). 
+
+**Where it’s used.** S5.0 may populate `merchant_currency` (κₘ) with precedence & tie-break rules from the S5 spec. 
+
+---
+
 # G1 — `numeric_policy.json`  [Governance Input]
 
 Here’s a drop-in **`numeric_policy.json`** that matches your S0.8 contract (binary64, RNE, FMA-off, no FTZ/DAZ, fixed-order reductions), plus the minimal extras your docs make normative (total-order for floats, shortest round-trip float printing). You’d store it at:
@@ -1163,13 +1227,72 @@ Why this is on-spec (tight):
 
 ---
 
+## G3 — `policy.s6.selection.yaml`  [Governance Input · **Required by S6**]
+
+**What it is (purpose).** Pins S6 behaviour: logging mode, zero-weight handling, optional membership emission, and candidate caps. Listed in 𝓟—**changes flip `parameter_hash`**.
+
+**Where it lives (path).** `config/policy.s6.selection.yaml`
+
+**Schema/authority.** Register a `$ref` (e.g., `schemas.layer1.yaml#/policy/s6_selection`) with `additionalProperties:false`.
+
+**Required keys & domains.**
+
+```yaml
+policy_semver: "<MAJOR.MINOR.PATCH>"
+version: "YYYY-MM-DD"
+defaults:
+  emit_membership_dataset: <bool>     # default false
+  log_all_candidates:     <bool>      # default true
+  zero_weight_rule:       "exclude" | "include"   # default "exclude"
+  max_candidates_cap:     <int ≥0>    # default 0 (no cap)
+# OPTIONAL: currency-specific overrides (same keys except log_all_candidates)
+per_currency:
+  <CCY>: { emit_membership_dataset|zero_weight_rule|max_candidates_cap: … }
+```
+
+**Acceptance checklist.**
+
+* Values in domain; overrides only by **uppercase ISO-4217**; **no** per-currency override for `log_all_candidates` (global only).
+* Policy files are members of **𝓟**; bytes change flips `parameter_hash`.
+* Dictionary/registry entries exist (id, path, licence/retention) and `$ref` resolves.
+
+**Where it’s used.** S6 selection & logging (`gumbel_key` budgets; membership surface emission); validator relies on this to set coverage/counter-replay expectations.
+
+---
+
+## G4 — `policy.s7.bounds.yaml`  [Governance Input · **Optional for S7**]
+
+**What it is (purpose).** Enables **bounded Hamilton** in S7: per-ISO integer floors/ceilings; dp for residual quantisation (S7 binds dp_resid=8 by spec; include for clarity).
+
+**Where it lives (path).** `config/policy.s7.bounds.yaml`
+
+**Required structure.**
+
+```yaml
+policy_semver: "<MAJOR.MINOR.PATCH>"
+version: "YYYY-MM-DD"
+dp_resid: 8                           # S7 spec binding; keep 8
+floors:   { <ISO2>: <int ≥0>, ... }   # OPTIONAL; absent ISO ⇒ 0
+ceilings: { <ISO2>: <int ≥0>, ... }   # OPTIONAL; absent ISO ⇒ +INF
+```
+
+**Acceptance checklist.**
+
+* ISO keys **uppercase** and FK-valid; if both present for an ISO, `ceiling ≥ floor`.
+* Feasibility guard (per merchant): Σ floors ≤ N ≤ Σ ceilings, else **FAIL**.
+* Listed in 𝓟 if you enable the bounded variant; bytes flip `parameter_hash`.
+
+**Where it’s used.** Only when the S7 bounds lane is turned on; base S7 runs without this (still dp_resid=8).
+
+---
+
 # O1 — `policy.s3.base_weight.yaml`  [Model Param/Policy]
 
 **What it is (purpose).**
 Governed **priors policy** for S3. It supplies a **run-constant `dp`** and a **deterministic rule set** that decides which `(merchant_id, country_iso)` candidates receive a **non-negative base score** (not a probability). S3 turns those scores into **fixed-dp decimal strings** and emits them in `s3_base_weight_priors`. No RNG; no renormalisation.
 
 **Where it lives (path).**
-`config/policy/s3.base_weight.yaml` (artefact registry id `mlr.1A.policy.s3.base_weight`; depends on `iso3166_canonical_2024`). 
+`config/policy/s3.base_weight.yaml` (artefact registry id `mlr.1A.policy.s3.base_weight`; depends on `iso3166_canonical_2024`).
 
 **Who consumes it.**
 S3 L1 kernel **`s3_compute_priors`** (optional lane). L2 emits `s3_base_weight_priors` if present. L3 validates writer sort, subset coverage vs candidates, `dp` consistency, and fixed-dp string shape.
@@ -1363,12 +1486,8 @@ ceilings:
 
 # O3 — `ccy_smoothing_params.yaml`  [Model Param/Policy]
 
-**What it is (purpose).**
-Governed **smoothing policy** the S5/S6 currency→country expansion uses to turn the two external inputs
-(9) `settlement_shares_2024Q4` and (10) `ccy_country_shares_2024Q4` (with their `obs_count`s) into a single, deterministic **`ccy_country_weights_cache`** (shares that sum to 1 per currency). No RNG.
-
-**Where it lives (path).**
-`config/policy.ccy_smoothing_params.yaml` (listed in the registry; sealed by S0; first consumed in S5/S6).
+**Alias of Dataset 13 (notes only).**
+Canonical path: `config/allocation/ccy_smoothing_params.yaml`. This section is kept as **informative** notes for Codex; defer to **Dataset 13** for the binding preview.
 
 **Who consumes it.**
 S5 **weights builder** and S6 **merchant_currency** cache builder. Changing this file **changes policy** → new `parameter_hash`.
