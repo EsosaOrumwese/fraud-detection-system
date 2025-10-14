@@ -512,11 +512,11 @@ S9 applies the following **normative budgets** when reconciling `draws` and coun
 * **Stochastic branch** (0<π<1): `blocks=1`, `draws='1'`.
 * Schema enforces `draws∈{'0','1'}`, `blocks∈{0,1}` and `u∈(0,1)` when present.  
 
-**S2 — NB mixture attempts & final** (`module=1A.nb_sampler`)
+**S2 — NB mixture attempts & final** (modules per family; see Appendix A.1)
 
-* **gamma_component**: **variable** draws (exact actual-use from Marsaglia–Tsang; includes 2 uniforms per Box–Muller normal + 1 uniform where required).
-* **poisson_component (context='nb')**: **variable**; regime per S0 (§PTRS vs inversion) governs typical usage.
-* **nb_final**: **non-consuming** ⇒ `blocks=0`, `draws='0'`.
+* **gamma_component** (`module="1A.nb_and_dirichlet_sampler"`, `substream_label="gamma_nb"`): **variable** draws (exact actual-use from Marsaglia–Tsang; includes 2 uniforms per Box–Muller normal + 1 uniform where required).
+* **poisson_component** (`module="1A.nb_poisson_component"`, `substream_label="poisson_nb"`, `context="nb"`): **variable**; regime per S0 (§PTRS vs inversion) governs typical usage.
+* **nb_final** (`module="1A.nb_sampler"`): **non-consuming** ⇒ `blocks=0`, `draws='0'`.
 * Attempt structure: exactly **one** gamma then **one** poisson per attempt; finaliser once (accepted `N≥2`).  
 
 **S4 — ZTP target** (`module=1A.ztp_sampler`)
@@ -867,7 +867,7 @@ All S9 aggregations **MUST** be deterministic regardless of worker count/schedul
 
 ## 11.4 Atomic publish (bundle & flag)
 
-S9 **MUST** publish the validation bundle **atomically**: build under a temporary directory (e.g., `…/validation/_tmp.{uuid}`), compute `_passed.flag` over the raw bytes of **all files listed in `index.json`** (excluding `_passed.flag`) in **ASCII-lexicographic order of the `path` entries**, then perform a **single atomic rename** to `fingerprint={manifest_fingerprint}/`. **No partial contents** may become visible; on failure, remove the temp.  
+S9 **MUST** publish the validation bundle **atomically**: build under a temporary directory (e.g., `…/validation/_tmp.{uuid}`), compute `_passed.flag` over **all other bundle files listed in `index.json`** in **ASCII-lexicographic order of the `path` entries**, then perform a **single atomic rename** to `fingerprint={manifest_fingerprint}/`. **No partial contents** may become visible; on failure, remove the temp.  
 
 ## 11.5 Idempotent re-runs & equivalence
 
@@ -903,7 +903,7 @@ S9’s outcomes **MUST NOT** change with producer/validator worker counts or sch
 * **Every non-flag file MUST be listed once in `index.json`** using the schema below; `path` entries are **relative** to the bundle root; `kind ∈ {plot|table|diff|text|summary}`. **`artifact_id` MUST be unique.**
 * **Index field hygiene:** `artifact_id` **MUST** match `^[A-Za-z0-9._-]+$` (ASCII only). `path` **MUST** be **relative** (no leading slash, no `..` segments) and ASCII-normalised.
 * **Hashing precondition:** The gate hash (§9) is computed over the byte contents of **all files listed in `index.json`** (excluding `_passed.flag`) in **ASCII lexicographic order of `path`**.
-* **Gate coupling (reminder):** `_passed.flag` sits in the same folder and contains `sha256_hex = <hex64>` computed over the raw bytes of **all files listed in `index.json`** (excluding `_passed.flag`) in **ASCII-lexicographic order of the `path` entries**. Consumers **MUST** verify this for the same fingerprint **before** reading `outlet_catalogue`.  
+**Gate coupling (reminder):** `_passed.flag` sits in the same folder and contains `sha256_hex = <hex64>` computed over the raw bytes of **all other files listed in `index.json`**, in **ASCII-lexicographic order of the `path` entries**. Consumers **MUST** verify this for the same fingerprint **before** reading `outlet_catalogue`.
 
 **`index.json` (schema — Binding):**
 
@@ -930,7 +930,7 @@ S9 **MUST** write at least the files below; all MUST appear in `index.json` (exc
 6. **`egress_checksums.json`** — stable per-file & composite SHA-256 for `outlet_catalogue` in `[seed,fingerprint]` (see §12.6).
 7. **`index.json`** — bundle index per §12.1. 
 
-> **Hashing rule for the gate** (normative, repeated): `_passed.flag` = `sha256_hex` of **all other files** in this folder in ASCII-lexicographic filename order; the flag itself is excluded. 
+> **Hashing rule for the gate** (normative, repeated): `_passed.flag` = `sha256_hex` of the concatenation of the raw bytes of **all files listed in `index.json`** (excluding `_passed.flag`) in **ASCII-lexicographic order of the `path` entries**. 
 
 ---
 
@@ -1303,7 +1303,7 @@ This appendix freezes the **exact strings/enums** S9 relies on when validating S
 ## A.4 Gate & bundle literals
 
 * **Flag filename:** `_passed.flag`
-  **Content (one line):** `sha256_hex = <hex64>` where `<hex64>` is **SHA-256 over the raw bytes of all files listed in `index.json`** in **ASCII-lexicographic order of the `path` entries**. *(Flag file excluded from the hash.)*
+  **Content (one line):** `sha256_hex = <hex64>` where `<hex64>` is **SHA-256 over the raw bytes of all files listed in `index.json`**, in **ASCII-lexicographic order of the `path` entries**. *(Flag file excluded from the hash.)*
 
 * **Bundle root:** `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/`
   **Index schema kind:** `kind ∈ {"plot","table","diff","text","summary"}`. 
