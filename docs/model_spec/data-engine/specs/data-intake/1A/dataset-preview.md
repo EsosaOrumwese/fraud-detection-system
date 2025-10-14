@@ -5,17 +5,18 @@ This document is a **preview/blueprint** for hunting & wrangling. It mirrors wha
 
 ### Machine-use guidance
 - Do **not** constrain discovery to example tokens; treat examples as **representative**, not exhaustive (e.g., don’t search only for MCC 5411—use the *class* of relevant MCCs for your run/region).
-- Respect authority boundaries: **S0** owns **eligibility** (`crossborder_hyperparams.yaml`); **S3** produces **admission metadata & the only inter-country order** (`candidate_rank`).
+- Respect authority boundaries: **S0** owns **eligibility** (`crossborder_hyperparams.yaml`); **S3** produces **admission metadata & the only inter-country order** (`candidate_rank`). Event rows embed `{seed, parameter_hash, run_id, manifest_fingerprint}`; only `{seed, parameter_hash, run_id}` appear in paths and should **byte-equal** those path tokens (engine enforcement). Treat this as guidance for fetch/QA.
 - Region scope is controlled via policy (e.g., R-EEA12) rather than hard-coding in datasets; switching scope means editing policy files, not schemas.
 
 ## Scope & governance (read me first)
-This pack previews **14 datasets** plus **4 governance inputs** (G1–G4) and **3 optional policy surfaces** (O1–O3).
-S0 **must** open and seal **G1 numeric_policy** and **G2 math_profile** before S0.2; **G3** (S6) is required only if the S6 lane is enabled; **G4** (S7 bounds) is optional. O1–O3 are optional S3/S5 policies captured here for hunt precision.
+This pack previews **14 datasets**, **4 governance inputs** (G1–G4), and **3 optional policy surfaces** (O1–O3). It is Informative—meant to guide search/ETL and codec prompts—not a binding contract.
+**Engine expectation.** In the running system, S0 opens and seals **G1 numeric_policy** and **G2 math_profile** before RNG; **G3** (S6) applies if the S6 lane is enabled; **G4** (S7 bounds) is optional. O1–O3 are optional S3/S5 policies captured here purely to guide data hunting.
 **Path style.** Policy artefacts live under `config/`. Both flat names (e.g., `config/policy.s6.selection.yaml`) and subfolders (e.g., `config/policy/s3.base_weight.yaml`) are acceptable—the **Dictionary/Registry path** is authoritative.
 1) `reference/governance/numeric_policy/{version}/numeric_policy.json`
 2) `reference/governance/math_profile/{version}/math_profile_manifest.json`
+
 Opening these, along with the **dataset dictionary** and **artefact registry** anchors, contributes to the `manifest_fingerprint`. No RNG events are permitted until S0.8 attests this surface.
-**Notation.** 𝓟 = the governed **parameter set** for a run (policy/config artefacts whose **bytes** feed `parameter_hash` and must be sealed in S0.2).
+**Non-binding preview.** This document is **conceptual** (Informative). When anything here conflicts with the **schemas** or the **Dataset Dictionary/Registry**, those authorities **win**. Phrases like “must/shall” below describe **engine behaviour** (what the system enforces), not legal requirements of this preview.
 
 ## Scale & Coverage (magnitude) — macros & gates
 To make capacity planning explicit while data is still being sourced, define the following macros. These are **non-binding defaults** until written to the run manifest and/or `numeric_policy.json`; once recorded there, they become binding gates for S0.
@@ -79,7 +80,7 @@ To make capacity planning explicit while data is still being sourced, define the
 
 ---
 
-## Acceptance checklist (what must be true before S0 runs)
+## Recommended checks (engine expects) (what must be true before S0 runs)
 
 * **Schema pass** against `#/merchant_ids`; **no extra columns**. 
 * **PK uniqueness:** no duplicate `merchant_id`. 
@@ -146,7 +147,7 @@ To make capacity planning explicit while data is still being sourced, define the
 
 ---
 
-## Acceptance checklist (before S0 runs this)
+## Recommended checks (engine expects) (before S0 runs this)
 
 * **Schema pass** against `#/iso3166_canonical_2024`. 
 * **PK uniqueness:** all `country_iso` are unique and match `^[A-Z]{2}$`. 
@@ -206,7 +207,7 @@ Use the JSON-Schema anchor **`schemas.ingress.layer1.yaml#/world_bank_gdp_per_ca
 
 ---
 
-## Acceptance checklist (before S0 runs)
+## Recommended checks (engine expects) (before S0 runs)
 
 * **Schema pass** against `#/world_bank_gdp_per_capita` (or its alias `#/world_bank_gdp`).
 * **PK uniqueness:** no duplicate `(country_iso, observation_year)`. 
@@ -265,7 +266,7 @@ Use **`schemas.ingress.layer1.yaml#/gdp_bucket_map_2024`**. (Alias **`#/gdp_buck
 
 ---
 
-## Acceptance checklist (before S0 runs)
+## Recommended checks (engine expects) (before S0 runs)
 
 * **Schema pass** against `#/gdp_bucket_map_2024` (or alias `#/gdp_bucket_map`).
 * **PK uniqueness:** one row per `country_iso`. **No duplicates.** 
@@ -377,7 +378,7 @@ If `dicts.mcc` has 6 entries (as above), then:
 
 ---
 
-## Acceptance checklist (before S0/S1/S2 run)
+## Recommended checks (engine expects) (before S0/S1/S2 run)
 
 * **Block orders fixed:** `channel == ["CP","CNP"]`, `gdp_bucket == [1..5]` (exact), MCC dictionary frozen and **ordered**. 
 * **Lengths match:** `len(beta) == 1 + C_mcc + 2 + 5`; `len(beta_mu) == 1 + C_mcc + 2`. 
@@ -397,7 +398,7 @@ If `dicts.mcc` has 6 entries (as above), then:
 
 * **S0** uses it for shape/dictionary checks and (optionally) to build **`hurdle_pi_probs`** deterministically. 
 * **S1** computes π and emits the hurdle Bernoulli event. 
-* **S2** uses `beta_mu` for ( \mu ); dispersion comes from `nb_dispersion_coefficients.yaml`. 
+* **S2** uses `beta_mu` for μ; dispersion comes from `nb_dispersion_coefficients.yaml`.
 
 ### Magnitude (Scale & Coverage)
 - **Vector lengths**: `len(beta) == 1 + N_MCC + 2 + K_BUCKETS`; `len(beta_mu) == 1 + N_MCC + 2`.
@@ -472,7 +473,7 @@ beta_phi:        # dispersion link coefficients (φ = exp(beta_phi · x_φ))
 
 ---
 
-## Acceptance checklist (before S2 runs)
+## Recommended checks (engine expects) (before S2 runs)
 
 * **Block orders fixed.** `channel == ["CP","CNP"]`; MCC dictionary present and **ordered** (same order as the fitting bundle).
 * **Length identity.** `len(beta_phi) == 1 + C_mcc + 2 + 1`.
@@ -588,7 +589,7 @@ eligibility:
 
 ---
 
-## Acceptance checklist (before S4 runs)
+## Recommended checks (engine expects) (before S4 runs)
 
 * **Presence & parse:** File exists, loads, keys exactly `ztp_link.{theta0,theta1,theta2}`, `ztp_controls.{MAX_ZTP_ZERO_ATTEMPTS, ztp_exhaustion_policy}`, `eligibility.{rule_set_id, default_decision, rules[]}`.
 * **Channel domain:** `eligibility.rules[].channel` values must use **internal tokens** `CP`/`CNP` (post-S0 mapping), **not** ingress strings.
@@ -729,7 +730,7 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 
 ---
 
-## Acceptance checklist (before S3 runs)
+## Recommended checks (engine expects) (before S3 runs)
 
 * **Presence/shape:** has `reason_codes[]`, `filter_tags[]`, and `rules[]` with required fields. 
 * **Closed sets:** every `outcome.reason_code` ∈ `reason_codes`; every tag ∈ `filter_tags`. 
@@ -799,7 +800,7 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 
 ---
 
-## Acceptance checklist (before sealing / use)
+## Recommended checks (engine expects) (before sealing / use)
 
 * **Schema pass** against `#/settlement_shares_2024Q4` (or alias `#/settlement_shares`). 
 * **PK uniqueness:** no duplicate `(currency,country_iso)`. 
@@ -865,7 +866,7 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 
 ---
 
-## Acceptance checklist (before sealing / use)
+## Recommended checks (engine expects) (before sealing / use)
 
 * **Schema pass** against `#/ccy_country_shares_2024Q4` (or alias `#/ccy_country_shares`). 
 * **PK uniqueness:** no duplicate `(currency,country_iso)`. 
@@ -917,7 +918,7 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 
 ---
 
-## Acceptance checklist (before sealing/consuming)
+## Recommended checks (engine expects) (before sealing/consuming)
 
 * **Schema pass** against `#/world_countries_shp`; table **type = geotable**; **CRS = EPSG:4326**. 
 * **PK uniqueness:** one row per `country_iso` (uppercase `^[A-Z]{2}$`). FK to ISO table holds. 
@@ -980,7 +981,7 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 
 ---
 
-## Acceptance checklist (before sealing)
+## Recommended checks (engine expects) (before sealing)
 
 * **Schema pass** against `#/tz_world_shp` (alias → `#/tz_world_2025a`). 
 * **CRS & geometry:** `geom` is **Polygon/MultiPolygon** in **EPSG:4326** (WGS84). 
@@ -1046,7 +1047,7 @@ Pixel Unit: persons
 
 ---
 
-## Acceptance checklist (before sealing)
+## Recommended checks (engine expects) (before sealing)
 
 * **Schema pass** against `#/population_raster_2025` (or alias `#/population_raster`). 
 * **COG compliance** (internal tiling + overviews present): must expose **2,4,8,16** overview levels. 
@@ -1069,7 +1070,7 @@ Pixel Unit: persons
 
 ---
 
-## Dataset 13 — `ccy_smoothing_params.yaml`  [Model Param/Policy · **Required by S5**]
+## Dataset 13 — `ccy_smoothing_params.yaml`  [Model Param/Policy · **Expected by S5**]
 
 **What it is (purpose).** S5’s governed policy for blending, smoothing, floors and fixed-dp. **Changing its bytes flips `parameter_hash`**; S5 will not run without it. 
 
@@ -1097,7 +1098,7 @@ overrides:                             # OPTIONAL fine-grain ISO floors/alphas
   min_share_iso: { <CCY>: { <ISO2>: <0..1> } }
 ```
 
-**Acceptance checklist.**
+**Recommended checks (engine expects).**
 
 * Keys present: `semver, version, dp, defaults` (required). Values in domain above.
 * All CCYs **uppercase ISO-4217**; all ISO2 **uppercase** and FK-valid to canonical ISO.
@@ -1122,7 +1123,7 @@ overrides:                             # OPTIONAL fine-grain ISO floors/alphas
 * `country_iso : ISO2` (uppercase; **PK**; **FK →** `iso3166_canonical_2024.country_iso`)
 * `primary_ccy : ISO4217` (uppercase)
 
-**Acceptance checklist.**
+**Recommended checks (engine expects).**
 
 * Schema pass; PK uniqueness on `country_iso`; FK to canonical ISO; both codes uppercase.
 * Coverage: all `home_country_iso` in merchant seed appear.
@@ -1251,11 +1252,12 @@ per_currency:
   <CCY>: { emit_membership_dataset|zero_weight_rule|max_candidates_cap: … }
 ```
 
-**Acceptance checklist.**
+**Recommended checks (engine expects).**
 
 * Values in domain; overrides only by **uppercase ISO-4217**; **no** per-currency override for `log_all_candidates` (global only).
 * Policy files are members of **𝓟**; bytes change flips `parameter_hash`.
 * Dictionary/registry entries exist (id, path, licence/retention) and `$ref` resolves.
+* If `defaults.emit_membership_dataset: true` (or a per-currency override enables it), downstream reads of `s6_membership` **MUST** verify the S6 **PASS** receipt for the same `{seed, parameter_hash}` (no PASS → no read).
 
 **Where it’s used.** S6 selection & logging (`gumbel_key` budgets; membership surface emission); validator relies on this to set coverage/counter-replay expectations.
 
@@ -1277,7 +1279,7 @@ floors:   { <ISO2>: <int ≥0>, ... }   # OPTIONAL; absent ISO ⇒ 0
 ceilings: { <ISO2>: <int ≥0>, ... }   # OPTIONAL; absent ISO ⇒ +INF
 ```
 
-**Acceptance checklist.**
+**Recommended checks (engine expects).**
 
 * ISO keys **uppercase** and FK-valid; if both present for an ISO, `ceiling ≥ floor`.
 * Feasibility guard (per merchant): Σ floors ≤ N ≤ Σ ceilings, else **FAIL**.
@@ -1312,8 +1314,8 @@ Top-level keys your loader already expects:
 
 ### Minimal, policy-true preview
 
+*Informative note (optional):* Some pipelines add a top-level **`normalisation`** block (e.g., `method: sum_to_target`) to rescale **scores** without introducing probabilities. This is **not** required by the loader and is outside the Binding preview here.
 
-*Optional extensions:* Rules may declare `score_value` for literal deterministic weights, and a top-level `normalisation` block (for example `method: sum_to_target` with an optional positive `target`) can rescale the resulting scores without introducing probabilities.
 ```yaml
 # config/policy/s3.base_weight.yaml
 semver: "1.0.0"
@@ -1367,7 +1369,7 @@ Your L1 hook **`EVAL_PRIOR_SCORE`** computes `w ≥ 0` from the matching rule by
 
 ---
 
-## Acceptance checklist (loader + validator)
+## Recommended checks (engine expects) (loader + validator)
 
 **Loader (S3·L0) must verify:**
 
@@ -1464,7 +1466,7 @@ ceilings:
 
 ---
 
-## Acceptance checklist (loader + validator)
+## Recommended checks (engine expects) (loader + validator)
 
 **Loader (S3·L0) must verify:**
 
@@ -1605,7 +1607,7 @@ overrides:
 
 ---
 
-## Acceptance checklist (loader + validator)
+## Recommended checks (engine expects) (loader + validator)
 
 **Loader must reject if:**
 
