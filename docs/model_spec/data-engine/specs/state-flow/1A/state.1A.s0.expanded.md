@@ -20,9 +20,9 @@ S0.1 establishes the **canonical universe** (merchant rows and reference dataset
 
 Let $\mathcal{M}$ be the finite set of merchants from the normalised ingress table:
 
-\begin{math}
+$$
 \texttt{merchant\_ids}\subset\{(\texttt{merchant\_id},\ \texttt{mcc},\ \texttt{channel},\ \texttt{home\_country\_iso})\},
-\end{math}
+$$
 
 validated by `schemas.ingress.layer1.yaml#/merchant_ids`.
 

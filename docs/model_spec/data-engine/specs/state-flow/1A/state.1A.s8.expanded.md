@@ -185,7 +185,7 @@ This section freezes the vocabulary, symbols, and lineage tokens S8 uses. All te
 * **`Nₘ`** — merchant-level domestic outlets from `nb_final.n_outlets`. **Invariant later (§9):** `Σ_{c∈Dₘ} nₘ,c = Nₘ`. 
 * **`nₘ,c`** — per-country final integer count in `outlet_catalogue.final_country_outlet_count` for merchant `m` and country `c`. 
 * **`site_order` sequence** — for each `(m,c)`, the ordered list `⟨1,…,nₘ,c⟩`. `site_id` is the 6-digit rendering of this sequence. 
-* **Path↔embed equality** — whenever lineage columns are embedded (e.g., `manifest_fingerprint` in egress; `{seed, parameter_hash, run_id}` in events), **bytes must equal** the corresponding partition tokens. 
+* **Path↔embed equality** — whenever lineage columns are embedded: egress `manifest_fingerprint` **MUST** equal the `fingerprint` path token; event rows **MUST** embed `{seed, parameter_hash, run_id, manifest_fingerprint}` where `{seed, parameter_hash, run_id}` **MUST** equal their path tokens and `manifest_fingerprint` **MUST** equal the run’s egress fingerprint (not a path token).
 
 ## 2.7 Consumption gates (terms used throughout)
 
@@ -201,7 +201,8 @@ This section freezes the vocabulary, symbols, and lineage tokens S8 uses. All te
 ## 3.1 Precedence chain (normative)
 
 **Anchor resolution rule (normative).** When a `$ref` omits the document prefix:
-- `#/rng/**` and `#/validation/**` resolve to `schemas.layer1.yaml`.
+- `#/rng/**` resolves to `schemas.layer1.yaml`.
+- `#/validation/validation_bundle` resolves to `schemas.1A.yaml`; `#/validation/s6_receipt` resolves to `schemas.layer1.yaml`.
 - `#/s3/**` and `#/egress/**` resolve to `schemas.1A.yaml`.
 - `#/iso**` and other ingress FK anchors resolve to `schemas.ingress.layer1.yaml`.
 
@@ -219,7 +220,7 @@ This section freezes the vocabulary, symbols, and lineage tokens S8 uses. All te
 
 ## 3.3 Fixed upstream authorities S8 MUST honour
 
-* **Inter-country order authority:** **only** S3 `s3_candidate_set.candidate_rank` (total, contiguous; `home=0`). S8 **MUST NOT** encode or alter cross-country order; consumers **must** join S3 when order is required.
+* **Inter-country order authority:** **only** S3 `s3_candidate_set.candidate_rank` (total, contiguous; `home=0`). S8 **MUST NOT** encode or alter cross-country order; consumers **MUST** join S3 when order is required.
 * **Counts authority:** merchant-level `N` from **`rng_event.nb_final`** (S2, non-consuming) and **per-country integer counts** from S7 residual evidence (or `s3_integerised_counts` if S3 owns it). S8 **MUST NOT** re-derive either.
 * **Gating principle:** **No PASS → no read** remains in force for 1A consumers; the dictionary’s `outlet_catalogue` entry encodes this gate for 1B.
 
@@ -306,7 +307,7 @@ The 1A validation bundle is **fingerprint-scoped** at
 
 **Parameter-scoped tables.** Each row **MUST** embed `parameter_hash` and it **MUST equal** the `parameter_hash` path token. If present, `produced_by_fingerprint` is **informational only** (not a partition key nor part of equality).
 
-**RNG logs/events.** The embedded `{seed, parameter_hash, run_id}` **MUST** match their path tokens **byte-for-byte** on every event row. (`manifest_fingerprint` is **optional** in events; if present it **MUST** equal the current egress fingerprint. It is **not** a partition token.) 
+**RNG logs/events.** Event rows **MUST** embed `{seed, parameter_hash, run_id, manifest_fingerprint}`. `{seed, parameter_hash, run_id}` **MUST** match their path tokens **byte-for-byte**. `manifest_fingerprint` **MUST** equal the run’s egress fingerprint (it is **not** a path token).
 
 ## 5.3 Identity, immutability & atomic publish
 
@@ -464,7 +465,7 @@ S8 emits exactly two **rng_event** families, both partitioned at
 ## 7.4 Lineage embedding & equality (write-time checks)
 
 * **Egress rows:** `outlet_catalogue.manifest_fingerprint` **MUST equal** the `fingerprint` path token (hex64).
-* **Events:** every event row **MUST** embed `{seed, parameter_hash, run_id}` (and standard envelope) equal to their path tokens. 
+* **Events:** every event row **MUST** embed `{seed, parameter_hash, run_id, manifest_fingerprint}`. `{seed, parameter_hash, run_id}` **MUST** equal their path tokens; `manifest_fingerprint` **MUST** equal the egress fingerprint for this run. 
 
 ---
 
@@ -598,7 +599,7 @@ All clauses below are **normative** and MUST hold for every `(seed,fingerprint)`
 ## 9.2 Lineage equality & immutability
 
 * **Path↔embed equality (egress).** Every row’s `manifest_fingerprint` **MUST** byte-equal the egress path token `fingerprint` (hex64), and `global_seed` **MUST** equal the egress path token `seed`. **Rows are immutable** within a `(seed,fingerprint)` partition.
-* **Path↔embed equality (events).** Every S8 event row embeds `{seed, parameter_hash, run_id}` equal to its path tokens; envelope fields (`blocks`, `draws`) obey the family budgets in the layer schema.
+* **Path↔embed equality (events).** Every S8 event row embeds `{seed, parameter_hash, run_id, manifest_fingerprint}`; `{seed, parameter_hash, run_id}` **MUST** equal their path tokens and `manifest_fingerprint` **MUST** equal the validation fingerprint for this bundle; envelope fields (`blocks`, `draws`) obey the family budgets in the layer schema.
 
 ---
 
@@ -818,7 +819,7 @@ On any **Abort** action:
 The validator **MUST** assert:
 
 1. **Schema-validity & partitions** for all inputs above (tables/events match their `$ref`; paths match dictionary path templates & partitions).
-2. **Path↔embed equality:** every egress row’s `manifest_fingerprint` equals the `fingerprint` path token; every RNG/event row (audit/trace/S8 events) embeds `{seed, parameter_hash, run_id}` equal to the path tokens. **Any mismatch ⇒ fail.**
+2. **Path↔embed equality:** every egress row’s `manifest_fingerprint` equals the `fingerprint` path token; every RNG/event row (audit/trace/S8 events) embeds `{seed, parameter_hash, run_id, manifest_fingerprint}` where `{seed, parameter_hash, run_id}` equal the path tokens and `manifest_fingerprint` equals the **validation fingerprint** for this bundle. **Any mismatch ⇒ fail.**
 3. **S6 gate (if applicable):** if `s6_membership` was consumed by the producer, the S6 receipt folder exists and `_passed.flag` content hash equals `SHA256(S6_VALIDATION.json)` for the same `{seed,parameter_hash}`. **No PASS → fail.** 
 
 ---
@@ -911,7 +912,7 @@ This section fixes how S8 may parallelise work and still produce **byte-stable**
 ## 12.4 RNG logs under parallelism (events are non-consuming)
 
 * **Families S8 emits:** `rng_event.sequence_finalize` and (guardrail) `rng_event.site_sequence_overflow`, both partitioned by `{seed, parameter_hash, run_id}` and validated by layer schemas.
-* **Envelope law:** S8’s events are **non-consuming** (`before==after`, `blocks=0`, `draws="0"`); envelopes **MUST** populate `{seed, parameter_hash, run_id}` per schema (no `manifest_fingerprint` requirement for event paths).
+* **Envelope law:** S8’s events are **non-consuming** (`before==after`, `blocks=0`, `draws="0"`); envelopes **MUST** populate `{seed, parameter_hash, run_id, manifest_fingerprint}` per schema. `manifest_fingerprint` **MUST** equal the egress fingerprint (there is no path token for it on event paths).
 * **Trace duty (per event):** After **each** append to `sequence_finalize` or `site_sequence_overflow`, S8 **MUST** append **exactly one** cumulative row to `rng_trace_log` for the corresponding `(module, substream_label)`. Totals reconcile irrespective of concurrency (saturating sums).
 * **No double-emission:** A given `(merchant, country)` **MUST NOT** produce multiple `sequence_finalize` events; detect and fail on concurrent write intent. (Same pattern as S7 §10.5.) 
 
@@ -1100,7 +1101,7 @@ This appendix freezes the **exact strings** S8 producers/validators must use in 
 ## A.4 Gate & bundle identifiers (hand-off)
 
 * **Validation bundle (fingerprint-scoped):** `validation_bundle_1A`
-  Path: `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` (schema `schemas.layer1.yaml#/validation/validation_bundle`).
+  Path: `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` (schema `schemas.1A.yaml#/validation/validation_bundle`).
 
 * **Consumer gate flag:** `validation_passed_flag` (file: `_passed.flag`)
   Rule: content hash equals `SHA256(validation_bundle_1A)` for the **same** fingerprint (**no PASS → no read**). 
@@ -1122,7 +1123,9 @@ This appendix freezes the **exact strings** S8 producers/validators must use in 
 
 * Path tokens used by S8: `seed`, `parameter_hash`, `run_id`, `fingerprint`.
 * Embedded lineage columns that must **byte-equal** path tokens where present:
-  `manifest_fingerprint` (egress row) ↔ `fingerprint` (path); `{seed, parameter_hash, run_id}` (event rows) ↔ their path segments.
+  `manifest_fingerprint` (egress row) ↔ `fingerprint` (path);
+  `{seed, parameter_hash, run_id}` (event rows) ↔ their path segments;
+  and for **event rows**, `manifest_fingerprint` **MUST** equal the run’s egress fingerprint (not a path token).
 
 ---
 

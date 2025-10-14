@@ -414,9 +414,17 @@ rng:
         properties:
           merchant_id: {$ref: '#/$defs/id64'}
           country_iso: {$ref: '#/$defs/iso2'}
-          site_count: {type: integer, minimum: 0}
+          site_count: {type: integer, minimum: 1}
           start_sequence: {$ref: '#/$defs/six_digit_seq'}
           end_sequence: {$ref: '#/$defs/six_digit_seq'}
+      - type: object
+        properties:
+          blocks: {const: 0}
+          draws:  {const: "0"}
+      - type: object
+        properties:
+          module:          {const: "1A.site_id_allocator"}
+          substream_label: {const: "sequence_finalize"}
       - type: object
         unevaluatedProperties: false
 
@@ -453,6 +461,14 @@ rng:
           max_seq: {type: integer, const: 999999, description: 6-digit ceiling.}
           overflow_by: {type: integer, minimum: 1}
           severity: {type: string, enum: [ERROR], description: Hard guardrail triggers abort.}
+      - type: object
+        properties:
+          blocks: {const: 0}
+          draws:  {const: "0"}
+      - type: object
+        properties:
+          module:          {const: "1A.site_id_allocator"}
+          substream_label: {const: "site_sequence_overflow"}
       - type: object
         unevaluatedProperties: false
 
