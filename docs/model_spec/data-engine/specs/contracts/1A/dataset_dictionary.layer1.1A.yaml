@@ -796,8 +796,9 @@ datasets:
     consumed_by: [validation]
     final_in_layer: false
   gating:
-    gated_by: rng_event_hurdle_bernoulli
-    predicate: is_multi == true
+    # No gate — library helper; not called by S0 orchestration
+    gated_by: null
+    predicate: null
   retention_days: 180
   pii: false
   licence: Proprietary-Internal

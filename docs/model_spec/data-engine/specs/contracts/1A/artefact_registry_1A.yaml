@@ -1159,7 +1159,7 @@ subsegments:
     manifest_key: mlr.1A.output.outlet_catalogue
     license: '{spdx_or_internal}'
     role: Final outlet stubs (one row per site), deterministic partitions by seed & fingerprint.
-    dependencies: [country_set, site_id_allocator, rng_event_sequence_finalize]
+    dependencies: [s3_candidate_set, rng_event_residual_rank, rng_event_sequence_finalize]
     source: internal
     owner: {owner_team: null}
     last_updated: '{iso8601_timestamp}'

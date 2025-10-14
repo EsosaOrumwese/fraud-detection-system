@@ -38,7 +38,7 @@ S9 **inherits S0.8 verbatim** and **MUST** attest the numeric regime before runn
 
 * **Lineage keys:** `{seed, parameter_hash, run_id}` on RNG logs and validator reads; `{manifest_fingerprint}` for the validation bundle/flag partition. **Path tokens MUST equal embedded columns byte-for-byte** wherever both exist. 
 * **Validation bundle location:** `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` (fingerprint partition). `_passed.flag` lives **inside** this folder. 
-* **Gate semantics (consumer binding):** `_passed.flag` contains `sha256_hex = <hex64>`, where `<hex64>` is the SHA-256 over **all files listed in `index.json` (excluding `_passed.flag`)** in ASCII-lexicographic order; consumers **MUST** verify this for the same fingerprint **before** reading egress (**no PASS → no read**).  
+* **Gate semantics (consumer binding):** `_passed.flag` contains `sha256_hex = <hex64>`, where `<hex64>` is the SHA-256 over **all files listed in `index.json` (excluding `_passed.flag`)** in **ASCII-lexicographic order of the `index.json` `path` entries**; consumers **MUST** verify this for the same fingerprint **before** reading egress (**no PASS → no read**).
 
 ## 0.7 Change control & ratification
 
@@ -182,7 +182,7 @@ S9 is **read-only**. It enumerates **exactly** which datasets/logs/events it may
 ## 3.2 Parameter-scoped authorities (order, counts, optional sequence)
 
 **Required (order authority).**
-` s3_candidate_set` → **`schemas.1A.yaml#/s3/candidate_set`**; **partitions:** `[parameter_hash]`. **S3 is the single authority for inter-country order:** `candidate_rank` is **total & contiguous**, with **home=0**.  
+`s3_candidate_set` → **`schemas.1A.yaml#/s3/candidate_set`**; **partitions:** `[parameter_hash]`. **S3 is the single authority for inter-country order:** `candidate_rank` is **total & contiguous**, with **home=0**.  
 
 **Counts surface (choose ONE path for S9’s replay):**
 **Path A (if present):** `s3_integerised_counts` → **`schemas.1A.yaml#/s3/integerised_counts`**; `[parameter_hash]`. Authoritative per-country integers `count` with `residual_rank`. 
@@ -685,7 +685,7 @@ For the `(seed,fingerprint)` partition:
 
 ## 9.1 What “PASS” means (run-level)
 
-S9 **issues PASS** for a `{seed, manifest_fingerprint}` only if **all** Binding checks in §§5–8 succeed for **every** merchant in scope. On PASS, S9 **publishes** `validation_bundle_1A/` under `…/validation/fingerprint={manifest_fingerprint}/` **and** a colocated `_passed.flag` whose content hash equals `SHA256(validation_bundle_1A)` (ASCII-lexicographic over all files listed in `index.json` (excluding `_passed.flag`)). **Consumers MUST verify this before reading `outlet_catalogue`** (**no PASS → no read**).   
+S9 **issues PASS** for a `{seed, manifest_fingerprint}` only if **all** Binding checks in §§5–8 succeed for **every** merchant in scope. On PASS, S9 **publishes** `validation_bundle_1A/` under `…/validation/fingerprint={manifest_fingerprint}/` **and** a colocated `_passed.flag` whose content hash equals `SHA256(validation_bundle_1A)` (ASCII-lexicographic order of the `index.json` **`path`** entries, excluding `_passed.flag`). **Consumers MUST verify this before reading `outlet_catalogue`** (**no PASS → no read**).   
 
 ## 9.2 What “FAIL” means (run-level)
 
@@ -733,7 +733,7 @@ S8: `E_S8_SEQUENCE_GAP`, `E_SITE_ID_OVERFLOW`, `E_SUM_MISMATCH`, `E_ORDER_AUTHOR
 
 ## 9.6 Gate publication behaviour
 
-* **PASS:** S9 writes `validation_bundle_1A/` **and** `_passed.flag` (one line: `sha256_hex = <hex64>`, computed over the raw bytes of all files listed in `index.json` (excluding `_passed.flag`) in ASCII-lexicographic order), performing an **atomic rename** into `fingerprint={manifest_fingerprint}/`. 
+* **PASS:** S9 writes `validation_bundle_1A/` **and** `_passed.flag` (one line: `sha256_hex = <hex64>`, computed over the raw bytes of all files listed in `index.json` (excluding `_passed.flag`) in ASCII-lexicographic order of the **`path`** entries), performing an **atomic rename** into `fingerprint={manifest_fingerprint}/`. 
 * **FAIL:** S9 writes the bundle (with failure records) **without** `_passed.flag`. **Consumers MUST NOT** read `outlet_catalogue` for that fingerprint. 
 
 ## 9.7 Summary: PASS checklist (must all be TRUE)
