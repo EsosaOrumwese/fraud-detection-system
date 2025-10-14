@@ -12,7 +12,7 @@
 
 * **Versioning scheme:** **MAJOR.MINOR.PATCH** (Semantic Versioning).
 * **Initial version:** `v1.0.0` (ratified 2025-10-14).
-* **Effective date:** set on ratification (release tag and commit recorded alongside this document).
+* **Effective date:** 2025-10-14 (release tag and commit recorded alongside this document).
 
 ### What requires a **MAJOR** bump (breaking):
 
@@ -92,11 +92,11 @@ S8 **consumes** already-ratified facts and authorities; it does **not** derive t
 * **Membership & domain:** the foreign membership is taken from S6 (convenience `s6_membership` if emitted, or reconstructable from S6 RNG events), joined with S3’s candidate set to align with order authority. 
 * **Inter-country order authority:** **only** S3’s `s3_candidate_set.candidate_rank` (total, contiguous; `home` at rank 0).
 
-> S8 MAY read no S5 weight surfaces; weights authority remains with S5 and is not required for S8 sequencing. (Any S5 consumption elsewhere remains gated by its PASS policy.) 
+> S8 does not require S5 weight surfaces. Weights authority remains with S5 (used upstream by S6/S7); any S5 artefact consumption elsewhere remains gated by its PASS policy.
 
 **Single vs multi reminder.** S8 writes **only** multi-site merchants (`raw_nb_outlet_draw ≥ 2`, `single_vs_multi_flag=true`)—singles are out of scope for this egress.
 
-c## 1.3 What S8 produces
+## 1.3 What S8 produces
 
 * **Primary egress:** `outlet_catalogue` at `data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint]`, PK/Sort `[merchant_id, legal_country_iso, site_order]`, and the column set fixed by the schema (incl. `manifest_fingerprint`, `site_order`, `site_id`). **No cross-country order is present.**
 * **Instrumentation streams:**
@@ -121,7 +121,7 @@ S8 **MUST NOT**:
 
 On successful completion for a `fingerprint`, S8 yields:
 
-1. a byte-stable `outlet_catalogue` partition with contiguous per-country `site_order` (and 6-digit `site_id`) for every `(merchant, legal_country)` where `final_country_outlet_count ≥ 1`;
+1. a byte-stable `outlet_catalogue` partition with contiguous per-country `site_order` (and 6-digit `site_id`) for every `(merchant, legal_country_iso)` where `final_country_outlet_count ≥ 1`;
 2. complete `sequence_finalize` coverage for those blocks; and 
 3. no violation of the inter-country order boundary (all cross-country ordering recoverable by joining S3 `candidate_rank`).
 
@@ -993,7 +993,7 @@ The validator **MUST** write the following artefacts under
    * `blocks_with_rows` (count of `(merchant, legal_country_iso)` with `n≥1`)
    * `rows_total` (egress rows) and checksum of PK tuple hashes
    * `hist_final_country_outlet_count` (bucketed histogram of `n`)
-   * `domain_size_distribution` (histogram of `|D_m|`, joined from S3)
+   * `domain_size_distribution` (histogram of `|Dₘ|`, joined from S3)
    * `overflow_merchant_count` and list (ids truncated or hashed)
    * `sum_law_mismatch_count` (should be 0)
    * `s3_membership_miss_count` (should be 0)
