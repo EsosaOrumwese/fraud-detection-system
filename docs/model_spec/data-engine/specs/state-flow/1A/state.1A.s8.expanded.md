@@ -94,7 +94,9 @@ S8 **consumes** already-ratified facts and authorities; it does **not** derive t
 
 > S8 MAY read no S5 weight surfaces; weights authority remains with S5 and is not required for S8 sequencing. (Any S5 consumption elsewhere remains gated by its PASS policy.) 
 
-## 1.3 What S8 produces
+**Single vs multi reminder.** S8 writes **only** multi-site merchants (`raw_nb_outlet_draw ≥ 2`, `single_vs_multi_flag=true`)—singles are out of scope for this egress.
+
+c## 1.3 What S8 produces
 
 * **Primary egress:** `outlet_catalogue` at `data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint]`, PK/Sort `[merchant_id, legal_country_iso, site_order]`, and the column set fixed by the schema (incl. `manifest_fingerprint`, `site_order`, `site_id`). **No cross-country order is present.**
 * **Instrumentation streams:**
@@ -170,7 +172,8 @@ This section freezes the vocabulary, symbols, and lineage tokens S8 uses. All te
 * **Core logs (read-only by validators):**
   **`rng_audit_log`** (run-scoped audit) and **`rng_trace_log`** (cumulative counters; **append exactly one** trace row after **each** RNG event append). Partitions `{seed, parameter_hash, run_id}`. 
 * **Upstream evidence consumed by S8 validators:**
-  **`rng_event.nb_final`** (defines `N`), **`rng_event.residual_rank`** (S7 residual ordering evidence), **`rng_event.gumbel_key`** (S6 membership reconstruction when needed).
+  **`rng_event.nb_final`** (defines `N`), **`rng_event.residual_rank`** (S7 residual ordering evidence),
+  **`rng_event.gumbel_key`** **and** **`rng_event.ztp_final`** (S6 membership reconstruction when needed).
 * **S8 instrumentation (emitted by S8):**
   **`rng_event.sequence_finalize`** — per `(merchant_id, country_iso)` block: `{site_count, start_sequence, end_sequence}`; partitions `{seed, parameter_hash, run_id}`.
   **`rng_event.site_sequence_overflow`** — guardrail event on sequence exhaustion.
@@ -293,7 +296,7 @@ The 1A validation bundle is **fingerprint-scoped** at
 
 ## 5.2 Path↔embed equality (must hold)
 
-**Egress rows.** `outlet_catalogue.manifest_fingerprint` **MUST byte-equal** the `fingerprint` path token for the same partition. Pattern `^[a-f0-9]{64}$`. 
+**Egress rows.** `outlet_catalogue.manifest_fingerprint` **MUST byte-equal** the `fingerprint` path token for the same partition, and `global_seed` **MUST** equal the `seed` path token. Pattern `^[a-f0-9]{64}$`.
 
 **Parameter-scoped tables.** Each row **MUST** embed `parameter_hash` and it **MUST equal** the `parameter_hash` path token. If present, `produced_by_fingerprint` is **informational only** (not a partition key nor part of equality).
 
@@ -301,7 +304,7 @@ The 1A validation bundle is **fingerprint-scoped** at
 
 ## 5.3 Identity, immutability & atomic publish
 
-**Identity of a partition.**
+**Identity of a partition.** *(“fingerprint” path token equals `manifest_fingerprint` column value.)*
 
 * Egress: `(dataset='outlet_catalogue', seed, manifest_fingerprint)`.
 * Parameter-scoped: `(dataset_id, parameter_hash)`.
@@ -445,6 +448,8 @@ S8 emits exactly two **rng_event** families, both partitioned at
 2. **`rng_event.site_sequence_overflow`** — guardrail event when 6-digit sequence space would be exceeded; **severity = ERROR**; producer must abort the merchant.
    **Schema anchor:** `schemas.layer1.yaml#/rng/events/site_sequence_overflow` (required fields: `merchant_id, country_iso, attempted_count, max_seq=999999, overflow_by, severity`). 
    **Dictionary entry & path pattern:** as above. 
+
+**Gating (both families).** Emitted **only** for merchants where the hurdle outcome is `is_multi == true` (as pinned in the Dataset Dictionary gating for S8 streams).
 
 **Trace duty (binding).** After **each** event append above, emit **exactly one** cumulative row to `rng_trace_log` for the corresponding `(module, substream_label)`; partitions `{seed, parameter_hash, run_id}`; schema `schemas.layer1.yaml#/rng/core/rng_trace_log`. 
 
