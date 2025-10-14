@@ -11,7 +11,7 @@
 ## 0.1 Versioning (SemVer) & effective date
 
 * **Versioning scheme:** **MAJOR.MINOR.PATCH** (Semantic Versioning).
-* **Initial version:** `v1.0.0` (ratified 2025-10-14).
+* **Initial version:** `v1.0.0` (ratified 2025-10-14).  *(File name revisions do not imply SemVer changes.)*
 * **Effective date:** 2025-10-14 (release tag and commit recorded alongside this document).
 
 ### What requires a **MAJOR** bump (breaking):
@@ -137,7 +137,7 @@ This section freezes the vocabulary, symbols, and lineage tokens S8 uses. All te
 
 * **`seed`** — 64-bit unsigned master RNG seed; partitions **RNG logs/events** and appears in their paths. 
 * **`parameter_hash`** — hex-64 (SHA-256) of the opened parameter bundle; partitions **parameter-scoped tables** and RNG logs/events; where embedded, bytes **must equal** the path token. 
-* **`run_id`** — run-scoped identifier (**lower-hex 32-character string**) for RNG event/log partitions (as per layer schema `$defs.run_id`). 
+* **`run_id`** — run-scoped identifier (**lowercase hex 32-character string**) for RNG event/log partitions (as per layer schema `$defs.run_id`).  
 * **`manifest_fingerprint`** (a.k.a. **`fingerprint`** in paths) — hex-64 lineage digest for the whole 1A run; it **partitions S8 egress** and is also stored per row in `outlet_catalogue` as `manifest_fingerprint`. **Naming rule:** any `fingerprint={…}` path segment carries the value of `manifest_fingerprint`.
 
 ## 2.2 Entities & keys
@@ -203,7 +203,7 @@ This section freezes the vocabulary, symbols, and lineage tokens S8 uses. All te
 **Anchor resolution rule (normative).** When a `$ref` omits the document prefix:
 - `#/rng/**` and `#/validation/**` resolve to `schemas.layer1.yaml`.
 - `#/s3/**` and `#/egress/**` resolve to `schemas.1A.yaml`.
-- `#/iso**` and other ingress FKs resolve to `schemas.ingress.layer1.yaml`.
+- `#/iso**` and other ingress FK anchors resolve to `schemas.ingress.layer1.yaml`.
 
 1. **JSON-Schema is the single schema authority** for all S8 inputs/outputs/logs: `schemas.1A.yaml`, `schemas.layer1.yaml`, `schemas.ingress.layer1.yaml`. **Avro (if any) is non-authoritative.**
 2. The **Dataset Dictionary** (`dataset_dictionary.layer1.1A.yaml`) governs **dataset IDs, physical path templates, partitions, writer sort, PK/FK, lifecycle and retention**. 
@@ -323,7 +323,7 @@ The 1A validation bundle is **fingerprint-scoped** at
 
 ## 5.4 Key formats & allowed values (schema-anchored)
 
-* `seed` is `uint64`. `run_id` is **hex32**. `parameter_hash` and `manifest_fingerprint` are **lowercase hex64**. These formats are enforced in `schemas.layer1.yaml` `$defs`. 
+* `seed` is `uint64`. `run_id` is **lowercase hex32**. `parameter_hash` and `manifest_fingerprint` are **lowercase hex64**. These formats are enforced in `schemas.layer1.yaml` `$defs`. 
 * `site_id` follows `^[0-9]{6}$` and is **not** a partition key. 
 
 ## 5.5 Writer sort & non-authoritative physical order
@@ -500,7 +500,7 @@ This section fixes **how S8 behaves** when turning upstream facts into the immut
 ## 8.1 Domain & row emission (what becomes rows)
 
 * **Domain source.** S8’s per-merchant legal domain is the **S3 candidate set** (`s3_candidate_set`) — the only authority for cross-country membership and order (home has `candidate_rank=0`).
-* **Counts authority.** For each `(merchant_id, country_iso)`, the integer count **`nᵢ`** comes from **S7 residual evidence** (or **`s3_integerised_counts`** if S3 owns it). S8 **MUST NOT** re-derive counts from weights or any other surface.
+* **Counts authority.** For each `(merchant_id, legal_country_iso)`, the integer count **`nᵢ`** comes from **S7 residual evidence** (or **`s3_integerised_counts`** if S3 owns it). S8 **MUST NOT** re-derive counts from weights or any other surface.
 * **Emission rule.** S8 **emits rows only for countries with `nᵢ ≥ 1`**. If `nᵢ == 0`, S8 emits **no rows** for that `(merchant,country)`. 
 * **Multi-site scope.** `outlet_catalogue.raw_nb_outlet_draw` is defined with **minimum 2**; therefore **S8 writes only multi-site merchants** (`is_multi==true`). Singles are out of scope for this egress. 
 
@@ -828,7 +828,7 @@ The validator **MUST** assert:
 For each `(merchant_id, legal_country_iso)` group with rows:
 
 * **Contiguity & keys:** `site_order` is exactly `{1..final_country_outlet_count}` with no gaps/dupes; `site_id` is zero-padded 6-digit rendering of `site_order` (regex `^[0-9]{6}$`). PK unique on `[merchant_id, legal_country_iso, site_order]`. 
-* **Lineage fields:** `manifest_fingerprint` is lower-case hex-64 and equals the partition token; `global_seed` is a valid `uint64`. 
+* **Lineage fields:** `manifest_fingerprint` is lower-case hex-64 and equals the partition token; `global_seed` **equals the `seed` path token** and is a valid `uint64`.
 * **No cross-country order encoded:** the table contains **no** field implying inter-country order; dictionary note requires consumers to join S3 `candidate_rank`. Presence of such fields ⇒ fail. 
 
 ---
@@ -997,7 +997,7 @@ The validator **MUST** write the following artefacts under
 
    * `merchants_in_egress` (distinct `merchant_id`)
    * `blocks_with_rows` (count of `(merchant, legal_country_iso)` with `n≥1`)
-   * `rows_total` (egress rows) and checksum of PK tuple hashes
+   * `rows_total` (egress rows), checksum of PK tuple hashes, and `rows_total_by_country` (map `legal_country_iso → rows`) — helpful for 1B pre-flight checks
    * `hist_final_country_outlet_count` (bucketed histogram of `n`)
    * `domain_size_distribution` (histogram of `|Dₘ|`, joined from S3)
    * `overflow_merchant_count` and list (ids truncated or hashed)
@@ -1246,7 +1246,8 @@ These are **non-binding** operational defaults for files, folders, and object-st
 
 ## C.1 File formats & compression (defaults; become binding if pinned)
 
-* **Parquet (tables):** use **ZSTD level 3** unless the registry says otherwise; keep Parquet as the only format within a dataset/partition. Suggested row-group target: **128-256 MiB uncompressed**; enable statistics; prefer dictionary encoding on low-cardinality columns (e.g., `legal_country_iso`).
+* **Parquet (tables):** use **ZSTD level 3** unless the registry says otherwise; keep Parquet as the only format within a dataset/partition. 
+* Suggested row-group target: **128-256 MiB uncompressed**; enable statistics; prefer dictionary encoding on low-cardinality columns (e.g., `legal_country_iso`).
 * **JSONL (events/logs):** `.jsonl` (optionally **.jsonl.zst**); one JSON object per line, `\n` line endings; do not pretty-print. **RNG logs** are JSONL by dictionary. 
 
 > If the registry publishes a compression profile (e.g., `compression_zstd_level3`), producers **should** use it and treat it as project policy. 
