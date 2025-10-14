@@ -11,7 +11,7 @@
 ## 0.1 Versioning (SemVer) & effective date
 
 * **Versioning scheme:** **MAJOR.MINOR.PATCH** (Semantic Versioning).
-* **Initial version:** `v1.0.0` (proposed).
+* **Initial version:** `v1.0.0` (ratified 2025-10-14).
 * **Effective date:** set on ratification (release tag and commit recorded alongside this document).
 
 ### What requires a **MAJOR** bump (breaking):
@@ -1235,7 +1235,7 @@ These are **non-binding** operational defaults for files, folders, and object-st
 
 ## C.1 File formats & compression (defaults; become binding if pinned)
 
-* **Parquet (tables):** use **ZSTD level 3** unless the registry says otherwise; keep Parquet as the only format within a dataset/partition. Suggested row-group target: **128–256 MiB uncompressed**; enable statistics; prefer dictionary encoding on low-cardinality columns (e.g., `country_iso`).
+* **Parquet (tables):** use **ZSTD level 3** unless the registry says otherwise; keep Parquet as the only format within a dataset/partition. Suggested row-group target: **128–256 MiB uncompressed**; enable statistics; prefer dictionary encoding on low-cardinality columns (e.g., `legal_country_iso`).
 * **JSONL (events/logs):** `.jsonl` (optionally **.jsonl.zst**); one JSON object per line, `\n` line endings; do not pretty-print. **RNG logs** are JSONL by dictionary. 
 
 > If the registry publishes a compression profile (e.g., `compression_zstd_level3`), producers **should** use it and treat it as project policy. 
