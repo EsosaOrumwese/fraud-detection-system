@@ -562,7 +562,7 @@ eligibility:
       mcc: ["*"]
 ```
 
-**Field rules (must pass):**
+**Engine checks (loader enforces):**
 
 * `theta0/theta1/theta2` are **finite** binary64 numbers.
 * `MAX_ZTP_ZERO_ATTEMPTS == 64` (**spec-fixed in this version; validator enforces 64**).
@@ -635,7 +635,7 @@ S3.1 **evaluates** the ladder; S3.2 builds the candidate set; S3.3 **ranks** usi
 
 ---
 
-## Required structure (binding shape)
+## Expected structure (engine checks)
 
 Top-level required keys:
 
@@ -806,7 +806,7 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 * **PK uniqueness:** no duplicate `(currency,country_iso)`. 
 * **Domain checks:** `currency` matches ISO-4217; `country_iso` matches `^[A-Z]{2}$` and **FKs to ISO**; `share ∈ [0,1]`; `obs_count ≥ 0`. 
 * **Group sum rule:** for each `currency`, `Σ share = 1.0 ± 1e-6`. (Validator will hard-fail this.) 
-* **Registry/dictionary hygiene:** dictionary item points to this **JSON-Schema** anchor; registry entry present with path/version.
+* **Registry/dictionary hygiene:** dictionary item points to this **JSON-Schema** anchor; registry entry present with path/version and **licence recorded**.
 
 **Common pitfalls to avoid**
 
@@ -872,7 +872,7 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 * **PK uniqueness:** no duplicate `(currency,country_iso)`. 
 * **Domain checks:** `currency` is ISO-4217; `country_iso` matches `^[A-Z]{2}$` and FKs to ISO; `share ∈ [0,1]`; `obs_count ≥ 0`. 
 * **Group sum rule:** for each `currency`, `Σ share = 1.0 ± 1e-6`. (Validator hard-fails otherwise.) 
-* **Registry/dictionary hygiene:** dictionary item & registry entry present, pointing to the **JSON-Schema** anchor and the exact path/version shown above.
+* **Registry/dictionary hygiene:** dictionary item & registry entry present, pointing to the **JSON-Schema** anchor and the exact path/version shown above; **licence recorded**.
 
 **Common pitfalls to avoid**
 
