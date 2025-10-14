@@ -1088,7 +1088,7 @@ subsegments:
     owner: {owner_team: null}
     last_updated: '{iso8601_timestamp}'
     environment: [runtime]
-    schema: schemas.1A.yaml#/s6/membership
+    schema: schemas.1A.yaml#/alloc/membership
     cross_layer: false
     notes: Emitted only when S6 policy `emit_membership_dataset=true`; consumers must verify S6 PASS; order must be joined from S3 `candidate_rank`.
 

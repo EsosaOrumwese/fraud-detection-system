@@ -316,7 +316,7 @@ datasets:
   path: data/layer1/1A/s6/membership/seed={seed}/parameter_hash={parameter_hash}/
   partitioning: [seed, parameter_hash]
   ordering: [merchant_id, country_iso]
-  schema_ref: schemas.1A.yaml#/s6/membership
+  schema_ref: schemas.1A.yaml#/alloc/membership
   lineage:
     produced_by: 1A.S6
     consumed_by: [1A]

@@ -38,7 +38,7 @@ S9 **inherits S0.8 verbatim** and **MUST** attest the numeric regime before runn
 
 * **Lineage keys:** `{seed, parameter_hash, run_id}` on RNG logs and validator reads; `{manifest_fingerprint}` for the validation bundle/flag partition. **Path tokens MUST equal embedded columns byte-for-byte** wherever both exist. 
 * **Validation bundle location:** `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` (fingerprint partition). `_passed.flag` lives **inside** this folder. 
-* **Gate semantics (consumer binding):** `_passed.flag` contains `sha256_hex = <hex64>`, where `<hex64>` is the SHA-256 over **all other bundle files** in ASCII-lexicographic order; consumers **MUST** verify this for the same fingerprint **before** reading egress (**no PASS → no read**).  
+* **Gate semantics (consumer binding):** `_passed.flag` contains `sha256_hex = <hex64>`, where `<hex64>` is the SHA-256 over **all files listed in `index.json` (excluding `_passed.flag`)** in ASCII-lexicographic order; consumers **MUST** verify this for the same fingerprint **before** reading egress (**no PASS → no read**).  
 
 ## 0.7 Change control & ratification
 
@@ -312,7 +312,7 @@ S9 **MUST** publish atomically: stage the entire bundle in a temporary directory
 
 ## 4.4 Idempotency & equivalence
 
-Re-running S9 for the same `{seed, parameter_hash, manifest_fingerprint}` under identical inputs **MUST** produce **byte-identical** bundle contents; two bundles are **equivalent** iff `MANIFEST.json` matches byte-for-byte, all other files match byte-for-byte, and `_passed.flag` hashes match. 
+Re-running S9 for the same `{seed, parameter_hash, manifest_fingerprint}` under identical inputs **MUST** produce **byte-identical** bundle contents; two bundles are **equivalent** iff `MANIFEST.json` matches byte-for-byte, all files listed in `index.json` (excluding `_passed.flag`) match byte-for-byte, and `_passed.flag` hashes match. 
 
 ## 4.5 Retention & lineage
 
@@ -685,7 +685,7 @@ For the `(seed,fingerprint)` partition:
 
 ## 9.1 What “PASS” means (run-level)
 
-S9 **issues PASS** for a `{seed, manifest_fingerprint}` only if **all** Binding checks in §§5–8 succeed for **every** merchant in scope. On PASS, S9 **publishes** `validation_bundle_1A/` under `…/validation/fingerprint={manifest_fingerprint}/` **and** a colocated `_passed.flag` whose content hash equals `SHA256(validation_bundle_1A)` (ASCII-lexicographic over all other files). **Consumers MUST verify this before reading `outlet_catalogue`** (**no PASS → no read**).   
+S9 **issues PASS** for a `{seed, manifest_fingerprint}` only if **all** Binding checks in §§5–8 succeed for **every** merchant in scope. On PASS, S9 **publishes** `validation_bundle_1A/` under `…/validation/fingerprint={manifest_fingerprint}/` **and** a colocated `_passed.flag` whose content hash equals `SHA256(validation_bundle_1A)` (ASCII-lexicographic over all files listed in `index.json` (excluding `_passed.flag`)). **Consumers MUST verify this before reading `outlet_catalogue`** (**no PASS → no read**).   
 
 ## 9.2 What “FAIL” means (run-level)
 
@@ -733,7 +733,7 @@ S8: `E_S8_SEQUENCE_GAP`, `E_SITE_ID_OVERFLOW`, `E_SUM_MISMATCH`, `E_ORDER_AUTHOR
 
 ## 9.6 Gate publication behaviour
 
-* **PASS:** S9 writes `validation_bundle_1A/` **and** `_passed.flag` (one line: `sha256_hex = <hex64>`, computed over the raw bytes of all other bundle files in ASCII-lexicographic order), performing an **atomic rename** into `fingerprint={manifest_fingerprint}/`. 
+* **PASS:** S9 writes `validation_bundle_1A/` **and** `_passed.flag` (one line: `sha256_hex = <hex64>`, computed over the raw bytes of all files listed in `index.json` (excluding `_passed.flag`) in ASCII-lexicographic order), performing an **atomic rename** into `fingerprint={manifest_fingerprint}/`. 
 * **FAIL:** S9 writes the bundle (with failure records) **without** `_passed.flag`. **Consumers MUST NOT** read `outlet_catalogue` for that fingerprint. 
 
 ## 9.7 Summary: PASS checklist (must all be TRUE)
@@ -867,7 +867,7 @@ All S9 aggregations **MUST** be deterministic regardless of worker count/schedul
 
 ## 11.4 Atomic publish (bundle & flag)
 
-S9 **MUST** publish the validation bundle **atomically**: build under a temporary directory (e.g., `…/validation/_tmp.{uuid}`), compute `_passed.flag` over **all other bundle files listed in `index.json`** in **ASCII-lexicographic order of the `path` entries**, then perform a **single atomic rename** to `fingerprint={manifest_fingerprint}/`. **No partial contents** may become visible; on failure, remove the temp.  
+S9 **MUST** publish the validation bundle **atomically**: build under a temporary directory (e.g., `…/validation/_tmp.{uuid}`), compute `_passed.flag` over **all files listed in `index.json` (excluding `_passed.flag`)** in **ASCII-lexicographic order of the `path` entries**, then perform a **single atomic rename** to `fingerprint={manifest_fingerprint}/`. **No partial contents** may become visible; on failure, remove the temp.  
 
 ## 11.5 Idempotent re-runs & equivalence
 
@@ -902,8 +902,8 @@ S9’s outcomes **MUST NOT** change with producer/validator worker counts or sch
   `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` (fingerprint partition). 
 * **Every non-flag file MUST be listed once in `index.json`** using the schema below; `path` entries are **relative** to the bundle root; `kind ∈ {plot|table|diff|text|summary}`. **`artifact_id` MUST be unique.**
 * **Index field hygiene:** `artifact_id` **MUST** match `^[A-Za-z0-9._-]+$` (ASCII only). `path` **MUST** be **relative** (no leading slash, no `..` segments) and ASCII-normalised.
-* **Hashing precondition:** The gate hash (§9) is computed over the byte contents of **all files listed in `index.json`** (excluding `_passed.flag`) in **ASCII lexicographic order of `path`**.
-**Gate coupling (reminder):** `_passed.flag` sits in the same folder and contains `sha256_hex = <hex64>` computed over the raw bytes of **all other files listed in `index.json`**, in **ASCII-lexicographic order of the `path` entries**. Consumers **MUST** verify this for the same fingerprint **before** reading `outlet_catalogue`.
+* **Hashing precondition:** The gate hash (§9) is computed over the byte contents of **all files listed in `index.json`** (excluding `_passed.flag`) in **ASCII-lexicographic order of the `path` entries**.
+* **Gate coupling (reminder):** `_passed.flag` sits in the same folder and contains `sha256_hex = <hex64>` computed over the raw bytes of **all files listed in `index.json` (excluding `_passed.flag`)**, in **ASCII-lexicographic order of the `path` entries**. Consumers **MUST** verify this for the same fingerprint **before** reading `outlet_catalogue`.
 
 **`index.json` (schema — Binding):**
 
@@ -923,7 +923,7 @@ S9 **MUST** write at least the files below; all MUST appear in `index.json` (exc
 1. **`MANIFEST.json`** — run identity & environment
    Required fields (non-exhaustive):
    `version="1A.validation.v1"`, `manifest_fingerprint`, `parameter_hash`, `git_commit_hex`, `artifact_count`, `math_profile_id`, `compiler_flags`, `created_utc_ns`.  
-2. **`parameter_hash_resolved.json`** — canonical list of governed parameters (𝓟) with basenames in ASCII order. 
+2. **`parameter_hash_resolved.json`** — canonical list of governed parameters (𝓟) with basenames in ASCII-lexicographic order.
 3. **`manifest_fingerprint_resolved.json`** — derivation inputs (e.g., `git_commit_hex`, `parameter_hash`). 
 4. **`rng_accounting.json`** — per-family RNG accounting & coverage (see §12.4).  
 5. **`s9_summary.json`** — structural & replay verdicts (by check & by merchant); failure codes; gate decision summary (see §12.5).
@@ -1030,7 +1030,7 @@ Purpose: prove **byte-stability** of `outlet_catalogue` under re-runs for the sa
   "seed": uint64,
   "manifest_fingerprint": hex64,
   "files": [ { "path": "part-....parquet", "sha256_hex": hex64, "size_bytes": int64 }, ... ],
-  "composite_sha256_hex": hex64          // SHA-256 over concatenation of raw bytes of all listed files in ASCII order
+  "composite_sha256_hex": hex64          // SHA-256 over concatenation of raw bytes of all listed files in ASCII-lexicographic order of the `path` entries
 }
 ```
 
@@ -1082,7 +1082,7 @@ Downstream consumers (e.g., 1B) **MUST NOT** read `outlet_catalogue` for a given
 Before any read of `outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/…`, a conformant consumer **MUST**:
 
 1. **Locate the bundle** at `…/validation/fingerprint={manifest_fingerprint}/`. Assert that the egress partition’s path token `fingerprint` **byte-equals** `manifest_fingerprint` embedded in egress rows (path↔embed equality). 
-2. **Verify the flag hashing rule.** Read `_passed.flag` (single line `sha256_hex = <hex64>`), list **all other files** in the bundle **in ASCII-lexicographic order**, concatenate their raw bytes, compute SHA-256, and assert equality to `<hex64>`. *(The flag itself is excluded from the hash.)*  
+2. **Verify the flag hashing rule.** Read `_passed.flag` (single line `sha256_hex = <hex64>`), list **all files listed in `index.json` (excluding `_passed.flag`)** in the bundle **in ASCII-lexicographic order**, concatenate their raw bytes, compute SHA-256, and assert equality to `<hex64>`. *(The flag itself is excluded from the hash.)*  
 3. **(Optional but recommended)**: re-hash `fingerprint_artifacts.jsonl` / `param_digest_log.jsonl` advertised by S0 to harden supply-chain checks. Failure of any step ⇒ treat the run as **invalid** and **abort** the read. 
 
 ## 13.3 Scope boundaries (what the gate does/does not cover)
@@ -1147,7 +1147,7 @@ Every metric line S9 emits **MUST** carry `{seed, parameter_hash, run_id, manife
 
 The following are **SLO-style invariants** S9 **MUST** check and record (PASS requires all of them; see §9):
 
-* **Gate integrity SLO.** `_passed.flag` exists **only** on PASS and its `sha256_hex` equals `SHA256(validation_bundle_1A)` (ASCII-lexicographic over all other files). Atomic publish: stage → compute → **single rename**; **no partial visibility**.  
+* **Gate integrity SLO.** `_passed.flag` exists **only** on PASS and its `sha256_hex` equals `SHA256(validation_bundle_1A)` (ASCII-lexicographic over all files listed in `index.json` (excluding `_passed.flag`)). Atomic publish: stage → compute → **single rename**; **no partial visibility**.  
 * **Trace coverage SLO.** For each `(module, substream_label, run_id)` validated, there is **exactly one** cumulative `rng_trace_log` row **after each** event append; final trace totals reconcile with event sums. 
 * **Determinism SLO.** Re-running S9 on identical inputs produces a **byte-identical** bundle and the same `_passed.flag`; egress file hashes are stable per `(seed,fingerprint)`.  
 * **Order & partition SLO.** Egress obeys writer sort `[merchant_id, legal_country_iso, site_order]` within the `(seed,fingerprint)` partition; lineage **path↔embed equality** holds for all subjects. 
@@ -1336,7 +1336,7 @@ This appendix freezes the **exact strings/enums** S9 relies on when validating S
 * **Lineage/Determinism:** `E_LINEAGE_RECOMPUTE_MISMATCH`, `E_WRITER_SORT_BROKEN`, `E_S8_BLOCK_ATOMICITY`. 
 * **RNG envelope/accounting:** `E_RNG_COUNTER_MISMATCH`, `E_RNG_BUDGET_VIOLATION`, `E_NONCONSUMING_CHANGED_COUNTERS`, `E_TRACE_TOTALS_MISMATCH`, `E_S4_SEQUENCE_INVALID`, `E_FINALISER_CARDINALITY`. 
 * **Cross-state replay:**
-  `E_S1_CARDINALITY`, `E_S1_GATING_VIOLATION`;
+  `E_S1_CARDINALITY`, `E_S1_U_OUT_OF_RANGE`, `E_S1_GATING_VIOLATION`;
   `E_S2_COMPONENT_ORDER`, `E_S2_N_LT_2`;
   `E_S3_RANK_GAPS`, `E_S3_HOME_NOT_ZERO`;
   `E_S6_MEMBERSHIP_MISMATCH`, `E_S6_ZERO_WEIGHT_SELECTED`;
@@ -1395,7 +1395,7 @@ validation/
 ```
 
 * The **files above (except `_passed.flag`) MUST be indexed** in `index.json` per the 1A **bundle index schema**; `artifact_id` unique; `path` **relative**. (Schema anchor: `schemas.1A.yaml#/validation/validation_bundle.index_schema`.) 
-* `_passed.flag` content equals **SHA-256 over the raw bytes of all other files in this folder** in **ASCII-lexicographic filename order**. (Dictionary/Registry notes + S9 §§4 & 12.)  
+* `_passed.flag` content equals **SHA-256 over the raw bytes of all files listed in `index.json` (excluding `_passed.flag`) in this folder** in **ASCII-lexicographic order of the `path` entries**. (Dictionary/Registry notes + S9 §§4 & 12.)  
 
 ## B.3 Example `index.json` entries (shape only)
 
@@ -1473,7 +1473,7 @@ S9 **stages** the bundle in a temp dir (e.g., `…/validation/_tmp.{uuid}`), com
 ## B.8 Consumer read sequence (at a glance)
 
 1. Locate `validation/fingerprint={manifest_fingerprint}/`.
-2. Read `_passed.flag`; recompute SHA-256 over **all other files** in ASCII order; compare to `sha256_hex`.
+2. Read `_passed.flag`; recompute SHA-256 over **all files listed in `index.json` (excluding `_passed.flag`)** in ASCII-lexicographic order of the `path` entries; compare to `sha256_hex`.
 3. Only on success, read `outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/…` (Dictionary explicitly repeats this consumer duty). 
 
 ---
