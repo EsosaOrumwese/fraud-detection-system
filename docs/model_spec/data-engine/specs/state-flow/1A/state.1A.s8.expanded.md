@@ -219,13 +219,13 @@ This section freezes the vocabulary, symbols, and lineage tokens S8 uses. All te
 
 ## 3.3 Fixed upstream authorities S8 MUST honour
 
-* **Inter-country order authority:** **only** S3 `s3_candidate_set.candidate_rank` (total, contiguous; `home=0`). S8 **must not** encode or alter cross-country order; consumers **must** join S3 when order is required.
-* **Counts authority:** merchant-level `N` from **`rng_event.nb_final`** (S2, non-consuming) and **per-country integer counts** from S7 residual evidence (or `s3_integerised_counts` if S3 owns it). S8 **must not** re-derive either.
+* **Inter-country order authority:** **only** S3 `s3_candidate_set.candidate_rank` (total, contiguous; `home=0`). S8 **MUST NOT** encode or alter cross-country order; consumers **must** join S3 when order is required.
+* **Counts authority:** merchant-level `N` from **`rng_event.nb_final`** (S2, non-consuming) and **per-country integer counts** from S7 residual evidence (or `s3_integerised_counts` if S3 owns it). S8 **MUST NOT** re-derive either.
 * **Gating principle:** **No PASS → no read** remains in force for 1A consumers; the dictionary’s `outlet_catalogue` entry encodes this gate for 1B.
 
 ## 3.4 Prohibitions & legacy notes (binding)
 
-* **Avro `.avsc`** files (if generated) are **non-authoritative** and **must not** be referenced by registry/dictionary entries. 
+* **Avro `.avsc`** files (if generated) are **non-authoritative** and **MUST NOT** be referenced by registry/dictionary entries. 
 * **Legacy `country_set`** is **not** an order authority; using it for cross-country order is non-conformant. 
 * **File order is non-authoritative** (RNG/event streams use counters & envelopes; tables rely on PK/sort defined in the dictionary). 
 
@@ -373,7 +373,7 @@ This section freezes **exactly what S8 is allowed to read** (IDs → schema anch
 
 ## 6.2 Conditional/variant inputs (read only if present)
 
-* **If sequencing is owned upstream:** **`s3_site_sequence`** → `schemas.1A.yaml#/s3/site_sequence` → `parameter_hash={…}`. When present, S8 **cross-checks** it but still writes `outlet_catalogue`; S8 **must not** change sequence semantics. 
+* **If sequencing is owned upstream:** **`s3_site_sequence`** → `schemas.1A.yaml#/s3/site_sequence` → `parameter_hash={…}`. When present, S8 **cross-checks** it but still writes `outlet_catalogue`; S8 **MUST NOT** change sequence semantics. 
 
 ## 6.3 Pre-read gates S8 MUST enforce
 
@@ -419,7 +419,7 @@ This section fixes **exactly what S8 writes**, with schema anchors, partitions, 
 
 **Lineage column.** `manifest_fingerprint` **MUST** be a lowercase hex64 and **MUST byte-equal** the `fingerprint` path token for the partition. 
 
-**Inter-country order boundary (binding).** Consumers that need cross-country order **MUST** join S3 `s3_candidate_set.candidate_rank` (home rank = 0). `outlet_catalogue` **must not** encode that order. 
+**Inter-country order boundary (binding).** Consumers that need cross-country order **MUST** join S3 `s3_candidate_set.candidate_rank` (home rank = 0). `outlet_catalogue` **MUST NOT** encode that order. 
 
 ---
 
@@ -540,7 +540,7 @@ For each persisted row in `outlet_catalogue`:
 * **Order authority.** **Only** S3 `candidate_rank` may define cross-country order; S8 **MUST NOT** invent, persist, or imply any inter-country order. 
 * **Counts authority.** S8 **MUST** treat per-country integer counts as **read-only facts** (S7 / `s3_integerised_counts`). **No renormalisation, no rounding, no re-allocation** in S8.
 * **Weights authority.** S8 **MUST NOT** read or persist any weights surface for sequencing; S5 remains weights authority for S6/S7 only. 
-* **Legacy surfaces.** `country_set` and any legacy RNG-dependent ranking surfaces are **not** order authorities; S8 **must not** consult them for order. 
+* **Legacy surfaces.** `country_set` and any legacy RNG-dependent ranking surfaces are **not** order authorities; S8 **MUST NOT** consult them for order. 
 
 ---
 
@@ -549,7 +549,7 @@ For each persisted row in `outlet_catalogue`:
 * **Lineage parity.** For all inputs used, **embedded lineage bytes equal path tokens** (`parameter_hash` on S3 tables; `{seed,parameter_hash,run_id}` on RNG events). **Mismatch ⇒ abort.** 
 * **S3 membership.** For each `(merchant, country)` with `nᵢ≥1`, confirm that `country` exists in that merchant’s `s3_candidate_set`. **Not in S3 ⇒ abort.** 
 * **S6 gate (if used).** If S8 reads `s6_membership`, verify the **S6 PASS** receipt for the same `{seed,parameter_hash}` **before** use. **No PASS ⇒ no read.** 
-* **Optional S3 cross-sequence.** If `s3_site_sequence` exists, S8 **MUST** cross-check contiguity/width (1..`nᵢ`) and (if present there) the 6-digit `site_id` format; any divergence is a **hard failure** (`E_SEQUENCE_DIVERGENCE`). S8 **must not** rewrite S3’s semantics. 
+* **Optional S3 cross-sequence.** If `s3_site_sequence` exists, S8 **MUST** cross-check contiguity/width (1..`nᵢ`) and (if present there) the 6-digit `site_id` format; any divergence is a **hard failure** (`E_SEQUENCE_DIVERGENCE`). S8 **MUST NOT** rewrite S3’s semantics. 
 
 ---
 
@@ -620,7 +620,7 @@ All clauses below are **normative** and MUST hold for every `(seed,fingerprint)`
 ## 9.5 Authority separation (order & weights)
 
 * **No cross-country order encoded.** `outlet_catalogue` **does not** contain any cross-country ordering; consumers MUST join **S3 `candidate_rank`** when order is required. Presence of any cross-country rank field in egress is a **hard failure**.
-* **No weight semantics.** Egress rows **must not** embed or imply S5 weights; S5 remains weights authority (used upstream by S6/S7 only). 
+* **No weight semantics.** Egress rows **MUST NOT** embed or imply S5 weights; S5 remains weights authority (used upstream by S6/S7 only). 
 
 ---
 
@@ -1263,7 +1263,7 @@ These are **non-binding** operational defaults for files, folders, and object-st
 
 ## C.3 Writer sort & non-authoritative order
 
-* Follow the dictionary’s **writer sort** for egress (S8): `[merchant_id, legal_country_iso, site_order]`. Readers **must not** rely on physical file order; equality is by **row set**. RNG JSONL line order is append order **within a file** only.
+* Follow the dictionary’s **writer sort** for egress (S8): `[merchant_id, legal_country_iso, site_order]`. Readers **MUST NOT** rely on physical file order; equality is by **row set**. RNG JSONL line order is append order **within a file** only.
 
 ---
 
