@@ -135,7 +135,7 @@ This section freezes the vocabulary, symbols, and lineage tokens S8 uses. All te
 
 * **`seed`** — 64-bit unsigned master RNG seed; partitions **RNG logs/events** and appears in their paths. 
 * **`parameter_hash`** — hex-64 (SHA-256) of the opened parameter bundle; partitions **parameter-scoped tables** and RNG logs/events; where embedded, bytes **must equal** the path token. 
-* **`run_id`** — run-scoped identifier (opaque string) for RNG event/log partitions. 
+* **`run_id`** — run-scoped identifier (**lower-hex 32-character string**) for RNG event/log partitions (as per layer schema `$defs.run_id`). 
 * **`manifest_fingerprint`** (a.k.a. **`fingerprint`** in paths) — hex-64 lineage digest for the whole 1A run; it **partitions S8 egress** and is also stored per row in `outlet_catalogue` as `manifest_fingerprint`. **Naming rule:** any `fingerprint={…}` path segment carries the value of `manifest_fingerprint`.
 
 ## 2.2 Entities & keys
@@ -586,7 +586,7 @@ All clauses below are **normative** and MUST hold for every `(seed,fingerprint)`
 
 ## 9.2 Lineage equality & immutability
 
-* **Path↔embed equality (egress).** Every row’s `manifest_fingerprint` **MUST** byte-equal the egress path token `fingerprint` (hex-64). **Rows are immutable** within a `(seed,fingerprint)` partition. 
+* **Path↔embed equality (egress).** Every row’s `manifest_fingerprint` **MUST** byte-equal the egress path token `fingerprint` (hex-64), and `global_seed` **MUST** equal the egress path token `seed`. **Rows are immutable** within a `(seed,fingerprint)` partition.
 * **Path↔embed equality (events).** Every S8 event row embeds `{seed, parameter_hash, run_id}` equal to its path tokens; envelope fields (`blocks`, `draws`) obey the family budgets in the layer schema.
 
 ---
@@ -634,7 +634,7 @@ For each `(merchant, country)` with `final_country_outlet_count = n ≥ 1`:
 
 ## 9.8 Join-back sanity (no permutation against S3)
 
-* Joining `outlet_catalogue` (distinct `legal_country_iso`) to S3 `s3_candidate_set` by `(merchant_id, country_iso)` must:
+* Join `outlet_catalogue` (distinct **`legal_country_iso`**) to S3 `s3_candidate_set` on `outlet_catalogue.(merchant_id, legal_country_iso) = s3_candidate_set.(merchant_id, country_iso)` and then:
   (a) succeed for **all** egress countries; and
   (b) show **no permutation** of cross-country order when sorted by `candidate_rank` (egress does not encode order, only that the **set** matches). 
 
@@ -845,7 +845,7 @@ For each `(merchant, country)` with `final_country_outlet_count = n ≥ 1`:
 
 ## 11.6 Egress join-back sanity (order separation)
 
-Join distinct egress countries back to S3 by `(merchant_id, country_iso)`; assert the set matches and that sorting by `candidate_rank` yields a consistent cross-country order (egress itself remains order-free). **Any encoded cross-country order in egress ⇒ fail.**
+Join distinct egress countries back to S3 on `outlet_catalogue.(merchant_id, legal_country_iso) = s3_candidate_set.(merchant_id, country_iso)`; assert the set matches and that sorting by `candidate_rank` yields a consistent cross-country order (egress itself remains order-free).
 
 ---
 
