@@ -21,7 +21,7 @@ S0.1 establishes the **canonical universe** (merchant rows and reference dataset
 Let $\mathcal{M}$ be the finite set of merchants from the normalised ingress table:
 
 $$
-\texttt{merchant\_ids}\subset\{(\texttt{merchant\_id},\ \texttt{mcc},\ \texttt{channel},\ \texttt{home\_country\_iso})\},
+\text{merchant\_ids}\subset\{(\text{merchant\_id},\ \text{mcc},\ \text{channel},\ \text{home\_country\_iso})\},
 $$
 
 validated by `schemas.ingress.layer1.yaml#/merchant_ids`.
@@ -59,7 +59,7 @@ validated by `schemas.ingress.layer1.yaml#/merchant_ids`.
 For $m\in\mathcal{M}$, define the typed quadruple used downstream:
 
 $$
-t(m):=\big(\texttt{mcc}_m,\ \texttt{channel}_m\in\{\mathrm{CP},\mathrm{CNP}\},\ \texttt{home\_country\_iso}_m,\ \texttt{merchant\_u64}_m\big)\in\mathcal{K}\times\mathcal{C}\times\mathcal{I}\times\mathbb{U}_{64}.
+t(m):=\big(\text{mcc}_m,\ \text{channel}_m\in\{\mathrm{CP},\mathrm{CNP}\},\ \text{home\_country\_iso}_m,\ \text{merchant\_u64}_m\big)\in\mathcal{K}\times\mathcal{C}\times\mathcal{I}\times\mathbb{U}_{64}.
 $$
 
 ---
@@ -460,7 +460,7 @@ S0.3 pins the *entire* randomness contract for 1A: which PRNG we use, how we car
 > **Blocks vs draws (normative):** `blocks = (after_hi,after_lo) − (before_hi,before_lo)` in unsigned 128-bit arithmetic. `draws` = **uniforms used**. Single-uniform families: `(blocks=1, draws="1")`. Two-uniform families (e.g., Box–Muller): `(blocks=1, draws="2")`. Non-consuming: `(blocks=0, draws="0")`. The `blocks` equality is checked by counters; `draws` is checked by family budgets.
 
 > **Invariants (normative):**
-> - `blocks` = $(\texttt{after\_hi},\texttt{after\_lo}) - (\texttt{before\_hi},\texttt{before\_lo})$ in unsigned 128-bit arithmetic. (authoritative equality check).
+> - `blocks` = $(\text{after\_hi},\text{after\_lo}) - (\text{before\_hi},\text{before\_lo})$ in unsigned 128-bit arithmetic. (authoritative equality check).
 > - `draws` = number of **uniform(0,1)** variates consumed by the event. (independent of the counter delta).
 > - With the lane policy, **single-uniform** events have `(blocks=1, draws="1")`, and **two-uniform** events (Box–Muller) have `(blocks=1, draws="2")`. **Non-consuming** events have `(blocks=0, draws="0")`.
 
@@ -670,7 +670,7 @@ Two cross-cut logs in addition to per-event logs:
 
 1. **`rng_audit_log`** — **one row at run start** (before any RNG event): `(seed, manifest_fingerprint, parameter_hash, run_id, root key/counter, code version, ts_utc)`.
    **`rng_audit_log` schema (normative minimum):** `{ ts_utc, seed, parameter_hash, manifest_fingerprint, run_id, algorithm, rng_key_hi, rng_key_lo, rng_counter_hi, rng_counter_lo, code_version }`. Field types and names are governed by `schemas.layer1.yaml#/rng/core/rng_audit_log` (authoritative). Audit rows are **core logs**, not RNG events.
-2. **`rng_trace_log`** (**one row per** $(\texttt{module},\texttt{substream\_label})$; cumulative **blocks** (unsigned 64-bit), with the *current* `(counter_before, counter_after)`.  
+2. **`rng_trace_log`** (**one row per** $(\text{module},\text{substream\_label})$; cumulative **blocks** (unsigned 64-bit), with the *current* `(counter_before, counter_after)`.  
    *(schema: `schemas.layer1.yaml#/rng/core/rng_trace_log`).*  
 
    **Reconciliation (normative):** For each `(module, substream_label)`, `rng_trace_log.blocks_total` MUST be monotone non-decreasing across emissions, and the **final** `blocks_total` MUST equal the **sum of per-event `blocks`** over `rng_event_*` in the same `{seed, parameter_hash, run_id}`. Budget checks use **event `draws`**, not the trace.
@@ -832,7 +832,7 @@ Attach to every merchant $m$ two **deterministic**, **non-stochastic** features 
 
 ## Canonical definition (what S0.4 does)
 
-For $m\in\mathcal M$ with $c=\texttt{home\_country\_iso}(m)\in\mathcal I$,
+For $m\in\mathcal M$ with $c=\text{home\_country\_iso}(m)\in\mathcal I$,
 
 $$
 g_c \leftarrow G(c)\in\mathbb R_{>0},\qquad
@@ -999,12 +999,12 @@ The **intercept** is always the leading scalar 1.
 
 ## Design vectors (definitions, dimensions, strict order)
 
-For merchant $m$ with $c=\texttt{home\_country\_iso}(m)$, $g_c>0$, $b_m\in\{1,\dots,5\}$:
+For merchant $m$ with $c=\text{home\_country\_iso}(m)$, $g_c>0$, $b_m\in\{1,\dots,5\}$:
 
 ### Hurdle (logit) design
 
 $$
-\boxed{\,x_m=\big[1,\ \phi_{\text{mcc}}(\texttt{mcc}_m),\ \phi_{\text{ch}}(\texttt{channel\_sym}_m),\ \phi_{\text{dev}}(b_m)\big]^\top\,}\in\mathbb R^{1+C_{\text{mcc}}+2+5}.
+\boxed{\,x_m=\big[1,\ \phi_{\text{mcc}}(\text{mcc}_m),\ \phi_{\text{ch}}(\text{channel\_sym}_m),\ \phi_{\text{dev}}(b_m)\big]^\top\,}\in\mathbb R^{1+C_{\text{mcc}}+2+5}.
 $$
 
 $$
@@ -1016,11 +1016,11 @@ All hurdle coefficients, including the 5 bucket dummies, are in **one** ordered 
 ### Negative-Binomial (used in S2)
 
 $$
-\boxed{\,x^{(\mu)}_m=\big[1,\ \phi_{\text{mcc}}(\texttt{mcc}_m),\ \phi_{\text{ch}}(\texttt{channel\_sym}_m)\big]^\top\,}\in\mathbb R^{1+C_{\text{mcc}}+2},
+\boxed{\,x^{(\mu)}_m=\big[1,\ \phi_{\text{mcc}}(\text{mcc}_m),\ \phi_{\text{ch}}(\text{channel\_sym}_m)\big]^\top\,}\in\mathbb R^{1+C_{\text{mcc}}+2},
 $$
 
 $$
-\boxed{\,x^{(\phi)}_m=\big[1,\ \phi_{\text{mcc}}(\texttt{mcc}_m),\ \phi_{\text{ch}}(\texttt{channel\_sym}_m),\ \ln g_c\big]^\top\,}\in\mathbb R^{1+C_{\text{mcc}}+2+1}.
+\boxed{\,x^{(\phi)}_m=\big[1,\ \phi_{\text{mcc}}(\text{mcc}_m),\ \phi_{\text{ch}}(\text{channel\_sym}_m),\ \ln g_c\big]^\top\,}\in\mathbb R^{1+C_{\text{mcc}}+2+1}.
 $$
 
 **Leakage guard (enforced):** bucket dummies **not** present in $x^{(\mu)}$; $\ln g_c$ present **only** in $x^{(\phi)}$.
@@ -1166,7 +1166,7 @@ No RNG is consumed in S0.6.
 
 ## Inputs (read-only; pinned earlier)
 
-* **Merchant tuple** $t(m)=(\texttt{mcc}_m,\texttt{channel\_sym}_m,\texttt{home\_country\_iso}_m)$ from `merchant_ids` (S0.1), where `channel_sym ∈ {CP,CNP}` (S0.1 mapping is authoritative).
+* **Merchant tuple** $t(m)=(\text{mcc}_m,\text{channel\_sym}_m,\text{home\_country\_iso}_m)$ from `merchant_ids` (S0.1), where `channel_sym ∈ {CP,CNP}` (S0.1 mapping is authoritative).
 * **Parameter bundle:** `crossborder_hyperparams.yaml` (governed by `parameter_hash`; contains the eligibility rule set).
 * **Lineage keys:** `parameter_hash` (partition path and embedded column).
 * **Schema & dictionary:** dataset `crossborder_eligibility_flags` → partitioned by `{parameter_hash}`, schema `schemas.1A.yaml#/prep/crossborder_eligibility_flags`.
@@ -1240,7 +1240,7 @@ eligibility:
 After expanding `"*"` and MCC ranges:
 
 * Each rule $r$ defines sets $S_{\rm mcc}\subseteq\mathcal K$, $S_{\rm ch}\subseteq\mathcal C$, $S_{\rm iso}\subseteq\mathcal I$ and a decision $d\in\{\textsf{allow},\textsf{deny}\}$.
-* **Match:** $r$ matches $m$ iff $ \texttt{mcc}_m\in S_{\rm mcc} \land \texttt{channel\_sym}_m\in S_{\rm ch} \land \texttt{home\_country\_iso}_m\in S_{\rm iso}$.
+* **Match:** $r$ matches $m$ iff $ \text{mcc}_m\in S_{\rm mcc} \land \text{channel\_sym}_m\in S_{\rm ch} \land \text{home\_country\_iso}_m\in S_{\rm iso}$.
 
 **Range semantics (MCC):** `"5000-5999"` means all integer codes $5000 \le \text{MCC} \le 5999$; codes are compared numerically after parsing 4-digit strings.
 
@@ -1270,7 +1270,7 @@ This is **order-invariant** and parallel-safe.
 
 For each merchant $m$:
 
-1. Fetch $t(m) = (\texttt{mcc}, \texttt{channel\_sym}, \texttt{home\_iso})$.
+1. Fetch $t(m) = (\text{mcc}, \text{channel\_sym}, \text{home\_iso})$.
 2. Build candidate sets $D$ (deny) and $A$ (allow) by matching rules.
 3. Choose per **Conflict resolution**; produce `reason`.
 4. Write row (partition by `parameter_hash`):
@@ -1307,7 +1307,7 @@ e_m =
 \begin{cases}
 0,& \mathrm{best}_{\textsf{deny}}(m)\text{ exists},\\
 1,& \mathrm{best}_{\textsf{deny}}(m)=\varnothing \land \mathrm{best}_{\textsf{allow}}(m)\text{ exists},\\
-\mathbf 1\{\texttt{default\_decision}=\text{"allow"}\},& \text{otherwise.}
+\mathbf 1\{\text{default\_decision}=\text{"allow"}\},& \text{otherwise.}
 \end{cases}
 $$
 
@@ -1422,7 +1422,7 @@ function S0_6_apply_eligibility_rules(merchants, params, parameter_hash, produce
 Materialise a **read-only diagnostics table** with per-merchant logistic-hurdle outputs
 
 $$
-(\texttt{merchant\_id},\ \eta_m,\ \pi_m),\quad \eta_m=\beta^\top x_m,\ \pi_m=\sigma(\eta_m)\in[0,1],
+(\text{merchant\_id},\ \eta_m,\ \pi_m),\quad \eta_m=\beta^\top x_m,\ \pi_m=\sigma(\eta_m)\in[0,1],
 $$
 
 so monitoring/validation can inspect the hurdle surface **without** recomputing on the hot path. This artefact is **never consulted by samplers**; it is **optional** and lives under the **parameter-scoped** partition.
