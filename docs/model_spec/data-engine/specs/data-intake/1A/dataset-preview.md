@@ -11,10 +11,11 @@ This document is a **preview/blueprint** for hunting & wrangling. It mirrors wha
 ## Scope & governance (read me first)
 This pack previews **14 datasets** plus **4 governance inputs** (G1–G4) and **3 optional policy surfaces** (O1–O3).
 S0 **must** open and seal **G1 numeric_policy** and **G2 math_profile** before S0.2; **G3** (S6) is required only if the S6 lane is enabled; **G4** (S7 bounds) is optional. O1–O3 are optional S3/S5 policies captured here for hunt precision.
+**Path style.** Policy artefacts live under `config/`. Both flat names (e.g., `config/policy.s6.selection.yaml`) and subfolders (e.g., `config/policy/s3.base_weight.yaml`) are acceptable—the **Dictionary/Registry path** is authoritative.
 1) `reference/governance/numeric_policy/{version}/numeric_policy.json`
 2) `reference/governance/math_profile/{version}/math_profile_manifest.json`
 Opening these, along with the **dataset dictionary** and **artefact registry** anchors, contributes to the `manifest_fingerprint`. No RNG events are permitted until S0.8 attests this surface.
-
+**Notation.** 𝓟 = the governed **parameter set** for a run (policy/config artefacts whose **bytes** feed `parameter_hash` and must be sealed in S0.2).
 
 ## Scale & Coverage (magnitude) — macros & gates
 To make capacity planning explicit while data is still being sourced, define the following macros. These are **non-binding defaults** until written to the run manifest and/or `numeric_policy.json`; once recorded there, they become binding gates for S0.
