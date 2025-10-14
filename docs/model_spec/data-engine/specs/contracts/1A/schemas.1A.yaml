@@ -192,6 +192,22 @@ alloc:
       exclusiveMaximum: true
     - {name: residual_rank, type: int32, nullable: false, description: Rank by descending residual (1=largest).}
 
+  membership:
+    type: table
+    description: 'Optional convenience surface of selected foreign ISO2s per merchant. **Authority remains S6 RNG events**; encodes **no inter-country order**.'
+    primary_key: [merchant_id, country_iso]
+    partition_keys: [seed, parameter_hash]
+    sort_keys: [merchant_id, country_iso]
+    columns:
+    - {name: merchant_id, $ref: '#/$defs/id64', nullable: false, description: Merchant ID.}
+    - name: country_iso
+      $ref: '#/$defs/iso2'
+      nullable: false
+      description: Selected foreign country (member of S6 realisation).
+      fk: {dataset_ref: schemas.ingress.layer1.yaml#/iso3166_canonical_2024, column: country_iso}
+    - {name: seed, type: int64, nullable: false, description: 'Global seed (MUST equal the partition key).'}
+    - {name: parameter_hash, type: string, nullable: false, description: 'Parameter hash (MUST equal the partition key).', pattern: '^[a-f0-9]{64}$'}
+    - {name: produced_by_fingerprint, type: string, nullable: true, description: 'Informational provenance (optional).', pattern: '^[a-f0-9]{64}$'}
 
 # 4) Egress (immutable outlet stubs)
 egress:

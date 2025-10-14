@@ -222,7 +222,7 @@ All event streams are **JSONL**, partitioned by `{seed, parameter_hash, run_id}`
 
 ## 3.5 Membership surfaces (choose ONE; gate applies)
 
-**Path M1 (preferred when present):** `s6_membership` → **`schemas.1A.yaml#/s6/membership`**; `[seed, parameter_hash]`. **Gate:** `s6_validation_receipt` (co-located) MUST be valid **PASS** before reading (`S6_VALIDATION.json` + `_passed.flag`).  
+**Path M1 (preferred when present):** `s6_membership` → **`schemas.1A.yaml#/alloc/membership`**; `[seed, parameter_hash]`. **Gate:** `s6_validation_receipt` (co-located) MUST be valid **PASS** before reading (`S6_VALIDATION.json` + `_passed.flag`). 
 **Path M2 (default):** re-derive membership from `rng_event.gumbel_key` (+S3 domain and S4 `K_target`), supporting reduced logging by counter-replay where defined. (No S6 PASS required for events.) 
 
 ---
@@ -241,6 +241,8 @@ All event streams are **JSONL**, partitioned by `{seed, parameter_hash, run_id}`
 ---
 
 ## 3.8 Read-gates & receipts (verify before use)
+
+> **Coupling to layer schema.** All `module` and `substream_label` literals used by RNG events **MUST** be admitted by `schemas.layer1.yaml` (either via explicit enum sets or documented string patterns). If the layer schema later enumerates these values, the literals listed here **MUST** appear in those enums.
 
 * **S6 PASS gate (membership convenience).** If `s6_membership` is used, S9 **MUST** verify the **co-located** S6 receipt (`…/s6/seed={seed}/parameter_hash={parameter_hash}/(S6_VALIDATION.json, _passed.flag)`) **before** reading membership. 
 * **Fingerprint gate (consumer hand-off).** S9 itself publishes `validation_bundle_1A/` and `_passed.flag` under `validation/fingerprint={manifest_fingerprint}/`. Consumers **MUST** verify that `_passed.flag` content hash equals `SHA256(validation_bundle_1A)` for the same fingerprint **before** reading `outlet_catalogue`. *(Stated here for coupling; publish semantics live in §4.)* 
@@ -295,7 +297,7 @@ Where lineage appears **both** in the path and embedded fields, **byte-equality 
 
 **Content (exact).** One line:
 `sha256_hex = <hex64>`
-where `<hex64>` is the **SHA-256 over the concatenation of the raw bytes of all other files in the bundle folder** (exclude `_passed.flag` itself), with files taken in **ASCII-lexicographic filename order**. Hex is lower-case, 64 chars.  
+where `<hex64>` is the **SHA-256 over the concatenation of the raw bytes of all files listed in `index.json`** (excluding `_passed.flag`), in **ASCII-lexicographic order of the `index.json` `path` entries**. Hex is lower-case, 64 chars.
 
 **Consumer rule (binding).** Downstream readers (e.g., `outlet_catalogue` consumers) **MUST** verify that `_passed.flag` **matches** `SHA256(validation_bundle_1A)` for the **same fingerprint** **before** any read. **No PASS → no read.** The Dictionary entry for `outlet_catalogue` **repeats** this consumer obligation.  
 
@@ -857,13 +859,15 @@ S9 is a **read-only** validator. It **MAY** scan inputs in parallel but **MUST N
 
 All S9 aggregations **MUST** be deterministic regardless of worker count/scheduling:
 
-* **Trace reconciliation.** Select the **final** cumulative `rng_trace_log` row per `(module, substream_label, run_id)` and verify that `events_total`, `draws_total`, `blocks_total` equal the **set**-based sums of validated events (one trace append **after each** event append). This selection is independent of file arrival order. 
+* **Trace reconciliation.** Select the **final** cumulative `rng_trace_log` row per `(module,substream_label,run_id)` using this deterministic key:
+  `ORDER BY events_total DESC, ts_utc DESC, rng_counter_after_hi DESC, rng_counter_after_lo DESC LIMIT 1`.
+  This selection is independent of file arrival order and filesystem chunking.
 * **Row-set equality.** Where S9 compares tables across files (e.g., egress partitions), equality is by **PK/UK and content**, not physical sequence; writer-sort monotonicity is checked per §5.6. 
 * **Join-back checks.** S9 computes join/permutation checks using S3’s **`candidate_rank`** as the single order authority; the computation is key-driven and stable. 
 
 ## 11.4 Atomic publish (bundle & flag)
 
-S9 **MUST** publish the validation bundle **atomically**: build under a temporary directory (e.g., `…/validation/_tmp.{uuid}`), compute `_passed.flag` over **all other bundle files** in **ASCII-lexicographic** filename order, then perform a **single atomic rename** to `fingerprint={manifest_fingerprint}/`. **No partial contents** may become visible; on failure, remove the temp.  
+S9 **MUST** publish the validation bundle **atomically**: build under a temporary directory (e.g., `…/validation/_tmp.{uuid}`), compute `_passed.flag` over the raw bytes of **all files listed in `index.json`** (excluding `_passed.flag`) in **ASCII-lexicographic order of the `path` entries**, then perform a **single atomic rename** to `fingerprint={manifest_fingerprint}/`. **No partial contents** may become visible; on failure, remove the temp.  
 
 ## 11.5 Idempotent re-runs & equivalence
 
@@ -896,8 +900,10 @@ S9’s outcomes **MUST NOT** change with producer/validator worker counts or sch
 
 * **Location (partitioned):**
   `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` (fingerprint partition). 
-* **Every non-flag file MUST be listed once in `index.json`** using the schema below; `path` entries are **relative** to the bundle root; `kind ∈ {plot|table|diff|text|summary}`. **`artifact_id` MUST be unique.** 
-* **Gate coupling (reminder):** `_passed.flag` sits in the same folder and contains `sha256_hex = <hex64>` computed over the raw bytes of **all other files** in **ASCII-lexicographic** filename order. Consumers **MUST** verify this for the same fingerprint **before** reading `outlet_catalogue`.  
+* **Every non-flag file MUST be listed once in `index.json`** using the schema below; `path` entries are **relative** to the bundle root; `kind ∈ {plot|table|diff|text|summary}`. **`artifact_id` MUST be unique.**
+* **Index field hygiene:** `artifact_id` **MUST** match `^[A-Za-z0-9._-]+$` (ASCII only). `path` **MUST** be **relative** (no leading slash, no `..` segments) and ASCII-normalised.
+* **Hashing precondition:** The gate hash (§9) is computed over the byte contents of **all files listed in `index.json`** (excluding `_passed.flag`) in **ASCII lexicographic order of `path`**.
+* **Gate coupling (reminder):** `_passed.flag` sits in the same folder and contains `sha256_hex = <hex64>` computed over the raw bytes of **all files listed in `index.json`** (excluding `_passed.flag`) in **ASCII-lexicographic order of the `path` entries**. Consumers **MUST** verify this for the same fingerprint **before** reading `outlet_catalogue`.  
 
 **`index.json` (schema — Binding):**
 
@@ -1189,7 +1195,7 @@ Retention and storage hygiene for the bundle and logs follow the **Dataset Dicti
 * **Order authority:** `#/s3/candidate_set` (total & contiguous `candidate_rank`, home=0).  
 * **Counts (optional path):** `#/s3/integerised_counts`.  
 * **Sequence (optional cross-check):** `#/s3/site_sequence`. 
-* **Membership (convenience surface):** `#/s6/membership`. 
+* **Membership (convenience surface):** `#/alloc/membership`.
 * **Validation bundle (output of S9):** `#/validation/validation_bundle` + its `index_schema`.  
 
 ## 15.3 Layer-wide RNG & validation anchors S9 validates
@@ -1213,7 +1219,7 @@ Retention and storage hygiene for the bundle and logs follow the **Dataset Dicti
 * **`s3_candidate_set`** → `…/s3_candidate_set/parameter_hash={parameter_hash}/` → `[parameter_hash]` → `#/s3/candidate_set`. 
 * **`s3_integerised_counts`** (optional) → `…/s3_integerised_counts/parameter_hash={parameter_hash}/` → `[parameter_hash]` → `#/s3/integerised_counts`. 
 * **`s3_site_sequence`** (optional cross-check) → `…/s3_site_sequence/parameter_hash={parameter_hash}/` → `[parameter_hash]` → `#/s3/site_sequence`.  
-* **`s6_membership`** (if used) → `…/s6/membership/seed={seed}/parameter_hash={parameter_hash}/` → `[seed,parameter_hash]` → `#/s6/membership` (**gate**: `s6_validation_receipt`). 
+* **`s6_membership`** (if used) → `…/s6/membership/seed={seed}/parameter_hash={parameter_hash}/` → `[seed,parameter_hash]` → `#/alloc/membership` (**gate**: `s6_validation_receipt`).
 * **`s6_validation_receipt`** → `…/s6/seed={seed}/parameter_hash={parameter_hash}/` → `[seed,parameter_hash]` → `schemas.layer1.yaml#/validation/s6_receipt`. 
 * **`rng_audit_log`** → `logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl` → `[seed,parameter_hash,run_id]` → `#/rng/core/rng_audit_log`. 
 * **`rng_trace_log`** → `logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl` → `[seed,parameter_hash,run_id]` → `#/rng/core/rng_trace_log`. 
@@ -1287,7 +1293,7 @@ This appendix freezes the **exact strings/enums** S9 relies on when validating S
 * **Order authority (required):** `s3_candidate_set` → `[parameter_hash]` → `#/s3/candidate_set`. *(Home rank=0; ranks total & contiguous.)* 
 * **Counts (optional path):** `s3_integerised_counts` → `[parameter_hash]` → `#/s3/integerised_counts`. 
 * **Optional sequence cross-check:** `s3_site_sequence` → `[parameter_hash]` → `#/s3/site_sequence`. 
-* **Membership convenience:** `s6_membership` → `[seed,parameter_hash]` → `#/s6/membership` (gate = `s6_validation_receipt`). 
+* **Membership convenience:** `s6_membership` → `[seed,parameter_hash]` → `#/alloc/membership` (gate = `s6_validation_receipt`).  
 * **Core logs:** `rng_audit_log`, `rng_trace_log` → `[seed,parameter_hash,run_id]` → layer `#/rng/core/*`. 
 * **Validation outputs (S9 writes):**
   `validation_bundle_1A` (folder) & `validation_passed_flag` (file `_passed.flag`) under `validation/fingerprint={manifest_fingerprint}/`. 
@@ -1297,7 +1303,7 @@ This appendix freezes the **exact strings/enums** S9 relies on when validating S
 ## A.4 Gate & bundle literals
 
 * **Flag filename:** `_passed.flag`
-  **Content (one line):** `sha256_hex = <hex64>` where `<hex64>` is **SHA-256 over all other bundle files’ raw bytes** in **ASCII-lexicographic filename order**. *(Flag file excluded from the hash.)* 
+  **Content (one line):** `sha256_hex = <hex64>` where `<hex64>` is **SHA-256 over the raw bytes of all files listed in `index.json`** in **ASCII-lexicographic order of the `path` entries**. *(Flag file excluded from the hash.)*
 
 * **Bundle root:** `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/`
   **Index schema kind:** `kind ∈ {"plot","table","diff","text","summary"}`. 
