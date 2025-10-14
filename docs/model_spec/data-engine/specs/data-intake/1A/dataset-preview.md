@@ -211,7 +211,7 @@ Use the JSON-Schema anchor **`schemas.ingress.layer1.yaml#/world_bank_gdp_per_ca
 
 * **Schema pass** against `#/world_bank_gdp_per_capita` (or its alias `#/world_bank_gdp`).
 * **PK uniqueness:** no duplicate `(country_iso, observation_year)`. 
-* **Domain checks:** `gdp_pc_usd_2015 > 0`; `country_iso` matches `^[A-Z]{2}$`. 
+* **Domain checks:** `gdp_pc_usd_2015 > 0`; `country_iso` matches `^[A-Z]{2}$`; `source_series == "NY.GDP.PCAP.KD"`.
 * **Foreign key:** every `country_iso` exists in `iso3166_canonical_2024`. 
 * **Coverage for runtime:** **all `home_country_iso` in the merchant seed have a `2024` row** present. (S0 aborts if any is missing.) 
 * **Authority hygiene:** dictionary/registry `schema_ref` uses the **JSON-Schema** (not Avro); aliasing is OK but must resolve to the canonical anchor.
@@ -775,7 +775,7 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 * `share : pct01` (numeric in **[0,1]**)
 * `obs_count : int64` (≥ 0)
 
-**Constraint (must hold).** For each `currency`, **Σ share = 1.0** within **tolerance 1e-6**. 
+**Engine gate (validator expects).** For each `currency`, **Σ share = 1.0 ± 1e-6**.
 
 **How 1A uses it.** Sealed by S0; later states (S5/S6) expand currency to country and build deterministic weights/caches together with `ccy_country_shares_2024Q4` and smoothing params. 
 
@@ -841,7 +841,7 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 * `share : pct01` (numeric in **[0,1]**)
 * `obs_count : int64` (≥ 0)
 
-**Constraint (must hold).** For each `currency`, **Σ share = 1.0** within **tolerance 1e-6**. 
+**Engine gate (validator expects).** For each `currency`, **Σ share = 1.0 ± 1e-6**. 
 
 **Where 1A uses it later.** It’s listed as a reference in the artefact registry and participates (with `settlement_shares_2024Q4` and smoothing params) in building the deterministic **`ccy_country_weights_cache`** and **`merchant_currency`** caches. 
 
