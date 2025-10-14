@@ -119,7 +119,9 @@ S8 **MUST NOT**:
 
 On successful completion for a `fingerprint`, S8 yields:
 
-1. a byte-stable `outlet_catalogue` partition with contiguous per-country `site_order` (and optional 6-digit `site_id`) for every `(merchant, legal_country)` where `final_country_outlet_count ≥ 1`; 2) complete `sequence_finalize` coverage for those blocks; and 3) no violation of the inter-country order boundary (all cross-country ordering recoverable by joining S3 `candidate_rank`).
+1. a byte-stable `outlet_catalogue` partition with contiguous per-country `site_order` (and 6-digit `site_id`) for every `(merchant, legal_country)` where `final_country_outlet_count ≥ 1`;
+2. complete `sequence_finalize` coverage for those blocks; and 
+3. no violation of the inter-country order boundary (all cross-country ordering recoverable by joining S3 `candidate_rank`).
 
 **Status:** This section is **Binding**.
 
