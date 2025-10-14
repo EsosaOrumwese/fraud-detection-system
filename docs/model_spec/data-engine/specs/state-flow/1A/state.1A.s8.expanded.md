@@ -60,10 +60,10 @@ On ratification:
 
 * **Dataset Dictionary:** `dataset_dictionary.layer1.1A.yaml` — IDs/paths/partitions for `outlet_catalogue`, S3 candidate set, validation bundle, and RNG streams.
 * **JSON-Schema (authority):**
-  – `schemas.1A.yaml` → `#/egress/outlet_catalogue`, `#/s3/candidate_set` (referenced later). 
-  – `schemas.layer1.yaml` (RNG/core logs & event families used/observed by 1A, incl. `sequence_finalize`, `site_sequence_overflow`, `residual_rank`). 
-  – `schemas.ingress.layer1.yaml` (FK targets such as `iso3166_canonical_2024`). 
-
+  - `schemas.1A.yaml` → `#/egress/outlet_catalogue`, `#/s3/candidate_set` (referenced later). 
+  - `schemas.layer1.yaml` (RNG/core logs & event families used/observed by 1A, incl. `sequence_finalize`, `site_sequence_overflow`, `residual_rank`). 
+  - `schemas.ingress.layer1.yaml` (FK targets such as `iso3166_canonical_2024`). 
+For brevity, unqualified `$ref` anchors (e.g., `#/rng/events/sequence_finalize`) are resolved per §3.1 **Anchor resolution rule**.
 ---
 
 ## 0.6 House rules this document inherits
@@ -100,8 +100,8 @@ S8 **consumes** already-ratified facts and authorities; it does **not** derive t
 
 * **Primary egress:** `outlet_catalogue` at `data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint]`, PK/Sort `[merchant_id, legal_country_iso, site_order]`, and the column set fixed by the schema (incl. `manifest_fingerprint`, `site_order`, `site_id`). **No cross-country order is present.**
 * **Instrumentation streams:**
-  – `rng_event.sequence_finalize` per `(merchant,country)` block with `{site_count,start_sequence,end_sequence}` (for audit and replay accounting).
-  – `rng_event.site_sequence_overflow` on overflow (guardrail → merchant-scoped failure).
+  - `rng_event.sequence_finalize` per `(merchant,country)` block with `{site_count,start_sequence,end_sequence}` (for audit and replay accounting).
+  - `rng_event.site_sequence_overflow` on overflow (guardrail → merchant-scoped failure).
 
 ## 1.4 Scope constraints (non-goals)
 
@@ -180,6 +180,7 @@ This section freezes the vocabulary, symbols, and lineage tokens S8 uses. All te
 
 ## 2.6 Sets, symbols & equalities (notation used later)
 
+* **`zfill6(x)`** — left-pad integer `x` with ASCII `'0'` to 6 digits (e.g., `1→"000001"`).
 * **`Dₘ`** — merchant’s legal domain set for S8 (home + selected foreigns; aligned to S3). **Cardinality:** `|Dₘ| = 1 + |S6_selected|`. 
 * **`Nₘ`** — merchant-level domestic outlets from `nb_final.n_outlets`. **Invariant later (§9):** `Σ_{c∈Dₘ} nₘ,c = Nₘ`. 
 * **`nₘ,c`** — per-country final integer count in `outlet_catalogue.final_country_outlet_count` for merchant `m` and country `c`. 
@@ -191,13 +192,18 @@ This section freezes the vocabulary, symbols, and lineage tokens S8 uses. All te
 * **S6 PASS** — the S6 validation receipt folder whose `_passed.flag` content hash equals `SHA256(S6_VALIDATION.json)` for the same `{seed, parameter_hash}`; required before reading S6 convenience surfaces.
 * **1A PASS (hand-off to 1B)** — the `validation_bundle_1A` at `…/validation/fingerprint={manifest_fingerprint}/`; consumers must verify `_passed.flag` content hash equals `SHA256(bundle)` before reading `outlet_catalogue`.
 
-**Status:** All terms above are **Binding** and will be used verbatim in §§3–13.
+**Status:** All terms above are **Binding** and will be used verbatim in §§3-13.
 
 ---
 
 # 3) Authority & precedence **(Binding)**
 
 ## 3.1 Precedence chain (normative)
+
+**Anchor resolution rule (normative).** When a `$ref` omits the document prefix:
+- `#/rng/**` and `#/validation/**` resolve to `schemas.layer1.yaml`.
+- `#/s3/**` and `#/egress/**` resolve to `schemas.1A.yaml`.
+- `#/iso**` and other ingress FKs resolve to `schemas.ingress.layer1.yaml`.
 
 1. **JSON-Schema is the single schema authority** for all S8 inputs/outputs/logs: `schemas.1A.yaml`, `schemas.layer1.yaml`, `schemas.ingress.layer1.yaml`. **Avro (if any) is non-authoritative.**
 2. The **Dataset Dictionary** (`dataset_dictionary.layer1.1A.yaml`) governs **dataset IDs, physical path templates, partitions, writer sort, PK/FK, lifecycle and retention**. 
@@ -248,10 +254,10 @@ S8 v1.* is compatible with—and **assumes**—the following authorities remain 
 S8 **inherits** the Layer-1 numeric environment; producers and validators **MUST** attest it before publishing S8 egress:
 
 * **Policy pins (governance):**
-  – **Rounding:** **RNE** (round-to-nearest, ties-to-even)
-  – **FMA:** **off**
-  – **FTZ/DAZ:** **off** (no flush-to-zero, no denormals-are-zero)
-  – **Subnormals:** **preserved**
+  - **Rounding:** **RNE** (round-to-nearest, ties-to-even)
+  - **FMA:** **off**
+  - **FTZ/DAZ:** **off** (no flush-to-zero, no denormals-are-zero)
+  - **Subnormals:** **preserved**
   These are defined in `schemas.layer1.yaml#/governance.numeric_policy_profile` and pinned in the Artefact Registry as `numeric_policy_profile`.
 * **Math library profile (deterministic libm):** function set/signatures are frozen via `math_profile_manifest` and participate in the manifest fingerprint.
 * **Attestation artefact:** S0 writes `numeric_policy_attest.json` into the fingerprinted validation bundle; fields include `rounding_ok`, `fma_off_ok`, `subnormals_ok`, `libm_regression_ok`, `neumaier_ok`, `total_order_ok`, `passed`. S8 **MUST** run only under a fingerprint where this attestation **passed**.
@@ -793,7 +799,7 @@ On any **Abort** action:
 
 # 11) Validation battery & PASS gate **(Binding)**
 
-**Purpose.** Prove that S8 wrote a correct, reproducible `outlet_catalogue` under the S0–S7 contracts; verify instrumentation coverage; and publish a **fingerprint-scoped** validation bundle whose `_passed.flag` is the consumption **gate** for 1B (**no PASS → no read**). 
+**Purpose.** Prove that S8 wrote a correct, reproducible `outlet_catalogue` under the S0-S7 contracts; verify instrumentation coverage; and publish a **fingerprint-scoped** validation bundle whose `_passed.flag` is the consumption **gate** for 1B (**no PASS → no read**). 
 
 ---
 
@@ -867,7 +873,7 @@ Write the **validation bundle** under:
 
 ## 11.8 Exit semantics
 
-* **PASS:** all checks in §§11.2–11.6 succeed; bundle written; `_passed.flag` valid. `outlet_catalogue` remains readable by 1B under the gate. 
+* **PASS:** all checks in §§11.2-11.6 succeed; bundle written; `_passed.flag` valid. `outlet_catalogue` remains readable by 1B under the gate. 
 * **FAIL:** any structural, lineage, count, membership, or RNG-coverage breach. Publish bundle with failure records; **do not** modify `outlet_catalogue`; gate remains **failed** (no valid `_passed.flag`). 
 
 ---
@@ -900,7 +906,7 @@ This section fixes how S8 may parallelise work and still produce **byte-stable**
 ## 12.3 Determinism w.r.t. worker counts, retries & scheduling
 
 * **Worker-count invariance:** Changing the number of workers or task schedule **MUST NOT** change any value or emitted row. Determinism is guaranteed by: S3’s **candidate_rank** authority (order), S7/S3 **counts** authority, fixed egress **sort keys**, and atomic publish.
-* **Retry semantics:** On failure, producers **MUST NOT** partially publish; they **MAY** retry after cleaning temp paths. Re-running with identical inputs and lineage **MUST** yield byte-identical egress. (Same discipline as S7 §10.3–10.4.) 
+* **Retry semantics:** On failure, producers **MUST NOT** partially publish; they **MAY** retry after cleaning temp paths. Re-running with identical inputs and lineage **MUST** yield byte-identical egress. (Same discipline as S7 §10.3-10.4.) 
 
 ## 12.4 RNG logs under parallelism (events are non-consuming)
 
@@ -916,7 +922,7 @@ This section fixes how S8 may parallelise work and still produce **byte-stable**
 
 ## 12.6 Ownership & isolation
 
-* **S8 writes only its families** (`sequence_finalize`, `site_sequence_overflow`) plus egress. It **MUST NOT** write S1–S7 families or any RNG core paths owned by other states except its trace/audit appends. (Ownership & schemas enumerated in the registry/dictionary.)
+* **S8 writes only its families** (`sequence_finalize`, `site_sequence_overflow`) plus egress. It **MUST NOT** write S1-S7 families or any RNG core paths owned by other states except its trace/audit appends. (Ownership & schemas enumerated in the registry/dictionary.)
 * **No cross-state emissions:** S8 does **not** emit selection keys (`gumbel_key`), NB/ZTP components, or residuals; those belong to S6/S2/S4/S7 respectively.
 
 ## 12.7 Lineage equality & canonical paths (concurrency checks)
@@ -931,7 +937,7 @@ This section fixes how S8 may parallelise work and still produce **byte-stable**
 
 ## 12.9 Consumer guarantees (what parallelism may not break)
 
-Given §§12.1–12.8 and the invariants in §9, consumers are guaranteed that for any fixed `(seed,fingerprint)`:
+Given §§12.1-12.8 and the invariants in §9, consumers are guaranteed that for any fixed `(seed,fingerprint)`:
 
 * `outlet_catalogue` is **byte-stable** and **order-stable** by its sort keys;
 * each `(merchant, country)` block contributes `n` rows with `site_order=1..n` and a single `sequence_finalize` event;
@@ -1228,7 +1234,7 @@ every egress row **must** embed `manifest_fingerprint = "0123456789abcdef…"` a
 
 ---
 
-**Note:** These examples are **Informative**. The **Binding** behaviour, contracts, and gates are defined in §§0–13 and Appendix A.
+**Note:** These examples are **Informative**. The **Binding** behaviour, contracts, and gates are defined in §§0-13 and Appendix A.
 
 ---
 
@@ -1240,7 +1246,7 @@ These are **non-binding** operational defaults for files, folders, and object-st
 
 ## C.1 File formats & compression (defaults; become binding if pinned)
 
-* **Parquet (tables):** use **ZSTD level 3** unless the registry says otherwise; keep Parquet as the only format within a dataset/partition. Suggested row-group target: **128–256 MiB uncompressed**; enable statistics; prefer dictionary encoding on low-cardinality columns (e.g., `legal_country_iso`).
+* **Parquet (tables):** use **ZSTD level 3** unless the registry says otherwise; keep Parquet as the only format within a dataset/partition. Suggested row-group target: **128-256 MiB uncompressed**; enable statistics; prefer dictionary encoding on low-cardinality columns (e.g., `legal_country_iso`).
 * **JSONL (events/logs):** `.jsonl` (optionally **.jsonl.zst**); one JSON object per line, `\n` line endings; do not pretty-print. **RNG logs** are JSONL by dictionary. 
 
 > If the registry publishes a compression profile (e.g., `compression_zstd_level3`), producers **should** use it and treat it as project policy. 
@@ -1249,7 +1255,7 @@ These are **non-binding** operational defaults for files, folders, and object-st
 
 ## C.2 Part sizing & naming (to avoid tiny files)
 
-* Aim for **64–128 MiB compressed** per part; avoid parts < 8 MiB.
+* Aim for **64-128 MiB compressed** per part; avoid parts < 8 MiB.
 * Naming pattern: `part-00000-of-000NN.<ext>` (fixed batch) or `part-<uuid>.<ext>` (streaming). One family per folder. 
 
 ---
