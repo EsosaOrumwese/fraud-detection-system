@@ -136,9 +136,9 @@ This section freezes the vocabulary, symbols, and lineage tokens S8 uses. All te
 ## 2.1 Lineage & partition tokens
 
 * **`seed`** — 64-bit unsigned master RNG seed; partitions **RNG logs/events** and appears in their paths. 
-* **`parameter_hash`** — hex-64 (SHA-256) of the opened parameter bundle; partitions **parameter-scoped tables** and RNG logs/events; where embedded, bytes **must equal** the path token. 
+* **`parameter_hash`** — **lowercase hex64** (SHA-256) of the opened parameter bundle; partitions **parameter-scoped tables** and RNG logs/events; where embedded, bytes **MUST** equal the path token.
 * **`run_id`** — run-scoped identifier (**lowercase hex 32-character string**) for RNG event/log partitions (as per layer schema `$defs.run_id`).  
-* **`manifest_fingerprint`** (a.k.a. **`fingerprint`** in paths) — hex-64 lineage digest for the whole 1A run; it **partitions S8 egress** and is also stored per row in `outlet_catalogue` as `manifest_fingerprint`. **Naming rule:** any `fingerprint={…}` path segment carries the value of `manifest_fingerprint`.
+* **`manifest_fingerprint`** (a.k.a. **`fingerprint`** in paths) — **lowercase hex64** lineage digest for the whole 1A run; it **partitions S8 egress** and is also stored per row in `outlet_catalogue` as `manifest_fingerprint`. **Naming rule:** any `fingerprint={…}` path segment carries the value of `manifest_fingerprint`.
 
 ## 2.2 Entities & keys
 
@@ -157,7 +157,7 @@ This section freezes the vocabulary, symbols, and lineage tokens S8 uses. All te
 ## 2.4 S8 egress: `outlet_catalogue` column terms (all **Binding**)
 
 * **Primary key (PK)** — `[merchant_id, legal_country_iso, site_order]`. **Unique key equals PK.** Sort keys are identical. Partition keys: `[seed, fingerprint]`. 
-* **`manifest_fingerprint`** — per-row hex-64 equal to the egress `fingerprint` path token (lineage equality). 
+* **`manifest_fingerprint`** — per-row **lowercase hex64** equal to the egress `fingerprint` path token (lineage equality).
 * **`site_order`** — **within-country** contiguous sequence `1..nᵢ` for each `(merchant_id, legal_country_iso)` block (**no gaps**). 
 * **`site_id`** — **mandatory** 6-digit zero-padded string for the within-country sequence (`^[0-9]{6}$`). It encodes **only** the local sequence, not global order. 
 * **`single_vs_multi_flag`** — boolean copy of the S1 hurdle decision at merchant level (1 if multi-site). 
@@ -192,7 +192,7 @@ This section freezes the vocabulary, symbols, and lineage tokens S8 uses. All te
 * **S6 PASS** — the S6 validation receipt folder whose `_passed.flag` content hash equals `SHA256(S6_VALIDATION.json)` for the same `{seed, parameter_hash}`; required before reading S6 convenience surfaces.
 * **1A PASS (hand-off to 1B)** — the `validation_bundle_1A` at `…/validation/fingerprint={manifest_fingerprint}/`; consumers must verify `_passed.flag` content hash equals `SHA256(bundle)` before reading `outlet_catalogue`.
 
-**Status:** All terms above are **Binding** and will be used verbatim in §§3-13.
+**Status:** All terms above are **Binding** and will be used verbatim in §§3–13.
 
 ---
 
@@ -302,7 +302,7 @@ The 1A validation bundle is **fingerprint-scoped** at
 
 ## 5.2 Path↔embed equality (must hold)
 
-**Egress rows.** `outlet_catalogue.manifest_fingerprint` **MUST byte-equal** the `fingerprint` path token for the same partition, and `global_seed` **MUST** equal the `seed` path token. Pattern `^[a-f0-9]{64}$`.
+**Egress rows.** `outlet_catalogue.manifest_fingerprint` **MUST byte-equal** the `fingerprint` path token for the same partition, and `global_seed` **MUST** equal the `seed` path token. **Pattern (for `manifest_fingerprint`):** `^[a-f0-9]{64}$`.
 
 **Parameter-scoped tables.** Each row **MUST** embed `parameter_hash` and it **MUST equal** the `parameter_hash` path token. If present, `produced_by_fingerprint` is **informational only** (not a partition key nor part of equality).
 
@@ -417,7 +417,7 @@ This section fixes **exactly what S8 writes**, with schema anchors, partitions, 
 
 **Keys.** **PK** = **UK** = `[merchant_id, legal_country_iso, site_order]`. Rows are immutable within a `(seed,fingerprint)` partition. 
 
-**Lineage column.** `manifest_fingerprint` **MUST** be a lowercase hex-64 and **MUST byte-equal** the `fingerprint` path token for the partition. 
+**Lineage column.** `manifest_fingerprint` **MUST** be a lowercase hex64 and **MUST byte-equal** the `fingerprint` path token for the partition. 
 
 **Inter-country order boundary (binding).** Consumers that need cross-country order **MUST** join S3 `s3_candidate_set.candidate_rank` (home rank = 0). `outlet_catalogue` **must not** encode that order. 
 
@@ -429,7 +429,7 @@ S8 **MUST** write exactly the columns below with the stated domains:
 
 * `manifest_fingerprint` — `string`, pattern `^[a-f0-9]{64}$` (**equals** partition `fingerprint`). 
 * `merchant_id` — `$ref: #/$defs/id64`, non-null. 
-* `site_id` — `string` (non-null), **6-digit zero-padded** per-(merchant, legal country) sequence, pattern `^[0-9]{6}$`. 
+* `site_id` — `string` (non-null), **6-digit zero-padded** per-(merchant, `legal_country_iso`) sequence, pattern `^[0-9]{6}$`.
 * `home_country_iso` — `$ref: #/$defs/iso2`, FK → `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`. 
 * `legal_country_iso` — `$ref: #/$defs/iso2`, FK → `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`. 
 * `single_vs_multi_flag` — `boolean` (copy of S1 hurdle outcome). 
@@ -463,7 +463,7 @@ S8 emits exactly two **rng_event** families, both partitioned at
 
 ## 7.4 Lineage embedding & equality (write-time checks)
 
-* **Egress rows:** `outlet_catalogue.manifest_fingerprint` **MUST equal** the `fingerprint` path token (hex-64). 
+* **Egress rows:** `outlet_catalogue.manifest_fingerprint` **MUST equal** the `fingerprint` path token (hex64).
 * **Events:** every event row **MUST** embed `{seed, parameter_hash, run_id}` (and standard envelope) equal to their path tokens. 
 
 ---
@@ -528,7 +528,7 @@ This section fixes **how S8 behaves** when turning upstream facts into the immut
 
 For each persisted row in `outlet_catalogue`:
 
-* `manifest_fingerprint` **MUST** equal the partition `fingerprint` (hex-64). 
+* `manifest_fingerprint` **MUST** equal the partition `fingerprint` (**hex64**).
 * `raw_nb_outlet_draw` **MUST** copy S2’s **`nb_final.n_outlets (N ≥ 2)`** for the merchant (same value on all rows for that merchant). 
 * `final_country_outlet_count` equals `nᵢ` for that `(merchant, legal_country_iso)`; **per-merchant sum** `Σᵢ nᵢ = N`. 
 * `global_seed` **MUST** equal the run’s master `seed` (uint64). 
@@ -597,7 +597,7 @@ All clauses below are **normative** and MUST hold for every `(seed,fingerprint)`
 
 ## 9.2 Lineage equality & immutability
 
-* **Path↔embed equality (egress).** Every row’s `manifest_fingerprint` **MUST** byte-equal the egress path token `fingerprint` (hex-64), and `global_seed` **MUST** equal the egress path token `seed`. **Rows are immutable** within a `(seed,fingerprint)` partition.
+* **Path↔embed equality (egress).** Every row’s `manifest_fingerprint` **MUST** byte-equal the egress path token `fingerprint` (hex64), and `global_seed` **MUST** equal the egress path token `seed`. **Rows are immutable** within a `(seed,fingerprint)` partition.
 * **Path↔embed equality (events).** Every S8 event row embeds `{seed, parameter_hash, run_id}` equal to its path tokens; envelope fields (`blocks`, `draws`) obey the family budgets in the layer schema.
 
 ---
@@ -799,7 +799,7 @@ On any **Abort** action:
 
 # 11) Validation battery & PASS gate **(Binding)**
 
-**Purpose.** Prove that S8 wrote a correct, reproducible `outlet_catalogue` under the S0-S7 contracts; verify instrumentation coverage; and publish a **fingerprint-scoped** validation bundle whose `_passed.flag` is the consumption **gate** for 1B (**no PASS → no read**). 
+**Purpose.** Prove that S8 wrote a correct, reproducible `outlet_catalogue` under the S0–S7 contracts; verify instrumentation coverage; and publish a **fingerprint-scoped** validation bundle whose `_passed.flag` is the consumption **gate** for 1B (**no PASS → no read**). 
 
 ---
 
@@ -828,7 +828,7 @@ The validator **MUST** assert:
 For each `(merchant_id, legal_country_iso)` group with rows:
 
 * **Contiguity & keys:** `site_order` is exactly `{1..final_country_outlet_count}` with no gaps/dupes; `site_id` is zero-padded 6-digit rendering of `site_order` (regex `^[0-9]{6}$`). PK unique on `[merchant_id, legal_country_iso, site_order]`. 
-* **Lineage fields:** `manifest_fingerprint` is lower-case hex-64 and equals the partition token; `global_seed` **equals the `seed` path token** and is a valid `uint64`.
+* **Lineage fields:** `manifest_fingerprint` is lowercase hex64 and equals the partition token; `global_seed` **equals the `seed` path token** and is a valid `uint64`.
 * **No cross-country order encoded:** the table contains **no** field implying inter-country order; dictionary note requires consumers to join S3 `candidate_rank`. Presence of such fields ⇒ fail. 
 
 ---
@@ -873,7 +873,7 @@ Write the **validation bundle** under:
 
 ## 11.8 Exit semantics
 
-* **PASS:** all checks in §§11.2-11.6 succeed; bundle written; `_passed.flag` valid. `outlet_catalogue` remains readable by 1B under the gate. 
+* **PASS:** all checks in §§11.2–11.6 succeed; bundle written; `_passed.flag` valid. `outlet_catalogue` remains readable by 1B under the gate. 
 * **FAIL:** any structural, lineage, count, membership, or RNG-coverage breach. Publish bundle with failure records; **do not** modify `outlet_catalogue`; gate remains **failed** (no valid `_passed.flag`). 
 
 ---
@@ -906,7 +906,7 @@ This section fixes how S8 may parallelise work and still produce **byte-stable**
 ## 12.3 Determinism w.r.t. worker counts, retries & scheduling
 
 * **Worker-count invariance:** Changing the number of workers or task schedule **MUST NOT** change any value or emitted row. Determinism is guaranteed by: S3’s **candidate_rank** authority (order), S7/S3 **counts** authority, fixed egress **sort keys**, and atomic publish.
-* **Retry semantics:** On failure, producers **MUST NOT** partially publish; they **MAY** retry after cleaning temp paths. Re-running with identical inputs and lineage **MUST** yield byte-identical egress. (Same discipline as S7 §10.3-10.4.) 
+* **Retry semantics:** On failure, producers **MUST NOT** partially publish; they **MAY** retry after cleaning temp paths. Re-running with identical inputs and lineage **MUST** yield byte-identical egress. (Same discipline as S7 §10.3–10.4.) 
 
 ## 12.4 RNG logs under parallelism (events are non-consuming)
 
@@ -922,7 +922,7 @@ This section fixes how S8 may parallelise work and still produce **byte-stable**
 
 ## 12.6 Ownership & isolation
 
-* **S8 writes only its families** (`sequence_finalize`, `site_sequence_overflow`) plus egress. It **MUST NOT** write S1-S7 families or any RNG core paths owned by other states except its trace/audit appends. (Ownership & schemas enumerated in the registry/dictionary.)
+* **S8 writes only its families** (`sequence_finalize`, `site_sequence_overflow`) plus egress. It **MUST NOT** write S1–S7 families or any RNG core paths owned by other states except its trace/audit appends. (Ownership & schemas enumerated in the registry/dictionary.)
 * **No cross-state emissions:** S8 does **not** emit selection keys (`gumbel_key`), NB/ZTP components, or residuals; those belong to S6/S2/S4/S7 respectively.
 
 ## 12.7 Lineage equality & canonical paths (concurrency checks)
@@ -937,7 +937,7 @@ This section fixes how S8 may parallelise work and still produce **byte-stable**
 
 ## 12.9 Consumer guarantees (what parallelism may not break)
 
-Given §§12.1-12.8 and the invariants in §9, consumers are guaranteed that for any fixed `(seed,fingerprint)`:
+Given §§12.1–12.8 and the invariants in §9, consumers are guaranteed that for any fixed `(seed,fingerprint)`:
 
 * `outlet_catalogue` is **byte-stable** and **order-stable** by its sort keys;
 * each `(merchant, country)` block contributes `n` rows with `site_order=1..n` and a single `sequence_finalize` event;
@@ -1160,7 +1160,7 @@ These toy scenarios illustrate S8 behaviour. Values are illustrative only; they 
 ## B.1 Normal multi-country merchant (three-country domain)
 
 **Lineage tokens**
-`seed=1234567890123456789` (uint64) · `parameter_hash=a1…a1` (64-hex) · `run_id=9f…9f` (32-hex) · `fingerprint=0123456789abcdef…(64-hex)`
+`seed=1234567890123456789` (uint64) · `parameter_hash=a1…a1` (**hex64**) · `run_id=9f…9f` (**hex32**) · `fingerprint=0123456789abcdef…(**hex64**)`
 
 **S3 candidate set (sole cross-country order, home rank=0)**
 `GB(0), US(1), DE(2)` — total, contiguous.
@@ -1234,7 +1234,7 @@ every egress row **must** embed `manifest_fingerprint = "0123456789abcdef…"` a
 
 ---
 
-**Note:** These examples are **Informative**. The **Binding** behaviour, contracts, and gates are defined in §§0-13 and Appendix A.
+**Note:** These examples are **Informative**. The **Binding** behaviour, contracts, and gates are defined in §§0–13 and Appendix A.
 
 ---
 
@@ -1247,7 +1247,7 @@ These are **non-binding** operational defaults for files, folders, and object-st
 ## C.1 File formats & compression (defaults; become binding if pinned)
 
 * **Parquet (tables):** use **ZSTD level 3** unless the registry says otherwise; keep Parquet as the only format within a dataset/partition. 
-* Suggested row-group target: **128-256 MiB uncompressed**; enable statistics; prefer dictionary encoding on low-cardinality columns (e.g., `legal_country_iso`).
+* Suggested row-group target: **128–256 MiB** uncompressed; enable statistics; prefer dictionary encoding on low-cardinality columns (e.g., `legal_country_iso`).
 * **JSONL (events/logs):** `.jsonl` (optionally **.jsonl.zst**); one JSON object per line, `\n` line endings; do not pretty-print. **RNG logs** are JSONL by dictionary. 
 
 > If the registry publishes a compression profile (e.g., `compression_zstd_level3`), producers **should** use it and treat it as project policy. 
@@ -1256,7 +1256,7 @@ These are **non-binding** operational defaults for files, folders, and object-st
 
 ## C.2 Part sizing & naming (to avoid tiny files)
 
-* Aim for **64-128 MiB compressed** per part; avoid parts < 8 MiB.
+* Aim for **64–128 MiB** compressed per part; avoid parts < 8 MiB.
 * Naming pattern: `part-00000-of-000NN.<ext>` (fixed batch) or `part-<uuid>.<ext>` (streaming). One family per folder. 
 
 ---
