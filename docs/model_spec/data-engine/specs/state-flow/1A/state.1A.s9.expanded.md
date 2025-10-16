@@ -1082,7 +1082,7 @@ Downstream consumers (e.g., 1B) **MUST NOT** read `outlet_catalogue` for a given
 Before any read of `outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/…`, a conformant consumer **MUST**:
 
 1. **Locate the bundle** at `…/validation/fingerprint={manifest_fingerprint}/`. Assert that the egress partition’s path token `fingerprint` **byte-equals** `manifest_fingerprint` embedded in egress rows (path↔embed equality). 
-2. **Verify the flag hashing rule.** Read `_passed.flag` (single line `sha256_hex = <hex64>`), list **all files listed in `index.json` (excluding `_passed.flag`)** in the bundle **in ASCII-lexicographic order**, concatenate their raw bytes, compute SHA-256, and assert equality to `<hex64>`. *(The flag itself is excluded from the hash.)*  
+2. **Verify the flag hashing rule.** Read `_passed.flag` (single line `sha256_hex = <hex64>`), list **all files listed in `index.json` (excluding `_passed.flag`)** in the bundle **in ASCII-lexicographic order of the `path` entries**, concatenate their raw bytes, compute SHA-256, and assert equality to `<hex64>`. *(The flag itself is excluded from the hash.)*  
 3. **(Optional but recommended)**: re-hash `fingerprint_artifacts.jsonl` / `param_digest_log.jsonl` advertised by S0 to harden supply-chain checks. Failure of any step ⇒ treat the run as **invalid** and **abort** the read. 
 
 ## 13.3 Scope boundaries (what the gate does/does not cover)
