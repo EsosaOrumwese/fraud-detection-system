@@ -1,4 +1,4 @@
-"""CLI runner for Segment 1A (S0 foundations – S3 cross-border universe)."""
+"""CLI runner for Segment 1A (S0 foundations – S5 currency weights)."""
 
 from __future__ import annotations
 
@@ -307,6 +307,16 @@ def main(argv: list[str] | None = None) -> int:
     if result.nb_context.metrics:
         logger.info("Segment1A CLI: S2 metrics %s", result.nb_context.metrics)
 
+    s5_ctx = result.s5_context
+    logger.info("Segment1A CLI: S5 weights %s", s5_ctx.weights_path)
+    if s5_ctx.sparse_flag_path:
+        logger.info("Segment1A CLI: S5 sparse flag %s", s5_ctx.sparse_flag_path)
+    logger.info(
+        "Segment1A CLI: S5 receipt %s (policy_digest=%s)",
+        s5_ctx.receipt_path,
+        s5_ctx.policy_digest,
+    )
+
     if args.result_json:
         catalogue_path = (
             args.output_dir.expanduser().resolve()
@@ -402,6 +412,19 @@ def main(argv: list[str] | None = None) -> int:
                     if args.s4_features is not None
                     else None
                 ),
+            },
+            "s5": {
+                "weights_path": str(s5_ctx.weights_path),
+                "sparse_flag_path": (
+                    str(s5_ctx.sparse_flag_path)
+                    if s5_ctx.sparse_flag_path is not None
+                    else None
+                ),
+                "receipt_path": str(s5_ctx.receipt_path),
+                "policy_digest": s5_ctx.policy_digest,
+                "policy_path": str(s5_ctx.policy_path),
+                "policy_semver": s5_ctx.policy_semver,
+                "policy_version": s5_ctx.policy_version,
             },
         }
         args.result_json.expanduser().resolve().write_text(

@@ -7,7 +7,11 @@ import pytest
 
 from engine.layers.l1.seg_1A.s5_currency_weights.builder import build_weights
 from engine.layers.l1.seg_1A.s5_currency_weights.loader import ShareSurface
-from engine.layers.l1.seg_1A.s5_currency_weights.persist import PersistConfig, write_ccy_country_weights
+from engine.layers.l1.seg_1A.s5_currency_weights.persist import (
+    PARTITION_FILENAME,
+    PersistConfig,
+    write_ccy_country_weights,
+)
 from engine.layers.l1.seg_1A.s5_currency_weights.policy import load_policy
 from engine.layers.l1.seg_1A.s5_currency_weights.validate import ValidationError, validate_weights_df
 
@@ -61,7 +65,12 @@ def test_persist_and_validate(tmp_path):
     receipt = json.loads((parquet_path.parent / "S5_VALIDATION.json").read_text())
     assert receipt["parameter_hash"] == "abc123"
     assert receipt["currencies"][0]["currency"] == "USD"
-    sparse_path = tmp_path / "sparse_flag" / "parameter_hash=abc123" / "part-0000.parquet"
+    sparse_path = (
+        tmp_path
+        / "sparse_flag"
+        / "parameter_hash=abc123"
+        / PARTITION_FILENAME
+    )
     df_sparse = pd.read_parquet(sparse_path)
     assert set(df_sparse.columns) >= {"parameter_hash", "currency", "is_sparse", "obs_count", "threshold"}
     assert len(df_sparse) == 1

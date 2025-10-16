@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Mapping, Optional, Sequence, Tuple
@@ -60,6 +59,13 @@ from engine.layers.l1.seg_1A.s4_ztp_target.l3.bundle import (
     publish_s4_validation_artifacts,
 )
 from engine.layers.l1.seg_1A.s4_ztp_target.l3.validator import validate_s4_run
+from engine.layers.l1.seg_1A.s5_currency_weights import (
+    DEFAULT_PATHS as S5_DEFAULT_PATHS,
+    S5CurrencyWeightsRunner,
+    S5DeterministicContext,
+    S5RunOutputs,
+)
+from engine.layers.l1.seg_1A.shared.dictionary import get_repo_root
 
 logger = logging.getLogger(__name__)
 
@@ -232,6 +238,20 @@ class S4StateContext:
         return self.deterministic.seed
 
 
+@dataclass(frozen=True)
+class S5StateContext:
+    """Context bundle produced after S5 currency-weight expansion."""
+
+    deterministic: S5DeterministicContext
+    weights_path: Path
+    sparse_flag_path: Path | None
+    receipt_path: Path
+    policy_digest: str
+    policy_path: Path
+    policy_semver: str
+    policy_version: str
+
+
 def build_s3_context(
     result: S3RunResult,
     *,
@@ -280,6 +300,22 @@ def build_s4_context(
     )
 
 
+def build_s5_context(outputs: S5RunOutputs) -> S5StateContext:
+    """Construct the downstream context bundle for S5 outputs."""
+
+    metadata = outputs.policy
+    return S5StateContext(
+        deterministic=outputs.deterministic,
+        weights_path=outputs.weights_path,
+        sparse_flag_path=outputs.sparse_flag_path,
+        receipt_path=outputs.receipt_path or outputs.weights_path.parent / "S5_VALIDATION.json",
+        policy_digest=metadata.digest_hex,
+        policy_path=metadata.path,
+        policy_semver=metadata.semver,
+        policy_version=metadata.version,
+    )
+
+
 @dataclass(frozen=True)
 class Segment1ARunResult:
     """Combined result for running S0 foundations through S4 target sampling."""
@@ -293,6 +329,8 @@ class Segment1ARunResult:
     s3_context: S3StateContext
     s4_result: S4RunResult
     s4_context: S4StateContext
+    s5_result: S5RunOutputs
+    s5_context: S5StateContext
 
 
 class Segment1AOrchestrator:
@@ -310,6 +348,34 @@ class Segment1AOrchestrator:
         self._s2_runner = S2NegativeBinomialRunner()
         self._s3_runner = S3CrossBorderRunner()
         self._s4_runner = S4ZTPTargetRunner()
+        self._s5_runner = S5CurrencyWeightsRunner()
+
+
+    def _resolve_s5_policy_path(self, param_mapping: Mapping[str, Path]) -> Path:
+        """Resolve the governed S5 smoothing policy path."""
+
+        candidate_keys = (
+            "ccy_smoothing_params.yaml",
+            "config.allocation.ccy_smoothing_params.yaml",
+            "config/allocation/ccy_smoothing_params.yaml",
+        )
+        for key in candidate_keys:
+            policy_path = param_mapping.get(key)
+            if policy_path is not None:
+                return policy_path.expanduser().resolve()
+
+        default_path = (
+            get_repo_root()
+            / "config"
+            / "allocation"
+            / "ccy_smoothing_params.yaml"
+        )
+        if not default_path.exists():
+            raise err(
+                "E_GOVERNANCE_MISSING",
+                f"default S5 policy not found at '{default_path}'",
+            )
+        return default_path.resolve()
 
 
     def run(
@@ -348,6 +414,9 @@ class Segment1AOrchestrator:
             if extra_manifest_artifacts
             else []
         )
+        s5_policy_path = self._resolve_s5_policy_path(param_mapping)
+        if s5_policy_path not in extras:
+            extras.append(s5_policy_path)
         feature_path_input = s4_features.expanduser().resolve() if s4_features else None
         if feature_path_input is not None:
             extras.append(feature_path_input)
@@ -748,6 +817,43 @@ class Segment1AOrchestrator:
             validation_artifacts_path=s4_validation_artifacts_path,
         )
 
+        repo_root = get_repo_root()
+
+        def _resolve_reference_path(path: Path | None) -> Path | None:
+            if path is None:
+                return None
+            return (path if path.is_absolute() else (repo_root / path)).resolve()
+
+        s5_deterministic = S5DeterministicContext(
+            parameter_hash=s2_result.deterministic.parameter_hash,
+            manifest_fingerprint=s2_result.deterministic.manifest_fingerprint,
+            run_id=s2_result.deterministic.run_id,
+            seed=s2_result.deterministic.seed,
+            policy_path=s5_policy_path,
+            settlement_shares_path=_resolve_reference_path(
+                S5_DEFAULT_PATHS.settlement_shares
+            ),
+            ccy_country_shares_path=_resolve_reference_path(
+                S5_DEFAULT_PATHS.ccy_country_shares
+            ),
+            iso_legal_tender_path=_resolve_reference_path(
+                S5_DEFAULT_PATHS.iso_legal_tender
+            ),
+        )
+
+        s5_result = self._s5_runner.run(
+            base_path=base_path,
+            deterministic=s5_deterministic,
+            emit_sparse_flag=True,
+        )
+        s5_context = build_s5_context(s5_result)
+
+        logger.info(
+            "Segment1A S5 completed (weights=%s, policy_digest=%s)",
+            s5_result.weights_path,
+            s5_context.policy_digest,
+        )
+
         s3_context = build_s3_context(
             s3_result,
             metrics=s3_metrics,
@@ -771,6 +877,8 @@ class Segment1AOrchestrator:
             s3_context=s3_context,
             s4_result=s4_result,
             s4_context=s4_context,
+            s5_result=s5_result,
+            s5_context=s5_context,
         )
 
 
@@ -779,10 +887,12 @@ __all__ = [
     "S2StateContext",
     "S3StateContext",
     "S4StateContext",
+    "S5StateContext",
     "Segment1ARunResult",
     "Segment1AOrchestrator",
     "build_hurdle_context",
     "build_s2_context",
     "build_s3_context",
     "build_s4_context",
+    "build_s5_context",
 ]

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -9,9 +10,12 @@ from typing import Iterable, List
 
 import pandas as pd
 
-from .builder import CurrencyResult, WeightRow
+from .builder import CurrencyResult
+
+PARTITION_FILENAME = "part-00000.parquet"
 
 __all__ = [
+    "PARTITION_FILENAME",
     "PersistConfig",
     "write_ccy_country_weights",
     "write_sparse_flag",
@@ -60,7 +64,7 @@ def write_ccy_country_weights(
         / f"parameter_hash={config.parameter_hash}"
     )
     target_dir.mkdir(parents=True, exist_ok=True)
-    path = target_dir / "part-0000.parquet"
+    path = target_dir / PARTITION_FILENAME
     df.to_parquet(path, index=False)
 
     if config.emit_validation:
@@ -102,7 +106,7 @@ def write_sparse_flag(
         / f"parameter_hash={config.parameter_hash}"
     )
     target_dir.mkdir(parents=True, exist_ok=True)
-    path = target_dir / "part-0000.parquet"
+    path = target_dir / PARTITION_FILENAME
     df.to_parquet(path, index=False)
     return path
 
@@ -145,7 +149,8 @@ def write_validation_receipt(
     receipt_path = dest_dir / "S5_VALIDATION.json"
     receipt_path.write_text(json.dumps(receipt, indent=2), encoding="utf-8")
 
+    digest = hashlib.sha256(receipt_path.read_bytes()).hexdigest()
     passed_flag = dest_dir / "_passed.flag"
-    passed_flag.write_text("PASS\n", encoding="utf-8")
+    passed_flag.write_text(f"sha256_hex={digest}\n", encoding="ascii")
 
     return receipt_path

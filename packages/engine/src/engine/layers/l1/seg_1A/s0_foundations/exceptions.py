@@ -90,6 +90,22 @@ _FAILURE_CODE_MAP: Mapping[str, Tuple[FailureCategory, str]] = {
         FailureCategory.F2_PARAMETERS,
         "runid_collision_exhausted",
     ),
+    "E_INPUT_SCHEMA": (
+        FailureCategory.F1_INGRESS,
+        "s5_input_schema_violation",
+    ),
+    "E_INPUT_SUM": (
+        FailureCategory.F1_INGRESS,
+        "s5_input_sum_violation",
+    ),
+    "E_POLICY_DOMAIN": (
+        FailureCategory.F2_PARAMETERS,
+        "s5_policy_domain",
+    ),
+    "E_PARTITION_EXISTS": (
+        FailureCategory.F5_PARTITION,
+        "s5_partition_exists",
+    ),
     "E_VALIDATION_MISMATCH": (FailureCategory.F8_VALIDATION, "validation_mismatch"),
     "E_VALIDATION_DIGEST": (
         FailureCategory.F8_VALIDATION,
