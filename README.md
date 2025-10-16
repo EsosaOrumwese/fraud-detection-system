@@ -189,7 +189,7 @@ Legend (compact):
 ---
 
 ## Current scope & reading order
-- **Current focus:** Data Engine — **Layer-1 / Segment 1A, States S0–S4** (design frozen; implementation next).  
+- **Current focus:** Data Engine - **Layer-1 / Segment 1A, States S5–S9** (S0–S4 sealed; S5–S9 execution in progress).  
 - **Reading order:** `contracts/` → `packages/engine/` → `services/` (concept) → `orchestration/` (concept).  
 - **Promotion path:** when a service becomes real, it graduates from `services/<name>/` (docs) to `packages/svc-<name>/` (its own package).
 
@@ -199,7 +199,7 @@ Legend (compact):
 ```text
 fraud-enterprise/
 ├─ packages/                     # buildable Python distributions (each with its own pyproject & src/)
-│  └─ engine/                    # the Data Engine package (active: Layer-1/1A S0–S4 lives here)
+│  └─ engine/                    # the Data Engine package (S0–S4 sealed; S5–S9 active here)
 │     ├─ pyproject.toml
 │     └─ src/engine/
 │        ├─ cli/                 # (concept) command entry points: run / validate / manifest
@@ -272,7 +272,7 @@ fraud-enterprise/
 
 ---
 
-> **Note:** This README describes the **destination**. Many folders are intentionally **conceptual** until unlocked. The **Data Engine** (Layer-1 / 1A S0–S4) is the active build target and as we progress, more will be unlocked
+> **Note:** This README describes the **destination**. Many folders are intentionally **conceptual** until unlocked. The **Data Engine** (Layer-1 / 1A S5–S9 in execution; S0–S4 sealed) is the active build target and as we progress, more will be unlocked
 
 ## Data Engine Progress
 
