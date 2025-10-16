@@ -48,6 +48,11 @@ def test_basic_blend(tmp_path):
     assert pytest.approx(weights["US"], abs=1e-9) == 0.65
     assert pytest.approx(weights["CA"], abs=1e-9) == 0.35
     assert usd_result.degrade_mode == "none"
+    assert usd_result.sum_numeric_ok is True
+    assert usd_result.sum_decimal_ok is True
+    assert usd_result.largest_remainder_ulps >= 0
+    assert usd_result.countries_union_count == 2
+    assert usd_result.floors_triggered == 0
 
 
 def test_degrade_when_one_surface_missing(tmp_path):
@@ -68,6 +73,7 @@ def test_degrade_when_one_surface_missing(tmp_path):
     assert eur_result.degrade_reason == "SRC_MISSING_SETTLEMENT"
     weights = {row.country_iso: row.weight for row in eur_result.weights}
     assert pytest.approx(sum(weights.values()), abs=1e-12) == 1.0
+    assert eur_result.policy_narrowed is False
 
 
 def test_min_share_floor(tmp_path):

@@ -321,7 +321,7 @@ def build_s5_context(outputs: S5RunOutputs) -> S5StateContext:
 
 @dataclass(frozen=True)
 class Segment1ARunResult:
-    """Combined result for running S0 foundations through S4 target sampling."""
+    """Combined result for running S0 foundations through S5 currency weights."""
 
     s0_result: S0RunResult
     s1_result: S1RunResult

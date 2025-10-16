@@ -14,6 +14,7 @@ __all__ = [
     "QuantisationError",
     "ZeroMassError",
     "WeightRow",
+    "QuantisationResult",
     "CurrencyResult",
     "build_weights",
 ]
@@ -50,6 +51,20 @@ class CurrencyResult:
     degrade_reason: Optional[str]
     is_sparse: bool
     sparse_threshold: float
+    n0: float
+    dp: int
+    sum_numeric_ok: bool
+    sum_decimal_ok: bool
+    largest_remainder_ulps: int
+    countries_union_count: int
+    countries_output_count: int
+    policy_narrowed: bool
+    narrowed_isos: Tuple[str, ...]
+    alpha_override_count: int
+    min_share_override_count: int
+    per_currency_override: bool
+    floors_triggered: int
+    overrides_total: int
 
 
 def build_weights(
@@ -109,6 +124,9 @@ class _CurrencyParams:
     shrink_exponent: float
     alpha_iso: Mapping[str, float]
     min_share_iso: Mapping[str, float]
+    per_currency_override: bool
+    alpha_override_count: int
+    min_share_override_count: int
 
 
 def _group_by_currency(shares: Iterable[ShareSurface]) -> Dict[str, Dict[str, ShareSurface]]:
@@ -149,6 +167,12 @@ def _resolve_currency_params(policy: SmoothingPolicy, currency: str) -> _Currenc
 
     alpha_iso = policy.alpha_iso.get(currency, {})
     min_share_iso = policy.min_share_iso.get(currency, {})
+    per_currency_override = overrides is not None and any(
+        getattr(overrides, attr) is not None
+        for attr in ("blend_weight", "alpha", "obs_floor", "min_share", "shrink_exponent")
+    )
+    alpha_override_count = len(alpha_iso)
+    min_share_override_count = len(min_share_iso)
 
     return _CurrencyParams(
         blend_weight=blend_weight,
@@ -158,6 +182,9 @@ def _resolve_currency_params(policy: SmoothingPolicy, currency: str) -> _Currenc
         shrink_exponent=shrink_exponent,
         alpha_iso=alpha_iso,
         min_share_iso=min_share_iso,
+        per_currency_override=per_currency_override,
+        alpha_override_count=alpha_override_count,
+        min_share_override_count=min_share_override_count,
     )
 
 
@@ -257,7 +284,8 @@ def _build_currency(
     probabilities = {iso: probabilities[iso] / total_prob for iso in union_isos}
 
     # Quantise (§6.7).
-    quantised = _quantise_probabilities(probabilities, dp)
+    quant_result = _quantise_probabilities(probabilities, dp)
+    quantised = quant_result.weights
 
     weight_rows = [
         WeightRow(currency=currency, country_iso=iso, weight=quantised[iso])
@@ -267,6 +295,23 @@ def _build_currency(
     is_sparse = False
     if sparse_threshold > 0.0:
         is_sparse = n_eff <= sparse_threshold + 1e-9
+
+    countries_union_count = len(list(union_isos))
+    countries_output_count = sum(1 for iso in quantised if quantised[iso] > 0.0)
+    narrowed_isos = tuple(sorted(iso for iso in union_isos if quantised[iso] <= 0.0))
+    policy_narrowed = countries_output_count < countries_union_count
+    sum_numeric_ok = abs(sum(probabilities.values()) - 1.0) <= 1e-6
+    sum_decimal_ok = quant_result.sum_decimal_ok
+    floors_triggered = sum(
+        1
+        for iso in union_isos
+        if posterior[iso] + 1e-12 < min_share_by_iso[iso]
+    )
+    overrides_total = (
+        params.alpha_override_count
+        + params.min_share_override_count
+        + (1 if params.per_currency_override else 0)
+    )
 
     return CurrencyResult(
         currency=currency,
@@ -280,10 +325,31 @@ def _build_currency(
         degrade_reason=degrade_reason,
         is_sparse=is_sparse,
         sparse_threshold=sparse_threshold,
+        n0=n0,
+        dp=dp,
+        sum_numeric_ok=sum_numeric_ok,
+        sum_decimal_ok=sum_decimal_ok,
+        largest_remainder_ulps=quant_result.ulp_adjustments,
+        countries_union_count=countries_union_count,
+        countries_output_count=countries_output_count,
+        policy_narrowed=policy_narrowed,
+        narrowed_isos=narrowed_isos,
+        alpha_override_count=params.alpha_override_count,
+        min_share_override_count=params.min_share_override_count,
+        per_currency_override=params.per_currency_override,
+        floors_triggered=floors_triggered,
+        overrides_total=overrides_total,
     )
 
 
-def _quantise_probabilities(probabilities: Mapping[str, float], dp: int) -> Dict[str, float]:
+@dataclass(frozen=True)
+class QuantisationResult:
+    weights: Dict[str, float]
+    ulp_adjustments: int
+    sum_decimal_ok: bool
+
+
+def _quantise_probabilities(probabilities: Mapping[str, float], dp: int) -> QuantisationResult:
     factor = Decimal(10) ** dp
     iso_list = list(probabilities.keys())
 
@@ -302,6 +368,7 @@ def _quantise_probabilities(probabilities: Mapping[str, float], dp: int) -> Dict
     total = sum(int_ulps)
     target = int(factor)
 
+    ulp_adjustments = 0
     if total < target:
         diff = target - total
         order = sorted(
@@ -310,6 +377,7 @@ def _quantise_probabilities(probabilities: Mapping[str, float], dp: int) -> Dict
         )
         for idx in order[:diff]:
             int_ulps[idx] += 1
+        ulp_adjustments += diff
     elif total > target:
         diff = total - target
         order = sorted(
@@ -318,6 +386,7 @@ def _quantise_probabilities(probabilities: Mapping[str, float], dp: int) -> Dict
         )
         for idx in order[:diff]:
             int_ulps[idx] -= 1
+        ulp_adjustments += diff
 
     if sum(int_ulps) != target:
         raise QuantisationError("Unable to achieve fixed-dp sum after adjustments")
@@ -326,7 +395,11 @@ def _quantise_probabilities(probabilities: Mapping[str, float], dp: int) -> Dict
     for iso, ulp in zip(iso_list, int_ulps):
         quantised[iso] = float(Decimal(ulp) / factor)
 
-    return quantised
+    return QuantisationResult(
+        weights=quantised,
+        ulp_adjustments=ulp_adjustments,
+        sum_decimal_ok=sum(int_ulps) == target,
+    )
 
 
 def _iso_desc_key(iso: str) -> Tuple[int, ...]:

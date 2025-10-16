@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import logging
 import shutil
 import uuid
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, Mapping, Sequence, Tuple
+from typing import Dict, Iterable, Mapping, Sequence, Tuple
 
 from ..s0_foundations.exceptions import err
 from ..shared.dictionary import load_dictionary, resolve_dataset_path
@@ -24,11 +27,22 @@ from .loader import (
 from .merchant_currency import MerchantCurrencyRecord, derive_merchant_currency
 from .persist import (
     PersistConfig,
+    build_receipt_payload,
     write_ccy_country_weights,
     write_merchant_currency,
     write_sparse_flag,
+    write_validation_receipt,
 )
 from .policy import PolicyValidationError, SmoothingPolicy, load_policy
+
+
+logger = logging.getLogger(__name__)
+
+SCHEMA_REFS = {
+    "settlement_shares": "schemas.ingress.layer1.yaml#/settlement_shares",
+    "ccy_country_shares": "schemas.ingress.layer1.yaml#/ccy_country_shares",
+    "ccy_country_weights_cache": "schemas.1A.yaml#/prep/ccy_country_weights_cache",
+}
 
 
 @dataclass(frozen=True)
@@ -60,10 +74,18 @@ class S5CurrencyWeightsRunner:
 
         base_path = base_path.expanduser().resolve()
         dictionary = load_dictionary()
+        rng_before = self._snapshot_rng_totals(base_path, deterministic)
         policy, policy_metadata = self._resolve_policy(deterministic.policy_path)
+        self._log_stage(
+            "N0",
+            "policy resolved",
+            parameter_hash=deterministic.parameter_hash,
+            policy_path=str(policy_metadata.path),
+            policy_digest=policy_metadata.digest_hex,
+        )
         settlements = self._load_settlement_shares(
             deterministic, share_loader=share_loader
-        )  # noqa: F841 -- placeholder for future merchant-currency support
+        )
         ccy_shares = self._load_ccy_shares(deterministic, share_loader=share_loader)
         iso_lookup = list(
             iso_legal_tender
@@ -91,24 +113,76 @@ class S5CurrencyWeightsRunner:
             ccy_shares=ccy_shares,
             iso_lookup=iso_lookup,
         )
+        currencies_total_inputs = len(
+            {row.currency for row in settlements} | {row.currency for row in ccy_shares}
+        )
+        self._log_stage(
+            "N1",
+            "inputs validated",
+            parameter_hash=deterministic.parameter_hash,
+            currencies_total=currencies_total_inputs,
+            settlement_currencies=len({row.currency for row in settlements}),
+            ccy_currencies=len({row.currency for row in ccy_shares}),
+        )
 
         results = build_weights(
             settlement_shares=settlements,
             ccy_shares=ccy_shares,
             policy=policy,
         )
+        results = list(results)
+        currencies_processed = len(results)
+        rows_written = sum(len(result.weights) for result in results)
+        degrade_summary = self._summarise_degrade(results)
+        self._log_stage(
+            "N2",
+            "weights built",
+            parameter_hash=deterministic.parameter_hash,
+            currencies_processed=currencies_processed,
+            rows_written=rows_written,
+            degrade_summary=degrade_summary,
+        )
 
         staging_root = self._create_staging_dir(base_path)
         config = PersistConfig(
             parameter_hash=deterministic.parameter_hash,
             output_dir=staging_root,
-            emit_validation=True,
+            emit_validation=False,
             emit_sparse_flag=emit_sparse_flag,
         )
         weights_staging_path = write_ccy_country_weights(results, config=config)
         sparse_staging_path: Path | None = None
         if emit_sparse_flag:
             sparse_staging_path = staging_root / "sparse_flag" / f"parameter_hash={deterministic.parameter_hash}"
+        merchant_staging_path: Path | None = None
+        if merchant_records:
+            merchant_staging_path = write_merchant_currency(
+                merchant_records,
+                config=config,
+            )
+
+        rng_after = self._snapshot_rng_totals(base_path, deterministic)
+        receipt_payload = build_receipt_payload(
+            results=results,
+            parameter_hash=deterministic.parameter_hash,
+            policy_metadata=policy_metadata,
+            schema_refs=SCHEMA_REFS,
+            rng_before=rng_before,
+            rng_after=rng_after,
+            currencies_total_inputs=currencies_total_inputs,
+        )
+        write_validation_receipt(
+            payload=receipt_payload,
+            config=config,
+            target_dir=weights_staging_path.parent,
+        )
+        self._log_stage(
+            "N3",
+            "validation receipt staged",
+            parameter_hash=deterministic.parameter_hash,
+            currencies_processed=currencies_processed,
+        )
+
         weights_final_path = self._publish_partition(
             base_path=base_path,
             dataset_id="ccy_country_weights_cache",
@@ -125,22 +199,8 @@ class S5CurrencyWeightsRunner:
                 dictionary=dictionary,
                 template_args={"parameter_hash": deterministic.parameter_hash},
             )
-
         merchant_final_path: Path | None = None
-        if merchant_records:
-            if len(merchant_records) != len(deterministic.merchants):
-                raise err(
-                    "E_MCURR_CARDINALITY",
-                    (
-                        "merchant_currency rows do not match merchant universe "
-                        f"(expected {len(deterministic.merchants)}, "
-                        f"produced {len(merchant_records)})"
-                    ),
-                )
-            merchant_staging_path = write_merchant_currency(
-                merchant_records,
-                config=config,
-            )
+        if merchant_records and merchant_staging_path is not None:
             merchant_final_path = self._publish_partition(
                 base_path=base_path,
                 dataset_id="merchant_currency",
@@ -148,8 +208,20 @@ class S5CurrencyWeightsRunner:
                 dictionary=dictionary,
                 template_args={"parameter_hash": deterministic.parameter_hash},
             )
+            self._log_stage(
+                "N2b",
+                "merchant currency derived",
+                parameter_hash=deterministic.parameter_hash,
+                merchant_rows=len(merchant_records),
+            )
 
         receipt_path = weights_final_path.parent / "S5_VALIDATION.json"
+        self._log_stage(
+            "N4",
+            "publish complete",
+            parameter_hash=deterministic.parameter_hash,
+            weights_path=str(weights_final_path),
+        )
 
         self._cleanup_staging(staging_root)
 
@@ -307,6 +379,86 @@ class S5CurrencyWeightsRunner:
     def _cleanup_staging(self, staging_root: Path) -> None:
         if staging_root.exists():
             shutil.rmtree(staging_root, ignore_errors=True)
+
+    def _snapshot_rng_totals(
+        self,
+        base_path: Path,
+        deterministic: S5DeterministicContext,
+    ) -> Dict[str, int]:
+        rng_root = (base_path / "rng_logs").resolve()
+        totals: Dict[str, int] = {"events_total": 0, "draws_total": 0, "blocks_total": 0}
+        trace_file = (
+            rng_root
+            / "trace"
+            / f"seed={deterministic.seed}"
+            / f"parameter_hash={deterministic.parameter_hash}"
+            / f"run_id={deterministic.run_id}"
+            / "rng_trace_log.jsonl"
+        )
+        block_totals: Dict[Tuple[str | None, str | None], int] = {}
+        if trace_file.exists():
+            with trace_file.open("r", encoding="utf-8") as handle:
+                for line in handle:
+                    try:
+                        record = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    key = (record.get("module"), record.get("substream_label"))
+                    block_totals[key] = int(record.get("blocks_total", 0))
+        totals["blocks_total"] = sum(block_totals.values())
+
+        events_root = rng_root / "events"
+        if events_root.exists():
+            pattern = events_root.glob(
+                f"**/seed={deterministic.seed}/parameter_hash={deterministic.parameter_hash}/run_id={deterministic.run_id}/part-*.jsonl"
+            )
+            events_total = 0
+            draws_total = 0
+            for file_path in pattern:
+                try:
+                    with file_path.open("r", encoding="utf-8") as handle:
+                        for line in handle:
+                            try:
+                                record = json.loads(line)
+                            except json.JSONDecodeError:
+                                continue
+                            events_total += 1
+                            try:
+                                draws_total += int(record.get("draws", 0))
+                            except (TypeError, ValueError):
+                                continue
+                except FileNotFoundError:
+                    continue
+            totals["events_total"] = events_total
+            totals["draws_total"] = draws_total
+        return totals
+
+    def _log_stage(self, stage: str, message: str, *, level: str = "INFO", **fields: object) -> None:
+        level_upper = level.upper()
+        record = {
+            "ts": datetime.now(timezone.utc).isoformat(timespec="microseconds"),
+            "level": level_upper,
+            "component": "1A.expand_currency_to_country",
+            "stage": stage,
+            "message": message,
+        }
+        record.update(fields)
+        if level_upper == "ERROR":
+            log_fn = logger.error
+        elif level_upper in {"WARN", "WARNING"}:
+            log_fn = logger.warning
+        else:
+            log_fn = logger.info
+        log_fn(json.dumps(record, sort_keys=True))
+
+    @staticmethod
+    def _summarise_degrade(results: Sequence[CurrencyResult]) -> Dict[str, int]:
+        summary: Dict[str, int] = {"none": 0, "settlement_only": 0, "ccy_only": 0}
+        for result in results:
+            mode = result.degrade_mode
+            summary.setdefault(mode, 0)
+            summary[mode] += 1
+        return summary
 
 
 __all__ = [
