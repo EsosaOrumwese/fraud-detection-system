@@ -8,10 +8,12 @@ import math
 from pathlib import Path
 from typing import Mapping, Sequence
 
+import re
+
 import pandas as pd
 import yaml
-from jsonschema import Draft201909Validator, RefResolver, ValidationError
-import re
+from jsonschema import Draft201909Validator, ValidationError
+from referencing import Registry, Resource
 
 from ..s0_foundations.l1.rng import PhiloxEngine, comp_iso, comp_u64
 from ..shared.dictionary import get_repo_root, load_dictionary, resolve_dataset_path
@@ -330,7 +332,8 @@ def _verify_counter_replay(outputs: S6RunOutputs) -> None:
 
 
 _LAYER1_SCHEMA_DATA: dict | None = None
-_LAYER1_RESOLVER: RefResolver | None = None
+_LAYER1_RESOURCE: Resource | None = None
+_LAYER1_REGISTRY: Registry | None = None
 _LAYER1_VALIDATORS: dict[str, Draft201909Validator] = {}
 _MEMBERSHIP_VALIDATOR: Draft201909Validator | None = None
 _RECEIPT_VALIDATOR: Draft201909Validator | None = None
@@ -339,15 +342,20 @@ _HEX64_RE = re.compile(r"[0-9a-f]{64}")
 
 
 def _layer1_validator(pointer: str) -> Draft201909Validator:
-    global _LAYER1_SCHEMA_DATA, _LAYER1_RESOLVER
+    global _LAYER1_SCHEMA_DATA, _LAYER1_RESOURCE, _LAYER1_REGISTRY
     if _LAYER1_SCHEMA_DATA is None:
         schema_path = get_repo_root() / "contracts" / "schemas" / "layer1" / "schemas.layer1.yaml"
         payload = yaml.safe_load(schema_path.read_text(encoding="utf-8"))
         _LAYER1_SCHEMA_DATA = payload
-        _LAYER1_RESOLVER = RefResolver.from_schema(payload)
+        base_uri = payload.get("$id", "memory://schemas.layer1.yaml")
+        resource = Resource.from_contents(payload)
+        _LAYER1_RESOURCE = resource
+        _LAYER1_REGISTRY = Registry().with_resource(base_uri, resource)
     if pointer not in _LAYER1_VALIDATORS:
+        if _LAYER1_RESOURCE is None or _LAYER1_REGISTRY is None:
+            raise S6ValidationError("Layer1 schema registry not initialised")
         node = _resolve_pointer(_LAYER1_SCHEMA_DATA, pointer)
-        _LAYER1_VALIDATORS[pointer] = Draft201909Validator(node, resolver=_LAYER1_RESOLVER)
+        _LAYER1_VALIDATORS[pointer] = Draft201909Validator(node, registry=_LAYER1_REGISTRY)
     return _LAYER1_VALIDATORS[pointer]
 
 
