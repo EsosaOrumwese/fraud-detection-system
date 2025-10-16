@@ -49,7 +49,7 @@ def test_persist_and_validate(tmp_path):
 
     results = build_weights(settlement, ccy, policy)
 
-    config = PersistConfig(parameter_hash="abc123", output_dir=tmp_path)
+    config = PersistConfig(parameter_hash="abc123", output_dir=tmp_path, emit_sparse_flag=True)
     parquet_path = write_ccy_country_weights(results, config)
 
     df = pd.read_parquet(parquet_path)
@@ -61,6 +61,15 @@ def test_persist_and_validate(tmp_path):
     receipt = json.loads((parquet_path.parent / "S5_VALIDATION.json").read_text())
     assert receipt["parameter_hash"] == "abc123"
     assert receipt["currencies"][0]["currency"] == "USD"
+    sparse_path = tmp_path / "sparse_flag" / "parameter_hash=abc123" / "part-0000.parquet"
+    df_sparse = pd.read_parquet(sparse_path)
+    assert set(df_sparse.columns) >= {"parameter_hash", "currency", "is_sparse", "obs_count", "threshold"}
+    assert len(df_sparse) == 1
+    assert bool(df_sparse.loc[0, "is_sparse"]) is False
+
+    usd_metrics = receipt["currencies"][0]
+    assert pytest.approx(usd_metrics["probability_sum"], abs=1e-12) == 1.0
+    assert pytest.approx(usd_metrics["quantised_sum"], abs=1e-12) == 1.0
 
 
 def test_validate_detects_sum_failure(tmp_path):

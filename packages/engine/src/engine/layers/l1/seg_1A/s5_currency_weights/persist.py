@@ -14,6 +14,7 @@ from .builder import CurrencyResult, WeightRow
 __all__ = [
     "PersistConfig",
     "write_ccy_country_weights",
+    "write_sparse_flag",
     "write_validation_receipt",
 ]
 
@@ -23,6 +24,7 @@ class PersistConfig:
     parameter_hash: str
     output_dir: Path
     emit_validation: bool = True
+    emit_sparse_flag: bool = False
 
 
 def write_ccy_country_weights(
@@ -64,6 +66,44 @@ def write_ccy_country_weights(
     if config.emit_validation:
         write_validation_receipt(result_list, config, target_dir)
 
+    if config.emit_sparse_flag:
+        write_sparse_flag(result_list, config)
+
+    return path
+
+
+def write_sparse_flag(
+    results: Iterable[CurrencyResult],
+    config: PersistConfig,
+) -> Path:
+    """Persist the optional sparse_flag dataset."""
+
+    records = []
+    for result in results:
+        records.append(
+            {
+                "parameter_hash": config.parameter_hash,
+                "currency": result.currency,
+                "is_sparse": bool(result.is_sparse),
+                "obs_count": result.obs_count,
+                "threshold": result.sparse_threshold,
+            }
+        )
+
+    df = pd.DataFrame.from_records(
+        records,
+        columns=["parameter_hash", "currency", "is_sparse", "obs_count", "threshold"],
+    )
+    df = df.sort_values(["currency"]).reset_index(drop=True)
+
+    target_dir = (
+        config.output_dir
+        / "sparse_flag"
+        / f"parameter_hash={config.parameter_hash}"
+    )
+    target_dir.mkdir(parents=True, exist_ok=True)
+    path = target_dir / "part-0000.parquet"
+    df.to_parquet(path, index=False)
     return path
 
 
@@ -92,6 +132,11 @@ def write_validation_receipt(
                 "obs_count": result.obs_count,
                 "degrade_mode": result.degrade_mode,
                 "degrade_reason": result.degrade_reason,
+                "probability_sum": sum(result.probabilities.values()),
+                "quantised_sum": sum(result.quantised.values()),
+                "blend_weight": result.blend_weight,
+                "is_sparse": result.is_sparse,
+                "sparse_threshold": result.sparse_threshold,
             }
             for result in results
         ],

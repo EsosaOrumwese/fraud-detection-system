@@ -43,8 +43,13 @@ class CurrencyResult:
     weights: List[WeightRow]
     n_eff: float
     obs_count: int
+    probabilities: Mapping[str, float]
+    quantised: Mapping[str, float]
+    blend_weight: float
     degrade_mode: str
     degrade_reason: Optional[str]
+    is_sparse: bool
+    sparse_threshold: float
 
 
 def build_weights(
@@ -75,25 +80,18 @@ def build_weights(
         params = _resolve_currency_params(policy, currency)
         degrade_mode, degrade_reason = _detect_degrade_mode(settle_rows, ccy_rows)
 
-        weights, n_eff, obs_count = _build_currency(
+        result = _build_currency(
             currency=currency,
             union_isos=union_isos,
             settle_rows=settle_rows,
             ccy_rows=ccy_rows,
             params=params,
             dp=policy.dp,
+            degrade_mode=degrade_mode,
+            degrade_reason=degrade_reason,
         )
 
-        results.append(
-            CurrencyResult(
-                currency=currency,
-                weights=weights,
-                n_eff=n_eff,
-                obs_count=obs_count,
-                degrade_mode=degrade_mode,
-                degrade_reason=degrade_reason,
-            )
-        )
+        results.append(result)
 
     return results
 
@@ -171,7 +169,9 @@ def _build_currency(
     ccy_rows: Mapping[str, ShareSurface],
     params: _CurrencyParams,
     dp: int,
-) -> Tuple[List[WeightRow], float, int]:
+    degrade_mode: str,
+    degrade_reason: Optional[str],
+) -> CurrencyResult:
     blend = params.blend_weight
 
     # Pre-compute sums of obs counts for N0.
@@ -263,7 +263,24 @@ def _build_currency(
         WeightRow(currency=currency, country_iso=iso, weight=quantised[iso])
         for iso in sorted(quantised.keys())
     ]
-    return weight_rows, n_eff, obs_count
+    sparse_threshold = params.obs_floor
+    is_sparse = False
+    if sparse_threshold > 0.0:
+        is_sparse = n_eff <= sparse_threshold + 1e-9
+
+    return CurrencyResult(
+        currency=currency,
+        weights=weight_rows,
+        n_eff=n_eff,
+        obs_count=obs_count,
+        probabilities=probabilities,
+        quantised=quantised,
+        blend_weight=params.blend_weight,
+        degrade_mode=degrade_mode,
+        degrade_reason=degrade_reason,
+        is_sparse=is_sparse,
+        sparse_threshold=sparse_threshold,
+    )
 
 
 def _quantise_probabilities(probabilities: Mapping[str, float], dp: int) -> Dict[str, float]:
