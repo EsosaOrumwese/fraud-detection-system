@@ -544,7 +544,7 @@ S0 produces **one** artefact on **PASS** and **nothing** on **ABORT**. It **cons
 `data/layer1/1B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json`
 *(Dictionary governs the final path/format; this spec fixes the partition to `[fingerprint]` and the equality law.)* 
 
-**Schema anchor (to be created in 1B schema):** `schemas.1B.yaml#/validation/s0_gate_receipt`
+**Schema anchor:** `schemas.1B.yaml#/validation/s0_gate_receipt`
 
 **Required fields (non-exhaustive, Binding):**
 
@@ -903,7 +903,7 @@ S0 is a **closed-world, contract-governed** gate. It verifies 1A’s PASS, then 
 ## 14.2 Licensing & provenance (what S0 must honor and record)
 
 * **Licence authority.** Licence class and retention live in the **Dictionary / Registry**; S0 **must not** override them. For each sealed input it authorises (e.g., `outlet_catalogue`, `s3_candidate_set`, references), the Dictionary must have a **non-empty licence** and retention. Absence is **run-fail** per governance.  
-* **Ingress examples (for 1B references).** `world_countries` → **ODbL-1.0**; `population_raster_2025` → **CC-BY-4.0**. These are already pinned in the artefact registry and must appear in sealed inputs. 
+* **Ingress examples (for 1B references).** `world_countries` → **ODbL-1.0**; `population_raster_2025` → **ODbL-1.0**. These are already pinned in the artefact registry and must appear in sealed inputs. 
 * **Licence map.** Governance exposes a `license_map` / `LICENSES/` set for traceability; S0’s sealed inputs must be **covered** there (presence check; no legal text interpretation).  
 * **Redistribution.** Outputs/sealed surfaces remain **internal** under their licence class; S0’s receipt is **Proprietary-Internal** by default (final class set in the 1B Dictionary). 
 
@@ -1209,7 +1209,7 @@ Rows ordered by `(merchant_id, candidate_rank, country_iso)`; **home has `candid
     {"id":"world_countries"},
     {"id":"population_raster_2025"}
   ],
-  "notes": {}
+  "notes": ""
 }
 ```
 

@@ -59,7 +59,7 @@ subsegments:
     environment: [ci, runtime]
     schema:
     cross_layer: true
-    notes:
+    notes: 'ASCII-lex over index.path; _passed.flag equals SHA256(concat(bytes(files in ASCII-lex index order))).'
 
   - name: outlet_catalogue
     path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
