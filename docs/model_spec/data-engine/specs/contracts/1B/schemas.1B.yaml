@@ -1,0 +1,65 @@
+version: '1.0'
+$id: schemas.1B.yaml
+$schema: https://json-schema.org/draft/2020-12/schema
+description: 'Schemas for Layer 1 — Subsegment 1B (Site geolocation: S0 gate + future states).'
+
+# Reusable primitives (kept minimal; prefer layer/ingress $defs where possible)
+$defs:
+  hex64:
+    type: string
+    pattern: ^[a-f0-9]{64}$
+    description: Lowercase hex SHA-256 digest.
+  uint64:
+    type: integer
+    minimum: 0
+    maximum: 18446744073709551615
+    description: Unsigned 64-bit integer.
+  rfc3339_micros:
+    type: string
+    pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z$
+    description: RFC-3339 UTC timestamp with exactly 6 fractional digits.
+
+# 1) Validation / receipts (fingerprint-scoped)
+validation:
+  s0_gate_receipt:
+    type: table
+    description: 'Receipt proving 1A PASS for this fingerprint; authorises 1B to read outlet_catalogue.'
+    primary_key: [manifest_fingerprint]
+    partition_keys: [fingerprint]
+    sort_keys: []
+    columns:
+    - {name: manifest_fingerprint, type: string, nullable: false, description: 'Lineage fingerprint (egress partition key also stored per-row).', pattern: '^[a-f0-9]{64}$'}
+    - {name: seed, $ref: '#/$defs/uint64', nullable: false, description: Master Philox seed for 1B run.}
+    - {name: parameter_hash, type: string, nullable: false, description: Parameter-set hash of 1B run., pattern: '^[a-f0-9]{64}$'}
+    - {name: validation_bundle_path, type: string, nullable: false, description: Resolved folder of 1A validation bundle for this fingerprint.}
+    - {name: flag_sha256_hex, type: string, nullable: false, description: Value read from _passed.flag after recomputation., pattern: '^[a-f0-9]{64}$'}
+    - {name: verified_at_utc, $ref: '#/$defs/rfc3339_micros', nullable: false, description: Verification timestamp (observational).}
+    - {name: sealed_inputs, type: string, nullable: false, description: 'JSON string listing dataset IDs & partitions S0 sealed for 1B (see Appendix B).'}
+    - {name: notes, type: string, nullable: true, description: Optional free-text.}
+
+# Placeholders for later states (to be filled when we ratify S1+)
+prep:
+  tile_index:
+    type: table
+    description: 'Eligible raster cells per country (placeholder; not ratified here).'
+    primary_key: [country_iso, tile_id]
+    partition_keys: [parameter_hash]
+    sort_keys: [country_iso, tile_id]
+    columns: []
+
+  tile_weights:
+    type: table
+    description: 'Fixed-dp weights per tile (placeholder; not ratified here).'
+    primary_key: [country_iso, tile_id]
+    partition_keys: [parameter_hash]
+    sort_keys: [country_iso, tile_id]
+    columns: []
+
+egress:
+  site_locations:
+    type: table
+    description: 'Concrete (lat,lon, …) per outlet stub (placeholder; not ratified here).'
+    primary_key: [merchant_id, legal_country_iso, site_order]
+    partition_keys: [seed, fingerprint]
+    sort_keys: [merchant_id, legal_country_iso, site_order]
+    columns: []
