@@ -443,6 +443,31 @@ def main(argv: list[str] | None = None) -> int:
                 "policy_semver": s5_ctx.policy_semver,
                 "policy_version": s5_ctx.policy_version,
             },
+            "s6": {
+                "events_path": (
+                    str(result.s6_context.events_path)
+                    if result.s6_context.events_path is not None
+                    else None
+                ),
+                "trace_path": (
+                    str(result.s6_context.trace_path)
+                    if result.s6_context.trace_path is not None
+                    else None
+                ),
+                "membership_path": (
+                    str(result.s6_context.membership_path)
+                    if result.s6_context.membership_path is not None
+                    else None
+                ),
+                "policy_path": str(result.s6_context.policy_path),
+                "policy_digest": result.s6_context.policy_digest,
+                "policy_semver": result.s6_context.policy_semver,
+                "policy_version": result.s6_context.policy_version,
+                "events_expected": result.s6_context.events_expected,
+                "events_written": result.s6_context.events_written,
+                "shortfall_count": result.s6_context.shortfall_count,
+                "reason_code_counts": dict(result.s6_context.reason_code_counts),
+            },
         }
         args.result_json.expanduser().resolve().write_text(
             json.dumps(summary, indent=2, sort_keys=True),

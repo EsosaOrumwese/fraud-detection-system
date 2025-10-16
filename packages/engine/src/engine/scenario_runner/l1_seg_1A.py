@@ -66,6 +66,9 @@ from engine.layers.l1.seg_1A.s5_currency_weights import (
     S5DeterministicContext,
     S5RunOutputs,
 )
+from engine.layers.l1.seg_1A.s6_foreign_selection import S6Runner
+from engine.layers.l1.seg_1A.s6_foreign_selection.contexts import S6DeterministicContext
+from engine.layers.l1.seg_1A.s6_foreign_selection.runner import S6RunOutputs
 from engine.layers.l1.seg_1A.shared.dictionary import get_repo_root
 
 logger = logging.getLogger(__name__)
@@ -255,6 +258,24 @@ class S5StateContext:
     stage_log_path: Path | None
 
 
+@dataclass(frozen=True)
+class S6StateContext:
+    """Context bundle produced after S6 foreign-set selection."""
+
+    deterministic: S6DeterministicContext
+    events_path: Path | None
+    trace_path: Path | None
+    membership_path: Path | None
+    policy_digest: str
+    policy_path: Path
+    policy_semver: str
+    policy_version: str
+    events_expected: int
+    events_written: int
+    shortfall_count: int
+    reason_code_counts: Mapping[str, int]
+
+
 def build_s3_context(
     result: S3RunResult,
     *,
@@ -321,9 +342,28 @@ def build_s5_context(outputs: S5RunOutputs) -> S5StateContext:
     )
 
 
+def build_s6_context(outputs: S6RunOutputs) -> S6StateContext:
+    """Construct the downstream context bundle for S6 outputs."""
+
+    return S6StateContext(
+        deterministic=outputs.deterministic,
+        events_path=outputs.events_path,
+        trace_path=outputs.trace_path,
+        membership_path=outputs.membership_path,
+        policy_digest=outputs.policy_digest,
+        policy_path=outputs.deterministic.policy_path,
+        policy_semver=outputs.policy.policy_semver,
+        policy_version=outputs.policy.policy_version,
+        events_expected=outputs.events_expected,
+        events_written=outputs.events_written,
+        shortfall_count=outputs.shortfall_count,
+        reason_code_counts=dict(outputs.reason_code_counts),
+    )
+
+
 @dataclass(frozen=True)
 class Segment1ARunResult:
-    """Combined result for running S0 foundations through S5 currency weights."""
+    """Combined result for running S0 foundations through S6 selection."""
 
     s0_result: S0RunResult
     s1_result: S1RunResult
@@ -336,6 +376,8 @@ class Segment1ARunResult:
     s4_context: S4StateContext
     s5_result: S5RunOutputs
     s5_context: S5StateContext
+    s6_result: S6RunOutputs
+    s6_context: S6StateContext
 
 
 class Segment1AOrchestrator:
@@ -354,6 +396,7 @@ class Segment1AOrchestrator:
         self._s3_runner = S3CrossBorderRunner()
         self._s4_runner = S4ZTPTargetRunner()
         self._s5_runner = S5CurrencyWeightsRunner()
+        self._s6_runner = S6Runner()
 
 
     def _resolve_s5_policy_path(self, param_mapping: Mapping[str, Path]) -> Path:
@@ -379,6 +422,32 @@ class Segment1AOrchestrator:
             raise err(
                 "E_GOVERNANCE_MISSING",
                 f"default S5 policy not found at '{default_path}'",
+            )
+        return default_path.resolve()
+
+    def _resolve_s6_policy_path(self, param_mapping: Mapping[str, Path]) -> Path:
+        """Resolve the governed S6 selection policy path."""
+
+        candidate_keys = (
+            "s6_selection_policy.yaml",
+            "config.allocation.s6_selection_policy.yaml",
+            "config/allocation/s6_selection_policy.yaml",
+        )
+        for key in candidate_keys:
+            policy_path = param_mapping.get(key)
+            if policy_path is not None:
+                return policy_path.expanduser().resolve()
+
+        default_path = (
+            get_repo_root()
+            / "config"
+            / "allocation"
+            / "s6_selection_policy.yaml"
+        )
+        if not default_path.exists():
+            raise err(
+                "E_GOVERNANCE_MISSING",
+                f"default S6 policy not found at '{default_path}'",
             )
         return default_path.resolve()
 
@@ -422,6 +491,9 @@ class Segment1AOrchestrator:
         s5_policy_path = self._resolve_s5_policy_path(param_mapping)
         if s5_policy_path not in extras:
             extras.append(s5_policy_path)
+        s6_policy_path = self._resolve_s6_policy_path(param_mapping)
+        if s6_policy_path not in extras:
+            extras.append(s6_policy_path)
         feature_path_input = s4_features.expanduser().resolve() if s4_features else None
         if feature_path_input is not None:
             extras.append(feature_path_input)
@@ -895,6 +967,22 @@ class Segment1AOrchestrator:
             s5_context.policy_digest,
         )
 
+        s6_result = self._s6_runner.run(
+            base_path=base_path,
+            policy_path=s6_policy_path,
+            parameter_hash=s5_deterministic.parameter_hash,
+            seed=s5_deterministic.seed,
+            run_id=s5_deterministic.run_id,
+            manifest_fingerprint=s5_deterministic.manifest_fingerprint,
+        )
+        s6_context = build_s6_context(s6_result)
+
+        logger.info(
+            "Segment1A S6 completed (events=%s, membership=%s)",
+            s6_result.events_path,
+            s6_result.membership_path,
+        )
+
         s3_context = build_s3_context(
             s3_result,
             metrics=s3_metrics,
@@ -920,6 +1008,8 @@ class Segment1AOrchestrator:
             s4_context=s4_context,
             s5_result=s5_result,
             s5_context=s5_context,
+            s6_result=s6_result,
+            s6_context=s6_context,
         )
 
 
@@ -929,6 +1019,7 @@ __all__ = [
     "S3StateContext",
     "S4StateContext",
     "S5StateContext",
+    "S6StateContext",
     "Segment1ARunResult",
     "Segment1AOrchestrator",
     "build_hurdle_context",
@@ -936,4 +1027,5 @@ __all__ = [
     "build_s3_context",
     "build_s4_context",
     "build_s5_context",
+    "build_s6_context",
 ]
