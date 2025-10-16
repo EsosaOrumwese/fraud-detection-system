@@ -22,6 +22,7 @@ __all__ = [
     "PersistConfig",
     "write_ccy_country_weights",
     "write_sparse_flag",
+    "build_receipt_payload",
     "write_validation_receipt",
     "write_merchant_currency",
 ]

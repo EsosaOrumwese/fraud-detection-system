@@ -611,11 +611,38 @@ class Segment1AOrchestrator:
                     channel=str(row["channel_sym"]),
                 )
             )
+
+        def _row_share_vector(row: Mapping[str, object]) -> Mapping[str, float] | None:
+            vector = row.get("settlement_currency_vector")
+            cleaned: Dict[str, float] = {}
+            if isinstance(vector, Mapping):
+                for currency, weight in vector.items():
+                    if currency is None or weight is None:
+                        continue
+                    code = str(currency).upper()
+                    try:
+                        value = float(weight)
+                    except (TypeError, ValueError):
+                        continue
+                    if value < 0:
+                        continue
+                    cleaned[code] = cleaned.get(code, 0.0) + value
+                total = sum(cleaned.values())
+                if total > 0:
+                    cleaned = {code: value / total for code, value in cleaned.items()}
+                else:
+                    cleaned = {}
+            if not cleaned:
+                currency = row.get("settlement_currency")
+                if currency is not None:
+                    cleaned = {str(currency).upper(): 1.0}
+            return cleaned or None
+
         merchant_currency_inputs = tuple(
             MerchantCurrencyInput(
                 merchant_id=int(row["merchant_id"]),
                 home_country_iso=str(row["home_country_iso"]),
-                share_vector=None,
+                share_vector=_row_share_vector(row),
             )
             for row in merchant_rows
         )
