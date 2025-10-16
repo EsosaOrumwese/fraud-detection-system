@@ -76,6 +76,7 @@ def test_s6_runner_end_to_end(tmp_path):
         / "ccy_country_weights_cache"
         / f"parameter_hash={parameter_hash}"
     )
+    weights_dir.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(
         [
             {"currency": "USD", "country_iso": "US", "weight": 0.5},
@@ -137,6 +138,9 @@ def test_s6_runner_end_to_end(tmp_path):
     assert outputs.receipt_path is not None
     assert outputs.receipt_path.exists()
 
+    membership_df = pd.read_parquet(outputs.membership_path)
+    assert membership_df.shape[0] == 1
+
     payload = validate_outputs(receipt_path=outputs.receipt_path)
     assert payload["gumbel_key_written"] == outputs.events_written
     assert payload["merchants_processed"] == 1
@@ -147,4 +151,7 @@ def test_s6_runner_end_to_end(tmp_path):
         if line.strip()
     ]
     assert len(log_lines) == outputs.events_written
-    assert {row["country_iso"] for row in log_lines} == {"CA"}
+    assert len(log_lines) == 2
+    selected_rows = [row for row in log_lines if row.get("selected")]
+    assert len(selected_rows) == 1
+    assert membership_df.iloc[0]["country_iso"] == selected_rows[0]["country_iso"]

@@ -14,7 +14,7 @@ from . import constants as c
 from .builder import select_foreign_set
 from .contexts import S6DeterministicContext
 from .loader import load_deterministic_context
-from .persist import write_membership
+from .persist import write_membership, write_receipt
 from .policy import SelectionPolicy, load_policy
 from .types import CandidateSelection, MerchantSelectionInput, MerchantSelectionResult
 from .writer import GumbelEventWriter

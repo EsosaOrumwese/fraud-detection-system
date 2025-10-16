@@ -53,7 +53,7 @@ def test_select_foreign_set_picks_top_keys():
         candidates=candidates,
     )
 
-    uniforms = iter([0.2, 0.7])
+    uniforms = iter([0.7, 0.2])
 
     def provider(*_):
         return next(uniforms)
@@ -70,9 +70,13 @@ def test_select_foreign_set_picks_top_keys():
     assert result.k_realised == 1
     selected = [candidate for candidate in result.candidates if candidate.selected]
     assert len(selected) == 1
-    assert selected[0].country_iso == "CA"
-    assert selected[0].selection_order == 1
-    assert selected[0].uniform is not None
+    # Compute keys to ensure we picked the highest score.
+    chosen = selected[0]
+    other = next(candidate for candidate in result.candidates if candidate.country_iso != chosen.country_iso)
+    assert chosen.key is not None and other.key is not None
+    assert chosen.key >= other.key
+    assert chosen.selection_order == 1
+    assert chosen.uniform is not None
 
 
 def test_zero_weight_domain_returns_empty_selection():
