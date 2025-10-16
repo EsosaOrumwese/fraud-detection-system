@@ -1,7 +1,7 @@
 version: '1.0'
 layer: layer1
 segment: seg_1A
-states: [s0, s1, s2, s3, s4]
+states: [s0, s1, s2, s3, s4, s5]
 
 reference:
   transaction_schema_merchant_ids:
@@ -60,6 +60,24 @@ reference:
     partitioning: []
     owner: reference
     retention_days: 365
+  iso_legal_tender_2024:
+    description: Canonical ISO2 to primary legal tender mapping used when emitting merchant_currency.
+    format: parquet
+    path: reference/iso/iso_legal_tender/2024/iso_legal_tender.parquet
+    schema_ref: l1/seg_1A/iso_legal_tender.schema.json
+    partitioning: []
+    owner: reference
+    retention_days: 365
+
+parameters:
+  ccy_smoothing_params:
+    description: Governed smoothing policy for S5 currency→country weight expansion (contributes to parameter_hash).
+    format: yaml
+    path: config/allocation/ccy_smoothing_params.yaml
+    schema_ref: null
+    partitioning: []
+    owner: 1A
+    retention_days: 0
 
 model:
   crossborder_eligibility_flags:
@@ -88,6 +106,32 @@ model:
     partitioning: [parameter_hash]
     owner: 1A
     retention_days: 30
+
+allocation:
+  ccy_country_weights_cache:
+    description: Currency→country weights cache emitted by S5 (parameter-scoped authority for downstream selection).
+    format: parquet
+    path: data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/part-*.parquet
+    schema_ref: schemas.1A.yaml#/prep/ccy_country_weights_cache
+    partitioning: [parameter_hash]
+    owner: 1A
+    retention_days: 365
+  merchant_currency:
+    description: Optional merchant settlement currency cache (κₘ) produced by S5.0 when inputs are present.
+    format: parquet
+    path: data/layer1/1A/merchant_currency/parameter_hash={parameter_hash}/part-*.parquet
+    schema_ref: schemas.1A.yaml#/prep/merchant_currency
+    partitioning: [parameter_hash]
+    owner: 1A
+    retention_days: 365
+  sparse_flag:
+    description: Per-currency sparsity diagnostics emitted by S5 (supports monitoring only).
+    format: parquet
+    path: data/layer1/1A/sparse_flag/parameter_hash={parameter_hash}/part-*.parquet
+    schema_ref: schemas.1A.yaml#/prep/sparse_flag
+    partitioning: [parameter_hash]
+    owner: 1A
+    retention_days: 365
 
 validation:
   validation_bundle:

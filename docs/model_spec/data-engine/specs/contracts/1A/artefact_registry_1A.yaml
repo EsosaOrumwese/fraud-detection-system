@@ -379,6 +379,16 @@ subsegments:
     digest: '{sha256}'
     manifest_key: mlr.ref.ccy_country_shares_2024Q4
     license: '{spdx_or_internal}'
+  - name: iso_legal_tender_2024
+    path: reference/iso/iso_legal_tender/2024/iso_legal_tender.parquet
+    type: reference
+    category: allocation
+    semver: '{semver}'
+    version: 2024
+    digest: '{sha256}'
+    manifest_key: mlr.ref.iso_legal_tender_2024
+    license: '{spdx_or_internal}'
+    role: Primary legal tender per ISO2 for optional merchant_currency fallback.
     role: Currency→country split proportions.
     dependencies: []
     source: internal
