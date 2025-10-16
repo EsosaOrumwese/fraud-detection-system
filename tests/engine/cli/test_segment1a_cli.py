@@ -129,6 +129,10 @@ def _fake_result(
         policy_path=_touch(output_dir / "s5_policy.yaml"),
         policy_semver="1.0.0",
         policy_version="2025-10-16",
+        metrics={"currencies_total": 1, "currencies_processed": 1},
+        per_currency_metrics=(
+            {"currency": "USD", "sum_numeric_ok": True},
+        ),
     )
 
     s6_policy = _touch(output_dir / "s6_policy.yaml")
@@ -152,6 +156,30 @@ def _fake_result(
         rng_isolation_ok=True,
         validation_payload=None,
         validation_passed=True,
+        metrics={"s6.run.merchants_total": 0},
+        metrics_log_path=None,
+    )
+
+    s7_policy = _touch(output_dir / "s7_policy.yaml")
+    s7_residual_path = _touch(output_dir / "logs" / "rng" / "events" / "residual_rank" / "part-00000.jsonl")
+    s7_trace_path = _touch(output_dir / "logs" / "rng" / "trace" / "s7_trace.jsonl")
+    s7_context = SimpleNamespace(
+        deterministic=SimpleNamespace(
+            policy_path=s7_policy,
+            parameter_hash=parameter_hash,
+            manifest_fingerprint=manifest_fingerprint,
+            run_id=run_id,
+        ),
+        results=(),
+        policy_digest="2" * 64,
+        artefact_digests={},
+        residual_events_path=s7_residual_path,
+        dirichlet_events_path=None,
+        trace_path=s7_trace_path,
+        residual_events=0,
+        dirichlet_events=0,
+        trace_events=0,
+        metrics={"s7.merchants_in_scope": 0},
     )
 
     return Segment1ARunResult(
@@ -168,6 +196,8 @@ def _fake_result(
         s5_context=s5_context,
         s6_result=SimpleNamespace(run_id=run_id),
         s6_context=s6_context,
+        s7_result=SimpleNamespace(run_id=run_id),
+        s7_context=s7_context,
     )
 
 

@@ -58,6 +58,14 @@ class MerchantSelectionResult:
     overrides: SelectionOverrides
     truncated_by_cap: bool
     candidates: Sequence[CandidateSelection]
+    domain_total: int
+    domain_considered: int
+    domain_eligible: int
+    zero_weight_considered: int
+    expected_events: int
+    ties_resolved: int
+    policy_cap_applied: bool
+    cap_value: int
 
 
 __all__ = [

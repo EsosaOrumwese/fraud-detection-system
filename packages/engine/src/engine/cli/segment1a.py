@@ -351,6 +351,13 @@ def main(argv: list[str] | None = None) -> int:
         s6_ctx.policy_digest,
         s6_ctx.policy_path,
     )
+    if s6_ctx.metrics:
+        logger.info("Segment1A CLI: S6 metrics %s", s6_ctx.metrics)
+    if s6_ctx.metrics_log_path:
+        logger.info(
+            "Segment1A CLI: S6 metrics log %s",
+            s6_ctx.metrics_log_path,
+        )
     s7_ctx = result.s7_context
     logger.info(
         "Segment1A CLI: S7 residual events=%d dirichlet_events=%d",
@@ -361,6 +368,7 @@ def main(argv: list[str] | None = None) -> int:
     if s7_ctx.dirichlet_events_path:
         logger.info("Segment1A CLI: S7 dirichlet stream %s", s7_ctx.dirichlet_events_path)
     logger.info("Segment1A CLI: S7 trace %s", s7_ctx.trace_path)
+    logger.info("Segment1A CLI: S7 metrics %s", s7_ctx.metrics)
     logger.info(
         "Segment1A CLI: S7 policy digest %s (path=%s)",
         s7_ctx.policy_digest,
@@ -485,6 +493,10 @@ def main(argv: list[str] | None = None) -> int:
                 "policy_path": str(s5_ctx.policy_path),
                 "policy_semver": s5_ctx.policy_semver,
                 "policy_version": s5_ctx.policy_version,
+                "metrics": dict(s5_ctx.metrics),
+                "per_currency_metrics": [
+                    dict(entry) for entry in s5_ctx.per_currency_metrics
+                ],
             },
             "s6": {
                 "events_path": (
@@ -515,6 +527,12 @@ def main(argv: list[str] | None = None) -> int:
                 "trace_reconciled": result.s6_context.trace_reconciled,
                 "log_all_candidates": result.s6_context.log_all_candidates,
                 "rng_isolation_ok": result.s6_context.rng_isolation_ok,
+                "metrics": dict(result.s6_context.metrics),
+                "metrics_log_path": (
+                    str(result.s6_context.metrics_log_path)
+                    if result.s6_context.metrics_log_path is not None
+                    else None
+                ),
                 "validation_passed": result.s6_context.validation_passed,
                 "validation_enabled": args.validate_s6,
             },
@@ -532,6 +550,7 @@ def main(argv: list[str] | None = None) -> int:
                 "policy_path": str(result.s7_context.deterministic.policy_path),
                 "policy_digest": result.s7_context.policy_digest,
                 "artefact_digests": dict(result.s7_context.artefact_digests),
+                "metrics": dict(result.s7_context.metrics),
                 "validation_enabled": args.validate_s7,
             },
         }

@@ -42,11 +42,13 @@ def _select_for_merchant(
     uniform_provider: UniformProvider,
 ) -> MerchantSelectionResult:
     foreign_candidates = _ordered_foreign_candidates(merchant.candidates)
+    domain_total = len(foreign_candidates)
     if not foreign_candidates:
         return _empty_result(
             merchant=merchant,
             overrides=overrides,
             reason_code="NO_CANDIDATES",
+            domain_total=0,
         )
 
     if merchant.k_target <= 0:
@@ -54,6 +56,7 @@ def _select_for_merchant(
             merchant=merchant,
             overrides=overrides,
             reason_code="K_ZERO",
+            domain_total=domain_total,
         )
 
     truncated = False
@@ -75,6 +78,9 @@ def _select_for_merchant(
             merchant=merchant,
             overrides=overrides,
             reason_code=reason,
+            domain_total=domain_total,
+            domain_considered=len(considered),
+            zero_weight_considered=len(considered) - len(eligible),
         )
 
     normalised_weights = _renormalise_weights(eligible)
@@ -114,13 +120,14 @@ def _select_for_merchant(
         candidates=[candidate for candidate in candidates_outcome if candidate.eligible],
         k_target=merchant.k_target,
     )
+    selected_candidates, ties_resolved = selected
 
     selection_lookup = {
         (candidate.country_iso, candidate.candidate_rank): (idx + 1)
-        for idx, candidate in enumerate(selected)
+        for idx, candidate in enumerate(selected_candidates)
     }
 
-    realised = len(selected)
+    realised = len(selected_candidates)
     shortfall = realised < merchant.k_target
 
     for idx, candidate in enumerate(candidates_outcome):
@@ -154,6 +161,14 @@ def _select_for_merchant(
         overrides=overrides,
         truncated_by_cap=truncated,
         candidates=tuple(candidates_outcome),
+        domain_total=domain_total,
+        domain_considered=len(considered),
+        domain_eligible=len(eligible),
+        zero_weight_considered=max(0, len(considered) - len(eligible)),
+        expected_events=len(considered),
+        ties_resolved=ties_resolved,
+        policy_cap_applied=truncated,
+        cap_value=overrides.max_candidates_cap,
     )
 
 
@@ -167,7 +182,11 @@ def _empty_result(
     merchant: MerchantSelectionInput,
     overrides: SelectionOverrides,
     reason_code: str,
+    domain_total: int,
+    domain_considered: int | None = None,
+    zero_weight_considered: int = 0,
 ) -> MerchantSelectionResult:
+    considered = domain_total if domain_considered is None else domain_considered
     return MerchantSelectionResult(
         merchant_id=merchant.merchant_id,
         settlement_currency=merchant.settlement_currency,
@@ -178,6 +197,14 @@ def _empty_result(
         overrides=overrides,
         truncated_by_cap=False,
         candidates=tuple(),
+        domain_total=domain_total,
+        domain_considered=considered,
+        domain_eligible=0,
+        zero_weight_considered=zero_weight_considered,
+        expected_events=considered,
+        ties_resolved=0,
+        policy_cap_applied=False,
+        cap_value=overrides.max_candidates_cap,
     )
 
 
@@ -203,9 +230,9 @@ def _select_top_k(
     *,
     candidates: Sequence[CandidateSelection],
     k_target: int,
-) -> list[CandidateSelection]:
+) -> tuple[list[CandidateSelection], int]:
     if not candidates or k_target <= 0:
-        return []
+        return [], 0
 
     sorted_candidates = sorted(
         candidates,
@@ -215,7 +242,17 @@ def _select_top_k(
             candidate.country_iso,
         ),
     )
-    return sorted_candidates[: min(k_target, len(sorted_candidates))]
+    ties_resolved = 0
+    last_key: float | None = None
+    for candidate in sorted_candidates:
+        if candidate.key is None:
+            continue
+        current_key = candidate.key
+        if last_key is not None and math.isclose(current_key, last_key, rel_tol=0.0, abs_tol=1e-12):
+            ties_resolved += 1
+        last_key = current_key
+    selected = sorted_candidates[: min(k_target, len(sorted_candidates))]
+    return selected, ties_resolved
 
 
 __all__ = [

@@ -269,6 +269,8 @@ class S5StateContext:
     policy_version: str
     merchant_currency_path: Path | None
     stage_log_path: Path | None
+    metrics: Mapping[str, object]
+    per_currency_metrics: Tuple[Mapping[str, object], ...]
 
 
 @dataclass(frozen=True)
@@ -294,6 +296,8 @@ class S6StateContext:
     rng_isolation_ok: bool
     validation_payload: Mapping[str, object] | None
     validation_passed: bool | None
+    metrics: Mapping[str, object]
+    metrics_log_path: Path | None
 
 
 def build_s3_context(
@@ -359,6 +363,8 @@ def build_s5_context(outputs: S5RunOutputs) -> S5StateContext:
         policy_version=metadata.version,
         merchant_currency_path=outputs.merchant_currency_path,
         stage_log_path=outputs.stage_log_path,
+        metrics=dict(outputs.metrics),
+        per_currency_metrics=tuple(outputs.per_currency_metrics),
     )
 
 
@@ -390,6 +396,8 @@ def build_s6_context(
         rng_isolation_ok=outputs.rng_isolation_ok,
         validation_payload=validation_payload,
         validation_passed=validation_passed,
+        metrics=dict(outputs.metrics),
+        metrics_log_path=outputs.metrics_log_path,
     )
 
 
@@ -407,6 +415,7 @@ def build_s7_context(outputs: S7RunOutputs) -> S7StateContext:
         residual_events=outputs.residual_events,
         dirichlet_events=outputs.dirichlet_events,
         trace_events=outputs.trace_events,
+        metrics=dict(outputs.metrics),
     )
 
 
@@ -424,6 +433,7 @@ class S7StateContext:
     residual_events: int
     dirichlet_events: int
     trace_events: int
+    metrics: Mapping[str, object]
 
     @property
     def parameter_hash(self) -> str:
@@ -1190,3 +1200,4 @@ __all__ = [
     "build_s6_context",
     "build_s7_context",
 ]
+

@@ -40,6 +40,7 @@ class S7RunOutputs:
     dirichlet_events: int
     trace_events: int
     trace_reconciled: bool
+    metrics: Mapping[str, object]
 
 
 class S7Runner:
@@ -118,6 +119,14 @@ class S7Runner:
 
         trace_events = residual_events + dirichlet_events
 
+        metrics = self._build_metrics(
+            results=allocation_results,
+            policy=policy,
+            residual_events=residual_events,
+            dirichlet_events=dirichlet_events,
+            trace_events=trace_events,
+        )
+
         return S7RunOutputs(
             deterministic=deterministic,
             policy=policy,
@@ -133,6 +142,7 @@ class S7Runner:
             dirichlet_events=dirichlet_events,
             trace_events=trace_events,
             trace_reconciled=True,
+            metrics=metrics,
         )
 
     def _emit_dirichlet_events(
@@ -186,6 +196,73 @@ class S7Runner:
             events += 1
 
         return events
+
+    def _build_metrics(
+        self,
+        *,
+        results: Sequence[MerchantAllocationResult],
+        policy: IntegerisationPolicy,
+        residual_events: int,
+        dirichlet_events: int,
+        trace_events: int,
+    ) -> Dict[str, object]:
+        merchants_in_scope = len(results)
+        single_country = sum(1 for result in results if len(result.domain_allocations) == 1)
+        bounds_enabled = sum(1 for result in results if result.bounds_enforced)
+
+        domain_hist = {
+            "b1": 0,
+            "b2": 0,
+            "b3_5": 0,
+            "b6_10": 0,
+            "b11_plus": 0,
+        }
+        remainder_hist = {
+            "b0": 0,
+            "b1": 0,
+            "b2_3": 0,
+            "b4_plus": 0,
+        }
+        for result in results:
+            domain_size = len(result.domain_allocations)
+            if domain_size == 1:
+                domain_hist["b1"] += 1
+            elif domain_size == 2:
+                domain_hist["b2"] += 1
+            elif 3 <= domain_size <= 5:
+                domain_hist["b3_5"] += 1
+            elif 6 <= domain_size <= 10:
+                domain_hist["b6_10"] += 1
+            else:
+                domain_hist["b11_plus"] += 1
+
+            remainder = result.remainder
+            if remainder == 0:
+                remainder_hist["b0"] += 1
+            elif remainder == 1:
+                remainder_hist["b1"] += 1
+            elif 2 <= remainder <= 3:
+                remainder_hist["b2_3"] += 1
+            else:
+                remainder_hist["b4_plus"] += 1
+
+        metrics: Dict[str, object] = {
+            "s7.merchants_in_scope": merchants_in_scope,
+            "s7.single_country": single_country,
+            "s7.events.residual_rank.rows": residual_events,
+            "s7.events.dirichlet_gamma_vector.rows": dirichlet_events,
+            "s7.trace.rows": trace_events,
+            "s7.bounds.enabled": bounds_enabled,
+            "s7.failures.structural": 0,
+            "s7.failures.integerisation": 0,
+            "s7.failures.rng_accounting": 0,
+            "s7.failures.bounds": 0,
+            "s7.domain.size.hist": domain_hist,
+            "s7.remainder.d.hist": remainder_hist,
+            "s7.ms.integerisation": None,
+            "s7.dirichlet.enabled": bool(policy.dirichlet_enabled),
+        }
+        return metrics
 
 
 def _home_country(merchant: MerchantAllocationResult) -> str:

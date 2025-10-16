@@ -53,6 +53,8 @@ class S5RunOutputs:
     policy: S5PolicyMetadata
     smoothing_policy: SmoothingPolicy
     weights_path: Path
+    metrics: Mapping[str, object]
+    per_currency_metrics: Tuple[Mapping[str, object], ...]
     sparse_flag_path: Path | None = None
     receipt_path: Path | None = None
     merchant_currency_path: Path | None = None
@@ -80,8 +82,10 @@ class S5CurrencyWeightsRunner:
         stage_log_file = self._stage_log_file_path(base_path, deterministic)
         self._log_stage(
             "N0",
+            "POLICY_RESOLVED",
             "policy resolved",
             parameter_hash=deterministic.parameter_hash,
+            seed=deterministic.seed,
             policy_path=str(policy_metadata.path),
             policy_digest=policy_metadata.digest_hex,
             run_id=deterministic.run_id,
@@ -122,8 +126,10 @@ class S5CurrencyWeightsRunner:
         )
         self._log_stage(
             "N1",
+            "INPUTS_VALIDATED",
             "inputs validated",
             parameter_hash=deterministic.parameter_hash,
+            seed=deterministic.seed,
             currencies_total=currencies_total_inputs,
             settlement_currencies=len({row.currency for row in settlements}),
             ccy_currencies=len({row.currency for row in ccy_shares}),
@@ -142,8 +148,10 @@ class S5CurrencyWeightsRunner:
         degrade_summary = self._summarise_degrade(results)
         self._log_stage(
             "N2",
+            "WEIGHTS_BUILT",
             "weights built",
             parameter_hash=deterministic.parameter_hash,
+            seed=deterministic.seed,
             currencies_processed=currencies_processed,
             rows_written=rows_written,
             degrade_summary=degrade_summary,
@@ -179,6 +187,14 @@ class S5CurrencyWeightsRunner:
             rng_after=rng_after,
             currencies_total_inputs=currencies_total_inputs,
         )
+        run_metrics = {
+            key: value
+            for key, value in receipt_payload.items()
+            if key not in {"by_currency", "currencies"}
+        }
+        per_currency_metrics = tuple(
+            dict(entry) for entry in receipt_payload.get("by_currency", [])
+        )
         if (
             receipt_payload.get("rng_trace_delta_events") != 0
             or receipt_payload.get("rng_trace_delta_draws") != 0
@@ -194,8 +210,10 @@ class S5CurrencyWeightsRunner:
         )
         self._log_stage(
             "N3",
+            "RECEIPT_STAGED",
             "validation receipt staged",
             parameter_hash=deterministic.parameter_hash,
+            seed=deterministic.seed,
             currencies_processed=currencies_processed,
             run_id=deterministic.run_id,
             log_file=stage_log_file,
@@ -228,8 +246,10 @@ class S5CurrencyWeightsRunner:
             )
             self._log_stage(
                 "N2b",
+                "MERCHANT_CURRENCY_DERIVED",
                 "merchant currency derived",
                 parameter_hash=deterministic.parameter_hash,
+                seed=deterministic.seed,
                 merchant_rows=len(merchant_records),
                 run_id=deterministic.run_id,
                 log_file=stage_log_file,
@@ -238,9 +258,12 @@ class S5CurrencyWeightsRunner:
         receipt_path = weights_final_path.parent / "S5_VALIDATION.json"
         self._log_stage(
             "N4",
+            "PUBLISH_COMPLETE",
             "publish complete",
             parameter_hash=deterministic.parameter_hash,
+            seed=deterministic.seed,
             weights_path=str(weights_final_path),
+            receipt_path=str(receipt_path),
             run_id=deterministic.run_id,
             log_file=stage_log_file,
         )
@@ -252,6 +275,8 @@ class S5CurrencyWeightsRunner:
             policy=policy_metadata,
             smoothing_policy=policy,
             weights_path=weights_final_path,
+            metrics=run_metrics,
+            per_currency_metrics=per_currency_metrics,
             sparse_flag_path=sparse_final_path,
             receipt_path=receipt_path,
             merchant_currency_path=merchant_final_path,
@@ -474,6 +499,7 @@ class S5CurrencyWeightsRunner:
     def _log_stage(
         self,
         stage: str,
+        event: str,
         message: str,
         *,
         log_file: Path,
@@ -486,6 +512,7 @@ class S5CurrencyWeightsRunner:
             "level": level_upper,
             "component": "1A.expand_currency_to_country",
             "stage": stage,
+            "event": event,
             "message": message,
         }
         record.update(fields)

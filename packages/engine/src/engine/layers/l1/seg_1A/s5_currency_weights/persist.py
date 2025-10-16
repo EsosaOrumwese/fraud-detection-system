@@ -205,6 +205,12 @@ def build_receipt_payload(
     rng_draws_before = int(rng_before.get("draws_total", 0))
     rng_draws_after = int(rng_after.get("draws_total", 0))
 
+    degrade_mode_counts = {
+        "none": int(degrade_counter.get("none", 0)),
+        "settlement_only": int(degrade_counter.get("settlement_only", 0)),
+        "ccy_only": int(degrade_counter.get("ccy_only", 0)),
+    }
+
     payload = {
         "parameter_hash": parameter_hash,
         "policy_digest": policy_metadata.digest_hex,
@@ -219,7 +225,7 @@ def build_receipt_payload(
         "largest_remainder_ulps_quantiles": _quantile_summary(ulp_values),
         "overrides_applied_count": overrides_applied_count,
         "floors_triggered_count": floors_triggered_count,
-        "degrade_mode_counts": degrade_counter,
+        "degrade_mode_counts": degrade_mode_counts,
         "coverage_union_pass": coverage_union_pass,
         "coverage_policy_narrowed": coverage_policy_narrowed,
         "policy_narrowed_currencies": policy_narrowed_currencies,

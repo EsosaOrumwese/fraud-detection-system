@@ -78,12 +78,17 @@ def test_runner_writes_stage_logs_and_receipt(tmp_path):
     assert outputs.merchant_currency_path is not None
     assert outputs.stage_log_path is not None
     assert outputs.stage_log_path.exists()
+    assert outputs.metrics["currencies_total"] == 1
+    assert len(outputs.per_currency_metrics) == 1
 
     with outputs.stage_log_path.open("r", encoding="utf-8") as handle:
         lines = [json.loads(line) for line in handle if line.strip()]
     stages = [entry["stage"] for entry in lines]
     assert stages[0] == "N0"
     assert "N4" in stages
+    assert lines[0]["event"] == "POLICY_RESOLVED"
+    assert lines[0]["seed"] == deterministic.seed
+    assert all("seed" in entry for entry in lines)
 
     receipt_path = outputs.receipt_path
     data = pd.read_parquet(outputs.weights_path)

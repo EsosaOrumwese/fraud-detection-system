@@ -113,6 +113,14 @@ def test_build_deterministic_context_includes_home(tmp_path: Path) -> None:
                     selection_order=1,
                 ),
             ),
+            domain_total=1,
+            domain_considered=1,
+            domain_eligible=1,
+            zero_weight_considered=0,
+            expected_events=1,
+            ties_resolved=0,
+            policy_cap_applied=False,
+            cap_value=0,
         )
     ]
 
