@@ -316,6 +316,8 @@ def main(argv: list[str] | None = None) -> int:
             "Segment1A CLI: S5 merchant currency %s",
             s5_ctx.merchant_currency_path,
         )
+    if s5_ctx.stage_log_path:
+        logger.info("Segment1A CLI: S5 stage log %s", s5_ctx.stage_log_path)
     logger.info(
         "Segment1A CLI: S5 receipt %s (policy_digest=%s)",
         s5_ctx.receipt_path,
@@ -428,6 +430,11 @@ def main(argv: list[str] | None = None) -> int:
                 "merchant_currency_path": (
                     str(s5_ctx.merchant_currency_path)
                     if s5_ctx.merchant_currency_path is not None
+                    else None
+                ),
+                "stage_log_path": (
+                    str(s5_ctx.stage_log_path)
+                    if s5_ctx.stage_log_path is not None
                     else None
                 ),
                 "receipt_path": str(s5_ctx.receipt_path),

@@ -56,6 +56,7 @@ class S5RunOutputs:
     sparse_flag_path: Path | None = None
     receipt_path: Path | None = None
     merchant_currency_path: Path | None = None
+    stage_log_path: Path | None = None
 
 
 class S5CurrencyWeightsRunner:
@@ -76,12 +77,15 @@ class S5CurrencyWeightsRunner:
         dictionary = load_dictionary()
         rng_before = self._snapshot_rng_totals(base_path, deterministic)
         policy, policy_metadata = self._resolve_policy(deterministic.policy_path)
+        stage_log_file = self._stage_log_file_path(base_path, deterministic)
         self._log_stage(
             "N0",
             "policy resolved",
             parameter_hash=deterministic.parameter_hash,
             policy_path=str(policy_metadata.path),
             policy_digest=policy_metadata.digest_hex,
+            run_id=deterministic.run_id,
+            log_file=stage_log_file,
         )
         settlements = self._load_settlement_shares(
             deterministic, share_loader=share_loader
@@ -123,6 +127,8 @@ class S5CurrencyWeightsRunner:
             currencies_total=currencies_total_inputs,
             settlement_currencies=len({row.currency for row in settlements}),
             ccy_currencies=len({row.currency for row in ccy_shares}),
+            run_id=deterministic.run_id,
+            log_file=stage_log_file,
         )
 
         results = build_weights(
@@ -141,6 +147,8 @@ class S5CurrencyWeightsRunner:
             currencies_processed=currencies_processed,
             rows_written=rows_written,
             degrade_summary=degrade_summary,
+            run_id=deterministic.run_id,
+            log_file=stage_log_file,
         )
 
         staging_root = self._create_staging_dir(base_path)
@@ -171,6 +179,14 @@ class S5CurrencyWeightsRunner:
             rng_after=rng_after,
             currencies_total_inputs=currencies_total_inputs,
         )
+        if (
+            receipt_payload.get("rng_trace_delta_events") != 0
+            or receipt_payload.get("rng_trace_delta_draws") != 0
+        ):
+            raise err(
+                "E_RNG_INTERACTION",
+                "S5 detected RNG interaction (delta events/draws not zero)",
+            )
         write_validation_receipt(
             payload=receipt_payload,
             config=config,
@@ -181,6 +197,8 @@ class S5CurrencyWeightsRunner:
             "validation receipt staged",
             parameter_hash=deterministic.parameter_hash,
             currencies_processed=currencies_processed,
+            run_id=deterministic.run_id,
+            log_file=stage_log_file,
         )
 
         weights_final_path = self._publish_partition(
@@ -213,6 +231,8 @@ class S5CurrencyWeightsRunner:
                 "merchant currency derived",
                 parameter_hash=deterministic.parameter_hash,
                 merchant_rows=len(merchant_records),
+                run_id=deterministic.run_id,
+                log_file=stage_log_file,
             )
 
         receipt_path = weights_final_path.parent / "S5_VALIDATION.json"
@@ -221,6 +241,8 @@ class S5CurrencyWeightsRunner:
             "publish complete",
             parameter_hash=deterministic.parameter_hash,
             weights_path=str(weights_final_path),
+            run_id=deterministic.run_id,
+            log_file=stage_log_file,
         )
 
         self._cleanup_staging(staging_root)
@@ -233,6 +255,7 @@ class S5CurrencyWeightsRunner:
             sparse_flag_path=sparse_final_path,
             receipt_path=receipt_path,
             merchant_currency_path=merchant_final_path,
+            stage_log_path=stage_log_file,
         )
 
     # --------------------------------------------------------------------- #
@@ -380,6 +403,21 @@ class S5CurrencyWeightsRunner:
         if staging_root.exists():
             shutil.rmtree(staging_root, ignore_errors=True)
 
+    def _stage_log_file_path(
+        self,
+        base_path: Path,
+        deterministic: S5DeterministicContext,
+    ) -> Path:
+        return (
+            base_path
+            / "logs"
+            / "stages"
+            / "s5_currency_weights"
+            / f"parameter_hash={deterministic.parameter_hash}"
+            / f"run_id={deterministic.run_id}"
+            / "S5_STAGES.jsonl"
+        )
+
     def _snapshot_rng_totals(
         self,
         base_path: Path,
@@ -433,7 +471,15 @@ class S5CurrencyWeightsRunner:
             totals["draws_total"] = draws_total
         return totals
 
-    def _log_stage(self, stage: str, message: str, *, level: str = "INFO", **fields: object) -> None:
+    def _log_stage(
+        self,
+        stage: str,
+        message: str,
+        *,
+        log_file: Path,
+        level: str = "INFO",
+        **fields: object,
+    ) -> None:
         level_upper = level.upper()
         record = {
             "ts": datetime.now(timezone.utc).isoformat(timespec="microseconds"),
@@ -443,6 +489,10 @@ class S5CurrencyWeightsRunner:
             "message": message,
         }
         record.update(fields)
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        with log_file.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, sort_keys=True))
+            handle.write("\n")
         if level_upper == "ERROR":
             log_fn = logger.error
         elif level_upper in {"WARN", "WARNING"}:

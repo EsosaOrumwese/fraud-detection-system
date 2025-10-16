@@ -252,6 +252,7 @@ class S5StateContext:
     policy_semver: str
     policy_version: str
     merchant_currency_path: Path | None
+    stage_log_path: Path | None
 
 
 def build_s3_context(
@@ -316,6 +317,7 @@ def build_s5_context(outputs: S5RunOutputs) -> S5StateContext:
         policy_semver=metadata.semver,
         policy_version=metadata.version,
         merchant_currency_path=outputs.merchant_currency_path,
+        stage_log_path=outputs.stage_log_path,
     )
 
 
