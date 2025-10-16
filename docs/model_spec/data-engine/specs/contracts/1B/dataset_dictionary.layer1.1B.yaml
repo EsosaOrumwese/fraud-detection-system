@@ -1,0 +1,146 @@
+version: '1.0'
+
+lifecycle:
+  phase: planning
+  last_reviewed:
+  approver:
+
+ci_policy:
+  allow_placeholders: true
+  placeholder_markers: [TBD, null]
+  block_on_phase: [beta, stable]
+
+layer:
+  id: layer1
+  name: Merchant Location Realism
+
+# ── External / reference inputs consumed by 1B (relisted for clarity) ────
+reference_data:
+- id: iso3166_canonical_2024
+  status: approved
+  owner_subsegment: ingress
+  description: Canonical ISO 3166-1 alpha-2 list for FK checks.
+  version: '2024-12-31'
+  format: parquet
+  path: reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/iso3166_canonical_2024
+  lineage:
+    produced_by:
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: CC-BY-4.0
+
+- id: world_countries
+  status: approved
+  owner_subsegment: ingress
+  description: Country polygons (GeoParquet) used by 1B.
+  version: '2024'
+  format: parquet
+  path: reference/spatial/world_countries/2024/world_countries.parquet
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/world_countries
+  lineage:
+    produced_by:
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: ODbL-1.0
+
+- id: population_raster_2025
+  status: approved
+  owner_subsegment: ingress
+  description: Population raster (COG) used as spatial prior in 1B.
+  version: '2025'
+  format: tif
+  path: reference/spatial/population/2025/population.tif
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/population_raster_2025
+  lineage:
+    produced_by:
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: ODbL-1.0
+
+# ── Internally generated datasets (1B) ───────────────────────────────────
+datasets:
+- id: s0_gate_receipt_1B
+  status: approved
+  owner_subsegment: 1B
+  description: 'Fingerprint-scoped receipt proving 1A PASS verification; enumerates sealed inputs for 1B.'
+  version: '{manifest_fingerprint}'
+  format: json
+  path: data/layer1/1B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.1B.yaml#/validation/s0_gate_receipt
+  lineage:
+    produced_by: 1B.S0
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+# Planned 1B datasets (non-binding until their states are ratified)
+- id: tile_index
+  status: planning
+  owner_subsegment: 1B
+  description: Eligible raster cells per country after clip.
+  version: '{parameter_hash}'
+  format: parquet
+  path: data/layer1/1B/tile_index/parameter_hash={parameter_hash}/
+  partitioning: [parameter_hash]
+  ordering: [country_iso, tile_id]
+  schema_ref: schemas.1B.yaml#/prep/tile_index
+  lineage:
+    produced_by: 1B.S1
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: tile_weights
+  status: planning
+  owner_subsegment: 1B
+  description: Deterministic fixed-dp weights per tile.
+  version: '{parameter_hash}'
+  format: parquet
+  path: data/layer1/1B/tile_weights/parameter_hash={parameter_hash}/
+  partitioning: [parameter_hash]
+  ordering: [country_iso, tile_id]
+  schema_ref: schemas.1B.yaml#/prep/tile_weights
+  lineage:
+    produced_by: 1B.S2
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: site_locations
+  status: planning
+  owner_subsegment: 1B
+  description: Concrete (lat,lon, …) per outlet stub (order-free; join S3 for inter-country order).
+  version: '{manifest_fingerprint}'
+  format: parquet
+  path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
+  partitioning: [seed, fingerprint]
+  ordering: [merchant_id, legal_country_iso, site_order]
+  schema_ref: schemas.1B.yaml#/egress/site_locations
+  lineage:
+    produced_by: 1B
+    consumed_by: []
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
