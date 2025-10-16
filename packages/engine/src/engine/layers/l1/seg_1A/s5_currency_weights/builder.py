@@ -42,6 +42,7 @@ class CurrencyResult:
     currency: str
     weights: List[WeightRow]
     n_eff: float
+    obs_count: int
     degrade_mode: str
     degrade_reason: Optional[str]
 
@@ -63,10 +64,6 @@ def build_weights(
         settle_rows = settlement_map.get(currency, {})
         ccy_rows = ccy_map.get(currency, {})
 
-        if not settle_rows and not ccy_rows:
-            # No rows available from either surface; nothing to emit.
-            continue
-
         union_isos = sorted(
             set(settle_rows.keys()) | set(ccy_rows.keys()) |
             set(policy.alpha_iso.get(currency, {}).keys()) |
@@ -78,7 +75,7 @@ def build_weights(
         params = _resolve_currency_params(policy, currency)
         degrade_mode, degrade_reason = _detect_degrade_mode(settle_rows, ccy_rows)
 
-        weights, n_eff = _build_currency(
+        weights, n_eff, obs_count = _build_currency(
             currency=currency,
             union_isos=union_isos,
             settle_rows=settle_rows,
@@ -92,6 +89,7 @@ def build_weights(
                 currency=currency,
                 weights=weights,
                 n_eff=n_eff,
+                obs_count=obs_count,
                 degrade_mode=degrade_mode,
                 degrade_reason=degrade_reason,
             )
@@ -173,7 +171,7 @@ def _build_currency(
     ccy_rows: Mapping[str, ShareSurface],
     params: _CurrencyParams,
     dp: int,
-) -> Tuple[List[WeightRow], float]:
+) -> Tuple[List[WeightRow], float, int]:
     blend = params.blend_weight
 
     # Pre-compute sums of obs counts for N0.
@@ -201,6 +199,7 @@ def _build_currency(
     n0 = blend * sum_obs_ccy + (1.0 - blend) * sum_obs_settle
     n_eff_candidate = n0 ** (1.0 / shrink_exp) if n0 > 0.0 else 0.0
     n_eff = max(params.obs_floor, n_eff_candidate)
+    obs_count = int(Decimal(str(n0)).to_integral_value(rounding=ROUND_HALF_EVEN))
 
     # Resolve alpha per ISO and compute posterior (§6.4).
     alpha_by_iso: Dict[str, float] = {}
@@ -264,7 +263,7 @@ def _build_currency(
         WeightRow(currency=currency, country_iso=iso, weight=quantised[iso])
         for iso in sorted(quantised.keys())
     ]
-    return weight_rows, n_eff
+    return weight_rows, n_eff, obs_count
 
 
 def _quantise_probabilities(probabilities: Mapping[str, float], dp: int) -> Dict[str, float]:
