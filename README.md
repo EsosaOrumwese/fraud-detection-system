@@ -256,6 +256,7 @@ fraud-enterprise/
 │  └─ e2e/…                      # scenario → stream → decision → validation PASS (closed-world)
 │
 ├─ docs/                         # narrative/context; not authoritative
+│  ├─ engineering-decisions/     # persistent records of dataset/policy engineering choices
 ├─ scripts/                      # small dev helpers; no business logic
 ├─ runs/                         # local run manifests & numeric attestations (gitignored; outputs live in data lake)
 └─ examples/                     # non-authoritative demos (notebooks/scripts)

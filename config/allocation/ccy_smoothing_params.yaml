@@ -1,0 +1,24 @@
+semver: "0.1.0"
+version: "2025-10-16"
+dp: 6
+defaults:
+  blend_weight: 0.6
+  alpha: 1.0
+  obs_floor: 250
+  min_share: 0.0005
+  shrink_exponent: 1.0
+per_currency:
+  USD:
+    blend_weight: 0.65
+    alpha: 1.2
+    obs_floor: 500
+  EUR:
+    blend_weight: 0.62
+    min_share: 0.0008
+overrides:
+  alpha_iso:
+    USD:
+      PR: 1.1
+  min_share_iso:
+    EUR:
+      IE: 0.0012
