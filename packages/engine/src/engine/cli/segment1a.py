@@ -1,4 +1,4 @@
-"""CLI runner for Segment 1A (S0 foundations – S5 currency weights)."""
+"""CLI runner for Segment 1A (S0 foundations – S7 integer allocation)."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ def _normalise_paths(values: List[str]) -> List[Path]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Run Segment 1A states S0–S1–S2–S3 over prepared artefacts.",
+        description="Run Segment 1A states S0–S7 over prepared artefacts.",
     )
     parser.add_argument(
         "--output-dir",
@@ -190,6 +190,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Skip S6 validation.",
     )
     parser.add_argument(
+        "--no-validate-s7",
+        dest="validate_s7",
+        action="store_false",
+        help="Skip S7 validation.",
+    )
+    parser.add_argument(
         "--result-json",
         dest="result_json",
         type=Path,
@@ -202,6 +208,7 @@ def main(argv: list[str] | None = None) -> int:
         validate_s2=True,
         validate_s3=True,
         validate_s6=True,
+        validate_s7=True,
         include_diagnostics=True,
     )
 
@@ -257,6 +264,7 @@ def main(argv: list[str] | None = None) -> int:
                 else None
             ),
             validate_s6=args.validate_s6,
+            validate_s7=args.validate_s7,
         )
     except S0Error as exc:
         logger.exception("Segment1A CLI: run failed")
@@ -330,6 +338,33 @@ def main(argv: list[str] | None = None) -> int:
         "Segment1A CLI: S5 receipt %s (policy_digest=%s)",
         s5_ctx.receipt_path,
         s5_ctx.policy_digest,
+    )
+    s6_ctx = result.s6_context
+    if s6_ctx.events_path:
+        logger.info("Segment1A CLI: S6 events %s", s6_ctx.events_path)
+    if s6_ctx.trace_path:
+        logger.info("Segment1A CLI: S6 trace %s", s6_ctx.trace_path)
+    if s6_ctx.membership_path:
+        logger.info("Segment1A CLI: S6 membership %s", s6_ctx.membership_path)
+    logger.info(
+        "Segment1A CLI: S6 policy digest %s (path=%s)",
+        s6_ctx.policy_digest,
+        s6_ctx.policy_path,
+    )
+    s7_ctx = result.s7_context
+    logger.info(
+        "Segment1A CLI: S7 residual events=%d dirichlet_events=%d",
+        s7_ctx.residual_events,
+        s7_ctx.dirichlet_events,
+    )
+    logger.info("Segment1A CLI: S7 residual stream %s", s7_ctx.residual_events_path)
+    if s7_ctx.dirichlet_events_path:
+        logger.info("Segment1A CLI: S7 dirichlet stream %s", s7_ctx.dirichlet_events_path)
+    logger.info("Segment1A CLI: S7 trace %s", s7_ctx.trace_path)
+    logger.info(
+        "Segment1A CLI: S7 policy digest %s (path=%s)",
+        s7_ctx.policy_digest,
+        s7_ctx.deterministic.policy_path,
     )
 
     if args.result_json:
@@ -481,6 +516,23 @@ def main(argv: list[str] | None = None) -> int:
                 "log_all_candidates": result.s6_context.log_all_candidates,
                 "rng_isolation_ok": result.s6_context.rng_isolation_ok,
                 "validation_passed": result.s6_context.validation_passed,
+                "validation_enabled": args.validate_s6,
+            },
+            "s7": {
+                "residual_events": result.s7_context.residual_events,
+                "dirichlet_events": result.s7_context.dirichlet_events,
+                "residual_events_path": str(result.s7_context.residual_events_path),
+                "dirichlet_events_path": (
+                    str(result.s7_context.dirichlet_events_path)
+                    if result.s7_context.dirichlet_events_path is not None
+                    else None
+                ),
+                "trace_path": str(result.s7_context.trace_path),
+                "trace_events": result.s7_context.trace_events,
+                "policy_path": str(result.s7_context.deterministic.policy_path),
+                "policy_digest": result.s7_context.policy_digest,
+                "artefact_digests": dict(result.s7_context.artefact_digests),
+                "validation_enabled": args.validate_s7,
             },
         }
         args.result_json.expanduser().resolve().write_text(

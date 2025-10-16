@@ -73,6 +73,15 @@ from engine.layers.l1.seg_1A.s6_foreign_selection import (
 )
 from engine.layers.l1.seg_1A.s6_foreign_selection.contexts import S6DeterministicContext
 from engine.layers.l1.seg_1A.s6_foreign_selection.runner import S6RunOutputs
+from engine.layers.l1.seg_1A.s7_integer_allocation import (
+    PolicyLoadingError,
+    S7Runner,
+    S7RunOutputs,
+    load_policy as load_s7_policy,
+)
+from engine.layers.l1.seg_1A.s7_integer_allocation.contexts import S7DeterministicContext
+from engine.layers.l1.seg_1A.s7_integer_allocation.types import MerchantAllocationResult
+from engine.layers.l1.seg_1A.s7_integer_allocation.validate import validate_results as validate_s7_outputs
 from engine.layers.l1.seg_1A.shared.dictionary import get_repo_root
 
 logger = logging.getLogger(__name__)
@@ -384,6 +393,51 @@ def build_s6_context(
     )
 
 
+def build_s7_context(outputs: S7RunOutputs) -> S7StateContext:
+    """Construct the downstream context bundle for S7 outputs."""
+
+    return S7StateContext(
+        deterministic=outputs.deterministic,
+        results=tuple(outputs.results),
+        policy_digest=outputs.policy_digest,
+        artefact_digests=dict(outputs.artefact_digests),
+        residual_events_path=outputs.residual_events_path,
+        dirichlet_events_path=outputs.dirichlet_events_path,
+        trace_path=outputs.trace_path,
+        residual_events=outputs.residual_events,
+        dirichlet_events=outputs.dirichlet_events,
+        trace_events=outputs.trace_events,
+    )
+
+
+@dataclass(frozen=True)
+class S7StateContext:
+    """Context bundle produced after S7 integer allocation."""
+
+    deterministic: S7DeterministicContext
+    results: Tuple[MerchantAllocationResult, ...]
+    policy_digest: str
+    artefact_digests: Mapping[str, str]
+    residual_events_path: Path
+    dirichlet_events_path: Path | None
+    trace_path: Path
+    residual_events: int
+    dirichlet_events: int
+    trace_events: int
+
+    @property
+    def parameter_hash(self) -> str:
+        return self.deterministic.parameter_hash
+
+    @property
+    def manifest_fingerprint(self) -> str:
+        return self.deterministic.manifest_fingerprint
+
+    @property
+    def run_id(self) -> str:
+        return self.deterministic.run_id
+
+
 @dataclass(frozen=True)
 class Segment1ARunResult:
     """Combined result for running S0 foundations through S6 selection."""
@@ -401,6 +455,8 @@ class Segment1ARunResult:
     s5_context: S5StateContext
     s6_result: S6RunOutputs
     s6_context: S6StateContext
+    s7_result: S7RunOutputs
+    s7_context: S7StateContext
 
 
 class Segment1AOrchestrator:
@@ -420,6 +476,7 @@ class Segment1AOrchestrator:
         self._s4_runner = S4ZTPTargetRunner()
         self._s5_runner = S5CurrencyWeightsRunner()
         self._s6_runner = S6Runner()
+        self._s7_runner = S7Runner()
 
 
     def _resolve_s5_policy_path(self, param_mapping: Mapping[str, Path]) -> Path:
@@ -474,6 +531,32 @@ class Segment1AOrchestrator:
             )
         return default_path.resolve()
 
+    def _resolve_s7_policy_path(self, param_mapping: Mapping[str, Path]) -> Path:
+        """Resolve the governed S7 integerisation policy path."""
+
+        candidate_keys = (
+            "s7_integerisation_policy.yaml",
+            "config.allocation.s7_integerisation_policy.yaml",
+            "config/allocation/s7_integerisation_policy.yaml",
+        )
+        for key in candidate_keys:
+            policy_path = param_mapping.get(key)
+            if policy_path is not None:
+                return policy_path.expanduser().resolve()
+
+        default_path = (
+            get_repo_root()
+            / "config"
+            / "allocation"
+            / "s7_integerisation_policy.yaml"
+        )
+        if not default_path.exists():
+            raise err(
+                "E_GOVERNANCE_MISSING",
+                f"default S7 policy not found at '{default_path}'",
+            )
+        return default_path.resolve()
+
 
     def run(
         self,
@@ -502,6 +585,7 @@ class Segment1AOrchestrator:
         validate_s4: bool = True,
         s4_validation_output: Path | None = None,
         validate_s6: bool = True,
+        validate_s7: bool = True,
     ) -> Segment1ARunResult:
         base_path = base_path.expanduser().resolve()
         param_mapping = {
@@ -518,6 +602,17 @@ class Segment1AOrchestrator:
         s6_policy_path = self._resolve_s6_policy_path(param_mapping)
         if s6_policy_path not in extras:
             extras.append(s6_policy_path)
+        s7_policy_path = self._resolve_s7_policy_path(param_mapping)
+        if s7_policy_path not in extras:
+            extras.append(s7_policy_path)
+        try:
+            s7_policy_preview = load_s7_policy(s7_policy_path)
+        except PolicyLoadingError as exc:
+            raise err("E_GOVERNANCE_INVALID", str(exc)) from exc
+        if s7_policy_preview.bounds is not None:
+            bounds_path = s7_policy_preview.bounds.path
+            if bounds_path not in extras:
+                extras.append(bounds_path)
         feature_path_input = s4_features.expanduser().resolve() if s4_features else None
         if feature_path_input is not None:
             extras.append(feature_path_input)
@@ -1024,6 +1119,27 @@ class Segment1AOrchestrator:
             s6_result.membership_path,
         )
 
+        s7_result = self._s7_runner.run(
+            base_path=base_path,
+            policy_path=s7_policy_path,
+            parameter_hash=s5_deterministic.parameter_hash,
+            manifest_fingerprint=s5_deterministic.manifest_fingerprint,
+            seed=s5_deterministic.seed,
+            run_id=s5_deterministic.run_id,
+            nb_finals=s2_result.finals,
+            s6_context=s6_result.deterministic,
+            s6_results=s6_result.results,
+        )
+        if validate_s7:
+            validate_s7_outputs(s7_result.results)
+        s7_context = build_s7_context(s7_result)
+
+        logger.info(
+            "Segment1A S7 completed (residual_events=%d, dirichlet_events=%d)",
+            s7_result.residual_events,
+            s7_result.dirichlet_events,
+        )
+
         s3_context = build_s3_context(
             s3_result,
             metrics=s3_metrics,
@@ -1051,6 +1167,8 @@ class Segment1AOrchestrator:
             s5_context=s5_context,
             s6_result=s6_result,
             s6_context=s6_context,
+            s7_result=s7_result,
+            s7_context=s7_context,
         )
 
 
@@ -1061,6 +1179,7 @@ __all__ = [
     "S4StateContext",
     "S5StateContext",
     "S6StateContext",
+    "S7StateContext",
     "Segment1ARunResult",
     "Segment1AOrchestrator",
     "build_hurdle_context",
@@ -1069,4 +1188,5 @@ __all__ = [
     "build_s4_context",
     "build_s5_context",
     "build_s6_context",
+    "build_s7_context",
 ]

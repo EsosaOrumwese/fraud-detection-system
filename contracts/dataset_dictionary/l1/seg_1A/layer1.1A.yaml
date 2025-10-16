@@ -1,7 +1,7 @@
 version: '1.0'
 layer: layer1
 segment: seg_1A
-states: [s0, s1, s2, s3, s4, s5, s6]
+states: [s0, s1, s2, s3, s4, s5, s6, s7]
 
 reference:
   transaction_schema_merchant_ids:
@@ -83,6 +83,14 @@ parameters:
     format: yaml
     path: config/allocation/s6_selection_policy.yaml
     schema_ref: layer1/schemas.layer1.yaml#/policy/s6_selection
+    partitioning: []
+    owner: 1A
+    retention_days: 0
+  s7_integerisation_policy:
+    description: Governed integer allocation policy for S7 (bounds, Dirichlet toggles; contributes to parameter_hash).
+    format: yaml
+    path: config/allocation/s7_integerisation_policy.yaml
+    schema_ref: layer1/schemas.layer1.yaml#/policy/s7_integerisation
     partitioning: []
     owner: 1A
     retention_days: 0
@@ -273,6 +281,22 @@ rng_logs:
     format: jsonl
     path: logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     schema_ref: layer1/schemas.layer1.yaml#/rng/events/gumbel_key
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 180
+  rng_event_residual_rank:
+    description: Non-consuming residual ranking records emitted by S7 integer allocation (one per domain country).
+    format: jsonl
+    path: logs/rng/events/residual_rank/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/residual_rank
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 180
+  rng_event_dirichlet_gamma_vector:
+    description: Optional Dirichlet gamma vector draws emitted by S7 when the feature lane is enabled.
+    format: jsonl
+    path: logs/rng/events/dirichlet_gamma_vector/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/dirichlet_gamma_vector
     partitioning: [seed, parameter_hash, run_id]
     owner: 1A
     retention_days: 180
