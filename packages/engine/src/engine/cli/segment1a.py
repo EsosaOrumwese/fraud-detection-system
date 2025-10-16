@@ -184,6 +184,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Optional directory for S4 validation artefacts.",
     )
     parser.add_argument(
+        "--no-validate-s6",
+        dest="validate_s6",
+        action="store_false",
+        help="Skip S6 validation.",
+    )
+    parser.add_argument(
         "--result-json",
         dest="result_json",
         type=Path,
@@ -195,6 +201,7 @@ def main(argv: list[str] | None = None) -> int:
         validate_s1=True,
         validate_s2=True,
         validate_s3=True,
+        validate_s6=True,
         include_diagnostics=True,
     )
 
@@ -249,6 +256,7 @@ def main(argv: list[str] | None = None) -> int:
                 if args.s4_validation_output is not None
                 else None
             ),
+            validate_s6=args.validate_s6,
         )
     except S0Error as exc:
         logger.exception("Segment1A CLI: run failed")
@@ -472,6 +480,7 @@ def main(argv: list[str] | None = None) -> int:
                 "trace_reconciled": result.s6_context.trace_reconciled,
                 "log_all_candidates": result.s6_context.log_all_candidates,
                 "rng_isolation_ok": result.s6_context.rng_isolation_ok,
+                "validation_passed": result.s6_context.validation_passed,
             },
         }
         args.result_json.expanduser().resolve().write_text(

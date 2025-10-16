@@ -1,7 +1,6 @@
 {
-  "": "https://json-schema.org/draft/2019-09/schema",
   "": "contracts/schemas/l1/seg_1A/s6_validation.schema.json",
-  "title": "Layer 1 Segment 1A – State-6 Validation Receipt",
+  "title": "Layer 1 Segment 1A \u2013 State-6 Validation Receipt",
   "type": "object",
   "required": [
     "seed",
@@ -15,7 +14,10 @@
     "reason_code_counts",
     "rng_isolation_ok",
     "trace_reconciled",
-    "re_derivation_ok"
+    "re_derivation_ok",
+    "membership_rows",
+    "trace_events",
+    "log_all_candidates"
   ],
   "additionalProperties": true,
   "properties": {
@@ -73,16 +75,35 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["dataset_id", "licence", "retention_days"],
+        "required": [
+          "dataset_id",
+          "licence",
+          "retention_days"
+        ],
         "properties": {
-          "dataset_id": {"type": "string"},
-          "licence": {"type": "string"},
+          "dataset_id": {
+            "type": "string"
+          },
+          "licence": {
+            "type": "string"
+          },
           "retention_days": {
             "type": "integer",
             "minimum": 0
           }
         }
       }
+    },
+    "membership_rows": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "trace_events": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "log_all_candidates": {
+      "type": "boolean"
     }
   }
 }

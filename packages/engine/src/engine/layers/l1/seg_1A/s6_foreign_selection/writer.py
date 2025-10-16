@@ -112,7 +112,7 @@ class GumbelEventWriter:
             "selected": bool(selected),
         }
         if uniform is not None:
-            payload["uniform"] = float(uniform)
+            payload["u"] = float(uniform)
         if key is not None:
             payload["key"] = float(key)
         if selection_order is not None:

@@ -141,9 +141,9 @@ def _write_policy(
 
 
 def test_s6_runner_end_to_end(tmp_path):
-    parameter_hash = "abc123"
+    parameter_hash = "a" * 64
     seed = 12345
-    run_id = "run-test"
+    run_id = "d" * 32
     manifest = "0" * 64
 
     _prepare_base_inputs(
@@ -197,9 +197,9 @@ def test_s6_runner_end_to_end(tmp_path):
 
 
 def test_s6_runner_zero_weight_domain(tmp_path):
-    parameter_hash = "p_zero"
+    parameter_hash = "b" * 64
     seed = 777
-    run_id = "run-zero"
+    run_id = "e" * 32
     manifest = "f" * 64
 
     _prepare_base_inputs(
@@ -236,9 +236,9 @@ def test_s6_runner_zero_weight_domain(tmp_path):
 
 
 def test_s6_runner_reduced_logging(tmp_path):
-    parameter_hash = "p_log"
+    parameter_hash = "c" * 64
     seed = 4242
-    run_id = "run-log"
+    run_id = "f" * 32
     manifest = "1" * 64
 
     _prepare_base_inputs(

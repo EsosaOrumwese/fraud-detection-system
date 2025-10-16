@@ -9,8 +9,12 @@ from pathlib import Path
 from typing import Mapping, Sequence
 
 import pandas as pd
+import yaml
+from jsonschema import Draft201909Validator, RefResolver, ValidationError
+import re
 
-from ..shared.dictionary import load_dictionary, resolve_dataset_path
+from ..s0_foundations.l1.rng import PhiloxEngine, comp_iso, comp_u64
+from ..shared.dictionary import get_repo_root, load_dictionary, resolve_dataset_path
 from . import constants as c
 from .loader import verify_s5_pass
 from .runner import S6RunOutputs
@@ -86,6 +90,8 @@ def validate_outputs(*, base_path: Path, outputs: S6RunOutputs) -> Mapping[str, 
     if outputs.trace_reconciled != (outputs.trace_events == outputs.events_written):
         raise S6ValidationError("trace reconciliation flag inconsistent with log counts")
 
+    _verify_counter_replay(outputs)
+
     return receipt_payload
 
 
@@ -140,6 +146,7 @@ def _validate_receipt_payload(payload: Mapping[str, object], outputs: S6RunOutpu
             raise S6ValidationError(
                 f"receipt field '{field}' mismatch (expected {expected}, got {payload.get(field)})"
             )
+    _receipt_validator().validate(payload)
 
 
 def _read_event_log(events_path: Path | None) -> list[dict]:
@@ -161,7 +168,9 @@ def _read_event_log(events_path: Path | None) -> list[dict]:
 def _read_membership(membership_path: Path | None) -> pd.DataFrame | None:
     if membership_path is None or not membership_path.exists():
         return None
-    return pd.read_parquet(membership_path)
+    df = pd.read_parquet(membership_path)
+    _membership_validator().validate(df.to_dict(orient="records"))
+    return df
 
 
 def _count_trace_entries(trace_path: Path | None) -> int:
@@ -171,6 +180,18 @@ def _count_trace_entries(trace_path: Path | None) -> int:
     with trace_path.open("r", encoding="utf-8") as handle:
         for line in handle:
             if line.strip():
+                record = json.loads(line)
+                if record.get("module") != c.MODULE_NAME:
+                    raise S6ValidationError(
+                        f"trace record module mismatch: {record.get('module')}"
+                    )
+                run_id = str(record.get("run_id", ""))
+                if not _HEX32_RE.fullmatch(run_id):
+                    raise S6ValidationError(
+                        "trace run_id must be 32 lowercase hex characters"
+                    )
+                if not _HEX64_RE.fullmatch(str(record.get("parameter_hash", ""))):
+                    raise S6ValidationError("trace parameter_hash must be 64 lowercase hex characters")
                 count += 1
     return count
 
@@ -200,6 +221,14 @@ def _validate_events(
         if module != c.MODULE_NAME:
             raise S6ValidationError(f"unexpected RNG module '{module}' in gumbel_key log")
 
+        run_id = str(record.get("run_id", ""))
+        if not _HEX32_RE.fullmatch(run_id):
+            raise S6ValidationError("run_id must be 32 lowercase hex characters")
+
+        parameter_hash = str(record.get("parameter_hash", ""))
+        if not _HEX64_RE.fullmatch(parameter_hash):
+            raise S6ValidationError("parameter_hash must be 64 lowercase hex characters")
+
         merchant_id = int(record.get("merchant_id"))
         country_iso = str(record.get("country_iso"))
         key = (merchant_id, country_iso)
@@ -223,7 +252,7 @@ def _validate_events(
                     f"selection order mismatch for {key}: {order} vs {candidate.selection_order}"
                 )
 
-        uniform = record.get("uniform")
+        uniform = record.get("u")
         key_value = record.get("key")
         if log_all_candidates and candidate.eligible:
             if uniform is None or key_value is None:
@@ -258,3 +287,96 @@ def _gumbel_key(weight: float, uniform: float) -> float:
     if not (0.0 < uniform < 1.0):
         raise S6ValidationError("uniform deviate must lie in (0,1)")
     return math.log(weight) - math.log(-math.log(uniform))
+
+
+def _verify_counter_replay(outputs: S6RunOutputs) -> None:
+    engine = PhiloxEngine(
+        seed=outputs.deterministic.seed,
+        manifest_fingerprint=outputs.deterministic.manifest_fingerprint,
+    )
+    tolerance = 1e-9
+
+    for result in outputs.results:
+        candidates = sorted(result.candidates, key=lambda c: c.candidate_rank)
+        for candidate in candidates:
+            substream = engine.derive_substream(
+                c.SUBSTREAM_LABEL_GUMBEL,
+                (
+                    comp_u64(int(result.merchant_id)),
+                    comp_iso(candidate.country_iso),
+                ),
+            )
+            uniform = substream.uniform()
+            if candidate.uniform is not None and not math.isclose(
+                candidate.uniform,
+                uniform,
+                rel_tol=0.0,
+                abs_tol=tolerance,
+            ):
+                raise S6ValidationError(
+                    f"uniform mismatch for merchant={result.merchant_id}, country={candidate.country_iso}"
+                )
+            if candidate.eligible:
+                expected_key = _gumbel_key(candidate.weight_normalised, uniform)
+                if candidate.key is None or not math.isclose(
+                    candidate.key,
+                    expected_key,
+                    rel_tol=0.0,
+                    abs_tol=tolerance,
+                ):
+                    raise S6ValidationError(
+                        f"key mismatch for merchant={result.merchant_id}, country={candidate.country_iso}"
+                    )
+
+
+_LAYER1_SCHEMA_DATA: dict | None = None
+_LAYER1_RESOLVER: RefResolver | None = None
+_LAYER1_VALIDATORS: dict[str, Draft201909Validator] = {}
+_MEMBERSHIP_VALIDATOR: Draft201909Validator | None = None
+_RECEIPT_VALIDATOR: Draft201909Validator | None = None
+_HEX32_RE = re.compile(r"[a-f0-9]{32}")
+_HEX64_RE = re.compile(r"[0-9a-f]{64}")
+
+
+def _layer1_validator(pointer: str) -> Draft201909Validator:
+    global _LAYER1_SCHEMA_DATA, _LAYER1_RESOLVER
+    if _LAYER1_SCHEMA_DATA is None:
+        schema_path = get_repo_root() / "contracts" / "schemas" / "layer1" / "schemas.layer1.yaml"
+        payload = yaml.safe_load(schema_path.read_text(encoding="utf-8"))
+        _LAYER1_SCHEMA_DATA = payload
+        _LAYER1_RESOLVER = RefResolver.from_schema(payload)
+    if pointer not in _LAYER1_VALIDATORS:
+        node = _resolve_pointer(_LAYER1_SCHEMA_DATA, pointer)
+        _LAYER1_VALIDATORS[pointer] = Draft201909Validator(node, resolver=_LAYER1_RESOLVER)
+    return _LAYER1_VALIDATORS[pointer]
+
+
+def _membership_validator() -> Draft201909Validator:
+    global _MEMBERSHIP_VALIDATOR
+    if _MEMBERSHIP_VALIDATOR is None:
+        schema_path = get_repo_root() / "contracts" / "schemas" / "l1" / "seg_1A" / "s6_membership.schema.json"
+        payload = json.loads(schema_path.read_text(encoding="utf-8"))
+        node = payload.get("membership", payload)
+        _MEMBERSHIP_VALIDATOR = Draft201909Validator(node)
+    return _MEMBERSHIP_VALIDATOR
+
+
+def _receipt_validator() -> Draft201909Validator:
+    global _RECEIPT_VALIDATOR
+    if _RECEIPT_VALIDATOR is None:
+        schema_path = get_repo_root() / "contracts" / "schemas" / "l1" / "seg_1A" / "s6_validation.schema.json"
+        payload = json.loads(schema_path.read_text(encoding="utf-8"))
+        _RECEIPT_VALIDATOR = Draft201909Validator(payload)
+    return _RECEIPT_VALIDATOR
+
+
+def _resolve_pointer(root: Mapping[str, object], pointer: str):
+    node = root
+    for part in pointer.split("/"):
+        if not part:
+            continue
+        if isinstance(node, Mapping) and part in node:
+            node = node[part]
+        else:
+            raise S6ValidationError(f"schema pointer '{pointer}' not found (stopped at '{part}')")
+    return node

@@ -119,6 +119,41 @@ def _fake_result(
         multi_merchant_ids=[1],
     )
 
+    s5_context = SimpleNamespace(
+        weights_path=_touch(output_dir / "weights.parquet"),
+        sparse_flag_path=None,
+        merchant_currency_path=None,
+        stage_log_path=None,
+        receipt_path=_touch(output_dir / "S5_VALIDATION.json"),
+        policy_digest="0" * 64,
+        policy_path=_touch(output_dir / "s5_policy.yaml"),
+        policy_semver="1.0.0",
+        policy_version="2025-10-16",
+    )
+
+    s6_policy = _touch(output_dir / "s6_policy.yaml")
+    s6_context = SimpleNamespace(
+        deterministic=SimpleNamespace(policy_path=s6_policy),
+        events_path=None,
+        trace_path=None,
+        membership_path=None,
+        policy_digest="1" * 64,
+        policy_path=s6_policy,
+        policy_semver="0.1.0",
+        policy_version="2025-10-16",
+        events_expected=0,
+        events_written=0,
+        shortfall_count=0,
+        reason_code_counts={},
+        membership_rows=0,
+        trace_events=0,
+        trace_reconciled=True,
+        log_all_candidates=True,
+        rng_isolation_ok=True,
+        validation_payload=None,
+        validation_passed=True,
+    )
+
     return Segment1ARunResult(
         s0_result=s0_result,
         s1_result=SimpleNamespace(run_id=run_id, events_path=s1_events_path, trace_path=s1_trace_path),
@@ -129,6 +164,10 @@ def _fake_result(
         s3_context=s3_context,
         s4_result=SimpleNamespace(run_id=run_id),
         s4_context=s4_context,
+        s5_result=SimpleNamespace(run_id=run_id),
+        s5_context=s5_context,
+        s6_result=SimpleNamespace(run_id=run_id),
+        s6_context=s6_context,
     )
 
 
@@ -198,6 +237,7 @@ def test_segment1a_cli_passes_s4_options(tmp_path: Path, monkeypatch: pytest.Mon
     assert exit_code == 0
     assert captured_kwargs["validate_s4"] is True
     assert captured_kwargs["s4_features"] == features_path
+    assert captured_kwargs["validate_s6"] is True
     assert captured_kwargs["s4_validation_output"] == validation_output_dir.resolve()
     assert captured_kwargs["base_path"] == output_dir.resolve()
 

@@ -66,7 +66,11 @@ from engine.layers.l1.seg_1A.s5_currency_weights import (
     S5DeterministicContext,
     S5RunOutputs,
 )
-from engine.layers.l1.seg_1A.s6_foreign_selection import S6Runner
+from engine.layers.l1.seg_1A.s6_foreign_selection import (
+    S6Runner,
+    S6ValidationError,
+    validate_outputs,
+)
 from engine.layers.l1.seg_1A.s6_foreign_selection.contexts import S6DeterministicContext
 from engine.layers.l1.seg_1A.s6_foreign_selection.runner import S6RunOutputs
 from engine.layers.l1.seg_1A.shared.dictionary import get_repo_root
@@ -279,6 +283,8 @@ class S6StateContext:
     trace_reconciled: bool
     log_all_candidates: bool
     rng_isolation_ok: bool
+    validation_payload: Mapping[str, object] | None
+    validation_passed: bool | None
 
 
 def build_s3_context(
@@ -347,7 +353,12 @@ def build_s5_context(outputs: S5RunOutputs) -> S5StateContext:
     )
 
 
-def build_s6_context(outputs: S6RunOutputs) -> S6StateContext:
+def build_s6_context(
+    outputs: S6RunOutputs,
+    *,
+    validation_payload: Mapping[str, object] | None,
+    validation_passed: bool | None,
+) -> S6StateContext:
     """Construct the downstream context bundle for S6 outputs."""
 
     return S6StateContext(
@@ -368,6 +379,8 @@ def build_s6_context(outputs: S6RunOutputs) -> S6StateContext:
         trace_reconciled=outputs.trace_reconciled,
         log_all_candidates=outputs.log_all_candidates,
         rng_isolation_ok=outputs.rng_isolation_ok,
+        validation_payload=validation_payload,
+        validation_passed=validation_passed,
     )
 
 
@@ -488,6 +501,7 @@ class Segment1AOrchestrator:
         s4_features: Path | None = None,
         validate_s4: bool = True,
         s4_validation_output: Path | None = None,
+        validate_s6: bool = True,
     ) -> Segment1ARunResult:
         base_path = base_path.expanduser().resolve()
         param_mapping = {
@@ -985,7 +999,24 @@ class Segment1AOrchestrator:
             run_id=s5_deterministic.run_id,
             manifest_fingerprint=s5_deterministic.manifest_fingerprint,
         )
-        s6_context = build_s6_context(s6_result)
+        s6_validation_payload: Mapping[str, object] | None = None
+        s6_validation_passed: bool | None = None
+        if validate_s6:
+            try:
+                s6_validation_payload = validate_outputs(
+                    base_path=base_path,
+                    outputs=s6_result,
+                )
+                s6_validation_passed = True
+            except S6ValidationError as exc:
+                s6_validation_passed = False
+                logger.exception("Segment1A S6 validation failed")
+                raise
+        s6_context = build_s6_context(
+            s6_result,
+            validation_payload=s6_validation_payload,
+            validation_passed=s6_validation_passed,
+        )
 
         logger.info(
             "Segment1A S6 completed (events=%s, membership=%s)",
