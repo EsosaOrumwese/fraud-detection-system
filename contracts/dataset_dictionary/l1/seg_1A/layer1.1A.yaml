@@ -1,7 +1,7 @@
 version: '1.0'
 layer: layer1
 segment: seg_1A
-states: [s0, s1, s2, s3, s4, s5]
+states: [s0, s1, s2, s3, s4, s5, s6]
 
 reference:
   transaction_schema_merchant_ids:
@@ -78,6 +78,14 @@ parameters:
     partitioning: []
     owner: 1A
     retention_days: 0
+  s6_selection_policy:
+    description: Governed selection policy for S6 foreign-set selection (contributes to parameter_hash).
+    format: yaml
+    path: config/allocation/s6_selection_policy.yaml
+    schema_ref: layer1/schemas.layer1.yaml#/policy/s6_selection
+    partitioning: []
+    owner: 1A
+    retention_days: 0
 
 model:
   crossborder_eligibility_flags:
@@ -140,6 +148,14 @@ validation:
     path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
     schema_ref: l1/seg_1A/s0_outputs.schema.json#/validation_bundle
     partitioning: [fingerprint]
+    owner: 1A
+    retention_days: 365
+  s6_validation_receipt:
+    description: Seed/parameter-scoped PASS receipt for S6 foreign-set selection (S6_VALIDATION.json + _passed.flag).
+    format: directory
+    path: data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
+    schema_ref: l1/seg_1A/s6_validation.schema.json
+    partitioning: [seed, parameter_hash]
     owner: 1A
     retention_days: 365
 
@@ -252,6 +268,14 @@ rng_logs:
     gating:
       gated_by: rng_event_hurdle_bernoulli
       predicate: is_multi == true
+  rng_event_gumbel_key:
+    description: Gumbel-key draws emitted by S6 foreign-set selection (considered vs selected logging per policy).
+    format: jsonl
+    path: logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/gumbel_key
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 180
 
 crossborder:
 
@@ -288,5 +312,16 @@ crossborder:
     path: data/layer1/1A/s3_site_sequence/parameter_hash={parameter_hash}/part-*.parquet
     schema_ref: l1/seg_1A/s3_outputs.schema.json#/site_sequence
     partitioning: [parameter_hash]
+    owner: 1A
+    retention_days: 365
+
+selection:
+
+  s6_membership:
+    description: Optional foreign membership pairs emitted by S6 when policy enables (re-derivable convenience surface; embeds no order).
+    format: parquet
+    path: data/layer1/1A/s6_membership/seed={seed}/parameter_hash={parameter_hash}/part-*.parquet
+    schema_ref: l1/seg_1A/s6_membership.schema.json
+    partitioning: [seed, parameter_hash]
     owner: 1A
     retention_days: 365
