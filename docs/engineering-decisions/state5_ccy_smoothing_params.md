@@ -40,6 +40,6 @@ overrides:
 - These numbers are **development placeholders**. We must revisit once real calibration data is available; changing the file will flip `parameter_hash` as required.
 
 ## TODO / follow-ups
-- Validate against synthetic fixtures to ensure Σweights and coverage rules pass (see spec §14).
-- If `merchant_currency` is enabled, ingest `reference/iso/iso_legal_tender/2024/iso_legal_tender.parquet`.
+- ✅ Automated validation now runs in the S5 suite (`tests/engine/layers/l1/seg_1A/s5_currency_weights`) covering Σ discipline, coverage rules, and receipt metrics per spec §14.
+- ✅ `merchant_currency` emission is wired to the sealed legal-tender artefact and the runner enforces provenance (`packages/engine/src/engine/layers/l1/seg_1A/s5_currency_weights/runner.py`).
 - Document any future calibration updates in this directory with dated sections.
