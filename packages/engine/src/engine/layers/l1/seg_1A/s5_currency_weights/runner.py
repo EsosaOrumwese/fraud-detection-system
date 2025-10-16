@@ -7,7 +7,7 @@ import shutil
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Mapping, Sequence
+from typing import Iterable, Mapping, Sequence, Tuple
 
 from ..s0_foundations.exceptions import err
 from ..shared.dictionary import load_dictionary, resolve_dataset_path
@@ -21,7 +21,13 @@ from .loader import (
     load_iso_legal_tender,
     load_settlement_shares,
 )
-from .persist import PersistConfig, write_ccy_country_weights, write_sparse_flag
+from .merchant_currency import MerchantCurrencyRecord, derive_merchant_currency
+from .persist import (
+    PersistConfig,
+    write_ccy_country_weights,
+    write_merchant_currency,
+    write_sparse_flag,
+)
 from .policy import PolicyValidationError, SmoothingPolicy, load_policy
 
 
@@ -65,6 +71,21 @@ class S5CurrencyWeightsRunner:
             else self._load_iso_legal_tender(deterministic)
         )
 
+        legal_tender_map = {
+            entry.country_iso.upper(): entry.primary_ccy.upper()
+            for entry in iso_lookup
+        }
+        merchant_records: Tuple[MerchantCurrencyRecord, ...] | None = None
+        if deterministic.merchants:
+            has_share_vector = any(
+                bool(merchant.share_vector) for merchant in deterministic.merchants
+            )
+            if legal_tender_map or has_share_vector:
+                merchant_records = derive_merchant_currency(
+                    deterministic.merchants,
+                    legal_tender_map,
+                )
+
         self._preflight_surface_checks(
             settlement_shares=settlements,
             ccy_shares=ccy_shares,
@@ -105,6 +126,29 @@ class S5CurrencyWeightsRunner:
                 template_args={"parameter_hash": deterministic.parameter_hash},
             )
 
+        merchant_final_path: Path | None = None
+        if merchant_records:
+            if len(merchant_records) != len(deterministic.merchants):
+                raise err(
+                    "E_MCURR_CARDINALITY",
+                    (
+                        "merchant_currency rows do not match merchant universe "
+                        f"(expected {len(deterministic.merchants)}, "
+                        f"produced {len(merchant_records)})"
+                    ),
+                )
+            merchant_staging_path = write_merchant_currency(
+                merchant_records,
+                config=config,
+            )
+            merchant_final_path = self._publish_partition(
+                base_path=base_path,
+                dataset_id="merchant_currency",
+                partition_dir=merchant_staging_path.parent,
+                dictionary=dictionary,
+                template_args={"parameter_hash": deterministic.parameter_hash},
+            )
+
         receipt_path = weights_final_path.parent / "S5_VALIDATION.json"
 
         self._cleanup_staging(staging_root)
@@ -116,6 +160,7 @@ class S5CurrencyWeightsRunner:
             weights_path=weights_final_path,
             sparse_flag_path=sparse_final_path,
             receipt_path=receipt_path,
+            merchant_currency_path=merchant_final_path,
         )
 
     # --------------------------------------------------------------------- #

@@ -65,6 +65,8 @@ def test_persist_and_validate(tmp_path):
     receipt = json.loads((parquet_path.parent / "S5_VALIDATION.json").read_text())
     assert receipt["parameter_hash"] == "abc123"
     assert receipt["currencies"][0]["currency"] == "USD"
+    passed_contents = (parquet_path.parent / "_passed.flag").read_text(encoding="ascii").strip()
+    assert passed_contents.startswith("sha256_hex=")
     sparse_path = (
         tmp_path
         / "sparse_flag"

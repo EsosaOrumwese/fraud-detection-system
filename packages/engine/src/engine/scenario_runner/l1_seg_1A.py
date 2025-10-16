@@ -61,6 +61,7 @@ from engine.layers.l1.seg_1A.s4_ztp_target.l3.bundle import (
 from engine.layers.l1.seg_1A.s4_ztp_target.l3.validator import validate_s4_run
 from engine.layers.l1.seg_1A.s5_currency_weights import (
     DEFAULT_PATHS as S5_DEFAULT_PATHS,
+    MerchantCurrencyInput,
     S5CurrencyWeightsRunner,
     S5DeterministicContext,
     S5RunOutputs,
@@ -250,6 +251,7 @@ class S5StateContext:
     policy_path: Path
     policy_semver: str
     policy_version: str
+    merchant_currency_path: Path | None
 
 
 def build_s3_context(
@@ -313,6 +315,7 @@ def build_s5_context(outputs: S5RunOutputs) -> S5StateContext:
         policy_path=metadata.path,
         policy_semver=metadata.semver,
         policy_version=metadata.version,
+        merchant_currency_path=outputs.merchant_currency_path,
     )
 
 
@@ -608,6 +611,14 @@ class Segment1AOrchestrator:
                     channel=str(row["channel_sym"]),
                 )
             )
+        merchant_currency_inputs = tuple(
+            MerchantCurrencyInput(
+                merchant_id=int(row["merchant_id"]),
+                home_country_iso=str(row["home_country_iso"]),
+                share_vector=None,
+            )
+            for row in merchant_rows
+        )
 
         if not merchant_profiles:
             raise err(
@@ -830,6 +841,7 @@ class Segment1AOrchestrator:
             run_id=s2_result.deterministic.run_id,
             seed=s2_result.deterministic.seed,
             policy_path=s5_policy_path,
+            merchants=merchant_currency_inputs,
             settlement_shares_path=_resolve_reference_path(
                 S5_DEFAULT_PATHS.settlement_shares
             ),

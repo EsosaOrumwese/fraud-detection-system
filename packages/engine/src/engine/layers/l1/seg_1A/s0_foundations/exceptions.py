@@ -106,6 +106,14 @@ _FAILURE_CODE_MAP: Mapping[str, Tuple[FailureCategory, str]] = {
         FailureCategory.F5_PARTITION,
         "s5_partition_exists",
     ),
+    "E_MCURR_CARDINALITY": (
+        FailureCategory.F1_INGRESS,
+        "s5_merchant_currency_cardinality",
+    ),
+    "E_MCURR_RESOLUTION": (
+        FailureCategory.F1_INGRESS,
+        "s5_merchant_currency_resolution",
+    ),
     "E_VALIDATION_MISMATCH": (FailureCategory.F8_VALIDATION, "validation_mismatch"),
     "E_VALIDATION_DIGEST": (
         FailureCategory.F8_VALIDATION,

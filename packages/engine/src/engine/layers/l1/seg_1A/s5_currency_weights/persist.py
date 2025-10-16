@@ -11,6 +11,7 @@ from typing import Iterable, List
 import pandas as pd
 
 from .builder import CurrencyResult
+from .merchant_currency import MerchantCurrencyRecord
 
 PARTITION_FILENAME = "part-00000.parquet"
 
@@ -20,6 +21,7 @@ __all__ = [
     "write_ccy_country_weights",
     "write_sparse_flag",
     "write_validation_receipt",
+    "write_merchant_currency",
 ]
 
 
@@ -73,6 +75,39 @@ def write_ccy_country_weights(
     if config.emit_sparse_flag:
         write_sparse_flag(result_list, config)
 
+    return path
+
+
+def write_merchant_currency(
+    records: Iterable[MerchantCurrencyRecord],
+    config: PersistConfig,
+) -> Path:
+    """Persist the merchant_currency cache."""
+
+    rows = list(records)
+    frame = pd.DataFrame.from_records(
+        (
+            {
+                "parameter_hash": config.parameter_hash,
+                "merchant_id": row.merchant_id,
+                "kappa": row.kappa,
+                "source": row.source,
+                "tie_break_used": bool(row.tie_break_used),
+            }
+            for row in rows
+        ),
+        columns=["parameter_hash", "merchant_id", "kappa", "source", "tie_break_used"],
+    )
+    frame = frame.sort_values(["merchant_id"]).reset_index(drop=True)
+
+    target_dir = (
+        config.output_dir
+        / "merchant_currency"
+        / f"parameter_hash={config.parameter_hash}"
+    )
+    target_dir.mkdir(parents=True, exist_ok=True)
+    path = target_dir / PARTITION_FILENAME
+    frame.to_parquet(path, index=False)
     return path
 
 

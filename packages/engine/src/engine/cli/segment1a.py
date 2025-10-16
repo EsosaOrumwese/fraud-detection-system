@@ -311,6 +311,11 @@ def main(argv: list[str] | None = None) -> int:
     logger.info("Segment1A CLI: S5 weights %s", s5_ctx.weights_path)
     if s5_ctx.sparse_flag_path:
         logger.info("Segment1A CLI: S5 sparse flag %s", s5_ctx.sparse_flag_path)
+    if s5_ctx.merchant_currency_path:
+        logger.info(
+            "Segment1A CLI: S5 merchant currency %s",
+            s5_ctx.merchant_currency_path,
+        )
     logger.info(
         "Segment1A CLI: S5 receipt %s (policy_digest=%s)",
         s5_ctx.receipt_path,
@@ -418,6 +423,11 @@ def main(argv: list[str] | None = None) -> int:
                 "sparse_flag_path": (
                     str(s5_ctx.sparse_flag_path)
                     if s5_ctx.sparse_flag_path is not None
+                    else None
+                ),
+                "merchant_currency_path": (
+                    str(s5_ctx.merchant_currency_path)
+                    if s5_ctx.merchant_currency_path is not None
                     else None
                 ),
                 "receipt_path": str(s5_ctx.receipt_path),

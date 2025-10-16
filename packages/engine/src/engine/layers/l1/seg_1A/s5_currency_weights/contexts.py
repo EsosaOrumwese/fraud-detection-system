@@ -4,7 +4,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping
+from typing import Mapping, Sequence
+
+
+@dataclass(frozen=True, eq=False)
+class MerchantCurrencyInput:
+    """Ingress information required to resolve κₘ per merchant."""
+
+    merchant_id: int
+    home_country_iso: str
+    share_vector: Mapping[str, float] | None = None
 
 
 @dataclass(frozen=True)
@@ -16,6 +25,7 @@ class S5DeterministicContext:
     run_id: str
     seed: int
     policy_path: Path
+    merchants: Sequence[MerchantCurrencyInput]
     settlement_shares_path: Path | None = None
     ccy_country_shares_path: Path | None = None
     iso_legal_tender_path: Path | None = None
@@ -33,6 +43,7 @@ class S5PolicyMetadata:
 
 
 __all__ = [
+    "MerchantCurrencyInput",
     "S5DeterministicContext",
     "S5PolicyMetadata",
 ]

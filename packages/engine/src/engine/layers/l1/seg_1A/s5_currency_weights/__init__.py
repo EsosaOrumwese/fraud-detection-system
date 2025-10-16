@@ -1,7 +1,7 @@
 """Layer 1 / Segment 1A State 5 currency→country weights package."""
 
 from .builder import CurrencyResult, WeightRow, build_weights
-from .contexts import S5DeterministicContext, S5PolicyMetadata
+from .contexts import MerchantCurrencyInput, S5DeterministicContext, S5PolicyMetadata
 from .loader import (
     ShareSurface,
     LegalTender,
@@ -16,11 +16,13 @@ from .policy import (
     PolicyValidationError,
     SmoothingPolicy,
 )
+from .merchant_currency import MerchantCurrencyRecord, derive_merchant_currency
 from .persist import (
     PersistConfig,
     write_ccy_country_weights,
     write_sparse_flag,
     write_validation_receipt,
+    write_merchant_currency,
 )
 from .runner import S5CurrencyWeightsRunner, S5RunOutputs
 from .validate import (
@@ -32,6 +34,7 @@ __all__ = [
     "CurrencyResult",
     "WeightRow",
     "build_weights",
+    "MerchantCurrencyInput",
     "S5DeterministicContext",
     "S5PolicyMetadata",
     "ShareSurface",
@@ -48,6 +51,9 @@ __all__ = [
     "write_ccy_country_weights",
     "write_sparse_flag",
     "write_validation_receipt",
+    "write_merchant_currency",
+    "MerchantCurrencyRecord",
+    "derive_merchant_currency",
     "S5CurrencyWeightsRunner",
     "S5RunOutputs",
     "ValidationError",
