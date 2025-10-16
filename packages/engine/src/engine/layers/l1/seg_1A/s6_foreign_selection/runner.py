@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -41,6 +42,11 @@ class S6RunOutputs:
     events_written: int
     shortfall_count: int
     reason_code_counts: Mapping[str, int]
+    membership_rows: int
+    trace_events: int
+    trace_reconciled: bool
+    log_all_candidates: bool
+    rng_isolation_ok: bool
 
 
 @dataclass
@@ -148,6 +154,18 @@ class S6Runner:
 
         events_expected = self._expected_events(results, policy.log_all_candidates)
 
+        membership_rows = sum(
+            sum(1 for candidate in result.candidates if candidate.selected)
+            for result in results
+        )
+
+        trace_events = self._count_trace_events(writer.trace_path)
+        trace_reconciled = trace_events == events_written
+
+        rng_isolation_ok = True
+        if writer.events_path and writer.events_path.exists():
+            rng_isolation_ok = self._check_rng_isolation(writer.events_path)
+
         receipt_path = self._write_receipt(
             base_path=base_path,
             dictionary=dictionary,
@@ -157,6 +175,11 @@ class S6Runner:
             events_written=events_written,
             shortfall_count=shortfall_count,
             reason_code_counts=dict(reason_counts),
+            membership_rows=membership_rows,
+            trace_events=trace_events,
+            trace_reconciled=trace_reconciled,
+            log_all_candidates=policy.log_all_candidates,
+            rng_isolation_ok=rng_isolation_ok,
         )
 
         return S6RunOutputs(
@@ -172,6 +195,11 @@ class S6Runner:
             events_written=events_written,
             shortfall_count=shortfall_count,
             reason_code_counts=dict(reason_counts),
+            membership_rows=membership_rows,
+            trace_events=trace_events,
+            trace_reconciled=trace_reconciled,
+            log_all_candidates=policy.log_all_candidates,
+            rng_isolation_ok=rng_isolation_ok,
         )
 
     # ------------------------------------------------------------------ #
@@ -236,6 +264,30 @@ class S6Runner:
                     total += 1
         return total
 
+    def _count_trace_events(self, trace_path: Path | None) -> int:
+        if trace_path is None or not trace_path.exists():
+            return 0
+        count = 0
+        with trace_path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                if line.strip():
+                    count += 1
+        return count
+
+    def _check_rng_isolation(self, events_path: Path) -> bool:
+        try:
+            with events_path.open("r", encoding="utf-8") as handle:
+                for line in handle:
+                    if not line.strip():
+                        continue
+                    record = json.loads(line)
+                    module = record.get("module")
+                    if module != c.MODULE_NAME:
+                        return False
+        except FileNotFoundError:
+            return False
+        return True
+
     def _maybe_write_membership(
         self,
         *,
@@ -283,6 +335,11 @@ class S6Runner:
         events_written: int,
         shortfall_count: int,
         reason_code_counts: Dict[str, int],
+        membership_rows: int,
+        trace_events: int,
+        trace_reconciled: bool,
+        log_all_candidates: bool,
+        rng_isolation_ok: bool,
     ) -> Path:
         receipt_dir = resolve_dataset_path(
             "s6_validation_receipt",
@@ -304,8 +361,11 @@ class S6Runner:
             "gumbel_key_written": int(events_written),
             "shortfall_count": int(shortfall_count),
             "reason_code_counts": reason_code_counts,
-            "rng_isolation_ok": True,
-            "trace_reconciled": events_expected == events_written,
+            "membership_rows": int(membership_rows),
+            "trace_events": int(trace_events),
+            "trace_reconciled": bool(trace_reconciled),
+            "log_all_candidates": bool(log_all_candidates),
+            "rng_isolation_ok": bool(rng_isolation_ok),
             "re_derivation_ok": True,
         }
 

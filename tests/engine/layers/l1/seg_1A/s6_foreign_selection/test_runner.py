@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
+import yaml
 
 from engine.layers.l1.seg_1A.s6_foreign_selection import S6Runner
 from engine.layers.l1.seg_1A.s6_foreign_selection.validate import validate_outputs
@@ -19,13 +20,14 @@ def _write_s5_receipt(directory: Path) -> None:
     (directory / "_passed.flag").write_text(f"sha256_hex={digest}\n", encoding="ascii")
 
 
-def test_s6_runner_end_to_end(tmp_path):
-    parameter_hash = "abc123"
-    seed = 12345
-    run_id = "run-test"
-    manifest = "0" * 64
-
-    # S3 candidate set (home + 2 foreign)
+def _prepare_base_inputs(
+    tmp_path: Path,
+    *,
+    parameter_hash: str,
+    seed: int,
+    run_id: str,
+    weights: list[dict],
+) -> None:
     candidate_dir = (
         tmp_path
         / "data"
@@ -67,7 +69,6 @@ def test_s6_runner_end_to_end(tmp_path):
         ]
     ).to_parquet(candidate_dir / "part-00000.parquet", index=False)
 
-    # S5 weights + receipt
     weights_dir = (
         tmp_path
         / "data"
@@ -77,16 +78,9 @@ def test_s6_runner_end_to_end(tmp_path):
         / f"parameter_hash={parameter_hash}"
     )
     weights_dir.mkdir(parents=True, exist_ok=True)
-    pd.DataFrame(
-        [
-            {"currency": "USD", "country_iso": "US", "weight": 0.5},
-            {"currency": "USD", "country_iso": "CA", "weight": 0.3},
-            {"currency": "USD", "country_iso": "FR", "weight": 0.2},
-        ]
-    ).to_parquet(weights_dir / "part-00000.parquet", index=False)
+    pd.DataFrame(weights).to_parquet(weights_dir / "part-00000.parquet", index=False)
     _write_s5_receipt(weights_dir)
 
-    # Merchant currency cache
     mc_dir = (
         tmp_path
         / "data"
@@ -96,13 +90,10 @@ def test_s6_runner_end_to_end(tmp_path):
         / f"parameter_hash={parameter_hash}"
     )
     mc_dir.mkdir(parents=True, exist_ok=True)
-    pd.DataFrame(
-        [
-            {"merchant_id": 1, "kappa": "USD"},
-        ]
-    ).to_parquet(mc_dir / "part-00000.parquet", index=False)
+    pd.DataFrame([
+        {"merchant_id": 1, "kappa": "USD"},
+    ]).to_parquet(mc_dir / "part-00000.parquet", index=False)
 
-    # S4 rng_event_ztp_final log
     ztp_path = (
         tmp_path
         / "logs"
@@ -117,6 +108,54 @@ def test_s6_runner_end_to_end(tmp_path):
     (ztp_path / "part-00000.jsonl").write_text(
         json.dumps({"merchant_id": 1, "K_target": 1}) + "\n",
         encoding="utf-8",
+    )
+
+
+def _write_policy(
+    tmp_path: Path,
+    *,
+    emit_membership: bool = True,
+    log_all_candidates: bool = True,
+    zero_weight_rule: str = "exclude",
+) -> Path:
+    policy = {
+        "policy_semver": "0.1.0",
+        "policy_version": "2025-10-16",
+        "defaults": {
+            "emit_membership_dataset": emit_membership,
+            "log_all_candidates": log_all_candidates,
+            "max_candidates_cap": 0,
+            "zero_weight_rule": zero_weight_rule,
+        },
+        "per_currency": {
+            "USD": {
+                "emit_membership_dataset": emit_membership,
+                "max_candidates_cap": 0,
+                "zero_weight_rule": zero_weight_rule,
+            }
+        },
+    }
+    path = tmp_path / "s6_policy.yaml"
+    path.write_text(yaml.safe_dump(policy), encoding="utf-8")
+    return path
+
+
+def test_s6_runner_end_to_end(tmp_path):
+    parameter_hash = "abc123"
+    seed = 12345
+    run_id = "run-test"
+    manifest = "0" * 64
+
+    _prepare_base_inputs(
+        tmp_path,
+        parameter_hash=parameter_hash,
+        seed=seed,
+        run_id=run_id,
+        weights=[
+            {"currency": "USD", "country_iso": "US", "weight": 0.5},
+            {"currency": "USD", "country_iso": "CA", "weight": 0.3},
+            {"currency": "USD", "country_iso": "FR", "weight": 0.2},
+        ],
     )
 
     policy_path = Path("config/allocation/s6_selection_policy.yaml").resolve()
@@ -141,7 +180,7 @@ def test_s6_runner_end_to_end(tmp_path):
     membership_df = pd.read_parquet(outputs.membership_path)
     assert membership_df.shape[0] == 1
 
-    payload = validate_outputs(receipt_path=outputs.receipt_path)
+    payload = validate_outputs(base_path=tmp_path, outputs=outputs)
     assert payload["gumbel_key_written"] == outputs.events_written
     assert payload["merchants_processed"] == 1
 
@@ -155,3 +194,85 @@ def test_s6_runner_end_to_end(tmp_path):
     selected_rows = [row for row in log_lines if row.get("selected")]
     assert len(selected_rows) == 1
     assert membership_df.iloc[0]["country_iso"] == selected_rows[0]["country_iso"]
+
+
+def test_s6_runner_zero_weight_domain(tmp_path):
+    parameter_hash = "p_zero"
+    seed = 777
+    run_id = "run-zero"
+    manifest = "f" * 64
+
+    _prepare_base_inputs(
+        tmp_path,
+        parameter_hash=parameter_hash,
+        seed=seed,
+        run_id=run_id,
+        weights=[
+            {"currency": "USD", "country_iso": "US", "weight": 1.0},
+            {"currency": "USD", "country_iso": "CA", "weight": 0.0},
+            {"currency": "USD", "country_iso": "FR", "weight": 0.0},
+        ],
+    )
+
+    policy_path = Path("config/allocation/s6_selection_policy.yaml").resolve()
+    runner = S6Runner()
+    outputs = runner.run(
+        base_path=tmp_path,
+        policy_path=policy_path,
+        parameter_hash=parameter_hash,
+        seed=seed,
+        run_id=run_id,
+        manifest_fingerprint=manifest,
+    )
+
+    assert outputs.events_written == 0
+    assert outputs.events_path is None
+    assert outputs.membership_path is None
+    assert outputs.membership_rows == 0
+    assert outputs.reason_code_counts == {"ZERO_WEIGHT_DOMAIN": 1}
+
+    payload = validate_outputs(base_path=tmp_path, outputs=outputs)
+    assert payload["membership_rows"] == 0
+
+
+def test_s6_runner_reduced_logging(tmp_path):
+    parameter_hash = "p_log"
+    seed = 4242
+    run_id = "run-log"
+    manifest = "1" * 64
+
+    _prepare_base_inputs(
+        tmp_path,
+        parameter_hash=parameter_hash,
+        seed=seed,
+        run_id=run_id,
+        weights=[
+            {"currency": "USD", "country_iso": "US", "weight": 0.5},
+            {"currency": "USD", "country_iso": "CA", "weight": 0.3},
+            {"currency": "USD", "country_iso": "FR", "weight": 0.2},
+        ],
+    )
+
+    policy_path = _write_policy(
+        tmp_path,
+        emit_membership=True,
+        log_all_candidates=False,
+    )
+
+    runner = S6Runner()
+    outputs = runner.run(
+        base_path=tmp_path,
+        policy_path=policy_path,
+        parameter_hash=parameter_hash,
+        seed=seed,
+        run_id=run_id,
+        manifest_fingerprint=manifest,
+    )
+
+    assert outputs.log_all_candidates is False
+    assert outputs.events_written == outputs.membership_rows == 1
+    assert outputs.events_path is not None and outputs.events_path.exists()
+    assert outputs.membership_path is not None and outputs.membership_path.exists()
+
+    payload = validate_outputs(base_path=tmp_path, outputs=outputs)
+    assert payload["log_all_candidates"] is False

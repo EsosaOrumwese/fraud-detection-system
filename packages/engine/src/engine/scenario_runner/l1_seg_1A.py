@@ -274,6 +274,11 @@ class S6StateContext:
     events_written: int
     shortfall_count: int
     reason_code_counts: Mapping[str, int]
+    membership_rows: int
+    trace_events: int
+    trace_reconciled: bool
+    log_all_candidates: bool
+    rng_isolation_ok: bool
 
 
 def build_s3_context(
@@ -358,6 +363,11 @@ def build_s6_context(outputs: S6RunOutputs) -> S6StateContext:
         events_written=outputs.events_written,
         shortfall_count=outputs.shortfall_count,
         reason_code_counts=dict(outputs.reason_code_counts),
+        membership_rows=outputs.membership_rows,
+        trace_events=outputs.trace_events,
+        trace_reconciled=outputs.trace_reconciled,
+        log_all_candidates=outputs.log_all_candidates,
+        rng_isolation_ok=outputs.rng_isolation_ok,
     )
 
 

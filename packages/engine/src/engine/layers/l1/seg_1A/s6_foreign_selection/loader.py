@@ -17,6 +17,7 @@ from .types import CandidateInput, MerchantSelectionInput
 __all__ = [
     "S6LoaderError",
     "load_deterministic_context",
+    "verify_s5_pass",
 ]
 
 
@@ -105,7 +106,7 @@ def _load_surfaces(
         dictionary=dictionary,
     )
 
-    _verify_s5_pass(weight_path.parent)
+    verify_s5_pass(weight_path.parent)
 
     try:
         candidate_frame = pd.read_parquet(
@@ -155,7 +156,7 @@ def _load_surfaces(
     )
 
 
-def _verify_s5_pass(partition_dir: Path) -> None:
+def verify_s5_pass(partition_dir: Path) -> None:
     """Ensure S5 PASS receipt is present and valid before S6 reads weights."""
 
     receipt_path = partition_dir / "S5_VALIDATION.json"

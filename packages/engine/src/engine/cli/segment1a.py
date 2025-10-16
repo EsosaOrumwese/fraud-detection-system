@@ -467,6 +467,11 @@ def main(argv: list[str] | None = None) -> int:
                 "events_written": result.s6_context.events_written,
                 "shortfall_count": result.s6_context.shortfall_count,
                 "reason_code_counts": dict(result.s6_context.reason_code_counts),
+                "membership_rows": result.s6_context.membership_rows,
+                "trace_events": result.s6_context.trace_events,
+                "trace_reconciled": result.s6_context.trace_reconciled,
+                "log_all_candidates": result.s6_context.log_all_candidates,
+                "rng_isolation_ok": result.s6_context.rng_isolation_ok,
             },
         }
         args.result_json.expanduser().resolve().write_text(

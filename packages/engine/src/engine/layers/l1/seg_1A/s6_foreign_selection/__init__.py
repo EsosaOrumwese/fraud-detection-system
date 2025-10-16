@@ -10,6 +10,7 @@ from .types import (
     MerchantSelectionInput,
     MerchantSelectionResult,
 )
+from .validate import S6ValidationError, validate_outputs
 
 __all__ = [
     "CandidateInput",
@@ -19,6 +20,8 @@ __all__ = [
     "S6DeterministicContext",
     "S6RunOutputs",
     "S6Runner",
+    "S6ValidationError",
+    "validate_outputs",
     "SelectionOverrides",
     "SelectionPolicy",
     "load_deterministic_context",
