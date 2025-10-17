@@ -1,0 +1,1 @@
+Agent, ignore files in this folder as subsegment 1B is still in spec development phases. Any change you see here is caused by me and is intentional. Ignore

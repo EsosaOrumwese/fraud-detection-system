@@ -560,7 +560,7 @@ S0 produces **one** artefact on **PASS** and **nothing** on **ABORT**. It **cons
   * `{ id:"outlet_catalogue", partition:["seed","fingerprint"], schema_ref:"schemas.1A.yaml#/egress/outlet_catalogue" }` (order-free egress; only readable after PASS).  
   * `{ id:"s3_candidate_set", partition:["parameter_hash"], schema_ref:"schemas.1A.yaml#/s3/candidate_set" }` (sole inter-country order authority; pinned for later joins).  
   * `{ id:"iso3166_canonical_2024" }`, `{ id:"world_countries" }`, `{ id:"population_raster_2025" }` (FK/geo surfaces declared consumable by 1B; Dictionary will encode their schema refs). 
-    `{ id:"tz_world_2025a", "schema_ref":"schemas.ingress.layer1.yaml#/tz_world_2025a" }` (FK/geo surfaces declared consumable by 1B; Dictionary will encode their schema refs).
+  * `{ id:"tz_world_2025a", "schema_ref":"schemas.ingress.layer1.yaml#/tz_world_2025a" }` (FK/geo surfaces declared consumable by 1B; Dictionary will encode their schema refs).
 * `notes : string` — optional free-form, non-semantic.
 
 **Cardinality.** Exactly **one** receipt per `{manifest_fingerprint}` PASS. Re-runs for the same `{fingerprint, seed, parameter_hash}` **MUST** be byte-identical. 
@@ -764,9 +764,9 @@ S0 has pinned that **inter-country order** comes **only** from `s3_candidate_set
 
 **E4. Inputs sealed for 1B.**
 S0 has enumerated the exact upstreams 1B may rely on downstream:
-• `outlet_catalogue` (egress; `[seed,fingerprint]`),
-• `s3_candidate_set` (order authority; `[parameter_hash]`),
-• FK/geo references: `iso3166_canonical_2024`, `world_countries`, `population_raster_2025` (anchors in ingress schema / dictionary).  
+- `outlet_catalogue` (egress; `[seed,fingerprint]`),
+- `s3_candidate_set` (order authority; `[parameter_hash]`),
+- FK/geo references: `iso3166_canonical_2024`, `world_countries`, `population_raster_2025`, `tz_world_2025a` (anchors in ingress schema / dictionary).  
 
 **E5. S0 receipt published (idempotent).**
 `s0_gate_receipt_1B` exists under `…/fingerprint={manifest_fingerprint}/…`, validates against its schema, and embeds `manifest_fingerprint` **byte-equal** to the path token. Re-publishing the same identity is byte-identical (atomic publish; partitions immutable). *(Receipt is the only S0 output; format/path are governed by the 1B dictionary.)*  
