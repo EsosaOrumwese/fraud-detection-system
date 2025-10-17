@@ -66,7 +66,33 @@ _REQUIRED_COLUMNS: Dict[str, Sequence[str]] = {
 _DATASET_DICTIONARY: Mapping[str, object] | None = None
 _SCHEMA_DOCS: Dict[str, Dict[str, Any]] = {}
 _SCHEMA_CACHE: Dict[tuple[str, str], Draft202012Validator] = {}
+_SCHEMA_VERSION_CACHE: Dict[tuple[str, str], str] = {}
 _ISO_CODES: set[str] | None = None
+
+_RNG_BUDGET_TABLE: Mapping[str, Mapping[str, object]] = {
+    c.EVENT_FAMILY_ANCHOR: {"type": "non_consuming"},
+    c.EVENT_FAMILY_NB_FINAL: {"type": "non_consuming"},
+    c.EVENT_FAMILY_SEQUENCE_FINALIZE: {"type": "non_consuming"},
+    c.EVENT_FAMILY_SITE_SEQUENCE_OVERFLOW: {"type": "non_consuming"},
+    c.EVENT_FAMILY_RESIDUAL_RANK: {"type": "non_consuming"},
+    c.EVENT_FAMILY_ZTP_REJECTION: {"type": "non_consuming"},
+    c.EVENT_FAMILY_ZTP_RETRY_EXHAUSTED: {"type": "non_consuming"},
+    c.EVENT_FAMILY_ZTP_FINAL: {"type": "non_consuming"},
+    c.EVENT_FAMILY_GUMBEL_KEY: {"type": "fixed_consumption", "blocks": 1, "draws": 1},
+    c.EVENT_FAMILY_HURDLE_BERNOULLI: {
+        "type": "conditional_consumption",
+        "deterministic": {"blocks": 0, "draws": 0},
+        "stochastic": {"blocks": 1, "draws": 1},
+    },
+    c.EVENT_FAMILY_GAMMA_COMPONENT: {"type": "positive_consumption", "min_blocks": 1, "min_draws": 1},
+    c.EVENT_FAMILY_POISSON_COMPONENT: {
+        "type": "positive_consumption",
+        "min_blocks": 1,
+        "min_draws": 1,
+        "context": ["nb", "ztp"],
+    },
+    c.EVENT_FAMILY_DIRICHLET_GAMMA_VECTOR: {"type": "positive_consumption", "min_blocks": 1, "min_draws": 1},
+}
 
 
 def validate_outputs(context: S9DeterministicContext) -> S9ValidationResult:
@@ -75,6 +101,7 @@ def validate_outputs(context: S9DeterministicContext) -> S9ValidationResult:
     failures: list[ErrorContext] = []
     failure_counts: dict[str, int] = defaultdict(int)
     metrics = S9ValidationMetrics()
+    schema_versions: Dict[str, str] = {}
 
     surfaces = context.surfaces
 
@@ -128,6 +155,15 @@ def validate_outputs(context: S9DeterministicContext) -> S9ValidationResult:
 
     counts_source = "s3_integerised_counts" if counts_df is not None else "residual_rank"
     membership_source = "s6_membership" if membership_df is not None else "gumbel_key"
+
+    def record_schema_version(dataset_id: str) -> None:
+        try:
+            entry = _dictionary_entry(dataset_id)
+        except S0Error:
+            return
+        schema_ref = entry.get("schema_ref")
+        if schema_ref:
+            schema_versions[dataset_id] = _schema_version(schema_ref)
 
     def record_failure(exc: S0Error) -> None:
         failures.append(exc.context)
@@ -205,6 +241,7 @@ def validate_outputs(context: S9DeterministicContext) -> S9ValidationResult:
                 allow_empty=True,
             )
         )
+        record_schema_version(dataset_id)
 
     safe_call(
         lambda: _assert_column_equals(
@@ -267,13 +304,18 @@ def validate_outputs(context: S9DeterministicContext) -> S9ValidationResult:
     if site_sequence_df is not None:
         safe_call(lambda: _assert_iso_columns(site_sequence_df, ("country_iso",), c.DATASET_S3_SITE_SEQUENCE))
 
+    record_schema_version(c.DATASET_OUTLET_CATALOGUE)
+    record_schema_version(c.DATASET_S3_CANDIDATE_SET)
     safe_call(lambda: _validate_dataset_schema(c.DATASET_OUTLET_CATALOGUE, outlet))
     safe_call(lambda: _validate_dataset_schema(c.DATASET_S3_CANDIDATE_SET, candidate_set))
     if counts_df is not None:
+        record_schema_version(c.DATASET_S3_INTEGERISED_COUNTS)
         safe_call(lambda: _validate_dataset_schema(c.DATASET_S3_INTEGERISED_COUNTS, counts_df))
     if membership_df is not None:
+        record_schema_version(c.DATASET_S6_MEMBERSHIP)
         safe_call(lambda: _validate_dataset_schema(c.DATASET_S6_MEMBERSHIP, membership_df))
     if site_sequence_df is not None:
+        record_schema_version(c.DATASET_S3_SITE_SEQUENCE)
         safe_call(lambda: _validate_dataset_schema(c.DATASET_S3_SITE_SEQUENCE, site_sequence_df))
 
     safe_call(lambda: _check_candidate_ranks(candidate_set))
@@ -407,6 +449,7 @@ def validate_outputs(context: S9DeterministicContext) -> S9ValidationResult:
         "membership_source": membership_source,
         "egress_writer_sort": egress_writer_sort_ok,
         "overflow_merchants": sorted(overflow_merchants),
+        "schema_versions": dict(sorted(schema_versions.items())),
     }
 
     return S9ValidationResult(
@@ -831,11 +874,7 @@ def _load_dataset_dictionary() -> Mapping[str, object]:
 
 
 def _schema_validator(schema_ref: str) -> Draft202012Validator:
-    if "#" in schema_ref:
-        file_name, pointer = schema_ref.split("#", 1)
-    else:
-        file_name, pointer = schema_ref, ""
-    pointer = pointer or ""
+    file_name, pointer = _split_schema_ref(schema_ref)
     cache_key = (file_name, pointer)
     validator = _SCHEMA_CACHE.get(cache_key)
     if validator is not None:
@@ -846,6 +885,38 @@ def _schema_validator(schema_ref: str) -> Draft202012Validator:
     validator = Draft202012Validator(normalized)
     _SCHEMA_CACHE[cache_key] = validator
     return validator
+
+
+def _schema_version(schema_ref: str) -> str:
+    file_name, pointer = _split_schema_ref(schema_ref)
+    cache_key = (file_name, pointer)
+    cached = _SCHEMA_VERSION_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
+    document = _schema_document(file_name)
+    node = _resolve_pointer(document, pointer)
+    version: str | None = None
+    if isinstance(node, Mapping):
+        raw_id = node.get("$id") or node.get("version")
+        if isinstance(raw_id, str) and raw_id:
+            version = raw_id
+    if version is None:
+        version = schema_ref
+    _SCHEMA_VERSION_CACHE[cache_key] = version
+    return version
+
+
+def _split_schema_ref(schema_ref: str) -> tuple[str, str]:
+    if "#" in schema_ref:
+        file_name, pointer = schema_ref.split("#", 1)
+    else:
+        file_name, pointer = schema_ref, ""
+    pointer = pointer or ""
+    if pointer and not pointer.startswith("/") and pointer != "#":
+        pointer = f"/{pointer}"
+    if pointer == "#":
+        pointer = ""
+    return file_name, pointer
 
 
 def _schema_document(file_name: str) -> Dict[str, Any]:
@@ -1037,6 +1108,7 @@ def _build_rng_accounting(
                 "trace_totals": {},
                 "audit_present": audit_present,
                 "coverage_ok": False,
+                "budget": _rng_budget_descriptor(dataset_id),
             }
 
     return {
@@ -1051,6 +1123,13 @@ def _build_rng_accounting(
     }
 
 
+def _rng_budget_descriptor(dataset_id: str) -> Mapping[str, object]:
+    descriptor = _RNG_BUDGET_TABLE.get(dataset_id)
+    if descriptor is None:
+        return {"type": "unspecified"}
+    return dict(descriptor)
+
+
 def _account_for_family(
     *,
     context: S9DeterministicContext,
@@ -1060,6 +1139,7 @@ def _account_for_family(
     audit_present: bool,
 ) -> Dict[str, object]:
     df = events_df.copy() if isinstance(events_df, pd.DataFrame) else pd.DataFrame()
+    budget_descriptor = _rng_budget_descriptor(dataset_id)
 
     if df.empty:
         return {
@@ -1071,6 +1151,7 @@ def _account_for_family(
             "trace_totals": {},
             "audit_present": audit_present,
             "coverage_ok": trace_df.empty,
+            "budget": budget_descriptor,
         }
 
     for column, expected in (
@@ -1198,6 +1279,7 @@ def _account_for_family(
         "trace_totals": trace_totals,
         "audit_present": audit_present,
         "coverage_ok": coverage_ok,
+        "budget": budget_descriptor,
     }
 
 

@@ -5,13 +5,16 @@ from typing import Any, Sequence
 
 import pandas as pd
 import polars as pl
-from types import MappingProxyType
+import pytest
+from types import MappingProxyType, SimpleNamespace
 
 from engine.layers.l1.seg_1A.s0_foundations.l0.artifacts import hash_artifact
 from engine.layers.l1.seg_1A.s0_foundations.l1.hashing import (
     compute_manifest_fingerprint,
     compute_parameter_hash,
 )
+from engine.layers.l1.seg_1A.s0_foundations.exceptions import S0Error
+from engine.layers.l1.seg_1A.s9_validation import validate as s9_validate
 from engine.layers.l1.seg_1A.s9_validation import constants as c
 from engine.layers.l1.seg_1A.s9_validation.contexts import (
     S9DeterministicContext,
@@ -389,6 +392,14 @@ def _build_context(tmp_path: Path) -> S9DeterministicContext:
     )
 
 
+def _write_dataframe_jsonl(path: Path, frame: pd.DataFrame) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as handle:
+        for record in frame.to_dict(orient="records"):
+            handle.write(json.dumps(record, sort_keys=True))
+            handle.write("\n")
+
+
 def test_validate_outputs_records_summary(tmp_path: Path) -> None:
     context = _build_context(tmp_path)
     result = validate_outputs(context)
@@ -400,6 +411,43 @@ def test_validate_outputs_records_summary(tmp_path: Path) -> None:
     assert result.summary["egress_writer_sort"] is True
     assert result.failures_by_code == {}
     assert result.egress_writer_sort_ok is True
+    assert "schema_versions" in result.summary
+    assert c.DATASET_OUTLET_CATALOGUE in result.summary["schema_versions"]
+
+
+def test_rng_accounting_budgets_include_optional_families(tmp_path: Path) -> None:
+    context = _build_context(tmp_path)
+    result = validate_outputs(context)
+
+    families = result.rng_accounting["families"]
+    assert c.EVENT_FAMILY_DIRICHLET_GAMMA_VECTOR in families
+    assert families[c.EVENT_FAMILY_DIRICHLET_GAMMA_VECTOR]["budget"]["type"] == "positive_consumption"
+    assert families[c.EVENT_FAMILY_ZTP_REJECTION]["budget"]["type"] == "non_consuming"
+
+
+def test_validate_outputs_detects_lineage_mismatch(tmp_path: Path) -> None:
+    context = _build_context(tmp_path)
+    tampered_param_path = tmp_path / "config" / "allocation" / "s6_selection_policy.yaml"
+    tampered_param_path.write_text("policy: tampered\n", encoding="utf-8")
+
+    result = validate_outputs(context)
+
+    assert not result.passed
+    assert "E_LINEAGE_RECOMPUTE_MISMATCH" in result.failures_by_code
+
+
+def test_validate_outputs_detects_missing_trace_coverage(tmp_path: Path) -> None:
+    context = _build_context(tmp_path)
+    trace_path = context.source_paths[c.TRACE_LOG_ID][0]
+    truncated_trace = context.surfaces.rng_trace_log.iloc[:-1].copy()
+    _write_dataframe_jsonl(trace_path, truncated_trace)
+    tampered_surfaces = replace(context.surfaces, rng_trace_log=truncated_trace)
+    tampered_context = replace(context, surfaces=tampered_surfaces)
+
+    result = validate_outputs(tampered_context)
+
+    assert not result.passed
+    assert "E_TRACE_COVERAGE_MISSING" in result.failures_by_code
 
 
 def test_write_validation_bundle_produces_manifest_and_index(tmp_path: Path) -> None:
@@ -420,6 +468,7 @@ def test_write_validation_bundle_produces_manifest_and_index(tmp_path: Path) -> 
     summary = json.loads((bundle_path / "s9_summary.json").read_text(encoding="utf-8"))
     param_resolved = json.loads((bundle_path / "parameter_hash_resolved.json").read_text(encoding="utf-8"))
     manifest_resolved = json.loads((bundle_path / "manifest_fingerprint_resolved.json").read_text(encoding="utf-8"))
+    egress_checksums = json.loads((bundle_path / "egress_checksums.json").read_text(encoding="utf-8"))
 
     assert manifest["manifest_fingerprint"] == context.manifest_fingerprint
     assert manifest["artifact_count"] == len(index)
@@ -431,6 +480,70 @@ def test_write_validation_bundle_produces_manifest_and_index(tmp_path: Path) -> 
     assert flag_path.exists()
     assert param_resolved.get("files")
     assert manifest_resolved.get("files")
+    assert egress_checksums["dataset_id"] == c.DATASET_OUTLET_CATALOGUE
+    assert egress_checksums["seed"] == context.seed
+    assert egress_checksums["manifest_fingerprint"] == context.manifest_fingerprint
+    assert len(egress_checksums["files"]) == 1
+    first_shard = egress_checksums["files"][0]
+    assert first_shard["path"].endswith("part-00000.parquet")
+    assert isinstance(first_shard["size_bytes"], int)
+    assert len(first_shard["sha256_hex"]) == 64
+    assert len(egress_checksums["composite_sha256_hex"]) == 64
+
+
+def test_write_validation_bundle_rejects_unsorted_outlet(tmp_path: Path) -> None:
+    context = _build_context(tmp_path)
+    outlet_files = context.source_paths[c.DATASET_OUTLET_CATALOGUE]
+    assert outlet_files, "expected at least one outlet shard in the test context"
+    outlet_path = outlet_files[0]
+    unsorted = context.surfaces.outlet_catalogue.sort("site_order", descending=True)
+    unsorted.write_parquet(outlet_path)
+
+    result = validate_outputs(context)
+
+    with pytest.raises(S0Error) as excinfo:
+        write_validation_bundle(
+            context=context,
+            result=result,
+            config=PersistConfig(
+                base_path=context.base_path,
+                manifest_fingerprint=context.manifest_fingerprint,
+            ),
+        )
+
+    assert excinfo.value.context.code == "E_EGRESS_WRITER_SORT"
+
+
+def test_verify_rng_budgets_detects_non_consuming_violation() -> None:
+    with pytest.raises(S0Error) as excinfo:
+        s9_validate._verify_rng_budgets(c.EVENT_FAMILY_ANCHOR, SimpleNamespace(), blocks=1, draws=0)
+    assert excinfo.value.context.code == "E_NONCONSUMING_CHANGED_COUNTERS"
+
+
+def test_verify_rng_budgets_detects_gumbel_violation() -> None:
+    with pytest.raises(S0Error) as excinfo:
+        s9_validate._verify_rng_budgets(c.EVENT_FAMILY_GUMBEL_KEY, SimpleNamespace(), blocks=2, draws=2)
+    assert excinfo.value.context.code == "E_RNG_BUDGET_VIOLATION"
+
+
+def test_verify_rng_budgets_detects_deterministic_hurdle_violation() -> None:
+    row = SimpleNamespace(deterministic=True, u=None)
+    with pytest.raises(S0Error) as excinfo:
+        s9_validate._verify_rng_budgets(c.EVENT_FAMILY_HURDLE_BERNOULLI, row, blocks=1, draws=0)
+    assert excinfo.value.context.code == "E_NONCONSUMING_CHANGED_COUNTERS"
+
+
+def test_verify_rng_budgets_detects_stochastic_hurdle_violation() -> None:
+    row = SimpleNamespace(deterministic=False, u=None)
+    with pytest.raises(S0Error) as excinfo:
+        s9_validate._verify_rng_budgets(c.EVENT_FAMILY_HURDLE_BERNOULLI, row, blocks=1, draws=1)
+    assert excinfo.value.context.code == "E_RNG_BUDGET_VIOLATION"
+
+
+def test_verify_rng_budgets_detects_dirichlet_violation() -> None:
+    with pytest.raises(S0Error) as excinfo:
+        s9_validate._verify_rng_budgets(c.EVENT_FAMILY_DIRICHLET_GAMMA_VECTOR, SimpleNamespace(), blocks=0, draws=0)
+    assert excinfo.value.context.code == "E_RNG_BUDGET_VIOLATION"
 
 def test_validate_outputs_detects_candidate_schema_violation(tmp_path: Path) -> None:
     context = _build_context(tmp_path)

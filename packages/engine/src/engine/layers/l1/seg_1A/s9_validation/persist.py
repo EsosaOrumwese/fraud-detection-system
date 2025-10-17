@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Iterable, Mapping, Sequence
 import time
 
+import polars as pl
+
 from ..s0_foundations.exceptions import err
 from . import constants as c
 from .contexts import S9DeterministicContext, S9ValidationResult
@@ -87,6 +89,8 @@ def write_validation_bundle(
             _build_egress_checksums(
                 context.source_paths.get(c.DATASET_OUTLET_CATALOGUE, ()),
                 base_path=context.base_path,
+                seed=context.seed,
+                manifest_fingerprint=context.manifest_fingerprint,
             ),
         )
         index_entries = _build_index_entries(staging_dir)
@@ -135,29 +139,81 @@ def _write_json(path: Path, payload: Mapping[str, object]) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 
 
-def _build_egress_checksums(files: Sequence[Path], *, base_path: Path) -> Mapping[str, object]:
-    entries = []
-    for file_path in files:
-        if not file_path.exists():
-            continue
+def _build_egress_checksums(
+    files: Sequence[Path],
+    *,
+    base_path: Path,
+    seed: int,
+    manifest_fingerprint: str,
+) -> Mapping[str, object]:
+    if not files:
+        raise err("E_BUNDLE_FILE_MISSING", "outlet_catalogue shards missing for checksum generation")
+
+    base_path = base_path.resolve()
+    writer_sort_columns = ("merchant_id", "legal_country_iso", "site_order")
+    composite = hashlib.sha256()
+    entries: list[Mapping[str, object]] = []
+    previous_key: tuple[int, str, int] | None = None
+
+    sorted_files = sorted(files, key=lambda path: _relative_path_as_posix(path.resolve(), base_path))
+    for file_path in sorted_files:
+        resolved = file_path.resolve()
+        if not resolved.exists():
+            raise err("E_BUNDLE_FILE_MISSING", f"expected outlet shard missing: {file_path}")
+
+        relative_path = _relative_path_as_posix(resolved, base_path)
         try:
-            relative_path = file_path.resolve().relative_to(base_path.resolve())
-            path_str = relative_path.as_posix()
-        except ValueError:
-            path_str = file_path.name
+            shard = pl.read_parquet(resolved, columns=list(writer_sort_columns))
+        except Exception as exc:  # pragma: no cover - indicates environment/parquet corruption
+            raise err(
+                "E_EGRESS_CHECKSUM_READ_FAILED",
+                f"failed to read outlet shard '{relative_path}' during checksum validation",
+            ) from exc
+
+        missing_columns = [column for column in writer_sort_columns if column not in shard.columns]
+        if missing_columns:
+            raise err(
+                "E_SCHEMA_INVALID",
+                f"outlet shard '{relative_path}' missing columns required for writer sort validation: {missing_columns}",
+            )
+
+        if shard.height > 0:
+            key_frame = shard.select(writer_sort_columns)
+            rows = key_frame.rows()
+            if rows != key_frame.sort(writer_sort_columns).rows():
+                raise err(
+                    "E_EGRESS_WRITER_SORT",
+                    f"outlet shard '{relative_path}' violates writer sort {writer_sort_columns}",
+                )
+
+            first_key = _normalised_sort_key(rows[0])
+            last_key = _normalised_sort_key(rows[-1])
+            if previous_key is not None and first_key < previous_key:
+                raise err(
+                    "E_EGRESS_WRITER_SORT",
+                    f"outlet shard '{relative_path}' is out of order relative to preceding shards",
+                )
+            previous_key = last_key
+
+        digest_hex, size_bytes = _hash_file_for_checksums(resolved, composite)
         entries.append(
             {
-                "path": path_str,
-                "sha256": _sha256_file(file_path),
-                "size_bytes": file_path.stat().st_size,
+                "path": relative_path,
+                "sha256_hex": digest_hex,
+                "size_bytes": size_bytes,
             }
         )
+
     if not entries:
         raise err("E_BUNDLE_FILE_MISSING", "outlet_catalogue shards missing for checksum generation")
-    composite = hashlib.sha256()
-    for entry in sorted(entries, key=lambda item: item["path"]):
-        composite.update(entry["sha256"].encode("ascii"))
-    return {"files": entries, "composite_sha256": composite.hexdigest()}
+
+    return {
+        "dataset_id": c.DATASET_OUTLET_CATALOGUE,
+        "seed": seed,
+        "manifest_fingerprint": manifest_fingerprint,
+        "files": entries,
+        "composite_sha256_hex": composite.hexdigest(),
+    }
 
 
 def _build_index_entries(bundle_dir: Path) -> Sequence[Mapping[str, object]]:
@@ -189,12 +245,34 @@ def _compute_bundle_digest(bundle_dir: Path, index_entries: Sequence[Mapping[str
     return hasher.hexdigest()
 
 
-def _sha256_file(path: Path) -> str:
+def _relative_path_as_posix(path: Path, base_path: Path) -> str:
+    try:
+        relative = path.relative_to(base_path)
+        return relative.as_posix()
+    except ValueError:
+        return path.name
+
+
+def _normalised_sort_key(values: Sequence[object]) -> tuple[int, str, int]:
+    merchant_id, country_iso, site_order = values
+    return int(merchant_id), str(country_iso), int(site_order)
+
+
+def _hash_file_for_checksums(path: Path, composite: hashlib._Hash) -> tuple[str, int]:
     digest = hashlib.sha256()
+    bytes_read = 0
     with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
-    return digest.hexdigest()
+            composite.update(chunk)
+            bytes_read += len(chunk)
+    size_bytes = path.stat().st_size
+    if bytes_read != size_bytes:
+        raise err(
+            "E_EGRESS_SIZE_MISMATCH",
+            f"size mismatch detected while hashing '{path}': read {bytes_read} bytes, stat reports {size_bytes}",
+        )
+    return digest.hexdigest(), size_bytes
 
 
 def _atomic_replace(staging_dir: Path, target_dir: Path) -> None:
