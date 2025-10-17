@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, Mapping, Sequence
@@ -9,6 +10,8 @@ from typing import Any, Callable, Dict, Iterable, Mapping, Sequence
 import numpy as np
 import pandas as pd
 
+from ..s0_foundations.l0.artifacts import hash_artifact
+from ..s0_foundations.l1.hashing import compute_manifest_fingerprint, compute_parameter_hash
 from ..s0_foundations.exceptions import ErrorContext, S0Error, err
 from . import constants as c
 from .contexts import (
@@ -18,6 +21,44 @@ from .contexts import (
 )
 
 __all__ = ["validate_outputs"]
+
+_REQUIRED_COLUMNS: Dict[str, Sequence[str]] = {
+    c.DATASET_OUTLET_CATALOGUE: (
+        "merchant_id",
+        "legal_country_iso",
+        "site_order",
+        "site_id",
+        "final_country_outlet_count",
+        "manifest_fingerprint",
+        "global_seed",
+        "home_country_iso",
+    ),
+    c.DATASET_S3_CANDIDATE_SET: (
+        "merchant_id",
+        "candidate_rank",
+        "country_iso",
+        "is_home",
+        "parameter_hash",
+    ),
+    c.DATASET_S3_INTEGERISED_COUNTS: (
+        "merchant_id",
+        "country_iso",
+        "count",
+        "parameter_hash",
+    ),
+    c.DATASET_S3_SITE_SEQUENCE: (
+        "merchant_id",
+        "country_iso",
+        "site_order",
+        "site_id",
+        "parameter_hash",
+    ),
+    c.DATASET_S6_MEMBERSHIP: (
+        "merchant_id",
+        "country_iso",
+        "parameter_hash",
+    ),
+}
 
 
 def validate_outputs(context: S9DeterministicContext) -> S9ValidationResult:
@@ -39,6 +80,11 @@ def validate_outputs(context: S9DeterministicContext) -> S9ValidationResult:
     membership_df = (
         surfaces.s6_membership.to_pandas()
         if surfaces.s6_membership is not None
+        else None
+    )
+    site_sequence_df = (
+        surfaces.s3_site_sequence.to_pandas()
+        if surfaces.s3_site_sequence is not None
         else None
     )
 
@@ -118,6 +164,14 @@ def validate_outputs(context: S9DeterministicContext) -> S9ValidationResult:
                 dataset=c.DATASET_S6_MEMBERSHIP,
             )
         )
+    if site_sequence_df is not None:
+        safe_call(
+            lambda: _validate_partition_tokens(
+                context.source_paths.get(c.DATASET_S3_SITE_SEQUENCE, ()),
+                {"parameter_hash": context.parameter_hash},
+                dataset=c.DATASET_S3_SITE_SEQUENCE,
+            )
+        )
     safe_call(
         lambda: _validate_partition_tokens(
             context.source_paths.get(c.AUDIT_LOG_ID, ()),
@@ -184,8 +238,26 @@ def validate_outputs(context: S9DeterministicContext) -> S9ValidationResult:
                 "parameter_hash",
                 context.parameter_hash,
                 c.DATASET_S6_MEMBERSHIP,
-            )
         )
+    )
+
+    safe_call(lambda: _require_columns(outlet, c.DATASET_OUTLET_CATALOGUE))
+    safe_call(lambda: _require_columns(candidate_set, c.DATASET_S3_CANDIDATE_SET))
+    if counts_df is not None:
+        safe_call(lambda: _require_columns(counts_df, c.DATASET_S3_INTEGERISED_COUNTS))
+    if membership_df is not None:
+        safe_call(lambda: _require_columns(membership_df, c.DATASET_S6_MEMBERSHIP))
+    if site_sequence_df is not None:
+        safe_call(lambda: _require_columns(site_sequence_df, c.DATASET_S3_SITE_SEQUENCE))
+
+    safe_call(lambda: _assert_iso_columns(outlet, ("legal_country_iso", "home_country_iso"), c.DATASET_OUTLET_CATALOGUE))
+    safe_call(lambda: _assert_iso_columns(candidate_set, ("country_iso",), c.DATASET_S3_CANDIDATE_SET))
+    if counts_df is not None:
+        safe_call(lambda: _assert_iso_columns(counts_df, ("country_iso",), c.DATASET_S3_INTEGERISED_COUNTS))
+    if membership_df is not None:
+        safe_call(lambda: _assert_iso_columns(membership_df, ("country_iso",), c.DATASET_S6_MEMBERSHIP))
+    if site_sequence_df is not None:
+        safe_call(lambda: _assert_iso_columns(site_sequence_df, ("country_iso",), c.DATASET_S3_SITE_SEQUENCE))
 
     safe_call(lambda: _check_candidate_ranks(candidate_set))
     safe_call(
@@ -195,6 +267,30 @@ def validate_outputs(context: S9DeterministicContext) -> S9ValidationResult:
             c.DATASET_S3_CANDIDATE_SET,
         )
     )
+    if counts_df is not None:
+        safe_call(
+            lambda: _assert_unique(
+                counts_df,
+                ["merchant_id", "country_iso"],
+                c.DATASET_S3_INTEGERISED_COUNTS,
+            )
+        )
+    if membership_df is not None:
+        safe_call(
+            lambda: _assert_unique(
+                membership_df,
+                ["merchant_id", "country_iso"],
+                c.DATASET_S6_MEMBERSHIP,
+            )
+        )
+    if site_sequence_df is not None:
+        safe_call(
+            lambda: _assert_unique(
+                site_sequence_df,
+                ["merchant_id", "country_iso", "site_order"],
+                c.DATASET_S3_SITE_SEQUENCE,
+            )
+        )
     if counts_df is not None:
         safe_call(
             lambda: _assert_unique(
@@ -235,6 +331,7 @@ def validate_outputs(context: S9DeterministicContext) -> S9ValidationResult:
         outlet_valid = True
 
     safe_call(outlet_validation)
+    safe_call(lambda: _assert_iso_columns(sequence_df, ("legal_country_iso",), c.EVENT_FAMILY_SEQUENCE_FINALIZE))
 
     if outlet_valid and not nb_final_df.empty:
         safe_call(lambda: _check_nb_sum_law(nb_final_df, merchant_totals))
@@ -254,6 +351,13 @@ def validate_outputs(context: S9DeterministicContext) -> S9ValidationResult:
                 "E_OVERFLOW_POLICY_BREACH",
                 "site_sequence_overflow missing merchant_id column",
             )
+        required = {"merchant_id", "attempted_count", "max_seq", "overflow_by"}
+        missing = required - set(overflow_df.columns)
+        if missing:
+            raise err(
+                "E_SCHEMA_INVALID",
+                f"site_sequence_overflow missing columns {sorted(missing)}",
+            )
         overflow_merchants = {int(value) for value in overflow_df["merchant_id"].unique()}
         if outlet_valid:
             present = outlet[outlet["merchant_id"].isin(overflow_merchants)]
@@ -267,6 +371,7 @@ def validate_outputs(context: S9DeterministicContext) -> S9ValidationResult:
 
     safe_call(lambda: _validate_trace_identity(context, trace_df))
     safe_call(lambda: _validate_audit_identity(context, audit_df))
+    safe_call(lambda: _recompute_lineage(context))
 
     rng_accounting = _build_rng_accounting(
         context=context,
@@ -551,11 +656,131 @@ def _assert_column_equals(frame: pd.DataFrame, column: str, expected: Any, datas
 def _assert_unique(frame: pd.DataFrame, columns: Sequence[str], dataset: str) -> None:
     if frame.empty:
         return
+    missing = [column for column in columns if column not in frame.columns]
+    if missing:
+        raise err(
+            "E_SCHEMA_INVALID",
+            f"{dataset} missing columns {sorted(missing)}",
+        )
     if frame.duplicated(subset=list(columns)).any():
         raise err(
             "E_DUP_PK",
             f"{dataset} contains duplicate keys for columns {list(columns)}",
         )
+
+
+def _require_columns(frame: pd.DataFrame | None, dataset: str) -> None:
+    if frame is None:
+        return
+    required = _REQUIRED_COLUMNS.get(dataset)
+    if not required:
+        return
+    missing = [column for column in required if column not in frame.columns]
+    if missing:
+        raise err("E_SCHEMA_INVALID", f"{dataset} missing columns {sorted(missing)}")
+
+
+def _assert_iso_columns(frame: pd.DataFrame | None, columns: Sequence[str], dataset: str) -> None:
+    if frame is None or frame.empty:
+        return
+    for column in columns:
+        if column not in frame.columns:
+            raise err("E_SCHEMA_INVALID", f"{dataset} missing column '{column}' for ISO validation")
+        series = frame[column].dropna()
+        if series.empty:
+            continue
+        if not series.apply(lambda value: isinstance(value, str) and len(value) == 2 and value.isupper()).all():
+            raise err(
+                "E_FK_ISO_INVALID",
+                f"{dataset}.{column} contains non ISO-3166 alpha-2 values",
+            )
+
+
+def _recompute_lineage(context: S9DeterministicContext) -> None:
+    mapping = context.lineage_paths
+    required_keys = ("param_digest_log.jsonl", "fingerprint_artifacts.jsonl")
+    for key in required_keys:
+        if key not in mapping:
+            raise err("E_LINEAGE_RECOMPUTE_MISSING", f"lineage file '{key}' missing for recomputation")
+
+    param_records = _load_jsonl_records(mapping["param_digest_log.jsonl"])
+    if not param_records:
+        raise err("E_LINEAGE_RECOMPUTE_MISSING", "param_digest_log.jsonl is empty")
+
+    parameter_digests = [
+        hash_artifact(
+            _resolve_artifact_path(record.get("path", ""), context.base_path),
+            error_prefix="E_LINEAGE_PARAM",
+        )
+        for record in param_records
+    ]
+    param_result = compute_parameter_hash(parameter_digests)
+    if param_result.parameter_hash != context.parameter_hash:
+        raise err(
+            "E_LINEAGE_RECOMPUTE_MISMATCH",
+            "parameter_hash mismatch during recomputation",
+        )
+
+    manifest_records = _load_jsonl_records(mapping["fingerprint_artifacts.jsonl"])
+    if not manifest_records:
+        raise err("E_LINEAGE_RECOMPUTE_MISSING", "fingerprint_artifacts.jsonl is empty")
+
+    manifest_digests = [
+        hash_artifact(
+            _resolve_artifact_path(record.get("path", ""), context.base_path),
+            error_prefix="E_LINEAGE_MANIFEST",
+        )
+        for record in manifest_records
+    ]
+
+    git_hex = None
+    manifest_path = mapping.get("MANIFEST.json")
+    if manifest_path and manifest_path.exists():
+        manifest_payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        git_hex = manifest_payload.get("git_commit_hex")
+    if git_hex is None and context.upstream_manifest is not None:
+        git_hex = context.upstream_manifest.get("git_commit_hex")
+    if not git_hex:
+        raise err("E_LINEAGE_RECOMPUTE_MISSING", "git_commit_hex unavailable for manifest recomputation")
+    try:
+        git_bytes = bytes.fromhex(git_hex)
+    except ValueError as exc:
+        raise err("E_LINEAGE_RECOMPUTE_MISSING", "git_commit_hex is not valid hex") from exc
+
+    try:
+        manifest_result = compute_manifest_fingerprint(
+            manifest_digests,
+            git_commit_raw=git_bytes,
+            parameter_hash_bytes=bytes.fromhex(context.parameter_hash),
+        )
+    except ValueError as exc:
+        raise err("E_LINEAGE_RECOMPUTE_MISSING", "parameter_hash is not valid hex") from exc
+
+    if manifest_result.manifest_fingerprint != context.manifest_fingerprint:
+        raise err(
+            "E_LINEAGE_RECOMPUTE_MISMATCH",
+            "manifest_fingerprint mismatch during recomputation",
+        )
+
+
+def _load_jsonl_records(path: Path) -> list[dict[str, Any]]:
+    if not path.exists():
+        return []
+    records: list[dict[str, Any]] = []
+    with path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            records.append(json.loads(line))
+    return records
+
+
+def _resolve_artifact_path(raw_path: str, base_path: Path) -> Path:
+    candidate = Path(raw_path)
+    if not candidate.is_absolute():
+        candidate = (base_path / raw_path).resolve()
+    return candidate
 
 
 def _validate_trace_identity(context: S9DeterministicContext, trace_df: pd.DataFrame) -> None:
@@ -733,6 +958,11 @@ def _account_for_family(
         & (trace_df["substream_label"].astype(str) == substream_label)
     ]
     trace_rows_total = int(len(trace_subset))
+    if events_total > 0 and trace_rows_total != events_total:
+        raise err(
+            "E_TRACE_COVERAGE_MISSING",
+            f"{dataset_id} trace rows {trace_rows_total} do not match events {events_total}",
+        )
     final_trace_row = _select_trace_row(trace_subset)
 
     if final_trace_row is None:
@@ -858,3 +1088,22 @@ def _verify_rng_budgets(dataset_id: str, row: Any, blocks: int, draws: int) -> N
                 "E_SCHEMA_INVALID",
                 "hurdle_bernoulli event missing deterministic flag",
             )
+        return
+
+    if dataset_id in (
+        c.EVENT_FAMILY_GAMMA_COMPONENT,
+        c.EVENT_FAMILY_POISSON_COMPONENT,
+        c.EVENT_FAMILY_DIRICHLET_GAMMA_VECTOR,
+    ):
+        if blocks <= 0 or draws <= 0:
+            raise err(
+                "E_RNG_BUDGET_VIOLATION",
+                f"{dataset_id} must consume at least one block and one uniform",
+            )
+        return
+
+    if blocks < 0 or draws < 0:
+        raise err(
+            "E_RNG_BUDGET_VIOLATION",
+            f"{dataset_id} produced negative RNG consumption values",
+        )

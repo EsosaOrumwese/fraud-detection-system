@@ -17,6 +17,7 @@ class S9InputSurfaces:
     outlet_catalogue: pl.DataFrame
     s3_candidate_set: pl.DataFrame
     s3_integerised_counts: pl.DataFrame | None = None
+    s3_site_sequence: pl.DataFrame | None = None
     s6_membership: pl.DataFrame | None = None
     nb_final_events: pd.DataFrame | None = None
     sequence_finalize_events: pd.DataFrame | None = None
@@ -37,6 +38,7 @@ class S9DeterministicContext:
     surfaces: S9InputSurfaces
     upstream_manifest: Mapping[str, object] | None = None
     source_paths: Mapping[str, Sequence[Path]] = field(default_factory=dict)
+    lineage_paths: Mapping[str, Path] = field(default_factory=dict)
 
 
 @dataclass

@@ -87,6 +87,21 @@ def load_deterministic_context(
         )
         membership_df, membership_files = _read_parquet_partition(membership_path)
 
+    site_sequence_df = None
+    site_sequence_files: Sequence[Path] = ()
+    try:
+        site_sequence_path = resolve_dataset_path(
+            c.DATASET_S3_SITE_SEQUENCE,
+            base_path=base_path,
+            template_args={"parameter_hash": parameter_hash},
+            dictionary=dictionary,
+        )
+    except Exception:
+        site_sequence_path = None
+
+    if site_sequence_path is not None and (site_sequence_path.exists() or site_sequence_path.parent.exists()):
+        site_sequence_df, site_sequence_files = _read_parquet_partition(site_sequence_path)
+
     audit_df, audit_files = _read_jsonl_partition(
         dataset_id=c.AUDIT_LOG_ID,
         base_path=base_path,
@@ -123,6 +138,7 @@ def load_deterministic_context(
         outlet_catalogue=outlet_df,
         s3_candidate_set=candidate_df,
         s3_integerised_counts=counts_df,
+        s3_site_sequence=site_sequence_df,
         s6_membership=membership_df,
         nb_final_events=rng_event_frames.get(c.EVENT_FAMILY_NB_FINAL),
         sequence_finalize_events=rng_event_frames.get(c.EVENT_FAMILY_SEQUENCE_FINALIZE),
@@ -144,10 +160,14 @@ def load_deterministic_context(
         source_paths[c.DATASET_S3_INTEGERISED_COUNTS] = counts_files
     if membership_files:
         source_paths[c.DATASET_S6_MEMBERSHIP] = membership_files
+    if site_sequence_files:
+        source_paths[c.DATASET_S3_SITE_SEQUENCE] = site_sequence_files
     source_paths[c.AUDIT_LOG_ID] = audit_files
     source_paths[c.TRACE_LOG_ID] = trace_files
     for dataset_id, files in rng_event_paths.items():
         source_paths[dataset_id] = files
+
+    lineage_paths = _discover_lineage_paths(base_path=base_path, manifest_fingerprint=manifest_fingerprint)
 
     return S9DeterministicContext(
         base_path=base_path,
@@ -158,6 +178,7 @@ def load_deterministic_context(
         surfaces=surfaces,
         upstream_manifest=upstream_manifest,
         source_paths=source_paths,
+        lineage_paths=lineage_paths,
     )
 
 
@@ -286,3 +307,17 @@ def _load_upstream_manifest(*, base_path: Path, manifest_fingerprint: str) -> Ma
             "E_S9_UPSTREAM_MANIFEST_INVALID",
             f"failed to decode upstream MANIFEST.json: {exc}",
         ) from exc
+
+
+def _discover_lineage_paths(*, base_path: Path, manifest_fingerprint: str) -> Mapping[str, Path]:
+    bundle_dir = (
+        Path(base_path)
+        / "validation_bundle"
+        / f"manifest_fingerprint={manifest_fingerprint}"
+    )
+    paths: dict[str, Path] = {}
+    for name in ("param_digest_log.jsonl", "fingerprint_artifacts.jsonl", "MANIFEST.json"):
+        candidate = bundle_dir / name
+        if candidate.exists():
+            paths[name] = candidate
+    return MappingProxyType(paths)
