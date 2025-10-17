@@ -15,7 +15,7 @@ subsegments:
     role: Receipt proving 1A PASS for fingerprint; enumerates sealed inputs authorised for 1B.
     dependencies: [validation_bundle_1A, validation_passed_flag]
     source: internal
-    owner: {owner_team: null}
+    owner: {owner_team: "mlr-1b-core"}
     last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.1B.yaml#/validation/s0_gate_receipt
@@ -35,7 +35,7 @@ subsegments:
     role: Validator outputs for 1A (basis of consumer gate for outlet_catalogue).
     dependencies: [outlet_catalogue]
     source: internal
-    owner: {qa_team: null}
+    owner: {qa_team: "mlr-1a-validation"}
     last_updated: '{iso8601_timestamp}'
     environment: [ci, runtime]
     schema:
@@ -54,7 +54,7 @@ subsegments:
     role: Boolean hash gate for 1A bundle; S0 must verify before any read of outlet_catalogue.
     dependencies: [validation_bundle_1A]
     source: internal
-    owner: {qa_team: null}
+    owner: {qa_team: "mlr-1a-validation"}
     last_updated: '{iso8601_timestamp}'
     environment: [ci, runtime]
     schema:
@@ -73,7 +73,7 @@ subsegments:
     role: Immutable outlet stubs; order-free (join S3 for inter-country order). Read only after verifying _passed.flag.
     dependencies: [s3_candidate_set]
     source: internal
-    owner: {owner_team: null}
+    owner: {owner_team: "mlr-1a-core"}
     last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.1A.yaml#/egress/outlet_catalogue
@@ -92,9 +92,87 @@ subsegments:
     role: Deterministic ordered candidate set; sole inter-country order authority used by 1B consumers via join.
     dependencies: []
     source: internal
-    owner: {owner_team: null}
+    owner: {owner_team: "mlr-1a-core"}
     last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.1A.yaml#/s3/candidate_set
+    cross_layer: true
+    notes:
+
+
+  # External reference inputs mirrored for licence/provenance and single-pane visibility
+  - name: iso3166_canonical_2024
+    path: reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet
+    type: dataset
+    category: reference
+    semver: '{semver}'
+    version: '2024-12-31'
+    digest: '{sha256}'
+    manifest_key: mlr.ingress.iso3166_canonical_2024
+    license: CC-BY-4.0
+    role: Canonical ISO-3166-1 alpha-2 list; FK target for country_iso.
+    dependencies: []
+    source: external
+    owner: {owner_team: "mlr-ingress"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.ingress.layer1.yaml#/iso3166_canonical_2024
+    cross_layer: true
+    notes:
+
+  - name: world_countries
+    path: reference/spatial/world_countries/2024/world_countries.parquet
+    type: dataset
+    category: reference
+    semver: '{semver}'
+    version: '2024'
+    digest: '{sha256}'
+    manifest_key: mlr.ingress.world_countries
+    license: ODbL-1.0
+    role: Country boundary polygons used for geo conformance checks.
+    dependencies: [iso3166_canonical_2024]
+    source: external
+    owner: {owner_team: "mlr-ingress"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.ingress.layer1.yaml#/world_countries
+    cross_layer: true
+    notes:
+
+  - name: population_raster_2025
+    path: reference/spatial/population/2025/population.tif
+    type: dataset
+    category: reference
+    semver: '{semver}'
+    version: '2025'
+    digest: '{sha256}'
+    manifest_key: mlr.ingress.population_raster_2025
+    license: ODbL-1.0
+    role: Population raster used as spatial prior in 1B.
+    dependencies: []
+    source: external
+    owner: {owner_team: "mlr-ingress"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.ingress.layer1.yaml#/population_raster_2025
+    cross_layer: true
+    notes:
+
+  - name: tz_world_2025a
+    path: reference/spatial/tz_world/2025a/tz_world.parquet
+    type: dataset
+    category: reference
+    semver: '{semver}'
+    version: '2025a'
+    digest: '{sha256}'
+    manifest_key: mlr.ingress.tz_world_2025a
+    license: ODbL-1.0
+    role: Time-zone polygons used for civil-time legality checks.
+    dependencies: [world_countries]
+    source: external
+    owner: {owner_team: "mlr-ingress"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.ingress.layer1.yaml#/tz_world_2025a
     cross_layer: true
     notes:

@@ -285,8 +285,7 @@ S0 **MUST** enforce the canonical **no PASS → no read** rule by validating `_p
 …/validation/fingerprint={manifest_fingerprint}/_passed.flag
 ```
 
-**Flag content (exact):** one line
-`sha256_hex = <hex64>` (lowercase 64-hex) 
+**Flag content (exact):** UTF-8 text, exactly one line (trailing newline optional) `sha256_hex = <hex64>` (lowercase 64-hex; no leading/trailing spaces). Producers/consumers MUST treat the file bytes as UTF-8; comparison ignores a single terminal `\n` if present.
 
 **Hashing rule S0 MUST implement:**
 
@@ -1211,9 +1210,9 @@ Rows ordered by `(merchant_id, candidate_rank, country_iso)`; **home has `candid
      "schema_ref":"schemas.1A.yaml#/egress/outlet_catalogue"},
     {"id":"s3_candidate_set","partition":["parameter_hash"],
      "schema_ref":"schemas.1A.yaml#/s3/candidate_set"},
-    {"id":"iso3166_canonical_2024"},
-    {"id":"world_countries"},
-    {"id":"population_raster_2025"},
+    {"id":"iso3166_canonical_2024","schema_ref":"schemas.ingress.layer1.yaml#/iso3166_canonical_2024"},
+    {"id":"world_countries","schema_ref":"schemas.ingress.layer1.yaml#/world_countries"},
+    {"id":"population_raster_2025","schema_ref":"schemas.ingress.layer1.yaml#/population_raster_2025"},
     {"id":"tz_world_2025a","schema_ref":"schemas.ingress.layer1.yaml#/tz_world_2025a"}
   ],
   "notes": ""

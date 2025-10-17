@@ -36,10 +36,10 @@ validation:
       - name: sealed_inputs
         type: array
         nullable: false
-        description: 'List of sealed inputs S0 authorises for 1B after PASS (dataset id, partition keys, optional schema_ref).'
+        description: 'List of sealed inputs S0 authorises for 1B after PASS (dataset id, partition keys, required schema_ref).'
         items:
           type: object
-          required: [id]
+          required: [id, schema_ref]
           properties:
             id: {type: string, description: 'Dataset ID, e.g., outlet_catalogue'}
             partition: {type: array, items: {type: string}, description: 'Partition keys relevant to the input, e.g., ["seed","fingerprint"] or ["parameter_hash"].'}
