@@ -53,6 +53,8 @@ S0 v1.* assumes the following remain on their **v1.* line**; a **MAJOR** bump in
 * `schemas.layer1.yaml` (layer-wide RNG/log/core schemas);
 * `schemas.ingress.layer1.yaml` (ingress/reference authorities);
 * `schemas.1A.yaml` and `dataset_dictionary.layer1.1A.yaml` (since S0 verifies 1A’s gate and permits reading `outlet_catalogue`).  
+* `schemas.1B.yaml` (1B subsegment shapes, including `#/validation/s0_gate_receipt`).
+* `dataset_dictionary.layer1.1B.yaml` (IDs/paths/retention for 1B, including the receipt path).
 
 ---
 
@@ -311,8 +313,7 @@ On **PASS**, S0 **MAY** open:
 data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
 ```
 
-and **MUST** re-assert **path↔embed equality** for rows it touches:
-`outlet_catalogue.manifest_fingerprint == fingerprint` (path token) and `global_seed == seed`. (Egress remains **order-free** across countries; consumers join S3 for order.)   
+and **MUST** re-assert **path↔embed equality** for rows it touches: `outlet_catalogue.manifest_fingerprint == fingerprint` (path token) and *(if present)* `global_seed == seed`. (Egress remains **order-free** across countries; consumers join S3 for order.)
 
 ## 4.5 Index hygiene S0 MUST check (pre-hash sanity)
 
@@ -412,7 +413,8 @@ Where lineage fields appear both in **path** and **rows**, values **MUST byte-eq
 ## 6.4 Envelope fields & identities (must hold)
 
 Every RNG **event** row (any 1B event family) carries the **layer envelope**:
-`{ ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, rng_counter_before_{lo,hi}, rng_counter_after_{lo,hi}, draws, blocks }`.
+`{ ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, rng_counter_before_{hi,lo}, rng_counter_after_{hi,lo}, draws, blocks }`.
+
 **Identities:**
 
 * `blocks := u128(after) − u128(before)` (unsigned 128-bit); **independent** of `draws`.
@@ -495,7 +497,7 @@ data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
 ```
 
 and **MUST** re-assert path↔embed equality where present:
-`outlet_catalogue.manifest_fingerprint == fingerprint` (path token) and `global_seed == seed`. `outlet_catalogue` is **order-free**; cross-country order is obtained later by joining S3 `candidate_rank`.    
+`outlet_catalogue.manifest_fingerprint == fingerprint` (path token) and *(if present)* `global_seed == seed`. `outlet_catalogue` is **order-free**; cross-country order is obtained later by joining S3 `candidate_rank`.    
 
 > S0 **does not** need to read S3 itself; it merely **pins** S3 as the sole order authority for downstream 1B states. 
 
@@ -541,7 +543,7 @@ S0 produces **one** artefact on **PASS** and **nothing** on **ABORT**. It **cons
 **Purpose.** A minimal receipt that proves §4’s gate was verified for the target fingerprint and enumerates the upstream surfaces S0 sealed for downstream 1B states. It is **not** a substitute for 1B’s S9 validation bundle; it only records the 1A consumer hand-off.
 **Partition:** `[fingerprint]` (where the path token **equals** the embedded `manifest_fingerprint`). **No `seed` partition here.**  
 
-**Canonical path (Dictionary will own the exact string):**
+**Canonical template (Dictionary owns the exact final path):**
 `data/layer1/1B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json`
 *(Dictionary governs the final path/format; this spec fixes the partition to `[fingerprint]` and the equality law.)* 
 
@@ -814,7 +816,7 @@ For `outlet_catalogue`, S0 has acknowledged the dictionary contract: partitions 
 
 ## 12.5 Reference / FK surfaces (presence & anchors sealed by S0)
 
-* **`E_REFERENCE_SURFACE_MISSING`** — any required reference is absent (e.g., `iso3166_canonical_2024`, `world_countries`, `population_raster_2025`). **Action:** ABORT. **Fix:** populate the governed references at their Dictionary paths.  
+* **`E_REFERENCE_SURFACE_MISSING`** — any required reference is absent (e.g., `iso3166_canonical_2024`, `world_countries`, `population_raster_2025`, `tz_world_2025a`). **Action:** ABORT. **Fix:** populate the governed references at their Dictionary paths.
 * **`E_SCHEMA_RESOLUTION_FAILED`** — schema anchor for a pinned reference cannot be resolved (e.g., ingress anchors for ISO/country/raster). **Action:** ABORT. **Fix:** fix schema set / anchors. 
 * **`E_DICTIONARY_RESOLUTION_FAILED`** — Dataset Dictionary cannot resolve an ID → path/partitions/`$ref` (e.g., malformed Dictionary or missing entry). **Action:** ABORT. **Fix:** correct Dictionary entries. 
 
