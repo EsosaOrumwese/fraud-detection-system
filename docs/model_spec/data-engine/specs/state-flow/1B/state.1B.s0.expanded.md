@@ -364,6 +364,7 @@ S0 **fixes** which upstream datasets 1B is allowed to rely on. Reads of 1A egres
 
 * **`iso3166_canonical_2024`** — canonical ISO-3166-1 alpha-2 list (FK target for `country_iso` / `legal_country_iso`). Schema anchor: `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`.  
 * **`world_countries`** — GeoParquet country polygons (for later point-in-country checks). Declared consumable by **1B** in the dictionary. 
+* **`tz_world_2025a`** — time-zone polygons used by 1B for civil-time legality checks; declared consumable by **1B** in the dictionary. Schema anchor: `schemas.ingress.layer1.yaml#/tz_world_2025a`.
 * **`population_raster_2025`** — population COG raster (spatial prior used by 1B). Declared consumable by **1B** in the dictionary; schema anchor in ingress.  
 
 ---
@@ -559,7 +560,8 @@ S0 produces **one** artefact on **PASS** and **nothing** on **ABORT**. It **cons
   * `{ id:"outlet_catalogue", partition:["seed","fingerprint"], schema_ref:"schemas.1A.yaml#/egress/outlet_catalogue" }` (order-free egress; only readable after PASS).  
   * `{ id:"s3_candidate_set", partition:["parameter_hash"], schema_ref:"schemas.1A.yaml#/s3/candidate_set" }` (sole inter-country order authority; pinned for later joins).  
   * `{ id:"iso3166_canonical_2024" }`, `{ id:"world_countries" }`, `{ id:"population_raster_2025" }` (FK/geo surfaces declared consumable by 1B; Dictionary will encode their schema refs). 
-* `notes : object` — optional free-form, non-semantic.
+    `{ id:"tz_world_2025a", "schema_ref":"schemas.ingress.layer1.yaml#/tz_world_2025a" }` (FK/geo surfaces declared consumable by 1B; Dictionary will encode their schema refs).
+* `notes : string` — optional free-form, non-semantic.
 
 **Cardinality.** Exactly **one** receipt per `{manifest_fingerprint}` PASS. Re-runs for the same `{fingerprint, seed, parameter_hash}` **MUST** be byte-identical. 
 
@@ -1207,7 +1209,7 @@ Rows ordered by `(merchant_id, candidate_rank, country_iso)`; **home has `candid
      "schema_ref":"schemas.1A.yaml#/s3/candidate_set"},
     {"id":"iso3166_canonical_2024"},
     {"id":"world_countries"},
-    {"id":"population_raster_2025"}
+    {"id":"population_raster_2025"},
     {"id":"tz_world_2025a","schema_ref":"schemas.ingress.layer1.yaml#/tz_world_2025a"}
   ],
   "notes": ""

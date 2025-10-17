@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+import pandas as pd
 import polars as pl
 import pytest
 
@@ -113,7 +116,34 @@ def _s7_results() -> list[MerchantAllocationResult]:
     ]
 
 
+def _write_candidate_set(base_path: Path, parameter_hash: str) -> None:
+    path = base_path / "data" / "layer1" / "1A" / "s3_candidate_set" / f"parameter_hash={parameter_hash}"
+    path.mkdir(parents=True, exist_ok=True)
+    frame = pd.DataFrame(
+        [
+            {"merchant_id": 1, "country_iso": "US", "candidate_rank": 0, "is_home": True},
+            {"merchant_id": 1, "country_iso": "CA", "candidate_rank": 1, "is_home": False},
+            {"merchant_id": 2, "country_iso": "GB", "candidate_rank": 0, "is_home": True},
+        ]
+    )
+    frame.to_parquet(path / "part-00000.parquet", index=False)
+
+
+def _write_integerised_counts(base_path: Path, parameter_hash: str) -> None:
+    path = base_path / "data" / "layer1" / "1A" / "s3_integerised_counts" / f"parameter_hash={parameter_hash}"
+    path.mkdir(parents=True, exist_ok=True)
+    frame = pd.DataFrame(
+        [
+            {"merchant_id": 1, "country_iso": "US", "count": 2},
+            {"merchant_id": 1, "country_iso": "CA", "count": 1},
+        ]
+    )
+    frame.to_parquet(path / "part-00000.parquet", index=False)
+
+
 def test_load_deterministic_context_success(tmp_path):
+    _write_candidate_set(tmp_path, "abc123")
+    _write_integerised_counts(tmp_path, "abc123")
     context = load_deterministic_context(
         base_path=tmp_path,
         parameter_hash="abc123",
@@ -152,6 +182,7 @@ def test_load_deterministic_context_success(tmp_path):
 
 
 def test_load_deterministic_context_missing_s7(tmp_path):
+    _write_candidate_set(tmp_path, "abc123")
     with pytest.raises(S0Error) as exc:
         load_deterministic_context(
             base_path=tmp_path,

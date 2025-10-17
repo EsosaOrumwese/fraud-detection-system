@@ -300,6 +300,28 @@ rng_logs:
     partitioning: [seed, parameter_hash, run_id]
     owner: 1A
     retention_days: 180
+  'rng_event.sequence_finalize':
+    description: Non-consuming sequence-finalise events emitted by S8 per (merchant, country) block.
+    format: jsonl
+    path: logs/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/sequence_finalize
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 180
+    gating:
+      gated_by: rng_event_hurdle_bernoulli
+      predicate: is_multi == true
+  'rng_event.site_sequence_overflow':
+    description: Guardrail events triggered when S8 would exceed six-digit sequence space.
+    format: jsonl
+    path: logs/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/site_sequence_overflow
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 180
+    gating:
+      gated_by: rng_event_hurdle_bernoulli
+      predicate: is_multi == true
 
 crossborder:
 
@@ -347,5 +369,16 @@ selection:
     path: data/layer1/1A/s6_membership/seed={seed}/parameter_hash={parameter_hash}/part-*.parquet
     schema_ref: l1/seg_1A/s6_membership.schema.json
     partitioning: [seed, parameter_hash]
+    owner: 1A
+    retention_days: 365
+
+egress:
+
+  outlet_catalogue:
+    description: Immutable outlet catalogue emitted by S8 (within-country sequencing only).
+    format: parquet
+    path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/part-*.parquet
+    schema_ref: schemas.1A.yaml#/egress/outlet_catalogue
+    partitioning: [seed, fingerprint]
     owner: 1A
     retention_days: 365

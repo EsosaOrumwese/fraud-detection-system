@@ -38,6 +38,9 @@ class S8DeterministicContext:
     seed: int
     run_id: str
     merchants: Sequence[MerchantSequencingInput]
+    candidate_lookup: Mapping[int, Mapping[str, int]] | None = None
+    membership_lookup: Mapping[int, Mapping[str, bool]] | None = None
+    counts_source: str = "s7_in_memory"
     source_paths: Mapping[str, Path] | None = None
 
 
@@ -55,6 +58,7 @@ class S8Metrics:
     sum_law_mismatch_count: int = 0
     s3_membership_miss_count: int = 0
     iso_fk_violation_count: int = 0
+    pk_hash_hex: str = ""
 
 
 @dataclass(frozen=True)
