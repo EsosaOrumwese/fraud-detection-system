@@ -1208,6 +1208,7 @@ Rows ordered by `(merchant_id, candidate_rank, country_iso)`; **home has `candid
     {"id":"iso3166_canonical_2024"},
     {"id":"world_countries"},
     {"id":"population_raster_2025"}
+    {"id":"tz_world_2025a","schema_ref":"schemas.ingress.layer1.yaml#/tz_world_2025a"}
   ],
   "notes": ""
 }

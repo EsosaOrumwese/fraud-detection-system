@@ -70,6 +70,24 @@ reference_data:
   pii: false
   licence: ODbL-1.0
 
+- id: tz_world_2025a
+  status: approved
+  owner_subsegment: ingress
+  description: Time-zone polygons used by 1B for civil-time legality checks.
+  version: '2025a'
+  format: parquet
+  path: reference/spatial/tz_world/2025a/tz_world.parquet
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/tz_world_2025a
+  lineage:
+    produced_by:
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: ODbL-1.0
+
 # ── Internally generated datasets (1B) ───────────────────────────────────
 datasets:
 - id: s0_gate_receipt_1B

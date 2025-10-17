@@ -19,7 +19,6 @@ $defs:
     pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z$
     description: RFC-3339 UTC timestamp with exactly 6 fractional digits.
 
-# 1) Validation / receipts (fingerprint-scoped)
 validation:
   s0_gate_receipt:
     type: table
@@ -28,25 +27,26 @@ validation:
     partition_keys: [manifest_fingerprint]
     sort_keys: []
     columns:
-    - {name: manifest_fingerprint, type: string, nullable: false, description: 'Lineage fingerprint (egress partition key also stored per-row).', pattern: '^[a-f0-9]{64}$'}
-    - {name: seed, $ref: '#/$defs/uint64', nullable: false, description: Master Philox seed for 1B run.}
-    - {name: parameter_hash, type: string, nullable: false, description: Parameter-set hash of 1B run., pattern: '^[a-f0-9]{64}$'}
-    - {name: validation_bundle_path, type: string, nullable: false, description: Resolved folder of 1A validation bundle for this fingerprint.}
-    - {name: flag_sha256_hex, type: string, nullable: false, description: Value read from _passed.flag after recomputation., pattern: '^[a-f0-9]{64}$'}
-    - {name: verified_at_utc, $ref: '#/$defs/rfc3339_micros', nullable: false, description: Verification timestamp (observational).}
-    - name: sealed_inputs
-      type: array
-      nullable: false
-      description: 'List of sealed inputs S0 authorises for 1B after PASS (dataset id, partition keys, optional schema_ref).'
-      items:
-        type: object
-        required: [id]
-        properties:
-          id: {type: string, description: 'Dataset ID, e.g., outlet_catalogue'}
-          partition: {type: array, items: {type: string}, description: 'Partition keys relevant to the input, e.g., ["seed","fingerprint"] or ["parameter_hash"].'}
-          schema_ref: {type: string, description: 'Schema anchor for the input, when applicable.'}
-        additionalProperties: false
-    - {name: notes, type: string, nullable: true, description: Optional free-text.}
+      - {name: manifest_fingerprint, type: string, nullable: false, description: 'Lineage fingerprint (egress partition key also stored per-row).', pattern: '^[a-f0-9]{64}$'}
+      - {name: seed, $ref: '#/$defs/uint64', nullable: false, description: 'Master Philox seed for 1B run.'}
+      - {name: parameter_hash, type: string, nullable: false, description: 'Parameter-set hash of 1B run.', pattern: '^[a-f0-9]{64}$'}
+      - {name: validation_bundle_path, type: string, nullable: false, description: 'Resolved folder of 1A validation bundle for this fingerprint.'}
+      - {name: flag_sha256_hex, type: string, nullable: false, description: 'Value read from _passed.flag after recomputation.', pattern: '^[a-f0-9]{64}$'}
+      - {name: verified_at_utc, $ref: '#/$defs/rfc3339_micros', nullable: false, description: 'Verification timestamp (observational).'}
+      - name: sealed_inputs
+        type: array
+        nullable: false
+        description: 'List of sealed inputs S0 authorises for 1B after PASS (dataset id, partition keys, optional schema_ref).'
+        items:
+          type: object
+          required: [id]
+          properties:
+            id: {type: string, description: 'Dataset ID, e.g., outlet_catalogue'}
+            partition: {type: array, items: {type: string}, description: 'Partition keys relevant to the input, e.g., ["seed","fingerprint"] or ["parameter_hash"].'}
+            schema_ref: {type: string, description: 'Schema anchor for the input, when applicable.'}
+          additionalProperties: false
+      - {name: notes, type: string, nullable: true, description: 'Optional free-text.'}
+
 
 # Placeholders for later states (to be filled when we ratify S1+)
 prep:
