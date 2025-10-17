@@ -59,11 +59,17 @@ def write_validation_bundle(
         )
         _write_json(
             staging_dir / "parameter_hash_resolved.json",
-            {"parameter_hash": context.parameter_hash},
+            {
+                "parameter_hash": context.parameter_hash,
+                "files": _sorted_lineage_filenames(context.lineage_paths.get("param_digest_log.jsonl")),
+            },
         )
         _write_json(
             staging_dir / "manifest_fingerprint_resolved.json",
-            {"manifest_fingerprint": context.manifest_fingerprint},
+            {
+                "manifest_fingerprint": context.manifest_fingerprint,
+                "files": _sorted_lineage_filenames(context.lineage_paths.get("fingerprint_artifacts.jsonl")),
+            },
         )
         _write_json(
             staging_dir / "rng_accounting.json",
@@ -84,6 +90,7 @@ def write_validation_bundle(
             ),
         )
         index_entries = _build_index_entries(staging_dir)
+        _assert_required_bundle_entries(index_entries)
         _write_json(
             manifest_path,
             _build_manifest_payload(
@@ -92,7 +99,10 @@ def write_validation_bundle(
                 artifact_count=len(index_entries),
             ),
         )
-        _write_json(staging_dir / "index.json", index_entries)
+        index_path = staging_dir / "index.json"
+        _write_json(index_path, index_entries)
+        if not index_path.exists():
+            raise err("E_BUNDLE_FILE_MISSING", "index.json missing in validation bundle")
 
         passed_flag_path: Path | None = None
         if result.passed and not result.failures:
@@ -142,6 +152,8 @@ def _build_egress_checksums(files: Sequence[Path], *, base_path: Path) -> Mappin
                 "size_bytes": file_path.stat().st_size,
             }
         )
+    if not entries:
+        raise err("E_BUNDLE_FILE_MISSING", "outlet_catalogue shards missing for checksum generation")
     composite = hashlib.sha256()
     for entry in sorted(entries, key=lambda item: item["path"]):
         composite.update(entry["sha256"].encode("ascii"))
@@ -159,6 +171,7 @@ def _build_index_entries(bundle_dir: Path) -> Sequence[Mapping[str, object]]:
                     "artifact_id": path.stem,
                     "kind": _infer_artifact_kind(path),
                     "path": path.name,
+                    "mime": _infer_artifact_mime(path),
                 }
             )
     return entries
@@ -199,6 +212,47 @@ def _rmtree(path: Path) -> None:
         else:
             child.unlink()
     path.rmdir()
+
+
+def _sorted_lineage_filenames(path: Path | None) -> Sequence[str]:
+    if path is None or not path.exists():
+        return []
+    records = _read_jsonl_records(path)
+    filenames = [record.get("filename") for record in records if record.get("filename")]
+    return sorted(filenames)
+
+
+def _read_jsonl_records(path: Path) -> Sequence[Mapping[str, object]]:
+    records: list[Mapping[str, object]] = []
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                line = line.strip()
+                if not line:
+                    continue
+                records.append(json.loads(line))
+    except FileNotFoundError:
+        return []
+    return records
+
+
+def _assert_required_bundle_entries(index_entries: Sequence[Mapping[str, object]]) -> None:
+    present = {entry["path"] for entry in index_entries}
+    required = c.BUNDLE_FILES - {"index.json"}
+    missing = required - present
+    if missing:
+        raise err(
+            "E_BUNDLE_FILE_MISSING",
+            f"validation bundle missing required artifacts: {sorted(missing)}",
+        )
+
+
+def _infer_artifact_mime(path: Path) -> str:
+    if path.suffix == ".json":
+        return "application/json"
+    if path.suffix == ".jsonl":
+        return "application/jsonl"
+    return "text/plain"
 
 
 def _build_manifest_payload(

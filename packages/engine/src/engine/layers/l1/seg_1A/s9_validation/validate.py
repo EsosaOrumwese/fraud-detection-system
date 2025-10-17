@@ -9,7 +9,10 @@ from typing import Any, Callable, Dict, Iterable, Mapping, Sequence
 
 import numpy as np
 import pandas as pd
+import yaml
+from jsonschema import Draft202012Validator, ValidationError
 
+from ..shared.dictionary import get_repo_root, load_dictionary
 from ..s0_foundations.l0.artifacts import hash_artifact
 from ..s0_foundations.l1.hashing import compute_manifest_fingerprint, compute_parameter_hash
 from ..s0_foundations.exceptions import ErrorContext, S0Error, err
@@ -59,6 +62,11 @@ _REQUIRED_COLUMNS: Dict[str, Sequence[str]] = {
         "parameter_hash",
     ),
 }
+
+_DATASET_DICTIONARY: Mapping[str, object] | None = None
+_SCHEMA_DOCS: Dict[str, Dict[str, Any]] = {}
+_SCHEMA_CACHE: Dict[tuple[str, str], Draft202012Validator] = {}
+_ISO_CODES: set[str] | None = None
 
 
 def validate_outputs(context: S9DeterministicContext) -> S9ValidationResult:
@@ -259,6 +267,15 @@ def validate_outputs(context: S9DeterministicContext) -> S9ValidationResult:
     if site_sequence_df is not None:
         safe_call(lambda: _assert_iso_columns(site_sequence_df, ("country_iso",), c.DATASET_S3_SITE_SEQUENCE))
 
+    safe_call(lambda: _validate_dataset_schema(c.DATASET_OUTLET_CATALOGUE, outlet))
+    safe_call(lambda: _validate_dataset_schema(c.DATASET_S3_CANDIDATE_SET, candidate_set))
+    if counts_df is not None:
+        safe_call(lambda: _validate_dataset_schema(c.DATASET_S3_INTEGERISED_COUNTS, counts_df))
+    if membership_df is not None:
+        safe_call(lambda: _validate_dataset_schema(c.DATASET_S6_MEMBERSHIP, membership_df))
+    if site_sequence_df is not None:
+        safe_call(lambda: _validate_dataset_schema(c.DATASET_S3_SITE_SEQUENCE, site_sequence_df))
+
     safe_call(lambda: _check_candidate_ranks(candidate_set))
     safe_call(
         lambda: _assert_unique(
@@ -267,22 +284,6 @@ def validate_outputs(context: S9DeterministicContext) -> S9ValidationResult:
             c.DATASET_S3_CANDIDATE_SET,
         )
     )
-    if counts_df is not None:
-        safe_call(
-            lambda: _assert_unique(
-                counts_df,
-                ["merchant_id", "country_iso"],
-                c.DATASET_S3_INTEGERISED_COUNTS,
-            )
-        )
-    if membership_df is not None:
-        safe_call(
-            lambda: _assert_unique(
-                membership_df,
-                ["merchant_id", "country_iso"],
-                c.DATASET_S6_MEMBERSHIP,
-            )
-        )
     if site_sequence_df is not None:
         safe_call(
             lambda: _assert_unique(
@@ -683,17 +684,26 @@ def _require_columns(frame: pd.DataFrame | None, dataset: str) -> None:
 def _assert_iso_columns(frame: pd.DataFrame | None, columns: Sequence[str], dataset: str) -> None:
     if frame is None or frame.empty:
         return
+    iso_codes = _load_iso_codes()
     for column in columns:
         if column not in frame.columns:
             raise err("E_SCHEMA_INVALID", f"{dataset} missing column '{column}' for ISO validation")
         series = frame[column].dropna()
         if series.empty:
             continue
-        if not series.apply(lambda value: isinstance(value, str) and len(value) == 2 and value.isupper()).all():
-            raise err(
-                "E_FK_ISO_INVALID",
-                f"{dataset}.{column} contains non ISO-3166 alpha-2 values",
-            )
+        values = series.astype(str).str.upper()
+        if iso_codes:
+            if not values.isin(iso_codes).all():
+                raise err(
+                    "E_FK_ISO_INVALID",
+                    f"{dataset}.{column} contains invalid ISO codes",
+                )
+        else:
+            if not values.str.fullmatch(r"[A-Z]{2}").all():
+                raise err(
+                    "E_FK_ISO_INVALID",
+                    f"{dataset}.{column} contains non ISO-3166 alpha-2 values",
+                )
 
 
 def _recompute_lineage(context: S9DeterministicContext) -> None:
@@ -781,6 +791,192 @@ def _resolve_artifact_path(raw_path: str, base_path: Path) -> Path:
     if not candidate.is_absolute():
         candidate = (base_path / raw_path).resolve()
     return candidate
+
+
+def _validate_dataset_schema(dataset_id: str, frame: pd.DataFrame | None) -> None:
+    if frame is None:
+        return
+    entry = _dictionary_entry(dataset_id)
+    schema_ref = entry.get("schema_ref")
+    if not schema_ref:
+        return
+    validator = _schema_validator(schema_ref)
+    records = frame.to_dict(orient="records")
+    for record in records:
+        for key, value in list(record.items()):
+            if isinstance(value, np.ndarray):
+                record[key] = value.tolist()
+    try:
+        validator.validate(records)
+    except ValidationError as exc:
+        raise err("E_SCHEMA_INVALID", f"{dataset_id} schema violation: {exc.message}") from exc
+
+
+def _dictionary_entry(dataset_id: str) -> Mapping[str, Any]:
+    dictionary = _load_dataset_dictionary()
+    for section in dictionary.values():
+        if not isinstance(section, Mapping):
+            continue
+        entry = section.get(dataset_id)
+        if isinstance(entry, Mapping):
+            return entry
+    return {}
+
+
+def _load_dataset_dictionary() -> Mapping[str, object]:
+    global _DATASET_DICTIONARY
+    if _DATASET_DICTIONARY is None:
+        _DATASET_DICTIONARY = load_dictionary()
+    return _DATASET_DICTIONARY
+
+
+def _schema_validator(schema_ref: str) -> Draft202012Validator:
+    if "#" in schema_ref:
+        file_name, pointer = schema_ref.split("#", 1)
+    else:
+        file_name, pointer = schema_ref, ""
+    pointer = pointer or ""
+    cache_key = (file_name, pointer)
+    validator = _SCHEMA_CACHE.get(cache_key)
+    if validator is not None:
+        return validator
+    document = _schema_document(file_name)
+    schema_node = _resolve_pointer(document, pointer)
+    normalized = _normalize_schema(schema_node, document)
+    validator = Draft202012Validator(normalized)
+    _SCHEMA_CACHE[cache_key] = validator
+    return validator
+
+
+def _schema_document(file_name: str) -> Dict[str, Any]:
+    document = _SCHEMA_DOCS.get(file_name)
+    if document is not None:
+        return document
+    path = _schema_file_path(file_name)
+    if not path.exists():
+        raise err("E_SCHEMA_INVALID", f"schema file '{file_name}' not found at {path}")
+    with path.open("r", encoding="utf-8") as handle:
+        payload = yaml.safe_load(handle) or {}
+    _SCHEMA_DOCS[file_name] = payload
+    return payload
+
+
+def _schema_file_path(file_name: str) -> Path:
+    repo_root = get_repo_root()
+    if file_name == "schemas.1A.yaml":
+        return repo_root / "docs" / "model_spec" / "data-engine" / "specs" / "contracts" / "1A" / "schemas.1A.yaml"
+    if file_name == "schemas.layer1.yaml":
+        return repo_root / "contracts" / "schemas" / "layer1" / "schemas.layer1.yaml"
+    if file_name.startswith("l1/"):
+        alt = (repo_root / "contracts" / "schemas" / file_name).resolve()
+        if alt.exists():
+            return alt
+    candidate = (repo_root / file_name).resolve()
+    if candidate.exists():
+        return candidate
+    return (repo_root / "contracts" / "schemas" / file_name).resolve()
+
+
+def _resolve_pointer(document: Mapping[str, Any], pointer: str) -> Any:
+    if not pointer or pointer == "#":
+        return document
+    parts = pointer.lstrip("/").split("/")
+    node: Any = document
+    for part in parts:
+        part = part.replace("~1", "/").replace("~0", "~")
+        if isinstance(node, Mapping):
+            node = node.get(part)
+        else:
+            raise err("E_SCHEMA_INVALID", f"schema pointer '{pointer}' invalid at '{part}'")
+        if node is None:
+            raise err("E_SCHEMA_INVALID", f"schema pointer '{pointer}' missing segment '{part}'")
+    return node
+
+
+def _normalize_schema(schema_node: Any, document: Mapping[str, Any]) -> Any:
+    if isinstance(schema_node, Mapping) and schema_node.get("type") == "table":
+        return _table_to_json_schema(schema_node, document)
+    return schema_node
+
+
+def _table_to_json_schema(table_def: Mapping[str, Any], document: Mapping[str, Any]) -> Mapping[str, Any]:
+    properties: Dict[str, Any] = {}
+    required: list[str] = []
+    for column_def in table_def.get("columns", []):
+        name = column_def.get("name")
+        if not name:
+            continue
+        column_schema = _column_to_schema(column_def)
+        if column_def.get("nullable", False):
+            column_schema = {"anyOf": [column_schema, {"type": "null"}]}
+        else:
+            required.append(name)
+        properties[name] = column_schema
+
+    return {
+        "$schema": document.get("$schema", "https://json-schema.org/draft/2020-12/schema"),
+        "$defs": document.get("$defs", {}),
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": properties,
+            "required": required,
+            "additionalProperties": False,
+        },
+    }
+
+
+def _column_to_schema(column_def: Mapping[str, Any]) -> Mapping[str, Any]:
+    if "$ref" in column_def:
+        return {"$ref": column_def["$ref"]}
+
+    column_type = column_def.get("type")
+    if column_type in (None, "any"):
+        schema: Dict[str, Any] = {}
+    elif column_type in {"int32", "int64", "uint32", "uint64", "integer"}:
+        schema = {"type": "integer"}
+    elif column_type in {"float32", "float64", "number", "double"}:
+        schema = {"type": "number"}
+    elif column_type == "boolean":
+        schema = {"type": "boolean"}
+    else:
+        schema = {"type": column_type}
+
+    for key in ("pattern", "minimum", "maximum", "enum", "const"):
+        if key in column_def:
+            schema[key] = column_def[key]
+    return schema
+
+
+def _load_iso_codes() -> set[str] | None:
+    global _ISO_CODES
+    if _ISO_CODES is not None:
+        return _ISO_CODES
+    try:
+        entry = _dictionary_entry("iso_canonical")
+    except Exception:
+        _ISO_CODES = None
+        return _ISO_CODES
+    path_str = entry.get("path")
+    if not path_str:
+        _ISO_CODES = None
+        return _ISO_CODES
+    path = Path(path_str)
+    if not path.is_absolute():
+        path = (get_repo_root() / path).resolve()
+    if not path.exists():
+        _ISO_CODES = None
+        return _ISO_CODES
+    try:
+        data = pd.read_parquet(path)
+    except Exception:
+        _ISO_CODES = None
+        return _ISO_CODES
+    if "country_iso" not in data.columns:
+        _ISO_CODES = None
+        return _ISO_CODES
+    _ISO_CODES = {str(code).upper() for code in data["country_iso"].dropna().unique()}
+    return _ISO_CODES
 
 
 def _validate_trace_identity(context: S9DeterministicContext, trace_df: pd.DataFrame) -> None:

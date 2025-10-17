@@ -208,14 +208,18 @@ def _build_context(tmp_path: Path) -> S9DeterministicContext:
             "manifest_fingerprint": [manifest_fingerprint, manifest_fingerprint],
             "global_seed": [1, 1],
             "home_country_iso": ["GB", "GB"],
+            "single_vs_multi_flag": [True, True],
+            "raw_nb_outlet_draw": [2, 2],
         }
     )
     candidate_frame = pl.DataFrame(
         {
             "merchant_id": [1],
-            "candidate_rank": [0],
             "country_iso": ["GB"],
+            "candidate_rank": [0],
             "is_home": [True],
+            "reason_codes": [["BASELINE"]],
+            "filter_tags": [["ELIGIBLE"]],
             "parameter_hash": [parameter_hash],
         }
     )
@@ -224,11 +228,13 @@ def _build_context(tmp_path: Path) -> S9DeterministicContext:
             "merchant_id": [1],
             "country_iso": ["GB"],
             "count": [2],
+            "residual_rank": [1],
             "parameter_hash": [parameter_hash],
         }
     )
     membership_frame = pl.DataFrame(
         {
+            "seed": [1],
             "merchant_id": [1],
             "country_iso": ["GB"],
             "parameter_hash": [parameter_hash],
@@ -412,14 +418,19 @@ def test_write_validation_bundle_produces_manifest_and_index(tmp_path: Path) -> 
     manifest = json.loads((bundle_path / "MANIFEST.json").read_text(encoding="utf-8"))
     index = json.loads((bundle_path / "index.json").read_text(encoding="utf-8"))
     summary = json.loads((bundle_path / "s9_summary.json").read_text(encoding="utf-8"))
+    param_resolved = json.loads((bundle_path / "parameter_hash_resolved.json").read_text(encoding="utf-8"))
+    manifest_resolved = json.loads((bundle_path / "manifest_fingerprint_resolved.json").read_text(encoding="utf-8"))
 
     assert manifest["manifest_fingerprint"] == context.manifest_fingerprint
     assert manifest["artifact_count"] == len(index)
     assert manifest["git_commit_hex"] == "1" * 64
-    assert {"artifact_id": "MANIFEST", "kind": "summary", "path": "MANIFEST.json"} in index
+    assert any(entry["artifact_id"] == "MANIFEST" and entry["kind"] == "summary" for entry in index)
+    assert all("mime" in entry for entry in index)
     assert summary["decision"] == "PASS"
     assert flag_path is not None
     assert flag_path.exists()
+    assert param_resolved.get("files")
+    assert manifest_resolved.get("files")
 
 def test_validate_outputs_detects_candidate_schema_violation(tmp_path: Path) -> None:
     context = _build_context(tmp_path)
