@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import json
+import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Mapping, Sequence
 
+from ..s0_foundations.exceptions import err
 from ..s0_foundations.l1.context import MerchantUniverse
 from ..shared.dictionary import load_dictionary, resolve_dataset_path
 from ..s1_hurdle.l2.runner import HurdleDecision
@@ -14,6 +18,8 @@ from ..s7_integer_allocation.types import MerchantAllocationResult
 from .constants import (
     EVENT_FAMILY_SEQUENCE_FINALIZE,
     EVENT_FAMILY_SITE_SEQUENCE_OVERFLOW,
+    STAGE_LOG_FILENAME,
+    STAGE_LOG_ROOT,
 )
 from .contexts import S8DeterministicContext, S8Metrics
 from .kernel import build_outlet_catalogue
@@ -61,7 +67,9 @@ class S8Runner:
         """Run the S8 pipeline using governed artefacts resolved from `base_path`."""
         base_path = Path(base_path).expanduser().resolve()
         dictionary = dictionary or load_dictionary()
+        stage_logger = _StageLogger(base_path=base_path, seed=seed, parameter_hash=parameter_hash, run_id=run_id)
 
+        stage_logger.begin("load_context")
         deterministic = load_deterministic_context(
             base_path=base_path,
             parameter_hash=parameter_hash,
@@ -74,8 +82,11 @@ class S8Runner:
             s7_results=s7_results,
             dictionary=dictionary,
         )
+        stage_logger.end("load_context")
 
+        stage_logger.begin("build_catalogue")
         rows, sequence_events, overflow_events, metrics = build_outlet_catalogue(deterministic)
+        stage_logger.end("build_catalogue", extra={"rows": metrics.rows_total, "overflow_merchants": len(metrics.overflow_merchant_ids)})
 
         persist_config = PersistConfig(
             seed=seed,
@@ -84,6 +95,7 @@ class S8Runner:
             parameter_hash=parameter_hash,
             run_id=run_id,
         )
+        stage_logger.begin("persist_artefacts")
         catalogue_path = write_outlet_catalogue(
             rows,
             config=persist_config,
@@ -97,7 +109,9 @@ class S8Runner:
         )
         event_paths_for_validation = dict(event_paths)
         event_paths_for_validation["seed"] = seed
+        stage_logger.end("persist_artefacts")
 
+        stage_logger.begin("validate")
         metrics_payload, rng_accounting_payload = validate_outputs(
             base_path=base_path,
             parameter_hash=parameter_hash,
@@ -123,6 +137,8 @@ class S8Runner:
             rng_accounting_payload=rng_accounting_payload,
             catalogue_path=catalogue_path,
         )
+        stage_logger.end("validate")
+        stage_logger.finalise(metrics=metrics_payload)
 
         auxiliary_paths: dict[str, Path] = {}
         for key, path in event_paths.items():
@@ -138,7 +154,7 @@ class S8Runner:
             sequence_overflow_path=event_paths.get(EVENT_FAMILY_SITE_SEQUENCE_OVERFLOW),
             validation_bundle_path=validation_bundle_path,
             metrics=metrics,
-            stage_log_path=None,
+            stage_log_path=stage_logger.path,
             auxiliary_paths=auxiliary_paths or None,
         )
 
@@ -147,3 +163,49 @@ __all__ = [
     "S8RunOutputs",
     "S8Runner",
 ]
+
+
+class _StageLogger:
+    """Append structured stage events for S8 execution."""
+
+    def __init__(self, *, base_path: Path, seed: int, parameter_hash: str, run_id: str) -> None:
+        self._base_path = Path(base_path).expanduser().resolve()
+        self._seed = int(seed)
+        self._parameter_hash = parameter_hash
+        self._run_id = run_id
+        self._start_ns = time.time_ns()
+        self.path = (self._base_path / STAGE_LOG_ROOT).resolve() / STAGE_LOG_FILENAME
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._write_event("initialise", status="begin")
+
+    def begin(self, stage: str) -> None:
+        self._write_event(stage, status="begin")
+
+    def end(self, stage: str, *, extra: Mapping[str, object] | None = None) -> None:
+        self._write_event(stage, status="end", extra=extra)
+
+    def finalise(self, *, metrics: Mapping[str, object]) -> None:
+        extra = {"metrics": metrics}
+        self._write_event("complete", status="end", extra=extra)
+
+    def _write_event(
+        self,
+        stage: str,
+        *,
+        status: str,
+        extra: Mapping[str, object] | None = None,
+    ) -> None:
+        record = {
+            "ts_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            "stage": stage,
+            "status": status,
+            "seed": self._seed,
+            "parameter_hash": self._parameter_hash,
+            "run_id": self._run_id,
+            "elapsed_ns": time.time_ns() - self._start_ns,
+        }
+        if extra:
+            record["extra"] = dict(extra)
+        with self.path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, sort_keys=True))
+            handle.write("\n")

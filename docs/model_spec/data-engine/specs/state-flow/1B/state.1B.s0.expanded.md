@@ -402,7 +402,7 @@ Where lineage fields appear both in **path** and **rows**, values **MUST byte-eq
 
 * **Algorithm:** Counter-based **philox2x64-10** (layer-wide). S0 fixes this for 1B; producers and validators announce it in the audit log. 
 * **Open-interval uniforms:** map 64-bit outputs to **strict-open** (0,1) via the hex-float rule; clamp the rare `u==1.0` to `1−2⁻⁵³`. **Exact 0.0/1.0 MUST NOT occur.** 
-* **Keyed substreams:** every event family **derives** its Philox key/counter from frozen literals (domain string + label + ID tuple) using the UER/SER framing and SHA-256; draws **must** come from that substream with a monotonically advancing 128-bit counter. 
+* **Keyed substreams:** every event family **derives** its Philox key/counter deterministically from frozen literals (domain string + label + ID tuple) via **SHA-256**; draws **MUST** come from that substream with a monotonically advancing 128-bit counter. 
 
 ## 6.3 Lane policy & budget classes (must hold)
 
@@ -988,8 +988,10 @@ S0 v1.* assumes these authorities stay on their **v1.*** lines; a **MAJOR** in a
 
 * `schemas.layer1.yaml` (layer-wide RNG/log/core). 
 * `schemas.1A.yaml` (1A tables/egress/validation). 
-* `schemas.ingress.layer1.yaml` (ingress/FK).
-* `dataset_dictionary.layer1.1A.yaml` (IDs, paths, partitions, writer sorts, consumer gate text).  
+* `schemas.ingress.layer1.yaml` (Ingress/FK).
+* `dataset_dictionary.layer1.1A.yaml` (IDs, paths, partitions, writer sorts, consumer gate text).
+* `schemas.1B.yaml` (1B shapes, including `#/validation/s0_gate_receipt`).
+* `dataset_dictionary.layer1.1B.yaml` (1B IDs/paths/retention, including the S0 receipt path).
 
 > Effect: if 1A moves its egress or changes its bundle/gate under a new **MAJOR**, S0 cannot lawfully proceed until re-ratified for that line. 
 

@@ -152,3 +152,7 @@ def test_s8_runner_emits_catalogue(tmp_path: Path, merchant_universe: MerchantUn
     assert outputs.validation_bundle_path is not None and outputs.validation_bundle_path.exists()
     assert outputs.metrics.rows_total == 3
     assert outputs.metrics.overflow_merchant_ids == tuple()
+    assert outputs.stage_log_path is not None and outputs.stage_log_path.exists()
+    log_lines = outputs.stage_log_path.read_text(encoding="utf-8").strip().splitlines()
+    assert any('"stage": "load_context"' in line for line in log_lines)
+    assert any('"stage": "complete"' in line for line in log_lines)

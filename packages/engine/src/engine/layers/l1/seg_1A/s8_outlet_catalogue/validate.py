@@ -14,6 +14,8 @@ from ..shared.dictionary import load_dictionary, resolve_dataset_path
 from .constants import (
     EVENT_FAMILY_SEQUENCE_FINALIZE,
     EVENT_FAMILY_SITE_SEQUENCE_OVERFLOW,
+    SUBSTREAM_SEQUENCE_FINALIZE,
+    SUBSTREAM_SITE_SEQUENCE_OVERFLOW,
 )
 
 __all__ = [
@@ -79,6 +81,8 @@ def validate_outputs(
 
     metrics["pk_hash_hex"] = rng_accounting.get("pk_hash_hex", metrics.get("pk_hash_hex", ""))
     metrics.setdefault("rows_total", int(frame.shape[0]))
+
+    _enforce_metric_constraints(metrics)
 
     return metrics, rng_accounting
 
@@ -316,16 +320,19 @@ def _compute_rng_accounting(
 
     trace_events_delta = sequence_events + overflow_events
 
-    audit_path = resolve_dataset_path(
-        "rng_audit_log",
-        base_path=base_path,
-        template_args={
-            "seed": seed,
-            "parameter_hash": parameter_hash,
-            "run_id": run_id,
-        },
-        dictionary=dictionary,
-    )
+    try:
+        audit_path = resolve_dataset_path(
+            "rng_audit_log",
+            base_path=base_path,
+            template_args={
+                "seed": seed,
+                "parameter_hash": parameter_hash,
+                "run_id": run_id,
+            },
+            dictionary=dictionary,
+        )
+    except Exception:  # pragma: no cover - optional in tests
+        audit_path = Path("<unavailable>")
 
     payload: Dict[str, object] = {
         "sequence_finalize_events": sequence_events,
@@ -339,7 +346,18 @@ def _compute_rng_accounting(
     }
 
     if trace_path is not None and trace_path.exists():
+        trace_totals = _read_trace_records(trace_path)
         payload["trace_path"] = trace_path.as_posix()
+        payload["trace_events_recorded"] = trace_totals["events"]
+        if trace_totals["events"] != trace_events_delta:
+            raise S8ValidationError(
+                "trace_events_total_delta does not reconcile with recorded trace entries "
+                f"(expected {trace_events_delta}, observed {trace_totals['events']})"
+            )
+        if trace_totals["draws"] != 0 or trace_totals["blocks"] != 0:
+            raise S8ValidationError("S8 emitted non-zero RNG draws/blocks in trace log")
+    else:
+        payload["trace_events_recorded"] = 0
     return payload
 
 
@@ -352,3 +370,33 @@ def _count_events(path: Path | None) -> int:
             if line.strip():
                 count += 1
     return count
+
+
+def _read_trace_records(path: Path) -> Dict[str, int]:
+    totals = {"events": 0, "draws": 0, "blocks": 0}
+    with path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if record.get("module") != "1A.site_id_allocator":
+                continue
+            if record.get("substream_label") not in {SUBSTREAM_SEQUENCE_FINALIZE, SUBSTREAM_SITE_SEQUENCE_OVERFLOW}:
+                continue
+            totals["events"] += 1
+            totals["draws"] += int(str(record.get("draws_total", "0")))
+            totals["blocks"] += int(str(record.get("blocks_total", "0")))
+    return totals
+
+
+def _enforce_metric_constraints(metrics: Mapping[str, object]) -> None:
+    if int(metrics.get("sum_law_mismatch_count", 0) or 0) > 0:
+        raise S8ValidationError("sum law mismatch detected in outlet_catalogue")
+    if int(metrics.get("s3_membership_miss_count", 0) or 0) > 0:
+        raise S8ValidationError("S3 membership reconciliation failed for S8 egress")
+    if int(metrics.get("iso_fk_violation_count", 0) or 0) > 0:
+        raise S8ValidationError("ISO foreign key violations detected in outlet_catalogue")

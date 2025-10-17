@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Dict, Mapping, Optional, Sequence, Tuple
 
@@ -82,6 +82,8 @@ from engine.layers.l1.seg_1A.s7_integer_allocation import (
 from engine.layers.l1.seg_1A.s7_integer_allocation.contexts import S7DeterministicContext
 from engine.layers.l1.seg_1A.s7_integer_allocation.types import MerchantAllocationResult
 from engine.layers.l1.seg_1A.s7_integer_allocation.validate import validate_results as validate_s7_outputs
+from engine.layers.l1.seg_1A.s8_outlet_catalogue import S8RunOutputs, S8Runner
+from engine.layers.l1.seg_1A.s8_outlet_catalogue.contexts import S8DeterministicContext
 from engine.layers.l1.seg_1A.shared.dictionary import get_repo_root
 
 logger = logging.getLogger(__name__)
@@ -419,6 +421,19 @@ def build_s7_context(outputs: S7RunOutputs) -> S7StateContext:
     )
 
 
+def build_s8_context(outputs: S8RunOutputs) -> S8StateContext:
+    """Construct the downstream context bundle for S8 outputs."""
+
+    return S8StateContext(
+        deterministic=outputs.deterministic,
+        catalogue_path=outputs.catalogue_path,
+        sequence_finalize_path=outputs.sequence_finalize_path,
+        sequence_overflow_path=outputs.sequence_overflow_path,
+        validation_bundle_path=outputs.validation_bundle_path,
+        stage_log_path=outputs.stage_log_path,
+        metrics=asdict(outputs.metrics),
+        auxiliary_paths=dict(outputs.auxiliary_paths or {}),
+    )
 @dataclass(frozen=True)
 class S7StateContext:
     """Context bundle produced after S7 integer allocation."""
@@ -449,8 +464,22 @@ class S7StateContext:
 
 
 @dataclass(frozen=True)
+class S8StateContext:
+    """Context bundle produced after S8 outlet catalogue materialisation."""
+
+    deterministic: S8DeterministicContext
+    catalogue_path: Path
+    sequence_finalize_path: Path | None
+    sequence_overflow_path: Path | None
+    validation_bundle_path: Path | None
+    stage_log_path: Path | None
+    metrics: Mapping[str, object]
+    auxiliary_paths: Mapping[str, Path] | None
+
+
+@dataclass(frozen=True)
 class Segment1ARunResult:
-    """Combined result for running S0 foundations through S6 selection."""
+    """Combined result for running S0 foundations through S8 sequencing."""
 
     s0_result: S0RunResult
     s1_result: S1RunResult
@@ -467,6 +496,8 @@ class Segment1ARunResult:
     s6_context: S6StateContext
     s7_result: S7RunOutputs
     s7_context: S7StateContext
+    s8_result: S8RunOutputs
+    s8_context: S8StateContext
 
 
 class Segment1AOrchestrator:
@@ -487,6 +518,7 @@ class Segment1AOrchestrator:
         self._s5_runner = S5CurrencyWeightsRunner()
         self._s6_runner = S6Runner()
         self._s7_runner = S7Runner()
+        self._s8_runner = S8Runner()
 
 
     def _resolve_s5_policy_path(self, param_mapping: Mapping[str, Path]) -> Path:
@@ -1150,6 +1182,24 @@ class Segment1AOrchestrator:
             s7_result.dirichlet_events,
         )
 
+        s8_result = self._s8_runner.run(
+            base_path=base_path,
+            parameter_hash=s5_deterministic.parameter_hash,
+            manifest_fingerprint=s5_deterministic.manifest_fingerprint,
+            seed=s5_deterministic.seed,
+            run_id=s5_deterministic.run_id,
+            merchant_universe=s0_result.sealed.context.merchants,
+            hurdle_decisions=s1_result.decisions,
+            nb_finals=s2_result.finals,
+            s7_results=s7_result.results,
+        )
+        s8_context = build_s8_context(s8_result)
+
+        logger.info(
+            "Segment1A S8 completed (catalogue=%s)",
+            s8_result.catalogue_path,
+        )
+
         s3_context = build_s3_context(
             s3_result,
             metrics=s3_metrics,
@@ -1179,6 +1229,8 @@ class Segment1AOrchestrator:
             s6_context=s6_context,
             s7_result=s7_result,
             s7_context=s7_context,
+            s8_result=s8_result,
+            s8_context=s8_context,
         )
 
 
@@ -1190,6 +1242,7 @@ __all__ = [
     "S5StateContext",
     "S6StateContext",
     "S7StateContext",
+    "S8StateContext",
     "Segment1ARunResult",
     "Segment1AOrchestrator",
     "build_hurdle_context",
@@ -1199,5 +1252,6 @@ __all__ = [
     "build_s5_context",
     "build_s6_context",
     "build_s7_context",
+    "build_s8_context",
 ]
 
