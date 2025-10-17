@@ -759,7 +759,7 @@ The fingerprint-scoped bundle exists at `…/validation/fingerprint={manifest_fi
 
 **E2. Read authorisation for `outlet_catalogue`.**
 Given **E1**, the egress partition at
-`data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/` is authorised for read; S0 has re-asserted path↔embed equality where present: `manifest_fingerprint == fingerprint` (path token) and `global_seed == seed`. (Cross-country order is **not** encoded in egress.)  
+`data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/` is authorised for read; S0 has re-asserted path↔embed equality where present: `manifest_fingerprint == fingerprint` (path token) and *(if present)* `global_seed == seed`. (Cross-country order is **not** encoded in egress.)  
 
 **E3. Authority boundaries recorded.**
 S0 has pinned that **inter-country order** comes **only** from `s3_candidate_set.candidate_rank` (home rank = 0; total, contiguous). Any ordering needed downstream will be obtained by **join**; egress remains order-free.  

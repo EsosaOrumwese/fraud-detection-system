@@ -58,9 +58,9 @@ repos:
 
   - repo: local
     hooks:
-      - id: pytest-seg-1a-s6
-        name: pytest (Segment 1A S6)
-        entry: python -m pytest tests/engine/layers/l1/seg_1A/s6_foreign_selection
+      - id: pytest-seg-1a
+        name: pytest (Segment 1A S0-S8)
+        entry: python -m pytest tests/engine/layers/l1/seg_1A
         language: system
         pass_filenames: false
         stages: [pre-commit]
