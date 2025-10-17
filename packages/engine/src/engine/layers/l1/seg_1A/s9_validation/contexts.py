@@ -20,6 +20,9 @@ class S9InputSurfaces:
     s6_membership: pl.DataFrame | None = None
     nb_final_events: pd.DataFrame | None = None
     sequence_finalize_events: pd.DataFrame | None = None
+    rng_audit_log: pd.DataFrame | None = None
+    rng_trace_log: pd.DataFrame | None = None
+    rng_events: Mapping[str, pd.DataFrame] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

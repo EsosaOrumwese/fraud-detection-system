@@ -234,8 +234,8 @@ def _build_manifest_payload(
 
 
 def _infer_artifact_kind(path: Path) -> str:
-    if path.name == "MANIFEST.json" or path.name.endswith("_summary.json"):
-        return "summary"
+    if path.name in c.BUNDLE_INDEX_SUMMARY_FILES or path.name.endswith("_summary.json"):
+        return c.BUNDLE_INDEX_KIND_SUMMARY
     if path.suffix == ".json":
-        return "table"
-    return "text"
+        return c.BUNDLE_INDEX_KIND_TABLE
+    return c.BUNDLE_INDEX_KIND_TEXT

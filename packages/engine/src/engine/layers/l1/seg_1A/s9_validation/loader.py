@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from types import MappingProxyType
 from typing import Iterable, Mapping, Sequence
 
 import pandas as pd
@@ -86,8 +87,8 @@ def load_deterministic_context(
         )
         membership_df, membership_files = _read_parquet_partition(membership_path)
 
-    nb_final_df, nb_final_files = _read_jsonl_partition(
-        dataset_id=c.EVENT_FAMILY_NB_FINAL,
+    audit_df, audit_files = _read_jsonl_partition(
+        dataset_id=c.AUDIT_LOG_ID,
         base_path=base_path,
         seed=seed,
         parameter_hash=parameter_hash,
@@ -95,22 +96,39 @@ def load_deterministic_context(
         dictionary=dictionary,
     )
 
-    sequence_df, sequence_files = _read_jsonl_partition(
-        dataset_id=c.EVENT_FAMILY_SEQUENCE_FINALIZE,
+    trace_df, trace_files = _read_jsonl_partition(
+        dataset_id=c.TRACE_LOG_ID,
         base_path=base_path,
         seed=seed,
         parameter_hash=parameter_hash,
         run_id=run_id,
         dictionary=dictionary,
     )
+
+    rng_event_frames: dict[str, pd.DataFrame] = {}
+    rng_event_paths: dict[str, Sequence[Path]] = {}
+    for dataset_id in c.RNG_EVENT_DATASETS:
+        frame, files = _read_jsonl_partition(
+            dataset_id=dataset_id,
+            base_path=base_path,
+            seed=seed,
+            parameter_hash=parameter_hash,
+            run_id=run_id,
+            dictionary=dictionary,
+        )
+        rng_event_frames[dataset_id] = frame if frame is not None else pd.DataFrame()
+        rng_event_paths[dataset_id] = files
 
     surfaces = S9InputSurfaces(
         outlet_catalogue=outlet_df,
         s3_candidate_set=candidate_df,
         s3_integerised_counts=counts_df,
         s6_membership=membership_df,
-        nb_final_events=nb_final_df,
-        sequence_finalize_events=sequence_df,
+        nb_final_events=rng_event_frames.get(c.EVENT_FAMILY_NB_FINAL),
+        sequence_finalize_events=rng_event_frames.get(c.EVENT_FAMILY_SEQUENCE_FINALIZE),
+        rng_audit_log=audit_df if audit_df is not None else pd.DataFrame(),
+        rng_trace_log=trace_df if trace_df is not None else pd.DataFrame(),
+        rng_events=MappingProxyType(rng_event_frames),
     )
 
     upstream_manifest = _load_upstream_manifest(
@@ -121,13 +139,15 @@ def load_deterministic_context(
     source_paths = {
         c.DATASET_OUTLET_CATALOGUE: outlet_files,
         c.DATASET_S3_CANDIDATE_SET: candidate_files,
-        c.EVENT_FAMILY_NB_FINAL: nb_final_files,
-        c.EVENT_FAMILY_SEQUENCE_FINALIZE: sequence_files,
     }
     if counts_files:
         source_paths[c.DATASET_S3_INTEGERISED_COUNTS] = counts_files
     if membership_files:
         source_paths[c.DATASET_S6_MEMBERSHIP] = membership_files
+    source_paths[c.AUDIT_LOG_ID] = audit_files
+    source_paths[c.TRACE_LOG_ID] = trace_files
+    for dataset_id, files in rng_event_paths.items():
+        source_paths[dataset_id] = files
 
     return S9DeterministicContext(
         base_path=base_path,

@@ -1,36 +1,42 @@
-minimum_pre_commit_version: "3.7.0"
+minimum_pre_commit_version: 3.7.0
 default_language_version:
   python: python3.11
 
-default_stages: [pre-commit]
+default_stages:
+  - pre-commit
 
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.11.10
     hooks:
       - id: ruff
-        args: ["--fix", "--exit-non-zero-on-fix"]
-        files: "^packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/|^tests/engine/l1/seg_1A/"
+        args:
+          - '--fix'
+          - '--exit-non-zero-on-fix'
+        files: ^packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/|^tests/engine/l1/seg_1A/
       - id: ruff-format
-        files: "^packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/|^tests/engine/l1/seg_1A/"
+        files: ^packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/|^tests/engine/l1/seg_1A/
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: check-merge-conflict
       - id: check-yaml
-        files: "^packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/.*\\.(ya?ml)$"
+        files: ^packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/.*\.(ya?ml)$
       - id: end-of-file-fixer
-        files: "^packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/"
+        files: ^packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/
       - id: trailing-whitespace
-        files: "^packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/"
+        files: ^packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/
 
   - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
     rev: v2.14.0
     hooks:
       - id: pretty-format-yaml
-        args: ["--autofix", "--indent", "2"]
-        files: "^packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/.*\\.(ya?ml)$"
+        args:
+          - '--autofix'
+          - '--indent'
+          - '2'
+        files: ^packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/.*\.(ya?ml)$
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.15.0
@@ -38,23 +44,27 @@ repos:
       - id: mypy
         name: mypy (manual)
         args:
-          - "--config-file"
-          - "mypy.ini"
-          - "--install-types"
-          - "--non-interactive"
+          - '--config-file'
+          - mypy.ini
+          - '--install-types'
+          - '--non-interactive'
         additional_dependencies:
           - types-requests
           - types-PyYAML
-        files: "^packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/.*\\.py$"
-        stages: [manual]
+        files: ^packages/engine/src/engine/layers/l1/seg_1A/s0_foundations/.*\.py$
+        stages:
+          - manual
 
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.27.2
     hooks:
       - id: gitleaks
         name: gitleaks (pre-push)
-        args: ["--config", "gitleaks.toml"]
-        stages: [pre-push]
+        args:
+          - '--config'
+          - gitleaks.toml
+        stages:
+          - pre-push
 
   - repo: local
     hooks:
@@ -63,4 +73,5 @@ repos:
         entry: python -m pytest tests/engine/layers/l1/seg_1A
         language: system
         pass_filenames: false
-        stages: [pre-commit]
+        stages:
+          - pre-commit
