@@ -41,7 +41,7 @@ This document is compatible with and assumes:
 
 ## 0.5 Non-functional envelope pointers *(Binding)*
 
-This document binds **performance and operational** constraints in §11 and makes their **acceptance tests** part of validity in §8.5. Implementations that satisfy shape but violate the §11 envelope **fail** S1.
+This document binds **performance and operational** constraints in §11 and makes their **acceptance tests** part of validity in §8.9. Implementations that satisfy shape but violate the §11 envelope **fail** S1.
 
 ## 0.6 Change control & semver for this document *(Binding)*
 
@@ -81,7 +81,7 @@ S1 is “valid & done” when **all** of the following hold:
 * **Determinism & idempotence:** for the same sealed inputs and `parameter_hash`, reruns are **byte-identical**.
 * **Integrity:** `(country_iso, tile_id)` is unique; `country_iso` **MUST** exist in the ISO surface; coordinates are within legal bounds; `pixel_area_m2` is strictly positive; per-country row counts equal the eligibility predicate’s result (see §8).
 * **Prohibitions respected:** no reads of 1A egress; no stochastic behaviour; no writes outside the declared partitions (see §6, §7).
-* **Operational envelope:** the performance, memory and I/O thresholds defined in §11 are met; corresponding **Performance Acceptance Tests** in §8.5 pass.
+* **Operational envelope:** the performance, memory and I/O thresholds defined in §11 are met; corresponding **Performance Acceptance Tests** in §8.9 pass.
 
 ---
 
@@ -690,7 +690,7 @@ Validators execute the following using the artefacts in §9:
 
 ## E004_BOUNDS — Coordinate bounds violated *(ABORT)*
 
-* **Trigger (MUST):** `centroid_lon ∉ [−180,+180]` or `centroid_lat ∉ [−90,+90]` (if columns present), or derived centroids (from raster geotransform) differ beyond numeric tolerance.
+* **Trigger (MUST):** `centroid_lon ∉ [−180,+180]` or `centroid_lat ∉ [−90,+90]`, or derived centroids (from raster geotransform) differ beyond numeric tolerance.
 * **Detection:** Bounds check and tolerance comparison during validation.
 * **Evidence:** Failure event with `code=E004_BOUNDS`, include offending values.
 * **Authority refs:** `tile_index` shape authority + S1 normative bounds; output owned by `schemas.1B.yaml#/prep/tile_index`. 
@@ -704,7 +704,7 @@ Validators execute the following using the artefacts in §9:
 
 ## E006_AREA_NONPOS — Non-positive cell area *(ABORT)*
 
-* **Trigger (MUST):** `pixel_area_m2 ≤ 0` (if column present) or validator’s ellipsoidal area computation yields non-positive area for a reported cell.
+* **Trigger (MUST):** `pixel_area_m2 ≤ 0` or validator’s ellipsoidal area computation yields non-positive area for a reported cell.
 * **Detection:** Check per-row; ellipsoidal method on WGS84.
 * **Evidence:** Failure event with `code=E006_AREA_NONPOS`.
 * **Authority refs:** `tile_index` shape authority (columns future-compatible) + ingress surfaces for geometry.  
@@ -1020,8 +1020,7 @@ FROM tile_index t
 WHERE :predicate = 'center'
   AND NOT centroid_in_polygon(t.centroid_lon, t.centroid_lat,
                               world_countries[country_iso]);
--- Expect: no rows when centroid columns are present;
--- otherwise derive centroids from raster geotransform.
+-- Expect: no rows.
 ```
 
 
@@ -1033,7 +1032,7 @@ SELECT *
 FROM tile_index
 WHERE centroid_lon NOT BETWEEN -180 AND 180
    OR centroid_lat NOT BETWEEN -90 AND 90
-   OR pixel_area_m2 <= 0;   -- if column present
+   OR pixel_area_m2 <= 0;
 -- Expect: no rows.  ─ WGS84 bounds; ellipsoidal area > 0
 ```
 
@@ -1097,9 +1096,9 @@ S0’s validator gate hashes the 1A validation bundle in **ASCII-lex** `index.pa
 
 ---
 
-# Appendix C — PAT datasets & measurement recipe *(Informative; references §11/§8.5)*
+# Appendix C — PAT datasets & measurement recipe *(Informative; references §11/§8.9)*
 
-> This appendix tells you **what to run** and **how to measure** to execute the Performance Acceptance Tests (PAT) defined in §11, and how to package evidence required in §8.5/§9. It references only sealed inputs and authorities already pinned in the Dictionary/Registry and Schema.
+> This appendix tells you **what to run** and **how to measure** to execute the Performance Acceptance Tests (PAT) defined in §11, and how to package evidence required in §8.10/§9. It references only sealed inputs and authorities already pinned in the Dictionary/Registry and Schema.
 
 ---
 
