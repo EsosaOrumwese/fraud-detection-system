@@ -66,7 +66,7 @@ On ratification, **record**: `semver`, `effective_date`, `ratified_by`, git comm
 
 ## 0.6 Cross-references (anchors S0 relies on)
 
-* **Validation bundle & flag rule (1A):** folder shape, `index.json` schema, and `_passed.flag` hashing (ASCII-lex order over indexed files; SHA-256). **Consumers must verify before reads**.  
+* **Validation bundle & flag rule (1A):** folder shape, `index.json` schema, and `_passed.flag` hashing (ASCII-lex order over indexed files; SHA-256) — **anchor:** `schemas.1A.yaml#/validation/validation_bundle`. **Consumers must verify before reads**.  
 * **Dictionary contract (1A):** `outlet_catalogue` is `[seed,fingerprint]`-partitioned, **order-free**, and **gated by** `_passed.flag`. 
 
 ---
@@ -479,7 +479,7 @@ data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
 and, inside it, the files required to verify the consumer gate:
 
 * `index.json` (bundle index; every non-flag file appears **exactly once** with a **relative** `path`; `artifact_id` unique; ASCII-lex sortable),
-* all files listed in `index.json` (minimum set includes `MANIFEST.json`, `parameter_hash_resolved.json`, `manifest_fingerprint_resolved.json`, `rng_accounting.json`, `s9_summary.json`, `egress_checksums.json`),
+* all files listed in `index.json` (minimum set includes `MANIFEST.json`, `parameter_hash_resolved.json`, `manifest_fingerprint_resolved.json`, `rng_accounting.json`, `s9_summary.json`, `egress_checksums.json`) — **as defined by** `schemas.1A.yaml#/validation/validation_bundle`,
 * `_passed.flag` (single line: `sha256_hex = <hex64>`).
   S0 uses these to recompute the ASCII-lex concatenation hash and compare with `_passed.flag`.    
 
