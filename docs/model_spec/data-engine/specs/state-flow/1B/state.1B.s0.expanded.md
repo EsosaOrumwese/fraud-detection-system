@@ -93,7 +93,7 @@ Finally, S0 **records lineage constraints** that 1B must preserve: whenever line
 * **Gate verification:** locate `…/validation/fingerprint={manifest_fingerprint}/`, recompute the bundle hash over all files listed in `index.json` (ASCII-lex order), compare to `_passed.flag`, and decide PASS/ABORT for this fingerprint.  
 * **Authority sealing:** enumerate and freeze the exact upstreams 1B is allowed to read after the gate (at minimum: 1A `outlet_catalogue`; plus shared reference surfaces declared in ingress/layer schemas). 
 * **Lineage discipline:** enforce path↔embed equality on any S0 side-effects (e.g., a fingerprint-scoped gate receipt, if emitted) and restate partitions law for downstream states. 
-* **Idempotence & audit:** the outcome and any S0 receipt (if used) **MUST be byte-identical** for the same `{seed,fingerprint}` and **MUST NOT** allow partial visibility of validation contents (S9 atomic publish rule). 
+* **Idempotence & audit:** the outcome and any S0 receipt (if used) **MUST be byte-identical** for the same `{fingerprint}` and **MUST NOT** allow partial visibility of validation contents (S9 atomic publish rule).
 
 ## 1.3 Non-goals (out of scope for S0)
 
@@ -711,7 +711,7 @@ S0’s ops contract is minimal and deterministic: **verify gate → (optionally)
 
 ## 10.3 Idempotence & skip-if-final
 
-* Re-running S0 for the same `{fingerprint, seed, parameter_hash}` **MUST** yield a **byte-identical** `s0_gate_receipt_1B` or be a no-op. Publishing to an existing identity must be byte-identical or skipped.  
+* Re-running S0 for the same `{fingerprint}` **MUST** yield a **byte-identical** `s0_gate_receipt_1B` or be a no-op. Publishing to an existing identity must be byte-identical or skipped.
 
 ## 10.4 Read discipline & access patterns
 
@@ -838,7 +838,7 @@ S0’s observability is **evidence-driven** and minimal: it proves the 1A gate a
 
 * **`s0_gate_receipt_1B` (fingerprint-scoped)** — written only on PASS; embeds `manifest_fingerprint` equal to the `fingerprint` path token and records the **exact validation folder** verified plus the **flag hash** and **sealed inputs** S0 authorises for 1B (e.g., `outlet_catalogue`, S3 order surface, and FK/geo references). *(Partition and equality law fixed elsewhere; path string is owned by the Dictionary.)*
   **MUST include at minimum:**
-  `manifest_fingerprint`, `seed`, `parameter_hash`, `validation_bundle_path`, `flag_sha256_hex`, `verified_at_utc`, `sealed_inputs[]`.
+  `manifest_fingerprint`, `validation_bundle_path`, `flag_sha256_hex`, `verified_at_utc`, `sealed_inputs[]`.
   (Receipt is immutable; re-publishing the same identity must be **byte-identical**.)  
 
 ---
