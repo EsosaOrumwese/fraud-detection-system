@@ -450,14 +450,27 @@ class S5CurrencyWeightsRunner:
     ) -> Dict[str, int]:
         rng_root = (base_path / "rng_logs").resolve()
         totals: Dict[str, int] = {"events_total": 0, "draws_total": 0, "blocks_total": 0}
-        trace_file = (
+        trace_dir = (
             rng_root
             / "trace"
             / f"seed={deterministic.seed}"
             / f"parameter_hash={deterministic.parameter_hash}"
             / f"run_id={deterministic.run_id}"
-            / "rng_trace_log.jsonl"
         )
+        trace_file = trace_dir / "rng_trace_log.jsonl"
+        summary_file = trace_dir / "rng_totals.json"
+        try:
+            if summary_file.exists():
+                summary_data = json.loads(summary_file.read_text(encoding="utf-8"))
+                if isinstance(summary_data, Mapping):
+                    return {
+                        "events_total": int(summary_data.get("events_total", 0) or 0),
+                        "draws_total": int(summary_data.get("draws_total", 0) or 0),
+                        "blocks_total": int(summary_data.get("blocks_total", 0) or 0),
+                    }
+        except (OSError, json.JSONDecodeError, ValueError, TypeError):
+            pass
+
         block_totals: Dict[Tuple[str | None, str | None], int] = {}
         if trace_file.exists():
             with trace_file.open("r", encoding="utf-8") as handle:
@@ -494,6 +507,19 @@ class S5CurrencyWeightsRunner:
                     continue
             totals["events_total"] = events_total
             totals["draws_total"] = draws_total
+        summary_payload = {
+            "seed": deterministic.seed,
+            "parameter_hash": deterministic.parameter_hash,
+            "run_id": deterministic.run_id,
+            "events_total": totals["events_total"],
+            "draws_total": totals["draws_total"],
+            "blocks_total": totals["blocks_total"],
+        }
+        try:
+            summary_file.parent.mkdir(parents=True, exist_ok=True)
+            summary_file.write_text(json.dumps(summary_payload, sort_keys=True), encoding="utf-8")
+        except OSError:
+            pass
         return totals
 
     def _log_stage(

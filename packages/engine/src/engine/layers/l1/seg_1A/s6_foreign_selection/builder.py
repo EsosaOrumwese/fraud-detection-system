@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from typing import Callable, Iterable, Sequence
+from typing import Callable, Iterable, Iterator, Sequence
 
 from .policy import SelectionOverrides, SelectionPolicy
 from .types import (
@@ -14,6 +14,7 @@ from .types import (
 )
 
 UniformProvider = Callable[[int, str, int], float]
+MerchantBeginHook = Callable[[MerchantSelectionInput], None]
 
 
 def select_foreign_set(
@@ -24,15 +25,32 @@ def select_foreign_set(
 ) -> Sequence[MerchantSelectionResult]:
     """Run the S6 selection algorithm for the provided merchants."""
 
-    results: list[MerchantSelectionResult] = []
+    return tuple(
+        iter_select_foreign_set(
+            policy=policy,
+            merchants=merchants,
+            uniform_provider=uniform_provider,
+        )
+    )
+
+
+def iter_select_foreign_set(
+    *,
+    policy: SelectionPolicy,
+    merchants: Iterable[MerchantSelectionInput],
+    uniform_provider: UniformProvider,
+    on_merchant_begin: MerchantBeginHook | None = None,
+) -> Iterator[MerchantSelectionResult]:
+    """Yield S6 selection results merchant by merchant."""
+
     for merchant in merchants:
-        result = _select_for_merchant(
+        if on_merchant_begin is not None:
+            on_merchant_begin(merchant)
+        yield _select_for_merchant(
             merchant=merchant,
             overrides=policy.resolve_for_currency(merchant.settlement_currency),
             uniform_provider=uniform_provider,
         )
-        results.append(result)
-    return results
 
 
 def _select_for_merchant(
@@ -258,4 +276,5 @@ def _select_top_k(
 __all__ = [
     "UniformProvider",
     "select_foreign_set",
+    "iter_select_foreign_set",
 ]

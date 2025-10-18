@@ -7,12 +7,13 @@ import json
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, Mapping, Sequence, Tuple
+from typing import Dict, Iterable, Mapping, Optional, Sequence, Tuple
 
+from ..s0_foundations.exceptions import err
 from ..s0_foundations.l1.rng import PhiloxEngine, PhiloxState, comp_iso, comp_u64
 from ..shared.dictionary import load_dictionary, resolve_dataset_path
 from . import constants as c
-from .builder import select_foreign_set
+from .builder import iter_select_foreign_set
 from .contexts import S6DeterministicContext
 from .loader import load_deterministic_context
 from .persist import write_membership, write_receipt
@@ -102,12 +103,30 @@ class S6Runner:
             run_id=deterministic.run_id,
         )
 
-        event_cache: Dict[Tuple[int, str, int], _EventRecord] = {}
+        active_merchant_id: Optional[int] = None
+        current_events: Dict[Tuple[str, int], _EventRecord] = {}
+
+        def _on_merchant_begin(merchant: object) -> None:
+            nonlocal active_merchant_id, current_events
+            # Merchants are processed sequentially; reset the buffer so the
+            # uniform provider only retains events for the active merchant.
+            if current_events:
+                current_events.clear()
+            active_merchant_id = getattr(merchant, "merchant_id", None)
 
         def uniform_provider(
             merchant_id: int, country_iso: str, candidate_rank: int
         ) -> float:
             upper_iso = country_iso.upper()
+            nonlocal active_merchant_id
+            if active_merchant_id is None:
+                active_merchant_id = merchant_id
+            elif merchant_id != active_merchant_id:
+                raise err(
+                    "E_RNG_COUNTER",
+                    "uniform provider invoked out of order for merchant "
+                    f"{merchant_id} (active={active_merchant_id})",
+                )
             substream = engine.derive_substream(
                 c.SUBSTREAM_LABEL_GUMBEL,
                 (
@@ -118,7 +137,7 @@ class S6Runner:
             before = substream.snapshot()
             value = substream.uniform()
             after = substream.snapshot()
-            event_cache[(merchant_id, upper_iso, candidate_rank)] = _EventRecord(
+            current_events[(upper_iso, candidate_rank)] = _EventRecord(
                 before=before,
                 after=after,
                 blocks=substream.blocks,
@@ -126,20 +145,24 @@ class S6Runner:
             )
             return value
 
-        results = select_foreign_set(
+        events_by_merchant: Dict[int, int] = {}
+        collected_results: list[MerchantSelectionResult] = []
+        for result in iter_select_foreign_set(
             policy=policy,
             merchants=deterministic.merchants,
             uniform_provider=uniform_provider,
-        )
-
-        events_by_merchant: Dict[int, int] = {}
-        if results:
-            events_by_merchant = self._log_events(
+            on_merchant_begin=_on_merchant_begin,
+        ):
+            collected_results.append(result)
+            events_count = self._log_events_for_result(
                 writer=writer,
-                results=results,
-                event_cache=event_cache,
+                result=result,
+                event_records=current_events,
                 log_all_candidates=policy.log_all_candidates,
             )
+            events_by_merchant[result.merchant_id] = events_count
+            current_events.clear()
+        results: Tuple[MerchantSelectionResult, ...] = tuple(collected_results)
         events_written = sum(events_by_merchant.values())
 
         membership_path = self._maybe_write_membership(
@@ -221,39 +244,42 @@ class S6Runner:
     # ------------------------------------------------------------------ #
     # Helpers
 
-    def _log_events(
+    def _log_events_for_result(
         self,
         *,
         writer: GumbelEventWriter,
-        results: Sequence[MerchantSelectionResult],
-        event_cache: Mapping[Tuple[int, str, int], _EventRecord],
+        result: MerchantSelectionResult,
+        event_records: Mapping[Tuple[str, int], _EventRecord],
         log_all_candidates: bool,
-    ) -> Dict[int, int]:
-        per_merchant: Dict[int, int] = {}
-        for result in results:
-            for candidate in result.candidates:
-                cache_key = (result.merchant_id, candidate.country_iso, candidate.candidate_rank)
-                record = event_cache.get(cache_key)
-                if record is None:
-                    continue
-                should_log = log_all_candidates or candidate.selected
-                if not should_log:
-                    continue
-                writer.write_gumbel_event(
-                    counter_before=record.before,
-                    counter_after=record.after,
-                    blocks_used=record.blocks,
-                    draws_used=record.draws,
-                    merchant_id=result.merchant_id,
-                    country_iso=candidate.country_iso,
-                    weight=candidate.weight_normalised,
-                    uniform=candidate.uniform,
-                    key=candidate.key,
-                    selected=candidate.selected,
-                    selection_order=candidate.selection_order,
-                )
-                per_merchant[result.merchant_id] = per_merchant.get(result.merchant_id, 0) + 1
-        return per_merchant
+    ) -> int:
+        events_written = 0
+        for candidate in result.candidates:
+            cache_key = (candidate.country_iso.upper(), candidate.candidate_rank)
+            record = event_records.get(cache_key)
+            if record is None:
+                continue
+            should_log = log_all_candidates or candidate.selected
+            try:
+                event_records.pop(cache_key, None)  # type: ignore[attr-defined]
+            except AttributeError:
+                pass
+            if not should_log:
+                continue
+            writer.write_gumbel_event(
+                counter_before=record.before,
+                counter_after=record.after,
+                blocks_used=record.blocks,
+                draws_used=record.draws,
+                merchant_id=result.merchant_id,
+                country_iso=candidate.country_iso,
+                weight=candidate.weight_normalised,
+                uniform=candidate.uniform,
+                key=candidate.key,
+                selected=candidate.selected,
+                selection_order=candidate.selection_order,
+            )
+            events_written += 1
+        return events_written
 
     def _expected_events(
         self,

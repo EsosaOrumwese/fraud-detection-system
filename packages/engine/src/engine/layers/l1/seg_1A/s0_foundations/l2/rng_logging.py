@@ -44,6 +44,19 @@ class RNGLogWriter:
         self._ensure_dir(self._events_root)
         self._ensure_dir(self._trace_root)
         self._trace_totals: MutableMapping[tuple[str, str], int] = {}
+        self._summary_path = (self._trace_root / self._seed_path / "rng_totals.json").resolve()
+        self._events_total = 0
+        self._draws_total = 0
+        self._blocks_total = 0
+        if self._summary_path.exists():
+            try:
+                summary = json.loads(self._summary_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                summary = None
+            if isinstance(summary, Mapping):
+                self._events_total = int(summary.get("events_total", 0) or 0)
+                self._draws_total = int(summary.get("draws_total", 0) or 0)
+                self._blocks_total = int(summary.get("blocks_total", 0) or 0)
 
     def log_event(
         self,
@@ -86,6 +99,9 @@ class RNGLogWriter:
             "run_id": self.run_id,
         }
         self._append_jsonl(event_file, record)
+        self._events_total = min(self._events_total + 1, 2**64 - 1)
+        self._draws_total = min(self._draws_total + max(0, int(draws)), 2**64 - 1)
+        self._blocks_total = min(self._blocks_total + max(0, int(blocks)), 2**64 - 1)
 
         key = (module, substream_label)
         total_blocks = self._trace_totals.get(key, 0) + blocks
@@ -103,6 +119,7 @@ class RNGLogWriter:
             "parameter_hash": self.parameter_hash,
         }
         self._append_jsonl(trace_file, trace_record)
+        self._write_summary()
 
     @property
     def _seed_path(self) -> Path:
@@ -121,6 +138,20 @@ class RNGLogWriter:
         with path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(record, sort_keys=True))
             handle.write("\n")
+
+    def _write_summary(self) -> None:
+        self._ensure_dir(self._summary_path.parent)
+        summary = {
+            "seed": self.seed,
+            "parameter_hash": self.parameter_hash,
+            "manifest_fingerprint": self.manifest_fingerprint,
+            "run_id": self.run_id,
+            "events_total": self._events_total,
+            "draws_total": self._draws_total,
+            "blocks_total": self._blocks_total,
+        }
+        with self._summary_path.open("w", encoding="utf-8") as handle:
+            json.dump(summary, handle, sort_keys=True)
 
 
 @contextmanager
