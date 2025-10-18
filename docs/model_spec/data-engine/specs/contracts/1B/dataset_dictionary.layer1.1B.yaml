@@ -1,7 +1,7 @@
 version: '1.0'
 
 lifecycle:
-  phase: planning
+  phase: alpha
   last_reviewed:
   approver:
 
@@ -57,7 +57,7 @@ reference_data:
   owner_subsegment: ingress
   description: Population raster (COG) used as spatial prior in 1B.
   version: '2025'
-  format: tif
+  format: cog_geotiff
   path: reference/spatial/population/2025/population.tif
   partitioning: []
   ordering: []
@@ -87,6 +87,25 @@ reference_data:
   retention_days: 1095
   pii: false
   licence: ODbL-1.0
+
+# (Optional, read-only discoverability; resolves via Dictionary as well as Registry)
+- id: validation_bundle_1A
+  status: approved
+  owner_subsegment: 1A
+  description: 1A validator outputs for the fingerprint (basis of consumer gate for outlet_catalogue).
+  version: '{manifest_fingerprint}'
+  format: directory
+  path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.1A.yaml#/validation/validation_bundle
+  lineage:
+    produced_by: 1A.S9
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
 
 # ── Internally generated datasets (1B) ───────────────────────────────────
 datasets:

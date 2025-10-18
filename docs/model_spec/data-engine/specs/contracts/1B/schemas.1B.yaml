@@ -22,15 +22,13 @@ $defs:
 validation:
   s0_gate_receipt:
     type: table
-    description: 'Receipt proving 1A PASS for this fingerprint; authorises 1B to read outlet_catalogue.'
+    description: 'Receipt proving 1A PASS for this fingerprint; authorises 1B to read outlet_catalogue. Fingerprint-only identity.'
     primary_key: [manifest_fingerprint]
     partition_keys: [manifest_fingerprint]
     sort_keys: []
     columns:
-      - {name: manifest_fingerprint, type: string, nullable: false, description: 'Lineage fingerprint (egress partition key also stored per-row).', pattern: '^[a-f0-9]{64}$'}
-      - {name: seed, $ref: '#/$defs/uint64', nullable: false, description: 'Master Philox seed for 1B run.'}
-      - {name: parameter_hash, type: string, nullable: false, description: 'Parameter-set hash of 1B run.', pattern: '^[a-f0-9]{64}$'}
-      - {name: validation_bundle_path, type: string, nullable: false, description: 'Resolved folder of 1A validation bundle for this fingerprint.'}
+      - {name: manifest_fingerprint, type: string, nullable: false, description: 'Lineage fingerprint (MUST byte-equal the `fingerprint` path token).', pattern: '^[a-f0-9]{64}$'}
+      - {name: validation_bundle_path, type: string, nullable: false, description: 'Resolved folder of 1A validation bundle for this fingerprint (must include `fingerprint=<hex64>`).', pattern: '^data/layer1/1A/validation/fingerprint=[a-f0-9]{64}/?$'}
       - {name: flag_sha256_hex, type: string, nullable: false, description: 'Value read from _passed.flag after recomputation.', pattern: '^[a-f0-9]{64}$'}
       - {name: verified_at_utc, $ref: '#/$defs/rfc3339_micros', nullable: false, description: 'Verification timestamp (observational).'}
       - name: sealed_inputs

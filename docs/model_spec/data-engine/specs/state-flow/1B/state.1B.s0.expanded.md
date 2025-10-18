@@ -550,9 +550,7 @@ S0 produces **one** artefact on **PASS** and **nothing** on **ABORT**. It **cons
 
 **Required fields (non-exhaustive, Binding):**
 
-* `manifest_fingerprint : hex64` — **MUST** byte-equal the `fingerprint` path token. 
-* `seed : uint64` — 1B run seed (for audit linkage; S0 does not consume RNG).
-* `parameter_hash : hex64` — 1B parameter scope (for downstream joins to parameter-scoped refs).
+* `manifest_fingerprint : hex64` — **MUST** byte-equal the `fingerprint` path token.
 * `validation_bundle_path : string` — resolved folder for `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/`. 
 * `flag_sha256_hex : hex64` — the exact hex read from `_passed.flag` after recomputation. 
 * `verified_at_utc : RFC-3339 (microseconds)` — observational timestamp (non-semantic).
@@ -564,7 +562,7 @@ S0 produces **one** artefact on **PASS** and **nothing** on **ABORT**. It **cons
   * `{ id:"tz_world_2025a", "schema_ref":"schemas.ingress.layer1.yaml#/tz_world_2025a" }` (FK/geo surfaces declared consumable by 1B; Dictionary will encode their schema refs).
 * `notes : string` — optional free-form, non-semantic.
 
-**Cardinality.** Exactly **one** receipt per `{manifest_fingerprint}` PASS. Re-runs for the same `{fingerprint, seed, parameter_hash}` **MUST** be byte-identical. 
+**Cardinality.** Exactly **one** receipt per `{manifest_fingerprint}` PASS. Re-runs for the same `{fingerprint}` **MUST** be byte-identical. 
 
 ---
 
@@ -1200,8 +1198,6 @@ Rows ordered by `(merchant_id, candidate_rank, country_iso)`; **home has `candid
 ```json
 {
   "manifest_fingerprint": "<hex64>",   // MUST equal the fingerprint path token
-  "seed": 18446744073709551615,
-  "parameter_hash": "<hex64>",
   "validation_bundle_path": "data/layer1/1A/validation/fingerprint=<hex64>/",
   "flag_sha256_hex": "<hex64>",
   "verified_at_utc": "2025-10-16T05:12:34.123456Z",

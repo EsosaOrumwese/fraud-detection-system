@@ -35,12 +35,12 @@ subsegments:
     role: Validator outputs for 1A (basis of consumer gate for outlet_catalogue).
     dependencies: [outlet_catalogue]
     source: internal
-    owner: {qa_team: "mlr-1a-validation"}
+    owner: {owner_team: "mlr-1a-validation"}
     last_updated: '{iso8601_timestamp}'
     environment: [ci, runtime]
-    schema:
+    schema: schemas.1A.yaml#/validation/validation_bundle
     cross_layer: true
-    notes: 'S0 computes SHA256 over ASCII-lex index to verify _passed.flag.'
+    notes: 'S0 computes SHA-256 over ASCII-lex index (bundle index) to verify _passed.flag. Retention per Dictionary.'
 
   - name: validation_passed_flag
     path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
@@ -54,12 +54,12 @@ subsegments:
     role: Boolean hash gate for 1A bundle; S0 must verify before any read of outlet_catalogue.
     dependencies: [validation_bundle_1A]
     source: internal
-    owner: {qa_team: "mlr-1a-validation"}
+    owner: {owner_team: "mlr-1a-validation"}
     last_updated: '{iso8601_timestamp}'
     environment: [ci, runtime]
     schema:
     cross_layer: true
-    notes: 'ASCII-lex over index.path; _passed.flag equals SHA256(concat(bytes(files in ASCII-lex index order))).'
+    notes: 'Content is a single line: "sha256_hex = <hex64>". Digest equals SHA-256 of the bundle = concat(raw bytes of all files listed in index.json in ASCII-lex path order), excluding the flag itself.'
 
   - name: outlet_catalogue
     path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
@@ -88,7 +88,7 @@ subsegments:
     version: '{parameter_hash}'
     digest: '{sha256}'
     manifest_key: mlr.1A.s3.candidate_set
-    license: '{spdx_or_internal}'
+    license: 'Proprietary-Internal'
     role: Deterministic ordered candidate set; sole inter-country order authority used by 1B consumers via join.
     dependencies: []
     source: internal
