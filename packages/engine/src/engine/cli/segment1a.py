@@ -35,6 +35,12 @@ def _normalise_paths(values: List[str]) -> List[Path]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    if not logging.getLogger().handlers:
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        )
+
     parser = argparse.ArgumentParser(
         description="Run Segment 1A states S0–S7 over prepared artefacts.",
     )
