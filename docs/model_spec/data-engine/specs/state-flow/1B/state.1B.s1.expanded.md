@@ -107,9 +107,9 @@ S1 is “valid & done” when **all** of the following hold:
 
 When obligations appear to conflict, S1 SHALL apply this order:
 
-1. **JSON-Schema** (shape/domain/keys). 
-2. **Artefact Registry** (licence/provenance/identity of sealed inputs). 
-3. **Dataset Dictionary** (ID→path/partition/order law). 
+1. **JSON-Schema** (shape/domain/keys).
+2. **Dataset Dictionary** (ID→path/partition/order law).
+3. **Artefact Registry** (licence/provenance/identity of sealed inputs).
 4. **This state specification (S1)** (behavioural rules, prohibitions, validations).
 
 ## 2.4 Gate & order-authority boundaries (for coherence)

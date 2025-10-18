@@ -64,7 +64,7 @@ validation:
 prep:
   tile_index:
     type: table
-    description: 'Eligible raster cells per country (placeholder; not ratified here).'
+    description: 'Eligible raster cells per country.'
     primary_key: [country_iso, tile_id]
     partition_keys: [parameter_hash]
     sort_keys: [country_iso, tile_id]

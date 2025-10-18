@@ -127,7 +127,7 @@ datasets:
   pii: false
   licence: Proprietary-Internal
 
-# Planned 1B datasets (non-binding until their states are ratified)
+# Current 1B datasets (binding once their states are ratified; `tile_index` binds with S1)
 - id: tile_index
   status: approved
   owner_subsegment: 1B
