@@ -69,8 +69,8 @@ repos:
   - repo: local
     hooks:
       - id: pytest-seg-1a
-        name: pytest (Segment 1A S0-S8)
-        entry: python -m pytest tests/engine/layers/l1/seg_1A
+        name: pytest (Segment 1A suite)
+        entry: python -m pytest tests/contracts/test_seg_1A_dictionary_schemas.py tests/engine/cli/test_segment1a_cli.py tests/engine/l1/seg_1A tests/engine/layers/l1/seg_1A tests/engine/training
         language: system
         pass_filenames: false
         stages:
