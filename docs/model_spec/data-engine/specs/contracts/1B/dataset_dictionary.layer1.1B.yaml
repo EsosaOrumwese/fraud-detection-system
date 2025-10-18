@@ -147,7 +147,7 @@ datasets:
   licence: Proprietary-Internal
 
 - id: tile_weights
-  status: planning
+  status: approved
   owner_subsegment: 1B
   description: Deterministic fixed-dp weights per tile.
   version: '{parameter_hash}'

@@ -36,6 +36,14 @@ $defs:
     type: string
     enum: ["center","any_overlap"]
     description: Inclusion predicate used by S1 (see state spec §6.2).
+  dp_nonneg:
+    type: integer
+    minimum: 0
+    description: Non-negative decimal precision used for fixed-dp weights.
+  basis:
+    type: string
+    enum: ["uniform","area_m2","population"]
+    description: Weighting basis used by S2 (non-authoritative if included as a column).
 
 validation:
   s0_gate_receipt:
@@ -88,8 +96,14 @@ prep:
     primary_key: [country_iso, tile_id]
     partition_keys: [parameter_hash]
     sort_keys: [country_iso, tile_id]
-    columns: []
-
+    columns:
+      - { name: country_iso, type: string,  nullable: false, pattern: "^[A-Z]{2}$", description: "ISO 3166-1 alpha-2 (UPPERCASE)." }
+      - { name: tile_id,     $ref: "#/$defs/uint64", nullable: false, description: "Global raster cell id (row-major) as in tile_index." }
+      - { name: weight_fp,   type: integer, nullable: false, minimum: 0, description: "Fixed-decimal integer weight (per-country sum = 10^dp)." }
+      - { name: dp,          $ref: "#/$defs/dp_nonneg", nullable: false, description: "Decimal precision; K = 10^dp applies to the whole partition." }
+      # Optional self-descriptor (leave out if you prefer it only in the run report):
+      # - { name: basis, $ref: "#/$defs/basis", nullable: true,
+      #     description: "Weighting basis; non-authoritative (run report is source of truth)." }
 egress:
   site_locations:
     type: table

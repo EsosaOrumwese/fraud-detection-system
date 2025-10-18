@@ -193,3 +193,24 @@ subsegments:
     environment: [runtime]
     schema: schemas.1B.yaml#/prep/tile_index
     notes: 'Partition: parameter_hash={parameter_hash}; writer sort: [country_iso,tile_id].'
+
+  # ---- S2 output dataset ----
+  - name: tile_weights
+    path: data/layer1/1B/tile_weights/parameter_hash={parameter_hash}/
+    type: dataset
+    category: prep
+    semver: '{semver}'
+    version: '{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1B.s1.tile_index
+    license: Proprietary-Internal
+    role:
+    dependencies: [tile_index]
+    source: internal
+    owner: {owner_team: "mlr-1b-core"}
+    environment: [runtime]
+    schema: schemas.1B.yaml#/prep/tile_weights
+    notes: |
+      S2 output: deterministic fixed-decimal (fixed-dp) weights per eligible tile.
+      Depends on S1 `tile_index` for the same {parameter_hash}.
+      When basis="population", the implementation reads ingress `population_raster_2025` (read-only).
