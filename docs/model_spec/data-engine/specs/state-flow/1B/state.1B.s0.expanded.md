@@ -328,7 +328,7 @@ Before computing the hash in §4.2, S0 **MUST** validate these index invariants 
 
 ## 4.7 Optional hardening (recommended, not required to pass the gate)
 
-After a successful flag check, S0 **MAY** (advised for supply-chain integrity) re-hash advertised artefacts like `fingerprint_artifacts.jsonl` or `param_digest_log.jsonl` if present; failures should be treated as a **failed** gate. 
+After a successful flag check, S0 **MAY** (advised for supply-chain assurance) recompute the bundle hash from `index.json` (ASCII-lex over `index.path`; flag excluded) and optionally re-hash `fingerprint_artifacts.jsonl` / `param_digest_log.jsonl` if present. On mismatch, treat it as a **producer contract violation** and abort consumption; do **not** reinterpret or regenerate `_passed.flag` (the gate remains defined solely by the bundle hash).
 
 ---
 
@@ -558,7 +558,10 @@ S0 produces **one** artefact on **PASS** and **nothing** on **ABORT**. It **cons
 
   * `{ id:"outlet_catalogue", partition:["seed","fingerprint"], schema_ref:"schemas.1A.yaml#/egress/outlet_catalogue" }` (order-free egress; only readable after PASS).  
   * `{ id:"s3_candidate_set", partition:["parameter_hash"], schema_ref:"schemas.1A.yaml#/s3/candidate_set" }` (sole inter-country order authority; pinned for later joins).  
-  * `{ id:"iso3166_canonical_2024" }`, `{ id:"world_countries" }`, `{ id:"population_raster_2025" }` (FK/geo surfaces declared consumable by 1B; Dictionary will encode their schema refs). 
+  * `{ id:"iso3166_canonical_2024", "schema_ref":"schemas.ingress.layer1.yaml#/iso3166_canonical_2024" }`,
+    `{ id:"world_countries",        "schema_ref":"schemas.ingress.layer1.yaml#/world_countries" }`,
+    `{ id:"population_raster_2025","schema_ref":"schemas.ingress.layer1.yaml#/population_raster_2025" }`
+    (FK/geo surfaces declared consumable by 1B; Dictionary will encode these same anchors).  
   * `{ id:"tz_world_2025a", "schema_ref":"schemas.ingress.layer1.yaml#/tz_world_2025a" }` (FK/geo surfaces declared consumable by 1B; Dictionary will encode their schema refs).
 * `notes : string` — optional free-form, non-semantic.
 
