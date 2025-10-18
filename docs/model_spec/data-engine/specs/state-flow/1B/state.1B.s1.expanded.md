@@ -23,7 +23,18 @@ This specification defines the **behavioural contract** and **data contract** fo
   `schemas.ingress.layer1.yaml#/iso3166_canonical_2024` · `#/world_countries` · `#/population_raster_2025`
   JSON-Schema is the **sole** shape authority. Avro/Parquet encodings are non-authoritative.
 
-## 0.3 Compatibility window *(Binding)*
+## 0.3 Precedence chain (tie-break) *(Binding)*
+
+When obligations appear to conflict, S1 SHALL apply this order:
+
+1. **JSON-Schema** (shape/domains/keys).
+2. **Dataset Dictionary** (ID→`$ref`, paths, partitions, writer sort, licence/retention/PII text).
+3. **Artefact Registry** (licence/provenance and gate artefact bindings).
+4. **This S1 spec** (behavioural rules, prohibitions, validations) under (1)–(3).
+
+Schema outweighs Dictionary on shape; Dictionary outweighs any literal path; implementations **MUST NOT** hard-code paths (resolve via Dictionary). *(Same precedence model as S0.)*
+
+## 0.4 Compatibility window *(Binding)*
 
 This document is compatible with and assumes:
 
@@ -32,25 +43,25 @@ This document is compatible with and assumes:
 * **1B schema & dictionary:** `schemas.1B.yaml` and `dataset_dictionary.layer1.1B.yaml`.
   If any of the above advance in a way that changes `tile_id` definition, partition keys, or column set for `tile_index`, that is a **MAJOR** compatibility event for S1 (see §13).
 
-## 0.4 Identity, partitioning, and determinism posture *(Binding)*
+## 0.5 Identity, partitioning, and determinism posture *(Binding)*
 
 * **RNG usage:** **None** in S1.
 * **Determinism:** For a fixed set of sealed inputs and `parameter_hash`, S1 outputs are **byte-identical** across reruns.
 * **Partitioning:** `tile_index` partitions by `[parameter_hash]` with primary key `[country_iso, tile_id]` and stable sort `[country_iso, tile_id]`.
 * **Path↔embed:** If any embedded keys mirror path tokens, they **MUST** equal those tokens (explicit rules are stated where applicable in later sections).
 
-## 0.5 Non-functional envelope pointers *(Binding)*
+## 0.6 Non-functional envelope pointers *(Binding)*
 
 This document binds **performance and operational** constraints in §11 and makes their **acceptance tests** part of validity in §8.9. Implementations that satisfy shape but violate the §11 envelope **fail** S1.
 
-## 0.6 Change control & semver for this document *(Binding)*
+## 0.7 Change control & semver for this document *(Binding)*
 
 * **MAJOR**: changes to `tile_id` semantics or formula; default of `inclusion_rule`; partition keys; required columns; CRS or numeric policy that can alter results.
 * **MINOR**: addition of optional columns/metrics; tightening of validation bounds without changing valid results.
 * **PATCH**: editorial clarifications; non-binding examples; errata that do not change the contract.
   SemVer for this document advances only by these rules; state behaviour follows the highest-precedence authority per §2.
 
-## 0.7 Approvals and ratification *(Binding)*
+## 0.8 Approvals and ratification *(Binding)*
 
 * **To ratify Alpha:** all **Binding** sections complete; §7 dataset shape anchored; §8 validation and §11 performance thresholds populated; governance sign-off recorded here (name + date).
 * **To ratify Stable:** evidence of §8/§11 acceptance on reference inputs attached; no outstanding *Informative-only* gaps affecting behaviour.

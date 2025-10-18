@@ -28,6 +28,10 @@ $defs:
     minimum: -90
     maximum: 90
     description: Latitude in degrees (WGS84).
+  iso2:
+    type: string
+    pattern: '^[A-Z]{2}$'
+    description: ISO 3166-1 alpha-2 (uppercase).
   inclusion_rule:
     type: string
     enum: ["center","any_overlap"]
@@ -69,7 +73,7 @@ prep:
     partition_keys: [parameter_hash]
     sort_keys: [country_iso, tile_id]
     columns:
-      - {name: country_iso, type: string, nullable: false, description: 'ISO 3166-1 alpha-2 (UPPERCASE).', pattern: '^[A-Z]{2}$'}
+      - {name: country_iso, $ref: '#/$defs/iso2', nullable: false, description: 'ISO 3166-1 alpha-2 (UPPERCASE).'}
       - {name: tile_id, $ref: '#/$defs/uint64', nullable: false, description: 'Global cell id = raster_row*ncols + raster_col (row-major).'}
       - {name: raster_row, $ref: '#/$defs/uint64', nullable: false, description: 'Zero-based row index in population_raster_2025.'}
       - {name: raster_col, $ref: '#/$defs/uint64', nullable: false, description: 'Zero-based column index in population_raster_2025.'}
