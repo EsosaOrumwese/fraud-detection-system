@@ -444,6 +444,8 @@ class Segment1ARunResult:
     s7_context: S7StateContext
     s8_result: S8RunOutputs
     s8_context: S8StateContext
+    s9_result: S9RunOutputs
+    s9_context: S9StateContext
 class Segment1AOrchestrator:
     """Convenience wrapper that executes S0 foundations followed by S1 hurdle."""
     def __init__(self, *, schema_authority: SchemaAuthority | None = None) -> None:

@@ -1,6 +1,6 @@
 {
-  "": "https://json-schema.org/draft/2019-09/schema",
-  "": "contracts/schemas/l1/seg_1A/s6_membership.schema.json",
+  "$schema": "https://json-schema.org/draft/2019-09/schema",
+  "$id": "contracts/schemas/l1/seg_1A/s6_membership.schema.json",
   "title": "Layer 1 Segment 1A – State-6 Membership",
   "description": "Convenience membership surface emitted by S6 foreign-set selection (re-derivable authority).",
   "membership": {
