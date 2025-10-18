@@ -2,8 +2,8 @@ version: '1.0'
 
 lifecycle:
   phase: alpha
-  last_reviewed:
-  approver:
+  last_reviewed: 2025-10-18
+  approver: "Layer 1 Governance"
 
 ci_policy:
   allow_placeholders: true

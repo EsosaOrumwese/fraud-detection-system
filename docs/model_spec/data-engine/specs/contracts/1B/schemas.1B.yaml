@@ -27,9 +27,9 @@ validation:
     partition_keys: [manifest_fingerprint]
     sort_keys: []
     columns:
-      - {name: manifest_fingerprint, type: string, nullable: false, description: 'Lineage fingerprint (MUST byte-equal the `fingerprint` path token).', pattern: '^[a-f0-9]{64}$'}
+      - {name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false, description: 'Lineage fingerprint (MUST byte-equal the `fingerprint` path token).'}
       - {name: validation_bundle_path, type: string, nullable: false, description: 'Resolved folder of 1A validation bundle for this fingerprint (must include `fingerprint=<hex64>`).', pattern: '^data/layer1/1A/validation/fingerprint=[a-f0-9]{64}/?$'}
-      - {name: flag_sha256_hex, type: string, nullable: false, description: 'Value read from _passed.flag after recomputation.', pattern: '^[a-f0-9]{64}$'}
+      - {name: flag_sha256_hex, $ref: '#/$defs/hex64', nullable: false, description: 'Value read from _passed.flag after recomputation.'}
       - {name: verified_at_utc, $ref: '#/$defs/rfc3339_micros', nullable: false, description: 'Verification timestamp (observational).'}
       - name: sealed_inputs
         type: array
