@@ -129,7 +129,7 @@ datasets:
 
 # Planned 1B datasets (non-binding until their states are ratified)
 - id: tile_index
-  status: planning
+  status: approved
   owner_subsegment: 1B
   description: Eligible raster cells per country after clip.
   version: '{parameter_hash}'

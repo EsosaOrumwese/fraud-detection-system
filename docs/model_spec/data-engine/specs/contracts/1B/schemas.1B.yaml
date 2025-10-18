@@ -18,6 +18,20 @@ $defs:
     type: string
     pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z$
     description: RFC-3339 UTC timestamp with exactly 6 fractional digits.
+  lon:
+    type: number
+    minimum: -180
+    maximum: 180
+    description: Longitude in degrees (WGS84).
+  lat:
+    type: number
+    minimum: -90
+    maximum: 90
+    description: Latitude in degrees (WGS84).
+  inclusion_rule:
+    type: string
+    enum: ["center","any_overlap"]
+    description: Inclusion predicate used by S1 (see state spec §6.2).
 
 validation:
   s0_gate_receipt:
@@ -54,7 +68,15 @@ prep:
     primary_key: [country_iso, tile_id]
     partition_keys: [parameter_hash]
     sort_keys: [country_iso, tile_id]
-    columns: []
+    columns:
+      - {name: country_iso, type: string, nullable: false, description: 'ISO 3166-1 alpha-2 (UPPERCASE).', pattern: '^[A-Z]{2}$'}
+      - {name: tile_id, $ref: '#/$defs/uint64', nullable: false, description: 'Global cell id = raster_row*ncols + raster_col (row-major).'}
+      - {name: raster_row, $ref: '#/$defs/uint64', nullable: false, description: 'Zero-based row index in population_raster_2025.'}
+      - {name: raster_col, $ref: '#/$defs/uint64', nullable: false, description: 'Zero-based column index in population_raster_2025.'}
+      - {name: centroid_lon, $ref: '#/$defs/lon',  nullable: false, description: 'Cell-center longitude (WGS84).'}
+      - {name: centroid_lat, $ref: '#/$defs/lat',  nullable: false, description: 'Cell-center latitude (WGS84).'}
+      - {name: pixel_area_m2, type: number, nullable: false, description: 'Ellipsoidal cell area (WGS84).', exclusiveMinimum: 0}
+      - {name: inclusion_rule, $ref: '#/$defs/inclusion_rule', nullable: false, description: 'Predicate applied to decide eligibility.'}
 
   tile_weights:
     type: table
