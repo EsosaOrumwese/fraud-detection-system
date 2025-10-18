@@ -44,7 +44,9 @@ class RNGLogWriter:
         self._ensure_dir(self._events_root)
         self._ensure_dir(self._trace_root)
         self._trace_totals: MutableMapping[tuple[str, str], int] = {}
-        self._summary_path = (self._trace_root / self._seed_path / "rng_totals.json").resolve()
+        self._summary_path = (
+            self._trace_root / self._seed_path / "rng_totals.json"
+        ).resolve()
         self._events_total = 0
         self._draws_total = 0
         self._blocks_total = 0
