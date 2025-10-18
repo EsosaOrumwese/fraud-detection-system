@@ -53,7 +53,7 @@ This document binds **performance and operational** constraints in **§11** and 
 
 ## 0.7 Approvals & ratification *(Binding)*
 
-* **To ratify Alpha:** all **Binding** sections complete; §7 enumerates the `tile_weights` columns in the schema anchor; §8 acceptance and **§11 PAT** thresholds are populated; Dictionary entry for `tile_weights` is present with correct **path/partition/sort/licence/retention**; governance sign-off recorded here (name + date).
+* **To ratify Alpha:** all **Binding** sections complete; the `tile_weights` columns **are enumerated** in the schema anchor; §8 acceptance and **§11 PAT** thresholds are populated; Dictionary entry for `tile_weights` is present with correct **path/partition/sort/licence/retention**; governance sign-off recorded here (name + date).
 * **To ratify Stable:** evidence of §8/§11 acceptance on reference inputs is attached; no outstanding *Informative* gaps affecting behaviour.
 
 ---
@@ -415,7 +415,7 @@ Materialise `tile_weights` **only** under the Dictionary partition family with w
 
 * **ID:** `tile_weights`
 * **Schema (sole shape authority):** `schemas.1B.yaml#/prep/tile_weights`.
-  As of the current schema, this anchor **fixes keys only** — **PK** = `[country_iso, tile_id]`, **partition_keys** = `[parameter_hash]`, **sort_keys** = `[country_iso, tile_id]`; **column enumeration is pending ratification** for S2. 
+  As of the current schema, this anchor **fixes keys and required columns** — **PK** = `[country_iso, tile_id]`, **partition_keys** = `[parameter_hash]`, **sort_keys** = `[country_iso, tile_id]`, and required columns `country_iso`, `tile_id`, `weight_fp`, `dp`. 
 
 ## 7.2 Path, partitions, ordering & format (Dictionary law)
 
@@ -432,9 +432,9 @@ Materialise `tile_weights` **only** under the Dictionary partition family with w
 * **PII:** `false`
   Implementations **MUST NOT** override these values at write time. 
 
-## 7.4 Shape expectations to be encoded at ratification *(schema-owned)*
+## 7.4 Shape semantics *(schema-owned)*
 
-The schema will enumerate `tile_weights` columns **before S2 Alpha ratification** (see §0.7). The **names/types live in the schema**, but the following **semantics are binding** and will be reflected by those columns:
+The **names/types live in the schema**; the following **semantics are binding** and are reflected by those columns:
 
 * A **fixed-decimal integer** weight per row (the quantised result of §6.3), and the **scale exponent** `dp` used for that run.
 * PK columns `(country_iso, tile_id)` as per the schema keys above.
@@ -470,8 +470,7 @@ Consumers and validators **MUST** assert, at minimum:
 
 ## 8.1 Schema conformance (MUST)
 
-* The materialised dataset **MUST** conform to **`schemas.1B.yaml#/prep/tile_weights`** as published.
-  When the schema enumerates keys/columns, those are **binding** (PK/partition/sort; required fields). Until full column enumeration is ratified, validators treat §6/§7 as the operative behavioural/contract rules while still asserting the anchor exists. 
+* The materialised dataset **MUST** conform to **`schemas.1B.yaml#/prep/tile_weights`** as published, including **enumerated required columns** and keys (PK/partition/sort). Validators enforce the schema’s columns/keys as authoritative.
 
 ## 8.2 Dictionary/path law (MUST)
 
@@ -489,7 +488,7 @@ Consumers and validators **MUST** assert, at minimum:
 ## 8.4 Basis & `dp` disclosure (MUST)
 
 * The run **MUST** disclose `basis ∈ {"uniform","area_m2","population"}` and `dp ∈ ℕ₀` in the run report (§9). The **same `dp` value** applies to the entire partition.
-* If a `dp` column exists in `tile_weights` (post-ratification), it **MUST** equal the run-report `dp` for all rows.
+* A **`dp` column MUST exist in `tile_weights`** and **MUST** equal the run-report `dp` for **all** rows.
 
 ## 8.5 Normalisation & fixed-dp correctness (MUST)
 

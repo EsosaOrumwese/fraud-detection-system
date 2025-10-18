@@ -202,15 +202,16 @@ subsegments:
     semver: '{semver}'
     version: '{parameter_hash}'
     digest: '{sha256}'
-    manifest_key: mlr.1B.s1.tile_index
+    manifest_key: mlr.1B.s2.tile_weights
     license: Proprietary-Internal
-    role:
+    role: "Deterministic fixed-dp weights per eligible tile"
     dependencies: [tile_index]
     source: internal
     owner: {owner_team: "mlr-1b-core"}
     environment: [runtime]
     schema: schemas.1B.yaml#/prep/tile_weights
     notes: |
-      S2 output: deterministic fixed-decimal (fixed-dp) weights per eligible tile.
+      S2 output- deterministic fixed-decimal (fixed-dp) weights per eligible tile.
       Depends on S1 `tile_index` for the same {parameter_hash}.
+      Writer sort is [country_iso, tile_id]; write-once under parameter_hash.
       When basis="population", the implementation reads ingress `population_raster_2025` (read-only).

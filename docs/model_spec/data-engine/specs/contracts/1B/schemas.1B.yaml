@@ -97,7 +97,7 @@ prep:
     partition_keys: [parameter_hash]
     sort_keys: [country_iso, tile_id]
     columns:
-      - { name: country_iso, type: string,  nullable: false, pattern: "^[A-Z]{2}$", description: "ISO 3166-1 alpha-2 (UPPERCASE)." }
+      - { name: country_iso, $ref: "#/$defs/iso2", nullable: false, description: "ISO 3166-1 alpha-2 (UPPERCASE)." }
       - { name: tile_id,     $ref: "#/$defs/uint64", nullable: false, description: "Global raster cell id (row-major) as in tile_index." }
       - { name: weight_fp,   type: integer, nullable: false, minimum: 0, description: "Fixed-decimal integer weight (per-country sum = 10^dp)." }
       - { name: dp,          $ref: "#/$defs/dp_nonneg", nullable: false, description: "Decimal precision; K = 10^dp applies to the whole partition." }
