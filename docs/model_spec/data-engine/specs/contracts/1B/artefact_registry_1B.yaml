@@ -176,3 +176,20 @@ subsegments:
     schema: schemas.ingress.layer1.yaml#/tz_world_2025a
     cross_layer: true
     notes:
+
+  - name: tile_index
+    path: data/layer1/1B/tile_index/parameter_hash={parameter_hash}/
+    type: dataset
+    category: output
+    semver: '{semver}'
+    version: '{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1B.s1.tile_index
+    license: Proprietary-Internal
+    role: Eligible raster cells per country (deterministic, RNG-free).
+    dependencies: [iso3166_canonical_2024, world_countries, population_raster_2025]
+    source: internal
+    owner: {owner_team: "mlr-1b-core"}
+    environment: [runtime]
+    schema: schemas.1B.yaml#/prep/tile_index
+    notes: 'Partition: parameter_hash={parameter_hash}; writer sort: [country_iso,tile_id].'

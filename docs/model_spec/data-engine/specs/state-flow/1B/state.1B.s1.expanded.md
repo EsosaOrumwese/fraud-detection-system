@@ -493,7 +493,7 @@ A single JSON object named (for example) `s1_run_report.json` **MUST** contain a
 * `countries_total` — count of ISO2 entries visited.
 * `rows_emitted` — total `tile_index` rows materialised for this run.
 * `determinism_receipt` — object matching §9.4 (hash over the produced partition contents).
-* `pat` — object with the §11 counters captured (see §9.5).
+* `pat` — object with the §11 counters **and baselines** captured (see §9.5).
   This report **MUST** be available to the validator but **MUST NOT** be stored under the `tile_index` partition. 
 
 ## 9.3 Per-country summary — required fields *(Binding for presence)*
@@ -524,6 +524,7 @@ Emit, at minimum:
 * `bytes_read_raster_total`, `bytes_read_vectors_total`;
 * `max_worker_rss_bytes` (peak per worker), `open_files_peak`;
 * concurrency facts: `workers_used`, `chunk_size` (if block-parallel).
+* **Baselines used by §11.1:** `io_baseline_raster_bps`, `io_baseline_vectors_bps`.
   Validators use these counters to execute **Performance Acceptance Tests** per §11; exceeding a bound fails with `E009_PERF_BUDGET` (see §8.9/§12). 
 
 ## 9.6 Failure event schema *(Binding for presence)*
