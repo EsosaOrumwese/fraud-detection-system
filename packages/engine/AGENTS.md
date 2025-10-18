@@ -1,20 +1,20 @@
-# AGENTS.md - Data Engine Router (Layer-1 / Segment 1A / States S5-S9)
-_As of 2025-10-14_
+# AGENTS.md - Data Engine Router (Layer-1 / Segment 1B)
+_As of 2025-10-17_
 
-This router tells you what is binding, what to read first, and which parts of the engine are in play. It is not a design doc and prescribes no commands.
+This router tells you what is binding, what to read first, and which parts of the engine are in play. Segment 1A (S0-S9) is online and sealed—treat it as read-only unless a migration is explicitly authorised. Segment 1B is the active build.
 
 ---
 
 ## 0) Scope (you are here)
 - Package: `packages/engine`
-- Active build: Layer-1 -> Segment 1A -> States **S5-S9** (States S0-S4 are sealed references).
-- Other segments (1B...4B) are read-only unless they are explicitly unlocked.
-- "XX" below refers to the relevant sub-segment directory under `docs/model_spec/data-engine/specs/`.
+- Active build: Layer-1 → Segment **1B** → States **S0-S9**
+- Sealed references: Segment 1A S0-S9 (authority surfaces for 1B inputs)
+- Other segments (2A...4B) remain locked until explicitly opened.
 
 ---
 
 ## 1) Reading order (strict)
-Read these before editing code so you align with the frozen specs:
+Read these in order before touching code so you align with the frozen specs.
 
 **A. Conceptual references (repo-wide, non-binding)**
 - `docs/references/closed-world-enterprise-conceptual-design*.md`
@@ -23,70 +23,69 @@ Read these before editing code so you align with the frozen specs:
 **B. Layer-1 narratives (orientation)**
 - `docs/model_spec/data-engine/narrative/`
 
-**C. State design for Segment XX (binding expanded specs)**
-- `docs/model_spec/data-engine/specs/state-flow/XX/`
-  - `overview*.md` -> orientation only
-  - `s0*expanded*.md`, `s1*expanded*.md`, ... -> expanded state specs (S0-S4 sealed reference; S5-S9 active execution)
-  - Historical L0/L1/L2/L3 pseudocode exists for **S0-S4 only**. For **S5-S9** derive the split directly from the expanded spec:
-    - L0 = primitives/helpers
-    - L1 = kernels
-    - L2 = state orchestrator
-    - L3 = validator
+**C. Segment 1B state design (binding)**
+- `docs/model_spec/data-engine/specs/state-flow/1B/state-flow-overview.1B.md`
+- `docs/model_spec/data-engine/specs/state-flow/1B/s#*.expanded.md`
+  - No archived pseudocode—derive L0/L1/L2/L3 from the expanded spec.
 
 **D. Data-intake specs (structure & intent)**
-- `docs/model_spec/data-engine/specs/data-intake/XX/`
-  - `preview/*.md` -> intended dataset shape (orientation)
-  - `data/*.md` -> ingestion approach (guidance)
-- Treat `.csv`/`.json` samples as non-authoritative scaffolds.
+- `docs/model_spec/data-engine/specs/data-intake/1B/preview|data/*.md` (when unlocked)
 
 **E. Contract specs (blueprints for `contracts/`)**
-- `docs/model_spec/data-engine/specs/contracts/`
+- `docs/model_spec/data-engine/specs/contracts/1B/` (authoritative once published)
 
-> Never promote narratives, previews, or samples to binding authority. Only the contracts and expanded specs govern code.
+> Never promote narratives, previews, or samples to binding authority. Only the expanded specs and contract documents govern code.
 
 ---
 
 ## 2) Test-yourself policy
-- Reflect the root router: run deterministic tests (`python -m pytest`, state-specific CLIs) and document results.
-- When touching validators or manifests, rerun the relevant quick-reference tests below.
+- Run targeted pytest jobs (`python -m pytest ...`) for the state you modify.
+- When adding RNG or egress logic, layer in regression cases that exercise both happy-path and gate-fail scenarios (mirror the Segment 1A test harness).
+- Document results when handing work off (logbook or PR notes).
 
 ---
 
 ## 3) Ignore list (keep these read-only)
 - `docs/**/overview/**`
 - Anything explicitly marked deprecated or combined
+- Segment 1A code paths unless a migration is authorised
 
 ---
 
-## 4) 1A essentials (read if you only read five things)
-1. The expanded document for the active state (`docs/model_spec/data-engine/specs/state-flow/1A/s#*.expanded.md`).
-2. Archived pseudocode bundles (L0-L3) for S0-S4 when you need historical context; infer L0-L3 yourself for S5-S9 as described above.
-3. The contract spec for that state (`docs/model_spec/data-engine/specs/contracts/1A/...`).
-4. The data-intake notes for 1A (`docs/model_spec/data-engine/specs/data-intake/1A/preview|data/*.md`).
-5. The relevant quick-reference section below.
+## 4) Segment 1A references (sealed authority)
+1. Expanded specs (`docs/model_spec/data-engine/specs/state-flow/1A/s#*.expanded.md`)
+2. Contract specs (`docs/model_spec/data-engine/specs/contracts/1A/`)
+3. Data intake (`docs/model_spec/data-engine/specs/data-intake/1A/preview|data/*.md`)
+4. Validation bundles (`validation_bundle/manifest_fingerprint=*/...`)
+5. Tests: `python -m pytest tests/contracts/test_seg_1A_dictionary_schemas.py tests/engine/cli/test_segment1a_cli.py tests/engine/layers/l1/seg_1A`
 
 ---
 
-## 5) Quick references
+## 5) Segment 1B quick references (initial)
+- **State overview:** `docs/model_spec/data-engine/specs/state-flow/1B/state-flow-overview.1B.md`
+- **State flow short labels:**
+  - S0 Gate in (verify 1A `_passed.flag`, load outlet catalogue)
+  - S1 Country tiling (eligible raster/polygon grid)
+  - S2 Tile priors (deterministic weights)
+  - S3 Site counts (derive `N_i` per merchant/country)
+  - S4 Integerise shares (largest remainder / deterministic policy)
+  - S5 Cell selection (RNG: `raster_pick_cell`)
+  - S6 Point jitter (RNG: within-cell jitter, bounded resample)
+  - S7 Site synthesis (attributes, 1:1 parity with 1A)
+  - S8 Egress (`site_locations` partitioned by `[seed, fingerprint]`)
+  - S9 Validation bundle (`validation_bundle_1B/...`, `_passed.flag`)
+- **RNG envelope:** reuse the 1A Philox/open-interval contract (`engine.layers.l1.seg_1A.s9_validation` is the reference implementation).
+- **Validation hash rule:** `_passed.flag` remains `sha256_hex = <digest>` over bundle files in ASCII-lexicographic order (same as 1A).
 
-### S2 - Domestic outlet counts
-- Policy: `contracts/policies/l1/seg_1A/s2_validation_policy.yaml`
-- CLI: `python -m engine.cli.s2_nb_outlets --validation-policy .`
-- Validation artefacts: `validation/parameter_hash=*/run_id=*/s2/` and `validation_bundle/manifest_fingerprint=*/s2_nb_outlets/`
-- Tests: `python -m pytest tests/engine/layers/l1/seg_1A/test_s2_nb_validator.py tests/engine/cli/test_s2_nb_cli.py`
-
-### S3 - Cross-border universe
-- Policy: `contracts/policies/l1/seg_1A/policy.s3.rule_ladder.yaml` (+ optional base-weight/threshold policies)
-- Runner: `python -m engine.cli.segment1a --param policy.s3.rule_ladder.yaml=...`
-- Validator: `engine.layers.l1.seg_1A.s3_crossborder_universe.l3.validator.validate_s3_outputs`
-- Tests: `python -m pytest tests/engine/layers/l1/seg_1A/test_s3_runner.py`
-
-(Extend this list as additional states come online.)
+Extend this section with concrete CLIs, policy paths, and test commands as you implement each state.
 
 ---
 
 ## House style (soft guidance)
 - Prefer clarity and determinism over cleverness.
-- Keep modules focused (L0 primitives, L1 kernels, L2 orchestration, L3 validation) and surface TODOs when the spec leaves gaps.
+- Preserve the L0/L1/L2/L3 separation inside each state package.
+- Surface TODOs or questions when the spec leaves gaps; do not improvise contracts.
+- Keep logging informative—mirror the Segment 1A CLI/orchestrator patterns so smoke tests stay readable.
 
 _This router remains command-free by design. Execution strategy, test harness, and internal folder improvements stay up to you while respecting the governing specs._
+

@@ -130,10 +130,22 @@
   - **Layers:** `layers/l1/seg_1A/s0…s4/{l0,l1,l2,l3}` for the foundation.  
   - **Core, Validation, Scenario Runner, Registry/CLI:** conceptual scaffolds you’ll unlock as you implement.
 
-> **Current focus:** **Layer-1 / Segment 1A, States S5–S9** (S0–S4 sealed foundation; continuing execution). Everything else remains intentionally conceptual so future choices stay optimal.
-> **Implementation note:** S0–S4 retain archived L0/L1/L2/L3 pseudocode for reference; S5–S9 are guided purely by the expanded specs. Preserve the layer split (L0 primitives/helpers, L1 kernels, L2 orchestrator, L3 validator) when implementing.
+> **Current focus:** **Layer-1 / Segment 1B, States S0–S9**. Segment 1A is now online and sealed (S0–S9 in production); use it as the authority for downstream state inputs. Everything else remains intentionally conceptual so future choices stay optimal.
+> **Implementation note:** 1A retains archived L0/L1/L2/L3 pseudocode for reference only. For 1B, rely exclusively on the expanded specs and preserve the layer split (L0 primitives/helpers, L1 kernels, L2 orchestrator, L3 validator) as you implement.
 
 ### Segment 1A execution highlights
 - **S3 cross-border universe outputs:** the runner now emits the deterministic `s3_candidate_set.parquet` plus optional `s3_base_weight_priors`, `s3_integerised_counts`, and `s3_site_sequence` tables. Toggle the extra surfaces via the Segment1A CLI (`--s3-priors`, `--s3-integerisation`, `--s3-sequencing`). Sequencing remains gated on integerisation.
 - **Validation bundle:** `validate_s3_outputs` replays the deterministic kernels (candidates, priors, counts, sequences) and stores metrics under `validation_bundle/manifest_fingerprint=*/s3_crossborder_universe/`. Disable via `--no-validate-s3` when debugging, but release runs should keep it enabled.
 - **Diagnostics & schema enforcement:** the S3 validator now enforces the JSON-Schema anchors for every parquet, emits per-merchant integerisation diagnostics in `integerisation_diagnostics.jsonl`, and records aggregated metrics (floors, ceilings, residual usage) in the validation summary.
+
+### Segment 1B state-flow (overview)
+- **S0 Gate-in:** verify the 1A `_passed.flag` for the target fingerprint before any reads.  
+- **S1 Country tiling:** materialise the tile index (raster/polygon eligibility) per legal country.  
+- **S2 Tile priors:** compute deterministic weights/prior shares for each eligible tile.  
+- **S3 Site counts:** derive `N_i` per `(merchant_id, legal_country_iso)` from the 1A outlet catalogue (no RNG).  
+- **S4 Integerise shares:** convert fractional shares to an integer plan deterministically (largest remainder / policy variant).  
+- **S5 Cell selection (RNG):** emit `raster_pick_cell` events for every allocated cell.  
+- **S6 Point jitter (RNG):** jitter the selected cell to a precise `(lat, lon)` within bounds.  
+- **S7 Site synthesis:** attach attributes, preserve `site_order`, and guarantee 1:1 alignment with the 1A catalogue.  
+- **S8 Egress (`site_locations`):** publish immutable geometry under the `[seed, fingerprint]` partition.  
+- **S9 Validation:** structural + distributional checks, RNG budgeting, and bundle `_passed.flag` hashing (same gate recipe as 1A).

@@ -292,7 +292,7 @@ fraud-enterprise/
 ```
 =========== Merchant-Location Realism (open) ===========
 Sub-segments:
-  1A  Merchants → Physical Sites  ............. [ ONLINE ]
+  1A  Merchants → Physical Sites  ............. [ ONLINE — sealed ]
   1B  Place Sites on Planet ................... [ OPEN ]  <-- current focus
   2A  Civil Time Zone (IANA/DST) .............. [ LOCKED ]
   2B  Routing Through Sites ................... [ LOCKED ]
@@ -304,7 +304,7 @@ Sub-segments:
 ```
 
 ```
-=========== 1A state-flow (10 states; implement and online) ===========
+=========== 1A state-flow (10 states; live) ===========
 S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6 -> S7 -> S8 -> S9
 
 Where (short labels just to anchor the flow):
@@ -312,12 +312,14 @@ S0 Prep      S1 Hurdle     S2 Domestic N   S3 X-border gate   S4 Foreign K
 S5 Weights   S6 Select K   S7 Allocate N   S8 Egress/IDs      S9 Replay+Gate
 
 
-=========== 1B state-flow (10 states; concept exposed) ===========
+=========== 1B state-flow (10 states; execution in progress) ===========
 S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6 -> S7 -> S8 -> S9
 
 Where (short labels just to anchor the flow):
-S0 XXXX   S1 XXXX   S2 XXXX   S3 XXXX   S4 XXXX
-S5 XXXX   S6 XXXX   S7 XXXX   S8 XXXX   S9 XXXX
+S0 Gate 1A bundle       S1 Country tiling          S2 Tile priors
+S3 Derive site counts   S4 Integerise shares       S5 Pick cells (RNG)
+S6 Jitter points (RNG)  S7 Synthesize sites        S8 `site_locations`
+S9 Validation bundle
 
 Legend:
 [OPEN]   = exposed/being worked
