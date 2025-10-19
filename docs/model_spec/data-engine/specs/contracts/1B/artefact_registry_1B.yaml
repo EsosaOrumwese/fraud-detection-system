@@ -222,7 +222,7 @@ subsegments:
     type: dataset
     category: prep
     semver: '{semver}'
-    version: '{seed}.{manifest_fingerprint}'
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
     digest: '{sha256}'
     manifest_key: mlr.1B.s3.requirements
     license: Proprietary-Internal

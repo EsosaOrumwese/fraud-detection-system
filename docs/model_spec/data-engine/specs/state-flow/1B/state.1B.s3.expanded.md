@@ -3,7 +3,7 @@
 # 1) Purpose & scope **(Binding)**
 
 **1.1 Problem statement.**
-S3 deterministically derives the **exact number of sites to place per `(merchant_id, legal_country_iso)`**, denoted `n_sites`, by grouping **1A’s `outlet_catalogue`** rows after S0’s consumer-gate PASS for the same fingerprint. S3 is **RNG-free** and **does not** allocate sites to tiles; it only produces a per-country **requirements frame** for use by S4/S5+. `outlet_catalogue` is the sole count source; it is fingerprint-scoped and order-free, with “**No PASS → No read**” enforced upstream.   
+S3 deterministically derives the **exact number of sites to place per `(merchant_id, legal_country_iso)`**, denoted `n_sites`, by grouping **1A’s `outlet_catalogue`** rows after S0’s consumer-gate PASS for the same fingerprint. S3 is **RNG-free** and **does not** allocate sites to tiles; it only produces a per-country **requirements frame** for use by S4/S5+. `outlet_catalogue` is the sole count source; it is seed+fingerprint-scoped and order-free, with “**No PASS → No read**” enforced upstream.   
 
 **1.2 Out of scope.**
 S3 **does not** (a) encode or infer **inter-country order** (authority remains **1A `s3_candidate_set.candidate_rank`**, home=0), (b) allocate counts to **tiles** or **coordinates**, (c) perform **jitter** or any RNG, or (d) read any surface beyond those sealed by S0 and listed in the S3 Inputs header (later section).  
@@ -72,7 +72,8 @@ S3 **consumes no RNG**; no RNG logs are written.
 * **Gate law.** S3 reads `outlet_catalogue` **only** under the fingerprint proven in S0’s `s0_gate_receipt_1B` (No PASS → No read). 
 * **Path↔embed equality.**
   • For `outlet_catalogue`: embedded `manifest_fingerprint` (and `global_seed` if present) **equals** the `{fingerprint}` (`{seed}`) path token(s). 
-  • For `tile_weights`: embedded `parameter_hash` **equals** the `{parameter_hash}` path token. 
+  • For `tile_weights`: no embedded lineage columns; the `{parameter_hash}` path token alone is authoritative.
+    (If a `parameter_hash` column is introduced in a future schema revision, it MUST equal the path token.)
 
 **3.4 Authority boundaries (what S3 MUST / MUST NOT do).**
 
@@ -84,7 +85,7 @@ S3 **consumes no RNG**; no RNG logs are written.
 
 **3.5 Identities bound for this state.**
 
-* Run binds to **one** `{manifest_fingerprint}` (from S0) and **one** `{parameter_hash}` (matching S2). Mixing identities within the same S3 publish is **forbidden**.  
+* Run binds to **one** `{seed}`, **one** `{manifest_fingerprint}` (from S0), and **one** `{parameter_hash}` (matching S2). Mixing identities within the same S3 publish is **forbidden**.  
 
 **3.6 RNG posture.**
 
@@ -132,7 +133,7 @@ data/layer1/1B/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/pa
 
 **4.6 Row admission rules.**
 
-* Emit a row **iff** the grouped count from `outlet_catalogue` is **≥1** for `(merchant_id, legal_country_iso)`; zero-count pairs are not materialised. `outlet_catalogue` is fingerprint-scoped, order-free, and read-gated (S0 proves PASS).  
+* Emit a row **iff** the grouped count from `outlet_catalogue` is **≥1** for `(merchant_id, legal_country_iso)`; zero-count pairs are not materialised. `outlet_catalogue` is seed+fingerprint-scoped, order-free, and read-gated (S0 proves PASS).  
 
 **4.7 Forward consumers (non-authoritative note).**
 
@@ -405,7 +406,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 ## 9.1 Failure handling *(normative)*
 
 * **Abort semantics:** On any code above, stop the run; **no** files may be promoted into the live `s3_requirements` partition unless materialisation passes all checks. *(Atomic publish; write-once.)* 
-* **Failure record:** Emit a failure record with at least `{code, scope ∈ {run,pair}, reason, manifest_fingerprint, parameter_hash}`; when applicable include `{merchant_id, legal_country_iso}`. *(Payload conventions mirror Layer-1 failure records used elsewhere.)* 
+* **Failure record:** Emit a failure record with at least `{code, scope ∈ {run,pair}, reason, seed, manifest_fingerprint, parameter_hash}`; when applicable include `{merchant_id, legal_country_iso}`. *(Payload conventions mirror Layer-1 failure records used elsewhere.)* 
 * **Multi-error policy:** Multiple failures **may** be recorded; acceptance remains **failed**. *(Do not attempt partial publishes.)* 
 
 ## 9.2 Code space & stability *(normative)*
@@ -464,7 +465,7 @@ Compute a **composite SHA-256** over the **produced S3 partition files only**:
 **10.6 Failure event schema (binding for presence on failure)**
 On any §9 failure, emit a structured event (outside the dataset partition):
 
-* `event: "S3_ERROR"`, `code: <one of §9>`, `at: <RFC-3339 UTC>`, `manifest_fingerprint`, `parameter_hash`; optionally `merchant_id`, `legal_country_iso`.
+* `event: "S3_ERROR"`, `code: <one of §9>`, `at: <RFC-3339 UTC>`, `seed`, `manifest_fingerprint`, `parameter_hash`; optionally `merchant_id`, `legal_country_iso`.
   This mirrors S1/S2’s failure-event posture and vocabulary.  
 
 **10.7 Auditor checklist (what validators expect to retrieve)**
@@ -581,7 +582,7 @@ On release, record in governance: `semver`, `effective_date`, ratifiers, repo co
 * **`tile_weights`** — S2 output; fixed-dp weights per eligible tile; partitions `[parameter_hash]`; schema `schemas.1B.yaml#/prep/tile_weights`. *(S3 checks **coverage** against this for the fixed `parameter_hash`.)* 
 * **`iso3166_canonical_2024`** — FK target for ISO-2; schema `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`. 
 * **`s0_gate_receipt_1B`** — Fingerprint-scoped proof of the 1A gate; schema `schemas.1B.yaml#/validation/s0_gate_receipt`.  
-* **`s3_requirements`** — *(This document’s output)* deterministic counts per `(merchant_id, legal_country_iso)`; partitions `[manifest_fingerprint, parameter_hash]`; schema `schemas.1B.yaml#/plan/s3_requirements`. *(Shape defined by the canonical anchor referenced in §5.1.)* 
+* **`s3_requirements`** — *(This document’s output)* deterministic counts per `(merchant_id, legal_country_iso)`; partitions `[seed, manifest_fingerprint, parameter_hash]`; schema `schemas.1B.yaml#/plan/s3_requirements`. *(Shape defined by the canonical anchor referenced in §5.1.)* 
 
 ## A.4 Laws & posture (used repeatedly in S3)
 
