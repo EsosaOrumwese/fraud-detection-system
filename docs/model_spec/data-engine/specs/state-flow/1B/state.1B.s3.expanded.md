@@ -16,7 +16,7 @@ d) **FK domain:** `legal_country_iso` values are **uppercase ISO-3166-1 alpha-2*
 e) **Order law:** Inter-country order is **external** to S3 and remains solely on **`s3_candidate_set`**; `outlet_catalogue` is order-free by contract.  
 
 **1.4 Deliverable from S3 (named, but not specified here).**
-S3 will emit one deterministic table (ID **`s3_requirements`**) partitioned so it can join S4 cleanly (fingerprint + parameter hash). The exact shape/partitions and validators are defined in later sections of the S3 doc (Schema & Acceptance). This new dataset is **additive** to your pack and does not modify or replace existing 1A/1B artifacts. 
+S3 will emit one deterministic table (ID **`s3_requirements`**) partitioned so it can join S4 cleanly (seed + fingerprint + parameter hash). The exact shape/partitions and validators are defined in later sections of the S3 doc (Schema & Acceptance). This new dataset is **additive** to your pack and does not modify or replace existing 1A/1B artifacts. 
 
 ---
 
