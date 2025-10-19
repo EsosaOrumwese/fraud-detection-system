@@ -16,7 +16,7 @@ d) **FK domain:** `legal_country_iso` values are **uppercase ISO-3166-1 alpha-2*
 e) **Order law:** Inter-country order is **external** to S3 and remains solely on **`s3_candidate_set`**; `outlet_catalogue` is order-free by contract.  
 
 **1.4 Deliverable from S3 (named, but not specified here).**
-S3 will emit one deterministic table (proposed ID **`s3_requirements`**) partitioned so it can join S4 cleanly (fingerprint + parameter hash). The exact shape/partitions and validators are defined in later sections of the S3 doc (Schema & Acceptance). This new dataset is **additive** to your pack and does not modify or replace existing 1A/1B artifacts. 
+S3 will emit one deterministic table (ID **`s3_requirements`**) partitioned so it can join S4 cleanly (fingerprint + parameter hash). The exact shape/partitions and validators are defined in later sections of the S3 doc (Schema & Acceptance). This new dataset is **additive** to your pack and does not modify or replace existing 1A/1B artifacts. 
 
 ---
 
@@ -97,7 +97,7 @@ S3 **consumes no RNG**; no RNG logs are written.
 **4.1 Dataset ID & schema anchor.**
 
 * **ID:** `s3_requirements`
-* **Schema (sole shape authority):** `schemas.1B.yaml#/plan/s3_requirements` *(new anchor)*.
+* **Schema (sole shape authority):** `schemas.1B.yaml#/plan/s3_requirements` *(canonical anchor)*.
   **Keys:** **PK** = [merchant_id, legal_country_iso]; **partition_keys** = [manifest_fingerprint, parameter_hash]; **sort_keys** = [merchant_id, legal_country_iso].
   **Columns (strict):**
 
@@ -118,7 +118,7 @@ data/layer1/1B/s3_requirements/fingerprint={manifest_fingerprint}/parameter_hash
 
 **4.3 Immutability & atomic publish.**
 
-* **Write-once:** Re-publishing the same `{fingerprint, parameter_hash}` **MUST** be byte-identical or fail. 
+* **Write-once:** Re-publishing under the same identity `{manifest_fingerprint, parameter_hash}` **MUST** be byte-identical or fail. 
 * **Atomicity:** Stage outside the final partition; fsync; single atomic rename into the partition. File order is **non-authoritative**. 
 
 **4.4 Licence, retention, PII (Dictionary authority).**
@@ -138,7 +138,7 @@ data/layer1/1B/s3_requirements/fingerprint={manifest_fingerprint}/parameter_hash
 
 * **Produced by:** `1B.S3` → **consumed by:** `1B.S4` (rounding/alloc plan) and `1B.S5+`. Writer/reader joins rely on the keys and partitions above; **inter-country order remains external** to S3.  
 
-*(All obligations above mirror existing 1B patterns: schema-owned shape, dictionary-owned path/partitions/sort, write-once/atomic publish, and identity separation by `{fingerprint, parameter_hash}` consistent with Layer-1 lineage law.)*
+*(All obligations above mirror existing 1B patterns: schema-owned shape, dictionary-owned path/partitions/sort, write-once/atomic publish, and identity separation by `{manifest_fingerprint, parameter_hash}` consistent with Layer-1 lineage law.)*
 
 ---
 
@@ -243,7 +243,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 
 **7.6 Atomic publish, immutability & idempotence.**
 
-* **Stage → fsync → single atomic move** into the identity partition. Re-publishing the same `{fingerprint, parameter_hash}` **MUST** be **byte-identical** or is a hard error.   
+* **Stage → fsync → single atomic move** into the identity partition. Re-publishing the same `{manifest_fingerprint, parameter_hash}` **MUST** be **byte-identical** or is a hard error.   
 * **Resume semantics:** on failure, recompute deterministically and re-stage; **never** patch in place under the live partition. 
 
 **7.7 Prohibitions (fail closed).**
@@ -327,7 +327,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 
 # 9) Failure modes & canonical error codes **(Binding)**
 
-> A run of **S3** is **rejected** if **any** condition below is triggered. On first detection the writer **MUST** abort, emit the failure record (per §9.6 payload rules used elsewhere in Layer-1), and ensure **no partials** are visible under `…/s3_requirements/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` (atomic publish; write-once). **Shape authority = JSON-Schema; IDs→paths/partitions/sort/licence = Dataset Dictionary; gate & lineage rules from S0/1A are binding.**   
+> A run of **S3** is **rejected** if **any** condition below is triggered. On first detection the writer **MUST** abort, emit the failure record per Layer-1 failure-payload conventions, and ensure **no partials** are visible under `…/s3_requirements/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` (atomic publish; write-once). **Shape authority = JSON-Schema; IDs→paths/partitions/sort/licence = Dataset Dictionary; gate & lineage rules from S0/1A are binding.**   
 
 ### E301_NO_PASS_FLAG — 1A gate not proven *(ABORT)*
 
@@ -360,7 +360,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 
 ### E307_PK_DUPLICATE — Primary-key duplication *(ABORT)*
 
-**Trigger (MUST):** Duplicate `(merchant_id, legal_country_iso)` within a `{fingerprint, parameter_hash}` partition. *(PK uniqueness is schema-owned in Layer-1 tables.)* 
+**Trigger (MUST):** Duplicate `(merchant_id, legal_country_iso)` within a `{manifest_fingerprint, parameter_hash}` partition. *(PK uniqueness is schema-owned in Layer-1 tables.)* 
 
 ### E308_COUNTS_MISMATCH — Count not equal to source rows *(ABORT)*
 
@@ -392,7 +392,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 
 ### E_IMMUTABLE_PARTITION_EXISTS_NONIDENTICAL — Publish immutability breach *(ABORT)*
 
-**Trigger (MUST):** A partition for `{fingerprint, parameter_hash}` already exists and the newly staged bytes differ. **Do not overwrite.** *(Cross-state, layer-wide immutability code retained verbatim for consistency.)* 
+**Trigger (MUST):** A partition for `{manifest_fingerprint, parameter_hash}` already exists and the newly staged bytes differ. **Do not overwrite.** *(Cross-state, layer-wide immutability code retained verbatim for consistency.)* 
 
 ### E_RECEIPT_SCHEMA_INVALID — S0 receipt fails JSON-Schema *(ABORT)*
 **Trigger (MUST):** `s0_gate_receipt_1B` does not validate against `schemas.1B.yaml#/validation/s0_gate_receipt`.
@@ -579,7 +579,7 @@ On release, record in governance: `semver`, `effective_date`, ratifiers, repo co
 * **`tile_weights`** — S2 output; fixed-dp weights per eligible tile; partitions `[parameter_hash]`; schema `schemas.1B.yaml#/prep/tile_weights`. *(S3 checks **coverage** against this for the fixed `parameter_hash`.)* 
 * **`iso3166_canonical_2024`** — FK target for ISO-2; schema `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`. 
 * **`s0_gate_receipt_1B`** — Fingerprint-scoped proof of the 1A gate; schema `schemas.1B.yaml#/validation/s0_gate_receipt`.  
-* **`s3_requirements`** — *(This document’s output)* deterministic counts per `(merchant_id, legal_country_iso)`; partitions `[manifest_fingerprint, parameter_hash]`; schema `schemas.1B.yaml#/plan/s3_requirements`. *(Shape fixed in §5 of this spec.)* 
+* **`s3_requirements`** — *(This document’s output)* deterministic counts per `(merchant_id, legal_country_iso)`; partitions `[manifest_fingerprint, parameter_hash]`; schema `schemas.1B.yaml#/plan/s3_requirements`. *(Shape defined by the canonical anchor referenced in §5.1.)* 
 
 ## A.4 Laws & posture (used repeatedly in S3)
 
