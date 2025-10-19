@@ -20,10 +20,6 @@ S3 will emit one deterministic table (proposed ID **`s3_requirements`**) partiti
 
 ---
 
-Got it. Here’s the next section, straight and binding.
-
----
-
 # 2) Preconditions & sealed inputs **(Binding)**
 
 **2.1 Consumer gate (must hold before any read).**
@@ -32,7 +28,7 @@ S0 has verified the 1A validation bundle for the target `manifest_fingerprint` (
 **2.2 Sealed inputs authorised by S0 (enumerated in the receipt).**
 S0’s `sealed_inputs[]` names the surfaces 1B may read, each with its schema anchor and (where applicable) partitions:
 
-* `outlet_catalogue` — `[seed, fingerprint]`; `schemas.1A.yaml#/egress/outlet_catalogue`. **Order-free; join S3 for inter-country order.** Read only after PASS.  
+* `outlet_catalogue` — `[seed, fingerprint]`; `schemas.1A.yaml#/egress/outlet_catalogue`. **Order-free; join 1A.S3 `s3_candidate_set` for inter-country order.** Read only after PASS.  
 * `s3_candidate_set` — `[parameter_hash]`; `schemas.1A.yaml#/s3/candidate_set` (order authority; used later, not by S3).  
 * `iso3166_canonical_2024` — FK target; `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`.  
 * `world_countries` — spatial reference; `schemas.ingress.layer1.yaml#/world_countries`. *(Not read by S3.)*  
@@ -102,12 +98,12 @@ S3 **consumes no RNG**; no RNG logs are written.
 
 * **ID:** `s3_requirements`
 * **Schema (sole shape authority):** `schemas.1B.yaml#/plan/s3_requirements` *(new anchor)*.
-  **Keys:** **PK** = `[merchant_id, legal_country_iso]`; **partition_keys** = `[fingerprint, parameter_hash]`; **sort_keys** = `[merchant_id, legal_country_iso]`.
+  **Keys:** **PK** = [merchant_id, legal_country_iso]; **partition_keys** = [manifest_fingerprint, parameter_hash]; **sort_keys** = [merchant_id, legal_country_iso].
   **Columns (strict):**
 
   * `merchant_id` — `$ref: schemas.layer1.yaml#/$defs/id64`. 
   * `legal_country_iso` — `$ref: schemas.1B.yaml#/$defs/iso2`. 
-  * `n_sites` — `uint32 (≥1)`; per-merchant×country site count. 
+  * `n_sites` — `integer (≥1)`; per-merchant×country site count.
 
 **4.2 Path, partitions, writer sort & format (Dictionary law).**
 The **Dataset Dictionary** MUST declare this path family and writer policy:
@@ -143,10 +139,6 @@ data/layer1/1B/s3_requirements/fingerprint={manifest_fingerprint}/parameter_hash
 * **Produced by:** `1B.S3` → **consumed by:** `1B.S4` (rounding/alloc plan) and `1B.S5+`. Writer/reader joins rely on the keys and partitions above; **inter-country order remains external** to S3.  
 
 *(All obligations above mirror existing 1B patterns: schema-owned shape, dictionary-owned path/partitions/sort, write-once/atomic publish, and identity separation by `{fingerprint, parameter_hash}` consistent with Layer-1 lineage law.)*
-
----
-
-Absolutely—aligned. Here’s a **lean replacement for §5** that keeps the spec doc free of schema detail and points to the canonical anchor only.
 
 ---
 
@@ -285,7 +277,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 
 **8.4 Primary key uniqueness.**
 
-* No duplicate `(merchant_id, legal_country_iso)` within a `{fingerprint, parameter_hash}` partition.
+* No duplicate `(merchant_id, legal_country_iso)` within the identity `{manifest_fingerprint, parameter_hash}` partition.
 * **Fail:** `E307_PK_DUPLICATE`.
 
 **8.5 Count equality (authoritative source = `outlet_catalogue`).**
@@ -401,6 +393,11 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 ### E_IMMUTABLE_PARTITION_EXISTS_NONIDENTICAL — Publish immutability breach *(ABORT)*
 
 **Trigger (MUST):** A partition for `{fingerprint, parameter_hash}` already exists and the newly staged bytes differ. **Do not overwrite.** *(Cross-state, layer-wide immutability code retained verbatim for consistency.)* 
+
+### E_RECEIPT_SCHEMA_INVALID — S0 receipt fails JSON-Schema *(ABORT)*
+**Trigger (MUST):** `s0_gate_receipt_1B` does not validate against `schemas.1B.yaml#/validation/s0_gate_receipt`.
+**Detection:** JSON-Schema validation failure on the receipt object.
+**Authority refs:** S0 defines the receipt shape and gate vocabulary; S3 inherits the check before reads.
 
 ---
 
@@ -558,10 +555,6 @@ On release, record in governance: `semver`, `effective_date`, ratifiers, repo co
 
 ---
 
-Perfect. We’ll keep only Appendix A and make it tight. Here it is, ready to paste.
-
----
-
 # Appendix A — Definitions & symbols *(Informative)*
 
 ## A.1 Identity & lineage tokens
@@ -599,7 +592,7 @@ Perfect. We’ll keep only Appendix A and make it tight. Here it is, ready to pa
 ## A.5 Symbols (this state)
 
 * **`n_sites`** — Deterministic integer count of outlets for a `(merchant_id, legal_country_iso)` pair; equals the number of rows in `outlet_catalogue` for the same `{seed, fingerprint}` and pair; **S3 elides zeros**. 
-* **`candidate_rank`** — Total, contiguous rank over countries per merchant from **S3 (1A)**; `home = 0`. *(Not produced here.)* 
+* **`candidate_rank`** — Total, contiguous rank over countries per merchant from **1A.S3**; `home = 0`. *(Not produced here.)* 
 
 ## A.6 Abbreviations
 
