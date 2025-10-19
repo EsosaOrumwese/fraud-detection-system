@@ -107,6 +107,43 @@ reference_data:
   pii: false
   licence: Proprietary-Internal
 
+- id: outlet_catalogue
+  status: approved
+  owner_subsegment: 1A
+  description: Immutable outlet stubs; order-free (join S3 for inter-country order).
+  version: '{manifest_fingerprint}'
+  format: parquet
+  path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+  partitioning: [seed, fingerprint]
+  ordering: [merchant_id, legal_country_iso, site_order]
+  schema_ref: schemas.1A.yaml#/egress/outlet_catalogue
+  lineage:
+    produced_by: 1A
+    consumed_by: [1B]
+    final_in_layer: true
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+  notes: 'Read only after verifying 1A bundle flag (_passed.flag). No PASS → no read.'
+
+- id: s3_candidate_set
+  status: approved
+  owner_subsegment: 1A
+  description: Sole inter-country order authority (join on candidate_rank; home=0).
+  version: '{parameter_hash}'
+  format: parquet
+  path: data/layer1/1A/s3_candidate_set/parameter_hash={parameter_hash}/
+  partitioning: [parameter_hash]
+  ordering: []
+  schema_ref: schemas.1A.yaml#/s3/candidate_set
+  lineage:
+    produced_by: 1A
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
 # ── Internally generated datasets (1B) ───────────────────────────────────
 datasets:
 - id: s0_gate_receipt_1B

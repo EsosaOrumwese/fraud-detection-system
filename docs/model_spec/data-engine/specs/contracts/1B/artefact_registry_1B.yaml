@@ -180,7 +180,7 @@ subsegments:
   - name: tile_index
     path: data/layer1/1B/tile_index/parameter_hash={parameter_hash}/
     type: dataset
-    category: output
+    category: prep
     semver: '{semver}'
     version: '{parameter_hash}'
     digest: '{sha256}'
