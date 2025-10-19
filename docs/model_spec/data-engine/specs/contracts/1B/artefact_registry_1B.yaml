@@ -236,3 +236,23 @@ subsegments:
       Partitioning: seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
       Writer sort: [merchant_id, legal_country_iso]
       Write-once; atomic move into live partition; file order non-authoritative.
+
+  - name: s4_alloc_plan
+    path: data/layer1/1B/s4_alloc_plan/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    type: dataset
+    category: prep
+    semver: '{semver}'
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1B.s4.alloc_plan
+    license: Proprietary-Internal
+    role: "Per-tile integer allocation plan (RNG-free). Positives only; sums to S3 n_sites."
+    dependencies: [s3_requirements, tile_weights, tile_index, iso3166_canonical_2024, s0_gate_receipt_1B]
+    source: internal
+    owner: {owner_team: "mlr-1b-core"}
+    environment: [runtime]
+    schema: schemas.1B.yaml#/plan/s4_alloc_plan
+    notes: |
+      Partitioning: seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
+      Writer sort: [merchant_id, legal_country_iso, tile_id]
+      Write-once; atomic move into live partition; file order non-authoritative.

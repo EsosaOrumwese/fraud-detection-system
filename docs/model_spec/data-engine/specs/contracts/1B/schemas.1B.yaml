@@ -118,6 +118,23 @@ plan:
       - { name: legal_country_iso, $ref: '#/$defs/iso2', nullable: false }
       - { name: n_sites, type: integer, minimum: 1, nullable: false }
 
+  s4_alloc_plan:
+    type: table
+    description: "Per-tile integer allocations that sum to S3 n_sites (RNG-free). Emitted only for positive allocations."
+    primary_key: [merchant_id, legal_country_iso, tile_id]
+    partition_keys: [seed, manifest_fingerprint, parameter_hash]
+    sort_keys: [merchant_id, legal_country_iso, tile_id]
+    columns_strict: true
+    columns:
+      - { name: merchant_id,        $ref: 'schemas.layer1.yaml#/$defs/id64',  nullable: false }
+      - { name: legal_country_iso,  $ref: '#/$defs/iso2',                     nullable: false,
+          fk: { dataset_ref: 'schemas.ingress.layer1.yaml#/iso3166_canonical_2024', column: country_iso } }
+      - { name: tile_id,            $ref: '#/$defs/uint64',                   nullable: false,
+          fk: { dataset_ref: 'schemas.1B.yaml#/prep/tile_index',
+                columns: { legal_country_iso: country_iso, tile_id: tile_id } } }
+      - { name: n_sites_tile,       type: integer, minimum: 1,                nullable: false,
+          description: "Integer allocation for this (merchant,country,tile). Zeros are not materialised." }
+
 egress:
   site_locations:
     type: table

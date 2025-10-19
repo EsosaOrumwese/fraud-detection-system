@@ -201,7 +201,6 @@ datasets:
   pii: false
   licence: Proprietary-Internal
 
-# --- New S3 output (RNG-free; joins S4 cleanly) ---
 - id: s3_requirements
   status: approved
   owner_subsegment: 1B
@@ -233,6 +232,24 @@ datasets:
   lineage:
     produced_by: 1B
     consumed_by: []
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: s4_alloc_plan
+  status: approved
+  owner_subsegment: 1B
+  description: Per-tile integer allocations that sum to S3 n_sites (RNG-free; positives only).
+  version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+  format: parquet
+  path: data/layer1/1B/s4_alloc_plan/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+  partitioning: [seed, fingerprint, parameter_hash]
+  ordering: [merchant_id, legal_country_iso, tile_id]
+  schema_ref: schemas.1B.yaml#/plan/s4_alloc_plan
+  lineage:
+    produced_by: 1B.S4
+    consumed_by: [1B]
     final_in_layer: false
   retention_days: 365
   pii: false
