@@ -90,6 +90,12 @@ S4 **consumes no RNG** and writes **no RNG logs**; it is purely deterministic. *
 
 * If lineage fields are embedded in rows in future revisions, their values **must equal** the corresponding path tokens. (Same parity rule as S3.) 
 
+**3.8 Numeric safety (Binding).**
+
+* Implementations **MUST** use integer arithmetic with **≥128-bit intermediates (or bignum)** for all products and accumulators involving
+  fixed-dp weights and counts (e.g., computing `base = ⌊ n_sites · weight_fp / 10^dp ⌋`, residue ranks, and per-country Σ checks).
+  **Overflow MUST NOT occur**; detecting an overflow is a **hard error** (treat as structural validation failure).
+
 ---
 
 # 4) Outputs (datasets) & identity **(Binding)**
