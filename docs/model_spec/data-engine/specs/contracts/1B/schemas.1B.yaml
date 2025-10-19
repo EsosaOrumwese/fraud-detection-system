@@ -82,7 +82,7 @@ prep:
     sort_keys: [country_iso, tile_id]
     columns:
       - {name: country_iso, $ref: '#/$defs/iso2', nullable: false, description: 'ISO 3166-1 alpha-2 (UPPERCASE).'}
-      - {name: tile_id, $ref: '#/$defs/uint64', nullable: false, description: 'Global cell id = raster_row*ncols + raster_col (row-major).'}
+      - {name: tile_id, $ref: '#/$defs/uint64', nullable: false, description: 'Row-major linear cell id derived from raster metadata (global cell id).'}
       - {name: raster_row, $ref: '#/$defs/uint64', nullable: false, description: 'Zero-based row index in population_raster_2025.'}
       - {name: raster_col, $ref: '#/$defs/uint64', nullable: false, description: 'Zero-based column index in population_raster_2025.'}
       - {name: centroid_lon, $ref: '#/$defs/lon',  nullable: false, description: 'Cell-center longitude (WGS84).'}

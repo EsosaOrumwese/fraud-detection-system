@@ -362,7 +362,7 @@ Let **`dp ∈ ℕ₀`** be the governed decimal precision (declared in the run r
 4. **Shortfall**: `S := K − Σ z_i` (an integer in `[0, |U_c|)`).
 
 **Largest-remainder allocation (deterministic):**
-Allocate **`+1`** to exactly **`S`** tiles with the **largest** `r_i`, breaking ties **lexicographically by `(tile_id)` ascending**. The final fixed-dp integers are:
+Allocate **`+1`** to exactly **`S`** tiles with the **largest** `r_i`, breaking ties by ascending numeric `tile_id`. The final fixed-dp integers are:
 
 * **`weight_fp(i) := z_i + 1`** if `i` is among the top-`S` residues (after tie-break), else **`weight_fp(i) := z_i`**.
 
@@ -375,7 +375,7 @@ Allocate **`+1`** to exactly **`S`** tiles with the **largest** `r_i`, breaking 
 
 ## 6.4 Tie-break order *(Binding)*
 
-* The tie-break for residue selection is **strict**: **descending `r_i`**, then **ascending `tile_id`**.
+* The tie-break for residue selection is **strict**: **descending `r_i`**, then **ascending numeric `tile_id`**.
 * The tie-break **MUST** be stable across re-runs and independent of task count/scheduling (see §3.5). 
 
 ## 6.5 Monotonicity & stability *(Binding)*
@@ -503,7 +503,7 @@ For each country `c`:
    * If `|U_c| = 0` ⇒ **fail** `E103_ZERO_COUNTRY`.
    * If `|U_c| > 0` and `M_c = 0` ⇒ validator **expects uniform fallback** (§6.7). Absence of fallback ⇒ **fail** `E104_ZERO_MASS`.
 3. Let `K = 10^dp`. Form quotas `q_i = (m_i / M_c) * K`, base integers `z_i = ⌊q_i⌋`, residues `r_i = q_i − z_i`, shortfall `S = K − Σ z_i`.
-4. **Residue law:** Identify exactly **S** tiles with largest `r_i`, breaking ties **by ascending `(tile_id)`**; each selected tile receives `+1`.
+4. **Residue law:** Identify exactly **S** tiles with largest `r_i`, breaking ties **by ascending numeric `(tile_id)`**; each selected tile receives `+1`.
 5. **Compare:** `weight_fp(i)` in `tile_weights` **MUST** equal `z_i` (+1 for the residue-selected tiles).
 6. **Exact sum:** `Σ weight_fp = K` **MUST hold exactly** per country (no rounding slack).
 7. **Monotonicity:** If `m_a ≥ m_b`, then `weight_fp(a) ≥ weight_fp(b)` allowing at most the 1-unit residue effect defined above; systematic violations ⇒ **fail** `E106_MONOTONICITY`.
@@ -913,7 +913,7 @@ Validators execute the PAT using the §9 artefacts:
 * **Basis set**: Allowed values are `{uniform, area_m2, population}`.
   – Changing the **meaning** of an existing basis or the **default** basis is **MAJOR**.
   – Adding a new basis is **MAJOR** unless surfaced via a **new dataset/anchor** or a feature flag default-off with an announced migration path.
-* **Quantisation law**: `dp` (fixed-decimal precision), quota computation, **largest-remainder** allocation, and **tie-break = ascending (tile_id)** are **stable**; any change is **MAJOR**.
+* **Quantisation law**: `dp` (fixed-decimal precision), quota computation, **largest-remainder** allocation, and **tie-break = ascending numeric (tile_id)** are **stable**; any change is **MAJOR**.
 * **Monotonicity rule**: The monotone/residue guarantees are **stable**; weakening them is **MAJOR**.
 
 ## 13.4 PAT envelope & operational limits *(Binding)*
@@ -997,7 +997,7 @@ For each ISO country **`c`**:
 * **`z_i`** — Base integer `z_i = ⌊q_i⌋`.
 * **`r_i`** — Residue `r_i = q_i − z_i ∈ [0,1)`.
 * **`S`** — Shortfall `S = K − Σ z_i` (integer in `[0, |U_c|)`).
-* **Largest-remainder allocation** — Give **`+1`** to exactly **`S`** tiles with the largest `r_i`, breaking ties **lexicographically by ascending `tile_id`**. The final fixed-dp integer **`weight_fp`** is `z_i` or `z_i+1` accordingly. *(Per-country exact sum: `Σ weight_fp = 10^dp`.)*
+* **Largest-remainder allocation** — Give **`+1`** to exactly **`S`** tiles with the largest `r_i`, breaking ties by ascending numeric `tile_id`. The final fixed-dp integer **`weight_fp`** is `z_i` or `z_i+1` accordingly. *(Per-country exact sum: `Σ weight_fp = 10^dp`.)*
 * **Monotonicity rule** — If `m_a ≥ m_b`, then after quantisation **`weight_fp(a) ≥ weight_fp(b)`**, allowing at most a **1-unit** difference from residue allocation.
 
 ## A.6 Keys, partitions & ordering
@@ -1072,7 +1072,7 @@ Masses: `m_i = 1` for all; total `M_c = 5`.
 
 * Shortfall: `S = 10 − (3+3+2) = 2`
 
-**Largest-remainder (deterministic):** select **two** highest residues; all equal ⇒ **tie-break by ascending `tile_id`** → tiles `7`, then `11` get `+1`.
+**Largest-remainder (deterministic):** select **two** highest residues; all equal ⇒ **tie-break by ascending numeric `tile_id`** → tiles `7`, then `11` get `+1`.
 
 **Result:** `weight_fp(7,11,20) = (4,4,2)`; per-country sum `= 10` exactly; monotonicity holds (`m_7=m_11>m_20` ⇒ weights `(4,4)≥2`). 
 
@@ -1088,7 +1088,7 @@ Masses: `m_i = 1` for all; total `M_c = 5`.
 
 ## B.4 Tie-break sanity
 
-If two or more tiles in a country have equal residues `r_i`, the **ascending `tile_id`** order decides who receives the `+1`. In the B.2 example, if the three residues were equal and `S=1`, **`tile_id=7`** alone gets `+1`. This rule must be stable under any parallelism (see §3.5/§6.4). 
+If two or more tiles in a country have equal residues `r_i`, the **ascending numeric `tile_id`** order decides who receives the `+1`. In the B.2 example, if the three residues were equal and `S=1`, **`tile_id=7`** alone gets `+1`. This rule must be stable under any parallelism (see §3.5/§6.4). 
 
 ---
 
@@ -1103,6 +1103,8 @@ country_iso=US/part-000.parquet
 ```
 
 ASCII-lex order ⇒ `country_iso=DE/...`, `country_iso=FR/...`, `country_iso=US/...` → concatenate bytes in that order → SHA-256 → record `{ partition_path, sha256_hex }` in the run report (§9). 
+
+Note: Any `country_iso=XX/` subfolders shown here are writer layout only. The only authoritative partition key for `tile_weights` is `{parameter_hash}`.
 
 ---
 
