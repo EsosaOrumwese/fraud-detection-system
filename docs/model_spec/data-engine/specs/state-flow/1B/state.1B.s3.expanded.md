@@ -42,7 +42,7 @@ S0’s `sealed_inputs[]` names the surfaces 1B may read, each with its schema an
 * **`iso3166_canonical_2024`** (FK domain for `legal_country_iso`). 
 
 **2.4 Identity & parameter selection.**
-S3 binds to a single `{manifest_fingerprint}` (from S0) and a single `{parameter_hash}` (matching S2 outputs). `tile_weights` identity and partitions are `{parameter_hash}` with writer sort `[country_iso, tile_id]`. `outlet_catalogue` identity and partitions are `{seed, fingerprint}` with writer sort `[merchant_id, legal_country_iso, site_order]`.   
+S3 binds to a single `{seed}`, a single `{manifest_fingerprint}` (from S0), and a single `{parameter_hash}` (matching S2 outputs). `tile_weights` identity and partitions are `{parameter_hash}` with writer sort `[country_iso, tile_id]`. `outlet_catalogue` identity and partitions are `{seed, fingerprint}` with writer sort `[merchant_id, legal_country_iso, site_order]`.   
 
 **2.5 Resolution & read rules.**
 All reads resolve via the **Dataset Dictionary**; path strings are owned there. Path tokens **must equal** embedded columns where specified (e.g., `manifest_fingerprint`). Do not introduce literal paths in code.  
@@ -98,7 +98,7 @@ S3 **consumes no RNG**; no RNG logs are written.
 
 * **ID:** `s3_requirements`
 * **Schema (sole shape authority):** `schemas.1B.yaml#/plan/s3_requirements` *(canonical anchor)*.
-  **Keys:** **PK** = [merchant_id, legal_country_iso]; **partition_keys** = [manifest_fingerprint, parameter_hash]; **sort_keys** = [merchant_id, legal_country_iso].
+  **Keys:** **PK** = [merchant_id, legal_country_iso]; **partition_keys = [seed, manifest_fingerprint, parameter_hash]; **sort_keys** = [merchant_id, legal_country_iso].
   **Columns (strict):**
 
   * `merchant_id` — `$ref: schemas.layer1.yaml#/$defs/id64`. 
@@ -109,10 +109,10 @@ S3 **consumes no RNG**; no RNG logs are written.
 The **Dataset Dictionary** MUST declare this path family and writer policy:
 
 ```
-data/layer1/1B/s3_requirements/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+data/layer1/1B/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
 ```
 
-* **Partitions:** `[fingerprint, parameter_hash]` (one write per identity; write-once). This matches established multi-key partitioning patterns in Layer-1. 
+* **Partitions:** `[seed, fingerprint, parameter_hash]` (one write per identity; write-once). This matches established multi-key partitioning patterns in Layer-1. 
 * **Writer sort:** `[merchant_id, legal_country_iso]` (stable merge order; file order non-authoritative). Pattern mirrors S1/S2 writer-sort discipline.  
 * **Format:** `parquet` (as per Dictionary conventions for 1B tables). 
 
@@ -127,7 +127,7 @@ data/layer1/1B/s3_requirements/fingerprint={manifest_fingerprint}/parameter_hash
 
 **4.5 Identity & lineage constraints.**
 
-* A run **binds to exactly one** `{manifest_fingerprint}` (from S0 receipt) and one `{parameter_hash}` (matching S2). Mixing identities within a publish is forbidden.  
+* A run **binds to exactly one** `{seed}`, **one** `{manifest_fingerprint}` (from S0 receipt), and **one** `{parameter_hash}` (matching S2). (matching S2). Mixing identities within a publish is forbidden.  
 * **No literal paths in code.** All reads/writes resolve by **Dataset Dictionary**; JSON-Schema remains the **sole** shape authority.  
 
 **4.6 Row admission rules.**
@@ -138,7 +138,7 @@ data/layer1/1B/s3_requirements/fingerprint={manifest_fingerprint}/parameter_hash
 
 * **Produced by:** `1B.S3` → **consumed by:** `1B.S4` (rounding/alloc plan) and `1B.S5+`. Writer/reader joins rely on the keys and partitions above; **inter-country order remains external** to S3.  
 
-*(All obligations above mirror existing 1B patterns: schema-owned shape, dictionary-owned path/partitions/sort, write-once/atomic publish, and identity separation by `{manifest_fingerprint, parameter_hash}` consistent with Layer-1 lineage law.)*
+*(All obligations above mirror existing 1B patterns: schema-owned shape, dictionary-owned path/partitions/sort, write-once/atomic publish, and identity separation by `{seed, manifest_fingerprint, parameter_hash}` consistent with Layer-1 lineage law.)*
 
 ---
 
@@ -194,11 +194,11 @@ For the fixed `parameter_hash`, assert that **every country emitted by 6.3 exist
 
 **6.6 Materialise output rows (shape owned by schema).**
 Emit exactly one row per `(merchant_id, legal_country_iso)` with `n_sites ≥ 1` into **`s3_requirements`** under:
-`data/layer1/1B/s3_requirements/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
+`data/layer1/1B/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
 Writer sort: `[merchant_id, legal_country_iso]`. Columns and keys are **exactly** those fixed at `schemas.1B.yaml#/plan/s3_requirements` (no extras). 
 
 **6.7 Immutability & idempotence.**
-Write-once per `{manifest_fingerprint, parameter_hash}`; re-publishing to the same partition **must be byte-identical** (file order non-authoritative). Stage → fsync → single atomic move. 
+Write-once per `{seed, manifest_fingerprint, parameter_hash}`; re-publishing to the same partition **must be byte-identical** (file order non-authoritative). Stage → fsync → single atomic move. 
 
 **6.8 Prohibitions (fail closed).**
 
@@ -213,7 +213,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 
 # 7) Identity, partitions, ordering & merge discipline **(Binding)**
 
-**7.1 Identity tokens (one pair per publish).**
+**7.1 Identity tokens (one triple per publish).**
 
 * **Identity:** `{seed, manifest_fingerprint, parameter_hash}`.
 * `manifest_fingerprint` is the same value proven by **S0**’s `s0_gate_receipt_1B` (fingerprint-only identity). 
@@ -223,7 +223,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 
 * **Path family:**
   `data/layer1/1B/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
-* **Partitions:** `[fingerprint, parameter_hash]` (write **once** per identity; no appends; no compaction).
+* **Partitions:** `[seed, fingerprint, parameter_hash]` (write **once** per identity; no appends; no compaction).
 * **Format:** `parquet` (Dictionary governs format & location; no literal paths in code). 
 
 **7.3 Writer sort & file-order posture.**
@@ -243,7 +243,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 
 **7.6 Atomic publish, immutability & idempotence.**
 
-* **Stage → fsync → single atomic move** into the identity partition. Re-publishing the same `{manifest_fingerprint, parameter_hash}` **MUST** be **byte-identical** or is a hard error.   
+* **Stage → fsync → single atomic move** into the identity partition. Re-publishing the same `{seed, manifest_fingerprint, parameter_hash}` **MUST** be **byte-identical** or is a hard error.   
 * **Resume semantics:** on failure, recompute deterministically and re-stage; **never** patch in place under the live partition. 
 
 **7.7 Prohibitions (fail closed).**
@@ -277,7 +277,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 
 **8.4 Primary key uniqueness.**
 
-* No duplicate `(merchant_id, legal_country_iso)` within the identity `{manifest_fingerprint, parameter_hash}` partition.
+* No duplicate `(merchant_id, legal_country_iso)` within the identity `{seed, manifest_fingerprint, parameter_hash}` partition.
 * **Fail:** `E307_PK_DUPLICATE`.
 
 **8.5 Count equality (authoritative source = `outlet_catalogue`).**
@@ -303,7 +303,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 
 **8.9 Partition, immutability & atomic publish.**
 
-* Published under `…/s3_requirements/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`.
+* Published under `…/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`.
 * If the identity partition already exists and the new bytes differ, reject. Publish is staged, fsynced, and atomically moved.
 * **Fail:** `E_IMMUTABLE_PARTITION_EXISTS_NONIDENTICAL`.
 
@@ -327,7 +327,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 
 # 9) Failure modes & canonical error codes **(Binding)**
 
-> A run of **S3** is **rejected** if **any** condition below is triggered. On first detection the writer **MUST** abort, emit the failure record per Layer-1 failure-payload conventions, and ensure **no partials** are visible under `…/s3_requirements/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` (atomic publish; write-once). **Shape authority = JSON-Schema; IDs→paths/partitions/sort/licence = Dataset Dictionary; gate & lineage rules from S0/1A are binding.**   
+> A run of **S3** is **rejected** if **any** condition below is triggered. On first detection the writer **MUST** abort, emit the failure record per Layer-1 failure-payload conventions, and ensure **no partials** are visible under `…/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` (atomic publish; write-once). **Shape authority = JSON-Schema; IDs→paths/partitions/sort/licence = Dataset Dictionary; gate & lineage rules from S0/1A are binding.**   
 
 ### E301_NO_PASS_FLAG — 1A gate not proven *(ABORT)*
 
@@ -419,7 +419,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 > Observability artefacts are **required to exist** and be **retrievable** by validators, but they do **not** alter the semantics of `s3_requirements`. They **must not** be written inside the dataset partition. This posture mirrors S1/S2.  
 
 **10.1 Deliverables (outside the dataset partition; binding for presence)**
-An accepted S3 run **MUST** expose, outside `…/s3_requirements/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`:
+An accepted S3 run **MUST** expose, outside `…/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`:
 
 * **S3 run report** — single machine-readable JSON object (fields in §10.2). 
 * **Determinism receipt** — composite SHA-256 over the produced **partition files only** (recipe in §10.4).  
@@ -450,7 +450,7 @@ The run report **MUST** include at least:
 **10.4 Determinism receipt — composite hash (method is normative)**
 Compute a **composite SHA-256** over the **produced S3 partition files only**:
 
-1. List all files under `…/s3_requirements/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` as **relative paths**, **ASCII-lex sort** them.
+1. List all files under `…/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` as **relative paths**, **ASCII-lex sort** them.
 2. Concatenate raw bytes in that order; compute SHA-256; encode as lowercase hex64.
 3. Store as `{ "partition_path": "<path>", "sha256_hex": "<hex64>" }` in the run report.
    This mirrors the established S1/S2 determinism-receipt recipe.  
