@@ -215,3 +215,24 @@ subsegments:
       Depends on S1 `tile_index` for the same {parameter_hash}.
       Writer sort is [country_iso, tile_id]; write-once under parameter_hash.
       When basis="population", the implementation reads ingress `population_raster_2025` (read-only).
+
+  # ---- S3 output dataset ----
+  - name: s3_requirements
+    path: data/layer1/1B/s3_requirements/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    type: dataset
+    category: prep
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.1B.s3.requirements
+    license: Proprietary-Internal
+    role: Deterministic per-(merchant_id, legal_country_iso) site counts for this run (RNG-free).
+    dependencies: [outlet_catalogue, tile_weights, iso3166_canonical_2024, s0_gate_receipt_1B]
+    source: internal
+    owner: {owner_team: "mlr-1b-core"}
+    environment: [runtime]
+    schema: schemas.1B.yaml#/plan/s3_requirements
+    notes: |
+      Partitioning: fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
+      Writer sort: [merchant_id, legal_country_iso]
+      Write-once; atomic move into live partition; file order non-authoritative.

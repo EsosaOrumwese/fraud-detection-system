@@ -201,6 +201,25 @@ datasets:
   pii: false
   licence: Proprietary-Internal
 
+# --- New S3 output (RNG-free; joins S4 cleanly) ---
+- id: s3_requirements
+  status: approved
+  owner_subsegment: 1B
+  description: Deterministic site counts per (merchant_id, legal_country_iso) for this run.
+  version: '{manifest_fingerprint}'
+  format: parquet
+  path: data/layer1/1B/s3_requirements/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+  partitioning: [fingerprint, parameter_hash]
+  ordering: [merchant_id, legal_country_iso]
+  schema_ref: schemas.1B.yaml#/plan/s3_requirements
+  lineage:
+    produced_by: 1B.S3
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
 - id: site_locations
   status: planning
   owner_subsegment: 1B

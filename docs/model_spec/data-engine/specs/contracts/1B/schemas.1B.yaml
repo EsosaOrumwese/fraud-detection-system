@@ -104,6 +104,20 @@ prep:
       - { name: weight_fp,   type: integer, nullable: false, minimum: 0, description: "Fixed-decimal integer weight (per-country sum = 10^dp)." }
       - { name: dp,          $ref: "#/$defs/dp_nonneg", nullable: false, description: "Decimal precision; K = 10^dp applies to the whole partition." }
       - { name: basis, $ref: "#/$defs/basis", nullable: true, description: "Weighting basis; non-authoritative (run report is source of truth)." }
+
+plan:
+  s3_requirements:
+    type: table
+    description: "Deterministic per-(merchant_id, legal_country_iso) site counts for this run (RNG-free)."
+    primary_key: [merchant_id, legal_country_iso]
+    partition_keys: [manifest_fingerprint, parameter_hash]
+    sort_keys: [merchant_id, legal_country_iso]
+    columns_strict: true
+    columns:
+      - { name: merchant_id, $ref: 'schemas.layer1.yaml#/$defs/id64', nullable: false }
+      - { name: legal_country_iso, $ref: '#/$defs/iso2', nullable: false }
+      - { name: n_sites, type: integer, minimum: 1, nullable: false }
+
 egress:
   site_locations:
     type: table

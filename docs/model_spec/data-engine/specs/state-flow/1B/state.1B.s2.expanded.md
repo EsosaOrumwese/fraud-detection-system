@@ -1092,7 +1092,7 @@ If two or more tiles in a country have equal residues `r_i`, the **ascending num
 
 ---
 
-## B.5 Determinism receipt — what to hash
+## B.5 Determinism receipt — what to hash (Illustrative)
 
 **Goal:** produce a single SHA-256 over the concatenated bytes of all files in the **`tile_weights/parameter_hash=…/`** partition, listed in **ASCII-lex** relative-path order. (This mirrors the layer’s established hashing discipline.) Example list:
 
