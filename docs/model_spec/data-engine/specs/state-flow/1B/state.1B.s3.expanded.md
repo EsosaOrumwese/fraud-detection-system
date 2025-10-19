@@ -118,7 +118,7 @@ data/layer1/1B/s3_requirements/fingerprint={manifest_fingerprint}/parameter_hash
 
 **4.3 Immutability & atomic publish.**
 
-* **Write-once:** Re-publishing under the same identity `{manifest_fingerprint, parameter_hash}` **MUST** be byte-identical or fail. 
+* **Write-once:** Re-publishing under the same identity `{seed, manifest_fingerprint, parameter_hash}` **MUST** be byte-identical or fail. 
 * **Atomicity:** Stage outside the final partition; fsync; single atomic rename into the partition. File order is **non-authoritative**. 
 
 **4.4 Licence, retention, PII (Dictionary authority).**
@@ -215,14 +215,14 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 
 **7.1 Identity tokens (one pair per publish).**
 
-* **Identity:** `{manifest_fingerprint, parameter_hash}`.
+* **Identity:** `{seed, manifest_fingerprint, parameter_hash}`.
 * `manifest_fingerprint` is the same value proven by **S0**’s `s0_gate_receipt_1B` (fingerprint-only identity). 
 * `parameter_hash` is the same parameter-set used by **S2 `tile_weights`** (parameter-scoped identity). 
 
 **7.2 Partition law (Dictionary-resolved path family).**
 
 * **Path family:**
-  `data/layer1/1B/s3_requirements/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
+  `data/layer1/1B/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
 * **Partitions:** `[fingerprint, parameter_hash]` (write **once** per identity; no appends; no compaction).
 * **Format:** `parquet` (Dictionary governs format & location; no literal paths in code). 
 
@@ -267,7 +267,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 
 **8.2 Parameter parity.**
 
-* The `{parameter_hash}` used to read `tile_weights` equals the `{parameter_hash}` used to publish `s3_requirements`.
+* The `{parameter_hash}` used to read `tile_weights` equals the publish token, and the `{seed}` used to read `outlet_catalogue` equals the publish token in `s3_requirements`.
 * **Fail:** `E306_TOKEN_MISMATCH`.
 
 **8.3 Schema conformance (shape is authoritative).**
@@ -332,7 +332,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 ### E301_NO_PASS_FLAG — 1A gate not proven *(ABORT)*
 
 **Trigger (MUST):** Missing S0 receipt for the `manifest_fingerprint`, or `_passed.flag` content hash ≠ `SHA256(validation_bundle_1A)` for that fingerprint. **S3 MUST NOT read `outlet_catalogue` without PASS.**  
-**Detection:** S0 receipt lookup and bundle re-hash (ASCII-lex per index). 
+**Detection:** validate `s0_gate_receipt_1B` against `#/validation/s0_gate_receipt` and confirm its `manifest_fingerprint` equals the publish path token. S3 does not re-hash the 1A bundle.
 **Authority refs:** S0 gate; 1A Dictionary gate text (“No PASS → no read”).  
 
 ### E302_FK_COUNTRY — ISO foreign-key violation *(ABORT)*
@@ -360,7 +360,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 
 ### E307_PK_DUPLICATE — Primary-key duplication *(ABORT)*
 
-**Trigger (MUST):** Duplicate `(merchant_id, legal_country_iso)` within a `{manifest_fingerprint, parameter_hash}` partition. *(PK uniqueness is schema-owned in Layer-1 tables.)* 
+**Trigger (MUST):** Duplicate `(merchant_id, legal_country_iso)` within the identity `{seed, manifest_fingerprint, parameter_hash}` partition. *(PK uniqueness is schema-owned in Layer-1 tables.)* 
 
 ### E308_COUNTS_MISMATCH — Count not equal to source rows *(ABORT)*
 
@@ -392,7 +392,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 
 ### E_IMMUTABLE_PARTITION_EXISTS_NONIDENTICAL — Publish immutability breach *(ABORT)*
 
-**Trigger (MUST):** A partition for `{manifest_fingerprint, parameter_hash}` already exists and the newly staged bytes differ. **Do not overwrite.** *(Cross-state, layer-wide immutability code retained verbatim for consistency.)* 
+**Trigger (MUST):** A partition for `{seed, manifest_fingerprint, parameter_hash}` already exists and the newly staged bytes differ. **Do not overwrite.** *(Cross-state, layer-wide immutability code retained verbatim for consistency.)* 
 
 ### E_RECEIPT_SCHEMA_INVALID — S0 receipt fails JSON-Schema *(ABORT)*
 **Trigger (MUST):** `s0_gate_receipt_1B` does not validate against `schemas.1B.yaml#/validation/s0_gate_receipt`.
@@ -428,6 +428,7 @@ An accepted S3 run **MUST** expose, outside `…/s3_requirements/fingerprint={ma
 **10.2 S3 run report — required fields (binding for presence)**
 The run report **MUST** include at least:
 
+* `seed`
 * `manifest_fingerprint` (hex64) — identity proven by S0. 
 * `parameter_hash` (hex64) — parameter identity used to read `tile_weights`. 
 * `rows_emitted` — total rows written to `s3_requirements`. 

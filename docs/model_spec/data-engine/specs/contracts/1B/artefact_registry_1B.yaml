@@ -218,11 +218,11 @@ subsegments:
 
   # ---- S3 output dataset ----
   - name: s3_requirements
-    path: data/layer1/1B/s3_requirements/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    path: data/layer1/1B/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
     type: dataset
     category: prep
     semver: '{semver}'
-    version: '{manifest_fingerprint}'
+    version: '{seed}.{manifest_fingerprint}'
     digest: '{sha256}'
     manifest_key: mlr.1B.s3.requirements
     license: Proprietary-Internal
@@ -233,6 +233,6 @@ subsegments:
     environment: [runtime]
     schema: schemas.1B.yaml#/plan/s3_requirements
     notes: |
-      Partitioning: fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
+      Partitioning: seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
       Writer sort: [merchant_id, legal_country_iso]
       Write-once; atomic move into live partition; file order non-authoritative.

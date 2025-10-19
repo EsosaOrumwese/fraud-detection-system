@@ -110,7 +110,7 @@ plan:
     type: table
     description: "Deterministic per-(merchant_id, legal_country_iso) site counts for this run (RNG-free)."
     primary_key: [merchant_id, legal_country_iso]
-    partition_keys: [manifest_fingerprint, parameter_hash]
+    partition_keys: [seed, manifest_fingerprint, parameter_hash]
     sort_keys: [merchant_id, legal_country_iso]
     columns_strict: true
     columns:

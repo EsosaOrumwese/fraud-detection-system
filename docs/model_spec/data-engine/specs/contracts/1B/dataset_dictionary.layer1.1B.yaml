@@ -206,10 +206,10 @@ datasets:
   status: approved
   owner_subsegment: 1B
   description: Deterministic site counts per (merchant_id, legal_country_iso) for this run.
-  version: '{manifest_fingerprint}'
+  version: '{seed}.{manifest_fingerprint}'
   format: parquet
-  path: data/layer1/1B/s3_requirements/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
-  partitioning: [fingerprint, parameter_hash]
+  path: data/layer1/1B/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+  partitioning: [seed, fingerprint, parameter_hash]
   ordering: [merchant_id, legal_country_iso]
   schema_ref: schemas.1B.yaml#/plan/s3_requirements
   lineage:
