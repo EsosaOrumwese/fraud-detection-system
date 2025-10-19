@@ -284,12 +284,14 @@ Before S2 reads **`tile_index`**, the reader **MUST** assert:
    `data/layer1/1B/tile_index/parameter_hash={parameter_hash}/` with `format: parquet`, `partitioning: [parameter_hash]`, `ordering: [country_iso, tile_id]`. 
    A failure of (1) or (2) is an **abort** for S2 (see §12: `E101_TILE_INDEX_MISSING` / `E108_WRITER_HYGIENE`).
 
-## 5.3 Allowed reads before any gate
-
 S2 **MAY** read **only**:
 
-* `tile_index` (S1 output; required). 
-* Ingress references pinned in the Dictionary (read-only): `population_raster_2025` (COG), `tz_world_2025a`, and the ISO FK surface. *(These are sealed references listed under ingress; S2 uses them only as specified by this spec.)*
+* `tile_index` (S1 output; required).
+* Ingress references pinned in the Dictionary (read-only):
+  – **`population_raster_2025`** (COG, **only when `basis="population"`**),
+  – **`world_countries`** (optional; validations only, per §4.3),
+  – the ISO FK surface.
+  *(Per §4.5, `tz_world_2025a` is listed for layer lineage and **MUST NOT** be read by S2.)*
 
 ## 5.4 Prohibited accesses in S2
 
@@ -336,7 +338,7 @@ The chosen `basis` is part of the governed parameters captured by `{parameter_ha
 
 **Constraints:**
 
-* All masses **MUST** be **finite and ≥ 0**. Any negative or non-finite value is an error (`E104_ZERO_MASS` if it forces a zero-mass country after sanitisation; otherwise hygiene failure).
+* All masses **MUST** be **finite and ≥ 0**. Any negative or non-finite value is an error and SHALL be treated as **`E105_NORMALIZATION`**. If sanitisation yields `M_c=0` with `|U_c|>0`, validators expect the §6.7 uniform fallback; absence ⇒ **`E104_ZERO_MASS`**.
 * If `basis = area_m2`, S2 **must** use the **`pixel_area_m2`** column from `tile_index` (S1’s definition is authoritative).
 * If `basis = population`, reads are permitted **only** from `population_raster_2025` (Dictionary/ingress anchor). 
 
@@ -571,7 +573,7 @@ A single JSON object (e.g., `s2_run_report.json`) **MUST** contain at least:
 * `rows_emitted` — total rows written to `tile_weights`.
 * `countries_total` — number of ISO countries processed.
 * `determinism_receipt` — object per §9.4.
-* `pat` — object with the §11 counters captured (see §9.5).
+* `pat` — object with the §11 counters **and baselines** captured (see §9.5).
 
 This report **MUST** be available to the validator but **MUST NOT** be stored under the `tile_weights` partition.
 
@@ -611,6 +613,10 @@ Emit, at minimum:
 * `bytes_read_tile_index_total`, `bytes_read_raster_total` (if `basis="population"`), `bytes_read_vectors_total` (if applicable)
 * `max_worker_rss_bytes` (peak per worker), `open_files_peak`
 * concurrency facts: `workers_used`, `chunk_size` (if block-parallel)
+* **Baselines (measured at start of run; §11.1):**
+  `io_baseline_ti_bps` (tile_index),
+  `io_baseline_raster_bps` (population basis only),
+  `io_baseline_vectors_bps` (if vectors read).
 
 Validators use these counters to execute **Performance Acceptance Tests** (§11). Exceeding any bound fails with `E109_PERF_BUDGET`.
 
@@ -772,11 +778,12 @@ wall_clock_seconds_total
 Validators execute the PAT using the §9 artefacts:
 
 1. **Counters present:** `wall_clock_seconds_total`, `cpu_seconds_total`, `countries_processed`, `rows_emitted`, `bytes_read_tile_index_total`, `bytes_read_raster_total` (if population), `bytes_read_vectors_total` (if used), `max_worker_rss_bytes`, `open_files_peak`, `workers_used`, `chunk_size`. **Absence ⇒ fail** (`E109_PERF_BUDGET`).
-2. **I/O amplification:** enforce §11.1 ratios using object-store sizes for `S_ti`, `S_r`, `S_v`. **Fail ⇒ `E109_PERF_BUDGET`.**
-3. **Runtime bound:** compute the wall-clock inequality from §11.1 with the recorded baselines; compare to `wall_clock_seconds_total`. **Fail ⇒ `E109_PERF_BUDGET`.**
-4. **Memory/FD caps:** enforce §11.2. **Fail ⇒ `E109_PERF_BUDGET`.**
-5. **Determinism check:** **re-run S2** on the same `{parameter_hash}` with a **different** worker count; recompute the **determinism receipt** (ASCII-lex ordered partition bytes → SHA-256). Receipts **must match** byte-for-byte; mismatch ⇒ **fail** `E107_DETERMINISM`.
-6. **Writer law & atomicity:** confirm Dictionary path/partition/format and writer sort; verify atomic publish (no partials). **Fail ⇒ `E108_WRITER_HYGIENE`.** 
+2. **Baselines present:** `io_baseline_ti_bps` (and, when applicable, `io_baseline_raster_bps`, `io_baseline_vectors_bps`). **Absence ⇒ fail** (`E109_PERF_BUDGET`).
+3. **I/O amplification:** enforce §11.1 ratios using object-store sizes for `S_ti`, `S_r`, `S_v`. **Fail ⇒ `E109_PERF_BUDGET`.**
+4. **Runtime bound:** compute the wall-clock inequality from §11.1 with the recorded baselines; compare to `wall_clock_seconds_total`. **Fail ⇒ `E109_PERF_BUDGET`.**
+5. **Memory/FD caps:** enforce §11.2. **Fail ⇒ `E109_PERF_BUDGET`.**
+6. **Determinism check:** **re-run S2** on the same `{parameter_hash}` with a **different** worker count; recompute the **determinism receipt** (ASCII-lex ordered partition bytes → SHA-256). Receipts **must match** byte-for-byte; mismatch ⇒ **fail** `E107_DETERMINISM`.
+7. **Writer law & atomicity:** confirm Dictionary path/partition/format and writer sort; verify atomic publish (no partials). **Fail ⇒ `E108_WRITER_HYGIENE`.** 
 
 ---
 
@@ -818,7 +825,10 @@ Validators execute the PAT using the §9 artefacts:
 
 ## E105_NORMALIZATION — Fixed-dp sum or `dp` consistency error *(ABORT)*
 
-* **Trigger (MUST):** For any `country_iso`, the integerised sum **does not equal** `10^dp` **or** rows in the same partition disagree on `dp`.
+* **Trigger (MUST):** Any of:
+  – For any `country_iso`, the integerised sum **does not equal** `10^dp`; or
+  – Rows in the same partition disagree on `dp`; or
+  – **Invalid mass domain** detected in §6.1 (any negative or non-finite `m_i`).
 * **Detection:** §8.5(6) exact-sum check; §8.4 `dp` disclosure/consistency.
 * **Evidence:** Failure event with `code=E105_NORMALIZATION`, include `country_iso`, observed Σ`weight_fp`, expected `10^dp`, and `dp` value(s).
 * **Authority refs:** §6.3, §8.4–§8.5.
