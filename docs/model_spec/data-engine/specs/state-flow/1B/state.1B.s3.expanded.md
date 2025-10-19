@@ -37,7 +37,7 @@ S0’s `sealed_inputs[]` names the surfaces 1B may read, each with its schema an
 
 **2.3 Inputs S3 will actually read.**
 
-* **`outlet_catalogue`** (counts source; fingerprint-scoped; order-free; PASS-gated). 
+* **`outlet_catalogue`** (counts source; seed+fingerprint-scoped; order-free; PASS-gated). 
 * **`tile_weights`** (coverage authority per country for the selected `{parameter_hash}`); `schemas.1B.yaml#/prep/tile_weights`.  
 * **`iso3166_canonical_2024`** (FK domain for `legal_country_iso`). 
 
@@ -98,7 +98,7 @@ S3 **consumes no RNG**; no RNG logs are written.
 
 * **ID:** `s3_requirements`
 * **Schema (sole shape authority):** `schemas.1B.yaml#/plan/s3_requirements` *(canonical anchor)*.
-  **Keys:** **PK** = [merchant_id, legal_country_iso]; **partition_keys = [seed, manifest_fingerprint, parameter_hash]; **sort_keys** = [merchant_id, legal_country_iso].
+  **Keys:** **PK** = [merchant_id, legal_country_iso]; **partition_keys** = [seed, manifest_fingerprint, parameter_hash]; **sort_keys** = [merchant_id, legal_country_iso].
   **Columns (strict):**
 
   * `merchant_id` — `$ref: schemas.layer1.yaml#/$defs/id64`. 
@@ -127,7 +127,7 @@ data/layer1/1B/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/pa
 
 **4.5 Identity & lineage constraints.**
 
-* A run **binds to exactly one** `{seed}`, **one** `{manifest_fingerprint}` (from S0 receipt), and **one** `{parameter_hash}` (matching S2). (matching S2). Mixing identities within a publish is forbidden.  
+* A run **binds to exactly one** `{seed}`, **one** `{manifest_fingerprint}` (from S0 receipt), and **one** `{parameter_hash}` (matching S2). Mixing identities within a publish is **forbidden**.  
 * **No literal paths in code.** All reads/writes resolve by **Dataset Dictionary**; JSON-Schema remains the **sole** shape authority.  
 
 **4.6 Row admission rules.**
@@ -235,6 +235,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 
 * **Receipt parity:** `partition.fingerprint == s0_gate_receipt_1B.manifest_fingerprint`. 
 * **Parameter parity:** `partition.parameter_hash` equals the `parameter_hash` used to read **`tile_weights`**.  
+* **Seed parity:** `partition.seed` equals the `{seed}` used to read **`outlet_catalogue`**.
 * If any lineage field is embedded in rows in a future schema revision, **embedded == path token** (path↔embed equality). 
 
 **7.5 Determinism & parallelism.**
@@ -248,7 +249,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 
 **7.7 Prohibitions (fail closed).**
 
-* **No mixed identities** in a single publish (do not mix fingerprints or parameter hashes). 
+* **No mixed identities** in a single publish (do not mix seeds, fingerprints, or parameter hashes). 
 * **No stray files/alternate layouts** inside the partition (Dictionary path/sort law; violations ⇒ writer-hygiene fail). 
 * **No literal paths in code**; all IO resolves via the Dataset Dictionary (Schema remains sole shape authority). 
 
@@ -262,7 +263,7 @@ Record `{ partition_path, sha256_hex }` for the produced partition by hashing co
 
 **8.1 Gate & identity (pre-write).**
 
-* Exactly one `s0_gate_receipt_1B` exists for the target `manifest_fingerprint`, it schema-validates, and its `flag_sha256_hex` matches the `_passed.flag`.
+* Exactly one `s0_gate_receipt_1B` exists for the target `manifest_fingerprint`, and it schema-validates. Confirm the receipt’s `manifest_fingerprint` equals the publish path token. S3 does **not** re-hash the 1A bundle or re-read `_passed.flag`.
 * **Fail:** `E301_NO_PASS_FLAG`, `E_RECEIPT_SCHEMA_INVALID`.
 
 **8.2 Parameter parity.**
@@ -478,7 +479,7 @@ On any §9 failure, emit a structured event (outside the dataset partition):
 # 11) Performance & scalability *(Informative)*
 
 **11.1 Workload shape.**
-S3 is a single-pass **streaming group-by** over **`outlet_catalogue`** (fingerprint partition), emitting one row per `(merchant_id, legal_country_iso)`. Because `outlet_catalogue` is writer-sorted by `[merchant_id, legal_country_iso, site_order]`, the count can be maintained with constant memory per open group. 
+S3 is a single-pass **streaming group-by** over **`outlet_catalogue`** (seed+fingerprint partition), emitting one row per `(merchant_id, legal_country_iso)`. Because `outlet_catalogue` is writer-sorted by `[merchant_id, legal_country_iso, site_order]`, the count can be maintained with constant memory per open group. 
 
 **11.2 Asymptotics.**
 Time ≈ **O(|outlet_catalogue| + |tile_weights countries|)**; memory ≈ **O(1)** for the running counter plus **O(#countries)** for a coverage set from `tile_weights`. (S3 only checks **presence** of each country in `tile_weights` for the fixed `{parameter_hash}`.) 
@@ -519,7 +520,7 @@ This S3 spec follows **MAJOR.MINOR.PATCH**. A change is **MAJOR** if it can make
 **12.2 What requires a MAJOR bump (breaking).**
 S3 **MUST** increment **MAJOR** and be re-ratified if any of the following change:
 
-* **Dataset contract for `s3_requirements`:** primary key, column set/types, `columns_strict` posture, partition keys (`[manifest_fingerprint, parameter_hash]`), writer sort, or path family. (Identity/layout/keys are breaking by precedent.) 
+* **Dataset contract for `s3_requirements`:** primary key, column set/types, `columns_strict` posture, partition keys (`[seed, manifest_fingerprint, parameter_hash]`), writer sort, or path family. (Identity/layout/keys are breaking by precedent.) 
 * **Authority/precedence model:** JSON-Schema as sole shape authority; Dictionary for IDs→paths/partitions/writer policy; Registry for provenance/licences.  
 * **Gate or lineage law:** consumer-gate semantics (“**No PASS → No read**”), `_passed.flag` hashing rule/location, or path↔embed byte-equality rules used by S3. 
 * **Dataset IDs / `$ref` anchors** S3 binds to (e.g., renaming `outlet_catalogue`, `tile_weights`, or this anchor). 
@@ -547,7 +548,7 @@ On a **MAJOR** change: (a) freeze the old **v1.* **spec; (b) publish S3 **v2.0.0
 **12.8 Consumer compatibility covenant (within v1.*).**
 Within **v1.* **for S3:
 
-* `s3_requirements` identity (`[manifest_fingerprint, parameter_hash]`), PK, writer sort, and count semantics (“`n_sites` equals rows in `outlet_catalogue` for the same identity; zero-count pairs elided”) remain stable. 
+* `s3_requirements` identity (`[seed, manifest_fingerprint, parameter_hash]`), PK, writer sort, and count semantics (“`n_sites` equals rows in `outlet_catalogue` for the same identity; zero-count pairs elided”) remain stable. 
 * Inter-country order remains **external** (authority = `s3_candidate_set.candidate_rank`); S3 neither encodes nor implies order. 
 * Dictionary/Schema remain the authorities for paths/shape; implementations **must not** hard-code paths. 
 
