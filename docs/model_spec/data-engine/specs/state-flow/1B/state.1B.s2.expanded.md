@@ -284,6 +284,8 @@ Before S2 reads **`tile_index`**, the reader **MUST** assert:
    `data/layer1/1B/tile_index/parameter_hash={parameter_hash}/` with `format: parquet`, `partitioning: [parameter_hash]`, `ordering: [country_iso, tile_id]`. 
    A failure of (1) or (2) is an **abort** for S2 (see §12: `E101_TILE_INDEX_MISSING` / `E108_WRITER_HYGIENE`).
 
+## 5.3 Allowed reads (before any gate)
+
 S2 **MAY** read **only**:
 
 * `tile_index` (S1 output; required).
@@ -831,7 +833,7 @@ Validators execute the PAT using the §9 artefacts:
   – **Invalid mass domain** detected in §6.1 (any negative or non-finite `m_i`).
 * **Detection:** §8.5(6) exact-sum check; §8.4 `dp` disclosure/consistency.
 * **Evidence:** Failure event with `code=E105_NORMALIZATION`, include `country_iso`, observed Σ`weight_fp`, expected `10^dp`, and `dp` value(s).
-* **Authority refs:** §6.3, §8.4–§8.5.
+* **Authority refs:** §6.1, §6.3, §8.4–§8.5.
 
 ## E106_MONOTONICITY — Monotone/residue law violated *(ABORT)*
 
@@ -843,7 +845,7 @@ Validators execute the PAT using the §9 artefacts:
 ## E107_DETERMINISM — Re-run produces different bytes *(ABORT)*
 
 * **Trigger (MUST):** Re-running S2 on the same inputs and `{parameter_hash}` yields a **different** determinism receipt (ASCII-lex partition hash) or content differences.
-* **Detection:** §11.7(5) determinism check; §9.4 receipt comparison.
+* **Detection:** §11.7(6) determinism check; §9.4 receipt comparison.
 * **Evidence:** Failure event with `code=E107_DETERMINISM`, include both receipts.
 * **Authority refs:** §3.4–§3.6, §8.7, §9.4, §11.7.
 
@@ -1095,12 +1097,12 @@ If two or more tiles in a country have equal residues `r_i`, the **ascending `ti
 **Goal:** produce a single SHA-256 over the concatenated bytes of all files in the **`tile_weights/parameter_hash=…/`** partition, listed in **ASCII-lex** relative-path order. (This mirrors the layer’s established hashing discipline.) Example list:
 
 ```
-country=DE/part-000.parquet
-country=FR/part-000.parquet
-country=US/part-000.parquet
+country_iso=DE/part-000.parquet
+country_iso=FR/part-000.parquet
+country_iso=US/part-000.parquet
 ```
 
-ASCII-lex order ⇒ `country=DE/...`, `country=FR/...`, `country=US/...` → concatenate bytes in that order → SHA-256 → record `{ partition_path, sha256_hex }` in the run report (§9). 
+ASCII-lex order ⇒ `country_iso=DE/...`, `country_iso=FR/...`, `country_iso=US/...` → concatenate bytes in that order → SHA-256 → record `{ partition_path, sha256_hex }` in the run report (§9). 
 
 ---
 
