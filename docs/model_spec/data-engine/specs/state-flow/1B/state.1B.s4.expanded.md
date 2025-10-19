@@ -18,6 +18,15 @@ e) **Read resolution:** All reads **must** resolve by the **Dataset Dictionary**
 **1.4 Deliverable.**
 S4 emits a single **integer allocation plan** dataset (ID: **`s4_alloc_plan`**) with rows only where the per-tile allocation `n_sites_tile ≥ 1`, and for each `(merchant_id, legal_country_iso)` the **sum of per-tile allocations equals** the S3 `n_sites` for the same identity. (Identity for S4 remains `{seed, manifest_fingerprint, parameter_hash}`; counts are verified against `s3_requirements`.) 
 
+**1.5 Symbols (informative).**
+* `dp` — fixed-decimal scale exponent from S2 (per-run constant under `{parameter_hash}`; S2 is authority).
+* `K := 10^dp` — fixed scale used for integer arithmetic.
+* `weight_fp` — fixed-decimal integer tile weight from S2 (domain/shape owned by `#/prep/tile_weights`).
+* `z_i` — base integer allocation for tile `i` after flooring.
+* `rnum_i` — residue numerator `(weight_fp[i] × n_sites) mod K`.
+* `S` — shortfall `n_sites − Σ_i z_i` (# of +1 bumps to assign).
+* `n_sites_tile` — final per-tile integer allocation (emit only when ≥ 1).
+
 ---
 
 # 2) Preconditions & sealed inputs **(Binding)**
@@ -185,9 +194,9 @@ For each `(merchant_id, legal_country_iso, n_sites)` in `s3_requirements`:
 2. **Quotas.** For each tile `i`:
 
    * `q_i := (weight_fp[i] / K) × n_sites` (conceptual).
-   * **Integer base:** `z_i := ⌊(weight_fp[i] × n_sites) / K⌋` (integer arithmetic).
-   * **Residue (integer numerator):** `rnum_i := (weight_fp[i] × n_sites) mod K`.
-3. **Shortfall.** `S := n_sites − Σ_i z_i`. (By construction, `0 ≤ S < #tiles`.)
+   * **Integer base:** `z_i := ⌊(weight_fp[i] × n_sites) / K⌋` (**integer arithmetic only**, per §3.8).
+   * **Residue (integer numerator):** `rnum_i := (weight_fp[i] × n_sites) mod K` (**integer arithmetic only**).
+3. **Shortfall.** `S := n_sites − Σ_i z_i`. (By construction, `0 ≤ S < #tiles` because each `rnum_i < K`; this is informative, not a bound you enforce.)
 4. **Residue law (deterministic):** add **+1** to exactly `S` tiles with **largest** `rnum_i`; **tie-break** by **ascending numeric `tile_id`**.
 5. **Emit positives only.** For each tile, `n_sites_tile := z_i (+1 if bumped)`; **emit a row iff `n_sites_tile ≥ 1`**.
 
@@ -232,9 +241,9 @@ Rows **must** be written in non-decreasing `[merchant_id, legal_country_iso, til
 
 **7.4 Identity-coherence checks (must hold before publish).**
 
-* **Receipt parity (fingerprint):** `partition.fingerprint == s0_gate_receipt_1B.manifest_fingerprint`. (S0 receipt is fingerprint-scoped.)  
-* **Parameter parity (S2 scope):** `partition.parameter_hash` equals the `{parameter_hash}` used to read `tile_weights`/`tile_index`. (Those tables are parameter-scoped.) 
-* **Seed parity (S3 scope):** `partition.seed` equals the `{seed}` used to read `s3_requirements`. (S3 is seed+fingerprint+parameter_hash scoped.)  
+* **Receipt parity (fingerprint):** `partition.fingerprint == s0_gate_receipt_1B.manifest_fingerprint` *(S0 receipt is fingerprint-scoped)*.  
+* **Parameter parity (S2 scope):** `partition.parameter_hash` equals the `{parameter_hash}` used to read `tile_weights`/`tile_index` *(S2/S1 tables are parameter-scoped)*.
+* **Seed parity (S3 scope):** `partition.seed` equals the `{seed}` used to read `s3_requirements` *(S3 is seed+fingerprint+parameter_hash-scoped)*.
 * **Path↔embed equality:** where lineage fields are embedded in rows, values **must equal** their path tokens. (Same equality law used by S0 for `manifest_fingerprint`.) 
 
 **7.5 Parallelism & determinism.**
@@ -250,6 +259,8 @@ Publish via **stage → fsync → single atomic move** into the identity partiti
 
 **7.8 Evidence (non-shape).**
 Record a determinism receipt `{ partition_path, sha256_hex }` computed over ASCII-lex ordered file bytes of the published partition; store outside the dataset partition (run report). (Same receipt posture as S3.) 
+Optionally record a **conservation proof sketch**: for each `(merchant_id, legal_country_iso)` in the publish,
+persist `{ merchant_id, legal_country_iso, n_sites_s3, n_sites_sum }` with `n_sites_s3` read from `s3_requirements` and `n_sites_sum = Σ_tile n_sites_tile` from the publish. *(Informative; acceptance remains enforced by §8.4.)*
 
 ---
 
@@ -273,7 +284,7 @@ Record a determinism receipt `{ partition_path, sha256_hex }` computed over ASCI
 
 **8.4 Sum-to-n (conservation).**
 
-* For every `(merchant_id, legal_country_iso)`, `Σ_tile n_sites_tile == s3_requirements.n_sites` for the **same identity**.
+* For every `(merchant_id, legal_country_iso)`, `Σ_tile n_sites_tile == s3_requirements.n_sites` for the **same identity** `{seed, manifest_fingerprint, parameter_hash}` (join scope = that exact partition).
 * **Fail:** `E404_ALLOCATION_MISMATCH`. 
 
 **8.5 Universe & coverage.**
@@ -408,6 +419,11 @@ Record a determinism receipt `{ partition_path, sha256_hex }` computed over ASCI
 **Trigger:** One or more required fields from §10.2 are absent (e.g., seed, manifest_fingerprint, parameter_hash, rows_emitted, or determinism_receipt).
 **Detection:** Run-report presence/shape check outside the dataset partition.
 
+### E416_NUMERIC_OVERFLOW — Intermediate arithmetic overflow *(ABORT)*
+
+**Trigger:** Any overflow/wrap in integer intermediates used by S4’s fixed-dp arithmetic (`base = ⌊(weight_fp × n_sites)/10^dp⌋`, `rnum = (weight_fp × n_sites) mod 10^dp`, per-country Σ checks), contrary to **§3.8 Numeric safety**.  
+**Detection:** Guarded arithmetic or bignum check; validator recomputation detects inconsistency with non-overflowing recompute. This is a *hard* structural failure (no publish).
+
 ### E312_ORDER_AUTHORITY_VIOLATION — Order implied/encoded *(ABORT)*
 
 **Trigger:** S4 output encodes or implies inter-country order (sole authority = 1A `s3_candidate_set`).
@@ -428,7 +444,7 @@ Record a determinism receipt `{ partition_path, sha256_hex }` computed over ASCI
 
 ## 9.2 Code space & stability *(normative)*
 
-* **Reserved (this state):** `E401`–`E415` as defined above. Cross-state codes reused here: `E301_*`, `E312_*`, and `E_IMMUTABLE_PARTITION_EXISTS_NONIDENTICAL`.
+* **Reserved (this state):** `E401`–`E416` as defined above. Cross-state codes reused here: `E301_*`, `E312_*`, and `E_IMMUTABLE_PARTITION_EXISTS_NONIDENTICAL`.
 * **SemVer impact:** Tightening triggers that do not flip prior accepted reference runs = **MINOR**; any change that can flip prior outcomes (or identity/partitioning) = **MAJOR**. 
 
 ---
@@ -586,3 +602,15 @@ For S4 **v1.***:
 Each release must record: `semver`, `effective_date`, ratifiers, code commit (and optional SHA-256 of this file). Keep a link to the prior MAJOR’s frozen copy.
 
 ---
+
+# Appendix A — Worked example *(Informative)*
+
+Given `dp=3` ⇒ `K=1000`, country has 2 tiles with `weight_fp=[700, 300]`, and S3 requires `n_sites=5`:
+
+* Base: `z = [⌊700×5/1000⌋, ⌊300×5/1000⌋] = [3, 1]`
+* Residues: `rnum = [(700×5) mod 1000, (300×5) mod 1000] = [500, 500]`
+* Shortfall: `S = 5 − (3+1) = 1`
+* Tie-break on `rnum` desc then `tile_id` asc ⇒ bump tile `1` (lower `tile_id`)
+* Emit rows where `n_sites_tile ≥ 1` ⇒ `(tile_1=4, tile_2=1)`; sum-to-n holds.
+
+This example is non-normative; the deterministic law is §§6.4, 8.4, and the tie-break is §8.6.
