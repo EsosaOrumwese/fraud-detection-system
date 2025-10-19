@@ -92,7 +92,7 @@ prep:
 
   tile_weights:
     type: table
-    description: 'Fixed-dp weights per tile (placeholder; not ratified here).'
+    description: 'Deterministic fixed-decimal weights per eligible tile (S2).'
     primary_key: [country_iso, tile_id]
     partition_keys: [parameter_hash]
     sort_keys: [country_iso, tile_id]

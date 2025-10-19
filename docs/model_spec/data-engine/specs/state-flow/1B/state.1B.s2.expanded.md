@@ -115,7 +115,7 @@ An S2 run is “valid & done” only if **all** of the following hold:
 
 ## 2.1 Authority set (normative anchors)
 
-* **Output shape (sole shape authority):** `schemas.1B.yaml#/prep/tile_weights`. *(Columns are enumerated when S2 is ratified; PK/partition/sort are already reserved here.)* 
+* **Output shape (sole shape authority):** `schemas.1B.yaml#/prep/tile_weights`. *(Required columns and keys (PK/partition/sort) are enumerated here.)* 
 * **Dictionary law (ID → path/partitions/sort/licence/retention):** `dataset_dictionary.layer1.1B.yaml#tile_weights` → `path = data/layer1/1B/tile_weights/parameter_hash={parameter_hash}/`, `partitioning = [parameter_hash]`, `ordering = [country_iso, tile_id]`, `format = parquet`, `licence = Proprietary-Internal`, `retention = 365`. 
 * **Upstream input (universe of eligible rows):** `schemas.1B.yaml#/prep/tile_index` (shape) and `dataset_dictionary.layer1.1B.yaml#tile_index` (path/partitions/sort).
 * **Ingress references (sealed; read-only for S2):** `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`, `#/world_countries`, `#/population_raster_2025` — pinned in the Dictionary with licences/paths. 
@@ -439,7 +439,6 @@ The **names/types live in the schema**; the following **semantics are binding** 
 * A **fixed-decimal integer** weight per row (the quantised result of §6.3), and the **scale exponent** `dp` used for that run.
 * PK columns `(country_iso, tile_id)` as per the schema keys above.
 * Optional, non-authoritative audit fields (e.g., a real-valued weight or a declared basis enum) may be present; if present they **do not** alter acceptance criteria.
-  *Note:* Until the schema lists these columns, consumers must rely on §6 and §8 to validate semantics; **the schema remains the sole shape authority** once enumerated. 
 
 ## 7.5 Foreign-key & coverage obligations
 
@@ -460,7 +459,7 @@ Consumers and validators **MUST** assert, at minimum:
 * **Dictionary hygiene:** dataset appears **only** under the declared partition family with `format=parquet` and writer sort `[country_iso, tile_id]`. 
 * **FK/coverage:** every row is present in `tile_index` for the same `{parameter_hash}`; ISO FK holds.
 
-*Result:* `tile_weights` is contract-defined by the **Schema** (keys; soon columns) and the **Dictionary** (path/partition/sort/licence/retention). All other behavioural guarantees (normalisation, fixed-dp quantisation, monotonicity, determinism) are bound in §6 and enforced in §8.
+*Result:* `tile_weights` is contract-defined by the **Schema** (keys **and required columns**) and the **Dictionary** (path/partition/sort/licence/retention). All other behavioural guarantees (normalisation, fixed-dp quantisation, monotonicity, determinism) are bound in §6 and enforced in §8.
 
 ---
 
@@ -954,7 +953,7 @@ Validators execute the PAT using the §9 artefacts:
 
 * **`parameter_hash`** — Lowercase **hex64** (SHA-256) digest representing the governed parameter set for a run; the **sole partition key** for `tile_index` and `tile_weights`. Identity is path-scoped by `{parameter_hash}` in the Dictionary. 
 * **`tile_index`** — The S1 output (universe of eligible tiles) with **PK = `[country_iso, tile_id]`**, **partition_keys = `[parameter_hash]`**, **sort_keys = `[country_iso, tile_id]`**; Parquet; Proprietary-Internal; retention 365 days. 
-* **`tile_weights`** — The S2 output (fixed-dp weights per tile) with **PK/partition/sort** reserved as for `tile_index`; Parquet; Proprietary-Internal; retention 365 days; column set enumerated at S2 ratification.
+* **`tile_weights`** — The S2 output (fixed-dp weights per tile) with **PK/partition/sort and required columns enumerated in the schema**; Parquet; Proprietary-Internal; retention 365 days.
 * **JSON-Schema anchor** — The schema reference that is the **sole shape authority**: `schemas.1B.yaml#/prep/tile_index` and `#/prep/tile_weights`. Keys/partitions/sort are fixed here.
 * **Dataset Dictionary** — Authority for **ID→path/partition/sort/format/licence/retention**; no literal paths in code. `#tile_index`, `#tile_weights`. 
 
@@ -1097,7 +1096,7 @@ ASCII-lex order ⇒ `country=DE/...`, `country=FR/...`, `country=US/...` → con
 
 ## B.6 Sanity queries (validator sketches)
 
-> These sketches assume a SQL engine that can read Parquet and (optionally) sample the COG raster for the **population** basis. Where `dp` is not a column, treat it as a run parameter (e.g., `:dp`). Shape authority is the **Schema**; path/partition/sort come from the **Dictionary**.
+> These sketches assume a SQL engine that can read Parquet and (optionally) sample the COG raster for the **population** basis. **`dp` is a required column** (and also recorded in the run report). Shape authority is the **Schema**; path/partition/sort come from the **Dictionary**.
 
 **(1) FK & coverage vs S1** — rows match **exactly** the S1 universe
 
@@ -1120,17 +1119,18 @@ WHERE s1.c IS DISTINCT FROM s2.c;  -- Expect: no rows
 
 
 
-**(2) Per-country exact sum** — `Σ weight_fp = 10^dp`
+**(2) Per-country exact sum** — `Σ weight_fp = 10^dp` (using the **dp column**)
 
 ```sql
--- If dp is a run parameter:
-SELECT country_iso, SUM(weight_fp) AS s, POWER(10, :dp) AS k
+SELECT country_iso,
+       SUM(weight_fp)        AS s,
+       POWER(10, MAX(dp))    AS k
 FROM tile_weights
 GROUP BY country_iso
-HAVING SUM(weight_fp) <> POWER(10, :dp);  -- Expect: no rows
+HAVING SUM(weight_fp) <> POWER(10, MAX(dp));  -- Expect: no rows
 ```
 
-**(3) dp consistency** — all rows agree on the same `dp` (if `dp` is a column)
+**(3) dp consistency** — all rows agree on the same `dp`
 
 ```sql
 SELECT COUNT(DISTINCT dp) AS dps
