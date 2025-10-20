@@ -256,3 +256,39 @@ subsegments:
       Partitioning: seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
       Writer sort: [merchant_id, legal_country_iso, tile_id]
       Write-once; atomic move into live partition; file order non-authoritative.
+
+  - name: s5_site_tile_assignment
+    path: data/layer1/1B/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    type: dataset
+    category: prep
+    semver: '{semver}'
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1B.s5.site_tile_assignment
+    license: Proprietary-Internal
+    role: "Site→tile assignment (one row per site; satisfies S4 per-tile quotas)."
+    dependencies: [s4_alloc_plan, tile_index, iso3166_canonical_2024, s0_gate_receipt_1B]
+    source: internal
+    owner: { owner_team: "mlr-1b-core" }
+    environment: [runtime]
+    schema: schemas.1B.yaml#/plan/s5_site_tile_assignment
+    notes: |
+      Partitioning: seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
+      Writer sort: [merchant_id, legal_country_iso, site_order]
+      Write-once; atomic move; file order non-authoritative.
+
+  - name: rng_event_site_tile_assign
+    path: logs/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    type: log
+    category: rng_event
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.events.1B.site_tile_assign
+    license: Proprietary-Internal
+    role: "RNG envelope events for S5 (site_tile_assign); exactly one event per assigned site."
+    dependencies: [s5_site_tile_assignment]   # budget check ties logs to dataset size
+    source: internal
+    owner: { owner_team: "mlr-1b-core" }
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/events/site_tile_assign

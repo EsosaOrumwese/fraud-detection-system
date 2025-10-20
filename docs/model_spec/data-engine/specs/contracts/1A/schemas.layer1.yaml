@@ -472,6 +472,23 @@ rng:
       - type: object
         unevaluatedProperties: false
 
+    site_tile_assign:
+      allOf:
+      - $ref: '#/rng/$defs/rng_envelope'
+      - type: object
+        required: [module, substream_label, merchant_id, legal_country_iso, site_order, tile_id, u]
+        properties:
+          module:          { const: "1B.S5.assigner" }
+          substream_label: { const: "site_tile_assign" }
+          merchant_id:     { $ref: '#/$defs/id64' }
+          legal_country_iso: { $ref: '#/$defs/iso2' }
+          site_order:      { type: integer, minimum: 1 }
+          tile_id:         { $ref: 'schemas.1B.yaml#/$defs/uint64' }
+          u:               { $ref: '#/rng/$defs/u01_open' }   # open-interval (0,1)
+      - type: object
+        properties: { blocks: { const: 1 }, draws: { const: "1" } }   # one draw per site
+      - type: object
+        unevaluatedProperties: false
 
 governance:
   numeric_policy_profile:

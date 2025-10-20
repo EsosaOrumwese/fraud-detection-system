@@ -254,3 +254,40 @@ datasets:
   retention_days: 365
   pii: false
   licence: Proprietary-Internal
+
+- id: s5_site_tile_assignment
+  status: approved
+  owner_subsegment: 1B
+  description: Site→tile assignment; one row per site; satisfies S4 per-tile quotas.
+  version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+  format: parquet
+  path: data/layer1/1B/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+  partitioning: [seed, fingerprint, parameter_hash]
+  ordering: [merchant_id, legal_country_iso, site_order]
+  schema_ref: schemas.1B.yaml#/plan/s5_site_tile_assignment
+  lineage:
+    produced_by: 1B.S5
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+logs:
+- id: rng_event_site_tile_assign
+  status: approved
+  owner_subsegment: 1B
+  description: RNG events for site→tile assignment (one event per assigned site).
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []            # events are append-only; no row-order guarantee
+  schema_ref: schemas.layer1.yaml#/rng/events/site_tile_assign
+  lineage:
+    produced_by: 1B.S5
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 30
+  pii: false
+  licence: Proprietary-Internal

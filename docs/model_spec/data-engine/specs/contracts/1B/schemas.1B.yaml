@@ -136,6 +136,24 @@ plan:
       - { name: n_sites_tile,       type: integer, minimum: 1,                nullable: false,
           description: "Integer allocation for this (merchant,country,tile). Zeros are not materialised." }
 
+  s5_site_tile_assignment:
+    type: table
+    description: "Site→tile assignment; exactly one row per site; RNG used to randomise which sites fill S4’s tile quotas."
+    primary_key: [merchant_id, legal_country_iso, site_order]
+    partition_keys: [seed, manifest_fingerprint, parameter_hash]
+    sort_keys: [merchant_id, legal_country_iso, site_order]
+    columns_strict: true
+    columns:
+      - { name: merchant_id,        $ref: 'schemas.layer1.yaml#/$defs/id64',  nullable: false }
+      - { name: legal_country_iso,  $ref: '#/$defs/iso2',                     nullable: false,
+          fk: { dataset_ref: 'schemas.ingress.layer1.yaml#/iso3166_canonical_2024', column: country_iso } }
+      - { name: site_order,         type: integer, minimum: 1,                nullable: false,
+          description: "Contiguous 1..N per (merchant_id, legal_country_iso), guaranteed upstream." }
+      - { name: tile_id,            $ref: '#/$defs/uint64',                   nullable: false,
+          fk: { dataset_ref: 'schemas.1B.yaml#/prep/tile_index',
+                columns: { legal_country_iso: country_iso, tile_id: tile_id } },
+          description: "Assigned eligible tile for this site (must exist in tile_index for the same parameter_hash)." }
+
 egress:
   site_locations:
     type: table
