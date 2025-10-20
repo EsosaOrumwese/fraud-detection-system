@@ -490,6 +490,26 @@ rng:
       - type: object
         unevaluatedProperties: false
 
+    in_cell_jitter:
+      allOf:
+      - $ref: '#/rng/$defs/rng_envelope'
+      - type: object
+        required: [module, substream_label, merchant_id, legal_country_iso, site_order, delta_lat_deg, delta_lon_deg, sigma_lat_deg, sigma_lon_deg]
+        properties:
+          module:            { const: "1B.S6.jitter" }
+          substream_label:   { const: "in_cell_jitter" }
+          merchant_id:       { $ref: '#/$defs/id64' }
+          legal_country_iso: { $ref: '#/$defs/iso2' }
+          site_order:        { type: integer, minimum: 1 }
+          sigma_lat_deg:     { type: number }
+          sigma_lon_deg:     { type: number }
+          delta_lat_deg:     { type: number }
+          delta_lon_deg:     { type: number }
+      - type: object
+        properties: { blocks: { const: 1 }, draws: { const: "2" } }   # two uniforms per site
+      - type: object
+        unevaluatedProperties: false
+
 governance:
   numeric_policy_profile:
     type: object

@@ -277,6 +277,26 @@ subsegments:
       Writer sort: [merchant_id, legal_country_iso, site_order]
       Write-once; atomic move; file order non-authoritative.
 
+  - name: s6_site_jitter
+    path: data/layer1/1B/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    type: dataset
+    category: prep
+    semver: '{semver}'
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1B.s6.site_jitter
+    license: Proprietary-Internal
+    role: "Per-site in-tile jitter; effective deltas (post-clamp)."
+    dependencies: [s5_site_tile_assignment, tile_index, jitter_policy, iso3166_canonical_2024, s0_gate_receipt_1B]
+    source: internal
+    owner: { owner_team: "mlr-1b-core" }
+    environment: [runtime]
+    schema: schemas.1B.yaml#/plan/s6_site_jitter
+    notes: |
+      Partitioning: seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
+      Writer sort: [merchant_id, legal_country_iso, site_order]
+      Write-once; atomic move; file order non-authoritative.
+
   - name: rng_event_site_tile_assign
     path: logs/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     type: log
@@ -292,3 +312,19 @@ subsegments:
     owner: { owner_team: "mlr-1b-core" }
     environment: [runtime]
     schema: schemas.layer1.yaml#/rng/events/site_tile_assign
+
+  - name: rng_event_in_cell_jitter
+    path: logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    type: log
+    category: rng_event
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.events.1B.in_cell_jitter
+    license: Proprietary-Internal
+    role: "RNG envelope events for S6 (in_cell_jitter); one event per site; draws=2."
+    dependencies: [s6_site_jitter]   # ties event budget to dataset row count
+    source: internal
+    owner: { owner_team: "mlr-1b-core" }
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/events/in_cell_jitter

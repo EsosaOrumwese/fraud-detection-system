@@ -155,6 +155,24 @@ plan:
                 columns: { legal_country_iso: country_iso, tile_id: tile_id } },
           description: "Assigned eligible tile for this site (must exist in tile_index for the same parameter_hash)." }
 
+  s6_site_jitter:
+    type: table
+    description: "Per-site in-tile jitter; effective deltas after boundary handling (one row per site)."
+    primary_key: [merchant_id, legal_country_iso, site_order]
+    partition_keys: [seed, manifest_fingerprint, parameter_hash]
+    sort_keys: [merchant_id, legal_country_iso, site_order]
+    columns_strict: true
+    columns:
+      - { name: merchant_id,        $ref: 'schemas.layer1.yaml#/$defs/id64',  nullable: false }
+      - { name: legal_country_iso,  $ref: '#/$defs/iso2',                     nullable: false,
+          fk: { dataset_ref: 'schemas.ingress.layer1.yaml#/iso3166_canonical_2024', column: country_iso } }
+      - { name: site_order,         type: integer, minimum: 1,                nullable: false,
+          description: "Contiguous 1..N per (merchant_id, legal_country_iso), guaranteed upstream." }
+      - { name: delta_lat_deg,      type: number,                              nullable: false,
+          description: "Effective latitude jitter in degrees (post-clamp)." }
+      - { name: delta_lon_deg,      type: number,                              nullable: false,
+          description: "Effective longitude jitter in degrees (post-clamp)." }
+
 egress:
   site_locations:
     type: table
