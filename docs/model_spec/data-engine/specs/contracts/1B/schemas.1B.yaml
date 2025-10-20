@@ -165,7 +165,8 @@ plan:
     columns:
       - { name: merchant_id,        $ref: 'schemas.layer1.yaml#/$defs/id64',  nullable: false }
       - { name: legal_country_iso,  $ref: '#/$defs/iso2',                     nullable: false,
-          fk: { dataset_ref: 'schemas.ingress.layer1.yaml#/iso3166_canonical_2024', column: country_iso } }
+          fk: { dataset_ref: 'schemas.ingress.layer1.yaml#/iso3166_canonical_2024',
+                columns: { legal_country_iso: country_iso } } }
       - { name: site_order,         type: integer, minimum: 1,                nullable: false,
           description: "Contiguous 1..N per (merchant_id, legal_country_iso), guaranteed upstream." }
       - { name: delta_lat_deg,      type: number,                              nullable: false,

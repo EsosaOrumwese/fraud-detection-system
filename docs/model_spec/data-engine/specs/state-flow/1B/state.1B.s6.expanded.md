@@ -675,7 +675,7 @@ Record for each release: `semver`, `effective_date`, ratifiers, code commit (and
 * **`seed`** — Unsigned 64-bit master seed for the run; scopes S3–S6 datasets and RNG logs.
 * **`manifest_fingerprint`** — Lowercase **hex64** SHA-256 proving the S0 gate; used in dataset paths (not RNG logs).
 * **`parameter_hash`** — Lowercase **hex64** SHA-256 of the governed **parameter bundle**; scopes S1/S2 tables and S3–S6 datasets.
-* **`run_id`** — Lowercase **hex** identifier for the S6 RNG event stream; **one per S6 publish**.
+* **`run_id`** — Lowercase **hex32** identifier for the S6 RNG event stream; **one per S6 publish**.
 
 **A.2 Dataset & stream IDs referenced in S6**
 
