@@ -334,7 +334,8 @@ Parallel materialisation is allowed (e.g., sharding by `merchant_id` or by `(mer
 **8.6 RNG budgeting (one event per site; two draws).**
 
 * **Event budget equality:** number of `in_cell_jitter` events **equals** number of dataset rows.
-* Each event has `blocks=1`, `draws="2"` and substream `in_cell_jitter`.
+* **Logs identity:** all `in_cell_jitter` events use the same `{seed, parameter_hash, run_id}`; exactly **one** `run_id` for the publish.
+* **Log fingerprint parity:** each `in_cell_jitter` event’s `manifest_fingerprint` **equals** the dataset `manifest_fingerprint`.
 * **Fail:** `E606_RNG_EVENT_MISMATCH`.
 
 **8.7 Partition, immutability & atomic publish (dataset).**

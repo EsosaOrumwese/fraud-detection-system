@@ -129,7 +129,7 @@ plan:
       - { name: merchant_id,        $ref: 'schemas.layer1.yaml#/$defs/id64',  nullable: false }
       - { name: legal_country_iso,  $ref: '#/$defs/iso2',                     nullable: false,
           fk: { dataset_ref: 'schemas.ingress.layer1.yaml#/iso3166_canonical_2024',
-                 columns: { legal_country_iso: country_iso } } }
+                columns: { legal_country_iso: country_iso } } }
       - { name: tile_id,            $ref: '#/$defs/uint64',                   nullable: false,
           fk: { dataset_ref: 'schemas.1B.yaml#/prep/tile_index',
                 columns: { legal_country_iso: country_iso, tile_id: tile_id } } }
