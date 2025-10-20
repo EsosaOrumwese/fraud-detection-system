@@ -305,7 +305,7 @@ Parallel materialisation is allowed (e.g., sharding by `merchant_id` or by `(mer
 **8.3 RNG envelope conformance (logs).**
 
 * Every assignment event **validates** against the layer RNG anchor `#/rng/events/site_tile_assign` (module/substream/blocks/draws/trace).
-* Substream equals `site_tile_assign`; **draws = 1** per event; `{seed, parameter_hash, run_id}` match the publish.
+* Substream equals `site_tile_assign`; **draws = 1** per event; `{seed, parameter_hash, run_id}` match the publish; event `manifest_fingerprint` **equals** the dataset `manifest_fingerprint`.
 * **Fail:** `E507_RNG_EVENT_MISMATCH`.
 
 **8.4 PK uniqueness & completeness (dataset).**
@@ -639,7 +639,7 @@ Record for each release: `semver`, `effective_date`, ratifiers, code commit (and
 * **`seed`** — Unsigned 64-bit master seed for the run; scopes S3/S4/S5 datasets and RNG logs.
 * **`manifest_fingerprint`** — Lowercase **hex64** SHA-256 proving the S0 gate; used in dataset paths (not RNG logs).
 * **`parameter_hash`** — Lowercase **hex64** SHA-256 of the governed **parameter bundle**; scopes S1/S2 tables and S3–S5 datasets.
-* **`run_id`** — Lowercase **hex** identifier for the S5 RNG event stream; one per S5 publish.
+* **`run_id`** — Lowercase **hex32** identifier for the S5 RNG event stream; one per S5 publish.
 
 **A.2 Dataset & stream IDs (referenced in S5)**
 

@@ -474,7 +474,7 @@ rng:
 
     site_tile_assign:
       allOf:
-      - $ref: '#/rng/$defs/rng_envelope'
+      - $ref: '#/$defs/rng_envelope'
       - type: object
         required: [module, substream_label, merchant_id, legal_country_iso, site_order, tile_id, u]
         properties:
@@ -484,7 +484,7 @@ rng:
           legal_country_iso: { $ref: '#/$defs/iso2' }
           site_order:      { type: integer, minimum: 1 }
           tile_id:         { $ref: 'schemas.1B.yaml#/$defs/uint64' }
-          u:               { $ref: '#/rng/$defs/u01_open' }   # open-interval (0,1)
+          u:               { $ref: '#/$defs/u01' }            # open-interval (0,1)
       - type: object
         properties: { blocks: { const: 1 }, draws: { const: "1" } }   # one draw per site
       - type: object
