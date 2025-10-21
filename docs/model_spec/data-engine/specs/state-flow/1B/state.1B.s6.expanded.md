@@ -301,7 +301,7 @@ delta_lat_deg = lat* − centroid_lat_deg
 * **Predicate.** `(lat*,lon*)` MUST lie **inside** the `world_countries` polygon for `legal_country_iso` (dateline-aware topology as in S1).
 * **Resample rule.** If the predicate fails, **retry** with a new attempt (new event) up to **MAX_ATTEMPTS = 64**.
 * **Accept.** On first success, **commit** this sample and stop attempting for the site.
-* **Fail-closed.** If attempts exceed the cap with no success, **ABORT** this state with `E606_RESAMPLE_EXHAUSTED`.
+* **Fail-closed.** If attempts exceed the cap with no success, **ABORT** this state with `E613_RESAMPLE_EXHAUSTED`.
 
 ## 7.5 Event emission & dataset write
 
@@ -327,7 +327,7 @@ with the layer envelope (including `draws="2"`, `blocks=1`). After an **accepted
 ## 7.8 Algorithm stop conditions & errors
 
 * **Success:** one accepted sample per site → exactly one S6 row per site; ≥1 RNG event per site; last event corresponds to the accepted sample.
-* **Abort:** `E606_RESAMPLE_EXHAUSTED` if no accepted sample after 64 attempts.
+* **Abort:** `E613_RESAMPLE_EXHAUSTED` if no accepted sample after 64 attempts.
 * **Other failures (enforced in §9):** FK violation to `tile_index`; point outside pixel or country; envelope/counter mismatch; path↔embed mismatch; unsorted write.
 
 ---
@@ -549,7 +549,7 @@ A run **PASSES** S6 only if **all** checks below succeed. Shapes/paths/partition
 **Trigger:** Any referenced ID’s **path/partitions/sort** per Dictionary disagree with the bound Schema anchors (or vice-versa).
 **Detection:** Cross-check `schema_ref` ↔ Dictionary entries for `s6_site_jitter` and `rng_event_in_cell_jitter`; Schema is the **shape** authority.  
 
-### E606_RESAMPLE_EXHAUSTED — Bounded resample cap hit *(ABORT)*
+### E613_RESAMPLE_EXHAUSTED — Bounded resample cap hit *(ABORT)*
 **Trigger:** A site exceeds MAX_ATTEMPTS uniform attempts without passing the country predicate.
 **Detection:** For a site, event_count ≥ MAX_ATTEMPTS and no accepted sample; validators observe ≥1 `in_cell_jitter` events for the site (each with blocks=1, draws="2") and failure of A607 (point-in-country). The run aborts.
 
@@ -779,10 +779,10 @@ The following are **MINOR** only if strictly backward-compatible:
 
 S6 v1.* is validated against the following **frozen** surfaces:
 
-* **Schema (1B):** `schemas.1B.yaml v2.4` — `s6_site_jitter` anchor (PK, partitions `[seed,fingerprint,parameter_hash]`, writer-sort, `columns_strict`). 
-* **Dictionary (1B):** `dataset_dictionary.layer1.1B.yaml v1.9` — IDs→paths/partitions for `s6_site_jitter` and `rng_event_in_cell_jitter`, retentions (365d / 30d). 
-* **Registry (1B):** `artefact_registry_1B.yaml v1.7` — notes on write-once/atomic-move and RNG event family roles. 
-* **Layer schema:** `schemas.layer1.yaml v1.2` — RNG **envelope** (`draws` dec-u128, `blocks` u64) and event constants for `in_cell_jitter` (`draws="2"`, `blocks=1`). 
+* **Schema (1B):** `schemas.1B.yaml` — `s6_site_jitter` anchor (PK, partitions `[seed,fingerprint,parameter_hash]`, writer-sort, `columns_strict`). 
+* **Dictionary (1B):** `dataset_dictionary.layer1.1B.yaml` — IDs→paths/partitions for `s6_site_jitter` and `rng_event_in_cell_jitter`, retentions (365d / 30d). 
+* **Registry (1B):** `artefact_registry_1B.yaml` — notes on write-once/atomic-move and RNG event family roles. 
+* **Layer schema:** `schemas.layer1.yaml` — RNG **envelope** (`draws` dec-u128, `blocks` u64) and event constants for `in_cell_jitter` (`draws="2"`, `blocks=1`). 
 * **Overview:** S6 behaviour = **uniform inside pixel**, **point-in-country enforced**. 
 
 A **MAJOR** bump in any of the above that changes a bound interface requires an S6 **MAJOR** (or an explicit compatibility shim).
@@ -983,7 +983,6 @@ delta_lat_deg = lat* − centroid_lat_deg =  51.50522945 − 51.525000 = -0.0197
   "ts_utc": "2025-10-21T08:52:34.123456Z",
   "seed": 987654321,
   "parameter_hash": "7b1e6e0f1b9a4ac2bb8f2b1a0d88c0e2c9f9c4d1f3a2b5c6d7e8f90123456789",
-  "manifest_fingerprint": "f2c0a4d3b1e5907e8f66caa9d4e1b2c3f4a5968790b1c2d3e4f5a6b7c8d9e0f1",
   "run_id": "r20251021a",
   "merchant_id": "m000001",
   "legal_country_iso": "GB",

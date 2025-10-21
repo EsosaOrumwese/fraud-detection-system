@@ -287,7 +287,7 @@ subsegments:
     manifest_key: mlr.1B.s6.site_jitter
     license: Proprietary-Internal
     role: "Per-site in-pixel jitter; effective deltas (projection into country)."
-    dependencies: [s5_site_tile_assignment, tile_index, world_countries, jitter_policy, iso3166_canonical_2024, s0_gate_receipt_1B]
+    dependencies: [s5_site_tile_assignment, tile_index, world_countries, iso3166_canonical_2024, s0_gate_receipt_1B]
     source: internal
     owner: { owner_team: "mlr-1b-core" }
     environment: [runtime]

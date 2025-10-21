@@ -345,7 +345,7 @@ A produced `tile_index` is **non-conformant** if **any** of the following hold:
 ## 7.1 Dataset ID & schema anchor
 
 * **ID:** `tile_index`
-* **Schema (shape authority):** `schemas.1B.yaml#/prep/tile_index`. This anchor fixes:
+* **Schema (shape authority):** `schemas.1B.yaml#/prep/tile_index`. *(Companion:* `schemas.1B.yaml#/prep/tile_bounds` *if emitted.)*
 
   * **Primary key:** `[country_iso, tile_id]`
   * **Partition keys:** `[parameter_hash]`

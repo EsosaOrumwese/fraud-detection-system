@@ -276,7 +276,7 @@ datasets:
 - id: s6_site_jitter
   status: approved
   owner_subsegment: 1B
-  description: Per-site in-tile jitter; effective (post-clamp) deltas; one row per site.
+  description: Per-site in-pixel jitter; effective deltas (projection into country); one row per site.
   version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
   format: parquet
   path: data/layer1/1B/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
@@ -285,6 +285,24 @@ datasets:
   schema_ref: schemas.1B.yaml#/plan/s6_site_jitter
   lineage:
     produced_by: 1B.S6
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: tile_bounds
+  status: approved
+  owner_subsegment: 1B
+  description: Rectangle bounds per eligible tile (S1 companion to tile_index).
+  version: '{parameter_hash}'
+  format: parquet
+  path: data/layer1/1B/tile_bounds/parameter_hash={parameter_hash}/
+  partitioning: [parameter_hash]
+  ordering: [country_iso, tile_id]
+  schema_ref: schemas.1B.yaml#/prep/tile_bounds
+  lineage:
+    produced_by: 1B.S1
     consumed_by: [1B]
     final_in_layer: false
   retention_days: 365
@@ -332,7 +350,7 @@ logs:
 - id: rng_event_in_cell_jitter
   status: approved
   owner_subsegment: 1B
-  description: RNG events for S6 in-cell jitter (≥1 event per site; one per attempt; per-event budget; draws=2, blocks=1).
+  description: RNG events for S6 in-cell jitter (≥1 event per site; one per attempt; per-event budget; blocks=1, draws=2).
   version: '{run_id}'
   format: jsonl
   path: logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
@@ -346,3 +364,25 @@ logs:
   retention_days: 30
   pii: false
   licence: Proprietary-Internal
+
+- id: rng_audit_log
+  status: approved
+  owner_subsegment: 1B
+  description: RNG run audit (identity/config) — one row at run start.
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/core/rng_audit_log
+
+- id: rng_trace_log
+  status: approved
+  owner_subsegment: 1B
+  description: RNG cumulative trace — append exactly one row after each event append.
+  version: '{run_id}'
+  format: jsonl
+  path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+  partitioning: [seed, parameter_hash, run_id]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/rng/core/rng_trace_log
