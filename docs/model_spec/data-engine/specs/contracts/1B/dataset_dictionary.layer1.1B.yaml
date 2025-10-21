@@ -332,7 +332,7 @@ logs:
 - id: rng_event_in_cell_jitter
   status: approved
   owner_subsegment: 1B
-  description: RNG events for S6 in-cell jitter (one event per site; draws=2).
+  description: RNG events for S6 in-cell jitter (≥1 event per site; one per attempt; per-event budget; draws=2, blocks=1).
   version: '{run_id}'
   format: jsonl
   path: logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl

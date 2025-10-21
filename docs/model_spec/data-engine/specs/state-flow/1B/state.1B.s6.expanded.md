@@ -233,8 +233,7 @@ The **Dictionary** entry for `s6_site_jitter` binds the **path family** and repe
 ## 6.2 RNG event stream (shape authority)
 
 **ID → Schema:** `rng_event_in_cell_jitter` → `schemas.layer1.yaml#/rng/events/in_cell_jitter`.
-This anchor inherits the **layer RNG envelope** (shared `$defs.rng_envelope`) and pins the per-event fields for S6 jitter events: `module="1B.S6.jitter"`, `substream_label="in_cell_jitter"`, `merchant_id`, `legal_country_iso`, `site_order`, `sigma_*` (present in the envelope), and `delta_*`. **As of v1.2, the event schema constrains `blocks: 1` and `draws: "2"`** (two uniforms per event). 
-
+This anchor inherits the **layer RNG envelope** (shared `$defs.rng_envelope`) and pins the per-event fields for S6 jitter events: `module="1B.S6.jitter"`, `substream_label="in_cell_jitter"`, `merchant_id`, `legal_country_iso`, `site_order`. **As of v1.2, the event schema constrains `blocks: 1` and `draws: "2"`** (two uniforms per event).
 The **RNG envelope** defines required lineage + accounting fields (`ts_utc` RFC-3339 with exactly 6 fractional digits, `run_id`, `seed`, `parameter_hash`, `manifest_fingerprint`, counters, `draws` as **dec-u128 string**, `blocks` as **u64**). 
 
 The **Dictionary** entry binds the **path family** and partitions for this stream:
@@ -434,7 +433,7 @@ A run **PASSES** S6 only if **all** checks below succeed. Shapes/paths/partition
 
 ## A613 — Last event corresponds to accepted sample *(Binding)*
 **Rule.** For each site, the **last** event (by per-site event order derived from envelope counters or append order within run_id) corresponds to the **accepted** `(delta_lat_deg, delta_lon_deg)` written to S6.
-**Detection.** Recompute deltas from the last event’s uniforms and S1 bounds/centroid, or assert that only the final attempt’s sample is written, per implementation evidence. 
+**Detection:** Order per-site events by envelope counters (`rng_counter_before/after`) and assert **monotonicity**; since the event schema does not carry uniforms or per-event deltas, validators treat “last event corresponds to the accepted sample” as an **implementation invariant**. Behavioural outcome remains enforced via **A606/A607** (inside pixel & inside country).
 
 ## A609 — RNG budget & counters *(Binding)*
 
@@ -537,7 +536,7 @@ A run **PASSES** S6 only if **all** checks below succeed. Shapes/paths/partition
 ### E610_RNG_BUDGET_OR_COUNTERS — Budget/counter law violated *(ABORT)*
 
 **Trigger:** Any `in_cell_jitter` event fails the envelope law (e.g., wrong `draws`/`blocks` or counter delta).
-**Detection:** Validate envelope per **layer schema**: `draws` is **dec-u128 string**, `blocks` is **u64**, and **u128(after) − u128(before) = parse_u128(draws)**. (Budget for this stream: two-uniform family per event.)  
+**Detection:** Validate envelope per **layer schema**: `draws` is **dec-u128 string**, `blocks` is **u64**, and **u128(after) − u128(before) = blocks**. (Budget for this stream: two-uniform family per event.)
 
 ### E611_LOG_PARTITION_LAW — RNG log path/partition mismatch *(ABORT)*
 
@@ -550,12 +549,16 @@ A run **PASSES** S6 only if **all** checks below succeed. Shapes/paths/partition
 **Trigger:** Any referenced ID’s **path/partitions/sort** per Dictionary disagree with the bound Schema anchors (or vice-versa).
 **Detection:** Cross-check `schema_ref` ↔ Dictionary entries for `s6_site_jitter` and `rng_event_in_cell_jitter`; Schema is the **shape** authority.  
 
+### E606_RESAMPLE_EXHAUSTED — Bounded resample cap hit *(ABORT)*
+**Trigger:** A site exceeds MAX_ATTEMPTS uniform attempts without passing the country predicate.
+**Detection:** For a site, event_count ≥ MAX_ATTEMPTS and no accepted sample; validators observe ≥1 `in_cell_jitter` events for the site (each with blocks=1, draws="2") and failure of A607 (point-in-country). The run aborts.
+
 ---
 
 **Notes (binding references used by these validators):**
 
 * `s6_site_jitter` path & partitions, writer-sort: Dictionary (v1.9). 
-* `in_cell_jitter` log path & partitions: Dictionary/Registry; “one event per site; draws=2”.  
+* `in_cell_jitter` log path & partitions: Dictionary/Registry; **events are per attempt (≥1 per site)**; per-event budget `blocks=1`, `draws="2"`.  
 * FK hint to `tile_index` with `partition_keys: ['parameter_hash']`: Schema (v2.4). 
 * RNG envelope requirements (`draws` dec-u128 string, `blocks` u64, counter delta law): Layer schema. 
 
