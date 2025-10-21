@@ -1064,7 +1064,7 @@ Suppose a different S5 site maps to a **border tile** (rectangle straddles the c
 * **A606 Inside pixel:** ✅
 * **A607 Point-in-country:** ❌ → **E608_POINT_OUTSIDE_COUNTRY**
 * **A608/A609:** **≥2 events** (multiple attempts), each with `draws="2"`, `blocks=1` (per-event budget OK).
-* **Outcome:** If all attempts fail the country predicate up to the cap, S6 **ABORTS** with `E606_RESAMPLE_EXHAUSTED`. (If an implementation wrongly wrote an outside-country row, `A607` would FAIL—but the normative algorithm resamples instead.)
+* **Outcome:** If all attempts fail the country predicate up to the cap, S6 **ABORTS** with `E613_RESAMPLE_EXHAUSTED`. (If an implementation wrongly wrote an outside-country row, `A607` would FAIL—but the normative algorithm resamples instead.)
 
 *(Operationally you’d avoid frequent border failures by tiling so most tiles are interior, or by choosing seeds where empirical outside-rate is negligible. The spec itself remains unchanged.)*
 

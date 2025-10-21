@@ -100,7 +100,7 @@ subsegments:
     notes:
 
 
-  # External reference inputs mirrored for licence/provenance and single-pane visibility
+  # External reference inputs mirrored for license/provenance and single-pane visibility
   - name: iso3166_canonical_2024
     path: reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet
     type: dataset
