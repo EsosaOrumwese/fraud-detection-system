@@ -1,25 +1,26 @@
-# State-6 · In-cell Jitter (RNG)
+# State-6 · In-cell Jitter (RNG · uniform-in-pixel + deterministic country projection)
 
 # 1) Purpose & scope **(Binding)**
 
 **1.1 Problem statement.**
-S6 produces **per-site, in-tile jitter** offsets so that when applied (in S7) the resulting coordinates remain **inside the site’s assigned tile**. S6 **consumes RNG** (two uniforms per site → Box–Muller) to randomise **sub-tile placement**, but **does not** alter S5 assignments, counts, or tiles. The run identity for all reads/writes is **`{seed, manifest_fingerprint, parameter_hash}`**.
+S6 produces **per-site, in-pixel jitter** offsets such that the realised coordinate is **uniform within the assigned pixel** and **inside the legal country polygon**. S6 consumes **exactly two uniforms per site** to sample `(lon, lat)` uniformly over the pixel rectangle, then applies a **deterministic projection** into the **intersection** of that rectangle with the country polygon whenever the sample lies outside. S6 does not alter S5 assignments, counts, or tiles. The run identity for all reads/writes is **`{seed, manifest_fingerprint, parameter_hash}`**.
 
 **1.2 Out of scope.**
 S6 **does not**: (a) change S5 site→tile assignments or any S4/S3 counts; (b) generate final lat/lon egress (that is S7); (c) encode or imply **inter-country order** (authority remains 1A `s3_candidate_set`); (d) read any surfaces beyond those enumerated for S6.
 
 **1.3 Authority boundaries & invariants.**
 a) **Assignment source (S5):** `(merchant_id, legal_country_iso, site_order) → tile_id` is authoritative; S6 must **respect** it as read-only.
-b) **Universe & bounds (S1):** `tile_index` is the sole authority for each tile’s centroid and bounding box (`[min_lat,max_lat]×[min_lon,max_lon]`); S6 **must not** emit offsets that would place a site outside these bounds.
-c) **Policy authority:** `jitter_policy` governs the σ parameters (degrees) used to scale the jitter per axis; S6 **must not** invent or re-fit σ.
-d) **Gate law (S0):** S6 **relies on** the fingerprint-scoped receipt (**No PASS → No read**) and **does not** re-hash the 1A bundle.
-e) **Resolution & shape:** All IO **must** resolve via the **Dataset Dictionary** (no literal paths). **JSON-Schema** is the **sole shape authority** for both the dataset and RNG events; this spec does not restate columns/keys.
-f) **RNG budgeting:** Exactly **two** uniforms per site (substream `in_cell_jitter`; `draws="2"`); budget shortfall/excess is a failure.
+b) **Universe & bounds (S1):** `tile_index` is the sole authority for each tile’s centroid and bounding box (`[min_lat,max_lat]×[min_lon,max_lon]`). S6 samples **uniformly** inside that rectangle and **MUST** keep the effective coordinate within it.
+c) **Country geometry (ingress):** `world_countries` is the **only** authority for the country polygon used by the point-in-country predicate. If a sampled point lies outside, S6 **projects deterministically** to the nearest point **within** `country_polygon ∩ pixel_rectangle` (see §B.4).
+d) **Policy surface:** `jitter_policy` is **not used for sampling** in this uniform lane. It MAY be read for band/reporting envelopes; S6 MUST NOT derive displacement scales from it.
+e) **Gate law (S0):** S6 **relies on** the fingerprint-scoped receipt (**No PASS → No read**) and **does not** re-hash the 1A bundle.
+f) **Resolution & shape:** All IO **must** resolve via the **Dataset Dictionary** (no literal paths). **JSON-Schema** is the **sole shape authority** for both the dataset and RNG events; this spec does not restate columns/keys.
+g) **RNG budgeting:** Exactly **two** uniforms per site (substream `in_cell_jitter`; **`blocks=1`**, **`draws="2"`**); budget shortfall/excess is a failure.
 
 **1.4 Deliverables.**
 S6 emits, for the fixed identity **`{seed, manifest_fingerprint, parameter_hash}`**:
 a) **Dataset — `s6_site_jitter`**: one row **per site** with the **effective** jitter deltas (after boundary handling). Writer-sorted, immutable, and byte-stable on re-publish.
-b) **RNG event stream — `in_cell_jitter`**: one event **per site** (two draws) under the layer envelope to evidence the randomisation is correctly scoped and reproducible.
+b) **RNG event stream — `in_cell_jitter`**: one event **per site** (**two draws; one block**) under the layer envelope to evidence the randomisation is correctly scoped and reproducible.
 
 ---
 
@@ -32,6 +33,7 @@ Exactly one **`s0_gate_receipt_1B`** exists for the target `manifest_fingerprint
 All S6 reads and writes bind to a single identity triple **`{seed, manifest_fingerprint, parameter_hash}`**. Mixing identities within a publish is **forbidden**.
 
 **2.3 Sealed inputs (resolve via Dataset Dictionary; no literal paths).**
+`tile_index` (bounds & centroids) · `world_countries` (country polygons) · `s5_site_tile_assignment` (tile choice) · `s0_gate_receipt_1B` (gate)
 
 * **`s5_site_tile_assignment`** — path family `…/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` · **partitions:** `[seed, fingerprint, parameter_hash]` · *authoritative site→tile mapping (one row per site).*
 * **`tile_index`** — path family `…/tile_index/parameter_hash={parameter_hash}/` · **partitions:** `[parameter_hash]` · *tile centroid and bounding box (eligible universe).*
@@ -104,7 +106,7 @@ All S6 reads and writes bind to a single identity triple **`{seed, manifest_fing
 * **RNG logs identity:** `{seed, parameter_hash, run_id}` (single `run_id` for the publish).
 
 **3.6 Prohibited surfaces (fail-closed).**
-S6 **MUST NOT** read `world_countries`, `population_raster_2025`, `tz_world_2025a`, or any surface not listed in §3.1 for jitter logic. Evidence of such reads is a validation failure.
+S6 **MUST NOT** read `population_raster_2025`, `tz_world_*`, or any surface **not** listed in §3.1. *(Reading `world_countries` is **required** for the country predicate.)*
 
 **3.7 Path↔embed equality (where embedded).**
 If lineage fields are embedded in rows (now or in future revisions), their values **MUST equal** the corresponding path tokens. RNG events **MUST** carry the matching `{seed, parameter_hash}` and the single `run_id`.
@@ -431,6 +433,11 @@ Parallel materialisation is allowed (e.g., sharding by `merchant_id` or by `(mer
 **Trigger:** `legal_country_iso` not present in `iso3166_canonical_2024` (uppercase ISO-2).
 **Detection:** FK domain check.
 
+### E607_COUNTRY_INTERSECTION_EMPTY — No polygon ∩ pixel intersection *(ABORT)*
+
+**Trigger:** `country_polygon ∩ pixel_rectangle = ∅` for a site’s assigned tile/country.
+**Detection:** Validator recomputes the set using the same geometry source and antimeridian handling as S1; empty set ⇒ ABORT.
+
 ### E608_UNSORTED — Writer sort violated *(ABORT)*
 
 **Trigger:** Rows not in non-decreasing `[merchant_id, legal_country_iso, site_order]`.
@@ -705,7 +712,7 @@ Record for each release: `semver`, `effective_date`, ratifiers, code commit (and
 
 * **Gate law** — Reads rely on the S0 receipt for `manifest_fingerprint` (**No PASS → No read**).
 * **Identity parity** — Dataset identity **`[seed, manifest_fingerprint, parameter_hash]`** matches tokens used to read inputs; RNG logs use **`[seed, parameter_hash, run_id]`** with a single `run_id`.
-* **RNG budget** — **Exactly one** `in_cell_jitter` event **per site**, with **`draws="2"`** (two uniforms → Box–Muller).
+* **RNG budget** — **Exactly one** `in_cell_jitter` event **per site**, with **`blocks=1`** and **`draws="2"`** (two uniforms; uniform-in-pixel lane).
 * **Bounds integrity** — `(centroid ± effective deltas)` **must lie inside** the tile’s `[min/max_lat, min/max_lon]`.
 * **Resolution & shape** — IO resolves via the **Dataset Dictionary** (no literal paths). **JSON-Schema** is the **sole shape authority** for both dataset and RNG events.
 * **Writer discipline** — Writer sort is binding; file order is **non-authoritative**. Publish is **write-once** with an atomic move.
@@ -756,17 +763,23 @@ This miniature walk-through shows S6’s jitter workflow, including RNG budgetin
 
 RNG events are written under:
 `logs/rng/events/in_cell_jitter/seed=42/parameter_hash=3c…9d/run_id=a7e2/part-*.jsonl`
-Each event (one per site) consumes **two** uniforms `u1,u2 ∈ (0,1)`.
+Each event (one per site) consumes **two** uniforms `u_lon,u_lat ∈ (0,1)` from the same Philox block.
 
 **Site 12** (example draws): `u1 = e^{-2} = 0.1353352832`, `u2 = 0.75`
 **Site 13** (example draws): `u1 = e^{-8} = 0.0003354626`, `u2 ≈ 1.0×10^{-10}` *(still in (0,1))*
 
 ---
 
-## B.3 Box–Muller → proposed deltas
+## B.3 Uniform-in-pixel sampling → proposed deltas
+Let the pixel rectangle be `[min_lon,max_lon]×[min_lat,max_lat]` (WGS84). For a draw `(u_lon,u_lat)`:
 
-Let `R = sqrt(-2 ln u1)` and `θ = 2πu2`. Then
-`Z_lat = R cos θ`, `Z_lon = R sin θ` (independent `N(0,1)`).
+```
+lon* = min_lon + u_lon · (max_lon − min_lon)
+lat* = min_lat + u_lat · (max_lat − min_lat)
+δ_lon = lon* − centroid_lon_deg
+δ_lat = lat* − centroid_lat_deg
+```
+(*No clamp needed*: sampling is inside the rectangle by construction.)
 
 **Site 12:**
 `R = sqrt(4) = 2`, `θ = 1.5π` → `cos θ = 0`, `sin θ = −1`
@@ -782,9 +795,13 @@ Let `R = sqrt(-2 ln u1)` and `θ = 2πu2`. Then
 
 ---
 
-## B.4 Boundary handling (single clamp; no resample)
-
-Compute tentative coordinates and clamp once to the tile rectangle.
+## B.4 Country predicate & deterministic projection (no resample)
+**Predicate:** `(lat*,lon*) ∈ country_polygon` (dateline-aware; WGS84).
+**If outside:** deterministically **project** `(lat*,lon*)` to the closest point in the **intersection set**
+`S = country_polygon ∩ pixel_rectangle`, using the **equirectangular metric**
+`d² = (Δlat)² + (cos φ₀ · Δlon)²`, with `φ₀ = centroid_lat_deg`.
+**Effective deltas:** `δ_lat_eff = lat_proj − centroid_lat_deg`, `δ_lon_eff = lon_proj − centroid_lon_deg`.
+**Empty intersection:** if `S` is empty (should not occur given S1’s “center” rule), **ABORT** with `E607_COUNTRY_INTERSECTION_EMPTY`.
 
 **Site 12:**
 `lat′ = 51.5000 + 0.0000 = 51.5000` (inside)
@@ -819,7 +836,8 @@ Compute tentative coordinates and clamp once to the tile rectangle.
 * **Gate & identity:** S0 receipt present/valid; dataset identity `{seed=42, fingerprint=6f…a1, parameter_hash=3c…9d}` matches tokens used to read S5/S1/policy; all events use `{seed=42, parameter_hash=3c…9d, run_id=a7e2}`.
 * **Schema conformance:** dataset validates `#/plan/s6_site_jitter`; events validate `#/rng/events/in_cell_jitter`.
 * **PK uniqueness & completeness:** one row per site; counts equal S5 rows (for the identity).
-* **Bounds integrity:** `(centroid ± effective deltas)` lies inside tile bounds for both rows; Site 13 shows a legal **clamp**.
+* **Bounds + country:** `(centroid ± effective deltas)` lies **inside** the pixel rectangle **and** inside `world_countries` for `legal_country_iso`.
+* **Antimeridian correctness:** longitudes normalised to **[−180,+180]** with the same conventions used in S1.
 * **RNG budgeting:** **2** dataset rows ↔ **2** jitter events; each has `draws="2"` and substream `in_cell_jitter`.
 * **Writer & immutability:** dataset sorted by `[merchant_id, legal_country_iso, site_order]`; publish is write-once; determinism receipt computed over the dataset partition.
 
