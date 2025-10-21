@@ -49,7 +49,7 @@ This S6 spec **implements the overview’s S6 line**: *uniform jitter inside the
 
 ## 1.7 Compatibility note vs earlier S6 draft (informative)
 
-Earlier S6 text used **Gaussian (Box–Muller) + single clamp** and a fixed note “draws=2” in Registry prose. This spec **supersedes** that lane by adopting the overview-standard **uniform-within-pixel + bounded resample**; the **schema** remains unchanged (envelope already carries variable `draws/blocks`), and Registry text will be updated as **MINOR** to reflect “one event per site; draws = 2×attempts; blocks = attempts.”   
+Earlier S6 text used **Gaussian (Box–Muller) + single clamp** and a fixed note “draws=2” in Registry prose. This spec **supersedes** that lane by adopting the overview-standard **uniform-within-pixel + bounded resample**. The event schema remains **fixed per event** (`blocks=1`, `draws="2"`); **resample is represented as multiple events (one per attempt)** rather than variable per-event budgets. Registry prose SHOULD note “≥1 events per site; last event corresponds to the accepted sample.”
 
 ---
 
@@ -63,7 +63,7 @@ Earlier S6 text used **Gaussian (Box–Muller) + single clamp** and a fixed note
 * **Uniform-in-pixel.** S6 SHALL sample `(lon*,lat*)` **uniformly over the S1 pixel rectangle** (WGS84 degrees).
 * **Point-in-country.** S6 SHALL enforce that `(lon*,lat*)` lies **inside** the polygon for `legal_country_iso` (dateline-aware).
 * **Bounded resample.** On predicate failure, S6 SHALL resample within a fixed **MAX_ATTEMPTS** (≥1). If exceeded, **ABORT** this state.
-* **RNG evidence.** S6 SHALL record **one RNG event per site** under `in_cell_jitter`, with **`draws = 2 × attempts`** and **`blocks = attempts`**, consistent with the layer envelope and counters.
+* **RNG evidence.** S6 SHALL record **one RNG event per attempt** under `in_cell_jitter` (**≥1 events per site**). **Each event** MUST have `blocks = 1` and `draws = "2"` (two-uniform family). The **last** event for a site corresponds to the **accepted** sample.
 * **Identity & partitions.** All outputs/logs SHALL bind to one `{seed, manifest_fingerprint, parameter_hash}`; path↔embed equality is binding; writer sort is binding; file order is non-authoritative.
 * **Authority surfaces.** S6 SHALL read only sealed inputs: S5 assignment, S1 tile geometry, country polygons, and the S0 gate receipt.
 
@@ -76,7 +76,7 @@ Earlier S6 text used **Gaussian (Box–Muller) + single clamp** and a fixed note
 
 ## 2.3 Success definition (pointer)
 
-S6 is **successful** only if the acceptance criteria in **§9** hold—uniform-in-pixel, point-in-country, FK to `tile_index`, correct RNG budgeting (one event/site; `draws` even; `blocks == draws/2`), path↔embed equality, and writer sort.
+S6 is **successful** only if the acceptance criteria in **§9** hold—uniform-in-pixel, point-in-country, FK to `tile_index`, correct RNG evidence (**≥1** events/site; **each event** has `blocks=1`, `draws="2"`; run totals reconcile with trace), path↔embed equality, and writer sort.
 
 ---
 
@@ -113,7 +113,7 @@ S6 SHALL read only these sealed surfaces for the fixed identity `{seed, manifest
 ## 3.5 RNG envelope & invariants
 
 * **Envelope shape:** Every jitter event MUST validate the layer **RNG envelope** (required fields including `draws` **dec-u128 string** and `blocks` **u64**, open-interval U(0,1) deviates). 
-* **Event family/partition law:** Jitter events live under `logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`; one event per site (budget semantics are verified in §9). 
+* **Event family/partition law:** Jitter events live under `logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`; **events are per attempt (≥1 per site)**; budget semantics are verified in §9.
 
 ## 3.6 Ordering & non-authoritative file semantics
 
@@ -193,13 +193,9 @@ S6 **SHALL** read **only** the sealed inputs enumerated here: **S5 assignment**,
 **ID (Dictionary):** `rng_event_in_cell_jitter` → `schemas.layer1.yaml#/rng/events/in_cell_jitter`. **Path family:**
 `logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` 
 
-**Identity & partitions (binding).** Partitions are **`[seed, parameter_hash, run_id]`**; exactly **one event per site** produced by S6. Envelope fields are owned by the layer schema (e.g., `draws` as **decimal u128 string**, `blocks` as **u64**, counters before/after, etc.).  
+**Identity & partitions (binding).** Partitions are **`[seed, parameter_hash, run_id]`**; **events are per attempt** (**≥1 per site**). Envelope fields are owned by the layer schema (e.g., `draws` as **decimal u128 string**, `blocks` as **u64**, counters before/after, etc.).
 
-**Budget semantics (binding for S6).** For each site’s **single** `in_cell_jitter` event:
-
-* `attempts ≥ 1`; each attempt consumes **two** uniforms from the same Philox block;
-* **`draws = 2 × attempts`** (dec-u128 string), **`blocks = attempts`** (u64).
-  These constraints are **binding** for S6 and will be validated in §9 (even if older Registry prose still says “draws=2”; that Registry note will be corrected in a MINOR doc update).  
+**Budget semantics (binding for S6).** For **each event (attempt)**: consume **one** Philox block → **two** uniforms; thus **`blocks = 1`**, **`draws = "2"`**. A site that resamples will therefore emit multiple events; **event_count_per_site = attempts**. 
 
 **Writer policy & retention.** Events are append-only; file order non-authoritative; retention **30 days** per Dictionary. 
 
@@ -274,7 +270,7 @@ For each site key, S6 performs a bounded **attempt loop** that yields one accept
 
 ## 7.2 RNG stream discipline (per attempt)
 
-* **Substream scope.** All attempts for a site use the **`in_cell_jitter`** event family; `substream_label` SHALL deterministically encode the site key (e.g., `"in_cell_jitter|{merchant_id}|{legal_country_iso}|{site_order}"`).
+* **Substream scope.** All attempts for a site use the **`in_cell_jitter`** event family; **`substream_label` MUST equal `"in_cell_jitter"`** (site identity is carried by the event’s key fields).
 * **Per-attempt budget.** Each **attempt** consumes exactly **one Philox block** → **two** open-interval uniforms `u_lon,u_lat ∈ (0,1)`; **per-event** envelope fields therefore MUST be `blocks = 1`, `draws = "2"`.
 * **Counters.** Envelope counters before/after MUST reconcile with the per-attempt consumption.
   *(If multiple attempts occur, there will be multiple events for that site—each with `blocks=1`, `draws="2"`; the **final** event corresponds to the accepted sample.)*
@@ -433,9 +429,12 @@ A run **PASSES** S6 only if **all** checks below succeed. Shapes/paths/partition
 **Detection.** Country PIP against the S1-governed `world_countries` surface; failure on any site is a hard FAIL. 
 
 ## A608 — RNG event coverage *(Binding)*
+**Rule.** There is **at least one** `in_cell_jitter` RNG **event per site** (events are per attempt), partitioned by `[seed, parameter_hash, run_id]`; events can be joined to the site key.
+**Detection.** For every site key in S6: verify **event_count ≥ 1** and joinability; verify partitions and basic envelope fields.
 
-**Rule.** There is **exactly one** `in_cell_jitter` RNG **event per site**, partitioned by `[seed, parameter_hash, run_id]`; the event’s `module/substream_label` matches the stream’s schema, and the event can be joined to the site key.
-**Detection.** Count `rng_event_in_cell_jitter` rows and compare to S6 row count; verify partitions and basic envelope fields.  
+## A613 — Last event corresponds to accepted sample *(Binding)*
+**Rule.** For each site, the **last** event (by per-site event order derived from envelope counters or append order within run_id) corresponds to the **accepted** `(delta_lat_deg, delta_lon_deg)` written to S6.
+**Detection.** Recompute deltas from the last event’s uniforms and S1 bounds/centroid, or assert that only the final attempt’s sample is written, per implementation evidence. 
 
 ## A609 — RNG budget & counters *(Binding)*
 
@@ -478,8 +477,8 @@ A run **PASSES** S6 only if **all** checks below succeed. Shapes/paths/partition
 ### Notes & references the validator relies on
 
 * **S6 table ID, partitions, writer-sort**: `s6_site_jitter` → `[seed, fingerprint, parameter_hash]`, sort `[merchant_id, legal_country_iso, site_order]`. 
-* **RNG stream ID & path family**: `rng_event_in_cell_jitter` → logs under `[seed, parameter_hash, run_id]`. 
-* **Layer RNG envelope invariants**: counters (128-bit) and budget semantics.  
+* **RNG stream ID & path family**: `rng_event_in_cell_jitter` → logs under `[seed, parameter_hash, run_id]`; **events are per attempt (≥1 per site)**; per-event budget `blocks=1`, `draws="2"`.  
+* **Layer RNG envelope invariants**: counters (128-bit) and budget semantics. 
 * **S1 geometry authority (tile bounds & country PIP)**. 
 * **Overview S6 behavioural intent** (uniform-in-pixel + point-in-country). 
 
@@ -532,8 +531,8 @@ A run **PASSES** S6 only if **all** checks below succeed. Shapes/paths/partition
 
 ### E609_RNG_EVENT_COUNT — Event coverage mismatch *(ABORT)*
 
-**Trigger:** The count of `rng_event_in_cell_jitter` events ≠ the count of S6 rows (require **exactly one event per site**).
-**Detection:** Count equality and joinability to site keys; partitions are `[seed, parameter_hash, run_id]`.  
+**Trigger:** Any site key in S6 has **no** corresponding `rng_event_in_cell_jitter` events (i.e., event_count = 0).
+**Detection:** For every site key, assert **event_count ≥ 1** and joinability to site keys; partitions are `[seed, parameter_hash, run_id]`. 
 
 ### E610_RNG_BUDGET_OR_COUNTERS — Budget/counter law violated *(ABORT)*
 
@@ -566,7 +565,7 @@ A run **PASSES** S6 only if **all** checks below succeed. Shapes/paths/partition
 
 ## 11.1 Required logs S6 MUST write/update
 
-* **RNG event stream — `in_cell_jitter`.** One JSONL **event per site** under
+* **RNG event stream — `in_cell_jitter`.** One JSONL **event per attempt** under
   `logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
   (partitions `[seed, parameter_hash, run_id]`; schema `schemas.layer1.yaml#/rng/events/in_cell_jitter`). Each event carries the **layer RNG envelope** (pre/after 128-bit counters, `blocks` u64, `draws` dec-u128 string).  
 * **RNG core logs (run-scoped):**
@@ -592,11 +591,11 @@ S6 MUST compute (and surface to the next state) the following **run-level counte
 
 **Counts & reconciliation (binding expectations)**
 
-* `sites_total = |S5| = |S6|` (row parity). 
-* `rng.events_total = count(in_cell_jitter)` and **must equal** `sites_total` (one event per site). 
-* `rng.draws_total = Σ parse_u128(draws)` from the **events** and from the **final trace row** for `(module, "in_cell_jitter")`; both MUST equal `2 * sites_total`.  
-* `rng.blocks_total = Σ blocks` from events and from trace; both MUST equal `sites_total` (since `blocks=1` per event). 
-* `rng.counter_span = u128(last_after) − u128(first_before)` from trace MUST equal `rng.blocks_total`. 
+- `sites_total = |S5| = |S6|` (row parity).
+- `rng.events_total = count(in_cell_jitter)`; **MUST satisfy** `rng.events_total ≥ sites_total` (resamples add events).
+- `rng.draws_total = Σ parse_u128(draws)` from **events** and from the **final trace row** for `(module, "in_cell_jitter")`; both MUST equal **`2 * rng.events_total`**.
+- `rng.blocks_total = Σ blocks` from events and from trace; both MUST equal **`rng.events_total`** (since `blocks=1` per event).
+- `rng.counter_span = u128(last_after) − u128(first_before)` from trace MUST equal `rng.blocks_total`.
 
 **Geometry/FK/lineage summaries (counts)**
 
@@ -627,7 +626,7 @@ by_country[ISO]: {
 
 ## 11.4 Where these numbers come from (sources)
 
-* **Events:** `rng_event_in_cell_jitter` under `[seed, parameter_hash, run_id]` (one per site; `draws="2"`, `blocks=1`). 
+* **Events:** `rng_event_in_cell_jitter` under `[seed, parameter_hash, run_id]` (`draws="2"`, `blocks=1` **per event**). 
 * **Trace:** `rng_trace_log` under `[seed, parameter_hash, run_id]` (cumulative `{events_total, draws_total, blocks_total}`; one append **after each event**). 
 * **Audit:** `rng_audit_log` row at run start (seed/fingerprint/parameter/algorithm/build recorded). 
 * **Data & geometry:** S6 table + S1 `tile_index` + `world_countries` for reconstructions and PIP checks. 
@@ -674,7 +673,7 @@ This section offers **non-binding** guidance to make S6 fast, predictable, and r
 ## 12.1 Parallelism & stable merge
 
 * **Shard safely.** Parallelise by **country** or by disjoint merchant buckets; each worker processes a disjoint slice of the S5 keyset. Final dataset is a **stable merge** in the binding writer sort `[merchant_id, legal_country_iso, site_order]`; file order remains non-authoritative. 
-* **RNG logs are append-only.** Emit `in_cell_jitter` events under `[seed, parameter_hash, run_id]`; there is **one event per site**, so event count = row count (S6). Do not depend on file order in logs; validators use the envelope/counters. 
+* **RNG logs are append-only.** Emit `in_cell_jitter` events under `[seed, parameter_hash, run_id]`; events are **per attempt (≥1 per site)**, so **`rng.events_total ≥ sites_total`**. Do not depend on file order in logs; validators use the envelope/counters.
 
 ## 12.2 Geometry fast-paths (point-in-country)
 
@@ -684,10 +683,10 @@ This section offers **non-binding** guidance to make S6 fast, predictable, and r
 
 ## 12.3 RNG throughput & counters
 
-* **Counter-based wins.** Philox lets you generate uniforms **without shared state**; derive substreams deterministically from the site key and emit **one event per site** with `blocks=1`, `draws="2"` (two-uniform family). This matches the **layer event schema** and Dictionary text.   
+* **Counter-based wins.** Philox lets you generate uniforms **without shared state**; derive substreams deterministically from the site key and emit **one event per attempt** with `blocks=1`, `draws="2"` (two-uniform family). This matches the **layer event schema** and Dictionary text.
 * **Open-interval mapping.** Ensure the U(0,1) mapping is strict-open (never 0.0/1.0) per the layer rule; this avoids edge artefacts in uniform-in-pixel sampling. 
 
-> **Note on attempts:** The **overview** allows bounded resample to satisfy point-in-country, but today’s event stream is fixed-budget **per site** (one event; `draws="2"`). Surface any **attempt counts** in the **run-report** (observability), not as extra events, to stay coherent with the current event anchor.  
+> **Note on attempts:** The overview allows bounded resample to satisfy point-in-country, and today’s event schema is fixed-budget **per event** (`blocks=1`, `draws="2"`). **Resamples appear as additional events (one per attempt)**; surface attempt statistics in the **run-report** (observability).
 
 ## 12.4 Join strategy (S5 ↔ S1)
 
@@ -717,8 +716,8 @@ This section offers **non-binding** guidance to make S6 fast, predictable, and r
 
 ## 12.9 What to watch (operational SLO hints)
 
-* **Row/event parity:** `|S6| == |S5| == |rng_event_in_cell_jitter|`. If not, you have scheduling or logging back-pressure issues. 
-* **RNG identities:** From the **trace** (if enabled for your run), `draws_total == 2·sites_total` and `blocks_total == sites_total`. (Event schema fixes `draws="2"`, `blocks=1`.) 
+* **Row/event relation:** `|S6| = |S5|` and **`rng.events_total ≥ sites_total`**. Large gaps suggest frequent resamples or logging back-pressure.
+* **RNG identities:** From the **trace** (if enabled for your run), `draws_total == 2·rng.events_total` and `blocks_total == rng.events_total`. (Event schema fixes `draws="2"`, `blocks=1` per event.)
 * **PIP workload split:** interior vs border-tile share; a healthy run should spend the majority of cycles on border tiles only.
 
 ---
@@ -857,7 +856,7 @@ Each event in `rng_event_in_cell_jitter` validates the **layer RNG envelope**:
 * **rng_counter_before_{lo,hi} / rng_counter_after_{lo,hi}** — 128-bit counters (split fields); **u128(after) − u128(before) = blocks**.
 * **Per-event budget (current anchor):** `blocks = 1`, `draws = "2"` (two-uniform family). 
 
-*(Note: S6 emits **one event per site**; acceptance tests check **row↔event parity** and the fixed budget above.)* 
+*(Note: S6 emits **one event per attempt (≥1 per site)**; acceptance checks require **≥1 event per site**, the **last** event to match the accepted sample, and the per-event fixed budget above.)*
 
 ## A.6 Random variables & domains
 
@@ -937,7 +936,7 @@ centroid:
 
 ## B.3 Jitter sampling (uniform in pixel)
 
-Draw two open-interval uniforms for this site (two-uniform family; one event for the site):
+Draw two open-interval uniforms for this site (two-uniform family; **in this example the first attempt is accepted**, so there is one event for the site):
 
 ```
 u_lon = 0.732421
@@ -970,7 +969,7 @@ delta_lat_deg = lat* − centroid_lat_deg =  51.50522945 − 51.525000 = -0.0197
 
 ---
 
-## B.4 RNG event (JSONL; one per site)
+## B.4 RNG event (JSONL; for this site’s accepted attempt)
 
 *(Shape owned by the layer RNG event anchor; `draws` is a **decimal u128 string**, `blocks` is **u64**.)*
 
@@ -1062,8 +1061,8 @@ Suppose a different S5 site maps to a **border tile** (rectangle straddles the c
 
 * **A606 Inside pixel:** ✅
 * **A607 Point-in-country:** ❌ → **E608_POINT_OUTSIDE_COUNTRY**
-* **A608/A609:** still exactly one event with `draws="2"`, `blocks=1` (budget OK).
-* **Outcome:** S6 **ABORTS** for that run identity (validators are binding).
+* **A608/A609:** **≥2 events** (multiple attempts), each with `draws="2"`, `blocks=1` (per-event budget OK).
+* **Outcome:** If all attempts fail the country predicate up to the cap, S6 **ABORTS** with `E606_RESAMPLE_EXHAUSTED`. (If an implementation wrongly wrote an outside-country row, `A607` would FAIL—but the normative algorithm resamples instead.)
 
 *(Operationally you’d avoid frequent border failures by tiling so most tiles are interior, or by choosing seeds where empirical outside-rate is negligible. The spec itself remains unchanged.)*
 
