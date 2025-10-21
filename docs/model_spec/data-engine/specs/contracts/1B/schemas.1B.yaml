@@ -45,13 +45,44 @@ $defs:
     enum: ["uniform","area_m2","population"]
     description: Weighting basis used by S2 (non-authoritative if included as a column).
 
+
+policy:
+  jitter_policy:
+    type: object
+    description: "Deterministic per-latitude σ policy (degrees) used by S6."
+    required: [policy_version, bands]
+    additionalProperties: false
+    properties:
+      policy_version:
+        type: string
+        description: "Human-readable or semver; not part of dataset identity."
+      notes:
+        type: string
+        description: "Optional free text."
+      bands:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          required: [lat_lo_deg, lat_hi_deg, sigma_lat_deg, sigma_lon_deg]
+          additionalProperties: false
+          properties:
+            lat_lo_deg: { $ref: '#/$defs/lat' }
+            lat_hi_deg: { $ref: '#/$defs/lat' }
+            sigma_lat_deg: { type: number, exclusiveMinimum: 0 }
+            sigma_lon_deg: { type: number, exclusiveMinimum: 0 }
+            merchant_class:
+              type: string
+              description: "Optional merchant class key if you differentiate by class."
+
 validation:
   s0_gate_receipt:
     type: table
     description: 'Receipt proving 1A PASS for this fingerprint; authorises 1B to read outlet_catalogue. Fingerprint-only identity.'
     primary_key: [manifest_fingerprint]
-    partition_keys: [manifest_fingerprint]
+    partition_keys: [fingerprint]
     sort_keys: []
+    columns_strict: true
     columns:
       - {name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false, description: 'Lineage fingerprint (MUST byte-equal the `fingerprint` path token).'}
       - {name: validation_bundle_path, type: string, nullable: false, description: 'Resolved folder of 1A validation bundle for this fingerprint (must include `fingerprint=<hex64>`).', pattern: '^data/layer1/1A/validation/fingerprint=[a-f0-9]{64}/?$'}
@@ -110,7 +141,7 @@ plan:
     type: table
     description: "Deterministic per-(merchant_id, legal_country_iso) site counts for this run (RNG-free)."
     primary_key: [merchant_id, legal_country_iso]
-    partition_keys: [seed, manifest_fingerprint, parameter_hash]
+    partition_keys: [seed, fingerprint, parameter_hash]
     sort_keys: [merchant_id, legal_country_iso]
     columns_strict: true
     columns:
@@ -122,7 +153,7 @@ plan:
     type: table
     description: "Per-tile integer allocations that sum to S3 n_sites (RNG-free). Emitted only for positive allocations."
     primary_key: [merchant_id, legal_country_iso, tile_id]
-    partition_keys: [seed, manifest_fingerprint, parameter_hash]
+    partition_keys: [seed, fingerprint, parameter_hash]
     sort_keys: [merchant_id, legal_country_iso, tile_id]
     columns_strict: true
     columns:
@@ -140,7 +171,7 @@ plan:
     type: table
     description: "Site→tile assignment; exactly one row per site; RNG used to randomise which sites fill S4’s tile quotas."
     primary_key: [merchant_id, legal_country_iso, site_order]
-    partition_keys: [seed, manifest_fingerprint, parameter_hash]
+    partition_keys: [seed, fingerprint, parameter_hash]
     sort_keys: [merchant_id, legal_country_iso, site_order]
     columns_strict: true
     columns:
@@ -159,7 +190,7 @@ plan:
     type: table
     description: "Per-site in-tile jitter; effective deltas after boundary handling (one row per site)."
     primary_key: [merchant_id, legal_country_iso, site_order]
-    partition_keys: [seed, manifest_fingerprint, parameter_hash]
+    partition_keys: [seed, fingerprint, parameter_hash]
     sort_keys: [merchant_id, legal_country_iso, site_order]
     columns_strict: true
     columns:

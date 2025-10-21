@@ -301,9 +301,9 @@ policies:
   path: config/policy/1B.jitter.yaml
   partitioning: []
   ordering: []            # events are append-only; no row-order guarantee
-  schema_ref:
+  schema_ref: schemas.1B.yaml#/policy/jitter_policy
   lineage:
-    produced_by: 1B.S5
+    produced_by: 1B.policy
     consumed_by: [1B]
     final_in_layer: false
   retention_days: 30
