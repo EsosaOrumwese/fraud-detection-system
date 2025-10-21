@@ -1,844 +1,1076 @@
-# State-6 · In-cell Jitter (RNG · uniform-in-pixel + deterministic country projection)
+# State-6 — In-pixel Uniform Jitter with Point-in-Country (RNG)
 
-# 1) Purpose & scope **(Binding)**
+# 1) Document metadata & status **(Binding)**
 
-**1.1 Problem statement.**
-S6 produces **per-site, in-pixel jitter** offsets such that the realised coordinate is **uniform within the assigned pixel** and **inside the legal country polygon**. S6 consumes **exactly two uniforms per site** to sample `(lon, lat)` uniformly over the pixel rectangle, then applies a **deterministic projection** into the **intersection** of that rectangle with the country polygon whenever the sample lies outside. S6 does not alter S5 assignments, counts, or tiles. The run identity for all reads/writes is **`{seed, manifest_fingerprint, parameter_hash}`**.
+**State ID (canonical):** `layer1.1B.S6` — “In-pixel uniform jitter with bounded resample (point-in-country).”
+**Document type:** Contractual specification (behavioural + data contracts; no code/pseudocode). Implementations resolve shapes via JSON-Schema anchors and IDs/paths via the Dictionary; Registry is provenance/notes only. 
 
-**1.2 Out of scope.**
-S6 **does not**: (a) change S5 site→tile assignments or any S4/S3 counts; (b) generate final lat/lon egress (that is S7); (c) encode or imply **inter-country order** (authority remains 1A `s3_candidate_set`); (d) read any surfaces beyond those enumerated for S6.
+## 1.1 Versioning (SemVer) & effective date
 
-**1.3 Authority boundaries & invariants.**
-a) **Assignment source (S5):** `(merchant_id, legal_country_iso, site_order) → tile_id` is authoritative; S6 must **respect** it as read-only.
-b) **Universe & bounds (S1):** `tile_index` is the sole authority for each tile’s centroid and bounding box (`[min_lat,max_lat]×[min_lon,max_lon]`). S6 samples **uniformly** inside that rectangle and **MUST** keep the effective coordinate within it.
-c) **Country geometry (ingress):** `world_countries` is the **only** authority for the country polygon used by the point-in-country predicate. If a sampled point lies outside, S6 **projects deterministically** to the nearest point **within** `country_polygon ∩ pixel_rectangle` (see §B.4).
-d) **Policy surface:** `jitter_policy` is **not used for sampling** in this uniform lane. It MAY be read for band/reporting envelopes; S6 MUST NOT derive displacement scales from it.
-e) **Gate law (S0):** S6 **relies on** the fingerprint-scoped receipt (**No PASS → No read**) and **does not** re-hash the 1A bundle.
-f) **Resolution & shape:** All IO **must** resolve via the **Dataset Dictionary** (no literal paths). **JSON-Schema** is the **sole shape authority** for both the dataset and RNG events; this spec does not restate columns/keys.
-g) **RNG budgeting:** Exactly **two** uniforms per site (substream `in_cell_jitter`; **`blocks=1`**, **`draws="2"`**); budget shortfall/excess is a failure.
+**Versioning scheme:** **MAJOR.MINOR.PATCH**.
+**Effective date:** set on ratification (release tag governs).
 
-**1.4 Deliverables.**
-S6 emits, for the fixed identity **`{seed, manifest_fingerprint, parameter_hash}`**:
-a) **Dataset — `s6_site_jitter`**: one row **per site** with the **effective** jitter deltas (after boundary handling). Writer-sorted, immutable, and byte-stable on re-publish.
-b) **RNG event stream — `in_cell_jitter`**: one event **per site** (**two draws; one block**) under the layer envelope to evidence the randomisation is correctly scoped and reproducible.
+**MAJOR** when any binding interface changes, including (non-exhaustive): dataset IDs or `$ref` schema anchors; partition law; RNG **event family** shape/envelope; PASS-gate semantics; lineage equality rules.  
+**MINOR** for backward-compatible additions (optional diagnostics/metrics, run-report fields) or documentation notes that do not alter schemas/paths/keys. 
+**PATCH** for clarifications/typos that do not change behaviour, schemas, paths, partitions, or gates. 
 
----
+## 1.2 Normative language (RFC 2119/8174)
 
-# 2) Preconditions & sealed inputs **(Binding)**
+Key words **MUST/SHALL/SHOULD/MAY** are normative. Unless explicitly marked *Informative*, all clauses are **Binding**. (Matches S0/S1/S3 practice.)  
 
-**2.1 Gate (must hold before any read).**
-Exactly one **`s0_gate_receipt_1B`** exists for the target `manifest_fingerprint` and **schema-validates**. S6 **relies on the receipt** (**No PASS → No read**) and **does not** re-hash the 1A bundle. The receipt establishes which 1B surfaces may be read.
+## 1.3 Sources of authority & precedence
 
-**2.2 Fixed identities (for the entire publish).**
-All S6 reads and writes bind to a single identity triple **`{seed, manifest_fingerprint, parameter_hash}`**. Mixing identities within a publish is **forbidden**.
+**JSON-Schema is the single shape authority** for all inputs/outputs/logs; the **Dataset Dictionary** governs dataset IDs → path/partitions/writer policy; the **Artefact Registry** records runtime bindings/licences; this state spec binds behaviour **under** those. If Schema and Dictionary disagree on shape, **Schema wins**; implementations must not hard-code paths.  
 
-**2.3 Sealed inputs (resolve via Dataset Dictionary; no literal paths).**
-`tile_index` (bounds & centroids) · `world_countries` (country polygons) · `s5_site_tile_assignment` (tile choice) · `s0_gate_receipt_1B` (gate)
+* **Shape anchors used by S6:**
+  – Data table: `schemas.1B.yaml#/plan/s6_site_jitter` (PK/partitions/writer-sort are binding). 
+  – RNG events: `schemas.layer1.yaml#/rng/events/in_cell_jitter` (common envelope: `draws` dec-u128, `blocks` u64, counters, etc.). 
+* **Dictionary law (IDs → paths/partitions):**
+  – `s6_site_jitter` at `…/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` with ordering `[merchant_id, legal_country_iso, site_order]`. 
+  – RNG log `in_cell_jitter` under `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`. 
 
-* **`s5_site_tile_assignment`** — path family `…/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` · **partitions:** `[seed, fingerprint, parameter_hash]` · *authoritative site→tile mapping (one row per site).*
-* **`tile_index`** — path family `…/tile_index/parameter_hash={parameter_hash}/` · **partitions:** `[parameter_hash]` · *tile centroid and bounding box (eligible universe).*
-* **`jitter_policy`** — policy/config artefact providing **σ_lat_deg**, **σ_lon_deg** rules (deterministic function of latitude and/or policy knobs).
-* **`iso3166_canonical_2024`** — ingress FK surface for `legal_country_iso`.
+## 1.4 Compatibility window (assumed baselines)
 
-**2.4 Inputs S6 will actually read.**
-`s5_site_tile_assignment`, `tile_index`, `jitter_policy`, `iso3166_canonical_2024`. *(No other surfaces.)*
+S6 v1.* assumes the following remain on their **v1.* line**; a **MAJOR** bump in any requires S6 re-ratification:
 
-**2.5 RNG envelope (pre-run commitments).**
+* `schemas.layer1.yaml` (RNG envelope/events) and `schemas.1B.yaml` (S6 table).  
+* `dataset_dictionary.layer1.1B.yaml` (IDs, canonical paths/partitions for S5/S6). 
+* S0 gate & 1A gate model (“**No PASS → No read**”): consumers of 1A egress verify `_passed.flag` per the hashing law before S6’s upstream reads occur. 
 
-* **Substream:** `in_cell_jitter`.
-* **Budget (binding):** **exactly one** RNG event **per site**, with **`draws="2"`** (two uniforms → Box–Muller).
-* **Log path family:** `logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`.
-* **Run ID:** a single **`run_id`** is minted at job start and used for **all** S6 events in this publish.
-* **Shape authority:** events **must** validate against the canonical layer RNG event anchor for `in_cell_jitter`. *(This spec does not restate event fields.)*
+## 1.5 Identity & lineage (binding)
 
-**2.6 Path↔embed & identity parity (must hold before publish).**
+* **Dataset identity (S6 table):** exactly one `{seed, manifest_fingerprint, parameter_hash}` per publish; **partition keys** are `[seed, fingerprint, parameter_hash]`, with **path token** `fingerprint=…` and **column** `manifest_fingerprint` (path↔embed equality holds wherever both appear). 
+* **RNG log identity:** `{seed, parameter_hash, run_id}`; one `run_id` per publish. Envelope must include `draws` (dec-u128) and `blocks` (u64) consistent with counters. 
+* **Order law:** file order is **non-authoritative**; writer sort is binding. Cross-country order is never encoded in 1B; downstreams join 1A S3 for `candidate_rank`.  
 
-* `{seed}` used to read `s5_site_tile_assignment` **equals** the dataset publish token.
-* `{parameter_hash}` used to read `tile_index` (and policy if parameter-scoped) **equals** the dataset publish token.
-* RNG logs’ `{seed, parameter_hash}` **match** the dataset identity; a **single** `run_id` is used consistently.
-* Where lineage fields are embedded in rows in any future revision, embedded values **equal** their path tokens.
+## 1.6 Scope note & alignment to the overview (informative summary)
 
-**2.7 Prohibitions (fail-closed).**
+This S6 spec **implements the overview’s S6 line**: *uniform jitter inside the chosen pixel (two-uniform family), enforce point-in-country with bounded resample on predicate failure*. (Details and acceptance tests appear in later sections.) 
 
-* **No out-of-scope reads:** S6 must not read `world_countries`, `population_raster_2025`, `tz_world_2025a`, or any surface not listed in §2.4.
-* **No assignment or count tampering:** S6 must not modify S5 site→tile assignments or any S4/S3 counts.
-* **No policy invention/override:** σ parameters **must** come from `jitter_policy`; S6 must not re-fit or infer σ.
-* **No inter-country order:** S6 must not encode or imply order (authority remains 1A `s3_candidate_set`).
+## 1.7 Compatibility note vs earlier S6 draft (informative)
+
+Earlier S6 text used **Gaussian (Box–Muller) + single clamp** and a fixed note “draws=2” in Registry prose. This spec **supersedes** that lane by adopting the overview-standard **uniform-within-pixel + bounded resample**; the **schema** remains unchanged (envelope already carries variable `draws/blocks`), and Registry text will be updated as **MINOR** to reflect “one event per site; draws = 2×attempts; blocks = attempts.”   
 
 ---
 
-# 3) Inputs & authority boundaries **(Binding)**
+# 2) Purpose & scope **(Binding)**
 
-**3.1 Required inputs (resolve via Dataset Dictionary; Schema owns shape).**
+**Mission.** S6 **produces per-site, effective jitter deltas** `(delta_lat_deg, delta_lon_deg)` so that the realised point is **uniformly distributed inside the assigned raster cell (pixel)** from S5/S1 **and** lies **inside the legal country polygon**. When a sampled point fails the country predicate, S6 performs a **bounded resample**; on exhausting the cap, S6 **ABORTS**.
 
-* **`s5_site_tile_assignment`** — authoritative **site→tile** mapping (one row per site) under identity `{seed, manifest_fingerprint, parameter_hash}`.
-* **`tile_index`** — **eligible tile universe** and per-tile bounds/centroid for the fixed `{parameter_hash}`.
-* **`jitter_policy`** — σ rules (degrees) used to scale per-axis jitter; deterministic from policy knobs/latitude.
-* **`iso3166_canonical_2024`** — FK domain for `legal_country_iso` (uppercase ISO-2).
+## 2.1 In-scope (what S6 SHALL do)
 
-**3.2 Sealed but **not** read by S6 (declared for boundary clarity).**
+* **One row per site.** For every `(merchant_id, legal_country_iso, site_order)` from S5, S6 SHALL emit exactly one jitter row in `s6_site_jitter`.
+* **Uniform-in-pixel.** S6 SHALL sample `(lon*,lat*)` **uniformly over the S1 pixel rectangle** (WGS84 degrees).
+* **Point-in-country.** S6 SHALL enforce that `(lon*,lat*)` lies **inside** the polygon for `legal_country_iso` (dateline-aware).
+* **Bounded resample.** On predicate failure, S6 SHALL resample within a fixed **MAX_ATTEMPTS** (≥1). If exceeded, **ABORT** this state.
+* **RNG evidence.** S6 SHALL record **one RNG event per site** under `in_cell_jitter`, with **`draws = 2 × attempts`** and **`blocks = attempts`**, consistent with the layer envelope and counters.
+* **Identity & partitions.** All outputs/logs SHALL bind to one `{seed, manifest_fingerprint, parameter_hash}`; path↔embed equality is binding; writer sort is binding; file order is non-authoritative.
+* **Authority surfaces.** S6 SHALL read only sealed inputs: S5 assignment, S1 tile geometry, country polygons, and the S0 gate receipt.
 
-* **`s4_alloc_plan`** — per-tile integers (already satisfied by S5; **not** read here).
-* **`s3_requirements`** — pair-level counts (diagnostic only; **not** required).
-* **`tile_weights`** — fractional mass (S2; **not** read).
-* **`outlet_catalogue`** — site stubs (seed+fingerprint; **not** read).
-* **`s3_candidate_set`** — **inter-country order** authority (1A; **not** read).
+## 2.2 Out of scope (what S6 SHALL NOT do)
 
-**3.3 Precedence & resolution rules.**
+* **No reassignment.** SHALL NOT change S5 tile choices, counts, or ordering.
+* **No policy-fitting.** SHALL NOT read or derive any σ/shape policy (uniform lane ignores `jitter_policy`).
+* **No new egress.** SHALL NOT publish or mutate 1B egress bundles (that packaging/flagging occurs elsewhere).
+* **No alternative geometry/time semantics.** SHALL NOT use non-S1 geometry, timezone logic, or any surface not listed in §2.1.
 
-* **Shape authority:** JSON-Schema packs (dataset + RNG events).
-* **IDs→paths/partitions/sort/licence:** Dataset Dictionary.
-* **Provenance/licences:** Artefact Registry.
-  If Dictionary text and Schema ever differ on **shape**, **Schema wins**. **No literal paths** in code; all IO resolves via the Dictionary.
+## 2.3 Success definition (pointer)
 
-**3.4 Authority boundaries (what S6 MUST / MUST NOT do).**
-
-* **Assignments:** S6 **MUST** respect S5 site→tile; **MUST NOT** alter tiles or counts.
-* **Universe/bounds:** S6 **MUST** use `tile_index` as the **only** source for per-tile centroid and `[min,max]` bounds; offsets **MUST NOT** place a site outside these bounds.
-* **Policy:** σ parameters **MUST** come from `jitter_policy`; S6 **MUST NOT** invent/re-fit σ.
-* **RNG envelope:** S6 **MUST** express randomness via substream **`in_cell_jitter`** with the documented budget (**two** uniforms per site; `draws="2"`).
-* **Order boundary:** S6 **MUST NOT** encode or imply inter-country order (authority remains 1A `s3_candidate_set`).
-* **Gate reliance:** S6 **relies on** the fingerprint-scoped S0 receipt; it **does not** re-hash 1A’s bundle.
-
-**3.5 Identities bound for this state.**
-
-* **Dataset identity:** exactly one `{seed, manifest_fingerprint, parameter_hash}` for all reads/writes in the publish.
-* **RNG logs identity:** `{seed, parameter_hash, run_id}` (single `run_id` for the publish).
-
-**3.6 Prohibited surfaces (fail-closed).**
-S6 **MUST NOT** read `population_raster_2025`, `tz_world_*`, or any surface **not** listed in §3.1. *(Reading `world_countries` is **required** for the country predicate.)*
-
-**3.7 Path↔embed equality (where embedded).**
-If lineage fields are embedded in rows (now or in future revisions), their values **MUST equal** the corresponding path tokens. RNG events **MUST** carry the matching `{seed, parameter_hash}` and the single `run_id`.
+S6 is **successful** only if the acceptance criteria in **§9** hold—uniform-in-pixel, point-in-country, FK to `tile_index`, correct RNG budgeting (one event/site; `draws` even; `blocks == draws/2`), path↔embed equality, and writer sort.
 
 ---
 
-# 4) Outputs (datasets) & identity **(Binding)**
+# 3) Sources of authority & invariants **(Binding)**
 
-**4.1 Dataset & canonical anchors.**
+## 3.1 Authority stack & resolution
 
-* **Dataset ID:** `s6_site_jitter`
-* **Schema (sole shape authority):** `schemas.1B.yaml#/plan/s6_site_jitter` *(canonical anchor; this spec does not restate columns/keys).*
-* **RNG event stream (authority):** `schemas.layer1.yaml#/rng/events/in_cell_jitter` *(layer RNG envelope; substream `in_cell_jitter`).*
+* **Shape authority:** All input/output/log **shapes** are owned by JSON-Schema. This spec MUST NOT restate columns/keys; implementations validate against the canonical anchors. 
+* **Paths & partitions:** Dataset **IDs → path/partitions/writer-sort** resolve only via the **Dataset Dictionary** (no literal paths). 
+* **Provenance/notes:** The **Artefact Registry** binds runtime notes/roles and echoes the canonical schema anchors. 
 
-**4.2 Path family, partitions, writer sort & format (Dictionary law).**
-Resolve via the **Dataset Dictionary** only (no literal paths).
+## 3.2 Authoritative inputs for S6 (sealed)
+
+S6 SHALL read only these sealed surfaces for the fixed identity `{seed, manifest_fingerprint, parameter_hash}`:
+
+* **S5 assignment** (`s5_site_tile_assignment`): authoritative mapping `(merchant_id, legal_country_iso, site_order) → tile_id`. Partitions `[seed, fingerprint, parameter_hash]`; writer-sort `[merchant_id, legal_country_iso, site_order]`. 
+* **S1 tile geometry** (`tile_index`): pixel centroid & bounds; partition `[parameter_hash]`; writer-sort `[country_iso, tile_id]`. 
+* **Country polygons** (`world_countries`): the **only** authority for the *point-in-country* predicate; dateline-aware geometry semantics are bound in S1 and inherited here. 
+* **Gate receipt** (`s0_gate_receipt_1B` / 1A PASS): consumers MUST have verified **`_passed.flag`** before any upstream read (**No PASS → No read**). 
+
+## 3.3 Identity & partitions (binding)
+
+* **Dataset identity (S6 table):** exactly one publish per `{seed, manifest_fingerprint, parameter_hash}`; partitions are `[seed, fingerprint, parameter_hash]` (path token is `fingerprint=…`; embedded column is `manifest_fingerprint`). Writer-sort `[merchant_id, legal_country_iso, site_order]`.  
+* **RNG events identity:** partitions `[seed, parameter_hash, run_id]` (no fingerprint in logs); one `run_id` per publish. 
+* **Path↔embed equality:** whenever lineage fields are embedded, their values MUST byte-equal the corresponding path tokens for both datasets and logs. 
+
+## 3.4 Foreign keys & geometry invariants
+
+* **Country code FK:** `legal_country_iso` MUST FK to the canonical ISO-3166 surface (ingress anchor referenced by the schema). 
+* **Tile FK (same parameter):** `(legal_country_iso, tile_id)` in S5/S6 MUST exist in `tile_index` for the **same** `{parameter_hash}`. The schema encodes this with an FK to `#/prep/tile_index` and an explicit `partition_keys: ['parameter_hash']` hint. 
+* **Pixel bounds authority:** the rectangle used to sample uniform in-pixel candidates comes **only** from S1 `tile_index` (centroid & min/max bounds).  
+* **Country predicate authority:** *point-in-country* is computed against `world_countries` (S1 rules on topology/antimeridian apply). 
+
+## 3.5 RNG envelope & invariants
+
+* **Envelope shape:** Every jitter event MUST validate the layer **RNG envelope** (required fields including `draws` **dec-u128 string** and `blocks` **u64**, open-interval U(0,1) deviates). 
+* **Event family/partition law:** Jitter events live under `logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`; one event per site (budget semantics are verified in §9). 
+
+## 3.6 Ordering & non-authoritative file semantics
+
+* **Writer-sort is binding; file order is non-authoritative.** Datasets adhere to the Dictionary’s writer-sort; validators MUST ignore file order. 
+* **Inter-country order is never encoded in 1B.** Downstreams join **1A S3 `candidate_rank`** if they need an order. 
+
+## 3.7 Fail-closed surface access
+
+S6 SHALL access **only** the surfaces in §3.2. Reading any unlisted spatial/time surface is a validation failure. (Geometry authority for country checks is `world_countries`; S1’s semantics govern.) 
+
+*(All subsequent sections rely on this authority model; acceptance criteria in §9 will enforce the identity, FK, envelope, and gate invariants above.)*
+
+---
+
+# 4) Preconditions & sealed inputs **(Binding)**
+
+## 4.1 Run identity is sealed before S6
+
+S6 runs **only** under a fixed lineage tuple **`{seed, manifest_fingerprint, parameter_hash, run_id}`**. Any embedded lineage fields in rows/logs **MUST** byte-equal their path tokens (path token is `fingerprint=…`; embedded column is `manifest_fingerprint`). The S0 gate schema explicitly binds the **`fingerprint` path token ↔ `manifest_fingerprint`** value. 
+
+## 4.2 Gate condition (must hold before any read)
+
+**No PASS → No read.** The **S0 gate receipt** for 1B **MUST** be present and valid for this `fingerprint` before S6 reads any upstream 1B datasets. The S0 schema is fingerprint-scoped and marks this receipt as the authorisation to read 1A egress used upstream. 
+
+## 4.3 Upstream states (existence & conformance)
+
+The following upstream 1B datasets **MUST** already exist for **this** `{seed, fingerprint, parameter_hash}` and conform to their schema **and** Dictionary partitions/sort:
+
+* **S5 — `s5_site_tile_assignment`**
+  **Path/partitions:** `…/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
+  **Writer-sort:** `[merchant_id, legal_country_iso, site_order]`
+  **Shape:** `schemas.1B.yaml#/plan/s5_site_tile_assignment` (FK to ISO; FK to `tile_index` with same `parameter_hash`).  
+
+* **S1 geometry — `tile_index`** (authoritative pixel bounds/centroids)
+  **Path/partitions:** `…/parameter_hash={parameter_hash}/`
+  **Keys/sort:** PK `[country_iso, tile_id]`, partition `[parameter_hash]`, sort `[country_iso, tile_id]`.
+  **Shape:** `schemas.1B.yaml#/prep/tile_index`. 
+
+> **FK invariant (binding):** `(legal_country_iso, tile_id)` in S5/S6 **MUST** exist in `tile_index` for the **same** `parameter_hash` (explicit FK with `partition_keys: ['parameter_hash']` in the schema). 
+
+## 4.4 Country geometry (point-in-country authority)
+
+S6’s point-in-country predicate **MUST** use the **`world_countries`** surface bound in S1; using any other country shape is non-conformant per S1 acceptance. 
+
+## 4.5 RNG envelope availability (for logging)
+
+When S6 emits RNG events (`in_cell_jitter`), each JSONL record **MUST** validate the **layer RNG envelope** (`draws` as **decimal u128 string**, `blocks` as **u64**, counters before/after, etc.). (Identity for logs is `[seed, parameter_hash, run_id]` per Dictionary/Registry.)   
+
+## 4.6 Resolution rule for inputs (no literal paths)
+
+Implementations **SHALL** resolve dataset IDs → **path family, partitions, writer policy** via the **Dataset Dictionary** only (e.g., S5 and S6 table entries above); this spec does not permit hard-coded paths. 
+
+## 4.7 Fail-closed access
+
+S6 **SHALL** read **only** the sealed inputs enumerated here: **S5 assignment**, **S1 `tile_index`**, **`world_countries`**, and the **S0 gate receipt**. Reading any unlisted spatial/time surface is a validation failure (S1 already binds `world_countries` as the sole country-polygon authority).  
+
+*(Downstream sections assume these preconditions; §9 will assert FK to `tile_index`, path↔embed equality, and RNG envelope correctness as acceptance tests.)*
+
+---
+
+# 5) Outputs (datasets/logs) & identity **(Binding)**
+
+## 5.1 Data table — `s6_site_jitter`
+
+**ID (Dictionary):** `s6_site_jitter` → `schemas.1B.yaml#/plan/s6_site_jitter`. **Path family:**
+`data/layer1/1B/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` 
+
+**Identity & partitions (binding).** Partitions are **`[seed, fingerprint, parameter_hash]`**. Primary key `[merchant_id, legal_country_iso, site_order]`. Writer sort `[merchant_id, legal_country_iso, site_order]`. Path token `fingerprint=…` MUST byte-equal the embedded `manifest_fingerprint` column wherever present.  
+
+**Shape (owned by schema).** One row **per site** with effective (post-boundary) deltas:
+`delta_lat_deg`, `delta_lon_deg` (bounded guards e.g. `[-1,1]`, columns_strict=true). *(The exact columns/constraints are defined by the anchor and SHALL NOT be restated here.)* 
+
+**Writer policy & publish.** Write-once, atomic move into the live partition; file order is **non-authoritative**; retention **365 days** per Dictionary.  
+
+## 5.2 RNG event log — `in_cell_jitter`
+
+**ID (Dictionary):** `rng_event_in_cell_jitter` → `schemas.layer1.yaml#/rng/events/in_cell_jitter`. **Path family:**
+`logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` 
+
+**Identity & partitions (binding).** Partitions are **`[seed, parameter_hash, run_id]`**; exactly **one event per site** produced by S6. Envelope fields are owned by the layer schema (e.g., `draws` as **decimal u128 string**, `blocks` as **u64**, counters before/after, etc.).  
+
+**Budget semantics (binding for S6).** For each site’s **single** `in_cell_jitter` event:
+
+* `attempts ≥ 1`; each attempt consumes **two** uniforms from the same Philox block;
+* **`draws = 2 × attempts`** (dec-u128 string), **`blocks = attempts`** (u64).
+  These constraints are **binding** for S6 and will be validated in §9 (even if older Registry prose still says “draws=2”; that Registry note will be corrected in a MINOR doc update).  
+
+**Writer policy & retention.** Events are append-only; file order non-authoritative; retention **30 days** per Dictionary. 
+
+## 5.3 Path↔embed equality (binding)
+
+Where lineage appears both in the **path** and as **embedded fields** (e.g., `manifest_fingerprint`), values MUST be byte-identical across **all** S6 outputs (dataset and logs). Violations are **FAIL** under acceptance tests. 
+
+## 5.4 No egress mutation
+
+S6 **does not** publish or mutate the 1B egress `site_locations`. That surface remains partitioned by `[seed, fingerprint]` and is governed elsewhere in 1B; S6 only produces the jitter dataset and its RNG events. 
+
+## 5.5 Resolution rule (no literal paths)
+
+Implementations SHALL resolve dataset/log IDs → **path families, partitions, writer policies** via the **Dataset Dictionary**. Schema anchors remain the sole **shape authority**.  
+
+---
+
+# 6) Dataset shapes & schema anchors **(Binding)**
+
+**JSON-Schema is the sole shape authority**. This section enumerates the exact anchors S6 binds to; implementations MUST validate against these anchors and MUST NOT restate columns outside of Schema. 
+
+## 6.1 Output data table (shape authority)
+
+**ID → Schema:** `s6_site_jitter` → `schemas.1B.yaml#/plan/s6_site_jitter`.
+This anchor fixes **PK**, **partition keys**, **writer sort**, and **columns_strict** for the S6 table. In v2.4 it is:
+
+* **PK:** `[merchant_id, legal_country_iso, site_order]`
+* **Partitions:** `[seed, fingerprint, parameter_hash]` (path token `fingerprint=…`; embedded column is `manifest_fingerprint`)
+* **Writer sort:** `[merchant_id, legal_country_iso, site_order]`
+* **Columns (excerpt):** `merchant_id`, `legal_country_iso` (FK to ISO ingress), `site_order`, and **effective** deltas `delta_lat_deg`, `delta_lon_deg` *(bounded guard e.g. [-1,1])*; **columns_strict: true**. 
+
+The **Dictionary** entry for `s6_site_jitter` binds the **path family** and repeats the same **partitions/sort** (write-once, atomic move):
+`data/layer1/1B/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`. 
+
+## 6.2 RNG event stream (shape authority)
+
+**ID → Schema:** `rng_event_in_cell_jitter` → `schemas.layer1.yaml#/rng/events/in_cell_jitter`.
+This anchor inherits the **layer RNG envelope** (shared `$defs.rng_envelope`) and pins the per-event fields for S6 jitter events: `module="1B.S6.jitter"`, `substream_label="in_cell_jitter"`, `merchant_id`, `legal_country_iso`, `site_order`, `sigma_*` (present in the envelope), and `delta_*`. **As of v1.2, the event schema constrains `blocks: 1` and `draws: "2"`** (two uniforms per event). 
+
+The **RNG envelope** defines required lineage + accounting fields (`ts_utc` RFC-3339 with exactly 6 fractional digits, `run_id`, `seed`, `parameter_hash`, `manifest_fingerprint`, counters, `draws` as **dec-u128 string**, `blocks` as **u64**). 
+
+The **Dictionary** entry binds the **path family** and partitions for this stream:
+`logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` (partitions `[seed, parameter_hash, run_id]`). 
+
+> **Compatibility note (Binding):** S6’s behavioural spec uses **uniform in-pixel + bounded resample**; however, **the current event anchor still pins `draws="2"` and `blocks=1`**. S6 MUST comply with this shape. Any future change to log per-site resample attempts would require a **MINOR** schema/stream addition; until then, attempts are surfaced via run-report metrics, not per-event `draws`. 
+
+## 6.3 Referenced (read-only) input anchors
+
+S6 **reads** these shapes and inherits their constraints; this spec does not restate them:
+
+* **S5 assignment table:** `schemas.1B.yaml#/plan/s5_site_tile_assignment` (PK `[merchant_id, legal_country_iso, site_order]`, partitions `[seed, fingerprint, parameter_hash]`, FK of `tile_id` → `prep.tile_index` with **partition hint `['parameter_hash']`** in the FK block). 
+* **S1 tile geometry:** `schemas.1B.yaml#/prep/tile_index` (PK `[country_iso, tile_id]`, partition `[parameter_hash]`, writer sort `[country_iso, tile_id]`). 
+* **ISO country codes (ingress):** `schemas.ingress.layer1.yaml#/iso3166_canonical_2024` (FK target for `legal_country_iso`). *(Referenced from the 1B schema columns via FK.)* 
+
+## 6.4 Resolution & path law (Binding)
+
+Dataset/log **IDs → path/partitions/writer policy** resolve via the **Dataset Dictionary**; implementations MUST NOT hard-code paths. For `s6_site_jitter`, the Dictionary entry matches the schema’s partitions/sort; for `in_cell_jitter`, the Dictionary binds the `[seed, parameter_hash, run_id]` partition law under `logs/rng/events/…`.  
+
+## 6.5 What this section does **not** assert
+
+* **Distributional claims** (uniformity in pixel; point-in-country) and **RNG budgeting semantics** are behavioural and validated in §9; they are **not** expressible in JSON-Schema and therefore do not appear in the anchors above. *(Schema owns shape only; acceptance tests own behaviour.)* 
+
+---
+
+# 7) Deterministic algorithm (with RNG) **(Binding)**
+
+## 7.1 Deterministic iteration order
+
+S6 SHALL iterate sites **in the writer-sort** of S5:
+`[merchant_id, legal_country_iso, site_order]`.
+For each site key, S6 performs a bounded **attempt loop** that yields one accepted sample (or ABORTS).
+
+## 7.2 RNG stream discipline (per attempt)
+
+* **Substream scope.** All attempts for a site use the **`in_cell_jitter`** event family; `substream_label` SHALL deterministically encode the site key (e.g., `"in_cell_jitter|{merchant_id}|{legal_country_iso}|{site_order}"`).
+* **Per-attempt budget.** Each **attempt** consumes exactly **one Philox block** → **two** open-interval uniforms `u_lon,u_lat ∈ (0,1)`; **per-event** envelope fields therefore MUST be `blocks = 1`, `draws = "2"`.
+* **Counters.** Envelope counters before/after MUST reconcile with the per-attempt consumption.
+  *(If multiple attempts occur, there will be multiple events for that site—each with `blocks=1`, `draws="2"`; the **final** event corresponds to the accepted sample.)*
+
+## 7.3 Candidate generation (uniform in pixel)
+
+Let the pixel rectangle from S1 be `[min_lon,max_lon] × [min_lat,max_lat]` (WGS84). For each attempt:
+
+1. Map uniforms to the rectangle:
 
 ```
-data/layer1/1B/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+lon* = min_lon + u_lon · (max_lon − min_lon)
+lat* = min_lat + u_lat · (max_lat − min_lat)
 ```
 
-* **Partitions:** `[seed, fingerprint, parameter_hash]` (one publish per identity; write-once).
-* **Writer sort:** `[merchant_id, legal_country_iso, site_order]` (stable merge order; file order non-authoritative).
-* **Format:** `parquet`.
+Dateline-crossing tiles SHALL be handled by the same unwrapping convention as S1 (width computed on the unwrapped interval, then normalized back to WGS84).
 
-**4.3 RNG logs (path family & partitions).**
-Per-site jitter RNG events are published under the layer RNG log space:
+2. Compute **effective deltas** relative to the pixel centroid `(centroid_lon_deg, centroid_lat_deg)` from S1:
 
 ```
-logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+delta_lon_deg = lon* − centroid_lon_deg
+delta_lat_deg = lat* − centroid_lat_deg
 ```
 
-* **Partitions:** `[seed, parameter_hash, run_id]` (no fingerprint in RNG logs).
-* **Envelope:** events must validate against the `in_cell_jitter` event anchor (module/substream/blocks/draws/trace as defined there).
-* **Budget (binding):** exactly **one** jitter event **per site**, with **`draws="2"`** (two uniforms → Box–Muller).
+(*No clamp is applied; sampling is inside the pixel by construction.*)
 
-**4.4 Row admission (dataset).**
-Emit **exactly one** row per outlet stub `(merchant_id, legal_country_iso, site_order)` containing the **effective in-tile deltas** after boundary handling. No duplicates; no omissions; no zero/placeholder rows.
+## 7.4 Country predicate & bounded resample
 
-**4.5 Immutability & atomic publish.**
-Write-once per `{seed, manifest_fingerprint, parameter_hash}`. Re-publishing to the same identity **must be byte-identical**. Publish via stage → fsync → single atomic move; file order is **non-authoritative**.
+* **Predicate.** `(lat*,lon*)` MUST lie **inside** the `world_countries` polygon for `legal_country_iso` (dateline-aware topology as in S1).
+* **Resample rule.** If the predicate fails, **retry** with a new attempt (new event) up to **MAX_ATTEMPTS = 64**.
+* **Accept.** On first success, **commit** this sample and stop attempting for the site.
+* **Fail-closed.** If attempts exceed the cap with no success, **ABORT** this state with `E606_RESAMPLE_EXHAUSTED`.
 
-**4.6 Identity & lineage constraints.**
+## 7.5 Event emission & dataset write
 
-* **Dataset identity:** `{seed, manifest_fingerprint, parameter_hash}` for all reads/writes.
-* **RNG logs identity:** `{seed, parameter_hash, run_id}`; a single `run_id` is minted and used consistently for the publish.
-* **Parity:** `{seed}` used to read `s5_site_tile_assignment` and `{parameter_hash}` used to read `tile_index` **equal** the dataset publish tokens.
-* **Path↔embed:** if lineage fields are embedded in rows now or in a future revision, values **must equal** the corresponding path tokens.
+For each **attempt**, emit one RNG **event** (JSONL) under
+`logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`
+with the layer envelope (including `draws="2"`, `blocks=1`). After an **accepted** attempt:
 
-**4.7 Licence, retention, PII (Dictionary authority).**
-Licence/retention/PII for `s6_site_jitter` are governed by its Dictionary entry. Writers **must not** override these at write time. (RNG logs follow the layer’s log retention policy.)
+* **Write exactly one row** to `s6_site_jitter` for that site using the accepted `(delta_lat_deg, delta_lon_deg)`.
+* **Writer sort** MUST be `[merchant_id, legal_country_iso, site_order]`.
 
-**4.8 Forward consumers (non-authoritative note).**
-Produced by **1B.S6**; consumed by **S7** (coordinate synthesis/egress shaping). Inter-country order remains external (authority = **1A `s3_candidate_set`**).
+## 7.6 Identity & determinism guarantees
+
+* **Path↔embed equality.** Embedded `manifest_fingerprint` MUST byte-equal the `fingerprint=` path token for both dataset rows and any lineage fields in events.
+* **Run stability.** Given identical `{seed, manifest_fingerprint, parameter_hash, run_id}` and identical inputs (S5, S1, country polygons), the sequence of attempts and the accepted sample for each site MUST be reproducible.
+* **Concurrency.** Parallel execution MUST NOT alter per-site RNG sequencing: attempts are ordered per site; inter-site interleaving is permitted, but each site’s event sequence MUST remain in-order.
+
+## 7.7 Prohibited behaviours (fail conditions)
+
+* **No reassignment.** S6 MUST NOT change S5’s `(site → tile_id)` mapping.
+* **No alternative geometry.** S6 MUST NOT use any country or pixel geometry other than S1 `tile_index` and `world_countries`.
+* **No hidden draws.** All uniforms used MUST be evidenced by `in_cell_jitter` events (i.e., one event per attempt; no unlogged RNG).
+
+## 7.8 Algorithm stop conditions & errors
+
+* **Success:** one accepted sample per site → exactly one S6 row per site; ≥1 RNG event per site; last event corresponds to the accepted sample.
+* **Abort:** `E606_RESAMPLE_EXHAUSTED` if no accepted sample after 64 attempts.
+* **Other failures (enforced in §9):** FK violation to `tile_index`; point outside pixel or country; envelope/counter mismatch; path↔embed mismatch; unsorted write.
 
 ---
 
-# 5) Dataset shapes & schema anchors **(Binding)**
+# 8) Identity, partitions, ordering & merge discipline **(Binding)**
 
-**5.1 Canonical anchors (single sources of truth).**
+## 8.1 Identity tokens (one tuple per publish)
 
-* **Dataset:** `schemas.1B.yaml#/plan/s6_site_jitter`
-* **RNG events:** `schemas.layer1.yaml#/rng/events/in_cell_jitter`
-  This spec **does not** restate columns, domains, PK/partition/sort, or event fields. Those live **only** in the schema packs, which **must** include these anchors before any S6 publish.
+* **Dataset identity:** exactly one `{seed, manifest_fingerprint, parameter_hash}` for the entire S6 publish. Mixing identities within a publish is **forbidden**. The Dictionary fixes `s6_site_jitter` under
+  `data/layer1/1B/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` with partitions `[seed, fingerprint, parameter_hash]` and writer sort `[merchant_id, legal_country_iso, site_order]`. 
+* **RNG logs identity:** `{seed, parameter_hash, run_id}` for the `in_cell_jitter` stream under
+  `logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`. *(“version: {run_id}” in Registry.)*  
 
-**5.2 Ownership & precedence.**
+## 8.2 Partition law & path families (resolve via Dictionary; no literal paths)
 
-* **Shape authority:** the schema packs above (dataset + RNG envelope).
-* **IDs→paths/partitions/writer policy/licence:** Dataset Dictionary.
-* **Provenance/licences:** Artefact Registry.
-  If Dictionary text and Schema ever differ on **shape**, **Schema wins**.
+* **S6 dataset:** `…/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
+  **Partitions:** `[seed, fingerprint, parameter_hash]` · **Format:** parquet · **Writer sort:** `[merchant_id, legal_country_iso, site_order]`. 
+* **RNG events:** `…/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+  **Partitions:** `[seed, parameter_hash, run_id]` · **Ordering:** none (append-only; file order non-authoritative). 
 
-**5.3 Validation obligation.**
+## 8.3 Path↔embed equality (lineage law)
 
-* The `s6_site_jitter` dataset **must validate** against `#/plan/s6_site_jitter` (including PK/partition/sort and any FKs).
-* All `in_cell_jitter` RNG events **must validate** against `#/rng/events/in_cell_jitter` (envelope + substream constraints). Any deviation is a schema-conformance failure (see §8/§9).
+Where lineage appears both in the **path** and as **embedded fields**, values MUST be byte-identical (e.g., the `fingerprint` path token equals any embedded `manifest_fingerprint`). This mirrors the S0 receipt’s binding equality rule and applies to all S6 outputs. 
 
-**5.4 Columns-strict posture.**
-The dataset anchor enforces a **strict column set** (no undeclared columns). The RNG event anchor enforces its envelope fields (module/substream/blocks/draws/trace). This document **relies on** those anchors and **does not duplicate** them here.
+## 8.4 Ordering posture (writer sort vs file order)
 
-**5.5 Compatibility (schema-owned).**
-Any change to dataset keys/columns/partitioning/sort, RNG substream/envelope fields, or FK targets is **MAJOR** per §12. Additive, non-semantic observability outside the dataset partition is **MINOR**. Editorial wording is **PATCH**.
+* **Binding writer sort:** S6 dataset publishes in `[merchant_id, legal_country_iso, site_order]`. Merge/sink stages MUST respect writer-sort determinism; **file order is non-authoritative**.  
+* **Inter-country order is never encoded in 1B.** Any cross-country ordering required downstream comes **only** from **1A S3 `candidate_rank`**; S6 MUST NOT encode or imply it. 
 
-**5.6 Cross-file `$ref` hygiene.**
-Any cross-schema references (e.g., FK to `tile_index`, ingress ISO surface, RNG `$defs`) are declared **in the schema packs**. This spec references **only** the canonical anchors in §5.1.
+## 8.5 Parallelism & stable merge (determinism)
 
----
+Parallel materialisation (e.g., sharding by merchant or country) is **allowed** iff the final dataset is the result of a **stable merge** ordered by `[merchant_id, legal_country_iso, site_order]` and outcomes do **not** vary with worker count or scheduling. This mirrors S3/S4 discipline.  
 
-# 6) Deterministic algorithm (with RNG) **(Binding)**
+## 8.6 Atomic publish, immutability & idempotence
 
-**6.1 Fix identity & gate (once).**
-a) Fix **`{seed, manifest_fingerprint, parameter_hash}`** for the entire publish.
-b) Validate the **S0 receipt** for `manifest_fingerprint` (schema-valid; **No PASS → No read**). S6 **relies on** this receipt and **does not** re-hash 1A’s bundle.
-c) Resolve all inputs/outputs strictly via the **Dataset Dictionary** (no literal paths).
+Publish via **stage → fsync → single atomic move** into the identity partition. Re-publishing the same `{seed, manifest_fingerprint, parameter_hash}` MUST be **byte-identical** or is a hard error. Registry notes codify “Write-once; atomic move; file order non-authoritative.” 
 
-**6.2 Locate inputs (identity parity before compute).**
-a) Read **`s5_site_tile_assignment`** under `…/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`.
-b) Read **`tile_index`** under `…/parameter_hash={parameter_hash}/`.
-c) Read **`jitter_policy`** (policy/config surface).
-d) Assert **parity** before any emit: the `{seed}` used for (a) and the `{parameter_hash}` used for (b,c) **equal** the intended publish tokens.
+## 8.7 RNG logs discipline (job lifecycle)
 
-**6.3 Per-site frame (authoritative inputs).**
-For each site row `(merchant_id, legal_country_iso, site_order, tile_id)` from S5:
-a) From **`tile_index`**, fetch the tile’s **centroid** `(centroid_lat_deg, centroid_lon_deg)` and **bounds** `([min_lat_deg,max_lat_deg], [min_lon_deg,max_lon_deg])`.
-b) From **`jitter_policy`**, deterministically derive **σ parameters in degrees**: `σ_lat_deg`, `σ_lon_deg` (function of latitude band and/or policy knobs).
+RNG events are **append-only during the job**, partitioned by `[seed, parameter_hash, run_id]`, then frozen on success. No row order is required; validators rely on the envelope & counts, not on file order. (This mirrors S5’s log discipline and the Dictionary’s “ordering: []” posture.)  
 
-**6.4 RNG events (budget is binding).**
-For each site, emit **exactly one** RNG event on substream **`in_cell_jitter`** with **`draws="2"`**, producing two uniforms `u1,u2 ∈ (0,1)` under the layer RNG envelope.
+## 8.8 Identity-coherence checks (must hold before publish)
 
-* Logs path: `logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`.
-* A single **`run_id`** is minted at job start and used for **all** S6 events in this publish.
+* **Receipt parity (fingerprint):** any S6 publish for `fingerprint=f` implies the S0 gate receipt for `f` exists and is valid. 
+* **Parameter parity:** `parameter_hash` in both dataset and logs equals the `parameter_hash` used to read `tile_index`. 
+* **Seed parity:** dataset `seed` equals the seed used by upstream S5; logs `seed` equals dataset `seed`. 
 
-**6.5 Box–Muller transform (deterministic).**
-From `u1,u2`, compute two independent standard normals `(Z_lat, Z_lon)` via Box–Muller.
+## 8.9 Prohibitions (fail-closed)
 
-* Propose deltas (degrees): `δ_lat = σ_lat_deg · Z_lat`, `δ_lon = σ_lon_deg · Z_lon`.
-
-**6.6 Boundary law (no extra RNG).**
-Compute tentative coordinates:
-`lat′ = centroid_lat_deg + δ_lat`, `lon′ = centroid_lon_deg + δ_lon`.
-Clamp once (no resample) to tile bounds:
-`lat′ := min(max(lat′, min_lat_deg), max_lat_deg)`;
-`lon′ := min(max(lon′, min_lon_deg), max_lon_deg)`.
-Define **effective deltas**:
-`δ_lat_eff = lat′ − centroid_lat_deg`, `δ_lon_eff = lon′ − centroid_lon_deg`.
-
-**6.7 Emit outputs.**
-a) **Dataset row (one per site):** write `(merchant_id, legal_country_iso, site_order, …)` with the **effective** in-tile jitter fields as specified by the dataset anchor.
-b) **Writer sort:** output rows in non-decreasing `[merchant_id, legal_country_iso, site_order]`; **file order is non-authoritative**.
-c) **Event:** the corresponding `in_cell_jitter` RNG event (from §6.4) is the **only** event for this site.
-
-**6.8 Integrity & invariants (must hold per site).**
-a) **Bounds:** `(lat′, lon′)` (centroid ± effective deltas) lies **inside** the tile’s min/max rectangle.
-b) **Completeness:** exactly **one** dataset row and **one** RNG event per site.
-c) **Policy use:** `σ_lat_deg, σ_lon_deg` originate from `jitter_policy` (no invention/re-fit).
-
-**6.9 Determinism & identity discipline.**
-Given the same sealed inputs and identity **`{seed, manifest_fingerprint, parameter_hash}`**, S6 must reproduce **byte-identical** dataset output and **identical RNG events** (content).
-
-* Publish dataset under `…/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`.
-* **Write-once:** re-publishing to the same identity must be byte-identical (stage → fsync → single atomic move).
-
-**6.10 Prohibitions (fail-closed).**
-a) Do **not** read surfaces outside §2.4.
-b) Do **not** alter S5 assignments, S4/S3 counts, or `tile_index` bounds.
-c) Do **not** exceed/underspend the RNG budget (`draws="2"` per site; one event per site).
-d) Do **not** encode or imply inter-country order (authority remains 1A `s3_candidate_set`).
+* **MUST NOT** mix identities within a publish (no cross-seed/fingerprint/parameter_hash contamination). 
+* **MUST NOT** rely on file order for semantics (dataset or logs). 
+* **MUST NOT** encode or infer inter-country order (join 1A S3 when order is required). 
 
 ---
 
-# 7) Identity, partitions, ordering & merge discipline **(Binding)**
+# 9) Acceptance criteria (validators) **(Binding)**
 
-**7.1 Identity tokens (one triple per publish).**
+A run **PASSES** S6 only if **all** checks below succeed. Shapes/paths/partitions come from the **Schema**/**Dictionary**/**Registry**; geometry and RNG rules come from the **overview**, **S1**, and the **layer RNG envelope**.      
 
-* **Dataset identity:** exactly **`{seed, manifest_fingerprint, parameter_hash}`** for the entire S6 publish. Mixing identities within a publish is **forbidden**.
-* **RNG logs identity:** **`{seed, parameter_hash, run_id}`**. A single **`run_id`** is minted at job start and used for **all** S6 jitter events.
+---
 
-**7.2 Path families & partitions (resolve via Dataset Dictionary; no literal paths).**
+## A601 — Row parity with S5 *(Binding)*
 
-* **Dataset path family:**
-  `data/layer1/1B/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
-  **Partitions:** `[seed, fingerprint, parameter_hash]` · **Format:** parquet · **Write-once** (no appends/compaction).
-* **RNG logs path family:**
+**Rule.** `|S6| == |S5|` and the keyset matches exactly: one S6 row for every `(merchant_id, legal_country_iso, site_order)` in S5; no missing/extra/duplicate site keys.
+**Detection.** Anti-join both directions on `[merchant_id, legal_country_iso, site_order]` must be empty; check PK uniqueness on S6.
+**Why.** S6 is “one row per site.” S5 writer-sort/keys/partitions are authoritative for the keyset. 
+
+## A602 — Schema conformance *(Binding)*
+
+**Rule.** Every S6 row validates **exactly** against `schemas.1B.yaml#/plan/s6_site_jitter` (columns_strict = true).
+**Detection.** JSON-Schema validate S6 files; reject unknown/missing columns or invalid values (e.g., delta guards if present). 
+
+## A603 — Partition & identity law *(Binding)*
+
+**Rule.** S6 dataset lives at
+`…/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` with **partitions** `[seed, fingerprint, parameter_hash]`; embedded lineage (when present) byte-equals path tokens (**path↔embed equality**).
+**Detection.** Derive identity from the path and compare to any embedded lineage fields (must match). 
+
+## A604 — Writer sort *(Binding)*
+
+**Rule.** Files are a **stable merge** in `[merchant_id, legal_country_iso, site_order]`. File order itself is **non-authoritative**; only writer sort matters.
+**Detection.** Verify non-decreasing sort by the writer key inside each partition. 
+
+## A605 — FK to `tile_index` *(Binding)*
+
+**Rule.** For every S6 row, `(legal_country_iso, tile_id)` exists in **S1 `tile_index`** for the **same** `parameter_hash`.
+**Detection.** Enforce the FK with the explicit partition hint (`partition_keys: ['parameter_hash']`) encoded in schema refs for S5/S4→`tile_index`; S6 inherits the same relation. 
+
+## A606 — Uniform-in-pixel geometry *(Binding)*
+
+**Rule.** Reconstruct `(lon*, lat*)` from S1 pixel bounds and the S6 **effective deltas** relative to the S1 centroid; the reconstructed point **must be inside the pixel rectangle** (dateline-aware).
+**Detection.** For each row:
+`lon* = centroid_lon_deg + delta_lon_deg`, `lat* = centroid_lat_deg + delta_lat_deg`; assert `min_lon ≤ lon* ≤ max_lon` and `min_lat ≤ lat* ≤ max_lat` using **S1 `tile_index`** bounds; handle ±180° unwrapping as in S1. 
+
+## A607 — Point-in-country *(Binding)*
+
+**Rule.** The reconstructed `(lon*, lat*)` lies **inside** the `world_countries` polygon for `legal_country_iso` (S1’s topology and antimeridian semantics apply).
+**Detection.** Country PIP against the S1-governed `world_countries` surface; failure on any site is a hard FAIL. 
+
+## A608 — RNG event coverage *(Binding)*
+
+**Rule.** There is **exactly one** `in_cell_jitter` RNG **event per site**, partitioned by `[seed, parameter_hash, run_id]`; the event’s `module/substream_label` matches the stream’s schema, and the event can be joined to the site key.
+**Detection.** Count `rng_event_in_cell_jitter` rows and compare to S6 row count; verify partitions and basic envelope fields.  
+
+## A609 — RNG budget & counters *(Binding)*
+
+**Rule.** Each `in_cell_jitter` **event** has **`blocks = 1`** and **`draws = "2"`** (two-uniform family), and 128-bit counter deltas satisfy `after − before = blocks` (u128).
+**Detection.** Validate per-event envelope per the **layer RNG envelope** invariants; reject budget/counter mismatches.  
+
+## A610 — Paths & partitions for RNG logs *(Binding)*
+
+**Rule.** RNG events live under
+`logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` with **partitions** `[seed, parameter_hash, run_id]`.
+**Detection.** Validate path family and partition equality for every event file. 
+
+## A611 — Dictionary/Schema coherence *(Binding)*
+
+**Rule.** Dataset/log **IDs → path/partitions/sort** resolved via the **Dictionary** must match the **Schema** constraints for keys/columns; no hard-coded paths.
+**Detection.** Cross-check each referenced ID against its `schema_ref`, `path`, `partitioning`, and `ordering` in the Dictionary.  
+
+## A612 — Overview compliance (behavioural) *(Binding)*
+
+**Rule.** S6 implements the overview’s S6 semantics: **uniform jitter inside the chosen pixel**; **point-in-country enforced** (bounded resample is the intended behaviour at the spec level; today’s event family is fixed-budget per event).
+**Detection.** The geometry checks **A606** and **A607** together prove the behavioural outcome; resample mechanics (if any) are not asserted by the current event schema. 
+
+---
+
+## Failure codes (canonical)
+
+* **E601_ROW_MISSING / E602_ROW_EXTRA / E603_DUP_KEY** — A601/A602 violations (parity/uniqueness).
+* **E604_PARTITION_OR_IDENTITY** — A603 violation (path↔embed or partition law).
+* **E605_SORT_VIOLATION** — A604 violation (writer sort).
+* **E606_FK_TILE_INDEX** — A605 violation (FK not found for same `parameter_hash`).
+* **E607_POINT_OUTSIDE_PIXEL** — A606 violation.
+* **E608_POINT_OUTSIDE_COUNTRY** — A607 violation.
+* **E609_RNG_EVENT_COUNT** — A608 violation (coverage mismatch).
+* **E610_RNG_BUDGET_OR_COUNTERS** — A609 violation (wrong `blocks/draws` or counter delta).
+* **E611_LOG_PARTITION_LAW** — A610 violation (wrong log partitions/path family).
+* **E612_DICT_SCHEMA_MISMATCH** — A611 violation (Dictionary vs Schema).
+
+---
+
+### Notes & references the validator relies on
+
+* **S6 table ID, partitions, writer-sort**: `s6_site_jitter` → `[seed, fingerprint, parameter_hash]`, sort `[merchant_id, legal_country_iso, site_order]`. 
+* **RNG stream ID & path family**: `rng_event_in_cell_jitter` → logs under `[seed, parameter_hash, run_id]`. 
+* **Layer RNG envelope invariants**: counters (128-bit) and budget semantics.  
+* **S1 geometry authority (tile bounds & country PIP)**. 
+* **Overview S6 behavioural intent** (uniform-in-pixel + point-in-country). 
+
+---
+
+# 10) Failure modes & canonical error codes **(Binding)**
+
+### E601_ROW_MISSING — Missing S6 row for a site *(ABORT)*
+
+**Trigger:** A `(merchant_id, legal_country_iso, site_order)` present in **S5** has **no** matching row in **S6**.
+**Detection:** Anti-join `S5 \ S6` on the PK must be empty. Writer-sort/PK come from Schema/Dictionary.  
+
+### E602_ROW_EXTRA — Extra S6 row *(ABORT)*
+
+**Trigger:** A site key exists in **S6** that is **not** in **S5**.
+**Detection:** Anti-join `S6 \ S5` must be empty.  
+
+### E603_DUP_KEY — Duplicate primary key in S6 *(ABORT)*
+
+**Trigger:** Duplicate `(merchant_id, legal_country_iso, site_order)` in **S6**.
+**Detection:** Enforce PK uniqueness per `schemas.1B.yaml#/plan/s6_site_jitter` and Dictionary writer-sort.  
+
+### E604_PARTITION_OR_IDENTITY — Partition/path or path↔embed mismatch *(ABORT)*
+
+**Trigger:** Any of:
+
+* Dataset not under `…/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`,
+* Embedded lineage (where present) ≠ path tokens.
+  **Detection:** Compare path-derived `{seed,fingerprint,parameter_hash}` to embedded fields; assert partitioning and writer policy match Dictionary. 
+
+### E605_SORT_VIOLATION — Writer sort violated *(ABORT)*
+
+**Trigger:** Records in **S6** are not in non-decreasing `[merchant_id, legal_country_iso, site_order]`.
+**Detection:** Validate stable merge order per Dictionary. 
+
+### E606_FK_TILE_INDEX — `tile_id` not found in `tile_index` for same parameter set *(ABORT)*
+
+**Trigger:** `(legal_country_iso, tile_id)` in **S6** (or S5 when joined) does **not** exist in `prep.tile_index` for the **same** `parameter_hash`.
+**Detection:** FK join using the schema-encoded FK with explicit `partition_keys: ['parameter_hash']`. 
+
+### E607_POINT_OUTSIDE_PIXEL — Reconstructed point outside pixel rectangle *(ABORT)*
+
+**Trigger:** Reconstructing `(lon*,lat*)` = S1 centroid + S6 effective deltas falls **outside** the S1 pixel bounds.
+**Detection:** Use `tile_index` min/max bounds (dateline-aware) to check `min_lon ≤ lon* ≤ max_lon` and `min_lat ≤ lat* ≤ max_lat`. 
+
+### E608_POINT_OUTSIDE_COUNTRY — Point not inside country polygon *(ABORT)*
+
+**Trigger:** Reconstructed `(lon*,lat*)` is **not** inside `world_countries` for `legal_country_iso`.
+**Detection:** PIP against the S1-governed country surface (same authority used by tiling). 
+
+### E609_RNG_EVENT_COUNT — Event coverage mismatch *(ABORT)*
+
+**Trigger:** The count of `rng_event_in_cell_jitter` events ≠ the count of S6 rows (require **exactly one event per site**).
+**Detection:** Count equality and joinability to site keys; partitions are `[seed, parameter_hash, run_id]`.  
+
+### E610_RNG_BUDGET_OR_COUNTERS — Budget/counter law violated *(ABORT)*
+
+**Trigger:** Any `in_cell_jitter` event fails the envelope law (e.g., wrong `draws`/`blocks` or counter delta).
+**Detection:** Validate envelope per **layer schema**: `draws` is **dec-u128 string**, `blocks` is **u64**, and **u128(after) − u128(before) = parse_u128(draws)**. (Budget for this stream: two-uniform family per event.)  
+
+### E611_LOG_PARTITION_LAW — RNG log path/partition mismatch *(ABORT)*
+
+**Trigger:** RNG events not under
+`logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`.
+**Detection:** Verify path family and partitions `[seed, parameter_hash, run_id]`. 
+
+### E612_DICT_SCHEMA_MISMATCH — Dictionary vs Schema disagreement *(ABORT)*
+
+**Trigger:** Any referenced ID’s **path/partitions/sort** per Dictionary disagree with the bound Schema anchors (or vice-versa).
+**Detection:** Cross-check `schema_ref` ↔ Dictionary entries for `s6_site_jitter` and `rng_event_in_cell_jitter`; Schema is the **shape** authority.  
+
+---
+
+**Notes (binding references used by these validators):**
+
+* `s6_site_jitter` path & partitions, writer-sort: Dictionary (v1.9). 
+* `in_cell_jitter` log path & partitions: Dictionary/Registry; “one event per site; draws=2”.  
+* FK hint to `tile_index` with `partition_keys: ['parameter_hash']`: Schema (v2.4). 
+* RNG envelope requirements (`draws` dec-u128 string, `blocks` u64, counter delta law): Layer schema. 
+
+---
+
+# 11) Observability & run-report **(Binding)**
+
+## 11.1 Required logs S6 MUST write/update
+
+* **RNG event stream — `in_cell_jitter`.** One JSONL **event per site** under
   `logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
-  **Partitions:** `[seed, parameter_hash, run_id]` · **Append-only during job**, then **frozen** on success.
+  (partitions `[seed, parameter_hash, run_id]`; schema `schemas.layer1.yaml#/rng/events/in_cell_jitter`). Each event carries the **layer RNG envelope** (pre/after 128-bit counters, `blocks` u64, `draws` dec-u128 string).  
+* **RNG core logs (run-scoped):**
+  – **`rng_audit_log`** — one row at run start (if not already present for this `{seed,parameter_hash,run_id}`) under `logs/rng/audit/...` (schema `#/rng/core/rng_audit_log`). 
+  – **`rng_trace_log`** — **append exactly one cumulative row after each RNG event append** under `logs/rng/trace/...` (schema `#/rng/core/rng_trace_log`). Trace rows carry **saturating totals** `{events_total, draws_total, blocks_total}` per `(module, substream_label)` and reconcile counters.  
 
-**7.3 Writer sort & file-order posture.**
+**Envelope law (must hold for every S6 event).**
+`blocks == u128(after) − u128(before)`; `draws` is the **actual** uniforms used by that event (decimal u128). For `in_cell_jitter`, the event schema pins **two-uniform family** → `blocks=1`, `draws="2"`.  
 
-* **Dataset writer sort:** `[merchant_id, legal_country_iso, site_order]` (stable merge order; file order **non-authoritative**).
-* **RNG logs:** no row-order guarantee; validators rely on event **shape/identity/budget**, not file order.
-
-**7.4 Identity-coherence checks (must hold before publish).**
-
-* **Receipt parity (fingerprint):** dataset `fingerprint` equals the S0 receipt `manifest_fingerprint`.
-* **Seed parity (S5 scope):** dataset `seed` equals the `seed` used to read **`s5_site_tile_assignment`**; RNG logs `seed` equals dataset `seed`.
-* **Parameter parity (S1/S2 scope):** dataset `parameter_hash` equals the value used to read **`tile_index`** (and `jitter_policy` if parameter-scoped); RNG logs `parameter_hash` equals dataset `parameter_hash`.
-* **Single run_id:** all S6 RNG events for this publish use the **same `run_id`**.
-* **Path↔embed equality:** if lineage fields are embedded in rows in this or a future revision, embedded values **must equal** their path tokens.
-
-**7.5 Parallelism & determinism.**
-Parallel materialisation is allowed (e.g., sharding by `merchant_id` or by `(merchant_id, legal_country_iso)`), **provided** the final dataset results from a **stable merge** ordered by `[merchant_id, legal_country_iso, site_order]` and outcomes do **not** vary with worker/scheduling. RNG events may be emitted concurrently, but: **(a)** all use the single `run_id`, **(b)** identity tokens match, **(c)** the **budget equals the number of dataset rows** (one event per site).
-
-**7.6 Atomic publish, immutability & idempotence.**
-
-* **Dataset:** stage → fsync → **single atomic move** into the identity partition. Re-publishing under the same `{seed, manifest_fingerprint, parameter_hash}` must be **byte-identical** or is a hard error.
-* **RNG logs:** append-only within the `run_id` partition during the job; on **success**, freeze the partition (no edits/deletes). Re-running with the same sealed inputs and identity **must** reproduce the **same event set and content** (and, if your emitter is deterministic, the same bytes).
-
-**7.7 Prohibitions (fail-closed).**
-
-* **No mixed identities** (no mixing seeds, fingerprints, or parameter hashes within a publish).
-* **No literal paths** in code; all IO resolves via the **Dataset Dictionary**.
-* **No post-publish mutation** of dataset or RNG log partitions.
+**Lineage parity (events & cores).** Embedded `{seed, parameter_hash, run_id}` (where present) **MUST** byte-equal the path tokens. 
 
 ---
 
-# 8) Acceptance criteria (validators) **(Binding)**
+## 11.2 Run-report: mandatory counters S6 MUST compute
 
-**8.1 Gate & identity (pre-write).**
+S6 MUST compute (and surface to the next state) the following **run-level counters**; they MAY be printed to stdout or emitted as an ephemeral JSON object for S7 to persist in the 1B bundle. No new Dictionary surface is introduced here.
 
-* Exactly one `s0_gate_receipt_1B` exists for the target `manifest_fingerprint` and **schema-validates**; S6 relies on it (no bundle re-hash).
-* **Identity parity:** publish tokens `{seed, manifest_fingerprint, parameter_hash}` **match** the tokens used to read `s5_site_tile_assignment` (seed+fingerprint+param) and `tile_index` (param).
-* **Logs identity:** all `in_cell_jitter` events use the same `{seed, parameter_hash, run_id}`; exactly **one** `run_id` for the publish.
-* **Fail:** `E301_NO_PASS_FLAG`, `E_RECEIPT_SCHEMA_INVALID`, `E604_TOKEN_MISMATCH`.
+**Identity block**
 
-**8.2 Schema conformance (dataset + logs).**
+```
+{ "seed": u64, "parameter_hash": hex64, "manifest_fingerprint": hex64, "run_id": hex32 }
+```
 
-* Dataset `s6_site_jitter` **validates** against `schemas.1B.yaml#/plan/s6_site_jitter` (strict columns; PK/partition/sort as the anchor).
-* Every RNG event **validates** against `schemas.layer1.yaml#/rng/events/in_cell_jitter` (correct substream, envelope fields).
-* **Fail:** `E603_SCHEMA_INVALID`, `E603_SCHEMA_EXTRAS`, `E606_RNG_EVENT_MISMATCH`.
+**Counts & reconciliation (binding expectations)**
 
-**8.3 PK uniqueness & completeness (dataset).**
+* `sites_total = |S5| = |S6|` (row parity). 
+* `rng.events_total = count(in_cell_jitter)` and **must equal** `sites_total` (one event per site). 
+* `rng.draws_total = Σ parse_u128(draws)` from the **events** and from the **final trace row** for `(module, "in_cell_jitter")`; both MUST equal `2 * sites_total`.  
+* `rng.blocks_total = Σ blocks` from events and from trace; both MUST equal `sites_total` (since `blocks=1` per event). 
+* `rng.counter_span = u128(last_after) − u128(first_before)` from trace MUST equal `rng.blocks_total`. 
 
-* No duplicate `(merchant_id, legal_country_iso, site_order)` within the identity partition.
-* **Completeness vs S5:** the count of rows in `s6_site_jitter` equals the count of rows in `s5_site_tile_assignment` for the **same identity**.
-* **Fail:** `E605_PK_DUPLICATE_SITE`, `E601_NO_S5_ASSIGNMENT` (if missing), or completeness treated under `E610_NONDETERMINISTIC_OUTPUT` if counts drift after re-read.
+**Geometry/FK/lineage summaries (counts)**
 
-**8.4 Bounds integrity (tile universe & clamps).**
+* `fk_tile_index_failures` (S6↔S1 FK on `(legal_country_iso,tile_id)` for same `parameter_hash`). 
+* `point_outside_pixel` (reconstruct with S1 bounds; dateline-aware). 
+* `point_outside_country` (PIP against `world_countries`). 
+* `path_embed_mismatches` (any lineage ≠ path tokens across S6 + events). 
 
-* For each site, let `(centroid_lat, centroid_lon, min/max_lat, min/max_lon)` come from `tile_index` (same `{parameter_hash}`). Using **effective deltas** in the dataset, reconstructed `(lat′, lon′)` = `(centroid ± deltas)` **lies inside** the tile’s min/max rectangle.
-* **Fail:** `E607_BOUNDS_VIOLATION`.
+**Per-country roll-ups (diagnostic)**
 
-**8.5 ISO FK domain.**
+```
+by_country[ISO]: {
+  sites, rng_events, rng_draws, outside_pixel, outside_country
+}
+```
 
-* Every `legal_country_iso` appears in `iso3166_canonical_2024` (uppercase ISO-2).
-* **Fail:** `E302_FK_COUNTRY`.
-
-**8.6 RNG budgeting (one event per site; two draws).**
-
-* **Event budget equality:** number of `in_cell_jitter` events **equals** number of dataset rows.
-* **Logs identity:** all `in_cell_jitter` events use the same `{seed, parameter_hash, run_id}`; exactly **one** `run_id` for the publish.
-* **Log fingerprint parity:** each `in_cell_jitter` event’s `manifest_fingerprint` **equals** the dataset `manifest_fingerprint`.
-* **Fail:** `E606_RNG_EVENT_MISMATCH`.
-
-**8.7 Partition, immutability & atomic publish (dataset).**
-
-* Published under `…/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`; no appends/compaction.
-* Re-publishing to the same identity must be **byte-identical**; publish via stage → fsync → single atomic move.
-* **Fail:** `E_IMMUTABLE_PARTITION_EXISTS_NONIDENTICAL`.
-
-**8.8 Writer sort (stable merge order).**
-
-* Rows are in non-decreasing `[merchant_id, legal_country_iso, site_order]`; file order non-authoritative.
-* **Fail:** `E608_UNSORTED`.
-
-**8.9 Prohibitions (fail-closed).**
-
-* No reads outside §2.4 (e.g., `world_countries`, `population_raster_2025`, `tz_world_2025a`).
-* No changes to S5 assignments or S4/S3 counts; no σ invention/override (must come from `jitter_policy`).
-* No inter-country order encoded (authority = 1A `s3_candidate_set`).
-* **Fail:** `E609_DISALLOWED_READ`, `E414_WEIGHT_TAMPER`, `E312_ORDER_AUTHORITY_VIOLATION`.
-
-**8.10 Determinism receipt (binding evidence).**
-
-* Run report contains a composite SHA-256 over ASCII-lex ordered bytes of all files in the **dataset** partition; re-read reproduces the **same** hash. *(RNG logs are validated by budget/shape, not included in this receipt.)*
-* **Fail:** `E610_NONDETERMINISTIC_OUTPUT`.
-
-**8.11 Required run-report fields (presence).**
-
-* Present **outside** the dataset partition: `seed`, `manifest_fingerprint`, `parameter_hash`, `run_id`, `rows_emitted`, `rng_events_emitted`, `bounds_clamped_rows`, determinism receipt `{partition_path, sha256_hex}`.
-* **Fail:** `E615_RUN_REPORT_MISSING_FIELDS`.
+*(Purely diagnostic roll-ups; authority remains per-row validation.)*
 
 ---
 
-# 9) Failure modes & canonical error codes **(Binding)**
+## 11.3 Optional diagnostics S6 SHOULD compute (non-authoritative)
 
-> **Fail-closed posture.** On first detection of any condition below, the writer **MUST** abort the run, emit a failure record, and ensure **no partials** are visible under
-> `…/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
-> (write-once; atomic publish). RNG logs are **append-only during the job** under
-> `logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/` and then **frozen** on success.
-
-### E301_NO_PASS_FLAG — S0 gate not proven *(ABORT)*
-
-**Trigger:** Missing/unreadable S0 receipt for `manifest_fingerprint`.
-**Detection:** Receipt lookup fails (absence/unreadable).
-
-### E_RECEIPT_SCHEMA_INVALID — S0 receipt fails schema *(ABORT)*
-
-**Trigger:** `s0_gate_receipt_1B` does not validate against its schema.
-**Detection:** JSON-Schema validation failure (shape/required keys/types).
-
-### E601_NO_S5_ASSIGNMENT — Missing S5 input *(ABORT)*
-
-**Trigger:** No `s5_site_tile_assignment` rows for `{seed, manifest_fingerprint, parameter_hash}`.
-**Detection:** Dictionary-resolved path empty/unreadable for that identity.
-
-### E602_POLICY_MISSING_OR_INVALID — Jitter policy missing/invalid *(ABORT)*
-
-**Trigger:** `jitter_policy` absent or fails its schema (or required fields missing).
-**Detection:** Policy presence + schema validation failure.
-
-### E603_SCHEMA_INVALID — Dataset shape/keys invalid *(ABORT)*
-
-**Variant:** **E603_SCHEMA_EXTRAS** — undeclared column(s) present.
-**Trigger:** `s6_site_jitter` fails its canonical schema anchor (columns/PK/partition/sort).
-**Detection:** JSON-Schema validation failure.
-
-### E604_TOKEN_MISMATCH — Path↔identity inequality *(ABORT)*
-
-**Trigger:** Any publish token `{seed|fingerprint|parameter_hash}` differs from tokens used to read inputs (S5/S1/policy), or embedded lineage (where present) ≠ path tokens.
-**Detection:** Identity parity checks; path↔embed equality where embedded.
-
-### E605_PK_DUPLICATE_SITE — Duplicate site key *(ABORT)*
-
-**Trigger:** Duplicate `(merchant_id, legal_country_iso, site_order)` within the identity partition.
-**Detection:** PK uniqueness check over `s6_site_jitter`.
-
-### E606_RNG_EVENT_MISMATCH — RNG envelope/budget invalid *(ABORT)*
-
-**Trigger (any):**
-• Event fails the `in_cell_jitter` RNG anchor (envelope/substream/fields).
-• Substream ≠ `in_cell_jitter`.
-• **Budget mismatch:** number of events ≠ number of dataset rows.
-• Wrong `draws`/`blocks` (expected `blocks=1`, `draws="2"`).
-• Identity mismatch on events: `{seed, parameter_hash}` don’t match dataset, or multiple `run_id`s in one publish.
-**Detection:** Validate all events; count-match events ↔ dataset rows; check identities and single-`run_id` use.
-
-### E607_BOUNDS_VIOLATION — Effective deltas escape tile bounds *(ABORT)*
-
-**Trigger:** For any site, reconstructed `(lat′,lon′) = (centroid ± effective deltas)` lies **outside** the tile’s `[min/max_lat, min/max_lon]`.
-**Detection:** Bounds check vs `tile_index` for the same `{parameter_hash}`.
-
-### E302_FK_COUNTRY — ISO FK violation *(ABORT)*
-
-**Trigger:** `legal_country_iso` not present in `iso3166_canonical_2024` (uppercase ISO-2).
-**Detection:** FK domain check.
-
-### E607_COUNTRY_INTERSECTION_EMPTY — No polygon ∩ pixel intersection *(ABORT)*
-
-**Trigger:** `country_polygon ∩ pixel_rectangle = ∅` for a site’s assigned tile/country.
-**Detection:** Validator recomputes the set using the same geometry source and antimeridian handling as S1; empty set ⇒ ABORT.
-
-### E608_UNSORTED — Writer sort violated *(ABORT)*
-
-**Trigger:** Rows not in non-decreasing `[merchant_id, legal_country_iso, site_order]`.
-**Detection:** Sort-order validator.
-
-### E609_DISALLOWED_READ — Out-of-scope surface read *(ABORT)*
-
-**Trigger:** S6 reads any surface not listed in §2.4 (e.g., `world_countries`, `population_raster_2025`, `tz_world_2025a`).
-**Detection:** Access audit / job IO tracing.
-
-### E610_NONDETERMINISTIC_OUTPUT — Re-run hash differs *(ABORT)*
-
-**Trigger:** Determinism receipt over the **dataset** partition does not reproduce on clean re-read.
-**Detection:** Composite SHA-256 mismatch (ASCII-lex file order).
-
-### E312_ORDER_AUTHORITY_VIOLATION — Order implied/encoded *(ABORT)*
-
-**Trigger:** Output encodes or implies **inter-country order** (authority is 1A `s3_candidate_set`).
-**Detection:** Presence of order fields/cross-country ordering derivations.
-
-### E414_WEIGHT_TAMPER — Counts/weights/policy tampered *(ABORT)*
-**Trigger:** S6 attempts to alter S5 site→tile assignments, any S4/S3 counts, or σ parameters outside `jitter_policy`.
-**Detection:** Compare produced rows against S5 for identity; verify σ values originate from `jitter_policy`; any re-scaling/re-fit/tamper ⇒ fail.
-
-### E615_RUN_REPORT_MISSING_FIELDS — Required run-report fields missing *(ABORT)*
-**Trigger:** One or more required fields from §10.2 absent (e.g., `seed`, `manifest_fingerprint`, `parameter_hash`, `run_id`, `rows_emitted`, `rng_events_emitted`, `bounds_clamped_rows`, or determinism receipt).
-**Detection:** Run-report presence/shape check (outside the dataset partition).
-
-### E_IMMUTABLE_PARTITION_EXISTS_NONIDENTICAL — Overwrite attempt *(ABORT)*
-
-**Trigger:** A partition for `{seed, manifest_fingerprint, parameter_hash}` already exists with **different bytes**.
-**Detection:** Byte comparison before atomic publish; reject non-identical writes.
-
-## 9.1 Failure handling *(normative)*
-
-* **Abort semantics:** Stop the run; **no** files promoted under the live dataset partition unless all validators PASS. Use stage → fsync → **single atomic move** only after PASS.
-* **Failure record (outside the dataset partition):** `{code, scope ∈ {run,pair,site}, reason, seed, manifest_fingerprint, parameter_hash, run_id}`; include `{merchant_id, legal_country_iso, site_order}` when applicable.
-* **RNG logs on failure:** Log partitions for the active `run_id` may remain as evidence; they are **not** acceptance artefacts.
-* **Multi-error policy:** Multiple failures **may** be recorded; acceptance remains **failed**.
-
-## 9.2 Code space & stability *(normative)*
-
-* **Reserved (this state):** `E601`–`E610` as defined above, plus reused cross-state codes `E301_*`, `E302`, `E312_*`, and `E_IMMUTABLE_PARTITION_EXISTS_NONIDENTICAL`.
-* **SemVer impact:** Tightening triggers that cannot flip prior accepted reference runs = **MINOR**; changes that can flip outcomes or alter identities/partitioning = **MAJOR**.
+* **Uniform-in-pixel heuristics:** simple χ² or bucketed uniformity checks of `(lon*,lat*)` within each pixel (or aggregated per country); report p-values/counts only (no gating). 
+* **Edge-hit rate:** fraction of samples within `ε=1e−6` deg of pixel edges (sanity guard for numeric clipping). 
+* **Latency & throughput:** rows/sec overall and by country; shard skew (p90/p99). *(Performance is informative.)*
 
 ---
 
-# 10) Observability & run-report **(Binding)**
+## 11.4 Where these numbers come from (sources)
 
-> Observability artefacts are **required** and **retrievable** by validators but do **not** alter the semantics of `s6_site_jitter`. They **must not** be written inside the dataset partition. Posture mirrors S3–S5.
-
-**10.1 Deliverables (outside the dataset partition; binding for presence)**
-An accepted S6 run **MUST** expose, outside
-`…/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`:
-
-* **S6 run report** — single machine-readable JSON object (fields in §10.2).
-* **Determinism receipt** — composite SHA-256 over the produced **dataset partition files only** (recipe in §10.4).
-* *(Optional, recommended)* **Summaries** for auditor convenience (formats in §10.3). Presence of the run report + receipt is **binding**; summaries are optional.
-
-**10.2 S6 run report — required fields (binding for presence)**
-The run report **MUST** include at least:
-
-* `seed` — lineage token for the run identity.
-* `manifest_fingerprint` — fingerprint proven by S0.
-* `parameter_hash` — parameter identity used for S1/S2 surfaces.
-* `run_id` — RNG log stream identifier minted at job start (used by all `in_cell_jitter` events).
-* `rows_emitted` — total rows written to `s6_site_jitter`.
-* `rng_events_emitted` — total `in_cell_jitter` events written for this publish.
-* `bounds_clamped_rows` — count of rows where clamping to tile bounds occurred (non-semantic; for visibility).
-* `determinism_receipt` — object per §10.4 `{ partition_path, sha256_hex }`.
-
-**10.3 Summaries (optional; recommended formats)**
-
-* **Clamp distribution:** histogram or percentiles of `|δ_lat_eff|`, `|δ_lon_eff|`; per-country clamp rates.
-* **RNG budget summary:** `{ expected_events: rows_emitted, actual_events: rng_events_emitted }` (expected = actual on acceptance).
-* **Health counters:** `fk_country_violations`, `bounds_violations`, `dup_sites` — all expected **0** on acceptance.
-  (If provided, summaries **must** be retrievable by validators.)
-
-**10.4 Determinism receipt — composite hash (method is normative)**
-Compute a **composite SHA-256** over the **dataset partition files only**:
-
-1. List all files under
-   `…/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
-   as **relative paths**, **ASCII-lex sort** them.
-2. Concatenate raw bytes in that order; compute SHA-256; encode as lowercase hex64.
-3. Store `{ "partition_path": "<path>", "sha256_hex": "<hex64>" }` as `determinism_receipt` in the run report.
-   *(RNG logs are **not** included in this receipt; they are validated by event-budget and envelope checks.)*
-
-**10.5 Packaging, location & retention (binding)**
-
-* Place run report, determinism receipt, and any summaries **outside** the dataset partition (control-plane artefacts or job attachments/logs).
-* Retain for **≥ 30 days** (or programme policy).
-* All paths for evidence retrieval **must** resolve via the Dataset Dictionary (no literal paths).
-
-**10.6 Failure event schema (binding for presence on failure)**
-On any §9 failure, emit a structured event (outside the dataset partition):
-
-* `event: "S6_ERROR"`, `code: <one of §9>`, `at: <RFC-3339 UTC>`,
-  **`seed`**, **`manifest_fingerprint`**, **`parameter_hash`**, **`run_id`**; optionally `merchant_id`, `legal_country_iso`, `site_order`.
-  RNG-log partitions for the active `run_id` may remain as evidence; they are **not** acceptance artefacts.
-
-**10.7 Auditor checklist (retrievability expectations)**
-
-* Run report present with all **required fields** in §10.2.
-* Determinism receipt present and recomputable to the **same** hash.
-* `rng_events_emitted == rows_emitted` (exactly one `in_cell_jitter` event per dataset row), all events under a **single** `run_id`, identities match.
-* Evidence stored **outside** the dataset partition; retention satisfied; paths resolve via the Dictionary.
+* **Events:** `rng_event_in_cell_jitter` under `[seed, parameter_hash, run_id]` (one per site; `draws="2"`, `blocks=1`). 
+* **Trace:** `rng_trace_log` under `[seed, parameter_hash, run_id]` (cumulative `{events_total, draws_total, blocks_total}`; one append **after each event**). 
+* **Audit:** `rng_audit_log` row at run start (seed/fingerprint/parameter/algorithm/build recorded). 
+* **Data & geometry:** S6 table + S1 `tile_index` + `world_countries` for reconstructions and PIP checks. 
 
 ---
 
-# 11) Performance & scalability *(Informative)*
+## 11.5 Retention & immutability (for observability artefacts)
 
-**11.1 Workload model.**
-Process **site-by-site** from `s5_site_tile_assignment` (triple identity). For each site, fetch the tile’s bounds/centroid from `tile_index`, derive σ from `jitter_policy`, draw **two** uniforms (RNG envelope), do Box–Muller, clamp once, emit one dataset row + one RNG event. No cross-product materialisation; no joins beyond key lookups.
-
-**11.2 Asymptotics.**
-Let **N** = rows in `s5_site_tile_assignment`.
-
-* **Time:** `O(N)` (constant work per site).
-* **Memory:** `O(1)` per site, plus small caches for tile metadata/σ (see §11.3).
-* **Writes:** exactly **N** dataset rows and **N** RNG events.
-
-**11.3 Data-access & caching.**
-
-* Cache a **tile record** map keyed by `(legal_country_iso, tile_id)` → `{centroid, bounds}`; warm per country; LRU-evict to a fixed ceiling.
-* Cache **policy lookups** keyed by latitude band (or policy key) → `{σ_lat_deg, σ_lon_deg}`.
-* Prefer **read-through** caching from `tile_index`; avoid re-reading the same tile bounds within a shard.
-
-**11.4 RNG throughput & budgeting.**
-
-* Emit **exactly one** `in_cell_jitter` event **per site** with `draws="2"`.
-* Batch events in small buffers and **flush frequently** to keep FD/memory low; verify **event_count == rows_emitted** per shard and at job end.
-* All shards must use the **single** `run_id` for the publish.
-
-**11.5 Parallelism (deterministic).**
-
-* Shard by `merchant_id` or by `(merchant_id, legal_country_iso)`; each shard reads S5 rows, consults caches, draws RNG, and writes outputs.
-* Final dataset is a **stable merge** ordered by `[merchant_id, legal_country_iso, site_order]`; outcomes must not depend on worker layout.
-* RNG logs may be written from multiple workers; identity must match and **budget must equal** dataset rows.
-
-**11.6 I/O posture.**
-
-* Single pass over `s5_site_tile_assignment`; random-access or streaming reads from `tile_index` satisfied by the cache.
-* Aim for **≤ 1.25×** amplification per surface (bytes read vs on-disk).
-* Write **one** dataset partition per identity; RNG events are append-only under `{seed, parameter_hash, run_id}`.
-
-**11.7 Chunking & back-pressure.**
-
-* Chunk by **merchant ranges** sized so a shard’s tile/policy caches fit comfortably in memory.
-* Apply back-pressure to the RNG-event sink and dataset writer to maintain steady throughput without breaching resource caps.
-
-**11.8 Resource envelope (targets).**
-
-* Per worker: **RSS ≤ 1 GiB**, temp disk **≤ 2 GiB**, **≤ 256** open files.
-* Output as compressed columnar (Parquet) with moderate row-groups (e.g., ~100k–250k rows) to balance scan efficiency and memory.
-
-**11.9 Fast-fail preflights (optional but helpful).**
-
-* Verify **S5 presence** for the identity and **non-zero** row count before spinning workers.
-* Pre-scan `tile_index` keys referenced by S5 rows (per country) and fail early if any are missing.
-* Validate `jitter_policy` once up-front (schema + required fields) to avoid mid-run aborts.
-
-**11.10 Observability counters (non-binding).**
-Record in the run report: `rows_emitted`, `rng_events_emitted`, `bounds_clamped_rows`, `bytes_read_{s5,index,policy}`, `wall_clock_seconds_total`, `cpu_seconds_total`, `workers_used`, `max_worker_rss_bytes`, `open_files_peak`. These aid PAT/replays without affecting acceptance.
-
-**11.11 Environment tiers.**
-
-* **DEV:** tiny, fixed subset (few merchants/countries) to validate envelope and clamping.
-* **TEST:** same code path as PROD on a reproducible slice; enforce all validators.
-* **PROD:** full scale with determinism receipt and complete validator suite.
+* **S6 dataset** `s6_site_jitter`: retention **365 days**; write-once; atomic move; file order non-authoritative. 
+* **RNG events** `in_cell_jitter`: retention **30 days**; append-only; partitions `[seed, parameter_hash, run_id]`. 
+* **Core logs** (`rng_audit_log`, `rng_trace_log`): run-scoped under `[seed, parameter_hash, run_id]`; one audit row per run; one trace row **per event append**. 
 
 ---
 
-# 12) Change control & compatibility **(Binding)**
+## 11.6 Minimal JSON shape for the S6 run-report (non-authoritative, forwarded to S7)
 
-**12.1 SemVer ground rules.**
-This state follows **MAJOR.MINOR.PATCH**.
+S6 SHALL expose, at minimum, a JSON object with these keys to be embedded by S7 (naming/stability binding here; precise schema owned by S7):
 
-* **MAJOR** — any change that can make previously conformant S6 outputs/logs **invalid or different** for the same sealed inputs and identity, or that requires consumer changes.
-* **MINOR** — strictly backward-compatible tightening/additions that do **not** flip accepted reference runs from PASS→FAIL.
-* **PATCH** — editorial only (no behaviour change).
+```json
+{
+  "identity": { "seed": 0, "parameter_hash": "", "manifest_fingerprint": "", "run_id": "" },
+  "counts": {
+    "sites_total": 0,
+    "rng": { "events_total": 0, "draws_total": "0", "blocks_total": 0, "counter_span": "0" }
+  },
+  "validation_counters": {
+    "fk_tile_index_failures": 0,
+    "point_outside_pixel": 0,
+    "point_outside_country": 0,
+    "path_embed_mismatches": 0
+  },
+  "by_country": { "GB": { "sites": 0, "rng_events": 0, "rng_draws": "0", "outside_pixel": 0, "outside_country": 0 } }
+}
+```
 
-**12.2 What requires a MAJOR bump (breaking).**
-
-* **Dataset contract (`s6_site_jitter`)**: PK, column set/types, `columns_strict` posture, **partition keys** (`[seed, manifest_fingerprint, parameter_hash]`), **writer sort** (`[merchant_id, legal_country_iso, site_order]`), or **path family**.
-* **RNG event contract (`in_cell_jitter`)**: substream name, envelope fields (module/substream/blocks/draws/trace), identity/partitioning (`[seed, parameter_hash, run_id]`).
-* **RNG budgeting semantics**: changing “**one event per site** with **`draws="2"`**”.
-* **Boundary-handling law**: replacing “single clamp, no resample” with any other method.
-* **Policy interface**: altering how `jitter_policy` supplies/derives σ (e.g., units, required keys, or mapping from latitude bands).
-* **Authority/precedence model**: changing that **Schema owns shape**, **Dictionary** owns IDs→paths/partitions/sort/licence, **Registry** records provenance/licences.
-* **Gate/lineage rules**: removing reliance on S0 receipt, or changing path↔embed equality rules.
-* **Inputs/identity set**: adding/removing required inputs or altering the identity tokens for dataset (`{seed, manifest_fingerprint, parameter_hash}`) or logs (`{seed, parameter_hash, run_id}`).
-
-**12.3 What qualifies as MINOR (backward-compatible).**
-
-* Adding **non-semantic** fields to the run-report/summaries (outside the dataset partition).
-* Tightening validators proven not to flip previously accepted **reference** runs (e.g., clearer diagnostics, extra checks that only catch invalid publishes).
-* Registry/Dictionary **writer-policy** refinements that leave value semantics unchanged (compression, row-group sizing, file layout notes).
-
-**12.4 What is PATCH (non-behavioural).**
-
-* Wording fixes, cross-reference repairs, examples/figures, or clarifications that **do not** change schemas, anchors, identities, acceptance rules, RNG budgeting, boundary law, or failure codes.
-
-**12.5 Compatibility window (assumed upstream stability).**
-Within S6 **v1.***, these remain stable on their **v1.*** lines:
-
-* **S5** `s5_site_tile_assignment` (dataset identity = `[seed, manifest_fingerprint, parameter_hash]`; authoritative site→tile mapping).
-* **S1/S2** `tile_index`/`tile_weights` (parameter-scoped shapes/semantics).
-* **Layer RNG envelope** (common defs used by `in_cell_jitter`).
-  If any of the above bump **MAJOR** or move anchors/IDs materially, S6 must be **re-ratified** and bump **MAJOR** accordingly.
-
-**12.6 Migration & deprecation.**
-On a MAJOR change:
-a) Freeze the old S6 spec/version and anchors;
-b) Introduce a **new dataset anchor** (e.g., `#/plan/s6_site_jitter_v2`) and, if shape/paths change, a **new Dictionary ID**;
-c) Introduce a **new RNG event anchor** if the event contract changes;
-d) Document exact diffs and a cut-over plan;
-e) Do **not** rely on Dictionary aliases to silently bridge breaking ID/path changes—consumers must adopt the new IDs/anchors explicitly.
-
-**12.7 Lineage tokens vs SemVer.**
-`seed`, `manifest_fingerprint`, `parameter_hash`, and `run_id` are **orthogonal** to SemVer. They change with governed inputs/parameters or job execution, producing new partitions/streams **without implying** a spec change. Any renaming, merging/splitting, or removal of these tokens is **MAJOR**.
-
-**12.8 Consumer compatibility covenant (within v1.*).**
-For S6 **v1.***:
-
-* Dataset identity **=`[seed, manifest_fingerprint, parameter_hash]`**; RNG logs identity **=`[seed, parameter_hash, run_id]`**.
-* Exactly **one** dataset row **per site** and exactly **one** `in_cell_jitter` event **per site** with **`draws="2"`**.
-* **Boundary law**: single clamp to tile bounds; no resample.
-* **Policy use**: σ comes from `jitter_policy`; no re-fit/invention.
-* Writers honour **writer sort**, **write-once immutability**, and **path↔embed equality** (where embedded).
-* No inter-country order encoded; order authority remains with **1A**.
-
-**12.9 Ratification record.**
-Record for each release: `semver`, `effective_date`, ratifiers, code commit (and optional SHA-256 of this file). Keep a link to the prior MAJOR’s frozen copy.
+This object is **informative** (not identity-bearing), but its values MUST be consistent with the authoritative artefacts listed above (events, trace, dataset).  
 
 ---
 
-# Appendix A — Symbols & notational conventions *(Informative)*
+# 12) Performance & scalability **(Informative)**
 
-**A.1 Identity & lineage tokens**
+This section offers **non-binding** guidance to make S6 fast, predictable, and replayable at scale while staying within the **shape/identity** contracts (Schema + Dictionary) and the S6/overview behaviour (uniform-in-pixel; point-in-country).  
 
-* **`seed`** — Unsigned 64-bit master seed for the run; scopes S3–S6 datasets and RNG logs.
-* **`manifest_fingerprint`** — Lowercase **hex64** SHA-256 proving the S0 gate; used in dataset paths (not RNG logs).
-* **`parameter_hash`** — Lowercase **hex64** SHA-256 of the governed **parameter bundle**; scopes S1/S2 tables and S3–S6 datasets.
-* **`run_id`** — Lowercase **hex32** identifier for the S6 RNG event stream; **one per S6 publish**.
+## 12.1 Parallelism & stable merge
 
-**A.2 Dataset & stream IDs referenced in S6**
+* **Shard safely.** Parallelise by **country** or by disjoint merchant buckets; each worker processes a disjoint slice of the S5 keyset. Final dataset is a **stable merge** in the binding writer sort `[merchant_id, legal_country_iso, site_order]`; file order remains non-authoritative. 
+* **RNG logs are append-only.** Emit `in_cell_jitter` events under `[seed, parameter_hash, run_id]`; there is **one event per site**, so event count = row count (S6). Do not depend on file order in logs; validators use the envelope/counters. 
 
-* **`s5_site_tile_assignment`** — Site→tile mapping (one row per site) under identity **`[seed, manifest_fingerprint, parameter_hash]`**.
-* **`s6_site_jitter`** — *(This state’s dataset)* one row per site with **effective** in-tile jitter deltas under identity **`[seed, manifest_fingerprint, parameter_hash]`**.
-* **`tile_index`** — Eligible tile universe and per-tile centroid/bounds for the fixed **`parameter_hash`**.
-* **`in_cell_jitter`** — RNG **substream** name under the layer RNG envelope for S6 jitter draws (logs are partitioned by **`[seed, parameter_hash, run_id]`**).
+## 12.2 Geometry fast-paths (point-in-country)
 
-**A.3 Entities & keys**
+* **Interior-tile shortcut.** Build an ephemeral **“border-tile bitset”** per country: mark tiles whose pixel rectangle fully lies inside the country polygon. For interior tiles, **skip PIP** (predicate is always true); run PIP only on border tiles. (Tile rectangles and centroids come from S1 `tile_index`; country polygons from `world_countries`.) 
+* **Prepared predicates.** Pre-index country polygons per run (e.g., prepared geometry / spatial index). Reuse these immutable objects across threads; this avoids repeated topology cost while honouring S1’s **dateline-aware** semantics. 
+* **Dateline handling.** Use the exact unwrapping convention implied by S1 when mapping uniforms to `[min,max]` bounds, then normalise back to WGS84; this keeps “inside-rectangle” checks O(1). 
 
-* **Pair** — `(merchant_id, legal_country_iso)`.
-* **Site key (dataset PK columns)** — `(merchant_id, legal_country_iso, site_order)`.
-* **Tile key** — `(legal_country_iso, tile_id)`; must exist in `tile_index` for the same `{parameter_hash}`.
+## 12.3 RNG throughput & counters
 
-**A.4 Quantities & symbols used in S6**
+* **Counter-based wins.** Philox lets you generate uniforms **without shared state**; derive substreams deterministically from the site key and emit **one event per site** with `blocks=1`, `draws="2"` (two-uniform family). This matches the **layer event schema** and Dictionary text.   
+* **Open-interval mapping.** Ensure the U(0,1) mapping is strict-open (never 0.0/1.0) per the layer rule; this avoids edge artefacts in uniform-in-pixel sampling. 
 
-* **`centroid_lat_deg`, `centroid_lon_deg`** — Tile centroid (degrees).
-* **`min_lat_deg`, `max_lat_deg`, `min_lon_deg`, `max_lon_deg`** — Tile bounding rectangle (degrees).
-* **`σ_lat_deg`, `σ_lon_deg`** — Policy-provided standard-deviation scales (degrees) for latitude/longitude jitter.
-* **`u1`, `u2`** — Two independent uniforms in **(0,1)** drawn per site (substream `in_cell_jitter`).
-* **`Z_lat`, `Z_lon`** — Independent standard normals from **Box–Muller** using `(u1,u2)`.
-* **`δ_lat`, `δ_lon`** — **Proposed** jitter deltas in degrees: `δ_lat = σ_lat_deg · Z_lat`, `δ_lon = σ_lon_deg · Z_lon`.
-* **`lat′`, `lon′`** — Tentative coordinates: `centroid ± δ`; **clamped once** to tile bounds (no resample).
-* **`δ_lat_eff`, `δ_lon_eff`** — **Effective** jitter deltas after clamping: `lat′ − centroid_lat_deg`, `lon′ − centroid_lon_deg`.
+> **Note on attempts:** The **overview** allows bounded resample to satisfy point-in-country, but today’s event stream is fixed-budget **per site** (one event; `draws="2"`). Surface any **attempt counts** in the **run-report** (observability), not as extra events, to stay coherent with the current event anchor.  
 
-**A.5 Laws repeatedly referenced**
+## 12.4 Join strategy (S5 ↔ S1)
 
-* **Gate law** — Reads rely on the S0 receipt for `manifest_fingerprint` (**No PASS → No read**).
-* **Identity parity** — Dataset identity **`[seed, manifest_fingerprint, parameter_hash]`** matches tokens used to read inputs; RNG logs use **`[seed, parameter_hash, run_id]`** with a single `run_id`.
-* **RNG budget** — **Exactly one** `in_cell_jitter` event **per site**, with **`blocks=1`** and **`draws="2"`** (two uniforms; uniform-in-pixel lane).
-* **Bounds integrity** — `(centroid ± effective deltas)` **must lie inside** the tile’s `[min/max_lat, min/max_lon]`.
-* **Resolution & shape** — IO resolves via the **Dataset Dictionary** (no literal paths). **JSON-Schema** is the **sole shape authority** for both dataset and RNG events.
-* **Writer discipline** — Writer sort is binding; file order is **non-authoritative**. Publish is **write-once** with an atomic move.
-* **Determinism receipt** — SHA-256 over ASCII-lex ordered dataset files proves byte-stability on re-read.
+* **Cache S1 rows.** Hot-path the `(country_iso, tile_id) → [bounds, centroid]` join via an in-memory map keyed by tile_id **scoped by parameter_hash** (S1 partitions are parameter-scoped). This avoids repeated parquet scans. 
+* **FK locality.** Keep the FK check local to the join (S6/S5 → `tile_index` for the **same** `parameter_hash`); the schema encodes this with an explicit `partition_keys: ['parameter_hash']` hint. 
 
-**A.6 Abbreviations**
+## 12.5 I/O & file layout
+
+* **Dataset (parquet).** Write S6 in **writer sort** to help columnar encoders and downstream range scans; aim for **balanced row groups** (tens of MBs) aligned to sort runs. Dictionary fixes **format and partitions**:
+  `…/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`. 
+* **Logs (JSONL).** Emit `in_cell_jitter` as **streaming appends**; partitions `[seed, parameter_hash, run_id]`; retention **30 days** in the Dictionary keeps the footprint bounded. 
+
+## 12.6 Work scheduling & memory
+
+* **Country batching.** Batch by country to maximize cache hits on polygon predicates and S1 tile rows.
+* **Zero-copy deltas.** Compute `(lon*,lat*)` then write **effective deltas**; avoid storing absolutes until S7/S8. The S6 shape already carries the effective deltas and is **columns_strict** for safety. 
+* **Bounded resample cap.** Choose a conservative `MAX_ATTEMPTS` (e.g., 64) to bound tail latency; instrument **attempt histograms** in the run-report (non-authoritative). Overview still expects bounded resample semantics. 
+
+## 12.7 Determinism under concurrency
+
+* **Substream derivation.** Derive the per-site RNG substream deterministically from the site key; counters define order, not file position. This mirrors the layer’s **substream/counter** model and keeps replay stable irrespective of parallelism. 
+* **Atomic publish.** Stage → fsync → **single atomic move** into the identity partitions for the dataset; logs are append-only within `[seed, parameter_hash, run_id]`. (Immutability and writer-sort determinism are reiterated in the Registry/Dictionary.)  
+
+## 12.8 Numeric environment (guardrails)
+
+* Honour the **binary64** regime pinned in S0 (RNE, FMA off, no FTZ/DAZ; deterministic libm). These are part of the sealed manifest and guarantee the same `(lon*,lat*)` are reconstructed from deltas across reruns. 
+
+## 12.9 What to watch (operational SLO hints)
+
+* **Row/event parity:** `|S6| == |S5| == |rng_event_in_cell_jitter|`. If not, you have scheduling or logging back-pressure issues. 
+* **RNG identities:** From the **trace** (if enabled for your run), `draws_total == 2·sites_total` and `blocks_total == sites_total`. (Event schema fixes `draws="2"`, `blocks=1`.) 
+* **PIP workload split:** interior vs border-tile share; a healthy run should spend the majority of cycles on border tiles only.
+
+---
+
+# 13) Change control & compatibility **(Binding)**
+
+## 13.1 Versioning model (SemVer)
+
+S6 uses **MAJOR.MINOR.PATCH**. Artefact entries record a `semver` and are governed as immutable once published (write-once; atomic move). 
+
+* **PATCH** — editorial fixes/clarifications; no change to shapes, paths/partitions, writer-sort, validators, or RNG budgets.
+* **MINOR** — backward-compatible additions that **cannot** cause a previously valid run to fail (e.g., extra non-authoritative run-report fields/diagnostics; doc corrections in Registry notes). 
+* **MAJOR** — any change that could invalidate a previously valid run or alters identity/shape/gate semantics.
+
+## 13.2 What counts as **MAJOR** (non-exhaustive)
+
+The following **SHALL** be treated as **MAJOR** and require re-ratification of S6:
+
+1. **Dataset/log identity or path law**
+
+   * Changing **partitions** for `s6_site_jitter` from `[seed, fingerprint, parameter_hash]` or its path family, or changing writer-sort `[merchant_id, legal_country_iso, site_order]`. 
+   * Changing RNG log partitions `[seed, parameter_hash, run_id]` or path family for `rng_event_in_cell_jitter`. 
+
+2. **Schema-owned shape**
+
+   * Any change to `schemas.1B.yaml#/plan/s6_site_jitter` keys/columns or `columns_strict` posture (e.g., adding/removing columns, tightening bounds so existing rows could fail). 
+   * Any change to the **layer RNG event schema** for `in_cell_jitter` that alters its budget constants (`blocks=1`, `draws="2"`) or envelope fields. 
+
+3. **Behavioural gates & acceptance**
+
+   * Modifying acceptance rules so that a previously conformant run would fail (e.g., new hard geometry constraints beyond “inside pixel” / “inside country”). 
+   * Altering “**No PASS → No read**” upstream gate semantics. (Gate law is part of the state flow.) 
+
+4. **Authority surfaces / semantics**
+
+   * Replacing S1 **`tile_index`** bounds/centroids authority or the **`world_countries`** surface or their topology/antimeridian semantics. S6 depends on these definitions for A606/A607.  
+
+5. **Distributional lane**
+
+   * Changing S6 away from the overview’s **uniform-in-pixel** semantics (e.g., switching to Gaussian jitter) is a **behavioural** change and **MAJOR**. 
+
+## 13.3 What may be **MINOR**
+
+The following are **MINOR** only if strictly backward-compatible:
+
+* **Observability/diagnostics:** adding optional run-report fields, per-country histograms, or non-authoritative metrics (no schema for datasets/logs changed). 
+* **Registry/doc notes:** correcting Registry roles/notes without altering schema/paths (e.g., removing `jitter_policy` from S6 dependencies in Registry v1.7 text — S6 uniform lane does not consume it). 
+* **Loosening numeric guards:** widening S6 delta bounds (e.g., from `[-1,1]` to `[-1.5,1.5]`) only if all existing valid rows remain valid. Tightening is **MAJOR**. 
+* **Run-report delivery:** surfacing the same counters via an additional non-identity file (S7 will own any bundle schema).
+
+## 13.4 What is **PATCH** only
+
+* Typos, naming clarifications, cross-references, or prose reflows that **do not** change any binding behaviour, schema, path/partitions, writer-sort, RNG budgets, or acceptance outcomes.
+
+## 13.5 Compatibility baselines (this spec line)
+
+S6 v1.* is validated against the following **frozen** surfaces:
+
+* **Schema (1B):** `schemas.1B.yaml v2.4` — `s6_site_jitter` anchor (PK, partitions `[seed,fingerprint,parameter_hash]`, writer-sort, `columns_strict`). 
+* **Dictionary (1B):** `dataset_dictionary.layer1.1B.yaml v1.9` — IDs→paths/partitions for `s6_site_jitter` and `rng_event_in_cell_jitter`, retentions (365d / 30d). 
+* **Registry (1B):** `artefact_registry_1B.yaml v1.7` — notes on write-once/atomic-move and RNG event family roles. 
+* **Layer schema:** `schemas.layer1.yaml v1.2` — RNG **envelope** (`draws` dec-u128, `blocks` u64) and event constants for `in_cell_jitter` (`draws="2"`, `blocks=1`). 
+* **Overview:** S6 behaviour = **uniform inside pixel**, **point-in-country enforced**. 
+
+A **MAJOR** bump in any of the above that changes a bound interface requires an S6 **MAJOR** (or an explicit compatibility shim).
+
+## 13.6 Forward-compatibility guidance
+
+* **If per-site resample attempts need to be logged:** do **not** mutate the existing `in_cell_jitter` event schema (fixed `draws="2"`, `blocks=1`) — instead **add** a new event family (e.g., `in_cell_jitter_v2`) or a separate diagnostic stream. That is a **MINOR** addition if it doesn’t alter acceptance; changing the existing stream’s budget would be **MAJOR**. 
+* **If egress partitions change upstream:** S6 does **not** publish egress; `site_locations` remains `[seed, fingerprint]` per Dictionary. Altering that is outside S6 and would be handled in the egress state’s change control. 
+
+## 13.7 Deprecation & migration (binding posture)
+
+* **Dual-lane window:** When introducing a replacement stream/dataset, maintain both old and new for **at least one MINOR** version, with validators accepting either (but never silently rewiring IDs).
+* **Removal:** Removing the old lane is **MAJOR** and MUST be announced in the state header with a migration note.
+
+## 13.8 Cross-state compatibility
+
+* **Upstream handshake:** S6 is compatible only with S5/S1 shapes stated in §6; a **MAJOR** in S5/S1 that alters keys, partitions, or the `tile_index`/country semantics requires re-ratifying S6 (likely as **MAJOR**). 
+* **Downstream neutrality:** S6 does not alter egress; S7/S8 may tighten checks or add packaging, but such changes **must not** require an S6 change unless they change S6’s contracts.
+
+---
+
+# Appendix A — Symbols *(Informative)*
+
+## A.1 Sets, keys, and indices
+
+* **S5_keys** — the exact keyset of sites produced by S5; one tuple per site:
+  `S5_keys = {(merchant_id, legal_country_iso, site_order)}`. S6 emits **one row per key**. 
+* **country set:** `ISO = {iso2}` — canonical ISO-3166 codes used across the layer. FK from `legal_country_iso` to the ingress ISO surface (via schema refs). 
+
+## A.2 Identity & lineage tokens
+
+* **seed** — 64-bit unsigned integer that parameterises all RNG substreams for the run. Appears in dataset partitions and RNG log partitions.  
+* **parameter_hash** — 256-bit hex string (formatted) identifying the sealed parameter bundle; appears in both dataset and RNG log partitions. 
+* **manifest_fingerprint** — 256-bit hex string (formatted) fingerprint of the run manifest; **path token** is `fingerprint={manifest_fingerprint}`; **embedded column** remains `manifest_fingerprint` when present. 
+* **run_id** — opaque identifier (string/hex) for the RNG-log partition; one `run_id` per publish under `[seed, parameter_hash, run_id]`. 
+
+## A.3 Datasets, logs, partitions (dictionary law)
+
+* **S6 dataset ID:** `s6_site_jitter`
+  Path family: `data/layer1/1B/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
+  Partitions: `[seed, fingerprint, parameter_hash]` · Writer sort: `[merchant_id, legal_country_iso, site_order]`. 
+* **RNG events ID:** `rng_event_in_cell_jitter`
+  Path family: `logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+  Partitions: `[seed, parameter_hash, run_id]` (no fingerprint in logs). 
+
+## A.4 Geometry & placement symbols (WGS84 / degrees)
+
+Let the S1 tile rectangle be `[min_lon, max_lon] × [min_lat, max_lat]` and the S1 centroid be `(centroid_lon_deg, centroid_lat_deg)` for a given `(legal_country_iso, tile_id)`.
+
+* **lon***, **lat*** — the **realised** longitude/latitude inside the pixel.
+  Uniformly sampled by mapping open-interval uniforms (see A.6):
+
+  ```
+  lon* = min_lon + u_lon · (max_lon − min_lon)
+  lat* = min_lat + u_lat · (max_lat − min_lat)
+  ```
+
+  *(Dateline handling follows S1’s unwrapping/normalisation rules.)* 
+* **δ_lon_deg**, **δ_lat_deg** — **effective** S6 deltas (degrees):
+  `δ_lon_deg = lon* − centroid_lon_deg`, `δ_lat_deg = lat* − centroid_lat_deg`. (S6 stores these deltas; absolutes are reconstructed when needed.) 
+* **tile_id** — 64-bit integer key of the pixel (FK to S1 `tile_index` **for the same `parameter_hash`**). 
+
+**Country predicate:**
+
+* **pip_country(lat,lon, iso2)** → `bool` — point-in-polygon against `world_countries[iso2]` (S1’s authority and antimeridian semantics). S6 requires accepted samples to satisfy this predicate. 
+
+## A.5 RNG envelope & event fields (layer schema)
+
+Each event in `rng_event_in_cell_jitter` validates the **layer RNG envelope**:
+
+* **module** = `"1B.S6.jitter"` · **substream_label** = `"in_cell_jitter"` · **ts_utc** = RFC-3339 (exact 6 fractional digits).
+* **draws** — **decimal-encoded u128** count of uniforms consumed by the event.
+* **blocks** — **u64** count of PRNG blocks consumed by the event.
+* **rng_counter_before_{lo,hi} / rng_counter_after_{lo,hi}** — 128-bit counters (split fields); **u128(after) − u128(before) = blocks**.
+* **Per-event budget (current anchor):** `blocks = 1`, `draws = "2"` (two-uniform family). 
+
+*(Note: S6 emits **one event per site**; acceptance tests check **row↔event parity** and the fixed budget above.)* 
+
+## A.6 Random variables & domains
+
+* **u_lon, u_lat ∼ U(0,1)** — **open-interval** uniforms (never 0 or 1) drawn under the layer’s U(0,1) mapping. 
+* **lat, lon units** — decimal degrees on **WGS84 (EPSG:4326)**; typical domains: `lat ∈ [−90, 90]`, `lon ∈ [−180, 180]` (normalised as per S1). *(Schema anchors own exact bounds/guards for S6 columns.)* 
+* **MAX_ATTEMPTS** — bounded resample cap used by implementations to satisfy the country predicate; **not identity-bearing** and **not logged** in the current event schema (surface resample stats in the run-report if computed). 
+
+## A.7 Helper functions (informal)
+
+* **unwrap_lon(min,max)** — returns a consistent interval for dateline-crossing tiles used to compute `(max−min)`; S1’s convention governs.
+* **wrap_lon(x)** — normalise longitude back to the canonical interval after arithmetic (WGS84 wrap).
+* **inside_rect(lat,lon, bounds)** — inclusive rectangle check using S1 tile bounds.
+
+*(These helpers are conceptual; the authoritative rectangle and centroid come from S1 `tile_index`.)* 
+
+## A.8 Abbreviations
 
 * **PK** — Primary key (within an identity partition).
 * **FK** — Foreign key.
-* **PASS/ABORT** — Gate or validator outcome.
-* **RNG** — Random number generation (here: layer envelope, substream `in_cell_jitter`).
-* **σ** — Standard deviation scale (degrees) from `jitter_policy`.
+* **PASS / ABORT** — Gate/validator outcome.
+* **RNG** — Random number generation (counter-based; Philox family per layer).
+* **U(0,1)** — continuous uniform distribution on the **open** interval (0,1). 
+
+## A.9 Numeric environment (layer governance)
+
+Unless explicitly stated otherwise, numeric behaviour follows the layer profile: **round-to-nearest even (RNE)**, **FMA off**, **FTZ/DAZ off**, **subnormals preserved**. This ensures deterministic reconstruction of `(lon*, lat*)` from S6 deltas across reruns and platforms. 
+
+---
+
+**Where to look up shapes/paths:**
+
+* **S6 table shape:** `schemas.1B.yaml#/plan/s6_site_jitter`. **Paths/partitions/sort:** Dataset Dictionary (`s6_site_jitter`). 
+* **RNG event shape:** `schemas.layer1.yaml#/rng/events/in_cell_jitter`. **Log partitions:** Dataset Dictionary (`rng_event_in_cell_jitter`).  
+
+This appendix is **informative** only; the **Schema** remains the sole authority for shapes and the **Dictionary** for path families, partitions, and writer policy.  
 
 ---
 
 # Appendix B — Worked example *(Informative)*
 
-This miniature walk-through shows S6’s jitter workflow, including RNG budgeting, Box–Muller, clamping, and what validators will check. Numbers are illustrative but consistent with the rules.
-
----
-
-## B.1 Identity & inputs
-
-**Identity (this publish):**
-`seed = 42` · `manifest_fingerprint = 6f…a1` · `parameter_hash = 3c…9d` · `run_id = a7e2`
-
-**One pair & two sites from S5 (`s5_site_tile_assignment`):** `(merchant_id=101, legal_country_iso=GB)` with site orders `12` and `13`. Both sites are assigned the same tile `tile_id = 7001` (context from S5; S6 treats it read-only).
-
-**Tile record from `tile_index` (for {parameter_hash}):**
-
-| field                         | value             |
-| ----------------------------- | ----------------- |
-| `centroid_lat_deg`            | 51.5000           |
-| `centroid_lon_deg`            | −0.1200           |
-| `min_lat_deg` / `max_lat_deg` | 51.4800 / 51.5200 |
-| `min_lon_deg` / `max_lon_deg` | −0.1500 / −0.0900 |
-
-**Policy lookup (`jitter_policy`) for this latitude band:**
-
-| parameter   | value (deg) |
-| ----------- | ----------- |
-| `σ_lat_deg` | 0.0060      |
-| `σ_lon_deg` | 0.0100      |
-
----
-
-## B.2 RNG draws (budget = one event per site, `draws="2"`)
-
-RNG events are written under:
-`logs/rng/events/in_cell_jitter/seed=42/parameter_hash=3c…9d/run_id=a7e2/part-*.jsonl`
-Each event (one per site) consumes **two** uniforms `u_lon,u_lat ∈ (0,1)` from the same Philox block.
-
-**Site 12** (example draws): `u1 = e^{-2} = 0.1353352832`, `u2 = 0.75`
-**Site 13** (example draws): `u1 = e^{-8} = 0.0003354626`, `u2 ≈ 1.0×10^{-10}` *(still in (0,1))*
-
----
-
-## B.3 Uniform-in-pixel sampling → proposed deltas
-Let the pixel rectangle be `[min_lon,max_lon]×[min_lat,max_lat]` (WGS84). For a draw `(u_lon,u_lat)`:
+## B.1 Identity (fixed for the run)
 
 ```
-lon* = min_lon + u_lon · (max_lon − min_lon)
-lat* = min_lat + u_lat · (max_lat − min_lat)
-δ_lon = lon* − centroid_lon_deg
-δ_lat = lat* − centroid_lat_deg
+seed                    = 987654321
+parameter_hash          = "7b1e6e0f1b9a4ac2bb8f2b1a0d88c0e2c9f9c4d1f3a2b5c6d7e8f90123456789"   # hex64
+manifest_fingerprint    = "f2c0a4d3b1e5907e8f66caa9d4e1b2c3f4a5968790b1c2d3e4f5a6b7c8d9e0f1"   # hex64
+run_id                  = "r20251021a"
 ```
-(*No clamp needed*: sampling is inside the rectangle by construction.)
 
-**Site 12:**
-`R = sqrt(4) = 2`, `θ = 1.5π` → `cos θ = 0`, `sin θ = −1`
-`Z_lat = 0`, `Z_lon = −2`
-`δ_lat = σ_lat_deg · Z_lat = 0.0060 · 0 = 0.0000`
-`δ_lon = σ_lon_deg · Z_lon = 0.0100 · (−2) = −0.0200`
+**Partitions used**
 
-**Site 13:**
-`R = sqrt(16) = 4`, `θ ≈ 6.283e−10` → `cos θ ≈ 1`, `sin θ ≈ 6.283e−10`
-`Z_lat ≈ 4.000000000`, `Z_lon ≈ 2.513e−9`
-`δ_lat = 0.0060 · 4 = +0.0240`
-`δ_lon ≈ 0.0100 · 2.513e−9 = +2.513e−11` *(≈ 0)*
+* S6 dataset: `…/s6_site_jitter/seed=987654321/fingerprint=f2c0…/parameter_hash=7b1e…/`
+* RNG events: `…/in_cell_jitter/seed=987654321/parameter_hash=7b1e…/run_id=r20251021a/`
 
 ---
 
-## B.4 Country predicate & deterministic projection (no resample)
-**Predicate:** `(lat*,lon*) ∈ country_polygon` (dateline-aware; WGS84).
-**If outside:** deterministically **project** `(lat*,lon*)` to the closest point in the **intersection set**
-`S = country_polygon ∩ pixel_rectangle`, using the **equirectangular metric**
-`d² = (Δlat)² + (cos φ₀ · Δlon)²`, with `φ₀ = centroid_lat_deg`.
-**Effective deltas:** `δ_lat_eff = lat_proj − centroid_lat_deg`, `δ_lon_eff = lon_proj − centroid_lon_deg`.
-**Empty intersection:** if `S` is empty (should not occur given S1’s “center” rule), **ABORT** with `E607_COUNTRY_INTERSECTION_EMPTY`.
+## B.2 Inputs (one interior tile example)
 
-**Site 12:**
-`lat′ = 51.5000 + 0.0000 = 51.5000` (inside)
-`lon′ = −0.1200 − 0.0200 = −0.1400` (inside)
-**Effective deltas:** `δ_lat_eff = 0.0000`, `δ_lon_eff = −0.0200` *(no clamp)*
+**S5 site key:** `(merchant_id="m000001", legal_country_iso="GB", site_order=1, tile_id=240104)`
 
-**Site 13:**
-`lat′ = 51.5000 + 0.0240 = 51.5240` (**above** `max_lat=51.5200`) → **clamp** to `51.5200`
-`lon′ = −0.1200 + ~0 = −0.1200` (inside)
-**Effective deltas:** `δ_lat_eff = +0.0200`, `δ_lon_eff ≈ 0.0000` *(clamped on latitude)*
+**S1 `tile_index` (tile_id=240104)**
 
----
+```
+bounds:
+  min_lon = -0.250000
+  max_lon = -0.200000
+  min_lat =  51.500000
+  max_lat =  51.550000
+centroid:
+  centroid_lon_deg = -0.225000
+  centroid_lat_deg =  51.525000
+```
 
-## B.5 Produced outputs
-
-**Dataset partition (writer sort `[merchant_id, legal_country_iso, site_order]`):**
-`data/layer1/1B/s6_site_jitter/seed=42/fingerprint=6f…a1/parameter_hash=3c…9d/`
-
-| merchant_id | legal_country_iso | site_order | δ_lat_eff (deg) | δ_lon_eff (deg) | clamped?  |
-|------------:|:-----------------:|-----------:|----------------:|----------------:|:---------:|
-|         101 |        GB         |         12 |          0.0000 |         −0.0200 |    no     |
-|         101 |        GB         |         13 |         +0.0200 |         ~0.0000 | yes (lat) |
-
-**RNG events (one per site, `draws="2"`; same `{seed, parameter_hash, run_id}`):**
-`…/in_cell_jitter/seed=42/parameter_hash=3c…9d/run_id=a7e2/…`
-*(Event bodies validate the `in_cell_jitter` anchor; exact fields are owned by the schema pack.)*
+*(This tile lies entirely inside GB, so the country predicate will succeed for any in-rectangle sample.)*
 
 ---
 
-## B.6 Validator checklist (why this passes)
+## B.3 Jitter sampling (uniform in pixel)
 
-* **Gate & identity:** S0 receipt present/valid; dataset identity `{seed=42, fingerprint=6f…a1, parameter_hash=3c…9d}` matches tokens used to read S5/S1/policy; all events use `{seed=42, parameter_hash=3c…9d, run_id=a7e2}`.
-* **Schema conformance:** dataset validates `#/plan/s6_site_jitter`; events validate `#/rng/events/in_cell_jitter`.
-* **PK uniqueness & completeness:** one row per site; counts equal S5 rows (for the identity).
-* **Bounds + country:** `(centroid ± effective deltas)` lies **inside** the pixel rectangle **and** inside `world_countries` for `legal_country_iso`.
-* **Antimeridian correctness:** longitudes normalised to **[−180,+180]** with the same conventions used in S1.
-* **RNG budgeting:** **2** dataset rows ↔ **2** jitter events; each has `draws="2"` and substream `in_cell_jitter`.
-* **Writer & immutability:** dataset sorted by `[merchant_id, legal_country_iso, site_order]`; publish is write-once; determinism receipt computed over the dataset partition.
+Draw two open-interval uniforms for this site (two-uniform family; one event for the site):
+
+```
+u_lon = 0.732421
+u_lat = 0.104589
+```
+
+Map to the rectangle:
+
+```
+lon* = min_lon + u_lon·(max_lon−min_lon)
+     = -0.25 + 0.732421·0.05
+     = -0.21337895
+
+lat* = min_lat + u_lat·(max_lat−min_lat)
+     =  51.50 + 0.104589·0.05
+     =  51.50522945
+```
+
+Compute **effective deltas** relative to the centroid:
+
+```
+delta_lon_deg = lon* − centroid_lon_deg = -0.21337895 − (-0.225000) =  0.01162105
+delta_lat_deg = lat* − centroid_lat_deg =  51.50522945 − 51.525000 = -0.01977055
+```
+
+**Checks (informative):**
+
+* Inside-rectangle: `-0.250000 ≤ -0.213379 ≤ -0.200000` and `51.500000 ≤ 51.505229 ≤ 51.550000` ✅
+* Point-in-country (GB): true (interior tile) ✅
+
+---
+
+## B.4 RNG event (JSONL; one per site)
+
+*(Shape owned by the layer RNG event anchor; `draws` is a **decimal u128 string**, `blocks` is **u64**.)*
+
+```json
+{
+  "module": "1B.S6.jitter",
+  "substream_label": "in_cell_jitter",
+  "ts_utc": "2025-10-21T08:52:34.123456Z",
+  "seed": 987654321,
+  "parameter_hash": "7b1e6e0f1b9a4ac2bb8f2b1a0d88c0e2c9f9c4d1f3a2b5c6d7e8f90123456789",
+  "manifest_fingerprint": "f2c0a4d3b1e5907e8f66caa9d4e1b2c3f4a5968790b1c2d3e4f5a6b7c8d9e0f1",
+  "run_id": "r20251021a",
+  "merchant_id": "m000001",
+  "legal_country_iso": "GB",
+  "site_order": 1,
+  "rng_counter_before_lo": "12345678901234567890",
+  "rng_counter_before_hi": "0",
+  "rng_counter_after_lo":  "12345678901234567891",
+  "rng_counter_after_hi":  "0",
+  "blocks": 1,
+  "draws": "2"
+}
+```
+
+Envelope law holds: `u128(after) − u128(before) = 1 (blocks)`; `draws="2"`.
+
+---
+
+## B.5 S6 dataset row (Parquet)
+
+*(Columns owned by `schemas.1B.yaml#/plan/s6_site_jitter`; shown here as a CSV-style rendering for readability.)*
+
+| merchant_id | legal_country_iso | site_order | tile_id | delta_lat_deg | delta_lon_deg | manifest_fingerprint                                             |
+| ----------- | ----------------- | ---------: | ------: | ------------: | ------------: | ---------------------------------------------------------------- |
+| m000001     | GB                |          1 |  240104 |   -0.01977055 |    0.01162105 | f2c0a4d3b1e5907e8f66caa9d4e1b2c3f4a5968790b1c2d3e4f5a6b7c8d9e0f1 |
+
+**Partition path:**
+`…/s6_site_jitter/seed=987654321/fingerprint=f2c0…/parameter_hash=7b1e…/part-0000.snappy.parquet`
+
+Writer sort (`merchant_id, legal_country_iso, site_order`) is respected.
+
+---
+
+## B.6 Validator perspective (what will PASS here)
+
+* **A601 Row parity:** `|S6| == |S5|` for the key `(m000001,GB,1)` ✅
+* **A602 Schema:** row validates; columns_strict honored ✅
+* **A603 Partition & identity:** path partitions match, and the embedded `manifest_fingerprint` equals `fingerprint` ✅
+* **A604 Writer sort:** non-decreasing by `[merchant_id, legal_country_iso, site_order]` ✅
+* **A605 FK:** `(GB, 240104)` exists in `tile_index` for this `parameter_hash` ✅
+* **A606 Inside pixel:** reconstructed `(lon*,lat*)` inside rectangle ✅
+* **A607 Point-in-country:** inside GB polygon ✅
+* **A608 Event coverage:** exactly **1** `in_cell_jitter` event for this site ✅
+* **A609 Budget & counters:** `blocks=1`, `draws="2"`, counter delta = 1 ✅
+* **A610 Log partition law:** event under `[seed, parameter_hash, run_id]` ✅
+
+---
+
+## B.7 Minimal S6 run-report payload (what S7 will package)
+
+```json
+{
+  "identity": {
+    "seed": 987654321,
+    "parameter_hash": "7b1e6e0f1b9a4ac2bb8f2b1a0d88c0e2c9f9c4d1f3a2b5c6d7e8f90123456789",
+    "manifest_fingerprint": "f2c0a4d3b1e5907e8f66caa9d4e1b2c3f4a5968790b1c2d3e4f5a6b7c8d9e0f1",
+    "run_id": "r20251021a"
+  },
+  "counts": {
+    "sites_total": 1,
+    "rng": { "events_total": 1, "draws_total": "2", "blocks_total": 1, "counter_span": "1" }
+  },
+  "validation_counters": {
+    "fk_tile_index_failures": 0,
+    "point_outside_pixel": 0,
+    "point_outside_country": 0,
+    "path_embed_mismatches": 0
+  },
+  "by_country": { "GB": { "sites": 1, "rng_events": 1, "rng_draws": "2", "outside_pixel": 0, "outside_country": 0 } }
+}
+```
+
+---
+
+## B.8 Negative case (border tile) — what failure looks like
+
+Suppose a different S5 site maps to a **border tile** (rectangle straddles the coastline). With uniforms
+`u_lon=0.95`, `u_lat=0.05`, the sample is inside the pixel but **outside** the country polygon:
+
+* **A606 Inside pixel:** ✅
+* **A607 Point-in-country:** ❌ → **E608_POINT_OUTSIDE_COUNTRY**
+* **A608/A609:** still exactly one event with `draws="2"`, `blocks=1` (budget OK).
+* **Outcome:** S6 **ABORTS** for that run identity (validators are binding).
+
+*(Operationally you’d avoid frequent border failures by tiling so most tiles are interior, or by choosing seeds where empirical outside-rate is negligible. The spec itself remains unchanged.)*
+
+---
+
+## B.9 Reproducibility note
+
+Re-running with the **same** `{seed, parameter_hash, manifest_fingerprint, run_id}` and the same sealed inputs yields **identical** events, deltas, and run-report numbers. Changing **any** member of the identity tuple changes output partitions and/or event lineage, and validation **MUST** fail if path↔embed equality is broken.
 
 ---
