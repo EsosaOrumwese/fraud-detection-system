@@ -161,3 +161,39 @@ datasets:
     retention_days: 365
     pii: false
     license: Proprietary-Internal
+
+  tile_index:
+    status: approved
+    owner_subsegment: 1B
+    description: Eligible raster cells per country after clip.
+    version: '{parameter_hash}'
+    format: parquet
+    path: data/layer1/1B/tile_index/parameter_hash={parameter_hash}/
+    partitioning: [parameter_hash]
+    ordering: [country_iso, tile_id]
+    schema_ref: schemas.1B.yaml#/prep/tile_index
+    lineage:
+      produced_by: 1B.S1
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
+  tile_bounds:
+    status: approved
+    owner_subsegment: 1B
+    description: Rectangle bounds per eligible tile (S1 companion to tile_index).
+    version: '{parameter_hash}'
+    format: parquet
+    path: data/layer1/1B/tile_bounds/parameter_hash={parameter_hash}/
+    partitioning: [parameter_hash]
+    ordering: [country_iso, tile_id]
+    schema_ref: schemas.1B.yaml#/prep/tile_bounds
+    lineage:
+      produced_by: 1B.S1
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
