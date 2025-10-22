@@ -168,9 +168,13 @@ class S1TileIndexRunner:
         summary_path = report_dir / "country_summaries.jsonl"
 
         ingress_versions = {
-            "iso3166_canonical_2024": get_dataset_entry("iso3166_canonical_2024", dictionary).get("version", "unknown"),
-            "world_countries": get_dataset_entry("world_countries", dictionary).get("version", "unknown"),
-            "population_raster_2025": get_dataset_entry("population_raster_2025", dictionary).get("version", "unknown"),
+            "iso3166_canonical_2024": get_dataset_entry(
+                "iso3166_canonical_2024", dictionary=dictionary
+            ).get("version", "unknown"),
+            "world_countries": get_dataset_entry("world_countries", dictionary=dictionary).get("version", "unknown"),
+            "population_raster_2025": get_dataset_entry(
+                "population_raster_2025", dictionary=dictionary
+            ).get("version", "unknown"),
         }
         run_report = RunReport(
             parameter_hash=parameter_hash,

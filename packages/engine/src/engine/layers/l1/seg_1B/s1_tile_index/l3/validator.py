@@ -120,7 +120,7 @@ class S1TileIndexValidator:
         if frame.is_empty():
             return
         sorted_frame = frame.sort(sort_keys)
-        if not frame.frame_equal(sorted_frame):
+        if frame.rows() != sorted_frame.rows():
             raise ValidationError(f"Dataset is not sorted by {sort_keys}")
 
     def _validate_tile_bounds_alignment(self, tile_df: pl.DataFrame, bounds_df: pl.DataFrame) -> None:

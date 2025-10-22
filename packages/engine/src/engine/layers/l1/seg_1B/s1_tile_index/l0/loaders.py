@@ -18,7 +18,8 @@ from pyproj import Geod
 from rasterio.crs import CRS
 from rasterio.transform import Affine
 from rasterio.transform import xy as transform_xy
-from shapely.geometry import BaseGeometry, Polygon
+from shapely.geometry import Polygon
+from shapely.geometry.base import BaseGeometry
 from shapely.prepared import PreparedGeometry, prep as prepare_geometry
 
 
@@ -168,7 +169,7 @@ def load_country_polygons(path: Path) -> CountryPolygons:
     for iso_code, frame in grouped:
         if not iso_code or iso_code.strip() == "":
             raise LoaderError("Encountered empty country_iso in country polygons dataset")
-        geometry = frame.geometry.unary_union
+        geometry = frame.geometry.union_all()
         if geometry.is_empty:
             raise LoaderError(f"Geometry for country '{iso_code}' is empty")
         polygons[iso_code] = CountryPolygon(
