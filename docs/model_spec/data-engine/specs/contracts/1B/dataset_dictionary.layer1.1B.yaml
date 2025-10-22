@@ -327,6 +327,42 @@ datasets:
   pii: false
   license: Proprietary-Internal
 
+- id: validation_bundle_1B
+  status: approved
+  owner_subsegment: 1B
+  description: Validation bundle for a 1B publish (one per manifest_fingerprint).
+  version: '{manifest_fingerprint}'
+  format: files
+  path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/bundle/
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.1B.yaml#/validation/validation_bundle_1B
+  lineage:
+    produced_by: 1B.S9
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  license: Proprietary-Internal
+
+- id: validation_passed_flag_1B
+  status: approved
+  owner_subsegment: 1B
+  description: PASS gate flag; equals SHA-256 of the bundle per S9 hashing rule.
+  version: '{manifest_fingerprint}'
+  format: text
+  path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.1B.yaml#/validation/passed_flag
+  lineage:
+    produced_by: 1B.S9
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  license: Proprietary-Internal
+
 policies:
 - id: jitter_policy
   status: approved

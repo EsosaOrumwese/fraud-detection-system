@@ -102,6 +102,102 @@ validation:
           additionalProperties: false
       - {name: notes, type: string, nullable: true, description: 'Optional free-text.'}
 
+  validation_bundle_1B:
+    description: "Bundle certifying a 1B publish for a given manifest_fingerprint."
+    type: object
+    additionalProperties: false
+    properties:
+      index_json:   { $ref: '#/validation/bundle_index_v1' }
+      checks_json:  { $ref: '#/validation/checks_v1' }
+      metrics_json: { $ref: '#/validation/metrics_v1' }
+    required: [index_json]
+
+  # Index shape used to recompute the bundle hash
+  bundle_index_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      files:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          properties:
+            path:       { type: string, minLength: 1 }
+            sha256_hex: { $ref: '#/$defs/hex64' }
+          required: [path, sha256_hex]
+    required: [files]
+
+  # Optional summary documents (structure is modest on purpose)
+  checks_v1:
+    description: "Validation outcomes for a 1B publish."
+    type: object
+    additionalProperties: false
+    properties:
+      fingerprint: { $ref: '#/$defs/hex64' }
+      generated_at_utc: { $ref: '#/$defs/rfc3339_micros' }
+      overall_status: { type: string, enum: [PASS, FAIL] }
+      datasets:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          properties:
+            id:        { type: string, minLength: 1 }   # e.g., s5_site_tile_assignment
+            status:    { type: string, enum: [PASS, FAIL] }
+            notes:     { type: string }
+            validators:
+              description: "Per-dataset validator outcomes (e.g., A801…A813)."
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:    { type: string, pattern: '^[A-Z][0-9]{3}$' }
+                  name:    { type: string }
+                  status:  { type: string, enum: [PASS, FAIL, SKIP] }
+                  details: { type: string }
+                  count:   { type: integer, minimum: 0 }
+                required: [code, status]
+          required: [id, status]
+      rng_budgets:
+        type: object
+        additionalProperties: false
+        properties:
+          s5_events_eq_rows:    { type: boolean }
+          s5_draws_blocks_ok:   { type: boolean }  # draws="1", blocks=1
+          s6_events_ge_rows:    { type: boolean }
+          s6_last_event_equals: { type: boolean }
+        required: [s5_events_eq_rows, s5_draws_blocks_ok, s6_events_ge_rows, s6_last_event_equals]
+      spatial:
+        type: object
+        additionalProperties: false
+        properties:
+          point_in_country_pass: { type: boolean }
+        required: [point_in_country_pass]
+      extensions:
+        description: "Agent-specific, non-gating fields."
+        type: object
+        additionalProperties: true
+    required: [fingerprint, generated_at_utc, overall_status, datasets, rng_budgets, spatial]
+
+  metrics_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      publish_ts_utc: { $ref: '#/$defs/rfc3339_micros' }
+    required: [publish_ts_utc]
+
+  passed_flag_text:
+    description: '_passed.flag content: single line "sha256_hex = <hex64>"'
+    type: string
+    pattern: '^sha256_hex = [a-f0-9]{64}\\s*$'
+
+  # Back-compat alias to match Dictionary schema_ref
+  passed_flag:
+    $ref: '#/validation/passed_flag_text'
 
 # Placeholders for later states (to be filled when we ratify S1+)
 prep:
