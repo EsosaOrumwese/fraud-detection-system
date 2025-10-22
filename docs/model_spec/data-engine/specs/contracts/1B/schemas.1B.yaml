@@ -231,8 +231,19 @@ plan:
 egress:
   site_locations:
     type: table
-    description: 'Concrete (lat,lon, …) per outlet stub (placeholder; not ratified here).'
+    description: 'Concrete (lat,lon, …) per outlet stub; order-free (join 1A S3 for inter-country order).'
     primary_key: [merchant_id, legal_country_iso, site_order]
     partition_keys: [seed, fingerprint]
     sort_keys: [merchant_id, legal_country_iso, site_order]
-    columns: []
+    columns_strict: true
+    columns:
+      - { name: merchant_id,        $ref: 'schemas.layer1.yaml#/$defs/id64',  nullable: false }
+      - { name: legal_country_iso,  $ref: '#/$defs/iso2',                     nullable: false,
+          fk: { dataset_ref: 'schemas.ingress.layer1.yaml#/iso3166_canonical_2024',
+                columns: { legal_country_iso: country_iso } } }
+      - { name: site_order,         type: integer, minimum: 1,                nullable: false,
+          description: 'Contiguous 1..N per (merchant_id, legal_country_iso), guaranteed upstream.' }
+      - { name: lon_deg,            $ref: '#/$defs/lon',                      nullable: false,
+          description: 'Absolute longitude in WGS84 degrees.' }
+      - { name: lat_deg,            $ref: '#/$defs/lat',                      nullable: false,
+          description: 'Absolute latitude in WGS84 degrees.' }

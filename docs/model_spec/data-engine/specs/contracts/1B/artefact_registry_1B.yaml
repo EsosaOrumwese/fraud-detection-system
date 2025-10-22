@@ -334,6 +334,23 @@ subsegments:
     schema: schemas.1B.yaml#/prep/tile_bounds
     notes: 'Partition: parameter_hash={parameter_hash}; writer sort: [country_iso,tile_id].'
 
+  - name: site_locations
+    path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: output
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.1B.egress.site_locations
+    license: Proprietary-Internal
+    role: 'Concrete per-outlet coordinates (order-free; join 1A S3 for inter-country order).'
+    dependencies: [s7_site_synthesis]
+    source: internal
+    owner: { owner_team: 'mlr-1b-core' }
+    environment: [runtime]
+    schema: schemas.1B.yaml#/egress/site_locations
+    notes: 'Partition: seed={seed}/fingerprint={manifest_fingerprint}; writer sort: [merchant_id, legal_country_iso, site_order]; write-once; atomic move; file order non-authoritative.'
+
   - name: rng_event_site_tile_assign
     path: logs/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     type: log
