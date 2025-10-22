@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
-from typing import Mapping
+from typing import Mapping, TYPE_CHECKING
 
 from ...shared.dictionary import get_dataset_entry
-from ..l2.runner import PreparedInputs
-from ..l1.quantize import QuantisationResult
+
+if TYPE_CHECKING:
+    from ..l2.runner import PreparedInputs
+    from ..l1.quantize import QuantisationResult
 
 
 def build_run_report(
     *,
     prepared: PreparedInputs,
     quantised: QuantisationResult,
+    determinism_receipt: Mapping[str, str],
 ) -> Mapping[str, object]:
     """Construct the S2 run report payload."""
 
@@ -37,9 +40,9 @@ def build_run_report(
         "ingress_versions": ingress_versions,
         "pat": prepared.pat.to_dict(),
         "normalisation_summaries": quantised.summaries,
+        "determinism_receipt": determinism_receipt,
     }
     return report
 
 
 __all__ = ["build_run_report"]
-

@@ -63,6 +63,10 @@ def _population_intensity(
         template_args={},
         dictionary=dictionary,
     )
+    if raster_path.exists():
+        pat.raster_bytes_reference = max(
+            pat.raster_bytes_reference, int(raster_path.stat().st_size)
+        )
     raster_info = load_population_raster(raster_path)
 
     with rasterio.open(raster_info.path) as dataset:

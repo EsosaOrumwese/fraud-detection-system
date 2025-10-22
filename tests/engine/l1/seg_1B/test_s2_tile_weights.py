@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from types import SimpleNamespace
+import json
 
 import numpy as np
 import polars as pl
@@ -11,7 +12,10 @@ from engine.layers.l1.seg_1B.s2_tile_weights import (
     MassComputation,
     RunnerConfig,
     S2Error,
+    S2RunResult,
     S2TileWeightsRunner,
+    S2TileWeightsValidator,
+    ValidatorConfig,
 )
 from engine.layers.l1.seg_1B.s2_tile_weights.l3 import build_run_report
 
@@ -275,7 +279,11 @@ def test_build_run_report(tmp_path: Path, dictionary: dict[str, object]) -> None
     masses = runner.compute_masses(prepared)
     quantised = runner.quantise(prepared, masses)
 
-    report = build_run_report(prepared=prepared, quantised=quantised)
+    report = build_run_report(
+        prepared=prepared,
+        quantised=quantised,
+        determinism_receipt={"partition_path": "dummy", "sha256_hex": "deadbeef"},
+    )
     assert report["basis"] == "uniform"
     assert report["dp"] == 2
     assert report["rows_emitted"] == quantised.frame.height
@@ -285,3 +293,50 @@ def test_build_run_report(tmp_path: Path, dictionary: dict[str, object]) -> None
     assert report["ingress_versions"]["population_raster"] is None
     assert report["normalisation_summaries"] == quantised.summaries
 
+def test_materialise_and_validate(tmp_path: Path, dictionary: dict[str, object]) -> None:
+    data_root = tmp_path
+    _write_iso_table(data_root / "reference/iso/iso3166_canonical.parquet")
+    _write_tile_index_partition(data_root, "abc123")
+
+    runner = S2TileWeightsRunner()
+    prepared = runner.prepare(
+        RunnerConfig(
+            data_root=data_root,
+            parameter_hash="abc123",
+            basis="uniform",
+            dp=2,
+            dictionary=dictionary,
+        )
+    )
+
+    prepared.pat.io_baseline_ti_bps = 1_000_000.0
+    prepared.pat.io_baseline_vectors_bps = 1_000_000.0
+    prepared.pat.wall_clock_seconds_total = 1.0
+    prepared.pat.cpu_seconds_total = 0.5
+    prepared.pat.max_worker_rss_bytes = 50_000_000
+    prepared.pat.open_files_peak = 32
+    prepared.pat.workers_used = 2
+    prepared.pat.chunk_size = 128
+
+    masses = runner.compute_masses(prepared)
+    quantised = runner.quantise(prepared, masses)
+    result = runner.materialise(prepared, quantised)
+
+    assert result.tile_weights_path.exists()
+    dataset_df = pl.read_parquet(result.tile_weights_path / "part-00000.parquet")
+    assert dataset_df.height == quantised.frame.height
+    report = json.loads(result.report_path.read_text(encoding="utf-8"))
+    assert report["determinism_receipt"]["sha256_hex"] == result.determinism_receipt["sha256_hex"]
+
+    validator = S2TileWeightsValidator()
+    validator.validate(
+        ValidatorConfig(
+            data_root=data_root,
+            parameter_hash="abc123",
+            dictionary=dictionary,
+            run_report_path=result.report_path,
+        )
+    )
+
+    with pytest.raises(S2Error):
+        runner.materialise(prepared, quantised)
