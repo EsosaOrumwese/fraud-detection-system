@@ -309,6 +309,24 @@ datasets:
   pii: false
   license: Proprietary-Internal
 
+- id: s7_site_synthesis
+  status: approved
+  owner_subsegment: 1B
+  description: Deterministic stitch of S5 (tile) + S6 (effective deltas) + S1 geometry into per-site absolutes; RNG-free; 1:1 with outlet_catalogue.
+  version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+  format: parquet
+  path: data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+  partitioning: [seed, fingerprint, parameter_hash]
+  ordering: [merchant_id, legal_country_iso, site_order]
+  schema_ref: schemas.1B.yaml#/plan/s7_site_synthesis
+  lineage:
+    produced_by: 1B.S7
+    consumed_by: [1B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  license: Proprietary-Internal
+
 policies:
 - id: jitter_policy
   status: approved

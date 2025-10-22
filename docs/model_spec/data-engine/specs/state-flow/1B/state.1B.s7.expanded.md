@@ -32,7 +32,7 @@ Any MAJOR change to those (e.g., partition keys, writer sort, identity semantics
 
 ## 1.5 Audience & scope notes
 
-**Audience:** implementation agents, validators, and reviewers. **This document binds behaviour** for S7 only; **shapes** remain exclusively defined by Schema anchors (S5/S6/S1 today; S7 anchor will be added in §6). **Order authority** stays outside 1B egress—downstreams join 1A `s3_candidate_set.candidate_rank` when order is required. 
+**Audience:** implementation agents, validators, and reviewers. **This document binds behaviour** for S7 only; **shapes** remain exclusively defined by Schema anchors (S5/S6/S1 today; S7 anchor is defined in §6). **Order authority** stays outside 1B egress—downstreams join 1A `s3_candidate_set.candidate_rank` when order is required. 
 
 ---
 
@@ -81,9 +81,9 @@ S7 SHALL read **only** the following sealed surfaces for **this** `{seed, finger
   Path family: `…/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
   Partitions: `[seed, fingerprint, parameter_hash]` · Writer sort: `[merchant_id, legal_country_iso, site_order]` · Shape: `schemas.1B.yaml#/plan/s6_site_jitter`.  
 
-* **S1 geometry — `tile_index` / `tile_bounds`** (read-only)
+**S1 geometry — `tile_bounds`** (read-only)
   Used to reconstruct/check absolutes from S6 deltas and to assert “inside pixel.”
-  Path family (bounds example): `…/tile_bounds/parameter_hash={parameter_hash}/` · Partitions: `[parameter_hash]` · Writer sort: `[country_iso, tile_id]` · Shape: `schemas.1B.yaml#/prep/tile_bounds`. 
+  Path family: `…/tile_bounds/parameter_hash={parameter_hash}/` · Partitions: `[parameter_hash]` · Writer sort: `[country_iso, tile_id]` · Shape: `schemas.1B.yaml#/prep/tile_bounds`.
 
 * **1A `outlet_catalogue`** (read-only; coverage parity)
   S7 uses it to assert **1:1** coverage and preserved `site_order` (S7 does not encode inter-country order; consumers join 1A S3). Gate law from §3.2 applies. 
@@ -124,8 +124,8 @@ S7 SHALL read **only** these inputs for the fixed `{seed, fingerprint, parameter
 * **S6 — `s6_site_jitter`** (effective in-pixel deltas per site)
   Same path family & partitions as S5; writer sort `[merchant_id, legal_country_iso, site_order]`; schema `schemas.1B.yaml#/plan/s6_site_jitter`. 
 
-* **S1 geometry — `tile_index` / `tile_bounds`** (read-only, parameter-scoped)
-  Path family `…/parameter_hash={parameter_hash}/`; partitions `[parameter_hash]`; writer sort `[country_iso, tile_id]`; schema `schemas.1B.yaml#/prep/tile_bounds` (and related). 
+* **S1 geometry — `tile_bounds`** (read-only, parameter-scoped)
+  Path family `…/tile_bounds/parameter_hash={parameter_hash}/`; partitions `[parameter_hash]`; writer sort `[country_iso, tile_id]`; schema `schemas.1B.yaml#/prep/tile_bounds`.
 
 * **1A egress — `outlet_catalogue`** (coverage parity check)
   Path family `…/seed={seed}/fingerprint={manifest_fingerprint}/`; partitions `[seed, fingerprint]`; order-free; **read only after verifying** the 1A validation bundle `_passed.flag`. 
@@ -152,9 +152,9 @@ S7 SHALL NOT read any surface outside §4.2 (e.g., priors, policies, or alternat
 
 # 5) Outputs (datasets/logs) & identity **(Binding)**
 
-## 5.1 S7 dataset — `s7_site_synthesis` *(planning)*
+## 5.1 S7 dataset — `s7_site_synthesis`
 
-**ID (Dictionary):** `s7_site_synthesis` (to be added).
+**ID (Dictionary):** `s7_site_synthesis`
 **Path family:**
 `data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
 **Partitions (binding):** `[seed, fingerprint, parameter_hash]` · **Writer sort:** `[merchant_id, legal_country_iso, site_order]` · **Format:** parquet · **Write-once; atomic move; file order non-authoritative**.
@@ -189,8 +189,9 @@ S7 is deterministic and introduces **no RNG event streams**. Existing RNG logs f
 
 ## 6.1 Output data table (S7 shape authority)
 
-**ID → Schema:** `s7_site_synthesis` → `schemas.1B.yaml#/plan/s7_site_synthesis` *(to be added)*.
-**Identity:** partitions **`[seed, fingerprint, parameter_hash]`**; **PK** `[merchant_id, legal_country_iso, site_order]`; **writer sort** `[merchant_id, legal_country_iso, site_order]`; **columns_strict: true`.   **Dictionary path family (to add):**  
+**ID → Schema:** `s7_site_synthesis` → `schemas.1B.yaml#/plan/s7_site_synthesis`.
+**Identity:** partitions **`[seed, fingerprint, parameter_hash]`**; **PK** `[merchant_id, legal_country_iso, site_order]`; **writer sort** `[merchant_id, legal_country_iso, site_order]`; **columns_strict: true**.
+**Dictionary path family:**  
 `data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
 *Rationale for identity/sort is parity with approved S5/S6 tables (same partitions and writer sort).* 
 
@@ -200,8 +201,8 @@ S7 is deterministic and introduces **no RNG event streams**. Existing RNG logs f
   *(Dictionary binds path/partitions `[seed, fingerprint, parameter_hash]`, writer sort `[merchant_id, legal_country_iso, site_order]`.)* 
 * **S6 jitter:** `schemas.1B.yaml#/plan/s6_site_jitter`
   *(Dictionary binds path/partitions `[seed, fingerprint, parameter_hash]`, writer sort `[merchant_id, legal_country_iso, site_order]`.)* 
-* **S1 geometry:** `schemas.1B.yaml#/prep/tile_bounds` (or `#/prep/tile_index`)
-  *(Dictionary binds parameter-scoped path/partitions `[parameter_hash]`; writer sort `[country_iso, tile_id]`.)* 
+* **S1 geometry:** `schemas.1B.yaml#/prep/tile_bounds`
+  *(Dictionary binds parameter-scoped path/partitions `[parameter_hash]`; writer sort `[country_iso, tile_id]`.)*
 
 ## 6.3 Downstream egress anchor (reference only)
 
@@ -270,8 +271,8 @@ Write exactly one `s7_site_synthesis` row for the site with fields per the S7 sc
 
 ## 8.2 Partition law & path family (resolve via Dictionary; no literal paths)
 
-* **S7 dataset (planning):**
-  Path family (to be added in the Dictionary):
+* **S7 dataset:**
+  Path family:
   `data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
   **Partitions:** `[seed, fingerprint, parameter_hash]` · **Format:** parquet · **Writer sort:** `[merchant_id, legal_country_iso, site_order]`.
   *(Identity/sort mirror approved S5/S6 tables to keep 1B uniform.)*  
@@ -337,7 +338,7 @@ A run **PASSES** S7 only if **all** checks below succeed.
 **Rule.** Using S1 geometry for the same `parameter_hash`, reconstructed
 `lon* = centroid_lon_deg + delta_lon_deg`, `lat* = centroid_lat_deg + delta_lat_deg`
 lies inside the S1 rectangle for `(legal_country_iso, tile_id)`.
-**Detection.** Join S7→S1 (`tile_bounds`/`tile_index`) and assert inclusive rectangle bounds (dateline semantics per S1).  
+**Detection.** Join S7→S1 **`tile_bounds`** and assert inclusive rectangle bounds (dateline semantics per S1).
 
 ## A706 — 1A coverage parity (read discipline)
 
@@ -347,7 +348,7 @@ lies inside the S1 rectangle for `(legal_country_iso, tile_id)`.
 ## A707 — Tile FK (same parameter set)
 
 **Rule.** `(legal_country_iso, tile_id)` present in S1 geometry for the **same** `parameter_hash`.
-**Detection.** FK join to `tile_bounds`/`tile_index` (parameter-scoped).  
+**Detection.** FK join to **`tile_bounds`** (parameter-scoped).
 
 ## A708 — Order-authority pledge
 
@@ -584,7 +585,7 @@ Changes that can invalidate previously valid runs or alter identity/shape/gates:
 
 2. **Schema-owned shape**
 
-   * Any change to the S7 table anchor (`schemas.1B.yaml#/plan/s7_site_synthesis`) that adds/removes/renames columns or relaxes **columns_strict**. *(Anchor to be added as per §6; S5/S6 anchors illustrate the posture.)* 
+   * Any change to the S7 table anchor (`schemas.1B.yaml#/plan/s7_site_synthesis`) that adds/removes/renames columns or relaxes **columns_strict**. *(Anchor per §6; S5/S6 anchors illustrate the posture.)*
 
 3. **Behavioural gates**
 
@@ -615,13 +616,13 @@ Editorial fixes: typos, cross-references, clarifications that do **not** change 
 
 ## 13.5 Compatibility baselines (this spec line)
 
-S7 v1.* assumes the following are in effect:
+S7 assumes the following are in effect:
 
-* **Dictionary (1B v2.3):**
+* **Dictionary (1B):**
   – `s5_site_tile_assignment` and `s6_site_jitter` → partitions **`[seed, fingerprint, parameter_hash]`**, writer sort **`[merchant_id, legal_country_iso, site_order]`**. 
-  – `tile_bounds` / `tile_index` → partitions **`[parameter_hash]`**, sort **`[country_iso, tile_id]`**. 
-  – **Egress** `site_locations` → partitions **`[seed, fingerprint]`**; order-free. 
-* **Registry (1B v2.2):** write-once, atomic-move posture for 1B datasets/logs (mirrors S5/S6 entries). 
+  – `tile_bounds` → partitions **`[parameter_hash]`**, sort **`[country_iso, tile_id]`**. 
+  – **Egress** `site_locations` → partitions **`[seed, fingerprint]`**; order-free.
+* **Registry (1B):** write-once, atomic-move posture for 1B datasets/logs (mirrors S5/S6 entries). 
 
 A **MAJOR** change to any baseline that affects S7’s bound interfaces requires an S7 **MAJOR** (or an explicit compatibility shim).
 
@@ -665,7 +666,7 @@ A **MAJOR** change to any baseline that affects S7’s bound interfaces requires
 * **S6 — `s6_site_jitter`**
   `data/layer1/1B/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
   Partitions `[seed, fingerprint, parameter_hash]` · Writer sort `[merchant_id, legal_country_iso, site_order]`. 
-* **S7 — `s7_site_synthesis`** *(to be added)*
+* **S7 — `s7_site_synthesis`**
   `data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
   Partitions `[seed, fingerprint, parameter_hash]` · Writer sort `[merchant_id, legal_country_iso, site_order]`. *(Matches S5/S6.)*
 * **S1 geometry — `tile_index` / `tile_bounds`**
@@ -716,7 +717,7 @@ Where lineage appears both as **path tokens** and **embedded columns** (e.g., `m
 seed                 = 4242424242
 parameter_hash       = "c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00"   # hex64
 manifest_fingerprint = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"   # hex64
-run_id               = "r20251022a"
+run_id               = "6f4d2c3b9e0a11d2acbd4e5f6a1b2c3d"
 ```
 
 **Relevant path families (from Dictionary; S7 mirrors S5/S6’s identity/sort):**
@@ -731,7 +732,7 @@ run_id               = "r20251022a"
 ## B.2 Inputs (one site)
 
 **S5 site key** *(writer-sort PK)*:
-`(merchant_id="m000123", legal_country_iso="GB", site_order=17, tile_id=240104)` 
+`(merchant_id=1234567890123, legal_country_iso="GB", site_order=17, tile_id=240104)`
 
 **S6 deltas for that site** *(effective in-pixel)*:
 
@@ -785,9 +786,9 @@ lat* =  51.525000 - 0.01977055 =  51.50522945
 
 **Row (CSV-style rendering):**
 
-| merchant_id | legal_country_iso | site_order | tile_id |     lon_deg |     lat_deg | manifest_fingerprint |
-| ----------- | ----------------- | ---------: | ------: | ----------: | ----------: | -------------------- |
-| m000123     | GB                |         17 |  240104 | -0.21337895 | 51.50522945 | deadbeefdeadbeef…    |
+| merchant_id   | legal_country_iso | site_order | tile_id |     lon_deg |     lat_deg | manifest_fingerprint |
+|---------------|-------------------|-----------:|--------:|------------:|------------:|----------------------|
+| 1234567890123 | GB                |         17 |  240104 | -0.21337895 | 51.50522945 | deadbeefdeadbeef…    |
 
 * **Writer sort respected:** `[merchant_id, legal_country_iso, site_order]`. 
 * **Path↔embed equality:** embedded `manifest_fingerprint` == path token `fingerprint=…`. *(Same lineage law used across 1B planning tables.)* 
@@ -798,7 +799,7 @@ lat* =  51.525000 - 0.01977055 =  51.50522945
 
 ## B.5 Validator perspective (S7 §9 mapping)
 
-* **A701 Row parity S5↔S7:** the key `(m000123,GB,17)` appears exactly once in S7; anti-joins empty.
+* **A701 Row parity S5↔S7:** the key `(1234567890123,GB,17)` appears exactly once in S7; anti-joins empty.
 * **A702 Schema conformance:** row validates `#/plan/s7_site_synthesis` (columns_strict).
 * **A703 Partition & identity law:** path partitions `[seed,fingerprint,parameter_hash]`; embedded lineage equals path tokens. 
 * **A704 Writer sort:** non-decreasing by `[merchant_id, legal_country_iso, site_order]`. 
@@ -826,7 +827,7 @@ Suppose a bad row had `lon_deg = -0.255` (west of `min_lon`).
     "seed": 4242424242,
     "parameter_hash": "c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00c0ffee00",
     "manifest_fingerprint": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-    "run_id": "r20251022a"
+    "run_id": "6f4d2c3b9e0a11d2acbd4e5f6a1b2c3d"
   },
   "sizes": { "sites_total_s5": 1, "sites_total_s6": 1, "sites_total_s7": 1,
              "parity_s5_s7_ok": true, "parity_s5_s6_ok": true },
