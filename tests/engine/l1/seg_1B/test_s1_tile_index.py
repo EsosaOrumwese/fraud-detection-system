@@ -137,3 +137,5 @@ def test_runner_and_validator(sample_environment: tuple[RunnerConfig, dict[str, 
     report = json.loads(report_path.read_text(encoding="utf-8"))
     assert report["determinism_receipt"]["partition_path"] == str(result.tile_index_path)
     assert isinstance(report["determinism_receipt"]["sha256_hex"], str)
+    assert report["pat"]["countries_processed"] == 1
+    assert report["pat"]["cells_included_total"] == 4

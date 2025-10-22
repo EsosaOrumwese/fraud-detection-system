@@ -9,6 +9,8 @@ from typing import Dict, Iterable, Mapping, Sequence
 from uuid import uuid4
 
 import hashlib
+import os
+import time
 
 import polars as pl
 from rasterio.transform import rowcol
@@ -134,6 +136,9 @@ class S1TileIndexRunner:
         country_polygons = load_country_polygons(country_path)
         raster = load_population_raster(raster_path)
 
+        start_wall = time.perf_counter()
+        start_cpu = time.process_time()
+
         tile_records, bounds_records, summaries = self._enumerate_tiles(
             inclusion_rule,
             iso_table,
@@ -162,6 +167,13 @@ class S1TileIndexRunner:
 
         digest = compute_partition_digest(tile_index_dir)
 
+        wall_elapsed = time.perf_counter() - start_wall
+        cpu_elapsed = time.process_time() - start_cpu
+        bytes_read_raster = _safe_stat_size(raster_path)
+        bytes_read_vectors = sum(
+            _safe_stat_size(path) for path in (iso_path, country_path)
+        )
+
         report_dir = data_root / "reports" / "l1" / "s1_tile_index" / f"parameter_hash={parameter_hash}"
         report_dir.mkdir(parents=True, exist_ok=True)
         report_path = report_dir / "run_report.json"
@@ -188,17 +200,17 @@ class S1TileIndexRunner:
                 "sha256_hex": digest,
             },
             pat={
-                "wall_clock_seconds_total": 0,
-                "cpu_seconds_total": 0,
+                "wall_clock_seconds_total": wall_elapsed,
+                "cpu_seconds_total": cpu_elapsed,
                 "countries_processed": len(summaries),
                 "cells_scanned_total": sum(s.cells_visited for s in summaries.values()),
                 "cells_included_total": len(tile_records),
-                "bytes_read_raster_total": 0,
-                "bytes_read_vectors_total": 0,
-                "max_worker_rss_bytes": 0,
-                "open_files_peak": 0,
-                "workers_used": 0,
-                "chunk_size": 0,
+                "bytes_read_raster_total": bytes_read_raster,
+                "bytes_read_vectors_total": bytes_read_vectors,
+                "max_worker_rss_bytes": None,
+                "open_files_peak": None,
+                "workers_used": 1,
+                "chunk_size": len(tile_records) if tile_records else 0,
                 "io_baseline_raster_bps": None,
                 "io_baseline_vectors_bps": None,
             },
@@ -410,3 +422,10 @@ def compute_partition_digest(partition_dir: Path) -> str:
     for file_path in files:
         digest.update(file_path.read_bytes())
     return digest.hexdigest()
+
+
+def _safe_stat_size(path: Path) -> int:
+    try:
+        return path.stat().st_size
+    except FileNotFoundError:
+        return 0

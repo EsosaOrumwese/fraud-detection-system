@@ -6,7 +6,7 @@ import json
 import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping
+from typing import Dict, Mapping
 
 import polars as pl
 
@@ -82,13 +82,13 @@ class S1TileIndexValidator:
 
         self._validate_schema(tile_df, bounds_df)
         self._validate_sort(tile_df, ["country_iso", "tile_id"])
-        self._validate_tile_bounds_alignment(tile_df, bounds_df)
+        bounds_lookup = self._validate_tile_bounds_alignment(tile_df, bounds_df)
         self._validate_iso_domain(tile_df, iso_table)
         self._validate_centroid_bounds(tile_df)
         self._validate_area(tile_df)
         self._validate_raster_indices(tile_df, raster)
         self._validate_tile_id_formula(tile_df, raster)
-        self._validate_geometry(tile_df, inclusion_rule, polygons, raster)
+        self._validate_geometry(tile_df, inclusion_rule, polygons, raster, bounds_lookup)
         self._validate_determinism_receipt(tile_index_dir, run_report)
 
     # ------------------------------------------------------------------ #
@@ -123,7 +123,9 @@ class S1TileIndexValidator:
         if frame.rows() != sorted_frame.rows():
             raise ValidationError(f"Dataset is not sorted by {sort_keys}")
 
-    def _validate_tile_bounds_alignment(self, tile_df: pl.DataFrame, bounds_df: pl.DataFrame) -> None:
+    def _validate_tile_bounds_alignment(
+        self, tile_df: pl.DataFrame, bounds_df: pl.DataFrame
+    ) -> Dict[tuple[str, int], dict]:
         if tile_df.height != bounds_df.height:
             raise ValidationError("tile_bounds row count does not match tile_index")
         merged = tile_df.select("country_iso", "tile_id").join(
@@ -133,6 +135,11 @@ class S1TileIndexValidator:
         )
         if merged.height != tile_df.height:
             raise ValidationError("tile_bounds does not contain a matching row for every tile_index entry")
+        lookup: Dict[tuple[str, int], dict] = {}
+        for row in bounds_df.iter_rows(named=True):
+            key = (row["country_iso"], int(row["tile_id"]))
+            lookup[key] = row
+        return lookup
 
     def _validate_iso_domain(self, tile_df: pl.DataFrame, iso_table: IsoCountryTable) -> None:
         iso_codes = iso_table.codes
@@ -187,6 +194,7 @@ class S1TileIndexValidator:
         inclusion_rule: InclusionRule,
         polygons: CountryPolygons,
         raster: PopulationRaster,
+        bounds_lookup: Mapping[tuple[str, int], Mapping[str, object]],
     ) -> None:
         for row in tile_df.iter_rows(named=True):
             country_iso = row["country_iso"]
@@ -214,6 +222,23 @@ class S1TileIndexValidator:
                 raise ValidationError(
                     f"Inclusion predicate failed for country {country_iso}, tile {metrics.tile_id}"
                 )
+
+            bounds_row = bounds_lookup.get((country_iso, metrics.tile_id))
+            if bounds_row is None:
+                raise ValidationError(f"Missing bounds row for country {country_iso}, tile {metrics.tile_id}")
+            bounds = metrics.bounds
+            for name, reported, expected in (
+                ("west_lon", float(bounds_row["west_lon"]), bounds.west),
+                ("east_lon", float(bounds_row["east_lon"]), bounds.east),
+                ("south_lat", float(bounds_row["south_lat"]), bounds.south),
+                ("north_lat", float(bounds_row["north_lat"]), bounds.north),
+            ):
+                if not math.isfinite(reported):
+                    raise ValidationError(f"tile_bounds.{name} is not finite for {country_iso}, tile {metrics.tile_id}")
+                if not math.isclose(reported, expected, abs_tol=self.COORD_ABS_TOL):
+                    raise ValidationError(
+                        f"tile_bounds.{name} mismatch for {country_iso}, tile {metrics.tile_id}"
+                    )
 
     def _validate_determinism_receipt(self, partition_dir: Path, run_report: Mapping[str, object]) -> None:
         expected = run_report.get("determinism_receipt")
