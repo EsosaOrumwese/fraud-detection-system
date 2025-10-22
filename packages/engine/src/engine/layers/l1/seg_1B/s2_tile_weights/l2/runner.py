@@ -6,18 +6,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Mapping, MutableMapping
 
-from engine.layers.l1.seg_1B.s1_tile_index.l0.loaders import (
-    IsoCountryTable,
-    load_iso_countries,
-)
+import polars as pl
 
-from ...shared.dictionary import (
-    get_dataset_entry,
-    load_dictionary,
-    resolve_dataset_path,
-)
+from engine.layers.l1.seg_1B.s1_tile_index.l0.loaders import IsoCountryTable, load_iso_countries
+
+from ...shared.dictionary import get_dataset_entry, load_dictionary, resolve_dataset_path
 from ..exceptions import S2Error, err
 from ..l0.tile_index import TileIndexPartition, load_tile_index_partition
+from ..l1 import QuantisationResult, compute_tile_masses, quantise_tile_weights
 from ..l1.guards import validate_tile_index
 
 
@@ -100,11 +96,19 @@ class PatCounters:
 class PreparedInputs:
     """Result of phases 0–2: validated ingress and governed parameters."""
 
+    data_root: Path
     governed: GovernedParameters
     dictionary: Mapping[str, object]
     tile_index: TileIndexPartition
     iso_table: IsoCountryTable
     pat: PatCounters = field(default_factory=PatCounters)
+
+
+@dataclass(frozen=True)
+class MassComputation:
+    """Mass table derived from governed basis."""
+
+    frame: pl.DataFrame
 
 
 class S2TileWeightsRunner:
@@ -130,6 +134,8 @@ class S2TileWeightsRunner:
                 "E101_TILE_INDEX_MISSING",
                 f"failed to load ISO canonical table from '{iso_path}': {exc}",
             ) from exc
+        pat = PatCounters()
+        pat.bytes_read_vectors_total += int(iso_path.stat().st_size)
 
         tile_index = load_tile_index_partition(
             base_path=config.data_root,
@@ -137,21 +143,41 @@ class S2TileWeightsRunner:
             dictionary=dictionary,
         )
         validate_tile_index(partition=tile_index, iso_table=iso_table)
+        pat.bytes_read_tile_index_total += tile_index.byte_size
 
         return PreparedInputs(
+            data_root=config.data_root,
             governed=governed,
             dictionary=dictionary,
             tile_index=tile_index,
             iso_table=iso_table,
+            pat=pat,
         )
+
+    def compute_masses(self, prepared: PreparedInputs) -> MassComputation:
+        frame = compute_tile_masses(
+            tile_index=prepared.tile_index,
+            basis=prepared.governed.basis,
+            data_root=prepared.data_root,
+            dictionary=prepared.dictionary,
+            pat=prepared.pat,
+        )
+        return MassComputation(frame=frame)
+
+    def quantise(self, prepared: PreparedInputs, masses: MassComputation) -> QuantisationResult:
+        result = quantise_tile_weights(mass_frame=masses.frame, dp=prepared.governed.dp)
+        prepared.pat.countries_processed = len(result.summaries)
+        prepared.pat.rows_emitted = result.frame.height
+        return result
 
 
 __all__ = [
     "PatCounters",
     "PreparedInputs",
+    "MassComputation",
+    "QuantisationResult",
     "RunnerConfig",
     "GovernedParameters",
     "S2TileWeightsRunner",
     "S2Error",
 ]
-

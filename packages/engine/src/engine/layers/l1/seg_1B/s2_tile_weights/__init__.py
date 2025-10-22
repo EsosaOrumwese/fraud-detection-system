@@ -3,6 +3,8 @@
 from .exceptions import S2Error
 from .l2.runner import (
     GovernedParameters,
+    MassComputation,
+    QuantisationResult,
     PatCounters,
     PreparedInputs,
     RunnerConfig,
@@ -11,10 +13,11 @@ from .l2.runner import (
 
 __all__ = [
     "GovernedParameters",
+    "MassComputation",
+    "QuantisationResult",
     "PatCounters",
     "PreparedInputs",
     "RunnerConfig",
     "S2Error",
     "S2TileWeightsRunner",
 ]
-

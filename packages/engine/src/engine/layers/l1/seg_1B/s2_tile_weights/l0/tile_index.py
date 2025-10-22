@@ -19,6 +19,7 @@ class TileIndexPartition:
     parameter_hash: str
     path: Path
     frame: pl.DataFrame
+    byte_size: int
 
     @property
     def rows(self) -> int:
@@ -38,7 +39,7 @@ def load_tile_index_partition(
     base_path: Path,
     parameter_hash: str,
     dictionary: Mapping[str, object],
-) -> TileIndexPartition:
+    ) -> TileIndexPartition:
     """Resolve and load the ``tile_index`` partition for ``parameter_hash``."""
 
     partition_dir = resolve_dataset_path(
@@ -68,7 +69,15 @@ def load_tile_index_partition(
             f"failed to read tile_index partition '{partition_dir}': {exc}",
         ) from exc
 
-    expected_columns = {"country_iso", "tile_id", "pixel_area_m2"}
+    byte_size = sum(int(p.stat().st_size) for p in parquet_files)
+
+    expected_columns = {
+        "country_iso",
+        "tile_id",
+        "pixel_area_m2",
+        "raster_row",
+        "raster_col",
+    }
     missing = expected_columns.difference(set(frame.columns))
     if missing:
         raise err(
@@ -81,12 +90,15 @@ def load_tile_index_partition(
         pl.col("country_iso").cast(pl.Utf8).str.to_uppercase(),
         pl.col("tile_id").cast(pl.UInt64),
         pl.col("pixel_area_m2").cast(pl.Float64),
+        pl.col("raster_row").cast(pl.UInt32),
+        pl.col("raster_col").cast(pl.UInt32),
     )
 
     return TileIndexPartition(
         parameter_hash=parameter_hash,
         path=partition_dir,
         frame=frame,
+        byte_size=byte_size,
     )
 
 
