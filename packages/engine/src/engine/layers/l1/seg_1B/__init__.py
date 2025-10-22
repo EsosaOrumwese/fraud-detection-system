@@ -1,13 +1,43 @@
-"""Segment 1B package.
-
-The initial surface is intentionally small: only the S0 gate is exposed while
-the remaining states are implemented. Higher layers should import from this
-module rather than reaching into the nested ``l0``/``l1``/``l2`` structure.
-"""
+"""Segment 1B package exports."""
 
 from .s0_gate.l2.runner import S0GateRunner, GateInputs, GateResult
+from .s1_tile_index import (
+    InclusionRule,
+    RunnerConfig as S1RunnerConfig,
+    S1RunResult,
+    S1TileIndexRunner,
+    S1TileIndexValidator,
+    ValidatorConfig as S1ValidatorConfig,
+)
+from .s2_tile_weights import (
+    MassComputation,
+    PatCounters,
+    PreparedInputs,
+    RunnerConfig as S2RunnerConfig,
+    S2Error,
+    S2RunResult,
+    S2TileWeightsRunner,
+    S2TileWeightsValidator,
+    ValidatorConfig as S2ValidatorConfig,
+)
 
-# S1 Tile Index scaffolding lives under ``s1_tile_index`` and will export its
-# public surface once the state implementation is in place.
-
-__all__ = ["S0GateRunner", "GateInputs", "GateResult"]
+__all__ = [
+    "S0GateRunner",
+    "GateInputs",
+    "GateResult",
+    "InclusionRule",
+    "S1RunnerConfig",
+    "S1RunResult",
+    "S1TileIndexRunner",
+    "S1TileIndexValidator",
+    "S1ValidatorConfig",
+    "MassComputation",
+    "PatCounters",
+    "PreparedInputs",
+    "S2RunnerConfig",
+    "S2RunResult",
+    "S2TileWeightsRunner",
+    "S2TileWeightsValidator",
+    "S2ValidatorConfig",
+    "S2Error",
+]

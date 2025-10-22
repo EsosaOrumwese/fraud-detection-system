@@ -1,6 +1,7 @@
 """L2 orchestration scaffolding for Segment 1B S2 (Tile Weights)."""
 
 from __future__ import annotations
+import time
 import json
 import shutil
 import uuid
@@ -255,6 +256,64 @@ class S2TileWeightsRunner:
             pat=prepared.pat,
         )
         return MassComputation(frame=frame)
+
+    def measure_baselines(self, prepared: PreparedInputs, *, measure_raster: bool = False) -> None:
+        """Measure sustained read throughput for PAT baselines."""
+
+        def _stream_read(path: Path) -> tuple[int, float]:
+            chunk_size = 4 * 1024 * 1024
+            total = 0
+            start = time.perf_counter()
+            with path.open("rb") as handle:
+                while True:
+                    data = handle.read(chunk_size)
+                    if not data:
+                        break
+                    total += len(data)
+            elapsed = time.perf_counter() - start
+            if elapsed <= 0.0:
+                elapsed = 1e-6
+            return total, elapsed
+
+        files = sorted(prepared.tile_index.path.glob("*.parquet"))
+        if files:
+            total = 0
+            elapsed = 0.0
+            for file_path in files:
+                size, duration = _stream_read(file_path)
+                total += size
+                elapsed += duration
+            if elapsed > 0.0:
+                prepared.pat.io_baseline_ti_bps = total / elapsed
+
+        iso_path = resolve_dataset_path(
+            "iso3166_canonical_2024",
+            base_path=prepared.data_root,
+            template_args={},
+            dictionary=prepared.dictionary,
+        )
+        if iso_path.exists():
+            size, duration = _stream_read(iso_path)
+            prepared.pat.vector_bytes_reference = max(prepared.pat.vector_bytes_reference, size)
+            if duration > 0.0:
+                prepared.pat.io_baseline_vectors_bps = size / duration
+
+        if measure_raster:
+            raster_path = resolve_dataset_path(
+                "population_raster_2025",
+                base_path=prepared.data_root,
+                template_args={},
+                dictionary=prepared.dictionary,
+            )
+            if raster_path.exists():
+                size, duration = _stream_read(raster_path)
+                prepared.pat.raster_bytes_reference = max(prepared.pat.raster_bytes_reference, size)
+                if duration > 0.0:
+                    prepared.pat.io_baseline_raster_bps = size / duration
+
+        prepared.pat.cpu_seconds_total = max(prepared.pat.cpu_seconds_total, 0.0)
+        prepared.pat.wall_clock_seconds_total = max(prepared.pat.wall_clock_seconds_total, 0.0)
+
 
     def quantise(self, prepared: PreparedInputs, masses: MassComputation) -> QuantisationResult:
         result = quantise_tile_weights(mass_frame=masses.frame, dp=prepared.governed.dp)

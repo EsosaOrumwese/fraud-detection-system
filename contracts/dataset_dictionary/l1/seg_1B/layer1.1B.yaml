@@ -197,3 +197,21 @@ datasets:
     retention_days: 365
     pii: false
     license: Proprietary-Internal
+
+  tile_weights:
+    status: draft
+    owner_subsegment: 1B
+    description: Fixed-decimal tile weights per eligible tile.
+    version: '{parameter_hash}'
+    format: parquet
+    path: data/layer1/1B/tile_weights/parameter_hash={parameter_hash}/
+    partitioning: [parameter_hash]
+    ordering: [country_iso, tile_id]
+    schema_ref: schemas.1B.yaml#/prep/tile_weights
+    lineage:
+      produced_by: 1B.S2
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal

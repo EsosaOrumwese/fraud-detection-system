@@ -171,3 +171,32 @@ prep:
         maximum: 90.0
         nullable: false
         description: Northern latitude bound of the tile rectangle (degrees, WGS84).
+
+  tile_weights:
+    type: table
+    description: Fixed-decimal weights per tile produced by S2.
+    primary_key: [country_iso, tile_id]
+    partition_keys: [parameter_hash]
+    sort_keys: [country_iso, tile_id]
+    columns_strict: true
+    columns:
+      - name: country_iso
+        $ref: '#/$defs/iso2'
+        nullable: false
+        description: ISO-3166-1 alpha-2 code for the owning country.
+      - name: tile_id
+        $ref: '#/$defs/uint64'
+        nullable: false
+        description: Global tile identifier matching tile_index.tile_id.
+      - name: weight_fp
+        $ref: '#/$defs/uint64'
+        nullable: false
+        description: Fixed-dp integer weight allocated to the tile.
+      - name: dp
+        $ref: '#/$defs/uint32'
+        nullable: false
+        description: Decimal precision exponent applied to all rows in the partition.
+      - name: zero_mass_fallback
+        type: boolean
+        nullable: false
+        description: True when the per-country zero-mass uniform fallback was applied.
