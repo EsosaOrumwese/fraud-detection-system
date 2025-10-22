@@ -31,7 +31,7 @@ Key words **MUST/SHALL/SHOULD/MAY** are normative. Unless explicitly marked *Inf
 
 ## 1.4 Compatibility window (assumed baselines)
 
-S6 v1.* assumes the following remain on their **v1.* line**; a **MAJOR** bump in any requires S6 re-ratification:
+S6 assumes the following remain on their **line**; a **MAJOR** bump in any requires S6 re-ratification:
 
 * `schemas.layer1.yaml` (RNG envelope/events) and `schemas.1B.yaml` (S6 table).  
 * `dataset_dictionary.layer1.1B.yaml` (IDs, canonical paths/partitions for S5/S6). 
@@ -233,11 +233,13 @@ The **Dictionary** entry for `s6_site_jitter` binds the **path family** and repe
 ## 6.2 RNG event stream (shape authority)
 
 **ID → Schema:** `rng_event_in_cell_jitter` → `schemas.layer1.yaml#/rng/events/in_cell_jitter`.
-This anchor inherits the **layer RNG envelope** (shared `$defs.rng_envelope`) and pins the per-event fields for S6 jitter events: `module="1B.S6.jitter"`, `substream_label="in_cell_jitter"`, `merchant_id`, `legal_country_iso`, `site_order`. **As of v1.2, the event schema constrains `blocks: 1` and `draws: "2"`** (two uniforms per event).
+This anchor inherits the **layer RNG envelope** (shared `$defs.rng_envelope`) and pins the per-event fields for S6 jitter events: `module="1B.S6.jitter"`, `substream_label="in_cell_jitter"`, `merchant_id`, `legal_country_iso`, `site_order`. **The event schema constrains `blocks: 1` and `draws: "2"`** (two uniforms per event).
 The **RNG envelope** defines required lineage + accounting fields (`ts_utc` RFC-3339 with exactly 6 fractional digits, `run_id`, `seed`, `parameter_hash`, `manifest_fingerprint`, counters, `draws` as **dec-u128 string**, `blocks` as **u64**). 
 
 The **Dictionary** entry binds the **path family** and partitions for this stream:
 `logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` (partitions `[seed, parameter_hash, run_id]`). 
+
+**Uniform lane note (Binding).** When using the **uniform-in-pixel** lane, implementations **MUST** set `sigma_lat_deg = 0.0` and `sigma_lon_deg = 0.0` in each `in_cell_jitter` event. These fields remain present for schema stability but are **non-authoritative** in this lane; distributional authority is enforced by acceptance (**A606/A607**).
 
 > **Compatibility note (Binding):** S6’s behavioural spec uses **uniform in-pixel + bounded resample**; however, **the current event anchor still pins `draws="2"` and `blocks=1`**. S6 MUST comply with this shape. Any future change to log per-site resample attempts would require a **MINOR** schema/stream addition; until then, attempts are surfaced via run-report metrics, not per-event `draws`. 
 
@@ -401,7 +403,7 @@ A run **PASSES** S6 only if **all** checks below succeed. Shapes/paths/partition
 **Detection.** JSON-Schema validate S6 files; reject unknown/missing columns or invalid values (e.g., delta guards if present). 
 
 ## A603 — Partition & identity law *(Binding)*
-
+**Cross-surface lineage.** For every `in_cell_jitter` event, assert that the embedded `manifest_fingerprint` equals the S6 dataset partition’s `fingerprint` token for the same run.
 **Rule.** S6 dataset lives at
 `…/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` with **partitions** `[seed, fingerprint, parameter_hash]`; embedded lineage (when present) byte-equals path tokens (**path↔embed equality**).
 **Detection.** Derive identity from the path and compare to any embedded lineage fields (must match). 
@@ -432,8 +434,8 @@ A run **PASSES** S6 only if **all** checks below succeed. Shapes/paths/partition
 **Detection.** For every site key in S6: verify **event_count ≥ 1** and joinability; verify partitions and basic envelope fields.
 
 ## A613 — Last event corresponds to accepted sample *(Binding)*
-**Rule.** For each site, the **last** event (by per-site event order derived from envelope counters or append order within run_id) corresponds to the **accepted** `(delta_lat_deg, delta_lon_deg)` written to S6.
-**Detection:** Order per-site events by envelope counters (`rng_counter_before/after`) and assert **monotonicity**; since the event schema does not carry uniforms or per-event deltas, validators treat “last event corresponds to the accepted sample” as an **implementation invariant**. Behavioural outcome remains enforced via **A606/A607** (inside pixel & inside country).
+**Rule.** For each site, the **last** event (by per-site order derived from envelope counters) corresponds to the **accepted** `(delta_lat_deg, delta_lon_deg)` written to S6.
+**Detection:** For each site key `(merchant_id, legal_country_iso, site_order)`, select the **last** `in_cell_jitter` event by the tuple `(rng_counter_after_hi, rng_counter_after_lo)`; if tied, pick the one with the latest `ts_utc`. Assert that counters are strictly **monotonic** within the site’s event sequence. Then assert the event’s `delta_lat_deg`/`delta_lon_deg` **exactly equal** the S6 row’s `(delta_lat_deg, delta_lon_deg)`. **Fail** on any mismatch.
 
 ## A609 — RNG budget & counters *(Binding)*
 
@@ -557,9 +559,9 @@ A run **PASSES** S6 only if **all** checks below succeed. Shapes/paths/partition
 
 **Notes (binding references used by these validators):**
 
-* `s6_site_jitter` path & partitions, writer-sort: Dictionary (v1.9). 
+* `s6_site_jitter` path & partitions, writer-sort: Dictionary. 
 * `in_cell_jitter` log path & partitions: Dictionary/Registry; **events are per attempt (≥1 per site)**; per-event budget `blocks=1`, `draws="2"`.  
-* FK hint to `tile_index` with `partition_keys: ['parameter_hash']`: Schema (v2.4). 
+* FK hint to `tile_index` with `partition_keys: ['parameter_hash']`: Schema. 
 * RNG envelope requirements (`draws` dec-u128 string, `blocks` u64, counter delta law): Layer schema. 
 
 ---
@@ -767,7 +769,7 @@ The following **SHALL** be treated as **MAJOR** and require re-ratification of S
 The following are **MINOR** only if strictly backward-compatible:
 
 * **Observability/diagnostics:** adding optional run-report fields, per-country histograms, or non-authoritative metrics (no schema for datasets/logs changed). 
-* **Registry/doc notes:** correcting Registry roles/notes without altering schema/paths (e.g., removing `jitter_policy` from S6 dependencies in Registry v1.7 text — S6 uniform lane does not consume it). 
+* **Registry/doc notes:** correcting Registry roles/notes without altering schema/paths (e.g., removing `jitter_policy` from S6 dependencies in Registry — S6 uniform lane does not consume it). 
 * **Loosening numeric guards:** widening S6 delta bounds (e.g., from `[-1,1]` to `[-1.5,1.5]`) only if all existing valid rows remain valid. Tightening is **MAJOR**. 
 * **Run-report delivery:** surfacing the same counters via an additional non-identity file (S7 will own any bundle schema).
 
@@ -777,7 +779,7 @@ The following are **MINOR** only if strictly backward-compatible:
 
 ## 13.5 Compatibility baselines (this spec line)
 
-S6 v1.* is validated against the following **frozen** surfaces:
+S6 is validated against the following **frozen** surfaces:
 
 * **Schema (1B):** `schemas.1B.yaml` — `s6_site_jitter` anchor (PK, partitions `[seed,fingerprint,parameter_hash]`, writer-sort, `columns_strict`). 
 * **Dictionary (1B):** `dataset_dictionary.layer1.1B.yaml` — IDs→paths/partitions for `s6_site_jitter` and `rng_event_in_cell_jitter`, retentions (365d / 30d). 
@@ -817,7 +819,7 @@ A **MAJOR** bump in any of the above that changes a bound interface requires an 
 * **seed** — 64-bit unsigned integer that parameterises all RNG substreams for the run. Appears in dataset partitions and RNG log partitions.  
 * **parameter_hash** — 256-bit hex string (formatted) identifying the sealed parameter bundle; appears in both dataset and RNG log partitions. 
 * **manifest_fingerprint** — 256-bit hex string (formatted) fingerprint of the run manifest; **path token** is `fingerprint={manifest_fingerprint}`; **embedded column** remains `manifest_fingerprint` when present. 
-* **run_id** — opaque identifier (string/hex) for the RNG-log partition; one `run_id` per publish under `[seed, parameter_hash, run_id]`. 
+* **run_id** — Lowercase **hex32** identifier for the RNG-log partition; one `run_id` per publish under `[seed, parameter_hash, run_id]`.
 
 ## A.3 Datasets, logs, partitions (dictionary law)
 
@@ -906,19 +908,19 @@ This appendix is **informative** only; the **Schema** remains the sole authority
 seed                    = 987654321
 parameter_hash          = "7b1e6e0f1b9a4ac2bb8f2b1a0d88c0e2c9f9c4d1f3a2b5c6d7e8f90123456789"   # hex64
 manifest_fingerprint    = "f2c0a4d3b1e5907e8f66caa9d4e1b2c3f4a5968790b1c2d3e4f5a6b7c8d9e0f1"   # hex64
-run_id                  = "r20251021a"
+run_id                  = "a7e2c4f91d0b7e2a3c5f6b7a8d9e0f12"
 ```
 
 **Partitions used**
 
 * S6 dataset: `…/s6_site_jitter/seed=987654321/fingerprint=f2c0…/parameter_hash=7b1e…/`
-* RNG events: `…/in_cell_jitter/seed=987654321/parameter_hash=7b1e…/run_id=r20251021a/`
+* RNG events: `…/in_cell_jitter/seed=987654321/parameter_hash=7b1e…/run_id=a7e2c4f91d0b7e2a3c5f6b7a8d9e0f12/`
 
 ---
 
 ## B.2 Inputs (one interior tile example)
 
-**S5 site key:** `(merchant_id="m000001", legal_country_iso="GB", site_order=1, tile_id=240104)`
+**S5 site key:** `(merchant_id=1, legal_country_iso="GB", site_order=1, tile_id=240104)`
 
 **S1 `tile_index` (tile_id=240104)**
 
@@ -983,10 +985,15 @@ delta_lat_deg = lat* − centroid_lat_deg =  51.50522945 − 51.525000 = -0.0197
   "ts_utc": "2025-10-21T08:52:34.123456Z",
   "seed": 987654321,
   "parameter_hash": "7b1e6e0f1b9a4ac2bb8f2b1a0d88c0e2c9f9c4d1f3a2b5c6d7e8f90123456789",
-  "run_id": "r20251021a",
-  "merchant_id": "m000001",
+  "manifest_fingerprint": "f2c0a4d3b1e5907e8f66caa9d4e1b2c3f4a5968790b1c2d3e4f5a6b7c8d9e0f1",
+  "run_id": "a7e2c4f91d0b7e2a3c5f6b7a8d9e0f12",
+  "merchant_id": 1,
   "legal_country_iso": "GB",
   "site_order": 1,
+  "sigma_lat_deg": 0.0,
+  "sigma_lon_deg": 0.0,
+  "delta_lat_deg": -0.01977055,
+  "delta_lon_deg":  0.01162105,  
   "rng_counter_before_lo": "12345678901234567890",
   "rng_counter_before_hi": "0",
   "rng_counter_after_lo":  "12345678901234567891",
@@ -1005,8 +1012,8 @@ Envelope law holds: `u128(after) − u128(before) = 1 (blocks)`; `draws="2"`.
 *(Columns owned by `schemas.1B.yaml#/plan/s6_site_jitter`; shown here as a CSV-style rendering for readability.)*
 
 | merchant_id | legal_country_iso | site_order | tile_id | delta_lat_deg | delta_lon_deg | manifest_fingerprint                                             |
-| ----------- | ----------------- | ---------: | ------: | ------------: | ------------: | ---------------------------------------------------------------- |
-| m000001     | GB                |          1 |  240104 |   -0.01977055 |    0.01162105 | f2c0a4d3b1e5907e8f66caa9d4e1b2c3f4a5968790b1c2d3e4f5a6b7c8d9e0f1 |
+|-------------|-------------------|-----------:|--------:|--------------:|--------------:|------------------------------------------------------------------|
+| 1           | GB                |          1 |  240104 |   -0.01977055 |    0.01162105 | f2c0a4d3b1e5907e8f66caa9d4e1b2c3f4a5968790b1c2d3e4f5a6b7c8d9e0f1 |
 
 **Partition path:**
 `…/s6_site_jitter/seed=987654321/fingerprint=f2c0…/parameter_hash=7b1e…/part-0000.snappy.parquet`
@@ -1017,7 +1024,7 @@ Writer sort (`merchant_id, legal_country_iso, site_order`) is respected.
 
 ## B.6 Validator perspective (what will PASS here)
 
-* **A601 Row parity:** `|S6| == |S5|` for the key `(m000001,GB,1)` ✅
+* **A601 Row parity:** `|S6| == |S5|` for the key `(1,GB,1)` ✅
 * **A602 Schema:** row validates; columns_strict honored ✅
 * **A603 Partition & identity:** path partitions match, and the embedded `manifest_fingerprint` equals `fingerprint` ✅
 * **A604 Writer sort:** non-decreasing by `[merchant_id, legal_country_iso, site_order]` ✅
@@ -1038,7 +1045,7 @@ Writer sort (`merchant_id, legal_country_iso, site_order`) is respected.
     "seed": 987654321,
     "parameter_hash": "7b1e6e0f1b9a4ac2bb8f2b1a0d88c0e2c9f9c4d1f3a2b5c6d7e8f90123456789",
     "manifest_fingerprint": "f2c0a4d3b1e5907e8f66caa9d4e1b2c3f4a5968790b1c2d3e4f5a6b7c8d9e0f1",
-    "run_id": "r20251021a"
+    "run_id": "a7e2c4f91d0b7e2a3c5f6b7a8d9e0f12"
   },
   "counts": {
     "sites_total": 1,
