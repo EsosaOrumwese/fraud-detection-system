@@ -7,8 +7,9 @@ This router tells you what is binding, what to read first, and which parts of th
 
 ## 0) Scope (you are here)
 - Package: `packages/engine`
-- Active build: Layer-1 → Segment **1B** → States **S0-S9**
+- Active build: Layer-1 / Segment **1B** / States **S0-S9**
 - Sealed references: Segment 1A S0-S9 (authority surfaces for 1B inputs)
+- Binding specs: 1B expanded state documents and contract artefacts are published; dataset previews remain intentionally omitted.
 - Other segments (2A...4B) remain locked until explicitly opened.
 
 ---
@@ -28,11 +29,13 @@ Read these in order before touching code so you align with the frozen specs.
 - `docs/model_spec/data-engine/specs/state-flow/1B/s#*.expanded.md`
   - No archived pseudocode—derive L0/L1/L2/L3 from the expanded spec.
 
-**D. Data-intake specs (structure & intent)**
-- `docs/model_spec/data-engine/specs/data-intake/1B/preview|data/*.md` (when unlocked)
+**D. Data-intake guidance (structure & intent)**
+- No preview/data doc for 1B. Infer dataset posture straight from the state-flow specs and contract registry.
 
 **E. Contract specs (blueprints for `contracts/`)**
-- `docs/model_spec/data-engine/specs/contracts/1B/` (authoritative once published)
+- `docs/model_spec/data-engine/specs/contracts/1B/artefact_registry_1B.yaml`
+- `docs/model_spec/data-engine/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml`
+- `docs/model_spec/data-engine/specs/contracts/1B/schemas.1B.yaml`
 
 > Never promote narratives, previews, or samples to binding authority. Only the expanded specs and contract documents govern code.
 
@@ -63,6 +66,7 @@ Read these in order before touching code so you align with the frozen specs.
 
 ## 5) Segment 1B quick references (initial)
 - **State overview:** `docs/model_spec/data-engine/specs/state-flow/1B/state-flow-overview.1B.md`
+- **Contract artefacts:** `docs/model_spec/data-engine/specs/contracts/1B/{artefact_registry_1B.yaml,dataset_dictionary.layer1.1B.yaml,schemas.1B.yaml}`
 - **State flow short labels:**
   - S0 Gate in (verify 1A `_passed.flag`, load outlet catalogue)
   - S1 Country tiling (eligible raster/polygon grid)
@@ -76,6 +80,7 @@ Read these in order before touching code so you align with the frozen specs.
   - S9 Validation bundle (`validation_bundle_1B/...`, `_passed.flag`)
 - **RNG envelope:** reuse the 1A Philox/open-interval contract (`engine.layers.l1.seg_1A.s9_validation` is the reference implementation).
 - **Validation hash rule:** `_passed.flag` remains `sha256_hex = <digest>` over bundle files in ASCII-lexicographic order (same as 1A).
+- **Dataset preview:** intentionally omitted—derive expectations from the expanded specs and contract dictionary.
 
 Extend this section with concrete CLIs, policy paths, and test commands as you implement each state.
 
@@ -88,4 +93,3 @@ Extend this section with concrete CLIs, policy paths, and test commands as you i
 - Keep logging informative—mirror the Segment 1A CLI/orchestrator patterns so smoke tests stay readable.
 
 _This router remains command-free by design. Execution strategy, test harness, and internal folder improvements stay up to you while respecting the governing specs._
-
