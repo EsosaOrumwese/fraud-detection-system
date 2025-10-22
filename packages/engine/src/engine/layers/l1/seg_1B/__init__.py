@@ -12,13 +12,22 @@ from .s1_tile_index import (
 from .s2_tile_weights import (
     MassComputation,
     PatCounters,
-    PreparedInputs,
+    PreparedInputs as S2PreparedInputs,
     RunnerConfig as S2RunnerConfig,
     S2Error,
     S2RunResult,
     S2TileWeightsRunner,
     S2TileWeightsValidator,
     ValidatorConfig as S2ValidatorConfig,
+)
+from .s3_requirements import (
+    AggregationResult as S3AggregationResult,
+    PreparedInputs as S3PreparedInputs,
+    RunnerConfig as S3RunnerConfig,
+    S3Error,
+    S3RequirementsRunner,
+    compute_requirements as s3_compute_requirements,
+    prepare_inputs as s3_prepare_inputs,
 )
 
 __all__ = [
@@ -33,7 +42,7 @@ __all__ = [
     "S1ValidatorConfig",
     "MassComputation",
     "PatCounters",
-    "PreparedInputs",
+    "S2PreparedInputs",
     "S2RunnerConfig",
     "S2RunResult",
     "S2TileWeightsRunner",
@@ -41,4 +50,11 @@ __all__ = [
     "S2ValidatorConfig",
     "S2ValidatorConfig",
     "S2Error",
+    "S3AggregationResult",
+    "S3PreparedInputs",
+    "S3RunnerConfig",
+    "S3RequirementsRunner",
+    "S3Error",
+    "s3_compute_requirements",
+    "s3_prepare_inputs",
 ]

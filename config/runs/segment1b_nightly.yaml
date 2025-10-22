@@ -1,5 +1,11 @@
 # Segment 1B nightly run configuration
 # Fill in the placeholder paths before scheduling this job.
+# State coverage (after S3 implementation):
+#   - S0 revalidates the 1A bundle for the manifest fingerprint.
+#   - S1+S2 read/write under parameter_hash; S3 will emit deterministic site counts at
+#     data/layer1/1B/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+#   - Control-plane artefacts (run reports, determinism receipts) should live outside the dataset
+#     partitions, e.g. control/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
 runs:
   - parameter_hash: "<replace-with-parameter-hash>"
     data_root: "<absolute-path-to-nightly-root>"
@@ -9,4 +15,4 @@ runs:
     manifest_fingerprint: "<manifest-fingerprint-from-S0>"
     seed: "<seed-from-S0>"
     validation_bundle: "<path-to-1A-validation-bundle>"
-    notes: "nightly smoke"
+    notes: "nightly smoke" # Update with S3 run report location once available (see header notes)
