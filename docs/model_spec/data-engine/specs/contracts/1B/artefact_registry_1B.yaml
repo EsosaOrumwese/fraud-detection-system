@@ -297,6 +297,26 @@ subsegments:
       Writer sort: [merchant_id, legal_country_iso, site_order]
       Write-once; atomic move; file order non-authoritative.
 
+  - name: s7_site_synthesis
+    path: data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    type: dataset
+    category: prep
+    semver: '{semver}'
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1B.s7.site_synthesis
+    license: Proprietary-Internal
+    role: "Deterministic stitch of S5+S6 into per-site absolutes (RNG-free); 1:1 coverage with 1A outlet_catalogue; ready for S8."
+    dependencies: [s5_site_tile_assignment, s6_site_jitter, tile_index, iso3166_canonical_2024, s0_gate_receipt_1B]
+    source: internal
+    owner: { owner_team: "mlr-1b-core" }
+    environment: [runtime]
+    schema: schemas.1B.yaml#/plan/s7_site_synthesis
+    notes: |
+      Partitioning: seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
+      Writer sort: [merchant_id, legal_country_iso, site_order]
+      Write-once; atomic move; file order non-authoritative.
+
   - name: tile_bounds
     path: data/layer1/1B/tile_bounds/parameter_hash={parameter_hash}/
     type: dataset
