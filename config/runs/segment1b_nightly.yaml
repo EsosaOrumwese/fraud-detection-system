@@ -1,0 +1,12 @@
+# Segment 1B nightly run configuration
+# Fill in the placeholder paths before scheduling this job.
+runs:
+  - parameter_hash: "<replace-with-parameter-hash>"
+    data_root: "<absolute-path-to-nightly-root>"
+    dictionary: "<absolute-path-to-seg1b-dictionary.yaml>"
+    basis: "uniform"       # or "area_m2" / "population"
+    dp: 2
+    manifest_fingerprint: "<manifest-fingerprint-from-S0>"
+    seed: "<seed-from-S0>"
+    validation_bundle: "<path-to-1A-validation-bundle>"
+    notes: "nightly smoke"
