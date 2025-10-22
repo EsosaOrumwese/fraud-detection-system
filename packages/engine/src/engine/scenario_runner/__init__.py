@@ -1,6 +1,7 @@
 """Scenario runner helpers."""
 
 from .l1_seg_1A import Segment1AOrchestrator
+from .l1_seg_1B import Segment1BConfig, Segment1BOrchestrator, Segment1BResult
 from .l1_seg_1A_contexts import (
     HurdleStateContext,
     S2StateContext,
@@ -35,6 +36,9 @@ __all__ = [
     "S9StateContext",
     "Segment1AOrchestrator",
     "Segment1ARunResult",
+    "Segment1BConfig",
+    "Segment1BOrchestrator",
+    "Segment1BResult",
     "build_hurdle_context",
     "build_s2_context",
     "build_s3_context",

@@ -39,5 +39,6 @@ __all__ = [
     "S2TileWeightsRunner",
     "S2TileWeightsValidator",
     "S2ValidatorConfig",
+    "S2ValidatorConfig",
     "S2Error",
 ]
