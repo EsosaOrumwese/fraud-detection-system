@@ -1,0 +1,163 @@
+version: '1.0'
+
+lifecycle:
+  phase: alpha
+  last_reviewed: 2025-10-18
+  approver: "Layer 1 Governance"
+
+ci_policy:
+  allow_placeholders: true
+  placeholder_markers: [TBD, null]
+  block_on_phase: [beta, stable]
+
+layer:
+  id: layer1
+  name: Merchant Location Realism
+
+reference_data:
+  iso3166_canonical_2024:
+    status: approved
+    owner_subsegment: ingress
+    description: Canonical ISO 3166-1 alpha-2 list for FK checks.
+    version: '2024-12-31'
+    format: parquet
+    path: reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet
+    partitioning: []
+    ordering: []
+    schema_ref: schemas.ingress.layer1.yaml#/iso3166_canonical_2024
+    lineage:
+      produced_by:
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 1095
+    pii: false
+    license: CC-BY-4.0
+
+  world_countries:
+    status: approved
+    owner_subsegment: ingress
+    description: Country polygons (GeoParquet) used by 1B.
+    version: '2024'
+    format: parquet
+    path: reference/spatial/world_countries/2024/world_countries.parquet
+    partitioning: []
+    ordering: []
+    schema_ref: schemas.ingress.layer1.yaml#/world_countries
+    lineage:
+      produced_by:
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 1095
+    pii: false
+    license: ODbL-1.0
+
+  population_raster_2025:
+    status: approved
+    owner_subsegment: ingress
+    description: Population raster (COG) used as spatial prior in 1B.
+    version: '2025'
+    format: cog_geotiff
+    path: reference/spatial/population/2025/population.tif
+    partitioning: []
+    ordering: []
+    schema_ref: schemas.ingress.layer1.yaml#/population_raster_2025
+    lineage:
+      produced_by:
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 1095
+    pii: false
+    license: ODbL-1.0
+
+  tz_world_2025a:
+    status: approved
+    owner_subsegment: ingress
+    description: Time-zone polygons used by 1B for civil-time legality checks.
+    version: '2025a'
+    format: parquet
+    path: reference/spatial/tz_world/2025a/tz_world.parquet
+    partitioning: []
+    ordering: []
+    schema_ref: schemas.ingress.layer1.yaml#/tz_world_2025a
+    lineage:
+      produced_by:
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 1095
+    pii: false
+    license: ODbL-1.0
+
+  validation_bundle_1A:
+    status: approved
+    owner_subsegment: 1A
+    description: 1A validator outputs for the fingerprint (basis of consumer gate for outlet_catalogue).
+    version: '{manifest_fingerprint}'
+    format: directory
+    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.1A.yaml#/validation/validation_bundle
+    lineage:
+      produced_by: 1A.S9
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+    notes: 'S0 computes SHA-256 over ASCII-lex index listing (flag excluded); presence of _passed.flag gates outlet_catalogue.'
+
+  outlet_catalogue:
+    status: approved
+    owner_subsegment: 1A
+    description: Immutable outlet stubs; order-free (join S3 for inter-country order).
+    version: '{manifest_fingerprint}'
+    format: parquet
+    path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitioning: [seed, fingerprint]
+    ordering: [merchant_id, legal_country_iso, site_order]
+    schema_ref: schemas.1A.yaml#/egress/outlet_catalogue
+    lineage:
+      produced_by: 1A
+      consumed_by: [1B]
+      final_in_layer: true
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+    notes: 'Read only after verifying 1A bundle flag (_passed.flag). No PASS → no read.'
+
+  s3_candidate_set:
+    status: approved
+    owner_subsegment: 1A
+    description: Sole inter-country order authority (join on candidate_rank; home=0).
+    version: '{parameter_hash}'
+    format: parquet
+    path: data/layer1/1A/s3_candidate_set/parameter_hash={parameter_hash}/
+    partitioning: [parameter_hash]
+    ordering: []
+    schema_ref: schemas.1A.yaml#/s3/candidate_set
+    lineage:
+      produced_by: 1A
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
+datasets:
+  s0_gate_receipt_1B:
+    status: approved
+    owner_subsegment: 1B
+    description: Fingerprint-scoped receipt proving 1A PASS verification; enumerates sealed inputs for 1B.
+    version: '{manifest_fingerprint}'
+    format: json
+    path: data/layer1/1B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.1B.yaml#/validation/s0_gate_receipt
+    lineage:
+      produced_by: 1B.S0
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal

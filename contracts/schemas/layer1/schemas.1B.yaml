@@ -1,0 +1,70 @@
+$id: schemas.1B.yaml
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Segment 1B Schemas
+version: '1.0'
+description: >
+  Canonical schemas for Layer-1 Segment 1B artefacts. This initial snapshot
+  covers the S0 gate receipt; additional states extend this file as they
+  ratify.
+
+$defs:
+  hex64:
+    type: string
+    pattern: ^[a-f0-9]{64}$
+    description: Lowercase hexadecimal SHA-256 digest (64 hex characters).
+
+  rfc3339_micros:
+    type: string
+    pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z$
+    description: RFC3339 UTC timestamp with exactly six fractional digits and trailing 'Z'.
+
+validation:
+  s0_gate_receipt:
+    type: object
+    additionalProperties: false
+    required:
+      - manifest_fingerprint
+      - validation_bundle_path
+      - flag_sha256_hex
+      - verified_at_utc
+      - sealed_inputs
+    properties:
+      manifest_fingerprint:
+        $ref: '#/$defs/hex64'
+        description: Lineage fingerprint (MUST byte-equal the fingerprint path token).
+      validation_bundle_path:
+        type: string
+        pattern: ^data/layer1/1A/validation/fingerprint=[a-f0-9]{64}/?$
+        description: Resolved folder containing the verified 1A validation bundle.
+      flag_sha256_hex:
+        $ref: '#/$defs/hex64'
+        description: SHA-256 digest recovered from _passed.flag after recomputation.
+      verified_at_utc:
+        $ref: '#/$defs/rfc3339_micros'
+        description: UTC timestamp when the gate verification completed.
+      sealed_inputs:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required:
+            - id
+            - schema_ref
+          properties:
+            id:
+              type: string
+              minLength: 1
+            partition:
+              type: array
+              items:
+                type: string
+                minLength: 1
+              description: Partition key names governing this dataset.
+            schema_ref:
+              type: string
+              minLength: 1
+          description: Declared input dataset authorised for 1B consumption.
+      notes:
+        type: string
+        description: Optional freeform commentary (non-semantic).
