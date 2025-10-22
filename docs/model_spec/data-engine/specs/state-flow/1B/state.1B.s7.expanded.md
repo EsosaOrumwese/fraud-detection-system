@@ -19,7 +19,7 @@ Key words **MUST, MUST NOT, SHALL, SHALL NOT, SHOULD, SHOULD NOT, MAY** are norm
 S7 is written against—and assumes—these frozen surfaces are in effect:
 
 * **Upstream datasets (1B):** `s5_site_tile_assignment` and `s6_site_jitter` with partitions `[seed, fingerprint, parameter_hash]`, writer-sorts fixed by Schema/Dictionary, and write-once/atomic-move posture.  
-* **Authoritative geometry (S1):** `tile_index`/`tile_bounds` partitioned by `[parameter_hash]` (read-only to S7). 
+* **Authoritative geometry (S1):** `tile_bounds` partitioned by `[parameter_hash]` (read-only to S7).
 * **Gate law:** 1A egress is read only after verifying the fingerprint-scoped S0 receipt (**No PASS → No read**). 
 
 Any MAJOR change to those (e.g., partition keys, writer sort, identity semantics, or gate law) requires re-ratifying S7.  
@@ -164,7 +164,7 @@ S7 SHALL NOT read any surface outside §4.2 (e.g., priors, policies, or alternat
 **Content (owned by Schema):** one row per site key from S5, carrying at least:
 
 * `merchant_id, legal_country_iso, site_order, tile_id` (from S5);
-* effective deltas from S6 or reconstructed absolutes `(lon*,lat*)` as specified by the S7 anchor;
+* reconstructed **absolutes** `lon_deg, lat_deg` (WGS84 degrees) **as specified by the S7 anchor**; S6 remains the sole store of effective deltas;
 * lineage fields as required by house style.
   (*Exact columns are defined by the S7 anchor; this spec does not restate them.*)
 
@@ -228,7 +228,7 @@ For each site key `(merchant_id, legal_country_iso, site_order)`:
 
 1. **Join S5 → S6 (1:1).** Inner-join `s5_site_tile_assignment` to `s6_site_jitter` on the site key; there MUST be **exactly one** S6 row per S5 row. (Both datasets are partitioned `[seed, fingerprint, parameter_hash]` and share the same writer sort.) 
 
-2. **Join S1 geometry (by tile).** Join the pair to S1 **tile geometry** for the **same `parameter_hash`** using `(legal_country_iso, tile_id)` to fetch `centroid` and `bounds` for the pixel. (Use the parameter-scoped S1 surface: `tile_bounds` or `tile_index`.)  
+2. **Join S1 geometry (by tile).** Join the pair to S1 **tile geometry** for the **same `parameter_hash`** using `(legal_country_iso, tile_id)` to fetch `centroid` and `bounds` for the pixel. (Use the parameter-scoped S1 surface: `tile_bounds`)  
 
 ## 7.3 Reconstruct absolutes (RNG-free)
 
@@ -297,7 +297,7 @@ Publish via **stage → fsync → single atomic move** into the identity partiti
 ## 8.7 Identity-coherence checks (must hold before publish)
 
 * **Receipt parity (fingerprint):** any S7 publish for `fingerprint=f` implies the S0 gate receipt for `f` exists and is valid (“No PASS → No read” discipline). 
-* **Parameter parity:** `parameter_hash` used in S7 equals the `parameter_hash` of the S1 geometry read (`tile_index`/`tile_bounds` are parameter-scoped). 
+* **Parameter parity:** `parameter_hash` used in S7 equals the `parameter_hash` of the S1 geometry read (**`tile_bounds`** is parameter-scoped). 
 * **Seed parity:** dataset `seed` equals the seed used by S5/S6 inputs (same identity tuple across 1B planning tables). 
 
 ## 8.8 Prohibitions (fail-closed)
@@ -333,12 +333,13 @@ A run **PASSES** S7 only if **all** checks below succeed.
 **Rule.** Non-decreasing `[merchant_id, legal_country_iso, site_order]` within each identity partition; file order non-authoritative.
 **Detection.** Scan per-file row order and merged partition order. 
 
-## A705 — Inside-pixel reconstruction
+## A705 — Reconstruct-equals-stored & inside-pixel
 
-**Rule.** Using S1 geometry for the same `parameter_hash`, reconstructed
-`lon* = centroid_lon_deg + delta_lon_deg`, `lat* = centroid_lat_deg + delta_lat_deg`
-lies inside the S1 rectangle for `(legal_country_iso, tile_id)`.
-**Detection.** Join S7→S1 **`tile_bounds`** and assert inclusive rectangle bounds (dateline semantics per S1).
+**Rule.** Using S1 geometry for the same `parameter_hash`, reconstruct
+`lon* = centroid_lon_deg + delta_lon_deg`, `lat* = centroid_lat_deg + delta_lat_deg`, then require:
+1) **Binary64 equality** (per S0 numeric policy) between `(lon*,lat*)` and stored `(lon_deg,lat_deg)`, **and**
+2) `(lon*,lat*)` lies **inside** the S1 rectangle for `(legal_country_iso, tile_id)`.
+**Detection.** Join S7→S1 **`tile_bounds`**; recompute `(lon*,lat*)` and assert **binary64 equality to `(lon_deg,lat_deg)`** and inclusive rectangle bounds (dateline semantics per S1).
 
 ## A706 — 1A coverage parity (read discipline)
 
@@ -405,7 +406,7 @@ lies inside the S1 rectangle for `(legal_country_iso, tile_id)`.
 ### E707_POINT_OUTSIDE_PIXEL — Reconstructed point outside S1 pixel *(ABORT)*
 
 **Trigger:** `lon* = centroid_lon_deg + delta_lon_deg`, `lat* = centroid_lat_deg + delta_lat_deg` fall **outside** S1 bounds for `(legal_country_iso, tile_id)`.
-**Detection:** Join to S1 geometry (`tile_bounds`/`tile_index`) for the same `parameter_hash`; assert inclusive rectangle bounds (S1 semantics).  
+**Detection:** Join to S1 geometry (**`tile_bounds`**) for the same `parameter_hash`; assert inclusive rectangle bounds (S1 semantics).  
 
 ### E708_1A_COVERAGE_FAIL — 1:1 coverage with `outlet_catalogue` not satisfied *(ABORT)*
 
@@ -414,8 +415,8 @@ lies inside the S1 rectangle for `(legal_country_iso, tile_id)`.
 
 ### E709_TILE_FK_VIOLATION — `(country,tile_id)` not in S1 geometry *(ABORT)*
 
-**Trigger:** `(legal_country_iso, tile_id)` in S7 does **not** exist in S1 `tile_index`/`tile_bounds` for the **same** `parameter_hash`.
-**Detection:** FK join to the parameter-scoped S1 surface fails.  
+**Trigger:** `(legal_country_iso, tile_id)` in S7 does **not** exist in S1 **`tile_bounds`** for the **same** `parameter_hash`.
+**Detection:** FK join to the parameter-scoped S1 surface (**`tile_bounds`**) fails.
 
 ### E710_ORDER_LEAK — Inter-country order encoded *(ABORT)*
 
@@ -477,7 +478,7 @@ If S7 reads 1A `outlet_catalogue` for coverage checks, it **MUST** first verify 
 
 * **S5** `s5_site_tile_assignment` — partitions `[seed,fingerprint,parameter_hash]`; writer sort `[merchant_id, legal_country_iso, site_order]`. 
 * **S6** `s6_site_jitter` — same partitions/sort. 
-* **S1** geometry (`tile_index`/`tile_bounds`) — parameter-scoped `[parameter_hash]`; sort `[country_iso, tile_id]`. 
+* **S1** geometry (**`tile_bounds`**) — parameter-scoped `[parameter_hash]`; sort `[country_iso, tile_id]`. 
 * **1A** `outlet_catalogue` (read only after PASS) — partitions `[seed,fingerprint]`; order-free. 
 
 ## 11.4 Emission & packaging posture
@@ -527,7 +528,7 @@ S7 SHALL expose a JSON object with at least these keys (values as defined above)
 ## 12.2 Join strategy (S5 ↔ S6 ↔ S1)
 
 * **Sorted streams.** S5 and S6 share the same partitions and writer-sort, enabling **streaming inner-joins** on the site PK without global shuffles. 
-* **Parameter-scoped geometry.** Cache S1 geometry (`tile_index`/`tile_bounds`) **per `parameter_hash`** as a keyed map `(country_iso, tile_id) → {centroid, bounds}` to avoid repeated parquet scans. (S1 geometry is partitioned by `[parameter_hash]` with sort `[country_iso, tile_id]`.) 
+* **Parameter-scoped geometry.** Cache S1 geometry (**`tile_bounds`**) **per `parameter_hash`** as a keyed map `(country_iso, tile_id) → {centroid, bounds}` to avoid repeated parquet scans.
 * **Border-only checks (optional micro-optimisation).** If you maintain a “border-tile bitset” from S1, you can skip repeat rectangle checks for tiles known to be interior; S7 still revalidates *inside-pixel* cheaply.
 
 ## 12.3 Geometry & numerics
@@ -594,7 +595,7 @@ Changes that can invalidate previously valid runs or alter identity/shape/gates:
 
 4. **Authority surfaces / semantics**
 
-   * Replacing or re-scoping S1 geometry surfaces used here (e.g., `tile_bounds`/`tile_index` partitioned by **`[parameter_hash]`**). 
+   * Replacing or re-scoping S1 geometry surfaces used here (e.g., `tile_bounds` partitioned by **`[parameter_hash]`**). 
 
 5. **Order authority**
 
@@ -669,7 +670,7 @@ A **MAJOR** change to any baseline that affects S7’s bound interfaces requires
 * **S7 — `s7_site_synthesis`**
   `data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/`
   Partitions `[seed, fingerprint, parameter_hash]` · Writer sort `[merchant_id, legal_country_iso, site_order]`. *(Matches S5/S6.)*
-* **S1 geometry — `tile_index` / `tile_bounds`**
+* **S1 geometry — `tile_bounds`**
   `…/parameter_hash={parameter_hash}/` · Partitions `[parameter_hash]` · Sort `[country_iso, tile_id]`. 
 * **S8 egress — `site_locations`**
   `data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/`
@@ -689,7 +690,7 @@ For a site assigned to `(legal_country_iso, tile_id)`:
 
 ## A.5 Foreign keys & order authority
 
-* **Tile FK (parameter-scoped)** — `(legal_country_iso, tile_id)` **FK→** S1 `tile_index` for the **same `parameter_hash`**. (Schema encodes this style in 1B plan tables with an explicit `partition_keys: [parameter_hash]` hint.) 
+* **Tile FK (parameter-scoped)** — `(legal_country_iso, tile_id)` **FK→** S1 **`tile_bounds`** for the **same `parameter_hash`**. (Schema encodes this style in 1B plan tables with an explicit `partition_keys: [parameter_hash]` hint.) 
 * **Order authority** — 1B **never** encodes inter-country order; downstreams join 1A S3 `candidate_rank`. Egress `site_locations` is order-free. 
 
 ## A.6 Writer sort & file-order posture
@@ -793,7 +794,7 @@ lat* =  51.525000 - 0.01977055 =  51.50522945
 * **Writer sort respected:** `[merchant_id, legal_country_iso, site_order]`. 
 * **Path↔embed equality:** embedded `manifest_fingerprint` == path token `fingerprint=…`. *(Same lineage law used across 1B planning tables.)* 
 
-*If your S7 anchor chooses to store deltas instead of absolutes, the reconstruction above remains the validator’s method; identity/partitions/sort are unchanged.
+*S7 stores **absolutes** `lon_deg, lat_deg`. Validators reconstruct `(lon*,lat*)` as above and require equality to the stored fields (A705); identity/partitions/sort are unchanged.
 
 ---
 
@@ -803,7 +804,7 @@ lat* =  51.525000 - 0.01977055 =  51.50522945
 * **A702 Schema conformance:** row validates `#/plan/s7_site_synthesis` (columns_strict).
 * **A703 Partition & identity law:** path partitions `[seed,fingerprint,parameter_hash]`; embedded lineage equals path tokens. 
 * **A704 Writer sort:** non-decreasing by `[merchant_id, legal_country_iso, site_order]`. 
-* **A705 Inside-pixel:** `(lon*,lat*)` inside S1 rectangle for `(GB,240104)` at this `parameter_hash`. 
+* **A705 Reconstruct-equals-stored & inside-pixel:** recompute `lon* = centroid_lon_deg + delta_lon_deg`, `lat* = centroid_lat_deg + delta_lat_deg`, assert **binary64 equality** to stored `(lon_deg,lat_deg)` **and** inside the S1 rectangle for `(GB,240104)` at this `parameter_hash`. 
 * **A706 1A coverage parity:** after PASS check, 1:1 join to `outlet_catalogue` for this `fingerprint`. 
 * **A707 Tile FK (same parameter):** `(GB,240104)` exists in S1 geometry at this `parameter_hash`. 
 * **A708 Order pledge:** S7 contains no inter-country order; egress remains order-free; downstreams join 1A S3 when needed. 
@@ -814,7 +815,7 @@ lat* =  51.525000 - 0.01977055 =  51.50522945
 
 Suppose a bad row had `lon_deg = -0.255` (west of `min_lon`).
 
-* **A705 Inside-pixel:** **FAIL** → **E707_POINT_OUTSIDE_PIXEL**.
+* **A705 Reconstruct-equals-stored & inside-pixel:** **FAIL** → **E707_POINT_OUTSIDE_PIXEL**.
 * Other parity/sort/identity checks may still pass, but the run **ABORTS** on this gate.
 
 ---

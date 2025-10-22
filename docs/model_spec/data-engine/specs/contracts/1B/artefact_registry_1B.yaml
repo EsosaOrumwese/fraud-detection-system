@@ -307,7 +307,7 @@ subsegments:
     manifest_key: mlr.1B.s7.site_synthesis
     license: Proprietary-Internal
     role: "Deterministic stitch of S5+S6 into per-site absolutes (RNG-free); 1:1 coverage with 1A outlet_catalogue; ready for S8."
-    dependencies: [s5_site_tile_assignment, s6_site_jitter, tile_index, iso3166_canonical_2024, s0_gate_receipt_1B]
+    dependencies: [s5_site_tile_assignment, s6_site_jitter, tile_index, tile_bounds, iso3166_canonical_2024, s0_gate_receipt_1B]
     source: internal
     owner: { owner_team: "mlr-1b-core" }
     environment: [runtime]
