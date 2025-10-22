@@ -64,6 +64,7 @@ S7 is successful only if its acceptance suite (later §9) passes: **row parity w
 ## 3.1 Run identity is sealed before S7
 
 S7 SHALL execute under a fixed lineage tuple **`{seed, manifest_fingerprint, parameter_hash, run_id}`**. Any embedded lineage fields in rows (e.g., `manifest_fingerprint`) MUST byte-equal their path tokens (`fingerprint=…`). This mirrors the 1B partition law used by S5/S6.  
+**Note:** `run_id` is **execution-only** (used for run-report/log correlation) and is **not** part of the S7 dataset identity or partitions.
 
 ## 3.2 Gate condition (must hold before any read)
 
@@ -266,7 +267,7 @@ Write exactly one `s7_site_synthesis` row for the site with fields per the S7 sc
 
 ## 8.1 Identity tokens (one tuple per publish)
 
-* **Dataset identity:** exactly one `{seed, manifest_fingerprint, parameter_hash}` for the entire S7 publish. Where lineage is embedded (e.g., `manifest_fingerprint`), its value **MUST** byte-equal the `fingerprint=` path token (path↔embed equality). This mirrors the 1B lineage law established at S0. 
+* **Dataset identity:** exactly one `{seed, manifest_fingerprint, parameter_hash}` for the entire S7 publish. Where lineage is embedded (e.g., `manifest_fingerprint`), its value **MUST** byte-equal the `fingerprint=` path token (path↔embed equality). This mirrors the 1B lineage law established at S0. `run_id` **MUST NOT** appear in S7 primary key or partitions; it is execution-only (S7 is RNG-free).
 * **No RNG logs introduced:** S7 is deterministic; existing S5/S6 RNG logs remain read-only audit artefacts under `[seed, parameter_hash, run_id]`. 
 
 ## 8.2 Partition law & path family (resolve via Dictionary; no literal paths)
@@ -339,7 +340,8 @@ A run **PASSES** S7 only if **all** checks below succeed.
 `lon* = centroid_lon_deg + delta_lon_deg`, `lat* = centroid_lat_deg + delta_lat_deg`, then require:
 1) **Binary64 equality** (per S0 numeric policy) between `(lon*,lat*)` and stored `(lon_deg,lat_deg)`, **and**
 2) `(lon*,lat*)` lies **inside** the S1 rectangle for `(legal_country_iso, tile_id)`.
-**Detection.** Join S7→S1 **`tile_bounds`**; recompute `(lon*,lat*)` and assert **binary64 equality to `(lon_deg,lat_deg)`** and inclusive rectangle bounds (dateline semantics per S1).
+**Detection.** Join **S7→S6 (on PK)** and **S7→S1 `tile_bounds`** (on `(legal_country_iso, tile_id)` with the same `parameter_hash`); compute
+`lon* = centroid_lon_deg + delta_lon_deg`, `lat* = centroid_lat_deg + delta_lat_deg`, then assert **binary64 equality** to stored `(lon_deg,lat_deg)` **and** inclusive rectangle bounds (S1 dateline semantics).
 
 ## A706 — 1A coverage parity (read discipline)
 
