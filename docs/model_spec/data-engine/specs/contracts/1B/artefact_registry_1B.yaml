@@ -351,6 +351,26 @@ subsegments:
     schema: schemas.1B.yaml#/egress/site_locations
     notes: 'Partition: seed={seed}/fingerprint={manifest_fingerprint}; writer sort: [merchant_id, legal_country_iso, site_order]; write-once; atomic move; file order non-authoritative.'
 
+  - name: validation_bundle_1B
+    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+    type: bundle
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    manifest_key: mlr.1B.validation.bundle
+    license: Proprietary-Internal
+    role: "Fingerprint-scoped PASS bundle for 1B; consumers MUST verify _passed.flag before reading site_locations (No PASS → no read)."
+    dependencies: [s7_site_synthesis, site_locations, rng_event_site_tile_assign, rng_event_in_cell_jitter, rng_audit_log, rng_trace_log]
+    schema:
+      index_schema_ref: schemas.1A.yaml#/validation/validation_bundle.index_schema
+    source: internal
+    owner: { owner_team: "mlr-1b-core" }
+    environment: [runtime]
+    notes: |
+      Partitioning: fingerprint={manifest_fingerprint}
+      Publish posture: write-once; stage → fsync → single atomic move; file order non-authoritative.
+      Hashing law: _passed.flag = SHA-256 over raw bytes of files listed in index.json, in ASCII-lex order of 'path' (flag excluded).
+
   - name: rng_event_site_tile_assign
     path: logs/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     type: log

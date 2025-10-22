@@ -231,7 +231,7 @@ datasets:
   schema_ref: schemas.1B.yaml#/egress/site_locations
   lineage:
     produced_by: 1B
-    consumed_by: []
+    consumed_by: [2A]
     final_in_layer: true
   retention_days: 365
   pii: false
