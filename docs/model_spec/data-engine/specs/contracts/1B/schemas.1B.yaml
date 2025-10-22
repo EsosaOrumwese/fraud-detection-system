@@ -151,6 +151,7 @@ validation:
             validators:
               description: "Per-dataset validator outcomes (e.g., A801…A813)."
               type: array
+              minItems: 1
               items:
                 type: object
                 additionalProperties: false
@@ -231,6 +232,23 @@ prep:
       - { name: weight_fp,   type: integer, nullable: false, minimum: 0, description: "Fixed-decimal integer weight (per-country sum = 10^dp)." }
       - { name: dp,          $ref: "#/$defs/dp_nonneg", nullable: false, description: "Decimal precision; K = 10^dp applies to the whole partition." }
       - { name: basis, $ref: "#/$defs/basis", nullable: true, description: "Weighting basis; non-authoritative (run report is source of truth)." }
+
+  tile_bounds:
+    type: table
+    description: 'Per-tile rectangle bounds and centroids (S1 companion to tile_index).'
+    primary_key: [country_iso, tile_id]
+    partition_keys: [parameter_hash]
+    sort_keys: [country_iso, tile_id]
+    columns_strict: true
+    columns:
+      - { name: country_iso,      $ref: '#/$defs/iso2',  nullable: false }
+      - { name: tile_id,          $ref: '#/$defs/uint64', nullable: false }
+      - { name: min_lat_deg,      $ref: '#/$defs/lat',   nullable: false }
+      - { name: max_lat_deg,      $ref: '#/$defs/lat',   nullable: false }
+      - { name: min_lon_deg,      $ref: '#/$defs/lon',   nullable: false }
+      - { name: max_lon_deg,      $ref: '#/$defs/lon',   nullable: false }
+      - { name: centroid_lat_deg, $ref: '#/$defs/lat',   nullable: false }
+      - { name: centroid_lon_deg, $ref: '#/$defs/lon',   nullable: false }
 
 plan:
   s3_requirements:
@@ -320,9 +338,9 @@ plan:
                 columns: { legal_country_iso: country_iso, tile_id: tile_id } },
           description: "Assigned eligible tile for this site (must exist in tile_index for the same parameter_hash)." }
       - { name: lon_deg,            $ref: '#/$defs/lon',                      nullable: false,
-          description: "Reconstructed longitude: centroid_lon_deg + delta_lon_deg (WGS84 degrees)." }
+          description: "Reconstructed longitude: tile_bounds.centroid_lon_deg + delta_lon_deg (WGS84 degrees)." }
       - { name: lat_deg,            $ref: '#/$defs/lat',                      nullable: false,
-          description: "Reconstructed latitude: centroid_lat_deg + delta_lat_deg (WGS84 degrees)." }
+          description: "Reconstructed latitude: tile_bounds.centroid_lat_deg + delta_lat_deg (WGS84 degrees)." }
 
 egress:
   site_locations:
