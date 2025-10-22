@@ -7,9 +7,13 @@ import polars as pl
 import pytest
 
 from engine.layers.l1.seg_1B.s3_requirements import (
+    AggregationResult,
     RunnerConfig,
     S3Error,
     S3RequirementsRunner,
+    S3RequirementsValidator,
+    S3RunResult,
+    S3ValidatorConfig,
 )
 
 
@@ -34,11 +38,18 @@ def dictionary() -> dict[str, object]:
                 "partitioning": ["fingerprint"],
                 "schema_ref": "schemas.1B.yaml#/s0_gate_receipt",
             },
+            "s3_requirements": {
+                "path": "data/layer1/1B/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/",
+                "partitioning": ["seed", "fingerprint", "parameter_hash"],
+                "ordering": ["merchant_id", "legal_country_iso"],
+                "schema_ref": "schemas.1B.yaml#/plan/s3_requirements",
+            },
         },
         "reference_data": {
             "iso3166_canonical_2024": {
                 "path": "reference/iso/iso3166_canonical.parquet",
                 "schema_ref": "schemas.ingress.layer1.yaml#/iso3166_canonical_2024",
+                "version": "test",
             }
         },
     }
@@ -151,18 +162,25 @@ def test_prepare_and_aggregate_success(tmp_path: Path, dictionary: dict[str, obj
 
     runner = S3RequirementsRunner()
     prepared = runner.prepare(config)
-    result = runner.aggregate(prepared)
+    aggregation = runner.aggregate(prepared)
+    result = runner.materialise(prepared, aggregation)
 
     assert result.rows_emitted == 3
     assert result.merchants_total == 2
     assert result.countries_total == 2
+    assert result.requirements_path.exists()
+    assert result.report_path.exists()
 
-    records = result.frame.to_dicts()
-    assert records == [
-        {"merchant_id": 1, "legal_country_iso": "GB", "n_sites": 2},
-        {"merchant_id": 1, "legal_country_iso": "US", "n_sites": 2},
-        {"merchant_id": 2, "legal_country_iso": "US", "n_sites": 1},
-    ]
+    validator = S3RequirementsValidator()
+    validator.validate(
+        S3ValidatorConfig(
+            data_root=tmp_path,
+            seed=seed,
+            manifest_fingerprint=manifest,
+            parameter_hash=parameter_hash,
+            dictionary=dictionary,
+        )
+    )
 
 
 def test_prepare_missing_receipt(tmp_path: Path, dictionary: dict[str, object]) -> None:
@@ -341,3 +359,152 @@ def test_path_embed_mismatch(tmp_path: Path, dictionary: dict[str, object]) -> N
     with pytest.raises(S3Error) as excinfo:
         runner.prepare(config)
     assert excinfo.value.context.code == "E306_TOKEN_MISMATCH"
+
+
+def test_materialise_immutable_conflict(tmp_path: Path, dictionary: dict[str, object]) -> None:
+    manifest = "a" * 64
+    seed = "12345"
+    parameter_hash = "b" * 64
+
+    _write_receipt(
+        tmp_path / f"data/layer1/1B/s0_gate_receipt/fingerprint={manifest}/s0_gate_receipt.json",
+        manifest,
+    )
+    _write_iso(tmp_path / "reference/iso/iso3166_canonical.parquet", ["GB"])
+    _write_tile_weights(
+        tmp_path / f"data/layer1/1B/tile_weights/parameter_hash={parameter_hash}",
+        [("GB", 0)],
+    )
+    _write_outlet_catalogue(
+        tmp_path / f"data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest}",
+        seed,
+        manifest,
+        [(1, "GB", 1)],
+    )
+
+    config = _build_config(
+        tmp_path=tmp_path,
+        dictionary=dictionary,
+        manifest_fingerprint=manifest,
+        seed=seed,
+        parameter_hash=parameter_hash,
+    )
+
+    runner = S3RequirementsRunner()
+    prepared = runner.prepare(config)
+    aggregation = runner.aggregate(prepared)
+    runner.materialise(prepared, aggregation)
+
+    modified_frame = aggregation.frame.with_columns((pl.col("n_sites") + 1).alias("n_sites"))
+    modified_aggregation = AggregationResult(frame=modified_frame, source_rows_total=aggregation.source_rows_total)
+
+    with pytest.raises(S3Error) as excinfo:
+        runner.materialise(prepared, modified_aggregation)
+    assert excinfo.value.context.code == "E_IMMUTABLE_PARTITION_EXISTS_NONIDENTICAL"
+
+
+def test_validator_detects_count_mismatch(tmp_path: Path, dictionary: dict[str, object]) -> None:
+    manifest = "a" * 64
+    seed = "12345"
+    parameter_hash = "b" * 64
+
+    _write_receipt(
+        tmp_path / f"data/layer1/1B/s0_gate_receipt/fingerprint={manifest}/s0_gate_receipt.json",
+        manifest,
+    )
+    _write_iso(tmp_path / "reference/iso/iso3166_canonical.parquet", ["GB"])
+    _write_tile_weights(
+        tmp_path / f"data/layer1/1B/tile_weights/parameter_hash={parameter_hash}",
+        [("GB", 0)],
+    )
+    _write_outlet_catalogue(
+        tmp_path / f"data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest}",
+        seed,
+        manifest,
+        [(1, "GB", 1)],
+    )
+
+    config = _build_config(
+        tmp_path=tmp_path,
+        dictionary=dictionary,
+        manifest_fingerprint=manifest,
+        seed=seed,
+        parameter_hash=parameter_hash,
+    )
+
+    runner = S3RequirementsRunner()
+    prepared = runner.prepare(config)
+    aggregation = runner.aggregate(prepared)
+    result = runner.materialise(prepared, aggregation)
+
+    parquet_files = list(result.requirements_path.glob("*.parquet"))
+    assert parquet_files
+    frame = pl.read_parquet(parquet_files[0])
+    frame = frame.with_columns((pl.col("n_sites") + 1).alias("n_sites"))
+    frame.write_parquet(parquet_files[0])
+
+    validator = S3RequirementsValidator()
+    with pytest.raises(S3Error) as excinfo:
+        validator.validate(
+            S3ValidatorConfig(
+                data_root=tmp_path,
+                seed=seed,
+                manifest_fingerprint=manifest,
+                parameter_hash=parameter_hash,
+                dictionary=dictionary,
+            )
+        )
+    assert excinfo.value.context.code == "E308_COUNTS_MISMATCH"
+
+
+def test_validator_detects_determinism_mismatch(tmp_path: Path, dictionary: dict[str, object]) -> None:
+    manifest = "a" * 64
+    seed = "12345"
+    parameter_hash = "b" * 64
+
+    _write_receipt(
+        tmp_path / f"data/layer1/1B/s0_gate_receipt/fingerprint={manifest}/s0_gate_receipt.json",
+        manifest,
+    )
+    _write_iso(tmp_path / "reference/iso/iso3166_canonical.parquet", ["GB"])
+    _write_tile_weights(
+        tmp_path / f"data/layer1/1B/tile_weights/parameter_hash={parameter_hash}",
+        [("GB", 0)],
+    )
+    _write_outlet_catalogue(
+        tmp_path / f"data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest}",
+        seed,
+        manifest,
+        [(1, "GB", 1)],
+    )
+
+    config = _build_config(
+        tmp_path=tmp_path,
+        dictionary=dictionary,
+        manifest_fingerprint=manifest,
+        seed=seed,
+        parameter_hash=parameter_hash,
+    )
+
+    runner = S3RequirementsRunner()
+    prepared = runner.prepare(config)
+    aggregation = runner.aggregate(prepared)
+    result = runner.materialise(prepared, aggregation)
+
+    report_payload = json.loads(result.report_path.read_text(encoding="utf-8"))
+    report_payload["determinism_receipt"]["sha256_hex"] = "badc0de"
+    result.report_path.write_text(json.dumps(report_payload), encoding="utf-8")
+
+    validator = S3RequirementsValidator()
+    with pytest.raises(S3Error) as excinfo:
+        validator.validate(
+            S3ValidatorConfig(
+                data_root=tmp_path,
+                seed=seed,
+                manifest_fingerprint=manifest,
+                parameter_hash=parameter_hash,
+                dictionary=dictionary,
+            )
+        )
+    assert excinfo.value.context.code == "E313_NONDETERMINISTIC_OUTPUT"
+

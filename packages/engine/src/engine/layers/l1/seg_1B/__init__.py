@@ -26,7 +26,12 @@ from .s3_requirements import (
     RunnerConfig as S3RunnerConfig,
     S3Error,
     S3RequirementsRunner,
+    S3RequirementsValidator,
+    S3RunResult,
+    S3ValidatorConfig,
+    build_run_report as s3_build_run_report,
     compute_requirements as s3_compute_requirements,
+    materialise_requirements as s3_materialise_requirements,
     prepare_inputs as s3_prepare_inputs,
 )
 
@@ -48,13 +53,18 @@ __all__ = [
     "S2TileWeightsRunner",
     "S2TileWeightsValidator",
     "S2ValidatorConfig",
-    "S2ValidatorConfig",
     "S2Error",
     "S3AggregationResult",
     "S3PreparedInputs",
     "S3RunnerConfig",
+    "S3RunResult",
     "S3RequirementsRunner",
+    "S3RequirementsValidator",
+    "S3ValidatorConfig",
     "S3Error",
+    "s3_build_run_report",
     "s3_compute_requirements",
+    "s3_materialise_requirements",
     "s3_prepare_inputs",
 ]
+

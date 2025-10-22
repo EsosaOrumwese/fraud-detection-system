@@ -23,6 +23,7 @@ class AggregationResult:
     """In-memory representation of S3 requirements prior to materialisation."""
 
     frame: pl.DataFrame
+    source_rows_total: int
 
     @property
     def rows_emitted(self) -> int:
@@ -63,7 +64,7 @@ def compute_requirements(
     coverage_countries = tile_weights.frame.get_column("country_iso").cast(pl.Utf8).to_list()
     ensure_weights_coverage(grouped, coverage_countries)
 
-    return AggregationResult(frame=grouped)
+    return AggregationResult(frame=grouped, source_rows_total=int(outlet_frame.height))
 
 
 __all__ = ["AggregationResult", "compute_requirements"]

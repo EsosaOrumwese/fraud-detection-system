@@ -1,4 +1,4 @@
-"""Scenario runner for Segment 1B (S0 → S2)."""
+"""Scenario runner for Segment 1B (S0 → S3)."""
 
 from __future__ import annotations
 
@@ -15,6 +15,9 @@ from engine.layers.l1.seg_1B import (
     S2RunnerConfig,
     S2RunResult,
     S2TileWeightsRunner,
+    S3RequirementsRunner,
+    S3RunResult,
+    S3RunnerConfig,
 )
 from engine.layers.l1.seg_1B.shared.dictionary import load_dictionary
 
@@ -37,11 +40,12 @@ class Segment1BConfig:
 
 @dataclass(frozen=True)
 class Segment1BResult:
-    """Structured result capturing outputs from S0–S2."""
+    """Structured result capturing outputs from S0–S3."""
 
     s0_receipt_path: Optional[Path]
     s1: S1RunResult
     s2: S2RunResult
+    s3: S3RunResult
 
 
 class Segment1BOrchestrator:
@@ -51,6 +55,7 @@ class Segment1BOrchestrator:
         self._s0_runner = S0GateRunner()
         self._s1_runner = S1TileIndexRunner()
         self._s2_runner = S2TileWeightsRunner()
+        self._s3_runner = S3RequirementsRunner()
 
     def run(self, config: Segment1BConfig) -> Segment1BResult:
         dictionary = config.dictionary or load_dictionary()
@@ -73,6 +78,9 @@ class Segment1BOrchestrator:
             gate_result = self._s0_runner.run(gate_inputs)
             receipt_path = gate_result.receipt_path
 
+        if not config.manifest_fingerprint or config.seed is None:
+            raise ValueError("manifest_fingerprint and seed must be provided for S3 requirements")
+
         s1_result = self._s1_runner.run(
             S1RunnerConfig(
                 data_root=data_root,
@@ -81,7 +89,7 @@ class Segment1BOrchestrator:
             )
         )
 
-        prepared = self._s2_runner.prepare(
+        prepared_s2 = self._s2_runner.prepare(
             S2RunnerConfig(
                 data_root=data_root,
                 parameter_hash=config.parameter_hash,
@@ -90,18 +98,31 @@ class Segment1BOrchestrator:
                 dictionary=dictionary,
             )
         )
-        masses = self._s2_runner.compute_masses(prepared)
+        masses = self._s2_runner.compute_masses(prepared_s2)
         self._s2_runner.measure_baselines(
-            prepared,
-            measure_raster=prepared.governed.basis == "population",
+            prepared_s2,
+            measure_raster=prepared_s2.governed.basis == "population",
         )
-        quantised = self._s2_runner.quantise(prepared, masses)
-        s2_result = self._s2_runner.materialise(prepared, quantised)
+        quantised = self._s2_runner.quantise(prepared_s2, masses)
+        s2_result = self._s2_runner.materialise(prepared_s2, quantised)
+
+        prepared_s3 = self._s3_runner.prepare(
+            S3RunnerConfig(
+                data_root=data_root,
+                manifest_fingerprint=config.manifest_fingerprint,
+                seed=config.seed,
+                parameter_hash=config.parameter_hash,
+                dictionary=dictionary,
+            )
+        )
+        aggregation = self._s3_runner.aggregate(prepared_s3)
+        s3_result = self._s3_runner.materialise(prepared_s3, aggregation)
 
         return Segment1BResult(
             s0_receipt_path=receipt_path,
             s1=s1_result,
             s2=s2_result,
+            s3=s3_result,
         )
 
 

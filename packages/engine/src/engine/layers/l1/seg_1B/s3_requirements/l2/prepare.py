@@ -18,6 +18,7 @@ from ..l0 import (
 from ..l1.validators import validate_path_embeddings
 from .aggregate import AggregationResult, compute_requirements
 from .config import RunnerConfig
+from .materialise import S3RunResult, materialise_requirements
 
 
 @dataclass(frozen=True)
@@ -85,6 +86,14 @@ class S3RequirementsRunner:
             iso_table=prepared.iso_table,
             tile_weights=prepared.tile_weights,
         )
+
+    def materialise(self, prepared: PreparedInputs, aggregation: AggregationResult) -> S3RunResult:
+        return materialise_requirements(prepared=prepared, aggregation=aggregation)
+
+    def run(self, config: RunnerConfig) -> S3RunResult:
+        prepared = self.prepare(config)
+        aggregation = self.aggregate(prepared)
+        return self.materialise(prepared, aggregation)
 
 
 def _load_dictionary() -> Mapping[str, object]:

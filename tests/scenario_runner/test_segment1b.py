@@ -3,9 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 from types import SimpleNamespace
 
+import polars as pl
 import pytest
 
-from engine.layers.l1.seg_1B import S1RunResult, S2RunResult
+from engine.layers.l1.seg_1B import S1RunResult, S2RunResult, S3RunResult, S3AggregationResult
 from engine.scenario_runner.l1_seg_1B import (
     Segment1BConfig,
     Segment1BOrchestrator,
@@ -80,11 +81,58 @@ class StubS2Runner:
         )
 
 
+class StubS3Runner:
+    def __init__(self) -> None:
+        self.config = None
+        self.prepared = None
+        self.aggregation = None
+        self.materialise_calls = 0
+
+    def prepare(self, config):
+        self.config = config
+        empty_frame = pl.DataFrame(
+            {
+                "merchant_id": pl.Series([], dtype=pl.Int64),
+                "legal_country_iso": pl.Series([], dtype=pl.Utf8),
+                "site_order": pl.Series([], dtype=pl.Int64),
+                "manifest_fingerprint": pl.Series([], dtype=pl.Utf8),
+            }
+        )
+        self.prepared = SimpleNamespace(
+            config=config,
+            dictionary=config.dictionary,
+            receipt=SimpleNamespace(payload={}, flag_sha256_hex="hash"),
+            outlet_catalogue=SimpleNamespace(frame=empty_frame),
+            tile_weights=SimpleNamespace(frame=pl.DataFrame({"country_iso": [], "tile_id": []})),
+            iso_table=SimpleNamespace(codes=frozenset()),
+        )
+        return self.prepared
+
+    def aggregate(self, prepared):
+        frame = pl.DataFrame({"merchant_id": [], "legal_country_iso": [], "n_sites": []})
+        self.aggregation = S3AggregationResult(frame=frame, source_rows_total=0)
+        return self.aggregation
+
+    def materialise(self, prepared, aggregation):
+        self.materialise_calls += 1
+        base = prepared.config.data_root
+        return S3RunResult(
+            requirements_path=base / "s3_requirements",
+            report_path=base / "s3_report.json",
+            determinism_receipt={"partition_path": "dummy", "sha256_hex": "deadbeef"},
+            rows_emitted=aggregation.rows_emitted,
+            merchants_total=aggregation.merchants_total,
+            countries_total=aggregation.countries_total,
+            source_rows_total=aggregation.source_rows_total,
+        )
+
+
 def test_orchestrator_runs_all_states(tmp_path: Path):
     orchestrator = Segment1BOrchestrator()
     orchestrator._s0_runner = StubS0Runner()
     orchestrator._s1_runner = StubS1Runner()
     orchestrator._s2_runner = StubS2Runner()
+    orchestrator._s3_runner = StubS3Runner()
 
     dictionary = {"datasets": {}}
 
@@ -103,7 +151,9 @@ def test_orchestrator_runs_all_states(tmp_path: Path):
     assert result.s0_receipt_path == tmp_path / "receipt.json"
     assert result.s1.tile_index_path == tmp_path / "tile_index"
     assert result.s2.tile_weights_path == tmp_path / "tile_weights"
+    assert result.s3.requirements_path == tmp_path / "s3_requirements"
     assert orchestrator._s2_runner.measure_calls == 1
+    assert orchestrator._s3_runner.materialise_calls == 1
 
 
 def test_orchestrator_skip_s0(tmp_path: Path):
@@ -112,6 +162,7 @@ def test_orchestrator_skip_s0(tmp_path: Path):
     orchestrator._s0_runner = stub_s0
     orchestrator._s1_runner = StubS1Runner()
     orchestrator._s2_runner = StubS2Runner()
+    orchestrator._s3_runner = StubS3Runner()
 
     result = orchestrator.run(
         Segment1BConfig(
@@ -121,6 +172,8 @@ def test_orchestrator_skip_s0(tmp_path: Path):
             basis="uniform",
             dp=2,
             skip_s0=True,
+            manifest_fingerprint="aa" * 32,
+            seed="456",
         )
     )
 
