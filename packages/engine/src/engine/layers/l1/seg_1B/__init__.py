@@ -54,6 +54,7 @@ from .s4_alloc_plan import (
 from .s5_site_tile_assignment import (
     RunnerConfig as S5RunnerConfig,
     S5Error,
+    S5RunResult,
     S5SiteTileAssignmentRunner,
     S5SiteTileAssignmentValidator,
     ValidatorConfig as S5ValidatorConfig,
@@ -107,6 +108,7 @@ __all__ = [
     "s4_materialise_allocation",
     "s4_prepare_inputs",
     "S5RunnerConfig",
+    "S5RunResult",
     "S5SiteTileAssignmentRunner",
     "S5SiteTileAssignmentValidator",
     "S5ValidatorConfig",

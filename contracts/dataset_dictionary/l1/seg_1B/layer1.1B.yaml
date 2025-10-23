@@ -315,7 +315,26 @@ datasets:
     path: control/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_run_report.json
     partitioning: [seed, fingerprint, parameter_hash]
     ordering: []
-    schema_ref: null
+    schema_ref: schemas.1B.yaml#/control/s5_run_report
+    lineage:
+      produced_by: 1B.S5
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 30
+    pii: false
+    license: Proprietary-Internal
+
+logs:
+  rng_event_site_tile_assign:
+    status: draft
+    owner_subsegment: 1B
+    description: RNG events for S5 site→tile assignment (one event per site).
+    version: '{run_id}'
+    format: jsonl
+    path: logs/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/rng/events/site_tile_assign
     lineage:
       produced_by: 1B.S5
       consumed_by: [1B]

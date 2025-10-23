@@ -63,6 +63,7 @@ def get_dataset_entry(
         "reference",
         "model",
         "validation",
+        "logs",
     )
     for section_key in sections:
         section = dictionary.get(section_key)

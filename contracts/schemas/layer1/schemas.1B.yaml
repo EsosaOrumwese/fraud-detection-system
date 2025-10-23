@@ -26,6 +26,18 @@ $defs:
     type: string
     pattern: ^[a-f0-9]{64}$
     description: Lowercase hexadecimal SHA-256 digest (64 hex characters).
+  determinism_receipt:
+    type: object
+    additionalProperties: false
+    required: [partition_path, sha256_hex]
+    properties:
+      partition_path:
+        type: string
+        minLength: 1
+        description: Absolute path to the materialised dataset partition.
+      sha256_hex:
+        $ref: '#/$defs/hex64'
+        description: Composite SHA-256 digest over ASCII-lex ordered partition files.
 
   rfc3339_micros:
     type: string
@@ -248,6 +260,92 @@ plan:
           columns:
             legal_country_iso: country_iso
             tile_id: tile_id
+
+control:
+  s5_run_report:
+    type: object
+    description: Control-plane evidence for S5 site→tile assignment publishes.
+    additionalProperties: false
+    required:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      - run_id
+      - rows_emitted
+      - pairs_total
+      - rng_events_emitted
+      - determinism_receipt
+    properties:
+      seed:
+        type: string
+        pattern: ^[0-9]+$
+        description: Seed token associated with this publish.
+      manifest_fingerprint:
+        $ref: '#/$defs/hex64'
+      parameter_hash:
+        $ref: '#/$defs/hex64'
+      run_id:
+        $ref: 'schemas.layer1.yaml#/$defs/hex32'
+      rows_emitted:
+        type: integer
+        minimum: 0
+      pairs_total:
+        type: integer
+        minimum: 0
+      rng_events_emitted:
+        type: integer
+        minimum: 0
+      determinism_receipt:
+        $ref: '#/$defs/determinism_receipt'
+      ingress_versions:
+        type: object
+        additionalProperties:
+          type: string
+        description: Optional mapping of ingress dataset identifiers to version strings.
+      ties_broken_total:
+        type: integer
+        minimum: 0
+        description: Count of RNG tie-break events encountered during assignment.
+      expected_rng_events:
+        type: integer
+        minimum: 0
+        description: Expected RNG event count (should equal rows_emitted on acceptance).
+      quota_mismatches:
+        type: integer
+        minimum: 0
+      dup_sites:
+        type: integer
+        minimum: 0
+      tile_not_in_index:
+        type: integer
+        minimum: 0
+      fk_country_violations:
+        type: integer
+        minimum: 0
+      bytes_read_alloc_plan:
+        type: integer
+        minimum: 0
+      bytes_read_tile_index:
+        type: integer
+        minimum: 0
+      bytes_read_iso:
+        type: integer
+        minimum: 0
+      wall_clock_seconds_total:
+        type: number
+        minimum: 0
+      cpu_seconds_total:
+        type: number
+        minimum: 0
+      workers_used:
+        type: integer
+        minimum: 0
+      max_worker_rss_bytes:
+        type: integer
+        minimum: 0
+      open_files_peak:
+        type: integer
+        minimum: 0
       - name: n_sites_tile
         type: integer
         minimum: 1

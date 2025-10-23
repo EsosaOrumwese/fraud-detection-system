@@ -1,6 +1,6 @@
 # Segment 1B - S5 Site→Tile Assignment Runbook
 
-_Updated: 2025-10-23 (scaffolding)_
+_Updated: 2025-10-23 (materialisation & validation)_
 
 ---
 
@@ -10,12 +10,13 @@ State 5 randomly assigns each site `(merchant_id, legal_country_iso, site_order)
 ---
 
 ## 2. Status
-- **Implementation:** In progress (Phase 1 scaffolding complete; logic to follow).
-- **Outputs:** Planned dataset `s5_site_tile_assignment` and run report `s5_run_report` (see dictionary).
+- **Implementation:** Runner now materialises dataset + RNG logs + run report with determinism receipt; validator enforces quota/RNG/identity checks.
+- **Outputs:** Dataset `s5_site_tile_assignment`, run report `s5_run_report`, RNG log stream `rng_event_site_tile_assign`.
 - **RNG envelope:** `site_tile_assign` (one draw per site).
 
 ---
 
 ## 3. Next Steps
-- Implement loaders, RNG kernel, and validator per `docs/model_spec/data-engine/specs/state-flow/1B/state.1B.s5.expanded.md`.
-- Update this runbook with execution/validation commands once the state is functional.
+- Wire S5 into the segment orchestrator/CLI (run + validate) and refresh nightly automation to include the validator.
+- Capture evidence bundle (dataset, RNG logs, run report) for governance review and update release notes accordingly.
+- Extend regression coverage with end-to-end S0→S5 smoke once downstream S6 is available.
