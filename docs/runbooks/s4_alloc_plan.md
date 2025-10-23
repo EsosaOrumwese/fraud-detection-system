@@ -1,6 +1,6 @@
 # Segment 1B - S4 Allocation Plan Runbook
 
-Updated: 2025-10-23
+Updated: 2025-10-23 (Phase 7 refresh)
 
 ---
 
@@ -27,41 +27,57 @@ All IO resolves via `engine.layers.l1.seg_1B.shared.dictionary`.
 |----|--------------|------|---------|
 | `s4_alloc_plan` | `data/layer1/1B/s4_alloc_plan/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/` | PK: `[merchant_id, legal_country_iso, tile_id]`<br>Sort: `[merchant_id, legal_country_iso, tile_id]` | `merchant_id`, `legal_country_iso`, `tile_id`, `n_sites_tile` (>=1) |
 
-Control-plane evidence (outside the dataset partition): run report (`s4_run_report.json`) and determinism receipt `{partition_path, sha256_hex}` under `control/s4_alloc_plan/seed=...`.
+Control-plane evidence (dictionary-resolved, outside the dataset partition):
+- `control/s4_alloc_plan/seed=.../fingerprint=.../parameter_hash=.../s4_run_report.json`
+- Determinism receipt embedded in the run report (`determinism_receipt`) computed per spec §10.4.
 
 ---
 
 ## 4. Execution
-Run S0->S4 via the Segment 1B CLI:
+Run S0→S4 via the Segment 1B CLI (S4 artefacts appear in the JSON summary):
 
 ```bash
-python -m engine.cli.segment1b run \n  --data-root /abs/path/to/root \n  --parameter-hash <parameter_hash> \n  --manifest-fingerprint <manifest_fingerprint> \n  --seed <seed>
+python -m engine.cli.segment1b run \
+  --data-root /abs/path/to/root \
+  --parameter-hash <parameter_hash> \
+  --manifest-fingerprint <manifest_fingerprint> \
+  --seed <seed>
 ```
 
-Add `--skip-s0` if the S0 receipt already exists. Automation via `scripts/run_segment1b.py` now surfaces S4 artefacts in the JSON summary.
+Add `--skip-s0` if the S0 receipt already exists. Automation via `scripts/run_segment1b.py` should pass the same arguments; the orchestrator now materialises S4 immediately after S3.
 
 ---
 
 ## 5. Validation
 ```bash
-python -m engine.cli.segment1b validate-s4 \n  --data-root /abs/path/to/root \n  --parameter-hash <parameter_hash> \n  --manifest-fingerprint <manifest_fingerprint> \n  --seed <seed>
+python -m engine.cli.segment1b validate-s4 \
+  --data-root /abs/path/to/root \
+  --parameter-hash <parameter_hash> \
+  --manifest-fingerprint <manifest_fingerprint> \
+  --seed <seed>
 ```
 
-The validator recomputes allocations from S3 + S2 inputs, verifies schema/order, enforces FK/coverage, and checks the determinism receipt.
+Optional: `--dictionary <path>` to pin a custom dictionary.  
+The validator recomputes allocations from S3+S2 inputs, verifies schema/order, enforces FK/coverage, checks run-report counters, and reconciles the determinism receipt digest.
 
 ---
 
 ## 6. Testing
 - Unit & integration: `python -m pytest tests/engine/l1/seg_1B/test_s4_alloc_plan_scaffolding.py`
-- S3 compatibility: `python -m pytest tests/engine/l1/seg_1B/test_s3_requirements.py`
-- Scenario/CLI wiring will be extended in the next phase when S4 is hooked into the orchestrator and CLI summaries.
+- Scenario runner: `python -m pytest tests/scenario_runner/test_segment1b.py`
+- CLI smoke (run + validate-s4): `python -m pytest tests/engine/cli/test_segment1b_cli.py`
+- Upstream S3 invariants: `python -m pytest tests/engine/l1/seg_1B/test_s3_requirements.py`
 
 ---
 
 ## 7. Observability & PAT
-- Run report records `rows_emitted`, `pairs_total`, `shortfall_total`, `ties_broken_total`, ingress versions, and the determinism receipt.
-- Determinism receipts follow the S1/S2/S3 recipe (ASCII-lex file order -> SHA-256).
-- PAT counters (RSS, open files, IO bytes) can be added as operational requirements evolve; current implementation logs shortfall/tie metrics for audit.
+- Run report fields (presence enforced by validator):
+  - Lineage + aggregation: `rows_emitted`, `merchants_total`, `pairs_total`, `shortfall_total`, `ties_broken_total`, `alloc_sum_equals_requirements`
+  - Determinism & lineage: `determinism_receipt`, `ingress_versions`
+  - PAT counters: `bytes_read_s3`, `bytes_read_weights`, `bytes_read_index`, `wall_clock_seconds_total`, `cpu_seconds_total`, `workers_used`, `max_worker_rss_bytes`, `open_files_peak`
+  - Optional auditor aids: `merchant_summaries` (per-merchant countries / total allocations / pair counts)
+- Determinism receipts follow the S1/S2/S3 recipe (ASCII-lex order of files → SHA-256 digest).  
+- rss / handle counts are collected via `psutil`; values are monotonic snapshots at materialisation time.
 
 ---
 
@@ -83,12 +99,19 @@ The validator recomputes allocations from S3 + S2 inputs, verifies schema/order,
 
 ## 9. Notes
 - `shortfall_total` sums how many +1 adjustments were applied; `ties_broken_total` counts increments where residues collided.
-- Residue diagnostics/PAT expansion can be added to the run report as follow-up work.
-- CLI/Scenario integration will be finalised alongside downstream states (S5+).
+- `merchant_summaries` are emitted when the partition is non-empty and give auditors a per-merchant conservation snapshot.
+- `psutil` is required for PAT capture; install via project dependencies before running S4 environments.
 
 ---
 
-## 10. References
+## 10. Governance & Release
+- New dictionary entries (`s3_requirements`, `s4_alloc_plan`, `s3_run_report`, `s4_run_report`) and schema anchors are staged under `contracts/`; raise a governance review ticket before promoting to shared registry.
+- Capture sample evidence (run report + determinism receipt) and attach to the release bundle for consumer sign-off.
+- Update downstream automation and documentation to reference the new CLI `validate-s4`.
+
+---
+
+## 11. References
 - Spec: `docs/model_spec/data-engine/specs/state-flow/1B/state.1B.s4.expanded.md`
 - Contracts: `contracts/dataset_dictionary/l1/seg_1B/layer1.1B.yaml`, `contracts/schemas/layer1/schemas.1B.yaml#/plan/s4_alloc_plan`
 - Related runbooks: `docs/runbooks/s3_requirements.md`, `docs/runbooks/s2_tile_weights.md`
