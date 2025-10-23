@@ -51,6 +51,14 @@ from .s4_alloc_plan import (
     materialise_allocation as s4_materialise_allocation,
     prepare_inputs as s4_prepare_inputs,
 )
+from .s5_site_tile_assignment import (
+    RunnerConfig as S5RunnerConfig,
+    S5Error,
+    S5SiteTileAssignmentRunner,
+    S5SiteTileAssignmentValidator,
+    ValidatorConfig as S5ValidatorConfig,
+    err as s5_err,
+)
 
 __all__ = [
     "S0GateRunner",
@@ -98,4 +106,10 @@ __all__ = [
     "s4_err",
     "s4_materialise_allocation",
     "s4_prepare_inputs",
+    "S5RunnerConfig",
+    "S5SiteTileAssignmentRunner",
+    "S5SiteTileAssignmentValidator",
+    "S5ValidatorConfig",
+    "S5Error",
+    "s5_err",
 ]

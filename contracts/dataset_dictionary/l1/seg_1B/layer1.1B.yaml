@@ -252,6 +252,24 @@ datasets:
     pii: false
     license: Proprietary-Internal
 
+  s5_site_tile_assignment:
+    status: draft
+    owner_subsegment: 1B
+    description: RNG-driven site→tile assignment; exactly one row per site.
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    format: parquet
+    path: data/layer1/1B/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: [merchant_id, legal_country_iso, site_order]
+    schema_ref: schemas.1B.yaml#/plan/s5_site_tile_assignment
+    lineage:
+      produced_by: 1B.S5
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
   s3_run_report:
     status: draft
     owner_subsegment: 1B
@@ -282,6 +300,24 @@ datasets:
     schema_ref: null
     lineage:
       produced_by: 1B.S4
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 30
+    pii: false
+    license: Proprietary-Internal
+
+  s5_run_report:
+    status: draft
+    owner_subsegment: 1B
+    description: Control-plane run report for S5 assignment publish.
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    format: json
+    path: control/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s5_run_report.json
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: []
+    schema_ref: null
+    lineage:
+      produced_by: 1B.S5
       consumed_by: [1B]
       final_in_layer: false
     retention_days: 30
