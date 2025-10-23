@@ -1,4 +1,4 @@
-"""Scenario runner for Segment 1B (S0 → S5)."""
+"""Scenario runner for Segment 1B (S0 → S9)."""
 
 from __future__ import annotations
 
@@ -33,6 +33,9 @@ from engine.layers.l1.seg_1B import (
     S8RunResult,
     S8RunnerConfig,
     S8SiteLocationsRunner,
+    S9RunResult,
+    S9RunnerConfig,
+    S9ValidationRunner,
 )
 from engine.layers.l1.seg_1B.shared.dictionary import load_dictionary
 
@@ -55,7 +58,7 @@ class Segment1BConfig:
 
 @dataclass(frozen=True)
 class Segment1BResult:
-    """Structured result capturing outputs from S0–S8."""
+    """Structured result capturing outputs from S0–S9."""
 
     s0_receipt_path: Optional[Path]
     s1: S1RunResult
@@ -66,6 +69,7 @@ class Segment1BResult:
     s6: S6RunResult
     s7: S7RunResult
     s8: S8RunResult
+    s9: S9RunResult
 
 
 class Segment1BOrchestrator:
@@ -81,6 +85,7 @@ class Segment1BOrchestrator:
         self._s6_runner = S6SiteJitterRunner()
         self._s7_runner = S7SiteSynthesisRunner()
         self._s8_runner = S8SiteLocationsRunner()
+        self._s9_runner = S9ValidationRunner()
 
     def run(self, config: Segment1BConfig) -> Segment1BResult:
         dictionary = config.dictionary or load_dictionary()
@@ -193,6 +198,19 @@ class Segment1BOrchestrator:
             )
         )
 
+        seed_int = int(config.seed)
+
+        s9_result = self._s9_runner.run(
+            S9RunnerConfig(
+                base_path=data_root,
+                seed=seed_int,
+                parameter_hash=config.parameter_hash,
+                manifest_fingerprint=config.manifest_fingerprint,
+                run_id=s6_result.run_id,
+                dictionary=dictionary,
+            )
+        )
+
         return Segment1BResult(
             s0_receipt_path=receipt_path,
             s1=s1_result,
@@ -203,6 +221,7 @@ class Segment1BOrchestrator:
             s6=s6_result,
             s7=s7_result,
             s8=s8_result,
+            s9=s9_result,
         )
 
 

@@ -9,6 +9,8 @@ from typing import Mapping, Sequence
 import pandas as pd
 import polars as pl
 
+from .exceptions import ErrorContext
+
 
 @dataclass(frozen=True)
 class S9InputSurfaces:
@@ -41,7 +43,7 @@ class S9ValidationResult:
     """Outcome of the validation battery."""
 
     passed: bool
-    failures: Sequence[object]
+    failures: Sequence[ErrorContext]
     summary: Mapping[str, object]
     rng_accounting: Mapping[str, object]
 

@@ -1,4 +1,4 @@
-"""CLI runner for Segment 1B (S0 -> S5)."""
+"""CLI runner for Segment 1B (S0 -> S9)."""
 
 from __future__ import annotations
 
@@ -25,6 +25,8 @@ from engine.layers.l1.seg_1B import (
     S7ValidatorConfig,
     S8SiteLocationsValidator,
     S8ValidatorConfig,
+    S9ValidationRunner,
+    S9RunnerConfig,
 )
 from engine.scenario_runner.l1_seg_1B import Segment1BConfig, Segment1BOrchestrator
 
@@ -121,6 +123,13 @@ def _command_run(args: argparse.Namespace) -> int:
             "run_summary_path": str(result.s8.run_summary_path),
             "determinism_receipt": result.s8.determinism_receipt,
             "run_id": result.s8.run_id,
+        },
+        "s9": {
+            "bundle_path": str(result.s9.bundle_path),
+            "flag_path": str(result.s9.flag_path) if result.s9.flag_path else None,
+            "stage_log_path": str(result.s9.stage_log_path),
+            "passed": result.s9.result.passed,
+            "failure_codes": [failure.code for failure in result.s9.result.failures],
         },
     }
     print(json.dumps(summary, indent=2, sort_keys=True))
@@ -246,11 +255,36 @@ def _command_validate_s8(args: argparse.Namespace) -> int:
     return 0
 
 
+def _command_validate_s9(args: argparse.Namespace) -> int:
+    dictionary = _load_dictionary(args.dictionary)
+    runner = S9ValidationRunner()
+    outcome = runner.run(
+        S9RunnerConfig(
+            base_path=args.data_root,
+            seed=int(args.seed),
+            parameter_hash=args.parameter_hash,
+            manifest_fingerprint=args.manifest_fingerprint,
+            run_id=args.run_id,
+            dictionary=dictionary,
+        )
+    )
+
+    payload = {
+        "bundle_path": str(outcome.bundle_path),
+        "flag_path": str(outcome.flag_path) if outcome.flag_path else None,
+        "stage_log_path": str(outcome.stage_log_path),
+        "passed": outcome.result.passed,
+        "failure_codes": [failure.code for failure in outcome.result.failures],
+    }
+    print(json.dumps(payload, indent=2, sort_keys=True))
+    return 0 if outcome.result.passed else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Segment 1B utilities")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    run_parser = subparsers.add_parser("run", help="Execute Segment 1B states S0-S7")
+    run_parser = subparsers.add_parser("run", help="Execute Segment 1B states S0-S9")
     run_parser.add_argument("--data-root", type=Path, default=Path("."))
     run_parser.add_argument("--parameter-hash", required=True)
     run_parser.add_argument("--basis", choices=["uniform", "area_m2", "population"], default="uniform")
@@ -318,6 +352,14 @@ def main(argv: list[str] | None = None) -> int:
     validate_s8_parser.add_argument("--dictionary", type=Path)
     validate_s8_parser.add_argument("--run-summary", type=Path)
 
+    validate_s9_parser = subparsers.add_parser("validate-s9", help="Validate Segment 1B S9 validation bundle")
+    validate_s9_parser.add_argument("--data-root", type=Path, default=Path("."))
+    validate_s9_parser.add_argument("--parameter-hash", required=True)
+    validate_s9_parser.add_argument("--seed", required=True)
+    validate_s9_parser.add_argument("--manifest-fingerprint", required=True)
+    validate_s9_parser.add_argument("--run-id", required=True)
+    validate_s9_parser.add_argument("--dictionary", type=Path)
+
     args = parser.parse_args(argv)
 
     if args.command == "run":
@@ -336,6 +378,8 @@ def main(argv: list[str] | None = None) -> int:
         return _command_validate_s7(args)
     if args.command == "validate-s8":
         return _command_validate_s8(args)
+    if args.command == "validate-s9":
+        return _command_validate_s9(args)
 
     parser.error("Unknown command")
     return 1

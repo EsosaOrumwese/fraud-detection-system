@@ -86,6 +86,11 @@ from .s8_site_locations import (
     ValidatorConfig as S8ValidatorConfig,
     err as s8_err,
 )
+from .s9_validation import (
+    RunnerConfig as S9RunnerConfig,
+    S9RunResult,
+    S9ValidationRunner,
+)
 
 __all__ = [
     "S0GateRunner",
@@ -160,4 +165,7 @@ __all__ = [
     "S8SiteLocationsValidator",
     "S8ValidatorConfig",
     "s8_err",
+    "S9RunnerConfig",
+    "S9RunResult",
+    "S9ValidationRunner",
 ]

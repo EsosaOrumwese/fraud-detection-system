@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 BUNDLE_ROOT_DATASET_ID = "validation_bundle_1B"
 BUNDLE_FLAG_DATASET_ID = "validation_passed_flag_1B"
 
@@ -30,6 +32,9 @@ BUNDLE_REQUIRED_FILES = (
 
 INDEX_SCHEMA_REF = "schemas.1A.yaml#/validation/validation_bundle.index_schema"
 
+STAGE_LOG_ROOT = Path("logs/stages/s9_validation/segment_1B")
+STAGE_LOG_FILENAME = "S9_STAGES.jsonl"
+
 __all__ = [
     "BUNDLE_ROOT_DATASET_ID",
     "BUNDLE_FLAG_DATASET_ID",
@@ -42,4 +47,6 @@ __all__ = [
     "RNG_EVENT_IN_CELL_JITTER",
     "RNG_EVENT_SITE_TILE_ASSIGN",
     "RNG_TRACE_LOG",
+    "STAGE_LOG_FILENAME",
+    "STAGE_LOG_ROOT",
 ]
