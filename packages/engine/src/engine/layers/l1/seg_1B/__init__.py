@@ -34,8 +34,23 @@ from .s3_requirements import (
     materialise_requirements as s3_materialise_requirements,
     prepare_inputs as s3_prepare_inputs,
 )
-from .s4_alloc_plan import RunnerConfig as S4RunnerConfig, S4Error, err as s4_err
-from .s4_alloc_plan.l2 import S4AllocPlanRunner
+from .s4_alloc_plan import (
+    AggregationContext as S4AggregationContext,
+    AllocationResult as S4AllocationResult,
+    PreparedInputs as S4PreparedInputs,
+    RunnerConfig as S4RunnerConfig,
+    S4AllocPlanRunner,
+    S4AllocPlanValidator,
+    S4Error,
+    S4RunResult,
+    ValidatorConfig as S4ValidatorConfig,
+    allocate_sites as s4_allocate_sites,
+    build_allocation as s4_build_allocation,
+    build_run_report as s4_build_run_report,
+    err as s4_err,
+    materialise_allocation as s4_materialise_allocation,
+    prepare_inputs as s4_prepare_inputs,
+)
 
 __all__ = [
     "S0GateRunner",
@@ -68,9 +83,19 @@ __all__ = [
     "s3_compute_requirements",
     "s3_materialise_requirements",
     "s3_prepare_inputs",
+    "S4AggregationContext",
+    "S4AllocationResult",
+    "S4PreparedInputs",
     "S4RunnerConfig",
+    "S4RunResult",
     "S4AllocPlanRunner",
+    "S4AllocPlanValidator",
+    "S4ValidatorConfig",
     "S4Error",
+    "s4_allocate_sites",
+    "s4_build_allocation",
+    "s4_build_run_report",
     "s4_err",
+    "s4_materialise_allocation",
+    "s4_prepare_inputs",
 ]
-

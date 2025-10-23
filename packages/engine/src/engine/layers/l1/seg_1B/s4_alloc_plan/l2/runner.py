@@ -1,28 +1,48 @@
-"""Placeholder runner for Segment 1B State-4."""
+"""Runner for Segment 1B State-4 allocation plan."""
 
 from __future__ import annotations
 
-from typing import Any, Mapping, Optional
+from typing import Mapping, Optional
 
-from ..exceptions import S4Error, err
+from .aggregate import AggregationContext, build_allocation
 from .config import RunnerConfig
+from .materialise import S4RunResult, materialise_allocation
+from .prepare import PreparedInputs, prepare_inputs
 
 
 class S4AllocPlanRunner:
-    """Scaffolding for the S4 allocation plan orchestrator."""
+    """High-level orchestration for the S4 allocation plan."""
 
     def run(
         self,
         config: RunnerConfig,
         *,
         dictionary: Optional[Mapping[str, object]] = None,
-    ) -> Any:
-        """Execute S4 once implemented.
+    ) -> S4RunResult:
+        if dictionary is not None:
+            config = RunnerConfig(
+                data_root=config.data_root,
+                manifest_fingerprint=config.manifest_fingerprint,
+                seed=config.seed,
+                parameter_hash=config.parameter_hash,
+                dictionary=dictionary,
+            )
 
-        For now, raise a structured error to signal the state is not yet available.
-        """
-
-        raise err("S4_NOT_IMPLEMENTED", "State-4 allocation plan is not implemented yet")
+        prepared = prepare_inputs(config)
+        context = AggregationContext(
+            requirements=prepared.requirements,
+            tile_weights=prepared.tile_weights,
+            tile_index=prepared.tile_index,
+            iso_table=prepared.iso_table,
+            dp=prepared.tile_weights.dp,
+        )
+        allocation = build_allocation(context)
+        return materialise_allocation(
+            prepared=prepared,
+            allocation=allocation,
+            iso_version=prepared.iso_version,
+        )
 
 
 __all__ = ["S4AllocPlanRunner"]
+

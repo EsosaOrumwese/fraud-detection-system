@@ -1,32 +1,262 @@
+from __future__ import annotations
+
+import json
 from pathlib import Path
 
+import polars as pl
 import pytest
 
-from engine.layers.l1.seg_1B import S4AllocPlanRunner, S4RunnerConfig
+from engine.layers.l1.seg_1B import (
+    S4AllocPlanRunner,
+    S4AllocPlanValidator,
+    S4RunnerConfig,
+    S4ValidatorConfig,
+    s4_allocate_sites,
+)
 from engine.layers.l1.seg_1B.s4_alloc_plan.exceptions import S4Error
 
 
-def test_runner_config_normalises_inputs(tmp_path: Path) -> None:
-    config = S4RunnerConfig(
-        data_root=tmp_path,
-        manifest_fingerprint="a" * 64,
-        seed="12345",
-        parameter_hash="b" * 64,
+def _dictionary() -> dict[str, object]:
+    return {
+        "datasets": {
+            "s3_requirements": {
+                "path": "data/layer1/1B/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/",
+                "partitioning": ["seed", "fingerprint", "parameter_hash"],
+                "ordering": ["merchant_id", "legal_country_iso"],
+                "schema_ref": "schemas.1B.yaml#/plan/s3_requirements",
+            },
+            "tile_weights": {
+                "path": "data/layer1/1B/tile_weights/parameter_hash={parameter_hash}/",
+                "partitioning": ["parameter_hash"],
+                "ordering": ["country_iso", "tile_id"],
+                "schema_ref": "schemas.1B.yaml#/prep/tile_weights",
+            },
+            "tile_index": {
+                "path": "data/layer1/1B/tile_index/parameter_hash={parameter_hash}/",
+                "partitioning": ["parameter_hash"],
+                "ordering": ["country_iso", "tile_id"],
+                "schema_ref": "schemas.1B.yaml#/prep/tile_index",
+            },
+            "s4_alloc_plan": {
+                "path": "data/layer1/1B/s4_alloc_plan/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/",
+                "partitioning": ["seed", "fingerprint", "parameter_hash"],
+                "ordering": ["merchant_id", "legal_country_iso", "tile_id"],
+                "schema_ref": "schemas.1B.yaml#/plan/s4_alloc_plan",
+            },
+        },
+        "reference_data": {
+            "iso3166_canonical_2024": {
+                "path": "reference/iso/iso3166_canonical.parquet",
+                "schema_ref": "schemas.ingress.layer1.yaml#/iso3166_canonical_2024",
+                "version": "test",
+            }
+        },
+    }
+
+
+def test_allocate_sites_basic() -> None:
+    requirements = pl.DataFrame(
+        {
+            "merchant_id": [1],
+            "legal_country_iso": ["US"],
+            "n_sites": [5],
+        }
     )
-    assert config.data_root == tmp_path.resolve()
-    assert config.manifest_fingerprint == "a" * 64
-    assert config.seed == "12345"
-    assert config.parameter_hash == "b" * 64
+    tile_weights = pl.DataFrame(
+        {
+            "country_iso": ["US", "US"],
+            "tile_id": [1, 2],
+            "weight_fp": [700, 300],
+            "dp": [3, 3],
+        }
+    )
+    tile_index = tile_weights.select(["country_iso", "tile_id"])
+
+    result = s4_allocate_sites(requirements, tile_weights, tile_index, dp=3)
+    allocations = {
+        (row[0], row[1], row[2]): row[3]
+        for row in result.frame.rows()
+    }
+    assert allocations[(1, "US", 1)] == 4
+    assert allocations[(1, "US", 2)] == 1
 
 
-def test_placeholder_runner_raises_not_implemented(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    "tile_weights",
+    [
+        pl.DataFrame({"country_iso": ["GB", "GB", "GB"], "tile_id": [10, 11, 12], "weight_fp": [333, 333, 334], "dp": [3, 3, 3]}),
+    ],
+)
+def test_allocate_sites_tie_breaks(tile_weights: pl.DataFrame) -> None:
+    requirements = pl.DataFrame(
+        {
+            "merchant_id": [1],
+            "legal_country_iso": ["GB"],
+            "n_sites": [3],
+        }
+    )
+    tile_index = tile_weights.select(["country_iso", "tile_id"])
+
+    result = s4_allocate_sites(requirements, tile_weights, tile_index, dp=3)
+    allocation_map = {row[2]: row[3] for row in result.frame.rows()}
+    assert allocation_map == {10: 1, 11: 1, 12: 1}
+
+
+def test_runner_and_validator_success(tmp_path: Path) -> None:
+    dictionary = _dictionary()
+    data_root = tmp_path
+    (data_root / "data/layer1/1B/s3_requirements/seed=123/fingerprint=ff/parameter_hash=hh").mkdir(parents=True, exist_ok=True)
+    (data_root / "data/layer1/1B/tile_weights/parameter_hash=hh").mkdir(parents=True, exist_ok=True)
+    (data_root / "data/layer1/1B/tile_index/parameter_hash=hh").mkdir(parents=True, exist_ok=True)
+    (data_root / "reference/iso").mkdir(parents=True, exist_ok=True)
+
+    pl.DataFrame({"country_iso": ["US", "GB"]}).write_parquet(
+        data_root / "reference/iso/iso3166_canonical.parquet"
+    )
+    pl.DataFrame(
+        {
+            "merchant_id": [1, 2],
+            "legal_country_iso": ["US", "GB"],
+            "n_sites": [5, 2],
+        }
+    ).write_parquet(
+        data_root / "data/layer1/1B/s3_requirements/seed=123/fingerprint=ff/parameter_hash=hh/part-00000.parquet"
+    )
+    pl.DataFrame(
+        {
+            "country_iso": ["US", "US", "GB", "GB"],
+            "tile_id": [1, 2, 5, 6],
+            "weight_fp": [700, 300, 600, 400],
+            "dp": [3, 3, 3, 3],
+        }
+    ).write_parquet(
+        data_root / "data/layer1/1B/tile_weights/parameter_hash=hh/part-00000.parquet"
+    )
+    pl.DataFrame(
+        {
+            "country_iso": ["US", "US", "GB", "GB"],
+            "tile_id": [1, 2, 5, 6],
+        }
+    ).write_parquet(
+        data_root / "data/layer1/1B/tile_index/parameter_hash=hh/part-00000.parquet"
+    )
+
     runner = S4AllocPlanRunner()
     config = S4RunnerConfig(
-        data_root=tmp_path,
-        manifest_fingerprint="a" * 64,
-        seed="12345",
-        parameter_hash="b" * 64,
+        data_root=data_root,
+        manifest_fingerprint="ff",
+        seed="123",
+        parameter_hash="hh",
+        dictionary=dictionary,
     )
+    result = runner.run(config)
+
+    dataset = pl.read_parquet(result.alloc_plan_path / "part-00000.parquet")
+    assert dataset.sort(["merchant_id", "legal_country_iso", "tile_id"]).rows() == [
+        (1, "US", 1, 4),
+        (1, "US", 2, 1),
+        (2, "GB", 5, 1),
+        (2, "GB", 6, 1),
+    ]
+
+    validator = S4AllocPlanValidator()
+    validator.validate(
+        S4ValidatorConfig(
+            data_root=data_root,
+            seed="123",
+            manifest_fingerprint="ff",
+            parameter_hash="hh",
+            dictionary=dictionary,
+        )
+    )
+
+
+def test_validator_detects_mismatch(tmp_path: Path) -> None:
+    dictionary = _dictionary()
+    data_root = tmp_path
+    (data_root / "data/layer1/1B/s3_requirements/seed=123/fingerprint=ff/parameter_hash=hh").mkdir(parents=True, exist_ok=True)
+    (data_root / "data/layer1/1B/tile_weights/parameter_hash=hh").mkdir(parents=True, exist_ok=True)
+    (data_root / "data/layer1/1B/tile_index/parameter_hash=hh").mkdir(parents=True, exist_ok=True)
+    (data_root / "data/layer1/1B/s4_alloc_plan/seed=123/fingerprint=ff/parameter_hash=hh").mkdir(parents=True, exist_ok=True)
+    (data_root / "reference/iso").mkdir(parents=True, exist_ok=True)
+
+    pl.DataFrame({"country_iso": ["US"]}).write_parquet(
+        data_root / "reference/iso/iso3166_canonical.parquet"
+    )
+    pl.DataFrame(
+        {
+            "merchant_id": [1],
+            "legal_country_iso": ["US"],
+            "n_sites": [2],
+        }
+    ).write_parquet(
+        data_root / "data/layer1/1B/s3_requirements/seed=123/fingerprint=ff/parameter_hash=hh/part-00000.parquet"
+    )
+    pl.DataFrame(
+        {
+            "country_iso": ["US", "US"],
+            "tile_id": [1, 2],
+            "weight_fp": [500, 500],
+            "dp": [3, 3],
+        }
+    ).write_parquet(
+        data_root / "data/layer1/1B/tile_weights/parameter_hash=hh/part-00000.parquet"
+    )
+    pl.DataFrame(
+        {
+            "country_iso": ["US", "US"],
+            "tile_id": [1, 2],
+        }
+    ).write_parquet(
+        data_root / "data/layer1/1B/tile_index/parameter_hash=hh/part-00000.parquet"
+    )
+    pl.DataFrame(
+        {
+            "merchant_id": [1, 1],
+            "legal_country_iso": ["US", "US"],
+            "tile_id": [1, 2],
+            "n_sites_tile": [2, 2],
+        }
+    ).write_parquet(
+        data_root / "data/layer1/1B/s4_alloc_plan/seed=123/fingerprint=ff/parameter_hash=hh/part-00000.parquet"
+    )
+
+    control_dir = (
+        data_root / "control/s4_alloc_plan/seed=123/fingerprint=ff/parameter_hash=hh"
+    )
+    control_dir.mkdir(parents=True, exist_ok=True)
+    (control_dir / "s4_run_report.json").write_text(
+        json.dumps(
+            {
+                "seed": "123",
+                "manifest_fingerprint": "ff",
+                "parameter_hash": "hh",
+                "rows_emitted": 2,
+                "pairs_total": 1,
+                "shortfall_total": 0,
+                "ties_broken_total": 0,
+                "ingress_versions": {"iso3166": "test"},
+                "determinism_receipt": {
+                    "partition_path": str(
+                        data_root
+                        / "data/layer1/1B/s4_alloc_plan/seed=123/fingerprint=ff/parameter_hash=hh"
+                    ),
+                    "sha256_hex": "deadbeef",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    validator = S4AllocPlanValidator()
     with pytest.raises(S4Error) as excinfo:
-        runner.run(config)
-    assert excinfo.value.context.code == "S4_NOT_IMPLEMENTED"
+        validator.validate(
+            S4ValidatorConfig(
+                data_root=data_root,
+                seed="123",
+                manifest_fingerprint="ff",
+                parameter_hash="hh",
+                dictionary=dictionary,
+            )
+        )
+    assert excinfo.value.context.code == "E403_SHORTFALL_MISMATCH"

@@ -8,7 +8,7 @@ from typing import Mapping, Tuple
 
 
 class FailureCategory(Enum):
-    """Placeholder categories for S4 failures (refine during implementation)."""
+    """Failure categories carried by S4 errors."""
 
     INPUT = "input_validation"
     ALLOCATION = "allocation_integrity"
@@ -17,7 +17,17 @@ class FailureCategory(Enum):
 
 
 _FAILURE_CODE_MAP: Mapping[str, Tuple[FailureCategory, str]] = {
-    "S4_NOT_IMPLEMENTED": (FailureCategory.ALLOCATION, "state_not_implemented"),
+    "E401_REQUIREMENTS_MISSING": (FailureCategory.INPUT, "requirements_missing"),
+    "E402_WEIGHTS_MISSING": (FailureCategory.INPUT, "tile_weights_missing"),
+    "E403_SHORTFALL_MISMATCH": (FailureCategory.ALLOCATION, "sum_to_n_violation"),
+    "E404_TIE_BREAK": (FailureCategory.ALLOCATION, "tie_break_violation"),
+    "E405_SCHEMA_INVALID": (FailureCategory.WRITER, "schema_conformance_failed"),
+    "E406_SORT_INVALID": (FailureCategory.WRITER, "sort_order_violation"),
+    "E407_PK_DUPLICATE": (FailureCategory.WRITER, "primary_key_violation"),
+    "E408_COVERAGE_MISSING": (FailureCategory.INPUT, "tile_coverage_missing"),
+    "E409_DETERMINISM": (FailureCategory.DETERMINISM, "determinism_violation"),
+    "E410_TOKEN_MISMATCH": (FailureCategory.INPUT, "path_embed_mismatch"),
+    "E411_IMMUTABLE_CONFLICT": (FailureCategory.WRITER, "immutable_conflict"),
 }
 
 
