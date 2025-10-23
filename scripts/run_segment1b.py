@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Execute Segment 1B (S0 → S4) for one or more parameter hashes using a YAML config.
+Execute Segment 1B (S0 → S5) for one or more parameter hashes using a YAML config.
 
 The config file contains a list named ``runs`` where each entry supplies the
 arguments accepted by ``python -m engine.cli.segment1b run``. Optional
 ``validate`` entries allow the wrapper to chain ``validate``, ``validate-s3``,
-and ``validate-s4`` calls after the run so nightly jobs emit the full evidence
-bundle without bespoke scripting.
+``validate-s4``, and ``validate-s5`` calls after the run so nightly jobs emit the
+full evidence bundle without bespoke scripting.
 """
 
 from __future__ import annotations
@@ -128,6 +128,24 @@ def _build_validation_args(run: Dict[str, Any], kind: str) -> list[str]:
             base_args.extend(["--dictionary", str(dictionary)])
         if "s4_run_report" in run:
             base_args.extend(["--run-report", str(run["s4_run_report"])])
+    elif kind == "s5":
+        if "seed" not in run or "manifest_fingerprint" not in run:
+            raise ValueError("validate 's5' requires 'seed' and 'manifest_fingerprint'")
+        base_args = [
+            "validate-s5",
+            "--parameter-hash",
+            str(run["parameter_hash"]),
+            "--seed",
+            str(run["seed"]),
+            "--manifest-fingerprint",
+            str(run["manifest_fingerprint"]),
+            "--data-root",
+            str(data_root),
+        ]
+        if dictionary:
+            base_args.extend(["--dictionary", str(dictionary)])
+        if "s5_run_report" in run:
+            base_args.extend(["--run-report", str(run["s5_run_report"])])
     else:
         raise ValueError(f"unsupported validation kind '{kind}'")
     return base_args

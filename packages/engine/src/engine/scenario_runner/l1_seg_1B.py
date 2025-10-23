@@ -1,4 +1,4 @@
-"""Scenario runner for Segment 1B (S0 → S4)."""
+"""Scenario runner for Segment 1B (S0 → S5)."""
 
 from __future__ import annotations
 
@@ -21,6 +21,9 @@ from engine.layers.l1.seg_1B import (
     S4AllocPlanRunner,
     S4RunResult,
     S4RunnerConfig,
+    S5RunResult,
+    S5RunnerConfig,
+    S5SiteTileAssignmentRunner,
 )
 from engine.layers.l1.seg_1B.shared.dictionary import load_dictionary
 
@@ -43,13 +46,14 @@ class Segment1BConfig:
 
 @dataclass(frozen=True)
 class Segment1BResult:
-    """Structured result capturing outputs from S0–S4."""
+    """Structured result capturing outputs from S0–S5."""
 
     s0_receipt_path: Optional[Path]
     s1: S1RunResult
     s2: S2RunResult
     s3: S3RunResult
     s4: S4RunResult
+    s5: S5RunResult
 
 
 class Segment1BOrchestrator:
@@ -61,6 +65,7 @@ class Segment1BOrchestrator:
         self._s2_runner = S2TileWeightsRunner()
         self._s3_runner = S3RequirementsRunner()
         self._s4_runner = S4AllocPlanRunner()
+        self._s5_runner = S5SiteTileAssignmentRunner()
 
     def run(self, config: Segment1BConfig) -> Segment1BResult:
         dictionary = config.dictionary or load_dictionary()
@@ -133,12 +138,23 @@ class Segment1BOrchestrator:
             )
         )
 
+        s5_result = self._s5_runner.run(
+            S5RunnerConfig(
+                data_root=data_root,
+                manifest_fingerprint=config.manifest_fingerprint,
+                seed=config.seed,
+                parameter_hash=config.parameter_hash,
+                dictionary=dictionary,
+            )
+        )
+
         return Segment1BResult(
             s0_receipt_path=receipt_path,
             s1=s1_result,
             s2=s2_result,
             s3=s3_result,
             s4=s4_result,
+            s5=s5_result,
         )
 
 

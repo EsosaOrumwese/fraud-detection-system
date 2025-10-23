@@ -20,3 +20,10 @@ State 5 randomly assigns each site `(merchant_id, legal_country_iso, site_order)
 - Wire S5 into the segment orchestrator/CLI (run + validate) and refresh nightly automation to include the validator.
 - Capture evidence bundle (dataset, RNG logs, run report) for governance review and update release notes accordingly.
 - Extend regression coverage with end-to-end S0→S5 smoke once downstream S6 is available.
+
+---
+
+## 4. CLI Usage
+- Run full chain (S0→S5): `python -m engine.cli.segment1b run --data-root <root> --parameter-hash <hash> --manifest-fingerprint <fingerprint> --seed <seed> [...]`
+- Validate S5 artefacts: `python -m engine.cli.segment1b validate-s5 --data-root <root> --parameter-hash <hash> --manifest-fingerprint <fingerprint> --seed <seed> [--run-report <path>]`
+- Automation wrapper: `python scripts/run_segment1b.py --config config/runs/segment1b_nightly.yaml` (supports `"validate": ["s2","s3","s4","s5"]`).
