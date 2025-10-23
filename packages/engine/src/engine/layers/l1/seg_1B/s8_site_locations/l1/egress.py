@@ -117,7 +117,7 @@ def compute_site_locations(*, synthesis: S7SiteSynthesisPartition) -> S8Outcome:
         .rename({"len": "rows_s8"})
         .with_columns(pl.col("legal_country_iso").str.to_uppercase())
     )
-    merged = s7_per_country.join(s8_per_country, on="legal_country_iso", how="outer").fill_null(0)
+    merged = s7_per_country.join(s8_per_country, on="legal_country_iso", how="full").fill_null(0)
     for row in merged.iter_rows(named=True):
         iso = str(row["legal_country_iso"])
         rows_iso_s7 = int(row.get("rows_s7", 0))
