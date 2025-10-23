@@ -54,7 +54,7 @@ def validate_outputs(context: S9DeterministicContext) -> S9ValidationResult:
     writer_failures, writer_stats = _validate_writer_sort(s8_df)
     failures.extend(writer_failures)
 
-    rng_results, rng_failures = _validate_rng(context, s7_df)
+    rng_results, rng_failures, audit_status = _validate_rng(context, s7_df)
     failures.extend(rng_failures)
 
     summary = _build_summary(
@@ -64,9 +64,13 @@ def validate_outputs(context: S9DeterministicContext) -> S9ValidationResult:
         parity_ok=parity_ok,
         writer_stats=writer_stats,
         rng_results=rng_results,
+        audit_status=audit_status,
     )
 
-    rng_accounting = {"families": list(rng_results.values())}
+    rng_accounting = {
+        "families": list(rng_results.values()),
+        "audit": audit_status,
+    }
 
     passed = not failures
 
@@ -86,6 +90,7 @@ def _build_summary(
     parity_ok: bool,
     writer_stats: Mapping[str, int],
     rng_results: Mapping[str, Mapping[str, Any]],
+    audit_status: Mapping[str, Any],
 ) -> Mapping[str, Any]:
     rows_s7 = int(len(s7_df))
     rows_s8 = int(len(s8_df))
@@ -122,6 +127,7 @@ def _build_summary(
             for family in rng_results.values()
         }
     }
+    rng_summary["audit"] = dict(audit_status)
 
     return {
         "identity": {
@@ -171,16 +177,41 @@ def _validate_row_parity(
 
 
 def _validate_schema(s8_df: pd.DataFrame) -> Sequence[ErrorContext]:
+    failures: list[ErrorContext] = []
+
     expected_columns = {"merchant_id", "legal_country_iso", "site_order", "lon_deg", "lat_deg"}
     actual_columns = set(s8_df.columns)
     if actual_columns != expected_columns:
-        return [
+        failures.append(
             err(
                 "E904_EGRESS_SCHEMA_VIOLATION",
                 f"site_locations columns {sorted(actual_columns)} do not match expected {sorted(expected_columns)}",
             ).context
-        ]
-    return ()
+        )
+
+    if not s8_df.empty:
+        if not np.issubdtype(s8_df["merchant_id"].dtype, np.integer):
+            if not s8_df["merchant_id"].apply(lambda v: isinstance(v, (int, np.integer))).all():
+                failures.append(err("E904_EGRESS_SCHEMA_VIOLATION", "merchant_id must be integers").context)
+
+        if not np.issubdtype(s8_df["site_order"].dtype, np.integer):
+            if not s8_df["site_order"].apply(lambda v: isinstance(v, (int, np.integer))).all():
+                failures.append(err("E904_EGRESS_SCHEMA_VIOLATION", "site_order must be integers").context)
+
+        if (s8_df["site_order"] < 1).any():
+            failures.append(err("E904_EGRESS_SCHEMA_VIOLATION", "site_order must be >= 1").context)
+
+        if not s8_df["legal_country_iso"].apply(lambda v: isinstance(v, str) and v.isupper() and len(v) == 2).all():
+            failures.append(err("E904_EGRESS_SCHEMA_VIOLATION", "legal_country_iso must be uppercase ISO2 codes").context)
+
+        lon_valid = s8_df["lon_deg"].apply(lambda v: isinstance(v, (int, float, np.floating, np.integer)) and -180 <= float(v) <= 180)
+        lat_valid = s8_df["lat_deg"].apply(lambda v: isinstance(v, (int, float, np.floating, np.integer)) and -90 <= float(v) <= 90)
+        if not lon_valid.all():
+            failures.append(err("E904_EGRESS_SCHEMA_VIOLATION", "lon_deg outside [-180, 180]").context)
+        if not lat_valid.all():
+            failures.append(err("E904_EGRESS_SCHEMA_VIOLATION", "lat_deg outside [-90, 90]").context)
+
+    return failures
 
 
 def _validate_identity(context: S9DeterministicContext, parity_ok: bool) -> Sequence[ErrorContext]:
@@ -260,7 +291,7 @@ def _validate_writer_sort(s8_df: pd.DataFrame) -> tuple[Sequence[ErrorContext], 
 def _validate_rng(
     context: S9DeterministicContext,
     s7_df: pd.DataFrame,
-) -> tuple[Mapping[str, Mapping[str, Any]], Sequence[ErrorContext]]:
+) -> tuple[Mapping[str, Mapping[str, Any]], Sequence[ErrorContext], Mapping[str, Any]]:
     failures: list[ErrorContext] = []
     results: dict[str, Mapping[str, Any]] = {}
 
@@ -271,6 +302,10 @@ def _validate_rng(
         trace_df = trace_df.copy()
         trace_df["module"] = trace_df["module"].astype(str)
         trace_df["substream_label"] = trace_df["substream_label"].astype(str)
+
+    audit_df = context.surfaces.rng_audit_log if context.surfaces.rng_audit_log is not None else pd.DataFrame()
+    audit_status, audit_failures = _validate_audit_log(context, audit_df)
+    failures.extend(audit_failures)
 
     for dataset_id, config in _RNG_FAMILY_CONFIG.items():
         frame = context.surfaces.rng_events.get(dataset_id, pd.DataFrame())
@@ -300,7 +335,7 @@ def _validate_rng(
                     ).context
                 )
 
-    return results, failures
+    return results, failures, audit_status
 
 
 def _evaluate_rng_family(
@@ -327,6 +362,10 @@ def _evaluate_rng_family(
                 coverage_ok = False
         events_missing = sum(1 for key in s7_keys if key_counts.get(key, 0) == 0)
         events_extra = sum(max(0, count - 1) for count in key_counts.values())
+        stray_events = sum(count for key, count in key_counts.items() if key not in s7_keys)
+        if stray_events:
+            events_extra += stray_events
+            coverage_ok = False
         coverage_descriptor = {
             "sites_total": len(s7_keys),
             "events_missing": events_missing,
@@ -335,10 +374,14 @@ def _evaluate_rng_family(
     else:
         sites_with_event = sum(1 for key in s7_keys if key_counts.get(key, 0) >= 1)
         coverage_ok = sites_with_event == len(s7_keys)
+        stray_events = sum(count for key, count in key_counts.items() if key not in s7_keys)
+        if stray_events:
+            coverage_ok = False
         coverage_descriptor = {
             "sites_total": len(s7_keys),
             "sites_with_≥1_event": sites_with_event,
             "sites_with_0_event": len(s7_keys) - sites_with_event,
+            "events_extra": stray_events,
         }
 
     blocks_total = 0
@@ -459,6 +502,63 @@ def _parse_u128(value: Any) -> int:
     if not text.isdigit():
         raise ValueError(f"invalid u128 value '{value}'")
     return int(text)
+
+
+def _validate_audit_log(
+    context: S9DeterministicContext,
+    audit_df: pd.DataFrame,
+) -> tuple[Mapping[str, Any], Sequence[ErrorContext]]:
+    status: dict[str, Any] = {
+        "records_total": int(len(audit_df)) if audit_df is not None else 0,
+        "identity_ok": False,
+    }
+    failures: list[ErrorContext] = []
+
+    if audit_df is None or audit_df.empty:
+        failures.append(err("E907_RNG_BUDGET_OR_COUNTERS", "rng_audit_log missing for run").context)
+        return status, failures
+
+    if len(audit_df) != 1:
+        failures.append(err("E907_RNG_BUDGET_OR_COUNTERS", "rng_audit_log must contain exactly one record").context)
+        return status, failures
+
+    record = audit_df.iloc[0]
+
+    try:
+        seed_value = int(record.get("seed"))
+    except (TypeError, ValueError):
+        failures.append(err("E907_RNG_BUDGET_OR_COUNTERS", "rng_audit_log seed is invalid").context)
+        return status, failures
+
+    expected_seed = int(context.seed)
+    if seed_value != expected_seed:
+        failures.append(err("E907_RNG_BUDGET_OR_COUNTERS", "rng_audit_log seed mismatch").context)
+
+    run_id = str(record.get("run_id", ""))
+    if run_id != context.run_id:
+        failures.append(err("E907_RNG_BUDGET_OR_COUNTERS", "rng_audit_log run_id mismatch").context)
+
+    parameter_hash = str(record.get("parameter_hash", "")).lower()
+    if parameter_hash != context.parameter_hash.lower():
+        failures.append(err("E907_RNG_BUDGET_OR_COUNTERS", "rng_audit_log parameter_hash mismatch").context)
+
+    fingerprint = str(record.get("manifest_fingerprint", "")).lower()
+    if fingerprint != context.manifest_fingerprint.lower():
+        failures.append(err("E907_RNG_BUDGET_OR_COUNTERS", "rng_audit_log manifest_fingerprint mismatch").context)
+
+    algorithm = str(record.get("algorithm", ""))
+    if algorithm and algorithm != "philox2x64-10":
+        failures.append(err("E907_RNG_BUDGET_OR_COUNTERS", "rng_audit_log algorithm mismatch").context)
+
+    status.update(
+        {
+            "identity_ok": not failures,
+            "run_id": run_id,
+            "algorithm": algorithm or None,
+        }
+    )
+
+    return status, failures
 
 
 __all__ = ["validate_outputs"]

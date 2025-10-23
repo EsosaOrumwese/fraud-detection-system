@@ -246,7 +246,21 @@ def _setup_success_case(base_path: Path) -> dict:
     _write_jsonl(tile_events, _tile_events_path(base_path))
     _write_jsonl(jitter_events, _jitter_events_path(base_path))
     _write_jsonl(trace_rows, _trace_log_path(base_path))
-    _write_jsonl(pd.DataFrame(), _audit_log_path(base_path))
+
+    audit_record = pd.DataFrame(
+        [
+            {
+                "ts_utc": "2025-01-01T00:00:00.000000Z",
+                "run_id": RUN_ID,
+                "seed": SEED,
+                "manifest_fingerprint": FINGERPRINT,
+                "parameter_hash": PARAMETER_HASH,
+                "algorithm": "philox2x64-10",
+                "build_commit": "f" * 64,
+            }
+        ]
+    )
+    _write_jsonl(audit_record, _audit_log_path(base_path))
 
     return _dictionary()
 
@@ -439,6 +453,77 @@ def test_rng_trace_gap_fails(tmp_path: Path) -> None:
         ]
     )
     _write_jsonl(trace_rows, _trace_log_path(tmp_path))
+
+    context = load_deterministic_context(
+        base_path=tmp_path,
+        seed=SEED,
+        parameter_hash=PARAMETER_HASH,
+        manifest_fingerprint=FINGERPRINT,
+        run_id=RUN_ID,
+        dictionary=dictionary,
+    )
+    result = validate_outputs(context)
+    assert not result.passed
+    codes = {failure.code for failure in result.failures}
+    assert "E907_RNG_BUDGET_OR_COUNTERS" in codes
+
+
+def test_rng_detects_stray_tile_event(tmp_path: Path) -> None:
+    dictionary = _setup_success_case(tmp_path)
+
+    tile_events = pd.read_json(_tile_events_path(tmp_path), orient="records", lines=True)
+    stray = tile_events.iloc[0].copy()
+    stray["merchant_id"] = 999
+    stray["rng_counter_before_lo"] = 2
+    stray["rng_counter_after_lo"] = 3
+    tile_events = pd.concat([tile_events, stray.to_frame().T], ignore_index=True)
+    tile_events.to_json(_tile_events_path(tmp_path), orient="records", lines=True)
+
+    trace_rows = pd.DataFrame(
+        [
+            {
+                "module": "1B.s5_site_tile_assignment",
+                "substream_label": "site_tile_assign",
+                "events_total": 3,
+                "blocks_total": 3,
+                "draws_total": "3",
+                "rng_counter_after_lo": 3,
+                "rng_counter_after_hi": 0,
+            },
+            {
+                "module": "1B.S6.jitter",
+                "substream_label": "in_cell_jitter",
+                "events_total": 2,
+                "blocks_total": 2,
+                "draws_total": "4",
+                "rng_counter_after_lo": 12,
+                "rng_counter_after_hi": 0,
+            },
+        ]
+    )
+    _write_jsonl(trace_rows, _trace_log_path(tmp_path))
+
+    context = load_deterministic_context(
+        base_path=tmp_path,
+        seed=SEED,
+        parameter_hash=PARAMETER_HASH,
+        manifest_fingerprint=FINGERPRINT,
+        run_id=RUN_ID,
+        dictionary=dictionary,
+    )
+    result = validate_outputs(context)
+    assert not result.passed
+    codes = {failure.code for failure in result.failures}
+    assert "E907_RNG_BUDGET_OR_COUNTERS" in codes
+
+
+def test_rng_audit_mismatch(tmp_path: Path) -> None:
+    dictionary = _setup_success_case(tmp_path)
+
+    audit_path = _audit_log_path(tmp_path)
+    audit_record = pd.read_json(audit_path, orient="records", lines=True)
+    audit_record.loc[0, "seed"] = SEED + 1
+    audit_record.to_json(audit_path, orient="records", lines=True)
 
     context = load_deterministic_context(
         base_path=tmp_path,

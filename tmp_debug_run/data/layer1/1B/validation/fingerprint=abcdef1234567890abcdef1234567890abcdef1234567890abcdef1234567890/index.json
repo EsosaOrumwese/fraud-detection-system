@@ -1,0 +1,39 @@
+{
+  "artifacts": [
+    {
+      "artifact_id": "manifest",
+      "path": "MANIFEST.json",
+      "sha256_hex": "7324d10c4a5bb89bddd52188ed5d96eec7aa0e81401aa247632a9576475a7577"
+    },
+    {
+      "artifact_id": "egress_checksums",
+      "path": "egress_checksums.json",
+      "sha256_hex": "e0ee1aea8325a02094d49f85f77761d5769b53b7c7e10729d1a29c1c4ac659f8"
+    },
+    {
+      "artifact_id": "self_index",
+      "path": "index.json",
+      "sha256_hex": "63e5c4f45ae9880b517ef1f70475578c843aafc3b85c817ac279b42828bd7a63"
+    },
+    {
+      "artifact_id": "fingerprint",
+      "path": "manifest_fingerprint_resolved.json",
+      "sha256_hex": "d399f39585cc863543e27d1d7bd10bedc6b4bcdf6e4f371c4cd1a05fd9178c48"
+    },
+    {
+      "artifact_id": "param_hash",
+      "path": "parameter_hash_resolved.json",
+      "sha256_hex": "0087b5055c7ec9151f5f05eb8ff79bcd71b8e4a4a9f8ac6222a61dc324b40a18"
+    },
+    {
+      "artifact_id": "rng_accounting",
+      "path": "rng_accounting.json",
+      "sha256_hex": "59440e31e903b98ed8c738d9c892645dd5c771ecfed3971e0601dc1fe8f27e96"
+    },
+    {
+      "artifact_id": "s9_summary",
+      "path": "s9_summary.json",
+      "sha256_hex": "a8b97087b4f23a4baf80155ffaef90698e85f4db5946ed8296cffd3d745e75dc"
+    }
+  ]
+}
