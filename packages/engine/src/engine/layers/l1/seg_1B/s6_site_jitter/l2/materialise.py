@@ -153,6 +153,7 @@ def materialise_jitter(
         "by_country": outcome.by_country,
         "metrics": metrics,
     }
+    run_report["determinism_receipt"] = determinism_receipt
     if prepared.iso_version:
         run_report.setdefault("ingress_versions", {})["iso3166_canonical_2024"] = prepared.iso_version
 

@@ -61,6 +61,16 @@ def stub_orchestrator(monkeypatch: pytest.MonkeyPatch):
                 rng_events_emitted=4,
                 run_id="abcd1234ef567890abcd1234ef567890",
             ),
+            s6=SimpleNamespace(
+                dataset_path=Path("/tmp/s6_site_jitter"),
+                run_report_path=Path("/tmp/s6_run_report.json"),
+                rng_log_path=Path("/tmp/logs/in_cell_jitter"),
+                determinism_receipt={"partition_path": "/tmp/s6_site_jitter", "sha256_hex": "beadfeed"},
+                rows_emitted=4,
+                rng_events_total=6,
+                counter_span=6,
+                run_id="bcd1234ef567890abcd1234ef567890",
+            ),
         )
 
     monkeypatch.setattr(cli, "Segment1BOrchestrator", lambda: SimpleNamespace(run=_run))
@@ -122,6 +132,7 @@ def test_segment1b_cli_outputs(monkeypatch: pytest.MonkeyPatch, stub_orchestrato
     assert Path(payload["s3"]["requirements_path"]) == Path("/tmp/s3_requirements")
     assert Path(payload["s4"]["alloc_plan_path"]) == Path("/tmp/s4_alloc_plan")
     assert Path(payload["s5"]["dataset_path"]) == Path("/tmp/s5_site_tile_assignment")
+    assert Path(payload["s6"]["dataset_path"]) == Path("/tmp/s6_site_jitter")
 
 
 def test_segment1b_cli_validate_s3(monkeypatch: pytest.MonkeyPatch, stub_s3_validator, tmp_dictionary):
@@ -210,3 +221,37 @@ def test_segment1b_cli_validate_s5(monkeypatch: pytest.MonkeyPatch, stub_s5_vali
     )
     assert exit_code == 0
     assert len(stub_s5_validator.calls) == 1
+
+
+@pytest.fixture()
+def stub_s6_validator(monkeypatch: pytest.MonkeyPatch):
+    class _StubValidator:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def validate(self, config):
+            self.calls.append(config)
+
+    validator = _StubValidator()
+    monkeypatch.setattr(cli, "S6SiteJitterValidator", lambda: validator)
+    return validator
+
+
+def test_segment1b_cli_validate_s6(monkeypatch: pytest.MonkeyPatch, stub_s6_validator, tmp_dictionary):
+    exit_code = cli.main(
+        [
+            "validate-s6",
+            "--data-root",
+            ".",
+            "--parameter-hash",
+            "abc123",
+            "--seed",
+            "123",
+            "--manifest-fingerprint",
+            "f" * 64,
+            "--dictionary",
+            str(tmp_dictionary),
+        ]
+    )
+    assert exit_code == 0
+    assert len(stub_s6_validator.calls) == 1

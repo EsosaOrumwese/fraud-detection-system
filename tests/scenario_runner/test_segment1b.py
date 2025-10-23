@@ -13,6 +13,7 @@ from engine.layers.l1.seg_1B import (
     S3RunResult,
     S4RunResult,
     S5RunResult,
+    S6RunResult,
 )
 from engine.scenario_runner.l1_seg_1B import (
     Segment1BConfig,
@@ -173,6 +174,25 @@ class StubS5Runner:
         )
 
 
+class StubS6Runner:
+    def __init__(self) -> None:
+        self.config = None
+
+    def run(self, config):
+        self.config = config
+        base = config.data_root
+        return S6RunResult(
+            dataset_path=base / "s6_site_jitter",
+            rng_log_path=base / "logs" / "in_cell_jitter",
+            run_report_path=base / "s6_run_report.json",
+            determinism_receipt={"partition_path": "dummy", "sha256_hex": "beadfeed"},
+            rows_emitted=4,
+            rng_events_total=6,
+            counter_span=6,
+            run_id="bcd1234ef567890abcd1234ef5678901",
+        )
+
+
 def test_orchestrator_runs_all_states(tmp_path: Path):
     orchestrator = Segment1BOrchestrator()
     orchestrator._s0_runner = StubS0Runner()
@@ -181,6 +201,7 @@ def test_orchestrator_runs_all_states(tmp_path: Path):
     orchestrator._s3_runner = StubS3Runner()
     orchestrator._s4_runner = StubS4Runner()
     orchestrator._s5_runner = StubS5Runner()
+    orchestrator._s6_runner = StubS6Runner()
 
     dictionary = {"datasets": {}}
 
@@ -201,6 +222,7 @@ def test_orchestrator_runs_all_states(tmp_path: Path):
     assert result.s2.tile_weights_path == tmp_path / "tile_weights"
     assert result.s3.requirements_path == tmp_path / "s3_requirements"
     assert result.s4.alloc_plan_path == tmp_path / "s4_alloc_plan"
+    assert result.s6.dataset_path == tmp_path / "s6_site_jitter"
     assert result.s5.dataset_path == tmp_path / "s5_site_tile_assignment"
     assert orchestrator._s2_runner.measure_calls == 1
     assert orchestrator._s3_runner.materialise_calls == 1
@@ -215,6 +237,7 @@ def test_orchestrator_skip_s0(tmp_path: Path):
     orchestrator._s3_runner = StubS3Runner()
     orchestrator._s4_runner = StubS4Runner()
     orchestrator._s5_runner = StubS5Runner()
+    orchestrator._s6_runner = StubS6Runner()
 
     result = orchestrator.run(
         Segment1BConfig(

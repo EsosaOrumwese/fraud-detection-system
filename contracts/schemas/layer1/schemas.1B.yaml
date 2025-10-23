@@ -404,6 +404,7 @@ control:
       - counts
       - validation_counters
       - by_country
+      - determinism_receipt
     properties:
       identity:
         type: object
@@ -488,6 +489,8 @@ control:
             outside_country:
               type: integer
               minimum: 0
+      determinism_receipt:
+        $ref: '#/$defs/determinism_receipt'
       ingress_versions:
         type: object
         additionalProperties:

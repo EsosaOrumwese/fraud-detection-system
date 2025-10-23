@@ -19,6 +19,8 @@ from engine.layers.l1.seg_1B import (
     S4ValidatorConfig,
     S5SiteTileAssignmentValidator,
     S5ValidatorConfig,
+    S6SiteJitterValidator,
+    S6ValidatorConfig,
 )
 from engine.scenario_runner.l1_seg_1B import Segment1BConfig, Segment1BOrchestrator
 
@@ -91,6 +93,16 @@ def _command_run(args: argparse.Namespace) -> int:
             "pairs_total": result.s5.pairs_total,
             "rng_events_emitted": result.s5.rng_events_emitted,
             "run_id": result.s5.run_id,
+        },
+        "s6": {
+            "dataset_path": str(result.s6.dataset_path),
+            "run_report_path": str(result.s6.run_report_path),
+            "rng_log_path": str(result.s6.rng_log_path),
+            "determinism_receipt": result.s6.determinism_receipt,
+            "rows_emitted": result.s6.rows_emitted,
+            "rng_events_total": result.s6.rng_events_total,
+            "counter_span": result.s6.counter_span,
+            "run_id": result.s6.run_id,
         },
     }
     print(json.dumps(summary, indent=2, sort_keys=True))
@@ -165,11 +177,28 @@ def _command_validate_s5(args: argparse.Namespace) -> int:
     return 0
 
 
+def _command_validate_s6(args: argparse.Namespace) -> int:
+    dictionary = _load_dictionary(args.dictionary)
+    validator = S6SiteJitterValidator()
+    validator.validate(
+        S6ValidatorConfig(
+            data_root=args.data_root,
+            seed=args.seed,
+            manifest_fingerprint=args.manifest_fingerprint,
+            parameter_hash=args.parameter_hash,
+            dictionary=dictionary,
+            run_report_path=args.run_report,
+        )
+    )
+    print("Validation succeeded")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Segment 1B utilities")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    run_parser = subparsers.add_parser("run", help="Execute Segment 1B states S0-S5")
+    run_parser = subparsers.add_parser("run", help="Execute Segment 1B states S0-S6")
     run_parser.add_argument("--data-root", type=Path, default=Path("."))
     run_parser.add_argument("--parameter-hash", required=True)
     run_parser.add_argument("--basis", choices=["uniform", "area_m2", "population"], default="uniform")
@@ -213,6 +242,14 @@ def main(argv: list[str] | None = None) -> int:
     validate_s5_parser.add_argument("--dictionary", type=Path)
     validate_s5_parser.add_argument("--run-report", type=Path)
 
+    validate_s6_parser = subparsers.add_parser("validate-s6", help="Validate s6_site_jitter output")
+    validate_s6_parser.add_argument("--data-root", type=Path, default=Path("."))
+    validate_s6_parser.add_argument("--parameter-hash", required=True)
+    validate_s6_parser.add_argument("--seed", required=True)
+    validate_s6_parser.add_argument("--manifest-fingerprint", required=True)
+    validate_s6_parser.add_argument("--dictionary", type=Path)
+    validate_s6_parser.add_argument("--run-report", type=Path)
+
     args = parser.parse_args(argv)
 
     if args.command == "run":
@@ -225,6 +262,8 @@ def main(argv: list[str] | None = None) -> int:
         return _command_validate_s4(args)
     if args.command == "validate-s5":
         return _command_validate_s5(args)
+    if args.command == "validate-s6":
+        return _command_validate_s6(args)
 
     parser.error("Unknown command")
     return 1

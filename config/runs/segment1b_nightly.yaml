@@ -1,10 +1,11 @@
 # Segment 1B nightly run configuration
 # Fill in the placeholder paths before scheduling this job.
-# State coverage (after S5 implementation):
+# State coverage (after S6 implementation):
 #   - S0 revalidates the 1A bundle for the manifest fingerprint.
 #   - S1+S2 read/write under parameter_hash; S3 emits deterministic site counts.
 #   - S4 publishes the allocation plan under data/layer1/1B/s4_alloc_plan/seed=…/fingerprint=…/parameter_hash=…/
 #   - S5 emits s5_site_tile_assignment, RNG logs under logs/rng/events/site_tile_assign/, and a control-plane run report.
+#   - S6 emits s6_site_jitter, RNG logs under logs/rng/events/in_cell_jitter/, and a control-plane run report.
 #   - Control-plane artefacts (run reports, determinism receipts) live under control/<state>/… as per the dictionary.
 runs:
   - parameter_hash: "<replace-with-parameter-hash>"
@@ -16,6 +17,7 @@ runs:
     seed: "<seed-from-S0>"
     validation_bundle: "<path-to-1A-validation-bundle>"
     notes: "nightly smoke"
-    validate: ["s4", "s5"]  # Optional: ["s2","s3","s4","s5"] to chain validator invocations
+    validate: ["s4", "s5", "s6"]  # Optional: ["s2","s3","s4","s5","s6"] to chain validator invocations
     s4_run_report: "<optional-path-for-validate-s4-run-report-flag>"
     s5_run_report: "<optional-path-for-validate-s5-run-report>"
+    s6_run_report: "<optional-path-for-validate-s6-run-report>"
