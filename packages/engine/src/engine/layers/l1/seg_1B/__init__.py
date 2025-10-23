@@ -60,6 +60,15 @@ from .s5_site_tile_assignment import (
     ValidatorConfig as S5ValidatorConfig,
     err as s5_err,
 )
+from .s6_site_jitter import (
+    RunnerConfig as S6RunnerConfig,
+    S6Error,
+    S6RunResult,
+    S6SiteJitterRunner,
+    S6SiteJitterValidator,
+    ValidatorConfig as S6ValidatorConfig,
+    err as s6_err,
+)
 
 __all__ = [
     "S0GateRunner",
@@ -114,4 +123,11 @@ __all__ = [
     "S5ValidatorConfig",
     "S5Error",
     "s5_err",
+    "S6RunnerConfig",
+    "S6RunResult",
+    "S6SiteJitterRunner",
+    "S6SiteJitterValidator",
+    "S6ValidatorConfig",
+    "S6Error",
+    "s6_err",
 ]

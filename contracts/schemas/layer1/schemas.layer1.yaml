@@ -257,6 +257,48 @@ rng:
       - type: object
         unevaluatedProperties: false
 
+    in_cell_jitter:
+      allOf:
+      - $ref: '#/$defs/rng_envelope'
+      - type: object
+        required:
+          - merchant_id
+          - legal_country_iso
+          - site_order
+          - sigma_lat_deg
+          - sigma_lon_deg
+          - delta_lat_deg
+          - delta_lon_deg
+        properties:
+          module: {const: 1B.S6.jitter}
+          substream_label: {const: in_cell_jitter}
+          blocks: {type: integer, enum: [1]}
+          draws: {type: string, enum: ['2']}
+          merchant_id: {$ref: '#/$defs/id64'}
+          legal_country_iso: {$ref: '#/$defs/iso2'}
+          site_order: {type: integer, minimum: 1}
+          sigma_lat_deg:
+            type: number
+            const: 0.0
+          sigma_lon_deg:
+            type: number
+            const: 0.0
+          delta_lat_deg:
+            type: number
+            minimum: -1.0
+            maximum: 1.0
+          delta_lon_deg:
+            type: number
+            minimum: -1.0
+            maximum: 1.0
+          attempt_index:
+            type: integer
+            minimum: 1
+          accepted:
+            type: boolean
+      - type: object
+        unevaluatedProperties: false
+
     ztp_rejection:
       allOf:
       - $ref: '#/$defs/rng_envelope'

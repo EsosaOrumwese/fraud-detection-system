@@ -270,6 +270,24 @@ datasets:
     pii: false
     license: Proprietary-Internal
 
+  s6_site_jitter:
+    status: draft
+    owner_subsegment: 1B
+    description: In-pixel jitter deltas per site with point-in-country enforcement.
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    format: parquet
+    path: data/layer1/1B/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: [merchant_id, legal_country_iso, site_order]
+    schema_ref: schemas.1B.yaml#/plan/s6_site_jitter
+    lineage:
+      produced_by: 1B.S6
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
   s3_run_report:
     status: draft
     owner_subsegment: 1B
@@ -324,6 +342,24 @@ datasets:
     pii: false
     license: Proprietary-Internal
 
+  s6_run_report:
+    status: draft
+    owner_subsegment: 1B
+    description: Control-plane counters for S6 jitter publish.
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    format: json
+    path: control/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s6_run_report.json
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: []
+    schema_ref: schemas.1B.yaml#/control/s6_run_report
+    lineage:
+      produced_by: 1B.S6
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 30
+    pii: false
+    license: Proprietary-Internal
+
 logs:
   rng_event_site_tile_assign:
     status: draft
@@ -337,6 +373,24 @@ logs:
     schema_ref: schemas.layer1.yaml#/rng/events/site_tile_assign
     lineage:
       produced_by: 1B.S5
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 30
+    pii: false
+    license: Proprietary-Internal
+
+  rng_event_in_cell_jitter:
+    status: draft
+    owner_subsegment: 1B
+    description: RNG events for S6 in-pixel jitter (one event per attempt).
+    version: '{run_id}'
+    format: jsonl
+    path: logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/rng/events/in_cell_jitter
+    lineage:
+      produced_by: 1B.S6
       consumed_by: [1B]
       final_in_layer: false
     retention_days: 30
