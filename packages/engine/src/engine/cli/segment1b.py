@@ -22,7 +22,9 @@ from engine.layers.l1.seg_1B import (
     S6SiteJitterValidator,
     S6ValidatorConfig,
     S7SiteSynthesisValidator,
-    ValidatorConfig as S7ValidatorConfig,
+    S7ValidatorConfig,
+    S8SiteLocationsValidator,
+    S8ValidatorConfig,
 )
 from engine.scenario_runner.l1_seg_1B import Segment1BConfig, Segment1BOrchestrator
 
@@ -113,6 +115,12 @@ def _command_run(args: argparse.Namespace) -> int:
             "run_summary_path": str(result.s7.run_summary_path),
             "determinism_receipt": result.s7.determinism_receipt,
             "run_id": result.s7.run_id,
+        },
+        "s8": {
+            "dataset_path": str(result.s8.dataset_path),
+            "run_summary_path": str(result.s8.run_summary_path),
+            "determinism_receipt": result.s8.determinism_receipt,
+            "run_id": result.s8.run_id,
         },
     }
     print(json.dumps(summary, indent=2, sort_keys=True))
@@ -221,6 +229,23 @@ def _command_validate_s7(args: argparse.Namespace) -> int:
     return 0
 
 
+def _command_validate_s8(args: argparse.Namespace) -> int:
+    dictionary = _load_dictionary(args.dictionary)
+    validator = S8SiteLocationsValidator()
+    validator.validate(
+        S8ValidatorConfig(
+            data_root=args.data_root,
+            seed=args.seed,
+            manifest_fingerprint=args.manifest_fingerprint,
+            parameter_hash=args.parameter_hash,
+            dictionary=dictionary,
+            run_summary_path=args.run_summary,
+        )
+    )
+    print("Validation succeeded")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Segment 1B utilities")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -285,6 +310,14 @@ def main(argv: list[str] | None = None) -> int:
     validate_s7_parser.add_argument("--dictionary", type=Path)
     validate_s7_parser.add_argument("--run-summary", type=Path)
 
+    validate_s8_parser = subparsers.add_parser("validate-s8", help="Validate site_locations egress")
+    validate_s8_parser.add_argument("--data-root", type=Path, default=Path("."))
+    validate_s8_parser.add_argument("--parameter-hash", required=True)
+    validate_s8_parser.add_argument("--seed", required=True)
+    validate_s8_parser.add_argument("--manifest-fingerprint", required=True)
+    validate_s8_parser.add_argument("--dictionary", type=Path)
+    validate_s8_parser.add_argument("--run-summary", type=Path)
+
     args = parser.parse_args(argv)
 
     if args.command == "run":
@@ -301,6 +334,8 @@ def main(argv: list[str] | None = None) -> int:
         return _command_validate_s6(args)
     if args.command == "validate-s7":
         return _command_validate_s7(args)
+    if args.command == "validate-s8":
+        return _command_validate_s8(args)
 
     parser.error("Unknown command")
     return 1

@@ -73,9 +73,19 @@ from .s7_site_synthesis import (
     RunnerConfig as S7RunnerConfig,
     S7RunResult,
     S7SiteSynthesisRunner,
+    S7SiteSynthesisValidator,
+    ValidatorConfig as S7ValidatorConfig,
     err as s7_err,
 )
 from .s7_site_synthesis.exceptions import S7Error
+from .s8_site_locations import (
+    RunnerConfig as S8RunnerConfig,
+    S8RunResult,
+    S8SiteLocationsRunner,
+    S8SiteLocationsValidator,
+    ValidatorConfig as S8ValidatorConfig,
+    err as s8_err,
+)
 
 __all__ = [
     "S0GateRunner",
@@ -140,6 +150,14 @@ __all__ = [
     "S7RunnerConfig",
     "S7RunResult",
     "S7SiteSynthesisRunner",
+    "S7SiteSynthesisValidator",
+    "S7ValidatorConfig",
     "S7Error",
     "s7_err",
+    "S8RunnerConfig",
+    "S8RunResult",
+    "S8SiteLocationsRunner",
+    "S8SiteLocationsValidator",
+    "S8ValidatorConfig",
+    "s8_err",
 ]
