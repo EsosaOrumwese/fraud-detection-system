@@ -20,6 +20,11 @@ from ..l1.allocation import AllocationResult
 from ..l2.prepare import PreparedInputs
 from ..l3.observability import build_run_report
 
+try:
+    import psutil  # type: ignore[import]
+except ImportError:  # pragma: no cover - psutil optional
+    psutil = None  # type: ignore[assignment]
+
 
 @dataclass(frozen=True)
 class S4RunResult:
@@ -91,10 +96,8 @@ def materialise_allocation(
         "bytes_read_index": _sum_file_sizes(prepared.tile_index.path),
         "wall_clock_seconds_total": wall_clock_seconds_total,
         "cpu_seconds_total": cpu_seconds_total,
-        "workers_used": 1,
-        "max_worker_rss_bytes": 0,
-        "open_files_peak": 0,
     }
+    metrics.update(_collect_resource_metrics())
 
     report_path = resolve_dataset_path(
         "s4_run_report",
@@ -113,6 +116,7 @@ def materialise_allocation(
         iso_version=iso_version,
         determinism_receipt=determinism_receipt,
         metrics=metrics,
+        merchant_summaries=_build_merchant_summaries(allocation.frame),
     )
     report_path.write_text(json.dumps(run_report, indent=2, sort_keys=True), encoding="utf-8")
 
@@ -168,6 +172,52 @@ def _sum_file_sizes(path: Path) -> int:
     if path.is_dir():
         return sum(p.stat().st_size for p in path.rglob("*") if p.is_file())
     return 0
+
+
+def _collect_resource_metrics() -> dict[str, int]:
+    metrics = {
+        "workers_used": 1,
+        "max_worker_rss_bytes": 0,
+        "open_files_peak": 0,
+    }
+    if psutil is None:  # pragma: no cover - executed when psutil unavailable
+        return metrics
+    try:
+        process = psutil.Process()
+        metrics["workers_used"] = max(process.num_threads(), 1)
+        metrics["max_worker_rss_bytes"] = int(process.memory_info().rss)
+        if hasattr(process, "num_handles"):
+            metrics["open_files_peak"] = int(process.num_handles())
+        elif hasattr(process, "num_fds"):
+            metrics["open_files_peak"] = int(process.num_fds())
+    except Exception:  # pragma: no cover - defensive
+        pass
+    return metrics
+
+
+def _build_merchant_summaries(frame: pl.DataFrame) -> list[dict[str, object]]:
+    if frame.is_empty():
+        return []
+    summary = (
+        frame.group_by("merchant_id")
+        .agg(
+            [
+                pl.n_unique("legal_country_iso").alias("countries"),
+                pl.col("n_sites_tile").sum().alias("n_sites_total"),
+                pl.len().alias("pairs"),
+            ]
+        )
+        .sort("merchant_id")
+    )
+    return [
+        {
+            "merchant_id": int(row[0]),
+            "countries": int(row[1]),
+            "n_sites_total": int(row[2]),
+            "pairs": int(row[3]),
+        }
+        for row in summary.iter_rows()
+    ]
 
 
 __all__ = ["S4RunResult", "materialise_allocation"]

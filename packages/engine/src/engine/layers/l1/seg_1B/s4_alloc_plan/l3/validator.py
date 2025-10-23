@@ -247,5 +247,10 @@ def _validate_run_report(
         if not isinstance(value, (int, float)) or value < 0:
             raise err("E409_DETERMINISM", f"{key} in run report must be a non-negative number")
 
+    merchant_summaries = payload.get("merchant_summaries")
+    if merchant_summaries is not None:
+        if not isinstance(merchant_summaries, list):
+            raise err("E409_DETERMINISM", "merchant_summaries must be a list when present")
+
 
 __all__ = ["S4AllocPlanValidator", "ValidatorConfig"]

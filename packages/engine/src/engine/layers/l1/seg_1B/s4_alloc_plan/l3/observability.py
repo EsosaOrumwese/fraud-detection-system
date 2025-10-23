@@ -18,6 +18,7 @@ def build_run_report(
     iso_version: str | None,
     determinism_receipt: Mapping[str, str],
     metrics: Mapping[str, object],
+    merchant_summaries: list[dict[str, object]],
 ) -> Mapping[str, object]:
     """Construct the S4 run report payload."""
 
@@ -43,6 +44,8 @@ def build_run_report(
         "max_worker_rss_bytes": int(metrics.get("max_worker_rss_bytes", 0)),
         "open_files_peak": int(metrics.get("open_files_peak", 0)),
     }
+    if merchant_summaries:
+        report["merchant_summaries"] = merchant_summaries
     return report
 
 

@@ -13,6 +13,7 @@ from engine.layers.l1.seg_1B import (
     S4ValidatorConfig,
     s4_allocate_sites,
 )
+from engine.layers.l1.seg_1B.s4_alloc_plan.l2 import materialise as s4_materialise
 from engine.layers.l1.seg_1B.s4_alloc_plan.exceptions import S4Error
 
 
@@ -114,13 +115,19 @@ def test_allocate_sites_tie_breaks(tile_weights: pl.DataFrame) -> None:
     assert allocation_map == {10: 1, 11: 1, 12: 1}
 
 
-def test_runner_and_validator_success(tmp_path: Path) -> None:
+def test_runner_and_validator_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     dictionary = _dictionary()
     data_root = tmp_path
     (data_root / "data/layer1/1B/s3_requirements/seed=123/fingerprint=ff/parameter_hash=hh").mkdir(parents=True, exist_ok=True)
     (data_root / "data/layer1/1B/tile_weights/parameter_hash=hh").mkdir(parents=True, exist_ok=True)
     (data_root / "data/layer1/1B/tile_index/parameter_hash=hh").mkdir(parents=True, exist_ok=True)
     (data_root / "reference/iso").mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(
+        s4_materialise,
+        "_collect_resource_metrics",
+        lambda: {"workers_used": 2, "max_worker_rss_bytes": 1024, "open_files_peak": 5},
+    )
 
     pl.DataFrame({"country_iso": ["US", "GB"]}).write_parquet(
         data_root / "reference/iso/iso3166_canonical.parquet"
@@ -173,6 +180,13 @@ def test_runner_and_validator_success(tmp_path: Path) -> None:
     assert result.merchants_total == 2
     assert result.pairs_total == 2
     assert result.alloc_sum_equals_requirements is True
+
+    run_report_payload = json.loads(result.report_path.read_text(encoding="utf-8"))
+    assert run_report_payload["workers_used"] == 2
+    assert run_report_payload["max_worker_rss_bytes"] == 1024
+    assert run_report_payload["open_files_peak"] == 5
+    summaries = run_report_payload.get("merchant_summaries")
+    assert isinstance(summaries, list) and len(summaries) == 2
 
     validator = S4AllocPlanValidator()
     validator.validate(
@@ -371,7 +385,7 @@ def test_runner_missing_tile_index(tmp_path: Path) -> None:
     assert excinfo.value.context.code == "E408_COVERAGE_MISSING"
 
 
-def test_validator_missing_run_report_field(tmp_path: Path) -> None:
+def test_validator_missing_run_report_field(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     dictionary = _dictionary()
     data_root = tmp_path
     (data_root / "data/layer1/1B/s3_requirements/seed=123/fingerprint=ff/parameter_hash=hh").mkdir(parents=True, exist_ok=True)
@@ -417,6 +431,11 @@ def test_validator_missing_run_report_field(tmp_path: Path) -> None:
         seed="123",
         parameter_hash="hh",
         dictionary=dictionary,
+    )
+    monkeypatch.setattr(
+        s4_materialise,
+        "_collect_resource_metrics",
+        lambda: {"workers_used": 2, "max_worker_rss_bytes": 2048, "open_files_peak": 7},
     )
     runner.run(config)
 
