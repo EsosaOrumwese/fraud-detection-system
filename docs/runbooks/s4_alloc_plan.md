@@ -74,10 +74,11 @@ The validator recomputes allocations from S3+S2 inputs, verifies schema/order, e
 - Run report fields (presence enforced by validator):
   - Lineage + aggregation: `rows_emitted`, `merchants_total`, `pairs_total`, `shortfall_total`, `ties_broken_total`, `alloc_sum_equals_requirements`
   - Determinism & lineage: `determinism_receipt`, `ingress_versions`
-  - PAT counters: `bytes_read_s3`, `bytes_read_weights`, `bytes_read_index`, `wall_clock_seconds_total`, `cpu_seconds_total`, `workers_used`, `max_worker_rss_bytes`, `open_files_peak`
-  - Optional auditor aids: `merchant_summaries` (per-merchant countries / total allocations / pair counts)
+- PAT counters: `bytes_read_s3`, `bytes_read_weights`, `bytes_read_index`, `wall_clock_seconds_total`, `cpu_seconds_total`, `workers_used`, `max_worker_rss_bytes`, `open_files_peak`
+- Optional auditor aids: `merchant_summaries` (per-merchant countries / total allocations / pair counts)
 - Determinism receipts follow the S1/S2/S3 recipe (ASCII-lex order of files → SHA-256 digest).  
 - rss / handle counts are collected via `psutil`; values are monotonic snapshots at materialisation time.
+- Sample evidence bundle illustrating these counters lives at `docs/evidence/s4_sample_run/`.
 
 ---
 

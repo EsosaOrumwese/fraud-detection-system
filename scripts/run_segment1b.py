@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """
-Execute Segment 1B (S0 → S2) for one or more parameter hashes using a YAML config.
+Execute Segment 1B (S0 → S4) for one or more parameter hashes using a YAML config.
 
 The config file contains a list named ``runs`` where each entry supplies the
-arguments accepted by ``python -m engine.cli.segment1b run``. This wrapper keeps
-nightly orchestration repeatable without requiring long CLI invocations.
+arguments accepted by ``python -m engine.cli.segment1b run``. Optional
+``validate`` entries allow the wrapper to chain ``validate``, ``validate-s3``,
+and ``validate-s4`` calls after the run so nightly jobs emit the full evidence
+bundle without bespoke scripting.
 """
 
 from __future__ import annotations
@@ -70,6 +72,67 @@ def _build_cli_args(run: Dict[str, Any]) -> list[str]:
     return args
 
 
+def _build_validation_args(run: Dict[str, Any], kind: str) -> list[str]:
+    base_args: list[str] = []
+    data_root = Path(run.get("data_root", "."))
+    dictionary = run.get("dictionary")
+    if kind == "s2":
+        base_args = [
+            "validate",
+            "--parameter-hash",
+            str(run["parameter_hash"]),
+            "--data-root",
+            str(data_root),
+        ]
+        if dictionary:
+            base_args.extend(["--dictionary", str(dictionary)])
+        if "basis" in run:
+            base_args.extend(["--basis", str(run["basis"])])
+        if "dp" in run:
+            base_args.extend(["--dp", str(run["dp"])])
+        if "s2_run_report" in run:
+            base_args.extend(["--run-report", str(run["s2_run_report"])])
+    elif kind == "s3":
+        if "seed" not in run or "manifest_fingerprint" not in run:
+            raise ValueError("validate 's3' requires 'seed' and 'manifest_fingerprint'")
+        base_args = [
+            "validate-s3",
+            "--parameter-hash",
+            str(run["parameter_hash"]),
+            "--seed",
+            str(run["seed"]),
+            "--manifest-fingerprint",
+            str(run["manifest_fingerprint"]),
+            "--data-root",
+            str(data_root),
+        ]
+        if dictionary:
+            base_args.extend(["--dictionary", str(dictionary)])
+        if "s3_run_report" in run:
+            base_args.extend(["--run-report", str(run["s3_run_report"])])
+    elif kind == "s4":
+        if "seed" not in run or "manifest_fingerprint" not in run:
+            raise ValueError("validate 's4' requires 'seed' and 'manifest_fingerprint'")
+        base_args = [
+            "validate-s4",
+            "--parameter-hash",
+            str(run["parameter_hash"]),
+            "--seed",
+            str(run["seed"]),
+            "--manifest-fingerprint",
+            str(run["manifest_fingerprint"]),
+            "--data-root",
+            str(data_root),
+        ]
+        if dictionary:
+            base_args.extend(["--dictionary", str(dictionary)])
+        if "s4_run_report" in run:
+            base_args.extend(["--run-report", str(run["s4_run_report"])])
+    else:
+        raise ValueError(f"unsupported validation kind '{kind}'")
+    return base_args
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -104,6 +167,16 @@ def main(argv: list[str] | None = None) -> int:
             summaries.append(summary)
         else:
             print(buffer.getvalue(), end="", flush=True)
+
+        validations = run_spec.get("validate", [])
+        if validations:
+            if not isinstance(validations, (list, tuple)):
+                raise ValueError("'validate' entries must be a list when present")
+            for validation_kind in validations:
+                args_vec = _build_validation_args(run_spec, str(validation_kind))
+                exit_code = s1b_cli.main(args_vec)
+                if exit_code != 0:
+                    return exit_code
 
     if args.results_json and summaries:
         args.results_json.expanduser().resolve().write_text(

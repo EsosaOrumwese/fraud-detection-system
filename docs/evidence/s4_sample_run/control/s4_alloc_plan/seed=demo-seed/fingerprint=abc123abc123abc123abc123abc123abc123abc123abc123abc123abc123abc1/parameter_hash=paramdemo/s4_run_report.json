@@ -1,0 +1,40 @@
+{
+  "alloc_sum_equals_requirements": true,
+  "bytes_read_index": 851,
+  "bytes_read_s3": 1241,
+  "bytes_read_weights": 1537,
+  "cpu_seconds_total": 0.0,
+  "determinism_receipt": {
+    "partition_path": "C:\\Users\\LEGION\\Documents\\Data Science\\Python & R Scripts\\fraud-detection-system\\docs\\evidence\\s4_sample_run\\data\\layer1\\1B\\s4_alloc_plan\\seed=demo-seed\\fingerprint=abc123abc123abc123abc123abc123abc123abc123abc123abc123abc123abc1\\parameter_hash=paramdemo",
+    "sha256_hex": "24f259a98f6bc9ad60378598bc3e0fa4c76ed634e8eecfa0b656b453ce342375"
+  },
+  "ingress_versions": {
+    "iso3166": "demo"
+  },
+  "manifest_fingerprint": "abc123abc123abc123abc123abc123abc123abc123abc123abc123abc123abc1",
+  "max_worker_rss_bytes": 146079744,
+  "merchant_summaries": [
+    {
+      "countries": 1,
+      "merchant_id": 101,
+      "n_sites_total": 3,
+      "pairs": 2
+    },
+    {
+      "countries": 1,
+      "merchant_id": 202,
+      "n_sites_total": 1,
+      "pairs": 1
+    }
+  ],
+  "merchants_total": 2,
+  "open_files_peak": 535,
+  "pairs_total": 2,
+  "parameter_hash": "paramdemo",
+  "rows_emitted": 3,
+  "seed": "demo-seed",
+  "shortfall_total": 1,
+  "ties_broken_total": 0,
+  "wall_clock_seconds_total": 0.00532930000917986,
+  "workers_used": 57
+}
