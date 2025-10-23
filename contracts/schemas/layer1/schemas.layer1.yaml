@@ -239,6 +239,24 @@ rng:
       - type: object
         unevaluatedProperties: false
 
+    site_tile_assign:
+      allOf:
+      - $ref: '#/$defs/rng_envelope'
+      - type: object
+        required: [merchant_id, legal_country_iso, site_order, tile_id, u]
+        properties:
+          module: {const: 1B.s5_site_tile_assignment}
+          substream_label: {const: site_tile_assign}
+          blocks: {type: integer, enum: [1]}
+          draws: {type: string, enum: ['1']}
+          merchant_id: {$ref: '#/$defs/id64'}
+          legal_country_iso: {$ref: '#/$defs/iso2'}
+          site_order: {type: integer, minimum: 1}
+          tile_id: {$ref: '#/$defs/uint64'}
+          u: {$ref: '#/$defs/u01'}
+      - type: object
+        unevaluatedProperties: false
+
     ztp_rejection:
       allOf:
       - $ref: '#/$defs/rng_envelope'

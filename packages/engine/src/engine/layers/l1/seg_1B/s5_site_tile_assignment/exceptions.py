@@ -19,6 +19,18 @@ class FailureCategory(Enum):
 
 _FAILURE_CODE_MAP: Mapping[str, Tuple[FailureCategory, str]] = {
     "E500_NOT_IMPLEMENTED": (FailureCategory.INTERNAL, "not_implemented"),
+    "E501_ALLOC_PLAN_MISSING": (FailureCategory.INPUT, "alloc_plan_missing"),
+    "E501_INVALID_SEED": (FailureCategory.INPUT, "invalid_seed"),
+    "E408_COVERAGE_MISSING": (FailureCategory.INPUT, "coverage_missing"),
+    "E502_PK_DUPLICATE_SITE": (FailureCategory.ASSIGNMENT, "pk_duplicate_site"),
+    "E503_TILE_QUOTA_MISMATCH": (FailureCategory.ASSIGNMENT, "tile_quota_mismatch"),
+    "E504_SUM_TO_N_MISMATCH": (FailureCategory.ASSIGNMENT, "sum_to_n_mismatch"),
+    "E505_TILE_NOT_IN_INDEX": (FailureCategory.INPUT, "tile_not_in_index"),
+    "E507_RNG_EVENT_MISMATCH": (FailureCategory.RNG, "rng_event_mismatch"),
+    "E508_TOKEN_MISMATCH": (FailureCategory.WRITER, "token_mismatch"),
+    "E509_UNSORTED": (FailureCategory.WRITER, "unsorted_output"),
+    "E506_SCHEMA_INVALID": (FailureCategory.WRITER, "schema_invalid"),
+    "E414_WEIGHT_TAMPER": (FailureCategory.ASSIGNMENT, "weight_tamper"),
 }
 
 
