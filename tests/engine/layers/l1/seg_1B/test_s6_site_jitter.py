@@ -5,6 +5,7 @@ from pathlib import Path
 
 import polars as pl
 import pytest
+import geopandas as gpd
 from shapely.geometry import Polygon
 from shapely.prepared import prep as prepare_geometry
 
@@ -121,10 +122,13 @@ def _prepare_inputs(tmp_path: Path) -> PreparedInputs:
     tile_index_df.write_parquet(tile_index_path / "part-00000.parquet")
 
     world_countries_path = tmp_path / "reference/world_countries.parquet"
-    _write_parquet(
-        world_countries_path,
-        pl.DataFrame({"country_iso": ["US"], "geometry": ["POLYGON ((0 0, 1 0, 1 1, 0 1, 0 0))"]}),
+    world_countries_path.parent.mkdir(parents=True, exist_ok=True)
+    gdf = gpd.GeoDataFrame(
+        {"country_iso": ["US"]},
+        geometry=[Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])],
+        crs="EPSG:4326",
     )
+    gdf.to_parquet(world_countries_path, index=False)
 
     iso_path = tmp_path / "reference/iso3166.parquet"
     _write_parquet(iso_path, pl.DataFrame({"country_iso": ["US"]}))
