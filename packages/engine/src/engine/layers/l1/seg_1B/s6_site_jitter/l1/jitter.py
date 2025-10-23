@@ -124,8 +124,6 @@ def compute_jitter(
             parameter_hash=parameter_hash,
         )
 
-        site_outside_pixel = 0
-        site_outside_country = 0
         attempts = 0
         accepted_delta: Tuple[float, float] | None = None
         while attempts < MAX_ATTEMPTS:
@@ -150,14 +148,8 @@ def compute_jitter(
             lon = _interpolate_lon(bounds.west_lon, bounds.east_lon, u_lon)
             lat = bounds.south_lat + u_lat * (bounds.north_lat - bounds.south_lat)
             inside_pixel = _point_inside_pixel(lon, lat, bounds)
-            if not inside_pixel:
-                outside_pixel += 1
-                site_outside_pixel += 1
 
             inside_country = _point_inside_country(lon, lat, polygon_record)
-            if not inside_country:
-                outside_country += 1
-                site_outside_country += 1
 
             delta_lon = _normalise_delta(lon - centroid.lon)
             delta_lat = lat - centroid.lat
@@ -233,8 +225,6 @@ def compute_jitter(
         stats["sites"] += 1
         stats["rng_events"] += attempts
         stats["rng_draws"] += attempts * 2
-        stats["outside_pixel"] += site_outside_pixel
-        stats["outside_country"] += site_outside_country
 
     events_total = len(rng_events)
     counter_span = _counter_span(first_counter, last_counter)

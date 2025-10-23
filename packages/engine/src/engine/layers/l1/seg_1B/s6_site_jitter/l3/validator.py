@@ -271,10 +271,8 @@ def _build_tile_centroid_map(frame: pl.DataFrame) -> Mapping[Tuple[str, int], Ma
 
 
 def _validate_iso_codes(frame: pl.DataFrame, iso_codes: frozenset[str]) -> None:
-    invalid = (
-        frame.select(pl.col("legal_country_iso").str.to_uppercase())
-        .filter(~pl.col("legal_country_iso").is_in(list(iso_codes)))
-        .collect()
+    invalid = frame.select(pl.col("legal_country_iso").str.to_uppercase().alias("legal_country_iso")).filter(
+        ~pl.col("legal_country_iso").is_in(list(iso_codes))
     )
     if invalid.height:
         raise err("E606_FK_TILE_INDEX", "s6_site_jitter contains ISO codes missing from ingress surface")

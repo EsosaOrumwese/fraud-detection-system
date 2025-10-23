@@ -314,10 +314,16 @@ plan:
                 columns: { legal_country_iso: country_iso } } }
       - { name: site_order,         type: integer, minimum: 1,                nullable: false,
           description: "Contiguous 1..N per (merchant_id, legal_country_iso), guaranteed upstream." }
+      - { name: tile_id,            $ref: '#/$defs/uint64',                   nullable: false,
+          fk: { dataset_ref: 'schemas.1B.yaml#/prep/tile_index', partition_keys: [parameter_hash],
+                columns: { legal_country_iso: country_iso, tile_id: tile_id } },
+          description: "Assigned tile for this site; must exist in tile_index for the same parameter_hash." }
       - { name: delta_lat_deg,      type: number, minimum: -1, maximum: 1,     nullable: false,
           description: "Effective latitude jitter in degrees (post-clamp); bounded to [-1,1] to guard unit slips." }
       - { name: delta_lon_deg,      type: number, minimum: -1, maximum: 1,     nullable: false,
           description: "Effective longitude jitter in degrees (post-clamp); bounded to [-1,1] to guard unit slips." }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false,
+          description: "Lineage fingerprint; MUST byte-equal the fingerprint path token." }
 
   s7_site_synthesis:
     type: table
