@@ -65,6 +65,8 @@ def stub_orchestrator(monkeypatch: pytest.MonkeyPatch):
                 dataset_path=Path("/tmp/s6_site_jitter"),
                 run_report_path=Path("/tmp/s6_run_report.json"),
                 rng_log_path=Path("/tmp/logs/in_cell_jitter"),
+                rng_audit_log_path=Path("/tmp/logs/rng_audit_log.jsonl"),
+                rng_trace_log_path=Path("/tmp/logs/rng_trace_log.jsonl"),
                 determinism_receipt={"partition_path": "/tmp/s6_site_jitter", "sha256_hex": "beadfeed"},
                 rows_emitted=4,
                 rng_events_total=6,

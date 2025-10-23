@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, Mapping, Optional, Sequence, Tuple
@@ -134,11 +135,24 @@ class S6SiteJitterValidator:
         if not isinstance(run_id, str) or len(run_id) != 32:
             raise err("E604_PARTITION_OR_IDENTITY", "run report missing valid run_id")
 
-        rng_events, rng_stats = _validate_rng_events(
+        rng_events, rng_stats, events_dir = _validate_rng_events(
             config,
             dictionary,
             dataset,
             run_id,
+        )
+
+        audit_record, audit_path = _validate_rng_audit_log(
+            config=config,
+            dictionary=dictionary,
+            run_id=run_id,
+        )
+        trace_stats, trace_path = _validate_rng_trace_log(
+            config=config,
+            dictionary=dictionary,
+            run_id=run_id,
+            events=rng_events,
+            expected_stats=rng_stats,
         )
 
         determinism_receipt = _validate_determinism_receipt(dataset_path, run_report)
@@ -151,6 +165,12 @@ class S6SiteJitterValidator:
             per_country_sites,
             rng_stats,
             iso_version,
+            {
+                "dataset_path": dataset_path,
+                "rng_event_log": events_dir,
+                "rng_audit_log": audit_path,
+                "rng_trace_log": trace_path,
+            },
         )
 
 
@@ -315,7 +335,7 @@ def _validate_rng_events(
     dictionary: Mapping[str, object],
     dataset: pl.DataFrame,
     run_id: str,
-) -> Tuple[list[Mapping[str, object]], Dict[str, object]]:
+) -> Tuple[list[Mapping[str, object]], Dict[str, object], Path]:
     events_dir = resolve_dataset_path(
         "rng_event_in_cell_jitter",
         base_path=config.data_root,
@@ -369,6 +389,9 @@ def _validate_rng_events(
     last_counter: Optional[int] = None
     total_draws = 0
     per_country_events: Dict[str, Dict[str, object]] = {}
+    attempt_hist = Counter()
+    resample_sites_total = 0
+    resample_events_total = 0
 
     dataset_lookup = {
         (int(row["merchant_id"]), str(row["legal_country_iso"]).upper(), int(row["site_order"])): row
@@ -378,6 +401,11 @@ def _validate_rng_events(
     for key, site_events in events_by_site.items():
         site_events.sort(key=lambda evt: int(evt.get("attempt_index", 0)))
         _validate_site_events(key, site_events, seed_int, run_id, config, dataset_lookup)
+        attempts = len(site_events)
+        attempt_hist[attempts] += 1
+        if attempts > 1:
+            resample_sites_total += 1
+            resample_events_total += attempts - 1
 
         per_country_stats = per_country_events.setdefault(
             key[1],
@@ -423,9 +451,184 @@ def _validate_rng_events(
         "blocks_total": events_total,
         "counter_span": counter_span,
         "per_country": per_country_events,
+        "attempt_histogram": {str(k): v for k, v in attempt_hist.items()},
+        "resample_sites_total": resample_sites_total,
+        "resample_events_total": resample_events_total,
     }
 
-    return events, rng_stats
+    return events, rng_stats, events_dir
+
+
+def _validate_rng_audit_log(
+    *,
+    config: ValidatorConfig,
+    dictionary: Mapping[str, object],
+    run_id: str,
+) -> Tuple[Mapping[str, object], Path]:
+    audit_path = resolve_dataset_path(
+        "rng_audit_log",
+        base_path=config.data_root,
+        template_args={
+            "seed": config.seed,
+            "parameter_hash": config.parameter_hash,
+            "run_id": run_id,
+        },
+        dictionary=dictionary,
+    )
+    if not audit_path.exists():
+        raise err("E609_RNG_EVENT_COUNT", f"rng audit log missing at '{audit_path}'")
+
+    lines = [
+        line.strip()
+        for line in audit_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    if not lines:
+        raise err("E609_RNG_EVENT_COUNT", f"rng audit log '{audit_path}' is empty")
+    if len(lines) > 1:
+        raise err("E611_LOG_PARTITION_LAW", f"rng audit log '{audit_path}' contains multiple records")
+    try:
+        record = json.loads(lines[0])
+    except json.JSONDecodeError as exc:
+        raise err("E609_RNG_EVENT_COUNT", f"rng audit log '{audit_path}' is not valid JSON") from exc
+
+    seed_int = int(config.seed)
+    if int(record.get("seed", -1)) != seed_int:
+        raise err("E604_PARTITION_OR_IDENTITY", "rng audit log seed mismatch")
+    if str(record.get("run_id", "")) != run_id:
+        raise err("E604_PARTITION_OR_IDENTITY", "rng audit log run_id mismatch")
+    if str(record.get("parameter_hash", "")).lower() != config.parameter_hash.lower():
+        raise err("E604_PARTITION_OR_IDENTITY", "rng audit log parameter_hash mismatch")
+    if str(record.get("manifest_fingerprint", "")).lower() != config.manifest_fingerprint.lower():
+        raise err("E604_PARTITION_OR_IDENTITY", "rng audit log manifest fingerprint mismatch")
+    if record.get("algorithm") != "philox2x64-10":
+        raise err("E604_PARTITION_OR_IDENTITY", "rng audit log algorithm mismatch")
+    build_commit = record.get("build_commit")
+    if not isinstance(build_commit, str) or not build_commit.strip():
+        raise err("E604_PARTITION_OR_IDENTITY", "rng audit log build_commit must be a non-empty string")
+    ts_utc = record.get("ts_utc")
+    if not isinstance(ts_utc, str) or not ts_utc.endswith("Z"):
+        raise err("E604_PARTITION_OR_IDENTITY", "rng audit log ts_utc must be an RFC-3339 string")
+
+    return record, audit_path
+
+
+def _validate_rng_trace_log(
+    *,
+    config: ValidatorConfig,
+    dictionary: Mapping[str, object],
+    run_id: str,
+    events: Sequence[Mapping[str, object]],
+    expected_stats: Mapping[str, object],
+) -> Tuple[Mapping[str, int], Path]:
+    trace_path = resolve_dataset_path(
+        "rng_trace_log",
+        base_path=config.data_root,
+        template_args={
+            "seed": config.seed,
+            "parameter_hash": config.parameter_hash,
+            "run_id": run_id,
+        },
+        dictionary=dictionary,
+    )
+    if not trace_path.exists():
+        raise err("E609_RNG_EVENT_COUNT", f"rng trace log missing at '{trace_path}'")
+
+    lines = [
+        line.strip()
+        for line in trace_path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+
+    if not lines:
+        if expected_stats.get("events_total", 0) != 0:
+            raise err("E609_RNG_EVENT_COUNT", f"rng trace log '{trace_path}' is empty")
+        return {"events_total": 0, "draws_total": 0, "blocks_total": 0, "counter_span": 0}, trace_path
+
+    records: list[Mapping[str, object]] = []
+    for line in lines:
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise err("E609_RNG_EVENT_COUNT", f"invalid JSON in rng trace log: {exc}") from exc
+        records.append(record)
+
+    if len(records) != len(events):
+        raise err("E609_RNG_EVENT_COUNT", "rng trace log records do not align with event count")
+
+    seed_int = int(config.seed)
+    stream_totals: dict[Tuple[str, str], dict[str, int]] = {}
+    first_counter: Optional[int] = None
+    last_counter: Optional[int] = None
+
+    for record, event in zip(records, events):
+        module = str(record.get("module", ""))
+        substream = str(record.get("substream_label", ""))
+        if module != str(event.get("module", "")) or substream != str(event.get("substream_label", "")):
+            raise err("E610_RNG_BUDGET_OR_COUNTERS", "rng trace log module/substream mismatch with events")
+        if str(record.get("run_id", "")) != run_id:
+            raise err("E604_PARTITION_OR_IDENTITY", "rng trace log run_id mismatch")
+        if int(record.get("seed", -1)) != seed_int:
+            raise err("E604_PARTITION_OR_IDENTITY", "rng trace log seed mismatch")
+
+        before_lo = int(record.get("rng_counter_before_lo", -1))
+        before_hi = int(record.get("rng_counter_before_hi", -1))
+        after_lo = int(record.get("rng_counter_after_lo", -1))
+        after_hi = int(record.get("rng_counter_after_hi", -1))
+        if before_lo != int(event.get("rng_counter_before_lo", -1)) or before_hi != int(event.get("rng_counter_before_hi", -1)):
+            raise err("E610_RNG_BUDGET_OR_COUNTERS", "rng trace log counter_before mismatch")
+        if after_lo != int(event.get("rng_counter_after_lo", -1)) or after_hi != int(event.get("rng_counter_after_hi", -1)):
+            raise err("E610_RNG_BUDGET_OR_COUNTERS", "rng trace log counter_after mismatch")
+
+        draws_total = int(record.get("draws_total", -1))
+        blocks_total = int(record.get("blocks_total", -1))
+        events_total = int(record.get("events_total", -1))
+
+        stream_state = stream_totals.setdefault(
+            (module, substream), {"events": 0, "blocks": 0, "draws": 0}
+        )
+        stream_state["events"] += 1
+        stream_state["blocks"] += 1
+        stream_state["draws"] += 2
+
+        if events_total != stream_state["events"]:
+            raise err("E610_RNG_BUDGET_OR_COUNTERS", "rng trace events_total not cumulative")
+        if blocks_total != stream_state["blocks"]:
+            raise err("E610_RNG_BUDGET_OR_COUNTERS", "rng trace blocks_total not cumulative")
+        if draws_total != stream_state["draws"]:
+            raise err("E610_RNG_BUDGET_OR_COUNTERS", "rng trace draws_total not cumulative")
+
+        before_u128 = (before_hi << 64) | before_lo
+        after_u128 = (after_hi << 64) | after_lo
+        if first_counter is None or before_u128 < first_counter:
+            first_counter = before_u128
+        if last_counter is None or after_u128 > last_counter:
+            last_counter = after_u128
+
+    overall_events = sum(state["events"] for state in stream_totals.values())
+    overall_blocks = sum(state["blocks"] for state in stream_totals.values())
+    overall_draws = sum(state["draws"] for state in stream_totals.values())
+    counter_span = (
+        0 if first_counter is None or last_counter is None else max(0, last_counter - first_counter)
+    )
+
+    if overall_events != expected_stats.get("events_total"):
+        raise err("E610_RNG_BUDGET_OR_COUNTERS", "rng trace events_total mismatch with event log")
+    if overall_draws != expected_stats.get("draws_total"):
+        raise err("E610_RNG_BUDGET_OR_COUNTERS", "rng trace draws_total mismatch with event log")
+    if overall_blocks != expected_stats.get("blocks_total"):
+        raise err("E610_RNG_BUDGET_OR_COUNTERS", "rng trace blocks_total mismatch with event log")
+    if counter_span != expected_stats.get("counter_span"):
+        raise err("E610_RNG_BUDGET_OR_COUNTERS", "rng trace counter_span mismatch with event log")
+
+    trace_stats = {
+        "events_total": overall_events,
+        "draws_total": overall_draws,
+        "blocks_total": overall_blocks,
+        "counter_span": counter_span,
+    }
+    return trace_stats, trace_path
+
 
 
 def _validate_site_events(
@@ -498,6 +701,7 @@ def _validate_run_report_contents(
     per_country_sites: Mapping[str, Dict[str, object]],
     rng_stats: Mapping[str, object],
     iso_version: Optional[str],
+    artefact_paths: Mapping[str, Path],
 ) -> None:
     identity = run_report.get("identity")
     if not isinstance(identity, Mapping):
@@ -518,14 +722,25 @@ def _validate_run_report_contents(
     rng_block = counts.get("rng")
     if not isinstance(rng_block, Mapping):
         raise err("E604_PARTITION_OR_IDENTITY", "run report missing rng counters")
-    if rng_block.get("events_total") != rng_stats["events_total"]:
+    if int(rng_block.get("events_total", -1)) != rng_stats["events_total"]:
         raise err("E604_PARTITION_OR_IDENTITY", "run report rng events_total mismatch")
-    if rng_block.get("draws_total") != str(rng_stats["draws_total"]):
+    if str(rng_block.get("draws_total")) != str(rng_stats["draws_total"]):
         raise err("E604_PARTITION_OR_IDENTITY", "run report rng draws_total mismatch")
-    if rng_block.get("blocks_total") != rng_stats["blocks_total"]:
+    if int(rng_block.get("blocks_total", -1)) != rng_stats["blocks_total"]:
         raise err("E604_PARTITION_OR_IDENTITY", "run report rng blocks_total mismatch")
-    if rng_block.get("counter_span") != str(rng_stats["counter_span"]):
+    if str(rng_block.get("counter_span")) != str(rng_stats["counter_span"]):
         raise err("E604_PARTITION_OR_IDENTITY", "run report rng counter_span mismatch")
+    if int(rng_block.get("resample_sites_total", -1)) != rng_stats["resample_sites_total"]:
+        raise err("E604_PARTITION_OR_IDENTITY", "run report rng resample_sites_total mismatch")
+    if int(rng_block.get("resample_events_total", -1)) != rng_stats["resample_events_total"]:
+        raise err("E604_PARTITION_OR_IDENTITY", "run report rng resample_events_total mismatch")
+
+    attempt_hist_block = rng_block.get("attempt_histogram")
+    expected_attempt_hist = rng_stats.get("attempt_histogram", {})
+    if not isinstance(attempt_hist_block, Mapping) or {
+        str(k): int(v) for k, v in attempt_hist_block.items()
+    } != {str(k): int(v) for k, v in expected_attempt_hist.items()}:
+        raise err("E604_PARTITION_OR_IDENTITY", "run report attempt_histogram mismatch")
 
     validation_counters = run_report.get("validation_counters")
     if not isinstance(validation_counters, Mapping):
@@ -565,6 +780,14 @@ def _validate_run_report_contents(
 
     if run_report.get("determinism_receipt") != determinism_receipt:
         raise err("E604_PARTITION_OR_IDENTITY", "run report determinism receipt mismatch")
+
+    artefacts = run_report.get("artefacts")
+    if not isinstance(artefacts, Mapping):
+        raise err("E604_PARTITION_OR_IDENTITY", "run report missing artefacts block")
+    for key, path in artefact_paths.items():
+        expected_path = str(path)
+        if artefacts.get(key) != expected_path:
+            raise err("E604_PARTITION_OR_IDENTITY", f"run report artefact '{key}' mismatch")
 
 
 def _load_run_report(path: Path) -> Mapping[str, object]:

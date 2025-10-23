@@ -396,3 +396,39 @@ logs:
     retention_days: 30
     pii: false
     license: Proprietary-Internal
+
+  rng_audit_log:
+    status: draft
+    owner_subsegment: 1B
+    description: Run-scoped RNG audit envelope for Segment 1B publishes.
+    version: '{run_id}'
+    format: jsonl
+    path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/rng/core/rng_audit_log
+    lineage:
+      produced_by: 1B.S6
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
+  rng_trace_log:
+    status: draft
+    owner_subsegment: 1B
+    description: Cumulative RNG trace (per event append) for Segment 1B substreams.
+    version: '{run_id}'
+    format: jsonl
+    path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/rng/core/rng_trace_log
+    lineage:
+      produced_by: 1B.S6
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal

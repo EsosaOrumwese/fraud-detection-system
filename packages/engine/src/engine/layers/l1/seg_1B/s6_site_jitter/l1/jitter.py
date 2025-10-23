@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Dict, Iterable, Mapping, Tuple
@@ -53,6 +54,9 @@ class JitterOutcome:
     counter_span: int
     first_counter: Tuple[int, int] | None
     last_counter: Tuple[int, int] | None
+    attempt_histogram: Dict[int, int]
+    resample_sites: int
+    resample_events: int
 
 
 def _utc_timestamp() -> str:
@@ -90,6 +94,9 @@ def compute_jitter(
     per_country: Dict[str, Dict[str, object]] = {}
     first_counter: Tuple[int, int] | None = None
     last_counter: Tuple[int, int] | None = None
+    attempts_hist: Counter[int] = Counter()
+    resample_sites = 0
+    resample_events = 0
 
     for row in assignments.iter_rows(named=True):
         merchant_id = int(row["merchant_id"])
@@ -195,6 +202,11 @@ def compute_jitter(
                 f"resample exhausted for site ({merchant_id},{iso_code},{site_order})",
             )
 
+        attempts_hist[attempts] += 1
+        if attempts > 1:
+            resample_sites += 1
+            resample_events += attempts - 1
+
         delta_lon, delta_lat = accepted_delta
         dataset_rows.append(
             {
@@ -267,6 +279,9 @@ def compute_jitter(
         counter_span=counter_span,
         first_counter=first_counter,
         last_counter=last_counter,
+        attempt_histogram=dict(attempts_hist),
+        resample_sites=resample_sites,
+        resample_events=resample_events,
     )
 
 

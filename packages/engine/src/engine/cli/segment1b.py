@@ -98,6 +98,8 @@ def _command_run(args: argparse.Namespace) -> int:
             "dataset_path": str(result.s6.dataset_path),
             "run_report_path": str(result.s6.run_report_path),
             "rng_log_path": str(result.s6.rng_log_path),
+            "rng_audit_log_path": str(result.s6.rng_audit_log_path),
+            "rng_trace_log_path": str(result.s6.rng_trace_log_path),
             "determinism_receipt": result.s6.determinism_receipt,
             "rows_emitted": result.s6.rows_emitted,
             "rng_events_total": result.s6.rng_events_total,

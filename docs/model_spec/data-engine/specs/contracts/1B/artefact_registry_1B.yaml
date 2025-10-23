@@ -387,6 +387,38 @@ subsegments:
     environment: [runtime]
     schema: schemas.layer1.yaml#/rng/events/site_tile_assign
 
+  - name: rng_audit_log
+    path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+    type: log
+    category: rng_core
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.core.1B.audit
+    license: Proprietary-Internal
+    role: "Run-scoped audit envelope for Segment 1B RNG usage (seed, manifest, parameter hash, build metadata)."
+    dependencies: [s6_site_jitter]
+    source: internal
+    owner: { owner_team: "mlr-1b-core" }
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/core/rng_audit_log
+
+  - name: rng_trace_log
+    path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+    type: log
+    category: rng_core
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.core.1B.trace
+    license: Proprietary-Internal
+    role: "Cumulative RNG trace for Segment 1B substreams; append exactly one row after each event."
+    dependencies: [s6_site_jitter, rng_audit_log]
+    source: internal
+    owner: { owner_team: "mlr-1b-core" }
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/core/rng_trace_log
+
   - name: rng_event_in_cell_jitter
     path: logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     type: log

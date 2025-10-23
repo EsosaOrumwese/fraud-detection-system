@@ -5,7 +5,11 @@ from __future__ import annotations
 import json
 import shutil
 import time
+import os
+import platform
+import socket
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Mapping
 from uuid import uuid4
@@ -31,6 +35,8 @@ class S6RunResult:
 
     dataset_path: Path
     rng_log_path: Path
+    rng_audit_log_path: Path
+    rng_trace_log_path: Path
     run_report_path: Path
     determinism_receipt: Mapping[str, str]
     rows_emitted: int
@@ -51,6 +57,7 @@ def materialise_jitter(
     start_cpu = time.process_time()
 
     dictionary = prepared.dictionary
+    seed_int = int(prepared.seed)
     dataset_path = resolve_dataset_path(
         "s6_site_jitter",
         base_path=prepared.data_root,
@@ -95,6 +102,17 @@ def materialise_jitter(
         events=outcome.rng_events,
     )
 
+    rng_audit_log_path, rng_trace_log_path = _write_rng_core_logs(
+        base_path=prepared.data_root,
+        dictionary=dictionary,
+        seed=seed_int,
+        seed_token=prepared.seed,
+        parameter_hash=prepared.parameter_hash,
+        manifest_fingerprint=prepared.manifest_fingerprint,
+        run_id=run_id,
+        events=outcome.rng_events,
+    )
+
     wall_clock_seconds = time.perf_counter() - start_wall
     cpu_seconds = time.process_time() - start_cpu
 
@@ -115,6 +133,24 @@ def materialise_jitter(
         "cpu_seconds_total": cpu_seconds,
     }
     metrics.update(_collect_resource_metrics())
+    metrics["bytes_written_rng_events"] = _sum_file_sizes(rng_log_path)
+    metrics["bytes_written_rng_audit"] = _sum_file_sizes(rng_audit_log_path)
+    metrics["bytes_written_rng_trace"] = _sum_file_sizes(rng_trace_log_path)
+
+    events_total = len(outcome.rng_events)
+    if events_total != outcome.events_total:
+        raise err(
+            "E609_RNG_EVENT_COUNT",
+            f"internal event count mismatch (expected {outcome.events_total}, observed {events_total})",
+        )
+    draws_total = sum(int(event.get("draws", "0")) for event in outcome.rng_events)
+    blocks_total = sum(int(event.get("blocks", 0)) for event in outcome.rng_events)
+    attempt_histogram = {
+        str(attempts): count for attempts, count in sorted(outcome.attempt_histogram.items())
+    }
+    resample_sites_total = outcome.resample_sites
+    resample_events_total = outcome.resample_events
+    counter_span_str = str(outcome.counter_span)
 
     run_report_path = resolve_dataset_path(
         "s6_run_report",
@@ -138,10 +174,13 @@ def materialise_jitter(
         "counts": {
             "sites_total": outcome.sites_total,
             "rng": {
-                "events_total": outcome.events_total,
-                "draws_total": str(outcome.events_total * 2),
-                "blocks_total": outcome.events_total,
-                "counter_span": str(outcome.counter_span),
+                "events_total": events_total,
+                "draws_total": str(draws_total),
+                "blocks_total": blocks_total,
+                "counter_span": counter_span_str,
+                "resample_sites_total": resample_sites_total,
+                "resample_events_total": resample_events_total,
+                "attempt_histogram": attempt_histogram,
             },
         },
         "validation_counters": {
@@ -154,6 +193,12 @@ def materialise_jitter(
         "metrics": metrics,
     }
     run_report["determinism_receipt"] = determinism_receipt
+    run_report["artefacts"] = {
+        "dataset_path": str(dataset_path),
+        "rng_event_log": str(rng_log_path),
+        "rng_audit_log": str(rng_audit_log_path),
+        "rng_trace_log": str(rng_trace_log_path),
+    }
     if prepared.iso_version:
         run_report.setdefault("ingress_versions", {})["iso3166_canonical_2024"] = prepared.iso_version
 
@@ -162,10 +207,12 @@ def materialise_jitter(
     return S6RunResult(
         dataset_path=dataset_path,
         rng_log_path=rng_log_path,
+        rng_audit_log_path=rng_audit_log_path,
+        rng_trace_log_path=rng_trace_log_path,
         run_report_path=run_report_path,
         determinism_receipt=determinism_receipt,
         rows_emitted=outcome.sites_total,
-        rng_events_total=outcome.events_total,
+        rng_events_total=events_total,
         counter_span=outcome.counter_span,
         run_id=run_id,
     )
@@ -217,6 +264,157 @@ def _write_rng_events(
 
     log_file.write_text(payload, encoding="utf-8")
     return log_dir
+
+
+def _write_rng_core_logs(
+    *,
+    base_path: Path,
+    dictionary: Mapping[str, object],
+    seed: int,
+    seed_token: str,
+    parameter_hash: str,
+    manifest_fingerprint: str,
+    run_id: str,
+    events: list[Mapping[str, object]],
+) -> tuple[Path, Path]:
+    audit_path = resolve_dataset_path(
+        "rng_audit_log",
+        base_path=base_path,
+        template_args={
+            "seed": seed_token,
+            "parameter_hash": parameter_hash,
+            "run_id": run_id,
+        },
+        dictionary=dictionary,
+    )
+    audit_record = {
+        "ts_utc": _utc_timestamp(),
+        "run_id": run_id,
+        "seed": seed,
+        "manifest_fingerprint": manifest_fingerprint,
+        "parameter_hash": parameter_hash,
+        "algorithm": "philox2x64-10",
+        "build_commit": _resolve_build_commit(dictionary),
+        "code_digest": os.getenv("ENGINE_CODE_DIGEST"),
+        "hostname": socket.gethostname(),
+        "platform": platform.platform(),
+        "notes": None,
+    }
+    audit_record = _write_single_jsonl_record(audit_path, audit_record)
+
+    trace_path = resolve_dataset_path(
+        "rng_trace_log",
+        base_path=base_path,
+        template_args={
+            "seed": seed_token,
+            "parameter_hash": parameter_hash,
+            "run_id": run_id,
+        },
+        dictionary=dictionary,
+    )
+    _write_trace_records(
+        trace_path=trace_path,
+        events=events,
+        seed=seed,
+        run_id=run_id,
+    )
+
+    return audit_path, trace_path
+
+
+def _write_single_jsonl_record(path: Path, record: Mapping[str, object]) -> Mapping[str, object]:
+    payload = json.dumps(record, sort_keys=True)
+    payload_with_newline = payload + "\n"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists():
+        existing = path.read_text(encoding="utf-8")
+        if existing.strip():
+            try:
+                existing_record = json.loads(existing.splitlines()[0])
+            except json.JSONDecodeError as exc:
+                raise err("E611_LOG_PARTITION_LAW", f"rng audit log at '{path}' is not valid JSONL") from exc
+            if existing_record != record:
+                raise err(
+                    "E611_LOG_PARTITION_LAW",
+                    f"rng audit log '{path}' already exists with different content",
+                )
+            return existing_record
+    path.write_text(payload_with_newline, encoding="utf-8")
+    return record
+
+
+def _write_trace_records(
+    *,
+    trace_path: Path,
+    events: list[Mapping[str, object]],
+    seed: int,
+    run_id: str,
+) -> None:
+    totals: dict[tuple[str, str], dict[str, int]] = {}
+    records: list[Mapping[str, object]] = []
+    for event in events:
+        module = str(event.get("module", ""))
+        substream_label = str(event.get("substream_label", ""))
+        key = (module, substream_label)
+        stats = totals.setdefault(key, {"events": 0, "blocks": 0, "draws": 0})
+        blocks = int(event.get("blocks", 0))
+        draws = int(event.get("draws", "0"))
+        stats["events"] += 1
+        stats["blocks"] += blocks
+        stats["draws"] += draws
+        record = {
+            "ts_utc": event.get("ts_utc"),
+            "run_id": run_id,
+            "seed": seed,
+            "module": module,
+            "substream_label": substream_label,
+            "draws_total": stats["draws"],
+            "blocks_total": stats["blocks"],
+            "events_total": stats["events"],
+            "rng_counter_before_lo": int(event.get("rng_counter_before_lo", 0)),
+            "rng_counter_before_hi": int(event.get("rng_counter_before_hi", 0)),
+            "rng_counter_after_lo": int(event.get("rng_counter_after_lo", 0)),
+            "rng_counter_after_hi": int(event.get("rng_counter_after_hi", 0)),
+        }
+        records.append(record)
+
+    payload = "\n".join(json.dumps(record, sort_keys=True) for record in records)
+    if payload:
+        payload += "\n"
+    trace_path.parent.mkdir(parents=True, exist_ok=True)
+    if trace_path.exists():
+        existing = trace_path.read_text(encoding="utf-8")
+        if existing != payload:
+            raise err(
+                "E611_LOG_PARTITION_LAW",
+                f"rng trace log '{trace_path}' already exists with different content",
+            )
+        return
+    trace_path.write_text(payload, encoding="utf-8")
+
+
+def _resolve_build_commit(dictionary: Mapping[str, object]) -> str:
+    metadata = dictionary.get("metadata") if isinstance(dictionary, Mapping) else None
+    commit: str | None = None
+    if isinstance(metadata, Mapping):
+        raw = metadata.get("build_commit")
+        if isinstance(raw, str) and raw.strip():
+            commit = raw.strip()
+    if not commit:
+        for env_var in ("ENGINE_BUILD_COMMIT", "GIT_COMMIT", "BUILD_COMMIT"):
+            value = os.getenv(env_var)
+            if value:
+                commit = value
+                break
+    return commit or "unknown"
+
+
+def _utc_timestamp() -> str:
+    return (
+        datetime.now(timezone.utc)
+        .replace(tzinfo=timezone.utc)
+        .strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    )
 
 
 def _enforce_schema(frame: pl.DataFrame) -> None:

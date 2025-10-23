@@ -184,6 +184,8 @@ class StubS6Runner:
         return S6RunResult(
             dataset_path=base / "s6_site_jitter",
             rng_log_path=base / "logs" / "in_cell_jitter",
+            rng_audit_log_path=base / "logs" / "rng_audit_log.jsonl",
+            rng_trace_log_path=base / "logs" / "rng_trace_log.jsonl",
             run_report_path=base / "s6_run_report.json",
             determinism_receipt={"partition_path": "dummy", "sha256_hex": "beadfeed"},
             rows_emitted=4,
