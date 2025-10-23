@@ -6,11 +6,13 @@ This router tells you what is binding, what to read first, and which parts of th
 ---
 
 ## 0) Scope (you are here)
-- Package: `packages/engine`
+- Package: packages/engine
 - Active build: Layer-1 / Segment **1B** / States **S0-S9**
 - Sealed references: Segment 1A S0-S9 (authority surfaces for 1B inputs)
 - Binding specs: 1B expanded state documents and contract artefacts are published; dataset previews remain intentionally omitted.
 - Other segments (2A...4B) remain locked until explicitly opened.
+
+**Environment posture.** We are intentionally deferring integration with the shared dev environment (full artefact replay and manifest hookups) until the **entire Data Engine**—all layers, segments, and states—is built and wired together. While we are still in that build-out phase, every new state must be treated as if the complete engine were already live: wire states together locally, exercise deterministic cross-state invariants, and extend regression tests so the chain remains ready to run end-to-end the moment we connect to real artefacts. No shortcuts.
 
 ---
 
@@ -18,68 +20,68 @@ This router tells you what is binding, what to read first, and which parts of th
 Read these in order before touching code so you align with the frozen specs.
 
 **A. Conceptual references (repo-wide, non-binding)**
-- `docs/references/closed-world-enterprise-conceptual-design*.md`
-- `docs/references/closed-world-synthetic-data-engine-with-realism*.md`
+- docs/references/closed-world-enterprise-conceptual-design*.md
+- docs/references/closed-world-synthetic-data-engine-with-realism*.md
 
 **B. Layer-1 narratives (orientation)**
-- `docs/model_spec/data-engine/narrative/`
+- docs/model_spec/data-engine/narrative/
 
 **C. Segment 1B state design (binding)**
-- `docs/model_spec/data-engine/specs/state-flow/1B/state-flow-overview.1B.md`
-- `docs/model_spec/data-engine/specs/state-flow/1B/s#*.expanded.md`
+- docs/model_spec/data-engine/specs/state-flow/1B/state-flow-overview.1B.md
+- docs/model_spec/data-engine/specs/state-flow/1B/s#*.expanded.md
   - No archived pseudocode—derive L0/L1/L2/L3 from the expanded spec.
 
 **D. Data-intake guidance (structure & intent)**
 - No preview/data doc for 1B. Infer dataset posture straight from the state-flow specs and contract registry.
 
-**E. Contract specs (blueprints for `contracts/`)**
-- `docs/model_spec/data-engine/specs/contracts/1B/artefact_registry_1B.yaml`
-- `docs/model_spec/data-engine/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml`
-- `docs/model_spec/data-engine/specs/contracts/1B/schemas.1B.yaml`
+**E. Contract specs (blueprints for contracts/)
+- docs/model_spec/data-engine/specs/contracts/1B/artefact_registry_1B.yaml
+- docs/model_spec/data-engine/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml
+- docs/model_spec/data-engine/specs/contracts/1B/schemas.1B.yaml
 
 > Never promote narratives, previews, or samples to binding authority. Only the expanded specs and contract documents govern code.
 
 ---
 
 ## 2) Test-yourself policy
-- Run targeted pytest jobs (`python -m pytest ...`) for the state you modify.
+- Run targeted pytest jobs (python -m pytest ...) for the state you modify.
 - When adding RNG or egress logic, layer in regression cases that exercise both happy-path and gate-fail scenarios (mirror the Segment 1A test harness).
 - Document results when handing work off (logbook or PR notes).
 
 ---
 
 ## 3) Ignore list (keep these read-only)
-- `docs/**/overview/**`
+- docs/**/overview/**
 - Anything explicitly marked deprecated or combined
 - Segment 1A code paths unless a migration is authorised
 
 ---
 
 ## 4) Segment 1A references (sealed authority)
-1. Expanded specs (`docs/model_spec/data-engine/specs/state-flow/1A/s#*.expanded.md`)
-2. Contract specs (`docs/model_spec/data-engine/specs/contracts/1A/`)
-3. Data intake (`docs/model_spec/data-engine/specs/data-intake/1A/preview|data/*.md`)
-4. Validation bundles (`validation_bundle/manifest_fingerprint=*/...`)
-5. Tests: `python -m pytest tests/contracts/test_seg_1A_dictionary_schemas.py tests/engine/cli/test_segment1a_cli.py tests/engine/layers/l1/seg_1A`
+1. Expanded specs (docs/model_spec/data-engine/specs/state-flow/1A/s#*.expanded.md)
+2. Contract specs (docs/model_spec/data-engine/specs/contracts/1A/)
+3. Data intake (docs/model_spec/data-engine/specs/data-intake/1A/preview|data/*.md)
+4. Validation bundles (alidation_bundle/manifest_fingerprint=*/...)
+5. Tests: python -m pytest tests/contracts/test_seg_1A_dictionary_schemas.py tests/engine/cli/test_segment1a_cli.py tests/engine/layers/l1/seg_1A
 
 ---
 
 ## 5) Segment 1B quick references (initial)
-- **State overview:** `docs/model_spec/data-engine/specs/state-flow/1B/state-flow-overview.1B.md`
-- **Contract artefacts:** `docs/model_spec/data-engine/specs/contracts/1B/{artefact_registry_1B.yaml,dataset_dictionary.layer1.1B.yaml,schemas.1B.yaml}`
+- **State overview:** docs/model_spec/data-engine/specs/state-flow/1B/state-flow-overview.1B.md
+- **Contract artefacts:** docs/model_spec/data-engine/specs/contracts/1B/{artefact_registry_1B.yaml,dataset_dictionary.layer1.1B.yaml,schemas.1B.yaml}
 - **State flow short labels:**
-  - S0 Gate in (verify 1A `_passed.flag`, load outlet catalogue)
+  - S0 Gate in (verify 1A _passed.flag, load outlet catalogue)
   - S1 Country tiling (eligible raster/polygon grid)
   - S2 Tile priors (deterministic weights)
-  - S3 Site counts (derive `N_i` per merchant/country)
+  - S3 Site counts (derive N_i per merchant/country)
   - S4 Integerise shares (largest remainder / deterministic policy)
-  - S5 Cell selection (RNG: `raster_pick_cell`)
+  - S5 Cell selection (RNG: aster_pick_cell)
   - S6 Point jitter (RNG: within-cell jitter, bounded resample)
   - S7 Site synthesis (attributes, 1:1 parity with 1A)
-  - S8 Egress (`site_locations` partitioned by `[seed, fingerprint]`)
-  - S9 Validation bundle (`validation_bundle_1B/...`, `_passed.flag`)
-- **RNG envelope:** reuse the 1A Philox/open-interval contract (`engine.layers.l1.seg_1A.s9_validation` is the reference implementation).
-- **Validation hash rule:** `_passed.flag` remains `sha256_hex = <digest>` over bundle files in ASCII-lexicographic order (same as 1A).
+  - S8 Egress (site_locations partitioned by [seed, fingerprint])
+  - S9 Validation bundle (alidation_bundle_1B/..., _passed.flag)
+- **RNG envelope:** reuse the 1A Philox/open-interval contract (ngine.layers.l1.seg_1A.s9_validation is the reference implementation).
+- **Validation hash rule:** _passed.flag remains sha256_hex = <digest> over bundle files in ASCII-lexicographic order (same as 1A).
 - **Dataset preview:** intentionally omitted—derive expectations from the expanded specs and contract dictionary.
 
 Extend this section with concrete CLIs, policy paths, and test commands as you implement each state.
