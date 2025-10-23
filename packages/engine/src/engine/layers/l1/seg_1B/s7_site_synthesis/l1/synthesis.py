@@ -88,7 +88,14 @@ def compute_site_synthesis(
             f"s6_site_jitter contains {extra_in_s6.height} site rows not present in s5_site_tile_assignment",
         )
 
-    joined = s5.join(s6, on=keys, how="inner", suffix="_s6")
+    s6_renamed = s6.rename(
+        {
+            "tile_id": "tile_id_s6",
+            "delta_lon_deg": "delta_lon_deg_s6",
+            "delta_lat_deg": "delta_lat_deg_s6",
+        }
+    )
+    joined = s5.join(s6_renamed, on=keys, how="inner")
     # sanity: ensure tile_id matches S5 vs S6 (should be identical)
     mismatch_tile = joined.filter(pl.col("tile_id") != pl.col("tile_id_s6"))
     if mismatch_tile.height:

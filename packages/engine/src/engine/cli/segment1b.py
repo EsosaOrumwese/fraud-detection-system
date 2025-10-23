@@ -21,6 +21,8 @@ from engine.layers.l1.seg_1B import (
     S5ValidatorConfig,
     S6SiteJitterValidator,
     S6ValidatorConfig,
+    S7SiteSynthesisValidator,
+    ValidatorConfig as S7ValidatorConfig,
 )
 from engine.scenario_runner.l1_seg_1B import Segment1BConfig, Segment1BOrchestrator
 
@@ -105,6 +107,12 @@ def _command_run(args: argparse.Namespace) -> int:
             "rng_events_total": result.s6.rng_events_total,
             "counter_span": result.s6.counter_span,
             "run_id": result.s6.run_id,
+        },
+        "s7": {
+            "dataset_path": str(result.s7.dataset_path),
+            "run_summary_path": str(result.s7.run_summary_path),
+            "determinism_receipt": result.s7.determinism_receipt,
+            "run_id": result.s7.run_id,
         },
     }
     print(json.dumps(summary, indent=2, sort_keys=True))
@@ -196,11 +204,28 @@ def _command_validate_s6(args: argparse.Namespace) -> int:
     return 0
 
 
+def _command_validate_s7(args: argparse.Namespace) -> int:
+    dictionary = _load_dictionary(args.dictionary)
+    validator = S7SiteSynthesisValidator()
+    validator.validate(
+        S7ValidatorConfig(
+            data_root=args.data_root,
+            seed=args.seed,
+            manifest_fingerprint=args.manifest_fingerprint,
+            parameter_hash=args.parameter_hash,
+            dictionary=dictionary,
+            run_summary_path=args.run_summary,
+        )
+    )
+    print("Validation succeeded")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Segment 1B utilities")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    run_parser = subparsers.add_parser("run", help="Execute Segment 1B states S0-S6")
+    run_parser = subparsers.add_parser("run", help="Execute Segment 1B states S0-S7")
     run_parser.add_argument("--data-root", type=Path, default=Path("."))
     run_parser.add_argument("--parameter-hash", required=True)
     run_parser.add_argument("--basis", choices=["uniform", "area_m2", "population"], default="uniform")
@@ -252,6 +277,14 @@ def main(argv: list[str] | None = None) -> int:
     validate_s6_parser.add_argument("--dictionary", type=Path)
     validate_s6_parser.add_argument("--run-report", type=Path)
 
+    validate_s7_parser = subparsers.add_parser("validate-s7", help="Validate s7_site_synthesis output")
+    validate_s7_parser.add_argument("--data-root", type=Path, default=Path("."))
+    validate_s7_parser.add_argument("--parameter-hash", required=True)
+    validate_s7_parser.add_argument("--seed", required=True)
+    validate_s7_parser.add_argument("--manifest-fingerprint", required=True)
+    validate_s7_parser.add_argument("--dictionary", type=Path)
+    validate_s7_parser.add_argument("--run-summary", type=Path)
+
     args = parser.parse_args(argv)
 
     if args.command == "run":
@@ -266,6 +299,8 @@ def main(argv: list[str] | None = None) -> int:
         return _command_validate_s5(args)
     if args.command == "validate-s6":
         return _command_validate_s6(args)
+    if args.command == "validate-s7":
+        return _command_validate_s7(args)
 
     parser.error("Unknown command")
     return 1

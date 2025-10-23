@@ -27,6 +27,9 @@ from engine.layers.l1.seg_1B import (
     S6RunResult,
     S6RunnerConfig,
     S6SiteJitterRunner,
+    S7RunResult,
+    S7RunnerConfig,
+    S7SiteSynthesisRunner,
 )
 from engine.layers.l1.seg_1B.shared.dictionary import load_dictionary
 
@@ -49,7 +52,7 @@ class Segment1BConfig:
 
 @dataclass(frozen=True)
 class Segment1BResult:
-    """Structured result capturing outputs from S0–S6."""
+    """Structured result capturing outputs from S0–S7."""
 
     s0_receipt_path: Optional[Path]
     s1: S1RunResult
@@ -58,6 +61,7 @@ class Segment1BResult:
     s4: S4RunResult
     s5: S5RunResult
     s6: S6RunResult
+    s7: S7RunResult
 
 
 class Segment1BOrchestrator:
@@ -71,6 +75,7 @@ class Segment1BOrchestrator:
         self._s4_runner = S4AllocPlanRunner()
         self._s5_runner = S5SiteTileAssignmentRunner()
         self._s6_runner = S6SiteJitterRunner()
+        self._s7_runner = S7SiteSynthesisRunner()
 
     def run(self, config: Segment1BConfig) -> Segment1BResult:
         dictionary = config.dictionary or load_dictionary()
@@ -163,6 +168,16 @@ class Segment1BOrchestrator:
             )
         )
 
+        s7_result = self._s7_runner.run(
+            S7RunnerConfig(
+                data_root=data_root,
+                manifest_fingerprint=config.manifest_fingerprint,
+                seed=config.seed,
+                parameter_hash=config.parameter_hash,
+                dictionary=dictionary,
+            )
+        )
+
         return Segment1BResult(
             s0_receipt_path=receipt_path,
             s1=s1_result,
@@ -171,6 +186,7 @@ class Segment1BOrchestrator:
             s4=s4_result,
             s5=s5_result,
             s6=s6_result,
+            s7=s7_result,
         )
 
 
