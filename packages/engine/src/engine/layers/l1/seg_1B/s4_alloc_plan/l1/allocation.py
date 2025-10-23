@@ -16,8 +16,10 @@ class AllocationResult:
     frame: pl.DataFrame
     rows_emitted: int
     pairs_total: int
+    merchants_total: int
     shortfall_total: int
     ties_broken_total: int
+    alloc_sum_equals_requirements: bool
 
 
 def allocate_sites(
@@ -41,8 +43,10 @@ def allocate_sites(
             ),
             rows_emitted=0,
             pairs_total=0,
+            merchants_total=0,
             shortfall_total=0,
             ties_broken_total=0,
+            alloc_sum_equals_requirements=True,
         )
 
     requirements = requirements.select(
@@ -198,12 +202,22 @@ def allocate_sites(
         .sort(["merchant_id", "legal_country_iso", "tile_id"])
     )
 
+    merchants_total = int(requirements.get_column("merchant_id").n_unique())
+    pairs_total = int(
+        requirements.select(pl.col("merchant_id"), pl.col("legal_country_iso")).unique().height
+    )
+    alloc_sum_equals_requirements = bool(
+        (totals.get_column("alloc_sum") == totals.get_column("n_sites")).all()
+    )
+
     return AllocationResult(
         frame=final_frame,
         rows_emitted=final_frame.height,
-        pairs_total=requirements.select(pl.col("merchant_id"), pl.col("legal_country_iso")).unique().height,
+        pairs_total=pairs_total,
+        merchants_total=merchants_total,
         shortfall_total=shortfall_total,
         ties_broken_total=ties_broken_total,
+        alloc_sum_equals_requirements=alloc_sum_equals_requirements,
     )
 
 

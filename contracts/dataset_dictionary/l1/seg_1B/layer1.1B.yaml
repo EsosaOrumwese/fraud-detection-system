@@ -215,3 +215,75 @@ datasets:
     retention_days: 365
     pii: false
     license: Proprietary-Internal
+
+  s3_requirements:
+    status: approved
+    owner_subsegment: 1B
+    description: Deterministic site counts per (merchant_id, legal_country_iso) for this run.
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    format: parquet
+    path: data/layer1/1B/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: [merchant_id, legal_country_iso]
+    schema_ref: schemas.1B.yaml#/plan/s3_requirements
+    lineage:
+      produced_by: 1B.S3
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
+  s4_alloc_plan:
+    status: approved
+    owner_subsegment: 1B
+    description: Per-tile integer allocations that sum to S3 n_sites (RNG-free; positives only).
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    format: parquet
+    path: data/layer1/1B/s4_alloc_plan/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: [merchant_id, legal_country_iso, tile_id]
+    schema_ref: schemas.1B.yaml#/plan/s4_alloc_plan
+    lineage:
+      produced_by: 1B.S4
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
+  s3_run_report:
+    status: draft
+    owner_subsegment: 1B
+    description: Control-plane run report for S3 requirements (outside dataset partition).
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    format: json
+    path: control/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s3_run_report.json
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: []
+    schema_ref: null
+    lineage:
+      produced_by: 1B.S3
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 30
+    pii: false
+    license: Proprietary-Internal
+
+  s4_run_report:
+    status: draft
+    owner_subsegment: 1B
+    description: Control-plane run report for S4 allocation plan (outside dataset partition).
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    format: json
+    path: control/s4_alloc_plan/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_run_report.json
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: []
+    schema_ref: null
+    lineage:
+      produced_by: 1B.S4
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 30
+    pii: false
+    license: Proprietary-Internal

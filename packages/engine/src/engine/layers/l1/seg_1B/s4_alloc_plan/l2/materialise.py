@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
@@ -13,7 +14,7 @@ import polars as pl
 
 from engine.layers.l1.seg_1B.s1_tile_index.l2.runner import compute_partition_digest
 
-from ...shared.dictionary import get_dataset_entry, resolve_dataset_path
+from ...shared.dictionary import resolve_dataset_path
 from ..exceptions import err
 from ..l1.allocation import AllocationResult
 from ..l2.prepare import PreparedInputs
@@ -29,8 +30,10 @@ class S4RunResult:
     determinism_receipt: Mapping[str, str]
     rows_emitted: int
     pairs_total: int
+    merchants_total: int
     shortfall_total: int
     ties_broken_total: int
+    alloc_sum_equals_requirements: bool
 
 
 def materialise_allocation(
@@ -40,6 +43,9 @@ def materialise_allocation(
     iso_version: str | None,
 ) -> S4RunResult:
     """Write allocation parquet and evidence bundles."""
+
+    start_wall = time.perf_counter()
+    start_cpu = time.process_time()
 
     frame = allocation.frame
     dictionary = prepared.dictionary
@@ -77,21 +83,36 @@ def materialise_allocation(
         "sha256_hex": digest,
     }
 
-    report_dir = (
-        prepared.config.data_root
-        / "control"
-        / "s4_alloc_plan"
-        / f"seed={prepared.config.seed}"
-        / f"fingerprint={prepared.config.manifest_fingerprint}"
-        / f"parameter_hash={prepared.config.parameter_hash}"
+    wall_clock_seconds_total = time.perf_counter() - start_wall
+    cpu_seconds_total = time.process_time() - start_cpu
+    metrics = {
+        "bytes_read_s3": _sum_file_sizes(prepared.requirements.path),
+        "bytes_read_weights": _sum_file_sizes(prepared.tile_weights.path),
+        "bytes_read_index": _sum_file_sizes(prepared.tile_index.path),
+        "wall_clock_seconds_total": wall_clock_seconds_total,
+        "cpu_seconds_total": cpu_seconds_total,
+        "workers_used": 1,
+        "max_worker_rss_bytes": 0,
+        "open_files_peak": 0,
+    }
+
+    report_path = resolve_dataset_path(
+        "s4_run_report",
+        base_path=prepared.config.data_root,
+        template_args={
+            "seed": prepared.config.seed,
+            "manifest_fingerprint": prepared.config.manifest_fingerprint,
+            "parameter_hash": prepared.config.parameter_hash,
+        },
+        dictionary=dictionary,
     )
-    report_dir.mkdir(parents=True, exist_ok=True)
-    report_path = report_dir / "s4_run_report.json"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
     run_report = build_run_report(
         prepared=prepared,
         allocation=allocation,
         iso_version=iso_version,
         determinism_receipt=determinism_receipt,
+        metrics=metrics,
     )
     report_path.write_text(json.dumps(run_report, indent=2, sort_keys=True), encoding="utf-8")
 
@@ -101,8 +122,10 @@ def materialise_allocation(
         determinism_receipt=determinism_receipt,
         rows_emitted=allocation.rows_emitted,
         pairs_total=allocation.pairs_total,
+        merchants_total=allocation.merchants_total,
         shortfall_total=allocation.shortfall_total,
         ties_broken_total=allocation.ties_broken_total,
+        alloc_sum_equals_requirements=allocation.alloc_sum_equals_requirements,
     )
 
 
@@ -137,6 +160,14 @@ def _enforce_sort_order(frame: pl.DataFrame) -> None:
             "E406_SORT_INVALID",
             "s4_alloc_plan must be sorted by ['merchant_id','legal_country_iso','tile_id']",
         )
+
+
+def _sum_file_sizes(path: Path) -> int:
+    if path.is_file():
+        return path.stat().st_size
+    if path.is_dir():
+        return sum(p.stat().st_size for p in path.rglob("*") if p.is_file())
+    return 0
 
 
 __all__ = ["S4RunResult", "materialise_allocation"]

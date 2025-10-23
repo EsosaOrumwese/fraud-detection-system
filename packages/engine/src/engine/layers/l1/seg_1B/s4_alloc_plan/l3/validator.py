@@ -103,13 +103,16 @@ class S4AllocPlanValidator:
         run_report_path = (
             config.run_report_path
             if config.run_report_path is not None
-            else config.data_root
-            / "control"
-            / "s4_alloc_plan"
-            / f"seed={config.seed}"
-            / f"fingerprint={config.manifest_fingerprint}"
-            / f"parameter_hash={config.parameter_hash}"
-            / "s4_run_report.json"
+            else resolve_dataset_path(
+                "s4_run_report",
+                base_path=config.data_root,
+                template_args={
+                    "seed": config.seed,
+                    "manifest_fingerprint": config.manifest_fingerprint,
+                    "parameter_hash": config.parameter_hash,
+                },
+                dictionary=dictionary,
+            )
         )
         _validate_run_report(
             report_path=run_report_path,
@@ -187,11 +190,21 @@ def _validate_run_report(
         "manifest_fingerprint",
         "parameter_hash",
         "rows_emitted",
+        "merchants_total",
         "pairs_total",
         "shortfall_total",
         "ties_broken_total",
+        "alloc_sum_equals_requirements",
         "ingress_versions",
         "determinism_receipt",
+        "bytes_read_s3",
+        "bytes_read_weights",
+        "bytes_read_index",
+        "wall_clock_seconds_total",
+        "cpu_seconds_total",
+        "workers_used",
+        "max_worker_rss_bytes",
+        "open_files_peak",
     }
     missing_fields = sorted(required_fields.difference(payload.keys()))
     if missing_fields:
@@ -199,6 +212,9 @@ def _validate_run_report(
             "E409_DETERMINISM",
             f"s4 run report missing fields: {missing_fields}",
         )
+
+    if not bool(payload.get("alloc_sum_equals_requirements", False)):
+        raise err("E403_SHORTFALL_MISMATCH", "run report indicates allocation conservation failed")
 
     receipt = payload.get("determinism_receipt")
     if not isinstance(receipt, Mapping):
@@ -215,6 +231,21 @@ def _validate_run_report(
     # Basic metric sanity checks
     if int(payload["rows_emitted"]) != dataset.height:
         raise err("E409_DETERMINISM", "rows_emitted in run report does not match dataset height")
+
+    for key in ("bytes_read_s3", "bytes_read_weights", "bytes_read_index"):
+        value = payload.get(key)
+        if not isinstance(value, (int, float)) or value < 0:
+            raise err("E409_DETERMINISM", f"{key} in run report must be a non-negative number")
+
+    for key in ("wall_clock_seconds_total", "cpu_seconds_total"):
+        value = payload.get(key)
+        if not isinstance(value, (int, float)) or value < 0:
+            raise err("E409_DETERMINISM", f"{key} in run report must be a non-negative number")
+
+    for key in ("workers_used", "max_worker_rss_bytes", "open_files_peak"):
+        value = payload.get(key)
+        if not isinstance(value, (int, float)) or value < 0:
+            raise err("E409_DETERMINISM", f"{key} in run report must be a non-negative number")
 
 
 __all__ = ["S4AllocPlanValidator", "ValidatorConfig"]

@@ -200,3 +200,55 @@ prep:
         type: boolean
         nullable: false
         description: True when the per-country zero-mass uniform fallback was applied.
+
+plan:
+  s3_requirements:
+    type: table
+    description: Deterministic per-(merchant_id, legal_country_iso) site counts for this run.
+    primary_key: [merchant_id, legal_country_iso]
+    partition_keys: [seed, fingerprint, parameter_hash]
+    sort_keys: [merchant_id, legal_country_iso]
+    columns_strict: true
+    columns:
+      - name: merchant_id
+        $ref: 'schemas.layer1.yaml#/$defs/id64'
+        nullable: false
+      - name: legal_country_iso
+        $ref: '#/$defs/iso2'
+        nullable: false
+      - name: n_sites
+        type: integer
+        minimum: 1
+        nullable: false
+
+  s4_alloc_plan:
+    type: table
+    description: Per-tile integer allocations that sum to S3 n_sites (RNG-free). Emitted only for positive allocations.
+    primary_key: [merchant_id, legal_country_iso, tile_id]
+    partition_keys: [seed, fingerprint, parameter_hash]
+    sort_keys: [merchant_id, legal_country_iso, tile_id]
+    columns_strict: true
+    columns:
+      - name: merchant_id
+        $ref: 'schemas.layer1.yaml#/$defs/id64'
+        nullable: false
+      - name: legal_country_iso
+        $ref: '#/$defs/iso2'
+        nullable: false
+        fk:
+          dataset_ref: 'schemas.ingress.layer1.yaml#/iso3166_canonical_2024'
+          columns:
+            legal_country_iso: country_iso
+      - name: tile_id
+        $ref: '#/$defs/uint64'
+        nullable: false
+        fk:
+          dataset_ref: '#/prep/tile_index'
+          partition_keys: [parameter_hash]
+          columns:
+            legal_country_iso: country_iso
+            tile_id: tile_id
+      - name: n_sites_tile
+        type: integer
+        minimum: 1
+        nullable: false

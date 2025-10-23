@@ -43,6 +43,18 @@ def _dictionary() -> dict[str, object]:
                 "ordering": ["merchant_id", "legal_country_iso", "tile_id"],
                 "schema_ref": "schemas.1B.yaml#/plan/s4_alloc_plan",
             },
+            "s3_run_report": {
+                "path": "control/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s3_run_report.json",
+                "partitioning": ["seed", "fingerprint", "parameter_hash"],
+                "ordering": [],
+                "schema_ref": None,
+            },
+            "s4_run_report": {
+                "path": "control/s4_alloc_plan/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s4_run_report.json",
+                "partitioning": ["seed", "fingerprint", "parameter_hash"],
+                "ordering": [],
+                "schema_ref": None,
+            },
         },
         "reference_data": {
             "iso3166_canonical_2024": {
@@ -158,6 +170,9 @@ def test_runner_and_validator_success(tmp_path: Path) -> None:
         (2, "GB", 5, 1),
         (2, "GB", 6, 1),
     ]
+    assert result.merchants_total == 2
+    assert result.pairs_total == 2
+    assert result.alloc_sum_equals_requirements is True
 
     validator = S4AllocPlanValidator()
     validator.validate(
@@ -232,10 +247,20 @@ def test_validator_detects_mismatch(tmp_path: Path) -> None:
                 "manifest_fingerprint": "ff",
                 "parameter_hash": "hh",
                 "rows_emitted": 2,
+                "merchants_total": 1,
                 "pairs_total": 1,
                 "shortfall_total": 0,
                 "ties_broken_total": 0,
+                "alloc_sum_equals_requirements": False,
                 "ingress_versions": {"iso3166": "test"},
+                "bytes_read_s3": 0,
+                "bytes_read_weights": 0,
+                "bytes_read_index": 0,
+                "wall_clock_seconds_total": 0.0,
+                "cpu_seconds_total": 0.0,
+                "workers_used": 1,
+                "max_worker_rss_bytes": 0,
+                "open_files_peak": 0,
                 "determinism_receipt": {
                     "partition_path": str(
                         data_root
@@ -260,3 +285,155 @@ def test_validator_detects_mismatch(tmp_path: Path) -> None:
             )
         )
     assert excinfo.value.context.code == "E403_SHORTFALL_MISMATCH"
+
+
+def test_runner_missing_tile_weights(tmp_path: Path) -> None:
+    dictionary = _dictionary()
+    data_root = tmp_path
+    (data_root / "data/layer1/1B/s3_requirements/seed=123/fingerprint=ff/parameter_hash=hh").mkdir(parents=True, exist_ok=True)
+    (data_root / "data/layer1/1B/tile_index/parameter_hash=hh").mkdir(parents=True, exist_ok=True)
+    (data_root / "reference/iso").mkdir(parents=True, exist_ok=True)
+
+    pl.DataFrame({"country_iso": ["US"]}).write_parquet(
+        data_root / "reference/iso/iso3166_canonical.parquet"
+    )
+    pl.DataFrame(
+        {
+            "merchant_id": [1],
+            "legal_country_iso": ["US"],
+            "n_sites": [1],
+        }
+    ).write_parquet(
+        data_root / "data/layer1/1B/s3_requirements/seed=123/fingerprint=ff/parameter_hash=hh/part-00000.parquet"
+    )
+    pl.DataFrame(
+        {
+            "country_iso": ["US"],
+            "tile_id": [10],
+        }
+    ).write_parquet(
+        data_root / "data/layer1/1B/tile_index/parameter_hash=hh/part-00000.parquet"
+    )
+
+    runner = S4AllocPlanRunner()
+    config = S4RunnerConfig(
+        data_root=data_root,
+        manifest_fingerprint="ff",
+        seed="123",
+        parameter_hash="hh",
+        dictionary=dictionary,
+    )
+    with pytest.raises(S4Error) as excinfo:
+        runner.run(config)
+    assert excinfo.value.context.code == "E402_WEIGHTS_MISSING"
+
+
+def test_runner_missing_tile_index(tmp_path: Path) -> None:
+    dictionary = _dictionary()
+    data_root = tmp_path
+    (data_root / "data/layer1/1B/s3_requirements/seed=123/fingerprint=ff/parameter_hash=hh").mkdir(parents=True, exist_ok=True)
+    (data_root / "data/layer1/1B/tile_weights/parameter_hash=hh").mkdir(parents=True, exist_ok=True)
+    (data_root / "reference/iso").mkdir(parents=True, exist_ok=True)
+
+    pl.DataFrame({"country_iso": ["US"]}).write_parquet(
+        data_root / "reference/iso/iso3166_canonical.parquet"
+    )
+    pl.DataFrame(
+        {
+            "merchant_id": [1],
+            "legal_country_iso": ["US"],
+            "n_sites": [1],
+        }
+    ).write_parquet(
+        data_root / "data/layer1/1B/s3_requirements/seed=123/fingerprint=ff/parameter_hash=hh/part-00000.parquet"
+    )
+    pl.DataFrame(
+        {
+            "country_iso": ["US"],
+            "tile_id": [10],
+            "weight_fp": [1000],
+            "dp": [3],
+        }
+    ).write_parquet(
+        data_root / "data/layer1/1B/tile_weights/parameter_hash=hh/part-00000.parquet"
+    )
+
+    runner = S4AllocPlanRunner()
+    config = S4RunnerConfig(
+        data_root=data_root,
+        manifest_fingerprint="ff",
+        seed="123",
+        parameter_hash="hh",
+        dictionary=dictionary,
+    )
+    with pytest.raises(S4Error) as excinfo:
+        runner.run(config)
+    assert excinfo.value.context.code == "E408_COVERAGE_MISSING"
+
+
+def test_validator_missing_run_report_field(tmp_path: Path) -> None:
+    dictionary = _dictionary()
+    data_root = tmp_path
+    (data_root / "data/layer1/1B/s3_requirements/seed=123/fingerprint=ff/parameter_hash=hh").mkdir(parents=True, exist_ok=True)
+    (data_root / "data/layer1/1B/tile_weights/parameter_hash=hh").mkdir(parents=True, exist_ok=True)
+    (data_root / "data/layer1/1B/tile_index/parameter_hash=hh").mkdir(parents=True, exist_ok=True)
+    (data_root / "reference/iso").mkdir(parents=True, exist_ok=True)
+
+    pl.DataFrame({"country_iso": ["US"]}).write_parquet(
+        data_root / "reference/iso/iso3166_canonical.parquet"
+    )
+    pl.DataFrame(
+        {
+            "merchant_id": [1],
+            "legal_country_iso": ["US"],
+            "n_sites": [1],
+        }
+    ).write_parquet(
+        data_root / "data/layer1/1B/s3_requirements/seed=123/fingerprint=ff/parameter_hash=hh/part-00000.parquet"
+    )
+    pl.DataFrame(
+        {
+            "country_iso": ["US"],
+            "tile_id": [99],
+            "weight_fp": [1000],
+            "dp": [3],
+        }
+    ).write_parquet(
+        data_root / "data/layer1/1B/tile_weights/parameter_hash=hh/part-00000.parquet"
+    )
+    pl.DataFrame(
+        {
+            "country_iso": ["US"],
+            "tile_id": [99],
+        }
+    ).write_parquet(
+        data_root / "data/layer1/1B/tile_index/parameter_hash=hh/part-00000.parquet"
+    )
+
+    runner = S4AllocPlanRunner()
+    config = S4RunnerConfig(
+        data_root=data_root,
+        manifest_fingerprint="ff",
+        seed="123",
+        parameter_hash="hh",
+        dictionary=dictionary,
+    )
+    runner.run(config)
+
+    report_path = data_root / "control/s4_alloc_plan/seed=123/fingerprint=ff/parameter_hash=hh/s4_run_report.json"
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+    payload.pop("bytes_read_s3", None)
+    report_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    validator = S4AllocPlanValidator()
+    with pytest.raises(S4Error) as excinfo:
+        validator.validate(
+            S4ValidatorConfig(
+                data_root=data_root,
+                seed="123",
+                manifest_fingerprint="ff",
+                parameter_hash="hh",
+                dictionary=dictionary,
+            )
+        )
+    assert excinfo.value.context.code == "E409_DETERMINISM"

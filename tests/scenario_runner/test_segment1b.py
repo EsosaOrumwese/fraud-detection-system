@@ -6,7 +6,13 @@ from types import SimpleNamespace
 import polars as pl
 import pytest
 
-from engine.layers.l1.seg_1B import S1RunResult, S2RunResult, S3RunResult, S3AggregationResult
+from engine.layers.l1.seg_1B import (
+    S1RunResult,
+    S2RunResult,
+    S3AggregationResult,
+    S3RunResult,
+    S4RunResult,
+)
 from engine.scenario_runner.l1_seg_1B import (
     Segment1BConfig,
     Segment1BOrchestrator,
@@ -127,12 +133,33 @@ class StubS3Runner:
         )
 
 
+class StubS4Runner:
+    def __init__(self) -> None:
+        self.config = None
+
+    def run(self, config):
+        self.config = config
+        base = config.data_root
+        return S4RunResult(
+            alloc_plan_path=base / "s4_alloc_plan",
+            report_path=base / "s4_report.json",
+            determinism_receipt={"partition_path": "dummy", "sha256_hex": "cafebabe"},
+            rows_emitted=0,
+            pairs_total=0,
+            merchants_total=0,
+            shortfall_total=0,
+            ties_broken_total=0,
+            alloc_sum_equals_requirements=True,
+        )
+
+
 def test_orchestrator_runs_all_states(tmp_path: Path):
     orchestrator = Segment1BOrchestrator()
     orchestrator._s0_runner = StubS0Runner()
     orchestrator._s1_runner = StubS1Runner()
     orchestrator._s2_runner = StubS2Runner()
     orchestrator._s3_runner = StubS3Runner()
+    orchestrator._s4_runner = StubS4Runner()
 
     dictionary = {"datasets": {}}
 
@@ -152,6 +179,7 @@ def test_orchestrator_runs_all_states(tmp_path: Path):
     assert result.s1.tile_index_path == tmp_path / "tile_index"
     assert result.s2.tile_weights_path == tmp_path / "tile_weights"
     assert result.s3.requirements_path == tmp_path / "s3_requirements"
+    assert result.s4.alloc_plan_path == tmp_path / "s4_alloc_plan"
     assert orchestrator._s2_runner.measure_calls == 1
     assert orchestrator._s3_runner.materialise_calls == 1
 
@@ -163,6 +191,7 @@ def test_orchestrator_skip_s0(tmp_path: Path):
     orchestrator._s1_runner = StubS1Runner()
     orchestrator._s2_runner = StubS2Runner()
     orchestrator._s3_runner = StubS3Runner()
+    orchestrator._s4_runner = StubS4Runner()
 
     result = orchestrator.run(
         Segment1BConfig(

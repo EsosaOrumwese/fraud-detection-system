@@ -40,6 +40,17 @@ def stub_orchestrator(monkeypatch: pytest.MonkeyPatch):
                 countries_total=2,
                 source_rows_total=5,
             ),
+            s4=SimpleNamespace(
+                alloc_plan_path=Path("/tmp/s4_alloc_plan"),
+                report_path=Path("/tmp/s4_report.json"),
+                determinism_receipt={"partition_path": "/tmp/s4_alloc_plan", "sha256_hex": "cafebabe"},
+                rows_emitted=3,
+                merchants_total=2,
+                pairs_total=2,
+                shortfall_total=0,
+                ties_broken_total=0,
+                alloc_sum_equals_requirements=True,
+            ),
         )
 
     monkeypatch.setattr(cli, "Segment1BOrchestrator", lambda: SimpleNamespace(run=_run))
@@ -99,6 +110,7 @@ def test_segment1b_cli_outputs(monkeypatch: pytest.MonkeyPatch, stub_orchestrato
     payload = json.loads(captured)
     assert Path(payload["s2"]["tile_weights_path"]) == Path("/tmp/tile_weights")
     assert Path(payload["s3"]["requirements_path"]) == Path("/tmp/s3_requirements")
+    assert Path(payload["s4"]["alloc_plan_path"]) == Path("/tmp/s4_alloc_plan")
 
 
 def test_segment1b_cli_validate_s3(monkeypatch: pytest.MonkeyPatch, stub_s3_validator, tmp_dictionary):
@@ -119,4 +131,38 @@ def test_segment1b_cli_validate_s3(monkeypatch: pytest.MonkeyPatch, stub_s3_vali
     )
     assert exit_code == 0
     assert len(stub_s3_validator.calls) == 1
+
+
+@pytest.fixture()
+def stub_s4_validator(monkeypatch: pytest.MonkeyPatch):
+    class _StubValidator:
+        def __init__(self) -> None:
+            self.calls = []
+
+        def validate(self, config):
+            self.calls.append(config)
+
+    validator = _StubValidator()
+    monkeypatch.setattr(cli, "S4AllocPlanValidator", lambda: validator)
+    return validator
+
+
+def test_segment1b_cli_validate_s4(monkeypatch: pytest.MonkeyPatch, stub_s4_validator, tmp_dictionary):
+    exit_code = cli.main(
+        [
+            "validate-s4",
+            "--data-root",
+            ".",
+            "--parameter-hash",
+            "abc123",
+            "--seed",
+            "123",
+            "--manifest-fingerprint",
+            "f" * 64,
+            "--dictionary",
+            str(tmp_dictionary),
+        ]
+    )
+    assert exit_code == 0
+    assert len(stub_s4_validator.calls) == 1
 

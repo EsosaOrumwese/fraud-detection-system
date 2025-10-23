@@ -1,4 +1,4 @@
-"""CLI runner for Segment 1B (S0 -> S3)."""
+"""CLI runner for Segment 1B (S0 -> S4)."""
 
 from __future__ import annotations
 
@@ -15,6 +15,8 @@ from engine.layers.l1.seg_1B import (
     S2ValidatorConfig,
     S3RequirementsValidator,
     S3ValidatorConfig,
+    S4AllocPlanValidator,
+    S4ValidatorConfig,
 )
 from engine.scenario_runner.l1_seg_1B import Segment1BConfig, Segment1BOrchestrator
 
@@ -67,6 +69,17 @@ def _command_run(args: argparse.Namespace) -> int:
             "countries_total": result.s3.countries_total,
             "source_rows_total": result.s3.source_rows_total,
         },
+        "s4": {
+            "alloc_plan_path": str(result.s4.alloc_plan_path),
+            "report_path": str(result.s4.report_path),
+            "determinism_receipt": result.s4.determinism_receipt,
+            "rows_emitted": result.s4.rows_emitted,
+            "merchants_total": result.s4.merchants_total,
+            "pairs_total": result.s4.pairs_total,
+            "shortfall_total": result.s4.shortfall_total,
+            "ties_broken_total": result.s4.ties_broken_total,
+            "alloc_sum_equals_requirements": result.s4.alloc_sum_equals_requirements,
+        },
     }
     print(json.dumps(summary, indent=2, sort_keys=True))
     return 0
@@ -106,11 +119,28 @@ def _command_validate_s3(args: argparse.Namespace) -> int:
     return 0
 
 
+def _command_validate_s4(args: argparse.Namespace) -> int:
+    dictionary = _load_dictionary(args.dictionary)
+    validator = S4AllocPlanValidator()
+    validator.validate(
+        S4ValidatorConfig(
+            data_root=args.data_root,
+            seed=args.seed,
+            manifest_fingerprint=args.manifest_fingerprint,
+            parameter_hash=args.parameter_hash,
+            dictionary=dictionary,
+            run_report_path=args.run_report,
+        )
+    )
+    print("Validation succeeded")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Segment 1B utilities")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    run_parser = subparsers.add_parser("run", help="Execute Segment 1B states S0-S3")
+    run_parser = subparsers.add_parser("run", help="Execute Segment 1B states S0-S4")
     run_parser.add_argument("--data-root", type=Path, default=Path("."))
     run_parser.add_argument("--parameter-hash", required=True)
     run_parser.add_argument("--basis", choices=["uniform", "area_m2", "population"], default="uniform")
@@ -138,6 +168,14 @@ def main(argv: list[str] | None = None) -> int:
     validate_s3_parser.add_argument("--dictionary", type=Path)
     validate_s3_parser.add_argument("--run-report", type=Path)
 
+    validate_s4_parser = subparsers.add_parser("validate-s4", help="Validate s4_alloc_plan output")
+    validate_s4_parser.add_argument("--data-root", type=Path, default=Path("."))
+    validate_s4_parser.add_argument("--parameter-hash", required=True)
+    validate_s4_parser.add_argument("--seed", required=True)
+    validate_s4_parser.add_argument("--manifest-fingerprint", required=True)
+    validate_s4_parser.add_argument("--dictionary", type=Path)
+    validate_s4_parser.add_argument("--run-report", type=Path)
+
     args = parser.parse_args(argv)
 
     if args.command == "run":
@@ -146,6 +184,8 @@ def main(argv: list[str] | None = None) -> int:
         return _command_validate(args)
     if args.command == "validate-s3":
         return _command_validate_s3(args)
+    if args.command == "validate-s4":
+        return _command_validate_s4(args)
 
     parser.error("Unknown command")
     return 1
