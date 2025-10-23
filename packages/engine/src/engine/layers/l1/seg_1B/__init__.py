@@ -34,6 +34,8 @@ from .s3_requirements import (
     materialise_requirements as s3_materialise_requirements,
     prepare_inputs as s3_prepare_inputs,
 )
+from .s4_alloc_plan import RunnerConfig as S4RunnerConfig, S4Error, err as s4_err
+from .s4_alloc_plan.l2 import S4AllocPlanRunner
 
 __all__ = [
     "S0GateRunner",
@@ -66,5 +68,9 @@ __all__ = [
     "s3_compute_requirements",
     "s3_materialise_requirements",
     "s3_prepare_inputs",
+    "S4RunnerConfig",
+    "S4AllocPlanRunner",
+    "S4Error",
+    "s4_err",
 ]
 
