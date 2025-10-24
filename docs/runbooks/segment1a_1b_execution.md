@@ -28,7 +28,7 @@ This runbook documents every step required to reproduce a full Layer‑1 executi
 
 ---
 
-## 2. Segment 1A Execution (States S0–S7 + S9 Validation)
+## 2. Segment 1A Execution (States S0–S8 + S9 Validation)
 
 1. **Select identities**
    - Decide on a Philox seed (unsigned 64-bit integer).
@@ -56,9 +56,9 @@ This runbook documents every step required to reproduce a full Layer‑1 executi
 
 3. **Capture outputs**
    - The CLI prints the `parameter_hash` and `manifest_fingerprint`; copy these values, they are required by Segment 1B.
-   - Confirm the following:
-     - `data/layer1/1A/outlet_catalogue/seed=<seed>/fingerprint=<fingerprint>/...`
-     - `data/layer1/1A/validation/fingerprint=<fingerprint>/_passed.flag` exists.
+   - Confirm State S8 egress and S9 validation artefacts:
+     - S8 `outlet_catalogue`: `data/layer1/1A/outlet_catalogue/seed=<seed>/fingerprint=<fingerprint>/...`
+     - S9 validation bundle: `data/layer1/1A/validation/fingerprint=<fingerprint>/_passed.flag`
 
 4. **Sanity verification**
    - Optional: run `python3 -m pytest tests/contracts/test_seg_1A_dictionary_schemas.py` to ensure 1A outputs meet contract shape expectations.
@@ -136,4 +136,3 @@ This runbook documents every step required to reproduce a full Layer‑1 executi
 
 - Prepared runbook describing environment requirements, command templates, and validation steps for Segment 1A through Segment 1B.
 - No orchestration commands were executed; this document serves as the authoritative procedure for operators to follow when running the pipeline locally.
-
