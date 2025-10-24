@@ -20,11 +20,17 @@ This runbook documents every step required to reproduce a full Layer‑1 executi
 
 4. **Artefact locations**
    - Identify the governed inputs for Segment 1A:
-     - Merchant ingress parquet.
-     - ISO canonical table.
-     - GDP tables/buckets.
-     - Policy YAMLs, numeric policy, maths manifest (if applicable).
-   - Confirm Segment 1B shared artefacts (spatial priors, jitter policy) exist under `contracts/` and `artefacts/` as referenced by `contracts/dataset_dictionary/l1/seg_1B/layer1.1B.yaml`.
+     - Merchant ingress parquet: `reference/layer1/transaction_schema_merchant_ids/v2025-10-09/transaction_schema_merchant_ids.parquet` (prior snapshots available in the same directory if you need to align with older manifests).
+     - ISO canonical table: `reference/layer1/iso_canonical/v2025-10-09/iso_canonical.parquet`.
+     - GDP tables: `reference/economic/world_bank_gdp_per_capita/2025-10-07/gdp.parquet`.
+     - GDP bucket map: `reference/economic/gdp_bucket_map/2025-10-08/gdp_bucket_map.parquet`.
+     - Policy YAMLs: `contracts/policies/l1/seg_1A/policy.s3.rule_ladder.yaml`, `contracts/policies/l1/seg_1A/policy.s3.base_weight.yaml`, `contracts/policies/l1/seg_1A/policy.s3.thresholds.yaml`.
+     - Validation policy: `contracts/policies/l1/seg_1A/s2_validation_policy.yaml`.
+     - Numeric policy attestations from the latest S0 run: `artefacts/s0_runs/2025-10-09_synthetic/validation_bundle/manifest_fingerprint=991c57a380d81d7ab9ba4901efb0d0db3eb7a82af59249d7cc71017126622709/numeric_policy_attest.json`.
+   - Confirm Segment 1B shared artefacts (spatial priors, jitter policy) exist under the paths referenced by `contracts/dataset_dictionary/l1/seg_1B/layer1.1B.yaml`, notably:
+     - Dataset dictionary: `contracts/dataset_dictionary/l1/seg_1B/layer1.1B.yaml`.
+     - Spatial priors: `artefacts/spatial/population_raster/2025/raw/global_2020_1km_UNadj_uncounstrained.tif` and `artefacts/spatial/world_countries/raw/countries.geojson`.
+     - Latest S0 validation bundle PASS flag: `artefacts/s0_runs/2025-10-09_synthetic/validation_bundle/manifest_fingerprint=991c57a380d81d7ab9ba4901efb0d0db3eb7a82af59249d7cc71017126622709/_passed.flag`.
 
 ---
 
