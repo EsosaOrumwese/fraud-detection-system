@@ -1,2 +1,0 @@
-{"merchant_id":1,"legal_country_iso":"GB","site_order":1,"lon_deg":-0.1,"lat_deg":51.5,"module":"1B.s5_site_tile_assignment","substream_label":"site_tile_assign","blocks":1,"draws":"1","rng_counter_before_lo":0,"rng_counter_before_hi":0,"rng_counter_after_lo":1,"rng_counter_after_hi":0}
-{"merchant_id":1,"legal_country_iso":"GB","site_order":2,"lon_deg":-0.11,"lat_deg":51.51,"module":"1B.s5_site_tile_assignment","substream_label":"site_tile_assign","blocks":1,"draws":"1","rng_counter_before_lo":1,"rng_counter_before_hi":0,"rng_counter_after_lo":2,"rng_counter_after_hi":0}

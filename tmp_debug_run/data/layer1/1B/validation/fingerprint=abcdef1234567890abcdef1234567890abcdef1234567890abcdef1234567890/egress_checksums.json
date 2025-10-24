@@ -1,9 +1,0 @@
-{
-  "composite_sha256_hex": "f2baa0c1d5da47bb7a7faad18b6d8616a73ed64d045dc172645c068cf94d5334",
-  "files": [
-    {
-      "path": "data/layer1/1B/site_locations/seed=7/fingerprint=abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890/part-00000.parquet",
-      "sha256_hex": "f2baa0c1d5da47bb7a7faad18b6d8616a73ed64d045dc172645c068cf94d5334"
-    }
-  ]
-}
