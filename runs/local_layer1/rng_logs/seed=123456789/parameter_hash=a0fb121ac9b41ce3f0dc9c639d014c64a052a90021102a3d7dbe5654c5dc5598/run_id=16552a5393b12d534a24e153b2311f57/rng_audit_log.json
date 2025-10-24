@@ -1,0 +1,10 @@
+{
+  "algorithm": "philox2x64-10",
+  "manifest_fingerprint": "c7e8a6adc0061b04e34507d897e9ded42747591df222a51588417998b33dd042",
+  "parameter_hash": "a0fb121ac9b41ce3f0dc9c639d014c64a052a90021102a3d7dbe5654c5dc5598",
+  "rng_counter_hi": 11184849268763697619,
+  "rng_counter_lo": 5253595989098417872,
+  "rng_key": 15046140030110525512,
+  "run_id": "16552a5393b12d534a24e153b2311f57",
+  "seed": 123456789
+}

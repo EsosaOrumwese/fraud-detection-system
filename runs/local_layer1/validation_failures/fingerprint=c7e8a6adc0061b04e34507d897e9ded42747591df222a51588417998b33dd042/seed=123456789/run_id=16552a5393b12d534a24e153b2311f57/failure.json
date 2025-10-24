@@ -1,0 +1,16 @@
+{
+  "dataset_id": null,
+  "detail": {
+    "message": "missing JSON artefact 'numeric_policy_attest.json'"
+  },
+  "failure_class": "F8_VALIDATION",
+  "failure_code": "validation_mismatch",
+  "manifest_fingerprint": "c7e8a6adc0061b04e34507d897e9ded42747591df222a51588417998b33dd042",
+  "merchant_id": null,
+  "module": "1A.s0.orchestrator",
+  "parameter_hash": "a0fb121ac9b41ce3f0dc9c639d014c64a052a90021102a3d7dbe5654c5dc5598",
+  "run_id": "16552a5393b12d534a24e153b2311f57",
+  "seed": 123456789,
+  "state": "S0",
+  "ts_utc": 1761281576960590277
+}
