@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from decimal import Decimal, ROUND_DOWN, ROUND_HALF_EVEN
 from pathlib import Path
 from typing import Iterable, List, Optional, Sequence, Tuple
+import logging
 
 from ...s0_foundations.exceptions import err
 from ..l0 import (
@@ -28,6 +29,9 @@ from ..l0.types import (
     SequenceRow,
 )
 from ..l2.deterministic import MerchantContext, S3DeterministicContext
+
+logger = logging.getLogger(__name__)
+_MAX_SITE_ORDER = 999_999
 
 
 @dataclass(frozen=True)
@@ -369,12 +373,22 @@ def _build_sequence_rows(
 ) -> List[SequenceRow]:
     rows: List[SequenceRow] = []
     for candidate, count in zip(ranked, counts):
+        if count > _MAX_SITE_ORDER:
+            logger.error(
+                "S3 sequence overflow (merchant=%s, country=%s, count=%s)",
+                candidate.merchant_id,
+                candidate.country_iso,
+                count,
+            )
+            raise err(
+                "ERR_S3_SITE_SEQUENCE_OVERFLOW",
+                (
+                    "site_order demand exceeds 6-digit capacity "
+                    f"(merchant={candidate.merchant_id}, "
+                    f"country={candidate.country_iso}, count={count})"
+                ),
+            )
         for order in range(1, count + 1):
-            if order > 999_999:
-                raise err(
-                    "ERR_S3_SITE_SEQUENCE_OVERFLOW",
-                    f"site_order {order} exceeds 6-digit capacity",
-                )
             rows.append(
                 SequenceRow(
                     merchant_id=candidate.merchant_id,
