@@ -1,0 +1,12 @@
+{
+  "metrics": {
+    "cusum_max": 0.0,
+    "invalid_alpha_merchants": 0.0,
+    "merchant_count": 4338.0,
+    "p99_rejections": 0.0,
+    "rho_reject": 0.0,
+    "total_attempts": 4338.0,
+    "total_rejections": 0.0
+  },
+  "version": "1A.S2.metrics.v1"
+}
