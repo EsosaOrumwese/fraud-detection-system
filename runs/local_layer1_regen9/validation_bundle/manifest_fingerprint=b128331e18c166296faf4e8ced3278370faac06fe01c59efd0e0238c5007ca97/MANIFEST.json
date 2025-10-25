@@ -1,0 +1,17 @@
+{
+  "artifact_count": 15,
+  "compiler_flags": {
+    "blas": "none",
+    "fast_math": false,
+    "fma": false,
+    "ftz": false,
+    "rounding": "RNE"
+  },
+  "created_utc_ns": 1761382487614450846,
+  "git_commit_hex": "000000000000000000000000255578dfd5e7661399ea541843d75408afdb5d89",
+  "manifest_fingerprint": "b128331e18c166296faf4e8ced3278370faac06fe01c59efd0e0238c5007ca97",
+  "math_profile_id": "numpy_scipy_ref-2025-10-08",
+  "numeric_policy_version": "2025-10-07",
+  "parameter_hash": "065446299498b7970ed2b60f059b184b170c33c6733a67ebf91979fbd0aec370",
+  "version": "1A.validation.v1"
+}
