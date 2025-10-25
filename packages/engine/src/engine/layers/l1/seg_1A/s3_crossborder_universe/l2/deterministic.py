@@ -50,6 +50,7 @@ class ArtefactBundle:
     currency_to_country: ArtefactMetadata | None = None
     base_weight: ArtefactMetadata | None = None
     thresholds: ArtefactMetadata | None = None
+    bounds: ArtefactMetadata | None = None
 
 
 @dataclass(frozen=True)
@@ -195,6 +196,7 @@ def build_deterministic_context(
     currency_to_country_spec: ArtefactSpec | None = None,
     base_weight_spec: ArtefactSpec | None = None,
     thresholds_spec: ArtefactSpec | None = None,
+    bounds_spec: ArtefactSpec | None = None,
 ) -> S3DeterministicContext:
     """Assemble the deterministic S3 context following the S3.0 specification."""
 
@@ -286,6 +288,13 @@ def build_deterministic_context(
         if thresholds_spec is not None
         else None
     )
+    artefacts_bounds = (
+        _load_artefact_metadata(
+            bounds_spec, error_code="ERR_S3_AUTHORITY_MISSING"
+        )
+        if bounds_spec is not None
+        else None
+    )
 
     artefacts = ArtefactBundle(
         rule_ladder=artefacts_rule_ladder,
@@ -293,6 +302,7 @@ def build_deterministic_context(
         currency_to_country=artefacts_currency,
         base_weight=artefacts_base_weight,
         thresholds=artefacts_thresholds,
+        bounds=artefacts_bounds,
     )
 
     return S3DeterministicContext(

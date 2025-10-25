@@ -25,6 +25,7 @@ This runbook documents every step required to reproduce a full Layer‑1 executi
      - GDP tables: `reference/economic/world_bank_gdp_per_capita/2025-10-07/gdp.parquet`.
      - GDP bucket map: `reference/economic/gdp_bucket_map/2025-10-08/gdp_bucket_map.parquet`.
      - Policy YAMLs: `contracts/policies/l1/seg_1A/policy.s3.rule_ladder.yaml`, `contracts/policies/l1/seg_1A/policy.s3.base_weight.yaml`, `contracts/policies/l1/seg_1A/policy.s3.thresholds.yaml`.
+     - Bounds policy: `contracts/policies/l1/seg_1A/policy.s3.bounds.yaml` (per-country caps feeding the bounded Hamilton redistribution).
      - Hurdle/NB-mean coefficients (sealed): `config/models/hurdle/exports/version=2025-10-09/20251009T120000Z/hurdle_coefficients.yaml`.
      - NB dispersion coefficients (regenerated corridor-safe fit): `config/models/hurdle/exports/version=2025-10-24/20251024T234923Z/nb_dispersion_coefficients.yaml`.
      - Validation policy: `contracts/policies/l1/seg_1A/s2_validation_policy.yaml`.

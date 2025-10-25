@@ -16,7 +16,7 @@ from ...s0_foundations.exceptions import err
 from ...s0_foundations.l1.rng import PhiloxEngine
 from ..l1 import rng as nb_rng
 from ..l2.deterministic import S2DeterministicContext, S2DeterministicRow
-from ..l2.runner import NBFinalRecord, MAX_OUTLETS_PER_MERCHANT
+from ..l2.runner import NBFinalRecord
 
 logger = logging.getLogger(__name__)
 
@@ -439,15 +439,6 @@ def validate_nb_run(
                 )
 
             if k_value >= 2:
-                if k_value > MAX_OUTLETS_PER_MERCHANT:
-                    logger.warning(
-                        "S2 NB sample exceeded cap during validation (merchant=%s, mu=%.4f, phi=%.4f, k=%s)",
-                        merchant_id,
-                        deterministic_row.links.mu,
-                        deterministic_row.links.phi,
-                        int(k_value),
-                    )
-                    k_value = MAX_OUTLETS_PER_MERCHANT
                 accepted_attempt = attempt_index
                 if k_value != n_outlets:
                     raise err(

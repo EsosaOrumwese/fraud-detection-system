@@ -34,6 +34,7 @@ from engine.layers.l1.seg_1A.s3_crossborder_universe import (
 )
 from engine.layers.l1.seg_1A.s3_crossborder_universe.l0.policy import (
     load_base_weight_policy,
+    load_bounds_policy,
     load_thresholds_policy,
 )
 from engine.layers.l1.seg_1A.s3_crossborder_universe.l3.bundle import (
@@ -228,6 +229,7 @@ class Segment1AOrchestrator:
         param_mapping = {
             name: Path(path).expanduser().resolve() for name, path in parameter_files.items()
         }
+        bounds_path = param_mapping.get("policy.s3.bounds.yaml")
         extras = (
             [Path(item).expanduser().resolve() for item in extra_manifest_artifacts]
             if extra_manifest_artifacts
@@ -477,6 +479,11 @@ class Segment1AOrchestrator:
                 "ERR_S3_AUTHORITY_MISSING",
                 "policy.s3.base_weight.yaml required when priors are enabled",
             )
+        if s3_toggles.integerisation_enabled and bounds_path is None:
+            raise err(
+                "ERR_S3_AUTHORITY_MISSING",
+                "policy.s3.bounds.yaml required when integerisation is enabled",
+            )
         s3_deterministic = build_s3_deterministic_context(
             parameter_hash=s2_result.deterministic.parameter_hash,
             manifest_fingerprint=s2_result.deterministic.manifest_fingerprint,
@@ -510,6 +517,14 @@ class Segment1AOrchestrator:
                 if thresholds_path is not None
                 else None
             ),
+            bounds_spec=(
+                S3ArtefactSpec(
+                    artefact_id="policy.s3.bounds.yaml",
+                    path=bounds_path,
+                )
+                if bounds_path is not None
+                else None
+            ),
         )
         logger.info(
             "Segment1A S3 deterministic context built (merchants=%d)",
@@ -527,6 +542,12 @@ class Segment1AOrchestrator:
                 thresholds_path,
                 iso_countries=s3_deterministic.iso_countries,
             )
+        bounds_policy = None
+        if s3_toggles.integerisation_enabled:
+            bounds_policy = load_bounds_policy(
+                bounds_path,
+                iso_countries=s3_deterministic.iso_countries,
+            )
         s3_result = self._s3_runner.run(
             base_path=base_path,
             deterministic=s3_deterministic,
@@ -534,6 +555,7 @@ class Segment1AOrchestrator:
             toggles=s3_toggles,
             base_weight_policy=base_weight_policy,
             thresholds_policy=thresholds_policy,
+            bounds_policy=bounds_policy,
         )
         logger.info(
             "Segment1A S3 completed (merchants=%d)",

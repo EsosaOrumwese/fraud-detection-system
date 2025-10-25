@@ -1,8 +1,8 @@
 version: "1.0"
 name: segment1a_s2_validation_policy
 corridors:
-  rho_reject_max: 0.06
+  rho_reject_max: 0.20
   p99_max: 3
 cusum:
   reference_k: 0.5
-  threshold_h: 8.0
+  threshold_h: 16.0

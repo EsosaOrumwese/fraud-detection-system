@@ -15,8 +15,10 @@ from ..l0 import (
     load_rule_ladder,
     rank_candidates,
 )
+from ..constants import SITE_SEQUENCE_LIMIT
 from ..l0.policy import (
     BaseWeightPolicy,
+    BoundsPolicy,
     PolicyNormalisation,
     ThresholdsPolicy,
     evaluate_base_weight,
@@ -31,7 +33,6 @@ from ..l0.types import (
 from ..l2.deterministic import MerchantContext, S3DeterministicContext
 
 logger = logging.getLogger(__name__)
-_MAX_SITE_ORDER = 999_999
 
 
 @dataclass(frozen=True)
@@ -176,6 +177,7 @@ def _compute_integerised_counts(
     n_outlets: int,
     weights: Optional[Sequence[Decimal]],
     policy: ThresholdsPolicy | None,
+    bounds_policy: BoundsPolicy | None = None,
 ) -> Tuple[List[CountRow], List[int]]:
     if n_outlets < 0:
         raise err("ERR_S3_INTEGER_FEASIBILITY", "S2 outlet count must be non-negative")
@@ -195,6 +197,12 @@ def _compute_integerised_counts(
 
     floors: List[int] = []
     ceilings: List[Optional[int]] = []
+
+    def _country_cap(iso: str) -> Optional[int]:
+        if bounds_policy is None:
+            return SITE_SEQUENCE_LIMIT
+        return bounds_policy.cap_for(iso)
+
     for candidate in ranked:
         iso = candidate.country_iso
         floor_value = int(floors_map.get(iso, 0))
@@ -205,6 +213,17 @@ def _compute_integerised_counts(
             )
         ceiling_value_raw = ceilings_map.get(iso)
         ceiling_value = None if ceiling_value_raw is None else int(ceiling_value_raw)
+        cap_value = _country_cap(iso)
+        if cap_value is not None:
+            if cap_value <= 0:
+                raise err(
+                    "ERR_S3_INTEGER_FEASIBILITY",
+                    f"cap for {iso} must be positive",
+                )
+            if ceiling_value is None:
+                ceiling_value = cap_value
+            else:
+                ceiling_value = min(ceiling_value, cap_value)
         if ceiling_value is not None and ceiling_value < floor_value:
             raise err(
                 "ERR_S3_INTEGER_FEASIBILITY",
@@ -355,8 +374,6 @@ def _compute_integerised_counts(
                 f"count exceeds upper bound for {ranked[idx].country_iso}",
             )
 
-    counts = _enforce_site_capacity(ranked, counts)
-
     count_rows: List[CountRow] = []
     for idx, (candidate, count) in enumerate(zip(ranked, counts)):
         count_rows.append(
@@ -369,56 +386,13 @@ def _compute_integerised_counts(
         )
     return count_rows, counts
 
-
-def _enforce_site_capacity(
-    ranked: Sequence[RankedCandidateRow], counts: Sequence[int]
-) -> List[int]:
-    adjusted = list(counts)
-    overflow = 0
-    for idx, count in enumerate(adjusted):
-        if count > _MAX_SITE_ORDER:
-            overflow += count - _MAX_SITE_ORDER
-            logger.warning(
-                "S3 country allocation exceeded cap (merchant=%s, country=%s, count=%s)",
-                ranked[idx].merchant_id,
-                ranked[idx].country_iso,
-                count,
-            )
-            adjusted[idx] = _MAX_SITE_ORDER
-    if overflow == 0:
-        return adjusted
-
-    capacities: List[Tuple[int, int]] = []
-    for idx, count in enumerate(adjusted):
-        headroom = _MAX_SITE_ORDER - count
-        if headroom > 0:
-            capacities.append((idx, headroom))
-
-    for idx, headroom in capacities:
-        if overflow <= 0:
-            break
-        delta = min(headroom, overflow)
-        adjusted[idx] += delta
-        overflow -= delta
-
-    if overflow > 0:
-        raise err(
-            "ERR_S3_SITE_SEQUENCE_OVERFLOW",
-            (
-                "total outlet demand exceeds aggregate capacity even after "
-                "redistribution (merchant={} )"
-            ).format(ranked[0].merchant_id if ranked else "<none>"),
-        )
-
-    return adjusted
-
 def _build_sequence_rows(
     ranked: Sequence[RankedCandidateRow],
     counts: Sequence[int],
 ) -> List[SequenceRow]:
     rows: List[SequenceRow] = []
     for candidate, count in zip(ranked, counts):
-        if count > _MAX_SITE_ORDER:
+        if count > SITE_SEQUENCE_LIMIT:
             logger.error(
                 "S3 sequence overflow (merchant=%s, country=%s, count=%s)",
                 candidate.merchant_id,
@@ -453,6 +427,7 @@ def evaluate_merchant(
     toggles: S3FeatureToggles,
     base_weight_policy: BaseWeightPolicy | None,
     thresholds_policy: ThresholdsPolicy | None,
+    bounds_policy: BoundsPolicy | None,
 ) -> S3MerchantOutput:
     """Execute S3 kernels for a single merchant (deterministic, pure)."""
 
@@ -498,6 +473,7 @@ def evaluate_merchant(
             n_outlets=merchant.n_outlets,
             weights=weights,
             policy=thresholds_policy,
+            bounds_policy=bounds_policy,
         )
         counts_rows = tuple(count_rows_list)
         if toggles.sequencing_enabled:
@@ -520,6 +496,7 @@ def run_kernels(
     toggles: S3FeatureToggles,
     base_weight_policy: BaseWeightPolicy | None = None,
     thresholds_policy: ThresholdsPolicy | None = None,
+    bounds_policy: BoundsPolicy | None = None,
 ) -> S3KernelResult:
     """Evaluate S3 L1 kernels across the deterministic merchant slice."""
 
@@ -545,6 +522,7 @@ def run_kernels(
             toggles=toggles,
             base_weight_policy=base_weight_policy,
             thresholds_policy=thresholds_policy,
+            bounds_policy=bounds_policy,
         )
         ranked_rows.extend(merchant_output.ranked_candidates)
         if merchant_output.priors:

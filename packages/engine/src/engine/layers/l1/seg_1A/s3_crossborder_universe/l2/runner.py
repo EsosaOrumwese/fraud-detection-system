@@ -11,7 +11,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from ...s0_foundations.exceptions import err
-from ..l0.policy import BaseWeightPolicy, ThresholdsPolicy
+from ..l0.policy import BaseWeightPolicy, BoundsPolicy, ThresholdsPolicy
 from ..l1.kernels import (
     S3FeatureToggles,
     S3KernelResult,
@@ -44,6 +44,7 @@ class S3CrossBorderRunner:
         toggles: S3FeatureToggles | None = None,
         base_weight_policy: BaseWeightPolicy | None = None,
         thresholds_policy: ThresholdsPolicy | None = None,
+        bounds_policy: BoundsPolicy | None = None,
     ) -> S3RunResult:
         base_path = base_path.expanduser().resolve()
         toggles = toggles or S3FeatureToggles()
@@ -54,6 +55,7 @@ class S3CrossBorderRunner:
             toggles=toggles,
             base_weight_policy=base_weight_policy,
             thresholds_policy=thresholds_policy,
+            bounds_policy=bounds_policy,
         )
         candidate_path = self._write_candidate_set(
             base_path=base_path,
@@ -121,9 +123,9 @@ class S3CrossBorderRunner:
             [
                 ("parameter_hash", pa.string()),
                 ("produced_by_fingerprint", pa.string()),
-                ("merchant_id", pa.int64()),
+                ("merchant_id", pa.uint64()),
                 ("country_iso", pa.string()),
-                ("candidate_rank", pa.int64()),
+                ("candidate_rank", pa.uint32()),
                 ("is_home", pa.bool_()),
                 ("reason_codes", pa.list_(pa.string())),
                 ("filter_tags", pa.list_(pa.string())),
@@ -178,7 +180,7 @@ class S3CrossBorderRunner:
             [
                 ("parameter_hash", pa.string()),
                 ("produced_by_fingerprint", pa.string()),
-                ("merchant_id", pa.int64()),
+                ("merchant_id", pa.uint64()),
                 ("country_iso", pa.string()),
                 ("base_weight_dp", pa.string()),
                 ("dp", pa.int64()),
@@ -231,7 +233,7 @@ class S3CrossBorderRunner:
             [
                 ("parameter_hash", pa.string()),
                 ("produced_by_fingerprint", pa.string()),
-                ("merchant_id", pa.int64()),
+                ("merchant_id", pa.uint64()),
                 ("country_iso", pa.string()),
                 ("count", pa.int64()),
                 ("residual_rank", pa.int64()),
@@ -286,9 +288,9 @@ class S3CrossBorderRunner:
             [
                 ("parameter_hash", pa.string()),
                 ("produced_by_fingerprint", pa.string()),
-                ("merchant_id", pa.int64()),
+                ("merchant_id", pa.uint64()),
                 ("country_iso", pa.string()),
-                ("site_order", pa.int64()),
+                ("site_order", pa.uint32()),
                 ("site_id", pa.string()),
             ]
         )
