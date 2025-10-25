@@ -355,6 +355,8 @@ def _compute_integerised_counts(
                 f"count exceeds upper bound for {ranked[idx].country_iso}",
             )
 
+    counts = _enforce_site_capacity(ranked, counts)
+
     count_rows: List[CountRow] = []
     for idx, (candidate, count) in enumerate(zip(ranked, counts)):
         count_rows.append(
@@ -366,6 +368,49 @@ def _compute_integerised_counts(
             )
         )
     return count_rows, counts
+
+
+def _enforce_site_capacity(
+    ranked: Sequence[RankedCandidateRow], counts: Sequence[int]
+) -> List[int]:
+    adjusted = list(counts)
+    overflow = 0
+    for idx, count in enumerate(adjusted):
+        if count > _MAX_SITE_ORDER:
+            overflow += count - _MAX_SITE_ORDER
+            logger.warning(
+                "S3 country allocation exceeded cap (merchant=%s, country=%s, count=%s)",
+                ranked[idx].merchant_id,
+                ranked[idx].country_iso,
+                count,
+            )
+            adjusted[idx] = _MAX_SITE_ORDER
+    if overflow == 0:
+        return adjusted
+
+    capacities: List[Tuple[int, int]] = []
+    for idx, count in enumerate(adjusted):
+        headroom = _MAX_SITE_ORDER - count
+        if headroom > 0:
+            capacities.append((idx, headroom))
+
+    for idx, headroom in capacities:
+        if overflow <= 0:
+            break
+        delta = min(headroom, overflow)
+        adjusted[idx] += delta
+        overflow -= delta
+
+    if overflow > 0:
+        raise err(
+            "ERR_S3_SITE_SEQUENCE_OVERFLOW",
+            (
+                "total outlet demand exceeds aggregate capacity even after "
+                "redistribution (merchant={} )"
+            ).format(ranked[0].merchant_id if ranked else "<none>"),
+        )
+
+    return adjusted
 
 def _build_sequence_rows(
     ranked: Sequence[RankedCandidateRow],

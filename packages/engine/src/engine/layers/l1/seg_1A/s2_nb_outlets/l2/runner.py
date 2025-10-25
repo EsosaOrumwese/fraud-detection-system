@@ -16,6 +16,7 @@ from .deterministic import S2DeterministicContext
 from .output import NBEventWriter
 
 logger = logging.getLogger(__name__)
+MAX_OUTLETS_PER_MERCHANT = 999_999
 
 
 @dataclass(frozen=True)
@@ -140,6 +141,15 @@ class S2NegativeBinomialRunner:
                 )
 
                 if k_value >= 2:
+                    if k_value > MAX_OUTLETS_PER_MERCHANT:
+                        logger.warning(
+                            "S2 NB sample exceeded cap (merchant=%s, mu=%.4f, phi=%.4f, k=%s)",
+                            row.merchant_id,
+                            row.links.mu,
+                            row.links.phi,
+                            int(k_value),
+                        )
+                        k_value = MAX_OUTLETS_PER_MERCHANT
                     final_before = final_substream.snapshot()
                     final_after = final_substream.snapshot()
                     writer.write_final_event(
