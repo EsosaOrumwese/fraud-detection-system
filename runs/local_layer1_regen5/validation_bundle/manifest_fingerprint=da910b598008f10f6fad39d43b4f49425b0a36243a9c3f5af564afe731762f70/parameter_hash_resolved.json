@@ -1,0 +1,9 @@
+{
+  "artifact_count": 3,
+  "filenames_sorted": [
+    "crossborder_hyperparams.yaml",
+    "hurdle_coefficients.yaml",
+    "nb_dispersion_coefficients.yaml"
+  ],
+  "parameter_hash": "8d84f5ecd38ad0c89727b81ec1c9ef74f27b916d53c609d703bdac8ebe5cf070"
+}

@@ -1,0 +1,10 @@
+{
+  "datasets": {
+    "crossborder_eligibility_flags": 20000,
+    "hurdle_design_matrix": 20000,
+    "hurdle_pi_probs": 20000
+  },
+  "manifest_fingerprint": "2fec42c4fad78a29ccea269064901af8d5afda8c205ba165e744f4f274ff8bcb",
+  "parameter_hash": "ce64463c17114059f474fb71e09db0e2b4dc56d81b4618103906bbdd1a5613f0",
+  "run_id": "b10dc2e7cc35116bd9d832aff4da32ba"
+}
