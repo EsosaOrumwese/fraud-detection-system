@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, Optional
@@ -72,6 +73,9 @@ class Segment1BResult:
     s9: S9RunResult
 
 
+logger = logging.getLogger(__name__)
+
+
 class Segment1BOrchestrator:
     """Runs Segment 1B states sequentially."""
 
@@ -95,6 +99,11 @@ class Segment1BOrchestrator:
         if not config.skip_s0:
             if not config.manifest_fingerprint or config.seed is None:
                 raise ValueError("manifest_fingerprint and seed must be provided when S0 is executed")
+            logger.info(
+                "Segment1B S0 gate starting (parameter_hash=%s, manifest=%s)",
+                config.parameter_hash,
+                config.manifest_fingerprint,
+            )
             gate_inputs = GateInputs(
                 base_path=data_root,
                 output_base_path=data_root,
@@ -107,10 +116,12 @@ class Segment1BOrchestrator:
             )
             gate_result = self._s0_runner.run(gate_inputs)
             receipt_path = gate_result.receipt_path
+            logger.info("Segment1B S0 completed (receipt=%s)", receipt_path)
 
         if not config.manifest_fingerprint or config.seed is None:
             raise ValueError("manifest_fingerprint and seed must be provided for S3 requirements")
 
+        logger.info("Segment1B S1 starting")
         s1_result = self._s1_runner.run(
             S1RunnerConfig(
                 data_root=data_root,
@@ -118,7 +129,13 @@ class Segment1BOrchestrator:
                 dictionary=dictionary,
             )
         )
+        logger.info(
+            "Segment1B S1 completed (tile_index=%s, tile_bounds=%s)",
+            s1_result.tile_index_path,
+            s1_result.tile_bounds_path,
+        )
 
+        logger.info("Segment1B S2 starting")
         prepared_s2 = self._s2_runner.prepare(
             S2RunnerConfig(
                 data_root=data_root,
@@ -135,7 +152,13 @@ class Segment1BOrchestrator:
         )
         quantised = self._s2_runner.quantise(prepared_s2, masses)
         s2_result = self._s2_runner.materialise(prepared_s2, quantised)
+        logger.info(
+            "Segment1B S2 completed (weights=%s, report=%s)",
+            s2_result.tile_weights_path,
+            s2_result.report_path,
+        )
 
+        logger.info("Segment1B S3 starting")
         prepared_s3 = self._s3_runner.prepare(
             S3RunnerConfig(
                 data_root=data_root,
@@ -147,7 +170,13 @@ class Segment1BOrchestrator:
         )
         aggregation = self._s3_runner.aggregate(prepared_s3)
         s3_result = self._s3_runner.materialise(prepared_s3, aggregation)
+        logger.info(
+            "Segment1B S3 completed (requirements=%s, report=%s)",
+            s3_result.requirements_path,
+            s3_result.report_path,
+        )
 
+        logger.info("Segment1B S4 starting")
         s4_result = self._s4_runner.run(
             S4RunnerConfig(
                 data_root=data_root,
@@ -157,7 +186,13 @@ class Segment1BOrchestrator:
                 dictionary=dictionary,
             )
         )
+        logger.info(
+            "Segment1B S4 completed (alloc_plan=%s, report=%s)",
+            s4_result.alloc_plan_path,
+            s4_result.report_path,
+        )
 
+        logger.info("Segment1B S5 starting")
         s5_result = self._s5_runner.run(
             S5RunnerConfig(
                 data_root=data_root,
@@ -167,7 +202,13 @@ class Segment1BOrchestrator:
                 dictionary=dictionary,
             )
         )
+        logger.info(
+            "Segment1B S5 completed (dataset=%s, report=%s)",
+            s5_result.dataset_path,
+            s5_result.run_report_path,
+        )
 
+        logger.info("Segment1B S6 starting")
         s6_result = self._s6_runner.run(
             S6RunnerConfig(
                 data_root=data_root,
@@ -177,7 +218,13 @@ class Segment1BOrchestrator:
                 dictionary=dictionary,
             )
         )
+        logger.info(
+            "Segment1B S6 completed (dataset=%s, report=%s)",
+            s6_result.dataset_path,
+            s6_result.run_report_path,
+        )
 
+        logger.info("Segment1B S7 starting")
         s7_result = self._s7_runner.run(
             S7RunnerConfig(
                 data_root=data_root,
@@ -187,7 +234,13 @@ class Segment1BOrchestrator:
                 dictionary=dictionary,
             )
         )
+        logger.info(
+            "Segment1B S7 completed (dataset=%s, report=%s)",
+            s7_result.dataset_path,
+            s7_result.run_summary_path,
+        )
 
+        logger.info("Segment1B S8 starting")
         s8_result = self._s8_runner.run(
             S8RunnerConfig(
                 data_root=data_root,
@@ -196,6 +249,11 @@ class Segment1BOrchestrator:
                 parameter_hash=config.parameter_hash,
                 dictionary=dictionary,
             )
+        )
+        logger.info(
+            "Segment1B S8 completed (dataset=%s, report=%s)",
+            s8_result.dataset_path,
+            s8_result.run_summary_path,
         )
 
         seed_int = int(config.seed)
