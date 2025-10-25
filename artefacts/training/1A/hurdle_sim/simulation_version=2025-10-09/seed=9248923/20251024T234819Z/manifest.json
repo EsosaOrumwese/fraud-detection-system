@@ -1,0 +1,30 @@
+{
+  "datasets": {
+    "brand_aliases": "brand_aliases.parquet",
+    "channel_roster": "channel_roster.parquet",
+    "logistic": "logistic.parquet",
+    "nb_mean": "nb_mean.parquet"
+  },
+  "generated_at_utc": "20251024T234819Z",
+  "simulation_config": {
+    "config_path": "config/models/hurdle/hurdle_simulation.priors.yaml",
+    "rng": {
+      "algorithm": "philox2x64-10",
+      "seed": 9248923
+    },
+    "semver": "0.1.0",
+    "version": "2025-10-09"
+  },
+  "sources": {
+    "bucket_table": "reference/economic/gdp_bucket_map/2025-10-08/gdp_bucket_map.parquet",
+    "gdp_table": "reference/economic/world_bank_gdp_per_capita/2025-10-07/gdp.parquet",
+    "iso_table": "reference/layer1/iso_canonical/v2025-10-09/iso_canonical.parquet",
+    "merchant_table": "reference/layer1/transaction_schema_merchant_ids/v2025-10-09/transaction_schema_merchant_ids.parquet"
+  },
+  "summary": {
+    "avg_k_domestic": 3.630883375840482,
+    "overall_multi_rate": 0.21565,
+    "rows_logistic": 20000.0,
+    "rows_nb": 4313.0
+  }
+}
