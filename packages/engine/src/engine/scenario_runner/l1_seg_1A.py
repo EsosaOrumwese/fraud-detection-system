@@ -460,6 +460,7 @@ class Segment1AOrchestrator:
                 share_vector=_row_share_vector(row),
             )
             for row in merchant_rows
+            if int(row["merchant_id"]) in multi_ids
         )
         if not merchant_profiles:
             raise err(
