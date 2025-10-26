@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
 from typing import Mapping, Optional
@@ -281,6 +282,12 @@ def _command_validate_s9(args: argparse.Namespace) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    if not logging.getLogger().handlers:
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        )
+
     parser = argparse.ArgumentParser(description="Segment 1B utilities")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
