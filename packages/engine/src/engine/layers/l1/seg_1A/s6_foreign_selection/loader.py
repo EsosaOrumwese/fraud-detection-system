@@ -35,6 +35,7 @@ class _Surfaces:
     weights: pd.DataFrame
     merchant_currency: pd.DataFrame
     k_targets: Mapping[int, int]
+    eligibility: Mapping[int, bool]
 
 
 def load_deterministic_context(
@@ -109,6 +110,12 @@ def _load_surfaces(
         },
         dictionary=dictionary,
     )
+    eligibility_path = resolve_dataset_path(
+        "crossborder_eligibility_flags",
+        base_path=base_path,
+        template_args={"parameter_hash": parameter_hash},
+        dictionary=dictionary,
+    )
 
     verify_s5_pass(weight_path.parent)
 
@@ -151,12 +158,27 @@ def _load_surfaces(
             f"at {merchant_currency_path}"
         ) from exc
 
+    try:
+        eligibility_frame = pd.read_parquet(
+            eligibility_path,
+            columns=[
+                "merchant_id",
+                "is_eligible",
+            ],
+        )
+    except FileNotFoundError as exc:
+        raise S6LoaderError(
+            "crossborder_eligibility_flags required by S6 not found "
+            f"at {eligibility_path}"
+        ) from exc
+
     k_targets = _load_k_targets(k_target_path)
     return _Surfaces(
         candidates=candidate_frame,
         weights=weight_frame,
         merchant_currency=merchant_currency_frame,
         k_targets=k_targets,
+        eligibility=_load_eligibility_map(eligibility_frame),
     )
 
 
@@ -212,12 +234,18 @@ def _build_selection_inputs(
     weights_by_currency = _group_weights(surfaces.weights)
     currency_by_merchant = _currency_lookup(surfaces.merchant_currency)
     k_targets = surfaces.k_targets
+    eligibility_map = surfaces.eligibility
 
     merchants: list[MerchantSelectionInput] = []
     missing_k_targets: list[int] = []
+    skipped_ineligible: list[int] = []
     grouped = surfaces.candidates.groupby("merchant_id", sort=False)
     for merchant_id, frame in grouped:
         merchant_id_int = int(merchant_id)
+        eligible = eligibility_map.get(merchant_id_int)
+        if eligible is False:
+            skipped_ineligible.append(merchant_id_int)
+            continue
         k_target_value = k_targets.get(merchant_id_int)
         if k_target_value is None:
             missing_k_targets.append(merchant_id_int)
@@ -281,6 +309,16 @@ def _build_selection_inputs(
             sample,
             "..." if len(missing_k_targets) > 5 else "",
         )
+    if skipped_ineligible:
+        sample = ", ".join(str(mid) for mid in skipped_ineligible[:5])
+        logger.info(
+            "S6 loader filtered %d merchants with is_eligible=false "
+            "(parameter_hash=%s): %s%s",
+            len(skipped_ineligible),
+            parameter_hash,
+            sample,
+            "..." if len(skipped_ineligible) > 5 else "",
+        )
 
     if not merchants:
         raise S6LoaderError(
@@ -305,4 +343,12 @@ def _currency_lookup(frame: pd.DataFrame) -> Mapping[int, str]:
         merchant_id = int(row.merchant_id)
         kappa = str(row.kappa).upper()
         mapping[merchant_id] = kappa
+    return mapping
+
+
+def _load_eligibility_map(frame: pd.DataFrame) -> Mapping[int, bool]:
+    mapping: Dict[int, bool] = {}
+    for row in frame.itertuples(index=False):
+        merchant_id = int(row.merchant_id)
+        mapping[merchant_id] = bool(row.is_eligible)
     return mapping

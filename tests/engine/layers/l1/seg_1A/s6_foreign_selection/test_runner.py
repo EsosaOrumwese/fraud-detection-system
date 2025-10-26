@@ -30,6 +30,7 @@ def _prepare_base_inputs(
     candidate_rows: list[dict] | None = None,
     merchant_currency_rows: list[dict] | None = None,
     ztp_records: list[dict] | None = None,
+    eligibility_rows: list[dict] | None = None,
 ) -> None:
     candidate_dir = (
         tmp_path
@@ -69,10 +70,19 @@ def _prepare_base_inputs(
             "filter_tags": [],
         },
     ]
-    pd.DataFrame(candidate_rows or default_candidates).to_parquet(
+    selected_candidates = candidate_rows or default_candidates
+    pd.DataFrame(selected_candidates).to_parquet(
         candidate_dir / "part-00000.parquet",
         index=False,
     )
+    if eligibility_rows is None:
+        merchant_ids = sorted(
+            {int(row["merchant_id"]) for row in selected_candidates}
+        )
+        eligibility_rows = [
+            {"merchant_id": merchant_id, "is_eligible": True}
+            for merchant_id in merchant_ids
+        ]
 
     weights_dir = (
         tmp_path
@@ -97,6 +107,19 @@ def _prepare_base_inputs(
     mc_dir.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(merchant_currency_rows or [{"merchant_id": 1, "kappa": "USD"}]).to_parquet(
         mc_dir / "part-00000.parquet",
+        index=False,
+    )
+    eligibility_dir = (
+        tmp_path
+        / "data"
+        / "layer1"
+        / "1A"
+        / "crossborder_eligibility_flags"
+        / f"parameter_hash={parameter_hash}"
+    )
+    eligibility_dir.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(eligibility_rows).to_parquet(
+        eligibility_dir / "part-00000.parquet",
         index=False,
     )
 
@@ -370,3 +393,91 @@ def test_s6_runner_defaults_missing_k_target_to_zero(tmp_path):
     payload = validate_outputs(base_path=tmp_path, outputs=outputs)
     assert payload["membership_rows"] == 1
     assert set(payload["events_by_merchant"].keys()) == {"1", "2"}
+
+
+def test_s6_runner_skips_ineligible_merchants(tmp_path):
+    parameter_hash = 'e' * 64
+    seed = 5151
+    run_id = 'deadbeefcafebabedeadbeefcafebabe'
+    manifest = '3' * 64
+
+    candidate_rows = [
+        {
+            'parameter_hash': parameter_hash,
+            'merchant_id': 1,
+            'country_iso': 'US',
+            'candidate_rank': 0,
+            'is_home': True,
+            'reason_codes': [],
+            'filter_tags': [],
+        },
+        {
+            'parameter_hash': parameter_hash,
+            'merchant_id': 1,
+            'country_iso': 'CA',
+            'candidate_rank': 1,
+            'is_home': False,
+            'reason_codes': [],
+            'filter_tags': [],
+        },
+        {
+            'parameter_hash': parameter_hash,
+            'merchant_id': 2,
+            'country_iso': 'US',
+            'candidate_rank': 0,
+            'is_home': True,
+            'reason_codes': [],
+            'filter_tags': [],
+        },
+        {
+            'parameter_hash': parameter_hash,
+            'merchant_id': 2,
+            'country_iso': 'GB',
+            'candidate_rank': 1,
+            'is_home': False,
+            'reason_codes': [],
+            'filter_tags': [],
+        },
+    ]
+
+    _prepare_base_inputs(
+        tmp_path,
+        parameter_hash=parameter_hash,
+        seed=seed,
+        run_id=run_id,
+        weights=[
+            {'currency': 'USD', 'country_iso': 'US', 'weight': 0.7},
+            {'currency': 'USD', 'country_iso': 'CA', 'weight': 0.3},
+            {'currency': 'USD', 'country_iso': 'GB', 'weight': 0.2},
+        ],
+        candidate_rows=candidate_rows,
+        merchant_currency_rows=[
+            {'merchant_id': 1, 'kappa': 'USD'},
+            {'merchant_id': 2, 'kappa': 'USD'},
+        ],
+        ztp_records=[{'merchant_id': 1, 'K_target': 1}],
+        eligibility_rows=[
+            {'merchant_id': 1, 'is_eligible': True},
+            {'merchant_id': 2, 'is_eligible': False},
+        ],
+    )
+
+    policy_path = Path('config/allocation/s6_selection_policy.yaml').resolve()
+    runner = S6Runner()
+    outputs = runner.run(
+        base_path=tmp_path,
+        policy_path=policy_path,
+        parameter_hash=parameter_hash,
+        seed=seed,
+        run_id=run_id,
+        manifest_fingerprint=manifest,
+    )
+
+    merchant_ids = [result.merchant_id for result in outputs.results]
+    assert merchant_ids == [1]
+    assert outputs.membership_rows == 1
+
+    payload = validate_outputs(base_path=tmp_path, outputs=outputs)
+    assert payload['membership_rows'] == 1
+    assert set(payload['events_by_merchant'].keys()) == {'1'}
+
