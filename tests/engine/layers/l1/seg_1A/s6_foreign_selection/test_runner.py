@@ -111,15 +111,12 @@ def _prepare_base_inputs(
     )
     eligibility_dir = (
         tmp_path
-        / "data"
-        / "layer1"
-        / "1A"
-        / "crossborder_eligibility_flags"
+        / "parameter_scoped"
         / f"parameter_hash={parameter_hash}"
     )
     eligibility_dir.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(eligibility_rows).to_parquet(
-        eligibility_dir / "part-00000.parquet",
+        eligibility_dir / "crossborder_eligibility_flags.parquet",
         index=False,
     )
 
@@ -473,11 +470,12 @@ def test_s6_runner_skips_ineligible_merchants(tmp_path):
         manifest_fingerprint=manifest,
     )
 
-    merchant_ids = [result.merchant_id for result in outputs.results]
-    assert merchant_ids == [1]
+    assert len(outputs.results) == 2
+    zero_k = [result for result in outputs.results if result.k_target == 0]
+    assert len(zero_k) == 1 and zero_k[0].merchant_id == 2
     assert outputs.membership_rows == 1
 
     payload = validate_outputs(base_path=tmp_path, outputs=outputs)
     assert payload['membership_rows'] == 1
-    assert set(payload['events_by_merchant'].keys()) == {'1'}
+    assert set(payload['events_by_merchant'].keys()) == {'1', '2'}
 

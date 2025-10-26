@@ -99,7 +99,7 @@ model:
   crossborder_eligibility_flags:
     description: Parameter-scoped eligibility flags for cross-border expansion policy.
     format: parquet
-    path: data/layer1/1A/crossborder_eligibility_flags/parameter_hash={parameter_hash}/part-*.parquet
+    path: parameter_scoped/parameter_hash={parameter_hash}/crossborder_eligibility_flags.parquet
     schema_ref: l1/seg_1A/s0_outputs.schema.json#/prep/crossborder_eligibility_flags
     partitioning: [parameter_hash]
     owner: 1A

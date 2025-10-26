@@ -238,21 +238,24 @@ def _build_selection_inputs(
 
     merchants: list[MerchantSelectionInput] = []
     missing_k_targets: list[int] = []
-    skipped_ineligible: list[int] = []
     grouped = surfaces.candidates.groupby("merchant_id", sort=False)
     for merchant_id, frame in grouped:
         merchant_id_int = int(merchant_id)
-        eligible = eligibility_map.get(merchant_id_int)
+        eligible = eligibility_map.get(merchant_id_int, True)
         if eligible is False:
-            skipped_ineligible.append(merchant_id_int)
-            continue
-        k_target_value = k_targets.get(merchant_id_int)
-        if k_target_value is None:
-            missing_k_targets.append(merchant_id_int)
             k_target_value = 0
             frame_effective = frame[frame["is_home"] == True]
         else:
-            frame_effective = frame
+            k_target_value = k_targets.get(merchant_id_int)
+            if k_target_value is None:
+                missing_k_targets.append(merchant_id_int)
+                k_target_value = 0
+                frame_effective = frame[frame["is_home"] == True]
+            else:
+                frame_effective = frame
+        if frame_effective.empty:
+            missing_k_targets.append(merchant_id_int)
+            continue
         currency = currency_by_merchant.get(merchant_id_int)
         if currency is None:
             raise S6LoaderError(
@@ -308,16 +311,6 @@ def _build_selection_inputs(
             parameter_hash,
             sample,
             "..." if len(missing_k_targets) > 5 else "",
-        )
-    if skipped_ineligible:
-        sample = ", ".join(str(mid) for mid in skipped_ineligible[:5])
-        logger.info(
-            "S6 loader filtered %d merchants with is_eligible=false "
-            "(parameter_hash=%s): %s%s",
-            len(skipped_ineligible),
-            parameter_hash,
-            sample,
-            "..." if len(skipped_ineligible) > 5 else "",
         )
 
     if not merchants:
