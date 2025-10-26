@@ -15,7 +15,7 @@ from typing import Dict, Iterable, Mapping, Sequence, Tuple
 from ..s0_foundations.exceptions import err
 from ..shared.dictionary import load_dictionary, resolve_dataset_path
 from .builder import CurrencyResult, build_weights
-from .contexts import S5DeterministicContext, S5PolicyMetadata
+from .contexts import MerchantCurrencyInput, S5DeterministicContext, S5PolicyMetadata
 from .loader import (
     LegalTender,
     ShareLoader,
@@ -101,6 +101,12 @@ class S5CurrencyWeightsRunner:
             else self._load_iso_legal_tender(deterministic)
         )
 
+        self._preflight_surface_checks(
+            settlement_shares=settlements,
+            ccy_shares=ccy_shares,
+            iso_lookup=iso_lookup,
+            merchants=deterministic.merchants,
+        )
         legal_tender_map = {
             entry.country_iso.upper(): entry.primary_ccy.upper()
             for entry in iso_lookup
@@ -115,12 +121,6 @@ class S5CurrencyWeightsRunner:
                     deterministic.merchants,
                     legal_tender_map,
                 )
-
-        self._preflight_surface_checks(
-            settlement_shares=settlements,
-            ccy_shares=ccy_shares,
-            iso_lookup=iso_lookup,
-        )
         currencies_total_inputs = len(
             {row.currency for row in settlements} | {row.currency for row in ccy_shares}
         )
@@ -338,6 +338,7 @@ class S5CurrencyWeightsRunner:
         settlement_shares: Sequence[ShareSurface],
         ccy_shares: Sequence[ShareSurface],
         iso_lookup: Sequence[LegalTender],
+        merchants: Sequence[MerchantCurrencyInput],
         tolerance: float = 1e-6,
     ) -> None:
         iso_codes = {item.country_iso for item in iso_lookup} if iso_lookup else None
@@ -350,6 +351,20 @@ class S5CurrencyWeightsRunner:
             ccy_shares,
             tolerance=tolerance,
             iso_codes=iso_codes,
+        )
+        if not merchants:
+            return
+
+        iso_currency_map: dict[str, str] = {
+            item.country_iso.upper(): item.primary_ccy.upper()
+            for item in iso_lookup
+            if item.country_iso and item.primary_ccy
+        }
+        self._assert_currency_coverage(
+            merchants=merchants,
+            settlement_shares=settlement_shares,
+            ccy_shares=ccy_shares,
+            iso_currency_map=iso_currency_map,
         )
 
     def _validate_surface(
@@ -393,6 +408,52 @@ class S5CurrencyWeightsRunner:
                     "E_INPUT_SUM",
                     f"share surface for {currency} sums to {total}, outside tolerance ±{tolerance}",
                 )
+
+    def _assert_currency_coverage(
+        self,
+        *,
+        merchants: Sequence[MerchantCurrencyInput],
+        settlement_shares: Sequence[ShareSurface],
+        ccy_shares: Sequence[ShareSurface],
+        iso_currency_map: Mapping[str, str],
+    ) -> None:
+        required_currencies: set[str] = set()
+        missing_iso_metadata: set[str] = set()
+        for merchant in merchants:
+            iso = str(merchant.home_country_iso).upper()
+            share_vector = merchant.share_vector or {}
+            if share_vector:
+                for currency in share_vector.keys():
+                    if currency is None:
+                        continue
+                    required_currencies.add(str(currency).upper())
+                continue
+            currency = iso_currency_map.get(iso)
+            if currency:
+                required_currencies.add(currency.upper())
+            else:
+                missing_iso_metadata.add(iso)
+        if missing_iso_metadata:
+            raise err(
+                "E_INPUT_CURRENCY_COVERAGE",
+                f"legal tender mapping missing entries for ISO codes {sorted(missing_iso_metadata)}",
+            )
+        if not required_currencies:
+            return
+        available_currencies = {
+            row.currency.upper() for row in settlement_shares
+        } | {
+            row.currency.upper() for row in ccy_shares
+        }
+        missing_currencies = sorted(required_currencies - available_currencies)
+        if missing_currencies:
+            raise err(
+                "E_INPUT_CURRENCY_COVERAGE",
+                (
+                    "currency weights required for merchants but not present "
+                    f"in share surfaces: {missing_currencies}"
+                ),
+            )
 
     def _create_staging_dir(self, base_path: Path) -> Path:
         staging_root = base_path / "tmp" / f"s5_{uuid.uuid4().hex}"

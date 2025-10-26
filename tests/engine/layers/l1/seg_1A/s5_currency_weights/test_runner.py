@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pandas as pd
@@ -53,10 +54,12 @@ def _basic_share_surfaces():
     settlement = [
         ShareSurface(currency="USD", country_iso="US", share=0.7, obs_count=100),
         ShareSurface(currency="USD", country_iso="CA", share=0.3, obs_count=50),
+        ShareSurface(currency="CAD", country_iso="CA", share=1.0, obs_count=70),
     ]
     ccy = [
         ShareSurface(currency="USD", country_iso="US", share=0.6, obs_count=120),
         ShareSurface(currency="USD", country_iso="CA", share=0.4, obs_count=80),
+        ShareSurface(currency="CAD", country_iso="CA", share=1.0, obs_count=90),
     ]
     return settlement, ccy
 
@@ -78,8 +81,8 @@ def test_runner_writes_stage_logs_and_receipt(tmp_path):
     assert outputs.merchant_currency_path is not None
     assert outputs.stage_log_path is not None
     assert outputs.stage_log_path.exists()
-    assert outputs.metrics["currencies_total"] == 1
-    assert len(outputs.per_currency_metrics) == 1
+    assert outputs.metrics["currencies_total"] == 2
+    assert len(outputs.per_currency_metrics) == 2
 
     with outputs.stage_log_path.open("r", encoding="utf-8") as handle:
         lines = [json.loads(line) for line in handle if line.strip()]
@@ -119,5 +122,55 @@ def test_runner_fails_on_rng_interaction(tmp_path, monkeypatch):
             base_path=tmp_path,
             deterministic=deterministic,
             share_loader=_DummyShareLoader(settlement, ccy),
-        )
+    )
     assert exc.value.context.code == "E_RNG_INTERACTION"
+
+
+def test_runner_fails_when_currency_missing_from_surfaces(tmp_path):
+    settlement, ccy = _basic_share_surfaces()
+    filtered_settlement = [
+        row for row in settlement if row.currency == "USD"
+    ]
+    filtered_ccy = [
+        row for row in ccy if row.currency == "USD"
+    ]
+    runner = S5CurrencyWeightsRunner()
+    deterministic = _basic_deterministic_context()
+
+    with pytest.raises(S0Error) as exc:
+        runner.run(
+            base_path=tmp_path,
+            deterministic=deterministic,
+            share_loader=_DummyShareLoader(filtered_settlement, filtered_ccy),
+            iso_legal_tender=[
+                LegalTender(country_iso="US", primary_ccy="USD"),
+                LegalTender(country_iso="CA", primary_ccy="CAD"),
+            ],
+        )
+    assert exc.value.context.code == "E_INPUT_CURRENCY_COVERAGE"
+
+
+def test_runner_fails_when_iso_mapping_missing(tmp_path):
+    settlement, ccy = _basic_share_surfaces()
+    runner = S5CurrencyWeightsRunner()
+    deterministic = replace(
+        _basic_deterministic_context(),
+        merchants=(
+            MerchantCurrencyInput(
+                merchant_id=99,
+                home_country_iso="CA",
+                share_vector=None,
+            ),
+        ),
+    )
+
+    with pytest.raises(S0Error) as exc:
+        runner.run(
+            base_path=tmp_path,
+            deterministic=deterministic,
+            share_loader=_DummyShareLoader(settlement, ccy),
+            iso_legal_tender=[
+                LegalTender(country_iso="US", primary_ccy="USD"),
+            ],
+        )
+    assert exc.value.context.code == "E_INPUT_SCHEMA"
