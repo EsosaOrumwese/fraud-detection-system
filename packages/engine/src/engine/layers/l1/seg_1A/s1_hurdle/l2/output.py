@@ -147,6 +147,8 @@ class HurdleEventWriter:
             "substream_label": self.substream_label,
             "seed": self.seed,
             "run_id": self.run_id,
+            "parameter_hash": self.parameter_hash,
+            "manifest_fingerprint": self.manifest_fingerprint,
             "rng_counter_before_hi": counter_before.counter_hi,
             "rng_counter_before_lo": counter_before.counter_lo,
             "rng_counter_after_hi": counter_after.counter_hi,

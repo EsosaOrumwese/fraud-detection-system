@@ -27,6 +27,9 @@ def _prepare_base_inputs(
     seed: int,
     run_id: str,
     weights: list[dict],
+    candidate_rows: list[dict] | None = None,
+    merchant_currency_rows: list[dict] | None = None,
+    ztp_records: list[dict] | None = None,
 ) -> None:
     candidate_dir = (
         tmp_path
@@ -37,37 +40,39 @@ def _prepare_base_inputs(
         / f"parameter_hash={parameter_hash}"
     )
     candidate_dir.mkdir(parents=True, exist_ok=True)
-    pd.DataFrame(
-        [
-            {
-                "parameter_hash": parameter_hash,
-                "merchant_id": 1,
-                "country_iso": "US",
-                "candidate_rank": 0,
-                "is_home": True,
-                "reason_codes": [],
-                "filter_tags": [],
-            },
-            {
-                "parameter_hash": parameter_hash,
-                "merchant_id": 1,
-                "country_iso": "CA",
-                "candidate_rank": 1,
-                "is_home": False,
-                "reason_codes": [],
-                "filter_tags": [],
-            },
-            {
-                "parameter_hash": parameter_hash,
-                "merchant_id": 1,
-                "country_iso": "FR",
-                "candidate_rank": 2,
-                "is_home": False,
-                "reason_codes": [],
-                "filter_tags": [],
-            },
-        ]
-    ).to_parquet(candidate_dir / "part-00000.parquet", index=False)
+    default_candidates = [
+        {
+            "parameter_hash": parameter_hash,
+            "merchant_id": 1,
+            "country_iso": "US",
+            "candidate_rank": 0,
+            "is_home": True,
+            "reason_codes": [],
+            "filter_tags": [],
+        },
+        {
+            "parameter_hash": parameter_hash,
+            "merchant_id": 1,
+            "country_iso": "CA",
+            "candidate_rank": 1,
+            "is_home": False,
+            "reason_codes": [],
+            "filter_tags": [],
+        },
+        {
+            "parameter_hash": parameter_hash,
+            "merchant_id": 1,
+            "country_iso": "FR",
+            "candidate_rank": 2,
+            "is_home": False,
+            "reason_codes": [],
+            "filter_tags": [],
+        },
+    ]
+    pd.DataFrame(candidate_rows or default_candidates).to_parquet(
+        candidate_dir / "part-00000.parquet",
+        index=False,
+    )
 
     weights_dir = (
         tmp_path
@@ -90,9 +95,10 @@ def _prepare_base_inputs(
         / f"parameter_hash={parameter_hash}"
     )
     mc_dir.mkdir(parents=True, exist_ok=True)
-    pd.DataFrame([
-        {"merchant_id": 1, "kappa": "USD"},
-    ]).to_parquet(mc_dir / "part-00000.parquet", index=False)
+    pd.DataFrame(merchant_currency_rows or [{"merchant_id": 1, "kappa": "USD"}]).to_parquet(
+        mc_dir / "part-00000.parquet",
+        index=False,
+    )
 
     ztp_path = (
         tmp_path
@@ -105,8 +111,10 @@ def _prepare_base_inputs(
         / f"run_id={run_id}"
     )
     ztp_path.mkdir(parents=True, exist_ok=True)
+    records = ztp_records or [{"merchant_id": 1, "K_target": 1}]
+    payload = "\n".join(json.dumps(record) for record in records)
     (ztp_path / "part-00000.jsonl").write_text(
-        json.dumps({"merchant_id": 1, "K_target": 1}) + "\n",
+        payload + ("\n" if payload else ""),
         encoding="utf-8",
     )
 
@@ -276,3 +284,89 @@ def test_s6_runner_reduced_logging(tmp_path):
 
     payload = validate_outputs(base_path=tmp_path, outputs=outputs)
     assert payload["log_all_candidates"] is False
+
+
+def test_s6_runner_defaults_missing_k_target_to_zero(tmp_path):
+    parameter_hash = "d" * 64
+    seed = 30303
+    run_id = "a" * 32
+    manifest = "2" * 64
+
+    candidate_rows = [
+        {
+            "parameter_hash": parameter_hash,
+            "merchant_id": 1,
+            "country_iso": "US",
+            "candidate_rank": 0,
+            "is_home": True,
+            "reason_codes": [],
+            "filter_tags": [],
+        },
+        {
+            "parameter_hash": parameter_hash,
+            "merchant_id": 1,
+            "country_iso": "CA",
+            "candidate_rank": 1,
+            "is_home": False,
+            "reason_codes": [],
+            "filter_tags": [],
+        },
+        {
+            "parameter_hash": parameter_hash,
+            "merchant_id": 2,
+            "country_iso": "US",
+            "candidate_rank": 0,
+            "is_home": True,
+            "reason_codes": [],
+            "filter_tags": [],
+        },
+        {
+            "parameter_hash": parameter_hash,
+            "merchant_id": 2,
+            "country_iso": "GB",
+            "candidate_rank": 1,
+            "is_home": False,
+            "reason_codes": [],
+            "filter_tags": [],
+        },
+    ]
+
+    _prepare_base_inputs(
+        tmp_path,
+        parameter_hash=parameter_hash,
+        seed=seed,
+        run_id=run_id,
+        weights=[
+            {"currency": "USD", "country_iso": "US", "weight": 0.6},
+            {"currency": "USD", "country_iso": "CA", "weight": 0.4},
+            {"currency": "USD", "country_iso": "GB", "weight": 0.2},
+        ],
+        candidate_rows=candidate_rows,
+        merchant_currency_rows=[
+            {"merchant_id": 1, "kappa": "USD"},
+            {"merchant_id": 2, "kappa": "USD"},
+        ],
+        ztp_records=[
+            {"merchant_id": 1, "K_target": 1},
+        ],
+    )
+
+    policy_path = Path("config/allocation/s6_selection_policy.yaml").resolve()
+    runner = S6Runner()
+    outputs = runner.run(
+        base_path=tmp_path,
+        policy_path=policy_path,
+        parameter_hash=parameter_hash,
+        seed=seed,
+        run_id=run_id,
+        manifest_fingerprint=manifest,
+    )
+
+    assert len(outputs.results) == 2
+    zero_k_merchants = [result for result in outputs.results if result.k_target == 0]
+    assert len(zero_k_merchants) == 1
+    assert outputs.membership_rows == 1
+
+    payload = validate_outputs(base_path=tmp_path, outputs=outputs)
+    assert payload["membership_rows"] == 1
+    assert set(payload["events_by_merchant"].keys()) == {"1", "2"}

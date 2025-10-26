@@ -1,0 +1,18 @@
+{
+  "dataset_id": "settlement_shares_2024Q4",
+  "version": "2025-10-26",
+  "generated_at_utc": "2025-10-26T07:25:34.800110+00:00",
+  "generator_script": "scripts/build_settlement_shares.py",
+  "iso_table": "reference\\layer1\\iso_canonical\\v2025-10-09\\iso_canonical.parquet",
+  "iso_table_sha256": "a32fa288a06f00390bdcc4ef89c517d1f1721c557368a720a2831259300640ab",
+  "gdp_table": "reference\\economic\\world_bank_gdp_per_capita\\2025-10-07\\gdp.parquet",
+  "gdp_table_sha256": "982f45c84fbdb20b6c7a9fd0704d6d1eafeeb43d80ade138209b6fcfa76059dd",
+  "legal_tender_policy": "config\\policy\\legal_tender_2024Q4.yaml",
+  "legal_tender_policy_sha256": "040bee9c8087a885a00383691067179b58ddf428723a972f8d23cc9e84f3f875",
+  "output_csv": "reference\\network\\settlement_shares\\2025-10-26\\settlement_shares.csv",
+  "output_csv_sha256": "fc3656d4f8c3a788882d43cf2b46b39ddaffe2203f3da17d3d204119c3224ef0",
+  "output_parquet": "reference\\network\\settlement_shares\\2025-10-26\\settlement_shares.parquet",
+  "output_parquet_sha256": "555045ca96b4446c699f8bcc9eac3ecb9ebcc862df37125cd163bab0d7f6b11b",
+  "qa_path": "reference\\network\\settlement_shares\\2025-10-26\\settlement_shares.qa.json",
+  "qa_sha256": "9589a036a7ec143ad48180356f8f4d75829020a8104e247d3c5be1250fa23f5e"
+}

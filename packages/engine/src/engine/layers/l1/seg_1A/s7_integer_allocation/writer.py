@@ -179,6 +179,8 @@ class S7EventWriter:
         self._update_trace(
             module=module,
             substream=substream,
+            counter_before=counter_before,
+            counter_after=counter_after,
             draws=draws,
             blocks=blocks,
             ts_utc=record["ts_utc"],
@@ -189,6 +191,8 @@ class S7EventWriter:
         *,
         module: str,
         substream: str,
+        counter_before: PhiloxState,
+        counter_after: PhiloxState,
         draws: int,
         blocks: int,
         ts_utc: str,
@@ -212,5 +216,9 @@ class S7EventWriter:
             "events_total": stats["events"],
             "draws_total": str(stats["draws"]),
             "blocks_total": str(stats["blocks"]),
+            "rng_counter_before_hi": int(counter_before.counter_hi),
+            "rng_counter_before_lo": int(counter_before.counter_lo),
+            "rng_counter_after_hi": int(counter_after.counter_hi),
+            "rng_counter_after_lo": int(counter_after.counter_lo),
         }
         _append_jsonl(self.trace_path, trace_record)

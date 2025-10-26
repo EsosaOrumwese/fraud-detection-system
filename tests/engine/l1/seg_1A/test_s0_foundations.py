@@ -408,7 +408,14 @@ def test_rng_logging_and_trace(tmp_path: Path):
 
     trace_entry = json.loads(trace_file.read_text(encoding="utf-8").strip())
     assert trace_entry["blocks_total"] == 1
+    assert trace_entry["draws_total"] == "1"
+    assert trace_entry["events_total"] == 1
     assert trace_entry["module"] == "1A.s0"
+    assert (
+        trace_entry["rng_counter_before_lo"] == event_entry["rng_counter_before"]["lo"]
+    )
+    assert trace_entry["rng_counter_after_lo"] == event_entry["rng_counter_after"]["lo"]
+    assert trace_entry["manifest_fingerprint"] == manifest
 
     with pytest.raises(S0Error):
         with rng_event(

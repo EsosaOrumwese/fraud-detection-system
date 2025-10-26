@@ -15,7 +15,7 @@ reference:
   iso_canonical:
     description: Canonical ISO-3166 reference with UN region metadata.
     format: parquet
-    path: reference/layer1/iso_canonical/v2025-10-08/iso_canonical.parquet
+    path: reference/layer1/iso_canonical/v2025-10-09/iso_canonical.parquet
     schema_ref: l1/seg_1A/iso_canonical.schema.json
     partitioning: []
     owner: reference
@@ -47,7 +47,7 @@ reference:
   settlement_shares_2024Q4:
     description: Currency-to-country settlement shares used by S0.
     format: parquet
-    path: reference/network/settlement_shares/2025-10-08/settlement_shares.parquet
+    path: reference/network/settlement_shares/2025-10-26/settlement_shares.parquet
     schema_ref: l1/seg_1A/settlement_shares.schema.json
     partitioning: []
     owner: reference
@@ -55,7 +55,7 @@ reference:
   ccy_country_shares_2024Q4:
     description: Currency-to-country usage shares consumed by S5/S6 smoothing.
     format: parquet
-    path: reference/network/ccy_country_shares/2025-10-08/ccy_country_shares.parquet
+    path: reference/network/ccy_country_shares/2025-10-26/ccy_country_shares.parquet
     schema_ref: l1/seg_1A/ccy_country_shares.schema.json
     partitioning: []
     owner: reference

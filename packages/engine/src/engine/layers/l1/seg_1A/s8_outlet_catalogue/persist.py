@@ -305,6 +305,10 @@ class _S8EventWriter:
             "events_total": stats["events"],
             "draws_total": "0",
             "blocks_total": "0",
+            "rng_counter_before_hi": int(self._zero_state.counter_hi),
+            "rng_counter_before_lo": int(self._zero_state.counter_lo),
+            "rng_counter_after_hi": int(self._zero_state.counter_hi),
+            "rng_counter_after_lo": int(self._zero_state.counter_lo),
         }
         trace_path = self._trace_log_path()
         trace_path.parent.mkdir(parents=True, exist_ok=True)

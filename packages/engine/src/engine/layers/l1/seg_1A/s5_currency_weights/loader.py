@@ -43,8 +43,8 @@ class ShareDataPaths:
 
 
 DEFAULT_PATHS = ShareDataPaths(
-    settlement_shares=Path("reference/network/settlement_shares/2025-10-08/settlement_shares.parquet"),
-    ccy_country_shares=Path("reference/network/ccy_country_shares/2025-10-08/ccy_country_shares.parquet"),
+    settlement_shares=Path("reference/network/settlement_shares/2025-10-26/settlement_shares.parquet"),
+    ccy_country_shares=Path("reference/network/ccy_country_shares/2025-10-26/ccy_country_shares.parquet"),
     iso_legal_tender=Path("reference/iso/iso_legal_tender/2024/iso_legal_tender.parquet"),
 )
 

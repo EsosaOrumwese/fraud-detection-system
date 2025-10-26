@@ -1300,7 +1300,17 @@ def _select_trace_row(trace_subset: pd.DataFrame) -> pd.Series | None:
             strict=False,
         )
     ]
-    idx = working["_after"].idxmax()
+    sort_columns = ["_after"]
+    if "events_total" in working.columns:
+        try:
+            working["_events_total"] = working["events_total"].astype(int)
+        except Exception:
+            working["_events_total"] = pd.to_numeric(
+                working["events_total"], errors="coerce"
+            ).fillna(0).astype(int)
+        sort_columns = ["_events_total", "_after"]
+    working = working.sort_values(sort_columns, ignore_index=False)
+    idx = working.index[-1]
     return working.loc[idx]
 
 

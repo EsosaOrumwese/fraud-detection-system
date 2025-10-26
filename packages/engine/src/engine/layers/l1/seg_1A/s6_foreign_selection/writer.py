@@ -80,6 +80,10 @@ class GumbelEventWriter:
     def trace_path(self) -> Path:
         return self._trace_root / self._partition("rng_trace_log.jsonl")
 
+    @property
+    def module_trace_path(self) -> Path:
+        return self._trace_root / "gumbel_key" / self._partition("part-00000.jsonl")
+
     def write_gumbel_event(
         self,
         *,
@@ -213,6 +217,7 @@ class GumbelEventWriter:
             "events_total": stats["events"],
         }
         _append_jsonl(self.trace_path, trace_payload)
+        _append_jsonl(self.module_trace_path, trace_payload)
 
 
 __all__ = ["GumbelEventWriter"]

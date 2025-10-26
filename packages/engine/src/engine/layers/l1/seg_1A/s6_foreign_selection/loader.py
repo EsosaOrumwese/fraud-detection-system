@@ -7,6 +7,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, Mapping, MutableMapping, Sequence
+import logging
 
 import pandas as pd
 
@@ -19,6 +20,9 @@ __all__ = [
     "load_deterministic_context",
     "verify_s5_pass",
 ]
+
+
+logger = logging.getLogger(__name__)
 
 
 class S6LoaderError(RuntimeError):
@@ -210,14 +214,17 @@ def _build_selection_inputs(
     k_targets = surfaces.k_targets
 
     merchants: list[MerchantSelectionInput] = []
+    missing_k_targets: list[int] = []
     grouped = surfaces.candidates.groupby("merchant_id", sort=False)
     for merchant_id, frame in grouped:
         merchant_id_int = int(merchant_id)
-        if merchant_id_int not in k_targets:
-            raise S6LoaderError(
-                f"K_target missing for merchant {merchant_id_int} "
-                "in rng_event_ztp_final"
-            )
+        k_target_value = k_targets.get(merchant_id_int)
+        if k_target_value is None:
+            missing_k_targets.append(merchant_id_int)
+            k_target_value = 0
+            frame_effective = frame[frame["is_home"] == True]
+        else:
+            frame_effective = frame
         currency = currency_by_merchant.get(merchant_id_int)
         if currency is None:
             raise S6LoaderError(
@@ -231,7 +238,7 @@ def _build_selection_inputs(
             )
 
         candidates: list[CandidateInput] = []
-        for row in frame.itertuples(index=False):
+        for row in frame_effective.itertuples(index=False):
             country_iso = str(row.country_iso).upper()
             candidate_rank = int(row.candidate_rank)
             is_home = bool(row.is_home)
@@ -257,11 +264,22 @@ def _build_selection_inputs(
             MerchantSelectionInput(
                 merchant_id=merchant_id_int,
                 settlement_currency=currency,
-                k_target=int(k_targets[merchant_id_int]),
+                k_target=int(k_target_value),
                 candidates=tuple(
                     sorted(candidates, key=lambda item: item.candidate_rank)
                 ),
             )
+        )
+
+    if missing_k_targets:
+        sample = ", ".join(str(mid) for mid in missing_k_targets[:5])
+        logger.warning(
+            "S6 loader skipping %d merchants missing rng_event_ztp_final entries "
+            "(parameter_hash=%s): %s%s",
+            len(missing_k_targets),
+            parameter_hash,
+            sample,
+            "..." if len(missing_k_targets) > 5 else "",
         )
 
     if not merchants:
