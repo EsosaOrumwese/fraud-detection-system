@@ -193,7 +193,7 @@ def load_population_raster(path: Path) -> PopulationRaster:
         crs = dataset.crs
         if not crs.is_geographic:
             raise LoaderError("Population raster must be in a geographic CRS (WGS84)")
-        geod = Geod.from_crs(crs)
+        geod = _resolve_geod_from_crs(crs)
         return PopulationRaster(
             path=path,
             transform=dataset.transform,
@@ -203,6 +203,18 @@ def load_population_raster(path: Path) -> PopulationRaster:
             nodata=dataset.nodata,
             geod=geod,
         )
+
+
+def _resolve_geod_from_crs(crs: CRS) -> Geod:
+    """Return a :class:`Geod` instance compatible with ``crs``."""
+
+    if hasattr(Geod, "from_crs"):
+        return Geod.from_crs(crs)
+    ellipsoid = getattr(crs, "ellipsoid", None)
+    ellps_name = getattr(ellipsoid, "name", None)
+    if not ellps_name or not str(ellps_name).strip():
+        ellps_name = "WGS84"
+    return Geod(ellps=str(ellps_name))
 
 
 __all__ = [

@@ -230,6 +230,15 @@ def _build_index_entries(bundle_dir: Path) -> Sequence[Mapping[str, object]]:
                     "mime": _infer_artifact_mime(path),
                 }
             )
+    if not any(entry["path"] == "index.json" for entry in entries):
+        entries.append(
+            {
+                "artifact_id": "bundle_index",
+                "kind": c.BUNDLE_INDEX_KIND_SUMMARY,
+                "path": "index.json",
+                "mime": "application/json",
+            }
+        )
     return entries
 
 

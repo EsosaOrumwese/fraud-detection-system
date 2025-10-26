@@ -260,6 +260,45 @@ plan:
           columns:
             legal_country_iso: country_iso
             tile_id: tile_id
+      - name: n_sites_tile
+        type: integer
+        minimum: 1
+        nullable: false
+        description: Integer allocation for this (merchant,country,tile). Zero allocations are not materialised.
+
+  s5_site_tile_assignment:
+    type: table
+    description: RNG-driven assignment of each site to a tile (quota-exact to S4 outputs).
+    primary_key: [merchant_id, legal_country_iso, site_order]
+    partition_keys: [seed, fingerprint, parameter_hash]
+    sort_keys: [merchant_id, legal_country_iso, site_order]
+    columns_strict: true
+    columns:
+      - name: merchant_id
+        $ref: 'schemas.layer1.yaml#/$defs/id64'
+        nullable: false
+      - name: legal_country_iso
+        $ref: '#/$defs/iso2'
+        nullable: false
+        fk:
+          dataset_ref: 'schemas.ingress.layer1.yaml#/iso3166_canonical_2024'
+          columns:
+            legal_country_iso: country_iso
+      - name: site_order
+        type: integer
+        minimum: 1
+        nullable: false
+        description: Contiguous 1..N per (merchant_id, legal_country_iso), guaranteed upstream.
+      - name: tile_id
+        $ref: '#/$defs/uint64'
+        nullable: false
+        fk:
+          dataset_ref: '#/prep/tile_index'
+          partition_keys: [parameter_hash]
+          columns:
+            legal_country_iso: country_iso
+            tile_id: tile_id
+        description: Assigned eligible tile for this site (must exist in tile_index for the same parameter_hash).
 
   s6_site_jitter:
     type: table
@@ -498,40 +537,3 @@ control:
       metrics:
         type: object
         additionalProperties: true
-      - name: n_sites_tile
-        type: integer
-        minimum: 1
-        nullable: false
-
-  s5_site_tile_assignment:
-    type: table
-    description: RNG-driven assignment of each site to a tile (quota-exact to S4 outputs).
-    primary_key: [merchant_id, legal_country_iso, site_order]
-    partition_keys: [seed, fingerprint, parameter_hash]
-    sort_keys: [merchant_id, legal_country_iso, site_order]
-    columns_strict: true
-    columns:
-      - name: merchant_id
-        $ref: 'schemas.layer1.yaml#/$defs/id64'
-        nullable: false
-      - name: legal_country_iso
-        $ref: '#/$defs/iso2'
-        nullable: false
-        fk:
-          dataset_ref: 'schemas.ingress.layer1.yaml#/iso3166_canonical_2024'
-          columns:
-            legal_country_iso: country_iso
-      - name: site_order
-        type: integer
-        minimum: 1
-        nullable: false
-        description: Contiguous 1..N per (merchant_id, legal_country_iso), inherited from upstream.
-      - name: tile_id
-        $ref: '#/$defs/uint64'
-        nullable: false
-        fk:
-          dataset_ref: '#/prep/tile_index'
-          partition_keys: [parameter_hash]
-          columns:
-            legal_country_iso: country_iso
-            tile_id: tile_id
