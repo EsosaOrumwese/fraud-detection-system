@@ -5,4 +5,4 @@ corridors:
   p99_max: 3
 cusum:
   reference_k: 0.5
-  threshold_h: 16.0
+  threshold_h: 24.0
