@@ -80,6 +80,14 @@ The acceleration strategy spans four complementary tracks. Each track is indepen
    - Use a `ProcessPoolExecutor` to assign countries/chunks to workers, each writing to its own temp shard directories (`tile_index/worker-XXX`, `tile_bounds/worker-XXX`).
    - Once workers finish, deterministically merge sorted shards (ISO + tile_id) into the canonical partition, preserving manifest+hash rules.
    - Propagate per-worker telemetry (tiles/sec, chunk counts) to the stage logs and PAT metrics.
+
+### Track 3 Implementation Plan (draft)
+1. **Work partitioning.** Group countries into work units (default: one country per unit, with optional splitting for large window footprints). Enqueue jobs in the main process; each job contains the ISO code, bounding window metadata, and seeds.
+2. **Worker pool.** Spin up a `ProcessPoolExecutor(max_workers = min(cpu_count, configured_cap))`. Each worker re-opens the raster/dictionary, runs `_enumerate_tiles` for its assigned country, and writes to a dedicated temp directory (`tile_index/.tmp.worker-<pid>` etc.).
+3. **Progress/telemetry.** The main process tracks futures, logging start/finish events per country (tiles emitted, duration). Workers emit chunk-level logs locally; the parent aggregates per-worker tiles/sec and writes them into the PAT metrics (`workers_used`, `tiles_per_sec`, etc.).
+4. **Shard merge.** After all futures resolve, the parent process reads each worker’s shards, merges them in deterministic order (sort by `country_iso`, `tile_id`) into the final partition using `_ParquetBatchWriter`, computes the combined digest, and removes the temp directories. Failures trigger cleanup of the worker temp dirs before raising.
+5. **Fallback & toggles.** Keep a CLI flag (`--s1-workers=N` / `--s1-single-thread`) so we can switch between legacy single-thread and the new multiprocess path until parity tests pass in CI. Default to the single-thread path until Track 4 sign-off.
+6. **Validation hook.** During the merge phase, optionally re-hash worker shards or sample rows to confirm ordering before writing the canonical files. Integrate this with the Track 4 regression harness.
 4. Track 4 (validation & rollout):
    - Stand up the golden-country regression harness (US/BRA/IND/etc.) and block feature flags until hashes align.
    - Document rollout toggles in `docs/runbooks/segment1a_1b_execution.md` once parallel S1 ships.
