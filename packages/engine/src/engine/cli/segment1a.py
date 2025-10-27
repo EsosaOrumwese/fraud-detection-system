@@ -1,18 +1,54 @@
-"""CLI runner for Segment 1A (S0 foundations – S7 integer allocation)."""
+"""CLI runner for Segment 1A (S0 foundations - S7 integer allocation)."""
 
 from __future__ import annotations
 
 import argparse
 import json
 import logging
+import shutil
 import sys
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Sequence
 
 from engine.layers.l1.seg_1A.s0_foundations.exceptions import S0Error
+from engine.layers.l1.seg_1A.shared.dictionary import get_repo_root
 from engine.scenario_runner.l1_seg_1A import Segment1AOrchestrator
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class _ReferenceSurfaceSpec:
+    dataset_id: str
+    source: Path
+    relative_destination: Path
+
+
+_SEGMENT1B_REFERENCE_SURFACES: Sequence[_ReferenceSurfaceSpec] = (
+    _ReferenceSurfaceSpec(
+        dataset_id="iso3166_canonical_2024",
+        source=Path("reference/layer1/iso_canonical/v2025-10-09/iso_canonical.parquet"),
+        relative_destination=Path("reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet"),
+    ),
+    _ReferenceSurfaceSpec(
+        dataset_id="world_countries",
+        source=Path("reference/spatial/world_countries/2025-10-08/world_countries.parquet"),
+        relative_destination=Path("reference/spatial/world_countries/2024/world_countries.parquet"),
+    ),
+    _ReferenceSurfaceSpec(
+        dataset_id="population_raster_2025",
+        source=Path(
+            "artefacts/spatial/population_raster/2025/raw/global_2020_1km_UNadj_uncounstrained.tif"
+        ),
+        relative_destination=Path("reference/spatial/population/2025/population.tif"),
+    ),
+    _ReferenceSurfaceSpec(
+        dataset_id="tz_world_2025a",
+        source=Path("reference/spatial/tz_world/2025a/tz_world_2025a.parquet"),
+        relative_destination=Path("reference/spatial/tz_world/2025a/tz_world.parquet"),
+    ),
+)
 
 
 def _parse_parameter_files(values: List[str]) -> Dict[str, Path]:
@@ -32,6 +68,32 @@ def _parse_parameter_files(values: List[str]) -> Dict[str, Path]:
 
 def _normalise_paths(values: List[str]) -> List[Path]:
     return [Path(raw).expanduser().resolve() for raw in values]
+
+
+def _stage_segment1b_references(base_path: Path) -> List[Path]:
+    """Copy governed reference surfaces into ``base_path`` for Segment 1B."""
+
+    repo_root = get_repo_root()
+    base = base_path.expanduser().resolve()
+    staged_paths: List[Path] = []
+
+    for spec in _SEGMENT1B_REFERENCE_SURFACES:
+        source = (repo_root / spec.source).resolve()
+        if not source.exists():
+            raise FileNotFoundError(
+                f"Segment1B reference source '{source}' (dataset_id={spec.dataset_id}) is missing"
+            )
+        destination = (base / spec.relative_destination).resolve()
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+        logger.info(
+            "Segment1A CLI: staged reference '%s' from %s to %s",
+            spec.dataset_id,
+            source,
+            destination,
+        )
+        staged_paths.append(destination)
+    return staged_paths
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -207,6 +269,15 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help="Optional JSON file to persist the combined run summary.",
     )
+    parser.add_argument(
+        "--stage-seg1b-refs",
+        dest="stage_seg1b_refs",
+        action="store_true",
+        help=(
+            "Copy governed Segment 1B reference surfaces into <output-dir>/reference/** "
+            "and include them in the manifest."
+        ),
+    )
 
     parser.set_defaults(
         validate_s0=True,
@@ -222,6 +293,13 @@ def main(argv: list[str] | None = None) -> int:
 
     parameter_files = _parse_parameter_files(args.parameter_files)
     extra_manifest = _normalise_paths(args.extra_manifest)
+    staged_reference_paths: List[Path] = []
+    if args.stage_seg1b_refs:
+        logger.info(
+            "Segment1A CLI: staging Segment 1B reference surfaces into %s", args.output_dir
+        )
+        staged_reference_paths = _stage_segment1b_references(args.output_dir)
+        extra_manifest.extend(staged_reference_paths)
     validation_policy_path = args.validation_policy.expanduser().resolve()
 
     orchestrator = Segment1AOrchestrator()
