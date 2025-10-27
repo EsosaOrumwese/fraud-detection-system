@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import concurrent.futures
 import hashlib
 import json
 import logging
@@ -10,16 +11,18 @@ import shutil
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, Mapping, Sequence
+from typing import Dict, Iterable, Mapping, Sequence, Tuple
 from uuid import uuid4
 
-import polars as pl
 import numpy as np
+import polars as pl
 import rasterio.features
 import rasterio.windows
 from rasterio.transform import rowcol
+from shapely import wkb
 from shapely.geometry import Polygon, mapping
 from shapely.geometry.base import BaseGeometry
+from shapely.prepared import prep as prepare_geometry
 
 from ..l0.loaders import (
     CountryPolygon,
@@ -125,6 +128,17 @@ class CountrySummary:
 
 
 @dataclass
+class ExecutionResult:
+    """Container for the side-effects of an S1 execution branch."""
+
+    tile_temp_dir: Path
+    bounds_temp_dir: Path
+    summaries: Dict[str, CountrySummary]
+    rows_emitted: int
+    worker_runtimes: list["WorkerRuntimeStats"]
+
+
+@dataclass
 class RunReport:
     parameter_hash: str
     predicate: str
@@ -159,6 +173,60 @@ class S1RunResult:
     rows_emitted: int
 
 
+@dataclass(frozen=True)
+class WorkerCountryPayload:
+    """Serialized geometry payload passed to worker processes."""
+
+    country_iso: str
+    geometry_wkb: bytes
+
+
+@dataclass(frozen=True)
+class WorkerAssignment:
+    """Inputs required for a worker process to enumerate its countries."""
+
+    worker_id: int
+    countries: Tuple[WorkerCountryPayload, ...]
+    tile_temp_dir: Path
+    bounds_temp_dir: Path
+    raster_path: Path
+    inclusion_rule: InclusionRule
+
+
+@dataclass
+class WorkerResult:
+    """Result emitted by each worker process."""
+
+    worker_id: int
+    rows_emitted: int
+    summaries: Dict[str, CountrySummary]
+    tile_temp_dir: Path
+    bounds_temp_dir: Path
+    countries_processed: int
+    cells_scanned_total: int
+    cells_included_total: int
+    wall_clock_seconds: float
+    cpu_seconds: float
+
+
+@dataclass
+class WorkerRuntimeStats:
+    """Telemetry summary for inclusion in PAT/run-report artefacts."""
+
+    worker_id: int
+    countries_processed: int
+    rows_emitted: int
+    cells_scanned_total: int
+    wall_clock_seconds: float
+    cpu_seconds: float
+
+    @property
+    def tiles_per_second(self) -> float | None:
+        if self.wall_clock_seconds <= 0:
+            return None
+        return self.rows_emitted / self.wall_clock_seconds
+
+
 class S1TileIndexRunner:
     """Public orchestration entry point for S1."""
 
@@ -167,13 +235,7 @@ class S1TileIndexRunner:
         data_root = config.data_root.resolve()
         parameter_hash = config.parameter_hash
         inclusion_rule = InclusionRule.parse(config.inclusion_rule)
-        worker_count = max(1, config.workers)
-        if worker_count != 1:
-            logger.info(
-                "S1: multi-worker execution requested (%d) — fallback to single process (Track 3 pending)",
-                worker_count,
-            )
-            worker_count = 1
+        requested_workers = max(1, config.workers)
 
         iso_path = data_root / Path(
             render_dataset_path("iso3166_canonical_2024", template_args={}, dictionary=dictionary)
@@ -188,6 +250,7 @@ class S1TileIndexRunner:
         logger.info("S1: loading ISO canonical table from %s", iso_path)
         iso_table = load_iso_countries(iso_path)
         logger.info("S1: ISO table loaded (rows=%d)", iso_table.table.height)
+        iso_codes = iso_table.codes
 
         logger.info("S1: loading world polygon surface from %s", country_path)
         country_polygons = load_country_polygons(country_path)
@@ -204,11 +267,23 @@ class S1TileIndexRunner:
         start_wall = time.perf_counter()
         start_cpu = time.process_time()
 
-        total_countries = len(country_polygons)
+        eligible_countries = [country for country in country_polygons if country.country_iso in iso_codes]
+        if not eligible_countries:
+            raise S1RunError("No eligible countries found in country polygon surface")
+        total_countries = len(eligible_countries)
+        worker_target = min(requested_workers, total_countries)
+        if worker_target < requested_workers:
+            logger.info(
+                "S1: requested %d workers but only %d eligible countries available; using %d workers",
+                requested_workers,
+                total_countries,
+                worker_target,
+            )
         logger.info(
-            "S1: enumerating tiles (countries=%d, inclusion_rule=%s)",
+            "S1: enumerating tiles (countries=%d, inclusion_rule=%s, workers=%d)",
             total_countries,
             inclusion_rule.value,
+            worker_target,
         )
         tile_index_dir = resolve_dataset_path(
             "tile_index",
@@ -227,47 +302,32 @@ class S1TileIndexRunner:
         if tile_bounds_dir.exists():
             raise S1RunError(f"Output partition already exists: {tile_bounds_dir}")
 
-        tile_temp_dir = tile_index_dir.parent / f".tmp.tile_index.{uuid4().hex}"
-        bounds_temp_dir = tile_bounds_dir.parent / f".tmp.tile_bounds.{uuid4().hex}"
-        tile_temp_dir.mkdir(parents=True, exist_ok=False)
-        bounds_temp_dir.mkdir(parents=True, exist_ok=False)
-
-        tile_writer = _ParquetBatchWriter(
-            temp_dir=tile_temp_dir,
-            columns=_TILE_COLUMNS,
-            schema=_TILE_SCHEMA,
-            batch_size=_BATCH_SIZE,
-        )
-        bounds_writer = _ParquetBatchWriter(
-            temp_dir=bounds_temp_dir,
-            columns=_BOUNDS_COLUMNS,
-            schema=_BOUNDS_SCHEMA,
-            batch_size=_BATCH_SIZE,
-        )
-
-        try:
-            summaries, rows_emitted = self._enumerate_tiles(
-                inclusion_rule,
-                iso_table,
-                country_polygons,
-                raster,
-                tile_writer=tile_writer,
-                bounds_writer=bounds_writer,
+        if worker_target == 1:
+            execution = self._run_single(
+                inclusion_rule=inclusion_rule,
+                iso_codes=iso_codes,
+                country_polygons=country_polygons,
+                raster=raster,
+                tile_index_dir=tile_index_dir,
+                tile_bounds_dir=tile_bounds_dir,
             )
-            tile_writer.close()
-            bounds_writer.close()
-        except Exception:
-            tile_writer.abort()
-            bounds_writer.abort()
-            raise
-        logger.info(
-            "S1: tile enumeration finished (countries_with_tiles=%d, tiles=%d)",
-            len(summaries),
-            rows_emitted,
-        )
+        else:
+            execution = self._run_multi(
+                inclusion_rule=inclusion_rule,
+                countries=eligible_countries,
+                raster_path=raster_path,
+                tile_index_dir=tile_index_dir,
+                tile_bounds_dir=tile_bounds_dir,
+                worker_count=worker_target,
+            )
 
+        tile_temp_dir = execution.tile_temp_dir
+        bounds_temp_dir = execution.bounds_temp_dir
         tile_temp_dir.replace(tile_index_dir)
         bounds_temp_dir.replace(tile_bounds_dir)
+
+        summaries = execution.summaries
+        rows_emitted = execution.rows_emitted
 
         digest = compute_partition_digest(tile_index_dir)
 
@@ -277,6 +337,27 @@ class S1TileIndexRunner:
         bytes_read_vectors = sum(
             _safe_stat_size(path) for path in (iso_path, country_path)
         )
+        worker_runtimes = execution.worker_runtimes or []
+        workers_used = max(1, len(worker_runtimes))
+        tiles_per_second_avg = None if wall_elapsed <= 0 else rows_emitted / wall_elapsed
+        worker_tile_rates: list[dict[str, object]] = []
+        for stats in worker_runtimes:
+            rate = stats.tiles_per_second
+            worker_tile_rates.append(
+                {
+                    "worker_id": stats.worker_id,
+                    "countries": stats.countries_processed,
+                    "tiles": stats.rows_emitted,
+                    "tiles_per_second": rate,
+                }
+            )
+            logger.info(
+                "S1: worker %d complete (countries=%d, tiles=%d, tiles/sec=%s)",
+                stats.worker_id,
+                stats.countries_processed,
+                stats.rows_emitted,
+                f"{rate:.1f}" if rate is not None else "n/a",
+            )
 
         report_dir = data_root / "reports" / "l1" / "s1_tile_index" / f"parameter_hash={parameter_hash}"
         report_dir.mkdir(parents=True, exist_ok=True)
@@ -313,10 +394,12 @@ class S1TileIndexRunner:
                 "bytes_read_vectors_total": bytes_read_vectors,
                 "max_worker_rss_bytes": None,
                 "open_files_peak": None,
-                "workers_used": worker_count,
-                "chunk_size": rows_emitted,
+                "workers_used": workers_used,
+                "chunk_size": _CHUNK_SIZE,
                 "io_baseline_raster_bps": None,
                 "io_baseline_vectors_bps": None,
+                "tiles_per_second_avg": tiles_per_second_avg,
+                "tiles_per_second_per_worker": worker_tile_rates,
             },
         )
         report_path.write_text(json.dumps(run_report.to_dict(), indent=2), encoding="utf-8")
@@ -330,6 +413,164 @@ class S1TileIndexRunner:
             rows_emitted=rows_emitted,
         )
 
+    def _run_single(
+        self,
+        *,
+        inclusion_rule: InclusionRule,
+        iso_codes: frozenset[str] | IsoCountryTable,
+        country_polygons: CountryPolygons,
+        raster: PopulationRaster,
+        tile_index_dir: Path,
+        tile_bounds_dir: Path,
+    ) -> ExecutionResult:
+        tile_temp_dir = tile_index_dir.parent / f".tmp.tile_index.{uuid4().hex}"
+        bounds_temp_dir = tile_bounds_dir.parent / f".tmp.tile_bounds.{uuid4().hex}"
+        tile_temp_dir.mkdir(parents=True, exist_ok=False)
+        bounds_temp_dir.mkdir(parents=True, exist_ok=False)
+
+        tile_writer = _ParquetBatchWriter(
+            temp_dir=tile_temp_dir,
+            columns=_TILE_COLUMNS,
+            schema=_TILE_SCHEMA,
+            batch_size=_BATCH_SIZE,
+        )
+        bounds_writer = _ParquetBatchWriter(
+            temp_dir=bounds_temp_dir,
+            columns=_BOUNDS_COLUMNS,
+            schema=_BOUNDS_SCHEMA,
+            batch_size=_BATCH_SIZE,
+        )
+
+        processed_count = sum(1 for country in country_polygons if country.country_iso in iso_codes)
+        start_wall = time.perf_counter()
+        start_cpu = time.process_time()
+        try:
+            summaries, rows_emitted = self._enumerate_tiles(
+                inclusion_rule,
+                iso_codes,
+                country_polygons,
+                raster,
+                tile_writer=tile_writer,
+                bounds_writer=bounds_writer,
+            )
+            tile_writer.close()
+            bounds_writer.close()
+        except Exception:
+            tile_writer.abort()
+            bounds_writer.abort()
+            shutil.rmtree(tile_temp_dir, ignore_errors=True)
+            shutil.rmtree(bounds_temp_dir, ignore_errors=True)
+            raise
+
+        wall_elapsed = time.perf_counter() - start_wall
+        cpu_elapsed = time.process_time() - start_cpu
+        logger.info(
+            "S1: tile enumeration finished (countries_with_tiles=%d, tiles=%d)",
+            len(summaries),
+            rows_emitted,
+        )
+        worker_stats = WorkerRuntimeStats(
+            worker_id=0,
+            countries_processed=processed_count,
+            rows_emitted=rows_emitted,
+            cells_scanned_total=sum(s.cells_visited for s in summaries.values()),
+            wall_clock_seconds=wall_elapsed,
+            cpu_seconds=cpu_elapsed,
+        )
+
+        return ExecutionResult(
+            tile_temp_dir=tile_temp_dir,
+            bounds_temp_dir=bounds_temp_dir,
+            summaries=summaries,
+            rows_emitted=rows_emitted,
+            worker_runtimes=[worker_stats],
+        )
+
+    def _run_multi(
+        self,
+        *,
+        inclusion_rule: InclusionRule,
+        countries: Sequence[CountryPolygon],
+        raster_path: Path,
+        tile_index_dir: Path,
+        tile_bounds_dir: Path,
+        worker_count: int,
+    ) -> ExecutionResult:
+        merge_token = uuid4().hex
+        tile_merge_dir = tile_index_dir.parent / f".tmp.tile_index.merge.{merge_token}"
+        bounds_merge_dir = tile_bounds_dir.parent / f".tmp.tile_bounds.merge.{merge_token}"
+        tile_merge_dir.mkdir(parents=True, exist_ok=False)
+        bounds_merge_dir.mkdir(parents=True, exist_ok=False)
+
+        partitions = _partition_countries(countries, worker_count)
+        assignments: list[WorkerAssignment] = []
+        for worker_id, batch in enumerate(partitions):
+            tile_worker_dir = tile_index_dir.parent / f".tmp.tile_index.worker-{worker_id}.{uuid4().hex}"
+            bounds_worker_dir = tile_bounds_dir.parent / f".tmp.tile_bounds.worker-{worker_id}.{uuid4().hex}"
+            tile_worker_dir.mkdir(parents=True, exist_ok=False)
+            bounds_worker_dir.mkdir(parents=True, exist_ok=False)
+            payloads = tuple(
+                WorkerCountryPayload(country_iso=country.country_iso, geometry_wkb=country.geometry.wkb)
+                for country in batch
+            )
+            assignments.append(
+                WorkerAssignment(
+                    worker_id=worker_id,
+                    countries=payloads,
+                    tile_temp_dir=tile_worker_dir,
+                    bounds_temp_dir=bounds_worker_dir,
+                    raster_path=raster_path,
+                    inclusion_rule=inclusion_rule,
+                )
+            )
+
+        worker_results: list[WorkerResult] = []
+        try:
+            worker_results = _execute_worker_pool(assignments)
+            worker_results.sort(key=lambda result: result.worker_id)
+            _merge_worker_outputs(worker_results, tile_merge_dir, bounds_merge_dir)
+        except Exception:
+            shutil.rmtree(tile_merge_dir, ignore_errors=True)
+            shutil.rmtree(bounds_merge_dir, ignore_errors=True)
+            raise
+        finally:
+            for assignment in assignments:
+                shutil.rmtree(assignment.tile_temp_dir, ignore_errors=True)
+                shutil.rmtree(assignment.bounds_temp_dir, ignore_errors=True)
+
+        summaries: Dict[str, CountrySummary] = {}
+        rows_emitted = 0
+        for result in worker_results:
+            summaries.update(result.summaries)
+            rows_emitted += result.rows_emitted
+
+        worker_stats = [
+            WorkerRuntimeStats(
+                worker_id=result.worker_id,
+                countries_processed=result.countries_processed,
+                rows_emitted=result.rows_emitted,
+                cells_scanned_total=result.cells_scanned_total,
+                wall_clock_seconds=result.wall_clock_seconds,
+                cpu_seconds=result.cpu_seconds,
+            )
+            for result in worker_results
+        ]
+
+        logger.info(
+            "S1: tile enumeration finished (countries_with_tiles=%d, tiles=%d, workers=%d)",
+            len(summaries),
+            rows_emitted,
+            worker_count,
+        )
+
+        return ExecutionResult(
+            tile_temp_dir=tile_merge_dir,
+            bounds_temp_dir=bounds_merge_dir,
+            summaries=summaries,
+            rows_emitted=rows_emitted,
+            worker_runtimes=worker_stats,
+        )
+
     # ------------------------------------------------------------------ #
     # Helpers
     # ------------------------------------------------------------------ #
@@ -337,14 +578,17 @@ class S1TileIndexRunner:
     def _enumerate_tiles(
         self,
         inclusion_rule: InclusionRule,
-        iso_table: IsoCountryTable,
+        iso_codes: frozenset[str],
         country_polygons: CountryPolygons,
         raster: PopulationRaster,
         *,
         tile_writer: "_ParquetBatchWriter",
         bounds_writer: "_ParquetBatchWriter",
     ) -> tuple[Dict[str, CountrySummary], int]:
-        iso_domain = iso_table.codes
+        if isinstance(iso_codes, IsoCountryTable):
+            iso_domain = iso_codes.codes
+        else:
+            iso_domain = iso_codes
         summaries: Dict[str, CountrySummary] = {}
         total_countries = len(country_polygons)
         processed = 0
@@ -701,6 +945,138 @@ def _mask_geometry_for_rule(
     pixel_height = abs(raster.transform.e)
     buffer_distance = 0.5 * max(pixel_width, pixel_height)
     return geometry.buffer(buffer_distance)
+
+
+def _partition_countries(
+    countries: Sequence[CountryPolygon], worker_count: int
+) -> list[list[CountryPolygon]]:
+    countries_list = list(countries)
+    total = len(countries_list)
+    worker_count = max(1, min(worker_count, total))
+    if worker_count == 1:
+        return [countries_list]
+    partitions: list[list[CountryPolygon]] = []
+    base, remainder = divmod(total, worker_count)
+    start = 0
+    for idx in range(worker_count):
+        size = base + (1 if idx < remainder else 0)
+        end = start + size
+        partitions.append(countries_list[start:end])
+        start = end
+    return [partition for partition in partitions if partition]
+
+
+def _execute_worker_pool(assignments: Sequence[WorkerAssignment]) -> list[WorkerResult]:
+    if not assignments:
+        return []
+    results: list[WorkerResult] = []
+    with concurrent.futures.ProcessPoolExecutor(max_workers=len(assignments)) as executor:
+        future_map = {executor.submit(_worker_entry, assignment): assignment.worker_id for assignment in assignments}
+        try:
+            for future in concurrent.futures.as_completed(future_map):
+                results.append(future.result())
+        except Exception:
+            for future in future_map:
+                future.cancel()
+            raise
+    return results
+
+
+def _worker_entry(assignment: WorkerAssignment) -> WorkerResult:
+    tile_writer = _ParquetBatchWriter(
+        temp_dir=assignment.tile_temp_dir,
+        columns=_TILE_COLUMNS,
+        schema=_TILE_SCHEMA,
+        batch_size=_BATCH_SIZE,
+    )
+    bounds_writer = _ParquetBatchWriter(
+        temp_dir=assignment.bounds_temp_dir,
+        columns=_BOUNDS_COLUMNS,
+        schema=_BOUNDS_SCHEMA,
+        batch_size=_BATCH_SIZE,
+    )
+    start_wall = time.perf_counter()
+    start_cpu = time.process_time()
+    try:
+        raster = load_population_raster(assignment.raster_path)
+        polygons = _build_country_polygons_from_payloads(assignment.countries)
+        iso_codes = frozenset(payload.country_iso for payload in assignment.countries)
+        runner = S1TileIndexRunner()
+        summaries, rows_emitted = runner._enumerate_tiles(
+            assignment.inclusion_rule,
+            iso_codes,
+            polygons,
+            raster,
+            tile_writer=tile_writer,
+            bounds_writer=bounds_writer,
+        )
+        tile_writer.close()
+        bounds_writer.close()
+    except Exception:
+        tile_writer.abort()
+        bounds_writer.abort()
+        raise
+    wall_elapsed = time.perf_counter() - start_wall
+    cpu_elapsed = time.process_time() - start_cpu
+    cells_scanned_total = sum(summary.cells_visited for summary in summaries.values())
+    return WorkerResult(
+        worker_id=assignment.worker_id,
+        rows_emitted=rows_emitted,
+        summaries=summaries,
+        tile_temp_dir=assignment.tile_temp_dir,
+        bounds_temp_dir=assignment.bounds_temp_dir,
+        countries_processed=len(assignment.countries),
+        cells_scanned_total=cells_scanned_total,
+        cells_included_total=rows_emitted,
+        wall_clock_seconds=wall_elapsed,
+        cpu_seconds=cpu_elapsed,
+    )
+
+
+def _build_country_polygons_from_payloads(
+    payloads: Sequence[WorkerCountryPayload],
+) -> CountryPolygons:
+    mapping: Dict[str, CountryPolygon] = {}
+    for payload in payloads:
+        geometry = wkb.loads(payload.geometry_wkb)
+        mapping[payload.country_iso] = CountryPolygon(
+            country_iso=payload.country_iso,
+            geometry=geometry,
+            prepared=prepare_geometry(geometry),
+        )
+    return CountryPolygons(mapping)
+
+
+def _merge_worker_outputs(
+    worker_results: Sequence[WorkerResult],
+    tile_target_dir: Path,
+    bounds_target_dir: Path,
+) -> None:
+    tile_index = 0
+    bounds_index = 0
+    for result in worker_results:
+        tile_index = _move_parquet_shards(result.tile_temp_dir, tile_target_dir, tile_index)
+        bounds_index = _move_parquet_shards(result.bounds_temp_dir, bounds_target_dir, bounds_index)
+    if tile_index == 0:
+        _write_empty_shard(tile_target_dir, _TILE_COLUMNS, _TILE_SCHEMA)
+    if bounds_index == 0:
+        _write_empty_shard(bounds_target_dir, _BOUNDS_COLUMNS, _BOUNDS_SCHEMA)
+
+
+def _move_parquet_shards(source_dir: Path, target_dir: Path, start_index: int) -> int:
+    shard_index = start_index
+    shard_paths = sorted(source_dir.glob("*.parquet"))
+    for shard_path in shard_paths:
+        target_name = f"part-{shard_index:05d}.parquet"
+        shutil.move(str(shard_path), target_dir / target_name)
+        shard_index += 1
+    return shard_index
+
+
+def _write_empty_shard(target_dir: Path, columns: Sequence[str], schema: Mapping[str, pl.DataType]) -> None:
+    series = {column: pl.Series(column, [], dtype=schema[column]) for column in columns}
+    frame = pl.DataFrame(series)
+    frame.write_parquet(target_dir / "part-00000.parquet", compression="zstd")
 
 
 __all__ = ["RunnerConfig", "S1RunResult", "S1TileIndexRunner", "S1RunError", "compute_partition_digest"]
