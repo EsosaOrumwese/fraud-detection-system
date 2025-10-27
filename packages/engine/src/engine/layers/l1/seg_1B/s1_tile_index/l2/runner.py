@@ -553,23 +553,23 @@ class _ParquetBatchWriter:
 
 
 def _raster_window_for_geometry(raster: PopulationRaster, geometry: Polygon) -> tuple[int, int, int, int]:
-    minx, miny, maxx, maxy = geometry.bounds
-    coordinates = [
-        (minx, miny),
-        (minx, maxy),
-        (maxx, miny),
-        (maxx, maxy),
-        ((minx + maxx) / 2, (miny + maxy) / 2),
-    ]
-    rows: list[int] = []
-    cols: list[int] = []
-    for lon, lat in coordinates:
-        try:
-            row, col = rowcol(raster.transform, lon, lat)
-        except Exception:
-            continue
-        rows.append(int(row))
-        cols.append(int(col))
+    rows, cols = _geometry_rowcol_bounds(raster, geometry)
+    if not rows or not cols:
+        minx, miny, maxx, maxy = geometry.bounds
+        fallback_coords = [
+            (minx, miny),
+            (minx, maxy),
+            (maxx, miny),
+            (maxx, maxy),
+            ((minx + maxx) / 2, (miny + maxy) / 2),
+        ]
+        for lon, lat in fallback_coords:
+            try:
+                row, col = rowcol(raster.transform, lon, lat)
+            except Exception:
+                continue
+            rows.append(int(row))
+            cols.append(int(col))
     if not rows or not cols:
         return (0, raster.nrows - 1, 0, raster.ncols - 1)
     row_min = max(0, min(rows) - 1)
@@ -577,6 +577,33 @@ def _raster_window_for_geometry(raster: PopulationRaster, geometry: Polygon) -> 
     col_min = max(0, min(cols) - 1)
     col_max = min(raster.ncols - 1, max(cols) + 1)
     return row_min, row_max, col_min, col_max
+
+
+def _geometry_rowcol_bounds(raster: PopulationRaster, geometry: BaseGeometry) -> tuple[list[int], list[int]]:
+    rows: list[int] = []
+    cols: list[int] = []
+    if geometry.is_empty:
+        return rows, cols
+
+    def _collect(poly: Polygon) -> None:
+        coords = np.asarray(poly.exterior.coords, dtype=np.float64)
+        if coords.size == 0:
+            return
+        for lon, lat in coords:
+            try:
+                row, col = rowcol(raster.transform, float(lon), float(lat))
+            except Exception:
+                continue
+            rows.append(int(row))
+            cols.append(int(col))
+
+    if geometry.geom_type == "Polygon":
+        _collect(geometry)
+    elif geometry.geom_type == "MultiPolygon":
+        for geom in geometry.geoms:  # type: ignore[attr-defined]
+            _collect(geom)
+
+    return rows, cols
 
 
 def _extract_hole_shapes(geometry: BaseGeometry) -> list[tuple[Polygon, int]]:
