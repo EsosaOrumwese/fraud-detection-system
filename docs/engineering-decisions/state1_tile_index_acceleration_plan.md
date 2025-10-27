@@ -72,8 +72,16 @@ The acceleration strategy spans four complementary tracks. Each track is indepen
    - **1.A – Exact windowing.** Replace `_raster_window_for_geometry` with a deterministic `dataset.window`/`rowcol` mapping for the polygon bounds (plus fallback). This ensures the chunk iterator only touches cells that truly belong to the country.
    - **1.B – Chunk instrumentation.** Emit per-chunk telemetry (`country`, row/col span, tiles visited/included, duration) so we can see hot spots immediately in `segment1b_regen*.log`.
    - **1.C – Validation harness.** Run sampled countries through the tightened window to confirm we still enumerate the exact tile set (hash + count) before moving to later tracks.
-2. Prototype worker-based execution (Track 3) using the existing `_ParquetBatchWriter` to keep writes isolated.
-3. Stand up the regression harness so every optimization is proven before merging.
-4. Document rollout + toggles in `docs/runbooks/segment1a_1b_execution.md` once parallel S1 ships.
+2. Track 2 polish (in flight):
+   - Cache per-country raster masks (largest footprints) to avoid re-rasterizing every chunk when the geometry doesn’t change across runs.
+   - Batch geodesic area computations so each chunk amortizes the cost of `Geod.polygon_area_perimeter`.
+   - Confirm the vectorized path stays byte-for-byte aligned via the new pytest parity harness.
+3. Track 3 design (approved by project owner):
+   - Use a `ProcessPoolExecutor` to assign countries/chunks to workers, each writing to its own temp shard directories (`tile_index/worker-XXX`, `tile_bounds/worker-XXX`).
+   - Once workers finish, deterministically merge sorted shards (ISO + tile_id) into the canonical partition, preserving manifest+hash rules.
+   - Propagate per-worker telemetry (tiles/sec, chunk counts) to the stage logs and PAT metrics.
+4. Track 4 (validation & rollout):
+   - Stand up the golden-country regression harness (US/BRA/IND/etc.) and block feature flags until hashes align.
+   - Document rollout toggles in `docs/runbooks/segment1a_1b_execution.md` once parallel S1 ships.
 
 This document will track updates as each track is delivered. Once runtime targets are consistently hit, we will freeze the design and mark the decision “Accepted.”
