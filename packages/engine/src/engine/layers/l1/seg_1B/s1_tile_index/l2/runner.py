@@ -452,6 +452,7 @@ class S1TileIndexRunner:
                 raster,
                 tile_writer=tile_writer,
                 bounds_writer=bounds_writer,
+                worker_label="main",
             )
             tile_writer.close()
             bounds_writer.close()
@@ -509,6 +510,12 @@ class S1TileIndexRunner:
             bounds_worker_dir = tile_bounds_dir.parent / f".tmp.tile_bounds.worker-{worker_id}.{uuid4().hex}"
             tile_worker_dir.mkdir(parents=True, exist_ok=False)
             bounds_worker_dir.mkdir(parents=True, exist_ok=False)
+            logger.info(
+                "S1: assigning worker %d (%d countries: %s)",
+                worker_id,
+                len(batch),
+                ", ".join(sorted(country.country_iso for country in batch)) or "<none>",
+            )
             payloads = tuple(
                 WorkerCountryPayload(country_iso=country.country_iso, geometry_wkb=country.geometry.wkb)
                 for country in batch
@@ -584,11 +591,13 @@ class S1TileIndexRunner:
         *,
         tile_writer: "_ParquetBatchWriter",
         bounds_writer: "_ParquetBatchWriter",
+        worker_label: str | None = None,
     ) -> tuple[Dict[str, CountrySummary], int]:
         if isinstance(iso_codes, IsoCountryTable):
             iso_domain = iso_codes.codes
         else:
             iso_domain = iso_codes
+        prefix = f"[{worker_label}] " if worker_label else ""
         summaries: Dict[str, CountrySummary] = {}
         total_countries = len(country_polygons)
         processed = 0
@@ -603,7 +612,8 @@ class S1TileIndexRunner:
             summary = CountrySummary(country_iso=iso)
             row_min, row_max, col_min, col_max = _raster_window_for_geometry(raster, country.geometry)
             logger.info(
-                "S1: country %d/%d (%s) window rows=%d..%d cols=%d..%d",
+                "%sS1: country %d/%d (%s) window rows=%d..%d cols=%d..%d",
+                prefix,
                 idx,
                 total_countries,
                 iso,
@@ -680,7 +690,8 @@ class S1TileIndexRunner:
                     )
                     if included_count == 0:
                         logger.info(
-                            "S1: chunk %d country=%s rows=%d..%d cols=%d..%d visited=%d included=%d duration=%.2fs",
+                            "%sS1: chunk %d country=%s rows=%d..%d cols=%d..%d visited=%d included=%d duration=%.2fs",
+                            prefix,
                             chunk_counter,
                             iso,
                             row_start,
@@ -741,7 +752,8 @@ class S1TileIndexRunner:
 
                     duration = time.perf_counter() - chunk_start
                     logger.info(
-                        "S1: chunk %d country=%s rows=%d..%d cols=%d..%d visited=%d included=%d duration=%.2fs",
+                        "%sS1: chunk %d country=%s rows=%d..%d cols=%d..%d visited=%d included=%d duration=%.2fs",
+                        prefix,
                         chunk_counter,
                         iso,
                         row_start,
@@ -757,7 +769,8 @@ class S1TileIndexRunner:
                 summaries[iso] = summary
             if total_countries > 0 and (processed % 25 == 0 or processed == total_countries):
                 logger.info(
-                    "S1: processed %d/%d countries (tiles_emitted=%d)",
+                    "%sS1: processed %d/%d countries (tiles_emitted=%d)",
+                    prefix,
                     processed,
                     total_countries,
                     rows_emitted,
@@ -983,6 +996,7 @@ def _execute_worker_pool(assignments: Sequence[WorkerAssignment]) -> list[Worker
 
 
 def _worker_entry(assignment: WorkerAssignment) -> WorkerResult:
+    _configure_worker_logging()
     tile_writer = _ParquetBatchWriter(
         temp_dir=assignment.tile_temp_dir,
         columns=_TILE_COLUMNS,
@@ -1009,6 +1023,7 @@ def _worker_entry(assignment: WorkerAssignment) -> WorkerResult:
             raster,
             tile_writer=tile_writer,
             bounds_writer=bounds_writer,
+            worker_label=f"worker-{assignment.worker_id}",
         )
         tile_writer.close()
         bounds_writer.close()
@@ -1077,6 +1092,20 @@ def _write_empty_shard(target_dir: Path, columns: Sequence[str], schema: Mapping
     series = {column: pl.Series(column, [], dtype=schema[column]) for column in columns}
     frame = pl.DataFrame(series)
     frame.write_parquet(target_dir / "part-00000.parquet", compression="zstd")
+
+
+def _configure_worker_logging() -> None:
+    """Ensure worker processes emit INFO logs like the parent."""
+
+    root = logging.getLogger()
+    if not root.handlers:
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        )
+    else:
+        root.setLevel(logging.INFO)
+    logging.getLogger(__name__).setLevel(logging.INFO)
 
 
 __all__ = ["RunnerConfig", "S1RunResult", "S1TileIndexRunner", "S1RunError", "compute_partition_digest"]
