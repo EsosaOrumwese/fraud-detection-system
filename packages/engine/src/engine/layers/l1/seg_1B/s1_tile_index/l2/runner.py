@@ -14,20 +14,22 @@ from typing import Dict, Iterable, Mapping, Sequence
 from uuid import uuid4
 
 import polars as pl
+import numpy as np
+import rasterio.features
+import rasterio.windows
 from rasterio.transform import rowcol
-from shapely.geometry import Point, Polygon
+from shapely.geometry import Polygon
+from shapely.geometry.base import BaseGeometry
 
 from ..l0.loaders import (
     CountryPolygon,
     CountryPolygons,
     IsoCountryTable,
     PopulationRaster,
-    TileBounds,
     load_country_polygons,
     load_iso_countries,
     load_population_raster,
 )
-from ..l1.geometry import TileMetrics
 from ..l1.predicates import InclusionRule
 from ...shared.dictionary import (
     get_dataset_entry,
@@ -79,6 +81,7 @@ _BOUNDS_SCHEMA: dict[str, pl.DataType] = {
 }
 
 _BATCH_SIZE = 200_000
+_CHUNK_SIZE = 512
 
 
 class S1RunError(RuntimeError):
@@ -107,21 +110,17 @@ class CountrySummary:
     tile_id_min: int | None = None
     tile_id_max: int | None = None
 
-    def register_included(self, metrics: TileMetrics) -> None:
-        self.cells_visited += 1
-        self.cells_included += 1
-        tile_id = metrics.tile_id
+    def record_batch(self, *, visited: int, included: int, hole_count: int) -> None:
+        self.cells_visited += visited
+        self.cells_included += included
+        self.cells_excluded_hole += hole_count
+        self.cells_excluded_outside += visited - included - hole_count
+
+    def record_included_tile(self, tile_id: int) -> None:
         if self.tile_id_min is None or tile_id < self.tile_id_min:
             self.tile_id_min = tile_id
         if self.tile_id_max is None or tile_id > self.tile_id_max:
             self.tile_id_max = tile_id
-
-    def register_excluded(self, hole: bool) -> None:
-        self.cells_visited += 1
-        if hole:
-            self.cells_excluded_hole += 1
-        else:
-            self.cells_excluded_outside += 1
 
 
 @dataclass
@@ -339,71 +338,114 @@ class S1TileIndexRunner:
     ) -> tuple[Dict[str, CountrySummary], int]:
         iso_domain = iso_table.codes
         summaries: Dict[str, CountrySummary] = {}
-
         total_countries = len(country_polygons)
         processed = 0
         rows_emitted = 0
-        for country in country_polygons:
-            if country.country_iso not in iso_domain:
-                processed += 1
+        hole_cache: Dict[str, list[tuple[Polygon, int]]] = {}
+
+        for idx, country in enumerate(country_polygons, start=1):
+            processed += 1
+            iso = country.country_iso
+            if iso not in iso_domain:
                 continue
-            summary = CountrySummary(country_iso=country.country_iso)
+            summary = CountrySummary(country_iso=iso)
             row_min, row_max, col_min, col_max = _raster_window_for_geometry(raster, country.geometry)
-            for row in range(row_min, row_max + 1):
-                for col in range(col_min, col_max + 1):
-                    tile_id = raster.tile_id(row, col)
-                    centroid_lon, centroid_lat = raster.tile_centroid(row, col)
-                    centroid_point = Point(centroid_lon, centroid_lat)
-                    included = False
-                    bounds: TileBounds | None = None
+            logger.info(
+                "S1: country %d/%d (%s) window rows=%d..%d cols=%d..%d",
+                idx,
+                total_countries,
+                iso,
+                row_min,
+                row_max,
+                col_min,
+                col_max,
+            )
+            hole_shapes = hole_cache.get(iso)
+            if hole_shapes is None:
+                hole_shapes = _extract_hole_shapes(country.geometry)
+                hole_cache[iso] = hole_shapes
 
-                    if inclusion_rule is InclusionRule.CENTER:
-                        included = country.prepared.covers(centroid_point)
-                    else:
+            for row_start in range(row_min, row_max + 1, _CHUNK_SIZE):
+                chunk_height = min(_CHUNK_SIZE, row_max - row_start + 1)
+                rows = np.arange(row_start, row_start + chunk_height)
+                for col_start in range(col_min, col_max + 1, _CHUNK_SIZE):
+                    chunk_width = min(_CHUNK_SIZE, col_max - col_start + 1)
+                    cols = np.arange(col_start, col_start + chunk_width)
+                    window = rasterio.windows.Window(col_start, row_start, chunk_width, chunk_height)
+                    chunk_transform = rasterio.windows.transform(window, raster.transform)
+                    mask = rasterio.features.rasterize(
+                        [(country.geometry, 1)],
+                        out_shape=(chunk_height, chunk_width),
+                        transform=chunk_transform,
+                        fill=0,
+                        dtype="uint8",
+                        all_touched=inclusion_rule is InclusionRule.ANY_OVERLAP,
+                    )
+                    included_count = int(mask.sum())
+                    hole_count = 0
+                    if hole_shapes:
+                        hole_mask = rasterio.features.rasterize(
+                            hole_shapes,
+                            out_shape=(chunk_height, chunk_width),
+                            transform=chunk_transform,
+                            fill=0,
+                            dtype="uint8",
+                            all_touched=False,
+                        )
+                        hole_count = int(hole_mask.sum())
+                    chunk_total = chunk_height * chunk_width
+                    summary.record_batch(
+                        visited=chunk_total,
+                        included=included_count,
+                        hole_count=hole_count,
+                    )
+                    if included_count == 0:
+                        continue
+
+                    col_grid, row_grid = np.meshgrid(cols, rows)
+                    lon_grid = (
+                        raster.transform.c
+                        + col_grid * raster.transform.a
+                        + row_grid * raster.transform.b
+                    )
+                    lat_grid = (
+                        raster.transform.f
+                        + col_grid * raster.transform.d
+                        + row_grid * raster.transform.e
+                    )
+                    included_indices = np.argwhere(mask == 1)
+                    for local_row, local_col in included_indices:
+                        row = int(row_start + int(local_row))
+                        col = int(col_start + int(local_col))
+                        tile_id = raster.tile_id(row, col)
                         bounds = raster.tile_bounds(row, col)
-                        tile_polygon = bounds.to_polygon()
-                        if country.prepared.intersects(tile_polygon):
-                            intersection = country.geometry.intersection(tile_polygon)
-                            included = intersection.area > 0.0
-
-                    if included:
-                        if bounds is None:
-                            bounds = raster.tile_bounds(row, col)
                         pixel_area = raster.tile_area(row, col)
-                        metrics = TileMetrics(
+                        centroid_lon = float(lon_grid[local_row, local_col])
+                        centroid_lat = float(lat_grid[local_row, local_col])
+
+                        summary.record_included_tile(tile_id)
+                        tile_writer.append_row(
+                            country_iso=iso,
+                            tile_id=tile_id,
+                            inclusion_rule=inclusion_rule.value,
                             raster_row=row,
                             raster_col=col,
-                            tile_id=tile_id,
                             centroid_lon=centroid_lon,
                             centroid_lat=centroid_lat,
                             pixel_area_m2=pixel_area,
-                            bounds=bounds,
-                        )
-                        summary.register_included(metrics)
-                        tile_writer.append_row(
-                            country_iso=country.country_iso,
-                            tile_id=metrics.tile_id,
-                            inclusion_rule=inclusion_rule.value,
-                            raster_row=metrics.raster_row,
-                            raster_col=metrics.raster_col,
-                            centroid_lon=metrics.centroid_lon,
-                            centroid_lat=metrics.centroid_lat,
-                            pixel_area_m2=metrics.pixel_area_m2,
                         )
                         bounds_writer.append_row(
-                            country_iso=country.country_iso,
-                            tile_id=metrics.tile_id,
-                            west_lon=metrics.bounds.west,
-                            east_lon=metrics.bounds.east,
-                            south_lat=metrics.bounds.south,
-                            north_lat=metrics.bounds.north,
+                            country_iso=iso,
+                            tile_id=tile_id,
+                            west_lon=bounds.west,
+                            east_lon=bounds.east,
+                            south_lat=bounds.south,
+                            north_lat=bounds.north,
                         )
                         rows_emitted += 1
-                    else:
-                        summary.register_excluded(_point_in_hole(country, centroid_point))
+
             if summary.cells_visited:
-                summaries[country.country_iso] = summary
-            processed += 1
+                summaries[iso] = summary
             if total_countries > 0 and (processed % 25 == 0 or processed == total_countries):
                 logger.info(
                     "S1: processed %d/%d countries (tiles_emitted=%d)",
@@ -469,6 +511,10 @@ class _ParquetBatchWriter:
         if not any(self.temp_dir.glob("*.parquet")):
             empty = self._empty_frame()
             empty.write_parquet(self.temp_dir / "part-00000.parquet", compression="zstd")
+            logger.info(
+                "S1: %s produced no rows; wrote empty shard",
+                self.temp_dir.name,
+            )
         self._closed = True
 
     def abort(self) -> None:
@@ -483,10 +529,18 @@ class _ParquetBatchWriter:
         df = pl.DataFrame(data).with_columns(
             [pl.col(column).cast(dtype, strict=False) for column, dtype in self.schema.items()]
         )
-        shard_path = self.temp_dir / f"part-{self._shard_index:05d}.parquet"
+        shard_name = f"part-{self._shard_index:05d}.parquet"
+        shard_path = self.temp_dir / shard_name
         df.write_parquet(shard_path, compression="zstd")
         self._rows_written += batch_len
         self._shard_index += 1
+        logger.info(
+            "S1: flushed %d rows to %s/%s (total=%d)",
+            batch_len,
+            self.temp_dir.name,
+            shard_name,
+            self._rows_written,
+        )
         for column in self.columns:
             self._buffers[column] = []
 
@@ -525,24 +579,25 @@ def _raster_window_for_geometry(raster: PopulationRaster, geometry: Polygon) -> 
     return row_min, row_max, col_min, col_max
 
 
-def _point_in_hole(country: CountryPolygon, point: Point) -> bool:
-    geom = country.geometry
-    if geom.geom_type == "Polygon":
-        return _polygon_contains_hole_point(geom, point)
-    if geom.geom_type == "MultiPolygon":
-        return any(_polygon_contains_hole_point(poly, point) for poly in geom.geoms)  # type: ignore[attr-defined]
-    return False
+def _extract_hole_shapes(geometry: BaseGeometry) -> list[tuple[Polygon, int]]:
+    shapes: list[tuple[Polygon, int]] = []
 
+    def _from_polygon(poly: Polygon) -> None:
+        for ring in poly.interiors:
+            try:
+                hole = Polygon(ring)
+            except ValueError:
+                continue
+            if not hole.is_empty:
+                shapes.append((hole, 1))
 
-def _polygon_contains_hole_point(polygon: Polygon, point: Point) -> bool:
-    for ring in polygon.interiors:
-        try:
-            hole = Polygon(ring)
-        except ValueError:
-            continue
-        if hole.contains(point):
-            return True
-    return False
+    if geometry.geom_type == "Polygon":
+        _from_polygon(geometry)
+    elif geometry.geom_type == "MultiPolygon":
+        for poly in geometry.geoms:  # type: ignore[attr-defined]
+            _from_polygon(poly)
+
+    return shapes
 
 
 __all__ = ["RunnerConfig", "S1RunResult", "S1TileIndexRunner", "S1RunError", "compute_partition_digest"]
