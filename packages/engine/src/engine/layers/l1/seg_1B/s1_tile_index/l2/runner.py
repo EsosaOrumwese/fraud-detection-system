@@ -611,6 +611,17 @@ class S1TileIndexRunner:
                 continue
             summary = CountrySummary(country_iso=iso)
             row_min, row_max, col_min, col_max = _raster_window_for_geometry(raster, country.geometry)
+            if row_max < row_min or col_max < col_min:
+                logger.warning(
+                    "%sS1: skipping %s due to empty raster window (rows=%d..%d cols=%d..%d)",
+                    prefix,
+                    iso,
+                    row_min,
+                    row_max,
+                    col_min,
+                    col_max,
+                )
+                continue
             logger.info(
                 "%sS1: country %d/%d (%s) window rows=%d..%d cols=%d..%d",
                 prefix,
