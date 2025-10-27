@@ -25,6 +25,9 @@ from engine.layers.l1.seg_1B.s1_tile_index.l2.runner import (
 )
 
 
+WGS84_CRS = CRS.from_dict({"proj": "longlat", "datum": "WGS84", "no_defs": True})
+
+
 class _StubWriter:
     def __init__(self) -> None:
         self.rows: list[dict] = []
@@ -40,7 +43,7 @@ def _make_raster(width: int = 20, height: int = 20) -> PopulationRaster:
         transform=transform,
         width=width,
         height=height,
-        crs=CRS.from_epsg(4326),
+        crs=WGS84_CRS,
         nodata=None,
         geod=Geod(ellps="WGS84"),
     )

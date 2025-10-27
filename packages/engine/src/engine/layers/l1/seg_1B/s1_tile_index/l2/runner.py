@@ -18,7 +18,7 @@ import numpy as np
 import rasterio.features
 import rasterio.windows
 from rasterio.transform import rowcol
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, mapping
 from shapely.geometry.base import BaseGeometry
 
 from ..l0.loaders import (
@@ -360,39 +360,66 @@ class S1TileIndexRunner:
                 col_min,
                 col_max,
             )
+            window_height = row_max - row_min + 1
+            window_width = col_max - col_min + 1
+            base_window = rasterio.windows.Window(col_min, row_min, window_width, window_height)
+            window_transform = rasterio.windows.transform(base_window, raster.transform)
+            geom_for_mask = _mask_geometry_for_rule(country.geometry, raster, inclusion_rule)
+            window_mask = rasterio.features.rasterize(
+                [(mapping(geom_for_mask), 1)],
+                out_shape=(window_height, window_width),
+                transform=window_transform,
+                fill=0,
+                dtype="uint8",
+                all_touched=inclusion_rule is InclusionRule.ANY_OVERLAP,
+            )
             hole_shapes = hole_cache.get(iso)
             if hole_shapes is None:
                 hole_shapes = _extract_hole_shapes(country.geometry)
                 hole_cache[iso] = hole_shapes
+            hole_mask_full: np.ndarray | None = None
+            if hole_shapes:
+                hole_mask_full = rasterio.features.rasterize(
+                    hole_shapes,
+                    out_shape=(window_height, window_width),
+                    transform=window_transform,
+                    fill=0,
+                    dtype="uint8",
+                    all_touched=False,
+                )
+            area_cache: Dict[int, float] = {}
+            chunk_counter = 0
 
             for row_start in range(row_min, row_max + 1, _CHUNK_SIZE):
                 chunk_height = min(_CHUNK_SIZE, row_max - row_start + 1)
-                rows = np.arange(row_start, row_start + chunk_height)
+                rows = np.arange(row_start, row_start + chunk_height, dtype=np.int32)
+                local_row_start = row_start - row_min
+                local_row_end = local_row_start + chunk_height
                 for col_start in range(col_min, col_max + 1, _CHUNK_SIZE):
                     chunk_width = min(_CHUNK_SIZE, col_max - col_start + 1)
-                    cols = np.arange(col_start, col_start + chunk_width)
-                    window = rasterio.windows.Window(col_start, row_start, chunk_width, chunk_height)
-                    chunk_transform = rasterio.windows.transform(window, raster.transform)
-                    mask = rasterio.features.rasterize(
-                        [(country.geometry, 1)],
-                        out_shape=(chunk_height, chunk_width),
-                        transform=chunk_transform,
-                        fill=0,
-                        dtype="uint8",
-                        all_touched=inclusion_rule is InclusionRule.ANY_OVERLAP,
+                    cols = np.arange(col_start, col_start + chunk_width, dtype=np.int32)
+                    local_col_start = col_start - col_min
+                    local_col_end = local_col_start + chunk_width
+                    chunk_window = rasterio.windows.Window(
+                        col_start,
+                        row_start,
+                        chunk_width,
+                        chunk_height,
                     )
-                    included_count = int(mask.sum())
+                    chunk_transform = rasterio.windows.transform(chunk_window, raster.transform)
+                    chunk_counter += 1
+                    chunk_start = time.perf_counter()
+
+                    chunk_mask = window_mask[
+                        local_row_start:local_row_end, local_col_start:local_col_end
+                    ]
+                    included_count = int(chunk_mask.sum())
                     hole_count = 0
-                    if hole_shapes:
-                        hole_mask = rasterio.features.rasterize(
-                            hole_shapes,
-                            out_shape=(chunk_height, chunk_width),
-                            transform=chunk_transform,
-                            fill=0,
-                            dtype="uint8",
-                            all_touched=False,
-                        )
-                        hole_count = int(hole_mask.sum())
+                    if hole_mask_full is not None:
+                        chunk_holes = hole_mask_full[
+                            local_row_start:local_row_end, local_col_start:local_col_end
+                        ]
+                        hole_count = int(chunk_holes.sum())
                     chunk_total = chunk_height * chunk_width
                     summary.record_batch(
                         visited=chunk_total,
@@ -400,9 +427,21 @@ class S1TileIndexRunner:
                         hole_count=hole_count,
                     )
                     if included_count == 0:
+                        logger.info(
+                            "S1: chunk %d country=%s rows=%d..%d cols=%d..%d visited=%d included=%d duration=%.2fs",
+                            chunk_counter,
+                            iso,
+                            row_start,
+                            row_start + chunk_height - 1,
+                            col_start,
+                            col_start + chunk_width - 1,
+                            chunk_total,
+                            0,
+                            time.perf_counter() - chunk_start,
+                        )
                         continue
 
-                    col_grid, row_grid = np.meshgrid(cols, rows)
+                    col_grid, row_grid = np.meshgrid(cols, rows, indexing="xy")
                     lon_grid = (
                         raster.transform.c
                         + col_grid * raster.transform.a
@@ -413,13 +452,17 @@ class S1TileIndexRunner:
                         + col_grid * raster.transform.d
                         + row_grid * raster.transform.e
                     )
-                    included_indices = np.argwhere(mask == 1)
+                    included_indices = np.argwhere(chunk_mask == 1)
                     for local_row, local_col in included_indices:
                         row = int(row_start + int(local_row))
                         col = int(col_start + int(local_col))
                         tile_id = raster.tile_id(row, col)
                         bounds = raster.tile_bounds(row, col)
-                        pixel_area = raster.tile_area(row, col)
+                        if row in area_cache:
+                            pixel_area = area_cache[row]
+                        else:
+                            pixel_area = raster.tile_area(row, col)
+                            area_cache[row] = pixel_area
                         centroid_lon = float(lon_grid[local_row, local_col])
                         centroid_lat = float(lat_grid[local_row, local_col])
 
@@ -443,6 +486,20 @@ class S1TileIndexRunner:
                             north_lat=bounds.north,
                         )
                         rows_emitted += 1
+
+                    duration = time.perf_counter() - chunk_start
+                    logger.info(
+                        "S1: chunk %d country=%s rows=%d..%d cols=%d..%d visited=%d included=%d duration=%.2fs",
+                        chunk_counter,
+                        iso,
+                        row_start,
+                        row_start + chunk_height - 1,
+                        col_start,
+                        col_start + chunk_width - 1,
+                        chunk_total,
+                        included_count,
+                        duration,
+                    )
 
             if summary.cells_visited:
                 summaries[iso] = summary
@@ -616,7 +673,7 @@ def _extract_hole_shapes(geometry: BaseGeometry) -> list[tuple[Polygon, int]]:
             except ValueError:
                 continue
             if not hole.is_empty:
-                shapes.append((hole, 1))
+                shapes.append((mapping(hole), 1))
 
     if geometry.geom_type == "Polygon":
         _from_polygon(geometry)
@@ -625,6 +682,17 @@ def _extract_hole_shapes(geometry: BaseGeometry) -> list[tuple[Polygon, int]]:
             _from_polygon(poly)
 
     return shapes
+
+
+def _mask_geometry_for_rule(
+    geometry: BaseGeometry, raster: PopulationRaster, rule: InclusionRule
+) -> BaseGeometry:
+    if rule is not InclusionRule.ANY_OVERLAP:
+        return geometry
+    pixel_width = abs(raster.transform.a)
+    pixel_height = abs(raster.transform.e)
+    buffer_distance = 0.5 * max(pixel_width, pixel_height)
+    return geometry.buffer(buffer_distance)
 
 
 __all__ = ["RunnerConfig", "S1RunResult", "S1TileIndexRunner", "S1RunError", "compute_partition_digest"]
