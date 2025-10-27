@@ -1,9 +1,10 @@
 """L2 orchestration scaffolding for Segment 1B S2 (Tile Weights)."""
 
 from __future__ import annotations
-import time
 import json
+import logging
 import shutil
+import time
 import uuid
 
 from dataclasses import dataclass, field
@@ -24,6 +25,7 @@ from ..l1.guards import validate_tile_index
 
 
 ALLOWED_BASES = frozenset({"uniform", "area_m2", "population"})
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -216,6 +218,7 @@ class S2TileWeightsRunner:
             template_args={},
             dictionary=dictionary,
         )
+        logger.info("S2: loading ISO canonical table from %s", iso_path)
         try:
             iso_table = load_iso_countries(iso_path)
         except Exception as exc:  # noqa: BLE001 - surface as canonical failure
@@ -223,11 +226,15 @@ class S2TileWeightsRunner:
                 "E101_TILE_INDEX_MISSING",
                 f"failed to load ISO canonical table from '{iso_path}': {exc}",
             ) from exc
+        logger.info("S2: ISO canonical table loaded (rows=%d)", iso_table.table.height)
         pat = PatCounters()
         iso_size = iso_path.stat().st_size if iso_path.exists() else 0
         pat.bytes_read_vectors_total += int(iso_size)
         pat.vector_bytes_reference = int(iso_size)
 
+        logger.info(
+            "S2: loading tile_index partition for parameter_hash=%s", config.parameter_hash
+        )
         tile_index = load_tile_index_partition(
             base_path=config.data_root,
             parameter_hash=config.parameter_hash,
@@ -236,6 +243,11 @@ class S2TileWeightsRunner:
         validate_tile_index(partition=tile_index, iso_table=iso_table)
         pat.bytes_read_tile_index_total += tile_index.byte_size
         pat.tile_index_bytes_reference = tile_index.byte_size
+        logger.info(
+            "S2: tile_index loaded (tiles=%d, bytes=%d)",
+            tile_index.frame.height,
+            tile_index.byte_size,
+        )
 
         return PreparedInputs(
             data_root=config.data_root,
@@ -248,6 +260,11 @@ class S2TileWeightsRunner:
         )
 
     def compute_masses(self, prepared: PreparedInputs) -> MassComputation:
+        logger.info(
+            "S2: computing tile masses (basis=%s, rows=%d)",
+            prepared.governed.basis,
+            prepared.tile_index.frame.height,
+        )
         frame = compute_tile_masses(
             tile_index=prepared.tile_index,
             basis=prepared.governed.basis,
@@ -255,6 +272,7 @@ class S2TileWeightsRunner:
             dictionary=prepared.dictionary,
             pat=prepared.pat,
         )
+        logger.info("S2: tile masses computed (rows=%d)", frame.height)
         return MassComputation(frame=frame)
 
     def measure_baselines(self, prepared: PreparedInputs, *, measure_raster: bool = False) -> None:
@@ -316,9 +334,19 @@ class S2TileWeightsRunner:
 
 
     def quantise(self, prepared: PreparedInputs, masses: MassComputation) -> QuantisationResult:
+        logger.info(
+            "S2: quantising tile weights (dp=%d, input_rows=%d)",
+            prepared.governed.dp,
+            masses.frame.height,
+        )
         result = quantise_tile_weights(mass_frame=masses.frame, dp=prepared.governed.dp)
         prepared.pat.countries_processed = len(result.summaries)
         prepared.pat.rows_emitted = result.frame.height
+        logger.info(
+            "S2: quantisation complete (rows=%d, countries=%d)",
+            result.frame.height,
+            len(result.summaries),
+        )
         return result
 
     def materialise(self, prepared: PreparedInputs, quantised: QuantisationResult) -> S2RunResult:
@@ -341,6 +369,11 @@ class S2TileWeightsRunner:
             dataset_frame = quantised.frame.select(
                 ["country_iso", "tile_id", "weight_fp", "dp", "zero_mass_fallback"]
             ).sort(["country_iso", "tile_id"])
+            logger.info(
+                "S2: writing tile_weights partition to %s (rows=%d)",
+                partition_path,
+                dataset_frame.height,
+            )
             dataset_frame.write_parquet(temp_dir / "part-00000.parquet", compression="zstd")
             temp_dir.replace(partition_path)
         except Exception as exc:  # noqa: BLE001 - enforce atomic publish discipline

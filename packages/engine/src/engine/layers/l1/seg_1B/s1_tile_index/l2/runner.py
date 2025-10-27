@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, Mapping, Sequence
@@ -33,6 +34,8 @@ from ...shared.dictionary import (
     render_dataset_path,
     resolve_dataset_path,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class S1RunError(RuntimeError):
@@ -132,18 +135,41 @@ class S1TileIndexRunner:
             render_dataset_path("population_raster_2025", template_args={}, dictionary=dictionary)
         )
 
+        logger.info("S1: loading ISO canonical table from %s", iso_path)
         iso_table = load_iso_countries(iso_path)
+        logger.info("S1: ISO table loaded (rows=%d)", iso_table.table.height)
+
+        logger.info("S1: loading world polygon surface from %s", country_path)
         country_polygons = load_country_polygons(country_path)
+        logger.info("S1: country polygons ready (countries=%d)", len(country_polygons))
+
+        logger.info("S1: loading population raster metadata from %s", raster_path)
         raster = load_population_raster(raster_path)
+        logger.info(
+            "S1: population raster ready (rows=%d, cols=%d)",
+            raster.nrows,
+            raster.ncols,
+        )
 
         start_wall = time.perf_counter()
         start_cpu = time.process_time()
 
+        total_countries = len(country_polygons)
+        logger.info(
+            "S1: enumerating tiles (countries=%d, inclusion_rule=%s)",
+            total_countries,
+            inclusion_rule.value,
+        )
         tile_records, bounds_records, summaries = self._enumerate_tiles(
             inclusion_rule,
             iso_table,
             country_polygons,
             raster,
+        )
+        logger.info(
+            "S1: tile enumeration finished (countries_with_tiles=%d, tiles=%d)",
+            len(summaries),
+            len(tile_records),
         )
 
         tile_df = self._build_tile_index_frame(tile_records)
@@ -162,7 +188,17 @@ class S1TileIndexRunner:
             dictionary=dictionary,
         )
 
+        logger.info(
+            "S1: writing tile_index partition to %s (rows=%d)",
+            tile_index_dir,
+            tile_df.height,
+        )
         self._write_partition(tile_df, tile_index_dir)
+        logger.info(
+            "S1: writing tile_bounds partition to %s (rows=%d)",
+            tile_bounds_dir,
+            bounds_df.height,
+        )
         self._write_partition(bounds_df, tile_bounds_dir)
 
         digest = compute_partition_digest(tile_index_dir)
@@ -242,6 +278,8 @@ class S1TileIndexRunner:
         bounds_records: list[dict] = []
         summaries: Dict[str, CountrySummary] = {}
 
+        total_countries = len(country_polygons)
+        processed = 0
         for country in country_polygons:
             if country.country_iso not in iso_domain:
                 continue
@@ -280,6 +318,14 @@ class S1TileIndexRunner:
                         summary.register_excluded(_point_in_hole(country, point))
             if summary.cells_visited:
                 summaries[country.country_iso] = summary
+            processed += 1
+            if total_countries > 0 and (processed % 25 == 0 or processed == total_countries):
+                logger.info(
+                    "S1: processed %d/%d countries (tiles_emitted=%d)",
+                    processed,
+                    total_countries,
+                    len(tile_records),
+                )
 
         return tile_records, bounds_records, summaries
 
