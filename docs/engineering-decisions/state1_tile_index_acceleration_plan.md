@@ -95,8 +95,14 @@ The acceleration strategy spans four complementary tracks. Each track is indepen
    - *Step 3.4:* implement deterministic shard merge + digest computation, removing worker dirs on success/failure.
    - *Step 3.5:* extend PAT/run-report metrics with `workers_used`, per-worker tiles/sec, and log summary stats.
    - *Step 3.6:* extend the parity regression (Track 4) to exercise multi-worker mode before flipping the default.
-4. Track 4 (validation & rollout):
+4. Track 4 (validation & rollout):
    - Stand up the golden-country regression harness (US/BRA/IND/etc.) and block feature flags until hashes align.
    - Document rollout toggles in `docs/runbooks/segment1a_1b_execution.md` once parallel S1 ships.
+
+## Current Status Snapshot
+- **Track 1:** Delivered. Tight windowing, chunk telemetry, and the regression harness comparing vectorized vs. brute-force enumeration are merged.
+- **Track 2:** Delivered. Window-level mask caching, buffered “any overlap” semantics, row-based geodesic caching, and streaming parquet writes are live; `tests/engine/layers/l1/seg_1B/s1_tile_index/test_windowing_parity.py` guards parity.
+- **Track 3:** In progress. CLI + orchestrator plumbing for `--s1-workers` (Step 3.1) is merged; the runner still executes single-threaded while we build the worker pool and shard-merge logic (Steps 3.2–3.5).
+- **Track 4:** Not started. Golden-country regression + runbook updates will happen once the multi-worker path is feature complete.
 
 This document will track updates as each track is delivered. Once runtime targets are consistently hit, we will freeze the design and mark the decision “Accepted.”
