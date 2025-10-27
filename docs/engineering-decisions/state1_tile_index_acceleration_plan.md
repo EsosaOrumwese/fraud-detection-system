@@ -68,7 +68,10 @@ The acceleration strategy spans four complementary tracks. Each track is indepen
 * Stage logs clearly identify throughput and hotspots for future tuning.
 
 ## Next Steps
-1. Implement Track 1 window tightening + chunk telemetry (owner: Engine L1 team).
+1. Track 1 detailed breakdown (current focus):
+   - **1.A – Exact windowing.** Replace `_raster_window_for_geometry` with a deterministic `dataset.window`/`rowcol` mapping for the polygon bounds (plus fallback). This ensures the chunk iterator only touches cells that truly belong to the country.
+   - **1.B – Chunk instrumentation.** Emit per-chunk telemetry (`country`, row/col span, tiles visited/included, duration) so we can see hot spots immediately in `segment1b_regen*.log`.
+   - **1.C – Validation harness.** Run sampled countries through the tightened window to confirm we still enumerate the exact tile set (hash + count) before moving to later tracks.
 2. Prototype worker-based execution (Track 3) using the existing `_ParquetBatchWriter` to keep writes isolated.
 3. Stand up the regression harness so every optimization is proven before merging.
 4. Document rollout + toggles in `docs/runbooks/segment1a_1b_execution.md` once parallel S1 ships.
