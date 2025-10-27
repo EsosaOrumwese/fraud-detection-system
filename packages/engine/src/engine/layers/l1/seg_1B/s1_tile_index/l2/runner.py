@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
+import os
+import shutil
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, Mapping, Sequence
 from uuid import uuid4
-
-import hashlib
-import os
-import time
 
 import polars as pl
 from rasterio.transform import rowcol
@@ -37,6 +37,48 @@ from ...shared.dictionary import (
 )
 
 logger = logging.getLogger(__name__)
+
+_TILE_COLUMNS = (
+    "country_iso",
+    "tile_id",
+    "inclusion_rule",
+    "raster_row",
+    "raster_col",
+    "centroid_lon",
+    "centroid_lat",
+    "pixel_area_m2",
+)
+
+_TILE_SCHEMA: dict[str, pl.DataType] = {
+    "country_iso": pl.Utf8,
+    "tile_id": pl.UInt64,
+    "inclusion_rule": pl.Utf8,
+    "raster_row": pl.UInt32,
+    "raster_col": pl.UInt32,
+    "centroid_lon": pl.Float64,
+    "centroid_lat": pl.Float64,
+    "pixel_area_m2": pl.Float64,
+}
+
+_BOUNDS_COLUMNS = (
+    "country_iso",
+    "tile_id",
+    "west_lon",
+    "east_lon",
+    "south_lat",
+    "north_lat",
+)
+
+_BOUNDS_SCHEMA: dict[str, pl.DataType] = {
+    "country_iso": pl.Utf8,
+    "tile_id": pl.UInt64,
+    "west_lon": pl.Float64,
+    "east_lon": pl.Float64,
+    "south_lat": pl.Float64,
+    "north_lat": pl.Float64,
+}
+
+_BATCH_SIZE = 200_000
 
 
 class S1RunError(RuntimeError):
@@ -161,21 +203,6 @@ class S1TileIndexRunner:
             total_countries,
             inclusion_rule.value,
         )
-        tile_records, bounds_records, summaries = self._enumerate_tiles(
-            inclusion_rule,
-            iso_table,
-            country_polygons,
-            raster,
-        )
-        logger.info(
-            "S1: tile enumeration finished (countries_with_tiles=%d, tiles=%d)",
-            len(summaries),
-            len(tile_records),
-        )
-
-        tile_df = self._build_tile_index_frame(tile_records)
-        bounds_df = self._build_tile_bounds_frame(bounds_records)
-
         tile_index_dir = resolve_dataset_path(
             "tile_index",
             base_path=data_root,
@@ -188,19 +215,52 @@ class S1TileIndexRunner:
             template_args={"parameter_hash": parameter_hash},
             dictionary=dictionary,
         )
+        if tile_index_dir.exists():
+            raise S1RunError(f"Output partition already exists: {tile_index_dir}")
+        if tile_bounds_dir.exists():
+            raise S1RunError(f"Output partition already exists: {tile_bounds_dir}")
 
-        logger.info(
-            "S1: writing tile_index partition to %s (rows=%d)",
-            tile_index_dir,
-            tile_df.height,
+        tile_temp_dir = tile_index_dir.parent / f".tmp.tile_index.{uuid4().hex}"
+        bounds_temp_dir = tile_bounds_dir.parent / f".tmp.tile_bounds.{uuid4().hex}"
+        tile_temp_dir.mkdir(parents=True, exist_ok=False)
+        bounds_temp_dir.mkdir(parents=True, exist_ok=False)
+
+        tile_writer = _ParquetBatchWriter(
+            temp_dir=tile_temp_dir,
+            columns=_TILE_COLUMNS,
+            schema=_TILE_SCHEMA,
+            batch_size=_BATCH_SIZE,
         )
-        self._write_partition(tile_df, tile_index_dir)
-        logger.info(
-            "S1: writing tile_bounds partition to %s (rows=%d)",
-            tile_bounds_dir,
-            bounds_df.height,
+        bounds_writer = _ParquetBatchWriter(
+            temp_dir=bounds_temp_dir,
+            columns=_BOUNDS_COLUMNS,
+            schema=_BOUNDS_SCHEMA,
+            batch_size=_BATCH_SIZE,
         )
-        self._write_partition(bounds_df, tile_bounds_dir)
+
+        try:
+            summaries, rows_emitted = self._enumerate_tiles(
+                inclusion_rule,
+                iso_table,
+                country_polygons,
+                raster,
+                tile_writer=tile_writer,
+                bounds_writer=bounds_writer,
+            )
+            tile_writer.close()
+            bounds_writer.close()
+        except Exception:
+            tile_writer.abort()
+            bounds_writer.abort()
+            raise
+        logger.info(
+            "S1: tile enumeration finished (countries_with_tiles=%d, tiles=%d)",
+            len(summaries),
+            rows_emitted,
+        )
+
+        tile_temp_dir.replace(tile_index_dir)
+        bounds_temp_dir.replace(tile_bounds_dir)
 
         digest = compute_partition_digest(tile_index_dir)
 
@@ -231,7 +291,7 @@ class S1TileIndexRunner:
             ingress_versions=ingress_versions,
             grid_dims={"nrows": raster.nrows, "ncols": raster.ncols},
             countries_total=len(summaries),
-            rows_emitted=len(tile_records),
+            rows_emitted=rows_emitted,
             determinism_receipt={
                 "partition_path": str(tile_index_dir),
                 "sha256_hex": digest,
@@ -241,13 +301,13 @@ class S1TileIndexRunner:
                 "cpu_seconds_total": cpu_elapsed,
                 "countries_processed": len(summaries),
                 "cells_scanned_total": sum(s.cells_visited for s in summaries.values()),
-                "cells_included_total": len(tile_records),
+                "cells_included_total": rows_emitted,
                 "bytes_read_raster_total": bytes_read_raster,
                 "bytes_read_vectors_total": bytes_read_vectors,
                 "max_worker_rss_bytes": None,
                 "open_files_peak": None,
                 "workers_used": 1,
-                "chunk_size": len(tile_records) if tile_records else 0,
+                "chunk_size": rows_emitted,
                 "io_baseline_raster_bps": None,
                 "io_baseline_vectors_bps": None,
             },
@@ -260,7 +320,7 @@ class S1TileIndexRunner:
             tile_bounds_path=tile_bounds_dir,
             report_path=report_path,
             country_summary_path=summary_path,
-            rows_emitted=len(tile_records),
+            rows_emitted=rows_emitted,
         )
 
     # ------------------------------------------------------------------ #
@@ -273,14 +333,16 @@ class S1TileIndexRunner:
         iso_table: IsoCountryTable,
         country_polygons: CountryPolygons,
         raster: PopulationRaster,
-    ) -> tuple[list[dict], list[dict], Dict[str, CountrySummary]]:
+        *,
+        tile_writer: "_ParquetBatchWriter",
+        bounds_writer: "_ParquetBatchWriter",
+    ) -> tuple[Dict[str, CountrySummary], int]:
         iso_domain = iso_table.codes
-        tile_records: list[dict] = []
-        bounds_records: list[dict] = []
         summaries: Dict[str, CountrySummary] = {}
 
         total_countries = len(country_polygons)
         processed = 0
+        rows_emitted = 0
         for country in country_polygons:
             if country.country_iso not in iso_domain:
                 processed += 1
@@ -318,28 +380,25 @@ class S1TileIndexRunner:
                             bounds=bounds,
                         )
                         summary.register_included(metrics)
-                        tile_records.append(
-                            {
-                                "country_iso": country.country_iso,
-                                "tile_id": metrics.tile_id,
-                                "inclusion_rule": inclusion_rule.value,
-                                "raster_row": metrics.raster_row,
-                                "raster_col": metrics.raster_col,
-                                "centroid_lon": metrics.centroid_lon,
-                                "centroid_lat": metrics.centroid_lat,
-                                "pixel_area_m2": metrics.pixel_area_m2,
-                            }
+                        tile_writer.append_row(
+                            country_iso=country.country_iso,
+                            tile_id=metrics.tile_id,
+                            inclusion_rule=inclusion_rule.value,
+                            raster_row=metrics.raster_row,
+                            raster_col=metrics.raster_col,
+                            centroid_lon=metrics.centroid_lon,
+                            centroid_lat=metrics.centroid_lat,
+                            pixel_area_m2=metrics.pixel_area_m2,
                         )
-                        bounds_records.append(
-                            {
-                                "country_iso": country.country_iso,
-                                "tile_id": metrics.tile_id,
-                                "west_lon": metrics.bounds.west,
-                                "east_lon": metrics.bounds.east,
-                                "south_lat": metrics.bounds.south,
-                                "north_lat": metrics.bounds.north,
-                            }
+                        bounds_writer.append_row(
+                            country_iso=country.country_iso,
+                            tile_id=metrics.tile_id,
+                            west_lon=metrics.bounds.west,
+                            east_lon=metrics.bounds.east,
+                            south_lat=metrics.bounds.south,
+                            north_lat=metrics.bounds.north,
                         )
+                        rows_emitted += 1
                     else:
                         summary.register_excluded(_point_in_hole(country, centroid_point))
             if summary.cells_visited:
@@ -350,72 +409,10 @@ class S1TileIndexRunner:
                     "S1: processed %d/%d countries (tiles_emitted=%d)",
                     processed,
                     total_countries,
-                    len(tile_records),
+                    rows_emitted,
                 )
 
-        return tile_records, bounds_records, summaries
-
-    def _build_tile_index_frame(self, records: Sequence[Mapping[str, object]]) -> pl.DataFrame:
-        if not records:
-            schema = {
-                "country_iso": pl.String,
-                "tile_id": pl.UInt64,
-                "inclusion_rule": pl.String,
-                "raster_row": pl.UInt32,
-                "raster_col": pl.UInt32,
-                "centroid_lon": pl.Float64,
-                "centroid_lat": pl.Float64,
-                "pixel_area_m2": pl.Float64,
-            }
-            return pl.DataFrame(schema=schema).with_columns(pl.col("tile_id").cast(pl.UInt64))
-
-        df = pl.DataFrame(records).with_columns(
-            pl.col("tile_id").cast(pl.UInt64),
-            pl.col("raster_row").cast(pl.UInt32),
-            pl.col("raster_col").cast(pl.UInt32),
-            pl.col("centroid_lon").cast(pl.Float64),
-            pl.col("centroid_lat").cast(pl.Float64),
-            pl.col("pixel_area_m2").cast(pl.Float64),
-        )
-        return df.sort(["country_iso", "tile_id"])
-
-    def _build_tile_bounds_frame(self, records: Sequence[Mapping[str, object]]) -> pl.DataFrame:
-        if not records:
-            schema = {
-                "country_iso": pl.String,
-                "tile_id": pl.UInt64,
-                "west_lon": pl.Float64,
-                "east_lon": pl.Float64,
-                "south_lat": pl.Float64,
-                "north_lat": pl.Float64,
-            }
-            return pl.DataFrame(schema=schema).with_columns(pl.col("tile_id").cast(pl.UInt64))
-
-        df = pl.DataFrame(records).with_columns(
-            pl.col("tile_id").cast(pl.UInt64),
-            pl.col("west_lon").cast(pl.Float64),
-            pl.col("east_lon").cast(pl.Float64),
-            pl.col("south_lat").cast(pl.Float64),
-            pl.col("north_lat").cast(pl.Float64),
-        )
-        return df.sort(["country_iso", "tile_id"])
-
-    def _write_partition(self, frame: pl.DataFrame, final_dir: Path) -> None:
-        final_dir = final_dir.resolve()
-        if final_dir.exists():
-            raise S1RunError(f"Output partition already exists: {final_dir}")
-        temp_dir = final_dir.parent / f".tmp.{uuid4().hex}"
-        temp_dir.mkdir(parents=True, exist_ok=False)
-        try:
-            frame.write_parquet(temp_dir / "part-00000.parquet", compression="zstd")
-            temp_dir.replace(final_dir)
-        except Exception as exc:  # noqa: BLE001 - atomic publish enforcement
-            if temp_dir.exists():
-                for child in temp_dir.glob("**/*"):
-                    if child.is_file():
-                        child.unlink()
-                temp_dir.rmdir()
-            raise S1RunError(f"Failed to publish partition '{final_dir}': {exc}") from exc
+        return summaries, rows_emitted
 
     def _write_country_summaries(self, target: Path, summaries: Iterable[CountrySummary]) -> None:
         lines = []
@@ -431,6 +428,74 @@ class S1TileIndexRunner:
             }
             lines.append(json.dumps(payload))
         target.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+
+
+class _ParquetBatchWriter:
+    """Buffer rows and emit Parquet shards to keep memory usage bounded."""
+
+    def __init__(
+        self,
+        *,
+        temp_dir: Path,
+        columns: Sequence[str],
+        schema: Mapping[str, pl.DataType],
+        batch_size: int,
+    ) -> None:
+        self.temp_dir = temp_dir
+        self.columns = tuple(columns)
+        self.schema = dict(schema)
+        self.batch_size = batch_size
+        self._buffers = {column: [] for column in self.columns}
+        self._rows_written = 0
+        self._shard_index = 0
+        self._closed = False
+
+    @property
+    def rows_written(self) -> int:
+        return self._rows_written
+
+    def append_row(self, **row: object) -> None:
+        if self._closed:
+            raise RuntimeError("Cannot append to a closed writer")
+        for column in self.columns:
+            self._buffers[column].append(row[column])
+        if len(self._buffers[self.columns[0]]) >= self.batch_size:
+            self._flush()
+
+    def close(self) -> None:
+        if self._closed:
+            return
+        self._flush()
+        if not any(self.temp_dir.glob("*.parquet")):
+            empty = self._empty_frame()
+            empty.write_parquet(self.temp_dir / "part-00000.parquet", compression="zstd")
+        self._closed = True
+
+    def abort(self) -> None:
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+        self._closed = True
+
+    def _flush(self) -> None:
+        batch_len = len(self._buffers[self.columns[0]])
+        if batch_len == 0:
+            return
+        data = {column: self._buffers[column] for column in self.columns}
+        df = pl.DataFrame(data).with_columns(
+            [pl.col(column).cast(dtype, strict=False) for column, dtype in self.schema.items()]
+        )
+        shard_path = self.temp_dir / f"part-{self._shard_index:05d}.parquet"
+        df.write_parquet(shard_path, compression="zstd")
+        self._rows_written += batch_len
+        self._shard_index += 1
+        for column in self.columns:
+            self._buffers[column] = []
+
+    def _empty_frame(self) -> pl.DataFrame:
+        series = {
+            column: pl.Series(column, [], dtype=self.schema[column])
+            for column in self.columns
+        }
+        return pl.DataFrame(series)
 
 
 def _raster_window_for_geometry(raster: PopulationRaster, geometry: Polygon) -> tuple[int, int, int, int]:
