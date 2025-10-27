@@ -22,12 +22,13 @@ from ..l0.loaders import (
     CountryPolygons,
     IsoCountryTable,
     PopulationRaster,
+    TileBounds,
     load_country_polygons,
     load_iso_countries,
     load_population_raster,
 )
-from ..l1.geometry import TileMetrics, compute_tile_metrics
-from ..l1.predicates import InclusionRule, evaluate_inclusion
+from ..l1.geometry import TileMetrics
+from ..l1.predicates import InclusionRule
 from ...shared.dictionary import (
     get_dataset_entry,
     load_dictionary,
@@ -282,15 +283,40 @@ class S1TileIndexRunner:
         processed = 0
         for country in country_polygons:
             if country.country_iso not in iso_domain:
+                processed += 1
                 continue
             summary = CountrySummary(country_iso=country.country_iso)
             row_min, row_max, col_min, col_max = _raster_window_for_geometry(raster, country.geometry)
             for row in range(row_min, row_max + 1):
                 for col in range(col_min, col_max + 1):
-                    metrics = compute_tile_metrics(raster, row, col)
-                    point = Point(metrics.centroid_lon, metrics.centroid_lat)
-                    included = evaluate_inclusion(inclusion_rule, country, metrics)
+                    tile_id = raster.tile_id(row, col)
+                    centroid_lon, centroid_lat = raster.tile_centroid(row, col)
+                    centroid_point = Point(centroid_lon, centroid_lat)
+                    included = False
+                    bounds: TileBounds | None = None
+
+                    if inclusion_rule is InclusionRule.CENTER:
+                        included = country.prepared.covers(centroid_point)
+                    else:
+                        bounds = raster.tile_bounds(row, col)
+                        tile_polygon = bounds.to_polygon()
+                        if country.prepared.intersects(tile_polygon):
+                            intersection = country.geometry.intersection(tile_polygon)
+                            included = intersection.area > 0.0
+
                     if included:
+                        if bounds is None:
+                            bounds = raster.tile_bounds(row, col)
+                        pixel_area = raster.tile_area(row, col)
+                        metrics = TileMetrics(
+                            raster_row=row,
+                            raster_col=col,
+                            tile_id=tile_id,
+                            centroid_lon=centroid_lon,
+                            centroid_lat=centroid_lat,
+                            pixel_area_m2=pixel_area,
+                            bounds=bounds,
+                        )
                         summary.register_included(metrics)
                         tile_records.append(
                             {
@@ -315,7 +341,7 @@ class S1TileIndexRunner:
                             }
                         )
                     else:
-                        summary.register_excluded(_point_in_hole(country, point))
+                        summary.register_excluded(_point_in_hole(country, centroid_point))
             if summary.cells_visited:
                 summaries[country.country_iso] = summary
             processed += 1
