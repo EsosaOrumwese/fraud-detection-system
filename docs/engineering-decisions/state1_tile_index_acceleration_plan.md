@@ -88,6 +88,13 @@ The acceleration strategy spans four complementary tracks. Each track is indepen
 4. **Shard merge.** After all futures resolve, the parent process reads each worker’s shards, merges them in deterministic order (sort by `country_iso`, `tile_id`) into the final partition using `_ParquetBatchWriter`, computes the combined digest, and removes the temp directories. Failures trigger cleanup of the worker temp dirs before raising.
 5. **Fallback & toggles.** Keep a CLI flag (`--s1-workers=N` / `--s1-single-thread`) so we can switch between legacy single-thread and the new multiprocess path until parity tests pass in CI. Default to the single-thread path until Track 4 sign-off.
 6. **Validation hook.** During the merge phase, optionally re-hash worker shards or sample rows to confirm ordering before writing the canonical files. Integrate this with the Track 4 regression harness.
+7. **Step-by-step rollout (implementation checkpoints).**
+   - *Step 3.1:* add the CLI/orchestrator plumbing for `--s1-workers`, default=1, retaining the current single-process behavior as the fallback path.
+   - *Step 3.2:* factor per-country enumeration into a worker-safe function that reopens ingress artefacts and writes to per-worker shard directories.
+   - *Step 3.3:* wire the parent executor loop (submit jobs, capture futures, aggregate per-worker telemetry, handle cancellation/cleanup).
+   - *Step 3.4:* implement deterministic shard merge + digest computation, removing worker dirs on success/failure.
+   - *Step 3.5:* extend PAT/run-report metrics with `workers_used`, per-worker tiles/sec, and log summary stats.
+   - *Step 3.6:* extend the parity regression (Track 4) to exercise multi-worker mode before flipping the default.
 4. Track 4 (validation & rollout):
    - Stand up the golden-country regression harness (US/BRA/IND/etc.) and block feature flags until hashes align.
    - Document rollout toggles in `docs/runbooks/segment1a_1b_execution.md` once parallel S1 ships.

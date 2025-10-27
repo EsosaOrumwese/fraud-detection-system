@@ -56,6 +56,7 @@ def _command_run(args: argparse.Namespace) -> int:
             notes=args.notes,
             validation_bundle_path=args.validation_bundle,
             skip_s0=args.skip_s0,
+            s1_workers=args.s1_workers,
         )
     )
 
@@ -302,6 +303,12 @@ def main(argv: list[str] | None = None) -> int:
     run_parser.add_argument("--validation-bundle", type=Path)
     run_parser.add_argument("--notes")
     run_parser.add_argument("--skip-s0", action="store_true")
+    run_parser.add_argument(
+        "--s1-workers",
+        type=int,
+        default=1,
+        help="Number of worker processes for S1 tile index (experimental).",
+    )
 
     validate_parser = subparsers.add_parser("validate", help="Validate tile_weights output")
     validate_parser.add_argument("--data-root", type=Path, default=Path("."))

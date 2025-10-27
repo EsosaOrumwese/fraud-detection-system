@@ -96,6 +96,7 @@ class RunnerConfig:
     parameter_hash: str
     inclusion_rule: str = "center"
     dictionary: Mapping[str, object] | None = None
+    workers: int = 1
 
 
 @dataclass
@@ -166,6 +167,13 @@ class S1TileIndexRunner:
         data_root = config.data_root.resolve()
         parameter_hash = config.parameter_hash
         inclusion_rule = InclusionRule.parse(config.inclusion_rule)
+        worker_count = max(1, config.workers)
+        if worker_count != 1:
+            logger.info(
+                "S1: multi-worker execution requested (%d) — fallback to single process (Track 3 pending)",
+                worker_count,
+            )
+            worker_count = 1
 
         iso_path = data_root / Path(
             render_dataset_path("iso3166_canonical_2024", template_args={}, dictionary=dictionary)
@@ -305,7 +313,7 @@ class S1TileIndexRunner:
                 "bytes_read_vectors_total": bytes_read_vectors,
                 "max_worker_rss_bytes": None,
                 "open_files_peak": None,
-                "workers_used": 1,
+                "workers_used": worker_count,
                 "chunk_size": rows_emitted,
                 "io_baseline_raster_bps": None,
                 "io_baseline_vectors_bps": None,

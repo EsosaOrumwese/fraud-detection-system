@@ -55,6 +55,7 @@ class Segment1BConfig:
     notes: Optional[str] = None
     validation_bundle_path: Optional[Path] = None
     skip_s0: bool = False
+    s1_workers: int = 1
 
 
 @dataclass(frozen=True)
@@ -127,6 +128,7 @@ class Segment1BOrchestrator:
                 data_root=data_root,
                 parameter_hash=config.parameter_hash,
                 dictionary=dictionary,
+                workers=max(1, config.s1_workers),
             )
         )
         logger.info(
