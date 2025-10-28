@@ -70,3 +70,22 @@ Applies to `packages/engine/src/engine/layers/l1/seg_1B/s1_tile_index/**`, the a
 - Regression suite confirms deterministic outputs across seeds, worker counts, and inclusion rules.
 
 Once these criteria are met, merge the addendum back into the primary decision document and mark both plans as “Accepted”.
+
+## Profiling Snapshot (2025-10-27)
+
+- Harness: `python -m cProfile -o docs/perf/segment1b_s1/s1_subset_workers12.pstats scratch_files/run_s1_profile.py` (12-country heavy subset, `--workers=12`)  
+  - Wall clock ≈ 2 442 s, 139 M tiles emitted, 57 k tiles/sec aggregate.  
+  - Worker telemetry shows RU alone consumes ~2 444 s despite multiprocessing, signalling the need for cost-aware scheduling.
+- Single-process baseline: `docs/perf/segment1b_s1/s1_subset_single.pstats` (same subset, `--mode single`)  
+  - Wall clock ≈ 12 137 s, 11.5 k tiles/sec.  
+  - Hotspots (cumulative time) align with the Stage 2 action items:  
+    1. `tile_bounds` / `rasterio.transform.xy` (affine transforms) ≈ 18 ks combined.  
+    2. `_ParquetBatchWriter.append_row` + Polars frame construction ≈ 1.8 ks.  
+    3. `record_included_tile` / per-row bookkeeping ≈ 0.6 ks.  
+  - Confirms vectorising chunk geometry and batching writes should yield the steepest gains.
+- All profiling artefacts live in `docs/perf/segment1b_s1/`; scripts to reproduce:  
+  - `scratch_files/run_s1_profile.py` (subset runner with single/multi mode).  
+  - `scratch_files/show_profile_stats.py` (quick pstats inspection).  
+  - `scratch_files/top_countries.py` (rank countries by raster footprint for targeted subsets).
+
+These numbers establish the baseline against which the upcoming optimisation work will be measured.
