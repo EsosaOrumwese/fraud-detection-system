@@ -134,12 +134,16 @@ def ensure_iso_fk(frame: pl.DataFrame, iso_codes: Set[str]) -> None:
 def ensure_weights_coverage(
     frame: pl.DataFrame,
     tile_weight_countries: Iterable[str],
+    ignored_countries: Iterable[str] | None = None,
 ) -> None:
     """Ensure every requirements country is present in the tile weights partition."""
 
     coverage = set(tile_weight_countries)
+    ignored = set(ignored_countries or ())
     missing = sorted(
-        code for code in frame.get_column("legal_country_iso").to_list() if code not in coverage
+        code
+        for code in frame.get_column("legal_country_iso").to_list()
+        if code not in coverage and code not in ignored
     )
     if missing:
         raise err(

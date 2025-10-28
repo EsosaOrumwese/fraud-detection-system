@@ -84,13 +84,34 @@ class S3RequirementsValidator:
             dictionary=dictionary,
         )
         iso_table = load_iso_countries(base_path=config.data_root, dictionary=dictionary)
+        synthetic_codes = frozenset(
+            iso_table.table
+            .with_columns(pl.col("region").cast(pl.Utf8).str.to_uppercase().alias("region_norm"))
+            .filter(pl.col("region_norm") == "SYNTHETIC")
+            .get_column("country_iso")
+            .to_list()
+        )
+        if synthetic_codes:
+            synthetic_present = (
+                frame.filter(pl.col("legal_country_iso").is_in(sorted(synthetic_codes)))
+                .get_column("legal_country_iso")
+                .to_list()
+            )
+            if synthetic_present:
+                raise err(
+                    "E305_SCHEMA_INVALID",
+                    f"s3_requirements contains synthetic ISO codes: {sorted(set(synthetic_present))}",
+                )
 
         expected = aggregate_site_requirements(outlet.frame)
         ensure_positive_counts(expected)
         ensure_iso_fk(expected, set(iso_table.codes))
+        if synthetic_codes:
+            expected = expected.filter(~pl.col("legal_country_iso").is_in(sorted(synthetic_codes)))
         ensure_weights_coverage(
             expected,
             tile_weights.frame.get_column("country_iso").cast(pl.Utf8).to_list(),
+            ignored_countries=synthetic_codes,
         )
 
         _ensure_counts_match(frame, expected)
