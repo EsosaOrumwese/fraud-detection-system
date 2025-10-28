@@ -28,6 +28,8 @@ def ensure_primary_key_integrity(partition: TileIndexPartition) -> None:
     """Guarantee ``(country_iso, tile_id)`` uniqueness within the partition."""
 
     frame = partition.frame
+    if frame is None:
+        return
     duplicates = frame.select(
         (
             (pl.col("country_iso") == pl.col("country_iso").shift(1))
@@ -42,8 +44,30 @@ def ensure_primary_key_integrity(partition: TileIndexPartition) -> None:
 
 
 def ensure_sorted_by_dictionary(partition: TileIndexPartition) -> None:
-    """Placeholder sortedness check (temporarily disabled pending S1 global order fix)."""
-    return None
+    """Confirm the partition is sorted by the dictionary's writer order."""
+
+    frame = partition.frame
+    if frame is None:
+        return
+    iso_backslide = frame.select(
+        (pl.col("country_iso") < pl.col("country_iso").shift(1)).fill_null(False)
+    ).to_series()
+    if bool(iso_backslide.any()):
+        raise err(
+            "E101_TILE_INDEX_MISSING",
+            "tile_index partition must be sorted by ['country_iso', 'tile_id']",
+        )
+    tile_backslide = frame.select(
+        (
+            (pl.col("country_iso") == pl.col("country_iso").shift(1))
+            & (pl.col("tile_id") < pl.col("tile_id").shift(1))
+        ).fill_null(False)
+    ).to_series()
+    if bool(tile_backslide.any()):
+        raise err(
+            "E101_TILE_INDEX_MISSING",
+            "tile_index partition must be sorted by ['country_iso', 'tile_id']",
+        )
 
 
 def validate_tile_index(

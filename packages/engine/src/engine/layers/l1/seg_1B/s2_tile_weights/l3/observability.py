@@ -7,8 +7,7 @@ from typing import Mapping, TYPE_CHECKING
 from ...shared.dictionary import get_dataset_entry
 
 if TYPE_CHECKING:
-    from ..l2.runner import PreparedInputs
-    from ..l1.quantize import QuantisationResult
+    from ..l2.runner import PreparedInputs, QuantisationResult
 
 
 def build_run_report(
@@ -35,7 +34,7 @@ def build_run_report(
         "parameter_hash": prepared.tile_index.parameter_hash,
         "basis": prepared.governed.basis,
         "dp": prepared.governed.dp,
-        "rows_emitted": quantised.frame.height,
+        "rows_emitted": quantised.rows_emitted,
         "countries_total": len(quantised.summaries),
         "ingress_versions": ingress_versions,
         "pat": prepared.pat.to_dict(),

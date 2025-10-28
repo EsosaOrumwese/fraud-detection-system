@@ -9,19 +9,32 @@ import uuid
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Mapping, MutableMapping
+from typing import Mapping, MutableMapping, Sequence, TYPE_CHECKING
 
+import numpy as np
 import polars as pl
+import rasterio
+from rasterio.windows import Window
 
-from engine.layers.l1.seg_1B.s1_tile_index.l0.loaders import IsoCountryTable, load_iso_countries
+from engine.layers.l1.seg_1B.s1_tile_index.l0.loaders import (
+    IsoCountryTable,
+    load_iso_countries,
+    load_population_raster,
+)
 from engine.layers.l1.seg_1B.s1_tile_index.l2.runner import compute_partition_digest
 
 from ...shared.dictionary import get_dataset_entry, load_dictionary, resolve_dataset_path
 from ..exceptions import S2Error, err
-from ..l0.tile_index import TileIndexPartition, load_tile_index_partition
-from ..l1 import QuantisationResult, compute_tile_masses, quantise_tile_weights
+from ..l0.tile_index import (
+    CountryTileBatch,
+    TileIndexPartition,
+    iter_tile_index_countries,
+    load_tile_index_partition,
+)
 from ..l3 import build_run_report
-from ..l1.guards import validate_tile_index
+
+if TYPE_CHECKING:
+    from rasterio.io import DatasetReader
 
 
 ALLOWED_BASES = frozenset({"uniform", "area_m2", "population"})
@@ -186,10 +199,31 @@ class PreparedInputs:
 
 @dataclass(frozen=True)
 class MassComputation:
-    """Mass table derived from governed basis."""
+    """Streaming context for governed mass computation."""
 
-    frame: pl.DataFrame
+    columns: tuple[str, ...]
+    partition: TileIndexPartition
+    raster_reader: "DatasetReader | None"
+    raster_dtype: np.dtype | None
+    raster_nodata: float | int | None
+    rows: int
 
+    def close(self) -> None:
+        """Release any transient resources held by the mass computation context."""
+
+        reader = getattr(self, "raster_reader", None)
+        if reader is not None and not reader.closed:
+            reader.close()
+
+
+@dataclass(frozen=True)
+class QuantisationResult:
+    """Streaming quantisation result."""
+
+    temp_dir: Path
+    rows_emitted: int
+    summaries: list[dict[str, object]]
+    dp: int
 
 
 @dataclass(frozen=True)
@@ -239,13 +273,13 @@ class S2TileWeightsRunner:
             base_path=config.data_root,
             parameter_hash=config.parameter_hash,
             dictionary=dictionary,
+            eager=False,
         )
-        validate_tile_index(partition=tile_index, iso_table=iso_table)
         pat.bytes_read_tile_index_total += tile_index.byte_size
         pat.tile_index_bytes_reference = tile_index.byte_size
         logger.info(
             "S2: tile_index loaded (tiles=%d, bytes=%d)",
-            tile_index.frame.height,
+            tile_index.rows,
             tile_index.byte_size,
         )
 
@@ -263,17 +297,46 @@ class S2TileWeightsRunner:
         logger.info(
             "S2: computing tile masses (basis=%s, rows=%d)",
             prepared.governed.basis,
-            prepared.tile_index.frame.height,
+            prepared.tile_index.rows,
         )
-        frame = compute_tile_masses(
-            tile_index=prepared.tile_index,
-            basis=prepared.governed.basis,
-            data_root=prepared.data_root,
-            dictionary=prepared.dictionary,
-            pat=prepared.pat,
+        columns: list[str] = ["country_iso", "tile_id"]
+        basis = prepared.governed.basis
+        if basis in {"area_m2", "population"}:
+            columns.append("pixel_area_m2")
+        if basis == "population":
+            columns.extend(["raster_row", "raster_col"])
+
+        raster_reader: DatasetReader | None = None
+        raster_dtype: np.dtype | None = None
+        raster_nodata: float | int | None = None
+        if basis == "population":
+            raster_path = resolve_dataset_path(
+                "population_raster_2025",
+                base_path=prepared.data_root,
+                template_args={},
+                dictionary=prepared.dictionary,
+            )
+            raster_info = load_population_raster(raster_path)
+            raster_reader = rasterio.open(raster_info.path)
+            raster_nodata = raster_reader.nodata
+            raster_dtype = np.dtype(raster_reader.dtypes[0])
+            raster_size_bytes = int(raster_reader.width) * int(raster_reader.height) * int(raster_dtype.itemsize)
+            prepared.pat.raster_bytes_reference = max(
+                prepared.pat.raster_bytes_reference,
+                raster_size_bytes,
+                int(raster_path.stat().st_size) if raster_path.exists() else 0,
+            )
+
+        mass_context = MassComputation(
+            columns=tuple(dict.fromkeys(columns)),
+            partition=prepared.tile_index,
+            raster_reader=raster_reader,
+            raster_dtype=raster_dtype,
+            raster_nodata=raster_nodata,
+            rows=prepared.tile_index.rows,
         )
-        logger.info("S2: tile masses computed (rows=%d)", frame.height)
-        return MassComputation(frame=frame)
+        logger.info("S2: mass computation context ready (rows=%d)", mass_context.rows)
+        return mass_context
 
     def measure_baselines(self, prepared: PreparedInputs, *, measure_raster: bool = False) -> None:
         """Measure sustained read throughput for PAT baselines."""
@@ -334,20 +397,98 @@ class S2TileWeightsRunner:
 
 
     def quantise(self, prepared: PreparedInputs, masses: MassComputation) -> QuantisationResult:
-        logger.info(
-            "S2: quantising tile weights (dp=%d, input_rows=%d)",
-            prepared.governed.dp,
-            masses.frame.height,
-        )
-        result = quantise_tile_weights(mass_frame=masses.frame, dp=prepared.governed.dp)
-        prepared.pat.countries_processed = len(result.summaries)
-        prepared.pat.rows_emitted = result.frame.height
+        dp = prepared.governed.dp
+        logger.info("S2: quantising tile weights (dp=%d)", dp)
+
+        temp_dir = prepared.data_root / "data" / "layer1" / "1B" / "tile_weights" / f".tmp.s2_quantise.{uuid.uuid4().hex}"
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir, ignore_errors=True)
+        writer = _TileWeightsBatchWriter(temp_dir=temp_dir)
+
+        summaries: list[dict[str, object]] = []
+        rows_emitted = 0
+        iso_seen: set[str] = set()
+
+        try:
+            for batch in iter_tile_index_countries(
+                masses.partition,
+                columns=masses.columns,
+            ):
+                iso = batch.iso
+                iso_seen.add(iso)
+                tile_ids = batch.tile_id.astype(np.uint64, copy=False)
+                if tile_ids.size == 0:
+                    continue
+
+                if tile_ids.size > 1 and np.any(np.diff(tile_ids) <= 0):
+                    raise err(
+                        "E101_TILE_INDEX_MISSING",
+                        f"tile_index for country {iso} is not strictly increasing by tile_id",
+                    )
+
+                masses_array = self._compute_country_masses(batch, prepared, masses)
+                weights_fp, residue_allocations, fallback, mass_sum, weight_sum = self._quantise_country(
+                    iso=iso,
+                    tile_ids=tile_ids,
+                    masses=masses_array,
+                    dp=dp,
+                )
+
+                country_column = np.full(tile_ids.size, iso, dtype="U4")
+                dp_column = np.full(tile_ids.size, dp, dtype=np.uint32)
+                fallback_column = np.full(tile_ids.size, fallback, dtype=bool)
+
+                writer.append_batch(
+                    country_iso=country_column,
+                    tile_id=tile_ids,
+                    weight_fp=weights_fp,
+                    dp=dp_column,
+                    zero_mass_fallback=fallback_column,
+                )
+
+                rows_emitted += tile_ids.size
+                summaries.append(
+                    {
+                        "country_iso": iso,
+                        "tiles": int(tile_ids.size),
+                        "mass_sum": float(mass_sum),
+                        "prequant_sum_real": float(weight_sum),
+                        "K": int(10**dp),
+                        "postquant_sum_fp": int(weights_fp.sum()),
+                        "residue_allocations": int(residue_allocations),
+                        "zero_mass_fallback": bool(fallback),
+                    }
+                )
+        except Exception:
+            writer.abort()
+            raise
+        else:
+            writer.close()
+        finally:
+            masses.close()
+
+        prepared.pat.countries_processed = len(summaries)
+        prepared.pat.rows_emitted = rows_emitted
+
+        iso_codes = frozenset(prepared.iso_table.codes)
+        if not iso_seen.issubset(iso_codes):
+            unknown = sorted(iso_seen.difference(iso_codes))
+            raise err(
+                "E102_FK_MISMATCH",
+                f"tile_index contains country_iso values not present in ISO surface: {unknown}",
+            )
+
         logger.info(
             "S2: quantisation complete (rows=%d, countries=%d)",
-            result.frame.height,
-            len(result.summaries),
+            rows_emitted,
+            len(summaries),
         )
-        return result
+        return QuantisationResult(
+            temp_dir=temp_dir,
+            rows_emitted=rows_emitted,
+            summaries=summaries,
+            dp=dp,
+        )
 
     def materialise(self, prepared: PreparedInputs, quantised: QuantisationResult) -> S2RunResult:
         dictionary = prepared.dictionary
@@ -363,22 +504,11 @@ class S2TileWeightsRunner:
                 f"tile_weights partition '{partition_path}' already exists",
             )
 
-        temp_dir = partition_path.parent / f".tmp.{uuid.uuid4().hex}"
-        temp_dir.mkdir(parents=True, exist_ok=False)
         try:
-            dataset_frame = quantised.frame.select(
-                ["country_iso", "tile_id", "weight_fp", "dp", "zero_mass_fallback"]
-            ).sort(["country_iso", "tile_id"])
-            logger.info(
-                "S2: writing tile_weights partition to %s (rows=%d)",
-                partition_path,
-                dataset_frame.height,
-            )
-            dataset_frame.write_parquet(temp_dir / "part-00000.parquet", compression="zstd")
-            temp_dir.replace(partition_path)
+            quantised.temp_dir.replace(partition_path)
         except Exception as exc:  # noqa: BLE001 - enforce atomic publish discipline
-            if temp_dir.exists():
-                shutil.rmtree(temp_dir, ignore_errors=True)
+            if quantised.temp_dir.exists():
+                shutil.rmtree(quantised.temp_dir, ignore_errors=True)
             raise err(
                 "E108_WRITER_HYGIENE",
                 f"failed to publish tile_weights partition: {exc}",
@@ -419,6 +549,123 @@ class S2TileWeightsRunner:
             determinism_receipt=determinism_receipt,
         )
 
+    def _compute_country_masses(
+        self,
+        batch: CountryTileBatch,
+        prepared: PreparedInputs,
+        masses: MassComputation,
+    ) -> np.ndarray:
+        basis = prepared.governed.basis
+        rows = batch.rows
+        if basis == "uniform":
+            return np.ones(rows, dtype=np.float64)
+        if basis == "area_m2":
+            if batch.pixel_area_m2 is None:
+                raise err("E105_NORMALIZATION", f"pixel_area_m2 missing for country {batch.iso}")
+            return batch.pixel_area_m2.astype(np.float64, copy=False)
+        if basis == "population":
+            if (
+                masses.raster_reader is None
+                or batch.raster_row is None
+                or batch.raster_col is None
+                or masses.raster_dtype is None
+            ):
+                raise err("E105_NORMALIZATION", "population basis requires raster metadata")
+            rows_idx = batch.raster_row.astype(np.int64, copy=False)
+            cols_idx = batch.raster_col.astype(np.int64, copy=False)
+            intensities = np.empty(rows_idx.size, dtype=np.float64)
+            bytes_read = 0
+            dtype_itemsize = int(masses.raster_dtype.itemsize)
+            row_order = np.argsort(rows_idx, kind="mergesort")
+            sorted_rows = rows_idx[row_order]
+            sorted_cols = cols_idx[row_order]
+            row_boundaries = np.flatnonzero(sorted_rows[1:] != sorted_rows[:-1]) + 1
+            row_segments = np.concatenate(([0], row_boundaries, [sorted_rows.size]))
+            for row_start, row_end in zip(row_segments[:-1], row_segments[1:]):
+                row_value = int(sorted_rows[row_start])
+                row_positions = row_order[row_start:row_end]
+                row_cols_subset = sorted_cols[row_start:row_end]
+                col_order = np.argsort(row_cols_subset, kind="mergesort")
+                sorted_positions = row_positions[col_order]
+                sorted_cols_for_row = row_cols_subset[col_order]
+                col_boundaries = np.flatnonzero(np.diff(sorted_cols_for_row) != 1) + 1
+                col_segments = np.concatenate(([0], col_boundaries, [sorted_cols_for_row.size]))
+                for seg_start, seg_end in zip(col_segments[:-1], col_segments[1:]):
+                    seg_positions = sorted_positions[seg_start:seg_end]
+                    seg_cols = sorted_cols_for_row[seg_start:seg_end]
+                    if seg_cols.size == 0:
+                        continue
+                    col_min = int(seg_cols[0])
+                    col_max = int(seg_cols[-1])
+                    width = int(col_max - col_min + 1)
+                    window = Window(
+                        row_off=row_value,
+                        col_off=col_min,
+                        height=1,
+                        width=width,
+                    )
+                    raster_slice = masses.raster_reader.read(1, window=window, masked=False)
+                    if raster_slice.ndim != 2:
+                        raise err(
+                            "E105_NORMALIZATION",
+                            f"population raster returned unexpected shape for country {batch.iso}",
+                        )
+                    row_values = raster_slice[0].astype(np.float64, copy=False)
+                    offsets = seg_cols - col_min
+                    intensities[seg_positions] = row_values[offsets]
+                    bytes_read += width * dtype_itemsize
+            prepared.pat.bytes_read_raster_total += bytes_read
+            nodata = masses.raster_nodata
+            if nodata is not None:
+                mask = np.isclose(intensities, nodata, equal_nan=True)
+                if mask.any():
+                    intensities = intensities.copy()
+                    intensities[mask] = 0.0
+            if not np.isfinite(intensities).all():
+                raise err(
+                    "E105_NORMALIZATION",
+                    f"population raster produced non-finite intensities for country {batch.iso}",
+                )
+            return intensities
+        raise ValueError(f"unsupported basis '{basis}'")
+
+    def _quantise_country(
+        self,
+        *,
+        iso: str,
+        tile_ids: np.ndarray,
+        masses: np.ndarray,
+        dp: int,
+    ) -> tuple[np.ndarray, int, bool, float, float]:
+        K = 10**dp
+        masses = masses.astype(np.float64, copy=False)
+        mass_sum = float(np.sum(masses, dtype=np.float64))
+        fallback = False
+        if mass_sum <= 0.0 or not np.isfinite(mass_sum):
+            fallback = True
+            masses = np.ones_like(masses, dtype=np.float64)
+            mass_sum = float(np.sum(masses, dtype=np.float64))
+        weights = masses / mass_sum
+        quotas = weights * K
+        base = np.floor(quotas).astype(np.int64)
+        residues = quotas - base
+        base_sum = int(base.sum())
+        shortfall = int(round(K - base_sum))
+        if shortfall > 0:
+            order = np.lexsort((tile_ids, -residues))
+            base[order[:shortfall]] += 1
+        elif shortfall < 0:
+            order = np.lexsort((tile_ids, residues))
+            base[order[: -shortfall]] -= 1
+        if int(base.sum()) != K:
+            raise err(
+                "E105_NORMALIZATION",
+                f"quantisation sum mismatch for country {iso}",
+            )
+        weights_fp = base.astype(np.uint64, copy=False)
+        residue_allocations = max(shortfall, 0)
+        return weights_fp, residue_allocations, fallback, mass_sum, float(weights.sum())
+
 
 __all__ = [
     "PatCounters",
@@ -431,3 +678,100 @@ __all__ = [
     "S2TileWeightsRunner",
     "S2Error",
 ]
+
+
+class _TileWeightsBatchWriter:
+    """Buffer rows and emit Parquet shards for tile_weights."""
+
+    _columns: tuple[str, ...] = (
+        "country_iso",
+        "tile_id",
+        "weight_fp",
+        "dp",
+        "zero_mass_fallback",
+    )
+    _schema: Mapping[str, pl.DataType] = {
+        "country_iso": pl.Utf8,
+        "tile_id": pl.UInt64,
+        "weight_fp": pl.UInt64,
+        "dp": pl.UInt32,
+        "zero_mass_fallback": pl.Boolean,
+    }
+
+    def __init__(self, *, temp_dir: Path, batch_size: int = 1_000_000) -> None:
+        self.temp_dir = temp_dir
+        self.batch_size = batch_size
+        self.temp_dir.mkdir(parents=True, exist_ok=False)
+        self._buffers: dict[str, list[np.ndarray]] = {column: [] for column in self._columns}
+        self._rows_buffered = 0
+        self._rows_written = 0
+        self._shard_index = 0
+        self._closed = False
+
+    def append_batch(
+        self,
+        *,
+        country_iso: np.ndarray,
+        tile_id: np.ndarray,
+        weight_fp: np.ndarray,
+        dp: np.ndarray,
+        zero_mass_fallback: np.ndarray,
+    ) -> None:
+        if self._closed:
+            raise RuntimeError("Cannot append to a closed writer")
+        arrays = {
+            "country_iso": country_iso,
+            "tile_id": tile_id,
+            "weight_fp": weight_fp,
+            "dp": dp,
+            "zero_mass_fallback": zero_mass_fallback,
+        }
+        length = len(tile_id)
+        for column, values in arrays.items():
+            if len(values) != length:
+                raise ValueError(f"Column '{column}' length mismatch in append_batch")
+            self._buffers[column].append(values)
+        self._rows_buffered += length
+        if self._rows_buffered >= self.batch_size:
+            self._flush()
+
+    def close(self) -> None:
+        if self._closed:
+            return
+        self._flush()
+        if not any(self.temp_dir.glob("*.parquet")):
+            frame = pl.DataFrame(
+                {column: pl.Series(column, [], dtype=self._schema[column]) for column in self._columns}
+            )
+            frame.write_parquet(self.temp_dir / "part-00000.parquet", compression="zstd")
+        self._closed = True
+
+    def abort(self) -> None:
+        shutil.rmtree(self.temp_dir, ignore_errors=True)
+        self._closed = True
+
+    def _flush(self) -> None:
+        if self._rows_buffered == 0:
+            return
+        data: dict[str, np.ndarray] = {}
+        for column in self._columns:
+            parts = self._buffers[column]
+            if not parts:
+                raise RuntimeError(f"No buffered data present for column '{column}' during flush")
+            data[column] = np.concatenate(parts)
+            self._buffers[column] = []
+        frame = pl.DataFrame(
+            {
+                column: pl.Series(
+                    name=column,
+                    values=data[column],
+                    dtype=self._schema[column],
+                )
+                for column in self._columns
+            }
+        )
+        shard_name = f"part-{self._shard_index:05d}.parquet"
+        frame.write_parquet(self.temp_dir / shard_name, compression="zstd")
+        self._rows_written += frame.height
+        self._shard_index += 1
+        self._rows_buffered = 0
