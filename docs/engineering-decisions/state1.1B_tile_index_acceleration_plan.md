@@ -83,6 +83,10 @@ Once these criteria are met, merge the addendum back into the primary decision d
     2. `_ParquetBatchWriter.append_row` + Polars frame construction ≈ 1.8 ks.  
     3. `record_included_tile` / per-row bookkeeping ≈ 0.6 ks.  
   - Confirms vectorising chunk geometry and batching writes should yield the steepest gains.
+- Post-vectorisation results (2025-10-28):  
+  - Multi-worker (`docs/perf/segment1b_s1/s1_subset_workers12_after.pstats`): 49.3 s wall clock, 2.84 M tiles/sec aggregate.  
+  - Single-worker (`docs/perf/segment1b_s1/s1_subset_single_after.pstats`): 88.6 s wall clock, 1.58 M tiles/sec.  
+  - Remaining hot spots are parquet frame materialisation (≈ 23 s cumulative) and worker-pool coordination; per-tile geometry now negligible.
 - All profiling artefacts live in `docs/perf/segment1b_s1/`; scripts to reproduce:  
   - `scratch_files/run_s1_profile.py` (subset runner with single/multi mode).  
   - `scratch_files/show_profile_stats.py` (quick pstats inspection).  

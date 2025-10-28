@@ -18,7 +18,7 @@ import numpy as np
 import polars as pl
 import rasterio.features
 import rasterio.windows
-from rasterio.transform import rowcol
+from rasterio.transform import rowcol, xy
 from shapely import wkb
 from shapely.geometry import Polygon, mapping
 from shapely.geometry.base import BaseGeometry
@@ -125,6 +125,16 @@ class CountrySummary:
             self.tile_id_min = tile_id
         if self.tile_id_max is None or tile_id > self.tile_id_max:
             self.tile_id_max = tile_id
+
+    def record_included_tiles(self, tile_ids: np.ndarray) -> None:
+        if tile_ids.size == 0:
+            return
+        tile_min = int(tile_ids.min())
+        tile_max = int(tile_ids.max())
+        if self.tile_id_min is None or tile_min < self.tile_id_min:
+            self.tile_id_min = tile_min
+        if self.tile_id_max is None or tile_max > self.tile_id_max:
+            self.tile_id_max = tile_max
 
 
 @dataclass
@@ -599,6 +609,7 @@ class S1TileIndexRunner:
             iso_domain = iso_codes
         prefix = f"[{worker_label}] " if worker_label else ""
         summaries: Dict[str, CountrySummary] = {}
+        pixel_area_cache = np.full(raster.nrows, np.nan, dtype=np.float64)
         total_countries = len(country_polygons)
         processed = 0
         rows_emitted = 0
@@ -660,38 +671,25 @@ class S1TileIndexRunner:
                     dtype="uint8",
                     all_touched=False,
                 )
-            area_cache: Dict[int, float] = {}
             chunk_counter = 0
 
             for row_start in range(row_min, row_max + 1, _CHUNK_SIZE):
                 chunk_height = min(_CHUNK_SIZE, row_max - row_start + 1)
-                rows = np.arange(row_start, row_start + chunk_height, dtype=np.int32)
                 local_row_start = row_start - row_min
                 local_row_end = local_row_start + chunk_height
                 for col_start in range(col_min, col_max + 1, _CHUNK_SIZE):
                     chunk_width = min(_CHUNK_SIZE, col_max - col_start + 1)
-                    cols = np.arange(col_start, col_start + chunk_width, dtype=np.int32)
                     local_col_start = col_start - col_min
                     local_col_end = local_col_start + chunk_width
-                    chunk_window = rasterio.windows.Window(
-                        col_start,
-                        row_start,
-                        chunk_width,
-                        chunk_height,
-                    )
-                    chunk_transform = rasterio.windows.transform(chunk_window, raster.transform)
                     chunk_counter += 1
                     chunk_start = time.perf_counter()
 
-                    chunk_mask = window_mask[
-                        local_row_start:local_row_end, local_col_start:local_col_end
-                    ]
-                    included_count = int(chunk_mask.sum())
+                    chunk_mask = window_mask[local_row_start:local_row_end, local_col_start:local_col_end]
+                    included_mask = chunk_mask == 1
+                    included_count = int(included_mask.sum())
                     hole_count = 0
                     if hole_mask_full is not None:
-                        chunk_holes = hole_mask_full[
-                            local_row_start:local_row_end, local_col_start:local_col_end
-                        ]
+                        chunk_holes = hole_mask_full[local_row_start:local_row_end, local_col_start:local_col_end]
                         hole_count = int(chunk_holes.sum())
                     chunk_total = chunk_height * chunk_width
                     summary.record_batch(
@@ -715,51 +713,79 @@ class S1TileIndexRunner:
                         )
                         continue
 
-                    col_grid, row_grid = np.meshgrid(cols, rows, indexing="xy")
-                    lon_grid = (
-                        raster.transform.c
-                        + col_grid * raster.transform.a
-                        + row_grid * raster.transform.b
-                    )
-                    lat_grid = (
-                        raster.transform.f
-                        + col_grid * raster.transform.d
-                        + row_grid * raster.transform.e
-                    )
-                    included_indices = np.argwhere(chunk_mask == 1)
-                    for local_row, local_col in included_indices:
-                        row = int(row_start + int(local_row))
-                        col = int(col_start + int(local_col))
-                        tile_id = raster.tile_id(row, col)
-                        bounds = raster.tile_bounds(row, col)
-                        if row in area_cache:
-                            pixel_area = area_cache[row]
-                        else:
-                            pixel_area = raster.tile_area(row, col)
-                            area_cache[row] = pixel_area
-                        centroid_lon = float(lon_grid[local_row, local_col])
-                        centroid_lat = float(lat_grid[local_row, local_col])
+                    flat_indices = np.flatnonzero(included_mask)
+                    local_rows = flat_indices // chunk_width
+                    local_cols = flat_indices % chunk_width
+                    rows_abs = row_start + local_rows
+                    cols_abs = col_start + local_cols
 
-                        summary.record_included_tile(tile_id)
-                        tile_writer.append_row(
-                            country_iso=iso,
-                            tile_id=tile_id,
-                            inclusion_rule=inclusion_rule.value,
-                            raster_row=row,
-                            raster_col=col,
-                            centroid_lon=centroid_lon,
-                            centroid_lat=centroid_lat,
-                            pixel_area_m2=pixel_area,
-                        )
-                        bounds_writer.append_row(
-                            country_iso=iso,
-                            tile_id=tile_id,
-                            west_lon=bounds.west,
-                            east_lon=bounds.east,
-                            south_lat=bounds.south,
-                            north_lat=bounds.north,
-                        )
-                        rows_emitted += 1
+                    missing_rows_mask = np.isnan(pixel_area_cache[rows_abs])
+                    if np.any(missing_rows_mask):
+                        for row_value in np.unique(rows_abs[missing_rows_mask]):
+                            pixel_area_cache[row_value] = raster.tile_area(int(row_value), 0)
+                    pixel_areas = pixel_area_cache[rows_abs]
+
+                    tile_ids = (
+                        rows_abs.astype(np.uint64, copy=False) * np.uint64(raster.ncols)
+                        + cols_abs.astype(np.uint64, copy=False)
+                    )
+
+                    centroid_lon, centroid_lat = xy(
+                        raster.transform,
+                        rows_abs,
+                        cols_abs,
+                        offset="center",
+                    )
+                    centroid_lon = np.asarray(centroid_lon, dtype=np.float64)
+                    centroid_lat = np.asarray(centroid_lat, dtype=np.float64)
+
+                    west_vals, north_vals = xy(
+                        raster.transform,
+                        rows_abs,
+                        cols_abs,
+                        offset="ul",
+                    )
+                    east_vals, south_vals = xy(
+                        raster.transform,
+                        rows_abs,
+                        cols_abs,
+                        offset="lr",
+                    )
+                    west_vals = np.asarray(west_vals, dtype=np.float64)
+                    north_vals = np.asarray(north_vals, dtype=np.float64)
+                    east_vals = np.asarray(east_vals, dtype=np.float64)
+                    south_vals = np.asarray(south_vals, dtype=np.float64)
+                    west = np.minimum(west_vals, east_vals)
+                    east = np.maximum(west_vals, east_vals)
+                    south = np.minimum(south_vals, north_vals)
+                    north = np.maximum(south_vals, north_vals)
+
+                    country_values = np.full(included_count, iso, dtype=object)
+                    rule_values = np.full(included_count, inclusion_rule.value, dtype=object)
+                    rows_uint32 = rows_abs.astype(np.uint32, copy=False)
+                    cols_uint32 = cols_abs.astype(np.uint32, copy=False)
+
+                    tile_writer.append_batch(
+                        country_iso=country_values,
+                        tile_id=tile_ids,
+                        inclusion_rule=rule_values,
+                        raster_row=rows_uint32,
+                        raster_col=cols_uint32,
+                        centroid_lon=centroid_lon,
+                        centroid_lat=centroid_lat,
+                        pixel_area_m2=pixel_areas,
+                    )
+                    bounds_writer.append_batch(
+                        country_iso=country_values,
+                        tile_id=tile_ids,
+                        west_lon=west,
+                        east_lon=east,
+                        south_lat=south,
+                        north_lat=north,
+                    )
+
+                    summary.record_included_tiles(tile_ids)
+                    rows_emitted += included_count
 
                     duration = time.perf_counter() - chunk_start
                     logger.info(
@@ -820,7 +846,8 @@ class _ParquetBatchWriter:
         self.columns = tuple(columns)
         self.schema = dict(schema)
         self.batch_size = batch_size
-        self._buffers = {column: [] for column in self.columns}
+        self._buffers: dict[str, list[np.ndarray]] = {column: [] for column in self.columns}
+        self._rows_buffered = 0
         self._rows_written = 0
         self._shard_index = 0
         self._closed = False
@@ -830,11 +857,29 @@ class _ParquetBatchWriter:
         return self._rows_written
 
     def append_row(self, **row: object) -> None:
+        self.append_batch(**{column: [row[column]] for column in self.columns})
+
+    def append_batch(self, **columns: object) -> None:
         if self._closed:
             raise RuntimeError("Cannot append to a closed writer")
+        if set(columns.keys()) != set(self.columns):
+            missing = set(self.columns) - set(columns.keys())
+            extra = set(columns.keys()) - set(self.columns)
+            raise ValueError(
+                f"Batch columns must match schema. Missing={sorted(missing)}, extra={sorted(extra)}"
+            )
+        sample_column = self.columns[0]
+        batch_len = len(columns[sample_column])  # type: ignore[arg-type]
+        if batch_len == 0:
+            return
         for column in self.columns:
-            self._buffers[column].append(row[column])
-        if len(self._buffers[self.columns[0]]) >= self.batch_size:
+            values = columns[column]
+            if len(values) != batch_len:  # type: ignore[arg-type]
+                raise ValueError(f"Column '{column}' length mismatch in append_batch")
+            array = np.asarray(values)
+            self._buffers[column].append(array)
+        self._rows_buffered += batch_len
+        if self._rows_buffered >= self.batch_size:
             self._flush()
 
     def close(self) -> None:
@@ -855,21 +900,27 @@ class _ParquetBatchWriter:
         self._closed = True
 
     def _flush(self) -> None:
-        batch_len = len(self._buffers[self.columns[0]])
-        if batch_len == 0:
+        if self._rows_buffered == 0:
             return
-        data = {column: self._buffers[column] for column in self.columns}
+        data: dict[str, np.ndarray] = {}
+        for column in self.columns:
+            buffers = self._buffers[column]
+            if not buffers:
+                raise RuntimeError(f"No buffered data present for column '{column}' during flush")
+            data[column] = buffers[0] if len(buffers) == 1 else np.concatenate(buffers)
+            self._buffers[column] = []
         df = pl.DataFrame(data).with_columns(
             [pl.col(column).cast(dtype, strict=False) for column, dtype in self.schema.items()]
         )
         shard_name = f"part-{self._shard_index:05d}.parquet"
         shard_path = self.temp_dir / shard_name
         df.write_parquet(shard_path, compression="zstd")
-        self._rows_written += batch_len
+        self._rows_written += len(df)
         self._shard_index += 1
+        self._rows_buffered = 0
         logger.info(
             "S1: flushed %d rows to %s/%s (total=%d)",
-            batch_len,
+            len(df),
             self.temp_dir.name,
             shard_name,
             self._rows_written,
