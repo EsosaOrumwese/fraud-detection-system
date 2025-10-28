@@ -50,7 +50,7 @@ class TileIndexPartition:
             return frozenset(self.frame.get_column("country_iso").to_list())  # type: ignore[no-any-return]
         if self._country_cache is None:
             country_codes: set[str] = set()
-            for batch in iter_tile_index_countries(self, columns=("country_iso",)):
+            for batch in iter_tile_index_countries(self, columns=("country_iso", "tile_id")):
                 country_codes.add(batch.iso)
             self._country_cache = frozenset(country_codes)
         return self._country_cache
