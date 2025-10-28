@@ -765,6 +765,21 @@ class S1TileIndexRunner:
                     rows_uint32 = rows_abs.astype(np.uint32, copy=False)
                     cols_uint32 = cols_abs.astype(np.uint32, copy=False)
 
+                    order_index = np.lexsort((cols_abs, rows_abs))
+                    tile_ids = tile_ids[order_index]
+                    rows_uint32 = rows_uint32[order_index]
+                    cols_uint32 = cols_uint32[order_index]
+                    centroid_lon = centroid_lon[order_index]
+                    centroid_lat = centroid_lat[order_index]
+                    pixel_areas = pixel_areas[order_index]
+                    west = west[order_index]
+                    east = east[order_index]
+                    south = south[order_index]
+                    north = north[order_index]
+                    if country_values.size:
+                        country_values = country_values[order_index]
+                        rule_values = rule_values[order_index]
+
                     tile_writer.append_batch(
                         country_iso=country_values,
                         tile_id=tile_ids,
@@ -912,6 +927,7 @@ class _ParquetBatchWriter:
         df = pl.DataFrame(data).with_columns(
             [pl.col(column).cast(dtype, strict=False) for column, dtype in self.schema.items()]
         )
+        df = df.sort(["country_iso", "tile_id"])
         shard_name = f"part-{self._shard_index:05d}.parquet"
         shard_path = self.temp_dir / shard_name
         df.write_parquet(shard_path, compression="zstd")
