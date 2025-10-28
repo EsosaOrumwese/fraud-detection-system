@@ -115,7 +115,7 @@ def load_s5_assignments(
         pl.scan_parquet(str(dataset_path / "*.parquet"))
         .select(
             [
-                pl.col("merchant_id").cast(pl.Int64),
+                pl.col("merchant_id").cast(pl.UInt64),
                 pl.col("legal_country_iso").cast(pl.Utf8).str.to_uppercase(),
                 pl.col("site_order").cast(pl.Int64),
                 pl.col("tile_id").cast(pl.UInt64),
@@ -158,7 +158,7 @@ def load_s6_jitter(
         pl.scan_parquet(str(dataset_path / "*.parquet"))
         .select(
             [
-                pl.col("merchant_id").cast(pl.Int64),
+                pl.col("merchant_id").cast(pl.UInt64),
                 pl.col("legal_country_iso").cast(pl.Utf8).str.to_uppercase(),
                 pl.col("site_order").cast(pl.Int64),
                 pl.col("tile_id").cast(pl.UInt64),
@@ -234,7 +234,7 @@ def load_outlet_catalogue(
         pl.scan_parquet(str(path / "*.parquet"))
         .select(
             [
-                pl.col("merchant_id").cast(pl.Int64),
+                pl.col("merchant_id").cast(pl.UInt64),
                 pl.col("legal_country_iso").cast(pl.Utf8).str.to_uppercase(),
                 pl.col("site_order").cast(pl.Int64),
             ]

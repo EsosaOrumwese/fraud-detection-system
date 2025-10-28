@@ -65,7 +65,7 @@ def aggregate_site_requirements(frame: pl.DataFrame) -> pl.DataFrame:
 
     frame = frame.with_columns(
         [
-            pl.col("merchant_id").cast(pl.Int64),
+            pl.col("merchant_id").cast(pl.UInt64),
             pl.col("legal_country_iso").cast(pl.Utf8),
             pl.col("site_order").cast(pl.Int64),
         ]

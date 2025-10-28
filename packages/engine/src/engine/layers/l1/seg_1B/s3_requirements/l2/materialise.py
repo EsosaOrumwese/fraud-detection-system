@@ -116,7 +116,7 @@ def materialise_requirements(
 def _normalise_frame(frame: pl.DataFrame) -> pl.DataFrame:
     return frame.select(
         [
-            pl.col("merchant_id").cast(pl.Int64),
+            pl.col("merchant_id").cast(pl.UInt64),
             pl.col("legal_country_iso").cast(pl.Utf8),
             pl.col("n_sites").cast(pl.Int64),
         ]

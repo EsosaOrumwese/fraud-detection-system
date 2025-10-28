@@ -100,7 +100,7 @@ class StubS3Runner:
         self.config = config
         empty_frame = pl.DataFrame(
             {
-                "merchant_id": pl.Series([], dtype=pl.Int64),
+                "merchant_id": pl.Series([], dtype=pl.UInt64),
                 "legal_country_iso": pl.Series([], dtype=pl.Utf8),
                 "site_order": pl.Series([], dtype=pl.Int64),
                 "manifest_fingerprint": pl.Series([], dtype=pl.Utf8),
@@ -117,7 +117,13 @@ class StubS3Runner:
         return self.prepared
 
     def aggregate(self, prepared):
-        frame = pl.DataFrame({"merchant_id": [], "legal_country_iso": [], "n_sites": []})
+        frame = pl.DataFrame(
+            {
+                "merchant_id": pl.Series([], dtype=pl.UInt64),
+                "legal_country_iso": pl.Series([], dtype=pl.Utf8),
+                "n_sites": pl.Series([], dtype=pl.Int64),
+            }
+        )
         self.aggregation = S3AggregationResult(frame=frame, source_rows_total=0)
         return self.aggregation
 

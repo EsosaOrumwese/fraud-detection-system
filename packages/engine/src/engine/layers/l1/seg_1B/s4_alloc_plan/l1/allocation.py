@@ -35,7 +35,7 @@ def allocate_sites(
         return AllocationResult(
             frame=pl.DataFrame(
                 schema={
-                    "merchant_id": pl.Int64,
+                    "merchant_id": pl.UInt64,
                     "legal_country_iso": pl.Utf8,
                     "tile_id": pl.UInt64,
                     "n_sites_tile": pl.Int64,
@@ -51,7 +51,7 @@ def allocate_sites(
 
     requirements = requirements.select(
         [
-            pl.col("merchant_id").cast(pl.Int64),
+            pl.col("merchant_id").cast(pl.UInt64),
             pl.col("legal_country_iso").cast(pl.Utf8),
             pl.col("n_sites").cast(pl.Int64),
         ]

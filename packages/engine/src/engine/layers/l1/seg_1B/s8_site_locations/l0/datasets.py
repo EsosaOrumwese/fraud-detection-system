@@ -52,7 +52,7 @@ def load_s7_site_synthesis(
         pl.scan_parquet(str(dataset_path / "*.parquet"))
         .select(
             [
-                pl.col("merchant_id").cast(pl.Int64),
+                pl.col("merchant_id").cast(pl.UInt64),
                 pl.col("legal_country_iso").cast(pl.Utf8).str.to_uppercase(),
                 pl.col("site_order").cast(pl.Int64),
                 pl.col("lon_deg").cast(pl.Float64),

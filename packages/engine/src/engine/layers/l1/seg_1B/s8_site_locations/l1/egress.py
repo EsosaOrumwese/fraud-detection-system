@@ -53,7 +53,7 @@ def compute_site_locations(*, synthesis: S7SiteSynthesisPartition) -> S8Outcome:
     if rows_s7 == 0:
         empty = pl.DataFrame(
             {
-                "merchant_id": pl.Series([], dtype=pl.Int64),
+                "merchant_id": pl.Series([], dtype=pl.UInt64),
                 "legal_country_iso": pl.Series([], dtype=pl.Utf8),
                 "site_order": pl.Series([], dtype=pl.Int64),
                 "lon_deg": pl.Series([], dtype=pl.Float64),
@@ -79,7 +79,7 @@ def compute_site_locations(*, synthesis: S7SiteSynthesisPartition) -> S8Outcome:
     s8_frame = (
         s7_frame.select(
             [
-                pl.col("merchant_id").cast(pl.Int64),
+                pl.col("merchant_id").cast(pl.UInt64),
                 pl.col("legal_country_iso").cast(pl.Utf8).str.to_uppercase(),
                 pl.col("site_order").cast(pl.Int64),
                 pl.col("lon_deg").cast(pl.Float64),

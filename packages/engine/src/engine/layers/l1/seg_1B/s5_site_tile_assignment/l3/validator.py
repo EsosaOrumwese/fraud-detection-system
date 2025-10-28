@@ -460,18 +460,23 @@ def _validate_rng_events(
         pl.DataFrame(
             rows,
             schema={
-                "merchant_id": pl.Int64,
+                "merchant_id": pl.UInt64,
                 "legal_country_iso": pl.Utf8,
                 "site_order": pl.Int64,
-                "tile_id": pl.Int64,
+                "tile_id": pl.UInt64,
             },
             orient="row",
-        ).with_columns(pl.col("tile_id").cast(pl.UInt64))
+        )
     )
 
     dataset_sorted = (
         dataset.select(["merchant_id", "legal_country_iso", "site_order", "tile_id"])
-        .with_columns(pl.col("tile_id").cast(pl.UInt64))
+        .with_columns(
+            [
+                pl.col("merchant_id").cast(pl.UInt64),
+                pl.col("tile_id").cast(pl.UInt64),
+            ]
+        )
         .sort(["merchant_id", "legal_country_iso", "site_order"])
     )
     events_sorted = events_frame.sort(["merchant_id", "legal_country_iso", "site_order"])

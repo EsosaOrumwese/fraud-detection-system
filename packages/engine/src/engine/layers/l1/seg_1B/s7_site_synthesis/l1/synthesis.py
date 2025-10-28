@@ -186,7 +186,7 @@ def compute_site_synthesis(
         pl.DataFrame(records)
         .with_columns(
             [
-                pl.col("merchant_id").cast(pl.Int64),
+                pl.col("merchant_id").cast(pl.UInt64),
                 pl.col("legal_country_iso").cast(pl.Utf8).str.to_uppercase(),
                 pl.col("site_order").cast(pl.Int64),
                 pl.col("tile_id").cast(pl.UInt64),

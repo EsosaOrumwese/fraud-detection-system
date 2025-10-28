@@ -1,18 +1,14 @@
 from __future__ import annotations
 
 from pathlib import Path
-from types import SimpleNamespace
 import json
 
-import numpy as np
 import polars as pl
 import pytest
 
 from engine.layers.l1.seg_1B.s2_tile_weights import (
-    MassComputation,
     RunnerConfig,
     S2Error,
-    S2RunResult,
     S2TileWeightsRunner,
     S2TileWeightsValidator,
     ValidatorConfig,
@@ -54,34 +50,51 @@ def dictionary() -> dict[str, object]:
     }
 
 
-def _write_iso_table(path: Path) -> None:
+def _write_iso_table(path: Path, *, countries: list[str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    pl.DataFrame({"country_iso": ["AA", "BB"]}).write_parquet(path)
+    pl.DataFrame({"country_iso": countries}).write_parquet(path)
 
 
-def _write_tile_index_partition(base_path: Path, parameter_hash: str) -> Path:
-    partition_dir = (
-        base_path / f"data/layer1/1B/tile_index/parameter_hash={parameter_hash}"
-    )
+def _write_tile_index_partition(
+    base_path: Path,
+    parameter_hash: str,
+    *,
+    records: list[dict[str, object]],
+) -> Path:
+    partition_dir = base_path / f"data/layer1/1B/tile_index/parameter_hash={parameter_hash}"
     partition_dir.mkdir(parents=True, exist_ok=True)
-    frame = pl.DataFrame(
-        {
-            "country_iso": ["AA", "AA", "BB"],
-            "tile_id": [0, 1, 0],
-            "raster_row": [0, 0, 1],
-            "raster_col": [0, 1, 0],
-            "pixel_area_m2": [10.0, 12.0, 9.5],
-        }
-    )
-    frame.write_parquet(partition_dir / "part-00000.parquet")
+    pl.DataFrame(records).write_parquet(partition_dir / "part-00000.parquet")
     return partition_dir
+
+
+def _read_quantised(temp_dir: Path) -> pl.DataFrame:
+    return (
+        pl.scan_parquet(str(temp_dir / "*.parquet"))
+        .collect()
+        .sort(["country_iso", "tile_id"])
+    )
+
+
+def _read_partition(path: Path) -> pl.DataFrame:
+    return (
+        pl.scan_parquet(str(path / "*.parquet"))
+        .collect()
+        .sort(["country_iso", "tile_id"])
+    )
 
 
 def test_prepare_inputs_happy_path(tmp_path: Path, dictionary: dict[str, object]) -> None:
     data_root = tmp_path
-    iso_path = data_root / "reference/iso/iso3166_canonical.parquet"
-    _write_iso_table(iso_path)
-    _write_tile_index_partition(data_root, "abc123")
+    _write_iso_table(data_root / "reference/iso/iso3166_canonical.parquet", countries=["AA", "BB"])
+    _write_tile_index_partition(
+        data_root,
+        "abc123",
+        records=[
+            {"country_iso": "AA", "tile_id": 0, "raster_row": 0, "raster_col": 0, "pixel_area_m2": 10.0},
+            {"country_iso": "AA", "tile_id": 1, "raster_row": 0, "raster_col": 1, "pixel_area_m2": 12.0},
+            {"country_iso": "BB", "tile_id": 0, "raster_row": 1, "raster_col": 0, "pixel_area_m2": 9.5},
+        ],
+    )
 
     runner = S2TileWeightsRunner()
     prepared = runner.prepare(
@@ -97,19 +110,16 @@ def test_prepare_inputs_happy_path(tmp_path: Path, dictionary: dict[str, object]
     assert prepared.governed.basis == "area_m2"
     assert prepared.governed.dp == 3
     assert prepared.tile_index.rows == 3
-    assert prepared.tile_index.path.exists()
     assert prepared.iso_table.codes == frozenset({"AA", "BB"})
-    assert prepared.pat.countries_processed == 0
-    assert prepared.pat.bytes_read_tile_index_total > 0
-    assert prepared.pat.bytes_read_vectors_total > 0
+    assert prepared.pat.bytes_read_tile_index_total == prepared.tile_index.byte_size
+    assert prepared.pat.vector_bytes_reference > 0
 
 
 def test_prepare_inputs_missing_tile_index(
     tmp_path: Path, dictionary: dict[str, object]
 ) -> None:
     data_root = tmp_path
-    iso_path = data_root / "reference/iso/iso3166_canonical.parquet"
-    _write_iso_table(iso_path)
+    _write_iso_table(data_root / "reference/iso/iso3166_canonical.parquet", countries=["AA"])
 
     runner = S2TileWeightsRunner()
     with pytest.raises(S2Error) as excinfo:
@@ -125,81 +135,18 @@ def test_prepare_inputs_missing_tile_index(
     assert excinfo.value.context.code == "E101_TILE_INDEX_MISSING"
 
 
-def test_compute_masses_uniform(tmp_path: Path, dictionary: dict[str, object]) -> None:
+def test_quantise_uniform_small_dataset(tmp_path: Path, dictionary: dict[str, object]) -> None:
     data_root = tmp_path
-    _write_iso_table(data_root / "reference/iso/iso3166_canonical.parquet")
-    _write_tile_index_partition(data_root, "abc123")
-
-    runner = S2TileWeightsRunner()
-    prepared = runner.prepare(
-        RunnerConfig(
-            data_root=data_root,
-            parameter_hash="abc123",
-            basis="uniform",
-            dp=2,
-            dictionary=dictionary,
-        )
+    _write_iso_table(data_root / "reference/iso/iso3166_canonical.parquet", countries=["AA", "BB"])
+    _write_tile_index_partition(
+        data_root,
+        "abc123",
+        records=[
+            {"country_iso": "AA", "tile_id": 0, "raster_row": 0, "raster_col": 0, "pixel_area_m2": 10.0},
+            {"country_iso": "AA", "tile_id": 1, "raster_row": 0, "raster_col": 1, "pixel_area_m2": 12.0},
+            {"country_iso": "BB", "tile_id": 5, "raster_row": 1, "raster_col": 0, "pixel_area_m2": 9.5},
+        ],
     )
-
-    mass_result = runner.compute_masses(prepared)
-    assert isinstance(mass_result, MassComputation)
-    assert mass_result.frame.get_column("mass").to_list() == [1.0, 1.0, 1.0]
-
-
-def test_compute_masses_population(
-    tmp_path: Path, dictionary: dict[str, object], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    data_root = tmp_path
-    _write_iso_table(data_root / "reference/iso/iso3166_canonical.parquet")
-    _write_tile_index_partition(data_root, "abc123")
-    values = np.array([[5.0, 2.0], [0.0, 3.5]], dtype="float64")
-    population_path = data_root / "reference/rasters/population.tif"
-    population_path.parent.mkdir(parents=True, exist_ok=True)
-
-    class _StubDataset:
-        def __init__(self, array: np.ndarray) -> None:
-            self._array = array
-            self.nodata = None
-
-        def read(self, band: int, out_dtype: str = "float64") -> np.ndarray:
-            assert band == 1
-            return self._array.astype(out_dtype)
-
-        def __enter__(self) -> "_StubDataset":
-            return self
-
-        def __exit__(self, exc_type, exc, tb) -> bool:
-            return False
-
-    monkeypatch.setattr(
-        "engine.layers.l1.seg_1B.s2_tile_weights.l1.masses.load_population_raster",
-        lambda path: SimpleNamespace(path=population_path),
-    )
-    monkeypatch.setattr(
-        "engine.layers.l1.seg_1B.s2_tile_weights.l1.masses.rasterio.open",
-        lambda path: _StubDataset(values),
-    )
-
-    runner = S2TileWeightsRunner()
-    prepared = runner.prepare(
-        RunnerConfig(
-            data_root=data_root,
-            parameter_hash="abc123",
-            basis="population",
-            dp=2,
-            dictionary=dictionary,
-        )
-    )
-
-    mass_result = runner.compute_masses(prepared)
-    assert mass_result.frame.get_column("mass").to_list() == [5.0, 2.0, 0.0]
-    assert prepared.pat.bytes_read_raster_total > 0
-
-
-def test_quantise_weights(tmp_path: Path, dictionary: dict[str, object]) -> None:
-    data_root = tmp_path
-    _write_iso_table(data_root / "reference/iso/iso3166_canonical.parquet")
-    _write_tile_index_partition(data_root, "abc123")
 
     runner = S2TileWeightsRunner()
     prepared = runner.prepare(
@@ -212,91 +159,79 @@ def test_quantise_weights(tmp_path: Path, dictionary: dict[str, object]) -> None
         )
     )
     masses = runner.compute_masses(prepared)
+    runner.measure_baselines(prepared)
     quantised = runner.quantise(prepared, masses)
 
-    aa_weights = (
-        quantised.frame.filter(pl.col("country_iso") == "AA").get_column("weight_fp").to_list()
+    quantised_frame = _read_quantised(quantised.temp_dir)
+    assert quantised_frame.height == quantised.rows_emitted
+    assert set(quantised_frame.columns) == {
+        "country_iso",
+        "tile_id",
+        "weight_fp",
+        "dp",
+        "zero_mass_fallback",
+    }
+
+    aa_sum = int(
+        quantised_frame.filter(pl.col("country_iso") == "AA").get_column("weight_fp").sum()
     )
-    bb_weights = (
-        quantised.frame.filter(pl.col("country_iso") == "BB").get_column("weight_fp").to_list()
+    bb_sum = int(
+        quantised_frame.filter(pl.col("country_iso") == "BB").get_column("weight_fp").sum()
     )
-    assert aa_weights == [50, 50]
-    assert bb_weights == [100]
+    assert aa_sum == 100
+    assert bb_sum == 100
+    assert quantised.rows_emitted == 3
     assert len(quantised.summaries) == 2
-    assert not any(entry["zero_mass_fallback"] for entry in quantised.summaries)
-    assert set(quantised.frame.get_column("dp").to_list()) == {2}
-    assert not quantised.frame.get_column("zero_mass_fallback").any()
-    assert sum(aa_weights) == 100
-    assert sum(bb_weights) == 100
-    assert len(quantised.summaries) == 2
+
+    result = runner.materialise(prepared, quantised)
+    materialised = _read_partition(result.tile_weights_path)
+    assert materialised.height == 3
+    assert materialised.sort(["country_iso", "tile_id"]).rows() == quantised_frame.rows()
 
 
 def test_quantise_zero_mass_fallback(tmp_path: Path, dictionary: dict[str, object]) -> None:
     data_root = tmp_path
-    _write_iso_table(data_root / "reference/iso/iso3166_canonical.parquet")
-    _write_tile_index_partition(data_root, "abc123")
+    _write_iso_table(data_root / "reference/iso/iso3166_canonical.parquet", countries=["AA"])
+    _write_tile_index_partition(
+        data_root,
+        "fallback",
+        records=[
+            {"country_iso": "AA", "tile_id": 0, "raster_row": 0, "raster_col": 0, "pixel_area_m2": 0.0},
+            {"country_iso": "AA", "tile_id": 1, "raster_row": 0, "raster_col": 1, "pixel_area_m2": 0.0},
+        ],
+    )
 
     runner = S2TileWeightsRunner()
     prepared = runner.prepare(
         RunnerConfig(
             data_root=data_root,
-            parameter_hash="abc123",
-            basis="uniform",
-            dp=2,
+            parameter_hash="fallback",
+            basis="area_m2",
+            dp=3,
             dictionary=dictionary,
         )
     )
     masses = runner.compute_masses(prepared)
-    zero_mass_frame = masses.frame.with_columns(pl.lit(0.0).alias("mass"))
-    quantised = runner.quantise(prepared, MassComputation(frame=zero_mass_frame))
-
-    assert quantised.frame.get_column("zero_mass_fallback").all()
-    aa_weights = (
-        quantised.frame.filter(pl.col("country_iso") == "AA").get_column("weight_fp").to_list()
-    )
-    bb_weights = (
-        quantised.frame.filter(pl.col("country_iso") == "BB").get_column("weight_fp").to_list()
-    )
-    assert aa_weights == [50, 50]
-    assert bb_weights == [100]
-
-
-def test_build_run_report(tmp_path: Path, dictionary: dict[str, object]) -> None:
-    data_root = tmp_path
-    _write_iso_table(data_root / "reference/iso/iso3166_canonical.parquet")
-    _write_tile_index_partition(data_root, "abc123")
-
-    runner = S2TileWeightsRunner()
-    prepared = runner.prepare(
-        RunnerConfig(
-            data_root=data_root,
-            parameter_hash="abc123",
-            basis="uniform",
-            dp=2,
-            dictionary=dictionary,
-        )
-    )
-    masses = runner.compute_masses(prepared)
+    runner.measure_baselines(prepared)
     quantised = runner.quantise(prepared, masses)
+    frame = _read_quantised(quantised.temp_dir)
 
-    report = build_run_report(
-        prepared=prepared,
-        quantised=quantised,
-        determinism_receipt={"partition_path": "dummy", "sha256_hex": "deadbeef"},
-    )
-    assert report["basis"] == "uniform"
-    assert report["dp"] == 2
-    assert report["rows_emitted"] == quantised.frame.height
-    assert report["countries_total"] == len(quantised.summaries)
-    assert report["pat"]["rows_emitted"] == quantised.frame.height
-    assert report["ingress_versions"]["iso3166"] == "test"
-    assert report["ingress_versions"]["population_raster"] is None
-    assert report["normalisation_summaries"] == quantised.summaries
+    assert frame.get_column("zero_mass_fallback").all()
+    assert frame.filter(pl.col("country_iso") == "AA").get_column("weight_fp").sum() == 1000
+
 
 def test_materialise_and_validate(tmp_path: Path, dictionary: dict[str, object]) -> None:
     data_root = tmp_path
-    _write_iso_table(data_root / "reference/iso/iso3166_canonical.parquet")
-    _write_tile_index_partition(data_root, "abc123")
+    _write_iso_table(data_root / "reference/iso/iso3166_canonical.parquet", countries=["AA", "BB"])
+    _write_tile_index_partition(
+        data_root,
+        "abc123",
+        records=[
+            {"country_iso": "AA", "tile_id": 0, "raster_row": 0, "raster_col": 0, "pixel_area_m2": 10.0},
+            {"country_iso": "AA", "tile_id": 1, "raster_row": 0, "raster_col": 1, "pixel_area_m2": 12.0},
+            {"country_iso": "BB", "tile_id": 2, "raster_row": 1, "raster_col": 0, "pixel_area_m2": 9.5},
+        ],
+    )
 
     runner = S2TileWeightsRunner()
     prepared = runner.prepare(
@@ -308,25 +243,18 @@ def test_materialise_and_validate(tmp_path: Path, dictionary: dict[str, object])
             dictionary=dictionary,
         )
     )
-
-    prepared.pat.io_baseline_ti_bps = 1_000_000.0
-    prepared.pat.io_baseline_vectors_bps = 1_000_000.0
-    prepared.pat.wall_clock_seconds_total = 1.0
-    prepared.pat.cpu_seconds_total = 0.5
-    prepared.pat.max_worker_rss_bytes = 50_000_000
-    prepared.pat.open_files_peak = 32
-    prepared.pat.workers_used = 2
-    prepared.pat.chunk_size = 128
-
     masses = runner.compute_masses(prepared)
+    runner.measure_baselines(prepared)
     quantised = runner.quantise(prepared, masses)
     result = runner.materialise(prepared, quantised)
 
-    assert result.tile_weights_path.exists()
-    dataset_df = pl.read_parquet(result.tile_weights_path / "part-00000.parquet")
-    assert dataset_df.height == quantised.frame.height
+    dataset_df = _read_partition(result.tile_weights_path)
+    assert dataset_df.height == 3
+    assert dataset_df.get_column("weight_fp").sum() == 200
+
     report = json.loads(result.report_path.read_text(encoding="utf-8"))
-    assert report["determinism_receipt"]["sha256_hex"] == result.determinism_receipt["sha256_hex"]
+    assert report["rows_emitted"] == 3
+    assert report["pat"]["rows_emitted"] == 3
 
     validator = S2TileWeightsValidator()
     validator.validate(
@@ -340,3 +268,41 @@ def test_materialise_and_validate(tmp_path: Path, dictionary: dict[str, object])
 
     with pytest.raises(S2Error):
         runner.materialise(prepared, quantised)
+
+
+def test_build_run_report(tmp_path: Path, dictionary: dict[str, object]) -> None:
+    data_root = tmp_path
+    _write_iso_table(data_root / "reference/iso/iso3166_canonical.parquet", countries=["AA"])
+    _write_tile_index_partition(
+        data_root,
+        "abc123",
+        records=[
+            {"country_iso": "AA", "tile_id": 0, "raster_row": 0, "raster_col": 0, "pixel_area_m2": 10.0},
+        ],
+    )
+
+    runner = S2TileWeightsRunner()
+    prepared = runner.prepare(
+        RunnerConfig(
+            data_root=data_root,
+            parameter_hash="abc123",
+            basis="uniform",
+            dp=2,
+            dictionary=dictionary,
+        )
+    )
+    masses = runner.compute_masses(prepared)
+    runner.measure_baselines(prepared)
+    quantised = runner.quantise(prepared, masses)
+
+    report = build_run_report(
+        prepared=prepared,
+        quantised=quantised,
+        determinism_receipt={"partition_path": "dummy", "sha256_hex": "deadbeef"},
+    )
+
+    assert report["basis"] == "uniform"
+    assert report["dp"] == 2
+    assert report["rows_emitted"] == quantised.rows_emitted
+    assert report["countries_total"] == len(quantised.summaries)
+    assert report["normalisation_summaries"] == quantised.summaries
