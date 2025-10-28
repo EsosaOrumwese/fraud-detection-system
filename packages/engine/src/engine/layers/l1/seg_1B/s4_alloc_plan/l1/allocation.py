@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 
 import polars as pl
 
@@ -31,7 +32,9 @@ def allocate_sites(
 ) -> AllocationResult:
     """Compute integer allocations per tile that sum to S3 requirements."""
 
+    logger = logging.getLogger(__name__)
     if requirements.is_empty():
+        logger.info("S4: allocation kernel received empty requirements; emitting empty result")
         return AllocationResult(
             frame=pl.DataFrame(
                 schema={
@@ -70,6 +73,13 @@ def allocate_sites(
             pl.col("tile_id").cast(pl.UInt64),
         ]
     )
+    logger.info(
+        "S4: allocation kernel inputs (requirements_rows=%d, tile_weights_rows=%d, tile_index_rows=%d, dp=%d)",
+        requirements.height,
+        weights.height,
+        index.height,
+        dp,
+    )
 
     # Coverage: every weight must have a corresponding tile index entry.
     missing_tiles = (
@@ -87,6 +97,7 @@ def allocate_sites(
         right_on="country_iso",
         how="left",
     )
+    logger.info("S4: join completed (joined_rows=%d)", joined.height)
     if joined.get_column("tile_id").is_null().any():
         raise err(
             "E402_WEIGHTS_MISSING",
@@ -152,6 +163,7 @@ def allocate_sites(
     joined = joined.with_columns(
         (pl.col("base_allocation") + pl.col("bump")).alias("n_sites_tile")
     )
+    logger.info("S4: base allocations computed (rows=%d)", joined.height)
 
     # Sum-to-n verification.
     totals = (
@@ -208,6 +220,14 @@ def allocate_sites(
     )
     alloc_sum_equals_requirements = bool(
         (totals.get_column("alloc_sum") == totals.get_column("n_sites")).all()
+    )
+    logger.info(
+        "S4: allocation kernel finished (rows_emitted=%d, merchants=%d, pairs=%d, shortfall=%d, ties_broken=%d)",
+        final_frame.height,
+        merchants_total,
+        pairs_total,
+        shortfall_total,
+        ties_broken_total,
     )
 
     return AllocationResult(

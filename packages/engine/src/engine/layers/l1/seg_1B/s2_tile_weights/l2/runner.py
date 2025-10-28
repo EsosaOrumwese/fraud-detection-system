@@ -408,12 +408,17 @@ class S2TileWeightsRunner:
         summaries: list[dict[str, object]] = []
         rows_emitted = 0
         iso_seen: set[str] = set()
+        total_countries = max(1, len(masses.partition.country_set))
+        countries_processed = 0
+        start_ts = time.perf_counter()
+        last_log = start_ts
 
         try:
             for batch in iter_tile_index_countries(
                 masses.partition,
                 columns=masses.columns,
             ):
+                countries_processed += 1
                 iso = batch.iso
                 iso_seen.add(iso)
                 tile_ids = batch.tile_id.astype(np.uint64, copy=False)
@@ -459,6 +464,23 @@ class S2TileWeightsRunner:
                         "zero_mass_fallback": bool(fallback),
                     }
                 )
+                now = time.perf_counter()
+                if (
+                    countries_processed == 1
+                    or countries_processed == total_countries
+                    or countries_processed % 10 == 0
+                    or now - last_log >= 60.0
+                ):
+                    logger.info(
+                        "S2: quantised %d/%d countries (latest=%s tiles=%d total_rows=%d elapsed=%.2fs)",
+                        countries_processed,
+                        total_countries,
+                        iso,
+                        tile_ids.size,
+                        rows_emitted,
+                        now - start_ts,
+                    )
+                    last_log = now
         except Exception:
             writer.abort()
             raise

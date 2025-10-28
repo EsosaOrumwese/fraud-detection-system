@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Mapping, Optional
 
 from .aggregate import AggregationContext, build_allocation
@@ -29,6 +30,13 @@ class S4AllocPlanRunner:
             )
 
         prepared = prepare_inputs(config)
+        logger = logging.getLogger(__name__)
+        logger.info(
+            "S4: prepared inputs (requirements_rows=%d, tile_weights_rows=%d, tile_index_rows=%d)",
+            prepared.requirements.frame.height,
+            prepared.tile_weights.frame.height,
+            prepared.tile_index.frame.height,
+        )
         context = AggregationContext(
             requirements=prepared.requirements,
             tile_weights=prepared.tile_weights,
@@ -37,6 +45,13 @@ class S4AllocPlanRunner:
             dp=prepared.tile_weights.dp,
         )
         allocation = build_allocation(context)
+        logger.info(
+            "S4: allocation context complete (rows_emitted=%d, merchants=%d, pairs=%d, shortfall=%d)",
+            allocation.rows_emitted,
+            allocation.merchants_total,
+            allocation.pairs_total,
+            allocation.shortfall_total,
+        )
         return materialise_allocation(
             prepared=prepared,
             allocation=allocation,
@@ -45,4 +60,3 @@ class S4AllocPlanRunner:
 
 
 __all__ = ["S4AllocPlanRunner"]
-

@@ -84,13 +84,16 @@ class S3RequirementsValidator:
             dictionary=dictionary,
         )
         iso_table = load_iso_countries(base_path=config.data_root, dictionary=dictionary)
-        synthetic_codes = frozenset(
-            iso_table.table
-            .with_columns(pl.col("region").cast(pl.Utf8).str.to_uppercase().alias("region_norm"))
-            .filter(pl.col("region_norm") == "SYNTHETIC")
-            .get_column("country_iso")
-            .to_list()
-        )
+        if "region" in iso_table.table.columns:
+            synthetic_codes = frozenset(
+                iso_table.table
+                .with_columns(pl.col("region").cast(pl.Utf8).str.to_uppercase().alias("region_norm"))
+                .filter(pl.col("region_norm") == "SYNTHETIC")
+                .get_column("country_iso")
+                .to_list()
+            )
+        else:
+            synthetic_codes = frozenset()
         if synthetic_codes:
             synthetic_present = (
                 frame.filter(pl.col("legal_country_iso").is_in(sorted(synthetic_codes)))

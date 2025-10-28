@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from typing import Mapping
 
 from ..l0 import (
@@ -91,8 +92,24 @@ class S3RequirementsRunner:
         return materialise_requirements(prepared=prepared, aggregation=aggregation)
 
     def run(self, config: RunnerConfig) -> S3RunResult:
+        logger = logging.getLogger(__name__)
         prepared = self.prepare(config)
+        outlet_rows = int(prepared.outlet_catalogue.frame.height)
+        tile_weight_rows = int(prepared.tile_weights.frame.height)
+        logger.info(
+            "S3: prepared inputs (outlet_rows=%d, tile_weight_rows=%d, iso_rows=%d)",
+            outlet_rows,
+            tile_weight_rows,
+            int(prepared.iso_table.table.height),
+        )
         aggregation = self.aggregate(prepared)
+        logger.info(
+            "S3: aggregation summary (rows=%d, merchants=%d, countries=%d, source_rows=%d)",
+            aggregation.rows_emitted,
+            aggregation.merchants_total,
+            aggregation.countries_total,
+            aggregation.source_rows_total,
+        )
         return self.materialise(prepared, aggregation)
 
 
