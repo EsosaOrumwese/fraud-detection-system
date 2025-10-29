@@ -36,6 +36,7 @@ from .s3_requirements import (
 )
 from .s4_alloc_plan import (
     AggregationContext as S4AggregationContext,
+    AllocationCountryResult as S4AllocationCountryResult,
     AllocationResult as S4AllocationResult,
     PreparedInputs as S4PreparedInputs,
     RunnerConfig as S4RunnerConfig,
@@ -44,7 +45,9 @@ from .s4_alloc_plan import (
     S4Error,
     S4RunResult,
     ValidatorConfig as S4ValidatorConfig,
-    allocate_sites as s4_allocate_sites,
+    allocate_country_sites as s4_allocate_country_sites,
+    merge_merchant_summaries as s4_merge_merchant_summaries,
+    serialise_merchant_summaries as s4_serialise_merchant_summaries,
     build_allocation as s4_build_allocation,
     build_run_report as s4_build_run_report,
     err as s4_err,
@@ -92,6 +95,8 @@ from .s9_validation import (
     S9ValidationRunner,
 )
 
+s4_allocate_sites = s4_allocate_country_sites
+
 __all__ = [
     "S0GateRunner",
     "GateInputs",
@@ -124,6 +129,7 @@ __all__ = [
     "s3_materialise_requirements",
     "s3_prepare_inputs",
     "S4AggregationContext",
+    "S4AllocationCountryResult",
     "S4AllocationResult",
     "S4PreparedInputs",
     "S4RunnerConfig",
@@ -132,7 +138,10 @@ __all__ = [
     "S4AllocPlanValidator",
     "S4ValidatorConfig",
     "S4Error",
+    "s4_allocate_country_sites",
     "s4_allocate_sites",
+    "s4_merge_merchant_summaries",
+    "s4_serialise_merchant_summaries",
     "s4_build_allocation",
     "s4_build_run_report",
     "s4_err",

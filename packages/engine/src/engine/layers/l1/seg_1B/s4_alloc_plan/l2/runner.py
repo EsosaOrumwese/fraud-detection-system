@@ -32,10 +32,9 @@ class S4AllocPlanRunner:
         prepared = prepare_inputs(config)
         logger = logging.getLogger(__name__)
         logger.info(
-            "S4: prepared inputs (requirements_rows=%d, tile_weights_rows=%d, tile_index_rows=%d)",
+            "S4: prepared inputs (requirements_rows=%d, dp=%d)",
             prepared.requirements.frame.height,
-            prepared.tile_weights.frame.height,
-            prepared.tile_index.frame.height,
+            prepared.tile_weights.dp,
         )
         context = AggregationContext(
             requirements=prepared.requirements,

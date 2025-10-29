@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
@@ -14,7 +15,7 @@ from engine.layers.l1.seg_1B.s1_tile_index.l2.runner import compute_partition_di
 from ...shared.dictionary import load_dictionary, resolve_dataset_path
 from ..exceptions import err
 from ..l0.datasets import load_iso_countries, load_s3_requirements, load_tile_index, load_tile_weights
-from ..l1.allocation import allocate_sites
+from ..l2.aggregate import AggregationContext, build_allocation
 
 
 @dataclass(frozen=True)
@@ -87,12 +88,20 @@ class S4AllocPlanValidator:
             dictionary=dictionary,
         )
 
-        recomputed = allocate_sites(
-            requirements=requirements.frame,
-            tile_weights=tile_weights.frame,
-            tile_index=tile_index.frame,
+        context = AggregationContext(
+            requirements=requirements,
+            tile_weights=tile_weights,
+            tile_index=tile_index,
+            iso_table=iso_table,
             dp=tile_weights.dp,
-        ).frame
+        )
+        allocation = build_allocation(context)
+        recomputed = (
+            pl.scan_parquet(str(allocation.temp_dir / "*.parquet"))
+            .select(["merchant_id", "legal_country_iso", "tile_id", "n_sites_tile"])
+            .collect()
+        )
+        shutil.rmtree(allocation.temp_dir, ignore_errors=True)
 
         if dataset.height != recomputed.height or dataset.sort(["merchant_id", "legal_country_iso", "tile_id"]).rows() != recomputed.sort(["merchant_id", "legal_country_iso", "tile_id"]).rows():
             raise err(

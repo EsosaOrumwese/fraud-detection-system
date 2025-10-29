@@ -170,7 +170,10 @@ def test_runner_and_validator_success(tmp_path: Path, monkeypatch: pytest.Monkey
     )
     result = runner.run(config)
 
-    dataset = pl.read_parquet(result.alloc_plan_path / "part-00000.parquet")
+    dataset = (
+        pl.scan_parquet(str(result.alloc_plan_path / "*.parquet"))
+        .collect()
+    )
     assert dataset.sort(["merchant_id", "legal_country_iso", "tile_id"]).rows() == [
         (1, "US", 1, 4),
         (1, "US", 2, 1),
