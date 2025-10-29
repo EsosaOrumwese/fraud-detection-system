@@ -201,15 +201,17 @@ def build_assignments(
             )
 
     assignments_frame = (
-        pl.DataFrame(assignments)
-        .with_columns(
-            [
-                pl.col("merchant_id").cast(pl.UInt64),
-                pl.col("legal_country_iso").cast(pl.Utf8).str.to_uppercase(),
-                pl.col("site_order").cast(pl.Int64),
-                pl.col("tile_id").cast(pl.UInt64),
-            ]
+        pl.DataFrame(
+            assignments,
+            schema={
+                "merchant_id": pl.UInt64,
+                "legal_country_iso": pl.Utf8,
+                "site_order": pl.Int64,
+                "tile_id": pl.UInt64,
+            },
+            orient="row",
         )
+        .with_columns(pl.col("legal_country_iso").str.to_uppercase())
         .sort(["merchant_id", "legal_country_iso", "site_order"])
     )
 
