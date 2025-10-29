@@ -154,8 +154,7 @@ def compute_jitter(
             before_blocks = substream.blocks
             before_draws = substream.draws
 
-            u_lon = substream.uniform()
-            u_lat = substream.uniform()
+            u_lon, u_lat = substream.uniform_pair()
 
             after_state = substream.snapshot()
             blocks_consumed = substream.blocks - before_blocks

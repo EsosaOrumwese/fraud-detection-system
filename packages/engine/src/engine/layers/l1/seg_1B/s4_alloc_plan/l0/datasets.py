@@ -62,20 +62,33 @@ class TileIndexPartition:
     file_paths: tuple[Path, ...]
     dataset: ds.Dataset
 
-    def collect_country(self, iso: str) -> pl.DataFrame:
+    def collect_country(self, iso: str, columns: tuple[str, ...] | None = None) -> pl.DataFrame:
+        requested = columns or ("country_iso", "tile_id")
         table = self.dataset.to_table(
-            columns=["country_iso", "tile_id"],
+            columns=list(requested),
             filter=ds.field("country_iso") == iso,
         )
         if table.num_rows == 0:
-            return pl.DataFrame(
-                {
-                    "country_iso": pl.Series([], dtype=pl.Utf8),
-                    "tile_id": pl.Series([], dtype=pl.UInt64),
-                }
-            )
+            empty_payload: dict[str, pl.Series] = {}
+            for name in requested:
+                if name == "country_iso":
+                    empty_payload[name] = pl.Series([], dtype=pl.Utf8)
+                elif name == "tile_id":
+                    empty_payload[name] = pl.Series([], dtype=pl.UInt64)
+                else:
+                    empty_payload[name] = pl.Series([], dtype=pl.Float64)
+            return pl.DataFrame(empty_payload)
         frame = pl.from_arrow(table, rechunk=False)
-        return frame.with_columns(pl.col("tile_id").cast(pl.UInt64)).sort("tile_id")
+        updates = []
+        if "country_iso" in frame.columns:
+            updates.append(pl.col("country_iso").cast(pl.Utf8))
+        if "tile_id" in frame.columns:
+            updates.append(pl.col("tile_id").cast(pl.UInt64))
+        if updates:
+            frame = frame.with_columns(updates)
+        if "tile_id" in frame.columns:
+            frame = frame.sort("tile_id")
+        return frame
 
 
 def load_s3_requirements(
