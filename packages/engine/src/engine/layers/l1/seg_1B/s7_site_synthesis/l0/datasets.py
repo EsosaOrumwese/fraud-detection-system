@@ -193,20 +193,60 @@ def load_tile_bounds(
             f"tile_bounds partition missing at '{dataset_path}'",
         )
 
-    frame = (
-        pl.scan_parquet(str(dataset_path / "*.parquet"))
+    bounds_scan = pl.scan_parquet(str(dataset_path / "*.parquet"))
+    schema = bounds_scan.schema
+
+    if {"min_lon_deg", "max_lon_deg", "min_lat_deg", "max_lat_deg", "centroid_lon_deg", "centroid_lat_deg"}.issubset(schema):
+        frame = (
+            bounds_scan.select(
+                [
+                    pl.col("country_iso").cast(pl.Utf8).str.to_uppercase().alias("country_iso"),
+                    pl.col("tile_id").cast(pl.UInt64),
+                    pl.col("min_lon_deg").cast(pl.Float64),
+                    pl.col("max_lon_deg").cast(pl.Float64),
+                    pl.col("min_lat_deg").cast(pl.Float64),
+                    pl.col("max_lat_deg").cast(pl.Float64),
+                    pl.col("centroid_lon_deg").cast(pl.Float64),
+                    pl.col("centroid_lat_deg").cast(pl.Float64),
+                ]
+            )
+            .collect()
+            .sort(["country_iso", "tile_id"])
+        )
+        return TileBoundsPartition(path=dataset_path, frame=frame)
+
+    tile_index_path = dataset_path.parent.parent / "tile_index" / f"parameter_hash={parameter_hash}"
+    if not tile_index_path.exists():
+        raise err(
+            "E709_TILE_FK_VIOLATION",
+            f"tile_index partition missing at '{tile_index_path}'",
+        )
+
+    bounds_selected = bounds_scan.select(
+        [
+            pl.col("country_iso").cast(pl.Utf8).str.to_uppercase().alias("country_iso"),
+            pl.col("tile_id").cast(pl.UInt64),
+            pl.col("west_lon").cast(pl.Float64).alias("min_lon_deg"),
+            pl.col("east_lon").cast(pl.Float64).alias("max_lon_deg"),
+            pl.col("south_lat").cast(pl.Float64).alias("min_lat_deg"),
+            pl.col("north_lat").cast(pl.Float64).alias("max_lat_deg"),
+        ]
+    )
+
+    centroids_scan = (
+        pl.scan_parquet(str(tile_index_path / "*.parquet"))
         .select(
             [
                 pl.col("country_iso").cast(pl.Utf8).str.to_uppercase().alias("country_iso"),
                 pl.col("tile_id").cast(pl.UInt64),
-                pl.col("min_lon_deg").cast(pl.Float64),
-                pl.col("max_lon_deg").cast(pl.Float64),
-                pl.col("min_lat_deg").cast(pl.Float64),
-                pl.col("max_lat_deg").cast(pl.Float64),
-                pl.col("centroid_lon_deg").cast(pl.Float64),
-                pl.col("centroid_lat_deg").cast(pl.Float64),
+                pl.col("centroid_lon").cast(pl.Float64).alias("centroid_lon_deg"),
+                pl.col("centroid_lat").cast(pl.Float64).alias("centroid_lat_deg"),
             ]
         )
+    )
+
+    frame = (
+        bounds_selected.join(centroids_scan, on=["country_iso", "tile_id"], how="inner")
         .collect()
         .sort(["country_iso", "tile_id"])
     )
