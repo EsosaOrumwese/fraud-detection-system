@@ -6,6 +6,7 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Dict, Iterable, Mapping, Tuple
+
 import logging
 import polars as pl
 from shapely.geometry import Point
@@ -99,6 +100,17 @@ def compute_jitter(
     resample_sites = 0
     resample_events = 0
     current_iso: str | None = None
+    country_counts_series = (
+        assignments.get_column("legal_country_iso")
+        .cast(pl.Utf8)
+        .str.to_uppercase()
+        .value_counts()
+    )
+    country_site_targets: Dict[str, int] = {
+        row["legal_country_iso"]: int(row["count"]) for row in country_counts_series.iter_rows(named=True)
+    }
+    total_countries = len(country_site_targets)
+    completed_countries = 0
 
     for row in assignments.iter_rows(named=True):
         merchant_id = int(row["merchant_id"])
@@ -111,8 +123,11 @@ def compute_jitter(
             if current_iso is not None:
                 stats_prev = per_country.get(current_iso)
                 if stats_prev is not None:
+                    completed_countries += 1
                     logger.info(
-                        "S6: jitter country complete (iso=%s, sites=%d, rng_events=%d)",
+                        "S6: jitter country %d/%d complete (iso=%s, sites=%d, rng_events=%d)",
+                        completed_countries,
+                        total_countries,
                         current_iso,
                         stats_prev["sites"],
                         stats_prev["rng_events"],
@@ -126,6 +141,14 @@ def compute_jitter(
                 tile_bounds.prime_iso(iso_code)
             if hasattr(tile_centroids, "prime_iso"):
                 tile_centroids.prime_iso(iso_code)
+            expected_sites = country_site_targets.get(iso_code, 0)
+            logger.info(
+                "S6: jitter country %d/%d start (iso=%s, planned_sites=%d)",
+                completed_countries + 1,
+                total_countries,
+                iso_code,
+                expected_sites,
+            )
 
         bounds = tile_bounds.get(key)
         centroid = tile_centroids.get(key)
@@ -253,8 +276,11 @@ def compute_jitter(
     if current_iso is not None:
         stats_prev = per_country.get(current_iso)
         if stats_prev is not None:
+            completed_countries += 1
             logger.info(
-                "S6: jitter country complete (iso=%s, sites=%d, rng_events=%d)",
+                "S6: jitter country %d/%d complete (iso=%s, sites=%d, rng_events=%d)",
+                completed_countries,
+                total_countries,
                 current_iso,
                 stats_prev["sites"],
                 stats_prev["rng_events"],
@@ -265,16 +291,23 @@ def compute_jitter(
             tile_centroids.release_iso(current_iso)
 
     frame = (
-        pl.DataFrame(dataset_rows)
+        pl.DataFrame(
+            dataset_rows,
+            schema={
+                "merchant_id": pl.UInt64,
+                "legal_country_iso": pl.Utf8,
+                "site_order": pl.Int64,
+                "tile_id": pl.UInt64,
+                "delta_lat_deg": pl.Float64,
+                "delta_lon_deg": pl.Float64,
+                "manifest_fingerprint": pl.Utf8,
+            },
+            orient="row",
+        )
         .with_columns(
             [
-                pl.col("merchant_id").cast(pl.UInt64),
-                pl.col("legal_country_iso").cast(pl.Utf8).str.to_uppercase(),
-                pl.col("site_order").cast(pl.Int64),
-                pl.col("tile_id").cast(pl.UInt64),
-                pl.col("delta_lat_deg").cast(pl.Float64),
-                pl.col("delta_lon_deg").cast(pl.Float64),
-                pl.col("manifest_fingerprint").cast(pl.Utf8).str.to_lowercase(),
+                pl.col("legal_country_iso").str.to_uppercase(),
+                pl.col("manifest_fingerprint").str.to_lowercase(),
             ]
         )
         .sort(["merchant_id", "legal_country_iso", "site_order"])
