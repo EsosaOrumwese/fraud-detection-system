@@ -21,6 +21,7 @@ Trim Segment 1B state-6 (site jitter) from ~55 minutes to under 5 minutes on the
 - Baseline snapshot: `docs/perf/s6_jitter/profile_20251029.pstats` (≈1,540 s).
 - Post-cache/vector run: `docs/perf/s6_jitter/profile_20251029_after_vector.pstats` (≈257 s) showing primary hot spots then in NumPy searchsorted and dataset loads.
 - Hash-indexed cache run: `docs/perf/s6_jitter/profile_20251029_after_hashindex.pstats` (≈192 s), removing the searchsorted hotspot but leaving dataset scans (`dataset.to_table`) as the dominant cost.
+- Cache-prefetch revert (per-ISO streaming) run: `docs/perf/s6_jitter/profile_20251029_after_cacheprefetch.pstats` (≈189 s); Arrow scans remain the top contributor, so the next optimisation track focuses on reducing repeated ISO reads.
 
 ### 2. Vectorised Containment (In progress)
 - Added bounding-box metadata to cached polygons and short-circuit country checks when possible.
