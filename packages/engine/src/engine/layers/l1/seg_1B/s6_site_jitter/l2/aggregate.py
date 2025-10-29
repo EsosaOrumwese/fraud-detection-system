@@ -155,58 +155,74 @@ class _TileBoundsCache:
     def __init__(self, partition) -> None:
         self._partition = partition
         self._cache: Dict[str, _TileBoundsArray] = {}
+        self._prefetched = False
 
     def get(self, key: Tuple[str, int], default=None) -> TileBoundsRecord | None:
         iso, tile_id = key
         iso = str(iso).upper()
+        self._ensure_prefetched()
         cache = self._cache.get(iso)
-        if cache is None:
-            cache = self._load_iso(iso)
-            self._cache[iso] = cache
         return cache.lookup(int(tile_id)) if cache is not None else default
 
     def prime_iso(self, iso: str) -> None:
         iso = str(iso).upper()
-        if iso not in self._cache:
-            self._cache[iso] = self._load_iso(iso)
+        self._ensure_prefetched()
 
     def release_iso(self, iso: str) -> None:
         self._cache.pop(str(iso).upper(), None)
 
-    def _load_iso(self, iso: str) -> _TileBoundsArray:
+    def _ensure_prefetched(self) -> None:
+        if self._prefetched:
+            return
+
         table = self._partition.dataset.to_table(
-            columns=["tile_id", "west_lon", "east_lon", "south_lat", "north_lat"],
-            filter=ds.field("country_iso") == iso,
+            columns=["country_iso", "tile_id", "west_lon", "east_lon", "south_lat", "north_lat"]
         )
         if table.num_rows == 0:
-            empty = np.empty(0, dtype=np.float64)
-            return _TileBoundsArray(
-                tile_ids=np.empty(0, dtype=np.uint64),
-                west=empty,
-                east=empty,
-                south=empty,
-                north=empty,
-                index_map={},
-            )
+            self._prefetched = True
+            return
 
+        iso_array = table.column("country_iso").to_numpy(zero_copy_only=False)
         tile_ids = np.asarray(table.column("tile_id").to_numpy(zero_copy_only=False), dtype=np.uint64)
         west = np.asarray(table.column("west_lon").to_numpy(zero_copy_only=False), dtype=np.float64)
         east = np.asarray(table.column("east_lon").to_numpy(zero_copy_only=False), dtype=np.float64)
         south = np.asarray(table.column("south_lat").to_numpy(zero_copy_only=False), dtype=np.float64)
         north = np.asarray(table.column("north_lat").to_numpy(zero_copy_only=False), dtype=np.float64)
 
-        if tile_ids.size:
-            order = np.argsort(tile_ids, kind="mergesort")
-            tile_ids = tile_ids[order]
-            west = west[order]
-            east = east[order]
-            south = south[order]
-            north = north[order]
-            index_map = {int(tile_id): int(idx) for idx, tile_id in enumerate(tile_ids)}
-        else:
-            index_map = {}
+        iso_upper = np.char.upper(iso_array.astype(str))
+        order = np.lexsort((tile_ids, iso_upper))
 
-        return _TileBoundsArray(tile_ids=tile_ids, west=west, east=east, south=south, north=north, index_map=index_map)
+        iso_sorted = iso_upper[order]
+        tile_sorted = tile_ids[order]
+        west_sorted = west[order]
+        east_sorted = east[order]
+        south_sorted = south[order]
+        north_sorted = north[order]
+
+        if iso_sorted.size > 0:
+            boundaries = np.concatenate(
+                ([0], np.where(iso_sorted[1:] != iso_sorted[:-1])[0] + 1, [iso_sorted.size])
+            )
+            for start, end in zip(boundaries[:-1], boundaries[1:]):
+                iso_key = str(iso_sorted[start]).upper()
+                tiles_slice = tile_sorted[start:end]
+                order_within_iso = np.argsort(tiles_slice, kind="mergesort")
+                tiles_sorted = tiles_slice[order_within_iso]
+                west_iso = west_sorted[start:end][order_within_iso]
+                east_iso = east_sorted[start:end][order_within_iso]
+                south_iso = south_sorted[start:end][order_within_iso]
+                north_iso = north_sorted[start:end][order_within_iso]
+                index_map = {int(tile): int(idx) for idx, tile in enumerate(tiles_sorted)}
+                self._cache[iso_key] = _TileBoundsArray(
+                    tile_ids=tiles_sorted,
+                    west=west_iso,
+                    east=east_iso,
+                    south=south_iso,
+                    north=north_iso,
+                    index_map=index_map,
+                )
+
+        self._prefetched = True
 
 
 class _TileCentroidCache:
@@ -215,49 +231,63 @@ class _TileCentroidCache:
     def __init__(self, partition) -> None:
         self._partition = partition
         self._cache: Dict[str, _TileCentroidArray] = {}
+        self._prefetched = False
 
     def get(self, key: Tuple[str, int], default=None) -> TileCentroidRecord | None:
         iso, tile_id = key
         iso = str(iso).upper()
+        self._ensure_prefetched()
         cache = self._cache.get(iso)
-        if cache is None:
-            cache = self._load_iso(iso)
-            self._cache[iso] = cache
         return cache.lookup(int(tile_id)) if cache is not None else default
 
     def prime_iso(self, iso: str) -> None:
         iso = str(iso).upper()
-        if iso not in self._cache:
-            self._cache[iso] = self._load_iso(iso)
+        self._ensure_prefetched()
 
     def release_iso(self, iso: str) -> None:
         self._cache.pop(str(iso).upper(), None)
 
-    def _load_iso(self, iso: str) -> _TileCentroidArray:
+    def _ensure_prefetched(self) -> None:
+        if self._prefetched:
+            return
+
         table = self._partition.dataset.to_table(
-            columns=["tile_id", "centroid_lon", "centroid_lat"],
-            filter=ds.field("country_iso") == iso,
+            columns=["country_iso", "tile_id", "centroid_lon", "centroid_lat"]
         )
         if table.num_rows == 0:
-            empty = np.empty(0, dtype=np.float64)
-            return _TileCentroidArray(
-                tile_ids=np.empty(0, dtype=np.uint64),
-                lon=empty,
-                lat=empty,
-                index_map={},
-            )
+            self._prefetched = True
+            return
 
+        iso_array = table.column("country_iso").to_numpy(zero_copy_only=False)
         tile_ids = np.asarray(table.column("tile_id").to_numpy(zero_copy_only=False), dtype=np.uint64)
         lon = np.asarray(table.column("centroid_lon").to_numpy(zero_copy_only=False), dtype=np.float64)
         lat = np.asarray(table.column("centroid_lat").to_numpy(zero_copy_only=False), dtype=np.float64)
 
-        if tile_ids.size:
-            order = np.argsort(tile_ids, kind="mergesort")
-            tile_ids = tile_ids[order]
-            lon = lon[order]
-            lat = lat[order]
-            index_map = {int(tile_id): int(idx) for idx, tile_id in enumerate(tile_ids)}
-        else:
-            index_map = {}
+        iso_upper = np.char.upper(iso_array.astype(str))
+        order = np.lexsort((tile_ids, iso_upper))
 
-        return _TileCentroidArray(tile_ids=tile_ids, lon=lon, lat=lat, index_map=index_map)
+        iso_sorted = iso_upper[order]
+        tile_sorted = tile_ids[order]
+        lon_sorted = lon[order]
+        lat_sorted = lat[order]
+
+        if iso_sorted.size > 0:
+            boundaries = np.concatenate(
+                ([0], np.where(iso_sorted[1:] != iso_sorted[:-1])[0] + 1, [iso_sorted.size])
+            )
+            for start, end in zip(boundaries[:-1], boundaries[1:]):
+                iso_key = str(iso_sorted[start]).upper()
+                tiles_slice = tile_sorted[start:end]
+                order_within_iso = np.argsort(tiles_slice, kind="mergesort")
+                tiles_sorted = tiles_slice[order_within_iso]
+                lon_iso = lon_sorted[start:end][order_within_iso]
+                lat_iso = lat_sorted[start:end][order_within_iso]
+                index_map = {int(tile): int(idx) for idx, tile in enumerate(tiles_sorted)}
+                self._cache[iso_key] = _TileCentroidArray(
+                    tile_ids=tiles_sorted,
+                    lon=lon_iso,
+                    lat=lat_iso,
+                    index_map=index_map,
+                )
+
+        self._prefetched = True
