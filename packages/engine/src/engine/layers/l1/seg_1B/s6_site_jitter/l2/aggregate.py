@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass
 from typing import Dict, Tuple
 from uuid import uuid4
@@ -73,6 +74,7 @@ def execute_jitter(context: JitterContext) -> JitterOutcome:
         for country in prepared.country_polygons.polygons
     }
 
+    jitter_start = time.perf_counter()
     outcome = compute_jitter(
         engine=context.engine,
         manifest_fingerprint=prepared.manifest_fingerprint,
@@ -85,12 +87,14 @@ def execute_jitter(context: JitterContext) -> JitterOutcome:
         country_polygons=country_polygon_map,
     )
 
+    jitter_elapsed = time.perf_counter() - jitter_start
     logger.info(
-        "S6: jitter completed (sites=%d, rng_events=%d, outside_country=%d, outside_pixel=%d)",
+        "S6: jitter completed (sites=%d, rng_events=%d, outside_country=%d, outside_pixel=%d, elapsed=%.2fs)",
         outcome.sites_total,
         outcome.events_total,
         outcome.outside_country,
         outcome.outside_pixel,
+        jitter_elapsed,
     )
 
     return outcome

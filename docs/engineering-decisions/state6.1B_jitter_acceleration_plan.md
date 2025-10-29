@@ -17,8 +17,8 @@ Trim Segment 1B state-6 (site jitter) from ~55 minutes to under 5 minutes on the
 ## Action Plan
 
 ### 1. Profiling (WIP)
-- Capture targeted cProfile/py-spy traces for heavy countries (US, QA, RU) using a small harness that replays S6 with cached inputs.
-- Log jitter wall-clock per ISO (start/complete timestamps) to identify worst offenders in the full run.
+- Added per-country start/complete logging (with site counts and elapsed seconds) and introduced 	ools/perf/run_s6_profile.py to capture cProfile stats for S6 in isolation.
+- Next: capture targeted cProfile/py-spy traces for heavy countries (US, QA, RU) using the harness and annotate wall-clock hotspots per ISO.
 
 ### 2. Vectorised Containment
 - Replace per-site Shapely contains calls with batched evaluation: explore shapely.vectorized.contains or raster-based mask reuse.
@@ -55,4 +55,5 @@ Trim Segment 1B state-6 (site jitter) from ~55 minutes to under 5 minutes on the
 * RNG budget checks remain at 1 block per attempt; total RNG events unchanged (within tolerance).
 * Memory footprint stays within current envelope (< 4 GB per process).
 * Determinism maintained across seeds; run report diff shows only performance metrics improving.
+
 
