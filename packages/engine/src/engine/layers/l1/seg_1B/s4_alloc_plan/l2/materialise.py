@@ -96,8 +96,11 @@ def materialise_allocation(
         "bytes_read_index": _sum_file_sizes(prepared.tile_index.path),
         "wall_clock_seconds_total": wall_clock_seconds_total,
         "cpu_seconds_total": cpu_seconds_total,
+        "workers_used": allocation.workers_used,
     }
-    metrics.update(_collect_resource_metrics())
+    resource_metrics = _collect_resource_metrics()
+    resource_metrics["workers_used"] = allocation.workers_used
+    metrics.update(resource_metrics)
 
     report_path = resolve_dataset_path(
         "s4_run_report",

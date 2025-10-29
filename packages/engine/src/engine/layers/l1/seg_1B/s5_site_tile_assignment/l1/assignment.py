@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Dict, Iterable, List, Tuple
 
+import numpy as np
 import polars as pl
 
 from engine.layers.l1.seg_1A.s0_foundations.l1.rng import PhiloxEngine, PhiloxState
@@ -64,13 +65,21 @@ def _expand_tile_multiset(frame: pl.DataFrame) -> Dict[PairKey, List[int]]:
 def _validate_tile_universe(
     *,
     multiset: Dict[PairKey, List[int]],
-    allowed_tiles: set[Tuple[str, int]],
+    tile_lookup: Dict[str, np.ndarray],
 ) -> None:
     missing: List[Tuple[int, str, int]] = []
     for key, tiles in multiset.items():
-        for tile_id in tiles:
-            if (key.legal_country_iso, tile_id) not in allowed_tiles:
-                missing.append((key.merchant_id, key.legal_country_iso, tile_id))
+        allowed = tile_lookup.get(key.legal_country_iso)
+        if allowed is None:
+            missing.extend((key.merchant_id, key.legal_country_iso, tile_id) for tile_id in tiles)
+            continue
+        allowed_arr = allowed
+        tile_array = np.asarray(tiles, dtype=np.uint64)
+        positions = np.searchsorted(allowed_arr, tile_array)
+        mask = (positions >= allowed_arr.size) | (allowed_arr[positions] != tile_array)
+        if mask.any():
+            for tile_id in tile_array[mask]:
+                missing.append((key.merchant_id, key.legal_country_iso, int(tile_id)))
     if missing:
         sample = missing[:3]
         raise err(
@@ -100,7 +109,7 @@ def build_assignments(
     *,
     allocations: pl.DataFrame,
     iso_codes: frozenset[str],
-    allowed_tiles: set[Tuple[str, int]],
+    allowed_tiles: Dict[str, np.ndarray],
     engine: PhiloxEngine,
     parameter_hash: str,
     manifest_fingerprint: str,
@@ -111,7 +120,7 @@ def build_assignments(
 
     multiset = _expand_tile_multiset(allocations)
     _validate_iso_codes(multiset=multiset, iso_codes=iso_codes)
-    _validate_tile_universe(multiset=multiset, allowed_tiles=allowed_tiles)
+    _validate_tile_universe(multiset=multiset, tile_lookup=allowed_tiles)
 
     assignments: List[dict] = []
     rng_events: List[dict] = []

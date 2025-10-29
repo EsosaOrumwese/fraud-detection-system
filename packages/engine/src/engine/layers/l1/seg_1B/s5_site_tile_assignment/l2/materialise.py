@@ -7,15 +7,17 @@ import shutil
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping, Sequence
+from typing import Dict, Mapping, Sequence
 from uuid import uuid4
 
+import numpy as np
 import polars as pl
 
 from engine.layers.l1.seg_1B.s1_tile_index.l2.runner import compute_partition_digest
 
 from ...shared.dictionary import resolve_dataset_path
 from ..exceptions import err
+from ..l0.datasets import TileIndexPartition
 from ..l1.assignment import AssignmentResult
 from ..l2.prepare import PreparedInputs
 from ..l3.observability import build_run_report
@@ -118,7 +120,7 @@ def materialise_assignment(
     anomalies = _compute_anomaly_counters(
         assignments=assignment.assignments,
         alloc_plan=prepared.alloc_plan.frame,
-        tile_index=prepared.tile_index.frame,
+        tile_index=prepared.tile_index,
         iso_codes=prepared.iso_table.codes,
     )
 
@@ -237,23 +239,30 @@ def _compute_anomaly_counters(
     *,
     assignments: pl.DataFrame,
     alloc_plan: pl.DataFrame,
-    tile_index: pl.DataFrame,
+    tile_index: TileIndexPartition,
     iso_codes: frozenset[str],
 ) -> Mapping[str, int]:
+    assignments_norm = assignments.with_columns(
+        pl.col("legal_country_iso").cast(pl.Utf8).str.to_uppercase()
+    )
+    alloc_plan_norm = alloc_plan.with_columns(
+        pl.col("legal_country_iso").cast(pl.Utf8).str.to_uppercase()
+    )
+
     dup_sites = (
-        assignments.group_by(["merchant_id", "legal_country_iso", "site_order"])
+        assignments_norm.group_by(["merchant_id", "legal_country_iso", "site_order"])
         .agg(pl.len().alias("count"))
         .filter(pl.col("count") > 1)
         .height
     )
 
     per_tile_counts = (
-        assignments.group_by(["merchant_id", "legal_country_iso", "tile_id"])
+        assignments_norm.group_by(["merchant_id", "legal_country_iso", "tile_id"])
         .agg(pl.len().alias("assigned_count"))
     )
 
     quota_join = per_tile_counts.join(
-        alloc_plan,
+        alloc_plan_norm,
         on=["merchant_id", "legal_country_iso", "tile_id"],
         how="full",
     ).fill_null(0)
@@ -262,16 +271,30 @@ def _compute_anomaly_counters(
         pl.col("assigned_count") != pl.col("n_sites_tile")
     ).height
 
-    tile_not_in_index = (
-        assignments.join(
-            tile_index,
-            left_on=["legal_country_iso", "tile_id"],
-            right_on=["country_iso", "tile_id"],
-            how="anti",
-        ).height
-    )
+    countries = assignments_norm.get_column("legal_country_iso").unique().to_list()
+    tile_lookup: dict[str, np.ndarray] = {}
+    for country_iso in countries:
+        tiles_df = tile_index.collect_country(country_iso)
+        tile_lookup[country_iso] = tiles_df.get_column("tile_id").to_numpy().astype(np.uint64, copy=False)
 
-    fk_country_violations = assignments.filter(
+    tile_not_in_index = 0
+    for country_iso, tile_ids in tile_lookup.items():
+        if tile_ids.size == 0:
+            tile_not_in_index += int(
+                assignments_norm.filter(pl.col("legal_country_iso") == country_iso).height
+            )
+            continue
+        assigned_tiles = (
+            assignments_norm.filter(pl.col("legal_country_iso") == country_iso)
+            .get_column("tile_id")
+            .to_numpy()
+            .astype(np.uint64, copy=False)
+        )
+        positions = np.searchsorted(tile_ids, assigned_tiles)
+        mask = (positions >= tile_ids.size) | (tile_ids[positions] != assigned_tiles)
+        tile_not_in_index += int(mask.sum())
+
+    fk_country_violations = assignments_norm.filter(
         ~pl.col("legal_country_iso").is_in(sorted(iso_codes))
     ).height
 

@@ -51,7 +51,7 @@ class TileWeightsPartition:
                 }
             )
         frame = pl.from_arrow(table, rechunk=False)
-        return frame.with_columns(pl.col("dp").cast(pl.UInt32))
+        return frame.with_columns(pl.col("dp").cast(pl.UInt32)).sort("tile_id")
 
 
 @dataclass(frozen=True)
@@ -75,7 +75,7 @@ class TileIndexPartition:
                 }
             )
         frame = pl.from_arrow(table, rechunk=False)
-        return frame.with_columns(pl.col("tile_id").cast(pl.UInt64))
+        return frame.with_columns(pl.col("tile_id").cast(pl.UInt64)).sort("tile_id")
 
 
 def load_s3_requirements(

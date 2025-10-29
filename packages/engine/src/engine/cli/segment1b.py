@@ -57,6 +57,7 @@ def _command_run(args: argparse.Namespace) -> int:
             validation_bundle_path=args.validation_bundle,
             skip_s0=args.skip_s0,
             s1_workers=args.s1_workers,
+            s4_workers=args.s4_workers,
         )
     )
 
@@ -308,6 +309,12 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         default=1,
         help="Number of worker processes for S1 tile index (experimental).",
+    )
+    run_parser.add_argument(
+        "--s4-workers",
+        type=int,
+        default=1,
+        help="Number of worker threads for S4 allocation (experimental).",
     )
 
     validate_parser = subparsers.add_parser("validate", help="Validate tile_weights output")

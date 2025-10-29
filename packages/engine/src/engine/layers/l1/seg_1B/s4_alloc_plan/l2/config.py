@@ -16,12 +16,14 @@ class RunnerConfig:
     seed: str
     parameter_hash: str
     dictionary: Optional[Mapping[str, object]] = None
+    workers: int = 1
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "data_root", self.data_root.expanduser().resolve())
         object.__setattr__(self, "manifest_fingerprint", str(self.manifest_fingerprint))
         object.__setattr__(self, "seed", str(self.seed))
         object.__setattr__(self, "parameter_hash", str(self.parameter_hash))
+        object.__setattr__(self, "workers", max(1, int(self.workers)))
 
 
 __all__ = ["RunnerConfig"]

@@ -46,6 +46,8 @@ def build_run_report(
     }
     if merchant_summaries:
         report["merchant_summaries"] = merchant_summaries
+    if allocation.country_timings:
+        report["country_timings"] = allocation.country_timings
     return report
 
 

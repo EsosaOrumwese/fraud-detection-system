@@ -19,3 +19,9 @@
 - Submit the updated dictionary/schema artefacts and `psutil` dependency for governance approval.
 - Share the sample evidence bundle and updated runbook (`docs/runbooks/s4_alloc_plan.md`) with downstream consumers before enabling S4 reads.
 - Coordinate with automation owners to redeploy pipelines with the refreshed wrapper script and CLI commands.
+
+## 2025-10-28 Acceleration Update
+- Added a threaded execution path for the allocation aggregator; the run harness now honours a new `--s4-workers` knob (default 1) and tracks per-country wall-clock timings to ensure deterministic scheduling.
+- Streaming shards are still published in canonical order, but country results are computed in parallel using a bounded thread pool. The S4 run report now embeds the timing table to aid follow-up profiling.
+- PAT metrics reflect the configured worker count instead of relying solely on `psutil` thread heuristics, making resource envelopes reproducible across platforms.
+- S5 materialisation regained stability after reintroducing the `numpy` dependency used by the anomaly counters; end-to-end Segment 1B runs can progress past S5 following the S4 refactor.

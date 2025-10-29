@@ -56,6 +56,7 @@ class Segment1BConfig:
     validation_bundle_path: Optional[Path] = None
     skip_s0: bool = False
     s1_workers: int = 1
+    s4_workers: int = 1
 
 
 @dataclass(frozen=True)
@@ -199,6 +200,7 @@ class Segment1BOrchestrator:
                 seed=config.seed,
                 parameter_hash=config.parameter_hash,
                 dictionary=dictionary,
+                workers=config.s4_workers,
             )
         )
         logger.info(

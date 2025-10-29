@@ -34,6 +34,8 @@ class AllocationResult:
     ties_broken_total: int
     alloc_sum_equals_requirements: bool
     merchant_summaries: list[dict[str, object]]
+    workers_used: int
+    country_timings: list[dict[str, object]]
 
 
 def allocate_country_sites(
@@ -86,6 +88,8 @@ def allocate_country_sites(
     ties_broken_total = 0
     alloc_sum_equals_requirements = True
 
+    product_buffer = np.empty(weights_fp.shape[0], dtype=np.uint64)
+    allocation_buffer = np.empty(weights_fp.shape[0], dtype=np.int64)
     residue_buffer = np.empty(weights_fp.shape[0], dtype=np.int64)
 
     for merchant_id, sites_required in zip(merchants, n_sites):
@@ -95,11 +99,12 @@ def allocate_country_sites(
                 f"merchant {merchant_id} in country '{country_iso}' requested non-positive sites",
             )
 
-        product = weights_fp * np.uint64(sites_required)
-        base = (product // K).astype(np.int64, copy=False)
-        np.mod(product, K, out=residue_buffer, casting="unsafe")
+        np.multiply(weights_fp, np.uint64(sites_required), out=product_buffer, casting="unsafe")
+        np.floor_divide(product_buffer, K, out=allocation_buffer, casting="unsafe")
+        np.remainder(product_buffer, K, out=residue_buffer, casting="unsafe")
 
-        base_sum = int(base.sum())
+        allocation = allocation_buffer
+        base_sum = int(allocation.sum())
         shortfall = int(sites_required - base_sum)
         if shortfall < 0:
             raise err(
@@ -107,7 +112,6 @@ def allocate_country_sites(
                 f"base allocations exceed required counts for merchant {merchant_id} in '{country_iso}'",
             )
 
-        allocation = base
         ties = 0
 
         if shortfall > 0:
@@ -116,9 +120,10 @@ def allocate_country_sites(
                     "E403_SHORTFALL_MISMATCH",
                     f"insufficient tiles to distribute shortfall for merchant {merchant_id} in '{country_iso}'",
                 )
-            order = np.lexsort((tile_ids, -residue_buffer))
-            selection = order[:shortfall]
-            allocation[selection] += 1
+            top_idx = np.argpartition(residue_buffer, residue_buffer.size - shortfall)[-shortfall:]
+            order = np.lexsort((tile_ids[top_idx], -residue_buffer[top_idx]))
+            selection = top_idx[order]
+            allocation[selection] = allocation[selection] + 1
             selected_residue = residue_buffer[selection]
             ties = int(len(selected_residue) - np.unique(selected_residue).size)
 
