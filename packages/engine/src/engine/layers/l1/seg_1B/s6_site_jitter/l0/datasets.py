@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Mapping, Tuple
 
 import polars as pl
+import pyarrow.dataset as ds
 
 from engine.layers.l1.seg_1B.s1_tile_index.l0.loaders import (
     CountryPolygons,
@@ -17,7 +18,7 @@ from engine.layers.l1.seg_1B.s1_tile_index.l0.loaders import (
 
 from ...shared.dictionary import load_dictionary, resolve_dataset_path
 from ..exceptions import err
-from ...s4_alloc_plan.l0.datasets import TileIndexPartition
+from ...s4_alloc_plan.l0.datasets import TileIndexPartition, load_tile_index
 
 
 @dataclass(frozen=True)
@@ -33,7 +34,43 @@ class TileBoundsPartition:
     """Tile bounds partition scoped by parameter hash."""
 
     path: Path
-    frame: pl.DataFrame
+    file_paths: tuple[Path, ...]
+    dataset: ds.Dataset
+
+    def collect_country(self, iso: str) -> pl.DataFrame:
+        table = self.dataset.to_table(
+            columns=[
+                "country_iso",
+                "tile_id",
+                "west_lon",
+                "east_lon",
+                "south_lat",
+                "north_lat",
+            ],
+            filter=ds.field("country_iso") == iso,
+        )
+        if table.num_rows == 0:
+            return pl.DataFrame(
+                {
+                    "country_iso": pl.Series([], dtype=pl.Utf8),
+                    "tile_id": pl.Series([], dtype=pl.UInt64),
+                    "west_lon": pl.Series([], dtype=pl.Float64),
+                    "east_lon": pl.Series([], dtype=pl.Float64),
+                    "south_lat": pl.Series([], dtype=pl.Float64),
+                    "north_lat": pl.Series([], dtype=pl.Float64),
+                }
+            )
+        frame = pl.from_arrow(table, rechunk=False)
+        return frame.with_columns(
+            [
+                pl.col("country_iso").cast(pl.Utf8),
+                pl.col("tile_id").cast(pl.UInt64),
+                pl.col("west_lon").cast(pl.Float64),
+                pl.col("east_lon").cast(pl.Float64),
+                pl.col("south_lat").cast(pl.Float64),
+                pl.col("north_lat").cast(pl.Float64),
+            ]
+        )
 
 
 @dataclass(frozen=True)
@@ -107,21 +144,14 @@ def load_tile_bounds(
             f"tile_bounds partition missing at '{dataset_path}'",
         )
 
-    frame = (
-        pl.scan_parquet(str(dataset_path / "*.parquet"))
-        .select(
-            [
-                "country_iso",
-                "tile_id",
-                "west_lon",
-                "east_lon",
-                "south_lat",
-                "north_lat",
-            ]
+    file_paths = tuple(sorted(dataset_path.glob("*.parquet")))
+    if not file_paths:
+        raise err(
+            "E606_FK_TILE_INDEX",
+            f"tile_bounds partition '{dataset_path}' contains no parquet files",
         )
-        .collect()
-    )
-    return TileBoundsPartition(path=dataset_path, frame=frame)
+    dataset = ds.dataset(file_paths, format="parquet")
+    return TileBoundsPartition(path=dataset_path, file_paths=file_paths, dataset=dataset)
 
 
 def load_tile_index_partition(
@@ -130,34 +160,13 @@ def load_tile_index_partition(
     parameter_hash: str,
     dictionary: Mapping[str, object] | None = None,
 ) -> TileIndexPartition:
-    """Load tile index rows with centroid metadata for the parameter set."""
+    """Load the streaming tile index partition shared with other states."""
 
-    dictionary = dictionary or load_dictionary()
-    dataset_path = resolve_dataset_path(
-        "tile_index",
+    return load_tile_index(
         base_path=base_path,
-        template_args={"parameter_hash": parameter_hash},
+        parameter_hash=parameter_hash,
         dictionary=dictionary,
     )
-    if not dataset_path.exists():
-        raise err(
-            "E606_FK_TILE_INDEX",
-            f"tile_index partition missing at '{dataset_path}'",
-        )
-
-    frame = (
-        pl.scan_parquet(str(dataset_path / "*.parquet"))
-        .select(
-            [
-                "country_iso",
-                "tile_id",
-                "centroid_lon",
-                "centroid_lat",
-            ]
-        )
-        .collect()
-    )
-    return TileIndexPartition(path=dataset_path, frame=frame)
 
 
 def load_world_countries(

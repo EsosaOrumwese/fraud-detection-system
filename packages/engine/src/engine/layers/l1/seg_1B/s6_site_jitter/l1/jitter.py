@@ -6,7 +6,7 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Dict, Iterable, Mapping, Tuple
-
+import logging
 import polars as pl
 from shapely.geometry import Point
 from shapely.geometry.base import BaseGeometry
@@ -85,6 +85,7 @@ def compute_jitter(
 ) -> JitterOutcome:
     """Compute jitter deltas and RNG events for every site."""
 
+    logger = logging.getLogger(__name__)
     dataset_rows: list[Mapping[str, object]] = []
     rng_events: list[dict] = []
     outside_pixel = 0
@@ -97,6 +98,7 @@ def compute_jitter(
     attempts_hist: Counter[int] = Counter()
     resample_sites = 0
     resample_events = 0
+    current_iso: str | None = None
 
     for row in assignments.iter_rows(named=True):
         merchant_id = int(row["merchant_id"])
@@ -104,6 +106,26 @@ def compute_jitter(
         site_order = int(row["site_order"])
         tile_id = int(row["tile_id"])
         key = (iso_code, tile_id)
+
+        if iso_code != current_iso:
+            if current_iso is not None:
+                stats_prev = per_country.get(current_iso)
+                if stats_prev is not None:
+                    logger.info(
+                        "S6: jitter country complete (iso=%s, sites=%d, rng_events=%d)",
+                        current_iso,
+                        stats_prev["sites"],
+                        stats_prev["rng_events"],
+                    )
+                if hasattr(tile_bounds, "release_iso"):
+                    tile_bounds.release_iso(current_iso)
+                if hasattr(tile_centroids, "release_iso"):
+                    tile_centroids.release_iso(current_iso)
+            current_iso = iso_code
+            if hasattr(tile_bounds, "prime_iso"):
+                tile_bounds.prime_iso(iso_code)
+            if hasattr(tile_centroids, "prime_iso"):
+                tile_centroids.prime_iso(iso_code)
 
         bounds = tile_bounds.get(key)
         centroid = tile_centroids.get(key)
@@ -228,6 +250,20 @@ def compute_jitter(
 
     events_total = len(rng_events)
     counter_span = _counter_span(first_counter, last_counter)
+
+    if current_iso is not None:
+        stats_prev = per_country.get(current_iso)
+        if stats_prev is not None:
+            logger.info(
+                "S6: jitter country complete (iso=%s, sites=%d, rng_events=%d)",
+                current_iso,
+                stats_prev["sites"],
+                stats_prev["rng_events"],
+            )
+        if hasattr(tile_bounds, "release_iso"):
+            tile_bounds.release_iso(current_iso)
+        if hasattr(tile_centroids, "release_iso"):
+            tile_centroids.release_iso(current_iso)
 
     frame = (
         pl.DataFrame(dataset_rows)
