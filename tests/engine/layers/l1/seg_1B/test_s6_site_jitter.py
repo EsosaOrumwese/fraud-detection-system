@@ -3,29 +3,20 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import polars as pl
-import pytest
 import geopandas as gpd
+import polars as pl
 from shapely.geometry import Polygon
-from shapely.prepared import prep as prepare_geometry
 
-from engine.layers.l1.seg_1B.s1_tile_index.l0.loaders import (
-    CountryPolygon,
-    CountryPolygons,
-    IsoCountryTable,
-)
-from engine.layers.l1.seg_1B.s6_site_jitter.l0.datasets import (
-    S5AssignmentPartition,
-    TileBoundsPartition,
-    TileIndexPartition,
-    WorldCountriesPartition,
-)
+from engine.layers.l1.seg_1B import S6RunnerConfig, S6SiteJitterRunner
 from engine.layers.l1.seg_1B.s6_site_jitter.l1.jitter import JitterOutcome
 from engine.layers.l1.seg_1B.s6_site_jitter.l2.materialise import (
     S6RunResult,
     materialise_jitter,
 )
-from engine.layers.l1.seg_1B.s6_site_jitter.l2.prepare import PreparedInputs
+from engine.layers.l1.seg_1B.s6_site_jitter.l2.prepare import (
+    PreparedInputs,
+    prepare_inputs,
+)
 from engine.layers.l1.seg_1B.s6_site_jitter.l3.validator import (
     S6SiteJitterValidator,
     ValidatorConfig,
@@ -74,7 +65,7 @@ def _write_parquet(path: Path, frame: pl.DataFrame) -> None:
     frame.write_parquet(path)
 
 
-def _prepare_inputs(tmp_path: Path) -> PreparedInputs:
+def _prepare_inputs(tmp_path: Path) -> tuple[PreparedInputs, S6RunnerConfig]:
     dictionary = _build_dictionary()
     manifest_fingerprint = "f" * 64
     parameter_hash = "abc123"
@@ -87,10 +78,10 @@ def _prepare_inputs(tmp_path: Path) -> PreparedInputs:
     assignment_path.mkdir(parents=True, exist_ok=True)
     assignment_df = pl.DataFrame(
         {
-            "merchant_id": [1],
-            "legal_country_iso": ["US"],
-            "site_order": [1],
-            "tile_id": [1],
+            "merchant_id": [101, 102, 201],
+            "legal_country_iso": ["US", "US", "CA"],
+            "site_order": [1, 2, 1],
+            "tile_id": [11, 11, 42],
         }
     )
     assignment_df.write_parquet(assignment_path / "part-00000.parquet")
@@ -99,12 +90,12 @@ def _prepare_inputs(tmp_path: Path) -> PreparedInputs:
     tile_bounds_path.mkdir(parents=True, exist_ok=True)
     tile_bounds_df = pl.DataFrame(
         {
-            "country_iso": ["US"],
-            "tile_id": [1],
-            "west_lon": [-1.0],
-            "east_lon": [1.0],
-            "south_lat": [-1.0],
-            "north_lat": [1.0],
+            "country_iso": ["US", "CA"],
+            "tile_id": [11, 42],
+            "west_lon": [-1.0, 9.0],
+            "east_lon": [1.0, 11.0],
+            "south_lat": [-1.0, 9.0],
+            "north_lat": [1.0, 11.0],
         }
     )
     tile_bounds_df.write_parquet(tile_bounds_path / "part-00000.parquet")
@@ -113,10 +104,10 @@ def _prepare_inputs(tmp_path: Path) -> PreparedInputs:
     tile_index_path.mkdir(parents=True, exist_ok=True)
     tile_index_df = pl.DataFrame(
         {
-            "country_iso": ["US"],
-            "tile_id": [1],
-            "centroid_lon": [0.0],
-            "centroid_lat": [0.0],
+            "country_iso": ["US", "CA"],
+            "tile_id": [11, 42],
+            "centroid_lon": [0.0, 10.0],
+            "centroid_lat": [0.0, 10.0],
         }
     )
     tile_index_df.write_parquet(tile_index_path / "part-00000.parquet")
@@ -124,106 +115,115 @@ def _prepare_inputs(tmp_path: Path) -> PreparedInputs:
     world_countries_path = tmp_path / "reference/world_countries.parquet"
     world_countries_path.parent.mkdir(parents=True, exist_ok=True)
     gdf = gpd.GeoDataFrame(
-        {"country_iso": ["US"]},
-        geometry=[Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])],
+        {"country_iso": ["US", "CA"]},
+        geometry=[
+            Polygon([(-1.0, -1.0), (1.0, -1.0), (1.0, 1.0), (-1.0, 1.0)]),
+            Polygon([(9.0, 9.0), (11.0, 9.0), (11.0, 11.0), (9.0, 11.0)]),
+        ],
         crs="EPSG:4326",
     )
     gdf.to_parquet(world_countries_path, index=False)
 
     iso_path = tmp_path / "reference/iso3166.parquet"
-    _write_parquet(iso_path, pl.DataFrame({"country_iso": ["US"]}))
+    _write_parquet(iso_path, pl.DataFrame({"country_iso": ["US", "CA"]}))
 
-    polygon = Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])
-    country_polygons = CountryPolygons(
-        {
-            "US": CountryPolygon(
-                country_iso="US",
-                geometry=polygon,
-                prepared=prepare_geometry(polygon),
-            )
-        }
-    )
-
-    return PreparedInputs(
-        dictionary=dictionary,
-        assignments=S5AssignmentPartition(path=assignment_path, frame=assignment_df),
-        tile_bounds=TileBoundsPartition(path=tile_bounds_path, frame=tile_bounds_df),
-        tile_index=TileIndexPartition(path=tile_index_path, frame=tile_index_df),
-        country_polygons=WorldCountriesPartition(path=world_countries_path, polygons=country_polygons),
-        iso_table=IsoCountryTable(table=pl.DataFrame({"country_iso": ["US"]})),
-        iso_version="2024-12-31",
-        manifest_fingerprint=manifest_fingerprint,
-        parameter_hash=parameter_hash,
-        seed=seed,
+    config = S6RunnerConfig(
         data_root=tmp_path,
+        manifest_fingerprint=manifest_fingerprint,
+        seed=seed,
+        parameter_hash=parameter_hash,
+        dictionary=dictionary,
     )
+    prepared = prepare_inputs(config)
+    return prepared, config
 
 
 def _build_outcome(manifest_fingerprint: str, parameter_hash: str, seed: int, run_id: str) -> JitterOutcome:
+    merchants = [101, 102, 201]
+    iso_codes = ["US", "US", "CA"]
+    site_orders = [1, 2, 1]
+    tile_ids = [11, 11, 42]
+    delta_lats = [0.1, -0.05, 0.2]
+    delta_lons = [0.2, -0.12, -0.3]
     frame = pl.DataFrame(
         {
-            "merchant_id": [1],
-            "legal_country_iso": ["US"],
-            "site_order": [1],
-            "tile_id": [1],
-            "delta_lat_deg": [0.1],
-            "delta_lon_deg": [0.2],
-            "manifest_fingerprint": [manifest_fingerprint],
+            "merchant_id": merchants,
+            "legal_country_iso": iso_codes,
+            "site_order": site_orders,
+            "tile_id": tile_ids,
+            "delta_lat_deg": delta_lats,
+            "delta_lon_deg": delta_lons,
+            "manifest_fingerprint": [manifest_fingerprint] * len(merchants),
         }
     )
-    rng_event = {
-        "merchant_id": 1,
-        "legal_country_iso": "US",
-        "site_order": 1,
-        "sigma_lat_deg": 0.0,
-        "sigma_lon_deg": 0.0,
-        "delta_lat_deg": 0.1,
-        "delta_lon_deg": 0.2,
-        "attempt_index": 1,
-        "accepted": True,
-        "parameter_hash": parameter_hash,
-        "manifest_fingerprint": manifest_fingerprint,
-        "seed": seed,
-        "run_id": run_id,
-        "module": "1B.S6.jitter",
-        "substream_label": "in_cell_jitter",
-        "ts_utc": "2025-10-23T00:00:00.000000Z",
-        "rng_counter_before_hi": 0,
-        "rng_counter_before_lo": 0,
-        "rng_counter_after_hi": 0,
-        "rng_counter_after_lo": 1,
-        "blocks": 1,
-        "draws": "2",
-    }
+    rng_events = []
+    draws_per_event = 2
+    for idx, (merchant_id, iso, site_order, delta_lat, delta_lon) in enumerate(
+        zip(merchants, iso_codes, site_orders, delta_lats, delta_lons, strict=True)
+    ):
+        rng_events.append(
+            {
+                "merchant_id": merchant_id,
+                "legal_country_iso": iso,
+                "site_order": site_order,
+                "sigma_lat_deg": 0.0,
+                "sigma_lon_deg": 0.0,
+                "delta_lat_deg": delta_lat,
+                "delta_lon_deg": delta_lon,
+                "attempt_index": 1,
+                "accepted": True,
+                "parameter_hash": parameter_hash,
+                "manifest_fingerprint": manifest_fingerprint,
+                "seed": seed,
+                "run_id": run_id,
+                "module": "1B.S6.jitter",
+                "substream_label": "in_cell_jitter",
+                "ts_utc": f"2025-10-23T00:00:0{idx}.000000Z",
+                "rng_counter_before_hi": 0,
+                "rng_counter_before_lo": idx,
+                "rng_counter_after_hi": 0,
+                "rng_counter_after_lo": idx + 1,
+                "blocks": 1,
+                "draws": str(draws_per_event),
+            }
+        )
+
     return JitterOutcome(
         frame=frame,
-        rng_events=[rng_event],
-        sites_total=1,
-        events_total=1,
+        rng_events=rng_events,
+        sites_total=len(merchants),
+        events_total=len(merchants),
         outside_pixel=0,
         outside_country=0,
         fk_tile_index_failures=0,
         path_embed_mismatches=0,
         by_country={
             "US": {
-                "sites": 1,
-                "rng_events": 1,
-                "rng_draws": "2",
+                "sites": 2,
+                "rng_events": 2,
+                "rng_draws": str(2 * draws_per_event),
                 "outside_pixel": 0,
                 "outside_country": 0,
-            }
+            },
+            "CA": {
+                "sites": 1,
+                "rng_events": 1,
+                "rng_draws": str(draws_per_event),
+                "outside_pixel": 0,
+                "outside_country": 0,
+            },
         },
-        counter_span=1,
+        counter_span=3,
         first_counter=(0, 0),
-        last_counter=(0, 1),
-        attempt_histogram={1: 1},
+        last_counter=(0, len(merchants)),
+        attempt_histogram={1: len(merchants)},
         resample_sites=0,
         resample_events=0,
     )
 
 
 def test_materialise_and_validate_s6(tmp_path: Path):
-    prepared = _prepare_inputs(tmp_path)
+    prepared, _ = _prepare_inputs(tmp_path)
     run_id = "0123456789abcdef0123456789abcdef"
     outcome = _build_outcome(
         manifest_fingerprint=prepared.manifest_fingerprint,
@@ -259,17 +259,19 @@ def test_materialise_and_validate_s6(tmp_path: Path):
         for line in result.rng_trace_log_path.read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
-    assert len(trace_lines) == 1
-    trace_record = json.loads(trace_lines[0])
-    assert trace_record["events_total"] == 1
-    assert trace_record["draws_total"] == 2
-    assert trace_record["blocks_total"] == 1
+    trace_records = [json.loads(line) for line in trace_lines]
+    assert len(trace_records) == len(outcome.rng_events)
+    final_trace = trace_records[-1]
+    assert final_trace["events_total"] == len(outcome.rng_events)
+    assert final_trace["draws_total"] == 2 * len(outcome.rng_events)
+    assert final_trace["blocks_total"] == len(outcome.rng_events)
 
     run_report = json.loads(result.run_report_path.read_text(encoding="utf-8"))
     rng_counts = run_report["counts"]["rng"]
     assert rng_counts["resample_sites_total"] == 0
     assert rng_counts["resample_events_total"] == 0
-    assert rng_counts["attempt_histogram"] == {"1": 1}
+    assert rng_counts["events_total"] == 3
+    assert rng_counts["attempt_histogram"] == {"1": 3}
     artefacts = run_report["artefacts"]
     assert artefacts["rng_audit_log"] == str(result.rng_audit_log_path)
     assert artefacts["rng_trace_log"] == str(result.rng_trace_log_path)
@@ -285,3 +287,67 @@ def test_materialise_and_validate_s6(tmp_path: Path):
             run_report_path=result.run_report_path,
         )
     )
+
+
+def test_runner_emits_expected_dataset(tmp_path: Path) -> None:
+    prepared, config = _prepare_inputs(tmp_path)
+
+    runner = S6SiteJitterRunner()
+    result = runner.run(config)
+
+    assert result.dataset_path.exists()
+    parquet_files = sorted(result.dataset_path.glob("*.parquet"))
+    assert parquet_files, "jitter dataset missing parquet partition"
+
+    dataset = (
+        pl.concat([pl.read_parquet(path) for path in parquet_files])
+        .sort(["merchant_id", "site_order"])
+    )
+
+    assert dataset.height == prepared.assignments.frame.height
+    assert set(dataset.columns) == {
+        "merchant_id",
+        "legal_country_iso",
+        "site_order",
+        "tile_id",
+        "delta_lat_deg",
+        "delta_lon_deg",
+        "manifest_fingerprint",
+    }
+
+    # Manifests are lowercased inside the kernel.
+    assert dataset.get_column("manifest_fingerprint").unique().to_list() == [
+        prepared.manifest_fingerprint.lower()
+    ]
+
+    tile_bounds = pl.read_parquet(next(prepared.tile_bounds.path.glob("*.parquet")))
+    bounds_by_tile = {
+        int(row["tile_id"]): row for row in tile_bounds.iter_rows(named=True)
+    }
+    tile_index = pl.read_parquet(next(prepared.tile_index.path.glob("*.parquet")))
+    centroid_by_tile = {
+        int(row["tile_id"]): (float(row["centroid_lon"]), float(row["centroid_lat"]))
+        for row in tile_index.iter_rows(named=True)
+    }
+
+    for row in dataset.iter_rows(named=True):
+        tile_id = int(row["tile_id"])
+        bounds = bounds_by_tile[tile_id]
+        centroid_lon, centroid_lat = centroid_by_tile[tile_id]
+        delta_lon = float(row["delta_lon_deg"])
+        delta_lat = float(row["delta_lat_deg"])
+
+        west_margin = float(bounds["west_lon"]) - centroid_lon
+        east_margin = float(bounds["east_lon"]) - centroid_lon
+        south_margin = float(bounds["south_lat"]) - centroid_lat
+        north_margin = float(bounds["north_lat"]) - centroid_lat
+
+        tol = 1e-9
+        assert south_margin - tol <= delta_lat <= north_margin + tol
+        assert west_margin - tol <= delta_lon <= east_margin + tol
+
+    run_report = json.loads(result.run_report_path.read_text(encoding="utf-8"))
+    rng_counts = run_report["counts"]["rng"]
+    assert rng_counts["events_total"] == dataset.height
+    assert rng_counts["resample_sites_total"] >= 0
+    assert rng_counts["resample_events_total"] >= 0

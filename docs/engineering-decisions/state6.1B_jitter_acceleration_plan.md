@@ -31,7 +31,7 @@ Trim Segment 1B state-6 (site jitter) from ~55 minutes to under 5 minutes on the
 - Monitor attempt distribution (histogram per country) to tune the max-attempt limit; adjust heuristics for island-heavy ISOs to avoid wasted retries.
 
 ### 4. Data Access Optimisation (Partially delivered)
-- Tile bounds and centroids now stream directly from `pyarrow.dataset` into NumPy arrays (searchsorted lookups), eliminating Polars row-wise conversions.
+- Tile bounds and centroids now stream directly from `pyarrow.dataset` into NumPy arrays with per-ISO hash indexes, eliminating both Polars row-wise conversions and repeated `np.searchsorted` scans.
 - TODO: investigate shared parquet row-group cache or memory-mapped surfaces to cut repeated ISO scans.
 
 ### 5. Telemetry Enhancements

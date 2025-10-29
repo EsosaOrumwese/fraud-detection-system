@@ -17,6 +17,8 @@ from engine.layers.l1.seg_1B.s1_tile_index.l2.runner import compute_partition_di
 
 from ..exceptions import err
 from ..l0.datasets import (
+    TileBoundsPartition,
+    TileIndexPartition,
     load_iso_countries,
     load_s5_assignments,
     load_tile_bounds,
@@ -99,8 +101,12 @@ class S6SiteJitterValidator:
             dictionary=dictionary,
         )
 
-        tile_bounds_map = _build_tile_bounds_map(tile_bounds_partition.frame)
-        tile_centroid_map = _build_tile_centroid_map(tile_index_partition.frame)
+        iso_codes_in_dataset = frozenset(
+            dataset.get_column("legal_country_iso").str.to_uppercase().unique().to_list()
+        )
+
+        tile_bounds_map = _build_tile_bounds_map(tile_bounds_partition, iso_codes_in_dataset)
+        tile_centroid_map = _build_tile_centroid_map(tile_index_partition, iso_codes_in_dataset)
         country_polygons = {
             poly.country_iso: poly for poly in world_countries_partition.polygons
         }
@@ -248,26 +254,38 @@ def _validate_row_parity(dataset: pl.DataFrame, assignments: pl.DataFrame) -> No
         raise err("E602_ROW_EXTRA", "s6 contains site rows not present in s5_site_tile_assignment")
 
 
-def _build_tile_bounds_map(frame: pl.DataFrame) -> Mapping[Tuple[str, int], Mapping[str, float]]:
-    return {
-        (str(row["country_iso"]).upper(), int(row["tile_id"])): {
-            "west_lon": float(row["west_lon"]),
-            "east_lon": float(row["east_lon"]),
-            "south_lat": float(row["south_lat"]),
-            "north_lat": float(row["north_lat"]),
-        }
-        for row in frame.iter_rows(named=True)
-    }
+def _build_tile_bounds_map(
+    partition: TileBoundsPartition, iso_codes: Iterable[str]
+) -> Mapping[Tuple[str, int], Mapping[str, float]]:
+    bounds: Dict[Tuple[str, int], Dict[str, float]] = {}
+    for iso in iso_codes:
+        iso_key = str(iso).upper()
+        frame = partition.collect_country(iso_key)
+        for row in frame.iter_rows(named=True):
+            key = (iso_key, int(row["tile_id"]))
+            bounds[key] = {
+                "west_lon": float(row["west_lon"]),
+                "east_lon": float(row["east_lon"]),
+                "south_lat": float(row["south_lat"]),
+                "north_lat": float(row["north_lat"]),
+            }
+    return bounds
 
 
-def _build_tile_centroid_map(frame: pl.DataFrame) -> Mapping[Tuple[str, int], Mapping[str, float]]:
-    return {
-        (str(row["country_iso"]).upper(), int(row["tile_id"])): {
-            "lon": float(row["centroid_lon"]),
-            "lat": float(row["centroid_lat"]),
-        }
-        for row in frame.iter_rows(named=True)
-    }
+def _build_tile_centroid_map(
+    partition: TileIndexPartition, iso_codes: Iterable[str]
+) -> Mapping[Tuple[str, int], Mapping[str, float]]:
+    centroids: Dict[Tuple[str, int], Dict[str, float]] = {}
+    for iso in iso_codes:
+        iso_key = str(iso).upper()
+        frame = partition.collect_country(iso_key, columns=("country_iso", "tile_id", "centroid_lon", "centroid_lat"))
+        for row in frame.iter_rows(named=True):
+            key = (iso_key, int(row["tile_id"]))
+            centroids[key] = {
+                "lon": float(row["centroid_lon"]),
+                "lat": float(row["centroid_lat"]),
+            }
+    return centroids
 
 
 def _validate_iso_codes(frame: pl.DataFrame, iso_codes: frozenset[str]) -> None:
