@@ -16,21 +16,23 @@ Trim Segment 1B state-6 (site jitter) from ~55 minutes to under 5 minutes on the
 
 ## Action Plan
 
-### 1. Profiling (WIP)
-- Added per-country start/complete logging (with site counts and elapsed seconds) and introduced 	ools/perf/run_s6_profile.py to capture cProfile stats for S6 in isolation.
-- Next: capture targeted cProfile/py-spy traces for heavy countries (US, QA, RU) using the harness and annotate wall-clock hotspots per ISO.
+### 1. Profiling (✅ 2025-10-29)
+- Added per-country start/complete logging (with site counts and elapsed seconds) and introduced `tools/perf/run_s6_profile.py` to capture cProfile stats for S6 in isolation.
+- Baseline snapshot: `docs/perf/s6_jitter/profile_20251029.pstats` (≈1,540 s).
+- Post-cache/vector run: `docs/perf/s6_jitter/profile_20251029_after_vector.pstats` (≈257 s) showing primary hot spots now in NumPy searchsorted and dataset loads.
 
-### 2. Vectorised Containment
-- Replace per-site Shapely contains calls with batched evaluation: explore shapely.vectorized.contains or raster-based mask reuse.
-- Cache converted polygon data (triangulation or bounding boxes) to avoid re-preparing geometries per point.
+### 2. Vectorised Containment (In progress)
+- Added bounding-box metadata to cached polygons and short-circuit country checks when possible.
+- Introduced mixed-mode sampler: first attempts stay scalar; heavy resamplers switch to batched Shapely `vectorized.contains/touches` with deterministic rollback.
+- TODO: tune batch sizes vs. overhead, add py-spy traces to validate branch efficiency, and extend batching to RNG draws (see Track 3).
 
 ### 3. RNG Batching & Attempt Control
 - Generate random offsets in vector form (NumPy) to reduce Python overhead per attempt.
 - Monitor attempt distribution (histogram per country) to tune the max-attempt limit; adjust heuristics for island-heavy ISOs to avoid wasted retries.
 
-### 4. Data Access Optimisation
-- Pre-materialise tile bounds/centroids for high-site countries into NumPy arrays; keep streaming for small ISOs.
-- Evaluate a memory-mapped representation of tile bounds to avoid repeated PyArrow conversions.
+### 4. Data Access Optimisation (Partially delivered)
+- Tile bounds and centroids now stream directly from `pyarrow.dataset` into NumPy arrays (searchsorted lookups), eliminating Polars row-wise conversions.
+- TODO: investigate shared parquet row-group cache or memory-mapped surfaces to cut repeated ISO scans.
 
 ### 5. Telemetry Enhancements
 - Log start/complete per ISO with: planned sites, actual sites, RNG events, elapsed seconds.
@@ -55,5 +57,6 @@ Trim Segment 1B state-6 (site jitter) from ~55 minutes to under 5 minutes on the
 * RNG budget checks remain at 1 block per attempt; total RNG events unchanged (within tolerance).
 * Memory footprint stays within current envelope (< 4 GB per process).
 * Determinism maintained across seeds; run report diff shows only performance metrics improving.
+
 
 

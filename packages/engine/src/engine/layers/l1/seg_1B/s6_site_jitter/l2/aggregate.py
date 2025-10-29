@@ -8,6 +8,9 @@ from dataclasses import dataclass
 from typing import Dict, Tuple
 from uuid import uuid4
 
+import numpy as np
+import pyarrow.dataset as ds
+
 from engine.layers.l1.seg_1A.s0_foundations.l1.rng import PhiloxEngine
 
 from ..exceptions import err
@@ -66,13 +69,17 @@ def execute_jitter(context: JitterContext) -> JitterOutcome:
     tile_bounds_cache = _TileBoundsCache(prepared.tile_bounds)
     tile_centroid_cache = _TileCentroidCache(prepared.tile_index)
 
-    country_polygon_map = {
-        country.country_iso: CountryPolygonRecord(
+    country_polygon_map = {}
+    for country in prepared.country_polygons.polygons:
+        min_lon, min_lat, max_lon, max_lat = country.geometry.bounds
+        country_polygon_map[country.country_iso] = CountryPolygonRecord(
             prepared=country.prepared,
             geometry=country.geometry,
+            min_lon=float(min_lon),
+            min_lat=float(min_lat),
+            max_lon=float(max_lon),
+            max_lat=float(max_lat),
         )
-        for country in prepared.country_polygons.polygons
-    }
 
     jitter_start = time.perf_counter()
     outcome = compute_jitter(
@@ -103,12 +110,49 @@ def execute_jitter(context: JitterContext) -> JitterOutcome:
 __all__ = ["JitterContext", "build_context", "execute_jitter"]
 
 
+
+
+@dataclass(frozen=True)
+class _TileBoundsArray:
+    tile_ids: np.ndarray
+    west: np.ndarray
+    east: np.ndarray
+    south: np.ndarray
+    north: np.ndarray
+
+    def lookup(self, tile_id: int) -> TileBoundsRecord | None:
+        idx = int(np.searchsorted(self.tile_ids, tile_id))
+        if idx >= self.tile_ids.size or self.tile_ids[idx] != tile_id:
+            return None
+        return TileBoundsRecord(
+            west_lon=float(self.west[idx]),
+            east_lon=float(self.east[idx]),
+            south_lat=float(self.south[idx]),
+            north_lat=float(self.north[idx]),
+        )
+
+
+@dataclass(frozen=True)
+class _TileCentroidArray:
+    tile_ids: np.ndarray
+    lon: np.ndarray
+    lat: np.ndarray
+
+    def lookup(self, tile_id: int) -> TileCentroidRecord | None:
+        idx = int(np.searchsorted(self.tile_ids, tile_id))
+        if idx >= self.tile_ids.size or self.tile_ids[idx] != tile_id:
+            return None
+        return TileCentroidRecord(
+            lon=float(self.lon[idx]),
+            lat=float(self.lat[idx]),
+        )
+
 class _TileBoundsCache:
     """Lazy loader for tile bounds keyed by ISO + tile."""
 
     def __init__(self, partition) -> None:
         self._partition = partition
-        self._cache: Dict[str, Dict[int, TileBoundsRecord]] = {}
+        self._cache: Dict[str, _TileBoundsArray] = {}
 
     def get(self, key: Tuple[str, int], default=None) -> TileBoundsRecord | None:
         iso, tile_id = key
@@ -117,7 +161,7 @@ class _TileBoundsCache:
         if cache is None:
             cache = self._load_iso(iso)
             self._cache[iso] = cache
-        return cache.get(int(tile_id), default)
+        return cache.lookup(int(tile_id)) if cache is not None else default
 
     def prime_iso(self, iso: str) -> None:
         iso = str(iso).upper()
@@ -127,17 +171,36 @@ class _TileBoundsCache:
     def release_iso(self, iso: str) -> None:
         self._cache.pop(str(iso).upper(), None)
 
-    def _load_iso(self, iso: str) -> Dict[int, TileBoundsRecord]:
-        frame = self._partition.collect_country(iso)
-        return {
-            int(row["tile_id"]): TileBoundsRecord(
-                west_lon=float(row["west_lon"]),
-                east_lon=float(row["east_lon"]),
-                south_lat=float(row["south_lat"]),
-                north_lat=float(row["north_lat"]),
+    def _load_iso(self, iso: str) -> _TileBoundsArray:
+        table = self._partition.dataset.to_table(
+            columns=["tile_id", "west_lon", "east_lon", "south_lat", "north_lat"],
+            filter=ds.field("country_iso") == iso,
+        )
+        if table.num_rows == 0:
+            empty = np.empty(0, dtype=np.float64)
+            return _TileBoundsArray(
+                tile_ids=np.empty(0, dtype=np.uint64),
+                west=empty,
+                east=empty,
+                south=empty,
+                north=empty,
             )
-            for row in frame.iter_rows(named=True)
-        }
+
+        tile_ids = np.asarray(table.column("tile_id").to_numpy(zero_copy_only=False), dtype=np.uint64)
+        west = np.asarray(table.column("west_lon").to_numpy(zero_copy_only=False), dtype=np.float64)
+        east = np.asarray(table.column("east_lon").to_numpy(zero_copy_only=False), dtype=np.float64)
+        south = np.asarray(table.column("south_lat").to_numpy(zero_copy_only=False), dtype=np.float64)
+        north = np.asarray(table.column("north_lat").to_numpy(zero_copy_only=False), dtype=np.float64)
+
+        if tile_ids.size:
+            order = np.argsort(tile_ids, kind="mergesort")
+            tile_ids = tile_ids[order]
+            west = west[order]
+            east = east[order]
+            south = south[order]
+            north = north[order]
+
+        return _TileBoundsArray(tile_ids=tile_ids, west=west, east=east, south=south, north=north)
 
 
 class _TileCentroidCache:
@@ -145,7 +208,7 @@ class _TileCentroidCache:
 
     def __init__(self, partition) -> None:
         self._partition = partition
-        self._cache: Dict[str, Dict[int, TileCentroidRecord]] = {}
+        self._cache: Dict[str, _TileCentroidArray] = {}
 
     def get(self, key: Tuple[str, int], default=None) -> TileCentroidRecord | None:
         iso, tile_id = key
@@ -154,7 +217,7 @@ class _TileCentroidCache:
         if cache is None:
             cache = self._load_iso(iso)
             self._cache[iso] = cache
-        return cache.get(int(tile_id), default)
+        return cache.lookup(int(tile_id)) if cache is not None else default
 
     def prime_iso(self, iso: str) -> None:
         iso = str(iso).upper()
@@ -164,15 +227,27 @@ class _TileCentroidCache:
     def release_iso(self, iso: str) -> None:
         self._cache.pop(str(iso).upper(), None)
 
-    def _load_iso(self, iso: str) -> Dict[int, TileCentroidRecord]:
-        frame = self._partition.collect_country(
-            iso,
-            columns=("country_iso", "tile_id", "centroid_lon", "centroid_lat"),
+    def _load_iso(self, iso: str) -> _TileCentroidArray:
+        table = self._partition.dataset.to_table(
+            columns=["tile_id", "centroid_lon", "centroid_lat"],
+            filter=ds.field("country_iso") == iso,
         )
-        return {
-            int(row["tile_id"]): TileCentroidRecord(
-                lon=float(row["centroid_lon"]),
-                lat=float(row["centroid_lat"]),
+        if table.num_rows == 0:
+            empty = np.empty(0, dtype=np.float64)
+            return _TileCentroidArray(
+                tile_ids=np.empty(0, dtype=np.uint64),
+                lon=empty,
+                lat=empty,
             )
-            for row in frame.iter_rows(named=True)
-        }
+
+        tile_ids = np.asarray(table.column("tile_id").to_numpy(zero_copy_only=False), dtype=np.uint64)
+        lon = np.asarray(table.column("centroid_lon").to_numpy(zero_copy_only=False), dtype=np.float64)
+        lat = np.asarray(table.column("centroid_lat").to_numpy(zero_copy_only=False), dtype=np.float64)
+
+        if tile_ids.size:
+            order = np.argsort(tile_ids, kind="mergesort")
+            tile_ids = tile_ids[order]
+            lon = lon[order]
+            lat = lat[order]
+
+        return _TileCentroidArray(tile_ids=tile_ids, lon=lon, lat=lat)
