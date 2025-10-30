@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Mapping
 
 import polars as pl
+import pyarrow.dataset as ds
+import pyarrow as pa
 
 from engine.layers.l1.seg_1B.s0_gate.l1.verification import (
     VerifiedBundle,
@@ -193,15 +195,51 @@ def load_tile_bounds(
             f"tile_bounds partition missing at '{dataset_path}'",
         )
 
-    bounds_scan = pl.scan_parquet(str(dataset_path / "*.parquet"))
-    schema = bounds_scan.schema
+    file_paths = tuple(sorted(dataset_path.glob("*.parquet")))
+    if not file_paths:
+        raise err(
+            "E709_TILE_FK_VIOLATION",
+            f"tile_bounds partition '{dataset_path}' contains no parquet files",
+        )
 
-    if {"min_lon_deg", "max_lon_deg", "min_lat_deg", "max_lat_deg", "centroid_lon_deg", "centroid_lat_deg"}.issubset(schema):
-        frame = (
-            bounds_scan.select(
+    dataset = ds.dataset(file_paths, format="parquet")
+    names = {name.lower() for name in dataset.schema.names}
+
+    legacy = {"min_lon_deg", "max_lon_deg", "min_lat_deg", "max_lat_deg", "centroid_lon_deg", "centroid_lat_deg"}.issubset(
+        names
+    )
+
+    if legacy:
+        columns = [
+            "country_iso",
+            "tile_id",
+            "min_lon_deg",
+            "max_lon_deg",
+            "min_lat_deg",
+            "max_lat_deg",
+            "centroid_lon_deg",
+            "centroid_lat_deg",
+        ]
+    else:
+        columns = [
+            "country_iso",
+            "tile_id",
+            "west_lon",
+            "east_lon",
+            "south_lat",
+            "north_lat",
+        ]
+
+    frames: list[pl.DataFrame] = []
+    for batch in dataset.to_batches(columns=columns, batch_size=65536):
+        table = pa.Table.from_batches([batch])
+        frame = pl.from_arrow(table, rechunk=False)
+        frame = frame.with_columns(pl.col("country_iso").cast(pl.Utf8).str.to_uppercase())
+        frame = frame.with_columns(pl.col("tile_id").cast(pl.UInt64))
+
+        if legacy:
+            frame = frame.with_columns(
                 [
-                    pl.col("country_iso").cast(pl.Utf8).str.to_uppercase().alias("country_iso"),
-                    pl.col("tile_id").cast(pl.UInt64),
                     pl.col("min_lon_deg").cast(pl.Float64),
                     pl.col("max_lon_deg").cast(pl.Float64),
                     pl.col("min_lat_deg").cast(pl.Float64),
@@ -210,48 +248,37 @@ def load_tile_bounds(
                     pl.col("centroid_lat_deg").cast(pl.Float64),
                 ]
             )
-            .collect()
-            .sort(["country_iso", "tile_id"])
+        else:
+            frame = frame.with_columns(
+                [
+                    pl.col("west_lon").cast(pl.Float64).alias("min_lon_deg"),
+                    pl.col("east_lon").cast(pl.Float64).alias("max_lon_deg"),
+                    pl.col("south_lat").cast(pl.Float64).alias("min_lat_deg"),
+                    pl.col("north_lat").cast(pl.Float64).alias("max_lat_deg"),
+                    ((pl.col("west_lon") + pl.col("east_lon")) / 2.0).cast(pl.Float64).alias("centroid_lon_deg"),
+                    ((pl.col("south_lat") + pl.col("north_lat")) / 2.0).cast(pl.Float64).alias("centroid_lat_deg"),
+                ]
+            ).drop(["west_lon", "east_lon", "south_lat", "north_lat"])
+
+        frames.append(frame)
+
+    if not frames:
+        empty = pl.DataFrame(
+            {
+                "country_iso": pl.Series([], dtype=pl.Utf8),
+                "tile_id": pl.Series([], dtype=pl.UInt64),
+                "min_lon_deg": pl.Series([], dtype=pl.Float64),
+                "max_lon_deg": pl.Series([], dtype=pl.Float64),
+                "min_lat_deg": pl.Series([], dtype=pl.Float64),
+                "max_lat_deg": pl.Series([], dtype=pl.Float64),
+                "centroid_lon_deg": pl.Series([], dtype=pl.Float64),
+                "centroid_lat_deg": pl.Series([], dtype=pl.Float64),
+            }
         )
-        return TileBoundsPartition(path=dataset_path, frame=frame)
+        return TileBoundsPartition(path=dataset_path, frame=empty)
 
-    tile_index_path = dataset_path.parent.parent / "tile_index" / f"parameter_hash={parameter_hash}"
-    if not tile_index_path.exists():
-        raise err(
-            "E709_TILE_FK_VIOLATION",
-            f"tile_index partition missing at '{tile_index_path}'",
-        )
-
-    bounds_selected = bounds_scan.select(
-        [
-            pl.col("country_iso").cast(pl.Utf8).str.to_uppercase().alias("country_iso"),
-            pl.col("tile_id").cast(pl.UInt64),
-            pl.col("west_lon").cast(pl.Float64).alias("min_lon_deg"),
-            pl.col("east_lon").cast(pl.Float64).alias("max_lon_deg"),
-            pl.col("south_lat").cast(pl.Float64).alias("min_lat_deg"),
-            pl.col("north_lat").cast(pl.Float64).alias("max_lat_deg"),
-        ]
-    )
-
-    centroids_scan = (
-        pl.scan_parquet(str(tile_index_path / "*.parquet"))
-        .select(
-            [
-                pl.col("country_iso").cast(pl.Utf8).str.to_uppercase().alias("country_iso"),
-                pl.col("tile_id").cast(pl.UInt64),
-                pl.col("centroid_lon").cast(pl.Float64).alias("centroid_lon_deg"),
-                pl.col("centroid_lat").cast(pl.Float64).alias("centroid_lat_deg"),
-            ]
-        )
-    )
-
-    frame = (
-        bounds_selected.join(centroids_scan, on=["country_iso", "tile_id"], how="inner")
-        .collect()
-        .sort(["country_iso", "tile_id"])
-    )
+    frame = pl.concat(frames, how="vertical").sort(["country_iso", "tile_id"])
     return TileBoundsPartition(path=dataset_path, frame=frame)
-
 
 def load_outlet_catalogue(
     *,
