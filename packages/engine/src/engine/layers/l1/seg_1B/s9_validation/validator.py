@@ -311,7 +311,9 @@ def _validate_rng(
         frame = context.surfaces.rng_events.get(dataset_id, pd.DataFrame())
         frame = frame.copy()
         if not frame.empty:
-            frame["merchant_id"] = frame["merchant_id"].astype(int)
+            # Avoid narrowing uint64 merchant identifiers into signed int64 values
+            # (large IDs overflow and break coverage reconciliation).
+            frame["merchant_id"] = frame["merchant_id"].map(int)
             frame["legal_country_iso"] = frame["legal_country_iso"].astype(str)
             frame["site_order"] = frame["site_order"].astype(int)
 
@@ -437,8 +439,7 @@ def _evaluate_rng_family(
             if not required_cols.issubset(set(subset.columns)):
                 trace_reconciled = False
             else:
-                idx = subset["rng_counter_after_lo"].astype(int).idxmax()
-                final_row = subset.loc[idx]
+                final_row = subset.iloc[-1]
                 trace_events = int(final_row.get("events_total", 0))
                 trace_blocks = int(final_row.get("blocks_total", 0))
                 trace_draws = _parse_u128(final_row.get("draws_total", 0))

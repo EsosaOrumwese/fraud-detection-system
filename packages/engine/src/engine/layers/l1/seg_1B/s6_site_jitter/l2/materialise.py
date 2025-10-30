@@ -26,6 +26,7 @@ from engine.layers.l1.seg_1B.s1_tile_index.l2.runner import compute_partition_di
 from ..exceptions import err
 from ..l1.jitter import JitterOutcome
 from ...shared.dictionary import resolve_dataset_path
+from ...shared.rng_trace import append_trace_records
 from .prepare import PreparedInputs
 
 
@@ -312,7 +313,7 @@ def _write_rng_core_logs(
         },
         dictionary=dictionary,
     )
-    _write_trace_records(
+    append_trace_records(
         trace_path=trace_path,
         events=events,
         seed=seed,
@@ -341,56 +342,6 @@ def _write_single_jsonl_record(path: Path, record: Mapping[str, object]) -> Mapp
             return existing_record
     path.write_text(payload_with_newline, encoding="utf-8")
     return record
-
-
-def _write_trace_records(
-    *,
-    trace_path: Path,
-    events: list[Mapping[str, object]],
-    seed: int,
-    run_id: str,
-) -> None:
-    totals: dict[tuple[str, str], dict[str, int]] = {}
-    records: list[Mapping[str, object]] = []
-    for event in events:
-        module = str(event.get("module", ""))
-        substream_label = str(event.get("substream_label", ""))
-        key = (module, substream_label)
-        stats = totals.setdefault(key, {"events": 0, "blocks": 0, "draws": 0})
-        blocks = int(event.get("blocks", 0))
-        draws = int(event.get("draws", "0"))
-        stats["events"] += 1
-        stats["blocks"] += blocks
-        stats["draws"] += draws
-        record = {
-            "ts_utc": event.get("ts_utc"),
-            "run_id": run_id,
-            "seed": seed,
-            "module": module,
-            "substream_label": substream_label,
-            "draws_total": stats["draws"],
-            "blocks_total": stats["blocks"],
-            "events_total": stats["events"],
-            "rng_counter_before_lo": int(event.get("rng_counter_before_lo", 0)),
-            "rng_counter_before_hi": int(event.get("rng_counter_before_hi", 0)),
-            "rng_counter_after_lo": int(event.get("rng_counter_after_lo", 0)),
-            "rng_counter_after_hi": int(event.get("rng_counter_after_hi", 0)),
-        }
-        records.append(record)
-
-    payload = "\n".join(json.dumps(record, sort_keys=True) for record in records)
-    if payload:
-        payload += "\n"
-    trace_path.parent.mkdir(parents=True, exist_ok=True)
-    if trace_path.exists():
-        existing = trace_path.read_text(encoding="utf-8")
-        if existing != payload:
-            raise err(
-                "E611_LOG_PARTITION_LAW",
-                f"rng trace log '{trace_path}' already exists with different content",
-            )
-        return
-    trace_path.write_text(payload, encoding="utf-8")
 
 
 def _resolve_build_commit(dictionary: Mapping[str, object]) -> str:

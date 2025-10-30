@@ -13,7 +13,7 @@ class S6SiteJitterRunner:
 
     def run(self, config: RunnerConfig) -> S6RunResult:
         prepared: PreparedInputs = prepare_inputs(config)
-        context = build_context(prepared)
+        context = build_context(prepared, run_id_override=config.run_id_override)
         outcome = execute_jitter(context)
         return materialise_jitter(
             prepared=prepared,

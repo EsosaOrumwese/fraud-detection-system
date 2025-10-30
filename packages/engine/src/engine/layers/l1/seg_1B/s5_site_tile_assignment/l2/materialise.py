@@ -16,6 +16,7 @@ import polars as pl
 from engine.layers.l1.seg_1B.s1_tile_index.l2.runner import compute_partition_digest
 
 from ...shared.dictionary import resolve_dataset_path
+from ...shared.rng_trace import append_trace_records
 from ..exceptions import err
 from ..l0.datasets import TileIndexPartition
 from ..l1.assignment import AssignmentResult
@@ -96,6 +97,22 @@ def materialise_assignment(
         dictionary=dictionary,
         seed=config.seed,
         parameter_hash=config.parameter_hash,
+        run_id=assignment.run_id,
+    )
+    trace_path = resolve_dataset_path(
+        "rng_trace_log",
+        base_path=config.data_root,
+        template_args={
+            "seed": config.seed,
+            "parameter_hash": config.parameter_hash,
+            "run_id": assignment.run_id,
+        },
+        dictionary=dictionary,
+    )
+    append_trace_records(
+        trace_path=trace_path,
+        events=assignment.rng_events,
+        seed=int(config.seed),
         run_id=assignment.run_id,
     )
 

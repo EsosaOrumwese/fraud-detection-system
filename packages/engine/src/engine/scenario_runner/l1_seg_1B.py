@@ -248,6 +248,7 @@ class Segment1BOrchestrator:
                 seed=config.seed,
                 parameter_hash=config.parameter_hash,
                 dictionary=dictionary,
+                run_id_override=s5_result.run_id,
             )
         )
         logger.info(

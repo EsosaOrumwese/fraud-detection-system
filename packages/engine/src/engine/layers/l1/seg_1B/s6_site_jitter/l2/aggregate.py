@@ -34,7 +34,7 @@ class JitterContext:
     run_id: str
 
 
-def build_context(prepared: PreparedInputs) -> JitterContext:
+def build_context(prepared: PreparedInputs, *, run_id_override: str | None = None) -> JitterContext:
     """Construct the Philox engine and run identity."""
 
     try:
@@ -48,7 +48,12 @@ def build_context(prepared: PreparedInputs) -> JitterContext:
         seed=seed_int,
         manifest_fingerprint=prepared.manifest_fingerprint,
     )
-    run_id = uuid4().hex
+    if run_id_override is not None:
+        run_id = str(run_id_override).strip()
+        if not run_id:
+            raise err("E610_RNG_BUDGET_OR_COUNTERS", "run_id_override must be non-empty when provided")
+    else:
+        run_id = uuid4().hex
     return JitterContext(prepared=prepared, engine=engine, seed_int=seed_int, run_id=run_id)
 
 
@@ -261,4 +266,3 @@ class _TileCentroidCache:
             index_map = {}
 
         return _TileCentroidArray(tile_ids=tile_ids, lon=lon, lat=lat, index_map=index_map)
-
