@@ -130,7 +130,7 @@
   - **Layers:** `layers/l1/seg_1A/s0…s4/{l0,l1,l2,l3}` for the foundation.  
   - **Core, Validation, Scenario Runner, Registry/CLI:** conceptual scaffolds you’ll unlock as you implement.
 
-> **Current focus:** **Layer-1 / Segment 1B, States S0–S9**. Segment 1A is now online and sealed (S0–S9 in production); use it as the authority for downstream state inputs. Everything else remains intentionally conceptual so future choices stay optimal.
+> **Status update:** **Layer-1 / Segment 1B (S0–S9)** is now online alongside the sealed Segment 1A; treat both as authority surfaces for downstream work. The next build target is **Segment 2A**, so start assessing its specs and dependencies while keeping the rest of the layout conceptual until opened.
 > **Implementation note:** 1A retains archived L0/L1/L2/L3 pseudocode for reference only. For 1B, rely exclusively on the expanded specs and preserve the layer split (L0 primitives/helpers, L1 kernels, L2 orchestrator, L3 validator) as you implement.
 
 ### Segment 1A execution highlights

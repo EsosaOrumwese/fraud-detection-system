@@ -273,16 +273,16 @@ fraud-enterprise/
 
 ---
 
-> **Note:** This README describes the **destination**. Many folders are intentionally **conceptual** until unlocked. The **Data Engine** (Layer-1 / 1A S5–S9 in execution; S0–S4 sealed) is the active build target and as we progress, more will be unlocked
+> **Note:** This README describes the **destination**. Many folders are intentionally **conceptual** until unlocked. The **Data Engine** now has Layer-1 Segment 1A sealed and Segment 1B online; the next build frontier is Segment 2A, and more components will unlock as we advance.
 
 ## Data Engine Progress
 
 ```
 ============================ DATA ENGINE (progress) ============================
 [ Merchant-Location Realism ] | [ Arrival Mechanics ] | [ Flow Dynamics ]
-            [   OPEN   ]      |       [  LOCKED ]     |     [  LOCKED ]
+            [  ONLINE  ]      |       [  LOCKED ]     |     [  LOCKED ]
 
-                 ^ focus now
+                          ^ focus now
 -------------------------------------------------------------------------------
 | 4A Reproducibility + 4B Validation = CROSS-CUTTING (baked into every box)   |
 | VALIDATION HARNESS: ON FROM DAY 0 (spans all layers; not a tail-end step)   |
@@ -293,8 +293,8 @@ fraud-enterprise/
 =========== Merchant-Location Realism (open) ===========
 Sub-segments:
   1A  Merchants → Physical Sites  ............. [ ONLINE — sealed ]
-  1B  Place Sites on Planet ................... [ OPEN ]  <-- current focus
-  2A  Civil Time Zone (IANA/DST) .............. [ LOCKED ]
+  1B  Place Sites on Planet ................... [ ONLINE ]
+  2A  Civil Time Zone (IANA/DST) .............. [ NEXT UP ]
   2B  Routing Through Sites ................... [ LOCKED ]
   3A  Cross-Zone Merchants .................... [ LOCKED ]
   3B  Purely Virtual Merchants ................ [ LOCKED ]
@@ -312,7 +312,7 @@ S0 Prep      S1 Hurdle     S2 Domestic N   S3 X-border gate   S4 Foreign K
 S5 Weights   S6 Select K   S7 Allocate N   S8 Egress/IDs      S9 Replay+Gate
 
 
-=========== 1B state-flow (10 states; execution in progress) ===========
+=========== 1B state-flow (10 states; live) ===========
 S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6 -> S7 -> S8 -> S9
 
 Where (short labels just to anchor the flow):
