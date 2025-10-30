@@ -1,7 +1,7 @@
 version: '1.0'
 layer: layer1
 segment: seg_1A
-states: [s0, s1, s2, s3, s4]
+states: [s0, s1, s2, s3, s4, s5, s6, s7]
 
 reference:
   transaction_schema_merchant_ids:
@@ -15,7 +15,7 @@ reference:
   iso_canonical:
     description: Canonical ISO-3166 reference with UN region metadata.
     format: parquet
-    path: reference/layer1/iso_canonical/v2025-10-08/iso_canonical.parquet
+    path: reference/layer1/iso_canonical/v2025-10-09/iso_canonical.parquet
     schema_ref: l1/seg_1A/iso_canonical.schema.json
     partitioning: []
     owner: reference
@@ -47,7 +47,7 @@ reference:
   settlement_shares_2024Q4:
     description: Currency-to-country settlement shares used by S0.
     format: parquet
-    path: reference/network/settlement_shares/2025-10-08/settlement_shares.parquet
+    path: reference/network/settlement_shares/2025-10-26/settlement_shares.parquet
     schema_ref: l1/seg_1A/settlement_shares.schema.json
     partitioning: []
     owner: reference
@@ -55,17 +55,51 @@ reference:
   ccy_country_shares_2024Q4:
     description: Currency-to-country usage shares consumed by S5/S6 smoothing.
     format: parquet
-    path: reference/network/ccy_country_shares/2025-10-08/ccy_country_shares.parquet
+    path: reference/network/ccy_country_shares/2025-10-26/ccy_country_shares.parquet
     schema_ref: l1/seg_1A/ccy_country_shares.schema.json
     partitioning: []
     owner: reference
     retention_days: 365
+  iso_legal_tender_2024:
+    description: Canonical ISO2 to primary legal tender mapping used when emitting merchant_currency.
+    format: parquet
+    path: reference/iso/iso_legal_tender/2024/iso_legal_tender.parquet
+    schema_ref: l1/seg_1A/iso_legal_tender.schema.json
+    partitioning: []
+    owner: reference
+    retention_days: 365
+
+parameters:
+  ccy_smoothing_params:
+    description: Governed smoothing policy for S5 currency→country weight expansion (contributes to parameter_hash).
+    format: yaml
+    path: config/allocation/ccy_smoothing_params.yaml
+    schema_ref: null
+    partitioning: []
+    owner: 1A
+    retention_days: 0
+  s6_selection_policy:
+    description: Governed selection policy for S6 foreign-set selection (contributes to parameter_hash).
+    format: yaml
+    path: config/allocation/s6_selection_policy.yaml
+    schema_ref: layer1/schemas.layer1.yaml#/policy/s6_selection
+    partitioning: []
+    owner: 1A
+    retention_days: 0
+  s7_integerisation_policy:
+    description: Governed integer allocation policy for S7 (bounds, Dirichlet toggles; contributes to parameter_hash).
+    format: yaml
+    path: config/allocation/s7_integerisation_policy.yaml
+    schema_ref: layer1/schemas.layer1.yaml#/policy/s7_integerisation
+    partitioning: []
+    owner: 1A
+    retention_days: 0
 
 model:
   crossborder_eligibility_flags:
     description: Parameter-scoped eligibility flags for cross-border expansion policy.
     format: parquet
-    path: data/layer1/1A/crossborder_eligibility_flags/parameter_hash={parameter_hash}/part-*.parquet
+    path: parameter_scoped/parameter_hash={parameter_hash}/crossborder_eligibility_flags.parquet
     schema_ref: l1/seg_1A/s0_outputs.schema.json#/prep/crossborder_eligibility_flags
     partitioning: [parameter_hash]
     owner: 1A
@@ -89,6 +123,32 @@ model:
     owner: 1A
     retention_days: 30
 
+allocation:
+  ccy_country_weights_cache:
+    description: Currency→country weights cache emitted by S5 (parameter-scoped authority for downstream selection).
+    format: parquet
+    path: data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/part-*.parquet
+    schema_ref: schemas.1A.yaml#/prep/ccy_country_weights_cache
+    partitioning: [parameter_hash]
+    owner: 1A
+    retention_days: 365
+  merchant_currency:
+    description: Optional merchant settlement currency cache (κₘ) produced by S5.0 when inputs are present.
+    format: parquet
+    path: data/layer1/1A/merchant_currency/parameter_hash={parameter_hash}/part-*.parquet
+    schema_ref: schemas.1A.yaml#/prep/merchant_currency
+    partitioning: [parameter_hash]
+    owner: 1A
+    retention_days: 365
+  sparse_flag:
+    description: Per-currency sparsity diagnostics emitted by S5 (supports monitoring only).
+    format: parquet
+    path: data/layer1/1A/sparse_flag/parameter_hash={parameter_hash}/part-*.parquet
+    schema_ref: schemas.1A.yaml#/prep/sparse_flag
+    partitioning: [parameter_hash]
+    owner: 1A
+    retention_days: 365
+
 validation:
   validation_bundle:
     description: Fingerprint-scoped validation pack emitted at the end of S0.
@@ -96,6 +156,14 @@ validation:
     path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
     schema_ref: l1/seg_1A/s0_outputs.schema.json#/validation_bundle
     partitioning: [fingerprint]
+    owner: 1A
+    retention_days: 365
+  s6_validation_receipt:
+    description: Seed/parameter-scoped PASS receipt for S6 foreign-set selection (S6_VALIDATION.json + _passed.flag).
+    format: directory
+    path: data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
+    schema_ref: l1/seg_1A/s6_validation.schema.json
+    partitioning: [seed, parameter_hash]
     owner: 1A
     retention_days: 365
 
@@ -208,6 +276,52 @@ rng_logs:
     gating:
       gated_by: rng_event_hurdle_bernoulli
       predicate: is_multi == true
+  rng_event_gumbel_key:
+    description: Gumbel-key draws emitted by S6 foreign-set selection (considered vs selected logging per policy).
+    format: jsonl
+    path: logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/gumbel_key
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 180
+  rng_event_residual_rank:
+    description: Non-consuming residual ranking records emitted by S7 integer allocation (one per domain country).
+    format: jsonl
+    path: logs/rng/events/residual_rank/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/residual_rank
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 180
+  rng_event_dirichlet_gamma_vector:
+    description: Optional Dirichlet gamma vector draws emitted by S7 when the feature lane is enabled.
+    format: jsonl
+    path: logs/rng/events/dirichlet_gamma_vector/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/dirichlet_gamma_vector
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 180
+  'rng_event.sequence_finalize':
+    description: Non-consuming sequence-finalise events emitted by S8 per (merchant, country) block.
+    format: jsonl
+    path: logs/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/sequence_finalize
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 180
+    gating:
+      gated_by: rng_event_hurdle_bernoulli
+      predicate: is_multi == true
+  'rng_event.site_sequence_overflow':
+    description: Guardrail events triggered when S8 would exceed six-digit sequence space.
+    format: jsonl
+    path: logs/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
+    schema_ref: layer1/schemas.layer1.yaml#/rng/events/site_sequence_overflow
+    partitioning: [seed, parameter_hash, run_id]
+    owner: 1A
+    retention_days: 180
+    gating:
+      gated_by: rng_event_hurdle_bernoulli
+      predicate: is_multi == true
 
 crossborder:
 
@@ -244,5 +358,27 @@ crossborder:
     path: data/layer1/1A/s3_site_sequence/parameter_hash={parameter_hash}/part-*.parquet
     schema_ref: l1/seg_1A/s3_outputs.schema.json#/site_sequence
     partitioning: [parameter_hash]
+    owner: 1A
+    retention_days: 365
+
+selection:
+
+  s6_membership:
+    description: Optional foreign membership pairs emitted by S6 when policy enables (re-derivable convenience surface; embeds no order).
+    format: parquet
+    path: data/layer1/1A/s6_membership/seed={seed}/parameter_hash={parameter_hash}/part-*.parquet
+    schema_ref: l1/seg_1A/s6_membership.schema.json
+    partitioning: [seed, parameter_hash]
+    owner: 1A
+    retention_days: 365
+
+egress:
+
+  outlet_catalogue:
+    description: Immutable outlet catalogue emitted by S8 (within-country sequencing only).
+    format: parquet
+    path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/part-*.parquet
+    schema_ref: schemas.1A.yaml#/egress/outlet_catalogue
+    partitioning: [seed, fingerprint]
     owner: 1A
     retention_days: 365

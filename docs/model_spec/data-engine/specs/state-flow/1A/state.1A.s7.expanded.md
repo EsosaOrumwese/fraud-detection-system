@@ -1,1675 +1,843 @@
-# S7.1 — α-vector resolution (governed ladder)
+# S7 — Integer Allocation Across Legal Country Set (Layer 1 · Segment 1A)
 
-## Scope & purpose
+# 0) Document metadata & status **(Binding)**
 
-S7 needs a Dirichlet concentration vector $\alpha\in\mathbb{R}^{M}*{>0}$ whose **length** and **ordering** match the merchant’s ordered country set $C=(c_0,\dots,c*{M-1})$ (home at rank 0, then foreigns in the Gumbel order from S6). `country_set` is the **only** authority for this membership and order; S7 **MUST NOT** reorder or mutate it.
+**0.1 State ID, semver, effective date**
 
-When $M=1$ (domestic-only path), later steps force $w=(1)$ and $n=(N)$; $\alpha$ is **not** used, but one `residual_rank` event is still emitted to keep logging invariants. (Declared here for completeness; sampling/normalisation live in S7.2–S7.3.)
+* **State ID (canonical):** `layer1.1A.S7` — “Integer Allocation Across Legal Country Set.”
+* **SemVer:** **MAJOR.MINOR.PATCH**. **MAJOR** when any binding interface changes (dataset IDs or `$ref` schema anchors, partition law, PASS-gate semantics, tie-break rules, or event family shapes); **MINOR** for backward-compatible additions (optional fields/metrics); **PATCH** for clarifications with zero behavioural or schema impact. 
+* **Effective date:** set by release management at ratification (`effective_date: YYYY-MM-DD`). 
 
----
-
-## Definitions (normative)
-
-* $C=(c_0,\dots,c_{M-1})$: ordered countries from `country_set` with `rank(c_i)=i`.
-* Lookup **key cardinality** $M:=|C|\in\mathbb{Z}_{\ge 1}$.
-* $\alpha=(\alpha_0,\dots,\alpha_{M-1})\in\mathbb{R}^M_{>0}$: Dirichlet concentrations aligned **index-for-index** with $C$ (i.e., $\alpha_i$ is for country $c_i$).
-* **Position-based α semantics:** index 0 corresponds to **home**; indices 1..$K_m^*$ correspond to foreign positions **in `country_set.rank` order**. Foreign positions are **exchangeable** unless the policy provides distinct values per position.
-
----
-
-## Preconditions (MUST)
-
-1. `country_set` exists for the merchant, is partition-consistent for this run (`seed`, `parameter_hash`), and is valid: home at rank 0; all ISO-2 codes valid; no duplicates.
-2. $M=|C|\ge 1$.
-3. The α policy artefact **`dirichlet_alpha_policy.yaml`** is present in the parameter-scoped inputs (versioned by `parameter_hash`).
-
----
-
-## Resolution algorithm (normative)
-
-Let `home`, `MCC`, `channel` be the merchant attributes; let $M=|C|$.
-
-**Ladder (exact → fallback):**
-
-1. **Exact:** `(home, MCC, channel, M)`
-2. **Back-off A:** `(home, channel, M)`
-3. **Back-off B:** `(home, M)`
-4. **Fallback (symmetric):** $\alpha_i=\tau/M$ for all $i$, with governed $\tau > 0$ (default **$\tau=2.0$** in `dirichlet_alpha_policy.yaml`).
-
-**Post-lookup checks (pure, deterministic):**
-
-* **Dimension check:** require `len(alpha) == M`; else raise `ERR_S7_ALPHA_DIM_MISMATCH(m_expected=M, m_found=len(alpha))`.
-* **Positivity floor:** require $\min_i \alpha_i \ge 10^{-6}$; else raise `ERR_S7_ALPHA_NONPOSITIVE(i, value)`.
-* **Ordering alignment:** $\alpha$ **must** already be aligned to `country_set.rank` (0..$M{-}1$). If a keyed source returns a mapping, re-order into rank order deterministically.
-
-**Determinism & provenance:**
-
-* Resolution uses only deterministic inputs (`home`, `MCC`, `channel`, `M`) and the parameter-scoped policy artefact, so it is a **pure function** of (`home`,`MCC`,`channel`,`M`,`parameter_hash`).
-* Record the ladder step chosen as `alpha_key_used ∈ {exact, backoffA, backoffB, symmetric}` for inclusion in the S7.2 `dirichlet_gamma_vector` event payload (optional, recommended).
-
----
-
-## Outputs
-
-* **α vector:** `alpha[0..M-1]` aligned to `country_set.rank`.
-* **alpha_key_used (string, optional):** one of `exact | backoffA | backoffB | symmetric` for downstream event payloads and audits.
-
----
-
-## Numeric environment (must match S7 policy)
-
-* IEEE-754 **binary64** throughout; **no FMA** in ordering-sensitive computations. (S7.1 itself is a pure lookup; numeric policy matters in S7.2–S7.3.)
-
----
-
-## Error handling (abort semantics)
-
-* `ERR_S7_ALPHA_KEY_MISSING(level, key)`: informative when a ladder level lookup misses (resolution continues to lower levels).
-* `ERR_S7_ALPHA_DIM_MISMATCH(m_expected, m_found)`: returned vector length $\neq M$.
-* `ERR_S7_ALPHA_NONPOSITIVE(index, value)`: any $\alpha_i < 10^{-6}$.
-* `ERR_S7_COUNTRYSET_INVALID`: `country_set` failed preconditions (duplicates, invalid ISO, missing home at rank 0, or wrong order).
-
----
-
-## Invariants (MUST hold)
-
-1. **Authority & order:** $\alpha$ aligns one-to-one with `country_set` (rank order); S7 **MUST NOT** mutate `country_set`.
-2. **Determinism:** Given (`home`,`MCC`,`channel`, $M$, `parameter_hash`) the resolution is identical across replays.
-3. **Safety floor:** $\alpha_i\ge 10^{-6}\ \forall i$.
-4. **Fallback soundness:** If only symmetric fallback is available, $\alpha=(\tfrac{\tau}{M},\dots,\tfrac{\tau}{M})$ with default $\tau=2.0$.
-
----
-
-## Reference pseudocode (deterministic)
-
-```pseudo
-function resolve_alpha(home, mcc, channel, C: list[country_iso], param_store) -> (array[float64], string):
-    # Preconditions
-    assert is_country_set_valid(C)          # rank order, no dups, home at index 0
-    M := len(C); assert M >= 1
-
-    # Ladder lookups: pure reads against parameter-scoped store
-    key_exact :=   (home, mcc, channel, M)
-    key_backA :=   (home, channel, M)
-    key_backB :=   (home, M)
-
-    alpha := param_store.alpha_get(key_exact)
-    alpha_key_used := "exact"
-    if alpha is None:
-        alpha := param_store.alpha_get(key_backA); alpha_key_used := "backoffA"
-    if alpha is None:
-        alpha := param_store.alpha_get(key_backB); alpha_key_used := "backoffB"
-    if alpha is None:
-        tau := param_store.alpha_tau_default_or(2.0)
-        alpha := [tau / M] * M; alpha_key_used := "symmetric"
-
-    # Dimension & ordering
-    if len(alpha) != M:
-        raise ERR_S7_ALPHA_DIM_MISMATCH(M, len(alpha))
-
-    # If source returns a mapping, re-order deterministically to match rank(C)
-    # (Most sources should already return length-M arrays in rank order.)
-    alpha := align_to_rank_order(alpha, C)  # no-op if already aligned
-
-    # Positivity floor
-    for i in 0..M-1:
-        if alpha[i] < 1e-6:
-            raise ERR_S7_ALPHA_NONPOSITIVE(i, alpha[i])
-
-    return (alpha, alpha_key_used)
-```
-
----
-
-## Conformance tests (minimal suite)
-
-1. **Exact hit:** Entries exist at all ladder levels; **exact** key wins. Verify `len(alpha)=M`, floor respected, `alpha_key_used="exact"`.
-2. **Back-off A:** Remove exact; A wins. Deterministic across replays; `alpha_key_used="backoffA"`.
-3. **Back-off B:** Remove A; B wins; ordering aligned; `alpha_key_used="backoffB"`.
-4. **Fallback:** Remove all; verify $\alpha_i=\tau/M$ with default $\tau=2.0$; `alpha_key_used="symmetric"`.
-5. **Dimension mismatch:** Provide length $M{-}1$ for exact key; expect `ERR_S7_ALPHA_DIM_MISMATCH`.
-6. **Non-positive component:** Provide α with any $\alpha_j < 10^{-6}$ (e.g., $10^{-7}$); expect `ERR_S7_ALPHA_NONPOSITIVE`.
-7. **Country-set integrity:** Corrupt `country_set` (dup ISO or non-home at rank 0); expect `ERR_S7_COUNTRYSET_INVALID` **before** any α lookup.
-8. **Parameter-scoped determinism:** Changing `parameter_hash` (by altering `dirichlet_alpha_policy.yaml`) changes resolved α; replays with the same `parameter_hash` reproduce α bit-identically.
-
----
-
-### Notes & cross-refs
-
-* S7.1 only **resolves** α. Gamma sampling, normalisation to $w$, and sum-to-one tolerances are defined in S7.2–S7.3 and inherit the same numeric policy.
-* `country_set` remains authoritative for inter-country order; egress `outlet_catalogue` does **not** encode this order (consumers join `country_set.rank`).
-
----
-
-# S7.2 — RNG envelope & Dirichlet draw (Marsaglia–Tsang)
-
-## Scope & purpose
-
-Given the ordered country set $C=(c_0,\dots,c_{M-1})$ from `country_set` and the $\alpha$ vector from **S7.1**, sample $G_i\sim\mathrm{Gamma}(\alpha_i,1)$ independently. For $M>1$, compute preliminary weights $w_i=G_i/\sum_j G_j$ **using the same deterministic reducer as S7.3** (see below), and emit **one** RNG event `dirichlet_gamma_vector` whose arrays are aligned to $C$ and whose envelope (seed, substream label, counters, draws) is replayable.
-For $M=1$, **skip** sampling and **do not** emit this event (S7.5 still emits one `residual_rank` with `draws=0`).
-
-> **Authority note:** The **normative** normalisation used for allocation lives in **S7.3**. S7.2 must compute `weights` for the event payload **using S7.3’s reducer**, and validators will re-derive weights from `gamma_raw` in S7.3 and compare.
-
----
-
-## Inputs (MUST)
-
-* `country_set` (authoritative membership + order; ranks 0..$M{-}1$).
-* $\alpha=(\alpha_0,\dots,\alpha_{M-1})$ from **S7.1**; length $M$; all $\alpha_i>0$.
-* Run lineage `(seed, parameter_hash, manifest_fingerprint)`.
-
----
-
-## RNG discipline (normative)
-
-* **Keyed substream.** All uniforms for this sub-state use the label **`"dirichlet_gamma_vector"`** under the merchant’s stream. Base 128-bit counter is derived deterministically from (`fingerprint`, `seed`, label, `merchant_id`). The $i$-th uniform uses counter `(base_hi, base_lo + i)` with 128-bit carry. **Order-invariant.**
-* **Open-interval uniforms.** From 64-bit lanes: $u=(x+1)/(2^{64}+1)\in(0,1)$ (never 0 or 1).
-* **Normals.** Box–Muller, **no spare caching**; exactly **2 uniforms per** $Z$.
-* **Envelope accounting.** Event stores `(before_hi, before_lo, after_hi, after_lo, draws)` with 128-bit equality: `after = before + draws`. A per-module `rng_trace_log` row records the **same** `draws`.
-
----
-
-## Algorithm (normative)
-
-### A) Early exit for $M=1$
+**0.2 Normative language**
+This spec uses RFC 2119/8174 terms (**MUST/SHALL/SHOULD/MAY**) with their normative meanings. Unless explicitly labelled *Informative*, every clause here is **Binding**. 
 
-If $|C|=1$: set `weights = [1.0]` and **do not** emit `dirichlet_gamma_vector`. (S7.5 will still emit one `residual_rank` event with `draws=0`.)
+**0.3 Sources of authority (precedence)**
 
-### B) Sample Gamma components (Marsaglia–Tsang, MT1998)
+1) **JSON-Schema is the single schema authority** for all 1A inputs/outputs/logs: `schemas.ingress.layer1.yaml`, `schemas.1A.yaml`, `schemas.layer1.yaml`. Avro (if present) is non-authoritative.
+2) The **Dataset Dictionary** (`dataset_dictionary.layer1.1A.yaml`) governs dataset IDs, paths, partitions, writer sorts, PK/FK, retention, and licence classes.
+3) **This S7 spec** (behavioural rules) sits beneath those authorities.
 
-For each $i\in{0,\dots,M-1}$ independently:
+**0.4 Compatibility window (S0–S6 baselines; numeric environment)**
 
-* **If $\alpha_i\ge 1$** (MT “shape ≥1” branch). Let $d=\alpha_i-\tfrac13$, $c=(9d)^{-1/2}$. Repeat:
+* **Schema/Dictionary lines:** This S7 spec assumes `schemas.ingress.layer1.yaml v1.0`, `schemas.1A.yaml v1.0`, `schemas.layer1.yaml v1.0`, and `dataset_dictionary.layer1.1A.yaml v1.0` remain on their **v1.* line**; a **MAJOR** bump in any of these requires S7 re-ratification.  
+* **Numeric environment:** S7 **inherits S0.8 verbatim** — IEEE-754 **binary64**, **round-to-nearest ties-to-even (RNE)**, **FMA off**, **no FTZ/DAZ**, deterministic libm profile; decision/ordering kernels execute in fixed serial order. The artefacts `numeric_policy.json` and `math_profile_manifest.json` are part of the S0 manifest and flipping either changes the fingerprint.  
 
-  1. draw $Z\sim\mathcal N(0,1)$ (consumes **2 uniforms**); set $V=(1+cZ)^3$; if $V\le 0$, retry;
-  2. draw $U\sim U(0,1)$ (consumes **1 uniform**);
-  3. accept iff $\ln U < \tfrac12 Z^2 + d - dV + d\ln V$; then set $G_i=dV$.
-     **Budget:** **3 uniforms per attempt**.
+**0.5 Run sealing & lineage (identifiers, partitions, equality)**
 
-* **If $0<\alpha_i<1$** (shape <1 reduction). Draw $G'\sim\Gamma(\alpha_i+1,1)$ by the branch above, then draw $U\sim U(0,1)$ (consumes **+1 uniform**) and set
-  $G_i = G'\,U^{1/\alpha_i}.$
+* **Lineage keys:** Use `{seed, parameter_hash, run_id}` exactly as defined layer-wide: `run_id` partitions **logs**; `parameter_hash` scopes parameter-derived datasets; `manifest_fingerprint` keys layer-egress/validation artefacts. 
+* **RNG envelope (for any S7 events):** envelope fields are mandatory (incl. `run_id`, `seed`, `parameter_hash`, `manifest_fingerprint`) with **UTC timestamps carrying exactly 6 fractional digits**. 
+* **Path↔embed equality:** Where lineage fields are embedded, their values **MUST** equal the partition tokens byte-for-byte; violations are **hard FAIL** during pre-flight. 
+* **Gated consumption (platform rule):** Producers publish validation bundles and a PASS flag; consumers refuse to read otherwise (**no PASS → no read**). 
 
-### C) Compute event weights with the **S7.3 reducer**
+*(IDs and `$ref` anchors read/written by S7 are enumerated in §3; this section only freezes identity, authority, compatibility, and lineage law.)*
 
-Let $S=\sum_i G_i$ computed by **`sum_comp`** (Neumaier compensated **serial** sum) in **`country_set.rank` order**; set $w_i = G_i/S$.
-
-* **Internal target:** $\big|1-\sum_i w_i\big|\le 10^{-12}$ using **`sum_comp`**.
-* **Event/schema bound:** $\big|1-\sum_i w_i\big|\le 10^{-6}$ (the event is rejected otherwise).
-
-> This mirrors S7.3. The **authoritative** weights for allocation are recomputed from `gamma_raw` in S7.3 using the same reducer; validators assert the S7.2 `weights` agree (see Errors).
-
-### D) Emit **one** `dirichlet_gamma_vector` event (iff $M>1$)
-
-Write one JSONL record under:
-
-```
-logs/rng/events/dirichlet_gamma_vector/
-  seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
-schema_ref: schemas.layer1.yaml#/rng/events/dirichlet_gamma_vector
-partitioning: ["seed","parameter_hash","run_id"]
-produced_by: "1A.dirichlet_allocator"
-```
-
-**Envelope (required):** `seed`, `parameter_hash`, `manifest_fingerprint`, `run_id`, `module`, `label="dirichlet_gamma_vector"`, `counter_before_hi/lo`, `counter_after_hi/lo`, `draws`, optional `ts`.
-
-**Payload (required, equal length, `country_set` order):**
-
-* `country_isos` : `array[str, ISO-2]`
-* `alpha`        : `array[number > 0]`
-* `gamma_raw`    : `array[number > 0]`
-* `weights`      : `array[number in (0,1)]`, computed via **S7.3** reducer
-* `alpha_key_used` (string, **optional**) : `exact | backoffA | backoffB | symmetric` (propagated from S7.1)
-
-*(Optional, once per merchant per label):* emit a `stream_jump` record.
-
----
-
-## Draw-count formula (for validators)
-
-Let $A_i$ be the number of **attempts** taken by the MT kernel for component $i$ under the “$\alpha\ge1$” branch (for $\alpha_i<1$, $A_i$ corresponds to the $\alpha_i+1$ kernel). Then:
-
-$$
-\texttt{draws} \;=\; 3\sum_{i=0}^{M-1}\!A_i \;+\; \sum_{i=0}^{M-1}\mathbf{1}[\alpha_i<1].
-$$
-
-Validators recompute $A_i$ from `gamma_raw` (the accept/reject path is inferable) and assert both the draw formula and the 128-bit counter delta.
-
----
-
-## Numeric policy (must match S7)
-
-* IEEE-754 **binary64** everywhere; **no FMA** in ordering-sensitive operations.
-* Deterministic **serial** reductions in `country_set.rank` order implemented as **`sum_comp`** (Neumaier).
-
----
-
-## Error handling (abort conditions)
-
-* **`ERR_S7_2_PAYLOAD_LEN_MISMATCH`** — payload arrays not all length $M$.
-* **`ERR_S7_2_SUM_TOL_EVENT`** — $\big|1-\sum w\big|>10^{-6}$ using `sum_comp`.
-* **`ERR_S7_2_UNDERFLOW_ZERO_SUM`** — $\sum G = 0$.
-* **`ERR_S7_2_COUNTER_DELTA`** — envelope `after − before ≠ draws` (u128).
-* **`ERR_S7_2_WEIGHTS_MISMATCH_INTERNAL`** — event `weights` differ from S7.3-recomputed weights from `gamma_raw` by more than $10^{-12}$ (componentwise or sum).
-
-All are structural aborts; S9 fails and 1B must not proceed.
-
----
-
-## Invariants (MUST hold)
-
-1. **Event cardinality:** per merchant, emit **exactly one** `dirichlet_gamma_vector` iff $|C|>1$; **none** if $|C|=1$.
-2. **Envelope correctness:** `after = before + draws` (128-bit); `draws` equals the formula above.
-3. **Alignment:** all payload arrays align index-for-index with `country_set` order (home rank 0; then S6 Gumbel order).
-4. **Partitions:** events are partitioned by `{seed, parameter_hash, run_id}` exactly as above.
-5. **Determinism:** For fixed (`seed`,`parameter_hash`,`merchant_id`) the event is byte-stable.
-
----
-
-## Reference pseudocode
-
-```pseudo
-function s7_2_dirichlet_draw(country_set C, alpha[0..M-1], lineage, alpha_key_used?) -> (w[0..M-1], event?):
-    assert len(C) == len(alpha) == M >= 1
-    if M == 1:
-        return ([1.0], None)  # no event; S7.5 emits residual_rank later
-
-    # Substream: all uniforms under "dirichlet_gamma_vector"
-    env_before := keyed_counter_before(lineage, label="dirichlet_gamma_vector")
-
-    G := array<float64>(M)
-    draws := 0
-    for i in 0..M-1:
-        a := alpha[i]
-        if a >= 1:
-            repeat:
-                Z := box_muller()       # 2 uniforms
-                draws += 2
-                d := a - 1.0/3.0
-                c := (9.0*d)^(-0.5)
-                V := (1.0 + c*Z)^3
-                if V <= 0.0: continue
-                U := u01()              # +1 uniform
-                draws += 1
-                if log(U) < 0.5*Z*Z + d - d*V + d*log(V):
-                    G[i] = d*V; break
-        else:
-            Gp, k := gamma_mt_kernel(a+1.0)  # returns value and uniforms used (multiple of 3)
-            draws += k
-            U := u01()                        # +1 uniform
-            draws += 1
-            G[i] = Gp * U^(1.0/a)
-
-    S := sum_comp(G)                           # Neumaier, rank order
-    if S == 0.0: abort("ERR_S7_2_UNDERFLOW_ZERO_SUM")
-
-    w := [ Gi / S for Gi in G ]
-    if abs(1.0 - sum_comp(w)) > 1e-6:
-        abort("ERR_S7_2_SUM_TOL_EVENT")
-
-    env_after := u128_add(env_before, draws)
-    event := {
-      envelope: {
-        seed, parameter_hash, manifest_fingerprint, run_id,
-        module: "1A.dirichlet_allocator",
-        label: "dirichlet_gamma_vector",
-        counter_before_hi: env_before.hi, counter_before_lo: env_before.lo,
-        counter_after_hi:  env_after.hi,  counter_after_lo:  env_after.lo,
-        draws: draws
-      },
-      payload: {
-        country_isos: [c.iso for c in C],
-        alpha: alpha, gamma_raw: G, weights: w,
-        alpha_key_used: alpha_key_used  # optional
-      }
-    }
-    write_event_jsonl(event, DIRICHLET_EVENT_PATH)
-    write_trace(label="dirichlet_gamma_vector", draws=draws)
-
-    return (w, event)
-```
-
----
-
-## Conformance tests
-
-1. **Cardinality:** $M=1$ ⇒ **no** event; $M=2$ ⇒ **exactly one** event.
-2. **Alignment:** perturb external order and verify validator fails (payload must match `country_set` order).
-3. **Draw accounting:** instrument MT attempts, verify `draws = 3∑A_i + ∑1[α_i<1]` and the envelope delta.
-4. **Sum-to-one:** force $\big|1-\sum w\big| > 10^{-6}$ → expect `ERR_S7_2_SUM_TOL_EVENT`.
-5. **Recompute check:** recompute weights from `gamma_raw` with **S7.3**; expect max diff ≤ `1e-12`; else `ERR_S7_2_WEIGHTS_MISMATCH_INTERNAL`.
-6. **Determinism:** rerun with identical lineage → byte-identical event; change `parameter_hash` → event differs only due to α universe.
-
----
-
-# S7.3 — Deterministic normalisation & sum-to-one check
-
-## Scope & purpose
-
-Given the ordered country set $C=(c_0,\dots,c_{M-1})$ and the independent gamma components $G_i\sim\Gamma(\alpha_i,1)$ sampled in **S7.2**, compute weights
-$w_i \;=\; \frac{G_i}{\sum_j G_j}$
-**deterministically** and enforce two tolerances:
-
-* **Internal target (algorithmic):** $\big|\sum_i w_i - 1\big|\le 10^{-12}$ (binary64) → otherwise **abort**.
-* **Event/schema guard (payload):** $\big|\sum_i w_i - 1\big|\le 10^{-6}$ (validators accept at this looser bound).
-
-Arrays **must** remain index-aligned to `country_set.rank` (home rank 0; then S6’s Gumbel order).
-
----
-
-## Inputs (MUST)
-
-* $G=(G_0,\dots,G_{M-1})\in\mathbb{R}^M_{>0}$ from S7.2; $M=|C|\ge 1$. (For $M=1$ S7.2 already short-circuits; S7.3 is vacuous.)
-* `country_set` (sole authority for membership and order).
-
----
-
-## Numeric environment (normative)
-
-* IEEE-754 **binary64** everywhere; **FMA disabled** in ordering-sensitive paths.
-* Reductions are **serial, deterministic** in **`country_set.rank` order**.
-
----
-
-## Method (normative): Neumaier compensated **serial** sum
-
-Let `sum_comp(·)` be the **Neumaier** compensated reducer in fixed order:
-
-```text
-function sum_comp(x[0..M-1]):
-  s = 0.0; c = 0.0
-  for i in 0..M-1 in country_set.rank ascending:
-    t = s + x[i]
-    if abs(s) >= abs(x[i]): c += (s - t) + x[i]
-    else:                   c += (x[i] - t) + s
-    s = t
-  return s + c
-```
-
-**Prohibitions:** no pairwise/parallel/Kahan, no BLAS/GPU — this normalisation is a **single-thread loop** (part of determinism).
-
 ---
 
-## Algorithm (normative)
+# 1) Intent, scope, non-goals **(Binding)**
 
-1. **Early exit (M=1).**
-   If $M=1$: return `w=[1.0]` (already set in S7.2); skip the rest.
+**Intent (what S7 does).**
+S7 takes **N** from S2, the **ordered legal country set** from S3, **currency→country weights** from S5, and the **selected foreign membership** from S6, then produces **deterministic integer counts per country** that **sum exactly to N**. It records a **`residual_rank`** for the largest-remainder rounding step. S7 **does not** create or persist any inter-country order; consumers continue to use S3’s `candidate_rank` as the **sole authority** for cross-country order.    
 
-2. **Compute the sum.**
-   $S \leftarrow \texttt{sum_comp}(G_0,\dots,G_{M-1})$.
-   Since each $G_i>0$, $S>0$; if $S=0$ (pathological underflow), **abort** `ERR_S7_3_UNDERFLOW_ZERO_SUM`.
+**Scope (what S7 covers).**
+S7 SHALL:
 
-3. **Normalise.**
-   For each $i$: set $w_i \leftarrow G_i / S$ (binary64 division). Store `w` in the same order as $C\`.
+* Allocate counts over the **domain = {home} ∪ (S6-selected foreigns)**, respecting S3’s total, contiguous **`candidate_rank`** (home at rank 0). **Order authority remains S3.** 
+* Use **S5 `ccy_country_weights_cache`** as the weight authority; S7 MAY only **ephemerally** restrict/renormalise it to the domain (no persistence). 
+* Treat **S2 `nb_final.n_outlets → N`** and **S4 `ztp_final.K_target`** as read-only facts (no reinterpretation). 
+* Emit one deterministic **`rng_event.residual_rank`** row per domain country (draws=`"0"`; blocks=0), with a trace append after each event. 
+* Default to **deterministic-only** operation (no RNG consumption). A feature-flagged **Dirichlet lane** MAY exist (policy OFF by default) and is specified elsewhere in §4.4.
 
-4. **Sum-to-one enforcement (two-stage).**
-   (a) **Internal**: $S' \leftarrow \texttt{sum_comp}(w)$. Abort `ERR_S7_3_SUM_MISMATCH_INTERNAL` if $|S' - 1| > 10^{-12}$.
-   (b) **Event/schema**: the already-emitted S7.2 `dirichlet_gamma_vector` payload **must** also satisfy $|\sum w - 1|\le 10^{-6}`under`sum_comp\`. Validators enforce this at read time.
+**Non-goals (what S7 MUST NOT do).**
+S7 MUST NOT:
 
-5. **Reconciliation with S7.2 payload (deterministic).**
-   Recompute `w` from S7.2’s `gamma_raw` with `sum_comp` and assert **componentwise** $|w_i^{(S7.3)} - w_i^{(event)}|\le 10^{-12}$. Otherwise **abort** `ERR_S7_3_WEIGHTS_MISMATCH_INTERNAL`.
-   *(This guarantees the event’s `weights` were produced with the same reducer.)*
+* **Pick countries** (that is S6), **define or encode inter-country order** (that is S3), or **persist weights** (that is S5).   
+* **Materialise sites or within-country site order** (that is S8; egress `outlet_catalogue` explicitly does **not** encode cross-country order). 
+* **Alter** S2’s **N** or S4’s **`K_target`**, or reinterpret any S4 audit fields beyond reading `K_target`. 
+* **Write a counts dataset** as a new authority surface by default; counts flow forward to S8. (Any future S7 counts cache would require a dictionary ID and schema anchor before use.) 
 
-6. **Accounting.**
-   Normalisation consumes **no** random draws; S7.2’s event `draws` equals $3\sum A_i + \sum\mathbf{1} [\alpha_i<1]$ and is unchanged here.
+**Outcome (success criteria).**
+On completion, for every merchant S7 provides: (i) per-country **integer counts** that sum to **N** over the domain; (ii) a complete set of **`residual_rank`** events consistent with the deterministic largest-remainder rounding; and (iii) no new order or weight surfaces introduced—**S3/S5 remain the authorities**.   
 
 ---
 
-## Additions (boxed, normative)
+# 2) Interfaces & “no re-derive” boundaries **(Binding)**
 
-**Internal vs. schema tolerance:**
+**2.1 Upstream authorities S7 MUST trust (read-side contracts).**
+S7 reads **only** the artefacts below, at the stated `$ref` anchors and partitions. Embedded lineage fields (where present) **MUST** byte-equal the path tokens (path↔embed equality).
 
-* Internal algorithmic target: $\pm 10^{-12}$ (authoritative for allocation & integerisation).
-* Event/schema acceptance: $\pm 10^{-6}$ (cross-system validation bound).
+* **Domestic count (fact):** `rng_event.nb_final` → `schemas.layer1.yaml#/rng/events/nb_final`, partitioned by `{seed, parameter_hash, run_id}`. **Exactly one** per resolved merchant; `n_outlets (N) ≥ 2`; **non-consuming** envelope. 
+* **Foreign target (fact):** `rng_event.ztp_final` → `schemas.layer1.yaml#/rng/events/ztp_final`, partitioned by `{seed, parameter_hash, run_id}`. **Exactly one** per resolved merchant **unless** S4 aborted; S7 treats only `K_target` as a decision fact (other fields audit-only).
+* **Inter-country order & domain base:** `s3_candidate_set` → `schemas.1A.yaml#/s3/candidate_set`, partitioned by `[parameter_hash]`. **Sole authority** for inter-country order; rank is **total & contiguous** per merchant with `home=0`. 
+* **Weights authority:** `ccy_country_weights_cache` → `schemas.1A.yaml#/prep/ccy_country_weights_cache`, partitioned by `[parameter_hash]`. Group-sum per currency **= 1 ± 1e-6**; **no order is implied**. **Gate:** S7 MUST read only when **S5 PASS** is present for the same `parameter_hash`.
+* **Selected-foreign membership (optional convenience):** `s6_membership` → `schemas.1A.yaml#/s6/membership`, partitioned by `{seed, parameter_hash}`. **Gate:** S7 MAY read **only** if **S6 PASS** exists for the same `{seed, parameter_hash}`. When absent, S7 **MUST** reconstruct membership from `rng_event.gumbel_key` (selected rows). **Order remains from S3.**
+* **Membership via events (authoritative log):** `rng_event.gumbel_key` → `schemas.layer1.yaml#/rng/events/gumbel_key`, partitioned by `{seed, parameter_hash, run_id}`; single-uniform budget (`blocks=1`, `draws="1"`); if `selected=true` then `1 ≤ selection_order ≤ K`. Zero-weights **must** carry `key:null` and can’t be selected.
+* **Merchant→currency map (if produced):** `merchant_currency` → `schemas.1A.yaml#/prep/merchant_currency`, partitioned by `[parameter_hash]`; **PK `(merchant_id)`**; κₘ in ISO-4217. If present, S7 **MUST NOT** override it. 
 
-**Reducer prohibition:**
+**2.2 Downstream consumers (write-side promises).**
 
-* **Pairwise/parallel/GPU/BLAS reducers are forbidden**; use the serial Neumaier loop in rank order. Violations are flagged in `numeric_determinism.json`.
+* **S8 `outlet_catalogue`** consumes S7’s **per-country integer counts** to materialise sites. Egress **does NOT encode inter-country order**; consumers **MUST** join S3 `candidate_rank`. Egress remains gated by the layer **fingerprint PASS**; S7 does not alter that gate.
+* **RNG logs:** S7 emits only its own event family (`residual_rank`; see §5/§6) and appends one cumulative `rng_trace_log` row **after each** event; readers treat event files as **set-semantics**. 
 
-**Authority & order:**
+**2.3 “No re-derive” boundaries (hard prohibitions & guarantees).**
 
-* `country_set` is the sole authority; arrays remain index-aligned to rank (0..$M{-}1$). S7.3 **MUST NOT** mutate `country_set`.
+* **Order authority:** S7 **MUST NOT** create, persist, or imply any inter-country order. **S3 `candidate_rank` is sole authority**; S8 and any consumer **MUST** continue to join it. 
+* **Weights authority:** S7 **MUST NOT** persist weights or alter S5 values. Any subset/renormalisation used for allocation is **ephemeral** and **not written**. 
+* **S4 facts:** S7 **MUST NOT** reinterpret S4 fields beyond reading `K_target`. `lambda_extra`, `regime`, `attempts`, `exhausted?` remain **audit-only**. 
+* **Membership authority:** If `s6_membership` is read, S7 treats it as the membership set but **MUST** still obtain order from S3; if not read, S7 reconstructs membership **only** from `rng_event.gumbel_key` selection flags (or counter-replay per S6 rules), **never** from S7-invented logic.
+* **Egress scope:** By default, S7 **MUST NOT** publish a new counts dataset as an authority surface; counts flow into S8. Any future S7 counts cache would require a Dictionary ID and schema anchor. 
 
----
-
-## Properties & obligations
+**2.4 Lineage, partitions, and gates (enforcement summary).**
 
-* **Determinism:** Given $G$ and `country_set.rank`, $w$ is a pure function of binary64 arithmetic with a fixed reducer and order. Any deviation (parallel reduction, different order, FMA) breaks replay.
-* **No clamp/re-scale:** If the internal tolerance fails, **fail closed**; do not re-scale to force a pass.
-* **Alignment:** Arrays stay index-aligned to `country_set` order.
+* **Partitions:** events/logs under `{seed, parameter_hash, run_id}`; parameter-scoped tables under `[parameter_hash]`. Path↔embed equality is binding.
+* **PASS discipline:** **S5 PASS** required before reading weights; **S6 PASS** required before reading any S6 convenience surface; layer **egress PASS** governs `outlet_catalogue`. **No PASS → no read.**
 
 ---
 
-## Reference pseudocode (deterministic)
+# 3) Inputs — datasets, schemas, partitions & gates **(Binding)**
 
-```pseudo
-function s7_3_normalise(G[0..M-1], C) -> w[0..M-1]:
-    assert M == len(C) == len(G) and M >= 1
-    if M == 1: return [1.0]
+**3.1 Required inputs (ID → `$ref`, partitions, what S7 uses).**
 
-    S = sum_comp(G)
-    if S == 0.0:
-        abort("ERR_S7_3_UNDERFLOW_ZERO_SUM")
+* **Domestic count (fact):** `rng_event.nb_final` → `schemas.layer1.yaml#/rng/events/nb_final` — **partitions:** `{seed, parameter_hash, run_id}`. S7 reads **`n_outlets (N) ≥ 2`** as the total to allocate; one record per resolved merchant.  
+* **Order & domain base (sole authority):** `s3_candidate_set` → `schemas.1A.yaml#/s3/candidate_set` — **partitions:** `[parameter_hash]`. Guarantees a **total, contiguous** `candidate_rank` with **home=0**; S7 reads only order + admissible set.  
+* **Foreign-target fact (for consistency checks):** `rng_event.ztp_final` → `schemas.layer1.yaml#/rng/events/ztp_final` — **partitions:** `{seed, parameter_hash, run_id}`. S7 may assert `|membership| = min(K_target, |Eligible|)`; other fields remain audit-only. 
+* **Weights authority:** `ccy_country_weights_cache` → `schemas.1A.yaml#/prep/ccy_country_weights_cache` — **partitions:** `[parameter_hash]`. Per-currency group sum **= 1 ± 1e-6**; S7 **ephemerally** restricts/renormalises to the S7 domain (no persistence). **Gate:** **S5 PASS required.**  
 
-    w = array<float64>(M)
-    for i in 0..M-1:
-        w[i] = G[i] / S
+**3.2 Conditional / optional inputs.**
 
-    S1 = sum_comp(w)
-    if abs(S1 - 1.0) > 1e-12:
-        abort("ERR_S7_3_SUM_MISMATCH_INTERNAL")
+* **Selected-foreign membership (convenience only):** `s6_membership` → `schemas.1A.yaml#/s6/membership` — **partitions:** `{seed, parameter_hash}`. **Gate:** **S6 PASS** for same `{seed, parameter_hash}`. If absent, S7 reconstructs membership from `rng_event.gumbel_key` selections; **order still comes from S3.**    
+* **Membership via events (authoritative log when needed):** `rng_event.gumbel_key` → `schemas.layer1.yaml#/rng/events/gumbel_key` — **partitions:** `{seed, parameter_hash, run_id}`. Used only when `s6_membership` is not emitted; if `selected=true` then `1 ≤ selection_order ≤ K`.
+* **Merchant→currency map (if produced):** `merchant_currency` → `schemas.1A.yaml#/prep/merchant_currency` — **partitions:** `[parameter_hash]`. If present, S7 **MUST NOT** override it when resolving the merchant’s currency for the S5 weight vector. 
 
-    # Reconcile with S7.2 payload (if present in context)
-    w_event = read_event_weights_for_this_merchant_if_available()
-    if w_event is not None:
-        for i in 0..M-1:
-            if abs(w[i] - w_event[i]) > 1e-12:
-                abort("ERR_S7_3_WEIGHTS_MISMATCH_INTERNAL")
-
-    return w
-```
-
----
+**3.3 Gates S7 MUST verify before reading.**
 
-## Invariants (MUST hold)
+* **S6 PASS (convenience reads):** To read any S6-derived dataset (e.g., `s6_membership`), S7 verifies the **S6 receipt** at `data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/(S6_VALIDATION.json, _passed.flag)` and checks the flag’s content hash. **No PASS → no read.** 
+* **S5 PASS (weights):** To read `ccy_country_weights_cache`, S7 honours S5’s **parameter-scoped PASS** sidecar (`S5_VALIDATION.json` + `_passed.flag`) colocated under the weights partition. **No PASS → no read.** 
 
-1. If $M=1$: `w=[1.0]`. If $M > 1$: $w_i \in (0,1)$ and $\sum_i w_i = 1 \pm 10^{-12}$ internally.
-2. S7.2 payload satisfies $\sum w = 1 \pm 10^{-6}$ under `sum_comp`.
-3. Arrays align index-for-index with `country_set` rank order.
-4. Normalisation uses **Neumaier** in fixed order; **no** BLAS/parallel/GPU/FMA for this step.
+**3.4 Partition keys, lineage, and equality (enforcement).**
 
----
+* **Events/logs** are partitioned by `{seed, parameter_hash, run_id}`; **parameter-scoped tables** by `[parameter_hash]`. Embedded lineage (where present) **MUST byte-equal** path tokens (path↔embed equality). 
+* **Core RNG logs** (`rng_audit_log`, `rng_trace_log`) exist under the same event partitions and are used by validators; S7 does not need to read them to allocate counts. 
 
-## Conformance tests
+**3.5 FK & encoding baselines (domains).**
 
-1. **Tolerance split:** choose $G$ to yield $|\sum w-1|\approx 10^{-10}$ → pass internal & event checks; perturb to exceed $10^{-12}$ but remain $<10^{-6}$ → **abort internally**; validator would have accepted the event bound.
-2. **Order dependence:** compute sums with a different order or pairwise tree — result **must differ** on crafted inputs; reference reducer must pass.
-3. **Underflow guard:** force tiny $G_i$; if `sum_comp(G)==0.0`, expect `ERR_S7_3_UNDERFLOW_ZERO_SUM`.
-4. **Event reconciliation:** for $M > 1$, ensure **exactly one** `dirichlet_gamma_vector` exists; recompute `w` from `gamma_raw` and assert componentwise diff ≤ `1e-12`.
-5. **Determinism:** rerun with identical lineage: byte-equal `w`; RNG counters unchanged (normalisation consumes none).
+* **ISO / currency codes:** uppercase **ISO-3166-1 alpha-2** for `country_iso`, uppercase **ISO-4217** for `currency` across all inputs (FKs enforced where declared). 
+* **Deprecated surfaces (MUST NOT read):** `country_set` (legacy, seed+parameter partitions) is **not** an order authority; S7 **MUST NOT** consume it. Use `s3_candidate_set` instead. 
 
 ---
 
-**Hand-off:** `w` now satisfies the numeric contract and is ready for **S7.4** (forming $a_i=N,w_i$, flooring, **decimal 1e8** residual quantisation in **integer space**, and preparing for largest-remainder integerisation).
+# 4) Configuration & policy **(Binding)**
 
----
+**4.1 Residual quantisation precision (binding).**
+S7 **MUST** quantise residuals at **`dp_resid = 8`** **before** any tie-breaks or ranking. Quantisation uses the S0 numeric profile (binary64, RNE). This mirrors the binding residual-dp discipline already used for integerisation elsewhere. 
 
-# S7.4 — Real allocations & residual quantisation
+**4.2 Decimal rounding algorithm (binding).**
+Quantise via the fixed **ties-to-even** decimal rule: let `s = 10^dp_resid`; compute `q = round_RNE(value * s) / s` in binary64, then use `q` for all downstream comparisons and ordering. 
 
-## Scope & purpose
+**4.3 Deterministic tie-break order (binding).**
+When ranking residuals to distribute the remainder, apply a **total** and **stable** order:
 
-Take the ordered country set $C=(c_0,\dots,c_{M-1})$, total outlets $N\in\mathbb{Z}*{\ge1}$, and weights $w=(w_0,\dots,w*{M-1})$ from **S7.3** (already sum-to-one within the internal tolerance) and produce:
+1. **Residual** (quantised) **descending**; 
+2. **ISO-3166-1 alpha-2** code **A→Z**; 
+3. **`candidate_rank` ascending**; 
+4. stable input index. Persist `residual_rank` as the **1-based** position in this order.
 
-* real allocations $a_i=N,w_i$ (binary64),
-* integer floors $f_i=\lfloor a_i\rfloor$,
-* **quantised residuals** at **exactly 8 decimal places** for deterministic tie-breaks,
-* the integer **deficit** $d:=N-\sum_i f_i$ to be distributed in **S7.5**.
+**4.4 Optional bounds policy (Hamilton-style) (feature-flag; default: OFF).**
+If enabled, S7 enforces per-country integer **floors/ceilings** and uses a bounded Hamilton procedure with a hard feasibility guard `ΣL_i ≤ N ≤ ΣU_i`; capacities restrict bumps and residual ranking is applied only to countries with remaining capacity. If infeasible at any step, S7 **MUST** fail the merchant (no partial outputs).
 
-All arrays are index-aligned to `country_set.rank` (home rank 0; then S6 Gumbel order).
+**4.5 Logging mode (binding).**
+S7 **MUST** emit one **`rng_event.residual_rank`** per `(merchant_id, country_iso)` in the domain, with **non-consuming** envelope (i.e., `draws="0"`, `blocks=0`) and then append **exactly one** cumulative **`rng_trace_log`** row **after each** event append. Event files are **set-semantics** (readers must not assume file order).
 
----
+**4.6 RNG lane switch (Dirichlet) (feature-flag; default: OFF).**
+If the **Dirichlet lane** is enabled by policy, S7 **MAY** emit exactly one `rng_event.dirichlet_gamma_vector` per merchant (arrays for `{alpha[], gamma_raw[], weights[]}`) in addition to §4.5 logs. α-vector formation **MUST** produce strictly positive α and be **mean-anchored** to the S5 weights restricted to the S7 domain (policy defines α₀; this spec requires α>0 and domain-normalisation only). When this lane is **OFF** (default), S7 remains **deterministic-only** and **MUST NOT** consume RNG for allocation. 
 
-## Inputs (MUST)
+**4.7 Pass-through of upstream authorities (binding).**
+S7 **MUST NOT** persist any new weight surface and **MUST NOT** encode or imply inter-country order; any subset/renormalisation of S5 weights is **ephemeral** to the allocation step, and inter-country order **always** comes from S3 `candidate_rank`.
 
-* `country_set` (sole authority for membership + order; `rank(c_i)=i`; ISO-2; no duplicates).
-* **Provenance of `N`**:
+**4.8 Gates inherited by configuration (binding).**
+Reading any S6 convenience surface requires a **valid S6 PASS**; reading S5 weights requires a **valid S5 PASS**. **No PASS → no read.** (These gates are enforced even when S7 runs deterministic-only.)
 
-  * **multi-site path:** `N = raw_nb_outlet_draw` from **S2**,
-  * **single-site path:** `N := 1` from **S1** (S2–S6 are bypassed).
-* $w=(w_0,\dots,w_{M-1})$ from **S7.3**; $M=|C|\ge1$; $\sum_i w_i = 1 \pm 10^{-12}$ (internal target).
+**4.9 Enumerations & labels (binding, listed in Appendix A).**
+`module`, `substream_label`, error codes, and tie-break keys are frozen literals. Producers **MUST** use the Appendix A values when emitting `rng_event.residual_rank` (and `dirichlet_gamma_vector` if enabled). (See also §2.4 for partition/lineage rules.) 
 
 ---
-
-## Numeric environment (normative)
 
-* IEEE-754 **binary64** for all real operations; **FMA disabled** wherever ordering/rounding affects branching or ranking (i.e., this whole sub-state).
-* Deterministic **serial** loops in `country_set.rank` order. No pairwise/parallel reductions here (sums already handled in S7.3).
+# 5) Outputs — datasets/logs & contracts **(Binding)**
 
----
-
-## Definitions (normative)
+**5.1 Event logs S7 MUST emit.**
 
-* **Binary64 cast of `N`:** require $N < 2^{53}$ so $\mathrm{R}_{64}(N)$ is exact.
-* **Real allocations:** $a_i:=\mathrm{R}*{64}(N)\times \mathrm{R}*{64}(w_i)$ (single multiply; **no FMA**).
-* **Integer floors:** $f_i:=\lfloor a_i\rfloor \in \mathbb{Z}_{\ge0}$ (int32).
-* **Raw residuals:** $u_i:= a_i - f_i \in  [0,1)$.
-* **8-dp quantiser $Q_8$ (normative, **integer-space**):** for $u\in [0,1)$
+* **`rng_event.residual_rank`** — one row **per (`merchant_id`, `country_iso`)** in the S7 domain; **non-consuming** envelope (**`draws="0"`, `blocks=0`**); **partition:** `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`; **schema:** `schemas.layer1.yaml#/rng/events/residual_rank`. Persist `residual∈[0,1)` and **`residual_rank≥1`** (1=largest). After **each** event append, S7 **MUST** append exactly one cumulative row to **`rng_trace_log`** for `(module, substream_label)`. **Module/Substream (normative):** `module="1A.integerisation"`, `substream_label="residual_rank"`.
+  *Envelope fields follow the layer law: `ts_utc` is RFC3339 with **exactly 6 fractional digits**, lineage fields present, and path↔embed equality holds.* 
 
-  $$
-  q \;=\; \operatorname{roundToEven}\!\big(\,\lfloor 10^8\cdot u \rceil\,\big)\ \in\ \{0,\dots,10^8\},\qquad
-  r \;=\; \frac{\min(q,\,10^8{-}1)}{10^8}.
-  $$
+* **(Feature-flag lane; default OFF)** **`rng_event.dirichlet_gamma_vector`** — **at most one** row **per merchant** when Dirichlet allocation is enabled by policy; **partition:** `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`; **schema:** `schemas.layer1.yaml#/rng/events/dirichlet_gamma_vector`. Arrays `{country_isos, alpha, gamma_raw, weights}` **MUST** be equal length; `weights` sum to **1 ± 1e-6**. **Module/Substream (normative):** `module="1A.dirichlet_allocator"`, `substream_label="dirichlet_gamma_vector"`. **S7 does not emit** per-component `gamma_component` events.
+  *Order of `country_isos` when S7 produces this event:* **home first, then foreigns in S3 `candidate_rank` order filtered to membership** (supersedes the current help-text wording; see §12 for the doc patch). 
 
-  * `roundToEven` = nearest integer with ties-to-even.
-  * The `min` enforces **$r<1$** even in half-ULP edge cases.
-  * **Ranking surrogate:** the **integer** `q` is the **only** normative key for ranking in S7.5; `r` is a decimal view for storage/display and round-trips exactly to `q` via `q = round(1e8 * r)`.
+**5.2 Core RNG logs S7 MUST update.**
 
-> Informal equivalence: $r = Q_8(u) = \mathrm{R}_{64}(\mathrm{int64}(10^8 u)/10^8)$ — but **ranking uses `q`**, not `r`.
+* **`rng_trace_log`** — append **exactly one** cumulative row **after each S7 event append**; partitions `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`; **schema:** `schemas.layer1.yaml#/rng/core/rng_trace_log`. Totals reconcile (`events_total`, `draws_total`, `blocks_total`). **Reader semantics are set-based** (no reliance on file order). 
 
----
+**5.3 Datasets S7 MUST/MUST NOT publish.**
 
-## Algorithm (normative)
+* **MUST NOT** publish any **inter-country order** surface. Egress `outlet_catalogue` **does not encode** cross-country order; consumers **MUST** join S3 `candidate_rank`. 
+* **MUST NOT** persist a new **weights** table. S5 remains the single authority. 
+* **No counts table by default.** Integer counts flow forward into S8; any future S7 counts cache would require a **Dictionary ID** and **schema anchor** before use. (Note: the only registered counts table today is **`s3_integerised_counts`**, produced by S3, not S7.) 
 
-1. **Early case (M=1).**
-   $a_0=N$, $f_0=N$, $u_0=0$, $q_0=0$, $r_0=0.00000000$, $d=0$.
-   (S7.5 will still emit one `residual_rank` event with `draws=0`.)
+**5.4 Partitions, lineage & equality (enforcement).**
 
-2. **Compute real allocations.**
-   For each $i=0,\dots,M-1$ (rank order): $a_i \leftarrow \mathrm{R}_{64}(N)\times w_i$. Store $a_i$ (binary64).
+* All S7 events/logs are partitioned by **`{seed, parameter_hash, run_id}`**; embedded lineage (when present) **MUST byte-equal** the path tokens. **`ts_utc`** MUST match the layer pattern with **6-digit microseconds**. **Hard-fail** on mismatches.
 
-3. **Floors & raw residuals.**
-   $f_i \leftarrow \lfloor a_i\rfloor$ (int32), $u_i \leftarrow a_i - f_i$.
+**5.5 Module/substream literals (frozen).**
 
-4. **Quantise residuals (8 dp, integer-space).**
-   $q_i \leftarrow \operatorname{roundToEven}(10^8 \cdot u_i)$ (int64);
-   if $q_i = 10^8$, set $q_i \leftarrow 10^8-1$;
-   $r_i \leftarrow q_i / 10^8$ (binary64). Persist **`r_i`**; **`q_i` is recomputed** as `int64(round(1e8 * r_i))` wherever needed.
+* `rng_event.residual_rank` → `module="1A.integerisation"`, `substream_label="residual_rank"`. (Dictionary shows producer lineage **1A.integerisation**.) 
+* `rng_event.dirichlet_gamma_vector` (if enabled) → `module="1A.dirichlet_allocator"`, `substream_label="dirichlet_gamma_vector"`. (Dictionary shows producer lineage **1A.dirichlet_allocator**.) 
+Frozen literals are declared once in **Appendix A** (A.1 `module`, A.2 `substream_label`). Producers and validators **MUST** use exactly those values; do not introduce variants here. See Appendix A for the binding pairs used by S7.
 
-5. **Compute deficit for S7.5.**
-   $d \leftarrow N - \sum_i f_i$ (int32). **No clamping.**
+**5.6 Publishing discipline & retention.**
 
-   **Bound (ties to S7.3):** S7.3 ensures $\sum w = 1 \pm 10^{-12}$, hence $\sum a_i = N \pm \epsilon$ with $\epsilon \ll 1$. Since each $u_i!\in! [0,1)$, we have $0 \le d < M$ (and $d\in\mathbb{Z}$). If S7.3’s internal check failed, it already aborted.
+* **Atomic publish:** stage → fsync → **atomic rename** into the Dictionary path; no partials. (Same discipline as S3/S6; inherited layer convention.) 
+* **Retention (Informative):** event streams (e.g., `residual_rank`, `dirichlet_gamma_vector`) typically **180 days**; core RNG logs **365 days**.
 
-**Outputs of S7.4 (consumed by S7.5):** arrays $a,f,r$ and scalar $d$, all aligned to `country_set.rank`. (The ranking key in S7.5 is `q_i = round(1e8*r_i)`.)
+**5.7 Prohibitions (isolation).**
+S7 writes **only** the families above. It **MUST NOT** write S1–S6 event families (e.g., `gumbel_key`, `poisson_component`, `nb_final`, `ztp_*`) nor any S8 egress. Those are owned by their respective states. 
 
 ---
 
-## Properties & error bounds (MUST hold)
+# 6) Deterministic processing specification — no pseudocode **(Binding)**
 
-* **Ranges/types:** $a_i\ge0$ (binary64), $f_i\in\mathbb{Z}_{\ge0}$ (int32), $r_i\in [0,1)$ (binary64 on **8-dp grid**); `q_i\in\{0,\dots,10^8-1\}`.
-* **Quantisation error:** for $u\in [0,1)$,
-  $|\,r-u\,| \le 0.5\cdot 10^{-8} + O(\varepsilon_{64}).$
-  Distinct $u$ values within $\approx 5\times10^{-9}$ may quantise to the same `r`/`q` — intended; S7.5 breaks ties deterministically with stable secondary keys.
-* **Mass-conservation setup:** $d=N-\sum f_i$ with $0\le d < M$. S7.5’s “top-up first $d$ by +1” ensures $\sum n_i=N$ and $|n_i-a_i|\le 1$.
+**6.0 Pre-flight (per merchant).**
+S7 MUST confirm presence/schema-pass of: `nb_final` (read `N`), `s3_candidate_set` (order/domain base), `ccy_country_weights_cache` (weights), and either `s6_membership` (if emitted, with S6 PASS) **or** sufficient S6 RNG events to reconstruct membership; embedded lineage MUST byte-equal the path tokens. **No PASS → no read.**   
 
 ---
-
-## Error handling (abort conditions)
 
-* `ERR_S7_4_NEG_WEIGHT_OR_NAN` — any $w_i\notin [0,1]$ or NaN/Inf (should be impossible if S7.3 passed).
-* `ERR_S7_4_ALLOC_NAN_INF` — any $a_i$ is NaN/Inf.
-* `ERR_S7_4_FLOOR_RANGE` — some $f_i<0$ or $f_i>\texttt{INT32_MAX}$.
-* `ERR_S7_4_DEFICIT_RANGE` — computed $d\notin [0,M-1]$.
-* `ERR_S7_4_RESIDUAL_RANGE` — some $r_i\notin [0,1)$ after quantisation (guarded by the `q_i==10^8` clamp).
+**6.1 Domain assembly (ordered legal set).**
+a) Start from **S3** candidates for the merchant; this is the **sole** inter-country order authority (`candidate_rank` total & contiguous; `home=0`). 
+b) Membership of foreigns comes from **S6**: if the `s6_membership` convenience dataset is emitted (and PASSed), use it; else reconstruct **exactly** from S6 RNG events (selected flags in `gumbel_key`, or counter-replay per S6 rules). In all cases, **order remains from S3**.  
+c) Define the **domain** $D$ = {home} ∪ (S6-selected foreigns) as an **ordered set** keyed by S3 `candidate_rank` (home first). If $K_{target}=0$ or S6 selected set is empty, set $D={\text{home}}$.  
 
-Structural failures → S9 must refuse `_passed.flag`; 1B must not proceed.
+> **Order is S3 `candidate_rank` (home=0). File order is non-authoritative.**
 
 ---
 
-## Invariants (MUST hold)
+**6.2 Share vector for allocation (ephemeral; not persisted).**
+a) Resolve the merchant’s currency (from S5, e.g., `merchant_currency` if produced); read the **weights authority** `ccy_country_weights_cache`. 
+b) **Restrict** the S5 weight vector to countries in $D$ and **ephemerally renormalise** (binary64, RNE) so that $\sum_{i\in D} s_i = 1.0$ (subject to rounding). **Do not persist** the restricted or renormalised vector. 
+c) **Feasibility guard:** if $\sum_{i\in D} s_i = 0$ (should not occur given S5’s per-currency $\sum=1$), S7 **MUST** hard-fail this merchant (`E_ZERO_SUPPORT`). 
 
-1. Arrays $a,f,r$ are index-aligned with `country_set.rank` (0..$M{-}1$).
-2. `r_i` is exactly on the **decimal 8-dp grid**; `q_i = round(1e8 * r_i)` (integer) is the **normative** residual surrogate for ranking.
-3. **No RNG** is consumed in S7.4 (no envelope deltas); `residual_rank` events in S7.5 have `draws=0`.
-
 ---
-
-## Reference pseudocode (deterministic; binary64; FMA-off)
-
-```pseudo
-function s7_4_alloc_and_residuals(N:int32, w[0..M-1]:float64, C:list[ISO2])
-  -> (a[0..M-1]:float64, f[0..M-1]:int32, r[0..M-1]:float64, d:int32):
-
-    assert M == len(C) == len(w) and M >= 1
-    assert N >= 1 and N < 2^53
-
-    a := array<float64>(M)
-    f := array<int32>(M)
-    r := array<float64>(M)
-
-    if M == 1:
-        a[0] = float64(N); f[0] = N; r[0] = 0.0
-        d = 0
-        return (a,f,r,d)
-
-    sum_f := 0
-    for i in 0..M-1:
-        ai := float64(N) * w[i]       # single multiply; NO FMA
-        if isNaN(ai) or isInf(ai): abort("ERR_S7_4_ALLOC_NAN_INF")
-
-        fi := floor(ai)
-        if fi < 0 or fi > INT32_MAX: abort("ERR_S7_4_FLOOR_RANGE")
-
-        ui := ai - float64(fi)        # [0,1)
-        qi := roundToEven(1e8 * ui)   # int64
-        if qi == 100000000:           # enforce residual < 1.0
-            qi = 99999999
-        ri := float64(qi) / 1e8
 
-        a[i] = ai; f[i] = int32(fi); r[i] = ri
-        sum_f += f[i]
+**6.3 Fractional targets (numeric profile inherited from S0).**
+For each $i\in D$, compute $a_i = N \cdot s_i$ in **binary64 / RNE** (S0 numeric law). No stochasticity is involved. 
 
-    d := N - sum_f
-    if d < 0 or d >= M: abort("ERR_S7_4_DEFICIT_RANGE")
-
-    return (a,f,r,d)
-```
-
 ---
 
-## Conformance tests
+**6.4 Floor step and remainder law.**
+Set $b_i = \lfloor a_i \rfloor$ (integer floors). Define the remainder $d = N - \sum_{i\in D} b_i$. It MUST hold that $0 \le d < |D|$. 
 
-1. **M=1 path.** `N=17`, `w=[1]` → `a=[17]`, `f=[17]`, `r=[0]`, `d=0`. S7.5 must still emit one `residual_rank` with `draws=0`.
-2. **Near-integer allocation.** Choose `N,w` s.t. some $a_j=3.0000000000001$ → `f_j=3`, `u_j≈1e-13`, `q_j=0`, `r_j=0.00000000`.
-3. **Half-ULP near 1.0.** Construct $u≈0.999999995$ → raw round hits `1e8`; clamp yields `q=99999999`, `r=0.99999999 ∈ [0,1)`.
-4. **Quantisation tie.** Two `u` values within `<5e-9` quantise to identical `q`; S7.5 must break with stable secondary keys.
-5. **Deficit bound.** For random $w,N$ with $M∈ [2,20]`, verify `0 ≤ d < M`and`d = N - ∑f_i\`.
-6. **Binary64 exactness of N.** With `N ≥ 2^53`, assert precondition failure; with `N = 2^53−1`, pass and produce identical results across platforms.
-
 ---
-
-## Hand-off to S7.5
 
-S7.5 **ranks by** the stable key
-**`(q_i ↓, country_set.rank ↑, ISO ↑)`**,
-takes the first `d` indices to receive `+1`, emits **one** `residual_rank` event **per country** (`draws=0`), and obtains final integers $n_i$ with $\sum n_i=N$ and $|n_i-a_i|\le 1$.
+**6.5 Residuals and quantisation (binding dp).**
+Define residuals $r_i = a_i - b_i$. Quantise each residual to **`dp_resid = 8`** using the S0 rounding rule (ties-to-even) and carry the quantised value forward for **all** downstream comparisons and logging (the unquantised residual MUST NOT be used for any ordering). Persist this quantised residual in the S7 event payload. 
 
-> Note: `q_i` is derived from the persisted `r_i` as `q_i := int64(round(1e8 * r_i))`, so no extra persistence is needed.
-
 ---
-
-# S7.5 — Largest-remainder integerisation & residual-rank events
 
-## Scope & purpose
+**6.6 Deterministic bump rule (no new order is created).**
+Distribute the remainder by awarding **+1** to exactly **$d$** countries, using the **total order defined in §4.3** (residual first, then the declared tie-breakers). The resulting per-country counts are $c_i = b_i + \mathbf{1}\{ i \text{ is in the top } d \}$.
+**Persist** a `residual_rank` for every $i\in D$ as the **1-based** position in that total order (1 = highest residual after quantisation). **Inter-country order remains S3 `candidate_rank`; S7 writes no order surface.** 
 
-Given the arrays from **S7.4**—real allocations $a$, integer floors $f$, quantised residuals $r\in [0,1)$ at **exactly 8 dp**, and the deficit $d\in{0,\dots,M{-}1}$—deterministically select the $d$ indices to receive a **+1** top-up via a **stable, schema-aligned order key**, emit **one `residual_rank` RNG event per country** (with `draws=0`), and persist `residual` + `residual_rank` to **`ranking_residual_cache_1A`** (parameter-scoped). `country_set` remains the **only** authority for membership & order; S7 **MUST NOT** mutate it.
-
 ---
-
-## Inputs (MUST)
 
-* Ordered **country set** $C=(c_0,\dots,c_{M-1})$, `country_set.rank(c_i)=i` (0 = home; foreigns in S6 Gumbel order). No duplicates; ISO-2 uppercase.
-* From **S7.4** (index-aligned with $C$):
-  $a\in\mathbb{R}*{64}^M$, $f\in\mathbb{Z}*{\ge0}^M$, $r\in [0,1)^M$ (**8-dp**), and $d\in{0,\dots,M{-}1}$ with $d = \big(\sum_i a_i\big) - \big(\sum_i f_i\big)$ rounded implicitly by floors (see S7.4).
-* Lineage tuple for event partitioning: `seed`, `parameter_hash`, `run_id` (plus `manifest_fingerprint` in the envelope).
+**6.7 Optional bounded variant (feature-flag; default OFF).**
+If a **bounds policy** is configured, S7 enforces integer floors/ceilings $L_i \le c_i \le U_i$:
+a) **Feasibility check**: $\sum L_i \le N \le \sum U_i$; otherwise **hard-fail** the merchant (`E_BOUNDS_INFEASIBLE`).
+b) Apply the floor step $b_i \leftarrow \max(b_i, L_i)$; recompute $d$.
+c) During the bump, only countries with remaining **capacity** $b_i < U_i$ participate in the residual order; ties resolved by the same total order.
+This variant MUST NOT change any other contract (no new datasets, no new order surface). 
 
 ---
 
-## Numeric environment & determinism (normative)
+**6.8 Event & trace discipline (write-side).**
+a) Emit exactly **one** `rng_event.residual_rank` **per (`merchant_id`, `country_iso`) in $D$**, with **non-consuming** envelope (`draws="0"`, `blocks=0`).
+b) After **each** event append, emit **one** cumulative `rng_trace_log` row for `(module="1A.integerisation", substream_label="residual_rank")`.
+c) If the **Dirichlet lane** is enabled by policy, S7 MAY also emit exactly one `dirichlet_gamma_vector` **per merchant**; otherwise it MUST NOT consume RNG. Event files are **set-semantics**; readers MUST NOT rely on row/file order.  
 
-* IEEE-754 **binary64**; **no FMA** anywhere ordering/rounding affects branching.
-* All loops and sorts are **deterministic**. Sorting is **stable** over the explicit tuple key (below). No locale-dependent collation.
-* No RNG is consumed in this sub-state; all `residual_rank` events **must** log `draws=0` with `after == before`.
-
 ---
-
-## Ordering key (normative)
-
-Use the **integer** residual surrogate
-$q_i \;:=\; \operatorname{roundToEven}\!\big(10^8\cdot r_i\big)\ \in \{0,\dots,10^8-1\},$
-derived from the persisted 8-dp `r_i`. (If a reader recomputes: `q_i = int64(round(1e8 * r_i))`.)
-
-Let `ISO(c_i)` be the 2-letter code and `rank(c_i)` the integer rank from `country_set`. Define the total order key:
 
-$$
-\mathbf{k}(i)\;=\;\big(-q_i,\ \texttt{rank}(c_i),\ \text{ISO}(c_i)\big),
-$$
+**6.9 Degenerate/single-country path.**
+If $D={\text{home}}$: set $s_{\text{home}}=1$, $a_{\text{home}}=N$, $b_{\text{home}}=N$, $d=0$, $c_{\text{home}}=N$. Emit a single `residual_rank` for home with residual **0.00000000** and **rank=1**; no events are emitted for absent countries. 
 
-i.e., **descending** integer residual (`q_i`), then **ascending** `country_set.rank`, then **ascending** ISO. The second key **must** be `country_set.rank` (preserves S6’s Gumbel order as the prior); ISO is only the tertiary tie-break.
-
-> Why `q` not `r`? Using the integer surrogate avoids any binary64 re-rounding drift; `r` remains the stored value, but **ranking is defined on `q`**.
-
 ---
-
-## Algorithm (normative)
-
-1. **Build permutation.**
-   Compute a **stable sort** of indices $0..M{-}1$ by key $\mathbf{k}(i)$ to obtain $\pi=(\pi_1,\dots,\pi_M)$ where $\pi_1$ is “largest” (by `q`, then `rank`, then ISO).
-
-2. **Top-up set.**
-   Let $T={\pi_1,\dots,\pi_d}$ (empty if $d=0$).
 
-3. **Final integers.**
-   For each $i$,
+**6.10 Success conditions (checked again in §7/§9).**
 
-   $$
-   n_i \;=\;
-   \begin{cases}
-   f_i+1, & i\in T,\ [2pt]
-   f_i,   & i\notin T.
-   \end{cases}
-   $$
+* **Sum law:** $\sum_{i\in D} c_i = N$; each $c_i \ge 0$.
+* **Proximity law:** $|c_i - N\cdot s_i| \le 1$ for all $i\in D$.
+* **Authority boundaries:** S3 `candidate_rank` remains the only cross-country order; S5 remains the only weights authority; S7 wrote **no** new order/weight surface.  
 
-   Then $\sum_i n_i=\sum_i f_i + d$ (hence equals $N$) and $n_i\in\mathbb{Z}_{\ge0}$ with $|n_i-a_i|\le 1$ for all $i$.
-
-4. **Emit `residual_rank` events (exactly $M$).**
-   For each position $t\in{1,\dots,M}$ with index $i=\pi_t$, emit one JSONL event:
-
-   ```
-   logs/rng/events/residual_rank/
-     seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
-   schema_ref: schemas.layer1.yaml#/rng/events/residual_rank
-   produced_by: 1A.integerise_allocations
-   ```
-
-   **Envelope (must fields):**
-   `{ seed, parameter_hash, manifest_fingerprint, run_id, module="1A.integerise_allocations", label="residual_rank", counter_before_hi, counter_before_lo, counter_after_hi, counter_after_lo, draws=0, ts }`.
-
-   **Payload (per country):**
-   `{ merchant_id, country_iso=ISO(c_i), residual=r_i (8 dp), residual_rank=t }`.
-
-   **Counters:** `after == before` (128-bit equality) since `draws=0`. A companion `rng_trace_log` row records the zero-draw emission.
-   *(Optional once per label):* a `stream_jump` can precede the first emission; it does not consume draws.
-
-5. **Persist residuals (hand-off to S7.6).**
-   Write one row per country to **`ranking_residual_cache_1A`**:
-
-   ```
-   data/layer1/1A/ranking_residual_cache_1A/
-     seed={seed}/parameter_hash={parameter_hash}/
-   schema_ref: schemas.1A.yaml#/alloc/ranking_residual_cache
-   produced_by: 1A.integerise_allocations
-   PK: (merchant_id, country_iso)
-   Columns: { manifest_fingerprint, merchant_id, country_iso, residual (8 dp), residual_rank (int32≥1), ... }
-   ```
-
-   This dataset is **parameter-scoped** (partitioned by `{seed, parameter_hash}`) and materialises the tie-break outcome so no downstream needs to re-derive floating-point minutiae.
-
 ---
-
-## Error handling (abort semantics)
 
-Abort S7 (structural failure) if any of:
+# 7) Invariants & integrity constraints **(Binding)**
 
-* `ERR_S7_5_DEFICIT_RANGE` — $d\notin [0,M-1]$ (contradicts S7.4 guarantees).
-* `ERR_S7_5_SORT_STABILITY` — permutation is not of $0..M{-}1$ **or** sort is non-stable when keys are equal.
-* `ERR_S7_5_MASS_MISMATCH` — $\sum_i n_i \neq \sum_i f_i + d$.
-* `ERR_S7_5_BOUNDS` — some $n_i<0$ or $|n_i-a_i|>1$.
-* `E-S7.5-RNG-COUNTERS` — any `residual_rank` event has `draws≠0` or `after≠before`.
-* `E-S7.5-CACHE-SCHEMA` — cache row violates schema/range (`residual∉[0,1)`, `residual_rank<1`) or PK duplicates within `{seed, parameter_hash}`.
+**7.1 Allocation laws (must hold per merchant).**
 
-Any such failure **blocks** S9’s `_passed.flag`; 1B’s preflight must refuse the read for that fingerprint.
-
----
+* **Sum law:** The per-country integer counts **MUST** sum to **`N`** and each **`count_i ≥ 0`**.
+* **Proximity law:** For every country in the S7 domain, **`|count_i − N·s_i| ≤ 1`** (Largest-Remainder property under fixed dp). 
+* **Bounds variant (if enabled):** If floors/ceilings are in force, S7 **MUST** satisfy **`Σ L_i ≤ N ≤ Σ U_i`** and **`L_i ≤ count_i ≤ U_i`**; otherwise S7 **FAILS** the merchant. 
 
-## Invariants (MUST hold)
+**7.2 Domain & order authority.**
 
-1. **Stable order key:** sort by **`(q ↓, rank ↑, ISO ↑)`** where `q = round(1e8·r)` from the persisted 8-dp residual.
-2. **Event counts:** per merchant, **exactly** $|C|$ `residual_rank` events; additionally, **one** `dirichlet_gamma_vector` iff $|C|>1\`. Paths and schema refs are fixed.
-3. **No RNG consumption:** each residual-rank event has `draws=0` and `after==before`.
-4. **Cache contract:** `ranking_residual_cache_1A` partitioned by `{seed, parameter_hash}`; PK `(merchant_id, country_iso)`; `residual∈[0,1)`, `residual_rank∈\mathbb{Z}_{\ge1}`.
-5. **Country-order authority:** `country_set` is not mutated; any consumer needing inter-country order must join `country_set.rank`. Egress never encodes inter-country order.
+* **Domain law:** S7 allocates only over **`D = {home} ∪ (S6-selected foreigns)`**; when `K_target=0` or the foreign set is empty, S7 **MUST** allocate **all `N`** to **home**. 
+* **Order authority separation:** S3’s `s3_candidate_set.candidate_rank` remains the **sole** inter-country order; S7 **MUST NOT** create, encode, or imply any cross-country order. Downstream consumers (incl. `outlet_catalogue`) **MUST** join S3 for order.
 
----
+**7.3 Relationship to S4/S6 facts.**
 
-## Reference pseudocode (deterministic; stable sort)
+* **Target vs. realised size:** S6 realises the membership size **`K_realized = min(K_target, |Eligible|)`**; S7 **MUST** accept that membership as given and **MUST NOT** reinterpret S4 fields beyond reading `K_target`.
+* **No weight persistence:** S5 `ccy_country_weights_cache` is the weight authority; any restriction/renormalisation used by S7 is **ephemeral** and **MUST NOT** be persisted. **No PASS → no read** for S5 surfaces. 
 
-```pseudo
-function s7_5_integerise(C, a[0..M-1], f[0..M-1], r[0..M-1], d:int32, lineage):
-    assert M == len(C) == len(f) == len(r) and 0 <= d and d < M
+**7.4 Residual & ranking integrity.**
 
-    # Build integer residual surrogates (from persisted 8-dp r)
-    q := array<int64>(M)
-    for i in 0..M-1:
-        qi := roundToEven(1e8 * r[i])   # in {0..1e8-1}
-        # r is already < 1.0 by schema; clamp should be unnecessary, but safe:
-        if qi == 100000000: qi = 99999999
-        q[i] = qi
+* **Residual range:** The residual recorded per country is in **`[0,1)`** (exclusive of 1.0) and is the **quantised** value used for ordering. 
+* **Quantisation discipline:** Residuals **MUST** be quantised to **`dp_resid = 8`** under binary64 RNE **before** any ordering. 
+* **Total & contiguous residual order:** `residual_rank` is a **1-based**, contiguous ranking within the domain; ties **MUST** break by **ISO A→Z** (then S3 `candidate_rank`), yielding a total, stable order consistent with S3. 
 
-    # 1) Stable order by key (-q, rank, ISO)
-    idx := [0,1,...,M-1]
-    stable_sort(idx, key = (-q[i], country_set.rank(C[i]), ISO(C[i])))
+**7.5 Event/logging invariants.**
 
-    # 2) Top-up set
-    T := set(idx[0:d])  # empty if d == 0
+* **Per-domain coverage:** S7 **MUST** emit exactly **one** `rng_event.residual_rank` per `(merchant_id, country_iso)` in the S7 domain. (Non-consuming: `draws="0"`, `blocks=0`.) 
+* **Trace cadence:** After **each** S7 event append, **exactly one** cumulative `rng_trace_log` row is appended; totals reconcile for the `(module, substream_label)` key. 
+* **Envelope legality:** All S7 RNG events carry the layer envelope with **`ts_utc`** in RFC-3339 UTC with **exactly 6 fractional digits**, and counters satisfy the **blocks = after − before** identity. 
 
-    # 3) Final integers
-    n := array<int32>(M)
-    for i in 0..M-1:
-        n[i] = f[i] + (i in T ? 1 : 0)
+**7.6 Partitions, lineage & path discipline.**
 
-    # Mass/bounds checks (no external N needed)
-    assert sum(n) == sum(f) + d
-    for i in 0..M-1:
-        assert n[i] >= 0
-        assert abs(float64(n[i]) - a[i]) <= 1.0
+* **Partition law:** S7 events/logs are under `{seed, parameter_hash, run_id}`; any embedded lineage fields **MUST** byte-equal the path tokens (**path↔embed equality**). Parameter-scoped tables (if any) are under `[parameter_hash]`. 
+* **Set semantics:** Readers **MUST NOT** rely on file order for S7 event streams; semantics are set-based. (Ordering for joins comes from S3.) 
 
-    # 4) Emit exactly M residual_rank events (draws=0; counters unchanged)
-    for t in 1..M:
-        i := idx[t-1]
-        env_before := keyed_counter_before(lineage, label="residual_rank")
-        env_after  := env_before  # draws = 0
-        write_event_jsonl(
-          path="logs/rng/events/residual_rank/seed=.../parameter_hash=.../run_id=...",
-          envelope={
-            seed, parameter_hash, manifest_fingerprint, run_id,
-            module:"1A.integerise_allocations", label:"residual_rank",
-            counter_before_hi: env_before.hi, counter_before_lo: env_before.lo,
-            counter_after_hi:  env_after.hi,  counter_after_lo:  env_after.lo,
-            draws: 0, ts: now()
-          },
-          payload={
-            merchant_id, country_iso: ISO(C[i]),
-            residual: r[i], residual_rank: t
-          })
+**7.7 Determinism & idempotence.**
 
-    # 5) Persist cache rows (S7.6 handles I/O details)
-    # (merchant_id, country_iso, residual, residual_rank, manifest_fingerprint)
+* With identical `{seed, parameter_hash, run_id}` and identical upstream inputs, S7 **MUST** produce byte-identical outputs (events and values). Any input change **requires** a new `run_id` (see §10). 
 
-    return n, idx
-```
+**7.8 Gating & consumption.**
 
----
+* **Upstream gates:** To read any S6 convenience surface, S7 **MUST** verify the **S6 PASS** receipt for the same `{seed, parameter_hash}`; to read S5 weights, S7 **MUST** verify S5 PASS for the same `parameter_hash`. **No PASS → no read.** 
+* **Downstream gate:** S8 **MUST** verify the presence of the complete S7 residual-rank event set and continue enforcing the layer’s egress PASS when materialising `outlet_catalogue`. 
 
-## Conformance tests
+**7.9 Prohibitions (must never occur).**
 
-1. **Tie cascade (q ties).** Construct multiple countries with identical **q** (same 8-dp `r`) → verify sort uses `rank` before ISO; then ISO breaks remaining ties; byte-stable across platforms.
-2. **Mass & bounds.** Randomised $w$, $N$, $M\le 20$ → assert `sum(n) == sum(f)+d` and `|n_i-a_i| ≤ 1`; fail on any `n_i < 0`.
-3. **Event cardinality & counters.** For $M=1$: expect **one** `residual_rank` event with `residual=0.0`, `residual_rank=1`, `draws=0`. For $M>1$: expect **exactly M** events, each `draws=0` and `after==before`; `rng_trace_log` mirrors zero draws.
-4. **Cache schema & PK.** Write $M$ rows into `ranking_residual_cache_1A` under `{seed, parameter_hash}`; enforce PK `(merchant_id,country_iso)` and value ranges (`residual∈[0,1)`, `residual_rank≥1`).
-5. **Country-set authority.** If `country_set` order is externally altered, validation must fail since events/cache must align to the original rank order.
-6. **Worked micro-example.** Example $N=7$, $C=(\text{US},\text{GB},\text{DE})$, $w=(0.52,0.28,0.20)$. From S7.4 get (say) `q=[20000000, 60000000, 0]` → order `GB, US, DE`, `d=1` → `n=(4,2,1)`; events ranks `(GB,1)`, `(US,2)`, `(DE,3)`.
+* S7 **MUST NOT** publish a new inter-country order surface; **MUST NOT** persist a new weights table; and **MUST NOT** emit S1–S6 event families. (S7 writes only its own event family/families per §5.)
 
 ---
 
-## Notes & hand-off
+# 8) Error handling, edge cases & degrade ladder **(Binding)**
 
-* **S7.6 persists** the `ranking_residual_cache_1A` rows produced here.
-* **S8 consumes** only the final integers $n_i$ and `country_set` (for grouping/order joins). Inter-country order remains solely in `country_set.rank` and is **not** encoded in egress.
+**Purpose.** Define what S7 must treat as **errors** (hard-fail per merchant / run), what counts as **deterministic non-errors** (degrade but valid), and what **gates** must be enforced before any read/write.
 
 ---
 
-# S7.6 — Persist `ranking_residual_cache_1A` (parameter-scoped)
+## 8.1 Pre-flight gates (hard requirements)
 
-## Scope & purpose
+S7 **MUST** fail a merchant **before compute** if any of the following are missing or invalid:
 
-Take the outputs of **S7.5** — for a fixed merchant with ordered `country_set` $C=(c_0,\dots,c_{M-1})$, the **quantised residuals** $r_i\in [0,1)$ at **8 dp** and their **residual ranks** $t_i\in{1,\dots,M}$ (where $t_i=1$ is largest by the S7.5 key) — and **materialise** one row per `(merchant_id, country_iso)` into **`ranking_residual_cache_1A`**.
+* **PASS receipts:** Attempt to read an S6 convenience surface without a valid **S6 PASS** for the same `{seed, parameter_hash}`; or attempt to read S5 weights without a valid **S5 PASS** for the same `parameter_hash`. **No PASS → no read.** → `E_PASS_GATE_MISSING`.
+* **Schema/lineage:** Any required input fails its `$ref` schema or **path↔embed equality** (embedded lineage fields differ from partition tokens). → `E_SCHEMA_INVALID` / `E_PATH_EMBED_MISMATCH`.
+* **Authority presence:** `s3_candidate_set` not present/valid (total, contiguous `candidate_rank`, `home=0`) or S4/S2 fact streams (`ztp_final`, `nb_final`) absent/invalid. → `E_UPSTREAM_MISSING`.
 
-This cache makes S7’s largest-remainder ordering reproducible without re-deriving floating-point minutiae. It is **parameter-scoped** (partitioned by `{seed, parameter_hash}`; **not** fingerprint-scoped).
-
 ---
-
-## Authoritative contract (path, schema, keys)
-
-**Dataset id & path (dictionary):**
 
-```
-id: "ranking_residual_cache_1A"
-path: "data/layer1/1A/ranking_residual_cache_1A/seed={seed}/parameter_hash={parameter_hash}/"
-partitioning: ["seed","parameter_hash"]
-schema_ref: "schemas.1A.yaml#/alloc/ranking_residual_cache"
-produced_by: "1A.integerise_allocations"
-```
+## 8.2 Domain & membership edge cases
 
-This dataset’s versioning key is `{parameter_hash}` and it is **seed-partitioned**.
+* **Deterministic single-country domain (non-error):** If `K_target=0` **or** the S6-selected foreign set is empty, S7 **MUST** allocate all **`N`** to **home** and still emit one `residual_rank` (residual=0, rank=1). → `DEG_SINGLE_COUNTRY` (diagnostic only). 
+* **Membership not a subset of S3 (error):** If any S6-selected foreign ISO is not in S3’s admissible set for the merchant, S7 **MUST** fail the merchant (authority breach). → `E_S6_NOT_SUBSET_S3`. 
 
-**Schema (JSON-Schema excerpt):**
-
-* **Primary key:** `["merchant_id","country_iso"]`
-* **Partition keys:** `["seed","parameter_hash"]`
-* **Columns (required):**
-
-  * `manifest_fingerprint: string` (hex64 lowercase)
-  * `merchant_id: id64`
-  * `country_iso: ISO-3166-1 alpha-2` (FK to canonical ISO dataset)
-  * `residual: float64` with `minimum: 0.0`, `exclusiveMaximum: true` at `1.0`  *(i.e., `[0,1)`)*
-  * `residual_rank: int32` *(1 = largest)*
-
-**Authority policy (semantics):**
-
-* `residual_rank` is the **integerisation order** (largest-remainder rank), **distinct** from `site_order`.
-* Inter-country order is **not** encoded in egress; consumers must use `country_set.rank`.
-
 ---
-
-## Inputs (MUST)
 
-For each merchant:
+## 8.3 Weight support & zero-mass checks
 
-* `country_set` rows (sole authority for membership + order; ISO unique; home rank 0).
-* Arrays from **S7.5** aligned to `country_set.rank`:
+* **Zero support on domain (error):** If the S5 weight vector, **restricted to the S7 domain**, sums to 0 (should not occur given per-currency Σ=1), S7 **MUST** hard-fail the merchant and produce no outputs. → `E_ZERO_SUPPORT`. 
+* **Renormalisation (non-error):** Restrict-and-renormalise to domain (ephemeral) is allowed and **MUST NOT** be persisted by S7. (S5 remains the weight authority.) 
 
-  * $r=(r_0,\dots,r_{M-1})\in [0,1)^M$ *(each exactly **8-dp** per S7.4)*,
-  * $t=(t_0,\dots,t_{M-1})\in{1,\dots,M}^M$ *(a permutation)*.
-* Lineage tuple: `seed`, `parameter_hash`, `manifest_fingerprint`.
-
 ---
-
-## Normative requirements (what MUST be written)
-
-For every index $i$ (rank $i$ in `country_set`), write **exactly one** row:
 
-```
-{ manifest_fingerprint, merchant_id, country_iso = ISO(c_i),
-  residual = r_i, residual_rank = t_i }
-```
+## 8.4 Bounds policy variant (feature-flag; default OFF)
 
-to:
+When the **bounded Hamilton** variant is enabled:
 
-```
-data/layer1/1A/ranking_residual_cache_1A/
-  seed={seed}/parameter_hash={parameter_hash}/part-*.parquet
-```
+* **Feasibility:** If `Σ L_i > N` or `Σ U_i < N`, S7 **MUST** fail the merchant; no partial writes. → `E_BOUNDS_INFEASIBLE`.
+* **Capacity during bump:** During remainder distribution, only countries with `b_i < U_i` participate; if capacity exhaustion prevents allocating all `d` units, S7 **MUST** fail the merchant. → `E_BOUNDS_CAP_EXHAUSTED`.
+* **No new authorities:** This variant **MUST NOT** create any new weight/order surface. (S3/S5 remain authorities.) 
 
-Subject to schema (PK, FK, ranges).
-
-**Write mode (normative):** **overwrite** the partition `{seed, parameter_hash, merchant_id}` (or whole `{seed, parameter_hash}` if partitioning granularity requires) to guarantee idempotence across re-runs.
-
----
-
-## Numeric & determinism policy
-
-* `residual` values **come from S7.4’s quantiser** `Q8`; do **not** recompute or re-round here.
-* Store as `float64` per schema; they represent exact **decimal 8-dp gridpoints** (`q/1e8`).
-* No RNG is consumed in S7.6. File write order is not constrained by schema; a stable write order (e.g., `country_set.rank` asc) is **recommended** for byte-stable diffs but **not mandatory**.
-
 ---
-
-## Algorithm (normative)
-
-```pseudo
-function s7_6_persist_residual_cache(merchant_id, C:list[ISO2],
-                                     r[0..M-1], t[0..M-1],
-                                     seed, parameter_hash, manifest_fingerprint):
-
-  # Preconditions
-  assert M == len(C) == len(r) == len(t) and M >= 1
-  assert is_unique(C) and is_valid_iso2(C)          # guaranteed by country_set
-  assert all(0.0 <= r[i] and r[i] < 1.0 for i)      # schema range
-  assert sort(t) == [1..M]                          # permutation check
 
-  # Optional gridpoint check (informative; not schema):
-  # verify r is exactly an 8-dp gridpoint Q8(u) from S7.4
-  for i in 0..M-1:
-      qi := roundToEven(1e8 * r[i])                 # integer candidate
-      if qi == 100000000: qi = 99999999             # enforce < 1.0
-      r_chk := float64(qi) / 1e8
-      assert ulp_distance(r[i], r_chk) <= 1
+## 8.5 RNG isolation & accounting (applies even when deterministic)
 
-  # Idempotent write: overwrite partition for this merchant
-  target_path := "data/layer1/1A/ranking_residual_cache_1A/seed={seed}/parameter_hash={parameter_hash}/"
-  begin_overwrite_partition(target_path, merchant_id)
+* **Residual-rank events:** `rng_event.residual_rank` **MUST** be **non-consuming** (`draws="0"`, `blocks=0`). Missing or malformed envelope/lineage is **FAIL**. → `E_RNG_ENVELOPE`. 
+* **Trace cadence:** After **each** S7 event append, append **exactly one** cumulative `rng_trace_log` row; totals reconcile for `(module, substream_label)`. Missing/misaligned trace rows are **FAIL**. → `RNG_ACCOUNTING_FAIL`. 
+* **Dirichlet lane (if enabled):** Arrays `{country_isos, alpha, gamma_raw, weights}` must be equal length; `alpha_i>0`; Σ`weights`=1±1e-6; otherwise **FAIL**. → `E_DIRICHLET_SHAPE` / `E_DIRICHLET_NONPOS` / `E_DIRICHLET_SUM`. (Lane is **OFF by default**.) 
 
-  for i in 0..M-1:
-      write_parquet_row(
-        path = target_path,
-        row  = { manifest_fingerprint, merchant_id,
-                 country_iso = C[i], residual = r[i], residual_rank = t[i] })
-
-  end_overwrite_partition(target_path, merchant_id)
-
-  # Enforce PK uniqueness within the partition
-  assert_no_duplicates_pk(partition=(seed,parameter_hash), pk=("merchant_id","country_iso"))
-```
-
-Notes:
-
-* The **gridpoint check** catches accidental float recomputation; it is not a schema rule.
-* PK uniqueness and FK to ISO are enforced by the validator.
-
 ---
-
-## Error handling (abort semantics)
 
-* `E-S7.6-PK-DUP` — duplicate `(merchant_id,country_iso)` within `{seed,parameter_hash}`.
-* `E-S7.6-RANGE-RESIDUAL` — `residual ∉ [0,1)` or NaN/Inf.
-* `E-S7.6-RANGE-RANK` — `residual_rank < 1` or ranks not a permutation of `1..M`.
-* `E-S7.6-FK-ISO` — `country_iso` not present in the canonical ISO dataset (FK violation).
-* `E-S7.6-LINEAGE-MISSING` — any of `{seed, parameter_hash, manifest_fingerprint}` missing.
+## 8.6 Integerisation integrity
 
-Any such failure **blocks** S9’s `_passed.flag`; 1B must not consume `outlet_catalogue` for that fingerprint.
+* **Sum law breach:** If Σ counts ≠ **N** or any `count_i<0`, S7 **MUST** fail the merchant. → `INTEGER_SUM_MISMATCH`.
+* **Ranking discipline:** Residuals **MUST** be quantised at `dp_resid=8` **before** ordering; `residual_rank` is 1-based, total & contiguous. Violations are **FAIL**. → `E_RESIDUAL_QUANTISATION`. 
 
 ---
 
-## Invariants (MUST hold)
+## 8.7 I/O integrity & publish atomics
 
-1. **Cardinality:** per merchant, the cache contains **exactly $M$** rows (one per country in `country_set`).
-2. **Key integrity:** PK uniqueness on `(merchant_id, country_iso)` in each `{seed, parameter_hash}` partition.
-3. **Ranges/domains:** `0 ≤ residual < 1`; `residual_rank ∈ {1,..,M}`; `country_iso` is valid ISO-2 (FK).
-4. **Lineage consistency:** every row carries the run’s `manifest_fingerprint`; partitions are exactly `{seed, parameter_hash}`.
-5. **Authority separation:** cache does **not** encode inter-country order; that remains solely in `country_set.rank`.
+* **Atomic publish:** Writers **MUST** stage → fsync → **atomic rename** into Dictionary paths; no partials. Any short write, partial instance, or partition mismatch is **FAIL**. → `E_IO_ATOMICS`. 
+* **Set semantics:** Readers **MUST NOT** rely on file order for event streams. (Order for joins continues to come from S3.) 
 
 ---
 
-## Worked row example (schema-valid, illustrative)
+## 8.8 Per-merchant outcomes (closed set)
 
-```json
-{
-  "manifest_fingerprint": "ab12cd34ef56...7890ab12cd34ef56",
-  "merchant_id": 5813372149021,
-  "country_iso": "GB",
-  "residual": 0.12340000,
-  "residual_rank": 2
-}
-```
+* **`SUCCESS`** — Merchant processed; all invariants in §7 hold; events logged; ready for S8 consumption once layer egress PASS is satisfied. 
+* **`STRUCTURAL_FAIL`** — Any §8.1/§8.2/§8.7 failure (schema/lineage/gate/authority/IO).
+* **`INTEGERISATION_FAIL`** — Any §8.6 breach (sum law, residual quantisation/ranking discipline).
+* **`RNG_ACCOUNTING_FAIL`** — Any §8.5 envelope/trace reconciliation breach. 
+* **`BOUNDS_FAIL`** — Any §8.4 infeasibility or capacity-exhaustion when bounds are enabled.
 
-Partition:
+*(Numeric exit codes, if used by your runner, can be enumerated in Appendix A with their textual labels; this spec fixes the meanings.)*
 
-```
-data/layer1/1A/ranking_residual_cache_1A/
-  seed=42/parameter_hash=3f9c...8d1a/part-00001.parquet
-```
-
 ---
-
-## Conformance tests
 
-1. **Schema & PK:** write $M$ rows; validate `#/alloc/ranking_residual_cache` → no PK dupes; residual in `[0,1)`; rank ≥ 1.
-2. **Cardinality match:** for random merchants, row count equals `|country_set|`.
-3. **Gridpoint sanity:** for each row, `q' = min(roundToEven(1e8*residual), 1e8-1)`; `r' = q'/1e8`; assert `ulp_distance(residual, r') ≤ 1`.
-4. **Lineage & partitions:** files live under `seed={seed}/parameter_hash={parameter_hash}`; rows carry the correct `manifest_fingerprint`.
-5. **FK to ISO:** sample and join `country_iso` to canonical ISO; 100% match.
-6. **End-to-end replay:** recompute S7.4→S7.5 and compare `(residual, residual_rank)` to cache rows — equality within 1 ULP for residual and exact integer equality for rank.
-7. **Negative tests:** inject `residual = 1.0` → schema rejection; inject duplicate `(merchant_id,country_iso)` → PK failure.
+## 8.9 Degrade ladder (non-error determinism)
 
----
-
-## Relationship to events & to S9
+S7 recognises the following **deterministic** conditions as **valid**, non-error outcomes. They **MUST** still satisfy §7 invariants and logging discipline:
 
-* S7.6 writes the **cache** only. RNG events were already emitted in **S7.2** (`dirichlet_gamma_vector`, iff $M>1$) and **S7.5** (`residual_rank`, exactly $M$). Their paths/partitions/schemas are fixed in the dictionary.
-* **S9** validates this cache and, together with `country_set`, re-derives and checks integerisation invariants before issuing `_passed.flag` for the run’s **fingerprint** (the 1A→1B gate).
+* **`DEG_SINGLE_COUNTRY`** — Domain = {home}; all `N` allocated to home; one `residual_rank` emitted (residual=0, rank=1). 
+* **`DEG_ZERO_REMAINDER`** — `d=0`; no bumps applied; residuals/ranks still logged for transparency.
+* **`DEG_TIES_RESOLVED`** — Residual ties resolved by the binding tie-break order (ISO A→Z, then `candidate_rank`). *(Diagnostic only; not emitted in payloads.)*
 
 ---
-
-# S7.7 — RNG event set (completeness & counts)
-
-## Scope & purpose
 
-For a merchant with ordered `country_set` $C=(c_0,\dots,c_{M-1})$, ensure the **RNG events** emitted in S7 are:
+## 8.10 Envelope timestamp & lineage strictness (reminder)
 
-1. **Present in the right cardinalities** per merchant,
-2. **Stored under authoritative paths / partitions / schemas**, and
-3. **Reconciled** with the run-scoped RNG trace (counters & draws).
+All S7 RNG events **MUST** carry `ts_utc` in RFC-3339 **UTC** with **exactly 6 fractional digits**, and embedded `{seed, parameter_hash, run_id, manifest_fingerprint}` **MUST** byte-equal the partition tokens. → Mismatch **FAIL**. 
 
-Events in scope:
-
-* **`dirichlet_gamma_vector`** — **exactly one** iff $M>1$ (none if $M=1$). Path partitioned by `{seed, parameter_hash, run_id}`; schema `schemas.layer1.yaml#/rng/events/dirichlet_gamma_vector`; **produced_by:** `1A.dirichlet_allocator`.
-* **`residual_rank`** — **exactly $M$** (even when $M=1$). Same partitions; schema `schemas.layer1.yaml#/rng/events/residual_rank`; **produced_by:** `1A.integerise_allocations`.
-* **RNG trace** — `rng_trace_log.jsonl` partitioned by `{seed, parameter_hash, run_id}`, schema `#/rng/core/rng_trace_log`, used to reconcile draw counts and counter deltas.
-
-S7 **never mutates** `country_set` (sole authority for membership & order) — restated here because cardinality checks depend on $|C|$.
-
 ---
 
-## Authoritative paths & partitions (normative)
+# 9) Validation battery & PASS gate **(Binding)**
 
-* `logs/rng/events/dirichlet_gamma_vector/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` (schema `#/rng/events/dirichlet_gamma_vector`).
-* `logs/rng/events/residual_rank/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` (schema `#/rng/events/residual_rank`).
-* `logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl` (schema `#/rng/core/rng_trace_log`).
+**Purpose.** Prove that S7’s outputs are structurally correct, authority-compliant, and byte-replayable **before** S8 consumes them. S7 does **not** introduce a new receipt surface; the pre-read acceptance for S8 is defined here (S8 still obeys the layer egress PASS on `outlet_catalogue`). 
 
-Partitions **must be exactly** `["seed","parameter_hash","run_id"]` for all three datasets.
-
 ---
-
-## Inputs (MUST)
 
-For each `merchant_id`:
+## 9.1 Structural & schema checks
 
-* `country_set` rows (authoritative order; partitioned by `{seed, parameter_hash}`).
-* The event streams under the same `{seed, parameter_hash, run_id}`.
-* The RNG trace under the same `{seed, parameter_hash, run_id}`.
+The validator SHALL:
 
-Let $M=\lvert C\rvert$.
+* Load all S7 event streams written by this state (at minimum `rng_event.residual_rank`) and assert **JSON-Schema pass** at their anchors, including envelope fields. For `residual_rank`: required fields, residual in **[0,1)** per description, `residual_rank ≥ 1`. 
+* Enforce **`ts_utc` format with exactly 6 fractional digits** and RFC-3339 “Z”, as required by the layer envelope. 
 
----
+## 9.2 Lineage & partition discipline
 
-## Event cardinality & envelope rules (normative)
+* Assert **path↔embed equality** for `{seed, parameter_hash, run_id}` on all S7 events (and any S6 convenience inputs read by the validator). 
+* If the validator reads S6 or S5 convenience/authority surfaces, it MUST first verify their **PASS receipts** (S6 seed+parameter; S5 parameter). **No PASS → no read.** 
 
-### A) Cardinality equalities (per merchant)
+## 9.3 Domain reconstruction & membership compliance
 
-Let
+* Recompute the S7 **domain** $D$ from **S3** (`candidate_rank` total & contiguous; `home=0`) intersected with **S6 membership** (dataset if present, else reconstructed from `rng_event.gumbel_key` selection flags). Membership MUST be a subset of S3’s admissible set.
+* If `K_target` exists (from S4), assert **`|membership| = min(K_target, |Eligible|)`** (informational—S7 does not reinterpret S4 beyond this). 
 
-$$
-\#\text{dir} \equiv \text{count of } \texttt{dirichlet_gamma_vector}\text{ events for the merchant},\quad
-\#\text{res} \equiv \text{count of } \texttt{residual_rank}\text{ events}.
-$$
+## 9.4 Weight authority & restriction
 
-Then
+* Read **S5 `ccy_country_weights_cache`** (authority; parameter-scoped) and assert per-currency **Σ weight = 1.0 ± 1e-6** and domain legality (ISO FKs).
+* **Restrict and renormalise ephemerally** to the S7 domain $D$ for re-derivation; validator MUST confirm that S7 **did not persist** any new weights surface. 
 
-$$
-\#\text{dir} = \mathbf{1}[M>1],\qquad \#\text{res} = M.
-$$
+## 9.5 Integerisation re-derivation (deterministic)
 
-Violations are **hard errors**.
+Using **S0 numeric law** (binary64, RNE), the validator SHALL:
 
-### B) Envelope invariants (per event)
+1. Compute $a_i=N\cdot s_i$ for all $i\in D$, then $b_i=\lfloor a_i\rfloor$ and $d=N-\sum b_i$.
+2. Quantise residuals $r_i=a_i-b_i$ to **dp=8** (ties-to-even).
+3. Order countries by the **binding tie-break** (residual↓, then ISO A→Z, then `candidate_rank`↑; stable) and award **+1** to the top $d$.
+4. Reconstruct `residual_rank` and compare **byte-for-byte** to S7’s event payloads; assert **Σ counts = N**, counts ≥ 0, and **$|c_i - N s_i|\le 1$**. 
 
-Required envelope fields for both events:
-`{ seed, parameter_hash, manifest_fingerprint, run_id, module, label, counter_before_hi, counter_before_lo, counter_after_hi, counter_after_lo, draws }` (+ optional `ts`) — names/types per schema.
+## 9.6 RNG accounting & envelope legality
 
-* **Dirichlet:** `label == "dirichlet_gamma_vector"`. Must satisfy
-  `(after_hi, after_lo) = (before_hi, before_lo) ⊕₁₂₈ draws`.
-* **Residual-rank:** `label == "residual_rank"`. Must satisfy `draws == 0` **and** 128-bit equality `after == before`.
+* For **`rng_event.residual_rank`**: assert **non-consuming** envelopes (`draws="0"`, `blocks=0`) and that **`rng_trace_log`** has **exactly one** cumulative append **after each** event; reconcile `events_total`, `draws_total`, and `blocks_total` for the `(module="1A.integerisation", substream_label="residual_rank")` key. 
+* If the **Dirichlet lane** is enabled: assert equal-length arrays `{country_isos, alpha, gamma_raw, weights}`, **αᵢ>0**, and **Σ weights = 1 ± 1e-6** at the event anchor. (S7 does **not** emit per-component `gamma_component` events.)
 
-### C) Payload alignment (schema-enforced)
+## 9.7 Bounds variant (when enabled)
 
-* **Dirichlet:** `country_isos`, `alpha`, `gamma_raw`, `weights` are equal-length and index-aligned to `country_set` rank order; validators re-sum `weights` via **Neumaier** (see below) to $\sum w = 1 \pm 10^{-6}\`.
-* **Residual-rank:** payload `{ merchant_id, country_iso, residual, residual_rank }` must contain **exactly one** event per `country_iso ∈ C` and the multiset of `residual_rank` must be `{1,…,M}`.
+* Verify feasibility **`ΣL_i ≤ N ≤ ΣU_i`**; apply capacity-aware bump checks; **fail** if allocating all $d$ units is impossible under capacity. (No new authority surfaces introduced.) 
 
-> **Residual gridpoint check (required here):** `residual` must be on the **8-dp decimal grid**: compute `q' = min(roundToEven(1e8*residual), 1e8-1)` and assert `abs(residual - q'/1e8) ≤ 1 ULP`. (Guards against accidental re-quantisation.)
+## 9.8 Authority & isolation checks
 
----
+* **Order:** Confirm S7 **did not** write any inter-country order surface; consumers must continue to join S3 `candidate_rank`. 
+* **Weights:** Confirm S7 **did not** persist a new weights table; S5 remains authority. 
+* **Legacy surfaces:** Ensure S7 does **not** revive `country_set` as an order authority (legacy; deprecated). 
+* **Family isolation:** S7 wrote only its own event family (`residual_rank` and, if enabled, `dirichlet_gamma_vector`) and did **not** emit S1–S6 families. 
 
-## Reconciliation with RNG trace (normative)
+## 9.9 S8 pre-read acceptance (the “gate”)
 
-Trace rows are keyed by **(module, label, merchant_id)** within `{seed, parameter_hash, run_id}` and carry a `draws` field (u01 count). Require:
+S8 **MUST** verify, for the same `{seed, parameter_hash[, run_id]}`:
 
-1. **Dirichlet draw equality** (if $M>1$):
-   `event.draws == trace.draws == u128_delta(envelope)`.
+* Presence of a **complete** `residual_rank` set covering the S7 domain (one row per `(merchant_id,country_iso)`). 
+* **PASS receipts** for any S6 convenience surfaces used by S8 (if any), and that S5 weights read by S8 are PASSed for the `parameter_hash`. 
+* Layer egress rule still applies to `outlet_catalogue`: **no read** until the fingerprint PASS flag for that egress exists and matches its bundle hash. 
 
-2. **Residual-rank zero-draws** (always):
-   The per-merchant sum of `draws` across the $M$ `residual_rank` events is **0**, every event has `after==before`, and the trace row for `(module="1A.integerise_allocations", label="residual_rank")` reports **0**.
+## 9.10 Validator results & failure mapping
 
-> **Optional extended check** (if enabled): recompute the **attempt-based** draw formula from the Dirichlet payload (`gamma_raw`, `alpha`) and assert `draws = 3∑A_i + ∑1[α_i<1]` (see S7.2). Not required for pass; recommended for deep audits.
+* **SUCCESS** — All checks above pass; S8 may proceed.
+* **STRUCTURAL_FAIL** — Any schema/lineage/gate breach.
+* **INTEGERISATION_FAIL** — Any sum/proximity/quantisation/ranking breach.
+* **RNG_ACCOUNTING_FAIL** — Envelope or trace reconciliation breach.
+* **BOUNDS_FAIL** — Any infeasibility/capacity-exhaustion in the bounds variant. (Codes map 1:1 to §8.)
 
 ---
 
-## Deterministic reducer for validator sums (normative)
+**Outcome.** A run is **validator-clean** when §9.1–§9.8 pass. S8 then performs §9.9 checks before materialising `outlet_catalogue` (which itself remains governed by the layer egress PASS). This preserves the authority boundaries: **S3 owns order**, **S5 owns weights**, **S7 allocates** deterministically with auditable logs.
 
-When re-summing `weights` (dirichlet payload) or any arrays for checks, validators **must** use the **Neumaier** compensated **serial** reducer in `country_set.rank` order (same as S7.3). Parallel/pairwise/BLAS/GPU reductions are forbidden for validation.
-
 ---
 
-## Failure modes (abort semantics)
+# 10) Concurrency, sharding & determinism **(Binding)**
 
-* `E-S7.7-CNT-DIRICHLET` — $\#\text{dir} \neq \mathbf{1}[M >1]$.
-* `E-S7.7-CNT-RESIDUAL` — $\#\text{res} \neq M$ **or** duplicate `country_iso`.
-* `E-S7.7-ENV-DELTA` — any event violates its envelope rule (dirichlet delta ≠ draws; residual-rank `draws ≠ 0` or `after ≠ before`).
-* `E-S7.7-TRACE-MISMATCH` — event `draws` disagree with `rng_trace_log` for the same `(module,label,merchant_id)`.
-* `E-S7.7-PARTITIONS` — event/trace not under `{seed, parameter_hash, run_id}` or schema ref mismatch.
-* `E-S7.7-RES-GRID` — a `residual_rank` payload’s `residual` is **not** on the 8-dp grid.
+**10.1 Work partitioning (who does what, where).**
 
-Any failure **blocks** S9 from issuing `_passed.flag` for the run’s fingerprint (1A→1B gate).
+* **Shard-by-merchant.** Producers **MUST** assign **each merchant to exactly one worker** for S7; no two workers may emit S7 events for the **same merchant**. Sharding **MUST** depend only on stable inputs (e.g., IDs), not on scheduling or file listing order. Event partitions are always **`{seed, parameter_hash, run_id}`**. 
+* **Read parallelism is free.** Inputs (`s3_candidate_set`, S5 weights, S6 membership/events, S2/S4 facts) **MAY** be read in parallel; readers **MUST NOT** rely on physical file order (Dictionary `ordering: []`). Authority for cross-country order **remains** S3 `candidate_rank`.
 
----
+**10.2 Set semantics & stable merges.**
 
-## Reference checker (deterministic)
+* **Set, not sequence.** S7 event streams (e.g., `rng_event.residual_rank`) have **set semantics**; physical row order is non-authoritative (`ordering: []` in the Dictionary). Any multi-part merge **MUST** be value-stable regardless of part ordering. 
+* **Uniqueness within a merchant.** Exactly **one** `residual_rank` row per `(merchant_id, country_iso)` in the S7 domain; duplicates are **FAIL** at validation. (This mirrors S3’s “total & contiguous” uniqueness discipline for `candidate_rank`.) 
 
-```pseudo
-function s7_7_check_events(merchant_id, C, seed, parameter_hash, run_id):
-    M := len(C)
+**10.3 Idempotency & backfill.**
 
-    # 1) Load per-merchant events/trace under exact partitions
-    D := read_events("dirichlet_gamma_vector", seed, parameter_hash, run_id, merchant_id)  # 0 or 1
-    R := read_events("residual_rank",          seed, parameter_hash, run_id, merchant_id)  # M
-    T := read_trace  (seed, parameter_hash, run_id, merchant_id)                           # by (module,label)
+* **Same inputs ⇒ identical outputs.** Re-running S7 with the **same `{seed, parameter_hash, run_id}`** and identical upstream inputs **MUST** yield **byte-identical** S7 outputs. If any input or config changes, a **new `run_id`** is required. 
+* **At-most-once publish.** If a target partition already exists, producers **MUST** verify content hash; if identical, treat as **no-op**; if different, **hard-fail** (no overwrite). 
 
-    # 2) Cardinality
-    if M > 1: assert len(D) == 1 else: assert len(D) == 0
-    assert len(R) == M
+**10.4 Atomic publish & immutability.**
 
-    # 3) Envelopes
-    if M > 1:
-        e := D[0]
-        assert e.label == "dirichlet_gamma_vector" and e.module == "1A.dirichlet_allocator"
-        assert u128_add(e.before_hi, e.before_lo, e.draws) == (e.after_hi, e.after_lo)
-    for e in R:
-        assert e.label == "residual_rank" and e.module == "1A.integerise_allocations"
-        assert e.draws == 0
-        assert (e.before_hi == e.after_hi) and (e.before_lo == e.after_lo)
+* **Stage → fsync → atomic rename.** Writers **MUST** publish via a temporary path and **atomically** promote; partial contents **MUST NOT** become visible. After publish, partitions are **immutable**. (Same discipline as S5/S6.)
 
-    # 4) Payload alignment & residual grid
-    if M > 1:
-        P := D[0].payload
-        assert eq_len(P.country_isos, P.alpha, P.gamma_raw, P.weights)
-        assert aligns_to_country_set(P.country_isos, C)    # index-by-index
-        assert abs(neumaier_sum(P.weights) - 1.0) <= 1e-6  # S7.3 reducer
-    iso_set := set(ci for ci in C)
-    assert set(e.payload.country_iso for e in R) == iso_set
-    ranks := sorted(e.payload.residual_rank for e in R)
-    assert ranks == [1..M]
-    for e in R:
-        r := e.payload.residual
-        qp := roundToEven(1e8 * r); if qp == 100000000: qp = 99999999
-        assert ulp_distance(r, qp/1e8) <= 1
+**10.5 Trace cadence under parallelism.**
 
-    # 5) Trace reconciliation (by module+label)
-    dir_trace := T.get(module="1A.dirichlet_allocator",     label="dirichlet_gamma_vector")?.draws or 0
-    dir_ev    := sum(e.draws for e in D)
-    assert dir_ev == dir_trace
-    res_trace := T.get(module="1A.integerise_allocations",  label="residual_rank")?.draws or 0
-    res_ev    := sum(e.draws for e in R)
-    assert res_ev == 0 and res_trace == 0
+* **One trace append per event.** After **each** S7 event append, producers **MUST** append **exactly one** cumulative row to `rng_trace_log` for the key `(module="1A.integerisation", substream_label="residual_rank")`. Totals **MUST** reconcile irrespective of writer concurrency. 
+* **No double-emission.** A merchant’s S7 events **MUST NOT** be emitted by multiple workers (would inflate `events_total`). Detect and fail on any concurrent write intent for the same merchant. 
 
-    return OK
-```
+**10.6 Lineage & partition equality (concurrent safety checks).**
 
----
+* **Path↔embed equality is binding.** Where lineage columns exist, embedded `{seed, parameter_hash, run_id}` **MUST** byte-equal the partition tokens; violations are **FAIL** (pre-flight and validator). 
+* **Canonical paths.** Event and log paths **MUST** match the Dictionary patterns for their families; S7 uses the same run-scoped paths as other RNG families. 
 
-## Invariants (MUST hold)
+**10.7 Determinism across worker counts & retries.**
 
-1. **Per-merchant counts:** `dirichlet_gamma_vector` = $\mathbf{1} [M>1]$; `residual_rank` = $M$.
-2. **Envelope arithmetic:** dirichlet `after = before ⊕₁₂₈ draws`; every residual-rank has `draws=0` and `after==before`.
-3. **Payload alignment:** dirichlet arrays align to `country_set`; residual-rank covers each `country_iso ∈ C` once; ranks are `{1..M}`.
-4. **Residual grid:** every residual in `residual_rank` lies on the **8-dp** grid (`q/1e8`, `q∈{0..1e8-1}`) within 1 ULP.
-5. **Trace reconciliation:** event `draws` equal the trace’s `draws` for the same `(module,label,merchant_id)`; residual-rank totals 0.
-6. **Partition/schema fidelity:** paths and schema refs exactly match the dictionary.
+* Changing the **number of workers** or task scheduling **MUST NOT** change any value or emitted row. Determinism is guaranteed by: (i) S3’s authoritative order; (ii) S5’s authority weights; (iii) S7’s **dp=8** quantisation & fixed tie-breaks; and (iv) set-semantics + atomic publish.
+* **Retry semantics.** On failure, producers **MUST NOT** partially publish; they MAY retry the **same** `{seed, parameter_hash, run_id}` after cleaning temp paths. (If anything upstream changed, bump `run_id` per §10.3.) 
 
----
+**10.8 Ownership & isolation.**
 
-## Conformance tests
+* **Producers & families.** S7 writes **only** its families: `rng_event.residual_rank` (and optional `dirichlet_gamma_vector` when the Dirichlet lane is enabled). Module/substream lineage for these families is frozen in the Dictionary.
+* **No cross-state emissions.** S7 **MUST NOT** emit S1–S6 families (e.g., `gumbel_key`, `poisson_component`) nor any S8 egress. Those families are owned by their states. 
 
-1. **M=1 case.** No dirichlet event; **one** residual-rank event with `draws=0` & `after==before`; trace shows `dirichlet=0`, `residual_rank=0`.
-2. **M=3 case.** Exactly one dirichlet; exactly 3 residual-rank; dirichlet arrays length 3; `neumaier_sum(weights)` within `±1e-6`.
-3. **Counter mismatch.** Tamper dirichlet `after` so `before ⊕ draws ≠ after` → `E-S7.7-ENV-DELTA`.
-4. **Trace mismatch.** Tamper trace draws → `E-S7.7-TRACE-MISMATCH`.
-5. **Partition drift.** Move an event outside `{seed, parameter_hash, run_id}` → `E-S7.7-PARTITIONS`.
-6. **Residual duplication.** Duplicate a `country_iso` or make ranks not a permutation → `E-S7.7-CNT-RESIDUAL`.
-7. **Residual grid fail.** Set a residual to 0.123456789 → `E-S7.7-RES-GRID`.
+**10.9 Reader discipline.**
 
----
+* **Never rely on file order.** Readers and validators **MUST** treat all S7 streams as unordered sets; join/order always comes from S3 `candidate_rank`.
 
-## Notes & hand-off
+**10.10 Dirichlet lane concurrency (feature-flag; default OFF).**
 
-* S7.7 is **pure validation** of S7’s RNG lineage at the event/log layer; it produces no artefacts. Its success is a prerequisite for S9’s bundle to carry “RNG lineage OK,” which the **1A→1B gate** relies on alongside schema checks.
-* Optional **`stream_jump`** events (if present) are governed by their own schema; they **do not consume draws** and are not required for pass.
+* When enabled, S7 **MAY** emit **one** `dirichlet_gamma_vector` per merchant under the same run-scoped partitions; arrays **MUST** be equal-length and Σweights=1±1e-6. Concurrency rules above (atomic publish, set semantics, trace cadence) apply identically.
 
 ---
-
-# S7.8 — Internal validations (must-pass before S8)
 
-## Scope & purpose
+# 11) Observability & metrics **(SHOULD)**
 
-For each merchant with ordered `country_set` $C=(c_0,\dots,c_{M-1})$, given:
+**Aim.** Minimal, stable, values-only metrics for S7 health/cost/behaviour without PII or duplicating validator logic. Metrics are keyed to run lineage and do not change any authority boundaries (order remains S3; weights remain S5).
 
-* $N\in\mathbb{Z}_{\ge1}$ (total outlets),
-* $w$ from S7.3,
-* $a,f,r,d$ from S7.4 (with `r` on the 8-dp grid),
-* final integers $n$ and the residual order $\pi$ from S7.5,
-* cache rows written by S7.6,
-* RNG events from S7.2/S7.5,
+**11.1 Run-lineage dimensions — MUST**
+Include on every metric line: `{ seed, parameter_hash, run_id, manifest_fingerprint }`.
 
-S7.8 **must** verify the invariants below deterministically and without RNG. Any failure **aborts S7** (S8 is not invoked).
+**11.2 Counters & gauges — MUST**
+- `s7.merchants_in_scope` — # merchants that passed S7 pre-flight.
+- `s7.single_country` — # merchants with domain = {home}.
+- `s7.events.residual_rank.rows` — total `residual_rank` rows emitted (should equal Σ|domain|).
+- `s7.trace.rows` — total S7 trace appends (should equal `s7.events.residual_rank.rows` + `s7.events.dirichlet_gamma_vector.rows` when the feature-lane is ON).
+- `s7.events.dirichlet_gamma_vector.rows` — rows of `dirichlet_gamma_vector` (feature-flag lane; default OFF).
+- `s7.bounds.enabled` — # merchants processed with bounds variant enabled.
+- `s7.failures.structural` · `s7.failures.integerisation` · `s7.failures.rng_accounting` · `s7.failures.bounds` — counts mapped to §8 outcome classes (expected 0).
 
----
-
-## Inputs (per merchant, MUST)
-
-* `country_set` rows **in rank order** (0 = home); ISO-2 unique; authoritative for inter-country order.
-* Scalars/arrays from S7.3–S7.5: `N`, `w`, `a`, `f`, `r` (8-dp), `d`, `n`, and residual order indices `π`.
-* `ranking_residual_cache_1A` rows just written by S7.6.
-* RNG events for this `{seed, parameter_hash, run_id}`:
-  `dirichlet_gamma_vector` (iff $M>1$) and exactly $M$ `residual_rank`.
-* **Provenance of `N`:**
-  multi-site → `N = raw_nb_outlet_draw` from S2; single-site → `N := 1` from S1.
-* **Binary64 exactness:** require `N < 2^53` so `float64(N)` is exact.
-
----
-
-## Numeric environment (normative)
+**11.3 Histograms / distributions — SHOULD**
+- `s7.domain.size.hist` — per-merchant |D|.
+- `s7.remainder.d.hist` — per-merchant remainder d.
+- `s7.ms.integerisation` — time spent in LRR step per merchant.
 
-* IEEE-754 **binary64** everywhere; **FMA disabled** where ordering/rounding affects branching.
-* Deterministic **serial** reductions in `country_set.rank` order (same reducer as S7.3).
+**11.4 Instrumentation invariants — SHOULD**
+- `s7.events.residual_rank.rows = Σ|D|` over all merchants.
+- `s7.trace.rows = s7.events.residual_rank.rows` when Dirichlet lane is OFF; add one per merchant when the lane is ON.
 
 ---
 
-## Deterministic helpers (normative)
+# 12) Schema & dictionary deltas **(Binding)**
 
-**Neumaier compensated serial sum** (rank order):
+**12.1 `residual_rank.residual` — tighten upper bound**
+* **File:** `schemas.layer1.yaml`
+* **Anchor:** `#/rng/events/residual_rank/properties/residual`
+* **Change:** add `exclusiveMaximum: true` (keep description ‘in [0,1)’).
+* **Rationale:** align schema with spec (§5.1, §7.4).
 
-```
-sum_comp(x[0..K-1]):
-  s=0.0; c=0.0
-  for i=0..K-1:
-    t = s + x[i]
-    if abs(s) >= abs(x[i]): c += (s - t) + x[i]
-    else:                   c += (x[i] - t) + s
-    s = t
-  return s + c
-```
+**12.2 `dirichlet_gamma_vector.country_isos` help-text — fix order wording**
+* **File:** `schemas.layer1.yaml`
+* **Anchor:** `#/rng/events/dirichlet_gamma_vector/properties/country_isos/description`
+* **Change:** replace “home first, then foreigns in Gumbel order.” with “home first, then foreigns in S3 `candidate_rank` order filtered to membership.”
+* **Rationale:** match §5.1 ordering note; prevent validator ambiguity.
 
-**8-dp residual quantiser `Q8` (integer-space):**
+**12.3 `rng_audit_log.record.ts_utc` — enforce microsecond precision**
+* **File:** `schemas.layer1.yaml`
+* **Anchor:** `#/rng/core/rng_audit_log/record/properties/ts_utc`
+* **Change:** require RFC-3339 `Z` with exactly 6 fractional digits via the same `pattern` as the layer envelope.
+* **Rationale:** make audit rows consistent with envelope strictness (§5.4, §7.5, §8.10, §9.1).
 
-$$
-q=\operatorname{roundToEven}(10^8 u)\in\{0,\dots,10^8\},\quad
-q\leftarrow \min(q,10^8-1),\quad r = q/10^8.
-$$
-
-Use $u_i = a_i - \lfloor a_i\rfloor$.
-**Normative ranking surrogate:** `q` (integer); `r` is the stored gridpoint.
-
 ---
-
-## Invariants (MUST hold)
 
-**I-1 — Alignment & lengths.**
-Arrays `w,a,f,r,n` have equal length $M=|C|\ge 1`; indices align to `country_set.rank\`. ISO codes unique.
+# Appendix A — Enumerations & literal labels (Normative)
 
-**I-2 — Dirichlet weight normalisation & event parity.**
+All literals below are **case-sensitive** and **binding**. Producers and validators **MUST** use them exactly as written.
 
-* If $M=1$: assert `w=[1.0]` and **no** dirichlet event.
-* If $M>1\`:
+## A.1 `module` (RNG producer lineage)
 
-  * Recompute `S' = sum_comp(w)` and assert `|S' − 1| ≤ 1e−12` (internal target).
-  * From the **dirichlet event payload**, re-sum `weights` with `sum_comp` and assert `|∑weights − 1| ≤ 1e−6`.
-  * Recompute `w_event` from `gamma_raw` via S7.3’s reducer and assert `max_i |w_event[i] − weights[i]| ≤ 1e−12`.
+* `1A.integerisation` — producer of `rng_event.residual_rank` (default S7 lane).
+* `1A.dirichlet_allocator` — producer of `rng_event.dirichlet_gamma_vector` (**feature-flag; default OFF**).
 
-**I-3 — Real allocations & residual quantisation are coherent.**
-Recompute `a'_i = float64(N) * w[i]`, `f'_i = floor(a'_i)`, `r'_i = Q8(a'_i − f'_i)`; assert:
+## A.2 `substream_label` (RNG event families)
 
-* `a'_i` equals `a_i` **exactly** in binary64,
-* `f'_i == f_i`,
-* `r'_i == r_i` (same gridpoint / same `q`).
+* `residual_rank` — deterministic, **non-consuming** S7 event (always ON).
+* `dirichlet_gamma_vector` — stochastic Dirichlet snapshot (**feature-flag; default OFF**).
 
-**I-4 — Deficit range & identity.**
-`d' = N − ∑ f_i` satisfies `0 ≤ d' < M` **and** `d' == d`.
+> Trace rows in `rng_trace_log` **MUST** key off the exact `(module, substream_label)` pairs above.
 
-**I-5 — Largest-remainder replay (on integer residuals).**
-Let `q_i = roundToEven(1e8 * r_i)` (clamp `<1e8` → `1e8−1`).
-Stable-sort indices by **`(−q_i, country_set.rank, ISO)`** to get order `π`.
-Let `T = {π_1,…,π_d}`. Assert for all `i`:
+## A.3 Tie-break keys (total order for remainder bumps)
 
-* `n_i == f_i + 1[i ∈ T]`,
-* `|n_i − a_i| ≤ 1`, and
-* `∑ n_i == N`.
-  *(Secondary key MUST be `country_set.rank`; ISO is tertiary.)*
+Order of precedence (**freeze this order**):
 
-**I-6 — Cache round-trip.**
-Load the $M$ rows for this merchant from `ranking_residual_cache_1A(seed,parameter_hash)` and assert:
+1. `residual` — **quantised** residual at `dp_resid=8`, **descending**.
+2. `country_iso` — ISO-3166-1 alpha-2, **A→Z**.
+3. `candidate_rank` — from S3, **ascending**.
+4. *(implicit)* stable input index — implementation detail to guarantee stability; **not persisted**.
 
-* PK uniqueness; exactly one row per `country_iso ∈ C`;
-* `residual ∈ [0,1)`, `residual_rank ∈ {1..M}`;
-* For each `c_i` at rank `i`: row `(residual,residual_rank) == (r_i, indexOf(i in π)+1)`;
-* Path & schema match the dictionary (`…/seed={seed}/parameter_hash={parameter_hash}/`, `#/alloc/ranking_residual_cache`).
+## A.4 Error / failure / degrade labels
 
-**I-7 — Event set reconciliation (local, per merchant).**
+**Errors (merchant-scoped FAIL):**
 
-* **Cardinality:** `dirichlet_gamma_vector` = `1` iff `M>1`; `residual_rank` = `M`.
-* **Envelopes:** dirichlet `after = before ⊕₁₂₈ draws`; each residual-rank has `draws = 0` and `after == before`.
-* **Residual-rank payload parity:** for each residual-rank event, `(country_iso, residual, residual_rank)` equals `(C[i].ISO, r[i], indexOf(i in π)+1)`.
+* `E_PASS_GATE_MISSING` — attempted read without required S5/S6 PASS.
+* `E_SCHEMA_INVALID` — input failed schema validation.
+* `E_PATH_EMBED_MISMATCH` — path↔embed lineage inequality.
+* `E_UPSTREAM_MISSING` — required S2/S3/S4 artefact absent/invalid.
+* `E_S6_NOT_SUBSET_S3` — membership contains ISO not in S3 admissible set.
+* `E_ZERO_SUPPORT` — restricted S5 weights sum to 0 on domain.
+* `E_BOUNDS_INFEASIBLE` — ΣLᵢ>N or ΣUᵢ<N in bounded variant.
+* `E_BOUNDS_CAP_EXHAUSTED` — cannot allocate all remainder under Uᵢ caps.
+* `E_RNG_ENVELOPE` — missing/malformed envelope on S7 events.
+* `RNG_ACCOUNTING_FAIL` — trace totals don’t reconcile (events/draws/blocks).
+* `E_DIRICHLET_SHAPE` — Dirichlet arrays not equal length (feature-lane).
+* `E_DIRICHLET_NONPOS` — any αᵢ≤0 (feature-lane).
+* `E_DIRICHLET_SUM` — Σweights ≠ 1±1e-6 (feature-lane).
+* `INTEGER_SUM_MISMATCH` — Σcounts≠N or any count<0.
+* `E_RESIDUAL_QUANTISATION` — residual not quantised @ dp=8 before ordering.
+* `E_IO_ATOMICS` — atomic publish discipline violated.
 
-**I-8 — Country-order authority separation.**
-No attempt to encode inter-country order in egress; consumers must join `country_set.rank`.
+**Outcome classes (validator mapping):**
 
-**I-9 — Partition/schema fidelity (written artefacts).**
-All S7 artefacts (events, cache) sit under **authoritative** paths/partitions and reference the correct JSON-Schema IDs per the dictionary.
-Modules: `1A.dirichlet_allocator` (dirichlet), `1A.integerise_allocations` (residual_rank/cache).
+* `STRUCTURAL_FAIL` · `INTEGERISATION_FAIL` · `RNG_ACCOUNTING_FAIL` · `BOUNDS_FAIL` · `SUCCESS`.
 
-**I-10 — `M=1` degenerate path.**
-`w=[1]`, `a=[N]`, `f=[N]`, `r=[0.0]`, `d=0`; **no** dirichlet event; **one** residual-rank event with `residual=0.0, residual_rank=1`; one cache row with same values.
+**Deterministic degrade (non-error diagnostics):**
 
----
-
-## Error handling (abort semantics)
-
-Hard-fail with:
-
-* `E-S7.8-LEN-ALIGN` — I-1 failed.
-* `E-S7.8-WEIGHT-SUM-INT` — I-2 internal sum fails (`>1e−12`).
-* `E-S7.8-EVENT-WEIGHTS` — I-2 event/weights parity fails (`>1e−6` for sum or `>1e−12` compwise vs recompute).
-* `E-S7.8-RECOMP-MISMATCH` — I-3 any mismatch (`a,f,r`).
-* `E-S7.8-DEFICIT-RANGE` — I-4 failed.
-* `E-S7.8-LRR-REPLAY` — I-5 failed (mass or order).
-* `E-S7.8-CACHE-CFG` — I-6 failed (schema/path/PK/value mismatch).
-* `E-S7.8-RNG-SET` — I-7 failed (counts/envelopes/payload parity).
-* `E-S7.8-PATH-SCHEMA` — I-9 failed.
-
-Any failure **blocks S8**; S9 will surface the diagnostics and `_passed.flag` is ineligible.
-
----
-
-## Reference checker (deterministic; implementation-ready)
+* `DEG_SINGLE_COUNTRY` — domain={home}; all N to home.
+* `DEG_ZERO_REMAINDER` — d=0; no bumps applied.
+* `DEG_TIES_RESOLVED` — ties broken per binding order (ISO, then rank).
 
-```pseudo
-function s7_8_validate(merchant_id, C, N, w, a, f, r, d, n,
-                       cache_rows, dir_event?, res_events[0..M-1],
-                       seed, parameter_hash, run_id):
+## A.5 Dataset & event IDs used by S7 (with roles)
 
-  M := len(C)
-  assert N >= 1 and N < 2^53
+**Read-only authorities / facts**
 
-  # I-1
-  assert M >= 1 and len(w)==len(a)==len(f)==len(r)==len(n)==M
-  assert is_unique(C.ISO) and aligns_to_rank(C)  # 0..M-1
+* `s3_candidate_set` → `schemas.1A.yaml#/s3/candidate_set` · **partitions:** `[parameter_hash]`
+  *Sole inter-country order (`candidate_rank`, contiguous; home=0).*
+* `ccy_country_weights_cache` → `schemas.1A.yaml#/prep/ccy_country_weights_cache` · **partitions:** `[parameter_hash]`
+  *Weights authority; Σ per currency = 1±1e-6; **S5 PASS required**.*
+* `rng_event.nb_final` → `schemas.layer1.yaml#/rng/events/nb_final` · **partitions:** `{seed,parameter_hash,run_id}`
+  *Fact: `n_outlets = N ≥ 2` (non-consuming).*
+* `rng_event.ztp_final` → `schemas.layer1.yaml#/rng/events/ztp_final` · **partitions:** `{seed,parameter_hash,run_id}`
+  *Fact: `K_target` (others audit-only).*
 
-  # I-2
-  if M == 1:
-      assert w[0] == 1.0 and dir_event is None
-  else:
-      s_int := sum_comp(w)
-      assert abs(s_int - 1.0) <= 1e-12
-      assert dir_event is not None
-      W := dir_event.payload.weights
-      assert abs(sum_comp(W) - 1.0) <= 1e-6
-      G := dir_event.payload.gamma_raw
-      W2 := normalise_with_sum_comp(G)  # S7.3 reducer
-      for i in 0..M-1: assert abs(W2[i] - W[i]) <= 1e-12
+**Membership sources**
 
-  # I-3
-  for i in 0..M-1:
-      ai := float64(N) * w[i]
-      fi := floor(ai)
-      ui := ai - fi
-      qi := roundToEven(1e8 * ui); if qi == 100000000: qi = 99999999
-      ri := float64(qi) / 1e8
-      assert ai == a[i] and fi == f[i] and ri == r[i]
+* `s6_membership` (convenience) → `schemas.1A.yaml#/s6/membership` · **partitions:** `{seed,parameter_hash}`
+  *Use only with **S6 PASS**; order still from S3.*
+* `rng_event.gumbel_key` (authoritative events) → `schemas.layer1.yaml#/rng/events/gumbel_key` · **partitions:** `{seed,parameter_hash,run_id}`
+  *Reconstruct membership when `s6_membership` absent.*
 
-  # I-4
-  d2 := N - sum_i f[i]
-  assert 0 <= d2 and d2 < M and d2 == d
+**Optional helper**
 
-  # I-5 (rank on q)
-  idx := [0..M-1]
-  q := [ min(roundToEven(1e8 * r[i]), 100000000-1) for i in 0..M-1 ]
-  stable_sort(idx, key = (-q[i], country_set.rank(C[i]), ISO(C[i])))
-  T := set(idx[0:d])
-  sum_n := 0
-  for i in 0..M-1:
-      expect := f[i] + (i in T ? 1 : 0)
-      assert n[i] == expect and abs(float64(n[i]) - a[i]) <= 1.0
-      sum_n += n[i]
-  assert sum_n == N
+* `merchant_currency` → `schemas.1A.yaml#/prep/merchant_currency` · **partitions:** `[parameter_hash]`
+  *If present, S7 MUST NOT override.*
 
-  # I-6 cache
-  rows := cache_rows.for_merchant(merchant_id)
-  assert len(rows) == M and pk_unique(rows, ("merchant_id","country_iso"))
-  for i in 0..M-1:
-      row := rows.lookup(country_iso=ISO(C[i]))
-      assert row.residual == r[i] and row.residual_rank == (index_of(i in idx) + 1)
-      assert 0.0 <= row.residual and row.residual < 1.0 and row.residual_rank >= 1
+**S7 emissions**
 
-  # I-7 events
-  if M > 1:
-      D := require_one(dir_event)
-      assert D.module == "1A.dirichlet_allocator" and D.label == "dirichlet_gamma_vector"
-      assert u128_add(D.before_hi, D.before_lo, D.draws) == (D.after_hi, D.after_lo)
-  else:
-      assert dir_event is None
+* `rng_event.residual_rank` → `schemas.layer1.yaml#/rng/events/residual_rank` · **partitions:** `{seed,parameter_hash,run_id}`
+  *Non-consuming; one row per (merchant,country) in domain; `module="1A.integerisation"`, `substream_label="residual_rank"`.*
+* `rng_event.dirichlet_gamma_vector` (**feature-flag**) → `schemas.layer1.yaml#/rng/events/dirichlet_gamma_vector` · **partitions:** `{seed,parameter_hash,run_id}`
+  *At most one row per merchant; `module="1A.dirichlet_allocator"`, `substream_label="dirichlet_gamma_vector"`.*
 
-  assert len(res_events) == M
-  seen_iso := {}
-  for t in 1..M:
-      e := res_events[t-1]
-      assert e.module == "1A.integerise_allocations" and e.label == "residual_rank"
-      assert e.draws == 0 and e.before == e.after
-      assert e.payload.country_iso not in seen_iso
-      seen_iso.add(e.payload.country_iso)
-      i := rank_index_of_country(C, e.payload.country_iso)
-      assert e.payload.residual == r[i]
-      assert e.payload.residual_rank == (index_of(i in idx) + 1)
+**Core logs**
 
-  # I-8 & I-9 (policy/path)
-  assert dataset_paths_ok(per_dictionary=true)
-  assert no_inter_country_order_in_egress_metadata()
+* `rng_trace_log` → `schemas.layer1.yaml#/rng/core/rng_trace_log` · **partitions:** `{seed,parameter_hash,run_id}`
+  *Append **exactly one** cumulative row after **each** S7 event append.*
 
-  return OK
-```
+**Downstream (consumer; not written by S7)**
 
----
-
-## Conformance tests (automatable)
+* `outlet_catalogue` → `schemas.1A.yaml#/egress/outlet_catalogue`
+  *S8 materialises; egress **never** encodes inter-country order (consumers join S3).*
 
-1. **M=1 happy path:** `N=17`, `C=[GB]` → pass (no dirichlet; one residual-rank event; one cache row).
-2. **Dirichlet sums:** craft weights so internal sum error `>1e−12` → `E-S7.8-WEIGHT-SUM-INT`.
-3. **Quantiser gridpoint:** `u≈0.999999995` → clamp to `q=1e8−1`, `r=0.99999999`; replay equality succeeds.
-4. **Tie cascade:** two equal `r` at 8-dp; different ranks → LRR uses `rank` before ISO; integerisation reproducible.
-5. **Cache mismatch:** flip one `residual_rank` → `E-S7.8-CACHE-CFG`.
-6. **RNG events:** remove dirichlet for `M=3` or alter a residual-rank envelope (`after≠before`) → `E-S7.8-RNG-SET`.
-7. **Path/schema:** move cache rows outside `{seed,parameter_hash}` or wrong schema ref → `E-S7.8-PATH-SCHEMA`.
-
----
+## A.6 Partition token names (used by S7)
 
-## Complexity & side-effects
+* Events/logs: `{seed, parameter_hash, run_id}`.
+* Parameter-scoped tables (reads): `[parameter_hash]`.
 
-Time $O(M\log M)$ (sorting in I-5); memory $O(M)$. Typical $M$ is small (tens). **No RNG** consumed. Produces **no new datasets**; only gates S8.
+> **Path↔embed equality is binding** wherever lineage columns are embedded; bytes must match partition tokens exactly.
 
 ---
 
-## Relationship to S9
+# Appendix B — Worked examples (Informative)
 
-S7.8 is a **local, fail-fast** mirror of S9’s bundle checks. Passing S7.8 doesn’t replace S9; 1B remains gated on `_passed.flag` emitted only after S9 validates the same fingerprint.
+Assume domain $D={\text{GB (home)}, \text{DE}, \text{FR}}$ with S3 `candidate_rank` fixed (home=0; others contiguous). Residuals are **quantised to dp=8** (ties-to-even) **before** ordering. Tie-break order: **residual↓, country_iso A→Z, candidate_rank↑**.
 
 ---
 
-# S7.9 — Complexity, capacity & governance
+## B1) Core LRR example (dp=8 quantisation)
 
-## Scope
+* Inputs: $N=13$; restricted S5 weights on $D$: GB 0.58, DE 0.27, FR 0.15 (sum=1.00).
+* Fractionals $a=N\cdot s$: GB 7.54, DE 3.51, FR 1.95
+  Floors $b$: GB 7, DE 3, FR 1 → remainder $d=13-(7+3+1)=2$
+  Residuals $r=a-b$ (dp=8): GB **0.54000000**, DE **0.51000000**, FR **0.95000000**
+* Order by residual: FR(0.95) → GB(0.54) → DE(0.51).
+  Bump +1 to top **2**: FR and GB.
+* **Final counts:** GB 8, DE 3, FR 2 (sum=13).
+  **Residual ranks:** FR 1, GB 2, DE 3.
 
-Summarise and **formalise** the per-merchant and aggregate costs of S7 (Dirichlet allocation + largest-remainder integerisation), the **I/O artefacts** it writes, and the **governance** constraints that keep runs reproducible and auditable. This extends earlier notes with capacity formulas and the policy knobs enforced by S9 at hand-off.
-
 ---
-
-## 1) Asymptotics & draw budgets (per merchant)
-
-Let $M=|C|=K+1$ be the number of countries in `country_set` (home + $K$ foreign).
-
-* **Gamma / Dirichlet (S7.2–S7.3).**
-  Draw $G_i\sim \Gamma(\alpha_i,1)$ independently; normalise with **Neumaier** in fixed order.
-  **Time:** $T_\gamma(M)=\Theta(M)$ (attempt-dependent constant).
-  **Space:** $S_\gamma(M)=\Theta(M)$ (arrays `G`, `w`).
-
-* **Integerisation (S7.4–S7.5).**
-  Floors + residuals in $\Theta(M)$; **stable** sort by key **`(−q_i, rank, ISO)`** where `q_i = roundToEven(1e8·r_i)` (clamped to `<1e8`).
-  **Time:** $T_{\text{integerise}}(M)=\Theta(M\log M)$ (dominant).
-  **Space:** $\Theta(M)$.
 
-* **Uniform draw budget (Dirichlet only).** With Marsaglia–Tsang (MT1998) + Box–Muller:
+## B2) Tie on residuals (ISO tie-break)
 
-  $$
-  \texttt{draws} \;=\; \sum_{i=0}^{M-1}\Big(3\cdot \texttt{attempts}_i + \mathbf{1}[\alpha_i<1]\Big),
-  $$
+* Inputs: $N=10$; weights: GB 0.35, FR 0.35, DE 0.30.
+* $a$: GB 3.50, FR 3.50, DE 3.00 → $b$: 3,3,3 → $d=1$
+  Residuals (dp=8): GB **0.50000000**, FR **0.50000000**, DE **0.00000000**
+* Tie between GB and FR on residual → ISO A→Z decides: **FR** < GB.
+  Bump goes to **FR**.
+* **Final counts:** GB 3, FR 4, DE 3.
+  **Residual ranks:** FR 1, GB 2, DE 3.
 
-  i.e., **3 uniforms per attempt** for the shape-$\ge 1$ kernel, plus **1** extra uniform for the $0<\alpha<1$ power step. This is recorded in the `dirichlet_gamma_vector` envelope and reconciled against `rng_trace_log`.
-
-**Determinism that constrains complexity:** All ordering-sensitive arithmetic (Dirichlet sum, residual quantisation, LRR sort keys) must be **binary64**, **serial**, **FMA-off**. No BLAS/GPU/pairwise reductions inside a merchant. Parallelism is **across merchants** only.
-
 ---
-
-## 2) Aggregate capacity model (batch)
-
-For merchant set $\mathcal{M}$ with $M_j=|C_j|$:
 
-* **CPU time (dominant):**
+## B3) Bounded variant (capacity restricts the bump)
 
-  $$
-  T_{\text{batch}}=\sum_{j\in\mathcal{M}}\!\Big(\Theta(M_j)+\Theta(M_j\log M_j)\Big)=\Theta\!\Big(\sum_j M_j\log M_j\Big).
-  $$
+* Inputs: $N=10$; weights: GB 0.34, DE 0.33, FR 0.33.
+  Bounds: $L=(\text{GB}=3,\text{DE}=1,\text{FR}=2)$, $U=(\text{GB}=3,\text{DE}=4,\text{FR}=3)$.
+  Feasible since $\sum L=6 \le 10 \le \sum U=10$.
+* $a$: GB 3.40, DE 3.30, FR 3.30 → $b$: 3,3,3 → $d=1$
+  Residuals (dp=8): GB **0.40000000**, DE **0.30000000**, FR **0.30000000**
+  Capacity: GB $b{=}3=U$ (no room), FR $3=U$ (no room), DE $3<4$ (room).
+* Although GB has the highest residual, only **DE** is capacity-eligible, so the +1 goes to **DE**.
+* **Final counts:** GB 3, DE 4, FR 3.
+  **Residual ranks (full domain):** GB 1, DE 2, FR 3. *(Allocation skips ineligible ranks.)*
 
-  Marsaglia–Tsang attempts change only the constant of the $\Theta(M_j)$ term.
-
-* **Peak memory per worker:** $\max_j \Theta(M_j)$ (process one merchant atomically to respect serial reducers).
-
-* **Exact I/O record counts (per merchant):**
-
-  * `dirichlet_gamma_vector`: **1** iff $M>1$, else **0**.
-  * `residual_rank`: **$M$** (always, including $M=1$).
-  * `ranking_residual_cache_1A`: **$M$** rows.
-    ⇒ **$\mathbf{1} [M>1]+2M$** persisted records across logs + cache per merchant.
-
 ---
-
-## 3) Artefacts, partitions, retention (authoritative)
 
-### Parameter-scoped cache (reused across fingerprints)
+## B4) Zero-remainder (diagnostic)
 
-* **`ranking_residual_cache_1A`**
-  **Path:** `data/layer1/1A/ranking_residual_cache_1A/seed={seed}/parameter_hash={parameter_hash}/`
-  **Partitioning:** `["seed","parameter_hash"]` • **Format:** Parquet • **Retention:** **365 days** • **PII:** **false**
-  **PK:** `["merchant_id","country_iso"]` • **Schema:** `schemas.1A.yaml#/alloc/ranking_residual_cache`
-  **produced_by:** `"1A.integerise_allocations"`
+* Inputs: $N=10$; weights: GB 0.40, DE 0.30, FR 0.30.
+  $a$: 4.00, 3.00, 3.00 → $b$: 4,3,3 → $d=0$.
+  Residuals (dp=8): **0.00000000** each → no bumps applied.
+* **Final counts:** GB 4, DE 3, FR 3.
+  **Residual ranks:** determined solely by ISO A→Z then `candidate_rank` (used only for tie bookkeeping; $d=0$).
 
-### Run-scoped RNG logs (per `run_id`)
+These examples illustrate exactly how dp=8 quantisation, tie-breaking, and the bounded Hamilton variant behave—without any reliance on code execution.
 
-* **`dirichlet_gamma_vector`** (JSONL):
-  `logs/rng/events/dirichlet_gamma_vector/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…` • **Retention:** **180 days** • **produced_by:** `"1A.dirichlet_allocator"` • **Schema:** `#/rng/events/dirichlet_gamma_vector`
-* **`residual_rank`** (JSONL):
-  `logs/rng/events/residual_rank/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…` • **Retention:** **180 days** • **produced_by:** `"1A.integerise_allocations"` • **Schema:** `#/rng/events/residual_rank`
-* **`rng_trace_log`** (JSONL):
-  `logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl` • **Schema:** `#/rng/core/rng_trace_log`
-
-*(Downstream egress `outlet_catalogue` is fingerprint-scoped and is gated by S9; included here for governance continuity.)*
-
 ---
 
-## 4) Execution model & concurrency (deterministic)
+# Appendix C — Storage conventions (Informative)
 
-1. **Within a merchant (S7.1–S7.8):**
+These are **non-binding** operational defaults that make S7 artefacts easy to store, move, and read at scale. Reader logic **must not** rely on any file order (set semantics still apply); paths and formats remain governed by the Dataset Dictionary. Treat everything here as “good defaults,” not authority.
 
-   * Dirichlet normalisation (S7.3) and residual quantisation + LRR (S7.4–S7.5) **must** execute as **single-thread serial loops** in `country_set.rank` order, **binary64**, **FMA-off**.
-   * Precondition: `N < 2^53` to keep `float64(N)` exact.
+## C.1 File format & compression (suggested)
 
-2. **Across merchants:**
+* **JSON Lines (NDJSON)**: simple, append-friendly.
 
-   * Safe to run in parallel; each merchant has independent labelled substreams and envelopes. Determinism holds because reconciliation keys are `(seed, parameter_hash, run_id, module, label, merchant_id)`.
+  * Extension: `.jsonl.zst`
+  * Compression: **Zstandard level 3** (fast, widely supported)
+  * Line endings: `\n` (LF) only; **one JSON object per line**; no trailing commas / no pretty print.
+* **Parquet**: columnar, efficient for analytics.
 
-3. **Idempotence & retries:**
+  * Compression: `zstd` **level 3**
+  * Row group target: **128–256 MiB uncompressed** (choose a fixed value per family)
+  * Encodings: **dictionary** for low-cardinality columns (e.g., `country_iso`, `module`, `substream_label`); `BYTE_ARRAY` stats on categorical fields; enable **statistics**.
+* **Do not mix formats** within a single family/partition. Pick **one** per family (e.g., all `residual_rank` as JSONL **or** all as Parquet).
 
-   * Cache partitions keyed by `{seed, parameter_hash}` with PK `(merchant_id, country_iso)`; use **overwrite-then-commit** per partition/merchant for idempotent retries.
-
----
+## C.2 Writer sort (advised; readers must not rely on it)
 
-## 5) Numeric governance (artefact-backed)
+* Within each part file, write rows in a **stable canonical order** to aid diffs and compression:
 
-* **Environment artefacts:** `ieee754_binary64=true`, `fma_disabled=true`. Altering them **changes the fingerprint** and is a validation failure.
-* **Residual policy artefact:** `residual_quantisation_policy = { scale: 1e8, rounding: ties_to_even, clamp_lt_1: true }`.
-* **Reducer policy artefact:** `sum_reducer = "Neumaier_serial_rank_order"`.
-* **Tolerance policy:** internal Dirichlet sum **1e−12**; event/schema guard **1e−6**.
-* **RNG envelope & trace:** every event carries `(before, after, draws)`; S9 proves (a) `after − before = draws` per event and (b) `∑ events draws = trace draws` per `(module,label,merchant)`.
+  1. `merchant_id` ↑
+  2. `country_iso` ↑
+  3. *(if present)* `candidate_rank` ↑
+* This is **for compression & human diffability only**. Reader semantics remain **set-based**; never depend on file order.
 
----
+## C.3 Part sizing & file naming
 
-## 6) Must-hold governance invariants
+* **Compressed part size target:** **64–128 MiB**. Avoid “tiny files” (<8 MiB compressed).
+* **Naming:** `part-00000-of-000NN.<ext>` for fixed counts, or `part-<uuid>.<ext>` for streaming emitters.
+* **One family per directory**; no multi-family mixing in a single folder.
 
-**G-1 Partition & scope fidelity.**
-Cache under `{seed, parameter_hash}`; events & trace under `{seed, parameter_hash, run_id}`; egress under `{seed, fingerprint}`. Any drift is a schema/dictionary failure.
+## C.4 Paths & partitions (reminder)
 
-**G-2 Authority of country order.**
-Inter-country order lives **only** in `country_set.rank`. Neither cache nor egress encodes cross-country sequencing; consumers **must** join `country_set`.
+* Use the **run-scoped** partition law for S7 events/logs:
+  `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`
+* If you add convenience subfolders, keep them **purely cosmetic**, e.g.:
+  `…/rng/{module}/{substream_label}/seed=…/parameter_hash=…/run_id=…/part-*.jsonl.zst`
+  *(Module/substream names are frozen; see Appendix A.)*
 
-**G-3 Event cardinalities & envelopes.**
-Per merchant: `dirichlet_gamma_vector = 𝟙[M>1]`, `residual_rank = M`. Envelopes: Dirichlet `after = before ⊕₁₂₈ draws`; residual-rank `draws=0` and `after==before`.
+## C.5 Checksums & manifests (recommended)
 
-**G-4 Numeric policy.**
-Binary64; serial reducers; **FMA-off**; residuals quantised to **8 dp before sort**; **LRR key = (−q, rank, ISO)**; internal Dirichlet guard `1e−12`, schema guard `1e−6`.
+* Emit a per-part **SHA-256** sidecar: `part-….<ext>.sha256` (hex digest of the compressed bytes).
+* Optionally write a folder **manifest**: `_MANIFEST.json` listing parts, sizes, SHA-256, and total logical rows.
+* Keep a single **folder hash** (SHA-256 over the concatenated part hashes, in lexicographic name order) as a quick integrity anchor.
 
-**G-5 Validation gate (consumption).**
-1B may read `outlet_catalogue(seed,fingerprint)` **iff** `data/layer1/1A/validation/fingerprint={fingerprint}/` contains `validation_bundle_1A` and `_passed.flag` where `SHA256(bundle) == contents(_passed.flag)`.
+## C.6 Atomic publish (recap)
 
-**G-6 Retention & licensing.**
-Cache **365d**, RNG events **180d**; all listed datasets `pii:false`, `licence: Proprietary-Internal`.
+* **Stage → fsync → atomic rename** into the Dictionary path. Never expose partial contents.
+* Write any `_MANIFEST.json` and checksum sidecars **before** the final atomic rename.
+* After publish, treat partitions as **immutable**; backfills must go to a **new** `run_id`.
 
----
+## C.7 Retention / TTL (typical defaults)
 
-## 7) Monitoring & CI signals (what S9 certifies)
+* **S7 event families** (e.g., `residual_rank`, optional `dirichlet_gamma_vector`): **180 days**.
+* **Core RNG logs** (`rng_trace_log`, `rng_audit_log`): **365 days**.
+* Implement lifecycle rules at the object store layer; compact small parts weekly before TTL expiry.
 
-* **Schema/keys/FK** for `country_set`, `ranking_residual_cache_1A`, and egress.
-* **RNG accounting:** presence counts per label, envelope deltas vs trace, and attempt-budget spot checks (`draws = 3∑A_i + ∑1[α_i<1]`). Output: `rng_accounting.json`.
-* **Corridor metrics:** LRR max error, zero-top-up rate, sparsity, (optional) hurdle calibration. These are compared to governed bounds; failures block `_passed.flag`.
+## C.8 Storage class & encryption (ops defaults)
 
-*(Optional future: nightly CI drift artefact keyed by `run_id`; non-blocking.)*
+* Object storage class: **standard** for the first 30 days, then transition to **infrequent access** if read rates drop.
+* Encryption at rest: **SSE-KMS** (or equivalent) with a project-scoped key; bucket-level **deny** on unencrypted puts.
+* Server-side checksums enabled; reject uploads without Content-MD5 (or use the SHA-256 sidecars from **C.5**).
 
----
+## C.9 Metadata & headers
 
-## 8) Practical scheduling recipe (reference)
+* Set `Content-Type` appropriately:
 
-* **Shard by merchant** across workers; each worker processes a merchant **atomically** through S7.1→S7.8.
-* **Inside a worker:** honour serial reducers (S7.3) and residual quantisation + LRR (S7.4–S7.5).
-* **Emit events** with full envelopes first (`dirichlet_gamma_vector` iff $M>1$, then `residual_rank` × M).
-* **Persist cache** rows (overwrite-then-commit; enforce PK).
-* **Run S7.8** local validator; only on success proceed to S8 (egress). Fail closed otherwise.
+  * JSONL: `application/x-ndjson` (or `application/jsonl`)
+  * Parquet: `application/vnd.apache.parquet`
+* Add helpful custom headers/metadata:
 
----
+  * `x-run-seed`, `x-parameter-hash`, `x-run-id`, `x-content-sha256`, `x-module`, `x-substream`.
 
-## 9) Conformance checklist (must pass before S8/S9)
+## C.10 Compaction & housekeeping
 
-1. Paths & partitions match dictionary for cache and events. ✔︎
-2. Event cardinalities and envelopes obey **G-3** (incl. `draws=0` for residual-rank). ✔︎
-3. Cache has **M** rows with PK uniqueness; `residual∈[0,1)` and integer `residual_rank∈[1..M]`. ✔︎
-4. Numeric policy asserted: **binary64**, **Neumaier**, **FMA-off**, **8-dp pre-sort**; recorded as environment artefacts. ✔︎
-5. RNG trace reconciliation clean per label (events ↔ trace). ✔︎
-6. Hand-off gate present (`validation_bundle_1A` + `_passed.flag` = SHA256(bundle)). ✔︎
+* **Small-file compaction:** if a partition has >128 parts or >30% parts <8 MiB, compact to the target size.
+* **Orphan cleanup:** delete any `_staging` subfolders older than 24 h; alert on dangling staging content.
+* **Directory hygiene:** keep only `{parts, .sha256, _MANIFEST.json}` files in a partition directory—no temp or editor artefacts.
 
----
+## C.11 Access patterns (for downstreams)
 
-That pins S7.9: exact cost model, deterministic concurrency rules, authoritative I/O/retention/partition contracts, and the governance invariants S9 certifies before 1B is allowed to read.
+* Always **predicate** reads on the partition tokens (`seed`, `parameter_hash`, `run_id`) rather than listing entire buckets.
+* For Parquet, **column-prune** to just the fields you need (`merchant_id`, `country_iso`, `residual`, `residual_rank`, lineage).
+* For JSONL, read in **streaming mode** and avoid in-memory concatenation of entire partitions.
 
 ---

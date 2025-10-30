@@ -1,47 +1,60 @@
-# AGENTS.md — Router for the Closed-World Enterprise Fraud System
-_As of 2025-10-06_
+# AGENTS.md - Router for the Closed-World Enterprise Fraud System
+_As of 2025-10-14_
 
-This file is router that firstly routes you to where to find the context of this project and its components, and two points to which component we're building currently
+Use this to orient yourself before touching code. It captures what is in scope, what to read first, and where the detailed routers live.
 
 ---
 
 ## 0) Scope (current focus)
-- We are currently building the data engine.
-- Other services/packages (apart from contracts) exist but are **LOCKED** for code changes (see their nested `AGENTS.md`).
-- NOTE: If need be and you need to access a locked section/folder, let the USER know so the USER can UNLOCK it for you to go ahead. State your reason and the USER will it grant or deny you permission to unlock it.
+- Active build: Data Engine - Layer-1 / Segment 1B executing States S0-S9.
+- Segment 1A (States S0-S9) remains sealed; use its artefacts as read-only authority surfaces.
+- All other packages/services remain LOCKED; check their nested `AGENTS.md` for status before making changes.
+- Need to work in a locked area? Ask the USER with a clear justification before touching it.
+
 ---
 
 ## 1) Reading order (strict)
-Read in this exact order before changing anything. This gives you the conceptual overview of the project and its components:
-
+Read these in order before modifying code so you share the project context:
 1. `docs/references/closed-world-enterprise-conceptual-design*.md`
-2. `docs/references/closed-world-synthetic-data-engine-with-realism*.md` [building focus at the momemnt]
+2. `docs/references/closed-world-synthetic-data-engine-with-realism*.md` (current build focus)
 
-## 2) Project Components
+---
 
-A. Data engine: Refer now to `packages/engine/AGENTS.md` as this is currently the building focus
+## 2) Project components
+- Data Engine — see `packages/engine/AGENTS.md` for the Segment 1B router.
+- Everything else is conceptual for now; treat those folders as read-only unless explicitly unlocked.
 
+---
 
 ## 3) Test-yourself policy (no prescribed runner)
-- Ensure to robustly test yourself as any little mistake could cause the entire system to break
-- Execution details (how to run tests) are up to you; keep runs **deterministic**.
-- Document the **test plan** and outcomes in your PR.
+- Own your test plan — even small regressions can break determinism.
+- Default to deterministic runs (`python -m pytest`, targeted CLI smokes) and extend coverage when behaviour changes.
+- Record the test plan and results in each PR or working log entry.
 
 ---
 
 ## 4) Restructuring policy (engine only)
-- You may reorganize **`packages/engine/**`** to improve clarity and progress.
-- If you do:
-  - Update the simple reposity layout in the root level README file.
-  - Include a brief **migration note** (old → new paths, rationale).
+- You may reorganise `packages/engine/**` when it improves clarity or progress.
+- If you do, also update the top-level README layout map and add a short migration note (old -> new paths with rationale).
 
 ---
 
 ## Extra information
-- Ensure that we're always using best practices and that you're entire code is efficient (in every way possible).
-- Ensure you're proactive, thinking ahead as a software engineer and not just depending on me to guide you every step of the way. This means suggesting TODOs where neccesary or not overrelying on a faulty contractual implementation but rather understanding the implementation goal and working towards the best way to acheive it.
-- As we build each component of the project, always remember how it fits into the enterprise system thereby ensuring that we're building with that goal in mind. 
-- Ensure to add comments (not too much though) where necessary, so that a human can easily scan through it and understand what's going on in the code.
-- You are to also manage the `pyproject.toml` file to ensure that it's up to date with the dependencies used during our implementation.
+- Segment 1B has full expanded specs for States S0-S9 and updated contract artefacts (`docs/model_spec/data-engine/specs/state-flow/1B/**`, `docs/model_spec/data-engine/specs/contracts/1B/**`). There is intentionally no dataset preview for 1B—derive data expectations directly from the design.
+- For prior sealed work (Segment 1A) there are still no L0/L1/L2/L3 pseudocode docs; infer the layer split from the expanded specs (L0 primitives/helpers, L1 kernels, L2 orchestrator, L3 validator).
+- Stay proactive: surface TODOs, challenge suspect contract assumptions, and suggest stronger designs where appropriate.
+- Keep changes efficient and reproducible; add concise comments only when they clarify non-obvious intent.
+- Keep `pyproject.toml` aligned with any new dependencies you introduce.
 
-_This file is intentionally light on mechanics and heavy on routing, so it won’t drift as the project grows._
+---
+
+## Implementation doctrine (binding for every agent)
+- **Chase project outcomes, not verbatim spec text.** Specs capture intent; if the implementation path in the doc would violate determinism, performance, or robustness targets, design a compliant alternative and call it out in the logbook before landing changes. Deviations must still honour the published contracts.
+- **Engineer for efficiency from day zero.** Profile early, stream large artefacts, and design kernels that cope with the actual data volumes (Segment 1B S1 is your cautionary tale). Aim for multi-minute, not multi-hour, execution envelopes.
+- **Design the hand-off surfaces.** Every state must publish the artefacts the next state/segment needs—shape, quality, and location included. No manual copying between Segment 1A and 1B; wire staging steps and manifest updates directly into the orchestration.
+- **Control memory usage deliberately.** Prefer chunked/iterator-based flows, deterministic temp directories, and spill-to-disk patterns over loading entire datasets into RAM. Treat OS-level crashes or thrash as regressions.
+- **Build for resumability.** Leverage run receipts, `_passed.flag`, and determinism records so the orchestrator can skip completed states, resume at the point of failure, or clearly instruct the operator how to recover.
+- **Instrument heavy paths.** Add structured logging around long-running loops and RNG envelopes so operators can observe progress in real time.
+- **Protect reproducibility.** Deterministic artefacts must hash identical across seeded runs. Volatile metadata (timestamps, `run_id`, temp paths) should be isolated from comparisons or normalised through tooling.
+
+_This router stays deliberately light on mechanics so it evolves slowly while the project grows._

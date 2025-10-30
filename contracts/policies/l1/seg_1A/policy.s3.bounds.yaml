@@ -1,0 +1,13 @@
+# Layer-1 / Segment 1A governed site capacity bounds
+#
+# The default cap aligns with the 6-digit site_id/site_order envelope.
+# Smaller markets can reserve headroom by overriding the per-country bound.
+
+semver: "1.0.0"
+version: "2025-10-24"
+default_upper: 999999
+overrides:
+  BM: 250000   # Bermuda
+  JE: 150000   # Jersey
+  GI: 120000   # Gibraltar
+  IM: 150000   # Isle of Man

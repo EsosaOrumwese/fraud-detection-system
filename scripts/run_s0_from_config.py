@@ -2,7 +2,7 @@
 """
 Execute the S0 orchestrator using a JSON config file.
 
-The config format matches ``configs/runs/s0_synthetic_config.json``: each entry
+The config format matches ``config/runs/s0_synthetic_config.json``: each entry
 points to the artefact paths the run should seal and the destination output
 directory.  This helper keeps the CLI invocation repeatable (``make run-s0``)
 without requiring callers to spell out every argument manually.

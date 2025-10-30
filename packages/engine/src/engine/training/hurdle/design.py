@@ -25,6 +25,9 @@ class DesignMatrices:
     x_nb_mean: np.ndarray
     y_nb: np.ndarray
     x_dispersion: np.ndarray
+    dispersion_mcc: np.ndarray
+    dispersion_channel: Sequence[str]
+    dispersion_ln_g: np.ndarray
     dictionaries: DesignDictionaries
     hurdle_brand_ids: Sequence[str]
     nb_brand_ids: Sequence[str]
@@ -110,12 +113,19 @@ def build_design_matrices(
         ln_gdp = float(bucket_info["ln_gdp"])
         x_dispersion[row_idx, channel_offset + len(dicts.channel)] = ln_gdp
 
+    dispersion_mcc = nb_mean_df["mcc"].cast(pl.Int32).to_numpy()
+    dispersion_channels = nb_mean_df["channel"].to_list()
+    dispersion_ln_g = nb_mean_df["ln_gdp_pc_usd_2015"].cast(pl.Float64).to_numpy()
+
     return DesignMatrices(
         x_hurdle=x_hurdle,
         y_hurdle=y_hurdle,
         x_nb_mean=x_nb_mean,
         y_nb=y_nb,
         x_dispersion=x_dispersion,
+        dispersion_mcc=dispersion_mcc,
+        dispersion_channel=dispersion_channels,
+        dispersion_ln_g=dispersion_ln_g,
         dictionaries=dicts,
         hurdle_brand_ids=hurdle_brand_ids,
         nb_brand_ids=nb_brand_ids,

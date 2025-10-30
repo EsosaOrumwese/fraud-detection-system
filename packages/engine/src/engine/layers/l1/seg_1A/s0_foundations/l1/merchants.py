@@ -10,7 +10,8 @@ on the ``RunContext`` abstraction.
 from __future__ import annotations
 
 import hashlib
-from typing import Dict, List, Optional
+import json
+from typing import Dict, List, Optional, Mapping
 
 import polars as pl
 from jsonschema import Draft202012Validator
@@ -81,6 +82,86 @@ def _compute_merchant_u64(merchant_id: int) -> int:
     digest = hashlib.sha256(le_bytes).digest()
     low64 = digest[24:32]
     return int.from_bytes(low64, byteorder="little", signed=False)
+
+
+def _parse_currency_code(value: Optional[object], merchant_id: int) -> Optional[str]:
+    if value is None:
+        return None
+    code = str(value).upper().strip()
+    if not code:
+        return None
+    if len(code) != 3 or not code.isascii():
+        raise err(
+            "E_INGRESS_SCHEMA",
+            f"merchant {merchant_id} settlement currency '{value}' must be ISO-4217 uppercase",
+        )
+    return code
+
+
+def _parse_share_vector(
+    raw: Optional[object],
+    merchant_id: int,
+) -> Optional[Dict[str, float]]:
+    if raw is None:
+        return None
+    if isinstance(raw, str):
+        candidate = raw.strip()
+        if not candidate:
+            return None
+        try:
+            decoded = json.loads(candidate)
+        except json.JSONDecodeError as exc:
+            raise err(
+                "E_INGRESS_SCHEMA",
+                f"merchant {merchant_id} settlement share vector JSON invalid: {exc}",
+            ) from exc
+        return _parse_share_vector(decoded, merchant_id)
+    pairs: List[tuple[object, object]] = []
+    if isinstance(raw, Mapping):
+        pairs.extend(raw.items())
+    elif isinstance(raw, (list, tuple)):
+        for item in raw:
+            if isinstance(item, Mapping):
+                pairs.append((item.get("currency"), item.get("share")))
+            elif isinstance(item, (list, tuple)) and len(item) >= 2:
+                pairs.append((item[0], item[1]))
+            else:
+                raise err(
+                    "E_INGRESS_SCHEMA",
+                    f"merchant {merchant_id} share vector contains unsupported element {item!r}",
+                )
+    else:
+        raise err(
+            "E_INGRESS_SCHEMA",
+            f"merchant {merchant_id} share vector type {type(raw)} unsupported",
+        )
+
+    vector: Dict[str, float] = {}
+    for currency, weight in pairs:
+        code = _parse_currency_code(currency, merchant_id)
+        if code is None:
+            continue
+        try:
+            value = float(weight)
+        except (TypeError, ValueError) as exc:
+            raise err(
+                "E_INGRESS_SCHEMA",
+                f"merchant {merchant_id} share weight {weight!r} is not numeric",
+            ) from exc
+        if value < 0:
+            raise err(
+                "E_INGRESS_SCHEMA",
+                f"merchant {merchant_id} has negative share weight {value}",
+            )
+        vector[code] = vector.get(code, 0.0) + value
+
+    total = sum(vector.values())
+    if total <= 0:
+        raise err(
+            "E_INGRESS_SCHEMA",
+            f"merchant {merchant_id} share vector must have positive mass",
+        )
+    return {code: value / total for code, value in vector.items()}
 
 
 def _ensure_columns(df: pl.DataFrame) -> None:
@@ -215,6 +296,11 @@ def build_run_context(
     channels: List[str] = []
     iso_codes: List[str] = []
     merchant_u64s: List[int] = []
+    settlement_currencies: List[Optional[str]] = []
+    share_vectors: List[Optional[Dict[str, float]]] = []
+
+    has_settlement_currency = "settlement_currency" in merchant_table.columns
+    has_share_vector = "settlement_currency_vector" in merchant_table.columns
     for row in merchant_table.iter_rows(named=True):
         raw_id = row["merchant_id"]
         if raw_id is None:
@@ -230,6 +316,22 @@ def build_run_context(
         iso_codes.append(home_iso)
         merchant_u64s.append(merchant_u64)
 
+        settlement_currency = None
+        if has_settlement_currency:
+            settlement_currency = _parse_currency_code(
+                row.get("settlement_currency"), merchant_id
+            )
+            settlement_currencies.append(settlement_currency)
+
+        share_vector = None
+        if has_share_vector:
+            share_vector = _parse_share_vector(
+                row.get("settlement_currency_vector"), merchant_id
+            )
+        if share_vector is None and settlement_currency is not None:
+            share_vector = {settlement_currency: 1.0}
+        share_vectors.append(share_vector)
+
     merchants_df = pl.DataFrame(
         {
             "merchant_id": pl.Series(merchant_ids, dtype=pl.UInt64),
@@ -239,6 +341,19 @@ def build_run_context(
             "merchant_u64": pl.Series(merchant_u64s, dtype=pl.UInt64),
         }
     )
+
+    if has_settlement_currency:
+        merchants_df = merchants_df.with_columns(
+            pl.Series(settlement_currencies, dtype=pl.String).alias(
+                "settlement_currency"
+            )
+        )
+    if any(vector is not None for vector in share_vectors):
+        merchants_df = merchants_df.with_columns(
+            pl.Series(share_vectors, dtype=pl.Object).alias(
+                "settlement_currency_vector"
+            )
+        )
 
     merchant_universe = MerchantUniverse(merchants_df)
     run_iso = frozenset(

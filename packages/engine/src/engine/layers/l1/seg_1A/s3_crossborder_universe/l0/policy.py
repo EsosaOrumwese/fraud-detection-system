@@ -13,6 +13,7 @@ from decimal import Decimal
 import yaml
 
 from ...s0_foundations.exceptions import err
+from ..constants import SITE_SEQUENCE_LIMIT
 from .types import (
     RuleDefinition,
     RuleLadder,
@@ -64,6 +65,19 @@ class ThresholdsPolicy:
     residual_dp: int
     floors: Mapping[str, int]
     ceilings: Mapping[str, Optional[int]]
+
+
+@dataclass(frozen=True)
+class BoundsPolicy:
+    """Per-country capacity caps applied during S3 integerisation."""
+
+    semver: str | None
+    version: str | None
+    default_upper: int
+    overrides: Mapping[str, int]
+
+    def cap_for(self, iso: str) -> int:
+        return self.overrides.get(iso.upper(), self.default_upper)
 
 
 @dataclass(frozen=True)
@@ -1067,6 +1081,74 @@ def load_thresholds_policy(
     )
 
 
+def load_bounds_policy(
+    path: Path,
+    *,
+    iso_countries: Iterable[str] | None = None,
+) -> BoundsPolicy:
+    """Load per-country caps that preserve the 6-digit site_id envelope."""
+
+    payload = _load_yaml(path)
+    semver = payload.get("semver")
+    if semver is not None and not isinstance(semver, str):
+        raise err("ERR_S3_INTEGER_FEASIBILITY", "bounds policy semver must be a string")
+    version = payload.get("version")
+    if version is not None and not isinstance(version, str):
+        raise err("ERR_S3_INTEGER_FEASIBILITY", "bounds policy version must be a string")
+
+    default_upper = payload.get("default_upper", SITE_SEQUENCE_LIMIT)
+    if not isinstance(default_upper, int) or default_upper <= 0:
+        raise err(
+            "ERR_S3_INTEGER_FEASIBILITY",
+            "default_upper must be a positive integer",
+        )
+    if default_upper > SITE_SEQUENCE_LIMIT:
+        raise err(
+            "ERR_S3_INTEGER_FEASIBILITY",
+            f"default_upper must be <= {SITE_SEQUENCE_LIMIT}",
+        )
+
+    iso_allowed = {code.upper() for code in iso_countries} if iso_countries else None
+    raw_overrides = payload.get("overrides", {})
+    if raw_overrides is None:
+        raw_overrides = {}
+    if not isinstance(raw_overrides, Mapping):
+        raise err(
+            "ERR_S3_INTEGER_FEASIBILITY",
+            "overrides must be a mapping when present",
+        )
+
+    overrides: Dict[str, int] = {}
+    for key, raw_value in raw_overrides.items():
+        iso = _normalise_iso(str(key))
+        if iso_allowed is not None and iso not in iso_allowed:
+            raise err(
+                "ERR_S3_INTEGER_FEASIBILITY",
+                f"override references ISO not present in canonical set: '{iso}'",
+            )
+        if not isinstance(raw_value, int) or raw_value <= 0:
+            raise err(
+                "ERR_S3_INTEGER_FEASIBILITY",
+                f"override for '{iso}' must be a positive integer",
+            )
+        if raw_value > SITE_SEQUENCE_LIMIT:
+            raise err(
+                "ERR_S3_INTEGER_FEASIBILITY",
+                (
+                    f"override for '{iso}' exceeds site_id capacity "
+                    f"(max {SITE_SEQUENCE_LIMIT})"
+                ),
+            )
+        overrides[iso] = raw_value
+
+    return BoundsPolicy(
+        semver=str(semver) if semver is not None else None,
+        version=str(version) if version is not None else None,
+        default_upper=int(default_upper),
+        overrides=overrides,
+    )
+
+
 def _select_base_weight_score(
     policy: BaseWeightPolicy,
     context: _BaseWeightContext,
@@ -1129,7 +1211,9 @@ __all__ = [
     "BaseWeightPolicy",
     "PolicyNormalisation",
     "ThresholdsPolicy",
+    "BoundsPolicy",
     "load_base_weight_policy",
     "load_thresholds_policy",
+    "load_bounds_policy",
     "evaluate_base_weight",
 ]

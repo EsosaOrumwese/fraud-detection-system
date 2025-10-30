@@ -334,10 +334,22 @@ def write_outputs(
     )
     _ensure_directory(rng_dir)
     root_state = philox_engine.root_state
-    _write_json(
-        _audit_payload(philox_engine, root_state, sealed, seed=seed, run_id=run_id),
-        rng_dir / "rng_audit_log.json",
+    audit_payload = _audit_payload(
+        philox_engine, root_state, sealed, seed=seed, run_id=run_id
     )
+    _write_json(audit_payload, rng_dir / "rng_audit_log.json")
+
+    audit_jsonl_dir = (
+        base_path
+        / "logs"
+        / "rng"
+        / "audit"
+        / f"seed={seed}"
+        / f"parameter_hash={parameter_hash}"
+        / f"run_id={run_id}"
+    )
+    _ensure_directory(audit_jsonl_dir)
+    _write_jsonl(audit_jsonl_dir / "rng_audit_log.jsonl", [audit_payload])
 
 
 __all__ = ["S0Outputs", "refresh_validation_bundle_flag", "write_outputs"]

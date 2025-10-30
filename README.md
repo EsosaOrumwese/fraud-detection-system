@@ -189,7 +189,7 @@ Legend (compact):
 ---
 
 ## Current scope & reading order
-- **Current focus:** Data Engine — **Layer-1 / Segment 1A, States S0–S4** (design frozen; implementation next).  
+- **Current focus:** Data Engine - **Layer-1 / Segment 1A, States S5–S9** (S0–S4 sealed; S5–S9 execution in progress).  
 - **Reading order:** `contracts/` → `packages/engine/` → `services/` (concept) → `orchestration/` (concept).  
 - **Promotion path:** when a service becomes real, it graduates from `services/<name>/` (docs) to `packages/svc-<name>/` (its own package).
 
@@ -199,7 +199,7 @@ Legend (compact):
 ```text
 fraud-enterprise/
 ├─ packages/                     # buildable Python distributions (each with its own pyproject & src/)
-│  └─ engine/                    # the Data Engine package (active: Layer-1/1A S0–S4 lives here)
+│  └─ engine/                    # the Data Engine package (S0–S4 sealed; S5–S9 active here)
 │     ├─ pyproject.toml
 │     └─ src/engine/
 │        ├─ cli/                 # (concept) command entry points: run / validate / manifest
@@ -239,8 +239,11 @@ fraud-enterprise/
 │  ├─ terraform/…                # modules + env compositions (network/compute/storage/observability)
 │  └─ docker/…                   # image definitions (one image per package/service)
 │
-├─ config/                       # non-secret runtime config (concept)
-│  └─ scenario_profiles/…        # sealed-world traffic profiles for the Scenario Runner
+├─ config/                       # canonical non-secret configs + replayable run manifests
+│  ├─ models/…                  # governed priors + versioned model exports (e.g., hurdle)
+│  ├─ policy/…                  # channel/allocation/cross-border knobs (s3.rule_ladder.yaml, etc.)
+│  ├─ runs/…                    # sealed JSON configs (e.g., s0_synthetic_config.json)
+│  └─ scenario_profiles/…       # sealed-world traffic profiles for the Scenario Runner
 │
 ├─ artefacts/                    # external artefact manifests & licenses (no raw data)
 │  ├─ registry/…                 # logical name → manifest mapping (hash, license)
@@ -253,6 +256,7 @@ fraud-enterprise/
 │  └─ e2e/…                      # scenario → stream → decision → validation PASS (closed-world)
 │
 ├─ docs/                         # narrative/context; not authoritative
+│  ├─ engineering-decisions/     # persistent records of dataset/policy engineering choices
 ├─ scripts/                      # small dev helpers; no business logic
 ├─ runs/                         # local run manifests & numeric attestations (gitignored; outputs live in data lake)
 └─ examples/                     # non-authoritative demos (notebooks/scripts)
@@ -269,16 +273,16 @@ fraud-enterprise/
 
 ---
 
-> **Note:** This README describes the **destination**. Many folders are intentionally **conceptual** until unlocked. The **Data Engine** (Layer-1 / 1A S0–S4) is the active build target and as we progress, more will be unlocked
+> **Note:** This README describes the **destination**. Many folders are intentionally **conceptual** until unlocked. The **Data Engine** now has Layer-1 Segment 1A sealed and Segment 1B online; the next build frontier is Segment 2A, and more components will unlock as we advance.
 
 ## Data Engine Progress
 
 ```
 ============================ DATA ENGINE (progress) ============================
 [ Merchant-Location Realism ] | [ Arrival Mechanics ] | [ Flow Dynamics ]
-            [   OPEN   ]      |       [  LOCKED ]     |     [  LOCKED ]
+            [  ONLINE  ]      |       [  LOCKED ]     |     [  LOCKED ]
 
-                 ^ focus now
+                          ^ focus now
 -------------------------------------------------------------------------------
 | 4A Reproducibility + 4B Validation = CROSS-CUTTING (baked into every box)   |
 | VALIDATION HARNESS: ON FROM DAY 0 (spans all layers; not a tail-end step)   |
@@ -288,9 +292,9 @@ fraud-enterprise/
 ```
 =========== Merchant-Location Realism (open) ===========
 Sub-segments:
-  1A  Merchants → Physical Sites  ............. [ OPEN ]  <-- current focus
-  1B  Place Sites on Planet ................... [ LOCKED ]
-  2A  Civil Time Zone (IANA/DST) .............. [ LOCKED ]
+  1A  Merchants → Physical Sites  ............. [ ONLINE — sealed ]
+  1B  Place Sites on Planet ................... [ ONLINE ]
+  2A  Civil Time Zone (IANA/DST) .............. [ NEXT UP ]
   2B  Routing Through Sites ................... [ LOCKED ]
   3A  Cross-Zone Merchants .................... [ LOCKED ]
   3B  Purely Virtual Merchants ................ [ LOCKED ]
@@ -300,12 +304,22 @@ Sub-segments:
 ```
 
 ```
-=========== 1A state-flow (10 states; concept exposed) ===========
+=========== 1A state-flow (10 states; live) ===========
 S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6 -> S7 -> S8 -> S9
 
 Where (short labels just to anchor the flow):
 S0 Prep      S1 Hurdle     S2 Domestic N   S3 X-border gate   S4 Foreign K
 S5 Weights   S6 Select K   S7 Allocate N   S8 Egress/IDs      S9 Replay+Gate
+
+
+=========== 1B state-flow (10 states; live) ===========
+S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6 -> S7 -> S8 -> S9
+
+Where (short labels just to anchor the flow):
+S0 Gate 1A bundle       S1 Country tiling          S2 Tile priors
+S3 Derive site counts   S4 Integerise shares       S5 Pick cells (RNG)
+S6 Jitter points (RNG)  S7 Synthesize sites        S8 `site_locations`
+S9 Validation bundle
 
 Legend:
 [OPEN]   = exposed/being worked

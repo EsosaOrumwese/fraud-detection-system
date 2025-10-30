@@ -1,0 +1,4 @@
+cfffcc39a0e0f4f60fec2100f0ff006b83cc810fd8bb358a67cf5049a90165d6  artefacts\spatial\tz_world\2025a\tmp\combined-with-oceans.json
+d188230f9d94ae41522f6f0eb583af121b949581568cddf49e8e1746bf4217d1  reference\spatial\world_countries\2025-10-08\world_countries.parquet
+151cba54193dd92f0ee024510c8759afabc6bdb6dcae6f4c24b0ff94e5c07fc1  reference\spatial\tz_world\2025a\tz_world_2025a.parquet
+e69c91dbca5bc673ad02322de0bcb53f5915f5061e6227b90ced726f6d5b1097  reference\spatial\tz_world\2025a\tz_world_2025a.qa.json

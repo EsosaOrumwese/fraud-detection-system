@@ -1,18 +1,54 @@
-"""CLI runner for Segment 1A (S0 foundations – S3 cross-border universe)."""
+"""CLI runner for Segment 1A (S0 foundations - S7 integer allocation)."""
 
 from __future__ import annotations
 
 import argparse
 import json
 import logging
+import shutil
 import sys
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Sequence
 
 from engine.layers.l1.seg_1A.s0_foundations.exceptions import S0Error
+from engine.layers.l1.seg_1A.shared.dictionary import get_repo_root
 from engine.scenario_runner.l1_seg_1A import Segment1AOrchestrator
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class _ReferenceSurfaceSpec:
+    dataset_id: str
+    source: Path
+    relative_destination: Path
+
+
+_SEGMENT1B_REFERENCE_SURFACES: Sequence[_ReferenceSurfaceSpec] = (
+    _ReferenceSurfaceSpec(
+        dataset_id="iso3166_canonical_2024",
+        source=Path("reference/layer1/iso_canonical/v2025-10-09/iso_canonical.parquet"),
+        relative_destination=Path("reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet"),
+    ),
+    _ReferenceSurfaceSpec(
+        dataset_id="world_countries",
+        source=Path("reference/spatial/world_countries/2025-10-08/world_countries.parquet"),
+        relative_destination=Path("reference/spatial/world_countries/2024/world_countries.parquet"),
+    ),
+    _ReferenceSurfaceSpec(
+        dataset_id="population_raster_2025",
+        source=Path(
+            "artefacts/spatial/population_raster/2025/raw/global_2020_1km_UNadj_uncounstrained.tif"
+        ),
+        relative_destination=Path("reference/spatial/population/2025/population.tif"),
+    ),
+    _ReferenceSurfaceSpec(
+        dataset_id="tz_world_2025a",
+        source=Path("reference/spatial/tz_world/2025a/tz_world_2025a.parquet"),
+        relative_destination=Path("reference/spatial/tz_world/2025a/tz_world.parquet"),
+    ),
+)
 
 
 def _parse_parameter_files(values: List[str]) -> Dict[str, Path]:
@@ -34,9 +70,41 @@ def _normalise_paths(values: List[str]) -> List[Path]:
     return [Path(raw).expanduser().resolve() for raw in values]
 
 
+def _stage_segment1b_references(base_path: Path) -> List[Path]:
+    """Copy governed reference surfaces into ``base_path`` for Segment 1B."""
+
+    repo_root = get_repo_root()
+    base = base_path.expanduser().resolve()
+    staged_paths: List[Path] = []
+
+    for spec in _SEGMENT1B_REFERENCE_SURFACES:
+        source = (repo_root / spec.source).resolve()
+        if not source.exists():
+            raise FileNotFoundError(
+                f"Segment1B reference source '{source}' (dataset_id={spec.dataset_id}) is missing"
+            )
+        destination = (base / spec.relative_destination).resolve()
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+        logger.info(
+            "Segment1A CLI: staged reference '%s' from %s to %s",
+            spec.dataset_id,
+            source,
+            destination,
+        )
+        staged_paths.append(destination)
+    return staged_paths
+
+
 def main(argv: list[str] | None = None) -> int:
+    if not logging.getLogger().handlers:
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        )
+
     parser = argparse.ArgumentParser(
-        description="Run Segment 1A states S0–S1–S2–S3 over prepared artefacts.",
+        description="Run Segment 1A states S0–S7 over prepared artefacts.",
     )
     parser.add_argument(
         "--output-dir",
@@ -184,10 +252,35 @@ def main(argv: list[str] | None = None) -> int:
         help="Optional directory for S4 validation artefacts.",
     )
     parser.add_argument(
+        "--no-validate-s6",
+        dest="validate_s6",
+        action="store_false",
+        help="Skip S6 validation.",
+    )
+    parser.add_argument(
+        "--no-validate-s7",
+        dest="validate_s7",
+        action="store_false",
+        help="Skip S7 validation.",
+    )
+    parser.add_argument(
         "--result-json",
         dest="result_json",
         type=Path,
         help="Optional JSON file to persist the combined run summary.",
+    )
+    parser.add_argument(
+        "--stage-seg1b-refs",
+        dest="stage_seg1b_refs",
+        action="store_true",
+        default=True,
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "--no-stage-seg1b-refs",
+        dest="stage_seg1b_refs",
+        action="store_false",
+        help="Skip staging Segment 1B reference surfaces into <output-dir>/reference/**.",
     )
 
     parser.set_defaults(
@@ -195,6 +288,8 @@ def main(argv: list[str] | None = None) -> int:
         validate_s1=True,
         validate_s2=True,
         validate_s3=True,
+        validate_s6=True,
+        validate_s7=True,
         include_diagnostics=True,
     )
 
@@ -202,6 +297,13 @@ def main(argv: list[str] | None = None) -> int:
 
     parameter_files = _parse_parameter_files(args.parameter_files)
     extra_manifest = _normalise_paths(args.extra_manifest)
+    staged_reference_paths: List[Path] = []
+    if args.stage_seg1b_refs:
+        logger.info(
+            "Segment1A CLI: staging Segment 1B reference surfaces into %s", args.output_dir
+        )
+        staged_reference_paths = _stage_segment1b_references(args.output_dir)
+        extra_manifest.extend(staged_reference_paths)
     validation_policy_path = args.validation_policy.expanduser().resolve()
 
     orchestrator = Segment1AOrchestrator()
@@ -249,6 +351,8 @@ def main(argv: list[str] | None = None) -> int:
                 if args.s4_validation_output is not None
                 else None
             ),
+            validate_s6=args.validate_s6,
+            validate_s7=args.validate_s7,
         )
     except S0Error as exc:
         logger.exception("Segment1A CLI: run failed")
@@ -306,6 +410,58 @@ def main(argv: list[str] | None = None) -> int:
         logger.info("Segment1A CLI: S4 validation artefacts %s", result.s4_context.validation_artifacts_path)
     if result.nb_context.metrics:
         logger.info("Segment1A CLI: S2 metrics %s", result.nb_context.metrics)
+
+    s5_ctx = result.s5_context
+    logger.info("Segment1A CLI: S5 weights %s", s5_ctx.weights_path)
+    if s5_ctx.sparse_flag_path:
+        logger.info("Segment1A CLI: S5 sparse flag %s", s5_ctx.sparse_flag_path)
+    if s5_ctx.merchant_currency_path:
+        logger.info(
+            "Segment1A CLI: S5 merchant currency %s",
+            s5_ctx.merchant_currency_path,
+        )
+    if s5_ctx.stage_log_path:
+        logger.info("Segment1A CLI: S5 stage log %s", s5_ctx.stage_log_path)
+    logger.info(
+        "Segment1A CLI: S5 receipt %s (policy_digest=%s)",
+        s5_ctx.receipt_path,
+        s5_ctx.policy_digest,
+    )
+    s6_ctx = result.s6_context
+    if s6_ctx.events_path:
+        logger.info("Segment1A CLI: S6 events %s", s6_ctx.events_path)
+    if s6_ctx.trace_path:
+        logger.info("Segment1A CLI: S6 trace %s", s6_ctx.trace_path)
+    if s6_ctx.membership_path:
+        logger.info("Segment1A CLI: S6 membership %s", s6_ctx.membership_path)
+    logger.info(
+        "Segment1A CLI: S6 policy digest %s (path=%s)",
+        s6_ctx.policy_digest,
+        s6_ctx.policy_path,
+    )
+    if s6_ctx.metrics:
+        logger.info("Segment1A CLI: S6 metrics %s", s6_ctx.metrics)
+    if s6_ctx.metrics_log_path:
+        logger.info(
+            "Segment1A CLI: S6 metrics log %s",
+            s6_ctx.metrics_log_path,
+        )
+    s7_ctx = result.s7_context
+    logger.info(
+        "Segment1A CLI: S7 residual events=%d dirichlet_events=%d",
+        s7_ctx.residual_events,
+        s7_ctx.dirichlet_events,
+    )
+    logger.info("Segment1A CLI: S7 residual stream %s", s7_ctx.residual_events_path)
+    if s7_ctx.dirichlet_events_path:
+        logger.info("Segment1A CLI: S7 dirichlet stream %s", s7_ctx.dirichlet_events_path)
+    logger.info("Segment1A CLI: S7 trace %s", s7_ctx.trace_path)
+    logger.info("Segment1A CLI: S7 metrics %s", s7_ctx.metrics)
+    logger.info(
+        "Segment1A CLI: S7 policy digest %s (path=%s)",
+        s7_ctx.policy_digest,
+        s7_ctx.deterministic.policy_path,
+    )
 
     if args.result_json:
         catalogue_path = (
@@ -402,6 +558,88 @@ def main(argv: list[str] | None = None) -> int:
                     if args.s4_features is not None
                     else None
                 ),
+            },
+            "s5": {
+                "weights_path": str(s5_ctx.weights_path),
+                "sparse_flag_path": (
+                    str(s5_ctx.sparse_flag_path)
+                    if s5_ctx.sparse_flag_path is not None
+                    else None
+                ),
+                "merchant_currency_path": (
+                    str(s5_ctx.merchant_currency_path)
+                    if s5_ctx.merchant_currency_path is not None
+                    else None
+                ),
+                "stage_log_path": (
+                    str(s5_ctx.stage_log_path)
+                    if s5_ctx.stage_log_path is not None
+                    else None
+                ),
+                "receipt_path": str(s5_ctx.receipt_path),
+                "policy_digest": s5_ctx.policy_digest,
+                "policy_path": str(s5_ctx.policy_path),
+                "policy_semver": s5_ctx.policy_semver,
+                "policy_version": s5_ctx.policy_version,
+                "metrics": dict(s5_ctx.metrics),
+                "per_currency_metrics": [
+                    dict(entry) for entry in s5_ctx.per_currency_metrics
+                ],
+            },
+            "s6": {
+                "events_path": (
+                    str(result.s6_context.events_path)
+                    if result.s6_context.events_path is not None
+                    else None
+                ),
+                "trace_path": (
+                    str(result.s6_context.trace_path)
+                    if result.s6_context.trace_path is not None
+                    else None
+                ),
+                "membership_path": (
+                    str(result.s6_context.membership_path)
+                    if result.s6_context.membership_path is not None
+                    else None
+                ),
+                "policy_path": str(result.s6_context.policy_path),
+                "policy_digest": result.s6_context.policy_digest,
+                "policy_semver": result.s6_context.policy_semver,
+                "policy_version": result.s6_context.policy_version,
+                "events_expected": result.s6_context.events_expected,
+                "events_written": result.s6_context.events_written,
+                "shortfall_count": result.s6_context.shortfall_count,
+                "reason_code_counts": dict(result.s6_context.reason_code_counts),
+                "membership_rows": result.s6_context.membership_rows,
+                "trace_events": result.s6_context.trace_events,
+                "trace_reconciled": result.s6_context.trace_reconciled,
+                "log_all_candidates": result.s6_context.log_all_candidates,
+                "rng_isolation_ok": result.s6_context.rng_isolation_ok,
+                "metrics": dict(result.s6_context.metrics),
+                "metrics_log_path": (
+                    str(result.s6_context.metrics_log_path)
+                    if result.s6_context.metrics_log_path is not None
+                    else None
+                ),
+                "validation_passed": result.s6_context.validation_passed,
+                "validation_enabled": args.validate_s6,
+            },
+            "s7": {
+                "residual_events": result.s7_context.residual_events,
+                "dirichlet_events": result.s7_context.dirichlet_events,
+                "residual_events_path": str(result.s7_context.residual_events_path),
+                "dirichlet_events_path": (
+                    str(result.s7_context.dirichlet_events_path)
+                    if result.s7_context.dirichlet_events_path is not None
+                    else None
+                ),
+                "trace_path": str(result.s7_context.trace_path),
+                "trace_events": result.s7_context.trace_events,
+                "policy_path": str(result.s7_context.deterministic.policy_path),
+                "policy_digest": result.s7_context.policy_digest,
+                "artefact_digests": dict(result.s7_context.artefact_digests),
+                "metrics": dict(result.s7_context.metrics),
+                "validation_enabled": args.validate_s7,
             },
         }
         args.result_json.expanduser().resolve().write_text(

@@ -18,7 +18,7 @@
 ## 2. State-by-State View
 
 ### Pre-ingestion staging
-1. Bootstrap script fetches the requested artefact version into the container (mirrors the dataset dictionary layout under `reference/` and parameter files under `configs/`).
+1. Bootstrap script fetches the requested artefact version into the container (mirrors the dataset dictionary layout under `reference/` and parameter files under `config/`).
 2. Validates digests against the supplied manifest before invoking the engine.
 
 ### S0 Foundations (pre-ingestion → sealing)

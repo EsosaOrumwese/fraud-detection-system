@@ -1,0 +1,15 @@
+{
+  "dataset_id": "tz_world_2025a",
+  "version": "2025a",
+  "generated_at_utc": "2025-10-26T17:31:52.457349+00:00",
+  "generator_script": "scripts/build_tz_world.py",
+  "source_geojson": "artefacts\\spatial\\tz_world\\2025a\\tmp\\combined-with-oceans.json",
+  "source_geojson_sha256": "cfffcc39a0e0f4f60fec2100f0ff006b83cc810fd8bb358a67cf5049a90165d6",
+  "world_countries": "reference\\spatial\\world_countries\\2025-10-08\\world_countries.parquet",
+  "world_countries_sha256": "d188230f9d94ae41522f6f0eb583af121b949581568cddf49e8e1746bf4217d1",
+  "output_parquet": "reference\\spatial\\tz_world\\2025a\\tz_world_2025a.parquet",
+  "output_parquet_sha256": "151cba54193dd92f0ee024510c8759afabc6bdb6dcae6f4c24b0ff94e5c07fc1",
+  "qa_path": "reference\\spatial\\tz_world\\2025a\\tz_world_2025a.qa.json",
+  "qa_sha256": "e69c91dbca5bc673ad02322de0bcb53f5915f5061e6227b90ced726f6d5b1097",
+  "tz_count": 435
+}

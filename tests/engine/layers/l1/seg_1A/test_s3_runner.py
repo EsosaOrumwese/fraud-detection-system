@@ -14,12 +14,16 @@ from engine.layers.l1.seg_1A.s3_crossborder_universe import (
 from engine.layers.l1.seg_1A.s0_foundations.exceptions import S0Error
 from engine.layers.l1.seg_1A.s3_crossborder_universe.l0.policy import (
     load_base_weight_policy,
+    load_bounds_policy,
     load_thresholds_policy,
 )
 from engine.layers.l1.seg_1A.s3_crossborder_universe.l3.validator import (
     validate_s3_outputs,
 )
-from engine.layers.l1.seg_1A.s3_crossborder_universe.l1.kernels import _compute_priors
+from engine.layers.l1.seg_1A.s3_crossborder_universe.l1.kernels import (
+    _compute_integerised_counts,
+    _compute_priors,
+)
 from engine.layers.l1.seg_1A.s3_crossborder_universe.l0.types import RankedCandidateRow
 from engine.layers.l1.seg_1A.s3_crossborder_universe.l2.deterministic import (
     MerchantContext,
@@ -140,6 +144,22 @@ def _write_thresholds_policy(path):
     )
 
 
+def _write_bounds_policy(path):
+    path.write_text(
+        "\n".join(
+            [
+                'semver: "1.0.0"',
+                'version: "2025-10-10"',
+                "default_upper: 999999",
+                "overrides:",
+                "  GB: 6",
+                "  US: 4",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
 def _build_optional_run(tmp_path):
     policy_path = tmp_path / "policy.s3.rule_ladder.yaml"
     _write_policy(policy_path)
@@ -147,6 +167,8 @@ def _build_optional_run(tmp_path):
     _write_base_weight_policy(base_weight_path)
     thresholds_path = tmp_path / "policy.s3.thresholds.yaml"
     _write_thresholds_policy(thresholds_path)
+    bounds_path = tmp_path / "policy.s3.bounds.yaml"
+    _write_bounds_policy(bounds_path)
     iso_path = tmp_path / "iso.parquet"
     iso_path.write_text("iso", encoding="utf-8")
 
@@ -208,6 +230,10 @@ def _build_optional_run(tmp_path):
             artefact_id="policy.s3.thresholds.yaml",
             path=thresholds_path,
         ),
+        bounds_spec=ArtefactSpec(
+            artefact_id="policy.s3.bounds.yaml",
+            path=bounds_path,
+        ),
     )
 
     toggles = S3FeatureToggles(
@@ -221,6 +247,9 @@ def _build_optional_run(tmp_path):
     thresholds_policy = load_thresholds_policy(
         thresholds_path, iso_countries=deterministic.iso_countries
     )
+    bounds_policy = load_bounds_policy(
+        bounds_path, iso_countries=deterministic.iso_countries
+    )
 
     runner = S3CrossBorderRunner()
     result = runner.run(
@@ -230,6 +259,7 @@ def _build_optional_run(tmp_path):
         toggles=toggles,
         base_weight_policy=base_weight_policy,
         thresholds_policy=thresholds_policy,
+        bounds_policy=bounds_policy,
     )
 
     return (
@@ -239,6 +269,7 @@ def _build_optional_run(tmp_path):
         toggles,
         base_weight_policy,
         thresholds_policy,
+        bounds_policy,
     )
 
 
@@ -328,7 +359,15 @@ def test_s3_runner_and_validator(tmp_path):
     )
 
 def test_s3_optional_lanes(tmp_path):
-    deterministic, result, policy_path, toggles, base_weight_policy, thresholds_policy = _build_optional_run(tmp_path)
+    (
+        deterministic,
+        result,
+        policy_path,
+        toggles,
+        base_weight_policy,
+        thresholds_policy,
+        bounds_policy,
+    ) = _build_optional_run(tmp_path)
 
     assert result.base_weight_priors_path is not None
     assert result.integerised_counts_path is not None
@@ -369,7 +408,15 @@ def test_s3_optional_lanes(tmp_path):
 
 
 def test_s3_validator_detects_count_breach(tmp_path):
-    deterministic, result, policy_path, toggles, base_weight_policy, thresholds_policy = _build_optional_run(tmp_path)
+    (
+        deterministic,
+        result,
+        policy_path,
+        toggles,
+        base_weight_policy,
+        thresholds_policy,
+        bounds_policy,
+    ) = _build_optional_run(tmp_path)
 
     counts_path = result.integerised_counts_path
     assert counts_path is not None
@@ -516,7 +563,15 @@ def test_compute_priors_no_scores(tmp_path):
 
 
 def test_s3_validator_schema_violation(tmp_path):
-    deterministic, result, policy_path, toggles, base_weight_policy, thresholds_policy = _build_optional_run(tmp_path)
+    (
+        deterministic,
+        result,
+        policy_path,
+        toggles,
+        base_weight_policy,
+        thresholds_policy,
+        bounds_policy,
+    ) = _build_optional_run(tmp_path)
 
     candidate_rows = pl.read_parquet(result.candidate_set_path).to_dicts()
     candidate_rows[0]["country_iso"] = "g1"  # violates ISO schema pattern
@@ -535,6 +590,67 @@ def test_s3_validator_schema_violation(tmp_path):
             site_sequence_path=result.site_sequence_path,
         )
     assert exc.value.context.code == "ERR_S3_SCHEMA_VALIDATION"
+
+
+def test_integerisation_reallocates_under_bounds(tmp_path):
+    bounds_path = tmp_path / "policy.s3.bounds.yaml"
+    bounds_path.write_text(
+        "\n".join(
+            [
+                'semver: "1.0.0"',
+                'version: "2025-10-10"',
+                "default_upper: 6",
+                "overrides:",
+                "  GB: 4",
+                "  US: 2",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    bounds_policy = load_bounds_policy(bounds_path, iso_countries={"GB", "US", "FR"})
+    ranked = [
+        RankedCandidateRow(
+            merchant_id=1,
+            country_iso="GB",
+            is_home=True,
+            candidate_rank=0,
+            filter_tags=("HOME",),
+            reason_codes=(),
+            admitting_rules=(),
+        ),
+        RankedCandidateRow(
+            merchant_id=1,
+            country_iso="US",
+            is_home=False,
+            candidate_rank=1,
+            filter_tags=("ADMISSIBLE",),
+            reason_codes=(),
+            admitting_rules=(),
+        ),
+        RankedCandidateRow(
+            merchant_id=1,
+            country_iso="FR",
+            is_home=False,
+            candidate_rank=2,
+            filter_tags=("ADMISSIBLE",),
+            reason_codes=(),
+            admitting_rules=(),
+        ),
+    ]
+    count_rows, counts = _compute_integerised_counts(
+        ranked,
+        n_outlets=10,
+        weights=None,
+        policy=None,
+        bounds_policy=bounds_policy,
+    )
+    assert sum(counts) == 10
+    gb = next(row for row in count_rows if row.country_iso == "GB")
+    us = next(row for row in count_rows if row.country_iso == "US")
+    fr = next(row for row in count_rows if row.country_iso == "FR")
+    assert gb.count <= 4
+    assert us.count <= 2
+    assert fr.count >= 4
 
 
 def test_base_weight_score_value(tmp_path):

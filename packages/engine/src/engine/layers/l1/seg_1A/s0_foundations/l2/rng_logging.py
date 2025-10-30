@@ -14,7 +14,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterator, Mapping, MutableMapping, Optional
+from typing import Dict, Iterator, Mapping, MutableMapping, Optional
 
 from ..exceptions import err
 from ..l1.rng import PhiloxState, PhiloxSubstream
@@ -26,6 +26,10 @@ def _utc_timestamp() -> str:
         .replace(tzinfo=timezone.utc)
         .strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     )
+
+
+U64_MAX = 2**64 - 1
+U128_MAX = 2**128 - 1
 
 
 @dataclass
@@ -43,7 +47,22 @@ class RNGLogWriter:
         self._trace_root = (self.base_path / "trace").resolve()
         self._ensure_dir(self._events_root)
         self._ensure_dir(self._trace_root)
-        self._trace_totals: MutableMapping[tuple[str, str], int] = {}
+        self._trace_totals: MutableMapping[tuple[str, str], Dict[str, int]] = {}
+        self._summary_path = (
+            self._trace_root / self._seed_path / "rng_totals.json"
+        ).resolve()
+        self._events_total = 0
+        self._draws_total = 0
+        self._blocks_total = 0
+        if self._summary_path.exists():
+            try:
+                summary = json.loads(self._summary_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                summary = None
+            if isinstance(summary, Mapping):
+                self._events_total = int(summary.get("events_total", 0) or 0)
+                self._draws_total = int(summary.get("draws_total", 0) or 0)
+                self._blocks_total = int(summary.get("blocks_total", 0) or 0)
 
     def log_event(
         self,
@@ -86,10 +105,17 @@ class RNGLogWriter:
             "run_id": self.run_id,
         }
         self._append_jsonl(event_file, record)
+        self._events_total = min(self._events_total + 1, 2**64 - 1)
+        self._draws_total = min(self._draws_total + max(0, int(draws)), 2**64 - 1)
+        self._blocks_total = min(self._blocks_total + max(0, int(blocks)), 2**64 - 1)
 
         key = (module, substream_label)
-        total_blocks = self._trace_totals.get(key, 0) + blocks
-        self._trace_totals[key] = total_blocks
+        totals = self._trace_totals.setdefault(
+            key, {"events": 0, "blocks": 0, "draws": 0}
+        )
+        totals["events"] = min(totals["events"] + 1, U64_MAX)
+        totals["blocks"] = min(totals["blocks"] + blocks, U64_MAX)
+        totals["draws"] = min(totals["draws"] + max(0, int(str(draws))), U128_MAX)
         trace_dir = self._trace_root / self._seed_path
         self._ensure_dir(trace_dir)
         trace_file = trace_dir / "rng_trace_log.jsonl"
@@ -97,12 +123,20 @@ class RNGLogWriter:
             "ts_utc": record["ts_utc"],
             "module": module,
             "substream_label": substream_label,
-            "blocks_total": total_blocks,
+            "events_total": totals["events"],
+            "blocks_total": totals["blocks"],
+            "draws_total": str(totals["draws"]),
+            "rng_counter_before_hi": counter_before.counter_hi,
+            "rng_counter_before_lo": counter_before.counter_lo,
+            "rng_counter_after_hi": counter_after.counter_hi,
+            "rng_counter_after_lo": counter_after.counter_lo,
             "run_id": self.run_id,
             "seed": self.seed,
             "parameter_hash": self.parameter_hash,
+            "manifest_fingerprint": self.manifest_fingerprint,
         }
         self._append_jsonl(trace_file, trace_record)
+        self._write_summary()
 
     @property
     def _seed_path(self) -> Path:
@@ -121,6 +155,20 @@ class RNGLogWriter:
         with path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(record, sort_keys=True))
             handle.write("\n")
+
+    def _write_summary(self) -> None:
+        self._ensure_dir(self._summary_path.parent)
+        summary = {
+            "seed": self.seed,
+            "parameter_hash": self.parameter_hash,
+            "manifest_fingerprint": self.manifest_fingerprint,
+            "run_id": self.run_id,
+            "events_total": self._events_total,
+            "draws_total": self._draws_total,
+            "blocks_total": self._blocks_total,
+        }
+        with self._summary_path.open("w", encoding="utf-8") as handle:
+            json.dump(summary, handle, sort_keys=True)
 
 
 @contextmanager

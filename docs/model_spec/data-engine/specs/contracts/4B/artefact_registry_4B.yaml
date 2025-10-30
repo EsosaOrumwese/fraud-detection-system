@@ -429,7 +429,7 @@ subsegments:
     notes:
 
   - name: expected_metrics_yaml
-    path: configs/validation/expected_metrics.yaml
+    path: config/validation/expected_metrics.yaml
     type: config
     category: validation
     semver: '{semver}'
@@ -588,7 +588,7 @@ subsegments:
 
       # cross layer
   - name: rng_logging_policy
-    path: configs/rng/rng_logging.yml
+    path: config/rng/rng_logging.yml
     type: config
     category: rng_policy
     semver: '{semver}'

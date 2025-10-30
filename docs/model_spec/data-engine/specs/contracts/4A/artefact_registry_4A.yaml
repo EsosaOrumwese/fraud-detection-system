@@ -44,7 +44,7 @@ subsegments:
     notes:
 
   - name: validate_container_hash
-    path: configs/ci/validate_container_hash.yml
+    path: config/ci/validate_container_hash.yml
     type: ci_test
     category: reproducibility
     semver: '{semver}'
@@ -90,7 +90,7 @@ subsegments:
 
       # 2 REGISTRY SCHEMA & LIVE INSTANCE
   - name: artefact_registry_schema
-    path: configs/registry/artefact_registry.schema.json
+    path: config/registry/artefact_registry.schema.json
     type: schema
     category: registry
     semver: '{semver}'
@@ -109,7 +109,7 @@ subsegments:
     notes:
 
   - name: artefact_registry
-    path: configs/registry/artefact_registry.yaml
+    path: config/registry/artefact_registry.yaml
     type: config
     category: registry
     semver: '{semver}'
@@ -230,7 +230,7 @@ subsegments:
 
       # 5 RNG LOGGING & REPLAY INFRA
   - name: rng_logging_policy
-    path: configs/rng/rng_logging.yml
+    path: config/rng/rng_logging.yml
     type: config
     category: rng_policy
     semver: '{semver}'
@@ -287,7 +287,7 @@ subsegments:
     notes:
 
   - name: zoneinfo_version_yml
-    path: configs/runtime/zoneinfo_version.yml
+    path: config/runtime/zoneinfo_version.yml
     type: config
     category: runtime_environment
     semver: '{semver}'
@@ -307,7 +307,7 @@ subsegments:
 
       # 6 INFRA-HARDENING & SECURITY POLICIES
   - name: firewall_rules
-    path: configs/infra/firewall.yml
+    path: config/infra/firewall.yml
     type: config
     category: infra_security
     semver: '{semver}'
@@ -406,7 +406,7 @@ subsegments:
     notes:
 
   - name: footfall_coefficients_yaml
-    path: configs/spatial/footfall_coefficients.yaml
+    path: config/spatial/footfall_coefficients.yaml
     type: config
     category: model_params
     semver: '{semver}'
@@ -568,7 +568,7 @@ subsegments:
     notes:
 
   - name: block_merge_yaml
-    path: configs/ci/block_merge.yaml
+    path: config/ci/block_merge.yaml
     type: config
     category: release
     semver: '{semver}'

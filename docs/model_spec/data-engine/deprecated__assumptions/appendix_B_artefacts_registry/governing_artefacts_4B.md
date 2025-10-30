@@ -142,12 +142,12 @@ Lists the governed artefacts and rules needed to audit and reproduce 4B. Cross�
 | validator_manifest          | artefacts/manifests/validator_manifest_{run_id}.json     | Digest bundle of inputs, configs, metrics               | validator_manifest_digest       |
 | validator_audit_log         | logs/validation/{run_id}/validator_audit.log             | Structured log of per‑check pass/fail                   | (run‑specific)                  |
 | validation_ci_test_py       | ci/tests/validation_ci_test.py                           | CI guard: metrics must match expected corridor          | git_tree_hash                   |
-| expected_metrics_yaml       | configs/validation/expected_metrics.yaml                 | Target values & tolerances for CI regression            | expected_metrics_digest         |
+| expected_metrics_yaml       | config/validation/expected_metrics.yaml                 | Target values & tolerances for CI regression            | expected_metrics_digest         |
 | snap_diff_py                | tools/snap_diff.py                                       | Diffs current metrics vs previous snapshot              | git_tree_hash                   |
 | validator_dockerfile_lock   | Dockerfile.validator.lock                                | Locks validator container base & layer digests          | validator_dockerfile_digest     |
 | validator_build_manifest    | artefacts/manifests/validator_build.manifest             | Roll‑up of validator code, configs, container hash      | validator_build_manifest_digest |
 | validator_rng_trace_log     | logs/validation/{run_id}/validator_rng_trace.log         | Philox key+counter trace for 4B run                     | (run‑specific)                  |
-| rng_logging_policy          | configs/rng/rng_logging.yml                              | Cross‑layer policy enabling RNG traces (shared with 4A) | rng_logging_digest              |
+| rng_logging_policy          | config/rng/rng_logging.yml                              | Cross‑layer policy enabling RNG traces (shared with 4A) | rng_logging_digest              |
 | ValidationDriftError        | exception (contract)                                     | Thrown when any metric exceeds tolerance corridor       | n/a                             |
 | BarcodeSlopeError           | exception (contract)                                     | Thrown when barcode slope falls outside bounds          | n/a                             |
 | AUROCThresholdError         | exception (contract)                                     | Thrown when adversarial AUROC exceeds cut‑line          | n/a                             |

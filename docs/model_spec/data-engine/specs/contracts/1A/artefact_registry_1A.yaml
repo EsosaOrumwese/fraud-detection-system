@@ -7,7 +7,7 @@ subsegments:
       # MODEL COEFFICIENTS & PARAMS
       # ---------------------------
   - name: hurdle_coefficients
-    path: configs/models/hurdle/hurdle_coefficients.yaml
+    path: config/models/hurdle/exports/version={config_version}/{iso8601_timestamp}/hurdle_coefficients.yaml
     type: config
     category: hurdle_model
     semver: '{semver}'
@@ -26,7 +26,7 @@ subsegments:
     notes:
 
   - name: nb_dispersion_coefficients
-    path: configs/models/hurdle/nb_dispersion_coefficients.yaml
+    path: config/models/hurdle/exports/version={config_version}/{iso8601_timestamp}/nb_dispersion_coefficients.yaml
     type: config
     category: hurdle_model
     semver: '{semver}'
@@ -45,7 +45,7 @@ subsegments:
     notes:
 
   - name: crossborder_hyperparams
-    path: configs/allocation/crossborder_hyperparams.yaml
+    path: config/policy/crossborder_hyperparams.yaml
     type: config
     category: allocation
     semver: '{semver}'
@@ -64,7 +64,7 @@ subsegments:
     notes:
 
   - name: policy.s3.rule_ladder.yaml
-    path: configs/policy.s3.rule_ladder.yaml
+    path: config/policy/s3.rule_ladder.yaml
     type: policy
     category: policy
     semver: '{semver}'
@@ -83,7 +83,7 @@ subsegments:
     notes:
 
   - name: policy.s3.base_weight.yaml
-    path: configs/policy.s3.base_weight.yaml
+    path: config/policy/s3.base_weight.yaml
     type: policy
     category: policy
     semver: '{semver}'
@@ -102,7 +102,7 @@ subsegments:
     notes: Optional; only if priors are enabled.
 
   - name: policy.s3.thresholds.yaml
-    path: configs/policy.s3.thresholds.yaml
+    path: config/policy/s3.thresholds.yaml
     type: policy
     category: policy
     semver: '{semver}'
@@ -120,11 +120,30 @@ subsegments:
     cross_layer: false
     notes: Optional; only if bounds are enabled.
 
+  - name: s6_selection_policy
+    path: config/policy.s6.selection.yaml
+    type: policy
+    category: policy
+    semver: '{semver}'
+    version: '{policy_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.policy.s6.selection
+    license: '{spdx_or_internal}'
+    role: S6 selection knobs (emit_membership_dataset, log_all_candidates, max_candidates_cap, zero_weight_rule, dp_score_print).
+    dependencies: []
+    source: internal
+    owner: {product_policy_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, dev, staging, prod]
+    schema: schemas.layer1.yaml#/policy/s6_selection
+    cross_layer: false
+    notes:
+
       # ---------------------------
       # EXTERNAL & REFERENCE DATA
       # ---------------------------
   - name: dirichlet_alpha_policy
-    path: configs/models/allocation/dirichlet_alpha_policy.yaml
+    path: config/models/allocation/dirichlet_alpha_policy.yaml
     type: config
     category: allocation_policy
     semver: '{semver}'
@@ -238,7 +257,7 @@ subsegments:
     notes:
 
   - name: gdp_bucket_map_semver
-    path: configs/versioning/gdp_bucket_map.semver
+    path: config/versioning/gdp_bucket_map.semver
     type: config
     category: versioning
     semver: '{semver}'
@@ -257,7 +276,7 @@ subsegments:
     notes:
 
   - name: gdp_bucket_map_digest
-    path: configs/versioning/gdp_bucket_map.digest
+    path: config/versioning/gdp_bucket_map.digest
     type: config
     category: versioning
     semver: '{semver}'
@@ -295,7 +314,7 @@ subsegments:
     notes:
 
   - name: hurdle_stationarity_semver
-    path: configs/versioning/hurdle_stationarity.semver
+    path: config/versioning/hurdle_stationarity.semver
     type: config
     category: versioning
     semver: '{semver}'
@@ -314,7 +333,7 @@ subsegments:
     notes:
 
   - name: hurdle_stationarity_digest
-    path: configs/versioning/hurdle_stationarity.digest
+    path: config/versioning/hurdle_stationarity.digest
     type: config
     category: versioning
     semver: '{semver}'
@@ -360,6 +379,16 @@ subsegments:
     digest: '{sha256}'
     manifest_key: mlr.ref.ccy_country_shares_2024Q4
     license: '{spdx_or_internal}'
+  - name: iso_legal_tender_2024
+    path: reference/iso/iso_legal_tender/2024/iso_legal_tender.parquet
+    type: reference
+    category: allocation
+    semver: '{semver}'
+    version: 2024
+    digest: '{sha256}'
+    manifest_key: mlr.ref.iso_legal_tender_2024
+    license: '{spdx_or_internal}'
+    role: Primary legal tender per ISO2 for optional merchant_currency fallback.
     role: Currency→country split proportions.
     dependencies: []
     source: internal
@@ -371,7 +400,7 @@ subsegments:
     notes:
 
   - name: ccy_smoothing_params
-    path: configs/allocation/ccy_smoothing_params.yaml
+    path: config/allocation/ccy_smoothing_params.yaml
     type: config
     category: allocation
     semver: '{semver}'
@@ -428,7 +457,7 @@ subsegments:
     notes:
 
   - name: storage_path_pattern
-    path: configs/storage/storage_path_pattern.yaml
+    path: config/storage/storage_path_pattern.yaml
     type: config
     category: storage
     semver: '{semver}'
@@ -447,7 +476,7 @@ subsegments:
     notes: e.g., data/outputs/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
 
   - name: compression_zstd_level3
-    path: configs/storage/compression.yaml
+    path: config/storage/compression.yaml
     type: config
     category: storage
     semver: '{semver}'
@@ -485,7 +514,7 @@ subsegments:
     notes:
 
   - name: run_seed
-    path: configs/rng/run_seed.yaml
+    path: config/rng/run_seed.yaml
     type: config
     category: rng
     semver: '{semver}'
@@ -513,7 +542,7 @@ subsegments:
     manifest_key: mlr.ci.parameter_hash
     license: '{spdx_or_internal}'
     role: SHA‑256 of concatenated parameter digests.
-    dependencies: [hurdle_coefficients, nb_dispersion_coefficients, crossborder_hyperparams]
+    dependencies: [hurdle_coefficients, nb_dispersion_coefficients, crossborder_hyperparams, ccy_smoothing_params, s6_selection_policy]
     source: internal
     owner: {platform_team: null}
     last_updated: '{iso8601_timestamp}'
@@ -532,7 +561,7 @@ subsegments:
     manifest_key: mlr.ci.manifest_fingerprint
     license: '{spdx_or_internal}'
     role: Composite fingerprint of inputs (artefact digests + git + param hash).
-    dependencies: [git_commit_hash, parameter_hash, hurdle_coefficients, nb_dispersion_coefficients, crossborder_hyperparams, world_bank_gdp_per_capita_20250415, gdp_bucket_map_2024, settlement_shares_2024Q4, ccy_country_shares_2024Q4]
+    dependencies: [git_commit_hash, parameter_hash, hurdle_coefficients, nb_dispersion_coefficients, crossborder_hyperparams, world_bank_gdp_per_capita_20250415, gdp_bucket_map_2024, settlement_shares_2024Q4, ccy_country_shares_2024Q4, numeric_policy_profile, math_profile_manifest]
     source: internal
     owner: {platform_team: null}
     last_updated: '{iso8601_timestamp}'
@@ -779,14 +808,14 @@ subsegments:
     manifest_key: mlr.rng.events.gumbel_key
     license: '{spdx_or_internal}'
     role: Gumbel-top-k keys used to select foreign countries.
-    dependencies: [rng_event_schema_catalog]
+    dependencies: [rng_event_schema_catalog, compression_zstd_level3]
     source: internal
     owner: {platform_team: null}
     last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.layer1.yaml#/rng/events/gumbel_key
     cross_layer: true
-    notes:
+    notes: Writer policy pinned; ZSTD level 3 (byte-identity across re-runs).
 
   - name: rng_event_normal_box_muller
     path: logs/rng/events/normal_box_muller/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
@@ -968,8 +997,8 @@ subsegments:
     digest: '{sha256}'
     manifest_key: mlr.1A.allocation.sparse_flag
     license: '{spdx_or_internal}'
-    role: Indicator for equal‑split fallback under low observation counts.
-    dependencies: [ccy_country_shares_2024Q4]
+    role: Per-currency sparsity **diagnostic** for S5; no algorithmic fallback is implied by this dataset.
+    dependencies: [ccy_country_shares_2024Q4, ccy_smoothing_params]
     source: internal
     owner: {owner_team: null}
     last_updated: '{iso8601_timestamp}'
@@ -1054,6 +1083,44 @@ subsegments:
     cross_layer: false
     notes: Deprecated as order authority; retained for backward compatibility.
 
+  - name: s6_membership
+    path: data/layer1/1A/s6/membership/seed={seed}/parameter_hash={parameter_hash}/
+    type: dataset
+    category: selection
+    semver: '{semver}'
+    version: '{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.selection.membership
+    license: Proprietary-Internal
+    role: Optional convenience surface of selected foreign ISO2s per merchant; authority remains S6 RNG events; no inter-country order encoded.
+    dependencies: [s3_candidate_set, ccy_country_weights_cache, rng_event_gumbel_key]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1A.yaml#/alloc/membership
+    cross_layer: false
+    notes: Emitted only when S6 policy `emit_membership_dataset=true`; consumers must verify S6 PASS; order must be joined from S3 `candidate_rank`.
+
+  - name: s6_validation_receipt
+    path: data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
+    type: dataset
+    category: validation
+    semver: '{semver}'
+    version: '{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.s6.receipt
+    license: Proprietary-Internal
+    role: PASS receipt for S6 (folder with S6_VALIDATION.json and _passed.flag).
+    dependencies: [rng_event_gumbel_key, s3_candidate_set, ccy_country_weights_cache]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/validation/s6_receipt
+    cross_layer: false
+    notes: Consumers must verify `_passed.flag` content hash equals SHA256(S6_VALIDATION.json) before reading any S6-derived convenience surface.
+
   - name: dirichlet_lrr_proof
     path: docs/derivations/dirichlet_lrr_proof.md
     type: documentation
@@ -1102,7 +1169,7 @@ subsegments:
     manifest_key: mlr.1A.output.outlet_catalogue
     license: '{spdx_or_internal}'
     role: Final outlet stubs (one row per site), deterministic partitions by seed & fingerprint.
-    dependencies: [country_set, site_id_allocator, rng_event_sequence_finalize]
+    dependencies: [s3_candidate_set, rng_event_residual_rank, rng_event_sequence_finalize]
     source: internal
     owner: {owner_team: null}
     last_updated: '{iso8601_timestamp}'
@@ -1303,7 +1370,7 @@ subsegments:
     notes:
 
   - name: residual_quantisation_policy
-    path: configs/numeric/residual_quantisation.yaml
+    path: config/numeric/residual_quantisation.yaml
     type: config
     category: numeric_environment
     semver: '{semver}'
@@ -1360,7 +1427,7 @@ subsegments:
     notes:
 
   - name: dataset_registry_connection
-    path: configs/registry/dataset_registry_connection.yaml
+    path: config/registry/dataset_registry_connection.yaml
     type: config
     category: registry
     semver: '{semver}'
@@ -1436,7 +1503,7 @@ subsegments:
     notes:
 
   - name: crossborder_eligibility_rules
-    path: configs/allocation/crossborder_eligibility_rules.yaml
+    path: config/allocation/crossborder_eligibility_rules.yaml
     type: config
     category: allocation
     semver: {semver: null}

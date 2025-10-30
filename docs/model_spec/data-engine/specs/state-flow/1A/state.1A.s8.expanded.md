@@ -1,1609 +1,1339 @@
-# S8.1 — State, notation & row model
+# State 8 (S8) — Materialise outlet stubs & sequences
 
-## Scope
+# 0) Document metadata & status **(Binding)**
 
-Fix the **authorities**, **symbols**, and the **per-row contract** for the egress dataset **`outlet_catalogue`**. This section does not consume RNG; it establishes exactly what inputs S8 needs and what a row means so that S8.2 can expand rows deterministically.
+**State ID (canonical):** `layer1.1A.S8` — “Materialise outlet stubs & sequences”
+**Document type:** Contractual specification (no code, no pseudocode)
+**Primary egress governed by this spec:** `outlet_catalogue` (see dictionary + schema anchors).
 
 ---
 
-## 1) Authorities & lineage (must-use inputs)
+## 0.1 Versioning (SemVer) & effective date
 
-**Lineage keys (from S0; immutable within a run):**
+* **Versioning scheme:** **MAJOR.MINOR.PATCH** (Semantic Versioning).
+* **Initial version:** `v1.0.0` (ratified 2025-10-14).  *(File name revisions do not imply SemVer changes.)*
+* **Effective date:** 2025-10-14 (release tag and commit recorded alongside this document).
 
-* `manifest_fingerprint = F` (hex64, lowercase) — also the egress partition “fingerprint”. **Rows must echo this value** in-column (`manifest_fingerprint`).
-* `global_seed = S_master` (u64; **policy:** ≤ 2^63−1 for engine compatibility) — the master RNG seed for the run; echoed per row as `global_seed`. *(S8 uses **no** RNG, but the seed is part of lineage.)*
-* `parameter_hash = P` (hex64) — parameter universe digest used by upstream states; not an egress partition key, but **required** for event partitions and reconciliation.
-* `run_id` (hex32) — **logs only**; never participates in egress partitioning.
+### What requires a **MAJOR** bump (breaking):
 
-**Partition echo identity (normative):**
-For every persisted row: `seed == global_seed` and `fingerprint == manifest_fingerprint`.
+* Any change to **dataset IDs**, **schema `$ref` anchors**, or **column/PK/partition** contracts for `outlet_catalogue`. 
+* Any change to **partition law** or lineage fields used by S8 (e.g., switching egress partitions away from `[seed, fingerprint]`). 
+* Changing **“no cross-country order in egress”** (i.e., encoding inter-country order in `outlet_catalogue`). 
+* Altering **PASS-gate semantics** for 1A hand-off (validation bundle and `_passed.flag` relationship). 
 
-**Country membership & order (sole authority):**
+### What is **MINOR** (backward-compatible):
 
-* `country_set(seed, parameter_hash)` provides, per merchant $m$, an **ordered** ISO-2 tuple
-  $\mathcal{C}_m=(c_0,\dots,c_{K_m})$ with **exactly one** home row `rank(c_0)=0`, and unique ISO codes overall; **this is the only source of inter-country order** (egress never encodes it).
+* Adding **nullable/optional columns** to `outlet_catalogue` that do not affect PK/UK/sort/partitions. 
+* Adding **new instrumentation streams** (e.g., additional guardrail events) that don’t change existing envelopes or required events. 
+* Adding **informative** appendices, metrics, or validation outputs that do not alter the egress/table contract. 
 
-**Final integer allocations (from S7):**
+### What is **PATCH** (non-behavioural):
 
-* $n_{m,c}\in\mathbb{Z}_{\ge 0}$ is the **largest-remainder** site count for merchant $m$ and legal country $c\in\mathcal{C}_m$. Residual order evidence lives in the parameter-scoped cache; S8 does **not** re-derive it.
+* Editorial clarifications, typo fixes, and examples that **do not change** behaviour, schemas, paths, keys, partitions, or gates.
 
-**Merchant-level provenance (carried into egress rows):**
-
-* `single_vs_multi_flag` — **boolean** (true = multi-site). *(Implied: `raw_nb_outlet_draw==1` ⇒ false; otherwise true.)*
-* `raw_nb_outlet_draw = N_m` — the merchant’s **accepted Negative-Binomial total** (after hurdle, before cross-country allocation). **In S8 this equals the conservation sum** $\sum_{c\in\mathcal{C}_m} n_{m,c}$ and is written identically on every row for merchant $m$.
-* `home_country_iso` — equals the ISO of the unique `rank=0` entry $c_0$ for $m$ (merchant-constant).
+---
 
-**Pre-flight presence tests (abort S8 if any fail):**
+## 0.2 Normative language (RFC 2119/8174)
 
-1. `country_set` exists for all merchants in scope and has exactly one `rank=0` per merchant; ISO codes are unique per merchant.
-2. $\{n_{m,c}\}$ is available for **every** $(m,c)\in\mathcal{C}_m$.
-3. Lineage triplet $(F,\ S_{\text{master}},\ P)$ is present and well-typed.
+* Terms **MUST/SHALL/SHOULD/MAY** are normative.
+* Unless explicitly labelled *Informative*, all clauses in this document are **Binding**.
 
 ---
 
-## 2) Dataset target & partitions (authoritative)
+## 0.3 Document scope & non-goals (status framing)
 
-**Target egress dataset & path (dictionary/registry):**
+* This document **governs only** S8 behaviour and artefacts needed to materialise `outlet_catalogue` and its minimal instrumentation events. It **does not** define cross-country order, counts, or weights; those remain with S3/S7/S5 respectively and are referenced in later sections.
+* S8 egress is **fingerprint-scoped** and partitioned `[seed, fingerprint]`; **path↔embed equality** for `manifest_fingerprint` is enforced elsewhere in this spec. 
 
-```
-data/layer1/1A/outlet_catalogue/
-  seed={seed}/fingerprint={manifest_fingerprint}/part-*.parquet
-schema_ref: schemas.1A.yaml#/egress/outlet_catalogue
-partitions: ["seed","fingerprint"]
-```
+---
 
-This path, partitioning, and schema pointer are fixed by the artefact registry; `outlet_catalogue` depends on `country_set` and the `sequence_finalize` event (audit).
+## 0.4 Lifecycle & ratification record
 
-**Primary key & write order (schema/locked spec):**
+On ratification:
 
-* **PK:** (`merchant_id`, `legal_country_iso`, `site_order`).
-* **Write order (and file sort):** lexicographic by that same tuple.
-* **Policy:** **no inter-country order** is encoded here; consumers must join `country_set.rank`.
+* Record **semver**, **effective_date**, **ratified_by**, and the **git commit** (and optional SHA-256 of this file) in the release notes and governance registry.
+* Downstream consumers (e.g., 1B) **MUST** continue to verify the 1A **validation gate** before reading `outlet_catalogue` (`_passed.flag` content hash equals `SHA256(validation_bundle_1A)` for the same fingerprint). 
 
 ---
 
-## 3) Notation & encoders (normative)
+## 0.5 Cross-references (anchors used by S8)
 
-Let:
+* **Dataset Dictionary:** `dataset_dictionary.layer1.1A.yaml` — IDs/paths/partitions for `outlet_catalogue`, S3 candidate set, validation bundle, and RNG streams.
+* **JSON-Schema (authority):**
+  - `schemas.1A.yaml` → `#/egress/outlet_catalogue`, `#/s3/candidate_set` (referenced later). 
+  - `schemas.layer1.yaml` (RNG/core logs & event families used/observed by 1A, incl. `sequence_finalize`, `site_sequence_overflow`, `residual_rank`). 
+  - `schemas.ingress.layer1.yaml` (FK targets such as `iso3166_canonical_2024`). 
+For brevity, unqualified `$ref` anchors (e.g., `#/rng/events/sequence_finalize`) are resolved per §3.1 **Anchor resolution rule**.
+---
 
-* $\mathcal{M}$ be the merchant set in scope.
-* For $m\in\mathcal{M}$, $\mathcal{C}_m=(c_0,\ldots,c_{K_m})$ from `country_set`.
-* $n_{m,c}\in\mathbb{Z}_{\ge 0}$ are final counts from S7.
-* **Merchant total (conservation):**
+## 0.6 House rules this document inherits
 
-  $$
-  N_m\ :=\ \sum_{c\in\mathcal{C}_m} n_{m,c}\ \in\ \mathbb{Z}_{\ge 1}.
-  $$
+* **No PASS → no read**: consumers of `outlet_catalogue` must verify the 1A validation gate for the same `fingerprint`. 
+* **Deterministic math & environment**: numeric environment (IEEE-754 binary64, RNE, FMA off) is inherited from Layer-1 policy and S0; S8 will not weaken those guarantees. 
 
-  S8 writes $\texttt{raw _nb _outlet _draw}=N_m$ on **every** row of merchant $m$.
+---
 
-**Overflow threshold (six-digit site ids):**
+> **Status:** This section is **Binding**. Once you mark this doc `v1.0.0` and ratify, §0 governs change control for all future edits to the S8 spec.
 
-$$
-U \;=\; 999{,}999.
-$$
+---
 
-If any $n_{m,c}>U$, S8 will later emit a `site_sequence_overflow` (zero-draw) and **abort** egress for this fingerprint. (Defined here; enforced in S8.4/S8.5.)
+# 1) Purpose & scope **(Binding)**
 
-**Fixed site-id encoder (bijection inside a block):**
-Define $\sigma:\{1,\ldots,U\}\to\{0,1\}^6$ (decimal string) by **left-padding to six digits** in the **C locale (ASCII digits)**:
+## 1.1 Purpose
 
-$$
-\sigma(j) \;=\; \text{zpad6}(j)\quad\text{(e.g., }1\mapsto\text{"000001"}\text{)}.
-$$
+S8 **materialises immutable outlet stubs** for each `(merchant_id, legal_country_iso)` by writing the **`outlet_catalogue`** dataset. For every country in the merchant’s domain, S8 emits a **contiguous within-country sequence** `site_order = 1..final_country_outlet_count` and a deterministic **6-digit `site_id`** derived from that sequence. 
+**Inter-country order is not encoded** in this egress; downstream MUST join S3’s `candidate_rank` when a cross-country order is required.
 
-Inside a given $(m,c)$ block, $\sigma$ is injective and yields `site_id` that matches `^[0-9]{6}$`. Because `site_order ≥ 1`, `site_id="000000"` is **unreachable**.
+## 1.2 What S8 consumes (conceptual)
 
----
+S8 **consumes** already-ratified facts and authorities; it does **not** derive them:
 
-## 4) Row model (what one row means)
+* **Counts (N and per-country integers):** `N` comes from S2 (via `nb_final` evidence), and per-country integer counts come from S7 residual-rank evidence (or `s3_integerised_counts` if S3 is designated to own integerisation).
+* **Membership & domain:** the foreign membership is taken from S6 (convenience `s6_membership` if emitted, or reconstructable from S6 RNG events), joined with S3’s candidate set to align with order authority. 
+* **Inter-country order authority:** **only** S3’s `s3_candidate_set.candidate_rank` (total, contiguous; `home` at rank 0).
 
-For each **non-empty** block $(m,c)$ where $n_{m,c}>0$, S8 will produce exactly $n_{m,c}$ rows, one for each **row index** $j\in\{1,\ldots,n_{m,c}\}$. Each row carries:
+> S8 does not require S5 weight surfaces. Weights authority remains with S5 (used upstream by S6/S7); any S5 artefact consumption elsewhere remains gated by its PASS policy.
 
-### 4.1 Merchant-level columns (constant within merchant $m$)
+**Single vs multi reminder.** S8 writes **only** multi-site merchants (`raw_nb_outlet_draw ≥ 2`, `single_vs_multi_flag=true`)—singles are out of scope for this egress.
 
-* `merchant_id` — id64.
-* `single_vs_multi_flag` — **boolean**. (If upstream is 0/1, cast to bool at write.)
-* `raw_nb_outlet_draw` — equals $N_m$ for **every** row of merchant $m$.
-* `home_country_iso` — equals $c_0$ (the unique `rank=0` ISO) for merchant $m$.
-* `global_seed` — equals $S_{\text{master}}$ (partition echo).
-* `manifest_fingerprint` — equals $F$ (partition echo).
+## 1.3 What S8 produces
 
-### 4.2 Block-level columns (constant within $(m,c)$)
+* **Primary egress:** `outlet_catalogue` at `data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint]`, PK/Sort `[merchant_id, legal_country_iso, site_order]`, and the column set fixed by the schema (incl. `manifest_fingerprint`, `site_order`, `site_id`). **No cross-country order is present.**
+* **Instrumentation streams:**
+  - `rng_event.sequence_finalize` per `(merchant,country)` block with `{site_count,start_sequence,end_sequence}` (for audit and replay accounting).
+  - `rng_event.site_sequence_overflow` on overflow (guardrail → merchant-scoped failure).
 
-* `legal_country_iso = c` (ISO-2; FK to canonical ISO).
-* `final_country_outlet_count = n_{m,c}`.
-  **Persisted rows must satisfy** $1\le n_{m,c}\le U$; when $n_{m,c}=0$ **no rows are written** for $(m,c)$. (Schema domain is $\{1,\ldots,999{,}999\}$ for this column.)
+## 1.4 Scope constraints (non-goals)
 
-### 4.3 Row-level columns (vary with $j$)
+S8 **MUST NOT**:
 
-* `site_order = j` with domain $j\in\{1,\ldots,n_{m,c}\}$.
-* `site_id = σ(j)` — the 6-digit zero-padded image of `site_order`.
-* **PK tuple** (`merchant_id`,`legal_country_iso`,`site_order`) is therefore **unique**.
-* **Within each $(m,c)$:** `site_id` is unique by construction (bijection $j\leftrightarrow\sigma(j)$); S9 also re-asserts this mechanically.
+* invent or encode **inter-country order** (that remains with S3), nor reinterpret S3’s `candidate_rank`.
+* change `N` or re-allocate per-country counts determined upstream (S7/S3). 
+* read or persist S5 weights, or create any new weights/order surface. 
+* weaken lineage/partition law or introduce side-channel ordering via file layout (PK/sort keys are normative; readers MUST NOT rely on file order). 
 
-### 4.4 Cross-field invariants (every persisted row)
+## 1.5 Consumers & gating
 
-$$
-\boxed{\ 1 \le \texttt{site_order} \le \texttt{final_country_outlet_count}\ },\quad
-\boxed{\ \texttt{site_id}=\text{zpad6}(\texttt{site_order})\ },\quad
-\boxed{\ \texttt{home_country_iso},\ \texttt{legal_country_iso}\in \text{ISO2 (FK)}\ }.
-$$
+* **No PASS → no read:** Consumers (e.g., 1B) **MUST** verify the 1A validation gate for the same `fingerprint` (`_passed.flag` content hash equals `SHA256(validation_bundle_1A)`) **before** reading `outlet_catalogue`. 
+* S8 itself is **fingerprint-scoped** egress; all path tokens MUST match embedded lineage where present (defined later in lineage law). 
 
-These are schema-enforced or checked by the write-time validator.
+## 1.6 Success criteria (outcome statement)
 
----
+On successful completion for a `fingerprint`, S8 yields:
 
-## 5) Policy & separation of concerns (must-hold)
+1. a byte-stable `outlet_catalogue` partition with contiguous per-country `site_order` (and 6-digit `site_id`) for every `(merchant, legal_country_iso)` where `final_country_outlet_count ≥ 1`;
+2. complete `sequence_finalize` coverage for those blocks; and 
+3. no violation of the inter-country order boundary (all cross-country ordering recoverable by joining S3 `candidate_rank`).
 
-1. **No inter-country order in egress.** The egress table is **not** allowed to encode cross-country order; any consumer needing “home/foreign sequencing” **must** join `country_set.rank`. (Checked later in S8.6/S9.)
-2. **Partition echo.** Every row’s `global_seed` and `manifest_fingerprint` **must equal** the directory tokens `seed` and `fingerprint`.
-3. **Determinism.** S8 is a pure function of $(\{n_{m,c}\},F,S_{\text{master}})$; there are **no** RNG draws in S8. *(S8’s RNG events, introduced later, are **zero-draw** attestations.)*
+**Status:** This section is **Binding**.
 
 ---
-
-## 6) Minimal pre-S8.2 validator (reference)
 
-```pseudo
-function s8_1_preflight(m, C_m, n_map, F, S_master, P):
-    # C_m: ordered list of ISO for merchant m from country_set (rank 0..K_m)
-    assert len(C_m) >= 1 and rank(C_m[0]) == 0                     # unique home
-    assert unique(C_m)                                              # ISO uniqueness
+# 2) Definitions & notation **(Binding)**
 
-    # lineage present
-    assert is_hex64(F) and is_uint64(S_master) and is_hex64(P)
+This section freezes the vocabulary, symbols, and lineage tokens S8 uses. All terms below are **normative**.
 
-    # counts available
-    for c in C_m:
-        assert exists(n_map[(m,c)]) and n_map[(m,c)] >= 0
+## 2.1 Lineage & partition tokens
 
-    return OK
-```
+* **`seed`** — 64-bit unsigned master RNG seed; partitions **RNG logs/events** and appears in their paths. 
+* **`parameter_hash`** — **lowercase hex64** (SHA-256) of the opened parameter bundle; partitions **parameter-scoped tables** and RNG logs/events; where embedded, bytes **MUST** equal the path token.
+* **`run_id`** — run-scoped identifier (**lowercase hex 32-character string**) for RNG event/log partitions (as per layer schema `$defs.run_id`).  
+* **`manifest_fingerprint`** (a.k.a. **`fingerprint`** in paths) — **lowercase hex64** lineage digest for the whole 1A run; it **partitions S8 egress** and is also stored per row in `outlet_catalogue` as `manifest_fingerprint`. **Naming rule:** any `fingerprint={…}` path segment carries the value of `manifest_fingerprint`.
 
-This validator enforces only **presence & authority**; range/domain/PK/overflow are enforced in S8.2–S8.5 against the egress schema.
+## 2.2 Entities & keys
 
----
+* **`merchant_id`** — 64-bit ID for a merchant (`$ref: #/$defs/id64`). Appears in S3 and S8 schemas. 
+* **`home_country_iso`** — ISO-3166-1 alpha-2 code for the onboarding/home country (FK → canonical ISO registry). 
+* **`legal_country_iso` / `country_iso`** — ISO-3166-1 alpha-2 code for the country a site or candidate belongs to (FK → canonical ISO registry). 
+* **`candidate_rank`** — **sole authority** for inter-country order from S3; **total and contiguous** per merchant with **`candidate_rank(home)=0`**. 
+* **Domain `Dₘ`** — the per-merchant legal set used by S8: `{home_country_iso} ∪ (S6-selected foreign ISO2s)`, aligned to S3’s candidate set. (`s6_membership` is convenience-only; S6 RNG events are authoritative for reconstruction.)
 
-## 7) Where S8.2 picks up
+## 2.3 Upstream facts S8 treats as read-only
 
-Given the state above, **S8.2** will:
+* **Domestic outlet count `N`** — the accepted Negative-Binomial draw **per merchant** from **`rng_event.nb_final`** (`n_outlets ≥ 2`, **non-consuming** event). Denoted `Nₘ`. 
+* **Foreign target count `K_target`** — the S4 single-acceptance outcome from **`rng_event.ztp_final`** (non-consuming); consumed by S6. Denoted `Kₘ^*`.
+* **Integer per-country counts** — from **S7 residual evidence** (`rng_event.residual_rank`) or, if designated, S3’s deterministic **`s3_integerised_counts`** (parameter-scoped).
 
-* iterate each $(m,c)$ with $n_{m,c}>0$,
-* emit exactly $n_{m,c}$ rows with `site_order = 1..n_{m,c}`, `site_id = zpad6(site_order)` (C locale),
-* place the deterministic **write order** (`merchant_id`, `legal_country_iso`, `site_order`),
-* and stage the partition under `…/seed={seed}/fingerprint={F}/` for validation and atomic commit.
+## 2.4 S8 egress: `outlet_catalogue` column terms (all **Binding**)
 
----
+* **Primary key (PK)** — `[merchant_id, legal_country_iso, site_order]`. **Unique key equals PK.** Sort keys are identical. Partition keys: `[seed, fingerprint]`. 
+* **`manifest_fingerprint`** — per-row **lowercase hex64** equal to the egress `fingerprint` path token (lineage equality).
+* **`site_order`** — **within-country** contiguous sequence `1..nᵢ` for each `(merchant_id, legal_country_iso)` block (**no gaps**). 
+* **`site_id`** — **mandatory** 6-digit zero-padded string for the within-country sequence (`^[0-9]{6}$`). It encodes **only** the local sequence, not global order. 
+* **`single_vs_multi_flag`** — boolean copy of the S1 hurdle decision at merchant level (1 if multi-site). 
+* **`raw_nb_outlet_draw`** — the accepted S2 domestic draw `N` prior to cross-border allocation (`≥ 2`). 
+* **`final_country_outlet_count`** — integer outlets allocated to this `legal_country_iso` (`≥ 1`, `≤ 999,999`). Sum over a merchant’s legal set equals `N`. 
+* **`global_seed`** — 64-bit master seed persisted for audit/replay parity. 
 
-### Column domains & keys (from schema; for quick reference)
+> **Scope note:** `outlet_catalogue` **does not encode inter-country order**; consumers **MUST** join S3’s `candidate_rank` when a cross-country order is required. 
 
-* `site_id` matches `^[0-9]{6}$`;
-* `raw_nb_outlet_draw ≥ 1` and is **constant per merchant**; additionally $\texttt{raw _nb _outlet _draw} = \sum_c \texttt{final _country _outlet _count}$ (conservation);
-* `final_country_outlet_count ∈ {1,…,999999}`;
-* `site_order ≥ 1`;
-* FK for both ISO-2 fields to the canonical ISO dataset;
-* **PK:** (`merchant_id`, `legal_country_iso`, `site_order`); partitions (`seed`, `fingerprint`).
+## 2.5 RNG events & logs S8 observes/emits (schema-anchored names)
 
----
+* **Core logs (read-only by validators):**
+  **`rng_audit_log`** (run-scoped audit) and **`rng_trace_log`** (cumulative counters; **append exactly one** trace row after **each** RNG event append). Partitions `{seed, parameter_hash, run_id}`. 
+* **Upstream evidence consumed by S8 validators:**
+  **`rng_event.nb_final`** (defines `N`), **`rng_event.residual_rank`** (S7 residual ordering evidence),
+  **`rng_event.gumbel_key`** **and** **`rng_event.ztp_final`** (S6 membership reconstruction when needed).
+* **S8 instrumentation (emitted by S8):**
+  **`rng_event.sequence_finalize`** — per `(merchant_id, country_iso)` block: `{site_count, start_sequence, end_sequence}`; partitions `{seed, parameter_hash, run_id}`.
+  **`rng_event.site_sequence_overflow`** — guardrail event on sequence exhaustion.
 
-This locks the **inputs**, **symbols**, and the **row semantics** with exact domains and authorities, so we can implement S8.2’s deterministic expansion without guesswork.
+## 2.6 Sets, symbols & equalities (notation used later)
 
----
+* **`zfill6(x)`** — left-pad integer `x` with ASCII `'0'` to 6 digits (e.g., `1→"000001"`).
+* **`Dₘ`** — merchant’s legal domain set for S8 (home + selected foreigns; aligned to S3). **Cardinality:** `|Dₘ| = 1 + |S6_selected|`. 
+* **`Nₘ`** — merchant-level domestic outlets from `nb_final.n_outlets`. **Invariant later (§9):** `Σ_{c∈Dₘ} nₘ,c = Nₘ`. 
+* **`nₘ,c`** — per-country final integer count in `outlet_catalogue.final_country_outlet_count` for merchant `m` and country `c`. 
+* **`site_order` sequence** — for each `(m,c)`, the ordered list `⟨1,…,nₘ,c⟩`. `site_id` is the 6-digit rendering of this sequence. 
+* **Path↔embed equality** — whenever lineage columns are embedded: egress `manifest_fingerprint` **MUST** equal the `fingerprint` path token; event rows **MUST** embed `{seed, parameter_hash, run_id, manifest_fingerprint}` where `{seed, parameter_hash, run_id}` **MUST** equal their path tokens and `manifest_fingerprint` **MUST** equal the run’s egress fingerprint (not a path token).
 
-# S8.2 — Deterministic construction of per-country sequences
+## 2.7 Consumption gates (terms used throughout)
 
-## Scope & purpose
+* **S6 PASS** — the S6 validation receipt folder whose `_passed.flag` content hash equals `SHA256(S6_VALIDATION.json)` for the same `{seed, parameter_hash}`; required before reading S6 convenience surfaces.
+* **1A PASS (hand-off to 1B)** — the `validation_bundle_1A` at `…/validation/fingerprint={manifest_fingerprint}/`; consumers must verify `_passed.flag` content hash equals `SHA256(bundle)` before reading `outlet_catalogue`.
 
-For each merchant–country block $(m,c)$ with integerised count $n_{m,c}\ge 0$ (from S7), materialise **exactly $n_{m,c}$** rows in **`egress/outlet_catalogue`**, encoding **within-country** order only. S8 consumes **no RNG**; it is a pure function of $\{n_{m,c}\}$, the run’s `manifest_fingerprint` $F$ and `global_seed` $S_{\text{master}}$.
+**Status:** All terms above are **Binding** and will be used verbatim in §§3–13.
 
 ---
 
-## Authoritative dataset contract (target, keys, domains)
+# 3) Authority & precedence **(Binding)**
 
-* **Target path & partitions (fixed):**
-  `data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/part-*.parquet`
-  partitions: `["seed","fingerprint"]`.
-  **PK:** `["merchant_id","legal_country_iso","site_order"]`.
-  **Sort keys / write order:** the same tuple.
-  **Inter-country order is NOT encoded** here; consumers must join `alloc/country_set.rank`.
+## 3.1 Precedence chain (normative)
 
-* **Selected column domains (enforced at write):**
-  `site_id` matches `^[0-9]{6}$`; `raw_nb_outlet_draw ≥ 1`; `final_country_outlet_count ∈ {1,…,999999}`; `site_order ≥ 1`; both ISO fields FK to canonical ISO.
-  Cross-field: $1 \le \texttt{site_order} \le \texttt{final _country _outlet _count}$.
+**Anchor resolution rule (normative).** When a `$ref` omits the document prefix:
+- `#/rng/**` resolves to `schemas.layer1.yaml`.
+- `#/validation/validation_bundle` resolves to `schemas.1A.yaml`; `#/validation/s6_receipt` resolves to `schemas.layer1.yaml`.
+- `#/s3/**` and `#/egress/**` resolve to `schemas.1A.yaml`.
+- `#/iso**` and other ingress FK anchors resolve to `schemas.ingress.layer1.yaml`.
 
----
+1. **JSON-Schema is the single schema authority** for all S8 inputs/outputs/logs: `schemas.1A.yaml`, `schemas.layer1.yaml`, `schemas.ingress.layer1.yaml`. **Avro (if any) is non-authoritative.**
+2. The **Dataset Dictionary** (`dataset_dictionary.layer1.1A.yaml`) governs **dataset IDs, physical path templates, partitions, writer sort, PK/FK, lifecycle and retention**. 
+3. **This S8 spec** defines the **behavioural rules** under (1) and (2). (Pattern established in S7/S6 carries forward unchanged.)
 
-## Inputs (MUST) and fixed encoders
+> If a dictionary entry and a schema disagree on **shape or typing**, the **schema wins** (dictionary must be fixed). If an implementation uses literal paths, it is non-conformant—**all IO resolves via the dictionary**. 
 
-For merchant $m$ with **ordered** country set $\mathcal{C}_m$ from `country_set` (unique `rank=0` home), S8 receives: $n_{m,c}\in\mathbb{Z}_{\ge 0}$ for each $c\in\mathcal{C}_m$, and run lineage $F,S_{\text{master}},P{=}\texttt{parameter _hash}$.
+## 3.2 What each authority decides (scope partitioning)
 
-* **Merchant totals (conservation, normative):**
+* **JSON-Schema (source of truth):** row/record **shape**, field domains & types, **PK/UK** definitions, event envelope fields, and required lineage columns.
+* **Dataset Dictionary:** dataset **IDs → schema `$ref`**, **partition keys** (e.g., `[seed, fingerprint]` for S8 egress; `[parameter_hash]` for parameter-scoped inputs), **writer sort**, and **consumer gates** text. 
+* **This S8 spec:** behavioural rules (e.g., “within-country sequencing only”), **prohibitions**, invariants, error/degrade ladder, and **PASS-gate** expectations. 
 
-  $$
-  N_m \;:=\; \sum_{c\in\mathcal C_m} n_{m,c}\ \in\ \mathbb Z_{\ge 1}.
-  $$
+## 3.3 Fixed upstream authorities S8 MUST honour
 
-  S8 writes `raw_nb_outlet_draw = N_m` **identically** on every row of merchant $m$.
-  *This removes any dependency on a “wide record.”*
+* **Inter-country order authority:** **only** S3 `s3_candidate_set.candidate_rank` (total, contiguous; `home=0`). S8 **MUST NOT** encode or alter cross-country order; consumers **MUST** join S3 when order is required.
+* **Counts authority:** merchant-level `N` from **`rng_event.nb_final`** (S2, non-consuming) and **per-country integer counts** from S7 residual evidence (or `s3_integerised_counts` if S3 owns it). S8 **MUST NOT** re-derive either.
+* **Gating principle:** **No PASS → no read** remains in force for 1A consumers; the dictionary’s `outlet_catalogue` entry encodes this gate for 1B.
 
-* **Implied single/multi flag:** `single_vs_multi_flag = (N_m > 1)` (if not supplied as boolean upstream, cast at write).
+## 3.4 Prohibitions & legacy notes (binding)
 
-* **Home country:** `home_country_iso = c_0`, where `rank(c_0)=0` in `country_set` for $m$.
+* **Avro `.avsc`** files (if generated) are **non-authoritative** and **MUST NOT** be referenced by registry/dictionary entries. 
+* **Legacy `country_set`** is **not** an order authority; using it for cross-country order is non-conformant. 
+* **File order is non-authoritative** (RNG/event streams use counters & envelopes; tables rely on PK/sort defined in the dictionary). 
 
-* **Overflow threshold:** $U=999{,}999$.
+**Status:** Section 3 is **Binding**.
 
-* **Site-id encoder (C locale):** $\sigma(j)=\text{zpad6}(j)$ for $j\in\{1,\dots,U\}$ using **ASCII digits**. Because $j\ge 1$, `"000000"` is unreachable.
-
 ---
 
-## Normative construction
+# 4) Compatibility window & numeric environment **(Binding)**
 
-### (A) Central pre-scan for overflow (exactly-once, then abort)
+## 4.1 Baselines S8 binds to (v1.* line)
 
-Before emitting **any** rows:
+S8 v1.* is compatible with—and **assumes**—the following authorities remain on their **v1.* line**; a **MAJOR** bump in any requires S8 re-ratification and a SemVer **MAJOR** increment for this spec:
 
-1. Build $\mathcal{O}=\{(m,c): n_{m,c}>U\}$.
-2. If $\mathcal{O}\neq\varnothing$:
+* **Layer-wide RNG/log schemas:** `schemas.layer1.yaml v1.0`. 
+* **1A tables & egress schemas:** `schemas.1A.yaml v1.0`. 
+* **Ingress/reference schemas:** `schemas.ingress.layer1.yaml v1.0`. 
+* **Dataset Dictionary:** `dataset_dictionary.layer1.1A.yaml` (IDs, path templates, partitions, writer sort). 
 
-   * Let $(m^\*,c^\*)=\min_{\text{lex}} \mathcal{O}$ under `(merchant_id, legal_country_iso)`.
-   * **Emit exactly one** zero-draw `site_sequence_overflow` with payload:
+## 4.2 Lineage interaction with compatibility (fingerprints vs parameter scope)
 
-     ```json
-     {
-       "merchant_id": m*,
-       "legal_country_iso": c*,
-       "attempted_count": n_{m*,c*},
-       "max_seq": 999999,
-       "overflow_by": n_{m*,c*} - 999999,
-       "severity": "ERROR"
-     }
-     ```
+* **`parameter_hash`** flips when **any governed parameter bytes** change (policy/config members of 𝓟). **`manifest_fingerprint`** flips when **any opened artefact** (schemas, dictionary, ISO, governance files) or the **code commit** changes. These keys are **orthogonal** to SemVer and govern partitions and reproducibility for S8. 
+* The **manifest** explicitly **includes** the pinned **numeric policy** and **math profile manifest**, so changing either will change the **`manifest_fingerprint`** for the run. 
 
-     Path: `logs/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`
-     Schema: `schemas.layer1.yaml#/rng/events/site_sequence_overflow`
-   * **Abort** the egress build for this `(seed,fingerprint)` — no staging, no partials.
+## 4.3 Numeric environment (must hold for S8)
 
-*(This ensures 0/1 overflow events under sharding.)*
+S8 **inherits** the Layer-1 numeric environment; producers and validators **MUST** attest it before publishing S8 egress:
 
-### (B) Per-block sequence space
+* **Policy pins (governance):**
+  - **Rounding:** **RNE** (round-to-nearest, ties-to-even)
+  - **FMA:** **off**
+  - **FTZ/DAZ:** **off** (no flush-to-zero, no denormals-are-zero)
+  - **Subnormals:** **preserved**
+  These are defined in `schemas.layer1.yaml#/governance.numeric_policy_profile` and pinned in the Artefact Registry as `numeric_policy_profile`.
+* **Math library profile (deterministic libm):** function set/signatures are frozen via `math_profile_manifest` and participate in the manifest fingerprint.
+* **Attestation artefact:** S0 writes `numeric_policy_attest.json` into the fingerprinted validation bundle; fields include `rounding_ok`, `fma_off_ok`, `subnormals_ok`, `libm_regression_ok`, `neumaier_ok`, `total_order_ok`, `passed`. S8 **MUST** run only under a fingerprint where this attestation **passed**.
 
-For each $(m,c)$, define
+> **Note:** S8’s egress (`outlet_catalogue`) is integer/string-typed; however, S8 **still** relies on this environment for deterministic validation and any numeric checks performed during sequencing and logging. 
 
-$$
-\mathcal{J}_{m,c}=\{1,2,\dots,n_{m,c}\}.
-$$
+## 4.4 S8 numeric constants & identifier limits (binding)
 
-If $n_{m,c}=0$ then $\mathcal{J}_{m,c}=\varnothing$ and **no rows** are emitted for that block.
+* **Six-digit sequence tokens:** any within-country sequence values exposed in events use the `$defs.six_digit_seq` pattern `^[0-9]{6}$`. 
+* **Overflow guardrail:** if a per-country allocation would exceed the 6-digit ceiling, producers **MUST** emit `rng_event.site_sequence_overflow` with `{attempted_count, max_seq=999999, overflow_by}` and **fail the merchant**. 
+* **Sequence finalize event:** per `(merchant_id,country_iso)` block, `rng_event.sequence_finalize` records `{site_count, start_sequence, end_sequence}` using `six_digit_seq`. 
 
-### (C) Row expansion (pure map)
+## 4.5 Evolution rules (numeric/compatibility changes)
 
-For each $(m,c)$ with $n_{m,c}>0$, and for each $j\in\mathcal{J}_{m,c}$, **emit one row**:
+* **MAJOR (re-ratify S8):** changing any field/domain in `numeric_policy_profile` (e.g., enabling FMA), altering `six_digit_seq` width/range, or changing the required fields/semantics of `sequence_finalize` / `site_sequence_overflow`.
+* **MINOR (backward-compatible):** adding optional **attestation** fields, or **diagnostic** event payload members that do not affect required fields or envelopes; updating `math_profile_manifest` contents **with** a fresh attestation (this flips `manifest_fingerprint` but does not break readers).
 
-$$
-\begin{aligned}
-&\texttt{merchant_id}=m,\qquad \texttt{legal _country _iso}=c,\\
-&\texttt{site _order}=j,\qquad \texttt{site _id}=\sigma(j)\ \ (\text{6 digits, C locale}),\\
-&\texttt{home _country _iso}=c_0,\quad
-  \texttt{single _vs _multi _flag}=(N_m>1),\\
-&\texttt{raw _nb _outlet _draw}=N_m,\quad
-  \texttt{final _country _outlet _count}=n_{m,c},\\
-&\texttt{manifest _fingerprint}=F,\quad \texttt{global _seed}=S_{\text{master}}.
-\end{aligned}
-$$
+**Status:** Section 4 is **Binding**.
 
-*Single-site trivial case:* if $N_m=1$, the only non-empty block is $c_0$ with $n_{m,c_0}=1$; S8 emits exactly **one** row with `site_order=1`, `site_id="000001"`.
+---
 
-### (D) Write-stability ordering (must)
+# 5) Identity, lineage & partition law **(Binding)**
 
-Generate (or sort) rows **lexicographically** by
-$(\texttt{merchant _id},\texttt{legal _country _iso},\texttt{site _order})$.
-This matches the dataset’s sort keys and guarantees byte-stable output across platforms. **Inter-country order is not encoded**; consumers use `country_set.rank`.
+This section fixes **what keys partition which artefacts**, how **path tokens must equal embedded lineage**, and the **atomic publish/idempotence** rules. All clauses here are **normative**.
 
-### (E) Audit attestation (non-consuming)
+## 5.1 Canonical partitions & paths (by artefact class)
 
-For each non-empty block $(m,c)$, **emit exactly one** zero-draw `sequence_finalize` with payload:
+**Egress (S8 output).**
+`outlet_catalogue` is **fingerprint-scoped** under
+`data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint]` and writer sort `[merchant_id, legal_country_iso, site_order]`. Schema anchor: `schemas.1A.yaml#/egress/outlet_catalogue`.
 
-```json
-{
-  "merchant_id": m,
-  "legal_country_iso": c,
-  "site_count": n_{m,c},
-  "start_sequence": "000001",
-  "end_sequence": "<zpad6(n_{m,c})>"
-}
-```
+**Parameter-scoped inputs (RNG-free; upstream).**
+Examples: `s3_candidate_set`, `s3_integerised_counts`, `s3_site_sequence` when present. These live under `…/parameter_hash={parameter_hash}/` (partition `[parameter_hash]`). Schema anchors: `schemas.1A.yaml#/s3/*`.
 
-Path: `logs/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`
-Schema: `schemas.layer1.yaml#/rng/events/sequence_finalize`.
+**RNG core logs & events (read by validators / instrumentation).**
+All RNG JSONL streams (e.g., `rng_audit_log`, `rng_trace_log`, `rng_event.*` including `sequence_finalize`, `site_sequence_overflow`) are partitioned by `{seed, parameter_hash, run_id}` with canonical paths like
+`logs/rng/<stream>/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`. Envelope fields are governed by `schemas.layer1.yaml` and **required** on every event row.
 
-Counters are non-advancing (`before==after`); see S8.4.
+**Validation bundle & hand-off gate.**
+The 1A validation bundle is **fingerprint-scoped** at
+`data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` and supplies the `_passed.flag` that gates 1B consumption.
 
----
+## 5.2 Path↔embed equality (must hold)
 
-## Invariants (MUST hold)
+**Egress rows.** `outlet_catalogue.manifest_fingerprint` **MUST byte-equal** the `fingerprint` path token for the same partition, and `global_seed` **MUST** equal the `seed` path token. **Pattern (for `manifest_fingerprint`):** `^[a-f0-9]{64}$`.
 
-1. **Row count:** For every $(m,c)$, the number of materialised rows equals $n_{m,c}$; for $n_{m,c}=0$ there are **zero** rows.
-2. **Within-block order & bijection:** Inside a block, `site_order` is a **gap-free** $\{1..n_{m,c}\}$ and `site_id = zpad6(site_order)`; thus `site_id` is unique **within the block**.
-3. **Write order:** Rows are written in `(merchant_id, legal_country_iso, site_order)` lexicographic order.
-4. **Partition echo:** For every row, `seed == global_seed` and `fingerprint == manifest_fingerprint`.
-5. **Merchant conservation & constants:** For each merchant $m$:
-   $\texttt{raw _nb _outlet _draw} = \sum_c \texttt{final _country _outlet _count}$ and is identical on every row; `home_country_iso` and `single_vs_multi_flag` are merchant-constant.
-6. **No RNG:** S8 emits only **zero-draw** events; `draws=0` and `after==before` in their envelopes (asserted in S8.4).
+**Parameter-scoped tables.** Each row **MUST** embed `parameter_hash` and it **MUST equal** the `parameter_hash` path token. If present, `produced_by_fingerprint` is **informational only** (not a partition key nor part of equality).
 
----
+**RNG logs/events.** Event rows **MUST** embed `{seed, parameter_hash, run_id, manifest_fingerprint}`. `{seed, parameter_hash, run_id}` **MUST** match their path tokens **byte-for-byte**. `manifest_fingerprint` **MUST** equal the run’s egress fingerprint (it is **not** a path token).
 
-## Error handling (abort semantics)
+## 5.3 Identity, immutability & atomic publish
 
-Abort S8 for the merchant-set/partition if any occurs:
+**Identity of a partition.** *(“fingerprint” path token equals `manifest_fingerprint` column value.)*
 
-* `E-S8.2-OVERFLOW` — handled by **(A)**: one `site_sequence_overflow` event, then abort; **no** egress written.
-* `E-S8.2-DOMAIN` — a to-be-emitted row would violate schema domain/range/regex (e.g., `site_order<1`, `site_id` not `^[0-9]{6}$`, `final_country_outlet_count<1` for a persisted row).
-* `E-S8.2-PK-DUP` — duplicate `("merchant_id","legal_country_iso","site_order")` within staged output. (Should be impossible; still enforced.)
-* `E-S8.2-ECHO` — any row’s `global_seed` or `manifest_fingerprint` doesn’t equal the partition tokens. (Checked at write.)
-* `E-S8.2-ATTEST` — required zero-draw event emission fails for either label. *(Caller must fail the build; S8.4 reconciles payload and envelope counters.)*
+* Egress: `(dataset='outlet_catalogue', seed, manifest_fingerprint)`.
+* Parameter-scoped: `(dataset_id, parameter_hash)`.
+* RNG streams: `(stream_name, seed, parameter_hash, run_id)`.
+  Publishing to an existing identity **MUST** result in **byte-identical content** or be a no-op. 
 
----
+**Atomicity.** Producers **MUST** stage to a temp path, fsync, then perform a single **atomic rename** into the dictionary path. **No partial contents** may become visible.
 
-## Reference pseudocode (deterministic; language-agnostic)
+**Immutability & idempotence.** A published partition is **immutable**; re-runs with identical inputs, numeric policy, and lineage **MUST** yield **bit-identical** outputs for egress and **value-identical** rows for streams (byte-identity if a writer policy is pinned). **File order is non-authoritative.**
 
-```pseudo
-function s8_2_construct_and_stage(F, S_master, parameter_hash, country_set, counts):
-    # country_set: iterable of (merchant_id=m, legal_country_iso=c, rank, is_home)
-    # counts: map[(m,c)] -> n >= 0
+## 5.4 Key formats & allowed values (schema-anchored)
 
-    # ---- (A) pre-scan overflow ----
-    offenders := []
-    for (m,c) in country_set:
-        n := counts[(m,c)]
-        if n > 999999: offenders.append((m,c,n))
-    if not empty(offenders):
-        (m*, c*, n*) := lexicographic_min(offenders by (m,c))
-        emit_event(
-            label="site_sequence_overflow", draws=0,
-            payload={
-              merchant_id:m*, legal_country_iso:c*,
-              attempted_count:n*, max_seq:999999, overflow_by:n*-999999,
-              severity:"ERROR"
-            },
-            seed=S_master, parameter_hash=parameter_hash, manifest_fingerprint=F
-        )
-        abort("E-S8.2-OVERFLOW")
+* `seed` is `uint64`. `run_id` is **lowercase hex32**. `parameter_hash` and `manifest_fingerprint` are **lowercase hex64**. These formats are enforced in `schemas.layer1.yaml` `$defs`. 
+* `site_id` follows `^[0-9]{6}$` and is **not** a partition key. 
 
-    # ---- compute merchant totals & home ----
-    by_merchant := group counts by m
-    STAGE := []
+## 5.5 Writer sort & non-authoritative physical order
 
-    for m in sort(keys(by_merchant)):
-        N_m := sum(n for (_, n) in by_merchant[m])        # conservation definition
-        home := iso_with_rank0(country_set, m)
-        H := (N_m > 1)
+* Egress writer sort is `[merchant_id, legal_country_iso, site_order]` as per **Dataset Dictionary**/**Schema**; readers **MUST NOT** rely on file order beyond these keys.
+* RNG JSONL **row order across files is non-semantic**; equality is by **row set**. Within a file, line order reflects append order only. 
 
-        for (c, n) in by_merchant[m]:
-            if n == 0: continue
-            for j in 1..n:
-                STAGE.append({
-                  manifest_fingerprint: F,
-                  merchant_id: m,
-                  site_id: zpad6(j),                       # C locale, ASCII digits
-                  home_country_iso: home,
-                  legal_country_iso: c,
-                  single_vs_multi_flag: H,
-                  raw_nb_outlet_draw: N_m,
-                  final_country_outlet_count: n,
-                  site_order: j,
-                  global_seed: S_master
-                })
+## 5.6 Multi-run semantics (logs)
 
-            emit_event(
-              label="sequence_finalize", draws=0,
-              payload={
-                merchant_id:m, legal_country_iso:c,
-                site_count:n, start_sequence:"000001", end_sequence:zpad6(n)
-              },
-              seed=S_master, parameter_hash=parameter_hash, manifest_fingerprint=F
-            )
+`run_id` partitions **logs only** and does **not** alter modelling state/outcomes; multiple `run_id`s may coexist for the same `{seed, parameter_hash}` without changing dataset semantics. 
 
-    # ---- (D) write-stability ----
-    STAGE.sort_by((merchant_id, legal_country_iso, site_order))
-    parquet_write("data/layer1/1A/outlet_catalogue/seed={S_master}/fingerprint={F}/", STAGE)
-```
+## 5.7 Receipt & gate placement (lineage consequences)
 
----
+* Egress is **fingerprint-scoped** and consumed **only after** verifying the validation bundle `_passed.flag` for the **same** fingerprint (content hash equals `SHA256(bundle)`). 
+* S8 MUST verify **upstream gates** before reading convenience surfaces (e.g., **S6 PASS** if reading `s6_membership`). Gate locations and partitions are defined in the dictionary. 
 
-## Conformance tests (must-pass)
+## 5.8 Retention & ownership (for completeness)
 
-1. **Zero-block:** $n_{m,c}=0$ → no rows for that $(m,c)$. Table remains valid and ordered.
-2. **Happy path:** $n_{m,c}=3$ → three rows; `site_order=[1,2,3]`; `site_id=["000001","000002","000003"]`; `final_country_outlet_count=3` constant; PK unique; one `sequence_finalize` with `start="000001"`, `end="000003"`.
-3. **Overflow (centralised):** some $n_{m,c}=1{,}000{,}000$ → **one** `site_sequence_overflow` with `attempted_count=1_000_000`, `max_seq=999_999`, `overflow_by=1`; **no** egress staged/written.
-4. **Write order:** Generate rows out of order intentionally; final files must be sorted by `(merchant_id, legal_country_iso, site_order)`.
-5. **Domain guard:** Inject `site_id="12345"` (5 digits) or persist a row with `final_country_outlet_count=0` → schema validator rejects with `E-S8.2-DOMAIN`.
-6. **Partition echo:** All rows echo `seed==global_seed` and `fingerprint==manifest_fingerprint`; otherwise `E-S8.2-ECHO`.
-7. **Conservation:** For each merchant, $\sum_c \texttt{final _country _outlet _count} = \texttt{raw _nb _outlet _draw}$ across that merchant’s rows.
+Retention periods and producer/consumer ownership are normative in the **Dataset Dictionary** and **Artefact Registry** (e.g., RNG events typically 180 days; core logs 365 days); S8 producers **MUST** respect these policies when publishing.
 
----
+**Status:** Section 5 is **Binding**.
 
-## Complexity & determinism
+---
 
-Let $T=\sum_m\sum_{c\in\mathcal{C}_m} n_{m,c}$. Construction is $\Theta(T)$ time and output size; sorting is linear if rows are generated in key order (or $T\log T$ if you materialise then sort). With fixed $(\{n_{m,c}\},F,S_{\text{master}})$, replay is **byte-stable**.
+# 6) Read set & pre-read gates **(Binding)**
 
----
+This section freezes **exactly what S8 is allowed to read** (IDs → schema anchors → partitions), and the **gates** S8 MUST verify *before* reading any convenience surface. All items below are **normative**.
 
-This locks S8.2: exact expansion rules, **centralised overflow** guard, conservation-defined merchant totals, aligned event payloads, partition echoes, write-stability, and conformance tests — all wired to your schema and registry.
+## 6.1 Required inputs (IDs → `$ref` → partitions)
 
----
+* **Inter-country order & domain (sole authority):**
+  **`s3_candidate_set`** → `schemas.1A.yaml#/s3/candidate_set` → **partition:** `parameter_hash={…}`.
+  *Guarantees:* total & contiguous `candidate_rank` per merchant; `candidate_rank(home)=0`; embedded `parameter_hash` equals path key (path↔embed equality). S8 MUST use this for **all** cross-country ordering.
 
-# S8.3 — Keys, domains, cross-field constraints & validator (schema-tight)
+* **Domestic count (fact `N` for each merchant):**
+  **`rng_event.nb_final`** → `schemas.layer1.yaml#/rng/events/nb_final` → **partition:** `{seed, parameter_hash, run_id}`; **exactly one** per resolved merchant; **non-consuming** envelope. S8 uses `n_outlets` to populate `raw_nb_outlet_draw` and for sum checks.
 
-## Scope
+* **Per-country integer counts (authority for `final_country_outlet_count`):**
+  **Variant A (preferred, if present):** **`s3_integerised_counts`** → `schemas.1A.yaml#/s3/integerised_counts` → **partition:** `parameter_hash={…}`. Contains `{merchant_id,country_iso,count,residual_rank}`; S8 MUST read this when it exists. 
+  **Variant B (no S3 counts surface):** counts flow *in-process* from S7 into S8; S8 MUST NOT reconstruct counts from weights. (Validators will re-derive independently; see §11.) The deprecated `ranking_residual_cache_1A` is **not** an authority.
 
-This sub-state turns the egress schema for **`outlet_catalogue`** into **executable predicates**: primary/partition/sort keys, column domains (types, ranges, regex), **cross-field** rules (`site_id = zpad6(site_order)`, per-block constants), **additional uniqueness** (within-block `site_id`), **FK**s, **echo invariants** (row ↔ partition), and **merchant-level conservation**. These rules are enforced at write-time, then mirrored by S9.
+* **Membership of foreigns (domain members beyond home):**
+  **Option 1 (convenience surface):** **`s6_membership`** → `schemas.1A.yaml#/s6/membership` → **partition:** `seed={seed}, parameter_hash={parameter_hash}`. **Gate required** (see §6.3). Order still comes from S3. 
+  **Option 2 (authoritative log reconstruction):** **`rng_event.gumbel_key`** → `schemas.layer1.yaml#/rng/events/gumbel_key` and **`rng_event.ztp_final`** → `schemas.layer1.yaml#/rng/events/ztp_final` → **partition:** `{seed, parameter_hash, run_id}`. Use keys + `K_target` to recover membership when `s6_membership` is absent. 
 
----
+> **FK sources** are enforced by schema on egress (ISO2); S8 needn’t read ISO directly. (FK target: `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`.) 
 
-## Authoritative dataset contract (path, keys, schema)
+## 6.2 Conditional/variant inputs (read only if present)
 
-* **Path & partitions (fixed):**
-  `data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/part-*.parquet`
-  with **partition keys** `["seed","fingerprint"]`. Writer must ensure every row echoes `global_seed==seed` and `manifest_fingerprint==fingerprint`.
+* **If sequencing is owned upstream:** **`s3_site_sequence`** → `schemas.1A.yaml#/s3/site_sequence` → `parameter_hash={…}`. When present, S8 **cross-checks** it but still writes `outlet_catalogue`; S8 **MUST NOT** change sequence semantics. 
 
-* **Primary key (PK):** `["merchant_id","legal_country_iso","site_order"]`.
-  **Sort keys / write order:** same tuple — `(merchant_id, legal_country_iso, site_order)`.
-  **Policy:** **Inter-country order is not encoded** (consumers join `country_set.rank`).
+## 6.3 Pre-read gates S8 MUST enforce
 
-* **Schema ref:** `schemas.1A.yaml#/egress/outlet_catalogue`. (Columns and constraints below copy that schema exactly.)
+* **S6 gate (for any S6 convenience surface):** If reading **`s6_membership`**, verify the **S6 PASS receipt** at
+  `data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/` where `_passed.flag` content hash equals `SHA256(S6_VALIDATION.json)` for the **same** `{seed,parameter_hash}`. **No PASS → no read.**
 
-* **Schema extension (uniqueness note):**
-  `x-unique-keys: [["merchant_id","legal_country_iso","site_id"]]`
-  *(Within-block `site_id` uniqueness; no global uniqueness across countries or merchants.)*
+* **S5 gate:** S8 does **not** require S5 surfaces. If any implementation chooses to *touch* S5 artefacts, S8 MUST verify the **S5 parameter-scoped PASS** first. (By spec, S8 SHOULD NOT read S5.) 
 
-* **Registry notes / gate:** Depends on `country_set` and RNG event streams (`sequence_finalize`, `site_sequence_overflow`).
-  **Producer module:** `1A.site_id_allocator` (a **module**, not a dataset).
-  1B may read **only after** `_passed.flag` matches `SHA256(validation_bundle_1A)` for the same fingerprint.
+* **Path↔embed lineage equality:** For every read where lineage columns are embedded, bytes **must equal** the path tokens (e.g., `parameter_hash` on S3 datasets; `{seed,parameter_hash,run_id}` on RNG events). 
 
----
+## 6.4 Input validity checklist (fail-fast; MUST pass before any write)
 
-## Column domains (normative — from schema)
+Per merchant, S8 SHALL assert:
 
-For every persisted row:
+1. **S3 candidate set** present and schema-valid; `candidate_rank` is total, contiguous; exactly one `home` with rank `0`. 
+2. **`nb_final`** present (exactly one per merchant) and schema-valid. 
+3. **Counts source available:** either `s3_integerised_counts` present (schema-valid) **or** an in-process counts handoff from S7 is active; **never** reconstruct from weights in S8. Deprecated `ranking_residual_cache_1A` MUST NOT be read.
+4. **Membership resolved:** EITHER `s6_membership` is present **and** S6 PASS is verified, OR `gumbel_key` **and** `ztp_final` events exist to reconstruct; otherwise **abort** with `E_PASS_GATE_MISSING` (if S6 PASS missing) or `E_COUNTS_SOURCE_MISSING` (if counts source missing).
+5. **Lineage parity:** all embeds equal their path partitions (S3 tables, RNG events). 
 
-* `manifest_fingerprint`: **string**, pattern `^[a-f0-9]{64}$` (lowercase hex64). **Must equal** partition `{fingerprint}`.
-* `merchant_id`: `id64` (non-null).
-* `site_id`: **string**, `^[0-9]{6}$` (six decimal digits; zero-padded). *(Reachable set excludes `"000000"` because `site_order ≥ 1` — see cross-field rules.)*
-* `home_country_iso`: ISO-2 with FK → `schemas.ingress.layer1.yaml#/iso3166_canonical_2024.country_iso`.
-* `legal_country_iso`: ISO-2 with the **same FK**.
-* `single_vs_multi_flag`: **boolean** (writer may cast upstream {0,1} → bool at write).
-* `raw_nb_outlet_draw`: `int32`, **minimum 1** (merchant-constant).
-* `final_country_outlet_count`: `int32`, **minimum 1**, \*\*maximum 999999\`.
-* `site_order`: `int32`, **minimum 1**. *(Upper bound tied by cross-field constraint.)*
-* `global_seed`: `uint64`. **Must equal** partition `{seed}`.
+## 6.5 Prohibitions (read side)
 
-**Cross-field domain (schema-declared):**
+* S8 MUST NOT read **S5 weight surfaces** to derive counts or order; S5 remains weights authority for S6/S7 only. 
+* S8 MUST NOT use legacy **`country_set`** as an order authority; use S3 `candidate_rank` only. 
 
-$$
-\boxed{\,1 \le \texttt{site _order} \le \texttt{final _country _outlet _count}\,}.
-$$
+**Status:** Section 6 is **Binding**.
 
 ---
-
-## Cross-field constraints (normative — beyond column types)
 
-1. **Site-ID encoder (bijection in block).**
-   Within each $(m,c)$: `site_id == zpad6(site_order)` using the **C locale (ASCII digits)**.
-   Implications: `site_id` is **unique within the block** (bijective with `site_order ∈ {1..n_{m,c}}`); `"000000"` is **unreachable**.
+# 7) Write set & contracts **(Binding)**
 
-2. **Block constants (groupwise).**
-   For a fixed $(m,c)$: `final_country_outlet_count` is **constant** and equals the block size, and `legal_country_iso == c` for **all** rows; hence
+This section fixes **exactly what S8 writes**, with schema anchors, partitions, PK/sort, column domains, and the **only** instrumentation events S8 emits.
 
-$$
-\#\{\text{rows for }(m,c)\} = \texttt{final _country _outlet _count}.
-$$
+---
 
-3. **Merchant constants & conservation.**
-   For each merchant $m$:
+## 7.1 Primary egress — `outlet_catalogue` (immutable)
 
-* `raw_nb_outlet_draw` is **constant** across all rows for $m$, and
-* **Conservation (must-hold):**
+**Dataset ID & schema.** `outlet_catalogue` → `schemas.1A.yaml#/egress/outlet_catalogue`. 
 
-  $$
-  \texttt{raw _nb _outlet _draw}(m)\ =\ \sum_{c}\ \texttt{final _country _outlet _count}(m,c).
-  $$
-* `single_vs_multi_flag` and `home_country_iso` are **merchant-constant**.
-  *(Equality of `home_country_iso` to the rank-0 ISO in `country_set` is asserted in S9 policy tests.)*
+**Path & partitions.** `data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint]`. **Writer sort** `[merchant_id, legal_country_iso, site_order]`. **No cross-country order is encoded** in this table. 
 
-4. **Partition echo invariants.**
-   Every row: `global_seed == {seed}` and `manifest_fingerprint == {fingerprint}`.
+**Keys.** **PK** = **UK** = `[merchant_id, legal_country_iso, site_order]`. Rows are immutable within a `(seed,fingerprint)` partition. 
 
-5. **Inter-country order separation (policy).**
-   Egress **must not** encode cross-country order; consumers **must** join `alloc/country_set.rank` (0=home; foreigns in Gumbel order).
+**Lineage column.** `manifest_fingerprint` **MUST** be a lowercase hex64 and **MUST byte-equal** the `fingerprint` path token for the partition. 
 
-6. **Overflow limit (defense-in-depth).**
-   No block may have `final_country_outlet_count > 999999`. If observed in staged content, treat as a hard error (overflow should have been pre-scanned in S8.2).
+**Inter-country order boundary (binding).** Consumers that need cross-country order **MUST** join S3 `s3_candidate_set.candidate_rank` (home rank = 0). `outlet_catalogue` **MUST NOT** encode that order. 
 
 ---
 
-## Formal constraints (equational form)
+## 7.2 Column contract (types, domains, FK)
 
-**Encoder identity (per row):**
+S8 **MUST** write exactly the columns below with the stated domains:
 
-$$
-\boxed{\,\texttt{site _id}=\text{zpad6}(\texttt{site _order})\,}.
-$$
+* `manifest_fingerprint` — `string`, pattern `^[a-f0-9]{64}$` (**equals** partition `fingerprint`). 
+* `merchant_id` — `$ref: #/$defs/id64`, non-null. 
+* `site_id` — `string` (non-null), **6-digit zero-padded** per-(merchant, `legal_country_iso`) sequence, pattern `^[0-9]{6}$`.
+* `home_country_iso` — `$ref: #/$defs/iso2`, FK → `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`. 
+* `legal_country_iso` — `$ref: #/$defs/iso2`, FK → `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`. 
+* `single_vs_multi_flag` — `boolean` (copy of S1 hurdle outcome). 
+* `raw_nb_outlet_draw` — `int32`, **minimum 2** (accepted NB draw `N` before cross-border allocation). 
+* `final_country_outlet_count` — `int32`, **1..999,999** (integer outlets allocated to this `legal_country_iso`). 
+* `site_order` — `int32`, **minimum 1**, contiguous `1..nᵢ` per `(merchant_id, legal_country_iso)` block. 
+* `global_seed` — `$ref: #/$defs/uint64` (master seed retained for audit/replay). 
 
-**Within-block uniqueness:**
+**Dictionary echo (normative).** The Dataset Dictionary restates the path, partitions, ordering, schema `$ref`, and the **“no cross-country order”** note; 1B consumption is **gated** by the validation bundle for the same fingerprint. 
 
-$$
-\forall (m,c):\ \ \mathrm{Unique}\big(\{\texttt{site _id}:(m,c,*)\}\big).
-$$
+---
 
-**Merchant conservation:**
+## 7.3 Instrumentation events S8 emits (logs)
 
-$$
-\forall m:\ \ \texttt{raw _nb _outlet _draw}(m)\ =\ \sum_{c} \texttt{final _country _outlet _count}(m,c).
-$$
+S8 emits exactly two **rng_event** families, both partitioned at
+`logs/rng/events/<family>/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` and validated by `schemas.layer1.yaml`. Gating in the Dictionary ties them to multi-site merchants. 
 
-**Block constancy:**
+1. **`rng_event.sequence_finalize`** — final sequence allocation per `(merchant, country)` block.
+   **Schema anchor:** `schemas.layer1.yaml#/rng/events/sequence_finalize` (required fields: `merchant_id, country_iso, site_count, start_sequence, end_sequence`). 
+   **Dictionary entry & path pattern:** as above; gated by hurdle `is_multi==true`. 
 
-$$
-\forall (m,c):\ \ \texttt{final _country _outlet _count}\ \text{is constant over the block}.
-$$
+2. **`rng_event.site_sequence_overflow`** — guardrail event when 6-digit sequence space would be exceeded; **severity = ERROR**; producer must abort the merchant.
+   **Schema anchor:** `schemas.layer1.yaml#/rng/events/site_sequence_overflow` (required fields: `merchant_id, country_iso, attempted_count, max_seq=999999, overflow_by, severity`). 
+   **Dictionary entry & path pattern:** as above. 
 
----
+**Gating (both families).** Emitted **only** for merchants where the hurdle outcome is `is_multi == true` (as pinned in the Dataset Dictionary gating for S8 streams).
 
-## Error codes (abort semantics)
+**Trace duty (binding).** After **each** event append above, emit **exactly one** cumulative row to `rng_trace_log` for the corresponding `(module, substream_label)`; partitions `{seed, parameter_hash, run_id}`; schema `schemas.layer1.yaml#/rng/core/rng_trace_log`. 
 
-On the staged partition (prior to atomic commit):
+---
 
-* `E-S8.3-PK-DUP` — duplicate PK `(merchant_id, legal_country_iso, site_order)`.
-* `E-S8.3-SITEID-DUP` — duplicate `site_id` within the same `(merchant_id, legal_country_iso)` block.
-* `E-S8.3-DOMAIN` — column domain breach (regex/min/max/type).
-* `E-S8.3-CROSSFIELD` — cross-field breach (`1 ≤ site_order ≤ final_country_outlet_count` **or** `site_id != zpad6(site_order)`).
-* `E-S8.3-BLOCKCONST` — within a block, `final_country_outlet_count` not constant **or** `#rows != final_country_outlet_count`.
-* `E-S8.3-MERCHCONST` — merchant constants drift (`raw_nb_outlet_draw`, `single_vs_multi_flag`, `home_country_iso`).
-* `E-S8.3-CONSERVATION` — for any merchant, $\sum_c \texttt{final _country _outlet _count} \ne \texttt{raw _nb _outlet _draw}$.
-* `E-S8.3-FK-ISO` — `home_country_iso` or `legal_country_iso` not in canonical ISO (FK breach).
-* `E-S8.3-ECHO` — partition echo mismatch (row vs directory tokens).
-* `E-S8.3-OVERFLOW` — any block with `final_country_outlet_count > 999999` observed in staged content (should be pre-blocked by S8.2). Abort; ensure a `site_sequence_overflow` exists; no commit.
+## 7.4 Lineage embedding & equality (write-time checks)
 
+* **Egress rows:** `outlet_catalogue.manifest_fingerprint` **MUST equal** the `fingerprint` path token (hex64).
+* **Events:** every event row **MUST** embed `{seed, parameter_hash, run_id, manifest_fingerprint}`. `{seed, parameter_hash, run_id}` **MUST** equal their path tokens; `manifest_fingerprint` **MUST** equal the egress fingerprint for this run. 
+
 ---
+
+## 7.5 Physical format, writer sort & immutability
 
-## Reference validator (single-pass, implementation-ready)
+* `outlet_catalogue` **format:** Parquet; **writer sort:** `[merchant_id, legal_country_iso, site_order]`; partitioned `[seed, fingerprint]`; immutable once published. 
+* **Event files:** JSONL; reader semantics are **set-based** (row order non-authoritative). Trace/audit logs use the core RNG schemas. 
+* **Compression policy:** if the registry pins codecs/levels (e.g., ZSTD level 3), producers **MUST** adhere; otherwise value-identity suffices. (Outlet entry notes storage policy and gate.) 
 
-Runs **before** S8.5’s atomic publish against the **staging** output for `(seed, fingerprint)`.
+---
 
-```pseudo
-function validate_outlet_catalogue_stage(seed, fingerprint, rows_iter):
-    seen_pk      := HashSet()                           # (m,c,j)
-    seen_siteid  := HashMap<(m,c), HashSet>()           # site_id uniqueness within block
-    block_rows   := HashMap<(m,c), int64>()             # observed rows per block
-    block_fcount := HashMap<(m,c), int32>()             # asserted final_country_outlet_count
-    merch_draw   := HashMap<m, int32>()                 # merchant-constant draw
-    merch_flag   := HashMap<m, bool>()                  # merchant-constant flag
-    merch_home   := HashMap<m, ISO2>()                  # merchant-constant home ISO
-    merch_sum    := HashMap<m, int64>()                 # sum of final_country_outlet_count per merchant
+## 7.6 Prohibitions & scope limits (write side)
 
-    for row in rows_iter:
-        # Echo invariants
-        if not (row.global_seed == seed and row.manifest_fingerprint == fingerprint):
-            raise E-S8.3-ECHO
+* S8 **MUST NOT** write any artefact that **implies or encodes** inter-country order; consumers **MUST** obtain order from S3 `candidate_rank`. 
+* S8 **MUST NOT** derive counts from weights or re-allocate across countries; `final_country_outlet_count` is an upstream fact (S7/S3). (Validators will cross-check in §11.) 
 
-        # Column domains / regex / FK
-        if not matches(row.manifest_fingerprint, "^[a-f0-9]{64}$"): raise E-S8.3-DOMAIN
-        if not matches(row.site_id, "^[0-9]{6}$"): raise E-S8.3-DOMAIN
-        if row.raw_nb_outlet_draw < 1: raise E-S8.3-DOMAIN
-        if row.final_country_outlet_count < 1 or row.final_country_outlet_count > 999999: raise E-S8.3-DOMAIN
-        if row.site_order < 1: raise E-S8.3-DOMAIN
-        if not (is_valid_iso2(row.home_country_iso) and is_valid_iso2(row.legal_country_iso)):
-            raise E-S8.3-FK-ISO
+---
 
-        # Cross-field rules
-        if row.site_order > row.final_country_outlet_count: raise E-S8.3-CROSSFIELD
-        if row.site_id != zpad6(row.site_order): raise E-S8.3-CROSSFIELD
+## 7.7 Consumer gate (egress)
 
-        # PK uniqueness
-        pk := (row.merchant_id, row.legal_country_iso, row.site_order)
-        if not add_unique(seen_pk, pk): raise E-S8.3-PK-DUP
+While the **validator/PASS rules** are formalised in §11, the Dictionary **already** states the consumption gate: consumers (e.g., 1B) **MUST** verify that `_passed.flag` content hash equals `SHA256(validation_bundle_1A)` for the **same** fingerprint before reading `outlet_catalogue`. 
 
-        # Block invariants
-        k := (row.merchant_id, row.legal_country_iso)
-        block_rows[k] = block_rows.get(k, 0) + 1
-        if k not in block_fcount:
-            block_fcount[k] = row.final_country_outlet_count
-        else:
-            if block_fcount[k] != row.final_country_outlet_count: raise E-S8.3-BLOCKCONST
+**Status:** Section 7 is **Binding**.
 
-        S := seen_siteid.get_or_create(k, HashSet())
-        if not add_unique(S, row.site_id): raise E-S8.3-SITEID-DUP
+---
 
-        # Merchant constants & conservation tally
-        m := row.merchant_id
-        if m not in merch_draw: merch_draw[m] = row.raw_nb_outlet_draw
-        else: if merch_draw[m] != row.raw_nb_outlet_draw: raise E-S8.3-MERCHCONST
+# 8) Behavioural rules — materialisation & authority boundaries **(Binding)**
 
-        if m not in merch_flag: merch_flag[m] = row.single_vs_multi_flag
-        else: if merch_flag[m] != row.single_vs_multi_flag: raise E-S8.3-MERCHCONST
+This section fixes **how S8 behaves** when turning upstream facts into the immutable **`outlet_catalogue`** and what S8 is **forbidden** to do. All items are **normative**.
 
-        if m not in merch_home: merch_home[m] = row.home_country_iso
-        else: if merch_home[m] != row.home_country_iso: raise E-S8.3-MERCHCONST
+---
 
-        merch_sum[m] = merch_sum.get(m, 0) + row.final_country_outlet_count
+## 8.1 Domain & row emission (what becomes rows)
 
-    # Post-pass checks
-    for k in block_rows.keys():
-        if block_rows[k] != block_fcount[k]: raise E-S8.3-BLOCKCONST
-        if block_fcount[k] > 999999: raise E-S8.3-OVERFLOW
+* **Domain source.** S8’s per-merchant legal domain is the **S3 candidate set** (`s3_candidate_set`) — the only authority for cross-country membership and order (home has `candidate_rank=0`).
+* **Counts authority.** For each `(merchant_id, legal_country_iso)`, the integer count **`nᵢ`** comes from **S7 residual evidence** (or **`s3_integerised_counts`** if S3 owns it). S8 **MUST NOT** re-derive counts from weights or any other surface.
+* **Emission rule.** S8 **emits rows only for countries with `nᵢ ≥ 1`**. If `nᵢ == 0`, S8 emits **no rows** for that `(merchant,country)`. 
+* **Multi-site scope.** `outlet_catalogue.raw_nb_outlet_draw` is defined with **minimum 2**; therefore **S8 writes only multi-site merchants** (`is_multi==true`). Singles are out of scope for this egress. 
 
-    for m in merch_sum.keys():
-        if merch_sum[m] != merch_draw[m]: raise E-S8.3-CONSERVATION
+---
 
-    return OK
-```
+## 8.2 Within-country sequencing (what S8 constructs)
 
-* `is_valid_iso2` performs the FK test by joining the canonical ISO dataset embedded in the schema.
-* This validator is **O(T)** over $T$ rows; memory is proportional to the number of blocks/merchants in the staged partition.
+* **Contiguous local order.** For each `(merchant_id, legal_country_iso)` with `nᵢ≥1`, S8 **MUST** produce a contiguous **`site_order = 1..nᵢ`** (no gaps, no duplicates). 
+* **Deterministic `site_id`.** S8 **MUST** render `site_id = "{site_order:06d}"` (zero-padded 6-digit string; e.g., `1→"000001"`, `42→"000042"`). `site_id` uniqueness is **scoped to `(merchant_id, legal_country_iso)`**. 
+* **No cross-country order.** S8 **MUST NOT** encode any inter-country order in `outlet_catalogue`. Consumers that need cross-country order **MUST** join S3 `candidate_rank`.
 
 ---
 
-## Conformance tests (must-pass)
+## 8.3 Instrumentation events (what S8 logs)
 
-1. **Happy path / small block.** $(m,c)$ with $n_{m,c}=3$: `site_order=[1,2,3]`, `site_id=["000001","000002","000003"]`, `final_country_outlet_count=3`; PK unique; `site_id` unique within block. ✔︎
-2. **Zero-block elision.** If $n_{m,c}=0$, there are **no rows** for $(m,c)$. ✔︎
-3. **Partition echo mismatch.** Valid row data but `global_seed` ≠ partition `seed` → `E-S8.3-ECHO`. ✔︎
-4. **Site-ID collision.** Duplicate `site_id` within a block → `E-S8.3-SITEID-DUP` / `E-S8.3-CROSSFIELD`. ✔︎
-5. **Block-constant drift.** `#rows != final_country_outlet_count` or value not constant → `E-S8.3-BLOCKCONST`. ✔︎
-6. **Merchant constant drift.** Change `raw_nb_outlet_draw` mid-merchant → `E-S8.3-MERCHCONST`. ✔︎
-7. **Conservation breach.** $\sum_c \texttt{final _country _outlet _count}$ ≠ `raw_nb_outlet_draw` → `E-S8.3-CONSERVATION`. ✔︎
-8. **Domain guard.** `final_country_outlet_count=1_000_000` or `site_id="12345"` → `E-S8.3-DOMAIN` (and/or `E-S8.3-OVERFLOW`). ✔︎
-9. **FK breach.** `legal_country_iso="ZZ"` not in canonical ISO → `E-S8.3-FK-ISO`. ✔︎
+* **Finalize per block.** After materialising the rows for a `(merchant, country)` block with `nᵢ≥1`, S8 **MUST** append exactly one **`rng_event.sequence_finalize`** with
+  `site_count = nᵢ`, `start_sequence = "000001"`, `end_sequence = "{nᵢ:06d}"`. Event partitions `{seed, parameter_hash, run_id}`; schema `#/rng/events/sequence_finalize`.
+* **Overflow guardrail.** If `nᵢ > 999999`, S8 **MUST** emit **`rng_event.site_sequence_overflow`** (`attempted_count=nᵢ`, `max_seq=999999`, `overflow_by=nᵢ−999999`, `severity="ERROR"`) and **fail the merchant** (no egress rows for that merchant). 
+* **Non-consuming law.** Both events above are **non-consuming** RNG events: **`before==after`, `blocks=0`, `draws="0"`** (envelope identity). **After each event append,** S8 **MUST** append **exactly one** cumulative row to `rng_trace_log`. 
+* **Gating.** S8’s event families are **present iff** the merchant is multi-site (`is_multi==true`) as encoded in the dictionary **gating** for those streams. 
 
 ---
 
-## Why this matters (auditability & hand-off)
+## 8.4 Egress row content (how values are filled)
 
-These predicates make S8’s output **mechanically checkable** and replayable: PK/partition/echo ensure immutability; domain & regex prevent malformed IDs; **within-block bijection** fixes the semantics of `site_id`; **conservation** ties the merchant total to per-country counts; FK prevents drift in country codes; and separation of inter-country order avoids policy leakage. With the 1B gate (`_passed.flag` equals `SHA256(validation_bundle_1A)`), downstream will only ever read a partition that satisfies all of the above.
+For each persisted row in `outlet_catalogue`:
 
----
+* `manifest_fingerprint` **MUST** equal the partition `fingerprint` (**hex64**).
+* `raw_nb_outlet_draw` **MUST** copy S2’s **`nb_final.n_outlets (N ≥ 2)`** for the merchant (same value on all rows for that merchant). 
+* `final_country_outlet_count` equals `nᵢ` for that `(merchant, legal_country_iso)`; **per-merchant sum** `Σᵢ nᵢ = N`. 
+* `global_seed` **MUST** equal the run’s master `seed` (uint64). 
 
-# S8.4 — Event emission (audit trail)
+---
 
-## 1) Purpose & scope (normative)
+## 8.5 Authority boundaries (what S8 must respect)
 
-S8 constructs **within-country** site sequences *without consuming RNG*. It must still emit *structured RNG events* to (a) attest what was written and (b) keep Philox lineage continuous. Labels in scope:
+* **Order authority.** **Only** S3 `candidate_rank` may define cross-country order; S8 **MUST NOT** invent, persist, or imply any inter-country order. 
+* **Counts authority.** S8 **MUST** treat per-country integer counts as **read-only facts** (S7 / `s3_integerised_counts`). **No renormalisation, no rounding, no re-allocation** in S8.
+* **Weights authority.** S8 **MUST NOT** read or persist any weights surface for sequencing; S5 remains weights authority for S6/S7 only. 
+* **Legacy surfaces.** `country_set` and any legacy RNG-dependent ranking surfaces are **not** order authorities; S8 **MUST NOT** consult them for order. 
 
-* **`sequence_finalize`** — one **non-consuming** attestation per **non-empty** $(m,c)$ block. Role: “Final sequence allocation per (merchant,country) block.”
-* **`site_sequence_overflow`** — **non-consuming** guardrail when $n_{m,c}>999{,}999$; emitted **once** per `(seed,fingerprint)` then the build **aborts** (no egress).
+---
 
-All RNG events carry the **common envelope** (`rng_envelope`) including `seed`, `parameter_hash`, `manifest_fingerprint`, `module`, `substream_label`, and **Philox before/after counters**; **non-consuming ⇒ `before == after`** for both 64-bit limbs.
+## 8.6 Cross-checks S8 must perform before writing (behavioural)
 
-Partitions for both streams are fixed as:
-`seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}`.
+* **Lineage parity.** For all inputs used, **embedded lineage bytes equal path tokens** (`parameter_hash` on S3 tables; `{seed,parameter_hash,run_id}` on RNG events). **Mismatch ⇒ abort.** 
+* **S3 membership.** For each `(merchant, country)` with `nᵢ≥1`, confirm that `country` exists in that merchant’s `s3_candidate_set`. **Not in S3 ⇒ abort.** 
+* **S6 gate (if used).** If S8 reads `s6_membership`, verify the **S6 PASS** receipt for the same `{seed,parameter_hash}` **before** use. **No PASS ⇒ no read.** 
+* **Optional S3 cross-sequence.** If `s3_site_sequence` exists, S8 **MUST** cross-check contiguity/width (1..`nᵢ`) and (if present there) the 6-digit `site_id` format; any divergence is a **hard failure** (`E_SEQUENCE_DIVERGENCE`). S8 **MUST NOT** rewrite S3’s semantics. 
 
 ---
 
-## 2) Event schemas & payload contracts
+## 8.7 Prohibitions (hard “MUST NOT”)
 
-### 2.1 Common envelope (shared by all events)
+* **No re-computation** of `N`, `nᵢ`, or S3/S6 membership from weights or heuristics. 
+* **No cross-country ordering** in `outlet_catalogue` (only within-country `site_order`). 
+* **No extra event families** beyond `sequence_finalize` and `site_sequence_overflow` for S8. 
+* **No reliance on file order.** Physical file order is non-authoritative; PK/sort keys govern. 
 
-Minimum required envelope fields (see schema for the full set):
+---
 
-```
-required: [
-  ts_utc, run_id, seed, parameter_hash, manifest_fingerprint,
-  module, substream_label,
-  rng_counter_before_lo, rng_counter_before_hi,
-  rng_counter_after_lo,  rng_counter_after_hi
-]
-```
+## 8.8 Outcomes (deterministic, non-error cases)
 
-**Non-consuming invariant:**
-`rng_counter_before_lo == rng_counter_after_lo` AND
-`rng_counter_before_hi == rng_counter_after_hi`.
+S8 recognizes the following **valid** outcomes (still enforcing all invariants in §9):
 
-Pinned producer: `module = "1A.site_id_allocator"`.
+* **`DEG_SINGLE_COUNTRY`** — Domain contains only home; S8 materialises `n_home=N`, others zero; still emits `sequence_finalize` for home. 
+* **`DEG_ZERO_REMAINDER`** — All integer counts are exact floors; `site_order` remains contiguous; instrumentation still emitted. 
 
 ---
 
-### 2.2 `sequence_finalize` (schema & math)
+## 8.9 Publication discipline (write step coupling)
 
-**Payload fields (normative):**
-`merchant_id ∈ ℕ⁺`, `legal_country_iso ∈ [A-Z]{2}`, `site_count ∈ ℕ⁺`, `start_sequence ∈ ^[0-9]{6}$`, `end_sequence ∈ ^[0-9]{6}$`.
+* **Atomicity & idempotence.** After all `(merchant,country)` blocks pass, publish `outlet_catalogue` once under `seed={seed}/fingerprint={manifest_fingerprint}`; content is **immutable** and **byte-stable** for identical inputs/lineage. 
+* **Gate reminder.** Downstream (e.g., 1B) **MUST** verify that `_passed.flag` content hash equals `SHA256(validation_bundle_1A)` for the **same fingerprint** before reading `outlet_catalogue`. 
 
-For a realized block $(m,c)$ with $n_{m,c}\ge 1$:
+**Status:** Section 8 is **Binding**.
 
-$$
-\texttt{site _count}=n_{m,c},\quad
-\texttt{start _sequence}=\text{"000001"},\quad
-\texttt{end _sequence}=\mathrm{zpad6}(n_{m,c}).
-$$
+---
 
-*(If $n_{m,c}=0$, **no event**.)*
+# 9) Invariants & integrity constraints **(Binding)**
 
-**Path:**
-`logs/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
-**Schema pointer:** `schemas.layer1.yaml#/rng/events/sequence_finalize`.
+All clauses below are **normative** and MUST hold for every `(seed,fingerprint)` partition of **`outlet_catalogue`** and its paired S8 instrumentation streams.
 
 ---
 
-### 2.3 `site_sequence_overflow` (schema & math)
+## 9.1 Row shape, keys, and FK integrity
 
-**Payload fields (normative):**
-`merchant_id`, `legal_country_iso`, `attempted_count ∈ ℕ⁺`, `max_seq = 999999` (const), `overflow_by ∈ ℕ⁺`, `severity = "ERROR"`.
+* **PK/UK law.** Rows in `outlet_catalogue` are **unique** on `[merchant_id, legal_country_iso, site_order]`; writer sort is the same tuple. 
+* **Contiguous local order.** For each `(merchant_id, legal_country_iso)` with rows, `site_order` is **exactly** the set `{1,…, final_country_outlet_count}` (no gaps/dupes). 
+* **`site_id` bijection.** Within each `(merchant_id, legal_country_iso)` block, `site_id == zfill6(site_order)` and is **unique** in that block; regex `^[0-9]{6}$`. 
+* **ISO FKs.** `home_country_iso` and `legal_country_iso` are valid ISO-3166-1 alpha-2 codes (FK to canonical registry). 
 
-Trigger when $n_{m,c}>U$, $U=999{,}999$:
-
-$$
-\texttt{attempted _count}=n_{m,c},\quad
-\texttt{overflow _by}=n_{m,c}-U.
-$$
+---
 
-**Exactly-once policy (per `(seed,fingerprint)`):** emit the **lexicographically first** offending $(m,c)$ under `(merchant_id, legal_country_iso)`, then **abort S8** (no egress).
+## 9.2 Lineage equality & immutability
 
-**Path:**
-`logs/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
-**Schema pointer:** `schemas.layer1.yaml#/rng/events/site_sequence_overflow`.
+* **Path↔embed equality (egress).** Every row’s `manifest_fingerprint` **MUST** byte-equal the egress path token `fingerprint` (hex64), and `global_seed` **MUST** equal the egress path token `seed`. **Rows are immutable** within a `(seed,fingerprint)` partition.
+* **Path↔embed equality (events).** Every S8 event row embeds `{seed, parameter_hash, run_id, manifest_fingerprint}`; `{seed, parameter_hash, run_id}` **MUST** equal their path tokens and `manifest_fingerprint` **MUST** equal the validation fingerprint for this bundle; envelope fields (`blocks`, `draws`) obey the family budgets in the layer schema.
 
 ---
 
-## 3) Determinism & RNG-accounting invariants (MUST hold)
+## 9.3 Cross-state equalities (counts & sums)
 
-**EV-0 (zero-draw):** For both labels, envelope counters **do not advance** (`before == after`); the run’s `rng_trace_log` records **draws = 0** for `(module="1A.site_id_allocator", substream_label=⋅)` and counter deltas reconcile to 0.
+* **Per-merchant sum law.** Let `N` be S2’s accepted draw from `rng_event.nb_final.n_outlets (≥2)`. Summing `final_country_outlet_count` across all `legal_country_iso` for a merchant **MUST equal** `N`. Also, `raw_nb_outlet_draw` is **constant per merchant** and equals `N`.
+* **Per-country row law.** For each `(merchant, legal_country_iso)`, the number of rows **equals** that row group’s `final_country_outlet_count`. (Combines with §9.1 contiguity.) 
+
+---
 
-**EV-1 (cardinality):**
+## 9.4 Domain & membership integrity
 
-$$
-\#\,\texttt{sequence _finalize}(m,*)=\sum_{c\in\mathcal C_m}\mathbf 1[n_{m,c}\ge 1],\qquad
-\#\,\texttt{site _sequence _overflow}\in\{0,1\}.
-$$
+* **No phantom countries.** Every `(merchant, legal_country_iso)` appearing in `outlet_catalogue` **must** exist in that merchant’s **S3 `s3_candidate_set`**. 
+* **Home consistency.** For a given merchant, `home_country_iso` is constant across all rows and equals the **S3 country whose `candidate_rank==0`**. 
+* **Zero-count elision.** If an S7/S3 integerised count for a `(merchant,country)` is `0`, **no rows** for that pair appear in `outlet_catalogue`. (S7 integerisation yields non-negative counts with `Σ count_i = N`.) 
 
-If overflow is emitted ⇒ **no egress** for the `(seed,fingerprint)` partition.
+---
 
-**EV-2 (payload coherence):** Each `sequence_finalize` satisfies
-`site_count = n_{m,c}`, `start_sequence="000001"`, `end_sequence=zpad6(n_{m,c})`, and matches rows in `outlet_catalogue` (S8.2/S8.5).
+## 9.5 Authority separation (order & weights)
 
-**EV-3 (catalog conformance):** Stream paths match the registered partitions `{seed, parameter_hash, run_id}` and validate against their schema pointers.
+* **No cross-country order encoded.** `outlet_catalogue` **does not** contain any cross-country ordering; consumers MUST join **S3 `candidate_rank`** when order is required. Presence of any cross-country rank field in egress is a **hard failure**.
+* **No weight semantics.** Egress rows **MUST NOT** embed or imply S5 weights; S5 remains weights authority (used upstream by S6/S7 only). 
 
 ---
 
-## 4) Emission timing & ordering (normative)
+## 9.6 Event coverage & envelope invariants (S8 streams)
 
-1. **Central overflow pre-scan:** if any $n_{m,c}>U$ exists, emit the **single** `site_sequence_overflow` event (non-consuming) and **abort immediately** (no staging, no partials).
-2. **Per-block finalize:** after materialising each non-empty block’s rows (S8.2), emit **exactly one** `sequence_finalize` (non-consuming).
+For each `(merchant, country)` with `final_country_outlet_count = n ≥ 1`:
 
-**Stability guideline:** emit in the same merchant/country order used for writing `(merchant_id, legal_country_iso, site_order)` to ease forensics. *(Guideline, not a schema constraint.)*
+* **Exactly one** `rng_event.sequence_finalize` with
+  `site_count = n`, `start_sequence = "000001"`, `end_sequence = zfill6(n)`. 
+* **Non-consuming law.** `sequence_finalize` and `site_sequence_overflow` (if any) are **non-consuming** events (`before==after`, `blocks=0`, `draws="0"`). 
+* **Overflow rule.** If `n > 999999`, producer **must** emit `rng_event.site_sequence_overflow` with `{attempted_count=n, max_seq=999999, overflow_by=n−999999}` and **fail the merchant** (no egress rows for that merchant). 
+* **Trace duty.** After **each** event append above, append **exactly one** cumulative `rng_trace_log` row for the corresponding `(module, substream_label)`. 
 
 ---
 
-## 5) Reference emission algorithm (pseudocode)
+## 9.7 Column-level domain checks (egress)
 
-```pseudo
-const U := 999_999
-env := {
-  run_id, seed, parameter_hash, manifest_fingerprint,
-  module="1A.site_id_allocator"
-}
+* `single_vs_multi_flag == true` for all rows (S8 writes multi-site merchants only). 
+* `raw_nb_outlet_draw ≥ 2`; `final_country_outlet_count ∈ [1, 999999]`; `site_order ≥ 1`; `site_id` matches `^[0-9]{6}$`; `global_seed` is a valid `uint64`. 
 
-# ---- centralized overflow pre-scan ----
-offenders := [(m,c,n) | each block (m,c) with n>U]
-if not empty(offenders):
-    (m*,c*,n*) := lexicographic_min(offenders by (merchant_id, legal_country_iso))
-    C := current_philox_counter()   # (lo,hi)
-    emit_jsonl(
-      path="logs/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl",
-      record = env + {
-        ts_utc=now(), substream_label="site_sequence_overflow",
-        rng_counter_before_lo=C.lo, rng_counter_before_hi=C.hi,
-        rng_counter_after_lo=C.lo,  rng_counter_after_hi=C.hi
-      } + {
-        merchant_id:m*, legal_country_iso:c*,
-        attempted_count:n*, max_seq:999999, overflow_by:(n*-999999),
-        severity:"ERROR"
-      }
-    )
-    abort("ERR_S8_OVERFLOW")  # no egress written
+---
 
-# ---- per-block finalize (after rows materialised) ----
-for each non-empty (m,c) in write_order:
-    n := n_{m,c}
-    C := current_philox_counter()
-    emit_jsonl(
-      path="logs/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl",
-      record = env + {
-        ts_utc=now(), substream_label="sequence_finalize",
-        rng_counter_before_lo:C.lo, rng_counter_before_hi:C.hi,
-        rng_counter_after_lo:C.lo,  rng_counter_after_hi:C.hi
-      } + {
-        merchant_id:m, legal_country_iso:c,
-        site_count:n, start_sequence:"000001", end_sequence:zpad6(n)
-      }
-    )
-```
+## 9.8 Join-back sanity (no permutation against S3)
 
----
+* Join `outlet_catalogue` (distinct **`legal_country_iso`**) to S3 `s3_candidate_set` on `outlet_catalogue.(merchant_id, legal_country_iso) = s3_candidate_set.(merchant_id, country_iso)` and then:
+  (a) succeed for **all** egress countries; and
+  (b) show **no permutation** of cross-country order when sorted by `candidate_rank` (egress does not encode order, only that the **set** matches). 
 
-## 6) JSONL examples (illustrative)
+---
 
-### 6.1 `sequence_finalize` (n=3)
+## 9.9 Hand-off gate (consumer constraint)
 
-```json
-{
-  "ts_utc":"2025-08-15T12:00:00Z",
-  "run_id":"r2025_08_15_001",
-  "seed":1469598103934665603,
-  "parameter_hash":"a4c9...d2a1",
-  "manifest_fingerprint":"f0ab...9c33",
-  "module":"1A.site_id_allocator",
-  "substream_label":"sequence_finalize",
-  "rng_counter_before_lo":0,
-  "rng_counter_before_hi":0,
-  "rng_counter_after_lo":0,
-  "rng_counter_after_hi":0,
+* For a given `fingerprint`, consumers (e.g., 1B) **MUST** verify that the `_passed.flag` in `data/layer1/1A/validation/fingerprint={fingerprint}/` has **content hash equal to `SHA256(validation_bundle_1A)`** for the same fingerprint **before** reading `outlet_catalogue`. **No PASS → no read.** 
 
-  "merchant_id":123456789,
-  "legal_country_iso":"GB",
-  "site_count":3,
-  "start_sequence":"000001",
-  "end_sequence":"000003"
-}
-```
+**Status:** Section 9 is **Binding**.
 
-### 6.2 `site_sequence_overflow` (n=1,000,005)
+---
 
-```json
-{
-  "ts_utc":"2025-08-15T12:00:00Z",
-  "run_id":"r2025_08_15_001",
-  "seed":1469598103934665603,
-  "parameter_hash":"a4c9...d2a1",
-  "manifest_fingerprint":"f0ab...9c33",
-  "module":"1A.site_id_allocator",
-  "substream_label":"site_sequence_overflow",
-  "rng_counter_before_lo":0,
-  "rng_counter_before_hi":0,
-  "rng_counter_after_lo":0,
-  "rng_counter_after_hi":0,
+# 10) Error handling, edge cases & degrade ladder **(Binding)**
 
-  "merchant_id":123456789,
-  "legal_country_iso":"US",
-  "attempted_count":1000005,
-  "max_seq":999999,
-  "overflow_by":6,
-  "severity":"ERROR"
-}
-```
+This section fixes **how S8 fails, degrades, or proceeds deterministically**. All codes and actions below are **normative**.
 
 ---
 
-## 7) Validation & reconciliation (conformance suite)
+## 10.1 Error classes (names, triggers, actions)
 
-1. **JSON-Schema validation** of each record against its pointer; **reject** any envelope or payload violation.
-2. **Trace reconciliation:** for $\ell\in\{$`sequence_finalize`,`site_sequence_overflow`$\}$:
+Each error has a **Trigger → Emit → Action** triad. “Emit” refers to S8’s own streams (when applicable) or to writing a failure record into the fingerprint’s validation bundle context; all emits must follow the schemas and dictionary paths for logs/validation.
 
-   $$
-   \sum \texttt{rng _trace _log.draws}\big|_{(module=\text{"1A.site_id_allocator"},\,substream=\ell)}=0,
-   \quad
-   \sum(C^{after}-C^{before})=0.
-   $$
-3. **Cardinality checks:** one `sequence_finalize` per non-empty block; **0/1** overflow per `(seed,fingerprint)` and, if present, **no egress partition** for that fingerprint.
-4. **Egress cross-check:** for each `sequence_finalize(m,c)`, `outlet_catalogue` has exactly `site_count` rows for $(m,c)$ with `site_order=1..site_count` and `site_id` spanning `start_sequence..end_sequence`.
+**E_PASS_GATE_MISSING**
 
----
+* **Trigger:** S8 attempts to read a convenience surface that requires a PASS (e.g., `s6_membership`) but the **S6 receipt** folder for the same `{seed,parameter_hash}` is absent or `_passed.flag` content hash ≠ `SHA256(S6_VALIDATION.json)`.
+* **Emit:** Failure record in the S8 validator bundle context for this fingerprint.
+* **Action:** **Abort** the run before any egress write. **No PASS → no read.** 
 
-## 8) Failure semantics (normative)
+**E_SCHEMA_INVALID**
 
-* **ERR _S8 _OVERFLOW** — overflow event emitted; hard abort; no egress.
-* **ERR _S8 _EVENT _SCHEMA** — JSON-schema failure on any event record.
-* **ERR _S8 _TRACE _MISMATCH** — any non-consuming label shows `draws>0` or counter deltas.
-* **ERR _S8 _PATH _PARTITION** — event files not under exact `{seed, parameter_hash, run_id}` partitions.
+* **Trigger:** Any required input fails its JSON-Schema (`s3_candidate_set`, `rng_event.nb_final`, `rng_event.gumbel_key`/`ztp_final` when reconstructing membership).
+* **Emit:** Failure record (schema path, first violation).
+* **Action:** **Abort**.
 
----
+**E_PATH_EMBED_MISMATCH**
 
-## 9) Operational notes
+* **Trigger:** Any lineage column **bytes-not-equal** to its path token (e.g., `parameter_hash` in S3 tables, `{seed,parameter_hash,run_id}` in RNG events; `manifest_fingerprint` in egress).
+* **Emit:** Failure record (dataset/stream, offending value vs token).
+* **Action:** **Abort**.
 
-* `(module, substream_label)` names are **pinned** for lineage and S9 filters.
-* The human-readable **event catalog** is **generated from** `schemas.layer1.yaml#/rng/events` and is **non-authoritative**; the JSON-Schemas are the source of truth.
+**E_S3_MEMBERSHIP_MISSING**
 
----
+* **Trigger:** A `(merchant,country)` appears in counts but **not** in `s3_candidate_set` for that merchant.
+* **Emit:** Failure record listing the phantom `(merchant,country)`.
+* **Action:** **Abort** (S3 is the sole order/membership authority). 
 
-## 10) Why this matters downstream
+**E_COUNTS_SOURCE_MISSING**
 
-Zero-draw events with strict cardinalities let S9 prove S8’s rows were written **exactly** as specified — no hidden RNG, no re-ordering — and ensure clean abort on overflow (no partial or zombie egress).
+* **Trigger:** Neither `s3_integerised_counts` (when designated) **nor** an in-process S7 counts handoff is available; or per-country counts cannot be recovered from the authoritative S7 evidence.
+* **Emit:** Failure record (merchant list).
+* **Action:** **Abort** (S8 MUST NOT derive counts from weights).
 
----
+**E_DUP_PK**
 
-# S8.5 — Output assembly & storage
+* **Trigger:** Would-be `outlet_catalogue` contains duplicate PK `[merchant_id, legal_country_iso, site_order]`.
+* **Emit:** Failure record (first duplicate).
+* **Action:** **Abort**. (PK/UK are binding.) 
 
-## 1) Target dataset (authoritative)
+**E_SEQUENCE_GAP**
 
-**Dataset:** `outlet_catalogue`
-**Path (partitioned):**
+* **Trigger:** For any `(merchant, legal_country_iso)` with `n≥1`, proposed `site_order` set is **not exactly** `{1,…,n}`.
+* **Emit:** Failure record (first gap/dup).
+* **Action:** **Abort**. 
 
-```
-data/layer1/1A/outlet_catalogue/
-  seed={global_seed}/fingerprint={manifest_fingerprint}/part-*.parquet
-```
+**E_SITE_ID_OVERFLOW**
 
-**Schema ref:** `schemas.1A.yaml#/egress/outlet_catalogue`
-**Partitions:** `["seed","fingerprint"]`
-**Primary key & sort order:** `["merchant_id","legal_country_iso","site_order"]` (lexicographic).
-**Contract note:** inter-country order is **not** encoded; consumers must join `alloc/country_set.rank`.
+* **Trigger:** `n > 999,999` for a `(merchant,country)` block.
+* **Emit:** **`rng_event.site_sequence_overflow`** with `{attempted_count, max_seq=999999, overflow_by, severity="ERROR"}` **and** a failure record.
+* **Action:** **Abort the merchant** (no egress rows for that merchant). 
 
-**Registry dependencies:** `outlet_catalogue` depends (indirectly) on `country_set` → S8 (site _id allocator) → RNG `sequence_finalize` events. 1B consumption is gated by a validation artefact (see §7).
+**E_ORDER_AUTHORITY_DRIFT**
 
----
+* **Trigger:** Any attempt to **encode** or **imply** cross-country order in `outlet_catalogue`, or divergence from `s3_candidate_set.candidate_rank` when order is joined for checks.
+* **Emit:** Failure record (fields that imply order).
+* **Action:** **Abort**. (S3 is sole authority.) 
 
-## 2) Inputs to the writer (recap)
+**E_SUM_MISMATCH**
 
-From S8.2 you have a deterministic stream of rows already in **final write order** `(merchant_id, legal_country_iso, site_order)` with lineage echoes `global_seed=S_master`, `manifest_fingerprint=F`.
-Zero-block elision and the **central overflow pre-scan** have run; for every non-empty `(m,c)`, S8.4 emitted **one** `sequence_finalize` (non-consuming). If overflow occurred, S8.4 emitted **one** `site_sequence_overflow` (partition-scoped) and **no rows** exist for this `(seed,fingerprint)`.
+* **Trigger:** For a merchant, `Σ final_country_outlet_count ≠ rng_event.nb_final.n_outlets`.
+* **Emit:** Failure record (merchant ID, observed sums).
+* **Action:** **Abort**. 
 
----
+**E_FK_ISO_INVALID**
 
-## 3) Staging & atomic commit (normative)
+* **Trigger:** `home_country_iso` / `legal_country_iso` not in canonical ISO registry.
+* **Emit:** Failure record (first offending ISO).
+* **Action:** **Abort**. 
 
-### 3.1 Two-phase publish
+**E_TRACE_COVERAGE_MISSING**
 
-1. **Precondition (immutability guard).**
-   If the final partition directory
+* **Trigger:** A required S8 event (`sequence_finalize` or `site_sequence_overflow`) was appended but **no** paired `rng_trace_log` row follows; or vice versa coverage counts don’t tally.
+* **Emit:** Failure record (event family, counts).
+* **Action:** **Abort**. 
+
+---
 
-   ```
-   …/outlet_catalogue/seed=S_master/fingerprint=F/
-   ```
+## 10.2 Edge cases (deterministic non-errors)
 
-   already exists **and is non-empty**, **abort**: egress is immutable per `(seed,fingerprint)`.
+These are **valid** outcomes; S8 proceeds and still writes normal outputs and events:
 
-2. **Stage.**
-   Write Parquet parts to a **temporary** directory:
+* **DEG_SINGLE_COUNTRY.** Domain is only home; S8 writes `n_home=N`, emits one `sequence_finalize` for home. 
+* **DEG_ZERO_REMAINDER.** All integer counts equal floors (no bumps); `site_order` still contiguous `1..nᵢ`; normal finalize events. 
 
-   ```
-   stage = …/seed=S_master/fingerprint=F/_staging/
-   ```
+---
 
-   Ensure file handles are closed and data is durable (fsync or equivalent).
+## 10.3 Degrade ladder (when optional conveniences are missing)
 
-3. **Validate staged content** (see §4). **Do not** publish if any check fails.
+S8 follows this **ordered** ladder; each step is **binding**:
 
-4. **Atomic publish.**
-   Atomically **rename/move** `stage` → final partition directory:
+1. **Prefer S3 parameter-scoped determinism when present.**
+   If `s3_integerised_counts` exists, S8 **MUST** read it (authoritative counts) and proceed. 
 
-   ```
-   …/seed=S_master/fingerprint=F/
-   ```
+2. **Otherwise, use in-process S7 counts handoff.**
+   S8 **MUST NOT** reconstruct counts from S5 weights; counts must come from S7 evidence (residual ranks) if S3 did not emit counts. 
 
-   The operation must be metadata-atomic on the backing filesystem (e.g., POSIX `rename(2)`). On failure, best-effort delete `_staging/` and **abort**.
+3. **Membership surface preference.**
+   If `s6_membership` exists **and** S6 PASS is verified, use it; **else** reconstruct membership from `rng_event.gumbel_key` + `rng_event.ztp_final`. **Do not abort** simply because the convenience surface is absent.
 
-5. **Post-publish rule.**
-   After publish, **no further writes** under the partition. All validation artefacts live under `validation/fingerprint=F/` (see §7).
+4. **Optional upstream S3 sequencing.**
+   If `s3_site_sequence` exists, S8 **cross-checks** only (does not change semantics). Divergence ⇒ `E_SEQUENCE_DIVERGENCE` (abort). 
 
-### 3.2 Idempotence & retries
+---
 
-* **Idempotence:** reruns that reach step (1) and detect a non-empty final partition **must stop** (no overwrite).
-* **Retry window:** failures **before** rename may safely re-enter from step (2) after cleaning `_staging/`. Failures **after** rename are considered committed.
+## 10.4 Emit rules & envelopes (S8 streams)
 
-> **Note (object stores):** if atomic directory rename is unavailable, use a single-writer strategy that writes under `_staging/` and then performs an atomic *directory marker* / manifest publish equivalent. Semantics must be identical to POSIX rename (no partial visibility).
+* **`rng_event.sequence_finalize`**: **exactly one** per `(merchant,country)` with `n≥1`, with `site_count=n`, `start_sequence="000001"`, `end_sequence=zfill6(n)`; event is **non-consuming** (`blocks=0`, `draws="0"`). 
+* **`rng_event.site_sequence_overflow`**: only when `n>999999`; severity=`"ERROR"`; **non-consuming** envelope. 
+* **`rng_trace_log`**: after **every** append above, S8 appends **exactly one** cumulative trace row. Paths/partitions must match `{seed, parameter_hash, run_id}`. 
 
 ---
+
+## 10.5 Abort & cleanup discipline
 
-## 4) Must-pass validation (write-time, before commit)
+On any **Abort** action:
 
-Run these checks on **staged** files for `(seed=S_master, fingerprint=F)`; they mirror S8.3 and the schema.
+* **Do not** publish `outlet_catalogue` for the fingerprint (or the merchant, if the failure is merchant-scoped like overflow).
+* Ensure partial temp paths are removed; **no partial contents** become visible (atomic publish discipline in §5). 
+* Record the failure in the fingerprint’s validation bundle context for post-hoc inspection; the consumer gate remains **FAILED** (no `_passed.flag`). 
 
-**V-PK & order.**
+---
+
+## 10.6 Severity mapping (informative for ops)
 
-* `count(rows) == count(distinct merchant_id, legal_country_iso, site_order)`.
-* Read of staged parts yields lexicographic `(merchant_id, legal_country_iso, site_order)`. Writer should either stream in that order or sort.
+* **ERROR (hard failure):** all `E_*` codes above.
+* **INFO (deterministic outcome):** `DEG_SINGLE_COUNTRY`, `DEG_ZERO_REMAINDER`.
 
-**V-echo (row ↔ path).**
+**Status:** Section 10 is **Binding**.
 
-* Every row has `global_seed == S_master` and `manifest_fingerprint == F`.
+---
 
-**V-domains & regex.**
+# 11) Validation battery & PASS gate **(Binding)**
 
-* Enforce schema ranges/patterns:
-  `final_country_outlet_count ∈ [1,999999]`, `site_order ≥ 1`, `raw_nb_outlet_draw ≥ 1`, `site_id ~ ^[0-9]{6}$`, both ISO columns pass FK to canonical ISO.
+**Purpose.** Prove that S8 wrote a correct, reproducible `outlet_catalogue` under the S0–S7 contracts; verify instrumentation coverage; and publish a **fingerprint-scoped** validation bundle whose `_passed.flag` is the consumption **gate** for 1B (**no PASS → no read**). 
 
-**V-cross-field invariants.**
+---
 
-* Per row: `1 ≤ site_order ≤ final_country_outlet_count`; `site_id == zpad6(site_order)` (C locale).
-* Per block `(m,c)`: `final_country_outlet_count` **constant**; `#rows == final_country_outlet_count`; **within-block** `site_id` unique.
-* Per merchant: **conservation** — `raw_nb_outlet_draw == Σ_c final_country_outlet_count`.
+## 11.1 Inputs the validator MUST read (and their anchors)
 
-**V-overflow (defense-in-depth).**
+* **Subject of validation:** `outlet_catalogue` → `schemas.1A.yaml#/egress/outlet_catalogue` (PK/UK, partitions `[seed,fingerprint]`, writer sort). 
+* **Order authority:** `s3_candidate_set` → `schemas.1A.yaml#/s3/candidate_set` (total, contiguous ranks; `home` at 0). 
+* **Count facts:** `rng_event.nb_final` → `schemas.layer1.yaml#/rng/events/nb_final` (exactly one per merchant; **non-consuming**). If present, also read `s3_integerised_counts` → `schemas.1A.yaml#/s3/integerised_counts`. Otherwise, use S7 residual evidence (`rng_event.residual_rank`).
+* **S8 instrumentation:** `rng_event.sequence_finalize`, `rng_event.site_sequence_overflow` (S8-emitted families). Also `rng_trace_log` and `rng_audit_log` for coverage.
+* **Gates (if conveniences were used upstream):** `s6_validation_receipt` when `s6_membership` was read by S8. **No PASS → no read.** 
 
-* Assert `max(site_order in block) ≤ 999999`.
+---
 
-**V-events (sync with S8.4).**
+## 11.2 Structural checks (schemas, partitions, lineage)
 
-* For each **non-empty** `(m,c)` block in staged content, there is **exactly one** non-consuming `sequence_finalize` event under the registered path for the same `{seed, parameter_hash, run_id}` with `site_count=zpad6^{-1}(end_sequence)`.
-* For the partition overall, there is **at most one** `site_sequence_overflow` event. If present, then **no staged egress must exist** (this validation fails if rows are present).
+The validator **MUST** assert:
 
-> Implement using the S8.3 validator on `stage/` plus an event reader on `logs/rng/events/*/seed=S_master/parameter_hash=…/run_id=…/`.
+1. **Schema-validity & partitions** for all inputs above (tables/events match their `$ref`; paths match dictionary path templates & partitions).
+2. **Path↔embed equality:** every egress row’s `manifest_fingerprint` equals the `fingerprint` path token; every RNG/event row (audit/trace/S8 events) embeds `{seed, parameter_hash, run_id, manifest_fingerprint}` where `{seed, parameter_hash, run_id}` equal the path tokens and `manifest_fingerprint` equals the **validation fingerprint** for this bundle. **Any mismatch ⇒ fail.**
+3. **S6 gate (if applicable):** if `s6_membership` was consumed by the producer, the S6 receipt folder exists and `_passed.flag` content hash equals `SHA256(S6_VALIDATION.json)` for the same `{seed,parameter_hash}`. **No PASS → fail.** 
 
 ---
 
-## 5) File layout & performance (binding where stated)
+## 11.3 Content checks (egress invariants)
 
-**Write order.** Generate (or sort) rows in `(merchant_id, legal_country_iso, site_order)` to avoid a global `T log T` sort; S8.2 naturally produces this order.
+For each `(merchant_id, legal_country_iso)` group with rows:
 
-**Deterministic part numbering (binding).**
-Name parts `part-00000.parquet`, `part-00001.parquet`, … in **the exact order rows are written** after ordering in the previous bullet. This ensures byte-stable manifests across platforms/shards.
+* **Contiguity & keys:** `site_order` is exactly `{1..final_country_outlet_count}` with no gaps/dupes; `site_id` is zero-padded 6-digit rendering of `site_order` (regex `^[0-9]{6}$`). PK unique on `[merchant_id, legal_country_iso, site_order]`. 
+* **Lineage fields:** `manifest_fingerprint` is lowercase hex64 and equals the partition token; `global_seed` **equals the `seed` path token** and is a valid `uint64`.
+* **No cross-country order encoded:** the table contains **no** field implying inter-country order; dictionary note requires consumers to join S3 `candidate_rank`. Presence of such fields ⇒ fail. 
+
+---
 
-**Row groups (advisory).**
-Prefer row groups that do **not** interleave merchants excessively; where feasible, align row-group boundaries to `(merchant_id, legal_country_iso)` to tighten stats and accelerate block scans on `site_order`.
+## 11.4 Cross-state equalities (counts, sums, membership)
 
-**Compression & metadata (binding where configured).**
-Use the registry’s Parquet codec (e.g., Zstd level 3). Write the following file-level key/value metadata for provenance:
-`schema_ref`, `seed`, `fingerprint`. *(No new artefacts; in-file metadata only.)*
+Per merchant:
 
-**Streaming memory bound.**
-With streaming writes, peak memory is `O(B)` for the writer’s row-group buffer (64–256 MB typical). S8 invariants are checkable on the fly (sequential `site_order`, block-constant counts).
+* **Sum law vs S2:** `Σ_c final_country_outlet_count == rng_event.nb_final.n_outlets` and egress `raw_nb_outlet_draw` equals that same `N`. 
+* **Membership law vs S3:** every `(merchant, legal_country_iso)` present in egress must exist in that merchant’s `s3_candidate_set`; exactly one `home` in S3 and `home_country_iso` constant across egress rows. 
+* **Counts authority:** if `s3_integerised_counts` exists, its `{merchant,country,count}` matches egress `{final_country_outlet_count}`; otherwise, the multiset of per-country counts reconstructed from S7 `rng_event.residual_rank` equals egress counts. **Any discrepancy ⇒ fail.**
 
 ---
 
-## 6) Concurrency & sharding (determinism-safe)
+## 11.5 Event coverage & RNG envelope checks
 
-**Shard by merchant** (or merchant ranges). Each shard must:
+For each `(merchant, country)` with `final_country_outlet_count = n ≥ 1`:
 
-1. iterate merchants in ascending `merchant_id`;
-2. within a merchant, iterate `legal_country_iso` ascending, emitting `site_order=1..n_{m,c}`;
-3. produce shard parts in final key order.
+* **Exactly one** `rng_event.sequence_finalize` with `{site_count=n, start_sequence="000001", end_sequence=zfill6(n)}`. 
+* **Overflow rule:** if `n > 999999`, there MUST be a `rng_event.site_sequence_overflow{attempted_count=n, max_seq=999999, overflow_by}` and **no** egress rows for that merchant (merchant-scoped abort). 
+* **Non-consuming law:** both S8 event families are **non-consuming** (`before==after`, `blocks=0`, `draws="0"`); validator verifies envelopes. 
+* **Trace duty:** after **each** event append above, **exactly one** cumulative `rng_trace_log` row exists (saturating totals; `draws_total` equals sum of event `draws`). 
 
-At publish time, **one** of the following must hold:
+---
 
-* **Single merger:** concatenate shard outputs into a single `_staging/` in key order, then perform **one** atomic rename; **or**
-* **Single writer to `_staging/`:** coordinated writers append parts **sequentially** in key order (with deterministic part numbering), then **one** atomic rename.
+## 11.6 Egress join-back sanity (order separation)
 
-The partition is **immutable**; a single **atomic rename** must occur at the end. If the final partition already exists, **abort** (no overwrite).
+Join distinct egress countries back to S3 on `outlet_catalogue.(merchant_id, legal_country_iso) = s3_candidate_set.(merchant_id, country_iso)`; assert the set matches and that sorting by `candidate_rank` yields a consistent cross-country order (egress itself remains order-free).
 
 ---
 
-## 7) Governance, validation bundle & 1B gate
+## 11.7 Validator artefacts & PASS gate (fingerprint-scoped)
 
-After publishing `outlet_catalogue`, the validation process emits:
+Write the **validation bundle** under:
+`data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` (fingerprint partition). Bundle contains machine-readable results (e.g., schema checks, counts & sums, membership parity, RNG accounting, FK checks). Compute `_passed.flag` as:
 
-* `validation_bundle_1A` at
-  `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` (contains schema/PK/FK checks, RNG accounting, metrics), and
-* `_passed.flag` in the **same** folder whose **content hash equals** `SHA256(validation_bundle_1A)`.
+* Single line: `sha256_hex = <hex64>`, where `<hex64>` is the SHA-256 over the **ASCII-lexicographic concatenation** of all other bundle files’ bytes (exclude `_passed.flag`). Publish atomically into the fingerprint folder.
 
-**Hand-off condition:** **1B may read `outlet_catalogue` only if** `_passed.flag` exists and matches the bundle digest for the **same** fingerprint. This gate is registry-enforced.
+**Gate rule (consumer binding):** 1B **MUST** verify that `_passed.flag` content hash equals `SHA256(validation_bundle_1A)` for the **same** fingerprint before reading `outlet_catalogue`. **No PASS → no read.**
 
 ---
 
-## 8) Error codes (abort semantics)
+## 11.8 Exit semantics
 
-* `E-S8.5-IMMUTABLE-EXISTS` — final partition exists and is non-empty; do not overwrite.
-* `E-S8.5-SCHEMA` — any row violates the egress schema (types, ranges, regex).
-* `E-S8.5-PK-DUP` — duplicate PK `(merchant_id, legal_country_iso, site_order)` in staged content.
-* `E-S8.5-ECHO` — row’s `global_seed`/`manifest_fingerprint` mismatches path tokens.
-* `E-S8.5-BLOCKCONST` — within a block, `final_country_outlet_count` not constant or `#rows != final_country_outlet_count`.
-* `E-S8.5-SITEID` — `site_id != zpad6(site_order)` or not unique within a block.
-* `E-S8.5-CONSERVATION` — merchant conservation identity fails.
-* `E-S8.5-OVERFLOW` — any `site_order` or `final_country_outlet_count` exceeds `999999`.
-* `E-S8.5-EVENTSYNC` — missing/misplaced `sequence_finalize` for a non-empty block **or** presence of any `site_sequence_overflow` while staging exists.
-* `E-S8.5-ATOMIC-RENAME` — atomic rename/publish failed; partition remains uncommitted.
+* **PASS:** all checks in §§11.2–11.6 succeed; bundle written; `_passed.flag` valid. `outlet_catalogue` remains readable by 1B under the gate. 
+* **FAIL:** any structural, lineage, count, membership, or RNG-coverage breach. Publish bundle with failure records; **do not** modify `outlet_catalogue`; gate remains **failed** (no valid `_passed.flag`). 
 
 ---
 
-## 9) Reference publisher (language-agnostic pseudocode)
+## 11.9 Determinism requirement (validator)
 
-```pseudo
-function publish_outlet_catalogue(rows_iter_sorted, S_master, F, parameter_hash, run_id):
-    final_dir = f"data/layer1/1A/outlet_catalogue/seed={S_master}/fingerprint={F}/"
-    staging   = final_dir + "_staging/"
+With identical inputs, schemas, dictionary, and numeric environment, the validator **MUST** produce a byte-identical bundle and the same `_passed.flag` hash (idempotent, atomic publish). 
 
-    # (1) immutability guard
-    if exists(final_dir) and not is_empty(final_dir):
-        raise E-S8.5-IMMUTABLE-EXISTS
+**Status:** Section 11 is **Binding**.
 
-    # (2) stage writes (deterministic part numbering)
-    mkdirs(staging)
-    i := 0
-    for batch in partition_into_rowgroups(rows_iter_sorted):
-        parquet_write(staging + format("part-%05d.parquet", i), batch,
-                      schema="schemas.1A.yaml#/egress/outlet_catalogue",
-                      file_meta={schema_ref, seed:S_master, fingerprint:F})
-        i := i + 1
+---
 
-    # (3) validate staged content
-    validate_schema_pk_and_order(staging)
-    validate_partition_echo(staging, seed=S_master, fingerprint=F)
-    validate_block_and_conservation(staging)
-    validate_iso_fk(staging)
-    validate_event_sync(seed=S_master, parameter_hash, run_id)  # S8.4 contract
+# 12) Concurrency, sharding & determinism **(Binding)**
 
-    # (4) atomic publish
-    atomic_rename(staging, final_dir)
-```
+This section fixes how S8 may parallelise work and still produce **byte-stable** `outlet_catalogue` and **value-stable** logs. All clauses are **normative**.
 
 ---
 
-## 10) Conformance tests (must pass)
+## 12.1 Writer discipline (single identity, at-most-once)
 
-1. **Happy path:** two merchants with counts `{GB:3, US:2}` and `{GB:1}`. Expect 6 rows; PK unique; per-block counts equal; exactly **three** `sequence_finalize`; echoes correct; deterministic part numbering. ✔︎
-2. **Immutability:** create final partition, then attempt re-publish → `E-S8.5-IMMUTABLE-EXISTS`. ✔︎
-3. **Event sync:** remove one `sequence_finalize` for a non-empty block → `E-S8.5-EVENTSYNC`. ✔︎
-4. **Overflow defense:** craft a staged block with `final_country_outlet_count=1_000_000` → `E-S8.5-OVERFLOW`; ensure no final publish occurs. ✔︎
-5. **Echo mismatch:** alter one row’s `global_seed` ≠ partition seed → `E-S8.5-ECHO`. ✔︎
-6. **FK breach:** inject `legal_country_iso="ZZ"` → FK failure. ✔︎
-7. **Conservation breach:** make merchant’s Σ block counts differ from `raw_nb_outlet_draw` → `E-S8.5-CONSERVATION`. ✔︎
+* **Partition identity (egress):** `(dataset='outlet_catalogue', seed, fingerprint)`; this partition is **write-once**. If it already exists, producers **MUST** verify byte identity; if different, **hard-fail** (no overwrite). Egress path & sort are fixed by the Dictionary & schema.
+* **Atomic publish:** **Stage → fsync → atomic rename** into the Dictionary location; **no partial contents** may become visible. After publish, the partition is **immutable**. (Discipline mirrors S7 §10.4.) 
 
----
+## 12.2 Sharding model (how to split the work)
 
-## 11) Policy alignment (schema authority)
+* **Shard key:** S8 **MUST** shard on `merchant_id` (ranges or hash buckets). Each worker owns a disjoint merchant set; **no merchant may be processed by two workers**. (Prevents duplicate events/rows.) 
+* **Block atomicity:** The unit of emission is a **(merchant, legal_country_iso)** block with `n≥1`. A worker **MUST** emit exactly `n` rows with `site_order=1..n` for that block, then append **one** `sequence_finalize` event.
+* **Set semantics across files:** Physical file order is non-authoritative; equality is by **row set**. Writers must honour the Dictionary’s **writer sort** for egress. 
 
-* Use the **JSON-Schema** as the canonical contract; if Avro is needed downstream, generate it at release time from JSON-Schema.
-* Keep “inter-country order not encoded in egress” explicit in dataset notes and tests.
+## 12.3 Determinism w.r.t. worker counts, retries & scheduling
 
----
+* **Worker-count invariance:** Changing the number of workers or task schedule **MUST NOT** change any value or emitted row. Determinism is guaranteed by: S3’s **candidate_rank** authority (order), S7/S3 **counts** authority, fixed egress **sort keys**, and atomic publish.
+* **Retry semantics:** On failure, producers **MUST NOT** partially publish; they **MAY** retry after cleaning temp paths. Re-running with identical inputs and lineage **MUST** yield byte-identical egress. (Same discipline as S7 §10.3–10.4.) 
 
-This locks down how S8 turns the deterministic S8.2 stream into an **immutable, byte-stable** egress partition with **atomic publish**, **event-synced validation**, and the **validation-bundle gate** that authorises 1B reads.
+## 12.4 RNG logs under parallelism (events are non-consuming)
 
----
+* **Families S8 emits:** `rng_event.sequence_finalize` and (guardrail) `rng_event.site_sequence_overflow`, both partitioned by `{seed, parameter_hash, run_id}` and validated by layer schemas.
+* **Envelope law:** S8’s events are **non-consuming** (`before==after`, `blocks=0`, `draws="0"`); envelopes **MUST** populate `{seed, parameter_hash, run_id, manifest_fingerprint}` per schema. `manifest_fingerprint` **MUST** equal the egress fingerprint (there is no path token for it on event paths).
+* **Trace duty (per event):** After **each** append to `sequence_finalize` or `site_sequence_overflow`, S8 **MUST** append **exactly one** cumulative row to `rng_trace_log` for the corresponding `(module, substream_label)`. Totals reconcile irrespective of concurrency (saturating sums).
+* **No double-emission:** A given `(merchant, country)` **MUST NOT** produce multiple `sequence_finalize` events; detect and fail on concurrent write intent. (Same pattern as S7 §10.5.) 
+
+## 12.5 Multi-run semantics (run_id)
+
+* **`run_id` partitions logs only.** Multiple `run_id`s may coexist for the same `{seed, parameter_hash}` without changing model outcomes or egress semantics. Egress remains **fingerprint-scoped**. 
+* **Audit first, then events:** Emit `rng_audit_log` once at run start, then events, then traces; all under `{seed, parameter_hash, run_id}` with schema-valid embeddings. 
 
-# S8.6 — Determinism & validator contract
+## 12.6 Ownership & isolation
 
-## 1) Determinism (pure-function statement)
+* **S8 writes only its families** (`sequence_finalize`, `site_sequence_overflow`) plus egress. It **MUST NOT** write S1–S7 families or any RNG core paths owned by other states except its trace/audit appends. (Ownership & schemas enumerated in the registry/dictionary.)
+* **No cross-state emissions:** S8 does **not** emit selection keys (`gumbel_key`), NB/ZTP components, or residuals; those belong to S6/S2/S4/S7 respectively.
 
-**Inputs (authorities):**
+## 12.7 Lineage equality & canonical paths (concurrency checks)
 
-* **Lineage:** `manifest_fingerprint = F` (hex64), `global_seed = S_master` (u64). These appear in-row and in the egress **partition keys** `(seed={S_master}, fingerprint={F})`.
-* **Membership & order:** `country_set(seed=S_master, parameter_hash=P)` → for each merchant $m$, the ordered ISO tuple $\mathcal C_m=(c_0,\dots,c_{K_m})$ with **exactly one** home (`rank=0`). *(Inter-country order lives **only** here.)*
-* **Final integer counts:** $\{n_{m,c}\}_{(m,c)}$ from S7 (largest-remainder). S8 does **not** re-draw or re-rank.
-* **Merchant constants (written by S8):** `home_country_iso=c_0` (from `country_set`), `raw_nb_outlet_draw = N_m` with
+* **Path↔embed equality** is **binding** on every event/log row for `{seed, parameter_hash, run_id}`, and on egress for `manifest_fingerprint == fingerprint path token`. Mismatch ⇒ abort.
+* **Canonical paths only:** All writes **MUST** target the Dictionary paths and partitions for their families/datasets; free-hand paths are non-conformant. 
 
-  $$
-  N_m \;=\; \sum_{c\in\mathcal C_m} n_{m,c} \;\in\; \mathbb Z_{\ge 1},
-  $$
+## 12.8 Storage & writer policy (if pinned)
 
-  and `single_vs_multi_flag` **constant per merchant** (writer may derive as `N_m>1` if not provided upstream).
+* **Egress Parquet:** honour Dictionary writer sort `[merchant_id, legal_country_iso, site_order]`; compression **as pinned** (e.g., ZSTD level 3) when specified by the registry; otherwise, value identity suffices.
+* **JSONL events:** set semantics across parts; line order within a file has no semantic meaning; validators use cumulative **trace** totals and event counts. 
 
-**Definition (no RNG):**
+## 12.9 Consumer guarantees (what parallelism may not break)
 
-$$
-\boxed{\,(\{n_{m,c}\}, F, S_{\text{master}})\ \xrightarrow{\ \text{S8 (pure)}\ }\ \texttt{outlet _catalogue}\,}
-$$
+Given §§12.1–12.8 and the invariants in §9, consumers are guaranteed that for any fixed `(seed,fingerprint)`:
 
-Rows are generated by the fixed map $j\mapsto(\texttt{site _order}=j,\ \texttt{site _id}=\mathrm{zpad6}(j))$ for $j\in\{1,\dots,n_{m,c}\}$ using **C-locale ASCII digits**, and written in **lexicographic** order `(merchant_id, legal_country_iso, site_order)`. **No RNG is consumed**; S8’s RNG events are **non-consuming** (`before==after`, `draws=0`).
+* `outlet_catalogue` is **byte-stable** and **order-stable** by its sort keys;
+* each `(merchant, country)` block contributes `n` rows with `site_order=1..n` and a single `sequence_finalize` event;
+* RNG core logs reconcile (`draws_total`, `blocks_total`, `events_total`) regardless of producer concurrency.
 
-**Why replay is byte-stable:** (i) construction is local to $(m,c)$, (ii) generation order equals sort keys, (iii) partition echoes lock rows to path tokens, (iv) overflow is centrally handled (0/1 event, then abort).
+**Status:** Section 12 is **Binding**.
 
 ---
 
-## 2) What must be validated (staged egress, pre-publish)
+# 13) Observability & metrics **(Binding)**
 
-Validator runs on **staged** `…/outlet_catalogue/seed={S_master}/fingerprint={F}/_staging/` before S8.5’s atomic rename.
+This section fixes **what S8 must emit/observe**, **the counters & coverage it must publish**, and **where those metrics live**. All clauses are **normative**.
 
-### 2.1 Schema & key contract (dataset-local)
+---
 
-**Schema conformance** (`schemas.1A.yaml#/egress/outlet_catalogue`):
+## 13.1 Observability surfaces (streams & locations)
 
-* `site_id` matches `^[0-9]{6}$` (C-locale semantics); `raw_nb_outlet_draw ≥ 1`; `final_country_outlet_count ∈ [1,999999]`; `site_order ≥ 1`.
-* `home_country_iso` and `legal_country_iso` both FK to canonical ISO.
+* **Core RNG logs (run-scoped):**
+  **`rng_audit_log`** and **`rng_trace_log`** under
+  `logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl` and
+  `logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl`.
+  The trace is **per-(module, substream_label)** with saturating totals; **emit exactly one cumulative trace row after each RNG event append**. 
 
-**Keys, partitions, order:**
+* **S8 instrumentation events (merchant×country blocks):**
+  **`rng_event.sequence_finalize`** at
+  `logs/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` (final sequence per block), and
+  **`rng_event.site_sequence_overflow`** at
+  `logs/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` (guardrail).
+  Both families are schema-anchored in `schemas.layer1.yaml` and **gated** to multi-site merchants (`gated_by: rng_event_hurdle_bernoulli; predicate: is_multi==true`).
 
-* **PK** uniqueness: `(merchant_id, legal_country_iso, site_order)`.
-* **Partitions:** every row echoes `global_seed=={seed}` and `manifest_fingerprint=={fingerprint}`.
-* **Order:** rows are (or read as) `(merchant_id, legal_country_iso, site_order)` lexicographic.
+* **Egress & hand-off context:** `outlet_catalogue` (fingerprint-scoped) and the **validation bundle** folder that gates consumption.
 
-**Cross-field invariants (per row):**
+---
 
-$$
-1 \le \texttt{site _order} \le \texttt{final _country _outlet _count},\qquad
-\texttt{site _id} = \mathrm{zpad6}(\texttt{site _order}).
-$$
+## 13.2 Trace & envelope duty (must hold)
 
-**Block invariants (per $(m,c)$):** `final_country_outlet_count` **constant**; `#rows == final_country_outlet_count`; **within-block** `site_id` is unique.
+* After **each** append to `sequence_finalize` or `site_sequence_overflow`, S8 **MUST** append **exactly one** cumulative row to `rng_trace_log` for the corresponding `(module, substream_label)`. The trace reconciles **events_total**, **draws_total**, and **blocks_total** (per schema: draws_total equals the sum of event-level draws; blocks via counters). 
+* S8 event families are **non-consuming** (per §8/§9): validator reconciliation therefore expects **event counts to rise**, while **draws_total/blocks_total contributions from S8 families are zero**; the trace still logs the events_total increment. 
 
-**Merchant conservation:** for each $m$,
+---
 
-$$
-\texttt{raw _nb _outlet _draw}(m) \;=\; \sum_c \texttt{final _country _outlet _count}(m,c).
-$$
+## 13.3 Metrics S8 MUST publish (in the validation bundle)
 
-**Policy guard:** **No inter-country order** encoded in egress; consumers join `country_set.rank`.
+The validator **MUST** write the following artefacts under
+`data/layer1/1A/validation/fingerprint={manifest_fingerprint}/`:
 
-### 2.2 Overflow rule (capacity)
+1. **`rng_accounting.json`** — event and trace reconciliation:
 
-Because `site_id` is 6-digit, require $n_{m,c}\le 999{,}999$ for all $(m,c)$. If any $n_{m,c}>999{,}999$, S8 must have emitted **one** `site_sequence_overflow` (zero-draw, partition-scoped) and **aborted**; staged egress must be **absent**.
+   * `sequence_finalize_events` (count)
+   * `site_sequence_overflow_events` (count)
+   * `trace_events_total_delta` for S8 substreams (should equal the sum of the two counts)
+   * `trace_draws_total_delta` and `trace_blocks_total_delta` for S8 substreams (expected **0**)
+   * `audit_present` (boolean) and audit/trace **path↔embed** parity results.
+     *(The bundle is the basis of the consumer gate and already enumerated to contain RNG accounting/metrics.)* 
 
-### 2.3 RNG audit attestation (non-consuming labels)
+2. **`s8_metrics.json`** — egress & domain coverage:
 
-**Event streams & paths (dictionary/registry):**
+   * `merchants_in_egress` (distinct `merchant_id`)
+   * `blocks_with_rows` (count of `(merchant, legal_country_iso)` with `n≥1`)
+   * `rows_total` (egress rows), checksum of PK tuple hashes, and `rows_total_by_country` (map `legal_country_iso → rows`) — helpful for 1B pre-flight checks
+   * `hist_final_country_outlet_count` (bucketed histogram of `n`)
+   * `domain_size_distribution` (histogram of `|Dₘ|`, joined from S3)
+   * `overflow_merchant_count` and list (ids truncated or hashed)
+   * `sum_law_mismatch_count` (should be 0)
+   * `s3_membership_miss_count` (should be 0)
+   * `iso_fk_violation_count` (should be 0).
+     *(Validation bundle is defined to carry “metrics, plots, diffs”; these keys are binding for S8.)* 
 
-* `sequence_finalize` — one per **non-empty** block:
-  `logs/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
-* `site_sequence_overflow` — **0/1** per `(seed,fingerprint)`:
-  `logs/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+3. **`egress_checksums.json`** — stable hashes for reproducibility (e.g., SHA-256 per file and whole-partition composite) to support byte-identity assertions on re-runs. *(Lives in the same bundle as above.)* 
 
-Both use the common RNG envelope; **non-consuming ⇒** `before==after`, `draws=0`.
+> The bundle’s `_passed.flag` content hash **MUST** equal `SHA256(validation_bundle_1A)` for the same fingerprint; consumers verify this **before** reading `outlet_catalogue`. 
 
-**Cardinality & payload coherence:**
+---
 
-$$
-\#\texttt{sequence _finalize} \;=\; \sum_{(m,c)} \mathbf 1[n_{m,c}>0],\qquad
-\#\texttt{site _sequence _overflow}\in\{0,1\}.
-$$
+## 13.4 SLO-style thresholds (binding alerts)
 
-For each `sequence_finalize(m,c)`: `site_count = n_{m,c}`, `start_sequence="000001"`, `end_sequence=zpad6(n_{m,c})` and **`legal_country_iso=c`**. If overflow exists ⇒ **no staged egress**.
+The validator **MUST** hard-fail (§11) if any of the following non-exhaustive conditions are met (write into the bundle and withhold `_passed.flag`):
 
-**Trace reconciliation:** for labels in scope, per-label and per-event **draws=0** and **counter deltas = 0** (envelope and `rng_trace_log` agree).
+* `trace_events_total_delta ≠ sequence_finalize_events + site_sequence_overflow_events`. 
+* `sum_law_mismatch_count > 0` or `s3_membership_miss_count > 0`. (Breaks core invariants.) 
+* Any **path↔embed** mismatch detected for audit/trace/events. 
 
 ---
 
-## 3) Error catalogue (writer-side abort semantics)
+## 13.5 Retention & access control (operational)
 
-* `E-S8.6-SCHEMA` — schema violation on staged egress.
-* `E-S8.6-PK-DUP` — duplicate PK `(merchant_id, legal_country_iso, site_order)`.
-* `E-S8.6-ECHO` — row’s `global_seed`/`manifest_fingerprint` ≠ path tokens.
-* `E-S8.6-CROSSFIELD` — `site_id != zpad6(site_order)` or `site_order` out of `[1, final_country_outlet_count]`.
-* `E-S8.6-BLOCKCONST` — per-block constancy/row-count mismatch.
-* `E-S8.6-SITEID-DUP` — duplicate `site_id` within a block.
-* `E-S8.6-CONSERVATION` — merchant conservation identity fails.
-* `E-S8.6-FK-ISO` — ISO FK failure.
-* `E-S8.6-OVERFLOW` — overflow event observed **with** staged egress, or staged content shows count > 999,999.
-* `E-S8.6-RNGCARD` — missing/excess `sequence_finalize` or overflow cardinality breach.
-* `E-S8.6-RNGZERO` — any non-consuming event advances counters or shows non-zero draws.
+* **Retention:** `rng_audit_log` and `rng_trace_log`: **365 days**; S8 event streams (`sequence_finalize`, `site_sequence_overflow`): **180 days**; `outlet_catalogue` and the validation bundle: **365 days** (minimum). Producers **MUST** adhere to the dictionary’s retention.
+* **Gate:** `outlet_catalogue` is readable **only** after the validation bundle’s `_passed.flag` verifies for the same fingerprint (**no PASS → no read**). 
 
-All are **hard-fail**; S8.5 must **not** publish.
-
 ---
 
-## 4) Reference validator (single-pass over rows + event sync)
+## 13.6 Module & labels (log identity)
 
-```pseudo
-function validate_s8(staged_rows, seed, fingerprint, iso_table,
-                     n_map, seq_finalize_events, overflow_events, rng_trace,
-                     parameter_hash, run_id):
+* S8 producers **MUST** populate the RNG envelopes with the `(module, substream_label)` values enumerated for S8 (see Appendix A). The dictionary lineage shows S8’s producer as **`1A.site_id_allocator`** for `sequence_finalize`; use the same module label across S8 events for consistent trace roll-up. 
 
-  # A) Dataset-local checks
-  pk_set        := HashSet()
-  siteid_sets   := HashMap<(m,c), HashSet()>()
-  block_rows    := HashMap<(m,c), int64>()         # observed rows
-  block_fcount  := HashMap<(m,c), int32>()         # asserted final_country_outlet_count
-  merch_sum     := HashMap<m, int64>()             # sum of block counts
-  merch_draw    := HashMap<m, int32>()             # observed raw_nb_outlet_draw per merchant
-  merch_flag    := HashMap<m, bool>()              # observed single_vs_multi_flag (constancy only)
-  merch_home    := HashMap<m, ISO2>()              # observed home_country_iso (constancy only)
+**Status:** Section 13 is **Binding**.
 
-  for row in staged_rows:
-    # Echo
-    if not (row.global_seed == seed and row.manifest_fingerprint == fingerprint): raise E-S8.6-ECHO
-
-    # Domains & FK
-    if not matches(row.site_id, "^[0-9]{6}$"): raise E-S8.6-SCHEMA
-    if row.raw_nb_outlet_draw < 1 or row.site_order < 1: raise E-S8.6-SCHEMA
-    if row.final_country_outlet_count < 1 or row.final_country_outlet_count > 999999: raise E-S8.6-SCHEMA
-    if not (row.home_country_iso in iso_table and row.legal_country_iso in iso_table): raise E-S8.6-FK-ISO
+---
 
-    # Cross-field
-    if row.site_order > row.final_country_outlet_count: raise E-S8.6-CROSSFIELD
-    if row.site_id != zpad6(row.site_order): raise E-S8.6-CROSSFIELD
+# Appendix A — Enumerations & literal labels **(Normative)**
 
-    # PK uniqueness
-    pk := (row.merchant_id, row.legal_country_iso, row.site_order)
-    if not add_unique(pk_set, pk): raise E-S8.6-PK-DUP
+This appendix freezes the **exact strings** S8 producers/validators must use in logs, datasets, gates, and error reporting. Unless stated otherwise, all items are **binding**.
 
-    # Block tallies
-    k := (row.merchant_id, row.legal_country_iso)
-    block_rows[k] = block_rows.get(k,0) + 1
-    if k not in block_fcount: block_fcount[k] = row.final_country_outlet_count
-    else if block_fcount[k] != row.final_country_outlet_count: raise E-S8.6-BLOCKCONST
+---
 
-    S := siteid_sets.get_or_create(k, HashSet())
-    if not add_unique(S, row.site_id): raise E-S8.6-SITEID-DUP
+## A.1 RNG `module` / `substream_label` literals for S8
 
-    # Merchant constancy + conservation tally
-    m := row.merchant_id
-    merch_sum[m]  = merch_sum.get(m,0) + row.final_country_outlet_count
-    if m not in merch_draw: merch_draw[m] = row.raw_nb_outlet_draw
-    else if merch_draw[m] != row.raw_nb_outlet_draw: raise E-S8.6-CONSERVATION
-    if m not in merch_flag: merch_flag[m] = row.single_vs_multi_flag
-    else if merch_flag[m] != row.single_vs_multi_flag: raise E-S8.6-SCHEMA
-    if m not in merch_home: merch_home[m] = row.home_country_iso
-    else if merch_home[m] != row.home_country_iso: raise E-S8.6-SCHEMA
+* **`module` (all S8-emitted events):**
+  `1A.site_id_allocator`  — emitter of S8 instrumentation families. 
 
-  # Block equality & overflow defence
-  for k in block_rows.keys():
-    if block_rows[k] != block_fcount[k]: raise E-S8.6-BLOCKCONST
-    if block_fcount[k] > 999999: raise E-S8.6-OVERFLOW
+* **`substream_label` (per family):**
+  `sequence_finalize` — final per-(merchant,country) sequence event. 
+  `site_sequence_overflow` — guardrail when 6-digit space would overflow. 
 
-  for m in merch_sum.keys():
-    if merch_sum[m] != merch_draw[m]: raise E-S8.6-CONSERVATION
+> Conformance: these values **MUST** populate the RNG envelope fields `module` and `substream_label` for S8’s event rows (schema `#/rng_envelope`). 
 
-  # B) RNG event sync (non-consuming, cardinality, payload)
-  # Partition tokens on events
-  assert all(e.seed==seed and e.parameter_hash==parameter_hash and e.run_id==run_id for e in seq_finalize_events)
-  assert all(e.seed==seed and e.parameter_hash==parameter_hash and e.run_id==run_id for e in overflow_events)
+---
 
-  want_sf := sum_{(m,c)} 1[n_map[(m,c)] > 0]
-  have_sf := len(seq_finalize_events)
-  if have_sf != want_sf: raise E-S8.6-RNGCARD
+## A.2 Event family names & canonical paths (S8)
 
-  for e in seq_finalize_events:
-    m := e.merchant_id
-    c := e.legal_country_iso          # aligned to egress naming
-    n := e.site_count
-    if n != n_map[(m,c)]: raise E-S8.6-RNGCARD
-    if e.start_sequence != "000001" or e.end_sequence != zpad6(n): raise E-S8.6-RNGCARD
-    if not counters_equal(e.before, e.after) or trace_draws(rng_trace,"sequence_finalize",m,c) != 0:
-        raise E-S8.6-RNGZERO
+* **`rng_event.sequence_finalize`**
+  Path: `logs/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+  Schema: `schemas.layer1.yaml#/rng/events/sequence_finalize`
+  Gating: `gated_by: rng_event_hurdle_bernoulli`, `predicate: is_multi == true`. 
 
-  any_overflow := any(n_map[(m,c)] > 999999 for (m,c) in n_map.keys())
-  if any_overflow:
-    # centralised policy: 0/1 overflow per partition, and no rows
-    if len(overflow_events) != 1: raise E-S8.6-RNGCARD
-    if not is_empty(staged_rows): raise E-S8.6-OVERFLOW
-    e := overflow_events[0]
-    if e.attempted_count <= 999999 or e.overflow_by != (e.attempted_count - 999999):
-        raise E-S8.6-RNGCARD
-    if not counters_equal(e.before, e.after) or trace_draws(rng_trace,"site_sequence_overflow") != 0:
-        raise E-S8.6-RNGZERO
-  else:
-    if len(overflow_events) != 0: raise E-S8.6-RNGCARD
+* **`rng_event.site_sequence_overflow`**
+  Path: `logs/rng/events/site_sequence_overflow/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
+  Schema: `schemas.layer1.yaml#/rng/events/site_sequence_overflow`
+  Gating: same as above. 
 
-  return OK
-```
+* **Core RNG logs (read by validator):**
+  `rng_audit_log` → `logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl` (schema `#/rng/core/rng_audit_log`)
+  `rng_trace_log` → `logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl` (schema `#/rng/core/rng_trace_log`)
+  *(Trace requires exactly one cumulative row after **each** RNG event append.)*
 
 ---
 
-## 5) What S9 additionally proves (hand-off gate)
+## A.3 Dataset IDs S8 reads/writes (IDs → `$ref` → partitions)
 
-S9 writes **`validation_bundle_1A`** under
-`data/layer1/1A/validation/fingerprint={F}/` and `_passed.flag` whose **content hash equals** `SHA256(bundle)`. **1B may read `outlet_catalogue` only if** this pair exists and matches the same fingerprint. S9’s bundle includes per-label RNG accounting (draw sums = 0; counter deltas = 0), PK/UK/FK/echo proofs, conservation metrics, and policy notes.
+* **Egress (S8 writes):**
+  `outlet_catalogue` → `schemas.1A.yaml#/egress/outlet_catalogue` → `[seed, fingerprint]`
+  Path: `data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/`.
+  *(Does **not** encode cross-country order; consumers must join S3 candidate rank.)*
 
----
+* **Order authority (read):**
+  `s3_candidate_set` → `schemas.1A.yaml#/s3/candidate_set` → `[parameter_hash]`. 
+
+* **Counts surface (read, variant if present):**
+  `s3_integerised_counts` → `schemas.1A.yaml#/s3/integerised_counts` → `[parameter_hash]`. 
 
-## 6) Conformance tests (must-pass)
+* **Optional upstream sequence (cross-check only, if present):**
+  `s3_site_sequence` → `schemas.1A.yaml#/s3/site_sequence` → `[parameter_hash]`. 
 
-1. **Happy path, two blocks.** $(m,GB)\, n{=}3$, $(m,US)\, n{=}2$ → 5 rows; ordered keys; per-block constants; PK unique; `site_id=zpad6(site_order)`; **two** `sequence_finalize` with coherent payloads; **zero** overflow; non-consuming envelopes. ✔︎
-2. **Zero-block elision.** Add $(m,FR)\, n{=}0$ → **no rows** for FR and **no** finalize for FR. ✔︎
-3. **Overflow guard (centralised).** Set $n_{m,US}=1\,000\,005$ → **one** `site_sequence_overflow` for the partition; **no staged egress**; validator aborts publish. ✔︎
-4. **Echo mismatch.** Flip a row’s `global_seed` or `manifest_fingerprint` → `E-S8.6-ECHO`. ✔︎
-5. **PK duplication.** Duplicate `(merchant_id, legal_country_iso, site_order)` → `E-S8.6-PK-DUP`. ✔︎
-6. **Cross-field failure.** `site_id="000010"` with `site_order=9` → `E-S8.6-CROSSFIELD`. ✔︎
-7. **ISO FK breach.** `legal_country_iso="ZZ"` → `E-S8.6-FK-ISO`. ✔︎
-8. **RNG non-consumption.** Tweak a finalize envelope so `after≠before` or trace shows draws>0 → `E-S8.6-RNGZERO`. ✔︎
-9. **Conservation breach.** Make $\sum_c \texttt{final _country _outlet _count}\neq \texttt{raw _nb _outlet _draw}$ for merchant $m$ → `E-S8.6-CONSERVATION`. ✔︎
+* **Membership convenience (read if used):**
+  `s6_membership` → `schemas.1A.yaml#/s6/membership` → `[seed, parameter_hash]`
+  `s6_validation_receipt` → `schemas.layer1.yaml#/validation/s6_receipt` → `[seed, parameter_hash]` *(gate)*. 
 
 ---
 
-## 7) Implementation notes (binding where stated)
+## A.4 Gate & bundle identifiers (hand-off)
 
-* **Where to run:** execute this validator **inside S8.5** on `_staging/` before atomic publish. If any check fails, **do not publish**; S9 still emits a bundle for forensics (without `_passed.flag`).
-* **Event naming:** use `legal_country_iso` in event payloads to align with egress terminology.
-* **Locale:** `zpad6` is C-locale/ASCII; forbid locale-dependent digits.
+* **Validation bundle (fingerprint-scoped):** `validation_bundle_1A`
+  Path: `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` (schema `schemas.1A.yaml#/validation/validation_bundle`).
 
+* **Consumer gate flag:** `validation_passed_flag` (file: `_passed.flag`)
+  Rule: content hash equals `SHA256(validation_bundle_1A)` for the **same** fingerprint (**no PASS → no read**). 
+
 ---
+
+## A.5 Payload field literals & constants (S8 events)
+
+* **`sequence_finalize` payload keys:** `merchant_id`, `country_iso`, `site_count`, `start_sequence`, `end_sequence`.
+  Domain: `start_sequence`, `end_sequence` ∈ `six_digit_seq` (`^[0-9]{6}$`). 
+  Naming note: **Events** use `country_iso`; **egress** uses `legal_country_iso`; both FK → `iso3166_canonical_2024`.
 
-This locks S8’s **pure-function determinism**, the **exact writer-time validator** (mirrored in S9), centralised overflow semantics, RNG **zero-draw** accounting, conservation equality, and the cryptographic 1A→1B gate.
+* **`site_sequence_overflow` payload keys:** `merchant_id`, `country_iso`, `attempted_count`, `max_seq`, `overflow_by`, `severity`.
+  Constants: `max_seq = 999999`, `severity = "ERROR"`. 
 
 ---
 
-# S8.7 — Complexity, streaming & ops
+## A.6 Lineage & path tokens (exact column/segment names)
 
-## 1) Scope (what this section binds)
+* Path tokens used by S8: `seed`, `parameter_hash`, `run_id`, `fingerprint`.
+* Embedded lineage columns that must **byte-equal** path tokens where present:
+  `manifest_fingerprint` (egress row) ↔ `fingerprint` (path);
+  `{seed, parameter_hash, run_id}` (event rows) ↔ their path segments;
+  and for **event rows**, `manifest_fingerprint` **MUST** equal the run’s egress fingerprint (not a path token).
 
-S8 takes country-level integers $\{n_{m,c}\}$ and materialises the egress table **`outlet_catalogue`** (one row per realised site) under
+---
+
+## A.7 Error & outcome codes (S8)
 
-```
-data/layer1/1A/outlet_catalogue/
-  seed={seed}/fingerprint={manifest_fingerprint}/part-*.parquet
-```
+**Errors (hard failures):**
+`E_PASS_GATE_MISSING` · `E_SCHEMA_INVALID` · `E_PATH_EMBED_MISMATCH` · `E_S3_MEMBERSHIP_MISSING` · `E_COUNTS_SOURCE_MISSING` · `E_DUP_PK` · `E_SEQUENCE_GAP` · `E_SITE_ID_OVERFLOW` · `E_ORDER_AUTHORITY_DRIFT` · `E_SUM_MISMATCH` · `E_FK_ISO_INVALID` · `E_TRACE_COVERAGE_MISSING` · `E_SEQUENCE_DIVERGENCE` (if `s3_site_sequence` is present and disagrees). *(These are defined by this spec; severity = ERROR for all.)*
 
-with **PK** `(merchant_id, legal_country_iso, site_order)`, and **write order = sort keys** `(merchant_id, legal_country_iso, site_order)`. **Inter-country order is never encoded** in egress (consumers join `country_set.rank`). These dataset mechanics are **authoritative** for complexity and ops below.
+**Deterministic non-errors (informative outcomes):**
+`DEG_SINGLE_COUNTRY` · `DEG_ZERO_REMAINDER`. *(Defined by this spec.)*
 
 ---
 
-## 2) Work & memory complexity
+## A.8 Notes on deprecated/legacy IDs (do **not** use for authority)
 
-Let:
+* `country_set` (legacy RNG-dependent set; **not** an order authority).
+* `ranking_residual_cache_1A` (deprecated; superseded by `s3_integerised_counts`). 
+
+---
 
-* $M$ = number of merchants in scope.
-* For merchant $m$, $\mathcal{C}_m$ = ordered legal country set from `country_set`.
-* $T=\sum_m\sum_{c\in\mathcal{C}_m} n_{m,c}$ = **total rows** (sites) to emit.
+## A.9 External FK targets (for completeness)
 
-**Row materialisation.** Construction is a **pure map** $j\mapsto(\texttt{site _order}=j,\ \texttt{site _id}=\mathrm{zpad6}(j))$ per $(m,c)$ using **ASCII digits** (C locale). Therefore:
+* `iso3166_canonical_2024` — FK target for ISO-2 in `home_country_iso` / `legal_country_iso`. 
 
-* **Time:** $\Theta(T)$ for row construction.
-* **Extra sorting cost:** **none** if you generate in key order `(merchant_id, legal_country_iso, site_order)`; otherwise a global $T\log T$ appears and **must be avoided**.
+**Status:** Appendix A is **Normative**.
 
-**Memory (streaming writer).** With a streaming Parquet writer and contiguous emission in key order:
+---
 
-* Peak RAM is **O(row-group size)** (64–256 MiB typical) + small counters/accumulators for on-the-fly validation (per-block counts; optional small set if contiguity is not guaranteed). No full-table materialisation is required.
+# Appendix B — Worked micro-examples **(Informative)**
 
-**RNG cost.** S8 consumes **no RNG**. Its events (`sequence_finalize`, `site_sequence_overflow`) are **non-consuming** and must keep Philox counters unchanged (**`before == after`, `draws=0`**).
+These toy scenarios illustrate S8 behaviour. Values are illustrative only; they do **not** change any binding rule above.
 
 ---
 
-## 3) I/O footprint & file layout (deterministic & scalable)
+## B.1 Normal multi-country merchant (three-country domain)
 
-Let:
+**Lineage tokens**
+`seed=1234567890123456789` (uint64) · `parameter_hash=a1…a1` (**hex64**) · `run_id=9f…9f` (**hex32**) · `fingerprint=0123456789abcdef…(**hex64**)`
 
-* $B_{\text{uncomp}}$ = average **uncompressed** row size for `outlet_catalogue`.
-* Target row-group size $\approx 128\,\mathrm{MiB}$ uncompressed.
-* $G$ = number of row-groups; $P$ = number of part files.
+**S3 candidate set (sole cross-country order, home rank=0)**
+`GB(0), US(1), DE(2)` — total, contiguous.
 
-**Planning formulas:**
+**Upstream facts**
+`N` (S2 `nb_final.n_outlets`) = **7**.
+S7 integerised counts: `GB:4, US:2, DE:1` (sum = 7).
+S6 membership agrees with S3 domain.
 
-$$
-G \;\approx\; \left\lceil \frac{T \cdot B_{\text{uncomp}}}{128\,\mathrm{MiB}} \right\rceil,\qquad
-P \;\approx\; \left\lceil \frac{G}{\text{row _groups _per _part}} \right\rceil.
-$$
+**S8 writes** `outlet_catalogue` (partitioned by `[seed, fingerprint]`; writer sort `[merchant_id, legal_country_iso, site_order]`):
 
-**Naming & path (binding).** Parts **must** be named
+| `merchant_id` | `home_country_iso` | `legal_country_iso` | `site_order` | `site_id` | `raw_nb_outlet_draw` | `final_country_outlet_count` | `manifest_fingerprint` |       `global_seed` |
+|---------------|--------------------|---------------------|-------------:|----------:|---------------------:|-----------------------------:|------------------------|--------------------:|
+| m42           | GB                 | GB                  |            1 |    000001 |                    7 |                            4 | …fingerprint…          | 1234567890123456789 |
+| m42           | GB                 | GB                  |            2 |    000002 |                    7 |                            4 | …                      |                   … |
+| m42           | GB                 | GB                  |            3 |    000003 |                    7 |                            4 | …                      |                   … |
+| m42           | GB                 | GB                  |            4 |    000004 |                    7 |                            4 | …                      |                   … |
+| m42           | GB                 | US                  |            1 |    000001 |                    7 |                            2 | …                      |                   … |
+| m42           | GB                 | US                  |            2 |    000002 |                    7 |                            2 | …                      |                   … |
+| m42           | GB                 | DE                  |            1 |    000001 |                    7 |                            1 | …                      |                   … |
 
-```
-part-00000.parquet, part-00001.parquet, …
-```
+**S8 emits** instrumentation (non-consuming events; each followed by one `rng_trace_log` row):
 
-under `…/seed={seed}/fingerprint={manifest_fingerprint}/`. The partition is **immutable**; a two-phase publish is **required** (stage → validate → **atomic rename**).
+* `sequence_finalize(merchant=m42,country=GB, site_count=4, start_sequence="000001", end_sequence="000004")`
+* `sequence_finalize(merchant=m42,country=US, site_count=2, …, end_sequence="000002")`
+* `sequence_finalize(merchant=m42,country=DE, site_count=1, …, end_sequence="000001")`
 
-**Compression & encodings (advisory but consistent).** Parquet is mandated; use a consistent codec across parts (e.g., Zstd level 3). Where feasible, align row-groups (optionally parts) with block boundaries $(m,c)$ to speed `site_order` scans. (Performance hint; schema & path remain binding.)
+**Checks that pass**
 
-**Partition echo (binding).** Every row **must** echo the directory tokens: `global_seed==seed` and `manifest_fingerprint==fingerprint`.
+* Per-merchant sum: `4+2+1 = 7 = N`.
+* Per-country contiguity: each block has `site_order = 1..nᵢ`; `site_id = zfill6(site_order)`.
+* No cross-country order encoded; consumers join S3 `candidate_rank` when needed.
 
 ---
 
-## 4) Deterministic concurrency model
+## B.2 Single-country domain (degenerate but valid)
 
-**Sharding unit (binding).** **Merchant** is the parallelisation unit. Each shard:
+**S3 candidate set**: `NG(0)` only.
+**Upstream facts**: `N = 3`; S7 counts: `NG:3`.
+**S8 egress** (three rows) with `legal_country_iso=NG`, `site_order=1..3` (`site_id` 000001..000003).
+**S8 events**: one `sequence_finalize(…, country=NG, site_count=3, start="000001", end="000003")`.
+**Outcome label**: `DEG_SINGLE_COUNTRY`.
 
-1. processes a disjoint set of merchants **in ascending `merchant_id`**, and
-2. within each merchant, iterates `legal_country_iso` **ascending**, emitting `site_order = 1..n_{m,c}`.
-
-This preserves global lexicographic order when shard outputs are merged.
+---
 
-**Multi-writer staging.** Multiple shards may emit parts into a single `_staging/` directory (unique temp filenames per shard), then a **single** metadata-atomic rename publishes the partition. Each part **must** be internally ordered by the dataset keys.
-If you require **byte-identical part listings across replays**, perform a deterministic concatenation/renumbering pass at publish time and emit `part-00000.parquet …` in a canonical shard-key order.
+## B.3 Overflow guardrail (merchant-scoped abort)
 
-**Idempotence & immutability.** If the final partition exists and is non-empty, **abort**; do **not** overwrite. Retries are allowed only **before** the atomic rename, after cleaning `_staging/`.
+**S3 candidate set**: `CN(0)` only (or any single country).
+**Upstream facts**: per-country integer count `n_CN = 1,000,001` (> 999,999 limit).
+**S8 behaviour**
 
-**Event emission ordering.** Emit `sequence_finalize` **after** each non-empty block’s rows are staged; emit `site_sequence_overflow` **once per partition** and **abort immediately** if any $n_{m,c}>999{,}999$. Both events are **non-consuming** (`before == after`).
+* Emit `site_sequence_overflow(merchant=mx, country=CN, attempted_count=1000001, max_seq=999999, overflow_by=2, severity="ERROR")`.
+* **Do not** write any `outlet_catalogue` rows for merchant `mx`; mark merchant as failed in the validation bundle.
+* Partition remains readable for other merchants; overall fingerprint may still PASS if failures are handled per policy (if policy is “abort merchant only”). *(Exact abort scope is as specified in §10.)*
 
 ---
 
-## 5) Online validation while streaming (single pass)
+## B.4 Using S3 integerised counts vs S7 evidence (both valid)
 
-To avoid a second full scan before publish, perform **on-the-fly checks** as rows are written. For the **current block** $k=(m,c)$ maintain:
+* **Variant A (preferred when present):** `s3_integerised_counts` says `BR:2, AR:1, UY:1` (N=4). S8 copies these counts verbatim; sequences are `1..2`, `1..1`, `1..1`.
+* **Variant B (no S3 counts surface):** S8 receives the in-process S7 counts handoff (reconstructed by the validator from `rng_event.residual_rank`). Counts identical to above; S8 behaviour is the same.
+* In **both** cases, S8 does **not** read weights and does **not** alter counts.
 
-* `count_rows[k]` (seen rows),
-* `final_count[k]` (first `final_country_outlet_count`; must be constant),
-* **Either** a small set of `site_id` **or** (preferred with sequential emission) two scalars:
-
-  * `last_site_order[k]` (start at 0),
-  * `max_site_order[k]` (monotone).
+---
 
-**Per-row predicates (must hold):**
+## B.5 Path & lineage parity (spot example)
 
-$$
-\begin{aligned}
-&\text{regex(site _id)}=\texttt{^[0-9]{6}\$}\ \text{(ASCII digits)}, \\
-&1\le \texttt{site _order}\le \texttt{final _country _outlet _count},\quad
-\texttt{site _id}=\mathrm{zpad6}(\texttt{site _order}), \\
-&\texttt{raw _nb _outlet _draw}\ge 1, \\
-&\texttt{home _country _iso},\ \texttt{legal _country _iso}\in \text{ISO2 (FK)}, \\
-&(\texttt{global _seed},\texttt{manifest _fingerprint})=(\texttt{seed},\texttt{fingerprint}).
-\end{aligned}
-$$
+Given path
+`…/outlet_catalogue/seed=1234567890123456789/fingerprint=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/part-000.parquet`,
+every egress row **must** embed `manifest_fingerprint = "0123456789abcdef…"` and `global_seed = 1234567890123456789`. Any byte mismatch triggers `E_PATH_EMBED_MISMATCH` (see §10).
 
-**Gap-free optimisation (sequential write).** If rows within a block are emitted in order:
+---
 
-* assert `site_order == last_site_order[k] + 1` and set `last_site_order[k] = site_order`;
-* set `max_site_order[k] = site_order`; uniqueness of `site_id` then follows **without a set**.
+**Note:** These examples are **Informative**. The **Binding** behaviour, contracts, and gates are defined in §§0–13 and Appendix A.
 
-**At block boundary:** assert `count_rows[k] == final_count[k]` and `max_site_order[k] == final_count[k]`, then reset.
-**Per merchant $m$:** maintain `sum_final_counts[m] += final_count[(m,c)]`; on merchant boundary assert **conservation**:
+---
 
-$$
-\texttt{raw _nb _outlet _draw}(m) \;=\; \sum_{c} \texttt{final _country _outlet _count}(m,c).
-$$
+# Appendix C — Storage conventions **(Informative)**
 
-On any breach, **abort**; do not publish.
+These are **non-binding** operational defaults for files, folders, and object-store hygiene. Authority for **paths, partitions, formats, retention** remains with the **Dataset Dictionary** and **Artefact Registry**; if those pin a storage policy (e.g., compression), that policy **wins**.
 
 ---
 
-## 6) Overflow guard & abort semantics
+## C.1 File formats & compression (defaults; become binding if pinned)
 
-Let $U=999{,}999$ (6 digits). If **any** $n_{m,c}>U$:
+* **Parquet (tables):** use **ZSTD level 3** unless the registry says otherwise; keep Parquet as the only format within a dataset/partition. 
+* Suggested row-group target: **128–256 MiB** uncompressed; enable statistics; prefer dictionary encoding on low-cardinality columns (e.g., `legal_country_iso`).
+* **JSONL (events/logs):** `.jsonl` (optionally **.jsonl.zst**); one JSON object per line, `\n` line endings; do not pretty-print. **RNG logs** are JSONL by dictionary. 
 
-* Perform a **central pre-scan** and emit **exactly one** `site_sequence_overflow` event for the lexicographically first offending $(m,c)$ under `(merchant_id, legal_country_iso)`.
-* **Do not** stage any `outlet_catalogue` rows.
-* **Abort** the publish for this `(seed,fingerprint)`.
+> If the registry publishes a compression profile (e.g., `compression_zstd_level3`), producers **should** use it and treat it as project policy. 
 
-Presence of an overflow event **implies** absence of an egress partition for that fingerprint.
-
 ---
 
-## 7) Throughput formulas & capacity planning
+## C.2 Part sizing & naming (to avoid tiny files)
 
-Definitions:
+* Aim for **64–128 MiB** compressed per part; avoid parts < 8 MiB.
+* Naming pattern: `part-00000-of-000NN.<ext>` (fixed batch) or `part-<uuid>.<ext>` (streaming). One family per folder. 
+
+---
 
-* $r_w$ = sustained row write rate per writer (rows/s) after encoding + compression.
-* $k$ = number of writers (merchant shards) in parallel.
-* $T$ = total rows.
-* $E = \sum_{(m,c)} \mathbf 1[n_{m,c}>0]$ = number of non-empty blocks ⇒ number of `sequence_finalize` events.
+## C.3 Writer sort & non-authoritative order
 
-**Wall-clock write time (idealised):**
+* Follow the dictionary’s **writer sort** for egress (S8): `[merchant_id, legal_country_iso, site_order]`. Readers **MUST NOT** rely on physical file order; equality is by **row set**. RNG JSONL line order is append order **within a file** only.
 
-$$
-t_{\text{emit}} \;\approx\; \frac{T}{k\,r_w}\quad\text{(excludes final validation & rename)}.
-$$
+---
 
-**Validation time.** With on-the-fly checks, overhead is **O(1)** per row; remaining fixed cost is the staged schema/PK/FK scan (linear in bytes) and typically overlaps with writer flushes.
+## C.4 Canonical paths & partitions (reminder)
 
-**Log volume.** `sequence_finalize` produces **E** JSONL records; `site_sequence_overflow` produces **at most 1** per partition and aborts. Both are small envelopes and **zero-draw**.
+* **Egress (S8):** `data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/` with partitions `[seed, fingerprint]` (Parquet). 
+* **RNG events/logs:** `logs/rng/{audit|trace|events/<family>}/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…` (JSONL). 
+* **Validation bundle:** `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/`. Gate via `_passed.flag` content hash == `SHA256(bundle)` for the **same** fingerprint. 
 
 ---
 
-## 8) Monitoring, SLOs & alerts (binding where stated)
+## C.5 Checksums & manifests (recommended)
 
-* **SLO-S8-01 (schema & keys):** 100% of staged partitions pass schema, PK, and FK checks before publish. **Alert** on `E-S8.5-SCHEMA`, `E-S8.5-PK-DUP`, `E-S8.5-ECHO`.
-* **SLO-S8-02 (event sync):** For any successful publish, `count(sequence_finalize) == E` and **zero** overflow; envelopes are **non-advancing** and reconcile to **draws=0**. **Alert** on `E-S8.5-EVENTSYNC` / `E-S8.6-RNGZERO`.
-* **SLO-S8-03 (immutability):** 0 overwrites of existing partitions; any attempt triggers `E-S8.5-IMMUTABLE-EXISTS`. **Alert** and block job.
-* **SLO-S8-04 (gate integrity):** 1B reads only **after** `_passed.flag` hash equals `SHA256(validation_bundle_1A)` for the **same** fingerprint. Missing/invalid gate is a **hard block**.
+* Write a **per-part SHA-256** sidecar: `part-….<ext>.sha256` (hex of compressed bytes).
+* Optional folder `_MANIFEST.json`: list parts + sizes + hashes + total logical rows.
+* Optional **folder hash**: SHA-256 over part hashes in lexicographic order (quick integrity anchor). 
 
 ---
-
-## 9) Failure, retry & idempotence matrix
 
-| Failure point            | Example error                | Effect                    | Allowed action                                           |
-| ------------------------ | ---------------------------- | ------------------------- | -------------------------------------------------------- |
-| Preflight / overflow     | `site_sequence_overflow`     | No staging, abort         | Fix inputs or reduce $n_{m,c}$; rerun                    |
-| During stream            | Domain/PK/FK breach          | Abort shard; no publish   | Fix; rerun shard(s)                                      |
-| Validation (stage)       | Event mismatch / echo fail   | Abort; remove `_staging/` | Fix; restage & re-validate                               |
-| Atomic rename            | Filesystem/object-store fail | `_staging/` remains       | Retry rename or roll back; **never** partial-write final |
-| Re-run on existing final | `E-S8.5-IMMUTABLE-EXISTS`    | Guarded                   | Do not overwrite; new fingerprint on change              |
+## C.6 Atomic publish (recap)
 
-> **Object stores:** if atomic directory rename is unavailable, use a single-writer manifest publish that is equivalent to POSIX `rename(2)` in atomicity/visibility.
+* **Stage → fsync → atomic rename** into the dictionary path; never expose partial contents. Publish any checksums/manifest **before** the final rename. **Partitions are immutable** after publish. 
 
 ---
 
-## 10) Retention, licensing & PII
+## C.7 Retention / TTL (use dictionary; typical values)
 
-* `outlet_catalogue`: **retention 365 days**, `pii: false`, licence `Proprietary-Internal` (dataset dictionary).
-* RNG events & validation artefacts follow their own retention policies (e.g., RNG logs 180 days; validation bundle per registry).
-* Consumers **must** verify the **gate** before reading.
+* **`outlet_catalogue`**: **365 days**.
+* **RNG events** (`sequence_finalize`, `site_sequence_overflow`): **180 days**; **core logs** (`rng_trace_log`, `rng_audit_log`): **365 days**.
+  Treat these numbers as defaults; the dictionary is the authority.
 
 ---
 
-## 11) Ops recipes (deterministic writer patterns)
+## C.8 Storage class & encryption (ops defaults)
 
-**A. Single-node writer (reference).**
+* Object storage: keep in **standard** for first ~30 days, then **infrequent access** if read rates drop.
+* Encrypt at rest with **SSE-KMS** (project-scoped key); reject unencrypted puts; maintain server-side checksums (or rely on the SHA-256 sidecars). 
 
-1. Iterate merchants ascending; within each merchant, iterate `legal_country_iso` ascending.
-2. For $(m,c)$ with $n_{m,c}>0$, emit rows `site_order=1..n_{m,c}`, `site_id=zpad6(site_order)`; otherwise skip.
-3. Maintain on-the-fly predicates (§5); at block end, emit one `sequence_finalize`.
-4. Flush Parquet parts under `_staging/`; run validator; **atomic rename**.
+---
 
-**B. Sharded writer (multi-node).**
+## C.9 HTTP headers / object metadata (helpful, not required)
 
-* Partition by merchant ranges; each shard writes **ordered** rows to the **same** `_staging/` with unique temp part names.
-* A single coordinator validates `_staging/` and performs the **one** atomic rename (optionally canonicalises `part-00000.parquet …`).
-* If overflow is detected by pre-scan, emit the single overflow event and **do not** validate or rename.
+* **Content-Type**: JSONL → `application/x-ndjson`; Parquet → `application/vnd.apache.parquet`.
+* Add metadata helpful for debugging: `x-run-seed`, `x-parameter-hash`, `x-run-id`, `x-content-sha256`, `x-module`, `x-substream`. 
 
 ---
 
-## 12) Conformance & load tests (must/should)
+## C.10 Compaction & housekeeping
 
-1. **Scale linearity (must):** Double $T$ with fixed $k$ → $t_{\text{emit}}$ doubles within 10% tolerance. ✔︎
-2. **Deterministic replay (must):** Same inputs, different shard counts $k\in\{1,4,16\}$ → identical row content; and, if deterministic concatenation is enabled, identical part listings. ✔︎
-3. **Overflow abort (must):** Inject $n_{m,c}=1{,}000{,}005$ → one `site_sequence_overflow`; **no** egress partition published. ✔︎
-4. **Event zero-draw (must):** Doctor one event to advance counters → validator fails with `RNGZERO`; publish blocked. ✔︎
-5. **Immutability guard (must):** Pre-create final partition then rerun → `IMMUTABLE-EXISTS`; no overwrite. ✔︎
+* **Small-file compaction:** if > 128 parts or > 30% parts < 8 MiB, compact to target size.
+* **Orphan cleanup:** delete `_staging` dirs older than 24 h; alert on dangling staging content.
+* Keep only `{parts, .sha256, _MANIFEST.json}` in partition dirs—no temp/editor artefacts. 
 
 ---
 
-## 13) What S9 will re-prove (for the gate)
+## C.11 Access patterns (downstream hygiene)
 
-S9 re-checks: schema/PK/FK, block counts and bijection (`site_id = zpad6(site_order)`), event cardinalities, **zero-draw** envelopes, **merchant conservation**, and writes **`validation_bundle_1A`** plus `_passed.flag` whose **content hash equals** `SHA256(bundle)`. **1B reads only after** this gate.
+* Always predicate reads on partition tokens rather than bucket-wide listings.
+* For Parquet: **column-prune** (`merchant_id`, `legal_country_iso`, `site_order`, lineage).
+* For JSONL: stream; avoid concatenating entire partitions in memory. 
 
 ---
+
+## C.12 Path template configs (where ops keeps them)
 
-### TL;DR (binding bits)
+* If ops exposes a **storage path pattern** or compression config in `configs/storage/*` (e.g., `storage_path_pattern.yaml`, `compression.yaml`), treat them as **operational policy**; they’re tracked in the Artefact Registry and participate in run manifesting. 
 
-* **Time:** $\Theta(T)$; **memory:** streaming = row-group-bounded.
-* **Order:** generate in `(merchant_id, legal_country_iso, site_order)`; **no global sort**.
-* **Overflow:** $n_{m,c}\le 999{,}999$ or emit **one** overflow event per partition and abort.
-* **Publish:** stage → validate → **atomic rename**; partition **immutable**; verify **gate** before 1B.
-* **Encoding:** `zpad6` uses **ASCII digits** (C locale); forbid locale-dependent digits.
+**Status:** Appendix C is **Informative** (operational guidance only).
 
 ---

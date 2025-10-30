@@ -1,94 +1,108 @@
-# AGENTS.md — Data Engine Router (Layer-1 / Segment 1A / States S0–S4)
-_As of 2025-10-06_
+# AGENTS.md - Data Engine Router (Layer-1 / Segment 1B)
+_As of 2025-10-17_
 
-This file is a **router**, not a design doc. It tells you what to read (in what order), what is binding vs non-binding, where you may work **now**, and how to treat tests and structure. No specific commands are prescribed here.
+This router tells you what is binding, what to read first, and which parts of the engine are in play. Segment 1A (S0-S9) is online and sealed—treat it as read-only unless a migration is explicitly authorised. Segment 1B is the active build.
 
 ---
 
 ## 0) Scope (you are here)
-- You are in the **Data Engine**.
-- Current implementation focus: Layer-1 → Segment 1A → States S0–S4. (note this does not refer to the folder in the repo but to the conceptual breakdown of the engine into layers, subsegments and states). You are free to work/update whereever, as long as it's inline with the design goal.
-- Other engine segments (1B…4B) are **read-only for context**.
-- Note: "XX" here refers to the subsegment within 1A-4B. As we updated the contractual docs, more state-flow files will be added
+- Package: packages/engine
+- Active build: Layer-1 / Segment **1B** / States **S0-S9**
+- Sealed references: Segment 1A S0-S9 (authority surfaces for 1B inputs)
+- Binding specs: 1B expanded state documents and contract artefacts are published; dataset previews remain intentionally omitted.
+- Other segments (2A...4B) remain locked until explicitly opened.
+
+**Environment posture.** We are intentionally deferring integration with the shared dev environment (full artefact replay and manifest hookups) until the **entire Data Engine**—all layers, segments, and states—is built and wired together. While we are still in that build-out phase, every new state must be treated as if the complete engine were already live: wire states together locally, exercise deterministic cross-state invariants, and extend regression tests so the chain remains ready to run end-to-end the moment we connect to real artefacts. No shortcuts.
 
 ---
 
 ## 1) Reading order (strict)
-Read in this exact order before making changes in this package:
+Read these in order before touching code so you align with the frozen specs.
 
-### A) Conceptual references (non-binding; repo-wide end-goal)
-- `docs/references/closed-world-enterprise-conceptual-design*.md`
-- `docs/references/closed-world-synthetic-data-engine-with-realism*.md`
+**A. Conceptual references (repo-wide, non-binding)**
+- docs/references/closed-world-enterprise-conceptual-design*.md
+- docs/references/closed-world-synthetic-data-engine-with-realism*.md
 
-### B) Layer-1 narratives (non-binding; orientation)
-- `docs/model_spec/data-engine/narrative/`  
-  Explains L1 segmentation (1A–4B). Treat as context only.
+**B. Layer-1 narratives (orientation)**
+- docs/model_spec/data-engine/narrative/
 
-### C) State design & implementations for **Segment XX** (where expanded docs live)
-- `docs/model_spec/data-engine/specs/state-flow/XX/`
-  - `overview*.md` → **conceptual** (non-binding; orientation)
-  - `s0*expanded*.md`, `s1*expanded*.md`, … → **expanded state docs** for S0–S4 (documentation/spec)
-  - Pseudocode sets for L0/L1/L2/L3 are **co-located** in this XX area (clearly named files or subfolders).  
-    Use these as the implementation guide.
+**C. Segment 1B state design (binding)**
+- docs/model_spec/data-engine/specs/state-flow/1B/state-flow-overview.1B.md
+- docs/model_spec/data-engine/specs/state-flow/1B/s#*.expanded.md
+  - No archived pseudocode—derive L0/L1/L2/L3 from the expanded spec.
 
-### D) Data-intake specs (per sub-segment; **structure & intent**)
-- `docs/model_spec/data-engine/specs/data-intake/XX/`
-  - `preview/*.md` → **Preview**: examples/illustrations of the **intended ingested data shape** derived from the state docs. Also try to infer the dataset's magnitude as well in order to design efficient systems
-    *These are orientation, not contracts. Do **not** treat preview Markdown—or any sample CSV/JSON—as binding.*
-  - `data/*.md` → **Conceptual flow**: how the **ingestion pipeline** should move from **raw → pre-processed** (sources, scraping/collection approaches, normalization, preprocessing).  
-    *This is a plan for how we expect to ingest; it is **guiding**, not binding.*
-- Global rule for Data Intake:
-  - **Read** the Markdown in `preview/` and `data/` to understand **what** should be ingested and **how** we intend to flow it.
-  - **Ignore** any `.csv` / `.json` sample files (exploratory scaffolds, non-authoritative).
+**D. Data-intake guidance (structure & intent)**
+- No preview/data doc for 1B. Infer dataset posture straight from the state-flow specs and contract registry.
 
-### E) Contract-specs (blueprint for root `contracts/`)
-- `docs/model_spec/data-engine/specs/contracts/`  
-  Per sub-segment/state articulation of **what the contracts should be** (schemas, dataset dictionary entries, policies).  
-  Use these to author or update `contracts/**` at the repo root.
+**E. Contract specs (blueprints for contracts/)
+- docs/model_spec/data-engine/specs/contracts/1B/artefact_registry_1B.yaml
+- docs/model_spec/data-engine/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml
+- docs/model_spec/data-engine/specs/contracts/1B/schemas.1B.yaml
 
-
-> Do **not** promote narratives, overviews, previews, conceptual flow notes, or sample CSV/JSON to binding authority.
+> Never promote narratives, previews, or samples to binding authority. Only the expanded specs and contract documents govern code.
 
 ---
 
-## 2) Test-yourself policy (no prescribed runner)
-- As stated at the repo AGENTS.md, always always test yourself. The L3 pseudocode file tries to lay out some validation requirements however, you're not limited to that.
+## 2) Test-yourself policy
+- Run targeted pytest jobs (python -m pytest ...) for the state you modify.
+- When adding RNG or egress logic, layer in regression cases that exercise both happy-path and gate-fail scenarios (mirror the Segment 1A test harness).
+- Document results when handing work off (logbook or PR notes).
 
 ---
 
-## 3) Ignore list (to prevent “helpful” but wrong edits)
-- Any `docs/**/overview/**` (orientation only)  
-- Deprecated/combined docs explicitly marked as obsolete
+## 3) Ignore list (keep these read-only)
+- docs/**/overview/**
+- Anything explicitly marked deprecated or combined
+- Segment 1A code paths unless a migration is authorised
 
 ---
 
-## 4) If you only read five things for 1A
-1. The **expanded** doc for the active subsegment and state under `docs/model_spec/data-engine/specs/state-flow/` acts as your technical documentation which must be obeyed
-2. The **pseudocode** (L0/L1/L2/L3) for that state in the same subsegment, acts as a bundle (each depending on the other) which guides best implementation although you can improve on it as you like but must be inline with the technical documentation
-3. The **contract-spec** for that state under `docs/model_spec/data-engine/specs/contracts/`  
-4. The **data-intake** `preview/*.md` and `data/*.md` notes under `docs/model_spec/data-engine/specs/data-intake/` for each subsegment give an illustration of what the engine expects at injestion and a guide (not binding) for each pipeline on how to collect data, refine it and get it ready for injestion.
+## 4) Segment 1A references (sealed authority)
+1. Expanded specs (docs/model_spec/data-engine/specs/state-flow/1A/s#*.expanded.md)
+2. Contract specs (docs/model_spec/data-engine/specs/contracts/1A/)
+3. Data intake (docs/model_spec/data-engine/specs/data-intake/1A/preview|data/*.md)
+4. Validation bundles (alidation_bundle/manifest_fingerprint=*/...)
+5. Tests: python -m pytest tests/contracts/test_seg_1A_dictionary_schemas.py tests/engine/cli/test_segment1a_cli.py tests/engine/layers/l1/seg_1A
 
 ---
 
-## 5) S2 quick reference (domestic outlet counts)
-- Test plan: `docs/test-plan/segment1a.md`.
-- Policy file: `contracts/policies/l1/seg_1A/s2_validation_policy.yaml` (rho≤0.06, p99≤3, cusum≤8). Always load it when validating.
-- CLI: `python -m engine.cli.s2_nb_outlets --validation-policy …` consumes the S0 design matrix + governed coefficients and emits RNG logs plus `parameter_scoped/parameter_hash=*/s2_nb_catalogue.json`.
-- Validation artefacts land in `validation/parameter_hash=*/run_id=*/s2/` and the sealed bundle (`validation_bundle/manifest_fingerprint=*/s2_nb_outlets/`).
-- Tests: `python -m pytest tests/engine/layers/l1/seg_1A/test_s2_nb_validator.py tests/engine/cli/test_s2_nb_cli.py`.
+## 5) Segment 1B quick references (initial)
+- **State overview:** docs/model_spec/data-engine/specs/state-flow/1B/state-flow-overview.1B.md
+- **Contract artefacts:** docs/model_spec/data-engine/specs/contracts/1B/{artefact_registry_1B.yaml,dataset_dictionary.layer1.1B.yaml,schemas.1B.yaml}
+- **State flow short labels:**
+  - S0 Gate in (verify 1A _passed.flag, load outlet catalogue)
+  - S1 Country tiling (eligible raster/polygon grid)
+  - S2 Tile priors (deterministic weights)
+  - S3 Site counts (derive N_i per merchant/country)
+  - S4 Integerise shares (largest remainder / deterministic policy)
+  - S5 Cell selection (RNG: aster_pick_cell)
+  - S6 Point jitter (RNG: within-cell jitter, bounded resample)
+  - S7 Site synthesis (attributes, 1:1 parity with 1A)
+  - S8 Egress (site_locations partitioned by [seed, fingerprint])
+  - S9 Validation bundle (alidation_bundle_1B/..., _passed.flag)
+- **RNG envelope:** reuse the 1A Philox/open-interval contract (ngine.layers.l1.seg_1A.s9_validation is the reference implementation).
+- **Validation hash rule:** _passed.flag remains sha256_hex = <digest> over bundle files in ASCII-lexicographic order (same as 1A).
+- **Dataset preview:** intentionally omitted—derive expectations from the expanded specs and contract dictionary.
+
+Extend this section with concrete CLIs, policy paths, and test commands as you implement each state.
 
 ---
 
-## 6) S3 quick reference (cross-border universe)
-- Contract/artefacts: `contracts/policies/l1/seg_1A/policy.s3.rule_ladder.yaml` (rule ladder) plus optional base-weight/threshold policies.
-- Runner: `Segment1AOrchestrator` wires deterministic context → S3. The combined CLI (`python -m engine.cli.segment1a --param policy.s3.rule_ladder.yaml=...`) emits `parameter_scoped/parameter_hash=*/s3_candidate_set.parquet` plus optional priors/counts/sequence via `--s3-priors`, `--s3-integerisation`, and `--s3-sequencing`. `--no-validate-s3` skips validation (defaults to on).
-- Validator: `engine.layers.l1.seg_1A.s3_crossborder_universe.l3.validator.validate_s3_outputs` (covers candidate set + optional priors/counts/sequence; publishes bundle entries under `validation_bundle/manifest_fingerprint=*/s3_crossborder_universe/`).
-- Tests: `python -m pytest tests/engine/layers/l1/seg_1A/test_s3_runner.py`.
+## House style (soft guidance)
+- Prefer clarity and determinism over cleverness.
+- Preserve the L0/L1/L2/L3 separation inside each state package.
+- Surface TODOs or questions when the spec leaves gaps; do not improvise contracts.
+- Keep logging informative—mirror the Segment 1A CLI/orchestrator patterns so smoke tests stay readable.
 
 ---
 
-## House style (soft guidance - optional)
-- I leave it to you to work with your best practices as a pro MLOPs Engineer and Software Engineer when dealing with this project. 
+## Implementation guardrails (must follow)
+- **Specs state intent; code must deliver outcomes.** If the literal steps in a spec would break determinism, efficiency, or memory posture, design the implementation that hits the stated end-goal instead and document the rationale in the logbook. Contracts and public artefacts still govern what you emit.
+- **Performance first.** Treat every state like a production data job: profile, stream, and vectorise. Target sub-15 minute executions for the heavy kernels (S1–S6) by default, and justify any regression.
+- **No more manual hand-offs.** Ensure Segment 1A staging covers every reference that Segment 1B consumes. Within Segment 1B, publish receipts, manifests, and dataset dictionaries so dependent states locate what they need without operator intervention.
+- **Memory-aware by design.** Use chunked IO, deterministic spill directories, and bounded concurrency to keep RSS under control. Loading entire rasters or catalogues into RAM without back-pressure is considered a bug.
+- **Resumable orchestration.** The orchestrator must be able to read existing `_passed.flag` artefacts, receipts, and RNG logs to resume from the point of failure (or clearly instruct the operator when manual repair is required) instead of rerunning S0–S9 from scratch.
+- **Operational visibility.** Instrument long-running steps with structured logging (progress counts, ETA-style checkpoints, RNG envelopes) so smoke tests and production monitors never look “stuck”.
+- **Deterministic artefacts only.** All seeded outputs (parquet partitions, manifests, contract bundles) must hash identically across reruns. Any volatile metadata (timestamps, `run_id`, temp paths, live telemetry) should be isolated from validation surfaces or normalised by tooling.
 
-
-_This router is command-free by design. Execution strategy, test harness, and internal folder improvements inside the engine are up to you—so long as you respect precedence, determinism, and validation gates._
+_This router remains command-free by design. Execution strategy, test harness, and internal folder improvements stay up to you while respecting the governing specs._

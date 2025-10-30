@@ -5,15 +5,18 @@ This document is a **preview/blueprint** for hunting & wrangling. It mirrors wha
 
 ### Machine-use guidance
 - Do **not** constrain discovery to example tokens; treat examples as **representative**, not exhaustive (e.g., don’t search only for MCC 5411—use the *class* of relevant MCCs for your run/region).
-- Respect authority boundaries: **S0** owns **eligibility** (`crossborder_hyperparams.yaml`); **S3** produces **admission metadata & the only inter-country order** (`candidate_rank`).
+- Respect authority boundaries: **S0** owns **eligibility** (`crossborder_hyperparams.yaml`); **S3** produces **admission metadata & the only inter-country order** (`candidate_rank`). Event rows embed `{seed, parameter_hash, run_id, manifest_fingerprint}`; only `{seed, parameter_hash, run_id}` appear in paths and should **byte-equal** those path tokens (engine enforcement). Treat this as guidance for fetch/QA.
 - Region scope is controlled via policy (e.g., R-EEA12) rather than hard-coding in datasets; switching scope means editing policy files, not schemas.
 
 ## Scope & governance (read me first)
-This pack previews **12 datasets** plus **2 governance inputs (non-datasets)** that S0 must open and seal **before S0.2**:
+This pack previews **14 datasets**, **4 governance inputs** (G1–G4), and **3 optional policy surfaces** (O1–O3). It is Informative—meant to guide search/ETL and codec prompts—not a binding contract.
+**Engine expectation.** In the running system, S0 opens and seals **G1 numeric_policy** and **G2 math_profile** before RNG; **G3** (S6) applies if the S6 lane is enabled; **G4** (S7 bounds) is optional. O1–O3 are optional S3/S5 policies captured here purely to guide data hunting.
+**Path style.** Policy artefacts live under `config/`. Both flat names (e.g., `config/policy.s6.selection.yaml`) and subfolders (e.g., `config/policy/s3.base_weight.yaml`) are acceptable—the **Dictionary/Registry path** is authoritative.
 1) `reference/governance/numeric_policy/{version}/numeric_policy.json`
 2) `reference/governance/math_profile/{version}/math_profile_manifest.json`
-Opening these, along with the **dataset dictionary** and **artefact registry** anchors, contributes to the `manifest_fingerprint`. No RNG events are permitted until S0.8 attests this surface.
 
+Opening these, along with the **dataset dictionary** and **artefact registry** anchors, contributes to the `manifest_fingerprint`. No RNG events are permitted until S0.8 attests this surface.
+**Non-binding preview.** This document is **conceptual** (Informative). When anything here conflicts with the **schemas** or the **Dataset Dictionary/Registry**, those authorities **win**. Phrases like “must/shall” below describe **engine behaviour** (what the system enforces), not legal requirements of this preview.
 
 ## Scale & Coverage (magnitude) — macros & gates
 To make capacity planning explicit while data is still being sourced, define the following macros. These are **non-binding defaults** until written to the run manifest and/or `numeric_policy.json`; once recorded there, they become binding gates for S0.
@@ -77,7 +80,7 @@ To make capacity planning explicit while data is still being sourced, define the
 
 ---
 
-## Acceptance checklist (what must be true before S0 runs)
+## Recommended checks (engine expects) (what must be true before S0 runs)
 
 * **Schema pass** against `#/merchant_ids`; **no extra columns**. 
 * **PK uniqueness:** no duplicate `merchant_id`. 
@@ -144,7 +147,7 @@ To make capacity planning explicit while data is still being sourced, define the
 
 ---
 
-## Acceptance checklist (before S0 runs this)
+## Recommended checks (engine expects) (before S0 runs this)
 
 * **Schema pass** against `#/iso3166_canonical_2024`. 
 * **PK uniqueness:** all `country_iso` are unique and match `^[A-Z]{2}$`. 
@@ -204,11 +207,11 @@ Use the JSON-Schema anchor **`schemas.ingress.layer1.yaml#/world_bank_gdp_per_ca
 
 ---
 
-## Acceptance checklist (before S0 runs)
+## Recommended checks (engine expects) (before S0 runs)
 
 * **Schema pass** against `#/world_bank_gdp_per_capita` (or its alias `#/world_bank_gdp`).
 * **PK uniqueness:** no duplicate `(country_iso, observation_year)`. 
-* **Domain checks:** `gdp_pc_usd_2015 > 0`; `country_iso` matches `^[A-Z]{2}$`. 
+* **Domain checks:** `gdp_pc_usd_2015 > 0`; `country_iso` matches `^[A-Z]{2}$`; `source_series == "NY.GDP.PCAP.KD"`.
 * **Foreign key:** every `country_iso` exists in `iso3166_canonical_2024`. 
 * **Coverage for runtime:** **all `home_country_iso` in the merchant seed have a `2024` row** present. (S0 aborts if any is missing.) 
 * **Authority hygiene:** dictionary/registry `schema_ref` uses the **JSON-Schema** (not Avro); aliasing is OK but must resolve to the canonical anchor.
@@ -263,7 +266,7 @@ Use **`schemas.ingress.layer1.yaml#/gdp_bucket_map_2024`**. (Alias **`#/gdp_buck
 
 ---
 
-## Acceptance checklist (before S0 runs)
+## Recommended checks (engine expects) (before S0 runs)
 
 * **Schema pass** against `#/gdp_bucket_map_2024` (or alias `#/gdp_bucket_map`).
 * **PK uniqueness:** one row per `country_iso`. **No duplicates.** 
@@ -292,7 +295,7 @@ Use **`schemas.ingress.layer1.yaml#/gdp_bucket_map_2024`**. (Alias **`#/gdp_buck
 
 **What it is (purpose).** The **single logistic hurdle vector** β used in **S1** (intercept + MCC dummies + channel dummies + 5 GDP-bucket dummies) **and** the **NB-mean vector** `beta_mu` used in **S2**. Its bytes participate in `parameter_hash`, so any change flips run lineage.
 
-**Where it lives (path).** `configs/models/hurdle/hurdle_coefficients.yaml` (artefact registry name: `hurdle_coefficients`). 
+**Where it lives (path).** `config/models/hurdle/exports/version={config_version}/{iso8601_timestamp}/hurdle_coefficients.yaml` (artefact registry name: `hurdle_coefficients`). 
 
 **Schema authority.** This is a governed **config** (registry lists `schema: null`). The **shape and ordering constraints** come from S0.5/S1/S2 and the fitting bundle’s **frozen column dictionaries**. Loaders must hard-check lengths and block orders.
 
@@ -304,7 +307,7 @@ Use **`schemas.ingress.layer1.yaml#/gdp_bucket_map_2024`**. (Alias **`#/gdp_buck
 > `len(beta) == 1 + C_mcc + 2 + 5` (hurdle) and `len(beta_mu) == 1 + C_mcc + 2` (NB mean). Channel order **exactly** `["CP","CNP"]`; bucket order **exactly** `[1,2,3,4,5]`.
 
 ```yaml
-# configs/models/hurdle/hurdle_coefficients.yaml  (preview)
+# config/models/hurdle/exports/version={config_version}/{iso8601_timestamp}/hurdle_coefficients.yaml  (preview)
 
 semver: "1.3.0"
 version: "2025-09-15"
@@ -375,7 +378,7 @@ If `dicts.mcc` has 6 entries (as above), then:
 
 ---
 
-## Acceptance checklist (before S0/S1/S2 run)
+## Recommended checks (engine expects) (before S0/S1/S2 run)
 
 * **Block orders fixed:** `channel == ["CP","CNP"]`, `gdp_bucket == [1..5]` (exact), MCC dictionary frozen and **ordered**. 
 * **Lengths match:** `len(beta) == 1 + C_mcc + 2 + 5`; `len(beta_mu) == 1 + C_mcc + 2`. 
@@ -395,7 +398,7 @@ If `dicts.mcc` has 6 entries (as above), then:
 
 * **S0** uses it for shape/dictionary checks and (optionally) to build **`hurdle_pi_probs`** deterministically. 
 * **S1** computes π and emits the hurdle Bernoulli event. 
-* **S2** uses `beta_mu` for ( \mu ); dispersion comes from `nb_dispersion_coefficients.yaml`. 
+* **S2** uses `beta_mu` for μ; dispersion comes from `nb_dispersion_coefficients.yaml`.
 
 ### Magnitude (Scale & Coverage)
 - **Vector lengths**: `len(beta) == 1 + N_MCC + 2 + K_BUCKETS`; `len(beta_mu) == 1 + N_MCC + 2`.
@@ -410,7 +413,7 @@ If `dicts.mcc` has 6 entries (as above), then:
 $\phi=\exp(\beta_\phi^\top x_\phi)$. Its bytes are part of `parameter_hash`, so any edit flips run lineage.
 
 **Where it lives (path).**
-`configs/models/hurdle/nb_dispersion_coefficients.yaml` (artefact name typically `nb_dispersion_coefficients`).
+`config/models/hurdle/nb_dispersion_coefficients.yaml` (artefact name typically `nb_dispersion_coefficients`).
 
 **Authority model.** It’s a governed **config** (no JSON-Schema authority); **shape & order** are enforced by S0/S2 using the **frozen column dictionaries** from the fitting bundle.
 
@@ -424,7 +427,7 @@ $\phi=\exp(\beta_\phi^\top x_\phi)$. Its bytes are part of `parameter_hash`, so 
 > Channel order **must be** `["CP","CNP"]`.
 
 ```yaml
-# configs/models/hurdle/nb_dispersion_coefficients.yaml  (preview)
+# config/models/hurdle/nb_dispersion_coefficients.yaml  (preview)
 
 semver: "1.1.0"
 version: "2025-09-15"
@@ -470,7 +473,7 @@ beta_phi:        # dispersion link coefficients (φ = exp(beta_phi · x_φ))
 
 ---
 
-## Acceptance checklist (before S2 runs)
+## Recommended checks (engine expects) (before S2 runs)
 
 * **Block orders fixed.** `channel == ["CP","CNP"]`; MCC dictionary present and **ordered** (same order as the fitting bundle).
 * **Length identity.** `len(beta_phi) == 1 + C_mcc + 2 + 1`.
@@ -502,7 +505,7 @@ beta_phi:        # dispersion link coefficients (φ = exp(beta_phi · x_φ))
 The **only** knobs S4 needs to turn the ZTP (Zero-Truncated Poisson) into a concrete **`K_target`** per merchant: the link coefficients **θ** and the **attempts cap / exhaustion policy**. It’s sealed in **`parameter_hash`** during S0 and then read in S4. (Also carries the **eligibility rule set** that S0.6 consumes to produce `crossborder_eligibility_flags`.)
 
 **Where it lives (path).**
-`configs/allocation/crossborder_hyperparams.yaml`
+`config/policy/crossborder_hyperparams.yaml`
 
 **Authority model.**
 Governed **config** (no JSON-Schema). The **shape and field names** below are enforced by the S0/S4 loaders.
@@ -517,7 +520,7 @@ Governed **config** (no JSON-Schema). The **shape and field names** below are en
 > Sampling regime is engine-constant: **inversion** if $\lambda<10$, else **PTRS**.
 
 ```yaml
-# configs/allocation/crossborder_hyperparams.yaml
+# config/policy/crossborder_hyperparams.yaml
 # Engine-ready: governs S0 eligibility and S4 ZTP link/controls. Part of parameter_hash.
 
 semver: "1.0.2"
@@ -559,7 +562,7 @@ eligibility:
       mcc: ["*"]
 ```
 
-**Field rules (must pass):**
+**Engine checks (loader enforces):**
 
 * `theta0/theta1/theta2` are **finite** binary64 numbers.
 * `MAX_ZTP_ZERO_ATTEMPTS == 64` (**spec-fixed in this version; validator enforces 64**).
@@ -586,7 +589,7 @@ eligibility:
 
 ---
 
-## Acceptance checklist (before S4 runs)
+## Recommended checks (engine expects) (before S4 runs)
 
 * **Presence & parse:** File exists, loads, keys exactly `ztp_link.{theta0,theta1,theta2}`, `ztp_controls.{MAX_ZTP_ZERO_ATTEMPTS, ztp_exhaustion_policy}`, `eligibility.{rule_set_id, default_decision, rules[]}`.
 * **Channel domain:** `eligibility.rules[].channel` values must use **internal tokens** `CP`/`CNP` (post-S0 mapping), **not** ingress strings.
@@ -625,14 +628,14 @@ eligibility:
 
 **What it is (purpose).** The **sole policy authority** S3 uses to produce **deterministic admission metadata** and the **only** inter-country order via `candidate_rank`. It does **not** re-decide eligibility (S0 writes `crossborder_eligibility_flags`). No RNG; pure, ordered rules; **closed vocabularies**.
 
-**Where it lives (path).** `configs/policy.s3.rule_ladder.yaml` (artefact registry id `mlr.1A.policy.s3.rule_ladder`).
+**Where it lives (path).** `config/policy/s3.rule_ladder.yaml` (artefact registry id `mlr.1A.policy.s3.rule_ladder`).
 
 **Who consumes it.**
 S3.1 **evaluates** the ladder; S3.2 builds the candidate set; S3.3 **ranks** using a key derived from the ladder `(precedence, priority, rule_id, …)`. S3 **reads** `crossborder_eligibility_flags` (S0) as a gate; the ladder then builds admission metadata and ranking only. The resulting `candidate_rank` is the **only** inter-country order. **Egress `outlet_catalogue` never encodes cross-country order—consumers must join on `s3_candidate_set.candidate_rank`.**
 
 ---
 
-## Required structure (binding shape)
+## Expected structure (engine checks)
 
 Top-level required keys:
 
@@ -653,7 +656,7 @@ Each `Rule` **must** have:
 ## Minimal, engine-ready preview (illustrative)
 
 ```yaml
-# configs/policy.s3.rule_ladder.yaml
+# config/policy/s3.rule_ladder.yaml
 # Engine-ready: S3 builds admission metadata and the ONLY inter-country order (candidate_rank). No eligibility here.
 
 rule_set_id: "CB-2025.10"
@@ -727,7 +730,7 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 
 ---
 
-## Acceptance checklist (before S3 runs)
+## Recommended checks (engine expects) (before S3 runs)
 
 * **Presence/shape:** has `reason_codes[]`, `filter_tags[]`, and `rules[]` with required fields. 
 * **Closed sets:** every `outcome.reason_code` ∈ `reason_codes`; every tag ∈ `filter_tags`. 
@@ -772,7 +775,7 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 * `share : pct01` (numeric in **[0,1]**)
 * `obs_count : int64` (≥ 0)
 
-**Constraint (must hold).** For each `currency`, **Σ share = 1.0** within **tolerance 1e-6**. 
+**Engine gate (validator expects).** For each `currency`, **Σ share = 1.0 ± 1e-6**.
 
 **How 1A uses it.** Sealed by S0; later states (S5/S6) expand currency to country and build deterministic weights/caches together with `ccy_country_shares_2024Q4` and smoothing params. 
 
@@ -797,13 +800,13 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 
 ---
 
-## Acceptance checklist (before sealing / use)
+## Recommended checks (engine expects) (before sealing / use)
 
 * **Schema pass** against `#/settlement_shares_2024Q4` (or alias `#/settlement_shares`). 
 * **PK uniqueness:** no duplicate `(currency,country_iso)`. 
 * **Domain checks:** `currency` matches ISO-4217; `country_iso` matches `^[A-Z]{2}$` and **FKs to ISO**; `share ∈ [0,1]`; `obs_count ≥ 0`. 
 * **Group sum rule:** for each `currency`, `Σ share = 1.0 ± 1e-6`. (Validator will hard-fail this.) 
-* **Registry/dictionary hygiene:** dictionary item points to this **JSON-Schema** anchor; registry entry present with path/version.
+* **Registry/dictionary hygiene:** dictionary item points to this **JSON-Schema** anchor; registry entry present with path/version and **licence recorded**.
 
 **Common pitfalls to avoid**
 
@@ -838,7 +841,7 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 * `share : pct01` (numeric in **[0,1]**)
 * `obs_count : int64` (≥ 0)
 
-**Constraint (must hold).** For each `currency`, **Σ share = 1.0** within **tolerance 1e-6**. 
+**Engine gate (validator expects).** For each `currency`, **Σ share = 1.0 ± 1e-6**. 
 
 **Where 1A uses it later.** It’s listed as a reference in the artefact registry and participates (with `settlement_shares_2024Q4` and smoothing params) in building the deterministic **`ccy_country_weights_cache`** and **`merchant_currency`** caches. 
 
@@ -863,13 +866,13 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 
 ---
 
-## Acceptance checklist (before sealing / use)
+## Recommended checks (engine expects) (before sealing / use)
 
 * **Schema pass** against `#/ccy_country_shares_2024Q4` (or alias `#/ccy_country_shares`). 
 * **PK uniqueness:** no duplicate `(currency,country_iso)`. 
 * **Domain checks:** `currency` is ISO-4217; `country_iso` matches `^[A-Z]{2}$` and FKs to ISO; `share ∈ [0,1]`; `obs_count ≥ 0`. 
 * **Group sum rule:** for each `currency`, `Σ share = 1.0 ± 1e-6`. (Validator hard-fails otherwise.) 
-* **Registry/dictionary hygiene:** dictionary item & registry entry present, pointing to the **JSON-Schema** anchor and the exact path/version shown above.
+* **Registry/dictionary hygiene:** dictionary item & registry entry present, pointing to the **JSON-Schema** anchor and the exact path/version shown above; **licence recorded**.
 
 **Common pitfalls to avoid**
 
@@ -915,7 +918,7 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 
 ---
 
-## Acceptance checklist (before sealing/consuming)
+## Recommended checks (engine expects) (before sealing/consuming)
 
 * **Schema pass** against `#/world_countries_shp`; table **type = geotable**; **CRS = EPSG:4326**. 
 * **PK uniqueness:** one row per `country_iso` (uppercase `^[A-Z]{2}$`). FK to ISO table holds. 
@@ -978,7 +981,7 @@ This preview satisfies: **closed vocabs**, **total order**, and **exactly one DE
 
 ---
 
-## Acceptance checklist (before sealing)
+## Recommended checks (engine expects) (before sealing)
 
 * **Schema pass** against `#/tz_world_shp` (alias → `#/tz_world_2025a`). 
 * **CRS & geometry:** `geom` is **Polygon/MultiPolygon** in **EPSG:4326** (WGS84). 
@@ -1044,7 +1047,7 @@ Pixel Unit: persons
 
 ---
 
-## Acceptance checklist (before sealing)
+## Recommended checks (engine expects) (before sealing)
 
 * **Schema pass** against `#/population_raster_2025` (or alias `#/population_raster`). 
 * **COG compliance** (internal tiling + overviews present): must expose **2,4,8,16** overview levels. 
@@ -1064,6 +1067,69 @@ Pixel Unit: persons
 - **Overviews**: if `raster.require_overviews == true`, COG must advertise ≥1 overview level.
 - **Band/type**: Bands==1, dtype Float32 (schema); NoData present. S0 records `width`, `height`, `transform` in the manifest (no hard gate on exact dims).
 - **IO hint**: require tiled layout (COG); S0 must not attempt full in-memory load.
+
+---
+
+## Dataset 13 — `ccy_smoothing_params.yaml`  [Model Param/Policy · **Expected by S5**]
+
+**What it is (purpose).** S5’s governed policy for blending, smoothing, floors and fixed-dp. **Changing its bytes flips `parameter_hash`**; S5 will not run without it. 
+
+**Where it lives (canonical path).** `config/allocation/ccy_smoothing_params.yaml`
+
+**Schema/authority.** Governed config (enforced by S5 loader; JSON-Schema optional). Keys and domains **must** match the contract below.
+
+**Required structure (exact keys).**
+
+```yaml
+semver: "<MAJOR.MINOR.PATCH>"
+version: "YYYY-MM-DD"
+dp: <int 0..18>                       # fixed decimals for OUTPUT weights
+defaults:
+  blend_weight: <0..1>
+  alpha:        <≥0>                  # Dirichlet mass (per-ISO via overrides)
+  obs_floor:    <int ≥0>
+  min_share:    <0..1>                # floor applied post-smoothing
+  shrink_exponent: <≥0>               # <1 treated as 1 at eval
+per_currency:                          # OPTIONAL; ISO-4217 uppercase keys
+  <CCY>:
+    blend_weight|alpha|obs_floor|min_share|shrink_exponent: <…>
+overrides:                             # OPTIONAL fine-grain ISO floors/alphas
+  alpha_iso:     { <CCY>: { <ISO2>: <≥0> } }
+  min_share_iso: { <CCY>: { <ISO2>: <0..1> } }
+```
+
+**Recommended checks (engine expects).**
+
+* Keys present: `semver, version, dp, defaults` (required). Values in domain above.
+* All CCYs **uppercase ISO-4217**; all ISO2 **uppercase** and FK-valid to canonical ISO.
+* **Feasibility:** for each currency, Σ `min_share_iso[cur][iso] ≤ 1.0`.
+* **Override resolution:** ISO-override → per-currency → defaults (deterministic).
+* **Lineage:** file is listed in artefact registry and included in the governed set **𝓟**; bytes **must** flip `parameter_hash`. 
+
+**Where it’s used.** S5 builds `ccy_country_weights_cache` (and optional `merchant_currency`) deterministically from Dataset #9/#10 + this policy. 
+
+---
+
+## Dataset 14 — `iso_legal_tender_2024`  [External Dataset · **Optional for S5.0 `merchant_currency`**]
+
+**What it is (purpose).** Canonical **ISO2 → primary legal tender** map used only if you emit `merchant_currency` (κₘ provenance fallback). 
+
+**Where it lives (path).** `reference/iso/iso_legal_tender/2024/iso_legal_tender.parquet`
+
+**Schema authority (must match).** `schemas.ingress.layer1.yaml#/iso_legal_tender_2024` (add this anchor if not already present).
+
+**Columns & types (exact).**
+
+* `country_iso : ISO2` (uppercase; **PK**; **FK →** `iso3166_canonical_2024.country_iso`)
+* `primary_ccy : ISO4217` (uppercase)
+
+**Recommended checks (engine expects).**
+
+* Schema pass; PK uniqueness on `country_iso`; FK to canonical ISO; both codes uppercase.
+* Coverage: all `home_country_iso` in merchant seed appear.
+* Registry/dictionary entries present (schema_ref, licence, retention). 
+
+**Where it’s used.** S5.0 may populate `merchant_currency` (κₘ) with precedence & tie-break rules from the S5 spec. 
 
 ---
 
@@ -1163,13 +1229,73 @@ Why this is on-spec (tight):
 
 ---
 
+## G3 — `policy.s6.selection.yaml`  [Governance Input · **Required by S6**]
+
+**What it is (purpose).** Pins S6 behaviour: logging mode, zero-weight handling, optional membership emission, and candidate caps. Listed in 𝓟—**changes flip `parameter_hash`**.
+
+**Where it lives (path).** `config/policy.s6.selection.yaml`
+
+**Schema/authority.** Register a `$ref` (e.g., `schemas.layer1.yaml#/policy/s6_selection`) with `additionalProperties:false`.
+
+**Required keys & domains.**
+
+```yaml
+policy_semver: "<MAJOR.MINOR.PATCH>"
+version: "YYYY-MM-DD"
+defaults:
+  emit_membership_dataset: <bool>     # default false
+  log_all_candidates:     <bool>      # default true
+  zero_weight_rule:       "exclude" | "include"   # default "exclude"
+  max_candidates_cap:     <int ≥0>    # default 0 (no cap)
+# OPTIONAL: currency-specific overrides (same keys except log_all_candidates)
+per_currency:
+  <CCY>: { emit_membership_dataset|zero_weight_rule|max_candidates_cap: … }
+```
+
+**Recommended checks (engine expects).**
+
+* Values in domain; overrides only by **uppercase ISO-4217**; **no** per-currency override for `log_all_candidates` (global only).
+* Policy files are members of **𝓟**; bytes change flips `parameter_hash`.
+* Dictionary/registry entries exist (id, path, licence/retention) and `$ref` resolves.
+* If `defaults.emit_membership_dataset: true` (or a per-currency override enables it), downstream reads of `s6_membership` **MUST** verify the S6 **PASS** receipt for the same `{seed, parameter_hash}` (no PASS → no read).
+
+**Where it’s used.** S6 selection & logging (`gumbel_key` budgets; membership surface emission); validator relies on this to set coverage/counter-replay expectations.
+
+---
+
+## G4 — `policy.s7.bounds.yaml`  [Governance Input · **Optional for S7**]
+
+**What it is (purpose).** Enables **bounded Hamilton** in S7: per-ISO integer floors/ceilings; dp for residual quantisation (S7 binds dp_resid=8 by spec; include for clarity).
+
+**Where it lives (path).** `config/policy.s7.bounds.yaml`
+
+**Required structure.**
+
+```yaml
+policy_semver: "<MAJOR.MINOR.PATCH>"
+version: "YYYY-MM-DD"
+dp_resid: 8                           # S7 spec binding; keep 8
+floors:   { <ISO2>: <int ≥0>, ... }   # OPTIONAL; absent ISO ⇒ 0
+ceilings: { <ISO2>: <int ≥0>, ... }   # OPTIONAL; absent ISO ⇒ +INF
+```
+
+**Recommended checks (engine expects).**
+
+* ISO keys **uppercase** and FK-valid; if both present for an ISO, `ceiling ≥ floor`.
+* Feasibility guard (per merchant): Σ floors ≤ N ≤ Σ ceilings, else **FAIL**.
+* Listed in 𝓟 if you enable the bounded variant; bytes flip `parameter_hash`.
+
+**Where it’s used.** Only when the S7 bounds lane is turned on; base S7 runs without this (still dp_resid=8).
+
+---
+
 # O1 — `policy.s3.base_weight.yaml`  [Model Param/Policy]
 
 **What it is (purpose).**
 Governed **priors policy** for S3. It supplies a **run-constant `dp`** and a **deterministic rule set** that decides which `(merchant_id, country_iso)` candidates receive a **non-negative base score** (not a probability). S3 turns those scores into **fixed-dp decimal strings** and emits them in `s3_base_weight_priors`. No RNG; no renormalisation.
 
 **Where it lives (path).**
-`configs/policy.s3.base_weight.yaml` (artefact registry id `mlr.1A.policy.s3.base_weight`; depends on `iso3166_canonical_2024`). 
+`config/policy/s3.base_weight.yaml` (artefact registry id `mlr.1A.policy.s3.base_weight`; depends on `iso3166_canonical_2024`).
 
 **Who consumes it.**
 S3 L1 kernel **`s3_compute_priors`** (optional lane). L2 emits `s3_base_weight_priors` if present. L3 validates writer sort, subset coverage vs candidates, `dp` consistency, and fixed-dp string shape.
@@ -1188,10 +1314,10 @@ Top-level keys your loader already expects:
 
 ### Minimal, policy-true preview
 
+*Informative note (optional):* Some pipelines add a top-level **`normalisation`** block (e.g., `method: sum_to_target`) to rescale **scores** without introducing probabilities. This is **not** required by the loader and is outside the Binding preview here.
 
-*Optional extensions:* Rules may declare `score_value` for literal deterministic weights, and a top-level `normalisation` block (for example `method: sum_to_target` with an optional positive `target`) can rescale the resulting scores without introducing probabilities.
 ```yaml
-# configs/policy.s3.base_weight.yaml
+# config/policy/s3.base_weight.yaml
 semver: "1.0.0"
 version: "2025-10-02"
 
@@ -1243,7 +1369,7 @@ Your L1 hook **`EVAL_PRIOR_SCORE`** computes `w ≥ 0` from the matching rule by
 
 ---
 
-## Acceptance checklist (loader + validator)
+## Recommended checks (engine expects) (loader + validator)
 
 **Loader (S3·L0) must verify:**
 
@@ -1287,7 +1413,7 @@ Schema anchor: **`schemas.1A.yaml#/s3/base_weight_priors`** (PK `merchant_id,cou
 Optional **integerisation policy** for S3 that supplies **per-ISO floors/ceilings** and the **residual quantisation precision** used by the **bounded Hamilton (Largest-Remainder)** step. No RNG; used only if you enable S3’s integerisation lane that emits `s3_integerised_counts`.
 
 **Where it lives (path).**
-`configs/policy.s3.thresholds.yaml` *(artefact registry id: `mlr.1A.policy.s3.thresholds`; mark as “optional” and a dependency of the integerisation lane)*. The dataset it influences is `data/layer1/1A/s3_integerised_counts/parameter_hash={parameter_hash}/` with schema `schemas.1A.yaml#/s3/integerised_counts`.
+`config/policy/s3.thresholds.yaml` *(artefact registry id: `mlr.1A.policy.s3.thresholds`; mark as “optional” and a dependency of the integerisation lane)*. The dataset it influences is `data/layer1/1A/s3_integerised_counts/parameter_hash={parameter_hash}/` with schema `schemas.1A.yaml#/s3/integerised_counts`.
 
 **Who consumes it.**
 S3·L0/§13 when building bounds and running **Largest-Remainder**; S3·L3 validates feasibility, sum to `N`, and `residual_rank`.
@@ -1312,7 +1438,7 @@ ceilings: { <ISO2>: <int≥0>, ... }     # optional; absent ISO ⇒ +INF (no cap
 ## Minimal, policy-true preview
 
 ```yaml
-# configs/policy.s3.thresholds.yaml
+# config/policy/s3.thresholds.yaml
 semver: "1.0.0"
 version: "2025-10-02"
 
@@ -1340,7 +1466,7 @@ ceilings:
 
 ---
 
-## Acceptance checklist (loader + validator)
+## Recommended checks (engine expects) (loader + validator)
 
 **Loader (S3·L0) must verify:**
 
@@ -1363,12 +1489,8 @@ ceilings:
 
 # O3 — `ccy_smoothing_params.yaml`  [Model Param/Policy]
 
-**What it is (purpose).**
-Governed **smoothing policy** the S5/S6 currency→country expansion uses to turn the two external inputs
-(9) `settlement_shares_2024Q4` and (10) `ccy_country_shares_2024Q4` (with their `obs_count`s) into a single, deterministic **`ccy_country_weights_cache`** (shares that sum to 1 per currency). No RNG.
-
-**Where it lives (path).**
-`configs/policy.ccy_smoothing_params.yaml` (listed in the registry; sealed by S0; first consumed in S5/S6).
+**Alias of Dataset 13 (notes only).**
+Canonical path: `config/allocation/ccy_smoothing_params.yaml`. This section is kept as **informative** notes for Codex; defer to **Dataset 13** for the binding preview.
 
 **Who consumes it.**
 S5 **weights builder** and S6 **merchant_currency** cache builder. Changing this file **changes policy** → new `parameter_hash`.
@@ -1485,7 +1607,7 @@ overrides:
 
 ---
 
-## Acceptance checklist (loader + validator)
+## Recommended checks (engine expects) (loader + validator)
 
 **Loader must reject if:**
 

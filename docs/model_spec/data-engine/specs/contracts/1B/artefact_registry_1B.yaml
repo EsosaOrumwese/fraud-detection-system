@@ -1,1177 +1,436 @@
 subsegments:
 - id: 1B
-  name: Placing outlets on the planet
+  name: Site Geolocation
   artifacts:
 
-    # ----------- Core egress (dataset + schema) -----------
-  - name: site_catalogue
-    path: data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+  - name: s0_gate_receipt_1B
+    path: data/layer1/1B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json
+    type: dataset
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.1B.validation.s0_gate_receipt
+    license: Proprietary-Internal
+    role: Receipt proving 1A PASS for fingerprint; enumerates sealed inputs authorised for 1B.
+    dependencies: [validation_bundle_1A, validation_passed_flag]
+    source: internal
+    owner: {owner_team: "mlr-1b-core"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: schemas.1B.yaml#/validation/s0_gate_receipt
+    cross_layer: false
+    notes: 'Partition: fingerprint={manifest_fingerprint}; path↔embed equality enforced.'
+
+  # Cross-layer inputs explicitly referenced by 1B.S0 (gating semantics live in 1A bundle/flag)
+  - name: validation_bundle_1A
+    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.validation.bundle
+    license: Proprietary-Internal
+    role: Validator outputs for 1A (basis of consumer gate for outlet_catalogue).
+    dependencies: [outlet_catalogue]
+    source: internal
+    owner: {owner_team: "mlr-1a-validation"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, runtime]
+    schema: schemas.1A.yaml#/validation/validation_bundle
+    cross_layer: true
+    notes: 'S0 computes SHA-256 over ASCII-lex index (bundle index) to verify _passed.flag. Retention per Dictionary.'
+
+  - name: validation_passed_flag
+    path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    type: manifest
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256_of_bundle}'
+    manifest_key: mlr.1A.validation.passed
+    license: Proprietary-Internal
+    role: Boolean hash gate for 1A bundle; S0 must verify before any read of outlet_catalogue.
+    dependencies: [validation_bundle_1A]
+    source: internal
+    owner: {owner_team: "mlr-1a-validation"}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, runtime]
+    schema:
+    cross_layer: true
+    notes: 'Content is a single line: "sha256_hex = <hex64>". Digest equals SHA-256 of the bundle = concat(raw bytes of all files listed in index.json in ASCII-lex path order), excluding the flag itself.'
+
+  - name: outlet_catalogue
+    path: data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
     type: dataset
     category: output
     semver: '{semver}'
     version: '{manifest_fingerprint}'
     digest: '{sha256}'
-    manifest_key: mlr.1B.output.site_catalogue
-    license:
-    role: Final per-site rows (coords, tz, remoteness, footfall, provenance); committed atomically via rename.
-    dependencies:
-    - candidate_pool_index
-    - fenwick_snapshot
-    - acceptance_policy
-    - fallback_policy
-    - tz_polygons_ref
-    - footfall_coefficients
-    - winsor_policy
-    - site_catalogue_schema
-    - spatial_write_manifest
-    - tz_world_metadata
+    manifest_key: mlr.1A.output.outlet_catalogue
+    license: Proprietary-Internal
+    role: Immutable outlet stubs; order-free (join S3 for inter-country order). Read only after verifying _passed.flag.
+    dependencies: [s3_candidate_set]
     source: internal
-    owner: '{owner_team}'
+    owner: {owner_team: "mlr-1a-core"}
     last_updated: '{iso8601_timestamp}'
     environment: [runtime]
-    schema: site_catalogue_schema
+    schema: schemas.1A.yaml#/egress/outlet_catalogue
     cross_layer: true
-    notes: Crash-safe writes; validated by spatial_write_manifest.
+    notes:
 
-  - name: site_catalogue_schema
-    path: schema/site_catalogue.avsc
-    type: schema
-    category: output
-    semver: '{schema_semver}'
-    version: '{schema_version}'
-    digest: '{schema_digest}'
-    manifest_key: mlr.1B.schema.site_catalogue
-    license:
-    role: Single authoritative schema for site catalogue (columns, types, constraints).
+  - name: s3_candidate_set
+    path: data/layer1/1A/s3_candidate_set/parameter_hash={parameter_hash}/
+    type: dataset
+    category: allocation
+    semver: '{semver}'
+    version: '{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1A.s3.candidate_set
+    license: 'Proprietary-Internal'
+    role: Deterministic ordered candidate set; sole inter-country order authority used by 1B consumers via join.
     dependencies: []
     source: internal
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [dev, staging, prod]
-    schema:
-    cross_layer: true
-    notes:
-
-    # ----------- Spatial references, CRS, grid, boundaries -----------
-  - name: crs_policy
-    path: configs/spatial/crs_policy.yaml
-    type: config
-    category: spatial
-    semver: '{semver}'
-    version: '{config_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.spatial.crs_policy
-    license:
-    role: Canonical CRS (e.g., EPSG:4326) and allowed temporary transforms; rounding/precision rules.
-    dependencies: []
-    source: internal
-    owner: '{platform_team}'
+    owner: {owner_team: "mlr-1a-core"}
     last_updated: '{iso8601_timestamp}'
     environment: [runtime]
-    schema:
+    schema: schemas.1A.yaml#/s3/candidate_set
     cross_layer: true
     notes:
 
-  - name: global_grid_spec
-    path: configs/spatial/global_grid_spec.yaml
-    type: config
-    category: spatial
+
+  # External reference inputs mirrored for license/provenance and single-pane visibility
+  - name: iso3166_canonical_2024
+    path: reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet
+    type: dataset
+    category: reference
     semver: '{semver}'
-    version: '{config_version}'
+    version: '2024-12-31'
     digest: '{sha256}'
-    manifest_key: mlr.spatial.global_grid_spec
-    license:
-    role: Grid origin, resolution (e.g., 1/1200°), and indexing; shared by priors and samplers.
-    dependencies:
-    - crs_policy
-    source: internal
-    owner: '{platform_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: country_boundary_ref
-    path: data/reference/boundaries/admin0/{vintage}/
-    type: reference
-    category: spatial_reference
-    semver: '{semver}'
-    version: '{vintage}'
-    digest: '{reference_digest}'
-    manifest_key: mlr.ref.country_boundaries_admin0
-    license: '{spdx_or_internal}'
-    role: Country polygons for clipping priors and validating site ISO.
+    manifest_key: mlr.ingress.iso3166_canonical_2024
+    license: CC-BY-4.0
+    role: Canonical ISO-3166-1 alpha-2 list; FK target for country_iso.
     dependencies: []
     source: external
-    owner: '{data_governance_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [dev, staging, prod]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: land_water_mask_ref
-    path: data/reference/masks/land_water/{vintage}/
-    type: reference
-    category: spatial_reference
-    semver: '{semver}'
-    version: '{vintage}'
-    digest: '{reference_digest}'
-    manifest_key: mlr.ref.land_water_mask
-    license: '{spdx_or_internal}'
-    role: Land/sea mask used in acceptance tests and candidate filtering.
-    dependencies: []
-    source: external
-    owner: '{data_governance_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [dev, staging, prod]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: boundary_topology_fix_policy
-    path: configs/spatial/boundary_topology_fix_policy.yaml
-    type: config
-    category: spatial
-    semver: '{semver}'
-    version: '{policy_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.spatial.boundary_topology_fix_policy
-    license:
-    role: Rules/tolerances for repairing boundary topology before clipping.
-    dependencies:
-    - country_boundary_ref
-    source: internal
-    owner: '{platform_team}'
+    owner: {owner_team: "mlr-ingress"}
     last_updated: '{iso8601_timestamp}'
     environment: [runtime]
-    schema:
+    schema: schemas.ingress.layer1.yaml#/iso3166_canonical_2024
     cross_layer: true
     notes:
 
-    # ----------- Spatial priors & blending -----------
-  - name: spatial_manifest
-    path: configs/manifests/spatial_manifest.json
-    type: manifest
-    category: spatial_prior
-    semver: '{manifest_key}'
-    version: '{manifest_key}'
-    digest: '{sha256}'
-    manifest_key: '{manifest_key}'
-    license: '{spdx_or_internal}'
-    role: Aggregated manifest of all spatial prior assets with their digests.
-    dependencies:
-    - sibling_sha256s
-    source: internal
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [ci, runtime]
-    schema:
-    cross_layer: true
-    notes: Reuses prior bundle registered under 1A.
-
-  - name: sibling_sha256s
-    path: configs/manifests/spatial/sibling_sha256s/
-    type: directory
-    category: versioning
-    semver:
-    version:
-    digest:
-    manifest_key:
-    license: '{spdx_or_internal}'
-    role: Individual .sha256 digest files for spatial prior siblings.
-    dependencies: []
-    source: internal
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [ci]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: hrsl_pop_100m_raster
-    path: artefacts/priors/hrsl/2020_v1.2/
-    type: raster
-    category: spatial_prior
+  - name: world_countries
+    path: reference/spatial/world_countries/2024/world_countries.parquet
+    type: dataset
+    category: reference
     semver: '{semver}'
-    version: 2020_v1.2
+    version: '2024'
     digest: '{sha256}'
-    manifest_key: mlr.ref.hrsl_pop_100m_v1_2
-    license: '{spdx_or_internal}'
-    role: Directory of per-country HRSL GeoTIFFs (population density).
-    dependencies: [spatial_manifest, hrsl_index_json]
-    source: Facebook HRSL
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes: Per-country HRSL tiles; members + sha256 are listed in hrsl_index_json.
-
-  - name: hrsl_index_json
-    path: artefacts/priors/hrsl/2020_v1.2/index.json
-    type: manifest
-    category: spatial_index
-    semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.hrsl.index
-    license: '{spdx_or_internal}'
-    role: Whitelist of HRSL {ISO2}.tif files with sha256; generated/validated from spatial_manifest.
-    dependencies: [spatial_manifest]
-    source: internal
-    owner: {platform_team: null}
-    environment: [ci, runtime]
-
-  - name: worldpop_raster
-    path: artefacts/priors/worldpop/2023Q4/
-    type: raster
-    category: spatial_prior
-    semver: '{semver}'
-    version: 2023Q4
-    digest: '{sha256}'
-    manifest_key: mlr.ref.worldpop_2023Q4
-    license: '{spdx_or_internal}'
-    role: Directory containing per-country WorldPop GeoTIFFs; members + sha256 are listed in worldpop_index_json.
-    dependencies: [spatial_manifest, worldpop_index_json]
-    source: WorldPop
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: worldpop_index_json
-    path: artefacts/priors/worldpop/2023Q4/index.json
-    type: manifest
-    category: spatial_index
-    semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.worldpop.index
-    license: '{spdx_or_internal}'
-    role: Whitelist of WorldPop {ISO2}.tif files with sha256; generated/validated from spatial_manifest.
-    dependencies: [spatial_manifest]
-    source: internal
-    owner: {platform_team: null}
-    environment: [ci, runtime]
-
-  - name: osm_primary_roads
-    path: data/spatial_priors/osm/{vintage}/primary_roads/
-    type: reference
-    category: spatial_prior
-    semver: '{semver}'
-    version: '{vintage}'
-    digest: '{sha256}'
-    manifest_key: mlr.ref.osm_primary_roads_{vintage}
+    manifest_key: mlr.ingress.world_countries
     license: ODbL-1.0
-    role: OpenStreetMap primary roads for road-proximity prior.
-    dependencies: [spatial_manifest]
-    source: OpenStreetMap
-    owner: '{owner_team}'
+    role: Country boundary polygons used for geo conformance checks.
+    dependencies: [iso3166_canonical_2024]
+    source: external
+    owner: {owner_team: "mlr-ingress"}
     last_updated: '{iso8601_timestamp}'
     environment: [runtime]
-    schema:
+    schema: schemas.ingress.layer1.yaml#/world_countries
     cross_layer: true
-    notes: Multi-file shapefile bundle (.shp/.shx/.dbf/.prj); members tracked via spatial_manifest.
+    notes:
 
-  - name: iata_airport_polygons
-    path: data/spatial_priors/iata/airports.geojson
-    type: reference
-    category: spatial_prior
+  - name: population_raster_2025
+    path: reference/spatial/population/2025/population.tif
+    type: dataset
+    category: reference
     semver: '{semver}'
     version: '2025'
     digest: '{sha256}'
-    manifest_key: mlr.ref.iata_airport_polygons_2025
-    license: '{spdx_or_internal}'
-    role: IATA airport service-area polygons.
-    dependencies: [spatial_manifest]
-    source: IATA
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: spatial_blend
-    path: configs/spatial/spatial_blend.yaml
-    type: config
-    category: spatial_prior
-    semver: '{semver}'
-    version: '{config_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.priors.spatial_blend
-    license: '{spdx_or_internal}'
-    role: Blend definition for category-specific priors into combined weights.
-    dependencies:
-    - hrsl_pop_100m_raster
-    - worldpop_raster
-    - osm_primary_roads
-    - iata_airport_polygons
-    source: internal
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-  - name: prior_blend_recipe
-    path: configs/spatial/priors/prior_blend_recipe.yaml
-    type: config
-    category: spatial_prior
-    semver: '{semver}'
-    version: '{config_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.priors.blend_recipe
-    license:
-    role: Per-category blend weights and normalization mode.
-    dependencies: []
-    source: internal
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-  - name: prior_blend_manifest
-    path: data/manifests/1B/prior_blend/{manifest_key}.json
-    type: manifest
-    category: spatial_prior
-    semver: '{semver}'
-    version: '{manifest_key}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.priors.blend_manifest
-    license:
-    role: Records component prior digests and recipe used for each blend.
-    dependencies:
-    - prior_blend_recipe
-    source: internal
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [ci, runtime]
-    schema:
-    cross_layer: false
-    notes: Lists country→recipe→source prior digests.
-
-  - name: prior_provenance_map
-    path: data/derived/1B/prior_provenance_map/{manifest_key}/
-    type: mapping
-    category: spatial_prior
-    semver: '{semver}'
-    version: '{manifest_key}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.priors.provenance_map
-    license:
-    role: Country/category → component prior vintage actually used.
-    dependencies:
-    - prior_blend_manifest
-    source: internal
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-  - name: blended_raster_cache
-    path: data/spatial_priors/blended/cache_v1/
-    type: directory
-    category: spatial_prior
-    semver: '{semver}'
-    version: v1
-    digest: '{sha256}'
-    manifest_key: mlr.1B.cache.blended_raster
-    license: '{spdx_or_internal}'
-    role: Cached blended rasters for repeatable sampling without recompute.
-    dependencies:
-    - spatial_blend
-    source: internal
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-    # ----------- Indices & candidate pools -----------
-  - name: country_cell_index
-    path: data/indices/1B/country_cell_index/{grid_version}/
-    type: dataset
-    category: spatial_index
-    semver: '{semver}'
-    version: '{grid_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.index.country_cell_index
-    license:
-    role: Grid-cell membership per country (post boundary clip).
-    dependencies:
-    - global_grid_spec
-    - country_boundary_ref
-    source: internal
-    owner: '{engineering_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-  - name: candidate_pool_index
-    path: data/indices/1B/candidate_pool_index/{manifest_key}/
-    type: dataset
-    category: spatial_index
-    semver: '{semver}'
-    version: '{manifest_key}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.index.candidate_pool
-    license:
-    role: Eligible cells/points with weights after masks, clips, and blends.
-    dependencies:
-    - country_cell_index
-    - land_water_mask_ref
-    - prior_blend_recipe
-    - prior_blend_manifest
-    - sample_blacklist_areas
-    source: internal
-    owner: '{engineering_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-  - name: fenwick_snapshot
-    path: data/cache/1B/fenwick/{manifest_key}/
-    type: dataset
-    category: spatial_index
-    semver: '{semver}'
-    version: '{manifest_key}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.cache.fenwick_snapshot
-    license:
-    role: Serialized Fenwick trees / alias tables for RNG-free sampling.
-    dependencies:
-    - candidate_pool_index
-    source: internal
-    owner: '{engineering_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes: File names follow fenwick_tree_cache_{country}_{prior}.bin.
-
-  - name: sampling_method_manifest
-    path: data/manifests/1B/sampling_method/{manifest_key}.json
-    type: manifest
-    category: sampling
-    semver: '{semver}'
-    version: '{manifest_key}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.sampling.method_manifest
-    license:
-    role: Sampler choice (Fenwick vs alias) plus numeric tolerances & seeds.
-    dependencies:
-    - fenwick_snapshot
-    source: internal
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [ci, runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-  - name: fenwick_build_event
-    path: logs/spatial/fenwick_build_event.jsonl
-    type: log
-    category: sampling
-    semver: '{semver}'
-    version: '{manifest_key}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.events.fenwick_build
-    license: '{spdx_or_internal}'
-    role: Event log for Fenwick CDF construction.
-    dependencies:
-    - blended_raster_cache
-    source: internal
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-    # ----------- Acceptance / fallback governance & metrics -----------
-  - name: acceptance_policy
-    path: configs/spatial/acceptance_policy.yaml
-    type: config
-    category: acceptance
-    semver: '{semver}'
-    version: '{policy_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.acceptance.policy
-    license:
-    role: 'Thresholds: land/water, road proximity, TZ-country consistency.'
-    dependencies:
-    - crs_policy
-    - road_proximity_config
-    source: internal
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-  - name: acceptance_metrics
-    path: ci/metrics/1B/acceptance/{run_id}.parquet
-    type: dataset
-    category: monitoring
-    semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.metrics.acceptance
-    license:
-    role: Nightly acceptance rates with Wilson intervals.
-    dependencies:
-    - site_catalogue
-    - acceptance_policy
-    source: internal
-    owner: '{qa_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [ci]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: fallback_policy
-    path: configs/spatial/fallback_policy.yml
-    type: config
-    category: fallback
-    semver: '{semver}'
-    version: '{policy_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.fallback.policy
-    license: '{spdx_or_internal}'
-    role: Rules when priors fail; global fallback rate cap < 1 %.
-    dependencies:
-    - spatial_manifest
-    source: internal
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-  - name: fallback_metrics
-    path: ci/metrics/1B/fallback/{run_id}.parquet
-    type: dataset
-    category: monitoring
-    semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.metrics.fallback
-    license:
-    role: Realized fallback rates per country/category with reason codes.
-    dependencies:
-    - site_catalogue
-    - fallback_policy
-    source: internal
-    owner: '{qa_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [ci]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: sample_blacklist_areas
-    path: data/reference/exclusions/sample_blacklist_areas/{vintage}/
-    type: dataset
-    category: spatial_reference
-    semver: '{semver}'
-    version: '{vintage}'
-    digest: '{sha256}'
-    manifest_key: mlr.ref.sample_blacklist_areas
-    license:
-    role: Polygons to exclude (military zones, glaciers, etc.).
-    dependencies:
-    - country_boundary_ref
-    source: external
-    owner: '{data_governance_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [dev, staging, prod]
-    schema:
-    cross_layer: true
-    notes:
-
-    # ----------- Roads, proximity & network distance -----------
-  - name: roads_ref
-    path: data/reference/roads/{vintage}/
-    type: reference
-    category: spatial_reference
-    semver: '{semver}'
-    version: '{vintage}'
-    digest: '{reference_digest}'
-    manifest_key: mlr.ref.roads
-    license: '{spdx_or_internal}'
-    role: Road network vintage used for proximity checks.
+    manifest_key: mlr.ingress.population_raster_2025
+    license: ODbL-1.0
+    role: Population raster used as spatial prior in 1B.
     dependencies: []
     source: external
-    owner: '{data_governance_team}'
+    owner: {owner_team: "mlr-ingress"}
     last_updated: '{iso8601_timestamp}'
-    environment: [dev, staging, prod]
-    schema:
+    environment: [runtime]
+    schema: schemas.ingress.layer1.yaml#/population_raster_2025
     cross_layer: true
-    notes: May share vintage with osm_primary_roads.
+    notes:
 
-  - name: road_spatial_index
-    path: data/cache/1B/road_index/{vintage}/
+  - name: tz_world_2025a
+    path: reference/spatial/tz_world/2025a/tz_world.parquet
     type: dataset
-    category: spatial_index
+    category: reference
     semver: '{semver}'
-    version: '{vintage}'
+    version: '2025a'
     digest: '{sha256}'
-    manifest_key: mlr.1B.cache.road_spatial_index
-    license:
-    role: Tiled spatial index for fast road proximity queries.
-    dependencies:
-    - roads_ref
-    source: internal
-    owner: '{engineering_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-  - name: road_proximity_config
-    path: configs/spatial/road_proximity_config.yaml
-    type: config
-    category: acceptance
-    semver: '{semver}'
-    version: '{policy_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.acceptance.road_proximity
-    license:
-    role: Proximity thresholds per merchant category (default 50 m).
-    dependencies: []
-    source: internal
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-  - name: network_distance_graph
-    path: data/reference/road_graph/{vintage}/
-    type: reference
-    category: spatial_reference
-    semver: '{semver}'
-    version: '{vintage}'
-    digest: '{reference_digest}'
-    manifest_key: mlr.ref.road_graph
-    license: '{spdx_or_internal}'
-    role: Contraction-hierarchies graph for true network distances.
-    dependencies:
-    - roads_ref
+    manifest_key: mlr.ingress.tz_world_2025a
+    license: ODbL-1.0
+    role: Time-zone polygons used for civil-time legality checks.
+    dependencies: [world_countries]
     source: external
-    owner: '{data_governance_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [dev, staging, prod]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: road_distance_method
-    path: configs/spatial/road_distance_method.yaml
-    type: config
-    category: acceptance
-    semver: '{semver}'
-    version: '{policy_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.acceptance.road_distance_method
-    license:
-    role: Method for road distance (nearest segment vs shortest path).
-    dependencies:
-    - network_distance_graph
-    source: internal
-    owner: '{platform_team}'
+    owner: {owner_team: "mlr-ingress"}
     last_updated: '{iso8601_timestamp}'
     environment: [runtime]
-    schema:
+    schema: schemas.ingress.layer1.yaml#/tz_world_2025a
     cross_layer: true
     notes:
 
-    # ----------- Remoteness (capital GC + optional network) -----------
-  - name: capital_points_parquet
-    path: data/reference/capitals/{vintage}/capital_points_{vintage}.parquet
-    type: reference
-    category: spatial_reference
-    semver: '{semver}'
-    version: '{vintage}'
-    digest: '{reference_digest}'
-    manifest_key: mlr.ref.capital_points
-    license: '{spdx_or_internal}'
-    role: Authoritative capital coordinates (admin primary preferred).
-    dependencies: []
-    source: external
-    owner: '{data_governance_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [dev, staging, prod]
-    schema:
-    cross_layer: true
-    notes: 'Fields: iso2, role_type, primary_flag, lat, lon.'
-
-  - name: remoteness_method
-    path: configs/spatial/remoteness_method.yaml
-    type: config
-    category: acceptance
-    semver: '{semver}'
-    version: '{policy_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.acceptance.remoteness_method
-    license:
-    role: Great-circle method, ellipsoid constants, rounding policy.
-    dependencies:
-    - crs_policy
-    source: internal
-    owner: '{platform_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: remoteness_metrics
-    path: ci/metrics/1B/remoteness/{run_id}.parquet
+  - name: tile_index
+    path: data/layer1/1B/tile_index/parameter_hash={parameter_hash}/
     type: dataset
-    category: monitoring
+    category: prep
     semver: '{semver}'
-    version: '{run_id}'
+    version: '{parameter_hash}'
     digest: '{sha256}'
-    manifest_key: mlr.1B.metrics.remoteness
-    license:
-    role: Distribution summaries of GC and/or network distances.
-    dependencies:
-    - site_catalogue
-    - remoteness_method
-    - capital_points_ref
+    manifest_key: mlr.1B.s1.tile_index
+    license: Proprietary-Internal
+    role: Eligible raster cells per country (deterministic, RNG-free).
+    dependencies: [iso3166_canonical_2024, world_countries, population_raster_2025]
     source: internal
-    owner: '{qa_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [ci]
-    schema:
-    cross_layer: true
-    notes:
-
-    # ----------- Timezone consistency -----------
-  - name: tz_polygons_ref
-    path: data/reference/timezones/{vintage}/
-    type: reference
-    category: spatial_reference
-    semver: '{semver}'
-    version: '{vintage}'
-    digest: '{reference_digest}'
-    manifest_key: mlr.ref.tz_polygons
-    license: '{spdx_or_internal}'
-    role: Timezone polygons.
-    dependencies: []
-    source: external
-    owner: '{data_governance_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [dev, staging, prod]
-    schema:
-    cross_layer: true
-    notes: Pinned to tz_world 2025a; harmonised with 2A shapefile bundle.
-
-  - name: tz_override_table
-    path: configs/spatial/tz_override_table.yaml
-    type: config
-    category: spatial
-    semver: '{semver}'
-    version: '{policy_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.spatial.tz_override_table
-    license:
-    role: Manual corrections for TZ assignment.
-    dependencies:
-    - tz_polygons_ref
-    source: internal
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
+    owner: {owner_team: "mlr-1b-core"}
     environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
+    schema: schemas.1B.yaml#/prep/tile_index
+    notes: 'Partition: parameter_hash={parameter_hash}; writer sort: [country_iso,tile_id].'
 
-  - name: tz_mismatch_events
-    path: logs/spatial/tz_mismatch.jsonl
+  # ---- S2 output dataset ----
+  - name: tile_weights
+    path: data/layer1/1B/tile_weights/parameter_hash={parameter_hash}/
     type: dataset
-    category: timezone
+    category: prep
     semver: '{semver}'
-    version: '{run_id}'
+    version: '{parameter_hash}'
     digest: '{sha256}'
-    manifest_key: mlr.1B.events.tz_mismatch
-    license:
-    role: Event when site TZ country ≠ site ISO country.
-    dependencies:
-    - site_catalogue
-    - tz_polygons_ref
+    manifest_key: mlr.1B.s2.tile_weights
+    license: Proprietary-Internal
+    role: "Deterministic fixed-dp weights per eligible tile"
+    dependencies: [tile_index]
     source: internal
-    owner: '{qa_team}'
-    last_updated: '{iso8601_timestamp}'
+    owner: {owner_team: "mlr-1b-core"}
     environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
+    schema: schemas.1B.yaml#/prep/tile_weights
+    notes: |
+      S2 output- deterministic fixed-decimal (fixed-dp) weights per eligible tile.
+      Depends on S1 `tile_index` for the same {parameter_hash}.
+      Writer sort is [country_iso, tile_id]; write-once under parameter_hash.
+      When basis="population", the implementation reads ingress `population_raster_2025` (read-only).
 
-    # ----------- Footfall & winsorisation -----------
-  - name: footfall_coefficients
-    path: configs/spatial/footfall_coefficients.yaml
-    type: config
-    category: footfall
-    semver: '{semver}'
-    version: '{config_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.footfall.coefficients
-    license:
-    role: κ_(mcc,channel) coefficients for log-normal footfall.
-    dependencies: []
-    source: internal
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-  - name: winsor_policy
-    path: configs/spatial/winsor_policy.yaml
-    type: config
-    category: footfall
-    semver: '{semver}'
-    version: '{policy_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.footfall.winsor_policy
-    license:
-    role: Caps for footfall/remoteness (μ+3σ) when stratum ≥ 30.
-    dependencies:
-    - footfall_coefficients
-    source: internal
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-  - name: footfall_scalar_table
-    path: data/derived/1B/footfall_scalars/{manifest_key}/
+  # ---- S3 output dataset ----
+  - name: s3_requirements
+    path: data/layer1/1B/s3_requirements/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
     type: dataset
-    category: footfall
+    category: prep
     semver: '{semver}'
-    version: '{manifest_key}'
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
     digest: '{sha256}'
-    manifest_key: mlr.1B.footfall.scalars
-    license:
-    role: Per-site footfall scalar with provenance tag.
-    dependencies:
-    - site_catalogue
-    - footfall_coefficients
-    - winsor_policy
+    manifest_key: mlr.1B.s3.requirements
+    license: Proprietary-Internal
+    role: Deterministic per-(merchant_id, legal_country_iso) site counts for this run (RNG-free).
+    dependencies: [outlet_catalogue, tile_weights, iso3166_canonical_2024, s0_gate_receipt_1B]
     source: internal
-    owner: '{engineering_team}'
-    last_updated: '{iso8601_timestamp}'
+    owner: {owner_team: "mlr-1b-core"}
     environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
+    schema: schemas.1B.yaml#/plan/s3_requirements
+    notes: |
+      Partitioning: seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
+      Writer sort: [merchant_id, legal_country_iso]
+      Write-once; atomic move into live partition; file order non-authoritative.
 
-    # ----------- RNG audit streams -----------
-  - name: sample_candidate_events
-    path: logs/rng/events/sample_candidate.jsonl
+  - name: s4_alloc_plan
+    path: data/layer1/1B/s4_alloc_plan/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    type: dataset
+    category: prep
+    semver: '{semver}'
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1B.s4.alloc_plan
+    license: Proprietary-Internal
+    role: "Per-tile integer allocation plan (RNG-free). Positives only; sums to S3 n_sites."
+    dependencies: [s3_requirements, tile_weights, tile_index, iso3166_canonical_2024, s0_gate_receipt_1B]
+    source: internal
+    owner: {owner_team: "mlr-1b-core"}
+    environment: [runtime]
+    schema: schemas.1B.yaml#/plan/s4_alloc_plan
+    notes: |
+      Partitioning: seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
+      Writer sort: [merchant_id, legal_country_iso, tile_id]
+      Write-once; atomic move into live partition; file order non-authoritative.
+
+  - name: s5_site_tile_assignment
+    path: data/layer1/1B/s5_site_tile_assignment/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    type: dataset
+    category: prep
+    semver: '{semver}'
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1B.s5.site_tile_assignment
+    license: Proprietary-Internal
+    role: "Site→tile assignment (one row per site; satisfies S4 per-tile quotas)."
+    dependencies: [s4_alloc_plan, tile_index, iso3166_canonical_2024, s0_gate_receipt_1B]
+    source: internal
+    owner: { owner_team: "mlr-1b-core" }
+    environment: [runtime]
+    schema: schemas.1B.yaml#/plan/s5_site_tile_assignment
+    notes: |
+      Partitioning: seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
+      Writer sort: [merchant_id, legal_country_iso, site_order]
+      Write-once; atomic move; file order non-authoritative.
+
+  - name: s6_site_jitter
+    path: data/layer1/1B/s6_site_jitter/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    type: dataset
+    category: prep
+    semver: '{semver}'
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1B.s6.site_jitter
+    license: Proprietary-Internal
+    role: "Per-site in-pixel jitter; effective deltas (projection into country)."
+    dependencies: [s5_site_tile_assignment, tile_index, world_countries, iso3166_canonical_2024, s0_gate_receipt_1B]
+    source: internal
+    owner: { owner_team: "mlr-1b-core" }
+    environment: [runtime]
+    schema: schemas.1B.yaml#/plan/s6_site_jitter
+    notes: |
+      Partitioning: seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
+      Writer sort: [merchant_id, legal_country_iso, site_order]
+      Write-once; atomic move; file order non-authoritative.
+
+  - name: s7_site_synthesis
+    path: data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    type: dataset
+    category: prep
+    semver: '{semver}'
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1B.s7.site_synthesis
+    license: Proprietary-Internal
+    role: "Deterministic stitch of S5+S6 into per-site absolutes (RNG-free); 1:1 coverage with 1A outlet_catalogue; ready for S8."
+    dependencies: [s5_site_tile_assignment, s6_site_jitter, tile_index, tile_bounds, iso3166_canonical_2024, s0_gate_receipt_1B]
+    source: internal
+    owner: { owner_team: "mlr-1b-core" }
+    environment: [runtime]
+    schema: schemas.1B.yaml#/plan/s7_site_synthesis
+    notes: |
+      Partitioning: seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
+      Writer sort: [merchant_id, legal_country_iso, site_order]
+      Write-once; atomic move; file order non-authoritative.
+
+  - name: tile_bounds
+    path: data/layer1/1B/tile_bounds/parameter_hash={parameter_hash}/
+    type: dataset
+    category: prep
+    semver: '{semver}'
+    version: '{parameter_hash}'
+    digest: '{sha256}'
+    manifest_key: mlr.1B.s1.tile_bounds
+    license: Proprietary-Internal
+    role: "Per-tile rectangle bounds (validator/S6 helper)."
+    dependencies: [tile_index]
+    source: internal
+    owner: {owner_team: "mlr-1b-core"}
+    environment: [runtime]
+    schema: schemas.1B.yaml#/prep/tile_bounds
+    notes: 'Partition: parameter_hash={parameter_hash}; writer sort: [country_iso,tile_id].'
+
+  - name: site_locations
+    path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: output
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.1B.egress.site_locations
+    license: Proprietary-Internal
+    role: 'Concrete per-outlet coordinates (order-free; join 1A S3 for inter-country order).'
+    dependencies: [s7_site_synthesis]
+    source: internal
+    owner: { owner_team: 'mlr-1b-core' }
+    environment: [runtime]
+    schema: schemas.1B.yaml#/egress/site_locations
+    notes: 'Partition: seed={seed}/fingerprint={manifest_fingerprint}; writer sort: [merchant_id, legal_country_iso, site_order]; write-once; atomic move; file order non-authoritative.'
+
+  - name: validation_bundle_1B
+    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+    type: bundle
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    manifest_key: mlr.1B.validation.bundle
+    license: Proprietary-Internal
+    role: "Fingerprint-scoped PASS bundle for 1B; consumers MUST verify _passed.flag before reading site_locations (No PASS → no read)."
+    dependencies: [s7_site_synthesis, site_locations, rng_event_site_tile_assign, rng_event_in_cell_jitter, rng_audit_log, rng_trace_log]
+    schema:
+      index_schema_ref: schemas.1A.yaml#/validation/validation_bundle.index_schema
+    source: internal
+    owner: { owner_team: "mlr-1b-core" }
+    environment: [runtime]
+    notes: |
+      Partitioning: fingerprint={manifest_fingerprint}
+      Publish posture: write-once; stage → fsync → single atomic move; file order non-authoritative.
+      Hashing law: _passed.flag = SHA-256 over raw bytes of files listed in index.json, in ASCII-lex order of 'path' (flag excluded).
+
+  - name: rng_event_site_tile_assign
+    path: logs/rng/events/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     type: log
     category: rng_event
     semver: '{semver}'
     version: '{run_id}'
     digest: '{sha256}'
-    manifest_key: mlr.1B.rng.sample_candidate
-    license:
-    role: Event per candidate sampled (pre-acceptance).
-    dependencies:
-    - rng_event_schema_catalog         # defined in 1A, cross_layer=true
-    - fenwick_snapshot
+    manifest_key: mlr.rng.events.1B.site_tile_assign
+    license: Proprietary-Internal
+    role: "RNG envelope events for S5 (site_tile_assign); exactly one event per assigned site."
+    dependencies: [s5_site_tile_assignment]   # budget check ties logs to dataset size
     source: internal
-    owner: '{qa_team}'
-    last_updated: '{iso8601_timestamp}'
+    owner: { owner_team: "mlr-1b-core" }
     environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
+    schema: schemas.layer1.yaml#/rng/events/site_tile_assign
 
-  - name: accept_reject_events
-    path: logs/rng/events/accept_reject.jsonl
+  - name: rng_audit_log
+    path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
+    type: log
+    category: rng_core
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.core.1B.audit
+    license: Proprietary-Internal
+    role: "Run-scoped audit envelope for Segment 1B RNG usage (seed, manifest, parameter hash, build metadata)."
+    dependencies: [s6_site_jitter]
+    source: internal
+    owner: { owner_team: "mlr-1b-core" }
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/core/rng_audit_log
+
+  - name: rng_trace_log
+    path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
+    type: log
+    category: rng_core
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.rng.core.1B.trace
+    license: Proprietary-Internal
+    role: "Cumulative RNG trace for Segment 1B substreams; append exactly one row after each event."
+    dependencies: [s6_site_jitter, rng_audit_log]
+    source: internal
+    owner: { owner_team: "mlr-1b-core" }
+    environment: [runtime]
+    schema: schemas.layer1.yaml#/rng/core/rng_trace_log
+
+  - name: rng_event_in_cell_jitter
+    path: logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
     type: log
     category: rng_event
     semver: '{semver}'
     version: '{run_id}'
     digest: '{sha256}'
-    manifest_key: mlr.1B.rng.accept_reject
-    license:
-    role: Acceptance decision events (land/water, road proximity, TZ).
-    dependencies:
-    - rng_event_schema_catalog
-    - acceptance_policy
+    manifest_key: mlr.rng.events.1B.in_cell_jitter
+    license: Proprietary-Internal
+    role: "RNG envelope events for S6 (in_cell_jitter); ≥1 event per site (one per attempt); per-event budget: blocks=1, draws=2; last event corresponds to the accepted sample."
+    dependencies: [s5_site_tile_assignment]   # coverage ties to S5 keyset; budget fixed per event
     source: internal
-    owner: '{qa_team}'
-    last_updated: '{iso8601_timestamp}'
+    owner: { owner_team: "mlr-1b-core" }
     environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: fallback_invoked_events
-    path: logs/rng/events/fallback_invoked.jsonl
-    type: log
-    category: rng_event
-    semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.rng.fallback_invoked
-    license:
-    role: Records each fallback invocation & rule triggered.
-    dependencies:
-    - rng_event_schema_catalog
-    - fallback_policy
-    source: internal
-    owner: '{qa_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: fenwick_tie_break
-    path: logs/rng/events/fenwick_tie_break.jsonl
-    type: log
-    category: rng_event
-    semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.rng.fenwick_tie_break
-    license:
-    role: Tie-break ordering when cumulative weights collide.
-    dependencies:
-    - rng_event_schema_catalog
-    - fenwick_snapshot
-    source: internal
-    owner: '{platform_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: tz_resample
-    path: logs/rng/events/tz_resample.jsonl
-    type: log
-    category: rng_event
-    semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.rng.tz_resample
-    license:
-    role: Coordinate re-sampling events after TZ-ISO mismatch.
-    dependencies:
-    - rng_event_schema_catalog
-    - tz_polygons_ref
-    source: internal
-    owner: '{platform_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-    # ----------- Master seed & end-of-run manifest -----------
-  - name: master_seed
-    path: configs/spatial/master_seed.yaml
-    type: config
-    category: rng
-    semver: '{semver}'
-    version: '{config_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.rng.master_seed
-    license:
-    role: Philox master seed for spatial sampling sub-streams.
-    dependencies:
-    - manifest_fingerprint              # from 1A, cross_layer=true
-    source: internal
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: final_parquet_file_pattern
-    path: configs/storage/final_parquet_file_pattern.yaml
-    type: config
-    category: storage
-    semver: '{semver}'
-    version: '{config_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.storage.final_parquet_pattern
-    license:
-    role: Naming template for final Parquet shard outputs.
-    dependencies:
-    - storage_path_pattern              # from 1A
-    source: internal
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes: "Pattern: 'catalogue/seed={seed}/fingerprint={fingerprint}/part-*.parquet'"
-
-  - name: end_of_run_manifest
-    path: ci/manifests/end_of_run_manifest.json
-    type: manifest
-    category: storage
-    semver: '{semver}'
-    version: '{manifest_key}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.storage.end_of_run_manifest
-    license:
-    role: Aggregated summary of all output files and digests.
-    dependencies:
-    - final_parquet_file_pattern
-    - manifest_fingerprint
-    source: internal
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [ci]
-    schema:
-    cross_layer: true
-    notes:
-
-    # ----------- Reproducibility: library versions -----------
-  - name: geospatial_lib_versions
-    path: ci/manifests/geospatial_lib_versions.txt
-    type: manifest
-    category: reproducibility
-    semver: '{semver}'
-    version: '{manifest_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.ci.geospatial_lib_versions
-    license:
-    role: Exact GDAL/GEOS/PROJ (and bindings) used for spatial ops.
-    dependencies: []
-    source: internal
-    owner: '{platform_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [ci, runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-    # ----------- Documentation / codebook -----------
-  - name: site_provenance_codebook
-    path: docs/codebooks/site_provenance_codebook.yaml
-    type: mapping
-    category: documentation
-    semver: '{semver}'
-    version: '{doc_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.docs.site_provenance_codebook
-    license:
-    role: Code->meaning map for per-site provenance tags.
-    dependencies:
-    - prior_blend_recipe
-    source: internal
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [dev, staging, prod]
-    schema:
-    cross_layer: false
-    notes:
-
-      # Licensing (governed)
-  - name: license_files
-    path: LICENSES/
-    type: directory
-    category: licensing
-    semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256_tree}'
-    manifest_key: mlr.1B.licenses
-    license: CC-BY-4.0-and-PublicDomain
-    role: SPDX texts for HRSL/WorldPop/other spatial priors; referenced by spatial_manifest.
-    dependencies: []
-    source: internal
-    owner: '{legal_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [ci, runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-    # ----------- Output governance & write safety -----------
-  - name: spatial_write_manifest
-    path: ci/manifests/spatial_write_manifest.json
-    type: manifest
-    category: storage
-    semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256}'
-    manifest_key: mlr.1B.storage.spatial_write_manifest
-    license: '{spdx_or_internal}'
-    role: Per-run list of written parts (bbox, CRS, digests) for the site catalogue.
-    dependencies: [site_catalogue_schema, crs_policy]
-    source: internal
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [ci, runtime]
-    cross_layer: true
-    notes:
-
-  - name: temp_write_policy
-    path: configs/storage/temp_write_policy.yaml
-    type: config
-    category: storage
-    semver: '{semver}'
-    version: '{config_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.storage.temp_write_policy
-    license: '{spdx_or_internal}'
-    role: Atomic rename-only commit rules; governs *.tmp -> final shard.
-    dependencies: [final_parquet_file_pattern]
-    source: internal
-    owner: '{owner_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    cross_layer: true
-    notes:
-
-  - name: write_ahead_log
-    path: logs/storage/write_ahead.log
-    type: log
-    category: storage
-    semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256}'
-    manifest_key: mlr.storage.write_ahead_log
-    license: '{spdx_or_internal}'
-    role: Idempotent WAL for crash recovery during site-catalogue writes.
-    dependencies: [temp_write_policy]
-    source: internal
-    owner: '{qa_team}'
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    cross_layer: true
-    notes:
+    schema: schemas.layer1.yaml#/rng/events/in_cell_jitter

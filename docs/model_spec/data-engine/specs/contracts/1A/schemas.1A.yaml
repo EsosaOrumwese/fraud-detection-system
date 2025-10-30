@@ -25,8 +25,8 @@ $defs:
   id64:
     type: integer
     minimum: 1
-    maximum: 9223372036854775807
-    description: Positive 64-bit identifier.
+    maximum: 18446744073709551615
+    description: Positive 64-bit identifier (unsigned envelope).
   uint64:
     type: integer
     minimum: 0
@@ -192,6 +192,22 @@ alloc:
       exclusiveMaximum: true
     - {name: residual_rank, type: int32, nullable: false, description: Rank by descending residual (1=largest).}
 
+  membership:
+    type: table
+    description: 'Optional convenience surface of selected foreign ISO2s per merchant. **Authority remains S6 RNG events**; encodes **no inter-country order**.'
+    primary_key: [merchant_id, country_iso]
+    partition_keys: [seed, parameter_hash]
+    sort_keys: [merchant_id, country_iso]
+    columns:
+    - {name: merchant_id, $ref: '#/$defs/id64', nullable: false, description: Merchant ID.}
+    - name: country_iso
+      $ref: '#/$defs/iso2'
+      nullable: false
+      description: Selected foreign country (member of S6 realisation).
+      fk: {dataset_ref: schemas.ingress.layer1.yaml#/iso3166_canonical_2024, column: country_iso}
+    - {name: seed, type: int64, nullable: false, description: 'Global seed (MUST equal the partition key).'}
+    - {name: parameter_hash, type: string, nullable: false, description: 'Parameter hash (MUST equal the partition key).', pattern: '^[a-f0-9]{64}$'}
+    - {name: produced_by_fingerprint, type: string, nullable: true, description: 'Informational provenance (optional).', pattern: '^[a-f0-9]{64}$'}
 
 # 4) Egress (immutable outlet stubs)
 egress:
@@ -222,7 +238,7 @@ egress:
       description: Country the site belongs to (legal allocation).
       fk: {dataset_ref: schemas.ingress.layer1.yaml#/iso3166_canonical_2024, column: country_iso}
     - {name: single_vs_multi_flag, type: boolean, nullable: false, description: '1 if multi-site (hurdle success), else 0.'}
-    - {name: raw_nb_outlet_draw, type: int32, nullable: false, description: Accepted NB draw N before cross-border allocation., minimum: 2}
+    - {name: raw_nb_outlet_draw, type: int32, nullable: false, description: Accepted NB draw N before cross-border allocation., minimum: 1}
     - {name: final_country_outlet_count, type: int32, nullable: false, description: Integer outlet count allocated to this legal_country (per persisted row)., minimum: 1, maximum: 999999}
     - {name: site_order, type: int32, nullable: false, description: Stable per-country site order (1..n_i)., minimum: 1}
     - {name: global_seed, $ref: '#/$defs/uint64', nullable: false, description: Master Philox seed (derivable from manifest; stored for audit replay).}

@@ -1,2222 +1,1581 @@
-# S9.1 — Scope, inputs, outputs (implementation-ready, **sealed** gate)
+# S9 SPEC — Replay Validation & Publish Gate (Layer 1 · Segment 1A)
 
-## 1) Purpose (what S9 proves)
+# 0) Document metadata & status **(Binding)**
 
-For a fixed run lineage $\big(\texttt{seed},\texttt{manifest_fingerprint},\texttt{parameter_hash},\texttt{run_id}\big)$, S9 must prove that 1A’s immutable egress:
+## 0.1 State ID, SemVer, effective date
 
-1. **conforms to schema**,
-2. is **internally consistent** with all upstream 1A artefacts and RNG logs, and
-3. is **statistically sane** under governed corridors;
+* **State ID (canonical):** `layer1.1A.S9` — “Replay Validation & Publish Gate”.
+* **SemVer:** **MAJOR.MINOR.PATCH**.
+  **MAJOR** when any binding interface changes, including (non-exhaustive):
+  – `_passed.flag` format or hashing rule; the location/partitioning of the validation bundle; consumer-gate semantics (**no PASS → no read**); dataset IDs or `$ref` anchors for S9 inputs/outputs; lineage equality rules; RNG envelope/accounting laws used by the validator.  
+  **MINOR** for backward-compatible additions (new optional bundle files/metrics, extra validator summaries) that do **not** alter existing contracts.
+  **PATCH** for clarifications that do **not** change behaviour, schemas, or gates.
+* **Effective date:** `YYYY-MM-DD` (set at ratification).
 
-and, on success, emit a **sealed validation bundle** and a **`_passed.flag`** that authorise the 1A→1B hand-off **for exactly this** `manifest_fingerprint`.
-**Seal definition:** `contents(_passed.flag) == SHA256(bundle.zip)` (lower-case hex).
+## 0.2 Normative language
 
----
+This spec uses **RFC 2119/8174** key words (**MUST/SHALL/SHOULD/MAY**) with their normative meanings. Unless explicitly labelled **Informative**, every clause in S9 is **Binding**. (S7/S8 use the same convention for cross-state consistency.)  
 
-## 2) Identity & authority (inputs are read-only)
+## 0.3 Document status & section classes
 
-### 2.1 Lineage/identity keys (must be present)
+* The default for all sections is **Binding**.
+* **Informative** material (worked micro-examples, bundle layout illustrations) is confined to appendices and **MUST NOT** be used by implementers to weaken Binding rules.
 
-* `seed` (u64 master seed), `parameter_hash` (hex64), `manifest_fingerprint` (hex64), `run_id` (opaque run token). These are **inputs to validation** (never rewritten) and scope all lookups below.
+## 0.4 Compatibility window (authorities & lines)
 
-### 2.2 Authoritative datasets & where order lives
+S9 v1.* assumes the following remain on their **v1.* line**; a **MAJOR** bump in any requires S9 re-ratification and a SemVer **MAJOR** increment here:
 
-* **Egress (fingerprint-scoped):**
-  `outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/` with schema `schemas.1A.yaml#/egress/outlet_catalogue`. **Within-country** sequence only; **inter-country order is intentionally not encoded** here. PK and file ordering are `(merchant_id, legal_country_iso, site_order)`.
-* **Country order (parameter-scoped & sole authority):**
-  `country_set/seed={seed}/parameter_hash={parameter_hash}/` with schema `#/alloc/country_set`. Column `rank` (0 = home; 1..K = foreign order) is the **only** source of cross-country order. 1B must join it; S9 enforces this separation.
-* **Integerisation trail (parameter-scoped):**
-  `ranking_residual_cache_1A(seed,parameter_hash)` to reconstruct largest-remainder decisions (residuals in $[0,1)$ and `residual_rank`). **Dataset id carries `_1A`; schema pointer is `#/alloc/ranking_residual_cache`.**
+* `schemas.layer1.yaml` (layer-wide RNG/log/core schemas),
+* `schemas.1A.yaml` (1A tables/egress/validation),
+* `schemas.ingress.layer1.yaml` (ingress/reference),
+* `dataset_dictionary.layer1.1A.yaml` (IDs, path templates, partitions, writer sorts).  
 
-### 2.3 RNG evidence (run-scoped)
+## 0.5 Numeric environment (inherited; MUST hold)
 
-* `rng_audit_log` (master envelope: algo, seed, counter/jump map).
-* Structured **event logs** under `schemas.layer1.yaml#/rng/...` for labels used by 1A (e.g., `gumbel_key`, `dirichlet_gamma_vector`, `residual_rank`, `sequence_finalize`), partitioned by `{seed, parameter_hash, run_id}`. Presence, schema conformance, **counter arithmetic**, and **zero-draw** where mandated are validated in S9.
-* `rng_trace_log` (run-scoped; one record per `(module, substream_label)` with `draws`). Used for per-label draw-budget reconciliation.
+S9 **inherits S0.8 verbatim** and **MUST** attest the numeric regime before running validations: IEEE-754 **binary64**, **RNE** (round-to-nearest, ties-to-even), **FMA off**, **no FTZ/DAZ**, subnormals honoured; deterministic libm profile pinned by `math_profile_manifest.json`. These artefacts are enumerated in the S0 manifest; changing either flips the **`manifest_fingerprint`**.  
 
-### 2.4 Optional/diagnostic caches (parameter-scoped)
+## 0.6 Run sealing & lineage (identifiers, partitions, equality)
 
-* `hurdle_pi_probs`, `sparse_flag`, `crossborder_eligibility_flags`. Used for corridor checks and coverage diagnostics; they do **not** change egress semantics.
+* **Lineage keys:** `{seed, parameter_hash, run_id}` on RNG logs and validator reads; `{manifest_fingerprint}` for the validation bundle/flag partition. **Path tokens MUST equal embedded columns byte-for-byte** wherever both exist. 
+* **Validation bundle location:** `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` (fingerprint partition). `_passed.flag` lives **inside** this folder. 
+* **Gate semantics (consumer binding):** `_passed.flag` contains `sha256_hex = <hex64>`, where `<hex64>` is the SHA-256 over **all files listed in `index.json` (excluding `_passed.flag`)** in **ASCII-lexicographic order of the `index.json` `path` entries**; consumers **MUST** verify this for the same fingerprint **before** reading egress (**no PASS → no read**).
 
----
+## 0.7 Change control & ratification
 
-## 3) Inputs — exact path/schema contracts (must use)
-
-| Kind               | Path partitioning                                                                                  | Schema pointer / role                                                                                                                    |
-| ------------------ | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| **Egress**         | `outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/`                                 | `schemas.1A.yaml#/egress/outlet_catalogue` (PK/order `(merchant_id,legal_country_iso,site_order)`) — **no inter-country order encoded**. |
-| **Country set**    | `country_set/seed={seed}/parameter_hash={parameter_hash}/`                                         | `schemas.1A.yaml#/alloc/country_set` (rank carries cross-country order, `0=home`).                                                       |
-| **Residual cache** | `ranking_residual_cache_1A/seed={seed}/parameter_hash={parameter_hash}/`                           | `#/alloc/ranking_residual_cache` (residual $[0,1)$, rank ≥1).                                                                          |
-| **RNG events**     | `logs/rng/events/<label>/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` | `schemas.layer1.yaml#/rng/events/<label>` (per-label schema; envelope with before/after counters).                                       |
-| **Audit log**      | registry path for `rng_audit_log` (run-scoped)                                                     | envelope that pins master seed/stream map.                                                                                               |
-| **Trace log**      | registry path for `rng_trace_log` (run-scoped)                                                     | per-label draw budgets used by S9.5 reconciliation.                                                                                      |
-
-All paths/roles are documented in the **dataset dictionary** and **artefact registry**; S9 must resolve from there rather than hardcoding.
+* **Source of truth:** JSON-Schema (layer/segment/ingress) and the Dataset Dictionary remain the sole schema and path authorities; this S9 spec binds validator behaviour **under** those authorities. Any PR that changes Binding parts of S9 **MUST**:
+  (a) bump SemVer per §0.1; (b) update anchors in the Dictionary/Registry where applicable; (c) attach the updated bundle schema entry; (d) re-ratify the consumer gate in CI.  
 
 ---
 
-## 4) Outputs — what S9 writes & the 1A→1B gate
+# 1) Purpose, scope, non-goals **(Binding)**
 
-### 4.1 `validation_bundle_1A` (ZIP)
+## 1.1 Purpose
 
-* **Location:** `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/bundle.zip`.
-* **Index:** `index.json` conforming to `schemas.1A.yaml#/validation/validation_bundle` (table with `artifact_id` PK, columns `kind,path,mime,notes`).
-  **`index.json` MUST include a top-level lineage object:**
-  `{"seed":"<uint64>","parameter_hash":"<hex64>","manifest_fingerprint":"<hex64>","run_id":"<opaque>"}`.
-* **Minimum contents:** `schema_checks.json`, `key_constraints.json`, `rng_accounting.json`, `metrics.csv`, plus `diffs/*` when mismatches arise.
+S9’s role is to **re-derive and verify** the promises made by **S0–S8**, then **publish a fingerprint-scoped validation bundle** and a **single consumer gate flag**. If and only if all checks pass, S9 writes `validation_bundle_1A/` under
+`data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` and a colocated `_passed.flag` whose **content hash equals `SHA256(validation_bundle_1A)`**. **Consumers MUST verify this flag for the same fingerprint before reading `outlet_catalogue`** (**no PASS → no read**).   
 
-### 4.2 `_passed.flag` (cryptographic **seal**)
+## 1.2 Scope — what S9 MUST do
 
-* **Same folder**; its **file contents equal** `SHA256(bundle.zip)` (lowercase hex).
-* **Registry contract:** `validation_passed_flag.digest = {sha256_of_bundle}`, with dependency `validation_passed_flag ← validation_bundle_1A`.
+S9 is **read-only** over the produced data/streams and **MUST**:
 
-### 4.3 Hand-off condition to 1B (binding)
+**a) Structural & schema validation.**
+Assert schema validity, partition law, PK/UK, and FK targets for all inputs in scope, including `outlet_catalogue` (egress; `[seed,fingerprint]` partitions), `s3_candidate_set` (sole inter-country order; `[parameter_hash]`), optional `s3_integerised_counts`, and the RNG families/core logs used across S1–S8 (`rng_event.*`, `rng_trace_log`, `rng_audit_log`).   
 
-1B **may read** `outlet_catalogue(seed,fingerprint)` **iff** `_passed.flag` exists for that fingerprint **and** its content hash equals `SHA256(bundle.zip)`. Consumers **must** verify this before access; cross-country order must be recovered **only** via `country_set.rank`.
+**b) Lineage equality & identity.**
+Enforce **path↔embed equality** for lineage tokens wherever both exist: e.g., `outlet_catalogue.manifest_fingerprint == fingerprint` path token; RNG events embed `{seed, parameter_hash, run_id}` equal to their path tokens. For parameter-scoped tables, embedded `parameter_hash` **MUST** equal the partition key. 
 
----
+**c) RNG envelope accounting & trace coverage.**
+Reconcile **every** RNG family touched in S1/S2/S4/S6/S7/S8:
+`u128(after)−u128(before) == blocks` (per event), **non-consuming** families carry `draws="0", blocks=0`, and **exactly one** `rng_trace_log` row is appended **after each event**; final trace totals match the sum of event budgets. **Uniforms are strict-open** `u∈(0,1)` as fixed in S0.    
 
-## 5) Boundary invariants fixed by S9.1 (assumed by S9.2+)
+**d) Cross-state replay checks (facts re-derived from written inputs only).**
 
-* **Scope coherence:** joins pair `outlet_catalogue(seed,fingerprint)` with caches at `(seed,parameter_hash)` and RNG logs at `(seed,parameter_hash,run_id)`. Mixed scopes are invalid.
-* **Immutability:** inputs are read-only; S9 writes only under `…/validation/fingerprint={manifest_fingerprint}/`.
-* **Single source of country order:** **only** `country_set.rank`; egress never encodes it.
+* **S1 hurdle:** exactly one decision per merchant; extremes consume zero; open-interval `u` and budget identity hold; trace totals reconcile. 
+* **S2 NB:** one `nb_final` (non-consuming); Gamma/Poisson component coverage and budgets reconcile; accepted `N≥2`. 
+* **S3 order:** `candidate_rank` is **total, contiguous**, with **home=0**; S9 **never** invents order. 
+* **S4 ZTP:** `ztp_final` unique; rejection attempts coherent with Poisson components. 
+* **S6 membership:** if `s6_membership` was used, it **MUST** match re-derivation from `gumbel_key` (+S3/S4 facts); **S6 PASS is required** to read the convenience surface. 
+* **S7 integerisation:** reconstruct floors + **`dp_resid=8` residual_rank** order and prove `Σ_i count_i = N`; no cross-country order created by S7. 
+* **S8 egress & sequences:** per (merchant,country) block, `site_order = 1..n_i` with `site_id` `^[0-9]{6}$`; exactly one `sequence_finalize` (non-consuming) per block; overflow guard respected; **egress encodes no inter-country order** (join S3).  
 
----
+**e) Gates & consumer publish.**
+If S8 (or earlier states) read convenience surfaces, S9 **verifies** the corresponding **PASS receipts** (e.g., S6). On success, S9 publishes `validation_bundle_1A/` and `_passed.flag` **atomically**; on failure, S9 publishes the bundle **without** `_passed.flag`.  
 
-## 6) Pre-flight presence & coherence checks (must pass before any deeper validation)
+## 1.3 Non-goals (what S9 MUST NOT do)
 
-Let $P=(\texttt{seed},\texttt{manifest_fingerprint},\texttt{parameter_hash},\texttt{run_id})$.
+* **No new RNG draws, no reseeding, no counter advances.** S9 **MUST NOT** emit RNG events or consume counters. (It only reads/validates envelopes and traces.) 
+* **No egress authoring or mutation.** S9 does **not** write or alter `outlet_catalogue` or any S3/S6/S7 surfaces; it only validates them. 
+* **No new order or counts.** S9 does **not** define inter-country order (S3 is sole authority) or recompute authoritative counts; it only **re-derives to compare**. 
+* **No weight computation or persistence.** S9 does **not** read or rewrite S5 weight surfaces unless a separate 4B harness is active (outside 1A’s S9 gate); the 1A S9 gate does **not** depend on S5. 
+* **No heuristic “repairs.”** Any breach is a **fail-closed**; S9 does not auto-correct producer outputs. 
 
-1. Exactly one `outlet_catalogue` partition exists at `(seed,fingerprint)`; at least one file present.
-2. A matching `country_set` and `ranking_residual_cache_1A` exist at `(seed,parameter_hash)`.
-3. Required RNG labels for 1A (per registry) are present for the run under `{seed,parameter_hash,run_id}` (e.g., `dirichlet_gamma_vector`, `residual_rank`, `sequence_finalize`); absence is a **hard S9.1 fail**.
-4. Dictionary/registry lookups for schema refs and paths resolve successfully (no stale IDs).
-5. `rng_audit_log` **and** `rng_trace_log` partitions exist for `{seed,parameter_hash,run_id}` (trace may be empty for non-consuming labels).
+## 1.4 Decision & gate semantics (run outcome)
 
----
-
-## 7) Error taxonomy for S9.1 (machine codes & abort)
-
-| Code                              | Trigger                                                          | Evidence artefact(s)                   |
-| --------------------------------- | ---------------------------------------------------------------- | -------------------------------------- |
-| `presence_missing_egress`         | Missing/empty `outlet_catalogue(seed,fingerprint)`               | `schema_checks.json` (egress section)  |
-| `presence_missing_country_set`    | Missing `country_set(seed,parameter_hash)`                       | `schema_checks.json` (FK base missing) |
-| `presence_missing_residual_cache` | Missing `ranking_residual_cache_1A(seed,parameter_hash)`         | `schema_checks.json`                   |
-| `presence_missing_rng_streams`    | Any required RNG label absent for `{seed,parameter_hash,run_id}` | `rng_accounting.json` (coverage table) |
-| `presence_missing_rng_trace`      | Missing `rng_trace_log(seed,parameter_hash,run_id)`              | `rng_accounting.json` (budget table)   |
-| `registry_resolution_error`       | Schema/path cannot be resolved from dictionary/registry          | `schema_checks.json` (registry block)  |
-
-All are **hard-fail** in S9.1; bundle may still be produced later with diagnostics, but `_passed.flag` will not be written.
+* **PASS:** all checks in scope succeed → write `validation_bundle_1A/` and `_passed.flag` (content hash equals bundle SHA-256), enabling downstream reads for this **fingerprint**. 
+* **FAIL:** any binding check fails → write bundle (with failures) **without** `_passed.flag`; **consumers MUST NOT read `outlet_catalogue` for this fingerprint**. 
 
 ---
 
-## 8) Reference collector (handles for later S9.x)
+# 2) Sources of authority & precedence **(Binding)**
 
-```pseudo
-function s9_1_collect_handles(seed, fingerprint, parameter_hash, run_id):
-    outlet    := read_partition("outlet_catalogue", seed, fingerprint)                      # schemas.1A.yaml#/egress/outlet_catalogue
-    cset      := read_partition("country_set", seed, parameter_hash)                        # #/alloc/country_set
-    resid     := read_partition("ranking_residual_cache_1A", seed, parameter_hash)          # #/alloc/ranking_residual_cache
-    hurdle    := read_param_scoped("hurdle_pi_probs", parameter_hash, optional=true)
-    sparse    := read_param_scoped("sparse_flag", parameter_hash)
-    xborder   := read_param_scoped("crossborder_eligibility_flags", parameter_hash)
-    rng_audit := read_run_scoped("rng_audit_log", seed, parameter_hash, run_id)
-    rng_trace := read_run_scoped("rng_trace_log", seed, parameter_hash, run_id)
-    events := {
-       "gumbel_key":             read_events("gumbel_key", seed, parameter_hash, run_id),
-       "dirichlet_gamma_vector": read_events("dirichlet_gamma_vector", seed, parameter_hash, run_id),
-       "residual_rank":          read_events("residual_rank", seed, parameter_hash, run_id),
-       "sequence_finalize":      read_events("sequence_finalize", seed, parameter_hash, run_id)
-    }
-    assert exists(outlet) and exists(cset) and exists(resid) and exists(rng_audit) and exists(rng_trace)
-    for label in required_labels: assert exists(events[label])  # coverage pre-check
-    return {outlet,cset,resid,hurdle,sparse,xborder,rng_audit,rng_trace,events}
-```
+## 2.1 Schema authority (single source of shape truth)
 
-Path templates and required labels are taken from the registry/dictionary; **do not** hardcode.
+S9 **MUST** treat JSON-Schema as the **sole authority** for shapes, required fields, domains, and envelope semantics. The following schema sets are **binding**:
 
----
+* **Layer-wide logs & RNG events:** `schemas.layer1.yaml` — e.g., core logs `rng_audit_log`, `rng_trace_log`; event families used by 1A such as `hurdle_bernoulli`, `gamma_component`, `poisson_component`, `ztp_*`, `gumbel_key`, `residual_rank`, `sequence_finalize`, `site_sequence_overflow`; and governance objects (`numeric_policy_profile`, `math_profile_manifest`).   
+* **Segment 1A tables/bundles:** `schemas.1A.yaml` — e.g., `s3/candidate_set`, `s3/integerised_counts`, optional `s3/site_sequence`, egress `egress/outlet_catalogue`, and the fingerprint-scoped `validation/validation_bundle`. 
+* **Ingress & FK targets:** `schemas.ingress.layer1.yaml` (e.g., `iso3166_canonical_2024`), referenced by 1A tables and S8 egress. 
 
-## 9) Conformance tests (must pass for S9.1)
+**Anchor-resolution rule (normative).** Bare anchors resolve as follows:
+-  `#/rng/**` → `schemas.layer1.yaml`
+- `#/validation/validation_bundle` → `schemas.1A.yaml`
+- `#/validation/s6_receipt` → `schemas.layer1.yaml` 
+- `#/s3/**` and `#/egress/**` → `schemas.1A.yaml`
 
-1. **Presence happy-path:** All partitions present; collector returns handles; proceed to S9.2+. ✔︎
-2. **Missing RNG stream:** Drop `sequence_finalize` → expect `presence_missing_rng_streams` with coverage table in `rng_accounting.json`. ✔︎
-3. **Mixed scopes:** Provide `country_set` at wrong `parameter_hash` → expect registry/scope failure; S9.1 aborts. ✔︎
-4. **Egress absent:** No files at `(seed,fingerprint)` → `presence_missing_egress`; no further checks run. ✔︎
-5. **Missing trace log:** Omit `rng_trace_log` for the run → `presence_missing_rng_trace`. ✔︎
+## 2.2 Dataset Dictionary (IDs, paths, partitions, writer policy)
 
----
+The **Dataset Dictionary** is authoritative for **dataset IDs, canonical paths, partitions, writer sort, and consumer gates**; S9 **MUST** obey it exactly when locating inputs and publishing outputs. Examples:
 
-## 10) Notes for S9.2 (notation) & beyond
+* **Egress** `outlet_catalogue`: `[seed,fingerprint]` partitions; writer sort `[merchant_id, legal_country_iso, site_order]`; **no cross-country order encoded**; consumers **MUST** verify the fingerprint-scoped gate before reads. 
+* **Order authority** `s3_candidate_set`: `[parameter_hash]` partition; `candidate_rank` is the **sole** inter-country order surface. 
+* **Core logs** `rng_audit_log`, `rng_trace_log`: `[seed,parameter_hash,run_id]` partitions; trace rows are **cumulative** and **one row is appended after each RNG event append**. 
 
-S9.2 will bind the symbol table:
-$n_{m,i}$ from **row counts** in egress (so $n_{m,i}\ge 0$; note: persisted **rows** always carry `final_country_outlet_count ≥ 1`), $s_{m,i,k}$ and `site_id` bijection (`zpad6`), $R_{m,i}$/$r_{m,i}$ from the residual cache, and the set $\mathcal{I}_m$ + order from `country_set.rank`. These definitions are then used in S9.3–S9.7 for structural checks, RNG accounting, and the bundle.
+## 2.3 Artefact Registry (runtime bindings & gates)
 
----
+The **Artefact Registry** pins gate artefacts and their semantics used by S9:
 
-# S9.2 — Notation
+* **Validation bundle (fingerprint-scoped)** `validation_bundle_1A` under `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/`. 
+* **Consumer flag** `_passed.flag` whose **content** is `sha256_hex = <SHA256(bundle)>`; **consumers must verify** this for the same fingerprint **before** reading `outlet_catalogue` (**no PASS → no read**). 
 
-## 1) Index sets, scope, and partitions (binding)
+## 2.4 Authority surfaces (what decides *what*)
 
-* **Merchants.** $m\in\mathcal{M}$ (values come from keys present in the inputs for this run).
-* **Countries (canonical).** $i\in\mathcal{I}$ = ISO-3166-1 alpha-2 domain from the canonical ingress table referenced by schema FKs.
-* **Legal countries for a merchant (sole authority).**
+S9 **MUST** enforce the following lines of authority; if any dependent surface disagrees, S9 **fails**:
 
-  $$
-  \mathcal{I}_m \;=\; \{\, i : (m,i)\in\texttt{country_set}\ \text{at }(seed,\ \textit{parameter_hash})\,\},
-  $$
+1. **Inter-country order:** **S3 `candidate_rank` is single authority** (home rank = 0; ranks total & contiguous). Neither S7 nor S8 encodes or overrides cross-country order; S9 must never invent it.  
+2. **Per-country integer counts:** Either **`s3_integerised_counts`** (if emitted) or counts reconstructed deterministically from **S7 `residual_rank`** over the S3 domain (S9 selects the configured path, but **does not** re-decide policy).  
+3. **Egress content:** `outlet_catalogue` is **order-free across countries**, fingerprint-scoped, and must pass dictionary/schema checks; downstream join-back to S3 provides order. 
+4. **RNG envelope & trace law:** Event rows **must** satisfy the layer envelope (`before/after/blocks/draws`) and trace obligations; **non-consuming** families (e.g., `sequence_finalize`, `site_sequence_overflow`, `residual_rank`) have `blocks=0`, `draws="0"`, and still cause a **single** trace append.  
+5. **Numeric environment:** S0 binds **IEEE-754 binary64, RNE, FMA-off, no FTZ/DAZ**, and a pinned libm profile. S9 **inherits** this and validates under the same profile. 
 
-  totally ordered by `rank` with $0$ = home. **Cross-country order exists only here**; egress never encodes it.
+## 2.5 Gating & read-before-use (MUST verify receipts)
 
-**Scope discriminants used everywhere in S9.**
-Egress is keyed by `(seed, fingerprint)`, allocation caches by `(seed, parameter_hash)`, RNG event/trace logs by `(seed, parameter_hash, run_id)`. S9 joins only across matching scopes; mixed scopes are invalid.
+* **Fingerprint gate (1A → consumers):** The `_passed.flag` under `validation/fingerprint={fingerprint}/` **MUST** verify (content hash equals bundle SHA-256) **before** `outlet_catalogue` can be read. S9 publishes this flag only on PASS.  
+* **Upstream convenience gates:** If S9 reads any convenience surface that is gated upstream (e.g., `s6/membership`), it **MUST** verify the corresponding **S6 PASS receipt** first. 
 
----
+## 2.6 Precedence on conflict (descending)
 
-## 2) Observables from egress `outlet_catalogue` (per $(m,i,k)$)
+When documents disagree, S9 **MUST** apply this precedence ladder:
 
-Let `OUT` denote the immutable egress partition at
-`data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/`, schema `schemas.1A.yaml#/egress/outlet_catalogue`. Its **PK and sort keys** are $(\texttt{merchant_id},\ \texttt{legal_country_iso},\ \texttt{site_order})$; **inter-country order is not encoded** here.
+1. **JSON-Schema** (layer + segment + ingress) → shapes/domains/envelopes;
+2. **Dataset Dictionary** → dataset IDs, canonical paths/partitions, writer order, consumer gate;
+3. **Artefact Registry** → concrete publish locations and gate coupling;
+4. **State specs S0–S8 (Binding)** → semantics, invariants, and authority separation that schemas/dictionary alone don’t express;
+5. **Non-binding notes** (concept docs/previews) → informative only.
+   Examples: (i) If a file’s columns validate but its partition keys or writer sort don’t match the dictionary, **dictionary wins**; (ii) if an event row exists but violates the envelope schema (e.g., non-consuming family with `draws≠"0"`), **schema wins**.   
 
-### 2.1 Count and within-country sequence
+## 2.7 Path↔embed equality & identity (applies to all S9 reads/writes)
 
-* **Materialised count** (defined by rows):
-
-  $$
-  n_{m,i} \;=\; \#\{\text{rows in OUT where }(\texttt{merchant_id},\texttt{legal_country_iso})=(m,i)\}.
-  $$
-
-  If $n_{m,i}=0$, no row for $(m,i)$ exists in egress. If $n_{m,i}\ge 1$, every persisted row must carry the same `final_country_outlet_count = n_{m,i}` (S8 contract; re-checked in S9.3/S9.4).
-
-* **Within-country order.** For the $k$-th row of block $(m,i)$,
-
-  $$
-  s_{m,i,k}\in\{1,\dots,n_{m,i}\}\ \text{is the value of }\texttt{site_order}.
-  $$
-
-  The multiset ${s_{m,i,k}}$ must equal ${1,\dots,n_{m,i}}$ (gap-free permutation).
-
-### 2.2 Site identifier & the encoder bijection
-
-* **Encoder.** $\sigma:\mathbb{Z}_{\ge1}\to{0,1,\dots,9}^6$, $\sigma(j)=\mathrm{zpad6}(j)$ (left-pad base-10 to width 6). Regex: `^[0-9]{6}$`.
-* **ID on row $k$.** $\text{id}*{m,i,k}=\texttt{site_id}\in{000000,\dots,999999}$. For persisted rows, S8 requires $\text{id}*{m,i,k}=\sigma(s_{m,i,k})$; S9 asserts the same. (Capacity guard $n_{m,i}\le 999,999$ enforced upstream; overflow aborts S8.)
-* **Partial inverse.** $\sigma^{-1}(\texttt{site_id})=j$ iff the regex matches and $000001\le\texttt{site_id}\le 999999$; S9 may use this for diagnostics only (schema already provides `site_order`).
-
-### 2.3 Merchant-wide constants repeated on rows
-
-* $H_m\in{0,1}$ = `single_vs_multi_flag` (boolean).
-* $N^{\mathrm{raw}}*m\in\mathbb{Z}*{\ge1}$ = `raw_nb_outlet_draw` (identical on **all** rows of merchant $m$); S9 later checks conservation $\sum_{i\in\mathcal{I}*m} n*{m,i} = N^{\mathrm{raw}}_m$.
-* `home_country_iso` (constant per merchant; must equal the `country_set` row with `rank=0`). `legal_country_iso` = $i$ on the row.
-* Lineage echoes: every row carries `manifest_fingerprint` (hex64) and `global_seed` (u64) equal to the partition tokens `(fingerprint, seed)`.
+Where lineage appears **both** in the path and in embedded columns/fields, **byte-equality is binding** (e.g., `outlet_catalogue.manifest_fingerprint == fingerprint` (path), and for logs/events `{seed,parameter_hash,run_id}` equal their path tokens). **File order is non-authoritative.** 
 
 ---
 
-## 3) Observables from parameter-scoped caches (allocation trail)
-
-All read from `(seed, parameter_hash)`.
-
-* **Residuals & their order (largest-remainder trail).**
-  $R_{m,i}\in[0,1)$ = `ranking_residual_cache_1A.residual`;
-  $r_{m,i}\in{1,2,\dots}$ = `ranking_residual_cache_1A.residual_rank` (1 = largest). Used in S9.4.
-
-* **Optional hurdle probability.** $\pi_m\in[0,1]$ from `hurdle_pi_probs` (diagnostic only; corridors may reference it).
-
-* **As needed later:** `sparse_flag`, `crossborder_eligibility_flags` at the same scope; they never change egress semantics but appear in corridor/coverage diagnostics.
+*Status: this section is **Binding** and governs how S9 recognises truth and decides ties before executing any validation checks.*
 
 ---
 
-## 4) RNG lineage objects (run-scoped)
+# 3) Inputs — inventory & read-gates **(Binding)**
 
-* **Audit envelope** $E=(\text{algo},S_{\text{master}},\text{stream map},\text{initial counters},\dots)$ from `rng_audit_log`.
-* **Event traces** $T_\ell$ for labels $\ell \in \{\texttt{gumbel_key}, \texttt{dirichlet_gamma_vector}, \texttt{residual_rank}, \texttt{sequence_finalize}, \dots\}$: JSONL tuples $(\texttt{rng_counter_before}, \texttt{draws}, \texttt{rng_counter_after}, \texttt{key})$ with a common envelope. Presence, schema conformance, **monotone counter advance**, and **zero-draw** where mandated are asserted in S9.5/S9.6.
-* **Trace log** with per-label budgets at the same run scope: `rng_trace_log(seed, parameter_hash, run_id)`.
+## 3.0 Overview (read-only stance)
 
----
-
-## 5) Canonical column ↔ symbol table (dataset-backed)
-
-| Dataset.column                 | Symbol               | Domain / notes                                                           |
-|--------------------------------|----------------------|--------------------------------------------------------------------------|
-| OUT.manifest_fingerprint       | $F$                  | hex64, equals `{fingerprint}` partition token.                           |
-| OUT.global_seed                | $S_{\text{master}}$  | u64, equals `{seed}` partition token.                                    |
-| OUT.merchant_id                | $m$                  | id64 (PK component).                                                     |
-| OUT.legal_country_iso          | $i$                  | ISO-2 (PK component; FK to canonical ISO).                               |
-| OUT.home_country_iso           | $\text{home}(m)$     | ISO-2; must equal `country_set.rank=0` for $m$.                          |
-| OUT.site_order                 | $s_{m,i,k}$          | ${1,\dots,n_{m,i}}$ (PK component).                                      |
-| OUT.site_id                    | $\text{id}_{m,i,k}$  | `^[0-9]{6}$`, equals $\sigma(s_{m,i,k})$.                                |
-| OUT.final_country_outlet_count | $n_{m,i}$ (row echo) | Constant per $(m,i)$ when $n_{m,i}\ge1$. For $n_{m,i}=0$, no row exists. |
-| OUT.single_vs_multi_flag       | $H_m$                | boolean; constant per $m$.                                               |
-| OUT.raw_nb_outlet_draw         | $N^{\mathrm{raw}}_m$ | $\mathbb{Z}_{\ge1}$; constant per $m$.                                   |
-| CST.country_iso                | $i$                  | ISO-2; PK with `merchant_id` in `country_set`.                           |
-| CST.rank                       | $\text{rank}_{m}(i)$ | $0$=home; $1..K_m$=foreign order (sole authority).                       |
-| RC.residual                    | $R_{m,i}$            | $[0,1)$ (exclusive max).                                                 |
-| RC.residual_rank               | $r_{m,i}$            | ${1,2,\dots}$ (1 = largest).                                             |
+S9 is **read-only**. It enumerates **exactly** which datasets/logs/events it may read, with their **IDs → schema anchors → partitions**, and the **gates** that **MUST** be verified **before** use. Path↔embed lineage equality is **binding** for every read in scope.  
 
 ---
 
-## 6) Helper operators & sets (used later; defined now)
+## 3.1 Fingerprint-scoped egress to validate
 
-* **Row selection.** $\text{Rows}*{OUT}(m,i)={,\text{rows}\in \text{OUT}: (\texttt{merchant_id},\texttt{legal_country_iso})=(m,i),}$; then $n*{m,i}=|\text{Rows}_{OUT}(m,i)|$.
-* **Presence predicate.** $\mathbf{1}^{\text{egress}}*{m,i}=\mathbb{I}[n*{m,i}>0]$. Define $\mathcal{I}^{\text{egress}}*m={,i:\mathbf{1}^{\text{egress}}*{m,i}=1,}$.
-* **Block key sets.** $\mathcal{K}*{m,i}={(m,i,j): j\in{1,\dots,n*{m,i}}}$ and $\mathcal{I!D}*{m,i}={(m,i,\sigma(j)): j\in{1,\dots,n*{m,i}}}$ (defined only if $n_{m,i}\ge1$).
-* **Z-pad encoder & inverse.** As in §2.2; $\sigma^{-1}$ defined where applicable.
-* **Rank order projection.** For any list of foreign ISO codes $L\subseteq \mathcal{I}*m\setminus{\text{home}(m)}$,
-  $\text{order}*{\text{country}}(L)$ = sort $L$ by `CST.rank` ascending. **Never** derive this from egress.
-* **Decimal quantiser (for later corridor checks).** $q_8(x)=\text{round_half_to_even}(x,\ 8\text{ dp})$. (Defined here; not applied in S9.2.)
+**Dataset ID:** `outlet_catalogue` → **`schemas.1A.yaml#/egress/outlet_catalogue`**.
+**Partitions:** `[seed, fingerprint]` at `data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/`.
+**Binding rules:** rows **MUST NOT** encode inter-country order; consumers later **MUST** join `s3_candidate_set.candidate_rank`. `manifest_fingerprint` (column) **MUST** byte-equal the `fingerprint` path token; `global_seed` **MUST** equal the `seed` token.  
 
 ---
 
-## 7) Deterministic decoding rules (zero ambiguity)
+## 3.2 Parameter-scoped authorities (order, counts, optional sequence)
 
-Given the authoritative inputs from S9.1:
+**Required (order authority).**
+`s3_candidate_set` → **`schemas.1A.yaml#/s3/candidate_set`**; **partitions:** `[parameter_hash]`. **S3 is the single authority for inter-country order:** `candidate_rank` is **total & contiguous**, with **home=0**.  
 
-1. **Counts.** Compute $n_{m,i}$ purely as egress row counts. If $n_{m,i}\ge1$, every row in $\text{Rows}*{OUT}(m,i)$ must echo `final_country_outlet_count = n_{m,i}` (validated later). If $n*{m,i}=0$, **no** row exists and no echo is present.
+**Counts surface (choose ONE path for S9’s replay):**
+**Path A (if present):** `s3_integerised_counts` → **`schemas.1A.yaml#/s3/integerised_counts`**; `[parameter_hash]`. Authoritative per-country integers `count` with `residual_rank`. 
+**Path B (default):** re-derive counts deterministically from **S7 evidence** (`rng_event.residual_rank`) over the S3 domain and prove `Σ_i count_i = N`. (See §7/§8 in this spec for the replay law.) 
 
-2. **Within-country order.** ${s_{m,i,k}}={1..n_{m,i}}$ and $\text{id}*{m,i,k}=\sigma(s*{m,i,k})$ (bijective).
-
-3. **Cross-country order.** When an ordered country list is needed, **always** join to `country_set` and sort by `rank` (0 home, then $1..K_m$). Never infer cross-country order from any egress pattern (file/row ordering).
-
-4. **Merchant constants.** $H_m$, $N^{\mathrm{raw}}_m$, and $\text{home}(m)$ are constants per $m$ discoverable from egress rows; $\text{home}(m)$ must match the `rank=0` row in `country_set`.
-
-5. **Residual order.** When reconstructing integerisation tie-breaks, sort $R_{m,i}$ **descending** with ISO asc as secondary to obtain the deterministic $r_{m,i}$ ranking used by S7. (Cache already persists `residual_rank`; rule stated for completeness.)
+**Optional cross-check (if produced upstream):**
+`s3_site_sequence` → **`schemas.1A.yaml#/s3/site_sequence`**; `[parameter_hash]`. S9 **must not** require it; if present, only parity-check with S8 sequencing. 
 
 ---
 
-## 8) Reference extraction routine (notation only — no validation yet)
+## 3.3 RNG core logs (run-scoped) — required for accounting
 
-```pseudo
-function s9_2_symbols(OUT, CST, RC):
-    # OUT = outlet_catalogue(seed, fingerprint)
-    # CST = country_set(seed, parameter_hash)
-    # RC  = ranking_residual_cache_1A(seed, parameter_hash)
+* `rng_audit_log` → **`schemas.layer1.yaml#/rng/core/rng_audit_log`**; path `logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl`; **partitions:** `{seed, parameter_hash, run_id}`. 
+* `rng_trace_log` → **`schemas.layer1.yaml#/rng/core/rng_trace_log`**; path `logs/rng/trace/…`; **emit exactly one cumulative row after each RNG event append** (S9 selects the **final** row per `(module,substream_label,run_id)`). 
 
-    # 1) Per-merchant legal set with order (sole authority)
-    I_m := { m -> list of (i, rank) from CST where merchant_id=m ordered by rank }
-
-    # 2) Per-(m,i) egress counts and sequences
-    n[m,i]  := count_rows(OUT where merchant_id=m and legal_country_iso=i)
-    S[m,i]  := multiset(site_order from same rows)          # within-country sequence
-    ID[m,i] := multiset(site_id   from same rows)           # 6-digit strings
-
-    # 3) Merchant constants (echoed per row)
-    H[m]    := constant value of single_vs_multi_flag across rows of m
-    Nraw[m] := constant value of raw_nb_outlet_draw  across rows of m
-    home[m] := constant value of home_country_iso     across rows of m
-
-    # 4) Residuals and ranks (parameter-scoped)
-    R[m,i]  := RC.residual(m,i)
-    r[m,i]  := RC.residual_rank(m,i)
-
-    return {I_m, n, S, ID, H, Nraw, home, R, r}
-```
-
-S9.3–S9.6 will apply schema/PK/FK predicates, equality proofs, and RNG replay using these symbols; S9.7 packages the bundle and `_passed.flag`.
+**Run binding.** S9 **MUST** take the set of `{run_id}` values observed in the **event streams it validates** (below) and read the matching `rng_trace_log`/`rng_audit_log` partitions for those `(seed, parameter_hash, run_id)` tuples. (Trace is run-scoped; events embed lineage and, per S1/S0, include `manifest_fingerprint` for run-to-egress binding.)  
 
 ---
 
-## 9) Sanity notes (what S9.2 **does not** do)
+## 3.4 RNG event families in scope (S1–S8)
 
-* **No schema/key checks here.** Those are S9.3; S9.2 only defines names and how to read them.
-* **No RNG accounting yet.** Counters/labels are introduced in §4; replay and zero-draw proofs are S9.5/S9.6.
-* **No corridors yet.** Quantiser $q_8$ is defined but not applied until S9.6.
+All event streams are **JSONL**, partitioned by `{seed, parameter_hash, run_id}`, and must carry the **layer envelope** (pre/post 128-bit counters; `blocks`; decimal-u128 `draws`). **Non-consuming families** have `blocks=0`, `draws="0"`. **One** `rng_trace_log` row is appended **after each event append**.  
 
----
+**S1 (hurdle):** `rng_event.hurdle_bernoulli` → `#/rng/events/hurdle_bernoulli`. Extremes consume **zero**; stochastic branch consumes **one**; envelope + trace discipline apply.  
 
-## 10) Quick conformance checks for notation extraction (should pass if inputs are well-formed)
+**S2 (NB mixture):** `rng_event.gamma_component`, `rng_event.poisson_component`, and **non-consuming** `rng_event.nb_final` (finaliser). 
 
-1. For any $(m,i)$ with $n_{m,i}\ge1$, `max(S[m,i]) = n[m,i]` and `|S[m,i]| = n[m,i]`. ✔︎
-2. For any $(m,i)$ with $n_{m,i}\ge1$ and any $s\in S[m,i]`, `sigma(s)`is in`ID[m,i]\`. ✔︎
-3. For each merchant $m$, `home[m] == country_set.rank0.country_iso(m)`. ✔︎
+**S4 (ZTP target):** `rng_event.ztp_final` (non-consuming) + Poisson attempt components under the ZTP label. 
 
----
+**S6 (selection keys):** `rng_event.gumbel_key` (single-uniform: `blocks=1`, `draws="1"`); optional `stream_jump` if registered; logs/trace updated. 
 
-This locks **S9.2**: the exact symbol table; where each symbol comes from (dataset, partition scope, and column); the bijection between `site_order` and `site_id`; the strict separation of **within-country** order (egress) from **cross-country** order (`country_set`); and the helper operators used to express validations, RNG replay, and corridor checks in the rest of S9.
+**S7 (integerisation evidence):** `rng_event.residual_rank` — **non-consuming**, residuals quantised to **dp=8**, rank ≥1, one per `(merchant,country)` in domain.  
+
+**S8 (egress instrumentation):** `rng_event.sequence_finalize` (**non-consuming**; one per `(merchant,country)` with `{start_sequence="000001", end_sequence=zfill6(n)}`) and guardrail `rng_event.site_sequence_overflow` (**non-consuming**, `severity="ERROR"`).  
 
 ---
 
-# S9.3 — Structural validations
+## 3.5 Membership surfaces (choose ONE; gate applies)
 
-## 1) Scope (what S9.3 proves, strictly structural)
-
-Given the fixed lineage $(\texttt{seed},\texttt{manifest_fingerprint},\texttt{parameter_hash},\texttt{run_id})$ established in S9.1, S9.3 validates — **before** any RNG replay or corridor stats — that:
-
-1. **All referenced datasets match their JSON-Schema contracts** (types, ranges, regex), with authoritative schema pointers from the dictionary/registry.
-2. **Primary keys and partition echoes** hold exactly (no duplicates; per-row echo equals directory tokens).
-3. **Foreign keys (ISO-3166), dataset scoping, and cross-dataset domain relations** are consistent.
-4. **Block-level invariants** on egress are satisfied: gap-free within-country sequence; `site_id = zpad6(site_order)`; constant and correct `final_country_outlet_count` per $(m,i)$; zero-block elision (no rows when $n_{m,i}=0$); and **secondary uniqueness** of `site_id` within each $(m,i)$ block.
-
-**Where order lives:** egress never encodes cross-country order; **only** `country_set.rank` carries it. This is a hard policy/contract, reasserted here.
+**Path M1 (preferred when present):** `s6_membership` → **`schemas.1A.yaml#/alloc/membership`**; `[seed, parameter_hash]`. **Gate:** `s6_validation_receipt` (co-located) MUST be valid **PASS** before reading (`S6_VALIDATION.json` + `_passed.flag`). 
+**Path M2 (default):** re-derive membership from `rng_event.gumbel_key` (+S3 domain and S4 `K_target`), supporting reduced logging by counter-replay where defined. (No S6 PASS required for events.) 
 
 ---
 
-## 2) Datasets, paths, partitions, schema pointers (authoritative)
+## 3.6 Foreign-count sources (choose ONE; no weights read)
 
-| Dataset                          | Path (partitioned)                                                                      | Partitions                  | Schema pointer                                                                                                                                    |
-| -------------------------------- | --------------------------------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **outlet_catalogue**            | `data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/`       | `["seed","fingerprint"]`    | `schemas.1A.yaml#/egress/outlet_catalogue` (PK/ordering = `["merchant_id","legal_country_iso","site_order"]`; **no inter-country order encoded**) |
-| **country_set**                 | `data/layer1/1A/country_set/seed={seed}/parameter_hash={parameter_hash}/`               | `["seed","parameter_hash"]` | `schemas.1A.yaml#/alloc/country_set` (column `rank`: 0=home; **sole authority** for cross-country order)                                          |
-| **ranking_residual_cache_1A** | `data/layer1/1A/ranking_residual_cache_1A/seed={seed}/parameter_hash={parameter_hash}/` | `["seed","parameter_hash"]` | `schemas.1A.yaml#/alloc/ranking_residual_cache` (residual $[0,1)$, ISO FK)                                                                      |
-
-All lookups (paths, schema refs) must be resolved **from the dictionary/registry**, not hard-coded.
+**Path C1 (if present):** `s3_integerised_counts` (authoritative counts). 
+**Path C2 (default):** reconstruct from S7 `residual_rank` evidence over the S3 domain; prove `Σ_i count_i = N` from S2 `nb_final`. **S9 does not read S5 weights.** 
 
 ---
 
-## 3) Dataset-local schema predicates (must-hold)
+## 3.7 Reference/FK targets (for schema/FK checks)
 
-### 3.1 `outlet_catalogue` (egress)
-
-* **PK & ordering (schema/dictionary):** primary key and sort keys are **exactly** `(merchant_id, legal_country_iso, site_order)`.
-* **Secondary uniqueness (validator):** within each `(merchant_id, legal_country_iso)` block, the pair **`(merchant_id, legal_country_iso, site_id)` must be unique** (guards against duplicate IDs).
-* **Regex & ranges:**
-  `manifest_fingerprint ~ ^[a-f0-9]{64}$`; `site_id ~ ^[0-9]{6}$`; `site_order ≥ 1`; `raw_nb_outlet_draw ≥ 1`; `home_country_iso` and `legal_country_iso` are ISO-2 with FK to the canonical ISO table referenced by schema; `final_country_outlet_count` is a **row echo of the block size** (see §4).
-* **Partition echo:** **every row** must satisfy `global_seed == {seed}` and `manifest_fingerprint == {fingerprint}` (directory tokens).
-* **Policy note (structural check):** dataset **does not** encode cross-country order; consumers must join `country_set.rank`. S9 asserts the **absence** of any cross-country ordering column (e.g., `country_rank`, `country_sequence`).
-
-### 3.2 `country_set` (allocation)
-
-* **PK:** `(merchant_id, country_iso)`; `rank` is integer with `0` = home and increasing foreign order. ISO FK applies.
-* **Per-merchant cardinality:** **exactly one** row with `rank=0`.
-* **Per-merchant contiguity:** the multiset of ranks must be **exactly** `{0,1,2,…,K_m}` for some $K_m \ge 0$ (no gaps, no duplicates per rank).
-
-### 3.3 `ranking_residual_cache_1A`
-
-* **PK:** `(merchant_id, country_iso)`; `residual ∈ [0,1)` with `exclusiveMaximum: true`; ISO FK applies.
-* **Per-merchant residual-rank contiguity:** if cache keys for merchant $m$ are $\mathcal{I}_m$, then the set of `residual_rank` must be **exactly** `{1,2,…,|\mathcal{I}_m|}` (unique per country; no gaps).
+* `iso3166_canonical_2024` → **`schemas.ingress.layer1.yaml#/iso3166_canonical_2024`** for `country_iso`/`legal_country_iso` FKs in S3/S8 surfaces. 
 
 ---
 
-## 4) Cross-field & block invariants on egress (normative)
+## 3.8 Read-gates & receipts (verify before use)
 
-Let $\text{Rows}_{OUT}(m,i)$ be the egress rows for merchant $m$, legal country $i$ (possibly empty).
+> **Coupling to layer schema.** All `module` and `substream_label` literals used by RNG events **MUST** be admitted by `schemas.layer1.yaml` (either via explicit enum sets or documented string patterns). If the layer schema later enumerates these values, the literals listed here **MUST** appear in those enums.
 
-1. **Gap-free within-country sequence.**
-   ${,\texttt{site_order},} = {1,2,\dots,n_{m,i}}$ where $n_{m,i} = |\text{Rows}*{OUT}(m,i)|$. (If $n*{m,i}=0$, no row exists.)
-
-2. **Site-ID encoder (bijection).** For each row:
-
-   $$
-   \texttt{site_id} = \mathrm{zpad6}(\texttt{site_order}) \quad\text{and}\quad \texttt{site_id} \sim \texttt{"^[0-9]{6}\$"}.
-   $$
-
-   This couples the regex to construction used by S8.2.
-
-3. **Block constant echo.**
-   For $n_{m,i}\ge 1$: every row $r\in \text{Rows}_{OUT}(m,i)$ has `final_country_outlet_count == n_{m,i}` (constant across the block). (**Zero-blocks emit no rows**; the echo must never appear with value 0.)
-
-4. **Merchant constants.**
-   On all rows for merchant $m$: `single_vs_multi_flag` and `raw_nb_outlet_draw` are merchant-constants, and `home_country_iso` is constant and must equal the `country_set` row where `rank=0`.
-
-5. **Secondary uniqueness (row-level).**
-   Within each block $(m,i)$, all `site_id` values must be distinct.
-
-6. **Partition echo (row↔path).**
-   Already listed in §3.1; re-asserted here as a cross-field equality with directory tokens.
+* **S6 PASS gate (membership convenience).** If `s6_membership` is used, S9 **MUST** verify the **co-located** S6 receipt (`…/s6/seed={seed}/parameter_hash={parameter_hash}/(S6_VALIDATION.json, _passed.flag)`) **before** reading membership. 
+* **Fingerprint gate (consumer hand-off).** S9 itself publishes `validation_bundle_1A/` and `_passed.flag` under `validation/fingerprint={manifest_fingerprint}/`. Consumers **MUST** verify that `_passed.flag` content hash equals `SHA256(validation_bundle_1A)` for the same fingerprint **before** reading `outlet_catalogue`. *(Stated here for coupling; publish semantics live in §4.)* 
 
 ---
 
-## 5) Foreign keys, scoping, and cross-dataset domains
+## 3.9 Path↔embed equality (applies to **all** reads)
 
-* **ISO FK:** every `home_country_iso`, `legal_country_iso` (egress), and every `country_iso` in the allocation tables must be present in the canonical ISO domain referenced by the schemas.
-* **Scope coherence:** pairs `outlet_catalogue(seed,fingerprint)` with `country_set(seed,parameter_hash)` / `ranking_residual_cache_1A(seed,parameter_hash)`; mixed scopes are invalid (flagged in S9.1).
-* **Cross-dataset domain relations (structural):**
+Where lineage appears **both** in the path and embedded fields, **byte-equality is mandatory**:
 
-  * **Egress ⊆ Country-set:** For each merchant $m$, the set ${,i:,n_{m,i}>0,}$ **must be a subset of** ${,i:,(m,i)\in\texttt{country_set},}$.
-  * **Residual-cache keys = Country-set keys:** For each $m$, keys present in `ranking_residual_cache_1A` **must equal** the keys present in `country_set` (same $(m,i)$ pairs).
-
----
-
-## 6) Error taxonomy (machine codes; all are hard-fail)
-
-**Schema / FK / echo**
-
-* `s9.3.schema_violation.outlet_catalogue` — JSON-Schema mismatch in egress (type/range/regex).
-* `s9.3.schema_violation.country_set` — schema mismatch in `country_set`.
-* `s9.3.schema_violation.residual_cache` — schema mismatch in `ranking_residual_cache_1A`.
-* `s9.3.fk_iso_breach` — any ISO FK failure in egress or allocation datasets.
-* `s9.3.partition_echo_mismatch` — any row where `global_seed` ≠ `{seed}` or `manifest_fingerprint` ≠ `{fingerprint}`.
-
-**Keys / ordering**
-
-* `s9.3.pk_duplicate.outlet_catalogue` — duplicate `(merchant_id,legal_country_iso,site_order)`.
-* `s9.3.pk_duplicate.country_set` — duplicate `(merchant_id,country_iso)` in `country_set`.
-* `s9.3.pk_duplicate.residual_cache` — duplicate `(merchant_id,country_iso)` in residual cache.
-* `s9.3.uk_duplicate.site_id_in_block` — duplicate `site_id` within a `(merchant_id,legal_country_iso)` block.
-* `s9.3.sort_order_break` — (optional) rows not non-decreasing in `(merchant_id,legal_country_iso,site_order)` across files.
-
-**Block invariants**
-
-* `s9.3.block_count_mismatch` — for some $(m,i)$, `#rows != final_country_outlet_count` (constant echo violated).
-* `s9.3.site_order_gap_or_dup` — within $(m,i)$, `site_order` not exactly ${1..n_{m,i}}$.
-* `s9.3.site_id_mismatch` — any row with `site_id != zpad6(site_order)` or failing the 6-digit regex.
-* `s9.3.merchant_constant_drift` — merchant-constant fields (`single_vs_multi_flag`, `raw_nb_outlet_draw`, or `home_country_iso`) vary across rows for the same merchant.
-
-**Country-set & residual-cache structure**
-
-* `s9.3.rank0_cardinality_breach` — missing or multiple `rank=0` rows for a merchant in `country_set`.
-* `s9.3.rank_contiguity_breach` — ranks per merchant are not exactly `{0..K_m}` (gap/dup).
-* `s9.3.residual_rank_contiguity_breach` — residual ranks per merchant are not exactly `{1..|I_m|}` (gap/dup).
-* `s9.3.residual_cache_key_mismatch` — keys in residual cache differ from `country_set` keys for the merchant.
-* `s9.3.egress_country_not_in_country_set` — egress contains country $i$ for merchant $m$ not present in `country_set`.
-
-**Policy**
-
-* `s9.3.cross_country_order_in_egress` — any attempt to encode cross-country order in `outlet_catalogue` (e.g., unexpected column).
-
-All failures must be recorded in bundle artefacts (`schema_checks.json`, `key_constraints.json`, `fk_checks.json`, `egress_block_invariants.json`, `diffs/*`) to make the proof reproducible.
+* Egress: `outlet_catalogue.manifest_fingerprint == fingerprint` (path), `global_seed == seed`. 
+* Parameter-scoped tables: each row embeds `parameter_hash` equal to the path token. 
+* RNG logs/events: embedded `{seed, parameter_hash, run_id}` **must equal** their path tokens on **every** row; events also carry the **layer envelope** (`before/after/blocks/draws`) and obey the **trace-after-each-event** rule.  
 
 ---
 
-## 7) Reference validator (single pass + group reductions)
-
-```pseudo
-function validate_structural(seed, fingerprint, parameter_hash,
-                             OUT: iterator over outlet_catalogue rows,
-                             CST: iterator over country_set rows,
-                             RC:  iterator over ranking_residual_cache rows,
-                             ISO: set of valid ISO2 codes):
-
-  # A) Schema validations (use JSON-Schema pointers from dictionary/registry)
-  assert jsonschema_validate("schemas.1A.yaml#/egress/outlet_catalogue", OUT)         # s9.3.schema_violation.outlet_catalogue
-  assert jsonschema_validate("schemas.1A.yaml#/alloc/country_set", CST)               # s9.3.schema_violation.country_set
-  assert jsonschema_validate("schemas.1A.yaml#/alloc/ranking_residual_cache", RC)     # s9.3.schema_violation.residual_cache
-
-  # B) Collect country_set & residual_cache domains and structure
-  seen_cst := HashSet<(m,i)>()
-  rank0    := HashMap<m, ISO2>()
-  ranks_by_m := HashMap<m, List<int>>()
-
-  for c in CST:
-      key := (c.merchant_id, c.country_iso)
-      if key in seen_cst: raise s9.3.pk_duplicate.country_set
-      seen_cst.add(key)
-      if c.country_iso notin ISO: raise s9.3.fk_iso_breach
-      ranks_by_m.setdefault(c.merchant_id, []).append(c.rank)
-      if c.rank == 0:
-         if c.merchant_id in rank0: raise s9.3.rank0_cardinality_breach
-         rank0[c.merchant_id] = c.country_iso
-
-  # rank contiguity per merchant
-  for m, ranks in ranks_by_m.items():
-      if 0 notin ranks: raise s9.3.rank0_cardinality_breach
-      K := max(ranks)
-      if set(ranks) != set(range(0, K+1)): raise s9.3.rank_contiguity_breach
-
-  seen_rc := HashSet<(m,i)>()
-  rrank_by_m := HashMap<m, List<int>>()
-
-  for t in RC:
-      key := (t.merchant_id, t.country_iso)
-      if key in seen_rc: raise s9.3.pk_duplicate.residual_cache
-      seen_rc.add(key)
-      if t.country_iso notin ISO: raise s9.3.fk_iso_breach
-      rrank_by_m.setdefault(t.merchant_id, []).append(t.residual_rank)
-
-  # residual rank contiguity per merchant
-  for m, rr in rrank_by_m.items():
-      L := len([1 for (mm,ii) in seen_cst if mm==m])
-      if set(rr) != set(range(1, L+1)): raise s9.3.residual_rank_contiguity_breach
-
-  # cross-dataset domain equality
-  for key in seen_rc:
-      if key notin seen_cst: raise s9.3.residual_cache_key_mismatch
-
-  # C) Per-row checks on egress (echo, ISO FK, encoder, keys)
-  seen_pk   := HashSet<(m,i,j)>()                          # (merchant_id, legal_country_iso, site_order)
-  seen_sid  := HashSet<(m,i,site_id)>()                    # secondary uniqueness
-  rows_in_block := HashMap<(m,i), int>()
-  declared_n    := HashMap<(m,i), int>()
-  max_site      := HashMap<(m,i), int>()
-  merch_flag    := HashMap<m, bool>()
-  merch_nraw    := HashMap<m, int>()
-  merch_home    := HashMap<m, ISO2>()
-  egress_keys   := HashSet<(m,i)>()
-
-  for r in OUT:
-      # Partition echo
-      if r.global_seed != seed or r.manifest_fingerprint != fingerprint:
-          raise s9.3.partition_echo_mismatch
-
-      # ISO FKs (egress columns)
-      if r.home_country_iso notin ISO or r.legal_country_iso notin ISO:
-          raise s9.3.fk_iso_breach
-
-      # Regex/range
-      assert matches(r.manifest_fingerprint, "^[a-f0-9]{64}$")
-      assert matches(r.site_id, "^[0-9]{6}$")
-      assert r.site_order >= 1
-      assert r.raw_nb_outlet_draw >= 1
-
-      # Site encoder & keys
-      if r.site_id != zpad6(r.site_order): raise s9.3.site_id_mismatch
-      pk  := (r.merchant_id, r.legal_country_iso, r.site_order)
-      sid := (r.merchant_id, r.legal_country_iso, r.site_id)
-      if not add_unique(seen_pk, pk):  raise s9.3.pk_duplicate.outlet_catalogue
-      if not add_unique(seen_sid, sid): raise s9.3.uk_duplicate.site_id_in_block
-
-      # Block tallies (constant echo & counts)
-      k := (r.merchant_id, r.legal_country_iso)
-      egress_keys.add(k)
-      rows_in_block[k] = rows_in_block.get(k,0) + 1
-      max_site[k]      = max(max_site.get(k,0), r.site_order)
-      if k not in declared_n:
-          if r.final_country_outlet_count == 0: raise s9.3.block_count_mismatch
-          declared_n[k] = r.final_country_outlet_count
-      else:
-          if declared_n[k] != r.final_country_outlet_count: raise s9.3.block_count_mismatch
-
-      # Merchant constants
-      m := r.merchant_id
-      if m notin merch_flag: merch_flag[m] = r.single_vs_multi_flag
-      elif merch_flag[m] != r.single_vs_multi_flag: raise s9.3.merchant_constant_drift
-
-      if m notin merch_nraw: merch_nraw[m] = r.raw_nb_outlet_draw
-      elif merch_nraw[m] != r.raw_nb_outlet_draw: raise s9.3.merchant_constant_drift
-
-      if m notin merch_home: merch_home[m] = r.home_country_iso
-      elif merch_home[m] != r.home_country_iso: raise s9.3.merchant_constant_drift
-
-  # D) Close block checks: gap-free & echo equality
-  for k in rows_in_block.keys():
-      n_obs  = rows_in_block[k]
-      n_decl = declared_n[k]
-      if n_obs != n_decl: raise s9.3.block_count_mismatch
-      if max_site[k] != n_obs: raise s9.3.site_order_gap_or_dup
-
-  # E) Egress ⊆ Country-set per merchant
-  for (m,i) in egress_keys:
-      if (m,i) notin seen_cst: raise s9.3.egress_country_not_in_country_set
-
-  # F) Merchant home-country coherence (egress vs country_set.rank=0)
-  for m in merch_home.keys():
-      if m notin rank0 or rank0[m] != merch_home[m]:
-          raise s9.3.merchant_constant_drift   # or dedicated: s9.3.home_mismatch
-
-  return OK
-```
+**Status:** §3 is **Binding**. It fixes the **complete input inventory**, **exact read gates**, **lineage equality**, and **partition laws** S9 must obey **before** performing any validation or replay.
 
 ---
 
-## 8) Evidence artefacts (written into the bundle)
+# 4) Outputs — bundle & flag **(Binding)**
 
-S9.3 emits (append-only; final packaging in S9.7):
+## 4.1 Validation bundle (fingerprint-scoped folder)
 
-* `schema_checks.json` — for each dataset: `{dataset_id, files_scanned, violations:[{path, pointer, message}]}`.
-* `key_constraints.json` — PK/UK cardinality proofs and any duplicates with sample offending keys.
-* `fk_checks.json` — ISO FK coverage table and breaches.
-* `egress_block_invariants.json` — per $(m,i)$: `n_rows`, `declared_n`, `max_site_order`, flags for `gap_free`, `encoder_ok`.
-* `domain_diffs.json` — per merchant, diffs for **egress vs country_set** keys and **residual_cache vs country_set** keys.
-* `policy_assertions.json` — presence of cross-country order **only** in `country_set.rank`.
+**Identifier:** `validation_bundle_1A`
+**Location (partitioned):**
+`data/layer1/1A/validation/fingerprint={manifest_fingerprint}/`
+**Authority anchors:** Dataset Dictionary ID `validation_bundle_1A`; schema anchor `schemas.1A.yaml#/validation/validation_bundle`.  
 
-These land under `data/layer1/1A/validation/fingerprint={fingerprint}/bundle.zip` in S9.7, and `_passed.flag` must hash to the bundle bytes.
+**Role.** The bundle is the machine-readable proof set for S9’s checks and the basis for the consumer gate; it **MUST** be written for exactly one **fingerprint** and **MUST** not contain any producer data mutations. 
 
----
+**Required files (minimum set).** S9 **MUST** write at least:
 
-## 9) Conformance tests (must-pass)
+* `MANIFEST.json` — run metadata (includes `manifest_fingerprint`, `parameter_hash`, created time, code id). 
+* `parameter_hash_resolved.json` — resolved parameter set identity. 
+* `manifest_fingerprint_resolved.json` — resolved fingerprint identity. 
+* `rng_accounting.json` — per-family event/trace reconciliation, audit/trace presence & path↔embed parity. 
+* `s9_summary.json` — PK/UK/FK results, join-back stats, N-sum law, overflow list, lineage equality results (may include S8 checks carried forward). 
+* `egress_checksums.json` — stable hashes for `outlet_catalogue` files in `[seed,fingerprint]` (per-file and composite) for byte-identity re-runs. 
+* `index.json` — bundle index **conforming to** the schema: table with columns `{artifact_id, kind∈(plot|table|diff|text|summary), path, mime?, notes?}`; **every** non-flag file **MUST** appear exactly once with a relative `path`. 
 
-1. **Happy path:** pick $m$ with `country_set` entries `(GB rank=0, US rank=1)`, egress rows for GB×3 and US×2. Expect: PK unique; UK on `site_id` per block; per-block `site_order=1..n`; `site_id=zpad6(site_order)`; `final_country_outlet_count` equals block size; echo matches partition; ISO FK holds; `home_country_iso`==GB==rank0; ranks `{0,1}` contiguous. ✔︎
-2. **Zero-block elision:** include FR in `country_set` but $n_{m,FR}=0`. Expect: **no** FR rows in egress; no `final_country_outlet_count=0\`; all checks pass. ✔︎
-3. **PK duplicate:** duplicate `(merchant_id,legal_country_iso,site_order)` → `s9.3.pk_duplicate.outlet_catalogue`. ✔︎
-4. **Site-ID UK breach:** duplicate `site_id` inside a block → `s9.3.uk_duplicate.site_id_in_block`. ✔︎
-5. **Site-ID mismatch:** set `site_id="000010"` for `site_order=9` → `s9.3.site_id_mismatch`. ✔︎
-6. **Block echo drift:** write two GB rows but set `final_country_outlet_count=3` → `s9.3.block_count_mismatch`. ✔︎
-7. **Partition echo mismatch:** row’s `manifest_fingerprint` ≠ directory token → `s9.3.partition_echo_mismatch`. ✔︎
-8. **ISO FK breach:** `legal_country_iso="ZZ"` not in canonical ISO → `s9.3.fk_iso_breach`. ✔︎
-9. **Home mismatch:** `home_country_iso` on egress ≠ `country_set.rank=0` → `s9.3.merchant_constant_drift` (or `home_mismatch`). ✔︎
-10. **Egress country not in country_set:** egress has CA but `country_set` for $m$ lacks CA → `s9.3.egress_country_not_in_country_set`. ✔︎
-11. **Rank contiguity breach:** ranks `{0,2}` without `1` → `s9.3.rank_contiguity_breach`. ✔︎
-12. **Residual cache key mismatch/contiguity:** residual cache missing US for $m$ or ranks not `{1..|I_m|}` → respective errors. ✔︎
+**Folder-level invariants.**
 
----
+* Partitioning is **[fingerprint]**; the embedded `manifest_fingerprint` in bundle files **MUST** equal the folder token. 
+* All paths in `index.json` **MUST** be **relative** to the bundle root and ASCII-lexicographically orderable (used by §4.2 hashing). 
+* Dependencies recorded in the Artefact Registry (at minimum `outlet_catalogue`, `rng_audit_log`) **MUST** be satisfied. 
 
-## 10) Operational notes (binding where stated)
+## 4.2 Consumer gate flag (file)
 
-* **Authoritative schemas are JSON-Schema** per Schema Authority Policy; do **not** validate against Avro in source. If Avro is needed downstream, generate at build/release; the validator still uses JSON-Schema.
-* **Dictionary/registry are the source of truth** for `path`, `partitioning`, `schema_ref`, and lineage notes (producer/consumer). The validator reads these at runtime and asserts conformance.
-* **No inter-country order in egress**: keep this check active (policy assertion + absence of such columns); consumers must join `country_set.rank`.
+**Identifier:** `validation_passed_flag`
+**Path:** `…/validation/fingerprint={manifest_fingerprint}/_passed.flag` (co-located with the bundle). 
 
----
+**Content (exact).** One line:
+`sha256_hex = <hex64>`
+where `<hex64>` is the **SHA-256 over the concatenation of the raw bytes of all files listed in `index.json`** (excluding `_passed.flag`), in **ASCII-lexicographic order of the `index.json` `path` entries**. Hex is lower-case, 64 chars.
 
-This locks **S9.3**: dataset contracts from the dictionary/registry; executable schema, PK/UK, FK, echo and block predicates; complete error taxonomy; a reference validator; bundle evidence artefacts; and conformance tests — all aligned to S8’s construction and the Schema Authority Policy.
+**Consumer rule (binding).** Downstream readers (e.g., `outlet_catalogue` consumers) **MUST** verify that `_passed.flag` **matches** `SHA256(validation_bundle_1A)` for the **same fingerprint** **before** any read. **No PASS → no read.** The Dictionary entry for `outlet_catalogue` **repeats** this consumer obligation.  
 
----
+## 4.3 Publish & atomicity
 
-# S9.4 — Cross-dataset invariants
+S9 **MUST** publish atomically: stage the entire bundle in a temporary directory under the validation path (e.g., `…/validation/_tmp.{uuid}`), compute `_passed.flag` **in the staged folder**, then perform a **single atomic rename** to `fingerprint={manifest_fingerprint}/`. **Partial contents MUST NOT become visible**. On failure, delete the temp. 
 
-## 1) Scope (what S9.4 proves)
+**PASS vs FAIL outcome.**
 
-For a fixed lineage $P=(\texttt{seed},\texttt{manifest_fingerprint},\texttt{parameter_hash},\texttt{run_id})$, S9.4 asserts **bit-exact equalities** (integers/strings only) across:
+* **PASS:** write the full bundle **and** `_passed.flag` (computed as above). 
+* **FAIL:** write the bundle **without** `_passed.flag`; the gate remains failed for that fingerprint. 
 
-1. **Realisation and conservation:** egress site counts $n_{m,i}$ and merchant-level **raw draw** $N^{\mathrm{raw}}_m$.
-2. **Coverage and order:** membership of legal countries and **cross-country order** derived **only** from `country_set` (and—if enabled—its *provenance* via the RNG `gumbel_key` label).
-3. **Largest-remainder reproducibility:** persisted residuals/ranks used by integerisation.
-4. **Within-country sequencing & finalisation coverage:** bijection `site_order ↔ site_id`, and **exactly one** `sequence_finalize` per non-empty $(m,i)$ block (event **coverage** only; non-consumption proof is S9.5).
+## 4.4 Idempotency & equivalence
 
-**Scoping rule:** all **event-side** counts are over `(seed, parameter_hash, run_id)`; all **egress-side** counts are over `(seed, fingerprint)`. The lineage tuple in S9.1 binds them. No numeric tolerances appear in S9.4.
+Re-running S9 for the same `{seed, parameter_hash, manifest_fingerprint}` under identical inputs **MUST** produce **byte-identical** bundle contents; two bundles are **equivalent** iff `MANIFEST.json` matches byte-for-byte, all files listed in `index.json` (excluding `_passed.flag`) match byte-for-byte, and `_passed.flag` hashes match. 
+
+## 4.5 Retention & lineage
+
+Retention/TTL for `validation_bundle_1A` follows the Dictionary; lineage within bundle files **MUST** embed the same `manifest_fingerprint` as the path token. (Additional lineage like `parameter_hash` may be included per S0’s enumerations.)  
 
 ---
 
-## 2) Inputs & authorities (recap)
-
-* **Egress:** `outlet_catalogue/seed={seed}/fingerprint={fingerprint}` (PK/order = `merchant_id, legal_country_iso, site_order`; **no inter-country order encoded**).
-* **Allocation (parameter-scoped):** `country_set(seed,parameter_hash)` (sole authority for cross-country order; `rank: 0=home, 1..K` foreigns), `ranking_residual_cache_1A(seed,parameter_hash)` (`residual ∈ [0,1)`, `residual_rank`).
-* **RNG evidence (run-scoped):** `gumbel_key` (foreign selection ordering) and `sequence_finalize` (block coverage). Presence/shape were gated in S9.1/S9.3.
+**Status:** §4 is **Binding**. It fixes the **what/where** of S9’s outputs, the **exact flag hashing rule**, **atomic publish**, and the **consumer gate** that protects `outlet_catalogue`.
 
 ---
 
-## 3) Formal statements (per merchant $m$)
+# 5) Structural validation (schemas, partitions, FK) **(Binding)**
 
-Let:
+## 5.1 Scope (what S9 validates structurally)
 
-* $\mathcal{I}_m={,i : (m,i)\in\texttt{country_set},}$ with total order by `rank` (0 = home). **Only** this dataset carries cross-country order.
-* $n_{m,i}:=\#{\text{rows in egress with }(\texttt{merchant_id},\texttt{legal_country_iso})=(m,i)}$. If $n_{m,i}\ge1$ every row in the block echoes `final_country_outlet_count = n_{m,i}` (S9.3).
-* $N^{\mathrm{raw}}_m$ = `raw_nb_outlet_draw` (merchant-constant; appears on each row of $m$).
-* $R_{m,i}$ and $r_{m,i}$ from the residual cache.
+S9 **MUST** validate, for every subject in scope, that **(a)** rows conform to the JSON-Schema anchor, **(b)** files live under the **Dictionary** path with the declared **partitions**, **(c)** embedded lineage **byte-equals** path tokens wherever both exist, **(d)** declared **PK/UK** constraints hold **per partition**, **(e)** **FKs** resolve to their targets. Subjects:
 
-### (A) Site-count realisation (definition equality)
-
-$$
-n_{m,i}=\big|\text{Rows}_{\text{egress}}(m,i)\big|
-\quad \text{and} \quad
-\{\texttt{site_order}\}=\{1,\dots,n_{m,i}\}.
-$$
-
-### (B) Country-set coverage & order (membership + rank continuity)
-
-1. **Home uniqueness & coherence:** exactly one `country_set` row with `rank=0`; its `country_iso` equals the egress `home_country_iso` for merchant $m$.
-2. **Foreign rank contiguity:** letting $K_m$ be the number of non-home rows, observed foreign ranks are **exactly** ${1,\dots,K_m}$ (no gaps/dupes).
-3. **Membership:** for all egress rows $(m,i)$, $i\in\mathcal{I}*m$ (**egress ⊆ country_set**). Zero-blocks appear as **absence** of rows ($n*{m,i}=0$).
-
-> **Note on `prior_weight`:** presence is required on foreign rows in `country_set`. Numeric equality to the renormalised candidate weights that seeded Gumbel is proven under S9.6 (numeric corridors), not here.
-
-### (C) Allocation conservation (integerisation sums back to raw)
-
-$$
-\boxed{\ \sum_{i\in\mathcal{I}_m} n_{m,i} \;=\; N^{\mathrm{raw}}_m\ }\qquad\text{(exact integer equality).}
-$$
-
-### (D) Largest-remainder reproducibility (residuals & ranks)
-
-Let $R_{m,i}\in[0,1)$ be the persisted fractional residuals and $r_{m,i}$ their deterministic rank (1 = largest). S9 must prove:
-
-$$
-\operatorname{argsort}_{i\in\mathcal{I}_m}\ (-R_{m,i},\ i_{\text{ISO asc}})\ \equiv\ \operatorname{order\ by}\ r_{m,i}.
-$$
-
-(Primary key: residual **descending**; tie-break: ISO **ascending**.)
-
-### (E) Within-country sequencing & `sequence_finalize` coverage
-
-For every non-empty block $(m,i)$:
-
-1. **Encoder bijection on rows:** $\texttt{site_id}=\mathrm{zpad6}(\texttt{site_order})$.
-2. **Event coverage:** there is **exactly one** `sequence_finalize` event for $(m,i)$ under $(seed,parameter_hash,run_id)$. For $n_{m,i}=0$ there must be **no** such event.
+* **Egress:** `outlet_catalogue` → `schemas.1A.yaml#/egress/outlet_catalogue` (partitions `[seed,fingerprint]`). 
+* **Authorities (parameter-scoped):** `s3_candidate_set` (required), optional `s3_integerised_counts`, optional `s3_site_sequence`.   
+* **Membership (if used):** `s6_membership` (+ S6 receipt gate checked in §3). 
+* **RNG core logs:** `rng_audit_log`, `rng_trace_log`. 
+* **RNG event families (S1–S8 used by 1A):** hurdle/gamma/poisson/ztp/gumbel/residual_rank/sequence_finalize/site_sequence_overflow. (Schema anchors under `schemas.layer1.yaml#/rng/*`.)  
 
 ---
 
-## 4) Gumbel-order provenance (when enabled)
+## 5.2 JSON-Schema conformance (shapes & domains)
 
-Some releases require proving that foreign order (`rank=1..K_m`) equals **Top-K by `gumbel_key`** with ISO tie-break. S9.4 performs:
+For each dataset/log/event in §5.1, S9 **MUST** validate rows against the declared `$ref`:
 
-1. **Foreign candidate set:** $\mathcal{F}_m={,i\in\mathcal{I}_m:\ \text{rank}>0,}$.
-2. **Evidence sequence:** sort the `gumbel_key` events for $m$ on $\mathcal{F}_m$ **by key desc, then ISO asc** to form $S_m$.
-3. **Assertion:** for all $j\in{1..K_m}$, `country_set.rank=j` corresponds to the $j$-th element of $S_m$.
+* **Bundle schema:** `validation_bundle_1A` (for S9’s own output index and file descriptors) → `schemas.1A.yaml#/validation/validation_bundle`.  
+* **Egress & S3 tables:** anchors in `schemas.1A.yaml` (e.g., `#/egress/outlet_catalogue`, `#/s3/candidate_set`, `#/s3/integerised_counts`, `#/s3/site_sequence`).  
+* **Logs & events:** anchors in `schemas.layer1.yaml` for `rng_audit_log`, `rng_trace_log`, and all 1A event families (`#/rng/events/*`). 
 
-If $K_m=0$ (no foreigns), the required `gumbel_key` event count is **0** and this proof is vacuously true.
+**Notes (binding examples).**
 
----
-
-## 5) Algorithm (reference implementation)
-
-```pseudo
-function s9_4_cross_dataset(OUT, CST, RC, EVENTS):
-  # EVENTS is a dict of label -> iterator; may contain "gumbel_key" and "sequence_finalize"
-
-  # A) Egress tallies & merchant constants
-  n := HashMap<(m,i) -> int>(0)
-  merch_home := HashMap<m -> ISO2>()
-  merch_raw  := HashMap<m -> int>()
-  sid_errs := []
-  for r in OUT:
-      n[(r.merchant_id, r.legal_country_iso)] += 1
-      merch_home[r.merchant_id] = r.home_country_iso
-      merch_raw[r.merchant_id]  = r.raw_nb_outlet_draw
-      if r.site_id != zpad6(r.site_order):
-          sid_errs.append((r.merchant_id, r.legal_country_iso, r.site_order, r.site_id))
-  if sid_errs: fail("s9.4.site_id_mismatch", dump=sid_errs)
-
-  # B) Country-set structure & coverage against egress
-  cset_by_m := group_rows(CST, key=merchant_id)
-  home_diff := []; rank_gap := []; coverage_leaks := []
-  for m, rows in cset_by_m:
-      homes = [x for x in rows if x.rank==0]
-      if len(homes) != 1 or merch_home.get(m) != homes[0].country_iso:
-          home_diff.append(m)
-
-      foreign = [x for x in rows if x.rank>0]
-      K = len(foreign)
-      franks = sorted([x.rank for x in foreign])
-      if franks != list(range(1, K+1)): rank_gap.append(m)
-
-      # egress ⊆ country_set
-      for (m2,i2), cnt in n.items() where m2==m and cnt>0:
-          if not any(x.country_iso==i2 for x in rows):
-              coverage_leaks.append((m,i2))
-
-  if home_diff:    fail("s9.4.country_set_home_mismatch", dump=home_diff)
-  if rank_gap:     fail("s9.4.country_set_rank_contiguity", dump=rank_gap)
-  if coverage_leaks: fail("s9.4.country_set_coverage", dump=coverage_leaks)
-
-  # C) Conservation per merchant
-  cons_diff := []
-  for m, rows in cset_by_m:
-      iso_list = [x.country_iso for x in rows]
-      total = sum(n.get((m,i), 0) for i in iso_list)
-      if total != merch_raw.get(m, 0):
-          cons_diff.append((m, total, merch_raw.get(m, None)))
-  if cons_diff: fail("s9.4.mass_not_conserved", dump=cons_diff)
-
-  # D) Largest-remainder reproducibility
-  rc_by_m := group_rows(RC, key=merchant_id)
-  lr_diff := []
-  for m, rows in rc_by_m:
-      exp = sorted(rows, key=lambda r: (-r.residual, r.country_iso))
-      if any(row.residual_rank != (idx+1) for idx,row in enumerate(exp)):
-          lr_diff.append(m)
-  if lr_diff: fail("s9.4.residual_rank_mismatch", dump=lr_diff)
-
-  # E) sequence_finalize coverage: exactly one per non-empty (m,i)
-  seq_counts := Counter<(m,i)>()
-  for e in EVENTS.get("sequence_finalize", []):
-      seq_counts[(e.merchant_id, e.country_iso)] += 1
-  cov_err := []
-  for (m,i), cnt in n.items():
-      if cnt>0 and seq_counts.get((m,i),0) != 1: cov_err.append((m,i,"missing_or_multiple_seq_finalize"))
-      if cnt==0 and seq_counts.get((m,i),0) != 0: cov_err.append((m,i,"seq_finalize_for_empty_block"))
-  if cov_err: fail("s9.4.sequence_finalize_coverage", dump=cov_err)
-
-  # F) Optional: Gumbel order provenance
-  if "gumbel_key" in EVENTS:
-      gk := {(e.merchant_id, e.country_iso): e.key for e in EVENTS["gumbel_key"]}
-      order_err := []
-      for m, rows in cset_by_m:
-          foreign = [x for x in rows if x.rank>0]
-          K = len(foreign)
-          if K==0: continue
-          S = sorted(foreign, key=lambda r: (-gk[(m,r.country_iso)], r.country_iso))
-          if any(r.rank != (idx+1) for idx,r in enumerate(S)):
-              order_err.append(m)
-      if order_err: fail("s9.4.gumbel_order_mismatch", dump=order_err)
-
-  return OK
-```
+* `manifest_fingerprint`/other SHA-256 fields must match the schema **pattern** (64 lowercase hex) where defined. 
+* Event envelopes must contain the layer fields (`before`, `after`, `blocks`, `draws`, lineage, module/substream). (Accounting rules are verified in §7; presence/shape is structural here.) 
 
 ---
 
-## 6) Error taxonomy (machine codes; all hard-fail here)
+## 5.3 Partition law & path↔embed equality
 
-| Code                                    | Meaning / Trigger                                                                   | Evidence artefact(s) written to bundle                                        |
-| --------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `s9.4.site_id_mismatch`                 | Some row violates `site_id = zpad6(site_order)`                                     | `diffs/sequence.csv` (merchant,country,site_order,site_id)                  |
-| `s9.4.country_set_home_mismatch`        | Egress `home_country_iso` ≠ `country_set.rank=0` (or multiple/no rank=0 rows)       | `diffs/coverage.csv` (merchant,egress_home,rank0_home)                      |
-| `s9.4.country_set_rank_contiguity`      | Foreign ranks not exactly `1..K_m`                                                  | `diffs/coverage.csv` (merchant, observed_ranks)                              |
-| `s9.4.country_set_coverage`             | Egress has $(m,i)$ not present in `country_set(m)`                                | `diffs/coverage.csv` (merchant,country)                                       |
-| `s9.4.mass_not_conserved`               | $\sum_i n_{m,i} \ne N^{\mathrm{raw}}_m$                                        | `diffs/conservation.csv` (merchant, total_from_egress, raw_nb_draw)       |
-| `s9.4.residual_rank_mismatch`           | Sorting residuals (desc, ISO asc) ≠ persisted `residual_rank`                       | `diffs/residual_rank_mismatch.csv` (merchant,country,residual,expected,found) |
-| `s9.4.sequence_finalize_coverage`       | Missing/multiple `sequence_finalize` for non-empty block or present for empty block | `diffs/sequence_finalize_coverage.csv` (merchant,country,status)              |
-| `s9.4.gumbel_order_mismatch` (optional) | `country_set.rank` order ≠ Top-K by `gumbel_key` evidence                           | `diffs/gumbel_order_mismatch.csv` (merchant,rank,iso,key,expected_order)     |
+S9 **MUST** verify that each subject lives under its **Dictionary path** with the declared **partition keys**, and where lineage fields are embedded they **byte-equal** the path tokens:
 
----
+* **Egress `outlet_catalogue`:** path `…/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/`; partitions `[seed,fingerprint]`; enforce **`global_seed == seed`** and **`manifest_fingerprint == fingerprint`**. 
+* **S3 datasets:** `…/parameter_hash={parameter_hash}/`; enforce embedded `parameter_hash` equals path token. 
+* **S6 membership (if used):** `…/s6/seed={seed}/parameter_hash={parameter_hash}/`; enforce path↔embed equality; **gate verified in §3**. 
+* **Core logs:** `rng_audit_log` and `rng_trace_log` under `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`; **every row** embeds `{seed, parameter_hash, run_id}` equal to the path. 
+* **Event families (e.g., `sequence_finalize`, `site_sequence_overflow`):** paths per Dictionary/Registry; verify lineage equals path tokens.  
 
-## 7) Artefacts written (bundle wiring)
-
-S9.4 appends to the validation bundle (see S9.7 packaging, ZIP + `_passed.flag == SHA256(bundle.zip)`):
-
-* `diffs/conservation.csv` — per merchant: `sum_n`, `raw_nb_draw`, `ok`.
-* `diffs/coverage.csv` — home coherence, rank gaps, and egress⊆country_set leaks.
-* `diffs/residual_rank_mismatch.csv` — residual/rank diffs.
-* `diffs/sequence_finalize_coverage.csv` — event-coverage mismatches.
-* `diffs/gumbel_order_mismatch.csv` — when Gumbel provenance is enabled.
+File order is **non-authoritative**; partition keys and PKs define truth. 
 
 ---
 
-## 8) Conformance tests (must-pass)
+## 5.4 Primary/unique keys (per partition)
 
-1. **Happy path:** `country_set = [GB(0), US(1), FR(2)]`; egress $n_{GB}=3, n_{US}=2, n_{FR}=0$; `raw_nb_outlet_draw=5`. Expect conservation 3+2+0=5; foreign ranks `{1,2}` contiguous; home coherence; egress⊆country_set; `site_id=zpad6(site_order)`; residual ranks match residual sort; `sequence_finalize` exactly once for GB and US, none for FR. ✔︎
-2. **Coverage leak:** egress includes `DE` not in `country_set` → `s9.4.country_set_coverage`. ✔︎
-3. **Home mismatch:** egress `home_country_iso=GB`, but `country_set.rank0=US` → `s9.4.country_set_home_mismatch`. ✔︎
-4. **Rank gap:** foreign ranks `{1,3}` (missing `2`) → `s9.4.country_set_rank_contiguity`. ✔︎
-5. **Conservation fail:** totals don’t match `raw_nb_outlet_draw` → `s9.4.mass_not_conserved`. ✔︎
-6. **Residual rank drift:** persisted `residual_rank` disagrees with sort(−residual, ISO asc) → `s9.4.residual_rank_mismatch`. ✔︎
-7. **Finalize coverage breach:** missing or duplicate `sequence_finalize` for a non-empty block → `s9.4.sequence_finalize_coverage`. ✔︎
-8. **Gumbel provenance (enabled):** RNG shows `key(US)>key(FR)` but `country_set` has FR rank 1, US rank 2 → `s9.4.gumbel_order_mismatch`. ✔︎
+S9 **MUST** enforce the PK/UK constraints specified by schema/dictionary on a per-partition basis:
 
----
-
-## 9) Policy reminders binding to S9.4
-
-* **Egress never encodes inter-country order**; all order comparisons reference `country_set.rank` (and, when required, `gumbel_key` evidence).
-* **Exact equalities only** in S9.4; floating-point corridors (incl. `prior_weight` checks) live in S9.6.
-* **Gate:** on any failure S9 still writes the bundle; `_passed.flag` is written **only** on success and must equal `SHA256(bundle.zip)`.
+* **`outlet_catalogue`** — **PK/Sort:** `[merchant_id, legal_country_iso, site_order]`; enforce **uniqueness** per `(seed,fingerprint)` partition. 
+* **`s3_candidate_set`** — uniqueness over `[merchant_id, candidate_rank, country_iso]` per `parameter_hash` partition (order authority is replay-checked in §8; here we enforce structural uniqueness). 
+* **`s3_integerised_counts`** (if present) — uniqueness over `[merchant_id, country_iso]` per `parameter_hash`. 
+* **`s3_site_sequence`** (if present) — uniqueness over `[merchant_id, country_iso, site_order]` per `parameter_hash`. 
+* **RNG logs/events** — JSONL streams **MUST NOT** contain duplicate rows for the same event identity fields as defined by the event schema (module/substream + envelope counters + payload identity); S9 treats duplicate physical files/lines with identical content as a **structural error**.
 
 ---
 
-# S9.5 — RNG determinism & replay checks (implementation-ready, **budget-agnostic**)
+## 5.5 Foreign keys (referential integrity)
 
-## Scope (what S9.5 must prove)
+S9 **MUST** check FKs exactly as declared by schema/dictionary:
 
-For every RNG-touching step in 1A (NB mixture, ZTP diagnostics, Gumbel Top-K, Dirichlet, integerisation, sequence finalisation), the validator must **account for** and (where stable) **replay** exactly the random draws claimed, using only the audited RNG identity and each event’s **RNG envelope** (seed + 128-bit counters). Results must be **order-invariant** and reproducible under parallel execution.
-
-> **Design choices locked in here**
->
-> * We **do not hard-code sampler budgets** (e.g., “3 uniforms per gamma”). Draw consumption is proved by **trace vs event-envelope equality**.
-> * **Hurdle policy:** exactly **one** `hurdle_bernoulli` event **per merchant**; if $\pi\in{0,1}$, the event is **deterministic** (`draws=0`, `u=null`, `deterministic=true`).
-> * Degenerate cases are explicit: **$K=0$** (domestic-only) ⇒ **no** Dirichlet vector; **$M=0$** foreign candidates ⇒ **0** Gumbel events.
+* **ISO-2 codes:** all `country_iso`/`legal_country_iso` fields in S3/S6/S8 surfaces **FK** to `iso3166_canonical_2024.country_iso` (uppercase ISO-3166-1 alpha-2; placeholders forbidden by the ingress schema).  
+* **Event vs egress naming:** **events** use `country_iso`; **egress** uses `legal_country_iso`; both **FK** to the same ISO table (S9 enforces FK resolution under both names). 
+* Any additional schema-declared FKs (e.g., to merchant seed lists) **MUST** resolve if present in the anchors (S9 uses the anchor’s `$ref` list to drive checks). 
 
 ---
 
-## Inputs & authorities
+## 5.6 Writer policy & file invariants
 
-* **Audit log** (run-scoped): states RNG algorithm/seed and stream mapping; partition `{seed, parameter_hash, run_id}`.
-* **Trace log** (run-scoped): one record per `(module, substream_label)` with **`draws`** consumed.
-* **Structured RNG event streams** (label-scoped): `hurdle_bernoulli`, `gamma_component`, `poisson_component`, `nb_final`, `ztp_*`, `gumbel_key`, `dirichlet_gamma_vector`, `residual_rank`, `sequence_finalize`, `stream_jump` — each carries an **envelope** with 128-bit `before/after` counters.
-* **Egress** `outlet_catalogue` (for seed/fingerprint echoes and block counts).
-* **Country set** (for candidate cardinalities and $K_m$).
+Where the Dictionary declares a **writer sort**, S9 **MUST** verify monotonicity **within each file** and **across file boundaries** in a partition:
 
----
-
-## S9.5.1 Envelope identity (run → egress)
-
-Prove the egress partition came from the audited RNG for the active `{seed, parameter_hash, run_id}`:
-
-1. `rng_audit_log.algorithm == "philox2x64-10"`.
-2. For **all** egress rows in `(seed,fingerprint)`: `row.global_seed == rng_audit_log.seed`.
-3. `rng_audit_log.{parameter_hash, manifest_fingerprint}` **equal** the partition tokens and per-row echoes.
-
-**Any inequality ⇒ hard fail** (record and withhold `_passed.flag`).
+* **`outlet_catalogue` writer sort:** `[merchant_id, legal_country_iso, site_order]`. 
+  For JSONL streams, only **partitioning** and **schema** are binding (no sort requirement), but S9 **MUST** verify **one** cumulative `rng_trace_log` append **after each event append** exists (presence/placement is structural for trace; accounting is §7). 
 
 ---
 
-## S9.5.2 128-bit counter arithmetic & per-label draw accounting
+## 5.7 Structural failure classes (binding)
 
-For each label $\ell$ (e.g., `gumbel_key`, `dirichlet_gamma_vector`, `gamma_component`, `poisson_component`, `residual_rank`, `sequence_finalize`, …):
+On any breach below, S9 **fails** the run structurally (bundle written **without** `_passed.flag`):
 
-1. **Stable order:** sort events by **`(before_hi,before_lo)` ascending** (use timestamp only for tie-break if needed).
-2. For each event $e$, form 128-bit counters
-   $C^\text{before}_e=(\texttt{before_hi}\ll64)+\texttt{before_lo}$ and
-   $C^\text{after}_e=(\texttt{after_hi}\ll64)+\texttt{after_lo}$.
-3. Define:
-
-   * **Event-side draws:** $D_\text{events}(\ell)=\sum_{e\in T_\ell}\big(C^\text{after}_e-C^\text{before}_e\big)$
-   * **Trace-side draws:** $D_\text{trace}(\ell)=\sum_{\text{trace rows for }\ell}\texttt{draws}$
-   * **Jump stride:** $J(\ell)=\sum_{\texttt{stream_jump rows for }\ell}\texttt{jump_stride}$ (128-bit)
-4. **Mandatory equalities (unsigned 128-bit):**
-
-   * **Per-label:** $\boxed{,D_\text{events}(\ell) ;=; D_\text{trace}(\ell) ;+; J(\ell),}$
-   * **Adjacency monotonicity:** for consecutive events $e_j,e_{j+1}$ in $T_\ell$:
-     $C^\text{after}*{e_j}\le C^\text{before}*{e_{j+1}}$; equality **only** if the **intervening** events consume **0** draws.
-
-Also assert **per-event** identity: `after == before + draws_e` where `draws_e = C_after − C_before`.
+* `E_SCHEMA_INVALID` — row violates its JSON-Schema. (Includes pattern/domain failures such as non-hex fingerprints.) 
+* `E_PATH_EMBED_MISMATCH` — path tokens and embedded lineage differ (e.g., `manifest_fingerprint` mismatch). 
+* `E_PARTITION_MISPLACED` — files not under Dictionary path/partitions. 
+* `E_DUP_PK` — duplicate PK within a partition. (Applies to subjects in §5.4.) 
+* `E_FK_ISO_INVALID` — ISO FK does not resolve (either `country_iso` or `legal_country_iso`). 
+* `E_TRACE_COVERAGE_MISSING` — missing final `rng_trace_log` row(s) corresponding to event appends (structural presence check; numeric reconciliation in §7). 
 
 ---
 
-## S9.5.3 Event cardinalities (must match 1A logic; no budgets)
-
-Compute **expected counts** from deterministic inputs, then compare to **observed** (events are scoped to `{seed, parameter_hash, run_id}`):
-
-* **`hurdle_bernoulli`** — **exactly one** per merchant $m\in\mathcal{M}$. If $\pi_m\in{0,1}$ then the **event is deterministic** with `draws=0`, `u=null`, `deterministic=true`.
-* **`gumbel_key`** — **one** per **foreign candidate**. If $K_m=0$ then **0** events for $m$.
-* **`dirichlet_gamma_vector`** — **exactly one** per merchant **iff** $K_m \ge 1$ (vector length $K_m{+}1$); **none** if $K_m=0$. *(Normalisation checks move to S9.6.)*
-* **Integerisation:** `residual_rank` — exactly **$|\mathcal{I}_m|$** per merchant; **non-consuming** (per-event `draws=0`).
-* **NB composition:** per-attempt emit **one** `gamma_component` **and** **one** `poisson_component`; `nb_final` **exactly once** per merchant; attempts $\ge 1$. *(No uniform budgets asserted.)*
-* **S8 attestation:** `sequence_finalize` — **exactly one** per $(m,i)$ with $n_{m,i}>0$; **non-consuming** (per-event `draws=0`). Global count equals $\sum_{m,i}\mathbf{1}[n_{m,i}>0]$.
+**Status:** §5 is **Binding**. It defines exactly how S9 proves **shape**, **placement**, **identity**, and **referential** correctness **before** it performs RNG accounting (§7) or cross-state replay checks (§8).
 
 ---
 
-## S9.5.4 Trace reconciliation (independent double-entry)
+# 6) Lineage & determinism checks **(Binding)**
 
-For every label $\ell$:
+## 6.1 Recompute & attest lineage keys (must match exactly)
 
-* **Equality:** $D_\text{trace}(\ell)=D_\text{events}(\ell)$ (when no jumps) or $D_\text{trace}(\ell)+J(\ell)=D_\text{events}(\ell)$ (with jumps).
-* **Mismatch ⇒ `ERR_TRACE_EVENTS_DIVERGE[ℓ]`** (hard fail).
-* **Non-consuming labels** (`residual_rank`, `sequence_finalize`) must have **per-event draws = 0**, hence contribute **0** to both sides.
+S9 **MUST** recompute the lineage identifiers and prove equality to what producers wrote:
 
----
+* **`parameter_hash`** — Recompute from the governed set **𝓟** using S0.2.2’s **UER + tuple-hash** procedure over canonical basenames; compare to the **partition key** and any embedded `parameter_hash` in parameter-scoped inputs (e.g., S3 tables). **Equality is mandatory.**  
+* **`manifest_fingerprint`** — Recompute using S0.2.3 over the actually opened artefacts (𝓐), `git_32`, and `parameter_hash_bytes`; the result **MUST** byte-equal the `fingerprint` path token for `outlet_catalogue` and the bundle folder, and any embedded `manifest_fingerprint` fields.  
+* **`run_id` (logs-only)** — Verify `run_id` presence and uniqueness per `{seed, parameter_hash}` using S0.2.4 (UER payload with bounded collision loop). S9 **MUST** assert that `run_id` partitions **only** logs/events and that egress/parameter-scoped tables **do not** depend on `run_id`. 
 
-## S9.5.5 Budget-**agnostic** spot checks (sanity without sampler assumptions)
-
-These checks **only** use event payload structure and cross-dataset counts; they **never** assume a specific sampler’s uniform cost.
-
-* **Hurdle:** `count(hurdle_bernoulli events) == |𝓜|`. Additionally, `sum(per-event draws) == count({m: 0<π_m<1})` (degenerate events must have `draws=0`).
-* **NB attempts:** per merchant, `count(gamma_component) == count(poisson_component) >= 1` and `count(nb_final) == 1`.
-* **Dirichlet shape:** for each merchant with $K_m\ge1`, arrays in `dirichlet_gamma_vector\` are **co-length $K_m+1$** and aligned by ISO order (not cross-country **rank**; the event carries its own list).
-* **Gumbel:** `count(gumbel_key for m) == K_m`. *(We don’t assert “1 uniform per candidate”; the trace equality already proves draw consumption.)*
+S9 writes `parameter_hash_resolved.json` and `manifest_fingerprint_resolved.json` into the bundle as the attestation artefacts. 
 
 ---
 
-## S9.5.6 Replay spot-checks (payload re-derivation where stable)
+## 6.2 Path↔embed identity (all subjects; byte-equality)
 
-To keep the replay stable across implementations, we only replay transforms with **sampler-independent contracts**:
+For **every** dataset/log/event S9 reads, **embedded lineage fields MUST byte-equal path tokens** where both appear:
 
-1. **Gumbel keys (always).** From each event’s `rng_counter_before` and `seed`, regenerate $u\in(0,1)$ via the audited generator; compute
-   $z=\log w - \log(-\log u)$ and compare to payload fields (`u`, `key`) **bit-for-bit**. On first mismatch, persist a **reproducer** `{seed, before_hi, before_lo, label, merchant_id, country_iso}`.
+* **Egress:** `outlet_catalogue.manifest_fingerprint == fingerprint` and `global_seed == seed`. 
+* **Parameter-scoped inputs (e.g., S3):** embedded `parameter_hash == parameter_hash` path token. 
+* **RNG logs & events:** each row embeds `{seed, parameter_hash, run_id}` that **must equal** the `{seed, parameter_hash, run_id}` in its path. (Event envelopes also satisfy layer schema presence; accounting is checked in §7.)  
 
-2. **Dirichlet vector (optional, only if sampler digest is declared).** If the audit or event payload declares a `gamma_sampler_digest`, regenerate $\Gamma(\alpha_i,1)$ from `rng_counter_before` and compare **`gamma_raw`** arrays bit-for-bit. Otherwise, **skip RNG replay** and perform **shape-only** checks here (normalisation & corridor checks live in S9.6).
-
-*(No replay for NB gamma/poisson here; their budgets are sampler-dependent. Their draw usage is already proved by S9.5.2–S9.5.4.)*
-
----
-
-## Error taxonomy (normative)
-
-* `ERR_RNG_ALGO_MISMATCH` — audit.algorithm ≠ expected.
-* `ERR_RNG_SEED_MISMATCH` — any egress row `global_seed` ≠ audit.seed, or audit lineage ≠ partition tokens.
-* `ERR_COUNTER_ADVANCE_MISMATCH[ℓ]` — $\sum(\text{after−before}) \ne D_\text{trace}(\ell)+J(\ell)$ for label $\ell$.
-* `ERR_ADJACENCY_BREAK[ℓ]` — per-label counter adjacency not monotone (or equal without zero-draw).
-* `ERR_EVENT_CARDINALITY[ℓ]` — observed label counts differ from required counts (per S9.5.3).
-* `ERR_TRACE_EVENTS_DIVERGE[ℓ]` — $D_\text{trace}(\ell) \ne D_\text{events}(\ell)$ (after jumps).
-* `ERR_NONCONSUMING_HAS_DRAWS[ℓ]` — any `residual_rank`/`sequence_finalize` with `after>before`.
-* `ERR_REPLAY_MISMATCH[ℓ]` — regenerated `u`/`key` (or `gamma_raw`, when replay is enabled) don’t match the payload.
-
-All are **hard fails**; write evidence to the bundle and withhold `_passed.flag`.
+Any mismatch ⇒ `E_PATH_EMBED_MISMATCH` (FAIL). *(Structural rules in §5 apply; this section enforces lineage equality as a determinism prerequisite.)* 
 
 ---
 
-## Validator outputs (machine-readable)
+## 6.3 Partition identity, immutability & idempotence (must hold)
 
-Write `rng_accounting.json` with, per label (and per merchant where relevant):
-`{observed_events, expected_events, draws_trace, draws_events, jumps, counter_adjacency_ok, nonconsuming_ok, replay_sampled, replay_ok, ok, notes}`.
-Include the **first reproducer** for any replay mismatch.
+S9 **MUST** confirm the identity/immutability rules the producers were bound to:
 
----
+* **Egress identity:** `(dataset='outlet_catalogue', seed, manifest_fingerprint)` is **write-once**; if the partition existed prior to the validated run, byte content **must** be identical. S9 records stable per-file and composite hashes in `egress_checksums.json`.  
+* **Parameter-scoped identity:** `(dataset_id, parameter_hash)` instances are immutable once published. 
+* **Logs identity:** `(stream, seed, parameter_hash, run_id)` instances are immutable; S9 treats duplicate physical lines/files for the *same* event identity as structural errors. 
 
-## Reference validator (language-agnostic pseudocode)
-
-```pseudo
-INPUT:
-  audit  := rng_audit_log(seed, parameter_hash, run_id)
-  trace  := rng_trace_log(seed, parameter_hash, run_id)
-  events := dict(label -> iterator)
-  egress := outlet_catalogue(seed, fingerprint)
-  cset   := country_set(seed, parameter_hash)           # for K_m and foreign candidates
-
-# 1) Envelope identity
-assert audit.algorithm == "philox2x64-10"                                 # ERR_RNG_ALGO_MISMATCH
-assert all(row.global_seed == audit.seed for row in egress)               # ERR_RNG_SEED_MISMATCH
-assert audit.parameter_hash == parameter_hash and audit.manifest_fingerprint == fingerprint
-
-# 2) Per-label accounting (sum of deltas == trace draws + jumps; adjacency monotone)
-for ℓ in events.keys():
-    T := sort_by_before_counter(events[ℓ])                                # (before_hi, before_lo) asc
-    Δevents := sum( to_u128(e.after) - to_u128(e.before) for e in T )
-    Dtrace  := sum(x.draws for x in trace where x.substream_label==ℓ)
-    Jumps   := sum(j.jump_stride for j in events.get("stream_jump",[]) where j.label==ℓ)
-    assert Δevents == Dtrace + Jumps                                      # ERR_COUNTER_ADVANCE_MISMATCH[ℓ]
-    assert adjacency_monotone(T)                                          # ERR_ADJACENCY_BREAK[ℓ]
-    if ℓ in {"residual_rank","sequence_finalize"}:
-        assert all(to_u128(e.after) == to_u128(e.before) for e in T)      # ERR_NONCONSUMING_HAS_DRAWS[ℓ]
-
-# 3) Event cardinalities (expected from cset & egress)
-for m in merchants_in_run():
-    Km := count_foreign_in_country_set(cset, m)
-    assert count(events["gumbel_key"] where merchant==m) == Km            # ERR_EVENT_CARDINALITY[gumbel_key]
-    if Km >= 1:
-        assert exactly_one(events["dirichlet_gamma_vector"] where m)      # ERR_EVENT_CARDINALITY[dirichlet_gamma_vector]
-    else:
-        assert count(dirichlet_gamma_vector where m) == 0
-    assert count(residual_rank where m) == size_of_country_set(cset,m)    # ERR_EVENT_CARDINALITY[residual_rank]
-    # Hurdle: exactly one per merchant; degenerate π ⇒ draws=0
-    assert exactly_one(events["hurdle_bernoulli"] where m)                # ERR_EVENT_CARDINALITY[hurdle_bernoulli]
-    if pi_is_degenerate(m): assert draws_of(hurdle_bernoulli[m]) == 0
-
-# NB composition (per merchant)
-for m in merchants_with_nb():
-    gc := count(gamma_component where m)
-    pc := count(poisson_component where m)
-    nf := count(nb_final where m)
-    assert gc == pc and gc >= 1 and nf == 1                               # ERR_EVENT_CARDINALITY[nb_*]
-
-# 4) Trace reconciliation already implied by §2; re-write summary to rng_accounting.json
-
-# 5) Replay spot-checks (deterministic sample)
-for (m,i) in deterministic_sample(seed, fingerprint, events["gumbel_key"]):
-    e := event_for(m,i)
-    u := philox_uniform_u64_to_(0,1)(audit.seed, e.before_counter)
-    key_hat := log(weight(m,i)) - log(-log(u))
-    assert bit_equal(key_hat, e.key) and bit_equal(u, e.u)                # ERR_REPLAY_MISMATCH[gumbel_key]
-
-if sampler_digest_available("gamma"):
-    for m in deterministic_sample_merchants(seed, fingerprint):
-        e := dirichlet_event_for(m)
-        gamma_hat := regenerate_gamma_vector(e.before_counter, e.alpha, sampler_digest)
-        assert arrays_bit_equal(gamma_hat, e.gamma_raw)                    # ERR_REPLAY_MISMATCH[dirichlet_gamma_vector]
-```
+Re-running S9 with identical inputs **MUST** yield a **byte-identical** bundle and `_passed.flag`. 
 
 ---
 
-## Conformance tests (negative/edge)
+## 6.4 Determinism w.r.t. concurrency, sharding & scheduling (evidence checks)
 
-1. **Order-invariance:** shuffle processing order across executors → counters/draws reconciliation still passes. ✔︎
-2. **Non-consuming guard:** flip one `sequence_finalize` event to have `after>before` → `ERR_NONCONSUMING_HAS_DRAWS[sequence_finalize]`. ✔︎
-3. **Trace tamper:** alter `rng_trace_log.draws` for `gumbel_key` by +1 → `ERR_TRACE_EVENTS_DIVERGE[gumbel_key]`. ✔︎
-4. **Dirichlet degenerate:** merchant with $K_m=0$ still emits a vector → `ERR_EVENT_CARDINALITY[dirichlet_gamma_vector]`. ✔︎
-5. **Gumbel coverage:** remove one foreign candidate’s event → `ERR_EVENT_CARDINALITY[gumbel_key]`. ✔︎
-6. **Hurdle determinism:** merchant with $\pi=1$ has hurdle event with `draws>0` → `ERR_NONCONSUMING_HAS_DRAWS[hurdle_bernoulli]`. ✔︎
-7. **NB pairing:** `gamma_component` count ≠ `poisson_component` count → `ERR_EVENT_CARDINALITY[nb_*]`. ✔︎
+S9 cannot observe worker counts; instead it proves outcomes are **independent** of them by checking invariants guaranteed by S7–S8:
+
+* **Egress row-set determinism:** within each `(seed,fingerprint)` partition, `outlet_catalogue` obeys the Dictionary **writer sort** and encodes no cross-country order; equality is by **row set**, not file order.  
+* **S8 block atomicity:** per `(merchant, legal_country_iso)` there is **exactly one** `sequence_finalize` event (non-consuming) with `{start="000001", end=zfill6(n)}`; overflow emits `site_sequence_overflow` and **no** egress rows for that merchant. 
+* **Join-back stability:** distinct `(merchant, legal_country_iso)` in egress join 1:1 to S3 on `(merchant_id, country_iso)`, and sorting by `candidate_rank` yields one consistent cross-country order (egress itself remains order-free). 
 
 ---
 
-This version of **S9.5** applies your design goals precisely: **sealed determinism without sampler lock-in**, explicit degenerate branches, strict per-label counter math, hard cardinalities, and **stable** replay (Gumbel always; Dirichlet only when a sampler digest is declared).
+## 6.5 No reliance on file order; set semantics
+
+S9 **MUST** treat Parquet/JSONL physical order as **non-authoritative**; equality and checks are defined by schema keys and totals (plus writer sort where declared for egress). *(Inherited from S0/S8 determinism and the Dictionary.)*  
 
 ---
 
-# S9.6 — Statistical corridors (implementation-ready, **tolerances governed**)
+## 6.6 Roles of lineage keys (non-interchangeable; enforced)
 
-This section defines the **release-time sanity tests** that must hold (as *hard gates*) before `_passed.flag` can be written. All corridor metrics are **derived deterministically** from egress, allocation caches, and RNG evidence locked earlier; results are recorded to `metrics.csv` inside the validation bundle, and any breach produces a **hard fail** (bundle written; flag withheld).
+S9 **MUST** enforce that lineage keys are used only in their scoped roles:
 
----
+* **`seed`** drives RNG; partitions **all** RNG logs/events (never S3/S5). 
+* **`parameter_hash`** versions parameter-scoped inputs/outputs (e.g., S3, S5). Changing any **𝓟** member’s bytes flips it. 
+* **`manifest_fingerprint`** versions egress/validation; consumers **must** verify the fingerprint-scoped gate before reading egress. 
+* **`run_id`** partitions logs only; **never** influences model state or egress. 
 
-## 1) Inputs, scope, determinism
-
-**Authoritative inputs (read-only):**
-
-* `outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}`: immutable egress (per-row: `H_m = single_vs_multi_flag`, `N^{raw}_m = raw_nb_outlet_draw`, block counts `n_{m,i}`). Inter-country order is **not** encoded here.
-* `country_set/seed={seed}/parameter_hash={parameter_hash}`: **sole** carrier of cross-country order (`rank`: 0=home; 1..K foreign). Also provides `prior_weight` if present.
-* `ranking_residual_cache_1A(seed,parameter_hash)`: persistent residuals (used only where residuals appear in definitions).
-* RNG event streams (run-scoped): especially `dirichlet_gamma_vector` (to rebuild $q_{m,i}$) and ZTP/NB signals (`poisson_component(context="ztp")`, `ztp_rejection`, `ztp_retry_exhausted`, `nb_final`).
-* Optional cache: `hurdle_pi_probs(parameter_hash)` for model-implied $\pi_m$. If absent, **skip** the hurdle corridor and record “not evaluated”.
-
-**Tolerances & bands (governed):** read **only** from `numeric_tolerances.yaml` (or equivalent governed config) and **echo** values into `metrics.csv`:
-
-* `eps_pi`, `eps_LRR`, `eps_rho`, `ztp_rate_band = [a_L, a_U]`
-* `eps_sum1` (sum-to-one guard), `eps_prior` (prior-weight coherence)
-
-**Numeric policy:** IEEE-754 binary64; all sums use **Neumaier compensation**. Apply **no** quantisation except where explicitly stated. (If residuals are used, employ the shared `Q_8` operator as defined earlier.)
-
-**Outputs:** `metrics.csv` inside `validation_bundle_1A(fingerprint)`; bundle and `_passed.flag` contract as in S9.7. **Any corridor breach** ⇒ gate fails; bundle still materialises.
+Any misuse (e.g., `run_id` in an egress partition, or `seed` on parameter-scoped S3 tables) ⇒ `E_PARTITION_MISPLACED`. 
 
 ---
 
-## 2) Corridor catalogue (definitions, math, thresholds, gating)
-
-### 2.1 Hurdle calibration (multi-site prevalence) — *optional if cache present*
-
-**Empirical rate:** $\displaystyle \widehat{\pi}=\frac{1}{|\mathcal{M}|}\sum_{m\in\mathcal{M}}H_m$, where $H_m\in{0,1}$ from egress.
-**Model average:** $\displaystyle \bar{\pi}=\frac{1}{|\mathcal{M}|}\sum_{m}\pi_m$ from `hurdle_pi_probs`.
-**Gate:** $|\widehat{\pi}-\bar{\pi}|\le \texttt{eps_pi}\`.
-**Record-only:** Wilson 95% CI for $\widehat{\pi}$ and z-gap.
-
-### 2.2 Integerisation fidelity (largest-remainder L1 guard)
-
-**Goal.** Although mass conservation is exact (S9.4), we guard that realised shares align with pre-integer shares.
-
-* **Rebuild pre-integer shares:** from `dirichlet_gamma_vector` events (S9.4 rules), obtain binary64 weights $w_{m,i}$ and set $q_{m,i}!=!w_{m,i}$ (post-normalisation).
-* **Realised shares:** $n_{m,i}/N^{raw}_m$ from egress.
-* **Per-merchant L1 gap:** $\displaystyle \Delta_m=\sum_{i\in\mathcal{I}*m}\left|,\frac{n*{m,i}}{N^{raw}*m}-q*{m,i}\right|$.
-  **Gate:** $\max_m \Delta_m \le \texttt{eps_LRR}\`. Also record p50/p99 of $\Delta_m$.
-
-### 2.3 Sparsity behaviour (currency-level)
-
-**Observed rate:** $\widehat{\rho}=\frac{1}{|\mathcal{K}|}\sum_{\kappa\in\mathcal{K}}\mathbf{1}[\texttt{sparse_flag}(\kappa)=1]$.
-**Expected rate:** $\rho_{\text{expected}}$ from governed config.
-**Gate:** $|\widehat{\rho}-\rho_{\text{expected}}|\le \texttt{eps_rho}\`.
-
-### 2.4 ZTP acceptance corridor (foreign-count draw $K$)
-
-Let $T=$ total `poisson_component(context="ztp")` attempts and $A=$ number of **accepted** draws (from ZTP accept signals / `nb_final` where appropriate). Define $\widehat{a}=A/T$ (guard $T>0$).
-
-**Gate:** $\widehat{a}\in[\texttt{a_L},\texttt{a_U}]\`.
-**Record-only:** if model inputs expose $\lambda_m$, report $\bar a=\text{mean}_m(1-e^{-\lambda_m})$ and $\widehat{a}-\bar a$.
-
-### 2.5 Prior-weight coherence (parameter vs realised mechanisms)
-
-When available, we verify two numeric coherences:
-
-**(a) Dirichlet α normalisation & mean vs prior**
-For merchants with a `dirichlet_gamma_vector` event: let $\alpha_{m,i}>0$ be the event’s `alpha` array; define $p^\alpha_{m,i}=\alpha_{m,i}/\sum_j\alpha_{m,j}$.
-**Gates:**
-
-* **Sum-to-one:** $\left|\sum_i p^\alpha_{m,i}-1\right|\le\texttt{eps_sum1}$ (per merchant).
-* **Prior match (if `country_set.prior_weight` present):** $|p^\alpha_{m,i}-\texttt{prior_weight}_{m,i}|\le\texttt{eps_prior}$ for all $i$.
-
-**(b) Dirichlet weights normalisation**
-For all merchants with a Dirichlet event: with reconstructed $w_{m,i}$, require $\left|\sum_i w_{m,i}-1\right|\le\texttt{eps_sum1}$ and $w_{m,i}\ge -\texttt{eps_sum1}$ (non-negativity within numeric noise). *(These complement schema checks and make the corridor explicit.)*
-
-> If $K_m=0$ (no foreigns), both 2.5(a) and 2.5(b) are **skipped** and logged as unevaluated.
+**Status:** §6 is **Binding**. It fixes how S9 **recomputes lineage**, enforces **path↔embed identity**, and proves **determinism/idempotence** independent of concurrency, ensuring the validated run is fully reproducible under the S0–S8 contracts.
 
 ---
 
-## 3) Algorithms (reference, deterministic & streaming)
+# 7) RNG accounting & envelope invariants **(Binding)**
 
-```pseudo
-function s9_6_corridors(OUT, CST, DIRICHLET_EVENTS, HURDLE_PI_PROBS?, ZTP_EVENTS, TOLS):
-    # TOLS is read from numeric_tolerances.yaml:
-    #   {eps_pi, eps_LRR, eps_rho, a_L, a_U, eps_sum1, eps_prior, rho_expected}
-    # --- Precompute basic tallies ---
-    M := distinct merchants in OUT
-    H[m]    := merchant-constant single_vs_multi_flag from OUT
-    Nraw[m] := merchant-constant raw_nb_outlet_draw   from OUT
-    I_m     := { ordered list of i from CST where merchant_id=m }           # rank-ordered (0..K)
-    n[(m,i)]:= number of OUT rows with (merchant_id=m, legal_country_iso=i)
+## 7.1 Per-event envelope checks (family-independent) — **MUST**
 
-    # --- (1) Hurdle calibration ---
-    if HURDLE_PI_PROBS? present:
-        pi_bar := mean_over_m( HURDLE_PI_PROBS[m] )
-        pi_hat := mean_over_m( H[m] )
-        gap_pi := abs(pi_hat - pi_bar)
-        wilson_center, wilson_half := wilson_interval(pi_hat, |M|, z=1.96)
-        gate_hurdle := (gap_pi <= TOLS.eps_pi)
-        emit_metric("hurdle_pi_hat", pi_hat, TOLS.eps_pi, "record+gate", 1)
-        emit_metric("hurdle_pi_bar", pi_bar, "", "record-only", 1)
-        emit_metric("hurdle_gap", gap_pi, TOLS.eps_pi, gate_hurdle?"pass":"fail", 1)
-        emit_metric("hurdle_wilson_center", wilson_center, "", "record-only", 1)
-        emit_metric("hurdle_wilson_halfwidth", wilson_half, "", "record-only", 1)
-    else:
-        gate_hurdle := true
-        emit_metric("hurdle_evaluated", 0, "", "skipped", 0)
+For **every** RNG event row S9 validates (S1/S2/S4/S6/S7/S8 families in scope):
 
-    # --- (2) Integerisation fidelity L1 ---
-    W := reconstruct_dirichlet_weights(DIRICHLET_EVENTS)     # (m,i) -> w_{m,i}; Σ_i w=1 per m (up to eps_sum1)
-    Δ := []
-    for m in M:
-        denom := R64(Nraw[m])
-        acc := 0.0 ; comp := 0.0
-        for i in I_m:
-            share_real  := R64(n[(m,i)]) / denom
-            share_model := W.get((m,i), 0.0)                 # domestic present even if K=0
-            term := abs(share_real - share_model)
-            t := acc + term
-            comp += (abs(acc) >= abs(term)) ? (acc - t + term) : (term - t + acc)
-            acc = t
-        Δ_m := acc + comp
-        Δ.append(Δ_m)
-    Δ_max := max(Δ) ; Δ_p50 := percentile(Δ, 50) ; Δ_p99 := percentile(Δ, 99)
-    gate_lrr := (Δ_max <= TOLS.eps_LRR)
-    emit_metric("lrr_L1_max", Δ_max, TOLS.eps_LRR, gate_lrr?"pass":"fail", 1)
-    emit_metric("lrr_L1_p50", Δ_p50, "", "record-only", 1)
-    emit_metric("lrr_L1_p99", Δ_p99, "", "record-only", 1)
+* **Envelope presence & types.** Row **MUST** conform to the layer envelope (`rng_envelope`): `{ts_utc, module, substream_label, seed, parameter_hash, run_id, rng_counter_before_{lo,hi}, rng_counter_after_{lo,hi}, blocks:uint64, draws:dec_u128}`. 
+* **Counter delta identity.** `blocks == u128(after) − u128(before)` in **unsigned 128-bit** arithmetic. **Fail** if not equal. 
+* **Non-consuming invariants.** Families declared non-consuming **MUST** have `before == after`, `blocks = 0`, `draws = "0"`. **Fail** if any differs. 
+* **Draws = actual uniforms.** `draws` **MUST** equal the sampler’s **actual** U(0,1) count for that event (independent of `blocks`). **Fail** on mismatch.  
+* **Lane policy is implied by budgets.** Single-uniform families advance **one** block (low lane used, high lane discarded); two-uniform families consume **both lanes** of **one** block. 
 
-    # --- (3) Sparsity behaviour ---
-    rho_hat := mean_over_currencies( sparse_flag[kappa] )    # from governed domain or run’s candidate set
-    gap_rho := abs(rho_hat - TOLS.rho_expected)
-    gate_rho := (gap_rho <= TOLS.eps_rho)
-    emit_metric("sparse_rate_hat", rho_hat, TOLS.eps_rho, gate_rho?"pass":"fail", 1)
-    emit_metric("sparse_rate_expected", TOLS.rho_expected, "", "record-only", 1)
-    emit_metric("sparse_rate_gap", gap_rho, TOLS.eps_rho, gate_rho?"pass":"fail", 1)
-
-    # --- (4) ZTP acceptance ---
-    T := count(ZTP_EVENTS where label="poisson_component" and context="ztp")
-    A := count_acceptances_from_ztp(ZTP_EVENTS)              # successes with K>=1
-    a_hat := (T == 0) ? 1.0 : R64(A) / R64(T)                # guard
-    gate_ztp := (TOLS.a_L <= a_hat and a_hat <= TOLS.a_U)
-    emit_metric("ztp_attempts", T, "", "record-only", 1)
-    emit_metric("ztp_acceptances", A, "", "record-only", 1)
-    emit_metric("ztp_rate_hat", a_hat, f"[{TOLS.a_L},{TOLS.a_U}]", gate_ztp?"pass":"fail", 1)
-
-    # --- (5) Prior-weight coherence (if applicable) ---
-    # (a) α-means vs prior_weight
-    gate_prior := true
-    for each merchant m with dirichlet event e:
-        α := e.alpha  # array aligned to e.country_isos
-        Sα := compensated_sum(α)
-        pα := [α_j / Sα for α_j in α]
-        sum_err := abs(compensated_sum(pα) - 1.0)
-        if sum_err > TOLS.eps_sum1: gate_prior = false; emit_metric("alpha_sum1_err", sum_err, TOLS.eps_sum1, "fail", 1)
-        for each iso in e.country_isos where prior_weight available:
-            pw := prior_weight[m, iso]
-            gap := abs(pα[idx(iso)] - pw)
-            if gap > TOLS.eps_prior: gate_prior = false
-            emit_metric("prior_gap", gap, TOLS.eps_prior, (gap<=TOLS.eps_prior)?"pass":"fail", 1)
-
-    # (b) Dirichlet weights sum-to-one & non-negativity
-    gate_wsum := true
-    for m in merchants_present_in(W):
-        wvals := [W[(m,i)] for i in I_m if (m,i) in W]
-        sum_w := compensated_sum(wvals)
-        min_w := min(wvals) if wvals else 0.0
-        err := abs(sum_w - 1.0)
-        emit_metric("dirichlet_sum1_err", err, TOLS.eps_sum1, (err<=TOLS.eps_sum1)?"pass":"fail", 1)
-        if err > TOLS.eps_sum1 or min_w < -TOLS.eps_sum1: gate_wsum = false
-
-    # --- (6) Decide & emit ---
-    corridors_pass := gate_hurdle and gate_lrr and gate_rho and gate_ztp and gate_prior and gate_wsum
-    write_metrics_csv()  # deterministic column/row order
-    return corridors_pass
-```
-
-> `reconstruct_dirichlet_weights` must **exactly** follow S9.4/S9.5 replay rules (using event envelopes only, no extra randomness).
-> `count_acceptances_from_ztp` reads ZTP/NB events per S9.5 cardinalities (accept if a success indicator is present for $K\ge1$).
-> All thresholds are read from **`numeric_tolerances.yaml`** and **echoed** into `metrics.csv` (see §4).
+**Failure classes (per row):** `E_RNG_COUNTER_MISMATCH` (blocks≠after−before); `E_RNG_BUDGET_VIOLATION` (draws≠budgeted); `E_NONCONSUMING_CHANGED_COUNTERS` (non-consuming but before≠after). 
 
 ---
 
-## 4) `metrics.csv` schema (bundle content)
+## 7.2 Budget table by family — **MUST**
 
-Flat CSV, deterministic column order:
+S9 applies the following **normative budgets** when reconciling `draws` and counter deltas (`blocks`). Family schemas further constrain payload/fields.
 
-| column      | type          | meaning                                                                                             |
-| ----------- | ------------- | --------------------------------------------------------------------------------------------------- |
-| `metric`    | string        | identifier (e.g., `hurdle_pi_hat`, `lrr_L1_max`, `prior_gap`, `dirichlet_sum1_err`, `ztp_rate_hat`) |
-| `value`     | number        | measured value (binary64)                                                                           |
-| `threshold` | number/string | configured gate value or band (e.g., `eps_LRR`, or `"[a_L,a_U]"`)                                   |
-| `notes`     | string        | short status (`pass`/`fail`/`record-only`/`skipped`) and any extra details                          |
-| `evaluated` | {0,1}         | 1 if evaluated; 0 if skipped by policy (e.g., missing `hurdle_pi_probs` or `K_m=0`)                 |
+**S1 — hurdle_bernoulli** (`module=1A.hurdle_sampler`, `substream_label=hurdle_bernoulli`)
 
-The bundle index must include this artefact; the bundle remains **sealed**: `_passed.flag` content equals `SHA256(bundle.zip)`.
+* **Deterministic branch** (π∈{0,1}): `blocks=0`, `draws='0'`, `u=null`.
+* **Stochastic branch** (0<π<1): `blocks=1`, `draws='1'`.
+* Schema enforces `draws∈{'0','1'}`, `blocks∈{0,1}` and `u∈(0,1)` when present.  
 
----
+**S2 — NB mixture attempts & final** (modules per family; see Appendix A.1)
 
-## 5) Error taxonomy (machine codes; hard-fail)
+* **gamma_component** (`module="1A.nb_and_dirichlet_sampler"`, `substream_label="gamma_nb"`): **variable** draws (exact actual-use from Marsaglia–Tsang; includes 2 uniforms per Box–Muller normal + 1 uniform where required).
+* **poisson_component** (`module="1A.nb_poisson_component"`, `substream_label="poisson_nb"`, `context="nb"`): **variable**; regime per S0 (§PTRS vs inversion) governs typical usage.
+* **nb_final** (`module="1A.nb_sampler"`): **non-consuming** ⇒ `blocks=0`, `draws='0'`.
+* Attempt structure: exactly **one** gamma then **one** poisson per attempt; finaliser once (accepted `N≥2`).  
 
-* `corridor_breach_hurdle_gap` — $|\widehat{\pi}-\bar{\pi}|>\texttt{eps_pi}$ (only if hurdle evaluated).
-* `corridor_breach_lrr_L1` — $\max_m \Delta_m>\texttt{eps_LRR}$.
-* `corridor_breach_sparse_rate` — $|\widehat{\rho}-\rho_{\text{expected}}|>\texttt{eps_rho}$.
-* `corridor_breach_ztp_rate` — $\widehat{a}\notin[\texttt{a_L},\texttt{a_U}]$.
-* `corridor_breach_alpha_sum1` — $\big|\sum_i p^\alpha_{m,i}-1\big|>\texttt{eps_sum1}$ for any merchant with Dirichlet event.
-* `corridor_breach_prior_weight` — any $|p^\alpha_{m,i}-\texttt{prior_weight}_{m,i}|>\texttt{eps_prior}`where`prior_weight\` is present.
-* `corridor_breach_dirichlet_sum1` — $\big|\sum_i w_{m,i}-1\big|>\texttt{eps_sum1}$ or $\min_i w_{m,i}<-\texttt{eps_sum1}$.
+**S4 — ZTP target** (`module=1A.ztp_sampler`)
 
-On any breach, `corridors_pass=false`; the bundle is written, `_passed.flag` is **not**.
+* **poisson_component (context='ztp')**: **consuming**; regime fixed per merchant: **inversion** if λ<10, **PTRS** if λ≥10.
+* **ztp_rejection / ztp_retry_exhausted / ztp_final**: **non-consuming** ⇒ `blocks=0`, `draws='0'`.
+* Attempts are **1-based**, strictly increasing; **exactly one** `ztp_final` when resolved (unless policy=`abort`). Trace append after **each** event.   
 
----
+**S6 — selection keys** (`module=1A.foreign_country_selector`, `substream_label=gumbel_key`)
 
-## 6) Conformance tests (must pass)
+* **gumbel_key**: **single-uniform** ⇒ `blocks=1`, `draws='1'`.
+* Optional `stream_jump` markers (if present): **non-consuming** ⇒ `blocks=0`, `draws='0'`.  
 
-1. **Happy path:** `hurdle_pi_probs` present; $|\widehat{\pi}-\bar{\pi}|=0.005\le\texttt{eps_pi}$; $\max\Delta_m=7\cdot10^{-14}\le\texttt{eps_LRR}$; $|\widehat{\rho}-\rho_{\text{expected}}|=0.001\le\texttt{eps_rho}$; $\widehat{a}\in[\texttt{a_L},\texttt{a_U}]$; Dirichlet α and $w$ sum-to-one within `eps_sum1`; `prior_weight` diffs $\le\texttt{eps_prior}\` → **pass**, bundle sealed. ✔︎
-2. **Hurdle skipped:** remove `hurdle_pi_probs` → metrics show `evaluated=0` for hurdle; other corridors pass → **pass**. ✔︎
-3. **LRR breach (numerical):** perturb a Dirichlet weight by $5!\times!10^{-12}$, yielding $\max\Delta_m=2!\times!10^{-12}>\texttt{eps_LRR}$ → `corridor_breach_lrr_L1`. ✔︎
-4. **Sparse drift:** flip half the currencies’ flags with $\rho_{\text{expected}}=0.2$ → `corridor_breach_sparse_rate`. ✔︎
-5. **ZTP out of band:** force $\widehat{a}=0.1$ while band is $[0.3,0.7]$ → `corridor_breach_ztp_rate`. ✔︎
-6. **Prior mismatch:** set `prior_weight` off by $2!\times!10^{-10}$ with `eps_prior=1e-12` → `corridor_breach_prior_weight`. ✔︎
-7. **Dirichlet sum error:** make $\sum_i w_{m,i}=0.999999999$ with `eps_sum1=1e-12` → `corridor_breach_dirichlet_sum1`. ✔︎
+**S7 — integerisation evidence**
+
+* **residual_rank**: **non-consuming** ⇒ `blocks=0`, `draws='0'`; one per `(merchant_id,country_iso)` in domain; residuals quantised to **dp=8**.
+* Optional **dirichlet_gamma_vector** (feature-flag): variable (sum of Gamma component budgets). Trace append after each event.  
+
+**S8 — sequencing instrumentation** (`module=1A.site_id_allocator`)
+
+* **sequence_finalize**: **non-consuming** ⇒ `blocks=0`, `draws='0'`; one per `(merchant,country)` with `n≥1`.
+* **site_sequence_overflow** (guardrail): **non-consuming** ⇒ `blocks=0`, `draws='0'`. Trace append after each event.  
 
 ---
 
-## 7) Operational notes
+## 7.3 Open-interval uniform law — **MUST**
 
-* **Do not hard-code thresholds**; read from governed `numeric_tolerances.yaml` and **echo** into `metrics.csv`.
-* **No extra randomness** is consumed; reconstruction uses the validated event envelopes from S9.5.
-* **Immutability & gate:** corridors are part of the **same** bundle+flag contract — 1B must still verify `_passed.flag == SHA256(bundle.zip)` before reading egress.
+Where a family exposes a uniform **value** (e.g., S1 payload `u`), S9 **MUST** verify **strict-open** `u∈(0,1)`; exact 0.0 or 1.0 is **forbidden**. (Budget/trace checks do **not** require logging all uniforms; counters and `draws` carry authority.)  
 
 ---
 
-This pins **S9.6** at “100%”: corridor definitions & math, degenerate/skip rules, deterministic algorithms with numeric policy, CSV schema & bundle wiring, expanded error taxonomy (incl. **prior-weight coherence** and **sum-to-one** guards), conformance tests, and gating semantics tied to the central tolerances file and S9.7 sealing rules.
+## 7.4 Attempt/order invariants (families with loops) — **MUST**
+
+* **S2 NB:** per attempt **exactly one** `gamma_component` then **one** `poisson_component`; on first `K≥2`, **exactly one** `nb_final` (non-consuming). 
+* **S4 ZTP:** attempts are **1-based** and **monotone**; each `poisson_component` (consuming) is followed by either acceptance (`ztp_final`, non-consuming) or a **non-consuming** rejection marker; cap policy produces either `ztp_retry_exhausted` (non-consuming; **no** final) or `ztp_final{K_target=0}` (non-consuming). Envelope counters within a merchant’s substream are **monotone, non-overlapping**; replay by **counters**, not file order. 
+
+**Failure classes:** `E_S4_SEQUENCE_INVALID` (attempt index/order breach), `E_FINALISER_CARDINALITY` (0/>1 where exactly one required). 
 
 ---
 
-# S9.7 — Bundle & Signing (implementation-ready)
+## 7.5 Trace coverage & reconciliation — **MUST**
 
-## 1) Purpose & contract (what S9.7 certifies)
+For each `(module, substream_label)`:
 
-After **S9.2→S9.6 all pass**, S9.7 emits a **single audit artefact** — a **ZIP bundle** — and a **flag file** that together authorise 1B to read 1A egress for **this exact** fingerprint:
+* **Coverage duty.** After **every** event append, there is **exactly one** cumulative `rng_trace_log` row appended (saturating totals). **Fail** if any event lacks a following trace row.  
+* **Totals reconciliation.** On the **final** trace row per key (selection per schema note), verify:
+  `draws_total == Σ parse_u128(draws)`;
+  `blocks_total == Σ blocks`;
+  `events_total ==` event count. *(No identity is implied between draws and blocks totals.)*  
+* **Isolation.** Only the families owned by that state/module appear under that key (e.g., S6 trace keys only cover `gumbel_key`/`stream_jump`). 
+
+**Failure classes:** `E_TRACE_COVERAGE_MISSING` (coverage), `E_TRACE_TOTALS_MISMATCH` (totals), `E_TRACE_ISOLATION_BREACH`. 
+
+---
+
+## 7.6 Audit presence & lineage parity — **MUST**
+
+* **rng_audit_log** **MUST** exist for each `{seed, parameter_hash, run_id}` observed in events/trace; path↔embed lineage equality holds; algorithm is `philox2x64-10`.  
+* **Path↔embed equality** for `{seed, parameter_hash, run_id}` on **every** event/log row (see §6 for lineage checks). 
+
+---
+
+## 7.7 Numeric profile & overflow guards — **MUST**
+
+* Validation assumes S0’s numeric profile: **binary64, RNE, FMA-off, no FTZ/DAZ**; Box–Muller uses the pinned **hex-float TAU** constant and **two uniforms per normal** (no caching).  
+* Trace counters are **uint64 saturating**; emitters **MUST** avoid overflow (else **budget violation**). 
+
+---
+
+**Status:** §7 is **Binding**. It fixes how S9 reconciles **per-event envelopes**, **family budgets**, **loop discipline**, and **trace totals**, enforcing the strict-open uniform law and non-consuming semantics before declaring the run PASS.
+
+---
+
+# 8) Cross-state replay checks **(Binding)**
+
+S9 **re-derives facts from written inputs only** (events, tables, logs) and **fails closed** on any mismatch. This section fixes the per-state checks S9 MUST perform—beyond structural (§5) and envelope/budget law (§7).
+
+---
+
+## 8.1 S1 — Hurdle (single vs multi) **MUST**
+
+For each merchant within `{seed, parameter_hash, run_id}`:
+
+* **Cardinality & gating.** Exactly **one** `rng_event.hurdle_bernoulli`; downstream **1A RNG streams** (S2/S4/S6/S7/S8) **exist iff** `is_multi=true`.  
+* **Deterministic vs stochastic.**
+  – If `pi∈{0.0,1.0}`: `draws='0'`, `blocks=0`, `u=null`, `deterministic=true`.
+  – If `0<pi<1`: `draws='1'`, `blocks=1`, `u∈(0,1)`, and `(u < pi) == is_multi`.  
+* **Failure classes.** `E_S1_CARDINALITY` (≠1 row), `E_S1_U_OUT_OF_RANGE`, `E_S1_GATING_VIOLATION`. 
+
+---
+
+## 8.2 S2 — NB mixture → `N≥2` (logs) **MUST**
+
+For each merchant with S1 `is_multi=true`:
+
+* **Attempt discipline.** Per attempt: **one** `gamma_component(context='nb')` then **one** `poisson_component(context='nb')`; counters monotone/non-overlapping.  
+* **Finaliser.** Exactly **one** **non-consuming** `nb_final` echoing `μ,φ` and fixing `n_outlets=N≥2` and `nb_rejections=r≥0`. 
+* **Join to egress.** In `outlet_catalogue`, `raw_nb_outlet_draw` **equals** `nb_final.n_outlets` for the merchant. 
+* **Failure classes.** `E_S2_COMPONENT_ORDER`, `E_S2_FINAL_MISSING_OR_DUP`, `E_S2_N_LT_2`. 
+
+---
+
+## 8.3 S3 — Candidate set (sole cross-country order) **MUST**
+
+* **Order authority.** For each merchant: `candidate_rank` is **total & contiguous** with **home=0**; S9 **never invents order**. 
+* **FKs & uniqueness.** One row per `(merchant_id,country_iso,candidate_rank)`. (Structural checks in §5.) 
+* **Failure classes.** `E_S3_RANK_GAPS`, `E_S3_HOME_NOT_ZERO`. 
+
+---
+
+## 8.4 S4 — ZTP target (`K_target`) **MUST**
+
+For eligible multi-site merchants:
+
+* **Attempt loop.** `poisson_component(context='ztp')` attempts are **1-based**, strictly increasing; each attempt followed by **either** a non-consuming `ztp_rejection` **or** a single non-consuming `ztp_final`. Cap policy respected: `"abort"` ⇒ `ztp_retry_exhausted` and **no** final; `"downgrade_domestic"` ⇒ `ztp_final{K_target=0, exhausted:true}`.  
+* **Uniqueness.** ≤1 `ztp_final` per resolved merchant. Regime (`inversion` if λ<10 else `ptrs`) **constant per merchant**. 
+* **Failure classes.** `E_S4_SEQUENCE_INVALID`, `E_S4_FINAL_CARDINALITY`, `E_S4_POLICY_VIOLATION`. 
+
+---
+
+## 8.5 S6 — Membership realisation (by events or convenience) **MUST**
+
+S9 must choose **one** path (as declared in §3):
+
+* **M1 — Convenience surface (`s6_membership`)**: **Require S6 PASS** receipt, then assert rows **equal** the top-`K_target` **eligible** countries by **Gumbel key** order (ties: lower S3 `candidate_rank`, then ISO A→Z per schema); `selected=true ⇒ selection_order∈[1..K]`; `weight==0 ⇒ key=null ∧ selected=false`. 
+* **M2 — Event replay (`gumbel_key`)**: From `rng_event.gumbel_key` rows (one uniform each), reconstruct keys and select exactly
+  `K_realized = min(K_target, |Eligible|)`; **eligible** means considered with `w>0` after policy filters/caps.  
+* **Failure classes.** `E_S6_PASS_MISSING` (when M1 chosen), `E_S6_MEMBERSHIP_MISMATCH`, `E_S6_ZERO_WEIGHT_SELECTED`. 
+
+---
+
+## 8.6 S7 — Integer allocation parity (dp=8 residuals) **MUST**
+
+Using `{home} ∪ S6-selected foreigns` in **S3 `candidate_rank` order**:
+
+* **Reconstruct counts.** Apply **largest-remainder** with **dp_resid=8** residuals and the fixed tie-break (residual↓, ISO A→Z, then `candidate_rank↑`), then prove:
+  (i) `Σ_i count_i = N` (from S2), and (ii) per-country `residual_rank` equals the persisted evidence.  
+* **Failure classes.** `E_S7_PARITY` (residual/order/Σ law mismatch). 
+
+---
+
+## 8.7 S8 — Egress & sequencing **MUST**
+
+For the `(seed,fingerprint)` partition:
+
+* **Per-block sequencing.** For each `(merchant, legal_country_iso)` with `count_i≥1`: `site_order = 1..count_i` contiguous; `site_id = zfill6(site_order)`; **exactly one** non-consuming `sequence_finalize{start="000001", end=zfill6(count_i)}`; overflow ⇒ `site_sequence_overflow` and **no** egress rows for that merchant.  
+* **Sum law & lineage.** Per merchant: `Σ_i final_country_outlet_count_i = N` (from S2). Egress encodes **no cross-country order** (join S3 when needed). `manifest_fingerprint` and `global_seed` **equal** their path tokens.  
+* **Failure classes.** `E_S8_SEQUENCE_GAP`, `E_SITE_ID_OVERFLOW`, `E_SUM_MISMATCH`, `E_ORDER_AUTHORITY_DRIFT`.  
+
+---
+
+## 8.8 Cross-state joins & global invariants **MUST**
+
+* **Join-back uniqueness.** `outlet_catalogue` joins **1:1** to S3 on `(merchant_id, country_iso)` (egress uses `legal_country_iso`; both FKs hit canonical ISO).  
+* **Cardinality chain.** For each merchant:
+  `N (S2) → K_target (S4) → K_realized (S6) → {count_i} (S7) → sequences 1..count_i (S8)`; each step’s equality/inequality laws must hold (e.g., `K_realized = min(K_target, |Eligible|)`).  
+* **No weights in S9.** S9 **does not** read S5 weight surfaces; it uses S6 events (or gated membership) and S7 evidence to replay selection/allocation. 
+
+---
+
+**Status:** §8 is **Binding**. It fixes the **per-state replay predicates**, **cross-state joins**, and **failure classes** S9 MUST apply before issuing the PASS decision.
+
+---
+
+# 9) Acceptance thresholds & PASS decision **(Binding)**
+
+## 9.1 What “PASS” means (run-level)
+
+S9 **issues PASS** for a `{seed, manifest_fingerprint}` only if **all** Binding checks in §§5–8 succeed for **every** merchant in scope. On PASS, S9 **publishes** `validation_bundle_1A/` under `…/validation/fingerprint={manifest_fingerprint}/` **and** a colocated `_passed.flag` whose content hash equals `SHA256(validation_bundle_1A)` (ASCII-lexicographic order of the `index.json` **`path`** entries, excluding `_passed.flag`). **Consumers MUST verify this before reading `outlet_catalogue`** (**no PASS → no read**).   
+
+## 9.2 What “FAIL” means (run-level)
+
+S9 **withholds** `_passed.flag` (bundle still written) if **any** Binding check fails in:
+(a) **Structural** (§5: schema/partition/path↔embed/PK/UK/FK/writer policy),
+(b) **Lineage/Determinism** (§6: recomputed `parameter_hash`/`manifest_fingerprint`, idempotence, writer sort, join-back stability),
+(c) **RNG envelope/accounting** (§7: counters, `draws`, non-consuming invariants, trace coverage/totals, attempt order),
+(d) **Cross-state replay** (§8: S1→S8 facts). **No partial PASS** is allowed.    
+
+## 9.3 Tolerated (non-error) cases
+
+The following **do not** prevent PASS when all other checks succeed (they are explicitly defined as non-errors upstream):
+
+* **S6 deterministic empties/shortfalls**: `NO_CANDIDATES`, `K_ZERO`, `ZERO_WEIGHT_DOMAIN`; **shortfall** where (|Eligible|<K_{target}) (select all eligible). S9 records these as **informative** in the bundle. 
+* **S8 degenerate but valid**: single-country domain (`DEG_SINGLE_COUNTRY`) and zero-remainder label (`DEG_ZERO_REMAINDER`).  
+
+## 9.4 Optional/absent surfaces (NA semantics)
+
+S9 **does not fail** due to absence of optional convenience surfaces, provided the mandated replay path is followed instead:
+
+* `s6_membership` absent ⇒ replay membership from `gumbel_key` + S3/S4 facts; **S6 PASS** is only required when reading the convenience surface. 
+* `s3_integerised_counts` absent ⇒ reconstruct per-country counts from S7 `residual_rank` over S3 domain and enforce Σ-law to `N` (S2). 
+
+## 9.5 Hard-fail classes (non-exhaustive)
+
+S9 **MUST** treat each of the following as **FAIL** for the fingerprint:
+
+**Structural (§5):**
+`E_SCHEMA_INVALID`, `E_PARTITION_MISPLACED`, `E_PATH_EMBED_MISMATCH`, `E_DUP_PK`, `E_FK_ISO_INVALID`, `E_TRACE_COVERAGE_MISSING`. 
+
+**Lineage/Determinism (§6):**
+Mismatch in recomputed `parameter_hash`/`manifest_fingerprint`; non-idempotent egress content for same `(seed,fingerprint)`; egress writer sort broken; S8 block atomicity breach (missing/duplicate `sequence_finalize`). 
+
+**RNG envelope/accounting (§7):**
+`E_RNG_COUNTER_MISMATCH` (blocks≠after−before), `E_RNG_BUDGET_VIOLATION` (`draws` mismatch), `E_NONCONSUMING_CHANGED_COUNTERS` (non-consuming but counters moved), `E_TRACE_TOTALS_MISMATCH`, `E_S4_SEQUENCE_INVALID`, `E_FINALISER_CARDINALITY`. 
+
+**Cross-state replay (§8):**
+S1: `E_S1_CARDINALITY`, `E_S1_U_OUT_OF_RANGE`, `E_S1_GATING_VIOLATION`.
+S2: `E_S2_COMPONENT_ORDER`, `E_S2_FINAL_MISSING_OR_DUP`, `E_S2_N_LT_2`.
+S3: `E_S3_RANK_GAPS`, `E_S3_HOME_NOT_ZERO`.
+S4: `E_S4_FINAL_CARDINALITY`, `E_S4_POLICY_VIOLATION`.
+S6: `E_S6_PASS_MISSING` (when using membership surface), `E_S6_MEMBERSHIP_MISMATCH`, `E_S6_ZERO_WEIGHT_SELECTED`.
+S7: `E_S7_PARITY` (residual/order/Σ-law mismatch).
+S8: `E_S8_SEQUENCE_GAP`, `E_SITE_ID_OVERFLOW`, `E_SUM_MISMATCH`, `E_ORDER_AUTHORITY_DRIFT`.  
+
+## 9.6 Gate publication behaviour
+
+* **PASS:** S9 writes `validation_bundle_1A/` **and** `_passed.flag` (one line: `sha256_hex = <hex64>`, computed over the raw bytes of all files listed in `index.json` (excluding `_passed.flag`) in ASCII-lexicographic order of the **`path`** entries), performing an **atomic rename** into `fingerprint={manifest_fingerprint}/`. 
+* **FAIL:** S9 writes the bundle (with failure records) **without** `_passed.flag`. **Consumers MUST NOT** read `outlet_catalogue` for that fingerprint. 
+
+## 9.7 Summary: PASS checklist (must all be TRUE)
+
+1. All subjects pass **schema**/$ref validation. 
+2. **Partitions & path↔embed** equality hold for every read subject. 
+3. **PK/UK** constraints hold; **FKs** resolve (ISO). 
+4. Recomputed `parameter_hash` and `manifest_fingerprint` **match**. 
+5. RNG events satisfy **envelope invariants**, **budgets**, and **trace coverage/totals**. 
+6. Cross-state replay equalities hold (S1→S8), incl. S8 **sequence_finalize** per (merchant,country) and **Σ-law** to S2 `N`. 
+7. S6 **PASS receipt** verified **if** membership convenience surface was used. 
+8. Bundle contains required files; `_passed.flag` content hash equals `SHA256(validation_bundle_1A)`. 
+
+---
+
+**Status:** §9 is **Binding**. It defines the **exact PASS/FAIL criteria**, tolerated non-errors, NA semantics for optional surfaces, and the **gate publication** that governs downstream access to `outlet_catalogue`.
+
+---
+
+# 10) Error handling, edge cases & degrade ladder **(Binding)**
+
+## 10.1 Failure scope & actions (normative)
+
+S9 classifies breaches by **scope** and applies the following actions:
+
+| Scope               | What it means                                                                                                                                                                                | Action                                                                                                                   |
+|---------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------|
+| **Run-scoped**      | Configuration/authority violations that make the whole fingerprint untrustworthy (schema/dictionary/registry conflicts, lineage recompute mismatch, label registry drift, partition misuse). | **FAIL run** → publish **bundle only** (no `_passed.flag`).                                                              |
+| **Merchant-scoped** | A specific merchant’s producer outputs/logs violate binding laws (e.g., S2 attempt order broken, S4 attempt sequence invalid, S8 sequence gap).                                              | Mark merchant as **failed** in bundle; **FAIL run** (no `_passed.flag`). *(S9 is a **gate**, not a best-effort linter.)* |
+
+**Run-scoped examples (non-exhaustive):** schema/partition FK violations; path↔embed inequality; label/stream registry breach; dictionary writer-policy breach; recomputed `parameter_hash`/`manifest_fingerprint` mismatch.   
+
+**Merchant-scoped examples (non-exhaustive):** S1 cardinality/gating; S2 component order; S4 attempt/order/policy; S6 membership mismatch; S7 residual parity; S8 sequence gaps/overflow policy breach (see §10.4).      
+
+---
+
+## 10.2 Edge cases (deterministic **non-errors**)
+
+The following outcomes are **valid** when upstream states behaved per spec; S9 **MUST NOT** fail solely due to their occurrence:
+
+* **S6 deterministic empties/shortfalls.** `NO_CANDIDATES`, `K_ZERO`, or (|Eligible|<K_{target}) (select all eligible). Record as **informative** in the bundle. 
+* **S8 degenerate domains.** `DEG_SINGLE_COUNTRY` and `DEG_ZERO_REMAINDER` (per-country blocks still 1..nᵢ; finalize events present). 
+* **S4 gated zero-target paths.** `A=0` (no admissible foreigns) or policy `downgrade_domestic` resulting in `ztp_final{K_target=0, exhausted:true}`.  
+
+---
+
+## 10.3 Degrade ladder (when optional conveniences are absent)
+
+S9 **MUST** follow this ladder; absence of an optional surface is **not** a failure if the next step is followed correctly:
+
+1. **Counts:** If `s3_integerised_counts` exists, use it; **else** reconstruct counts from S7 `residual_rank` over the S3 domain and enforce Σ-law to S2 `N`. **Never** read S5 weights.  
+2. **Membership:** If `s6_membership` exists, **verify S6 PASS** then use it; **else** replay from `gumbel_key` (+ S3/S4 facts). 
+3. **Upstream sequence (if present):** `s3_site_sequence` is **cross-check only**; divergence is a **failure** (see below). 
+
+---
+
+## 10.4 Overflow & policy-specific rules (S8)
+
+S8 defines a **guardrail** for per-country site counts `n>999,999`:
+
+* **Correctly handled overflow (merchant-scoped abort; non-error):** S8 **emitted** one **non-consuming** `site_sequence_overflow{…, max_seq=999999, severity="ERROR"}` **and** wrote **no** `outlet_catalogue` rows for that merchant. S9 records the merchant in the bundle and **does not** fail solely for the overflow condition.  
+* **Policy breach (failure):** any egress rows exist for an overflowed merchant **or** the overflow event is missing/inconsistent → `E_OVERFLOW_POLICY_BREACH` (**merchant-scoped**) and **FAIL run**. 
+
+---
+
+## 10.5 S4 cap & policy handling
+
+S4’s zero-draw cap and policy are **governed**:
+
+* **Allowed policies:** `abort` or `downgrade_domestic` (part of `parameter_hash`). 
+* **Validator checks:** attempts are **1-based**; `ztp_retry_exhausted` appears only at cap; **either** no `ztp_final` when policy=`abort` **or** `ztp_final{K_target=0, exhausted:true}` when policy=`downgrade_domestic`. Any other combination ⇒ **merchant-scoped failure** (cap/policy violation).  
+
+---
+
+## 10.6 Failure vocabulary (canonical S9 codes)
+
+S9 **MUST** use the following failure codes in bundle records (non-exhaustive, aligned to §§5–8):
+
+* **Structural:** `E_SCHEMA_INVALID`, `E_PARTITION_MISPLACED`, `E_PATH_EMBED_MISMATCH`, `E_DUP_PK`, `E_FK_ISO_INVALID`, `E_TRACE_COVERAGE_MISSING`.   
+* **Lineage/Determinism:** `E_LINEAGE_RECOMPUTE_MISMATCH`, `E_WRITER_SORT_BROKEN`, `E_S8_BLOCK_ATOMICITY`.   
+* **RNG envelope/accounting:** `E_RNG_COUNTER_MISMATCH`, `E_RNG_BUDGET_VIOLATION`, `E_NONCONSUMING_CHANGED_COUNTERS`, `E_TRACE_TOTALS_MISMATCH`, `E_S4_SEQUENCE_INVALID`, `E_FINALISER_CARDINALITY`.  
+* **Cross-state replay:** `E_S1_CARDINALITY`, `E_S1_GATING_VIOLATION`, `E_S2_COMPONENT_ORDER`, `E_S2_N_LT_2`, `E_S3_RANK_GAPS`, `E_S3_HOME_NOT_ZERO`, `E_S6_MEMBERSHIP_MISMATCH`, `E_S7_PARITY`, `E_S8_SEQUENCE_GAP`, `E_ORDER_AUTHORITY_DRIFT`, `E_SUM_MISMATCH`, `E_OVERFLOW_POLICY_BREACH`.    
+
+---
+
+## 10.7 Bundle logging (required fields)
+
+S9 **MUST** write failure/intel rows into `s9_summary.json` and index them in `index.json`, using stable keys:
 
 ```
-data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
-  ├─ bundle.zip
-  └─ _passed.flag   # ASCII: SHA256(bundle.zip)
+s9.fail.code, s9.fail.scope ∈ {"RUN","MERCHANT"},
+s9.fail.reason, s9.fail.dataset_id?, s9.fail.anchor?,
+s9.run.seed, s9.run.parameter_hash, s9.run.manifest_fingerprint,
+s9.fail.merchant_id?, s9.fail.country_iso?, s9.fail.attempt?, s9.fail.expected?, s9.fail.observed?
 ```
 
-**Index contract.** `bundle.zip/index.json` MUST conform to the registry-resolved schema for the validation bundle index (the registry/dictionary provides the exact pointer; in schemas it’s the `validation_bundle` index table). **Do not hardcode** the pointer; resolve via the artefact registry.
-
-**Minimum payloads inside the ZIP (same folder as `index.json`):**
-
-* `schema_checks.json`
-* `key_constraints.json`
-* `rng_accounting.json`
-* `metrics.csv`
-* `diffs/*` (zero or more CSVs written by S9.3–S9.6)
-
-**Gate.** Compute `H = SHA256(bundle.zip bytes)` and write `_passed.flag` whose **contents** are exactly the 64-char lowercase hex `H`. 1B **must** recompute and compare before reading egress.
-
-The artefact registry encodes: paths, ownership, immutability, and the policy **“verify `_passed.flag` equals SHA256(bundle.zip) before reading egress”**.
+These mirror upstream producer diagnostics (e.g., S4 failure keys) and enable 1:1 correlation with validator checks.  
 
 ---
 
-## 2) Bundle index (inside the ZIP)
+## 10.8 No partial visibility & atomicity
 
-A **table** with PK `artifact_id`. Columns are fixed to avoid ambiguity:
+On any **run-scoped** or **merchant-scoped** failures, S9 **MUST** still write a complete bundle; `_passed.flag` is **withheld** on FAIL. Publish uses **stage → compute hash → atomic rename**; **no partial contents** may become visible.  
 
-* `artifact_id` (PK, string, unique)
-* `kind ∈ {"plot","table","diff","text","summary"}`
-* `path` (UTF-8, **relative path** within the ZIP, POSIX separators `/`)
-* `mime` (media type, e.g. `application/json`, `text/csv`) — optional if schema allows
-* `notes` (free text) — optional
+---
 
-**Normative examples (rows):**
+**Status:** §10 is **Binding**. It fixes the **scope→action** rules, enumerates **non-error edge cases**, defines the **degrade ladder**, sets overflow/policy handling precisely, and standardises **failure vocabulary and logging** for the S9 validation bundle.
+
+---
+
+# 11) Concurrency, sharding & atomics **(Binding)**
+
+## 11.1 Execution model (read-parallel, order-agnostic)
+
+S9 is a **read-only** validator. It **MAY** scan inputs in parallel but **MUST NOT** rely on physical file order. For JSONL logs/events the Dataset Dictionary declares **set semantics** (`ordering: []`), so S9’s checks **MUST** be defined by keys and totals, not by line/file sequence. Egress order is governed by the Dictionary **writer sort** and is verified as a constraint (see §5).  
+
+## 11.2 Sharding & run binding
+
+* **Run binding (logs).** RNG events and core logs are partitioned by `{seed, parameter_hash, run_id}`. S9 **MUST** derive the set of observed `{run_id}` from the event streams in scope and validate **matching** `rng_trace_log` and `rng_audit_log` partitions for each tuple. 
+* **Multi-run coexistence.** Multiple `run_id`s may exist for the same `{seed, parameter_hash}`; S9 treats each independently when reconciling envelopes/trace and then aggregates per the spec’s totals rules. (Egress remains fingerprint-scoped.) 
+
+## 11.3 Deterministic reductions (commutative/associative)
+
+All S9 aggregations **MUST** be deterministic regardless of worker count/scheduling:
+
+* **Trace reconciliation.** Select the **final** cumulative `rng_trace_log` row per `(module,substream_label,run_id)` using this deterministic key:
+  `ORDER BY events_total DESC, ts_utc DESC, rng_counter_after_hi DESC, rng_counter_after_lo DESC LIMIT 1`.
+  This selection is independent of file arrival order and filesystem chunking.
+* **Row-set equality.** Where S9 compares tables across files (e.g., egress partitions), equality is by **PK/UK and content**, not physical sequence; writer-sort monotonicity is checked per §5.6. 
+* **Join-back checks.** S9 computes join/permutation checks using S3’s **`candidate_rank`** as the single order authority; the computation is key-driven and stable. 
+
+## 11.4 Atomic publish (bundle & flag)
+
+S9 **MUST** publish the validation bundle **atomically**: build under a temporary directory (e.g., `…/validation/_tmp.{uuid}`), compute `_passed.flag` over **all files listed in `index.json` (excluding `_passed.flag`)** in **ASCII-lexicographic order of the `path` entries**, then perform a **single atomic rename** to `fingerprint={manifest_fingerprint}/`. **No partial contents** may become visible; on failure, remove the temp.  
+
+## 11.5 Idempotent re-runs & equivalence
+
+Re-running S9 with identical inputs and authorities **MUST** produce a **byte-identical** bundle and the same `_passed.flag` content. Two bundles are **equivalent** iff `MANIFEST.json` and **all** other files match byte-for-byte and the flag’s SHA-256 equals `SHA256(validation_bundle_1A)` for the same fingerprint. 
+
+## 11.6 Concurrency-safety checks S9 MUST enforce
+
+* **Trace coverage under parallelism.** For every validated event append, there is **exactly one** subsequent cumulative `rng_trace_log` row for its `(module, substream_label, run_id)`; totals reconcile on the final row. **Any gap or double-append is FAIL** (see §7). 
+* **Egress monotonicity across files.** Within each `(seed,fingerprint)` egress partition, S9 verifies Dictionary **writer sort** `[merchant_id, legal_country_iso, site_order]` **within files and across file boundaries**. 
+* **Set semantics for logs/events.** JSONL streams are treated as **sets**; duplicate identity rows are structural errors; physical order is non-authoritative. 
+
+## 11.7 No reliance on producer worker count
+
+S9’s outcomes **MUST NOT** change with producer/validator worker counts or scheduling. This is guaranteed by:
+
+* dictionary-pinned partitions and writer sort (egress),
+* key-based joins to S3 order authority,
+* set-based event/log semantics with cumulative trace, and
+* atomic, fingerprint-scoped publish of the bundle/flag.   
+
+---
+
+**Status:** §11 is **Binding**. It fixes how S9 stays deterministic under parallel reads, enforces **set semantics**, and publishes the **bundle + gate** atomically and idempotently.
+
+---
+
+# 12) Bundle contents & metrics **(Binding)**
+
+## 12.1 Bundle root & index (what the folder MUST contain)
+
+* **Location (partitioned):**
+  `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` (fingerprint partition). 
+* **Every non-flag file MUST be listed once in `index.json`** using the schema below; `path` entries are **relative** to the bundle root; `kind ∈ {plot|table|diff|text|summary}`. **`artifact_id` MUST be unique.**
+* **Index field hygiene:** `artifact_id` **MUST** match `^[A-Za-z0-9._-]+$` (ASCII only). `path` **MUST** be **relative** (no leading slash, no `..` segments) and ASCII-normalised.
+* **Hashing precondition:** The gate hash (§9) is computed over the byte contents of **all files listed in `index.json`** (excluding `_passed.flag`) in **ASCII-lexicographic order of the `path` entries**.
+* **Gate coupling (reminder):** `_passed.flag` sits in the same folder and contains `sha256_hex = <hex64>` computed over the raw bytes of **all files listed in `index.json` (excluding `_passed.flag`)**, in **ASCII-lexicographic order of the `path` entries**. Consumers **MUST** verify this for the same fingerprint **before** reading `outlet_catalogue`.
+
+**`index.json` (schema — Binding):**
 
 ```
-("schema_checks","table","schema_checks.json","application/json","JSON-Schema results")
-("key_constraints","table","key_constraints.json","application/json",null)
-("rng_accounting","table","rng_accounting.json","application/json",null)
-("corridor_metrics","table","metrics.csv","text/csv","Release gates & thresholds echoed")
-("residual_diffs","diff","diffs/residual_rank_mismatch.csv","text/csv","Exact mismatches")
+{ artifact_id: string, kind: "plot"|"table"|"diff"|"text"|"summary",
+  path: string, mime?: string, notes?: string }
 ```
 
-> If the schema supports per-file digests, include `sha256` per row; otherwise you may echo the global digest in `notes`.
-
-**Validation rule.** Build `index.json`, then validate it against the registry-resolved `validation_bundle` index schema **before** zipping.
+(Per `schemas.1A.yaml#/validation/validation_bundle.index_schema`.) 
 
 ---
 
-## 3) Canonical packaging (byte-stable ZIP)
+## 12.2 Required artifacts (minimum set; MUST exist)
 
-To guarantee re-runs on the same inputs yield **identical bytes** (stable `H`):
+S9 **MUST** write at least the files below; all MUST appear in `index.json` (except `_passed.flag`):
 
-1. **Materialise payloads** first (`schema_checks.json`, `key_constraints.json`, `rng_accounting.json`, `metrics.csv`, `diffs/*`). These are immutable byte inputs to the ZIP step.
+1. **`MANIFEST.json`** — run identity & environment
+   Required fields (non-exhaustive):
+   `version="1A.validation.v1"`, `manifest_fingerprint`, `parameter_hash`, `git_commit_hex`, `artifact_count`, `math_profile_id`, `compiler_flags`, `created_utc_ns`.  
+2. **`parameter_hash_resolved.json`** — canonical list of governed parameters (𝓟) with basenames in ASCII-lexicographic order.
+3. **`manifest_fingerprint_resolved.json`** — derivation inputs (e.g., `git_commit_hex`, `parameter_hash`). 
+4. **`rng_accounting.json`** — per-family RNG accounting & coverage (see §12.4).  
+5. **`s9_summary.json`** — structural & replay verdicts (by check & by merchant); failure codes; gate decision summary (see §12.5).
+6. **`egress_checksums.json`** — stable per-file & composite SHA-256 for `outlet_catalogue` in `[seed,fingerprint]` (see §12.6).
+7. **`index.json`** — bundle index per §12.1. 
 
-2. **Canonical `index.json`**:
-
-   * UTF-8, LF newlines, **no BOM**.
-   * Canonical JSON (object keys sorted, stable number/string emission).
-
-3. **ZIP determinism rules**:
-
-   * File names UTF-8; **paths sorted lexicographically by `path`**.
-   * Compression: **DEFLATE** at a **fixed governed level** (e.g., `6`); do not vary by host.
-   * **Timestamps**: set per-entry mtime to a **fixed epoch** (e.g., `1980-01-01T00:00:00Z`) if the library supports it; otherwise normalise to zero.
-   * Disable variable extra fields; prefer no ZIP64 unless required by size.
-   * **Relative paths only**; must match `index.json.path` exactly.
-
-4. **Compute digest & sign**:
-
-   * Let `B` = exact ZIP bytes.
-   * `H = SHA256(B)` as 64-char lowercase hex.
-   * Write the ZIP, then atomically write `_passed.flag` with **ASCII text** `H`.
-
-5. **Immutability & idempotency**:
-
-   * The `validation/fingerprint={F}/` prefix is **append-only**.
-   * If `bundle.zip` exists, recompute `H'`; if bytes differ, **refuse to overwrite** (raise `s9.7.zip_noncanonical_or_conflict`); if identical, it’s idempotent (leave flag as-is).
-   * **Never** write `_passed.flag` unless **all** S9 gates are true.
-
-**Atomic writes.** Write to `*.tmp` and **fsync + rename** for both `bundle.zip` and `_passed.flag` to prevent torn reads.
+> **Hashing rule for the gate** (normative, repeated): `_passed.flag` = `sha256_hex` of the concatenation of the raw bytes of **all files listed in `index.json`** (excluding `_passed.flag`) in **ASCII-lexicographic order of the `path` entries**. 
 
 ---
 
-## 4) Reference pack-and-sign algorithm
+## 12.3 Recommended/optional artifacts (included in flag hash when present)
 
-```pseudo
-INPUT:
-  lineage := (seed, parameter_hash, manifest_fingerprint, run_id)
-  s9_status := {s9_2_ok, s9_3_ok, s9_4_ok, s9_5_ok, s9_6_ok}
-  payloads := {
-     "schema_checks.json",
-     "key_constraints.json",
-     "rng_accounting.json",
-     "metrics.csv",
-     "diffs/*"  # zero or more CSVs
-  }
-  registry := artefact dictionary (resolves schema pointers & target paths)
-  ZIP_LEVEL := governed compression level (e.g., 6)
+* **`param_digest_log.jsonl`** — one line per governed parameter file `{filename,size_bytes,sha256_hex,mtime_ns}`. 
+* **`fingerprint_artifacts.jsonl`** — one line per artefact opened into the fingerprint `{path,sha256_hex,size_bytes}`. 
+* **`numeric_policy_attest.json`** — attestation of numeric policy (IEEE-754 binary64, RNE, FMA-off, no FTZ/DAZ) and S0.8 self-tests. 
+* **`DICTIONARY_LINT.txt`, `SCHEMA_LINT.txt`** — optional lints; if emitted, they are part of the flag hash. 
 
-# 0) Require upstream pass
-assert all(s9_status.values)    # else we'll still make a diagnostics bundle, but no flag
+---
 
-# 1) Assemble index rows (relative paths)
-rows := [
-  ("schema_checks","table","schema_checks.json","application/json",null),
-  ("key_constraints","table","key_constraints.json","application/json",null),
-  ("rng_accounting","table","rng_accounting.json","application/json",null),
-  ("corridor_metrics","table","metrics.csv","text/csv",null)
-]
-for f in list_files("diffs/"):
-  rows.append(("diff_"+basename_no_ext(f),"diff","diffs/"+basename(f),"text/csv",null))
+## 12.4 `rng_accounting.json` (Binding — content & metrics)
 
-index := to_table(rows, pk="artifact_id")
+Purpose: prove **envelope compliance**, **budget reconciliation**, and **trace coverage** for every RNG family used by 1A (S1/S2/S4/S6/S7/S8), per §7 rules.
 
-# 2) Validate index using registry-resolved schema pointer
-ptr := registry.schema_ptr("validation_bundle_index")   # do not hardcode
-assert jsonschema_validate(index, ptr)
+**Shape (minimum fields):**
 
-# 3) Canonicalise index.json (UTF-8, LF, sorted keys); write to temp
-write_canonical_json("index.json.tmp", index)
-
-# 4) Build canonical ZIP (sorted paths, fixed timestamps & compression)
-paths := sort(["index.json"] + [r.path for r in rows])
-move("index.json.tmp","index.json")
-B := zip_bytes(paths,
-               compression="deflate", level=ZIP_LEVEL,
-               fixed_epoch="1980-01-01T00:00:00Z",
-               sort_names=true, utf8_filenames=true)
-
-# 5) Compute digest, write artefacts atomically
-H := sha256_hex(B)      # 64-char lowercase hex
-write_atomic(".../validation/fingerprint={F}/bundle.zip.tmp", B)
-rename_atomic(".../validation/fingerprint={F}/bundle.zip.tmp",
-              ".../validation/fingerprint={F}/bundle.zip")
-
-if all(s9_status.values):
-   write_atomic_text(".../validation/fingerprint={F}/_passed.flag.tmp", H)
-   rename_atomic(".../validation/fingerprint={F}/_passed.flag.tmp",
-                 ".../validation/fingerprint={F}/_passed.flag")
-
-# 6) Post-write verify (defensive)
-B2 := read_bytes(".../validation/fingerprint={F}/bundle.zip")
-assert sha256_hex(B2) == H
 ```
-
----
-
-## 5) Failure semantics (when **no flag** is written)
-
-**Hard fail ⇒ withhold `_passed.flag`:**
-
-* Any S9.3 schema/PK/FK/block invariant breach.
-* Any S9.4 cross-dataset equality failure (conservation, coverage, home mismatch, residual-rank mismatch, optional Gumbel-order mismatch).
-* Any S9.5 RNG lineage, counter, trace/event reconciliation, or replay failure.
-* Any S9.6 corridor breach.
-
-In all cases, **still** write `bundle.zip` (diagnostics) but **do not** write `_passed.flag`.
-
----
-
-## 6) What exactly goes into the bundle (minimum viable set)
-
-* `index.json` — authoritative artefact map (this section’s schema).
-* `schema_checks.json` — per-dataset JSON-Schema results (paths & pointers included).
-* `key_constraints.json` — PK/UK/FK proofs and duplicates.
-* `rng_accounting.json` — per-label draws, counter deltas, jumps, trace reconciliation, and replay spot-checks (with first failing `{seed,counter,label,...}`).
-* `metrics.csv` — S9.6 corridor metrics and thresholds (echoed).
-* `diffs/*.csv` — reproducible mismatches (`conservation.csv`, `coverage.csv`, `residual_rank_mismatch.csv`, `sequence_finalize_coverage.csv`, etc.).
-
----
-
-## 7) Hand-off to 1B (defence-in-depth preflight)
-
-Before reading egress `(seed, fingerprint)`, 1B **must**:
-
-1. **Lineage echo (cheap sanity):**
-
-```pseudo
-r := read_one_row("outlet_catalogue", seed, fingerprint)
-assert r.manifest_fingerprint == fingerprint
-```
-
-2. **Validation proof:**
-
-```pseudo
-B  := read_bytes("validation/fingerprint={F}/bundle.zip")
-H' := sha256_hex(B)
-Hf := read_text("validation/fingerprint={F}/_passed.flag").strip()
-assert H' == Hf
-```
-
-3. **Order policy reminder:** egress **does not** encode cross-country order; 1B must join `country_set(seed, parameter_hash).rank`.
-
----
-
-## 8) Error taxonomy (S9.7-specific)
-
-* `s9.7.index_schema_violation` — `index.json` fails the bundle index schema.
-* `s9.7.bundle_write_error` — I/O error writing the ZIP.
-* `s9.7.flag_write_on_fail` — attempt to create `_passed.flag` despite upstream failure (guard).
-* `s9.7.zip_noncanonical_or_conflict` — an existing bundle differs bytewise for the same fingerprint.
-* `s9.7.sha_mismatch_postwrite` — post-write SHA differs from computed `H` (abort; leave no flag).
-* `s9.7.consumer_flag_mismatch` — 1B finds `SHA256(bundle) ≠ contents(_passed.flag)`; consumption must abort.
-
-All are **hard-fail**; record in logs/registry notes; **never** emit a flag on producer-side failure.
-
----
-
-## 9) Conformance tests (must pass)
-
-1. **Happy path determinism.** Re-run S9 with identical inputs on different hosts: byte-identical `bundle.zip` (same `H`), `_passed.flag` contains exactly `H`, 1B preflight succeeds. ✔︎
-2. **Bundle-only on breach.** Induce a corridor breach (S9.6): `bundle.zip` exists with metrics/diffs, `_passed.flag` absent; 1B preflight fails at step 2. ✔︎
-3. **Index schema guard.** Break `index.json` (e.g., wrong `kind`); get `s9.7.index_schema_violation`; no flag written. ✔︎
-4. **Atomicity.** Kill process mid-write: only `*.tmp` present; no partial `bundle.zip` or flag; next run succeeds. ✔︎
-5. **Consumer defence.** Corrupt `_passed.flag` by one nibble: 1B preflight hash mismatch; refuses to read egress. ✔︎
-
----
-
-## 10) Operational notes
-
-* **Resolve pointers from the registry**, not constants (paths, schema refs, partition templates).
-* **Canonical JSON & ZIP** are essential for reproducibility; enforce at build time.
-* **Immutability model:** for a fingerprint `{F}`, valid states are (a) **bundle+flag** (authorised) or (b) **bundle-only** (blocked). No third state.
-* **Provenance.** Include the lineage `(seed, parameter_hash, manifest_fingerprint, run_id)` and validator commit in `index.json.notes` or a `README.txt` inside the ZIP.
-* **Dependency wiring in the registry:** declare `validation_passed_flag.digest = SHA256(bundle.zip)` and `validation_passed_flag ← validation_bundle_1A`.
-
----
-
-This locks **S9.7**: exact index & contents, byte-stable packaging, SHA-256 signing, atomic write & immutability rules, consumer preflight, error taxonomy, and conformance tests — all aligned with the earlier S9 guarantees and the artefact registry/data dictionary.
-
----
-
-# S9.8 — Failure semantics (implementation-ready)
-
-This section locks the **decision logic**, **severity classes**, **machine codes**, **evidence map**, **write rules**, and **idempotence/concurrency** for S9. It is the **only** authority on when `_passed.flag` is written or withheld and how 1B must interpret outcomes. All rules bind to the S9.1–S9.7 contracts and your registry/dictionary.
-
----
-
-## 1) Scope & contract (what S9.8 governs)
-
-**Inputs:** pass/fail booleans and artefacts from:
-
-* **S9.3** structural validations,
-* **S9.4** cross-dataset equalities,
-* **S9.5** RNG lineage, accounting & replay,
-* **S9.6** statistical corridors,
-* plus the **S9.7** pack-and-sign step.
-
-**Outputs (mutually exclusive end states per `fingerprint`):**
-
-* **PASS:** `bundle.zip` **and** `_passed.flag` whose **ASCII contents equal `SHA256(bundle.zip)`**.
-* **FAIL:** `bundle.zip` only (full diagnostics); **no** `_passed.flag`.
-
-**Hard-fail authority:** *Any* schema/keys/FK violation, RNG lineage/replay mismatch, cross-dataset equality failure, or corridor breach is a **hard fail**. Diagnostics still materialise in the bundle; the flag is withheld. Record-only numerics (Wilson CI, z-scores, etc.) never gate release.
-
----
-
-## 2) Severity classes (closed set)
-
-### A) **Hard fail** (release blocked; no hand-off)
-
-Triggers (any one suffices):
-
-1. **Structural / schema:** JSON-Schema breach in `outlet_catalogue`, `country_set`, or `ranking_residual_cache_1A`; partition echo mismatch; PK/UK duplicates; ISO FK breach.
-   *Evidence:* `schema_checks.json`, `key_constraints.json`.
-2. **RNG lineage / replay:** audit algo/seed mismatch; missing required label streams; counter advance ≠ declared draws (+ jumps); replay mismatch for `gumbel_key` / `dirichlet_gamma_vector`.
-   *Evidence:* `rng_accounting.json`.
-3. **Cross-dataset equalities:** mass not conserved; egress outside `country_set`; home mismatch; rank gaps; `site_id ≠ zpad6(site_order)`; missing or extra `sequence_finalize`.
-   *Evidence:* `diffs/*`.
-4. **Corridors:** any corridor outside configured bounds (hurdle gap; LRR L1 guard; sparsity gap; ZTP acceptance).
-   *Evidence:* `metrics.csv`.
-
-**Outcome:** write **bundle only**; **do not** write `_passed.flag`.
-
-### B) **Soft warn** (record-only)
-
-Non-structural numerical observations that **do not** contradict exact contracts. These appear in `metrics.csv` (and optionally `decision_summary.json`) and **do not** block the flag **under the current charter**. (A governed switch may escalate; see §5.)
-
----
-
-## 3) Error taxonomy & evidence map (canonical codes)
-
-| Class           | Code (prefix `s9.*`)                                                                                        | Typical trigger                                  | Evidence in bundle                       |
-| --------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ---------------------------------------- |
-| Structural      | `s9.3.schema_violation.*`                                                                                   | JSON-Schema mismatch                             | `schema_checks.json`                     |
-| Keys/FK         | `s9.3.pk_duplicate.*`, `s9.3.fk_iso_breach`                                                                 | PK dup; ISO not in canonical set                 | `key_constraints.json`                   |
-| Partition echo  | `s9.3.partition_echo_mismatch`                                                                              | Row echo ≠ directory tokens                      | `schema_checks.json` (echo section)      |
-| RNG envelope    | `s9.5.ERR_RNG_ALGO_MISMATCH`, `s9.5.ERR_RNG_SEED_MISMATCH`                                                  | Audit algo/seed mismatch                         | `rng_accounting.json` (header)           |
-| Draw accounting | `s9.5.ERR_COUNTER_ADVANCE_MISMATCH[ℓ]`, `s9.5.ERR_ADJACENCY_BREAK[ℓ]`, `s9.5.ERR_NONCONSUMING_HAS_DRAWS[ℓ]` | Counter math / adjacency / zero-draw violations  | `rng_accounting.json` (per-label)        |
-| Replay          | `s9.5.ERR_REPLAY_MISMATCH[ℓ]`                                                                               | Gumbel/Dirichlet payload regen mismatch          | `rng_accounting.json` (reproducer tuple) |
-| Equalities      | `s9.4.mass_not_conserved`                                                                                   | $\sum_i n_{m,i}\ne N^{\text{raw}}_m$        | `diffs/conservation.csv`                 |
-| Coverage/home   | `s9.4.country_set_coverage`, `s9.4.country_set_home_mismatch`, `s9.4.country_set_rank_contiguity`           | Egress outside set; home ISO mismatch; rank gaps | `diffs/coverage.csv`                     |
-| Sequencing      | `s9.4.site_id_mismatch`, `s9.4.sequence_finalize_coverage`                                                  | `site_id` bijection; finalize coverage           | `diffs/sequence.csv`                     |
-| Corridors       | `s9.6.corridor_breach_*`                                                                                    | Hurdle/LRR/sparse/ZTP out-of-band                | `metrics.csv` (with thresholds)          |
-| S9.7 writer     | `s9.7.index_schema_violation`, `s9.7.bundle_write_error`, `s9.7.sha_mismatch_postwrite`                     | Index invalid / I/O / digest self-check          | Pack step logs; `index.json` presence    |
-
-> **Minimum set invariant (diagnostics on early fail):** Even if an early step fails, S9 **must still emit** all minimum files named in S9.7. When a step never ran, write a **stub** file with `{ "evaluated": 0, "notes": "not evaluated due to prior failure <code>" }`. This preserves S9.7’s index contract.
-
----
-
-## 4) Canonical decision routine (single source of truth)
-
-```pseudo
-function s9_8_decide_and_emit(results, pack_bundle):
-    # results: hard gates and soft warnings collected from S9.3–S9.6
-    with results as {
-      schema_pass, keys_pass, fk_pass,
-      rng_envelope_pass, rng_accounting_pass, rng_replay_pass,
-      eq_conservation_pass, eq_coverage_pass, eq_site_id_pass,
-      corridors_pass,
-      soft_warnings:list[code]
-    }:
-
-        # Prepare diagnostics stubs for any steps that did not execute
-        ensure_minimum_payloads_exist_as_stubs_if_missing()
-
-        # Structural gates (ordered precedence)
-        if not (schema_pass and keys_pass and fk_pass):
-            pack_bundle(write_flag=false, failure_class="structural", soft_warnings=soft_warnings)
-            return EXIT_STRUCTURAL_FAIL
-
-        if not (rng_envelope_pass and rng_accounting_pass and rng_replay_pass):
-            pack_bundle(write_flag=false, failure_class="rng_lineage", soft_warnings=soft_warnings)
-            return EXIT_RNG_FAIL
-
-        if not (eq_conservation_pass and eq_coverage_pass and eq_site_id_pass):
-            pack_bundle(write_flag=false, failure_class="equalities", soft_warnings=soft_warnings)
-            return EXIT_EQUALITIES_FAIL
-
-        if not corridors_pass:
-            pack_bundle(write_flag=false, failure_class="corridors", soft_warnings=soft_warnings)
-            return EXIT_CORRIDOR_FAIL
-
-        # Success path: pack & sign (S9.7); flag contents == SHA256(bundle.zip)
-        H = pack_bundle(write_flag=true, failure_class=null, soft_warnings=soft_warnings)
-        emit_summary(stdout, { status:"PASS", sha256:H, soft_warnings })
-        return EXIT_OK
-```
-
-**Binding notes:**
-
-* `pack_bundle(write_flag=…)` is the S9.7 canonical pack-and-sign. On `true` it **must** write `_passed.flag` whose contents equal `SHA256(bundle.zip)`. On `false` it **must not** write the flag.
-* Precedence is fixed: **structural → RNG → equalities → corridors**. The first failing class selects the **exit code**, but all encountered error codes are still recorded in the bundle artefacts.
-
----
-
-## 5) Idempotence, determinism & concurrency
-
-* **Idempotence:** Same inputs ⇒ byte-identical `bundle.zip` (see S9.7 canonical ZIP) ⇒ identical `_passed.flag`.
-* **Immutable target:** For a `fingerprint={F}` there are only two valid terminal states: **(a)** `bundle.zip + _passed.flag` or **(b)** `bundle.zip` only. No third state. **Never overwrite** a flag for `{F}`.
-* **Concurrency guard:** Write to `*.tmp`, `fsync`, then **atomic rename**. Always write `_passed.flag` **last** and **only** on PASS.
-* **Policy switch (optional):** A governed config may promote selected soft warnings to **hard fails** (e.g., `treat_warnings_as_errors=true` or a list of `warn_codes_to_fail`). S9.8 must read this strictly from config (not code).
-
----
-
-## 6) Consumer contract (1B reaffirmed)
-
-Before reading `outlet_catalogue(seed,fingerprint)`:
-
-1. Compute `SHA256(bundle.zip)` in `…/validation/fingerprint={fingerprint}/`.
-2. Read `_passed.flag` and require **text equality** with the computed digest.
-3. If either file missing or digests differ ⇒ **abort consumption**.
-4. Remember: **cross-country order lives only in `country_set.rank`**; egress never encodes it.
-
----
-
-## 7) Conformance tests (negative & edge)
-
-1. **Schema failure path:** Put `site_id="ABC123"` in egress. Expect `s9.3.schema_violation.outlet_catalogue`; bundle written with diagnostics stubs for later steps; **no flag**; `EXIT_STRUCTURAL_FAIL`. ✔︎
-2. **RNG counter drift:** Add +1 to `rng_trace_log.draws` for `gumbel_key`. Expect `ERR_COUNTER_ADVANCE_MISMATCH[gumbel_key]`; bundle-only; `EXIT_RNG_FAIL`. ✔︎
-3. **Conservation breach:** Two rows realised but `final_country_outlet_count=3`. Expect `s9.4.mass_not_conserved`; bundle-only; `EXIT_EQUALITIES_FAIL`. ✔︎
-4. **Corridor breach:** Force ZTP acceptance to 0.1 with corridor `[0.3,0.7]`. Expect `s9.6.corridor_breach_ztp_rate`; bundle-only; `EXIT_CORRIDOR_FAIL`. ✔︎
-5. **Soft warn only:** Conservation exact, but tiny L1 drift flagged as warning under policy (not escalated). Expect **PASS**, bundle+flag, `soft_warnings` listed. ✔︎
-6. **Idempotence:** Re-run S9 end-to-end with identical inputs on different hosts; expect byte-identical ZIP digest and same `_passed.flag`. ✔︎
-7. **Concurrency:** Kill process mid-pack; only `*.tmp` present; no flag. Next run finishes and produces valid bundle+flag. ✔︎
-
----
-
-## 8) Operator runbook (remediation pointers)
-
-* **Structural:** fix schemas/regex, repair partition echoes/PK/FK; re-emit and re-run S9.
-* **RNG lineage:** ensure required labels exist; correct draw accounting / adjacency; fix replay payloads.
-* **Equalities:** debug S7 integerisation & S8 write path; ensure `country_set` is the **sole** cross-country order carrier.
-* **Corridors:** examine governed thresholds; investigate model drift (hurdle/ZTP/sparsity); adjust config (not code) if policy dictates.
-
----
-
-## 9) CI wiring (exit codes & logs)
-
-* `EXIT_OK = 0`
-* `EXIT_STRUCTURAL_FAIL = 10`
-* `EXIT_RNG_FAIL = 20`
-* `EXIT_EQUALITIES_FAIL = 30`
-* `EXIT_CORRIDOR_FAIL = 40`
-
-**Always** write the bundle (`index.json`, `schema_checks.json`, `key_constraints.json`, `rng_accounting.json`, `metrics.csv`, `diffs/*`). S9.7 computes and writes `_passed.flag` **only** on PASS.
-
----
-
-## 10) Optional convenience artefact (record-only)
-
-You **may** include `decision_summary.json` (kind=`"summary"`) in the ZIP, containing:
-
-```json
 {
-  "lineage": { "seed": "...", "parameter_hash": "...", "manifest_fingerprint": "...", "run_id": "..." },
-  "status": "PASS|FAIL",
-  "failure_class": "structural|rng_lineage|equalities|corridors|null",
-  "sha256_bundle": "…",     // present only on PASS
-  "soft_warnings": ["code1","code2"],
-  "error_counts": { "s9.3.schema_violation.outlet_catalogue": 1, "s9.4.mass_not_conserved": 0, ... }
+  "runs": [ { "seed": uint64, "parameter_hash": hex64, "run_id": string } ... ],
+  "families": {
+    "<family>": {
+      "events_total": int64,
+      "draws_total_u128_dec": string,   // Σ event.draws as decimal u128
+      "blocks_total_u64": int64,        // Σ event.blocks
+      "nonconsuming_events": int64,     // events with blocks=0, draws="0"
+      "trace_rows_total": int64,        // rows seen in rng_trace_log for this key
+      "trace_totals": {                 // from the final cumulative trace row
+        "events_total": int64,
+        "draws_total_u128_dec": string,
+        "blocks_total_u64": int64
+      },
+      "audit_present": boolean,         // rng_audit_log partition exists for every run_id
+      "coverage_ok": boolean            // exactly one trace append after each event append
+    }, ...
+  }
 }
 ```
 
-Not a gate; purely for operator UX. Do **not** make it required.
+**Requirements.**
+
+* **Families in scope** at minimum: `hurdle_bernoulli`, `gamma_component`, `poisson_component{context∈[nb,ztp]}`, `ztp_*` finals/rejections, `gumbel_key` (and optional `stream_jump`), `residual_rank`, `sequence_finalize`, `site_sequence_overflow`. (Bound by the Dictionary & layer schemas.)  
+* **Trace coverage:** for each `(module, substream_label, run_id)` key, **exactly one** cumulative `rng_trace_log` row **after each** event append (coverage_ok = true). 
+* **Totals reconciliation:** `draws_total_u128_dec` and `blocks_total_u64` in `trace_totals` **equal** the set-sums over the validated events (open-interval uniforms never equal {0,1}).  
+* **Audit presence:** `rng_audit_log` exists and matches `{seed,parameter_hash,run_id}` partitions. 
 
 ---
 
-**Summary.** S9.8 freezes a binary gate: **any hard-fail ⇒ bundle-only; full pass ⇒ bundle + `_passed.flag` (flag = `SHA256(bundle.zip)`)**. It also mandates deterministic packaging, immutable end states, and consumer preflight, aligning perfectly with S9.1–S9.7 and your artefact registry/dictionary.
+## 12.5 `s9_summary.json` (Binding — acceptance summary & failures)
 
----
+Purpose: one machine-readable summary of **structural**, **lineage/determinism**, **RNG accounting**, and **replay** outcomes that determine PASS vs FAIL.
 
-# S9.9 — Hand-off to 1B (consumer contract, implementation-ready)
+**Shape (minimum fields):**
 
-This section fixes the **exact gate** 1B must satisfy before consuming 1A egress, the **preflight**, **join rules** for cross-country order, **scope hygiene**, **consumer error taxonomy**, and **reference loaders**. It binds to the locked S9, the artefact registry, the data dictionary, and schemas.
-
----
-
-## 1) Purpose & immutable contract (what S9.9 governs)
-
-1B is authorised to read `outlet_catalogue(seed, fingerprint)` **iff** both hold:
-
-1. `bundle.zip` exists at
-   `data/layer1/1A/validation/fingerprint={fingerprint}/bundle.zip`, and
-2. `_passed.flag` exists **in the same folder** and its **ASCII contents equal** `SHA256(bundle.zip)` (64-char lowercase hex).
-
-> **Mandatory policy:** Inter-country order is **not** encoded in egress. 1B **must** obtain country order **only** by joining `country_set.rank`.
-
----
-
-## 2) Inputs & authorities (consumption scope)
-
-* **Egress (immutable):**
-  `outlet_catalogue/seed={seed}/fingerprint={fingerprint}`
-  schema `schemas.1A.yaml#/egress/outlet_catalogue`.
-  **PK & physical order:** `(merchant_id, legal_country_iso, site_order)`.
-  **No inter-country order** present here.
-
-* **Country order (sole authority):**
-  `country_set/seed={seed}/parameter_hash={parameter_hash}`
-  schema `#/alloc/country_set`, with `rank: 0=home, 1..K` foreign.
-  **Only** source of cross-country sequencing.
-
-* **Validation proof:**
-  `…/validation/fingerprint={fingerprint}/bundle.zip` and `_passed.flag` (text = `SHA256(bundle.zip)`).
-  `index.json` inside the ZIP conforms to the registry-resolved `validation_bundle` index schema (pointer resolved via dictionary; **do not** hardcode).
-
-> **Scope note:** egress is keyed by `(seed, fingerprint)`; order by `(seed, parameter_hash)`. 1B must know both keys and **never** mix scopes.
-
----
-
-## 3) Mandatory preflight (must run before any read)
-
-Run these steps **in order**; on any failure ⇒ **abort** consumption.
-
-1. **Egress lineage echo.**
-   Read any row from `outlet_catalogue(seed,fingerprint)` and assert
-   `row.manifest_fingerprint == fingerprint`.
-
-2. **Validation proof (binary gate).**
-   Read `bundle.zip` bytes → compute `H' = SHA256(bytes)`;
-   read `_passed.flag` text → `H_flag`. Require `H' == H_flag`.
-
-3. **Country-set presence for the intended parameters.**
-   Assert `country_set(seed, parameter_hash)` exists. 1B must **never** infer order.
-
-4. **(Recommended defence-in-depth)** Validate `index.json` inside the bundle against the registered bundle-index schema and log a warning on mismatch (does **not** override step 2).
-
----
-
-## 4) Join semantics (obtaining cross-country order)
-
-**Join key:** `(merchant_id, legal_country_iso)`
-**Scopes:** egress `(seed,fingerprint)`; country_set `(seed,parameter_hash)`.
-
-**Join rule:** **inner join** egress → country_set. S9.4 guarantees coverage, so any miss indicates corruption or scope mix.
-
-**Ordering convention (if 1B needs ordered output):**
-
-1. `country_set.rank` ascending (0,1,2,…)
-2. `site_order` ascending within `(m,i)`
-3. Tertiary (display-only): `legal_country_iso` ascending.
-
-**Reference SQL:**
-
-```sql
-WITH egress AS (
-  SELECT *
-  FROM outlet_catalogue
-  WHERE seed = :seed AND fingerprint = :fingerprint
-),
-cset AS (
-  SELECT merchant_id, country_iso AS legal_country_iso, rank
-  FROM country_set
-  WHERE seed = :seed AND parameter_hash = :parameter_hash
-)
-SELECT
-  e.merchant_id,
-  e.legal_country_iso,
-  c.rank  AS country_rank,     -- authoritative cross-country order
-  e.site_order,                -- within-country sequence
-  e.site_id,
-  e.raw_nb_outlet_draw,
-  e.single_vs_multi_flag,
-  e.home_country_iso
-FROM egress e
-JOIN cset  c
-  ON (e.merchant_id = c.merchant_id AND e.legal_country_iso = c.legal_country_iso)
-ORDER BY e.merchant_id, c.rank, e.site_order;
+```
+{
+  "run": {
+    "seed": uint64,
+    "parameter_hash": hex64,
+    "manifest_fingerprint": hex64,
+    "decision": "PASS"|"FAIL"
+  },
+  "merchants_total": int64,
+  "merchants_failed": int64,
+  "failures_by_code": { "E_*": int64, ... },  // counts per canonical code
+  "counts_source": "s3_integerised_counts"|"residual_rank",
+  "membership_source": "s6_membership"|"gumbel_key",
+  "checks": {
+    "schema_pk_fk": true|false,
+    "path_embed_equality": true|false,
+    "rng_envelope": true|false,            // per §7.1
+    "rng_trace_coverage": true|false,      // per §7.5
+    "s1..s8_replay": true|false,           // aggregate of §8 checks
+    "egress_writer_sort": true|false
+  },
+  "notes"?: string
+}
 ```
 
-> **Never** emulate cross-country order from ISO lexicographic order, file order, or any egress pattern.
+* **Failure codes** MUST use the canonical vocabulary in §10.6 (e.g., `E_RNG_COUNTER_MISMATCH`, `E_S7_PARITY`, `E_S8_SEQUENCE_GAP`). (Consumer tools rely on these exact strings.)
+* **`decision`** MUST match the publication behaviour in §9 (bundle always written; `_passed.flag` only on PASS).
+
+(While `s9_summary.json` has no cross-file anchor, the above fields are **Binding** for S9; the **index.json** entry advertises it as `kind:"summary"`.) 
 
 ---
 
-## 5) Recommended materialisation (downstream table schema)
+## 12.6 `egress_checksums.json` (Binding — stability & idempotence)
 
-If 1B persists a joined view:
+Purpose: prove **byte-stability** of `outlet_catalogue` under re-runs for the same `(seed,fingerprint)`.
 
-* **Required lineage columns:** `seed`, `fingerprint`, `parameter_hash`
-* **Keys/fields:** `merchant_id`, `legal_country_iso`, `country_rank`, `site_order`, `site_id`, plus required outlet attributes
-* **Primary key:** `(merchant_id, legal_country_iso, site_order)` **scoped by** `{seed, fingerprint}`
-* **Checks:** `country_rank >= 0`; `site_order >= 1`; `site_id ~ '^[0-9]{6}$'`
-* **Provenance:** store exact `parameter_hash` used for the join (guard against scope drift)
+**Shape (minimum fields):**
 
----
-
-## 6) Caching & scope hygiene
-
-* It is valid to **cache** `country_set(seed, parameter_hash)` and reuse it across multiple `fingerprint`s sharing the same `(seed, parameter_hash)`.
-* It is **invalid** to join egress for one `parameter_hash` to a `country_set` from another. Always thread both keys through 1B pipelines.
-* If multiple parameter sets are supported, keep per-`parameter_hash` caches **namespaced** to avoid accidental mixing.
-
----
-
-## 7) Consumer error taxonomy (machine codes & actions)
-
-| Code                                  | Trigger                                                        | Action                            |
-| ------------------------------------- | -------------------------------------------------------------- | --------------------------------- |
-| `consumer.flag_missing`               | `_passed.flag` absent                                          | Abort; request S9 to run.         |
-| `consumer.flag_mismatch`              | `SHA256(bundle.zip) ≠ contents(_passed.flag)`                  | Abort; possible tamper/staleness. |
-| `consumer.egress_lineage_mismatch`    | `manifest_fingerprint` in sampled row ≠ `fingerprint`          | Abort; wrong partition.           |
-| `consumer.country_set_missing`        | Missing `country_set(seed, parameter_hash)`                    | Abort; cannot recover order.      |
-| `consumer.scope_mismatch`             | Join uses `country_set` from different `seed`/`parameter_hash` | Abort; scope violation.           |
-| `consumer.invalid_join_multiplicity`  | Join creates dup/missing rows (should be impossible post-S9)   | Abort; report upstream.           |
-| `consumer.order_inferred_from_egress` | Sorting/logic uses egress to imply cross-country order         | Block; policy violation.          |
-| `consumer.bundle_missing`             | `bundle.zip` missing at expected path                          | Abort; request S9 to run.         |
-| `consumer.index_schema_warn`          | `index.json` fails schema (optional defence check)             | Warn; gate still depends on flag. |
-
----
-
-## 8) Reference preflight loader (language-agnostic)
-
-```pseudo
-function load_L1A_for_1B(seed, fingerprint, parameter_hash):
-  # (1) lineage echo
-  probe := read_one("outlet_catalogue", seed, fingerprint)
-  if probe.manifest_fingerprint != fingerprint:
-      raise "consumer.egress_lineage_mismatch"
-
-  # (2) validation proof
-  B  := read_bytes("validation/fingerprint={fingerprint}/bundle.zip")
-  if B is None: raise "consumer.bundle_missing"
-  H' := sha256_hex(B)
-  F  := read_text("validation/fingerprint={fingerprint}/_passed.flag")
-  if F is None: raise "consumer.flag_missing"
-  if H'.strip() != F.strip(): raise "consumer.flag_mismatch"
-
-  # (3) authoritative order
-  CST := read_table("country_set", seed, parameter_hash)
-  if CST is None: raise "consumer.country_set_missing"
-
-  # (4) join (inner) and optional materialisation
-  OUT := read_table("outlet_catalogue", seed, fingerprint)
-  T   := inner_join(OUT, CST, keys=("merchant_id","legal_country_iso"))
-  # Optional: enforce PK & checks here
-  return T
+```
+{
+  "dataset_id": "outlet_catalogue",
+  "seed": uint64,
+  "manifest_fingerprint": hex64,
+  "files": [ { "path": "part-....parquet", "sha256_hex": hex64, "size_bytes": int64 }, ... ],
+  "composite_sha256_hex": hex64          // SHA-256 over concatenation of raw bytes of all listed files in ASCII-lexicographic order of the `path` entries
+}
 ```
 
----
-
-## 9) Streaming join (large-scale pattern, optional)
-
-For very large partitions, 1B can do a **sort-merge** by `(merchant_id, legal_country_iso)` with a broadcast/cache of `CST` keyed by `(merchant_id, country_iso)`. Ordering of the output should be `(merchant_id, rank, site_order)` as per §4.
+* File list MUST cover **all** files in `data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/`. **Writer sort** verification lives in §5; this file establishes byte-identity. 
+* The **composite hash rule** mirrors the flag’s lexicographic concatenation pattern for determinism. 
 
 ---
 
-## 10) Conformance tests (consumer-side)
+## 12.7 Metrics (normative definitions the validator MUST compute)
 
-1. **Happy path:** valid bundle+flag; correct `(seed,fingerprint,parameter_hash)` → loader returns rows ordered by `(rank, site_order)`. ✔︎
-2. **Missing flag:** remove `_passed.flag` → `consumer.flag_missing`; no read. ✔︎
-3. **Flag mismatch:** alter one nibble in `_passed.flag` → `consumer.flag_mismatch`; no read. ✔︎
-4. **Wrong parameter_hash:** join with a different `parameter_hash` → `consumer.scope_mismatch` (or `consumer.country_set_missing`). ✔︎
-5. **Order inference attempt:** remove join and sort by ISO → detect via guard/policy → `consumer.order_inferred_from_egress`. ✔︎
-6. **Multiplicity guard:** corrupt CST to duplicate `(m,i)` → `consumer.invalid_join_multiplicity`. ✔︎
+S9 **MUST** compute and persist (via `rng_accounting.json` and `s9_summary.json`) at least:
 
----
-
-## 11) Operational notes for 1B
-
-* **Defence-in-depth:** Even with S9 guarantees, 1B must re-hash the bundle and compare to `_passed.flag`. This prevents stale or tampered reads.
-* **Observability:** Log `{seed, fingerprint, parameter_hash, sha256_bundle}` for each successful load.
-* **Immutability:** Egress/validation paths are read-only. If re-loading later, **re-run the preflight**; do not trust previously cached checks.
-* **Ordering reminder:** Always obtain cross-country order from `country_set.rank`.
+* **`events_total` / `draws_total_u128_dec` / `blocks_total_u64` per family** (see §12.4) with reconciliation against the **final** cumulative `rng_trace_log` row for that key. 
+* **`coverage_ok`** per family (exactly one trace append after each event append). 
+* **`merchants_total` / `merchants_failed`** and **`failures_by_code`** (canonical codes per §10.6).
+* **`counts_source`** = `"s3_integerised_counts"` or `"residual_rank"` (per chosen path in §3/§8). 
+* **`membership_source`** = `"s6_membership"` (S6 PASS verified) or `"gumbel_key"` (events path). 
+* **`egress_writer_sort`** boolean (PK/Sort `[merchant_id, legal_country_iso, site_order]` per Dictionary). 
 
 ---
 
-### Why this is “100%”
+## 12.8 Indexing rules (Binding)
 
-* Binary **gate** defined unambiguously (bundle digest equals `_passed.flag`).
-* Exact **preflight** and **join** semantics; strict **scope hygiene**.
-* Clear **consumer errors** and **reference loaders** (SQL & pseudocode).
-* Conformance tests and operational guidance, aligned with S9.1–S9.8 and your registry/dictionary.
-
----
-
-# S9.10 — Numeric-determinism checks (policy enforcement, implementation-ready)
-
-This section converts the governed numeric policy for 1A (binary64, **FMA off**, **serial reductions**, **Q8 residual quantisation**) into **executable validations**. It consumes artefacts already written in S5/S7 and the S9 RNG/event evidence, emits **hard pass/fail** outcomes, and writes machine-readable diagnostics into the **validation bundle** (S9.7). Any failure here is a **hard gate** per S9.8 (bundle only; no `_passed.flag`).
+* **All** bundle files except `_passed.flag` **MUST** appear in `index.json`.
+* `artifact_id` values are **unique** within the bundle.
+* `path` entries are **relative** and **ASCII-sortable**; S9 computes the gate’s hash over that lexicographic order.  
 
 ---
 
-## 1) Scope & contract
+## 12.9 Retention & lineage (Binding)
 
-**S9.10 proves that:**
-
-1. **S5 cache invariants (currency → country weights):** renormalisations and sparse equal-split respect the governed arithmetic (**IEEE-754 binary64**, ties-to-even, no FMA), using **serial** (fixed-order) compensated sums; totals hit **sum-to-one** within policy.
-
-2. **S7 Dirichlet + LRR invariants (per merchant):** event-logged gamma vectors normalise correctly under the governed reducer; **Q8-quantised residuals** reproduce the **persisted residual values and residual ranks** exactly, which in turn fixes the LRR integerisation order.
-
-3. **Environment coherence:** the run’s manifest/registry declares the **same numeric policy digests** the validator expects (e.g., `numeric_env_sha256`, `residual_quantisation_policy_sha256`). Any mismatch is a **hard fail**.
-
-**Bundle outputs (S9.7):**
-
-* `metrics.csv` rows for S5 sum-to-one deltas, sparse equal-split max error, per-merchant S7 sum-to-one deltas, and residual-rank reproducibility rate.
-* `diffs/*` CSVs for any violations (keys below).
-* `rng_accounting.json` header augmented with a `"numeric_policy"` block (digests, compile flags, FTZ/DAZ).
-
-**Hard-fail rule:** Any check in §3 fails ⇒ **withhold** `_passed.flag` (S9.8). The bundle still materialises.
+* Retention/TTL for `validation_bundle_1A` is governed by the Dictionary (default 365 days). `index.json` and all JSON/JSONL within **embed the same `manifest_fingerprint`** as the path token. 
 
 ---
 
-## 2) Governing definitions (normative)
-
-### 2.1 Arithmetic model (binding)
-
-All numerics that **affect ordering/integerisation** execute in IEEE-754 **binary64**, **roundTiesToEven**, **FMA disabled**, **no FTZ/DAZ**, and **serial reductions** in a fixed iteration order.
-
-We denote correctly-rounded binary64 evaluation of an expression $\psi$ by $\mathrm{R}_{64}[\psi]$. Multiplication/addition (to prevent accidental FMA):
-
-* `mul(a,b)  = R64[a*b]`
-* `add(x,y)  = R64[x+y]`
-* `fma_off(a,b,c) = R64( R64[a*b] + c )`
-
-### 2.2 Deterministic reducers & quantiser
-
-**Serial Neumaier reducer (fixed order):** for $v_1,\ldots,v_m$,
-
-* $S=0,\,c=0$;
-* for each $v$ in the **specified** order:
-
-  * $t=S+v$;
-  * $c \mathrel{+}= (|S|\ge|v| ? (S-t+v) : (v-t+S))$;
-  * $S=t$;
-* return $S+c$.
-
-**Q8 residual quantiser (ties-to-even):**
-
-* Let $K = \mathrm{binary64}(100000000.0)$.
-* $Q_8(x) = \mathrm{R}_{64}\!\big(\mathrm{R}_{64}(x\cdot K) / K\big),\; x\in[0,1).$
-
-**Residual-rank sort key (S7/LRR):**
-
-* Sort by $(\textbf{residual} \downarrow,\ \textbf{ISO} \uparrow)$.
-* **Note:** This matches S9.2/S9.4’s deterministic rule (no `rank` in the tie-break).
-
-**Fixed iteration orders used below:**
-
-* S5 sums: **ISO ascending** within a currency’s eligible countries.
-* S7 sums & residual construction: **`country_set.rank` ascending**, then ISO ascending (only for the *reduction* order; sorting for ranks uses the key above).
+**Status:** §12 is **Binding**. It freezes the **required bundle files**, their **minimum schemas**, the **metrics** S9 MUST compute, and the **hashing/index rules** that couple the bundle to the consumer gate.
 
 ---
 
-## 3) Mathematical statements (what is checked)
+# 13) Consumer gate & HashGate coupling **(Binding)**
 
-### 3.1 S5 cache groups (per currency $\kappa$)
+## 13.1 Consumer obligation (egress read rule)
 
-Let $(w^{(\kappa)}_i)_{i=1}^D$ be the stored weight vector over the $D$ eligible countries for currency $\kappa$.
+Downstream consumers (e.g., 1B) **MUST NOT** read `outlet_catalogue` for a given `fingerprint` unless the **co-located** `_passed.flag` under
+`data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` **exists** and its **content** equals `SHA256(validation_bundle_1A)` **for the same fingerprint**. This is the canonical **no PASS → no read** gate for 1A egress. The Dataset Dictionary and Artefact Registry restate this consumer duty.  
 
-1. **Sum-to-one (governed reducer):**
+## 13.2 What consumers MUST verify (exact checks)
 
-$$
-\delta_\kappa = \Big|\,1 - \sum_{i=1}^D w^{(\kappa)}_i \Big| \le 10^{-12},
-$$
+Before any read of `outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/…`, a conformant consumer **MUST**:
 
-with **serial Neumaier** in **ISO asc**. Record $\delta_\kappa$.
+1. **Locate the bundle** at `…/validation/fingerprint={manifest_fingerprint}/`. Assert that the egress partition’s path token `fingerprint` **byte-equals** `manifest_fingerprint` embedded in egress rows (path↔embed equality). 
+2. **Verify the flag hashing rule.** Read `_passed.flag` (single line `sha256_hex = <hex64>`), list **all files listed in `index.json` (excluding `_passed.flag`)** in the bundle **in ASCII-lexicographic order of the `path` entries**, concatenate their raw bytes, compute SHA-256, and assert equality to `<hex64>`. *(The flag itself is excluded from the hash.)*  
+3. **(Optional but recommended)**: re-hash `fingerprint_artifacts.jsonl` / `param_digest_log.jsonl` advertised by S0 to harden supply-chain checks. Failure of any step ⇒ treat the run as **invalid** and **abort** the read. 
 
-2. **Sparse equal-split (only if `sparse_flag(κ)=1`):**
+## 13.3 Scope boundaries (what the gate does/does not cover)
 
-$$
-\epsilon_\kappa = \max_i \Big|\, w^{(\kappa)}_i - \tfrac{1}{D} \Big| \le 10^{-12}.
-$$
+* The **only** egress gate that governs `outlet_catalogue` consumption is the **fingerprint-scoped** `_passed.flag` described above; parameter-scoped receipts (e.g., S5 PASS) remain **independent** and are **not** substitutes for the egress gate. 
+* If consumers read any **S6 convenience surface** (e.g., `s6_membership`), they **MUST** also verify the **S6 PASS receipt** (`…/s6/seed={seed}/parameter_hash={parameter_hash}/(S6_VALIDATION.json,_passed.flag)`) **before** use. This is separate from, and does not weaken, the S9 egress gate.  
 
-Record $\epsilon_\kappa$. Any $\kappa$ failing either bound ⇒ **hard fail**.
+## 13.4 HashGate coupling (CI/runtime metadata; optional)
 
-### 3.2 S7 Dirichlet & residual-rank (per merchant $m$)
+Projects **MAY** couple the consumer gate to a central **HashGate** metadata service for CI/runtimes. When enabled:
 
-For $C_m$ the legal countries (from `country_set`) and `DIR_EVT[m]` the single `dirichlet_gamma_vector` event (when $|C_m|>1$), with aligned arrays (`country_isos`, `weights`, `gamma_raw`):
+* **Publish:** After a **PASS**, S9 (or CI) **MAY** POST a record keyed by `manifest_fingerprint` with at least: `{dataset_id:"outlet_catalogue", fingerprint, sha256_hex_of_bundle, artifact_count, created_utc_ns, git_commit_hex}`. *(Authoritative truth remains the on-disk bundle; HashGate is a convenience index.)*  
+* **Enforce:** CI **MAY** block merges/deploys unless HashGate returns a record whose `sha256_hex` **matches** the `_passed.flag` content and whose `fingerprint` matches the partition being promoted. 
+* **Read-time use:** A consumer **MAY** cache a HashGate **URI/receipt** to accelerate lookups, but **MUST** still succeed the **local** flag verification in §13.2 before reading egress. *(HashGate cannot override a failing local flag.)* 
 
-1. **Dirichlet normalisation (event contract):**
+## 13.5 Revocation & drift handling
 
-$$
-\bigg| 1 - \sum_{i\in C_m} w_i \bigg| \le 10^{-6},
-$$
+* If the bundle exists but `_passed.flag` is **missing** or its hash **mismatches**, consumers **MUST** treat the partition as **failed** and refuse reads. *(S9 writes bundles without a flag on FAIL.)* 
+* If any consumer detects a **path↔embed mismatch** (e.g., egress row `manifest_fingerprint` ≠ path token), that is a **hard error** equivalent to an invalid gate; refuse reads. 
+* Re-publishing a fingerprint with different bytes is **disallowed**; partitions are **immutable**. Any byte drift is a violation; consumers should fail closed. 
 
-reduced by **serial Neumaier** in **rank asc then ISO asc**. (Record the tighter internal re-sum too; gate on $10^{-6}$.)
+## 13.6 Minimal consumer API (normative steps)
 
-2. **Residual value & rank reproducibility (Q8):**
+A conformant consumer library **MUST** expose (at minimum):
 
-* Let $N^{\text{raw}}_m$ be the merchant constant from egress.
-* $a_i = \mathrm{R}_{64}[N^{\text{raw}}_m \cdot w_i],\quad f_i=\lfloor a_i\rfloor,\quad r_i = Q_8(a_i - f_i)$.
-* **Value check:** persisted `RES_CACHE[m,i].residual` **bit-equals** $r_i$.
-* **Rank check:** sorting countries by $(r_i \downarrow, \text{ISO} \uparrow)$ must reproduce the persisted `residual_rank` $1,2,\ldots$.
-* Any mismatch ⇒ **hard fail** with concrete diffs.
-
-3. **Single-country edge:** If $|C_m|=1$: require **one** residual record with `residual=0.0` and `residual_rank=1`. (No Dirichlet event required.)
+1. `verify_fingerprint_gate(fingerprint) -> PASS|FAIL` implementing §13.2.
+2. `require_gate_then_open(dataset_id="outlet_catalogue", seed, fingerprint)` that **fails closed** on any gate/lineage breach.
+3. `verify_receipt(path="…/s6/…") -> PASS|FAIL` for S6 where relevant.  
 
 ---
 
-## 4) Reference validator (language-agnostic pseudocode)
+**Status:** §13 is **Binding**. It fixes the **consumer’s read-gate duty**, the **exact hashing check**, clarifies **scope boundaries** (egress vs parameter-scoped receipts), and defines an **optional HashGate coupling** for CI—without weakening the mandatory local `_passed.flag` verification.  
 
-```pseudo
-INPUTS
-  # S5
-  S5_WEIGHTS[κ]: array[(iso, weight)]
-  SPARSE_FLAG[κ]: bool
-  # S7
-  DIR_EVT[m]: { country_isos[], weights[], gamma_raw[] }     # present iff |C_m|>1
-  RES_CACHE[m,i]: { residual: float64, residual_rank: int }
-  # Egress for Nraw
-  OUTLET: outlet_catalogue(seed, fingerprint)
-  # Country sets (order)
-  CSET[m]: array[(iso, rank)]    # authoritative
-  # Policy digests (declared by producer manifest/registry)
-  DIGEST.expected: {
-     numeric_env_sha256,
-     residual_quantisation_policy_sha256
-  }
+---
 
-HELPERS
-  sum_comp(values, order_by):  # serial Neumaier in deterministic order
-  Q8(x):                       # R64(R64(x*K)/K) with K = binary64(1e8)
-  Nraw(m):                     # merchant-constant from OUTLET (home row)
+# 14) Observability & SLOs **(Binding)**
 
-# --- 0) Environment coherence (hard gate)
-assert manifest_has_digest("numeric_env", DIGEST.expected.numeric_env_sha256),
-       "s9.10.numeric_env_mismatch"
-assert manifest_has_digest("residual_quantisation_policy",
-                           DIGEST.expected.residual_quantisation_policy_sha256),
-       "s9.10.numeric_env_mismatch"
+## 14.1 Signals & sinks (what S9 MUST expose)
 
-# --- 1) S5 checks
-for κ in S5_WEIGHTS:
-    W = S5_WEIGHTS[κ]                         # [(iso, w), ...]
-    δ = abs( 1.0 - sum_comp([w for (_,w) in W], order_by=ISO_ASC) )
-    record_metric("s5.sum_to_one_delta", κ, δ, threshold=1e-12, evaluated=1)
-    if δ > 1e-12:
-        write_csv_append("diffs/s5_sum_to_one.csv", [κ, δ])
-        fail("s9.10.s5.sum_to_one_violation")
+S9 **MUST** emit machine-readable observability into the **validation bundle** (fingerprint-scoped) and **MAY** mirror selected counters to an ops sink. Required bundle artefacts and their shapes are fixed in §12 (`rng_accounting.json`, `s9_summary.json`, `egress_checksums.json`, `index.json`). These files live under:
+`data/layer1/1A/validation/fingerprint={manifest_fingerprint}/`.  
 
-    if SPARSE_FLAG[κ]:
-        D = len(W)
-        ε = max_i abs(W[i].w - (1.0 / D))
-        record_metric("s5.sparse_equal_split_maxerr", κ, ε, threshold=1e-12, evaluated=1)
-        if ε > 1e-12:
-            write_csv_append("diffs/s5_sparse_equal_split.csv", [κ, ε, D])
-            fail("s9.10.s5.equal_split_violation")
-    else:
-        record_metric("s5.sparse_equal_split_maxerr", κ, 0.0, threshold=1e-12, evaluated=0)
+**Upstream surfaces S9 reads for observability:**
 
-# --- 2) S7 checks
-ok_count = 0; tot = 0
-for m in merchants_in(OUTLET):
-    C = sort(CSET[m], by=(rank ASC, iso ASC))      # authoritative order for reductions
-    tot += 1
-    if len(C) == 1:
-        (i, _) = C[0]
-        cache = RES_CACHE[m,i]
-        if not (cache.residual == 0.0 and cache.residual_rank == 1):
-            write_csv_append("diffs/s7_single_country.csv", [m, i, cache.residual, cache.residual_rank])
-            fail("s9.10.s7.single_country_residual_event_missing")
-        ok_count += 1
-        continue
+* **Core RNG logs** (`rng_trace_log`, `rng_audit_log`) — JSONL, partitioned by `{seed, parameter_hash, run_id}`, **one cumulative trace row appended after each RNG event append**.  
+* **S8 instrumentation families** (`sequence_finalize`, `site_sequence_overflow`) — **non-consuming**; used for coverage and overflow diagnostics; paths and gating as declared for 1A.  
 
-    if DIR_EVT[m] is None or not aligns(DIR_EVT[m].country_isos, C):
-        write_csv_append("diffs/s7_dirichlet_alignment.csv", [m, "missing_or_misaligned"])
-        fail("s9.10.s7.dirichlet_event_missing_or_misaligned")
+## 14.2 Required counters & gauges (values S9 MUST compute)
 
-    W = reorder(DIR_EVT[m].weights, to_order=C)
-    δm = abs( 1.0 - sum_comp(W, order_by=RANK_ASC_THEN_ISO) )
-    record_metric("s7.dirichlet_sum_to_one_delta", m, δm, threshold=1e-6, evaluated=1)
-    if δm > 1e-6:
-        write_csv_append("diffs/s7_dirichlet_sum_to_one.csv", [m, δm])
-        fail("s9.10.s7.dirichlet_sum_to_one_violation")
+S9 **MUST** compute and persist (via §12 artefacts) at least:
 
-    Nr = float64(Nraw(m))
-    A  = [ R64(Nr * wi) for wi in W ]
-    F  = [ floor(ai)     for ai in A ]
-    Rq = [ Q8( R64(ai - fi) ) for (ai,fi) in zip(A,F) ]
+* **RNG coverage & totals** (per family used by 1A): `events_total`, `draws_total_u128_dec`, `blocks_total_u64`, `coverage_ok`, `audit_present`, and **final trace** reconciliation (`trace_totals == set-sums of events`). (See `rng_accounting.json` §12.4.) 
+* **Run decision & failures:** `decision ∈ {PASS, FAIL}`, `merchants_total`, `merchants_failed`, and `failures_by_code{E_*}` (canonical codes from §10.6) in `s9_summary.json`. 
+* **Source declarations:** `counts_source ∈ {"s3_integerised_counts","residual_rank"}`, `membership_source ∈ {"s6_membership","gumbel_key"}` (tie S9’s replay route to concrete sources).  
+* **Egress stability:** per-file and composite SHA-256 for `outlet_catalogue` in the `(seed,fingerprint)` partition (`egress_checksums.json`). 
 
-    # Rank by (residual desc, ISO asc)
-    ORDER = argsort(enumerate(C), key=( -Rq[idx], C[idx].iso ))
-    for k, (idx, (iso, _rank)) in enumerate(ORDER, start=1):
-        cache = RES_CACHE[m, iso]
-        if not bit_equal(cache.residual, Rq[idx]):
-            write_csv_append("diffs/s7_residual_value.csv", [m, iso, as_hex(cache.residual), as_hex(Rq[idx])])
-            fail("s9.10.s7.residual_value_mismatch")
-        if cache.residual_rank != k:
-            write_csv_append("diffs/s7_residual_rank.csv", [m, iso, cache.residual_rank, k])
-            fail("s9.10.s7.residual_rank_mismatch")
-    ok_count += 1
+## 14.3 Lineage for metrics (run keys that MUST label metrics)
 
-pass_fraction = ok_count / tot
-record_metric("s7.residual_rank_repro_rate", "GLOBAL", pass_fraction, threshold=1.0, evaluated=1)
-# success if we didn't fail; S9.7 will package metrics & diffs; S9.8 gates the flag
+Every metric line S9 emits **MUST** carry `{seed, parameter_hash, run_id, manifest_fingerprint}` so that dashboards and forensics are keyed to immutable lineage (values-only; bytes-safe). 
+
+## 14.4 SLO envelope (binding expectations S9 MUST attest)
+
+The following are **SLO-style invariants** S9 **MUST** check and record (PASS requires all of them; see §9):
+
+* **Gate integrity SLO.** `_passed.flag` exists **only** on PASS and its `sha256_hex` equals `SHA256(validation_bundle_1A)` (ASCII-lexicographic over all files listed in `index.json` (excluding `_passed.flag`)). Atomic publish: stage → compute → **single rename**; **no partial visibility**.  
+* **Trace coverage SLO.** For each `(module, substream_label, run_id)` validated, there is **exactly one** cumulative `rng_trace_log` row **after each** event append; final trace totals reconcile with event sums. 
+* **Determinism SLO.** Re-running S9 on identical inputs produces a **byte-identical** bundle and the same `_passed.flag`; egress file hashes are stable per `(seed,fingerprint)`.  
+* **Order & partition SLO.** Egress obeys writer sort `[merchant_id, legal_country_iso, site_order]` within the `(seed,fingerprint)` partition; lineage **path↔embed equality** holds for all subjects. 
+
+## 14.5 Alerting conditions (emit + record; MUST fail run)
+
+S9 **MUST** record these conditions in `s9_summary.json` and **FAIL** the fingerprint (bundle written, flag withheld):
+
+* Gate mismatch or partial publish (hash inequality / missing flag / non-atomic publish). 
+* Trace coverage gap or totals mismatch for any family in scope. 
+* Any structural, lineage, RNG-envelope, or replay failure listed in §9.5 (use canonical `E_*` codes). 
+
+## 14.6 Optional latency & throughput (recommended)
+
+S9 **SHOULD** add timing fields to `s9_summary.json` (or a separate `s9_timings.json` indexed in `index.json`):
+`started_utc_ns`, `completed_utc_ns`, `duration_ms`, `events_validated_total`, `throughput_events_per_s` (values-only; no paths/PII). *(Optional metrics do not alter the gate hash rule beyond normal inclusion in the bundle.)* 
+
+## 14.7 Retention & hygiene (binding via Dictionary)
+
+Retention and storage hygiene for the bundle and logs follow the **Dataset Dictionary** (typical: bundles 365 days; core RNG logs 365 days; event families 180 days). JSONL streams are **set-semantics**; equality is by row set, not file order.  
+
+---
+
+**Status:** §14 is **Binding**. It fixes the **signals**, **required counters**, **lineage labels**, **SLO-style invariants** S9 must attest, **alerting conditions**, and the **retention/hygiene** rules—anchored to the same bundle/log authorities used across 1A.
+
+---
+
+# 15) Schema & Dictionary anchors in scope **(Binding)**
+
+## 15.1 Schema sets in force & anchor resolution (normative)
+
+* **Segment schemas:** `schemas.1A.yaml` (1A tables, egress, bundle). 
+* **Layer schemas:** `schemas.layer1.yaml` (RNG events, core logs, validation receipts). 
+* **Ingress schemas:** `schemas.ingress.layer1.yaml` (FK targets like ISO). 
+* Anchor rule:
+  - `#/rng/**` → layer schema
+  - `#/validation/validation_bundle` → 1A schema
+  - `#/validation/s6_receipt` → layer schema
+  - `#/s3/**` & `#/egress/**` → 1A schema
+  - ingress FKs (e.g., `#/iso3166_canonical_2024`) → ingress schema
+
+## 15.2 Segment-1A schema anchors S9 touches
+
+* **Egress:** `#/egress/outlet_catalogue`. (PK `[merchant_id,legal_country_iso,site_order]`; partitions `[seed,fingerprint]`.)  
+* **Order authority:** `#/s3/candidate_set` (total & contiguous `candidate_rank`, home=0).  
+* **Counts (optional path):** `#/s3/integerised_counts`.  
+* **Sequence (optional cross-check):** `#/s3/site_sequence`. 
+* **Membership (convenience surface):** `#/alloc/membership`.
+* **Validation bundle (output of S9):** `#/validation/validation_bundle` + its `index_schema`.  
+
+## 15.3 Layer-wide RNG & validation anchors S9 validates
+
+* **Core logs:** `#/rng/core/rng_audit_log`, `#/rng/core/rng_trace_log`.  
+* **S1:** `#/rng/events/hurdle_bernoulli`. 
+* **S2:** `#/rng/events/gamma_component`, `#/rng/events/poisson_component`, `#/rng/events/nb_final`.  
+* **S4 (ZTP):** `#/rng/events/poisson_component` (context ‘ztp’), `#/rng/events/ztp_rejection`, `#/rng/events/ztp_final`. 
+* **S6:** `#/rng/events/gumbel_key` (and `#/rng/events/stream_jump` if emitted).  
+* **S7:** `#/rng/events/residual_rank`. 
+* **S8 instrumentation:** `#/rng/events/sequence_finalize`, `#/rng/events/site_sequence_overflow`.  
+* **S6 receipt (gate):** `#/validation/s6_receipt`. 
+
+## 15.4 Ingress / FK anchors
+
+* **ISO FK target:** `schemas.ingress.layer1.yaml#/iso3166_canonical_2024` (uppercase ISO-2; placeholders forbidden).  
+
+## 15.5 Dataset Dictionary IDs (IDs → path → partitions → `$ref`) used by S9
+
+* **`outlet_catalogue`** → `data/layer1/1A/outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/` → `[seed,fingerprint]` → `schemas.1A.yaml#/egress/outlet_catalogue`. *(Writer sort `[merchant_id,legal_country_iso,site_order]`; “no PASS → no read”.)*  
+* **`s3_candidate_set`** → `…/s3_candidate_set/parameter_hash={parameter_hash}/` → `[parameter_hash]` → `#/s3/candidate_set`. 
+* **`s3_integerised_counts`** (optional) → `…/s3_integerised_counts/parameter_hash={parameter_hash}/` → `[parameter_hash]` → `#/s3/integerised_counts`. 
+* **`s3_site_sequence`** (optional cross-check) → `…/s3_site_sequence/parameter_hash={parameter_hash}/` → `[parameter_hash]` → `#/s3/site_sequence`.  
+* **`s6_membership`** (if used) → `…/s6/membership/seed={seed}/parameter_hash={parameter_hash}/` → `[seed,parameter_hash]` → `#/alloc/membership` (**gate**: `s6_validation_receipt`).
+* **`s6_validation_receipt`** → `…/s6/seed={seed}/parameter_hash={parameter_hash}/` → `[seed,parameter_hash]` → `schemas.layer1.yaml#/validation/s6_receipt`. 
+* **`rng_audit_log`** → `logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl` → `[seed,parameter_hash,run_id]` → `#/rng/core/rng_audit_log`. 
+* **`rng_trace_log`** → `logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl` → `[seed,parameter_hash,run_id]` → `#/rng/core/rng_trace_log`. 
+* **`rng_event.sequence_finalize`** → `logs/rng/events/sequence_finalize/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…` → `[seed,parameter_hash,run_id]` → `#/rng/events/sequence_finalize`. 
+* **`rng_event.site_sequence_overflow`** → `logs/rng/events/site_sequence_overflow/…` → `[seed,parameter_hash,run_id]` → `#/rng/events/site_sequence_overflow`. 
+* **`rng_event.residual_rank`** → `logs/rng/events/residual_rank/…` → `[seed,parameter_hash,run_id]` → `#/rng/events/residual_rank`. 
+* **`rng_event.gumbel_key`** → `logs/rng/events/gumbel_key/…` → `[seed,parameter_hash,run_id]` → `#/rng/events/gumbel_key`. 
+* **`rng_event.gamma_component` / `rng_event.poisson_component` / `rng_event.nb_final` / `rng_event.ztp_rejection` / `rng_event.ztp_final`** → `logs/rng/events/{family}/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…` → `[seed,parameter_hash,run_id]` → corresponding `#/rng/events/*` anchors.  
+* **`validation_bundle_1A`** (output of S9) → `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/` → `[fingerprint]` → `schemas.1A.yaml#/validation/validation_bundle`. *(Flag `_passed.flag` co-located; content hash equals `SHA256(bundle)`.)*  
+
+---
+
+**Status:** §15 is **Binding**. It freezes the **exact anchors** and **Dictionary IDs/paths/partitions** S9 recognises and enforces during validation and publish.
+
+---
+
+# Appendix A) Enumerations & literal labels **(Normative)**
+
+This appendix freezes the **exact strings/enums** S9 relies on when validating S0–S8 and publishing the bundle/flag. Everything here is **binding**.
+
+## A.1 RNG `module` / `substream_label` pairs (by state; S9 reads only)
+
+* **S1 Hurdle**
+
+  * `module="1A.hurdle_sampler"`, `substream_label="hurdle_bernoulli"`. 
+
+* **S2 NB mixture**
+
+  * `gamma_component`: `module="1A.nb_and_dirichlet_sampler"`, `substream_label="gamma_nb"`.
+  * `poisson_component` (context `"nb"`): `module="1A.nb_poisson_component"`, `substream_label="poisson_nb"`.
+  * `nb_final` (non-consuming): `module="1A.nb_sampler"`. 
+
+* **S4 ZTP target**
+
+  * `poisson_component` (context `"ztp"`): `module="1A.ztp_sampler"`, `substream_label="poisson_component"`.
+  * `ztp_rejection` / `ztp_retry_exhausted` / `ztp_final` (non-consuming): `module="1A.ztp_sampler"`; `substream_label ∈ {"ztp_rejection","ztp_retry_exhausted","ztp_final"}`.  
+
+* **S6 Selection keys**
+
+  * `module="1A.foreign_country_selector"`, `substream_label ∈ {"gumbel_key","stream_jump"}` (`stream_jump` optional). 
+
+* **S7 Integerisation (evidence)**
+
+  * `residual_rank`: `module="1A.integerisation"`, `substream_label="residual_rank"`.
+  * `dirichlet_gamma_vector` (if enabled): `module="1A.dirichlet_allocator"`, `substream_label="dirichlet_gamma_vector"`. 
+
+* **S8 Sequencing instrumentation (non-consuming)**
+
+  * `module="1A.site_id_allocator"`, `substream_label ∈ {"sequence_finalize","site_sequence_overflow"}`. 
+
+> **Note.** **Budget literals** follow the layer envelope: single-uniform families `(blocks=1, draws="1")`, two-uniform Box–Muller `(blocks=1, draws="2")`, non-consuming `(blocks=0, draws="0")`. S9 enforces these in §7.  
+
+---
+
+## A.2 RNG family names & fixed payload enums
+
+* **Families (S9 validates):**
+  `hurdle_bernoulli`, `gamma_component`, `poisson_component{context∈{"nb","ztp"}}`, `nb_final`, `ztp_rejection`, `ztp_retry_exhausted`, `ztp_final`, `gumbel_key`, `stream_jump` (optional), `residual_rank`, `sequence_finalize`, `site_sequence_overflow`, and the layer helpers (e.g., `normal_box_muller`).  
+
+* **S4 fixed enums (payload):**
+  `context="ztp"`; `regime ∈ {"inversion","ptrs"}`; optional `reason="no_admissible"` on `ztp_final` (when present in the schema version). 
+
+* **S6 fixed semantics (payload excerpts):**
+  `gumbel_key`: `blocks=1`, `draws="1"`; if `weight==0` ⇒ `key=null`, `selected=false`, no `selection_order`. 
+
+---
+
+## A.3 Dataset Dictionary IDs → partitions → `$ref` (S9 read/write set)
+
+* **Egress:** `outlet_catalogue` → partitions `[seed,fingerprint]` → `schemas.1A.yaml#/egress/outlet_catalogue`. *(No inter-country order encoded.)* 
+* **Order authority (required):** `s3_candidate_set` → `[parameter_hash]` → `#/s3/candidate_set`. *(Home rank=0; ranks total & contiguous.)* 
+* **Counts (optional path):** `s3_integerised_counts` → `[parameter_hash]` → `#/s3/integerised_counts`. 
+* **Optional sequence cross-check:** `s3_site_sequence` → `[parameter_hash]` → `#/s3/site_sequence`. 
+* **Membership convenience:** `s6_membership` → `[seed,parameter_hash]` → `#/alloc/membership` (gate = `s6_validation_receipt`).  
+* **Core logs:** `rng_audit_log`, `rng_trace_log` → `[seed,parameter_hash,run_id]` → layer `#/rng/core/*`. 
+* **Validation outputs (S9 writes):**
+  `validation_bundle_1A` (folder) & `validation_passed_flag` (file `_passed.flag`) under `validation/fingerprint={manifest_fingerprint}/`. 
+
+---
+
+## A.4 Gate & bundle literals
+
+* **Flag filename:** `_passed.flag`
+  **Content (one line):** `sha256_hex = <hex64>` where `<hex64>` is **SHA-256 over the raw bytes of all files listed in `index.json`**, in **ASCII-lexicographic order of the `path` entries**. *(Flag file excluded from the hash.)*
+
+* **Bundle root:** `data/layer1/1A/validation/fingerprint={manifest_fingerprint}/`
+  **Index schema kind:** `kind ∈ {"plot","table","diff","text","summary"}`. 
+
+* **Required bundle filenames:**
+  `MANIFEST.json`, `parameter_hash_resolved.json`, `manifest_fingerprint_resolved.json`, `rng_accounting.json`, `s9_summary.json`, `egress_checksums.json`, `index.json`. 
+
+---
+
+## A.5 S8 sequencing constants (validated by S9)
+
+* **`six_digit_seq` regex:** `^[0-9]{6}$` for `site_id`, `start_sequence`, `end_sequence`.
+* **Overflow guardrail:** `max_seq = 999999`; `site_sequence_overflow.severity="ERROR"`; event is **non-consuming**.  
+
+---
+
+## A.6 Closed vocabularies & result labels
+
+* **S4 policy enums:** `ztp_exhaustion_policy ∈ {"abort","downgrade_domestic"}`. 
+* **S4 regime enum:** `regime ∈ {"inversion","ptrs"}`. 
+* **S6 reason codes (diagnostic, non-error):** `NO_CANDIDATES`, `K_ZERO`, `ZERO_WEIGHT_DOMAIN`, `CAPPED_BY_MAX_CANDIDATES`. 
+* **S8 outcome labels (informative):** `DEG_SINGLE_COUNTRY`, `DEG_ZERO_REMAINDER`. 
+* **S9 run decision:** `PASS` | `FAIL`. *(Gate behaviour in §9; flag as above.)*
+
+---
+
+## A.7 Canonical S9 failure codes (write into bundle; see §10)
+
+* **Structural:** `E_SCHEMA_INVALID`, `E_PARTITION_MISPLACED`, `E_PATH_EMBED_MISMATCH`, `E_DUP_PK`, `E_FK_ISO_INVALID`, `E_TRACE_COVERAGE_MISSING`. 
+* **Lineage/Determinism:** `E_LINEAGE_RECOMPUTE_MISMATCH`, `E_WRITER_SORT_BROKEN`, `E_S8_BLOCK_ATOMICITY`. 
+* **RNG envelope/accounting:** `E_RNG_COUNTER_MISMATCH`, `E_RNG_BUDGET_VIOLATION`, `E_NONCONSUMING_CHANGED_COUNTERS`, `E_TRACE_TOTALS_MISMATCH`, `E_S4_SEQUENCE_INVALID`, `E_FINALISER_CARDINALITY`. 
+* **Cross-state replay:**
+  `E_S1_CARDINALITY`, `E_S1_U_OUT_OF_RANGE`, `E_S1_GATING_VIOLATION`;
+  `E_S2_COMPONENT_ORDER`, `E_S2_N_LT_2`;
+  `E_S3_RANK_GAPS`, `E_S3_HOME_NOT_ZERO`;
+  `E_S6_MEMBERSHIP_MISMATCH`, `E_S6_ZERO_WEIGHT_SELECTED`;
+  `E_S7_PARITY`;
+  `E_S8_SEQUENCE_GAP`, `E_SITE_ID_OVERFLOW`, `E_SUM_MISMATCH`, `E_ORDER_AUTHORITY_DRIFT`.  
+
+---
+
+## A.8 Envelope & lineage field names (must-match)
+
+* **Envelope (layer-wide):** `ts_utc`, `seed`, `parameter_hash`, `manifest_fingerprint`, `run_id`, `module`, `substream_label`, `rng_counter_before_lo`, `rng_counter_before_hi`, `rng_counter_after_lo`, `rng_counter_after_hi`, `blocks`, `draws`. *(Row names, not order.)* 
+* **Lineage equality (path↔embed):** where both exist, **byte-equality is mandatory**:
+  e.g., `outlet_catalogue.global_seed == seed` & `manifest_fingerprint == fingerprint` path token; events/logs `{seed,parameter_hash,run_id}` equal to path tokens. 
+
+---
+
+## A.9 Writer sort & PKs (egress)
+
+* **`outlet_catalogue`** writer sort: `[merchant_id, legal_country_iso, site_order]`; PK/UK identical tuple. *(File order non-authoritative; sort is a constraint.)* 
+
+---
+
+**This appendix is Binding.** Any deviation from these exact literals/enums is a **FAIL** under S9 (§§5–10).
+
+---
+
+# Appendix B) Bundle layout **(Informative)**
+
+This appendix shows the **expected folder shape**, **example filenames**, and **hashing order** for the validation bundle. (Binding rules live in §§4 & 12; paths/IDs come from the Dictionary/Registry and 1A schemas.)   
+
+## B.1 Where the bundle lives (fingerprint-scoped)
+
+Root (partitioned by fingerprint):
+
+```
+data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
 ```
 
-**Notes**
+This folder is the **single source** of validation artifacts for that fingerprint; the **consumer gate** `_passed.flag` is co-located here. (Dictionary + Registry)  
 
-* We **do not** draw new randomness; we only use logged `dirichlet_gamma_vector` payloads plus egress constants.
-* “Exact match” for residual values is **bit-equality** of binary64 after Q8. Any decimal round-trip would have been caught by S9.3 schema checks.
+**Naming note.** Any path segment `fingerprint={…}` carries the run’s `manifest_fingerprint` value (S0 lineage rule). 
+
+## B.2 Minimal bundle tree (PASS case)
+
+```
+validation/
+└─ fingerprint={manifest_fingerprint}/
+   ├─ MANIFEST.json
+   ├─ parameter_hash_resolved.json
+   ├─ manifest_fingerprint_resolved.json
+   ├─ rng_accounting.json
+   ├─ s9_summary.json
+   ├─ egress_checksums.json
+   ├─ index.json
+   └─ _passed.flag              # content: "sha256_hex = <hex64>"
+```
+
+* The **files above (except `_passed.flag`) MUST be indexed** in `index.json` per the 1A **bundle index schema**; `artifact_id` unique; `path` **relative**. (Schema anchor: `schemas.1A.yaml#/validation/validation_bundle.index_schema`.) 
+* `_passed.flag` content equals **SHA-256 over the raw bytes of all files listed in `index.json` (excluding `_passed.flag`) in this folder** in **ASCII-lexicographic order of the `path` entries**. (Dictionary/Registry notes + S9 §§4 & 12.)  
+
+## B.3 Example `index.json` entries (shape only)
+
+```json
+[
+  {"artifact_id":"manifest","kind":"text","path":"MANIFEST.json"},
+  {"artifact_id":"rng_accounting","kind":"table","path":"rng_accounting.json","notes":"Per-family coverage & totals"},
+  {"artifact_id":"summary","kind":"summary","path":"s9_summary.json"},
+  {"artifact_id":"egress_hashes","kind":"table","path":"egress_checksums.json"},
+  {"artifact_id":"catalog","kind":"table","path":"index.json"}
+]
+```
+
+(Index schema fields are defined in `schemas.1A.yaml`.) 
+
+## B.4 Optional extras (if present, they **are** part of the flag hash)
+
+```
+└─ fingerprint={manifest_fingerprint}/
+   ├─ param_digest_log.jsonl          # one line per governed parameter
+   ├─ fingerprint_artifacts.jsonl     # one line per artefact in the fingerprint
+   ├─ numeric_policy_attest.json      # S0 numeric profile attestation
+   ├─ DICTIONARY_LINT.txt             # optional
+   └─ SCHEMA_LINT.txt                 # optional
+```
+
+(These are listed in S0 as lineage/attestation artefacts; still indexed in `index.json` when present.) 
+
+## B.5 Lexicographic hashing order (worked example)
+
+Given this file set:
+
+```
+egress_checksums.json
+MANIFEST.json
+manifest_fingerprint_resolved.json
+parameter_hash_resolved.json
+rng_accounting.json
+s9_summary.json
+index.json
+```
+
+The ASCII-lexicographic order is:
+
+```
+MANIFEST.json
+egress_checksums.json
+index.json
+manifest_fingerprint_resolved.json
+parameter_hash_resolved.json
+rng_accounting.json
+s9_summary.json
+```
+
+Compute `SHA256(concat(raw_bytes(files_in_order)))` → write `_passed.flag` as:
+
+```
+sha256_hex = <hex64>
+```
+
+(Flag rule per Registry/Dictionary; consumers **must verify** before reading `outlet_catalogue`.)  
+
+## B.6 What goes into the required bundle files (recap)
+
+* **`MANIFEST.json`** — run identity: `manifest_fingerprint`, `parameter_hash`, `git_commit_hex`, `created_utc_ns`, etc.
+* **`parameter_hash_resolved.json` / `manifest_fingerprint_resolved.json`** — canonical derivations.
+* **`rng_accounting.json`** — per-family event totals, draws/blocks reconciliation, **trace coverage** (one cumulative `rng_trace_log` row **after each** event append) and **audit presence**. (Layer log paths/keys and coverage rule in the Dictionary.) 
+* **`s9_summary.json`** — PASS/FAIL, failure counts by **canonical `E_*` codes**, counts/membership source used.
+* **`egress_checksums.json`** — per-file and composite SHA-256 for `outlet_catalogue` under `[seed,fingerprint]`. (Egress path/partitions/sort per Dictionary.) 
+
+## B.7 Atomic publish (one-shot move)
+
+S9 **stages** the bundle in a temp dir (e.g., `…/validation/_tmp.{uuid}`), computes `_passed.flag` **inside** the staged folder, then **renames atomically** to `fingerprint={manifest_fingerprint}/`. **No partial contents** may become visible. (S0 write semantics + S9 §§4 & 11.) 
+
+## B.8 Consumer read sequence (at a glance)
+
+1. Locate `validation/fingerprint={manifest_fingerprint}/`.
+2. Read `_passed.flag`; recompute SHA-256 over **all files listed in `index.json` (excluding `_passed.flag`)** in ASCII-lexicographic order of the `path` entries; compare to `sha256_hex`.
+3. Only on success, read `outlet_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/…` (Dictionary explicitly repeats this consumer duty). 
 
 ---
 
-## 5) Error taxonomy (machine codes & evidence)
-
-| Code                                             | Meaning                                                                                    | Evidence written (bundle)                                            |
-| ------------------------------------------------ |--------------------------------------------------------------------------------------------|----------------------------------------------------------------------|
-| `s9.10.numeric_env_mismatch`                     | Producer manifest/registry digests don’t match validator’s expected numeric policy.        | `metrics.csv` note + `index.json.notes` policy digests               |
-| `s9.10.s5.sum_to_one_violation`                  | Some currency $\kappa$ fails $\delta_\kappa \le 1e{-12}$.                                  | `diffs/s5_sum_to_one.csv` (κ, δ)                                     |
-| `s9.10.s5.equal_split_violation`                 | Sparse equal-split max error $>1e{-12}$.                                                   | `diffs/s5_sparse_equal_split.csv` (κ, maxerr, D)                     |
-| `s9.10.s7.dirichlet_event_missing_or_misaligned` | Dirichlet event missing or its `country_isos` misaligned with `country_set(rank,iso)`.     | `diffs/s7_dirichlet_alignment.csv`                                   |
-| `s9.10.s7.dirichlet_sum_to_one_violation`        | ($1-\sum w_i > 1e{-6}$) under the governed reducer.                                       | `diffs/s7_dirichlet_sum_to_one.csv` (m, δ)                           |
-| `s9.10.s7.residual_value_mismatch`               | Persisted residual ≠ Q8(Nraw·w − floor(Nraw·w)) (bit-equal check).                         | `diffs/s7_residual_value.csv` (m, iso, cache, recomputed)            |
-| `s9.10.s7.residual_rank_mismatch`                | Sorting by $(\text{residual}\downarrow,\ ISO\uparrow)$ does not reproduce `residual_rank`. | `diffs/s7_residual_rank.csv` (m, iso, cache_rank, recomputed_rank) |
-| `s9.10.s7.single_country_residual_event_missing` | ($C_m = 1$) but residual cache not `0.0/1`.                                               | `diffs/s7_single_country.csv` (m, iso, residual, rank)               |
-
-All are **hard fails** (S9.8). The bundle still materialises; `_passed.flag` is withheld.
+**Status:** Appendix B is **Informative**. Shape/paths and the gate rule are governed by the Dictionary/Registry and 1A schemas cited above.   
 
 ---
 
-## 6) Bundle wiring (what S9.7 must package)
+# Appendix C) Worked micro-examples **(Informative)**
 
-Write `metrics.csv` rows (using your bundle schema column order):
+## C.1 “Happy-path” multi-site with 2 foreigns
 
-* `("s5.sum_to_one_delta", κ, δ, "1e-12", "S5 ISO-asc serial Neumaier", 1)`
-* `("s5.sparse_equal_split_maxerr", κ, ε, "1e-12", "only if sparse_flag=1", evaluated)`
-* `("s7.dirichlet_sum_to_one_delta", m, δm, "1e-6", "rank→ISO serial Neumaier", 1)`
-* `("s7.residual_rank_repro_rate", "GLOBAL", pass_fraction, "1.0", "bit-equal after Q8", 1)`
+**Lineage (one merchant):** `seed=42`, `parameter_hash=…aa11`, `manifest_fingerprint=…bb22`, `run_id="r1"`.
 
-Emit diffs listed in §5 under `diffs/*.csv` and add them to `index.json`.
-Augment `rng_accounting.json` (or a `numeric_policy.json` companion) with:
+**S1 (hurdle).** One event (stochastic): `draws="1"`, `blocks=1`, `u=0.43`, `is_multi=true`. Open-interval `u∈(0,1)` holds; budget identity holds.  
 
-* `numeric_env_sha256`, `residual_quantisation_policy_sha256`,
-* detected runtime toggles (FMA off, FTZ/DAZ off), if captured.
+**S2 (NB mixture → N).** Attempts (Gamma→Poisson per attempt), then one non-consuming `nb_final{n_outlets=N=7, nb_rejections=2}` (`blocks=0`, `draws="0"`).  
 
----
+**S3 (order authority).** `s3_candidate_set` for merchant `m42`:
 
-## 7) Conformance tests (must pass)
+| `candidate_rank` | `country_iso` | `is_home` |
+|-----------------:|:-------------:|:---------:|
+|                0 |      GB       |   true    |
+|                1 |      US       |   false   |
+|                2 |      DE       |   false   |
 
-1. **Happy path:** All S5 groups satisfy $\delta_\kappa \le 1e{-12}$; sparse groups have $\epsilon_\kappa \le 1e{-12}$; all merchants reproduce residual values/ranks; **PASS** → bundle+flag. ✔︎
-2. **Rounding drift (intentional):** Quantise residuals at 7 dp in a test build → `s9.10.s7.residual_value_mismatch`; **FAIL** (bundle only). ✔︎
-3. **Parallel reduction swap:** Replace serial Neumaier with parallel sum → some $\delta_\kappa>1e{-12}$ → `s9.10.s5.sum_to_one_violation`; **FAIL**. ✔︎
-4. **FTZ/DAZ on:** Runtime logs FTZ=ON but manifest digest expects OFF → `s9.10.numeric_env_mismatch`; **FAIL**. ✔︎
-5. **Single-country omission:** Drop the residual cache row for $|C_m|=1$ → `s9.10.s7.single_country_residual_event_missing`; **FAIL**. ✔︎
+Ranks are total & contiguous; **home=0**. 
 
----
+**S4 (ZTP target).** Attempt 1: `poisson_component(context="ztp", k=0)` → `ztp_rejection`. Attempt 2: `poisson_component(k=2)` → `ztp_final{K_target=2, exhausted:false}` (non-consuming). Attempts are 1-based, counters monotone. 
 
-## 8) Relationship to other S9 gates (no duplication)
+**S6 (selection, Gumbel keys).** Considered = `{US, DE}`; keys written in **S3 rank order**; budgets: each `gumbel_key` has `blocks=1`, `draws="1"`. Top-K (K=2) ⇒ selected `{US, DE}`. (Tie-breaks: S3 rank, then ISO.)  
 
-* **S9.3**: schema/PK/FK/echo.
-* **S9.4**: exact equalities (conservation, coverage, encoder, residual-rank *ordering* using persisted values).
-* **S9.5**: RNG lineage, counters, replay spot-checks.
-* **S9.6**: corridors.
-* **S9.10**: **numeric policy** itself (binary64 + serial reducers + Q8) was respected when producing those persisted values.
+**S7 (integerisation over `{home}∪selected`).** Let ephemeral weights within the domain be `{GB:0.60, US:0.25, DE:0.15}`; with `N=7` → floors `{4,1,1}`, remainder `d=1`. Quantised residuals at **dp=8**: `{0.20000000, 0.75000000, 0.05000000}`; bump goes to `US`. Final counts: `{GB:4, US:2, DE:1}`; non-consuming `residual_rank` emitted for each country.  
 
----
+**S8 (egress & instrumentation).**
+`outlet_catalogue` rows for each `(country, site_order=1..nᵢ)` with `site_id` `^[0-9]{6}$`. S8 emits three **non-consuming** `sequence_finalize` events:
 
-## 9) Implementation notes (binding)
+* `sequence_finalize(m42, GB, site_count=4, start="000001", end="000004")`
+* `sequence_finalize(m42, US, site_count=2, …, end="000002")`
+* `sequence_finalize(m42, DE, site_count=1, …, end="000001")`  
 
-* Resolve **schema pointers and paths via the registry/dictionary**; do **not** hardcode.
-* Use a **precomputed binary64 constant** `K = 100000000.0` for Q8; do not build `10^8` via integer pow at runtime.
-* Ensure **array alignment**: if the event lists `country_isos`, the validator must reorder the arrays to match `country_set(rank,iso)` for reductions; then apply the sorting key $(residual\downarrow,\ ISO\uparrow)$ for rank checks.
-* Persist **bit patterns** (e.g., `as_hex(float64)`) in diffs for forensic reproducibility.
+**What S9 verifies (samples).**
+
+* Path↔embed equality on all reads; schema conformance for egress & events. 
+* RNG envelopes & budgets: per-event `after−before==blocks`; `sequence_finalize`/`residual_rank` non-consuming. One **trace** append **after each** event; final trace totals match set-sums. 
+* Counts: `4+2+1 == N==7` from `nb_final`. **No cross-country order** encoded in egress; join-back to S3 gives order.  
 
 ---
 
-**This locks S9.10**: exact numeric-policy definitions, fixed reduction orders, Q8 quantiser, executable pseudocode, error taxonomy with bundle evidence, metrics wiring, conformance tests, and binding notes — aligned with S9.1–S9.9, the registry/dictionary, and the governed policy digests.
+## C.2 Single-country domain (A=0) — **valid degenerate**
+
+**S3.** Candidate set contains **home only**: `NG (rank 0)`; **A=0**. 
+
+**S4.** **Short-circuit:** write **one** non-consuming `ztp_final{K_target=0, attempts:0, exhausted:false [,reason:"no_admissible"]?}` (if the field exists in this schema version). No Poisson attempts written. 
+
+**S6.** Skipped (domestic-only path). 
+
+**S7.** Counts = `{NG:N}`; one `residual_rank` with residual `0.00000000`, rank `1`. Sum law holds. 
+
+**S8.** Three egress rows if `N=3` with `site_order=1..3` and one `sequence_finalize(…, country=NG, start="000001", end="000003")`. Label `DEG_SINGLE_COUNTRY` is **informative**. 
+
+**S9.** PASS when all other checks pass; zero-target via **A=0** is tolerated. 
+
+---
+
+## C.3 Shortfall: `K_target=3` but only 2 eligible
+
+**Setup.** S3 foreigns in rank order `{FR, DE, ES, IT}`; policy includes a cap & zero-weight handling such that only `{ES, DE}` have `w>0`. 
+
+**S4.** `ztp_final{K_target=3}` (non-consuming). 
+
+**S6.** Considered size `A_filtered=4`; **eligible** size `|Eligible|=2`. With `log_all_candidates=true`, four `gumbel_key` events (one per considered) are written (each `blocks=1`, `draws="1"`). Realisation law:
+`K_realized = min(3, 2) = 2` ⇒ selected `{ES, DE}`.  
+
+**S7.** Integerise over `{home}∪{ES,DE}` to sum to `N` from `nb_final`; `residual_rank` persisted per country. 
+
+**S8/S9.** Egress has only `{home, ES, DE}`; S9 proves membership from events or (if used) gated `s6_membership` and checks Σ-law to `N`. Shortfall is **tolerated** (not an error). 
+
+---
+
+## C.4 Overflow guardrail — **merchant-scoped abort, non-error if handled**
+
+**Scenario.** A single country gets `n=1,000,001` (> `999,999` max).
+
+**S8 behaviour.** Emit **non-consuming** `site_sequence_overflow{attempted_count=1000001, max_seq=999999, overflow_by=2, severity="ERROR"}` and **write no egress rows** for the merchant.  
+
+**S9 handling.** Records the merchant in the bundle; this condition **by itself** is a **non-error** if the overflow event exists and no egress rows were written. (Policy breach—overflow without the event, or rows written anyway—would be `E_OVERFLOW_POLICY_BREACH` and fail the run.) 
+
+---
+
+## C.5 Zero-target via policy (“downgrade_domestic”) — **valid**
+
+**S4.** Cap reached; policy=`"downgrade_domestic"` ⇒ emit **one** non-consuming `ztp_final{K_target=0, exhausted:true}`; **no** `ztp_retry_exhausted` is written under this policy. 
+
+**S6.** Skipped (domestic-only path). **S7/S8** proceed as domestic-only; S9 treats this as **tolerated** (non-error) when all other checks pass. 
+
+---
+
+### What these examples teach the implementer (at a glance)
+
+* **Order is S3 only.** Every display/order need joins `candidate_rank`; egress never encodes cross-country order. 
+* **Facts chain:** `N` (S2) → `K_target` (S4) → membership (S6) → integer counts (S7) → sequences (S8). S9 re-derives each from written inputs only.    
+* **Budgets & trace:** consuming vs non-consuming envelopes and “trace append after each event” are universal; S9 reconciles totals from the **final** trace rows. 
 
 ---

@@ -1,0 +1,472 @@
+{
+  "row_count": 271,
+  "currency_count": 155,
+  "generated_at_utc": "2025-10-26T07:25:34.798566+00:00",
+  "per_currency": {
+    "AED": {
+      "sum_share": 1.0
+    },
+    "AFN": {
+      "sum_share": 1.0
+    },
+    "ALL": {
+      "sum_share": 1.0
+    },
+    "AMD": {
+      "sum_share": 1.0
+    },
+    "AOA": {
+      "sum_share": 1.0
+    },
+    "ARS": {
+      "sum_share": 1.0
+    },
+    "AUD": {
+      "sum_share": 1.0
+    },
+    "AWG": {
+      "sum_share": 1.0
+    },
+    "AZN": {
+      "sum_share": 1.0
+    },
+    "BAM": {
+      "sum_share": 1.0
+    },
+    "BBD": {
+      "sum_share": 1.0
+    },
+    "BDT": {
+      "sum_share": 1.0
+    },
+    "BGN": {
+      "sum_share": 1.0
+    },
+    "BHD": {
+      "sum_share": 1.0
+    },
+    "BIF": {
+      "sum_share": 1.0
+    },
+    "BMD": {
+      "sum_share": 1.0
+    },
+    "BND": {
+      "sum_share": 1.0
+    },
+    "BOB": {
+      "sum_share": 1.0
+    },
+    "BRL": {
+      "sum_share": 1.0
+    },
+    "BSD": {
+      "sum_share": 1.0
+    },
+    "BWP": {
+      "sum_share": 1.0
+    },
+    "BYN": {
+      "sum_share": 1.0
+    },
+    "BZD": {
+      "sum_share": 1.0
+    },
+    "CAD": {
+      "sum_share": 1.0
+    },
+    "CDF": {
+      "sum_share": 1.0
+    },
+    "CHF": {
+      "sum_share": 1.0
+    },
+    "CLP": {
+      "sum_share": 1.0
+    },
+    "CNY": {
+      "sum_share": 1.0
+    },
+    "COP": {
+      "sum_share": 1.0
+    },
+    "CRC": {
+      "sum_share": 1.0
+    },
+    "CUP": {
+      "sum_share": 1.0
+    },
+    "CVE": {
+      "sum_share": 1.0
+    },
+    "CZK": {
+      "sum_share": 1.0
+    },
+    "DJF": {
+      "sum_share": 1.0
+    },
+    "DKK": {
+      "sum_share": 1.0
+    },
+    "DOP": {
+      "sum_share": 1.0
+    },
+    "DZD": {
+      "sum_share": 1.0
+    },
+    "EGP": {
+      "sum_share": 1.0
+    },
+    "ERN": {
+      "sum_share": 1.0
+    },
+    "ETB": {
+      "sum_share": 1.0
+    },
+    "EUR": {
+      "sum_share": 1.0
+    },
+    "FJD": {
+      "sum_share": 1.0
+    },
+    "FKP": {
+      "sum_share": 1.0
+    },
+    "GBP": {
+      "sum_share": 1.0
+    },
+    "GEL": {
+      "sum_share": 1.0
+    },
+    "GHS": {
+      "sum_share": 1.0
+    },
+    "GIP": {
+      "sum_share": 1.0
+    },
+    "GMD": {
+      "sum_share": 1.0
+    },
+    "GNF": {
+      "sum_share": 1.0
+    },
+    "GTQ": {
+      "sum_share": 1.0
+    },
+    "GYD": {
+      "sum_share": 1.0
+    },
+    "HKD": {
+      "sum_share": 1.0
+    },
+    "HNL": {
+      "sum_share": 1.0
+    },
+    "HTG,USD": {
+      "sum_share": 1.0
+    },
+    "HUF": {
+      "sum_share": 1.0
+    },
+    "IDR": {
+      "sum_share": 1.0
+    },
+    "ILS": {
+      "sum_share": 1.0
+    },
+    "INR": {
+      "sum_share": 1.0
+    },
+    "INR,BTN": {
+      "sum_share": 1.0
+    },
+    "IQD": {
+      "sum_share": 1.0
+    },
+    "IRR": {
+      "sum_share": 1.0
+    },
+    "ISK": {
+      "sum_share": 1.0
+    },
+    "JMD": {
+      "sum_share": 1.0
+    },
+    "JOD": {
+      "sum_share": 1.0
+    },
+    "JPY": {
+      "sum_share": 1.0
+    },
+    "KES": {
+      "sum_share": 1.0
+    },
+    "KGS": {
+      "sum_share": 1.0
+    },
+    "KHR": {
+      "sum_share": 1.0
+    },
+    "KMF": {
+      "sum_share": 1.0
+    },
+    "KPW": {
+      "sum_share": 1.0
+    },
+    "KRW": {
+      "sum_share": 1.0
+    },
+    "KWD": {
+      "sum_share": 1.0
+    },
+    "KYD": {
+      "sum_share": 1.0
+    },
+    "KZT": {
+      "sum_share": 1.0
+    },
+    "LAK": {
+      "sum_share": 1.0
+    },
+    "LBP": {
+      "sum_share": 1.0
+    },
+    "LKR": {
+      "sum_share": 1.0
+    },
+    "LRD": {
+      "sum_share": 1.0
+    },
+    "LSL,ZAR": {
+      "sum_share": 1.0
+    },
+    "LYD": {
+      "sum_share": 1.0
+    },
+    "MAD": {
+      "sum_share": 1.0
+    },
+    "MDL": {
+      "sum_share": 1.0
+    },
+    "MGA": {
+      "sum_share": 1.0
+    },
+    "MKD": {
+      "sum_share": 1.0
+    },
+    "MMK": {
+      "sum_share": 1.0
+    },
+    "MNT": {
+      "sum_share": 1.0
+    },
+    "MOP": {
+      "sum_share": 1.0
+    },
+    "MRU": {
+      "sum_share": 1.0
+    },
+    "MUR": {
+      "sum_share": 1.0
+    },
+    "MVR": {
+      "sum_share": 1.0
+    },
+    "MWK": {
+      "sum_share": 1.0
+    },
+    "MXN": {
+      "sum_share": 1.0
+    },
+    "MYR": {
+      "sum_share": 1.0
+    },
+    "MZN": {
+      "sum_share": 1.0
+    },
+    "NAD,ZAR": {
+      "sum_share": 1.0
+    },
+    "NGN": {
+      "sum_share": 1.0
+    },
+    "NIO": {
+      "sum_share": 1.0
+    },
+    "NOK": {
+      "sum_share": 1.0
+    },
+    "NPR": {
+      "sum_share": 1.0
+    },
+    "NZD": {
+      "sum_share": 1.0
+    },
+    "OMR": {
+      "sum_share": 1.0
+    },
+    "PAB,USD": {
+      "sum_share": 1.0
+    },
+    "PEN": {
+      "sum_share": 1.0
+    },
+    "PGK": {
+      "sum_share": 1.0
+    },
+    "PHP": {
+      "sum_share": 1.0
+    },
+    "PKR": {
+      "sum_share": 1.0
+    },
+    "PLN": {
+      "sum_share": 1.0
+    },
+    "PYG": {
+      "sum_share": 1.0
+    },
+    "QAR": {
+      "sum_share": 1.0
+    },
+    "RON": {
+      "sum_share": 1.0
+    },
+    "RSD": {
+      "sum_share": 1.0
+    },
+    "RUB": {
+      "sum_share": 1.0
+    },
+    "RWF": {
+      "sum_share": 1.0
+    },
+    "SAR": {
+      "sum_share": 1.0
+    },
+    "SBD": {
+      "sum_share": 1.0
+    },
+    "SCR": {
+      "sum_share": 1.0
+    },
+    "SDG": {
+      "sum_share": 1.0
+    },
+    "SEK": {
+      "sum_share": 1.0
+    },
+    "SGD": {
+      "sum_share": 1.0
+    },
+    "SHP": {
+      "sum_share": 1.0
+    },
+    "SLE": {
+      "sum_share": 1.0
+    },
+    "SOS": {
+      "sum_share": 1.0
+    },
+    "SRD": {
+      "sum_share": 1.0
+    },
+    "SSP": {
+      "sum_share": 1.0
+    },
+    "STN": {
+      "sum_share": 1.0
+    },
+    "SVC,USD": {
+      "sum_share": 1.0
+    },
+    "SYP": {
+      "sum_share": 1.0
+    },
+    "SZL": {
+      "sum_share": 1.0
+    },
+    "THB": {
+      "sum_share": 1.0
+    },
+    "TJS": {
+      "sum_share": 1.0
+    },
+    "TMT": {
+      "sum_share": 1.0
+    },
+    "TND": {
+      "sum_share": 1.0
+    },
+    "TOP": {
+      "sum_share": 1.0
+    },
+    "TRY": {
+      "sum_share": 1.0
+    },
+    "TTD": {
+      "sum_share": 1.0
+    },
+    "TWD": {
+      "sum_share": 1.0
+    },
+    "TZS": {
+      "sum_share": 1.0
+    },
+    "UAH": {
+      "sum_share": 1.0
+    },
+    "UGX": {
+      "sum_share": 1.0
+    },
+    "USD": {
+      "sum_share": 1.0
+    },
+    "UYU,UYW": {
+      "sum_share": 1.0
+    },
+    "UZS": {
+      "sum_share": 1.0
+    },
+    "VES,VED": {
+      "sum_share": 1.0
+    },
+    "VND": {
+      "sum_share": 1.0
+    },
+    "VUV": {
+      "sum_share": 1.0
+    },
+    "WST": {
+      "sum_share": 1.0
+    },
+    "XAF": {
+      "sum_share": 1.0
+    },
+    "XCD": {
+      "sum_share": 1.0
+    },
+    "XCG": {
+      "sum_share": 1.0
+    },
+    "XOF": {
+      "sum_share": 1.0
+    },
+    "XPF": {
+      "sum_share": 1.0
+    },
+    "YER": {
+      "sum_share": 1.0
+    },
+    "ZAR": {
+      "sum_share": 1.0
+    },
+    "ZMW": {
+      "sum_share": 1.0
+    },
+    "ZWG": {
+      "sum_share": 1.0
+    }
+  }
+}

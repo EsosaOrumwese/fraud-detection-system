@@ -1,0 +1,539 @@
+$id: schemas.1B.yaml
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Segment 1B Schemas
+version: '1.0'
+description: >
+  Canonical schemas for Layer-1 Segment 1B artefacts. This initial snapshot
+  covers the S0 gate receipt; additional states extend this file as they
+  ratify.
+
+$defs:
+  iso2:
+    type: string
+    pattern: ^[A-Z]{2}$
+    description: ISO 3166-1 alpha-2 country code (uppercase).
+  uint64:
+    type: integer
+    minimum: 0
+    maximum: 18446744073709551615
+    description: Unsigned 64-bit integer encoded as a JSON integer.
+  uint32:
+    type: integer
+    minimum: 0
+    maximum: 4294967295
+    description: Unsigned 32-bit integer encoded as a JSON integer.
+  hex64:
+    type: string
+    pattern: ^[a-f0-9]{64}$
+    description: Lowercase hexadecimal SHA-256 digest (64 hex characters).
+  determinism_receipt:
+    type: object
+    additionalProperties: false
+    required: [partition_path, sha256_hex]
+    properties:
+      partition_path:
+        type: string
+        minLength: 1
+        description: Absolute path to the materialised dataset partition.
+      sha256_hex:
+        $ref: '#/$defs/hex64'
+        description: Composite SHA-256 digest over ASCII-lex ordered partition files.
+
+  rfc3339_micros:
+    type: string
+    pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z$
+    description: RFC3339 UTC timestamp with exactly six fractional digits and trailing 'Z'.
+
+validation:
+  s0_gate_receipt:
+    type: object
+    additionalProperties: false
+    required:
+      - manifest_fingerprint
+      - validation_bundle_path
+      - flag_sha256_hex
+      - verified_at_utc
+      - sealed_inputs
+    properties:
+      manifest_fingerprint:
+        $ref: '#/$defs/hex64'
+        description: Lineage fingerprint (MUST byte-equal the fingerprint path token).
+      validation_bundle_path:
+        type: string
+        pattern: ^data/layer1/1A/validation/fingerprint=[a-f0-9]{64}/?$
+        description: Resolved folder containing the verified 1A validation bundle.
+      flag_sha256_hex:
+        $ref: '#/$defs/hex64'
+        description: SHA-256 digest recovered from _passed.flag after recomputation.
+      verified_at_utc:
+        $ref: '#/$defs/rfc3339_micros'
+        description: UTC timestamp when the gate verification completed.
+      sealed_inputs:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required:
+            - id
+            - schema_ref
+          properties:
+            id:
+              type: string
+              minLength: 1
+            partition:
+              type: array
+              items:
+                type: string
+                minLength: 1
+              description: Partition key names governing this dataset.
+            schema_ref:
+              type: string
+              minLength: 1
+          description: Declared input dataset authorised for 1B consumption.
+      notes:
+        type: string
+        description: Optional freeform commentary (non-semantic).
+
+prep:
+  tile_index:
+    type: table
+    description: Deterministic enumeration of eligible raster cells per ISO country.
+    primary_key: [country_iso, tile_id]
+    partition_keys: [parameter_hash]
+    sort_keys: [country_iso, tile_id]
+    columns_strict: true
+    columns:
+      - name: country_iso
+        $ref: '#/$defs/iso2'
+        nullable: false
+        description: ISO-3166-1 alpha-2 code for the owning country.
+      - name: tile_id
+        $ref: '#/$defs/uint64'
+        nullable: false
+        description: Global tile identifier computed as row_index * ncols + col_index.
+      - name: inclusion_rule
+        type: string
+        enum: [center, any_overlap]
+        nullable: false
+        description: Inclusion predicate used when evaluating country membership.
+      - name: raster_row
+        $ref: '#/$defs/uint32'
+        nullable: false
+        description: Zero-based raster row index.
+      - name: raster_col
+        $ref: '#/$defs/uint32'
+        nullable: false
+        description: Zero-based raster column index.
+      - name: centroid_lon
+        type: number
+        minimum: -180.0
+        maximum: 180.0
+        nullable: false
+        description: Tile centroid longitude in WGS84 degrees.
+      - name: centroid_lat
+        type: number
+        minimum: -90.0
+        maximum: 90.0
+        nullable: false
+        description: Tile centroid latitude in WGS84 degrees.
+      - name: pixel_area_m2
+        type: number
+        exclusiveMinimum: 0.0
+        nullable: false
+        description: Ellipsoidal area of the tile on WGS84, measured in square metres.
+
+  tile_bounds:
+    type: table
+    description: Bounding rectangle (lon/lat) for each eligible tile in tile_index.
+    primary_key: [country_iso, tile_id]
+    partition_keys: [parameter_hash]
+    sort_keys: [country_iso, tile_id]
+    columns_strict: true
+    columns:
+      - name: country_iso
+        $ref: '#/$defs/iso2'
+        nullable: false
+        description: ISO-3166-1 alpha-2 code for the owning country.
+      - name: tile_id
+        $ref: '#/$defs/uint64'
+        nullable: false
+        description: Global tile identifier matching tile_index.tile_id.
+      - name: west_lon
+        type: number
+        minimum: -180.0
+        maximum: 180.0
+        nullable: false
+        description: Western longitude bound of the tile rectangle (degrees, WGS84).
+      - name: east_lon
+        type: number
+        minimum: -180.0
+        maximum: 180.0
+        nullable: false
+        description: Eastern longitude bound of the tile rectangle (degrees, WGS84).
+      - name: south_lat
+        type: number
+        minimum: -90.0
+        maximum: 90.0
+        nullable: false
+        description: Southern latitude bound of the tile rectangle (degrees, WGS84).
+      - name: north_lat
+        type: number
+        minimum: -90.0
+        maximum: 90.0
+        nullable: false
+        description: Northern latitude bound of the tile rectangle (degrees, WGS84).
+
+  tile_weights:
+    type: table
+    description: Fixed-decimal weights per tile produced by S2.
+    primary_key: [country_iso, tile_id]
+    partition_keys: [parameter_hash]
+    sort_keys: [country_iso, tile_id]
+    columns_strict: true
+    columns:
+      - name: country_iso
+        $ref: '#/$defs/iso2'
+        nullable: false
+        description: ISO-3166-1 alpha-2 code for the owning country.
+      - name: tile_id
+        $ref: '#/$defs/uint64'
+        nullable: false
+        description: Global tile identifier matching tile_index.tile_id.
+      - name: weight_fp
+        $ref: '#/$defs/uint64'
+        nullable: false
+        description: Fixed-dp integer weight allocated to the tile.
+      - name: dp
+        $ref: '#/$defs/uint32'
+        nullable: false
+        description: Decimal precision exponent applied to all rows in the partition.
+      - name: zero_mass_fallback
+        type: boolean
+        nullable: false
+        description: True when the per-country zero-mass uniform fallback was applied.
+
+plan:
+  s3_requirements:
+    type: table
+    description: Deterministic per-(merchant_id, legal_country_iso) site counts for this run.
+    primary_key: [merchant_id, legal_country_iso]
+    partition_keys: [seed, fingerprint, parameter_hash]
+    sort_keys: [merchant_id, legal_country_iso]
+    columns_strict: true
+    columns:
+      - name: merchant_id
+        $ref: 'schemas.layer1.yaml#/$defs/id64'
+        nullable: false
+      - name: legal_country_iso
+        $ref: '#/$defs/iso2'
+        nullable: false
+      - name: n_sites
+        type: integer
+        minimum: 1
+        nullable: false
+
+  s4_alloc_plan:
+    type: table
+    description: Per-tile integer allocations that sum to S3 n_sites (RNG-free). Emitted only for positive allocations.
+    primary_key: [merchant_id, legal_country_iso, tile_id]
+    partition_keys: [seed, fingerprint, parameter_hash]
+    sort_keys: [merchant_id, legal_country_iso, tile_id]
+    columns_strict: true
+    columns:
+      - name: merchant_id
+        $ref: 'schemas.layer1.yaml#/$defs/id64'
+        nullable: false
+      - name: legal_country_iso
+        $ref: '#/$defs/iso2'
+        nullable: false
+        fk:
+          dataset_ref: 'schemas.ingress.layer1.yaml#/iso3166_canonical_2024'
+          columns:
+            legal_country_iso: country_iso
+      - name: tile_id
+        $ref: '#/$defs/uint64'
+        nullable: false
+        fk:
+          dataset_ref: '#/prep/tile_index'
+          partition_keys: [parameter_hash]
+          columns:
+            legal_country_iso: country_iso
+            tile_id: tile_id
+      - name: n_sites_tile
+        type: integer
+        minimum: 1
+        nullable: false
+        description: Integer allocation for this (merchant,country,tile). Zero allocations are not materialised.
+
+  s5_site_tile_assignment:
+    type: table
+    description: RNG-driven assignment of each site to a tile (quota-exact to S4 outputs).
+    primary_key: [merchant_id, legal_country_iso, site_order]
+    partition_keys: [seed, fingerprint, parameter_hash]
+    sort_keys: [merchant_id, legal_country_iso, site_order]
+    columns_strict: true
+    columns:
+      - name: merchant_id
+        $ref: 'schemas.layer1.yaml#/$defs/id64'
+        nullable: false
+      - name: legal_country_iso
+        $ref: '#/$defs/iso2'
+        nullable: false
+        fk:
+          dataset_ref: 'schemas.ingress.layer1.yaml#/iso3166_canonical_2024'
+          columns:
+            legal_country_iso: country_iso
+      - name: site_order
+        type: integer
+        minimum: 1
+        nullable: false
+        description: Contiguous 1..N per (merchant_id, legal_country_iso), guaranteed upstream.
+      - name: tile_id
+        $ref: '#/$defs/uint64'
+        nullable: false
+        fk:
+          dataset_ref: '#/prep/tile_index'
+          partition_keys: [parameter_hash]
+          columns:
+            legal_country_iso: country_iso
+            tile_id: tile_id
+        description: Assigned eligible tile for this site (must exist in tile_index for the same parameter_hash).
+
+  s6_site_jitter:
+    type: table
+    description: In-pixel jitter deltas per site with bounded resample semantics.
+    primary_key: [merchant_id, legal_country_iso, site_order]
+    partition_keys: [seed, fingerprint, parameter_hash]
+    sort_keys: [merchant_id, legal_country_iso, site_order]
+    columns_strict: true
+    columns:
+      - name: merchant_id
+        $ref: 'schemas.layer1.yaml#/$defs/id64'
+        nullable: false
+      - name: legal_country_iso
+        $ref: '#/$defs/iso2'
+        nullable: false
+        fk:
+          dataset_ref: 'schemas.ingress.layer1.yaml#/iso3166_canonical_2024'
+          columns:
+            legal_country_iso: country_iso
+      - name: site_order
+        type: integer
+        minimum: 1
+        nullable: false
+      - name: tile_id
+        $ref: '#/$defs/uint64'
+        nullable: false
+        fk:
+          dataset_ref: '#/prep/tile_index'
+          partition_keys: [parameter_hash]
+          columns:
+            legal_country_iso: country_iso
+            tile_id: tile_id
+      - name: delta_lat_deg
+        type: number
+        minimum: -1.0
+        maximum: 1.0
+        nullable: false
+        description: Latitude jitter relative to the tile centroid (degrees).
+      - name: delta_lon_deg
+        type: number
+        minimum: -1.0
+        maximum: 1.0
+        nullable: false
+        description: Longitude jitter relative to the tile centroid (degrees).
+      - name: manifest_fingerprint
+        $ref: '#/$defs/hex64'
+        nullable: false
+        description: Embedded fingerprint equal to the partition token.
+
+control:
+  s5_run_report:
+    type: object
+    description: Control-plane evidence for S5 site→tile assignment publishes.
+    additionalProperties: false
+    required:
+      - seed
+      - manifest_fingerprint
+      - parameter_hash
+      - run_id
+      - rows_emitted
+      - pairs_total
+      - rng_events_emitted
+      - determinism_receipt
+    properties:
+      seed:
+        type: string
+        pattern: ^[0-9]+$
+        description: Seed token associated with this publish.
+      manifest_fingerprint:
+        $ref: '#/$defs/hex64'
+      parameter_hash:
+        $ref: '#/$defs/hex64'
+      run_id:
+        $ref: 'schemas.layer1.yaml#/$defs/hex32'
+      rows_emitted:
+        type: integer
+        minimum: 0
+      pairs_total:
+        type: integer
+        minimum: 0
+      rng_events_emitted:
+        type: integer
+        minimum: 0
+      determinism_receipt:
+        $ref: '#/$defs/determinism_receipt'
+      ingress_versions:
+        type: object
+        additionalProperties:
+          type: string
+        description: Optional mapping of ingress dataset identifiers to version strings.
+      ties_broken_total:
+        type: integer
+        minimum: 0
+        description: Count of RNG tie-break events encountered during assignment.
+      expected_rng_events:
+        type: integer
+        minimum: 0
+        description: Expected RNG event count (should equal rows_emitted on acceptance).
+      quota_mismatches:
+        type: integer
+        minimum: 0
+      dup_sites:
+        type: integer
+        minimum: 0
+      tile_not_in_index:
+        type: integer
+        minimum: 0
+      fk_country_violations:
+        type: integer
+        minimum: 0
+      bytes_read_alloc_plan:
+        type: integer
+        minimum: 0
+      bytes_read_tile_index:
+        type: integer
+        minimum: 0
+      bytes_read_iso:
+        type: integer
+        minimum: 0
+      wall_clock_seconds_total:
+        type: number
+        minimum: 0
+      cpu_seconds_total:
+        type: number
+        minimum: 0
+      workers_used:
+        type: integer
+        minimum: 0
+      max_worker_rss_bytes:
+        type: integer
+        minimum: 0
+      open_files_peak:
+        type: integer
+        minimum: 0
+
+  s6_run_report:
+    type: object
+    description: Control-plane counters for S6 jitter publishes.
+    additionalProperties: false
+    required:
+      - identity
+      - counts
+      - validation_counters
+      - by_country
+      - determinism_receipt
+    properties:
+      identity:
+        type: object
+        additionalProperties: false
+        required: [seed, parameter_hash, manifest_fingerprint, run_id]
+        properties:
+          seed:
+            type: string
+            pattern: ^[0-9]+$
+          parameter_hash:
+            $ref: '#/$defs/hex64'
+          manifest_fingerprint:
+            $ref: '#/$defs/hex64'
+          run_id:
+            $ref: 'schemas.layer1.yaml#/$defs/hex32'
+      counts:
+        type: object
+        additionalProperties: false
+        required: [sites_total, rng]
+        properties:
+          sites_total:
+            type: integer
+            minimum: 0
+          rng:
+            type: object
+            additionalProperties: false
+            required: [events_total, draws_total, blocks_total, counter_span]
+            properties:
+              events_total:
+                type: integer
+                minimum: 0
+              draws_total:
+                type: string
+                pattern: ^[0-9]+$
+              blocks_total:
+                type: integer
+                minimum: 0
+              counter_span:
+                type: string
+                pattern: ^[0-9]+$
+      validation_counters:
+        type: object
+        additionalProperties: false
+        required:
+          - fk_tile_index_failures
+          - point_outside_pixel
+          - point_outside_country
+          - path_embed_mismatches
+        properties:
+          fk_tile_index_failures:
+            type: integer
+            minimum: 0
+          point_outside_pixel:
+            type: integer
+            minimum: 0
+          point_outside_country:
+            type: integer
+            minimum: 0
+          path_embed_mismatches:
+            type: integer
+            minimum: 0
+      by_country:
+        type: object
+        default: {}
+        additionalProperties:
+          type: object
+          additionalProperties: false
+          required: [sites, rng_events, rng_draws, outside_pixel, outside_country]
+          properties:
+            sites:
+              type: integer
+              minimum: 0
+            rng_events:
+              type: integer
+              minimum: 0
+            rng_draws:
+              type: string
+              pattern: ^[0-9]+$
+            outside_pixel:
+              type: integer
+              minimum: 0
+            outside_country:
+              type: integer
+              minimum: 0
+      determinism_receipt:
+        $ref: '#/$defs/determinism_receipt'
+      ingress_versions:
+        type: object
+        additionalProperties:
+          type: string
+      metrics:
+        type: object
+        additionalProperties: true

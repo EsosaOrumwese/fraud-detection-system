@@ -1,1732 +1,1483 @@
-# S6.0 — Pre-screen / cap with candidate size $M_m$
+# S6 SPEC — Foreign Set Selection (Layer 1 · Segment 1A)
 
-## 1) Purpose & placement
+# 0. Document metadata & status **(Binding)**
 
-S6.0 sits at the front of S6. Its sole job is to:
+**0.1 State ID, version, semver policy, effective date**
 
-1. compute the **foreign candidate count** $M_m$ for merchant $m$ (home excluded),
-2. set the **effective selection size** $K_m^\star=\min(K_m,M_m)$, and
-3. short-circuit to a **home-only** allocation if there is no selectable foreign mass (details below), then hand off to S7.
+* **State ID:** `layer1.1A.S6` (“Foreign Set Selection”).
+* **Versioning:** semantic versioning **MAJOR.MINOR.PATCH**.
 
-It **does not** draw randomness, score keys, or persist foreign winners; that happens in later S6 steps. `country_set` is the *only* authority for cross-country order, and **S6 authors it** (including the home-only row in this sub-state).
+  * **MAJOR** bump required for: any change to read/write dataset IDs or schemas, tie-break rules, RNG event family shapes, partition law, or PASS-gate semantics.
+  * **MINOR**: additive fields/metrics, optional convenience dataset enablement.
+  * **PATCH**: clarifications with zero behaviour/schema impact.
+* **Effective date:** set by release tag on approval.
 
----
+**0.2 Normative marks & RFC 2119/8174 usage**
 
-## 2) Inputs (deterministic, read-only)
+* **MUST/SHALL/SHOULD/MAY** are per RFC 2119/8174 and are **binding** in this spec.
+* This document is **binding** unless a clause is explicitly labelled *Informative*.
 
-Per merchant $m$:
+**0.3 Sources of authority (precedence)**
 
-* **Foreign target from S4:** $K_{\text{raw}} \equiv K_m \in \{1,2,\dots\}$ (accepted ZTP count). S4 may also downgrade/abort merchants, which skip S6 entirely.
-* **Home ISO:** $c \in \mathcal I$ (ISO-3166 alpha-2, **UPPER-CASE ASCII**), from normalised ingress.
-* **Settlement currency:** $\kappa_m\in\mathrm{ISO4217}$ (read from `merchant_currency`, fixed in S5.0).
-* **Currency→country prior weights (from S5 cache; ISO-sorted):** rows $\{(\kappa_m,i,w_i^{(\kappa_m)}): i \in \mathcal D(\kappa_m)\}$ with $\sum_{i\in\mathcal D(\kappa_m)} w_i^{(\kappa_m)}=1$ by construction.
+1. **JSON-Schema** (`schemas.1A.yaml`, `schemas.layer1.yaml`, `schemas.ingress.layer1.yaml`) is the **sole** schema authority for all S6 inputs/outputs/logs. 2) **Dataset Dictionary** (`dataset_dictionary.layer1.1A.yaml`) governs dataset IDs, paths, partitions, PK/FK, retention, and ownership. 3) This S6 spec (behavioural rules) sits beneath those authorities. 
 
-> S6.0 only *reads* the S5 cache to know which destinations exist for $\kappa_m$ and to check foreign mass availability. Normalisation and RNG happen after S6.0.
+**0.4 Compatibility window (bound S0–S5; numeric environment)**
 
----
+* **Numeric policy:** S6 **inherits S0.8** verbatim — IEEE-754 **binary64**, **round-to-nearest ties-to-even**, **FMA off**, **no FTZ/DAZ**, deterministic libm profile; any decision-critical math follows S0’s fixed-order and attestation rules.
+* **Assumed baselines (v1.* line unless re-ratified):**
 
-## 3) Mathematical definitions
+  * **Dictionary:** `dataset_dictionary.layer1.1A.yaml` v1.0.
+  * **Schemas:** `schemas.ingress.layer1.yaml` v1.0; `schemas.1A.yaml` v1.0; `schemas.layer1.yaml` v1.0.
+  * **Order authority:** **S3** `s3_candidate_set.candidate_rank` is **sole** inter-country order; `outlet_catalogue` carries **no** cross-country order. If any baseline bumps **MAJOR**, S6 must be re-ratified. 
 
-Using the ISO-ordered S5 expansion $\mathcal D(\kappa_m)\subset\mathcal I$:
+**0.5 Schema anchors & dataset IDs in scope (explicit read/write set)**
 
-1. **Foreign candidate set (home excluded):**
+* **Inputs (read):**
 
-$$
-\boxed{\, \mathcal F_m \;=\; \mathcal D(\kappa_m)\setminus\{c\}\, } \quad\text{(ISO order preserved)}
-$$
+  * `s3_candidate_set` → `schemas.1A.yaml#/s3/candidate_set` (partition `[parameter_hash]`). **Authority for order & admissible set A.** 
+  * `rng_event_ztp_final` → `schemas.layer1.yaml#/rng/events/ztp_final` (partitions `{seed, parameter_hash, run_id}`); carries `K_target`. 
+  * `ccy_country_weights_cache` → `schemas.1A.yaml#/prep/ccy_country_weights_cache` (partition `[parameter_hash]`); authority for currency→country weights. 
+  * *(Optional)* `merchant_currency` → `schemas.1A.yaml#/prep/merchant_currency` (partition `[parameter_hash]`). 
+  * Canonical ISO FK table per dictionary (e.g., `iso3166_canonical_2024`). 
+* **Outputs (write):**
 
-2. **Available candidate count:**
+  * **RNG events:** `rng_event.gumbel_key` → `schemas.layer1.yaml#/rng/events/gumbel_key` (partitions `{seed, parameter_hash, run_id}`); **logging mode:** if `log_all_candidates=true`, one per **considered** candidate; if `false`, keys only for **selected** candidates. Envelope fields (`before/after/blocks/draws`) per layer law; **trace row appended after each event**.
+  * **Core RNG logs updated:** `rng_audit_log`, `rng_trace_log` per layer schemas; cumulative **trace** by `(module, substream_label)`. 
+  * *(Optional)* **`s6_membership`** → `schemas.1A.yaml#/s6/membership` (PK `(merchant_id, country_iso)`, partitions `{seed, parameter_hash}`); **authority note:** must be re-derivable from RNG events; **no** inter-country order (*order remains in S3 `candidate_rank`*).
 
-$$
-\boxed{\, M_m \;=\; |\mathcal F_m| \,}
-$$
+**0.6 Hashing & manifests (lineage identifiers & participation)**
 
-3. **Foreign-mass availability (guard):**
-   Let $T_m := \sum_{j\in\mathcal F_m} w^{(\kappa_m)}_j$.
+* **`parameter_hash` (S0.2.2):** a hash over the governed set **𝓟**; partitions parameter-scoped datasets. S6 **adds its policy file(s)** to 𝓟; changing their bytes **MUST** flip `parameter_hash`. *(Cross-note: S0.2.2 must enumerate the S6 policy basename(s) to keep 𝓟 canonical.)* 
 
-* If $M_m=0$ **or** $T_m=0$ (all foreign weights are zero), there is **no selectable foreign mass**.
+* **`manifest_fingerprint` (S0.2.3):** flips if **any opened artefact** (by bytes), the **code commit**, or the **parameter bundle** changes; all artefacts S6 actually opens (inputs, schemas, dictionary, numeric policy, S6 policy) **contribute** to the manifest. 
 
-4. **Effective selection size (cap):**
+* **`run_id`:** partitions **logs** only; never affects modelling state or RNG decisions. 
 
-$$
-\boxed{\, K_m^\star \;=\; \min\!\big(K_{\text{raw}},\;M_m\big)\, }
-$$
+* **Partition/embedding equality (layer law):** where present, embedded lineage fields `{seed, parameter_hash, run_id}` in events/logs **MUST equal** the path tokens byte-for-byte; `rng_trace_log` lineage is enforced via partition keys. 
 
-**Branch rule.**
-
-* If $M_m=0$ **or** $T_m=0$: set $K_m^\star=0$, write **home-only** `country_set` (`rank=0`), **emit no `gumbel_key`**, record reason `"no_candidates"`, then jump to S7.
-* Else: proceed with $K_m^\star$ (validators assert $0\le K_m^\star\le M_m$).
-
-*Corner notes (for later S6 steps):* if $K_m^\star=M_m$ then **all** candidates will be selected downstream (still ordered 1..$M_m$); if $M_m=1$ the downstream will emit exactly one `gumbel_key` and the sole foreign receives `rank=1`.
+* **Numeric environment attestation:** successful S0.8 self-tests are a **precondition**; S6 assumes the environment and math profile in effect. 
 
 ---
 
-## 4) What is (and isn’t) persisted in S6.0
+# 1. Intent, scope, and non-goals **(Binding)**
 
-### Home-only short-circuit (when $M_m=0$ **or** $T_m=0$)
+**1.1 Goal (what S6 does).**
+For each **eligible multi-site** merchant, S6 selects a **subset of foreign ISO2 countries** of size
+$$
+K_{\text{realized}}=\min\big(K_{\text{target}},\,|\text{Eligible}|\big)
+$$
+where **$K_{\text{target}}$** comes from **S4’s `rng_event.ztp_final`** and **Eligible** is the set of S3 **foreign** candidates (home excluded) with **strictly positive** S5 weight **after** applying policy filters/caps (§4.2; Appendix A). The **selection domain** is the **intersection** of S3’s candidate set and **S5’s `ccy_country_weights_cache`** for the merchant’s settlement currency; weights are taken from S5. **S5 must have PASSed** for the same `parameter_hash` before S6 reads.
 
-Persist exactly one row to **`country_set`** and **no RNG events**:
+**1.2 Out of scope (what S6 will not do).**
 
-**Dataset & partitions (dictionary-pinned):**
+* **No inter-country order creation or implication.** **S3 `candidate_rank`** is the **sole** authority for cross-country order; S6 produces **membership only**. Egress datasets (e.g., `outlet_catalogue`) **do not** encode cross-country order and consumers must keep joining S3 for order.
+* **No allocation of outlet counts across countries (S7 job).** S6 does **not** split N; the count allocation state uses its own RNG family (e.g., `rng_event.dirichlet_gamma_vector`) and contracts.
+* **No site materialisation / IDs (S8 job).** S6 emits no site stubs and does not touch egress; `outlet_catalogue` remains ordered **within-country** only.
+* **No re-derivation or persistence of weights.** Any subset **renormalisation is ephemeral** (for scoring/selection only) and **must not be persisted**; the persisted authority for currency→country weights remains **S5 `ccy_country_weights_cache`**.
+* **No modification of S4’s `K_target`.** S6 reads `K_target` as fixed from S4’s non-consuming final event and does not overwrite it. 
+
+**1.3 Success criteria (how we know S6 is correct).**
+
+* **Deterministic-under-seed:** For a fixed `{seed, parameter_hash, run_id}`, the realized foreign set equals the **top-`K_target`** countries by the S6 scoring rule over the domain (ties broken per §6), or **all `|\text{Eligible}|`** when `|\text{Eligible}| < K_target`. Inputs (`s3_candidate_set`, `rng_event.ztp_final`, `ccy_country_weights_cache`) are consumed exactly as registered in the dictionary/schemas.
+* **Membership-only output:** Any optional S6 “membership” surface contains **no order** and is provably **re-derivable from S6 RNG events + S3/S5 inputs**. 
+* **RNG logging completeness & isolation:** If `log_all_candidates=true`, write exactly one `rng_event.gumbel_key` **per considered candidate** (domain after policy). If `false`, write keys **only for selected candidates** and rely on §9.3 counter-replay. In both modes, only S6 families appear; envelopes/trace totals reconcile.
+* **Upstream gate honored:** S6 reads S5 only after verifying the **S5 PASS** receipt for the same `parameter_hash` (**no PASS → no read**).
+
+---
+
+# 2. Interfaces & “no re-derive” boundaries **(Binding)**
+
+**2.1 Upstream (must exist to run S6).**
+
+* **S3 candidate set (authority for domain & order).** `s3_candidate_set` → `schemas.1A.yaml#/s3/candidate_set` (partitioned by `parameter_hash`). **A** is the count of **foreign** rows per merchant (home has `candidate_rank=0`). `candidate_rank` is **total & contiguous** and is the **sole** authority for inter-country order.
+* **S4 target K (logs-only):** `rng_event_ztp_final` → `schemas.layer1.yaml#/rng/events/ztp_final` under `{seed,parameter_hash,run_id}`; exactly **one** per resolved merchant. S6 **MUST** read `K_target` here and **MUST NOT** infer it from any other rows.
+* **S5 weights (parameter-scoped):** `ccy_country_weights_cache` → `schemas.1A.yaml#/prep/ccy_country_weights_cache` under `parameter_hash={…}`. **Read gate:** S6 **MUST** verify S5 **PASS** (presence of `S5_VALIDATION.json` + valid `_passed.flag`) for the **same `parameter_hash`** before reading (**no PASS → no read**).
+
+**2.2 Downstream (what consumes S6 and how).**
+
+* **S7 (allocation):** consumes **membership only** (domain = home + S6-selected foreigns). S7 **MAY** renormalise **ephemerally** within this domain to drive its own RNG (e.g., `rng_event.dirichlet_gamma_vector`) but **MUST NOT** persist new weights as S5. 
+* **S8 (materialisation):** never encodes cross-country order; consumers derive order **only** from S3 `candidate_rank`. `outlet_catalogue` egress explicitly states “does NOT encode cross-country order.” 
+
+**2.3 “No re-derive” guarantees (promises S6 makes).**
+
+* **No order creation or implication.** S6 **MUST NOT** create, persist, or imply inter-country order; downstream must continue to use **S3 `candidate_rank`** as the only order authority. 
+* **No weight replacement.** S6 **MUST NOT** alter or persist weights; any subset renormalisation used for scoring/selection is **ephemeral** and **not written**. Persisted currency→country weights remain **S5**. 
+* **No reinterpretation of S4 context.** `lambda_extra`, `regime`, `attempts`, `exhausted?` in `ztp_final` are **audit** fields only; S6 **MUST NOT** use them as selection weights or gates beyond reading `K_target`. 
+* **RNG isolation.** S6 **reads/writes only** its own RNG families (e.g., `rng_event.gumbel_key`) and **MUST NOT** write to any S1–S5 streams; envelopes and trace obey the layer budgeting law. 
+
+**2.4 Forward contracts to S7 (what S6 guarantees to its consumer).**
+
+* **Selection size:** S6 **MUST** realise
+  $$
+  K_{\text{realized}}=\min\!\big(K_{\text{target}},\,|\text{Eligible}|\big)
+  $$
+  using the S3 foreign domain and S5 weights; if `|\text{Eligible}| < K_target`, S6 selects **all `|\text{Eligible}|`** (shortfall).
+
+* **Provenance & replay:** If `log_all_candidates=true`, write exactly **one** `rng_event.gumbel_key` per **considered** candidate; if `false`, write keys **only for selected** candidates and rely on §9.3 counter-replay. Selection is re-derivable from events + S3/S5 in both modes. (Membership, if emitted, is convenience-only and exactly re-derivable.)
+
+---
+
+# 3. Inputs — datasets, schemas, partitions **(Binding)**
+
+**3.1 Required datasets (IDs, `$ref`, PK/FK; partitions).**
+
+* **`s3_candidate_set`** → `schemas.1A.yaml#/s3/candidate_set`; **partition:** `parameter_hash={…}`; **row order (logical):** `(merchant_id, candidate_rank, country_iso)`; **authority:** `candidate_rank` is **total & contiguous** per merchant with **home=0**.
+* **`rng_event_ztp_final`** (S4) → `schemas.layer1.yaml#/rng/events/ztp_final`; **partition:** `{seed, parameter_hash, run_id}`; **one** acceptance record per resolved merchant; consumed by **S6**. 
+* **`ccy_country_weights_cache`** (S5) → `schemas.1A.yaml#/prep/ccy_country_weights_cache`; **partition:** `parameter_hash={…}`; **PK:** `(currency, country_iso)`; downstream **must** verify **S5 PASS** for same `parameter_hash` (**no PASS → no read**).
+* *(Optional)* **`merchant_currency`** → `schemas.1A.yaml#/prep/merchant_currency`; **partition:** `parameter_hash={…}`; **PK:** `(merchant_id)`; precedence & domains pinned in S5.
+* **Canonical ISO registry** (FK target), e.g. **`iso3166_canonical_2024`** → `schemas.ingress.layer1.yaml#/iso3166_canonical_2024`. 
+* **RNG core logs** (read-only by validator): `rng_audit_log`, `rng_trace_log` → `schemas.layer1.yaml#/rng/core/*`; **partition:** `{seed, parameter_hash, run_id}`. 
+
+**3.2 Domains, types, nullability (per schema anchors).**
+
+* **S3 candidate set:** `merchant_id:u64`, `country_iso: ISO-3166-1 (A–Z)`, `candidate_rank:u32 (total, contiguous)`, `is_home:bool`; embedded `parameter_hash` **must equal** path key. 
+* **S4 ztp_final:** event schema under layer catalog; partitions `{seed, parameter_hash, run_id}`; **exactly one** final per resolved merchant.
+* **S5 weights cache:** `currency: ISO-4217 (A–Z)`, `country_iso: ISO2 (A–Z, FK→ISO)`, `weight∈[0,1]`, optional `obs_count≥0`; **Σ weight = 1 ± 1e-6** per currency; embedded `parameter_hash` equals path key. 
+* **merchant_currency (if produced):** `merchant_id:id64`, `kappa: ISO-4217`, `source enum`, `tie_break_used:bool`; **1 row per merchant** in S0 universe. 
+
+**3.3 Pre-flight checks (run MUST abort on failure).**
+Per `{seed, parameter_hash[, run_id]}`:
+a) **Presence & schema pass** for **all** inputs above; **path↔embed equality** holds (where embedded).
+b) **S3**: for each merchant, `candidate_rank` is present, **home=0**, contiguous, no dups; compute **A = #foreign candidates**. 
+c) **S0 eligibility (explicit)**: `crossborder_eligibility_flags.is_eligible == true` for the merchant under the same `parameter_hash`; otherwise **do not run S6** (`E_UPSTREAM_GATE`). 
+d) **S4**: exactly **one** `ztp_final` for each merchant that is multi+eligible (per S1/S0 gating upstream). 
+e) **S5**: weights cache exists for the **same `parameter_hash`** and **S5 PASS receipt** is present and valid under that partition (`S5_VALIDATION.json` + `_passed.flag`); otherwise **no read**. 
+f) **Domains/FK**: ISO codes uppercase and FK-valid to `iso3166_canonical_2024`; currencies uppercase ISO-4217.
+
+**3.4 Hard rejections (fail-closed).**
+
+* **`E_UPSTREAM_GATE`** — missing required dataset/partition; S5 PASS receipt absent/invalid; S3 candidate set missing or malformed (non-contiguous ranks, no home).
+* **`E_LINEAGE_PATH_MISMATCH`** — any embedded lineage field not byte-equal to its partition token. 
+* **`E_DOMAIN_FK`** — unknown or non-uppercase ISO/ISO-4217 codes; FK violation to canonical ISO. 
+* **`E_S5_CONTENT`** — `ccy_country_weights_cache` group-sum/ bounds/coverage breach (Σ≠1±1e-6, weight out of [0,1], or union-coverage violated). 
+
+**Partition law (summary, binding).**
+
+* **Parameter-scoped tables** (S3, S5, optional membership): `…/parameter_hash={parameter_hash}/` and embed the **same** `parameter_hash`.
+* **RNG logs/events** (S4/S6 and core logs): `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`.
+
+---
+
+# 4. Configuration & policy **(Binding)**
+
+**4.1 Policy file(s), `$ref`, version pinning**
+
+* **Basenames & location.** One or more S6 policy files (the “S6 policy set”) **MUST** exist under the governed parameters directory and be **registered** in the schema catalog with a stable `$ref` (e.g., `schemas.layer1.yaml#/policy/s6_selection`). The exact basenames **MUST** be enumerated in **S0.2.2’s governed set 𝓟** so that changing any of their bytes flips `parameter_hash`. 
+* **Schema requirement.** Each policy file **MUST** validate against its JSON-Schema with **`additionalProperties: false`** (unknown keys are a **hard FAIL**).
+* **Version pinning.** The policy file(s) **MUST** declare `policy_semver` and **MUST** be pinned by `$ref` version; bump rules follow §16 (MAJOR when keys or semantics change in a breaking way).
+
+**4.2 Keys & domains (values, defaults, and semantics)**
+The policy **MUST** define the following keys in the **`defaults`** block, with optional currency-specific overrides in **`per_currency`** (keys = **uppercase ISO-4217**):
+
+* `emit_membership_dataset : bool` — default **false**. If true, S6 **produces** the convenience **membership** dataset (authority note still applies in §5.2).
+* `log_all_candidates : bool` — default **true**.
+
+  * **true:** write one `rng_event.gumbel_key` **for every considered candidate** (recommended).
+  * **false:** write keys **only for selected candidates**; the validator **MUST** use **counter-replay** in stable iteration order to regenerate the missing keys (§9.3).
+* `max_candidates_cap : int ≥ 0` — default **0** (no cap). If >0, S6 **MUST** truncate the S3 domain to the first **`max_candidates_cap`** countries by **S3 `candidate_rank`** (no re-order).
+* `zero_weight_rule : enum{"exclude","include"}` — default **"exclude"**.
+* `dp_score_print : int ≥ 0` — **optional, diagnostic-only** (formatting for logs/UI). It MUST NOT affect scoring, selection, RNG budgets, or any validator checks.
+
+  * **"exclude":** candidates with **S5 weight == 0** are **dropped** from the domain (no key written; they do not contribute to selection or event counts).
+  * **"include":** zero-weight candidates are **considered for logging** (keys may be written per `log_all_candidates`) but are **not eligible for selection** (`ln(0) = −∞`).
+  * **Definitions (binding):**
+
+    * **Considered set** = S3 candidates after cap and policy filters (**may** include zero-weights if `"include"`).
+    * **Eligible set** = considered set **with weight > 0**. Selection **MUST** draw from the **eligible set** only; the validator **MUST** treat expected event counts using the **considered** set, and cardinality using the **eligible** set.
+
+* **Domain rules (binding).**
+
+  * Currency overrides: `per_currency["[A–Z]{3}"]` **MAY** override any key above except `log_all_candidates` and `dp_score_print` (both global-only, to keep validator mode uniform).
+  * ISO-level overrides (per country) are **not allowed** unless a future schema explicitly adds them (presently prohibited).
+  * Unknown currency codes, non-uppercase keys, or out-of-range values are **policy validation failures** (see 4.4).
+
+**4.3 Override precedence (deterministic resolution)**
+
+* Resolution order per merchant **MUST** be: **per-currency override → defaults**.
+* If a key is **absent** in a per-currency block, the **defaults** value **MUST** be used.
+* If both blocks omit a **required** key, this is a **schema error** (hard FAIL).
+* Overrides **MUST NOT** change semantics outside §6 (e.g., cannot redefine tie-breaks, RNG families, or numeric environment bound in S0.8). 
+
+**4.4 Parameter hashing & manifests (lineage participation)**
+
+* **Governed set 𝓟.** All S6 policy basenames are **required members of 𝓟**; changing any of their **bytes** **MUST** flip `parameter_hash` and therefore re-partition all **parameter-scoped** reads/writes that carry it. 
+* **Manifest participation.** All artefacts S6 **opens** (S3/S4/S5 datasets, ISO registry, schemas, dictionary, S0.8 numeric policy files, S6 policy files) **MUST** be included in the **`manifest_fingerprint`** calculation as per S0.2.3 (flip on any byte change). 
+* **Path ↔ embed equality.** Where lineage fields are embedded, their values **MUST** equal the partition tokens byte-for-byte; violations are **hard FAIL** during pre-flight (§3.3/§3.4). 
+* **Policy validation (binding).** Prior to any selection work, the S6 runner **MUST**:
+
+  1. Validate the policy file(s) against the registered `$ref`;
+  2. Resolve overrides deterministically (§4.3);
+  3. Record the **effective** policy (global + per-currency) in the S6 validation bundle for provenance;
+  4. Abort with **`E_POLICY_SCHEMA`**/**`E_POLICY_DOMAIN`** on schema/domain violations (unknown keys, bad ranges, non-uppercase ISO-4217), or **`E_POLICY_CONFLICT`** when resolution yields an inconsistent state (e.g., `max_candidates_cap` < size of **eligible** positives for a normative test case).
+
+**Notes on numeric & RNG environment.** S6 **inherits S0.8’s** numeric determinism (binary64, RNE, FMA-off, no FTZ/DAZ) and the RNG envelope law; policy **MUST NOT** attempt to change number modes or RNG families—those are fixed by the layer and schema authorities.
+
+---
+
+# 5. Outputs — datasets & contracts **(Binding)**
+
+**5.1 RNG event families (authoritative; partitions `{seed, parameter_hash, run_id}`)**
+S6 **produces** the following RNG artefacts; these are the **sole authoritative evidence** of selection and are governed by the layer RNG envelope law (open-interval mapping; `before/after/blocks/draws`; one **trace** append per event).
+
+* **`rng_event.gumbel_key`** — **logging mode:** if `log_all_candidates=true`, one event per **considered** candidate (post-cap, post-policy); if `false`, keys only for **selected** candidates (budgets unchanged; validator uses §9.3 counter-replay).
+
+  * **Schema anchor:** `schemas.layer1.yaml#/rng/events/gumbel_key`.
+  * **Dictionary entry & path pattern:** `logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`.
+  * **Payload (binding semantics):** `merchant_id`, `country_iso`, **`weight` (S5 subset-renormalised)**, the **uniform `u`**, the **Gumbel `key`**, a **`selected`** flag, and optional `selection_order` (**1..K when `selected=true`; omitted otherwise**); plus the standard envelope fields.
+    **Budgets:** `draws="1"`, `blocks=1` for each event.
+    **Zero-weight rows:** if `weight==0` (allowed only when `zero_weight_rule="include"`), S6 **MUST NOT** emit a numeric key — set `key: null`. Such rows are **diagnostic only** and **never eligible**; `selection_order` MUST be absent.
+* **Core RNG logs (updated by S6):**
+
+  * **`rng_audit_log`** — run-scoped audit entries; one per run context per policy.
+  * **`rng_trace_log`** — **exactly one cumulative row appended after each event**; saturating totals per `(module, substream_label)`. (Both are already registered with partitions `{seed, parameter_hash, run_id}`.) 
+
+**5.2 Selection membership surface (optional convenience)**
+When enabled by policy (`emit_membership_dataset=true`), S6 **MAY** write a **membership** dataset to simplify S7 joins.
+
+* **Authority note (binding):** this surface is **entirely re-derivable** from `rng_event.gumbel_key` + S3/S5 inputs and **MUST NOT** encode or imply inter-country order; consumers **MUST** continue to obtain order exclusively from **S3 `candidate_rank`**. 
+* **Schema & dictionary:** **MUST** have an approved dataset ID and JSON-Schema `$ref` registered **before** any consumer reads.
+* **Primary key & partitions:** **PK** `(merchant_id, country_iso)` per `{seed, parameter_hash}`; **path↔embed equality** is binding.
+* **Writer sort (non-semantic to readers):** `(merchant_id ASC, country_iso ASC)`.
+
+**5.3 Partition law & path discipline (binding)**
+
+* **Events/logs:** `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…` for `rng_event.gumbel_key`, `rng_audit_log`, `rng_trace_log`; embedded lineage fields **MUST** equal the path tokens byte-for-byte. 
+* **Membership (if produced):** `…/seed={seed}/parameter_hash={parameter_hash}/…` and embeds the **same** `parameter_hash`.
+
+**5.4 Sort, stability & byte policy**
+
+* **Event files:** reader semantics are **set-based**; **row order is non-semantic**.
+* **Byte identity:** if the Registry pins a writer policy (codec/level/row-group), producers **MUST** adhere to it; otherwise only **value identity** is required across re-runs. (See registry notes for event/log families.) 
+
+**5.5 Retention, ownership & gating**
+
+* **Ownership:** S6 is the **producer** for `rng_event.gumbel_key`; core RNG logs are owned by the layer RNG emitters; consumer is **validation** (and downstream audit). 
+* **Retention:** as per Dataset Dictionary (e.g., events typically **180 days**, core logs **365 days**). 
+* **Read gate:** Downstream states (S7/S8) **MUST NOT** read any S6-scoped convenience surface unless the **S6 PASS** receipt (see §9) exists for the same `{seed, parameter_hash}`; for inputs derived from S5, readers **MUST** also observe the **S5 PASS** gate. 
+
+**5.6 Cross-references (normative anchors)**
+
+* **Event schema & dictionary entries** for `gumbel_key`, `ztp_final`, `dirichlet_gamma_vector`, and core logs are registered and versioned with partitions exactly as shown in the Dataset Dictionary and Artefact Registry.
+
+---
+
+# 6. Deterministic processing specification — no pseudocode **(Binding)**
+
+**6.1 Gating (must be true to run S6).**
+S6 **MUST** proceed for a merchant only if all are true:
+
+* **S1** decided `is_multi == true` (gate carried by dictionary on upstream RNG families). 
+* **S3 eligibility present** and an ordered candidate set exists (`s3_candidate_set`, home has `candidate_rank=0`, ranks total & contiguous).
+* **S4** wrote exactly one `rng_event_ztp_final` fixing `K_target` for the merchant (logs under `{seed, parameter_hash, run_id}`).
+* **S5** weights cache exists **and has PASS** for the same `parameter_hash` (S5 receipt present); otherwise **no read**. 
+
+---
+
+**6.2 Selection domain & weights (read-only authorities).**
+
+* **Domain:** foreign candidates = **S3 `candidate_set` minus home**; intersect with S5’s `ccy_country_weights_cache` for the merchant’s settlement currency (from S5; `merchant_currency` optional). **S6 MUST NOT add countries not present in S3.**
+* **Cap (optional):** if `max_candidates_cap>0`, **truncate by S3 `candidate_rank` prefix** to the first `A_cap` foreigns. **No re-order is permitted.** 
+* **Zero-weight policy:**
+
+  * `"exclude"` (default): drop candidates with S5 weight `== 0` from the **considered** set (hence also from the eligible set); **no key written**.
+  * `"include"`: such countries may be **considered** (keys may be logged), but are **not eligible** for selection (see score rule below).
+    *(Considered set is for logging expectations; eligible set is for selection.)*
+* **Subset renormalisation:** within the **eligible** subset *(eligible ⊂ considered)*, **ephemerally renormalise** weights in **binary64** for scoring; **MUST NOT** persist any new weights (persisted weight authority remains S5).
+  *Equivalence note:* renormalising on the **considered** subset yields identical numeric results because candidates with `w==0` contribute **0** to the normaliser; we write “eligible” to emphasise the selection domain.
+---
+
+**6.3 RNG substreams, numeric law, and scoring (authoritative).**
+
+* **Uniforms:** S6 **MUST** use the S0 **open-interval** mapping $u\in(0,1)$ for all uniforms (never exact 0 or 1). 
+* **Numeric environment:** **inherit S0.8** — IEEE-754 **binary64**, round-to-nearest-ties-even, **FMA off**, **no FTZ/DAZ**, deterministic libm; decision kernels run in fixed order. 
+* **Iteration order:** when drawing, **iterate in S3 `candidate_rank` order** to keep substream counters reproducible. 
+* **Event family (logging mode):** if `log_all_candidates=true`, write exactly **one** `rng_event.gumbel_key` for each **considered** candidate; if `false`, write keys **only for selected** candidates (validator counter-replays per §9.3). Append **exactly one** trace row after each event (per RNG trace law).
+* **Score (`key`) definition:** For candidate $c$ with weight $w_c>0$, compute **binary64**
+  $$
+  \text{key}_c = \ln(w_c) - \ln\!\big(-\ln u_c\big),\quad u_c\in(0,1).
+  $$
+  **Zero-weight convention:** when `zero_weight_rule="include"` and `w_c==0`, producers set `key: null`. Validators **MUST** treat `key:null` as $-\infty$ for ordering.
+---
+
+**6.4 Selection rule (K-realisation).**
+
+* Let $A_{\text{filtered}}$ be the **considered** foreign candidate count after policy filters/cap, and let $|\text{Eligible}|$ be the number of **eligible** candidates with $w>0$ in that domain; let $K_{\text{target}}$ come from S4.
+* S6 **MUST** select the **top $K_{\text{target}}$** countries by **`key`** from the **eligible** subset; if $|\text{Eligible}| < K_{\text{target}}$, select **all $|\text{Eligible}|$** (shortfall).
+
+---
+
+**6.5 Tie-breaks (total order).**
+When two candidates have equal **`key`** in binary64:
+
+1. choose lower **S3 `candidate_rank`** (ascending);
+2. then `country_iso` **A→Z**.
+   Tie-breaks are **binding** to ensure a total order consistent with S3. 
+
+---
+
+**6.6 Order-authority separation (no new order).**
+S6 **MUST NOT** persist or imply inter-country order. Any projected order for display **MUST** inherit **S3 `candidate_rank`** for selected members; egress order remains defined only within country (S8). 
+
+---
+
+**6.7 Logging discipline (budgeting & modes).**
+
+* **Stable loop:** produce keys in **S3 `candidate_rank`** order; **logging mode** → if `log_all_candidates=true`, **one** `gumbel_key` per **considered** candidate; if `false`, keys only for **selected** candidates. 
+* **Expected event count per merchant:**  
+  - if `log_all_candidates=true`: $\mathrm{events}(\texttt{gumbel\_key})=A_{\text{filtered}}$;  
+  - if `false`: $\mathrm{events}(\texttt{gumbel\_key})=K_{\text{realized}}$.  
+  (after zero-weight policy and cap). The validator **counter-replays** missing keys in reduced-logging mode (§9.3).
+* **Trace rule:** emit **exactly one** `rng_trace_log` row **after each event**; cumulative totals reconcile to sum of event budgets for the `(module, substream_label)` key. 
+
+---
+
+**6.8 Determinism & idempotence.**
+With identical `{seed, parameter_hash, run_id}`, the **considered** set, the sequence of uniforms, the **keys**, and the selected membership **MUST** be identical across re-runs; envelopes satisfy S0 budget/counter invariants; path↔embed equality holds. 
+
+---
+
+**6.9 Write semantics (publish discipline).**
+
+* **Write-once partitions.** On success, atomically publish event/log files under `{seed, parameter_hash, run_id}`; optional membership dataset under `{seed, parameter_hash}`.
+* **Row/byte stability.** Reader semantics are set-based; if a registry writer policy is pinned (codec/level/row-group), producers **MUST** adhere to it; otherwise **value-identity** across re-runs is sufficient. 
+
+---
+
+# 7. Invariants & integrity constraints **(Binding)**
+
+**7.1 Gating invariants (must hold per merchant before selection).**
+
+* **S1 hurdle:** merchant is **multi** (`is_multi==true`) as carried via dictionary gating. 
+* **S3 domain:** `s3_candidate_set` exists; **home has `candidate_rank=0`**, ranks are **total & contiguous** per merchant (no gaps/dups).
+* **S4 target:** exactly **one** `rng_event_ztp_final` fixing `K_target` under `{seed, parameter_hash, run_id}`. 
+* **S5 weights:** `ccy_country_weights_cache` exists **and S5 PASS is present** for the **same `parameter_hash`** (**no PASS → no read**). 
+
+**7.2 Domain & FK invariants.**
+
+* **Subset law:** Selected foreigns ⊆ S3 **foreign** candidates (home excluded) **and** ⊆ S5 weight support for the merchant’s currency.
+* **ISO/ISO-4217 validity:** all `country_iso` and `currency` values are **uppercase** and **FK-valid** against the canonical registries. 
+
+**7.3 Cardinality invariant.**
+For each merchant, the realized set size is
+$$
+|\text{selected}| = K_{\text{realized}}=\min\!\big(K_{\text{target}},\,|\text{Eligible}|\big),
+$$
+where $|\text{Eligible}|$ is the eligible-count **after** applying `max_candidates_cap` and the `zero_weight_rule` (positives only). Shortfall $|\text{Eligible}| < K_{\text{target}}$ **MUST** result in selecting **all $|\text{Eligible}|$**. 
+
+**7.4 Tie-break determinism.**
+When `key` values are exactly equal in **binary64**, order **MUST** resolve by **S3 `candidate_rank`** (ascending), then `country_iso` A→Z, ensuring a **total order consistent with S3**. 
+
+**7.5 RNG event/logging invariants (authoritative evidence).**
+
+* **Per-merchant event count:**  
+  - if `log_all_candidates=true`, equals the **considered** domain size after policy/cap (`A_filtered`).  
+  - if `false`, equals **`K_realized`** (validator **counter-replays** the missing keys).
+* **Isolation:** S6 **MUST NOT** write to any RNG families other than those declared for S6; validator finds **only** S6 families and matching trace deltas. 
+* **Trace duty:** **exactly one** cumulative `rng_trace_log` row is appended **after each event**; pairing/replay relies on **envelope counters**, not file order. 
+
+**7.6 Partitioning & lineage equality.**
+
+* **Events/logs:** paths are `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`; embedded lineage fields (where present) **MUST** equal the path tokens **byte-for-byte**; for `rng_trace_log`, lineage is enforced via partition keys. 
+* **Tables (parameter-scoped):** any convenience **membership** dataset is partitioned by `{seed, parameter_hash}` and **MUST** embed the **same** `parameter_hash`. 
+
+**7.7 Primary key & uniqueness.**
+
+* If the **membership** surface is produced: **PK** `(merchant_id, country_iso)` is **unique** per `{seed, parameter_hash}`; **no duplicates** per merchant. (Authority remains the RNG events; membership is re-derivable.) 
+
+**7.8 Order-authority separation.**
+No S6 output **may encode or imply** inter-country order; consumers **MUST** continue to obtain order exclusively from **S3 `candidate_rank`**. `outlet_catalogue` carries **no** cross-country order.
+
+**7.9 Idempotence & stability.**
+With identical `{seed, parameter_hash, run_id}` and identical inputs, the **considered** set, uniform sequence, **keys**, and selected membership are **identical** across re-runs. If a writer policy is pinned in the registry, producers **MUST** adhere to it; otherwise **value-identity** suffices.
+
+**7.10 S5 weight authority preserved.**
+Any subset renormalisation used during selection is **ephemeral** and **MUST NOT** be persisted; persisted currency→country weights remain **S5** (`Σ=1±1e-6`, bounds). 
+
+**7.11 PASS-gate coupling.**
+
+* **S6 PASS**: S7/S8 **MUST NOT** read S6 convenience surfaces without `S6_VALIDATION.json` + `_passed.flag` for the same `{seed, parameter_hash}`.
+* **S5 PASS**: S6 **MUST** have verified S5 PASS before reading weights (parameter-scoped receipt). 
+
+**7.12 Numeric & RNG law inheritance.**
+All decision-critical math executes under **S0.8** (IEEE-754 binary64; RNE; FMA-off; no FTZ/DAZ); uniforms use the **open-interval** mapping; counters/budgets obey the layer envelope rules. 
+
+---
+
+# 8. Error handling, edge cases & degrade ladder **(Binding)**
+
+**Overview.** S6 is **fail-closed** for structural/lineage/RNG breaches; otherwise it returns **deterministic empties** for well-defined edge cases. State-level `E_*` errors MUST also map to S0’s failure classes (F2–F10) for fleet observability.
+
+---
+
+## 8.1 Deterministic empty selections (non-error outcomes)
+
+When these conditions hold, S6 **MUST** emit a **valid, empty selection** for the merchant (no rows in the optional membership surface) and record a **reason_code** (diagnostic). RNG events are **not** written for un-considered candidates.
+
+* **`NO_CANDIDATES`** — $A=0$: S3 exposes only `home` (no foreigns). 
+* **`K_ZERO`** — S4 fixed `K_target=0` (short-circuit/downgrade path). 
+* **`ZERO_WEIGHT_DOMAIN`** — After applying S6 policy filters (cap + `zero_weight_rule`), **no candidate with weight>0** remains in the eligible set (S5 is still PASS). 
+* **`CAPPED_BY_MAX_CANDIDATES`** *(diagnostic only)* — Domain truncated by `max_candidates_cap` (selection still proceeds if any eligible >0 remain).
+
+Shortfall **is not an error**: if $|\text{Eligible}| < K_{\text{target}}$, S6 MUST select **all $|\text{Eligible}|$** (validator may log `SHORTFALL_ELIG_LT_K`). 
+
+---
+
+## 8.2 Hard FAIL conditions (run-abort for the affected merchant)
+
+On any of the following, S6 **MUST** NOT publish outputs for the merchant; it **MUST** emit an `E_*` with a canonical S0 failure class.
+
+* **`E_UPSTREAM_GATE`** — Missing required inputs or gates:
+
+  * S5 PASS receipt absent/invalid for the same `parameter_hash` (**no PASS → no read**);
+  * `s3_candidate_set` missing/malformed (no home, non-contiguous ranks);
+  * S4 `ztp_final` missing/duplicated.
+    → Map to **F1/F2/F9** as appropriate.
+
+* **`E_RNG_ENVELOPE`** — RNG envelope or accounting violations in S6 events/logs: missing `before/after/blocks/draws`, counter deltas inconsistent, audit not present before first draw, or trace row not appended **after each event**. → **F4**. 
+
+* **`E_LINEAGE_PATH_MISMATCH`** — Any embedded lineage field differs from its partition token (e.g., `{seed, parameter_hash, run_id}`). → **F5**. 
+
+* **`E_SCHEMA_AUTHORITY`** — Dataset or log does not validate against the **JSON-Schema** anchor registered in the dictionary (JSON-Schema is sole authority). → **F6**. 
+
+* **`E_NUMERIC_POLICY`** — S0.8 numeric environment violation detected on an ordering/decision path (binary64, RNE, **FMA off**, **no FTZ/DAZ**, deterministic libm). → **F7**.
+
+* **`E_EVENT_COVERAGE`** — Required S6 RNG families missing/inconsistent (e.g., wrong count of `rng_event.gumbel_key` vs. **considered** domain, when `log_all_candidates=true`). → **F8**. 
+
+* **`E_DUP_PK`** — Duplicate `(merchant_id, country_iso)` in the optional membership surface. → **F10**. 
+
+* **`E_ORDER_INJECTION`** — Any S6 output encodes or implies inter-country order (S3 `candidate_rank` is the **sole** authority; `outlet_catalogue` explicitly carries **no** cross-country order). → **F9**.
+
+---
+
+## 8.3 Policy and configuration failures (pre-flight)
+
+These abort **before** selection:
+
+* **`E_POLICY_SCHEMA` / `E_POLICY_DOMAIN`** — Policy fails JSON-Schema or value ranges/uppercase code rules.
+* **`E_POLICY_CONFLICT`** — Deterministic resolution (§4.3) yields an inconsistent effective policy.
+  Map to S0 **F2/F1** as applicable (parameter/fingerprint & ingress/schema classes). 
+
+---
+
+## 8.4 RNG isolation & cross-stream interaction
+
+S6 **MUST** write only its declared RNG families (e.g., `rng_event.gumbel_key`) and **MUST NOT** write to S1–S5 families; validator confirms **only** S6 families appear and trace deltas match appends. Violations → `E_RNG_ENVELOPE` (**F4**). 
+
+---
+
+## 8.5 I/O integrity & publish atomics
+
+Any short write, partial instance, non-atomic promote, or mismatched writer policy (when byte-identity is pinned) is `E_IO_ATOMICS` → **F10**. The partition law and path discipline from the dictionary/registry **MUST** be obeyed. 
+
+---
+
+## 8.6 Degrade vocabulary (per-merchant; closed set)
+
+S6 **MUST** record one of the following **reason_codes** when emitting a deterministic empty (non-error) or when cap diagnostics apply:
+
+* `{none, NO_CANDIDATES, K_ZERO, ZERO_WEIGHT_DOMAIN, CAPPED_BY_MAX_CANDIDATES}`
+
+These are **diagnostics**; they **do not** authorize re-ordering, re-weighting, or policy changes downstream. (S7 remains responsible for count allocation; S3 remains order authority.) 
+
+---
+
+## 8.7 Exit codes (runner)
+
+* **`SUCCESS`** — All merchants processed; PASS receipt written (§9).
+* **`STRUCTURAL_FAIL`** — Any of §8.2/§8.3 failures encountered (per-merchant aborts allowed; run fails if policy dictates).
+* **`RNG_ACCOUNTING_FAIL`** — Envelope/trace breaches.
+* **`RE_DERIVATION_FAIL`** — Validator cannot reconstruct membership from events + S3/S5 (or counter-replay when `log_all_candidates=false`).
+* **`SHORTFALL_NOTED`** — Non-error; at least one merchant had $|\text{Eligible}| < K_{\text{target}}$.
+
+(Exact numeric codes enumerated in Appendix **B** alongside RNG family names and schema anchors.) 
+
+---
+
+## 8.8 Cross-state gates (consumption rules)
+
+Downstream states **MUST** verify the **S6 PASS** receipt before reading S6 convenience surfaces, and continue to respect the **S5 PASS** gate when joining S5 outputs. `No PASS → no read` remains binding. 
+
+---
+
+# 9. Validation battery & PASS gate **(Binding)**
+
+**Purpose.** Prove that S6 produced a **correct, reproducible** foreign-set membership under the S0–S5 contracts, with **isolation** to S6 RNG families, and publish a **receipt** that downstream MUST check (**no PASS → no read**). JSON-Schema + the Dataset Dictionary remain the **sole** authorities for shapes/paths/partitions. 
+
+---
+
+## 9.1 Structural validation (schemas, partitions, lineage)
+
+**Inputs present & valid (precondition recap).**
+
+* `s3_candidate_set` exists for `parameter_hash={…}` and validates against its `$ref`; ranks total/contiguous with home=0. 
+* Exactly one `rng_event_ztp_final` per merchant under `{seed,parameter_hash,run_id}` (schema-valid). 
+* `ccy_country_weights_cache` exists for **the same** `parameter_hash` and S5 **PASS** is present (S5 receipt + valid `_passed.flag`). **No PASS → no read.** 
+
+**S6 outputs/logs (produced here).**
+
+* `rng_event.gumbel_key`, `rng_audit_log`, `rng_trace_log` validate against registered schema anchors; partitions are `{seed,parameter_hash,run_id}`; **path↔embed equality** holds where embedded (trace lineage enforced via partition keys). 
+* If the optional **membership** dataset is enabled, it validates against its `$ref`, is partitioned by `{seed, parameter_hash}`, and embeds the **same** `parameter_hash`. **PK** `(merchant_id,country_iso)` is unique. 
+
+**Lineage discipline.** For all produced artefacts, embedded `{seed,parameter_hash,run_id}` (if present) **MUST** equal path tokens **byte-for-byte**. Violations are **hard FAIL**. 
+
+---
+
+## 9.2 Content checks (domain, cardinality, order separation)
+
+* **Subset law:** Selected foreigns ⊆ S3 **foreign** candidates and ⊆ S5 weight support for the merchant’s currency. (Home is never selectable.) 
+* **Cardinality:** For each merchant,
+  $$
+  |{\text{selected}}| = K_{\text{realized}} = \min(K_{\text{target}},\,|\text{Eligible}|),
+  $$
+  where $|\text{Eligible}|$ is the count of candidates with $w>0$ **after** policy filters and any S3-rank cap. Shortfall (`|\text{Eligible}| < K_{\text{target}}`) **MUST** result in selecting **all `|\text{Eligible}|`**. 
+* **Tie-break determinism:** When **`key`** values are equal in **binary64**, break by **S3 `candidate_rank`** (ascending), then by `country_iso` A→Z. (Ensures a total order consistent with S3.)
+* **No order encoding:** Any S6 surface (incl. membership) **MUST NOT** encode or imply inter-country order; downstream MUST continue to read order **exclusively** from S3 `candidate_rank`. 
+
+---
+
+## 9.3 Re-derivation (authoritative proof of selection)
+
+**Mode A – `log_all_candidates = true` (recommended).**
+
+* **Expectations:** For each merchant, **exactly one** `rng_event.gumbel_key` exists **per considered candidate** (`A_filtered`). The validator recomputes **`key` values** from **logged `u` (or verifies logged `key`) + S5 weights + S3 domain** in the **same iteration order (S3 rank)** and recomputes the **top-`K_target`** set. The recomputed membership **MUST** equal the published membership (or, if no membership surface is written, the validator must derive the same set from events). 
+
+**Mode B – `log_all_candidates = false` (reduced logging).**
+
+* **Expectations:** Only **selected** candidates have logged keys. The validator performs **counter-replay** on the S6 substream in **S3-rank order** to regenerate the missing keys, recomputes **key values**, and verifies the selected set equals the run’s published membership. Any divergence is **FAIL**. (This mirrors S5’s “re-derive to byte equality” posture, adapted to S6’s stochastic key logs.)
+
+**Numeric/RNG law:** Re-derivation runs under the S0.8 numeric profile; uniforms use the S0 open-interval mapping; pairing uses **envelope counters**, not file order. 
+
+---
+
+## 9.4 RNG isolation & accounting
+
+* **Family isolation:** Only S6 RNG families (e.g., `rng_event.gumbel_key`) appear in S6; validator finds **no writes** to S1–S5 families. 
+* **Trace duty:** After **each** RNG event append, **exactly one** cumulative `rng_trace_log` row is appended; **draws/blocks/events** totals reconcile per `(module,substream_label)`. Any counter/total drift is **FAIL**. 
+* **Event coverage:** When `log_all_candidates=true`, per-merchant count of `gumbel_key` events **equals** `A_filtered`. (When `false`, coverage is verified via counter-replay.) 
+
+---
+
+## 9.5 Validator artefacts (S6 PASS receipt; seed/parameter-scoped)
+
+S6 writes a **seed/parameter-scoped receipt** under the S6 task path:
 
 ```
-data/layer1/1A/country_set/
-  seed={seed}/parameter_hash={parameter_hash}/fingerprint={manifest_fingerprint}/part-*.parquet
+data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
+  S6_VALIDATION.json          # summary: structural/content/RNG checks; per-merchant diagnostics
+  _passed.flag                # single line: 'sha256_hex = <hex64>'
 ```
 
-*(Partitioned by `{seed, parameter_hash, fingerprint}`. `run_id` applies to event logs, not allocations.)*
+* `_passed.flag` contains the **SHA-256** over the **ASCII-lexicographic** concatenation of all other files in this receipt (currently **`S6_VALIDATION.json`**; exclude the flag itself). This mirrors the **parameter-scoped** receipt pattern used in S5 and the layer-wide gate pattern used for egress. **Atomic publish** applies.
+* **Minimum required fields (normative) in `S6_VALIDATION.json`:**
+  `seed`, `parameter_hash`, `policy_digest` (hex64 of S6 policy bytes), `merchants_processed`, `events_written`, `gumbel_key_expected` vs `written` (by mode), `shortfall_count`, `reason_code_counts{NO_CANDIDATES,K_ZERO,ZERO_WEIGHT_DOMAIN,CAPPED_BY_MAX_CANDIDATES}`, `rng_isolation_ok: bool`, `trace_reconciled: bool`, `re_derivation_ok: bool`. (Per-merchant detail may be emitted to a sibling `S6_VALIDATION_DETAIL.jsonl`.)
+* **`policy_digest` construction (binding):** compute as **`sha256_hex` of the byte-concatenation of all S6 policy files, sorted by ASCII basename**. This ordering is binding to avoid toolchain drift.
 
-**Row (authoritative schema semantics):**
+---
+
+## 9.6 PASS/consume semantics (gates)
+
+* **S6 PASS (seed/parameter-scoped):** All checks in §§9.1–9.4 succeed **and** the receipt exists with a valid `_passed.flag` whose hash matches its contents. **Downstream S7/S8** MUST verify S6 PASS for the same `{seed,parameter_hash}` before reading any S6 convenience surface (**no PASS → no read**). 
+* **S5 PASS (dependency):** S6 MUST have verified S5 PASS for the same `parameter_hash` before reading weights; consumers that touch S5 surfaces continue to verify S5 PASS independently. 
+* **Layer-wide PASS (unchanged):** Egress readers (e.g., `outlet_catalogue`) keep verifying the **fingerprint-scoped** validation bundle `_passed.flag` per S0/Dictionary.
+
+---
+
+## 9.7 Failure handling (publish discipline)
+
+* **FAIL:** Any breach in §§9.1–9.4, or missing/invalid `_passed.flag`, **aborts** the run for the affected merchant set; **no partial publishes** to S6 outputs. Follow S0 abort semantics (write failure sentinel if defined; freeze; non-zero exit). 
+* **Idempotence:** Re-running S6 with identical inputs and policy bytes must yield **value-identical** outputs and an identical PASS receipt; if a writer policy is pinned in the registry, **byte-identity** applies. 
+
+---
+
+# 10. Lineage, partitions & identifiers **(Binding)**
+
+**Purpose.** Fix **where S6 writes**, **which identifiers appear**, and the **immutability/atomicity** rules. JSON-Schema + the Dataset Dictionary remain the single authorities for shapes, paths, and partition keys. 
+
+---
+
+## 10.1 Partitioning law (normative)
+
+* **RNG events & core logs (S6-produced/updated).**
+  **Path:** `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`
+  **Applies to:** `rng_event.gumbel_key`, `rng_audit_log`, `rng_trace_log`. **These IDs and partition keys are already defined in the Dictionary/Registry.** 
+
+* **S6 convenience membership dataset (if produced).**
+  **Path:** `…/seed={seed}/parameter_hash={parameter_hash}/…` — seed is required because membership is **seed-dependent**; `parameter_hash` binds the parameter scope. **S3 deterministic inputs remain parameter-scoped only** (`parameter_hash` partition), per their contracts. 
+
+---
+
+## 10.2 Embedded lineage & path↔embed equality (binding)
+
+* **Events/logs.** Where lineage fields are embedded, **`{seed, parameter_hash, run_id}` MUST byte-equal the path tokens**. For `rng_trace_log`, lineage is enforced via its partition keys and cumulative rows; one trace row is appended **after each event**. **Any mismatch is a hard FAIL.** 
+* **Parameter-scoped tables.** Any S6 membership table (if enabled) **embeds the same `parameter_hash`** as its partition (and **MUST NOT** embed a different seed than its path). S3 inputs embed `parameter_hash` by spec. 
+
+---
+
+## 10.3 Identifier semantics (roles; non-interchangeable)
+
+* **`seed`** — Determines stochastic outcomes; partitions **all RNG event/log paths** and any seed-dependent convenience surface. **Never appears in parameter-scoped S3/S5 tables.** 
+* **`parameter_hash`** — Hash of the governed set **𝓟** (per S0.2.2). **All parameter-scoped inputs (S3/S5)** and the **S6 receipt/membership** carry this. **Policy bytes for S6 are required 𝓟 members**, so changing them flips this value and re-partitions reads/writes. 
+* **`run_id`** — Partitions **logs only**; **does not change modelling state** or selection outcomes. Multiple `run_id`s may exist for the same `{seed, parameter_hash}` without changing the dataset semantics. 
+* **`manifest_fingerprint`** — Layer-wide content/address for **egress** and the layer validation bundle; **not** used by S6 outputs. (S3/S5 keep using `parameter_hash`; egress (e.g., `outlet_catalogue`) remains fingerprint-scoped.) 
+
+---
+
+## 10.4 Atomic publish, immutability & idempotent retries (binding)
+
+* **Write-once partitions.** Producers **MUST** stage → fsync → **atomic rename** into the dictionary location; **no partials** or mismatched partitions. Once published with PASS, **immutable**. 
+* **Idempotence.** Re-running S6 with identical `{seed, parameter_hash, run_id}` and inputs **MUST** yield **value-identical** events/logs (and receipt). If a registry writer policy (codec/level/row-group) is pinned for the family, **byte-identity** applies. 
+* **Resume semantics.** On failure, producers **MUST NOT** partially publish; they may retry the same `{seed, parameter_hash, run_id}` after cleaning any temp paths. (Receipt rules in §9 control final gating.) 
+
+---
+
+## 10.5 Canonical path patterns (normative)
+
+* **`rng_event.gumbel_key`** → `logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` (schema: `schemas.layer1.yaml#/rng/events/gumbel_key`). 
+* **`rng_audit_log`** → `logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl` (schema: core audit). 
+* **`rng_trace_log`** → `logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl` (schema: core trace). 
+* **S3 input** `s3_candidate_set` → `data/layer1/1A/s3_candidate_set/parameter_hash={parameter_hash}/…` (schema: `schemas.1A.yaml#/s3/candidate_set`). 
+* **S5 input** `ccy_country_weights_cache` → `data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/…` with **S5 PASS receipt** co-located. 
+* **S6 receipt (PASS gate)** → `data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/(S6_VALIDATION.json, _passed.flag)` (see §9). 
+
+---
+
+## 10.6 Producer/consumer & ownership
+
+* **Producers:**
+
+  * `rng_event.gumbel_key` — **S6** only.
+  * `rng_audit_log` / `rng_trace_log` — layer RNG emitters; S6 **appends** per envelope law. 
+  * Membership dataset (if enabled) — **S6** only; **authority remains the RNG events**.
+* **Consumers:** Validation (S6 validator), then **S7/S8** post **S6 PASS**. Egress (`outlet_catalogue`) continues to rely on **fingerprint-scoped** validation per Dictionary. 
+
+---
+
+## 10.7 Cross-artefact lineage consistency (binding checks)
+
+* **Path/Embed parity.** Every produced artefact with embedded lineage **MUST** match its path tokens **byte-for-byte**; any drift is `E_LINEAGE_PATH_MISMATCH`. 
+* **Authority separation.** S3’s `candidate_rank` remains the **sole** order authority; S6 outputs **MUST NOT** encode order. (Dictionary and S3 spec reiterate this.)
+* **Gate coupling.** S6 **MUST** verify **S5 PASS** (parameter-scoped receipt) before reading S5; downstream **MUST** verify **S6 PASS** before consuming any S6 convenience surface. **No PASS → no read.** 
+
+---
+
+# 11. Interaction with RNG & logs **(Binding)**
+
+**Purpose.** Pin exactly **which RNG families** S6 produces, how **substreams** are derived, the **budgeting/trace** law (`before/after/blocks/draws`), and what the **producer vs validator** may read/write.
+
+---
+
+## 11.1 Event families & substream taxonomy (authoritative)
+
+* **Produced by S6 (events):**
+  **`rng_event.gumbel_key`** — **logging mode:** if `log_all_candidates=true`, one event **per considered candidate** (post-cap & policy filter); if `false`, keys only for **selected** candidates (validator counter-replays missing keys per §9.3). **Schema anchor:** `schemas.layer1.yaml#/rng/events/gumbel_key`. **Partition:** `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`.
+
+* **Core logs updated by S6:**
+  **`rng_audit_log`** and **`rng_trace_log`**, both under `{seed, parameter_hash, run_id}` per the Dataset Dictionary. **Trace is cumulative per `(module, substream_label)`** and **emits exactly one row after each RNG event append** (saturating totals). 
+
+* **Optional control event:** **`rng_event.stream_jump`** — explicit Philox stream/substream jump records (enabled only if the registry entry is present for 1A). 
+
+* **Module & substreams (naming convention for S6):**
+  **`module="1A.foreign_country_selector"`**, **`substream_label ∈ {"gumbel_key","stream_jump"}`**; IDs & partitions follow the registry/dictionary listings above. 
+
+---
+
+## 11.2 Substream derivation & ID tuple (normative)
+
+* **Keyed substreams.** For event family label **ℓ** (e.g., `"gumbel_key"`) and ordered **ids**, derive the keyed Philox state per **S0** (UER/SER framing → SHA-256 → `(k,(hi,lo))`). **IDs for `gumbel_key`:** `(merchant_u64, country_iso)` with **uppercase ISO2** under UER; types fixed by schema. **All draws for that event must come from `PHILOX(k(ℓ,ids),·)` with a monotonically advancing 128-bit counter.** 
+
+* **Open-interval uniforms.** Uniforms **MUST** use S0’s **strict-open** mapping $u\in(0,1)$ with the binary64 hex literal multiplier; exact `0.0`/`1.0` are **forbidden** (apply the clamp rule). 
+
+* **Lane policy (single-uniform).** Single-uniform events consume the **low lane** from one Philox block and **discard the high lane** → **`blocks=1`, `draws="1"`** (see budgeting law below). **`gumbel_key` is a single-uniform event.** 
+
+---
+
+## 11.3 Budgeting law: `before/after/blocks/draws` (binding)
+
+* **Envelope arithmetic.** For every RNG event row:
+  `blocks := u128(after) − u128(before)` (unsigned 128-bit); **`draws`** is a **decimal uint128 string** equal to the **actual number of $U(0,1)$** consumed by the sampler(s) for that event and is **independent** of the counter delta. 
+
+* **Budgets by family.**
+  **`gumbel_key`**: **`blocks=1`, `draws="1"`** (single uniform);
+  **non-consuming** markers (if any) must have `before==after`, `blocks=0`, `draws="0"`. (Patterns follow the layer’s envelope rules.) 
+
+* **Trace duty (per event).** After **each** RNG event append, S6 **MUST** append **exactly one** cumulative row to **`rng_trace_log`** for `(module, substream_label)`; totals reconcile (saturating) as specified by the dictionary/core schemas.
+
+---
+
+## 11.4 Producer vs validator scope (isolation & allowed reads)
+
+* **Producer scope (S6 runner):**
+  **MUST write** only the S6 families (`rng_event.gumbel_key` + optional `stream_jump`) and **MUST update** `rng_audit_log`/`rng_trace_log` per the envelope/trace law; **MUST NOT write** to S1–S5 event families. 
+
+* **Validator scope (read-only):**
+  **MAY read** S6 events and the **core RNG logs** to: (a) reconcile budgets/totals; (b) prove isolation (no cross-family writes); (c) re-derive selection from logged keys or via **counter-replay** in S3-rank order when `log_all_candidates=false` (see §9). **Validator MUST NOT write** RNG logs. 
+
+---
+
+## 11.5 Event coverage & expected counts (binding)
+
+* **Per-merchant coverage.** The number of `rng_event.gumbel_key` events **MUST equal** the size of the **considered** domain **after** applying `max_candidates_cap` and `zero_weight_rule` (when `log_all_candidates=true`). If reduced logging is enabled, coverage is verified via **counter-replay** (see §9). 
+
+* **Cumulative totals.** On the **final** `rng_trace_log` row for a given `(module, substream_label)`, validators check `draws_total = Σ parse_u128(draws)` and `blocks_total = Σ blocks` (saturating), per the core schema guidance. 
+
+---
+
+## 11.6 Partitions, lineage & equality (binding)
+
+* **Partitions:** All S6 RNG events and core logs **MUST** live under `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…` with **embedded lineage equal to path tokens** where present. Mismatch is **hard FAIL**.
+
+* **Immutability & idempotence:** Event/log partitions are **write-once**; re-runs with identical `{seed, parameter_hash, run_id}` must be **value-identical** (and **byte-identical** if the registry pins a writer policy). 
+
+---
+
+## 11.7 Cross-state consistency clauses (binding)
+
+* **S4 handoff:** S6 **reads** `K_target` exclusively from **`rng_event.ztp_final`** (one per resolved merchant) and **must not** infer it elsewhere. 
+* **S5 handoff:** S6 **reads** weights only from **`ccy_country_weights_cache`** after verifying **S5 PASS** for the same `parameter_hash` (**no PASS → no read**). 
+
+---
+
+# 12. Performance, scaling & resource envelope **(Informative; determinism sub-clauses Binding)**
+
+**Scope.** This section sets practical run-shape expectations and operational envelopes for S6. Items explicitly marked **(Binding)** are determinism requirements that implementers **must** satisfy; the rest are guidance to hit predictable performance without altering behaviour.
+
+---
+
+## 12.1 Cardinalities & expected volumes
+
+* Let **M** be the number of merchants passing S6 gating; let **Aₘ** be each merchant’s foreign candidate count from S3; after policy (`max_candidates_cap`, `zero_weight_rule`) define **A_filtered,ₘ**.
+* **Event counts.**
+
+  * If `log_all_candidates=true`: total `rng_event.gumbel_key` ≈ **Σₘ A_filtered,ₘ** (Binding expectation is enforced in §9).
+  * If `false`: total events ≈ **Σₘ K_realized,ₘ**; validator uses **counter-replay** to cover missing keys (see §9).
+* **Data written.** Core RNG logs grow linearly with the number of events (one **trace** append per event). 
+
+## 12.2 Concurrency & determinism (Binding)
+
+* **12.2.1 Concurrency unit = merchant (Binding).** Work **MAY** be sharded by merchant, but **MUST NOT** interleave state for the same merchant across shards.
+* **12.2.2 Shard-count invariance (Binding).** Changing the number of shards/threads **MUST NOT** change: considered domain per merchant, uniform draw sequence, selected set, or the PASS receipt.
+* **12.2.3 Deterministic merges (Binding).** Independent of shard count, producers **MUST**:
+
+  * iterate candidates in **S3 `candidate_rank`** order when drawing;
+  * logging mode: if `log_all_candidates=true`, write one `gumbel_key` per **considered** candidate; if `false`, write keys only for **selected** candidates;
+  * append **exactly one** `rng_trace_log` row **after each** event;
+  * ensure any optional membership surface is **writer-sorted** `(merchant_id, country_iso)` (row order non-semantic to readers).
+* **12.2.4 Writer policy (Binding when pinned).** If the Registry pins codec/level/row-group policy for an S6 family, producers **MUST** use it (byte-identity); otherwise value-identity suffices. 
+
+## 12.3 Memory envelope (per merchant)
+
+* **Working set.** Implementation **should** bound peak memory to **O(A_filtered)** per merchant: weights (read-only), one uniform, one **key** per candidate, plus small envelope state.
+* **Streaming discipline.** **Prefer** streaming: compute→emit events per candidate in order; avoid accumulating all **keys** when `A_filtered` is large (use online top-K).
+* **Join posture.** Reads should stream-join **S3 domain** with **S5 weights** by `country_iso` (both uppercase, FK-valid) to avoid full materialisations. (Authority on domains from schemas/dictionary remains binding.) 
+
+## 12.4 CPU envelope & algorithmic shape
+
+* **Per-merchant complexity.** Expected **O(A_filtered · log K_target)** for top-K selection with a bounded structure; **O(A_filtered)** if using Gumbel top-K with an online threshold scheme.
+* **Numerics (Binding).** All scoring and comparisons execute under **S0.8** (IEEE-754 binary64; RNE; FMA-off; no FTZ/DAZ). Any deviation is a run-fail (see §8 `E_NUMERIC_POLICY`). 
+
+## 12.5 I/O & file layout
+
+* **Events/logs.** Expect small JSONL chunks per partition; throughput scales linearly with events (see §12.1). **Row order is non-semantic** to readers. 
+* **Optional membership surface.** One file per `{seed, parameter_hash}` partition is **recommended** for simpler atomic promote; if the Registry pins a writer policy, follow it (Binding when pinned). 
+
+## 12.6 Retry cost & atomicity (Binding cross-ref §10.3)
+
+* **Staging→atomic publish.** Producers **MUST** stage to a temp path, fsync, and **atomically rename** into place; **no partial publishes**. Re-runs with the same `{seed, parameter_hash, run_id}` are idempotent (value-identical; byte-identical if policy pinned). 
+* **Failure handling.** On any §8 hard fail, **do not** publish events/membership; the PASS receipt **must not** be created.
+
+## 12.7 Practical sizing guidance (non-binding, recommended)
+
+* **Shard sizing.** Size shard counts to keep `A_filtered` × (`key`+`weight`) within memory headroom; prefer many small shards to avoid per-shard spikes.
+* **Caps.** Use `max_candidates_cap` to bound worst-case `A_filtered` in extreme markets without changing S3 order (cap applies as S3-rank prefix only).
+* **Diagnostics.** Enable `log_all_candidates=true` in early runs for simpler validation and performance sizing; switch to reduced logging only with §9 counter-replay wired.
+
+## 12.8 Telemetry hooks (tie-in to §14)
+
+* Expose counters needed to validate the envelopes above: `events_written`, `gumbel_key_expected` vs `written`, selection size histogram, and shard-count invariance checks (hash of selected set per merchant). (See §14 for required metric names.) 
+
+---
+
+# 13. Orchestration & CLI contract **(Binding at interface; Informative for ops)**
+
+**Purpose.** Define the **entrypoints**, **required arguments**, **modes**, **exit codes**, and **DAG wiring** to run S6 in production. JSON-Schema + the Dataset Dictionary remain the single authorities for shapes, IDs, and partition keys; downstream consumption is gated by **PASS receipts** (**no PASS → no read**). 
+
+---
+
+## 13.1 Required arguments (Binding)
+
+* `--seed <u64>` — RNG seed for this run; **partitions all S6 RNG events/logs** (`…/seed={seed}/…`). 
+* `--parameter-hash <hex64>` — exact **parameter scope**; must match S3/S5 partitions and S6 receipt location. (**S6 policy bytes are members of 𝓟; changing them flips this value.**) 
+* `--run-id <string>` — logical run instance (ULID/ISO-ts acceptable). **Partitions logs only**; does **not** change selection outcomes. 
+* `--input-root <path>` — root directory used with the **Dataset Dictionary path patterns** to locate **S3/S4/S5** inputs. 
+* `--output-root <path>` — root directory where S6 writes events/logs and the S6 **PASS receipt**. 
+* `--dictionary <path|ref>` — the **dataset_dictionary.layer1.1A.yaml** (or service handle) to resolve IDs → schemas, partitions, and paths. 
+* `--schemas <path|ref>` — schema catalog(s) (**`schemas.1A.yaml`**, **`schemas.layer1.yaml`**, ingress catalog) used for validation. 
+* `--policy-file <path>[,<path>…]` — S6 policy set; **must validate** against the registered `$ref`; **must be in 𝓟** (flips `parameter_hash` on byte change). 
+
+**Notes (Binding):** the runner **MUST** fail pre-flight if any required argument is missing, if schemas/dictionary do not load, or if S6 policy fails schema validation. (See §4 for policy validation and §3 for input pre-flight.)
+
+---
+
+## 13.2 Switches & modes (Binding where stated)
+
+* `--emit-membership-dataset` (default **false**) — if set, write the **convenience membership** table (authority remains the RNG events; **no order encoded**). 
+* `--log-all-candidates` (default **true**) —
+
+  * **true:** write one `rng_event.gumbel_key` **per considered candidate**.
+  * **false:** write keys **only for selected**; validator **MUST** use **counter-replay** in **S3-rank** order to regenerate missing keys. (See §9.3.) 
+* `--validate-only` — run the **validator** only: read existing S6 events/logs (and membership if present), perform **§§9.1–9.4**, and write the **S6 PASS receipt** in place.
+
+  * **Binding semantics:** **requires** the S6 events/logs to already exist for `{seed, parameter_hash, run_id}`; **MUST NOT** create RNG events or membership; **USAGE** error if required inputs are absent. Receipt placement:
+    `data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/(S6_VALIDATION.json,_passed.flag)`. 
+* `--fail-on-degrade` — if set, treat deterministic empties (`NO_CANDIDATES`, `K_ZERO`, `ZERO_WEIGHT_DOMAIN`, `CAPPED_BY_MAX_CANDIDATES`) as **STRUCTURAL_FAIL** for the run instead of recording diagnostics only. (Names per §8.6.) 
+
+**Operational (Informative):** You may add **`--workers N` / `--shards N --shard-id i`** to parallelise **by merchant** (S6 determinism requires **shard-count invariance** and deterministic merges; see §12.2). 
+
+---
+
+## 13.3 Exit codes & artefacts (Binding at interface)
+
+**Symbolic exit codes** (exact numeric values listed in Appendix **B**):
+
+* **`SUCCESS`** — All checks passed; S6 **PASS receipt** written under `…/s6/seed={seed}/parameter_hash={parameter_hash}/`. 
+* **`STRUCTURAL_FAIL`** — Any §8.2/§8.3 failure (inputs, schema, policy, lineage) encountered. 
+* **`RNG_ACCOUNTING_FAIL`** — Envelope/trace mismatch (S6 families). 
+* **`RE_DERIVATION_FAIL`** — Unable to reconstruct membership from events (+ counter-replay when reduced logging). 
+* **`SHORTFALL_NOTED`** — Non-error; ≥1 merchant had $|\text{Eligible}| < K_{\text{target}}$.
+
+**Published artefacts (mandatory on SUCCESS):**
+
+* `S6_VALIDATION.json` and `_passed.flag` (hash over other receipt files, ASCII-lexicographic concat). **Atomic publish** required. 
+
+---
+
+## 13.4 DAG wiring (Binding)
+
+**Prerequisites (gates):**
+
+1. **S3** candidate set present & schema-valid for `parameter_hash={…}`.
+2. **S4** `ztp_final` present (one per resolved merchant) under `{seed, parameter_hash, run_id}`.
+3. **S5** weights cache present for same `parameter_hash` **and S5 PASS receipt exists** (**no PASS → no read**). 
+
+**Nodes & order (single run):**
+
+1. **Draw keys** — iterate S3 domain (policy-filtered/capped) in **S3-rank** order; if `log_all_candidates=true`, write one `rng_event.gumbel_key` **per considered candidate**; if `false`, write keys only for **selected** candidates; append **one** `rng_trace_log` row **after each** event.
+2. **Select** — compute keys, apply top-`K_target` rule with tie-breaks; (optional) write membership surface (authority note: re-derivable; no order). 
+3. **Validate** — run §9 structural/content/RNG isolation & (re)derivation checks.
+4. **Publish** — atomic publish of S6 receipt (and membership if enabled). **On FAIL:** publish nothing; return appropriate exit code (above). 
+
+**Gates to S7:** S7 **MUST** verify S6 PASS for the same `{seed, parameter_hash}` before reading any S6 convenience surface, and must continue to respect **S5 PASS** when joining S5 outputs. **No PASS → no read.** 
+
+## 13.5 ASCII overview *(Informative; non-authoritative)*
+
+> This diagram is for **reader orientation only**. It does **not** add requirements. On any discrepancy, §§6–11 and §§13.1–13.4 (Binding) prevail.
 
 ```
-merchant_id   = m
-country_iso   = c           # home ISO (UPPER-CASE ASCII)
-is_home       = true
-rank          = 0
-prior_weight  = null        # home has no prior weight
-manifest_fingerprint = {manifest_fingerprint}   # carried as a column
-```
-
-**PK** = `(merchant_id, country_iso)`. `country_set` is the *sole* authority for cross-country order (**S6 authors it**).
-
-> *Optional telemetry (no RNG):* emit a single `gumbel_header` with
-> `{merchant_id, K_raw, M=M_m, K_eff=0, reason="no_candidates"}`.
-
-### Non-short-circuit case (when $M_m\ge1$ **and** $T_m>0$)
-
-S6.0 **persists nothing** else here. It only computes and exposes $(\mathcal F_m, K_m^\star)$ to S6.3–S6.6 (which will later log `gumbel_key` and persist the full `country_set`).
-
----
-
-## 5) Contracts & invariants established by S6.0
-
-* **C-1 (cap correctness):** $0 \le K_m^\star \le M_m$ and $K_m^\star=\min(K_{\text{raw}},M_m)$ for every merchant reaching S6.0.
-* **C-2 (home-only correctness):** $(M_m=0\ \text{or}\ T_m=0)\ \iff$ exactly one `country_set` row exists with `(is_home=true, rank=0, prior_weight=null)` and **no `gumbel_key` events** for $m$.
-* **C-3 (no RNG):** S6.0 consumes and emits **no** randomness. RNG begins only if $K_m^\star\ge1$ (later S6 steps).
-* **C-4 (authority flow):** `country_set` remains the **only** authority for cross-country order; even when home-only, rank semantics are enforced (`rank=0` only).
-
----
-
-## 6) Edge cases & notes
-
-* **Home not in $\mathcal D(\kappa_m)$:** Then $\mathcal F_m = \mathcal D(\kappa_m)$ and $M_m = |\mathcal D(\kappa_m)|$. This is allowed; guard on $T_m$ still applies.
-* **Currency with one member equal to home:** $\mathcal D(\kappa_m)=\{c\}\Rightarrow M_m=0$ → home-only branch.
-* **Sparse equal-split case (from S5):** If `sparse_flag(κ_m)=true` then all foreign weights are equal **when they exist**; the guard still requires $T_m>0$ to proceed.
-* **$K_{\text{raw}}=0$ merchants:** By design, these skip S6 entirely via S3/S4; S6.0 is not entered.
-
----
-
-## 7) Language-agnostic reference algorithm (normative)
-
-```text
-FUNCTION S6_0_prescreen_and_cap(m):
-  INPUT:
-    merchant_id m
-    K_raw := K_m from S4                # integer ≥1 (by S4 acceptance)
-    c     := home ISO for m             # ISO2 (UPPER-CASE ASCII), validated earlier
-    κ     := kappa_m for m              # ISO4217, from S5.0 merchant_currency
-    Wκ    := [(i, w_i)] for currency=κ  # from S5 weights cache (ISO-ordered, Σ over D(κ)=1)
-
-  PRECHECKS (structural):
-    assert K_raw ≥ 1
-    assert |Wκ| ≥ 1                     # missing currency weights → failure (below)
-
-  STEP 1: Build foreign candidate set (home excluded; preserves ISO order)
-    F := [ i for (i, _) in Wκ if i != c ]
-    M := length(F)
-
-  STEP 2: Foreign mass guard (sum on foreign set only)
-    T := sum( w_i for (i, w_i) in Wκ if i != c )
-
-  STEP 3: Effective selection size (cap)
-    K_eff := min(K_raw, M)
-
-  STEP 4: Branch on availability
-    if (M == 0) or (T == 0):
-        # Home-only short-circuit (no RNG, no gumbel_key)
-        write country_set row:
-          { merchant_id=m, country_iso=c, is_home=true, rank=0,
-            prior_weight=null, manifest_fingerprint={manifest_fingerprint} }
-          to data/layer1/1A/country_set/seed={seed}/parameter_hash={parameter_hash}/fingerprint={manifest_fingerprint}/...
-        emit optional gumbel_header {merchant_id, K_raw, M, K_eff=0, reason="no_candidates"}
-        RETURN {K_eff=0, status="home_only_persisted"}
-    else:
-        RETURN {K_eff=K_eff, F=F, status="proceed_to_S6.3"}
-```
-
-**Determinism.** The procedure is pure and contains no RNG; given fixed inputs, outputs are identical across replays.
-
----
-
-## 8) Failures attributable to S6.0 (scope-limited)
-
-* **E/1A/S6/INPUT/MISSING_WEIGHTS** — `ccy_country_weights_cache` has **no rows** for $\kappa_m$. **Action:** abort merchant.
-* **E/1A/S6/SCHEMA/COUNTRY_SET_HOME_ROW** — when short-circuiting, the writer fails PK/shape for the home row (e.g., bad ISO or wrong partitions). **Action:** abort run (persistence/layout error).
-
-> All other math/schema failures (renormalisation, event envelope, selection order, country_set/winners coherence) are owned by later S6 sub-states.
-
----
-
-## 9) Complexity & numerics
-
-* **Time:** $O(|\mathcal D(\kappa_m)|)$ to filter out `home` and sum foreign mass.
-* **Memory:** $O(|\mathcal F_m|)$ to carry the ISO list $F$ (if proceeding).
-* **Numerics:** S6.0 performs a single scalar sum $T$ over foreign weights; no RNG.
-
----
-
-## 10) Acceptance checks (what “done” means for S6.0)
-
-For each merchant $m$ entering S6:
-
-* If $M_m=0$ **or** $T_m=0$: exactly **one** `country_set` row (home) persisted under `seed={seed}/parameter_hash={parameter_hash}/fingerprint={manifest_fingerprint}`, no `gumbel_key` events for $m$, and $K_m^\star=0$.
-* If $M_m\ge1$ **and** $T_m>0$: S6.0 emits no data, exposes $K_m^\star=\min(K_{\text{raw}},M_m)$, and passes $(\mathcal F_m, K_m^\star)$ to S6.3.
-
----
-
-### One-line takeaway
-
-S6.0 deterministically computes $(\mathcal F_m,M_m)$, checks that **foreign mass exists** ($T_m>0$), caps $K_{\text{raw}}$ to $K_m^\star$, and—when no foreign candidates or mass exist—**writes the home-only `country_set` row (rank=0) and emits no RNG**, ending S6 for that merchant; otherwise it hands $(\mathcal F_m, K_m^\star)$ to S6.3.
-
----
-
-# S6.1 — Universe, symbols, authority
-
-## 1) Placement & purpose
-
-S6 consumes the deterministic **currency→country priors** from S5, removes the merchant’s home ISO, **renormalises over the foreign set**, and performs **weighted sampling without replacement** via **Gumbel-top-$K$** to select the ordered foreign countries. S6 emits **one RNG event per foreign candidate** (`gumbel_key`) and persists the ordered winners to `country_set`, which is the **only** authority for cross-country order. **S6 writes `country_set` (including the home-only row when applicable).**
-
----
-
-## 2) Domain: who runs S6
-
-Evaluate S6 **only** for merchants $m$ that:
-
-1. are multi-site (`is_multi=1`, S1);
-2. passed cross-border eligibility (`is_eligible=1`, S3); and
-3. have **effective foreign count** $K_m^\star \ge 1$ after S6.0’s cap $K_m^\star=\min(K_m,M_m)$, where $M_m$ is the number of foreign candidates (home excluded).
-
-When $M_m=0$ **or** the foreign mass is zero, S6.0 has already **written only the home row** (`rank=0`) and S6 emits **no** `gumbel_key` events (short-circuit).
-
-**Authority for the ordered result.** For $K_m^\star\ge 1$, S6 persists **home + $K_m^\star$ foreigns** to `country_set` with `rank=0` for home and `rank=1..K_m^\star` for winners **in Gumbel order**. `country_set` is explicitly the **only** authority for cross-country order in 1A.
-
----
-
-## 3) Symbols & notation (fixed for all of S6)
-
-Per merchant $m$:
-
-* $c\in\mathcal I$: home ISO-3166 alpha-2 (**UPPER-CASE ASCII**).
-* $\kappa_m\in\text{ISO4217}$: settlement currency (from S5.0 `merchant_currency`; S6 never recomputes $\kappa_m$).
-* $\mathcal D(\kappa_m)\subset\mathcal I$: currency member set from S5 cache `ccy_country_weights_cache`, with weights $w_i^{(\kappa_m)}$ satisfying $\sum_{i\in\mathcal D(\kappa_m)} w_i^{(\kappa_m)}=1$, stored in **ISO-ascending** order.
-* **Foreign candidate set:** $\mathcal F_m=\mathcal D(\kappa_m)\setminus\{c\}$ (order preserved).
-* **Count & cap:** $M_m=|\mathcal F_m|$, $K_m^\star=\min(K_m,M_m)$. (If $M_m=0$ ⇒ S6.0 home-only branch.)
-* **Foreign-renormalised weights** (defined/used in S6.3): $\tilde w_i=\dfrac{w_i^{(\kappa_m)}}{\sum_{j\in\mathcal F_m} w_j^{(\kappa_m)}}$ for $i\in\mathcal F_m$, with serial binary64 sums and tolerance $10^{-12}$.
-
----
-
-## 4) Selection mechanism (mathematical statement)
-
-S6 performs **weighted sampling without replacement** using **Gumbel-top-$K$**. For each foreign candidate $i\in\mathcal F_m$, draw **exactly one** open-interval uniform $u_i\in(0,1)$ (RNG mapping is specified in S6.4; clamps there ensure **finite** keys), then compute
-
-$$
-\boxed{\,z_i = \log \tilde w_i - \log\!\bigl(-\log u_i\bigr)\,}.
-$$
-
-Let the strict total order $\succ$ be “**key descending**, then **ISO ASCII ascending**” (tie-break if keys are bit-equal). The winners are the **top $K_m^\star$** elements under $\succ$; their **selection order** $r=1,\dots,K_m^\star$ is induced by the sort. Exactly **one** uniform is consumed per foreign candidate ($|\mathcal F_m|=M_m$); the run is fully replayable from the RNG envelope.
-
----
-
-## 5) Authoritative artefacts (schemas, paths, partitions)
-
-### RNG event stream — `gumbel_key` (emitted iff $M_m\ge 1$)
-
-* **Path (dictionary-pinned):**
-  `logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
-* **Emission order:** **ISO-ascending** by `country_iso` (stabilises JSONL concatenation).
-* **Schema:** `schemas.layer1.yaml#/rng/events/gumbel_key` (envelope + payload).
-  Envelope includes `{ts_utc, run_id, seed:uint64, parameter_hash:hex64, manifest_fingerprint:hex64, module, substream_label="gumbel_key", rng_counter_before/after_{lo,hi}}`.
-  **Payload (minimal, deliberate):**
-  `{merchant_id, country_iso, weight = tilde_w_i (binary64), key = z_i (finite), selected: bool, selection_order: int? (1..K* if selected, else null), K_raw, M, K_eff}`.
-  *(We intentionally **do not** log `u`; `key` is sufficient and is reproducible from the envelope.)*
-* **Coverage:** validators assert $|\text{events}_m|=M_m$; winners have `selected=true` with `selection_order∈{1..K_m^\star}`; losers have `selected=false`, `selection_order=null`.
-
-### Allocation dataset — `country_set` (single authority for order)
-
-* **Path (dictionary-pinned):**
-  `data/layer1/1A/country_set/seed={seed}/parameter_hash={parameter_hash}/fingerprint={manifest_fingerprint}/`
-* **Schema:** `schemas.1A.yaml#/alloc/country_set`.
-  **PK** `(merchant_id, country_iso)`.
-  **Rows per merchant:** exactly $K_m^\star+1$:
-  `(m,c,is_home=true, rank=0, prior_weight=null)` and, for winners $(i_1,\dots,i_{K_m^\star})$ in **Gumbel order**,
-  `(m,i_r,is_home=false, rank=r, prior_weight=tilde_w_{i_r}^{(rounded)})`, $r=1..K_m^\star$.
-* **Weight representation policy:**
-  – In **events**, `weight` is the renormalised $\tilde w_i$ in **binary64** (no decimal rounding).
-  – In **country_set**, `prior_weight` is the same $\tilde w_i$ but **rounded to 8 decimal places at write** (computations remain binary64). Validators accept $|\sum \tilde w_i - 1| \le 10^{-6}$ on read to accommodate decimal rounding.
-  – For the home row, `prior_weight=null`.
-* **Coherence with events:** any `gumbel_key.selected=true` must have a matching `country_set` row with `rank = selection_order`. Domestic/home-only merchants have **only** the home row (`rank=0`) and **no** `gumbel_key` events.
-
-**Upstream authority reminder.** S6 reads S5’s deterministic caches (partitioned by `{parameter_hash}`), especially `ccy_country_weights_cache`, as the sole source for $\mathcal D(\kappa)$ and priors $w^{(\kappa)}$. S5 caches are FK-clean and ISO-ordered.
-
----
-
-## 6) Determinism & invariants (established at the S6 level)
-
-* **I-G1 (bit-replay).** For fixed $(\tilde w,\ K_m^\star,\ \texttt{seed},\ \texttt{parameter_hash},\ \texttt{manifest_fingerprint})$, the uniforms $(u_i)$, keys $(z_i)$, winner set $S_m$, and ranks are **bit-identical** across replays.
-* **I-G2 (event coverage).** Exactly $M_m$ `gumbel_key` events per merchant when $M_m\ge1$; winners `selected=true` with `selection_order∈{1..K_m^\star}`; others `selected=false`.
-* **I-G3 (weight & ISO constraints).** Every event row has `country_iso` passing ISO FK and `weight∈(0,1]` with serial sum $\sum_{i\in\mathcal F_m}\tilde w_i=1$ within $10^{-12}$.
-* **I-G4 (tie-break determinism).** If $z_i=z_j$ at binary64, order by **ISO ASCII** (UPPER-CASE) ascending; selection order is a pure function of $(\tilde w,u)$.
-* **I-G5 (country-set coherence).** Persist exactly one home row (`rank=0`) plus $K_m^\star$ foreign rows in **the same order** as winners’ `selection_order`.
-* **I-G6 (event emission order).** `gumbel_key` events **must** be emitted **ISO-ascending** to stabilise log concatenation.
-
----
-
-## 7) Out-of-scope here (covered in later sub-states)
-
-* **S6.2** pins exact inputs & lineage checks (presence/shape of S5 weights; envelope).
-* **S6.3** defines the renormalisation on $\mathcal F_m$ (serial sums; positivity; sparse equal-split).
-* **S6.4** specifies the RNG protocol: **per-candidate counter base** or ISO-index mapping, open-interval $u$ clamp to ensure finite keys, and one Philox draw per candidate.
-* **S6.5–S6.6** codify the total-order sort and `country_set` writer (including rounding policy and partitions).
-
----
-
-### One-line takeaway
-
-S6.1 fixes the universe and the rules: who runs, what objects exist $(\mathcal F_m,M_m,K_m^\star,\tilde w,z)$, **how** events are emitted (ISO-ascending; one per candidate; `key` not `u`), and **where** the single source of truth for order lives (`country_set` with `rank`), with explicit partitions and weight-representation policy to keep implementation deterministic and audit-tight.
-
----
-
-# S6.2 — Inputs & lineage checks
-
-## 1) Scope & purpose
-
-S6.2 assembles the **deterministic context** needed by S6.3–S6.6 and blocks progress if anything is missing or malformed:
-
-* Merchant identity + **home ISO** $c$ (**UPPER-CASE ASCII**).
-* S4’s accepted foreign-count $K_m$ and S6.0’s **effective cap** $K_m^\star$.
-* Merchant currency $\kappa_m$ (from S5.0 cache; **never recomputed**).
-* Currency→country **weights cache** (S5) for $\kappa_m$: the ISO-ordered set $\mathcal D(\kappa_m)$ and base weights $w_i^{(\kappa_m)}$.
-* **Lineage envelope**: `seed`, `parameter_hash`, `manifest_fingerprint`, and `run_id` (events).
-
-If any preconditions fail, **S6 must not proceed** to renormalisation/RNG/persistence.
-
----
-
-## 2) Authoritative sources (what we read, where, and why)
-
-* **Merchant currency $\kappa_m$ (S5.0 cache).**
-  Dataset: `merchant_currency`, partitioned by `{parameter_hash}`, schema `schemas.1A.yaml#/prep/merchant_currency`. **Read only.**
-
-* **Currency→country weights (S5 cache).**
-  Dataset: `ccy_country_weights_cache`, partitioned by `{parameter_hash}`, schema `schemas.1A.yaml#/prep/ccy_country_weights_cache`. This defines $\mathcal D(\kappa)$ and $w_i^{(\kappa)}$; rows are **strict ISO ASCII ascending** and sum to 1 (S5 guarantees; S6 re-checks defensively).
-
-* **Allocation dataset target (egress surface).**
-  `country_set`, partitioned by `{seed, parameter_hash, fingerprint}`, schema `schemas.1A.yaml#/alloc/country_set`. **S6 writes this later;** S6.2 pins lineage and partition expectations. `country_set` is the **only** authority for cross-country order (`rank`).
-
-* **RNG event stream target.**
-  `logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`, schema `schemas.layer1.yaml#/rng/events/gumbel_key`. Exactly **one event per foreign candidate** when $K_m^\star\ge1$. (Emitted in S6.4; S6.2 asserts the lineage & shapes exist.)
-
----
-
-## 3) Inputs per merchant $m$ (deterministic tuple)
-
-$$
-I_m=\big(m,\ c,\ K_m,\ K_m^\star,\ \kappa_m,\ \mathcal D(\kappa_m),\ \{w_i^{(\kappa_m)}\}_{i\in\mathcal D(\kappa_m)},\ E\big)
-$$
-
-Where:
-
-* $m=\texttt{merchant_id}$ (id64) and $c\in\mathcal I$ (ISO-3166 alpha-2, **UPPER-CASE ASCII**).
-* $K_m\in\{1,2,\dots\}$ from S4; $K_m^\star=\min(K_m,M_m)$ from S6.0 with $M_m=|\mathcal D(\kappa_m)\setminus\{c\}|$. **If $M_m=0$, S6.0 already wrote home-only and S6.2–S6.6 are skipped.**
-* $\kappa_m$ from `merchant_currency` (parameter-scoped). **Do not recompute.**
-* $\mathcal D(\kappa_m)$ and $w_i^{(\kappa_m)}$ from `ccy_country_weights_cache` (parameter-scoped, ISO-ordered, sum to 1).
-* **Lineage envelope $E$:** `seed:uint64`, `parameter_hash:hex64`, `manifest_fingerprint:hex64`, `run_id`.
-
----
-
-## 4) Preconditions & structural checks (must pass before S6.3)
-
-Any failure here **aborts** (merchant or run) and prevents RNG emission later.
-
-### C-1 Currency presence & shape
-
-* A row exists for $\kappa_m$ in `merchant_currency/parameter_hash={parameter_hash}/…`. Else **fail** `E/1A/S6/INPUT/MISSING_KAPPA` (abort merchant).
-* Weights exist for $\kappa_m$ in `ccy_country_weights_cache/parameter_hash={parameter_hash}/…`. Else **fail** `E/1A/S6/INPUT/MISSING_WEIGHTS` (abort merchant).
-
-### C-2 ISO ordering & coverage
-
-* Load all rows for $\kappa_m$; assert **strict ASCII order** by `country_iso` (**UPPER-CASE ASCII**). Else **fail** `E/1A/S6/INPUT/WEIGHTS_ORDER` (abort run).
-* Let $\mathcal D(\kappa_m)$ be exactly that ISO set; $D=|\mathcal D(\kappa_m)|\ge1$.
-
-### C-3 Sum & range sanity (defensive echoes of S5)
-
-* Compute $S=\sum_{i\in\mathcal D(\kappa_m)} w_i^{(\kappa_m)}$ **serially in ISO order** (binary64); assert $|S-1|\le 10^{-6}$. Else **fail** `E/1A/S6/INPUT/WEIGHTS_SUM` (abort run).
-* Assert each $w_i^{(\kappa_m)}\in[0,1]$ and **finite**. Else **fail** `E/1A/S6/INPUT/WEIGHTS_RANGE` (abort run).
-
-### C-4 Eligibility & cap coherence
-
-* Compute $F_m=\mathcal D(\kappa_m)\setminus\{c\}$ (order preserved) and $M_m=|F_m|$.
-* If $M_m=0$: **do not proceed** (S6.0 already persisted home-only).
-* Else assert $K_m^\star\in[1,M_m]$. If not, **fail** `E/1A/S6/INPUT/BAD_CAP` (abort run).
-
-### C-5 Lineage envelope readiness (before any events)
-
-* Assert the presence of `seed`, `parameter_hash`, `manifest_fingerprint`, and `run_id`.
-* Assert **partition semantics** match the dictionary:
-
-  * `gumbel_key` → partitions `{seed, parameter_hash, run_id}`.
-  * `country_set` → partitions `{seed, parameter_hash, fingerprint}` (**no `run_id`**).
-    If absent/mismatched: **fail** `E/1A/S6/LINEAGE/PARTITIONS` (abort run).
-
-> Notes: RNG counter mapping and the **open-interval** $u$ clamp are specified in S6.4. S6.2 only asserts the **presence** of envelope keys and partition shapes.
-
----
-
-## 5) What S6.2 does **not** do
-
-* **No renormalisation** on the foreign set (S6.3 owns that).
-* **No RNG**: does not open streams, draw uniforms, or emit events (S6.4).
-* **No persistence** to `country_set` (S6.6 writes; S6.0 may have written home-only).
-
-It is a pure **gatekeeper** ensuring S6.3–S6.6 receive **valid, auditable inputs**.
-
----
-
-## 6) Language-agnostic reference algorithm (normative)
-
-```text
-FUNCTION S6_2_inputs_and_lineage_check(m):
-  INPUT:
-    merchant_id m
-    home_iso c                                # ISO2, UPPER-CASE ASCII
-    K_raw from S4 (int ≥ 1)
-    K_eff from S6.0 (int ≥ 0)                 # = min(K_raw, M_m) computed in S6.0
-    parameter_hash (hex64)
-    manifest_fingerprint (hex64)
-    seed (uint64), run_id
-  READ:
-    κ  := merchant_currency[parameter_hash].lookup(m).kappa
-    Wκ := SELECT country_iso, weight
-          FROM ccy_country_weights_cache[parameter_hash]
-          WHERE currency = κ
-          ORDER BY country_iso ASC  # expected strict ASCII order
-  DERIVE / CHECK:
-    assert κ is present                            # C-1
-    assert |Wκ| ≥ 1                                # C-1
-    ISO_list := [row.country_iso for row in Wκ]
-    assert ISO_list is strictly ASCII-ascending    # C-2
-    S := Σ(row.weight for row in Wκ) (serial, binary64)
-    assert |S - 1| ≤ 1e-6 and all weights ∈ [0,1] and finite   # C-3
-    F := [iso for iso in ISO_list if iso != c]     # preserves order
-    M := length(F)
-    if M == 0:
-        return SKIP_MERCHANT("home_only_written_in_S6.0")
-    assert (1 ≤ K_eff ≤ M)                         # C-4
-    # Partition lineage keys present and match dictionary:
-    assert gumbel_key partitions == {seed, parameter_hash, run_id}
-    assert country_set partitions == {seed, parameter_hash, fingerprint}  # C-5
-  OUTPUT to S6.3:
-    ctx := {
-      merchant_id: m,
-      home: c,
-      kappa: κ,
-      candidates: F,                  # ISO order
-      base_weights: [w_i for i in F], # aligned to F order, not yet renormalised
-      K_star: K_eff,
-      lineage: {seed, parameter_hash, run_id, manifest_fingerprint}
-    }
-  RETURN ctx
-```
-
-**Determinism:** pure function; no RNG or persistence side-effects. Given fixed inputs, the context record is byte-identical across replays.
-
----
-
-## 7) Failure taxonomy (owned by S6.2)
-
-* `E/1A/S6/INPUT/MISSING_KAPPA` — no `merchant_currency` row for $m$. **Abort merchant.**
-* `E/1A/S6/INPUT/MISSING_WEIGHTS` — no weights for $\kappa_m$. **Abort merchant.**
-* `E/1A/S6/INPUT/WEIGHTS_ORDER` — weights not in strict ASCII ISO order. **Abort run.**
-* `E/1A/S6/INPUT/WEIGHTS_SUM` — sum≠1 (tol) or `E/1A/S6/INPUT/WEIGHTS_RANGE` — non-finite/out-of-range weight. **Abort run.**
-* `E/1A/S6/INPUT/BAD_CAP` — $K_m^\star$ missing or not in $[1,M_m]$ when $M_m\ge1$. **Abort run.**
-* `E/1A/S6/LINEAGE/PARTITIONS` — partition keys for `gumbel_key`/`country_set` not as per dictionary. **Abort run.**
-
----
-
-## 8) Acceptance checks (what “done” means for S6.2)
-
-For every merchant that reaches S6.2:
-
-* A context record exists with `{m, c, κ, F (ISO order), base_weights aligned to F, K_m^\star ≥ 1, lineage}`.
-* All C-1…C-5 predicates hold.
-* **No events written**, **no RNG consumed**, **no `country_set` rows** written here.
-* If $M_m=0$, the merchant **did not** enter S6.2 (handled by S6.0).
-
----
-
-### One-liner
-
-S6.2 is the **gatekeeper**: it proves the currency and ISO-ordered weights are valid, the cap $K_m^\star$ is coherent, and lineage/partitions are correct—so S6.3 can renormalise and S6.4 can safely open the RNG stream.
-
----
-
-# S6.3 — Candidate set & renormalisation
-
-## 1) Purpose & placement
-
-Given the S6.2 context for merchant $m$ — home ISO $c$, currency $\kappa_m$, S5 weights $w^{(\kappa_m)}$ over $\mathcal D(\kappa_m)$, and the effective cap $K_m^\star$ from S6.0 — build the **foreign** candidate set $\mathcal F_m$ by excluding the home, then renormalise the weights on $\mathcal F_m$ to obtain a probability vector $\tilde w$ that sums to 1 (binary64, serial). This $\tilde w$ is the **only** weight used to compute Gumbel keys in S6.4–S6.5.
-
----
-
-## 2) Inputs (from S6.2; read-only)
-
-* $m$ (merchant id), $c\in\mathcal I$ (**UPPER-CASE ASCII** home ISO-2).
-* $\kappa_m\in\mathrm{ISO4217}$ from `merchant_currency` (parameter-scoped; **never recomputed**).
-* ISO-ordered S5 rows for $\kappa_m$: $\{(i, w_i^{(\kappa_m)}) : i\in\mathcal D(\kappa_m)\}$ with $\sum_{i\in\mathcal D(\kappa_m)} w_i^{(\kappa_m)}=1$ (schema-checked), each `country_iso` ISO-valid and **sorted ASCII-ascending**.
-* $K_m^\star=\min(K_m,M_m)$ from S6.0 (**do not** use raw $K_m$ after S6.0).
-* (Optional context) `sparse_flag(κ_m)` from S5; see §9.
-
-Guards from S6.2 already ensured currency presence, ISO ordering, group-sum $=1$ (tol $10^{-6}$) and lineage readiness; S6.3 assumes those passed.
-
----
-
-## 3) Mathematical construction (canonical)
-
-### 3.1 Foreign candidate set (home excluded)
-
-$$
-\boxed{\, \mathcal F_m \;=\; \mathcal D(\kappa_m)\setminus\{c\},\quad M_m = |\mathcal F_m| \,}
-$$
-
-Use the **stored ISO order** from S5 for the iteration order of $\mathcal F_m$. If $M_m=0$, S6.0 has already short-circuited to home-only and S6.3 **does not run** for this merchant.
-
-### 3.2 Foreign mass (serial sum, binary64)
-
-$$
-T_m \;=\; \sum_{j\in\mathcal F_m} w^{(\kappa_m)}_j
-\quad\text{(single-thread serial left-fold in ISO order).}
-$$
-
-No parallel reductions or reordering; this preserves determinism across platforms.
-
-### 3.3 Renormalisation to $\tilde w$ on $\mathcal F_m$
-
-$$
-\boxed{\, \tilde w_i \;=\; \frac{w^{(\kappa_m)}_i}{T_m}\quad \text{for } i\in\mathcal F_m\, },\qquad
-\sum_{i\in\mathcal F_m}\tilde w_i \;=\; 1\ \ (\text{within }10^{-12}).
-$$
-
-S6 enforces **strict positivity** $\tilde w_i>0$ and finiteness for all $i\in\mathcal F_m$ so $\log \tilde w_i$ is defined and keys are finite downstream.
-
-> **Design note (cap vs abort):** any legacy text that aborted when $K_m>M_m$ is superseded by S6.0’s **cap** $K_m^\star=\min(K_m,M_m)$. From S6.3 onward we use $K_m^\star$ only.
-
----
-
-## 4) Numeric policy & tolerances (strict)
-
-* **Arithmetic:** IEEE-754 binary64.
-* **Reductions:** single-thread serial left-fold in the S5 ISO order (no parallel, no re-order).
-* **Foreign mass positivity:** require $T_m>0$. (Guaranteed by S5/S6.0; checked defensively here.)
-* **Normalisation tolerance:** after forming $\tilde w$, compute $S=\sum_{i\in\mathcal F_m}\tilde w_i$ in the same serial order and assert $|S-1|\le 10^{-12}$.
-* **Range:** each $\tilde w_i\in(0,1]$ and `isfinite`; any non-finite/negative is a hard failure.
-* **Representation:** $\tilde w$ remains **binary64** in memory. Rounding (8 dp) applies only when S6.6 writes `country_set` (not here).
-
----
-
-## 5) Outputs (in-memory; consumed by S6.4–S6.6)
-
-* Ordered foreign ISO list $\mathcal F_m = (i_1,\dots,i_{M_m})$ (ISO-ascending from S5).
-* Vector $\tilde w = (\tilde w_{i_1},\dots,\tilde w_{i_{M_m}})$ aligned to $\mathcal F_m$.
-* The integer $K_m^\star$ (already computed; $1\le K_m^\star\le M_m$).
-
-S6.3 **does not** write `gumbel_key` or `country_set`. Those are written by S6.4–S6.6.
-
----
-
-## 6) Language-agnostic reference algorithm (normative)
-
-```text
-FUNCTION S6_3_build_and_renormalise(ctx):
-  INPUT (from S6.2):
-    m            # merchant_id
-    c            # home ISO2 (UPPER-CASE ASCII)
-    κ            # merchant currency (ISO4217)
-    Wκ           # ISO-ordered list [(i, w_i^(κ)) for i ∈ D(κ)], Σ w_i^(κ) = 1 (tol 1e-6)
-    K_star ≥ 1   # from S6.0 cap
-  OUTPUT (to S6.4):
-    F            # ordered foreign ISO list
-    tilde_w      # aligned foreign-renormalised weights (Σ=1 within 1e-12)
-    K_star       # unchanged
-
-  # 1) Build foreign candidate list (preserve ISO order)
-  F ← [ i for (i, w) in Wκ if i ≠ c ]
-  M ← |F|
-  assert M ≥ 1                    # S6.0 would have short-circuited otherwise
-  assert 1 ≤ K_star ≤ M           # defensive echo of S6.0/S6.2
-
-  # 2) Serial foreign-mass sum (binary64)
-  T ← 0.0
-  for (i, w) in Wκ:
-      if i ≠ c:
-          T ← T + w
-  if not (T > 0.0 and isfinite(T)):
-      FAIL "E/1A/S6/RENORM/ZERO_FOREIGN_MASS"
-
-  # 3) Renormalise (strict positivity & finiteness)
-  tilde_map ← {}
-  for (i, w) in Wκ:
-      if i ≠ c:
-          t ← w / T
-          if not (isfinite(t) and t > 0.0 and t ≤ 1.0):
-              FAIL "E/1A/S6/RENORM/WEIGHT_RANGE"
-          tilde_map[i] ← t
-
-  # 4) Sum-to-one check (serial, same order)
-  S ← 0.0
-  for i in F:
-      S ← S + tilde_map[i]
-  if |S - 1.0| > 1e-12:
-      FAIL "E/1A/S6/RENORM/SUM_TOL"
-
-  RETURN (F, [tilde_map[i] for i in F], K_star)
-```
-
-**Determinism:** pure function of $(W_\kappa, c)$; given the same inputs and dictionary, outputs are byte-replayable.
-
----
-
-## 7) Acceptance checks (what “done” means for S6.3)
-
-1. $\mathcal F_m = \mathcal D(\kappa_m)\setminus\{c\}$ in **S5 ISO order**; $M_m\ge 1$.
-2. $K_m^\star$ satisfies $1\le K_m^\star\le M_m$.
-3. $T_m>0$; each $\tilde w_i\in(0,1]$ and finite; $\sum\tilde w_i=1$ within $10^{-12}$ (serial).
-4. No datasets written; context passed forward to S6.4 to open the RNG stream and emit **one** `gumbel_key` per candidate.
-
----
-
-## 8) Failure taxonomy owned by S6.3 (precise triggers)
-
-* `E/1A/S6/RENORM/ZERO_FOREIGN_MASS` — $T_m\le 0$ or non-finite. *(Should be unreachable if S6.0/S5 held; treat as upstream corruption.)*
-* `E/1A/S6/RENORM/WEIGHT_RANGE` — some $\tilde w_i$ non-finite, $\le 0$, or $>1$.
-* `E/1A/S6/RENORM/SUM_TOL` — $|\sum_{i\in\mathcal F_m}\tilde w_i - 1|>10^{-12}$ after renormalising.
-* `E/1A/S6/INPUT/BAD_CAP` — $K_m^\star\notin[1,M_m]$ when $M_m\ge1$. *(Defensive echo; indicates a flow breach upstream.)*
-
----
-
-## 9) Notes & edge cases
-
-* **Home not in $\mathcal D(\kappa_m)$:** allowed — then $\mathcal F_m=\mathcal D(\kappa_m)$, $M_m=|\mathcal D|$; logic unchanged.
-* **Single-member currency:** if $\mathcal D(\kappa_m)=\{c\}$ then $M_m=0$ and S6.0 wrote the home-only row; S6.3 is skipped.
-* **Sparse equal-split semantics:** if `sparse_flag(κ_m)=true` (from S5), the **pre-renorm** foreign weights are equal; after renorm, each $\tilde w_i$ is **exactly $1/M_m$** in binary64 (modulo later 8-dp rounding at `country_set` write in S6.6).
-
----
-
-### One-liner
-
-S6.3 deterministically turns the S5 currency expansion into an **ISO-ordered foreign list** and a **probability vector $\tilde w$** (serial, tol $10^{-12}$), ready for one-uniform-per-candidate **Gumbel-top-$K_m^\star$** selection in S6.4–S6.5.
-
----
-
-# S6.4 — RNG protocol & event contract
-
-## 1) Purpose & placement
-
-Given the S6.3 context $(\mathcal F_m,\ \tilde w,\ K_m^\star)$, S6.4:
-
-1. draws **exactly one** open-interval uniform per foreign candidate (order-free addressing),
-2. computes Gumbel keys $z_i=\log\tilde w_i-\log(-\log u_i)$ in binary64,
-3. **buffers** $\{i\mapsto (u_i,z_i,\texttt{counters})\}$ in memory, and
-4. **after S6.5 decides winners**, emits **one `gumbel_key` event per candidate** with final flags (`selected`, `selection_order`) in **ISO-ascending** order.
-
-> We **do not** mutate/update log rows later. S6.4 emits once, post-selection, with final flags.
-
----
-
-## 2) Substream discipline (authoritative, order-free)
-
-**Engine.** Philox $2\times 64$-10. All RNG events include the **rng envelope**
-$\{\texttt{ts_utc},\texttt{run_id},\texttt{seed},\texttt{parameter_hash},\texttt{manifest_fingerprint},\texttt{module},\texttt{substream_label},\texttt{rng_counter_before_{lo,hi}},\texttt{rng_counter_after_{lo,hi}}\}$.
-
-**Label.** `substream_label="gumbel_key"`.
-
-**Per-candidate, order-free counter base (no stride, no index dependence).**
-For merchant $m$ and foreign candidate ISO $i\in\mathcal F_m$,
-
-$$
-\texttt{ctr_base}(m,i)\ :=\ \operatorname{split64}\!\Big(\textsf{SHA256}\big("gumbel_key"\,\|\,m\,\|\,i\,\|\,\texttt{parameter_hash}\,\|\,\texttt{manifest_fingerprint}\big)\Big).
-$$
-
-The event’s **before** counter is `ctr_base(m,i)`; the **after** counter is `before + 1` (128-bit add with carry). This mapping is **partition/order invariant** and replaces any “jump/stride” scheme.
-
-**Per-event draw.** Each `gumbel_key` event consumes **exactly one** Philox block (one uniform); envelope counters must satisfy `after = before + 1`.
-
----
-
-## 3) Open-interval uniform $u\in(0,1)$ — bit-exact transform
-
-From a single 64-bit lane $x$ of the Philox output (we **discard** the other lane):
-
-$$
-\boxed{\,u=\frac{x+1}{2^{64}+1}\in(0,1)\,}.
-$$
-
-This `u01` map guarantees $u$ is **strictly** inside $(0,1)$, so $g=-\log(-\log u)$ is always **finite**. This is the **only** uniform mapping used in 1A.
-
----
-
-## 4) Key computation & numeric guards
-
-For each candidate $i\in\mathcal F_m$ (with $\tilde w_i>0$ from S6.3):
-
-$$
-g_i=-\log\!\bigl(-\log u_i\bigr),\qquad
-\boxed{\,z_i=\log \tilde w_i+g_i\,}.
-$$
-
-* Binary64 throughout; precompute $\log\tilde w_i$ once.
-* Assert `isfinite(z_i)`; any NaN/Inf is a hard failure for this merchant.
-
----
-
-## 5) Event stream — path, partitions, envelope, payload
-
-**Path & partitions (dictionary-pinned):**
-`logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
-(partitioned by `["seed","parameter_hash","run_id"]`).
-
-**Emission order:** **ISO-ascending** by `country_iso` (stabilises JSONL concatenation).
-
-**Envelope (every row):** rng envelope from §2 with `substream_label="gumbel_key"`. Counters must show **delta = 1**.
-
-**Payload (minimal, deliberate):**
-
-```json
-{
-  "merchant_id": id64,
-  "country_iso": iso2,                 // UPPER-CASE ASCII
-  "weight": pct01,                     // foreign-renormalised tilde_w_i (binary64)
-  "key": number,                       // z_i (finite)
-  "selected": boolean,                 // final
-  "selection_order": integer|null,     // 1..K* if selected, else null
-  "K_raw": integer,
-  "M": integer,
-  "K_eff": integer                     // = K*
-}
-```
-
-> We **do not** log `u`. `key` is fully reproducible from the envelope and context.
-
-**Coverage invariant.** Emit **exactly $M_m$** `gumbel_key` rows for merchant $m$ (one per foreign candidate).
-
----
-
-## 6) Determinism & draw-accounting invariants
-
-* **Bit replay.** For fixed $(\tilde w,\ K_m^\star,\ \texttt{seed},\ \texttt{parameter_hash},\ \texttt{manifest_fingerprint})$, the vectors $(u_i,z_i)$, the winner set, and event flags are **bit-identical** across replays.
-* **Per-event draws.** Every event has `after = before + 1`; per-merchant draw count equals $M_m$.
-* **Schema & ranges.** `weight ∈ (0,1]` and finite; `country_iso` ISO-valid; `key` finite.
-
----
-
-## 7) Language-agnostic reference algorithm (normative)
-
-```text
-ALGORITHM S6_4_rng_and_emit
-
-INPUT:
-  m                 # merchant
-  F = [i1..iM]      # ISO-ascending foreign ISOs (from S6.3)
-  tilde_w[ i ]      # Σ tilde_w = 1 within 1e-12 (binary64)
-  lineage = {seed, parameter_hash, manifest_fingerprint, run_id}
-  module_name := "1A.foreign_country_selector"
-OUTPUT:
-  exactly M JSONL rows at logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/...
-
-PHASE A — DRAW & BUFFER (order-free addressing, no emit yet):
-  K := empty map
-  C := empty map
-  for each i in F:                        # any deterministic loop is fine
-      before := ctr_base("gumbel_key", m, i, parameter_hash, manifest_fingerprint)
-      (R0, R1) := philox2x64(before, seed)       # discard R1
-      u := (R0 + 1) / (2^64 + 1)                 # open-interval u01
-      g := -log(-log(u))
-      z := log(tilde_w[i]) + g
-      assert isfinite(z)
-      after := before + 1                        # 128-bit add with carry
-      K[i] := z
-      C[i] := {before, after}
-
-PHASE B — SELECTION (delegated to S6.5):
-  winners := TOP_K_BY( K, primary = key desc, secondary = ISO asc, K = K_eff )
-  rank[i] := 1..K_eff for i ∈ winners; absent otherwise
-
-PHASE C — EMIT (single-shot, with final flags; ISO-ascending emission):
-  for each i in F (ISO-ascending):
-      write_event(
-        envelope = {
-          ts_utc=now(), run_id, seed, parameter_hash, manifest_fingerprint,
-          module=module_name, substream_label="gumbel_key",
-          rng_counter_before_hi, rng_counter_before_lo = C[i].before,
-          rng_counter_after_hi,  rng_counter_after_lo  = C[i].after
-        },
-        payload = {
-          merchant_id=m, country_iso=i,
-          weight=tilde_w[i], key=K[i],
-          selected = (i ∈ winners),
-          selection_order = rank.get(i, null),
-          K_raw, M=|F|, K_eff
-        }
-      )
-```
-
----
-
-## 8) Failure taxonomy owned by S6.4 (precise triggers)
-
-* `E/1A/S6/RNG/ENVELOPE` — missing envelope fields (seed/parameter_hash/manifest_fingerprint/run_id/substream_label/counters). **Abort run.**
-* `E/1A/S6/RNG/COUNTER_DELTA` — `after != before + 1`. **Abort run.**
-* `E/1A/S6/RNG/U01_BREACH` — $u\notin(0,1)$ or non-finite (should be unreachable). **Abort merchant.**
-* `E/1A/S6/RNG/KEY_NANINF` — `key` not finite. **Abort merchant.**
-* `E/1A/S6/RNG/COVERAGE` — number of `gumbel_key` rows $\neq M_m$. **Abort run.**
-* `E/1A/S6/RNG/EMIT_ORDER` — emission not ISO-ascending. **Abort run.**
-
-(Selection/order mismatches against `country_set` are caught later in S6.6 coherence checks.)
-
----
-
-## 9) Cross-artefact coherence (validators assert)
-
-* Per merchant: $|\text{gumbel_key}|=M_m$ and every row has `after = before + 1`.
-* Event `weight` equals the S6.3 $\tilde w_i$ (binary64), `country_iso` matches $\mathcal F_m$ in ISO set, and `key` is finite.
-* After S6.6: winners’ `selection_order` equals `country_set.rank` for the same ISO; losers’ events have `selection_order=null`.
-
----
-
-## 10) Edge notes
-
-* **Extremes of $x$.** The `u01` mapping yields finite $g$ even when $x=0$ or $2^{64}-1$.
-* **Tiny $\tilde w_i$.** Allowed (strictly $>0$); `key` remains finite.
-* **Optional telemetry.** A single non-consuming `stream_jump` diagnostic may be emitted when first touching `"gumbel_key"` for a merchant; it **must not** alter counters.
-
----
-
-### One-line takeaway
-
-S6.4 makes RNG **bulletproof and replayable**: **per-candidate order-free counters**, a **bit-exact open-interval** uniform, **one draw per candidate**, **ISO-ascending single-shot emission** with final flags—producing `gumbel_key` events that S6.6 will map 1:1 into `country_set` ranks.
-
----
-
-# S6.5 — Selection rule & induced order
-
-## 1) Inputs & objective
-
-Inputs for merchant $m$:
-
-* **Candidates:** foreign ISO list $\mathcal F_m=(i_1,\dots,i_{M_m})$ from S6.3 (home excluded; **ISO-ascending**).
-* For each $i\in\mathcal F_m$:
-  – **foreign-renormalised weight** $\tilde w_i\in(0,1]$ (S6.3; $\sum \tilde w=1$);
-  – **key** $z_i=\log \tilde w_i - \log(-\log u_i)$ from S6.4 (binary64; **finite**). *(S6.4 computed $u_i$ but we do **not** use or log it here.)*
-* **Effective winners count:** $K_m^\star\in[1,M_m]$ from S6.0 (cap already applied).
-
-**Goal:** pick the **top $K_m^\star$** under a **strict total order**, then set final `selected/selection_order` flags that S6.4 uses when emitting `gumbel_key` events.
-
----
-
-## 2) Strict total order (mathematical definition)
-
-Define $i \succ j$ (“$i$ outranks $j$”) iff
-
-$$
-i \succ j \iff \big(z_i > z_j\big)\ \text{or}\ \big(z_i=z_j\ \text{and}\ \text{ISO}(i) < \text{ISO}(j)\big),
-$$
-
-where `ISO(·)` compares **UPPER-CASE ASCII** country codes lexicographically.
-
-**Sorter key (implementation-equivalent):** sort by
-
-$$
-\kappa(i):=\big(-z_i,\ \text{ISO}(i)\big)\quad\text{in lexicographic ascending order.}
-$$
-
-This is identical to “$z$ descending, ISO ascending” and does **not** rely on sort stability.
-
----
-
-## 3) Winners, induced order, and flags
-
-Let $\pi_m$ be the permutation of $\mathcal F_m$ sorted by $\succ$:
-
-$$
-z_{\pi_m(1)} \ge \dots \ge z_{\pi_m(M_m)}\quad(\text{tie-break by ISO}).
-$$
-
-* **Winners:** $S_m=\{\pi_m(1),\dots,\pi_m(K_m^\star)\}$.
-* **Selection order:** $i_r=\pi_m(r)$ for $r=1,\dots,K_m^\star$.
-
-**Final flags for each candidate (consumed by S6.4’s emitter):**
-
-* Winners: `selected=true`, `selection_order=r`.
-* Non-winners: `selected=false`, `selection_order=null`.
-
-Flags **must** be consistent with the `key` recorded on each event; any mismatch is a validation failure.
-
----
-
-## 4) Probabilistic semantics (why this is correct)
-
-With $g_i:=-\log(-\log u_i)$ i.i.d. standard Gumbel and $z_i=\log\tilde w_i+g_i$, the permutation $\pi_m$ has the **Plackett–Luce** distribution with parameters $\tilde w$. The top-$K_m^\star$ are therefore a **weighted sample without replacement** from $\mathcal F_m$ with weights $\tilde w$ — exactly the intended sampler.
-
----
-
-## 5) Artefact-level contracts & invariants
-
-**Event stream (`gumbel_key`, emitted by S6.4 after this step):**
-
-* Exactly **$M_m$** rows for $m$ (one per foreign candidate), **emitted ISO-ascending**.
-* Winners carry `selected=true` and `selection_order∈{1..K_m^\star}`; losers `selected=false`, `selection_order=null`.
-* Payload includes `key=z_i` (finite) and `weight=tilde_w_i` (binary64). `u` is not logged.
-
-**Allocation dataset (`country_set`, written in S6.6):**
-
-* Persist **home + $K_m^\star$** foreign rows; `rank=0` for home, and `rank=r` for winner $i_r$ **in Gumbel order**.
-* **Coherence:** `country_set.rank == selection_order` for every winner; `country_set` remains the **only** authority for cross-country order.
-
----
-
-## 6) Language-agnostic reference algorithm (normative)
-
-```text
-ALGORITHM S6_5_select_and_flag
-
-INPUT:
-  F = [i1..iM]                 # ISO-ascending foreign ISOs (from S6.3)
-  z[i] for i in F              # finite keys (from S6.4)
-  K_star (1..M)                # effective winners count (from S6.0)
-OUTPUT (to S6.4 emitter and S6.6 writer):
-  winners = [i_1..i_K_star]    # in Gumbel order
-  flags[i] = {selected, selection_order}
-
-STEPS:
-1) assert all isfinite(z[i]) for i in F
-2) idx := argsort_by( key(i) = (-z[i], ISO(i)) )   # z↓ then ISO↑
-3) winners := take_first_K(idx, K_star)
-4) # initialise flags as losers
-   for i in F: flags[i] := {selected:false, selection_order:null}
-5) # assign winner flags in induced order
-   r := 1
-   for i in winners:
-       flags[i] := {selected:true, selection_order:r}
-       r := r + 1
-6) # postconditions
-   assert |winners| == K_star
-   assert { flags[i].selection_order | flags[i].selected } == {1..K_star}
-RETURN winners, flags
-```
-
-**Emission strategy.** S6.4 performs Phase B **selection** via this algorithm, then **emits** `gumbel_key` with final flags in a single shot (ISO-ascending). No event updates occur afterward.
-
----
-
-## 7) Validator hooks (deterministic predicates)
-
-Given all `gumbel_key` rows for $m$:
-
-1. **Coverage:** row count $=M_m$.
-2. **Order reconstruction:** `idx := argsort_by((-key, ISO))`; winners are indices `idx[1..K_m^\star]`.
-3. **Flags:** for `t ≤ K_m^\star`: row at `idx[t]` has `selected=true` and `selection_order=t`; for `t > K_m^\star`: `selected=false`, `selection_order=null`.
-4. **Coherence to `country_set`:** join winners on `(merchant_id,country_iso)` and assert `rank == selection_order`.
-
----
-
-## 8) Edge cases & guarantees
-
-* **$K_m^\star=M_m$:** all candidates selected; orders and ranks are $1..M_m$.
-* **$M_m=1$:** exactly one event; `selected=true`; `selection_order=1`; `rank=1`.
-* **Key ties:** resolved deterministically by **ISO ASCII ascending**.
-* **Non-finite keys:** disallowed (guarded earlier in S6.4); if encountered here, abort merchant.
-
----
-
-## 9) Complexity & determinism
-
-* **Time:** $O(M_m\log M_m)$ for the sort.
-* **Memory:** $O(M_m)$ for keys and indices.
-* **Determinism:** With fixed $(\tilde w,u)$ and lineage, `argsort_by((-z,ISO))` yields a unique $\pi_m$; winners and flags are **bit-replayable**.
-
----
-
-### One-liner
-
-S6.5 deterministically turns Gumbel keys into the **top-$K$** in **key↓, ISO↑** order, sets final flags `selected/selection_order=1..K`, and locks the order that `country_set` must persist — no black boxes, no ambiguity.
-
----
-
-# S6.6 — Persistence (authoritative ordered set)
-
-## 1) Purpose & placement
-
-S6.6 takes the **winners & order** from S6.5 and the **foreign-renormalised weights** $\tilde w$ from S6.3, and materialises the per-merchant ordered set to **`country_set`**, which is explicitly the **only** authority for inter-country order in 1A. The dataset is **partitioned by `{seed, parameter_hash, fingerprint}`**, *not* by `run_id`.
-
----
-
-## 2) Inputs (deterministic, read-only)
-
-For a merchant $m$ admitted to S6 with $K_m^\star\ge 1$:
-
-* Home ISO $c$.
-* Winners $(i_1,\dots,i_{K_m^\star})$ in **Gumbel order** from S6.5, with `selection_order=r` for $i_r$.
-* Foreign-renormalised weights $\tilde w_{i_r}\in(0,1]$ aligned to $(i_r)$, $\sum \tilde w = 1$ within $10^{-12}$ (serial; binary64).
-* Lineage: `seed:uint64`, `parameter_hash:hex64`, `manifest_fingerprint:hex64` (persisted as a column).
-* Event stream `gumbel_key` (from S6.4, emitted post-S6.5) for cross-artefact coherence.
-
-(If $M_m=0$, S6.0 already wrote the **home-only** row and S6.6 does nothing for $m$.)
-
----
-
-## 3) Authoritative path, partitions, schema
-
-* **Path (dictionary-pinned):**
-  `data/layer1/1A/country_set/seed={seed}/parameter_hash={parameter_hash}/fingerprint={manifest_fingerprint}/part-*.parquet`
-  **Partitions:** `["seed","parameter_hash","fingerprint"]`. **No `run_id`** here.
-
-* **Schema (source of truth):** `schemas.1A.yaml#/alloc/country_set`.
-  **PK:** `["merchant_id","country_iso"]` (unique within a `{seed,parameter_hash,fingerprint}` partition).
-  **FK:** `country_iso` → ISO canonical (`schemas.ingress.layer1.yaml#/iso3166_canonical_2024`).
-  **Order carrier:** `rank` (0 = home; 1..K in **Gumbel order**). Row/file order is irrelevant.
-  **Columns & domains (semantics):**
-
-  * `manifest_fingerprint: hex64` (required).
-  * `merchant_id: id64` (required).
-  * `country_iso: iso2` (required, **UPPER-CASE ASCII**, FK).
-  * `is_home: boolean` (required).
-  * `rank: int32, minimum 0` (required).
-  * `prior_weight: float64, nullable` — **null for home**, otherwise $(0,1]$ for foreigns (diagnostic prior = $\tilde w$ **rounded to 8 dp at write**).
-
-**Schema-authority policy:** `schemas.1A.yaml` is the sole source of truth; any Avro is generated later and **non-authoritative**.
-
----
-
-## 4) Row semantics (what you *must* write)
-
-Write exactly **$K_m^\star+1$** rows (home + winners) to the partition `{seed, parameter_hash, fingerprint}`:
-
-### Home row (rank 0)
-
-```
-{ manifest_fingerprint, merchant_id=m, country_iso=c,
-  is_home=true, rank=0, prior_weight=null }
-```
-
-### Foreign rows (ranks 1..K in Gumbel order)
-
-For each $r=1..K_m^\star$, ISO $i_r$:
-
-```
-{ manifest_fingerprint, merchant_id=m, country_iso=i_r,
-  is_home=false, rank=r, prior_weight=round8(tilde_w[i_r]) }
-```
-
-`country_set` is the **only** authority for order (via `rank`); all consumers must join on `rank`.
-
----
-
-## 5) Numeric policy (strict, deterministic)
-
-* **Arithmetic:** IEEE-754 binary64; **roundTiesToEven**; **no FMA**; no extended precision; no reordering of operations.
-* **Reductions:** serial left-fold in **rank order** (1..K) when checking the foreign sum.
-* **Pre-write sum (exactness gate):** require $\sum_{r=1}^{K} \tilde w_{i_r} = 1 \pm 10^{-12}$ (binary64, serial).
-* **Emit rounding (deterministic):** store `prior_weight = round8( \tilde w )`, where
-
-  ```
-  round8(x):
-      t := x * 1e8
-      u := nearbyint(t)            # IEEE 754 ties-to-even
-      y := u / 1e8
-      return y                     # all operations in binary64; no FMA
-  ```
-
-  *(This yields a value exactly representable in binary64 for many cases; regardless, it is deterministic across platforms under the numeric policy above.)*
-* **Post-write acceptance:** stored foreign `prior_weight` values must be finite in $(0,1]$; **read-sum tolerance** $|\sum_{r=1}^{K} \texttt{prior_weight}_r - 1| \le 10^{-6}$ (to accommodate 8-dp rounding).
-* **Home row:** `prior_weight = null`.
-
----
-
-## 6) Determinism & idempotency
-
-* **Determinism.** With fixed lineage $(\texttt{seed},\texttt{parameter_hash},\texttt{manifest_fingerprint})$, S6.4 keys and S6.5 order are bit-replayable; thus the set $(c,i_1,\dots,i_K)$ and the stored `prior_weight` after `round8` are fixed.
-* **Idempotent writer (merge-by-PK).** Within a `{seed, parameter_hash, fingerprint}` partition:
-
-  * If `(merchant_id, country_iso)` exists, **replace** the row (rank/weight).
-  * Else **insert**.
-    Never rely on write sequence as an ordering mechanism.
-
----
-
-## 7) Cross-artefact coherence (hard requirements)
-
-* **Event ↔ table (winners):** Every winner `(merchant_id=m, country_iso=i_r)` **must** have a `gumbel_key` event with `selected=true` and `selection_order=r`, and the table **must** store `rank=r` for that ISO.
-* **Coverage:** A merchant with any `gumbel_key.selected=true` **must** have the corresponding foreign rows in `country_set`. Conversely, losers (`selected=false`) must **not** appear in `country_set`.
-* **Rank/source of truth:** Downstream components must **only** use `country_set.rank` for inter-country order (never `outlet_catalogue`).
-
----
-
-## 8) Writer pre/post checks (must be enforced)
-
-**Before write (construct rows):**
-
-1. **Cardinality:** exactly $K_m^\star$ winners with unique `selection_order=1..K_m^\star`.
-2. **Weights:** all $\tilde w_{i_r}$ finite in $(0,1]$; serial foreign **pre-write** sum $=1\pm 10^{-12}$.
-3. **No duplicates:** winner ISOs unique and none equals home ISO.
-4. **Lineage present:** `manifest_fingerprint` set; partitions `{seed, parameter_hash, fingerprint}` match dictionary.
-
-**After write (persisted view):**
-
-1. Exactly **one** home row: `(is_home=true, rank=0, prior_weight=null, country_iso=c)`.
-2. Exactly **K** foreign rows with `rank∈{1..K}` **once each** (contiguous ranks).
-3. `PK` uniqueness holds; all `country_iso` pass ISO FK.
-4. **Event coherence:** join winners to `country_set` and assert `rank==selection_order`.
-5. **Stored-sum tolerance:** read foreign `prior_weight` and assert $|\sum - 1| \le 10^{-6}$.
-
----
-
-## 9) Failure predicates owned by S6.6 (names indicative)
-
-* `E/1A/S6/PERSIST/COUNTRY_SET_SCHEMA` — any schema violation (missing/typed columns, FK fail, non-hex fingerprint, out-of-range weight, negative rank). **Abort run.**
-* `E/1A/S6/PERSIST/MISSING_HOME_ROW` — no `(m,c,rank=0,is_home=true,prior_weight=null)` row. **Abort merchant.**
-* `E/1A/S6/PERSIST/RANK_GAP_OR_DUP` — ranks not exactly `{0..K}` or duplicates. **Abort merchant.**
-* `E/1A/S6/PERSIST/PK_DUP` — duplicate `(merchant_id,country_iso)` in the target partition. **Abort run.**
-* `E/1A/S6/PERSIST/WEIGHT_SUM_PREWRITE` — pre-write $\sum \tilde w$ not in $1\pm 10^{-12}$. **Abort merchant.**
-* `E/1A/S6/PERSIST/WEIGHT_SUM_STORED` — stored foreign `prior_weight` read-sum breaches $1\text{e-}6$. **Abort merchant.**
-* `E/1A/S6/PERSIST/HOME_WEIGHT_NONNULL` or `/FOREIGN_WEIGHT_NULL` — home has non-null weight or a foreign has null. **Abort merchant.**
-* `E/1A/S6/PERSIST/EVENT_COHERENCE` — any mismatch to `gumbel_key.selected/selection_order`. **Abort run.**
-* `E/1A/S6/PERSIST/PARTITION_KEYS` — path not partitioned by `{seed, parameter_hash, fingerprint}`. **Abort run.**
-
----
-
-## 10) Language-agnostic reference writer (normative)
-
-```text
-ALGORITHM S6_6_write_country_set
-
-INPUT:
-  m                # merchant_id
-  c                # home ISO2 (UPPER-CASE ASCII)
-  winners = [i1..iK]            # Gumbel order from S6.5 (K = K_m^*)
-  tilde_w: map ISO→float64      # aligned to winners; Σ tilde_w[winners] = 1 ± 1e-12
-  lineage = {seed, parameter_hash, manifest_fingerprint}
-
-TARGET PARTITION:
-  path := data/layer1/1A/country_set/
-          seed={seed}/parameter_hash={parameter_hash}/fingerprint={manifest_fingerprint}/...
-
-PRECHECKS:
-  assert K ≥ 1
-  assert winners are unique; none equals c
-  assert all tilde_w[i] finite in (0,1]
-  assert serial_sum(tilde_w[i] for i in winners) ≈ 1 within 1e-12
-
-BUILD (apply deterministic 8dp rounding at write):
-  rows := [
-    {manifest_fingerprint, merchant_id:m, country_iso:c,
-     is_home:true, rank:0, prior_weight:null}
-  ]
-  for r in 1..K:
-    i := winners[r]
-    w8 := round8(tilde_w[i])        # see §5 for numeric policy
-    rows.append({manifest_fingerprint, merchant_id:m, country_iso:i,
-                 is_home:false, rank:r, prior_weight:w8})
-
-WRITE (idempotent merge-by-PK within {seed,parameter_hash,fingerprint}):
-  for row in rows:
-    upsert_into_country_set_PK((merchant_id,row.country_iso), row)
-
-POSTCHECKS (persisted view for m):
-  assert exactly one (is_home=true, rank=0, country_iso=c, prior_weight=null)
-  assert for r in 1..K exactly one row with rank=r and is_home=false
-  assert | Σ_{r=1..K} prior_weight(rank=r) - 1 | ≤ 1e-6
-  # Event coherence:
-  join winners with gumbel_key where selected=true:
-     assert rank == selection_order for every winner
-
-RETURN success
+[ENTER S6]
+   │
+   │ Load dictionary & schemas; resolve {seed, parameter_hash, run_id}
+   │ Load S6 policy set (in 𝓟) and validate against $ref
+   │—— fail → [STOP: E_POLICY_*]
+   v
+[Pre-flight (N1)]
+   │  Inputs present & schema-valid:
+   │    • S3 candidate_set (home=0; ranks total/contiguous)
+   │    • S4 rng_event.ztp_final (one per merchant) → K_target
+   │    • S5 ccy_country_weights_cache (same parameter_hash) + S5 PASS
+   │  Lineage checks: path↔embed equality
+   │—— fail → [STOP: E_UPSTREAM_GATE / E_SCHEMA_AUTHORITY / E_LINEAGE_PATH_MISMATCH]
+   v
+┌───────────────────────────────────────────────────────────────────────────────┐
+│ For each merchant m (shard by merchant; deterministic merges)                │
+│   │                                                                           │
+│   │ [Build selection domain D_m]                                              │
+│   │   D_m := (S3 foreign candidates) ∩ (S5 weight support for κ_m)            │
+│   │   If max_candidates_cap>0 → keep first cap by S3 candidate_rank           │
+│   │   Apply zero_weight_rule:                                                 │
+│   │     - "exclude": eligible = {w>0}                                         │
+│   │     - "include": considered may include w=0 (never eligible)              │
+│   │   A_filtered := |considered| ; Eligible := {w>0}                           │
+│   │                                                                           │
+│   │ Any deterministic-empty reasons?                                          │
+│   │—— A=0               → [EMIT EMPTY: NO_CANDIDATES] → next merchant         │
+│   │—— K_target=0        → [EMIT EMPTY: K_ZERO] → next merchant                │
+│   │—— Eligible=∅        → [EMIT EMPTY: ZERO_WEIGHT_DOMAIN] → next merchant    │
+│   │ (If cap applied: record diagnostic CAPPED_BY_MAX_CANDIDATES)              │
+│   v                                                                           │
+│ [Draw keys (RNG events)]                                                      │
+│   Iterate considered in S3 candidate_rank order                               │
+│   For each candidate c:                                                       │
+│     u ~ U(0,1) (open interval); G = -ln(-ln u); key = ln(w_c) - ln(-ln u)     │
+│     log_all_candidates?                                                       │
+│       • true  → write rng_event.gumbel_key for every considered c             │
+│       • false → write rng_event.gumbel_key only for selected set (below)      │
+│   (Append exactly one rng_trace_log row after each RNG event)                 │
+│   │                                                                           │
+│   v                                                                           │
+│ [Select]                                                                      │
+│   K_realized := min(K_target, |Eligible|)                                     │
+│   Choose top-K_realized by key; ties → S3 candidate_rank, then country_iso    │
+│   (No order is created; S3 remains sole authority for inter-country order)    │
+│   │                                                                           │
+│   v                                                                           │
+│ [Optional write: membership dataset]                                          │
+│   If emit_membership_dataset=true → write (merchant_id, country_iso)          │
+│   (authority = RNG events; no order encoded; writer sort only)                │
+└───────────────────────────────────────────────────────────────────────────────┘
+   │
+   v
+[Validator & Receipt (N3)]
+   │  Structural: schemas, partitions, PK/FK, path↔embed equality
+   │  Content: subset law, cardinality, tie-break determinism, no-order encoding
+   │  RNG isolation & accounting: only S6 families; trace totals reconcile
+   │  Re-derivation:
+   │    • if log_all_candidates=true  → recompute from logged keys + S3/S5
+   │    • if log_all_candidates=false → counter-replay keys in S3-rank order
+   │—— fail → [STOP: RE_DERIVATION_FAIL / RNG_ACCOUNTING_FAIL / STRUCTURAL_FAIL]
+   v
+[Atomic publish (N4)]
+   │  Stage → single rename; write-once
+   │  Emit S6_VALIDATION.json + _passed.flag under …/s6/seed={seed}/parameter_hash={H}/
+   v
+[STOP: S6 PASS — downstream MAY read (seed+parameter scope)]
+   (S7/S8 must verify S6 PASS; S5 PASS still required where S5 is read)
 ```
 
 ---
 
-## 11) Notes & edge cases
+# 14. Observability & metrics **(Binding for names/semantics)**
 
-* **$K_m^\star=M_m$:** all candidates become foreign rows; still exactly one home row + $M_m$ foreign rows.
-* **Home-only merchants (S6.0):** already persisted in S6.0; S6.6 **must not** write again.
-* **Downstream:** `outlet_catalogue` does **not** encode inter-country order; all consumers (incl. 1B) **must** use `country_set.rank`.
+**Scope.** These metrics/log fields are **canonical**. Names, units, and dimensions here are **binding**; implementation may add more, but **MUST NOT** change these. Dimensions default to `{seed, parameter_hash, run_id}` (the lineage triplet used across RNG events/logs and receipts). The Dataset Dictionary and RNG core logs remain the authorities for paths/partitions.
 
 ---
 
-### One-line takeaway
+## 14.1 Run-level counters & gauges (Binding)
 
-S6.6 writes the **single source of truth** for cross-country order under `{seed, parameter_hash, fingerprint}`: **home rank 0**, **foreign ranks 1..K** in Gumbel order, with **deterministically rounded (8-dp) prior weights**, plus hard schema/PK/FK and **event↔table** coherence checks. Deterministic, idempotent, and audit-tight.
+Emit the following **per run** (dimensions: `{seed, parameter_hash, run_id}`):
 
----
+**Volume & gating**
 
-# S6.7 — Determinism & correctness invariants
+* `s6.run.merchants_total : counter` — merchants seen by S6 after §3 pre-flight.
+* `s6.run.merchants_gated_in : counter` — merchants satisfying S1/S3/S4/S5 gates. 
+* `s6.run.merchants_selected : counter` — merchants with `K_realized > 0`.
+* `s6.run.merchants_empty : counter` — merchants with deterministic empty (sum of reason codes below).
 
-## 1) Scope (what S6.7 governs)
+**Domain & selection**
 
-S6.7 concerns merchants that reach S6 with effective $K_m^\star \ge 1$ (after S6.0’s cap/short-circuit). It asserts:
+* `s6.run.A_filtered_sum : counter` — Σ over merchants of considered domain size after cap & `zero_weight_rule`.
+* `s6.run.K_target_sum : counter` — Σ over merchants of `K_target` (from S4 `ztp_final`). 
+* `s6.run.K_realized_sum : counter` — Σ over merchants of selected set size.
 
-* **Bit replay:** with fixed lineage, the uniforms $u$, keys $z$, winner set $S_m$, and the persisted order are uniquely determined.
-* **Event coverage & schema discipline:** **exactly one** `gumbel_key` event per foreign candidate, each with a full RNG envelope and **ISO-ascending emission order**.
-* **Coherent persistence:** `country_set` (partitioned by `{seed, parameter_hash, fingerprint}`) materialises home rank 0 plus the foreign winners in **Gumbel order**; it is the **only** authority for inter-country order.
-* **Branch edge cases:** when $M_m{=}0$, S6 persists **home-only** and emits **no** `gumbel_key`; S3-ineligible merchants have **no** S4–S6 RNG events at all.
+**Shortfall & reasons**
 
----
+* `s6.run.shortfall_merchants : counter` — count where `|Eligible| < K_target` (selection proceeded with all `|Eligible|`).
+* `s6.run.reason.NO_CANDIDATES : counter` — (A=0).
+* `s6.run.reason.K_ZERO : counter` — `K_target=0`.
+* `s6.run.reason.ZERO_WEIGHT_DOMAIN : counter` — eligible set empty after policy.
+* `s6.run.reason.CAPPED_BY_MAX_CANDIDATES : counter` — diagnostic; cap truncated domain (non-error). *(Closed set—no other labels permitted.)*
 
-## 2) Normative invariants (I-G1 … I-G11)
+**RNG coverage & accounting**
 
-### I-G1 — Bit-replay determinism
+* `s6.run.events.gumbel_key.expected : counter` — if `log_all_candidates=true`, Σ `A_filtered`; else Σ `K_realized`.
+* `s6.run.events.gumbel_key.written : counter` — number of `rng_event.gumbel_key` rows written.
+* `s6.run.trace.events_total : counter` — final `events_total` from `rng_trace_log` for `(module="1A.foreign_country_selector", substream_label="gumbel_key")`.
+* `s6.run.trace.blocks_total : counter` — final blocks total for the same key.
+* `s6.run.trace.draws_total : counter` — final draws total for the same key. *(Trace fields mirror the core RNG schema; one trace append per event is required.)* 
 
-For fixed $(\tilde w,\ K_m^\star,\ \texttt{seed}, \texttt{parameter_hash}, \texttt{manifest_fingerprint})$, the vector $u\in(0,1)^{M_m}$, the keys $z$, the winner set $S_m$ and the **selection order** are **bit-identical** across replays. (Counter-based Philox + per-candidate counter base + open-interval uniform + one draw per candidate + deterministic tie-break.)
+**Policy & mode attestation**
 
-### I-G2 — Event coverage (one per candidate)
+* `s6.run.policy.log_all_candidates : gauge(bool)` — policy mode used.
+* `s6.run.policy.max_candidates_cap : gauge(int)` — cap value used (0 = none).
+* `s6.run.policy.zero_weight_rule : gauge(enum{"exclude","include"})`.
+* `s6.run.policy.currency_overrides_count : counter` — number of currencies with per-currency overrides applied (names in validator report).
 
-For merchant $m$, if the foreign candidate size is $M_m$ then the `gumbel_key` stream **must** contain **exactly $M_m$** rows for $m$; no more, no less. Winners have `selected=true` and `selection_order∈{1..K_m^\star}`; losers have `selected=false`, `selection_order=null`.
+**Result shape**
 
-### I-G3 — Envelope, counters, emission order, payload
+* `s6.run.selection_size_histogram : histogram` — bucketed `K_realized` with **fixed buckets**: `b0=0`, `b1=1`, `b2=2`, `b3_5=3–5`, `b6_10=6–10`, `b11_plus=11+`. *(Bucket names fixed; implementations record bucket counts.)*
 
-Every `gumbel_key` row must:
+**Gate flags**
 
-* carry the RNG envelope `{ts_utc, run_id, seed:uint64, parameter_hash:hex64, manifest_fingerprint:hex64, module, substream_label="gumbel_key", rng_counter_before_{hi,lo}, rng_counter_after_{hi,lo}}`;
-* satisfy **counter discipline**: `after = before + 1` (128-bit add);
-* be emitted in **ISO-ascending order** of `country_iso` for stable JSONL concatenation;
-* meet payload domains: `merchant_id:id64`, `country_iso:iso2 (UPPER-CASE ASCII)`, `weight:pct01 (0,1]` (the **foreign-renormalised** $\tilde w_i$ from S6.3, binary64), `key:number` (finite), plus `{K_raw:int, M:int, K_eff:int}`.
-
-> Note: `u` is **not** logged by design; `key` is replayable from the envelope and S6.3 context.
-
-**Partitions.** Events live at
-`logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…` with partitions `["seed","parameter_hash","run_id"]`.
-
-### I-G4 — Deterministic order & tie-break
-
-Sort by **key descending** with **ISO ASCII ascending** as tie-break. The first $K_m^\star$ are winners in positions $1..K_m^\star$.
-
-### I-G5 — Coherence to `country_set` (the order carrier)
-
-Persist **exactly one** home row `(is_home=true, rank=0, prior_weight=null)` and **$K_m^\star$** foreign rows `(is_home=false, rank=r, prior_weight∈(0,1])` **in the same order** as `gumbel_key.selection_order=r`. Any mismatch between `country_set.rank` and winners’ `selection_order` is a **validation failure**.
-
-**Path/partitions/schema.**
-`data/layer1/1A/country_set/seed={seed}/parameter_hash={parameter_hash}/fingerprint={manifest_fingerprint}/…`, partitions `["seed","parameter_hash","fingerprint"]`, schema `schemas.1A.yaml#/alloc/country_set`. `country_set` is the **only authority** for cross-country order.
-
-### I-G6 — Weight integrity (events vs table)
-
-* **Events:** weights are $\tilde w_i$ for **all** $M_m$ candidates; each is in $(0,1]$. The **serial sum** in ISO order equals $1$ within $10^{-12}$.
-* **Table (`country_set`):** winners’ `prior_weight` equals $\tilde w_i$ **rounded to 8 dp at write** (see S6.6). The read-sum tolerance on stored `prior_weight` is $\le 10^{-6}$. Home `prior_weight` is **null**.
-
-### I-G7 — Keys finite
-
-Every event `key` is finite (no NaN/Inf). Open-interval `u` ensures $g=-\log(-\log u)$ is finite.
-
-### I-G8 — Branch/edge-case coherence
-
-* **No candidates:** If $M_m=0$, S6 **persists home-only** (`rank=0`) and emits **no** `gumbel_key` for $m$. Reason `"no_candidates"` is recorded by validation; proceed to S7.
-* **Ineligible merchants:** If S3 decided $e_m=0$, there must be **no** S4/S6 events; later `country_set` has **only** the home row.
-
-### I-G9 — Partition & schema authority
-
-All paths/partitions must match the **data dictionary** and authoritative JSON-Schemas. Any deviation (wrong partitions; referencing Avro; missing FK to canonical ISO) is a structural error.
-
-### I-G10 — Idempotent persistence
-
-Within `{seed, parameter_hash, fingerprint}`, `(merchant_id,country_iso)` is a PK; re-runs **upsert** rows (no duplicates), and ranks for a merchant are exactly $\{0,1,\dots,K_m^\star\}$ with no gaps.
-
-### I-G11 — Counter mapping (order-free addressing)
-
-For each event, the **before** counter equals the per-candidate base
-`ctr_base = split64(SHA256("gumbel_key" ∥ merchant_id ∥ country_iso ∥ parameter_hash ∥ manifest_fingerprint))`, and `after = before + 1`. A validator **may** recompute and enforce this equality.
+* `s6.run.rng_isolation_ok : gauge(bool)` — true iff only S6 families appear and totals reconcile. 
+* `s6.run.re_derivation_ok : gauge(bool)` — true iff §9.3 re-derivation passes (logged or counter-replay mode).
+* `s6.run.pass : gauge(bool)` — true iff the S6 receipt is written with a valid `_passed.flag`. (Downstream **must** still read the receipt and enforce gates.) 
 
 ---
 
-## 3) Numeric policy & tolerances
+## 14.2 Per-merchant diagnostics (Binding names; high-cardinality → log, not metrics)
 
-* **Arithmetic:** IEEE-754 binary64 for all logs, keys, sums.
-* **Serial reductions:** deterministic order (ISO order for event-side mass; `rank` order for `country_set` checks).
-* **Tolerances:**
-  – Events: $|\sum \tilde w - 1| \le 10^{-12}$ (binary64, serial).
-  – Table (stored 8-dp): $|\sum \texttt{prior_weight} - 1| \le 10^{-6}$.
-* **Uniform mapping:** open-interval $u=(x+1)/(2^{64}+1)$ (S6.4), ensuring finite keys.
+Emit as **structured log rows** (JSONL) or a per-run detail file; do **not** export as cardinality-heavy metrics:
 
----
-
-## 4) Cross-artefact contracts (summarised)
-
-1. **Events ↔ Table:** winners’ `(merchant_id, country_iso)` **must** appear in `country_set` with `rank == selection_order`. Losers must **not** appear as foreign rows.
-2. **Authority:** consumers needing inter-country sequence **must** join `country_set.rank` (egress like `outlet_catalogue` does **not** encode this order).
-3. **Run lineage:** `country_set` partitions do **not** include `run_id`; `gumbel_key` does. Validators join with `{seed, parameter_hash, manifest_fingerprint}`.
+* `merchant_id:u64`, `A:int`, `A_filtered:int`, `K_target:int`, `K_realized:int`.
+* `considered_expected_events:int`, `gumbel_key_written:int` (equals `considered_expected_events` only when `log_all_candidates=true`).
+* `is_shortfall:bool` — true iff `|Eligible| < K_target`, `reason_code:enum{NO_CANDIDATES,K_ZERO,ZERO_WEIGHT_DOMAIN,CAPPED_BY_MAX_CANDIDATES,none}`.
+* `ties_resolved:int` — count of key ties broken by S3 `candidate_rank` / ISO.
+* `policy_cap_applied:bool`, `cap_value:int`.
+* `zero_weight_considered:int` — count of considered candidates with `w==0` (under `"include"` mode).
+* `rng.trace.delta.{events,blocks,draws}:int` — deltas observed in `rng_trace_log` for this merchant’s S6 substream.
+  *(Order remains S3’s authority; membership surface (if enabled) encodes no order.)*
 
 ---
 
-## 5) Language-agnostic **reference validator** (normative)
+## 14.3 RNG audit metrics (Binding)
 
-```text
-FUNCTION validate_S6_for_merchant(m):
+For each `(module="1A.foreign_country_selector", substream_label∈{"gumbel_key","stream_jump"})`, expose:
 
-INPUT:
-  G = gumbel_key rows for m (logs/rng/events/gumbel_key/seed=…/parameter_hash=…/run_id=…)
-  C = country_set rows for m (data/layer1/1A/country_set/seed=…/parameter_hash=…/fingerprint=…)
-  F = |G|                  # expected candidate count
-  K_star = effective winners from S6.0
-  c_home = home ISO for m
-  lineage = {seed, parameter_hash, manifest_fingerprint, run_id}
-
-# Coverage
-1  assert F >= K_star
-2  assert count(G) == F                               # I-G2
-
-# Envelope, counters, emission order, payload
-3  prev_iso := null
-4  for e in G in file order:
-5      assert has_fields(e.envelope, [..., 'rng_counter_before_*','rng_counter_after_*'])
-6      assert e.substream_label == "gumbel_key"
-7      assert advance128(e.before) == e.after         # delta = 1   (I-G3)
-8      # Optional: recompute base counter and check equality (I-G11)
-9      assert e.key is finite and 0 < e.weight ≤ 1
-10     assert is_iso2_upper(e.country_iso)
-11     if prev_iso != null: assert prev_iso < e.country_iso   # ISO-ascending emit
-12     prev_iso := e.country_iso
-
-# Event-side mass conservation (ISO order)
-13 S := 0.0
-14 for e in G in ISO_ASCENDING: S := S + e.weight
-15 assert |S - 1.0| ≤ 1e-12                               # I-G6 (events)
-
-# Reconstruct order and check flags
-16 idx := argsort_by( key(i) = (-G[i].key, G[i].country_iso) )
-17 winners := take_first_K(idx, K_star)
-18 for t in 1..F:
-19     is_win := (t in winners)
-20     if is_win:
-21         r := position(t in winners)                    # 1-based
-22         assert G[t].selected == true and G[t].selection_order == r
-23     else:
-24         assert G[t].selected == false and is_null(G[t].selection_order)
-
-# country_set structure and coherence
-25 assert partitions(G) == ["seed","parameter_hash","run_id"]
-26 assert partitions(C) == ["seed","parameter_hash","fingerprint"]
-27 assert exactly_one row in C where is_home=true and rank=0 and country_iso==c_home and prior_weight is null
-28 assert count(C where is_home=false) == K_star
-29 map_rank := { row.country_iso -> row.rank for row in C where is_home=false }
-30 Sfw := 0.0
-31 for row in C where is_home=false:
-32     assert isfinite(row.prior_weight) and 0 < row.prior_weight ≤ 1
-33     Sfw := Sfw + row.prior_weight
-34 assert |Sfw - 1.0| ≤ 1e-6                              # I-G6 (table, 8dp)
-35 for r in 1..K_star:
-36     i := winners[r]
-37     assert map_rank[ G[i].country_iso ] == r           # I-G5
-
-RETURN PASS
-```
-
-*Failure mapping:* envelope/counters → `RNG/ENVELOPE` or `RNG/COUNTER_DELTA`; emission order → `RNG/EMIT_ORDER`; event coverage → `RNG/COVERAGE`; non-finite key → `RNG/KEY_NANINF`; weights sum (events) → `INPUT/WEIGHTS_SUM`; table sum → `PERSIST/WEIGHT_SUM_STORED`; event↔table mismatch → `PERSIST/EVENT_COHERENCE`; partition drift → `LINEAGE/PARTITIONS`.
+* `s6.rng.trace.events_total : counter`
+* `s6.rng.trace.blocks_total : counter`
+* `s6.rng.trace.draws_total : counter`
+* `s6.rng.trace.append_rows : counter` — **MUST equal** `events_total` for `gumbel_key`.
+  Values **MUST** be read from the **final row(s)** of `rng_trace_log` and agree with S6 event budgets (`gumbel_key` uses `blocks=1`, `draws="1"`).
 
 ---
 
-## 6) Edge cases & sanity checks
+## 14.4 Structured logs (Binding fields)
 
-* **$K_m^\star=M_m$:** all candidates are winners; exactly $M_m$ `selected=true` with `selection_order=1..M_m`; table has ranks $1..M_m$.
-* **No candidates $M_m=0$:** only the home row is written; `gumbel_key` must be **absent** for $m$.
-* **Ineligible $e_m=0$:** no S4/S6 events; table has only `rank=0` home.
+Every S6 structured log line (INFO/WARN/ERROR) **MUST** include:
 
----
-
-## 7) Why this is sufficient
-
-These invariants guarantee: (a) **replayability** with order-free counter bases (I-G1/I-G11), (b) **auditable RNG accounting** and strict schema/ordering (I-G2/I-G3/I-G4), (c) a **single source of truth** for order in `country_set` (I-G5), and (d) **mass conservation** from events into the persisted set while acknowledging 8-dp storage (I-G6)—all under dictionary-pinned paths and partitions.
-
----
-
-### One-liner
-
-S6.7 makes the run provably reproducible and auditable: **ISO-ascending single-shot events**, **per-candidate counter bases**, **exact event mass (1e-12)**, **8-dp table mass (1e-6)**, and a **rank==selection_order** lock between events and `country_set`.
+* **Lineage:** `seed`, `parameter_hash`, `run_id`.
+* **Context:** `stage:enum{"preflight","draw","select","write","validate","publish"}`, `module:"1A.foreign_country_selector"`.
+* **Keys:** `merchant_id` *(omit on run-level messages)*, optional `country_iso` on candidate-level messages.
+* **Reasoning:** `reason_code` (from the closed set above) when emitting empties or diagnostics.
+* **Counters (when applicable):** `A`, `A_filtered`, `K_target`, `K_realized`, `gumbel_key_written`, `considered_expected_events`.
+  These fields align with the RNG core and dataset contracts so operators can correlate logs with RNG trace and dictionary paths.
 
 ---
 
-# S6.8 — Failure taxonomy & CI error codes (authoritative)
+## 14.5 Golden fixtures *(Binding to ship & keep green; values themselves are non-normative)*
 
-## 1) Scope & artefacts under test
+Maintain **three tiny, deterministic fixtures** (seeded) checked in CI; they **MUST** run under §12’s shard-invariance rules and assert §9 signals:
 
-S6 produces/uses two authoritative artefacts:
+1. **Nominal selection:** `A=4, K_target=2`, non-zero S5 weights → `K_realized=2`; `log_all_candidates=true`; event coverage = `A_filtered`; re-derivation passes.
+2. **Deterministic empty (no candidates):** `A=0` → reason `NO_CANDIDATES`; zero S6 events; PASS receipt still required.
+3. **Zero-weight domain:** S5 weights zero on all foreigns after policy → reason `ZERO_WEIGHT_DOMAIN`; zero S6 events; PASS receipt required.
 
-1. **RNG events**: `gumbel_key` — one row **per foreign candidate**.
-   **Path & partitions (dictionary):**
-   `logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl`
-   **Schema:** `schemas.layer1.yaml#/rng/events/gumbel_key` (envelope + payload).
-
-2. **Allocation table**: `country_set` — ordered winners (home rank 0; foreign ranks 1..K).
-   **Path & partitions (dictionary):**
-   `data/layer1/1A/country_set/seed={seed}/parameter_hash={parameter_hash}/fingerprint={manifest_fingerprint}/part-*.parquet`
-   **Schema:** `schemas.1A.yaml#/alloc/country_set`. `country_set` is the **only** authority for inter-country order.
-
-S6 relies on parameter-scoped inputs from S5 (weights cache, etc.) governed by the **Schema Authority Policy**. **Only JSON-Schema is authoritative** (AVSC is non-authoritative).
+Each fixture **MUST** assert: schema/PK/FK, path↔embed equality, RNG isolation & accounting (trace rows = events), and **“no order encoding”** (order remains from S3 `candidate_rank`).
 
 ---
 
-## 2) Error code format & severity
+## 14.6 Source-of-truth reminders (Binding)
 
-```
-E/1A/S6/<CLASS>/<DETAIL>
-```
-
-* **Abort run**: structural/systemic breach (schemas, partitions, counter discipline, coverage, coherence).
-* **Abort merchant**: local pathology for a specific merchant (zero foreign mass, non-finite key, etc.).
-
-Validators log `{code, merchant_id? (optional), reason, artefact_path, partition_keys, offending_rows_sample}` into the run’s `validation_bundle_1A` (under the run’s fingerprint).
+* **Order authority** remains S3 `candidate_rank`; egress (`outlet_catalogue`) carries **no** cross-country order—operators must not infer order from S6 row order. 
+* **RNG receipts** rely on core logs: `rng_audit_log` (run-scoped) and `rng_trace_log` (cumulative per `(module,substream_label)`); one trace append **after each** event is mandatory. 
+* **S5 PASS gate** remains in force when joining S5 outputs; S6 PASS is **seed+parameter-scoped** and must be verified by S7/S8 (`no PASS → no read`).
 
 ---
 
-## 3) Taxonomy (classes, precise triggers, action, locus)
+# 15. Security, licensing & compliance **(Binding)**
 
-### A. INPUT — parameter/currency/weights presence & shape
-
-* **E/1A/S6/INPUT/MISSING_KAPPA** — No `merchant_currency` row for merchant $m$ at `{parameter_hash}`.
-  **Action:** Abort merchant. **Where:** S6.2 (C-1).
-
-* **E/1A/S6/INPUT/MISSING_WEIGHTS** — No `ccy_country_weights_cache` rows for $\kappa_m$ at `{parameter_hash}`.
-  **Action:** Abort merchant. **Where:** S6.2 (C-1).
-
-* **E/1A/S6/INPUT/WEIGHTS_ORDER** — Weights for $\kappa_m$ not in **strict ASCII ISO** order.
-  **Action:** Abort run. **Where:** S6.2 (C-2).
-
-* **E/1A/S6/INPUT/WEIGHTS_SUM** — Serial sum over $\mathcal D(\kappa_m)$ $\notin 1\pm 10^{-6}$.
-  **Action:** Abort run. **Where:** S6.2 (C-3).
-
-* **E/1A/S6/INPUT/WEIGHTS_RANGE** — Some $w_i^{(\kappa)}$ non-finite or $\notin[0,1]$.
-  **Action:** Abort run. **Where:** S6.2 (C-3).
-
-* **E/1A/S6/INPUT/BAD_CAP** — With $M_m\ge1$, effective $K_m^\star\notin[1,M_m]$.
-  **Action:** Abort run. **Where:** S6.2 (C-4), echoed in S6.3.
-
-### B. LINEAGE — partitions/authority
-
-* **E/1A/S6/LINEAGE/PARTITIONS** — Partitions don’t match dictionary:
-  `gumbel_key` must be `["seed","parameter_hash","run_id"]`;
-  `country_set` must be `["seed","parameter_hash","fingerprint"]`.
-  **Action:** Abort run. **Where:** S6.2 & S6.6.
-
-* **E/1A/S6/LINEAGE/SCHEMA_AUTHORITY** — Referencing a non-authoritative schema or wrong JSON-Schema pointer.
-  **Action:** Abort run. **Where:** CI schema audit.
-
-### C. RENORM — foreign mass & normalisation
-
-* **E/1A/S6/RENORM/ZERO_FOREIGN_MASS** — $T_m=\sum_{i\in\mathcal F_m} w_i^{(\kappa)}\le0$ or non-finite.
-  **Action:** Abort merchant. **Where:** S6.3.
-
-* **E/1A/S6/RENORM/WEIGHT_RANGE** — Some $\tilde w_i$ non-finite or $\notin(0,1]$.
-  **Action:** Abort merchant. **Where:** S6.3.
-
-* **E/1A/S6/RENORM/SUM_TOL** — Serial sum $\sum_{i\in\mathcal F_m}\tilde w_i\notin 1\pm 10^{-12}$.
-  **Action:** Abort merchant. **Where:** S6.3.
-
-### D. RNG — envelope, counters, uniforms, keys (`gumbel_key`)
-
-* **E/1A/S6/RNG/ENVELOPE** — Missing envelope field(s) (`ts_utc, run_id, seed, parameter_hash, manifest_fingerprint, module, substream_label, rng_counter_before/after_{hi,lo}`) or `substream_label!="gumbel_key"`.
-  **Action:** Abort run. **Where:** S6.4 emit.
-
-* **E/1A/S6/RNG/COUNTER_DELTA** — For any row, `after != before + 1`.
-  **Action:** Abort run. **Where:** S6.4 emit.
-
-* **E/1A/S6/RNG/EMIT_ORDER** — Events for a merchant not emitted in **ISO-ascending** `country_iso`.
-  **Action:** Abort run. **Where:** S6.4 emit.
-
-* **E/1A/S6/RNG/U01_BREACH** — Replayed uniform (from envelope counters + seed) not strictly in $(0,1)$ or non-finite.
-  **Action:** Abort merchant. **Where:** Validator (replay of S6.4 mapping).
-
-* **E/1A/S6/RNG/KEY_NANINF** — `key` non-finite.
-  **Action:** Abort merchant. **Where:** S6.4 emit.
-
-* **E/1A/S6/RNG/COVERAGE** — $|\text{gumbel_key}_m| \neq M_m$ (must be **exactly one per candidate**).
-  **Action:** Abort run. **Where:** S6.4 / S6.7.
-
-### E. SELECTION — sorting, flags
-
-* **E/1A/S6/SELECT/ORDER_MISMATCH** — Sorting by $(\text{key}↓,\ \text{ISO}↑)$ does not reproduce `selected=true` with `selection_order=1..K_m^\star`.
-  **Action:** Abort run. **Where:** S6.5 / S6.7.
-
-* **E/1A/S6/SELECT/FLAGS_DOMAIN** — Winner missing `selection_order∈{1..K_m^\star}` or loser with non-null `selection_order`.
-  **Action:** Abort run. **Where:** S6.5 / S6.7.
-
-### F. PERSIST — `country_set` write, schema & numeric policy
-
-* **E/1A/S6/PERSIST/COUNTRY_SET_SCHEMA** — Any schema breach (PK/FK/typed columns; `rank<0`; home `prior_weight` not null; foreign `prior_weight` out of $(0,1]$).
-  **Action:** Abort run. **Where:** S6.6 writer.
-
-* **E/1A/S6/PERSIST/MISSING_HOME_ROW** — No `(is_home=true, rank=0, prior_weight=null, country_iso=c)` row.
-  **Action:** Abort merchant. **Where:** S6.6.
-
-* **E/1A/S6/PERSIST/RANK_GAP_OR_DUP** — Foreign ranks not exactly `{1..K_m^\star}` or duplicated.
-  **Action:** Abort merchant. **Where:** S6.6.
-
-* **E/1A/S6/PERSIST/PK_DUP** — Duplicate `(merchant_id,country_iso)` within `{seed,parameter_hash,fingerprint}`.
-  **Action:** Abort run. **Where:** S6.6.
-
-* **E/1A/S6/PERSIST/WEIGHT_SUM_PREWRITE** — Pre-write serial sum of winners’ $\tilde w$ $\notin 1\pm 10^{-12}$.
-  **Action:** Abort merchant. **Where:** S6.6 pre-check.
-
-* **E/1A/S6/PERSIST/WEIGHT_SUM_STORED** — Read-sum of stored foreign `prior_weight` (8-dp) $\notin 1\pm 10^{-6}$.
-  **Action:** Abort merchant. **Where:** S6.6 post-check.
-
-* **E/1A/S6/PERSIST/PARTITIONS** — `country_set` not partitioned by `{seed, parameter_hash, fingerprint}`.
-  **Action:** Abort run. **Where:** S6.6 writer.
-
-* **E/1A/S6/PERSIST/EVENT_COHERENCE** — Winners’ `selection_order` not matched by `country_set.rank`.
-  **Action:** Abort run. **Where:** S6.6 post-check.
-
-### G. COHERENCE — events ↔ table (validator)
-
-* **E/1A/S6/COHERENCE/EVENT_TO_TABLE** — Any winner’s `(merchant_id, country_iso, selection_order=r)` missing or mismatched to a `country_set.rank=r`.
-  **Action:** Abort run. **Where:** S6.7 validator.
-
-* **E/1A/S6/COHERENCE/LOSER_IN_TABLE** — A loser (`selected=false`) appears as foreign in `country_set`.
-  **Action:** Abort run. **Where:** S6.7 validator.
-
-### H. BRANCH — edge cases
-
-* **E/1A/S6/BRANCH/NO_CANDIDATES_WITH_EVENTS** — $M_m=0$ but `gumbel_key` events exist.
-  **Action:** Abort run. **Where:** S6.0/S6.4 guard.
-
-* **E/1A/S6/BRANCH/INELIGIBLE_HAS_EVENTS** — From S3: `is_eligible=false` but S6 events exist.
-  **Action:** Abort run. **Where:** cross-state validator (S3↔S6).
+**Purpose.** Keep S6 within the platform’s **closed-world, contract-governed** posture; ensure all artefacts are **licensed**, **non-PII**, **immutable** under their lineage keys, and **auditable** end-to-end. JSON-Schema + the Dataset Dictionary remain the single authorities for shapes, paths, partitions, retention, and licence classes. 
 
 ---
 
-## 4) Where each failure is detected (map to substates)
+## 15.1 Data provenance & closed-world stance
 
-| Substate | Primary checks that **raise** codes                                                                                      |
-| -------- | ------------------------------------------------------------------------------------------------------------------------ |
-| **S6.0** | Branch $M_m=0$ → **no** events. (H)                                                                                      |
-| **S6.2** | Presence/shape of `merchant_currency` / `weights_cache`; ISO order; sum=1; cap; partitions known. (A,B)                  |
-| **S6.3** | $T_m>0$, $\tilde w$ domain & sum tolerance. (C)                                                                          |
-| **S6.4** | Envelope; `after=before+1`; ISO-ascending emit; finite key; exact **M** events. (D)                                      |
-| **S6.5** | Reconstruct order by (key↓, ISO↑); flags domain. (E)                                                                     |
-| **S6.6** | Schema/PK/FK; `{seed,parameter_hash,fingerprint}` partitions; ranks; pre-write & stored sums; event↔table coherence. (F) |
-| **S6.7** | End-to-end invariants across artefacts; branch coherence with S3/S6.0; replayed-uniform checks. (D,E,F,G,H)              |
+* S6 operates **only** on the sealed, version-pinned artefacts enumerated in §3 (S3 candidate set, S4 `ztp_final`, S5 weights) plus the S6 policy (§4). **No external enrichment or network reads** are permitted. 
+* Provenance (owner, retention, licence, `schema_ref`) for inputs/outputs is declared in the **Dataset Dictionary**; S6 **MUST NOT** deviate from those entries.
 
----
+## 15.2 Licensing (inputs, outputs, registry alignment)
 
-## 5) Normative validator snippets (detection patterns)
+* **Ingress examples (for transitive awareness):**
+  `iso3166_canonical_2024` → **CC-BY-4.0**; `world_countries` → **ODbL-1.0** (ingress). These licences are already pinned in the Dictionary.
+* **S6-produced/updated artefacts:**
+  `rng_event.gumbel_key`, `rng_audit_log`, `rng_trace_log` are **Proprietary-Internal**, with declared **retention** and **pii=false** in the Dictionary; S6 **MUST** publish/update under those classes. 
+* **Optional S6 membership dataset (if enabled):** before any consumer reads, a Dictionary entry **MUST** be registered with `pii:false`, an explicit **licence class** (default **Proprietary-Internal**), retention window, and a `$ref` schema; until then it is **not consumable**. 
+* The Artefact Registry **MUST** carry licence metadata for S6 families/configs; storage policies (e.g., `compression_zstd_level3`) are referenced there and **MUST** be respected when pinned.
 
-> The validator **replays** uniforms from the envelope; events do **not** carry `u`.
+## 15.3 Privacy & PII posture
 
-```text
-# A — INPUT
-if not has_row(merchant_currency[parameter_hash], m):        FAIL "E/1A/S6/INPUT/MISSING_KAPPA"
-Wκ := weights_cache[parameter_hash][κ_m]
-if |Wκ| == 0:                                                FAIL "E/1A/S6/INPUT/MISSING_WEIGHTS"
-assert_ascii_iso_order(Wκ) else                              FAIL "E/1A/S6/INPUT/WEIGHTS_ORDER"
-if |Σ_w(Wκ) - 1| > 1e-6:                                     FAIL "E/1A/S6/INPUT/WEIGHTS_SUM"
-if ∃w∈Wκ with !finite(w) or w∉[0,1]:                         FAIL "E/1A/S6/INPUT/WEIGHTS_RANGE"
-if M≥1 and (K_star < 1 or K_star > M):                       FAIL "E/1A/S6/INPUT/BAD_CAP"
+* All S6 inputs/outputs in scope are **`pii:false`** in the Dictionary; S6 **MUST NOT** introduce PII or fields enabling re-identification. 
+* Structured logs and the S6 receipt **MUST NOT** contain row-level payloads beyond **codes and counts** (e.g., ISO codes, integer counters). (See §14 for required fields.) 
 
-# B — LINEAGE
-if partitions(gumbel_key) != ["seed","parameter_hash","run_id"]:            FAIL "E/1A/S6/LINEAGE/PARTITIONS"
-if partitions(country_set) != ["seed","parameter_hash","fingerprint"]:      FAIL "E/1A/S6/LINEAGE/PARTITIONS"
+## 15.4 Access control, encryption, and secrets
 
-# D — RNG (replay-based)
-for e in gumbel_key_rows(m) in FILE_ORDER:
-    assert e.substream_label == "gumbel_key" else             FAIL "E/1A/S6/RNG/ENVELOPE"
-    assert advance128(e.before) == e.after else               FAIL "E/1A/S6/RNG/COUNTER_DELTA"
-    u := u01_from_counter(seed, e.before)                     # (x+1)/(2^64+1)
-    if !(0 < u && u < 1):                                     FAIL "E/1A/S6/RNG/U01_BREACH"
-    if !finite(e.key):                                        FAIL "E/1A/S6/RNG/KEY_NANINF"
-    # ISO-ascending emit:
-    assert_nondecreasing_iso(file_order_country_isos) else    FAIL "E/1A/S6/RNG/EMIT_ORDER"
-if |gumbel_key_rows(m)| != M:                                 FAIL "E/1A/S6/RNG/COVERAGE"
+* S6 inherits platform rails: **least-privilege IAM**, **KMS-backed encryption** at rest/in transit, and **audited access** to governed artefacts.
+* S6 **MUST NOT** embed secrets in datasets/logs; use the platform secret store if credentials are required (none are required for S6’s normal operation). *(Policy, schemas, and dictionaries are public-internal artefacts.)* 
 
-# E — SELECTION
-idx := argsort_by((-key, ISO))
-winners := idx[1..K_star]
-assert flags_match(idx, winners) else                         FAIL "E/1A/S6/SELECT/ORDER_MISMATCH" or "/FLAGS_DOMAIN"
+## 15.5 Retention & immutability
 
-# F — PERSIST
-C := country_set_rows(m)
-assert has_home_row(C, c, rank=0, weight_null=True) else      FAIL "E/1A/S6/PERSIST/MISSING_HOME_ROW"
-assert ranks_exact(C_foreign, 1..K_star) else                 FAIL "E/1A/S6/PERSIST/RANK_GAP_OR_DUP"
-assert !pk_duplicate(C) else                                  FAIL "E/1A/S6/PERSIST/PK_DUP"
-S_pre := Σ(tilde_w[winner])  # from S6.3 ctx used at write
-if |S_pre - 1| > 1e-12:                                       FAIL "E/1A/S6/PERSIST/WEIGHT_SUM_PREWRITE"
-S_stored := Σ(row.prior_weight for row in C_foreign)
-if |S_stored - 1| > 1e-6:                                     FAIL "E/1A/S6/PERSIST/WEIGHT_SUM_STORED"
-assert partitions(C) == ["seed","parameter_hash","fingerprint"] else
-                                                             FAIL "E/1A/S6/PERSIST/PARTITIONS"
-# G — COHERENCE
-for r in 1..K_star:
-    e := winner_event_with_selection_order(r)
-    row := country_set_row_with_rank(r)
-    if e.country_iso != row.country_iso:                      FAIL "E/1A/S6/COHERENCE/EVENT_TO_TABLE"
-if ∃ loser_iso in country_set_foreign:                        FAIL "E/1A/S6/COHERENCE/LOSER_IN_TABLE"
-```
+* Retention periods are governed by the Dictionary (e.g., **365 days** for S6 outputs/logs; ingress typically **1095 days**). S6 **MUST NOT** override retention.
+* Event/log partitions are **content-addressed** by `{seed, parameter_hash, run_id}` and are **write-once**; S6 uses **atomic publish** and **never** mutates published partitions (see §10). 
+
+## 15.6 Licence & compliance checks (validator duties)
+
+The S6 validator (§9) **MUST additionally assert**:
+
+* **Dictionary/licence presence:** every dataset ID read or written by S6 has a Dictionary entry with **non-empty `licence`** and `retention_days`. Missing ⇒ **FAIL**. 
+* **Receipt summary:** `S6_VALIDATION.json` **MUST** include `licence_summary` listing `{dataset_id, licence, retention_days}` for all S6-touched artefacts (inputs: S3/S4/S5 IDs; outputs: S6 event/log families and membership if produced), plus `policy_digest` and `parameter_hash`. (Names align with §14 diagnostics.) 
+* **Registry policy adherence:** when a writer policy is pinned in the Registry (codec/level/row-group), the produced files reflect that policy (else **FAIL**).
+
+## 15.7 Redistribution & downstream use
+
+* S6 event/log streams and any membership surface are **internal authorities** (Proprietary-Internal). Downstream systems **MUST NOT** republish them externally or change licence class without governance approval. 
+* **Order authority** remains S3; S6 outputs **MUST NOT** be used to derive or imply inter-country order for publication or release. 
 
 ---
 
-## 6) Reporting & gating (CI pass/fail)
+# 16. Change management, compatibility & rollback **(Binding)**
 
-* **Abort-merchant** codes: list `{code, merchant_id, reason, sample}`; continue run; record counts in the bundle.
-* **Abort-run** codes: terminate S6 validation; write the bundle (with first hard error & diff context); block hand-off to 1B by withholding `_passed.flag`.
-
-Always include `{seed, parameter_hash, manifest_fingerprint, run_id?}` in reports (events include `run_id`; `country_set` does not).
+**Purpose.** Define how S6 evolves without breaking consumers; how changes interact with **`parameter_hash`** (𝓟), **`manifest_fingerprint`**, schemas, the Dataset Dictionary, and the Artefact Registry. JSON-Schema and the Dictionary remain the **sole** authorities for shapes/IDs/paths. 
 
 ---
 
-## 7) Why this taxonomy is complete & aligned
+## 16.1 Versioning model (SemVer) — interface vs lineage (Binding)
 
-* Paths/partitions and schemas match the **dictionary** and the **Schema Authority Policy**.
-* Mechanics reflect the locked S6 design: **one event per candidate**, **ISO-ascending emission**, **order-free per-candidate counters**, **cap $K^*$**, strict sort $(\text{key}↓,\ \text{ISO}↑)$, and `country_set` as the **sole order carrier**.
-* Numeric policy mirrors earlier sub-states: **1e-12** for binary64 event-side sums; **8-dp stored** with **1e-6** tolerance in `country_set`.
+* **SemVer scope (this spec & its public interfaces).**
 
----
+  * **MAJOR** — breaking changes to: dataset **IDs/paths/partitions**, schema shapes/required fields, **RNG event family** payloads or budgeting law, **tie-break rules**, **substream naming**, PASS-gate semantics, or adding **new required** CLI args.
+  * **MINOR** — additive, backwards-compatible changes: optional fields/metrics, enabling the **optional membership** dataset, adding **diagnostic** fields, enabling **reduced logging** mode provided §9 supports counter-replay, registering a **writer policy** in the Registry.
+* **Lineage keys are separate from SemVer.**
 
-### One-liner
-
-S6.8 gives you a **single, unambiguous error map**—updated for **ISO-ascending, no-`u` events** and **fingerprint-partitioned `country_set`**—so CI can fail fast, precisely, and reproducibly on any drift from the locked S6 design.
-
----
-
-# S6.9 — Inputs → Outputs (state boundary)
-
-## 1) What S6 *consumes* (per merchant $m$)
-
-**From earlier states (deterministic):**
-
-* **Eligibility & home:** $e_m\in\{0,1\}$ and home ISO $c$ from S3. Only $e_m=1$ merchants enter S4–S6. Ineligible $e_m=0$ merchants **skip S4–S6** and later have only the `rank=0` home row.
-* **Accepted foreign count:** $K_m\ge 1$ from S4 (ZTP accepted). If S4 exhausted retries, the merchant never reaches S6.
-* **Merchant currency:** $\kappa_m$ from S5.0 cache `merchant_currency` (parameter-scoped; **never recomputed**).
-* **Currency→country priors** for $\kappa_m$: ISO-ordered rows $\{(i,w_i^{(\kappa_m)})\}$ from S5 cache `ccy_country_weights_cache`.
-* **RNG lineage:** `seed:uint64`, `parameter_hash:hex64`, `manifest_fingerprint:hex64`, plus a `run_id` for event logs.
-
-**From S6.0:** the **effective** winners count $K_m^\star=\min(K_m, M_m)$ with $M_m=|\mathcal D(\kappa_m)\setminus\{c\}|$. If $M_m=0$ S6.0 has already persisted **home-only** and there are **no** S6 RNG events for $m$.
+  * **`parameter_hash`** flips whenever **any** member of the governed set **𝓟** changes **bytes** (S0.2.2). S6 policy files are **required** 𝓟 members. 
+  * **`manifest_fingerprint`** flips when **any opened artefact** (schemas/dictionary/ISO, etc.) or the **code commit** changes (S0.2.3). 
 
 ---
 
-## 2) What S6 *produces* (authoritative artefacts on disk)
+## 16.2 Compatibility window (Binding)
 
-When S6 completes (for any merchant that reached it), **exactly one** of these branch outcomes exists on disk:
+S6 v1.* is compatible with the following **v1.* baselines** (or as re-ratified):
 
-### A) Eligible merchant with $K_m^\star \ge 1$
-
-1. **RNG event stream — per-candidate Gumbel keys**
-   **Path & partitions (dictionary-pinned):**
-
-   ```
-   logs/rng/events/gumbel_key/
-     seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
-   ```
-
-   **Schema:** `schemas.layer1.yaml#/rng/events/gumbel_key`.
-   **Exactly $M_m$ rows** for merchant $m$, **one per foreign candidate**, **emitted ISO-ascending** by `country_iso`. Every row carries the full RNG envelope (`ts_utc`, `seed`, `parameter_hash`, `manifest_fingerprint`, `module`, `substream_label="gumbel_key"`, and pre/post Philox counters) with **counter delta = 1**.
-   **Payload:** `weight` (foreign-renormalised $\tilde w_i$, binary64), `key` $= \log \tilde w_i - \log(-\log u_i)$ (finite), `selected` (bool), `selection_order` (1..$K_m^\star$ or `null`), plus `{K_raw, M, K_eff}`. *(Events do **not** log `u`; validators replay it from the envelope.)*
-
-2. **Allocation dataset — ordered winners (the sole order authority)**
-   **Path & partitions (dictionary-pinned):**
-
-   ```
-   data/layer1/1A/country_set/
-     seed={seed}/parameter_hash={parameter_hash}/fingerprint={manifest_fingerprint}/part-*.parquet
-   ```
-
-   **Schema:** `schemas.1A.yaml#/alloc/country_set`.
-   **Exactly $K_m^\star+1$ rows** for $m$: the home row `(is_home=true, rank=0, prior_weight=null)` and $K_m^\star$ foreign rows in **Gumbel order** `(is_home=false, rank=r, prior_weight=round8(\tilde w_{i_r}))`, $r=1..K_m^\star$. `country_set` is the **only** authoritative store for inter-country order.
-
-**Cross-artefact coherence (must hold on disk).** For each winner with `selection_order=r` in `gumbel_key`, there exists **exactly one** `country_set` row with the same `(merchant_id, country_iso)` and `rank=r`. Any mismatch is a validation failure.
+* **Dictionary:** `dataset_dictionary.layer1.1A.yaml` v1.* (IDs/paths for `rng_event_ztp_final`, `rng_event_gumbel_key`, core RNG logs, S3/S5 datasets). 
+* **Schemas:** `schemas.layer1.yaml` (RNG events/logs), `schemas.1A.yaml` (S3/S5 tables) v1.*.
+* **S0 lineage law:** S0.2.* (`parameter_hash`, `manifest_fingerprint`, `run_id`). 
+  If any of the above bump **MAJOR**, S6 **must** be re-ratified and its SemVer **MAJOR** incremented.
 
 ---
 
-### B) Eligible merchant with **no foreign candidates** $(M_m=0)$
+## 16.3 Event families & schema evolution (Binding)
 
-S6.0 persisted **home-only** to `country_set` (`rank=0`, `prior_weight=null`) and **emitted no `gumbel_key` events** for $m$. This short-circuit is complete; hand off to S7.
-
----
-
-### C) Ineligible merchant $(e_m=0)$
-
-S6 does not run for $m$. Later persistence shows only the home row (`rank=0`). Presence of S4–S6 events for $e_m=0$ is a branch-coherence failure validated elsewhere.
+* **RNG events.** `rng_event_gumbel_key` is the **authoritative** S6 event; its **schema_ref** and **partitioning** are fixed by the Dictionary. Backwards-compatible additions (optional fields) are **MINOR**; any required-field or budgeting change is **MAJOR**. 
+* **Core logs.** `rng_audit_log`/`rng_trace_log` are shared; S6 **must not** alter their shapes—any change is Dictionary-governed (likely **MAJOR** at layer-scope). 
+* **Membership dataset (optional).** Introducing it is **MINOR** if schema is additive and it carries **no order** (authority remains RNG events). Any future claim to authority would be **MAJOR**.
 
 ---
 
-## 3) Determinism, idempotence, and replay guarantees at the boundary
+## 16.4 Policy changes & logging mode (Binding)
 
-* **Bit-replay.** With fixed $(\tilde w,\ K_m^\star,\ \texttt{seed},\ \texttt{parameter_hash},\ \texttt{manifest_fingerprint})$, the uniforms $u$, keys $z$, winner set, and `country_set.rank` are **bit-identical** (counter-based Philox, open-interval $u$, one-draw-per-candidate, deterministic tie-break).
-* **Idempotent write.** `country_set` is partitioned by `{seed, parameter_hash, fingerprint}` and keyed by `(merchant_id,country_iso)`; re-runs **upsert** rows (no duplicate PKs; ranks remain $\{0..K^*\}$).
-* **Schema authority.** Only JSON-Schema (`schemas.1A.yaml`, `schemas.layer1.yaml`) is authoritative; AVSC is non-authoritative in 1A.
-* **Numeric policy.** Event-side sums use binary64 with $|\sum \tilde w - 1|\le 10^{-12}$ (serial). Stored `country_set.prior_weight` values are rounded to **8 dp** at write; read-sum tolerance $\le 10^{-6}$.
-
----
-
-## 4) Minimal **handoff record** (normative, language-agnostic)
-
-Downstream (S7) may treat S6’s outcome for merchant $m$ as:
-
-```text
-S6_OUTCOME(m) =
-{
-  lineage: {
-    seed:uint64,
-    parameter_hash:hex64,
-    manifest_fingerprint:hex64,
-    run_id   # events only; not present in country_set partitions
-  },
-  home_iso: c,
-  K_star: K_m^*,                    # 0 means home-only
-  candidates: {
-    # Present iff K_star ≥ 1
-    events_path:
-      "logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/",
-    rows: M_m,                       # one per foreign candidate
-    key_sort: "(-key, ISO)",         # S6.5 ordering key
-    winners: [                       # Gumbel order (r = 1..K*)
-      {iso: i_1, rank: 1, prior_weight: round8(tilde_w[i_1])},
-      ...,
-      {iso: i_K*, rank: K*, prior_weight: round8(tilde_w[i_K*])}
-    ]
-  },
-  country_set_path:
-    "data/layer1/1A/country_set/seed={seed}/parameter_hash={parameter_hash}/fingerprint={manifest_fingerprint}/"
-}
-```
-
-**Order consumption rule.** S7 (and any downstream) **must** obtain the ordered foreign list from `country_set.rank` (0 = home; 1..$K^*$ foreigns). Egress artefacts (e.g., `outlet_catalogue`) do **not** encode inter-country order; they must join on `country_set`.
+* **S6 policy is in 𝓟.** Changing policy bytes **MUST** flip `parameter_hash` (new parameter scope). 
+* **`log_all_candidates` default.** Switching default **true→false** is **MINOR** if §9 counter-replay is implemented and enabled; reverting is also **MINOR**. (Per-currency overrides are disallowed; mode is global to keep validation uniform.)
+* **`max_candidates_cap` changes.** Adjusting cap is **MINOR** (diagnostic `CAPPED_BY_MAX_CANDIDATES` required); removing the cap is **MINOR**.
+* **`zero_weight_rule` changes.** `"exclude"↔"include"` toggles are **MINOR** (selection unchanged for positive weights; logging/expected-events differ and §9 covers both).
 
 ---
 
-## 5) What S7 can **assume** (hard contracts)
+## 16.5 Registry & writer policy (Binding)
 
-1. If $K_m^\star=0$: `country_set` has **exactly one** row for $m$ — `(is_home=true, rank=0, prior_weight=null)` — and there are **no** `gumbel_key` events.
-2. If $K_m^\star\ge 1$:
-
-   * `country_set` has **exactly $K_m^\star+1$** rows with contiguous ranks $0..K_m^\star$.
-   * Foreign `prior_weight` values are finite, in $(0,1]$, and **read-sum to 1 within $10^{-6}$** (8-dp storage); the corresponding event-side $\tilde w$s read-sum to 1 within $10^{-12}$.
-   * The winners’ ISO sequence equals the first $K_m^\star$ elements of `argsort_by((-key, ISO))` reconstructed from `gumbel_key`.
-3. **Partitioning:** S7 finds `country_set` under `{seed, parameter_hash, fingerprint}`; `gumbel_key` under `{seed, parameter_hash, run_id}`.
-4. **Lineage:** `manifest_fingerprint` is persisted as a column in `country_set` and used in joins/audits.
+* **Writer policy.** If the Artefact Registry pins a writer policy (e.g., **ZSTD-3** and row-group sizes), S6 **MUST** use it; changing or pinning such policy is **MINOR** (value semantics unchanged; **byte-identity** may newly apply). 
+* **Deprecated datasets.** The Registry keeps legacy **`country_set`** for compatibility but marks it **deprecated as order authority** (S3 owns order). S6 must **not** re-elevate it. 
 
 ---
 
-## 6) Acceptance checklist (CI must assert before hand-off)
+## 16.6 Migration patterns (Binding)
 
-For every merchant that reached S6:
+When introducing **MINOR** changes:
 
-* **Files present & partitioned** exactly as above; schemas validate against JSON-Schema.
-* **Coverage:** $|\text{gumbel_key}_m| = M_m$ (or **0** if $K_m^\star=0$). Each event has `after = before + 1`; events are **ISO-ascending**.
-* **Order coherence:** winners’ `selection_order=r` ↔ `country_set.rank=r`; losers absent from `country_set`.
-* **Weights:**
-  – Events: $|\sum \tilde w - 1| \le 10^{-12}$ (serial).
-  – Table: $|\sum \texttt{prior_weight} - 1| \le 10^{-6}$ (8-dp storage).
-* **Home row:** exactly one `(is_home=true, rank=0, prior_weight=null)`.
+1. **Shadow**: run S6 with new policy/schema in **shadow** (`--validate-only`) against existing events/logs; produce a PASS receipt without publishing new artefacts. 
+2. **Dual-write (if needed)**: for new optional surfaces/fields, **dual-write** for at least one retention window; consumers switch by config.
+3. **Canary**: enable for a small shard of merchants (seed-consistent) and confirm §14 telemetry and §9 PASS.
+4. **Promote**: expand to 100% once green; remove shadow paths.
 
-Only when this checklist passes does S6 expose a clean boundary to S7 (and contribute to the `_passed.flag` gate used by 1B).
+For **MAJOR** changes:
+
+* **New IDs or schema_refs** in the Dictionary, or a new **module/substream** name; keep the prior family **readable** for ≥ retention window.
 
 ---
 
-### One-liner
+## 16.7 Deprecation policy (Binding)
 
-**S6 in → S6 out:** given $(K_m,\ \kappa_m,\ \text{weights},\ \text{lineage})$, S6 leaves a deterministic pair — **ISO-ascending `gumbel_key` (one row per candidate, replayable keys)** and **`country_set` (the sole carrier of order under `{seed, parameter_hash, fingerprint}`)** — so S7 can just **join on `rank`** and proceed.
+* Announce in the Dictionary entry (`status: deprecated`, `notes`) and Registry (`notes:`) for at least one **retention** cycle before removal; provide the replacement ID/field.
+* During deprecation, S6 **MUST** continue to write the legacy surface **or** produce a deterministic shim the validator can re-derive from the authoritative events.
+
+---
+
+## 16.8 Rollback (Binding)
+
+* **What rollback means.** Revert to the **last-good** `{seed, parameter_hash}` and S6 **SemVer** that produced a PASS receipt; re-run with the earlier **policy bytes** and **code commit** to regenerate identical outputs (value-identical; **byte-identical** if writer policy pinned). 
+* **Mechanics.**
+
+  1. Restore previous S6 policy file(s) (𝓟 member); this restores the prior `parameter_hash`. 
+  2. Check out the last-good code commit (participates in `manifest_fingerprint`). 
+  3. Re-run S6 with the same `{seed, run_id}` (or a **new** `run_id`, since it does not affect modelling state). 
+  4. Publish the S6 PASS receipt; downstream reads remain gated by PASS receipts (S5 and S6). 
+
+---
+
+## 16.9 Consumer impact matrix (Binding)
+
+* **S3** — No impact unless S3 schema/IDs change (**MAJOR** there); S6 must continue to read `candidate_set` v1.*. 
+* **S4** — `ztp_final` contract unchanged; any S4 MAJOR requires S6 re-ratification. 
+* **S5** — S6 continues to enforce **S5 PASS** for the same `parameter_hash` (`no PASS → no read`). If S5 changes schema/IDs (**MAJOR**), S6 must re-ratify and bump **MAJOR**. 
+* **S7/S8** — Downstream continue to rely on S6 **PASS** receipt and on S3 order authority; optional membership surface remains convenience only.
+
+---
+
+## 16.10 Golden fixtures & CI gates (Binding)
+
+* Keep §14.5 golden fixtures **green** across changes; add new fixtures when introducing **MINOR** features (e.g., reduced logging mode) and **MAJOR** interfaces. The CI **must** assert: schema/PK/FK, path↔embed equality, RNG accounting (trace rows = events), re-derivation, and **no order encoding**. 
+
+---
+
+# 17. Acceptance checklist **(Binding)**
+
+Use this **tick-box** list to sign off S6 before hand-off to implementation/ops. All items are **binding**.
+
+---
+
+## 17.1 Build-time (before any run)
+
+* [ ] **Dictionary & schemas loaded** — `dataset_dictionary.layer1.1A.yaml` and schema catalogs (`schemas.1A.yaml`, `schemas.layer1.yaml`) resolve; IDs & `$ref`s for:
+  `s3_candidate_set`, `rng_event_ztp_final`, `rng_event_gumbel_key`, core RNG logs (`rng_audit_log`, `rng_trace_log`), plus optional membership surface (if enabled).
+* [ ] **Order authority pinned** — dictionary states **S3 `candidate_rank` is the sole inter-country order**; `outlet_catalogue` encodes **no** cross-country order. (Sanity: S6 must not encode order.)
+* [ ] **RNG event families registered** — `rng_event.gumbel_key` exists with correct path/partitions `{seed,parameter_hash,run_id}` and `gated_by` = hurdle (`is_multi==true`). 
+* [ ] **Core RNG logs registered** — `rng_audit_log`, `rng_trace_log` have correct partitions and schema anchors. 
+* [ ] **S6 policy files validated** — JSON-Schema `$ref` passes; basenames **listed in S0.2.2 governed set 𝓟** so byte changes flip `parameter_hash`. (Cross-check 𝓟 discipline.) 
+* [ ] **S5 contract in place** — S5 defines `ccy_country_weights_cache` with Σ rules and **parameter-scoped PASS receipt** (`S5_VALIDATION.json` + `_passed.flag`) required **before reads**.
+* [ ] **Registry writer policy (if pinned)** — any codec/level/row-group requirements for S6 families present in Artefact Registry (for byte identity). 
+
+---
+
+## 17.2 Run-time (per run; fail-closed if any item fails)
+
+**Pre-flight (§3):**
+
+* [ ] **Inputs present & schema-valid** — S3 candidate set (home=0; ranks contiguous), S4 `ztp_final` (exactly one per merchant), S5 weights (same `parameter_hash`) with **S5 PASS receipt**; path↔embed equality holds.
+* [ ] **Lineage triplet** — `{seed, parameter_hash, run_id}` resolved and used for S6 paths.
+
+**Selection & RNG (§6/§11):**
+
+* [ ] **Domain built correctly** — foreign = S3 candidates ∖ home, ∩ S5 weight support; optional cap is **S3-rank prefix only**. No out-of-domain countries admitted. 
+* [ ] **Event coverage** — if `log_all_candidates=true`: **one** `rng_event.gumbel_key` **per considered candidate** (`A_filtered`). If false: keys only for selected, and validator will **counter-replay**. 
+* [ ] **Trace duty** — **one** `rng_trace_log` append **after each** RNG event; totals reconcile per `(module, substream_label)`. 
+* [ ] **Top-K rule** — select `min(K_target, |Eligible|)` by **`key`**; ties → S3 `candidate_rank`, then ISO A→Z. `K_target` read **only** from `rng_event_ztp_final`.
+* [ ] **No order encoding** — S6 writes **no** cross-country order; membership surface (if emitted) is **authority-free** and re-derivable from events. 
+
+**Validator (§9):**
+
+* [ ] **Structural** — schemas/PK/FK pass; partition law & path↔embed equality hold for all S6 artefacts. 
+* [ ] **Content** — subset law (selected ⊆ S3 foreign ∩ S5 support), cardinality, tie-break determinism, **no order encoding**. 
+* [ ] **RNG isolation & accounting** — only S6 families appear; per-merchant/event totals match expectations; trace totals = Σ event budgets. 
+* [ ] **Re-derivation** — Mode A: recompute from logged keys + S3/S5; Mode B: **counter-replay** missing keys in S3-rank order; published membership matches. 
+
+**Gates:**
+
+* [ ] **S5 PASS verified** (same `parameter_hash`) **before** any S5 reads. 
+
+---
+
+## 17.3 Publish (write-once; atomic promote; gate armed)
+
+* [ ] **Receipt written** — under `…/s6/seed={seed}/parameter_hash={parameter_hash}/`:
+  `S6_VALIDATION.json` + `_passed.flag` (SHA-256 over ASCII-lexicographic concat of other receipt files). **Atomic publish**; no partials. 
+* [ ] **Events/logs partitions** — `rng_event.gumbel_key`, `rng_audit_log`, `rng_trace_log` under `{seed,parameter_hash,run_id}`; embedded lineage equals path tokens.
+* [ ] **Optional membership surface** — if enabled, partitioned by `{seed,parameter_hash}`, **writer-sorted**, and **re-derivable** from RNG events; **no order** encoded.
+* [ ] **Downstream gates armed** — S7/S8 must verify **S6 PASS** (seed+parameter) and continue to enforce **S5 PASS** for weight joins (**no PASS → no read**). 
+
+---
+
+# Appendix A. Glossary & symbols *(Normative)*
+
+**A (raw foreign candidates).**
+For a merchant $m$, **A** is the count of **foreign** rows in **S3 `s3_candidate_set`** (home has `candidate_rank=0` and is excluded). Ranks are total & contiguous per merchant.
+
+**A_cap (rank-prefix cap).**
+If policy `max_candidates_cap>0`, **A_cap = min(A, cap)** by taking the **first** `cap` foreign candidates in **S3 `candidate_rank`** order (no re-order).
+
+**Considered set / $A_{\text{filtered}}$.**
+The **considered** domain after policy filters: take the foreign S3 set, apply the cap, then apply `zero_weight_rule`.
+
+* If `"exclude"` (default): drop candidates with `w==0`.
+* If `"include"`: keep `w==0` in the considered set (they can be **logged** but never selected).
+  Define **$A_{\text{filtered}}$** as the **size of the considered** set.
+
+**Eligible set / $|\text{Eligible}|$.**
+Subset of the **considered** set with **strictly positive** S5 weight (**$w>0$**). S6 **selects only** from this set. Its size $|\text{Eligible}|$ may be < $A_{\text{filtered}}$ when `"include"` is used.
+
+**$K_{\text{target}}$.**
+Per-merchant target cardinality fixed by **S4 `rng_event.ztp_final`** (logs-only authority; exactly one final per resolved merchant).
+
+**$K_{\text{realized}}$.**
+The realized selection size:
+$$
+K_{\text{realized}}=\min\big(K_{\text{target}},\ |\text{Eligible}|\big).
+$$
+If the eligible set is smaller than $K_{\text{target}}$ (shortfall), S6 selects **all** eligible countries.
+
+**Gumbel `key` (a.k.a. score $S$).**
+S6 scores each **considered** candidate $c$ (with S5 weight $w_c$) using:
+$$
+S_c = \ln(w_c) + G_c,\qquad G_c = -\ln\big(-\ln u_c\big),\quad u_c\in(0,1).
+$$
+
+* **Uniforms:** $u_c$ come from the layer’s **strict-open** (U(0,1)) mapping (never 0 or 1).
+* **Zero weights:** if `zero_weight_rule="include"`, treat $\ln(0)=-\infty$ (loggable, **not** selectable).
+  *Event payload note (binding cross-ref to §§5.1/6.3): when `weight==0`, the event **MUST** encode `key: null` (never $\pm\infty$); such rows are diagnostic only and cannot be selected.*
+* **Tie-breaks (total order):** higher $S$ first; exact tie → lower **S3 `candidate_rank`**; then `country_iso` A→Z.
+
+**ULP (Unit in the Last Place).**
+For IEEE-754 **binary64**, the **ULP** at a value $x$ is the difference between $x$ and the next representable binary64 number. ULPs matter only for **comparisons** (e.g., equality of $S$ in binary64); they **do not** change the scoring formula or selection rule.
+
+**RNG envelope *counters* and *budgets*.**
+Every RNG event row carries a **lineage envelope**:
+
+* `before`, `after` — **128-bit** Philox counters (as decimal strings) **before** and **after** the event.
+* `blocks` — unsigned 128-bit delta: `u128(after) − u128(before)`.
+* `draws` — **decimal uint128 string** equal to the **actual number of $U(0,1)$** draws consumed by the event’s sampler(s) (independent of `blocks`).
+* **Single-uniform family (`gumbel_key`):** `blocks=1`, `draws="1"`.
+* **Non-consuming markers (if any):** `before==after`, `blocks=0`, `draws="0"`.
+
+**RNG trace *budget totals*.**
+For each `(module="1A.foreign_country_selector", substream_label∈{"gumbel_key","stream_jump"})`, S6 appends **exactly one** cumulative row to **`rng_trace_log`** **after each event**; validators check:
+
+* `events_total` increments by 1 per event append,
+* `draws_total = Σ parse_u128(draws)`,
+* `blocks_total = Σ blocks` (saturating),
+  and that **only S6 families** appear (isolation).
+
+**Lineage triplet.**
+`{seed, parameter_hash, run_id}` — required partition keys for S6 RNG events/logs; embeddings (when present) **must byte-equal** path tokens.
+
+**Receipts & gates (reminder).**
+
+* **S5 PASS (parameter-scoped):** `S5_VALIDATION.json` + `_passed.flag` **must exist** before S6 reads S5.
+* **S6 PASS (seed+parameter-scoped):** `S6_VALIDATION.json` + `_passed.flag` gate downstream reads of any S6 convenience surface.
+
+---
+
+# Appendix B. Enumerations & reference tables *(Normative)*
+
+## B.1 Dataset IDs and schema anchors (read/write set)
+
+| ID (Dictionary)                      | Type         | Partitions                     | Schema `$ref`                                            | Notes                                                                                                                                                            |
+|--------------------------------------|--------------|--------------------------------|----------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `s3_candidate_set`                   | dataset      | `parameter_hash`               | `schemas.1A.yaml#/s3/candidate_set`                      | Order & admissible set **A** (home `candidate_rank=0`, ranks total & contiguous).                                                                                |
+| `rng_event_ztp_final`                | rng_event    | `seed, parameter_hash, run_id` | `schemas.layer1.yaml#/rng/events/ztp_final`              | S4 **fixes `K_target`**; exactly one per resolved merchant. **Consumed by S6.**                                                                                  |
+| `rng_event_gumbel_key`               | rng_event    | `seed, parameter_hash, run_id` | `schemas.layer1.yaml#/rng/events/gumbel_key`             | **Logging mode:** if `log_all_candidates=true`, one per **considered** candidate; if `false`, keys only for **selected** candidates (validator counter-replays). |
+| `rng_audit_log`                      | rng core log | `seed, parameter_hash, run_id` | `schemas.layer1.yaml#/rng/core/rng_audit_log`            | Run-scoped audit; emitted before events.                                                                                                                         |
+| `rng_trace_log`                      | rng core log | `seed, parameter_hash, run_id` | `schemas.layer1.yaml#/rng/core/rng_trace_log`            | Cumulative per `(module, substream_label)`; **one append after each event**.                                                                                     |
+| `ccy_country_weights_cache`          | dataset      | `parameter_hash`               | `schemas.1A.yaml#/prep/ccy_country_weights_cache`        | S5 currency→country **weights**; **S5 PASS** required before S6 reads (**no PASS → no read**).                                                                   |
+| `merchant_currency` *(optional)*     | dataset      | `parameter_hash`               | `schemas.1A.yaml#/prep/merchant_currency`                | Deterministic κₘ cache for S5/S6 joins.                                                                                                                          |
+| `rng_event_dirichlet_gamma_vector`   | rng_event    | `seed, parameter_hash, run_id` | `schemas.layer1.yaml#/rng/events/dirichlet_gamma_vector` | S7 allocator (downstream of S6).                                                                                                                                 |
+| `rng_event_stream_jump` *(optional)* | rng_event    | `seed, parameter_hash, run_id` | `schemas.layer1.yaml#/rng/events/stream_jump`            | Explicit Philox stream/substream jump records.                                                                                                                   |
+| `country_set` *(legacy/compat)*      | dataset      | `seed, parameter_hash`         | `schemas.1A.yaml#/alloc/country_set`                     | **Deprecated as order authority;** S3 remains sole order source.                                                                                                 |
+
+> **Authority reminder:** JSON-Schema + Dataset Dictionary govern IDs, shapes, and paths; S6 **must not** encode inter-country order—consumers **must** join S3 `candidate_rank`. 
+
+---
+
+## B.2 RNG family names and substream conventions
+
+* **Module name (S6):** `module="1A.foreign_country_selector"` *(normative)*.
+* **Substream labels (S6):** `substream_label ∈ {"gumbel_key","stream_jump"}` *(if `stream_jump` is registered)*. 
+* **Families touched by S6:**
+
+  * **Produced:** `rng_event.gumbel_key` (S6). 
+  * **Updated core logs:** `rng_audit_log`, `rng_trace_log` (append per event). 
+  * **Optional:** `rng_event.stream_jump` (if present in the registry). 
+* **Related upstream/downstream families (read or next state):**
+  `rng_event.ztp_final` (S4) → **read by S6**; `rng_event.dirichlet_gamma_vector` (S7) → **downstream**.
+
+---
+
+## B.3 Reason codes *(closed vocabulary; diagnostics only)*
+
+These codes annotate **deterministic empties or cap diagnostics** (they do **not** authorise re-weighting or re-ordering):
+
+* `NO_CANDIDATES` — S3 exposes only home (`A=0`).
+* `K_ZERO` — S4 fixed `K_target=0`.
+* `ZERO_WEIGHT_DOMAIN` — after policy, no candidate with `w>0` remains.
+* `CAPPED_BY_MAX_CANDIDATES` — domain truncated by S3-rank cap (non-error).
+
+*(Names align with §8; downstream still uses S3 order and S5 weights.)*
+
+---
+
+## B.4 Error codes *(hard FAIL; per-merchant unless noted)*
+
+S6 **fails closed** with these canonical codes; map to S0 failure classes in ops dashboards.
+
+* `E_UPSTREAM_GATE` — Missing/malformed required inputs or missing S5 PASS.
+* `E_RNG_ENVELOPE` — Envelope/counter/trace breach (missing `before/after/blocks/draws`, no trace append, or cross-family writes).
+* `E_LINEAGE_PATH_MISMATCH` — Embedded `{seed, parameter_hash, run_id}` not equal to path tokens.
+* `E_SCHEMA_AUTHORITY` — Any S6 artefact fails its registered JSON-Schema.
+* `E_NUMERIC_POLICY` — Violation of S0.8 numeric environment on decision paths.
+* `E_EVENT_COVERAGE` — Missing/inconsistent `gumbel_key` coverage vs **considered** domain (when `log_all_candidates=true`).
+* `E_DUP_PK` — Duplicate `(merchant_id, country_iso)` in membership surface (if emitted).
+* `E_ORDER_INJECTION` — Any S6 output encodes or implies inter-country order.
+* `E_POLICY_SCHEMA` / `E_POLICY_DOMAIN` — S6 policy fails JSON-Schema or value domains.
+* `E_POLICY_CONFLICT` — Deterministic override resolution yields inconsistent state.
+* `E_IO_ATOMICS` — Non-atomic publish, short write, or mismatched writer policy.
+
+*(Exit codes for the runner are listed in §13.3 and are distinct from these `E_*` codes.)*
+
+---
+
+## B.5 Path patterns (authoritative excerpts)
+
+* `logs/rng/events/gumbel_key/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` → `schemas.layer1.yaml#/rng/events/gumbel_key`. 
+* `logs/rng/events/ztp_final/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl` → `schemas.layer1.yaml#/rng/events/ztp_final`. 
+* `logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl` → `schemas.layer1.yaml#/rng/core/rng_audit_log`. 
+* `logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl` → `schemas.layer1.yaml#/rng/core/rng_trace_log`. 
+* `data/layer1/1A/ccy_country_weights_cache/parameter_hash={parameter_hash}/` → `schemas.1A.yaml#/prep/ccy_country_weights_cache`. 
+* *(Compat)* `data/layer1/1A/country_set/seed={seed}/parameter_hash={parameter_hash}/` → `schemas.1A.yaml#/alloc/country_set` (**deprecated as order authority**). 
+
+---
+
+## B.6 Registry tie-ins (writer policy / compression)
+
+* **Compression policy (when pinned):** `compression_zstd_level3` (ZSTD-3) in the Artefact Registry; when present, producers **MUST** adhere for byte-identity. 
+* **Storage path pattern (egress reference):** `storage_path_pattern` documents fingerprint-scoped egress (e.g., `outlet_catalogue`). *(S6 writes seed+parameter-scoped RNG streams and receipts.)* 
+
+---
+
+## B.7 Cross-refs (normative)
+
+* **S5 PASS receipt** location & semantics (parameter-scoped): `S5_VALIDATION.json` + `_passed.flag` under the weights cache partition. **Required before S6 reads.** 
+* **Layer validation bundle** (fingerprint-scoped) for egress consumption remains unchanged. 
+
+---
+
+# Appendix C. Worked example *(Non-normative)*
+
+> Tiny, concrete walk-through. Numbers are illustrative and computed in **binary64**; this appendix **does not** add requirements. Binding rules live in §§6–11 & §13.
+
+## Setup (single merchant $m$)
+
+* **S3 candidate set (home excluded from selection):**
+  `home=GB (candidate_rank=0)`, foreigns:
+
+  1. **FR** (rank 1) · 2) **DE** (rank 2) · 3) **ES** (rank 3) · 4) **IT** (rank 4) ⇒ **A=4**
+* **S4 target:** `K_target = 2`.
+* **S5 weights (raw, before subset renorm):** FR 0.25, DE 0.15, ES 0.10, IT 0.05 (sum over these four = **0.55**).
+  Ephemeral **subset renormalisation** (foreign-only):
+  FR 0.454545…, DE 0.272727…, ES 0.181818…, IT 0.090909… (sum = 1.0).
+* **Policy:** `log_all_candidates=true`, `max_candidates_cap=0`, `zero_weight_rule="exclude"`.
+
+## Gumbel keys & key values
+
+For each **considered** candidate $c$: draw $u_c\in(0,1)$, compute
+$G_c=-\ln(-\ln u_c)$, $S_c=\ln(w_c)+G_c$ (binary64). Stable iteration = **S3 rank**.
+
+| S3 rank | ISO | $w_{\text{raw}}$ | $w_{\text{norm}}$ |  $u$ |       $G$ | $\ln w_{\text{norm}}$ |           $S$ | Selected? |
+|--------:|:---:|-----------------:|------------------:|-----:|----------:|----------------------:|--------------:|:---------:|
+|       1 | FR  |             0.25 |          0.454545 | 0.22 | −0.414840 |             −0.788457 |     −1.203297 |           |
+|       2 | DE  |             0.15 |          0.272727 | 0.51 |  0.395498 |             −1.299283 |     −0.903785 |   **✓**   |
+|       3 | ES  |             0.10 |          0.181818 | 0.73 |  1.156101 |             −1.704748 | **−0.548647** |   **✓**   |
+|       4 | IT  |             0.05 |          0.090909 | 0.04 | −1.169032 |             −2.397895 |     −3.566927 |           |
+
+**Result:** sort by $S$ (desc) → **ES**, **DE**, FR, IT.
+Since `K_target=2`, **$K_{\text{realized}}=\min(2,4)=2$** → selected set = **{ES, DE}**.
+*(No tie encountered; if (S) ties in binary64, break by **S3 `candidate_rank`**, then ISO A→Z.)*
+
+## RNG evidence (events & trace)
+
+* With `log_all_candidates=true`, **one** `rng_event.gumbel_key` per **considered** candidate (here 4 events), appended in **S3-rank order**: FR → DE → ES → IT.
+* **Budgets:** each event consumes **`blocks=1`, `draws="1"`** (single-uniform family).
+* **Trace:** exactly **4** `rng_trace_log` appends; final totals for `(module="1A.foreign_country_selector", substream_label="gumbel_key")` are:
+  `events_total=4`, `blocks_total=4`, `draws_total=4`.
+* Validator **re-derives** the membership from logged keys + S3/S5 and matches **{ES, DE}**.
+
+## Persisted order (authority separation)
+
+* If a **membership** dataset is emitted, it contains **unordered** pairs `(merchant_id, country_iso)` (writer-sorted only).
+* Any **display/order** of the selected set **MUST** be obtained by **joining S3** and using `candidate_rank` (here the projected order would appear as **DE (rank 2), ES (rank 3)**). **S6 does not encode inter-country order.**
 
 ---

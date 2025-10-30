@@ -33,6 +33,36 @@
       "home_country_iso": {
         "type": "string",
         "pattern": "^[A-Z]{2}$"
+      },
+      "settlement_currency": {
+        "anyOf": [
+          {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Optional ISO-4217 settlement currency code for the merchant."
+      },
+      "settlement_currency_vector": {
+        "anyOf": [
+          {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          {
+            "type": "string",
+            "description": "JSON-encoded currency share vector (currency -> weight)."
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Optional share vector over settlement currencies used when a merchant settles in multiple currencies."
       }
     }
   }

@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from itertools import islice
 from pathlib import Path
-from typing import Mapping, Tuple
+from typing import Iterable, Iterator, Mapping, Sequence, Tuple
 
-import polars as pl
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 from ...s0_foundations.exceptions import err
-from ..l0.policy import BaseWeightPolicy, ThresholdsPolicy
+from ..l0.policy import BaseWeightPolicy, BoundsPolicy, ThresholdsPolicy
 from ..l1.kernels import (
     S3FeatureToggles,
     S3KernelResult,
@@ -42,6 +44,7 @@ class S3CrossBorderRunner:
         toggles: S3FeatureToggles | None = None,
         base_weight_policy: BaseWeightPolicy | None = None,
         thresholds_policy: ThresholdsPolicy | None = None,
+        bounds_policy: BoundsPolicy | None = None,
     ) -> S3RunResult:
         base_path = base_path.expanduser().resolve()
         toggles = toggles or S3FeatureToggles()
@@ -52,6 +55,7 @@ class S3CrossBorderRunner:
             toggles=toggles,
             base_weight_policy=base_weight_policy,
             thresholds_policy=thresholds_policy,
+            bounds_policy=bounds_policy,
         )
         candidate_path = self._write_candidate_set(
             base_path=base_path,
@@ -108,51 +112,55 @@ class S3CrossBorderRunner:
         parameter_hash = deterministic.parameter_hash
         manifest_fingerprint = deterministic.manifest_fingerprint
 
-        data = {
-            "parameter_hash": [],
-            "produced_by_fingerprint": [],
-            "merchant_id": [],
-            "country_iso": [],
-            "candidate_rank": [],
-            "is_home": [],
-            "reason_codes": [],
-            "filter_tags": [],
-        }
-        for row in kernel_result.ranked_candidates:
-            data["parameter_hash"].append(parameter_hash)
-            data["produced_by_fingerprint"].append(manifest_fingerprint)
-            data["merchant_id"].append(row.merchant_id)
-            data["country_iso"].append(row.country_iso)
-            data["candidate_rank"].append(row.candidate_rank)
-            data["is_home"].append(row.is_home)
-            data["reason_codes"].append(list(row.reason_codes))
-            data["filter_tags"].append(list(row.filter_tags))
-
-        frame = pl.DataFrame(data)
-        if frame.height == 0:
+        ranked = tuple(kernel_result.ranked_candidates)
+        if not ranked:
             raise err("ERR_S3_CANDIDATE_CONSTRUCTION", "candidate set is empty")
-        frame = frame.sort(["merchant_id", "candidate_rank", "country_iso"])
+        ranked_sorted = tuple(
+            sorted(ranked, key=lambda row: (row.merchant_id, row.candidate_rank, row.country_iso))
+        )
 
-        self._assert_partition_value(
-            frame,
-            column="parameter_hash",
-            expected=parameter_hash,
-            dataset="s3_candidate_set",
+        schema = pa.schema(
+            [
+                ("parameter_hash", pa.string()),
+                ("produced_by_fingerprint", pa.string()),
+                ("merchant_id", pa.uint64()),
+                ("country_iso", pa.string()),
+                ("candidate_rank", pa.uint32()),
+                ("is_home", pa.bool_()),
+                ("reason_codes", pa.list_(pa.string())),
+                ("filter_tags", pa.list_(pa.string())),
+            ]
         )
-        self._assert_partition_value(
-            frame,
-            column="produced_by_fingerprint",
-            expected=manifest_fingerprint,
-            dataset="s3_candidate_set",
-        )
+
+        def _row_iter() -> Iterator[Mapping[str, object]]:
+            for row in ranked_sorted:
+                yield {
+                    "parameter_hash": parameter_hash,
+                    "produced_by_fingerprint": manifest_fingerprint,
+                    "merchant_id": row.merchant_id,
+                    "country_iso": row.country_iso,
+                    "candidate_rank": row.candidate_rank,
+                    "is_home": row.is_home,
+                    "reason_codes": list(row.reason_codes),
+                    "filter_tags": list(row.filter_tags),
+                }
+
         output_path = resolve_dataset_path(
             "s3_candidate_set",
             base_path=base_path,
             template_args=self._template_args(deterministic),
             dictionary=dictionary,
         )
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        frame.write_parquet(output_path, compression="zstd")
+        self._write_parquet_rows(
+            output_path,
+            _row_iter(),
+            schema,
+            dataset="s3_candidate_set",
+            expected_partitions={
+                "parameter_hash": parameter_hash,
+                "produced_by_fingerprint": manifest_fingerprint,
+            },
+        )
         return output_path
 
     def _write_priors(
@@ -166,43 +174,46 @@ class S3CrossBorderRunner:
         parameter_hash = deterministic.parameter_hash
         manifest_fingerprint = deterministic.manifest_fingerprint
 
-        data = {
-            "parameter_hash": [],
-            "produced_by_fingerprint": [],
-            "merchant_id": [],
-            "country_iso": [],
-            "base_weight_dp": [],
-            "dp": [],
-        }
-        for row in priors:
-            data["parameter_hash"].append(parameter_hash)
-            data["produced_by_fingerprint"].append(manifest_fingerprint)
-            data["merchant_id"].append(row.merchant_id)
-            data["country_iso"].append(row.country_iso)
-            data["base_weight_dp"].append(row.base_weight_dp)
-            data["dp"].append(row.dp)
+        sorted_priors = tuple(sorted(priors, key=lambda row: (row.merchant_id, row.country_iso)))
 
-        frame = pl.DataFrame(data).sort(["merchant_id", "country_iso"])
-        self._assert_partition_value(
-            frame,
-            column="parameter_hash",
-            expected=parameter_hash,
-            dataset="s3_base_weight_priors",
+        schema = pa.schema(
+            [
+                ("parameter_hash", pa.string()),
+                ("produced_by_fingerprint", pa.string()),
+                ("merchant_id", pa.uint64()),
+                ("country_iso", pa.string()),
+                ("base_weight_dp", pa.string()),
+                ("dp", pa.int64()),
+            ]
         )
-        self._assert_partition_value(
-            frame,
-            column="produced_by_fingerprint",
-            expected=manifest_fingerprint,
-            dataset="s3_base_weight_priors",
-        )
+
+        def _row_iter() -> Iterator[Mapping[str, object]]:
+            for row in sorted_priors:
+                yield {
+                    "parameter_hash": parameter_hash,
+                    "produced_by_fingerprint": manifest_fingerprint,
+                    "merchant_id": row.merchant_id,
+                    "country_iso": row.country_iso,
+                    "base_weight_dp": row.base_weight_dp,
+                    "dp": row.dp,
+                }
+
         output_path = resolve_dataset_path(
             "s3_base_weight_priors",
             base_path=base_path,
             template_args=self._template_args(deterministic),
             dictionary=dictionary,
         )
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        frame.write_parquet(output_path, compression="zstd")
+        self._write_parquet_rows(
+            output_path,
+            _row_iter(),
+            schema,
+            dataset="s3_base_weight_priors",
+            expected_partitions={
+                "parameter_hash": parameter_hash,
+                "produced_by_fingerprint": manifest_fingerprint,
+            },
+        )
         return output_path
 
     def _write_counts(
@@ -216,43 +227,46 @@ class S3CrossBorderRunner:
         parameter_hash = deterministic.parameter_hash
         manifest_fingerprint = deterministic.manifest_fingerprint
 
-        data = {
-            "parameter_hash": [],
-            "produced_by_fingerprint": [],
-            "merchant_id": [],
-            "country_iso": [],
-            "count": [],
-            "residual_rank": [],
-        }
-        for row in counts:
-            data["parameter_hash"].append(parameter_hash)
-            data["produced_by_fingerprint"].append(manifest_fingerprint)
-            data["merchant_id"].append(row.merchant_id)
-            data["country_iso"].append(row.country_iso)
-            data["count"].append(row.count)
-            data["residual_rank"].append(row.residual_rank)
+        sorted_counts = tuple(sorted(counts, key=lambda row: (row.merchant_id, row.country_iso)))
 
-        frame = pl.DataFrame(data).sort(["merchant_id", "country_iso"])
-        self._assert_partition_value(
-            frame,
-            column="parameter_hash",
-            expected=parameter_hash,
-            dataset="s3_integerised_counts",
+        schema = pa.schema(
+            [
+                ("parameter_hash", pa.string()),
+                ("produced_by_fingerprint", pa.string()),
+                ("merchant_id", pa.uint64()),
+                ("country_iso", pa.string()),
+                ("count", pa.int64()),
+                ("residual_rank", pa.int64()),
+            ]
         )
-        self._assert_partition_value(
-            frame,
-            column="produced_by_fingerprint",
-            expected=manifest_fingerprint,
-            dataset="s3_integerised_counts",
-        )
+
+        def _row_iter() -> Iterator[Mapping[str, object]]:
+            for row in sorted_counts:
+                yield {
+                    "parameter_hash": parameter_hash,
+                    "produced_by_fingerprint": manifest_fingerprint,
+                    "merchant_id": row.merchant_id,
+                    "country_iso": row.country_iso,
+                    "count": row.count,
+                    "residual_rank": row.residual_rank,
+                }
+
         output_path = resolve_dataset_path(
             "s3_integerised_counts",
             base_path=base_path,
             template_args=self._template_args(deterministic),
             dictionary=dictionary,
         )
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        frame.write_parquet(output_path, compression="zstd")
+        self._write_parquet_rows(
+            output_path,
+            _row_iter(),
+            schema,
+            dataset="s3_integerised_counts",
+            expected_partitions={
+                "parameter_hash": parameter_hash,
+                "produced_by_fingerprint": manifest_fingerprint,
+            },
+        )
         return output_path
 
     def _write_sequence(
@@ -266,43 +280,48 @@ class S3CrossBorderRunner:
         parameter_hash = deterministic.parameter_hash
         manifest_fingerprint = deterministic.manifest_fingerprint
 
-        data = {
-            "parameter_hash": [],
-            "produced_by_fingerprint": [],
-            "merchant_id": [],
-            "country_iso": [],
-            "site_order": [],
-            "site_id": [],
-        }
-        for row in sequence:
-            data["parameter_hash"].append(parameter_hash)
-            data["produced_by_fingerprint"].append(manifest_fingerprint)
-            data["merchant_id"].append(row.merchant_id)
-            data["country_iso"].append(row.country_iso)
-            data["site_order"].append(row.site_order)
-            data["site_id"].append(row.site_id)
+        sorted_sequence = tuple(
+            sorted(sequence, key=lambda row: (row.merchant_id, row.country_iso, row.site_order))
+        )
 
-        frame = pl.DataFrame(data).sort(["merchant_id", "country_iso", "site_order"])
-        self._assert_partition_value(
-            frame,
-            column="parameter_hash",
-            expected=parameter_hash,
-            dataset="s3_site_sequence",
+        schema = pa.schema(
+            [
+                ("parameter_hash", pa.string()),
+                ("produced_by_fingerprint", pa.string()),
+                ("merchant_id", pa.uint64()),
+                ("country_iso", pa.string()),
+                ("site_order", pa.uint32()),
+                ("site_id", pa.string()),
+            ]
         )
-        self._assert_partition_value(
-            frame,
-            column="produced_by_fingerprint",
-            expected=manifest_fingerprint,
-            dataset="s3_site_sequence",
-        )
+
+        def _row_iter() -> Iterator[Mapping[str, object]]:
+            for row in sorted_sequence:
+                yield {
+                    "parameter_hash": parameter_hash,
+                    "produced_by_fingerprint": manifest_fingerprint,
+                    "merchant_id": row.merchant_id,
+                    "country_iso": row.country_iso,
+                    "site_order": row.site_order,
+                    "site_id": row.site_id,
+                }
+
         output_path = resolve_dataset_path(
             "s3_site_sequence",
             base_path=base_path,
             template_args=self._template_args(deterministic),
             dictionary=dictionary,
         )
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        frame.write_parquet(output_path, compression="zstd")
+        self._write_parquet_rows(
+            output_path,
+            _row_iter(),
+            schema,
+            dataset="s3_site_sequence",
+            expected_partitions={
+                "parameter_hash": parameter_hash,
+                "produced_by_fingerprint": manifest_fingerprint,
+            },
+        )
         return output_path
 
     @staticmethod
@@ -317,29 +336,54 @@ class S3CrossBorderRunner:
         }
 
     @staticmethod
-    def _assert_partition_value(
-        frame: pl.DataFrame,
+    def _write_parquet_rows(
+        output_path: Path,
+        rows: Iterable[Mapping[str, object]],
+        schema: pa.Schema,
         *,
-        column: str,
-        expected: str,
         dataset: str,
+        expected_partitions: Mapping[str, object],
+        chunk_size: int = 8192,
     ) -> None:
-        if column not in frame.columns:
-            raise err(
-                "ERR_S3_EGRESS_SHAPE",
-                f"{dataset} missing required column '{column}'",
-            )
-        series = frame.get_column(column)
-        if series.null_count() > 0:
-            raise err(
-                "ERR_S3_EGRESS_SHAPE",
-                f"{dataset} column '{column}' contains nulls",
-            )
-        if not bool((series == expected).all()):
-            raise err(
-                "ERR_S3_EGRESS_SHAPE",
-                f"{dataset} column '{column}' mismatch with expected partition '{expected}'",
-            )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        writer: pq.ParquetWriter | None = None
+        rows_written = 0
+        try:
+            for batch in _chunked(rows, chunk_size):
+                if not batch:
+                    continue
+                for row in batch:
+                    for column, expected in expected_partitions.items():
+                        value = row.get(column)
+                        if value != expected:
+                            raise err(
+                                "ERR_S3_EGRESS_SHAPE",
+                                f"{dataset} column '{column}' mismatch with expected partition '{expected}'",
+                            )
+                table = pa.Table.from_pylist(batch, schema=schema)
+                if writer is None:
+                    writer = pq.ParquetWriter(str(output_path), table.schema, compression="zstd")
+                writer.write_table(table)
+                rows_written += table.num_rows
+        finally:
+            if writer is not None:
+                writer.close()
+
+        if rows_written == 0:
+            empty_payload = {
+                field.name: pa.array([], type=field.type) for field in schema
+            }
+            table = pa.Table.from_pydict(empty_payload, schema=schema)
+            pq.write_table(table, output_path, compression="zstd")
+
+
+def _chunked(iterable: Iterable[Mapping[str, object]], size: int) -> Iterator[Sequence[Mapping[str, object]]]:
+    iterator = iter(iterable)
+    while True:
+        batch = list(islice(iterator, size))
+        if not batch:
+            break
+        yield batch
 
 
 __all__ = ["S3CrossBorderRunner", "S3RunResult"]

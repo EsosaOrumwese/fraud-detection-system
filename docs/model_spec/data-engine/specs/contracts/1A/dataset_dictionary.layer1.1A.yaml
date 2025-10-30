@@ -307,6 +307,42 @@ datasets:
   pii: false
   licence: Proprietary-Internal
 
+- id: s6_membership
+  status: approved
+  owner_subsegment: 1A
+  description: Optional convenience surface of selected foreign ISO2s per merchant; authority remains S6 RNG events; no inter-country order encoded.
+  version: '{parameter_hash}'
+  format: parquet
+  path: data/layer1/1A/s6/membership/seed={seed}/parameter_hash={parameter_hash}/
+  partitioning: [seed, parameter_hash]
+  ordering: [merchant_id, country_iso]
+  schema_ref: schemas.1A.yaml#/alloc/membership
+  lineage:
+    produced_by: 1A.S6
+    consumed_by: [1A]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: s6_validation_receipt
+  status: approved
+  owner_subsegment: 1A
+  description: PASS receipt for S6; gate for S7/S8 reads.
+  version: '{parameter_hash}'
+  format: folder
+  path: data/layer1/1A/s6/seed={seed}/parameter_hash={parameter_hash}/
+  partitioning: [seed, parameter_hash]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/validation/s6_receipt
+  lineage:
+    produced_by: 1A.S6
+    consumed_by: [1A, 1B]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
 - id: ranking_residual_cache_1A
   status: deprecated
   owner_subsegment: 1A
@@ -696,6 +732,9 @@ datasets:
   gating:
     gated_by: rng_event_hurdle_bernoulli
     predicate: is_multi == true
+    also_requires:
+     - id: crossborder_eligibility_flags
+       predicate: is_eligible == true
   retention_days: 180
   pii: false
   licence: Proprietary-Internal
@@ -757,8 +796,9 @@ datasets:
     consumed_by: [validation]
     final_in_layer: false
   gating:
-    gated_by: rng_event_hurdle_bernoulli
-    predicate: is_multi == true
+    # No gate — library helper; not called by S0 orchestration
+    gated_by: null
+    predicate: null
   retention_days: 180
   pii: false
   licence: Proprietary-Internal
@@ -829,7 +869,7 @@ datasets:
 # ── Governance / integrity ────────────────────────────────────────────────
 integrity:
   bundled_schema_sha256:
-  dataset_count: 41
+  dataset_count: 43
 
 open_questions: []
 

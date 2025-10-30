@@ -1,15 +1,10 @@
 """Scenario-runner helpers for Layer-1 Segment 1A states."""
-
 from __future__ import annotations
-
 import logging
-import time
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Dict, Mapping, Optional, Sequence, Tuple
-
 import yaml
-
 from engine.layers.l1.seg_1A.s0_foundations import S0FoundationsRunner, SchemaAuthority
 from engine.layers.l1.seg_1A.s0_foundations.exceptions import S0Error, err
 from engine.layers.l1.seg_1A.s0_foundations.l1.design import iter_design_vectors
@@ -39,6 +34,7 @@ from engine.layers.l1.seg_1A.s3_crossborder_universe import (
 )
 from engine.layers.l1.seg_1A.s3_crossborder_universe.l0.policy import (
     load_base_weight_policy,
+    load_bounds_policy,
     load_thresholds_policy,
 )
 from engine.layers.l1.seg_1A.s3_crossborder_universe.l3.bundle import (
@@ -60,244 +56,58 @@ from engine.layers.l1.seg_1A.s4_ztp_target.l3.bundle import (
     publish_s4_validation_artifacts,
 )
 from engine.layers.l1.seg_1A.s4_ztp_target.l3.validator import validate_s4_run
-
-logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class HurdleStateContext:
-    """Context bundle handed to downstream states after S1 completes."""
-
-    parameter_hash: str
-    manifest_fingerprint: str
-    run_id: str
-    seed: int
-    multi_merchant_ids: Tuple[int, ...]
-    gated_streams: Tuple[GatedStream, ...]
-    catalogue_path: Path
-
-    @property
-    def gated_dataset_ids(self) -> Tuple[str, ...]:
-        """Return the dataset identifiers gated by the hurdle stream."""
-
-        return tuple(stream.dataset_id for stream in self.gated_streams)
-
-    def stream_by_dataset(self) -> Dict[str, GatedStream]:
-        """Return a dictionary keyed by dataset identifier."""
-
-        return {stream.dataset_id: stream for stream in self.gated_streams}
-
-
-def build_hurdle_context(result: S1RunResult) -> HurdleStateContext:
-    """Construct the downstream-facing context from an ``S1RunResult``."""
-
-    return HurdleStateContext(
-        parameter_hash=result.parameter_hash,
-        manifest_fingerprint=result.manifest_fingerprint,
-        run_id=result.run_id,
-        seed=result.seed,
-        multi_merchant_ids=result.multi_merchant_ids,
-        gated_streams=result.gated_streams,
-        catalogue_path=result.catalogue_path,
-    )
-
-
-@dataclass(frozen=True)
-class S2StateContext:
-    """Downstream context bundle produced after S2 NB sampling completes."""
-
-    deterministic: S2DeterministicContext
-    finals: Tuple[NBFinalRecord, ...]
-    gamma_events_path: Path
-    poisson_events_path: Path
-    final_events_path: Path
-    trace_path: Path
-    metrics: Dict[str, float] | None
-    catalogue_path: Path | None
-    validation_artifacts_path: Path | None
-
-    @property
-    def parameter_hash(self) -> str:
-        """Parameter hash carried across the S2 deterministic context."""
-
-        return self.deterministic.parameter_hash
-
-    @property
-    def manifest_fingerprint(self) -> str:
-        """Manifest fingerprint for the run."""
-
-        return self.deterministic.manifest_fingerprint
-
-    @property
-    def run_id(self) -> str:
-        """Run identifier used by the RNG envelopes."""
-
-        return self.deterministic.run_id
-
-    @property
-    def seed(self) -> int:
-        """Philox seed associated with the run."""
-
-        return self.deterministic.seed
-
-    def final_by_merchant(self) -> Dict[int, NBFinalRecord]:
-        """Return the accepted NB outcome per merchant."""
-
-        return {record.merchant_id: record for record in self.finals}
-
-    def counts_by_merchant(self) -> Dict[int, Tuple[int, int]]:
-        """Return ``(n_outlets, nb_rejections)`` for quick downstream use."""
-
-        return {
-            record.merchant_id: (record.n_outlets, record.nb_rejections)
-            for record in self.finals
-        }
-
-
-def build_s2_context(
-    result: S2RunResult,
-    *,
-    metrics: Dict[str, float] | None,
-    catalogue_path: Path | None,
-    validation_artifacts_path: Path | None,
-) -> S2StateContext:
-    """Construct the downstream-facing context from an ``S2RunResult``."""
-
-    return S2StateContext(
-        deterministic=result.deterministic,
-        finals=result.finals,
-        gamma_events_path=result.gamma_events_path,
-        poisson_events_path=result.poisson_events_path,
-        final_events_path=result.final_events_path,
-        trace_path=result.trace_path,
-        metrics=metrics,
-        catalogue_path=catalogue_path,
-    validation_artifacts_path=validation_artifacts_path,
+from engine.layers.l1.seg_1A.s5_currency_weights import (
+    DEFAULT_PATHS as S5_DEFAULT_PATHS,
+    MerchantCurrencyInput,
+    S5CurrencyWeightsRunner,
+    S5DeterministicContext,
+    S5RunOutputs,
 )
-
-
-@dataclass(frozen=True)
-class S3StateContext:
-    """Downstream context bundle after S3 cross-border universe completes."""
-
-    deterministic: S3DeterministicContext
-    candidate_set_path: Path
-    base_weight_priors_path: Path | None
-    integerised_counts_path: Path | None
-    site_sequence_path: Path | None
-    metrics: Dict[str, float] | None = None
-    validation_passed: bool | None = None
-    validation_failed_merchants: Dict[int, str] | None = None
-    validation_artifacts_path: Path | None = None
-    validation_diagnostics: Tuple[Mapping[str, object], ...] | None = None
-
-    @property
-    def parameter_hash(self) -> str:
-        return self.deterministic.parameter_hash
-
-    @property
-    def manifest_fingerprint(self) -> str:
-        return self.deterministic.manifest_fingerprint
-
-    @property
-    def run_id(self) -> str:
-        return self.deterministic.run_id
-
-    @property
-    def seed(self) -> int:
-        return self.deterministic.seed
-
-
-@dataclass(frozen=True)
-class S4StateContext:
-    """Downstream context bundle after S4 target sampling completes."""
-
-    deterministic: S4DeterministicContext
-    finals: Tuple[ZTPFinalRecord, ...]
-    poisson_events_path: Path
-    rejection_events_path: Path
-    retry_exhausted_events_path: Path
-    final_events_path: Path
-    trace_path: Path
-    metrics: Dict[str, float] | None = None
-    validation_passed: bool | None = None
-    validation_artifacts_path: Path | None = None
-
-    @property
-    def run_id(self) -> str:
-        return self.deterministic.run_id
-
-    @property
-    def seed(self) -> int:
-        return self.deterministic.seed
-
-
-def build_s3_context(
-    result: S3RunResult,
-    *,
-    metrics: Dict[str, float] | None = None,
-    validation_passed: bool | None = None,
-    validation_failed_merchants: Dict[int, str] | None = None,
-    validation_artifacts_path: Path | None = None,
-    validation_diagnostics: Tuple[Mapping[str, object], ...] | None = None,
-) -> S3StateContext:
-    """Construct the downstream-facing context bundle from the S3 run."""
-
-    return S3StateContext(
-        deterministic=result.deterministic,
-        candidate_set_path=result.candidate_set_path,
-        base_weight_priors_path=result.base_weight_priors_path,
-        integerised_counts_path=result.integerised_counts_path,
-        site_sequence_path=result.site_sequence_path,
-        metrics=metrics,
-        validation_passed=validation_passed,
-        validation_failed_merchants=validation_failed_merchants,
-        validation_artifacts_path=validation_artifacts_path,
-        validation_diagnostics=validation_diagnostics,
-    )
-
-
-def build_s4_context(
-    result: S4RunResult,
-    *,
-    metrics: Dict[str, float] | None = None,
-    validation_passed: bool | None = None,
-    validation_artifacts_path: Path | None = None,
-) -> S4StateContext:
-    """Construct the downstream-facing context from an ``S4RunResult``."""
-
-    return S4StateContext(
-        deterministic=result.deterministic,
-        finals=result.finals,
-        poisson_events_path=result.poisson_events_path,
-        rejection_events_path=result.rejection_events_path,
-        retry_exhausted_events_path=result.retry_exhausted_events_path,
-        final_events_path=result.final_events_path,
-        trace_path=result.trace_path,
-        metrics=metrics,
-        validation_passed=validation_passed,
-        validation_artifacts_path=validation_artifacts_path,
-    )
-
-
-@dataclass(frozen=True)
-class Segment1ARunResult:
-    """Combined result for running S0 foundations through S4 target sampling."""
-
-    s0_result: S0RunResult
-    s1_result: S1RunResult
-    s2_result: S2RunResult
-    hurdle_context: HurdleStateContext
-    nb_context: S2StateContext
-    s3_result: S3RunResult
-    s3_context: S3StateContext
-    s4_result: S4RunResult
-    s4_context: S4StateContext
-
-
+from engine.layers.l1.seg_1A.s6_foreign_selection import (
+    S6Runner,
+    S6ValidationError,
+    validate_outputs,
+)
+from engine.layers.l1.seg_1A.s6_foreign_selection.contexts import S6DeterministicContext
+from engine.layers.l1.seg_1A.s6_foreign_selection.runner import S6RunOutputs
+from engine.layers.l1.seg_1A.s7_integer_allocation import (
+    PolicyLoadingError,
+    S7Runner,
+    S7RunOutputs,
+    load_policy as load_s7_policy,
+)
+from engine.layers.l1.seg_1A.s7_integer_allocation.contexts import S7DeterministicContext
+from engine.layers.l1.seg_1A.s7_integer_allocation.types import MerchantAllocationResult
+from engine.layers.l1.seg_1A.s7_integer_allocation.validate import validate_results as validate_s7_outputs
+from engine.layers.l1.seg_1A.s8_outlet_catalogue import S8RunOutputs, S8Runner
+from engine.layers.l1.seg_1A.s8_outlet_catalogue.contexts import S8DeterministicContext
+from engine.layers.l1.seg_1A.s9_validation import S9RunOutputs, S9Runner
+from engine.layers.l1.seg_1A.s9_validation.contexts import S9DeterministicContext
+from engine.layers.l1.seg_1A.shared.dictionary import get_repo_root
+from engine.scenario_runner.l1_seg_1A_contexts import (
+    HurdleStateContext,
+    S2StateContext,
+    S3StateContext,
+    S4StateContext,
+    S5StateContext,
+    S6StateContext,
+    S7StateContext,
+    S8StateContext,
+    S9StateContext,
+    Segment1ARunResult,
+    build_hurdle_context,
+    build_s2_context,
+    build_s3_context,
+    build_s4_context,
+    build_s5_context,
+    build_s6_context,
+    build_s7_context,
+    build_s8_context,
+    build_s9_context,
+)
+logger = logging.getLogger(__name__)
 class Segment1AOrchestrator:
     """Convenience wrapper that executes S0 foundations followed by S1 hurdle."""
-
     def __init__(self, *, schema_authority: SchemaAuthority | None = None) -> None:
         authority = schema_authority or SchemaAuthority(
             ingress_ref="l1/seg_1A/merchant_ids.schema.json",
@@ -310,8 +120,82 @@ class Segment1AOrchestrator:
         self._s2_runner = S2NegativeBinomialRunner()
         self._s3_runner = S3CrossBorderRunner()
         self._s4_runner = S4ZTPTargetRunner()
-
-
+        self._s5_runner = S5CurrencyWeightsRunner()
+        self._s6_runner = S6Runner()
+        self._s5_runner = S5CurrencyWeightsRunner()
+        self._s6_runner = S6Runner()
+        self._s7_runner = S7Runner()
+        self._s8_runner = S8Runner()
+        self._s9_runner = S9Runner()
+    def _resolve_s5_policy_path(self, param_mapping: Mapping[str, Path]) -> Path:
+        """Resolve the governed S5 smoothing policy path."""
+        candidate_keys = (
+            "ccy_smoothing_params.yaml",
+            "config.allocation.ccy_smoothing_params.yaml",
+            "config/allocation/ccy_smoothing_params.yaml",
+        )
+        for key in candidate_keys:
+            policy_path = param_mapping.get(key)
+            if policy_path is not None:
+                return policy_path.expanduser().resolve()
+        default_path = (
+            get_repo_root()
+            / "config"
+            / "allocation"
+            / "ccy_smoothing_params.yaml"
+        )
+        if not default_path.exists():
+            raise err(
+                "E_GOVERNANCE_MISSING",
+                f"default S5 policy not found at '{default_path}'",
+            )
+        return default_path.resolve()
+    def _resolve_s6_policy_path(self, param_mapping: Mapping[str, Path]) -> Path:
+        """Resolve the governed S6 selection policy path."""
+        candidate_keys = (
+            "s6_selection_policy.yaml",
+            "config.allocation.s6_selection_policy.yaml",
+            "config/allocation/s6_selection_policy.yaml",
+        )
+        for key in candidate_keys:
+            policy_path = param_mapping.get(key)
+            if policy_path is not None:
+                return policy_path.expanduser().resolve()
+        default_path = (
+            get_repo_root()
+            / "config"
+            / "allocation"
+            / "s6_selection_policy.yaml"
+        )
+        if not default_path.exists():
+            raise err(
+                "E_GOVERNANCE_MISSING",
+                f"default S6 policy not found at '{default_path}'",
+            )
+        return default_path.resolve()
+    def _resolve_s7_policy_path(self, param_mapping: Mapping[str, Path]) -> Path:
+        """Resolve the governed S7 integerisation policy path."""
+        candidate_keys = (
+            "s7_integerisation_policy.yaml",
+            "config.allocation.s7_integerisation_policy.yaml",
+            "config/allocation/s7_integerisation_policy.yaml",
+        )
+        for key in candidate_keys:
+            policy_path = param_mapping.get(key)
+            if policy_path is not None:
+                return policy_path.expanduser().resolve()
+        default_path = (
+            get_repo_root()
+            / "config"
+            / "allocation"
+            / "s7_integerisation_policy.yaml"
+        )
+        if not default_path.exists():
+            raise err(
+                "E_GOVERNANCE_MISSING",
+                f"default S7 policy not found at '{default_path}'",
+            )
+        return default_path.resolve()
     def run(
         self,
         *,
@@ -338,16 +222,36 @@ class Segment1AOrchestrator:
         s4_features: Path | None = None,
         validate_s4: bool = True,
         s4_validation_output: Path | None = None,
+        validate_s6: bool = True,
+        validate_s7: bool = True,
     ) -> Segment1ARunResult:
         base_path = base_path.expanduser().resolve()
         param_mapping = {
             name: Path(path).expanduser().resolve() for name, path in parameter_files.items()
         }
+        bounds_path = param_mapping.get("policy.s3.bounds.yaml")
         extras = (
             [Path(item).expanduser().resolve() for item in extra_manifest_artifacts]
             if extra_manifest_artifacts
             else []
         )
+        s5_policy_path = self._resolve_s5_policy_path(param_mapping)
+        if s5_policy_path not in extras:
+            extras.append(s5_policy_path)
+        s6_policy_path = self._resolve_s6_policy_path(param_mapping)
+        if s6_policy_path not in extras:
+            extras.append(s6_policy_path)
+        s7_policy_path = self._resolve_s7_policy_path(param_mapping)
+        if s7_policy_path not in extras:
+            extras.append(s7_policy_path)
+        try:
+            s7_policy_preview = load_s7_policy(s7_policy_path)
+        except PolicyLoadingError as exc:
+            raise err("E_GOVERNANCE_INVALID", str(exc)) from exc
+        if s7_policy_preview.bounds is not None:
+            bounds_path = s7_policy_preview.bounds.path
+            if bounds_path not in extras:
+                extras.append(bounds_path)
         feature_path_input = s4_features.expanduser().resolve() if s4_features else None
         if feature_path_input is not None:
             extras.append(feature_path_input)
@@ -361,14 +265,12 @@ class Segment1AOrchestrator:
                     f"validation policy at {policy_path} must decode to a mapping",
                 )
             validation_policy = data
-
         logger.info(
             "Segment1A orchestrator starting (seed=%d, git_commit=%s, base_path=%s)",
             seed,
             git_commit_hex,
             base_path,
         )
-
         s0_result = self._s0_runner.run_from_paths(
             base_path=base_path,
             merchant_table_path=merchant_table.expanduser().resolve(),
@@ -392,13 +294,11 @@ class Segment1AOrchestrator:
             validate=validate_s0,
             extra_manifest_artifacts=extras,
         )
-
         logger.info(
             "Segment1A S0 completed (run_id=%s, parameter_hash=%s)",
             s0_result.run_id,
             s0_result.sealed.parameter_hash.parameter_hash,
         )
-
         design_vectors = tuple(
             iter_design_vectors(
                 s0_result.sealed.context,
@@ -414,7 +314,6 @@ class Segment1AOrchestrator:
             )
             for vector in design_vectors
         )
-
         s1_result = self._s1_runner.run(
             base_path=base_path,
             manifest_fingerprint=s0_result.sealed.manifest_fingerprint.manifest_fingerprint,
@@ -424,12 +323,10 @@ class Segment1AOrchestrator:
             seed=seed,
             run_id=s0_result.run_id,
         )
-
         logger.info(
             "Segment1A S1 completed (multi_merchants=%d)",
             len(s1_result.multi_merchant_ids),
         )
-
         if validate_s1:
             validate_hurdle_run(
                 base_path=base_path,
@@ -441,9 +338,7 @@ class Segment1AOrchestrator:
                 design_rows=design_rows,
             )
             logger.info("Segment1A S1 validation passed")
-
         hurdle_context = build_hurdle_context(s1_result)
-
         deterministic_context = build_s2_deterministic_context(
             parameter_hash=s1_result.parameter_hash,
             manifest_fingerprint=s1_result.manifest_fingerprint,
@@ -455,22 +350,18 @@ class Segment1AOrchestrator:
             hurdle=s0_result.outputs.hurdle_coefficients,
             dispersion=s0_result.outputs.dispersion_coefficients,
         )
-
         logger.info(
             "Segment1A S2 deterministic context built (merchants=%d)",
             len(deterministic_context.rows),
         )
-
         s2_result = self._s2_runner.run(
             base_path=base_path,
             deterministic=deterministic_context,
         )
-
         logger.info(
             "Segment1A S2 completed (accepted_merchants=%d)",
             len(s2_result.finals),
         )
-
         metrics: Dict[str, float] | None = None
         validation_output_dir: Path | None = None
         validation_artifacts_path: Path | None = None
@@ -495,7 +386,6 @@ class Segment1AOrchestrator:
                 output_dir=validation_output_dir,
             )
             logger.info("Segment1A S2 validation passed")
-
         catalogue_path = write_nb_catalogue(
             base_path=base_path,
             parameter_hash=s2_result.deterministic.parameter_hash,
@@ -515,7 +405,6 @@ class Segment1AOrchestrator:
             catalogue_path=catalogue_path,
             validation_artifacts_path=validation_artifacts_path,
         )
-
         rule_ladder_path = param_mapping.get("policy.s3.rule_ladder.yaml")
         if rule_ladder_path is None:
             raise err(
@@ -539,29 +428,63 @@ class Segment1AOrchestrator:
                     channel=str(row["channel_sym"]),
                 )
             )
-
+        def _row_share_vector(row: Mapping[str, object]) -> Mapping[str, float] | None:
+            vector = row.get("settlement_currency_vector")
+            cleaned: Dict[str, float] = {}
+            if isinstance(vector, Mapping):
+                for currency, weight in vector.items():
+                    if currency is None or weight is None:
+                        continue
+                    code = str(currency).upper()
+                    try:
+                        value = float(weight)
+                    except (TypeError, ValueError):
+                        continue
+                    if value < 0:
+                        continue
+                    cleaned[code] = cleaned.get(code, 0.0) + value
+                total = sum(cleaned.values())
+                if total > 0:
+                    cleaned = {code: value / total for code, value in cleaned.items()}
+                else:
+                    cleaned = {}
+            if not cleaned:
+                currency = row.get("settlement_currency")
+                if currency is not None:
+                    cleaned = {str(currency).upper(): 1.0}
+            return cleaned or None
+        merchant_currency_inputs = tuple(
+            MerchantCurrencyInput(
+                merchant_id=int(row["merchant_id"]),
+                home_country_iso=str(row["home_country_iso"]),
+                share_vector=_row_share_vector(row),
+            )
+            for row in merchant_rows
+            if int(row["merchant_id"]) in multi_ids
+        )
         if not merchant_profiles:
             raise err(
                 "ERR_S3_PRECONDITION",
                 "no multi-site merchants available for S3",
             )
-
         base_weight_path = param_mapping.get("policy.s3.base_weight.yaml")
         thresholds_path = param_mapping.get("policy.s3.thresholds.yaml")
-
         s3_toggles = S3FeatureToggles(
             priors_enabled=s3_priors,
             integerisation_enabled=s3_integerisation,
             sequencing_enabled=s3_sequencing,
         )
         s3_toggles.validate()
-
         if s3_toggles.priors_enabled and base_weight_path is None:
             raise err(
                 "ERR_S3_AUTHORITY_MISSING",
                 "policy.s3.base_weight.yaml required when priors are enabled",
             )
-
+        if s3_toggles.integerisation_enabled and bounds_path is None:
+            raise err(
+                "ERR_S3_AUTHORITY_MISSING",
+                "policy.s3.bounds.yaml required when integerisation is enabled",
+            )
         s3_deterministic = build_s3_deterministic_context(
             parameter_hash=s2_result.deterministic.parameter_hash,
             manifest_fingerprint=s2_result.deterministic.manifest_fingerprint,
@@ -595,27 +518,37 @@ class Segment1AOrchestrator:
                 if thresholds_path is not None
                 else None
             ),
+            bounds_spec=(
+                S3ArtefactSpec(
+                    artefact_id="policy.s3.bounds.yaml",
+                    path=bounds_path,
+                )
+                if bounds_path is not None
+                else None
+            ),
         )
-
         logger.info(
             "Segment1A S3 deterministic context built (merchants=%d)",
             len(s3_deterministic.merchants),
         )
-
         base_weight_policy = None
         if s3_toggles.priors_enabled:
             base_weight_policy = load_base_weight_policy(
                 base_weight_path,
                 iso_countries=s3_deterministic.iso_countries,
             )
-
         thresholds_policy = None
         if thresholds_path is not None:
             thresholds_policy = load_thresholds_policy(
                 thresholds_path,
                 iso_countries=s3_deterministic.iso_countries,
             )
-
+        bounds_policy = None
+        if s3_toggles.integerisation_enabled:
+            bounds_policy = load_bounds_policy(
+                bounds_path,
+                iso_countries=s3_deterministic.iso_countries,
+            )
         s3_result = self._s3_runner.run(
             base_path=base_path,
             deterministic=s3_deterministic,
@@ -623,13 +556,12 @@ class Segment1AOrchestrator:
             toggles=s3_toggles,
             base_weight_policy=base_weight_policy,
             thresholds_policy=thresholds_policy,
+            bounds_policy=bounds_policy,
         )
-
         logger.info(
             "Segment1A S3 completed (merchants=%d)",
             len(s3_deterministic.merchants),
         )
-
         s3_metrics: Dict[str, float] | None = None
         s3_validation_artifacts_path: Path | None = None
         s3_validation_passed: bool | None = None
@@ -685,14 +617,12 @@ class Segment1AOrchestrator:
                     )
         else:
             logger.info("Segment1A S3 validation skipped (validate_s3=False)")
-
         hyperparams_path = param_mapping.get('crossborder_hyperparams.yaml')
         if hyperparams_path is None:
             raise err(
                 "ERR_S4_POLICY_INVALID",
                 "parameter 'crossborder_hyperparams.yaml' required for S4",
             )
-
         feature_path = feature_path_input
         s4_deterministic, _ = build_s4_deterministic_context(
             parameter_hash=s2_result.deterministic.parameter_hash,
@@ -706,12 +636,10 @@ class Segment1AOrchestrator:
             candidate_set_path=s3_result.candidate_set_path,
             feature_view_path=feature_path,
         )
-
         s4_result = self._s4_runner.run(
             base_path=base_path,
             deterministic=s4_deterministic,
         )
-
         s4_metrics: Dict[str, float] | None = None
         s4_validation_passed: bool | None = None
         s4_validation_artifacts_path: Path | None = None
@@ -740,14 +668,123 @@ class Segment1AOrchestrator:
                 )
         else:
             logger.info("Segment1A S4 validation skipped (validate_s4=False)")
-
         s4_context = build_s4_context(
             s4_result,
             metrics=s4_metrics,
             validation_passed=s4_validation_passed,
             validation_artifacts_path=s4_validation_artifacts_path,
         )
-
+        repo_root = get_repo_root()
+        def _resolve_reference_path(path: Path | None) -> Path | None:
+            if path is None:
+                return None
+            return (path if path.is_absolute() else (repo_root / path)).resolve()
+        s5_deterministic = S5DeterministicContext(
+            parameter_hash=s2_result.deterministic.parameter_hash,
+            manifest_fingerprint=s2_result.deterministic.manifest_fingerprint,
+            run_id=s2_result.deterministic.run_id,
+            seed=s2_result.deterministic.seed,
+            policy_path=s5_policy_path,
+            merchants=merchant_currency_inputs,
+            settlement_shares_path=_resolve_reference_path(
+                S5_DEFAULT_PATHS.settlement_shares
+            ),
+            ccy_country_shares_path=_resolve_reference_path(
+                S5_DEFAULT_PATHS.ccy_country_shares
+            ),
+            iso_legal_tender_path=_resolve_reference_path(
+                S5_DEFAULT_PATHS.iso_legal_tender
+            ),
+        )
+        s5_result = self._s5_runner.run(
+            base_path=base_path,
+            deterministic=s5_deterministic,
+            emit_sparse_flag=True,
+        )
+        s5_context = build_s5_context(s5_result)
+        logger.info(
+            "Segment1A S5 completed (weights=%s, policy_digest=%s)",
+            s5_result.weights_path,
+            s5_context.policy_digest,
+        )
+        s6_result = self._s6_runner.run(
+            base_path=base_path,
+            policy_path=s6_policy_path,
+            parameter_hash=s5_deterministic.parameter_hash,
+            seed=s5_deterministic.seed,
+            run_id=s5_deterministic.run_id,
+            manifest_fingerprint=s5_deterministic.manifest_fingerprint,
+        )
+        s6_validation_payload: Mapping[str, object] | None = None
+        s6_validation_passed: bool | None = None
+        if validate_s6:
+            try:
+                s6_validation_payload = validate_outputs(
+                    base_path=base_path,
+                    outputs=s6_result,
+                )
+                s6_validation_passed = True
+            except S6ValidationError as exc:
+                s6_validation_passed = False
+                logger.exception("Segment1A S6 validation failed")
+                raise
+        s6_context = build_s6_context(
+            s6_result,
+            validation_payload=s6_validation_payload,
+            validation_passed=s6_validation_passed,
+        )
+        logger.info(
+            "Segment1A S6 completed (events=%s, membership=%s)",
+            s6_result.events_path,
+            s6_result.membership_path,
+        )
+        s7_result = self._s7_runner.run(
+            base_path=base_path,
+            policy_path=s7_policy_path,
+            parameter_hash=s5_deterministic.parameter_hash,
+            manifest_fingerprint=s5_deterministic.manifest_fingerprint,
+            seed=s5_deterministic.seed,
+            run_id=s5_deterministic.run_id,
+            nb_finals=s2_result.finals,
+            s6_context=s6_result.deterministic,
+            s6_results=s6_result.results,
+        )
+        if validate_s7:
+            validate_s7_outputs(s7_result.results)
+        s7_context = build_s7_context(s7_result)
+        logger.info(
+            "Segment1A S7 completed (residual_events=%d, dirichlet_events=%d)",
+            s7_result.residual_events,
+            s7_result.dirichlet_events,
+        )
+        s8_result = self._s8_runner.run(
+            base_path=base_path,
+            parameter_hash=s5_deterministic.parameter_hash,
+            manifest_fingerprint=s5_deterministic.manifest_fingerprint,
+            seed=s5_deterministic.seed,
+            run_id=s5_deterministic.run_id,
+            merchant_universe=s0_result.sealed.context.merchants,
+            hurdle_decisions=s1_result.decisions,
+            nb_finals=s2_result.finals,
+            s7_results=s7_result.results,
+        )
+        s8_context = build_s8_context(s8_result)
+        logger.info(
+            "Segment1A S8 completed (catalogue=%s)",
+            s8_result.catalogue_path,
+        )
+        s9_result = self._s9_runner.run(
+            base_path=base_path,
+            seed=s5_deterministic.seed,
+            parameter_hash=s5_deterministic.parameter_hash,
+            manifest_fingerprint=s5_deterministic.manifest_fingerprint,
+            run_id=s5_deterministic.run_id,
+        )
+        s9_context = build_s9_context(s9_result)
+        logger.info(
+            "Segment1A S9 completed (bundle=%s)",
+            s9_result.bundle_path,
+        )
         s3_context = build_s3_context(
             s3_result,
             metrics=s3_metrics,
@@ -756,7 +793,6 @@ class Segment1AOrchestrator:
             validation_artifacts_path=s3_validation_artifacts_path,
             validation_diagnostics=s3_diagnostics,
         )
-
         logger.info(
             "Segment1A orchestrator finished (run_id=%s)",
             s2_result.deterministic.run_id,
@@ -771,18 +807,36 @@ class Segment1AOrchestrator:
             s3_context=s3_context,
             s4_result=s4_result,
             s4_context=s4_context,
+            s5_result=s5_result,
+            s5_context=s5_context,
+            s6_result=s6_result,
+            s6_context=s6_context,
+            s7_result=s7_result,
+            s7_context=s7_context,
+            s8_result=s8_result,
+            s8_context=s8_context,
+            s9_result=s9_result,
+            s9_context=s9_context,
         )
-
-
 __all__ = [
     "HurdleStateContext",
     "S2StateContext",
     "S3StateContext",
     "S4StateContext",
+    "S5StateContext",
+    "S6StateContext",
+    "S7StateContext",
+    "S8StateContext",
+    "S9StateContext",
     "Segment1ARunResult",
     "Segment1AOrchestrator",
     "build_hurdle_context",
     "build_s2_context",
     "build_s3_context",
     "build_s4_context",
+    "build_s5_context",
+    "build_s6_context",
+    "build_s7_context",
+    "build_s8_context",
+    "build_s9_context",
 ]

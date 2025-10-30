@@ -1,6 +1,6 @@
 # Scenario profiles
-Status: LOCKED (conceptual).
+Status: ACTIVE (governed).
 Purpose: Drive Scenario Runner.
 Owns: human-readable knobs
 Boundaries: no RNG or schemas
-When we unlock this: add 1–2 profiles as examples
+Notes: curated examples live here; add new profiles with accompanying validation notes.

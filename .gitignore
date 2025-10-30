@@ -160,3 +160,6 @@ terraform-provider-aws_v*/
 artefacts/spatial/population_raster/**/*.tif
 temp/scratch.md
 scratch_files/
+
+# Exclude runs directory (generated/temporary data)
+runs/

@@ -35,7 +35,7 @@ def _fake_result(
     parameter_scoped_dir = (
         output_dir / "parameter_scoped" / f"parameter_hash={parameter_hash}"
     )
-    catalogue_path = _touch(parameter_scoped_dir / "s2_nb_catalogue.json")
+    nb_catalogue_path = _touch(parameter_scoped_dir / "s2_nb_catalogue.json")
 
     poisson_path = _touch(output_dir / "logs" / "rng" / "events" / "poisson_component" / "part-00000.jsonl")
     rejection_path = _touch(output_dir / "logs" / "rng" / "events" / "ztp_rejection" / "part-00000.jsonl")
@@ -94,6 +94,7 @@ def _fake_result(
         trace_path=nb_trace_path,
         validation_artifacts_path=None,
         metrics={"merchant_count": 1},
+        catalogue_path=nb_catalogue_path,
     )
 
     s2_result = SimpleNamespace(
@@ -115,8 +116,122 @@ def _fake_result(
     )
 
     hurdle_context = SimpleNamespace(
-        catalogue_path=catalogue_path,
+        catalogue_path=_touch(output_dir / "s1_catalogue.json"),
         multi_merchant_ids=[1],
+    )
+
+    s5_context = SimpleNamespace(
+        weights_path=_touch(output_dir / "weights.parquet"),
+        sparse_flag_path=None,
+        merchant_currency_path=None,
+        stage_log_path=None,
+        receipt_path=_touch(output_dir / "S5_VALIDATION.json"),
+        policy_digest="0" * 64,
+        policy_path=_touch(output_dir / "s5_policy.yaml"),
+        policy_semver="1.0.0",
+        policy_version="2025-10-16",
+        metrics={"currencies_total": 1, "currencies_processed": 1},
+        per_currency_metrics=(
+            {"currency": "USD", "sum_numeric_ok": True},
+        ),
+    )
+
+    s6_policy = _touch(output_dir / "s6_policy.yaml")
+    s6_context = SimpleNamespace(
+        deterministic=SimpleNamespace(policy_path=s6_policy),
+        events_path=None,
+        trace_path=None,
+        membership_path=None,
+        policy_digest="1" * 64,
+        policy_path=s6_policy,
+        policy_semver="0.1.0",
+        policy_version="2025-10-16",
+        events_expected=0,
+        events_written=0,
+        shortfall_count=0,
+        reason_code_counts={},
+        membership_rows=0,
+        trace_events=0,
+        trace_reconciled=True,
+        log_all_candidates=True,
+        rng_isolation_ok=True,
+        validation_payload=None,
+        validation_passed=True,
+        metrics={"s6.run.merchants_total": 0},
+        metrics_log_path=None,
+    )
+
+    s7_policy = _touch(output_dir / "s7_policy.yaml")
+    s7_residual_path = _touch(output_dir / "logs" / "rng" / "events" / "residual_rank" / "part-00000.jsonl")
+    s7_trace_path = _touch(output_dir / "logs" / "rng" / "trace" / "s7_trace.jsonl")
+    s7_context = SimpleNamespace(
+        deterministic=SimpleNamespace(
+            policy_path=s7_policy,
+            parameter_hash=parameter_hash,
+            manifest_fingerprint=manifest_fingerprint,
+            run_id=run_id,
+        ),
+        results=(),
+        policy_digest="2" * 64,
+        artefact_digests={},
+        residual_events_path=s7_residual_path,
+        dirichlet_events_path=None,
+        trace_path=s7_trace_path,
+        residual_events=0,
+        dirichlet_events=0,
+        trace_events=0,
+        metrics={"s7.merchants_in_scope": 0},
+    )
+
+    s8_catalogue_path = _touch(output_dir / "s8_outlet_catalogue.parquet")
+    s8_result = SimpleNamespace(
+        run_id=run_id,
+        catalogue_path=s8_catalogue_path,
+        sequence_finalize_path=None,
+        sequence_overflow_path=None,
+        validation_bundle_path=None,
+        stage_log_path=None,
+        metrics={"rows_total": 0},
+    )
+    s8_context = SimpleNamespace(
+        deterministic=SimpleNamespace(
+            parameter_hash=parameter_hash,
+            manifest_fingerprint=manifest_fingerprint,
+            run_id=run_id,
+            seed=seed,
+        ),
+        catalogue_path=s8_catalogue_path,
+        sequence_finalize_path=None,
+        sequence_overflow_path=None,
+        validation_bundle_path=None,
+        stage_log_path=None,
+        metrics={"rows_total": 0},
+        auxiliary_paths=None,
+    )
+
+    s9_bundle_path = _touch(output_dir / "validation_bundle" / "MANIFEST.json")
+    s9_flag_path = _touch(output_dir / "validation_bundle" / "_passed.flag")
+    s9_stage_log_path = _touch(output_dir / "logs" / "stages" / "s9_validation.jsonl")
+    s9_result = SimpleNamespace(
+        bundle_path=s9_bundle_path,
+        passed_flag_path=s9_flag_path,
+        stage_log_path=s9_stage_log_path,
+        failures=(),
+        result={"summary": {}},
+    )
+    s9_context = SimpleNamespace(
+        deterministic=SimpleNamespace(
+            base_path=output_dir,
+            seed=seed,
+            parameter_hash=parameter_hash,
+            manifest_fingerprint=manifest_fingerprint,
+            run_id=run_id,
+        ),
+        result={"summary": {}},
+        failures=(),
+        bundle_path=s9_bundle_path,
+        passed_flag_path=s9_flag_path,
+        stage_log_path=s9_stage_log_path,
     )
 
     return Segment1ARunResult(
@@ -129,6 +244,16 @@ def _fake_result(
         s3_context=s3_context,
         s4_result=SimpleNamespace(run_id=run_id),
         s4_context=s4_context,
+        s5_result=SimpleNamespace(run_id=run_id),
+        s5_context=s5_context,
+        s6_result=SimpleNamespace(run_id=run_id),
+        s6_context=s6_context,
+        s7_result=SimpleNamespace(run_id=run_id),
+        s7_context=s7_context,
+        s8_result=s8_result,
+        s8_context=s8_context,
+        s9_result=s9_result,
+        s9_context=s9_context,
     )
 
 
@@ -198,6 +323,7 @@ def test_segment1a_cli_passes_s4_options(tmp_path: Path, monkeypatch: pytest.Mon
     assert exit_code == 0
     assert captured_kwargs["validate_s4"] is True
     assert captured_kwargs["s4_features"] == features_path
+    assert captured_kwargs["validate_s6"] is True
     assert captured_kwargs["s4_validation_output"] == validation_output_dir.resolve()
     assert captured_kwargs["base_path"] == output_dir.resolve()
 

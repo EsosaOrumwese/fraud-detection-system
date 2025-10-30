@@ -1,5 +1,5 @@
 # Developer scripts
-Status: LOCKED (conceptual).
+Status: OPEN (conceptual).
 Purpose: Local helpers only.
 Owns: bootstrap/hash/package helpers
 Boundaries: no business logic

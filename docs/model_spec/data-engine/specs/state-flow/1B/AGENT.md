@@ -1,0 +1,4 @@
+We are in the developmental phase of this subsegment so its context should be files within docs\model_spec\data-engine\specs and not the general engine unless the USER clearly states so.
+Refer to 1A state-flow docs (docs\model_spec\data-engine\specs\state-flow\1A) and 1A contracts (docs\model_spec\data-engine\specs\contracts\1A) as background.
+Your accompanying registries, schema files and dictionaries are the ones found in the docs\model_spec\data-engine\specs\contracts\1B and maybe docs\model_spec\data-engine\specs\contracts\1A where necessary but not the projects schema files, registries or dictionaries
+This docs here are meant as a clear technical specification and not to include implementation artefacts like pseudocode or codes, just a clear description/definition of how it ought to run.
