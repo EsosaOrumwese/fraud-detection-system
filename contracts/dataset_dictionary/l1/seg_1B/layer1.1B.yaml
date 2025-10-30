@@ -342,6 +342,42 @@ datasets:
     pii: false
     license: Proprietary-Internal
 
+  validation_bundle_1B:
+    status: draft
+    owner_subsegment: 1B
+    description: Segment 1B validation bundle emitted by S9.
+    version: '{manifest_fingerprint}'
+    format: directory
+    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/bundle/
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.1B.yaml#/validation/bundle
+    lineage:
+      produced_by: 1B.S9
+      consumed_by: []
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
+  validation_passed_flag_1B:
+    status: draft
+    owner_subsegment: 1B
+    description: PASS flag for the Segment 1B validation bundle.
+    version: '{manifest_fingerprint}'
+    format: file
+    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/bundle/_passed.flag
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.1B.yaml#/validation/pass_flag
+    lineage:
+      produced_by: 1B.S9
+      consumed_by: []
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
   s4_run_report:
     status: draft
     owner_subsegment: 1B
