@@ -2,11 +2,12 @@ SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
 PY ?= python
+ENGINE_PYTHONPATH ?= packages/engine/src
 
 RUN_ROOT ?= runs/local_layer1_regen7
 RESULT_JSON ?= $(RUN_ROOT)/segment1a_result.json
 LOG ?=
-SEED ?= 2025102601
+SEED ?= 2025103001
 
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
 
@@ -42,7 +43,7 @@ SEG1A_ARGS = \
 	--stage-seg1b-refs \
 	--result-json $(RESULT_JSON) \
 	$(SEG1A_EXTRA)
-SEG1A_CMD = $(PY) -m engine.cli.segment1a $(SEG1A_ARGS)
+SEG1A_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment1a $(SEG1A_ARGS)
 
 SEG1B_BASIS ?= population
 SEG1B_DP ?= 4
@@ -61,11 +62,11 @@ SEG1B_ARGS = \
 	--s1-workers $(SEG1B_S1_WORKERS) \
 	--s4-workers $(SEG1B_S4_WORKERS) \
 	$(SEG1B_EXTRA)
-SEG1B_CMD = $(PY) -m engine.cli.segment1b run $(SEG1B_ARGS)
+SEG1B_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment1b run $(SEG1B_ARGS)
 
 .PHONY: all segment1a segment1b profile-all profile-seg1b clean-results
 
-all: segment1b
+all: segment1a segment1b
 
 segment1a:
 	@mkdir -p "$(RUN_ROOT)"
@@ -89,10 +90,10 @@ segment1b:
 	 fi
 
 profile-all:
-	$(PY) -m cProfile -o profile.segment1a -m engine.cli.segment1a $(SEG1A_ARGS)
+	PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m cProfile -o profile.segment1a -m engine.cli.segment1a $(SEG1A_ARGS)
 	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['parameter_hash'])"); \
 	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['manifest_fingerprint'])"); \
-	 $(PY) -m cProfile -o profile.segment1b -m engine.cli.segment1b run $(SEG1B_ARGS)
+	 PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m cProfile -o profile.segment1b -m engine.cli.segment1b run $(SEG1B_ARGS)
 
 profile-seg1b:
 	@if [ ! -f "$(RESULT_JSON)" ]; then \
@@ -101,7 +102,7 @@ profile-seg1b:
 	fi
 	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['parameter_hash'])"); \
 	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['manifest_fingerprint'])"); \
-	 $(PY) -m cProfile -o profile.segment1b -m engine.cli.segment1b run $(SEG1B_ARGS)
+	 PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m cProfile -o profile.segment1b -m engine.cli.segment1b run $(SEG1B_ARGS)
 
 clean-results:
 	rm -f "$(RESULT_JSON)" profile.segment1a profile.segment1b
