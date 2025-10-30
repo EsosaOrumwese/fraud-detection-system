@@ -94,4 +94,15 @@ Extend this section with concrete CLIs, policy paths, and test commands as you i
 - Surface TODOs or questions when the spec leaves gaps; do not improvise contracts.
 - Keep logging informative—mirror the Segment 1A CLI/orchestrator patterns so smoke tests stay readable.
 
+---
+
+## Implementation guardrails (must follow)
+- **Specs state intent; code must deliver outcomes.** If the literal steps in a spec would break determinism, efficiency, or memory posture, design the implementation that hits the stated end-goal instead and document the rationale in the logbook. Contracts and public artefacts still govern what you emit.
+- **Performance first.** Treat every state like a production data job: profile, stream, and vectorise. Target sub-15 minute executions for the heavy kernels (S1–S6) by default, and justify any regression.
+- **No more manual hand-offs.** Ensure Segment 1A staging covers every reference that Segment 1B consumes. Within Segment 1B, publish receipts, manifests, and dataset dictionaries so dependent states locate what they need without operator intervention.
+- **Memory-aware by design.** Use chunked IO, deterministic spill directories, and bounded concurrency to keep RSS under control. Loading entire rasters or catalogues into RAM without back-pressure is considered a bug.
+- **Resumable orchestration.** The orchestrator must be able to read existing `_passed.flag` artefacts, receipts, and RNG logs to resume from the point of failure (or clearly instruct the operator when manual repair is required) instead of rerunning S0–S9 from scratch.
+- **Operational visibility.** Instrument long-running steps with structured logging (progress counts, ETA-style checkpoints, RNG envelopes) so smoke tests and production monitors never look “stuck”.
+- **Deterministic artefacts only.** All seeded outputs (parquet partitions, manifests, contract bundles) must hash identically across reruns. Any volatile metadata (timestamps, `run_id`, temp paths, live telemetry) should be isolated from validation surfaces or normalised by tooling.
+
 _This router remains command-free by design. Execution strategy, test harness, and internal folder improvements stay up to you while respecting the governing specs._

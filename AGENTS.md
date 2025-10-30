@@ -46,4 +46,15 @@ Read these in order before modifying code so you share the project context:
 - Keep changes efficient and reproducible; add concise comments only when they clarify non-obvious intent.
 - Keep `pyproject.toml` aligned with any new dependencies you introduce.
 
+---
+
+## Implementation doctrine (binding for every agent)
+- **Chase project outcomes, not verbatim spec text.** Specs capture intent; if the implementation path in the doc would violate determinism, performance, or robustness targets, design a compliant alternative and call it out in the logbook before landing changes. Deviations must still honour the published contracts.
+- **Engineer for efficiency from day zero.** Profile early, stream large artefacts, and design kernels that cope with the actual data volumes (Segment 1B S1 is your cautionary tale). Aim for multi-minute, not multi-hour, execution envelopes.
+- **Design the hand-off surfaces.** Every state must publish the artefacts the next state/segment needs—shape, quality, and location included. No manual copying between Segment 1A and 1B; wire staging steps and manifest updates directly into the orchestration.
+- **Control memory usage deliberately.** Prefer chunked/iterator-based flows, deterministic temp directories, and spill-to-disk patterns over loading entire datasets into RAM. Treat OS-level crashes or thrash as regressions.
+- **Build for resumability.** Leverage run receipts, `_passed.flag`, and determinism records so the orchestrator can skip completed states, resume at the point of failure, or clearly instruct the operator how to recover.
+- **Instrument heavy paths.** Add structured logging around long-running loops and RNG envelopes so operators can observe progress in real time.
+- **Protect reproducibility.** Deterministic artefacts must hash identical across seeded runs. Volatile metadata (timestamps, `run_id`, temp paths) should be isolated from comparisons or normalised through tooling.
+
 _This router stays deliberately light on mechanics so it evolves slowly while the project grows._
