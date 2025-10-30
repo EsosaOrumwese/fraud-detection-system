@@ -288,6 +288,24 @@ datasets:
     pii: false
     license: Proprietary-Internal
 
+  s7_site_synthesis:
+    status: draft
+    owner_subsegment: 1B
+    description: Final per-site coordinates after jitter; exactly one record per site.
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    format: parquet
+    path: data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: [merchant_id, legal_country_iso, site_order]
+    schema_ref: schemas.1B.yaml#/plan/s7_site_synthesis
+    lineage:
+      produced_by: 1B.S7
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
   s3_run_report:
     status: draft
     owner_subsegment: 1B
@@ -354,6 +372,24 @@ datasets:
     schema_ref: schemas.1B.yaml#/control/s6_run_report
     lineage:
       produced_by: 1B.S6
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 30
+    pii: false
+    license: Proprietary-Internal
+
+  s7_run_summary:
+    status: draft
+    owner_subsegment: 1B
+    description: Control-plane run summary for S7 site synthesis publish.
+    version: '{seed}.{manifest_fingerprint}.{parameter_hash}'
+    format: json
+    path: data/layer1/1B/s7_site_synthesis/seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}/s7_run_summary.json
+    partitioning: [seed, fingerprint, parameter_hash]
+    ordering: []
+    schema_ref: schemas.1B.yaml#/control/s7_run_summary
+    lineage:
+      produced_by: 1B.S7
       consumed_by: [1B]
       final_in_layer: false
     retention_days: 30
