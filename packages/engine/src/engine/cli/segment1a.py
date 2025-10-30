@@ -273,10 +273,14 @@ def main(argv: list[str] | None = None) -> int:
         "--stage-seg1b-refs",
         dest="stage_seg1b_refs",
         action="store_true",
-        help=(
-            "Copy governed Segment 1B reference surfaces into <output-dir>/reference/** "
-            "and include them in the manifest."
-        ),
+        default=True,
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "--no-stage-seg1b-refs",
+        dest="stage_seg1b_refs",
+        action="store_false",
+        help="Skip staging Segment 1B reference surfaces into <output-dir>/reference/**.",
     )
 
     parser.set_defaults(
