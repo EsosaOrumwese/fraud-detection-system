@@ -197,6 +197,7 @@ def _build_run_summary(
             "path_embed_mismatches": 0,
             "coverage_1a_ok_count": outcome.coverage_ok_count,
             "coverage_1a_miss_count": outcome.coverage_miss_count,
+            "coverage_1a_pruned_count": outcome.coverage_pruned_count,
         },
         "by_country": by_country,
         "consumer_gate": {

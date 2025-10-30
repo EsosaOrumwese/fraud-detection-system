@@ -105,7 +105,7 @@ class S7SiteSynthesisValidator:
         self._validate_row_parity(dataset, assignments.frame)
         self._validate_parity_with_s6(dataset, jitter.frame)
         self._validate_geometry(dataset, jitter.frame, tile_bounds)
-        self._validate_coverage(dataset, outlet.frame)
+        pruned_outlets, coverage_ok = self._validate_coverage(dataset, outlet.frame)
 
         run_summary_path = (
             config.run_summary_path
@@ -117,6 +117,8 @@ class S7SiteSynthesisValidator:
             dataset=dataset,
             assignments=assignments.frame,
             jitter=jitter.frame,
+            pruned_outlets=pruned_outlets,
+            coverage_ok=coverage_ok,
             outcome_gate=gate,
         )
 
@@ -282,14 +284,18 @@ class S7SiteSynthesisValidator:
                     f"tile bounds for {tile_key}",
                 )
 
-    def _validate_coverage(self, dataset: pl.DataFrame, outlet: pl.DataFrame) -> None:
+    def _validate_coverage(self, dataset: pl.DataFrame, outlet: pl.DataFrame) -> tuple[int, int]:
         dataset_keys = _key_set(dataset)
-        outlet_keys = _key_set(outlet)
+        valid_iso = dataset.select("legal_country_iso").unique().to_series().to_list()
+        outlet_filtered = outlet.filter(pl.col("legal_country_iso").is_in(valid_iso))
+        pruned = int(outlet.height - outlet_filtered.height)
+        outlet_keys = _key_set(outlet_filtered)
         if dataset_keys != outlet_keys:
             raise err(
                 "E708_1A_COVERAGE_FAIL",
                 "s7_site_synthesis site keyset does not match outlet_catalogue",
             )
+        return pruned, outlet_filtered.height
 
     def _validate_run_summary(
         self,
@@ -298,6 +304,8 @@ class S7SiteSynthesisValidator:
         dataset: pl.DataFrame,
         assignments: pl.DataFrame,
         jitter: pl.DataFrame,
+        pruned_outlets: int,
+        coverage_ok: int,
         outcome_gate: VerifiedGate,
     ) -> None:
         if not run_summary_path.exists():
@@ -328,10 +336,13 @@ class S7SiteSynthesisValidator:
         for field, expected in (
             ("fk_tile_ok_count", expected_ok),
             ("inside_pixel_ok_count", expected_ok),
-            ("coverage_1a_ok_count", expected_ok),
         ):
             if int(validation_counters.get(field, -1)) != expected:
                 raise err("E704_SCHEMA_VIOLATION", f"run summary field '{field}' mismatch")
+        if int(validation_counters.get("coverage_1a_ok_count", -1)) != coverage_ok:
+            raise err("E704_SCHEMA_VIOLATION", "run summary field 'coverage_1a_ok_count' mismatch")
+        if int(validation_counters.get("coverage_1a_pruned_count", -1)) != pruned_outlets:
+            raise err("E704_SCHEMA_VIOLATION", "run summary field 'coverage_1a_pruned_count' mismatch")
         for field in ("fk_tile_fail_count", "inside_pixel_fail_count", "coverage_1a_miss_count", "path_embed_mismatches"):
             if int(validation_counters.get(field, 0)) != 0:
                 raise err("E704_SCHEMA_VIOLATION", f"run summary field '{field}' expected zero")

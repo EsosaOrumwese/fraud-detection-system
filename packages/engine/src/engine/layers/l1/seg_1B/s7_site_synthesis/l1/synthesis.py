@@ -52,6 +52,7 @@ class S7Outcome:
     inside_pixel_fail_count: int
     coverage_ok_count: int
     coverage_miss_count: int
+    coverage_pruned_count: int
     by_country: Dict[str, ByCountryStats]
 
 
@@ -149,7 +150,12 @@ def compute_site_synthesis(
             f"{missing_tile.height} S7 rows reference tiles missing from tile_bounds",
         )
 
-    records = []
+    merchant_ids: list[int] = []
+    iso_codes: list[str] = []
+    site_orders: list[int] = []
+    tile_ids: list[int] = []
+    longitudes: list[float] = []
+    latitudes: list[float] = []
     inside_ok = 0
     inside_fail = 0
     fk_tile_ok = enriched.height
@@ -175,7 +181,7 @@ def compute_site_synthesis(
             )
 
         inside_ok += 1
-        iso = str(row["legal_country_iso"])
+        iso = str(row["legal_country_iso"]).upper()
         stats = by_country.get(iso)
         if stats is None:
             stats = ByCountryStats(sites_s7=0, fk_tile_fail=0, outside_pixel=0, coverage_1a_miss=0)
@@ -186,34 +192,45 @@ def compute_site_synthesis(
             coverage_1a_miss=stats.coverage_1a_miss,
         )
 
-        records.append(
+        merchant_ids.append(int(row["merchant_id"]))
+        iso_codes.append(iso)
+        site_orders.append(int(row["site_order"]))
+        tile_ids.append(int(row["tile_id"]))
+        longitudes.append(lon_deg)
+        latitudes.append(lat_deg)
+
+    if merchant_ids:
+        s7_frame = (
+            pl.DataFrame(
+                {
+                    "merchant_id": pl.Series(merchant_ids, dtype=pl.UInt64),
+                    "legal_country_iso": pl.Series(iso_codes, dtype=pl.Utf8),
+                    "site_order": pl.Series(site_orders, dtype=pl.Int64),
+                    "tile_id": pl.Series(tile_ids, dtype=pl.UInt64),
+                    "lon_deg": pl.Series(longitudes, dtype=pl.Float64),
+                    "lat_deg": pl.Series(latitudes, dtype=pl.Float64),
+                }
+            ).sort(keys)
+        )
+    else:
+        s7_frame = pl.DataFrame(
             {
-                "merchant_id": int(row["merchant_id"]),
-                "legal_country_iso": iso,
-                "site_order": int(row["site_order"]),
-                "tile_id": int(row["tile_id"]),
-                "lon_deg": lon_deg,
-                "lat_deg": lat_deg,
+                "merchant_id": pl.Series([], dtype=pl.UInt64),
+                "legal_country_iso": pl.Series([], dtype=pl.Utf8),
+                "site_order": pl.Series([], dtype=pl.Int64),
+                "tile_id": pl.Series([], dtype=pl.UInt64),
+                "lon_deg": pl.Series([], dtype=pl.Float64),
+                "lat_deg": pl.Series([], dtype=pl.Float64),
             }
         )
 
-    s7_frame = (
-        pl.DataFrame(records)
-        .with_columns(
-            [
-                pl.col("merchant_id").cast(pl.UInt64),
-                pl.col("legal_country_iso").cast(pl.Utf8).str.to_uppercase(),
-                pl.col("site_order").cast(pl.Int64),
-                pl.col("tile_id").cast(pl.UInt64),
-                pl.col("lon_deg").cast(pl.Float64),
-                pl.col("lat_deg").cast(pl.Float64),
-            ]
-        )
-        .sort(keys)
-    )
-
     s7_keys = _to_site_key_set(s7_frame)
-    outlet_keys = _to_site_key_set(outlet)
+
+    valid_iso_list = s5.get_column("legal_country_iso").unique().to_list()
+    outlet_filtered = outlet.filter(pl.col("legal_country_iso").is_in(valid_iso_list))
+    pruned_outlets = int(outlet.height - outlet_filtered.height)
+
+    outlet_keys = _to_site_key_set(outlet_filtered)
 
     missing_in_outlet = s7_keys - outlet_keys
     extra_outlet = outlet_keys - s7_keys
@@ -252,6 +269,7 @@ def compute_site_synthesis(
         inside_pixel_fail_count=inside_fail,
         coverage_ok_count=coverage_ok,
         coverage_miss_count=0,
+        coverage_pruned_count=pruned_outlets,
         by_country=by_country,
     )
 

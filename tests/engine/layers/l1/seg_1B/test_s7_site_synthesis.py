@@ -169,6 +169,9 @@ def test_runner_and_validator_s7(tmp_path: Path):
 
     summary = json.loads(result.run_summary_path.read_text(encoding="utf-8"))
     assert summary["counts"]["sites_total_s7"] == 2
+    counters = summary["validation_counters"]
+    assert counters["coverage_1a_ok_count"] == 2
+    assert counters["coverage_1a_pruned_count"] == 0
 
     validator = S7SiteSynthesisValidator()
     validator.validate(
