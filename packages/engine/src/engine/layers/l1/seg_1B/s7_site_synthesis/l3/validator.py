@@ -104,7 +104,7 @@ class S7SiteSynthesisValidator:
 
         self._validate_row_parity(dataset, assignments.frame)
         self._validate_parity_with_s6(dataset, jitter.frame)
-        self._validate_geometry(dataset, jitter.frame, tile_bounds.frame)
+        self._validate_geometry(dataset, jitter.frame, tile_bounds)
         self._validate_coverage(dataset, outlet.frame)
 
         run_summary_path = (
@@ -208,28 +208,47 @@ class S7SiteSynthesisValidator:
         self,
         dataset: pl.DataFrame,
         jitter: pl.DataFrame,
-        tile_bounds: pl.DataFrame,
+        tile_bounds: TileBoundsPartition,
     ) -> None:
-        jitter_map = {
-            (int(row["merchant_id"]), str(row["legal_country_iso"]).upper(), int(row["site_order"])): (
+        jitter_map: dict[tuple[int, str, int], tuple[float, float, int]] = {}
+        tile_ids_by_iso: dict[str, set[int]] = {}
+
+        for row in jitter.iter_rows(named=True):
+            key = (
+                int(row["merchant_id"]),
+                str(row["legal_country_iso"]).upper(),
+                int(row["site_order"]),
+            )
+            jitter_map[key] = (
                 float(row["delta_lon_deg"]),
                 float(row["delta_lat_deg"]),
                 int(row["tile_id"]),
             )
-            for row in jitter.iter_rows(named=True)
-        }
+            iso_tiles = tile_ids_by_iso.setdefault(key[1], set())
+            iso_tiles.add(int(row["tile_id"]))
 
-        tile_map = {
-            (str(row["country_iso"]).upper(), int(row["tile_id"])): (
-                float(row["min_lon_deg"]),
-                float(row["max_lon_deg"]),
-                float(row["min_lat_deg"]),
-                float(row["max_lat_deg"]),
-                float(row["centroid_lon_deg"]),
-                float(row["centroid_lat_deg"]),
-            )
-            for row in tile_bounds.iter_rows(named=True)
-        }
+        tile_cache: dict[str, dict[int, tuple[float, float, float, float, float, float]]] = {}
+
+        def _load_tile_map(iso: str) -> dict[int, tuple[float, float, float, float, float, float]]:
+            cached = tile_cache.get(iso)
+            if cached is not None:
+                return cached
+
+            requested_ids = tile_ids_by_iso.get(iso, set())
+            frame = tile_bounds.collect_country(iso, tile_ids=requested_ids)
+            tile_dict = {
+                int(row["tile_id"]): (
+                    float(row["min_lon_deg"]),
+                    float(row["max_lon_deg"]),
+                    float(row["min_lat_deg"]),
+                    float(row["max_lat_deg"]),
+                    float(row["centroid_lon_deg"]),
+                    float(row["centroid_lat_deg"]),
+                )
+                for row in frame.iter_rows(named=True)
+            }
+            tile_cache[iso] = tile_dict
+            return tile_dict
 
         for row in dataset.iter_rows(named=True):
             key = (int(row["merchant_id"]), str(row["legal_country_iso"]).upper(), int(row["site_order"]))
@@ -239,7 +258,7 @@ class S7SiteSynthesisValidator:
             (delta_lon, delta_lat, tile_id) = jitter_row
 
             tile_key = (key[1], tile_id)
-            tile_record = tile_map.get(tile_key)
+            tile_record = _load_tile_map(key[1]).get(tile_id)
             if tile_record is None:
                 raise err("E709_TILE_FK_VIOLATION", f"tile {tile_key} missing from tile_bounds")
 

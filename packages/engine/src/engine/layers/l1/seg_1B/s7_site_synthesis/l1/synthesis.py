@@ -66,7 +66,6 @@ def compute_site_synthesis(
 
     s5 = assignments.frame
     s6 = jitter.frame
-    tile = tile_bounds.frame
     outlet = outlet_catalogue.frame
 
     keys = ["merchant_id", "legal_country_iso", "site_order"]
@@ -120,12 +119,28 @@ def compute_site_synthesis(
         ]
     )
 
-    enriched = joined.join(
-        tile,
-        left_on=["legal_country_iso", "tile_id"],
-        right_on=["country_iso", "tile_id"],
-        how="left",
-    )
+    enriched_parts: list[pl.DataFrame] = []
+    for iso_frame in joined.partition_by("legal_country_iso", maintain_order=True):
+        if iso_frame.height == 0:
+            continue
+        iso_value = str(iso_frame.item(0, "legal_country_iso"))
+        tile_frame = tile_bounds.collect_country(
+            iso_value,
+            tile_ids=iso_frame.get_column("tile_id").unique(),
+        )
+        if tile_frame.is_empty():
+            missing = iso_frame.height
+            raise err(
+                "E709_TILE_FK_VIOLATION",
+                f"{missing} S7 rows reference tiles missing from tile_bounds for ISO {iso_value}",
+            )
+        enriched_iso = iso_frame.join(tile_frame, on="tile_id", how="left")
+        enriched_parts.append(enriched_iso)
+
+    if not enriched_parts:
+        enriched = pl.DataFrame()
+    else:
+        enriched = pl.concat(enriched_parts, how="vertical")
 
     missing_tile = enriched.filter(pl.col("centroid_lon_deg").is_null())
     if missing_tile.height:
