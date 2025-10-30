@@ -35,6 +35,24 @@ class _StubWriter:
     def append_row(self, **row: object) -> None:
         self.rows.append(dict(row))
 
+    def append_batch(self, **columns: object) -> None:
+        if not columns:
+            return
+        first_key = next(iter(columns))
+        entries = columns[first_key]
+        try:
+            length = len(entries)
+        except TypeError:
+            length = 0
+        for idx in range(length):
+            row = {}
+            for key, values in columns.items():
+                if hasattr(values, "__getitem__"):
+                    row[key] = values[idx]
+                else:
+                    row[key] = values
+            self.rows.append(row)
+
 
 def _make_raster(width: int = 20, height: int = 20) -> PopulationRaster:
     transform = Affine.translation(0, 10) * Affine.scale(1, -1)

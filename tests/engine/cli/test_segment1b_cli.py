@@ -73,6 +73,24 @@ def stub_orchestrator(monkeypatch: pytest.MonkeyPatch):
                 counter_span=6,
                 run_id="bcd1234ef567890abcd1234ef567890",
             ),
+            s7=SimpleNamespace(
+                dataset_path=Path("/tmp/s7_site_synthesis"),
+                run_summary_path=Path("/tmp/s7_run_summary.json"),
+                determinism_receipt={"partition_path": "/tmp/s7_site_synthesis", "sha256_hex": "00ff00ff"},
+                run_id="cbd1234ef567890abcd1234ef567890",
+            ),
+            s8=SimpleNamespace(
+                dataset_path=Path("/tmp/s8_site_locations"),
+                run_summary_path=Path("/tmp/s8_run_summary.json"),
+                determinism_receipt={"partition_path": "/tmp/s8_site_locations", "sha256_hex": "11112222"},
+                run_id="dbd1234ef567890abcd1234ef567890",
+            ),
+            s9=SimpleNamespace(
+                bundle_path=Path("/tmp/s9_validation_bundle"),
+                flag_path=Path("/tmp/s9_validation_bundle/_passed.flag"),
+                stage_log_path=Path("/tmp/logs/s9_stage.log"),
+                result=SimpleNamespace(passed=True, failures=[]),
+            ),
         )
 
     monkeypatch.setattr(cli, "Segment1BOrchestrator", lambda: SimpleNamespace(run=_run))

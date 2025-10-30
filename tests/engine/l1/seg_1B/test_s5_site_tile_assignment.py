@@ -58,6 +58,12 @@ def _dictionary() -> dict[str, object]:
                 "partitioning": ["seed", "parameter_hash", "run_id"],
                 "ordering": [],
                 "schema_ref": "schemas.layer1.yaml#/rng/events/site_tile_assign",
+            },
+            "rng_trace_log": {
+                "path": "logs/rng/trace/site_tile_assign/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl",
+                "partitioning": ["seed", "parameter_hash", "run_id"],
+                "ordering": [],
+                "schema_ref": "schemas.layer1.yaml#/rng/core/rng_trace_log",
             }
         },
     }

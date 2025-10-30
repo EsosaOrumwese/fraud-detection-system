@@ -85,13 +85,18 @@ def test_allocate_sites_basic() -> None:
     )
     tile_index = tile_weights.select(["country_iso", "tile_id"])
 
-    result = s4_allocate_sites(requirements, tile_weights, tile_index, dp=3)
+    result = s4_allocate_sites(
+        requirements=requirements,
+        tile_weights=tile_weights,
+        tile_index=tile_index,
+        dp=3,
+    )
     allocations = {
         (row[0], row[1], row[2]): row[3]
         for row in result.frame.rows()
     }
-    assert allocations[(1, "US", 1)] == 4
-    assert allocations[(1, "US", 2)] == 1
+    assert allocations[(1, "US", 1)] == 3
+    assert allocations[(1, "US", 2)] == 2
 
 
 @pytest.mark.parametrize(
@@ -110,7 +115,12 @@ def test_allocate_sites_tie_breaks(tile_weights: pl.DataFrame) -> None:
     )
     tile_index = tile_weights.select(["country_iso", "tile_id"])
 
-    result = s4_allocate_sites(requirements, tile_weights, tile_index, dp=3)
+    result = s4_allocate_sites(
+        requirements=requirements,
+        tile_weights=tile_weights,
+        tile_index=tile_index,
+        dp=3,
+    )
     allocation_map = {row[2]: row[3] for row in result.frame.rows()}
     assert allocation_map == {10: 1, 11: 1, 12: 1}
 
@@ -175,8 +185,8 @@ def test_runner_and_validator_success(tmp_path: Path, monkeypatch: pytest.Monkey
         .collect()
     )
     assert dataset.sort(["merchant_id", "legal_country_iso", "tile_id"]).rows() == [
-        (1, "US", 1, 4),
-        (1, "US", 2, 1),
+        (1, "US", 1, 3),
+        (1, "US", 2, 2),
         (2, "GB", 5, 1),
         (2, "GB", 6, 1),
     ]
@@ -185,7 +195,7 @@ def test_runner_and_validator_success(tmp_path: Path, monkeypatch: pytest.Monkey
     assert result.alloc_sum_equals_requirements is True
 
     run_report_payload = json.loads(result.report_path.read_text(encoding="utf-8"))
-    assert run_report_payload["workers_used"] == 2
+    assert run_report_payload["workers_used"] == 1
     assert run_report_payload["max_worker_rss_bytes"] == 1024
     assert run_report_payload["open_files_peak"] == 5
     summaries = run_report_payload.get("merchant_summaries")

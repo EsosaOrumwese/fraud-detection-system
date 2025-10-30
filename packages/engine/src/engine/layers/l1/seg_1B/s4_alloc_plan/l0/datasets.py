@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import cached_property
 from pathlib import Path
 from typing import Mapping
 
@@ -61,6 +62,22 @@ class TileIndexPartition:
     path: Path
     file_paths: tuple[Path, ...]
     dataset: ds.Dataset
+
+    @cached_property
+    def frame(self) -> pl.DataFrame:
+        table = self.dataset.to_table()
+        frame = pl.from_arrow(table, rechunk=False)
+        updates = []
+        if "country_iso" in frame.columns:
+            updates.append(pl.col("country_iso").cast(pl.Utf8))
+        if "tile_id" in frame.columns:
+            updates.append(pl.col("tile_id").cast(pl.UInt64))
+        if updates:
+            frame = frame.with_columns(updates)
+        sort_keys = [key for key in ("country_iso", "tile_id") if key in frame.columns]
+        if sort_keys:
+            frame = frame.sort(sort_keys)
+        return frame
 
     def collect_country(self, iso: str, columns: tuple[str, ...] | None = None) -> pl.DataFrame:
         requested = columns or ("country_iso", "tile_id")
