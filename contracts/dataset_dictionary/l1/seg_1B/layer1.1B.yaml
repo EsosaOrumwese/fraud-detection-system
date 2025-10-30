@@ -306,6 +306,24 @@ datasets:
     pii: false
     license: Proprietary-Internal
 
+  site_locations:
+    status: draft
+    owner_subsegment: 1B
+    description: Location egress after deduping/upcasting S7 coordinates; exactly one row per site.
+    version: '{seed}.{manifest_fingerprint}'
+    format: parquet
+    path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitioning: [seed, fingerprint]
+    ordering: [merchant_id, legal_country_iso, site_order]
+    schema_ref: schemas.1B.yaml#/egress/site_locations
+    lineage:
+      produced_by: 1B.S8
+      consumed_by: [1B]
+      final_in_layer: true
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
   s3_run_report:
     status: draft
     owner_subsegment: 1B
@@ -390,6 +408,24 @@ datasets:
     schema_ref: schemas.1B.yaml#/control/s7_run_summary
     lineage:
       produced_by: 1B.S7
+      consumed_by: [1B]
+      final_in_layer: false
+    retention_days: 30
+    pii: false
+    license: Proprietary-Internal
+
+  s8_run_summary:
+    status: draft
+    owner_subsegment: 1B
+    description: Control-plane run summary for S8 site_locations publish.
+    version: '{seed}.{manifest_fingerprint}'
+    format: json
+    path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/s8_run_summary.json
+    partitioning: [seed, fingerprint]
+    ordering: []
+    schema_ref: schemas.1B.yaml#/control/s8_run_summary
+    lineage:
+      produced_by: 1B.S8
       consumed_by: [1B]
       final_in_layer: false
     retention_days: 30
