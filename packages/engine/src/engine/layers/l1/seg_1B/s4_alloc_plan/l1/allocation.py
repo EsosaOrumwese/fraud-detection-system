@@ -114,6 +114,9 @@ def allocate_country_sites(
 
         ties = 0
 
+        # TODO(2A): replace argpartition-based selection with a fully deterministic ordering
+        # that considers all equal residues (e.g., sort (-residue, tile_id)) so tie-breaks
+        # never depend on how argpartition chooses among equals.
         if shortfall > 0:
             if shortfall > allocation.size:
                 raise err(
