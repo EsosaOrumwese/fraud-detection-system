@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import concurrent.futures
+import errno
 import hashlib
 import json
 import logging
@@ -333,8 +334,8 @@ class S1TileIndexRunner:
 
         tile_temp_dir = execution.tile_temp_dir
         bounds_temp_dir = execution.bounds_temp_dir
-        tile_temp_dir.replace(tile_index_dir)
-        bounds_temp_dir.replace(tile_bounds_dir)
+        _publish_partition(tile_temp_dir, tile_index_dir, label="tile_index")
+        _publish_partition(bounds_temp_dir, tile_bounds_dir, label="tile_bounds")
 
         summaries = execution.summaries
         rows_emitted = execution.rows_emitted
@@ -1170,6 +1171,30 @@ def _write_empty_shard(target_dir: Path, columns: Sequence[str], schema: Mapping
     series = {column: pl.Series(column, [], dtype=schema[column]) for column in columns}
     frame = pl.DataFrame(series)
     frame.write_parquet(target_dir / "part-00000.parquet", compression="zstd")
+
+
+def _publish_partition(temp_dir: Path, final_dir: Path, *, label: str) -> None:
+    try:
+        temp_dir.replace(final_dir)
+        return
+    except PermissionError as exc:
+        _fallback_publish(temp_dir, final_dir, label=label, error=exc)
+    except OSError as exc:
+        if exc.errno == errno.EACCES:
+            _fallback_publish(temp_dir, final_dir, label=label, error=exc)
+        else:
+            raise
+
+
+def _fallback_publish(temp_dir: Path, final_dir: Path, *, label: str, error: OSError) -> None:
+    if final_dir.exists():
+        raise S1RunError(f"S1: publish target already exists for {label} at '{final_dir}'") from error
+    logger = logging.getLogger(__name__)
+    logger.warning(
+        "S1: %s when renaming %s into place; falling back to copy", error.__class__.__name__, label
+    )
+    shutil.copytree(temp_dir, final_dir, dirs_exist_ok=False)
+    shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 def _configure_worker_logging() -> None:
