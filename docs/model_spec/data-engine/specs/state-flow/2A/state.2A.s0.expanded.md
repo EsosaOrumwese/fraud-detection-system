@@ -87,7 +87,7 @@ S0 **seals** the following assets into the 2A manifest. Each item MUST be **immu
 
 1. **Upstream 1B PASS artefacts (gate evidence).**
 
-   * `validation_bundle_1B` — bundle under `data/layer1/1B/validation/fingerprint={manifest_fingerprint}/bundle/` (**partition:** `[fingerprint]`).
+   * `validation_bundle_1B` — Dictionary‑resolved folder under `data/layer1/1B/validation/fingerprint={manifest_fingerprint}/` (**partition:** `[fingerprint]`). Do not assume a subfolder name; Dictionary governs the exact layout.
    * `validation_passed_flag_1B` — `_passed.flag` under `data/layer1/1B/validation/fingerprint={manifest_fingerprint}/`.
      *Role:* proves eligibility to read any 1B egress for this fingerprint. 
 
@@ -225,10 +225,11 @@ For each sealed input listed in §3.2, S0 binds authorities and limits behaviour
 **Required fields (design intent; shape owned by `schemas.2A.yaml#/validation/s0_gate_receipt_v1`).**
 
 * `manifest_fingerprint : hex64` — **equals** the `fingerprint` path token. 
-* `validation_bundle_path : string` — location of the verified 1B bundle, e.g. `data/layer1/1B/validation/fingerprint={manifest_fingerprint}/`. 
+* `validation_bundle_path : string` — Dictionary‑resolved location of the verified 1B bundle, e.g. `data/layer1/1B/validation/fingerprint={manifest_fingerprint}/` (no hardcoded subfolder; Dictionary is authority). 
+* `parameter_hash : hex64` — recorded lineage token (not a partition in S0).
 * `flag_sha256_hex : hex64` — value proven against the bundle’s ASCII-lex hash rule. 
 * `verified_at_utc : RFC-3339` — observational timestamp (non-semantic). 
-* `sealed_inputs : array<object>` — each entry names an input S0 sealed for 2A with its **partition set** and **schema anchor**, e.g.:
+* `sealed_inputs : array<object>` — each entry names an input S0 sealed for 2A with its **partition set** and **schema anchor** (per‑asset digests and version tags live in the mandatory `sealed_inputs_v1` inventory), e.g.:
   • `site_locations` (partition `["seed","fingerprint"]`, `schemas.1B.yaml#/egress/site_locations`). 
   • `tz_world_<release>` (ingress anchor for the chosen release). 
   • `tzdb_release` (archive + version metadata; registry/dictionary authority). 
@@ -237,20 +238,20 @@ For each sealed input listed in §3.2, S0 binds authorities and limits behaviour
 
 **Write posture.** Single-writer, **write-once** per fingerprint; publish via stage → fsync → **atomic move**. Re-publishing to an existing partition **MUST** be byte-identical; otherwise **ABORT** (immutable partition). This mirrors 1B’s immutability law. 
 
-### 5.2 Optional diagnostic deliverable — `sealed_inputs_v1`
+### 5.2 Diagnostic deliverable (mandatory) — `sealed_inputs_v1`
 
-**Purpose.** Row-wise inventory of every asset sealed in §3, to aid audits without reopening the 1B bundle. Recommended when the sealed set is large or spans multiple authorities. (Not required for downstream reads.)
+**Purpose.** Row-wise inventory of every asset sealed in §3, to aid audits without reopening the 1B bundle. This table is mandatory and carries per‑asset `version_tag` and `sha256_hex` used for fingerprinting.
 
 **Identity & path.**
 
 * **Partition:** `[fingerprint]` (same as the receipt).
 * **Canonical template (Dictionary owns exact path/format):**
   `data/layer1/2A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet`
-* **Columns (design intent; shape owned by `schemas.2A.yaml#/manifests/sealed_inputs_v1`):** `asset_id`, `kind`, `basename`, `version_tag`, `schema_ref`, `catalog_path`, `sha256_hex`, `size_bytes`, `license_class`. Authority split mirrors Layer-1 practice (Schema=shape; Dictionary=IDs→paths/partitions; Registry=licence/retention). 
+* **Columns (design intent; shape owned by `schemas.2A.yaml#/manifests/sealed_inputs_v1`):** `asset_id`, `kind`, `basename`, `version_tag`, `schema_ref`, `catalog_path`, `sha256_hex`, `size_bytes`, `license_class`. Authority split mirrors Layer-1 practice (Schema=shape; Dictionary=IDs→paths/partitions; Registry=licence/retention).
 
 ### 5.3 Identity discipline & downstream contract
 
-* **Gate dependence.** Downstream 2A states MUST verify that a single `s0_gate_receipt_2A` exists for the target `manifest_fingerprint` and **schema-validates**; they **do not** re-hash the 1B bundle. *(Same pattern 1B used for its S0 receipt.)* 
+* **Gate dependence.** Downstream 2A states MUST verify that a single `s0_gate_receipt_2A` exists for the target `manifest_fingerprint` and **schema-validates**; they **do not** re-hash the 1B bundle. *(Same pattern 1B used for its S0 receipt.)* The mandatory `sealed_inputs_v1` inventory carries the per‑asset digests and version tags used for fingerprinting.
 * **Path↔embed equality.** Wherever lineage appears both in path tokens and embedded fields (e.g., `manifest_fingerprint`), values **MUST** byte-equal. This mirrors the 1B egress/receipt law. 
 * **Dictionary-only resolution.** All IDs resolve via the Dataset Dictionary; **no literal paths**. Schema remains the **sole shape authority**; Registry governs existence/licensing/retention. 
 
@@ -259,7 +260,7 @@ For each sealed input listed in §3.2, S0 binds authorities and limits behaviour
 * **Formats.** Receipt is **JSON**; diagnostics typically **Parquet** (owned by Dictionary entries). 1B’s receipt used JSON; 2A follows the same convention. 
 * **Licensing & retention.** Licence class and TTL are owned by the Dictionary/Registry; S0 MUST NOT override them. (Typical retention mirrors validation artefacts and egress norms in Layer-1.) 
 
-**Binding effect.** With a fingerprint-scoped receipt (and optional sealed-inputs table) published under strict path↔embed equality and write-once atomicity, 2A gains a reproducible **read permission** boundary identical in spirit to 1B’s S0. All later 2A states rely on this receipt—not on re-implementing the 1B bundle hash—and MUST match the same `manifest_fingerprint` before consuming sealed inputs.
+**Binding effect.** With a fingerprint-scoped receipt and mandatory sealed-inputs table published under strict path↔embed equality and write-once atomicity, 2A gains a reproducible **read permission** boundary identical in spirit to 1B’s S0. All later 2A states rely on this receipt + inventory—not on re-implementing the 1B bundle hash—and MUST match the same `manifest_fingerprint` before consuming sealed inputs.
 
 ---
 
@@ -270,7 +271,7 @@ For each sealed input listed in §3.2, S0 binds authorities and limits behaviour
 ### 6.1 Schema pack & `$defs` used
 
 * **Segment pack:** `schemas.2A.yaml` (this segment).
-* **Layer pack (shared types):** use the layer `$defs` for closed domains, notably **`hex64`** and **`uint64`** (and other primitives already defined). 2A’s timestamp uses **RFC-3339 with exactly 6 fractional digits** (define as `rfc3339_micros` in `schemas.2A.yaml`, identical to 1B’s `$defs.rfc3339_micros`).
+* **Layer pack (shared types):** use the layer `$defs` for closed domains, notably **`hex64`**, **`uint64`**, and **`rfc3339_micros`** (these live in `schemas.layer1.yaml`; 2A references them).
 
 **Anchor rule (by reference):** `#/validation/*` and `#/manifests/*` live in `schemas.2A.yaml`; ingress FK surfaces (e.g., ISO/tz/world polygons) live in the ingress pack; 1B egress anchors (e.g., `site_locations`) live in `schemas.1B.yaml`. 
 
@@ -299,7 +300,7 @@ For each sealed input listed in §3.2, S0 binds authorities and limits behaviour
 
 ---
 
-### 6.3 Sealed-inputs inventory (diagnostic; optional)
+### 6.3 Sealed-inputs inventory (diagnostic; mandatory)
 
 **ID → Schema:** `sealed_inputs_v1` → `schemas.2A.yaml#/manifests/sealed_inputs_v1` (table; **columns_strict: true**).
 **Identity & keys (binding):**
@@ -392,7 +393,7 @@ To form the sealed set for 2A:
 ### 7.5 Emission discipline (write-once, atomic)
 
 * **Receipt first-class.** After fingerprint derivation, S0 **SHALL** emit `s0_gate_receipt_2A` under the fingerprint partition; emission is **write-once** for that partition.
-* **Optional diagnostics.** If present, `sealed_inputs_v1` **SHALL** be co-partitioned by the same fingerprint and reflect exactly the sealed manifest used to compute the fingerprint.
+* **Diagnostics mandatory.** `sealed_inputs_v1` **SHALL** be co-partitioned by the same fingerprint and reflect exactly the sealed manifest used to compute the fingerprint.
 * **Atomicity.** Outputs **SHALL** be published atomically (stage → fsync → atomic move). Re-emitting different bytes to an existing partition is **forbidden**; attempts **MUST** abort.
 
 ### 7.6 Prohibitions (non-behaviours)
@@ -429,7 +430,7 @@ To form the sealed set for 2A:
 ### 8.2 Partitions & path families
 
 * **Receipt:** `s0_gate_receipt_2A` is partitioned by `[fingerprint]` only.
-* **Diagnostics (optional):** `sealed_inputs_v1` is co-partitioned by `[fingerprint]`.
+* **Diagnostics:** `sealed_inputs_v1` is co-partitioned by `[fingerprint]`.
 * **Dictionary authority:** Exact path templates, filenames, and formats are governed by the Dataset Dictionary; this spec binds the **partition set** and equality law.
 * **Prohibitions:** No additional partitions (e.g., `seed`) are permitted in S0 outputs; `parameter_hash` MUST NOT appear as a partition.
 
@@ -497,13 +498,13 @@ To form the sealed set for 2A:
 ### 9.3 Receipt correctness (mandatory)
 
 **V-10 — Path↔embed equality (Abort).** In `s0_gate_receipt_2A`, the embedded `manifest_fingerprint` **byte-equals** the `fingerprint` partition token.
-**V-11 — Upstream proof fields (Abort).** `validation_bundle_path` resolves (via Dictionary) to the 1B bundle for the **same** fingerprint; `flag_sha256_hex` is present and hex-valid.
-**V-12 — Sealed-inputs concordance (Abort).** `sealed_inputs[]` in the receipt **exactly** enumerates the assets used to compute the fingerprint (membership, IDs, version tags, digests).
+**V-11 — Upstream proof fields (Abort).** `validation_bundle_path` resolves (via Dictionary) to the 1B bundle for the **same** fingerprint; exact folder layout is Dictionary‑defined (no assumed subfolder). `flag_sha256_hex` is present and hex‑valid.
+**V-12 — Sealed-inputs concordance (Abort).** The combination of the receipt’s `sealed_inputs[]` and the mandatory `sealed_inputs_v1` inventory **exactly** enumerates the assets used to compute the fingerprint (membership and IDs in the receipt; version tags and digests in the inventory).
 **V-13 — Determinism receipt (Abort).** The determinism receipt for the emitted partition is present (directory-level canonical hash), and its value is non-empty.
 
-### 9.4 Diagnostics inventory (if emitted)
+### 9.4 Diagnostics inventory
 
-**V-14 — Inventory identity (Abort).** `sealed_inputs_v1` exists only under the target fingerprint and its rows’ `manifest_fingerprint` pass Path↔embed equality.
+**V-14 — Inventory identity (Abort).** `sealed_inputs_v1` exists under the target fingerprint and its rows’ `manifest_fingerprint` pass Path↔embed equality.
 **V-15 — Inventory = receipt (Abort).** The set of `(asset_id, digest, version_tag)` in `sealed_inputs_v1` **matches exactly** the `sealed_inputs[]` recorded in the receipt (no extras, no omissions).
 **V-16 — Authority echo (Abort).** For each row: `schema_ref` is an existing anchor; `catalog_path` matches the Dictionary; `license_class` matches the Registry.
 
@@ -519,7 +520,7 @@ To form the sealed set for 2A:
 
 **Outcome semantics.**
 
-* **PASS:** V-01..V-13, V-17..V-19 pass; if diagnostics are emitted, V-14..V-16 also pass.
+* **PASS:** V-01..V-16 and V-17..V-19 pass. (V-20 is Warn and non-blocking.)
 * **FAIL:** Any **Abort** validator fails.
 * **WARN:** V-09 (second clause) or V-20 fail when programme-level policy treats them as non-fatal; warnings do not block emission but MUST be surfaced in the run-report.
 
@@ -575,7 +576,7 @@ To form the sealed set for 2A:
 * **2A-S0-043 RECEIPT_SEALED_INPUTS_MISMATCH (Abort)** — `sealed_inputs[]` does not exactly match the sealed manifest used for fingerprinting.
 * **2A-S0-044 DETERMINISM_RECEIPT_MISSING (Abort)** — Determinism receipt absent/empty for the emitted partition.
 
-### 10.6 Diagnostics inventory (if emitted)
+### 10.6 Diagnostics inventory
 
 * **2A-S0-050 INVENTORY_WRONG_PARTITION (Abort)** — `sealed_inputs_v1` not under the target fingerprint or fails path↔embed equality.
 * **2A-S0-051 INVENTORY_RECEIPT_MISMATCH (Abort)** — Set of `(asset_id, digest, version_tag)` differs from `sealed_inputs[]` in the receipt.
@@ -667,7 +668,7 @@ To form the sealed set for 2A:
 
 * `sealed_inputs.count : uint32` — number of assets sealed
 * `sealed_inputs.bytes_total : uint64` — summed byte size of sealed assets
-* `sealed_inputs.inventory_path : string|null` — Dictionary path if `sealed_inputs_v1` was emitted; otherwise `null`
+* `sealed_inputs.inventory_path : string` — Dictionary path of the mandatory `sealed_inputs_v1` table
 * `sealed_inputs.manifest_digest : hex64` — digest actually used to derive `manifest_fingerprint` (echo)
 
 **Timezone assets summary (normative):**
@@ -681,7 +682,7 @@ To form the sealed set for 2A:
 **Outputs & determinism (normative):**
 
 * `outputs.receipt_path : string` — Dictionary path of `s0_gate_receipt_2A` for this fingerprint
-* `outputs.inventory_path : string|null` — present iff diagnostics emitted
+* `outputs.inventory_path : string` — path of the mandatory `sealed_inputs_v1` inventory
 * `determinism.partition_hash : hex64` — directory-level canonical hash (the **determinism receipt**) for the emitted fingerprint partition
 * `determinism.computed_at_utc : rfc3339_micros`
 
@@ -705,7 +706,7 @@ S0 SHALL emit structured log records that are machine-parseable and correlate to
 * **`GATE`** — start/end + result of upstream verification; include `manifest_fingerprint`, `bundle_path`, `flag_sha256_hex` (redacted if policy requires).
 * **`SEAL`** — counts/bytes of assets sealed; list of `(asset_id, digest)` **may** be sampled in logs but the authoritative inventory is the receipt/diagnostic table.
 * **`HASH`** — `manifest_fingerprint` derivation event including the canonicalisation mode identifier.
-* **`EMIT`** — successful publication of `s0_gate_receipt_2A` (and `sealed_inputs_v1` if present) with their Dictionary paths.
+* **`EMIT`** — successful publication of `s0_gate_receipt_2A` and `sealed_inputs_v1` with their Dictionary paths.
 * **`DETERMINISM`** — emission of the partition-level determinism receipt with `partition_hash`.
 * **`VALIDATION`** — each validator outcome `{id, result, code?}` for §9 V-01…V-20.
 
@@ -810,7 +811,7 @@ Typical sealed set sizes (order-of-magnitude only):
 S0 defines the following **stable surfaces**. Changes here are **breaking** unless explicitly allowed below.
 
 1. **Identity:** definition of `manifest_fingerprint`; partition key set (`[fingerprint]` only); Path↔Embed equality.
-2. **Outputs:** the existence, IDs, and anchors of `s0_gate_receipt_2A` (required) and `sealed_inputs_v1` (optional).
+2. **Outputs:** the existence, IDs, and anchors of `s0_gate_receipt_2A` (required) and `sealed_inputs_v1` (required).
 3. **Gate posture:** “**No PASS → No Read**” with respect to Segment 1B.
 4. **Authority model:** Schema = shape authority; Dictionary = IDs→paths/partitions/format; Registry = existence/licensing/retention; precedence **Schema › Dictionary › Registry**.
 5. **Validator set & error code meanings** for S0 (§§9–10).

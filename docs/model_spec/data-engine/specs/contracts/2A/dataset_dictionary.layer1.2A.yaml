@@ -152,7 +152,7 @@ datasets:
   license: Proprietary-Internal
 
 - id: sealed_inputs_v1
-  status: optional
+  status: approved
   owner_subsegment: 2A
   description: 'Diagnostic inventory of sealed inputs for a 2A fingerprint.'
   version: '{manifest_fingerprint}'
