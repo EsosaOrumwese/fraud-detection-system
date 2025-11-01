@@ -257,7 +257,10 @@ S1 emits only `s1_tz_lookup`. Final per-site `tzid` egress (`site_timezones`) is
    c. **Ambiguous/border case (cardinality ≠ 1) ⇒** apply a **single ε-nudge**: `(lat', lon') = (lat + ε, lon + ε)` in degrees; re-evaluate membership.
 
    * Record `nudge_lat_deg = lat'`, `nudge_lon_deg = lon'` when a nudge is used.
-   * If nudging would exit the valid coordinate domain, flip the sign on the offending component to keep the point in range.
+   * If nudging would exit bounds, constrain deterministically:
+     • latitude: clamp to [-90, +90]
+     • longitude: wrap into (-180, +180] via modular arithmetic
+     This preserves a minimal, deterministic displacement near the border.
    * If membership remains ambiguous or empty after this single nudge, **abort** (see §10 failure codes).
      d. The assigned `tzid_provisional` **MUST** conform to the layer `iana_tzid` domain **and** belong to the sealed `tz_world` release. 
 
