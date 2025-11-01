@@ -331,3 +331,387 @@ Given the same **gate receipt**, the same **`site_locations`** partition, the sa
 **Effect.** These constraints make `s1_tz_lookup` uniquely addressable by `(seed, fingerprint)`, immutable once published, and safely consumable without ambiguity, with Schema as **shape authority**, Dictionary as **catalogue authority**, and Registry as **existence/licensing authority**.
 
 ---
+
+## 9. Acceptance criteria (validators) **(Binding)**
+
+**PASS definition.** A run of 2A.S1 is **ACCEPTED** iff **all** mandatory validators below pass. Any validator marked **Abort** failing causes the run to **FAIL**; **Warn** does not block emission.
+
+### 9.1 Gate & input resolution (mandatory)
+
+**V-01 — S0 receipt present (Abort).** A valid **2A.S0 gate receipt** exists for the target `manifest_fingerprint` and schema-validates.
+**V-02 — Dictionary resolution (Abort).** All S1 inputs resolve by **ID** via the Dataset Dictionary:
+`site_locations` (1B egress, `[seed,fingerprint]`), `tz_world_<release>`, and `tz_nudge`. Literal paths are forbidden.
+**V-03 — Partition selection (Abort).** `site_locations` is read **only** from the run’s `(seed, manifest_fingerprint)` partition. 
+
+### 9.2 Ingress minima (mandatory)
+
+**V-04 — `tz_world` invariants (Abort).** The chosen `tz_world` release is present, **WGS84** and **non-empty** (as catalogued). 
+**V-05 — `tz_nudge` invariants (Abort).** The sealed policy schema-validates and `epsilon_degrees` is **> 0**.
+
+### 9.3 Output shape & identity (mandatory)
+
+**V-06 — Schema validity (Abort).** The emitted `s1_tz_lookup` table validates against `schemas.2A.yaml#/plan/s1_tz_lookup` (**columns_strict: true**). 
+**V-07 — Path↔embed equality (Abort).** Output partition tokens `[seed, fingerprint]` **byte-equal** any embedded lineage fields, per Layer-1 identity law; dataset is written under `…/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/`. 
+**V-08 — Write-once semantics (Abort).** If the target `(seed, fingerprint)` partition already exists, newly written bytes MUST be **byte-identical**; otherwise **ABORT**. 
+
+### 9.4 Coverage, uniqueness & assignment (mandatory)
+
+**V-09 — 1:1 coverage (Abort).** There is **exactly one** `s1_tz_lookup` row for **every** `site_locations` row in the selected `[seed, fingerprint]` partition (no drops, no extras). 
+**V-10 — PK uniqueness (Abort).** No duplicate primary keys `[merchant_id, legal_country_iso, site_order]` in `s1_tz_lookup`. 
+**V-11 — Non-null provisional tzid (Abort).** Every output row has **non-null** `tzid_provisional`. (Schema permits nulls, but S1 must resolve all sites or abort.) 
+**V-12 — Valid tzid domain & membership (Abort).** Each `tzid_provisional` conforms to the layer `iana_tzid` domain **and** appears in the sealed `tz_world` release.
+**V-13 — Nudge pair rule (Abort).** If a border tie occurred, **both** `nudge_lat_deg` and `nudge_lon_deg` are present; otherwise **both** are null. 
+**V-14 — Border ambiguity resolved (Abort).** No output row remains with unresolved border ambiguity after applying a **single** ε-nudge per policy. 
+
+### 9.5 Catalogue discipline (mandatory)
+
+**V-15 — Writer order (Warn).** Files are written in catalogue order `[merchant_id, legal_country_iso, site_order]` (file order is non-authoritative). 
+
+### 9.6 Outcome semantics
+
+* **PASS:** V-01…V-14 pass; V-15 may warn.
+* **FAIL:** Any **Abort** validator fails.
+* **WARN:** Only non-blocking advisories (e.g., V-15) fail; they MUST surface in the run-report when §11 is introduced.
+
+### 9.7 (For §10) Validator → error-code mapping (normative)
+
+| Validator                    | Error code(s) (to be defined in §10)       |
+| ---------------------------- | ------------------------------------------ |
+| V-01 S0 receipt present      | 2A-S1-001 MISSING_S0_RECEIPT               |
+| V-02 Dictionary resolution   | 2A-S1-010 INPUT_RESOLUTION_FAILED          |
+| V-03 Partition selection     | 2A-S1-011 WRONG_PARTITION_SELECTED         |
+| V-04 `tz_world` invariants   | 2A-S1-020 TZ_WORLD_INVALID                 |
+| V-05 `tz_nudge` invariants   | 2A-S1-021 NUDGE_POLICY_INVALID             |
+| V-06 Schema validity         | 2A-S1-030 OUTPUT_SCHEMA_INVALID            |
+| V-07 Path↔embed equality     | 2A-S1-040 PATH_EMBED_MISMATCH              |
+| V-08 Write-once semantics    | 2A-S1-041 IMMUTABLE_PARTITION_OVERWRITE    |
+| V-09 1:1 coverage            | 2A-S1-050 COVERAGE_MISMATCH                |
+| V-10 PK uniqueness           | 2A-S1-051 PRIMARY_KEY_DUPLICATE            |
+| V-11 Non-null tzid           | 2A-S1-052 NULL_TZID                        |
+| V-12 Valid tzid & membership | 2A-S1-053 UNKNOWN_TZID                     |
+| V-13 Nudge pair rule         | 2A-S1-054 NUDGE_PAIR_VIOLATION             |
+| V-14 Border resolved         | 2A-S1-055 BORDER_AMBIGUITY_UNRESOLVED      |
+| V-15 Writer order (Warn)     | 2A-S1-070 WRITER_ORDER_NONCOMPLIANT (Warn) |
+
+*Authorities:* Output shape and PK/partitions are owned by the S1 anchor; catalogue paths/partitions/order by the 2A Dictionary; presence/licensing by the 2A Registry; gate evidence by the S0 receipt.
+
+---
+
+## 10. Failure modes & canonical error codes **(Binding)**
+
+**Code format.** `2A-S1-XXX NAME` (stable identifiers).
+**Effect classes.** `Abort` = run MUST fail and emit nothing; `Warn` = non-blocking, MUST be surfaced in the run-report.
+**Required context on raise.** Include: `manifest_fingerprint`, `seed`, and—where applicable—`dataset_id`, `catalog_path`, and the **site key** `(merchant_id, legal_country_iso, site_order)`.
+
+### 10.1 Gate & input resolution
+
+* **2A-S1-001 MISSING_S0_RECEIPT (Abort)** — No valid 2A.S0 gate receipt for the target `manifest_fingerprint`.
+  *Remediation:* publish/repair S0; rerun S1.
+* **2A-S1-010 INPUT_RESOLUTION_FAILED (Abort)** — An input (`site_locations`, `tz_world_<release>`, or `tz_nudge`) failed **Dictionary** resolution or Registry authorisation.
+  *Remediation:* correct Dictionary/Registry entries or IDs; rerun.
+* **2A-S1-011 WRONG_PARTITION_SELECTED (Abort)** — `site_locations` not read **exactly** from `(seed, manifest_fingerprint)`.
+  *Remediation:* select the exact partition; rerun.
+
+### 10.2 Ingress minima (sealed inputs)
+
+* **2A-S1-020 TZ_WORLD_INVALID (Abort)** — `tz_world` release missing, CRS ≠ WGS84, or geometry set empty.
+  *Remediation:* seal a valid release in S0; rerun S1.
+* **2A-S1-021 NUDGE_POLICY_INVALID (Abort)** — `tz_nudge` policy missing/invalid or `epsilon_degrees ≤ 0`.
+  *Remediation:* fix the policy asset; rerun.
+
+### 10.3 Output shape & identity
+
+* **2A-S1-030 OUTPUT_SCHEMA_INVALID (Abort)** — `s1_tz_lookup` fails the schema anchor (columns_strict/PK/types).
+  *Remediation:* emit schema-valid rows only.
+* **2A-S1-040 PATH_EMBED_MISMATCH (Abort)** — Any embedded lineage token does not byte-equal the `seed`/`fingerprint` path tokens.
+  *Remediation:* correct identity fields or path; rerun.
+* **2A-S1-041 IMMUTABLE_PARTITION_OVERWRITE (Abort)** — Attempt to write non-identical bytes into an existing `(seed, fingerprint)` partition.
+  *Remediation:* either produce byte-identical output or use a new identity.
+
+### 10.4 Coverage, uniqueness & assignment
+
+* **2A-S1-050 COVERAGE_MISMATCH (Abort)** — Not **exactly one** output row per `site_locations` row in the selected partition (missing or extra rows).
+  *Remediation:* ensure 1:1 projection; rerun.
+* **2A-S1-051 PRIMARY_KEY_DUPLICATE (Abort)** — Duplicate `[merchant_id, legal_country_iso, site_order]` in `s1_tz_lookup`.
+  *Remediation:* deduplicate; rerun.
+* **2A-S1-052 NULL_TZID (Abort)** — Any output row has `tzid_provisional = null`.
+  *Remediation:* resolve membership (with ε-nudge if needed) or fail the run explicitly.
+* **2A-S1-053 UNKNOWN_TZID (Abort)** — `tzid_provisional` not in layer `iana_tzid` domain **or** not present in the sealed `tz_world` release.
+  *Remediation:* correct assignment or update sealed inputs; rerun.
+* **2A-S1-054 NUDGE_PAIR_VIOLATION (Abort)** — Only one of `nudge_lat_deg`/`nudge_lon_deg` is set, or both set when no nudge path was taken.
+  *Remediation:* enforce the pair rule; rerun.
+* **2A-S1-055 BORDER_AMBIGUITY_UNRESOLVED (Abort)** — After the single ε-nudge pass, membership remains ambiguous or empty.
+  *Remediation:* review geometry or policy; if policy cannot resolve, treat as hard failure.
+
+### 10.5 Catalogue discipline
+
+* **2A-S1-070 WRITER_ORDER_NONCOMPLIANT (Warn)** — Files not written in catalogue order `[merchant_id, legal_country_iso, site_order]` (file order is non-authoritative).
+  *Remediation:* align writer sort; advisory only.
+
+### 10.6 Authority conflict (resolution rule)
+
+* **2A-S1-080 AUTHORITY_CONFLICT (Abort)** — Irreconcilable disagreement among **Schema, Dictionary, Registry** for the same asset after applying precedence (**Schema › Dictionary › Registry**).
+  *Remediation:* fix the lower-precedence authority (or the schema if wrong), then rerun.
+
+**Binding note.** New failure conditions introduced by future revisions MUST allocate **new codes** (append-only) and MUST NOT repurpose existing identifiers.
+
+---
+
+## 11. Observability & run-report **(Binding)**
+
+### 11.1 Scope & posture
+
+* **Purpose.** Surface auditable evidence of S1’s gate verification, input resolution, and geometry-only assignment outcomes.
+* **Not identity-bearing.** The run-report does **not** affect dataset identity or gates.
+* **One per run.** Exactly one report per attempted S1 run (success or failure).
+
+---
+
+### 11.2 Run-report artefact (normative content)
+
+A single UTF-8 JSON object **SHALL** be written for the run with at least the fields below. Missing required fields are **Warn** (policy may escalate).
+
+**Top level (run header):**
+
+* `segment : "2A"`
+* `state : "S1"`
+* `status : "pass" | "fail"`
+* `manifest_fingerprint : hex64`
+* `seed : uint64`
+* `started_utc, finished_utc : rfc3339_micros`
+* `durations : { wall_ms : uint64 }`
+
+**Gate & inputs (as used by S1):**
+
+* `s0.receipt_path : string` — Dictionary path to the verified 2A.S0 receipt
+* `s0.verified_at_utc : rfc3339_micros`
+* `inputs.site_locations.path : string` — Dictionary path for the selected `(seed,fingerprint)` partition
+* `inputs.tz_world.id : string` — release ID (e.g., `tz_world_2025a`)
+* `inputs.tz_world.license : string`
+* `inputs.tz_nudge.semver : string`
+* `inputs.tz_nudge.sha256_hex : hex64`
+
+**Lookup summary (geometry-only outcomes):**
+
+* `counts.sites_total : uint64` — rows read from `site_locations`
+* `counts.rows_emitted : uint64` — rows written to `s1_tz_lookup`
+* `counts.border_nudged : uint64` — rows where ε-nudge was applied
+* `counts.distinct_tzids : uint32` — number of unique `tzid_provisional`
+* `checks.pk_duplicates : uint32` — detected primary-key duplicates (0 on PASS)
+* `checks.coverage_mismatch : uint32` — missing/excess rows vs input (0 on PASS)
+* `checks.null_tzid : uint32` — rows with `tzid_provisional = null` (0 on PASS)
+* `checks.unknown_tzid : uint32` — tzids not in sealed `tz_world` (0 on PASS)
+
+**Outputs:**
+
+* `output.path : string` — Dictionary path to `s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/`
+* `output.format : "parquet"`
+
+**Diagnostics:**
+
+* `warnings : array<error_code>` — any non-blocking codes raised (e.g., writer-order)
+* `errors : array<{code, message, context}>` — on failure, list canonical codes and brief context
+
+---
+
+### 11.3 Structured logs (minimum event kinds)
+
+S1 **SHALL** emit machine-parseable log records correlating to the report. Minimum events:
+
+* **`GATE`** — start/end + result of S0 receipt verification; include `manifest_fingerprint`.
+* **`INPUTS`** — resolved IDs/paths for `site_locations`, `tz_world`, `tz_nudge`.
+* **`LOOKUP`** — totals (`sites_total`, `border_nudged`, `distinct_tzids`).
+* **`VALIDATION`** — each validator outcome `{id, result, code?}` for §9.
+* **`EMIT`** — successful publication of `s1_tz_lookup` with Dictionary path.
+
+Every record **SHALL** include: `timestamp_utc (rfc3339_micros)`, `segment`, `state`, `seed`, `manifest_fingerprint`, and `severity (INFO|WARN|ERROR)`.
+
+---
+
+### 11.4 Discoverability, retention & redaction
+
+* **Discoverability.** The run-report path **MUST** be surfaced in CI/job metadata alongside the output Dictionary path.
+* **Retention.** Programme policy governs report TTL; changes to retention **MUST NOT** alter dataset identity or partitions.
+* **Redaction.** Reports/logs **MUST NOT** include raw site rows or PII; coordinates are not logged per-row. Only counts, IDs, paths, digests, and timestamps are permitted.
+
+---
+
+## 12. Performance & scalability **(Informative)**
+
+### 12.1 Workload shape
+
+* **Reads:** one `site_locations` partition for the selected `(seed, manifest_fingerprint)`, the sealed `tz_world` release, and the sealed `tz_nudge` policy.
+* **Compute:** point-in-polygon tests per site; optional single ε-nudge for border cases.
+* **Writes:** one row per input site into `s1_tz_lookup`. No RNG, no timetable/DST logic.
+
+### 12.2 Complexity (N = sites in the selected partition; M = tz polygons)
+
+* **Without spatial indexing:** worst-case ~ **O(N × M)** membership checks.
+* **With any spatial index/filtering:** expected ~ **O(N × log M)** (or **O(N × k)** with small candidate sets), where `k ≪ M` is average polygons tested per site.
+* **Overall:** wall time scales linearly with `N` given a fixed polygon index.
+
+### 12.3 Memory model
+
+* **Streaming-friendly.** Process sites row-wise; no need to materialise all sites.
+* **Resident set dominated by:** polygon index + modest read/write buffers.
+* **Nudge storage:** only per-row nudged coordinates when used; no extra structures.
+
+### 12.4 I/O profile
+
+* **Input:** sequential scan of `site_locations`; one-time load of `tz_world` (and any index the implementation builds).
+* **Output:** sequential write of `s1_tz_lookup` in catalogue order `[merchant_id, legal_country_iso, site_order]` (file order non-authoritative).
+
+### 12.5 Parallelism & concurrency posture
+
+* **Across identities:** different `(seed, manifest_fingerprint)` pairs are embarrassingly parallel.
+* **Within an identity:** internal parallelism (e.g., sharding by geography/PK ranges) is fine **behind a single final writer**; the publish into the partition remains **single-writer, write-once**.
+
+### 12.6 Geometry considerations (hot spots)
+
+* **Border density:** coastal/island regions and micro-polygons increase candidate sets and the chance of ε-nudge.
+* **Degenerate geometries:** self-intersections/invalid rings should be excluded by ingress guarantees; S1 assumes a valid, WGS84, non-empty `tz_world`.
+* **Nudge rate:** typically small; track `border_nudged` in the run-report for early warning if it spikes.
+
+### 12.7 Scalability knobs (programme-level)
+
+* Cap on **max sites per job** (split large seeds into batches, then merge behind the final writer).
+* Cap on **polygon index size / build time** (e.g., prebuilt or cached index per `tz_world` release).
+* Back-pressure & retry policy for remote object stores (if applicable).
+* Advisory threshold for **border-nudged share** (warn-only; doesn’t change acceptance).
+
+### 12.8 Re-run & churn costs
+
+* Changing **`tz_world`** or **`tz_nudge`** (sealed in S0) yields a new `manifest_fingerprint`, requiring recomputation for all seeds that target it.
+* Re-running with unchanged inputs is **idempotent** and should reproduce bytes exactly.
+
+### 12.9 Typical envelopes (order-of-magnitude)
+
+* `tz_world` size tends to dominate warm-up (index build/load); site scan and row emission scale ~linearly with input row count.
+* Output footprint ~ one row per site (adds `tzid_provisional` and, rarely, `nudge_*`).
+
+*Summary:* S1 is I/O- and geometry-bound, deterministic, and scales linearly with the number of sites once a polygon index is available. Parallelise across identities or shard internally behind a single atomic publish to preserve the write-once contract.
+
+---
+
+## 13. Change control & compatibility **(Binding)**
+
+### 13.1 Versioning & document status
+
+* **SemVer** applies to this state spec (`MAJOR.MINOR.PATCH`).
+
+  * **PATCH:** editorial clarifications that do **not** alter behaviour, validators, or shapes.
+  * **MINOR:** strictly backward-compatible additions that do **not** change identity, partitions, PK, or acceptance outcomes.
+  * **MAJOR:** any change that can alter identity, shape/PK/partitions, the assignment law, or validator results.
+
+### 13.2 Stable compatibility surfaces (must remain invariant)
+
+1. **Identity:** output selected by **`(seed, manifest_fingerprint)`**; partitions are **`[seed, fingerprint]`** only; path↔embed equality.
+2. **Output surface:** dataset **`s1_tz_lookup`** exists with its **schema anchor** and **ID** unchanged.
+3. **Shape/keys:** PK = `[merchant_id, legal_country_iso, site_order]`; required columns include `lat_deg`, `lon_deg`, `tzid_provisional`; `nudge_lat_deg`/`nudge_lon_deg` are nullable and paired.
+4. **Assignment law:** geometry-only membership against the sealed `tz_world` with at most **one ε-nudge** per ambiguous site; if nudged, record both `nudge_*`.
+5. **Coverage:** 1:1 projection from `site_locations` rows in the selected partition to `s1_tz_lookup` rows (no drops/extras).
+6. **Gate posture:** S1 reads inputs **only after** verifying the 2A.S0 receipt for the target `manifest_fingerprint`; S1 does **not** re-hash upstream bundles.
+7. **Catalogue posture:** Dictionary is the authority for IDs→paths/partitions/format; Registry for existence/licence/retention; Schema is shape authority.
+8. **Validator & code semantics:** meanings of §9 validators and §10 error codes.
+
+### 13.3 Backward-compatible changes (**MINOR** or **PATCH**)
+
+Permitted when they do **not** change identity or acceptance:
+
+* **Diagnostics only:** tighten or add **Warn-only** validators (e.g., advisory checks on writer order, nudge rate).
+* **Error codes:** append **new** codes without changing existing meanings.
+* **Dictionary/Registry metadata:** add provenance/licence/TTL fields; refine descriptions/owners.
+* **Schema clarifications:** tighten textual descriptions, add explicit bounds that match existing implementations.
+* **Enum growth for diagnostics:** expand diagnostic enums (if any) with an **escape hatch** (e.g., `*_ext`) that consumers may ignore.
+
+> Note: The S1 anchor is **columns_strict**. Adding new **data columns** to `s1_tz_lookup` **is not** backward-compatible unless introduced under a predeclared extension mechanism (see §13.7). Otherwise it is **MAJOR**.
+
+### 13.4 Breaking changes (**MAJOR**)
+
+Require a MAJOR bump and downstream coordination:
+
+* Change to **partitions** (adding/removing/renaming partition keys) or to **PK**.
+* Renaming/removing **`s1_tz_lookup`** or its **schema anchor**, or relocating it to another path family.
+* Altering the **assignment law** (e.g., different border policy, more than one nudge, new tie-break direction) or making `nudge_*` non-nullable/mandatory.
+* Changing **coverage semantics** (e.g., allowing >1 output row per site or permitting drops).
+* Turning any existing **Warn** into **Abort**, or changing error-code meanings.
+* Admitting additional inputs (e.g., applying overrides or tzdb logic in S1) or reading beyond §3’s input set.
+* Any change that makes previously valid S1 outputs **fail** schema/validators unchanged.
+
+### 13.5 Deprecation policy
+
+* **Announce → grace → remove.** A feature slated for removal is marked **Deprecated** at least **one MINOR** before removal with an **effective date**.
+* **No repurposing.** Deprecated fields/codes/IDs are never reused; removal occurs only at a **MAJOR** bump.
+* **Alias window (anchors/IDs).** When renaming, provide aliases for at least one MINOR; both anchors validate to identical shapes during the window.
+
+### 13.6 Co-existence & migration
+
+* **Dual-anchor window.** When evolving `s1_tz_lookup`, publish a new anchor (e.g., `s1_tz_lookup_v2`) and allow both in Dictionary for a grace period; downstream selects by **anchor version** while still keying identity by `(seed, fingerprint)`.
+* **Re-fingerprinting is upstream.** Changing `tz_world` or `tz_nudge` happens in S0 and yields a **new `manifest_fingerprint`**; S1 recomputes for that fingerprint without spec change.
+* **Idempotent re-runs.** Re-running with unchanged inputs must reproduce identical bytes.
+
+### 13.7 Reserved extension points
+
+* **Not defined in v1.0.0-alpha**: the current anchor is **columns_strict** and does **not** admit arbitrary extension columns.
+* A future **MINOR** may introduce an **`extensions` object** or pattern-based `ext_*` columns **if** the anchor simultaneously permits them and downstream is specified to ignore unknown extension members. Without such a mechanism, adding columns is **MAJOR**.
+
+### 13.8 External dependency evolution
+
+* **`tz_world` release churn** is **not** a spec change; it changes only sealed bytes → `manifest_fingerprint` (handled by S0).
+* **`tz_nudge` policy** version bumps (semver) are sealed by S0 and likewise flow through via fingerprint; S1’s law (single ε-nudge, record when applied) remains invariant.
+
+### 13.9 Governance & change process
+
+Every change SHALL include: (i) version bump rationale, (ii) compatibility impact (Patch/Minor/Major), (iii) updated anchors/Dictionary/Registry stanzas (if any), (iv) validator/error-code diffs, and (v) migration notes.
+Frozen specs SHALL record an **Effective date**; downstream pipelines target frozen or explicitly authorised alpha versions.
+
+### 13.10 Inter-state coupling
+
+* **Upstream:** depends only on S0’s receipt and the sealed inputs (`site_locations`, `tz_world`, `tz_nudge`).
+* **Downstream:** S2 consumes `s1_tz_lookup` and may replace `tzid_provisional` via policy overrides; any S1 change that forces S2 to recompute S0 hashes or alters S2’s read contract is **breaking**.
+
+---
+
+## Appendix A — Normative cross-references *(Informative)*
+
+> Pointers only. These define authorities S1 relies on. Shapes come from JSON-Schema anchors; IDs→paths/partitions/format come from the Dataset Dictionary; existence/licensing/retention from the Artefact Registry.
+
+### A1. Layer-1 governance (global rails)
+
+* **Closed-world & gates:** JSON-Schema is the only shape authority; runs are sealed by `{parameter_hash, manifest_fingerprint}`; downstream reads enforce **No PASS → No Read**.
+* **Bundle/index/flag law:** PASS flag = SHA-256 over raw bytes of files listed in `index.json` (ASCII-lex order, flag excluded); bundles are fingerprint-scoped and write-once/atomic.
+* **Layer primitives used by S1:** `id64`, `iso2`, `iana_tzid`, `rfc3339_micros` in the layer schema pack. 
+
+### A2. Upstream receipt and sealed inputs used by S1
+
+* **2A.S0 gate receipt** (`s0_gate_receipt_2A`) — Dictionary path family (fingerprint-scoped) and schema anchor in the 2A pack. *(S1 verifies presence/validity; does not re-hash bundles.)* 
+* **`site_locations`** (1B egress) — Schema anchor, path/partitions `[seed,fingerprint]`, writer sort `[merchant_id, legal_country_iso, site_order]`; final-in-layer; order-free.
+* **`tz_world_2025a`** (ingress polygons) — Dictionary entry (GeoParquet, WGS84) and Registry cross-layer pointer; ingress anchor referenced.
+* **`tz_nudge`** (policy) — Dictionary entry and schema anchor (`schemas.2A.yaml#/policy/tz_nudge_v1`).
+
+### A3. S1 output surface
+
+* **`s1_tz_lookup`** — Schema anchor (`schemas.2A.yaml#/plan/s1_tz_lookup`) with PK `[merchant_id, legal_country_iso, site_order]`, partitions `[seed,fingerprint]`; Dictionary path family and writer order; Registry stanza.
+
+### A4. Downstream (for context; not read by S1)
+
+* **`site_timezones`** (S2 egress) — anchor (2A pack), Dictionary path family (`…/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/`), Registry stanza.
+* **`tzdb_release`** (S3 input) — 2A schema object anchor and Registry entry (release tag + archive digest).
+* **2A validation bundle/flag** (S5 gate for 2A egress) — bundle/flag schema stubs in 2A pack; Registry path uses the same index/flag law as 1A/1B.
+
+### A5. Segment 2A overview
+
+* **State flow (S0→S5)** — S1 = geometry-only `tzid` lookup; S2 = overrides; S3 = tzdb timetables; S4 = legality; S5 = validation bundle. 
+
+### A6. 1B egress gate posture (why S0 receipt matters)
+
+* **Consumers must verify 1B PASS before reading `site_locations`**; Dictionary echoes the rule; Registry defines 1B bundle/flag with the 1A-style hashing law.
+
+### A7. Additional anchor references touched by S1 spec text
+
+* **Layer `$defs`** referenced by S1 (`iso2`, `iana_tzid`, `rfc3339_micros`). 
+* **2A pack — validation/manifests stubs** used by S0 and S5 (receipt, inventory, bundle index, passed flag).
+
+*Consumers of this specification should resolve all shapes from the anchors above and all IDs→paths/partitions solely via the Dataset Dictionary; Registry entries provide licensing/provenance and do not override shape or path law.*
+
+---
