@@ -7,9 +7,9 @@
 **Layer/Segment/State:** L1 / 2A (Civil Time) / S0
 **Doc ID:** `layer1/2A/state-0`
 **Version (semver):** `v1.0.0-alpha` *(update as this spec advances)*
-**Status:** `draft | alpha | frozen` *(this document is **normative** when status ≥ `alpha`; semantics are locked at `frozen`)*
-**Owners:** Design Authority (DA): ‹name› • Review Authority (RA): ‹name›
-**Effective date:** ‹YYYY-MM-DD›
+**Status:** `alpha` *(this document is **normative**; semantics lock at `frozen` in a ratified release)*
+**Owners:** Design Authority (DA): Esosa Orumwese • Review Authority (RA): Layer 1 Governance
+**Effective date:** 2025-11-01 (UTC)
 **Canonical location:** ‹repo path to this spec file›
 
 **Normative cross-references (by pointer, not restated):**
@@ -279,7 +279,7 @@ For each sealed input listed in §3.2, S0 binds authorities and limits behaviour
 
 ### 6.2 Gate receipt (fingerprint-scoped)
 
-**ID → Schema:** `s0_gate_receipt_2A` → `schemas.2A.yaml#/validation/s0_gate_receipt_v1` (table; **columns_strict: true**).
+**ID → Schema:** `s0_gate_receipt_2A` → `schemas.2A.yaml#/validation/s0_gate_receipt_v1` (table; **columns_strict: true**; stored as JSON; anchor defines the columns).
 **Identity & keys (binding):**
 
 * **Primary key:** `[manifest_fingerprint]` (one row per fingerprint).
@@ -544,7 +544,7 @@ To form the sealed set for 2A:
 
 ### 10.2 Sealed-inputs manifest formation
 
-* **2A-S0-010 MINIMUM_SET_MISSING (Abort)** — Required assets set incomplete (bundle/flag, `site_locations` pointer, `tz_world`, tzdb release, overrides).
+* **2A-S0-010 MINIMUM_SET_MISSING (Abort)** — Required assets set incomplete (bundle/flag, `site_locations` pointer, `tz_world`, tzdb release, overrides, `tz_nudge`).
 * **2A-S0-011 SCHEMA_ANCHOR_UNKNOWN (Abort)** — Asset lacks a valid JSON-Schema anchor.
 * **2A-S0-012 DICTIONARY_RESOLUTION_FAILED (Abort)** — Dataset ID does not resolve to a canonical path/partitions/format.
 * **2A-S0-013 REGISTRY_ENTRY_MISSING (Abort)** — No registry/licence record for the asset.
@@ -580,7 +580,7 @@ To form the sealed set for 2A:
 ### 10.6 Diagnostics inventory
 
 * **2A-S0-050 INVENTORY_WRONG_PARTITION (Abort)** — `sealed_inputs_v1` not under the target fingerprint or fails path↔embed equality.
-* **2A-S0-051 INVENTORY_RECEIPT_MISMATCH (Abort)** — Set of `(asset_id, digest, version_tag)` differs from `sealed_inputs[]` in the receipt.
+* **2A-S0-051 INVENTORY_RECEIPT_MISMATCH (Abort)** — Set of `asset_id` values in `sealed_inputs_v1` differs from the IDs listed in the receipt’s `sealed_inputs[]` (no extras, no omissions).
 * **2A-S0-052 INVENTORY_AUTHORITY_MISMATCH (Abort)** — `schema_ref` not an existing anchor, `catalog_path` disagrees with Dictionary, or `license_class` disagrees with Registry.
 
 ### 10.7 Identity, partitions, immutability
@@ -790,7 +790,7 @@ Typical sealed set sizes (order-of-magnitude only):
 * **Max sealed bytes / max asset count** per run to bound wall time.
 * **Digest concurrency cap** to balance network and CPU.
 * **Retry/back-off policy** for transient storage errors.
-* **Optional inventory emission** toggle (on for large sealed sets).
+* **Inventory is always emitted**; programme-level knobs MAY control only extended diagnostics (e.g., additional non-identity columns), not the presence of `sealed_inputs_v1` itself.
 
 *Summary:* S0 scales linearly with the total size of the sealed assets, remains memory-light via streaming, and benefits from modest parallelism across assets while keeping a fixed canonical order for fingerprinting. The dominant cost is hashing `tz_world` (release-dependent); outputs themselves are tiny and immutable.
 
