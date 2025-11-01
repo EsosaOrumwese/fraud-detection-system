@@ -190,7 +190,7 @@ subsegments:
     schema: schemas.2A.yaml#/validation/s4_legality_report
 
   - name: validation_bundle_2A
-    path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/bundle/
+    path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
     type: bundle
     category: validation
     semver: '{semver}'
