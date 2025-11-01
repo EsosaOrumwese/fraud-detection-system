@@ -36,6 +36,44 @@ reference_data:
   notes: 'No PASS → no read (verify 1B bundle flag).'  # mirrors 1B Dictionary
 # (optionally also list validation_bundle_1B / validation_passed_flag_1B for visibility)
 
+# Time-zone polygons used by 2A (sealed by S0)
+- id: tz_world_2025a
+  status: approved
+  owner_subsegment: ingress
+  description: "Time-zone world polygons (GeoParquet, WGS84)."
+  version: '2025a'
+  format: parquet
+  path: reference/spatial/tz_world/2025a/tz_world.parquet
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/tz_world_2025a
+  lineage:
+    produced_by:
+    consumed_by: [2A]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  license: ODbL-1.0
+
+# Canonical ISO-3166 table (if sealed by S0)
+- id: iso3166_canonical_2024
+  status: approved
+  owner_subsegment: ingress
+  description: "ISO 3166-1 alpha-2 canonical table"
+  version: '2024-12-31'
+  format: parquet
+  path: reference/iso/iso3166_canonical/2024-12-31/iso3166.parquet
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.ingress.layer1.yaml#/iso3166_canonical_2024
+  lineage:
+    produced_by:
+    consumed_by: [2A]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  license: CC-BY-4.0
+
 # ── Policy/Config/Artefacts sealed by 2A.S0 ───────────────────────────────
 policies:
 - id: tz_overrides

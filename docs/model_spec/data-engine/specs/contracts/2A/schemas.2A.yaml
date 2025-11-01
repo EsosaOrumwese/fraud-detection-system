@@ -16,6 +16,8 @@ validation:
     columns:
       - { name: manifest_fingerprint, $ref: 'schemas.layer1.yaml#/$defs/hex64', nullable: false,
           description: "MUST byte-equal fingerprint path token (path↔embed equality)." }
+      - { name: parameter_hash, $ref: 'schemas.layer1.yaml#/$defs/hex64', nullable: false,
+          description: "Run lineage token recorded for S0 (not a partition in S0)." }
       - { name: validation_bundle_path, type: string, nullable: false,
           description: "Dictionary-resolved path to 1B bundle for the same fingerprint." }
       - { name: flag_sha256_hex, $ref: 'schemas.layer1.yaml#/$defs/hex64', nullable: false,
@@ -28,12 +30,26 @@ validation:
         items:
           type: object
           additionalProperties: false
-          required: [id, schema_ref]
+          required: [id, partition, schema_ref]
           properties:
             id: { type: string, minLength: 1 }
             partition: { type: array, items: { type: string }, description: 'Partition keys, e.g. ["seed","fingerprint"] or ["parameter_hash"].' }
             schema_ref: { type: string, minLength: 1 }
       - { name: notes, type: string, nullable: true }
+
+  # S4 legality evidence (referenced by Dictionary/Registry)
+  s4_legality_report:
+    type: object
+    additionalProperties: false
+    required: [manifest_fingerprint, seed, generated_at_utc, status]
+    properties:
+      manifest_fingerprint: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+      seed:                 { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      generated_at_utc:     { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
+      status:               { type: string, enum: [PASS, FAIL] }
+      tzids_covered:        { $ref: 'schemas.layer1.yaml#/$defs/uint32' }
+      folds_checked:        { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      gaps_checked:         { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
 
   # 2A validation bundle (S5) — same index law as 1A/1B; keep structure modest
   validation_bundle_2A:
@@ -161,7 +177,7 @@ plan:
     columns_strict: true
     columns:
       - { name: merchant_id,        $ref: 'schemas.layer1.yaml#/$defs/id64',  nullable: false }
-      - { name: legal_country_iso,  $ref: 'schemas.1B.yaml#/$defs/iso2',      nullable: false }
+      - { name: legal_country_iso,  $ref: 'schemas.layer1.yaml#/$defs/iso2',  nullable: false }
       - { name: site_order,         type: integer, minimum: 1,                nullable: false }
       - { name: lat_deg,            type: number,                              nullable: false }
       - { name: lon_deg,            type: number,                              nullable: false }
@@ -180,7 +196,7 @@ egress:
     columns_strict: true
     columns:
       - { name: merchant_id,        $ref: 'schemas.layer1.yaml#/$defs/id64',  nullable: false }
-      - { name: legal_country_iso,  $ref: 'schemas.1B.yaml#/$defs/iso2',      nullable: false }
+      - { name: legal_country_iso,  $ref: 'schemas.layer1.yaml#/$defs/iso2',  nullable: false }
       - { name: site_order,         type: integer, minimum: 1,                nullable: false }
       - { name: tzid,               $ref: 'schemas.layer1.yaml#/$defs/iana_tzid', nullable: false }
       - { name: tzid_source,        type: string, enum: [polygon, override],  nullable: false }

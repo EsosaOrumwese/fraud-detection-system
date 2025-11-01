@@ -107,6 +107,23 @@ subsegments:
     schema: schemas.2A.yaml#/ingress/tzdb_release_v1
     cross_layer: true
 
+  # Cross-layer pointer to ingress tz polygons used by 2A sealing
+  - name: tz_world_2025a
+    path: reference/spatial/tz_world/2025a/tz_world.parquet
+    type: dataset
+    category: reference
+    semver: '{semver}'
+    version: '2025a'
+    manifest_key: mlr.ingress.tz_world_2025a
+    license: ODbL-1.0
+    role: "Time-zone world polygons; sealed by 2A.S0."
+    dependencies: []
+    source: external
+    owner: {owner_team: "mlr-ingress"}
+    environment: [runtime]
+    schema: schemas.ingress.layer1.yaml#/tz_world_2025a
+    cross_layer: true
+
   # ── 2A datasets ─────────────────────────────────────────────────────────
   - name: s1_tz_lookup
     path: data/layer1/2A/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/
@@ -173,7 +190,7 @@ subsegments:
     schema: schemas.2A.yaml#/validation/s4_legality_report
 
   - name: validation_bundle_2A
-    path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
+    path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/bundle/
     type: bundle
     category: validation
     semver: '{semver}'
