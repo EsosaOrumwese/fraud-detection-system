@@ -44,7 +44,7 @@
 * **Assert upstream validity:** Confirm that Segment 1B completed successfully under the Layer-1 Gate Law (**No PASS → No Read**), using the upstream validation bundle and flag.
 * **Seal 2A ingress:** Enumerate and pin all inputs required by Segment 2A (e.g., `site_locations`, `tz_world` polygons, IANA tzdb release, and declared override lists) as **immutable, content-addressed assets**.
 * **Fix 2A identity:** Derive and record the segment’s `manifest_fingerprint` from the sealed-inputs manifest (per Layer-1 Fingerprint Law) and bind it with the run’s `parameter_hash`.
-* **Emit the gate receipt:** Publish `s0_gate_receipt_2A` (and, optionally, a per-asset `sealed_inputs_v1` inventory) for use by subsequent 2A states and external auditors.
+* **Emit the gate receipt:** Publish `s0_gate_receipt_2A` and the per‑asset `sealed_inputs_v1` inventory for use by subsequent 2A states and external auditors.
 * **Remain deterministic and RNG-free:** No random draws, sampling, or probabilistic behaviour occur in S0.
 
 **In scope.**
@@ -290,6 +290,7 @@ For each sealed input listed in §3.2, S0 binds authorities and limits behaviour
 
 * `manifest_fingerprint` — **hex64** (Layer `$defs`). Path↔embed **MUST** byte-equal. 
 * `validation_bundle_path` — string that **resolves to the 1B validation bundle** for the same fingerprint (Dictionary owns exact path; Registry mirrors provenance). Reference pattern: 1B bundles sit under `data/layer1/1B/validation/fingerprint={manifest_fingerprint}/`. 
+* `parameter_hash` — **hex64** (Layer `$defs`), recorded lineage token (not a partition in S0).
 * `flag_sha256_hex` — **hex64** of the verified 1B bundle (flag content). 
 * `verified_at_utc` — **rfc3339_micros** (UTC). 
 * `sealed_inputs` — **array<object>** listing every input 2A has sealed (minimum properties:
@@ -356,7 +357,7 @@ For the two 2A surfaces in §6.2–§6.3, the Dataset Dictionary **SHALL** decla
 * **Strict columns.** Both anchors are **columns_strict: true**; undeclared columns are invalid (Schema enforces). 
 * **Authority split.** Schema anchors govern **columns/domains/PK/partitions/sort**; Dictionary governs **IDs→paths/partitions/format/licence**; Registry records **licence/provenance**. If prose and Schema ever differ on shape, **Schema wins**. 
 
-*Result:* With these anchors, 2A.S0 publishes a minimal, fingerprint-scoped **gate receipt** and (optionally) a **sealed-inputs inventory**, and it pins every referenced surface to its authoritative schema—`site_locations` (1B egress) and ingress FK/timezone assets—under the same schema/dictionary/registry discipline used elsewhere in Layer-1.
+*Result:* With these anchors, 2A.S0 publishes a minimal, fingerprint-scoped **gate receipt** and a **sealed-inputs inventory** (mandatory), and it pins every referenced surface to its authoritative schema—`site_locations` (1B egress) and ingress FK/timezone assets—under the same schema/dictionary/registry discipline used elsewhere in Layer-1.
 
 ---
 
@@ -365,7 +366,7 @@ For the two 2A surfaces in §6.2–§6.3, the Dataset Dictionary **SHALL** decla
 ### 7.1 Posture and scope
 
 * 2A.S0 is **strictly deterministic** and **RNG-free**.
-* Behaviour is limited to **(i)** upstream gate verification, **(ii)** sealing inputs into a canonical manifest, **(iii)** fixing the segment’s identity (`manifest_fingerprint`), and **(iv)** emitting the fingerprint-scoped receipt (and optional diagnostics).
+* Behaviour is limited to **(i)** upstream gate verification, **(ii)** sealing inputs into a canonical manifest, **(iii)** fixing the segment’s identity (`manifest_fingerprint`), and **(iv)** emitting the fingerprint-scoped receipt and mandatory `sealed_inputs_v1` inventory.
 * All references to hashing, identity tokens, and gate semantics are by cross-reference to Layer-1 governance; this section binds **order and conditions**, not implementation.
 
 ### 7.2 Gate sequence and isolation barrier
@@ -488,7 +489,7 @@ To form the sealed set for 2A:
 
 ### 9.2 Sealed-inputs manifest (mandatory)
 
-**V-04 — Minimum set present (Abort).** The sealed set contains, at minimum: (i) upstream 1B PASS artefacts, (ii) `site_locations` pointer, (iii) `tz_world` polygons, (iv) IANA tzdb release, and (v) declared override list (empty allowed).
+**V-04 — Minimum set present (Abort).** The sealed set contains, at minimum: (i) upstream 1B PASS artefacts, (ii) `site_locations` pointer, (iii) `tz_world` polygons, (iv) IANA tzdb release, (v) declared override list (empty allowed), and (vi) the border-nudge constant (`tz_nudge`).
 **V-05 — Pinning & authorities (Abort).** For **each** sealed item: (a) Schema anchor exists, (b) Dictionary resolves ID→canonical path/partitions/format, (c) Registry entry exists with licence/retention, (d) **version tag** and **SHA-256** digest are recorded. Ambiguous pointers (e.g., “latest”) are forbidden.
 **V-06 — No aliasing / no duplicates (Abort).** Within a fingerprint: (a) no duplicate `asset_id` or `basename`, (b) no two entries resolve to identical bytes (same digest).
 **V-07 — `tz_world` invariants (Abort).** CRS is **WGS84** and geometry set is **non-empty**. *(No spatial derivations required.)*
@@ -505,8 +506,8 @@ To form the sealed set for 2A:
 ### 9.4 Diagnostics inventory
 
 **V-14 — Inventory identity (Abort).** `sealed_inputs_v1` exists under the target fingerprint and its rows’ `manifest_fingerprint` pass Path↔embed equality.
-**V-15 — Inventory = receipt (Abort).** The set of `(asset_id, digest, version_tag)` in `sealed_inputs_v1` **matches exactly** the `sealed_inputs[]` recorded in the receipt (no extras, no omissions).
-**V-16 — Authority echo (Abort).** For each row: `schema_ref` is an existing anchor; `catalog_path` matches the Dictionary; `license_class` matches the Registry.
+**V-15 — Inventory = receipt (Abort).** The set of `asset_id` values in `sealed_inputs_v1` **matches exactly** the IDs listed in the receipt’s `sealed_inputs[]` (no extras, no omissions). Per‑asset `version_tag` and `sha256_hex` are validated via V‑16.
+**V-16 — Authority echo (Abort).** For each row: `schema_ref` is an existing anchor; `catalog_path` matches the Dictionary; `license_class` matches the Registry; `version_tag` is present; `sha256_hex` is a valid hex64.
 
 ### 9.5 Identity, immutability & merge
 
@@ -775,7 +776,7 @@ Typical sealed set sizes (order-of-magnitude only):
 
 ### 12.6 Storage & layout
 
-* **Small output footprint.** S0 emits one tiny **receipt** (JSON) and optionally a modest **inventory** (Parquet).
+* **Small output footprint.** S0 emits one tiny **receipt** (JSON) and a modest **inventory** (Parquet).
 * **Catalogue lookups.** Dictionary/Registry lookups are negligible compared to asset reads; caching those lookups lowers tail latency without affecting identity.
 
 ### 12.7 Hot spots & guardrails

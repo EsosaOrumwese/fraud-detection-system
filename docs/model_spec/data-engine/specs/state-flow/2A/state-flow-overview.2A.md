@@ -8,7 +8,7 @@
 * **`site_locations`** (1B egress; consumed by 2A) — ID→Schema from 1B; path/partition law `[seed, fingerprint]`; order-free.
   **What to assert now.**
 * Schema conformance, **path↔embed equality**, partitions, writer sort; **no 1B PASS flag exists for this egress** (today), so treat schema+dictionary as the read authority. Keep the standard “**no PASS → no read**” posture ready for when 1B adds a bundle.
-  **Outputs.** None (receipt only).
+  **Outputs.** Gate receipt (`s0_gate_receipt_2A`) and mandatory sealed-inputs inventory (`sealed_inputs_v1`), both fingerprint-scoped.
   **Determinism.** Fix `{seed, manifest_fingerprint}`; record artefact digests context at the run header.
 
 ---
