@@ -135,7 +135,7 @@ subsegments:
     manifest_key: mlr.2A.s1.tz_lookup
     license: Proprietary-Internal
     role: "Deterministic tz lookup per site."
-    dependencies: [site_locations, tz_world_2025a]
+    dependencies: [site_locations, tz_world_2025a, tz_nudge]
     source: internal
     owner: {owner_team: "mlr-2a-core"}
     environment: [runtime]
