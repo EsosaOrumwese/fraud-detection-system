@@ -1,0 +1,240 @@
+version: '1.0'
+
+lifecycle:
+  phase: alpha
+  last_reviewed:
+  approver: "Layer 1 Governance"
+
+ci_policy:
+  allow_placeholders: true
+  placeholder_markers: [TBD, null]
+  block_on_phase: [beta, stable]
+
+layer:
+  id: layer1
+  name: Merchant Location Realism
+
+# ── Cross-segment inputs 2A resolves by ID (discoverability) ──────────────
+reference_data:
+- id: site_locations
+  status: approved
+  owner_subsegment: 1B
+  description: 'Per-site coordinates (order-free). Read only after verifying 1B PASS.'
+  version: '{seed}.{manifest_fingerprint}'
+  format: parquet
+  path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
+  partitioning: [seed, fingerprint]
+  ordering: [merchant_id, legal_country_iso, site_order]
+  schema_ref: schemas.1B.yaml#/egress/site_locations
+  lineage:
+    produced_by: 1B.S8
+    consumed_by: [2A]
+    final_in_layer: true
+  retention_days: 365
+  pii: false
+  license: Proprietary-Internal
+  notes: 'No PASS → no read (verify 1B bundle flag).'  # mirrors 1B Dictionary
+# (optionally also list validation_bundle_1B / validation_passed_flag_1B for visibility)
+
+# ── Policy/Config/Artefacts sealed by 2A.S0 ───────────────────────────────
+policies:
+- id: tz_overrides
+  status: approved
+  owner_subsegment: 2A
+  description: Time-zone overrides (governed; precedence site » mcc » country).
+  version: '{semver}'
+  format: yaml
+  path: config/timezone/tz_overrides.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.2A.yaml#/policy/tz_overrides_v1
+  lineage:
+    produced_by: 2A.policy
+    consumed_by: [2A]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  license: Proprietary-Internal
+
+- id: tz_nudge
+  status: approved
+  owner_subsegment: 2A
+  description: Deterministic ε used at borders for tie-breaks; sealed for reproducibility.
+  version: '{semver}'
+  format: yaml
+  path: config/timezone/tz_nudge.yml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.2A.yaml#/policy/tz_nudge_v1
+  lineage:
+    produced_by: 2A.policy
+    consumed_by: [2A]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  license: Proprietary-Internal
+
+artefacts:
+- id: tzdb_release
+  status: approved
+  owner_subsegment: 2A
+  description: Pinned IANA tzdata archive and release tag.
+  version: '{release_tag}'
+  format: files
+  path: artefacts/priors/tzdata/{release_tag}/
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.2A.yaml#/ingress/tzdb_release_v1
+  lineage:
+    produced_by:
+    consumed_by: [2A]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  license: CC-BY-4.0
+
+# ── Internally generated datasets (2A) ────────────────────────────────────
+datasets:
+- id: s0_gate_receipt_2A
+  status: approved
+  owner_subsegment: 2A
+  description: 'Fingerprint-scoped receipt proving 1B PASS and recording sealed inputs for 2A.'
+  version: '{manifest_fingerprint}'
+  format: json
+  path: data/layer1/2A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.2A.yaml#/validation/s0_gate_receipt_v1
+  lineage:
+    produced_by: 2A.S0
+    consumed_by: [2A]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  license: Proprietary-Internal
+
+- id: sealed_inputs_v1
+  status: optional
+  owner_subsegment: 2A
+  description: 'Diagnostic inventory of sealed inputs for a 2A fingerprint.'
+  version: '{manifest_fingerprint}'
+  format: parquet
+  path: data/layer1/2A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet
+  partitioning: [fingerprint]
+  ordering: [asset_kind, basename]
+  schema_ref: schemas.2A.yaml#/manifests/sealed_inputs_v1
+  lineage:
+    produced_by: 2A.S0
+    consumed_by: [2A]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  license: Proprietary-Internal
+
+- id: s1_tz_lookup
+  status: approved
+  owner_subsegment: 2A
+  description: Provisional tz lookup results per site (deterministic).
+  version: '{seed}.{manifest_fingerprint}'
+  format: parquet
+  path: data/layer1/2A/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/
+  partitioning: [seed, fingerprint]
+  ordering: [merchant_id, legal_country_iso, site_order]
+  schema_ref: schemas.2A.yaml#/plan/s1_tz_lookup
+  lineage:
+    produced_by: 2A.S1
+    consumed_by: [2A]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  license: Proprietary-Internal
+
+- id: site_timezones
+  status: approved
+  owner_subsegment: 2A
+  description: Final per-site IANA tzid with provenance; order-free egress.
+  version: '{seed}.{manifest_fingerprint}'
+  format: parquet
+  path: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
+  partitioning: [seed, fingerprint]
+  ordering: [merchant_id, legal_country_iso, site_order]
+  schema_ref: schemas.2A.yaml#/egress/site_timezones
+  lineage:
+    produced_by: 2A.S2
+    consumed_by: [2A, 2B]
+    final_in_layer: true
+  retention_days: 365
+  pii: false
+  license: Proprietary-Internal
+
+- id: tz_timetable_cache
+  status: approved
+  owner_subsegment: 2A
+  description: Fingerprint-scoped cache manifest for tz transitions.
+  version: '{manifest_fingerprint}'
+  format: files
+  path: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.2A.yaml#/cache/tz_timetable_cache
+  lineage:
+    produced_by: 2A.S3
+    consumed_by: [2A]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  license: Proprietary-Internal
+
+- id: s4_legality_report
+  status: approved
+  owner_subsegment: 2A
+  description: Legality/DST report per seed×fingerprint (JSON summary).
+  version: '{seed}.{manifest_fingerprint}'
+  format: json
+  path: data/layer1/2A/legality_report/seed={seed}/fingerprint={manifest_fingerprint}/s4_legality_report.json
+  partitioning: [seed, fingerprint]
+  ordering: []
+  schema_ref: schemas.2A.yaml#/validation/s4_legality_report
+  lineage:
+    produced_by: 2A.S4
+    consumed_by: [2A]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  license: Proprietary-Internal
+
+- id: validation_bundle_2A
+  status: approved
+  owner_subsegment: 2A
+  description: Validation bundle for 2A publish (one per fingerprint).
+  version: '{manifest_fingerprint}'
+  format: files
+  path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/bundle/
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.2A.yaml#/validation/validation_bundle_2A
+  lineage:
+    produced_by: 2A.S5
+    consumed_by: [2B, 3A, 3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  license: Proprietary-Internal
+
+- id: validation_passed_flag_2A
+  status: approved
+  owner_subsegment: 2A
+  description: PASS flag; equals SHA-256 of bundle per index+ASCII-lex law.
+  version: '{manifest_fingerprint}'
+  format: text
+  path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.2A.yaml#/validation/passed_flag
+  lineage:
+    produced_by: 2A.S5
+    consumed_by: [2B, 3A, 3B]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  license: Proprietary-Internal
