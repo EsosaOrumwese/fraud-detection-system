@@ -247,7 +247,7 @@ datasets:
   description: Validation bundle for 2A publish (one per fingerprint).
   version: '{manifest_fingerprint}'
   format: files
-  path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/bundle/
+  path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
   partitioning: [fingerprint]
   ordering: []
   schema_ref: schemas.2A.yaml#/validation/validation_bundle_2A
