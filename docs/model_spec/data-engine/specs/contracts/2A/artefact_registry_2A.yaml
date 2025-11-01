@@ -203,7 +203,7 @@ subsegments:
     owner: {owner_team: "mlr-2a-validation"}
     environment: [runtime]
     schema:
-      index_schema_ref: schemas.1A.yaml#/validation/validation_bundle.index_schema
+      index_schema_ref: schemas.2A.yaml#/validation/bundle_index_v1
     notes: "Hashing law: ASCII-lex order of index.path; hash raw bytes; flag excluded."
 
   - name: validation_passed_flag_2A

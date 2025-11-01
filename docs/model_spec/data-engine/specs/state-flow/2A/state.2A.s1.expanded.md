@@ -489,7 +489,7 @@ A single UTF-8 JSON object **SHALL** be written for the run with at least the fi
 * `inputs.tz_world.id : string` — release ID (e.g., `tz_world_2025a`)
 * `inputs.tz_world.license : string`
 * `inputs.tz_nudge.semver : string`
-* `inputs.tz_nudge.sha256_hex : hex64`
+* `inputs.tz_nudge.sha256_digest : hex64`
 
 **Lookup summary (geometry-only outcomes):**
 
