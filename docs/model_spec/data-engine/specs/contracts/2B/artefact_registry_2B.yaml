@@ -136,3 +136,22 @@ artifacts:
     source: internal
     owner: { owner_team: "l2-2b-governance" }
     environment: [runtime]
+
+  # === 2B.S1 output ===
+  - name: s1_site_weights
+    path: data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: plan
+    semver: '{semver}'
+    version: '{seed}.{manifest_fingerprint}'
+    license: Proprietary-Internal
+    role: "Frozen per-site probability law used by alias construction and routing."
+    source: internal
+    owner: { owner_team: "l2-2b-core" }
+    environment: [runtime]
+    schema: schemas.2B.yaml#/plan/s1_site_weights
+    dependencies:
+      - site_locations
+      - alias_layout_policy_v1
+    notes: |
+      Writer sort: [merchant_id, legal_country_iso, site_order]; write-once; atomic publish.

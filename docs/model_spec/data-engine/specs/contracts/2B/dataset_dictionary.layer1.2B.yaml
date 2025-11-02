@@ -68,3 +68,13 @@ datasets:
     path: contracts/policy/2B/day_effect_policy_v1.json
     format: json
     status: approved
+
+  # === 2B.S1 output ===
+  - id: s1_site_weights
+    path: data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitioning: [seed, fingerprint]
+    ordering: [merchant_id, legal_country_iso, site_order]
+    format: parquet
+    schema_ref: schemas.2B.yaml#/plan/s1_site_weights
+    status: approved
+

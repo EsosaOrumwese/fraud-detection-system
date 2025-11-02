@@ -110,3 +110,29 @@ policy:
   day_effect_policy_v1:
     type: object
     additionalProperties: true
+
+# ── Plan (downstream states) ─────────────────────────────────────────────
+plan:
+
+  s1_site_weights:
+    type: table
+    description: "Per-merchant per-site frozen probability law (RNG-free)."
+    primary_key: [merchant_id, legal_country_iso, site_order]
+    partition_keys: [seed, fingerprint]
+    sort_keys: [merchant_id, legal_country_iso, site_order]
+    columns_strict: true
+    columns:
+      - { name: merchant_id,        $ref: 'schemas.layer1.yaml#/$defs/id64',            nullable: false }
+      - { name: legal_country_iso,  $ref: 'schemas.layer1.yaml#/$defs/iso2',            nullable: false }
+      - { name: site_order,         type: integer, minimum: 1,                          nullable: false }
+      - { name: p_weight,           type: number,  minimum: 0.0, maximum: 1.0,          nullable: false,
+          description: "Normalised weight; Σ per-merchant = 1 within policy ε." }
+      - { name: weight_source,      type: string,  minLength: 1,                         nullable: false,
+          description: "Policy-declared source/transform used for weights." }
+      - { name: quantised_bits,     type: integer, minimum: 1,                           nullable: false,
+          description: "Bit-depth b used by S2 alias construction." }
+      - { name: floor_applied,      type: boolean,                                       nullable: false,
+          description: "True if a floor or zero-mass fallback affected this row." }
+      - { name: created_utc,        $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros',   nullable: false,
+          description: "Echo of S0 verified_at_utc for this fingerprint." }
+
