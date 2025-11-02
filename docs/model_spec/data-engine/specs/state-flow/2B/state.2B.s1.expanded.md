@@ -947,7 +947,7 @@ When Status = **frozen**, post-freeze edits are **patch-only** barring a formall
 
   * Output anchor used by S1: `#/plan/s1_site_weights`
   * Policy anchor read by S1: `#/policy/alias_layout_policy_v1`
-  * Common defs: `#/$defs/hex64`, `#/$defs/partition_kv`, `#/$defs/iso_datetime_utc`
+  * Common defs: #//hex64, #//partition_kv (timestamps reuse schemas.layer1.yaml#//rfc3339_micros)
 * **Dataset Dictionary (catalogue authority):** `dataset_dictionary.layer1.2B.yaml`
 
   * Output ID & path family:
