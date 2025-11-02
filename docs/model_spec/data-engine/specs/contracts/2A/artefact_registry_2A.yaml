@@ -151,7 +151,7 @@ subsegments:
     manifest_key: mlr.2A.egress.site_timezones
     license: Proprietary-Internal
     role: "Per-site IANA tzid with provenance; order-free."
-    dependencies: [s1_tz_lookup, tzdb_release]
+    dependencies: [s1_tz_lookup, tz_overrides]   # S2 lineage is from S1 plan + policy overrides; tzdb_release is used by S3.
     source: internal
     owner: {owner_team: "mlr-2a-core"}
     environment: [runtime]
