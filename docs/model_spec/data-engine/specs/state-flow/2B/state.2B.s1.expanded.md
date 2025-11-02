@@ -96,9 +96,9 @@ If exactly one is present in S0’s inventory, S1 MUST treat this as **mixed pin
 
 * **Exact partitioning.**
   • For `site_locations`: **exactly** `seed={seed} / fingerprint={manifest_fingerprint}`.
-  • For `alias_layout_policy_v1`: **fingerprint-only** selection.
+  • For `alias_layout_policy_v1`: **no partition tokens**; select the **exact S0-sealed path** (and digest) for this fingerprint.
   • For optional pins: as stated above.
-* **Subset of S0.** Every asset S1 reads **MUST** be a subset of (or equal to) the assets sealed in S0’s `sealed_inputs_v1` for this fingerprint. Accessing any asset not listed there is an error.
+* **Subset of S0.** Every asset S1 reads **MUST** be a subset of (or equal to) the assets sealed in S0's `sealed_inputs_v1` for this fingerprint. Accessing any asset not listed there is an error.
 * **No re-hashing upstream gates.** S1 MUST NOT recompute the 1B bundle hash; the S0 receipt is the sole attestation.
 
 ### 3.5 Input field expectations (from policy; Abort if unmet)
@@ -147,7 +147,7 @@ Resolve **only** these IDs via the Dictionary (no literal paths):
 
 * **Exact partitioning:**
   • `site_locations`: **exactly** `seed={seed} / fingerprint={manifest_fingerprint}`.
-  • `alias_layout_policy_v1`: **fingerprint-only** selection.
+  • `alias_layout_policy_v1`: **no partition tokens**; selection is by the **exact S0-sealed path** (and digest).
   • Optional pins: as declared above (all-or-none).
 * **Path↔embed equality** MUST hold for S1 outputs; token expansion follows the Dictionary exactly.
 
@@ -437,7 +437,7 @@ The **Dataset Dictionary** binds `s1_site_weights` to its path family and format
 All inputs (`site_locations`, `alias_layout_policy_v1`, optional pins if used) were resolved by **Dictionary IDs**; zero literal paths.
 
 **V-03 — Partition selection exact (Abort).**
-Reads used only `site_locations@seed={seed}/fingerprint={manifest_fingerprint}` and fingerprint-only selection for `alias_layout_policy_v1` (and for optional pins, if present).
+Reads used only `site_locations@seed={seed}/fingerprint={manifest_fingerprint}` and the **exact S0-sealed path** for `alias_layout_policy_v1` (no partition tokens). For optional pins (if present), use the exact partitions declared here.
 
 **V-04 — Policy shape & minima present (Abort).**
 `alias_layout_policy_v1` provides at least: `weight_source`, `floor_spec`, `normalisation_epsilon` (= ε), `quantised_bits` (= b), `quantisation_epsilon` (= ε_q), and the required provenance flags.
@@ -947,7 +947,7 @@ When Status = **frozen**, post-freeze edits are **patch-only** barring a formall
 
   * Output anchor used by S1: `#/plan/s1_site_weights`
   * Policy anchor read by S1: `#/policy/alias_layout_policy_v1`
-  * Common defs: #//hex64, #//partition_kv (timestamps reuse schemas.layer1.yaml#//rfc3339_micros)
+  * Common defs: `#/$defs/hex64`, `#/$defs/partition_kv` (timestamps reuse `schemas.layer1.yaml#/$defs/rfc3339_micros`)
 * **Dataset Dictionary (catalogue authority):** `dataset_dictionary.layer1.2B.yaml`
 
   * Output ID & path family:
