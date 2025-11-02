@@ -41,6 +41,7 @@ subsegments:
     environment: [runtime]
     schema:
       index_schema_ref: schemas.1A.yaml#/validation/validation_bundle.index_schema  # 1A index law reused
+    notes: "Hashing law: ASCII-lex order of index.path; hash raw bytes; flag excluded."
     cross_layer: true
 
   - name: validation_passed_flag_1B
@@ -56,6 +57,23 @@ subsegments:
     source: internal
     owner: {owner_team: "mlr-1b-validation"}
     environment: [runtime]
+
+  # Cross-layer pointer to 1B egress consumed by 2A
+  - name: site_locations
+    path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: output
+    semver: '{semver}'
+    version: '{seed}.{manifest_fingerprint}'
+    manifest_key: mlr.1B.egress.site_locations
+    license: Proprietary-Internal
+    role: "Per-site lon/lat from 1B; consumed by 2A.S1"
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-1b-core"}
+    environment: [runtime]
+    schema: schemas.1B.yaml#/egress/site_locations
+    cross_layer: true
 
   # ── Policy/config sealed by S0 ──────────────────────────────────────────
   - name: tz_overrides
@@ -151,7 +169,7 @@ subsegments:
     manifest_key: mlr.2A.egress.site_timezones
     license: Proprietary-Internal
     role: "Per-site IANA tzid with provenance; order-free."
-    dependencies: [s1_tz_lookup, tz_overrides]   # S2 lineage is from S1 plan + policy overrides; tzdb_release is used by S3.
+    dependencies: [s1_tz_lookup, tz_overrides, tz_world_2025a]   # S2 lineage is from S1 plan + policy overrides; tzdb_release is used by S3.
     source: internal
     owner: {owner_team: "mlr-2a-core"}
     environment: [runtime]
