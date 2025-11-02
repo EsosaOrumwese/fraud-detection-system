@@ -147,7 +147,7 @@ S3 **consumes only** the following inputs. All MUST be resolved **by ID via the 
 
 * **Receipt check:** S0 receipt exists and matches the target `manifest_fingerprint`.
 * **Dictionary resolution:** `tzdb_release` and `tz_world_<release>` resolve by ID; paths/format match the Dictionary.
-+ **Pinning & tag/digest:** `tzdb_release` has a supported release tag and a well-formed SHA-256, and S3 SHALL verify that the SHA-256 of the sealed archive bytes equals the sealed digest.
++ **Pinning & tag/digest:** `tzdb_release` has a supported release tag and a well-formed SHA-256, and S3 SHALL verify (offline) that the SHA-256 of the sealed archive bytes equals the sealed digest; no network sources permitted.
 * **Coverage domain:** `tz_world` tzid set is readable (non-empty) and used for coverage checks (see §9).
 * **No literal paths / no mutation:** Inputs are read-only and resolved strictly via the catalogue.
 
@@ -265,7 +265,7 @@ Dictionary governs filenames/layout (e.g., manifest filename, cache shard names)
 3. **Compile transitions (per `tzid`).**
 
    * Parse the sealed tzdb into a per-`tzid` sequence of **civil-time change instants** (UTC) and **offset minutes**.
-   * For each `tzid`, the transition instants **MUST** be strictly increasing; offset minutes **MUST** fall within the layer bounds (e.g., −900…+900).
+   * For each `tzid`, the transition instants **MUST** be strictly increasing; offset minutes **MUST** fall within the layer bounds (−900…+900) (see V-13).
    * If consecutive transitions would yield **identical effective offsets**, **coalesce** them (remove redundant entries) without altering semantics.
 4. **Normalise & canonicalise.**
 
@@ -386,7 +386,7 @@ Given the same **S0 receipt**, the same sealed **`tzdb_release`**, and the same 
 ### 9.5 Transition sanity (mandatory)
 
 **V-12 — Strict order per `tzid` (Abort).** Transition instants are strictly increasing.
-**V-13 — Offset bounds (Abort).** All offsets are integral minutes within the layer range (e.g., −900…+900).
+**V-13 — Offset bounds (Abort).** All offsets are integral minutes within the layer range (−900…+900).
 **V-14 — No non-finite values (Abort).** No NaN/Inf in instants or offsets.
 
 ### 9.6 Coverage (mandatory)
@@ -481,7 +481,7 @@ Given the same **S0 receipt**, the same sealed **`tzdb_release`**, and the same 
 
 * **2A-S3-051 TRANSITION_ORDER_INVALID (Abort)** — Non-monotonic transition instants for a `tzid`.
   *Remediation:* sort/validate per-`tzid` transitions strictly ascending; rerun.
-* **2A-S3-052 OFFSET_OUT_OF_RANGE (Abort)** — Offset minutes outside allowed layer bounds (e.g., −900…+900).
+* **2A-S3-052 OFFSET_OUT_OF_RANGE (Abort)** — Offset minutes outside allowed layer bounds (−900…+900).
   *Remediation:* clamp/validate bounds according to layer policy; rerun.
 * **2A-S3-055 NONFINITE_VALUE (Abort)** — NaN/Inf encountered in instants or offsets.
   *Remediation:* sanitise inputs; ensure numeric policy compliance.
@@ -625,7 +625,7 @@ Every record **SHALL** include:
 ### 12.6 Hot spots & guardrails
 
 * **Large transition eras:** tzids with frequent historical rule changes inflate `T`; ensure coalescing removes redundant adjacent offsets.
-* **Offset bounds:** clamp/validate to the layer range (e.g., −900..+900) to avoid outliers cascading through hashing.
+* **Offset bounds:** clamp/validate to the layer range (−900..+900) to avoid outliers cascading through hashing.
 * **Canonicalisation stability:** normalise encodings (byte order, number formats, newline discipline) so recomputation reproduces `tz_index_digest`.
 * **Coverage join:** compute the `tz_world` tzid set once; treat it as a pure set membership check (no geometry).
 
