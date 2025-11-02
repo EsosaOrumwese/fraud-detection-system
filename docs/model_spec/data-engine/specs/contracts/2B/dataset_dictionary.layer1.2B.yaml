@@ -49,7 +49,7 @@ datasets:
     path: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
     partitioning: [fingerprint]
     format: folder
-    schema_ref: schemas.2A.yaml#/egress/tz_timetable_cache
+    schema_ref: schemas.2A.yaml#/cache/tz_timetable_cache
     status: optional
 
   # === 2B policy packs (captured/digested by S0) ===

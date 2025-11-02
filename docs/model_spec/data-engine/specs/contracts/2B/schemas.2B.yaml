@@ -20,20 +20,22 @@ validation:
     type: object
     additionalProperties: false
     required:
-      - fingerprint
+      - manifest_fingerprint
       - seed
+      - parameter_hash
       - verified_at_utc
       - sealed_inputs
       - catalogue_resolution
       - determinism_receipt
     properties:
-      fingerprint:
+      manifest_fingerprint:
         $ref: "#/$defs/hex64"
       seed:
-        type: string
-        minLength: 1
+        $ref: "schemas.layer1.yaml#/$defs/uint64"
+      parameter_hash:
+        $ref: "#/$defs/hex64"
       verified_at_utc:
-        $ref: "#/$defs/iso_datetime_utc"
+        $ref: "schemas.layer1.yaml#/$defs/rfc3339_micros"
       sealed_inputs:
         type: array
         items:

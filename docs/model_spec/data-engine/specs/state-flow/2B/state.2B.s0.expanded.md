@@ -226,13 +226,14 @@ All shapes in this state are governed by **`schemas.2B.yaml`** (shape authority)
 ### 6.2 Output anchor — `schemas.2B.yaml#/validation/s0_gate_receipt_v1`
 
 **Type:** JSON object (fields-strict)
-**Required:** `fingerprint`, `seed`, `verified_at_utc`, `sealed_inputs`, `catalogue_resolution`, `determinism_receipt`
+**Required:** `manifest_fingerprint`, `seed`, `parameter_hash`, `verified_at_utc`, `sealed_inputs`, `catalogue_resolution`, `determinism_receipt`
 
 **Fields**
 
-* `fingerprint` — string, hex64 (the `manifest_fingerprint`).
-* `seed` — string (opaque run identifier; echoed for downstream context).
-* `verified_at_utc` — string, ISO-8601 `date-time` (UTC) when the upstream bundle hash was verified.
+* `manifest_fingerprint` - string, hex64.
+* `seed` - uint64 (layer-wide `$defs`), echoed for downstream context.
+* `parameter_hash` - string, hex64 (run lineage token; not a partition in S0).
+* `verified_at_utc` - RFC-3339 (UTC, micros) set deterministically for this fingerprint (record once; reuse on re-runs).
 * `sealed_inputs` — array of objects (fields-strict); **item required:** `id`, `partition`, `schema_ref`
 
   * `id` — string (Dictionary ID of the sealed asset).
@@ -335,7 +336,7 @@ S0 references (but does not redefine) the following input shapes; `schema_ref` v
 5. **Load & validate index** (`validation_bundle.index_schema`); assert all `index.path` entries are **relative**.
 6. **Recompute bundle digest**: stream the **raw bytes** of each indexed file in **ASCII-lex order of `index.path`** into a single SHA-256; **exclude** `_passed.flag`.
 7. **Compare with flag.** Parse `_passed.flag` (`sha256_hex = <hex64>`); if digest ≠ flag value → **Abort**.
-8. **Stamp `verified_at_utc`** = current UTC instant; this timestamp will be echoed in outputs.
+8. **Set `verified_at_utc`** deterministically for this fingerprint. On first publish, record once; on re-runs, reuse the previously-published value so outputs remain byte-identical.
 
 ### 7.3 Resolve & seal required inputs
 

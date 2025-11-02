@@ -104,7 +104,7 @@ artifacts:
     source: internal
     owner: { owner_team: "l2-2a-core" }
     environment: [runtime]
-    schema: schemas.2A.yaml#/egress/tz_timetable_cache
+    schema: schemas.2A.yaml#/cache/tz_timetable_cache
 
   # === 2B policy packs captured by S0 ===
   - name: route_rng_policy_v1
