@@ -1,0 +1,69 @@
+# Layer-2 · Segment 2B — Dataset Dictionary
+version: "v1.0.0"
+
+datasets:
+  # === 2B.S0 outputs ===
+  - id: s0_gate_receipt_2B
+    path: data/layer1/2B/s0_gate_receipt_2B/fingerprint={manifest_fingerprint}/s0_gate_receipt_2B.json
+    partitioning: [fingerprint]
+    format: json
+    schema_ref: schemas.2B.yaml#/validation/s0_gate_receipt_v1
+    status: approved
+
+  - id: sealed_inputs_v1
+    path: data/layer1/2B/sealed_inputs_v1/fingerprint={manifest_fingerprint}/sealed_inputs_v1.json
+    partitioning: [fingerprint]
+    format: json
+    schema_ref: schemas.2B.yaml#/validation/sealed_inputs_v1
+    status: approved
+
+  # === Upstream gate (1B) ===
+  - id: validation_bundle_1B
+    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+    format: folder
+    schema_ref: schemas.1A.yaml#/validation/validation_bundle.index_schema
+    status: approved
+
+  - id: passed_flag_1B
+    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    format: text
+    status: approved
+
+  # === Cross-segment egress consumed by 2B ===
+  - id: site_locations
+    path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitioning: [seed, fingerprint]
+    format: parquet
+    schema_ref: schemas.1B.yaml#/egress/site_locations
+    status: approved
+
+  # === Optional pins from 2A (all-or-none; read-only) ===
+  - id: site_timezones
+    path: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitioning: [seed, fingerprint]
+    format: parquet
+    schema_ref: schemas.2A.yaml#/egress/site_timezones
+    status: optional
+
+  - id: tz_timetable_cache
+    path: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    format: folder
+    schema_ref: schemas.2A.yaml#/egress/tz_timetable_cache
+    status: optional
+
+  # === 2B policy packs (captured/digested by S0) ===
+  - id: route_rng_policy_v1
+    path: contracts/policy/2B/route_rng_policy_v1.json
+    format: json
+    status: approved
+
+  - id: alias_layout_policy_v1
+    path: contracts/policy/2B/alias_layout_policy_v1.json
+    format: json
+    status: approved
+
+  - id: day_effect_policy_v1
+    path: contracts/policy/2B/day_effect_policy_v1.json
+    format: json
+    status: approved

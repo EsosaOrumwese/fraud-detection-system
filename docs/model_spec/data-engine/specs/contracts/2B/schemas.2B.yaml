@@ -1,0 +1,113 @@
+# Layer-2 · Segment 2B — Schema Pack
+title: "Layer-2 · Segment 2B — Schema Pack"
+version: "v1.0.0"
+
+$defs:
+  hex64:
+    type: string
+    pattern: "^[a-f0-9]{64}$"
+  iso_datetime_utc:
+    type: string
+    format: date-time
+  partition_kv:
+    type: object
+    additionalProperties:
+      type: string
+    minProperties: 1
+
+validation:
+  s0_gate_receipt_v1:
+    type: object
+    additionalProperties: false
+    required:
+      - fingerprint
+      - seed
+      - verified_at_utc
+      - sealed_inputs
+      - catalogue_resolution
+      - determinism_receipt
+    properties:
+      fingerprint:
+        $ref: "#/$defs/hex64"
+      seed:
+        type: string
+        minLength: 1
+      verified_at_utc:
+        $ref: "#/$defs/iso_datetime_utc"
+      sealed_inputs:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required: [id, partition, schema_ref]
+          properties:
+            id:
+              type: string
+              minLength: 1
+            partition:
+              $ref: "#/$defs/partition_kv"
+            schema_ref:
+              type: string
+              minLength: 1
+      catalogue_resolution:
+        type: object
+        additionalProperties: false
+        required: [dictionary_version, registry_version]
+        properties:
+          dictionary_version:
+            type: string
+            minLength: 1
+          registry_version:
+            type: string
+            minLength: 1
+      determinism_receipt:
+        type: object
+        additionalProperties: false
+        properties:
+          engine_commit:
+            type: string
+          python_version:
+            type: string
+          platform:
+            type: string
+          policy_ids:
+            type: array
+            items: { type: string }
+          policy_digests:
+            type: array
+            items: { $ref: "#/$defs/hex64" }
+
+  sealed_inputs_v1:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [asset_id, version_tag, sha256_hex, path, partition]
+      properties:
+        asset_id:
+          type: string
+          minLength: 1
+        version_tag:
+          type: string
+          minLength: 1
+        sha256_hex:
+          $ref: "#/$defs/hex64"
+        path:
+          type: string
+          minLength: 1
+        partition:
+          $ref: "#/$defs/partition_kv"
+        schema_ref:
+          type: string
+
+# Policy anchors (captured by S0; shapes intentionally permissive)
+policy:
+  route_rng_policy_v1:
+    type: object
+    additionalProperties: true
+  alias_layout_policy_v1:
+    type: object
+    additionalProperties: true
+  day_effect_policy_v1:
+    type: object
+    additionalProperties: true
