@@ -41,15 +41,25 @@ validation:
   s4_legality_report:
     type: object
     additionalProperties: false
-    required: [manifest_fingerprint, seed, generated_at_utc, status]
+    required: [manifest_fingerprint, seed, generated_utc, status, counts]
     properties:
       manifest_fingerprint: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
       seed:                 { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
-      generated_at_utc:     { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
+      generated_utc:        { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
       status:               { type: string, enum: [PASS, FAIL] }
-      tzids_covered:        { $ref: 'schemas.layer1.yaml#/$defs/uint32' }
-      folds_checked:        { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
-      gaps_checked:         { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      counts:
+        type: object
+        additionalProperties: false
+        required: [sites_total, tzids_total, gap_windows_total, fold_windows_total]
+        properties:
+          sites_total:        { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+          tzids_total:        { $ref: 'schemas.layer1.yaml#/$defs/uint32' }
+          gap_windows_total:  { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+          fold_windows_total: { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      missing_tzids:
+        type: array
+        items: { $ref: 'schemas.layer1.yaml#/$defs/iana_tzid' }
+      notes: { type: string }
 
   # 2A validation bundle (S5) — same index law as 1A/1B; keep structure modest
   validation_bundle_2A:

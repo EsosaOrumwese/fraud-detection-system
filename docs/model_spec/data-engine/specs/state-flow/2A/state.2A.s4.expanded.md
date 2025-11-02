@@ -439,7 +439,7 @@ Given the same **S0 receipt**, the same `site_timezones` partition, and the same
 | V-07 Report schema validity        | **2A-S4-030 REPORT_SCHEMA_INVALID**                                                    |
 | V-08 Report path↔embed equality    | **2A-S4-040 PATH_EMBED_MISMATCH**                                                      |
 | V-09 Deterministic `generated_utc` | **2A-S4-042 GENERATED_UTC_NONDETERMINISTIC**                                           |
-| V-10 Coverage (tzids)              | **2A-S4-021 TZID_MISSING_IN_CACHE** *(reuse code if preferred, or alias to 2A-S4-024)* |
+| V-10 Coverage (tzids)              | **2A-S4-024 TZID_MISSING_IN_CACHE** |
 | V-11 Counts sanity                 | **2A-S4-060 COUNT_COMPUTATION_ERROR**                                                  |
 | V-12 Window derivation coherence   | **2A-S4-061 WINDOW_DERIVATION_INVALID**                                                |
 | V-13 Numeric domain                | **2A-S4-050 OFFSET_NONFINITE_OR_OUT_OF_RANGE**                                         |

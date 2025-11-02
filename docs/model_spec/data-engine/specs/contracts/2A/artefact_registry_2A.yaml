@@ -201,7 +201,7 @@ subsegments:
     manifest_key: mlr.2A.validation.legality_report
     license: Proprietary-Internal
     role: "DST gaps/folds legality summary."
-    dependencies: [site_timezones]
+    dependencies: [site_timezones, tz_timetable_cache]
     source: internal
     owner: {owner_team: "mlr-2a-core"}
     environment: [runtime]
