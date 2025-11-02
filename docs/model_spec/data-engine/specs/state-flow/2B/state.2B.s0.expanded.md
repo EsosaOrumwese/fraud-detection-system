@@ -930,6 +930,7 @@ Status **`frozen`** constrains post-freeze edits to **patch-only** unless a form
 
   * **Index shape (hashing law):** `schemas.1A.yaml#/validation/validation_bundle.index_schema`
   * **Flag format:** `_passed.flag` with single line `sha256_hex = <hex64>`
+  * **Flag shape (schema anchor):** `schemas.1B.yaml#/validation/passed_flag`
 * **Egress consumed by 2B:**
 
   * `site_locations` → `data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/`
@@ -940,7 +941,7 @@ Status **`frozen`** constrains post-freeze edits to **patch-only** unless a form
 * **`site_timezones`** → `data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/`
   **Shape:** `schemas.2A.yaml#/egress/site_timezones`
 * **`tz_timetable_cache`** → `data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/`
-  **Shape:** `schemas.2A.yaml#/egress/tz_timetable_cache`
+  **Shape:** `schemas.2A.yaml#/cache/tz_timetable_cache`
 
 ### A.4 Outputs produced by this state (2B.S0)
 

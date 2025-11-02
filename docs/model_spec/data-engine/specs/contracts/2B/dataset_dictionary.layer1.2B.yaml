@@ -27,6 +27,7 @@ datasets:
   - id: passed_flag_1B
     path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
     format: text
+    schema_ref: schemas.1B.yaml#/validation/passed_flag
     status: approved
 
   # === Cross-segment egress consumed by 2B ===

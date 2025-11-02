@@ -6,14 +6,11 @@ $defs:
   hex64:
     type: string
     pattern: "^[a-f0-9]{64}$"
-  iso_datetime_utc:
-    type: string
-    format: date-time
   partition_kv:
     type: object
     additionalProperties:
       type: string
-    minProperties: 1
+    minProperties: 0
 
 validation:
   s0_gate_receipt_v1:
