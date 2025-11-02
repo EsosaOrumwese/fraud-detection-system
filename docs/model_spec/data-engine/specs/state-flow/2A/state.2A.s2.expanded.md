@@ -174,7 +174,7 @@ S2 **consumes only** the following inputs. All MUST be resolved **by ID via the 
 * **Receipt check:** S0 receipt exists and matches the target `manifest_fingerprint`. 
 * **Dictionary resolution:** IDs for `s1_tz_lookup` and `tz_overrides` resolve to canonical paths/partitions/format; S2 MUST NOT use literal paths.
 * **Partition discipline:** Only the run’s `(seed, fingerprint)` is read from S1. 
-* **Policy minima:** `tz_overrides` schema-valid; precedence enforced; expiry semantics honoured; any applied `tzid` conforms to `iana_tzid`. 
+* **Policy minima:** `tz_overrides` schema-valid; precedence enforced; expiry semantics honoured; any applied `tzid` conforms to `iana_tzid` **and belongs to the sealed `tz_world` release’s tzid domain** (membership check; read-only). 
 
 ### 4.4 Prohibitions
 
@@ -269,6 +269,7 @@ Registered as output; **dependencies:** `s1_tz_lookup`, `tz_overrides`; **schema
 
    * Select `s1_tz_lookup` **exactly** at `[seed, fingerprint]`.
    * Bind the sealed `tz_overrides` policy.
+   * Bind the sealed `tz_world` release for membership validation.
    * If MCC-scope overrides exist, bind the **authoritative merchant→MCC mapping** (must be present in the sealed inputs for this run); otherwise MCC-scope entries are **not active**.
 3. **Fix timestamps.** For determinism, set `created_utc` in output rows to **S0.receipt.verified_at_utc** (observational fields must be a deterministic function of sealed inputs).
 
@@ -765,9 +766,9 @@ Frozen specs SHALL record an **Effective date**; downstream pipelines target fro
 * **Final per-site tz** — `site_timezones`: `schemas.2A.yaml#/egress/site_timezones` (PK `[merchant_id, legal_country_iso, site_order]`; partitions `[seed,fingerprint]`; provenance fields `tzid_source`, `override_scope`; carry-through `nudge_*`).
   Dictionary path family `data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/`; Registry marks as **final in layer**.
 
-### A4. Ingress/time-zone domains (for optional validity checks)
+### A4. Ingress/time-zone domain (membership source)
 
-* **`tz_world_<release>` polygons** — `schemas.ingress.layer1.yaml#/tz_world_2025a` (GeoParquet, WGS84).
+* **`tz_world_<release>` polygons** — `schemas.ingress.layer1.yaml#/tz_world_2025a` (GeoParquet, WGS84); this sealed surface supplies the authoritative tzid set used by S2’s V-15b membership validator.
 * **Layer `$defs`** — `schemas.layer1.yaml#/$defs/iana_tzid`, `#/$defs/iso2`, `#/$defs/rfc3339_micros` (domains referenced by S2 shapes/validators).
 
 ### A5. Dataset Dictionary entries (catalogue authority)
