@@ -220,7 +220,7 @@ S4 **SHALL NOT**:
 
 ### 6.1 Output artefact — `s4_legality_report` (fingerprint+seed report)
 
-* **ID → Schema:** `schemas.2A.yaml#/validation/s4_legality_report` (**fields-strict**).
+* **ID → Schema:** `schemas.2A.yaml#/validation/s4_legality_report` (**fields-strict**; stored as JSON; anchor defines the fields).
 * **Minimum fields (binding):**
   `manifest_fingerprint: hex64` · `seed: uint64` · `generated_utc: rfc3339_micros` ·
   `status: enum{"PASS","FAIL"}` · `counts: { sites_total:uint64, tzids_total:uint32, gap_windows_total:uint64, fold_windows_total:uint64 }`
