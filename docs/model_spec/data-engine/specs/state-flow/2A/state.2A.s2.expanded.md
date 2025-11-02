@@ -98,7 +98,12 @@ S2 **consumes only** the following inputs. All MUST be resolved **by ID via the 
    *Catalogue:* `config/timezone/tz_overrides.yaml`.
    *Shape:* `schemas.2A.yaml#/policy/tz_overrides_v1`. 
 
-3. **(Optional) Merchant→MCC mapping (if programme uses MCC-scope overrides)**
+3. **`tz_world` polygons (ingress; sealed in S0)**
+   *Role:* authoritative tzid domain for membership validation of final output.
+   *Catalogue:* `reference/spatial/tz_world/<release>/tz_world.parquet`.
+   *Shape:* `schemas.ingress.layer1.yaml#/tz_world_2025a`.
+
+4. **(Optional) Merchant→MCC mapping (if programme uses MCC-scope overrides)**
    *Role:* authoritative mapping to evaluate `mcc`-scope overrides.
    *Catalogue/Shape:* programme-specific; MUST be present in the sealed manifest if MCC overrides are to be applied in this run. *(No fixed anchor in 2A; omit if not used.)*
 
@@ -147,13 +152,18 @@ S2 **consumes only** the following inputs. All MUST be resolved **by ID via the 
    * **Registry:** policy/config entry with precedence note (**site » mcc » country**). 
    * **Boundary:** S2 SHALL apply **at most one** active override per site using the precedence above; non-active or malformed entries are ignored (validators will raise errors where specified).
 
-3. **2A.S0 gate receipt (evidence)**
+3. **`tz_world` polygons (read-only; membership validation only)**
+
+   * **Shape:** `schemas.ingress.layer1.yaml#/tz_world_2025a`.
+   * **Boundary:** S2 MAY read tzid values to validate final output membership; no spatial work or geometry access is performed in S2.
+
+4. **2A.S0 gate receipt (evidence)**
 
    * **Shape:** `schemas.2A.yaml#/validation/s0_gate_receipt_v1`.
    * **Catalogue:** fingerprint-scoped receipt under `…/s0_gate_receipt/fingerprint={manifest_fingerprint}/…`.
    * **Boundary:** S2 SHALL only verify presence and fingerprint match; it SHALL NOT re-compute bundle hashes. 
 
-4. **(Optional) Merchant→MCC mapping** *(only if MCC-scope overrides are in use)*
+5. **(Optional) Merchant→MCC mapping** *(only if MCC-scope overrides are in use)*
 
    * **Shape/Catalogue:** programme-specific; MUST be present in the sealed manifest if MCC overrides are to be evaluated; otherwise MCC-scope entries are not active in this run.
 
@@ -225,6 +235,7 @@ Registered as output; **dependencies:** `s1_tz_lookup`, `tz_overrides`; **schema
 * **`s1_tz_lookup` (S1 plan):** `schemas.2A.yaml#/plan/s1_tz_lookup` (PK `[merchant_id, legal_country_iso, site_order]`; partitions `[seed, fingerprint]`; includes `tzid_provisional` and optional `nudge_*`). Catalogue path
   `data/layer1/2A/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/`. Registry classifies it as a **plan** dataset.
 * **`tz_overrides` (policy):** `schemas.2A.yaml#/policy/tz_overrides_v1` (scope∈{site,mcc,country}, `tzid`, optional expiry). Catalogue path `config/timezone/tz_overrides.yaml`; registry lists it under **policy/config**.
+* **`tz_world_<release>` (ingress tz polygons; read-only membership source):** `schemas.ingress.layer1.yaml#/tz_world_2025a`. Catalogue path `reference/spatial/tz_world/<release>/tz_world.parquet`.
 * **(Optional, for programme where needed) Merchant→MCC mapping:** programme-specific shape; MUST be present in the sealed manifest if MCC-scope overrides are to be evaluated; otherwise MCC-scope entries are treated as not active. *(No fixed 2A anchor.)*
 
 ### 6.3 Identity & partition posture (binding)
@@ -273,15 +284,15 @@ b) **Compute candidate sets (by scope).**
 * **mcc:** `scope=mcc` and `target == merchant_mcc` (only if MCC mapping is sealed)
 * **country:** `scope=country` and `target == legal_country_iso`
 
-c) **Uniqueness within scope.** If **>1 active** override exists **within any single scope** for the site, raise **PRECEDENCE_CONFLICT (Abort)**.
+c) **Uniqueness within scope.** If **>1 active** override exists **within any single scope** for the site, raise **OVERRIDES_DUPLICATE_SCOPE_TARGET (Abort)**.
 
 d) **Precedence.** Choose the **highest-precedence** non-empty set in the order **site » mcc » country**. If all are empty, **no override applies**.
 
-e) **Validate override tzid.** Any selected override `tzid` **MUST**:
+e) **Validate final tzid.** The chosen tzid (override or polygon pass-through) **MUST**:
 
 * conform to layer `$defs.iana_tzid`; and
-* (programme option) belong to the sealed `tz_world` release’s tzid domain.
-  Violations raise **UNKNOWN_TZID (Abort)**.
+* belong to the sealed `tz_world` release’s tzid domain (membership check).
+  Violations raise **UNKNOWN_TZID** (domain) or **TZID_NOT_IN_TZ_WORLD** (membership) as per §9.
 
 f) **Finalise assignment & provenance.**
 
@@ -366,7 +377,7 @@ Given the same **S0 receipt**, **`s1_tz_lookup`** partition, **`tz_overrides`** 
 ### 9.1 Gate & input resolution (mandatory)
 
 **V-01 — S0 receipt present (Abort).** A valid **2A.S0 gate receipt** exists and schema-validates for the target `manifest_fingerprint`.
-**V-02 — Dictionary resolution (Abort).** Inputs resolve by **ID** via the Dataset Dictionary (no literal paths): `s1_tz_lookup` `[seed,fingerprint]` and `tz_overrides` (and merchant→MCC mapping if MCC scope is used).
+**V-02 — Dictionary resolution (Abort).** Inputs resolve by **ID** via the Dataset Dictionary (no literal paths): `s1_tz_lookup` `[seed,fingerprint]`, `tz_overrides`, and `tz_world_<release>` (and merchant→MCC mapping if MCC scope is used).
 **V-03 — Partition selection (Abort).** `s1_tz_lookup` is read **only** from the run’s `(seed, manifest_fingerprint)` partition.
 
 ### 9.2 Policy readiness & precedence (mandatory)
@@ -389,6 +400,7 @@ Given the same **S0 receipt**, **`s1_tz_lookup`** partition, **`tz_overrides`** 
 **V-13 — PK uniqueness (Abort).** No duplicate `[merchant_id, legal_country_iso, site_order]` in `site_timezones`.
 **V-14 — Non-null tzid (Abort).** Every output row has non-null `tzid`.
 **V-15 — tzid domain (Abort).** Every `tzid` conforms to the layer-wide **`iana_tzid`** domain.
+**V-15b — tzid membership (Abort).** Every `tzid` appears in the sealed `tz_world` release (compare against `schemas.ingress.layer1.yaml#/tz_world_2025a.tzid`).
 **V-16 — Provenance coherence (Abort).**
   • If `tzid_source="override"`, then `override_scope ∈ {site,mcc,country}`;
   • If `tzid_source="polygon"`, then `override_scope` **is null**.
@@ -424,6 +436,7 @@ Given the same **S0 receipt**, **`s1_tz_lookup`** partition, **`tz_overrides`** 
 | V-13 PK uniqueness               | **2A-S2-051 PRIMARY_KEY_DUPLICATE**                                            |
 | V-14 Non-null tzid               | **2A-S2-052 NULL_TZID**                                                        |
 | V-15 tzid domain                 | **2A-S2-053 UNKNOWN_TZID**                                                     |
+| V-15b tzid membership            | **2A-S2-057 TZID_NOT_IN_TZ_WORLD**                                             |
 | V-16 Provenance coherence        | **2A-S2-054 PROVENANCE_INVALID**                                               |
 | V-17 Override has effect         | **2A-S2-055 OVERRIDE_NO_EFFECT**                                               |
 | V-18 Nudge carry-through         | **2A-S2-056 NUDGE_CARRY_MISMATCH**                                             |
@@ -481,8 +494,10 @@ Given the same **S0 receipt**, **`s1_tz_lookup`** partition, **`tz_overrides`** 
   *Remediation:* deduplicate; rerun.
 * **2A-S2-052 NULL_TZID (Abort)** — Any output row has `tzid = null`.
   *Remediation:* retain polygon result or provide a valid override; rerun.
-* **2A-S2-053 UNKNOWN_TZID (Abort)** — `tzid` fails the layer `iana_tzid` domain (and, if programme policy requires, is not present in the sealed `tz_world` domain).
-  *Remediation:* correct the tzid or update sealed inputs; rerun.
+* **2A-S2-053 UNKNOWN_TZID (Abort)** — `tzid` fails the layer `iana_tzid` domain.
+  *Remediation:* correct the tzid; rerun.
+* **2A-S2-057 TZID_NOT_IN_TZ_WORLD (Abort)** — `tzid` not found in the sealed `tz_world` domain for this fingerprint.
+  *Remediation:* correct tzid or update the sealed `tz_world` release; rerun.
 * **2A-S2-054 PROVENANCE_INVALID (Abort)** — Inconsistent provenance:
   `tzid_source="override"` but `override_scope ∉ {site,mcc,country}`, or
   `tzid_source="polygon"` but `override_scope ≠ null`.
@@ -555,6 +570,7 @@ A single UTF-8 JSON object **SHALL** be written for the run with at least the fi
 * `checks.coverage_mismatch : uint32` — missing/excess rows vs input (EXPECT 0 on PASS)
 * `checks.null_tzid : uint32` — (EXPECT 0 on PASS)
 * `checks.unknown_tzid : uint32` — (EXPECT 0 on PASS)
+* `checks.tzid_not_in_tz_world : uint32` — (EXPECT 0 on PASS)
 
 **Outputs & identity:**
 

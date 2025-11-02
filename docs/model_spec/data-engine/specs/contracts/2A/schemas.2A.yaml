@@ -198,7 +198,7 @@ egress:
       - { name: merchant_id,        $ref: 'schemas.layer1.yaml#/$defs/id64',  nullable: false }
       - { name: legal_country_iso,  $ref: 'schemas.layer1.yaml#/$defs/iso2',  nullable: false }
       - { name: site_order,         type: integer, minimum: 1,                nullable: false }
-      - { name: tzid,               $ref: 'schemas.layer1.yaml#/$defs/iana_tzid', nullable: false }
+      - { name: tzid,               $ref: 'schemas.layer1.yaml#/$defs/iana_tzid', nullable: false, fk: { dataset_ref: 'schemas.ingress.layer1.yaml#/tz_world_2025a', columns: { tzid: tzid } } }
       - { name: tzid_source,        type: string, enum: [polygon, override],  nullable: false }
       - { name: override_scope,     type: string, enum: [site, mcc, country], nullable: true }
       - { name: nudge_lat_deg,      type: number,                              nullable: true }
