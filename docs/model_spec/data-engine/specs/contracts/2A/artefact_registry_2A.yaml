@@ -216,7 +216,7 @@ subsegments:
     manifest_key: mlr.2A.validation.bundle
     license: Proprietary-Internal
     role: "Fingerprint-scoped PASS bundle for 2A; consumers of 2A egress MUST verify _passed.flag."
-    dependencies: [site_timezones, tz_timetable_cache]
+    dependencies: [site_timezones, tz_timetable_cache, s4_legality_report]
     source: internal
     owner: {owner_team: "mlr-2a-validation"}
     environment: [runtime]
