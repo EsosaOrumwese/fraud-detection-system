@@ -159,3 +159,37 @@ artifacts:
       - alias_layout_policy_v1
     notes: |
       Writer sort: [merchant_id, legal_country_iso, site_order]; write-once; atomic publish.
+
+  # === 2B.S2 outputs ===
+  - name: s2_alias_index
+    path: data/layer1/2B/s2_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/index.json
+    type: dataset
+    category: plan
+    semver: '{semver}'
+    version: '{seed}.{manifest_fingerprint}'
+    license: Proprietary-Internal
+    role: "Alias index: directory for alias blob slices; decode invariants and blob digest."
+    source: internal
+    owner: { owner_team: "l2-2b-core" }
+    environment: [runtime]
+    schema: schemas.2B.yaml#/plan/s2_alias_index
+    dependencies:
+      - s1_site_weights
+      - alias_layout_policy_v1
+      - s2_alias_blob
+
+  - name: s2_alias_blob
+    path: data/layer1/2B/s2_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/alias.bin
+    type: dataset
+    category: plan
+    semver: '{semver}'
+    version: '{seed}.{manifest_fingerprint}'
+    license: Proprietary-Internal
+    role: "Contiguous binary blob containing per-merchant alias tables."
+    source: internal
+    owner: { owner_team: "l2-2b-core" }
+    environment: [runtime]
+    schema: schemas.2B.yaml#/binary/s2_alias_blob
+    dependencies:
+      - s1_site_weights
+      - alias_layout_policy_v1

@@ -96,3 +96,18 @@ datasets:
     schema_ref: schemas.2B.yaml#/plan/s1_site_weights
     status: approved
 
+  # === 2B.S2 outputs ===
+  - id: s2_alias_index
+    path: data/layer1/2B/s2_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/index.json
+    partitioning: [seed, fingerprint]
+    format: json
+    schema_ref: schemas.2B.yaml#/plan/s2_alias_index
+    status: approved
+
+  - id: s2_alias_blob
+    path: data/layer1/2B/s2_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/alias.bin
+    partitioning: [seed, fingerprint]
+    format: binary
+    schema_ref: schemas.2B.yaml#/binary/s2_alias_blob
+    status: approved
+

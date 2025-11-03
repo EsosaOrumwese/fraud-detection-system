@@ -136,3 +136,55 @@ plan:
           description: "Echo of S0 verified_at_utc for this fingerprint." }
 
 
+  s2_alias_index:
+    type: object
+    description: "Directory for alias blob plus per-merchant slices."
+    additionalProperties: false
+    required:
+      - layout_version
+      - endianness
+      - alignment_bytes
+      - quantised_bits
+      - created_utc
+      - policy_id
+      - policy_digest
+      - blob_sha256
+      - blob_size_bytes
+      - merchants_count
+      - merchants
+    properties:
+      layout_version:   { type: string, minLength: 1 }
+      endianness:       { type: string, enum: [little, big] }
+      alignment_bytes:  { type: integer, minimum: 1 }
+      quantised_bits:   { type: integer, minimum: 1 }
+      created_utc:      { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
+      policy_id:        { type: string, const: "alias_layout_policy_v1" }
+      policy_digest:    { $ref: "#/$defs/hex64" }
+      blob_sha256:      { $ref: "#/$defs/hex64" }
+      blob_size_bytes:  { type: integer, minimum: 0 }
+      merchants_count:  { type: integer, minimum: 0 }
+      merchants:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required: [merchant_id, offset, length, sites, quantised_bits, checksum]
+          properties:
+            merchant_id:    { $ref: 'schemas.layer1.yaml#/$defs/id64' }
+            offset:         { type: integer, minimum: 0 }
+            length:         { type: integer, minimum: 1 }
+            sites:          { type: integer, minimum: 1 }
+            quantised_bits: { type: integer, minimum: 1 }
+            checksum:       { type: string, pattern: '^[A-Fa-f0-9]+$' }
+
+binary:
+  s2_alias_blob:
+    type: object
+    description: "Binary contract for contiguous alias tables blob."
+    additionalProperties: false
+    required: [layout_version, endianness, alignment_bytes]
+    properties:
+      layout_version:  { type: string, minLength: 1 }
+      endianness:      { type: string, enum: [little, big] }
+      alignment_bytes: { type: integer, minimum: 1 }
+
