@@ -8,7 +8,6 @@
 **Status:** `alpha` *(normative; semantics lock at `frozen` in a ratified release)*
 **Owners:** Design Authority (DA): **Esosa Orumwese** · Review Authority (RA): **Layer 1 Governance**
 **Effective date:** **2025-11-02 (UTC)**
-**Canonical location:** `contracts/specs/l2/seg_2B/state.2B.s1.expanded.v1.0.0.txt`
 
 **Authority chain (Binding):**
 **JSON-Schema pack** = shape authority → `schemas.2B.yaml`
