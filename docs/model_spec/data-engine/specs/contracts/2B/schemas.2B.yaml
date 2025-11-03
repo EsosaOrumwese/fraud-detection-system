@@ -1,6 +1,5 @@
-# Layer-2 · Segment 2B — Schema Pack
-title: "Layer-2 · Segment 2B — Schema Pack"
-version: "v1.0.0"
+# Layer-1 · Segment 2B — Schema Pack
+title: "Layer-1 · Segment 2B — Schema Pack"
 
 $defs:
   hex64:
@@ -135,4 +134,5 @@ plan:
           description: "True if a floor or zero-mass fallback affected this row." }
       - { name: created_utc,        $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros',   nullable: false,
           description: "Echo of S0 verified_at_utc for this fingerprint." }
+
 

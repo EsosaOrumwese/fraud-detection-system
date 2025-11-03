@@ -1,5 +1,19 @@
-# Layer-2 · Segment 2B — Dataset Dictionary
+# Layer-1 · Segment 2B — Dataset Dictionary
 version: "v1.0.0"
+
+lifecycle:
+  phase: alpha
+  last_reviewed:
+  approver: "Layer 1 Governance"
+
+ci_policy:
+  allow_placeholders: true
+  placeholder_markers: [TBD, null]
+  block_on_phase: [beta, stable]
+
+layer:
+  id: layer1
+  name: Merchant Location Realism
 
 datasets:
   # === 2B.S0 outputs ===
@@ -35,6 +49,7 @@ datasets:
     path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
     partitioning: [seed, fingerprint]
     format: parquet
+    ordering: [merchant_id, legal_country_iso, site_order]
     schema_ref: schemas.1B.yaml#/egress/site_locations
     status: approved
 
@@ -57,16 +72,19 @@ datasets:
   - id: route_rng_policy_v1
     path: contracts/policy/2B/route_rng_policy_v1.json
     format: json
+    schema_ref: schemas.2B.yaml#/policy/route_rng_policy_v1
     status: approved
 
   - id: alias_layout_policy_v1
     path: contracts/policy/2B/alias_layout_policy_v1.json
     format: json
+    schema_ref: schemas.2B.yaml#/policy/alias_layout_policy_v1
     status: approved
 
   - id: day_effect_policy_v1
     path: contracts/policy/2B/day_effect_policy_v1.json
     format: json
+    schema_ref: schemas.2B.yaml#/policy/day_effect_policy_v1
     status: approved
 
   # === 2B.S1 output ===

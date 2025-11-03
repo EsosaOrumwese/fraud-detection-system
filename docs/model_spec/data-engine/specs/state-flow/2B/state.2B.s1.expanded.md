@@ -2,11 +2,11 @@
 
 ## 1. **Document metadata & status (Binding)**
 
-**Component:** Layer-2 · Segment **2B** — **State-1 (S1)** · *Per-merchant weight freezing*
+**Component:** Layer-1 · Segment **2B** — **State-1 (S1)** · *Per-merchant weight freezing*
 **Document ID:** `seg_2B.s1.weights`
 **Version (semver):** `v1.0.0-alpha`
 **Status:** `alpha` *(normative; semantics lock at `frozen` in a ratified release)*
-**Owners:** Design Authority (DA): **Esosa Orumwese** · Review Authority (RA): **Layer-2 Governance**
+**Owners:** Design Authority (DA): **Esosa Orumwese** · Review Authority (RA): **Layer 1 Governance**
 **Effective date:** **2025-11-02 (UTC)**
 **Canonical location:** `contracts/specs/l2/seg_2B/state.2B.s1.expanded.v1.0.0.txt`
 

@@ -1,4 +1,4 @@
-# Layer-2 · Segment 2B — Artefact Registry
+# Layer-1 · Segment 2B — Artefact Registry
 version: "v1.0.0"
 
 artifacts:
@@ -117,6 +117,7 @@ artifacts:
     source: internal
     owner: { owner_team: "l2-2b-governance" }
     environment: [runtime]
+    schema: schemas.2B.yaml#/policy/route_rng_policy_v1
 
   - name: alias_layout_policy_v1
     path: contracts/policy/2B/alias_layout_policy_v1.json
@@ -127,6 +128,7 @@ artifacts:
     source: internal
     owner: { owner_team: "l2-2b-governance" }
     environment: [runtime]
+    schema: schemas.2B.yaml#/policy/alias_layout_policy_v1
 
   - name: day_effect_policy_v1
     path: contracts/policy/2B/day_effect_policy_v1.json
@@ -137,6 +139,7 @@ artifacts:
     source: internal
     owner: { owner_team: "l2-2b-governance" }
     environment: [runtime]
+    schema: schemas.2B.yaml#/policy/day_effect_policy_v1
 
   # === 2B.S1 output ===
   - name: s1_site_weights
