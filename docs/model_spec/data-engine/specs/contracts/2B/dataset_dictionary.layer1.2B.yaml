@@ -101,6 +101,7 @@ datasets:
     path: data/layer1/2B/s2_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/index.json
     partitioning: [seed, fingerprint]
     format: json
+    ordering: [merchant_id]
     schema_ref: schemas.2B.yaml#/plan/s2_alias_index
     status: approved
 

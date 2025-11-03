@@ -82,7 +82,8 @@ S2 SHALL read **only** the following assets for this run’s identity:
 
 * **`layout_version`** (string) — semantic version of the binary layout.
 * **`endianness`** (enum) and **`alignment_bytes`** (int ≥ 1) for the blob.
-* **`quantised_bits`** (int ≥ 1) — bit-depth **b** used to reconstruct the integer grid (`G = 2^b`).
+* **`quantised_bits`** (int >= 1) - bit-depth **b** used to reconstruct the integer grid (G = 2^b).
+* **`quantisation_epsilon`** (float > 0) — ε_q used by validators for decode error bounds.
 * **`decode_law`** (identifier) — the deterministic alias decode semantics S5/S6 will use (e.g., Walker/Vose variant).
 * **`encode_spec`** — fields sufficient to build alias arrays deterministically from integer masses `{m_i}`.
 * **`checksum`** — row- or merchant-level checksum spec (algorithm, scope) for index rows, and **`blob_sha256`** rule for the full blob.
@@ -507,8 +508,8 @@ All inputs (`s1_site_weights`, `alias_layout_policy_v1`) were resolved by **Dict
 **V-03 — Partition/selection exact (Abort).**
 Reads used only `s1_site_weights@seed={seed}/fingerprint={manifest_fingerprint}` and the **exact S0-sealed path** for `alias_layout_policy_v1` (no partition tokens).
 
-**V-04 — Policy minima present (Abort).**
-`alias_layout_policy_v1` provides at least: `layout_version`, `endianness`, `alignment_bytes`, `quantised_bits` (= **b**), `encode_spec`, `decode_law`, checksum rules, and required index fields.
+**V-04 - Policy minima present (Abort).**
+`alias_layout_policy_v1` provides at least: `layout_version`, `endianness`, `alignment_bytes`, `quantised_bits` (= **b**), `quantisation_epsilon` (= **ε_q**), `encode_spec`, `decode_law`, checksum rules, and required index fields.
 
 **V-05 — S1 bit-depth coherence (Abort).**
 All rows in `s1_site_weights` have constant `quantised_bits = b` and **b equals the policy’s `quantised_bits`**.
