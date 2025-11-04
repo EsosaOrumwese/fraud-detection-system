@@ -12,7 +12,7 @@ artifacts:
     license: Proprietary-Internal
     role: "Gate receipt attesting upstream verification, identity, and catalogue-only resolution."
     source: internal
-    owner: { owner_team: "l2-2b-core" }
+    owner: { owner_team: "l1-2b-core" }
     environment: [runtime]
     schema: schemas.2B.yaml#/validation/s0_gate_receipt_v1
     dependencies:
@@ -32,7 +32,7 @@ artifacts:
     license: Proprietary-Internal
     role: "Authoritative list of all assets sealed by 2B.S0 (IDs, tags, digests, paths, partitions)."
     source: internal
-    owner: { owner_team: "l2-2b-core" }
+    owner: { owner_team: "l1-2b-core" }
     environment: [runtime]
     schema: schemas.2B.yaml#/validation/sealed_inputs_v1
     dependencies:
@@ -91,7 +91,7 @@ artifacts:
     role: "Per-site tzid (2A egress); optional coherence pin."
     cross_layer: true
     source: internal
-    owner: { owner_team: "l2-2a-core" }
+    owner: { owner_team: "l1-2a-core" }
     environment: [runtime]
     schema: schemas.2A.yaml#/egress/site_timezones
 
@@ -103,7 +103,7 @@ artifacts:
     role: "Pinned IANA tz transitions cache (2A S3); optional coherence pin."
     cross_layer: true
     source: internal
-    owner: { owner_team: "l2-2a-core" }
+    owner: { owner_team: "l1-2a-core" }
     environment: [runtime]
     schema: schemas.2A.yaml#/cache/tz_timetable_cache
 
@@ -115,7 +115,7 @@ artifacts:
     license: Proprietary-Internal
     role: "Philox sub-stream layout & budgets for routing states."
     source: internal
-    owner: { owner_team: "l2-2b-governance" }
+    owner: { owner_team: "l1-2b-governance" }
     environment: [runtime]
     schema: schemas.2B.yaml#/policy/route_rng_policy_v1
 
@@ -126,7 +126,7 @@ artifacts:
     license: Proprietary-Internal
     role: "Alias table byte layout, endianness & alignment."
     source: internal
-    owner: { owner_team: "l2-2b-governance" }
+    owner: { owner_team: "l1-2b-governance" }
     environment: [runtime]
     schema: schemas.2B.yaml#/policy/alias_layout_policy_v1
 
@@ -137,7 +137,7 @@ artifacts:
     license: Proprietary-Internal
     role: "Daily modulation cadence/variance/clipping for S3."
     source: internal
-    owner: { owner_team: "l2-2b-governance" }
+    owner: { owner_team: "l1-2b-governance" }
     environment: [runtime]
     schema: schemas.2B.yaml#/policy/day_effect_policy_v1
 
@@ -151,7 +151,7 @@ artifacts:
     license: Proprietary-Internal
     role: "Frozen per-site probability law used by alias construction and routing."
     source: internal
-    owner: { owner_team: "l2-2b-core" }
+    owner: { owner_team: "l1-2b-core" }
     environment: [runtime]
     schema: schemas.2B.yaml#/plan/s1_site_weights
     dependencies:
@@ -170,7 +170,7 @@ artifacts:
     license: Proprietary-Internal
     role: "Alias index: directory for alias blob slices; decode invariants and blob digest."
     source: internal
-    owner: { owner_team: "l2-2b-core" }
+    owner: { owner_team: "l1-2b-core" }
     environment: [runtime]
     schema: schemas.2B.yaml#/plan/s2_alias_index
     dependencies:
@@ -187,7 +187,7 @@ artifacts:
     license: Proprietary-Internal
     role: "Contiguous binary blob containing per-merchant alias tables."
     source: internal
-    owner: { owner_team: "l2-2b-core" }
+    owner: { owner_team: "l1-2b-core" }
     environment: [runtime]
     schema: schemas.2B.yaml#/binary/s2_alias_blob
     dependencies:
@@ -204,7 +204,7 @@ artifacts:
     license: Proprietary-Internal
     role: "Per-merchant × per-UTC-day × per-tz-group gamma multipliers for day-scale co-movement."
     source: internal
-    owner: { owner_team: "l2-2b-core" }
+    owner: { owner_team: "l1-2b-core" }
     environment: [runtime]
     schema: schemas.2B.yaml#/plan/s3_day_effects
     dependencies:

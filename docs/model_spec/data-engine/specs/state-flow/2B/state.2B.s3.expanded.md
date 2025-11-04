@@ -564,7 +564,7 @@ Every failure log entry **MUST** include: `code`, `severity`, `message`, `finger
 * **2B-S3-050 COVERAGE_MISMATCH (Abort)** — Missing/extra rows vs required `{merchants × tz_groups × days}` grid.
   *Context:* `missing_rows_sample[]`, `extra_rows_sample[]`.
 
-* **2B-S3-041 PK_DUPLICATE (Abort)** — Duplicate `(merchant_id, utc_day, tz_group_id)` in output.
+* **2B-S3-042 PK_DUPLICATE (Abort)** - Duplicate `(merchant_id, utc_day, tz_group_id)` in output.
   *Context:* `key`.
 
 * **2B-S3-083 WRITER_ORDER_NOT_PK (Abort)** — Row emission order differs from PK order.
@@ -601,8 +601,11 @@ Every failure log entry **MUST** include: `code`, `severity`, `message`, `finger
 * **2B-S3-070 PARTITION_SELECTION_INCORRECT (Abort)** — Not exactly `seed={seed}/fingerprint={fingerprint}` (or wrong policy selection semantics).
   *Context:* `id`, `expected`, `actual`.
 
-* **2B-S3-071 PATH_EMBED_MISMATCH (Abort)** — Embedded identity differs from path tokens.
+* **2B-S3-071 PATH_EMBED_MISMATCH (Abort)** - Embedded identity differs from path tokens.
   *Context:* `embedded`, `path_token`.
+
+* **2B-S3-086 CREATED_UTC_MISMATCH (Abort)** - `created_utc` ≠ S0 receipt `verified_at_utc`.
+  *Context:* `created_utc`, `verified_at_utc`.
 
 * **2B-S3-080 IMMUTABLE_OVERWRITE (Abort)** — Target partition not empty and bytes differ.
   *Context:* `target_path`.
@@ -641,7 +644,7 @@ All failures MUST include:
 | **V-04 Policy minima present**               | 2B-S3-031, 2B-S3-032, 2B-S3-033     |
 | **V-05 Group universe well-defined**         | 2B-S3-040, 2B-S3-041                |
 | **V-06 Coverage: merchants × groups × days** | 2B-S3-050                           |
-| **V-07 PK uniqueness**                       | 2B-S3-041                           |
+| **V-07 PK uniqueness**                       | 2B-S3-042                           |
 | **V-08 Writer order = PK**                   | 2B-S3-083                           |
 | **V-09 Domain: γ/log-γ/sigma**               | 2B-S3-057, 2B-S3-058, 2B-S3-059     |
 | **V-10 Sigma echo coherent**                 | 2B-S3-059                           |
