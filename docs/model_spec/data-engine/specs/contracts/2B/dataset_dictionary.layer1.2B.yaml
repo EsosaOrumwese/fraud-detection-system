@@ -112,3 +112,11 @@ datasets:
     schema_ref: schemas.2B.yaml#/binary/s2_alias_blob
     status: approved
 
+  # === 2B.S3 output ===
+  - id: s3_day_effects
+    path: data/layer1/2B/s3_day_effects/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitioning: [seed, fingerprint]
+    ordering: [merchant_id, utc_day, tz_group_id]
+    format: parquet
+    schema_ref: schemas.2B.yaml#/plan/s3_day_effects
+    status: approved

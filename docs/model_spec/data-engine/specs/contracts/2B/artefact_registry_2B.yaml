@@ -193,3 +193,23 @@ artifacts:
     dependencies:
       - s1_site_weights
       - alias_layout_policy_v1
+
+  # === 2B.S3 output ===
+  - name: s3_day_effects
+    path: data/layer1/2B/s3_day_effects/seed={seed}/fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: plan
+    semver: '{semver}'
+    version: '{seed}.{manifest_fingerprint}'
+    license: Proprietary-Internal
+    role: "Per-merchant × per-UTC-day × per-tz-group gamma multipliers for day-scale co-movement."
+    source: internal
+    owner: { owner_team: "l2-2b-core" }
+    environment: [runtime]
+    schema: schemas.2B.yaml#/plan/s3_day_effects
+    dependencies:
+      - s1_site_weights
+      - site_timezones
+      - day_effect_policy_v1
+    notes: "Writer order: [merchant_id, utc_day, tz_group_id]; write-once; atomic publish."
+
