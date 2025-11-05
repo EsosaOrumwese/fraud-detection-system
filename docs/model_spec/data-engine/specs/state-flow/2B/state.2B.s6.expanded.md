@@ -4,9 +4,11 @@
 
 **Component:** Layer-1 · Segment **2B** — **State-6 (S6)** · *Virtual-merchant edge routing (branch)*
 **Document ID:** `seg_2B.s6.virtual_edge_routing`
+**Version (semver):** `v1.0.7-alpha`
 **Status:** `alpha` *(normative; semantics lock when marked `frozen`)*
 **Owners:** Design Authority (DA): **Esosa Orumwese** · Review Authority (RA): **Layer-1 Governance**
 **Effective date:** **2025-11-05 (UTC)**
+**Canonical location:** `contracts/specs/l1/seg_2B/state.2B.s6.expanded.v1.0.7.txt`
 
 **Authority chain (Binding).**
 **JSON-Schema packs** are the **sole shape authorities**: 2B pack for policies and any S6 trace shape; Layer-1 pack for the RNG envelope/core logs. **Dataset Dictionary** governs ID→path/partitions/format. **Artefact Registry** is metadata only (ownership/licence/retention).   
@@ -38,7 +40,7 @@ S6 SHALL treat the following surfaces as authoritative:
 
 **Scope (included).** S6 SHALL:
 
-* **Resolve authorities by Dataset Dictionary IDs only** (subset-of-S0 rule in force). Required inputs are **token-less** policy packs sealed at S0 — `route_rng_policy_v1` (declares the routing/edge stream, budgets, counter law) and **`virtual_edge_policy_v1`** (eligible `edge_id`s, weights/attrs). Selection is by the **exact S0-sealed** `path` + `sha256_hex`; no literal paths; no network I/O. *(Anchor for `virtual_edge_policy_v1` is defined in the 2B pack alongside other policy anchors.)*
+* **Resolve authorities by Dictionary IDs only; S0-evidence rule in force.** Required inputs are **token-less** policy packs sealed at S0 - `route_rng_policy_v1` (declares the routing/edge stream, budgets, counter law) and **`virtual_edge_policy_v1`** (eligible `edge_id`s, weights/attrs). Selection is by the **exact S0-sealed** `path` + `sha256_hex`; no literal paths; no network I/O. *(Anchor for `virtual_edge_policy_v1` is defined in the 2B pack alongside other policy anchors.)*
 * **Bypass non-virtual traffic.** If `is_virtual = 0`, S6 performs **no edge pick and consumes no RNG draws** (the arrival remains fully governed by S5). 
 * **Virtual edge selection (v1).** Build (or read, if later approved as an option) a per-merchant edge distribution from the sealed edge policy; **draw exactly one** single-uniform from the **routing/edge stream** (declared in `route_rng_policy_v1`) and decode via alias mechanics to pick `edge_id`; then **attach attributes** from the sealed policy (`ip_country`, `edge_lat`, `edge_lon`). RNG events and core logs are written under **`[seed, parameter_hash, run_id]`** with the standard envelope and one **trace** append **after each event**. 
 * **Identity & provenance.** `created_utc` for any diagnostic emission **echoes S0 `verified_at_utc`**; any optional S6 diagnostics (if later registered) must adopt the **run-scoped** partition law used by layer RNG logs. 
@@ -54,7 +56,7 @@ S6 SHALL treat the following surfaces as authoritative:
 **3.1 Gate & run-identity (must hold before any read)**
 
 * **S0 evidence present** for this `manifest_fingerprint`: `s0_gate_receipt_2B` **and** `sealed_inputs_v1` exist at `[fingerprint]` and validate against the 2B schema pack; S6 **relies** on this receipt and **does not** re-hash upstream bundles. 
-* **Subset-of-S0 rule.** Every asset S6 reads **must** appear in the **S0 sealed inventory** for this fingerprint. Resolution is **Dataset-Dictionary-only** (IDs below); **no literal paths**. 
+* **S0-evidence rule.** Cross-layer/policy assets **must** appear in the **S0 sealed inventory** for this fingerprint; within-segment datasets (e.g., `s2_alias_index`, `s2_alias_blob`) are **not** S0-sealed and **must** be resolved by **Dictionary ID** at exactly **`[seed, fingerprint]`** (no literal paths). 
 
 **3.2 Inputs required by S6 (sealed; read-only)**
 Resolve **by ID** under the run identity `{ seed, manifest_fingerprint }` fixed at S0.
@@ -107,10 +109,10 @@ Resolve **by ID** under the run identity `{ seed, manifest_fingerprint }` fixed 
 * **JSON-Schema packs** are the **sole shape authorities**: 2B pack for S6 policies/trace; **Layer-1 pack** for RNG envelope/core logs; **2A pack** for `site_timezones` (context only).
 * **Dataset Dictionary** is the **catalogue authority** (IDs → paths/partitions/format). **Resolve by ID only.** 
 * **Artefact Registry** supplies ownership/licensing and does **not** override shapes/partitions. 
-* **Gate law (subset-of-S0):** S6 may read **only** assets sealed in S0 for this fingerprint. 
+* **Gate law (S0-evidence):** Cross-layer/policy assets are sealed in S0; any within-segment, partitioned reads are selected by **Dictionary ID** at exactly **`[seed, fingerprint]`**. 
 
 **4.2 Inputs (read-only), partitions, shapes & exact use**
-S6 SHALL read **only** the assets below; all are **sealed** and **Dictionary-resolved**:
+S6 SHALL read **only** the assets below. Token-less policies are **S0-sealed** (selected by exact `path + sha256_hex`); any partitioned reads used for context are read at **`[seed, fingerprint]`** via **Dictionary-only** resolution:
 
 * **`route_rng_policy_v1`** — token-less policy (**S0-sealed path + sha256**); declares the **routing_edge** stream/substreams and **one single-uniform draw per virtual arrival**. **Shape:** `schemas.2B.yaml#/policy/route_rng_policy_v1`. 
 * **`virtual_edge_policy_v1`** — token-less policy (**S0-sealed path + sha256**); declares eligible `edge_id`s, edge weights (or country→edge weights), and attributes `{ip_country, edge_lat, edge_lon}`. **Catalogue note:** this ID is **present** in the **2B Dictionary/Registry** (token-less; selection by S0-sealed path + digest).
@@ -255,7 +257,7 @@ From **`schemas.2B.yaml`**: `$defs.partition_kv` with **`minProperties: 0`** (to
 
 ### 7.1 Resolve authorities & initialise (RNG-free)
 
-1. **Resolve sealed inputs (Dictionary-only; subset-of-S0).**
+1. **Resolve sealed inputs (Dictionary-only; S0-evidence rule).**
    Load `route_rng_policy_v1` and `virtual_edge_policy_v1` by **ID** (token-less; select by S0-sealed `path` + `sha256_hex`). No literal paths; no network I/O.
 
 2. **Policy pre-flight (hard abort on failure).**
@@ -398,9 +400,9 @@ Each RNG event family path and each optional `s6_edge_log` partition MUST have a
 * **Check:** For this fingerprint, `s0_gate_receipt_2B` **and** `sealed_inputs_v1` exist at `[fingerprint]` and are schema-valid.
 * **Fail →** ⟨2B-S6-001 S0_RECEIPT_MISSING⟩. 
 
-**V-02 — Subset-of-S0 + token-less policy selection**
+**V-02 - S0-evidence + token-less policy selection**
 
-* **Check:** Every S6 input is in the **S0 sealed inventory**; token-less policies (`route_rng_policy_v1`, **`virtual_edge_policy_v1`**) are selected by **exact S0-sealed `path` + `sha256_hex`** (their `partition` is `{}`).
+* **Check:** Cross-layer/policy assets appear in the **S0 sealed inventory** and are selected by **exact S0-sealed `path` + `sha256_hex`** (token-less, `partition = {}`); any partitioned reads (context) use **exactly** `[seed,fingerprint]` via **Dictionary-only** resolution. 
 * **Fail →** ⟨2B-S6-020 DICTIONARY_RESOLUTION_ERROR⟩ / ⟨2B-S6-070 PARTITION_SELECTION_INCORRECT⟩. 
 
 **V-03 — Dictionary-only resolution & exact partitions**
@@ -594,7 +596,7 @@ Passing **V-01…V-15** demonstrates S6 reads **only sealed, catalogued inputs**
 | Validator (from §9)                                 | Codes on fail                              |
 |-----------------------------------------------------|--------------------------------------------|
 | **V-01 Gate evidence present**                      | 2B-S6-001                                  |
-| **V-02 Subset-of-S0 + token-less policy selection** | 2B-S6-020, 2B-S6-070                       |
+| **V-02 S0-evidence + token-less policy selection** | 2B-S6-020, 2B-S6-070                       |
 | **V-03 Dictionary-only & exact partitions**         | 2B-S6-020, 2B-S6-021, 2B-S6-023, 2B-S6-070 |
 | **V-04 Policy minima (virtual edges)**              | 2B-S6-030, 2B-S6-031                       |
 | **V-05 Bypass law (non-virtual)**                   | 2B-S6-040                                  |
