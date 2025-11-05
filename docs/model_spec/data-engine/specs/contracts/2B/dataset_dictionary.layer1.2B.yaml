@@ -160,4 +160,3 @@ datasets:
     format: json
     schema_ref: schemas.2B.yaml#/validation/s7_audit_report_v1
     status: approved
-    status: optional

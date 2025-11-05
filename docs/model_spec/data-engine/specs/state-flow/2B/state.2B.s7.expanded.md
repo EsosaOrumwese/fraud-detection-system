@@ -4,11 +4,11 @@
 
 **Component:** Layer-1 · Segment **2B** — **State-7 (S7)** · *Audits & CI gate*
 **Document ID:** `seg_2B.s7.audit_and_ci`
-**Version (semver):** `v1.0.0-alpha`
+**Version (semver):** `v1.0.2-alpha`
 **Status:** `alpha` *(normative; semantics lock at `frozen`)*
 **Owners:** Design Authority (DA): **Esosa Orumwese** · Review Authority (RA): **Layer-1 Governance**
 **Effective date:** **2025-11-05 (UTC)**
-**Canonical location:** `contracts/specs/l1/seg_2B/state.2B.s7.expanded.v1.0.0.txt`
+**Canonical location:** `contracts/specs/l1/seg_2B/state.2B.s7.expanded.v1.0.2.txt`
 
 **Authority chain (Binding).**
 Schema packs are the **sole shape authorities**; the **Dataset Dictionary** governs ID→path/partitions/format; the **Artefact Registry** is metadata only. S7 inherits the 2B pack (S2/S3/S4 shapes + policy anchors), the Layer-1 pack (RNG envelope/core logs used only for optional log checks), and the 2A pack for `site_timezones` (context).   
@@ -55,7 +55,7 @@ Schema packs are the **sole shape authorities**; the **Dataset Dictionary** gove
 **3.1 Gate & run-identity (must hold before any read)**
 
 * **S0 evidence present** for this `manifest_fingerprint`: `s0_gate_receipt_2B` **and** `sealed_inputs_v1` exist at `[fingerprint]` and validate against the 2B schema pack. S7 **relies** on this receipt; it **does not** re-hash 1B.   
-* **Subset-of-S0 rule.** Every asset S7 reads **must** appear in the **S0 sealed inventory** for this fingerprint. Resolution is **Dataset-Dictionary-only** (IDs below). **No literal paths. No network I/O.** 
+* **S0-evidence rule.** Cross-layer/policy assets **must** appear in the **S0 sealed inventory** for this fingerprint; within-segment datasets (`s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`) are **not** S0-sealed and **must** be resolved by **Dictionary ID** at exactly **`[seed,fingerprint]`** (no literal paths; no network I/O). 
 
 **3.2 Inputs required by S7 (sealed; read-only)**
 Resolve **by ID** under the run identity `{ seed, manifest_fingerprint }` established at S0. Partitions and shapes are governed by the **Dataset Dictionary** and **2B schema pack**:
@@ -108,7 +108,7 @@ Resolve **by ID** under the run identity `{ seed, manifest_fingerprint }` establ
 * **JSON-Schema packs** are the **sole shape authorities**: 2B pack for S2/S3/S4 shapes, policy anchors, and the S5/S6 trace-row anchors; Layer-1 pack for RNG core-log/envelope shapes used only when logs are present.
 * **Dataset Dictionary** is the **catalogue authority** (IDs → paths/partitions/format). S7 MUST resolve every input **by ID only** (no literal paths). 
 * **Artefact Registry** is **metadata only** (ownership/licence/retention/notes); it does not change shapes or partitions (includes optional S5/S6 logs). 
-* **Gate law (subset-of-S0):** S7 may read **only** assets sealed in S0 for this fingerprint; S7 does **not** re-hash 1B. *(Gate evidence is checked in §3/§9.)*
+* **Gate law (S0-evidence):** S7 reads **only** cross-layer/policy assets sealed in S0; all within-segment reads are **Dictionary-only** at exactly **`[seed,fingerprint]`**. S7 does **not** re-hash 1B. *(Gate evidence is checked in §3/§9.)*
 
 **4.2 Inputs S7 SHALL read (read-only) and exactly how to select them**
 All inputs are **sealed** and **Dictionary-resolved** under the run identity `{seed, manifest_fingerprint}` unless noted.
@@ -359,8 +359,8 @@ S7’s validator set asserts: exact **Dictionary partitions**, **path↔embed** 
 **Check:** `s0_gate_receipt_2B` **and** `sealed_inputs_v1` exist at `[fingerprint]` and are schema-valid.
 **Fail →** ⟨2B-S7-001 S0_RECEIPT_MISSING⟩. 
 
-**V-02 — Subset-of-S0 + Dictionary-only resolution**
-**Check:** Every S7 input is listed in the **S0 sealed inventory**; all reads resolve **by ID only** (no literals / no network).
+**V-02 - S0-evidence & Dictionary-only resolution**
+**Check:** All cross-layer/policy assets appear in the **S0 sealed inventory** for this fingerprint; all within-segment inputs (`s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`) resolve **by Dataset Dictionary ID** at exactly **`[seed,fingerprint]`** (no literals / no network).
 **Fail →** ⟨2B-S7-020 DICTIONARY_RESOLUTION_ERROR⟩ / ⟨2B-S7-021 PROHIBITED_LITERAL_PATH⟩ / ⟨2B-S7-023 NETWORK_IO_ATTEMPT⟩. 
 
 **V-03 — Exact partitions & policy selection**
@@ -605,7 +605,7 @@ S7’s validator set asserts: exact **Dictionary partitions**, **path↔embed** 
 | Validator (from §9)                          | Codes on fail                              |
 | -------------------------------------------- | ------------------------------------------ |
 | **V-01 Gate evidence present**               | 2B-S7-001                                  |
-| **V-02 Subset-of-S0 & Dictionary-only**      | 2B-S7-020, 2B-S7-021, 2B-S7-023            |
+| **V-02 S0-evidence & Dictionary-only**       | 2B-S7-020, 2B-S7-021, 2B-S7-023            |
 | **V-03 Exact partitions & policy selection** | 2B-S7-070                                  |
 | **V-04 Index/blob schema validity**          | 2B-S7-200, 2B-S7-201                       |
 | **V-05 Header↔blob parity & policy echo**    | 2B-S7-202, 2B-S7-205                       |
