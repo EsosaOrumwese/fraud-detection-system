@@ -130,9 +130,10 @@ Resolve **only** the following via the Dictionary (no literal paths):
 
 > S2 SHALL NOT read 2A pins (`site_timezones`, `tz_timetable_cache`) or any other artefacts.
 
-### 4.3 Subset-of-S0 rule
+### 4.3 S0-evidence rule
 
-Every asset S2 resolves/reads **MUST** appear in S0’s `sealed_inputs_v1` for the same fingerprint. Accessing any asset absent from that inventory is an error.
+Cross-layer/policy assets **MUST** appear in S0's `sealed_inputs_v1` for this fingerprint (token-less policies are selected by exact S0‑sealed `path+sha256_hex`, `partition={}`).
+Within-segment datasets (e.g., `s1_site_weights`, S2 outputs) are **NOT** S0‑sealed and **MUST** be resolved by **Dataset Dictionary ID** at exactly **`[seed, fingerprint]`**. Literal paths and network I/O are forbidden.
 
 ### 4.4 Prohibited resources & behaviours
 

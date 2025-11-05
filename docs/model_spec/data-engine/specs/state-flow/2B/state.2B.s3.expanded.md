@@ -26,7 +26,7 @@
 
 * **Run identity:** `{ seed, manifest_fingerprint }`.
 * **Partitioning for S3 outputs:** `[seed, fingerprint]`; **path↔embed equality** MUST hold.
-* **Catalogue discipline:** Dictionary-only resolution; literal paths forbidden; subset-of-S0 rule enforced.
+* **Catalogue discipline:** Dictionary-only resolution; literal paths forbidden; **S0-evidence rule** enforced (policies in S0; within-segment reads by ID at `[seed,fingerprint]`).
 * **RNG posture:** **RNG-bounded, reproducible** — counter-based **Philox** with policy-declared sub-streams and draw budgets.
 * **Numeric discipline:** binary64, round-to-nearest-even; stable serial reductions.
 * **Gate law:** **No PASS → No read** remains in force across the segment.
@@ -71,7 +71,7 @@
 * **Run identity fixed.** The pair **`{ seed, manifest_fingerprint }`** is fixed at S3 start and MUST remain constant.
 * **RNG posture.** S3 is **RNG-bounded, reproducible** (counter-based Philox per governed policy).
 * **Catalogue discipline.** All inputs resolve by **Dataset Dictionary IDs**; literal paths are forbidden.
-* **Subset-of-S0 rule.** Every asset S3 reads MUST appear in S0’s `sealed_inputs_v1` for this fingerprint.
+* **S0-evidence rule.** Cross-layer/policy assets **MUST** appear in S0’s `sealed_inputs_v1` for this fingerprint; within-segment datasets are **NOT** S0-sealed and **MUST** be resolved by **Dataset Dictionary ID** at exactly **`[seed,fingerprint]`**.
 
 ### 3.2 Required sealed inputs (must all be present)
 
@@ -136,7 +136,7 @@ Resolve **only** these IDs via the Dictionary (no literal paths):
 2. **`site_timezones`** — at `seed={seed} / fingerprint={manifest_fingerprint}` (provides `tzid` for tz-grouping).
 3. **`day_effect_policy_v1`** — policy pack (**no partition tokens**); select the **exact S0-sealed path/digest** for this fingerprint.
 
-> **Subset-of-S0 rule:** Every asset S3 reads **MUST** appear in S0’s `sealed_inputs_v1` for the same fingerprint.
+> **S0-evidence rule:** Cross-layer/policy assets **MUST** appear in S0’s `sealed_inputs_v1`; within-segment datasets are **NOT** S0-sealed and are resolved by ID at **`[seed,fingerprint]`**.
 
 ### 4.3 Prohibited resources & behaviours
 
@@ -939,7 +939,7 @@ Any change here is **breaking** → bump **major** (new anchors/IDs where applic
 * Switching RNG engine, changing the **distribution form** (e.g., non-log-normal) or the **E[γ]=1** construction, or altering ICDF/numeric rules such that byte outputs differ for the same inputs.
 * Removing or changing semantics of required **columns** (`gamma`, `log_gamma`, `sigma_gamma`, `rng_*`, `created_utc`).
 * Reclassifying a **WARN** validator to **Abort**, or adding a **new Abort** validator that can fail for previously valid outputs.
-* Allowing **literal paths** or **network I/O**, or removing Dictionary-only resolution / subset-of-S0 rule.
+* Allowing **literal paths** or **network I/O**, or removing Dictionary-only resolution / **S0-evidence** rule.
 
 ---
 
