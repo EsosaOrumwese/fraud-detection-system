@@ -4,11 +4,11 @@
 
 **Component:** Layer-1 · Segment **2B** — **State-8 (S8)** · *Validation bundle & `_passed.flag`*
 **Document ID:** `seg_2B.s8.validation_bundle`
-**Version (semver):** `v1.0.1-alpha`
+**Version (semver):** `v1.0.2-alpha`
 **Status:** `alpha` *(normative; semantics lock at `frozen`)*
 **Owners:** Design Authority (DA): **Esosa Orumwese** · Review Authority (RA): **Layer-1 Governance**
 **Effective date:** **2025-11-05 (UTC)**
-**Canonical location:** `contracts/specs/l1/seg_2B/state.2B.s8.expanded.v1.0.1.txt`
+**Canonical location:** `contracts/specs/l1/seg_2B/state.2B.s8.expanded.v1.0.2.txt`
 
 **Authority chain (Binding).**
 
@@ -449,8 +449,9 @@ inputs (`s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`)
 **Check:** For **each** required seed, `s7_audit_report@[seed,fingerprint]` exists, validates `#/validation/s7_audit_report_v1`, and `summary.overall_status == "PASS"`. (WARN allowed unless policy forbids.)
 **Fail →** ⟨2B-S8-031 S7_REPORT_NOT_PASS⟩ / ⟨2B-S8-032 S7_REPORT_MISSING⟩. 
 
-**V-05 — Sealed-digest parity (policies only)**
-**Check:** For S2/S3/S4/policies, the `(path, partition, sha256_hex)` echoed from `sealed_inputs_v1` **equals** what S8 resolves (no drift).
+**V-05 - Sealed-digest parity (policies only)**
+**Check:** For token-less policies, the `(path, sha256_hex)` in `sealed_inputs_v1` **equals** what S8 resolves.
+For S2/S3/S4 (within-segment), inputs are resolved by **Dataset Dictionary ID** at exactly **`[seed,fingerprint]`** (no S0 parity required).
 **Fail →** ⟨2B-S8-033 SEALED_DIGEST_MISMATCH⟩. 
 
 **V-06 — Index schema (fields-strict)**
@@ -548,8 +549,8 @@ inputs (`s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`)
 
 ### 10.3 Sealed-input parity
 
-**2B-S8-033 — SEALED_DIGEST_MISMATCH** · *Abort*
-**Trigger:** `(path, partition, sha256_hex)` for S2/S3/S4/policies do not match S0’s sealed inventory.
+**2B-S8-033 - SEALED_DIGEST_MISMATCH** · *Abort*
+**Trigger:** For token-less policies, (path, sha256_hex) does not match S0's sealed inventory.
 **Detect:** V-05. **Remedy:** correct drift (re-seal via S0) or fix catalogue entries.
 
 ---
@@ -938,3 +939,4 @@ Require a coordinated **major** for S8 and contract packs:
 > These cross-references pin S8’s authority chain: canonical **index/flag** laws for the bundle; 2B and S0/S7 anchors for evidence; Dictionary IDs for selection & partitions; and Registry metadata for write-once/atomic publish.
 
 ---
+
