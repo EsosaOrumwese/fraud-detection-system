@@ -4,11 +4,11 @@
 
 **Component:** Layer-1 · Segment **2B** — **State-6 (S6)** · *Virtual-merchant edge routing (branch)*
 **Document ID:** `seg_2B.s6.virtual_edge_routing`
-**Version (semver):** `v1.0.0-alpha`
+**Version (semver):** `v1.0.1`
 **Status:** `alpha` *(normative; semantics lock when marked `frozen`)*
 **Owners:** Design Authority (DA): **Esosa Orumwese** · Review Authority (RA): **Layer-1 Governance**
 **Effective date:** **2025-11-05 (UTC)**
-**Canonical location:** `contracts/specs/l1/seg_2B/state.2B.s6.expanded.v1.0.0.txt`
+**Canonical location:** `contracts/specs/l1/seg_2B/state.2B.s6.expanded.v1.0.1.txt`
 
 **Authority chain (Binding).**
 **JSON-Schema packs** are the **sole shape authorities**: 2B pack for policies and any S6 trace shape; Layer-1 pack for the RNG envelope/core logs. **Dataset Dictionary** governs ID→path/partitions/format. **Artefact Registry** is metadata only (ownership/licence/retention).   
@@ -66,7 +66,7 @@ Resolve **by ID** under the run identity `{ seed, manifest_fingerprint }` fixed 
 
 * **Virtual edge policy (token-less; S0-sealed):**
   **`virtual_edge_policy_v1`** — declares eligible `edge_id`s and their **weights** (or country→edge weights), plus attributes `{ip_country, edge_lat, edge_lon}` and any decode/layout hints if used. **Selection:** by the **exact S0-sealed** `path` **and** `sha256_hex`.
-  *Catalogue note:* this ID **must be registered** in the 2B **Dataset Dictionary** and **Artefact Registry** to go green; current catalogues list other policies (route_rng/day_effect/alias_layout) but not this one yet.
+  *Catalogue note:* this ID is **registered** in the 2B **Dataset Dictionary** and **Artefact Registry** (token-less; selection by S0-sealed path + digest).
 
 * **Context (read-only; optional in v1):**
   S6 **does not require** S2/S4 tables to run. If present, S6 may reference S2 alias artefacts **for integrity echo only** (no decoding in S6):
@@ -115,7 +115,7 @@ Resolve **by ID** under the run identity `{ seed, manifest_fingerprint }` fixed 
 S6 SHALL read **only** the assets below; all are **sealed** and **Dictionary-resolved**:
 
 * **`route_rng_policy_v1`** — token-less policy (**S0-sealed path + sha256**); declares the **routing_edge** stream/substreams and **one single-uniform draw per virtual arrival**. **Shape:** `schemas.2B.yaml#/policy/route_rng_policy_v1`. 
-* **`virtual_edge_policy_v1`** — token-less policy (**S0-sealed path + sha256**); declares eligible `edge_id`s, edge weights (or country→edge weights), and attributes `{ip_country, edge_lat, edge_lon}`. **Catalogue prerequisite:** register this ID in the **2B Dictionary/Registry**; (present policies include `route_rng_policy_v1`, `alias_layout_policy_v1`, `day_effect_policy_v1`).
+* **`virtual_edge_policy_v1`** — token-less policy (**S0-sealed path + sha256**); declares eligible `edge_id`s, edge weights (or country→edge weights), and attributes `{ip_country, edge_lat, edge_lon}`. **Catalogue note:** this ID is **present** in the **2B Dictionary/Registry** (token-less; selection by S0-sealed path + digest).
 * **Context (optional, no decode in v1):** `s2_alias_index` / `s2_alias_blob` at **`[seed,fingerprint]`** may be inspected **only** for sealed integrity echo; S6 does **not** scan/guess inside the blob. **Shapes:** `#/plan/s2_alias_index`, `#/binary/s2_alias_blob`. 
 * **Runtime fields (from S5):** `{merchant_id, utc_timestamp, utc_day, tz_group_id, site_id, is_virtual}` are **not catalogue assets**; they carry run lineage `{seed, parameter_hash, run_id}`.
 
@@ -193,7 +193,7 @@ S6 SHALL resolve and consume exactly these shapes by **Dictionary ID**:
 * **Routing RNG policy:** `schemas.2B.yaml#/policy/route_rng_policy_v1` — declares the **routing_edge** stream/substreams and budgets (one single-uniform per **virtual** arrival). Dict ID: `route_rng_policy_v1` (token-less file; selection = exact S0-sealed path + digest). 
 
 * **Virtual edge policy:** **`schemas.2B.yaml#/policy/virtual_edge_policy_v1`** — declares eligible `edge_id`s, edge weights / country→edge weights, and attributes `{ip_country, edge_lat, edge_lon}`.
-  **Catalogue note (gap):** the current 2B Dictionary/Registry do **not** yet list `virtual_edge_policy_v1`; add an entry exactly like the other policy packs (token-less; selection by S0-sealed path + digest) to go fully green.  
+  **Catalogue note:** `virtual_edge_policy_v1` is **present** in the 2B Dictionary/Registry (token-less; selection by S0-sealed path + digest).  
 
 * **(Context only, optional in v1)** S2 alias artefacts: `schemas.2B.yaml#/plan/s2_alias_index`, `#/binary/s2_alias_blob`. Dict IDs: `s2_alias_index`, `s2_alias_blob` at `[seed, fingerprint]`. **S6 does not decode** them; parity checks only if consulted.  
 
@@ -213,7 +213,7 @@ This dataset is **optional**. It SHALL be emitted **only if** the Dataset Dictio
 
 * **Partitioning (Dictionary authority):** **`[seed, parameter_hash, run_id, utc_day]`** (run-scoped lineage, matching RNG logs). `manifest_fingerprint` **must** appear as a **column** and **byte-equal** the run fingerprint; **do not** use it as a partition key. Writer order = **arrival order**; format = `jsonl`; **write-once + atomic publish**. *(Mirrors S5’s optional selection log posture.)* 
 
-> **Schema gap (editorial):** add the `#/trace/s6_edge_log_row` anchor to the 2B pack, mirroring the S5 trace row’s style and Layer-1 `$defs`. This is purely a schema addition; spec behaviour is already defined.
+> **Anchor note:** `#/trace/s6_edge_log_row` is defined in the 2B pack and reuses Layer-1 `$defs` (mirrors S5 trace row style).
 
 ---
 
@@ -223,7 +223,7 @@ S6 produces **one single-uniform event per virtual arrival** on the **routing_ed
 * **Envelope & core logs:**
   `schemas.layer1.yaml#/$defs/rng_envelope`, `#/rng/core/rng_audit_log`, `#/rng/core/rng_trace_log` — partitions **`[seed, parameter_hash, run_id]`**. S6 appends exactly **one** `rng_trace_log` row **after each** event append. 
 
-* **Event family (name reserved):** `rng_event.cdn_edge_pick` (single-uniform; `blocks=1`, `draws="1"`). Registration of this family lives in the **Layer-1** pack alongside existing families; S6’s spec binds budgets and ordering to those layer rules. 
+* **Event family (registered in Layer-1 pack):** `rng_event.cdn_edge_pick` (single-uniform; `blocks=1`, `draws="1"`). S6 binds budgets/order to the layer rules.
 
 ---
 
@@ -235,7 +235,7 @@ From **`schemas.2B.yaml`**: `$defs.partition_kv` with **`minProperties: 0`** (to
 
 **6.6 Format & storage (Dictionary authority)**
 
-* **Policies (token-less):** `route_rng_policy_v1` (present) and **`virtual_edge_policy_v1`** (to be registered) — single files; selection by **exact S0-sealed path + digest**. 
+* **Policies (token-less):** `route_rng_policy_v1` (present) and **`virtual_edge_policy_v1`** (present) — single files; selection by **exact S0-sealed path + digest**. 
 * **S2 artefacts (context):** `s2_alias_index` (JSON) and `s2_alias_blob` (binary) at **`[seed, fingerprint]`**. 
 * **Optional `s6_edge_log` (if registered):** `jsonl` at **`[seed, parameter_hash, run_id, utc_day]`** with schema-ref `schemas.2B.yaml#/trace/s6_edge_log_row`. *(If the Dictionary does not register it, S6 MUST NOT write it.)* 
 
@@ -847,7 +847,7 @@ This section adds **no** new dataset authorities. Shapes remain governed by **`s
 **A.2 2B policy anchors (token-less; S0-sealed)**
 
 * `schemas.2B.yaml#/policy/route_rng_policy_v1` — declares **routing_edge** stream/substreams & **one single-uniform per virtual arrival**. 
-* `schemas.2B.yaml#/policy/virtual_edge_policy_v1` — **edge set + weights/attrs** (`edge_id`, `ip_country`, `edge_lat`, `edge_lon`). *Catalogue note:* add this anchor/ID alongside other 2B policies; selection is by **exact S0-sealed** path+digest. 
+* `schemas.2B.yaml#/policy/virtual_edge_policy_v1` - **edge set + weights/attrs** (`edge_id`, `ip_country`, `edge_lat`, `edge_lon`). *(Registered in 2B Dictionary/Registry; token-less; selection by exact S0-sealed path+digest.)* 
 
 ---
 
@@ -862,7 +862,7 @@ This section adds **no** new dataset authorities. Shapes remain governed by **`s
 
 * Envelope + IDs: `schemas.layer1.yaml#/$defs/rng_envelope`. 
 * Core logs (run-scoped): `#/rng/core/rng_audit_log`, `#/rng/core/rng_trace_log`. *(S6 appends **one** trace row **after each** event append.)* 
-* Event family (reserved name; single-uniform): **`rng_event.cdn_edge_pick`** (`blocks=1`, `draws="1"`). *(Registered in the Layer-1 pack alongside existing families.)* 
+* Event family (registered in Layer-1 pack; single-uniform): **`rng_event.cdn_edge_pick`** (`blocks=1`, `draws="1"`). 
 
 ---
 
@@ -877,7 +877,7 @@ This section adds **no** new dataset authorities. Shapes remain governed by **`s
 *(Resolve **by ID only**; policies are token-less and selected by S0-sealed path+digest.)*
 
 * `route_rng_policy_v1` *(policy; token-less)* — **present**. 
-* `virtual_edge_policy_v1` *(policy; token-less)* — **add to Dictionary/Registry** to go fully green. 
+* `virtual_edge_policy_v1` *(policy; token-less)* - **present** in Dictionary/Registry. 
 * `s2_alias_index` @ **`[seed, fingerprint]`** — **present**. 
 * `s2_alias_blob` @ **`[seed, fingerprint]`** — **present**. 
 * `site_timezones` @ **`[seed, fingerprint]`** *(context; 2A egress)* — **present**. 

@@ -148,6 +148,7 @@ datasets:
   - id: s6_edge_log
     path: logs/edge/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/utc_day={utc_day}/s6_edge_log.jsonl
     partitioning: [seed, parameter_hash, run_id, utc_day]
+    ordering: [utc_timestamp]
     format: jsonl
     schema_ref: schemas.2B.yaml#/trace/s6_edge_log_row
     status: optional
