@@ -4,11 +4,11 @@
 
 **Component:** Layer-1 · Segment **2B** — **State-5 (S5)** · *Router core (two-stage O(1): group → site)*
 **Document ID:** `seg_2B.s5.router_core`
-**Version (semver):** `v1.0.0-alpha`
+**Version (semver):** `v1.0.1-alpha`
 **Status:** `alpha` *(normative; semantics lock at `frozen` in a ratified release)*
 **Owners:** Design Authority (DA): **Esosa Orumwese** · Review Authority (RA): **Layer-1 Governance**
 **Effective date:** **2025-11-05 (UTC)**
-**Canonical location:** `contracts/specs/l1/seg_2B/state.2B.s5.expanded.v1.0.0.txt`
+**Canonical location:** `contracts/specs/l1/seg_2B/state.2B.s5.expanded.v1.0.1.txt`
 
 **Authority chain (Binding):**
 **JSON-Schema pack** = shape authority → `schemas.2B.yaml`. **Dataset Dictionary** = IDs → path/partitions/format → `dataset_dictionary.layer1.2B.yaml`. **Artefact Registry** = existence/licence/retention → `artefact_registry_2B.yaml`.
@@ -62,7 +62,10 @@ Upstream evidence & inputs that S5 SHALL treat as authoritative:
 **3.1 Gate & run-identity (must be true before any read)**
 
 * **S0 evidence present** for this `manifest_fingerprint`: `s0_gate_receipt_2B` **and** `sealed_inputs_v1`, partitioned by `[fingerprint]`. Path↔embed equality **must** hold. S5 **relies** on this receipt; it does **not** re-hash upstream bundles.  
-* **Subset-of-S0 rule.** Every input S5 reads **must** be one of the assets sealed by S0 for this fingerprint. Resolution is **Dictionary-only** (IDs below); literal paths are forbidden. 
+* **S0-evidence rule.** Cross-layer/policy assets **MUST** appear in S0’s `sealed_inputs_v1`;
+  within-segment datasets (`s1_site_weights`, `s2_alias_index`, `s2_alias_blob`,
+  `s4_group_weights`, `site_timezones`) are **NOT** S0-sealed but **MUST** be read by
+  Dictionary ID at exactly `[seed,fingerprint]`. Literal paths are forbidden.
 
 **3.2 Inputs required by S5 (sealed; read-only)**
 Resolve **by ID** under the run identity `{ seed, manifest_fingerprint }` fixed at S0.
@@ -143,7 +146,8 @@ S5 SHALL read **exactly** these inputs, under the run identity `{seed, manifest_
 **4.3 Partition & identity discipline (binding)**
 
 * **Exact partitions:** All partitioned reads use **exactly** `[seed, fingerprint]` per the Dictionary; token-less policies carry `partition = {}` in receipts/inventory (schema allows empty maps). **Path↔embed equality** MUST hold wherever identity is embedded.
-* **Subset-of-S0:** Every input above **must** appear in `sealed_inputs_v1` for this fingerprint; otherwise **Abort**. 
+* **Evidence:** Cross-layer/policy assets appear in `sealed_inputs_v1`; within-segment datasets are
+  selected exactly at `[seed,fingerprint]` by ID (no literals, no wildcards). 
 
 **4.4 Authority boundaries (what S5 SHALL NOT do)**
 
@@ -473,7 +477,7 @@ For each `(seed, parameter_hash, run_id, utc_day)` selection-log partition (if e
 **V-08 — RNG event budgets (two singles per arrival)**
 
 * **Checks:** For each arrival, exactly **two** events are appended, **in order**: `alias_pick_group`, then `alias_pick_site`. Each row carries the standard RNG envelope with `blocks=1`, `draws="1"`. After **each** event append, one `rng_trace_log` row is appended (cumulative).
-* **Fail →** ⟨2B-S5-050 RNG_DRAWS_COUNT_MISMATCH⟩ / ⟨2B-S5-EVENT_ORDER⟩. 
+* **Fail →** ⟨2B-S5-050 RNG_DRAWS_COUNT_MISMATCH⟩ / ⟨2B-S5-056 EVENT_ORDER⟩. 
 
 **V-09 — RNG counters: monotone & no wrap**
 
@@ -503,12 +507,12 @@ For each `(seed, parameter_hash, run_id, utc_day)` selection-log partition (if e
 **V-14 — No mutation of plan surfaces**
 
 * **Checks:** S5 performs **no writes** to `[seed,fingerprint]` plan/egress datasets (`s1_site_weights`, `s2_alias_*`, `s4_group_weights`, `site_timezones`).
-* **Fail →** ⟨2B-S5-PROHIBITED_WRITE⟩. 
+* **Fail →** ⟨2B-S5-090 PROHIBITED_WRITE⟩.
 
 **V-15 — Deterministic replay (spot-check)**
 
 * **Checks:** Re-run the router for a deterministic sample of arrivals and assert **bit-identical** `(tz_group_id, site_id)` and (if logging enabled) identical log rows and RNG evidence. (Relies on S0 identity, sealed policy bytes, and Philox counters.)
-* **Fail →** ⟨2B-S5-REPLAY_MISMATCH⟩. 
+* **Fail →** ⟨2B-S5-095 REPLAY_MISMATCH⟩.
 
 **V-16 — Evidence that S4 is echoed, not recomputed**
 
@@ -637,7 +641,7 @@ For each `(seed, parameter_hash, run_id, utc_day)` selection-log partition (if e
 | Validator (from §9)                          | Codes on fail                              |
 |----------------------------------------------|--------------------------------------------|
 | **V-01 Gate evidence present**               | 2B-S5-001                                  |
-| **V-02 Subset-of-S0**                        | 2B-S5-020, 2B-S5-070                       |
+| **V-02 S0-evidence & exact selection**       | 2B-S5-020, 2B-S5-070                       |
 | **V-03 Dictionary-only & exact partitions**  | 2B-S5-020, 2B-S5-021, 2B-S5-023, 2B-S5-070 |
 | **V-04 S2 artefact parity**                  | 2B-S5-041                                  |
 | **V-05 Group-pick law**                      | 2B-S5-040                                  |
