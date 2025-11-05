@@ -129,3 +129,12 @@ datasets:
     format: parquet
     schema_ref: schemas.2B.yaml#/plan/s4_group_weights
     status: approved
+
+  # === 2B.S5 (optional) selection log ===
+  - id: s5_selection_log
+    path: data/layer1/2B/s5_selection_log/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/utc_day={utc_day}/selection_log.jsonl
+    partitioning: [seed, parameter_hash, run_id, utc_day]
+    ordering: [utc_timestamp]
+    format: jsonl
+    schema_ref: schemas.2B.yaml#/trace/s5_selection_log_row
+    status: optional
