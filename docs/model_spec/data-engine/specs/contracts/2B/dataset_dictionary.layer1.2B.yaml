@@ -152,6 +152,7 @@ datasets:
     format: jsonl
     schema_ref: schemas.2B.yaml#/trace/s6_edge_log_row
     status: optional
+
   # === 2B.S7 — audit report (authoritative) ===
   - id: s7_audit_report
     path: data/layer1/2B/s7_audit_report/seed={seed}/fingerprint={manifest_fingerprint}/s7_audit_report.json
@@ -160,3 +161,20 @@ datasets:
     format: json
     schema_ref: schemas.2B.yaml#/validation/s7_audit_report_v1
     status: approved
+
+  # === 2B.S8 — Validation bundle (authoritative) ===
+  - id: validation_bundle_2B
+    path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/index.json
+    partitioning: [fingerprint]
+    ordering: []
+    format: json
+    schema_ref: schemas.1A.yaml#/validation/validation_bundle.index_schema
+    status: approved
+
+  - id: validation_passed_flag_2B
+    path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [fingerprint]
+    format: text
+    schema_ref: schemas.1B.yaml#/validation/passed_flag
+    status: approved
+
