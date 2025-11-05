@@ -4,11 +4,11 @@
 
 **Component:** Layer-1 · Segment **2B** — **State-4 (S4)** · *Zone-group renormalisation*
 **Document ID:** `seg_2B.s4.group_weights`
-**Version (semver):** `v1.0.0-alpha`
+**Version (semver):** `v1.0.2-alpha`
 **Status:** `alpha` *(normative; semantics lock at `frozen` in a ratified release)*
 **Owners:** Design Authority (DA): **Esosa Orumwese** · Review Authority (RA): **Layer-1 Governance**
 **Effective date:** **2025-11-04 (UTC)**
-**Canonical location:** `contracts/specs/l1/seg_2B/state.2B.s4.expanded.v1.0.0.txt`
+**Canonical location:** `contracts/specs/l1/seg_2B/state.2B.s4.expanded.v1.0.2.txt`
 
 **Authority chain (Binding):**
 **JSON-Schema pack** = shape authority → `schemas.2B.yaml`
@@ -25,7 +25,10 @@
 
 * **Run identity:** `{ seed, manifest_fingerprint }`.
 * **Partitioning for S4 outputs:** `[seed, fingerprint]`; **path↔embed equality** MUST hold.
-* **Catalogue discipline:** Dictionary-only resolution; literal paths forbidden; subset-of-S0 rule enforced.
+* **Catalogue discipline:** Dictionary-only resolution; literal paths forbidden.
+  *Evidence rule:* Cross-layer/policy assets MUST appear in S0 `sealed_inputs_v1`;
+  within-segment datasets (e.g., `s1_site_weights`, `s3_day_effects`) are not S0-sealed but
+  MUST match this run’s `{seed,fingerprint}` and be resolved by Dictionary IDs only.
 * **RNG posture:** **RNG-free**.
 * **Numeric discipline:** IEEE-754 binary64, round-to-nearest-even; stable serial reductions.
 * **Gate law:** **No PASS → No read** applies throughout the segment.
@@ -126,7 +129,9 @@ Resolve **only** these IDs via the Dictionary (no literal paths):
 2. **`site_timezones`** — 2A egress at `seed={seed} / fingerprint={manifest_fingerprint}` (provides `tzid` per site).
 3. **`s3_day_effects`** — 2B · S3 output at `seed={seed} / fingerprint={manifest_fingerprint}` (provides `{utc_day, tz_group_id, gamma}`).
 
-> **Subset-of-S0 rule:** Every asset S4 reads **MUST** appear in S0’s `sealed_inputs_v1` for the same fingerprint. Accessing any asset not in that inventory is an error.
+> **S0-evidence rule:** Cross-layer/policy assets **MUST** appear in S0’s `sealed_inputs_v1` for the same fingerprint.
+> Within-segment datasets (`s1_site_weights`, `s3_day_effects`) are not S0-sealed; select them
+> exactly by `{seed,fingerprint}` via the Dictionary (no literals, no wildcards).
 
 ### 4.3 Prohibited resources & behaviours
 
@@ -873,7 +878,7 @@ Any change here is **breaking** → bump **major** (with new anchors/IDs as need
 * Switching numeric discipline (rounding mode, tolerance policy) such that bytes can differ for identical inputs.
 * Removing/renaming required **columns** or changing their semantics.
 * Reclassifying a **WARN** validator to **Abort**, or adding a **new Abort** validator that can fail for previously valid outputs.
-* Allowing **literal paths** or **network I/O**, or removing Dictionary-only resolution / subset-of-S0 rule.
+* Allowing **literal paths** or **network I/O**, or weakening Dictionary-only resolution / S0-evidence rule.
 * Allowing S4 to materialise days independent of `s3_day_effects`.
 
 ---
