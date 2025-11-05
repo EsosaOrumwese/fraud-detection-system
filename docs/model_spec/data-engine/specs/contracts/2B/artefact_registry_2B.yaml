@@ -212,4 +212,21 @@ artifacts:
       - site_timezones
       - day_effect_policy_v1
     notes: "Writer order: [merchant_id, utc_day, tz_group_id]; write-once; atomic publish."
-
+  # === 2B.S4 output ===
+  - name: s4_group_weights
+    path: data/layer1/2B/s4_group_weights/seed={seed}/fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: plan
+    semver: '{semver}'
+    version: '{seed}.{manifest_fingerprint}'
+    license: Proprietary-Internal
+    role: "Per-merchant × per-UTC-day × per-tz-group day mix; used to pick tz-group before static site alias."
+    source: internal
+    owner: { owner_team: "l1-2b-core" }
+    environment: [runtime]
+    schema: schemas.2B.yaml#/plan/s4_group_weights
+    dependencies:
+      - s1_site_weights
+      - site_timezones
+      - s3_day_effects
+    notes: "Writer order: [merchant_id, utc_day, tz_group_id]; write-once; atomic publish."

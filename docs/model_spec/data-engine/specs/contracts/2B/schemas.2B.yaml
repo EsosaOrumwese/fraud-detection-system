@@ -186,18 +186,33 @@ plan:
     columns_strict: true
     columns:
       - { name: merchant_id,        $ref: 'schemas.layer1.yaml#/$defs/id64',            nullable: false }
-      - { name: utc_day,            type: string, format: date,                         nullable: false }   # YYYY-MM-DD (UTC)
-      - { name: tz_group_id,        type: string,  minLength: 1,                        nullable: false }   # IANA tzid
-      - { name: gamma,              type: number,  exclusiveMinimum: 0,                 nullable: false }
+      - { name: utc_day,            type: string, format: date,                         nullable: false }
+      - { name: tz_group_id,        type: string,  minLength: 1,                        nullable: false }
+      - { name: gamma,              type: number,  exclusiveMinimum: 0.0,               nullable: false }
       - { name: log_gamma,          type: number,                                       nullable: false }
-      - { name: sigma_gamma,        type: number,  exclusiveMinimum: 0,                 nullable: false }
+      - { name: sigma_gamma,        type: number,  exclusiveMinimum: 0.0,               nullable: false }
       - { name: rng_stream_id,      type: string,  minLength: 1,                        nullable: false }
       - { name: rng_counter_lo,     type: integer, minimum: 0, maximum: 18446744073709551615, nullable: false }
       - { name: rng_counter_hi,     type: integer, minimum: 0, maximum: 18446744073709551615, nullable: false }
       - { name: created_utc,        $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros',  nullable: false }
+  s4_group_weights:
+    type: table
+    description: "Per-merchant × per-UTC-day × per-tz-group day-specific routing mix (RNG-free)."
+    primary_key: [merchant_id, utc_day, tz_group_id]
+    partition_keys: [seed, fingerprint]
+    sort_keys: [merchant_id, utc_day, tz_group_id]
+    columns_strict: true
+    columns:
+      - { name: merchant_id,  $ref: 'schemas.layer1.yaml#/$defs/id64',           nullable: false }
+      - { name: utc_day,      type: string, format: date,                        nullable: false }
+      - { name: tz_group_id,  type: string, minLength: 1,                        nullable: false }
+      - { name: p_group,      type: number, minimum: 0.0, maximum: 1.0,          nullable: false }
+      - { name: base_share,   type: number, minimum: 0.0, maximum: 1.0,          nullable: false }
+      - { name: gamma,        type: number, exclusiveMinimum: 0.0,               nullable: false }
+      - { name: created_utc,  $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros', nullable: false }
+      - { name: mass_raw,     type: number, minimum: 0.0,                        nullable: true }
+      - { name: denom_raw,    type: number, minimum: 0.0,                        nullable: true }
 
-
-binary:
   s2_alias_blob:
     type: object
     description: "Binary contract for contiguous alias tables blob."
@@ -207,4 +222,5 @@ binary:
       layout_version:  { type: string, minLength: 1 }
       endianness:      { type: string, enum: [little, big] }
       alignment_bytes: { type: integer, minimum: 1 }
+
 

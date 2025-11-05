@@ -120,3 +120,12 @@ datasets:
     format: parquet
     schema_ref: schemas.2B.yaml#/plan/s3_day_effects
     status: approved
+
+  # === 2B.S4 output ===
+  - id: s4_group_weights
+    path: data/layer1/2B/s4_group_weights/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitioning: [seed, fingerprint]
+    ordering: [merchant_id, utc_day, tz_group_id]
+    format: parquet
+    schema_ref: schemas.2B.yaml#/plan/s4_group_weights
+    status: approved

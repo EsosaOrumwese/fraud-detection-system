@@ -238,3 +238,21 @@ subsegments:
     owner: {owner_team: "mlr-2a-validation"}
     environment: [runtime]
     schema: schemas.2A.yaml#/validation/passed_flag
+
+  - name: sealed_inputs_v1
+    path: data/layer1/2A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet
+    type: dataset
+    category: manifest
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.2A.manifests.sealed_inputs_v1
+    license: Proprietary-Internal
+    role: "Row-wise inventory of sealed assets for 2A fingerprint."
+    dependencies: [s0_gate_receipt_2A]
+    source: internal
+    owner: { owner_team: "mlr-2a-core" }
+    environment: [runtime]
+    schema: schemas.2A.yaml#/manifests/sealed_inputs_v1
+    notes: "Partition fingerprint={manifest_fingerprint}; path↔embed equality enforced."
+
