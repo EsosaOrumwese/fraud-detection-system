@@ -248,7 +248,7 @@ artifacts:
   - name: s6_edge_log
     path: logs/edge/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/utc_day={utc_day}/s6_edge_log.jsonl
     type: dataset
-    category: logging
+    category: diagnostic
     license: Proprietary-Internal
     role: "Per-arrival virtual-edge selections (diagnostic); run-scoped lineage."
     source: internal

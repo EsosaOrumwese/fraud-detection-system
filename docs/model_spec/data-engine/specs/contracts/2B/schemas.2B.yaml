@@ -123,6 +123,9 @@ policy:
           type: object
           additionalProperties: false
           required: [edge_id, ip_country, edge_lat, edge_lon]
+          oneOf:
+            - required: [weight]
+            - required: [country_weights]
           properties:
             edge_id:     { type: string, minLength: 1 }
             ip_country:  { $ref: 'schemas.layer1.yaml#/$defs/iso2' }
