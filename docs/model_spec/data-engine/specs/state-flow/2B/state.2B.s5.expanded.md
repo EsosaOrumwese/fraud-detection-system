@@ -25,7 +25,7 @@ Upstream evidence & inputs that S5 SHALL treat as authoritative:
 
 **Segment invariants (Binding):**
 
-* **Run identity:** `{ seed, manifest_fingerprint }` fixed by S0; S5 resolves all IDs via the **Dictionary only** (no literal paths), enforcing the segment’s subset-of-S0 rule. 
+* **Run identity:** `{ seed, manifest_fingerprint }` fixed by S0; S5 resolves all IDs via the **Dictionary only** (no literal paths), enforcing Dictionary-only resolution and the **S0-evidence rule** (see §3.1).
 * **Partition posture (referenced inputs):** `s4_group_weights`, `s3_day_effects`, `s1_site_weights`, and `site_timezones` are selected at **`[seed, fingerprint]`**; `s2_alias_index` and `s2_alias_blob` likewise sit under **`[seed, fingerprint]`**.
 * **Gate law:** **No PASS → No read** remains in force across the segment; S5 relies on the S0 receipt (does **not** re-hash bundles). 
 * **RNG posture:** **RNG-bounded, reproducible** — counter-based **Philox** with governed sub-streams per `route_rng_policy_v1`; reconciliation against the programme’s RNG trace/audit posture (events → trace totals) follows the layer-1 logs convention.
@@ -43,7 +43,7 @@ Upstream evidence & inputs that S5 SHALL treat as authoritative:
 
 **Scope (included).** S5 SHALL:
 
-* **Resolve authorities by Dictionary IDs only**, under the run identity `{seed, manifest_fingerprint}` established at S0 (subset-of-S0 rule). Inputs are:
+* **Resolve authorities by Dictionary IDs only**, under the run identity `{seed, manifest_fingerprint}` established at S0 (S0-evidence rule). Inputs are:
   `s4_group_weights@{seed,fingerprint}`, `s2_alias_index@{seed,fingerprint}`, `s2_alias_blob@{seed,fingerprint}`, `site_timezones@{seed,fingerprint}`, and the token-less `route_rng_policy_v1` (selected by the **S0-sealed** path/digest).  
 * **Stage-A (group pick):** use S4’s `p_group` for *m,d* to build a tiny alias over that merchant’s groups and draw **exactly one** uniform to select `tz_group_id`. (S4 provides the canonical `p_group` table.) 
 * **Stage-B (site pick, O(1)):** deterministically **filter S1 masses by tzid via `site_timezones`** to the chosen group and decode with the **S2 policy/layout**; draw **exactly one** uniform to select `site_id`. *(v1 binds this Option-A path; S2 does not expose group slices.)*  
@@ -119,7 +119,7 @@ Resolve **by ID** under the run identity `{ seed, manifest_fingerprint }` fixed 
 * **JSON-Schema** is the **sole shape authority**: S5 binds to anchors in `schemas.2B.yaml` (S1/S2/S4 shapes) and `schemas.2A.yaml` (2A egress). Fields, domains, PK/partitions, and strictness come **only** from these anchors. 
 * **Dataset Dictionary** is the **catalogue authority** (IDs → path families, partitions, formats). S5 SHALL resolve every input **by ID only** (no literal paths). 
 * **Artefact Registry** carries **existence/licence/retention/ownership**; it does **not** change shapes or partitions. 
-* **Gate & subset-of-S0 rule.** S5 reads **only** assets sealed in **S0** for this fingerprint; evidence is the S0 receipt + sealed-inputs inventory. (S5 does **not** re-hash 1B bundles.) 
+* **Gate & S0-evidence rule.** S5 reads **only** cross-layer/policy assets sealed in **S0** for this fingerprint; evidence is the S0 receipt + sealed-inputs inventory. Within-segment reads are Dictionary-only at `[seed,fingerprint]` (S5 does **not** re-hash 1B bundles.) 
 
 **4.2 Inputs (Dictionary IDs), partitions, shapes, and exact use (read-only)**
 S5 SHALL read **exactly** these inputs, under the run identity `{seed, manifest_fingerprint}`:
@@ -224,7 +224,7 @@ S5 SHALL resolve and consume exactly these shapes:
 **6.3 Optional diagnostic dataset — `s5_selection_log` (policy-gated)**
 This dataset is **optional**. It SHALL be emitted **only if** the Dataset Dictionary registers an ID `s5_selection_log` with the partition law below. When enabled, its **row shape** is owned by a 2B trace anchor:
 
-* **Anchor (2B pack):** `schemas.2B.yaml#/trace/s5_selection_log_row` *(fields-strict; to be added alongside existing plan/policy anchors in the 2B pack).*
+* **Anchor (2B pack):** `schemas.2B.yaml#/trace/s5_selection_log_row` *(fields-strict; anchor present in the 2B schema pack).* 
   **Required fields (non-nullable unless noted):**
   `merchant_id` (`id64`), `utc_timestamp` (`rfc3339_micros`), `utc_day` (ISO date),
   `tz_group_id` (IANA tzid), `site_id` (`id64`),
@@ -286,7 +286,7 @@ From **`schemas.layer1.yaml`** unless otherwise stated:
 
 ### 7.1 Resolve authorities & initialise (RNG-free)
 
-1. **Resolve inputs by ID (subset-of-S0):**
+1. **Resolve inputs by ID (S0-evidence rule):**
    `s4_group_weights@{seed,fingerprint}`, `s1_site_weights@{seed,fingerprint}`, `s2_alias_index@{seed,fingerprint}`, `s2_alias_blob@{seed,fingerprint}`, `site_timezones@{seed,fingerprint}`, `route_rng_policy_v1`, `alias_layout_policy_v1`.
 
 2. **Pre-flight integrity (once per run):**
@@ -439,9 +439,9 @@ For each `(seed, parameter_hash, run_id, utc_day)` selection-log partition (if e
 * **Checks:** For this `manifest_fingerprint`, `s0_gate_receipt_2B` **and** `sealed_inputs_v1` exist at `[fingerprint]` and are schema-valid; path↔embed equality holds.
 * **Fail →** ⟨2B-S5-001 S0_RECEIPT_MISSING⟩. 
 
-**V-02 — Subset-of-S0 (sealed inputs)**
+**V-02 — S0-evidence & exact selection**
 
-* **Checks:** Every S5 input (IDs in §4) appears in **S0’s sealed inventory** for this fingerprint. Policies (`route_rng_policy_v1`, `alias_layout_policy_v1`) must match the **exact** S0-sealed `path` and `sha256_hex` (token-less → `partition={}`).
+* **Checks:** All cross-layer/policy assets appear in **S0’s sealed inventory** for this fingerprint; all within-segment inputs are resolved by **Dictionary ID** at exactly `[seed,fingerprint]`. Policies (`route_rng_policy_v1`, `alias_layout_policy_v1`) must match the **exact** S0-sealed `path` and `sha256_hex` (token-less → `partition={}`).
 * **Fail →** ⟨2B-S5-020 DICTIONARY_RESOLUTION_ERROR⟩ / ⟨2B-S5-070 PARTITION_SELECTION_INCORRECT⟩. 
 
 **V-03 — Dictionary-only resolution & exact partitions**
