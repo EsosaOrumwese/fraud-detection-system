@@ -321,7 +321,7 @@ All shapes in this state are governed by the **2B schema pack** (`schemas.2B.yam
 
 ### 7.3 Combine with S3 factors (per day)
 
-9. **Gamma lookup.** For each `{merchant_id, tz_group_id, utc_day ∈ D}`, fetch the unique `gamma` from `s3_day_effects`. Abort on missing/duplicate rows.
+9. **Gamma lookup.** For each `{merchant_id, utc_day, tz_group_id}` with `utc_day ∈ D`, fetch the unique `gamma` from `s3_day_effects`. Abort on missing/duplicate rows.
 10. **Raw mass.** Compute `mass_raw = base_share × gamma`. (Domain: `base_share ≥ 0`, `gamma > 0` ⇒ `mass_raw ≥ 0`.)
 
 ### 7.4 Cross-group renormalisation (per merchant, per day)
@@ -607,7 +607,7 @@ All failures MUST include:
 | **V-17 Idempotent re-emit**                  | 2B-S4-081                           |
 | **V-18 No network & no extra reads**         | 2B-S4-023, 2B-S4-022, 2B-S4-021     |
 | **V-19 Optional audit coherence**            | 2B-S4-095                           |
-| **V-20 Base-share recomputation check** | 2B-S4-052                           |                           |
+| **V-20 Base-share recomputation check**      | 2B-S4-052                           |
 
 ---
 

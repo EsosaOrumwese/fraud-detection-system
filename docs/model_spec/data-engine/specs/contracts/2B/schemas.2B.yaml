@@ -213,6 +213,7 @@ plan:
       - { name: mass_raw,     type: number, minimum: 0.0,                        nullable: true }
       - { name: denom_raw,    type: number, minimum: 0.0,                        nullable: true }
 
+binary:
   s2_alias_blob:
     type: object
     description: "Binary contract for contiguous alias tables blob."
