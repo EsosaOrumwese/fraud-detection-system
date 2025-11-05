@@ -4,11 +4,11 @@
 
 **Component:** Layer-1 · Segment **2B** — **State-8 (S8)** · *Validation bundle & `_passed.flag`*
 **Document ID:** `seg_2B.s8.validation_bundle`
-**Version (semver):** `v1.0.0-alpha`
+**Version (semver):** `v1.0.1-alpha`
 **Status:** `alpha` *(normative; semantics lock at `frozen`)*
 **Owners:** Design Authority (DA): **Esosa Orumwese** · Review Authority (RA): **Layer-1 Governance**
 **Effective date:** **2025-11-05 (UTC)**
-**Canonical location:** `contracts/specs/l1/seg_2B/state.2B.s8.expanded.v1.0.0.txt`
+**Canonical location:** `contracts/specs/l1/seg_2B/state.2B.s8.expanded.v1.0.1.txt`
 
 **Authority chain (Binding).**
 
@@ -336,7 +336,8 @@ Implementations **MUST** validate, prior to publish:
 1. **Resolve by ID (Dictionary-only):** `s0_gate_receipt_2B`, `sealed_inputs_v1`; all **S7** reports; **S2/S3/S4** plans; token-less **policies** (selected by S0-sealed path+digest). **No network I/O; no literal paths.**
 2. **Seed discovery (intersection):** Required seeds = **intersection** of seeds present at this fingerprint in `s2_alias_index`, `s3_day_effects`, `s4_group_weights`. **Abort** if empty. Sort seeds **ASCII-lex** by their decimal string for stability. 
 3. **S7 coverage:** For **every** discovered seed, load `s7_audit_report@[seed,fingerprint]`, validate against `#/validation/s7_audit_report_v1`, and require `summary.overall_status == "PASS"`. (WARN allowed unless policy forbids.) 
-4. **Sealed-digest parity:** For S2/S3/S4/policies, echo `(path, partition, sha256_hex)` from `sealed_inputs_v1`; require equality with the resolved artefacts. 
+4. **Sealed-digest parity (policies only):** For token-less policies, echo `(path, sha256_hex)` from `sealed_inputs_v1` and require equality.
+   For S2/S3/S4 (within-segment), select by **Dataset Dictionary ID** at exactly **`[seed,fingerprint]`** (no literals); do not require S0 parity. 
 
 ### 7.2 Stage bundle workspace (RNG-free)
 
@@ -448,7 +449,7 @@ inputs (`s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`)
 **Check:** For **each** required seed, `s7_audit_report@[seed,fingerprint]` exists, validates `#/validation/s7_audit_report_v1`, and `summary.overall_status == "PASS"`. (WARN allowed unless policy forbids.)
 **Fail →** ⟨2B-S8-031 S7_REPORT_NOT_PASS⟩ / ⟨2B-S8-032 S7_REPORT_MISSING⟩. 
 
-**V-05 — Sealed-digest parity (inputs echo)**
+**V-05 — Sealed-digest parity (policies only)**
 **Check:** For S2/S3/S4/policies, the `(path, partition, sha256_hex)` echoed from `sealed_inputs_v1` **equals** what S8 resolves (no drift).
 **Fail →** ⟨2B-S8-033 SEALED_DIGEST_MISMATCH⟩. 
 
@@ -490,7 +491,7 @@ inputs (`s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`)
 | **V-02 S0-evidence & Dictionary-only**  | 2B-S8-020, 2B-S8-021, 2B-S8-023            |
 | **V-03 Seed discovery**                 | 2B-S8-030                                  |
 | **V-04 S7 coverage & PASS**             | 2B-S8-031, 2B-S8-032                       |
-| **V-05 Sealed-digest parity**           | 2B-S8-033                                  |
+| **V-05 Sealed-digest parity (policies only)** | 2B-S8-033                                  |
 | **V-06 Index schema**                   | 2B-S8-040, 2B-S8-041, 2B-S8-042, 2B-S8-044 |
 | **V-07 Index coverage**                 | 2B-S8-043, 2B-S8-045                       |
 | **V-08 Per-file digests**               | 2B-S8-050                                  |
@@ -641,7 +642,7 @@ inputs (`s2_alias_index`, `s2_alias_blob`, `s3_day_effects`, `s4_group_weights`)
 | **V-02 S0-evidence & Dictionary-only**  | 2B-S8-020, 2B-S8-021, 2B-S8-023            |
 | **V-03 Seed discovery**                 | 2B-S8-030                                  |
 | **V-04 S7 coverage & PASS**             | 2B-S8-031, 2B-S8-032                       |
-| **V-05 Sealed-digest parity**           | 2B-S8-033                                  |
+| **V-05 Sealed-digest parity (policies only)** | 2B-S8-033                                  |
 | **V-06 Index schema**                   | 2B-S8-040, 2B-S8-041, 2B-S8-042, 2B-S8-044 |
 | **V-07 Index coverage**                 | 2B-S8-043, 2B-S8-045                       |
 | **V-08 Per-file digests**               | 2B-S8-050                                  |
