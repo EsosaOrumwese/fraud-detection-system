@@ -441,7 +441,7 @@ datasets:
   description: Validation bundle for a 1B publish (one per manifest_fingerprint).
   version: '{manifest_fingerprint}'
   format: files
-  path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/bundle/
+  path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
   partitioning: [fingerprint]
   ordering: []
   schema_ref: schemas.1B.yaml#/validation/validation_bundle_1B
