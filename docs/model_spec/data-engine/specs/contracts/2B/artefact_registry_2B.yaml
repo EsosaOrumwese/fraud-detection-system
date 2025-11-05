@@ -258,6 +258,19 @@ artifacts:
     write_once: true
     atomic_publish: true
 
+  - name: s7_audit_report
+    path: data/layer1/2B/s7_audit_report/seed={seed}/fingerprint={manifest_fingerprint}/s7_audit_report.json
+    type: dataset
+    category: validation
+    license: Proprietary-Internal
+    role: "Authoritative 2B.S7 audit report (RNG-free; fields-strict JSON)."
+    source: internal
+    owner: { owner_team: "l1-2b-governance" }
+    environment: [runtime]
+    schema: schemas.2B.yaml#/validation/s7_audit_report_v1
+    write_once: true
+    atomic_publish: true
+
   # === 2B.S5 (optional) selection log ===
   - name: s5_selection_log
     path: data/layer1/2B/s5_selection_log/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/utc_day={utc_day}/selection_log.jsonl

@@ -152,3 +152,12 @@ datasets:
     format: jsonl
     schema_ref: schemas.2B.yaml#/trace/s6_edge_log_row
     status: optional
+  # === 2B.S7 — audit report (authoritative) ===
+  - id: s7_audit_report
+    path: data/layer1/2B/s7_audit_report/seed={seed}/fingerprint={manifest_fingerprint}/s7_audit_report.json
+    partitioning: [seed, fingerprint]
+    ordering: []
+    format: json
+    schema_ref: schemas.2B.yaml#/validation/s7_audit_report_v1
+    status: approved
+    status: optional
