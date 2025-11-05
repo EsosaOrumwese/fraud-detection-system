@@ -4,11 +4,11 @@
 
 **Component:** Layer-1 · Segment **2B** — **State-4 (S4)** · *Zone-group renormalisation*
 **Document ID:** `seg_2B.s4.group_weights`
-**Version (semver):** `v1.0.2-alpha`
+**Version (semver):** `v1.0.3-alpha`
 **Status:** `alpha` *(normative; semantics lock at `frozen` in a ratified release)*
 **Owners:** Design Authority (DA): **Esosa Orumwese** · Review Authority (RA): **Layer-1 Governance**
 **Effective date:** **2025-11-04 (UTC)**
-**Canonical location:** `contracts/specs/l1/seg_2B/state.2B.s4.expanded.v1.0.2.txt`
+**Canonical location:** `contracts/specs/l1/seg_2B/state.2B.s4.expanded.v1.0.3.txt`
 
 **Authority chain (Binding):**
 **JSON-Schema pack** = shape authority → `schemas.2B.yaml`
@@ -77,7 +77,9 @@
 * **Run identity fixed.** The pair **`{ seed, manifest_fingerprint }`** is fixed at S4 start and MUST remain constant.
 * **RNG posture.** S4 performs **no random draws** (RNG-free).
 * **Catalogue discipline.** All inputs resolve by **Dataset Dictionary IDs**; **literal paths are forbidden**.
-* **Subset-of-S0 rule.** Every asset S4 reads MUST appear in S0’s `sealed_inputs_v1` for this fingerprint.
+* **S0-evidence rule.** Cross-layer/policy assets MUST appear in S0’s `sealed_inputs_v1`;
+  within-segment datasets (e.g., `s1_site_weights`, `s3_day_effects`) are not S0-sealed
+  but MUST match this run’s `{seed,fingerprint}` and be resolved by Dictionary IDs only.
 
 ### 3.2 Required sealed inputs (must all be present)
 
@@ -87,7 +89,9 @@ S4 SHALL read **only** the following, for this run’s identity:
 2. **`site_timezones`** — 2A egress at `seed={seed} / fingerprint={manifest_fingerprint}` (provides `tzid` per site for tz-grouping).
 3. **`s3_day_effects`** — 2B · S3 output at `seed={seed} / fingerprint={manifest_fingerprint}` (provides `gamma` factors per `{merchant_id, utc_day, tz_group_id}`).
 
-> All required assets MUST be resolvable via the Dictionary and MUST appear in S0’s inventory for the same fingerprint.
+> All required assets MUST be resolvable via the Dictionary. Cross-layer/policy assets MUST
+> appear in S0’s inventory for the same fingerprint. Within-segment datasets (`s1_site_weights`,
+> `s3_day_effects`) are NOT S0-sealed; select them exactly by `{seed,fingerprint}`.
 
 ### 3.3 Resolution & partition discipline (Binding)
 
@@ -487,7 +491,8 @@ Target partition was empty before publish, or existing bytes are **bit-identical
 Re-running S4 with identical sealed inputs produces **byte-identical** output; otherwise abort rather than overwrite.
 
 **V-18 — No network & no extra reads (Abort).**
-Execution performed with network I/O disabled and accessed **only** the assets listed in S0’s inventory for this fingerprint.
+Execution performed with network I/O disabled and accessed **only** the inputs enumerated in §4.2
+(Dictionary-resolved). Every cross-layer/policy asset read appears in S0’s `sealed_inputs_v1` for this fingerprint.
 
 **V-19 — Optional audit coherence (Abort if present).**
 If `mass_raw`/`denom_raw` columns are present, then for each `{merchant, utc_day}`:
@@ -516,7 +521,8 @@ Every failure log entry **MUST** include: `code`, `severity`, `message`, `finger
 * **2B-S4-021 PROHIBITED_LITERAL_PATH (Abort)** — Attempted read/write via a non-Dictionary path.
   *Context:* `path`.
 
-* **2B-S4-022 UNDECLARED_ASSET_ACCESSED (Abort)** — Asset accessed but absent from S0 `sealed_inputs_v1`.
+* **2B-S4-022 UNDECLARED_ASSET_ACCESSED (Abort)** — Asset accessed that is not enumerated in §4.2,
+  or a cross-layer/policy asset absent from S0 `sealed_inputs_v1`.
   *Context:* `id|path`.
 
 * **2B-S4-023 NETWORK_IO_ATTEMPT (Abort)** — Network I/O detected.
