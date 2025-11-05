@@ -1,16 +1,16 @@
-# AGENTS.md - Data Engine Router (Layer-1 / Segment 1B)
-_As of 2025-10-17_
+# AGENTS.md - Data Engine Router (Layer-1 / Segments 1B & 2A)
+_As of 2025-11-05_
 
-This router tells you what is binding, what to read first, and which parts of the engine are in play. Segment 1A (S0-S9) is online and sealed—treat it as read-only unless a migration is explicitly authorised. Segment 1B is the active build.
+This router tells you what is binding, what to read first, and which parts of the engine are in play. Segments **1A and 1B** are online and sealed—treat them as read-only authority surfaces. Segment **2A** (S0-S5) is the active build as we enter implementation.
 
 ---
 
 ## 0) Scope (you are here)
 - Package: packages/engine
-- Active build: Layer-1 / Segment **1B** / States **S0-S9**
-- Sealed references: Segment 1A S0-S9 (authority surfaces for 1B inputs)
-- Binding specs: 1B expanded state documents and contract artefacts are published; dataset previews remain intentionally omitted.
-- Other segments (2A...4B) remain locked until explicitly opened.
+- Active build transition: Layer-1 / Segment **2A** / States **S0-S5** (implementation starting). Segment **1B** remains live and sealed.
+- Sealed references: Segments 1A & 1B (authority surfaces for downstream inputs).
+- Binding specs: 2A expanded state documents and contract artefacts are locked alongside the existing 1B set.
+- Other segments (2B...4B) remain locked until explicitly opened.
 
 **Environment posture.** We are intentionally deferring integration with the shared dev environment (full artefact replay and manifest hookups) until the **entire Data Engine**—all layers, segments, and states—is built and wired together. While we are still in that build-out phase, every new state must be treated as if the complete engine were already live: wire states together locally, exercise deterministic cross-state invariants, and extend regression tests so the chain remains ready to run end-to-end the moment we connect to real artefacts. No shortcuts.
 
@@ -29,12 +29,17 @@ Read these in order before touching code so you align with the frozen specs.
 **C. Segment 1B state design (binding)**
 - docs/model_spec/data-engine/specs/state-flow/1B/state-flow-overview.1B.md
 - docs/model_spec/data-engine/specs/state-flow/1B/s#*.expanded.md
-  - No archived pseudocode—derive L0/L1/L2/L3 from the expanded spec.
+  - No archived pseudocode-derive L0/L1/L2/L3 from the expanded spec.
 
-**D. Data-intake guidance (structure & intent)**
+**D. Segment 2A state design (binding; ready for impl)**
+- docs/model_spec/data-engine/specs/state-flow/2A/state-flow-overview.2A.md
+- docs/model_spec/data-engine/specs/state-flow/2A/s#*.expanded.md (S0-S5)
+  - Contracts live in docs/model_spec/data-engine/specs/contracts/2A/
+
+**E. Data-intake guidance (structure & intent)**
 - No preview/data doc for 1B. Infer dataset posture straight from the state-flow specs and contract registry.
 
-**E. Contract specs (blueprints for contracts/)
+**F. Contract specs (blueprints for contracts/)
 - docs/model_spec/data-engine/specs/contracts/1B/artefact_registry_1B.yaml
 - docs/model_spec/data-engine/specs/contracts/1B/dataset_dictionary.layer1.1B.yaml
 - docs/model_spec/data-engine/specs/contracts/1B/schemas.1B.yaml

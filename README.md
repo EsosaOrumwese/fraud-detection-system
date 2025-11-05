@@ -14,6 +14,15 @@
 - **Decision fabric:** guardrails → primary ML → optional 2nd stage; returns **ACTION + reasons + provenance** with a **degrade ladder** to keep latency SLOs.  
 - **Auditability:** immutable decision log + label store; deterministic replay/DR from lineage.
 
+### Current build status (2025-11-05)
+| Segment | States | Status | Notes |
+|---------|--------|--------|-------|
+| 1A | S0-S9 | **Sealed** | Authority surface for downstream segments |
+| 1B | S0-S9 | **Sealed** | Production-ready Layer-1 world realism |
+| 2A | S0-S5 | **Specs frozen; implementation starting** | Gate, TZ pipeline, timetable, legality, bundle |
+| 2B | S0-S8 | **Specs frozen; implementation next** | Alias build, router core, audits, PASS bundle |
+
+Implementation sequence: 2A (S0→S5) → 2B (S1→S8), leaving 1A/1B artefacts as read-only authorities.
 
 ---
 
@@ -320,6 +329,23 @@ S0 Gate 1A bundle       S1 Country tiling          S2 Tile priors
 S3 Derive site counts   S4 Integerise shares       S5 Pick cells (RNG)
 S6 Jitter points (RNG)  S7 Synthesize sites        S8 `site_locations`
 S9 Validation bundle
+
+
+=========== 2A state-flow (6 states; design frozen, impl next) ===========
+S0 -> S1 -> S2 -> S3 -> S4 -> S5
+
+Where (short labels just to anchor the flow):
+S0 Gate & Sealed Inputs        S1 Provisional TZ Lookup       S2 Overrides & Finalisation
+S3 Timetable Cache             S4 Legality Report             S5 Validation Bundle
+
+
+=========== 2B state-flow (9 states; design frozen, impl after 2A) ===========
+S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6 -> S7 -> S8
+
+Where (short labels just to anchor the flow):
+S0 Gate & Sealed Inputs        S1 Site Weights                S2 Alias Tables
+S3 Day Effects (γ draws)       S4 Group Weights (Σ=1)         S5 Router Core (group→site)
+S6 Virtual Edge Routing        S7 Audits & CI Gate            S8 Validation Bundle & `_passed.flag`
 
 Legend:
 [OPEN]   = exposed/being worked

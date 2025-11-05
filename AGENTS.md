@@ -6,8 +6,8 @@ Use this to orient yourself before touching code. It captures what is in scope, 
 ---
 
 ## 0) Scope (current focus)
-- Active build: Data Engine - Layer-1 / Segment 1B executing States S0-S9.
-- Segment 1A (States S0-S9) remains sealed; use its artefacts as read-only authority surfaces.
+- Active build: Data Engine - Layer-1 / Segment **2A** (States S0-S5) — implementation phase just beginning.
+- Segments **1A & 1B** are live and sealed; treat their artefacts as read-only authority surfaces for downstream states.
 - All other packages/services remain LOCKED; check their nested `AGENTS.md` for status before making changes.
 - Need to work in a locked area? Ask the USER with a clear justification before touching it.
 
@@ -17,6 +17,8 @@ Use this to orient yourself before touching code. It captures what is in scope, 
 Read these in order before modifying code so you share the project context:
 1. `docs/references/closed-world-enterprise-conceptual-design*.md`
 2. `docs/references/closed-world-synthetic-data-engine-with-realism*.md` (current build focus)
+3. `docs/model_spec/data-engine/specs/state-flow/2A/state-flow-overview.2A.md` (plus `s*.expanded.md` and contracts/2A)
+4. `docs/model_spec/data-engine/specs/state-flow/2B/state-flow-overview.2B.md` (plus `s*.expanded.md` and contracts/2B)
 
 ---
 
