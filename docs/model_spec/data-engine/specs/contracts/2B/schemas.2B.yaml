@@ -224,4 +224,34 @@ binary:
       endianness:      { type: string, enum: [little, big] }
       alignment_bytes: { type: integer, minimum: 1 }
 
+trace:
+  s5_selection_log_row:
+    type: object
+    additionalProperties: false
+    required:
+      - merchant_id
+      - utc_timestamp
+      - utc_day
+      - tz_group_id
+      - site_id
+      - rng_stream_id
+      - ctr_group_hi
+      - ctr_group_lo
+      - ctr_site_hi
+      - ctr_site_lo
+      - manifest_fingerprint
+      - created_utc
+    properties:
+      merchant_id:          { $ref: 'schemas.layer1.yaml#/$defs/id64' }
+      utc_timestamp:        { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
+      utc_day:              { type: string, format: date }
+      tz_group_id:          { $ref: 'schemas.layer1.yaml#/$defs/iana_tzid' }
+      site_id:              { $ref: 'schemas.layer1.yaml#/$defs/id64' }
+      rng_stream_id:        { type: string, minLength: 1 }
+      ctr_group_hi:         { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      ctr_group_lo:         { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      ctr_site_hi:          { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      ctr_site_lo:          { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+      created_utc:          { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
 
