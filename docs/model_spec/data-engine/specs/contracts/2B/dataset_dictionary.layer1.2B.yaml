@@ -75,6 +75,12 @@ datasets:
     schema_ref: schemas.2B.yaml#/policy/route_rng_policy_v1
     status: approved
 
+  - id: virtual_edge_policy_v1
+    path: contracts/policy/2B/virtual_edge_policy_v1.json
+    format: json
+    schema_ref: schemas.2B.yaml#/policy/virtual_edge_policy_v1
+    status: approved
+
   - id: alias_layout_policy_v1
     path: contracts/policy/2B/alias_layout_policy_v1.json
     format: json
@@ -137,4 +143,11 @@ datasets:
     ordering: [utc_timestamp]
     format: jsonl
     schema_ref: schemas.2B.yaml#/trace/s5_selection_log_row
+    status: optional
+
+  - id: s6_edge_log
+    path: logs/edge/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/utc_day={utc_day}/s6_edge_log.jsonl
+    partitioning: [seed, parameter_hash, run_id, utc_day]
+    format: jsonl
+    schema_ref: schemas.2B.yaml#/trace/s6_edge_log_row
     status: optional

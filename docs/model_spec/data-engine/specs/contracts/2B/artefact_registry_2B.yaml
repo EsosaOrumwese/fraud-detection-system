@@ -141,6 +141,18 @@ artifacts:
     environment: [runtime]
     schema: schemas.2B.yaml#/policy/day_effect_policy_v1
 
+  # === 2B policies (token-less; S0-sealed) ===
+  - name: virtual_edge_policy_v1
+    path: contracts/policy/2B/virtual_edge_policy_v1.json
+    type: policy
+    category: config
+    license: Proprietary-Internal
+    role: "Sealed virtual-edge catalogue: edges, weights/country-weights, attributes."
+    source: internal
+    owner: { owner_team: "l1-2b-governance" }
+    environment: [runtime]
+    schema: schemas.2B.yaml#/policy/virtual_edge_policy_v1
+
   # === 2B.S1 output ===
   - name: s1_site_weights
     path: data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/
@@ -231,6 +243,20 @@ artifacts:
       - site_timezones
       - s3_day_effects
     notes: "Writer order: [merchant_id, utc_day, tz_group_id]; write-once; atomic publish."
+
+  # === 2B.S6 (optional) edge selection log ===
+  - name: s6_edge_log
+    path: logs/edge/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/utc_day={utc_day}/s6_edge_log.jsonl
+    type: dataset
+    category: logging
+    license: Proprietary-Internal
+    role: "Per-arrival virtual-edge selections (diagnostic); run-scoped lineage."
+    source: internal
+    owner: { owner_team: "l1-2b-core" }
+    environment: [runtime]
+    schema: schemas.2B.yaml#/trace/s6_edge_log_row
+    write_once: true
+    atomic_publish: true
 
   # === 2B.S5 (optional) selection log ===
   - name: s5_selection_log
