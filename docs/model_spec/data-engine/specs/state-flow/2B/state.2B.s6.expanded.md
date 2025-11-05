@@ -4,11 +4,9 @@
 
 **Component:** Layer-1 · Segment **2B** — **State-6 (S6)** · *Virtual-merchant edge routing (branch)*
 **Document ID:** `seg_2B.s6.virtual_edge_routing`
-**Version (semver):** `v1.0.1`
 **Status:** `alpha` *(normative; semantics lock when marked `frozen`)*
 **Owners:** Design Authority (DA): **Esosa Orumwese** · Review Authority (RA): **Layer-1 Governance**
 **Effective date:** **2025-11-05 (UTC)**
-**Canonical location:** `contracts/specs/l1/seg_2B/state.2B.s6.expanded.v1.0.1.txt`
 
 **Authority chain (Binding).**
 **JSON-Schema packs** are the **sole shape authorities**: 2B pack for policies and any S6 trace shape; Layer-1 pack for the RNG envelope/core logs. **Dataset Dictionary** governs ID→path/partitions/format. **Artefact Registry** is metadata only (ownership/licence/retention).   
@@ -127,7 +125,7 @@ S6 SHALL read **only** the assets below; all are **sealed** and **Dictionary-res
 **4.4 RNG evidence boundary (binding)**
 
 * **Core logs & envelope:** `rng_audit_log`, `rng_trace_log`, and event rows are **run-scoped** under `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…` and carry the **Layer-1 RNG envelope**.
-* **Event family (S6):** exactly **one** single-uniform event per **virtual** arrival on the **routing_edge** stream (family name reserved for the layer catalog); append **one** trace row **after each** event. (Shapes/partitioning follow the layer log law.) 
+* **Event family (S6):** exactly **one** single-uniform event per **virtual** arrival on the **routing_edge** stream (family **registered in the Layer-1 pack**); append **one** trace row **after each** event. (Shapes/partitioning follow the layer log law.) 
 
 **4.5 Authority boundaries (what S6 SHALL NOT do)**
 
@@ -152,7 +150,7 @@ S6 **MUST** write RNG evidence under the **run-scoped** envelope:
   `rng_trace_log` → `logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl`
   *(Schema: layer pack core logs; partitions `[seed, parameter_hash, run_id]`.)* 
 
-* **Event family (virtual edge picks):** one **single-uniform** event **per virtual arrival** on the **routing_edge** stream (name reserved in the layer catalog). Each row carries the **standard RNG envelope** (`before/after`, `blocks=1`, `draws="1"`), is partitioned by `[seed, parameter_hash, run_id]`, and S6 **appends exactly one** `rng_trace_log` row **after each event append**. 
+* **Event family (virtual edge picks):** one **single-uniform** event **per virtual arrival** on the **routing_edge** stream (**family registered in the Layer-1 pack**). Each row carries the **standard RNG envelope** (`before/after`, `blocks=1`, `draws="1"`), is partitioned by `[seed, parameter_hash, run_id]`, and S6 **appends exactly one** `rng_trace_log` row **after each event append**.
 
 *Zero-virtual case:* if a run has no `is_virtual=1` arrivals, S6 writes **no edge-event rows**; core logs/trace remain valid (no new increments).
 
@@ -413,7 +411,7 @@ Each RNG event family path and each optional `s6_edge_log` partition MUST have a
 **V-04 — Policy minima (virtual edges)**
 
 * **Check:** `virtual_edge_policy_v1` declares a **non-empty** `edge_id` set; a deterministic probability law (per-edge or country→edge induced) summing to **1 ± ε**; and attributes for each edge: `ip_country` ∈ ISO-3166-1 alpha-2, `edge_lat ∈ [−90,90]`, `edge_lon ∈ (−180,180]`.
-* **Fail →** ⟨2B-S6-030 POLICY_SCHEMA_INVALID⟩ / ⟨2B-S6-031 POLICY_MINIMA_MISSING⟩. *(Register this policy in the 2B Dictionary/Registry alongside `route_rng_policy_v1`.)* 
+* **Fail →** ⟨2B-S6-030 POLICY_SCHEMA_INVALID⟩ / ⟨2B-S6-031 POLICY_MINIMA_MISSING⟩.
 
 **V-05 — Bypass law (non-virtual)**
 
@@ -473,7 +471,7 @@ Each RNG event family path and each optional `s6_edge_log` partition MUST have a
 **Notes / anchors these validators rely on:**
 
 * **Layer RNG envelope & core logs** (run-scoped): `rng_audit_log`, `rng_trace_log`. 
-* **2B Dictionary** (IDs, partitions): shows policy packs like `route_rng_policy_v1` and the exact gate artefacts; add `virtual_edge_policy_v1` to go fully green. 
+* **2B Dictionary** (IDs, partitions): shows policy packs including `route_rng_policy_v1` and `virtual_edge_policy_v1`, plus the exact gate artefacts.
 * **S5 optional log pattern** (for S6’s optional log lineage): run-scoped `[seed,parameter_hash,run_id,utc_day]`, path↔embed equality.
 
 Passing **V-01…V-15** demonstrates S6 reads **only sealed, catalogued inputs**, emits **exactly one event per virtual arrival** under the **run-scoped RNG envelope**, preserves **identity & immutability**, and keeps outcomes **bit-replayable**.
@@ -519,7 +517,7 @@ Passing **V-01…V-15** demonstrates S6 reads **only sealed, catalogued inputs**
 
 **2B-S6-030 — POLICY_SCHEMA_INVALID** · *Abort*
 **Trigger:** `virtual_edge_policy_v1` fails schema/parse.
-**Detect:** V-04. **Remedy:** fix policy to match the 2B policy anchor. *(Note: as of the current Dictionary/Registry snapshots, `route_rng_policy_v1` is present, but `virtual_edge_policy_v1` is not yet registered—add it as a token-less policy, selected by S0-sealed path+digest.)* 
+**Detect:** V-04. **Remedy:** fix policy to match the 2B policy anchor. *(Both `route_rng_policy_v1` and `virtual_edge_policy_v1` are registered as token-less, S0-sealed policies selected by exact path + digest.)* 
 
 **2B-S6-031 — POLICY_MINIMA_MISSING** · *Abort*
 **Trigger:** `virtual_edge_policy_v1` does not declare a non-empty `edge_id` set, a probability law that sums to `1±ε`, or required attributes (`ip_country`, `edge_lat`, `edge_lon`) for every edge.
@@ -690,7 +688,7 @@ The run-report **MUST** contain exactly the keys below (no extras). Timestamps/I
 
 * **Partition law for RNG evidence (authoritative):** all event/core-log paths are **run-scoped** under `…/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/…`.
 * **Core logs:** `rng_audit_log`, `rng_trace_log` shapes and partitioning are fixed by the **Layer-1** pack; S6 must append **one** trace row **after each** event append. 
-* **Event stream:** `cdn_edge_pick` is a **single-uniform** family (reserved name), so each row’s envelope **must** show `blocks=1`, `draws="1"`. (Same envelope law as other layer events.) 
+* **Event stream:** `cdn_edge_pick` is a **single-uniform** family (**registered in the Layer-1 pack**), so each row’s envelope **must** show `blocks=1`, `draws="1"`. (Same envelope law as other layer events.) 
 
 ### 11.4 Deterministic samples (bounded)
 
@@ -887,8 +885,8 @@ This section adds **no** new dataset authorities. Shapes remain governed by **`s
 
 **A.7 Artefact Registry (metadata only; owners/licensing/roles)**
 
-* Policy packs (current): `route_rng_policy_v1`, `alias_layout_policy_v1`, `day_effect_policy_v1` — show schema refs & owners; add **`virtual_edge_policy_v1`** mirroring these entries. 
+* Policy packs (current): `route_rng_policy_v1`, `alias_layout_policy_v1`, `day_effect_policy_v1`, **`virtual_edge_policy_v1`** — all show schema refs & owners.
 
-> Cross-refs above are consistent with the live **2B Dictionary/Registry** and the **Layer-1 RNG pack**. Registering **`virtual_edge_policy_v1`** (policy) and, if used, **`s6_edge_log`** (optional dataset + trace anchor) completes the catalogue for S6.
+> Cross-refs above are consistent with the live **2B Dictionary/Registry** and the **Layer-1 RNG pack**. The S6 catalogue is complete; **`virtual_edge_policy_v1`** is registered, and **`s6_edge_log`** remains optional (register only if diagnostics are desired).
 
 ---
