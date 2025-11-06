@@ -17,8 +17,7 @@ Use this to orient yourself before touching code. It captures what is in scope, 
 Read these in order before modifying code so you share the project context:
 1. `docs/references/closed-world-enterprise-conceptual-design*.md`
 2. `docs/references/closed-world-synthetic-data-engine-with-realism*.md` (current build focus)
-3. `docs/model_spec/data-engine/specs/state-flow/2A/state-flow-overview.2A.md` (plus `s*.expanded.md` and contracts/2A)
-4. `docs/model_spec/data-engine/specs/state-flow/2B/state-flow-overview.2B.md` (plus `s*.expanded.md` and contracts/2B)
+3. Review the current implementation of the project which for now involves understanding the implemented data engine (1A-1B) in packages/engine and also its run tests in `runs/`
 
 ---
 
@@ -42,8 +41,6 @@ Read these in order before modifying code so you share the project context:
 ---
 
 ## Extra information
-- Segment 1B has full expanded specs for States S0-S9 and updated contract artefacts (`docs/model_spec/data-engine/specs/state-flow/1B/**`, `docs/model_spec/data-engine/specs/contracts/1B/**`). There is intentionally no dataset preview for 1B—derive data expectations directly from the design.
-- For prior sealed work (Segment 1A) there are still no L0/L1/L2/L3 pseudocode docs; infer the layer split from the expanded specs (L0 primitives/helpers, L1 kernels, L2 orchestrator, L3 validator).
 - Stay proactive: surface TODOs, challenge suspect contract assumptions, and suggest stronger designs where appropriate.
 - Keep changes efficient and reproducible; add concise comments only when they clarify non-obvious intent.
 - Keep `pyproject.toml` aligned with any new dependencies you introduce.
