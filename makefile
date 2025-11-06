@@ -126,12 +126,20 @@ segment2a:
 		echo "Segment 1B validation bundle '$$VALIDATION_BUNDLE' not found. Run 'make segment1b' first." >&2; \
 		exit 1; \
 	 fi; \
-	 $(PY) -c "import pathlib, shutil, sys; src = pathlib.Path(r'$(SEG2A_TZDATA_ROOT)') / '$(SEG2A_TZDB_RELEASE)'; dest = pathlib.Path(r'$(RUN_ROOT)') / 'artefacts/priors/tzdata/$(SEG2A_TZDB_RELEASE)'; dest.parent.mkdir(parents=True, exist_ok=True); shutil.rmtree(dest, ignore_errors=True); \
+	 $(PY) -c "import pathlib, shutil, sys; \
+src = pathlib.Path(r'$(SEG2A_TZDATA_ROOT)/$(SEG2A_TZDB_RELEASE)'); \
+dest = pathlib.Path(r'$(RUN_ROOT)/artefacts/priors/tzdata/$(SEG2A_TZDB_RELEASE)'); \
+dest.parent.mkdir(parents=True, exist_ok=True); \
+shutil.rmtree(dest, ignore_errors=True); \
 if not src.is_dir(): sys.exit(f\"Canonical tzdata release '{src}' not found. Stage artefact before running Segment 2A.\"); \
 shutil.copytree(src, dest)"; \
-	 $(PY) -c "import pathlib, shutil, sys; src = pathlib.Path(r'$(SEG2A_TZ_CONFIG_ROOT)'); dest = pathlib.Path(r'$(RUN_ROOT)') / 'config/timezone'; dest.parent.mkdir(parents=True, exist_ok=True); shutil.rmtree(dest, ignore_errors=True); \
+	 $(PY) -c "import pathlib, shutil, sys; \
+src = pathlib.Path(r'$(SEG2A_TZ_CONFIG_ROOT)'); \
+dest = pathlib.Path(r'$(RUN_ROOT)/config/timezone'); \
+dest.parent.mkdir(parents=True, exist_ok=True); \
+shutil.rmtree(dest, ignore_errors=True); \
 if not src.is_dir(): sys.exit(f\"Canonical timezone config directory '{src}' not found. Stage policy artefacts before running Segment 2A.\"); \
-	shutil.copytree(src, dest)"; \
+shutil.copytree(src, dest)"; \
 	 if [ -n "$(LOG)" ]; then \
 		($(SEG2A_CMD)) 2>&1 | tee -a "$(LOG)"; \
 	 else \
