@@ -30,7 +30,7 @@ def test_segment2a_orchestrator_run_and_resume():
         dictionary_path = _build_dictionary(root)
         validation_dir = root / f"data/layer1/1B/validation/fingerprint={upstream_fp}"
         validation_dir.mkdir(parents=True, exist_ok=True)
-        _build_validation_bundle(validation_dir)
+        bundle_dir, _ = _build_validation_bundle(validation_dir)
         _write_reference_files(root, str(seed), upstream_fp, tz_release)
 
         orchestrator = Segment2AOrchestrator()
@@ -43,7 +43,7 @@ def test_segment2a_orchestrator_run_and_resume():
                 tzdb_release_tag=tz_release,
                 git_commit_hex=git_commit,
                 dictionary_path=dictionary_path,
-                validation_bundle_path=validation_dir,
+                validation_bundle_path=bundle_dir,
                 notes="integration",
             )
         )
@@ -86,7 +86,7 @@ def test_segment2a_cli_run_and_resume():
         dictionary_path = _build_dictionary(root)
         validation_dir = root / f"data/layer1/1B/validation/fingerprint={upstream_fp}"
         validation_dir.mkdir(parents=True, exist_ok=True)
-        _build_validation_bundle(validation_dir)
+        bundle_dir, _ = _build_validation_bundle(validation_dir)
         _write_reference_files(root, str(seed), upstream_fp, tz_release)
 
         env = os.environ.copy()
@@ -113,7 +113,7 @@ def test_segment2a_cli_run_and_resume():
             "--dictionary",
             str(dictionary_path),
             "--validation-bundle",
-            str(validation_dir),
+            str(bundle_dir),
         ]
 
         initial_run = subprocess.run(

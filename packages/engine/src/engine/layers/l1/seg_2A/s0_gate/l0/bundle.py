@@ -48,7 +48,15 @@ def load_index(bundle_dir: Path) -> BundleIndex:
     except json.JSONDecodeError as exc:
         raise err("E_INDEX_INVALID", f"index.json is not valid JSON: {exc}") from exc
 
-    if not isinstance(payload, list):
+    if isinstance(payload, dict):
+        artifacts = payload.get("artifacts")
+        if not isinstance(artifacts, list):
+            raise err(
+                "E_INDEX_INVALID",
+                "index.json `artifacts` section must be a JSON array",
+            )
+        payload = artifacts
+    elif not isinstance(payload, list):
         raise err("E_INDEX_INVALID", "index.json must be a JSON array")
 
     entries: list[IndexEntry] = []

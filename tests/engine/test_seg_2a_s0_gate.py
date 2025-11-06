@@ -75,7 +75,7 @@ def _build_dictionary(tmp: Path) -> Path:
         license: Proprietary-Internal
     validation:
       validation_bundle_1B:
-        path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+        path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/bundle/
         schema_ref: schemas.1B.yaml#/validation/validation_bundle_1B
         partitioning: [fingerprint]
         version: "{manifest_fingerprint}"
@@ -104,18 +104,22 @@ def _build_dictionary(tmp: Path) -> Path:
     return dictionary_path
 
 
-def _build_validation_bundle(bundle_dir: Path) -> str:
+def _build_validation_bundle(fingerprint_dir: Path) -> tuple[Path, str]:
+    bundle_dir = fingerprint_dir / "bundle"
+    bundle_dir.mkdir(parents=True, exist_ok=True)
     payload_path = bundle_dir / "bundle_payload.json"
     _write_json(payload_path, {"bundle": "ok"})
-    index_payload = [
-        {"artifact_id": "index", "path": "index.json"},
-        {"artifact_id": "payload", "path": payload_path.name},
-    ]
+    index_payload = {
+        "artifacts": [
+            {"artifact_id": "payload", "path": payload_path.name},
+            {"artifact_id": "self_index", "path": "index.json"},
+        ]
+    }
     _write_json(bundle_dir / "index.json", index_payload)
     index = load_index(bundle_dir)
     digest = compute_index_digest(bundle_dir, index)
     (bundle_dir / "_passed.flag").write_text(f"sha256_hex = {digest}\n", encoding="utf-8")
-    return digest
+    return bundle_dir, digest
 
 
 def _write_reference_files(base: Path, seed: str, upstream_fp: str, tz_release: str) -> None:
@@ -179,7 +183,7 @@ def test_segment_2a_s0_runner_end_to_end():
         dictionary_path = _build_dictionary(root)
         validation_dir = root / f"data/layer1/1B/validation/fingerprint={upstream_fp}"
         validation_dir.mkdir(parents=True, exist_ok=True)
-        declared_flag = _build_validation_bundle(validation_dir)
+        bundle_dir, declared_flag = _build_validation_bundle(validation_dir)
         _write_reference_files(root, seed, upstream_fp, tz_release)
 
         runner = S0GateRunner()
@@ -200,7 +204,7 @@ def test_segment_2a_s0_runner_end_to_end():
         assert outputs.flag_sha256_hex == declared_flag
         assert outputs.receipt_path.exists()
         assert outputs.inventory_path.exists()
-        assert outputs.validation_bundle_path == validation_dir
+        assert outputs.validation_bundle_path == bundle_dir
 
         receipt_payload = json.loads(outputs.receipt_path.read_text(encoding="utf-8"))
         assert receipt_payload["manifest_fingerprint"] == outputs.manifest_fingerprint
