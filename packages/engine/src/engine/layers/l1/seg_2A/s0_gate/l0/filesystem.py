@@ -1,62 +1,67 @@
-"""Filesystem helpers for Segment 2A S0 implementation.
-
-The functions defined here provide typed structure for future sealing logic.
-Concrete behaviour (hashing, schema validation, manifest emission) will be
-layered in during later phases of the build.
-"""
+"""Filesystem helpers for Segment 2A S0 implementation."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import hashlib
 from pathlib import Path
-from typing import Iterable, Mapping, Protocol
+from typing import Iterable, List, Sequence
+
+from ...seg_1A.s0_foundations.l0.artifacts import ArtifactDigest, hash_artifacts
+from ..exceptions import err
 
 
-@dataclass(frozen=True)
-class ResolvedAsset:
-    """Represents an artefact resolved via the dataset dictionary."""
+def ensure_within_base(path: Path, *, base_path: Path) -> None:
+    """Ensure ``path`` resides within ``base_path``."""
 
-    asset_id: str
-    path: Path
-    schema_ref: str
-    partition_keys: tuple[str, ...]
-
-
-class DigestComputer(Protocol):
-    """Protocol for computing content digests.
-
-    The concrete engine will wire the Segment 1A hashing utilities here so the
-    2A gate can reuse the same fingerprint law.  Phase 1 keeps the contract
-    focused on types so downstream wiring is easier.
-    """
-
-    def __call__(self, paths: Iterable[Path]) -> Mapping[Path, str]:
-        ...
+    base_resolved = base_path.resolve()
+    target = path.resolve()
+    try:
+        target.relative_to(base_resolved)
+    except ValueError as exc:
+        raise err(
+            "E_PATH_OUT_OF_SCOPE",
+            f"path '{target}' escapes base directory '{base_resolved}'",
+        ) from exc
 
 
-def resolve_asset(asset_id: str) -> ResolvedAsset:
-    """Resolve ``asset_id`` using the dataset dictionary (placeholder).
+def expand_files(path: Path) -> List[Path]:
+    """Return a deterministic list of files anchored at ``path``."""
 
-    The implementation will mirror Segment 1B's dictionary helpers once the 2A
-    dictionary is wired into the runtime.  Returning ``NotImplemented`` keeps
-    the import surface intact without pretending the behaviour already exists.
-    """
-
-    raise NotImplementedError("Dictionary resolution for 2A is implemented in later phases.")
-
-
-def compute_digests(paths: Iterable[Path], *, computer: DigestComputer) -> Mapping[Path, str]:
-    """Delegate digest computation to the injected callable.
-
-    Parameters
-    ----------
-    paths:
-        Files that belong to the sealed manifest.
-    computer:
-        Callable compatible with the Segment 1A hashing utilities.
-    """
-
-    return computer(paths)
+    if path.is_file():
+        return [path]
+    if path.is_dir():
+        return sorted(p for p in path.rglob("*") if p.is_file())
+    raise err("E_PATH_MISSING", f"expected file or directory at '{path}'")
 
 
-__all__ = ["ResolvedAsset", "DigestComputer", "resolve_asset", "compute_digests"]
+def hash_files(paths: Sequence[Path], *, error_prefix: str) -> List[ArtifactDigest]:
+    """Hash ``paths`` using the Segment 1A artefact helpers."""
+
+    if not paths:
+        raise err(f"{error_prefix}_EMPTY", "no files resolved for hashing")
+    return hash_artifacts(paths, error_prefix=error_prefix)
+
+
+def aggregate_sha256(digests: Iterable[ArtifactDigest]) -> str:
+    """Aggregate a collection of digests into a single SHA-256 hex string."""
+
+    hasher = hashlib.sha256()
+    for digest in sorted(digests, key=lambda d: d.basename):
+        hasher.update(digest.sha256_digest)
+    return hasher.hexdigest()
+
+
+def total_size_bytes(digests: Iterable[ArtifactDigest]) -> int:
+    """Return the total size over all artefacts."""
+
+    return sum(d.size_bytes for d in digests)
+
+
+__all__ = [
+    "ArtifactDigest",
+    "ensure_within_base",
+    "expand_files",
+    "hash_files",
+    "aggregate_sha256",
+    "total_size_bytes",
+]

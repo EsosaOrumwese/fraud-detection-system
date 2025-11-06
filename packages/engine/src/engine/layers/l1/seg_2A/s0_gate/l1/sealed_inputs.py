@@ -1,43 +1,88 @@
-"""Dataclasses describing the sealed inputs manifest for 2A S0."""
+"""Dataclasses describing sealed inputs for Segment 2A S0."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Iterable
 
-from ..exceptions import err, S0GateError
+from ..exceptions import err
+from ..l0 import ArtifactDigest
+from ..l0.filesystem import aggregate_sha256, total_size_bytes
 
 
 @dataclass(frozen=True)
-class SealedInput:
-    """Lightweight view of a sealed asset recorded in the receipt."""
+class SealedAsset:
+    """Represents a single asset sealed into the 2A manifest."""
 
     asset_id: str
     schema_ref: str
-    partition_keys: tuple[str, ...] = field(default_factory=tuple)
+    asset_kind: str
+    catalog_path: str
+    resolved_path: Path
+    partition_keys: tuple[str, ...]
+    version_tag: str
+    license_class: str
+    digests: tuple[ArtifactDigest, ...]
+    notes: str | None = None
+    sha256_hex: str = field(init=False)
+    size_bytes: int = field(init=False)
 
-    def require_non_empty(self) -> None:
-        """Ensure the asset identity is populated."""
-
+    def __post_init__(self) -> None:
         if not self.asset_id:
-            raise err("E_ASSET_ID_MISSING", "sealed input asset_id must be non-empty")
+            raise err("E_ASSET_ID_MISSING", "sealed asset must declare a non-empty id")
+        if not self.schema_ref:
+            raise err("E_ASSET_SCHEMA_MISSING", f"sealed asset '{self.asset_id}' missing schema_ref")
+        if not self.digests:
+            raise err(
+                "E_ASSET_EMPTY_DIGESTS",
+                f"sealed asset '{self.asset_id}' has no hashed artefacts",
+            )
+        object.__setattr__(self, "sha256_hex", aggregate_sha256(self.digests))
+        object.__setattr__(self, "size_bytes", total_size_bytes(self.digests))
+
+    def as_receipt_entry(self) -> dict[str, object]:
+        """Representation suitable for embedding in the receipt."""
+
+        return {
+            "id": self.asset_id,
+            "partition": list(self.partition_keys),
+            "schema_ref": self.schema_ref,
+        }
+
+    def as_inventory_row(self, *, manifest_fingerprint: str) -> dict[str, object]:
+        """Row payload for the sealed_inputs_v1 manifest."""
+
+        return {
+            "manifest_fingerprint": manifest_fingerprint,
+            "asset_id": self.asset_id,
+            "asset_kind": self.asset_kind,
+            "basename": self.resolved_path.name,
+            "version_tag": self.version_tag,
+            "schema_ref": self.schema_ref,
+            "catalog_path": self.catalog_path,
+            "partition_keys": list(self.partition_keys),
+            "sha256_hex": self.sha256_hex,
+            "size_bytes": self.size_bytes,
+            "license_class": self.license_class,
+            "notes": self.notes,
+        }
 
 
-def normalise_inputs(inputs: Iterable[SealedInput]) -> list[SealedInput]:
-    """Return a list that enforces the most basic invariants.
+def ensure_unique_assets(assets: Iterable[SealedAsset]) -> list[SealedAsset]:
+    """Ensure asset identifiers are unique."""
 
-    Later phases will enrich this with dictionary lookups and digest capture.
-    """
-
-    result: list[SealedInput] = []
     seen: set[str] = set()
-    for item in inputs:
-        item.require_non_empty()
-        if item.asset_id in seen:
-            raise err("E_ASSET_DUPLICATE", f"duplicate sealed input '{item.asset_id}'")
-        seen.add(item.asset_id)
-        result.append(item)
-    return result
+    normalised: list[SealedAsset] = []
+    for asset in assets:
+        if asset.asset_id in seen:
+            raise err(
+                "E_ASSET_DUPLICATE",
+                f"duplicate sealed asset '{asset.asset_id}' encountered",
+            )
+        seen.add(asset.asset_id)
+        normalised.append(asset)
+    return normalised
 
 
-__all__ = ["SealedInput", "normalise_inputs", "S0GateError"]
+__all__ = ["SealedAsset", "ensure_unique_assets"]
