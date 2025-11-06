@@ -3,43 +3,48 @@ $id: schemas.2A.yaml
 $schema: https://json-schema.org/draft/2020-12/schema
 description: "Layer-1 Segment 2A (Civil Time) schema pack. JSON-Schema is the sole shape authority."
 
+$defs:
+  rfc3339_micros:
+    type: string
+    pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z$
+    description: "RFC-3339 timestamp with exactly 6 fractional digits (microseconds) and trailing 'Z'."
+
 # -- Validation / Receipts --------------------------------------------------
 validation:
 
   s0_gate_receipt_v1:
-    type: table
-    description: "Fingerprint-scoped receipt proving 1B PASS and freezing the sealed-inputs manifest for 2A."
-    primary_key: [manifest_fingerprint]
-    partition_keys: [fingerprint]
-    sort_keys: []
-    columns_strict: true
-    columns:
-      - name: manifest_fingerprint
+    type: object
+    additionalProperties: false
+    required:
+      - manifest_fingerprint
+      - parameter_hash
+      - validation_bundle_path
+      - flag_sha256_hex
+      - verified_at_utc
+      - sealed_inputs
+    properties:
+      manifest_fingerprint:
         $ref: 'schemas.layer1.yaml#/$defs/hex64'
-        nullable: false
         description: "Must byte-equal fingerprint path token (path vs embed equality)."
-      - name: parameter_hash
+      parameter_hash:
         $ref: 'schemas.layer1.yaml#/$defs/hex64'
-        nullable: false
-      - name: validation_bundle_path
+      validation_bundle_path:
         type: string
-        nullable: false
+        minLength: 1
         description: "Dictionary-resolved path to the 1B validation bundle for the same fingerprint."
-      - name: flag_sha256_hex
+      flag_sha256_hex:
         $ref: 'schemas.layer1.yaml#/$defs/hex64'
-        nullable: false
         description: "Digest proven from the 1B _passed.flag artefact."
-      - name: verified_at_utc
-        $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros'
-        nullable: false
-      - name: sealed_inputs
+      verified_at_utc:
+        $ref: '#/$defs/rfc3339_micros'
+      sealed_inputs:
         type: array
-        nullable: false
+        minItems: 1
         description: "Every asset sealed by S0 (id, partitions, schema ref)."
         items:
           type: object
           additionalProperties: false
-          required: [id, partition, schema_ref]
+          required: [id, schema_ref]
           properties:
             id:
               type: string
@@ -52,9 +57,8 @@ validation:
             schema_ref:
               type: string
               minLength: 1
-      - name: notes
+      notes:
         type: string
-        nullable: true
 
   s4_legality_report:
     type: object
@@ -119,7 +123,7 @@ validation:
           additionalProperties: false
           properties:
             id:    { type: string }
-            status:{ type: string, enum: [PASS, FAIL] }
+            status: { type: string, enum: [PASS, FAIL] }
             notes: { type: string }
     required: [fingerprint, generated_at_utc, overall_status]
 
@@ -287,4 +291,3 @@ egress:
       - { name: nudge_lon_deg, type: number, nullable: true }
       - { name: created_utc, $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros', nullable: false }
       - { name: notes, type: string, nullable: true }
-

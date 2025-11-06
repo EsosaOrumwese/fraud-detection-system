@@ -25,7 +25,7 @@ from ..l0 import (
 )
 from ..l1.sealed_inputs import SealedAsset, ensure_unique_assets
 from ..l1.validation import validate_receipt_payload
-from ...seg_1A.s0_foundations.l1.hashing import (
+from ....seg_1A.s0_foundations.l1.hashing import (
     ParameterHashResult,
     compute_manifest_fingerprint,
     compute_parameter_hash,

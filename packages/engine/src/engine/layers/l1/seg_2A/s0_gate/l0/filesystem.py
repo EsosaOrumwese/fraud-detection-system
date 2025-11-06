@@ -6,7 +6,7 @@ import hashlib
 from pathlib import Path
 from typing import Iterable, List, Sequence
 
-from ...seg_1A.s0_foundations.l0.artifacts import ArtifactDigest, hash_artifacts
+from ....seg_1A.s0_foundations.l0.artifacts import ArtifactDigest, hash_artifacts
 from ..exceptions import err
 
 
