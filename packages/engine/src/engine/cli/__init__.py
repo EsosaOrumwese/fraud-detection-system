@@ -12,5 +12,14 @@ from .s2_tile_weights import main as run_s2_tile_weights
 from .s2_nb_outlets import main as run_s2_nb_outlets
 from .segment1b import main as run_segment1b
 from .segment1a import main as run_segment1a
+from .segment2a import main as run_segment2a
 
-__all__ = ['run_s0_foundations', 'run_s1_hurdle', 'run_s2_nb_outlets', 'run_s2_tile_weights', 'run_segment1a', 'run_segment1b']
+__all__ = [
+    'run_s0_foundations',
+    'run_s1_hurdle',
+    'run_s2_nb_outlets',
+    'run_s2_tile_weights',
+    'run_segment1a',
+    'run_segment1b',
+    'run_segment2a',
+]
