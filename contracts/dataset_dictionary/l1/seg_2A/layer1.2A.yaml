@@ -145,7 +145,7 @@ validation:
     description: "Segment 1B validation bundle proving PASS for a manifest fingerprint."
     version: "{manifest_fingerprint}"
     format: files
-    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/bundle/
     partitioning: [fingerprint]
     ordering: []
     schema_ref: schemas.1B.yaml#/validation/validation_bundle_1B

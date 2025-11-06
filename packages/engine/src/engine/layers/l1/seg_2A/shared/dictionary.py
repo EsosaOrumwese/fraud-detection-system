@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Mapping, MutableMapping
+from typing import Iterable, Mapping, MutableMapping
 
 import yaml
 
@@ -74,16 +74,21 @@ def get_dataset_entry(
     dictionary = dictionary or load_dictionary()
     for section_key in _dictionary_sections():
         section = dictionary.get(section_key)
-        if not isinstance(section, Mapping):
-            continue
-        entry = section.get(dataset_id)
-        if entry is not None:
-            if not isinstance(entry, Mapping):
-                raise err(
-                    "E_DICTIONARY_RESOLUTION_FAILED",
-                    f"dictionary entry '{dataset_id}' must be a mapping",
-                )
-            return entry
+        if isinstance(section, Mapping):
+            entry = section.get(dataset_id)
+            if entry is not None:
+                if not isinstance(entry, Mapping):
+                    raise err(
+                        "E_DICTIONARY_RESOLUTION_FAILED",
+                        f"dictionary entry '{dataset_id}' must be a mapping",
+                    )
+                return entry
+        elif isinstance(section, Iterable):
+            for item in section:
+                if not isinstance(item, Mapping):
+                    continue
+                if item.get("id") == dataset_id:
+                    return item
     raise err(
         "E_DICTIONARY_RESOLUTION_FAILED",
         f"dataset '{dataset_id}' not present in the Segment 2A dictionary",
