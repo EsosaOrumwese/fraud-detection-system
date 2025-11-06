@@ -69,6 +69,9 @@ SEG2A_TZDB_RELEASE ?= 2025a
 SEG2A_EXTRA ?=
 SEG2A_TZDATA_ROOT ?= artefacts/priors/tzdata
 SEG2A_TZ_CONFIG_ROOT ?= config/timezone
+SEG2A_CANONICAL_TZDATA = $(SEG2A_TZDATA_ROOT)/$(SEG2A_TZDB_RELEASE)
+SEG2A_RUN_TZDATA = $(RUN_ROOT)/artefacts/priors/tzdata/$(SEG2A_TZDB_RELEASE)
+SEG2A_RUN_TZCFG = $(RUN_ROOT)/config/timezone
 
 SEG2A_ARGS = \
 	--data-root $(RUN_ROOT) \
@@ -126,20 +129,20 @@ segment2a:
 		echo "Segment 1B validation bundle '$$VALIDATION_BUNDLE' not found. Run 'make segment1b' first." >&2; \
 		exit 1; \
 	 fi; \
-	 $(PY) -c "import pathlib, shutil, sys; \
-src = pathlib.Path(r'$(SEG2A_TZDATA_ROOT)/$(SEG2A_TZDB_RELEASE)'); \
-dest = pathlib.Path(r'$(RUN_ROOT)/artefacts/priors/tzdata/$(SEG2A_TZDB_RELEASE)'); \
-dest.parent.mkdir(parents=True, exist_ok=True); \
-shutil.rmtree(dest, ignore_errors=True); \
-if not src.is_dir(): sys.exit(f\"Canonical tzdata release '{src}' not found. Stage artefact before running Segment 2A.\"); \
-shutil.copytree(src, dest)"; \
-	 $(PY) -c "import pathlib, shutil, sys; \
-src = pathlib.Path(r'$(SEG2A_TZ_CONFIG_ROOT)'); \
-dest = pathlib.Path(r'$(RUN_ROOT)/config/timezone'); \
-dest.parent.mkdir(parents=True, exist_ok=True); \
-shutil.rmtree(dest, ignore_errors=True); \
-if not src.is_dir(): sys.exit(f\"Canonical timezone config directory '{src}' not found. Stage policy artefacts before running Segment 2A.\"); \
-shutil.copytree(src, dest)"; \
+	 if [ ! -d "$(SEG2A_CANONICAL_TZDATA)" ]; then \
+		echo "Canonical tzdata release '$(SEG2A_CANONICAL_TZDATA)' not found. Stage artefact before running Segment 2A." >&2; \
+		exit 1; \
+	 fi; \
+	 rm -rf "$(SEG2A_RUN_TZDATA)"; \
+	 mkdir -p "$(SEG2A_RUN_TZDATA)"; \
+	 cp -a "$(SEG2A_CANONICAL_TZDATA)/." "$(SEG2A_RUN_TZDATA)/"; \
+	 if [ ! -d "$(SEG2A_TZ_CONFIG_ROOT)" ]; then \
+		echo "Canonical timezone config directory '$(SEG2A_TZ_CONFIG_ROOT)' not found. Stage policy artefacts before running Segment 2A." >&2; \
+		exit 1; \
+	 fi; \
+	 rm -rf "$(SEG2A_RUN_TZCFG)"; \
+	 mkdir -p "$(SEG2A_RUN_TZCFG)"; \
+	 cp -a "$(SEG2A_TZ_CONFIG_ROOT)/." "$(SEG2A_RUN_TZCFG)/"; \
 	 if [ -n "$(LOG)" ]; then \
 		($(SEG2A_CMD)) 2>&1 | tee -a "$(LOG)"; \
 	 else \
