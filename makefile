@@ -4,10 +4,10 @@ SHELL := /bin/bash
 PY ?= python
 ENGINE_PYTHONPATH ?= packages/engine/src
 
-RUN_ROOT ?= runs/local_layer1_regen7
+RUN_ROOT ?= runs/local_layer1_regen0
 RESULT_JSON ?= $(RUN_ROOT)/segment1a_result.json
-LOG ?=
-SEED ?= 2025103001
+LOG ?= $(RUN_ROOT)/run_log_regen0.log
+SEED ?= 2025110601
 
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
 
@@ -64,16 +64,33 @@ SEG1B_ARGS = \
 	$(SEG1B_EXTRA)
 SEG1B_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment1b run $(SEG1B_ARGS)
 
-.PHONY: all segment1a segment1b profile-all profile-seg1b clean-results
+SEG2A_DICTIONARY ?= contracts/dataset_dictionary/l1/seg_2A/layer1.2A.yaml
+SEG2A_TZDB_RELEASE ?= 2025a
+SEG2A_EXTRA ?=
 
-all: segment1a segment1b
+SEG2A_ARGS = \
+	--data-root $(RUN_ROOT) \
+	--upstream-manifest-fingerprint $$MANIFEST_FINGERPRINT \
+	--parameter-hash $$PARAM_HASH \
+	--seed $(SEED) \
+	--tzdb-release-tag $(SEG2A_TZDB_RELEASE) \
+	--git-commit-hex $(GIT_COMMIT) \
+	--dictionary $(SEG2A_DICTIONARY) \
+	--validation-bundle $$VALIDATION_BUNDLE \
+	$(SEG2A_EXTRA)
+SEG2A_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment2a $(SEG2A_ARGS)
+
+.PHONY: all segment1a segment1b segment2a profile-all profile-seg1b clean-results
+
+all: segment1a segment1b segment2a
 
 segment1a:
 	@mkdir -p "$(RUN_ROOT)"
 ifeq ($(strip $(LOG)),)
 	$(SEG1A_CMD)
 else
-	($(SEG1A_CMD)) 2>&1 | tee "$(LOG)"
+	@: > "$(LOG)"
+	($(SEG1A_CMD)) 2>&1 | tee -a "$(LOG)"
 endif
 
 segment1b:
@@ -87,6 +104,28 @@ segment1b:
 		($(SEG1B_CMD)) 2>&1 | tee -a "$(LOG)"; \
 	 else \
 		$(SEG1B_CMD); \
+	 fi
+
+segment2a:
+	@if [ ! -f "$(RESULT_JSON)" ]; then \
+		echo "Segment 1A summary '$(RESULT_JSON)' not found. Run 'make segment1a' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(RUN_ROOT)/data/layer1/1B" ]; then \
+		echo "Segment 1B outputs not found under '$(RUN_ROOT)/data/layer1/1B'. Run 'make segment1b' first." >&2; \
+		exit 1; \
+	fi
+	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['parameter_hash'])"); \
+	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['manifest_fingerprint'])"); \
+	 VALIDATION_BUNDLE="$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=$$MANIFEST_FINGERPRINT"; \
+	 if [ ! -d "$$VALIDATION_BUNDLE" ]; then \
+		echo "Segment 1B validation bundle '$$VALIDATION_BUNDLE' not found. Run 'make segment1b' first." >&2; \
+		exit 1; \
+	 fi; \
+	 if [ -n "$(LOG)" ]; then \
+		($(SEG2A_CMD)) 2>&1 | tee -a "$(LOG)"; \
+	 else \
+		$(SEG2A_CMD); \
 	 fi
 
 profile-all:
