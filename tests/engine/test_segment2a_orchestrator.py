@@ -7,10 +7,8 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from engine.scenario_runner.l1_seg_2A import (
-    Segment2AConfig,
-    Segment2AOrchestrator,
-)
+from engine.layers.l1.seg_2A import ProvisionalLookupResult
+from engine.scenario_runner.l1_seg_2A import Segment2AConfig, Segment2AOrchestrator
 
 from .test_seg_2a_s0_gate import (
     _build_dictionary,
@@ -19,7 +17,7 @@ from .test_seg_2a_s0_gate import (
 )
 
 
-def test_segment2a_orchestrator_run_and_resume():
+def test_segment2a_orchestrator_run_and_resume(monkeypatch):
     upstream_fp = "a" * 64
     tz_release = "test-release"
     git_commit = "b" * 64
@@ -33,6 +31,30 @@ def test_segment2a_orchestrator_run_and_resume():
         bundle_dir, _ = _build_validation_bundle(validation_dir)
         _write_reference_files(root, str(seed), upstream_fp, tz_release)
 
+        captured: dict[str, ProvisionalLookupResult] = {}
+
+        class DummyLookupRunner:
+            def run(self, inputs):
+                out_dir = (
+                    root
+                    / f"data/layer1/2A/s1_tz_lookup/seed={inputs.seed}/fingerprint={inputs.manifest_fingerprint}"
+                )
+                out_dir.mkdir(parents=True, exist_ok=True)
+                captured["inputs"] = inputs
+                result = ProvisionalLookupResult(
+                    seed=inputs.seed,
+                    manifest_fingerprint=inputs.manifest_fingerprint,
+                    output_path=out_dir,
+                    resumed=inputs.resume,
+                )
+                captured["result"] = result
+                return result
+
+        monkeypatch.setattr(
+            "engine.scenario_runner.l1_seg_2A.ProvisionalLookupRunner",
+            lambda: DummyLookupRunner(),
+        )
+
         orchestrator = Segment2AOrchestrator()
         initial = orchestrator.run(
             Segment2AConfig(
@@ -45,12 +67,17 @@ def test_segment2a_orchestrator_run_and_resume():
                 dictionary_path=dictionary_path,
                 validation_bundle_path=bundle_dir,
                 notes="integration",
+                run_s1=True,
+                s1_chunk_size=10,
             )
         )
 
         assert initial.resumed is False
         assert initial.receipt_path.exists()
         assert initial.inventory_path.exists()
+        assert initial.s1_output_path is not None
+        assert initial.s1_resumed is False
+        assert captured["inputs"].chunk_size == 10
 
         resumed = orchestrator.run(
             Segment2AConfig(
@@ -64,6 +91,8 @@ def test_segment2a_orchestrator_run_and_resume():
                 validation_bundle_path=None,
                 resume=True,
                 resume_manifest_fingerprint=initial.manifest_fingerprint,
+                run_s1=True,
+                s1_resume=True,
             )
         )
 
@@ -71,6 +100,8 @@ def test_segment2a_orchestrator_run_and_resume():
         assert resumed.manifest_fingerprint == initial.manifest_fingerprint
         assert resumed.receipt_path == initial.receipt_path
         assert resumed.inventory_path == initial.inventory_path
+        assert resumed.s1_output_path is not None
+        assert resumed.s1_resumed is True
 
 
 @pytest.mark.integration

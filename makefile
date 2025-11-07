@@ -72,6 +72,16 @@ SEG2A_TZ_CONFIG_ROOT ?= config/timezone
 SEG2A_CANONICAL_TZDATA = $(SEG2A_TZDATA_ROOT)/$(SEG2A_TZDB_RELEASE)
 SEG2A_RUN_TZDATA = $(RUN_ROOT)/artefacts/priors/tzdata/$(SEG2A_TZDB_RELEASE)
 SEG2A_RUN_TZCFG = $(RUN_ROOT)/config/timezone
+SEG2A_RUN_S1 ?= 0
+SEG2A_S1_CHUNK_SIZE ?= 250000
+SEG2A_S1_RESUME ?= 0
+
+ifeq ($(strip $(SEG2A_RUN_S1)),1)
+SEG2A_EXTRA += --run-s1 --s1-chunk-size $(SEG2A_S1_CHUNK_SIZE)
+ifeq ($(strip $(SEG2A_S1_RESUME)),1)
+SEG2A_EXTRA += --s1-resume
+endif
+endif
 
 SEG2A_ARGS = \
 	--data-root $(RUN_ROOT) \

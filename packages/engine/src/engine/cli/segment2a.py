@@ -60,6 +60,9 @@ def _print_summary(result: Segment2AResult) -> None:
         "inventory_path": str(result.inventory_path),
         "resumed": result.resumed,
     }
+    if result.s1_output_path:
+        payload["s1_output_path"] = str(result.s1_output_path)
+        payload["s1_resumed"] = result.s1_resumed
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
@@ -129,6 +132,22 @@ def main(argv: list[str] | None = None) -> int:
         type=str,
         help="Manifest fingerprint produced by a prior Segment 2A S0 run (required with --resume).",
     )
+    parser.add_argument(
+        "--run-s1",
+        action="store_true",
+        help="Execute the provisional time-zone lookup (S1) after S0 completes.",
+    )
+    parser.add_argument(
+        "--s1-chunk-size",
+        type=int,
+        default=250_000,
+        help="Number of site rows to process per batch when running S1 (default: 250000).",
+    )
+    parser.add_argument(
+        "--s1-resume",
+        action="store_true",
+        help="Skip S1 execution when its output partition already exists.",
+    )
 
     args = parser.parse_args(argv)
 
@@ -153,6 +172,9 @@ def main(argv: list[str] | None = None) -> int:
             notes=args.notes,
             resume=args.resume,
             resume_manifest_fingerprint=args.resume_manifest,
+            run_s1=args.run_s1,
+            s1_chunk_size=args.s1_chunk_size,
+            s1_resume=args.s1_resume,
         )
     )
     _print_summary(result)
