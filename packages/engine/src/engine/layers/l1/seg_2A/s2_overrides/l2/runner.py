@@ -542,7 +542,6 @@ class OverridesRunner:
         receipt: GateReceiptSummary,
     ) -> OverridesAssets:
         template_args = {"seed": str(seed), "manifest_fingerprint": manifest_fingerprint}
-        self._ensure_receipt_asset(receipt, "s1_tz_lookup")
         s1_lookup = resolve_dataset_path(
             "s1_tz_lookup",
             base_path=data_root,
@@ -844,7 +843,7 @@ class OverridesRunner:
                 "must have both nudge coordinates set or both null",
             )
         return {
-            "merchant_id": original_merchant,
+            "merchant_id": merchant,
             "legal_country_iso": country,
             "site_order": site_order,
             "tzid": tzid,
