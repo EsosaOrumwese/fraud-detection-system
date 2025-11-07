@@ -12,10 +12,18 @@ from .s0_gate import (
     S0GateRunner,
     SealedAsset as S0SealedAsset,
 )
+from .s1_provisional import (
+    ProvisionalLookupInputs,
+    ProvisionalLookupResult,
+    ProvisionalLookupRunner,
+)
 
 __all__ = [
     "S0GateInputs",
     "S0GateOutputs",
     "S0GateRunner",
     "S0SealedAsset",
+    "ProvisionalLookupInputs",
+    "ProvisionalLookupResult",
+    "ProvisionalLookupRunner",
 ]
