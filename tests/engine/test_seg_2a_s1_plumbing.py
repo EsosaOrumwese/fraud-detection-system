@@ -20,6 +20,11 @@ def seed() -> int:
     return 2025110601
 
 
+@pytest.fixture()
+def site_fingerprint() -> str:
+    return "f" * 64
+
+
 def _build_dictionary() -> dict[str, object]:
     return {
         "datasets": [
@@ -55,12 +60,13 @@ def _build_dictionary() -> dict[str, object]:
     }
 
 
-def _write_receipt(base_path: Path, manifest_fingerprint: str) -> Path:
+def _write_receipt(base_path: Path, manifest_fingerprint: str, *, site_fingerprint: str | None = None) -> Path:
     receipt_path = (
         base_path
         / f"data/layer1/2A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json"
     )
     receipt_path.parent.mkdir(parents=True, exist_ok=True)
+    site_fp = site_fingerprint or manifest_fingerprint
     payload = {
         "manifest_fingerprint": manifest_fingerprint,
         "parameter_hash": "abc123",
@@ -70,7 +76,7 @@ def _write_receipt(base_path: Path, manifest_fingerprint: str) -> Path:
         "sealed_inputs": [
             {
                 "id": "site_locations",
-                "partition": ["seed=2025110601", f"fingerprint={manifest_fingerprint}"],
+                "partition": ["seed=2025110601", f"fingerprint={site_fp}"],
                 "schema_ref": "schemas.1B.yaml#/egress/site_locations",
             },
             {
@@ -84,8 +90,9 @@ def _write_receipt(base_path: Path, manifest_fingerprint: str) -> Path:
     return receipt_path
 
 
-def _write_assets(base_path: Path, seed: int, manifest_fingerprint: str) -> None:
-    site_dir = base_path / f"data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}"
+def _write_assets(base_path: Path, seed: int, manifest_fingerprint: str, *, site_fingerprint: str | None = None) -> None:
+    site_fp = site_fingerprint or manifest_fingerprint
+    site_dir = base_path / f"data/layer1/1B/site_locations/seed={seed}/fingerprint={site_fp}"
     site_dir.mkdir(parents=True, exist_ok=True)
     site_df = pl.DataFrame(
         {
@@ -132,15 +139,16 @@ def test_load_gate_receipt(tmp_path: Path, manifest_fingerprint: str) -> None:
     assert summary.path.exists()
 
 
-def test_resolve_assets(tmp_path: Path, manifest_fingerprint: str, seed: int) -> None:
+def test_resolve_assets(tmp_path: Path, manifest_fingerprint: str, seed: int, site_fingerprint: str) -> None:
     dictionary = _build_dictionary()
-    _write_receipt(tmp_path, manifest_fingerprint)
-    _write_assets(tmp_path, seed, manifest_fingerprint)
+    _write_receipt(tmp_path, manifest_fingerprint, site_fingerprint=site_fingerprint)
+    _write_assets(tmp_path, seed, manifest_fingerprint, site_fingerprint=site_fingerprint)
     runner = ProvisionalLookupRunner()
     inputs = ProvisionalLookupInputs(
         data_root=tmp_path,
         seed=seed,
         manifest_fingerprint=manifest_fingerprint,
+        upstream_manifest_fingerprint=site_fingerprint,
         dictionary=dictionary,
     )
     receipt = load_gate_receipt(
@@ -152,19 +160,21 @@ def test_resolve_assets(tmp_path: Path, manifest_fingerprint: str, seed: int) ->
         data_root=tmp_path,
         seed=seed,
         manifest_fingerprint=manifest_fingerprint,
+        upstream_manifest_fingerprint=site_fingerprint,
         dictionary=dictionary,
         receipt=receipt,
     )
-    assert context.assets.site_locations.name == f"fingerprint={manifest_fingerprint}"
+    assert context.assets.site_locations.name == f"fingerprint={site_fingerprint}"
     assert context.assets.tz_world.name == "tz_world.parquet"
     assert context.assets.tz_nudge.name == "tz_nudge.yml"
     assert context.receipt_path == receipt.path
+    assert context.upstream_manifest_fingerprint == site_fingerprint
 
 
-def test_runner_executes_lookup(tmp_path: Path, manifest_fingerprint: str, seed: int) -> None:
+def test_runner_executes_lookup(tmp_path: Path, manifest_fingerprint: str, seed: int, site_fingerprint: str) -> None:
     dictionary = _build_dictionary()
-    _write_receipt(tmp_path, manifest_fingerprint)
-    _write_assets(tmp_path, seed, manifest_fingerprint)
+    _write_receipt(tmp_path, manifest_fingerprint, site_fingerprint=site_fingerprint)
+    _write_assets(tmp_path, seed, manifest_fingerprint, site_fingerprint=site_fingerprint)
     runner = ProvisionalLookupRunner()
     receipt = load_gate_receipt(
         base_path=tmp_path,
@@ -176,6 +186,7 @@ def test_runner_executes_lookup(tmp_path: Path, manifest_fingerprint: str, seed:
             data_root=tmp_path,
             seed=seed,
             manifest_fingerprint=manifest_fingerprint,
+            upstream_manifest_fingerprint=site_fingerprint,
             dictionary=dictionary,
             chunk_size=10,
         )

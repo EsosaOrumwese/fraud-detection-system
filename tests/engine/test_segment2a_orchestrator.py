@@ -1,6 +1,5 @@
 import json
 import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -161,12 +160,6 @@ def test_segment2a_cli_run_and_resume():
         receipt_path = Path(payload["receipt_path"])
         assert receipt_path.exists()
         assert "s1_output_path" not in payload
-
-        site_root = root / f"data/layer1/1B/site_locations/seed={seed}"
-        src = site_root / f"fingerprint={upstream_fp}"
-        dst = site_root / f"fingerprint={manifest}"
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(src, dst, dirs_exist_ok=True)
 
         run_s1_cmd = base_cmd + [
             "--run-s1",

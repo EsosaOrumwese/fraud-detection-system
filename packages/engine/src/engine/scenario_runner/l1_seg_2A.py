@@ -146,6 +146,7 @@ class Segment2AOrchestrator:
                     data_root=data_root,
                     seed=config.seed,
                     manifest_fingerprint=gate_manifest,
+                    upstream_manifest_fingerprint=config.upstream_manifest_fingerprint,
                     chunk_size=max(config.s1_chunk_size, 1),
                     resume=config.s1_resume,
                     dictionary=dictionary,

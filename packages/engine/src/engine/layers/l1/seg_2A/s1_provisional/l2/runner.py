@@ -38,6 +38,7 @@ class ProvisionalLookupInputs:
     data_root: Path
     seed: int
     manifest_fingerprint: str
+    upstream_manifest_fingerprint: str
     chunk_size: int = 250_000
     resume: bool = False
     dictionary: Optional[Mapping[str, object]] = None
@@ -74,6 +75,7 @@ class ProvisionalLookupRunner:
             data_root=data_root,
             seed=config.seed,
             manifest_fingerprint=config.manifest_fingerprint,
+            upstream_manifest_fingerprint=config.upstream_manifest_fingerprint,
             dictionary=dictionary,
             receipt=receipt,
         )
@@ -130,6 +132,7 @@ class ProvisionalLookupRunner:
         data_root: Path,
         seed: int,
         manifest_fingerprint: str,
+        upstream_manifest_fingerprint: str,
         dictionary: Mapping[str, object],
         receipt: GateReceiptSummary,
     ) -> ProvisionalLookupContext:
@@ -137,7 +140,9 @@ class ProvisionalLookupRunner:
             data_root=data_root,
             seed=seed,
             manifest_fingerprint=manifest_fingerprint,
+            upstream_manifest_fingerprint=upstream_manifest_fingerprint,
             dictionary=dictionary,
+            receipt=receipt,
         )
         logger.debug(
             "Resolved S1 assets (site_locations=%s, tz_world=%s)",
@@ -148,6 +153,7 @@ class ProvisionalLookupRunner:
             data_root=data_root,
             seed=seed,
             manifest_fingerprint=manifest_fingerprint,
+            upstream_manifest_fingerprint=upstream_manifest_fingerprint,
             receipt_path=receipt.path,
             verified_at_utc=receipt.verified_at_utc,
             assets=assets,
@@ -177,9 +183,15 @@ class ProvisionalLookupRunner:
         data_root: Path,
         seed: int,
         manifest_fingerprint: str,
+        upstream_manifest_fingerprint: str,
         dictionary: Mapping[str, object],
+        receipt: GateReceiptSummary,
     ) -> ProvisionalLookupAssets:
-        template_args = {"seed": seed, "manifest_fingerprint": manifest_fingerprint}
+        template_args = {
+            "seed": str(seed),
+            "manifest_fingerprint": upstream_manifest_fingerprint,
+        }
+        self._ensure_receipt_asset(receipt, "site_locations")
         site_locations = resolve_dataset_path(
             "site_locations",
             base_path=data_root,
@@ -213,6 +225,15 @@ class ProvisionalLookupRunner:
             tz_world=tz_world,
             tz_nudge=tz_nudge,
             tz_overrides=tz_overrides,
+        )
+
+    @staticmethod
+    def _ensure_receipt_asset(receipt: GateReceiptSummary, asset_id: str) -> None:
+        if any(asset.asset_id == asset_id for asset in receipt.assets):
+            return
+        raise err(
+            "E_S1_ASSET_MISSING",
+            f"gate receipt missing sealed asset '{asset_id}'",
         )
 
 
