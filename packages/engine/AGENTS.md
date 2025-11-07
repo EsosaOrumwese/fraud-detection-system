@@ -23,21 +23,21 @@ Read these in order before touching code so you align with the frozen specs.
 - docs/references/closed-world-enterprise-conceptual-design*.md
 - docs/references/closed-world-synthetic-data-engine-with-realism*.md
 
-**B. Layer-1 narratives (orientation)**
-- docs/model_spec/data-engine/narrative/
+**B. Already implemented data engine as well as context**
+- Review the current implementation of the project which for now involves understanding the implemented data engine in packages/engine and also its run tests in `runs/`
+- Ensure to read (strict) else you'll mess the whole project up:
+   - docs/model_spec/data-engine/specs/state-flow/1A/s#*.expanded.md (S0-S9)
+   - docs/model_spec/data-engine/specs/state-flow/1B/s#*.expanded.md (S0-S9)
 
-**C. Already implemented data engine**
-- packages\engine
-
-**D. Segment 2A state design (binding; ready for impl)**
+**C. Segment 2A state design (binding; ready for impl)**
 - docs/model_spec/data-engine/specs/state-flow/2A/s#*.expanded.md (S0-S5)
 
-**E. Contract specs (blueprints for contracts/)**
+**D. Contract specs (blueprints for contracts/)**
 - docs/model_spec/data-engine/specs/contracts/2A/artefact_registry_2A.yaml
 - docs/model_spec/data-engine/specs/contracts/2A/dataset_dictionary.layer1.2A.yaml
 - docs/model_spec/data-engine/specs/contracts/2A/schemas.2A.yaml
-- docs\model_spec\data-engine\specs\contracts\1A\schemas.layer1.yaml
-- docs\model_spec\data-engine\specs\contracts\1A\schemas.ingress.layer1.yaml
+- docs/model_spec/data-engine/specs/contracts/1A/schemas.layer1.yaml
+- docs/model_spec/data-engine/specs/contracts/1A/schemas.ingress.layer1.yaml
 
 > Never promote narratives, previews, or samples to binding authority. Only the expanded specs and contract documents govern code.
 
@@ -53,7 +53,7 @@ Read these in order before touching code so you align with the frozen specs.
 ## 3) Ignore list (keep these read-only)
 - docs/**/overview/**
 - Anything explicitly marked deprecated or combined
-- Segment 1A code paths unless a migration is authorised
+- ~~Segment 1A code paths unless a migration is authorised~~
 
 
 ---
