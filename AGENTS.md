@@ -14,10 +14,11 @@ Use this to orient yourself before touching code. It captures what is in scope, 
 ---
 
 ## 1) Reading order (strict)
-Read these in order before modifying code so you share the project context:
+Read these in order before modifying code so you share the project context. **This is a hard requirement:** before writing any Segment 2A code, re-read the full Layer‑1 chain (all `state-flow/1A/state.1A.s*.expanded.md`, then all `state-flow/1B/state.1B.s*.expanded.md`, then the Segment 2A docs) so you understand exactly how each artefact is produced and sealed. Skipping upstream specs is not permitted.
 1. `docs/references/closed-world-enterprise-conceptual-design*.md`
 2. `docs/references/closed-world-synthetic-data-engine-with-realism*.md` (current build focus)
-3. Review the current implementation of the project which for now involves understanding the implemented data engine (1A-1B) in packages/engine and also its run tests in `runs/`
+3. Expanded state specs for Segment 1A **S0–S9** (in order), then Segment 1B **S0–S9**, then Segment 2A states you are touching.
+4. Review the current implementation of the project which for now involves understanding the implemented data engine (1A-1B) in packages/engine and also its run tests in `runs/`
 
 ---
 
