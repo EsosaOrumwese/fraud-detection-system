@@ -1,7 +1,10 @@
 import json
 from pathlib import Path
 
+import geopandas as gpd
+import polars as pl
 import pytest
+from shapely.geometry import Polygon
 
 from engine.layers.l1.seg_2A.shared.receipt import load_gate_receipt
 from engine.layers.l1.seg_2A.s1_provisional import ProvisionalLookupInputs, ProvisionalLookupRunner
@@ -23,7 +26,11 @@ def _build_dictionary() -> dict[str, object]:
             {
                 "id": "s0_gate_receipt_2A",
                 "path": "data/layer1/2A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json",
-            }
+            },
+            {
+                "id": "s1_tz_lookup",
+                "path": "data/layer1/2A/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/",
+            },
         ],
         "reference_data": [
             {
@@ -78,15 +85,37 @@ def _write_receipt(base_path: Path, manifest_fingerprint: str) -> Path:
 
 
 def _write_assets(base_path: Path, seed: int, manifest_fingerprint: str) -> None:
-    (base_path / f"data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}").mkdir(
-        parents=True, exist_ok=True
+    site_dir = base_path / f"data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}"
+    site_dir.mkdir(parents=True, exist_ok=True)
+    site_df = pl.DataFrame(
+        {
+            "merchant_id": ["M1", "M2"],
+            "legal_country_iso": ["US", "US"],
+            "site_order": [1, 2],
+            "lat_deg": [0.5, 1.0],
+            "lon_deg": [0.5, 1.0],
+        }
     )
-    tz_world = base_path / "reference/spatial/tz_world/2025a"
-    tz_world.mkdir(parents=True, exist_ok=True)
-    (tz_world / "tz_world.parquet").write_text("", encoding="utf-8")
+    site_df.write_parquet(site_dir / "part-00000.parquet")
+
+    tz_world_dir = base_path / "reference/spatial/tz_world/2025a"
+    tz_world_dir.mkdir(parents=True, exist_ok=True)
+    gdf = gpd.GeoDataFrame(
+        {"tzid": ["TZ_A", "TZ_B"]},
+        geometry=[
+            Polygon([(0, 0), (1, 0), (1, 1), (0, 1)]),
+            Polygon([(1, 1), (2, 1), (2, 2), (1, 2)]),
+        ],
+        crs="EPSG:4326",
+    )
+    gdf.to_parquet(tz_world_dir / "tz_world.parquet")
+
     tz_nudge = base_path / "config/timezone"
     tz_nudge.mkdir(parents=True, exist_ok=True)
-    (tz_nudge / "tz_nudge.yml").write_text("semver: \"1.0.0\"\nsha256_digest: \"00\"\n", encoding="utf-8")
+    (tz_nudge / "tz_nudge.yml").write_text(
+        "semver: \"1.0.0\"\nsha256_digest: \"00\"\nnudge_distance_degrees: 0.0001\n",
+        encoding="utf-8",
+    )
     (tz_nudge / "tz_overrides.yaml").write_text("semver: \"1.0.0\"\nsha256_digest: \"00\"\noverrides: []\n", encoding="utf-8")
 
 
@@ -131,3 +160,27 @@ def test_resolve_assets(tmp_path: Path, manifest_fingerprint: str, seed: int) ->
     assert context.assets.tz_nudge.name == "tz_nudge.yml"
     assert context.receipt_path == receipt.path
 
+
+def test_runner_executes_lookup(tmp_path: Path, manifest_fingerprint: str, seed: int) -> None:
+    dictionary = _build_dictionary()
+    _write_receipt(tmp_path, manifest_fingerprint)
+    _write_assets(tmp_path, seed, manifest_fingerprint)
+    runner = ProvisionalLookupRunner()
+    result = runner.run(
+        ProvisionalLookupInputs(
+            data_root=tmp_path,
+            seed=seed,
+            manifest_fingerprint=manifest_fingerprint,
+            dictionary=dictionary,
+            chunk_size=10,
+        )
+    )
+    assert result.output_path.exists()
+    parts = sorted(result.output_path.glob("*.parquet"))
+    assert parts, "expected output parquet files"
+    output_df = pl.read_parquet(parts[0]).sort(["merchant_id", "site_order"])
+    tzids = output_df["tzid_provisional"].to_list()
+    assert tzids == ["TZ_A", "TZ_B"]
+    nudge_lat = output_df["nudge_lat_deg"].to_list()
+    assert nudge_lat[0] is None
+    assert nudge_lat[1] is not None
