@@ -270,6 +270,19 @@ plan:
       - { name: nudge_lon_deg, type: number, nullable: true }
       - { name: created_utc, $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros', nullable: false }
 
+# -- Reference tables ------------------------------------------------------
+reference:
+
+  merchant_mcc_map:
+    type: table
+    description: "Authoritative merchant→MCC mapping derived from the governed ingress universe."
+    primary_key: [merchant_id]
+    partition_keys: [seed, fingerprint]
+    columns_strict: true
+    columns:
+      - { name: merchant_id, $ref: 'schemas.layer1.yaml#/$defs/uint64', nullable: false }
+      - { name: mcc, type: integer, minimum: 0, maximum: 9999, nullable: false }
+
 # -- Egress tables ---------------------------------------------------------
 egress:
 

@@ -269,6 +269,24 @@ datasets:
     pii: false
     license: Proprietary-Internal
 
+  - id: merchant_mcc_map
+    status: approved
+    owner_subsegment: 2A
+    description: "Authoritative merchant→MCC mapping derived from transaction_schema_merchant_ids."
+    version: "{seed}.{manifest_fingerprint}"
+    format: parquet
+    path: data/layer1/2A/merchant_mcc_map/seed={seed}/fingerprint={manifest_fingerprint}/merchant_mcc_map.parquet
+    partitioning: [seed, fingerprint]
+    ordering: [merchant_id]
+    schema_ref: schemas.2A.yaml#/reference/merchant_mcc_map
+    lineage:
+      produced_by: 2A.S0
+      consumed_by: [2A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
   - id: site_timezones
     status: approved
     owner_subsegment: 2A

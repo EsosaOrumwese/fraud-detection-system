@@ -42,6 +42,12 @@ def _build_dictionary(tmp: Path) -> Path:
         partitioning: [seed, fingerprint]
         version: "{seed}.{manifest_fingerprint}"
         license: Proprietary-Internal
+      merchant_mcc_map:
+        path: data/layer1/2A/merchant_mcc_map/seed={seed}/fingerprint={manifest_fingerprint}/merchant_mcc_map.parquet
+        schema_ref: schemas.2A.yaml#/reference/merchant_mcc_map
+        partitioning: [seed, fingerprint]
+        version: "{seed}.{manifest_fingerprint}"
+        license: Proprietary-Internal
     reference_data:
       site_locations:
         path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
@@ -238,8 +244,17 @@ def test_segment_2a_s0_runner_end_to_end():
             "tz_overrides",
             "tz_nudge",
             "iso3166_canonical_2024",
+            "merchant_mcc_map",
         }
         assert expected_ids.issubset(sealed_ids)
+        merchant_map_path = (
+            root
+            / f"data/layer1/2A/merchant_mcc_map/seed={seed}/fingerprint={upstream_fp}/merchant_mcc_map.parquet"
+        )
+        assert merchant_map_path.exists()
+        merchant_sample = pl.read_parquet(merchant_map_path, n_rows=5)
+        assert merchant_sample.columns == ["merchant_id", "mcc"]
+        assert merchant_sample.height > 0
 
         inventory_frame = pl.read_parquet(outputs.inventory_path)
         assert inventory_frame.shape[0] == len(outputs.sealed_assets)

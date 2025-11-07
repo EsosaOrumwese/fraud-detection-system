@@ -35,6 +35,12 @@ def default_dictionary_path() -> Path:
     )
 
 
+def repository_root() -> Path:
+    """Expose the repository root for callers that need to locate reference artefacts."""
+
+    return _discover_repo_root()
+
+
 def load_dictionary(path: Path | None = None) -> Mapping[str, object]:
     """Decode the dataset dictionary into a mapping."""
 
@@ -152,6 +158,7 @@ def _format_template(
 
 __all__ = [
     "default_dictionary_path",
+    "repository_root",
     "load_dictionary",
     "get_dataset_entry",
     "render_dataset_path",

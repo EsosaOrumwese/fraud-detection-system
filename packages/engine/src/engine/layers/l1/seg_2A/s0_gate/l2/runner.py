@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -11,7 +12,12 @@ from typing import Iterable, Mapping, Optional, Sequence
 
 import polars as pl
 
-from ...shared.dictionary import get_dataset_entry, load_dictionary, render_dataset_path
+from ...shared.dictionary import (
+    get_dataset_entry,
+    load_dictionary,
+    render_dataset_path,
+    repository_root,
+)
 from ..exceptions import S0GateError, err
 from ..l0 import (
     ArtifactDigest,
@@ -93,6 +99,9 @@ class GateOutputs:
     verified_at_utc: datetime
 
 
+logger = logging.getLogger(__name__)
+
+
 class S0GateRunner:
     """High-level helper that wires together the 2A S0 workflow."""
 
@@ -105,10 +114,12 @@ class S0GateRunner:
         "tzdb_release": "artefact",
         "tz_overrides": "policy",
         "tz_nudge": "policy",
+        "merchant_mcc_map": "reference",
     }
 
     def run(self, inputs: GateInputs) -> GateOutputs:
         dictionary = load_dictionary(inputs.dictionary_path)
+        self._ensure_merchant_mcc_map(inputs=inputs, dictionary=dictionary)
         bundle_path = self._resolve_validation_bundle_path(inputs, dictionary=dictionary)
         if not bundle_path.exists():
             raise err("E_BUNDLE_MISSING", f"validation bundle '{bundle_path}' not found")
@@ -302,6 +313,10 @@ class S0GateRunner:
         add_asset("tzdb_release", template_args={"release_tag": inputs.tzdb_release_tag})
         add_asset("tz_overrides", template_args={})
         add_asset("tz_nudge", template_args={})
+        add_asset(
+            "merchant_mcc_map",
+            template_args={"seed": seed, "manifest_fingerprint": upstream_fp},
+        )
         for optional_id in inputs.optional_asset_ids:
             if optional_id not in {asset.asset_id for asset in assets}:
                 add_asset(optional_id, template_args={})
@@ -439,6 +454,86 @@ class S0GateRunner:
             return template.format(**safe_args)
         except KeyError:
             return template
+
+    def _ensure_merchant_mcc_map(
+        self,
+        *,
+        inputs: GateInputs,
+        dictionary: Mapping[str, object],
+    ) -> None:
+        try:
+            get_dataset_entry("merchant_mcc_map", dictionary=dictionary)
+        except S0GateError:
+            return
+
+        template_args = {
+            "seed": inputs.seed,
+            "manifest_fingerprint": inputs.upstream_manifest_fingerprint,
+        }
+        relative_path = render_dataset_path(
+            "merchant_mcc_map", template_args=template_args, dictionary=dictionary
+        )
+        target_path = (inputs.base_path / relative_path).resolve()
+        ensure_within_base(target_path, base_path=inputs.base_path)
+        if target_path.exists():
+            return
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+
+        source_path = self._resolve_transaction_schema_source()
+        if not source_path.exists():
+            raise err(
+                "E_MCC_SOURCE_MISSING",
+                f"transaction_schema_merchant_ids parquet missing at '{source_path}'",
+            )
+
+        logger.info(
+            "Materialising merchant_mcc_map from %s -> %s",
+            source_path,
+            target_path,
+        )
+        frame = (
+            pl.scan_parquet(source_path)
+            .select("merchant_id", "mcc")
+            .with_columns(
+                pl.col("merchant_id").cast(pl.UInt64),
+                pl.col("mcc").cast(pl.UInt16),
+            )
+            .unique(subset=["merchant_id"], maintain_order=False)
+            .sort("merchant_id")
+            .collect()
+        )
+        if frame.is_empty():
+            raise err(
+                "E_MCC_SOURCE_EMPTY",
+                f"transaction_schema_merchant_ids at '{source_path}' yielded no rows",
+            )
+        temp_path = target_path.with_suffix(".tmp")
+        try:
+            frame.write_parquet(temp_path, compression="zstd")
+            temp_path.replace(target_path)
+        finally:
+            if temp_path.exists():
+                temp_path.unlink(missing_ok=True)
+
+    def _resolve_transaction_schema_source(self) -> Path:
+        repo_root = repository_root()
+        base = repo_root / "reference" / "layer1" / "transaction_schema_merchant_ids"
+        if not base.exists():
+            raise err(
+                "E_MCC_SOURCE_ROOT_MISSING",
+                f"reference merchant_ids directory '{base}' is missing",
+            )
+        versions = sorted(
+            (path for path in base.iterdir() if path.is_dir()),
+            key=lambda p: p.name,
+        )
+        if not versions:
+            raise err(
+                "E_MCC_SOURCE_VERSION_MISSING",
+                f"no versions found under '{base}'",
+            )
+        candidate = versions[-1] / "transaction_schema_merchant_ids.parquet"
+        return candidate
 
 
 __all__ = ["S0GateRunner", "GateInputs", "GateOutputs", "SealedAsset", "S0GateError"]
