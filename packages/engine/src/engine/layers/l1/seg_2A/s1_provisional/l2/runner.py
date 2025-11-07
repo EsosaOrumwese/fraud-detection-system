@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import datetime, timezone
 from dataclasses import dataclass
@@ -10,9 +11,9 @@ from typing import Iterable, Mapping, Optional
 
 import geopandas as gpd
 import polars as pl
+import pyarrow.parquet as pq
 import yaml
 from shapely.geometry import Point
-from shapely.geometry.base import BaseGeometry
 from shapely.strtree import STRtree
 
 from engine.layers.l1.seg_2A.s0_gate.exceptions import err
@@ -26,6 +27,8 @@ from engine.layers.l1.seg_2A.shared.receipt import GateReceiptSummary, load_gate
 from ..l1.context import ProvisionalLookupAssets, ProvisionalLookupContext
 
 logger = logging.getLogger(__name__)
+
+_SITE_COLUMNS = ["merchant_id", "legal_country_iso", "site_order", "lat_deg", "lon_deg"]
 
 
 @dataclass(frozen=True)
@@ -146,6 +149,7 @@ class ProvisionalLookupRunner:
             seed=seed,
             manifest_fingerprint=manifest_fingerprint,
             receipt_path=receipt.path,
+            verified_at_utc=receipt.verified_at_utc,
             assets=assets,
         )
 
@@ -243,26 +247,51 @@ class ProvisionalLookupRunner:
                 "E_S1_INPUT_EMPTY",
                 f"site_locations partition '{site_path}' contains no parquet files",
             )
+
         total_rows = 0
         border_nudged = 0
+        distinct_tzids: set[str] = set()
         part_idx = 0
+
         for file in files:
-            df = pl.read_parquet(
-                file,
-                columns=["merchant_id", "legal_country_iso", "site_order", "lat_deg", "lon_deg"],
-            )
-            if df.is_empty():
-                continue
-            batches = _yield_batches(df, chunk_size)
-            for batch in batches:
-                out_df, nudged = self._assign_batch(batch, tz_index, epsilon)
+            file_rows = 0
+            for batch in _iter_site_batches(file, chunk_size):
+                out_df, nudged, tzids = self._assign_batch(
+                    batch,
+                    tz_index,
+                    epsilon,
+                    context.verified_at_utc,
+                )
                 part_path = output_dir / f"part-{part_idx:05d}.parquet"
                 out_df.write_parquet(part_path, compression="zstd")
                 part_idx += 1
-                total_rows += len(batch)
+
+                batch_rows = len(batch)
+                total_rows += batch_rows
+                file_rows += batch_rows
                 border_nudged += nudged
+                distinct_tzids.update(tzids)
+
+            if file_rows > 0:
+                logger.info(
+                    "Segment2A S1 streamed %s rows from %s (seed=%s, manifest=%s)",
+                    file_rows,
+                    file.name,
+                    context.seed,
+                    context.manifest_fingerprint,
+                )
+
         if total_rows == 0:
             raise err("E_S1_INPUT_EMPTY", "site_locations partition contained zero rows")
+
+        _write_run_report(
+            context=context,
+            output_dir=output_dir,
+            total_rows=total_rows,
+            border_nudged=border_nudged,
+            distinct_tzids=len(distinct_tzids),
+            verified_at_utc=context.verified_at_utc,
+        )
         return total_rows, border_nudged
 
     def _assign_batch(
@@ -270,7 +299,8 @@ class ProvisionalLookupRunner:
         batch: pl.DataFrame,
         tz_index: "TimeZoneIndex",
         epsilon: float,
-    ) -> tuple[pl.DataFrame, int]:
+        created_utc: str,
+    ) -> tuple[pl.DataFrame, int, list[str]]:
         lons = batch["lon_deg"].to_list()
         lats = batch["lat_deg"].to_list()
         tz_ids, nudge_lat, nudge_lon, nudged_count = tz_index.assign(
@@ -278,7 +308,6 @@ class ProvisionalLookupRunner:
             lats=lats,
             epsilon=epsilon,
         )
-        created = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
         output = pl.DataFrame(
             {
                 "merchant_id": batch["merchant_id"],
@@ -289,18 +318,42 @@ class ProvisionalLookupRunner:
                 "tzid_provisional": pl.Series(tz_ids, dtype=pl.Utf8),
                 "nudge_lat_deg": pl.Series(nudge_lat, dtype=pl.Float64),
                 "nudge_lon_deg": pl.Series(nudge_lon, dtype=pl.Float64),
-                "created_utc": pl.Series([created] * len(batch), dtype=pl.Utf8),
+                "created_utc": pl.Series([created_utc] * len(batch), dtype=pl.Utf8),
             }
         ).sort(["merchant_id", "legal_country_iso", "site_order"])
-        return output, nudged_count
+        mask_lat_null = output["nudge_lat_deg"].is_null()
+        mask_lon_null = output["nudge_lon_deg"].is_null()
+        if not (mask_lat_null == mask_lon_null).all():
+            raise err(
+                "E_S1_NUDGE_PAIR_VIOLATION",
+                "nudge_lat_deg/nudge_lon_deg must both be null or both be non-null",
+            )
+        return output, nudged_count, tz_ids
 
 
-def _yield_batches(df: pl.DataFrame, batch_size: int) -> Iterable[pl.DataFrame]:
-    if len(df) <= batch_size:
-        yield df
-        return
-    for offset in range(0, len(df), batch_size):
-        yield df.slice(offset, batch_size)
+def _iter_site_batches(path: Path, batch_size: int) -> Iterable[pl.DataFrame]:
+    try:
+        parquet_file = pq.ParquetFile(path)
+    except Exception as exc:
+        raise err(
+            "E_S1_INPUT_INVALID",
+            f"unable to read site_locations parquet '{path}': {exc}",
+        ) from exc
+
+    try:
+        batch_iter = parquet_file.iter_batches(columns=_SITE_COLUMNS, batch_size=batch_size)
+    except KeyError as exc:
+        missing = exc.args[0]
+        raise err(
+            "E_S1_INPUT_SHAPE",
+            f"site_locations missing required column '{missing}'",
+        ) from exc
+
+    for record_batch in batch_iter:
+        frame = pl.from_arrow(record_batch)
+        if frame.is_empty():
+            continue
+        yield frame
 
 
 class TimeZoneIndex:
@@ -382,6 +435,38 @@ class TimeZoneIndex:
             if self._geoms[poly_idx].contains(points[pt_idx]):
                 matches.append((pt_idx, poly_idx))
         return matches
+
+
+def _write_run_report(
+    *,
+    context: ProvisionalLookupContext,
+    output_dir: Path,
+    total_rows: int,
+    border_nudged: int,
+    distinct_tzids: int,
+    verified_at_utc: str,
+) -> None:
+    report_path = (
+        context.data_root
+        / "reports"
+        / "l1"
+        / "s1_provisional_lookup"
+        / f"seed={context.seed}"
+        / f"fingerprint={context.manifest_fingerprint}"
+        / "run_report.json"
+    )
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "seed": context.seed,
+        "manifest_fingerprint": context.manifest_fingerprint,
+        "output_path": str(output_dir),
+        "rows_total": total_rows,
+        "border_nudged": border_nudged,
+        "distinct_tzids": distinct_tzids,
+        "s0_verified_at_utc": verified_at_utc,
+        "generated_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+    }
+    report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 __all__ = [
     "ProvisionalLookupInputs",

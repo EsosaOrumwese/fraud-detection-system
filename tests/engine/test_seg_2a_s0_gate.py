@@ -127,11 +127,13 @@ def _write_reference_files(base: Path, seed: str, upstream_fp: str, tz_release: 
     run_seed_dir.mkdir(parents=True, exist_ok=True)
     pl.DataFrame(
         {
-            "manifest_fingerprint": [upstream_fp],
-            "seed": [int(seed)],
-            "merchant_id": ["M1"],
-            "legal_country_iso": ["US"],
-            "site_order": [0],
+            "manifest_fingerprint": [upstream_fp, upstream_fp],
+            "seed": [int(seed), int(seed)],
+            "merchant_id": ["M1", "M2"],
+            "legal_country_iso": ["US", "US"],
+            "site_order": [0, 1],
+            "lat_deg": [0.5, 1.0],
+            "lon_deg": [0.5, 1.0],
         }
     ).write_parquet(run_seed_dir / "site_locations.parquet")
 

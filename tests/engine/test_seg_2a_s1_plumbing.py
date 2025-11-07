@@ -166,6 +166,11 @@ def test_runner_executes_lookup(tmp_path: Path, manifest_fingerprint: str, seed:
     _write_receipt(tmp_path, manifest_fingerprint)
     _write_assets(tmp_path, seed, manifest_fingerprint)
     runner = ProvisionalLookupRunner()
+    receipt = load_gate_receipt(
+        base_path=tmp_path,
+        manifest_fingerprint=manifest_fingerprint,
+        dictionary=dictionary,
+    )
     result = runner.run(
         ProvisionalLookupInputs(
             data_root=tmp_path,
@@ -184,3 +189,18 @@ def test_runner_executes_lookup(tmp_path: Path, manifest_fingerprint: str, seed:
     nudge_lat = output_df["nudge_lat_deg"].to_list()
     assert nudge_lat[0] is None
     assert nudge_lat[1] is not None
+    created = output_df["created_utc"].unique().to_list()
+    assert created == [receipt.verified_at_utc]
+
+    report_path = (
+        tmp_path
+        / "reports"
+        / "l1"
+        / "s1_provisional_lookup"
+        / f"seed={seed}"
+        / f"fingerprint={manifest_fingerprint}"
+        / "run_report.json"
+    )
+    payload = json.loads(report_path.read_text(encoding="utf-8"))
+    assert payload["rows_total"] == 2
+    assert payload["s0_verified_at_utc"] == receipt.verified_at_utc

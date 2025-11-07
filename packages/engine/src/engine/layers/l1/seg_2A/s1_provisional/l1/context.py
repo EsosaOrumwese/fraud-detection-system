@@ -24,5 +24,5 @@ class ProvisionalLookupContext:
     seed: int
     manifest_fingerprint: str
     receipt_path: Path
+    verified_at_utc: str
     assets: ProvisionalLookupAssets
-

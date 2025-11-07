@@ -1,4 +1,4 @@
-"""CLI runner for Segment 2A (S0 gate)."""
+"""CLI runner for Segment 2A (S0 gate plus optional S1 execution)."""
 
 from __future__ import annotations
 
@@ -74,7 +74,7 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     parser = argparse.ArgumentParser(
-        description="Run Segment 2A S0 gate to seal inputs for the civil-time layer.",
+        description="Run Segment 2A S0 gate (and optionally S1 provisional lookup) for the civil-time layer.",
     )
     parser.add_argument(
         "--data-root",

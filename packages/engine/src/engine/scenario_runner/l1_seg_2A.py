@@ -1,4 +1,4 @@
-"""Scenario runner for Segment 2A (currently S0 gate)."""
+"""Scenario runner for Segment 2A (S0 gate plus provisional lookup S1)."""
 
 from __future__ import annotations
 
