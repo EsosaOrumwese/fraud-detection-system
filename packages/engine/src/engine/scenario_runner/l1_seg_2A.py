@@ -9,9 +9,12 @@ from pathlib import Path
 from typing import Mapping, Optional
 
 from engine.layers.l1.seg_2A import (
+    OverridesInputs,
+    OverridesResult,
+    OverridesRunner,
     ProvisionalLookupInputs,
-    ProvisionalLookupRunner,
     ProvisionalLookupResult,
+    ProvisionalLookupRunner,
     S0GateRunner,
 )
 from engine.layers.l1.seg_2A.s0_gate.l2.runner import GateInputs
@@ -39,6 +42,9 @@ class Segment2AConfig:
     run_s1: bool = False
     s1_chunk_size: int = 250_000
     s1_resume: bool = False
+    run_s2: bool = False
+    s2_chunk_size: int = 250_000
+    s2_resume: bool = False
 
 
 @dataclass(frozen=True)
@@ -51,6 +57,9 @@ class Segment2AResult:
     resumed: bool
     s1_output_path: Path | None = None
     s1_resumed: bool = False
+    s2_output_path: Path | None = None
+    s2_resumed: bool = False
+    s2_run_report_path: Path | None = None
 
 
 class Segment2AOrchestrator:
@@ -59,6 +68,7 @@ class Segment2AOrchestrator:
     def __init__(self) -> None:
         self._s0_runner = S0GateRunner()
         self._s1_runner = ProvisionalLookupRunner()
+        self._s2_runner = OverridesRunner()
 
     def run(self, config: Segment2AConfig) -> Segment2AResult:
         dictionary = config.dictionary or load_dictionary(config.dictionary_path)
@@ -135,6 +145,7 @@ class Segment2AOrchestrator:
 
         assert gate_manifest is not None and gate_receipt_path is not None and gate_inventory_path is not None
         s1_result: ProvisionalLookupResult | None = None
+        s2_result: OverridesResult | None = None
         if config.run_s1:
             logger.info(
                 "Segment2A S1 starting (seed=%s, manifest=%s)",
@@ -158,6 +169,29 @@ class Segment2AOrchestrator:
                 s1_result.resumed,
             )
 
+        if config.run_s2:
+            logger.info(
+                "Segment2A S2 starting (seed=%s, manifest=%s)",
+                config.seed,
+                gate_manifest,
+            )
+            s2_result = self._s2_runner.run(
+                OverridesInputs(
+                    data_root=data_root,
+                    seed=config.seed,
+                    manifest_fingerprint=gate_manifest,
+                    upstream_manifest_fingerprint=config.upstream_manifest_fingerprint,
+                    chunk_size=max(config.s2_chunk_size, 1),
+                    resume=config.s2_resume,
+                    dictionary=dictionary,
+                )
+            )
+            logger.info(
+                "Segment2A S2 completed (output=%s, resumed=%s)",
+                s2_result.output_path,
+                s2_result.resumed,
+            )
+
         return Segment2AResult(
             manifest_fingerprint=gate_manifest,
             receipt_path=gate_receipt_path,
@@ -165,6 +199,9 @@ class Segment2AOrchestrator:
             resumed=s0_resumed,
             s1_output_path=s1_result.output_path if s1_result else None,
             s1_resumed=s1_result.resumed if s1_result else False,
+            s2_output_path=s2_result.output_path if s2_result else None,
+            s2_resumed=s2_result.resumed if s2_result else False,
+            s2_run_report_path=s2_result.run_report_path if s2_result else None,
         )
 
     @staticmethod

@@ -63,6 +63,11 @@ def _print_summary(result: Segment2AResult) -> None:
     if result.s1_output_path:
         payload["s1_output_path"] = str(result.s1_output_path)
         payload["s1_resumed"] = result.s1_resumed
+    if result.s2_output_path:
+        payload["s2_output_path"] = str(result.s2_output_path)
+        payload["s2_resumed"] = result.s2_resumed
+    if result.s2_run_report_path:
+        payload["s2_run_report_path"] = str(result.s2_run_report_path)
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
@@ -148,6 +153,22 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Skip S1 execution when its output partition already exists.",
     )
+    parser.add_argument(
+        "--run-s2",
+        action="store_true",
+        help="Execute the override/finalisation step (S2) after upstream phases complete.",
+    )
+    parser.add_argument(
+        "--s2-chunk-size",
+        type=int,
+        default=250_000,
+        help="Number of site rows to process per batch when running S2 (default: 250000).",
+    )
+    parser.add_argument(
+        "--s2-resume",
+        action="store_true",
+        help="Skip S2 execution when its output partition already exists.",
+    )
 
     args = parser.parse_args(argv)
 
@@ -175,6 +196,9 @@ def main(argv: list[str] | None = None) -> int:
             run_s1=args.run_s1,
             s1_chunk_size=args.s1_chunk_size,
             s1_resume=args.s1_resume,
+            run_s2=args.run_s2,
+            s2_chunk_size=args.s2_chunk_size,
+            s2_resume=args.s2_resume,
         )
     )
     _print_summary(result)
