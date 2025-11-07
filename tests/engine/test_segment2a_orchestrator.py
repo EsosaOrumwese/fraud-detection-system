@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -125,7 +126,7 @@ def test_segment2a_cli_run_and_resume():
             [str(Path.cwd() / "packages" / "engine" / "src"), env.get("PYTHONPATH", "")]
         )
 
-        cmd = [
+        base_cmd = [
             sys.executable,
             "-m",
             "engine.cli.segment2a",
@@ -148,7 +149,7 @@ def test_segment2a_cli_run_and_resume():
         ]
 
         initial_run = subprocess.run(
-            cmd,
+            base_cmd,
             check=True,
             capture_output=True,
             text=True,
@@ -159,14 +160,39 @@ def test_segment2a_cli_run_and_resume():
         assert payload["resumed"] is False
         receipt_path = Path(payload["receipt_path"])
         assert receipt_path.exists()
+        assert "s1_output_path" not in payload
+
+        site_root = root / f"data/layer1/1B/site_locations/seed={seed}"
+        src = site_root / f"fingerprint={upstream_fp}"
+        dst = site_root / f"fingerprint={manifest}"
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(src, dst, dirs_exist_ok=True)
+
+        run_s1_cmd = base_cmd + [
+            "--run-s1",
+            "--s1-chunk-size",
+            "10",
+            "--resume",
+            "--resume-manifest",
+            manifest,
+        ]
+
+        run_s1 = subprocess.run(
+            run_s1_cmd,
+            check=True,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        s1_payload = json.loads(run_s1.stdout)
+        assert s1_payload["resumed"] is True
+        assert s1_payload["manifest_fingerprint"] == manifest
+        assert s1_payload["s1_resumed"] is False
+        s1_path = Path(s1_payload["s1_output_path"])
+        assert s1_path.exists()
 
         resume_run = subprocess.run(
-            cmd
-            + [
-                "--resume",
-                "--resume-manifest",
-                manifest,
-            ],
+            run_s1_cmd + ["--s1-resume"],
             check=True,
             capture_output=True,
             text=True,
@@ -175,3 +201,4 @@ def test_segment2a_cli_run_and_resume():
         resume_payload = json.loads(resume_run.stdout)
         assert resume_payload["resumed"] is True
         assert resume_payload["manifest_fingerprint"] == manifest
+        assert resume_payload["s1_resumed"] is True

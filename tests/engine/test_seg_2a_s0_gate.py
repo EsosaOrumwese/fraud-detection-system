@@ -3,8 +3,10 @@ import textwrap
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import geopandas as gpd
 import polars as pl
 import pytest
+from shapely.geometry import Polygon
 
 from engine.layers.l1.seg_2A import S0GateInputs, S0GateOutputs, S0GateRunner, S0SealedAsset
 from engine.layers.l1.seg_2A.s0_gate.l0.bundle import compute_index_digest, load_index
@@ -34,9 +36,15 @@ def _build_dictionary(tmp: Path) -> Path:
         partitioning: [fingerprint]
         version: "{manifest_fingerprint}"
         license: Proprietary-Internal
+      s1_tz_lookup:
+        path: data/layer1/2A/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/
+        schema_ref: schemas.2A.yaml#/plan/s1_tz_lookup
+        partitioning: [seed, fingerprint]
+        version: "{seed}.{manifest_fingerprint}"
+        license: Proprietary-Internal
     reference_data:
       site_locations:
-        path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/site_locations.parquet
+        path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
         schema_ref: schemas.1B.yaml#/egress/site_locations
         partitioning: [seed, fingerprint]
         version: "{seed}.{manifest_fingerprint}"
@@ -139,7 +147,15 @@ def _write_reference_files(base: Path, seed: str, upstream_fp: str, tz_release: 
 
     tz_world_dir = base / "reference/spatial/tz_world/2025a"
     tz_world_dir.mkdir(parents=True, exist_ok=True)
-    pl.DataFrame({"dummy": [1]}).write_parquet(tz_world_dir / "tz_world.parquet")
+    gdf = gpd.GeoDataFrame(
+        {"tzid": ["TZ_A", "TZ_B"]},
+        geometry=[
+            Polygon([(0, 0), (1, 0), (1, 1), (0, 1)]),
+            Polygon([(1, 1), (2, 1), (2, 2), (1, 2)]),
+        ],
+        crs="EPSG:4326",
+    )
+    gdf.to_parquet(tz_world_dir / "tz_world.parquet")
 
     iso_dir = base / "reference/iso/iso3166_canonical/2024-12-31"
     iso_dir.mkdir(parents=True, exist_ok=True)
