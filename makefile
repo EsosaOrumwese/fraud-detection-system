@@ -92,11 +92,30 @@ SEG2A_ARGS = \
 	$(SEG2A_EXTRA)
 SEG2A_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment2a $(SEG2A_ARGS)
 
+SEG2B_DICTIONARY ?= contracts/dataset_dictionary/l1/seg_2B/layer1.2B.yaml
+SEG2B_EXTRA ?=
+SEG2B_PIN_TZ ?= 0
+
+ifeq ($(strip $(SEG2B_PIN_TZ)),1)
+SEG2B_EXTRA += --pin-tz-assets
+endif
+
+SEG2B_ARGS = \
+	--data-root $(RUN_ROOT) \
+	--seed $(SEED) \
+	--manifest-fingerprint $$MANIFEST_FINGERPRINT \
+	--parameter-hash $$PARAM_HASH \
+	--git-commit-hex $(GIT_COMMIT) \
+	--dictionary $(SEG2B_DICTIONARY) \
+	--validation-bundle $$VALIDATION_BUNDLE \
+	$(SEG2B_EXTRA)
+SEG2B_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment2b $(SEG2B_ARGS)
 
 
-.PHONY: all segment1a segment1b segment2a profile-all profile-seg1b clean-results
 
-all: segment1a segment1b segment2a
+.PHONY: all segment1a segment1b segment2a segment2b segment3a profile-all profile-seg1b clean-results
+
+all: segment1a segment1b segment2a segment2b
 
 segment1a:
 	@mkdir -p "$(RUN_ROOT)"
@@ -155,6 +174,28 @@ segment2a:
 	 else \
 		$(SEG2A_CMD); \
 	 fi
+
+segment2b:
+	@if [ ! -d "$(RUN_ROOT)/data/layer1/2A" ]; then \
+		echo "Segment 2A outputs not found under '$(RUN_ROOT)/data/layer1/2A'. Run 'make segment2a' first." >&2; \
+		exit 1; \
+	fi
+	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['parameter_hash'])"); \
+	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['manifest_fingerprint'])"); \
+	 VALIDATION_BUNDLE="$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=$$MANIFEST_FINGERPRINT/bundle"; \
+	 if [ ! -d "$$VALIDATION_BUNDLE" ]; then \
+		echo "Segment 1B validation bundle '$$VALIDATION_BUNDLE' not found. Run 'make segment1b' first." >&2; \
+		exit 1; \
+	 fi; \
+	 if [ -n "$(LOG)" ]; then \
+		($(SEG2B_CMD)) 2>&1 | tee -a "$(LOG)"; \
+	 else \
+		$(SEG2B_CMD); \
+	 fi
+
+segment3a:
+	@echo "Segment 3A automation is not wired yet. Implement segment3a target when the CLI is available." >&2
+	@exit 1
 
 profile-all:
 	PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m cProfile -o profile.segment1a -m engine.cli.segment1a $(SEG1A_ARGS)
