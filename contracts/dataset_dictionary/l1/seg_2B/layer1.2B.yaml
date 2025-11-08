@@ -1,0 +1,230 @@
+version: '1.0'
+
+lifecycle:
+  phase: alpha
+  last_reviewed:
+  approver: "Layer 1 Governance"
+
+ci_policy:
+  allow_placeholders: true
+  placeholder_markers: [TBD, null]
+  block_on_phase: [beta, stable]
+
+layer:
+  id: layer1
+  name: Merchant Location Realism
+
+catalogue:
+  dictionary_version: "2025.11.08"
+  registry_version: "2025.11.08"
+
+# ---------------------------------------------------------------------------
+# Cross-segment inputs consumed by Segment 2B
+# ---------------------------------------------------------------------------
+reference_data:
+  - id: site_locations
+    status: approved
+    owner_subsegment: 1B
+    description: "Per-site coordinates (order-free). Read only after verifying 1B PASS."
+    version: "{seed}.{manifest_fingerprint}"
+    format: parquet
+    path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitioning: [seed, fingerprint]
+    ordering: [merchant_id, legal_country_iso, site_order]
+    schema_ref: schemas.1B.yaml#/egress/site_locations
+    lineage:
+      produced_by: 1B.S8
+      consumed_by: [2B]
+      final_in_layer: true
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
+  - id: site_timezones
+    status: optional
+    owner_subsegment: 2A
+    description: "Final per-site IANA tzid with provenance; optional pin for routing audits."
+    version: "{seed}.{manifest_fingerprint}"
+    format: parquet
+    path: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitioning: [seed, fingerprint]
+    ordering: [merchant_id, legal_country_iso, site_order]
+    schema_ref: schemas.2A.yaml#/egress/site_timezones
+    lineage:
+      produced_by: 2A.S2
+      consumed_by: [2B]
+      final_in_layer: true
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
+  - id: tz_timetable_cache
+    status: optional
+    owner_subsegment: 2A
+    description: "Fingerprint-scoped cache manifest for tz transitions."
+    version: "{manifest_fingerprint}"
+    format: files
+    path: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.2A.yaml#/cache/tz_timetable_cache
+    lineage:
+      produced_by: 2A.S3
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
+# ---------------------------------------------------------------------------
+# Policy packs sealed by 2B.S0 (token-less)
+# ---------------------------------------------------------------------------
+policies:
+  - id: route_rng_policy_v1
+    status: approved
+    owner_subsegment: 2B
+    description: "Philox stream/substream declarations for routing + virtual edge selection."
+    version: "2025.11"
+    format: json
+    path: contracts/policies/l1/seg_2B/route_rng_policy_v1.json
+    partitioning: []
+    ordering: []
+    schema_ref: schemas.2B.yaml#/policy/route_rng_policy_v1
+    lineage:
+      produced_by: 2B.policy
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
+  - id: alias_layout_policy_v1
+    status: approved
+    owner_subsegment: 2B
+    description: "Binary layout guidance for alias table blobs."
+    version: "2025.11"
+    format: json
+    path: contracts/policies/l1/seg_2B/alias_layout_policy_v1.json
+    partitioning: []
+    ordering: []
+    schema_ref: schemas.2B.yaml#/policy/alias_layout_policy_v1
+    lineage:
+      produced_by: 2B.policy
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
+  - id: virtual_edge_policy_v1
+    status: approved
+    owner_subsegment: 2B
+    description: "Edge catalogue + weighting rules for virtual merchants."
+    version: "2025.11"
+    format: json
+    path: contracts/policies/l1/seg_2B/virtual_edge_policy_v1.json
+    partitioning: []
+    ordering: []
+    schema_ref: schemas.2B.yaml#/policy/virtual_edge_policy_v1
+    lineage:
+      produced_by: 2B.policy
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
+  - id: day_effect_policy_v1
+    status: approved
+    owner_subsegment: 2B
+    description: "Variance + clip policy for corporate-day modulation draws."
+    version: "2025.11"
+    format: json
+    path: contracts/policies/l1/seg_2B/day_effect_policy_v1.json
+    partitioning: []
+    ordering: []
+    schema_ref: schemas.2B.yaml#/policy/day_effect_policy_v1
+    lineage:
+      produced_by: 2B.policy
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
+# ---------------------------------------------------------------------------
+# Gate artefacts resolved by 2B
+# ---------------------------------------------------------------------------
+datasets:
+  - id: validation_bundle_1B
+    status: approved
+    owner_subsegment: 1B
+    description: "Segment 1B validation bundle proving PASS for a manifest fingerprint."
+    version: "{manifest_fingerprint}"
+    format: files
+    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.1B.yaml#/validation/validation_bundle_1B
+    lineage:
+      produced_by: 1B.S9
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 1095
+    pii: false
+    license: Proprietary-Internal
+
+  - id: validation_passed_flag_1B
+    status: approved
+    owner_subsegment: 1B
+    description: "_passed.flag companion to the Segment 1B validation bundle."
+    version: "{manifest_fingerprint}"
+    format: text
+    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/validation/passed_flag
+    lineage:
+      produced_by: 1B.S9
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 1095
+    pii: false
+    license: Proprietary-Internal
+
+  - id: s0_gate_receipt_2B
+    status: approved
+    owner_subsegment: 2B
+    description: "Receipt emitted by Segment 2B S0 after verifying upstream PASS and sealing inputs."
+    version: "{manifest_fingerprint}"
+    format: json
+    path: data/layer1/2B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.2B.yaml#/validation/s0_gate_receipt_v1
+    lineage:
+      produced_by: 2B.S0
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
+  - id: sealed_inputs_v1
+    status: approved
+    owner_subsegment: 2B
+    description: "Fingerprint-scoped inventory enumerating every asset sealed by 2B.S0."
+    version: "{manifest_fingerprint}"
+    format: json
+    path: data/layer1/2B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.json
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.2B.yaml#/validation/sealed_inputs_v1
+    lineage:
+      produced_by: 2B.S0
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+

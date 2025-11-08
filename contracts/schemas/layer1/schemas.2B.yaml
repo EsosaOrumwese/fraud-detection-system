@@ -1,0 +1,195 @@
+version: '1.0'
+$id: schemas.2B.yaml
+$schema: https://json-schema.org/draft/2020-12/schema
+description: "Layer-1 Segment 2B schema pack. JSON-Schema is the sole shape authority."
+
+# -- Validation artefacts ---------------------------------------------------
+validation:
+
+  s0_gate_receipt_v1:
+    type: object
+    additionalProperties: false
+    required:
+      [
+        segment,
+        state,
+        manifest_fingerprint,
+        seed,
+        parameter_hash,
+        verified_at_utc,
+        validation_bundle_path,
+        flag_sha256_hex,
+        sealed_inputs,
+        catalogue_resolution,
+        determinism_receipt,
+      ]
+    properties:
+      segment:
+        type: string
+        const: "2B"
+      state:
+        type: string
+        const: "S0"
+      manifest_fingerprint:
+        $ref: 'schemas.layer1.yaml#/$defs/hex64'
+      seed:
+        type: string
+        minLength: 1
+      parameter_hash:
+        $ref: 'schemas.layer1.yaml#/$defs/hex64'
+      verified_at_utc:
+        $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros'
+      validation_bundle_path:
+        type: string
+        minLength: 1
+      flag_sha256_hex:
+        $ref: 'schemas.layer1.yaml#/$defs/hex64'
+      notes:
+        type: string
+      sealed_inputs:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required: [id, partition, schema_ref]
+          properties:
+            id: { type: string, minLength: 1 }
+            partition:
+              type: array
+              items: { type: string }
+            schema_ref: { type: string, minLength: 1 }
+      catalogue_resolution:
+        type: object
+        additionalProperties: false
+        required: [dictionary_version, registry_version]
+        properties:
+          dictionary_version: { type: string, minLength: 1 }
+          registry_version: { type: string, minLength: 1 }
+      determinism_receipt:
+        type: object
+        additionalProperties: false
+        properties:
+          engine_commit: { type: string }
+          python_version: { type: string }
+          platform: { type: string }
+          policy_ids:
+            type: array
+            items: { type: string }
+          policy_digests:
+            type: array
+            items: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+
+  sealed_inputs_v1:
+    type: array
+    minItems: 1
+    items:
+      type: object
+      additionalProperties: false
+      required: [asset_id, version_tag, sha256_hex, path, partition]
+      properties:
+        asset_id: { type: string, minLength: 1 }
+        version_tag: { type: string, minLength: 1 }
+        sha256_hex: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+        path: { type: string, minLength: 1 }
+        partition:
+          type: array
+          items: { type: string }
+        schema_ref: { type: string }
+
+# -- Policy packs -----------------------------------------------------------
+policy:
+
+  route_rng_policy_v1:
+    type: object
+    additionalProperties: false
+    required: [version_tag, algorithm, substreams]
+    properties:
+      version_tag: { type: string, minLength: 1 }
+      algorithm: { type: string, minLength: 1 }
+      substreams:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required: [id, label, max_uniforms]
+          properties:
+            id: { type: string, minLength: 1 }
+            label: { type: string, minLength: 1 }
+            max_uniforms:
+              type: integer
+              minimum: 1
+      notes: { type: string }
+
+  alias_layout_policy_v1:
+    type: object
+    additionalProperties: false
+    required: [version_tag, endianness, alignment_bytes, record_sizes]
+    properties:
+      version_tag: { type: string, minLength: 1 }
+      endianness: { type: string, enum: [little, big] }
+      alignment_bytes:
+        type: integer
+        minimum: 1
+      record_sizes:
+        type: object
+        additionalProperties: false
+        required: [probability, alias]
+        properties:
+          probability:
+            type: integer
+            minimum: 1
+          alias:
+            type: integer
+            minimum: 1
+      vector_width:
+        type: integer
+        minimum: 1
+      notes: { type: string }
+
+  virtual_edge_policy_v1:
+    type: object
+    additionalProperties: false
+    required: [version_tag, default_edges]
+    properties:
+      version_tag: { type: string, minLength: 1 }
+      default_edges:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required: [edge_id, country_iso, weight]
+          properties:
+            edge_id: { type: string, minLength: 1 }
+            country_iso: { $ref: 'schemas.layer1.yaml#/$defs/iso2' }
+            weight: { type: number }
+      geo_metadata:
+        type: object
+        additionalProperties:
+          type: object
+          additionalProperties: false
+          required: [lat, lon]
+          properties:
+            lat: { type: number }
+            lon: { type: number }
+      notes: { type: string }
+
+  day_effect_policy_v1:
+    type: object
+    additionalProperties: false
+    required: [version_tag, sigma_gamma, clip_bounds]
+    properties:
+      version_tag: { type: string, minLength: 1 }
+      sigma_gamma:
+        type: number
+        exclusiveMinimum: 0
+      clip_bounds:
+        type: array
+        minItems: 2
+        maxItems: 2
+        items: { type: number }
+      calendar: { type: string }
+      notes: { type: string }
+

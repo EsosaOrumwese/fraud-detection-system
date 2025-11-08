@@ -1,0 +1,7 @@
+{
+  "version_tag": "2025.11",
+  "sigma_gamma": 0.12,
+  "clip_bounds": [-0.35, 0.35],
+  "calendar": "UTC",
+  "notes": "Corporate-day modulation variance + clip bounds (alpha)."
+}

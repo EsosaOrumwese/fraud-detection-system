@@ -1,0 +1,11 @@
+{
+  "version_tag": "2025.11",
+  "endianness": "little",
+  "alignment_bytes": 8,
+  "record_sizes": {
+    "probability": 8,
+    "alias": 4
+  },
+  "vector_width": 32,
+  "notes": "Binary layout for alias blobs emitted by 2B.S2 (alpha)."
+}
