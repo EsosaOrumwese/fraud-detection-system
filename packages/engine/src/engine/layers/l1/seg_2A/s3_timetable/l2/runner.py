@@ -74,6 +74,18 @@ class TimetableResult:
     output_path: Path
     run_report_path: Path
     resumed: bool
+    adjustments_path: Optional[Path] = None
+
+
+@dataclass(frozen=True)
+class OffsetAdjustmentRecord:
+    """Details about an offset normalization applied during compilation."""
+
+    tzid: str
+    transition_unix_utc: int
+    raw_seconds: int
+    adjusted_minutes: int
+    reasons: tuple[str, ...]
 
 
 @dataclass
@@ -86,6 +98,7 @@ class TimetableStats:
     cache_tzids: int = 0
     coverage_missing: list[str] = field(default_factory=list)
     rle_cache_bytes: int = 0
+    adjustments_count: int = 0
 
 
 class TimetableRunner:
@@ -121,8 +134,19 @@ class TimetableRunner:
             manifest_fingerprint=config.manifest_fingerprint,
             dictionary=dictionary,
         )
+        adjustments_dir = self._resolve_adjustments_dir(
+            data_root=data_root,
+            manifest_fingerprint=config.manifest_fingerprint,
+            dictionary=dictionary,
+        )
+        adjustments_file = adjustments_dir / "tz_offset_adjustments.json"
         if output_dir.exists():
             if config.resume:
+                if not adjustments_file.exists():
+                    raise err(
+                        "E_S3_ADJUSTMENTS_MISSING",
+                        f"tz_offset_adjustments missing at '{adjustments_file}' while resume requested",
+                    )
                 logger.info(
                     "Segment2A S3 resume detected (manifest=%s); skipping run",
                     config.manifest_fingerprint,
@@ -132,19 +156,30 @@ class TimetableRunner:
                     output_path=output_dir,
                     run_report_path=run_report_path,
                     resumed=True,
+                    adjustments_path=adjustments_file,
                 )
             raise err(
                 "E_S3_OUTPUT_EXISTS",
                 f"tz_timetable_cache already exists at '{output_dir}' "
-                "— use resume to skip or delete the partition first",
+                "- use resume to skip or delete the partition first",
             )
 
         status = "fail"
         warnings: list[str] = []
         errors: list[dict[str, object]] = []
+        output_files: list[dict[str, object]] = []
+        adjustments_path: Optional[Path] = None
         start_time = datetime.now(timezone.utc)
         try:
-            self._execute(data_root, dictionary, context, output_dir, stats, warnings)
+            output_files, adjustments_path = self._execute(
+                data_root,
+                dictionary,
+                context,
+                output_dir,
+                adjustments_dir,
+                stats,
+                warnings,
+            )
             status = "pass"
         except S0GateError as exc:
             errors.append({"code": exc.code, "message": exc.detail})
@@ -166,6 +201,8 @@ class TimetableRunner:
                 started_at=start_time,
                 finished_at=finished,
                 output_path=output_dir,
+                output_files=output_files,
+                adjustments_path=adjustments_path,
             )
 
         logger.info(
@@ -178,6 +215,7 @@ class TimetableRunner:
             output_path=output_dir,
             run_report_path=run_report_path,
             resumed=False,
+            adjustments_path=adjustments_path,
         )
 
     def _execute(
@@ -186,9 +224,10 @@ class TimetableRunner:
         dictionary: Mapping[str, object],
         context: TimetableContext,
         output_dir: Path,
+        adjustments_dir: Path,
         stats: TimetableStats,
         warnings: list[str],
-    ) -> None:
+    ) -> tuple[list[dict[str, object]], Path]:
         tzdb_digest = self._verify_tzdb_digest(context.assets)
         self._emit_event(
             "GATE",
@@ -213,10 +252,20 @@ class TimetableRunner:
                 f"tz_world dataset at '{context.assets.tz_world}' contained no tzids",
             )
         stats.world_tzids = len(tz_world_ids)
-        transition_map, transition_changes, offset_min, offset_max = (
-            self._build_transition_map(
-                context.assets, context.manifest_fingerprint, warnings
+        if adjustments_dir.exists():
+            raise err(
+                "E_S3_ADJUSTMENTS_EXISTS",
+                f"tz_offset_adjustments already exists at '{adjustments_dir}' "
+                "- use resume to skip or delete the partition first",
             )
+        (
+            transition_map,
+            transition_changes,
+            offset_min,
+            offset_max,
+            adjustments,
+        ) = self._build_transition_map(
+            context.assets, context.manifest_fingerprint, warnings
         )
         if not transition_map:
             raise err("2A-S3-021 INDEX_EMPTY", "compiled timetable index was empty")
@@ -235,6 +284,7 @@ class TimetableRunner:
         stats.transitions_total = transition_changes
         stats.offset_minutes_min = offset_min
         stats.offset_minutes_max = offset_max
+        stats.adjustments_count = len(adjustments)
 
         canonical_bytes = self._build_canonical_index(transition_map)
         stats.rle_cache_bytes = len(canonical_bytes)
@@ -271,14 +321,53 @@ class TimetableRunner:
             if temp_dir.exists():
                 shutil.rmtree(temp_dir, ignore_errors=True)
 
+        final_manifest_path = output_dir / "tz_timetable_cache.json"
+        final_index_path = output_dir / "tz_index.json"
+        adjustments_file, adjustments_bytes = self._write_adjustments_file(
+            target_dir=adjustments_dir,
+            manifest_fingerprint=context.manifest_fingerprint,
+            created_utc=context.verified_at_utc,
+            adjustments=adjustments,
+        )
+        output_files = [
+            {
+                "name": "tz_timetable_cache.json",
+                "bytes": final_manifest_path.stat().st_size,
+                "path": str(final_manifest_path),
+            },
+            {
+                "name": "tz_index.json",
+                "bytes": stats.rle_cache_bytes,
+                "path": str(final_index_path),
+            },
+            {
+                "name": "tz_offset_adjustments.json",
+                "bytes": adjustments_bytes,
+                "path": str(adjustments_file),
+            },
+        ]
+
         self._emit_event(
             "EMIT",
             {
                 "output_path": str(output_dir),
-                "files": ["tz_timetable_cache.json", "tz_index.json"],
+                "files": [
+                    "tz_timetable_cache.json",
+                    "tz_index.json",
+                    "tz_offset_adjustments.json",
+                ],
             },
             manifest_fingerprint=context.manifest_fingerprint,
         )
+        self._emit_event(
+            "ADJUSTMENTS",
+            {
+                "count": stats.adjustments_count,
+                "path": str(adjustments_file),
+            },
+            manifest_fingerprint=context.manifest_fingerprint,
+        )
+        return output_files, adjustments_file
 
     def _prepare_context(
         self,
@@ -355,6 +444,20 @@ class TimetableRunner:
         )
         return (data_root / rel).resolve()
 
+    def _resolve_adjustments_dir(
+        self,
+        *,
+        data_root: Path,
+        manifest_fingerprint: str,
+        dictionary: Mapping[str, object],
+    ) -> Path:
+        rel = render_dataset_path(
+            "tz_offset_adjustments",
+            template_args={"manifest_fingerprint": manifest_fingerprint},
+            dictionary=dictionary,
+        )
+        return (data_root / rel).resolve()
+
     def _resolve_run_report_path(
         self,
         *,
@@ -373,12 +476,15 @@ class TimetableRunner:
         assets: TimetableAssets,
         manifest_fingerprint: str,
         warnings: list[str],
-    ) -> tuple[dict[str, list[list[int]]], int, int, int]:
+    ) -> tuple[
+        dict[str, list[list[int]]], int, int, int, list[OffsetAdjustmentRecord]
+    ]:
         archive_path = self._resolve_archive_path(assets.tzdb_dir)
         transitions: dict[str, list[list[int]]] = {}
         transition_changes = 0
         offset_min: Optional[int] = None
         offset_max: Optional[int] = None
+        adjustments: list[OffsetAdjustmentRecord] = []
         with tempfile.TemporaryDirectory(prefix="tzs3_compile_") as scratch_raw:
             scratch = Path(scratch_raw)
             source_dir = scratch / "src"
@@ -405,7 +511,7 @@ class TimetableRunner:
                     "zic produced no compiled tzfiles; check the archive contents",
                 )
             for tzid, file_path in zone_paths.items():
-                entries = self._parse_zoneinfo_file(tzid, file_path, warnings)
+                entries = self._parse_zoneinfo_file(tzid, file_path, warnings, adjustments)
                 transitions[tzid] = entries
                 offsets = [entry[1] for entry in entries]
                 tz_min = min(offsets) if offsets else None
@@ -430,7 +536,7 @@ class TimetableRunner:
             },
             manifest_fingerprint=manifest_fingerprint,
         )
-        return transitions, transition_changes, offset_min, offset_max
+        return transitions, transition_changes, offset_min, offset_max, adjustments
 
     def _collect_zoneinfo_paths(self, zoneinfo_dir: Path) -> dict[str, Path]:
         excluded = {"posixrules", "localtime", "leapseconds"}
@@ -447,7 +553,11 @@ class TimetableRunner:
         return zone_paths
 
     def _parse_zoneinfo_file(
-        self, tzid: str, path: Path, warnings: list[str]
+        self,
+        tzid: str,
+        path: Path,
+        warnings: list[str],
+        adjustments: list[OffsetAdjustmentRecord],
     ) -> list[list[int]]:
         with path.open("rb") as handle:
             trans_idx, trans_list, utcoff, isdst, _, _ = zoneinfo_common.load_data(handle)
@@ -457,11 +567,15 @@ class TimetableRunner:
                 f"compiled tzfile '{tzid}' did not contain any local time definitions",
             )
         initial_idx = self._select_initial_type(isdst)
-        base_offset = self._seconds_to_minutes(tzid, utcoff[initial_idx], warnings)
+        base_offset = self._seconds_to_minutes(
+            tzid, utcoff[initial_idx], warnings, adjustments, INT64_MIN
+        )
         entries: list[list[int]] = [[INT64_MIN, base_offset]]
         last_offset = base_offset
         for stamp, idx in zip(trans_list, trans_idx):
-            offset = self._seconds_to_minutes(tzid, utcoff[idx], warnings)
+            offset = self._seconds_to_minutes(
+                tzid, utcoff[idx], warnings, adjustments, int(stamp)
+            )
             if offset == last_offset:
                 continue
             entries.append([int(stamp), offset])
@@ -478,7 +592,14 @@ class TimetableRunner:
         return 0
 
     @staticmethod
-    def _seconds_to_minutes(tzid: str, seconds: int, warnings: list[str]) -> int:
+    def _seconds_to_minutes(
+        tzid: str,
+        seconds: int,
+        warnings: list[str],
+        adjustments: list[OffsetAdjustmentRecord],
+        transition_ts: int,
+    ) -> int:
+        reasons: list[str] = []
         if seconds % 60 != 0:
             minutes_float = seconds / 60
             rounded = int(math.copysign(1, minutes_float) * math.floor(abs(minutes_float) + 0.5))
@@ -486,6 +607,7 @@ class TimetableRunner:
                 f"{tzid} offset {seconds}s rounded to {rounded} minute(s) for cache compatibility"
             )
             minutes = rounded
+            reasons.append("round")
         else:
             minutes = int(seconds // 60)
         if minutes < -900 or minutes > 900:
@@ -493,6 +615,17 @@ class TimetableRunner:
                 f"{tzid} offset {minutes} minute(s) clipped to [-900, 900] boundary"
             )
             minutes = max(-900, min(900, minutes))
+            reasons.append("clip")
+        if reasons:
+            adjustments.append(
+                OffsetAdjustmentRecord(
+                    tzid=tzid,
+                    transition_unix_utc=transition_ts,
+                    raw_seconds=seconds,
+                    adjusted_minutes=minutes,
+                    reasons=tuple(reasons),
+                )
+            )
         return minutes
 
     def _invoke_zic(
@@ -668,6 +801,8 @@ class TimetableRunner:
         started_at: datetime,
         finished_at: datetime,
         output_path: Path,
+        output_files: list[dict[str, object]],
+        adjustments_path: Optional[Path],
     ) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
@@ -704,15 +839,58 @@ class TimetableRunner:
                 "missing_count": len(stats.coverage_missing),
                 "missing_sample": stats.coverage_missing,
             },
+            "adjustments": {
+                "count": stats.adjustments_count,
+                "path": str(adjustments_path) if adjustments_path else None,
+            },
             "output": {
                 "path": str(output_path),
                 "created_utc": context.verified_at_utc,
-                "files": [
-                    {"name": "tz_timetable_cache.json", "bytes": 0},
-                    {"name": "tz_index.json", "bytes": stats.rle_cache_bytes},
-                ],
+                "files": output_files,
             },
             "warnings": warnings,
             "errors": errors,
         }
         path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+
+    def _write_adjustments_file(
+        self,
+        *,
+        target_dir: Path,
+        manifest_fingerprint: str,
+        created_utc: str,
+        adjustments: Sequence[OffsetAdjustmentRecord],
+    ) -> tuple[Path, int]:
+        if target_dir.exists():
+            raise err(
+                "E_S3_ADJUSTMENTS_EXISTS",
+                f"tz_offset_adjustments already exists at '{target_dir}'",
+            )
+        temp_dir = target_dir.parent / f".tmp.tz_adjustments.{uuid.uuid4().hex}"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            file_path = temp_dir / "tz_offset_adjustments.json"
+            payload = {
+                "manifest_fingerprint": manifest_fingerprint,
+                "created_utc": created_utc,
+                "count": len(adjustments),
+                "adjustments": [
+                    {
+                        "tzid": record.tzid,
+                        "transition_unix_utc": record.transition_unix_utc,
+                        "raw_seconds": record.raw_seconds,
+                        "adjusted_minutes": record.adjusted_minutes,
+                        "reasons": list(record.reasons),
+                    }
+                    for record in adjustments
+                ],
+            }
+            file_path.write_text(
+                json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8"
+            )
+            temp_dir.replace(target_dir)
+        finally:
+            if temp_dir.exists():
+                shutil.rmtree(temp_dir, ignore_errors=True)
+        final_file = target_dir / "tz_offset_adjustments.json"
+        return final_file, final_file.stat().st_size

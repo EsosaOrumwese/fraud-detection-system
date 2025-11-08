@@ -323,6 +323,24 @@ datasets:
     pii: false
     license: Proprietary-Internal
 
+  - id: tz_offset_adjustments
+    status: draft
+    owner_subsegment: 2A
+    description: "Per-tzid record of any rounding/clipping applied to tz offsets during S3 compilation."
+    version: "{manifest_fingerprint}"
+    format: json
+    path: data/layer1/2A/tz_offset_adjustments/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.2A.yaml#/cache/tz_offset_adjustments
+    lineage:
+      produced_by: 2A.S3
+      consumed_by: [2A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
   - id: s4_legality_report
     status: approved
     owner_subsegment: 2A

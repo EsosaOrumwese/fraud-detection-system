@@ -73,6 +73,8 @@ def _print_summary(result: Segment2AResult) -> None:
         payload["s3_resumed"] = result.s3_resumed
     if result.s3_run_report_path:
         payload["s3_run_report_path"] = str(result.s3_run_report_path)
+    if result.s3_adjustments_path:
+        payload["s3_adjustments_path"] = str(result.s3_adjustments_path)
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 

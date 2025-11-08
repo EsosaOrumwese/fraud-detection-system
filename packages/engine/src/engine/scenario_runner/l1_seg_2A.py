@@ -68,6 +68,7 @@ class Segment2AResult:
     s3_output_path: Path | None = None
     s3_resumed: bool = False
     s3_run_report_path: Path | None = None
+    s3_adjustments_path: Path | None = None
 
 
 class Segment2AOrchestrator:
@@ -234,6 +235,7 @@ class Segment2AOrchestrator:
             s3_output_path=s3_result.output_path if s3_result else None,
             s3_resumed=s3_result.resumed if s3_result else False,
             s3_run_report_path=s3_result.run_report_path if s3_result else None,
+            s3_adjustments_path=s3_result.adjustments_path if s3_result else None,
         )
 
     @staticmethod

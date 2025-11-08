@@ -241,6 +241,51 @@ cache:
       - rle_cache_bytes
       - created_utc
 
+  tz_offset_adjustments:
+    type: object
+    additionalProperties: false
+    properties:
+      manifest_fingerprint: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+      created_utc:           { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
+      count:                 { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      adjustments:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          properties:
+            tzid: { $ref: 'schemas.layer1.yaml#/$defs/iana_tzid' }
+            transition_unix_utc:
+              type: integer
+              minimum: -9223372036854775808
+              maximum: 9223372036854775807
+            raw_seconds:
+              type: integer
+              minimum: -9223372036854775808
+              maximum: 9223372036854775807
+            adjusted_minutes:
+              type: integer
+              minimum: -900
+              maximum: 900
+            reasons:
+              type: array
+              minItems: 1
+              uniqueItems: true
+              items:
+                type: string
+                enum: ["round", "clip"]
+          required:
+            - tzid
+            - transition_unix_utc
+            - raw_seconds
+            - adjusted_minutes
+            - reasons
+    required:
+      - manifest_fingerprint
+      - created_utc
+      - count
+      - adjustments
+
   tz_index_digest:
     type: object
     additionalProperties: false

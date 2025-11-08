@@ -39,6 +39,8 @@ datasets:
     path: data/layer1/2A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet
   - id: tz_timetable_cache
     path: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
+  - id: tz_offset_adjustments
+    path: data/layer1/2A/tz_offset_adjustments/fingerprint={manifest_fingerprint}/
 reference_data:
   - id: tz_world_2025a
     path: reference/spatial/tz_world/2025a/tz_world.parquet
@@ -181,6 +183,16 @@ def test_timetable_runner_builds_cache(tmp_path: Path, resume: bool) -> None:
     ny_offsets = {point[1] for point in ny_entry[1]}
     assert len(ny_offsets) > 1
 
+    assert result.adjustments_path is not None
+    adjustments_payload = json.loads(
+        result.adjustments_path.read_text(encoding="utf-8")
+    )
+    assert adjustments_payload["manifest_fingerprint"] == manifest
+    assert adjustments_payload["count"] == len(adjustments_payload["adjustments"])
+    assert any(
+        entry["tzid"] == "America/New_York" for entry in adjustments_payload["adjustments"]
+    )
+
     run_report = Path(result.run_report_path)
     assert run_report.exists()
     report_payload = json.loads(run_report.read_text(encoding="utf-8"))
@@ -189,6 +201,8 @@ def test_timetable_runner_builds_cache(tmp_path: Path, resume: bool) -> None:
     assert report_payload["compiled"]["transitions_total"] >= 1
     assert report_payload["compiled"]["offset_minutes_min"] <= 0
     assert report_payload["compiled"]["offset_minutes_max"] >= 120
+    assert report_payload["adjustments"]["count"] == adjustments_payload["count"]
+    assert Path(report_payload["adjustments"]["path"]) == result.adjustments_path
 
     resumed_result = runner.run(
         TimetableInputs(
@@ -200,3 +214,4 @@ def test_timetable_runner_builds_cache(tmp_path: Path, resume: bool) -> None:
     )
     assert resumed_result.resumed is True
     assert resumed_result.output_path == result.output_path
+    assert resumed_result.adjustments_path == result.adjustments_path
