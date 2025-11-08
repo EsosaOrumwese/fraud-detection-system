@@ -228,6 +228,42 @@ datasets:
     pii: false
     license: Proprietary-Internal
 
+  - id: s2_alias_index
+    status: approved
+    owner_subsegment: 2B
+    description: "Per-merchant alias index describing offsets into the contiguous alias blob."
+    version: "{seed}.{manifest_fingerprint}"
+    format: json
+    path: data/layer1/2B/s2_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/index.json
+    partitioning: [seed, fingerprint]
+    ordering: []
+    schema_ref: schemas.2B.yaml#/plan/s2_alias_index
+    lineage:
+      produced_by: 2B.S2
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
+  - id: s2_alias_blob
+    status: approved
+    owner_subsegment: 2B
+    description: "Binary blob containing all merchant alias tables in the policy-declared layout."
+    version: "{seed}.{manifest_fingerprint}"
+    format: binary
+    path: data/layer1/2B/s2_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/alias.bin
+    partitioning: [seed, fingerprint]
+    ordering: []
+    schema_ref: schemas.2B.yaml#/binary/s2_alias_blob
+    lineage:
+      produced_by: 2B.S2
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
   - id: s1_site_weights
     status: approved
     owner_subsegment: 2B

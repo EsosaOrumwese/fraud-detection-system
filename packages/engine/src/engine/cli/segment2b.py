@@ -50,6 +50,11 @@ def _print_summary(result: Segment2BResult) -> None:
         payload["s1_output_path"] = str(result.s1_output_path)
         payload["s1_run_report_path"] = str(result.s1_run_report_path)
         payload["s1_resumed"] = result.s1_resumed
+    if result.s2_index_path:
+        payload["s2_index_path"] = str(result.s2_index_path)
+        payload["s2_blob_path"] = str(result.s2_blob_path)
+        payload["s2_run_report_path"] = str(result.s2_run_report_path)
+        payload["s2_resumed"] = result.s2_resumed
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
@@ -125,6 +130,21 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Suppress printing the S1 run-report JSON to STDOUT (still writes to disk).",
     )
+    parser.add_argument(
+        "--run-s2",
+        action="store_true",
+        help="Execute S2 alias generation after S1 completes.",
+    )
+    parser.add_argument(
+        "--s2-resume",
+        action="store_true",
+        help="Skip S2 execution when its output partition already exists.",
+    )
+    parser.add_argument(
+        "--s2-quiet-run-report",
+        action="store_true",
+        help="Suppress printing the S2 run-report JSON to STDOUT (still writes to disk).",
+    )
 
     args = parser.parse_args(argv)
 
@@ -144,6 +164,9 @@ def main(argv: list[str] | None = None) -> int:
             run_s1=args.run_s1,
             s1_resume=args.s1_resume,
             s1_emit_run_report_stdout=not args.s1_quiet_run_report,
+            run_s2=args.run_s2,
+            s2_resume=args.s2_resume,
+            s2_emit_run_report_stdout=not args.s2_quiet_run_report,
         )
     )
     _print_summary(result)

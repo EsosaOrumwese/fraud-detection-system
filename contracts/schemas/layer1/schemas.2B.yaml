@@ -133,6 +133,11 @@ policy:
         normalisation_epsilon,
         quantised_bits,
         quantisation_epsilon,
+        layout_version,
+        endianness,
+        alignment_bytes,
+        encode_spec,
+        decode_law,
       ]
     properties:
       version_tag: { type: string, minLength: 1 }
@@ -170,6 +175,50 @@ policy:
       tiny_negative_epsilon:
         type: number
         exclusiveMinimum: 0
+      layout_version:
+        type: string
+        minLength: 1
+      endianness:
+        type: string
+        enum: [little, big]
+      alignment_bytes:
+        type: integer
+        minimum: 1
+      encode_spec:
+        type: object
+        additionalProperties: false
+        required:
+          [
+            site_order_bytes,
+            prob_mass_bytes,
+            alias_site_order_bytes,
+            padding_value,
+            checksum,
+          ]
+        properties:
+          site_order_bytes:
+            type: integer
+            minimum: 1
+          prob_mass_bytes:
+            type: integer
+            minimum: 1
+          alias_site_order_bytes:
+            type: integer
+            minimum: 1
+          padding_value:
+            type: string
+            pattern: "^0x[0-9a-fA-F]{2}$"
+          checksum:
+            type: object
+            additionalProperties: false
+            required: [algorithm]
+            properties:
+              algorithm:
+                type: string
+                enum: [sha256]
+      decode_law:
+        type: string
+        minLength: 1
       notes: { type: string }
 
   virtual_edge_policy_v1:
@@ -256,3 +305,63 @@ plan:
       - name: created_utc
         $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros'
         nullable: false
+
+  s2_alias_index:
+    type: object
+    description: "Alias index describing each merchant slice inside the alias blob."
+    additionalProperties: false
+    required:
+      [
+        layout_version,
+        endianness,
+        alignment_bytes,
+        quantised_bits,
+        created_utc,
+        policy_id,
+        policy_digest,
+        blob_sha256,
+        blob_size_bytes,
+        merchants_count,
+        merchants,
+      ]
+    properties:
+      layout_version: { type: string, minLength: 1 }
+      endianness: { type: string, enum: [little, big] }
+      alignment_bytes: { type: integer, minimum: 1 }
+      quantised_bits: { type: integer, minimum: 1 }
+      created_utc: { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
+      policy_id: { type: string, const: "alias_layout_policy_v1" }
+      policy_digest: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+      blob_sha256: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+      blob_size_bytes: { type: integer, minimum: 0 }
+      merchants_count: { type: integer, minimum: 0 }
+      merchants:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required:
+            [merchant_id, offset, length, sites, quantised_bits, checksum]
+          properties:
+            merchant_id: { $ref: 'schemas.layer1.yaml#/$defs/id64' }
+            offset: { type: integer, minimum: 0 }
+            length: { type: integer, minimum: 0 }
+            sites: { type: integer, minimum: 1 }
+            quantised_bits: { type: integer, minimum: 1 }
+            checksum: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+
+binary:
+
+  s2_alias_blob:
+    type: object
+    description: "Metadata contract for the alias blob; layout/bytes governed by alias_layout_policy_v1."
+    additionalProperties: false
+    required:
+      [layout_version, endianness, alignment_bytes, quantised_bits, blob_sha256, blob_size_bytes]
+    properties:
+      layout_version: { type: string, minLength: 1 }
+      endianness: { type: string, enum: [little, big] }
+      alignment_bytes: { type: integer, minimum: 1 }
+      quantised_bits: { type: integer, minimum: 1 }
+      blob_sha256: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+      blob_size_bytes: { type: integer, minimum: 0 }

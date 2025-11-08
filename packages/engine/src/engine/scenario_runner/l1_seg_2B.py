@@ -14,6 +14,9 @@ from engine.layers.l1.seg_2B import (
     S1WeightsInputs,
     S1WeightsRunner,
     S1WeightsResult,
+    S2AliasInputs,
+    S2AliasResult,
+    S2AliasRunner,
 )
 
 logger = logging.getLogger(__name__)
@@ -35,6 +38,9 @@ class Segment2BConfig:
     run_s1: bool = False
     s1_resume: bool = False
     s1_emit_run_report_stdout: bool = True
+    run_s2: bool = False
+    s2_resume: bool = False
+    s2_emit_run_report_stdout: bool = True
 
 
 @dataclass(frozen=True)
@@ -50,6 +56,10 @@ class Segment2BResult:
     s1_output_path: Optional[Path] = None
     s1_run_report_path: Optional[Path] = None
     s1_resumed: bool = False
+    s2_index_path: Optional[Path] = None
+    s2_blob_path: Optional[Path] = None
+    s2_run_report_path: Optional[Path] = None
+    s2_resumed: bool = False
 
 
 class Segment2BOrchestrator:
@@ -58,6 +68,7 @@ class Segment2BOrchestrator:
     def __init__(self) -> None:
         self._s0_runner = S0GateRunner()
         self._s1_runner = S1WeightsRunner()
+        self._s2_runner = S2AliasRunner()
 
     def run(self, config: Segment2BConfig) -> Segment2BResult:
         data_root = config.data_root.expanduser().resolve()
@@ -95,6 +106,28 @@ class Segment2BOrchestrator:
                 s1_result.output_path,
                 s1_result.run_report_path,
             )
+        s2_result: S2AliasResult | None = None
+        if config.run_s2:
+            logger.info(
+                "Segment2B S2 starting (seed=%s, manifest=%s)",
+                config.seed,
+                gate_output.manifest_fingerprint,
+            )
+            s2_inputs = S2AliasInputs(
+                data_root=data_root,
+                seed=config.seed,
+                manifest_fingerprint=gate_output.manifest_fingerprint,
+                dictionary_path=config.dictionary_path,
+                resume=config.s2_resume,
+                emit_run_report_stdout=config.s2_emit_run_report_stdout,
+            )
+            s2_result = self._s2_runner.run(s2_inputs)
+            logger.info(
+                "Segment2B S2 %s (index=%s, blob=%s)",
+                "resumed" if s2_result.resumed else "completed",
+                s2_result.index_path,
+                s2_result.blob_path,
+            )
         return Segment2BResult(
             manifest_fingerprint=gate_output.manifest_fingerprint,
             parameter_hash=gate_output.parameter_hash,
@@ -105,6 +138,10 @@ class Segment2BOrchestrator:
             s1_output_path=s1_result.output_path if s1_result else None,
             s1_run_report_path=s1_result.run_report_path if s1_result else None,
             s1_resumed=s1_result.resumed if s1_result else False,
+            s2_index_path=s2_result.index_path if s2_result else None,
+            s2_blob_path=s2_result.blob_path if s2_result else None,
+            s2_run_report_path=s2_result.run_report_path if s2_result else None,
+            s2_resumed=s2_result.resumed if s2_result else False,
         )
 
 

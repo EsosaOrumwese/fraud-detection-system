@@ -98,6 +98,9 @@ SEG2B_PIN_TZ ?= 0
 SEG2B_RUN_S1 ?= 1
 SEG2B_S1_RESUME ?= 0
 SEG2B_S1_QUIET ?= 1
+SEG2B_RUN_S2 ?= 0
+SEG2B_S2_RESUME ?= 0
+SEG2B_S2_QUIET ?= 0
 
 ifeq ($(strip $(SEG2B_PIN_TZ)),1)
 SEG2B_EXTRA += --pin-tz-assets
@@ -110,6 +113,15 @@ SEG2B_EXTRA += --s1-resume
 endif
 ifeq ($(strip $(SEG2B_S1_QUIET)),1)
 SEG2B_EXTRA += --s1-quiet-run-report
+endif
+ifeq ($(strip $(SEG2B_RUN_S2)),1)
+SEG2B_EXTRA += --run-s2
+endif
+ifeq ($(strip $(SEG2B_S2_RESUME)),1)
+SEG2B_EXTRA += --s2-resume
+endif
+ifeq ($(strip $(SEG2B_S2_QUIET)),1)
+SEG2B_EXTRA += --s2-quiet-run-report
 endif
 
 SEG2B_ARGS = \

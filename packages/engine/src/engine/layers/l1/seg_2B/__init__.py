@@ -12,6 +12,11 @@ from .s1_weights import (
     S1WeightsResult,
     S1WeightsRunner,
 )
+from .s2_alias import (
+    S2AliasInputs,
+    S2AliasResult,
+    S2AliasRunner,
+)
 
 __all__ = [
     "S0GateInputs",
@@ -22,4 +27,7 @@ __all__ = [
     "S1WeightsInputs",
     "S1WeightsResult",
     "S1WeightsRunner",
+    "S2AliasInputs",
+    "S2AliasResult",
+    "S2AliasRunner",
 ]

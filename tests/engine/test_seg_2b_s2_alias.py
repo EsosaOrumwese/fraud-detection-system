@@ -3,7 +3,7 @@ from pathlib import Path
 
 import polars as pl
 
-from engine.layers.l1.seg_2B.s1_weights import S1WeightsInputs, S1WeightsRunner
+from engine.layers.l1.seg_2B.s2_alias import S2AliasInputs, S2AliasRunner
 
 
 def _write_dictionary(path: Path) -> Path:
@@ -13,14 +13,18 @@ catalogue:
   dictionary_version: test
   registry_version: test
 datasets:
-  - id: site_locations
-    path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
-    partitioning: [seed, fingerprint]
-    schema_ref: schemas.1B.yaml#/egress/site_locations
   - id: s1_site_weights
     path: data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/
     partitioning: [seed, fingerprint]
     schema_ref: schemas.2B.yaml#/plan/s1_site_weights
+  - id: s2_alias_index
+    path: data/layer1/2B/s2_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/index.json
+    partitioning: [seed, fingerprint]
+    schema_ref: schemas.2B.yaml#/plan/s2_alias_index
+  - id: s2_alias_blob
+    path: data/layer1/2B/s2_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/alias.bin
+    partitioning: [seed, fingerprint]
+    schema_ref: schemas.2B.yaml#/binary/s2_alias_blob
   - id: s0_gate_receipt_2B
     path: data/layer1/2B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json
     partitioning: [fingerprint]
@@ -35,15 +39,17 @@ policies:
     return dictionary_path
 
 
-def _write_site_locations(base: Path, seed: int, manifest: str) -> Path:
+def _write_s1_weights(base: Path, seed: int, manifest: str) -> Path:
     df = pl.DataFrame(
         {
             "merchant_id": [1, 1, 2],
             "legal_country_iso": ["US", "US", "GB"],
             "site_order": [1, 2, 1],
+            "p_weight": [0.25, 0.75, 1.0],
+            "quantised_bits": [8, 8, 8],
         }
     )
-    dest = base / f"data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest}/part-00000.parquet"
+    dest = base / f"data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest}/part-00000.parquet"
     dest.parent.mkdir(parents=True, exist_ok=True)
     df.write_parquet(dest)
     return dest
@@ -55,10 +61,10 @@ def _write_policy(base: Path) -> Path:
         "weight_source": {"id": "uniform", "mode": "uniform"},
         "floor_spec": {"mode": "absolute", "value": 0.0, "fallback": "uniform"},
         "cap_spec": {"mode": "none"},
-        "normalisation_epsilon": 1e-12,
-        "quantised_bits": 16,
-        "quantisation_epsilon": 1e-9,
-        "tiny_negative_epsilon": 1e-15,
+        "normalisation_epsilon": 1e-9,
+        "quantised_bits": 8,
+        "quantisation_epsilon": 1e-6,
+        "tiny_negative_epsilon": 1e-12,
         "layout_version": "alias.v1",
         "endianness": "little",
         "alignment_bytes": 4,
@@ -84,7 +90,7 @@ def _write_receipt(base: Path, seed: int, manifest: str) -> Path:
         "manifest_fingerprint": manifest,
         "seed": str(seed),
         "parameter_hash": "f" * 64,
-        "validation_bundle_path": "data/layer1/1B/validation/fingerprint=dummy/bundle",
+        "validation_bundle_path": "bundle",
         "flag_sha256_hex": "e" * 64,
         "verified_at_utc": "2025-11-08T00:00:00.000000Z",
         "sealed_inputs": [],
@@ -97,69 +103,64 @@ def _write_receipt(base: Path, seed: int, manifest: str) -> Path:
     return dest
 
 
-def test_s1_weights_runner_emits_uniform_weights(tmp_path: Path) -> None:
+def test_s2_alias_runner_builds_blob(tmp_path: Path) -> None:
     manifest = "a" * 64
     seed = 2025110601
     dictionary_path = _write_dictionary(tmp_path)
-    _write_site_locations(tmp_path, seed, manifest)
+    _write_s1_weights(tmp_path, seed, manifest)
     _write_policy(tmp_path)
     _write_receipt(tmp_path, seed, manifest)
 
-    runner = S1WeightsRunner()
+    runner = S2AliasRunner()
     result = runner.run(
-        S1WeightsInputs(
+        S2AliasInputs(
             data_root=tmp_path,
             seed=seed,
             manifest_fingerprint=manifest,
             dictionary_path=dictionary_path,
+            emit_run_report_stdout=False,
         )
     )
-    output_file = result.output_path / "part-00000.parquet"
-    assert output_file.exists()
-    df = pl.read_parquet(output_file)
-    weights = df.sort(["merchant_id", "site_order"]).get_column("p_weight").to_list()
-    assert weights == [0.5, 0.5, 1.0]
-    assert df["weight_source"].unique().to_list() == ["uniform"]
-    assert df["floor_applied"].any() is False
-    assert result.run_report_path.exists()
-    run_report = json.loads(result.run_report_path.read_text(encoding="utf-8"))
-    assert run_report["component"] == "2B.S1"
-    assert run_report["policy"]["id"] == "alias_layout_policy_v1"
-    assert run_report["policy"]["weight_source_id"] == "uniform"
-    assert run_report["publish"]["target_path"] == (
-        f"data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest}"
-    )
-    assert run_report["publish"]["publish_bytes_total"] == run_report["publish"]["bytes_written"]
-    assert run_report["samples"]["key_coverage"]
-    assert run_report["samples"]["key_coverage"][0]["present_in_weights"] is True
-    assert run_report["samples"]["extremes"]["top"]
-    assert "p_hat" in run_report["samples"]["quantisation"][0]
-    assert run_report["timings_ms"]["resolve_ms"] >= 0
+
+    assert result.index_path.exists()
+    assert result.blob_path.exists()
+    index_payload = json.loads(result.index_path.read_text(encoding="utf-8"))
+    assert index_payload["layout_version"] == "alias.v1"
+    assert index_payload["merchants_count"] == 2
+    merchants = index_payload["merchants"]
+    assert merchants[0]["merchant_id"] == 1
+    assert merchants[0]["offset"] % index_payload["alignment_bytes"] == 0
+    blob_bytes = result.blob_path.read_bytes()
+    assert len(blob_bytes) == index_payload["blob_size_bytes"]
+    assert len(blob_bytes) > 0
 
 
-def test_s1_weights_runner_resume(tmp_path: Path) -> None:
+def test_s2_alias_runner_resume(tmp_path: Path) -> None:
     manifest = "b" * 64
     seed = 2025110601
     dictionary_path = _write_dictionary(tmp_path)
-    _write_site_locations(tmp_path, seed, manifest)
+    _write_s1_weights(tmp_path, seed, manifest)
     _write_policy(tmp_path)
     _write_receipt(tmp_path, seed, manifest)
-    runner = S1WeightsRunner()
+    runner = S2AliasRunner()
     runner.run(
-        S1WeightsInputs(
+        S2AliasInputs(
             data_root=tmp_path,
             seed=seed,
             manifest_fingerprint=manifest,
             dictionary_path=dictionary_path,
+            emit_run_report_stdout=False,
         )
     )
     resumed = runner.run(
-        S1WeightsInputs(
+        S2AliasInputs(
             data_root=tmp_path,
             seed=seed,
             manifest_fingerprint=manifest,
             dictionary_path=dictionary_path,
             resume=True,
+            emit_run_report_stdout=False,
         )
     )
     assert resumed.resumed is True
+
