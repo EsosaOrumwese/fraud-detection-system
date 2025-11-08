@@ -1,5 +1,7 @@
 import hashlib
 import json
+import os
+import shutil
 from pathlib import Path
 
 import polars as pl
@@ -13,6 +15,18 @@ from engine.layers.l1.seg_2A.s0_gate.l0.filesystem import (
     hash_files,
 )
 from engine.layers.l1.seg_2A.s3_timetable import TimetableInputs, TimetableRunner
+
+
+def _zic_available() -> bool:
+    if shutil.which("zic"):
+        return True
+    if os.name == "nt" and shutil.which("bash") and shutil.which("wsl"):
+        return True
+    return False
+
+
+if not _zic_available():  # pragma: no cover - environment guard
+    pytest.skip("zic tooling is not available in this environment", allow_module_level=True)
 
 
 def _write_dictionary(path: Path) -> Path:
@@ -67,32 +81,15 @@ def _write_gate_receipt(base: Path, manifest: str) -> Path:
 def _write_tz_world(base: Path) -> Path:
     path = base / "reference/spatial/tz_world/2025a/tz_world.parquet"
     path.parent.mkdir(parents=True, exist_ok=True)
-    table = pa.table({"tzid": pa.array(["Etc/UTC", "Custom/Zone"])})
+    table = pa.table({"tzid": pa.array(["America/New_York", "Etc/UTC"])})
     pq.write_table(table, path)
     return path
 
 
 def _write_tzdb_release(base: Path) -> tuple[Path, str, int]:
     tzdb_dir = base / "artefacts/priors/tzdata/2025a"
-    tzdb_dir.mkdir(parents=True, exist_ok=True)
-    zone_file = base / "zone1970.tab"
-    zone_file.write_text(
-        "\n".join(
-            [
-                "AA\t+0000+00000\tEtc/UTC",
-                "BB\t+1111+22222\tCustom/Zone",
-            ]
-        ),
-        encoding="utf-8",
-    )
-    archive_path = tzdb_dir / "tzdata2025a.tar.gz"
-    import tarfile
-
-    with tarfile.open(archive_path, "w:gz") as handle:
-        handle.add(zone_file, arcname="zone1970.tab")
-    zone_file.unlink()
-    version_file = tzdb_dir / "zoneinfo_version.yml"
-    version_file.write_text("tzdata=2025a\n", encoding="utf-8")
+    src_dir = Path("artefacts/priors/tzdata/2025a").resolve()
+    shutil.copytree(src_dir, tzdb_dir, dirs_exist_ok=True)
     digests = hash_files(expand_files(tzdb_dir), error_prefix="TEST_TZDB")
     digest = aggregate_sha256(digests)
     size_bytes = sum(d.size_bytes for d in digests)
@@ -176,13 +173,22 @@ def test_timetable_runner_builds_cache(tmp_path: Path, resume: bool) -> None:
     assert manifest_payload["tzdb_archive_sha256"] == tzdb_digest
     index_entries = json.loads(index_path.read_text(encoding="utf-8"))
     tzids = [entry[0] for entry in index_entries]
-    assert tzids == sorted({"Etc/UTC", "Custom/Zone"})
+    assert {"America/New_York", "Etc/UTC"}.issubset(set(tzids))
+    ny_entry = next(entry for entry in index_entries if entry[0] == "America/New_York")
+    utc_entry = next(entry for entry in index_entries if entry[0] == "Etc/UTC")
+    assert ny_entry[1][0][0] == -(2**63)
+    assert utc_entry[1] == [[-(2**63), 0]]
+    ny_offsets = {point[1] for point in ny_entry[1]}
+    assert len(ny_offsets) > 1
 
     run_report = Path(result.run_report_path)
     assert run_report.exists()
     report_payload = json.loads(run_report.read_text(encoding="utf-8"))
     assert report_payload["status"] == "pass"
-    assert report_payload["compiled"]["tzid_count"] == 2
+    assert report_payload["compiled"]["tzid_count"] >= 2
+    assert report_payload["compiled"]["transitions_total"] >= 1
+    assert report_payload["compiled"]["offset_minutes_min"] <= 0
+    assert report_payload["compiled"]["offset_minutes_max"] >= 120
 
     resumed_result = runner.run(
         TimetableInputs(

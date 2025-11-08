@@ -5,15 +5,21 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
+import os
+import shlex
 import shutil
+import subprocess
 import tarfile
+import tempfile
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, Mapping, Optional, Sequence
+from typing import Mapping, Optional, Sequence
 
 import pyarrow.parquet as pq
+from zoneinfo import _common as zoneinfo_common
 
 from engine.layers.l1.seg_2A.s0_gate.exceptions import S0GateError, err
 from engine.layers.l1.seg_2A.s0_gate.l0.filesystem import (
@@ -32,7 +38,21 @@ from ..l1.context import TimetableAssets, TimetableContext
 
 logger = logging.getLogger(__name__)
 
-CANONICAL_BASE_TS = 0  # seconds since Unix epoch
+INT64_MIN = -(2**63)
+TZ_SOURCE_FILES: tuple[str, ...] = (
+    "africa",
+    "antarctica",
+    "asia",
+    "australasia",
+    "europe",
+    "northamerica",
+    "southamerica",
+    "etcetera",
+    "backward",
+    "backzone",
+    "factory",
+    "systemv",
+)
 
 
 @dataclass(frozen=True)
@@ -193,20 +213,15 @@ class TimetableRunner:
                 f"tz_world dataset at '{context.assets.tz_world}' contained no tzids",
             )
         stats.world_tzids = len(tz_world_ids)
-        tzdb_ids = self._load_tzdb_ids(context.assets.tzdb_dir)
-        compiled_ids = sorted(tz_world_ids.union(tzdb_ids))
-        if not compiled_ids:
+        transition_map, transition_changes, offset_min, offset_max = (
+            self._build_transition_map(
+                context.assets, context.manifest_fingerprint, warnings
+            )
+        )
+        if not transition_map:
             raise err("2A-S3-021 INDEX_EMPTY", "compiled timetable index was empty")
 
-        canonical_bytes, transitions_total = self._build_canonical_index(compiled_ids)
-        stats.tzid_count = len(compiled_ids)
-        stats.transitions_total = transitions_total
-        stats.cache_tzids = len(compiled_ids)
-        stats.offset_minutes_min = 0
-        stats.offset_minutes_max = 0
-        stats.rle_cache_bytes = len(canonical_bytes)
-
-        missing = sorted(tz_world_ids.difference(compiled_ids))
+        missing = sorted(set(tz_world_ids).difference(transition_map.keys()))
         stats.coverage_missing = missing[:5]
         if missing:
             raise err(
@@ -214,6 +229,15 @@ class TimetableRunner:
                 f"{len(missing)} tzids present in tz_world were missing from the cache "
                 f"(examples: {stats.coverage_missing})",
             )
+
+        stats.tzid_count = len(transition_map)
+        stats.cache_tzids = len(transition_map)
+        stats.transitions_total = transition_changes
+        stats.offset_minutes_min = offset_min
+        stats.offset_minutes_max = offset_max
+
+        canonical_bytes = self._build_canonical_index(transition_map)
+        stats.rle_cache_bytes = len(canonical_bytes)
         tz_index_digest = hashlib.sha256(canonical_bytes).hexdigest()
         self._emit_event(
             "CANONICALISE",
@@ -344,6 +368,243 @@ class TimetableRunner:
             / "run_report.json"
         ).resolve()
 
+    def _build_transition_map(
+        self,
+        assets: TimetableAssets,
+        manifest_fingerprint: str,
+        warnings: list[str],
+    ) -> tuple[dict[str, list[list[int]]], int, int, int]:
+        archive_path = self._resolve_archive_path(assets.tzdb_dir)
+        transitions: dict[str, list[list[int]]] = {}
+        transition_changes = 0
+        offset_min: Optional[int] = None
+        offset_max: Optional[int] = None
+        with tempfile.TemporaryDirectory(prefix="tzs3_compile_") as scratch_raw:
+            scratch = Path(scratch_raw)
+            source_dir = scratch / "src"
+            zoneinfo_dir = scratch / "zoneinfo"
+            source_dir.mkdir(parents=True, exist_ok=True)
+            zoneinfo_dir.mkdir(parents=True, exist_ok=True)
+            self._extract_archive(archive_path=archive_path, target_dir=source_dir)
+            sources = [name for name in TZ_SOURCE_FILES if (source_dir / name).exists()]
+            if not sources:
+                raise err(
+                    "2A-S3-041 TZDB_SOURCES_MISSING",
+                    f"tzdb archive '{archive_path.name}' did not contain any recognised tz source files",
+                )
+            self._invoke_zic(
+                source_dir=source_dir,
+                output_dir=zoneinfo_dir,
+                sources=sources,
+                manifest_fingerprint=manifest_fingerprint,
+            )
+            zone_paths = self._collect_zoneinfo_paths(zoneinfo_dir)
+            if not zone_paths:
+                raise err(
+                    "2A-S3-042 ZIC_EMPTY_OUTPUT",
+                    "zic produced no compiled tzfiles; check the archive contents",
+                )
+            for tzid, file_path in zone_paths.items():
+                entries = self._parse_zoneinfo_file(tzid, file_path, warnings)
+                transitions[tzid] = entries
+                offsets = [entry[1] for entry in entries]
+                tz_min = min(offsets) if offsets else None
+                tz_max = max(offsets) if offsets else None
+                if tz_min is not None:
+                    offset_min = tz_min if offset_min is None else min(offset_min, tz_min)
+                if tz_max is not None:
+                    offset_max = tz_max if offset_max is None else max(offset_max, tz_max)
+                transition_changes += max(0, len(entries) - 1)
+
+        if offset_min is None:
+            offset_min = 0
+        if offset_max is None:
+            offset_max = 0
+        self._emit_event(
+            "COMPILE",
+            {
+                "tzid_count": len(transitions),
+                "transition_changes": transition_changes,
+                "offset_minutes_min": offset_min,
+                "offset_minutes_max": offset_max,
+            },
+            manifest_fingerprint=manifest_fingerprint,
+        )
+        return transitions, transition_changes, offset_min, offset_max
+
+    def _collect_zoneinfo_paths(self, zoneinfo_dir: Path) -> dict[str, Path]:
+        excluded = {"posixrules", "localtime", "leapseconds"}
+        zone_paths: dict[str, Path] = {}
+        for candidate in zoneinfo_dir.rglob("*"):
+            if not candidate.is_file():
+                continue
+            rel = candidate.relative_to(zoneinfo_dir).as_posix()
+            if rel in excluded:
+                continue
+            if rel.startswith("posix/") or rel.startswith("right/"):
+                continue
+            zone_paths[rel] = candidate
+        return zone_paths
+
+    def _parse_zoneinfo_file(
+        self, tzid: str, path: Path, warnings: list[str]
+    ) -> list[list[int]]:
+        with path.open("rb") as handle:
+            trans_idx, trans_list, utcoff, isdst, _, _ = zoneinfo_common.load_data(handle)
+        if not utcoff:
+            raise err(
+                "2A-S3-061 TZ_NO_TYPES",
+                f"compiled tzfile '{tzid}' did not contain any local time definitions",
+            )
+        initial_idx = self._select_initial_type(isdst)
+        base_offset = self._seconds_to_minutes(tzid, utcoff[initial_idx], warnings)
+        entries: list[list[int]] = [[INT64_MIN, base_offset]]
+        last_offset = base_offset
+        for stamp, idx in zip(trans_list, trans_idx):
+            offset = self._seconds_to_minutes(tzid, utcoff[idx], warnings)
+            if offset == last_offset:
+                continue
+            entries.append([int(stamp), offset])
+            last_offset = offset
+        return entries
+
+    @staticmethod
+    def _select_initial_type(isdst: Sequence[int]) -> int:
+        if not isdst:
+            return 0
+        for idx, flag in enumerate(isdst):
+            if not flag:
+                return idx
+        return 0
+
+    @staticmethod
+    def _seconds_to_minutes(tzid: str, seconds: int, warnings: list[str]) -> int:
+        if seconds % 60 != 0:
+            minutes_float = seconds / 60
+            rounded = int(math.copysign(1, minutes_float) * math.floor(abs(minutes_float) + 0.5))
+            warnings.append(
+                f"{tzid} offset {seconds}s rounded to {rounded} minute(s) for cache compatibility"
+            )
+            minutes = rounded
+        else:
+            minutes = int(seconds // 60)
+        if minutes < -900 or minutes > 900:
+            warnings.append(
+                f"{tzid} offset {minutes} minute(s) clipped to [-900, 900] boundary"
+            )
+            minutes = max(-900, min(900, minutes))
+        return minutes
+
+    def _invoke_zic(
+        self,
+        *,
+        source_dir: Path,
+        output_dir: Path,
+        sources: Sequence[str],
+        manifest_fingerprint: str,
+    ) -> None:
+        output_dir.mkdir(parents=True, exist_ok=True)
+        leapfile = source_dir / "leapseconds"
+        cmd = ["zic", "-d", str(output_dir)]
+        if leapfile.exists():
+            cmd.extend(["-L", "leapseconds"])
+        cmd.extend(sources)
+        try:
+            subprocess.run(cmd, cwd=source_dir, check=True)
+            return
+        except FileNotFoundError:
+            # Fall back to bash-based execution (e.g., Windows with WSL)
+            pass
+        except subprocess.CalledProcessError as exc:
+            raise err(
+                "2A-S3-058 ZIC_FAILED",
+                f"zic failed with exit code {exc.returncode}",
+            ) from exc
+
+        if os.name != "nt":
+            raise err(
+                "2A-S3-057 ZIC_MISSING",
+                "zic binary not found on PATH; install tzcode tooling",
+            )
+
+        if not shutil.which("bash"):
+            raise err(
+                "2A-S3-057 ZIC_MISSING",
+                "bash executable not found; unable to invoke zic via WSL",
+            )
+
+        wsl_source = self._to_wsl_path(source_dir)
+        wsl_output = self._to_wsl_path(output_dir)
+        leap_clause = "-L leapseconds " if leapfile.exists() else ""
+        source_args = " ".join(shlex.quote(name) for name in sources)
+        script = (
+            f"cd {shlex.quote(wsl_source)} && "
+            f"zic -d {shlex.quote(wsl_output)} {leap_clause}{source_args}"
+        )
+        proc = subprocess.run(
+            ["bash", "-lc", script],
+            capture_output=True,
+            text=True,
+        )
+        if proc.returncode != 0:
+            details = proc.stderr.strip() or proc.stdout.strip() or "no stderr output"
+            raise err("2A-S3-058 ZIC_FAILED", f"zic via bash failed: {details}")
+
+        self._emit_event(
+            "ZIC_FALLBACK",
+            {
+                "method": "bash",
+                "source_dir": str(source_dir),
+                "output_dir": str(output_dir),
+            },
+            manifest_fingerprint=manifest_fingerprint,
+        )
+
+    def _to_wsl_path(self, path: Path) -> str:
+        if not shutil.which("wsl"):
+            raise err(
+                "2A-S3-057 ZIC_MISSING",
+                "wsl executable not found; cannot translate Windows paths for zic",
+            )
+        escaped = str(path).replace("\\", "\\\\")
+        proc = subprocess.run(
+            ["wsl", "wslpath", "-a", escaped],
+            capture_output=True,
+            text=True,
+        )
+        if proc.returncode != 0:
+            raise err(
+                "2A-S3-057 ZIC_MISSING",
+                f"failed to map path '{path}' into WSL: {proc.stderr.strip()}",
+            )
+        return proc.stdout.strip()
+
+    def _resolve_archive_path(self, tzdb_dir: Path) -> Path:
+        archive_candidates = sorted(tzdb_dir.glob("*.tar.gz"))
+        if not archive_candidates:
+            raise err(
+                "E_S3_TZDB_ARCHIVE_MISSING",
+                f"no tzdata archive found under '{tzdb_dir}'",
+            )
+        return archive_candidates[0]
+
+    def _extract_archive(self, *, archive_path: Path, target_dir: Path) -> None:
+        target_dir.mkdir(parents=True, exist_ok=True)
+        with tarfile.open(archive_path, "r:gz") as handle:
+            self._safe_extract(handle, target_dir)
+
+    @staticmethod
+    def _safe_extract(tar_handle: tarfile.TarFile, target_dir: Path) -> None:
+        target_dir = target_dir.resolve()
+        for member in tar_handle.getmembers():
+            member_path = (target_dir / member.name).resolve()
+            if not str(member_path).startswith(str(target_dir)):
+                raise err(
+                    "2A-S3-054 TZDB_ARCHIVE_UNSAFE",
+                    f"archive member '{member.name}' escapes extraction root '{target_dir}'",
+                )
+        tar_handle.extractall(target_dir)
+
     def _verify_tzdb_digest(self, assets: TimetableAssets) -> str:
         files = expand_files(assets.tzdb_dir)
         digests = hash_files(files, error_prefix="E_S3_TZDB")
@@ -362,66 +623,13 @@ class TimetableRunner:
         tzids = table.column("tzid").to_pylist()
         return {str(tzid) for tzid in tzids if tzid}
 
-    def _load_tzdb_ids(self, tzdb_dir: Path) -> set[str]:
-        archive_candidates = sorted(tzdb_dir.glob("*.tar.gz"))
-        if not archive_candidates:
-            raise err(
-                "E_S3_TZDB_ARCHIVE_MISSING",
-                f"no tzdata archive found under '{tzdb_dir}'",
-            )
-        archive_path = archive_candidates[0]
-        ids: set[str] = set()
-        with tarfile.open(archive_path, "r:gz") as handle:
-            for member in ("zone1970.tab", "zone.tab"):
-                try:
-                    tz_member = handle.getmember(member)
-                except KeyError:
-                    continue
-                ids.update(self._extract_zone_tab_ids(handle.extractfile(tz_member)))
-            try:
-                backward_member = handle.getmember("backward")
-            except KeyError:
-                backward_member = None
-            if backward_member is not None:
-                ids.update(self._extract_backward_ids(handle.extractfile(backward_member)))
-        return ids
-
-    @staticmethod
-    def _extract_zone_tab_ids(file_obj) -> set[str]:
-        ids: set[str] = set()
-        if file_obj is None:
-            return ids
-        for raw in file_obj:
-            line = raw.decode("utf-8").strip()
-            if not line or line.startswith("#"):
-                continue
-            parts = line.split("\t")
-            if len(parts) >= 3:
-                ids.add(parts[2])
-        return ids
-
-    @staticmethod
-    def _extract_backward_ids(file_obj) -> set[str]:
-        ids: set[str] = set()
-        if file_obj is None:
-            return ids
-        for raw in file_obj:
-            line = raw.decode("utf-8").strip()
-            if not line or line.startswith("#"):
-                continue
-            parts = line.split()
-            if len(parts) >= 3 and parts[0].lower() == "link":
-                ids.add(parts[2])
-        return ids
-
-    def _build_canonical_index(self, tzids: Sequence[str]) -> tuple[bytes, int]:
+    def _build_canonical_index(
+        self, transitions: Mapping[str, Sequence[Sequence[int]]]
+    ) -> bytes:
         entries: list[list[object]] = []
-        for tzid in tzids:
-            entries.append([tzid, [[CANONICAL_BASE_TS, 0]]])
-        canonical_bytes = json.dumps(
-            entries, ensure_ascii=True, separators=(",", ":")
-        ).encode("utf-8")
-        return canonical_bytes, len(tzids)
+        for tzid in sorted(transitions.keys()):
+            entries.append([tzid, transitions[tzid]])
+        return json.dumps(entries, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
 
     def _emit_event(
         self,
