@@ -184,7 +184,17 @@ class S1WeightsRunner:
         output_dir.mkdir(parents=True, exist_ok=True)
         output_file = output_dir / "part-00000.parquet"
         publish_start = time.perf_counter()
-        df = pl.DataFrame(results)
+        schema = {
+            "merchant_id": pl.UInt64,
+            "legal_country_iso": pl.Utf8,
+            "site_order": pl.Int32,
+            "p_weight": pl.Float64,
+            "weight_source": pl.Utf8,
+            "quantised_bits": pl.UInt16,
+            "floor_applied": pl.Boolean,
+            "created_utc": pl.Utf8,
+        }
+        df = pl.DataFrame(results, schema=schema)
         df.write_parquet(output_file, compression="zstd")
         bytes_written = sum(f.stat().st_size for f in output_dir.glob("*.parquet"))
         timers["publish_ms"] += (time.perf_counter() - publish_start) * 1000.0

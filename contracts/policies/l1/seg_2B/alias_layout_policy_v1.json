@@ -14,7 +14,7 @@
   },
   "normalisation_epsilon": 1e-12,
   "quantised_bits": 24,
-  "quantisation_epsilon": 1e-9,
+  "quantisation_epsilon": 5.960464477539063e-08,
   "tiny_negative_epsilon": 1e-15,
   "notes": "Deterministic uniform weights with absolute floor 0 and no caps."
 }
