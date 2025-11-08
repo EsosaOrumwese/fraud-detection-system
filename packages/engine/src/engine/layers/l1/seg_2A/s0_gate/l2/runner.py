@@ -492,12 +492,16 @@ class S0GateRunner:
             target_path,
         )
         frame = (
-            pl.scan_parquet(source_path)
-            .select("merchant_id", "mcc")
-            .with_columns(
-                pl.col("merchant_id").cast(pl.UInt64),
-                pl.col("mcc").cast(pl.UInt16),
+            pl.scan_csv(
+                source_path,
+                schema_overrides={"merchant_id": pl.Utf8, "mcc": pl.Utf8},
+                ignore_errors=False,
             )
+            .with_columns(
+                pl.col("merchant_id").cast(pl.Utf8),
+                pl.col("mcc").cast(pl.Utf8),
+            )
+            .select(["merchant_id", "mcc"])
             .unique(subset=["merchant_id"], maintain_order=False)
             .sort("merchant_id")
             .collect()
@@ -532,7 +536,7 @@ class S0GateRunner:
                 "E_MCC_SOURCE_VERSION_MISSING",
                 f"no versions found under '{base}'",
             )
-        candidate = versions[-1] / "transaction_schema_merchant_ids.parquet"
+        candidate = versions[-1] / "transaction_schema_merchant_ids.csv"
         return candidate
 
 
