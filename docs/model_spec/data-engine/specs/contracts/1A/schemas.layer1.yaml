@@ -64,8 +64,8 @@ $defs:
     description: "UTC timestamp with EXACTLY 6 fractional digits."
   iana_tzid:
     type: string
-    pattern: '^[A-Za-z0-9._+-]+(?:/[A-Za-z0-9._+-]+)+$'
-    description: "IANA tzid like Area/Location (no spaces)."
+    pattern: '^[A-Za-z0-9._+-]+(?:/[A-Za-z0-9._+-]+)*$'
+    description: "IANA tzid like Area/Location (allows single-segment aliases)."
   tz_offset_minutes:
     type: integer
     minimum: -900
