@@ -157,7 +157,11 @@ class S3DayEffectsRunner:
             )
 
         joined = self._prepare_groups(weights_path, tz_path)
-        tz_groups = joined.select(["merchant_id", "tzid"]).unique().sort(["merchant_id", "tzid"])
+        tz_groups = (
+            joined.select(["merchant_id", "legal_country_iso", "tzid"])
+            .unique()
+            .sort(["merchant_id", "tzid"])
+        )
         if tz_groups.height == 0:
             raise err("E_S3_NO_TZ_GROUPS", "no tz groups found for S3 factors")
 
@@ -179,6 +183,7 @@ class S3DayEffectsRunner:
         for record in tz_groups.iter_rows(named=True):
             merchant_id = int(record["merchant_id"])
             tzid = record["tzid"]
+            legal_country_iso = record["legal_country_iso"]
             tz_group_id = self._tz_group_id(tzid)
             for day in days:
                 counter = (base_counter + row_index) & ((1 << 128) - 1)
@@ -206,7 +211,9 @@ class S3DayEffectsRunner:
                 rows_out.append(
                     {
                         "merchant_id": merchant_id,
+                        "legal_country_iso": legal_country_iso,
                         "tz_group_id": tz_group_id,
+                        "tzid": tzid,
                         "utc_day": day,
                         "gamma": gamma,
                         "log_gamma": log_gamma,
@@ -225,6 +232,7 @@ class S3DayEffectsRunner:
 
         run_report_path = self._resolve_run_report_path(config=config)
         run_report_path.parent.mkdir(parents=True, exist_ok=True)
+        sample_rows = rows_out[: min(10, len(rows_out))]
         run_report = self._build_run_report(
             config=config,
             receipt=receipt,
@@ -237,6 +245,7 @@ class S3DayEffectsRunner:
             days_total=len(days),
             rows_total=len(rows_out),
             clip_hits=clip_hits,
+            sample_rows=sample_rows,
         )
         run_report_path.write_text(json.dumps(run_report, indent=2), encoding="utf-8")
         if config.emit_run_report_stdout:
@@ -364,6 +373,7 @@ class S3DayEffectsRunner:
         days_total: int,
         rows_total: int,
         clip_hits: int,
+        sample_rows: Sequence[dict],
     ) -> dict:
         validators = [
             {"id": "V-01", "status": "PASS", "codes": []},
@@ -389,6 +399,20 @@ class S3DayEffectsRunner:
                 "days_total": days_total,
                 "rows_total": rows_total,
                 "clip_hits": clip_hits,
+                "clip_percentage": (clip_hits / rows_total) if rows_total else 0.0,
+            },
+            "samples": {
+                "factors": [
+                    {
+                        "merchant_id": row["merchant_id"],
+                        "legal_country_iso": row["legal_country_iso"],
+                        "tzid": row["tzid"],
+                        "utc_day": row["utc_day"],
+                        "gamma": row["gamma"],
+                        "log_gamma": row["log_gamma"],
+                    }
+                    for row in sample_rows
+                ],
             },
             "validators": validators,
             "summary": {"overall_status": "PASS", "warn_count": 0, "fail_count": 0},
@@ -443,4 +467,3 @@ def _sha256_hex(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             sha.update(chunk)
     return sha.hexdigest()
-

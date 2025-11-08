@@ -133,6 +133,8 @@ def test_s3_day_effects_runner_emits_factors(tmp_path: Path) -> None:
     assert df.height == 4  # 1 merchant * 2 tz groups * 2 days
     assert df["gamma"].min() > 0
     assert df["tz_group_id"].n_unique() == 2
+    assert set(df["tzid"].unique().to_list()) == {"America/New_York", "Europe/London"}
+    assert set(df["legal_country_iso"].unique().to_list()) == {"US"}
     assert result.run_report_path.exists()
 
 
@@ -165,4 +167,3 @@ def test_s3_day_effects_runner_resume(tmp_path: Path) -> None:
         )
     )
     assert resumed.resumed is True
-

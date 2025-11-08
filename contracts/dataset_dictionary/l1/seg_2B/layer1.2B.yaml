@@ -272,7 +272,7 @@ datasets:
     format: parquet
     path: data/layer1/2B/s3_day_effects/seed={seed}/fingerprint={manifest_fingerprint}/
     partitioning: [seed, fingerprint]
-    ordering: [merchant_id, tz_group_id, utc_day]
+    ordering: [merchant_id, legal_country_iso, tz_group_id, utc_day]
     schema_ref: schemas.2B.yaml#/plan/s3_day_effects
     lineage:
       produced_by: 2B.S3

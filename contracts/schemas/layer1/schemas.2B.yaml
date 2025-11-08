@@ -342,15 +342,22 @@ plan:
   s3_day_effects:
     type: table
     description: "Per-merchant, per-day, per-tz-group corporate-day modulation factors."
-    primary_key: [merchant_id, tz_group_id, utc_day]
+    primary_key: [merchant_id, legal_country_iso, tz_group_id, utc_day]
     partition_keys: [seed, fingerprint]
-    sort_keys: [merchant_id, tz_group_id, utc_day]
+    sort_keys: [merchant_id, legal_country_iso, tz_group_id, utc_day]
     columns_strict: true
     columns:
       - name: merchant_id
         $ref: 'schemas.layer1.yaml#/$defs/id64'
         nullable: false
+      - name: legal_country_iso
+        $ref: 'schemas.layer1.yaml#/$defs/iso2'
+        nullable: false
       - name: tz_group_id
+        type: string
+        minLength: 1
+        nullable: false
+      - name: tzid
         type: string
         minLength: 1
         nullable: false
