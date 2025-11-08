@@ -113,6 +113,17 @@ def test_s1_weights_runner_emits_uniform_weights(tmp_path: Path) -> None:
     assert result.run_report_path.exists()
     run_report = json.loads(result.run_report_path.read_text(encoding="utf-8"))
     assert run_report["component"] == "2B.S1"
+    assert run_report["policy"]["id"] == "alias_layout_policy_v1"
+    assert run_report["policy"]["weight_source_id"] == "uniform"
+    assert run_report["publish"]["target_path"] == (
+        f"data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest}"
+    )
+    assert run_report["publish"]["publish_bytes_total"] == run_report["publish"]["bytes_written"]
+    assert run_report["samples"]["key_coverage"]
+    assert run_report["samples"]["key_coverage"][0]["present_in_weights"] is True
+    assert run_report["samples"]["extremes"]["top"]
+    assert "p_hat" in run_report["samples"]["quantisation"][0]
+    assert run_report["timings_ms"]["resolve_ms"] >= 0
 
 
 def test_s1_weights_runner_resume(tmp_path: Path) -> None:

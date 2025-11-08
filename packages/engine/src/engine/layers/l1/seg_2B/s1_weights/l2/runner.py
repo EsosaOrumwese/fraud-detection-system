@@ -6,8 +6,8 @@ import json
 import logging
 import math
 import sys
+import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Mapping, Optional, Sequence
 
@@ -67,8 +67,10 @@ class S1WeightsResult:
 class AliasLayoutPolicy:
     """Parsed alias layout policy surface."""
 
-    policy_id: str
+    policy_name: str
+    policy_path: str
     version_tag: str
+    weight_source_id: str
     weight_mode: str
     weight_column: Optional[str]
     floor_mode: str
@@ -89,6 +91,14 @@ class S1WeightsRunner:
     RUN_REPORT_ROOT = Path("reports") / "l1" / "s1_weights"
 
     def run(self, config: S1WeightsInputs) -> S1WeightsResult:
+        timers = {
+            "resolve_ms": 0.0,
+            "transform_ms": 0.0,
+            "normalise_ms": 0.0,
+            "quantise_ms": 0.0,
+            "publish_ms": 0.0,
+        }
+        resolve_start = time.perf_counter()
         dictionary = load_dictionary(config.dictionary_path)
         receipt = load_gate_receipt(
             base_path=config.data_root,
@@ -96,10 +106,13 @@ class S1WeightsRunner:
             dictionary=dictionary,
         )
         policy = self._load_policy(config=config, dictionary=dictionary)
-        frame, site_path = self._load_site_locations(
+        frame, _site_path, site_rel = self._load_site_locations(
             config=config, dictionary=dictionary, policy=policy
         )
-        output_path = self._resolve_output_path(config=config, dictionary=dictionary)
+        timers["resolve_ms"] += (time.perf_counter() - resolve_start) * 1000.0
+        output_path, output_rel = self._resolve_output_path(
+            config=config, dictionary=dictionary
+        )
         if output_path.exists():
             if config.resume:
                 logger.info(
@@ -129,12 +142,14 @@ class S1WeightsRunner:
             "max_abs_mass_error": 0.0,
             "max_abs_delta": 0.0,
             "merchants_mass_exact_after_quant": 0,
+            "publish_bytes_total": 0,
         }
 
         rows = frame.sort(["merchant_id", "legal_country_iso", "site_order"]).to_dicts()
         results = []
         normalisation_samples: list[dict] = []
         quantisation_samples: list[tuple[tuple[int, str, int], float, float]] = []
+        key_coverage_samples = self._sample_key_coverage(rows)
 
         idx = 0
         while idx < len(rows):
@@ -157,6 +172,7 @@ class S1WeightsRunner:
                 results=results,
                 normalisation_samples=normalisation_samples,
                 quantisation_samples=quantisation_samples,
+                timers=timers,
             )
 
         merchants_total = stats["merchants_total"]
@@ -165,25 +181,32 @@ class S1WeightsRunner:
 
         output_dir = output_path
         output_dir.parent.mkdir(parents=True, exist_ok=True)
+        output_dir.mkdir(parents=True, exist_ok=True)
         output_file = output_dir / "part-00000.parquet"
+        publish_start = time.perf_counter()
         df = pl.DataFrame(results)
         df.write_parquet(output_file, compression="zstd")
         bytes_written = sum(f.stat().st_size for f in output_dir.glob("*.parquet"))
+        timers["publish_ms"] += (time.perf_counter() - publish_start) * 1000.0
+        stats["publish_bytes_total"] = bytes_written
 
         run_report_path = self._resolve_run_report_path(config=config)
         run_report_path.parent.mkdir(parents=True, exist_ok=True)
+        extreme_samples = self._sample_extremes(results)
         run_report = self._build_run_report(
             config=config,
             receipt=receipt,
             policy=policy,
             stats=stats,
             bytes_written=bytes_written,
-            output_path=output_path,
+            output_path=output_rel,
             normalisation_samples=normalisation_samples,
             quantisation_samples=quantisation_samples,
             dictionary=dictionary,
-            site_locations_path=str(site_path),
-            results=results,
+            key_coverage_samples=key_coverage_samples,
+            extreme_samples=extreme_samples,
+            timings=timers,
+            site_locations_path=site_rel,
         )
         run_report_path.write_text(json.dumps(run_report, indent=2), encoding="utf-8")
         print(json.dumps(run_report))  # pragma: no cover - operator visibility
@@ -229,9 +252,13 @@ class S1WeightsRunner:
         floor_spec = payload["floor_spec"]
         cap_spec = payload.get("cap_spec") or {"mode": "none"}
 
+        policy_name = str(payload.get("policy_id", "alias_layout_policy_v1"))
+        weight_source_id = weight_source.get("id", "unknown")
         return AliasLayoutPolicy(
-            policy_id=weight_source.get("id", "unknown"),
+            policy_name=policy_name,
+            policy_path=policy_rel,
             version_tag=str(payload.get("version_tag", "")),
+            weight_source_id=weight_source_id,
             weight_mode=weight_source.get("mode", "uniform"),
             weight_column=weight_source.get("column"),
             floor_mode=floor_spec.get("mode", "none"),
@@ -252,7 +279,7 @@ class S1WeightsRunner:
         config: S1WeightsInputs,
         dictionary: Mapping[str, object],
         policy: AliasLayoutPolicy,
-    ) -> tuple[pl.DataFrame, Path]:
+    ) -> tuple[pl.DataFrame, Path, str]:
         template_args = {
             "seed": config.seed,
             "manifest_fingerprint": config.manifest_fingerprint,
@@ -280,20 +307,20 @@ class S1WeightsRunner:
                     "E_S1_SITE_LOCATIONS_COLUMN",
                     f"site_locations missing required column '{col}'",
                 )
-        return frame, path
+        return frame, path, rel_path
 
     def _resolve_output_path(
         self,
         *,
         config: S1WeightsInputs,
         dictionary: Mapping[str, object],
-    ) -> Path:
+    ) -> tuple[Path, str]:
         rel = render_dataset_path(
             "s1_site_weights",
             template_args={"seed": config.seed, "manifest_fingerprint": config.manifest_fingerprint},
             dictionary=dictionary,
         )
-        return (config.data_root / rel).resolve()
+        return (config.data_root / rel).resolve(), rel
 
     def _resolve_run_report_path(self, *, config: S1WeightsInputs) -> Path:
         rel = (
@@ -315,12 +342,14 @@ class S1WeightsRunner:
         results: list[dict],
         normalisation_samples: list[dict],
         quantisation_samples: list[tuple[tuple[int, str, int], float, float]],
+        timers: dict[str, float],
     ) -> None:
         stats["merchants_total"] += 1
         weights = []
         floor_flags = [False] * len(group_rows)
         caps_flags = [False] * len(group_rows)
 
+        transform_start = time.perf_counter()
         if policy.weight_mode == "uniform":
             weights = [1.0] * len(group_rows)
         else:
@@ -334,10 +363,14 @@ class S1WeightsRunner:
         floored = self._apply_floor(weights, floor_flags, policy, group_rows)
         capped = self._apply_cap(floored, caps_flags, policy)
         stats["caps_applied_rows"] += sum(1 for flag in caps_flags if flag)
+        timers["transform_ms"] += (time.perf_counter() - transform_start) * 1000.0
 
+        normalise_start = time.perf_counter()
         total_mass = sum(capped)
         if total_mass <= 0:
             stats["zero_mass_fallback_merchants"] += 1
+            if policy.fallback != "uniform":
+                raise err("E_S1_FALLBACK_UNSUPPORTED", f"unsupported fallback '{policy.fallback}'")
             floored = [1.0 / len(group_rows)] * len(group_rows)
             floor_flags = [True] * len(group_rows)
             capped = floored
@@ -365,6 +398,10 @@ class S1WeightsRunner:
                 raise err("E_S1_CLAMP_ZERO", "tiny negative clamp produced zero mass")
             p_weights = [value / total for value in p_weights]
 
+        stats["floors_applied_rows"] += sum(1 for flag in floor_flags if flag)
+        timers["normalise_ms"] += (time.perf_counter() - normalise_start) * 1000.0
+
+        quantise_start = time.perf_counter()
         b = policy.quantised_bits
         grid = 1 << b
         m_star = [value * grid for value in p_weights]
@@ -396,6 +433,11 @@ class S1WeightsRunner:
                     m_int[index] -= 1
 
         p_hat = [value / grid for value in m_int]
+        if sum(m_int) != grid:
+            raise err(
+                "E_S1_QUANT_SUM",
+                f"quantisation grid sum mismatch for merchant {group_rows[0]['merchant_id']}",
+            )
         stats["merchants_mass_exact_after_quant"] += 1
 
         for idx, (p_val, p_quant, flag) in enumerate(zip(p_weights, p_hat, floor_flags)):
@@ -418,7 +460,7 @@ class S1WeightsRunner:
                     "legal_country_iso": group_rows[idx]["legal_country_iso"],
                     "site_order": group_rows[idx]["site_order"],
                     "p_weight": p_val,
-                    "weight_source": policy.policy_id,
+                    "weight_source": policy.weight_source_id,
                     "quantised_bits": policy.quantised_bits,
                     "floor_applied": flag,
                     "created_utc": receipt.verified_at_utc,
@@ -433,7 +475,8 @@ class S1WeightsRunner:
                 "abs_error": mass_error,
             }
         )
-        stats["floors_applied_rows"] += sum(1 for flag in floor_flags if flag)
+        timers["quantise_ms"] += (time.perf_counter() - quantise_start) * 1000.0
+        timers["normalise_ms"] += (time.perf_counter() - normalise_start) * 1000.0
 
     def _apply_floor(
         self,
@@ -504,10 +547,14 @@ class S1WeightsRunner:
         policy: AliasLayoutPolicy,
         stats: Mapping[str, object],
         bytes_written: int,
-        output_path: Path,
+        output_path: str,
         normalisation_samples: list[dict],
         quantisation_samples: list[tuple[tuple[int, str, int], float, float]],
         dictionary: Mapping[str, object],
+        key_coverage_samples: list[dict],
+        extreme_samples: Mapping[str, list[dict]],
+        timings: Mapping[str, float],
+        site_locations_path: str,
     ) -> dict:
         validators = [
             {"id": "V-01", "status": "PASS", "codes": []},
@@ -520,7 +567,7 @@ class S1WeightsRunner:
                     "site_order": key[2],
                 },
                 "p_weight": p,
-                "p_quantised": p_hat,
+                "p_hat": p_hat,
                 "abs_delta": abs(p_hat - p),
             }
             for key, p, p_hat in sorted(
@@ -540,15 +587,16 @@ class S1WeightsRunner:
             "created_utc": receipt.verified_at_utc,
             "catalogue_resolution": self._catalogue_resolution(dictionary=dictionary),
             "policy": {
-                "id": policy.policy_id,
+                "id": policy.policy_name,
                 "version_tag": policy.version_tag,
                 "sha256_hex": policy.sha256_hex,
+                "weight_source_id": policy.weight_source_id,
                 "quantised_bits": policy.quantised_bits,
                 "normalisation_epsilon": policy.normalisation_epsilon,
                 "quantisation_epsilon": policy.quantisation_epsilon,
             },
             "inputs_summary": {
-                "site_locations_path": f"seed={config.seed}/fingerprint={config.manifest_fingerprint}",
+                "site_locations_path": site_locations_path,
                 "merchants_total": stats["merchants_total"],
                 "sites_total": stats["sites_total"],
             },
@@ -569,8 +617,9 @@ class S1WeightsRunner:
                 "merchants_mass_exact_after_quant": stats["merchants_mass_exact_after_quant"],
             },
             "publish": {
-                "target_path": str(output_path),
+                "target_path": output_path,
                 "bytes_written": bytes_written,
+                "publish_bytes_total": stats.get("publish_bytes_total", bytes_written),
                 "write_once_verified": True,
                 "atomic_publish": True,
             },
@@ -582,28 +631,90 @@ class S1WeightsRunner:
                 "network_io_detected": 0,
             },
             "samples": {
+                "key_coverage": key_coverage_samples,
                 "normalisation": sorted(
                     normalisation_samples,
                     key=lambda item: (-item["abs_error"], item["merchant_id"]),
                 )[:20],
                 "quantisation": quant_samples,
+                "extremes": extreme_samples,
+            },
+            "timings_ms": {
+                "resolve_ms": int(round(timings.get("resolve_ms", 0.0))),
+                "transform_ms": int(round(timings.get("transform_ms", 0.0))),
+                "normalise_ms": int(round(timings.get("normalise_ms", 0.0))),
+                "quantise_ms": int(round(timings.get("quantise_ms", 0.0))),
+                "publish_ms": int(round(timings.get("publish_ms", 0.0))),
             },
             "id_map": [
                 {
                     "id": "site_locations",
-                    "path": f"seed={config.seed}/fingerprint={config.manifest_fingerprint}",
+                    "path": site_locations_path,
                 },
                 {
                     "id": "alias_layout_policy_v1",
-                    "path": "contracts/policies/l1/seg_2B/alias_layout_policy_v1.json",
+                    "path": policy.policy_path,
                 },
                 {
                     "id": "s1_site_weights",
-                    "path": str(output_path),
+                    "path": output_path,
                 },
             ],
         }
         return run_report
+
+    def _sample_key_coverage(self, rows: Sequence[dict], limit: int = 20) -> list[dict]:
+        """Return deterministic key coverage samples."""
+
+        samples: list[dict] = []
+        seen: set[tuple[int, str, int]] = set()
+        for row in rows:
+            key = (row["merchant_id"], row["legal_country_iso"], row["site_order"])
+            if key in seen:
+                continue
+            seen.add(key)
+            samples.append(
+                {
+                    "key": {
+                        "merchant_id": key[0],
+                        "legal_country_iso": key[1],
+                        "site_order": key[2],
+                    },
+                    "present_in_weights": True,
+                }
+            )
+            if len(samples) >= limit:
+                break
+        return samples
+
+    def _sample_extremes(
+        self, results: Sequence[dict], limit: int = 10
+    ) -> Mapping[str, list[dict]]:
+        """Return the top/bottom weight samples."""
+
+        bottom = sorted(
+            results,
+            key=lambda row: (row["p_weight"], row["merchant_id"], row["site_order"]),
+        )[:limit]
+        top = sorted(
+            results,
+            key=lambda row: (-row["p_weight"], row["merchant_id"], row["site_order"]),
+        )[:limit]
+
+        def convert(rows: Sequence[dict]) -> list[dict]:
+            return [
+                {
+                    "key": {
+                        "merchant_id": row["merchant_id"],
+                        "legal_country_iso": row["legal_country_iso"],
+                        "site_order": row["site_order"],
+                    },
+                    "p_weight": row["p_weight"],
+                }
+                for row in rows
+            ]
+
+        return {"top": convert(top), "bottom": convert(bottom)}
 
     def _catalogue_resolution(self, *, dictionary: Mapping[str, object]) -> Mapping[str, str]:
         catalogue = dictionary.get("catalogue") or {}
