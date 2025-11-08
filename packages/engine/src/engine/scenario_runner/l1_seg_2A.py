@@ -9,6 +9,9 @@ from pathlib import Path
 from typing import Mapping, Optional
 
 from engine.layers.l1.seg_2A import (
+    LegalityInputs,
+    LegalityResult,
+    LegalityRunner,
     OverridesInputs,
     OverridesResult,
     OverridesRunner,
@@ -50,6 +53,8 @@ class Segment2AConfig:
     s2_resume: bool = False
     run_s3: bool = False
     s3_resume: bool = False
+    run_s4: bool = False
+    s4_resume: bool = False
 
 
 @dataclass(frozen=True)
@@ -68,6 +73,9 @@ class Segment2AResult:
     s3_output_path: Path | None = None
     s3_resumed: bool = False
     s3_run_report_path: Path | None = None
+    s4_output_path: Path | None = None
+    s4_resumed: bool = False
+    s4_run_report_path: Path | None = None
     s3_adjustments_path: Path | None = None
 
 
@@ -79,6 +87,7 @@ class Segment2AOrchestrator:
         self._s1_runner = ProvisionalLookupRunner()
         self._s2_runner = OverridesRunner()
         self._s3_runner = TimetableRunner()
+        self._s4_runner = LegalityRunner()
 
     def run(self, config: Segment2AConfig) -> Segment2AResult:
         dictionary = config.dictionary or load_dictionary(config.dictionary_path)
@@ -157,6 +166,7 @@ class Segment2AOrchestrator:
         s1_result: ProvisionalLookupResult | None = None
         s2_result: OverridesResult | None = None
         s3_result: TimetableResult | None = None
+        s4_result: LegalityResult | None = None
         if config.run_s1:
             logger.info(
                 "Segment2A S1 starting (seed=%s, manifest=%s)",
@@ -222,6 +232,27 @@ class Segment2AOrchestrator:
                 s3_result.resumed,
             )
 
+        if config.run_s4:
+            logger.info(
+                "Segment2A S4 starting (seed=%s, manifest=%s)",
+                config.seed,
+                gate_manifest,
+            )
+            s4_result = self._s4_runner.run(
+                LegalityInputs(
+                    data_root=data_root,
+                    seed=config.seed,
+                    manifest_fingerprint=gate_manifest,
+                    resume=config.s4_resume,
+                    dictionary=dictionary,
+                )
+            )
+            logger.info(
+                "Segment2A S4 completed (output=%s, resumed=%s)",
+                s4_result.output_path,
+                s4_result.resumed,
+            )
+
         return Segment2AResult(
             manifest_fingerprint=gate_manifest,
             receipt_path=gate_receipt_path,
@@ -236,6 +267,9 @@ class Segment2AOrchestrator:
             s3_resumed=s3_result.resumed if s3_result else False,
             s3_run_report_path=s3_result.run_report_path if s3_result else None,
             s3_adjustments_path=s3_result.adjustments_path if s3_result else None,
+            s4_output_path=s4_result.output_path if s4_result else None,
+            s4_resumed=s4_result.resumed if s4_result else False,
+            s4_run_report_path=s4_result.run_report_path if s4_result else None,
         )
 
     @staticmethod

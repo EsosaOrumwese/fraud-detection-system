@@ -75,6 +75,11 @@ def _print_summary(result: Segment2AResult) -> None:
         payload["s3_run_report_path"] = str(result.s3_run_report_path)
     if result.s3_adjustments_path:
         payload["s3_adjustments_path"] = str(result.s3_adjustments_path)
+    if result.s4_output_path:
+        payload["s4_output_path"] = str(result.s4_output_path)
+        payload["s4_resumed"] = result.s4_resumed
+    if result.s4_run_report_path:
+        payload["s4_run_report_path"] = str(result.s4_run_report_path)
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
@@ -186,6 +191,16 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Skip S3 execution when its output partition already exists.",
     )
+    parser.add_argument(
+        "--run-s4",
+        action="store_true",
+        help="Execute the legality report (S4) after upstream phases complete.",
+    )
+    parser.add_argument(
+        "--s4-resume",
+        action="store_true",
+        help="Skip S4 execution when its output partition already exists.",
+    )
 
     args = parser.parse_args(argv)
 
@@ -218,6 +233,8 @@ def main(argv: list[str] | None = None) -> int:
             s2_resume=args.s2_resume,
             run_s3=args.run_s3,
             s3_resume=args.s3_resume,
+            run_s4=args.run_s4,
+            s4_resume=args.s4_resume,
         )
     )
     _print_summary(result)

@@ -19,6 +19,7 @@ from .s1_provisional import (
 )
 from .s2_overrides import OverridesInputs, OverridesResult, OverridesRunner
 from .s3_timetable import TimetableInputs, TimetableResult, TimetableRunner
+from .s4_legality import LegalityInputs, LegalityResult, LegalityRunner
 
 __all__ = [
     "S0GateInputs",
@@ -34,4 +35,7 @@ __all__ = [
     "TimetableInputs",
     "TimetableResult",
     "TimetableRunner",
+    "LegalityInputs",
+    "LegalityResult",
+    "LegalityRunner",
 ]
