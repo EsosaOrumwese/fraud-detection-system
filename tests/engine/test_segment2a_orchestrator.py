@@ -11,6 +11,8 @@ from engine.layers.l1.seg_2A import (
     LegalityInputs,
     LegalityResult,
     ProvisionalLookupResult,
+    ValidationInputs,
+    ValidationResult,
 )
 from engine.scenario_runner.l1_seg_2A import Segment2AConfig, Segment2AOrchestrator
 
@@ -37,6 +39,7 @@ def test_segment2a_orchestrator_run_and_resume(monkeypatch):
 
         captured: dict[str, ProvisionalLookupResult] = {}
         captured_s4: dict[str, LegalityInputs] = {}
+        captured_s5: dict[str, ValidationInputs] = {}
 
         class DummyLookupRunner:
             def run(self, inputs):
@@ -80,6 +83,32 @@ def test_segment2a_orchestrator_run_and_resume(monkeypatch):
                     resumed=inputs.resume,
                 )
 
+        class DummyValidationRunner:
+            def run(self, inputs):
+                bundle_dir = (
+                    root
+                    / f"data/layer1/2A/validation/fingerprint={inputs.manifest_fingerprint}"
+                )
+                bundle_dir.mkdir(parents=True, exist_ok=True)
+                (bundle_dir / "index.json").write_text("{}", encoding="utf-8")
+                flag_path = bundle_dir / "_passed.flag"
+                flag_path.write_text("sha256_hex = 0\n", encoding="utf-8")
+                report_path = (
+                    root
+                    / f"reports/l1/s5_validation/fingerprint={inputs.manifest_fingerprint}"
+                    / "run_report.json"
+                )
+                report_path.parent.mkdir(parents=True, exist_ok=True)
+                report_path.write_text("{}", encoding="utf-8")
+                captured_s5["inputs"] = inputs
+                return ValidationResult(
+                    manifest_fingerprint=inputs.manifest_fingerprint,
+                    bundle_path=bundle_dir,
+                    flag_path=flag_path,
+                    run_report_path=report_path,
+                    resumed=inputs.resume,
+                )
+
         monkeypatch.setattr(
             "engine.scenario_runner.l1_seg_2A.ProvisionalLookupRunner",
             lambda: DummyLookupRunner(),
@@ -87,6 +116,10 @@ def test_segment2a_orchestrator_run_and_resume(monkeypatch):
         monkeypatch.setattr(
             "engine.scenario_runner.l1_seg_2A.LegalityRunner",
             lambda: DummyLegalityRunner(),
+        )
+        monkeypatch.setattr(
+            "engine.scenario_runner.l1_seg_2A.ValidationRunner",
+            lambda: DummyValidationRunner(),
         )
 
         orchestrator = Segment2AOrchestrator()
@@ -104,6 +137,7 @@ def test_segment2a_orchestrator_run_and_resume(monkeypatch):
                 run_s1=True,
                 s1_chunk_size=10,
                 run_s4=True,
+                run_s5=True,
             )
         )
 
@@ -116,6 +150,9 @@ def test_segment2a_orchestrator_run_and_resume(monkeypatch):
         assert initial.s4_output_path is not None
         assert captured_s4["inputs"].seed == seed
         assert initial.s4_resumed is False
+        assert initial.s5_bundle_path is not None
+        assert captured_s5["inputs"].manifest_fingerprint == upstream_fp
+        assert initial.s5_resumed is False
 
         resumed = orchestrator.run(
             Segment2AConfig(
@@ -133,6 +170,8 @@ def test_segment2a_orchestrator_run_and_resume(monkeypatch):
                 s1_resume=True,
                 run_s4=True,
                 s4_resume=True,
+                run_s5=True,
+                s5_resume=True,
             )
         )
 
@@ -143,6 +182,7 @@ def test_segment2a_orchestrator_run_and_resume(monkeypatch):
         assert resumed.s1_output_path is not None
         assert resumed.s1_resumed is True
         assert resumed.s4_resumed is True
+        assert resumed.s5_resumed is True
 
 
 @pytest.mark.integration

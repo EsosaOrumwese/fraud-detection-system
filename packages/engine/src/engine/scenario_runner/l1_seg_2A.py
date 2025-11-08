@@ -22,6 +22,9 @@ from engine.layers.l1.seg_2A import (
     TimetableInputs,
     TimetableResult,
     TimetableRunner,
+    ValidationInputs,
+    ValidationResult,
+    ValidationRunner,
 )
 from engine.layers.l1.seg_2A.s0_gate.l2.runner import GateInputs
 from engine.layers.l1.seg_2A.shared.dictionary import load_dictionary, render_dataset_path
@@ -53,6 +56,8 @@ class Segment2AConfig:
     s2_resume: bool = False
     run_s3: bool = False
     s3_resume: bool = False
+    run_s5: bool = False
+    s5_resume: bool = False
     run_s4: bool = False
     s4_resume: bool = False
 
@@ -76,6 +81,10 @@ class Segment2AResult:
     s4_output_path: Path | None = None
     s4_resumed: bool = False
     s4_run_report_path: Path | None = None
+    s5_bundle_path: Path | None = None
+    s5_flag_path: Path | None = None
+    s5_run_report_path: Path | None = None
+    s5_resumed: bool = False
     s3_adjustments_path: Path | None = None
 
 
@@ -87,6 +96,8 @@ class Segment2AOrchestrator:
         self._s1_runner = ProvisionalLookupRunner()
         self._s2_runner = OverridesRunner()
         self._s3_runner = TimetableRunner()
+        self._s4_runner = LegalityRunner()
+        self._s5_runner = ValidationRunner()
         self._s4_runner = LegalityRunner()
 
     def run(self, config: Segment2AConfig) -> Segment2AResult:
@@ -167,6 +178,7 @@ class Segment2AOrchestrator:
         s2_result: OverridesResult | None = None
         s3_result: TimetableResult | None = None
         s4_result: LegalityResult | None = None
+        s5_result: ValidationResult | None = None
         if config.run_s1:
             logger.info(
                 "Segment2A S1 starting (seed=%s, manifest=%s)",
@@ -253,6 +265,25 @@ class Segment2AOrchestrator:
                 s4_result.resumed,
             )
 
+        if config.run_s5:
+            logger.info(
+                "Segment2A S5 starting (manifest=%s)",
+                gate_manifest,
+            )
+            s5_result = self._s5_runner.run(
+                ValidationInputs(
+                    data_root=data_root,
+                    manifest_fingerprint=gate_manifest,
+                    resume=config.s5_resume,
+                    dictionary=dictionary,
+                )
+            )
+            logger.info(
+                "Segment2A S5 completed (bundle=%s, resumed=%s)",
+                s5_result.bundle_path,
+                s5_result.resumed,
+            )
+
         return Segment2AResult(
             manifest_fingerprint=gate_manifest,
             receipt_path=gate_receipt_path,
@@ -270,6 +301,10 @@ class Segment2AOrchestrator:
             s4_output_path=s4_result.output_path if s4_result else None,
             s4_resumed=s4_result.resumed if s4_result else False,
             s4_run_report_path=s4_result.run_report_path if s4_result else None,
+            s5_bundle_path=s5_result.bundle_path if s5_result else None,
+            s5_flag_path=s5_result.flag_path if s5_result else None,
+            s5_run_report_path=s5_result.run_report_path if s5_result else None,
+            s5_resumed=s5_result.resumed if s5_result else False,
         )
 
     @staticmethod

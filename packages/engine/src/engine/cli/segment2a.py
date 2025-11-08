@@ -80,6 +80,12 @@ def _print_summary(result: Segment2AResult) -> None:
         payload["s4_resumed"] = result.s4_resumed
     if result.s4_run_report_path:
         payload["s4_run_report_path"] = str(result.s4_run_report_path)
+    if result.s5_bundle_path:
+        payload["s5_bundle_path"] = str(result.s5_bundle_path)
+        payload["s5_flag_path"] = str(result.s5_flag_path)
+        payload["s5_resumed"] = result.s5_resumed
+    if result.s5_run_report_path:
+        payload["s5_run_report_path"] = str(result.s5_run_report_path)
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
@@ -201,6 +207,16 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Skip S4 execution when its output partition already exists.",
     )
+    parser.add_argument(
+        "--run-s5",
+        action="store_true",
+        help="Execute the validation bundle + pass flag (S5) after upstream phases complete.",
+    )
+    parser.add_argument(
+        "--s5-resume",
+        action="store_true",
+        help="Skip S5 execution when its output partition already exists.",
+    )
 
     args = parser.parse_args(argv)
 
@@ -235,6 +251,8 @@ def main(argv: list[str] | None = None) -> int:
             s3_resume=args.s3_resume,
             run_s4=args.run_s4,
             s4_resume=args.s4_resume,
+            run_s5=args.run_s5,
+            s5_resume=args.s5_resume,
         )
     )
     _print_summary(result)
