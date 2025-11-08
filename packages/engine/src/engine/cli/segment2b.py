@@ -46,6 +46,10 @@ def _print_summary(result: Segment2BResult) -> None:
         "flag_sha256_hex": result.flag_sha256_hex,
         "verified_at_utc": result.verified_at_utc,
     }
+    if result.s1_output_path:
+        payload["s1_output_path"] = str(result.s1_output_path)
+        payload["s1_run_report_path"] = str(result.s1_run_report_path)
+        payload["s1_resumed"] = result.s1_resumed
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
@@ -106,6 +110,16 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Pin site_timezones and tz_timetable_cache as optional dictionary assets.",
     )
+    parser.add_argument(
+        "--run-s1",
+        action="store_true",
+        help="Execute S1 weight freezing after the gate completes.",
+    )
+    parser.add_argument(
+        "--s1-resume",
+        action="store_true",
+        help="Skip S1 execution when its output partition already exists.",
+    )
 
     args = parser.parse_args(argv)
 
@@ -122,6 +136,8 @@ def main(argv: list[str] | None = None) -> int:
             validation_bundle_path=args.validation_bundle,
             notes=args.notes,
             pin_civil_time=args.pin_tz_assets,
+            run_s1=args.run_s1,
+            s1_resume=args.s1_resume,
         )
     )
     _print_summary(result)

@@ -125,27 +125,51 @@ policy:
   alias_layout_policy_v1:
     type: object
     additionalProperties: false
-    required: [version_tag, endianness, alignment_bytes, record_sizes]
+    required:
+      [
+        version_tag,
+        weight_source,
+        floor_spec,
+        normalisation_epsilon,
+        quantised_bits,
+        quantisation_epsilon,
+      ]
     properties:
       version_tag: { type: string, minLength: 1 }
-      endianness: { type: string, enum: [little, big] }
-      alignment_bytes:
-        type: integer
-        minimum: 1
-      record_sizes:
+      weight_source:
         type: object
         additionalProperties: false
-        required: [probability, alias]
+        required: [id, mode]
         properties:
-          probability:
-            type: integer
-            minimum: 1
-          alias:
-            type: integer
-            minimum: 1
-      vector_width:
+          id: { type: string, minLength: 1 }
+          mode: { type: string, enum: [uniform, column] }
+          column: { type: string }
+      floor_spec:
+        type: object
+        additionalProperties: false
+        required: [mode, fallback]
+        properties:
+          mode: { type: string, enum: [absolute, relative, none] }
+          value: { type: number }
+          fallback: { type: string, enum: [uniform] }
+      cap_spec:
+        type: object
+        additionalProperties: false
+        properties:
+          mode: { type: string, enum: [none, absolute, relative] }
+          value: { type: number }
+      normalisation_epsilon:
+        type: number
+        exclusiveMinimum: 0
+      quantised_bits:
         type: integer
         minimum: 1
+      quantisation_epsilon:
+        type: number
+        exclusiveMinimum: 0
+      tiny_negative_epsilon:
+        type: number
+        exclusiveMinimum: 0
       notes: { type: string }
 
   virtual_edge_policy_v1:
@@ -193,3 +217,42 @@ policy:
       calendar: { type: string }
       notes: { type: string }
 
+# -- Plan tables ------------------------------------------------------------
+plan:
+
+  s1_site_weights:
+    type: table
+    description: "Frozen per-site probability weights per merchant."
+    primary_key: [merchant_id, legal_country_iso, site_order]
+    partition_keys: [seed, fingerprint]
+    sort_keys: [merchant_id, legal_country_iso, site_order]
+    columns_strict: true
+    columns:
+      - name: merchant_id
+        $ref: 'schemas.layer1.yaml#/$defs/id64'
+        nullable: false
+      - name: legal_country_iso
+        $ref: 'schemas.layer1.yaml#/$defs/iso2'
+        nullable: false
+      - name: site_order
+        type: integer
+        minimum: 1
+        nullable: false
+      - name: p_weight
+        type: number
+        minimum: 0
+        maximum: 1
+        nullable: false
+      - name: weight_source
+        type: string
+        nullable: false
+      - name: quantised_bits
+        type: integer
+        minimum: 1
+        nullable: false
+      - name: floor_applied
+        type: boolean
+        nullable: false
+      - name: created_utc
+        $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros'
+        nullable: false

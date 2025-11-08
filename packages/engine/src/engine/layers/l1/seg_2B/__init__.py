@@ -7,6 +7,11 @@ from .s0_gate import (
     SealedAsset as S0SealedAsset,
     S0GateError,
 )
+from .s1_weights import (
+    S1WeightsInputs,
+    S1WeightsResult,
+    S1WeightsRunner,
+)
 
 __all__ = [
     "S0GateInputs",
@@ -14,5 +19,7 @@ __all__ = [
     "S0GateRunner",
     "S0SealedAsset",
     "S0GateError",
+    "S1WeightsInputs",
+    "S1WeightsResult",
+    "S1WeightsRunner",
 ]
-
