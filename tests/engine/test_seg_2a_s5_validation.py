@@ -17,6 +17,8 @@ datasets:
     path: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
   - id: tz_timetable_cache
     path: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
+  - id: tz_offset_adjustments
+    path: data/layer1/2A/tz_offset_adjustments/fingerprint={manifest_fingerprint}/
   - id: s4_legality_report
     path: data/layer1/2A/legality_report/seed={seed}/fingerprint={manifest_fingerprint}/s4_legality_report.json
   - id: validation_bundle_2A
@@ -87,6 +89,28 @@ def _write_tz_cache(base: Path, manifest: str) -> Path:
     return manifest_path
 
 
+def _write_tz_adjustments(base: Path, manifest: str) -> Path:
+    adjustments_dir = base / f"data/layer1/2A/tz_offset_adjustments/fingerprint={manifest}"
+    adjustments_dir.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "manifest_fingerprint": manifest,
+        "created_utc": "2025-11-08T00:00:00.000000Z",
+        "count": 1,
+        "adjustments": [
+            {
+                "tzid": "America/New_York",
+                "transition_unix_utc": -9223372036854775808,
+                "raw_seconds": -18001,
+                "adjusted_minutes": -300,
+                "reasons": ["clip"],
+            }
+        ],
+    }
+    path = adjustments_dir / "tz_offset_adjustments.json"
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return path
+
+
 def test_validation_runner_builds_bundle(tmp_path: Path) -> None:
     manifest = "c" * 64
     seeds = [1, 2]
@@ -122,6 +146,8 @@ def test_validation_runner_builds_bundle(tmp_path: Path) -> None:
     assert report_payload["s4"]["covered"] == len(seeds)
     assert report_payload["digest"]["computed_sha256"] == digest_value
     assert report_payload["flag"]["value"] == digest_value
+    assert report_payload["inputs"]["adjustments"]["path"] is None
+    assert report_payload["inputs"]["adjustments"]["count"] == 0
 
     resumed = runner.run(
         ValidationInputs(
@@ -234,3 +260,30 @@ def test_validation_runner_rejects_empty_cache_bytes(tmp_path: Path) -> None:
             )
         )
     assert excinfo.value.code == "E_S5_TZ_MANIFEST_EMPTY"
+
+
+def test_validation_runner_stages_adjustments_when_present(tmp_path: Path) -> None:
+    manifest = "abc" + "0" * 61
+    seeds = [9]
+    dictionary_path = _write_dictionary(tmp_path)
+    _write_gate_receipt(tmp_path, manifest)
+    _write_site_timezones(tmp_path, manifest, seeds)
+    _write_tz_cache(tmp_path, manifest)
+    _write_s4_reports(tmp_path, manifest, seeds)
+    adjustments_path = _write_tz_adjustments(tmp_path, manifest)
+
+    runner = ValidationRunner()
+    result = runner.run(
+        ValidationInputs(
+            data_root=tmp_path,
+            manifest_fingerprint=manifest,
+            dictionary_path=dictionary_path,
+        )
+    )
+
+    index_payload = json.loads((result.bundle_path / "index.json").read_text(encoding="utf-8"))
+    paths = [entry["path"] for entry in index_payload["files"]]
+    assert "evidence/s3/tz_offset_adjustments.json" in paths
+    report_payload = json.loads(result.run_report_path.read_text(encoding="utf-8"))
+    assert report_payload["inputs"]["adjustments"]["path"] == str(adjustments_path)
+    assert report_payload["inputs"]["adjustments"]["count"] == 1

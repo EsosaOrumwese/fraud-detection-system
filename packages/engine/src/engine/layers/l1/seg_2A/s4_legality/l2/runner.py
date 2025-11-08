@@ -20,6 +20,7 @@ from engine.layers.l1.seg_2A.shared.dictionary import (
     resolve_dataset_path,
 )
 from engine.layers.l1.seg_2A.shared.receipt import GateReceiptSummary, load_gate_receipt
+from engine.layers.l1.seg_2A.shared.tz_assets import load_tz_adjustments
 
 from ..l1.context import LegalityAssets, LegalityContext
 
@@ -56,6 +57,8 @@ class LegalityStats:
     gap_windows_total: int = 0
     fold_windows_total: int = 0
     missing_tzids: list[str] = field(default_factory=list)
+    adjustments_count: int = 0
+    adjustments_tzids: list[str] = field(default_factory=list)
 
 
 class LegalityRunner:
@@ -166,6 +169,9 @@ class LegalityRunner:
         stats: LegalityStats,
         warnings: list[str],
     ) -> tuple[int, str]:
+        if context.tz_adjustments:
+            stats.adjustments_count = context.tz_adjustments.count
+            stats.adjustments_tzids = list(context.tz_adjustments.tzids)
         tzid_usage, sites_total = self._load_site_timezones(context.assets.site_timezones_path)
         stats.sites_total = sites_total
         stats.tzids_total = len(tzid_usage)
@@ -234,6 +240,11 @@ class LegalityRunner:
                 "E_S4_CACHE_MISSING",
                 f"tz_timetable_cache payload missing under '{cache_dir}'",
             )
+        adjustments_summary = load_tz_adjustments(
+            base_path=data_root,
+            manifest_fingerprint=manifest_fingerprint,
+            dictionary=dictionary,
+        )
         assets = LegalityAssets(
             site_timezones_path=site_path,
             tz_cache_dir=cache_dir,
@@ -247,6 +258,7 @@ class LegalityRunner:
             receipt_path=receipt.path,
             verified_at_utc=receipt.verified_at_utc,
             assets=assets,
+            tz_adjustments=adjustments_summary,
         )
 
     def _load_site_timezones(self, path: Path) -> tuple[list[str], int]:
@@ -418,6 +430,13 @@ class LegalityRunner:
             "inputs": {
                 "site_timezones": str(context.assets.site_timezones_path),
                 "tz_timetable_cache": str(context.assets.tz_cache_dir),
+            },
+            "adjustments": {
+                "path": str(context.tz_adjustments.path)
+                if context.tz_adjustments
+                else None,
+                "count": stats.adjustments_count,
+                "tzids_sample": stats.adjustments_tzids[:5],
             },
             "counts": {
                 "sites_total": stats.sites_total,

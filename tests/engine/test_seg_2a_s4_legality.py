@@ -17,6 +17,8 @@ datasets:
     path: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
   - id: tz_timetable_cache
     path: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
+  - id: tz_offset_adjustments
+    path: data/layer1/2A/tz_offset_adjustments/fingerprint={manifest_fingerprint}/
   - id: s4_legality_report
     path: data/layer1/2A/legality_report/seed={seed}/fingerprint={manifest_fingerprint}/s4_legality_report.json
 """
@@ -77,6 +79,29 @@ def _write_tz_cache(base: Path, manifest: str) -> Path:
     return cache_dir
 
 
+def _write_tz_adjustments(base: Path, manifest: str, count: int = 2) -> Path:
+    adjustments_dir = base / f"data/layer1/2A/tz_offset_adjustments/fingerprint={manifest}"
+    adjustments_dir.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "manifest_fingerprint": manifest,
+        "created_utc": "2025-11-08T00:00:00.000000Z",
+        "count": count,
+        "adjustments": [
+            {
+                "tzid": "America/New_York",
+                "transition_unix_utc": -9223372036854775808,
+                "raw_seconds": -18010,
+                "adjusted_minutes": -300,
+                "reasons": ["clip"],
+            }
+            for _ in range(count)
+        ],
+    }
+    path = adjustments_dir / "tz_offset_adjustments.json"
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return path
+
+
 def test_legality_runner_builds_report(tmp_path: Path) -> None:
     seed = 42
     manifest = "a" * 64
@@ -109,6 +134,8 @@ def test_legality_runner_builds_report(tmp_path: Path) -> None:
     report_payload = json.loads(run_report.read_text(encoding="utf-8"))
     assert report_payload["status"] == "PASS"
     assert report_payload["counts"]["gap_windows_total"] == 60
+    assert report_payload["adjustments"]["path"] is None
+    assert report_payload["adjustments"]["count"] == 0
 
     resumed = runner.run(
         LegalityInputs(
@@ -121,6 +148,30 @@ def test_legality_runner_builds_report(tmp_path: Path) -> None:
     )
     assert resumed.resumed is True
     assert resumed.output_path == result.output_path
+
+
+def test_legality_runner_reports_adjustments_metadata(tmp_path: Path) -> None:
+    seed = 8
+    manifest = "c" * 64
+    dictionary_path = _write_dictionary(tmp_path)
+    _write_gate_receipt(tmp_path, manifest)
+    _write_site_timezones(tmp_path, seed, manifest)
+    _write_tz_cache(tmp_path, manifest)
+    adjustments_path = _write_tz_adjustments(tmp_path, manifest, count=3)
+
+    runner = LegalityRunner()
+    result = runner.run(
+        LegalityInputs(
+            data_root=tmp_path,
+            seed=seed,
+            manifest_fingerprint=manifest,
+            dictionary_path=dictionary_path,
+        )
+    )
+    report_payload = json.loads(Path(result.run_report_path).read_text(encoding="utf-8"))
+    assert report_payload["adjustments"]["path"] == str(adjustments_path)
+    assert report_payload["adjustments"]["count"] == 3
+    assert report_payload["adjustments"]["tzids_sample"] == ["America/New_York"]
 
 
 def test_legality_runner_flags_missing_tzid(tmp_path: Path) -> None:

@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
 
+from ...shared.tz_assets import TzAdjustmentsSummary
+
 
 @dataclass(frozen=True)
 class ValidationAssets:
@@ -38,3 +40,4 @@ class ValidationContext:
     dictionary: Mapping[str, object]
     assets: ValidationAssets
     tz_cache_manifest: TzCacheManifestSummary
+    tz_adjustments: TzAdjustmentsSummary | None

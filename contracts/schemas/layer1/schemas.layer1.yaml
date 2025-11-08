@@ -57,6 +57,22 @@ $defs:
   stream_label:
     type: string
     description: Deterministic Philox sub-stream label (e.g., 'hurdle_bernoulli', 'gumbel_key').
+  rfc3339_micros:
+    type: string
+    format: date-time
+    pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z$
+    description: "UTC timestamp with EXACTLY 6 fractional digits."
+  iana_tzid:
+    type: string
+    pattern: '^[A-Za-z0-9._+-]+(?:/[A-Za-z0-9._+-]+)+$'
+    description: "IANA tzid like Area/Location (no spaces)."
+  tz_offset_minutes:
+    type: integer
+    minimum: -900
+    maximum: 900
+  fold_bit:
+    type: integer
+    enum: [0,1]
 
   # Common envelope for all RNG JSONL events
   rng_envelope:

@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from ...shared.tz_assets import TzAdjustmentsSummary
+
 
 @dataclass(frozen=True)
 class LegalityAssets:
@@ -26,4 +28,4 @@ class LegalityContext:
     receipt_path: Path
     verified_at_utc: str
     assets: LegalityAssets
-
+    tz_adjustments: TzAdjustmentsSummary | None

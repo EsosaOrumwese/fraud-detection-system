@@ -22,6 +22,7 @@ from engine.layers.l1.seg_2A.shared.dictionary import (
 )
 from engine.layers.l1.seg_2A.shared.receipt import GateReceiptSummary, load_gate_receipt
 from engine.layers.l1.seg_2A.shared.schema import load_schema
+from engine.layers.l1.seg_2A.shared.tz_assets import load_tz_adjustments
 
 from ..l1.context import (
     TzCacheManifestSummary,
@@ -75,6 +76,7 @@ class ValidationStats:
     index_sorted_ascii_lex: bool = False
     index_path_root_scoped: bool = False
     includes_flag_in_index: bool = False
+    adjustments_count: int = 0
 
 
 @dataclass(frozen=True)
@@ -221,6 +223,8 @@ class ValidationRunner:
         stats: ValidationStats,
         warnings: list[str],
     ) -> None:
+        if context.tz_adjustments:
+            stats.adjustments_count = context.tz_adjustments.count
         seeds = self._discover_seeds(
             context.assets.site_timezones_root, context.manifest_fingerprint
         )
@@ -252,6 +256,10 @@ class ValidationRunner:
                     "tzdb_release_tag": context.tz_cache_manifest.tzdb_release_tag,
                     "tz_index_digest": context.tz_cache_manifest.tz_index_digest,
                     "rle_cache_bytes": context.tz_cache_manifest.rle_cache_bytes,
+                    "tz_offset_adjustments": str(context.tz_adjustments.path)
+                    if context.tz_adjustments
+                    else None,
+                    "tz_offset_adjustments_count": stats.adjustments_count,
                     "seeds_total": len(seeds),
                     "s4_covered": stats.s4_covered,
                     "s4_missing": missing_seeds,
@@ -350,6 +358,11 @@ class ValidationRunner:
             site_timezones_root=seed_root,
             tz_cache_dir=tz_cache_dir,
         )
+        adjustments_summary = load_tz_adjustments(
+            base_path=data_root,
+            manifest_fingerprint=manifest_fingerprint,
+            dictionary=dictionary,
+        )
         return ValidationContext(
             data_root=data_root,
             manifest_fingerprint=manifest_fingerprint,
@@ -358,6 +371,7 @@ class ValidationRunner:
             dictionary=dictionary,
             assets=assets,
             tz_cache_manifest=manifest_summary,
+            tz_adjustments=adjustments_summary,
         )
 
     def _discover_seeds(self, site_root: Path, manifest_fingerprint: str) -> list[int]:
@@ -400,6 +414,14 @@ class ValidationRunner:
                 relative_path="evidence/s3/tz_timetable_cache.manifest.json",
             )
         )
+        if context.tz_adjustments:
+            entries.append(
+                self._stage_file(
+                    source=context.tz_adjustments.path,
+                    staging_dir=staging_dir,
+                    relative_path="evidence/s3/tz_offset_adjustments.json",
+                )
+            )
         for seed in seeds:
             s4_path = (
                 context.data_root
@@ -618,7 +640,13 @@ class ValidationRunner:
                     "tzdb_release_tag": context.tz_cache_manifest.tzdb_release_tag,
                     "tz_index_digest": context.tz_cache_manifest.tz_index_digest,
                     "rle_cache_bytes": context.tz_cache_manifest.rle_cache_bytes,
-                }
+                },
+                "adjustments": {
+                    "path": str(context.tz_adjustments.path)
+                    if context.tz_adjustments
+                    else None,
+                    "count": stats.adjustments_count,
+                },
             },
             "seeds": {
                 "discovered": len(stats.seeds),
