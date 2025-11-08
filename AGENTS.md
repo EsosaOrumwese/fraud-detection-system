@@ -44,6 +44,7 @@ Read these in order before modifying code so you share the project context:
 - Stay proactive: surface TODOs, challenge suspect contract assumptions, and suggest stronger designs where appropriate.
 - Keep changes efficient and reproducible; add concise comments only when they clarify non-obvious intent.
 - Keep `pyproject.toml` aligned with any new dependencies you introduce.
+- As we build this project, constantly update the makefile so the USER will find it easy to run these processes that involve long CLI commands. Also try to make the Makefile human readable
 
 ---
 
