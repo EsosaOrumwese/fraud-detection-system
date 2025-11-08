@@ -69,6 +69,14 @@ validation:
       seed:                 { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
       generated_utc:        { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
       status:               { type: string, enum: [PASS, FAIL] }
+      segment:
+        type: string
+        const: "2A"
+        description: "Optional segment tag emitted for diagnostics."
+      state:
+        type: string
+        const: "S4"
+        description: "Optional state tag emitted for diagnostics."
       counts:
         type: object
         additionalProperties: false
