@@ -252,7 +252,19 @@ policy:
   day_effect_policy_v1:
     type: object
     additionalProperties: false
-    required: [version_tag, sigma_gamma, clip_bounds]
+    required:
+      [
+        version_tag,
+        sigma_gamma,
+        clip_bounds,
+        utc_day_start,
+        utc_day_count,
+        rng_key_hi,
+        rng_key_lo,
+        rng_counter_start_hi,
+        rng_counter_start_lo,
+        rng_stream_id,
+      ]
     properties:
       version_tag: { type: string, minLength: 1 }
       sigma_gamma:
@@ -263,6 +275,27 @@ policy:
         minItems: 2
         maxItems: 2
         items: { type: number }
+      utc_day_start:
+        type: string
+        pattern: '^\d{4}-\d{2}-\d{2}$'
+      utc_day_count:
+        type: integer
+        minimum: 1
+      rng_key_hi:
+        type: integer
+        minimum: 0
+      rng_key_lo:
+        type: integer
+        minimum: 0
+      rng_counter_start_hi:
+        type: integer
+        minimum: 0
+      rng_counter_start_lo:
+        type: integer
+        minimum: 0
+      rng_stream_id:
+        type: string
+        minLength: 1
       calendar: { type: string }
       notes: { type: string }
 
@@ -301,6 +334,52 @@ plan:
         nullable: false
       - name: floor_applied
         type: boolean
+        nullable: false
+      - name: created_utc
+        $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros'
+        nullable: false
+
+  s3_day_effects:
+    type: table
+    description: "Per-merchant, per-day, per-tz-group corporate-day modulation factors."
+    primary_key: [merchant_id, tz_group_id, utc_day]
+    partition_keys: [seed, fingerprint]
+    sort_keys: [merchant_id, tz_group_id, utc_day]
+    columns_strict: true
+    columns:
+      - name: merchant_id
+        $ref: 'schemas.layer1.yaml#/$defs/id64'
+        nullable: false
+      - name: tz_group_id
+        type: string
+        minLength: 1
+        nullable: false
+      - name: utc_day
+        type: string
+        pattern: '^\d{4}-\d{2}-\d{2}$'
+        nullable: false
+      - name: gamma
+        type: number
+        minimum: 0
+        nullable: false
+      - name: log_gamma
+        type: number
+        nullable: false
+      - name: sigma_gamma
+        type: number
+        minimum: 0
+        nullable: false
+      - name: rng_stream_id
+        type: string
+        minLength: 1
+        nullable: false
+      - name: rng_counter_lo
+        type: integer
+        minimum: 0
+        nullable: false
+      - name: rng_counter_hi
+        type: integer
+        minimum: 0
         nullable: false
       - name: created_utc
         $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros'

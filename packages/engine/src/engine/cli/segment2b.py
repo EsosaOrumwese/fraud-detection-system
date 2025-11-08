@@ -55,6 +55,10 @@ def _print_summary(result: Segment2BResult) -> None:
         payload["s2_blob_path"] = str(result.s2_blob_path)
         payload["s2_run_report_path"] = str(result.s2_run_report_path)
         payload["s2_resumed"] = result.s2_resumed
+    if result.s3_output_path:
+        payload["s3_output_path"] = str(result.s3_output_path)
+        payload["s3_run_report_path"] = str(result.s3_run_report_path)
+        payload["s3_resumed"] = result.s3_resumed
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
@@ -145,6 +149,21 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Suppress printing the S2 run-report JSON to STDOUT (still writes to disk).",
     )
+    parser.add_argument(
+        "--run-s3",
+        action="store_true",
+        help="Execute S3 day-effects generation after S2 completes.",
+    )
+    parser.add_argument(
+        "--s3-resume",
+        action="store_true",
+        help="Skip S3 execution when its output partition already exists.",
+    )
+    parser.add_argument(
+        "--s3-quiet-run-report",
+        action="store_true",
+        help="Suppress printing the S3 run-report JSON to STDOUT (still writes to disk).",
+    )
 
     args = parser.parse_args(argv)
 
@@ -167,6 +186,9 @@ def main(argv: list[str] | None = None) -> int:
             run_s2=args.run_s2,
             s2_resume=args.s2_resume,
             s2_emit_run_report_stdout=not args.s2_quiet_run_report,
+            run_s3=args.run_s3,
+            s3_resume=args.s3_resume,
+            s3_emit_run_report_stdout=not args.s3_quiet_run_report,
         )
     )
     _print_summary(result)

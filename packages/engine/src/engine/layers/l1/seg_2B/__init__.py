@@ -17,6 +17,11 @@ from .s2_alias import (
     S2AliasResult,
     S2AliasRunner,
 )
+from .s3_day_effects import (
+    S3DayEffectsInputs,
+    S3DayEffectsResult,
+    S3DayEffectsRunner,
+)
 
 __all__ = [
     "S0GateInputs",
@@ -30,4 +35,7 @@ __all__ = [
     "S2AliasInputs",
     "S2AliasResult",
     "S2AliasRunner",
+    "S3DayEffectsInputs",
+    "S3DayEffectsResult",
+    "S3DayEffectsRunner",
 ]

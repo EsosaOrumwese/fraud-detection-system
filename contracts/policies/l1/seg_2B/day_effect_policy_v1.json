@@ -2,6 +2,13 @@
   "version_tag": "2025.11",
   "sigma_gamma": 0.12,
   "clip_bounds": [-0.35, 0.35],
+  "utc_day_start": "2025-01-01",
+  "utc_day_count": 14,
+  "rng_key_hi": 305419896,
+  "rng_key_lo": 2596069104,
+  "rng_counter_start_hi": 0,
+  "rng_counter_start_lo": 0,
+  "rng_stream_id": "day_effects_stream",
   "calendar": "UTC",
   "notes": "Corporate-day modulation variance + clip bounds (alpha)."
 }

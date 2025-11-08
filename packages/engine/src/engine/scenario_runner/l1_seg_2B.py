@@ -17,6 +17,9 @@ from engine.layers.l1.seg_2B import (
     S2AliasInputs,
     S2AliasResult,
     S2AliasRunner,
+    S3DayEffectsInputs,
+    S3DayEffectsResult,
+    S3DayEffectsRunner,
 )
 
 logger = logging.getLogger(__name__)
@@ -41,6 +44,9 @@ class Segment2BConfig:
     run_s2: bool = False
     s2_resume: bool = False
     s2_emit_run_report_stdout: bool = True
+    run_s3: bool = False
+    s3_resume: bool = False
+    s3_emit_run_report_stdout: bool = True
 
 
 @dataclass(frozen=True)
@@ -60,6 +66,9 @@ class Segment2BResult:
     s2_blob_path: Optional[Path] = None
     s2_run_report_path: Optional[Path] = None
     s2_resumed: bool = False
+    s3_output_path: Optional[Path] = None
+    s3_run_report_path: Optional[Path] = None
+    s3_resumed: bool = False
 
 
 class Segment2BOrchestrator:
@@ -69,6 +78,7 @@ class Segment2BOrchestrator:
         self._s0_runner = S0GateRunner()
         self._s1_runner = S1WeightsRunner()
         self._s2_runner = S2AliasRunner()
+        self._s3_runner = S3DayEffectsRunner()
 
     def run(self, config: Segment2BConfig) -> Segment2BResult:
         data_root = config.data_root.expanduser().resolve()
@@ -128,6 +138,27 @@ class Segment2BOrchestrator:
                 s2_result.index_path,
                 s2_result.blob_path,
             )
+        s3_result: S3DayEffectsResult | None = None
+        if config.run_s3:
+            logger.info(
+                "Segment2B S3 starting (seed=%s, manifest=%s)",
+                config.seed,
+                gate_output.manifest_fingerprint,
+            )
+            s3_inputs = S3DayEffectsInputs(
+                data_root=data_root,
+                seed=config.seed,
+                manifest_fingerprint=gate_output.manifest_fingerprint,
+                dictionary_path=config.dictionary_path,
+                resume=config.s3_resume,
+                emit_run_report_stdout=config.s3_emit_run_report_stdout,
+            )
+            s3_result = self._s3_runner.run(s3_inputs)
+            logger.info(
+                "Segment2B S3 %s (output=%s)",
+                "resumed" if s3_result.resumed else "completed",
+                s3_result.output_path,
+            )
         return Segment2BResult(
             manifest_fingerprint=gate_output.manifest_fingerprint,
             parameter_hash=gate_output.parameter_hash,
@@ -142,6 +173,9 @@ class Segment2BOrchestrator:
             s2_blob_path=s2_result.blob_path if s2_result else None,
             s2_run_report_path=s2_result.run_report_path if s2_result else None,
             s2_resumed=s2_result.resumed if s2_result else False,
+            s3_output_path=s3_result.output_path if s3_result else None,
+            s3_run_report_path=s3_result.run_report_path if s3_result else None,
+            s3_resumed=s3_result.resumed if s3_result else False,
         )
 
 
