@@ -68,6 +68,11 @@ def _print_summary(result: Segment2AResult) -> None:
         payload["s2_resumed"] = result.s2_resumed
     if result.s2_run_report_path:
         payload["s2_run_report_path"] = str(result.s2_run_report_path)
+    if result.s3_output_path:
+        payload["s3_output_path"] = str(result.s3_output_path)
+        payload["s3_resumed"] = result.s3_resumed
+    if result.s3_run_report_path:
+        payload["s3_run_report_path"] = str(result.s3_run_report_path)
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
@@ -169,6 +174,16 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Skip S2 execution when its output partition already exists.",
     )
+    parser.add_argument(
+        "--run-s3",
+        action="store_true",
+        help="Execute the timetable cache build (S3) after upstream phases complete.",
+    )
+    parser.add_argument(
+        "--s3-resume",
+        action="store_true",
+        help="Skip S3 execution when its output partition already exists.",
+    )
 
     args = parser.parse_args(argv)
 
@@ -199,6 +214,8 @@ def main(argv: list[str] | None = None) -> int:
             run_s2=args.run_s2,
             s2_chunk_size=args.s2_chunk_size,
             s2_resume=args.s2_resume,
+            run_s3=args.run_s3,
+            s3_resume=args.s3_resume,
         )
     )
     _print_summary(result)

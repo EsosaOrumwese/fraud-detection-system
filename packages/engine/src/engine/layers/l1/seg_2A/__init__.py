@@ -18,6 +18,7 @@ from .s1_provisional import (
     ProvisionalLookupRunner,
 )
 from .s2_overrides import OverridesInputs, OverridesResult, OverridesRunner
+from .s3_timetable import TimetableInputs, TimetableResult, TimetableRunner
 
 __all__ = [
     "S0GateInputs",
@@ -30,4 +31,7 @@ __all__ = [
     "OverridesInputs",
     "OverridesResult",
     "OverridesRunner",
+    "TimetableInputs",
+    "TimetableResult",
+    "TimetableRunner",
 ]
