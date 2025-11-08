@@ -264,9 +264,7 @@ class LegalityRunner:
         table = (
             pl.scan_parquet(sources)
             .select("tzid")
-            .collect(
-                streaming=True,
-            )
+            .collect()
         )
         sites_total = table.height
         if sites_total == 0:

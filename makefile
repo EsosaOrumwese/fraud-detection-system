@@ -75,7 +75,7 @@ SEG2A_RUN_TZCFG = $(RUN_ROOT)/config/timezone
 SEG2A_S1_CHUNK_SIZE ?= 250000
 SEG2A_S1_RESUME ?= 0
 
-SEG2A_EXTRA += --run-s1 --s1-chunk-size $(SEG2A_S1_CHUNK_SIZE) --run-s2 --run-s3
+SEG2A_EXTRA += --run-s1 --s1-chunk-size $(SEG2A_S1_CHUNK_SIZE) --run-s2 --run-s3 --run-s4
 ifeq ($(strip $(SEG2A_S1_RESUME)),1)
 SEG2A_EXTRA += --s1-resume
 endif
