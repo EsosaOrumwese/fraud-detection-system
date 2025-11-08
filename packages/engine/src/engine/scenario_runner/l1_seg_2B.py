@@ -34,6 +34,7 @@ class Segment2BConfig:
     pin_civil_time: bool = False
     run_s1: bool = False
     s1_resume: bool = False
+    s1_emit_run_report_stdout: bool = True
 
 
 @dataclass(frozen=True)
@@ -74,14 +75,26 @@ class Segment2BOrchestrator:
         gate_output: S0GateOutputs = self._s0_runner.run(gate_inputs)
         s1_result: S1WeightsResult | None = None
         if config.run_s1:
+            logger.info(
+                "Segment2B S1 starting (seed=%s, manifest=%s)",
+                config.seed,
+                gate_output.manifest_fingerprint,
+            )
             s1_inputs = S1WeightsInputs(
                 data_root=data_root,
                 seed=config.seed,
                 manifest_fingerprint=gate_output.manifest_fingerprint,
                 dictionary_path=config.dictionary_path,
                 resume=config.s1_resume,
+                emit_run_report_stdout=config.s1_emit_run_report_stdout,
             )
             s1_result = self._s1_runner.run(s1_inputs)
+            logger.info(
+                "Segment2B S1 %s (output=%s, run_report=%s)",
+                "resumed" if s1_result.resumed else "completed",
+                s1_result.output_path,
+                s1_result.run_report_path,
+            )
         return Segment2BResult(
             manifest_fingerprint=gate_output.manifest_fingerprint,
             parameter_hash=gate_output.parameter_hash,

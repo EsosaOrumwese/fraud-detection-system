@@ -120,6 +120,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Skip S1 execution when its output partition already exists.",
     )
+    parser.add_argument(
+        "--s1-quiet-run-report",
+        action="store_true",
+        help="Suppress printing the S1 run-report JSON to STDOUT (still writes to disk).",
+    )
 
     args = parser.parse_args(argv)
 
@@ -138,6 +143,7 @@ def main(argv: list[str] | None = None) -> int:
             pin_civil_time=args.pin_tz_assets,
             run_s1=args.run_s1,
             s1_resume=args.s1_resume,
+            s1_emit_run_report_stdout=not args.s1_quiet_run_report,
         )
     )
     _print_summary(result)

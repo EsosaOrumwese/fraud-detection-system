@@ -35,6 +35,7 @@ class S1WeightsInputs:
     manifest_fingerprint: str
     dictionary_path: Optional[Path] = None
     resume: bool = False
+    emit_run_report_stdout: bool = True
 
     def __post_init__(self) -> None:
         data_root = self.data_root.expanduser().resolve()
@@ -219,7 +220,8 @@ class S1WeightsRunner:
             site_locations_path=site_rel,
         )
         run_report_path.write_text(json.dumps(run_report, indent=2), encoding="utf-8")
-        print(json.dumps(run_report))  # pragma: no cover - operator visibility
+        if config.emit_run_report_stdout:
+            print(json.dumps(run_report, indent=2))  # pragma: no cover - operator visibility
 
         return S1WeightsResult(
             manifest_fingerprint=config.manifest_fingerprint,
