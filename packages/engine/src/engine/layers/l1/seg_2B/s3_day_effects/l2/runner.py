@@ -74,6 +74,7 @@ class S3DayEffectsInputs:
     data_root: Path
     seed: int | str
     manifest_fingerprint: str
+    seg2a_manifest_fingerprint: str
     dictionary_path: Optional[Path] = None
     resume: bool = False
     emit_run_report_stdout: bool = True
@@ -93,6 +94,14 @@ class S3DayEffectsInputs:
             )
         int(manifest, 16)
         object.__setattr__(self, "manifest_fingerprint", manifest)
+        seg2a_manifest = self.seg2a_manifest_fingerprint.lower()
+        if len(seg2a_manifest) != 64:
+            raise err(
+                "E_S3_SEG2A_MANIFEST",
+                "seg2a_manifest_fingerprint must be 64 hex characters",
+            )
+        int(seg2a_manifest, 16)
+        object.__setattr__(self, "seg2a_manifest_fingerprint", seg2a_manifest)
 
 
 @dataclass(frozen=True)
@@ -553,6 +562,8 @@ class S3DayEffectsRunner:
             "seed": config.seed,
             "manifest_fingerprint": config.manifest_fingerprint,
         }
+        if dataset_id in {"site_timezones", "tz_timetable_cache"}:
+            template_args["manifest_fingerprint"] = config.seg2a_manifest_fingerprint
         rel = render_dataset_path(dataset_id, template_args=template_args, dictionary=dictionary)
         return (config.data_root / rel).resolve()
 

@@ -32,6 +32,7 @@ class Segment2BConfig:
     data_root: Path
     seed: int
     manifest_fingerprint: str
+    seg2a_manifest_fingerprint: str
     parameter_hash: str
     git_commit_hex: str
     dictionary_path: Optional[Path] = None
@@ -54,6 +55,7 @@ class Segment2BResult:
     """Structured result for Segment 2B S0 runs."""
 
     manifest_fingerprint: str
+    seg2a_manifest_fingerprint: str
     parameter_hash: str
     receipt_path: Path
     inventory_path: Path
@@ -86,6 +88,7 @@ class Segment2BOrchestrator:
             data_root=data_root,
             seed=config.seed,
             manifest_fingerprint=config.manifest_fingerprint,
+            seg2a_manifest_fingerprint=config.seg2a_manifest_fingerprint,
             parameter_hash=config.parameter_hash,
             git_commit_hex=config.git_commit_hex,
             dictionary_path=config.dictionary_path,
@@ -149,6 +152,7 @@ class Segment2BOrchestrator:
                 data_root=data_root,
                 seed=config.seed,
                 manifest_fingerprint=gate_output.manifest_fingerprint,
+                seg2a_manifest_fingerprint=config.seg2a_manifest_fingerprint,
                 dictionary_path=config.dictionary_path,
                 resume=config.s3_resume,
                 emit_run_report_stdout=config.s3_emit_run_report_stdout,
@@ -161,6 +165,7 @@ class Segment2BOrchestrator:
             )
         return Segment2BResult(
             manifest_fingerprint=gate_output.manifest_fingerprint,
+            seg2a_manifest_fingerprint=config.seg2a_manifest_fingerprint,
             parameter_hash=gate_output.parameter_hash,
             receipt_path=gate_output.receipt_path,
             inventory_path=gate_output.inventory_path,

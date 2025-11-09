@@ -49,6 +49,7 @@ class GateInputs:
     data_root: Path
     seed: int | str
     manifest_fingerprint: str
+    seg2a_manifest_fingerprint: str
     parameter_hash: str
     git_commit_hex: str
     dictionary_path: Optional[Path] = None
@@ -80,6 +81,14 @@ class GateInputs:
             )
         int(parameter_hash, 16)
         object.__setattr__(self, "parameter_hash", parameter_hash)
+        seg2a_manifest = self.seg2a_manifest_fingerprint.lower()
+        if len(seg2a_manifest) != 64:
+            raise err(
+                "E_SEG2A_FINGERPRINT",
+                "seg2a_manifest_fingerprint must be 64 hex characters",
+            )
+        int(seg2a_manifest, 16)
+        object.__setattr__(self, "seg2a_manifest_fingerprint", seg2a_manifest)
         git_hex = self.git_commit_hex.lower()
         if len(git_hex) not in (40, 64):
             raise err(
@@ -275,7 +284,10 @@ class S0GateRunner:
             for asset_id in self._CIVIL_OPTIONAL_IDS:
                 add_asset(
                     asset_id,
-                    template_args={"seed": seed, "manifest_fingerprint": manifest},
+                    template_args={
+                        "seed": seed,
+                        "manifest_fingerprint": inputs.seg2a_manifest_fingerprint,
+                    },
                     allow_missing=False,
                 )
 

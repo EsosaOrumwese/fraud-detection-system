@@ -5,7 +5,9 @@ PY ?= python
 ENGINE_PYTHONPATH ?= packages/engine/src
 
 RUN_ROOT ?= runs/local_layer1_regen0
-RESULT_JSON ?= $(RUN_ROOT)/segment1a_result.json
+SUMMARY_DIR ?= $(RUN_ROOT)/summaries
+RESULT_JSON ?= $(SUMMARY_DIR)/segment1a_result.json
+SEG2A_RESULT_JSON ?= $(SUMMARY_DIR)/segment2a_result.json
 LOG ?= $(RUN_ROOT)/run_log_regen0.log
 SEED ?= 2025110601
 
@@ -89,6 +91,7 @@ SEG2A_ARGS = \
 	--git-commit-hex $(GIT_COMMIT) \
 	--dictionary $(SEG2A_DICTIONARY) \
 	--validation-bundle $$VALIDATION_BUNDLE \
+	--result-json $(SEG2A_RESULT_JSON) \
 	$(SEG2A_EXTRA)
 SEG2A_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment2a $(SEG2A_ARGS)
 
@@ -141,6 +144,7 @@ SEG2B_ARGS = \
 	--seed $(SEED) \
 	--manifest-fingerprint $$MANIFEST_FINGERPRINT \
 	--parameter-hash $$PARAM_HASH \
+	--seg2a-manifest-fingerprint $$SEG2A_MANIFEST_FINGERPRINT \
 	--git-commit-hex $(GIT_COMMIT) \
 	--dictionary $(SEG2B_DICTIONARY) \
 	--validation-bundle $$VALIDATION_BUNDLE \
@@ -155,6 +159,7 @@ all: segment1a segment1b segment2a segment2b
 
 segment1a:
 	@mkdir -p "$(RUN_ROOT)"
+	@mkdir -p "$(SUMMARY_DIR)"
 ifeq ($(strip $(LOG)),)
 	$(SEG1A_CMD)
 else
@@ -180,6 +185,7 @@ segment2a:
 		echo "Segment 1A summary '$(RESULT_JSON)' not found. Run 'make segment1a' first." >&2; \
 		exit 1; \
 	fi
+	@mkdir -p "$(SUMMARY_DIR)"
 	@if [ ! -d "$(RUN_ROOT)/data/layer1/1B" ]; then \
 		echo "Segment 1B outputs not found under '$(RUN_ROOT)/data/layer1/1B'. Run 'make segment1b' first." >&2; \
 		exit 1; \
@@ -216,13 +222,47 @@ segment2b:
 		echo "Segment 2A outputs not found under '$(RUN_ROOT)/data/layer1/2A'. Run 'make segment2a' first." >&2; \
 		exit 1; \
 	fi
-	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['parameter_hash'])"); \
-	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['manifest_fingerprint'])"); \
+	@if [ ! -f "$(SEG2A_RESULT_JSON)" ]; then \
+		echo "Segment 2A summary '$(SEG2A_RESULT_JSON)' not found. Run 'make segment2a' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(RESULT_JSON)" ]; then \
+		echo "Segment 1A summary '$(RESULT_JSON)' not found. Run 'make segment1a' first." >&2; \
+		exit 1; \
+	fi
+	@SEG2A_MANIFEST_FINGERPRINT=$$($(PY) - <<'PY'
+import json
+from pathlib import Path
+data = json.loads(Path(r"$(SEG2A_RESULT_JSON)").read_text(encoding="utf-8"))
+print(data["s0"]["manifest_fingerprint"])
+PY
+); \
+	 SEG2A_PARAM_HASH=$$($(PY) - <<'PY'
+import json
+from pathlib import Path
+data = json.loads(Path(r"$(SEG2A_RESULT_JSON)").read_text(encoding="utf-8"))
+print(data["s0"]["parameter_hash"])
+PY
+); \
+	 MANIFEST_FINGERPRINT=$$($(PY) - <<'PY'
+import sys
+from pathlib import Path
+base = Path(r"$(RUN_ROOT)/data/layer1/1B/site_locations/seed=$(SEED)")
+if not base.exists():
+    sys.exit("Segment 1B site_locations directory missing. Run 'make segment1b' first.")
+candidates = sorted(p for p in base.glob("fingerprint=*") if p.is_dir())
+if not candidates:
+    sys.exit("Segment 1B site_locations fingerprint folders missing. Run 'make segment1b' first.")
+print(candidates[-1].name.split("fingerprint=", 1)[1])
+PY
+); \
 	 VALIDATION_BUNDLE="$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=$$MANIFEST_FINGERPRINT/bundle"; \
 	 if [ ! -d "$$VALIDATION_BUNDLE" ]; then \
 		echo "Segment 1B validation bundle '$$VALIDATION_BUNDLE' not found. Run 'make segment1b' first." >&2; \
 		exit 1; \
 	 fi; \
+	 PARAM_HASH="$$SEG2A_PARAM_HASH"; \
+	 SEG2A_MANIFEST_FINGERPRINT="$$SEG2A_MANIFEST_FINGERPRINT"; \
 	 if [ -n "$(LOG)" ]; then \
 		($(SEG2B_CMD)) 2>&1 | tee -a "$(LOG)"; \
 	 else \
@@ -249,4 +289,4 @@ profile-seg1b:
 	 PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m cProfile -o profile.segment1b -m engine.cli.segment1b run $(SEG1B_ARGS)
 
 clean-results:
-	rm -f "$(RESULT_JSON)" profile.segment1a profile.segment1b
+	rm -f "$(RESULT_JSON)" "$(SEG2A_RESULT_JSON)" profile.segment1a profile.segment1b

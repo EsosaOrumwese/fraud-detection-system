@@ -40,6 +40,7 @@ def _discover_git_commit(default: str = "0" * 40) -> str:
 def _print_summary(result: Segment2BResult) -> None:
     payload = {
         "manifest_fingerprint": result.manifest_fingerprint,
+        "seg2a_manifest_fingerprint": result.seg2a_manifest_fingerprint,
         "parameter_hash": result.parameter_hash,
         "receipt_path": str(result.receipt_path),
         "inventory_path": str(result.inventory_path),
@@ -88,6 +89,11 @@ def main(argv: list[str] | None = None) -> int:
         "--manifest-fingerprint",
         required=True,
         help="Manifest fingerprint produced by Segment 1B.",
+    )
+    parser.add_argument(
+        "--seg2a-manifest-fingerprint",
+        required=True,
+        help="Manifest fingerprint produced by Segment 2A (civil-time inputs).",
     )
     parser.add_argument(
         "--parameter-hash",
@@ -174,6 +180,7 @@ def main(argv: list[str] | None = None) -> int:
             data_root=args.data_root,
             seed=args.seed,
             manifest_fingerprint=args.manifest_fingerprint,
+            seg2a_manifest_fingerprint=args.seg2a_manifest_fingerprint,
             parameter_hash=args.parameter_hash,
             git_commit_hex=git_commit_hex,
             dictionary_path=args.dictionary,
