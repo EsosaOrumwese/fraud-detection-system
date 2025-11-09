@@ -282,6 +282,24 @@ datasets:
     pii: false
     license: Proprietary-Internal
 
+  - id: s4_group_weights
+    status: approved
+    owner_subsegment: 2B
+    description: "Per-merchant, per-day, per-tz-group deterministic routing mix emitted by S4."
+    version: "{seed}.{manifest_fingerprint}"
+    format: parquet
+    path: data/layer1/2B/s4_group_weights/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitioning: [seed, fingerprint]
+    ordering: [merchant_id, utc_day, tz_group_id]
+    schema_ref: schemas.2B.yaml#/plan/s4_group_weights
+    lineage:
+      produced_by: 2B.S4
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
   - id: s1_site_weights
     status: approved
     owner_subsegment: 2B
