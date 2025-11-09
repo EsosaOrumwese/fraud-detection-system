@@ -2,7 +2,9 @@ import json
 from pathlib import Path
 
 import polars as pl
+import pytest
 
+from engine.layers.l1.seg_2B.s0_gate import S0GateError
 from engine.layers.l1.seg_2B.s4_group_weights import (
     S4GroupWeightsInputs,
     S4GroupWeightsRunner,
@@ -182,3 +184,91 @@ def test_s4_group_weights_runner_resume(tmp_path: Path) -> None:
         )
     )
     assert resumed.resumed is True
+
+
+def test_s4_group_weights_fails_when_base_share_not_one(tmp_path: Path) -> None:
+    manifest = "e" * 64
+    seg2a_manifest = "f" * 64
+    seed = 2025110601
+    dictionary_path = _write_dictionary(tmp_path)
+    df = pl.DataFrame(
+        {
+            "merchant_id": [1],
+            "legal_country_iso": ["US"],
+            "site_order": [1],
+            "p_weight": [0.5],
+        }
+    )
+    dest = tmp_path / f"data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest}/part-00000.parquet"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    df.write_parquet(dest)
+    _write_site_timezones(tmp_path, seed, seg2a_manifest)
+    _write_s3_day_effects(tmp_path, seed, manifest)
+    _write_receipt(tmp_path, manifest)
+    runner = S4GroupWeightsRunner()
+    with pytest.raises(S0GateError) as exc:
+        runner.run(
+            S4GroupWeightsInputs(
+                data_root=tmp_path,
+                seed=seed,
+                manifest_fingerprint=manifest,
+                seg2a_manifest_fingerprint=seg2a_manifest,
+                dictionary_path=dictionary_path,
+                emit_run_report_stdout=False,
+            )
+        )
+    assert exc.value.code == "E_S4_BASE_SHARE_SUM"
+
+
+def test_s4_group_weights_detects_missing_tz_group_rows(tmp_path: Path) -> None:
+    manifest = "1" * 64
+    seg2a_manifest = "2" * 64
+    seed = 2025110601
+    dictionary_path = _write_dictionary(tmp_path)
+    df_weights = pl.DataFrame(
+        {
+            "merchant_id": [1, 1],
+            "legal_country_iso": ["US", "US"],
+            "site_order": [1, 2],
+            "p_weight": [0.6, 0.4],
+        }
+    )
+    weights_path = tmp_path / f"data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest}/part-00000.parquet"
+    weights_path.parent.mkdir(parents=True, exist_ok=True)
+    df_weights.write_parquet(weights_path)
+    df_tz = pl.DataFrame(
+        {
+            "merchant_id": [1, 1],
+            "legal_country_iso": ["US", "US"],
+            "site_order": [1, 2],
+            "tzid": ["America/New_York", "Europe/London"],
+        }
+    )
+    tz_path = tmp_path / f"data/layer1/2A/site_timezones/seed={seed}/fingerprint={seg2a_manifest}/part-00000.parquet"
+    tz_path.parent.mkdir(parents=True, exist_ok=True)
+    df_tz.write_parquet(tz_path)
+    df = pl.DataFrame(
+        {
+            "merchant_id": [1],
+            "utc_day": ["2025-01-01"],
+            "tz_group_id": ["America/New_York"],
+            "gamma": [1.0],
+        }
+    )
+    dest = tmp_path / f"data/layer1/2B/s3_day_effects/seed={seed}/fingerprint={manifest}/part-00000.parquet"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    df.write_parquet(dest)
+    _write_receipt(tmp_path, manifest)
+    runner = S4GroupWeightsRunner()
+    with pytest.raises(S0GateError) as exc:
+        runner.run(
+            S4GroupWeightsInputs(
+                data_root=tmp_path,
+                seed=seed,
+                manifest_fingerprint=manifest,
+                seg2a_manifest_fingerprint=seg2a_manifest,
+                dictionary_path=dictionary_path,
+                emit_run_report_stdout=False,
+            )
+        )
+    assert exc.value.code == "E_S4_COVERAGE_GAP"

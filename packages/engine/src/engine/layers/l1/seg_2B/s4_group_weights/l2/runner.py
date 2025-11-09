@@ -15,6 +15,7 @@ import polars as pl
 
 from ...shared.dictionary import load_dictionary, render_dataset_path
 from ...shared.receipt import GateReceiptSummary, load_gate_receipt
+from ...shared.schema import load_schema
 from ...s0_gate.exceptions import err
 
 logger = logging.getLogger(__name__)
@@ -71,6 +72,7 @@ class S4GroupWeightsRunner:
     """Runs Segment 2B State 4."""
 
     RUN_REPORT_ROOT = Path("reports") / "l1" / "s4_group_weights"
+    NORMALISATION_EPS = 1e-12
 
     def run(self, config: S4GroupWeightsInputs) -> S4GroupWeightsResult:
         dictionary = load_dictionary(config.dictionary_path)
@@ -104,6 +106,11 @@ class S4GroupWeightsRunner:
         weights = self._load_site_weights(config=config, dictionary=dictionary)
         tz_lookup = self._load_site_timezones(config=config, dictionary=dictionary)
         base_shares = self._aggregate_base_shares(weights=weights, tz_lookup=tz_lookup)
+        base_share_delta = self._validate_base_share_totals(base_shares=base_shares)
+        tz_counts = (
+            base_shares.group_by("merchant_id")
+            .agg(pl.col("tz_group_id").n_unique().alias("tz_groups_required"))
+        )
         day_effects = self._load_day_effects(config=config, dictionary=dictionary)
         combined = self._combine_factors(base_shares=base_shares, day_effects=day_effects)
         if combined.height == 0:
@@ -132,19 +139,58 @@ class S4GroupWeightsRunner:
                 f"renormalisation denominator <= 0 for merchant/day sample: {sample.to_dicts()}",
             )
         combined = combined.with_columns(
-            (pl.col("mass_raw") / pl.col("denom_raw")).alias("p_group")
+            (pl.col("mass_raw") / pl.col("denom_raw")).alias("p_group_raw")
         )
+        combined = combined.with_columns(
+            pl.when(pl.col("p_group_raw") < -self.NORMALISATION_EPS)
+            .then(None)
+            .when(pl.col("p_group_raw") < 0)
+            .then(0.0)
+            .otherwise(pl.col("p_group_raw"))
+            .alias("p_group")
+        )
+        negative = combined.filter(pl.col("p_group").is_null())
+        if negative.height:
+            raise err(
+                "E_S4_NEGATIVE_WEIGHT",
+                f"normalised weights dropped below tolerance for sample rows: {negative.head(5).to_dicts()}",
+            )
+        combined = combined.with_columns(
+            pl.col("p_group")
+            .sum()
+            .over(["merchant_id", "utc_day"])
+            .alias("p_total")
+        )
+        zero_totals = combined.filter(pl.col("p_total") <= 0.0)
+        if zero_totals.height:
+            raise err(
+                "E_S4_ZERO_NORM_TOTAL",
+                f"normalisation total <= 0 for sample merchant/day keys: {zero_totals.head(5).to_dicts()}",
+            )
+        combined = combined.with_columns(
+            (pl.col("p_group") / pl.col("p_total")).alias("p_group")
+        ).drop(["p_total", "p_group_raw"])
         combined = combined.with_columns(
             pl.lit(receipt.verified_at_utc).alias("created_utc")
         )
 
         combined = combined.sort(["merchant_id", "utc_day", "tz_group_id"])
         output_dir.parent.mkdir(parents=True, exist_ok=True)
+        self._validate_output_schema(rows=combined)
         bytes_written = self._publish_rows(rows=combined, output_dir=output_dir)
 
         merchants_total = combined["merchant_id"].n_unique()
-        days_total = combined["utc_day"].n_unique()
+        rows_expected, days_total = self._validate_coverage(
+            combined=combined, tz_counts=tz_counts
+        )
+        rows_total = combined.height
+        if rows_total != rows_expected:
+            raise err(
+                "E_S4_ROW_COUNT_MISMATCH",
+                f"rows written ({rows_total}) differ from expected coverage ({rows_expected})",
+            )
         tz_groups_total = combined["tz_group_id"].n_unique()
+        max_abs_p_delta = self._validate_p_group_totals(combined=combined)
         rows_total = combined.height
         dictionary_resolution = self._catalogue_resolution(dictionary=dictionary)
         output_rel = render_dataset_path(
@@ -162,9 +208,12 @@ class S4GroupWeightsRunner:
             tz_groups_total=tz_groups_total,
             days_total=days_total,
             rows_total=rows_total,
+            rows_expected=rows_expected,
             bytes_written=bytes_written,
             dictionary_resolution=dictionary_resolution,
             output_path=output_rel,
+            max_abs_base_share_delta=base_share_delta,
+            max_abs_p_group_delta=max_abs_p_delta,
         )
         run_report_path = self._resolve_run_report_path(config=config)
         run_report_path.parent.mkdir(parents=True, exist_ok=True)
@@ -333,6 +382,25 @@ class S4GroupWeightsRunner:
             )
         return grouped
 
+    def _validate_base_share_totals(self, *, base_shares: pl.DataFrame) -> float:
+        totals = (
+            base_shares.group_by("merchant_id")
+            .agg(pl.col("base_share").sum().alias("base_sum"))
+            .with_columns((pl.col("base_sum") - 1.0).alias("delta"))
+        )
+        if totals.height == 0:
+            raise err("E_S4_NO_BASE_SHARE_ROWS", "base share aggregation produced zero merchants")
+        offending = totals.filter(pl.col("delta").abs() > self.NORMALISATION_EPS)
+        if offending.height:
+            raise err(
+                "E_S4_BASE_SHARE_SUM",
+                f"base_share totals deviate from 1 beyond tolerance: {offending.head(5).to_dicts()}",
+            )
+        max_abs = float(
+            totals.select(pl.col("delta").abs().max()).to_series().to_list()[0] or 0.0
+        )
+        return max_abs
+
     def _combine_factors(
         self, *, base_shares: pl.DataFrame, day_effects: pl.DataFrame
     ) -> pl.DataFrame:
@@ -347,6 +415,64 @@ class S4GroupWeightsRunner:
                 "base_share missing for some gamma rows",
             )
         return combined
+
+    def _validate_coverage(
+        self,
+        *,
+        combined: pl.DataFrame,
+        tz_counts: pl.DataFrame,
+    ) -> tuple[int, int]:
+        coverage = (
+            combined.group_by(["merchant_id", "utc_day"])
+            .agg(
+                pl.len().alias("rows"),
+                pl.col("tz_group_id").n_unique().alias("tz_groups_present"),
+            )
+            .join(tz_counts, on="merchant_id", how="left")
+        )
+        missing_merchants = set(tz_counts["merchant_id"].to_list()) - set(
+            coverage["merchant_id"].to_list()
+        )
+        if missing_merchants:
+            raise err(
+                "E_S4_COVERAGE_GAP",
+                f"no day coverage found for merchants: {sorted(list(missing_merchants))[:5]}",
+            )
+        missing = coverage.filter(
+            (pl.col("tz_groups_required").is_null())
+            | (pl.col("rows") != pl.col("tz_groups_required"))
+            | (pl.col("tz_groups_present") != pl.col("tz_groups_required"))
+        )
+        if missing.height:
+            raise err(
+                "E_S4_COVERAGE_GAP",
+                f"tz-group coverage incomplete for sample merchant/day keys: {missing.head(5).to_dicts()}",
+            )
+        rows_expected = int(
+            coverage.select(pl.col("tz_groups_required").sum())
+            .to_series()
+            .to_list()[0]
+            or 0
+        )
+        days_total = coverage.height
+        return rows_expected, days_total
+
+    def _validate_p_group_totals(self, *, combined: pl.DataFrame) -> float:
+        totals = (
+            combined.group_by(["merchant_id", "utc_day"])
+            .agg(pl.col("p_group").sum().alias("total_mass"))
+            .with_columns((pl.col("total_mass") - 1.0).alias("delta"))
+        )
+        offending = totals.filter(pl.col("delta").abs() > self.NORMALISATION_EPS)
+        if offending.height:
+            raise err(
+                "E_S4_P_GROUP_SUM",
+                f"normalised weights deviate from 1 beyond tolerance: {offending.head(5).to_dicts()}",
+            )
+        max_abs = float(
+            totals.select(pl.col("delta").abs().max()).to_series().to_list()[0] or 0.0
+        )
+        return max_abs
 
     # ------------------------------------------------------------------ IO helpers
 
@@ -406,14 +532,32 @@ class S4GroupWeightsRunner:
         tz_groups_total: int,
         days_total: int,
         rows_total: int,
+        rows_expected: int,
         bytes_written: int,
         dictionary_resolution: Mapping[str, str],
         output_path: str,
+        max_abs_base_share_delta: float,
+        max_abs_p_group_delta: float,
     ) -> dict:
         validators = [
-            {"id": "V-20", "status": "PASS", "codes": []},
-            {"id": "V-21", "status": "PASS", "codes": []},
-            {"id": "V-22", "status": "PASS", "codes": []},
+            {
+                "id": "V-20",
+                "status": "PASS",
+                "codes": [],
+                "metrics": {"max_abs_base_share_delta": max_abs_base_share_delta},
+            },
+            {
+                "id": "V-21",
+                "status": "PASS",
+                "codes": [],
+                "metrics": {"max_abs_p_group_delta": max_abs_p_group_delta},
+            },
+            {
+                "id": "V-22",
+                "status": "PASS",
+                "codes": [],
+                "metrics": {"rows_expected": rows_expected, "rows_written": rows_total},
+            },
         ]
         run_report = {
             "component": "2B.S4",
@@ -431,6 +575,7 @@ class S4GroupWeightsRunner:
             },
             "counts": {
                 "rows_total": rows_total,
+                "rows_expected": rows_expected,
                 "merchants_total": merchants_total,
                 "tz_groups_total": tz_groups_total,
                 "days_total": days_total,
@@ -452,3 +597,40 @@ class S4GroupWeightsRunner:
                 os.fsync(handle.fileno())
         except (OSError, AttributeError):  # pragma: no cover
             logger.debug("fsync skipped for %s", path)
+
+    def _validate_output_schema(self, *, rows: pl.DataFrame) -> None:
+        schema = load_schema("#/plan/s4_group_weights")
+        required_cols = [
+            "merchant_id",
+            "utc_day",
+            "tz_group_id",
+            "p_group",
+            "base_share",
+            "gamma",
+            "created_utc",
+            "mass_raw",
+            "denom_raw",
+        ]
+        if set(rows.columns) != set(required_cols):
+            raise err(
+                "E_S4_SCHEMA_COLUMNS",
+                f"s4_group_weights columns {rows.columns} do not match schema {required_cols}",
+            )
+        expected_types = {
+            "merchant_id": pl.UInt64,
+            "utc_day": pl.Utf8,
+            "tz_group_id": pl.Utf8,
+            "p_group": pl.Float64,
+            "base_share": pl.Float64,
+            "gamma": pl.Float64,
+            "created_utc": pl.Utf8,
+            "mass_raw": pl.Float64,
+            "denom_raw": pl.Float64,
+        }
+        for name, dtype in expected_types.items():
+            actual = rows.schema.get(name)
+            if actual != dtype:
+                raise err(
+                    "E_S4_SCHEMA_TYPES",
+                    f"column '{name}' has dtype {actual}, expected {dtype}",
+                )
