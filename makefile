@@ -110,6 +110,9 @@ SEG2B_S3_QUIET ?= 1
 SEG2B_RUN_S4 ?= 1
 SEG2B_S4_RESUME ?= 0
 SEG2B_S4_QUIET ?= 1
+SEG2B_RUN_S5 ?= 1
+SEG2B_S5_SELECTION_LOG ?= 0
+SEG2B_S5_ARRIVALS_JSONL ?=
 
 ifeq ($(strip $(SEG2B_PIN_TZ)),1)
 SEG2B_EXTRA += --pin-tz-assets
@@ -149,6 +152,15 @@ SEG2B_EXTRA += --s4-resume
 endif
 ifeq ($(strip $(SEG2B_S4_QUIET)),1)
 SEG2B_EXTRA += --s4-quiet-run-report
+endif
+ifeq ($(strip $(SEG2B_RUN_S5)),1)
+SEG2B_EXTRA += --run-s5
+endif
+ifeq ($(strip $(SEG2B_S5_SELECTION_LOG)),1)
+SEG2B_EXTRA += --s5-selection-log
+endif
+ifneq ($(strip $(SEG2B_S5_ARRIVALS_JSONL)),)
+SEG2B_EXTRA += --s5-arrivals-jsonl "$(SEG2B_S5_ARRIVALS_JSONL)"
 endif
 
 SEG2B_ARGS = \

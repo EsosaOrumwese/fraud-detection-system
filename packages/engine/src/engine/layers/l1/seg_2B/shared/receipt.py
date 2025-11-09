@@ -21,6 +21,18 @@ class GateReceiptAssetRef:
 
 
 @dataclass(frozen=True)
+class SealedInputRecord:
+    """Parsed representation of a sealed_inputs_v1 inventory row."""
+
+    asset_id: str
+    version_tag: str
+    sha256_hex: str
+    catalog_path: str
+    partition: tuple[str, ...]
+    schema_ref: str
+
+
+@dataclass(frozen=True)
 class GateReceiptSummary:
     """Parsed representation of the 2B S0 gate receipt."""
 
@@ -31,6 +43,8 @@ class GateReceiptSummary:
     flag_sha256_hex: str
     verified_at_utc: str
     assets: tuple[GateReceiptAssetRef, ...]
+    catalogue_resolution: Mapping[str, str]
+    determinism_receipt: Mapping[str, object]
     path: Path
 
 
@@ -73,6 +87,12 @@ def load_gate_receipt(
         raise err("E_S0_RECEIPT_INVALID", "sealed_inputs must be an array")
 
     assets = tuple(_parse_asset(entry) for entry in sealed_inputs)
+    catalogue_resolution = payload.get("catalogue_resolution") or {}
+    if not isinstance(catalogue_resolution, Mapping):
+        catalogue_resolution = {}
+    determinism_receipt = payload.get("determinism_receipt") or {}
+    if not isinstance(determinism_receipt, Mapping):
+        determinism_receipt = {}
 
     return GateReceiptSummary(
         manifest_fingerprint=manifest_fingerprint,
@@ -82,8 +102,73 @@ def load_gate_receipt(
         flag_sha256_hex=flag_sha256_hex,
         verified_at_utc=verified_at_utc,
         assets=assets,
+        catalogue_resolution=catalogue_resolution,
+        determinism_receipt=determinism_receipt,
         path=receipt_path,
     )
+
+
+def load_sealed_inputs_inventory(
+    *,
+    base_path: Path,
+    manifest_fingerprint: str,
+    dictionary: Mapping[str, object],
+) -> tuple[SealedInputRecord, ...]:
+    """Load the sealed_inputs_v1 inventory referenced by the manifest."""
+
+    inventory_rel = render_dataset_path(
+        "sealed_inputs_v1",
+        template_args={"manifest_fingerprint": manifest_fingerprint},
+        dictionary=dictionary,
+    )
+    inventory_path = (base_path / inventory_rel).resolve()
+    if not inventory_path.exists():
+        raise err(
+            "E_SEALED_INPUTS_MISSING",
+            f"sealed_inputs_v1 inventory not found at '{inventory_path}'",
+        )
+    try:
+        payload = json.loads(inventory_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:  # pragma: no cover - defensive
+        raise err(
+            "E_SEALED_INPUTS_INVALID",
+            f"sealed_inputs_v1 inventory at '{inventory_path}' is not valid JSON",
+        ) from exc
+    if not isinstance(payload, Sequence):
+        raise err(
+            "E_SEALED_INPUTS_INVALID",
+            "sealed_inputs_v1 inventory must be an array of objects",
+        )
+    records: list[SealedInputRecord] = []
+    for entry in payload:
+        if not isinstance(entry, Mapping):
+            raise err(
+                "E_SEALED_INPUTS_INVALID",
+                "sealed_inputs_v1 entries must be objects",
+            )
+        asset_id = _expect_string(entry, "asset_id", context="sealed_inputs_v1")
+        version_tag = _expect_string(entry, "version_tag", context=asset_id)
+        sha256_hex = _expect_string(entry, "sha256_hex", context=asset_id)
+        catalog_path = _expect_string(entry, "path", context=asset_id)
+        schema_ref = _expect_string(entry, "schema_ref", context=asset_id)
+        partition_list = entry.get("partition") or []
+        if not isinstance(partition_list, Sequence):
+            raise err(
+                "E_SEALED_INPUTS_INVALID",
+                f"sealed asset '{asset_id}' partition must be an array",
+            )
+        partition = tuple(str(item) for item in partition_list if isinstance(item, str))
+        records.append(
+            SealedInputRecord(
+                asset_id=asset_id,
+                version_tag=version_tag,
+                sha256_hex=sha256_hex,
+                catalog_path=catalog_path,
+                partition=partition,
+                schema_ref=schema_ref,
+            )
+        )
+    return tuple(records)
 
 
 def _expect(payload: Mapping[str, object], field: str, expected: str | None = None) -> str:
@@ -123,5 +208,21 @@ def _parse_asset(entry: object) -> GateReceiptAssetRef:
     )
 
 
-__all__ = ["GateReceiptAssetRef", "GateReceiptSummary", "load_gate_receipt"]
+def _expect_string(payload: Mapping[str, object], field: str, *, context: str) -> str:
+    value = payload.get(field)
+    if not isinstance(value, str) or not value:
+        raise err(
+            "E_SEALED_INPUTS_INVALID",
+            f"sealed asset '{context}' missing string field '{field}'",
+        )
+    return value
+
+
+__all__ = [
+    "GateReceiptAssetRef",
+    "GateReceiptSummary",
+    "SealedInputRecord",
+    "load_gate_receipt",
+    "load_sealed_inputs_inventory",
+]
 

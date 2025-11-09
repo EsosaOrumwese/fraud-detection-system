@@ -64,6 +64,20 @@ def _print_summary(result: Segment2BResult) -> None:
         payload["s4_output_path"] = str(result.s4_output_path)
         payload["s4_run_report_path"] = str(result.s4_run_report_path)
         payload["s4_resumed"] = result.s4_resumed
+    if result.s5_run_id:
+        payload["s5_run_id"] = result.s5_run_id
+        if result.s5_rng_event_group_path:
+            payload["s5_rng_event_group_path"] = str(result.s5_rng_event_group_path)
+        if result.s5_rng_event_site_path:
+            payload["s5_rng_event_site_path"] = str(result.s5_rng_event_site_path)
+        if result.s5_rng_trace_log_path:
+            payload["s5_rng_trace_log_path"] = str(result.s5_rng_trace_log_path)
+        if result.s5_rng_audit_log_path:
+            payload["s5_rng_audit_log_path"] = str(result.s5_rng_audit_log_path)
+        if result.s5_selection_log_paths:
+            payload["s5_selection_log_paths"] = [str(path) for path in result.s5_selection_log_paths]
+        if result.s5_run_report_path:
+            payload["s5_run_report_path"] = str(result.s5_run_report_path)
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
@@ -189,6 +203,21 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Suppress printing the S4 run-report JSON to STDOUT (still writes to disk).",
     )
+    parser.add_argument(
+        "--run-s5",
+        action="store_true",
+        help="Execute S5 router core after S4 completes.",
+    )
+    parser.add_argument(
+        "--s5-selection-log",
+        action="store_true",
+        help="Emit the optional s5_selection_log dataset when routing.",
+    )
+    parser.add_argument(
+        "--s5-arrivals-jsonl",
+        type=Path,
+        help="Path to a JSONL file containing arrivals (merchant_id, utc_timestamp).",
+    )
 
     args = parser.parse_args(argv)
 
@@ -218,6 +247,9 @@ def main(argv: list[str] | None = None) -> int:
             run_s4=args.run_s4,
             s4_resume=args.s4_resume,
             s4_emit_run_report_stdout=not args.s4_quiet_run_report,
+            run_s5=args.run_s5,
+            s5_emit_selection_log=args.s5_selection_log,
+            s5_arrivals_path=args.s5_arrivals_jsonl,
         )
     )
     _print_summary(result)

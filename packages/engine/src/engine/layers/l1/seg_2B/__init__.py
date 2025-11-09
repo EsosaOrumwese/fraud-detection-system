@@ -27,6 +27,12 @@ from .s4_group_weights import (
     S4GroupWeightsResult,
     S4GroupWeightsRunner,
 )
+from .s5_router import (
+    RouterArrival as S5RouterArrival,
+    S5RouterInputs,
+    S5RouterResult,
+    S5RouterRunner,
+)
 
 __all__ = [
     "S0GateInputs",
@@ -46,4 +52,8 @@ __all__ = [
     "S4GroupWeightsInputs",
     "S4GroupWeightsResult",
     "S4GroupWeightsRunner",
+    "S5RouterArrival",
+    "S5RouterInputs",
+    "S5RouterResult",
+    "S5RouterRunner",
 ]
