@@ -73,6 +73,7 @@ class S5RouterInputs:
     dictionary_path: Optional[Path] = None
     run_id: Optional[str] = None
     emit_selection_log: bool = False
+    emit_run_report_stdout: bool = True
 
     def __post_init__(self) -> None:
         data_root = self.data_root.expanduser().resolve()
@@ -486,7 +487,8 @@ class S5RouterRunner:
             run_id=run_id,
             report=run_report,
         )
-        print(json.dumps(run_report, indent=2, sort_keys=True))
+        if config.emit_run_report_stdout:
+            print(json.dumps(run_report, indent=2, sort_keys=True))
 
         return S5RouterResult(
             run_id=run_id,

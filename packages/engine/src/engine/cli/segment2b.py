@@ -218,6 +218,11 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help="Path to a JSONL file containing arrivals (merchant_id, utc_timestamp).",
     )
+    parser.add_argument(
+        "--s5-quiet-run-report",
+        action="store_true",
+        help="Suppress printing the S5 run-report JSON to STDOUT (still writes to disk).",
+    )
 
     args = parser.parse_args(argv)
 
@@ -250,6 +255,7 @@ def main(argv: list[str] | None = None) -> int:
             run_s5=args.run_s5,
             s5_emit_selection_log=args.s5_selection_log,
             s5_arrivals_path=args.s5_arrivals_jsonl,
+            s5_emit_run_report_stdout=not args.s5_quiet_run_report,
         )
     )
     _print_summary(result)

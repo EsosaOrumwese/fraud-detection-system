@@ -62,6 +62,7 @@ class Segment2BConfig:
     run_s5: bool = False
     s5_emit_selection_log: bool = False
     s5_arrivals_path: Optional[Path] = None
+    s5_emit_run_report_stdout: bool = True
 
 
 @dataclass(frozen=True)
@@ -232,6 +233,7 @@ class Segment2BOrchestrator:
                 arrivals=arrivals,
                 dictionary_path=config.dictionary_path,
                 emit_selection_log=config.s5_emit_selection_log,
+                emit_run_report_stdout=config.s5_emit_run_report_stdout,
             )
             s5_result = self._s5_runner.run(s5_inputs)
             logger.info(

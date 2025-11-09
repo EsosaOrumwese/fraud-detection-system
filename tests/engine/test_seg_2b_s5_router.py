@@ -68,12 +68,13 @@ logs:
     return dictionary_path
 
 
-def _write_policy(path: Path, asset_id: str, payload: dict) -> tuple[Path, str]:
+def _write_policy(path: Path, asset_id: str, payload: dict) -> tuple[Path, str, str]:
     policy_path = path / "policies" / f"{asset_id}.json"
     policy_path.parent.mkdir(parents=True, exist_ok=True)
     policy_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    digest = hashlib.sha256(policy_path.read_bytes()).hexdigest()
-    return policy_path, digest
+    raw_digest = hashlib.sha256(policy_path.read_bytes()).hexdigest()
+    aggregated_digest = hashlib.sha256(raw_digest.encode("ascii")).hexdigest()
+    return policy_path, raw_digest, aggregated_digest
 
 
 def _write_receipt_and_inventory(
@@ -81,8 +82,8 @@ def _write_receipt_and_inventory(
     manifest: str,
     seed: int,
     parameter_hash: str,
-    route_policy: tuple[Path, str],
-    alias_policy: tuple[Path, str],
+    route_policy: tuple[Path, str, str],
+    alias_policy: tuple[Path, str, str],
 ) -> None:
     receipt_payload = {
         "segment": "2B",
@@ -101,7 +102,7 @@ def _write_receipt_and_inventory(
         "determinism_receipt": {
             "engine_commit": "deadbeef",
             "policy_ids": ["route_rng_policy_v1", "alias_layout_policy_v1"],
-            "policy_digests": [route_policy[1], alias_policy[1]],
+            "policy_digests": [route_policy[2], alias_policy[2]],
         },
     }
     receipt_path = base / f"data/layer1/2B/s0_gate_receipt/fingerprint={manifest}/s0_gate_receipt.json"
@@ -111,7 +112,7 @@ def _write_receipt_and_inventory(
         {
             "asset_id": "route_rng_policy_v1",
             "version_tag": "test",
-            "sha256_hex": route_policy[1],
+            "sha256_hex": route_policy[2],
             "path": route_policy[0].relative_to(base).as_posix(),
             "partition": [],
             "schema_ref": "schemas.2B.yaml#/policy/route_rng_policy_v1",
@@ -119,7 +120,7 @@ def _write_receipt_and_inventory(
         {
             "asset_id": "alias_layout_policy_v1",
             "version_tag": "test",
-            "sha256_hex": alias_policy[1],
+            "sha256_hex": alias_policy[2],
             "path": alias_policy[0].relative_to(base).as_posix(),
             "partition": [],
             "schema_ref": "schemas.2B.yaml#/policy/alias_layout_policy_v1",
@@ -238,17 +239,17 @@ def _build_runner_inputs(tmp_path: Path) -> tuple[S5RouterRunner, S5RouterInputs
         },
         "decode_law": "alias",
     }
-    route_policy_path, route_digest = _write_policy(tmp_path, "route_rng_policy_v1", route_policy_payload)
-    alias_policy_path, alias_digest = _write_policy(tmp_path, "alias_layout_policy_v1", alias_policy_payload)
+    route_policy_path, route_digest_raw, route_digest_agg = _write_policy(tmp_path, "route_rng_policy_v1", route_policy_payload)
+    alias_policy_path, alias_digest_raw, alias_digest_agg = _write_policy(tmp_path, "alias_layout_policy_v1", alias_policy_payload)
     _write_receipt_and_inventory(
         tmp_path,
         manifest=manifest,
         seed=seed,
         parameter_hash=parameter_hash,
-        route_policy=(route_policy_path, route_digest),
-        alias_policy=(alias_policy_path, alias_digest),
+        route_policy=(route_policy_path, route_digest_raw, route_digest_agg),
+        alias_policy=(alias_policy_path, alias_digest_raw, alias_digest_agg),
     )
-    _write_alias_artifacts(tmp_path, seed=seed, manifest=manifest, alias_policy_digest=alias_digest)
+    _write_alias_artifacts(tmp_path, seed=seed, manifest=manifest, alias_policy_digest=alias_digest_raw)
     _write_s1_site_weights(tmp_path, seed, manifest)
     _write_site_timezones(tmp_path, seed, seg2a_manifest)
     _write_group_weights(tmp_path, seed, manifest)
