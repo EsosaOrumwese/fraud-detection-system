@@ -1,14 +1,26 @@
 {
   "version_tag": "2025.11",
+  "rng_engine": "philox_4x32_10",
+  "rng_stream_id": "day_effects_stream",
   "sigma_gamma": 0.12,
-  "clip_bounds": [-0.35, 0.35],
-  "utc_day_start": "2025-01-01",
-  "utc_day_count": 14,
+  "day_range": {
+    "start_day": "2025-01-01",
+    "end_day": "2025-01-14"
+  },
+  "draws_per_row": 1,
+  "record_fields": [
+    "gamma",
+    "log_gamma",
+    "sigma_gamma",
+    "rng_stream_id",
+    "rng_counter_lo",
+    "rng_counter_hi"
+  ],
+  "created_utc_policy_echo": true,
   "rng_key_hi": 305419896,
   "rng_key_lo": 2596069104,
-  "rng_counter_start_hi": 0,
-  "rng_counter_start_lo": 0,
-  "rng_stream_id": "day_effects_stream",
+  "base_counter_hi": 0,
+  "base_counter_lo": 0,
   "calendar": "UTC",
-  "notes": "Corporate-day modulation variance + clip bounds (alpha)."
+  "notes": "Corporate-day modulation variance (alpha)."
 }

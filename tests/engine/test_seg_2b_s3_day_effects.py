@@ -74,15 +74,24 @@ def _write_site_timezones(base: Path, seed: int, manifest: str) -> None:
 def _write_policy(base: Path) -> None:
     payload = {
         "version_tag": "test",
+        "rng_engine": "philox_4x32_10",
+        "rng_stream_id": "integration_stream",
         "sigma_gamma": 0.1,
-        "clip_bounds": [-0.25, 0.25],
-        "utc_day_start": "2025-01-01",
-        "utc_day_count": 2,
+        "day_range": {"start_day": "2025-01-01", "end_day": "2025-01-02"},
+        "draws_per_row": 1,
+        "record_fields": [
+            "gamma",
+            "log_gamma",
+            "sigma_gamma",
+            "rng_stream_id",
+            "rng_counter_lo",
+            "rng_counter_hi",
+        ],
+        "created_utc_policy_echo": True,
         "rng_key_hi": 123456789,
         "rng_key_lo": 987654321,
-        "rng_counter_start_hi": 0,
-        "rng_counter_start_lo": 0,
-        "rng_stream_id": "integration_stream",
+        "base_counter_hi": 0,
+        "base_counter_lo": 0,
     }
     dest = base / "contracts/policies/l1/seg_2B/day_effect_policy_v1.json"
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -129,13 +138,36 @@ def test_s3_day_effects_runner_emits_factors(tmp_path: Path) -> None:
     )
 
     assert result.output_path.exists()
-    df = pl.read_parquet(result.output_path)
+    part_path = next(result.output_path.glob("*.parquet"))
+    df = pl.read_parquet(part_path)
     assert df.height == 4  # 1 merchant * 2 tz groups * 2 days
+    assert set(df.columns) == {
+        "merchant_id",
+        "utc_day",
+        "tz_group_id",
+        "gamma",
+        "log_gamma",
+        "sigma_gamma",
+        "rng_stream_id",
+        "rng_counter_hi",
+        "rng_counter_lo",
+        "created_utc",
+    }
     assert df["gamma"].min() > 0
     assert df["tz_group_id"].n_unique() == 2
-    assert set(df["tzid"].unique().to_list()) == {"America/New_York", "Europe/London"}
-    assert set(df["legal_country_iso"].unique().to_list()) == {"US"}
+    assert set(df["tz_group_id"].to_list()) == {"America/New_York", "Europe/London"}
+    assert set(df["utc_day"].to_list()) == {"2025-01-01", "2025-01-02"}
+    ordered = df.sort(["merchant_id", "utc_day", "tz_group_id"])
+    counters = [
+        (int(row["rng_counter_hi"]) << 64) + int(row["rng_counter_lo"])
+        for row in ordered.iter_rows(named=True)
+    ]
+    assert counters == sorted(counters)
     assert result.run_report_path.exists()
+    report = json.loads(result.run_report_path.read_text(encoding="utf-8"))
+    assert report["rng_accounting"]["rows_expected"] == 4
+    assert report["rng_accounting"]["rows_written"] == 4
+    assert report["inputs_summary"]["tz_groups_total"] == 2
 
 
 def test_s3_day_effects_runner_resume(tmp_path: Path) -> None:
