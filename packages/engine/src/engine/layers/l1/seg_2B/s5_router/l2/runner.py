@@ -170,13 +170,13 @@ class S5RouterRunner:
             dictionary=dictionary,
         )
         sealed_map = {entry.asset_id: entry for entry in sealed_inventory}
-        policy_payload, policy_digest, policy_path = self._load_policy_asset(
+        policy_payload, policy_digest, policy_file_digest, policy_path = self._load_policy_asset(
             asset_id="route_rng_policy_v1",
             sealed_records=sealed_map,
             base_path=config.data_root,
             repo_root=repo_root,
         )
-        alias_policy_payload, alias_policy_digest, _ = self._load_policy_asset(
+        alias_policy_payload, alias_policy_digest, alias_policy_file_digest, _ = self._load_policy_asset(
             asset_id="alias_layout_policy_v1",
             sealed_records=sealed_map,
             base_path=config.data_root,
@@ -189,21 +189,21 @@ class S5RouterRunner:
             dictionary=dictionary,
             template_args={"seed": seed_int, "manifest_fingerprint": manifest},
             columns=["merchant_id", "utc_day", "tz_group_id", "p_group"],
-        )
+        ).with_columns(pl.col("merchant_id").cast(pl.UInt64))
         site_weights = self._read_parquet_partition(
             base_path=config.data_root,
             dataset_id="s1_site_weights",
             dictionary=dictionary,
             template_args={"seed": seed_int, "manifest_fingerprint": manifest},
             columns=["merchant_id", "legal_country_iso", "site_order", "p_weight"],
-        )
+        ).with_columns(pl.col("merchant_id").cast(pl.UInt64))
         site_tz = self._read_parquet_partition(
             base_path=config.data_root,
             dataset_id="site_timezones",
             dictionary=dictionary,
             template_args={"seed": seed_int, "manifest_fingerprint": seg2a_manifest},
             columns=["merchant_id", "legal_country_iso", "site_order", "tzid"],
-        )
+        ).with_columns(pl.col("merchant_id").cast(pl.UInt64))
         site_lookup = site_weights.join(
             site_tz,
             on=["merchant_id", "legal_country_iso", "site_order"],
@@ -227,7 +227,7 @@ class S5RouterRunner:
             dictionary=dictionary,
             manifest_fingerprint=manifest,
             seed=seed_int,
-            alias_policy_digest=alias_policy_digest,
+            alias_policy_digest=alias_policy_file_digest,
         )
 
         engine = PhiloxEngine(seed=seed_int, manifest_fingerprint=manifest)
@@ -524,7 +524,7 @@ class S5RouterRunner:
         sealed_records: Mapping[str, SealedInputRecord],
         base_path: Path,
         repo_root: Path,
-    ) -> tuple[Mapping[str, object], str, Path]:
+    ) -> tuple[Mapping[str, object], str, str, Path]:
         record = sealed_records.get(asset_id)
         if record is None:
             raise err(
@@ -542,19 +542,21 @@ class S5RouterRunner:
                 f"policy '{asset_id}' not found at '{policy_path}'",
             )
         payload = json.loads(policy_path.read_text(encoding="utf-8"))
-        actual_digest = hashlib.sha256(policy_path.read_bytes()).hexdigest()
-        if actual_digest != record.sha256_hex:
+        file_bytes = policy_path.read_bytes()
+        file_digest = hashlib.sha256(file_bytes).hexdigest()
+        aggregated_digest = hashlib.sha256(file_digest.encode("ascii")).hexdigest()
+        if aggregated_digest != record.sha256_hex:
             raise err(
                 "E_S5_POLICY_DIGEST",
-                f"policy '{asset_id}' digest mismatch: expected {record.sha256_hex}, observed {actual_digest}",
+                f"policy '{asset_id}' digest mismatch: expected {record.sha256_hex}, observed {aggregated_digest}",
             )
         determinism_digest = payload.get("sha256_hex")
-        if determinism_digest and determinism_digest != actual_digest:
+        if determinism_digest and determinism_digest != file_digest:
             raise err(
                 "E_S5_POLICY_DIGEST",
                 f"policy '{asset_id}' embedded digest mismatch",
             )
-        return payload, actual_digest, policy_path
+        return payload, aggregated_digest, file_digest, policy_path
 
     @staticmethod
     def _resolve_catalog_path(*, base_path: Path, repo_root: Path, relative_path: str) -> Path:
@@ -609,8 +611,8 @@ class S5RouterRunner:
             template_args={"seed": seed, "manifest_fingerprint": manifest_fingerprint},
             dictionary=dictionary,
         )
-        index_file = index_path / "index.json"
-        blob_file = blob_path / "alias.bin"
+        index_file = index_path if index_path.is_file() else index_path / "index.json"
+        blob_file = blob_path if blob_path.is_file() else blob_path / "alias.bin"
         if not index_file.exists() or not blob_file.exists():
             raise err(
                 "E_S5_ALIAS_ARTEFACTS_MISSING",
