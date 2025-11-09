@@ -22,6 +22,11 @@ from .s3_day_effects import (
     S3DayEffectsResult,
     S3DayEffectsRunner,
 )
+from .s4_group_weights import (
+    S4GroupWeightsInputs,
+    S4GroupWeightsResult,
+    S4GroupWeightsRunner,
+)
 
 __all__ = [
     "S0GateInputs",
@@ -38,4 +43,7 @@ __all__ = [
     "S3DayEffectsInputs",
     "S3DayEffectsResult",
     "S3DayEffectsRunner",
+    "S4GroupWeightsInputs",
+    "S4GroupWeightsResult",
+    "S4GroupWeightsRunner",
 ]

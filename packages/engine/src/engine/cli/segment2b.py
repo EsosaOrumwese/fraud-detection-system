@@ -60,6 +60,10 @@ def _print_summary(result: Segment2BResult) -> None:
         payload["s3_output_path"] = str(result.s3_output_path)
         payload["s3_run_report_path"] = str(result.s3_run_report_path)
         payload["s3_resumed"] = result.s3_resumed
+    if result.s4_output_path:
+        payload["s4_output_path"] = str(result.s4_output_path)
+        payload["s4_run_report_path"] = str(result.s4_run_report_path)
+        payload["s4_resumed"] = result.s4_resumed
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
@@ -170,6 +174,21 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Suppress printing the S3 run-report JSON to STDOUT (still writes to disk).",
     )
+    parser.add_argument(
+        "--run-s4",
+        action="store_true",
+        help="Execute S4 tz-group renormalisation after S3 completes.",
+    )
+    parser.add_argument(
+        "--s4-resume",
+        action="store_true",
+        help="Skip S4 execution when its output partition already exists.",
+    )
+    parser.add_argument(
+        "--s4-quiet-run-report",
+        action="store_true",
+        help="Suppress printing the S4 run-report JSON to STDOUT (still writes to disk).",
+    )
 
     args = parser.parse_args(argv)
 
@@ -196,6 +215,9 @@ def main(argv: list[str] | None = None) -> int:
             run_s3=args.run_s3,
             s3_resume=args.s3_resume,
             s3_emit_run_report_stdout=not args.s3_quiet_run_report,
+            run_s4=args.run_s4,
+            s4_resume=args.s4_resume,
+            s4_emit_run_report_stdout=not args.s4_quiet_run_report,
         )
     )
     _print_summary(result)

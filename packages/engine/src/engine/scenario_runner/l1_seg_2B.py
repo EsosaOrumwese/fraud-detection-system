@@ -20,6 +20,9 @@ from engine.layers.l1.seg_2B import (
     S3DayEffectsInputs,
     S3DayEffectsResult,
     S3DayEffectsRunner,
+    S4GroupWeightsInputs,
+    S4GroupWeightsResult,
+    S4GroupWeightsRunner,
 )
 
 logger = logging.getLogger(__name__)
@@ -48,6 +51,9 @@ class Segment2BConfig:
     run_s3: bool = False
     s3_resume: bool = False
     s3_emit_run_report_stdout: bool = True
+    run_s4: bool = False
+    s4_resume: bool = False
+    s4_emit_run_report_stdout: bool = True
 
 
 @dataclass(frozen=True)
@@ -71,6 +77,9 @@ class Segment2BResult:
     s3_output_path: Optional[Path] = None
     s3_run_report_path: Optional[Path] = None
     s3_resumed: bool = False
+    s4_output_path: Optional[Path] = None
+    s4_run_report_path: Optional[Path] = None
+    s4_resumed: bool = False
 
 
 class Segment2BOrchestrator:
@@ -81,6 +90,7 @@ class Segment2BOrchestrator:
         self._s1_runner = S1WeightsRunner()
         self._s2_runner = S2AliasRunner()
         self._s3_runner = S3DayEffectsRunner()
+        self._s4_runner = S4GroupWeightsRunner()
 
     def run(self, config: Segment2BConfig) -> Segment2BResult:
         data_root = config.data_root.expanduser().resolve()
@@ -163,6 +173,28 @@ class Segment2BOrchestrator:
                 "resumed" if s3_result.resumed else "completed",
                 s3_result.output_path,
             )
+        s4_result: S4GroupWeightsResult | None = None
+        if config.run_s4:
+            logger.info(
+                "Segment2B S4 starting (seed=%s, manifest=%s)",
+                config.seed,
+                gate_output.manifest_fingerprint,
+            )
+            s4_inputs = S4GroupWeightsInputs(
+                data_root=data_root,
+                seed=config.seed,
+                manifest_fingerprint=gate_output.manifest_fingerprint,
+                seg2a_manifest_fingerprint=config.seg2a_manifest_fingerprint,
+                dictionary_path=config.dictionary_path,
+                resume=config.s4_resume,
+                emit_run_report_stdout=config.s4_emit_run_report_stdout,
+            )
+            s4_result = self._s4_runner.run(s4_inputs)
+            logger.info(
+                "Segment2B S4 %s (output=%s)",
+                "resumed" if s4_result.resumed else "completed",
+                s4_result.output_path,
+            )
         return Segment2BResult(
             manifest_fingerprint=gate_output.manifest_fingerprint,
             seg2a_manifest_fingerprint=config.seg2a_manifest_fingerprint,
@@ -181,6 +213,9 @@ class Segment2BOrchestrator:
             s3_output_path=s3_result.output_path if s3_result else None,
             s3_run_report_path=s3_result.run_report_path if s3_result else None,
             s3_resumed=s3_result.resumed if s3_result else False,
+            s4_output_path=s4_result.output_path if s4_result else None,
+            s4_run_report_path=s4_result.run_report_path if s4_result else None,
+            s4_resumed=s4_result.resumed if s4_result else False,
         )
 
 
