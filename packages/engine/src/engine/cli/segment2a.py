@@ -56,6 +56,7 @@ def _discover_git_commit(default: str = "0" * 40) -> str:
 def _print_summary(result: Segment2AResult) -> None:
     payload = {
         "manifest_fingerprint": result.manifest_fingerprint,
+        "parameter_hash": result.parameter_hash,
         "receipt_path": str(result.receipt_path),
         "inventory_path": str(result.inventory_path),
         "resumed": result.resumed,
@@ -144,6 +145,11 @@ def main(argv: list[str] | None = None) -> int:
         "--notes",
         type=str,
         help="Optional notes recorded in the S0 receipt.",
+    )
+    parser.add_argument(
+        "--result-json",
+        type=Path,
+        help="Optional JSON file to persist the Segment 2A run summary.",
     )
     parser.add_argument(
         "--resume",
@@ -256,6 +262,65 @@ def main(argv: list[str] | None = None) -> int:
         )
     )
     _print_summary(result)
+    if args.result_json:
+        summary_path = args.result_json.expanduser().resolve()
+        summary_path.parent.mkdir(parents=True, exist_ok=True)
+        summary: dict[str, object] = {
+            "seed": args.seed,
+            "data_root": str(args.data_root.expanduser().resolve()),
+            "s0": {
+                "manifest_fingerprint": result.manifest_fingerprint,
+                "parameter_hash": result.parameter_hash,
+                "receipt_path": str(result.receipt_path),
+                "inventory_path": str(result.inventory_path),
+                "resumed": result.resumed,
+            },
+        }
+        if result.s1_output_path:
+            summary["s1"] = {
+                "output_path": str(result.s1_output_path),
+                "resumed": result.s1_resumed,
+            }
+        if result.s2_output_path:
+            summary["s2"] = {
+                "output_path": str(result.s2_output_path),
+                "run_report_path": (
+                    str(result.s2_run_report_path) if result.s2_run_report_path else None
+                ),
+                "resumed": result.s2_resumed,
+            }
+        if result.s3_output_path or result.s3_adjustments_path:
+            summary["s3"] = {
+                "output_path": (
+                    str(result.s3_output_path) if result.s3_output_path else None
+                ),
+                "run_report_path": (
+                    str(result.s3_run_report_path) if result.s3_run_report_path else None
+                ),
+                "adjustments_path": (
+                    str(result.s3_adjustments_path) if result.s3_adjustments_path else None
+                ),
+                "resumed": result.s3_resumed,
+            }
+        if result.s4_output_path:
+            summary["s4"] = {
+                "output_path": str(result.s4_output_path),
+                "run_report_path": (
+                    str(result.s4_run_report_path) if result.s4_run_report_path else None
+                ),
+                "resumed": result.s4_resumed,
+            }
+        if result.s5_bundle_path or result.s5_flag_path:
+            summary["s5"] = {
+                "bundle_path": str(result.s5_bundle_path) if result.s5_bundle_path else None,
+                "flag_path": str(result.s5_flag_path) if result.s5_flag_path else None,
+                "run_report_path": (
+                    str(result.s5_run_report_path) if result.s5_run_report_path else None
+                ),
+                "resumed": result.s5_resumed,
+            }
+        summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+        logger.info("Segment2A CLI: wrote summary %s", summary_path)
     return 0
 
 

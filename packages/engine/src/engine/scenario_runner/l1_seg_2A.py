@@ -67,6 +67,7 @@ class Segment2AResult:
     """Structured result for Segment 2A runs."""
 
     manifest_fingerprint: str
+    parameter_hash: str
     receipt_path: Path
     inventory_path: Path
     resumed: bool
@@ -115,6 +116,7 @@ class Segment2AOrchestrator:
         gate_manifest: str | None = None
         gate_receipt_path: Path | None = None
         gate_inventory_path: Path | None = None
+        gate_parameter_hash: str | None = None
         if config.resume:
             manifest = config.resume_manifest_fingerprint
             if not manifest:
@@ -131,13 +133,21 @@ class Segment2AOrchestrator:
                     "Segment2A resume detected (manifest=%s); skipping S0 execution",
                     manifest,
                 )
+                payload = json.loads(receipt_path.read_text(encoding="utf-8"))
+                parameter_hash = payload.get("parameter_hash")
+                if not isinstance(parameter_hash, str) or not parameter_hash:
+                    raise ValueError(
+                        f"segment2a receipt '{receipt_path}' missing parameter_hash"
+                    )
                 s0_resumed = True
                 gate_manifest = manifest
                 gate_receipt_path = receipt_path
                 gate_inventory_path = inventory_path
+                gate_parameter_hash = parameter_hash
                 if not config.run_s1:
                     return Segment2AResult(
                         manifest_fingerprint=manifest,
+                        parameter_hash=parameter_hash,
                         receipt_path=receipt_path,
                         inventory_path=inventory_path,
                         resumed=True,
@@ -165,6 +175,7 @@ class Segment2AOrchestrator:
             gate_manifest = gate_result.manifest_fingerprint
             gate_receipt_path = gate_result.receipt_path
             gate_inventory_path = gate_result.inventory_path
+            gate_parameter_hash = gate_result.parameter_hash
             logger.info(
                 "Segment2A S0 completed (manifest=%s, receipt=%s)",
                 gate_manifest,
@@ -173,7 +184,12 @@ class Segment2AOrchestrator:
         else:
             gate_result = None
 
-        assert gate_manifest is not None and gate_receipt_path is not None and gate_inventory_path is not None
+        assert (
+            gate_manifest is not None
+            and gate_receipt_path is not None
+            and gate_inventory_path is not None
+            and gate_parameter_hash is not None
+        )
         s1_result: ProvisionalLookupResult | None = None
         s2_result: OverridesResult | None = None
         s3_result: TimetableResult | None = None
@@ -286,6 +302,7 @@ class Segment2AOrchestrator:
 
         return Segment2AResult(
             manifest_fingerprint=gate_manifest,
+            parameter_hash=gate_parameter_hash,
             receipt_path=gate_receipt_path,
             inventory_path=gate_inventory_path,
             resumed=s0_resumed,
