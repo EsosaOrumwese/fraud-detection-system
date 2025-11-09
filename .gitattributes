@@ -9,3 +9,10 @@ artefacts/spatial/tz_world/2025a/raw/extracted/*.json filter=lfs diff=lfs merge=
 reference/spatial/population_raster/**/*.tif filter=lfs diff=lfs merge=lfs -text
 *.parquet filter=lfs diff=lfs merge=lfs -text
 *.tif filter=lfs diff=lfs merge=lfs -text
+
+# Governing contracts/policies/reference assets must keep LF endings (no CRLF conversions)
+contracts/policies/** text eol=lf
+contracts/dataset_dictionary/** text eol=lf
+contracts/schemas/** text eol=lf
+reference/** text eol=lf
+artefacts/** text eol=lf
