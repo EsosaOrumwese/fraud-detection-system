@@ -196,6 +196,7 @@ class S1WeightsRunner:
             "created_utc": pl.Utf8,
         }
         df = pl.DataFrame(results, schema=schema)
+        self._validate_output_schema(df=df)
         df.write_parquet(output_file, compression="zstd")
         bytes_written = sum(f.stat().st_size for f in output_dir.glob("*.parquet"))
         timers["publish_ms"] += (time.perf_counter() - publish_start) * 1000.0
@@ -343,6 +344,41 @@ class S1WeightsRunner:
             / "run_report.json"
         )
         return rel.resolve()
+
+    def _validate_output_schema(self, *, df: pl.DataFrame) -> None:
+        expected = [
+            "merchant_id",
+            "legal_country_iso",
+            "site_order",
+            "p_weight",
+            "weight_source",
+            "quantised_bits",
+            "floor_applied",
+            "created_utc",
+        ]
+        if set(df.columns) != set(expected):
+            raise err(
+                "E_S1_SCHEMA_COLUMNS",
+                f"s1_site_weights columns {sorted(df.columns)} do not match expected {expected}",
+            )
+        expected_types = {
+            "merchant_id": pl.UInt64,
+            "legal_country_iso": pl.Utf8,
+            "site_order": pl.Int32,
+            "p_weight": pl.Float64,
+            "weight_source": pl.Utf8,
+            "quantised_bits": pl.UInt16,
+            "floor_applied": pl.Boolean,
+            "created_utc": pl.Utf8,
+        }
+        schema = df.schema
+        for name, dtype in expected_types.items():
+            actual = schema.get(name)
+            if actual != dtype:
+                raise err(
+                    "E_S1_SCHEMA_TYPES",
+                    f"s1_site_weights column '{name}' has dtype {actual}, expected {dtype}",
+                )
 
     def _process_group(
         self,

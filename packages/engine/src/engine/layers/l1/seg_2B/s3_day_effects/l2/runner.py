@@ -582,6 +582,7 @@ class S3DayEffectsRunner:
                     "created_utc": pl.Utf8,
                 },
             )
+            self._validate_output_schema(df=df)
             df.write_parquet(part_path, compression="zstd")
             self._fsync_file(part_path)
             os.replace(staging_dir, output_dir)
@@ -750,6 +751,45 @@ class S3DayEffectsRunner:
             ),
             "registry_version": str(catalogue.get("registry_version") or "unversioned"),
         }
+
+    def _validate_output_schema(self, *, df: pl.DataFrame) -> None:
+        expected_cols = [
+            "merchant_id",
+            "utc_day",
+            "tz_group_id",
+            "gamma",
+            "log_gamma",
+            "sigma_gamma",
+            "rng_stream_id",
+            "rng_counter_hi",
+            "rng_counter_lo",
+            "created_utc",
+        ]
+        if set(df.columns) != set(expected_cols):
+            raise err(
+                "E_S3_SCHEMA_COLUMNS",
+                f"s3_day_effects columns {sorted(df.columns)} do not match expected {expected_cols}",
+            )
+        expected_types = {
+            "merchant_id": pl.UInt64,
+            "utc_day": pl.Utf8,
+            "tz_group_id": pl.Utf8,
+            "gamma": pl.Float64,
+            "log_gamma": pl.Float64,
+            "sigma_gamma": pl.Float64,
+            "rng_stream_id": pl.Utf8,
+            "rng_counter_hi": pl.UInt64,
+            "rng_counter_lo": pl.UInt64,
+            "created_utc": pl.Utf8,
+        }
+        schema = df.schema
+        for name, dtype in expected_types.items():
+            actual = schema.get(name)
+            if actual != dtype:
+                raise err(
+                    "E_S3_SCHEMA_TYPES",
+                    f"s3_day_effects column '{name}' has dtype {actual}, expected {dtype}",
+                )
 
     def _fsync_file(self, path: Path) -> None:
         try:

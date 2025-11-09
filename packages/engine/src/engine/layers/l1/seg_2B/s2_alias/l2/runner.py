@@ -231,6 +231,15 @@ class S2AliasRunner:
             "merchants_count": stats["merchants_total"],
             "merchants": sorted(merchants_index, key=lambda item: item["merchant_id"]),
         }
+        schema = load_schema("#/plan/s2_alias_index")
+        validator = Draft202012Validator(schema)
+        try:
+            validator.validate(index_payload)
+        except ValidationError as exc:
+            raise err(
+                "E_S2_INDEX_SCHEMA",
+                f"s2_alias_index payload violates schema: {exc.message}",
+            ) from exc
 
         index_path.parent.mkdir(parents=True, exist_ok=True)
         blob_path.parent.mkdir(parents=True, exist_ok=True)
