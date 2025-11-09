@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import json
 import math
 import platform
 import socket
+import time
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -34,6 +36,8 @@ from ...shared.rng_trace import append_trace_records
 from ...s0_gate.exceptions import err
 
 RUN_REPORT_ROOT = Path("reports") / "l1" / "s5_router"
+
+logger = logging.getLogger(__name__)
 
 
 def _comp_string(value: str) -> tuple[str, str]:
@@ -221,8 +225,16 @@ class S5RouterRunner:
             for row in site_lookup.iter_rows(named=True)
         }
         arrivals = list(config.arrivals or self._derive_arrivals(group_frame))
+        total_arrivals = len(arrivals)
         if not arrivals:
             raise err("E_S5_NO_ARRIVALS", "router received zero arrivals to process")
+        logger.info(
+            "S5 router run starting (manifest=%s, seed=%s, selections=%s, run_id=%s)",
+            manifest,
+            seed_int,
+            total_arrivals,
+            run_id,
+        )
         self._verify_alias_blob(
             base_path=config.data_root,
             dictionary=dictionary,
@@ -264,6 +276,8 @@ class S5RouterRunner:
         selection_seq = 0
 
         arrivals_sorted = sorted(arrivals, key=lambda item: (item.utc_timestamp, item.merchant_id))
+        progress_interval = max(1, total_arrivals // 10) if total_arrivals else 1
+        router_start = time.perf_counter()
         for arrival in arrivals_sorted:
             merchant_id = int(arrival.merchant_id)
             utc_ts = arrival.utc_timestamp.astimezone(timezone.utc)
@@ -365,6 +379,16 @@ class S5RouterRunner:
                         "tz_group_id": tz_group_str,
                         "site_id": site_id,
                     }
+                )
+            if selection_seq % progress_interval == 0 or selection_seq == total_arrivals:
+                elapsed = time.perf_counter() - router_start
+                pct = (selection_seq / total_arrivals * 100.0) if total_arrivals else 100.0
+                logger.info(
+                    "S5 progress: %d/%d selections processed (%.1f%%, %.1fs elapsed)",
+                    selection_seq,
+                    total_arrivals,
+                    pct,
+                    elapsed,
                 )
 
         base_path = config.data_root
@@ -615,6 +639,7 @@ class S5RouterRunner:
         )
         index_file = index_path if index_path.is_file() else index_path / "index.json"
         blob_file = blob_path if blob_path.is_file() else blob_path / "alias.bin"
+        logger.info("S5 verifying alias artefacts (index=%s, blob=%s)", index_file, blob_file)
         if not index_file.exists() or not blob_file.exists():
             raise err(
                 "E_S5_ALIAS_ARTEFACTS_MISSING",
@@ -640,6 +665,7 @@ class S5RouterRunner:
                 "E_S5_ALIAS_POLICY_MISMATCH",
                 "alias index policy digest does not match sealed alias_layout_policy_v1",
             )
+        logger.info("S5 alias artefacts verified successfully")
 
     def _build_event_payload(
         self,
