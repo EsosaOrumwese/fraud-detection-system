@@ -166,11 +166,21 @@ class S0GateRunner:
             git_commit_raw=git_bytes,
             parameter_hash_bytes=bytes.fromhex(parameter_result.parameter_hash),
         )
+        manifest_fingerprint = inputs.upstream_manifest_fingerprint
+        if manifest_result.manifest_fingerprint != manifest_fingerprint:
+            raise err(
+                "E_MANIFEST_DIVERGED",
+                (
+                    "Segment 2A S0 recomputed manifest fingerprint "
+                    f"'{manifest_result.manifest_fingerprint}' which differs from "
+                    f"upstream fingerprint '{manifest_fingerprint}'."
+                ),
+            )
 
         receipt_path, verified_at = self._write_receipt(
             inputs=inputs,
             dictionary=dictionary,
-            manifest_fingerprint=manifest_result.manifest_fingerprint,
+            manifest_fingerprint=manifest_fingerprint,
             parameter_result=parameter_result,
             flag_sha256_hex=declared_flag,
             sealed_assets=sealed_assets,
@@ -178,12 +188,12 @@ class S0GateRunner:
         inventory_path = self._write_inventory(
             inputs=inputs,
             dictionary=dictionary,
-            manifest_fingerprint=manifest_result.manifest_fingerprint,
+            manifest_fingerprint=manifest_fingerprint,
             sealed_assets=sealed_assets,
         )
 
         return GateOutputs(
-            manifest_fingerprint=manifest_result.manifest_fingerprint,
+            manifest_fingerprint=manifest_fingerprint,
             parameter_hash=parameter_result.parameter_hash,
             flag_sha256_hex=declared_flag,
             receipt_path=receipt_path,
