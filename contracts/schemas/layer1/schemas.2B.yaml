@@ -500,3 +500,50 @@ binary:
       quantised_bits: { type: integer, minimum: 1 }
       blob_sha256: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
       blob_size_bytes: { type: integer, minimum: 0 }
+
+trace:
+
+  s5_selection_log_row:
+    type: object
+    additionalProperties: false
+    required:
+      [
+        seed,
+        parameter_hash,
+        run_id,
+        utc_day,
+        utc_timestamp,
+        merchant_id,
+        tz_group_id,
+        site_id,
+        rng_stream_id,
+        ctr_group_hi,
+        ctr_group_lo,
+        ctr_site_hi,
+        ctr_site_lo,
+        manifest_fingerprint,
+        created_utc,
+      ]
+    properties:
+      seed: { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      parameter_hash: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+      run_id: { $ref: 'schemas.layer1.yaml#/$defs/hex32' }
+      utc_day:
+        type: string
+        pattern: '^\d{4}-\d{2}-\d{2}$'
+      utc_timestamp: { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
+      merchant_id: { $ref: 'schemas.layer1.yaml#/$defs/id64' }
+      tz_group_id: { $ref: 'schemas.layer1.yaml#/$defs/iana_tzid' }
+      site_id: { $ref: 'schemas.layer1.yaml#/$defs/id64' }
+      selection_seq:
+        $ref: 'schemas.layer1.yaml#/$defs/uint64'
+        nullable: true
+        description: 'Monotone arrival sequence (optional).'
+      rng_stream_id: { type: string, minLength: 1 }
+      ctr_group_hi: { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      ctr_group_lo: { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      ctr_site_hi: { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      ctr_site_lo: { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      manifest_fingerprint: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+      created_utc: { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
+      notes: { type: string, nullable: true }
