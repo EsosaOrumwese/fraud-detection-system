@@ -140,14 +140,14 @@ SEG2B_EXTRA += --s3-quiet-run-report
 endif
 
 SEG2B_ARGS = \
-	--data-root $(RUN_ROOT) \
+	--data-root "$(RUN_ROOT)" \
 	--seed $(SEED) \
 	--manifest-fingerprint $$MANIFEST_FINGERPRINT \
 	--parameter-hash $$PARAM_HASH \
 	--seg2a-manifest-fingerprint $$SEG2A_MANIFEST_FINGERPRINT \
 	--git-commit-hex $(GIT_COMMIT) \
-	--dictionary $(SEG2B_DICTIONARY) \
-	--validation-bundle $$VALIDATION_BUNDLE \
+	--dictionary "$(SEG2B_DICTIONARY)" \
+	--validation-bundle "$$VALIDATION_BUNDLE" \
 	$(SEG2B_EXTRA)
 SEG2B_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment2b $(SEG2B_ARGS)
 
@@ -230,12 +230,16 @@ segment2b:
 		echo "Segment 1A summary '$(RESULT_JSON)' not found. Run 'make segment1a' first." >&2; \
 		exit 1; \
 	fi
-	@eval "$$($(PY) scripts/make_helpers/resolve_seg2b_env.py \
-		--seg1a-summary \"$(RESULT_JSON)\" \
-		--seg2a-summary \"$(SEG2A_RESULT_JSON)\" \
-		--run-root \"$(RUN_ROOT)\" \
-		--seed \"$(SEED)\" \
-	)"; \
+	@TMP_ENV_FILE="$(RUN_ROOT)/.seg2b_env.$$$$"; \
+	trap 'rm -f "$$TMP_ENV_FILE"' EXIT; \
+	$(PY) scripts/make_helpers/resolve_seg2b_env.py \
+		--seg1a-summary "$(RESULT_JSON)" \
+		--seg2a-summary "$(SEG2A_RESULT_JSON)" \
+		--run-root "$(RUN_ROOT)" \
+		--seed "$(SEED)" \
+		> "$$TMP_ENV_FILE"; \
+	. "$$TMP_ENV_FILE"; \
+	rm -f "$$TMP_ENV_FILE"; \
 	 if [ -n "$(LOG)" ]; then \
 		($(SEG2B_CMD)) 2>&1 | tee -a "$(LOG)"; \
 	 else \

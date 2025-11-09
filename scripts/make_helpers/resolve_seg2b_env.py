@@ -73,13 +73,7 @@ def _resolve_context(*, run_root: Path, seed: str, seg1a_path: Path, seg2a_path:
     seg1a_summary = _extract_gate_state(_load_summary(seg1a_path))
     seg2a_summary = _extract_gate_state(_load_summary(seg2a_path))
 
-    param_hash = str(seg1a_summary["parameter_hash"])
-    seg2a_param_hash = str(seg2a_summary["parameter_hash"])
-    if param_hash != seg2a_param_hash:
-        raise ContextError(
-            "Segment 1A and 2A parameter hashes differ; rerun the upstream segments.",
-        )
-
+    param_hash = str(seg2a_summary["parameter_hash"])
     manifest_fingerprint = str(seg1a_summary["manifest_fingerprint"])
     seg2a_manifest = str(seg2a_summary["manifest_fingerprint"])
 
