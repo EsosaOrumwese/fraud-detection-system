@@ -119,10 +119,11 @@ def _write_receipt(base: Path, seed: int, manifest: str) -> None:
 
 def test_s3_day_effects_runner_emits_factors(tmp_path: Path) -> None:
     manifest = "c" * 64
+    seg2a_manifest = "d" * 64
     seed = 2025110601
     dictionary_path = _write_dictionary(tmp_path)
     _write_s1_site_weights(tmp_path, seed, manifest)
-    _write_site_timezones(tmp_path, seed, manifest)
+    _write_site_timezones(tmp_path, seed, seg2a_manifest)
     _write_policy(tmp_path)
     _write_receipt(tmp_path, seed, manifest)
 
@@ -132,6 +133,7 @@ def test_s3_day_effects_runner_emits_factors(tmp_path: Path) -> None:
             data_root=tmp_path,
             seed=seed,
             manifest_fingerprint=manifest,
+            seg2a_manifest_fingerprint=seg2a_manifest,
             dictionary_path=dictionary_path,
             emit_run_report_stdout=False,
         )
@@ -172,10 +174,11 @@ def test_s3_day_effects_runner_emits_factors(tmp_path: Path) -> None:
 
 def test_s3_day_effects_runner_resume(tmp_path: Path) -> None:
     manifest = "d" * 64
+    seg2a_manifest = "e" * 64
     seed = 2025110601
     dictionary_path = _write_dictionary(tmp_path)
     _write_s1_site_weights(tmp_path, seed, manifest)
-    _write_site_timezones(tmp_path, seed, manifest)
+    _write_site_timezones(tmp_path, seed, seg2a_manifest)
     _write_policy(tmp_path)
     _write_receipt(tmp_path, seed, manifest)
     runner = S3DayEffectsRunner()
@@ -184,6 +187,7 @@ def test_s3_day_effects_runner_resume(tmp_path: Path) -> None:
             data_root=tmp_path,
             seed=seed,
             manifest_fingerprint=manifest,
+            seg2a_manifest_fingerprint=seg2a_manifest,
             dictionary_path=dictionary_path,
             emit_run_report_stdout=False,
         )
@@ -193,6 +197,7 @@ def test_s3_day_effects_runner_resume(tmp_path: Path) -> None:
             data_root=tmp_path,
             seed=seed,
             manifest_fingerprint=manifest,
+            seg2a_manifest_fingerprint=seg2a_manifest,
             dictionary_path=dictionary_path,
             resume=True,
             emit_run_report_stdout=False,

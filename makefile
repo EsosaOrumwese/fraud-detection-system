@@ -230,39 +230,12 @@ segment2b:
 		echo "Segment 1A summary '$(RESULT_JSON)' not found. Run 'make segment1a' first." >&2; \
 		exit 1; \
 	fi
-	@SEG2A_MANIFEST_FINGERPRINT=$$($(PY) - <<'PY'
-import json
-from pathlib import Path
-data = json.loads(Path(r"$(SEG2A_RESULT_JSON)").read_text(encoding="utf-8"))
-print(data["s0"]["manifest_fingerprint"])
-PY
-); \
-	 SEG2A_PARAM_HASH=$$($(PY) - <<'PY'
-import json
-from pathlib import Path
-data = json.loads(Path(r"$(SEG2A_RESULT_JSON)").read_text(encoding="utf-8"))
-print(data["s0"]["parameter_hash"])
-PY
-); \
-	 MANIFEST_FINGERPRINT=$$($(PY) - <<'PY'
-import sys
-from pathlib import Path
-base = Path(r"$(RUN_ROOT)/data/layer1/1B/site_locations/seed=$(SEED)")
-if not base.exists():
-    sys.exit("Segment 1B site_locations directory missing. Run 'make segment1b' first.")
-candidates = sorted(p for p in base.glob("fingerprint=*") if p.is_dir())
-if not candidates:
-    sys.exit("Segment 1B site_locations fingerprint folders missing. Run 'make segment1b' first.")
-print(candidates[-1].name.split("fingerprint=", 1)[1])
-PY
-); \
-	 VALIDATION_BUNDLE="$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=$$MANIFEST_FINGERPRINT/bundle"; \
-	 if [ ! -d "$$VALIDATION_BUNDLE" ]; then \
-		echo "Segment 1B validation bundle '$$VALIDATION_BUNDLE' not found. Run 'make segment1b' first." >&2; \
-		exit 1; \
-	 fi; \
-	 PARAM_HASH="$$SEG2A_PARAM_HASH"; \
-	 SEG2A_MANIFEST_FINGERPRINT="$$SEG2A_MANIFEST_FINGERPRINT"; \
+	@eval "$$($(PY) scripts/make_helpers/resolve_seg2b_env.py \
+		--seg1a-summary \"$(RESULT_JSON)\" \
+		--seg2a-summary \"$(SEG2A_RESULT_JSON)\" \
+		--run-root \"$(RUN_ROOT)\" \
+		--seed \"$(SEED)\" \
+	)"; \
 	 if [ -n "$(LOG)" ]; then \
 		($(SEG2B_CMD)) 2>&1 | tee -a "$(LOG)"; \
 	 else \
@@ -289,4 +262,5 @@ profile-seg1b:
 	 PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m cProfile -o profile.segment1b -m engine.cli.segment1b run $(SEG1B_ARGS)
 
 clean-results:
-	rm -f "$(RESULT_JSON)" "$(SEG2A_RESULT_JSON)" profile.segment1a profile.segment1b
+	rm -rf "$(SUMMARY_DIR)"
+	rm -f profile.segment1a profile.segment1b
