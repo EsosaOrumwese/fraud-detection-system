@@ -318,6 +318,24 @@ datasets:
     pii: false
     license: Proprietary-Internal
 
+  - id: s1_site_weights
+    status: approved
+    owner_subsegment: 2B
+    description: "Frozen per-site probability weights per merchant."
+    version: "{seed}.{manifest_fingerprint}"
+    format: parquet
+    path: data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitioning: [seed, fingerprint]
+    ordering: [merchant_id, legal_country_iso, site_order]
+    schema_ref: schemas.2B.yaml#/plan/s1_site_weights
+    lineage:
+      produced_by: 2B.S1
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
 logs:
   rng_event_alias_pick_group:
     status: draft
@@ -385,24 +403,6 @@ logs:
     schema_ref: schemas.layer1.yaml#/rng/core/rng_trace_log
     lineage:
       produced_by: 2B.S5
-      consumed_by: [2B]
-      final_in_layer: false
-    retention_days: 365
-    pii: false
-    license: Proprietary-Internal
-
-  - id: s1_site_weights
-    status: approved
-    owner_subsegment: 2B
-    description: "Frozen per-site probability weights per merchant."
-    version: "{seed}.{manifest_fingerprint}"
-    format: parquet
-    path: data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest_fingerprint}/
-    partitioning: [seed, fingerprint]
-    ordering: [merchant_id, legal_country_iso, site_order]
-    schema_ref: schemas.2B.yaml#/plan/s1_site_weights
-    lineage:
-      produced_by: 2B.S1
       consumed_by: [2B]
       final_in_layer: false
     retention_days: 365
