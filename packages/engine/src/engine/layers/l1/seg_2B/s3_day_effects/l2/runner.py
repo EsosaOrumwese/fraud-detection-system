@@ -473,6 +473,46 @@ class S3DayEffectsRunner:
         except Exception as exc:  # pragma: no cover
             raise err("E_S3_TZ_LOOKUP_IO", f"failed to read site_timezones: {exc}") from exc
 
+        weights = weights.with_columns(
+            [
+                pl.col("merchant_id").cast(pl.UInt64, strict=False),
+                pl.col("legal_country_iso").cast(pl.Utf8, strict=False),
+                pl.col("site_order").cast(pl.Int32, strict=False),
+            ]
+        )
+        invalid_weights = weights.filter(
+            pl.col("merchant_id").is_null()
+            | pl.col("legal_country_iso").is_null()
+            | pl.col("site_order").is_null()
+        )
+        if invalid_weights.height:
+            sample = invalid_weights.head(5).to_dicts()
+            raise err(
+                "E_S3_SITE_WEIGHTS_SCHEMA",
+                f"invalid join keys detected in s1_site_weights: {sample}",
+            )
+
+        tz = tz.with_columns(
+            [
+                pl.col("merchant_id").cast(pl.UInt64, strict=False),
+                pl.col("legal_country_iso").cast(pl.Utf8, strict=False),
+                pl.col("site_order").cast(pl.Int32, strict=False),
+                pl.col("tzid").cast(pl.Utf8, strict=False),
+            ]
+        )
+        invalid_tz = tz.filter(
+            pl.col("merchant_id").is_null()
+            | pl.col("legal_country_iso").is_null()
+            | pl.col("site_order").is_null()
+            | pl.col("tzid").is_null()
+        )
+        if invalid_tz.height:
+            sample = invalid_tz.head(5).to_dicts()
+            raise err(
+                "E_S3_TZ_LOOKUP_SCHEMA",
+                f"invalid join keys detected in site_timezones: {sample}",
+            )
+
         duplicates = (
             tz.group_by(["merchant_id", "legal_country_iso", "site_order"])
             .len()
