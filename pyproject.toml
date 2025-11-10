@@ -10,7 +10,8 @@ license = {text = "MIT License"}
 requires-python = ">=3.11,<3.13"
 # Tell Poetry: “Look for packages under src/”
 packages = [
-  { include = "fraud_detection", from = "src" }
+  { include = "fraud_detection", from = "src" },
+  { include = "engine", from = "packages/engine/src" },
 ]
 dependencies = [
     "requests (>=2.32.3,<3.0.0)",       # add using `poetry add <package-name>`
