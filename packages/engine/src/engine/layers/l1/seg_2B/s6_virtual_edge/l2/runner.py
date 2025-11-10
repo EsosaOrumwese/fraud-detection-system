@@ -63,12 +63,12 @@ class EdgeEntry:
 class AliasTable:
     """Deterministic alias table."""
 
-    values: List[str]
+    values: List[EdgeEntry]
     probabilities: List[float]
     aliases: List[int]
     value_probabilities: Dict[str, float]
 
-    def sample(self, u: float) -> str:
+    def sample(self, u: float) -> EdgeEntry:
         n = len(self.values)
         scaled = u * n
         idx = min(int(math.floor(scaled)), n - 1)
@@ -178,6 +178,7 @@ class S6VirtualEdgeRunner:
             repo_root=repo_root,
             error_prefix="E_S6_POLICY",
         )
+        self._validate_virtual_stream(route_policy_payload)
         edge_policy_payload, edge_policy_digest, edge_policy_file_digest, edge_policy_path = load_policy_asset(
             asset_id="virtual_edge_policy_v1",
             sealed_records=sealed_map,
@@ -187,12 +188,8 @@ class S6VirtualEdgeRunner:
         )
 
         dictionary_versions = self._resolve_dictionary_versions(receipt, dictionary)
-        edge_entries = self._build_edge_entries(edge_policy_payload)
-        edge_alias = self._build_alias_table(
-            values=[entry.edge_id for entry in edge_entries],
-            weights=[entry.weight for entry in edge_entries],
-        )
-        edge_lookup = {entry.edge_id: entry for entry in edge_entries}
+        default_edge_entries, merchant_edge_entries = self._prepare_edge_entries(edge_policy_payload)
+        alias_cache: Dict[str, AliasTable] = {}
 
         if total_virtual == 0:
             logger.info("S6 detected zero virtual arrivals; emitting run report only.")
@@ -238,13 +235,14 @@ class S6VirtualEdgeRunner:
         progress_interval = max(1, total_virtual // 10) if total_virtual else 1
 
         for idx, arrival in enumerate(arrivals_sorted, start=1):
-            edge_choice, before, after = self._sample_alias(alias_table=edge_alias, substream=edge_substream)
-            edge_entry = edge_lookup.get(edge_choice)
-            if edge_entry is None:
-                raise err(
-                    "E_S6_EDGE_UNKNOWN",
-                    f"edge '{edge_choice}' missing from policy lookup",
-                )
+            merchant_key = str(arrival.merchant_id)
+            entries = merchant_edge_entries.get(merchant_key, default_edge_entries)
+            cache_key = merchant_key if merchant_key in merchant_edge_entries else "__default__"
+            alias_table = alias_cache.get(cache_key)
+            if alias_table is None:
+                alias_table = self._build_alias_table(entries)
+                alias_cache[cache_key] = alias_table
+            edge_entry, before, after = self._sample_alias(alias_table=alias_table, substream=edge_substream)
             ts_utc = arrival.normalised_timestamp()
             event_payload = self._build_event_payload(
                 ts_utc=ts_utc,
@@ -388,48 +386,103 @@ class S6VirtualEdgeRunner:
             virtual_arrivals=total_virtual,
         )
 
-    def _build_edge_entries(self, payload: Mapping[str, object]) -> List[EdgeEntry]:
+    def _prepare_edge_entries(
+        self, payload: Mapping[str, object]
+    ) -> tuple[List[EdgeEntry], Dict[str, List[EdgeEntry]]]:
         default_edges = payload.get("default_edges") or []
         if not isinstance(default_edges, Sequence) or not default_edges:
             raise err("E_S6_POLICY_MINIMA", "virtual_edge_policy_v1 missing default_edges")
         metadata = payload.get("geo_metadata") or {}
         if not isinstance(metadata, Mapping):
             metadata = {}
-        entries: List[EdgeEntry] = []
-        for entry in default_edges:
-            if not isinstance(entry, Mapping):
-                continue
-            edge_id = str(entry.get("edge_id", "")).strip()
-            country = str(entry.get("country_iso", "")).strip().upper()
-            weight = float(entry.get("weight", 0.0))
-            if not edge_id or not country:
-                raise err("E_S6_POLICY_MINIMA", "edge entries must declare edge_id and country_iso")
-            if weight <= 0 or not math.isfinite(weight):
-                raise err("E_S6_POLICY_MINIMA", f"edge '{edge_id}' weight must be positive")
-            geo_entry = metadata.get(edge_id) if isinstance(metadata.get(edge_id), Mapping) else None
-            if not isinstance(geo_entry, Mapping):
-                raise err("E_S6_POLICY_MINIMA", f"edge '{edge_id}' missing geo_metadata")
-            lat = float(geo_entry.get("lat", 0.0))
-            lon = float(geo_entry.get("lon", 0.0))
-            if not (-90.0 <= lat <= 90.0):
-                raise err("E_S6_POLICY_MINIMA", f"edge '{edge_id}' latitude out of range")
-            if not (-180.0 < lon <= 180.0):
-                raise err("E_S6_POLICY_MINIMA", f"edge '{edge_id}' longitude out of range")
-            entries.append(
-                EdgeEntry(
-                    edge_id=edge_id,
-                    ip_country=country,
-                    weight=weight,
-                    lat=lat,
-                    lon=lon,
-                )
-            )
-        entries.sort(key=lambda item: item.edge_id)
-        return entries
 
-    def _build_alias_table(self, values: List[str], weights: List[float]) -> AliasTable:
-        if not values:
+        def build_entries(entries_payload: Sequence[Mapping[str, object]]) -> List[EdgeEntry]:
+            entries: List[EdgeEntry] = []
+            for entry in entries_payload:
+                if not isinstance(entry, Mapping):
+                    continue
+                edge_id = str(entry.get("edge_id", "")).strip()
+                country = str(entry.get("country_iso", "")).strip().upper()
+                weight = float(entry.get("weight", 0.0))
+                if not edge_id or not country:
+                    raise err("E_S6_POLICY_MINIMA", "edge entries must declare edge_id and country_iso")
+                if weight <= 0 or not math.isfinite(weight):
+                    raise err("E_S6_POLICY_MINIMA", f"edge '{edge_id}' weight must be positive")
+                geo_entry = metadata.get(edge_id)
+                if isinstance(entry.get("lat"), (int, float)) and isinstance(entry.get("lon"), (int, float)):
+                    geo_entry = {"lat": entry["lat"], "lon": entry["lon"]}
+                if not isinstance(geo_entry, Mapping):
+                    raise err("E_S6_POLICY_MINIMA", f"edge '{edge_id}' missing geo_metadata")
+                lat = float(geo_entry.get("lat", 0.0))
+                lon = float(geo_entry.get("lon", 0.0))
+                if not (-90.0 <= lat <= 90.0):
+                    raise err("E_S6_POLICY_MINIMA", f"edge '{edge_id}' latitude out of range")
+                if not (-180.0 < lon <= 180.0):
+                    raise err("E_S6_POLICY_MINIMA", f"edge '{edge_id}' longitude out of range")
+                entries.append(
+                    EdgeEntry(
+                        edge_id=edge_id,
+                        ip_country=country,
+                        weight=weight,
+                        lat=lat,
+                        lon=lon,
+                    )
+                )
+            if not entries:
+                raise err("E_S6_POLICY_MINIMA", "edge set produced zero entries")
+            total = sum(item.weight for item in entries)
+            if not math.isfinite(total) or total <= 0.0:
+                raise err("E_S6_POLICY_MINIMA", "edge weights must sum to > 0")
+            if abs(total - 1.0) > 1e-6:
+                raise err("E_S6_POLICY_MINIMA", "edge weights must sum to 1 ± epsilon")
+            entries.sort(key=lambda item: item.edge_id)
+            return entries
+
+        default_entries = build_entries(default_edges)
+        override_payload = payload.get("merchant_overrides") or {}
+        merchant_overrides: Dict[str, List[EdgeEntry]] = {}
+        if isinstance(override_payload, Mapping):
+            for merchant_id, entries_payload in override_payload.items():
+                key = str(merchant_id)
+                if not isinstance(entries_payload, Sequence) or not entries_payload:
+                    continue
+                merchant_overrides[key] = build_entries(entries_payload)
+        return default_entries, merchant_overrides
+
+    def _validate_virtual_stream(self, payload: Mapping[str, object]) -> None:
+        streams = payload.get("substreams") or []
+        if not isinstance(streams, Sequence):
+            raise err("E_S6_POLICY_STREAM", "route_rng_policy_v1 missing substreams definition")
+        entry = next(
+            (
+                candidate
+                for candidate in streams
+                if isinstance(candidate, Mapping) and candidate.get("id") == self.RNG_STREAM_ID
+            ),
+            None,
+        )
+        if entry is None:
+            raise err(
+                "E_S6_POLICY_STREAM",
+                f"route_rng_policy_v1 missing stream '{self.RNG_STREAM_ID}'",
+            )
+        label = str(entry.get("label", "")).strip()
+        if label != self.SUBSTREAM_LABEL:
+            raise err(
+                "E_S6_POLICY_STREAM",
+                f"route_rng_policy_v1 stream '{self.RNG_STREAM_ID}' must use label '{self.SUBSTREAM_LABEL}'",
+            )
+        max_uniforms = int(entry.get("max_uniforms", 0))
+        if max_uniforms < 1:
+            raise err(
+                "E_S6_POLICY_STREAM",
+                f"route_rng_policy_v1 stream '{self.RNG_STREAM_ID}' must allocate at least one uniform",
+            )
+
+    def _build_alias_table(self, entries: List[EdgeEntry]) -> AliasTable:
+        if not entries:
             raise err("E_S6_ALIAS_EMPTY", "alias builder received no values")
+        weights = [entry.weight for entry in entries]
         total = float(sum(weights))
         if not math.isfinite(total) or total <= 0.0:
             raise err("E_S6_ALIAS_TOTAL", "alias builder weights must sum to > 0")
@@ -454,10 +507,10 @@ class S6VirtualEdgeRunner:
             prob[idx] = 1.0
             alias[idx] = idx
         return AliasTable(
-            values=list(values),
+            values=list(entries),
             probabilities=prob,
             aliases=alias,
-            value_probabilities={value: normalised[idx] for idx, value in enumerate(values)},
+            value_probabilities={entry.edge_id: normalised[idx] for idx, entry in enumerate(entries)},
         )
 
     @staticmethod
@@ -465,7 +518,7 @@ class S6VirtualEdgeRunner:
         *,
         alias_table: AliasTable,
         substream: PhiloxSubstream,
-    ) -> Tuple[str, PhiloxState, PhiloxState]:
+    ) -> Tuple[EdgeEntry, PhiloxState, PhiloxState]:
         before = substream.snapshot()
         prior_blocks = substream.blocks
         prior_draws = substream.draws
@@ -473,7 +526,7 @@ class S6VirtualEdgeRunner:
         after = substream.snapshot()
         if substream.blocks - prior_blocks != 1 or substream.draws - prior_draws != 1:
             raise err("E_S6_RNG_BUDGET", "virtual edge events must consume exactly one block and one draw")
-        return str(alias_table.sample(u)), before, after
+        return alias_table.sample(u), before, after
 
     def _build_event_payload(
         self,
@@ -568,7 +621,8 @@ class S6VirtualEdgeRunner:
         try:
             get_dataset_entry("s6_edge_log", dictionary=dictionary)
         except S0GateError:
-            raise err("E_S6_DICTIONARY", "dataset 's6_edge_log' not registered in the dictionary")
+            logger.info("s6_edge_log dictionary entry missing; skipping diagnostic emission")
+            return []
         for utc_day, rows in rows_by_day.items():
             path = resolve_dataset_path(
                 "s6_edge_log",

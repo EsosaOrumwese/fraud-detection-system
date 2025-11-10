@@ -6,6 +6,16 @@
     { "edge_id": "sin-sg", "country_iso": "SG", "weight": 0.20 },
     { "edge_id": "syd-au", "country_iso": "AU", "weight": 0.20 }
   ],
+  "merchant_overrides": {
+    "1694081450446801": [
+      { "edge_id": "iad-us", "country_iso": "US", "weight": 0.60 },
+      { "edge_id": "dub-ie", "country_iso": "IE", "weight": 0.40 }
+    ],
+    "2697116941085629": [
+      { "edge_id": "sin-sg", "country_iso": "SG", "weight": 0.50 },
+      { "edge_id": "syd-au", "country_iso": "AU", "weight": 0.50 }
+    ]
+  },
   "geo_metadata": {
     "iad-us": { "lat": 38.9445, "lon": -77.4558 },
     "dub-ie": { "lat": 53.3331, "lon": -6.2489 },

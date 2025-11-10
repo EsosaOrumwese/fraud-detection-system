@@ -120,17 +120,25 @@ def _write_receipt_and_inventory(
     inventory_path.write_text(json.dumps(inventory_payload, indent=2), encoding="utf-8")
 
 
-def _build_runner(tmp_path: Path, *, include_edge_log: bool = True) -> tuple[S6VirtualEdgeRunner, S6VirtualEdgeInputs]:
+def _build_runner(
+    tmp_path: Path,
+    *,
+    include_edge_log: bool = True,
+    include_virtual_stream: bool = True,
+) -> tuple[S6VirtualEdgeRunner, S6VirtualEdgeInputs]:
     manifest = "f" * 64
     seed = 2025110601
     parameter_hash = "e" * 64
     dictionary_path = _write_dictionary(tmp_path, include_edge_log=include_edge_log)
+    substreams = (
+        [{"id": "virtual_edge", "label": "cdn_edge_pick", "max_uniforms": 1}]
+        if include_virtual_stream
+        else [{"id": "router_core", "label": "alias_pick", "max_uniforms": 2}]
+    )
     route_policy_payload = {
         "version_tag": "2025.11",
         "algorithm": "philox2x64-10",
-        "substreams": [
-            {"id": "virtual_edge", "label": "cdn_edge_pick", "max_uniforms": 1},
-        ],
+        "substreams": substreams,
     }
     edge_policy_payload = {
         "version_tag": "2025.11",
@@ -138,9 +146,17 @@ def _build_runner(tmp_path: Path, *, include_edge_log: bool = True) -> tuple[S6V
             {"edge_id": "iad-us", "country_iso": "US", "weight": 0.6},
             {"edge_id": "dub-ie", "country_iso": "IE", "weight": 0.4},
         ],
+        "merchant_overrides": {
+            "1": [
+                {"edge_id": "lhr-uk", "country_iso": "GB", "weight": 0.5},
+                {"edge_id": "fra-de", "country_iso": "DE", "weight": 0.5},
+            ]
+        },
         "geo_metadata": {
             "iad-us": {"lat": 38.9, "lon": -77.0},
             "dub-ie": {"lat": 53.3, "lon": -6.2},
+            "lhr-uk": {"lat": 51.47, "lon": -0.4543},
+            "fra-de": {"lat": 50.0379, "lon": 8.5622},
         },
     }
     route_policy = _write_policy(tmp_path, "route_rng_policy_v1", route_policy_payload)
@@ -198,7 +214,7 @@ def test_s6_virtual_edge_runs_with_virtual_arrival(tmp_path: Path) -> None:
     event_file = result.rng_event_edge_path / "part-00000.jsonl"
     assert event_file.exists()
     payloads = [json.loads(line) for line in event_file.read_text(encoding="utf-8").splitlines()]
-    assert payloads[0]["edge_id"] in {"iad-us", "dub-ie"}
+    assert payloads[0]["edge_id"] in {"lhr-uk", "fra-de"}
     assert result.edge_log_paths
     assert result.edge_log_paths[0].exists()
     report = json.loads(result.run_report_path.read_text(encoding="utf-8"))
@@ -215,7 +231,7 @@ def test_s6_virtual_edge_handles_zero_virtual_arrivals(tmp_path: Path) -> None:
     assert report["diagnostics"]["virtual_arrivals"] == 0
 
 
-def test_s6_edge_log_requires_dictionary_registration(tmp_path: Path) -> None:
+def test_s6_edge_log_skipped_when_dictionary_missing_entry(tmp_path: Path) -> None:
     runner, inputs = _build_runner(tmp_path, include_edge_log=False)
     inputs = S6VirtualEdgeInputs(
         data_root=inputs.data_root,
@@ -227,9 +243,25 @@ def test_s6_edge_log_requires_dictionary_registration(tmp_path: Path) -> None:
         arrivals=(_virtual_arrival(),),
         emit_edge_log=True,
     )
+    result = runner.run(inputs)
+    assert result.edge_log_paths == ()
+
+
+def test_s6_requires_virtual_stream(tmp_path: Path) -> None:
+    runner, inputs = _build_runner(tmp_path, include_edge_log=True, include_virtual_stream=False)
+    inputs = S6VirtualEdgeInputs(
+        data_root=inputs.data_root,
+        seed=inputs.seed,
+        manifest_fingerprint=inputs.manifest_fingerprint,
+        parameter_hash=inputs.parameter_hash,
+        git_commit_hex=inputs.git_commit_hex,
+        dictionary_path=inputs.dictionary_path,
+        arrivals=(_virtual_arrival(),),
+        emit_edge_log=False,
+    )
     try:
         runner.run(inputs)
     except S0GateError as exc:
-        assert exc.code == "E_S6_DICTIONARY"
-    else:  # pragma: no cover - ensure failure if exception not raised
-        raise AssertionError("Expected S0GateError when edge log entry missing")
+        assert exc.code == "E_S6_POLICY_STREAM"
+    else:  # pragma: no cover
+        raise AssertionError("Expected S0GateError when virtual_edge stream missing")
