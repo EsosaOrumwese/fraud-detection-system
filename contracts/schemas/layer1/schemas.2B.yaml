@@ -547,3 +547,60 @@ trace:
       manifest_fingerprint: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
       created_utc: { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
       notes: { type: string, nullable: true }
+
+  s6_edge_log_row:
+    type: object
+    additionalProperties: false
+    required:
+      [
+        seed,
+        parameter_hash,
+        run_id,
+        utc_day,
+        utc_timestamp,
+        merchant_id,
+        is_virtual,
+        tz_group_id,
+        site_id,
+        edge_id,
+        ip_country,
+        edge_lat,
+        edge_lon,
+        rng_stream_id,
+        ctr_edge_hi,
+        ctr_edge_lo,
+        manifest_fingerprint,
+        created_utc,
+      ]
+    properties:
+      seed: { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      parameter_hash: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+      run_id: { $ref: 'schemas.layer1.yaml#/$defs/hex32' }
+      utc_day:
+        type: string
+        pattern: '^\d{4}-\d{2}-\d{2}$'
+      utc_timestamp: { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
+      merchant_id: { $ref: 'schemas.layer1.yaml#/$defs/id64' }
+      is_virtual: { type: boolean }
+      tz_group_id: { $ref: 'schemas.layer1.yaml#/$defs/iana_tzid' }
+      site_id: { $ref: 'schemas.layer1.yaml#/$defs/id64' }
+      edge_id: { type: string, minLength: 1 }
+      ip_country: { $ref: 'schemas.layer1.yaml#/$defs/iso2' }
+      edge_lat:
+        type: number
+        minimum: -90
+        maximum: 90
+      edge_lon:
+        type: number
+        exclusiveMinimum: -180
+        maximum: 180
+      edge_latlon_source: { type: string, nullable: true }
+      selection_seq:
+        $ref: 'schemas.layer1.yaml#/$defs/uint64'
+        nullable: true
+      rng_stream_id: { type: string, minLength: 1 }
+      ctr_edge_hi: { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      ctr_edge_lo: { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      manifest_fingerprint: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+      created_utc: { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
+      notes: { type: string, nullable: true }

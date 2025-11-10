@@ -28,6 +28,9 @@ from engine.layers.l1.seg_2B import (
     S5RouterInputs,
     S5RouterResult,
     S5RouterRunner,
+    S6VirtualEdgeInputs,
+    S6VirtualEdgeResult,
+    S6VirtualEdgeRunner,
 )
 
 logger = logging.getLogger(__name__)
@@ -63,6 +66,9 @@ class Segment2BConfig:
     s5_emit_selection_log: bool = False
     s5_arrivals_path: Optional[Path] = None
     s5_emit_run_report_stdout: bool = True
+    run_s6: bool = False
+    s6_emit_edge_log: bool = False
+    s6_emit_run_report_stdout: bool = True
 
 
 @dataclass(frozen=True)
@@ -96,6 +102,12 @@ class Segment2BResult:
     s5_rng_audit_log_path: Optional[Path] = None
     s5_selection_log_paths: Tuple[Path, ...] = ()
     s5_run_report_path: Optional[Path] = None
+    s6_run_id: Optional[str] = None
+    s6_rng_event_edge_path: Optional[Path] = None
+    s6_rng_trace_log_path: Optional[Path] = None
+    s6_rng_audit_log_path: Optional[Path] = None
+    s6_edge_log_paths: Tuple[Path, ...] = ()
+    s6_run_report_path: Optional[Path] = None
 
 
 class Segment2BOrchestrator:
@@ -108,7 +120,7 @@ class Segment2BOrchestrator:
         self._s3_runner = S3DayEffectsRunner()
         self._s4_runner = S4GroupWeightsRunner()
         self._s5_runner = S5RouterRunner()
-        self._s5_runner = S5RouterRunner()
+        self._s6_runner = S6VirtualEdgeRunner()
 
     def run(self, config: Segment2BConfig) -> Segment2BResult:
         data_root = config.data_root.expanduser().resolve()
@@ -241,6 +253,32 @@ class Segment2BOrchestrator:
                 s5_result.run_id,
                 s5_result.arrivals_processed,
             )
+        s6_result: S6VirtualEdgeResult | None = None
+        if config.run_s6:
+            if s5_result is None:
+                raise RuntimeError("Segment2B S6 requires S5 results in the same invocation")
+            logger.info(
+                "Segment2B S6 starting (seed=%s, manifest=%s)",
+                config.seed,
+                gate_output.manifest_fingerprint,
+            )
+            s6_inputs = S6VirtualEdgeInputs(
+                data_root=data_root,
+                seed=config.seed,
+                manifest_fingerprint=gate_output.manifest_fingerprint,
+                parameter_hash=gate_output.parameter_hash,
+                git_commit_hex=config.git_commit_hex,
+                dictionary_path=config.dictionary_path,
+                arrivals=s5_result.virtual_arrivals,
+                emit_edge_log=config.s6_emit_edge_log,
+                emit_run_report_stdout=config.s6_emit_run_report_stdout,
+            )
+            s6_result = self._s6_runner.run(s6_inputs)
+            logger.info(
+                "Segment2B S6 completed (run_id=%s, virtual_arrivals=%s)",
+                s6_result.run_id,
+                s6_result.virtual_arrivals,
+            )
         return Segment2BResult(
             manifest_fingerprint=gate_output.manifest_fingerprint,
             seg2a_manifest_fingerprint=config.seg2a_manifest_fingerprint,
@@ -269,6 +307,12 @@ class Segment2BOrchestrator:
             s5_rng_audit_log_path=s5_result.rng_audit_log_path if s5_result else None,
             s5_selection_log_paths=s5_result.selection_log_paths if s5_result else (),
             s5_run_report_path=s5_result.run_report_path if s5_result else None,
+            s6_run_id=s6_result.run_id if s6_result else None,
+            s6_rng_event_edge_path=s6_result.rng_event_edge_path if s6_result else None,
+            s6_rng_trace_log_path=s6_result.rng_trace_log_path if s6_result else None,
+            s6_rng_audit_log_path=s6_result.rng_audit_log_path if s6_result else None,
+            s6_edge_log_paths=s6_result.edge_log_paths if s6_result else (),
+            s6_run_report_path=s6_result.run_report_path if s6_result else None,
         )
 
     @staticmethod

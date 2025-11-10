@@ -33,6 +33,8 @@ from ...shared.receipt import (
     load_sealed_inputs_inventory,
 )
 from ...shared.rng_trace import append_trace_records
+from ...shared.runtime import RouterVirtualArrival
+from ...shared.policies import load_policy_asset
 from ...s0_gate.exceptions import err
 
 RUN_REPORT_ROOT = Path("reports") / "l1" / "s5_router"
@@ -50,6 +52,7 @@ class RouterArrival:
 
     merchant_id: int
     utc_timestamp: datetime
+    is_virtual: bool = False
 
     @staticmethod
     def from_payload(payload: Mapping[str, object]) -> "RouterArrival":
@@ -60,7 +63,20 @@ class RouterArrival:
         ts = datetime.fromisoformat(raw_ts)
         if ts.tzinfo is None:
             ts = ts.replace(tzinfo=timezone.utc)
-        return RouterArrival(merchant_id=merchant_id, utc_timestamp=ts.astimezone(timezone.utc))
+        virtual_value = payload.get("is_virtual", False)
+        if isinstance(virtual_value, bool):
+            is_virtual = virtual_value
+        elif isinstance(virtual_value, (int, float)):
+            is_virtual = bool(int(virtual_value))
+        elif isinstance(virtual_value, str):
+            is_virtual = virtual_value.strip().lower() in {"1", "true", "yes"}
+        else:
+            is_virtual = False
+        return RouterArrival(
+            merchant_id=merchant_id,
+            utc_timestamp=ts.astimezone(timezone.utc),
+            is_virtual=is_virtual,
+        )
 
 
 @dataclass(frozen=True)
@@ -123,6 +139,7 @@ class S5RouterResult:
     rng_trace_log_path: Optional[Path]
     rng_audit_log_path: Optional[Path]
     selection_log_paths: Tuple[Path, ...]
+    virtual_arrivals: Tuple[RouterVirtualArrival, ...]
     run_report_path: Path
     selections_total: int
     arrivals_processed: int
@@ -175,17 +192,19 @@ class S5RouterRunner:
             dictionary=dictionary,
         )
         sealed_map = {entry.asset_id: entry for entry in sealed_inventory}
-        policy_payload, policy_digest, policy_file_digest, policy_path = self._load_policy_asset(
+        policy_payload, policy_digest, policy_file_digest, policy_path = load_policy_asset(
             asset_id="route_rng_policy_v1",
             sealed_records=sealed_map,
             base_path=config.data_root,
             repo_root=repo_root,
+            error_prefix="E_S5_POLICY",
         )
-        alias_policy_payload, alias_policy_digest, alias_policy_file_digest, _ = self._load_policy_asset(
+        alias_policy_payload, alias_policy_digest, alias_policy_file_digest, _ = load_policy_asset(
             asset_id="alias_layout_policy_v1",
             sealed_records=sealed_map,
             base_path=config.data_root,
             repo_root=repo_root,
+            error_prefix="E_S5_POLICY",
         )
         dictionary_versions = self._resolve_dictionary_versions(receipt, dictionary)
         group_frame = self._read_parquet_partition(
@@ -274,6 +293,7 @@ class S5RouterRunner:
         selection_logs: MutableMapping[str, List[dict]] = defaultdict(list)
         selection_samples: List[dict] = []
         selection_seq = 0
+        virtual_arrivals: List[RouterVirtualArrival] = []
 
         arrivals_sorted = sorted(arrivals, key=lambda item: (item.utc_timestamp, item.merchant_id))
         progress_interval = max(1, total_arrivals // 10) if total_arrivals else 1
@@ -379,6 +399,18 @@ class S5RouterRunner:
                         "tz_group_id": tz_group_str,
                         "site_id": site_id,
                     }
+                )
+            if arrival.is_virtual:
+                virtual_arrivals.append(
+                    RouterVirtualArrival(
+                        merchant_id=merchant_id,
+                        utc_timestamp=utc_ts,
+                        utc_day=utc_day,
+                        tz_group_id=tz_group_str,
+                        site_id=site_id,
+                        selection_seq=selection_seq,
+                        is_virtual=True,
+                    )
                 )
             if selection_seq % progress_interval == 0 or selection_seq == total_arrivals:
                 elapsed = time.perf_counter() - router_start
@@ -521,6 +553,7 @@ class S5RouterRunner:
             rng_trace_log_path=trace_path,
             rng_audit_log_path=audit_path,
             selection_log_paths=tuple(selection_paths),
+             virtual_arrivals=tuple(virtual_arrivals),
             run_report_path=run_report_path,
             selections_total=len(arrivals_sorted),
             arrivals_processed=len(arrivals_sorted),
@@ -543,58 +576,6 @@ class S5RouterRunner:
                 )
             )
         return arrivals
-    def _load_policy_asset(
-        self,
-        *,
-        asset_id: str,
-        sealed_records: Mapping[str, SealedInputRecord],
-        base_path: Path,
-        repo_root: Path,
-    ) -> tuple[Mapping[str, object], str, str, Path]:
-        record = sealed_records.get(asset_id)
-        if record is None:
-            raise err(
-                "E_S5_POLICY_MISSING",
-                f"sealed asset '{asset_id}' missing from inventory",
-            )
-        policy_path = self._resolve_catalog_path(
-            base_path=base_path,
-            repo_root=repo_root,
-            relative_path=record.catalog_path,
-        )
-        if not policy_path.exists():
-            raise err(
-                "E_S5_POLICY_PATH",
-                f"policy '{asset_id}' not found at '{policy_path}'",
-            )
-        payload = json.loads(policy_path.read_text(encoding="utf-8"))
-        file_bytes = policy_path.read_bytes()
-        file_digest = hashlib.sha256(file_bytes).hexdigest()
-        aggregated_digest = hashlib.sha256(file_digest.encode("ascii")).hexdigest()
-        if aggregated_digest != record.sha256_hex:
-            raise err(
-                "E_S5_POLICY_DIGEST",
-                f"policy '{asset_id}' digest mismatch: expected {record.sha256_hex}, observed {aggregated_digest}",
-            )
-        determinism_digest = payload.get("sha256_hex")
-        if determinism_digest and determinism_digest != file_digest:
-            raise err(
-                "E_S5_POLICY_DIGEST",
-                f"policy '{asset_id}' embedded digest mismatch",
-            )
-        return payload, aggregated_digest, file_digest, policy_path
-
-    @staticmethod
-    def _resolve_catalog_path(*, base_path: Path, repo_root: Path, relative_path: str) -> Path:
-        rel_path = Path(relative_path.strip("/"))
-        candidate = (base_path / rel_path).resolve()
-        if candidate.exists():
-            return candidate
-        fallback = (repo_root / rel_path).resolve()
-        if fallback.exists():
-            return fallback
-        return candidate
-
     def _read_parquet_partition(
         self,
         *,

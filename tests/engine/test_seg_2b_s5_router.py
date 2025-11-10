@@ -282,6 +282,7 @@ def test_s5_router_runs_with_default_arrivals(tmp_path: Path) -> None:
     assert rows[0]["merchant_id"] == 1
     assert result.rng_event_group_path is not None
     assert (result.rng_event_group_path / "part-00000.jsonl").exists()
+    assert result.virtual_arrivals == ()
 
 
 def test_s5_router_consumes_arrivals_file(tmp_path: Path) -> None:
@@ -307,3 +308,32 @@ def test_s5_router_consumes_arrivals_file(tmp_path: Path) -> None:
     assert result.selection_log_paths == ()
     report = json.loads(result.run_report_path.read_text(encoding="utf-8"))
     assert report["logging"]["selection_log_enabled"] is False
+    assert result.virtual_arrivals == ()
+
+
+def test_s5_router_records_virtual_arrivals(tmp_path: Path) -> None:
+    runner, inputs = _build_runner_inputs(tmp_path)
+    arrival_payload = {
+        "merchant_id": 1,
+        "utc_timestamp": "2025-01-01T08:00:00Z",
+        "is_virtual": True,
+    }
+    arrivals = [RouterArrival.from_payload(arrival_payload)]
+    custom_inputs = S5RouterInputs(
+        data_root=inputs.data_root,
+        seed=inputs.seed,
+        manifest_fingerprint=inputs.manifest_fingerprint,
+        seg2a_manifest_fingerprint=inputs.seg2a_manifest_fingerprint,
+        parameter_hash=inputs.parameter_hash,
+        git_commit_hex=inputs.git_commit_hex,
+        arrivals=arrivals,
+        dictionary_path=inputs.dictionary_path,
+        emit_selection_log=False,
+    )
+    result = runner.run(custom_inputs)
+    assert len(result.virtual_arrivals) == 1
+    virtual_record = result.virtual_arrivals[0]
+    assert virtual_record.merchant_id == 1
+    assert virtual_record.is_virtual is True
+    assert virtual_record.site_id > 0
+    assert virtual_record.tz_group_id

@@ -78,6 +78,18 @@ def _print_summary(result: Segment2BResult) -> None:
             payload["s5_selection_log_paths"] = [str(path) for path in result.s5_selection_log_paths]
         if result.s5_run_report_path:
             payload["s5_run_report_path"] = str(result.s5_run_report_path)
+    if result.s6_run_id:
+        payload["s6_run_id"] = result.s6_run_id
+        if result.s6_rng_event_edge_path:
+            payload["s6_rng_event_edge_path"] = str(result.s6_rng_event_edge_path)
+        if result.s6_rng_trace_log_path:
+            payload["s6_rng_trace_log_path"] = str(result.s6_rng_trace_log_path)
+        if result.s6_rng_audit_log_path:
+            payload["s6_rng_audit_log_path"] = str(result.s6_rng_audit_log_path)
+        if result.s6_edge_log_paths:
+            payload["s6_edge_log_paths"] = [str(path) for path in result.s6_edge_log_paths]
+        if result.s6_run_report_path:
+            payload["s6_run_report_path"] = str(result.s6_run_report_path)
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
@@ -223,6 +235,21 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Suppress printing the S5 run-report JSON to STDOUT (still writes to disk).",
     )
+    parser.add_argument(
+        "--run-s6",
+        action="store_true",
+        help="Execute S6 virtual-edge routing after S5 completes.",
+    )
+    parser.add_argument(
+        "--s6-edge-log",
+        action="store_true",
+        help="Emit the optional s6_edge_log dataset for virtual arrivals.",
+    )
+    parser.add_argument(
+        "--s6-quiet-run-report",
+        action="store_true",
+        help="Suppress printing the S6 run-report JSON to STDOUT (still writes to disk).",
+    )
 
     args = parser.parse_args(argv)
 
@@ -256,6 +283,9 @@ def main(argv: list[str] | None = None) -> int:
             s5_emit_selection_log=args.s5_selection_log,
             s5_arrivals_path=args.s5_arrivals_jsonl,
             s5_emit_run_report_stdout=not args.s5_quiet_run_report,
+            run_s6=args.run_s6,
+            s6_emit_edge_log=args.s6_edge_log,
+            s6_emit_run_report_stdout=not args.s6_quiet_run_report,
         )
     )
     _print_summary(result)

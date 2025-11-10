@@ -33,6 +33,12 @@ from .s5_router import (
     S5RouterResult,
     S5RouterRunner,
 )
+from .s6_virtual_edge import (
+    S6VirtualEdgeInputs,
+    S6VirtualEdgeResult,
+    S6VirtualEdgeRunner,
+)
+from .shared.runtime import RouterVirtualArrival as S5VirtualArrival
 
 __all__ = [
     "S0GateInputs",
@@ -56,4 +62,8 @@ __all__ = [
     "S5RouterInputs",
     "S5RouterResult",
     "S5RouterRunner",
+    "S5VirtualArrival",
+    "S6VirtualEdgeInputs",
+    "S6VirtualEdgeResult",
+    "S6VirtualEdgeRunner",
 ]

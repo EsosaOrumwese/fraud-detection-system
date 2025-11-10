@@ -313,6 +313,24 @@ datasets:
     lineage:
       produced_by: 2B.S5
       consumed_by: [2B]
+    final_in_layer: false
+    retention_days: 90
+    pii: false
+    license: Proprietary-Internal
+
+  - id: s6_edge_log
+    status: optional
+    owner_subsegment: 2B
+    description: "Virtual-edge diagnostic log (virtual arrivals only). Writes only when dictionary entry is present."
+    version: "{seed}.{parameter_hash}.{run_id}"
+    format: jsonl
+    path: data/layer1/2B/s6_edge_log/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/utc_day={utc_day}/edge_log.jsonl
+    partitioning: [seed, parameter_hash, run_id, utc_day]
+    ordering: []
+    schema_ref: schemas.2B.yaml#/trace/s6_edge_log_row
+    lineage:
+      produced_by: 2B.S6
+      consumed_by: [2B]
       final_in_layer: false
     retention_days: 90
     pii: false
@@ -373,6 +391,24 @@ logs:
     pii: false
     license: Proprietary-Internal
 
+  rng_event_cdn_edge_pick:
+    status: draft
+    owner_subsegment: 2B
+    description: "RNG event stream for virtual-edge selection (virtual merchants only)."
+    version: '{run_id}'
+    format: jsonl
+    path: logs/rng/events/cdn_edge_pick/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/
+    partitioning: [seed, parameter_hash, run_id]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/rng/events/cdn_edge_pick
+    lineage:
+      produced_by: 2B.S6
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
   rng_audit_log:
     status: draft
     owner_subsegment: 2B
@@ -384,7 +420,7 @@ logs:
     ordering: []
     schema_ref: schemas.layer1.yaml#/rng/core/rng_audit_log
     lineage:
-      produced_by: 2B.S5
+      produced_by: [2B.S5, 2B.S6]
       consumed_by: [2B]
       final_in_layer: false
     retention_days: 365
@@ -402,7 +438,7 @@ logs:
     ordering: []
     schema_ref: schemas.layer1.yaml#/rng/core/rng_trace_log
     lineage:
-      produced_by: 2B.S5
+      produced_by: [2B.S5, 2B.S6]
       consumed_by: [2B]
       final_in_layer: false
     retention_days: 365
