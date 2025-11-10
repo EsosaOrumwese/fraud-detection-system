@@ -220,7 +220,7 @@ def _write_site_timezones(base: Path, seed: int, manifest: str) -> None:
     df.write_parquet(dest)
 
 
-def _write_merchant_mcc_map(base: Path, seed: int, manifest: str) -> None:
+def _write_merchant_mcc_map(base: Path, seed: int, manifest: str) -> Path:
     df = pl.DataFrame(
         {
             "merchant_id": [1],
@@ -230,6 +230,7 @@ def _write_merchant_mcc_map(base: Path, seed: int, manifest: str) -> None:
     dest = base / f"data/layer1/2A/merchant_mcc_map/seed={seed}/fingerprint={manifest}/merchant_mcc_map.parquet"
     dest.parent.mkdir(parents=True, exist_ok=True)
     df.write_parquet(dest)
+    return dest
 
 
 def _write_group_weights(base: Path, seed: int, manifest: str) -> None:
@@ -303,6 +304,7 @@ def _build_runner_inputs(tmp_path: Path) -> tuple[S5RouterRunner, S5RouterInputs
     _write_s1_site_weights(tmp_path, seed, manifest)
     _write_site_timezones(tmp_path, seed, seg2a_manifest)
     _write_merchant_mcc_map(tmp_path, seed, seg2a_manifest)
+    _write_merchant_mcc_map(tmp_path, seed, manifest)
     _write_group_weights(tmp_path, seed, manifest)
     runner = S5RouterRunner()
     inputs = S5RouterInputs(
@@ -389,3 +391,23 @@ def test_s5_router_records_virtual_arrivals(tmp_path: Path) -> None:
     assert virtual_record.is_virtual is True
     assert virtual_record.site_id > 0
     assert virtual_record.tz_group_id
+
+
+def test_s5_router_fallbacks_to_gate_manifest_for_mcc_map(tmp_path: Path) -> None:
+    runner, inputs = _build_runner_inputs(tmp_path)
+    seed = inputs.seed
+    seg2a_manifest = inputs.seg2a_manifest_fingerprint
+    manifest = inputs.manifest_fingerprint
+    primary_path = (
+        tmp_path
+        / f"data/layer1/2A/merchant_mcc_map/seed={seed}/fingerprint={seg2a_manifest}/merchant_mcc_map.parquet"
+    )
+    if primary_path.exists():
+        primary_path.unlink()
+    fallback_path = (
+        tmp_path
+        / f"data/layer1/2A/merchant_mcc_map/seed={seed}/fingerprint={manifest}/merchant_mcc_map.parquet"
+    )
+    assert fallback_path.exists()
+    result = runner.run(inputs)
+    assert result.virtual_arrivals

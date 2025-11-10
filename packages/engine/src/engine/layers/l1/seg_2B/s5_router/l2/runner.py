@@ -217,6 +217,7 @@ class S5RouterRunner:
         virtual_classifier, merchant_mcc_map_path = self._build_virtual_classifier(
             seed=seed_int,
             seg2a_manifest=seg2a_manifest,
+            fallback_manifest=manifest,
             base_path=config.data_root,
             dictionary=dictionary,
             policy_payload=virtual_rules_payload,
@@ -620,6 +621,7 @@ class S5RouterRunner:
         *,
         seed: int,
         seg2a_manifest: str,
+        fallback_manifest: str,
         base_path: Path,
         dictionary: Mapping[str, object],
         policy_payload: Mapping[str, object],
@@ -631,8 +633,28 @@ class S5RouterRunner:
             template_args={"seed": seed, "manifest_fingerprint": seg2a_manifest},
             dictionary=dictionary,
         )
-        classifier = VirtualMerchantClassifier(merchant_map_path=merchant_map_path, rules=rules)
-        return classifier, merchant_map_path
+        resolved_path = merchant_map_path
+        if not resolved_path.exists():
+            fallback_path = resolve_dataset_path(
+                "merchant_mcc_map",
+                base_path=base_path,
+                template_args={"seed": seed, "manifest_fingerprint": fallback_manifest},
+                dictionary=dictionary,
+            )
+            if fallback_path.exists():
+                resolved_path = fallback_path
+                logger.warning(
+                    "merchant_mcc_map missing at seg2a fingerprint '%s'; using fallback path '%s'",
+                    seg2a_manifest,
+                    resolved_path,
+                )
+        if not resolved_path.exists():
+            raise err(
+                "E_VIRTUAL_MCC_MAP",
+                "merchant_mcc_map not found for either seg2a or gate manifest fingerprint",
+            )
+        classifier = VirtualMerchantClassifier(merchant_map_path=resolved_path, rules=rules)
+        return classifier, resolved_path
 
     def _read_parquet_partition(
         self,
