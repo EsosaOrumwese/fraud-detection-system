@@ -117,6 +117,8 @@ SEG2B_S5_QUIET ?= 1
 SEG2B_RUN_S6 ?= 1
 SEG2B_S6_EDGE_LOG ?= 0
 SEG2B_S6_QUIET ?= 1
+SEG2B_RUN_S7 ?= 1
+SEG2B_S7_QUIET ?= 1
 
 ifeq ($(strip $(SEG2B_PIN_TZ)),1)
 SEG2B_EXTRA += --pin-tz-assets
@@ -177,6 +179,12 @@ SEG2B_EXTRA += --s6-edge-log
 endif
 ifeq ($(strip $(SEG2B_S6_QUIET)),1)
 SEG2B_EXTRA += --s6-quiet-run-report
+endif
+ifeq ($(strip $(SEG2B_RUN_S7)),1)
+SEG2B_EXTRA += --run-s7
+endif
+ifeq ($(strip $(SEG2B_S7_QUIET)),1)
+SEG2B_EXTRA += --s7-quiet-run-report
 endif
 
 SEG2B_ARGS = \

@@ -501,8 +501,8 @@ class S7AuditRunner:
         s3 = pl.read_parquet(s3_path)
         s4 = pl.read_parquet(s4_path)
         join_keys = ["merchant_id", "utc_day", "tz_group_id"]
-        s3_small = s3.select(join_keys + ["gamma"])
-        s4_small = s4.select(join_keys + ["gamma", "p_group", "base_share"])
+        s3_small = s3.select(join_keys + ["gamma"]).rename({"gamma": "gamma_left"})
+        s4_small = s4.select(join_keys + ["gamma", "p_group", "base_share"]).rename({"gamma": "gamma_right"})
         joined = s3_small.join(s4_small, on=join_keys, how="inner")
         if joined.height != s3_small.height or joined.height != s4_small.height:
             raise err("E_S7_DAY_GRID", "S3/S4 grids mismatch for some merchants/days")
@@ -511,7 +511,7 @@ class S7AuditRunner:
         if gamma_delta > 1e-9:
             raise err("E_S7_GAMMA_ECHO", f"gamma mismatch exceeds tolerance ({gamma_delta})")
         mass_error = (
-            s4.groupby(["merchant_id", "utc_day"])
+            s4.group_by(["merchant_id", "utc_day"])
             .agg(pl.sum("p_group").alias("mass"))
             .with_columns((pl.col("mass") - 1.0).abs().alias("mass_error"))
             .select(pl.max("mass_error"))
@@ -521,7 +521,7 @@ class S7AuditRunner:
         base_share_error = 0.0
         if "base_share" in s4.columns:
             base_share_error = (
-                s4.groupby("merchant_id")
+                s4.group_by("merchant_id")
                 .agg(pl.sum("base_share").alias("mass"))
                 .with_columns((pl.col("mass") - 1.0).abs().alias("mass_error"))
                 .select(pl.max("mass_error"))
@@ -925,6 +925,7 @@ class S7AuditRunner:
         if not directory.exists():
             raise err("E_S7_RNG_PATH", f"rng event directory missing at '{directory}'")
         schema = load_schema(schema_ref)
+        self._strip_unevaluated_properties(schema)
         validator = Draft202012Validator(schema)
         events: List[Mapping[str, object]] = []
         files = sorted(directory.glob("*.jsonl"))
@@ -1002,6 +1003,15 @@ class S7AuditRunner:
         if not path.exists():
             raise err("E_S7_JSON_MISSING", f"JSON artefact missing at '{path}'")
         return json.loads(path.read_text(encoding="utf-8"))
+
+    def _strip_unevaluated_properties(self, node: object) -> None:
+        if isinstance(node, dict):
+            node.pop("unevaluatedProperties", None)
+            for value in node.values():
+                self._strip_unevaluated_properties(value)
+        elif isinstance(node, list):
+            for item in node:
+                self._strip_unevaluated_properties(item)
 
     def _parse_partition_tokens(self, path: Path) -> Mapping[str, str]:
         tokens: Dict[str, str] = {}

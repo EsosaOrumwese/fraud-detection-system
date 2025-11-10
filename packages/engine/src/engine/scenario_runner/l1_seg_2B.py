@@ -6,7 +6,7 @@ import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Mapping, Optional, Tuple
 
 from engine.layers.l1.seg_2B import (
     S0GateInputs,
@@ -31,6 +31,10 @@ from engine.layers.l1.seg_2B import (
     S6VirtualEdgeInputs,
     S6VirtualEdgeResult,
     S6VirtualEdgeRunner,
+    S7AuditInputs,
+    S7AuditResult,
+    S7AuditRunner,
+    S7RouterEvidence,
 )
 
 logger = logging.getLogger(__name__)
@@ -69,6 +73,8 @@ class Segment2BConfig:
     run_s6: bool = False
     s6_emit_edge_log: bool = False
     s6_emit_run_report_stdout: bool = True
+    run_s7: bool = False
+    s7_emit_run_report_stdout: bool = True
 
 
 @dataclass(frozen=True)
@@ -108,6 +114,8 @@ class Segment2BResult:
     s6_rng_audit_log_path: Optional[Path] = None
     s6_edge_log_paths: Tuple[Path, ...] = ()
     s6_run_report_path: Optional[Path] = None
+    s7_report_path: Optional[Path] = None
+    s7_validators: Tuple[Mapping[str, object], ...] = ()
 
 
 class Segment2BOrchestrator:
@@ -121,6 +129,7 @@ class Segment2BOrchestrator:
         self._s4_runner = S4GroupWeightsRunner()
         self._s5_runner = S5RouterRunner()
         self._s6_runner = S6VirtualEdgeRunner()
+        self._s7_runner = S7AuditRunner()
 
     def run(self, config: Segment2BConfig) -> Segment2BResult:
         data_root = config.data_root.expanduser().resolve()
@@ -137,6 +146,7 @@ class Segment2BOrchestrator:
             pin_civil_time=config.pin_civil_time,
         )
         gate_output: S0GateOutputs = self._s0_runner.run(gate_inputs)
+        parameter_hash = gate_output.parameter_hash
         s1_result: S1WeightsResult | None = None
         if config.run_s1:
             logger.info(
@@ -279,6 +289,32 @@ class Segment2BOrchestrator:
                 s6_result.run_id,
                 s6_result.virtual_arrivals,
             )
+        s5_evidence = self._build_s5_evidence(s5_result, parameter_hash)
+        s6_evidence = self._build_s6_evidence(s6_result, parameter_hash)
+        s7_result: S7AuditResult | None = None
+        if config.run_s7:
+            logger.info(
+                "Segment2B S7 starting (seed=%s, manifest=%s)",
+                config.seed,
+                gate_output.manifest_fingerprint,
+            )
+            s7_inputs = S7AuditInputs(
+                data_root=data_root,
+                seed=config.seed,
+                manifest_fingerprint=gate_output.manifest_fingerprint,
+                seg2a_manifest_fingerprint=config.seg2a_manifest_fingerprint,
+                parameter_hash=parameter_hash,
+                dictionary_path=config.dictionary_path,
+                s5_evidence=s5_evidence,
+                s6_evidence=s6_evidence,
+                emit_run_report_stdout=config.s7_emit_run_report_stdout,
+            )
+            s7_result = self._s7_runner.run(s7_inputs)
+            logger.info(
+                "Segment2B S7 completed (report=%s, validators=%d)",
+                s7_result.report_path,
+                len(s7_result.validators),
+            )
         return Segment2BResult(
             manifest_fingerprint=gate_output.manifest_fingerprint,
             seg2a_manifest_fingerprint=config.seg2a_manifest_fingerprint,
@@ -313,6 +349,41 @@ class Segment2BOrchestrator:
             s6_rng_audit_log_path=s6_result.rng_audit_log_path if s6_result else None,
             s6_edge_log_paths=s6_result.edge_log_paths if s6_result else (),
             s6_run_report_path=s6_result.run_report_path if s6_result else None,
+            s7_report_path=s7_result.report_path if s7_result else None,
+            s7_validators=s7_result.validators if s7_result else (),
+        )
+
+    @staticmethod
+    def _build_s5_evidence(
+        result: S5RouterResult | None,
+        parameter_hash: str,
+    ) -> S7RouterEvidence | None:
+        if result is None or not result.run_id:
+            return None
+        return S7RouterEvidence(
+            run_id=result.run_id,
+            parameter_hash=parameter_hash,
+            rng_event_group_path=result.rng_event_group_path,
+            rng_event_site_path=result.rng_event_site_path,
+            rng_trace_log_path=result.rng_trace_log_path,
+            rng_audit_log_path=result.rng_audit_log_path,
+            selection_log_paths=result.selection_log_paths,
+        )
+
+    @staticmethod
+    def _build_s6_evidence(
+        result: S6VirtualEdgeResult | None,
+        parameter_hash: str,
+    ) -> S7RouterEvidence | None:
+        if result is None or not result.run_id:
+            return None
+        return S7RouterEvidence(
+            run_id=result.run_id,
+            parameter_hash=parameter_hash,
+            rng_event_edge_path=result.rng_event_edge_path,
+            rng_trace_log_path=result.rng_trace_log_path,
+            rng_audit_log_path=result.rng_audit_log_path,
+            edge_log_paths=result.edge_log_paths,
         )
 
     @staticmethod

@@ -90,6 +90,10 @@ def _print_summary(result: Segment2BResult) -> None:
             payload["s6_edge_log_paths"] = [str(path) for path in result.s6_edge_log_paths]
         if result.s6_run_report_path:
             payload["s6_run_report_path"] = str(result.s6_run_report_path)
+    if result.s7_report_path:
+        payload["s7_report_path"] = str(result.s7_report_path)
+        if result.s7_validators:
+            payload["s7_validators"] = list(result.s7_validators)
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
@@ -250,6 +254,16 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Suppress printing the S6 run-report JSON to STDOUT (still writes to disk).",
     )
+    parser.add_argument(
+        "--run-s7",
+        action="store_true",
+        help="Execute the S7 audit gate after upstream states complete.",
+    )
+    parser.add_argument(
+        "--s7-quiet-run-report",
+        action="store_true",
+        help="Suppress printing the S7 run-report JSON to STDOUT (still writes via S7).",
+    )
 
     args = parser.parse_args(argv)
 
@@ -286,6 +300,8 @@ def main(argv: list[str] | None = None) -> int:
             run_s6=args.run_s6,
             s6_emit_edge_log=args.s6_edge_log,
             s6_emit_run_report_stdout=not args.s6_quiet_run_report,
+            run_s7=args.run_s7,
+            s7_emit_run_report_stdout=not args.s7_quiet_run_report,
         )
     )
     _print_summary(result)
