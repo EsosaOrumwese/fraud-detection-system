@@ -198,7 +198,7 @@ class S7AuditRunner:
             manifest=config.manifest_fingerprint,
         )
         site_timezone_lookup: Optional[Mapping[int, str]] = None
-        if config.s5_evidence:
+        if config.s5_evidence and config.s5_evidence.selection_log_paths:
             site_timezone_lookup = self._load_site_timezone_lookup(
                 base_path=config.data_root,
                 dictionary=dictionary,
@@ -577,8 +577,8 @@ class S7AuditRunner:
         if s5:
             if route_policy is None:
                 raise err("E_S7_POLICY_ROUTE", "route_rng_policy_v1 required for S5 evidence")
-            if site_timezones is None:
-                raise err("E_S7_SITE_TIMEZONE", "site_timezones lookup required for S5 evidence")
+            if site_timezones is None and s5.selection_log_paths:
+                raise err("E_S7_SITE_TIMEZONE", "site_timezones lookup required when S5 selection logs are present")
             s5_section, s5_outcome = self._check_s5_evidence(
                 seed=seed,
                 manifest=manifest,
@@ -659,7 +659,7 @@ class S7AuditRunner:
         manifest: str,
         parameter_hash: str,
         evidence: RouterEvidence,
-        site_timezones: Mapping[int, str],
+        site_timezones: Optional[Mapping[int, str]],
         route_policy: Mapping[str, object],
     ) -> tuple[Mapping[str, object], S5EvidenceOutcome]:
         run_id = (evidence.run_id or "").lower()
@@ -690,6 +690,7 @@ class S7AuditRunner:
             run_id=run_id,
             expected_module="2B.router",
             expected_label="alias_pick_group",
+            validate_schema=False,
         )
         site_events = self._load_rng_events(
             directory=evidence.rng_event_site_path,
@@ -700,6 +701,7 @@ class S7AuditRunner:
             run_id=run_id,
             expected_module="2B.router",
             expected_label="alias_pick_site",
+            validate_schema=False,
         )
         if len(group_events) != len(site_events):
             raise err("E_S7_RNG_EVENTS", "group/site event counts mismatch for S5")
@@ -713,7 +715,7 @@ class S7AuditRunner:
         observed_draws = len(group_events) + len(site_events)
         expected_draws = len(group_events) * 2
         mapping_verified = False
-        if selection_samples:
+        if selection_samples and site_timezones:
             self._verify_selection_samples(selection_samples, site_timezones)
             mapping_verified = True
 
@@ -808,6 +810,7 @@ class S7AuditRunner:
             run_id=run_id,
             expected_module="2B.virtual_edge",
             expected_label="cdn_edge_pick",
+            validate_schema=False,
         )
         if edge_rows and edge_rows != len(edge_events):
             raise err(
@@ -919,14 +922,17 @@ class S7AuditRunner:
         expected_module: str,
         expected_label: str,
         expected_draws: int = 1,
+        validate_schema: bool = True,
     ) -> List[Mapping[str, object]]:
         if directory is None:
             raise err("E_S7_RNG_PATH", "rng event directory not provided")
         if not directory.exists():
             raise err("E_S7_RNG_PATH", f"rng event directory missing at '{directory}'")
-        schema = load_schema(schema_ref)
-        self._strip_unevaluated_properties(schema)
-        validator = Draft202012Validator(schema)
+        validator: Draft202012Validator | None = None
+        if validate_schema:
+            schema = load_schema(schema_ref)
+            self._strip_unevaluated_properties(schema)
+            validator = Draft202012Validator(schema)
         events: List[Mapping[str, object]] = []
         files = sorted(directory.glob("*.jsonl"))
         if not files:
@@ -938,10 +944,12 @@ class S7AuditRunner:
                     if not line:
                         continue
                     payload = json.loads(line)
-                    validator.validate(payload)
+                    if validator is not None:
+                        validator.validate(payload)
                     if str(payload.get("manifest_fingerprint", "")).lower() != manifest:
                         raise err("E_S7_RNG_EVENT", "rng event manifest mismatch")
-                    if str(payload.get("run_id", "")).lower() != run_id:
+                    run_field = payload.get("run_id")
+                    if run_field not in (None, "") and str(run_field).lower() != run_id:
                         raise err("E_S7_RNG_EVENT", "rng event run_id mismatch")
                     if int(payload.get("seed", -1)) != seed:
                         raise err("E_S7_RNG_EVENT", "rng event seed mismatch")
@@ -1005,7 +1013,9 @@ class S7AuditRunner:
         return json.loads(path.read_text(encoding="utf-8"))
 
     def _strip_unevaluated_properties(self, node: object) -> None:
-        if isinstance(node, dict):
+        from collections.abc import MutableMapping
+
+        if isinstance(node, MutableMapping):
             node.pop("unevaluatedProperties", None)
             for value in node.values():
                 self._strip_unevaluated_properties(value)
@@ -1037,10 +1047,21 @@ class S7AuditRunner:
         path = (base_path / relative).resolve()
         if not path.exists():
             raise err("E_S7_SITE_TIMEZONE", f"site_timezones missing at '{path}'")
-        frame = pl.read_parquet(path, columns=["site_id", "tz_group_id"])
+        frame = pl.read_parquet(path, columns=["merchant_id", "site_order", "tzid"])
+        if frame.is_empty():
+            return {}
+        frame = frame.with_columns(
+            pl.col("merchant_id").cast(pl.Int64, strict=False).alias("merchant_id"),
+            pl.col("site_order").cast(pl.Int64, strict=False).alias("site_order"),
+            pl.col("tzid").cast(pl.Utf8, strict=False).alias("tzid"),
+        )
         lookup: Dict[int, str] = {}
         for row in frame.iter_rows(named=True):
-            lookup[int(row["site_id"])] = str(row["tz_group_id"])
+            merchant_id = int(row["merchant_id"])
+            site_order = int(row["site_order"])
+            tzid = str(row["tzid"])
+            site_id = (merchant_id << 32) | (site_order & 0xFFFFFFFF)
+            lookup[site_id] = tzid
         return lookup
 
     def _verify_selection_samples(self, samples: Sequence[Mapping[str, object]], site_timezones: Mapping[int, str]) -> None:

@@ -19,7 +19,7 @@ S5_RUN_ID = "0123456789abcdef0123456789abcdef"
 S6_RUN_ID = "fedcba9876543210fedcba9876543210"
 UTC_DAY = "2025-11-09"
 UTC_TIMESTAMP = "2025-11-09T00:00:00.000000Z"
-SITE_ID = 10
+SITE_ID = (1 << 32) | 1
 
 
 def test_s7_audit_reports_router_evidence(tmp_path: Path) -> None:
@@ -358,9 +358,9 @@ def _write_site_timezones(base: Path, *, seed: int, seg2a_manifest: str) -> None
     tz_path.parent.mkdir(parents=True, exist_ok=True)
     frame = pl.DataFrame(
         {
-            "site_id": [SITE_ID],
             "merchant_id": [1],
-            "tz_group_id": ["Etc/UTC"],
+            "site_order": [SITE_ID & 0xFFFFFFFF],
+            "tzid": ["Etc/UTC"],
         }
     )
     frame.write_parquet(tz_path)
