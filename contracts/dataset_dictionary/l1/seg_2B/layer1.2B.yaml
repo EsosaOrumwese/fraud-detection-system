@@ -354,6 +354,24 @@ datasets:
     pii: false
     license: Proprietary-Internal
 
+  - id: s7_audit_report
+    status: approved
+    owner_subsegment: 2B
+    description: "Authoritative audit record emitted by Segment 2B S7."
+    version: "{seed}.{manifest_fingerprint}"
+    format: json
+    path: data/layer1/2B/s7_audit_report/seed={seed}/fingerprint={manifest_fingerprint}/s7_audit_report.json
+    partitioning: [seed, fingerprint]
+    ordering: []
+    schema_ref: schemas.2B.yaml#/validation/s7_audit_report_v1
+    lineage:
+      produced_by: 2B.S7
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    license: Proprietary-Internal
+
   - id: s6_edge_log
     status: optional
     owner_subsegment: 2B
