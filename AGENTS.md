@@ -6,8 +6,9 @@ Use this to orient yourself before touching code. It captures what is in scope, 
 ---
 
 ## 0) Scope (current focus)
-- Active build: Data Engine - Layer-1 / Segment **2A** (States S0-S5) — implementation phase just beginning.
+- Active build: Data Engine - Layer-1 / Segment **2B** (States S0-S8) — implementation in flight with the audit gate (S7) rounding toward hand-off.
 - Segments **1A & 1B** are live and sealed; treat their artefacts as read-only authority surfaces for downstream states.
+- Segment **2A** work remains permissible per the `packages/engine/AGENTS.md` router but is no longer the primary focus.
 - All other packages/services remain LOCKED; check their nested `AGENTS.md` for status before making changes.
 - Need to work in a locked area? Ask the USER with a clear justification before touching it.
 
