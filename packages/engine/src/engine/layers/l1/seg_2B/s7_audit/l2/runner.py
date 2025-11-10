@@ -269,7 +269,12 @@ class S7AuditRunner:
             report=report,
         )
         if config.emit_run_report_stdout:
-            print(json.dumps(report, indent=2, sort_keys=True))
+            total_validators = len(validators)
+            passed = sum(1 for item in validators if item.get("status") == "PASS")
+            print(
+                f"Segment2B S7 audit report → {report_path} "
+                f"(validators={passed}/{total_validators})"
+            )
         return S7AuditResult(
             manifest_fingerprint=config.manifest_fingerprint,
             report_path=report_path,

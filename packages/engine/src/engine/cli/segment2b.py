@@ -93,7 +93,14 @@ def _print_summary(result: Segment2BResult) -> None:
     if result.s7_report_path:
         payload["s7_report_path"] = str(result.s7_report_path)
         if result.s7_validators:
-            payload["s7_validators"] = list(result.s7_validators)
+            total = len(result.s7_validators)
+            passed = sum(1 for item in result.s7_validators if item.get("status") == "PASS")
+            payload["s7_validators_summary"] = {
+                "path": str(result.s7_report_path),
+                "total": total,
+                "pass": passed,
+                "fail": total - passed,
+            }
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
