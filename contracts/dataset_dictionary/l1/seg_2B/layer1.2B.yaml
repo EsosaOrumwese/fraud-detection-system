@@ -228,6 +228,42 @@ datasets:
     pii: false
     license: Proprietary-Internal
 
+  - id: validation_bundle_2B
+    status: draft
+    owner_subsegment: 2B
+    description: "Segment 2B validation bundle proving PASS for a manifest fingerprint (index.json)."
+    version: "{manifest_fingerprint}"
+    format: json
+    path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/index.json
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/validation/validation_bundle.index_schema
+    lineage:
+      produced_by: 2B.S8
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 1095
+    pii: false
+    license: Proprietary-Internal
+
+  - id: validation_passed_flag_2B
+    status: draft
+    owner_subsegment: 2B
+    description: "_passed.flag companion to the Segment 2B validation bundle."
+    version: "{manifest_fingerprint}"
+    format: text
+    path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer1.yaml#/validation/passed_flag
+    lineage:
+      produced_by: 2B.S8
+      consumed_by: [2B]
+      final_in_layer: false
+    retention_days: 1095
+    pii: false
+    license: Proprietary-Internal
+
   - id: s0_gate_receipt_2B
     status: approved
     owner_subsegment: 2B

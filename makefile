@@ -119,6 +119,9 @@ SEG2B_S6_EDGE_LOG ?= 0
 SEG2B_S6_QUIET ?= 1
 SEG2B_RUN_S7 ?= 1
 SEG2B_S7_QUIET ?= 1
+SEG2B_RUN_S8 ?= 0
+SEG2B_S8_WORKSPACE ?=
+SEG2B_S8_QUIET ?= 0
 
 ifeq ($(strip $(SEG2B_PIN_TZ)),1)
 SEG2B_EXTRA += --pin-tz-assets
@@ -186,6 +189,17 @@ endif
 ifeq ($(strip $(SEG2B_S7_QUIET)),1)
 SEG2B_EXTRA += --s7-quiet-run-report
 endif
+
+ifeq ($(strip $(SEG2B_RUN_S8)),1)
+SEG2B_EXTRA += --run-s8
+endif
+ifneq ($(strip $(SEG2B_S8_WORKSPACE)),)
+SEG2B_EXTRA += --s8-workspace "$(SEG2B_S8_WORKSPACE)"
+endif
+ifeq ($(strip $(SEG2B_S8_QUIET)),1)
+SEG2B_EXTRA += --s8-quiet-summary
+endif
+
 
 SEG2B_ARGS = \
 	--data-root "$(RUN_ROOT)" \

@@ -35,6 +35,9 @@ from engine.layers.l1.seg_2B import (
     S7AuditResult,
     S7AuditRunner,
     S7RouterEvidence,
+    S8ValidationInputs,
+    S8ValidationResult,
+    S8ValidationRunner,
 )
 
 logger = logging.getLogger(__name__)
@@ -75,6 +78,9 @@ class Segment2BConfig:
     s6_emit_run_report_stdout: bool = True
     run_s7: bool = False
     s7_emit_run_report_stdout: bool = True
+    run_s8: bool = False
+    s8_workspace_root: Optional[Path] = None
+    s8_emit_summary_stdout: bool = True
 
 
 @dataclass(frozen=True)
@@ -116,6 +122,10 @@ class Segment2BResult:
     s6_run_report_path: Optional[Path] = None
     s7_report_path: Optional[Path] = None
     s7_validators: Tuple[Mapping[str, object], ...] = ()
+    s8_bundle_path: Optional[Path] = None
+    s8_flag_path: Optional[Path] = None
+    s8_bundle_digest: Optional[str] = None
+    s8_seeds: Tuple[str, ...] = ()
 
 
 class Segment2BOrchestrator:
@@ -130,6 +140,7 @@ class Segment2BOrchestrator:
         self._s5_runner = S5RouterRunner()
         self._s6_runner = S6VirtualEdgeRunner()
         self._s7_runner = S7AuditRunner()
+        self._s8_runner = S8ValidationRunner()
 
     def run(self, config: Segment2BConfig) -> Segment2BResult:
         data_root = config.data_root.expanduser().resolve()
@@ -315,6 +326,24 @@ class Segment2BOrchestrator:
                 s7_result.report_path,
                 len(s7_result.validators),
             )
+        s8_result: S8ValidationResult | None = None
+        if config.run_s8:
+            logger.info(
+                "Segment2B S8 starting (manifest=%s)",
+                gate_output.manifest_fingerprint,
+            )
+            s8_inputs = S8ValidationInputs(
+                data_root=data_root,
+                manifest_fingerprint=gate_output.manifest_fingerprint,
+                dictionary_path=config.dictionary_path,
+                workspace_root=config.s8_workspace_root,
+                emit_summary_stdout=config.s8_emit_summary_stdout,
+            )
+            s8_result = self._s8_runner.run(s8_inputs)
+            logger.info(
+                "Segment2B S8 completed (bundle=%s)",
+                s8_result.bundle_path,
+            )
         return Segment2BResult(
             manifest_fingerprint=gate_output.manifest_fingerprint,
             seg2a_manifest_fingerprint=config.seg2a_manifest_fingerprint,
@@ -351,6 +380,10 @@ class Segment2BOrchestrator:
             s6_run_report_path=s6_result.run_report_path if s6_result else None,
             s7_report_path=s7_result.report_path if s7_result else None,
             s7_validators=s7_result.validators if s7_result else (),
+            s8_bundle_path=s8_result.bundle_path if s8_result else None,
+            s8_flag_path=s8_result.flag_path if s8_result else None,
+            s8_bundle_digest=s8_result.bundle_digest if s8_result else None,
+            s8_seeds=s8_result.seeds if s8_result else (),
         )
 
     @staticmethod

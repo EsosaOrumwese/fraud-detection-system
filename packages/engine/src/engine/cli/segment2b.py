@@ -101,6 +101,11 @@ def _print_summary(result: Segment2BResult) -> None:
                 "pass": passed,
                 "fail": total - passed,
             }
+    if result.s8_bundle_path:
+        payload["s8_bundle_path"] = str(result.s8_bundle_path)
+        payload["s8_pass_flag_path"] = str(result.s8_flag_path)
+        payload["s8_bundle_digest"] = result.s8_bundle_digest
+        payload["s8_seeds"] = list(result.s8_seeds)
     print(json.dumps(payload, indent=2, sort_keys=True))
 
 
@@ -271,6 +276,21 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Suppress printing the S7 run-report JSON to STDOUT (still writes via S7).",
     )
+    parser.add_argument(
+        "--run-s8",
+        action="store_true",
+        help="Publish the S8 validation bundle after audits complete.",
+    )
+    parser.add_argument(
+        "--s8-workspace",
+        type=Path,
+        help="Optional workspace used to stage the S8 bundle before atomic publish.",
+    )
+    parser.add_argument(
+        "--s8-quiet-summary",
+        action="store_true",
+        help="Suppress the S8 summary line on STDOUT.",
+    )
 
     args = parser.parse_args(argv)
 
@@ -309,6 +329,9 @@ def main(argv: list[str] | None = None) -> int:
             s6_emit_run_report_stdout=not args.s6_quiet_run_report,
             run_s7=args.run_s7,
             s7_emit_run_report_stdout=not args.s7_quiet_run_report,
+            run_s8=args.run_s8,
+            s8_workspace_root=args.s8_workspace,
+            s8_emit_summary_stdout=not args.s8_quiet_summary,
         )
     )
     _print_summary(result)

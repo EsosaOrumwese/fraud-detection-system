@@ -44,6 +44,11 @@ from .s7_audit import (
     S7AuditResult,
     S7AuditRunner,
 )
+from .s8_validation import (
+    S8ValidationInputs,
+    S8ValidationResult,
+    S8ValidationRunner,
+)
 from .shared.runtime import RouterVirtualArrival as S5VirtualArrival
 
 __all__ = [
@@ -76,4 +81,7 @@ __all__ = [
     "S7AuditInputs",
     "S7AuditResult",
     "S7AuditRunner",
+    "S8ValidationInputs",
+    "S8ValidationResult",
+    "S8ValidationRunner",
 ]

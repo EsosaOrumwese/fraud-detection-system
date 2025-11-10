@@ -182,6 +182,14 @@ datasets:
     path: data/layer1/2B/s7_audit_report/seed={seed}/fingerprint={manifest_fingerprint}/s7_audit_report.json
     partitioning: [seed, fingerprint]
     schema_ref: schemas.2B.yaml#/validation/s7_audit_report_v1
+  - id: validation_bundle_2B
+    path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/index.json
+    partitioning: [fingerprint]
+    schema_ref: schemas.layer1.yaml#/validation/validation_bundle/index_schema
+  - id: validation_passed_flag_2B
+    path: data/layer1/2B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    partitioning: [fingerprint]
+    schema_ref: schemas.layer1.yaml#/validation/passed_flag
 """
     dictionary_path = base / "dictionary.yaml"
     dictionary_path.write_text(payload.strip(), encoding="utf-8")
