@@ -259,6 +259,15 @@ class S8ValidationRunner:
                 "E_S8_S7_REPORT_INVALID",
                 f"s7_audit_report for seed={seed} is not valid JSON: {exc}",
             ) from exc
+        schema = load_schema("#/validation/s7_audit_report_v1")
+        validator = Draft202012Validator(schema)
+        try:
+            validator.validate(payload)
+        except ValidationError as exc:
+            raise err(
+                "E_S8_S7_REPORT_INVALID",
+                f"s7_audit_report for seed={seed} failed schema validation: {exc.message}",
+            ) from exc
         status = (
             payload.get("summary", {}).get("overall_status")
             if isinstance(payload.get("summary"), Mapping)

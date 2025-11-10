@@ -160,7 +160,7 @@ validation:
             metrics:
               type: object
               additionalProperties:
-                oneOf:
+                anyOf:
                   - { type: number }
                   - { type: integer }
                   - { type: string }
@@ -169,7 +169,9 @@ validation:
         additionalProperties: false
         properties:
           alias_decode_max_abs_delta: { type: number }
+          alias_decode_mass_error: { type: number }
           max_abs_mass_error_s4: { type: number }
+          max_abs_base_share_error: { type: number }
           gamma_echo_mismatch_count: { type: integer, minimum: 0 }
           router_rng_expected_draws: { type: integer, minimum: 0 }
           router_rng_observed_draws: { type: integer, minimum: 0 }
