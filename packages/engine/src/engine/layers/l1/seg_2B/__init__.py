@@ -38,6 +38,12 @@ from .s6_virtual_edge import (
     S6VirtualEdgeResult,
     S6VirtualEdgeRunner,
 )
+from .s7_audit import (
+    RouterEvidence as S7RouterEvidence,
+    S7AuditInputs,
+    S7AuditResult,
+    S7AuditRunner,
+)
 from .shared.runtime import RouterVirtualArrival as S5VirtualArrival
 
 __all__ = [
@@ -66,4 +72,8 @@ __all__ = [
     "S6VirtualEdgeInputs",
     "S6VirtualEdgeResult",
     "S6VirtualEdgeRunner",
+    "S7RouterEvidence",
+    "S7AuditInputs",
+    "S7AuditResult",
+    "S7AuditRunner",
 ]
