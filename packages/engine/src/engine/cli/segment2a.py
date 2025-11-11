@@ -152,6 +152,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Optional JSON file to persist the Segment 2A run summary.",
     )
     parser.add_argument(
+        "--quiet-summary",
+        action="store_true",
+        help="Suppress printing the Segment 2A summary to STDOUT.",
+    )
+    parser.add_argument(
         "--resume",
         action="store_true",
         help="Skip execution if outputs already exist for the resume manifest.",
@@ -261,7 +266,8 @@ def main(argv: list[str] | None = None) -> int:
             s5_resume=args.s5_resume,
         )
     )
-    _print_summary(result)
+    if not args.quiet_summary:
+        _print_summary(result)
     if args.result_json:
         summary_path = args.result_json.expanduser().resolve()
         summary_path.parent.mkdir(parents=True, exist_ok=True)

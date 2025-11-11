@@ -7,7 +7,9 @@ ENGINE_PYTHONPATH ?= packages/engine/src
 RUN_ROOT ?= runs/local_layer1_regen0
 SUMMARY_DIR ?= $(RUN_ROOT)/summaries
 RESULT_JSON ?= $(SUMMARY_DIR)/segment1a_result.json
+SEG1B_RESULT_JSON ?= $(SUMMARY_DIR)/segment1b_result.json
 SEG2A_RESULT_JSON ?= $(SUMMARY_DIR)/segment2a_result.json
+SEG2B_RESULT_JSON ?= $(SUMMARY_DIR)/segment2b_result.json
 LOG ?= $(RUN_ROOT)/run_log_regen0.log
 SEED ?= 2025110601
 
@@ -50,7 +52,7 @@ SEG1A_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment1a $(SEG1
 SEG1B_BASIS ?= population
 SEG1B_DP ?= 4
 SEG1B_S1_WORKERS ?= 12
-SEG1B_S4_WORKERS ?= 12
+SEG1B_S4_WORKERS ?= 2
 SEG1B_EXTRA ?=
 
 SEG1B_ARGS = \
@@ -63,6 +65,8 @@ SEG1B_ARGS = \
 	--dp $(SEG1B_DP) \
 	--s1-workers $(SEG1B_S1_WORKERS) \
 	--s4-workers $(SEG1B_S4_WORKERS) \
+	--result-json $(SEG1B_RESULT_JSON) \
+	--quiet-summary \
 	$(SEG1B_EXTRA)
 SEG1B_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment1b run $(SEG1B_ARGS)
 
@@ -92,6 +96,7 @@ SEG2A_ARGS = \
 	--dictionary $(SEG2A_DICTIONARY) \
 	--validation-bundle $$VALIDATION_BUNDLE \
 	--result-json $(SEG2A_RESULT_JSON) \
+	--quiet-summary \
 	$(SEG2A_EXTRA)
 SEG2A_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment2a $(SEG2A_ARGS)
 
@@ -210,6 +215,8 @@ SEG2B_ARGS = \
 	--git-commit-hex $(GIT_COMMIT) \
 	--dictionary "$(SEG2B_DICTIONARY)" \
 	--validation-bundle "$$VALIDATION_BUNDLE" \
+	--result-json "$(SEG2B_RESULT_JSON)" \
+	--quiet-summary \
 	$(SEG2B_EXTRA)
 SEG2B_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment2b $(SEG2B_ARGS)
 
@@ -234,6 +241,7 @@ segment1b:
 		echo "Segment 1A summary '$(RESULT_JSON)' not found. Run 'make segment1a' first." >&2; \
 		exit 1; \
 	fi
+	@mkdir -p "$(SUMMARY_DIR)"
 	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['parameter_hash'])"); \
 	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['manifest_fingerprint'])"); \
 	 if [ -n "$(LOG)" ]; then \
@@ -292,6 +300,7 @@ segment2b:
 		echo "Segment 1A summary '$(RESULT_JSON)' not found. Run 'make segment1a' first." >&2; \
 		exit 1; \
 	fi
+	@mkdir -p "$(SUMMARY_DIR)"
 	@TMP_ENV_FILE="$(RUN_ROOT)/.seg2b_env.$$$$"; \
 	trap 'rm -f "$$TMP_ENV_FILE"' EXIT; \
 	$(PY) scripts/make_helpers/resolve_seg2b_env.py \

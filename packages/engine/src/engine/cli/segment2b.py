@@ -37,7 +37,7 @@ def _discover_git_commit(default: str = "0" * 40) -> str:
         return default
 
 
-def _print_summary(result: Segment2BResult) -> None:
+def _print_summary(result: Segment2BResult, *, emit: bool = True) -> dict[str, object]:
     payload = {
         "manifest_fingerprint": result.manifest_fingerprint,
         "seg2a_manifest_fingerprint": result.seg2a_manifest_fingerprint,
@@ -106,7 +106,9 @@ def _print_summary(result: Segment2BResult) -> None:
         payload["s8_pass_flag_path"] = str(result.s8_flag_path)
         payload["s8_bundle_digest"] = result.s8_bundle_digest
         payload["s8_seeds"] = list(result.s8_seeds)
-    print(json.dumps(payload, indent=2, sort_keys=True))
+    if emit:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    return payload
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -165,6 +167,16 @@ def main(argv: list[str] | None = None) -> int:
         "--notes",
         type=str,
         help="Optional notes recorded in the S0 receipt.",
+    )
+    parser.add_argument(
+        "--result-json",
+        type=Path,
+        help="Optional JSON file to capture the Segment 2B summary.",
+    )
+    parser.add_argument(
+        "--quiet-summary",
+        action="store_true",
+        help="Suppress printing the Segment 2B summary to STDOUT.",
     )
     parser.add_argument(
         "--pin-tz-assets",
@@ -334,7 +346,15 @@ def main(argv: list[str] | None = None) -> int:
             s8_emit_summary_stdout=not args.s8_quiet_summary,
         )
     )
-    _print_summary(result)
+    summary_payload = _print_summary(result, emit=not args.quiet_summary)
+    if args.result_json:
+        summary_path = args.result_json.expanduser().resolve()
+        summary_path.parent.mkdir(parents=True, exist_ok=True)
+        summary_path.write_text(
+            json.dumps(summary_payload, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        logger.info("Segment2B CLI: wrote summary to %s", summary_path)
     return 0
 
 
