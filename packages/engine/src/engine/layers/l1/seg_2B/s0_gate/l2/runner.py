@@ -388,8 +388,6 @@ class S0GateRunner:
         catalogue_resolution = self._catalogue_resolution(dictionary)
         determinism_receipt = {
             "engine_commit": inputs.git_commit_hex,
-            "python_version": platform.python_version(),
-            "platform": platform.platform(),
             "policy_ids": policy_ids,
             "policy_digests": policy_digests,
         }
