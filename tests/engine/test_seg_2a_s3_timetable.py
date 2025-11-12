@@ -1,4 +1,3 @@
-import hashlib
 import json
 import os
 import shutil
@@ -126,7 +125,9 @@ def _write_sealed_inputs(
 ) -> Path:
     inventory_dir = base / f"data/layer1/2A/sealed_inputs/fingerprint={manifest}"
     inventory_dir.mkdir(parents=True, exist_ok=True)
-    tz_world_digest = hashlib.sha256(tz_world_path.read_bytes()).hexdigest()
+    tz_world_digest = aggregate_sha256(
+        hash_files(expand_files(tz_world_path), error_prefix="TEST_TZWORLD")
+    )
     df = pl.DataFrame(
         [
             {

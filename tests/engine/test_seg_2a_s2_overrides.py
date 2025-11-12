@@ -1,4 +1,3 @@
-import hashlib
 import json
 from pathlib import Path
 
@@ -8,6 +7,11 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from engine.layers.l1.seg_2A.s2_overrides import OverridesInputs, OverridesRunner
+from engine.layers.l1.seg_2A.s0_gate.l0.filesystem import (
+    aggregate_sha256,
+    expand_files,
+    hash_files,
+)
 
 
 @pytest.fixture()
@@ -129,7 +133,7 @@ def _write_sealed_inputs(
             "schema_ref": "schemas.2A.yaml#/policy/tz_overrides_v1",
             "catalog_path": "config/timezone/tz_overrides.yaml",
             "partition_keys": [],
-            "sha256_hex": _sha256_path(tz_overrides_path),
+            "sha256_hex": _aggregate_digest(tz_overrides_path),
             "size_bytes": tz_overrides_path.stat().st_size,
             "license_class": "Internal",
             "notes": None,
@@ -142,7 +146,7 @@ def _write_sealed_inputs(
             "schema_ref": "schemas.ingress.layer1.yaml#/tz_world_2025a",
             "catalog_path": "reference/spatial/tz_world/2025a/tz_world.parquet",
             "partition_keys": [],
-            "sha256_hex": _sha256_path(tz_world_path),
+            "sha256_hex": _aggregate_digest(tz_world_path),
             "size_bytes": tz_world_path.stat().st_size,
             "license_class": "ODbL-1.0",
             "notes": None,
@@ -160,7 +164,7 @@ def _write_sealed_inputs(
                     f"data/layer1/2A/merchant_mcc_map/seed={seed}/fingerprint={manifest_fingerprint}/merchant_mcc_map.parquet"
                 ),
                 "partition_keys": [f"seed={seed}", f"fingerprint={manifest_fingerprint}"],
-                "sha256_hex": _sha256_path(merchant_mcc_path),
+                "sha256_hex": _aggregate_digest(merchant_mcc_path),
                 "size_bytes": merchant_mcc_path.stat().st_size,
                 "license_class": "Internal",
                 "notes": None,
@@ -172,12 +176,10 @@ def _write_sealed_inputs(
     return inventory_path
 
 
-def _sha256_path(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(8192), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+def _aggregate_digest(path: Path) -> str:
+    files = expand_files(path)
+    digests = hash_files(files, error_prefix="TEST")
+    return aggregate_sha256(digests)
 
 
 def _write_tz_world(base_path: Path) -> Path:
