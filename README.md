@@ -14,15 +14,15 @@
 - **Decision fabric:** guardrails → primary ML → optional 2nd stage; returns **ACTION + reasons + provenance** with a **degrade ladder** to keep latency SLOs.  
 - **Auditability:** immutable decision log + label store; deterministic replay/DR from lineage.
 
-### Current build status (2025-11-05)
+### Current build status (2025-11-12)
 | Segment | States | Status | Notes |
 |---------|--------|--------|-------|
 | 1A | S0-S9 | **Sealed** | Authority surface for downstream segments |
 | 1B | S0-S9 | **Sealed** | Production-ready Layer-1 world realism |
-| 2A | S0-S5 | **Specs frozen; implementation starting** | Gate, TZ pipeline, timetable, legality, bundle |
-| 2B | S0-S8 | **Specs frozen; implementation next** | Alias build, router core, audits, PASS bundle |
+| 2A | S0-S5 | **Sealed** | Gate, TZ pipeline, timetable, legality, bundle |
+| 2B | S0-S8 | **Sealed** | Alias build, router core, audits, PASS bundle |
 
-Implementation sequence: 2A (S0→S5) → 2B (S1→S8), leaving 1A/1B artefacts as read-only authorities.
+Implementation sequence (next): 3A (S0→SX) followed by 3B (S0→SX), leaving 1A/1B/2A/2B artefacts as read-only authorities while we prepare the PR to main.
 
 ---
 
@@ -301,11 +301,11 @@ fraud-enterprise/
 ```
 =========== Merchant-Location Realism (open) ===========
 Sub-segments:
-  1A  Merchants → Physical Sites  ............. [ ONLINE — sealed ]
+  1A  Merchants → Physical Sites  ............. [ ONLINE ]
   1B  Place Sites on Planet ................... [ ONLINE ]
-  2A  Civil Time Zone (IANA/DST) .............. [ NEXT UP ]
-  2B  Routing Through Sites ................... [ LOCKED ]
-  3A  Cross-Zone Merchants .................... [ LOCKED ]
+  2A  Civil Time Zone (IANA/DST) .............. [ ONLINE ]
+  2B  Routing Through Sites ................... [ ONLINE ]
+  3A  Cross-Zone Merchants .................... [ NEXT UP ]
   3B  Purely Virtual Merchants ................ [ LOCKED ]
 
 [4A/4B overlay]  >>> applied to every sub-segment above (inputs/outputs, RNG,
@@ -331,7 +331,7 @@ S6 Jitter points (RNG)  S7 Synthesize sites        S8 `site_locations`
 S9 Validation bundle
 
 
-=========== 2A state-flow (6 states; design frozen, impl next) ===========
+=========== 2A state-flow (6 states; live) ===========
 S0 -> S1 -> S2 -> S3 -> S4 -> S5
 
 Where (short labels just to anchor the flow):
@@ -339,7 +339,7 @@ S0 Gate & Sealed Inputs        S1 Provisional TZ Lookup       S2 Overrides & Fin
 S3 Timetable Cache             S4 Legality Report             S5 Validation Bundle
 
 
-=========== 2B state-flow (9 states; design frozen, impl after 2A) ===========
+=========== 2B state-flow (9 states; live) ===========
 S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6 -> S7 -> S8
 
 Where (short labels just to anchor the flow):

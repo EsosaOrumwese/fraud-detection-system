@@ -1,16 +1,16 @@
-# AGENTS.md - Data Engine Router (Layer-1 / Segments 2A)
-_As of 2025-11-05_
+# AGENTS.md - Data Engine Router (Layer-1 / Segments 2A/2B)
+_As of 2025-11-12_
 
-This router tells you what is binding, what to read first, and which parts of the engine are in play. Segments **1A and 1B** are online and sealed—treat them as read-only authority surfaces. Segment **2A** (S0-S5) is the active build as we enter implementation.
+This router tells you what is binding, what to read first, and which parts of the engine are in play. Segments **1A, 1B, 2A, and 2B** are online and sealed—treat them as read-only authority surfaces. We are preparing the PR to land Layer-1 through Segment 2B before moving on to Segment 3A specifications.
 
 ---
 
 ## 0) Scope (you are here)
 - Package: packages/engine
-- Active build transition: Layer-1 / Segment **2A** / States **S0-S5** (implementation starting). Segment **1B** remains live and sealed.
-- Sealed references: Segments 1A & 1B (authority surfaces for downstream inputs).
-- Binding specs: 2A expanded state documents and contract artefacts are locked alongside the existing 1B set.
-- Other segments (2B...4B) remain locked until explicitly opened.
+- Current posture: Layer-1 / Segments **1A–2B** are sealed and ready for PR. Next build cycle will open Segment **3A** (pending spec refinement).
+- Sealed references: Segments 1A, 1B, 2A, and 2B act as authority surfaces for downstream inputs.
+- Binding specs: 2A/2B expanded state documents and contract artefacts remain locked; 3A will stay locked until the spec is green-lit.
+- Other segments (3B…4B) remain locked until explicitly opened.
 
 **Environment posture.** We are intentionally deferring integration with the shared dev environment (full artefact replay and manifest hookups) until the **entire Data Engine**—all layers, segments, and states—is built and wired together. While we are still in that build-out phase, every new state must be treated as if the complete engine were already live: wire states together locally, exercise deterministic cross-state invariants, and extend regression tests so the chain remains ready to run end-to-end the moment we connect to real artefacts. No shortcuts.
 
