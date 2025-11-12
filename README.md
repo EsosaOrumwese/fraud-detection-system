@@ -198,7 +198,7 @@ Legend (compact):
 ---
 
 ## Current scope & reading order
-- **Current focus:** Data Engine - **Layer-1 / Segment 1A, States S5–S9** (S0–S4 sealed; S5–S9 execution in progress).  
+- **Current focus:** Data Engine - **Layer-1 / Segment 3A (spec + pre-implementation)**; Segments 1A, 1B, 2A & 2B are sealed authority surfaces feeding downstream work.  
 - **Reading order:** `contracts/` → `packages/engine/` → `services/` (concept) → `orchestration/` (concept).  
 - **Promotion path:** when a service becomes real, it graduates from `services/<name>/` (docs) to `packages/svc-<name>/` (its own package).
 
@@ -208,7 +208,7 @@ Legend (compact):
 ```text
 fraud-enterprise/
 ├─ packages/                     # buildable Python distributions (each with its own pyproject & src/)
-│  └─ engine/                    # the Data Engine package (S0–S4 sealed; S5–S9 active here)
+│  └─ engine/                    # the Data Engine package (Layer-1 Segments 1A–2B sealed; 3A planning in docs)
 │     ├─ pyproject.toml
 │     └─ src/engine/
 │        ├─ cli/                 # (concept) command entry points: run / validate / manifest
@@ -282,7 +282,7 @@ fraud-enterprise/
 
 ---
 
-> **Note:** This README describes the **destination**. Many folders are intentionally **conceptual** until unlocked. The **Data Engine** now has Layer-1 Segment 1A sealed and Segment 1B online; the next build frontier is Segment 2A, and more components will unlock as we advance.
+> **Note:** This README describes the **destination**. Many folders are intentionally **conceptual** until unlocked. The **Data Engine** now has Layer-1 Segments 1A–2B sealed and deterministic; the next build frontier is Segment 3A (spec + planning) before we unlock 3B.
 
 ## Data Engine Progress
 

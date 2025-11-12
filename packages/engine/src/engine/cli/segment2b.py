@@ -1,4 +1,4 @@
-"""CLI runner for Segment 2B (S0 gate)."""
+"""CLI runner for Segment 2B (S0 gate through S8 validation)."""
 
 from __future__ import annotations
 
