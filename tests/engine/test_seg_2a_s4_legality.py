@@ -43,6 +43,25 @@ def _write_gate_receipt(base: Path, manifest: str) -> Path:
     return receipt_path
 
 
+def _write_determinism_receipt(base: Path, manifest: str) -> Path:
+    target = (
+        base
+        / "reports"
+        / "l1"
+        / "s0_gate"
+        / f"fingerprint={manifest}"
+        / "determinism_receipt.json"
+    )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "sha256_hex": "1234567890abcdef" * 4,
+        "partition_hash": "fedcba0987654321" * 4,
+        "partition_path": f"data/layer1/2A/tz_timetable_cache/fingerprint={manifest}",
+    }
+    target.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return target
+
+
 def _write_site_timezones(base: Path, seed: int, manifest: str) -> Path:
     partition_dir = base / f"data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest}"
     partition_dir.mkdir(parents=True, exist_ok=True)
@@ -107,6 +126,7 @@ def test_legality_runner_builds_report(tmp_path: Path) -> None:
     manifest = "a" * 64
     dictionary_path = _write_dictionary(tmp_path)
     _write_gate_receipt(tmp_path, manifest)
+    _write_determinism_receipt(tmp_path, manifest)
     _write_site_timezones(tmp_path, seed, manifest)
     _write_tz_cache(tmp_path, manifest)
 
@@ -136,6 +156,7 @@ def test_legality_runner_builds_report(tmp_path: Path) -> None:
     assert report_payload["counts"]["gap_windows_total"] == 60
     assert report_payload["adjustments"]["path"] is None
     assert report_payload["adjustments"]["count"] == 0
+    assert report_payload["determinism"]["sha256_hex"] == "1234567890abcdef" * 4
 
     resumed = runner.run(
         LegalityInputs(
@@ -155,6 +176,7 @@ def test_legality_runner_reports_adjustments_metadata(tmp_path: Path) -> None:
     manifest = "c" * 64
     dictionary_path = _write_dictionary(tmp_path)
     _write_gate_receipt(tmp_path, manifest)
+    _write_determinism_receipt(tmp_path, manifest)
     _write_site_timezones(tmp_path, seed, manifest)
     _write_tz_cache(tmp_path, manifest)
     adjustments_path = _write_tz_adjustments(tmp_path, manifest, count=3)
@@ -179,6 +201,7 @@ def test_legality_runner_flags_missing_tzid(tmp_path: Path) -> None:
     manifest = "b" * 64
     dictionary_path = _write_dictionary(tmp_path)
     _write_gate_receipt(tmp_path, manifest)
+    _write_determinism_receipt(tmp_path, manifest)
     _write_site_timezones(tmp_path, seed, manifest)
     cache_dir = _write_tz_cache(tmp_path, manifest)
     # Remove America/New_York to trigger coverage failure

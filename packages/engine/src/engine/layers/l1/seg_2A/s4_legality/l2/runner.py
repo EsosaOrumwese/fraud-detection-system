@@ -19,7 +19,11 @@ from engine.layers.l1.seg_2A.shared.dictionary import (
     render_dataset_path,
     resolve_dataset_path,
 )
-from engine.layers.l1.seg_2A.shared.receipt import GateReceiptSummary, load_gate_receipt
+from engine.layers.l1.seg_2A.shared.receipt import (
+    GateReceiptSummary,
+    load_determinism_receipt,
+    load_gate_receipt,
+)
 from engine.layers.l1.seg_2A.shared.tz_assets import load_tz_adjustments
 
 from ..l1.context import LegalityAssets, LegalityContext
@@ -84,12 +88,17 @@ class LegalityRunner:
             manifest_fingerprint=config.manifest_fingerprint,
             dictionary=dictionary,
         )
+        determinism_receipt = load_determinism_receipt(
+            base_path=data_root,
+            manifest_fingerprint=config.manifest_fingerprint,
+        )
         context = self._prepare_context(
             data_root=data_root,
             dictionary=dictionary,
             manifest_fingerprint=config.manifest_fingerprint,
             seed=config.seed,
             receipt=receipt,
+            determinism_receipt=determinism_receipt,
         )
         output_path = self._resolve_output_path(
             data_root=data_root,
@@ -215,6 +224,7 @@ class LegalityRunner:
         manifest_fingerprint: str,
         seed: int,
         receipt: GateReceiptSummary,
+        determinism_receipt: Mapping[str, object],
     ) -> LegalityContext:
         site_rel = render_dataset_path(
             "site_timezones",
@@ -259,6 +269,7 @@ class LegalityRunner:
             verified_at_utc=receipt.verified_at_utc,
             assets=assets,
             tz_adjustments=adjustments_summary,
+            determinism_receipt=determinism_receipt,
         )
 
     def _load_site_timezones(self, path: Path) -> tuple[list[str], int]:
@@ -452,5 +463,6 @@ class LegalityRunner:
             },
             "warnings": warnings,
             "errors": errors,
+            "determinism": context.determinism_receipt,
         }
         path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")

@@ -80,6 +80,25 @@ def _write_gate_receipt(base: Path, manifest: str) -> Path:
     return receipt_path
 
 
+def _write_determinism_receipt(base: Path, manifest: str) -> Path:
+    target = (
+        base
+        / "reports"
+        / "l1"
+        / "s0_gate"
+        / f"fingerprint={manifest}"
+        / "determinism_receipt.json"
+    )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "sha256_hex": "abc" * 21 + "ab",
+        "partition_hash": "def" * 21 + "de",
+        "partition_path": f"data/layer1/2A/tz_timetable_cache/fingerprint={manifest}",
+    }
+    target.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return target
+
+
 def _write_tz_world(base: Path) -> Path:
     path = base / "reference/spatial/tz_world/2025a/tz_world.parquet"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -153,6 +172,7 @@ def test_timetable_runner_builds_cache(tmp_path: Path, resume: bool) -> None:
     tzdb_dir, tzdb_digest, tzdb_size = _write_tzdb_release(tmp_path)
     _write_sealed_inputs(tmp_path, manifest, tzdb_digest, tzdb_size, tz_world_path)
     _write_gate_receipt(tmp_path, manifest)
+    _write_determinism_receipt(tmp_path, manifest)
 
     runner = TimetableRunner()
     result = runner.run(
@@ -199,6 +219,7 @@ def test_timetable_runner_builds_cache(tmp_path: Path, resume: bool) -> None:
     assert report_payload["status"] == "pass"
     assert report_payload["compiled"]["tzid_count"] >= 2
     assert report_payload["compiled"]["transitions_total"] >= 1
+    assert report_payload["determinism"]["sha256_hex"] == "abc" * 21 + "ab"
     assert report_payload["compiled"]["offset_minutes_min"] <= 0
     assert report_payload["compiled"]["offset_minutes_max"] >= 120
     assert report_payload["adjustments"]["count"] == adjustments_payload["count"]

@@ -59,11 +59,14 @@ def _print_summary(result: Segment2AResult) -> None:
         "parameter_hash": result.parameter_hash,
         "receipt_path": str(result.receipt_path),
         "inventory_path": str(result.inventory_path),
+        "s0_determinism_receipt": str(result.determinism_receipt_path),
         "resumed": result.resumed,
     }
     if result.s1_output_path:
         payload["s1_output_path"] = str(result.s1_output_path)
         payload["s1_resumed"] = result.s1_resumed
+    if result.s1_run_report_path:
+        payload["s1_run_report_path"] = str(result.s1_run_report_path)
     if result.s2_output_path:
         payload["s2_output_path"] = str(result.s2_output_path)
         payload["s2_resumed"] = result.s2_resumed

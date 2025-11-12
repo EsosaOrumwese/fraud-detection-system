@@ -88,6 +88,10 @@ def _write_receipt_and_inventory(
         "validation_bundle_path": "bundle",
         "flag_sha256_hex": "f" * 64,
         "verified_at_utc": "2025-11-09T00:00:00.000000Z",
+        "determinism_receipt": {
+            "engine_commit": "feedcafe",
+            "policy_ids": ["route_rng_policy_v1", "virtual_edge_policy_v1"],
+        },
         "sealed_inputs": [
             {"id": "route_rng_policy_v1", "partition": [], "schema_ref": "schemas.2B.yaml#/policy/route_rng_policy_v1"},
             {"id": "virtual_edge_policy_v1", "partition": [], "schema_ref": "schemas.2B.yaml#/policy/virtual_edge_policy_v1"},
@@ -220,6 +224,7 @@ def test_s6_virtual_edge_runs_with_virtual_arrival(tmp_path: Path) -> None:
     report = json.loads(result.run_report_path.read_text(encoding="utf-8"))
     assert report["component"] == "2B.S6"
     assert report["diagnostics"]["edge_log_enabled"] is True
+    assert report["determinism"]["engine_commit"] == "feedcafe"
 
 
 def test_s6_virtual_edge_handles_zero_virtual_arrivals(tmp_path: Path) -> None:
@@ -229,6 +234,7 @@ def test_s6_virtual_edge_handles_zero_virtual_arrivals(tmp_path: Path) -> None:
     assert result.rng_event_edge_path is None
     report = json.loads(result.run_report_path.read_text(encoding="utf-8"))
     assert report["diagnostics"]["virtual_arrivals"] == 0
+    assert report["determinism"]["policy_ids"] == ["route_rng_policy_v1", "virtual_edge_policy_v1"]
 
 
 def test_s6_edge_log_skipped_when_dictionary_missing_entry(tmp_path: Path) -> None:
@@ -262,6 +268,6 @@ def test_s6_requires_virtual_stream(tmp_path: Path) -> None:
     try:
         runner.run(inputs)
     except S0GateError as exc:
-        assert exc.code == "E_S6_POLICY_STREAM"
+        assert exc.code == "2B-S6-053"
     else:  # pragma: no cover
         raise AssertionError("Expected S0GateError when virtual_edge stream missing")

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Mapping
 
+from ...shared.receipt import SealedInputRecord
 
 @dataclass(frozen=True)
 class OverridesAssets:
@@ -27,4 +29,6 @@ class OverridesContext:
     receipt_path: Path
     verified_at_utc: str
     assets: OverridesAssets
+    sealed_assets: Mapping[str, SealedInputRecord]
+    determinism_receipt: Mapping[str, object]
 

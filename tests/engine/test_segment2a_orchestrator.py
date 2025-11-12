@@ -48,11 +48,19 @@ def test_segment2a_orchestrator_run_and_resume(monkeypatch):
                     / f"data/layer1/2A/s1_tz_lookup/seed={inputs.seed}/fingerprint={inputs.manifest_fingerprint}"
                 )
                 out_dir.mkdir(parents=True, exist_ok=True)
+                report_path = (
+                    root
+                    / f"reports/l1/s1_provisional_lookup/seed={inputs.seed}/fingerprint={inputs.manifest_fingerprint}"
+                    / "run_report.json"
+                )
+                report_path.parent.mkdir(parents=True, exist_ok=True)
+                report_path.write_text("{}", encoding="utf-8")
                 captured["inputs"] = inputs
                 result = ProvisionalLookupResult(
                     seed=inputs.seed,
                     manifest_fingerprint=inputs.manifest_fingerprint,
                     output_path=out_dir,
+                    run_report_path=report_path,
                     resumed=inputs.resume,
                 )
                 captured["result"] = result
@@ -151,7 +159,7 @@ def test_segment2a_orchestrator_run_and_resume(monkeypatch):
         assert captured_s4["inputs"].seed == seed
         assert initial.s4_resumed is False
         assert initial.s5_bundle_path is not None
-        assert captured_s5["inputs"].manifest_fingerprint == upstream_fp
+        assert captured_s5["inputs"].manifest_fingerprint == initial.manifest_fingerprint
         assert initial.s5_resumed is False
 
         resumed = orchestrator.run(

@@ -1002,6 +1002,7 @@ class S5RouterRunner:
                 "selection_log_partitions": len(selection_log_paths),
             },
             "virtual_routing": virtual_section,
+            "determinism": dict(receipt.determinism_receipt),
         }
         return report
 

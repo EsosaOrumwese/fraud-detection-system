@@ -4,13 +4,13 @@ SHELL := /bin/bash
 PY ?= python
 ENGINE_PYTHONPATH ?= packages/engine/src
 
-RUN_ROOT ?= runs/local_layer1_regen1
+RUN_ROOT ?= runs/local_layer1_regen2
 SUMMARY_DIR ?= $(RUN_ROOT)/summaries
 RESULT_JSON ?= $(SUMMARY_DIR)/segment1a_result.json
 SEG1B_RESULT_JSON ?= $(SUMMARY_DIR)/segment1b_result.json
 SEG2A_RESULT_JSON ?= $(SUMMARY_DIR)/segment2a_result.json
 SEG2B_RESULT_JSON ?= $(SUMMARY_DIR)/segment2b_result.json
-LOG ?= $(RUN_ROOT)/run_log_regen1.log
+LOG ?= $(RUN_ROOT)/run_log_regen2.log
 SEED ?= 2025111101
 
 GIT_COMMIT ?= $(shell git rev-parse HEAD)

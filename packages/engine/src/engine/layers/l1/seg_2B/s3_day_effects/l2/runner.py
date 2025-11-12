@@ -18,7 +18,12 @@ import polars as pl
 from jsonschema import Draft202012Validator, ValidationError
 
 from ...shared.dictionary import load_dictionary, render_dataset_path, repository_root
-from ...shared.receipt import GateReceiptSummary, load_gate_receipt
+from ...shared.receipt import (
+    GateReceiptSummary,
+    SealedInputRecord,
+    load_gate_receipt,
+    load_sealed_inputs_inventory,
+)
 from ...shared.schema import load_schema
 from ...s0_gate.exceptions import err
 
@@ -36,6 +41,7 @@ NORMAL_DIST = NormalDist()
 class DayEffectPolicy:
     """Parsed representation of the day-effect policy."""
 
+    policy_path: str
     version_tag: str
     rng_engine: str
     rng_stream_id: str
@@ -84,12 +90,12 @@ class S3DayEffectsInputs:
         object.__setattr__(self, "data_root", data_root)
         seed_value = str(self.seed)
         if not seed_value:
-            raise err("E_S3_SEED_EMPTY", "seed must be provided for S3")
+            raise err("2B-S3-070", "seed must be provided for S3")
         object.__setattr__(self, "seed", seed_value)
         manifest = self.manifest_fingerprint.lower()
         if len(manifest) != 64:
             raise err(
-                "E_S3_MANIFEST_FINGERPRINT",
+                "2B-S3-070",
                 "manifest_fingerprint must be 64 hex characters",
             )
         int(manifest, 16)
@@ -97,7 +103,7 @@ class S3DayEffectsInputs:
         seg2a_manifest = self.seg2a_manifest_fingerprint.lower()
         if len(seg2a_manifest) != 64:
             raise err(
-                "E_S3_SEG2A_MANIFEST",
+                "2B-S3-070",
                 "seg2a_manifest_fingerprint must be 64 hex characters",
             )
         int(seg2a_manifest, 16)
@@ -163,16 +169,34 @@ class S3DayEffectsRunner:
             manifest_fingerprint=config.manifest_fingerprint,
             dictionary=dictionary,
         )
-        policy, policy_path = self._load_policy(config=config, dictionary=dictionary)
+        sealed_assets = self._load_sealed_inventory_map(
+            config=config,
+            dictionary=dictionary,
+        )
+        policy, policy_path = self._load_policy(
+            config=config,
+            dictionary=dictionary,
+            sealed_assets=sealed_assets,
+        )
         weights_path = self._resolve_dataset_path(
             dataset_id="s1_site_weights",
             config=config,
             dictionary=dictionary,
         )
-        tz_path = self._resolve_dataset_path(
-            dataset_id="site_timezones",
-            config=config,
+        tz_rel = render_dataset_path(
+            "site_timezones",
+            template_args={
+                "seed": config.seed,
+                "manifest_fingerprint": config.seg2a_manifest_fingerprint,
+            },
             dictionary=dictionary,
+        )
+        tz_path = self._ensure_optional_pin(
+            asset_id="site_timezones",
+            sealed_assets=sealed_assets,
+            expected_catalog_path=tz_rel,
+            error_code="2B-S3-022",
+            config=config,
         )
         output_dir = self._resolve_dataset_path(
             dataset_id="s3_day_effects",
@@ -194,7 +218,7 @@ class S3DayEffectsRunner:
                     resumed=True,
                 )
             raise err(
-                "E_S3_OUTPUT_EXISTS",
+                "2B-S3-080",
                 f"s3_day_effects already exists at '{output_dir}' - use resume or delete partition first",
             )
 
@@ -206,7 +230,7 @@ class S3DayEffectsRunner:
         base_counter = policy.base_counter
         if base_counter + rows_expected - 1 > MAX_COUNTER:
             raise err(
-                "E_S3_COUNTER_OVERFLOW",
+                "2B-S3-064",
                 "rng counter range exceeds 128-bit capacity for requested coverage",
             )
 
@@ -232,7 +256,7 @@ class S3DayEffectsRunner:
                     counter = base_counter + rows_written
                     if prev_counter is not None and counter <= prev_counter:
                         raise err(
-                            "E_S3_COUNTER_MONOTONIC",
+                            "2B-S3-063",
                             "rng counters must be strictly increasing in writer order",
                         )
                     words = rng.generate(counter)
@@ -241,13 +265,13 @@ class S3DayEffectsRunner:
                     log_gamma = mu + sigma * z
                     if not math.isfinite(log_gamma):
                         raise err(
-                            "E_S3_NONFINITE_LOG_GAMMA",
+                            "2B-S3-058",
                             f"log_gamma not finite for merchant {merchant_id}, tz '{tzid}', day {utc_day}",
                         )
                     gamma = math.exp(log_gamma)
                     if gamma <= 0.0:
                         raise err(
-                            "E_S3_NON_POSITIVE_GAMMA",
+                            "2B-S3-057",
                             f"gamma <= 0 detected for merchant {merchant_id}, tz '{tzid}', day {utc_day}",
                         )
                     rng_counter_lo = counter & ((1 << 64) - 1)
@@ -304,7 +328,7 @@ class S3DayEffectsRunner:
 
         if rows_written != rows_expected:
             raise err(
-                "E_S3_ROW_MISMATCH",
+                "2B-S3-050",
                 f"rows produced ({rows_written}) != expected coverage ({rows_expected})",
             )
 
@@ -358,22 +382,26 @@ class S3DayEffectsRunner:
     # ------------------------------------------------------------------ helpers
 
     def _load_policy(
-        self, *, config: S3DayEffectsInputs, dictionary: Mapping[str, object]
+        self,
+        *,
+        config: S3DayEffectsInputs,
+        dictionary: Mapping[str, object],
+        sealed_assets: Mapping[str, SealedInputRecord],
     ) -> tuple[DayEffectPolicy, Path]:
-        policy_rel = render_dataset_path(
-            "day_effect_policy_v1",
-            template_args={},
-            dictionary=dictionary,
+        sealed_record = self._require_sealed_asset(
+            asset_id="day_effect_policy_v1",
+            sealed_assets=sealed_assets,
+            code="2B-S3-022",
         )
-        candidate = (config.data_root / policy_rel).resolve()
-        if not candidate.exists():
-            repo_candidate = repository_root() / policy_rel
-            if not repo_candidate.exists():
-                raise err(
-                    "E_S3_POLICY_MISSING",
-                    f"day_effect_policy_v1 not found at '{policy_rel}'",
-                )
-            candidate = repo_candidate.resolve()
+        candidate = self._resolve_sealed_path(
+            record=sealed_record,
+            data_root=config.data_root,
+        )
+        self._verify_sealed_digest(
+            asset_id="day_effect_policy_v1",
+            path=candidate,
+            expected_hex=sealed_record.sha256_hex,
+        )
 
         payload = json.loads(candidate.read_text(encoding="utf-8"))
         schema = load_schema("#/policy/day_effect_policy_v1")
@@ -382,7 +410,7 @@ class S3DayEffectsRunner:
             validator.validate(payload)
         except ValidationError as exc:
             raise err(
-                "E_S3_POLICY_INVALID",
+                "2B-S3-020",
                 f"day_effect_policy_v1 violates schema: {exc.message}",
             ) from exc
 
@@ -390,30 +418,31 @@ class S3DayEffectsRunner:
         end_day = date.fromisoformat(payload["day_range"]["end_day"])
         if start_day > end_day:
             raise err(
-                "E_S3_POLICY_DAY_RANGE",
+                "2B-S3-033",
                 "day_range.start_day must be <= day_range.end_day",
             )
         draws_per_row = int(payload["draws_per_row"])
         if draws_per_row != 1:
             raise err(
-                "E_S3_POLICY_DRAWS",
+                "2B-S3-062",
                 f"draws_per_row must be 1 (observed {draws_per_row})",
             )
         record_fields = tuple(str(field) for field in payload["record_fields"])
         missing = self.REQUIRED_RECORD_FIELDS.difference(record_fields)
         if missing:
             raise err(
-                "E_S3_POLICY_RECORD_FIELDS",
+                "2B-S3-032",
                 f"policy missing required record_fields: {', '.join(sorted(missing))}",
             )
         rng_engine = str(payload["rng_engine"])
         if rng_engine != "philox_4x32_10":
             raise err(
-                "E_S3_POLICY_RNG_ENGINE",
+                "2B-S3-060",
                 f"unsupported rng_engine '{rng_engine}' (expected philox_4x32_10)",
             )
 
         policy = DayEffectPolicy(
+            policy_path=sealed_record.catalog_path,
             version_tag=str(payload["version_tag"]),
             rng_engine=rng_engine,
             rng_stream_id=str(payload["rng_stream_id"]),
@@ -437,7 +466,7 @@ class S3DayEffectsRunner:
             for offset in range(policy.utc_day_count)
         ]
         if not days:
-            raise err("E_S3_DAY_RANGE_EMPTY", "policy day_range produced zero days")
+            raise err("2B-S3-090", "policy day_range produced zero days")
         return days
 
     def _expected_rows(
@@ -447,10 +476,92 @@ class S3DayEffectsRunner:
         expected = tz_groups_total * days_total
         if expected <= 0:
             raise err(
-                "E_S3_NO_ROWS",
+                "2B-S3-050",
                 "cartesian coverage produced zero rows (check day range and tz groups)",
             )
         return expected
+
+    def _load_sealed_inventory_map(
+        self,
+        *,
+        config: S3DayEffectsInputs,
+        dictionary: Mapping[str, object],
+    ) -> Mapping[str, SealedInputRecord]:
+        records = load_sealed_inputs_inventory(
+            base_path=config.data_root,
+            manifest_fingerprint=config.manifest_fingerprint,
+            dictionary=dictionary,
+        )
+        return {record.asset_id: record for record in records}
+
+    def _require_sealed_asset(
+        self,
+        *,
+        asset_id: str,
+        sealed_assets: Mapping[str, SealedInputRecord],
+        code: str,
+    ) -> SealedInputRecord:
+        record = sealed_assets.get(asset_id)
+        if record is None:
+            raise err(code, f"sealed asset '{asset_id}' not present in S0 sealed_inputs_v1")
+        return record
+
+    def _resolve_sealed_path(
+        self,
+        *,
+        record: SealedInputRecord,
+        data_root: Path,
+    ) -> Path:
+        candidate = (data_root / record.catalog_path).resolve()
+        if candidate.exists():
+            return candidate
+        repo_candidate = (repository_root() / record.catalog_path).resolve()
+        if repo_candidate.exists():
+            return repo_candidate
+        raise err(
+            "2B-S3-022",
+            f"sealed asset '{record.asset_id}' path '{record.catalog_path}' not found under data root or repo",
+        )
+
+    def _verify_sealed_digest(
+        self,
+        *,
+        asset_id: str,
+        path: Path,
+        expected_hex: str,
+    ) -> None:
+        if not expected_hex:
+            return
+        actual = _sha256_hex(path)
+        if actual.lower() != expected_hex.lower():
+            raise err(
+                "2B-S3-022",
+                f"sealed asset '{asset_id}' digest mismatch (expected {expected_hex}, observed {actual})",
+            )
+
+    def _ensure_optional_pin(
+        self,
+        *,
+        asset_id: str,
+        sealed_assets: Mapping[str, SealedInputRecord],
+        expected_catalog_path: str,
+        error_code: str,
+        config: S3DayEffectsInputs,
+    ) -> Path:
+        record = self._require_sealed_asset(
+            asset_id=asset_id,
+            sealed_assets=sealed_assets,
+            code=error_code,
+        )
+        sealed_path = record.catalog_path.rstrip("/\\")
+        expected_path = expected_catalog_path.rstrip("/\\")
+        if sealed_path != expected_path:
+            raise err(
+                error_code,
+                f"sealed asset '{asset_id}' path mismatch between sealed_inputs_v1 '{record.catalog_path}' "
+                f"and dictionary '{expected_catalog_path}'",
+            )
+        return self._resolve_sealed_path(record=record, data_root=config.data_root)
 
     def _prepare_groups(
         self,
@@ -464,14 +575,14 @@ class S3DayEffectsRunner:
                 columns=["merchant_id", "legal_country_iso", "site_order"],
             )
         except Exception as exc:  # pragma: no cover
-            raise err("E_S3_SITE_WEIGHTS_IO", f"failed to read s1_site_weights: {exc}") from exc
+            raise err("2B-S3-020", f"failed to read s1_site_weights: {exc}") from exc
         try:
             tz = pl.read_parquet(
                 tz_path,
                 columns=["merchant_id", "legal_country_iso", "site_order", "tzid"],
             )
         except Exception as exc:  # pragma: no cover
-            raise err("E_S3_TZ_LOOKUP_IO", f"failed to read site_timezones: {exc}") from exc
+            raise err("2B-S3-020", f"failed to read site_timezones: {exc}") from exc
 
         weights = weights.with_columns(
             [
@@ -488,7 +599,7 @@ class S3DayEffectsRunner:
         if invalid_weights.height:
             sample = invalid_weights.head(5).to_dicts()
             raise err(
-                "E_S3_SITE_WEIGHTS_SCHEMA",
+                "2B-S3-040",
                 f"invalid join keys detected in s1_site_weights: {sample}",
             )
 
@@ -509,7 +620,7 @@ class S3DayEffectsRunner:
         if invalid_tz.height:
             sample = invalid_tz.head(5).to_dicts()
             raise err(
-                "E_S3_TZ_LOOKUP_SCHEMA",
+                "2B-S3-040",
                 f"invalid join keys detected in site_timezones: {sample}",
             )
 
@@ -524,7 +635,7 @@ class S3DayEffectsRunner:
                 ["merchant_id", "legal_country_iso", "site_order"]
             ).head(5)
             raise err(
-                "E_S3_TZ_LOOKUP_DUPLICATE",
+                "2B-S3-041",
                 f"site_timezones has duplicate tzid entries for keys: {sample.to_dicts()}",
             )
 
@@ -533,7 +644,7 @@ class S3DayEffectsRunner:
         )
         if joined.height != weights.height:
             raise err(
-                "E_S3_TZ_LOOKUP_MISSING",
+                "2B-S3-040",
                 "site_timezones missing rows for some s1_site_weights keys",
             )
 
@@ -543,13 +654,13 @@ class S3DayEffectsRunner:
             tzid = str(row["tzid"])
             if not tzid:
                 raise err(
-                    "E_S3_TZ_LOOKUP_INVALID",
+                    "2B-S3-041",
                     f"empty tzid encountered for merchant {merchant_id}",
                 )
             groups.setdefault(merchant_id, set()).add(tzid)
 
         if not groups:
-            raise err("E_S3_NO_TZ_GROUPS", "no tz groups found for S3 factors")
+            raise err("2B-S3-050", "no tz groups found for S3 factors")
 
         sorted_groups: Dict[int, list[str]] = {
             merchant: sorted(tzids)
@@ -558,7 +669,7 @@ class S3DayEffectsRunner:
         merchants_total = len(sorted_groups)
         tz_groups_total = sum(len(tzids) for tzids in sorted_groups.values())
         if tz_groups_total == 0:
-            raise err("E_S3_NO_TZ_GROUPS", "no tz groups found for S3 factors")
+            raise err("2B-S3-050", "no tz groups found for S3 factors")
         return sorted_groups, merchants_total, tz_groups_total
 
     def _publish_rows(self, *, rows_out: Sequence[Mapping[str, object]], output_dir: Path) -> int:
@@ -767,7 +878,7 @@ class S3DayEffectsRunner:
         ]
         if set(df.columns) != set(expected_cols):
             raise err(
-                "E_S3_SCHEMA_COLUMNS",
+                "2B-S3-030",
                 f"s3_day_effects columns {sorted(df.columns)} do not match expected {expected_cols}",
             )
         expected_types = {
@@ -787,7 +898,7 @@ class S3DayEffectsRunner:
             actual = schema.get(name)
             if actual != dtype:
                 raise err(
-                    "E_S3_SCHEMA_TYPES",
+                    "2B-S3-030",
                     f"s3_day_effects column '{name}' has dtype {actual}, expected {dtype}",
                 )
 

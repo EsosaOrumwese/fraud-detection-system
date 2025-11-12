@@ -1,3 +1,4 @@
+import hashlib
 import json
 from pathlib import Path
 
@@ -33,6 +34,9 @@ datasets:
   - id: s0_gate_receipt_2B
     path: data/layer1/2B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json
     partitioning: [fingerprint]
+  - id: sealed_inputs_v1
+    path: data/layer1/2B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.json
+    partitioning: [fingerprint]
 """
     dictionary_path = path / "dictionary.yaml"
     dictionary_path.write_text(payload.strip(), encoding="utf-8")
@@ -53,7 +57,7 @@ def _write_s1_site_weights(base: Path, seed: int, manifest: str) -> None:
     df.write_parquet(dest)
 
 
-def _write_site_timezones(base: Path, seed: int, manifest: str) -> None:
+def _write_site_timezones(base: Path, seed: int, manifest: str) -> Path:
     df = pl.DataFrame(
         {
             "merchant_id": [1, 1, 2],
@@ -65,6 +69,7 @@ def _write_site_timezones(base: Path, seed: int, manifest: str) -> None:
     dest = base / f"data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest}/part-00000.parquet"
     dest.parent.mkdir(parents=True, exist_ok=True)
     df.write_parquet(dest)
+    return dest.parent
 
 
 def _write_s3_day_effects(base: Path, seed: int, manifest: str) -> None:
@@ -86,22 +91,60 @@ def _write_s3_day_effects(base: Path, seed: int, manifest: str) -> None:
     dest.parent.mkdir(parents=True, exist_ok=True)
     df.write_parquet(dest)
 
+def _write_sealed_inventory(
+    base: Path,
+    manifest: str,
+    seed: int,
+    seg2a_manifest: str,
+    tz_dir: Path,
+) -> list[dict]:
+    rows = [
+        {
+            "asset_id": "site_timezones",
+            "version_tag": f"{seed}.{seg2a_manifest}",
+            "sha256_hex": _sha256_dir(tz_dir),
+            "path": f"data/layer1/2A/site_timezones/seed={seed}/fingerprint={seg2a_manifest}/",
+            "partition": ["seed", "fingerprint"],
+            "schema_ref": "schemas.2A.yaml#/egress/site_timezones",
+        },
+    ]
+    dest = base / f"data/layer1/2B/sealed_inputs/fingerprint={manifest}/sealed_inputs_v1.json"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(json.dumps(rows, indent=2), encoding="utf-8")
+    return rows
 
-def _write_receipt(base: Path, manifest: str) -> None:
+
+def _write_receipt(base: Path, seed: int, manifest: str, sealed_rows: list[dict]) -> None:
     payload = {
         "segment": "2B",
         "state": "S0",
         "manifest_fingerprint": manifest,
-        "seed": "2025110601",
+        "seed": str(seed),
         "parameter_hash": "f" * 64,
         "validation_bundle_path": "bundle",
         "flag_sha256_hex": "e" * 64,
         "verified_at_utc": "2025-11-09T00:00:00.000000Z",
-        "sealed_inputs": [],
+        "sealed_inputs": [
+            {"id": row["asset_id"], "partition": row["partition"], "schema_ref": row["schema_ref"]}
+            for row in sealed_rows
+        ],
     }
     dest = base / f"data/layer1/2B/s0_gate_receipt/fingerprint={manifest}/s0_gate_receipt.json"
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+def _sha256_dir(path: Path) -> str:
+    sha = hashlib.sha256()
+    if not path.exists():
+        return sha.hexdigest()
+    for entry in sorted(path.rglob("*")):
+        if entry.is_file():
+            sha.update(entry.relative_to(path).as_posix().encode("utf-8"))
+            with entry.open("rb") as handle:
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    sha.update(chunk)
+    return sha.hexdigest()
 
 
 def test_s4_group_weights_runner_emits_mix(tmp_path: Path) -> None:
@@ -110,9 +153,10 @@ def test_s4_group_weights_runner_emits_mix(tmp_path: Path) -> None:
     seed = 2025110601
     dictionary_path = _write_dictionary(tmp_path)
     _write_s1_site_weights(tmp_path, seed, manifest)
-    _write_site_timezones(tmp_path, seed, seg2a_manifest)
+    tz_dir = _write_site_timezones(tmp_path, seed, seg2a_manifest)
     _write_s3_day_effects(tmp_path, seed, manifest)
-    _write_receipt(tmp_path, manifest)
+    sealed_rows = _write_sealed_inventory(tmp_path, manifest, seed, seg2a_manifest, tz_dir)
+    _write_receipt(tmp_path, seed, manifest, sealed_rows)
 
     runner = S4GroupWeightsRunner()
     result = runner.run(
@@ -158,9 +202,10 @@ def test_s4_group_weights_runner_resume(tmp_path: Path) -> None:
     seed = 2025110601
     dictionary_path = _write_dictionary(tmp_path)
     _write_s1_site_weights(tmp_path, seed, manifest)
-    _write_site_timezones(tmp_path, seed, seg2a_manifest)
+    tz_dir = _write_site_timezones(tmp_path, seed, seg2a_manifest)
     _write_s3_day_effects(tmp_path, seed, manifest)
-    _write_receipt(tmp_path, manifest)
+    sealed_rows = _write_sealed_inventory(tmp_path, manifest, seed, seg2a_manifest, tz_dir)
+    _write_receipt(tmp_path, seed, manifest, sealed_rows)
     runner = S4GroupWeightsRunner()
     runner.run(
         S4GroupWeightsInputs(
@@ -202,9 +247,10 @@ def test_s4_group_weights_fails_when_base_share_not_one(tmp_path: Path) -> None:
     dest = tmp_path / f"data/layer1/2B/s1_site_weights/seed={seed}/fingerprint={manifest}/part-00000.parquet"
     dest.parent.mkdir(parents=True, exist_ok=True)
     df.write_parquet(dest)
-    _write_site_timezones(tmp_path, seed, seg2a_manifest)
+    tz_dir = _write_site_timezones(tmp_path, seed, seg2a_manifest)
     _write_s3_day_effects(tmp_path, seed, manifest)
-    _write_receipt(tmp_path, manifest)
+    sealed_rows = _write_sealed_inventory(tmp_path, manifest, seed, seg2a_manifest, tz_dir)
+    _write_receipt(tmp_path, seed, manifest, sealed_rows)
     runner = S4GroupWeightsRunner()
     with pytest.raises(S0GateError) as exc:
         runner.run(
@@ -217,7 +263,7 @@ def test_s4_group_weights_fails_when_base_share_not_one(tmp_path: Path) -> None:
                 emit_run_report_stdout=False,
             )
         )
-    assert exc.value.code == "E_S4_BASE_SHARE_SUM"
+    assert exc.value.code == "2B-S4-052"
 
 
 def test_s4_group_weights_detects_missing_tz_group_rows(tmp_path: Path) -> None:
@@ -258,7 +304,9 @@ def test_s4_group_weights_detects_missing_tz_group_rows(tmp_path: Path) -> None:
     dest = tmp_path / f"data/layer1/2B/s3_day_effects/seed={seed}/fingerprint={manifest}/part-00000.parquet"
     dest.parent.mkdir(parents=True, exist_ok=True)
     df.write_parquet(dest)
-    _write_receipt(tmp_path, manifest)
+    tz_dir = tz_path.parent
+    sealed_rows = _write_sealed_inventory(tmp_path, manifest, seed, seg2a_manifest, tz_dir)
+    _write_receipt(tmp_path, seed, manifest, sealed_rows)
     runner = S4GroupWeightsRunner()
     with pytest.raises(S0GateError) as exc:
         runner.run(
@@ -271,4 +319,4 @@ def test_s4_group_weights_detects_missing_tz_group_rows(tmp_path: Path) -> None:
                 emit_run_report_stdout=False,
             )
         )
-    assert exc.value.code == "E_S4_COVERAGE_GAP"
+    assert exc.value.code == "2B-S4-050"

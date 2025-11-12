@@ -330,6 +330,7 @@ def test_s5_router_runs_with_default_arrivals(tmp_path: Path) -> None:
     assert report["policy"]["rng_stream_id"] == "router_core"
     assert report["logging"]["selection_log_enabled"] is True
     assert report["virtual_routing"]["virtual_merchants_total"] == 1
+    assert report["determinism"]["engine_commit"] == "deadbeef"
     assert result.selection_log_paths
     selection_log = result.selection_log_paths[0]
     rows = [json.loads(line) for line in selection_log.read_text(encoding="utf-8").splitlines()]
@@ -362,6 +363,7 @@ def test_s5_router_consumes_arrivals_file(tmp_path: Path) -> None:
     assert result.selection_log_paths == ()
     report = json.loads(result.run_report_path.read_text(encoding="utf-8"))
     assert report["logging"]["selection_log_enabled"] is False
+    assert report["determinism"]["policy_ids"] == ["route_rng_policy_v1", "alias_layout_policy_v1"]
     assert len(result.virtual_arrivals) == 1
 
 

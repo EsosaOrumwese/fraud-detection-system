@@ -176,6 +176,18 @@ validation:
           router_rng_expected_draws: { type: integer, minimum: 0 }
           router_rng_observed_draws: { type: integer, minimum: 0 }
           notes: { type: string }
+      determinism:
+        type: object
+        additionalProperties: false
+        required: [engine_commit]
+        properties:
+          engine_commit: { type: string, minLength: 1 }
+          policy_ids:
+            type: array
+            items: { type: string, minLength: 1 }
+          policy_digests:
+            type: array
+            items: { type: string, minLength: 1 }
       router_evidence:
         type: object
         additionalProperties: false

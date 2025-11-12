@@ -44,6 +44,7 @@ def _print_summary(result: Segment2BResult, *, emit: bool = True) -> dict[str, o
         "parameter_hash": result.parameter_hash,
         "receipt_path": str(result.receipt_path),
         "inventory_path": str(result.inventory_path),
+        "s0_determinism_receipt": str(result.determinism_receipt_path),
         "flag_sha256_hex": result.flag_sha256_hex,
         "verified_at_utc": result.verified_at_utc,
     }
@@ -106,6 +107,8 @@ def _print_summary(result: Segment2BResult, *, emit: bool = True) -> dict[str, o
         payload["s8_pass_flag_path"] = str(result.s8_flag_path)
         payload["s8_bundle_digest"] = result.s8_bundle_digest
         payload["s8_seeds"] = list(result.s8_seeds)
+        if result.s8_run_report_path:
+            payload["s8_run_report_path"] = str(result.s8_run_report_path)
     if emit:
         print(json.dumps(payload, indent=2, sort_keys=True))
     return payload

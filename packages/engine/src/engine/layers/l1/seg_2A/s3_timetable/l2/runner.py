@@ -32,7 +32,19 @@ from engine.layers.l1.seg_2A.shared.dictionary import (
     render_dataset_path,
     resolve_dataset_path,
 )
-from engine.layers.l1.seg_2A.shared.receipt import GateReceiptSummary, load_gate_receipt
+from engine.layers.l1.seg_2A.shared.receipt import (
+    GateReceiptSummary,
+    SealedInputRecord,
+    load_determinism_receipt,
+    load_gate_receipt,
+)
+from engine.layers.l1.seg_2A.shared.sealed_assets import (
+    build_sealed_asset_map,
+    ensure_catalog_path,
+    require_sealed_asset,
+    resolve_sealed_path,
+    verify_sealed_digest,
+)
 
 from ..l1.context import TimetableAssets, TimetableContext
 
@@ -123,11 +135,22 @@ class TimetableRunner:
             manifest_fingerprint=config.manifest_fingerprint,
             dictionary=dictionary,
         )
+        sealed_assets = build_sealed_asset_map(
+            base_path=data_root,
+            manifest_fingerprint=config.manifest_fingerprint,
+            dictionary=dictionary,
+        )
+        determinism_receipt = load_determinism_receipt(
+            base_path=data_root,
+            manifest_fingerprint=config.manifest_fingerprint,
+        )
         context = self._prepare_context(
             data_root=data_root,
             dictionary=dictionary,
             manifest_fingerprint=config.manifest_fingerprint,
             receipt=receipt,
+            sealed_assets=sealed_assets,
+            determinism_receipt=determinism_receipt,
         )
         output_dir = self._resolve_output_dir(
             data_root=data_root,
@@ -376,6 +399,8 @@ class TimetableRunner:
         dictionary: Mapping[str, object],
         manifest_fingerprint: str,
         receipt: GateReceiptSummary,
+        sealed_assets: Mapping[str, SealedInputRecord],
+        determinism_receipt: Mapping[str, object],
     ) -> TimetableContext:
         inventory_rel = render_dataset_path(
             "sealed_inputs_v1",
@@ -388,11 +413,54 @@ class TimetableRunner:
                 "E_S3_INVENTORY_MISSING",
                 f"sealed_inputs_v1 missing at '{inventory_path}'",
             )
-        tzdb_row, tz_world_row = self._extract_inventory_rows(
-            inventory_path=inventory_path
+        tzdb_record = require_sealed_asset(
+            asset_id="tzdb_release",
+            sealed_assets=sealed_assets,
+            code="2A-S3-010",
         )
-        tzdb_dir = (data_root / tzdb_row["catalog_path"]).resolve()
-        tz_world_path = (data_root / tz_world_row["catalog_path"]).resolve()
+        release_tag = tzdb_record.version_tag
+        if not release_tag:
+            raise err("2A-S3-011", "tzdb_release version_tag missing from sealed_inputs_v1")
+        tzdb_rel = render_dataset_path(
+            "tzdb_release",
+            template_args={"release_tag": release_tag},
+            dictionary=dictionary,
+        )
+        ensure_catalog_path(
+            asset_id="tzdb_release",
+            record=tzdb_record,
+            expected_relative_path=tzdb_rel,
+            code="2A-S3-010",
+        )
+        tzdb_dir = resolve_sealed_path(
+            base_path=data_root,
+            record=tzdb_record,
+            code="2A-S3-010",
+        )
+        tz_world_record = self._select_tz_world_record(sealed_assets=sealed_assets)
+        tz_world_dataset_id = tz_world_record.asset_id
+        tz_world_rel = render_dataset_path(
+            tz_world_dataset_id,
+            template_args={},
+            dictionary=dictionary,
+        )
+        ensure_catalog_path(
+            asset_id=tz_world_dataset_id,
+            record=tz_world_record,
+            expected_relative_path=tz_world_rel,
+            code="2A-S3-012",
+        )
+        tz_world_path = resolve_sealed_path(
+            base_path=data_root,
+            record=tz_world_record,
+            code="2A-S3-012",
+        )
+        verify_sealed_digest(
+            asset_id=tz_world_dataset_id,
+            path=tz_world_path,
+            expected_hex=tz_world_record.sha256_hex,
+            code="2A-S3-012",
+        )
         return TimetableContext(
             data_root=data_root,
             manifest_fingerprint=manifest_fingerprint,
@@ -402,33 +470,12 @@ class TimetableRunner:
                 tzdb_dir=tzdb_dir,
                 tz_world=tz_world_path,
                 sealed_inventory_path=inventory_path,
-                tzdb_release_tag=str(tzdb_row["version_tag"]),
-                tzdb_archive_sha256=str(tzdb_row["sha256_hex"]),
-                tz_world_dataset_id=str(tz_world_row["asset_id"]),
+                tzdb_release_tag=str(release_tag),
+                tzdb_archive_sha256=str(tzdb_record.sha256_hex),
+                tz_world_dataset_id=tz_world_dataset_id,
             ),
+            determinism_receipt=determinism_receipt,
         )
-
-    @staticmethod
-    def _extract_inventory_rows(
-        *,
-        inventory_path: Path,
-    ) -> tuple[dict[str, object], dict[str, object]]:
-        import polars as pl
-
-        table = pl.read_parquet(inventory_path)
-        tzdb_rows = table.filter(pl.col("asset_id") == "tzdb_release").to_dicts()
-        if not tzdb_rows:
-            raise err(
-                "E_S3_TZDB_ROW_MISSING",
-                "sealed_inputs_v1 missing entry for tzdb_release",
-            )
-        tz_world_rows = table.filter(pl.col("asset_id").str.starts_with("tz_world")).to_dicts()
-        if not tz_world_rows:
-            raise err(
-                "E_S3_TZWORLD_ROW_MISSING",
-                "sealed_inputs_v1 missing entry for any tz_world dataset",
-            )
-        return tzdb_rows[0], tz_world_rows[0]
 
     def _resolve_output_dir(
         self,
@@ -443,6 +490,19 @@ class TimetableRunner:
             dictionary=dictionary,
         )
         return (data_root / rel).resolve()
+
+    @staticmethod
+    def _select_tz_world_record(
+        *,
+        sealed_assets: Mapping[str, SealedInputRecord],
+    ) -> SealedInputRecord:
+        for asset_id, record in sealed_assets.items():
+            if asset_id.startswith("tz_world"):
+                return record
+        raise err(
+            "2A-S3-012",
+            "sealed_inputs_v1 missing any tz_world asset for S3",
+        )
 
     def _resolve_adjustments_dir(
         self,
@@ -850,6 +910,7 @@ class TimetableRunner:
             },
             "warnings": warnings,
             "errors": errors,
+            "determinism": context.determinism_receipt,
         }
         path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 

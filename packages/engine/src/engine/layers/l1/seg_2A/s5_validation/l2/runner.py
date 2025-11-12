@@ -20,7 +20,11 @@ from engine.layers.l1.seg_2A.shared.dictionary import (
     load_dictionary,
     render_dataset_path,
 )
-from engine.layers.l1.seg_2A.shared.receipt import GateReceiptSummary, load_gate_receipt
+from engine.layers.l1.seg_2A.shared.receipt import (
+    GateReceiptSummary,
+    load_determinism_receipt,
+    load_gate_receipt,
+)
 from engine.layers.l1.seg_2A.shared.schema import load_schema
 from engine.layers.l1.seg_2A.shared.tz_assets import load_tz_adjustments
 
@@ -112,6 +116,10 @@ class ValidationRunner:
             manifest_fingerprint=config.manifest_fingerprint,
             dictionary=dictionary,
         )
+        determinism_receipt = load_determinism_receipt(
+            base_path=data_root,
+            manifest_fingerprint=config.manifest_fingerprint,
+        )
         self._log_event(
             event="GATE",
             manifest_fingerprint=config.manifest_fingerprint,
@@ -125,6 +133,7 @@ class ValidationRunner:
             dictionary=dictionary,
             manifest_fingerprint=config.manifest_fingerprint,
             receipt=receipt,
+            determinism_receipt=determinism_receipt,
         )
         bundle_path = self._resolve_bundle_path(
             data_root=data_root,
@@ -326,6 +335,7 @@ class ValidationRunner:
         dictionary: Mapping[str, object],
         manifest_fingerprint: str,
         receipt: GateReceiptSummary,
+        determinism_receipt: Mapping[str, object],
     ) -> ValidationContext:
         site_template = render_dataset_path(
             "site_timezones",
@@ -372,6 +382,7 @@ class ValidationRunner:
             assets=assets,
             tz_cache_manifest=manifest_summary,
             tz_adjustments=adjustments_summary,
+            determinism_receipt=determinism_receipt,
         )
 
     def _discover_seeds(self, site_root: Path, manifest_fingerprint: str) -> list[int]:
@@ -677,6 +688,7 @@ class ValidationRunner:
             },
             "warnings": warnings,
             "errors": errors,
+            "determinism": context.determinism_receipt,
         }
         path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 

@@ -94,6 +94,7 @@ class Segment2BResult:
     inventory_path: Path
     flag_sha256_hex: str
     verified_at_utc: str
+    determinism_receipt_path: Path
     s1_output_path: Optional[Path] = None
     s1_run_report_path: Optional[Path] = None
     s1_resumed: bool = False
@@ -125,6 +126,7 @@ class Segment2BResult:
     s8_bundle_path: Optional[Path] = None
     s8_flag_path: Optional[Path] = None
     s8_bundle_digest: Optional[str] = None
+    s8_run_report_path: Optional[Path] = None
     s8_seeds: Tuple[str, ...] = ()
 
 
@@ -344,6 +346,14 @@ class Segment2BOrchestrator:
                 "Segment2B S8 completed (bundle=%s)",
                 s8_result.bundle_path,
             )
+        determinism_receipt_path = (
+            data_root
+            / "reports"
+            / "l1"
+            / "s0_gate"
+            / f"fingerprint={gate_output.manifest_fingerprint}"
+            / "determinism_receipt.json"
+        ).resolve()
         return Segment2BResult(
             manifest_fingerprint=gate_output.manifest_fingerprint,
             seg2a_manifest_fingerprint=config.seg2a_manifest_fingerprint,
@@ -352,6 +362,7 @@ class Segment2BOrchestrator:
             inventory_path=gate_output.inventory_path,
             flag_sha256_hex=gate_output.flag_sha256_hex,
             verified_at_utc=gate_output.verified_at_utc.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            determinism_receipt_path=determinism_receipt_path,
             s1_output_path=s1_result.output_path if s1_result else None,
             s1_run_report_path=s1_result.run_report_path if s1_result else None,
             s1_resumed=s1_result.resumed if s1_result else False,
@@ -384,6 +395,7 @@ class Segment2BOrchestrator:
             s8_flag_path=s8_result.flag_path if s8_result else None,
             s8_bundle_digest=s8_result.bundle_digest if s8_result else None,
             s8_seeds=s8_result.seeds if s8_result else (),
+            s8_run_report_path=s8_result.run_report_path if s8_result else None,
         )
 
     @staticmethod

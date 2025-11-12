@@ -775,6 +775,7 @@ class S6VirtualEdgeRunner:
                 "arrivals_total": total_arrivals,
             },
             "inputs_summary": manifest_inputs,
+            "determinism": dict(receipt.determinism_receipt),
         }
         return report
 

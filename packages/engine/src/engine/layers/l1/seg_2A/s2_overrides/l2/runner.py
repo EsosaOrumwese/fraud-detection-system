@@ -23,7 +23,19 @@ from engine.layers.l1.seg_2A.shared.dictionary import (
     render_dataset_path,
     resolve_dataset_path,
 )
-from engine.layers.l1.seg_2A.shared.receipt import GateReceiptSummary, load_gate_receipt
+from engine.layers.l1.seg_2A.shared.receipt import (
+    GateReceiptSummary,
+    SealedInputRecord,
+    load_determinism_receipt,
+    load_gate_receipt,
+)
+from engine.layers.l1.seg_2A.shared.sealed_assets import (
+    build_sealed_asset_map,
+    ensure_catalog_path,
+    require_sealed_asset,
+    resolve_sealed_path,
+    verify_sealed_digest,
+)
 
 from ..l1.context import OverridesAssets, OverridesContext
 
@@ -104,6 +116,15 @@ class OverridesRunner:
                 manifest_fingerprint=config.manifest_fingerprint,
                 dictionary=dictionary,
             )
+            sealed_assets = build_sealed_asset_map(
+                base_path=data_root,
+                manifest_fingerprint=config.manifest_fingerprint,
+                dictionary=dictionary,
+            )
+            determinism_receipt = load_determinism_receipt(
+                base_path=data_root,
+                manifest_fingerprint=config.manifest_fingerprint,
+            )
             self._emit_event(
                 "GATE",
                 {
@@ -119,6 +140,8 @@ class OverridesRunner:
                 upstream_manifest_fingerprint=config.upstream_manifest_fingerprint,
                 dictionary=dictionary,
                 receipt=receipt,
+                sealed_assets=sealed_assets,
+                determinism_receipt=determinism_receipt,
             )
             output_dir = self._resolve_output_dir(
                 data_root=data_root,
@@ -322,6 +345,8 @@ class OverridesRunner:
         upstream_manifest_fingerprint: str,
         dictionary: Mapping[str, object],
         receipt: GateReceiptSummary,
+        sealed_assets: Mapping[str, SealedInputRecord],
+        determinism_receipt: Mapping[str, object],
     ) -> OverridesContext:
         assets = self._resolve_assets(
             data_root=data_root,
@@ -330,6 +355,7 @@ class OverridesRunner:
             upstream_manifest_fingerprint=upstream_manifest_fingerprint,
             dictionary=dictionary,
             receipt=receipt,
+            sealed_assets=sealed_assets,
         )
         return OverridesContext(
             data_root=data_root,
@@ -339,6 +365,8 @@ class OverridesRunner:
             receipt_path=receipt.path,
             verified_at_utc=receipt.verified_at_utc,
             assets=assets,
+            sealed_assets=sealed_assets,
+            determinism_receipt=determinism_receipt,
         )
 
     def _resolve_output_dir(
@@ -462,18 +490,31 @@ class OverridesRunner:
             if context is not None
             else None
         )
+        tz_world_entry = None
+        if context is not None:
+            tz_world_record = context.sealed_assets.get("tz_world_2025a")
+            if tz_world_record is not None:
+                tz_world_entry = {
+                    "id": tz_world_record.asset_id,
+                    "path": str(context.assets.tz_world),
+                    "sha256_digest": tz_world_record.sha256_hex,
+                }
         tz_overrides_meta = policy_meta or OverridePolicyMetadata(
             semver="unknown",
             sha256_digest="",
         )
-        mcc_mapping_entry = (
-            {
+        mcc_mapping_entry = None
+        if mcc_overrides_present and context is not None:
+            mcc_record = context.sealed_assets.get("merchant_mcc_map")
+            mcc_mapping_entry = {
                 "id": "merchant_mcc_map",
-                "sha256_digest": mcc_digest,
+                "sha256_digest": mcc_record.sha256_hex if mcc_record else mcc_digest,
+                "path": (
+                    str(context.assets.merchant_mcc_map)
+                    if context.assets.merchant_mcc_map
+                    else None
+                ),
             }
-            if mcc_overrides_present
-            else None
-        )
         output_created_utc = (
             context.verified_at_utc
             if context is not None
@@ -497,8 +538,10 @@ class OverridesRunner:
                 "tz_overrides": {
                     "semver": tz_overrides_meta.semver,
                     "sha256_digest": tz_overrides_meta.sha256_digest,
+                    "path": str(context.assets.tz_overrides) if context else None,
                 },
                 "mcc_mapping": mcc_mapping_entry,
+                "tz_world": tz_world_entry,
             },
             "counts": {
                 "sites_total": stats.total_rows,
@@ -524,6 +567,7 @@ class OverridesRunner:
                 "created_utc": output_created_utc,
             },
             "catalogue": {"writer_order_ok": stats.writer_order_ok},
+            "determinism": context.determinism_receipt if context else None,
             "warnings": warnings,
             "errors": errors,
         }
@@ -540,6 +584,7 @@ class OverridesRunner:
         upstream_manifest_fingerprint: str,
         dictionary: Mapping[str, object],
         receipt: GateReceiptSummary,
+        sealed_assets: Mapping[str, SealedInputRecord],
     ) -> OverridesAssets:
         template_args = {"seed": str(seed), "manifest_fingerprint": manifest_fingerprint}
         s1_lookup = resolve_dataset_path(
@@ -548,24 +593,89 @@ class OverridesRunner:
             template_args=template_args,
             dictionary=dictionary,
         )
-        tz_overrides = resolve_dataset_path(
+        tz_overrides_rel = render_dataset_path(
             "tz_overrides",
-            base_path=data_root,
             template_args={},
             dictionary=dictionary,
         )
-        tz_world = resolve_dataset_path(
+        tz_overrides_record = require_sealed_asset(
+            asset_id="tz_overrides",
+            sealed_assets=sealed_assets,
+            code="2A-S2-010",
+        )
+        ensure_catalog_path(
+            asset_id="tz_overrides",
+            record=tz_overrides_record,
+            expected_relative_path=tz_overrides_rel,
+            code="2A-S2-010",
+        )
+        tz_overrides = resolve_sealed_path(
+            base_path=data_root,
+            record=tz_overrides_record,
+            code="2A-S2-010",
+        )
+        verify_sealed_digest(
+            asset_id="tz_overrides",
+            path=tz_overrides,
+            expected_hex=tz_overrides_record.sha256_hex,
+            code="2A-S2-010",
+        )
+        tz_world_rel = render_dataset_path(
             "tz_world_2025a",
-            base_path=data_root,
             template_args={},
             dictionary=dictionary,
         )
-        merchant_mcc_map = self._resolve_optional_dataset(
-            dataset_id="merchant_mcc_map",
-            base_path=data_root,
-            template_args={"seed": seed, "manifest_fingerprint": upstream_manifest_fingerprint},
-            dictionary=dictionary,
+        tz_world_record = require_sealed_asset(
+            asset_id="tz_world_2025a",
+            sealed_assets=sealed_assets,
+            code="2A-S2-010",
         )
+        ensure_catalog_path(
+            asset_id="tz_world_2025a",
+            record=tz_world_record,
+            expected_relative_path=tz_world_rel,
+            code="2A-S2-010",
+        )
+        tz_world = resolve_sealed_path(
+            base_path=data_root,
+            record=tz_world_record,
+            code="2A-S2-010",
+        )
+        verify_sealed_digest(
+            asset_id="tz_world_2025a",
+            path=tz_world,
+            expected_hex=tz_world_record.sha256_hex,
+            code="2A-S2-010",
+        )
+        merchant_mcc_map = None
+        merchant_rel: str | None = None
+        merchant_record = sealed_assets.get("merchant_mcc_map")
+        if merchant_record:
+            merchant_rel = render_dataset_path(
+                "merchant_mcc_map",
+                template_args={
+                    "seed": seed,
+                    "manifest_fingerprint": upstream_manifest_fingerprint,
+                },
+                dictionary=dictionary,
+            )
+            ensure_catalog_path(
+                asset_id="merchant_mcc_map",
+                record=merchant_record,
+                expected_relative_path=merchant_rel,
+                code="2A-S2-010",
+            )
+            merchant_mcc_map = resolve_sealed_path(
+                base_path=data_root,
+                record=merchant_record,
+                code="2A-S2-010",
+            )
+            verify_sealed_digest(
+                asset_id="merchant_mcc_map",
+                path=merchant_mcc_map,
+                expected_hex=merchant_record.sha256_hex,
+                code="2A-S2-010",
+            )
         return OverridesAssets(
             s1_tz_lookup=s1_lookup,
             tz_overrides=tz_overrides,
@@ -580,25 +690,6 @@ class OverridesRunner:
                 "E_S2_RECEIPT_MISSING_ASSET",
                 f"sealed asset '{asset_id}' not present in gate receipt '{receipt.path}'",
             )
-
-    @staticmethod
-    def _resolve_optional_dataset(
-        *,
-        dataset_id: str,
-        base_path: Path,
-        template_args: Mapping[str, object],
-        dictionary: Mapping[str, object],
-    ) -> Path | None:
-        try:
-            rel_path = render_dataset_path(
-                dataset_id,
-                template_args=template_args,
-                dictionary=dictionary,
-            )
-        except Exception:
-            return None
-        candidate = (base_path / rel_path).resolve()
-        return candidate if candidate.exists() else None
 
     def _load_override_policy(
         self,

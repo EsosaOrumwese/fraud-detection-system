@@ -6,7 +6,11 @@ import polars as pl
 import pytest
 from shapely.geometry import Polygon
 
-from engine.layers.l1.seg_2A.shared.receipt import load_gate_receipt
+from engine.layers.l1.seg_2A.shared.receipt import (
+    load_determinism_receipt,
+    load_gate_receipt,
+)
+from engine.layers.l1.seg_2A.shared.sealed_assets import build_sealed_asset_map
 from engine.layers.l1.seg_2A.s1_provisional import ProvisionalLookupInputs, ProvisionalLookupRunner
 
 
@@ -31,6 +35,10 @@ def _build_dictionary() -> dict[str, object]:
             {
                 "id": "s0_gate_receipt_2A",
                 "path": "data/layer1/2A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json",
+            },
+            {
+                "id": "sealed_inputs_v1",
+                "path": "data/layer1/2A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet",
             },
             {
                 "id": "s1_tz_lookup",
@@ -84,7 +92,21 @@ def _write_receipt(base_path: Path, manifest_fingerprint: str, *, site_fingerpri
                 "partition": [],
                 "schema_ref": "schemas.ingress.layer1.yaml#/tz_world_2025a",
             },
+            {
+                "id": "tz_nudge",
+                "partition": [],
+                "schema_ref": "schemas.2A.yaml#/policy/tz_nudge_v1",
+            },
+            {
+                "id": "tz_overrides",
+                "partition": [],
+                "schema_ref": "schemas.2A.yaml#/policy/tz_overrides_v1",
+            },
         ],
+        "determinism_receipt": {
+            "sha256_hex": "c" * 64,
+            "partition_path": f"data/layer1/2A/site_timezones/seed=2025110601/fingerprint={site_fp}",
+        },
     }
     receipt_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return receipt_path
@@ -125,6 +147,61 @@ def _write_assets(base_path: Path, seed: int, manifest_fingerprint: str, *, site
     )
     (tz_nudge / "tz_overrides.yaml").write_text("semver: \"1.0.0\"\nsha256_digest: \"00\"\noverrides: []\n", encoding="utf-8")
 
+    inventory_dir = base_path / f"data/layer1/2A/sealed_inputs/fingerprint={manifest_fingerprint}"
+    inventory_dir.mkdir(parents=True, exist_ok=True)
+    inventory_path = inventory_dir / "sealed_inputs_v1.parquet"
+    pl.DataFrame(
+        [
+            {
+                "asset_id": "site_locations",
+                "asset_kind": "dataset",
+                "schema_ref": "schemas.1B.yaml#/egress/site_locations",
+                "catalog_path": f"data/layer1/1B/site_locations/seed={seed}/fingerprint={site_fp}",
+                "version_tag": "v1",
+                "sha256_hex": "d" * 64,
+                "partition_keys": [f"seed={seed}", f"fingerprint={site_fp}"],
+            },
+            {
+                "asset_id": "tz_world_2025a",
+                "asset_kind": "reference",
+                "schema_ref": "schemas.ingress.layer1.yaml#/tz_world_2025a",
+                "catalog_path": "reference/spatial/tz_world/2025a/tz_world.parquet",
+                "version_tag": "2025a",
+                "sha256_hex": "e" * 64,
+                "partition_keys": [],
+            },
+            {
+                "asset_id": "tz_nudge",
+                "asset_kind": "policy",
+                "schema_ref": "schemas.2A.yaml#/policy/tz_nudge_v1",
+                "catalog_path": "config/timezone/tz_nudge.yml",
+                "version_tag": "1.0.0",
+                "sha256_hex": "f" * 64,
+                "partition_keys": [],
+            },
+            {
+                "asset_id": "tz_overrides",
+                "asset_kind": "policy",
+                "schema_ref": "schemas.2A.yaml#/policy/tz_overrides_v1",
+                "catalog_path": "config/timezone/tz_overrides.yaml",
+                "version_tag": "1.0.0",
+                "sha256_hex": "a" * 64,
+                "partition_keys": [],
+            },
+        ]
+    ).write_parquet(inventory_path)
+
+    determinism_path = (
+        base_path
+        / "reports"
+        / "l1"
+        / "s0_gate"
+        / f"fingerprint={manifest_fingerprint}"
+        / "determinism_receipt.json"
+    )
+    determinism_path.parent.mkdir(parents=True, exist_ok=True)
+    determinism_path.write_text(json.dumps({"sha256_hex": "f" * 64}, indent=2), encoding="utf-8")
+
 
 def test_load_gate_receipt(tmp_path: Path, manifest_fingerprint: str) -> None:
     dictionary = _build_dictionary()
@@ -163,6 +240,15 @@ def test_resolve_assets(tmp_path: Path, manifest_fingerprint: str, seed: int, si
         upstream_manifest_fingerprint=site_fingerprint,
         dictionary=dictionary,
         receipt=receipt,
+        sealed_assets=build_sealed_asset_map(
+            base_path=tmp_path,
+            manifest_fingerprint=manifest_fingerprint,
+            dictionary=dictionary,
+        ),
+        determinism_receipt=load_determinism_receipt(
+            base_path=tmp_path,
+            manifest_fingerprint=manifest_fingerprint,
+        ),
     )
     assert context.assets.site_locations.name == f"fingerprint={site_fingerprint}"
     assert context.assets.tz_world.name == "tz_world.parquet"
@@ -207,11 +293,11 @@ def test_runner_executes_lookup(tmp_path: Path, manifest_fingerprint: str, seed:
         tmp_path
         / "reports"
         / "l1"
-        / "s1_provisional_lookup"
+        / "s1_provisional"
         / f"seed={seed}"
         / f"fingerprint={manifest_fingerprint}"
         / "run_report.json"
     )
     payload = json.loads(report_path.read_text(encoding="utf-8"))
-    assert payload["rows_total"] == 2
-    assert payload["s0_verified_at_utc"] == receipt.verified_at_utc
+    assert payload["counts"]["sites_total"] == 2
+    assert payload["s0"]["verified_at_utc"] == receipt.verified_at_utc

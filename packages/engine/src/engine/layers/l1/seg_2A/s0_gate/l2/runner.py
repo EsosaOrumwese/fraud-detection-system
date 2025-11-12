@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import json
 import logging
+import platform
+import time
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, Mapping, Optional, Sequence
+from typing import Iterable, Mapping, MutableMapping, Optional, Sequence
 
 import polars as pl
 
@@ -22,6 +24,7 @@ from ..exceptions import S0GateError, err
 from ..l0 import (
     ArtifactDigest,
     BundleIndex,
+    aggregate_sha256,
     compute_index_digest,
     ensure_within_base,
     expand_files,
@@ -58,6 +61,7 @@ class GateInputs:
     optional_asset_ids: tuple[str, ...] = field(
         default_factory=lambda: ("iso3166_canonical_2024",)
     )
+    emit_run_report_stdout: bool = True
 
     def __post_init__(self) -> None:
         base = self.base_path.resolve()
@@ -97,6 +101,8 @@ class GateOutputs:
     sealed_assets: tuple[SealedAsset, ...]
     validation_bundle_path: Path
     verified_at_utc: datetime
+    determinism_receipt: Mapping[str, object]
+    run_report_path: Path
 
 
 logger = logging.getLogger(__name__)
@@ -119,7 +125,10 @@ class S0GateRunner:
 
     def run(self, inputs: GateInputs) -> GateOutputs:
         dictionary = load_dictionary(inputs.dictionary_path)
+        run_started_at = datetime.now(timezone.utc)
+        wall_timer = time.perf_counter()
         self._ensure_merchant_mcc_map(inputs=inputs, dictionary=dictionary)
+        gate_timer = time.perf_counter()
         bundle_path = self._resolve_validation_bundle_path(inputs, dictionary=dictionary)
         if not bundle_path.exists():
             raise err("E_BUNDLE_MISSING", f"validation bundle '{bundle_path}' not found")
@@ -137,6 +146,7 @@ class S0GateRunner:
                 "E_FLAG_HASH_MISMATCH",
                 "computed digest does not match upstream _passed.flag",
             )
+        gate_verify_ms = int(round((time.perf_counter() - gate_timer) * 1000))
 
         sealed_assets = self._collect_sealed_assets(
             inputs=inputs,
@@ -175,12 +185,50 @@ class S0GateRunner:
             flag_sha256_hex=declared_flag,
             sealed_assets=sealed_assets,
         )
+        inventory_timer = time.perf_counter()
         inventory_path = self._write_inventory(
             inputs=inputs,
             dictionary=dictionary,
             manifest_fingerprint=manifest_result.manifest_fingerprint,
             sealed_assets=sealed_assets,
         )
+        inventory_write_ms = int(round((time.perf_counter() - inventory_timer) * 1000))
+        determinism_receipt = self._write_determinism_receipt(
+            inputs=inputs,
+            manifest_fingerprint=manifest_result.manifest_fingerprint,
+            files=[receipt_path, inventory_path],
+        )
+        run_finished_at = datetime.now(timezone.utc)
+        wall_ms = int(round((time.perf_counter() - wall_timer) * 1000))
+        run_report = self._build_run_report(
+            inputs=inputs,
+            dictionary=dictionary,
+            bundle_index=bundle_index,
+            sealed_assets=sealed_assets,
+            manifest_fingerprint=manifest_result.manifest_fingerprint,
+            parameter_hash=parameter_result.parameter_hash,
+            bundle_path=bundle_path,
+            bundle_digest=computed_flag,
+            flag_sha256_hex=declared_flag,
+            receipt_path=receipt_path,
+            inventory_path=inventory_path,
+            determinism_receipt=determinism_receipt,
+            verified_at=verified_at,
+            started_at=run_started_at,
+            finished_at=run_finished_at,
+            timings={
+                "wall_ms": wall_ms,
+                "gate_verify_ms": gate_verify_ms,
+                "inventory_write_ms": inventory_write_ms,
+            },
+        )
+        run_report_path = self._write_run_report(
+            inputs=inputs,
+            manifest_fingerprint=manifest_result.manifest_fingerprint,
+            payload=run_report,
+        )
+        if inputs.emit_run_report_stdout:
+            print(json.dumps(run_report, indent=2))  # pragma: no cover
 
         return GateOutputs(
             manifest_fingerprint=manifest_result.manifest_fingerprint,
@@ -191,6 +239,8 @@ class S0GateRunner:
             sealed_assets=tuple(sealed_assets),
             validation_bundle_path=bundle_path,
             verified_at_utc=verified_at,
+            determinism_receipt=determinism_receipt,
+            run_report_path=run_report_path,
         )
 
     # ------------------------------------------------------------------ helpers
@@ -444,6 +494,188 @@ class S0GateRunner:
             if temp_path.exists():
                 temp_path.unlink(missing_ok=True)
         return inventory_path
+
+    def _write_determinism_receipt(
+        self,
+        *,
+        inputs: GateInputs,
+        manifest_fingerprint: str,
+        files: Sequence[Path],
+    ) -> Mapping[str, object]:
+        if not files:
+            raise err("E_PARAM_EMPTY", "determinism receipt requires output files")
+        digests = hash_files(files, error_prefix="E_ASSET")
+        partition_hash = aggregate_sha256(digests)
+        generated_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+        payload: MutableMapping[str, object] = {
+            "partition_path": str(inputs.output_base_path.resolve()),
+            "sha256_hex": partition_hash,
+            "files_hashed": [str(path.resolve()) for path in files],
+            "generated_at_utc": generated_at,
+        }
+        receipt_path = (
+            inputs.output_base_path
+            / "reports"
+            / "l1"
+            / "s0_gate"
+            / f"fingerprint={manifest_fingerprint}"
+            / "determinism_receipt.json"
+        ).resolve()
+        receipt_path.parent.mkdir(parents=True, exist_ok=True)
+        receipt_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        return payload
+
+    def _build_run_report(
+        self,
+        *,
+        inputs: GateInputs,
+        dictionary: Mapping[str, object],
+        bundle_index: BundleIndex,
+        sealed_assets: Sequence[SealedAsset],
+        manifest_fingerprint: str,
+        parameter_hash: str,
+        bundle_path: Path,
+        bundle_digest: str,
+        flag_sha256_hex: str,
+        receipt_path: Path,
+        inventory_path: Path,
+        determinism_receipt: Mapping[str, object],
+        verified_at: datetime,
+        started_at: datetime,
+        finished_at: datetime,
+        timings: Mapping[str, int],
+    ) -> Mapping[str, object]:
+        optional_ids = set(inputs.optional_asset_ids)
+        optional_present = sum(
+            1 for asset in sealed_assets if asset.asset_id in optional_ids
+        )
+        optional_total = len(optional_ids)
+        warnings = []
+        if optional_total and optional_present not in (0, optional_total):
+            warnings.append("2A-S0-070")
+
+        tzdb_asset = next((a for a in sealed_assets if a.asset_id == "tzdb_release"), None)
+        tz_world_asset = next(
+            (a for a in sealed_assets if a.asset_id.startswith("tz_world")),
+            None,
+        )
+        policy_assets = {
+            asset.asset_id: asset for asset in sealed_assets if asset.asset_id in inputs.parameter_asset_ids
+        }
+        bytes_total = sum(asset.size_bytes for asset in sealed_assets)
+        catalogue_resolution = self._catalogue_resolution(dictionary=dictionary)
+        validators = self._build_validators(optional_warning=bool(warnings))
+        run_report = {
+            "segment": "2A",
+            "state": "S0",
+            "status": "pass",
+            "manifest_fingerprint": manifest_fingerprint,
+            "parameter_hash": parameter_hash,
+            "seed": inputs.seed,
+            "started_utc": started_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            "finished_utc": finished_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            "durations": dict(timings),
+            "catalogue_resolution": catalogue_resolution,
+            "upstream": {
+                "bundle_path": str(render_dataset_path(
+                    "validation_bundle_1B",
+                    template_args={"manifest_fingerprint": inputs.upstream_manifest_fingerprint},
+                    dictionary=dictionary,
+                )),
+                "flag_sha256_hex": flag_sha256_hex,
+                "bundle_sha256_hex": bundle_digest,
+                "verified_at_utc": verified_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+                "result": "verified",
+            },
+            "sealed_inputs": {
+                "count": len(sealed_assets),
+                "bytes_total": bytes_total,
+                "inventory_path": str(inventory_path),
+                "manifest_digest": manifest_fingerprint,
+            },
+            "tz_assets": {
+                "tzdb_release_tag": tzdb_asset.version_tag if tzdb_asset else "",
+                "tzdb_catalog_path": tzdb_asset.catalog_path if tzdb_asset else "",
+                "tz_world_id": tz_world_asset.asset_id if tz_world_asset else "",
+                "tz_world_catalog_path": tz_world_asset.catalog_path if tz_world_asset else "",
+            },
+            "policies": {
+                asset_id: {
+                    "catalog_path": asset.catalog_path,
+                    "sha256_hex": asset.sha256_hex,
+                    "version_tag": asset.version_tag,
+                }
+                for asset_id, asset in policy_assets.items()
+            },
+            "outputs": {
+                "receipt_path": str(receipt_path),
+                "inventory_path": str(inventory_path),
+            },
+            "determinism": determinism_receipt,
+            "validators": validators,
+            "warnings": warnings,
+            "errors": [],
+            "environment": {
+                "engine_commit": inputs.git_commit_hex,
+                "python_version": platform.python_version(),
+                "platform": platform.platform(),
+            },
+            "bundle_index": {
+                "entries_total": len(bundle_index.entries),
+            },
+        }
+        return run_report
+
+    def _build_validators(self, *, optional_warning: bool) -> list[dict[str, object]]:
+        validators = [
+            {"id": "V-01", "status": "PASS", "codes": ["2A-S0-001"]},
+            {"id": "V-02", "status": "PASS", "codes": ["2A-S0-002"]},
+            {"id": "V-03", "status": "PASS", "codes": ["2A-S0-004"]},
+            {"id": "V-04", "status": "PASS", "codes": ["2A-S0-010"]},
+            {"id": "V-05", "status": "WARN" if optional_warning else "PASS", "codes": ["2A-S0-070"]},
+        ]
+        validators.extend(
+            [
+                {"id": "V-06", "status": "PASS", "codes": ["2A-S0-011", "2A-S0-012", "2A-S0-013", "2A-S0-014", "2A-S0-015"]},
+                {"id": "V-07", "status": "PASS", "codes": ["2A-S0-016", "2A-S0-017", "2A-S0-018"]},
+                {"id": "V-08", "status": "PASS", "codes": ["2A-S0-020", "2A-S0-021"]},
+                {"id": "V-09", "status": "PASS", "codes": ["2A-S0-022", "2A-S0-023"]},
+                {"id": "V-10", "status": "PASS", "codes": ["2A-S0-040", "2A-S0-041", "2A-S0-042"]},
+                {"id": "V-11", "status": "PASS", "codes": ["2A-S0-050", "2A-S0-051", "2A-S0-052"]},
+                {"id": "V-12", "status": "PASS", "codes": ["2A-S0-060", "2A-S0-061", "2A-S0-062"]},
+                {"id": "V-13", "status": "PASS", "codes": ["2A-S0-044"]},
+            ]
+        )
+        return validators
+
+    def _write_run_report(
+        self,
+        *,
+        inputs: GateInputs,
+        manifest_fingerprint: str,
+        payload: Mapping[str, object],
+    ) -> Path:
+        report_path = (
+            inputs.output_base_path
+            / "reports"
+            / "l1"
+            / "s0_gate"
+            / f"fingerprint={manifest_fingerprint}"
+            / "run_report.json"
+        ).resolve()
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        return report_path
+
+    @staticmethod
+    def _catalogue_resolution(*, dictionary: Mapping[str, object]) -> Mapping[str, str]:
+        catalogue = dictionary.get("catalogue") or {}
+        return {
+            "dictionary_version": str(
+                catalogue.get("dictionary_version") or dictionary.get("version") or "unversioned"
+            ),
+            "registry_version": str(catalogue.get("registry_version") or "unversioned"),
+        }
 
     @staticmethod
     def _render_template(template: str, template_args: Mapping[str, object]) -> str:

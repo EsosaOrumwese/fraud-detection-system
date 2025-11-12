@@ -260,6 +260,7 @@ class S7AuditRunner:
             "validators": validators,
             "metrics": metrics,
             "router_evidence": router_section,
+            "determinism": dict(receipt.determinism_receipt),
         }
         report_path = self._write_report(
             base_path=config.data_root,

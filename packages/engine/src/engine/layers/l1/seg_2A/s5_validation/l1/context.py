@@ -41,3 +41,4 @@ class ValidationContext:
     assets: ValidationAssets
     tz_cache_manifest: TzCacheManifestSummary
     tz_adjustments: TzAdjustmentsSummary | None
+    determinism_receipt: Mapping[str, object]

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Mapping
 
 from ...shared.tz_assets import TzAdjustmentsSummary
 
@@ -29,3 +30,4 @@ class LegalityContext:
     verified_at_utc: str
     assets: LegalityAssets
     tz_adjustments: TzAdjustmentsSummary | None
+    determinism_receipt: Mapping[str, object]

@@ -30,6 +30,7 @@ def test_s7_audit_reports_router_evidence(tmp_path: Path) -> None:
     payload = json.loads(result.report_path.read_text(encoding="utf-8"))
     assert payload["router_evidence"]["s5"]["present"] is True
     assert payload["router_evidence"]["s5"]["selections"] == 1
+    assert payload["determinism"]["engine_commit"] == "deadbeef"
     assert any(entry["id"] == "V-13" for entry in result.validators)
 
 
@@ -47,6 +48,11 @@ def test_s7_audit_handles_s6_evidence(tmp_path: Path) -> None:
     payload = json.loads(result.report_path.read_text(encoding="utf-8"))
     assert payload["router_evidence"]["s6"]["present"] is True
     assert payload["router_evidence"]["s6"]["virtual_arrivals"] == 1
+    assert payload["determinism"]["policy_ids"] == [
+        "route_rng_policy_v1",
+        "alias_layout_policy_v1",
+        "virtual_edge_policy_v1",
+    ]
     assert any(entry["id"] == "V-14" for entry in result.validators)
 
 

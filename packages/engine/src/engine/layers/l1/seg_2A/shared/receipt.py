@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping, Sequence
+from typing import Mapping, Sequence, Tuple
+
+import polars as pl
 
 from ..s0_gate.exceptions import err
 from .dictionary import render_dataset_path
@@ -31,6 +33,22 @@ class GateReceiptSummary:
     verified_at_utc: str
     assets: tuple[GateReceiptAssetRef, ...]
     path: Path
+
+
+@dataclass(frozen=True)
+class SealedInputRecord:
+    """Row from the sealed_inputs_v1 manifest."""
+
+    asset_id: str
+    asset_kind: str
+    schema_ref: str
+    catalog_path: str
+    version_tag: str
+    sha256_hex: str
+    size_bytes: int
+    partition_keys: tuple[str, ...]
+    license_class: str | None
+    notes: str | None
 
 
 def load_gate_receipt(
@@ -81,6 +99,78 @@ def load_gate_receipt(
     )
 
 
+def load_sealed_inputs_inventory(
+    *,
+    base_path: Path,
+    manifest_fingerprint: str,
+    dictionary: Mapping[str, object],
+) -> Tuple[SealedInputRecord, ...]:
+    """Load the sealed_inputs_v1 manifest for the provided fingerprint."""
+
+    inventory_rel = render_dataset_path(
+        "sealed_inputs_v1",
+        template_args={"manifest_fingerprint": manifest_fingerprint},
+        dictionary=dictionary,
+    )
+    inventory_path = (base_path / inventory_rel).resolve()
+    if not inventory_path.exists():
+        raise err(
+            "2A-S0-050",
+            f"sealed_inputs_v1 not found at '{inventory_path}'",
+        )
+    table = pl.read_parquet(inventory_path)
+    records = []
+    for row in table.to_dicts():
+        records.append(
+            SealedInputRecord(
+                asset_id=str(row["asset_id"]),
+                asset_kind=str(row.get("asset_kind") or ""),
+                schema_ref=str(row["schema_ref"]),
+                catalog_path=str(row["catalog_path"]),
+                version_tag=str(row.get("version_tag") or ""),
+                sha256_hex=str(row["sha256_hex"]),
+                size_bytes=int(row.get("size_bytes") or 0),
+                partition_keys=tuple(row.get("partition_keys") or ()),
+                license_class=(
+                    str(row["license_class"])
+                    if row.get("license_class") is not None
+                    else None
+                ),
+                notes=str(row["notes"]) if row.get("notes") is not None else None,
+            )
+        )
+    return tuple(records)
+
+
+def load_determinism_receipt(
+    *,
+    base_path: Path,
+    manifest_fingerprint: str,
+) -> Mapping[str, object]:
+    """Load the determinism receipt emitted by S0 for the given fingerprint."""
+
+    receipt_path = (
+        base_path
+        / "reports"
+        / "l1"
+        / "s0_gate"
+        / f"fingerprint={manifest_fingerprint}"
+        / "determinism_receipt.json"
+    ).resolve()
+    if not receipt_path.exists():
+        raise err(
+            "2A-S0-044",
+            f"determinism receipt missing at '{receipt_path}'",
+        )
+    try:
+        payload = json.loads(receipt_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise err("2A-S0-044", f"determinism receipt invalid JSON: {exc}") from exc
+    if not isinstance(payload, Mapping):
+        raise err("2A-S0-044", "determinism receipt must be a JSON object")
+    return payload
+
+
 def _expect(payload: Mapping[str, object], field: str, expected: str | None = None) -> str:
     value = payload.get(field)
     if not isinstance(value, str) or not value:
@@ -118,5 +208,12 @@ def _parse_asset(entry: object) -> GateReceiptAssetRef:
     )
 
 
-__all__ = ["GateReceiptAssetRef", "GateReceiptSummary", "load_gate_receipt"]
+__all__ = [
+    "GateReceiptAssetRef",
+    "GateReceiptSummary",
+    "SealedInputRecord",
+    "load_gate_receipt",
+    "load_sealed_inputs_inventory",
+    "load_determinism_receipt",
+]
 

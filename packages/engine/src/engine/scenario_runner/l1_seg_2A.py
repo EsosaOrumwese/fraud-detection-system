@@ -71,8 +71,10 @@ class Segment2AResult:
     receipt_path: Path
     inventory_path: Path
     resumed: bool
+    determinism_receipt_path: Path
     s1_output_path: Path | None = None
     s1_resumed: bool = False
+    s1_run_report_path: Path | None = None
     s2_output_path: Path | None = None
     s2_resumed: bool = False
     s2_run_report_path: Path | None = None
@@ -151,6 +153,7 @@ class Segment2AOrchestrator:
                         receipt_path=receipt_path,
                         inventory_path=inventory_path,
                         resumed=True,
+                        s1_run_report_path=None,
                     )
             else:
                 logger.warning(
@@ -170,6 +173,7 @@ class Segment2AOrchestrator:
                 dictionary_path=config.dictionary_path,
                 validation_bundle_path=config.validation_bundle_path,
                 notes=config.notes,
+                emit_run_report_stdout=False,
             )
             gate_result = self._s0_runner.run(gate_inputs)
             gate_manifest = gate_result.manifest_fingerprint
@@ -210,6 +214,7 @@ class Segment2AOrchestrator:
                     chunk_size=max(config.s1_chunk_size, 1),
                     resume=config.s1_resume,
                     dictionary=dictionary,
+                    emit_run_report_stdout=False,
                 )
             )
             logger.info(
@@ -300,14 +305,25 @@ class Segment2AOrchestrator:
                 s5_result.resumed,
             )
 
+        determinism_receipt_path = (
+            data_root
+            / "reports"
+            / "l1"
+            / "s0_gate"
+            / f"fingerprint={gate_manifest}"
+            / "determinism_receipt.json"
+        ).resolve()
+
         return Segment2AResult(
             manifest_fingerprint=gate_manifest,
             parameter_hash=gate_parameter_hash,
             receipt_path=gate_receipt_path,
             inventory_path=gate_inventory_path,
             resumed=s0_resumed,
+            determinism_receipt_path=determinism_receipt_path,
             s1_output_path=s1_result.output_path if s1_result else None,
             s1_resumed=s1_result.resumed if s1_result else False,
+            s1_run_report_path=s1_result.run_report_path if s1_result else None,
             s2_output_path=s2_result.output_path if s2_result else None,
             s2_resumed=s2_result.resumed if s2_result else False,
             s2_run_report_path=s2_result.run_report_path if s2_result else None,

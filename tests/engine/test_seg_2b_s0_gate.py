@@ -73,6 +73,11 @@ policies:
     schema_ref: schemas.2B.yaml#/policy/virtual_edge_policy_v1
     partitioning: []
     version: "2025.11"
+  - id: virtual_rules_policy_v1
+    path: contracts/policies/l1/seg_2B/virtual_rules_policy_v1.json
+    schema_ref: schemas.2B.yaml#/policy/virtual_rules_policy_v1
+    partitioning: []
+    version: "2025.11"
 datasets:
   - id: validation_bundle_1B
     path: data/layer1/1B/validation/fingerprint={{manifest_fingerprint}}/bundle
@@ -113,6 +118,7 @@ def test_gate_runner_writes_receipt_and_inventory(tmp_path: Path) -> None:
             data_root=tmp_path,
             seed=seed,
             manifest_fingerprint=manifest,
+            seg2a_manifest_fingerprint="f" * 64,
             parameter_hash="b" * 64,
             git_commit_hex="c" * 40,
             dictionary_path=dictionary_path,
@@ -132,6 +138,21 @@ def test_gate_runner_writes_receipt_and_inventory(tmp_path: Path) -> None:
     for policy_id in _REQUIRED_POLICY_IDS:
         assert policy_id in asset_ids
 
+    report_path = (
+        tmp_path
+        / "reports"
+        / "l1"
+        / "s0_gate"
+        / f"fingerprint={manifest}"
+        / "run_report.json"
+    )
+    assert report_path.exists()
+    report_payload = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report_payload["component"] == "2B.S0"
+    assert report_payload["gate"]["bundle_index_count"] == 2
+    assert len(report_payload["validators"]) == 16
+    assert report_payload["summary"]["overall_status"] == "PASS"
+
 
 def test_gate_runner_detects_flag_mismatch(tmp_path: Path) -> None:
     manifest = "b" * 64
@@ -149,13 +170,14 @@ def test_gate_runner_detects_flag_mismatch(tmp_path: Path) -> None:
                 data_root=tmp_path,
                 seed=seed,
                 manifest_fingerprint=manifest,
+                seg2a_manifest_fingerprint="f" * 64,
                 parameter_hash="d" * 64,
                 git_commit_hex="e" * 40,
                 dictionary_path=dictionary_path,
                 validation_bundle_path=bundle_dir,
             )
         )
-    assert excinfo.value.code == "E_FLAG_MISMATCH"
+    assert excinfo.value.code == "2B-S0-011"
 
 
 # Required policy IDs (kept in sync with runner constant)

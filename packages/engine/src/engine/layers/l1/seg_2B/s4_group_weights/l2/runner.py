@@ -13,8 +13,13 @@ from typing import Dict, Mapping, Optional, Sequence
 
 import polars as pl
 
-from ...shared.dictionary import load_dictionary, render_dataset_path
-from ...shared.receipt import GateReceiptSummary, load_gate_receipt
+from ...shared.dictionary import load_dictionary, render_dataset_path, repository_root
+from ...shared.receipt import (
+    GateReceiptSummary,
+    SealedInputRecord,
+    load_gate_receipt,
+    load_sealed_inputs_inventory,
+)
 from ...shared.schema import load_schema
 from ...s0_gate.exceptions import err
 
@@ -38,12 +43,12 @@ class S4GroupWeightsInputs:
         object.__setattr__(self, "data_root", data_root)
         seed_value = str(self.seed)
         if not seed_value:
-            raise err("E_S4_SEED_EMPTY", "seed must be provided for S4")
+            raise err("2B-S4-070", "seed must be provided for S4")
         object.__setattr__(self, "seed", seed_value)
         manifest = self.manifest_fingerprint.lower()
         if len(manifest) != 64:
             raise err(
-                "E_S4_MANIFEST_FINGERPRINT",
+                "2B-S4-070",
                 "manifest_fingerprint must be 64 hex characters",
             )
         int(manifest, 16)
@@ -51,7 +56,7 @@ class S4GroupWeightsInputs:
         seg2a_manifest = self.seg2a_manifest_fingerprint.lower()
         if len(seg2a_manifest) != 64:
             raise err(
-                "E_S4_SEG2A_MANIFEST",
+                "2B-S4-070",
                 "seg2a_manifest_fingerprint must be 64 hex characters",
             )
         int(seg2a_manifest, 16)
@@ -81,6 +86,10 @@ class S4GroupWeightsRunner:
             manifest_fingerprint=config.manifest_fingerprint,
             dictionary=dictionary,
         )
+        sealed_assets = self._load_sealed_inventory_map(
+            config=config,
+            dictionary=dictionary,
+        )
         output_dir = self._resolve_dataset_path(
             dataset_id="s4_group_weights", config=config, dictionary=dictionary
         )
@@ -99,12 +108,16 @@ class S4GroupWeightsRunner:
                     resumed=True,
                 )
             raise err(
-                "E_S4_OUTPUT_EXISTS",
+                "2B-S4-080",
                 f"s4_group_weights already exists at '{output_dir}' - use resume or delete partition first",
             )
 
         weights = self._load_site_weights(config=config, dictionary=dictionary)
-        tz_lookup = self._load_site_timezones(config=config, dictionary=dictionary)
+        tz_lookup = self._load_site_timezones(
+            config=config,
+            dictionary=dictionary,
+            sealed_assets=sealed_assets,
+        )
         base_shares = self._aggregate_base_shares(weights=weights, tz_lookup=tz_lookup)
         base_share_delta = self._validate_base_share_totals(base_shares=base_shares)
         tz_counts = (
@@ -115,7 +128,7 @@ class S4GroupWeightsRunner:
         combined = self._combine_factors(base_shares=base_shares, day_effects=day_effects)
         if combined.height == 0:
             raise err(
-                "E_S4_NO_ROWS",
+                "2B-S4-050",
                 "renormalisation produced zero rows; ensure S1 and S3 emitted rows for this run",
             )
         combined = combined.with_columns(
@@ -135,7 +148,7 @@ class S4GroupWeightsRunner:
         if denom_invalid.height:
             sample = denom_invalid.select(["merchant_id", "utc_day", "denom_raw"]).head(5)
             raise err(
-                "E_S4_ZERO_DENOM",
+                "2B-S4-051",
                 f"renormalisation denominator <= 0 for merchant/day sample: {sample.to_dicts()}",
             )
         combined = combined.with_columns(
@@ -152,7 +165,7 @@ class S4GroupWeightsRunner:
         negative = combined.filter(pl.col("p_group").is_null())
         if negative.height:
             raise err(
-                "E_S4_NEGATIVE_WEIGHT",
+                "2B-S4-057",
                 f"normalised weights dropped below tolerance for sample rows: {negative.head(5).to_dicts()}",
             )
         combined = combined.with_columns(
@@ -164,7 +177,7 @@ class S4GroupWeightsRunner:
         zero_totals = combined.filter(pl.col("p_total") <= 0.0)
         if zero_totals.height:
             raise err(
-                "E_S4_ZERO_NORM_TOTAL",
+                "2B-S4-051",
                 f"normalisation total <= 0 for sample merchant/day keys: {zero_totals.head(5).to_dicts()}",
             )
         combined = combined.with_columns(
@@ -186,7 +199,7 @@ class S4GroupWeightsRunner:
         rows_total = combined.height
         if rows_total != rows_expected:
             raise err(
-                "E_S4_ROW_COUNT_MISMATCH",
+                "2B-S4-050",
                 f"rows written ({rows_total}) differ from expected coverage ({rows_expected})",
             )
         tz_groups_total = combined["tz_group_id"].n_unique()
@@ -242,7 +255,7 @@ class S4GroupWeightsRunner:
                 columns=["merchant_id", "legal_country_iso", "site_order", "p_weight"],
             )
         except Exception as exc:  # pragma: no cover
-            raise err("E_S4_SITE_WEIGHTS_IO", f"failed to read s1_site_weights: {exc}") from exc
+            raise err("2B-S4-020", f"failed to read s1_site_weights: {exc}") from exc
         weights = weights.with_columns(
             [
                 pl.col("merchant_id").cast(pl.UInt64, strict=False),
@@ -259,16 +272,32 @@ class S4GroupWeightsRunner:
         )
         if invalid.height:
             raise err(
-                "E_S4_SITE_WEIGHTS_SCHEMA",
+                "2B-S4-040",
                 f"s1_site_weights contains invalid rows: {invalid.head(5).to_dicts()}",
             )
         return weights
 
     def _load_site_timezones(
-        self, *, config: S4GroupWeightsInputs, dictionary: Mapping[str, object]
+        self,
+        *,
+        config: S4GroupWeightsInputs,
+        dictionary: Mapping[str, object],
+        sealed_assets: Mapping[str, SealedInputRecord],
     ) -> pl.DataFrame:
-        path = self._resolve_dataset_path(
-            dataset_id="site_timezones", config=config, dictionary=dictionary
+        tz_rel = render_dataset_path(
+            "site_timezones",
+            template_args={
+                "seed": config.seed,
+                "manifest_fingerprint": config.seg2a_manifest_fingerprint,
+            },
+            dictionary=dictionary,
+        )
+        path = self._resolve_optional_pin(
+            asset_id="site_timezones",
+            sealed_assets=sealed_assets,
+            expected_catalog_path=tz_rel,
+            error_code="2B-S4-022",
+            data_root=config.data_root,
         )
         try:
             tz_lookup = pl.read_parquet(
@@ -281,7 +310,7 @@ class S4GroupWeightsRunner:
                 ],
             )
         except Exception as exc:  # pragma: no cover
-            raise err("E_S4_TZ_LOOKUP_IO", f"failed to read site_timezones: {exc}") from exc
+            raise err("2B-S4-020", f"failed to read site_timezones: {exc}") from exc
         tz_lookup = tz_lookup.with_columns(
             [
                 pl.col("merchant_id").cast(pl.UInt64, strict=False),
@@ -298,7 +327,7 @@ class S4GroupWeightsRunner:
         )
         if invalid.height:
             raise err(
-                "E_S4_TZ_LOOKUP_SCHEMA",
+                "2B-S4-040",
                 f"site_timezones contains invalid rows: {invalid.head(5).to_dicts()}",
             )
         duplicates = (
@@ -309,7 +338,7 @@ class S4GroupWeightsRunner:
         )
         if duplicates.height:
             raise err(
-                "E_S4_TZ_LOOKUP_DUPLICATE",
+                "2B-S4-041",
                 f"site_timezones has duplicate entries for sample keys: {duplicates.head(5).to_dicts()}",
             )
         return tz_lookup
@@ -326,7 +355,7 @@ class S4GroupWeightsRunner:
                 columns=["merchant_id", "utc_day", "tz_group_id", "gamma"],
             )
         except Exception as exc:  # pragma: no cover
-            raise err("E_S4_DAY_EFFECTS_IO", f"failed to read s3_day_effects: {exc}") from exc
+            raise err("2B-S4-020", f"failed to read s3_day_effects: {exc}") from exc
         effects = effects.with_columns(
             [
                 pl.col("merchant_id").cast(pl.UInt64, strict=False),
@@ -343,13 +372,13 @@ class S4GroupWeightsRunner:
         )
         if invalid.height:
             raise err(
-                "E_S4_DAY_EFFECTS_SCHEMA",
+                "2B-S4-057",
                 f"s3_day_effects contains invalid rows: {invalid.head(5).to_dicts()}",
             )
         nonpositive = effects.filter(pl.col("gamma") <= 0.0)
         if nonpositive.height:
             raise err(
-                "E_S4_DAY_EFFECTS_GAMMA",
+                "2B-S4-057",
                 f"gamma <= 0 detected for sample rows: {nonpositive.head(5).to_dicts()}",
             )
         return effects
@@ -366,7 +395,7 @@ class S4GroupWeightsRunner:
         )
         if joined.height != weights.height:
             raise err(
-                "E_S4_TZ_LOOKUP_MISSING",
+                "2B-S4-040",
                 "site_timezones missing rows for some s1_site_weights keys",
             )
         grouped = (
@@ -377,7 +406,7 @@ class S4GroupWeightsRunner:
         zero_mass = grouped.filter(pl.col("base_share") <= 0.0)
         if zero_mass.height:
             raise err(
-                "E_S4_ZERO_BASE_SHARE",
+                "2B-S4-052",
                 f"aggregated base_share <= 0 detected for sample rows: {zero_mass.head(5).to_dicts()}",
             )
         return grouped
@@ -389,11 +418,11 @@ class S4GroupWeightsRunner:
             .with_columns((pl.col("base_sum") - 1.0).alias("delta"))
         )
         if totals.height == 0:
-            raise err("E_S4_NO_BASE_SHARE_ROWS", "base share aggregation produced zero merchants")
+            raise err("2B-S4-052", "base share aggregation produced zero merchants")
         offending = totals.filter(pl.col("delta").abs() > self.NORMALISATION_EPS)
         if offending.height:
             raise err(
-                "E_S4_BASE_SHARE_SUM",
+                "2B-S4-052",
                 f"base_share totals deviate from 1 beyond tolerance: {offending.head(5).to_dicts()}",
             )
         max_abs = float(
@@ -411,7 +440,7 @@ class S4GroupWeightsRunner:
         )
         if combined.height != day_effects.height:
             raise err(
-                "E_S4_MISSING_BASE_SHARE",
+                "2B-S4-050",
                 "base_share missing for some gamma rows",
             )
         return combined
@@ -435,7 +464,7 @@ class S4GroupWeightsRunner:
         )
         if missing_merchants:
             raise err(
-                "E_S4_COVERAGE_GAP",
+                "2B-S4-050",
                 f"no day coverage found for merchants: {sorted(list(missing_merchants))[:5]}",
             )
         missing = coverage.filter(
@@ -445,7 +474,7 @@ class S4GroupWeightsRunner:
         )
         if missing.height:
             raise err(
-                "E_S4_COVERAGE_GAP",
+                "2B-S4-050",
                 f"tz-group coverage incomplete for sample merchant/day keys: {missing.head(5).to_dicts()}",
             )
         rows_expected = int(
@@ -466,7 +495,7 @@ class S4GroupWeightsRunner:
         offending = totals.filter(pl.col("delta").abs() > self.NORMALISATION_EPS)
         if offending.height:
             raise err(
-                "E_S4_P_GROUP_SUM",
+                "2B-S4-051",
                 f"normalised weights deviate from 1 beyond tolerance: {offending.head(5).to_dicts()}",
             )
         max_abs = float(
@@ -490,6 +519,79 @@ class S4GroupWeightsRunner:
             raise
         bytes_written = sum(f.stat().st_size for f in output_dir.glob("*.parquet"))
         return bytes_written
+
+    # ------------------------------------------------------------------ sealed asset helpers
+
+    def _load_sealed_inventory_map(
+        self,
+        *,
+        config: S4GroupWeightsInputs,
+        dictionary: Mapping[str, object],
+    ) -> Mapping[str, SealedInputRecord]:
+        records = load_sealed_inputs_inventory(
+            base_path=config.data_root,
+            manifest_fingerprint=config.manifest_fingerprint,
+            dictionary=dictionary,
+        )
+        return {record.asset_id: record for record in records}
+
+    def _require_sealed_asset(
+        self,
+        *,
+        asset_id: str,
+        sealed_assets: Mapping[str, SealedInputRecord],
+        code: str,
+    ) -> SealedInputRecord:
+        record = sealed_assets.get(asset_id)
+        if record is None:
+            raise err(code, f"sealed asset '{asset_id}' not present in S0 sealed_inputs_v1")
+        return record
+
+    def _resolve_sealed_path(
+        self,
+        *,
+        record: SealedInputRecord,
+        data_root: Path,
+        error_code: str,
+    ) -> Path:
+        candidate = (data_root / record.catalog_path).resolve()
+        if candidate.exists():
+            return candidate
+        repo_candidate = (repository_root() / record.catalog_path).resolve()
+        if repo_candidate.exists():
+            return repo_candidate
+        raise err(
+            error_code,
+            f"sealed asset '{record.asset_id}' path '{record.catalog_path}' not found under data root or repo",
+        )
+
+    def _resolve_optional_pin(
+        self,
+        *,
+        asset_id: str,
+        sealed_assets: Mapping[str, SealedInputRecord],
+        expected_catalog_path: str,
+        error_code: str,
+        data_root: Path,
+    ) -> Path:
+        record = self._require_sealed_asset(
+            asset_id=asset_id,
+            sealed_assets=sealed_assets,
+            code=error_code,
+        )
+        sealed_path = record.catalog_path.rstrip("/\\")
+        expected_path = expected_catalog_path.rstrip("/\\")
+        if sealed_path != expected_path:
+            raise err(
+                error_code,
+                f"sealed asset '{asset_id}' path mismatch between sealed_inputs_v1 '{record.catalog_path}' "
+                f"and dictionary '{expected_catalog_path}'",
+            )
+        return self._resolve_sealed_path(
+            record=record,
+            data_root=data_root,
+            error_code=error_code,
+        )
 
     def _resolve_dataset_path(
         self,
@@ -613,7 +715,7 @@ class S4GroupWeightsRunner:
         ]
         if set(rows.columns) != set(required_cols):
             raise err(
-                "E_S4_SCHEMA_COLUMNS",
+                "2B-S4-030",
                 f"s4_group_weights columns {rows.columns} do not match schema {required_cols}",
             )
         expected_types = {
@@ -631,6 +733,6 @@ class S4GroupWeightsRunner:
             actual = rows.schema.get(name)
             if actual != dtype:
                 raise err(
-                    "E_S4_SCHEMA_TYPES",
+                    "2B-S4-030",
                     f"column '{name}' has dtype {actual}, expected {dtype}",
                 )

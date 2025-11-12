@@ -16,7 +16,12 @@ import polars as pl
 from jsonschema import Draft202012Validator, ValidationError
 
 from ...shared.dictionary import load_dictionary, render_dataset_path, repository_root
-from ...shared.receipt import GateReceiptSummary, load_gate_receipt
+from ...shared.receipt import (
+    GateReceiptSummary,
+    SealedInputRecord,
+    load_gate_receipt,
+    load_sealed_inputs_inventory,
+)
 from ...shared.schema import load_schema
 from ...s0_gate.exceptions import S0GateError, err
 
@@ -38,6 +43,7 @@ class AliasEncodeSpec:
 class AliasLayoutPolicy:
     """Parsed alias layout policy surface."""
 
+    policy_path: str
     layout_version: str
     endianness: str
     alignment_bytes: int
@@ -103,7 +109,15 @@ class S2AliasRunner:
             manifest_fingerprint=config.manifest_fingerprint,
             dictionary=dictionary,
         )
-        policy, policy_path = self._load_policy(config=config, dictionary=dictionary)
+        sealed_assets = self._load_sealed_inventory_map(
+            config=config,
+            dictionary=dictionary,
+        )
+        policy = self._load_policy(
+            config=config,
+            dictionary=dictionary,
+            sealed_assets=sealed_assets,
+        )
         weights_path = self._resolve_dataset_path(
             dataset_id="s1_site_weights",
             config=config,
@@ -258,7 +272,6 @@ class S2AliasRunner:
             blob_size=blob_size,
             index_path=index_path,
             dictionary=dictionary,
-            policy_path=policy_path,
             alignment_samples=alignment_samples,
             merchant_samples=merchant_samples,
         )
@@ -277,22 +290,23 @@ class S2AliasRunner:
     # ------------------------------------------------------------------ helpers
 
     def _load_policy(
-        self, *, config: S2AliasInputs, dictionary: Mapping[str, object]
-    ) -> tuple[AliasLayoutPolicy, Path]:
-        policy_rel = render_dataset_path(
-            "alias_layout_policy_v1",
-            template_args={},
-            dictionary=dictionary,
+        self,
+        *,
+        config: S2AliasInputs,
+        dictionary: Mapping[str, object],
+        sealed_assets: Mapping[str, SealedInputRecord],
+    ) -> AliasLayoutPolicy:
+        sealed_record = self._require_sealed_asset(
+            asset_id="alias_layout_policy_v1",
+            sealed_assets=sealed_assets,
+            code="2B-S2-022",
         )
-        candidate = (config.data_root / policy_rel).resolve()
-        if not candidate.exists():
-            repo_candidate = repository_root() / policy_rel
-            if not repo_candidate.exists():
-                raise err(
-                    "E_S2_POLICY_MISSING",
-                    f"alias_layout_policy_v1 not found at '{policy_rel}'",
-                )
-            candidate = repo_candidate.resolve()
+        candidate = self._resolve_sealed_path(record=sealed_record, data_root=config.data_root)
+        self._verify_sealed_digest(
+            asset_id="alias_layout_policy_v1",
+            path=candidate,
+            expected_hex=sealed_record.sha256_hex,
+        )
 
         payload = json.loads(candidate.read_text(encoding="utf-8"))
         schema = load_schema("#/policy/alias_layout_policy_v1")
@@ -301,7 +315,7 @@ class S2AliasRunner:
             validator.validate(payload)
         except ValidationError as exc:
             raise err(
-                "E_S2_POLICY_INVALID",
+                "2B-S2-020",
                 f"alias_layout_policy_v1 violates schema: {exc.message}",
             ) from exc
 
@@ -316,6 +330,7 @@ class S2AliasRunner:
         )
 
         policy = AliasLayoutPolicy(
+            policy_path=sealed_record.catalog_path,
             layout_version=payload["layout_version"],
             endianness=payload["endianness"],
             alignment_bytes=int(payload["alignment_bytes"]),
@@ -325,7 +340,7 @@ class S2AliasRunner:
             weight_quantisation_epsilon=float(payload["quantisation_epsilon"]),
             sha256_hex=_sha256_hex(candidate),
         )
-        return policy, candidate
+        return policy
 
     def _load_site_weights(self, path: Path) -> pl.DataFrame:
         columns = ["merchant_id", "legal_country_iso", "site_order", "p_weight", "quantised_bits"]
@@ -356,6 +371,64 @@ class S2AliasRunner:
             / f"fingerprint={config.manifest_fingerprint}"
             / "run_report.json"
         ).resolve()
+
+    def _load_sealed_inventory_map(
+        self,
+        *,
+        config: S2AliasInputs,
+        dictionary: Mapping[str, object],
+    ) -> Mapping[str, SealedInputRecord]:
+        records = load_sealed_inputs_inventory(
+            base_path=config.data_root,
+            manifest_fingerprint=config.manifest_fingerprint,
+            dictionary=dictionary,
+        )
+        return {record.asset_id: record for record in records}
+
+    def _require_sealed_asset(
+        self,
+        *,
+        asset_id: str,
+        sealed_assets: Mapping[str, SealedInputRecord],
+        code: str,
+    ) -> SealedInputRecord:
+        record = sealed_assets.get(asset_id)
+        if record is None:
+            raise err(code, f"sealed asset '{asset_id}' not present in S0 sealed_inputs_v1")
+        return record
+
+    def _resolve_sealed_path(
+        self,
+        *,
+        record: SealedInputRecord,
+        data_root: Path,
+    ) -> Path:
+        candidate = (data_root / record.catalog_path).resolve()
+        if candidate.exists():
+            return candidate
+        repo_candidate = (repository_root() / record.catalog_path).resolve()
+        if repo_candidate.exists():
+            return repo_candidate
+        raise err(
+            "2B-S2-020",
+            f"sealed asset '{record.asset_id}' path '{record.catalog_path}' not found under data root or repo",
+        )
+
+    def _verify_sealed_digest(
+        self,
+        *,
+        asset_id: str,
+        path: Path,
+        expected_hex: str,
+    ) -> None:
+        if not expected_hex:
+            return
+        actual = _sha256_hex(path)
+        if actual.lower() != expected_hex.lower():
+            raise err(
+                "2B-S2-022",
+                f"sealed asset '{asset_id}' digest mismatch (expected {expected_hex}, observed {actual})",
+            )
 
     def _build_alias_slice(
         self,
@@ -511,7 +584,6 @@ class S2AliasRunner:
         blob_size: int,
         index_path: Path,
         dictionary: Mapping[str, object],
-        policy_path: Path,
         alignment_samples: Sequence[dict],
         merchant_samples: Sequence[dict],
     ) -> dict:
@@ -531,6 +603,7 @@ class S2AliasRunner:
                 "endianness": policy.endianness,
                 "alignment_bytes": policy.alignment_bytes,
                 "quantised_bits": policy.quantised_bits,
+                "path": policy.policy_path,
             },
             "inputs_summary": {
                 "s1_site_weights_path": str(
@@ -581,7 +654,7 @@ class S2AliasRunner:
                 },
                 {
                     "id": "alias_layout_policy_v1",
-                    "path": str(policy_path),
+                    "path": str(policy.policy_path),
                 },
                 {
                     "id": "s2_alias_index",

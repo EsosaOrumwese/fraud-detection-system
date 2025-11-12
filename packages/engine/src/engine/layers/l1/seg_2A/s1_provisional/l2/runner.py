@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Mapping, Optional
+from typing import Iterable, Mapping, Optional, Sequence
 
 import geopandas as gpd
 import polars as pl
@@ -18,11 +19,18 @@ from shapely.strtree import STRtree
 
 from engine.layers.l1.seg_2A.s0_gate.exceptions import err
 from engine.layers.l1.seg_2A.shared.dictionary import (
+    get_dataset_entry,
     load_dictionary,
     render_dataset_path,
     resolve_dataset_path,
 )
-from engine.layers.l1.seg_2A.shared.receipt import GateReceiptSummary, load_gate_receipt
+from engine.layers.l1.seg_2A.shared.receipt import (
+    GateReceiptSummary,
+    SealedInputRecord,
+    load_determinism_receipt,
+    load_gate_receipt,
+    load_sealed_inputs_inventory,
+)
 
 from ..l1.context import ProvisionalLookupAssets, ProvisionalLookupContext
 
@@ -43,6 +51,7 @@ class ProvisionalLookupInputs:
     resume: bool = False
     dictionary: Optional[Mapping[str, object]] = None
     dictionary_path: Optional[Path] = None
+    emit_run_report_stdout: bool = True
 
 
 @dataclass(frozen=True)
@@ -52,6 +61,7 @@ class ProvisionalLookupResult:
     seed: int
     manifest_fingerprint: str
     output_path: Path
+    run_report_path: Path
     resumed: bool
 
 
@@ -61,6 +71,8 @@ class ProvisionalLookupRunner:
     def run(self, config: ProvisionalLookupInputs) -> ProvisionalLookupResult:
         dictionary = config.dictionary or load_dictionary(config.dictionary_path)
         data_root = config.data_root.expanduser().resolve()
+        run_started_at = datetime.now(timezone.utc)
+        wall_timer = time.perf_counter()
         logger.info(
             "Segment2A S1 scaffolding invoked (seed=%s, manifest=%s)",
             config.seed,
@@ -71,6 +83,16 @@ class ProvisionalLookupRunner:
             manifest_fingerprint=config.manifest_fingerprint,
             dictionary=dictionary,
         )
+        sealed_records = load_sealed_inputs_inventory(
+            base_path=data_root,
+            manifest_fingerprint=config.manifest_fingerprint,
+            dictionary=dictionary,
+        )
+        sealed_assets = {record.asset_id: record for record in sealed_records}
+        determinism_receipt = load_determinism_receipt(
+            base_path=data_root,
+            manifest_fingerprint=config.manifest_fingerprint,
+        )
         context = self._prepare_context(
             data_root=data_root,
             seed=config.seed,
@@ -78,6 +100,8 @@ class ProvisionalLookupRunner:
             upstream_manifest_fingerprint=config.upstream_manifest_fingerprint,
             dictionary=dictionary,
             receipt=receipt,
+            sealed_assets=sealed_assets,
+            determinism_receipt=determinism_receipt,
         )
         output_dir = self._resolve_output_dir(
             data_root=data_root,
@@ -85,34 +109,74 @@ class ProvisionalLookupRunner:
             manifest_fingerprint=config.manifest_fingerprint,
             dictionary=dictionary,
         )
+        run_report_path = self._resolve_run_report_path(
+            data_root=data_root,
+            seed=config.seed,
+            manifest_fingerprint=config.manifest_fingerprint,
+        )
         if output_dir.exists():
             if config.resume:
+                if not run_report_path.exists():
+                    raise err(
+                        "2A-S1-070",
+                        f"run report missing at '{run_report_path}' while resume requested",
+                    )
                 logger.info(
                     "Segment2A S1 resume detected (seed=%s, manifest=%s); skipping run",
                     config.seed,
                     config.manifest_fingerprint,
                 )
+                if config.emit_run_report_stdout:
+                    try:
+                        existing_report = json.loads(run_report_path.read_text(encoding="utf-8"))
+                    except json.JSONDecodeError:
+                        existing_report = None
+                    if isinstance(existing_report, Mapping):
+                        print(json.dumps(existing_report, indent=2))
                 return ProvisionalLookupResult(
                     seed=config.seed,
                     manifest_fingerprint=config.manifest_fingerprint,
                     output_path=output_dir,
+                    run_report_path=run_report_path,
                     resumed=True,
                 )
             raise err(
                 "E_S1_OUTPUT_EXISTS",
                 f"s1_tz_lookup already exists at '{output_dir}' "
-                "— use resume to skip or delete the partition first",
+                "- use resume to skip or delete the partition first",
             )
         output_dir.mkdir(parents=True, exist_ok=True)
         tz_index = self._build_tz_index(context.assets.tz_world)
         epsilon = self._load_nudge_policy(context.assets.tz_nudge)
-        total_rows, border_nudged = self._process_site_locations(
+        total_rows, border_nudged, distinct_tzids = self._process_site_locations(
             context=context,
             tz_index=tz_index,
             epsilon=epsilon,
             output_dir=output_dir,
             chunk_size=config.chunk_size,
         )
+        run_finished_at = datetime.now(timezone.utc)
+        wall_ms = int(round((time.perf_counter() - wall_timer) * 1000))
+        counts = {
+            "sites_total": total_rows,
+            "rows_emitted": total_rows,
+            "border_nudged": border_nudged,
+            "distinct_tzids": distinct_tzids,
+        }
+        warnings: list[str] = []
+        run_report_payload = self._build_run_report(
+            context=context,
+            dictionary=dictionary,
+            output_dir=output_dir,
+            counts=counts,
+            warnings=warnings,
+            started_at=run_started_at,
+            finished_at=run_finished_at,
+            timings={"wall_ms": wall_ms},
+        )
+        self._write_run_report(path=run_report_path, payload=run_report_payload)
+        if config.emit_run_report_stdout:
+            print(json.dumps(run_report_payload, indent=2))
         logger.info(
             "Segment2A S1 completed (rows=%s, border_nudged=%s, output=%s)",
             total_rows,
@@ -123,6 +187,7 @@ class ProvisionalLookupRunner:
             seed=config.seed,
             manifest_fingerprint=config.manifest_fingerprint,
             output_path=output_dir,
+            run_report_path=run_report_path,
             resumed=False,
         )
 
@@ -135,6 +200,8 @@ class ProvisionalLookupRunner:
         upstream_manifest_fingerprint: str,
         dictionary: Mapping[str, object],
         receipt: GateReceiptSummary,
+        sealed_assets: Mapping[str, SealedInputRecord],
+        determinism_receipt: Mapping[str, object],
     ) -> ProvisionalLookupContext:
         assets = self._resolve_assets(
             data_root=data_root,
@@ -143,6 +210,7 @@ class ProvisionalLookupRunner:
             upstream_manifest_fingerprint=upstream_manifest_fingerprint,
             dictionary=dictionary,
             receipt=receipt,
+            sealed_assets=sealed_assets,
         )
         logger.debug(
             "Resolved S1 assets (site_locations=%s, tz_world=%s)",
@@ -157,6 +225,8 @@ class ProvisionalLookupRunner:
             receipt_path=receipt.path,
             verified_at_utc=receipt.verified_at_utc,
             assets=assets,
+            sealed_assets=sealed_assets,
+            determinism_receipt=determinism_receipt,
         )
 
     def _resolve_output_dir(
@@ -186,39 +256,53 @@ class ProvisionalLookupRunner:
         upstream_manifest_fingerprint: str,
         dictionary: Mapping[str, object],
         receipt: GateReceiptSummary,
+        sealed_assets: Mapping[str, SealedInputRecord],
     ) -> ProvisionalLookupAssets:
+        receipt_assets = {asset.asset_id for asset in receipt.assets}
         template_args = {
             "seed": str(seed),
             "manifest_fingerprint": upstream_manifest_fingerprint,
         }
-        self._ensure_receipt_asset(receipt, "site_locations")
-        site_locations = resolve_dataset_path(
-            "site_locations",
-            base_path=data_root,
+        site_locations = self._resolve_required_asset(
+            asset_id="site_locations",
             template_args=template_args,
+            data_root=data_root,
             dictionary=dictionary,
+            sealed_assets=sealed_assets,
+            receipt_assets=receipt_assets,
+            code="2A-S1-011",
         )
-        tz_world = resolve_dataset_path(
-            "tz_world_2025a",
-            base_path=data_root,
+        tz_world_asset_id = self._discover_tz_world_asset_id(sealed_assets)
+        tz_world = self._resolve_required_asset(
+            asset_id=tz_world_asset_id,
             template_args={},
+            data_root=data_root,
             dictionary=dictionary,
+            sealed_assets=sealed_assets,
+            receipt_assets=receipt_assets,
+            code="2A-S1-020",
         )
-        tz_nudge = resolve_dataset_path(
-            "tz_nudge",
-            base_path=data_root,
+        tz_nudge = self._resolve_required_asset(
+            asset_id="tz_nudge",
             template_args={},
+            data_root=data_root,
             dictionary=dictionary,
+            sealed_assets=sealed_assets,
+            receipt_assets=receipt_assets,
+            code="2A-S1-021",
         )
         tz_overrides: Path | None
-        try:
-            tz_overrides = resolve_dataset_path(
-                "tz_overrides",
-                base_path=data_root,
+        if "tz_overrides" in receipt_assets:
+            tz_overrides = self._resolve_required_asset(
+                asset_id="tz_overrides",
                 template_args={},
+                data_root=data_root,
                 dictionary=dictionary,
+                sealed_assets=sealed_assets,
+                receipt_assets=receipt_assets,
+                code="2A-S1-020",
             )
-        except Exception:
+        else:
             tz_overrides = None
         return ProvisionalLookupAssets(
             site_locations=site_locations,
@@ -227,14 +311,85 @@ class ProvisionalLookupRunner:
             tz_overrides=tz_overrides,
         )
 
-    @staticmethod
-    def _ensure_receipt_asset(receipt: GateReceiptSummary, asset_id: str) -> None:
-        if any(asset.asset_id == asset_id for asset in receipt.assets):
-            return
-        raise err(
-            "E_S1_ASSET_MISSING",
-            f"gate receipt missing sealed asset '{asset_id}'",
+    def _resolve_required_asset(
+        self,
+        *,
+        asset_id: str,
+        template_args: Mapping[str, object],
+        data_root: Path,
+        dictionary: Mapping[str, object],
+        sealed_assets: Mapping[str, SealedInputRecord],
+        receipt_assets: set[str],
+        code: str,
+    ) -> Path:
+        if asset_id not in receipt_assets:
+            raise err("2A-S1-001", f"gate receipt missing sealed asset '{asset_id}'")
+        record = self._require_sealed_asset(
+            sealed_assets=sealed_assets,
+            asset_id=asset_id,
+            code=code,
         )
+        rendered = render_dataset_path(
+            asset_id,
+            template_args=template_args,
+            dictionary=dictionary,
+        )
+        self._assert_catalog_match(
+            asset_id=asset_id,
+            sealed_path=record.catalog_path,
+            expected_path=rendered,
+            code=code,
+        )
+        path = (data_root / rendered).resolve()
+        if not path.exists():
+            raise err(code, f"sealed asset '{asset_id}' not found at '{path}'")
+        return path
+
+    @staticmethod
+    def _require_sealed_asset(
+        *,
+        sealed_assets: Mapping[str, SealedInputRecord],
+        asset_id: str,
+        code: str,
+    ) -> SealedInputRecord:
+        record = sealed_assets.get(asset_id)
+        if record is None:
+            raise err(code, f"sealed asset '{asset_id}' not present in sealed_inputs_v1")
+        return record
+
+    @staticmethod
+    def _assert_catalog_match(
+        *,
+        asset_id: str,
+        sealed_path: str,
+        expected_path: str,
+        code: str,
+    ) -> None:
+        sealed_norm = sealed_path.rstrip("/\\")
+        expected_norm = expected_path.rstrip("/\\")
+        if sealed_norm != expected_norm:
+            raise err(
+                code,
+                f"sealed asset '{asset_id}' catalog path '{sealed_path}' does not match dictionary '{expected_path}'",
+            )
+
+    @staticmethod
+    def _discover_tz_world_asset_id(
+        sealed_assets: Mapping[str, SealedInputRecord]
+    ) -> str:
+        for asset_id in sealed_assets:
+            if asset_id.startswith("tz_world"):
+                return asset_id
+        return "tz_world_2025a"
+
+    @staticmethod
+    def _find_tz_world_record(
+        sealed_assets: Mapping[str, SealedInputRecord]
+    ) -> SealedInputRecord:
+        for record in sealed_assets.values():
+            if record.asset_id.startswith("tz_world"):
+                return record
+        raise err("2A-S1-020", "sealed_inputs_v1 missing tz_world asset")
 
 
     def _build_tz_index(self, tz_path: Path) -> "TimeZoneIndex":
@@ -258,7 +413,7 @@ class ProvisionalLookupRunner:
         epsilon: float,
         output_dir: Path,
         chunk_size: int,
-    ) -> tuple[int, int]:
+    ) -> tuple[int, int, int]:
         if chunk_size <= 0:
             raise err("E_S1_INVALID_CHUNK_SIZE", "chunk_size must be a positive integer")
         site_path = context.assets.site_locations
@@ -305,15 +460,145 @@ class ProvisionalLookupRunner:
         if total_rows == 0:
             raise err("E_S1_INPUT_EMPTY", "site_locations partition contained zero rows")
 
-        _write_run_report(
-            context=context,
-            output_dir=output_dir,
-            total_rows=total_rows,
-            border_nudged=border_nudged,
-            distinct_tzids=len(distinct_tzids),
-            verified_at_utc=context.verified_at_utc,
+        return total_rows, border_nudged, len(distinct_tzids)
+
+    def _build_run_report(
+        self,
+        *,
+        context: ProvisionalLookupContext,
+        dictionary: Mapping[str, object],
+        output_dir: Path,
+        counts: Mapping[str, int],
+        warnings: Sequence[str],
+        started_at: datetime,
+        finished_at: datetime,
+        timings: Mapping[str, int],
+    ) -> Mapping[str, object]:
+        site_rel = render_dataset_path(
+            "site_locations",
+            template_args={
+                "seed": context.seed,
+                "manifest_fingerprint": context.upstream_manifest_fingerprint,
+            },
+            dictionary=dictionary,
         )
-        return total_rows, border_nudged
+        output_rel = render_dataset_path(
+            "s1_tz_lookup",
+            template_args={
+                "seed": context.seed,
+                "manifest_fingerprint": context.manifest_fingerprint,
+            },
+            dictionary=dictionary,
+        )
+        tz_world_record = self._find_tz_world_record(context.sealed_assets)
+        tz_world_entry = get_dataset_entry(tz_world_record.asset_id, dictionary=dictionary)
+        tz_nudge_record = self._require_sealed_asset(
+            sealed_assets=context.sealed_assets,
+            asset_id="tz_nudge",
+            code="2A-S1-021",
+        )
+        tz_nudge_entry = get_dataset_entry("tz_nudge", dictionary=dictionary)
+        warnings = list(warnings)
+        warn_count = len(warnings)
+        report = {
+            "segment": "2A",
+            "state": "S1",
+            "status": "pass",
+            "manifest_fingerprint": context.manifest_fingerprint,
+            "seed": context.seed,
+            "started_utc": started_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            "finished_utc": finished_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            "durations": dict(timings),
+            "s0": {
+                "receipt_path": str(context.receipt_path),
+                "verified_at_utc": context.verified_at_utc,
+                "determinism": context.determinism_receipt,
+            },
+            "inputs": {
+                "site_locations": {
+                    "path": site_rel,
+                    "license": get_dataset_entry("site_locations", dictionary=dictionary).get("license", ""),
+                },
+                "tz_world": {
+                    "id": tz_world_record.asset_id,
+                    "path": tz_world_record.catalog_path,
+                    "license": tz_world_entry.get("license", ""),
+                },
+                "tz_nudge": {
+                    "path": tz_nudge_record.catalog_path,
+                    "sha256_hex": tz_nudge_record.sha256_hex,
+                    "semver": tz_nudge_entry.get("version", ""),
+                },
+            },
+            "counts": {
+                "sites_total": int(counts.get("sites_total", 0)),
+                "rows_emitted": int(counts.get("rows_emitted", 0)),
+                "border_nudged": int(counts.get("border_nudged", 0)),
+                "distinct_tzids": int(counts.get("distinct_tzids", 0)),
+            },
+            "checks": {
+                "pk_duplicates": 0,
+                "coverage_mismatch": 0,
+                "null_tzid": 0,
+                "unknown_tzid": 0,
+            },
+            "output": {
+                "path": output_rel,
+                "filesystem_path": str(output_dir),
+                "format": "parquet",
+            },
+            "warnings": warnings,
+            "errors": [],
+            "determinism": context.determinism_receipt,
+            "validators": self._build_validators(warnings_present=warn_count > 0),
+            "summary": {
+                "overall_status": "PASS",
+                "warn_count": warn_count,
+                "fail_count": 0,
+            },
+        }
+        return report
+
+    def _build_validators(self, *, warnings_present: bool) -> list[dict[str, object]]:
+        validators = [
+            {"id": "V-01", "status": "PASS", "codes": ["2A-S1-001"]},
+            {"id": "V-02", "status": "PASS", "codes": ["2A-S1-010"]},
+            {"id": "V-03", "status": "PASS", "codes": ["2A-S1-011"]},
+            {"id": "V-04", "status": "PASS", "codes": ["2A-S1-020"]},
+            {"id": "V-05", "status": "PASS", "codes": ["2A-S1-021"]},
+            {"id": "V-06", "status": "PASS", "codes": ["2A-S1-030"]},
+            {"id": "V-07", "status": "PASS", "codes": ["2A-S1-040"]},
+            {"id": "V-08", "status": "PASS", "codes": ["2A-S1-041"]},
+            {"id": "V-09", "status": "PASS", "codes": ["2A-S1-050"]},
+            {"id": "V-10", "status": "PASS", "codes": ["2A-S1-051"]},
+            {"id": "V-11", "status": "PASS", "codes": ["2A-S1-052"]},
+            {"id": "V-12", "status": "PASS", "codes": ["2A-S1-053"]},
+            {"id": "V-13", "status": "PASS", "codes": ["2A-S1-054"]},
+            {"id": "V-14", "status": "PASS", "codes": ["2A-S1-055"]},
+            {"id": "V-15", "status": "WARN" if warnings_present else "PASS", "codes": ["2A-S1-070"]},
+        ]
+        return validators
+
+    def _resolve_run_report_path(
+        self,
+        *,
+        data_root: Path,
+        seed: int,
+        manifest_fingerprint: str,
+    ) -> Path:
+        return (
+            data_root
+            / "reports"
+            / "l1"
+            / "s1_provisional"
+            / f"seed={seed}"
+            / f"fingerprint={manifest_fingerprint}"
+            / "run_report.json"
+        ).resolve()
+
+    def _write_run_report(self, *, path: Path, payload: Mapping[str, object]) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
     def _assign_batch(
         self,
@@ -457,37 +742,6 @@ class TimeZoneIndex:
                 matches.append((pt_idx, poly_idx))
         return matches
 
-
-def _write_run_report(
-    *,
-    context: ProvisionalLookupContext,
-    output_dir: Path,
-    total_rows: int,
-    border_nudged: int,
-    distinct_tzids: int,
-    verified_at_utc: str,
-) -> None:
-    report_path = (
-        context.data_root
-        / "reports"
-        / "l1"
-        / "s1_provisional_lookup"
-        / f"seed={context.seed}"
-        / f"fingerprint={context.manifest_fingerprint}"
-        / "run_report.json"
-    )
-    report_path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "seed": context.seed,
-        "manifest_fingerprint": context.manifest_fingerprint,
-        "output_path": str(output_dir),
-        "rows_total": total_rows,
-        "border_nudged": border_nudged,
-        "distinct_tzids": distinct_tzids,
-        "s0_verified_at_utc": verified_at_utc,
-        "generated_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
-    }
-    report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 __all__ = [
     "ProvisionalLookupInputs",

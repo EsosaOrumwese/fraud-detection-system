@@ -1,3 +1,4 @@
+import hashlib
 import json
 from pathlib import Path
 
@@ -32,6 +33,10 @@ datasets:
     path: data/layer1/2B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json
     partitioning: [fingerprint]
     schema_ref: schemas.2B.yaml#/validation/s0_gate_receipt_v1
+  - id: sealed_inputs_v1
+    path: data/layer1/2B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.json
+    partitioning: [fingerprint]
+    schema_ref: schemas.2B.yaml#/validation/sealed_inputs_v1
 policies:
   - id: day_effect_policy_v1
     path: contracts/policies/l1/seg_2B/day_effect_policy_v1.json
@@ -57,7 +62,7 @@ def _write_s1_site_weights(base: Path, seed: int, manifest: str) -> None:
     df.write_parquet(dest)
 
 
-def _write_site_timezones(base: Path, seed: int, manifest: str) -> None:
+def _write_site_timezones(base: Path, seed: int, manifest: str) -> Path:
     df = pl.DataFrame(
         {
             "merchant_id": [1, 1],
@@ -69,6 +74,7 @@ def _write_site_timezones(base: Path, seed: int, manifest: str) -> None:
     dest = base / f"data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest}/part-00000.parquet"
     dest.parent.mkdir(parents=True, exist_ok=True)
     df.write_parquet(dest)
+    return dest.parent
 
 
 def _write_policy(base: Path) -> None:
@@ -96,9 +102,47 @@ def _write_policy(base: Path) -> None:
     dest = base / "contracts/policies/l1/seg_2B/day_effect_policy_v1.json"
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return dest
 
 
-def _write_receipt(base: Path, seed: int, manifest: str) -> None:
+def _write_sealed_inventory(
+    base: Path,
+    manifest: str,
+    seed: int,
+    seg2a_manifest: str,
+    tz_dir: Path,
+    policy_path: Path,
+) -> list[dict]:
+    rows = [
+        {
+            "asset_id": "site_timezones",
+            "version_tag": f"{seed}.{seg2a_manifest}",
+            "sha256_hex": _sha256_dir(tz_dir),
+            "path": f"data/layer1/2A/site_timezones/seed={seed}/fingerprint={seg2a_manifest}/",
+            "partition": ["seed", "fingerprint"],
+            "schema_ref": "schemas.2A.yaml#/egress/site_timezones",
+        },
+        {
+            "asset_id": "day_effect_policy_v1",
+            "version_tag": "2025.11",
+            "sha256_hex": _sha256_file(policy_path),
+            "path": "contracts/policies/l1/seg_2B/day_effect_policy_v1.json",
+            "partition": [],
+            "schema_ref": "schemas.2B.yaml#/policy/day_effect_policy_v1",
+        },
+    ]
+    dest = base / f"data/layer1/2B/sealed_inputs/fingerprint={manifest}/sealed_inputs_v1.json"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(json.dumps(rows, indent=2), encoding="utf-8")
+    return rows
+
+
+def _write_receipt(
+    base: Path,
+    seed: int,
+    manifest: str,
+    sealed_rows: list[dict],
+) -> None:
     payload = {
         "segment": "2B",
         "state": "S0",
@@ -108,13 +152,44 @@ def _write_receipt(base: Path, seed: int, manifest: str) -> None:
         "validation_bundle_path": "bundle",
         "flag_sha256_hex": "e" * 64,
         "verified_at_utc": "2025-11-08T00:00:00.000000Z",
-        "sealed_inputs": [],
+        "sealed_inputs": [
+            {"id": row["asset_id"], "partition": row["partition"], "schema_ref": row["schema_ref"]}
+            for row in sealed_rows
+        ],
         "catalogue_resolution": {"dictionary_version": "test", "registry_version": "test"},
-        "determinism_receipt": {"policy_ids": [], "policy_digests": []},
+        "determinism_receipt": {
+            "policy_ids": ["day_effect_policy_v1"],
+            "policy_digests": [
+                row["sha256_hex"]
+                for row in sealed_rows
+                if row["asset_id"] == "day_effect_policy_v1"
+            ],
+        },
     }
     dest = base / f"data/layer1/2B/s0_gate_receipt/fingerprint={manifest}/s0_gate_receipt.json"
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+def _sha256_file(path: Path) -> str:
+    sha = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            sha.update(chunk)
+    return sha.hexdigest()
+
+
+def _sha256_dir(path: Path) -> str:
+    sha = hashlib.sha256()
+    if not path.exists():
+        return sha.hexdigest()
+    for entry in sorted(path.rglob("*")):
+        if entry.is_file():
+            sha.update(entry.relative_to(path).as_posix().encode("utf-8"))
+            with entry.open("rb") as handle:
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    sha.update(chunk)
+    return sha.hexdigest()
 
 
 def test_s3_day_effects_runner_emits_factors(tmp_path: Path) -> None:
@@ -123,9 +198,17 @@ def test_s3_day_effects_runner_emits_factors(tmp_path: Path) -> None:
     seed = 2025110601
     dictionary_path = _write_dictionary(tmp_path)
     _write_s1_site_weights(tmp_path, seed, manifest)
-    _write_site_timezones(tmp_path, seed, seg2a_manifest)
-    _write_policy(tmp_path)
-    _write_receipt(tmp_path, seed, manifest)
+    tz_dir = _write_site_timezones(tmp_path, seed, seg2a_manifest)
+    policy_path = _write_policy(tmp_path)
+    sealed_rows = _write_sealed_inventory(
+        tmp_path,
+        manifest,
+        seed,
+        seg2a_manifest,
+        tz_dir,
+        policy_path,
+    )
+    _write_receipt(tmp_path, seed, manifest, sealed_rows)
 
     runner = S3DayEffectsRunner()
     result = runner.run(
@@ -178,9 +261,17 @@ def test_s3_day_effects_runner_resume(tmp_path: Path) -> None:
     seed = 2025110601
     dictionary_path = _write_dictionary(tmp_path)
     _write_s1_site_weights(tmp_path, seed, manifest)
-    _write_site_timezones(tmp_path, seed, seg2a_manifest)
-    _write_policy(tmp_path)
-    _write_receipt(tmp_path, seed, manifest)
+    tz_dir = _write_site_timezones(tmp_path, seed, seg2a_manifest)
+    policy_path = _write_policy(tmp_path)
+    sealed_rows = _write_sealed_inventory(
+        tmp_path,
+        manifest,
+        seed,
+        seg2a_manifest,
+        tz_dir,
+        policy_path,
+    )
+    _write_receipt(tmp_path, seed, manifest, sealed_rows)
     runner = S3DayEffectsRunner()
     runner.run(
         S3DayEffectsInputs(

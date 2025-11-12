@@ -14,12 +14,19 @@ from typing import Iterable, Mapping, Optional, Sequence
 import polars as pl
 from jsonschema import Draft202012Validator, ValidationError
 
+import hashlib
+
 from ...shared.dictionary import (
     load_dictionary,
     render_dataset_path,
     repository_root,
 )
-from ...shared.receipt import GateReceiptSummary, load_gate_receipt
+from ...shared.receipt import (
+    GateReceiptSummary,
+    SealedInputRecord,
+    load_gate_receipt,
+    load_sealed_inputs_inventory,
+)
 from ...shared.schema import load_schema
 from ...s0_gate.exceptions import S0GateError, err
 
@@ -106,9 +113,20 @@ class S1WeightsRunner:
             manifest_fingerprint=config.manifest_fingerprint,
             dictionary=dictionary,
         )
-        policy = self._load_policy(config=config, dictionary=dictionary)
+        sealed_assets = self._load_sealed_inventory_map(
+            config=config,
+            dictionary=dictionary,
+        )
+        policy = self._load_policy(
+            config=config,
+            dictionary=dictionary,
+            sealed_assets=sealed_assets,
+        )
         frame, _site_path, site_rel = self._load_site_locations(
-            config=config, dictionary=dictionary, policy=policy
+            config=config,
+            dictionary=dictionary,
+            policy=policy,
+            sealed_assets=sealed_assets,
         )
         timers["resolve_ms"] += (time.perf_counter() - resolve_start) * 1000.0
         output_path, output_rel = self._resolve_output_path(
@@ -233,22 +251,40 @@ class S1WeightsRunner:
 
     # ------------------------------------------------------------------ helpers
 
-    def _load_policy(self, *, config: S1WeightsInputs, dictionary: Mapping[str, object]) -> AliasLayoutPolicy:
-        entry = dictionary.get("policies")
-        policy_rel = render_dataset_path(
-            "alias_layout_policy_v1",
-            template_args={},
+    def _load_sealed_inventory_map(
+        self,
+        *,
+        config: S1WeightsInputs,
+        dictionary: Mapping[str, object],
+    ) -> Mapping[str, SealedInputRecord]:
+        records = load_sealed_inputs_inventory(
+            base_path=config.data_root,
+            manifest_fingerprint=config.manifest_fingerprint,
             dictionary=dictionary,
         )
-        candidate = (config.data_root / policy_rel).resolve()
-        if not candidate.exists():
-            repo_candidate = repository_root() / policy_rel
-            if not repo_candidate.exists():
-                raise err(
-                    "E_S1_POLICY_MISSING",
-                    f"alias_layout_policy_v1 not found at '{policy_rel}'",
-                )
-            candidate = repo_candidate.resolve()
+        return {record.asset_id: record for record in records}
+
+    def _load_policy(
+        self,
+        *,
+        config: S1WeightsInputs,
+        dictionary: Mapping[str, object],
+        sealed_assets: Mapping[str, SealedInputRecord],
+    ) -> AliasLayoutPolicy:
+        sealed_record = self._require_sealed_asset(
+            asset_id="alias_layout_policy_v1",
+            sealed_assets=sealed_assets,
+            code="2B-S1-022",
+        )
+        candidate = self._resolve_sealed_path(
+            record=sealed_record,
+            data_root=config.data_root,
+        )
+        self._verify_sealed_digest(
+            asset_id="alias_layout_policy_v1",
+            path=candidate,
+            expected_hex=sealed_record.sha256_hex,
+        )
 
         payload = json.loads(candidate.read_text(encoding="utf-8"))
         schema = load_schema("#/policy/alias_layout_policy_v1")
@@ -257,7 +293,7 @@ class S1WeightsRunner:
             validator.validate(payload)
         except ValidationError as exc:
             raise err(
-                "E_S1_POLICY_INVALID",
+                "2B-S1-031",
                 f"alias_layout_policy_v1 violates schema: {exc.message}",
             ) from exc
 
@@ -269,7 +305,7 @@ class S1WeightsRunner:
         weight_source_id = weight_source.get("id", "unknown")
         return AliasLayoutPolicy(
             policy_name=policy_name,
-            policy_path=policy_rel,
+            policy_path=sealed_record.catalog_path,
             version_tag=str(payload.get("version_tag", "")),
             weight_source_id=weight_source_id,
             weight_mode=weight_source.get("mode", "uniform"),
@@ -292,6 +328,7 @@ class S1WeightsRunner:
         config: S1WeightsInputs,
         dictionary: Mapping[str, object],
         policy: AliasLayoutPolicy,
+        sealed_assets: Mapping[str, SealedInputRecord],
     ) -> tuple[pl.DataFrame, Path, str]:
         template_args = {
             "seed": config.seed,
@@ -300,9 +337,22 @@ class S1WeightsRunner:
         rel_path = render_dataset_path(
             "site_locations", template_args=template_args, dictionary=dictionary
         )
+        sealed_record = self._require_sealed_asset(
+            asset_id="site_locations",
+            sealed_assets=sealed_assets,
+            code="2B-S1-022",
+        )
+        sealed_catalog = sealed_record.catalog_path.rstrip("/")
+        rendered_catalog = rel_path.rstrip("/")
+        if sealed_catalog != rendered_catalog:
+            raise err(
+                "2B-S1-022",
+                "site_locations path mismatch between sealed_inputs_v1 "
+                f"('{sealed_record.catalog_path}') and dictionary ('{rel_path}')",
+            )
         path = (config.data_root / rel_path).resolve()
         if not path.exists():
-            raise err("E_S1_SITE_LOCATIONS_MISSING", f"site_locations missing at '{path}'")
+            raise err("2B-S1-020", f"site_locations missing at '{path}'")
 
         columns = ["merchant_id", "legal_country_iso", "site_order"]
         if policy.weight_mode == "column":
@@ -344,6 +394,50 @@ class S1WeightsRunner:
             / "run_report.json"
         )
         return rel.resolve()
+
+    def _require_sealed_asset(
+        self,
+        *,
+        asset_id: str,
+        sealed_assets: Mapping[str, SealedInputRecord],
+        code: str,
+    ) -> SealedInputRecord:
+        record = sealed_assets.get(asset_id)
+        if record is None:
+            raise err(code, f"sealed asset '{asset_id}' not present in S0 sealed_inputs_v1")
+        return record
+
+    def _resolve_sealed_path(
+        self,
+        *,
+        record: SealedInputRecord,
+        data_root: Path,
+    ) -> Path:
+        candidate = (data_root / record.catalog_path).resolve()
+        if candidate.exists():
+            return candidate
+        repo_candidate = (repository_root() / record.catalog_path).resolve()
+        if repo_candidate.exists():
+            return repo_candidate
+        raise err(
+            "2B-S1-020",
+            f"sealed asset '{record.asset_id}' path '{record.catalog_path}' not found relative to data root or repo",
+        )
+
+    def _verify_sealed_digest(
+        self,
+        *,
+        asset_id: str,
+        path: Path,
+        expected_hex: str,
+    ) -> None:
+        actual = _sha256_hex(path)
+        if expected_hex and actual.lower() != expected_hex.lower():
+            raise err(
+                "2B-S1-022",
+                f"sealed asset '{asset_id}' digest mismatch "
+                f"(expected {expected_hex}, observed {actual})",
+            )
 
     def _validate_output_schema(self, *, df: pl.DataFrame) -> None:
         expected = [

@@ -124,11 +124,12 @@ class _TileBoundsArray:
     east: np.ndarray
     south: np.ndarray
     north: np.ndarray
-    index_map: Dict[int, int]
 
     def lookup(self, tile_id: int) -> TileBoundsRecord | None:
-        idx = self.index_map.get(int(tile_id))
-        if idx is None:
+        if self.tile_ids.size == 0:
+            return None
+        idx = int(np.searchsorted(self.tile_ids, int(tile_id)))
+        if idx >= self.tile_ids.size or self.tile_ids[idx] != tile_id:
             return None
         return TileBoundsRecord(
             west_lon=float(self.west[idx]),
@@ -143,11 +144,12 @@ class _TileCentroidArray:
     tile_ids: np.ndarray
     lon: np.ndarray
     lat: np.ndarray
-    index_map: Dict[int, int]
 
     def lookup(self, tile_id: int) -> TileCentroidRecord | None:
-        idx = self.index_map.get(int(tile_id))
-        if idx is None:
+        if self.tile_ids.size == 0:
+            return None
+        idx = int(np.searchsorted(self.tile_ids, int(tile_id)))
+        if idx >= self.tile_ids.size or self.tile_ids[idx] != tile_id:
             return None
         return TileCentroidRecord(
             lon=float(self.lon[idx]),
@@ -191,7 +193,6 @@ class _TileBoundsCache:
                 east=empty,
                 south=empty,
                 north=empty,
-                index_map={},
             )
 
         tile_ids = np.asarray(table.column("tile_id").to_numpy(zero_copy_only=False), dtype=np.uint64)
@@ -207,11 +208,8 @@ class _TileBoundsCache:
             east = east[order]
             south = south[order]
             north = north[order]
-            index_map = {int(tile_id): int(idx) for idx, tile_id in enumerate(tile_ids)}
-        else:
-            index_map = {}
 
-        return _TileBoundsArray(tile_ids=tile_ids, west=west, east=east, south=south, north=north, index_map=index_map)
+        return _TileBoundsArray(tile_ids=tile_ids, west=west, east=east, south=south, north=north)
 
 
 class _TileCentroidCache:
@@ -249,7 +247,6 @@ class _TileCentroidCache:
                 tile_ids=np.empty(0, dtype=np.uint64),
                 lon=empty,
                 lat=empty,
-                index_map={},
             )
 
         tile_ids = np.asarray(table.column("tile_id").to_numpy(zero_copy_only=False), dtype=np.uint64)
@@ -261,8 +258,5 @@ class _TileCentroidCache:
             tile_ids = tile_ids[order]
             lon = lon[order]
             lat = lat[order]
-            index_map = {int(tile_id): int(idx) for idx, tile_id in enumerate(tile_ids)}
-        else:
-            index_map = {}
 
-        return _TileCentroidArray(tile_ids=tile_ids, lon=lon, lat=lat, index_map=index_map)
+        return _TileCentroidArray(tile_ids=tile_ids, lon=lon, lat=lat)

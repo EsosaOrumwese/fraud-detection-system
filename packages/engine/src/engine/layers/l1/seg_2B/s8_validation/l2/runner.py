@@ -80,6 +80,7 @@ class S8ValidationResult:
     flag_path: Path
     bundle_digest: str
     seeds: tuple[str, ...]
+    run_report_path: Path
 
 
 class S8ValidationRunner:
@@ -140,6 +141,17 @@ class S8ValidationRunner:
             )
             index_path = bundle_path / "index.json"
             flag_path = bundle_path / "_passed.flag"
+            run_report_path = self._write_run_report(
+                data_root=config.data_root,
+                manifest_fingerprint=config.manifest_fingerprint,
+                bundle_path=bundle_path,
+                index_path=index_path,
+                flag_path=flag_path,
+                seeds=tuple(seeds),
+                bundle_digest=bundle_digest,
+                receipt=receipt,
+                index_entries=index_entries,
+            )
             result = S8ValidationResult(
                 manifest_fingerprint=config.manifest_fingerprint,
                 bundle_path=bundle_path,
@@ -147,6 +159,7 @@ class S8ValidationRunner:
                 flag_path=flag_path,
                 bundle_digest=bundle_digest,
                 seeds=tuple(seeds),
+                run_report_path=run_report_path,
             )
             if config.emit_summary_stdout:
                 print(
@@ -494,6 +507,56 @@ class S8ValidationRunner:
         target_index_path = (config.data_root / target_index_rel).resolve()
         target_dir = target_index_path.parent
         return not bundle_dir.exists() and target_dir.exists()
+
+    def _resolve_run_report_path(
+        self,
+        *,
+        data_root: Path,
+        manifest_fingerprint: str,
+    ) -> Path:
+        return (
+            data_root
+            / "reports"
+            / "l1"
+            / "s8_validation"
+            / f"fingerprint={manifest_fingerprint}"
+            / "run_report.json"
+        ).resolve()
+
+    def _write_run_report(
+        self,
+        *,
+        data_root: Path,
+        manifest_fingerprint: str,
+        bundle_path: Path,
+        index_path: Path,
+        flag_path: Path,
+        seeds: Sequence[str],
+        bundle_digest: str,
+        receipt: GateReceiptSummary,
+        index_entries: Sequence[Mapping[str, str]],
+    ) -> Path:
+        path = self._resolve_run_report_path(
+            data_root=data_root,
+            manifest_fingerprint=manifest_fingerprint,
+        )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "segment": "2B",
+            "state": "S8",
+            "manifest_fingerprint": manifest_fingerprint,
+            "bundle_path": str(bundle_path),
+            "index_path": str(index_path),
+            "flag_path": str(flag_path),
+            "bundle_digest": bundle_digest,
+            "seeds": list(seeds),
+            "index_entries": len(index_entries),
+            "determinism": dict(receipt.determinism_receipt),
+            "catalogue_resolution": dict(receipt.catalogue_resolution),
+            "created_utc": receipt.verified_at_utc,
+        }
+        path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        return path
 
     # ------------------------------------------------------------------ helpers
 

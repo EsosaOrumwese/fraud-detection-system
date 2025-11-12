@@ -268,3 +268,17 @@ def test_segment_2a_s0_runner_end_to_end():
         assert len(sealed_by_id["validation_passed_flag_1B"].sha256_hex) == 64
         assert sealed_by_id["tz_overrides"].size_bytes > 0
         assert sealed_by_id["tz_nudge"].size_bytes > 0
+
+        assert "sha256_hex" in outputs.determinism_receipt
+        assert len(outputs.determinism_receipt["sha256_hex"]) == 64
+        determinism_path = outputs.run_report_path.parent / "determinism_receipt.json"
+        assert determinism_path.exists()
+        determinism_payload = json.loads(determinism_path.read_text(encoding="utf-8"))
+        assert determinism_payload["sha256_hex"] == outputs.determinism_receipt["sha256_hex"]
+        assert outputs.run_report_path.exists()
+        report_payload = json.loads(outputs.run_report_path.read_text(encoding="utf-8"))
+        assert report_payload["segment"] == "2A"
+        assert report_payload["state"] == "S0"
+        assert report_payload["manifest_fingerprint"] == outputs.manifest_fingerprint
+        assert report_payload["determinism"]["sha256_hex"] == outputs.determinism_receipt["sha256_hex"]
+        assert report_payload["sealed_inputs"]["count"] == len(outputs.sealed_assets)

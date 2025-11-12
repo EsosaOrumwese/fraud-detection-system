@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Mapping
 
 
 @dataclass(frozen=True)
@@ -27,3 +28,4 @@ class TimetableContext:
     receipt_path: Path
     verified_at_utc: str
     assets: TimetableAssets
+    determinism_receipt: Mapping[str, object]

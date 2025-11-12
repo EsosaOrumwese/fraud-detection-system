@@ -45,6 +45,25 @@ def _write_gate_receipt(base: Path, manifest: str) -> Path:
     return receipt_path
 
 
+def _write_determinism_receipt(base: Path, manifest: str) -> Path:
+    target = (
+        base
+        / "reports"
+        / "l1"
+        / "s0_gate"
+        / f"fingerprint={manifest}"
+        / "determinism_receipt.json"
+    )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "sha256_hex": "facecafe" * 8,
+        "partition_hash": "decafbad" * 8,
+        "partition_path": f"data/layer1/2A/validation/fingerprint={manifest}",
+    }
+    target.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return target
+
+
 def _write_site_timezones(base: Path, manifest: str, seeds: list[int]) -> None:
     for seed in seeds:
         partition_dir = base / f"data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest}"
@@ -116,6 +135,7 @@ def test_validation_runner_builds_bundle(tmp_path: Path) -> None:
     seeds = [1, 2]
     dictionary_path = _write_dictionary(tmp_path)
     _write_gate_receipt(tmp_path, manifest)
+    _write_determinism_receipt(tmp_path, manifest)
     _write_site_timezones(tmp_path, manifest, seeds)
     _write_s4_reports(tmp_path, manifest, seeds)
     _write_tz_cache(tmp_path, manifest)
@@ -148,6 +168,7 @@ def test_validation_runner_builds_bundle(tmp_path: Path) -> None:
     assert report_payload["flag"]["value"] == digest_value
     assert report_payload["inputs"]["adjustments"]["path"] is None
     assert report_payload["inputs"]["adjustments"]["count"] == 0
+    assert report_payload["determinism"]["sha256_hex"] == "facecafe" * 8
 
     resumed = runner.run(
         ValidationInputs(
@@ -164,6 +185,7 @@ def test_validation_runner_requires_pass_reports(tmp_path: Path) -> None:
     manifest = "d" * 64
     dictionary_path = _write_dictionary(tmp_path)
     _write_gate_receipt(tmp_path, manifest)
+    _write_determinism_receipt(tmp_path, manifest)
     _write_site_timezones(tmp_path, manifest, [5])
     _write_tz_cache(tmp_path, manifest)
     # write failing S4 report
@@ -194,13 +216,14 @@ def test_validation_runner_requires_pass_reports(tmp_path: Path) -> None:
                 dictionary_path=dictionary_path,
             )
         )
-    assert excinfo.value.code == "E_S5_S4_NOT_PASS"
+    assert excinfo.value.code == "2A-S5-030"
 
 
 def test_validation_runner_requires_s4_reports(tmp_path: Path) -> None:
     manifest = "e" * 64
     dictionary_path = _write_dictionary(tmp_path)
     _write_gate_receipt(tmp_path, manifest)
+    _write_determinism_receipt(tmp_path, manifest)
     _write_site_timezones(tmp_path, manifest, [11])
     _write_tz_cache(tmp_path, manifest)
 
@@ -213,13 +236,14 @@ def test_validation_runner_requires_s4_reports(tmp_path: Path) -> None:
                 dictionary_path=dictionary_path,
             )
         )
-    assert excinfo.value.code == "E_S5_S4_MISSING"
+    assert excinfo.value.code == "2A-S5-030"
 
 
 def test_validation_runner_validates_tz_manifest_fingerprint(tmp_path: Path) -> None:
     manifest = "f" * 64
     dictionary_path = _write_dictionary(tmp_path)
     _write_gate_receipt(tmp_path, manifest)
+    _write_determinism_receipt(tmp_path, manifest)
     _write_site_timezones(tmp_path, manifest, [3])
     manifest_path = _write_tz_cache(tmp_path, manifest)
     payload = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -236,13 +260,14 @@ def test_validation_runner_validates_tz_manifest_fingerprint(tmp_path: Path) -> 
                 dictionary_path=dictionary_path,
             )
         )
-    assert excinfo.value.code == "E_S5_TZ_MANIFEST_FINGERPRINT"
+    assert excinfo.value.code == "2A-S5-011"
 
 
 def test_validation_runner_rejects_empty_cache_bytes(tmp_path: Path) -> None:
     manifest = "a" * 64
     dictionary_path = _write_dictionary(tmp_path)
     _write_gate_receipt(tmp_path, manifest)
+    _write_determinism_receipt(tmp_path, manifest)
     _write_site_timezones(tmp_path, manifest, [4])
     manifest_path = _write_tz_cache(tmp_path, manifest)
     payload = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -259,7 +284,7 @@ def test_validation_runner_rejects_empty_cache_bytes(tmp_path: Path) -> None:
                 dictionary_path=dictionary_path,
             )
         )
-    assert excinfo.value.code == "E_S5_TZ_MANIFEST_EMPTY"
+    assert excinfo.value.code == "2A-S5-020"
 
 
 def test_validation_runner_stages_adjustments_when_present(tmp_path: Path) -> None:
@@ -267,6 +292,7 @@ def test_validation_runner_stages_adjustments_when_present(tmp_path: Path) -> No
     seeds = [9]
     dictionary_path = _write_dictionary(tmp_path)
     _write_gate_receipt(tmp_path, manifest)
+    _write_determinism_receipt(tmp_path, manifest)
     _write_site_timezones(tmp_path, manifest, seeds)
     _write_tz_cache(tmp_path, manifest)
     _write_s4_reports(tmp_path, manifest, seeds)

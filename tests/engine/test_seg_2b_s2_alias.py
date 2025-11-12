@@ -1,3 +1,4 @@
+import hashlib
 import json
 from pathlib import Path
 
@@ -29,6 +30,10 @@ datasets:
     path: data/layer1/2B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json
     partitioning: [fingerprint]
     schema_ref: schemas.2B.yaml#/validation/s0_gate_receipt_v1
+  - id: sealed_inputs_v1
+    path: data/layer1/2B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.json
+    partitioning: [fingerprint]
+    schema_ref: schemas.2B.yaml#/validation/sealed_inputs_v1
 policies:
   - id: alias_layout_policy_v1
     path: contracts/policies/l1/seg_2B/alias_layout_policy_v1.json
@@ -83,7 +88,29 @@ def _write_policy(base: Path) -> Path:
     return path
 
 
-def _write_receipt(base: Path, seed: int, manifest: str) -> Path:
+def _write_sealed_inventory(base: Path, manifest: str, policy_path: Path) -> list[dict]:
+    rows = [
+        {
+            "asset_id": "alias_layout_policy_v1",
+            "version_tag": "2025.11",
+            "sha256_hex": _sha256_file(policy_path),
+            "path": "contracts/policies/l1/seg_2B/alias_layout_policy_v1.json",
+            "partition": [],
+            "schema_ref": "schemas.2B.yaml#/policy/alias_layout_policy_v1",
+        },
+    ]
+    dest = base / f"data/layer1/2B/sealed_inputs/fingerprint={manifest}/sealed_inputs_v1.json"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(json.dumps(rows, indent=2), encoding="utf-8")
+    return rows
+
+
+def _write_receipt(
+    base: Path,
+    seed: int,
+    manifest: str,
+    sealed_rows: list[dict],
+) -> Path:
     payload = {
         "segment": "2B",
         "state": "S0",
@@ -93,9 +120,19 @@ def _write_receipt(base: Path, seed: int, manifest: str) -> Path:
         "validation_bundle_path": "bundle",
         "flag_sha256_hex": "e" * 64,
         "verified_at_utc": "2025-11-08T00:00:00.000000Z",
-        "sealed_inputs": [],
+        "sealed_inputs": [
+            {"id": row["asset_id"], "partition": row["partition"], "schema_ref": row["schema_ref"]}
+            for row in sealed_rows
+        ],
         "catalogue_resolution": {"dictionary_version": "test", "registry_version": "test"},
-        "determinism_receipt": {"policy_ids": [], "policy_digests": []},
+        "determinism_receipt": {
+            "policy_ids": ["alias_layout_policy_v1"],
+            "policy_digests": [
+                row["sha256_hex"]
+                for row in sealed_rows
+                if row["asset_id"] == "alias_layout_policy_v1"
+            ],
+        },
     }
     dest = base / f"data/layer1/2B/s0_gate_receipt/fingerprint={manifest}/s0_gate_receipt.json"
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -103,13 +140,20 @@ def _write_receipt(base: Path, seed: int, manifest: str) -> Path:
     return dest
 
 
+def _sha256_file(path: Path) -> str:
+    sha = hashlib.sha256()
+    sha.update(path.read_bytes())
+    return sha.hexdigest()
+
+
 def test_s2_alias_runner_builds_blob(tmp_path: Path) -> None:
     manifest = "a" * 64
     seed = 2025110601
     dictionary_path = _write_dictionary(tmp_path)
     _write_s1_weights(tmp_path, seed, manifest)
-    _write_policy(tmp_path)
-    _write_receipt(tmp_path, seed, manifest)
+    policy_path = _write_policy(tmp_path)
+    sealed_rows = _write_sealed_inventory(tmp_path, manifest, policy_path)
+    _write_receipt(tmp_path, seed, manifest, sealed_rows)
 
     runner = S2AliasRunner()
     result = runner.run(
@@ -140,8 +184,9 @@ def test_s2_alias_runner_resume(tmp_path: Path) -> None:
     seed = 2025110601
     dictionary_path = _write_dictionary(tmp_path)
     _write_s1_weights(tmp_path, seed, manifest)
-    _write_policy(tmp_path)
-    _write_receipt(tmp_path, seed, manifest)
+    policy_path = _write_policy(tmp_path)
+    sealed_rows = _write_sealed_inventory(tmp_path, manifest, policy_path)
+    _write_receipt(tmp_path, seed, manifest, sealed_rows)
     runner = S2AliasRunner()
     runner.run(
         S2AliasInputs(

@@ -37,6 +37,8 @@ def test_s8_builds_validation_bundle(tmp_path: Path) -> None:
     flag_text = result.flag_path.read_text(encoding="utf-8").strip()
     assert flag_text.startswith("sha256_hex = ")
     assert result.bundle_digest in flag_text
+    report_payload = json.loads(result.run_report_path.read_text(encoding="utf-8"))
+    assert report_payload["determinism"]["engine_commit"] == "deadbeef"
 
 
 def test_s8_republish_is_idempotent(tmp_path: Path) -> None:
@@ -47,4 +49,4 @@ def test_s8_republish_is_idempotent(tmp_path: Path) -> None:
 
     assert first.bundle_path == second.bundle_path
     assert first.bundle_digest == second.bundle_digest
-
+    assert first.run_report_path.read_text(encoding="utf-8") == second.run_report_path.read_text(encoding="utf-8")
