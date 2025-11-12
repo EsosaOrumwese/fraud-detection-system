@@ -1,0 +1,762 @@
+version: '1.0'
+$id: schemas.2B.yaml
+$schema: https://json-schema.org/draft/2020-12/schema
+description: "Layer-1 Segment 2B schema pack. JSON-Schema is the sole shape authority."
+
+# -- Validation artefacts ---------------------------------------------------
+validation:
+
+  s0_gate_receipt_v1:
+    type: object
+    additionalProperties: false
+    required:
+      [
+        segment,
+        state,
+        manifest_fingerprint,
+        seed,
+        parameter_hash,
+        verified_at_utc,
+        validation_bundle_path,
+        flag_sha256_hex,
+        sealed_inputs,
+        catalogue_resolution,
+        determinism_receipt,
+      ]
+    properties:
+      segment:
+        type: string
+        const: "2B"
+      state:
+        type: string
+        const: "S0"
+      manifest_fingerprint:
+        $ref: 'schemas.layer1.yaml#/$defs/hex64'
+      seed:
+        type: string
+        minLength: 1
+      parameter_hash:
+        $ref: 'schemas.layer1.yaml#/$defs/hex64'
+      verified_at_utc:
+        $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros'
+      validation_bundle_path:
+        type: string
+        minLength: 1
+      flag_sha256_hex:
+        $ref: 'schemas.layer1.yaml#/$defs/hex64'
+      notes:
+        type: string
+      sealed_inputs:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required: [id, partition, schema_ref]
+          properties:
+            id: { type: string, minLength: 1 }
+            partition:
+              type: array
+              items: { type: string }
+            schema_ref: { type: string, minLength: 1 }
+      catalogue_resolution:
+        type: object
+        additionalProperties: false
+        required: [dictionary_version, registry_version]
+        properties:
+          dictionary_version: { type: string, minLength: 1 }
+          registry_version: { type: string, minLength: 1 }
+      determinism_receipt:
+        type: object
+        additionalProperties: false
+        properties:
+          engine_commit: { type: string }
+          python_version: { type: string }
+          platform: { type: string }
+          policy_ids:
+            type: array
+            items: { type: string }
+          policy_digests:
+            type: array
+            items: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+
+  sealed_inputs_v1:
+    type: array
+    minItems: 1
+    items:
+      type: object
+      additionalProperties: false
+      required: [asset_id, version_tag, sha256_hex, path, partition]
+      properties:
+        asset_id: { type: string, minLength: 1 }
+        version_tag: { type: string, minLength: 1 }
+        sha256_hex: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+        path: { type: string, minLength: 1 }
+        partition:
+          type: array
+          items: { type: string }
+        schema_ref: { type: string }
+
+  s7_audit_report_v1:
+    type: object
+    additionalProperties: false
+    required:
+      [
+        component,
+        state,
+        seed,
+        manifest_fingerprint,
+        parameter_hash,
+        created_utc,
+        catalogue_resolution,
+        inputs_digest,
+        validators,
+        metrics,
+      ]
+    properties:
+      component: { type: string, const: "2B.S7" }
+      state: { type: string, const: "S7" }
+      seed: { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      manifest_fingerprint: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+      parameter_hash: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+      created_utc: { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
+      catalogue_resolution:
+        type: object
+        additionalProperties: false
+        required: [dictionary_version, registry_version]
+        properties:
+          dictionary_version: { type: string, minLength: 1 }
+          registry_version: { type: string, minLength: 1 }
+      inputs_digest:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required: [id, version_tag, sha256_hex, path, partition, schema_ref]
+          properties:
+            id: { type: string, minLength: 1 }
+            version_tag: { type: string, minLength: 1 }
+            sha256_hex: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+            path: { type: string, minLength: 1 }
+            partition:
+              type: array
+              items: { type: string }
+            schema_ref: { type: string, minLength: 1 }
+      validators:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required: [id, status, codes]
+          properties:
+            id: { type: string, minLength: 1 }
+            status: { type: string, enum: [PASS, WARN, FAIL] }
+            codes:
+              type: array
+              minItems: 1
+              items: { type: string, minLength: 1 }
+            metrics:
+              type: object
+              additionalProperties:
+                anyOf:
+                  - { type: number }
+                  - { type: integer }
+                  - { type: string }
+      metrics:
+        type: object
+        additionalProperties: false
+        properties:
+          alias_decode_max_abs_delta: { type: number }
+          alias_decode_mass_error: { type: number }
+          max_abs_mass_error_s4: { type: number }
+          max_abs_base_share_error: { type: number }
+          gamma_echo_mismatch_count: { type: integer, minimum: 0 }
+          router_rng_expected_draws: { type: integer, minimum: 0 }
+          router_rng_observed_draws: { type: integer, minimum: 0 }
+          notes: { type: string }
+      determinism:
+        type: object
+        additionalProperties: false
+        required: [engine_commit]
+        properties:
+          engine_commit: { type: string, minLength: 1 }
+          policy_ids:
+            type: array
+            items: { type: string, minLength: 1 }
+          policy_digests:
+            type: array
+            items: { type: string, minLength: 1 }
+      router_evidence:
+        type: object
+        additionalProperties: false
+        properties:
+          s5:
+            type: object
+            additionalProperties: false
+            properties:
+              present: { type: boolean }
+              run_id: { type: string, minLength: 1 }
+              parameter_hash: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+              selections: { type: integer, minimum: 0 }
+              rng_events: { type: integer, minimum: 0 }
+              selection_log_enabled: { type: boolean }
+          s6:
+            type: object
+            additionalProperties: false
+            properties:
+              present: { type: boolean }
+              run_id: { type: string, minLength: 1 }
+              parameter_hash: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+              virtual_arrivals: { type: integer, minimum: 0 }
+              rng_events: { type: integer, minimum: 0 }
+              edge_log_enabled: { type: boolean }
+      notes: { type: string }
+
+# -- Policy packs -----------------------------------------------------------
+policy:
+
+  route_rng_policy_v1:
+    type: object
+    additionalProperties: false
+    required: [version_tag, algorithm, substreams]
+    properties:
+      version_tag: { type: string, minLength: 1 }
+      algorithm: { type: string, minLength: 1 }
+      substreams:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required: [id, label, max_uniforms]
+          properties:
+            id: { type: string, minLength: 1 }
+            label: { type: string, minLength: 1 }
+            max_uniforms:
+              type: integer
+              minimum: 1
+      notes: { type: string }
+
+  alias_layout_policy_v1:
+    type: object
+    additionalProperties: false
+    required:
+      [
+        version_tag,
+        weight_source,
+        floor_spec,
+        normalisation_epsilon,
+        quantised_bits,
+        quantisation_epsilon,
+        layout_version,
+        endianness,
+        alignment_bytes,
+        encode_spec,
+        decode_law,
+      ]
+    properties:
+      version_tag: { type: string, minLength: 1 }
+      weight_source:
+        type: object
+        additionalProperties: false
+        required: [id, mode]
+        properties:
+          id: { type: string, minLength: 1 }
+          mode: { type: string, enum: [uniform, column] }
+          column: { type: string }
+      floor_spec:
+        type: object
+        additionalProperties: false
+        required: [mode, fallback]
+        properties:
+          mode: { type: string, enum: [absolute, relative, none] }
+          value: { type: number }
+          fallback: { type: string, enum: [uniform] }
+      cap_spec:
+        type: object
+        additionalProperties: false
+        properties:
+          mode: { type: string, enum: [none, absolute, relative] }
+          value: { type: number }
+      normalisation_epsilon:
+        type: number
+        exclusiveMinimum: 0
+      quantised_bits:
+        type: integer
+        minimum: 1
+      quantisation_epsilon:
+        type: number
+        exclusiveMinimum: 0
+      tiny_negative_epsilon:
+        type: number
+        exclusiveMinimum: 0
+      layout_version:
+        type: string
+        minLength: 1
+      endianness:
+        type: string
+        enum: [little, big]
+      alignment_bytes:
+        type: integer
+        minimum: 1
+      encode_spec:
+        type: object
+        additionalProperties: false
+        required:
+          [
+            site_order_bytes,
+            prob_mass_bytes,
+            alias_site_order_bytes,
+            padding_value,
+            checksum,
+          ]
+        properties:
+          site_order_bytes:
+            type: integer
+            minimum: 1
+          prob_mass_bytes:
+            type: integer
+            minimum: 1
+          alias_site_order_bytes:
+            type: integer
+            minimum: 1
+          padding_value:
+            type: string
+            pattern: "^0x[0-9a-fA-F]{2}$"
+          checksum:
+            type: object
+            additionalProperties: false
+            required: [algorithm]
+            properties:
+              algorithm:
+                type: string
+                enum: [sha256]
+      decode_law:
+        type: string
+        minLength: 1
+      notes: { type: string }
+
+  virtual_edge_policy_v1:
+    type: object
+    additionalProperties: false
+    required: [version_tag, default_edges]
+    properties:
+      version_tag: { type: string, minLength: 1 }
+      default_edges:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required: [edge_id, country_iso, weight]
+          properties:
+            edge_id: { type: string, minLength: 1 }
+            country_iso: { $ref: 'schemas.layer1.yaml#/$defs/iso2' }
+            weight: { type: number }
+      merchant_overrides:
+        type: object
+        additionalProperties:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required: [edge_id, country_iso, weight]
+            properties:
+              edge_id: { type: string, minLength: 1 }
+              country_iso: { $ref: 'schemas.layer1.yaml#/$defs/iso2' }
+              weight: { type: number }
+      geo_metadata:
+        type: object
+        additionalProperties:
+          type: object
+          additionalProperties: false
+          required: [lat, lon]
+          properties:
+            lat: { type: number }
+            lon: { type: number }
+      notes: { type: string }
+
+  virtual_rules_policy_v1:
+    type: object
+    additionalProperties: false
+    required: [version_tag, virtual_mccs]
+    properties:
+      version_tag: { type: string, minLength: 1 }
+      default_virtual: { type: boolean }
+      virtual_mccs:
+        type: array
+        minItems: 0
+        items:
+          type: string
+          pattern: '^\d{3,4}$'
+      mcc_overrides:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required: [mcc, virtual]
+          properties:
+            mcc:
+              type: string
+              pattern: '^\d{3,4}$'
+            virtual: { type: boolean }
+      notes: { type: string }
+
+  day_effect_policy_v1:
+    type: object
+    additionalProperties: false
+    required:
+      [
+        version_tag,
+        rng_engine,
+        rng_stream_id,
+        sigma_gamma,
+        day_range,
+        draws_per_row,
+        record_fields,
+        created_utc_policy_echo,
+        rng_key_hi,
+        rng_key_lo,
+        base_counter_hi,
+        base_counter_lo,
+      ]
+    properties:
+      version_tag: { type: string, minLength: 1 }
+      rng_engine: { type: string, minLength: 1 }
+      rng_stream_id: { type: string, minLength: 1 }
+      sigma_gamma:
+        type: number
+        exclusiveMinimum: 0
+      day_range:
+        type: object
+        additionalProperties: false
+        required: [start_day, end_day]
+        properties:
+          start_day:
+            type: string
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+          end_day:
+            type: string
+            pattern: '^\d{4}-\d{2}-\d{2}$'
+      draws_per_row:
+        type: integer
+        enum: [1]
+      record_fields:
+        type: array
+        minItems: 1
+        items: { type: string, minLength: 1 }
+      created_utc_policy_echo: { type: boolean }
+      rng_key_hi:
+        type: integer
+        minimum: 0
+      rng_key_lo:
+        type: integer
+        minimum: 0
+      base_counter_hi:
+        type: integer
+        minimum: 0
+      base_counter_lo:
+        type: integer
+        minimum: 0
+      calendar: { type: string }
+      notes: { type: string }
+
+# -- Plan tables ------------------------------------------------------------
+plan:
+
+  s1_site_weights:
+    type: table
+    description: "Frozen per-site probability weights per merchant."
+    primary_key: [merchant_id, legal_country_iso, site_order]
+    partition_keys: [seed, fingerprint]
+    sort_keys: [merchant_id, legal_country_iso, site_order]
+    columns_strict: true
+    columns:
+      - name: merchant_id
+        $ref: 'schemas.layer1.yaml#/$defs/id64'
+        nullable: false
+      - name: legal_country_iso
+        $ref: 'schemas.layer1.yaml#/$defs/iso2'
+        nullable: false
+      - name: site_order
+        type: integer
+        minimum: 1
+        nullable: false
+      - name: p_weight
+        type: number
+        minimum: 0
+        maximum: 1
+        nullable: false
+      - name: weight_source
+        type: string
+        nullable: false
+      - name: quantised_bits
+        type: integer
+        minimum: 1
+        nullable: false
+      - name: floor_applied
+        type: boolean
+        nullable: false
+      - name: created_utc
+        $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros'
+        nullable: false
+
+  s3_day_effects:
+    type: table
+    description: "Per-merchant, per-day, per-tz-group corporate-day modulation factors."
+    primary_key: [merchant_id, utc_day, tz_group_id]
+    partition_keys: [seed, fingerprint]
+    sort_keys: [merchant_id, utc_day, tz_group_id]
+    columns_strict: true
+    columns:
+      - name: merchant_id
+        $ref: 'schemas.layer1.yaml#/$defs/id64'
+        nullable: false
+      - name: utc_day
+        type: string
+        pattern: '^\d{4}-\d{2}-\d{2}$'
+        nullable: false
+      - name: tz_group_id
+        type: string
+        minLength: 1
+        nullable: false
+      - name: gamma
+        type: number
+        exclusiveMinimum: 0
+        nullable: false
+      - name: log_gamma
+        type: number
+        nullable: false
+      - name: sigma_gamma
+        type: number
+        exclusiveMinimum: 0
+        nullable: false
+      - name: rng_stream_id
+        type: string
+        minLength: 1
+        nullable: false
+      - name: rng_counter_hi
+        type: integer
+        minimum: 0
+        maximum: 18446744073709551615
+        nullable: false
+      - name: rng_counter_lo
+        type: integer
+        minimum: 0
+        maximum: 18446744073709551615
+        nullable: false
+      - name: created_utc
+        $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros'
+        nullable: false
+
+  s4_group_weights:
+    type: table
+    description: "Per-merchant, per-day, per-tz-group deterministic routing mix (RNG-free)."
+    primary_key: [merchant_id, utc_day, tz_group_id]
+    partition_keys: [seed, fingerprint]
+    sort_keys: [merchant_id, utc_day, tz_group_id]
+    columns_strict: true
+    columns:
+      - name: merchant_id
+        $ref: 'schemas.layer1.yaml#/$defs/id64'
+        nullable: false
+      - name: utc_day
+        type: string
+        pattern: '^\d{4}-\d{2}-\d{2}$'
+        nullable: false
+      - name: tz_group_id
+        type: string
+        minLength: 1
+        nullable: false
+      - name: p_group
+        type: number
+        minimum: 0
+        maximum: 1
+        nullable: false
+      - name: base_share
+        type: number
+        minimum: 0
+        maximum: 1
+        nullable: false
+      - name: gamma
+        type: number
+        exclusiveMinimum: 0
+        nullable: false
+      - name: created_utc
+        $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros'
+        nullable: false
+      - name: mass_raw
+        type: number
+        minimum: 0
+        nullable: true
+      - name: denom_raw
+        type: number
+        minimum: 0
+        nullable: true
+
+  s2_alias_index:
+    type: object
+    description: "Alias index describing each merchant slice inside the alias blob."
+    additionalProperties: false
+    required:
+      [
+        layout_version,
+        endianness,
+        alignment_bytes,
+        quantised_bits,
+        created_utc,
+        policy_id,
+        policy_digest,
+        blob_sha256,
+        blob_size_bytes,
+        merchants_count,
+        merchants,
+      ]
+    properties:
+      layout_version: { type: string, minLength: 1 }
+      endianness: { type: string, enum: [little, big] }
+      alignment_bytes: { type: integer, minimum: 1 }
+      quantised_bits: { type: integer, minimum: 1 }
+      created_utc: { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
+      policy_id: { type: string, const: "alias_layout_policy_v1" }
+      policy_digest: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+      blob_sha256: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+      blob_size_bytes: { type: integer, minimum: 0 }
+      merchants_count: { type: integer, minimum: 0 }
+      merchants:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required:
+            [merchant_id, offset, length, sites, quantised_bits, checksum]
+          properties:
+            merchant_id: { $ref: 'schemas.layer1.yaml#/$defs/id64' }
+            offset: { type: integer, minimum: 0 }
+            length: { type: integer, minimum: 0 }
+            sites: { type: integer, minimum: 1 }
+            quantised_bits: { type: integer, minimum: 1 }
+            checksum: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+
+binary:
+
+  s2_alias_blob:
+    type: object
+    description: "Metadata contract for the alias blob; layout/bytes governed by alias_layout_policy_v1."
+    additionalProperties: false
+    required:
+      [layout_version, endianness, alignment_bytes, quantised_bits, blob_sha256, blob_size_bytes]
+    properties:
+      layout_version: { type: string, minLength: 1 }
+      endianness: { type: string, enum: [little, big] }
+      alignment_bytes: { type: integer, minimum: 1 }
+      quantised_bits: { type: integer, minimum: 1 }
+      blob_sha256: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+      blob_size_bytes: { type: integer, minimum: 0 }
+
+trace:
+
+  s5_selection_log_row:
+    type: object
+    additionalProperties: false
+    required:
+      [
+        seed,
+        parameter_hash,
+        run_id,
+        utc_day,
+        utc_timestamp,
+        merchant_id,
+        tz_group_id,
+        site_id,
+        rng_stream_id,
+        ctr_group_hi,
+        ctr_group_lo,
+        ctr_site_hi,
+        ctr_site_lo,
+        manifest_fingerprint,
+        created_utc,
+      ]
+    properties:
+      seed: { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      parameter_hash: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+      run_id: { $ref: 'schemas.layer1.yaml#/$defs/hex32' }
+      utc_day:
+        type: string
+        pattern: '^\d{4}-\d{2}-\d{2}$'
+      utc_timestamp: { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
+      merchant_id: { $ref: 'schemas.layer1.yaml#/$defs/id64' }
+      tz_group_id: { $ref: 'schemas.layer1.yaml#/$defs/iana_tzid' }
+      site_id: { $ref: 'schemas.layer1.yaml#/$defs/id64' }
+      selection_seq:
+        $ref: 'schemas.layer1.yaml#/$defs/uint64'
+        nullable: true
+        description: 'Monotone arrival sequence (optional).'
+      rng_stream_id: { type: string, minLength: 1 }
+      ctr_group_hi: { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      ctr_group_lo: { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      ctr_site_hi: { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      ctr_site_lo: { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      manifest_fingerprint: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+      created_utc: { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
+      notes: { type: string, nullable: true }
+
+  s6_edge_log_row:
+    type: object
+    additionalProperties: false
+    required:
+      [
+        seed,
+        parameter_hash,
+        run_id,
+        utc_day,
+        utc_timestamp,
+        merchant_id,
+        is_virtual,
+        tz_group_id,
+        site_id,
+        edge_id,
+        ip_country,
+        edge_lat,
+        edge_lon,
+        rng_stream_id,
+        ctr_edge_hi,
+        ctr_edge_lo,
+        manifest_fingerprint,
+        created_utc,
+      ]
+    properties:
+      seed: { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      parameter_hash: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+      run_id: { $ref: 'schemas.layer1.yaml#/$defs/hex32' }
+      utc_day:
+        type: string
+        pattern: '^\d{4}-\d{2}-\d{2}$'
+      utc_timestamp: { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
+      merchant_id: { $ref: 'schemas.layer1.yaml#/$defs/id64' }
+      is_virtual: { type: boolean }
+      tz_group_id: { $ref: 'schemas.layer1.yaml#/$defs/iana_tzid' }
+      site_id: { $ref: 'schemas.layer1.yaml#/$defs/id64' }
+      edge_id: { type: string, minLength: 1 }
+      ip_country: { $ref: 'schemas.layer1.yaml#/$defs/iso2' }
+      edge_lat:
+        type: number
+        minimum: -90
+        maximum: 90
+      edge_lon:
+        type: number
+        exclusiveMinimum: -180
+        maximum: 180
+      edge_latlon_source: { type: string, nullable: true }
+      selection_seq:
+        $ref: 'schemas.layer1.yaml#/$defs/uint64'
+        nullable: true
+      rng_stream_id: { type: string, minLength: 1 }
+      ctr_edge_hi: { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      ctr_edge_lo: { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
+      manifest_fingerprint: { $ref: 'schemas.layer1.yaml#/$defs/hex64' }
+      created_utc: { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
+      notes: { type: string, nullable: true }

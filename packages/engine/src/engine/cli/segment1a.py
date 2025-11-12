@@ -642,11 +642,13 @@ def main(argv: list[str] | None = None) -> int:
                 "validation_enabled": args.validate_s7,
             },
         }
-        args.result_json.expanduser().resolve().write_text(
+        result_path = args.result_json.expanduser().resolve()
+        result_path.parent.mkdir(parents=True, exist_ok=True)
+        result_path.write_text(
             json.dumps(summary, indent=2, sort_keys=True),
             encoding="utf-8",
         )
-        logger.info("Segment1A CLI: wrote result summary to %s", args.result_json)
+        logger.info("Segment1A CLI: wrote result summary to %s", result_path)
 
     return 0
 

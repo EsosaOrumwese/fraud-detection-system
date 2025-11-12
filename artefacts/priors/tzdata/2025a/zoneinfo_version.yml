@@ -1,0 +1,5 @@
+semver: "1.0.0-alpha"
+tzdata_release: "2025a"
+source_url: "https://data.iana.org/time-zones/releases/tzdata2025a.tar.gz"
+tzdata_archive: tzdata2025a.tar.gz
+tzdata_archive_digest: 4d5fcbc72c7c450ebfe0b659bd0f1c02fbf52fd7f517a9ea13fe71c21eb5f0d0

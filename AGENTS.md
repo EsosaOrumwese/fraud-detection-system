@@ -6,8 +6,8 @@ Use this to orient yourself before touching code. It captures what is in scope, 
 ---
 
 ## 0) Scope (current focus)
-- Active build: Data Engine - Layer-1 / Segment 1B executing States S0-S9.
-- Segment 1A (States S0-S9) remains sealed; use its artefacts as read-only authority surfaces.
+- Transition to next build: Layer-1 / Segment **3A** (spec + pre-implementation planning) now that 2A/2B are sealed and ready for PR.
+- Segments **1A, 1B, 2A & 2B** are live and sealed; treat their artefacts as read-only authority surfaces for downstream states.
 - All other packages/services remain LOCKED; check their nested `AGENTS.md` for status before making changes.
 - Need to work in a locked area? Ask the USER with a clear justification before touching it.
 
@@ -17,6 +17,7 @@ Use this to orient yourself before touching code. It captures what is in scope, 
 Read these in order before modifying code so you share the project context:
 1. `docs/references/closed-world-enterprise-conceptual-design*.md`
 2. `docs/references/closed-world-synthetic-data-engine-with-realism*.md` (current build focus)
+4. Review the current state of the repo for an idea of how things are implemented
 
 ---
 
@@ -40,11 +41,10 @@ Read these in order before modifying code so you share the project context:
 ---
 
 ## Extra information
-- Segment 1B has full expanded specs for States S0-S9 and updated contract artefacts (`docs/model_spec/data-engine/specs/state-flow/1B/**`, `docs/model_spec/data-engine/specs/contracts/1B/**`). There is intentionally no dataset preview for 1B—derive data expectations directly from the design.
-- For prior sealed work (Segment 1A) there are still no L0/L1/L2/L3 pseudocode docs; infer the layer split from the expanded specs (L0 primitives/helpers, L1 kernels, L2 orchestrator, L3 validator).
 - Stay proactive: surface TODOs, challenge suspect contract assumptions, and suggest stronger designs where appropriate.
 - Keep changes efficient and reproducible; add concise comments only when they clarify non-obvious intent.
 - Keep `pyproject.toml` aligned with any new dependencies you introduce.
+- As we build this project, constantly update the makefile so the USER will find it easy to run these processes that involve long CLI commands. Also try to make the Makefile human readable
 
 ---
 

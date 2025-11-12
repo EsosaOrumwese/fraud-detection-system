@@ -1,882 +1,258 @@
+version: '1.0'
+programme: layer1
 subsegments:
 - id: 2A
-  name: Deriving the Civil Time‑Zone
+  name: Civil Time
   artifacts:
-      # 1 CROSS‑LAYER INPUT
-  - name: site_catalogue
-    path: data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+
+  # ── S0 receipt (gate) ───────────────────────────────────────────────────
+  - name: s0_gate_receipt_2A
+    path: data/layer1/2A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt.json
     type: dataset
-    category: input
+    category: validation
     semver: '{semver}'
     version: '{manifest_fingerprint}'
     digest: '{sha256}'
-    manifest_key: mlr.1B.output.site_catalogue
-    license: '{spdx_or_internal}'
-    role: Site-catalogue rows from 1B (lat/lon, tzid, foot-traffic fields, provenance).
-    dependencies: [site_catalogue_schema]
+    manifest_key: mlr.2A.validation.s0_gate_receipt
+    license: Proprietary-Internal
+    role: "Receipt proving 1B PASS for fingerprint; enumerates sealed inputs for 2A."
+    dependencies: [validation_bundle_1B, validation_passed_flag_1B]
     source: internal
-    owner: {owner_team: null}
+    owner: {owner_team: "mlr-2a-core"}
     last_updated: '{iso8601_timestamp}'
     environment: [runtime]
-    schema: site_catalogue_schema
-    cross_layer: true
-    notes:
-
-      # 2 TZ‑WORLD SHAPEFILE BUNDLE
-  - name: tz_world_shapefile_2025_shp
-    path: artefacts/priors/tz_world/2025a/tz_world_2025a.shp
-    type: reference
-    category: spatial
-    semver: 2025a.0.0
-    version: 2025a
-    digest: '{sha256}'
-    manifest_key: mlr.ref.spatial.tz_world_2025a.shp
-    license: ODbL-1.0
-    role: Main polygon geometry for IANA TZ boundaries.
-    dependencies: []
-    source: external
-    owner: {data_governance_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: tz_world_shapefile_2025_shx
-    path: artefacts/priors/tz_world/2025a/tz_world_2025a.shx
-    type: reference
-    category: spatial
-    semver: 2025a.0.0
-    version: 2025a
-    digest: '{sha256}'
-    manifest_key: mlr.ref.spatial.tz_world_2025a.shx
-    license: ODbL-1.0
-    role: Spatial‑index companion for tz_world.shp.
-    dependencies: [tz_world_shapefile_2025_shp]
-    source: external
-    owner: {data_governance_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: tz_world_shapefile_2025_dbf
-    path: artefacts/priors/tz_world/2025a/tz_world_2025a.dbf
-    type: reference
-    category: spatial
-    semver: 2025a.0.0
-    version: 2025a
-    digest: '{sha256}'
-    manifest_key: mlr.ref.spatial.tz_world_2025a.dbf
-    license: ODbL-1.0
-    role: Attribute table for tz_world polygons.
-    dependencies: [tz_world_shapefile_2025_shp]
-    source: external
-    owner: {data_governance_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: tz_world_shapefile_2025_prj
-    path: artefacts/priors/tz_world/2025a/tz_world_2025a.prj
-    type: reference
-    category: spatial
-    semver: 2025a.0.0
-    version: 2025a
-    digest: '{sha256}'
-    manifest_key: mlr.ref.spatial.tz_world_2025a.prj
-    license: ODbL-1.0
-    role: Projection (EPSG:4326) file.
-    dependencies: [tz_world_shapefile_2025_shp]
-    source: external
-    owner: {data_governance_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: tz_world_shapefile_2025_cpg
-    path: artefacts/priors/tz_world/2025a/tz_world_2025a.cpg
-    type: reference
-    category: spatial
-    semver: 2025a.0.0
-    version: 2025a
-    digest: '{sha256}'
-    manifest_key: mlr.ref.spatial.tz_world_2025a.cpg
-    license: ODbL-1.0
-    role: Code‑page definition for tz_world attributes.
-    dependencies: [tz_world_shapefile_2025_shp]
-    source: external
-    owner: {data_governance_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: tz_world_metadata
-    path: artefacts/priors/tz_world/2025a/tz_world_metadata.json
-    type: mapping
-    category: spatial
-    semver: 2025a.0.0
-    version: 2025a
-    digest: '{sha256}'
-    manifest_key: mlr.ref.spatial.tz_world_2025a.meta
-    license: ODbL-1.0
-    role: Per‑zone country‑set mapping for sanity checks.
-    dependencies: [tz_world_shapefile_2025_shp]
-    source: external
-    owner: {data_governance_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-      # 3 IANA TZ DATA RELEASE
-  - name: tzdata_archive_2025a
-    path: artefacts/priors/tzdata/tzdata2025a.tar.gz
-    type: reference
-    category: timezone
-    semver: 2025a.0.0
-    version: 2025a
-    digest: '{sha256}'
-    manifest_key: mlr.ref.tzdata.2025a
-    license: PublicDomain
-    role: Official IANA tzdata archive.
-    dependencies: []
-    source: external
-    owner: {data_governance_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: iana_links_snapshot
-    path: artefacts/priors/tzdata/iana_links_snapshot.parquet
-    type: reference
-    category: timezone
-    semver: 2025a.0.0
-    version: 2025a
-    digest: '{sha256}'
-    manifest_key: mlr.ref.tzdata.iana_links
-    license: PublicDomain
-    role: Snapshot of Link → Zone equivalence used for diagnostics.
-    dependencies: [tzdata_archive_2025a]
-    source: internal
-    owner: {data_governance_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
+    schema: schemas.2A.yaml#/validation/s0_gate_receipt_v1
     cross_layer: false
-    notes:
+    notes: "Partition fingerprint={manifest_fingerprint}; path↔embed equality enforced."
 
-      # 4 GOVERNING CONFIG BLOBS
-  - name: tz_nudge_policy
-    path: config/timezone/tz_nudge.yml
-    type: config
-    category: timezone
+  # ── Cross-layer inputs (explicit for single-pane visibility) ────────────
+  - name: validation_bundle_1B
+    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+    type: bundle
+    category: validation
     semver: '{semver}'
-    version: '{config_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.2A.config.tz_nudge
-    license: '{spdx_or_internal}'
-    role: ε‑nudge magnitude & algorithm for deterministic tie‑breaks.
+    version: '{manifest_fingerprint}'
+    manifest_key: mlr.1B.validation.bundle
+    license: Proprietary-Internal
+    role: "Fingerprint-scoped PASS bundle for 1B; S0 recomputes hash before any read (No PASS → No read)."
     dependencies: []
     source: internal
-    owner: {platform_team: null}
-    last_updated: '{iso8601_timestamp}'
+    owner: {owner_team: "mlr-1b-validation"}
     environment: [runtime]
     schema:
+      index_schema_ref: schemas.1A.yaml#/validation/validation_bundle.index_schema  # 1A index law reused
+    notes: "Hashing law: ASCII-lex order of index.path; hash raw bytes; flag excluded."
     cross_layer: true
-    notes:
 
+  - name: validation_passed_flag_1B
+    path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+    type: manifest
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    manifest_key: mlr.1B.validation.passed
+    license: Proprietary-Internal
+    role: "Single-line hash per ASCII-lex+raw-bytes recipe."
+    dependencies: [validation_bundle_1B]
+    source: internal
+    owner: {owner_team: "mlr-1b-validation"}
+    environment: [runtime]
+
+  # Cross-layer pointer to 1B egress consumed by 2A
+  - name: site_locations
+    path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: output
+    semver: '{semver}'
+    version: '{seed}.{manifest_fingerprint}'
+    manifest_key: mlr.1B.egress.site_locations
+    license: Proprietary-Internal
+    role: "Per-site lon/lat from 1B; consumed by 2A.S1"
+    dependencies: []
+    source: internal
+    owner: {owner_team: "mlr-1b-core"}
+    environment: [runtime]
+    schema: schemas.1B.yaml#/egress/site_locations
+    cross_layer: true
+
+  # ── Policy/config sealed by S0 ──────────────────────────────────────────
   - name: tz_overrides
     path: config/timezone/tz_overrides.yaml
     type: config
-    category: timezone
+    category: policy
     semver: '{semver}'
-    version: '{config_version}'
+    version: '{semver}'
     digest: '{sha256}'
-    manifest_key: mlr.2A.config.tz_overrides
-    license: '{spdx_or_internal}'
-    role: Manual override table with evidence URLs & expiry dates.
+    manifest_key: mlr.2A.policy.tz_overrides
+    license: Proprietary-Internal
+    role: "Governed override list; precedence site » mcc » country."
     dependencies: []
     source: internal
-    owner: {platform_team: null}
-    last_updated: '{iso8601_timestamp}'
+    owner: {owner_team: "mlr-2a-policy"}
     environment: [runtime]
-    schema: tz_overrides_schema
-    cross_layer: true
-    notes:
+    schema: schemas.2A.yaml#/policy/tz_overrides_v1
 
-  - name: tz_overrides_schema
-    path: schema/tz_overrides.avsc
-    type: schema
-    category: timezone
-    semver: '{semver}'
-    version: '{schema_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.2A.schema.tz_overrides
-    license: '{spdx_or_internal}'
-    role: Schema for tz_overrides rows.
-    dependencies: []
-    source: internal
-    owner: {platform_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [dev, staging, prod]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: simulation_horizon
-    path: config/simulation_horizon.yml
+  - name: tz_nudge
+    path: config/timezone/tz_nudge.yml
     type: config
-    category: simulation
+    category: policy
     semver: '{semver}'
-    version: '{config_version}'
+    version: '{semver}'
     digest: '{sha256}'
-    manifest_key: mlr.2A.config.simulation_horizon
-    license: '{spdx_or_internal}'
-    role: Start & end date for timeline cache extraction.
+    manifest_key: mlr.2A.policy.tz_nudge
+    license: Proprietary-Internal
+    role: "Deterministic ε at borders; sealed for reproducibility."
     dependencies: []
     source: internal
-    owner: {platform_team: null}
-    last_updated: '{iso8601_timestamp}'
+    owner: {owner_team: "mlr-2a-policy"}
     environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
+    schema: schemas.2A.yaml#/policy/tz_nudge_v1
 
-  - name: zoneinfo_version
-    path: config/zoneinfo_version.yml
-    type: config
-    category: timezone
-    semver: '{semver}'
-    version: '{config_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.2A.config.zoneinfo_version
-    license: '{spdx_or_internal}'
-    role: Declares expected zoneinfo library build.
-    dependencies: [tzdata_archive_2025a]
-    source: internal
-    owner: {platform_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-  - name: zoneinfo_digest
-    path: artefacts/manifests/zoneinfo_digest.txt
-    type: manifest
-    category: runtime_environment
-    semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256}'
-    manifest_key: mlr.2A.manifest.zoneinfo_digest
-    license: '{spdx_or_internal}'
-    role: Digest of the zoneinfo build/version used by ZoneInfo for DST checks.
-    dependencies: [zoneinfo_version]         # already present in 2A
-    source: internal
-    owner: {platform_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes: Referenced by 4B structural/DST legality checks.
-
-  - name: geometry_tolerance_policy
-    path: config/numeric/geometry_tolerance_policy.yaml
-    type: config
-    category: numeric_environment
-    semver: '{semver}'
-    version: '{config_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.numeric.geometry_tolerance
-    license: '{spdx_or_internal}'
-    role: Allowed floating‑point tolerance for geometry ops.
-    dependencies: []
-    source: internal
-    owner: {platform_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: timestamp_precision_policy
-    path: config/numeric/timestamp_precision_policy.yaml
-    type: config
-    category: numeric_environment
-    semver: '{semver}'
-    version: '{config_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.numeric.timestamp_precision
-    license: '{spdx_or_internal}'
-    role: Millisecond truncation & rounding rules.
-    dependencies: []
-    source: internal
-    owner: {platform_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: locale_policy
-    path: config/locale_policy.yaml
-    type: config
-    category: localisation
-    semver: '{semver}'
-    version: '{config_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.locale.policy
-    license: '{spdx_or_internal}'
-    role: Locale rules (ISO, CLDR) relevant to time‑zone overrides.
-    dependencies: []
-    source: internal
-    owner: {platform_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-
-      # 5 INDEX / CACHE
-  - name: tz_index_pickle
-    path: artefacts/cache/tz_world/2025a/{sha256}/tz_index.pkl
-    type: cache
-    category: spatial_index
-    semver: '{semver}'
-    version: '{sha256}'
-    digest: '{sha256}'
-    manifest_key: mlr.2A.cache.tz_index
-    license: '{spdx_or_internal}'
-    role: STR‑tree pickle for point‑in‑polygon lookup.
-    dependencies: [tz_world_shapefile_2025_shp, tzid_insertion_order, geometry_tolerance_policy, locale_policy]
-    source: internal
-    owner: {platform_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: timetable_cache
-    path: artefacts/cache/timetable/{sha256}/timetable_cache.parquet
-    type: cache
-    category: timezone
-    semver: '{semver}'
-    version: '{sha256}'
-    digest: '{sha256}'
-    manifest_key: mlr.2A.cache.timetable
-    license: '{spdx_or_internal}'
-    role: Run‑length‑encoded zone transitions (≤ 8 MiB).
-    dependencies: [tzdata_archive_2025a, simulation_horizon]
-    source: internal
-    owner: {platform_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: tz_cache_metrics
-    path: artefacts/metrics/tz_cache_metrics.parquet
+  - name: tzdb_release
+    path: artefacts/priors/tzdata/{release_tag}/
     type: dataset
-    category: metrics
+    category: reference
     semver: '{semver}'
-    version: '{run_id}'
+    version: '{release_tag}'
     digest: '{sha256}'
-    manifest_key: mlr.2A.metrics.tz_cache
-    license: '{spdx_or_internal}'
-    role: Size & hit‑rate metrics for timetable cache.
-    dependencies: [timetable_cache, zoneinfo_version]
-    source: internal
-    owner: {qa_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [ci]
-    schema:
-    cross_layer: false
-    notes:
-
-      # 6 MANIFESTS & DIGESTS
-  - name: spatial_manifest
-    path: artefacts/manifests/spatial_manifest.json
-    type: manifest
-    category: provenance
-    semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256}'
-    manifest_key: mlr.2A.manifest.spatial
-    license: '{spdx_or_internal}'
-    role: Aggregated digests of all spatial artefacts.
-    dependencies: [tz_world_shapefile_2025_shp, tzid_insertion_order, tz_world_metadata, tzdata_archive_2025a]
-    source: internal
-    owner: {platform_team: null}
-    last_updated: '{iso8601_timestamp}'
+    manifest_key: mlr.2A.ingress.tzdb_release
+    license: CC-BY-4.0
+    role: "Pinned IANA tzdata archive + tag."
+    dependencies: []
+    source: external
+    owner: {owner_team: "mlr-ingress"}
     environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-  - name: tz_polygon_digest
-    path: artefacts/manifests/tz_polygon_digest.txt
-    type: manifest
-    category: provenance
-    semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256}'
-    manifest_key: mlr.2A.manifest.tz_polygon_digest
-    license: '{spdx_or_internal}'
-    role: SHA‑256 of concatenated polygon bytes (ordered by TZID).
-    dependencies: [tz_world_shapefile_2025_shp]
-    source: internal
-    owner: {platform_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
+    schema: schemas.2A.yaml#/ingress/tzdb_release_v1
     cross_layer: true
-    notes:
 
-  - name: tz_index_digest
-    path: artefacts/manifests/tz_index_digest.txt
-    type: manifest
-    category: provenance
+  # Cross-layer pointer to ingress tz polygons used by 2A sealing
+  - name: tz_world_2025a
+    path: reference/spatial/tz_world/2025a/tz_world.parquet
+    type: dataset
+    category: reference
     semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256}'
-    manifest_key: mlr.2A.manifest.tz_index_digest
-    license: '{spdx_or_internal}'
-    role: SHA‑256 of STR‑tree pickle bytes.
-    dependencies: [tz_index_pickle]
-    source: internal
-    owner: {platform_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: tzid_insertion_order
-    path: artefacts/priors/tz_world/2025a/tzid_insertion_order.txt
-    type: mapping
-    category: spatial
-    semver: 2025a.0.0
-    version: 2025a
-    digest: '{sha256}'
-    manifest_key: mlr.ref.spatial.tzid_insertion_order_2025a
+    version: '2025a'
+    manifest_key: mlr.ingress.tz_world_2025a
     license: ODbL-1.0
-    role: Canonical lexicographic TZID list used when building STR‑tree.
-    dependencies: [tz_world_shapefile_2025_shp]
-    source: internal
-    owner: {data_governance_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: civil_time_manifest
-    path: artefacts/manifests/civil_time_manifest.json
-    type: manifest
-    category: provenance
-    semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256}'
-    manifest_key: mlr.2A.manifest.civil_time
-    license: '{spdx_or_internal}'
-    role: Captures seed, tz_polygon & tz_index digests, tz_nudge digest, tzdata archive & horizon digests, and tz_cache_bytes.
-    dependencies: [spatial_manifest, tz_polygon_digest, tz_index_digest, tz_nudge_policy, tzdata_archive_2025a, simulation_horizon, timetable_cache, zoneinfo_version, zoneinfo_digest]
-    source: internal
-    owner: {platform_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: true
-    notes:
-
-  - name: build_fingerprint_2A
-    path: artefacts/manifests/build_fingerprint_2A.txt
-    type: manifest
-    category: provenance
-    semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256}'
-    manifest_key: mlr.2A.manifest.build_fingerprint
-    license: '{spdx_or_internal}'
-    role: Composite SHA‑256 tying 2A to all governed artefacts.
-    dependencies:
-    - spatial_manifest
-    - tz_polygon_digest
-    - tz_index_digest
-    - tz_nudge_policy
-    - tz_overrides
-    - tzdata_archive_2025a
-    source: internal
-    owner: {platform_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-      # 7 EVENT SCHEMA & LOG STREAMS
-  - name: timezone_event_schema
-    path: schema/timezone_event_schema.json
-    type: schema
-    category: timezone_event
-    semver: '{semver}'
-    version: '{schema_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.2A.schema.timezone_events
-    license: '{spdx_or_internal}'
-    role: JSON schema validating all timezone event streams.
+    role: "Time-zone world polygons; sealed by 2A.S0."
     dependencies: []
-    source: internal
-    owner: {platform_team: null}
-    last_updated: '{iso8601_timestamp}'
+    source: external
+    owner: {owner_team: "mlr-ingress"}
     environment: [runtime]
-    schema:
+    schema: schemas.ingress.layer1.yaml#/tz_world_2025a
     cross_layer: true
-    notes:
 
-      # The following block pattern repeats for each JSONL stream
-  - name: tz_lookup_error_log
-    path: logs/timezone/{run_id}/tz_lookup_error.jsonl
-    type: log
-    category: timezone_event
-    semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256}'
-    manifest_key: mlr.2A.log.tz_lookup_error
-    license: '{spdx_or_internal}'
-    role: Event where no polygon matches a site coordinate.
-    dependencies: [timezone_event_schema]
-    source: internal
-    owner: {platform_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-      # Add alongside tz_lookup_error_log
-
-  - name: tz_lookup_events
-    path: logs/timezone/{run_id}/tz_lookup_events.jsonl
-    type: log
-    category: timezone_event
-    semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256}'
-    manifest_key: mlr.2A.log.tz_lookup_events
-    license: '{spdx_or_internal}'
-    role: Per‑site audit of (lat, lon, tzids_hit_list, nudge_vector, final_tzid, override_applied?).
-    dependencies: [timezone_event_schema, tz_nudge_policy, tz_overrides]
-    source: internal
-    owner: {qa_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-  - name: tz_nudge_applied_log
-    path: logs/timezone/{run_id}/tz_nudge_applied.jsonl
-    type: log
-    category: timezone_event
-    semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256}'
-    manifest_key: mlr.2A.log.tz_nudge_applied
-    license: '{spdx_or_internal}'
-    role: Records ε‑nudge vector and pre/post hit sets.
-    dependencies: [timezone_event_schema, tz_nudge_policy]
-    source: internal
-    owner: {qa_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-  - name: tz_override_applied_log
-    path: logs/timezone/{run_id}/tz_override_applied.jsonl
-    type: log
-    category: timezone_event
-    semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256}'
-    manifest_key: mlr.2A.log.tz_override_applied
-    license: '{spdx_or_internal}'
-    role: When an override supersedes polygon TZID (prior_tzid, scope, final_tzid).
-    dependencies: [timezone_event_schema, tz_overrides]
-    source: internal
-    owner: {qa_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-  - name: time_gap_shift_log
-    path: logs/timezone/{run_id}/time_gap_shift.jsonl
-    type: log
-    category: timezone_event
-    semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256}'
-    manifest_key: mlr.2A.log.time_gap_shift
-    license: '{spdx_or_internal}'
-    role: Shifts applied to land forward‑gap legality fixes (gap_seconds, adjusted_local_time).
-    dependencies: [timezone_event_schema, simulation_horizon]
-    source: internal
-    owner: {qa_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-  - name: fold_choice_log
-    path: logs/timezone/{run_id}/fold_choice.jsonl
-    type: log
-    category: timezone_event
-    semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256}'
-    manifest_key: mlr.2A.log.fold_choice
-    license: '{spdx_or_internal}'
-    role: Parity choice for backward fold (hash inputs and chosen fold).
-    dependencies: [timezone_event_schema, timestamp_precision_policy]
-    source: internal
-    owner: {qa_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-  - name: utc_conversion_log
-    path: logs/timezone/{run_id}/utc_conversion.jsonl
-    type: log
-    category: timezone_event
-    semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256}'
-    manifest_key: mlr.2A.log.utc_conversion
-    license: '{spdx_or_internal}'
-    role: (t_local, offset_minutes) → event_time_utc, with precision policy applied.
-    dependencies: [timezone_event_schema, timestamp_precision_policy, zoneinfo_version]
-    source: internal
-    owner: {qa_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-      # 8 METRICS & CI OUTPUTS
-  - name: override_metrics
-    path: artefacts/metrics/override_metrics.parquet
+  # ── 2A datasets ─────────────────────────────────────────────────────────
+  - name: s1_tz_lookup
+    path: data/layer1/2A/s1_tz_lookup/seed={seed}/fingerprint={manifest_fingerprint}/
     type: dataset
-    category: metrics
+    category: plan
     semver: '{semver}'
-    version: '{run_id}'
+    version: '{seed}.{manifest_fingerprint}'
     digest: '{sha256}'
-    manifest_key: mlr.2A.metrics.overrides
-    license: '{spdx_or_internal}'
-    role: Hit‑rate & expiry‑coverage metrics for tz_overrides.
-    dependencies: [tz_overrides, site_catalogue]
+    manifest_key: mlr.2A.s1.tz_lookup
+    license: Proprietary-Internal
+    role: "Deterministic tz lookup per site."
+    dependencies: [site_locations, tz_world_2025a, tz_nudge]
     source: internal
-    owner: {qa_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [ci]
-    schema:
-    cross_layer: false
-    notes:
+    owner: {owner_team: "mlr-2a-core"}
+    environment: [runtime]
+    schema: schemas.2A.yaml#/plan/s1_tz_lookup
 
-      # 9 RNG AUDIT & TRACE
-  - name: rng_audit_2A
-    path: logs/timezone/{run_id}/rng_audit_2A.log
-    type: log
-    category: rng_audit
+  - name: site_timezones
+    path: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: output
     semver: '{semver}'
-    version: '{run_id}'
+    version: '{seed}.{manifest_fingerprint}'
     digest: '{sha256}'
-    manifest_key: mlr.2A.log.rng_audit
-    license: '{spdx_or_internal}'
-    role: Structured audit of Philox counter positions.
-    dependencies: []
+    manifest_key: mlr.2A.egress.site_timezones
+    license: Proprietary-Internal
+    role: "Per-site IANA tzid with provenance; order-free."
+    dependencies: [s1_tz_lookup, tz_overrides, tz_world_2025a]   # S2 lineage is from S1 plan + policy overrides; tzdb_release is used by S3.
     source: internal
-    owner: {platform_team: null}
-    last_updated: '{iso8601_timestamp}'
+    owner: {owner_team: "mlr-2a-core"}
+    environment: [runtime]
+    schema: schemas.2A.yaml#/egress/site_timezones
+
+  - name: tz_timetable_cache
+    path: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: cache
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.2A.cache.tz_timetable
+    license: Proprietary-Internal
+    role: "Fingerprint-scoped compact timetable manifest."
+    dependencies: [tzdb_release]
+    source: internal
+    owner: {owner_team: "mlr-2a-core"}
+    environment: [runtime]
+    schema: schemas.2A.yaml#/cache/tz_timetable_cache
+
+  - name: s4_legality_report
+    path: data/layer1/2A/legality_report/seed={seed}/fingerprint={manifest_fingerprint}/s4_legality_report.json
+    type: dataset
+    category: validation
+    semver: '{semver}'
+    version: '{seed}.{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.2A.validation.legality_report
+    license: Proprietary-Internal
+    role: "DST gaps/folds legality summary."
+    dependencies: [site_timezones, tz_timetable_cache]
+    source: internal
+    owner: {owner_team: "mlr-2a-core"}
+    environment: [runtime]
+    schema: schemas.2A.yaml#/validation/s4_legality_report
+
+  - name: validation_bundle_2A
+    path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
+    type: bundle
+    category: validation
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    manifest_key: mlr.2A.validation.bundle
+    license: Proprietary-Internal
+    role: "Fingerprint-scoped PASS bundle for 2A; consumers of 2A egress MUST verify _passed.flag."
+    dependencies: [site_timezones, tz_timetable_cache, s4_legality_report]
+    source: internal
+    owner: {owner_team: "mlr-2a-validation"}
     environment: [runtime]
     schema:
-    cross_layer: false
-    notes:
+      index_schema_ref: schemas.2A.yaml#/validation/bundle_index_v1
+    notes: "Hashing law: ASCII-lex order of index.path; hash raw bytes; flag excluded."
 
-  - name: rng_trace_2A
-    path: logs/timezone/{run_id}/rng_trace_2A.log
-    type: log
-    category: rng_audit
-    semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256}'
-    manifest_key: mlr.2A.log.rng_trace
-    license: '{spdx_or_internal}'
-    role: Full trace of every RNG draw in 2A.
-    dependencies: [rng_audit_2A]
-    source: internal
-    owner: {platform_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-      # 10 CI SCRIPTS & TESTS
-  - name: override_logic_ci_check
-    path: ci/tests/timezone_override_validation.sh
-    type: ci_test
-    category: timezone_override
-    semver: '{semver}'
-    version: '{script_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.2A.ci.override_validation
-    license: '{spdx_or_internal}'
-    role: Nightly assertion that at least one override changes lookup result.
-    dependencies: [tz_overrides, override_metrics]
-    source: internal
-    owner: {qa_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [ci]
-    schema:
-    cross_layer: false
-    notes:
-
-      # 11 VERSION PIN / ENVIRONMENT
-  - name: python_lib_versions
-    path: artefacts/manifests/python_lib_versions.txt
+  - name: validation_passed_flag_2A
+    path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/_passed.flag
     type: manifest
-    category: runtime_environment
+    category: validation
     semver: '{semver}'
-    version: '{run_id}'
+    version: '{manifest_fingerprint}'
+    manifest_key: mlr.2A.validation.passed
+    license: Proprietary-Internal
+    role: "Single-line hash per bundle index law."
+    dependencies: [validation_bundle_2A]
+    source: internal
+    owner: {owner_team: "mlr-2a-validation"}
+    environment: [runtime]
+    schema: schemas.2A.yaml#/validation/passed_flag
+
+  - name: sealed_inputs_v1
+    path: data/layer1/2A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet
+    type: dataset
+    category: manifest
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
     digest: '{sha256}'
-    manifest_key: mlr.2A.manifest.python_lib_versions
-    license: '{spdx_or_internal}'
-    role: Frozen pip freeze used for deterministic builds.
-    dependencies: []
+    manifest_key: mlr.2A.manifests.sealed_inputs_v1
+    license: Proprietary-Internal
+    role: "Row-wise inventory of sealed assets for 2A fingerprint."
+    dependencies: [s0_gate_receipt_2A]
     source: internal
-    owner: {platform_team: null}
-    last_updated: '{iso8601_timestamp}'
+    owner: { owner_team: "mlr-2a-core" }
     environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
+    schema: schemas.2A.yaml#/manifests/sealed_inputs_v1
+    notes: "Partition fingerprint={manifest_fingerprint}; path↔embed equality enforced."
 
-      # 12 ERROR / EXCEPTION CONTRACT
-  - name: DSTLookupTieError
-    path:
-    type: exception
-    category: exception_contract
-    semver:
-    version:
-    digest:
-    manifest_key: mlr.2A.exception.dst_lookup_tie
-    license:
-    role: Raised when two polygons persist after ε‑nudge.
-    dependencies: []
-    source: internal
-    owner: {platform_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-  - name: TimeZoneLookupError
-    path:
-    type: exception
-    category: exception_contract
-    semver:
-    version:
-    digest:
-    manifest_key: mlr.2A.exception.timezone_lookup
-    license:
-    role: Raised when no TZ polygon matches a point.
-    dependencies: []
-    source: internal
-    owner: {platform_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-  - name: TimeTableCoverageError
-    path:
-    type: exception
-    category: exception_contract
-    semver:
-    version:
-    digest:
-    manifest_key: mlr.2A.exception.timetable_coverage
-    license:
-    role: Raised when zone rules do not cover simulation horizon.
-    dependencies: []
-    source: internal
-    owner: {platform_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-      # 13 DOCUMENTATION / PROOF
-  - name: rng_independence_proof
-    path: docs/rng_proof.md
-    type: documentation
-    category: proof
-    semver: '{semver}'
-    version: '{doc_version}'
-    digest: '{sha256}'
-    manifest_key: mlr.2A.docs.rng_independence
-    license: '{spdx_or_internal}'
-    role: Proof that fold‑parity hash is independent of Philox streams.
-    dependencies: []
-    source: internal
-    owner: {qa_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [dev, ci, runtime]
-    schema:
-    cross_layer: false
-    notes:
-
-      # 14 LICENSING (governed)
-  - name: licence_files
-    path: LICENSES/
-    type: directory
-    category: licensing
-    semver: '{semver}'
-    version: '{run_id}'
-    digest: '{sha256_tree}'
-    manifest_key: mlr.2A.licenses
-    license: CC-BY-4.0-and-PublicDomain
-    role: SPDX texts for tz_world  tzdata; referenced by civil_time_manifest.
-    dependencies: []
-    source: internal
-    owner: {legal_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment: [ci, runtime]
-    schema:
-    cross_layer: true
-    notes:

@@ -1,126 +1,97 @@
-# State vector
+# 1A — Merchant→Country realism (state-overview, S0–S9)
 
-For merchant $m$, the evolving state is
+## S0 — Universe, symbols, authority (RNG-free)
 
-$$\mathcal{S} = \big(m,\, \text{home_iso},\, \text{MCC},\, \text{channel},\, \text{GDP_bucket},\, \pi,\, \text{flag},\, N,\, \text{elig},\, K,\, \mathcal{C},\, {\alpha},\, \mathbf{w},\, \mathbf{n},\, \text{seq}\big)$$
+**Goal.** Freeze the canonical universe and the precedence model so S1–S9 are reproducible.
+**Fix for the run.** Merchant universe from `merchant_ids`; ISO set; GDP vintage; Jenks buckets; **JSON-Schema is the sole shape authority**; Dictionary = IDs→paths/partitions; Registry = bindings/licences. **Inter-country order is *not* in `outlet_catalogue`; S3 `candidate_rank` is the sole order authority.** 
+**Notes.** This is where you also pin numeric posture (IEEE-754 binary64) and open-interval uniforms inherited by later states. 
 
-with meanings introduced as we enter each state. All draws are Philox-based and logged to per-event JSONL streams (hurdle, NB components, ZTP, Gumbel keys, Dirichlet gamma vectors, residual ranks, stream jumps, sequence finalize).
+---
 
-***
+## S1 — Hurdle (single vs multi) — Bernoulli event (RNG-bounded)
 
-# S0 — Prepare features, parameters, and lineage
+**Goal.** Decide `is_multi` per merchant; produce one **hurdle event** per `(seed, parameter_hash, run_id, merchant)`. RNG envelope + cumulative trace are binding. 
+**Invariants.** Single uniform when stochastic (`draws ∈ {"0","1"}`, `blocks ∈ {0,1}`); `u∈(0,1)` only in the stochastic branch; **presence-based gating**: all downstream 1A RNG streams appear **iff** `is_multi=true`. Exactly **one** hurdle row per merchant.
+**Outputs.** Events+trace only; parameter-scoped partitions `{seed, parameter_hash, run_id}` (path↔embed equality). 
 
-**Goal:** assemble fixed inputs, compute deterministic quantities, and bind lineage.
+---
 
-* Inputs: normalised merchant row (`merchant_id`, `home_country_iso`, `MCC`, `channel`), GDP-per-capita vintage (for buckets), canonical ISO list.
-* Build the **design vector** $x_m = [\text{intercept}, \text{MCC one-hots}, \text{channel one-hots}, \text{GDP bucket}]$. Load hurdle/NB coefficients; select **cross-border hyperparams** ($\theta$-vector, Dirichlet $\alpha$ lookup).
-* Compute or load $\pi_m$ (logit-hurdle success prob) to `hurdle_pi_probs`.
-* Apply **cross-border eligibility rules** $\rightarrow$ `crossborder_eligibility_flags`.
-* Bind **parameter_hash/manifest_fingerprint** (lineage keys used throughout paths and rows). `country_set` partitions on $\{\text{seed}, \text{parameter_hash}\}$; `outlet_catalogue` on $\{\text{seed}, \text{fingerprint}\}$.
+## S2 — Total outlet count **N** (Negative-Binomial via Poisson–Gamma) (RNG-bounded)
 
-**Leaves:** $\mathcal{S}$ enriched with $x_m$, $\pi_m$, eligibility flag, and lineage keys.
+**Goal.** For `is_multi=true`, draw **N ≥ 2**; for singles, S2 is skipped. S2.1 gates entry, assembles features/coeffs; later steps emit NB events. 
+**Invariants.** Entry requires S1 `is_multi=true`; branch purity enforced; lineage keys present; S2.1 emits **no** events (deterministic), later S2 emits events; downstream consumers treat S2 rows as the **sole source** of `raw_nb_outlet_draw`. 
 
-***
+---
 
-# S1 — Hurdle (single vs multi)
+## S3 — Cross-border candidate set, order, integer counts, and (in your build) sequencing (RNG-free)
 
-**Goal:** decide if merchant is multi-site.
+**Goal.** Build the admissible **candidate set** per merchant with **total order** `candidate_rank` (home rank = 0, contiguous), derive **integerised counts** (sum to **N**), and (in your current variant) materialise **within-country sequences**.
+**Outputs (parameter-scoped).**
 
-* Draw $u \sim U(0,1)$; if $u < \pi_m$ set `flag` = multi, else single with $N = 1$. Log `hurdle_bernoulli`.
-* Single-site merchants skip S3–S6 by design (no cross-border path).
+* `s3_candidate_set` — **sole inter-country order authority**. 
+* `s3_base_weight_priors` (if policy on) — fixed-dp strings (not probabilities). 
+* `s3_integerised_counts` — deterministic integers + `residual_rank`. 
+* `s3_site_sequence` (your variant A) — `site_order = 1..count_i` and optional **6-digit** `site_id`. **Overflow `count_i>999,999` ⇒ `ERR_S3_SITE_SEQUENCE_OVERFLOW` (stop merchant).** 
+  **Key laws.** `candidate_rank` total & contiguous (home=0); integerisation is largest-remainder with residuals quantised to **dp=8**; optional bounds `(L,U)` with feasibility checks; sequencing **never** alters inter-country order.
 
-**Branch:**
-- **Single:** set $K = 0$, $\mathcal{C} = \{\text{home}\}$, go to S7 (integerisation becomes trivial) $\rightarrow$ S8.
-- **Multi:** proceed to S2.
+---
 
-***
+## S4 — Foreign-count **K_target** via Zero-Truncated Poisson (logs-only) (RNG-bounded)
 
-# S2 — Domestic outlet count $N$ (multi-site only)
+**Goal.** Compute λ and sample **ZTP** to fix **`K_target`** (≥0 with short-circuit rules); **S4 writes events only**—no tables. **Order and membership are not decided here.** 
+**Envelope.** Exact budget/trace rules; records `attempt`, `attempts`, `before/after/blocks/draws`, λ and `K_target`; **`K_realized = min(K_target, A)` is owned by S6**. 
 
-**Goal:** sample $N \ge 2$ for the home country.
+---
 
-* NB via Poisson–Gamma mixture; **reject** until $N \in \{2,3,\dots\}$. Log `gamma_component`, `poisson_component`, `nb_final`. Corridor: overall rejection rate $\in [0,0.06]$, per-merchant p99 $\le 3$.
+## S5 — Currency→Country weight expansion (RNG-free)
 
-**Leaves:** $N$ and diagnostics.
+**Goal.** Deterministically expand currency surfaces to country **weights** (fixed-dp), to be used by S6/S7. **No priors/probability semantics in S4; weights live here.** 
+**Output.** `ccy_country_weights_cache` (parameter-scoped). 
 
-***
+---
 
-# S3 — Check cross-border eligibility (gate before ZTP)
+## S6 — Foreign-set selection (Gumbel-top-k) (RNG-bounded)
 
-**Goal:** enforce policy before trying foreign spread.
+**Goal.** From S3 candidates and S5 weights, select **`K_realized`** foreign countries with **Gumbel-top-k**; **membership only**—persisted order still comes from S3 (`candidate_rank`). 
+**Evidence.** One `gumbel_key` event per considered candidate (logged in **S3-rank order**), budgets 1 draw per candidate; validator re-derives the membership from keys + S3/S5. 
 
-* Read `crossborder_eligibility_flags` (`is_eligible`, reason, rule_set). Only **multi-site & eligible** merchants enter ZTP.
+---
 
-**Branch:**
-- **Ineligible:** set $K = 0$, $\mathcal{C} = \{\text{home}\}$ $\rightarrow$ S7.
-- **Eligible:** proceed to S4.
+## S7 — Integer allocation across legal country set (RNG-free)
 
-***
+**Goal.** Turn real-valued expectations into **per-country integers** that **sum to N**, with floors/bounds and a deterministic **bump rule**; record `residual_rank`. (In your build, S3 already emits counts; S7 is the spec’d allocator if you choose that split.) 
 
-# S4 — Foreign country count $K$ (ZTP)
+---
 
-**Goal:** sample number of foreign countries.
+## S8 — Materialise outlet stubs & sequences (egress) (RNG-free + non-consuming events)
 
-* $K \sim \text{ZTPoisson}(\lambda_{\text{extra}})$ with $\lambda_{\text{extra}} = \exp(\theta_0 + \theta_1 \log N + \theta_2 X)$, $0 < \theta_1 < 1$. Classical rejection from Poisson until $K \ge 1$; hard cap 64 $\rightarrow$ `ztp_retry_exhausted`. Log `ztp_rejection`.
+**Goal.** Write **`outlet_catalogue`** (immutable, order-free egress) under `…/seed={seed}/fingerprint={manifest_fingerprint}/`. **Writer sort** `[merchant_id, legal_country_iso, site_order]`. **Multi-site only.** 
+**Within-country law.** For each `(merchant, country)` with `n_i≥1`, emit `site_order = 1..n_i`; `site_id = "{site_order:06d}"`. Per-merchant sum of `n_i` equals **N** (`raw_nb_outlet_draw`). **No inter-country order encoded—consumers must join S3.**
+**Instrumentation (non-consuming).** `sequence_finalize` per block; **`site_sequence_overflow`** if `n_i>999,999` (ERROR; fail merchant).
 
-**Branch:**
-- **$K=0$** (didn’t enter S4 or ineligible): $\mathcal{C} = \{\text{home}\}$ $\rightarrow$ S7.
-- **$K \ge 1$:** proceed to S5.
+---
 
-***
+## S9 — Replay validation & PASS gate (fingerprint-scoped)
 
-# S5 — Currency $\rightarrow$ country expansion (weights)
+**Goal.** Deterministically re-derive S1–S8 outcomes (counts, ranks, sequences, budgets) and publish `validation_bundle_1A/` with **`_passed.flag`** = **SHA-256 over `index.json` entries in ASCII-lex order** (flag excluded). **Consumers must verify: *no PASS → no read*.**
 
-**Goal:** expand currency-level settlement shares to country weights. (Reads $\kappa_m$ from the S5.0 `merchant_currency` cache.)
-* Build currency-level settlement vector; expand to country weights using intra-currency split; if any destination sparse ($<30$ obs), apply **Dirichlet smoothing** $\alpha = 0.5$; if still globally sparse, fallback **equal split** and set `sparse_flag = true`. Renormalise; order countries lexicographically by ISO. Persist `sparse_flag`.
+---
 
-**Leaves:** deterministic weight vector $w^{(\text{ccy} \to \text{iso})}$.
+## Cross-state invariants (to keep everything green)
 
-***
+* **Order authority boundary.** `outlet_catalogue` is **order-free**; **S3 `candidate_rank` is *sole* inter-country order** (home=0, contiguous). 1B joins S3 for order.
+* **Partition law & lineage equality.** Parameter-scoped tables carry `[parameter_hash]`; egress carries `[seed, fingerprint]`. Wherever lineage appears in both path and rows (e.g., `manifest_fingerprint`), **byte-equality is mandatory**.
+* **Schema authority.** **JSON-Schema** controls shapes; Dictionary governs IDs→paths/partitions/writer sort; Registry binds licences/gates. **No literal paths in code.** 
+* **RNG posture.** Open-interval mapping; budget/trace identity per event family; presence-gating via S1 hurdle; validators re-derive using logged keys/counters.
+* **Six-digit sequence space.** Per-country `n_i ≤ 999,999`; otherwise the merchant **must fail** (S3 overflow rule; S8 guards/telemetry echo this).
 
-# S6 — Select the $K$ foreign countries (ordered)
+---
 
-**Goal:** choose a **stable, ordered** foreign set.
+## Where each dataset/artefact lives (authoritative IDs)
 
-* **Gumbel-top-k**: for each candidate $i$, draw $u_i \sim U(0,1)$, form $\text{key}_i = \log w_i - \log(-\log u_i)$; take the $K$ largest keys; ties by ISO. Log `gumbel_key`.
-* Emit `country_set` of length $K+1$: **rank 0** = home; **ranks 1..K** = selected ISO codes **in key order**. `country_set` is the **only** authority for cross-country order.
-
-**Leaves:** ordered legal set $\mathcal{C} = \{\text{home}, c_1, \dots, c_K\}$ with ranks.
-
-***
-
-# S7 — Allocate $N$ across $\mathcal{C}$ (Dirichlet + LRR)
-
-**Goal:** convert $N$ into integer per-country counts.
-
- * **Largest-remainder rounding:**
-   $$a_i = \lfloor N w_i \rfloor, \quad d = N - \sum_i a_i; \quad r_i = (N w_i - a_i)$$
-   residuals quantised to **8 dp (ties-to-even)**; sort by
-   $(r_i\ \downarrow,\ \texttt{country_set.rank}\ \uparrow,\ \text{ISO}\ \uparrow)$; give $+1$ to the top $d$.
-   Persist $(r_i,\ \text{residual_rank})$ to `ranking_residual_cache_1A`; log `residual_rank`.  
-   Bound: $\lvert n_i - N w_i \rvert \le 1$.
-
-**Leaves:** integer vector $\mathbf{n} = (n_i)_{i \in \mathcal{C}}$ with $\sum n_i = N$.
-
-***
-
-# S8 — Materialise outlet stubs & sequences (egress)
-
-**Goal:** write `outlet_catalogue` and finalise IDs.
-
-* For each country $i$, emit $n_i$ rows with `site_order` $= 1..n_i$ (within-country). Assign a fixed **6-digit zero-padded** `site_id` sequence per $(\text{merchant}, i)$; overflow $> 999999 \rightarrow$ `site_sequence_overflow`. Log `sequence_finalize`. **Do not** encode cross-country order here; consumers must join `country_set.rank`. Primary key and partitions as per schema.
-
-**Leaves:** `outlet_catalogue` (immutable, per merchant $\times$ legal_country), `country_set`, and `ranking_residual_cache_1A` ready for 1B.
-
-***
-
-# S9 — Deterministic replay & validation bundle
-
-**Goal:** prove the write is self-consistent.
-
-* Re-read the Parquet, recompute $\mu, \phi, K, \mathbf{w}, \mathbf{n}$, residual ordering, `site_order`, and `site_id`s from stored inputs; **any mismatch aborts**. Package metrics/logs into `validation_bundle_1A` **and write `_passed.flag`**; **1B MUST verify** the gate (`_passed.flag` content hash == `SHA256(bundle)` for the same fingerprint) **before reading**. Stream-jump records allow Philox counter reconstruction even with zero rejections. Absence of any required RNG event is a structural failure.
-***
-
-## Handoffs/Firewalls
-
-* **Counts & order:** `outlet_catalogue` fixes the per-country outlet counts and within-country sequencing; `country_set.rank` fixes cross-country order. 1B **must not** change either.
+* **S3 surfaces (parameter-scoped):**
+  `s3_candidate_set` · `s3_base_weight_priors` (if present) · `s3_integerised_counts` · `s3_site_sequence` (variant A). 
+* **S8 egress (fingerprint-scoped):**
+  `outlet_catalogue` — order-free; PK = `[merchant_id, legal_country_iso, site_order]`. **Consumers join S3 for order & read only after PASS.** 
+* **S9 bundle (fingerprint-scoped):**
+  `validation_bundle_1A/` + `_passed.flag` (ASCII-lex hashing law). 

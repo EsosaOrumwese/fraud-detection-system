@@ -4,10 +4,14 @@ SHELL := /bin/bash
 PY ?= python
 ENGINE_PYTHONPATH ?= packages/engine/src
 
-RUN_ROOT ?= runs/local_layer1_regen7
-RESULT_JSON ?= $(RUN_ROOT)/segment1a_result.json
-LOG ?=
-SEED ?= 2025103001
+RUN_ROOT ?= runs/local_layer1_regen2
+SUMMARY_DIR ?= $(RUN_ROOT)/summaries
+RESULT_JSON ?= $(SUMMARY_DIR)/segment1a_result.json
+SEG1B_RESULT_JSON ?= $(SUMMARY_DIR)/segment1b_result.json
+SEG2A_RESULT_JSON ?= $(SUMMARY_DIR)/segment2a_result.json
+SEG2B_RESULT_JSON ?= $(SUMMARY_DIR)/segment2b_result.json
+LOG ?= $(RUN_ROOT)/run_log_regen2.log
+SEED ?= 2025111101
 
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
 
@@ -47,8 +51,8 @@ SEG1A_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment1a $(SEG1
 
 SEG1B_BASIS ?= population
 SEG1B_DP ?= 4
-SEG1B_S1_WORKERS ?= 12
-SEG1B_S4_WORKERS ?= 12
+SEG1B_S1_WORKERS ?= 8
+SEG1B_S4_WORKERS ?= 2
 SEG1B_EXTRA ?=
 
 SEG1B_ARGS = \
@@ -61,19 +65,175 @@ SEG1B_ARGS = \
 	--dp $(SEG1B_DP) \
 	--s1-workers $(SEG1B_S1_WORKERS) \
 	--s4-workers $(SEG1B_S4_WORKERS) \
+	--result-json $(SEG1B_RESULT_JSON) \
+	--quiet-summary \
 	$(SEG1B_EXTRA)
 SEG1B_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment1b run $(SEG1B_ARGS)
 
-.PHONY: all segment1a segment1b profile-all profile-seg1b clean-results
+SEG2A_DICTIONARY ?= contracts/dataset_dictionary/l1/seg_2A/layer1.2A.yaml
+SEG2A_TZDB_RELEASE ?= 2025a
+SEG2A_EXTRA ?=
+SEG2A_TZDATA_ROOT ?= artefacts/priors/tzdata
+SEG2A_TZ_CONFIG_ROOT ?= config/timezone
+SEG2A_CANONICAL_TZDATA = $(SEG2A_TZDATA_ROOT)/$(SEG2A_TZDB_RELEASE)
+SEG2A_RUN_TZDATA = $(RUN_ROOT)/artefacts/priors/tzdata/$(SEG2A_TZDB_RELEASE)
+SEG2A_RUN_TZCFG = $(RUN_ROOT)/config/timezone
+SEG2A_S1_CHUNK_SIZE ?= 250000
+SEG2A_S1_RESUME ?= 0
 
-all: segment1a segment1b
+SEG2A_EXTRA += --run-s1 --s1-chunk-size $(SEG2A_S1_CHUNK_SIZE) --run-s2 --run-s3 --run-s4 --run-s5
+ifeq ($(strip $(SEG2A_S1_RESUME)),1)
+SEG2A_EXTRA += --s1-resume
+endif
+
+SEG2A_ARGS = \
+	--data-root $(RUN_ROOT) \
+	--upstream-manifest-fingerprint $$MANIFEST_FINGERPRINT \
+	--parameter-hash $$PARAM_HASH \
+	--seed $(SEED) \
+	--tzdb-release-tag $(SEG2A_TZDB_RELEASE) \
+	--git-commit-hex $(GIT_COMMIT) \
+	--dictionary $(SEG2A_DICTIONARY) \
+	--validation-bundle $$VALIDATION_BUNDLE \
+	--result-json $(SEG2A_RESULT_JSON) \
+	--quiet-summary \
+	$(SEG2A_EXTRA)
+SEG2A_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment2a $(SEG2A_ARGS)
+
+SEG2B_DICTIONARY ?= contracts/dataset_dictionary/l1/seg_2B/layer1.2B.yaml
+SEG2B_EXTRA ?=
+SEG2B_PIN_TZ ?= 1
+SEG2B_RUN_S1 ?= 1
+SEG2B_S1_RESUME ?= 0
+SEG2B_S1_QUIET ?= 1
+SEG2B_RUN_S2 ?= 1
+SEG2B_S2_RESUME ?= 0
+SEG2B_S2_QUIET ?= 1
+SEG2B_RUN_S3 ?= 1
+SEG2B_S3_RESUME ?= 0
+SEG2B_S3_QUIET ?= 1
+SEG2B_RUN_S4 ?= 1
+SEG2B_S4_RESUME ?= 0
+SEG2B_S4_QUIET ?= 1
+SEG2B_RUN_S5 ?= 1
+SEG2B_S5_SELECTION_LOG ?= 0
+SEG2B_S5_ARRIVALS_JSONL ?=
+SEG2B_S5_QUIET ?= 1
+SEG2B_RUN_S6 ?= 1
+SEG2B_S6_EDGE_LOG ?= 0
+SEG2B_S6_QUIET ?= 1
+SEG2B_RUN_S7 ?= 1
+SEG2B_S7_QUIET ?= 1
+SEG2B_RUN_S8 ?= 1
+SEG2B_S8_WORKSPACE ?=
+SEG2B_S8_QUIET ?= 1
+
+ifeq ($(strip $(SEG2B_PIN_TZ)),1)
+SEG2B_EXTRA += --pin-tz-assets
+endif
+ifeq ($(strip $(SEG2B_RUN_S1)),1)
+SEG2B_EXTRA += --run-s1
+endif
+ifeq ($(strip $(SEG2B_S1_RESUME)),1)
+SEG2B_EXTRA += --s1-resume
+endif
+ifeq ($(strip $(SEG2B_S1_QUIET)),1)
+SEG2B_EXTRA += --s1-quiet-run-report
+endif
+ifeq ($(strip $(SEG2B_RUN_S2)),1)
+SEG2B_EXTRA += --run-s2
+endif
+ifeq ($(strip $(SEG2B_S2_RESUME)),1)
+SEG2B_EXTRA += --s2-resume
+endif
+ifeq ($(strip $(SEG2B_S2_QUIET)),1)
+SEG2B_EXTRA += --s2-quiet-run-report
+endif
+ifeq ($(strip $(SEG2B_RUN_S3)),1)
+SEG2B_EXTRA += --run-s3
+endif
+ifeq ($(strip $(SEG2B_S3_RESUME)),1)
+SEG2B_EXTRA += --s3-resume
+endif
+ifeq ($(strip $(SEG2B_S3_QUIET)),1)
+SEG2B_EXTRA += --s3-quiet-run-report
+endif
+ifeq ($(strip $(SEG2B_RUN_S4)),1)
+SEG2B_EXTRA += --run-s4
+endif
+ifeq ($(strip $(SEG2B_S4_RESUME)),1)
+SEG2B_EXTRA += --s4-resume
+endif
+ifeq ($(strip $(SEG2B_S4_QUIET)),1)
+SEG2B_EXTRA += --s4-quiet-run-report
+endif
+ifeq ($(strip $(SEG2B_RUN_S5)),1)
+SEG2B_EXTRA += --run-s5
+endif
+ifeq ($(strip $(SEG2B_S5_SELECTION_LOG)),1)
+SEG2B_EXTRA += --s5-selection-log
+endif
+ifneq ($(strip $(SEG2B_S5_ARRIVALS_JSONL)),)
+SEG2B_EXTRA += --s5-arrivals-jsonl "$(SEG2B_S5_ARRIVALS_JSONL)"
+endif
+ifeq ($(strip $(SEG2B_S5_QUIET)),1)
+SEG2B_EXTRA += --s5-quiet-run-report
+endif
+ifeq ($(strip $(SEG2B_RUN_S6)),1)
+SEG2B_EXTRA += --run-s6
+endif
+ifeq ($(strip $(SEG2B_S6_EDGE_LOG)),1)
+SEG2B_EXTRA += --s6-edge-log
+endif
+ifeq ($(strip $(SEG2B_S6_QUIET)),1)
+SEG2B_EXTRA += --s6-quiet-run-report
+endif
+ifeq ($(strip $(SEG2B_RUN_S7)),1)
+SEG2B_EXTRA += --run-s7
+endif
+ifeq ($(strip $(SEG2B_S7_QUIET)),1)
+SEG2B_EXTRA += --s7-quiet-run-report
+endif
+
+ifeq ($(strip $(SEG2B_RUN_S8)),1)
+SEG2B_EXTRA += --run-s8
+endif
+ifneq ($(strip $(SEG2B_S8_WORKSPACE)),)
+SEG2B_EXTRA += --s8-workspace "$(SEG2B_S8_WORKSPACE)"
+endif
+ifeq ($(strip $(SEG2B_S8_QUIET)),1)
+SEG2B_EXTRA += --s8-quiet-summary
+endif
+
+
+SEG2B_ARGS = \
+	--data-root "$(RUN_ROOT)" \
+	--seed $(SEED) \
+	--manifest-fingerprint $$MANIFEST_FINGERPRINT \
+	--parameter-hash $$PARAM_HASH \
+	--seg2a-manifest-fingerprint $$SEG2A_MANIFEST_FINGERPRINT \
+	--git-commit-hex $(GIT_COMMIT) \
+	--dictionary "$(SEG2B_DICTIONARY)" \
+	--validation-bundle "$$VALIDATION_BUNDLE" \
+	--result-json "$(SEG2B_RESULT_JSON)" \
+	--quiet-summary \
+	$(SEG2B_EXTRA)
+SEG2B_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment2b $(SEG2B_ARGS)
+
+
+
+.PHONY: all segment1a segment1b segment2a segment2b segment3a profile-all profile-seg1b clean-results
+
+all: segment1a segment1b segment2a segment2b
 
 segment1a:
 	@mkdir -p "$(RUN_ROOT)"
+	@mkdir -p "$(SUMMARY_DIR)"
 ifeq ($(strip $(LOG)),)
 	$(SEG1A_CMD)
 else
-	($(SEG1A_CMD)) 2>&1 | tee "$(LOG)"
+	@: > "$(LOG)"
+	($(SEG1A_CMD)) 2>&1 | tee -a "$(LOG)"
 endif
 
 segment1b:
@@ -81,6 +241,7 @@ segment1b:
 		echo "Segment 1A summary '$(RESULT_JSON)' not found. Run 'make segment1a' first." >&2; \
 		exit 1; \
 	fi
+	@mkdir -p "$(SUMMARY_DIR)"
 	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['parameter_hash'])"); \
 	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['manifest_fingerprint'])"); \
 	 if [ -n "$(LOG)" ]; then \
@@ -88,6 +249,77 @@ segment1b:
 	 else \
 		$(SEG1B_CMD); \
 	 fi
+
+segment2a:
+	@if [ ! -f "$(RESULT_JSON)" ]; then \
+		echo "Segment 1A summary '$(RESULT_JSON)' not found. Run 'make segment1a' first." >&2; \
+		exit 1; \
+	fi
+	@mkdir -p "$(SUMMARY_DIR)"
+	@if [ ! -d "$(RUN_ROOT)/data/layer1/1B" ]; then \
+		echo "Segment 1B outputs not found under '$(RUN_ROOT)/data/layer1/1B'. Run 'make segment1b' first." >&2; \
+		exit 1; \
+	fi
+	@PARAM_HASH=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['parameter_hash'])"); \
+	 MANIFEST_FINGERPRINT=$$($(PY) -c "import json; print(json.load(open('$(RESULT_JSON)'))['s0']['manifest_fingerprint'])"); \
+	 VALIDATION_BUNDLE="$(RUN_ROOT)/data/layer1/1B/validation/fingerprint=$$MANIFEST_FINGERPRINT/bundle"; \
+	 if [ ! -d "$$VALIDATION_BUNDLE" ]; then \
+		echo "Segment 1B validation bundle '$$VALIDATION_BUNDLE' not found. Run 'make segment1b' first." >&2; \
+		exit 1; \
+	 fi; \
+	 if [ ! -d "$(SEG2A_CANONICAL_TZDATA)" ]; then \
+		echo "Canonical tzdata release '$(SEG2A_CANONICAL_TZDATA)' not found. Stage artefact before running Segment 2A." >&2; \
+		exit 1; \
+	 fi; \
+	 rm -rf "$(SEG2A_RUN_TZDATA)"; \
+	 mkdir -p "$(SEG2A_RUN_TZDATA)"; \
+	 cp -a "$(SEG2A_CANONICAL_TZDATA)/." "$(SEG2A_RUN_TZDATA)/"; \
+	 if [ ! -d "$(SEG2A_TZ_CONFIG_ROOT)" ]; then \
+		echo "Canonical timezone config directory '$(SEG2A_TZ_CONFIG_ROOT)' not found. Stage policy artefacts before running Segment 2A." >&2; \
+		exit 1; \
+	 fi; \
+	 rm -rf "$(SEG2A_RUN_TZCFG)"; \
+	 mkdir -p "$(SEG2A_RUN_TZCFG)"; \
+	 cp -a "$(SEG2A_TZ_CONFIG_ROOT)/." "$(SEG2A_RUN_TZCFG)/"; \
+	 if [ -n "$(LOG)" ]; then \
+		($(SEG2A_CMD)) 2>&1 | tee -a "$(LOG)"; \
+	 else \
+		$(SEG2A_CMD); \
+	 fi
+
+segment2b:
+	@if [ ! -d "$(RUN_ROOT)/data/layer1/2A" ]; then \
+		echo "Segment 2A outputs not found under '$(RUN_ROOT)/data/layer1/2A'. Run 'make segment2a' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SEG2A_RESULT_JSON)" ]; then \
+		echo "Segment 2A summary '$(SEG2A_RESULT_JSON)' not found. Run 'make segment2a' first." >&2; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(RESULT_JSON)" ]; then \
+		echo "Segment 1A summary '$(RESULT_JSON)' not found. Run 'make segment1a' first." >&2; \
+		exit 1; \
+	fi
+	@mkdir -p "$(SUMMARY_DIR)"
+	@TMP_ENV_FILE="$(RUN_ROOT)/.seg2b_env.$$$$"; \
+	trap 'rm -f "$$TMP_ENV_FILE"' EXIT; \
+	$(PY) scripts/make_helpers/resolve_seg2b_env.py \
+		--seg1a-summary "$(RESULT_JSON)" \
+		--seg2a-summary "$(SEG2A_RESULT_JSON)" \
+		--run-root "$(RUN_ROOT)" \
+		--seed "$(SEED)" \
+		> "$$TMP_ENV_FILE"; \
+	. "$$TMP_ENV_FILE"; \
+	rm -f "$$TMP_ENV_FILE"; \
+	 if [ -n "$(LOG)" ]; then \
+		($(SEG2B_CMD)) 2>&1 | tee -a "$(LOG)"; \
+	 else \
+		$(SEG2B_CMD); \
+	 fi
+
+segment3a:
+	@echo "Segment 3A automation is not wired yet. Implement segment3a target when the CLI is available." >&2
+	@exit 1
 
 profile-all:
 	PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m cProfile -o profile.segment1a -m engine.cli.segment1a $(SEG1A_ARGS)
@@ -105,4 +337,5 @@ profile-seg1b:
 	 PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m cProfile -o profile.segment1b -m engine.cli.segment1b run $(SEG1B_ARGS)
 
 clean-results:
-	rm -f "$(RESULT_JSON)" profile.segment1a profile.segment1b
+	rm -rf "$(SUMMARY_DIR)"
+	rm -f profile.segment1a profile.segment1b

@@ -1,0 +1,33 @@
+{
+  "version_tag": "2025.11",
+  "weight_source": {
+    "id": "uniform",
+    "mode": "uniform"
+  },
+  "floor_spec": {
+    "mode": "absolute",
+    "value": 0.0,
+    "fallback": "uniform"
+  },
+  "cap_spec": {
+    "mode": "none"
+  },
+  "normalisation_epsilon": 1e-12,
+  "quantised_bits": 24,
+  "quantisation_epsilon": 5.960464477539063e-08,
+  "tiny_negative_epsilon": 1e-15,
+  "layout_version": "alias.v1",
+  "endianness": "little",
+  "alignment_bytes": 8,
+  "encode_spec": {
+    "site_order_bytes": 4,
+    "prob_mass_bytes": 4,
+    "alias_site_order_bytes": 4,
+    "padding_value": "0x00",
+    "checksum": {
+      "algorithm": "sha256"
+    }
+  },
+  "decode_law": "walker_vose_integer_grid",
+  "notes": "Deterministic uniform weights with absolute floor 0 and no caps."
+}

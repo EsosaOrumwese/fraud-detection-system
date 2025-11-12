@@ -14,6 +14,15 @@
 - **Decision fabric:** guardrails → primary ML → optional 2nd stage; returns **ACTION + reasons + provenance** with a **degrade ladder** to keep latency SLOs.  
 - **Auditability:** immutable decision log + label store; deterministic replay/DR from lineage.
 
+### Current build status (2025-11-12)
+| Segment | States | Status | Notes |
+|---------|--------|--------|-------|
+| 1A | S0-S9 | **Sealed** | Authority surface for downstream segments |
+| 1B | S0-S9 | **Sealed** | Production-ready Layer-1 world realism |
+| 2A | S0-S5 | **Sealed** | Gate, TZ pipeline, timetable, legality, bundle |
+| 2B | S0-S8 | **Sealed** | Alias build, router core, audits, PASS bundle |
+
+Implementation sequence (next): 3A (S0→SX) followed by 3B (S0→SX), leaving 1A/1B/2A/2B artefacts as read-only authorities while we prepare the PR to main.
 
 ---
 
@@ -189,7 +198,7 @@ Legend (compact):
 ---
 
 ## Current scope & reading order
-- **Current focus:** Data Engine - **Layer-1 / Segment 1A, States S5–S9** (S0–S4 sealed; S5–S9 execution in progress).  
+- **Current focus:** Data Engine - **Layer-1 / Segment 3A (spec + pre-implementation)**; Segments 1A, 1B, 2A & 2B are sealed authority surfaces feeding downstream work.  
 - **Reading order:** `contracts/` → `packages/engine/` → `services/` (concept) → `orchestration/` (concept).  
 - **Promotion path:** when a service becomes real, it graduates from `services/<name>/` (docs) to `packages/svc-<name>/` (its own package).
 
@@ -199,7 +208,7 @@ Legend (compact):
 ```text
 fraud-enterprise/
 ├─ packages/                     # buildable Python distributions (each with its own pyproject & src/)
-│  └─ engine/                    # the Data Engine package (S0–S4 sealed; S5–S9 active here)
+│  └─ engine/                    # the Data Engine package (Layer-1 Segments 1A–2B sealed; 3A planning in docs)
 │     ├─ pyproject.toml
 │     └─ src/engine/
 │        ├─ cli/                 # (concept) command entry points: run / validate / manifest
@@ -273,7 +282,7 @@ fraud-enterprise/
 
 ---
 
-> **Note:** This README describes the **destination**. Many folders are intentionally **conceptual** until unlocked. The **Data Engine** now has Layer-1 Segment 1A sealed and Segment 1B online; the next build frontier is Segment 2A, and more components will unlock as we advance.
+> **Note:** This README describes the **destination**. Many folders are intentionally **conceptual** until unlocked. The **Data Engine** now has Layer-1 Segments 1A–2B sealed and deterministic; the next build frontier is Segment 3A (spec + planning) before we unlock 3B.
 
 ## Data Engine Progress
 
@@ -292,11 +301,11 @@ fraud-enterprise/
 ```
 =========== Merchant-Location Realism (open) ===========
 Sub-segments:
-  1A  Merchants → Physical Sites  ............. [ ONLINE — sealed ]
+  1A  Merchants → Physical Sites  ............. [ ONLINE ]
   1B  Place Sites on Planet ................... [ ONLINE ]
-  2A  Civil Time Zone (IANA/DST) .............. [ NEXT UP ]
-  2B  Routing Through Sites ................... [ LOCKED ]
-  3A  Cross-Zone Merchants .................... [ LOCKED ]
+  2A  Civil Time Zone (IANA/DST) .............. [ ONLINE ]
+  2B  Routing Through Sites ................... [ ONLINE ]
+  3A  Cross-Zone Merchants .................... [ NEXT UP ]
   3B  Purely Virtual Merchants ................ [ LOCKED ]
 
 [4A/4B overlay]  >>> applied to every sub-segment above (inputs/outputs, RNG,
@@ -320,6 +329,23 @@ S0 Gate 1A bundle       S1 Country tiling          S2 Tile priors
 S3 Derive site counts   S4 Integerise shares       S5 Pick cells (RNG)
 S6 Jitter points (RNG)  S7 Synthesize sites        S8 `site_locations`
 S9 Validation bundle
+
+
+=========== 2A state-flow (6 states; live) ===========
+S0 -> S1 -> S2 -> S3 -> S4 -> S5
+
+Where (short labels just to anchor the flow):
+S0 Gate & Sealed Inputs        S1 Provisional TZ Lookup       S2 Overrides & Finalisation
+S3 Timetable Cache             S4 Legality Report             S5 Validation Bundle
+
+
+=========== 2B state-flow (9 states; live) ===========
+S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6 -> S7 -> S8
+
+Where (short labels just to anchor the flow):
+S0 Gate & Sealed Inputs        S1 Site Weights                S2 Alias Tables
+S3 Day Effects (γ draws)       S4 Group Weights (Σ=1)         S5 Router Core (group→site)
+S6 Virtual Edge Routing        S7 Audits & CI Gate            S8 Validation Bundle & `_passed.flag`
 
 Legend:
 [OPEN]   = exposed/being worked

@@ -31,6 +31,8 @@ from engine.layers.l1.seg_1B import (
 )
 from engine.scenario_runner.l1_seg_1B import Segment1BConfig, Segment1BOrchestrator
 
+logger = logging.getLogger(__name__)
+
 
 def _load_dictionary(path: Optional[Path]) -> Optional[Mapping[str, object]]:
     if path is None:
@@ -135,7 +137,14 @@ def _command_run(args: argparse.Namespace) -> int:
             "failure_codes": [failure.code for failure in result.s9.result.failures],
         },
     }
-    print(json.dumps(summary, indent=2, sort_keys=True))
+    summary_payload = json.dumps(summary, indent=2, sort_keys=True)
+    if not args.quiet_summary:
+        print(summary_payload)
+    if args.result_json:
+        summary_path = args.result_json.expanduser().resolve()
+        summary_path.parent.mkdir(parents=True, exist_ok=True)
+        summary_path.write_text(summary_payload, encoding="utf-8")
+        logger.info("Segment1B CLI: wrote summary to %s", summary_path)
     return 0
 
 
@@ -315,6 +324,16 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         default=1,
         help="Number of worker threads for S4 allocation (experimental).",
+    )
+    run_parser.add_argument(
+        "--result-json",
+        type=Path,
+        help="Optional JSON file that captures the Segment 1B run summary.",
+    )
+    run_parser.add_argument(
+        "--quiet-summary",
+        action="store_true",
+        help="Suppress printing the Segment 1B summary to STDOUT.",
     )
 
     validate_parser = subparsers.add_parser("validate", help="Validate tile_weights output")
