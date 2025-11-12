@@ -102,7 +102,7 @@ SEG2A_CMD = PYTHONPATH=$(ENGINE_PYTHONPATH) $(PY) -m engine.cli.segment2a $(SEG2
 
 SEG2B_DICTIONARY ?= contracts/dataset_dictionary/l1/seg_2B/layer1.2B.yaml
 SEG2B_EXTRA ?=
-SEG2B_PIN_TZ ?= 0
+SEG2B_PIN_TZ ?= 1
 SEG2B_RUN_S1 ?= 1
 SEG2B_S1_RESUME ?= 0
 SEG2B_S1_QUIET ?= 1

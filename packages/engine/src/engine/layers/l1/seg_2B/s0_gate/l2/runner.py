@@ -516,7 +516,7 @@ class S0GateRunner:
         required_ids = {"validation_bundle_1B", "validation_passed_flag_1B", "site_locations"}
         required_ids.update(inputs.policy_asset_ids)
         required_present = sum(1 for asset_id in required_ids if asset_id in sealed_id_set)
-        optional_ids = set(self._CIVIL_OPTION_IDS) if inputs.pin_civil_time else set()
+        optional_ids = set(self._CIVIL_OPTIONAL_IDS) if inputs.pin_civil_time else set()
         optional_present = sum(1 for asset_id in optional_ids if asset_id in sealed_id_set)
         sha_counts = Counter(row["sha256_hex"] for row in inventory_rows)
         duplicate_byte_sets = sum(1 for count in sha_counts.values() if count > 1)
