@@ -21,6 +21,7 @@ from ...shared.receipt import (
     load_sealed_inputs_inventory,
 )
 from ...shared.schema import load_schema
+from ...shared.sealed_assets import verify_sealed_digest
 from ...s0_gate.exceptions import err
 
 logger = logging.getLogger(__name__)
@@ -587,11 +588,18 @@ class S4GroupWeightsRunner:
                 f"sealed asset '{asset_id}' path mismatch between sealed_inputs_v1 '{record.catalog_path}' "
                 f"and dictionary '{expected_catalog_path}'",
             )
-        return self._resolve_sealed_path(
+        resolved = self._resolve_sealed_path(
             record=record,
             data_root=data_root,
             error_code=error_code,
         )
+        verify_sealed_digest(
+            asset_id=asset_id,
+            path=resolved,
+            expected_hex=record.sha256_hex,
+            code=error_code,
+        )
+        return resolved
 
     def _resolve_dataset_path(
         self,

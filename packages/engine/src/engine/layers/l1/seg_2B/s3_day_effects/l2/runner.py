@@ -25,6 +25,7 @@ from ...shared.receipt import (
     load_sealed_inputs_inventory,
 )
 from ...shared.schema import load_schema
+from ...shared.sealed_assets import verify_sealed_digest
 from ...s0_gate.exceptions import err
 
 logger = logging.getLogger(__name__)
@@ -397,10 +398,11 @@ class S3DayEffectsRunner:
             record=sealed_record,
             data_root=config.data_root,
         )
-        self._verify_sealed_digest(
+        verify_sealed_digest(
             asset_id="day_effect_policy_v1",
             path=candidate,
             expected_hex=sealed_record.sha256_hex,
+            code="2B-S3-022",
         )
 
         payload = json.loads(candidate.read_text(encoding="utf-8"))
@@ -523,22 +525,6 @@ class S3DayEffectsRunner:
             f"sealed asset '{record.asset_id}' path '{record.catalog_path}' not found under data root or repo",
         )
 
-    def _verify_sealed_digest(
-        self,
-        *,
-        asset_id: str,
-        path: Path,
-        expected_hex: str,
-    ) -> None:
-        if not expected_hex:
-            return
-        actual = _sha256_hex(path)
-        if actual.lower() != expected_hex.lower():
-            raise err(
-                "2B-S3-022",
-                f"sealed asset '{asset_id}' digest mismatch (expected {expected_hex}, observed {actual})",
-            )
-
     def _ensure_optional_pin(
         self,
         *,
@@ -561,7 +547,14 @@ class S3DayEffectsRunner:
                 f"sealed asset '{asset_id}' path mismatch between sealed_inputs_v1 '{record.catalog_path}' "
                 f"and dictionary '{expected_catalog_path}'",
             )
-        return self._resolve_sealed_path(record=record, data_root=config.data_root)
+        resolved = self._resolve_sealed_path(record=record, data_root=config.data_root)
+        verify_sealed_digest(
+            asset_id=asset_id,
+            path=resolved,
+            expected_hex=record.sha256_hex,
+            code=error_code,
+        )
+        return resolved
 
     def _prepare_groups(
         self,

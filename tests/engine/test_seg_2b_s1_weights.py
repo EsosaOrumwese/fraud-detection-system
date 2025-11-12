@@ -1,9 +1,13 @@
-import hashlib
 import json
 from pathlib import Path
 
 import polars as pl
 
+from engine.layers.l1.seg_2B.s0_gate.l0.filesystem import (
+    aggregate_sha256,
+    expand_files,
+    hash_files,
+)
 from engine.layers.l1.seg_2B.s1_weights import S1WeightsInputs, S1WeightsRunner
 
 
@@ -93,7 +97,7 @@ def _write_sealed_inventory(
         {
             "asset_id": "site_locations",
             "version_tag": f"{seed}.{manifest}",
-            "sha256_hex": _sha256_file(site_path),
+            "sha256_hex": _sealed_digest(site_path),
             "path": f"data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest}/",
             "partition": ["seed", "fingerprint"],
             "schema_ref": "schemas.1B.yaml#/egress/site_locations",
@@ -101,7 +105,7 @@ def _write_sealed_inventory(
         {
             "asset_id": "alias_layout_policy_v1",
             "version_tag": "2025.11",
-            "sha256_hex": _sha256_file(policy_path),
+            "sha256_hex": _sealed_digest(policy_path),
             "path": "contracts/policies/l1/seg_2B/alias_layout_policy_v1.json",
             "partition": [],
             "schema_ref": "schemas.2B.yaml#/policy/alias_layout_policy_v1",
@@ -199,10 +203,10 @@ def test_s1_weights_runner_emits_uniform_weights(tmp_path: Path) -> None:
     assert run_report["timings_ms"]["resolve_ms"] >= 0
 
 
-def _sha256_file(path: Path) -> str:
-    sha = hashlib.sha256()
-    sha.update(path.read_bytes())
-    return sha.hexdigest()
+def _sealed_digest(path: Path) -> str:
+    files = expand_files(path)
+    digests = hash_files(files, error_prefix="TEST_S1")
+    return aggregate_sha256(digests)
 
 
 def test_s1_weights_runner_resume(tmp_path: Path) -> None:

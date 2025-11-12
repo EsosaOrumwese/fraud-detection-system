@@ -28,6 +28,7 @@ from ...shared.receipt import (
     load_sealed_inputs_inventory,
 )
 from ...shared.schema import load_schema
+from ...shared.sealed_assets import verify_sealed_digest
 from ...s0_gate.exceptions import S0GateError, err
 
 logger = logging.getLogger(__name__)
@@ -280,10 +281,11 @@ class S1WeightsRunner:
             record=sealed_record,
             data_root=config.data_root,
         )
-        self._verify_sealed_digest(
+        verify_sealed_digest(
             asset_id="alias_layout_policy_v1",
             path=candidate,
             expected_hex=sealed_record.sha256_hex,
+            code="2B-S1-022",
         )
 
         payload = json.loads(candidate.read_text(encoding="utf-8"))
@@ -423,21 +425,6 @@ class S1WeightsRunner:
             "2B-S1-020",
             f"sealed asset '{record.asset_id}' path '{record.catalog_path}' not found relative to data root or repo",
         )
-
-    def _verify_sealed_digest(
-        self,
-        *,
-        asset_id: str,
-        path: Path,
-        expected_hex: str,
-    ) -> None:
-        actual = _sha256_hex(path)
-        if expected_hex and actual.lower() != expected_hex.lower():
-            raise err(
-                "2B-S1-022",
-                f"sealed asset '{asset_id}' digest mismatch "
-                f"(expected {expected_hex}, observed {actual})",
-            )
 
     def _validate_output_schema(self, *, df: pl.DataFrame) -> None:
         expected = [

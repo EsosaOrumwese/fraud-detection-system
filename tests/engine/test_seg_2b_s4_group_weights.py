@@ -1,10 +1,14 @@
-import hashlib
 import json
 from pathlib import Path
 
 import polars as pl
 import pytest
 
+from engine.layers.l1.seg_2B.s0_gate.l0.filesystem import (
+    aggregate_sha256,
+    expand_files,
+    hash_files,
+)
 from engine.layers.l1.seg_2B.s0_gate import S0GateError
 from engine.layers.l1.seg_2B.s4_group_weights import (
     S4GroupWeightsInputs,
@@ -102,7 +106,7 @@ def _write_sealed_inventory(
         {
             "asset_id": "site_timezones",
             "version_tag": f"{seed}.{seg2a_manifest}",
-            "sha256_hex": _sha256_dir(tz_dir),
+            "sha256_hex": _sealed_digest(tz_dir),
             "path": f"data/layer1/2A/site_timezones/seed={seed}/fingerprint={seg2a_manifest}/",
             "partition": ["seed", "fingerprint"],
             "schema_ref": "schemas.2A.yaml#/egress/site_timezones",
@@ -134,17 +138,10 @@ def _write_receipt(base: Path, seed: int, manifest: str, sealed_rows: list[dict]
     dest.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
-def _sha256_dir(path: Path) -> str:
-    sha = hashlib.sha256()
-    if not path.exists():
-        return sha.hexdigest()
-    for entry in sorted(path.rglob("*")):
-        if entry.is_file():
-            sha.update(entry.relative_to(path).as_posix().encode("utf-8"))
-            with entry.open("rb") as handle:
-                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-                    sha.update(chunk)
-    return sha.hexdigest()
+def _sealed_digest(path: Path) -> str:
+    files = expand_files(path)
+    digests = hash_files(files, error_prefix="TEST_S4")
+    return aggregate_sha256(digests)
 
 
 def test_s4_group_weights_runner_emits_mix(tmp_path: Path) -> None:

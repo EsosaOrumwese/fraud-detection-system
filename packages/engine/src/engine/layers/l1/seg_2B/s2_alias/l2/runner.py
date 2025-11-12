@@ -23,6 +23,7 @@ from ...shared.receipt import (
     load_sealed_inputs_inventory,
 )
 from ...shared.schema import load_schema
+from ...shared.sealed_assets import verify_sealed_digest
 from ...s0_gate.exceptions import S0GateError, err
 
 logger = logging.getLogger(__name__)
@@ -302,10 +303,11 @@ class S2AliasRunner:
             code="2B-S2-022",
         )
         candidate = self._resolve_sealed_path(record=sealed_record, data_root=config.data_root)
-        self._verify_sealed_digest(
+        verify_sealed_digest(
             asset_id="alias_layout_policy_v1",
             path=candidate,
             expected_hex=sealed_record.sha256_hex,
+            code="2B-S2-022",
         )
 
         payload = json.loads(candidate.read_text(encoding="utf-8"))
@@ -413,22 +415,6 @@ class S2AliasRunner:
             "2B-S2-020",
             f"sealed asset '{record.asset_id}' path '{record.catalog_path}' not found under data root or repo",
         )
-
-    def _verify_sealed_digest(
-        self,
-        *,
-        asset_id: str,
-        path: Path,
-        expected_hex: str,
-    ) -> None:
-        if not expected_hex:
-            return
-        actual = _sha256_hex(path)
-        if actual.lower() != expected_hex.lower():
-            raise err(
-                "2B-S2-022",
-                f"sealed asset '{asset_id}' digest mismatch (expected {expected_hex}, observed {actual})",
-            )
 
     def _build_alias_slice(
         self,

@@ -1,9 +1,13 @@
-import hashlib
 import json
 from pathlib import Path
 
 import polars as pl
 
+from engine.layers.l1.seg_2B.s0_gate.l0.filesystem import (
+    aggregate_sha256,
+    expand_files,
+    hash_files,
+)
 from engine.layers.l1.seg_2B.s2_alias import S2AliasInputs, S2AliasRunner
 
 
@@ -93,7 +97,7 @@ def _write_sealed_inventory(base: Path, manifest: str, policy_path: Path) -> lis
         {
             "asset_id": "alias_layout_policy_v1",
             "version_tag": "2025.11",
-            "sha256_hex": _sha256_file(policy_path),
+            "sha256_hex": _sealed_digest(policy_path),
             "path": "contracts/policies/l1/seg_2B/alias_layout_policy_v1.json",
             "partition": [],
             "schema_ref": "schemas.2B.yaml#/policy/alias_layout_policy_v1",
@@ -140,10 +144,10 @@ def _write_receipt(
     return dest
 
 
-def _sha256_file(path: Path) -> str:
-    sha = hashlib.sha256()
-    sha.update(path.read_bytes())
-    return sha.hexdigest()
+def _sealed_digest(path: Path) -> str:
+    files = expand_files(path)
+    digests = hash_files(files, error_prefix="TEST_S2")
+    return aggregate_sha256(digests)
 
 
 def test_s2_alias_runner_builds_blob(tmp_path: Path) -> None:

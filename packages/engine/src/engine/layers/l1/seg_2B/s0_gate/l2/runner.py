@@ -182,8 +182,12 @@ class S0GateRunner:
             write_result=write_result,
             gate_verify_ms=gate_verify_ms,
         )
-        self._write_run_report(inputs=inputs, payload=run_report)
-        print(json.dumps(run_report, indent=2))  # pragma: no cover - operator visibility
+        run_report_path = self._write_run_report(inputs=inputs, payload=run_report)
+        logger.info(
+            "Segment2B S0 run-report saved to %s (manifest=%s)",
+            run_report_path,
+            inputs.manifest_fingerprint,
+        )
 
         logger.info(
             "Segment2B S0 completed (manifest=%s, receipt=%s)",
@@ -632,7 +636,7 @@ class S0GateRunner:
             validators.append({"id": vid, "status": status, "codes": codes})
         return validators
 
-    def _write_run_report(self, *, inputs: GateInputs, payload: Mapping[str, object]) -> None:
+    def _write_run_report(self, *, inputs: GateInputs, payload: Mapping[str, object]) -> Path:
         report_path = (
             inputs.data_root
             / "reports"
@@ -643,6 +647,7 @@ class S0GateRunner:
         ).resolve()
         report_path.parent.mkdir(parents=True, exist_ok=True)
         report_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        return report_path
 
     @staticmethod
     def _render_template(template: str, template_args: Mapping[str, object]) -> str:

@@ -1,9 +1,13 @@
-import hashlib
 import json
 from pathlib import Path
 
 import polars as pl
 
+from engine.layers.l1.seg_2B.s0_gate.l0.filesystem import (
+    aggregate_sha256,
+    expand_files,
+    hash_files,
+)
 from engine.layers.l1.seg_2B.s3_day_effects import (
     S3DayEffectsInputs,
     S3DayEffectsRunner,
@@ -117,7 +121,7 @@ def _write_sealed_inventory(
         {
             "asset_id": "site_timezones",
             "version_tag": f"{seed}.{seg2a_manifest}",
-            "sha256_hex": _sha256_dir(tz_dir),
+            "sha256_hex": _sealed_digest(tz_dir),
             "path": f"data/layer1/2A/site_timezones/seed={seed}/fingerprint={seg2a_manifest}/",
             "partition": ["seed", "fingerprint"],
             "schema_ref": "schemas.2A.yaml#/egress/site_timezones",
@@ -125,7 +129,7 @@ def _write_sealed_inventory(
         {
             "asset_id": "day_effect_policy_v1",
             "version_tag": "2025.11",
-            "sha256_hex": _sha256_file(policy_path),
+            "sha256_hex": _sealed_digest(policy_path),
             "path": "contracts/policies/l1/seg_2B/day_effect_policy_v1.json",
             "partition": [],
             "schema_ref": "schemas.2B.yaml#/policy/day_effect_policy_v1",
@@ -171,25 +175,10 @@ def _write_receipt(
     dest.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
 
-def _sha256_file(path: Path) -> str:
-    sha = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            sha.update(chunk)
-    return sha.hexdigest()
-
-
-def _sha256_dir(path: Path) -> str:
-    sha = hashlib.sha256()
-    if not path.exists():
-        return sha.hexdigest()
-    for entry in sorted(path.rglob("*")):
-        if entry.is_file():
-            sha.update(entry.relative_to(path).as_posix().encode("utf-8"))
-            with entry.open("rb") as handle:
-                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-                    sha.update(chunk)
-    return sha.hexdigest()
+def _sealed_digest(path: Path) -> str:
+    files = expand_files(path)
+    digests = hash_files(files, error_prefix="TEST_S3")
+    return aggregate_sha256(digests)
 
 
 def test_s3_day_effects_runner_emits_factors(tmp_path: Path) -> None:
