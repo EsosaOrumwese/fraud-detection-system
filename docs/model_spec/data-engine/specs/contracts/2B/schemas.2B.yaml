@@ -1,3 +1,8 @@
+version: '1.0'
+$id: schemas.2B.yaml
+$schema: https://json-schema.org/draft/2020-12/schema
+description: "Layer-1 · Segment 2B (Routing) — schema pack."
+
 # Layer-1 · Segment 2B — Schema Pack
 title: "Layer-1 · Segment 2B — Schema Pack"
 
@@ -10,6 +15,14 @@ $defs:
     additionalProperties:
       type: string
     minProperties: 0
+
+# Segment 2B currently relies on 2A/1B authorities for modelling inputs. These
+# sections are placeholders to keep the schema aligned with the Layer-1 template.
+model: {}
+
+prep: {}
+
+egress: {}
 
 validation:
   s0_gate_receipt_v1:
@@ -386,4 +399,3 @@ trace:
       ctr_edge_lo:          { $ref: 'schemas.layer1.yaml#/$defs/uint64' }
       manifest_fingerprint: { $ref: '#/$defs/hex64' }
       created_utc:          { $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros' }
-

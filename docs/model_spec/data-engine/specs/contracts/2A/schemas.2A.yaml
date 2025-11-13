@@ -3,7 +3,23 @@ $id: schemas.2A.yaml
 $schema: https://json-schema.org/draft/2020-12/schema
 description: "Layer-1 · Segment 2A (Civil Time) — schema pack. JSON-Schema is the sole shape authority."
 
+$defs:
+  hex64:
+    $ref: 'schemas.layer1.yaml#/$defs/hex64'
+  uint64:
+    $ref: 'schemas.layer1.yaml#/$defs/uint64'
+  iso2:
+    $ref: 'schemas.layer1.yaml#/$defs/iso2'
+  rfc3339_micros:
+    $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros'
+  iana_tzid:
+    $ref: 'schemas.layer1.yaml#/$defs/iana_tzid'
+
 # ── Validation / Receipts ─────────────────────────────────────────────────
+model: {}
+
+prep: {}
+
 validation:
 
   s0_gate_receipt_v1:
@@ -186,14 +202,17 @@ plan:
     sort_keys: [merchant_id, legal_country_iso, site_order]
     columns_strict: true
     columns:
-      - { name: merchant_id,        $ref: 'schemas.layer1.yaml#/$defs/id64',  nullable: false }
-      - { name: legal_country_iso,  $ref: 'schemas.layer1.yaml#/$defs/iso2',  nullable: false }
-      - { name: site_order,         type: integer, minimum: 1,                nullable: false }
+      - { name: seed,               $ref: '#/$defs/uint64',                    nullable: false }
+      - { name: fingerprint,        $ref: '#/$defs/hex64',                     nullable: false }
+      - { name: merchant_id,        $ref: 'schemas.layer1.yaml#/$defs/id64',   nullable: false }
+      - { name: legal_country_iso,  $ref: 'schemas.layer1.yaml#/$defs/iso2',   nullable: false }
+      - { name: site_order,         type: integer, minimum: 1,                 nullable: false }
       - { name: lat_deg,            type: number,                              nullable: false }
       - { name: lon_deg,            type: number,                              nullable: false }
-      - { name: tzid_provisional,   $ref: 'schemas.layer1.yaml#/$defs/iana_tzid', nullable: true }
+      - { name: tzid_provisional,   $ref: '#/$defs/iana_tzid',                 nullable: false }
       - { name: nudge_lat_deg,      type: number,                              nullable: true }
       - { name: nudge_lon_deg,      type: number,                              nullable: true }
+      - { name: created_utc,        $ref: '#/$defs/rfc3339_micros',            nullable: false }
 
 egress:
 
@@ -205,15 +224,17 @@ egress:
     sort_keys: [merchant_id, legal_country_iso, site_order]
     columns_strict: true
     columns:
-      - { name: merchant_id,        $ref: 'schemas.layer1.yaml#/$defs/id64',  nullable: false }
-      - { name: legal_country_iso,  $ref: 'schemas.layer1.yaml#/$defs/iso2',  nullable: false }
-      - { name: site_order,         type: integer, minimum: 1,                nullable: false }
-      - { name: tzid,               $ref: 'schemas.layer1.yaml#/$defs/iana_tzid', nullable: false, fk: { dataset_ref: 'schemas.ingress.layer1.yaml#/tz_world_2025a', columns: { tzid: tzid } } }
-      - { name: tzid_source,        type: string, enum: [polygon, override],  nullable: false }
-      - { name: override_scope,     type: string, enum: [site, mcc, country], nullable: true }
+      - { name: seed,               $ref: '#/$defs/uint64',                    nullable: false }
+      - { name: fingerprint,        $ref: '#/$defs/hex64',                     nullable: false }
+      - { name: merchant_id,        $ref: 'schemas.layer1.yaml#/$defs/id64',   nullable: false }
+      - { name: legal_country_iso,  $ref: 'schemas.layer1.yaml#/$defs/iso2',   nullable: false }
+      - { name: site_order,         type: integer, minimum: 1,                 nullable: false }
+      - { name: tzid,               $ref: '#/$defs/iana_tzid',                 nullable: false }
+      - { name: tzid_source,        type: string, enum: [polygon, override],   nullable: false }
+      - { name: override_scope,     type: string, enum: [site, mcc, country],  nullable: true }
       - { name: nudge_lat_deg,      type: number,                              nullable: true }
       - { name: nudge_lon_deg,      type: number,                              nullable: true }
-      - { name: created_utc,        $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros', nullable: false }
+      - { name: created_utc,        $ref: '#/$defs/rfc3339_micros',            nullable: false }
 
 cache:
 

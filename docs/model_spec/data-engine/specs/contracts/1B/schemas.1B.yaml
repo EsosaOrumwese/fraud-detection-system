@@ -45,6 +45,15 @@ $defs:
     enum: ["uniform","area_m2","population"]
     description: Weighting basis used by S2 (non-authoritative if included as a column).
 
+# Layer-1 template alignment placeholders. Detailed dataset schemas live in the
+# state-specific specs and will be inlined as we promote 1B to beta.
+model: {}
+
+prep: {}
+
+egress: {}
+
+plan: {}
 
 policy:
   jitter_policy:
