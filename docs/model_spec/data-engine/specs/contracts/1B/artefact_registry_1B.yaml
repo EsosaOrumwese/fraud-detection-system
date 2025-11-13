@@ -190,8 +190,10 @@ subsegments:
     dependencies: [iso3166_canonical_2024, world_countries, population_raster_2025]
     source: internal
     owner: {owner_team: "mlr-1b-core"}
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.1B.yaml#/prep/tile_index
+    cross_layer: false
     notes: 'Partition: parameter_hash={parameter_hash}; writer sort: [country_iso,tile_id].'
 
   # ---- S2 output dataset ----
@@ -208,8 +210,10 @@ subsegments:
     dependencies: [tile_index]
     source: internal
     owner: {owner_team: "mlr-1b-core"}
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.1B.yaml#/prep/tile_weights
+    cross_layer: false
     notes: |
       S2 output- deterministic fixed-decimal (fixed-dp) weights per eligible tile.
       Depends on S1 `tile_index` for the same {parameter_hash}.
@@ -230,8 +234,10 @@ subsegments:
     dependencies: [outlet_catalogue, tile_weights, iso3166_canonical_2024, s0_gate_receipt_1B]
     source: internal
     owner: {owner_team: "mlr-1b-core"}
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.1B.yaml#/plan/s3_requirements
+    cross_layer: false
     notes: |
       Partitioning: seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
       Writer sort: [merchant_id, legal_country_iso]
@@ -250,8 +256,10 @@ subsegments:
     dependencies: [s3_requirements, tile_weights, tile_index, iso3166_canonical_2024, s0_gate_receipt_1B]
     source: internal
     owner: {owner_team: "mlr-1b-core"}
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.1B.yaml#/plan/s4_alloc_plan
+    cross_layer: false
     notes: |
       Partitioning: seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
       Writer sort: [merchant_id, legal_country_iso, tile_id]
@@ -270,8 +278,10 @@ subsegments:
     dependencies: [s4_alloc_plan, tile_index, iso3166_canonical_2024, s0_gate_receipt_1B]
     source: internal
     owner: { owner_team: "mlr-1b-core" }
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.1B.yaml#/plan/s5_site_tile_assignment
+    cross_layer: false
     notes: |
       Partitioning: seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
       Writer sort: [merchant_id, legal_country_iso, site_order]
@@ -290,8 +300,10 @@ subsegments:
     dependencies: [s5_site_tile_assignment, tile_index, world_countries, iso3166_canonical_2024, s0_gate_receipt_1B]
     source: internal
     owner: { owner_team: "mlr-1b-core" }
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.1B.yaml#/plan/s6_site_jitter
+    cross_layer: false
     notes: |
       Partitioning: seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
       Writer sort: [merchant_id, legal_country_iso, site_order]
@@ -310,8 +322,10 @@ subsegments:
     dependencies: [s5_site_tile_assignment, s6_site_jitter, tile_index, tile_bounds, iso3166_canonical_2024, s0_gate_receipt_1B]
     source: internal
     owner: { owner_team: "mlr-1b-core" }
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.1B.yaml#/plan/s7_site_synthesis
+    cross_layer: false
     notes: |
       Partitioning: seed={seed}/fingerprint={manifest_fingerprint}/parameter_hash={parameter_hash}
       Writer sort: [merchant_id, legal_country_iso, site_order]
@@ -330,8 +344,10 @@ subsegments:
     dependencies: [tile_index]
     source: internal
     owner: {owner_team: "mlr-1b-core"}
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.1B.yaml#/prep/tile_bounds
+    cross_layer: false
     notes: 'Partition: parameter_hash={parameter_hash}; writer sort: [country_iso,tile_id].'
 
   - name: site_locations
@@ -347,8 +363,10 @@ subsegments:
     dependencies: [s7_site_synthesis]
     source: internal
     owner: { owner_team: 'mlr-1b-core' }
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.1B.yaml#/egress/site_locations
+    cross_layer: true
     notes: 'Partition: seed={seed}/fingerprint={manifest_fingerprint}; writer sort: [merchant_id, legal_country_iso, site_order]; write-once; atomic move; file order non-authoritative.'
 
   - name: validation_bundle_1B
@@ -357,6 +375,7 @@ subsegments:
     category: validation
     semver: '{semver}'
     version: '{manifest_fingerprint}'
+    digest: '{sha256}'
     manifest_key: mlr.1B.validation.bundle
     license: Proprietary-Internal
     role: "Fingerprint-scoped PASS bundle for 1B; consumers MUST verify _passed.flag before reading site_locations (No PASS → no read)."
@@ -365,7 +384,9 @@ subsegments:
       index_schema_ref: schemas.1A.yaml#/validation/validation_bundle.index_schema
     source: internal
     owner: { owner_team: "mlr-1b-core" }
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
+    cross_layer: true
     notes: |
       Partitioning: fingerprint={manifest_fingerprint}
       Publish posture: write-once; stage → fsync → single atomic move; file order non-authoritative.
@@ -384,8 +405,11 @@ subsegments:
     dependencies: [s5_site_tile_assignment]   # budget check ties logs to dataset size
     source: internal
     owner: { owner_team: "mlr-1b-core" }
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.layer1.yaml#/rng/events/site_tile_assign
+    cross_layer: false
+    notes: null
 
   - name: rng_audit_log
     path: logs/rng/audit/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_audit_log.jsonl
@@ -400,8 +424,11 @@ subsegments:
     dependencies: [s6_site_jitter]
     source: internal
     owner: { owner_team: "mlr-1b-core" }
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.layer1.yaml#/rng/core/rng_audit_log
+    cross_layer: false
+    notes: null
 
   - name: rng_trace_log
     path: logs/rng/trace/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/rng_trace_log.jsonl
@@ -416,8 +443,11 @@ subsegments:
     dependencies: [s6_site_jitter, rng_audit_log]
     source: internal
     owner: { owner_team: "mlr-1b-core" }
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.layer1.yaml#/rng/core/rng_trace_log
+    cross_layer: false
+    notes: null
 
   - name: rng_event_in_cell_jitter
     path: logs/rng/events/in_cell_jitter/seed={seed}/parameter_hash={parameter_hash}/run_id={run_id}/part-*.jsonl
@@ -432,5 +462,8 @@ subsegments:
     dependencies: [s5_site_tile_assignment]   # coverage ties to S5 keyset; budget fixed per event
     source: internal
     owner: { owner_team: "mlr-1b-core" }
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.layer1.yaml#/rng/events/in_cell_jitter
+    cross_layer: false
+    notes: null

@@ -32,12 +32,14 @@ subsegments:
     category: validation
     semver: '{semver}'
     version: '{manifest_fingerprint}'
+    digest: '{sha256}'
     manifest_key: mlr.1B.validation.bundle
     license: Proprietary-Internal
     role: "Fingerprint-scoped PASS bundle for 1B; S0 recomputes hash before any read (No PASS → No read)."
     dependencies: []
     source: internal
     owner: {owner_team: "mlr-1b-validation"}
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema:
       index_schema_ref: schemas.1A.yaml#/validation/validation_bundle.index_schema  # 1A index law reused
@@ -50,13 +52,18 @@ subsegments:
     category: validation
     semver: '{semver}'
     version: '{manifest_fingerprint}'
+    digest: '{sha256_of_bundle}'
     manifest_key: mlr.1B.validation.passed
     license: Proprietary-Internal
     role: "Single-line hash per ASCII-lex+raw-bytes recipe."
     dependencies: [validation_bundle_1B]
     source: internal
     owner: {owner_team: "mlr-1b-validation"}
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
+    schema: schemas.1B.yaml#/validation/passed_flag
+    cross_layer: true
+    notes: null
 
   # Cross-layer pointer to 1B egress consumed by 2A
   - name: site_locations
@@ -65,15 +72,18 @@ subsegments:
     category: output
     semver: '{semver}'
     version: '{seed}.{manifest_fingerprint}'
+    digest: '{sha256}'
     manifest_key: mlr.1B.egress.site_locations
     license: Proprietary-Internal
     role: "Per-site lon/lat from 1B; consumed by 2A.S1"
     dependencies: []
     source: internal
     owner: {owner_team: "mlr-1b-core"}
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.1B.yaml#/egress/site_locations
     cross_layer: true
+    notes: null
 
   # ── Policy/config sealed by S0 ──────────────────────────────────────────
   - name: tz_overrides
@@ -89,8 +99,11 @@ subsegments:
     dependencies: []
     source: internal
     owner: {owner_team: "mlr-2a-policy"}
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.2A.yaml#/policy/tz_overrides_v1
+    cross_layer: false
+    notes: null
 
   - name: tz_nudge
     path: config/timezone/tz_nudge.yml
@@ -105,8 +118,11 @@ subsegments:
     dependencies: []
     source: internal
     owner: {owner_team: "mlr-2a-policy"}
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.2A.yaml#/policy/tz_nudge_v1
+    cross_layer: false
+    notes: null
 
   - name: tzdb_release
     path: artefacts/priors/tzdata/{release_tag}/
@@ -121,9 +137,11 @@ subsegments:
     dependencies: []
     source: external
     owner: {owner_team: "mlr-ingress"}
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.2A.yaml#/ingress/tzdb_release_v1
     cross_layer: true
+    notes: null
 
   # Cross-layer pointer to ingress tz polygons used by 2A sealing
   - name: tz_world_2025a
@@ -132,15 +150,18 @@ subsegments:
     category: reference
     semver: '{semver}'
     version: '2025a'
+    digest: '{sha256}'
     manifest_key: mlr.ingress.tz_world_2025a
     license: ODbL-1.0
     role: "Time-zone world polygons; sealed by 2A.S0."
     dependencies: []
     source: external
     owner: {owner_team: "mlr-ingress"}
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.ingress.layer1.yaml#/tz_world_2025a
     cross_layer: true
+    notes: null
 
   # ── 2A datasets ─────────────────────────────────────────────────────────
   - name: s1_tz_lookup
@@ -156,8 +177,11 @@ subsegments:
     dependencies: [site_locations, tz_world_2025a, tz_nudge]
     source: internal
     owner: {owner_team: "mlr-2a-core"}
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.2A.yaml#/plan/s1_tz_lookup
+    cross_layer: false
+    notes: null
 
   - name: site_timezones
     path: data/layer1/2A/site_timezones/seed={seed}/fingerprint={manifest_fingerprint}/
@@ -172,8 +196,11 @@ subsegments:
     dependencies: [s1_tz_lookup, tz_overrides, tz_world_2025a]   # S2 lineage is from S1 plan + policy overrides; tzdb_release is used by S3.
     source: internal
     owner: {owner_team: "mlr-2a-core"}
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.2A.yaml#/egress/site_timezones
+    cross_layer: true
+    notes: null
 
   - name: tz_timetable_cache
     path: data/layer1/2A/tz_timetable_cache/fingerprint={manifest_fingerprint}/
@@ -188,8 +215,11 @@ subsegments:
     dependencies: [tzdb_release]
     source: internal
     owner: {owner_team: "mlr-2a-core"}
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.2A.yaml#/cache/tz_timetable_cache
+    cross_layer: true
+    notes: null
 
   - name: s4_legality_report
     path: data/layer1/2A/legality_report/seed={seed}/fingerprint={manifest_fingerprint}/s4_legality_report.json
@@ -204,8 +234,11 @@ subsegments:
     dependencies: [site_timezones, tz_timetable_cache]
     source: internal
     owner: {owner_team: "mlr-2a-core"}
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.2A.yaml#/validation/s4_legality_report
+    cross_layer: false
+    notes: null
 
   - name: validation_bundle_2A
     path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
@@ -213,15 +246,18 @@ subsegments:
     category: validation
     semver: '{semver}'
     version: '{manifest_fingerprint}'
+    digest: '{sha256}'
     manifest_key: mlr.2A.validation.bundle
     license: Proprietary-Internal
     role: "Fingerprint-scoped PASS bundle for 2A; consumers of 2A egress MUST verify _passed.flag."
     dependencies: [site_timezones, tz_timetable_cache, s4_legality_report]
     source: internal
     owner: {owner_team: "mlr-2a-validation"}
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema:
       index_schema_ref: schemas.2A.yaml#/validation/bundle_index_v1
+    cross_layer: true
     notes: "Hashing law: ASCII-lex order of index.path; hash raw bytes; flag excluded."
 
   - name: validation_passed_flag_2A
@@ -230,14 +266,18 @@ subsegments:
     category: validation
     semver: '{semver}'
     version: '{manifest_fingerprint}'
+    digest: '{sha256_of_bundle}'
     manifest_key: mlr.2A.validation.passed
     license: Proprietary-Internal
     role: "Single-line hash per bundle index law."
     dependencies: [validation_bundle_2A]
     source: internal
     owner: {owner_team: "mlr-2a-validation"}
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.2A.yaml#/validation/passed_flag
+    cross_layer: true
+    notes: null
 
   - name: sealed_inputs_v1
     path: data/layer1/2A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_v1.parquet
@@ -252,7 +292,8 @@ subsegments:
     dependencies: [s0_gate_receipt_2A]
     source: internal
     owner: { owner_team: "mlr-2a-core" }
+    last_updated: '{iso8601_timestamp}'
     environment: [runtime]
     schema: schemas.2A.yaml#/manifests/sealed_inputs_v1
+    cross_layer: false
     notes: "Partition fingerprint={manifest_fingerprint}; path↔embed equality enforced."
-
