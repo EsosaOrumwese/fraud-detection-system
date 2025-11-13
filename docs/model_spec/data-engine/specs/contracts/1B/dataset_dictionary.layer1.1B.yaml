@@ -32,7 +32,7 @@ reference_data:
     final_in_layer: false
   retention_days: 1095
   pii: false
-  license: CC-BY-4.0
+  licence: CC-BY-4.0
 
 - id: world_countries
   status: approved
@@ -50,7 +50,7 @@ reference_data:
     final_in_layer: false
   retention_days: 1095
   pii: false
-  license: ODbL-1.0
+  licence: ODbL-1.0
 
 - id: population_raster_2025
   status: approved
@@ -68,7 +68,7 @@ reference_data:
     final_in_layer: false
   retention_days: 1095
   pii: false
-  license: ODbL-1.0
+  licence: ODbL-1.0
 
 - id: tz_world_2025a
   status: approved
@@ -86,7 +86,7 @@ reference_data:
     final_in_layer: false
   retention_days: 1095
   pii: false
-  license: ODbL-1.0
+  licence: ODbL-1.0
 
 # (Optional, read-only discoverability; resolves via Dictionary as well as Registry)
 - id: validation_bundle_1A
@@ -105,7 +105,7 @@ reference_data:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: outlet_catalogue
   status: approved
@@ -123,8 +123,7 @@ reference_data:
     final_in_layer: true
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
-  notes: 'Read only after verifying 1A bundle flag (_passed.flag). No PASS → no read.'
+  licence: Proprietary-Internal
 
 - id: s3_candidate_set
   status: approved
@@ -142,7 +141,7 @@ reference_data:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 # ── Internally generated datasets (1B) ───────────────────────────────────
 datasets:
@@ -162,7 +161,7 @@ datasets:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 # Current 1B datasets (binding once their states are ratified; `tile_index` binds with S1)
 - id: tile_index
@@ -181,7 +180,7 @@ datasets:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: tile_weights
   status: approved
@@ -199,7 +198,7 @@ datasets:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: s3_requirements
   status: approved
@@ -217,7 +216,7 @@ datasets:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: s3_run_report
   status: approved
@@ -235,7 +234,7 @@ datasets:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: s4_alloc_plan
   status: approved
@@ -253,7 +252,7 @@ datasets:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: s4_run_report
   status: approved
@@ -271,7 +270,7 @@ datasets:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: s5_site_tile_assignment
   status: approved
@@ -289,7 +288,7 @@ datasets:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: s5_run_report
   status: approved
@@ -307,7 +306,7 @@ datasets:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: s6_site_jitter
   status: approved
@@ -325,7 +324,7 @@ datasets:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: s6_run_report
   status: approved
@@ -343,7 +342,7 @@ datasets:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: tile_bounds
   status: approved
@@ -361,7 +360,7 @@ datasets:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: s7_site_synthesis
   status: approved
@@ -379,7 +378,7 @@ datasets:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: s7_run_summary
   status: approved
@@ -397,7 +396,7 @@ datasets:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: site_locations
   status: approved
@@ -415,7 +414,7 @@ datasets:
     final_in_layer: true
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: s8_run_summary
   status: approved
@@ -433,7 +432,7 @@ datasets:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: validation_bundle_1B
   status: approved
@@ -451,7 +450,7 @@ datasets:
     final_in_layer: false
   retention_days: 1095
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: validation_passed_flag_1B
   status: approved
@@ -469,7 +468,7 @@ datasets:
     final_in_layer: false
   retention_days: 1095
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 policies:
 - id: jitter_policy
@@ -488,7 +487,7 @@ policies:
     final_in_layer: false
   retention_days: 30
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 logs:
 - id: rng_event_site_tile_assign
@@ -507,7 +506,7 @@ logs:
     final_in_layer: false
   retention_days: 30
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: rng_event_in_cell_jitter
   status: approved
@@ -525,7 +524,7 @@ logs:
     final_in_layer: false
   retention_days: 30
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: rng_audit_log
   status: approved
@@ -543,7 +542,7 @@ logs:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: rng_trace_log
   status: approved
@@ -561,4 +560,4 @@ logs:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal

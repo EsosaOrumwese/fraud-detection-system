@@ -32,8 +32,7 @@ reference_data:
     final_in_layer: true
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
-  notes: 'No PASS → no read (verify 1B bundle flag).'  # mirrors 1B Dictionary
+  licence: Proprietary-Internal
 # (optionally also list validation_bundle_1B / validation_passed_flag_1B for visibility)
 
 # Time-zone polygons used by 2A (sealed by S0)
@@ -53,7 +52,7 @@ reference_data:
     final_in_layer: false
   retention_days: 1095
   pii: false
-  license: ODbL-1.0
+  licence: ODbL-1.0
 
 # Canonical ISO-3166 table (if sealed by S0)
 - id: iso3166_canonical_2024
@@ -72,7 +71,7 @@ reference_data:
     final_in_layer: false
   retention_days: 1095
   pii: false
-  license: CC-BY-4.0
+  licence: CC-BY-4.0
 
 # ── Policy/Config/Artefacts sealed by 2A.S0 ───────────────────────────────
 policies:
@@ -92,7 +91,7 @@ policies:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: tz_nudge
   status: approved
@@ -110,7 +109,7 @@ policies:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 artefacts:
 - id: tzdb_release
@@ -129,7 +128,7 @@ artefacts:
     final_in_layer: false
   retention_days: 1095
   pii: false
-  license: CC-BY-4.0
+  licence: CC-BY-4.0
 
 # ── Internally generated datasets (2A) ────────────────────────────────────
 datasets:
@@ -149,7 +148,7 @@ datasets:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: sealed_inputs_v1
   status: approved
@@ -167,7 +166,7 @@ datasets:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: s1_tz_lookup
   status: approved
@@ -185,7 +184,7 @@ datasets:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: site_timezones
   status: approved
@@ -203,7 +202,7 @@ datasets:
     final_in_layer: true
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: tz_timetable_cache
   status: approved
@@ -221,7 +220,7 @@ datasets:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: s4_legality_report
   status: approved
@@ -239,7 +238,7 @@ datasets:
     final_in_layer: false
   retention_days: 365
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: validation_bundle_2A
   status: approved
@@ -257,7 +256,7 @@ datasets:
     final_in_layer: false
   retention_days: 1095
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
 
 - id: validation_passed_flag_2A
   status: approved
@@ -275,4 +274,4 @@ datasets:
     final_in_layer: false
   retention_days: 1095
   pii: false
-  license: Proprietary-Internal
+  licence: Proprietary-Internal
