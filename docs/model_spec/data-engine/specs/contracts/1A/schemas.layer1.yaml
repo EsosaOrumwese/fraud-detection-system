@@ -661,3 +661,37 @@ validation:
     type: object
     description: 'PASS receipt for S6 (S6_VALIDATION.json); used with _passed.flag in same folder.'
     additionalProperties: true
+
+  validation_bundle_index_3A:
+    type: object
+    additionalProperties: false
+    required: [manifest_fingerprint, parameter_hash, s6_receipt_digest, members]
+    properties:
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+      parameter_hash:       { $ref: '#/$defs/hex64' }
+      s6_receipt_digest:    { $ref: '#/$defs/hex64' }
+      members:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required: [logical_id, path, schema_ref, sha256_hex, role]
+          properties:
+            logical_id: { type: string }
+            path:       { type: string }
+            schema_ref: { type: string }
+            sha256_hex: { $ref: '#/$defs/hex64' }
+            role:       { type: string }
+            size_bytes: { type: integer, minimum: 0 }
+            notes:      { type: string }
+      metadata:
+        type: object
+        additionalProperties: true
+
+  passed_flag_3A:
+    type: object
+    additionalProperties: false
+    required: [sha256_hex]
+    properties:
+      sha256_hex: { $ref: '#/$defs/hex64' }

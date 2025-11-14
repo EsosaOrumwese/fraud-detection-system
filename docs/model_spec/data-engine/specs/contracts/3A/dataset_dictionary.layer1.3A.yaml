@@ -1,0 +1,323 @@
+version: '1.0'
+
+lifecycle:
+  phase: planning
+  last_reviewed:
+  approver:
+
+ci_policy:
+  allow_placeholders: true
+  placeholder_markers: [TBD, null]
+  block_on_phase: [beta, stable]
+
+layer:
+  id: layer1
+  name: Merchant Location Realism
+
+reference_data:
+- id: zone_mixture_policy
+  status: draft
+  owner_subsegment: 3A
+  description: Governed escalation policy describing theta thresholds and decision reasons.
+  version: '{policy_version}'
+  format: yaml
+  path: config/policy/3A/zone_mixture_policy.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.3A.yaml#/policy/zone_mixture_policy_v1
+  lineage:
+    produced_by: 3A.governance
+    consumed_by: [3A]
+    final_in_layer: false
+  retention_days: 1825
+  pii: false
+  licence: Proprietary-Internal
+
+- id: country_zone_alphas
+  status: draft
+  owner_subsegment: 3A
+  description: Dirichlet concentration priors per country×tzid used by S2.
+  version: '{prior_pack_version}'
+  format: yaml
+  path: config/allocation/country_zone_alphas.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.3A.yaml#/policy/country_zone_alphas_v1
+  lineage:
+    produced_by: 3A.governance
+    consumed_by: [3A]
+    final_in_layer: false
+  retention_days: 1825
+  pii: false
+  licence: Proprietary-Internal
+
+- id: zone_floor_policy
+  status: draft
+  owner_subsegment: 3A
+  description: Global zone floor and bump rules.
+  version: '{policy_version}'
+  format: yaml
+  path: config/allocation/zone_floor_policy.yaml
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.3A.yaml#/policy/zone_floor_policy_v1
+  lineage:
+    produced_by: 3A.governance
+    consumed_by: [3A]
+    final_in_layer: false
+  retention_days: 1825
+  pii: false
+  licence: Proprietary-Internal
+
+- id: day_effect_policy_v1
+  status: approved
+  owner_subsegment: 2B
+  description: Day-effect variance/γ policy consumed when computing routing universe hash.
+  version: '{policy_version}'
+  format: json
+  path: contracts/policy/2B/day_effect_policy_v1.json
+  partitioning: []
+  ordering: []
+  schema_ref: schemas.2B.yaml#/policy/day_effect_policy_v1
+  lineage:
+    produced_by: 2B.governance
+    consumed_by: [2B, 3A]
+    final_in_layer: false
+  retention_days: 1825
+  pii: false
+  licence: Proprietary-Internal
+
+datasets:
+- id: s0_gate_receipt_3A
+  status: draft
+  owner_subsegment: 3A
+  description: Gate descriptor proving upstream PASS status and sealed policy set.
+  version: '{manifest_fingerprint}'
+  format: json
+  path: data/layer1/3A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.3A.yaml#/validation/s0_gate_receipt_3A
+  lineage:
+    produced_by: 3A.S0
+    consumed_by: [3A.S1, 3A.S2, 3A.S3, 3A.S4, 3A.S5, 3A.S6, 3A.S7]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: sealed_inputs_3A
+  status: draft
+  owner_subsegment: 3A
+  description: Sealed inventory of artefacts authorised for Segment 3A.
+  version: '{manifest_fingerprint}'
+  format: parquet
+  path: data/layer1/3A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3A.parquet
+  partitioning: [fingerprint]
+  ordering: [owner_segment, artefact_kind, logical_id]
+  schema_ref: schemas.3A.yaml#/validation/sealed_inputs_3A
+  lineage:
+    produced_by: 3A.S0
+    consumed_by: [3A.S1, 3A.S2, 3A.S3, 3A.S4, 3A.S5, 3A.S6, 3A.S7]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: s1_escalation_queue
+  status: draft
+  owner_subsegment: 3A
+  description: Per-merchant escalation decisions and totals.
+  version: '{seed}.{manifest_fingerprint}'
+  format: parquet
+  path: data/layer1/3A/s1_escalation_queue/seed={seed}/fingerprint={manifest_fingerprint}/
+  partitioning: [seed, fingerprint]
+  ordering: [merchant_id, legal_country_iso]
+  schema_ref: schemas.3A.yaml#/plan/s1_escalation_queue
+  lineage:
+    produced_by: 3A.S1
+    consumed_by: [3A.S3, 3A.S4, 3A.S5]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: s2_country_zone_priors
+  status: draft
+  owner_subsegment: 3A
+  description: Parameter-scoped Dirichlet α-vectors per country×tzid.
+  version: '{parameter_hash}'
+  format: parquet
+  path: data/layer1/3A/s2_country_zone_priors/parameter_hash={parameter_hash}/
+  partitioning: [parameter_hash]
+  ordering: [country_iso, tzid]
+  schema_ref: schemas.3A.yaml#/plan/s2_country_zone_priors
+  lineage:
+    produced_by: 3A.S2
+    consumed_by: [3A.S3, 3A.S4, 3A.S5]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: s3_zone_shares
+  status: draft
+  owner_subsegment: 3A
+  description: Dirichlet share draws per merchant×country×zone.
+  version: '{seed}.{manifest_fingerprint}'
+  format: parquet
+  path: data/layer1/3A/s3_zone_shares/seed={seed}/fingerprint={manifest_fingerprint}/
+  partitioning: [seed, fingerprint]
+  ordering: [merchant_id, legal_country_iso, tzid]
+  schema_ref: schemas.3A.yaml#/plan/s3_zone_shares
+  lineage:
+    produced_by: 3A.S3
+    consumed_by: [3A.S4, 3A.S5]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: s4_zone_counts
+  status: draft
+  owner_subsegment: 3A
+  description: Integer outlet counts per merchant×country×zone after floor/bump.
+  version: '{seed}.{manifest_fingerprint}'
+  format: parquet
+  path: data/layer1/3A/s4_zone_counts/seed={seed}/fingerprint={manifest_fingerprint}/
+  partitioning: [seed, fingerprint]
+  ordering: [merchant_id, legal_country_iso, tzid]
+  schema_ref: schemas.3A.yaml#/plan/s4_zone_counts
+  lineage:
+    produced_by: 3A.S4
+    consumed_by: [3A.S5]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: zone_alloc
+  status: draft
+  owner_subsegment: 3A
+  description: Cross-layer zone allocation egress for routing segment.
+  version: '{seed}.{manifest_fingerprint}'
+  format: parquet
+  path: data/layer1/3A/zone_alloc/seed={seed}/fingerprint={manifest_fingerprint}/
+  partitioning: [seed, fingerprint]
+  ordering: [merchant_id, legal_country_iso, tzid]
+  schema_ref: schemas.3A.yaml#/egress/zone_alloc
+  lineage:
+    produced_by: 3A.S5
+    consumed_by: [2B, validation, cross_segment_validation]
+    final_in_layer: true
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: zone_alloc_universe_hash
+  status: draft
+  owner_subsegment: 3A
+  description: Digest summary tying priors/policies to the published zone allocation.
+  version: '{manifest_fingerprint}'
+  format: json
+  path: data/layer1/3A/zone_universe/fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.3A.yaml#/validation/zone_alloc_universe_hash
+  lineage:
+    produced_by: 3A.S5
+    consumed_by: [2B, validation]
+    final_in_layer: false
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: s6_validation_report_3A
+  status: draft
+  owner_subsegment: 3A
+  description: Structural validation report emitted by 3A.S6.
+  version: '{manifest_fingerprint}'
+  format: json
+  path: data/layer1/3A/s6_validation_report/fingerprint={manifest_fingerprint}/report.json
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.3A.yaml#/validation/s6_validation_report_3A
+  lineage:
+    produced_by: 3A.S6
+    consumed_by: [3A.S7, cross_segment_validation]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: s6_issue_table_3A
+  status: draft
+  owner_subsegment: 3A
+  description: Per-issue findings emitted by 3A.S6.
+  version: '{manifest_fingerprint}'
+  format: parquet
+  path: data/layer1/3A/s6_issues/fingerprint={manifest_fingerprint}/issues.parquet
+  partitioning: [fingerprint]
+  ordering: [severity, issue_code, merchant_id, legal_country_iso, tzid]
+  schema_ref: schemas.3A.yaml#/validation/s6_issue_table_3A
+  lineage:
+    produced_by: 3A.S6
+    consumed_by: [3A.S7, ops_tooling]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: s6_receipt_3A
+  status: draft
+  owner_subsegment: 3A
+  description: Compact validation receipt capturing S6 outcomes.
+  version: '{manifest_fingerprint}'
+  format: json
+  path: data/layer1/3A/s6_receipt/fingerprint={manifest_fingerprint}/s6_receipt.json
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.3A.yaml#/validation/s6_receipt_3A
+  lineage:
+    produced_by: 3A.S6
+    consumed_by: [3A.S7]
+    final_in_layer: false
+  retention_days: 365
+  pii: false
+  licence: Proprietary-Internal
+
+- id: validation_bundle_3A
+  status: draft
+  owner_subsegment: 3A
+  description: Fingerprint-scoped validation bundle for Segment 3A.
+  version: '{manifest_fingerprint}'
+  format: dir
+  path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3A
+  lineage:
+    produced_by: 3A.S7
+    consumed_by: [orchestrator, cross_segment_validation]
+    final_in_layer: true
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
+
+- id: passed_flag_3A
+  status: draft
+  owner_subsegment: 3A
+  description: HashGate PASS flag accompanying the 3A validation bundle.
+  version: '{manifest_fingerprint}'
+  format: text
+  path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag_3A
+  partitioning: [fingerprint]
+  ordering: []
+  schema_ref: schemas.layer1.yaml#/validation/passed_flag_3A
+  lineage:
+    produced_by: 3A.S7
+    consumed_by: [orchestrator, segment_readers]
+    final_in_layer: true
+  retention_days: 1095
+  pii: false
+  licence: Proprietary-Internal
