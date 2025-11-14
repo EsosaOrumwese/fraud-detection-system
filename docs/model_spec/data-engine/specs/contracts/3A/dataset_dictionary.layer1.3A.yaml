@@ -304,7 +304,7 @@ datasets:
   pii: false
   licence: Proprietary-Internal
 
-- id: passed_flag_3A
+- id: _passed.flag_3A
   status: draft
   owner_subsegment: 3A
   description: HashGate PASS flag accompanying the 3A validation bundle.

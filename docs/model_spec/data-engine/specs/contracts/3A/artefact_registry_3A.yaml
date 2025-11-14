@@ -117,7 +117,7 @@ subsegments:
     manifest_key: mlr.3A.s1.escalation_queue
     license: Proprietary-Internal
     role: Escalation decisions and totals per merchant×country.
-    dependencies: [mlr.3A.s0_gate_receipt, mlr.1A.outlet_catalogue]
+    dependencies: [mlr.3A.s0_gate_receipt, mlr.1A.outlet_catalogue, mlr.ingress.iso3166_canonical_2024, mlr.ingress.tz_world_2025a]
     source: internal
     owner: {owner_team: "mlr-3a-core"}
     last_updated: '{iso8601_timestamp}'
