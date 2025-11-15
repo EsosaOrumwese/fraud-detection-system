@@ -385,12 +385,12 @@ No other persistent outputs are in scope for 3A.S0. In particular, S0:
 
 **Identity & path**
 
-* Dataset ID (logical): **`s0_gate_receipt_3A`** (exact ID to be defined in `dataset_dictionary.layer1.3A.yaml`).
+* Dataset ID (logical): **`s0_gate_receipt_3A`** (exact ID defined in `dataset_dictionary.layer1.3A.yaml`).
 * Scope: one artefact per `manifest_fingerprint`.
-* Physical layout (conceptual pattern, final details in contracts):
+* Physical layout (contract-aligned pattern):
 
   * Path pattern:
-    `data/layer1/3A/s0_gate_receipt_3A/fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json`
+    `data/layer1/3A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json`
   * Partitioning: **`[fingerprint]`** only.
 * The embedded `manifest_fingerprint` field in the JSON payload MUST equal the `{manifest_fingerprint}` path token (path↔embed equality).
 
@@ -410,6 +410,8 @@ No other persistent outputs are in scope for 3A.S0. In particular, S0:
 * Record the 3A policy/prior artefacts sealed into this run:
 
   * IDs and versions for zone mixture policy, country→zone α-priors, zone floor/bump policy, and any day-effect policy treated as a parameter input.
+* Record the timezone geometry/cache universe pinned for this fingerprint (tz-world release/digest, tz-index digest if present, `tz_timetable_cache` digest).
+* Record deterministic catalogue pins — the Layer-1 engine commit, dataset dictionary and artefact registry bundle hashes, and per-pack entries in `catalogue_versions`.
 
 **Consumers**
 
@@ -552,7 +554,15 @@ At minimum, the schema MUST enforce:
       * `flag_path` (string),
       * `sha256_hex` (`hex64`),
       * `status` (enum: `"PASS"` only for S0; other values reserved for validators).
-  * `catalogue_versions` — `object` summarising catalogue artefacts in use (e.g. keys `schemas_layer1`, `dataset_dictionary_layer1_1A`, `artefact_registry_2A`, `dataset_dictionary_layer1_3A`, each a string version tag).
+  * `catalogue_versions` — `object` summarising catalogue artefacts in use (mandatory keys: `schemas_layer1`, `schemas_ingress_layer1`, `dataset_dictionary_layer1_{1A,1B,2A,2B,3A}`, `artefact_registry_{1A,1B,2A,2B,3A}`), each value an object `{ version_tag: string, sha256_hex: hex64 }`.
+  * `engine_commit` — `$ref: schemas.layer1.yaml#/$defs/git_sha256_raw32`.
+  * `dictionary_digest` — `$ref: schemas.layer1.yaml#/$defs/hex64` (hash of the resolved dataset dictionary bundle; if multiple bundles are used, encode as a deterministic array of `{ id, sha256_hex }` and hash that array here).
+  * `registry_digest` — `$ref: schemas.layer1.yaml#/$defs/hex64` (analogous hash over the artefact registries in play).
+  * `tz_universe` — `object` capturing the timezone geometry/cache identity sealed at S0, with required keys:
+    * `tz_world_release` — `string`, e.g. `"tz_world_2025a"`,
+    * `tz_world_sha256` — `$ref: schemas.layer1.yaml#/$defs/hex64`,
+    * `tz_index_digest` — `$ref: schemas.layer1.yaml#/$defs/hex64` (or `null` if 2A does not publish one; field still required),
+    * `tz_timetable_cache_sha256` — `$ref: schemas.layer1.yaml#/$defs/hex64`.
   * `sealed_policy_set` — `array` of objects, each with:
 
     * `logical_id` (string, dataset/artefact ID),
@@ -566,6 +576,8 @@ At minimum, the schema MUST enforce:
   * MAY include future-compatible optional objects (e.g. `notes`, `operator_metadata`), but these MUST be marked as `additionalProperties: true` only at controlled, documented points.
 
 The schema MUST set `additionalProperties: false` at the top level to prevent accidental shape drift.
+
+**Determinism note:** Producers MUST populate `verified_at_utc` deterministically from already-fixed inputs (e.g. upstream bundle timestamps or a hash-derived pseudo-timestamp). Calling the system clock or any non-deterministic source is prohibited; repeated S0 runs for the same `(parameter_hash, manifest_fingerprint)` MUST yield identical `verified_at_utc` values.
 
 ---
 
@@ -610,9 +622,9 @@ The Layer-1 dataset dictionary for subsegment 3A MUST introduce two datasets und
 1. **Dataset: `s0_gate_receipt_3A`**
 
    * `id: "s0_gate_receipt_3A"`
-   * `subsegment: "3A"`
-   * `version: "1.0.0"` (dataset contract version, not `manifest_fingerprint`)
-   * `path: "data/layer1/3A/s0_gate_receipt_3A/fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json"`
+   * `owner_subsegment: 3A`
+   * `version: "{manifest_fingerprint}"` (fingerprint-scoped version, matching catalogue practice)
+   * `path: "data/layer1/3A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json"`
    * `partitioning: ["fingerprint"]`
    * `format: "json"`
    * `schema_ref: "schemas.3A.yaml#/validation/s0_gate_receipt_3A"`
@@ -623,15 +635,14 @@ The Layer-1 dataset dictionary for subsegment 3A MUST introduce two datasets und
 2. **Dataset: `sealed_inputs_3A`**
 
    * `id: "sealed_inputs_3A"`
-   * `subsegment: "3A"`
-   * `version: "1.0.0"`
+   * `owner_subsegment: 3A`
+   * `version: "{manifest_fingerprint}"`
    * `path: "data/layer1/3A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3A.parquet"`
    * `partitioning: ["fingerprint"]`
    * `format: "parquet"`
    * `schema_ref: "schemas.3A.yaml#/validation/sealed_inputs_3A"`
-   * `ordering` (writer sort): at minimum
-     `["owner_segment", "artefact_kind", "logical_id", "path"]`
-     to provide stable diagnostics; ordering is not authoritative for semantics.
+   * `ordering` (writer sort): `["owner_segment", "artefact_kind", "logical_id"]`
+     to provide stable diagnostics; ordering is not authoritative for semantics and MUST NOT include additional mandatory keys unless change-controlled.
    * `lineage.produced_by: ["3A.S0"]`
    * `lineage.consumed_by: ["3A", "validation", "run_report"]`
    * `final_in_layer: false`.
@@ -653,9 +664,9 @@ For each `manifest_fingerprint`, the 3A artefact registry MUST register S0’s o
    * `type: "dataset"`
    * `category: "gate"` (or `"validation"` if reusing existing categories)
    * `subsegment: "3A"`
-   * `path: "data/layer1/3A/s0_gate_receipt_3A/fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json"`
+   * `path: "data/layer1/3A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json"`
    * `schema: "schemas.3A.yaml#/validation/s0_gate_receipt_3A"`
-   * `version: "1.0.0"`
+   * `version: "{manifest_fingerprint}"`
    * `digest: "<sha256_hex>"` (resolved at run time)
    * `dependencies:` list including:
 
@@ -674,7 +685,7 @@ For each `manifest_fingerprint`, the 3A artefact registry MUST register S0’s o
    * `subsegment: "3A"`
    * `path: "data/layer1/3A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3A.parquet"`
    * `schema: "schemas.3A.yaml#/validation/sealed_inputs_3A"`
-   * `version: "1.0.0"`
+   * `version: "{manifest_fingerprint}"`
    * `digest: "<sha256_hex>"`
    * `dependencies:` MAY be left empty or contain only structural catalogue artefacts; by design, `sealed_inputs_3A` is a *listing* of dependencies rather than a direct consumer.
    * `role: "Enumerates admissible inputs for Segment-3A at this manifest_fingerprint"`
@@ -738,6 +749,7 @@ All ordering and tie-breaking MUST be explicit and stable; no step may rely on i
   * Verify that `parameter_hash` and `manifest_fingerprint` conform to `hex64`.
   * Verify that `seed` conforms to `uint64`.
   * Record these values in memory; they will later be embedded into both S0 outputs.
+  * Treat `seed` as **metadata only**: for a fixed `(parameter_hash, manifest_fingerprint)` and unchanged catalogue, S0’s behaviour and outputs MUST be identical regardless of the seed value. No branching or conditional sealing may depend on `seed`.
 
 **Step 2 – Load catalogue artefacts.**
 
@@ -852,8 +864,9 @@ The sealed input set `𝕊` is the union of:
 
    * `outlet_catalogue@seed={seed}/fingerprint={manifest_fingerprint}` (1A egress),
    * `site_timezones@seed={seed}/fingerprint={manifest_fingerprint}` (2A egress),
-   * `tz_timetable_cache@fingerprint={manifest_fingerprint}` (2A cache),
-   * ingress references required structurally by later 3A states (e.g. `iso3166_canonical_2024`, `tz_world_2025a`).
+    * `tz_timetable_cache@fingerprint={manifest_fingerprint}` (2A cache),
+    * `tz_index_manifest@fingerprint={manifest_fingerprint}` (if 2A publishes the STR-tree digest separately from the cache bundle),
+    * ingress references required structurally by later 3A states (e.g. `iso3166_canonical_2024`, `tz_world_2025a`).
 
 3. **3A policies and priors**
 
@@ -1045,7 +1058,7 @@ Both S0 artefacts are **fingerprint-scoped**. They MUST obey the same partitioni
 
    * Partition key set: `["fingerprint"]` only.
    * Physical layout MUST follow the dictionary entry (conceptually):
-     `data/layer1/3A/s0_gate_receipt_3A/fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json`
+     `data/layer1/3A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json`
    * No `seed`, `parameter_hash` or `run_id` partitions are allowed for this dataset.
 
 2. **`sealed_inputs_3A`**
@@ -1239,6 +1252,7 @@ For a given `(parameter_hash, manifest_fingerprint, seed)`, 3A.S0 is considered 
 
      * upstream gates (1A/1B/2A bundles + flags),
      * upstream data-plane inputs required later (1A `outlet_catalogue`, 2A `site_timezones`, `tz_timetable_cache`, ingress reference tables),
+     * timezone-geometry artefacts (ingress `tz_world` release, 2A `tz_timetable_cache`, and, if present, `tz_index_manifest`) whose digests match the `tz_universe` section of `s0_gate_receipt_3A`,
      * all sealed policies/priors from the current parameter set.
    * Each row in `sealed_inputs_3A`:
 
@@ -1255,8 +1269,10 @@ For a given `(parameter_hash, manifest_fingerprint, seed)`, 3A.S0 is considered 
    * The JSON object conforms to `schemas.3A.yaml#/validation/s0_gate_receipt_3A`.
    * Its `manifest_fingerprint`, `parameter_hash` and `seed` fields exactly match the invocation triple.
    * Its `upstream_gates` entries align with the actual verified bundles (same bundle paths, flag paths, digests).
-   * Its `catalogue_versions` reflect the exact versions of schema/dictionary/registry packs loaded in this run.
+   * Its `catalogue_versions` reflect the exact versions and digests of schema/dictionary/registry packs loaded in this run.
    * Its `sealed_policy_set` entries all correspond 1:1 to rows in `sealed_inputs_3A` with matching IDs and `sha256_hex`.
+   * Its `tz_universe` section matches the sealed rows for `tz_world`, `tz_index_manifest` (if applicable) and `tz_timetable_cache`.
+   * Its `engine_commit`, `dictionary_digest`, and `registry_digest` fields are populated and correspond to the actual commit and catalogue bundles used for S0.
 
    Any mismatch between gate receipt and actual sealed inputs MUST cause S0 to fail.
 
