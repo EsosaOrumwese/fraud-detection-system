@@ -669,26 +669,28 @@ The Layer-1 dataset dictionary for subsegment 3A MUST define a dataset entry for
 
 ```yaml
 datasets:
-  - id: "s1_escalation_queue"
-    subsegment: "3A"
-    version: "1.0.0"              # S1 contract version for this dataset
-    path: "data/layer1/3A/s1_escalation_queue/seed={seed}/fingerprint={manifest_fingerprint}/"
-    format: "parquet"
-    partitioning: ["seed", "fingerprint"]
-    ordering: ["merchant_id", "legal_country_iso"]
-    schema_ref: "schemas.3A.yaml#/plan/s1_escalation_queue"
+  - id: s1_escalation_queue
+    owner_subsegment: 3A
+    description: Per-merchant escalation decisions and totals.
+    version: '{seed}.{manifest_fingerprint}'
+    format: parquet
+    path: data/layer1/3A/s1_escalation_queue/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitioning: [seed, manifest_fingerprint]
+    ordering: [merchant_id, legal_country_iso]
+    schema_ref: schemas.3A.yaml#/plan/s1_escalation_queue
     lineage:
-      produced_by: ["3A.S1"]
-      consumed_by: ["3A.S2", "3A.S3", "3A.S4", "3A.validation"]
+      produced_by: 3A.S1
+      consumed_by: [3A.S3, 3A.S4, 3A.S5]
     final_in_layer: false
-    role: "3A internal planning surface — escalation decisions per merchant×country"
+    pii: false
+    licence: Proprietary-Internal
 ```
 
 Binding points:
 
 * **`id`** MUST be `"s1_escalation_queue"`; no other dataset may reuse this ID.
 * **`path`** MUST contain both `seed={seed}` and `fingerprint={manifest_fingerprint}` tokens and no additional partition tokens.
-* **`partitioning`** MUST be exactly `["seed", "fingerprint"]`.
+* **`partitioning`** MUST be exactly `["seed", "manifest_fingerprint"]`; the `fingerprint={manifest_fingerprint}` path token MUST still embed the same hex64 value.
 * **`schema_ref`** MUST point to `schemas.3A.yaml#/plan/s1_escalation_queue`.
 * **`ordering`** expresses the writer-sort key; readers MUST NOT assign semantics to physical file order beyond reproducibility.
 
@@ -701,36 +703,32 @@ Any alternative path, partitioning scheme, or schema_ref for this dataset is out
 For each `manifest_fingerprint`, the 3A artefact registry MUST include an entry for `s1_escalation_queue`. A representative registry item (field names aligned to existing Layer-1 style) is:
 
 ```yaml
-- manifest_key: "mlr.3A.s1_escalation_queue"
-  name: "Segment 3A S1 escalation queue"
-  subsegment: "3A"
-  type: "dataset"
-  category: "plan"
-  path: "data/layer1/3A/s1_escalation_queue/seed={seed}/fingerprint={manifest_fingerprint}/"
-  schema: "schemas.3A.yaml#/plan/s1_escalation_queue"
-  version: "1.0.0"
-  digest: "<sha256_hex>"          # resolved per manifest at runtime
+- name: s1_escalation_queue
+  path: data/layer1/3A/s1_escalation_queue/seed={seed}/fingerprint={manifest_fingerprint}/
+  type: dataset
+  category: plan
+  semver: '1.0.0'
+  version: '{seed}.{manifest_fingerprint}'
+  digest: '{sha256}'
+  manifest_key: mlr.3A.s1.escalation_queue
+  license: Proprietary-Internal
+  role: Escalation decisions and totals per merchant×country.
   dependencies:
-    - "mlr.1A.outlet_catalogue"
-    - "mlr.ingress.iso3166_canonical_2024"
-    - "mlr.ingress.tz_world_2025a"
-    - "mlr.3A.zone_mixture_policy"
-    - "mlr.3A.s0_gate_receipt"
-  role: "Authority on monolithic vs escalated classification for merchant×country in Segment 3A"
-  cross_layer: true               # relevant to validation & analytics across segments
-  notes: "RNG-free; one row per merchant×country with ≥1 outlet; consumed by 3A.S2–S4."
+    - mlr.3A.s0_gate_receipt
+    - mlr.1A.outlet_catalogue
+    - mlr.ingress.iso3166_canonical_2024
+    - mlr.ingress.tz_world_2025a
+  source: internal
+  owner: {owner_team: "mlr-3a-core"}
+  schema: schemas.3A.yaml#/plan/s1_escalation_queue
+  cross_layer: true
 ```
 
 Binding requirements:
 
-* `manifest_key` MUST be unique within the registry and clearly namespaced to 3A.S1 (e.g. `mlr.3A.s1_escalation_queue`).
+* `manifest_key` MUST be unique within the registry and clearly namespaced to 3A.S1 (e.g. `mlr.3A.s1.escalation_queue`).
 * `path` and `schema` MUST match the dataset dictionary entry.
-* `dependencies` MUST include, at minimum:
-
-  * 1A outlet catalogue (`outlet_catalogue`),
-  * ingress/2A references used to compute `zone_count_country` (ISO + tz_world),
-  * the 3A zone mixture policy artefact,
-  * `s0_gate_receipt_3A` (which provides the trust anchor for upstream gates and sealed policies).
+* `dependencies` MUST include, at minimum, the artefacts enumerated in the 3A registry entry (today: `mlr.3A.s0_gate_receipt`, `mlr.1A.outlet_catalogue`, `mlr.ingress.iso3166_canonical_2024`, `mlr.ingress.tz_world_2025a`). If additional artefacts (e.g. explicit policy packs) are required later, they MUST be added through catalogue governance.
 
 The registry entry MUST be kept in sync with the dataset dictionary and actual written artefacts; **path↔embed equality** and digest correctness are validated by later 3A validation states.
 
