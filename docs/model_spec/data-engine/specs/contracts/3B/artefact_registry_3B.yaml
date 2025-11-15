@@ -3,6 +3,161 @@ subsegments:
     name: "Special Treatment for Purely Virtual Merchants"
     artifacts:
 
+      # 0 UPSTREAM HASHGATE ARTEFACTS (No PASS → No read)
+      - name: validation_bundle_1A
+        path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/
+        type: bundle
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.1A.validation.bundle
+        license: Proprietary-Internal
+        role: Fingerprint-scoped PASS bundle for Segment 1A; S0 recomputes hash before any read.
+        dependencies: []
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema:
+          index_schema_ref: schemas.1A.yaml#/validation/validation_bundle.index_schema
+        cross_layer: true
+        notes: "Hashing law: ASCII-lex order on index entries; `_passed.flag` excluded."
+
+      - name: passed_flag_1A
+        path: data/layer1/1A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        type: file
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.1A.validation.passed
+        license: Proprietary-Internal
+        role: Companion flag carrying the validation bundle digest; 3B refuses to read if missing.
+        dependencies: [ validation_bundle_1A ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      - name: validation_bundle_1B
+        path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/
+        type: bundle
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.1B.validation.bundle
+        license: Proprietary-Internal
+        role: Segment 1B PASS bundle; S0 enforces No PASS → No read before touching site-level data.
+        dependencies: []
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema:
+          index_schema_ref: schemas.1A.yaml#/validation/validation_bundle.index_schema
+        cross_layer: true
+        notes: null
+
+      - name: passed_flag_1B
+        path: data/layer1/1B/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        type: file
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.1B.validation.passed
+        license: Proprietary-Internal
+        role: Single-line digest for validation_bundle_1B.
+        dependencies: [ validation_bundle_1B ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.1B.yaml#/validation/passed_flag
+        cross_layer: true
+        notes: null
+
+      - name: validation_bundle_2A
+        path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/
+        type: bundle
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.validation.bundle
+        license: Proprietary-Internal
+        role: Segment 2A PASS bundle establishing sealed tz assets; referenced for provenance.
+        dependencies: []
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.layer1.yaml#/validation/validation_bundle_index_3A
+        cross_layer: true
+        notes: null
+
+      - name: passed_flag_2A
+        path: data/layer1/2A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        type: file
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.2A.validation.passed
+        license: Proprietary-Internal
+        role: Companion flag for validation_bundle_2A.
+        dependencies: [ validation_bundle_2A ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: null
+        cross_layer: true
+        notes: null
+
+      - name: validation_bundle_3A
+        path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
+        type: bundle
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3A.validation.bundle
+        license: Proprietary-Internal
+        role: Segment 3A PASS bundle; 3B honours the same HashGate before consuming zone artefacts.
+        dependencies: []
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.layer1.yaml#/validation/validation_bundle_index_3A
+        cross_layer: true
+        notes: null
+
+      - name: passed_flag_3A
+        path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag
+        type: file
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3A.validation.passed
+        license: Proprietary-Internal
+        role: "`_passed.flag` for the 3A bundle; mandatory before any 3B read."
+        dependencies: [ validation_bundle_3A ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.layer1.yaml#/validation/passed_flag_3A
+        cross_layer: true
+        notes: null
+
       # 1 CROSS‑LAYER INPUT
       - name: site_catalogue
         path: data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
@@ -33,7 +188,7 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.3B.config.virtual_rules
         license: "{spdx_or_internal}"
-        role: MCC + channel rules driving `is_virtual` derivation.
+        role: "MCC + channel rules driving `is_virtual` derivation."
         dependencies: []
         source: internal
         owner: { platform_team }
@@ -111,7 +266,7 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.3B.dataset.settlement_coords
         license: "{spdx_or_internal}"
-        role: `merchant_id → (lat, lon, evidence_url)` for settlement node.
+        role: "`merchant_id → (lat, lon, evidence_url)` for settlement node."
         dependencies: []
         source: internal
         owner: { data_governance_team }
@@ -180,6 +335,48 @@ subsegments:
         cross_layer: false
         notes: null
 
+      - name: virtual_routing_policy_3B
+        path: data/layer1/3B/virtual_routing_policy/fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json
+        type: dataset
+        category: virtual_routing
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.virtual.routing_policy
+        license: "{spdx_or_internal}"
+        role: Dual-TZ routing contract consumed by 2B to replay virtual edge selection deterministically.
+        dependencies:
+          - edge_catalogue_index
+          - merchant_cdn_alias_pattern
+          - edge_catalogue_pattern
+          - edge_universe_hash_3B
+        source: internal
+        owner: { platform_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/egress/virtual_routing_policy_3B
+        cross_layer: true
+        notes: null
+
+      - name: virtual_validation_contract_3B
+        path: data/layer1/3B/virtual_validation_contract/fingerprint={manifest_fingerprint}/virtual_validation_contract_3B.parquet
+        type: dataset
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.virtual.validation_contract
+        license: "{spdx_or_internal}"
+        role: Declarative manifest-scoped test contract listing IP-country, cut-off, and edge-health checks.
+        dependencies: [ virtual_validation_policy, virtual_routing_policy_3B ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/egress/virtual_validation_contract_3B
+        cross_layer: true
+        notes: null
+
       - name: virtual_logging_policy
         path: config/logging/virtual_logging.yml
         type: config
@@ -189,7 +386,7 @@ subsegments:
         digest: "{sha256}"
         manifest_key: mlr.3B.config.virtual_logging
         license: "{spdx_or_internal}"
-        role: Rotation & retention rules for `edge_progress.log`.
+        role: "Rotation & retention rules for `edge_progress.log`."
         dependencies: []
         source: internal
         owner: { platform_team }
@@ -455,6 +652,88 @@ subsegments:
         cross_layer: false
         notes: null
 
+      # 9a HASHGATE OUTPUTS (3B)
+      - name: validation_bundle_3B
+        path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/
+        type: bundle
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.validation.bundle
+        license: "{spdx_or_internal}"
+        role: Fingerprint-scoped evidence bundle for 3B; contains validation reports, digests, and manifests.
+        dependencies:
+          - virtual_manifest
+          - virtual_routing_policy_3B
+          - virtual_validation_contract_3B
+          - edge_universe_hash_3B
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.layer1.yaml#/validation/validation_bundle_index_3B
+        cross_layer: true
+        notes: null
+
+      - name: validation_bundle_index_3B
+        path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/index.json
+        type: dataset
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.validation.bundle_index
+        license: "{spdx_or_internal}"
+        role: Canonical index.json enumerating bundle evidence and SHA-256 digests.
+        dependencies: [ validation_bundle_3B ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.layer1.yaml#/validation/validation_bundle_index_3B
+        cross_layer: true
+        notes: null
+
+      - name: passed_flag_3B
+        path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag_3B
+        type: file
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.validation.passed
+        license: "{spdx_or_internal}"
+        role: Single-line digest that downstream segments verify before reading 3B outputs (No PASS → No read).
+        dependencies: [ validation_bundle_index_3B ]
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.layer1.yaml#/validation/passed_flag_3B
+        cross_layer: true
+        notes: null
+
+      - name: s5_manifest_3B
+        path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/s5_manifest_3B.json
+        type: dataset
+        category: validation
+        semver: "{semver}"
+        version: "{manifest_fingerprint}"
+        digest: "{sha256}"
+        manifest_key: mlr.3B.validation.s5_manifest
+        license: "{spdx_or_internal}"
+        role: Summary manifest emitted by 3B.S5 (identity, digests, check outcomes); included in the bundle.
+        dependencies:
+          - validation_bundle_3B
+        source: internal
+        owner: { qa_team }
+        last_updated: "{iso8601_timestamp}"
+        environment: [ runtime ]
+        schema: schemas.3B.yaml#/validation/s5_manifest_3B
+        cross_layer: false
+        notes: null
+
       # 10 PROCESS & RECOVERY LOGS
       - name: edge_progress_log
         path: logs/virtual/{run_id}/edge_progress.log
@@ -504,7 +783,7 @@ subsegments:
         digest: "{git_tree_hash}"
         manifest_key: mlr.3B.code.derive_is_virtual
         license: "{spdx_or_internal}"
-        role: Derives non-mutating `virtual_overlay` from MCC rules; does NOT alter 1B.
+        role: "Derives non-mutating `virtual_overlay` from MCC rules; does NOT alter 1B."
         dependencies: [ mcc_channel_rules, site_catalogue, virtual_overlay_schema ]
         source: internal
         owner: { engineering_team }

@@ -174,6 +174,47 @@ rng:
       - type: object
         unevaluatedProperties: false
 
+    edge_tile_assign:
+      description: "Segment 3B.S2 tile assignment or permutation when expanding CDN weights."
+      allOf:
+      - $ref: '#/$defs/rng_envelope'
+      - type: object
+        required: [module, substream_label, merchant_id, country_iso, tile_id, edge_budget, permuted_index]
+        properties:
+          module:          { const: 3B.S2 }
+          substream_label: { const: edge_tile_assign }
+          merchant_id:     { $ref: '#/$defs/id64' }
+          country_iso:     { $ref: '#/$defs/iso2' }
+          tile_id:         { type: string }
+          edge_budget:     { type: integer, minimum: 0 }
+          permuted_index:  { type: integer, minimum: 0 }
+          notes:           { type: string, nullable: true }
+      - type: object
+        unevaluatedProperties: false
+
+    edge_jitter:
+      description: "Segment 3B.S2 HRSL jitter attempt for a single edge slot."
+      allOf:
+      - $ref: '#/$defs/rng_envelope'
+      - type: object
+        required: [module, substream_label, merchant_id, country_iso, tile_id, edge_seq_index, attempt, accepted]
+        properties:
+          module:          { const: 3B.S2 }
+          substream_label: { const: edge_jitter }
+          merchant_id:     { $ref: '#/$defs/id64' }
+          country_iso:     { $ref: '#/$defs/iso2' }
+          tile_id:         { type: string }
+          edge_seq_index:  { type: integer, minimum: 0 }
+          attempt:         { type: integer, minimum: 1 }
+          accepted:        { type: boolean }
+          u_lon:           { $ref: '#/$defs/u01' }
+          u_lat:           { $ref: '#/$defs/u01' }
+          candidate_lon_deg: { type: number, nullable: true }
+          candidate_lat_deg: { type: number, nullable: true }
+          tz_resolution:   { type: string, nullable: true }
+      - type: object
+        unevaluatedProperties: false
+
     zone_dirichlet_share:
       description: "Segment 3A Dirichlet share draw for zone allocation."
       allOf:
@@ -710,6 +751,40 @@ validation:
         additionalProperties: true
 
   passed_flag_3A:
+    type: object
+    additionalProperties: false
+    required: [sha256_hex]
+    properties:
+      sha256_hex: { $ref: '#/$defs/hex64' }
+
+  validation_bundle_index_3B:
+    type: object
+    additionalProperties: false
+    required: [manifest_fingerprint, parameter_hash, s5_manifest_digest, members]
+    properties:
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+      parameter_hash:       { $ref: '#/$defs/hex64' }
+      s5_manifest_digest:   { $ref: '#/$defs/hex64' }
+      members:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          required: [logical_id, path, schema_ref, sha256_hex, role]
+          properties:
+            logical_id: { type: string }
+            path:       { type: string }
+            schema_ref: { type: string }
+            sha256_hex: { $ref: '#/$defs/hex64' }
+            role:       { type: string }
+            size_bytes: { type: integer, minimum: 0 }
+            notes:      { type: string }
+      metadata:
+        type: object
+        additionalProperties: true
+
+  passed_flag_3B:
     type: object
     additionalProperties: false
     required: [sha256_hex]
