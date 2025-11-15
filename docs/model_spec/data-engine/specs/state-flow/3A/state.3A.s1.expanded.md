@@ -421,7 +421,7 @@ For each `(parameter_hash, manifest_fingerprint, seed)` triple and associated ou
 
    * A per-merchant×country classification table that:
 
-     * covers **every** `(merchant_id, legal_country_iso)` for which 1A’s `outlet_catalogue` has at least one row under this `{seed,fingerprint}`,
+     * covers **every** `(merchant_id, legal_country_iso)` for which 1A's `outlet_catalogue` has at least one row under this `{seed, manifest_fingerprint}`,
      * records whether the pair is **escalated** into zone allocation (`is_escalated = true`) or remains **monolithic** (`is_escalated = false`), and
      * records the key policy-relevant features and reason codes that led to that decision.
 
@@ -448,7 +448,7 @@ For a given `{seed, manifest_fingerprint}`, the **domain** of `s1_escalation_que
 Identity and cardinality:
 
 * There MUST be **exactly one** row in `s1_escalation_queue` for each such `(merchant_id, legal_country_iso)` pair.
-* There MUST NOT be any rows for `(merchant_id, legal_country_iso)` pairs that are absent from 1A’s `outlet_catalogue` for this `{seed,fingerprint}`.
+* There MUST NOT be any rows for `(merchant_id, legal_country_iso)` pairs that are absent from 1A's `outlet_catalogue` for this `{seed, manifest_fingerprint}`.
 
 **Logical primary key:**
 
@@ -458,7 +458,7 @@ Identity and cardinality:
 
 ` s1_escalation_queue` is a seed/fingerprint-scoped planning dataset:
 
-* Partition key set: `["seed", "fingerprint"]`.
+* Partition key set: `["seed", "manifest_fingerprint"]`.
 
 * Path pattern (conceptual; final form in the dictionary):
 
@@ -486,8 +486,8 @@ At minimum, each row in `s1_escalation_queue` MUST contain:
 
 * **Counts / structural features**
 
-  * `site_count` — integer ≥ 1;
-    `site_count(m,c) = N(m,c) = COUNT(*)` in `outlet_catalogue` for this `(merchant_id, legal_country_iso)` under `{seed,fingerprint}`.
+  * `site_count` - integer ≥ 1;
+    `site_count(m,c) = N(m,c) = COUNT(*)` in `outlet_catalogue` for this `(merchant_id, legal_country_iso)` under `{seed, manifest_fingerprint}`.
   * `zone_count_country` — integer ≥ 0;
     `zone_count_country(c) = |Z(c)|`, where `Z(c)` is the set of IANA tzids present in that country according to sealed reference surfaces (e.g. `tz_world_2025a`).
 
@@ -509,7 +509,7 @@ Other informative columns MAY be added (e.g. `eligible_for_escalation`, `dominan
 
 #### 4.2.4 Writer-sort and immutability
 
-S1 MUST write `s1_escalation_queue` with a deterministic sort order inside each `(seed, fingerprint)` partition, for example:
+S1 MUST write `s1_escalation_queue` with a deterministic sort order inside each `(seed, manifest_fingerprint)` partition, for example:
 
 1. `merchant_id` ascending,
 2. `legal_country_iso` ascending.
@@ -1064,7 +1064,7 @@ Throughout all phases:
 
   * consume any Philox stream or call any RNG API,
   * read system time or any non-deterministic source,
-  * create, modify or delete any artefacts other than `s1_escalation_queue` for the current `{seed, fingerprint}`.
+  * create, modify or delete any artefacts other than `s1_escalation_queue` for the current `{seed, manifest_fingerprint}`.
 
 * On failure at any step:
 
@@ -1135,7 +1135,7 @@ There MUST NOT be duplicates of this pair.
 * Partition keys MUST be exactly:
 
   ```text
-  ["seed", "fingerprint"]
+  ["seed", "manifest_fingerprint"]
   ```
 
 No additional partition keys (e.g. `parameter_hash`, `run_id`) are allowed for this dataset.
@@ -1183,7 +1183,7 @@ Uniqueness invariants:
 The dataset MUST be free of:
 
 * duplicate rows for the same `(m,c)`,
-* rows with a `(m,c)` pair that does not appear in 1A’s `outlet_catalogue` for that `{seed, fingerprint}`.
+* rows with a `(m,c)` pair that does not appear in 1A's `outlet_catalogue` for that `{seed, manifest_fingerprint}`.
 
 ---
 
@@ -1191,7 +1191,7 @@ The dataset MUST be free of:
 
 Physical file order is **not authoritative** for semantics. However, S1 MUST enforce a deterministic writer-sort to ensure reproducibility:
 
-* Inside each partition `{seed, fingerprint}`, rows MUST be sorted by the `ordering` key declared in the dictionary, for example:
+* Inside each partition `{seed, manifest_fingerprint}`, rows MUST be sorted by the `ordering` key declared in the dictionary, for example:
 
   1. `merchant_id` ascending,
   2. `legal_country_iso` ascending.
@@ -1208,7 +1208,7 @@ The only contract on ordering is:
 
 ` s1_escalation_queue` is a **snapshot** of the mixture policy decisions for a given run; it is not an append log.
 
-**Single-writer per `{seed, fingerprint}`**
+**Single-writer per `{seed, manifest_fingerprint}`**
 
 * For each `{seed, manifest_fingerprint}`, there MUST be at most one `s1_escalation_queue` dataset at the configured path.
 * S1 is the **only state** allowed to write this dataset.
@@ -1220,7 +1220,7 @@ The only contract on ordering is:
 
   * append rows to an existing partition,
   * delete or mutate individual rows in-place, or
-  * split a single `{seed,fingerprint}` snapshot across multiple, conceptually different “epochs”.
+  * split a single `{seed, manifest_fingerprint}` snapshot across multiple, conceptually different "epochs".
 
 **Idempotent re-writes only**
 
@@ -1263,7 +1263,7 @@ Such analytics MUST NOT be used to drive runtime decisions for a specific manife
 **Upstream (1A)**
 
 * 1A’s `outlet_catalogue` is the authority on which `(merchant_id, legal_country_iso)` pairs exist and how many sites they have.
-* S1 MUST ensure that its domain `D` matches the set of distinct `(merchant_id, legal_country_iso)` present in `outlet_catalogue` for the same `{seed, fingerprint}`.
+* S1 MUST ensure that its domain `D` matches the set of distinct `(merchant_id, legal_country_iso)` present in `outlet_catalogue` for the same `{seed, manifest_fingerprint}`.
 * S1 MUST NOT change 1A identity or counts.
 
 **Downstream (3A.S2–S4 and validators)**
@@ -1308,7 +1308,7 @@ For a given `(parameter_hash, manifest_fingerprint, seed)`, 3A.S1 is **PASS** if
 
 3. **Country & zone structure is well-defined for all countries in scope**
 
-   * Every `legal_country_iso` that appears in 1A’s `outlet_catalogue` for this `{seed, fingerprint}`:
+  * Every `legal_country_iso` that appears in 1A's `outlet_catalogue` for this `{seed, manifest_fingerprint}`:
 
      * exists in `iso3166_canonical_2024` (or equivalent), and
      * has a well-defined `zone_count_country(c)` derived from sealed `tz_world_2025a`.
@@ -1322,7 +1322,7 @@ For a given `(parameter_hash, manifest_fingerprint, seed)`, 3A.S1 is **PASS** if
 
    Let:
 
-   * `D_1A = { (m,c) }` be the set of distinct `(merchant_id, legal_country_iso)` pairs in `outlet_catalogue` for this `{seed, fingerprint}`.
+  * `D_1A = { (m,c) }` be the set of distinct `(merchant_id, legal_country_iso)` pairs in `outlet_catalogue` for this `{seed, manifest_fingerprint}`.
    * `D_S1 = { (m,c) }` be the corresponding set in `s1_escalation_queue`.
 
    S1 is PASS only if:
@@ -1347,7 +1347,7 @@ For a given `(parameter_hash, manifest_fingerprint, seed)`, 3A.S1 is **PASS** if
 
      * is a value from the closed vocabulary defined in the mixture policy schema, and
      * is logically consistent with visible fields (e.g. `decision_reason="below_min_sites"` only when `site_count` is below the configured threshold).
-   * `mixture_policy_id` and `mixture_policy_version` are present and identical across all rows for this `{seed,fingerprint}`.
+   * `mixture_policy_id` and `mixture_policy_version` are present and identical across all rows for this `{seed, manifest_fingerprint}`.
 
    Any schema violation or inconsistent `decision_reason` MUST cause S1 to FAIL.
 
@@ -1983,7 +1983,7 @@ At minimum:
 
 * `mlr_3a_s1_pairs_total` (gauge)
 
-  * Number of merchant×country pairs processed in the most recent successful run for a given `{seed, fingerprint}` (labelled appropriately).
+  * Number of merchant×country pairs processed in the most recent successful run for a given `{seed, manifest_fingerprint}` (labelled appropriately).
 
 * `mlr_3a_s1_pairs_escalated` (gauge)
 
@@ -2207,7 +2207,7 @@ It is also **embarrassingly parallel across runs**:
 
 Constraints:
 
-* Writers must still enforce **atomic snapshot semantics** per `{seed, fingerprint}` (no concurrent conflicting writers).
+* Writers must still enforce **atomic snapshot semantics** per `{seed, manifest_fingerprint}` (no concurrent conflicting writers).
 * Any global caches (e.g. `tz_world` decode) must be thread-safe if shared.
 
 ---
