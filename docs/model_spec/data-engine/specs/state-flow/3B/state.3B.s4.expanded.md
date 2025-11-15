@@ -213,10 +213,10 @@ If any of these statuses is not `"PASS"`, S4 MUST treat the 3B environment as **
 
 2.3.1 S4 MUST treat S1–S3 as functional preconditions. For a given `{seed, manifest_fingerprint}`, S4 MAY proceed only if:
 
-* `virtual_classification_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/egress/virtual_classification_3B`;
-* `virtual_settlement_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/egress/virtual_settlement_3B`;
-* `edge_catalogue_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/egress/edge_catalogue_3B`;
-* `edge_catalogue_index_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/egress/edge_catalogue_index_3B`;
+* `virtual_classification_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/plan/virtual_classification_3B`;
+* `virtual_settlement_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/plan/virtual_settlement_3B`;
+* `edge_catalogue_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/plan/edge_catalogue_3B`;
+* `edge_catalogue_index_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/plan/edge_catalogue_index_3B`;
 * `edge_alias_blob_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and passes header-level validation against `schemas.3B.yaml#/egress/edge_alias_blob_3B`;
 * `edge_alias_index_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/egress/edge_alias_index_3B`;
 * `edge_universe_hash_3B@fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/validation/edge_universe_hash_3B`.
@@ -540,16 +540,17 @@ S4 MUST treat this as a configuration/contract error and fail, rather than silen
 
 4.2.1 `virtual_routing_policy_3B` SHALL be the **authoritative routing contract** for virtual merchants in this manifest. It MUST be declared in `dataset_dictionary.layer1.3B.yaml` with at least:
 
-* `dataset_id: virtual_routing_policy_3B`
+* `id: virtual_routing_policy_3B`
+* `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/egress/virtual_routing_policy_3B`
-* `path_template: data/layer1/3B/virtual_routing_policy/fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json` (or equivalent root)
-* `partition_keys: ["fingerprint"]`
-* `writer_sort: []` (single JSON document; no row sort concept)
+* `path: data/layer1/3B/virtual_routing_policy/fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json`
+* `partitioning: ["fingerprint"]`
+* `ordering: []` (single JSON document; no row sort concept)
 
 4.2.2 The corresponding entry in `artefact_registry_3B.yaml` MUST:
 
-* reference `dataset_id: virtual_routing_policy_3B` and its `schema_ref`;
-* declare `owner_segment: "3B"` and `type: "dataset"`;
+* reference `name: virtual_routing_policy_3B` and its `schema_ref`;
+* declare `type: "dataset"` with explicit 3B ownership metadata;
 * provide a stable `manifest_key` (e.g. `"mlr.3B.virtual_routing_policy_3B"`);
 * list `2B` and the 3B validation state as primary consumers.
 
@@ -557,41 +558,41 @@ S4 MUST treat this as a configuration/contract error and fail, rather than silen
 
 * **Identity & versioning**
 
-  * `manifest_fingerprint` — MUST equal partition `fingerprint`;
-  * `parameter_hash` — echo of S0’s `parameter_hash` (if present);
-  * `edge_universe_hash` — copied from `edge_universe_hash_3B.edge_universe_hash`;
-  * `routing_policy_id` / `routing_policy_version` — logical ID & version of the routing/RNG policy sealed in `sealed_inputs_3B`;
-  * `virtual_validation_policy_id` / `virtual_validation_policy_version` — logical ID & version of the virtual validation policy pack.
+  * `manifest_fingerprint`, `parameter_hash`, `edge_universe_hash` — MUST mirror S0/S3 values;
+  * `routing_policy_id` / `routing_policy_version` — logical ID & version from the sealed routing/RNG policy artefact;
+  * `virtual_validation_policy_id` / `virtual_validation_policy_version` — logical ID & version of the virtual validation policy pack;
+  * `cdn_key_digest`, `alias_layout_version`, `alias_blob_manifest_key`, `alias_index_manifest_key`, `edge_universe_hash_manifest_key` — digests/manifest keys that allow downstream readers to verify artefact provenance.
 
-* **Global routing semantics (virtual vs physical, dual-TZ)**
+* **Dual timezone semantics**
 
-  * Fields describing, at minimum:
+  * `dual_timezone_semantics` object describing which event fields correspond to settlement vs operational clocks:
+    * `tzid_settlement_field` — schema anchor for the settlement TZ field populated from S1;
+    * `tzid_operational_field` — schema anchor for the operational (edge) TZ field populated from S2/S3;
+    * `settlement_cutoff_rule` — string identifier describing which cutoff logic applies.
 
-    * which **event fields** (by schema anchor) MUST be populated from:
+* **Geography / field bindings**
 
-      * S1 settlement semantics (e.g. `settlement_day`, `settlement_timezone`),
-      * S2 edge semantics (e.g. `ip_country`, `ip_latitude`, `ip_longitude`, `apparent_local_time`);
-    * per-manifest rules for combining `tzid_settlement` and `tzid_operational` (e.g. “settlement cut-off uses `tzid_settlement`, apparent local time uses `tzid_operational`”).
+  * `geo_field_bindings` object naming the schema anchors that must be filled from edge geometry:
+    * `ip_country_field`, `ip_latitude_field`, `ip_longitude_field`.
+
+* **Artefact references**
+
+  * `artefact_paths` object containing canonical strings for:
+    * `edge_catalogue_index`, `edge_alias_blob`, `edge_alias_index`.
+  * `alias_blob_manifest_key`, `alias_index_manifest_key`, `edge_universe_hash_manifest_key` echo the manifest keys from S3.
 
 * **RNG & alias usage for virtual routing**
 
-  * References to:
+  * `virtual_edge_rng_binding` defining the RNG stream/label and event schema that 2B MUST use (`module`, `substream_label`, `event_schema`);
+  * `alias_layout_version` plus the artefact paths above tie the routing policy to specific alias tables.
 
-    * `rng_stream_id` / `substream_label` that 2B MUST use for virtual edge picks;
-    * alias layout version and expectations (e.g. fields that tell 2B which `layout_version` in `edge_alias_blob_3B` to use);
-    * paths or manifest keys to:
+* **Per-merchant overrides (optional)**
 
-      * `edge_alias_blob_3B`,
-      * `edge_alias_index_3B`,
-      * `edge_universe_hash_3B`.
+  * `overrides` array of objects `{ merchant_id, mode, notes }` where `mode ∈ {virtual, hybrid, disable_virtual}` conveys any per-merchant deviations from default routing semantics.
 
-* **Per-merchant or per-class routing overrides (if used)**
+* **Notes**
 
-  * Optional arrays or maps keyed by `merchant_id` / merchant class, specifying:
-
-    * enable/disable virtual routing;
-    * hybrid semantics (e.g. “route X% via virtual edges, remainder via physical sites” if such a mode exists and is in-scope);
-    * special treatments (e.g. merchants that must never lose IP geo fields, or special cut-off rules).
+  * Optional free-text `notes` field for diagnostics or operator guidance.
 
 4.2.4 The schema may include additional fields (e.g. comments, debug flags), but they MUST be explicitly marked optional and MUST NOT change the semantics of required routing instructions.
 
@@ -603,20 +604,21 @@ S4 MUST treat this as a configuration/contract error and fail, rather than silen
 
 ---
 
-4.3 **Validation-test contract — `virtual_validation_contract_3B`**
+4.3 **Validation-test contract - `virtual_validation_contract_3B`**
 
 4.3.1 `virtual_validation_contract_3B` SHALL be the **authoritative test contract** for virtual-specific validation on this manifest. It MUST be declared in `dataset_dictionary.layer1.3B.yaml` with at least:
 
-* `dataset_id: virtual_validation_contract_3B`
+* `id: virtual_validation_contract_3B`
+* `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/egress/virtual_validation_contract_3B`
-* `path_template: data/layer1/3B/virtual_validation_contract/fingerprint={manifest_fingerprint}/`
-* `partition_keys: ["fingerprint"]`
-* `writer_sort: ["test_id"]`
+* `path: data/layer1/3B/virtual_validation_contract/fingerprint={manifest_fingerprint}/virtual_validation_contract_3B.parquet`
+* `partitioning: ["fingerprint"]`
+* `ordering: ["test_id"]`
 
 4.3.2 The corresponding registry entry MUST:
 
-* reference `dataset_id: virtual_validation_contract_3B` and `schema_ref`;
-* declare `owner_segment: "3B"` and `type: "dataset"`;
+* reference `name: virtual_validation_contract_3B` and `schema_ref`;
+* declare `type: "dataset"` with explicit 3B ownership metadata;
 * provide a stable `manifest_key` (e.g. `"mlr.3B.virtual_validation_contract_3B"`);
 * list consumers: 3B validation state and any global validation harness.
 
@@ -656,7 +658,7 @@ S4 MUST treat this as a configuration/contract error and fail, rather than silen
 
 * `severity`
 
-  * enum describing how a FAIL should be interpreted by the validation harness (e.g. `"BLOCKING"`, `"NON_BLOCKING"`, `"INFO"`).
+  * enum describing how a FAIL should be interpreted by the validation harness ( `"BLOCKING"`, `"WARNING"`, `"INFO"`).
 
 4.3.4 Optional columns (schema-optional) may include:
 
@@ -672,15 +674,16 @@ S4 MUST treat this as a configuration/contract error and fail, rather than silen
 
 ---
 
-4.4 **Optional S4 run-summary / receipt — `s4_run_summary_3B`**
+4.4 **Optional S4 run-summary / receipt - `s4_run_summary_3B`**
 
 4.4.1 If S4 produces a run-summary artefact, `s4_run_summary_3B` MUST be declared in the 3B contracts with:
 
-* `dataset_id: s4_run_summary_3B`
+* `id: s4_run_summary_3B`
+* `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/validation/s4_run_summary_3B`
-* `path_template: data/layer1/3B/s4_run_summary/fingerprint={manifest_fingerprint}/s4_run_summary_3B.json`
-* `partition_keys: ["fingerprint"]`
-* `writer_sort: []`
+* `path: data/layer1/3B/s4_run_summary/fingerprint={manifest_fingerprint}/s4_run_summary_3B.json`
+* `partitioning: ["fingerprint"]`
+* `ordering: []`
 
 4.4.2 `s4_run_summary_3B` MAY capture at least:
 
@@ -710,7 +713,7 @@ S4 MUST treat this as a configuration/contract error and fail, rather than silen
 
 4.5.2 `virtual_routing_policy_3B` and `virtual_validation_contract_3B` MUST:
 
-* be stored under their respective `path_template`s with `fingerprint={manifest_fingerprint}`;
+* be stored under their respective `path`s with `fingerprint={manifest_fingerprint}`;
 * not include `seed` or `run_id` as partition keys.
 
 If a future version introduces per-seed variants, this MUST be treated as a change in partition law and go through change control.
@@ -766,20 +769,21 @@ If a future version introduces per-seed variants, this MUST be treated as a chan
 
 ## 5. Dataset shapes, schema anchors & catalogue links *(Binding)*
 
-5.1 **`virtual_routing_policy_3B` — dataset contract**
+5.1 **`virtual_routing_policy_3B` - dataset contract**
 
 5.1.1 The dataset **`virtual_routing_policy_3B`** MUST be registered in `dataset_dictionary.layer1.3B.yaml` with at least:
 
-* `dataset_id: virtual_routing_policy_3B`
+* `id: virtual_routing_policy_3B`
+* `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/egress/virtual_routing_policy_3B`
-* `path_template: data/layer1/3B/virtual_routing_policy/fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json`
-* `partition_keys: ["fingerprint"]`
-* `writer_sort: []` (single JSON document per fingerprint)
+* `path: data/layer1/3B/virtual_routing_policy/fingerprint={manifest_fingerprint}/virtual_routing_policy_3B.json`
+* `partitioning: ["fingerprint"]`
+* `ordering: []` (single JSON document per fingerprint)
 
 5.1.2 The corresponding entry in `artefact_registry_3B.yaml` MUST:
 
-* reference `dataset_id: virtual_routing_policy_3B` and the same `schema_ref`;
-* declare `owner_segment: "3B"` and `type: "dataset"`;
+* reference `name: virtual_routing_policy_3B` and the same `schema_ref`;
+* declare `type: "dataset"` with explicit 3B ownership metadata;
 * provide a stable `manifest_key` (e.g. `"mlr.3B.virtual_routing_policy_3B"`);
 * list `2B` and the 3B validation state as primary `consumed_by` clients.
 
@@ -874,16 +878,17 @@ If a future version introduces per-seed variants, this MUST be treated as a chan
 
 5.2.1 The dataset **`virtual_validation_contract_3B`** MUST be registered in `dataset_dictionary.layer1.3B.yaml` with at least:
 
-* `dataset_id: virtual_validation_contract_3B`
+* `id: virtual_validation_contract_3B`
+* `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/egress/virtual_validation_contract_3B`
-* `path_template: data/layer1/3B/virtual_validation_contract/fingerprint={manifest_fingerprint}/`
-* `partition_keys: ["fingerprint"]`
-* `writer_sort: ["test_id"]`
+* `path: data/layer1/3B/virtual_validation_contract/fingerprint={manifest_fingerprint}/virtual_validation_contract_3B.parquet`
+* `partitioning: ["fingerprint"]`
+* `ordering: ["test_id"]`
 
 5.2.2 The corresponding entry in `artefact_registry_3B.yaml` MUST:
 
-* reference `dataset_id: virtual_validation_contract_3B` and `schema_ref`;
-* declare `owner_segment: "3B"` and `type: "dataset"`;
+* reference `name: virtual_validation_contract_3B` and `schema_ref`;
+* declare `type: "dataset"` with explicit 3B ownership metadata;
 * provide a stable `manifest_key` (e.g. `"mlr.3B.virtual_validation_contract_3B"`);
 * list the 3B validation state and global validation harness as primary consumers.
 
@@ -897,45 +902,43 @@ If a future version introduces per-seed variants, this MUST be treated as a chan
 
 * `test_type`
 
-  * type: enum; examples:
-
-    * `"IP_COUNTRY_MIX"`, `"SETTLEMENT_CUTOFF"`, `"EDGE_USAGE_VS_WEIGHT"`, `"SETTLEMENT_VS_OPERATIONAL_DRIFT"`, etc.;
-  * each value MUST be defined in the virtual validation policy pack.
+  * type: enum;
+  * MUST be one of `{ "IP_COUNTRY_MIX", "SETTLEMENT_CUTOFF", "EDGE_USAGE_VS_WEIGHT", "ROUTING_RECEIPT" }` as defined in `schemas.3B.yaml`.
 
 * `scope`
 
-  * type: enum; e.g. `"GLOBAL"`, `"PER_MERCHANT"`, `"PER_MERCHANT_CLASS"`, `"PER_SCENARIO"`.
+  * type: enum; `{ "GLOBAL", "PER_MERCHANT", "PER_CLASS", "PER_SCENARIO" }`.
   * defines aggregation level for the test.
 
 * `target_population`
 
-  * type: structured object;
-  * describes which merchants / flows are in-scope, e.g.:
-
-    * `{ "virtual_only": true }`;
-    * `{ "merchant_class_in": ["HIGH_VOLUME"] }`;
-    * a more complex expression referencing S1 classification attributes, if schema allows.
+  * structured object with schema-owned fields:
+    * `virtual_only` — boolean flag limiting scope to merchants marked virtual in S1;
+    * `merchant_ids` — array of `id64` merchant identifiers (optional, for allow-lists);
+    * `classes` — array of strings describing merchant classes or labels;
+    * `notes` — optional free-text context.
+  * No additional properties are permitted.
 
 * `inputs`
 
-  * structured object;
-  * binds this test to concrete datasets/fields, including:
+  * structured object with strict members:
 
-    * `datasets` — array of dataset IDs or manifest keys (e.g. arrivals, decisions, labels);
-    * `fields` — array of schema anchors for event fields used in the test (e.g. `event.ip_country`, `event.settlement_day`, `event.edge_id`);
-    * optional `join_keys` if the test spans multiple datasets.
+    * `datasets` — array (min 1) of objects `{ logical_id, role }` referencing dataset dictionary IDs / manifest keys and describing their use in the test;
+    * `fields` — array of objects `{ schema_anchor, role }` that bind event-field anchors to semantic roles within the test;
+    * `join_keys` — optional array of string field names used to join the referenced datasets.
 
 * `thresholds`
 
-  * structured object describing numerical or logical thresholds, e.g.:
+  * structured object describing numerical tolerances:
 
-    * `max_absolute_diff`, `max_relative_diff`, `max_KL_divergence`;
-    * for time-based tests, e.g. `max_cutoff_skew_seconds`;
-    * optional multi-tier thresholds (PASS/WARN/FAIL).
+    * `max_abs_error` — non-negative number;
+    * `max_rel_error` — non-negative number;
+    * `max_kl_divergence` — non-negative number;
+    * extensions require schema updates (no ad-hoc keys).
 
 * `severity`
 
-  * enum; e.g. `"BLOCKING"`, `"NON_BLOCKING"`, `"INFO"`;
+  * enum; `{ "BLOCKING", "WARNING", "INFO" }`;
   * informs the validation harness whether a FAIL on this test should prevent a segment-level PASS.
 
 5.2.4 The schema MAY also define optional columns, such as:
@@ -954,15 +957,16 @@ If a future version introduces per-seed variants, this MUST be treated as a chan
 
 ---
 
-5.3 **Optional S4 run-summary dataset — `s4_run_summary_3B`**
+5.3 **Optional S4 run-summary dataset - `s4_run_summary_3B`**
 
 5.3.1 If the design includes an S4 run-summary, **`s4_run_summary_3B`** MUST be registered with:
 
-* `dataset_id: s4_run_summary_3B`
+* `id: s4_run_summary_3B`
+* `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/validation/s4_run_summary_3B`
-* `path_template: data/layer1/3B/s4_run_summary/fingerprint={manifest_fingerprint}/s4_run_summary_3B.json`
-* `partition_keys: ["fingerprint"]`
-* `writer_sort: []`
+* `path: data/layer1/3B/s4_run_summary/fingerprint={manifest_fingerprint}/s4_run_summary_3B.json`
+* `partitioning: ["fingerprint"]`
+* `ordering: []`
 
 5.3.2 `schemas.3B.yaml#/validation/s4_run_summary_3B` MUST define a JSON object with fields such as:
 
@@ -983,9 +987,9 @@ If a future version introduces per-seed variants, this MUST be treated as a chan
 
 5.4.1 `schemas.3B.yaml` MUST reference upstream schemas via `$ref` in S4-related schemas where appropriate, including:
 
-* `virtual_classification_3B` — via `schemas.3B.yaml#/egress/virtual_classification_3B`;
-* `virtual_settlement_3B` — via `schemas.3B.yaml#/egress/virtual_settlement_3B`;
-* `edge_catalogue_3B` — via `schemas.3B.yaml#/egress/edge_catalogue_3B`;
+* `virtual_classification_3B` — via `schemas.3B.yaml#/plan/virtual_classification_3B`;
+* `virtual_settlement_3B` — via `schemas.3B.yaml#/plan/virtual_settlement_3B`;
+* `edge_catalogue_3B` — via `schemas.3B.yaml#/plan/edge_catalogue_3B`;
 * `edge_alias_blob_3B` / `edge_alias_index_3B` — via S3 schemas;
 * the virtual validation policy artefact — via `schemas.3B.yaml#/policy/virtual_validation_policy`;
 * the routing/RNG policy — via the appropriate Layer-1 schema (e.g. `schemas.layer1.yaml#/rng/policy`);
@@ -1005,7 +1009,7 @@ If a future version introduces per-seed variants, this MUST be treated as a chan
 5.5.1 All S4 outputs MUST be:
 
 * discoverable via `dataset_dictionary.layer1.3B.yaml` (dataset ID → path template, partitioning, schema);
-* described in `artefact_registry_3B.yaml` with ownership (`owner_segment: "3B"`), manifest keys and basic metadata (licence, retention, intended consumers).
+* described in `artefact_registry_3B.yaml` with explicit 3B ownership metadata, manifest keys and basic metadata (licence, retention, intended consumers).
 
 5.5.2 The engine and downstream components (2B, validation harness) MUST:
 
@@ -1025,7 +1029,7 @@ If a future version introduces per-seed variants, this MUST be treated as a chan
 5.6.1 Binding in this section:
 
 * Existence of `virtual_routing_policy_3B` and `virtual_validation_contract_3B` as S4 outputs.
-* Their `schema_ref`, `path_template`, and `partition_keys` in the dictionary.
+* Their `schema_ref`, `path`, and `partitioning` in the dictionary.
 * Required fields enumerated in §§5.1–5.2.
 * Requirement that S4 outputs be discoverable via catalogues and referenced by downstream components.
 
@@ -1210,7 +1214,7 @@ it MUST fail with a FATAL S1/S2-contract error and MUST NOT attempt to derive tz
 * `inputs.datasets` — dataset IDs / manifest keys for arrivals, decisions, labels, and any other S2/S3/S1 artefacts used in the test;
 * `inputs.fields` — event field anchors (e.g. `event.ip_country`, `event.settlement_day`) that must exist in the Layer-1 event schema;
 * `thresholds` — numeric/logical thresholds pulled from policy, resolved for this manifest;
-* `severity` — `"BLOCKING"`, `"NON_BLOCKING"`, or `"INFO"` per policy.
+* `severity` — `"BLOCKING"`, `"WARNING"`, or `"INFO"` per policy.
 
 6.5.3 Where the validation policy defines **profiles** (e.g. strict vs relaxed), S4 MUST:
 
@@ -1330,7 +1334,7 @@ but it MUST NOT:
 
 * `fingerprint={manifest_fingerprint}`
 
-No additional partition keys (e.g. `seed`, `parameter_hash`, `run_id`) are allowed in its `path_template`.
+No additional partition keys (e.g. `seed`, `parameter_hash`, `run_id`) are allowed in its dataset `path`.
 
 7.2.2 `virtual_validation_contract_3B` MUST be partitioned **exactly** by:
 
@@ -1358,9 +1362,9 @@ Again, no additional partition keys are allowed unless explicitly introduced via
   * emitting lists (e.g. `merchant_overrides` sorted by `merchant_id` if present);
   * emitting maps/dictionaries (either rely on a canonical JSON encoder, or emit keys in a defined order).
 
-7.3.2 `virtual_validation_contract_3B` is table-shaped and MUST honour its declared `writer_sort`:
+7.3.2 `virtual_validation_contract_3B` is table-shaped and MUST honour its declared `ordering`:
 
-* `writer_sort: ["test_id"]` (or an explicitly declared alternative in the dictionary).
+* `ordering: ["test_id"]` (or an explicitly declared alternative in the dictionary).
 * Before writing, S4 MUST sort all rows by `test_id` ascending.
 * If global/special tests require different ordering, they MUST either follow the same sort or be distinguished via explicit schema fields (e.g. `scope`) — not via ad-hoc row ordering.
 
@@ -1368,7 +1372,7 @@ Again, no additional partition keys are allowed unless explicitly introduced via
 
 * no dependence on hash-map iteration order;
 * no dependence on filesystem listing order;
-* all lists and tables MUST be sorted according to rules described in this spec and/or `writer_sort`.
+* all lists and tables MUST be sorted according to rules described in this spec and/or the declared `ordering`.
 
 7.3.4 Any digest or hash that S4 or downstream validation computes over S4 outputs (e.g. for run-report comparisons) MUST be based on:
 
@@ -1455,7 +1459,7 @@ MUST be treated as an S4 contract error and MUST not be silently ignored or “b
 7.7.1 Any implementation that:
 
 * deviates from the partition law in §7.2;
-* writes `virtual_validation_contract_3B` unsorted with respect to `writer_sort`;
+* writes `virtual_validation_contract_3B` unsorted with respect to `ordering`;
 * mutates S4 outputs in place without idempotent comparison;
 * exposes partial, inconsistent, or identity-mismatched S4 outputs at canonical paths,
 
@@ -2027,7 +2031,7 @@ Remediation:
 Raised when `virtual_validation_contract_3B` fails schema validation:
 
 * missing required columns (`test_id`, `test_type`, `scope`, `inputs`, `thresholds`, `severity`);
-* wrong partitioning or unsorted rows (violating `writer_sort`);
+* wrong partitioning or unsorted rows (violating declared `ordering`);
 * invalid field types.
 
 Typical triggers:
@@ -2183,7 +2187,7 @@ Remediation:
 
   * for contract failures: `logical_id`, `path`, `schema_ref` of the offending policy/artefact;
   * for dual-TZ/field-binding failures: `merchant_id` and the offending field anchor(s);
-  * for test-binding failures: `candidate_test_type`, `dataset_id`, `field_anchor` that caused the failure.
+* for test-binding failures: `candidate_test_type`, dataset dictionary `id`, and `field_anchor` that caused the failure.
 
 10.1.5 WARN-level conditions (if any) MUST:
 
@@ -2223,7 +2227,7 @@ Remediation:
 
 10.2.2 Where available, the run-report record SHOULD also include:
 
-* counts of tests by `severity` (e.g. number of `BLOCKING` vs `NON_BLOCKING` tests);
+* counts of tests by `severity` (e.g. number of `BLOCKING` vs `WARNING` tests);
 * test-profile information (e.g. `"STRICT"` vs `"RELAXED"`) if the policy differentiates profiles;
 * any feature-flag status that impacts routing/validation semantics (e.g. `enable_virtual_routing`, selected validation profile).
 
@@ -2243,7 +2247,7 @@ Remediation:
 * `3b_s4_virtual_merchants` — gauge/histogram; value = `virtual_merchant_count`.
 * `3b_s4_routing_scope_virtual_merchants` — gauge/histogram; value = `routing_scope_virtual_merchant_count`.
 * `3b_s4_validation_test_count` — gauge/histogram; value = number of tests in `virtual_validation_contract_3B`.
-* `3b_s4_tests_by_severity{severity="BLOCKING|NON_BLOCKING|INFO"}` — gauge or histogram; counts of tests by severity.
+* `3b_s4_tests_by_severity{severity="BLOCKING|WARNING|INFO"}` — gauge or histogram; counts of tests by severity.
 * `3b_s4_errors_total{error_code=...}` — counter; count of errors per `E3B_S4_*` code.
 * `3b_s4_duration_seconds` — S4 run latency from `start` to `finish`.
 
@@ -2316,7 +2320,7 @@ Such IDs MUST NOT affect any of S4’s deterministic decisions or policy content
 10.5.3 In any **global manifest summary**, S4 SHOULD contribute:
 
 * a brief description of virtual routing semantics (e.g. “virtual routing enabled, alias layout vX, dual-TZ semantics in effect”);
-* a summary of tests (e.g. “5 BLOCKING, 3 NON_BLOCKING, 2 INFO virtual-specific tests for this manifest”).
+* a summary of tests (e.g. “5 BLOCKING, 3 WARNING, 2 INFO virtual-specific tests for this manifest”).
 
 ---
 
@@ -2539,9 +2543,9 @@ If S4 becomes a noticeable fraction of total runtime, that is usually a sign of:
   * `s4_run_summary_3B` (if present);
   * any S4-specific policy helper schemas (if added).
 
-* `dataset_dictionary.layer1.3B.yaml` — defining:
+* `dataset_dictionary.layer1.3B.yaml` - defining:
 
-  * `dataset_id`, `schema_ref`, `path_template`, `partition_keys`, `writer_sort` for each S4 dataset.
+  * `id`, `schema_ref`, `path`, `partitioning`, `ordering` for each S4 dataset.
 
 * `artefact_registry_3B.yaml` — defining:
 
@@ -2616,10 +2620,10 @@ form a **compatible triplet** for the S4 implementation (e.g. same MAJOR version
 * Changing the **type or semantics** of required fields, for example:
 
   * redefining the meaning of `edge_universe_hash` (e.g. different hashing law) without adding a new field;
-  * redefining `severity` semantics (e.g. `"NON_BLOCKING"` suddenly becomes blocking without a major bump);
+* redefining `severity` semantics (e.g. `"WARNING"` suddenly becomes blocking without a major bump);
   * changing how `target_population` expressions are interpreted.
 
-* Changing `path_template`, `partition_keys` or `writer_sort` for S4 outputs in the dictionary.
+* Changing `path`, `partitioning` or `ordering` for S4 outputs in the dictionary.
 
 * Changing the **validation contract model** such that:
 
@@ -2899,7 +2903,7 @@ Exact vocab is defined in the validation policy schema.
   Enum describing how a FAIL is interpreted:
 
   * `"BLOCKING"` — MUST prevent segment-level PASS.
-  * `"NON_BLOCKING"` — can WARN, but not block PASS.
+  * `"WARNING"` — can WARN, but not block PASS.
   * `"INFO"` — informational only.
 
 ---
@@ -2951,8 +2955,8 @@ Authoritative definitions for the symbols and concepts listed here are found in:
 
 * **Upstream segment contracts**
 
-  * S1 — `schemas.3B.yaml#/egress/virtual_classification_3B` and `#/egress/virtual_settlement_3B`.
-  * S2 — `schemas.3B.yaml#/egress/edge_catalogue_3B` and `#/egress/edge_catalogue_index_3B`.
+  * S1 — `schemas.3B.yaml#/plan/virtual_classification_3B` and `#/plan/virtual_settlement_3B`.
+  * S2 — `schemas.3B.yaml#/plan/edge_catalogue_3B` and `#/plan/edge_catalogue_index_3B`.
   * S3 — `schemas.3B.yaml#/egress/edge_alias_blob_3B`, `#/egress/edge_alias_index_3B`, `#/validation/edge_universe_hash_3B`.
 
 * **S4 contracts**

@@ -640,7 +640,7 @@ S0 MUST NOT substitute or guess schema anchors.
 * `schemas.3B.yaml#/validation/s0_gate_receipt_3B` MUST reference the layer-wide definitions via `$ref`;
 * S0 MUST validate those blocks against the layer-wide schema during write.
 
-5.4.3 S0 MUST treat any future `validation_bundle_index_3B` or `passed_flag_3B` schema (once added to `schemas.layer1.yaml`) as **external authority** for 3B’s segment-level validation. S0 MUST NOT define its own bundle or flag structure; it only ensures that its outputs can be consumed by that future index.
+5.4.3 S0 MUST treat the Layer-1 bundle and flag schemas—`schemas.layer1.yaml#/validation/validation_bundle_index_3B` and `#/validation/passed_flag_3B`—as the **external authority** for 3B’s segment-level validation. S0 MUST NOT define its own bundle or flag structure; it only ensures that its outputs can be consumed by those schemas (and any future revisions of them governed at Layer-1).
 
 ---
 
@@ -1154,7 +1154,7 @@ Where there is any conflict between this section and the JSON-Schema / dataset d
 * **Mandatory** artefacts are those without which 3B cannot safely execute any state (e.g. upstream validation bundles, upstream egress, virtual classification rules, CDN weights, required geospatial assets, core RNG policies).
 * **Optional** artefacts are those that are only needed when specific 3B features are enabled (e.g. an experimental validation policy pack).
 
-8.2.2 The dataset dictionary and/or artefact registry MUST explicitly encode which artefacts are mandatory vs optional for 3B.S0, so S0 can apply the correct acceptance logic.
+8.2.2 Until the catalogue grows first-class metadata for this, the authoritative list of mandatory vs optional artefacts is maintained in this spec (see §§2.4–2.5) and the associated governance notes. Any change to an artefact’s status MUST be captured in those lists (and, once the dictionary/registry gain such fields, reflected there as well) so that S0 can apply the correct acceptance logic.
 
 8.2.3 Acceptance rules:
 

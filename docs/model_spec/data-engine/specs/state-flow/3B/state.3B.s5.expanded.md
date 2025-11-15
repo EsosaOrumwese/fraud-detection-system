@@ -475,20 +475,21 @@ S5 MUST treat this as a **contract violation** and fail, rather than silently co
 
 ---
 
-4.2 **Validation bundle directory — `validation_bundle_3B`**
+4.2 **Validation bundle directory - `validation_bundle_3B`**
 
 4.2.1 The **validation bundle** for 3B SHALL be represented as a directory artefact, referenced in `dataset_dictionary.layer1.3B.yaml` with at least:
 
-* `dataset_id: validation_bundle_3B`
-* `schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3B` (or a 3B-local alias) — for the index shape;
-* `path_template: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/`
-* `partition_keys: ["fingerprint"]`
-* `writer_sort: []` (directory artefact; sort semantics are handled inside `index.json`).
+* `id: validation_bundle_3B`
+* `owner_subsegment: 3B`
+* `schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3B` (or a 3B-local alias) - for the index shape;
+* `path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/`
+* `partitioning: ["fingerprint"]`
+* `ordering: []` (directory artefact; sort semantics are handled inside `index.json`).
 
 4.2.2 The corresponding entry in `artefact_registry_3B.yaml` MUST:
 
-* reference `dataset_id: validation_bundle_3B` and `schema_ref`;
-* declare `owner_segment: "3B"` and `type: "dataset"`;
+* reference `name: validation_bundle_3B` and `schema_ref`;
+* declare `type: "dataset"` with explicit 3B ownership metadata;
 * provide a stable `manifest_key` (e.g. `"mlr.3B.validation_bundle_3B"`);
 * list consumers: 3B validation state, 4A/4B harness, any debugging/observability tooling.
 
@@ -508,51 +509,62 @@ The exact set and naming of evidence files SHOULD be stable and schema-documente
 
 ---
 
-4.3 **Bundle index — `validation_bundle_index_3B` (index.json)**
+4.3 **Bundle index - `validation_bundle_index_3B` (index.json)**
 
 4.3.1 The validation bundle index for 3B SHALL be a single JSON file named `index.json` inside `validation_bundle_3B`. It MUST be registered in `dataset_dictionary.layer1.3B.yaml` as:
 
-* `dataset_id: validation_bundle_index_3B`
+* `id: validation_bundle_index_3B`
+* `owner_subsegment: 3B`
 * `schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3B` (or a 3B-local alias)
-* `path_template: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/index.json`
-* `partition_keys: ["fingerprint"]`
-* `writer_sort: []`
+* `path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/index.json`
+* `partitioning: ["fingerprint"]`
+* `ordering: []`
 
 4.3.2 The registry entry MUST:
 
-* reference `dataset_id: validation_bundle_index_3B` and `schema_ref`;
-* declare `owner_segment: "3B"` and `type: "dataset"`;
+* reference `name: validation_bundle_index_3B` and `schema_ref`;
+* declare `type: "dataset"` with explicit 3B ownership metadata;
 * provide a `manifest_key` (e.g. `"mlr.3B.validation_bundle_index_3B"`);
 * list consumers: 3B validation state, 4A/4B, HashGate verifier utilities.
 
-4.3.3 `schemas.layer1.yaml#/validation/validation_bundle_index_3B` MUST define an array of entries with at least:
+4.3.3 `schemas.layer1.yaml#/validation/validation_bundle_index_3B` defines a **single JSON object** with:
 
-* `path` — string, the relative path from the bundle root to an evidence file;
-* `sha256_hex` — lowercase hex-encoded SHA-256 digest of that file’s raw bytes.
+* `manifest_fingerprint`, `parameter_hash` — echoes of the current run identity;
+* `s5_manifest_digest` — SHA-256 digest of the S5 manifest/summary JSON;
+* `members` — array of objects, each with required fields:
+  * `logical_id` — dataset or artefact ID for the evidence file;
+  * `path` — relative path within the bundle root (ASCII sorted, no `..`);
+  * `schema_ref` — schema anchor for the evidence file;
+  * `sha256_hex` — lowercase hex SHA-256 digest of the evidence file bytes;
+  * `role` — short string describing the evidence role;
+  * `size_bytes` - integer >= 0;
+  * optional `notes`.
+* optional `metadata` — object for future, schema-controlled extensions.
 
 4.3.4 The index MUST satisfy:
 
-* `path` fields are **unique** and sorted in strict ASCII lexicographic order;
-* `path` MUST NOT include `_passed.flag_3B`;
-* every listed file MUST exist under the bundle root and be uncompressed / readable;
-* every evidence file that S5 wants included in the bundle hash MUST be listed in `index.json` exactly once.
+* `members.path` entries are **unique** and sorted lexicographically;
+* `path` values MUST exclude `_passed.flag_3B`;
+* every member's file MUST exist under the bundle root and be readable;
+* every evidence file that contributes to the bundle hash MUST appear in `members` exactly once.
 
 ---
 
-4.4 **Segment PASS flag — `_passed.flag_3B`**
+4.4 **Segment PASS flag - `_passed.flag_3B`**
 
 4.4.1 The segment-level PASS flag for 3B SHALL be represented as a single-line text file named `_passed.flag_3B`, registered in `dataset_dictionary.layer1.3B.yaml` with at least:
 
-* `dataset_id: passed_flag_3B`
+* `id: passed_flag_3B`
+* `owner_subsegment: 3B`
 * `schema_ref: schemas.layer1.yaml#/validation/passed_flag_3B`
-* `path_template: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag_3B`
-* `partition_keys: ["fingerprint"]`
-* `writer_sort: []`
+* `path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag_3B`
+* `partitioning: ["fingerprint"]`
+* `ordering: []`
 
 4.4.2 The registry entry MUST:
 
-* reference `dataset_id: passed_flag_3B` and `schema_ref`;
-* declare `owner_segment: "3B"` and `type: "dataset"`;
+* reference `name: passed_flag_3B` and `schema_ref`;
+* declare `type: "dataset"` with explicit 3B ownership metadata;
 * provide `manifest_key` (e.g. `"mlr.3B.passed_flag_3B"`);
 * list consumers: any downstream component that gates on 3B (2B, 3B validation, 4A/4B).
 
@@ -574,15 +586,16 @@ The exact set and naming of evidence files SHOULD be stable and schema-documente
 
 ---
 
-4.5 **S5 manifest / run-summary — `s5_manifest_3B` (optional but recommended)**
+4.5 **S5 manifest / run-summary - `s5_manifest_3B` (optional but recommended)**
 
 4.5.1 S5 MAY emit a S5-specific manifest/summary JSON file (e.g. `s5_manifest_3B.json`) inside the validation bundle. It SHOULD be registered with:
 
-* `dataset_id: s5_manifest_3B` (or `s5_run_summary_3B`);
+* `id: s5_manifest_3B` (or `s5_run_summary_3B`);
+* `owner_subsegment: 3B`;
 * `schema_ref: schemas.3B.yaml#/validation/s5_manifest_3B`;
-* `path_template: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/s5_manifest_3B.json`
-* `partition_keys: ["fingerprint"]`
-* `writer_sort: []`
+* `path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/s5_manifest_3B.json`
+* `partitioning: ["fingerprint"]`
+* `ordering: []`
 
 5.5.2 The schema for `s5_manifest_3B` SHOULD include:
 
@@ -639,20 +652,21 @@ They are not, by themselves, a guarantee of Layer-1–wide correctness; 4A/4B ma
 
 ## 5. Dataset shapes, schema anchors & catalogue links *(Binding)*
 
-5.1 **Validation bundle directory — `validation_bundle_3B`**
+5.1 **Validation bundle directory - `validation_bundle_3B`**
 
 5.1.1 The 3B validation bundle MUST be registered in `dataset_dictionary.layer1.3B.yaml` as a directory artefact with at least:
 
-* `dataset_id: validation_bundle_3B`
+* `id: validation_bundle_3B`
+* `owner_subsegment: 3B`
 * `schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3B` (for the index shape; the bundle itself is a directory)
-* `path_template: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/`
-* `partition_keys: ["fingerprint"]`
-* `writer_sort: []`
+* `path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/`
+* `partitioning: ["fingerprint"]`
+* `ordering: []`
 
 5.1.2 The corresponding entry in `artefact_registry_3B.yaml` MUST:
 
-* reference `dataset_id: validation_bundle_3B` and `schema_ref`;
-* declare `owner_segment: "3B"` and `type: "dataset"`;
+* reference `name: validation_bundle_3B` and `schema_ref`;
+* declare `type: "dataset"` with explicit 3B ownership metadata;
 * provide a stable `manifest_key` (e.g. `"mlr.3B.validation_bundle_3B"`);
 * list primary consumers: 3B validation state, layer-wide validation (4A/4B), any HashGate verifier tools.
 
@@ -670,51 +684,61 @@ They are not, by themselves, a guarantee of Layer-1–wide correctness; 4A/4B ma
 
 5.2.1 The bundle index MUST be registered in `dataset_dictionary.layer1.3B.yaml` with:
 
-* `dataset_id: validation_bundle_index_3B`
+* `id: validation_bundle_index_3B`
+* `owner_subsegment: 3B`
 * `schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3B`
-* `path_template: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/index.json`
-* `partition_keys: ["fingerprint"]`
-* `writer_sort: []` (single JSON document per fingerprint)
+* `path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/index.json`
+* `partitioning: ["fingerprint"]`
+* `ordering: []` (single JSON document per fingerprint)
 
 5.2.2 The corresponding registry entry MUST:
 
-* reference `dataset_id: validation_bundle_index_3B` and `schema_ref`;
-* declare `owner_segment: "3B"` and `type: "dataset"`;
+* reference `name: validation_bundle_index_3B` and `schema_ref`;
+* declare `type: "dataset"` with explicit 3B ownership metadata;
 * provide a stable `manifest_key` (e.g. `"mlr.3B.validation_bundle_index_3B"`);
 * list consumers: any HashGate / validation tooling that verifies bundles and flags.
 
-5.2.3 `schemas.layer1.yaml#/validation/validation_bundle_index_3B` MUST define a JSON object with at least:
+5.2.3 `schemas.layer1.yaml#/validation/validation_bundle_index_3B` defines a JSON object with:
 
-* a collection field (e.g. `files` array) where each element is an object with:
-
-  * `path` — string, path to the evidence file **relative** to the bundle root; MUST NOT be absolute and MUST NOT contain `..`;
-  * `sha256_hex` — lowercase hex-encoded SHA-256 digest of that file’s raw bytes.
+* `manifest_fingerprint`, `parameter_hash`, `s5_manifest_digest` — identity echoes and manifest digest;
+* `members` — array of objects, each with required fields:
+  * `logical_id` — dataset or artefact ID for the evidence file;
+  * `path` — relative path within the bundle root (ASCII sorted, no `..`);
+  * `schema_ref` — schema anchor for the evidence file;
+  * `sha256_hex` — lowercase hex digest of the evidence file bytes;
+  * `role` — short description of why the evidence exists;
+  * `size_bytes` — integer >= 0;
+  * optional `notes`.
+* optional `metadata` for informative extensions.
 
 5.2.4 The index MUST satisfy:
 
-* All `path` values are **unique** within a given `manifest_fingerprint`.
-* `path` values are sorted in **strict ASCII lexicographic order**.
-* Every file listed in `files[].path` exists under the bundle root and is readable.
-* No entry corresponds to `_passed.flag_3B` (the flag is excluded from the index by design).
+* All `members.path` values are **unique** within a given `manifest_fingerprint`.
+* `members.path` values are sorted in **strict ASCII lexicographic order**.
+* Every file listed in `members[].path` exists under the bundle root and is readable.
+* No member corresponds to `_passed.flag_3B` (the flag is excluded from the index by design).
 
-5.2.5 Any additional metadata fields in the index schema (e.g. `bundle_version`, `created_utc`) MUST be clearly defined as optional/informative and MUST NOT change the hashing law (see §4 and §6).
+5.2.5 Any additional metadata fields in the index schema (e.g. bundle version, creation timestamps) MUST be clearly defined as optional/informative and MUST NOT change the hashing law (see §4 and §6).
+
+
 
 ---
 
-5.3 **Segment PASS flag — `_passed.flag_3B`**
+5.3 **Segment PASS flag - `_passed.flag_3B`**
 
 5.3.1 The 3B PASS flag MUST be registered in `dataset_dictionary.layer1.3B.yaml` with:
 
-* `dataset_id: passed_flag_3B`
+* `id: passed_flag_3B`
+* `owner_subsegment: 3B`
 * `schema_ref: schemas.layer1.yaml#/validation/passed_flag_3B`
-* `path_template: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag_3B`
-* `partition_keys: ["fingerprint"]`
-* `writer_sort: []`
+* `path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/_passed.flag_3B`
+* `partitioning: ["fingerprint"]`
+* `ordering: []`
 
 5.3.2 The registry entry MUST:
 
-* reference `dataset_id: passed_flag_3B` and `schema_ref`;
-* declare `owner_segment: "3B"` and `type: "dataset"`;
+* reference `name: passed_flag_3B` and `schema_ref`;
+* declare `type: "dataset"` with explicit 3B ownership metadata;
 * provide a `manifest_key` (e.g. `"mlr.3B.passed_flag_3B"`);
 * list all downstream consumers that gate on 3B (2B, 3B validation, 4A/4B, etc.).
 
@@ -736,20 +760,21 @@ Any deviation MUST be treated as a schema violation.
 
 ---
 
-5.4 **S5 manifest / summary evidence — `s5_manifest_3B` (optional)**
+5.4 **S5 manifest / summary evidence - `s5_manifest_3B` (optional)**
 
 5.4.1 If S5 emits a dedicated manifest/summary artefact, it MUST be declared in `dataset_dictionary.layer1.3B.yaml` with:
 
-* `dataset_id: s5_manifest_3B` (or `s5_run_summary_3B` if preferred);
+* `id: s5_manifest_3B` (or `s5_run_summary_3B` if preferred);
+* `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/validation/s5_manifest_3B`
-* `path_template: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/s5_manifest_3B.json`
-* `partition_keys: ["fingerprint"]`
-* `writer_sort: []`
+* `path: data/layer1/3B/validation/fingerprint={manifest_fingerprint}/s5_manifest_3B.json`
+* `partitioning: ["fingerprint"]`
+* `ordering: []`
 
 5.4.2 The corresponding registry entry MUST:
 
-* reference `dataset_id: s5_manifest_3B` and `schema_ref`;
-* declare `owner_segment: "3B"` and `type: "dataset"`;
+* reference `name: s5_manifest_3B` and `schema_ref`;
+* declare `type: "dataset"` with explicit 3B ownership metadata;
 * provide a `manifest_key` (e.g. `"mlr.3B.s5_manifest_3B"`);
 * list consumers: 3B validation state, 4A/4B, run-report tooling.
 
@@ -794,7 +819,7 @@ Any deviation MUST be treated as a schema violation.
 5.6.1 Binding aspects of this section include:
 
 * existence and names of S5 datasets (`validation_bundle_3B`, `validation_bundle_index_3B`, `_passed.flag_3B`);
-* their `schema_ref`, `path_template`, and `partition_keys`;
+* their `schema_ref`, `path`, and `partitioning`;
 * the requirement that `_passed.flag_3B` encodes the SHA-256 of all files listed in `index.json` in ASCII-sorted path order;
 * that `_passed.flag_3B` is excluded from `index.json`.
 

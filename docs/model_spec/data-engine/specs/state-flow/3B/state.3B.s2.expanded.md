@@ -203,8 +203,8 @@ If any of these statuses is not `"PASS"`, S2 MUST treat the 3B environment as **
 
 2.3.2 Before constructing edges, S2 MUST:
 
-* load and validate `virtual_classification_3B` against `schemas.3B.yaml#/egress/virtual_classification_3B`;
-* load and validate `virtual_settlement_3B` against `schemas.3B.yaml#/egress/virtual_settlement_3B`;
+* load and validate `virtual_classification_3B` against `schemas.3B.yaml#/plan/virtual_classification_3B`;
+* load and validate `virtual_settlement_3B` against `schemas.3B.yaml#/plan/virtual_settlement_3B`;
 * verify key invariants required by S1 (identity echoes, key uniqueness, join consistency between the two datasets).
 
 2.3.3 S2 MUST derive the virtual merchant set
@@ -700,11 +700,12 @@ Any further outputs MUST be explicitly added to the 3B contracts and to this sec
 
 4.3.3 `edge_catalogue_index_3B` MUST be declared in `dataset_dictionary.layer1.3B.yaml` with:
 
-* `dataset_id: edge_catalogue_index_3B` (or equivalent);
-* `schema_ref: schemas.3B.yaml#/egress/edge_catalogue_index_3B`;
-* `path_template: data/layer1/3B/edge_catalogue_index/seed={seed}/fingerprint={manifest_fingerprint}/`;
-* `partition_keys: ["seed","fingerprint"]`;
-* `writer_sort` reflecting the key structure (e.g. `["merchant_id"]` for merchant rows and a separate identified row for global summary, as defined in the schema).
+* `id: edge_catalogue_index_3B`;
+* `owner_subsegment: 3B`;
+* `schema_ref: schemas.3B.yaml#/plan/edge_catalogue_index_3B`;
+* `path: data/layer1/3B/edge_catalogue_index/seed={seed}/fingerprint={manifest_fingerprint}/`;
+* `partitioning: [seed, fingerprint]`;
+* `ordering` reflecting the key structure (e.g. `["scope","merchant_id"]`, as defined in the schema).
 
 4.3.4 Downstream obligations:
 
@@ -717,7 +718,7 @@ Any further outputs MUST be explicitly added to the 3B contracts and to this sec
 
 4.4.1 Both `edge_catalogue_3B` and `edge_catalogue_index_3B` are **run-scoped** datasets. Their identity is determined by:
 
-* `seed` and `manifest_fingerprint` as partition keys;
+* the `{seed, fingerprint}` partition declared in the dictionary (the `fingerprint` token equals the run’s `manifest_fingerprint`);
 * the fact that they are produced by 3B.S2 for that run under the 3B contracts version in effect.
 
 4.4.2 On disk, identity SHALL be expressed via:
@@ -818,22 +819,24 @@ is non-conformant with this specification and MUST be corrected or versioned app
 
 5.1.1 The dataset **`edge_catalogue_3B`** MUST be registered in `dataset_dictionary.layer1.3B.yaml` with, at minimum:
 
-* `dataset_id: edge_catalogue_3B`
-* `schema_ref: schemas.3B.yaml#/egress/edge_catalogue_3B`
-* `path_template: data/layer1/3B/edge_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/`
-* `partition_keys: ["seed","fingerprint"]`
-* `writer_sort: ["merchant_id","edge_id"]`
+* `id: edge_catalogue_3B`
+* `owner_subsegment: 3B`
+* `schema_ref: schemas.3B.yaml#/plan/edge_catalogue_3B`
+* `path: data/layer1/3B/edge_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/`
+* `partitioning: [seed, fingerprint]`
+* `ordering: ["merchant_id","edge_id"]`
   (or `["merchant_key","edge_id"]` if a composite merchant key is adopted across 3B; in that case the spec MUST be explicit).
 
 5.1.2 The corresponding entry in `artefact_registry_3B.yaml` MUST:
 
-* reference `dataset_id: edge_catalogue_3B` and the same `schema_ref`;
-* declare `owner_segment: "3B"` and `type: "dataset"`;
+* set `name: edge_catalogue_3B` (matching the dictionary `id`);
+* reuse the same `path` tokens and schema anchor (`schemas.3B.yaml#/plan/edge_catalogue_3B`);
+* declare `type: dataset`, an appropriate `category` (e.g. `virtual_edges`), and supply the standard registry metadata (`semver`, `version`, `owner`, `environment`);
 * provide a stable `manifest_key` such as `"mlr.3B.edge_catalogue_3B"`;
 * list known consumers (at least `3B.S3`, the 3B validation state, and any routing components that read edges directly);
-* specify a retention class appropriate for simulation / offline use (e.g. “internal, medium retention”).
+* specify a retention / cross-layer posture consistent with other Layer-1 datasets of similar sensitivity.
 
-5.1.3 `schemas.3B.yaml#/egress/edge_catalogue_3B` MUST define `edge_catalogue_3B` as a table-shaped dataset with one row per edge node. Required columns:
+5.1.3 `schemas.3B.yaml#/plan/edge_catalogue_3B` MUST define `edge_catalogue_3B` as a table-shaped dataset with one row per edge node. Required columns:
 
 * **Identity & keys**
 
@@ -922,23 +925,24 @@ is non-conformant with this specification and MUST be corrected or versioned app
 
 5.2.1 The dataset **`edge_catalogue_index_3B`** MUST be registered in `dataset_dictionary.layer1.3B.yaml` with at least:
 
-* `dataset_id: edge_catalogue_index_3B`
-* `schema_ref: schemas.3B.yaml#/egress/edge_catalogue_index_3B`
-* `path_template: data/layer1/3B/edge_catalogue_index/seed={seed}/fingerprint={manifest_fingerprint}/`
-* `partition_keys: ["seed","fingerprint"]`
-* `writer_sort`:
+* `id: edge_catalogue_index_3B`
+* `owner_subsegment: 3B`
+* `schema_ref: schemas.3B.yaml#/plan/edge_catalogue_index_3B`
+* `path: data/layer1/3B/edge_catalogue_index/seed={seed}/fingerprint={manifest_fingerprint}/`
+* `partitioning: [seed, fingerprint]`
+* `ordering`:
 
   * typically `["merchant_id"]` for per-merchant rows;
   * global summary rows may be keyed by a dedicated label (e.g. `merchant_id = "__GLOBAL__"`), as defined in the schema.
 
 5.2.2 The corresponding entry in `artefact_registry_3B.yaml` MUST:
 
-* reference `dataset_id: edge_catalogue_index_3B` and the same `schema_ref`;
-* declare `owner_segment: "3B"` and `type: "dataset"`;
+* set `name: edge_catalogue_index_3B` and reuse the same schema anchor / path tokens as the dictionary entry;
+* declare `type: dataset`, include the usual registry metadata (`category`, `semver`, `version`, `owner`, `environment`);
 * provide a stable `manifest_key` (e.g. `"mlr.3B.edge_catalogue_index_3B"`);
-* list `3B.S3` and the 3B validation state as primary consumers.
+* list `3B.S3`, the 3B validation state, and any routing or observability tooling as primary consumers.
 
-5.2.3 `schemas.3B.yaml#/egress/edge_catalogue_index_3B` MUST define an index structure with at least two possible row types (distinguished by a field or by separate collections):
+5.2.3 `schemas.3B.yaml#/plan/edge_catalogue_index_3B` MUST define an index structure with at least two possible row types (distinguished by a field or by separate collections):
 
 * **Per-merchant index rows** (keyed by `merchant_id` / `merchant_key`):
 
@@ -987,8 +991,8 @@ and referenced by `schema_ref` in the relevant catalogues or internal config.
 
 5.4.1 All S1 and upstream inputs S2 reads MUST be anchored to existing schemas. For example:
 
-* `virtual_classification_3B` — `schemas.3B.yaml#/egress/virtual_classification_3B`;
-* `virtual_settlement_3B` — `schemas.3B.yaml#/egress/virtual_settlement_3B`;
+* `virtual_classification_3B` — `schemas.3B.yaml#/plan/virtual_classification_3B`;
+* `virtual_settlement_3B` — `schemas.3B.yaml#/plan/virtual_settlement_3B`;
 * `tile_index` / `tile_weights` — schemas in `schemas.1B.yaml` (e.g. `#/internal/tile_index`, `#/internal/tile_weights`);
 * `cdn_country_weights` — `schemas.3B.yaml#/policy/cdn_country_weights` (or equivalent);
 * tz-world / tzdb artefacts — anchors in `schemas.ingress.layer1.yaml` and/or `schemas.2A.yaml`.
@@ -1512,7 +1516,7 @@ Within each `{seed, fingerprint}` partition, there MUST be at most one row for a
 * **per-merchant rows**: key = `merchant_id` (or `merchant_key`);
 * **global summary rows**: key indicated by a dedicated scope field (e.g. `scope = "GLOBAL"` or `merchant_id = "__GLOBAL__"`).
 
-The exact keying MUST be defined in `schemas.3B.yaml#/egress/edge_catalogue_index_3B` and mirrored in the dataset dictionary.
+The exact keying MUST be defined in `schemas.3B.yaml#/plan/edge_catalogue_index_3B` and mirrored in the dataset dictionary.
 
 7.3.3 Natural join keys:
 
@@ -1734,9 +1738,9 @@ z. `tz_source` is set to an allowed enum value and reflects the actual resolutio
 
 **Edge catalogue & index correctness (Phase F)**
 
-aa. `edge_catalogue_3B@seed={seed},fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/egress/edge_catalogue_3B`.
+aa. `edge_catalogue_3B@seed={seed},fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/plan/edge_catalogue_3B`.
 
-bb. `edge_catalogue_index_3B@seed={seed},fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/egress/edge_catalogue_index_3B`.
+bb. `edge_catalogue_index_3B@seed={seed},fingerprint={manifest_fingerprint}` exists and validates against `schemas.3B.yaml#/plan/edge_catalogue_index_3B`.
 
 cc. Structural invariants:
 

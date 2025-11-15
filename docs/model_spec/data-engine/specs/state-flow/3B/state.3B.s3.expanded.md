@@ -600,8 +600,8 @@ S3 MUST treat this as an **input integrity or contract error** (signalled via `E
   * `seed={seed}`
   * `fingerprint={manifest_fingerprint}`
 
-* The normative `path_template` SHALL be defined in `dataset_dictionary.layer1.3B.yaml`, e.g.:
-  `data/layer1/3B/edge_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/alias.bin`
+* The normative `path` SHALL be defined in `dataset_dictionary.layer1.3B.yaml`, i.e.:
+  `data/layer1/3B/edge_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin`
 
 * No other partition keys MAY be used.
 
@@ -630,6 +630,12 @@ S3 MUST treat this as an **input integrity or contract error** (signalled via `E
 4.3.2 At minimum, `edge_alias_index_3B` MUST contain:
 
 * **Per-merchant rows** (one per merchant with at least one edge):
+
+  * `scope`
+
+    * enum e.g. `{"MERCHANT","GLOBAL"}`;
+    * MUST equal `"MERCHANT"` for merchant rows;
+    * distinguishes global summary rows.
 
   * `merchant_id` (or composite `merchant_key`)
 
@@ -669,7 +675,7 @@ S3 MUST treat this as an **input integrity or contract error** (signalled via `E
 
 * **Global summary row(s)**:
 
-  * either a dedicated row keyed by a special `scope` (e.g. `scope = "GLOBAL"`) or a documented convention (e.g. `merchant_id = "__GLOBAL__"`);
+  * `scope = "GLOBAL"` (per schema) with `merchant_id = null` (or a documented special value), per schema;
   * MUST include at least:
 
     * `edge_count_total_all_merchants`;
@@ -684,10 +690,10 @@ S3 MUST treat this as an **input integrity or contract error** (signalled via `E
   * `seed={seed}`
   * `fingerprint={manifest_fingerprint}`
 
-* The normative `path_template` SHALL be defined in the 3B dictionary, e.g.:
-  `data/layer1/3B/edge_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/index.parquet`
+* The normative `path` SHALL be defined in the 3B dictionary, i.e.:
+  `data/layer1/3B/edge_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_index_3B.parquet`
 
-* `writer_sort` MUST be set to reflect the primary keys, e.g. `["merchant_id"]` (with any global rows clearly identifiable via a `scope` or special key).
+* `ordering` MUST follow the declared primary keys, i.e. `["scope","merchant_id"]` with any composite merchant key encoded consistently across 3B.
 
 4.3.4 Structural invariants:
 
@@ -726,10 +732,9 @@ S3 MUST treat this as an **input integrity or contract error** (signalled via `E
 
 * `edge_universe_hash_3B` MUST be fingerprint-only:
 
-  * `path_template`:
-    `data/layer1/3B/edge_universe/fingerprint={manifest_fingerprint}/edge_universe_hash.json`
+  * `path: data/layer1/3B/edge_universe_hash/fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json`
 
-  * `partition_keys: ["fingerprint"]`.
+  * `partitioning: ["fingerprint"]`.
 
 * No `seed` partition is allowed. The descriptor is **global to the manifest** (and implicit across all seeds) for the virtual edge universe; if multiple seeds are used, S3 MUST define and document whether `edge_universe_hash` is expected to be seed-invariant or per-seed and adjust the design accordingly.
 
@@ -745,8 +750,8 @@ S3 MUST treat this as an **input integrity or contract error** (signalled via `E
 4.5.1 If the design includes an S3 run-summary dataset (e.g. `s3_run_summary_3B`), it MUST be declared in `schemas.3B.yaml` and the 3B dictionary with:
 
 * `schema_ref: schemas.3B.yaml#/validation/s3_run_summary_3B`;
-* `path_template: data/layer1/3B/s3_run_summary/fingerprint={manifest_fingerprint}/s3_run_summary_3B.json` (or similar);
-* `partition_keys: ["fingerprint"]`.
+* `path: data/layer1/3B/s3_run_summary/fingerprint={manifest_fingerprint}/s3_run_summary_3B.json` (or similar);
+* `partitioning: ["fingerprint"]`.
 
 4.5.2 Such a summary MAY capture:
 
@@ -809,24 +814,25 @@ is **non-conformant** with this specification and MUST be corrected under the ch
 
 ## 5. Dataset shapes, schema anchors & catalogue links *(Binding)*
 
-5.1 **`edge_alias_blob_3B` — blob contract**
+5.1 **`edge_alias_blob_3B` - blob contract**
 
 5.1.1 The alias blob **`edge_alias_blob_3B`** MUST be registered in `dataset_dictionary.layer1.3B.yaml` with at least:
 
-* `dataset_id: edge_alias_blob_3B`
-* `schema_ref: schemas.3B.yaml#/egress/edge_alias_blob_3B`
-* `path_template: data/layer1/3B/edge_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/alias.bin`
-* `partition_keys: ["seed","fingerprint"]`
-* `writer_sort: []` (blob is a single binary file per `{seed,fingerprint}`; sort concept is N/A)
+* `id: edge_alias_blob_3B`
+* `owner_subsegment: 3B`
+* `schema_ref: schemas.3B.yaml#/binary/edge_alias_blob_header_3B`
+* `path: data/layer1/3B/edge_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin`
+* `partitioning: [seed, fingerprint]`
+* `ordering: []` (blob is a single binary file per `{seed,fingerprint}`; sort concept is N/A)
 
 5.1.2 The corresponding entry in `artefact_registry_3B.yaml` MUST:
 
-* reference `dataset_id: edge_alias_blob_3B` and the same `schema_ref`;
-* declare `owner_segment: "3B"` and `type: "dataset"`;
+* set `name: edge_alias_blob_3B` (matching the dictionary `id`) and reuse the same schema anchor + path tokens;
+* declare `type: "dataset"`, the applicable `category` (e.g. `virtual_edges`), `owner`, and runtime environment metadata;
 * provide a stable `manifest_key` such as `"mlr.3B.edge_alias_blob_3B"`;
-* list known consumers: at minimum 3B.S3 validation, the 3B segment-level validation state, and 2B’s virtual routing implementation.
+* list known consumers: at minimum 3B.S3 validation, the 3B segment-level validation state, and 2B's virtual routing implementation, along with retention/licensing policy.
 
-5.1.3 `schemas.3B.yaml#/egress/edge_alias_blob_3B` MUST define the **header structure** for the blob. At minimum, the header schema MUST include:
+5.1.3 `schemas.3B.yaml#/binary/edge_alias_blob_header_3B` MUST define the **header structure** for the blob. At minimum, the header schema MUST include:
 
 * `layout_version` — string or integer enum identifying the alias layout version;
 * `endianness` — enum, e.g. `{"little","big"}`;
@@ -854,26 +860,27 @@ The structure of per-merchant alias tables (probability format, alias format, pa
 
 ---
 
-5.2 **`edge_alias_index_3B` — index contract**
+5.2 **`edge_alias_index_3B` - index contract**
 
 5.2.1 The dataset **`edge_alias_index_3B`** MUST be registered in `dataset_dictionary.layer1.3B.yaml` with at least:
 
-* `dataset_id: edge_alias_index_3B`
-* `schema_ref: schemas.3B.yaml#/egress/edge_alias_index_3B`
-* `path_template: data/layer1/3B/edge_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/`
-* `partition_keys: ["seed","fingerprint"]`
-* `writer_sort: ["merchant_id"]`
+* `id: edge_alias_index_3B`
+* `owner_subsegment: 3B`
+* `schema_ref: schemas.3B.yaml#/plan/edge_alias_index_3B`
+* `path: data/layer1/3B/edge_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_index_3B.parquet`
+* `partitioning: [seed, fingerprint]`
+* `ordering: ["scope","merchant_id"]`
 
-  * or `["merchant_key"]` if a composite key is used consistently across 3B; the spec MUST be explicit.
+  * or `["scope","merchant_key"]` if a composite key is used consistently across 3B; the spec MUST be explicit.
 
 5.2.2 The matching entry in `artefact_registry_3B.yaml` MUST:
 
-* reference `dataset_id: edge_alias_index_3B` and `schema_ref`;
-* declare `owner_segment: "3B"` and `type: "dataset"`;
+* set `name: edge_alias_index_3B` and reuse the same schema anchor/path tokens;
+* declare `type: "dataset"`, include `category`, `owner`, `semver`/`version`, and runtime environment metadata;
 * provide a stable `manifest_key` (e.g. `"mlr.3B.edge_alias_index_3B"`);
-* list primary consumers: 3B.S3 validation, 3B segment validation, and 2B’s routing/decoder.
+* list primary consumers: 3B.S3 validation, 3B segment validation, and 2B's routing/decoder.
 
-5.2.3 `schemas.3B.yaml#/egress/edge_alias_index_3B` MUST define a table-shaped dataset with at least:
+5.2.3 `schemas.3B.yaml#/plan/edge_alias_index_3B` MUST define a table-shaped dataset with at least:
 
 * **Common fields**
 
@@ -921,7 +928,7 @@ The structure of per-merchant alias tables (probability format, alias format, pa
 
 * **Global summary row(s)**
 
-  * either distinguished by `scope = "GLOBAL"` or a special value of `merchant_id` (e.g. `"__GLOBAL__"`).
+  * `scope = "GLOBAL"` (per schema) with `merchant_id = null` (or schema-defined sentinel).
   * MUST include:
 
     * `edge_count_total_all_merchants` — total edges, equals S2’s global count;
@@ -942,16 +949,17 @@ The structure of per-merchant alias tables (probability format, alias format, pa
 
 5.3.1 The descriptor **`edge_universe_hash_3B`** MUST be registered in `dataset_dictionary.layer1.3B.yaml` with:
 
-* `dataset_id: edge_universe_hash_3B`
+* `id: edge_universe_hash_3B`
+* `owner_subsegment: 3B`
 * `schema_ref: schemas.3B.yaml#/validation/edge_universe_hash_3B`
-* `path_template: data/layer1/3B/edge_universe/fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json`
-* `partition_keys: ["fingerprint"]`
-* `writer_sort: []` (single JSON doc per fingerprint)
+* `path: data/layer1/3B/edge_universe_hash/fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json`
+* `partitioning: ["fingerprint"]`
+* `ordering: []` (single JSON doc per fingerprint)
 
 5.3.2 The registry entry MUST:
 
-* reference `dataset_id: edge_universe_hash_3B` and `schema_ref`;
-* declare `owner_segment: "3B"` and `type: "dataset"`;
+* set `name: edge_universe_hash_3B` and reuse the same schema anchor + path tokens;
+* declare `type: "dataset"`, include category/owner metadata, and provide runtime environment details;
 * provide a `manifest_key` such as `"mlr.3B.edge_universe_hash_3B"`;
 * list consumers: 2B virtual routing, 3B validation, 4A/4B-style harness.
 
@@ -990,21 +998,42 @@ The structure of per-merchant alias tables (probability format, alias format, pa
 
 ---
 
-5.4 **Catalogue links & discoverability**
+5.4 **`gamma_draw_log_3B` — observability contract (expected empty)**
+
+5.4.1 `dataset_dictionary.layer1.3B.yaml` lists `gamma_draw_log_3B` with:
+
+* `id: gamma_draw_log_3B`
+* `owner_subsegment: 3B`
+* `schema_ref: schemas.3B.yaml#/validation/gamma_draw_log_entry_3B`
+* `path: logs/layer1/3B/gamma_draw/seed={seed}/fingerprint={manifest_fingerprint}/gamma_draw_log_3B.jsonl`
+* `partitioning: [seed, fingerprint]`
+* `ordering: [merchant_id, day_index]`
+
+5.4.2 S3 is RNG-free, so this dataset functions purely as a **guardrail**:
+
+* S3 MUST publish the log partition (even if empty) so validation can assert "no gamma draws occurred".
+* The file SHOULD contain zero records; **any** record or non-empty shard constitutes `E3B_S3_RNG_USED` and is treated as a fatal contract violation.
+* Downstream infrastructure MAY compress or omit the physical file entirely if no events were written, provided the publish protocol proves emptiness (e.g. zero-byte file plus digest entry).
+
+5.4.3 If a future S3 design legitimately requires gamma draws, this spec MUST be revised (including §1.3) and the dictionary/registry updated to reflect the non-empty usage; until then, `gamma_draw_log_3B` exists solely to prove S3’s RNG-free status.
+
+---
+
+5.5 **Catalogue links & discoverability**
 
 5.4.1 All S3 outputs MUST be **discoverable** via the dataset dictionary and artefact registry:
 
 * Datasets: `edge_alias_blob_3B`, `edge_alias_index_3B`, `edge_universe_hash_3B` entries in `dataset_dictionary.layer1.3B.yaml`;
-* Artefacts: corresponding entries in `artefact_registry_3B.yaml` with stable manifest keys and `owner_segment: "3B"`.
+* Artefacts: corresponding entries in `artefact_registry_3B.yaml` with stable manifest keys and explicit 3B ownership metadata.
 
 5.4.2 S3 MUST NOT hard-code paths or bypass the catalogue. It MUST:
 
-* use `dataset_dictionary.layer1.3B.yaml` to construct paths from `dataset_id`, `path_template`, and partition keys;
+* use `dataset_dictionary.layer1.3B.yaml` to construct paths from `id`, `path`, and `partitioning`;
 * use `artefact_registry_3B.yaml` to determine ownership, licence class and retention policy for its outputs.
 
 5.4.3 Any new S3-owned dataset (e.g. `s3_run_summary_3B` or an intermediate persisted planning table) is only valid if:
 
-* it has a `dataset_id`, `schema_ref`, `path_template`, `partition_keys`, and `writer_sort` declared in the dataset dictionary;
+* it has an `id`, `schema_ref`, `path`, `partitioning`, and `ordering` declared in the dataset dictionary;
 * it has a corresponding registry entry;
 * it is included explicitly in this spec when used in a binding way.
 
@@ -1035,7 +1064,7 @@ The structure of per-merchant alias tables (probability format, alias format, pa
 5.6.1 The following are **binding** requirements in this section:
 
 * Existence and names of `edge_alias_blob_3B`, `edge_alias_index_3B`, `edge_universe_hash_3B`.
-* Their `schema_ref`, `path_template`, `partition_keys`, and registration in dictionary + registry.
+* Their `schema_ref`, `path`, `partitioning`, and registration in dictionary + registry.
 * The requirement that `edge_alias_blob_3B` includes a header with at least the fields described in §5.1.3.
 * The requirement that `edge_alias_index_3B` includes, at minimum, the per-merchant and global fields described in §5.2.3.
 * The requirement that `edge_universe_hash_3B` includes `manifest_fingerprint`, `edge_universe_hash`, and the component digests listed in §5.3.3 (subject to minor, backwards-compatible extensions).
@@ -1313,7 +1342,7 @@ The threshold `G/n` MUST be integer or handled by a deterministic policy declare
 
 S3 MUST:
 
-1. Serialize the blob header according to `schemas.3B.yaml#/egress/edge_alias_blob_3B` and the alias-layout policy.
+1. Serialize the blob header according to `schemas.3B.yaml#/binary/edge_alias_blob_header_3B` and the alias-layout policy.
 
 2. Let `offset₀ = header_length_bytes`. Initialise a running offset `off = offset₀`.
 
@@ -1431,13 +1460,13 @@ For each merchant `m` in canonical order:
 
 6.7.2.1 S3 MUST write outputs using an atomic publish protocol for each `{seed, manifest_fingerprint}`:
 
-1. Write `edge_alias_blob_3B` to a temporary location (e.g. `alias.bin.tmp`), fully sync/flushed.
+1. Write `edge_alias_blob_3B` to a temporary location (e.g. `edge_alias_blob_3B.bin.tmp`), fully sync/flushed.
 2. Write `edge_alias_index_3B` to a temporary location (e.g. `index.tmp/…`).
 3. Write `edge_universe_hash_3B` to a temporary location (e.g. `edge_universe_hash_3B.tmp.json`).
 4. Validate all three artefacts in-place (as in 6.7.1).
 5. Move/rename temporary artefacts into their canonical paths:
 
-   * `alias.bin.tmp` → `alias.bin` under `edge_alias_blob_3B` path;
+   * `edge_alias_blob_3B.bin.tmp` → `edge_alias_blob_3B.bin` under `edge_alias_blob_3B` path;
    * `index.tmp/…` → final `edge_alias_index_3B` directory;
    * `edge_universe_hash_3B.tmp.json` → final `edge_universe_hash_3B.json` path.
 
@@ -1527,7 +1556,7 @@ but it MUST NOT:
 The canonical path is of the form:
 
 ```text
-data/layer1/3B/edge_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/alias.bin
+data/layer1/3B/edge_alias_blob/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_blob_3B.bin
 ```
 
 No additional partition keys (e.g. `parameter_hash`, `run_id`, or merchant-level sharding) are allowed unless **explicitly** added via a versioned change to the dataset dictionary and this spec.
@@ -1540,18 +1569,18 @@ No additional partition keys (e.g. `parameter_hash`, `run_id`, or merchant-level
 with a canonical path of the form:
 
 ```text
-data/layer1/3B/edge_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/...
+data/layer1/3B/edge_alias_index/seed={seed}/fingerprint={manifest_fingerprint}/edge_alias_index_3B.parquet
 ```
 
 Again, no additional partition keys are allowed without a versioned contract change.
 
 7.2.3 `edge_universe_hash_3B` MUST be **fingerprint-only**:
 
-* `partition_keys: ["fingerprint"]`
+* `partitioning: ["fingerprint"]`
 * canonical path of the form:
 
 ```text
-data/layer1/3B/edge_universe/fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json
+data/layer1/3B/edge_universe_hash/fingerprint={manifest_fingerprint}/edge_universe_hash_3B.json
 ```
 
 It MUST NOT be partitioned by `seed` or any other key. The descriptor is manifest-scoped, not seed-scoped.
@@ -1576,15 +1605,15 @@ Within a `{seed, fingerprint}` partition, `edge_alias_index_3B` MUST have:
 
 The primary key for merchant rows is:
 
-* `PK_edge_alias_index = (merchant_id)`
+* `PK_edge_alias_index = (scope, merchant_id)` — with `scope = "MERCHANT"` for per-merchant rows and `"GLOBAL"` for summary rows.
   (or `(merchant_key)` for a composite key).
 
 7.3.2 **Writer sort**
 
-The **writer_sort** declared in the dictionary is binding and MUST be respected:
+The **ordering** declared in the dictionary is binding and MUST be respected:
 
-* `edge_alias_index_3B.writer_sort` = `["merchant_id"]` (or composite key first) for per-merchant rows, with global rows placed deterministically (e.g. after all merchants), as documented in the schema.
-* `edge_alias_blob_3B.writer_sort` is effectively empty (`[]`), since it is a single binary file; ordering constraints apply **within** the blob as per the alias layout policy (see below).
+* `edge_alias_index_3B.ordering = ["scope","merchant_id"]` (or `["scope","merchant_key"]` if a composite key is adopted) with global rows clearly distinguished, as documented in the schema.
+* `edge_alias_blob_3B.ordering = []`, since it is a single binary file; ordering constraints apply **within** the blob as per the alias layout policy (see below).
 
 7.3.3 **Merchant and edge ordering discipline**
 
@@ -1775,13 +1804,13 @@ m. S3 does **not** drop any merchant that has edges in `edge_catalogue_3B`: for 
 
 n. `edge_alias_blob_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and:
 
-* has a header conforming to `schemas.3B.yaml#/egress/edge_alias_blob_3B`;
+* has a header conforming to `schemas.3B.yaml#/binary/edge_alias_blob_header_3B`;
 * encodes `layout_version`, `endianness`, `alignment_bytes`, `blob_length_bytes`, `blob_sha256_hex`, and policy IDs/versions as specified;
 * has `blob_sha256_hex` equal to the SHA-256 of the blob content as defined by the layout policy.
 
 o. `edge_alias_index_3B@seed={seed}, fingerprint={manifest_fingerprint}` exists and:
 
-* validates against `schemas.3B.yaml#/egress/edge_alias_index_3B`;
+* validates against `schemas.3B.yaml#/plan/edge_alias_index_3B`;
 * has one per-merchant row for each merchant that appears in `edge_catalogue_3B` with `edge_count_total > 0`, and no extra per-merchant rows;
 * has global summary row(s) with `edge_count_total_all_merchants` equal to:
 
@@ -2243,7 +2272,7 @@ Remediation:
 ### 9.6 Blob/index structure & digest failures
 
 9.6.1 **E3B_S3_ALIAS_BLOB_SCHEMA_VIOLATION** *(FATAL)*
-Raised when `edge_alias_blob_3B` fails validation against `schemas.3B.yaml#/egress/edge_alias_blob_3B`, e.g.:
+Raised when `edge_alias_blob_3B` fails validation against `schemas.3B.yaml#/binary/edge_alias_blob_header_3B`, e.g.:
 
 * missing or malformed header fields;
 * `layout_version` or `endianness` not in declared enums;
@@ -2264,10 +2293,10 @@ Remediation:
 ---
 
 9.6.2 **E3B_S3_ALIAS_INDEX_SCHEMA_VIOLATION** *(FATAL)*
-Raised when `edge_alias_index_3B` fails validation against `schemas.3B.yaml#/egress/edge_alias_index_3B`, e.g.:
+Raised when `edge_alias_index_3B` fails validation against `schemas.3B.yaml#/plan/edge_alias_index_3B`, e.g.:
 
 * missing required columns (`merchant_id`, `edge_count_total`, `blob_offset_bytes`, etc.);
-* incorrect partitioning or unsorted rows relative to `writer_sort`.
+* incorrect partitioning or unsorted rows relative to `ordering`.
 
 Typical triggers:
 
@@ -2966,7 +2995,7 @@ Memory usage is roughly:
   * `edge_universe_hash_3B`,
   * any S3 run-summary datasets and alias-layout policy schemas.
 
-* `dataset_dictionary.layer1.3B.yaml` — dataset IDs, `schema_ref`, `path_template`, `partition_keys`, `writer_sort` for:
+* `dataset_dictionary.layer1.3B.yaml` - dataset IDs, `schema_ref`, `path`, `partitioning`, `ordering` for:
 
   * `edge_alias_blob_3B`,
   * `edge_alias_index_3B`,
@@ -3034,7 +3063,7 @@ form a **compatible triplet** for the S3 implementation (e.g. same MAJOR version
   * changing the interpretation of `blob_length_bytes`,
   * redefining `edge_universe_hash` combination law without versioning.
 
-* Changing `path_template`, `partition_keys` or `writer_sort` for any S3 dataset in the dictionary.
+* Changing `path`, `partitioning` or `ordering` for any S3 dataset in the dictionary.
 
 * Changing **alias layout semantics** in a way that:
 

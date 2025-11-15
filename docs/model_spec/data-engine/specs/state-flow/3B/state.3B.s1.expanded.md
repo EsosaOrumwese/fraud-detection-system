@@ -38,7 +38,7 @@
 * attach **legal / settlement semantics** to all virtual merchants (for accounting, reporting, cut-off time logic);
 * build virtual routes and CDN edges without ever re-deciding “who is virtual?” or “where is the legal settlement anchor?”.
 
-1.2.3 S1 MUST NOT create any rows for merchants that are not classified as virtual. For non-virtual merchants, the authoritative physical outlet and timezone information remains the upstream outputs of 1A, 1B and 2A.
+1.2.3 `virtual_settlement_3B` MUST NOT contain any rows for merchants that are not classified as virtual; non-virtual merchants have no settlement node in this dataset. For those merchants, the authoritative physical outlet and timezone information remains the upstream outputs of 1A, 1B and 2A, while `virtual_classification_3B` still records their classification outcome (`is_virtual = 0`) for completeness.
 
 ---
 
@@ -636,7 +636,7 @@ S1 MUST treat this as an input integrity problem (to be surfaced via error codes
 5.1.1 The dataset **`virtual_classification_3B`** MUST be registered in `dataset_dictionary.layer1.3B.yaml` with at least:
 
 * `dataset_id: virtual_classification_3B`
-* `schema_ref: schemas.3B.yaml#/egress/virtual_classification_3B`
+* `schema_ref: schemas.3B.yaml#/plan/virtual_classification_3B`
 * `path_template: data/layer1/3B/virtual_classification/seed={seed}/fingerprint={manifest_fingerprint}/`
 * `partition_keys: ["seed","fingerprint"]`
 * `writer_sort: ["merchant_id"]` (or a stricter sort if required; see 5.1.4)
@@ -649,7 +649,7 @@ S1 MUST treat this as an input integrity problem (to be surfaced via error codes
 * include a stable `manifest_key` (e.g. `"mlr.3B.virtual_classification_3B"`),
 * and state downstream consumers explicitly (later 3B states and any other segments that read the classification surface).
 
-5.1.3 `schemas.3B.yaml#/egress/virtual_classification_3B` MUST define `virtual_classification_3B` as a table-shaped dataset with **one row per merchant** in the classification universe. Required columns:
+5.1.3 `schemas.3B.yaml#/plan/virtual_classification_3B` MUST define `virtual_classification_3B` as a table-shaped dataset with **one row per merchant** in the classification universe. Required columns:
 
 * `merchant_id`
 
@@ -703,7 +703,7 @@ S1 MUST treat this as an input integrity problem (to be surfaced via error codes
 5.2.1 The dataset **`virtual_settlement_3B`** MUST be registered in `dataset_dictionary.layer1.3B.yaml` with at least:
 
 * `dataset_id: virtual_settlement_3B`
-* `schema_ref: schemas.3B.yaml#/egress/virtual_settlement_3B`
+* `schema_ref: schemas.3B.yaml#/plan/virtual_settlement_3B`
 * `path_template: data/layer1/3B/virtual_settlement/seed={seed}/fingerprint={manifest_fingerprint}/`
 * `partition_keys: ["seed","fingerprint"]`
 * `writer_sort: ["merchant_id"]` (or `[merchant_key,…]` if a composite key is used)
@@ -716,7 +716,7 @@ S1 MUST treat this as an input integrity problem (to be surfaced via error codes
 * specify a stable `manifest_key` (e.g. `"mlr.3B.virtual_settlement_3B"`),
 * and record any cross-segment consumers (e.g. routing components).
 
-5.2.3 `schemas.3B.yaml#/egress/virtual_settlement_3B` MUST define `virtual_settlement_3B` as a table-shaped dataset with **one row per virtual merchant** (or per brand key if the design is brand-level). Required columns:
+5.2.3 `schemas.3B.yaml#/plan/virtual_settlement_3B` MUST define `virtual_settlement_3B` as a table-shaped dataset with **one row per virtual merchant** (or per brand key if the design is brand-level). Required columns:
 
 * `merchant_id` (or `virtual_entity_id` / `merchant_key`)
 
@@ -1306,7 +1306,7 @@ g. The merchant reference dataset is present, readable, and satisfies minimum st
 **Classification correctness**
 
 h. For every merchant in the classification universe `M`, S1 produces exactly one classification record in `virtual_classification_3B` (unless the spec is explicitly in “virtual-only surface” mode; see 8.2.2).
-i. All rows in `virtual_classification_3B` validate against `schemas.3B.yaml#/egress/virtual_classification_3B` and obey:
+i. All rows in `virtual_classification_3B` validate against `schemas.3B.yaml#/plan/virtual_classification_3B` and obey:
 
 * `merchant_id` uniqueness within `{seed,fingerprint}`;
 * non-null `is_virtual` / `classification`;
@@ -1320,7 +1320,7 @@ i. All rows in `virtual_classification_3B` validate against `schemas.3B.yaml#/eg
 
 k. Let `V = {m ∈ M | classification(m) = VIRTUAL}`. For each `m ∈ V`, S1 resolves a settlement coordinate row `c*(m)` via the deterministic join/tie-break rule, or fails with a documented error if none is available.
 l. `virtual_settlement_3B` contains exactly one row per `m ∈ V`, and no rows for `m ∉ V`.
-m. All rows in `virtual_settlement_3B` validate against `schemas.3B.yaml#/egress/virtual_settlement_3B` and obey:
+m. All rows in `virtual_settlement_3B` validate against `schemas.3B.yaml#/plan/virtual_settlement_3B` and obey:
 
 * `(merchant_id, settlement_site_id)` uniqueness within `{seed,fingerprint}`;
 * `settlement_latitude_deg` ∈ `[-90,90]`, `settlement_longitude_deg` in the declared longitude range;
@@ -1813,7 +1813,7 @@ Remediation:
 ### 9.6 Output structure, identity & consistency failures
 
 9.6.1 **E3B_S1_VCLASS_SCHEMA_VIOLATION** *(FATAL)*
-Raised when `virtual_classification_3B` fails validation against `schemas.3B.yaml#/egress/virtual_classification_3B`.
+Raised when `virtual_classification_3B` fails validation against `schemas.3B.yaml#/plan/virtual_classification_3B`.
 
 Typical triggers:
 
@@ -1829,7 +1829,7 @@ Remediation:
 ---
 
 9.6.2 **E3B_S1_VSETTLEMENT_SCHEMA_VIOLATION** *(FATAL)*
-Raised when `virtual_settlement_3B` fails validation against `schemas.3B.yaml#/egress/virtual_settlement_3B`.
+Raised when `virtual_settlement_3B` fails validation against `schemas.3B.yaml#/plan/virtual_settlement_3B`.
 
 Typical triggers:
 
