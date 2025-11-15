@@ -615,93 +615,18 @@ This anchor MUST be used as the `schema_ref` for `sealed_inputs_3A` in the datas
 
 ---
 
-### 5.4 Dataset dictionary entries (`dataset_dictionary.layer1.3A.yaml`)
+### 5.4 Catalogue bindings (dictionary + registry references)
 
-The Layer-1 dataset dictionary for subsegment 3A MUST introduce two datasets under the `datasets` section (exact YAML structure follows the existing Layer-1 convention):
+The authoritative IDs, paths, partition keys, schema anchors, owner metadata, and dependency listings for `s0_gate_receipt_3A` and `sealed_inputs_3A` live in the Layer-1 catalogue:
 
-1. **Dataset: `s0_gate_receipt_3A`**
+* **Dataset dictionary** — `dataset_dictionary.layer1.3A.yaml` publishes the `datasets` entries for both outputs (IDs, `owner_subsegment`, fingerprint-scoped versions, paths, `partitioning`, `format`, `schema_ref`, writer ordering, lineage). Implementations MUST read these entries at runtime and MUST NOT hard-code path templates or schema references.
+* **Artefact registry** — `artefact_registry_3A.yaml` registers the same outputs per `manifest_fingerprint`, including manifest keys, categories, resolved paths, schema anchors, explicit dependency lists, and digests. Registry entries are the binding truth for “what was actually written” at a given fingerprint.
 
-   * `id: "s0_gate_receipt_3A"`
-   * `owner_subsegment: 3A`
-   * `version: "{manifest_fingerprint}"` (fingerprint-scoped version, matching catalogue practice)
-   * `path: "data/layer1/3A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json"`
-   * `partitioning: ["fingerprint"]`
-   * `format: "json"`
-   * `schema_ref: "schemas.3A.yaml#/validation/s0_gate_receipt_3A"`
-   * `lineage.produced_by: ["3A.S0"]`
-   * `lineage.consumed_by: ["3A", "validation", "run_report"]`
-   * `final_in_layer: false` (it is a gate descriptor, not a modelling egress).
+This state document does **not** repeat those catalogue snippets to avoid double maintenance. Instead, treat the catalogue as the sole contract source for IDs/paths/partitions, and treat this section as a reminder that:
 
-2. **Dataset: `sealed_inputs_3A`**
-
-   * `id: "sealed_inputs_3A"`
-   * `owner_subsegment: 3A`
-   * `version: "{manifest_fingerprint}"`
-   * `path: "data/layer1/3A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3A.parquet"`
-   * `partitioning: ["fingerprint"]`
-   * `format: "parquet"`
-   * `schema_ref: "schemas.3A.yaml#/validation/sealed_inputs_3A"`
-   * `ordering` (writer sort): `["owner_segment", "artefact_kind", "logical_id"]`
-     to provide stable diagnostics; ordering is not authoritative for semantics and MUST NOT include additional mandatory keys unless change-controlled.
-   * `lineage.produced_by: ["3A.S0"]`
-   * `lineage.consumed_by: ["3A", "validation", "run_report"]`
-   * `final_in_layer: false`.
-
-No other 3A dataset may claim these IDs or paths. Consumers MUST use these dictionary entries to resolve paths and schema_refs; hard-coded strings are out of spec.
-
----
-
-### 5.5 Artefact registry entries (`artefact_registry_3A.yaml`)
-
-For each `manifest_fingerprint`, the 3A artefact registry MUST register S0’s outputs as artefacts in the manifest:
-
-1. **Artefact: `mlr.3A.s0_gate_receipt`**
-
-   A representative entry (fields adapted to the existing registry style):
-
-   * `manifest_key: "mlr.3A.s0_gate_receipt"`
-   * `name: "Segment 3A S0 gate receipt"`
-   * `type: "dataset"`
-   * `category: "gate"` (or `"validation"` if reusing existing categories)
-   * `subsegment: "3A"`
-   * `path: "data/layer1/3A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_3A.json"`
-   * `schema: "schemas.3A.yaml#/validation/s0_gate_receipt_3A"`
-   * `version: "{manifest_fingerprint}"`
-   * `digest: "<sha256_hex>"` (resolved at run time)
-   * `dependencies:` list including:
-
-     * upstream validation bundles and flags (1A/1B/2A),
-     * Layer-1 schema/dictionary/registry artefacts referenced in `catalogue_versions`,
-     * 3A policy/prior artefacts recorded in `sealed_policy_set`.
-   * `role: "Segment-3A gate descriptor for manifest_fingerprint"`
-   * `cross_layer: true` (it is relevant to validation/monitoring beyond 3A itself).
-
-2. **Artefact: `mlr.3A.sealed_inputs`**
-
-   * `manifest_key: "mlr.3A.sealed_inputs"`
-   * `name: "Segment 3A sealed inputs inventory"`
-   * `type: "dataset"`
-   * `category: "inventory"` (or `"validation"` if categories are coarser)
-   * `subsegment: "3A"`
-   * `path: "data/layer1/3A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_3A.parquet"`
-   * `schema: "schemas.3A.yaml#/validation/sealed_inputs_3A"`
-   * `version: "{manifest_fingerprint}"`
-   * `digest: "<sha256_hex>"`
-   * `dependencies:` MAY be left empty or contain only structural catalogue artefacts; by design, `sealed_inputs_3A` is a *listing* of dependencies rather than a direct consumer.
-   * `role: "Enumerates admissible inputs for Segment-3A at this manifest_fingerprint"`
-   * `cross_layer: true` (used by validation and run analytics).
-
-3A.S0 MUST ensure these registry entries (or their manifest-specific instantiations) are consistent with the dataset dictionary and with the actual written artefacts (path↔embed equality and digest equality). No implementation may write S0 outputs without corresponding registry entries; doing so would undermine traceability and violate the Layer-1 authority chain.
-
----
-
-Within this structure:
-
-* JSON-Schema anchors in `schemas.3A.yaml` define the **shape** of S0 outputs,
-* `dataset_dictionary.layer1.3A.yaml` defines their **IDs, paths, partitions and roles**, and
-* `artefact_registry_3A.yaml` records their existence and provenance in each manifest.
-
-3A.S0 is responsible for keeping all three in agreement for `s0_gate_receipt_3A` and `sealed_inputs_3A`.
+1. 3A.S0 MUST consult the dictionary/registry before emitting outputs (no literal paths).
+2. S0’s writers MUST honour the catalogue definitions exactly; any drift (path, version, partition keys, schema refs, dependency lists) is a contract violation.
+3. Keeping the JSON-Schema, dataset dictionary, and artefact registry in sync is part of S0’s remit—if any of the three disagree, S0 MUST fail rather than publish mismatched artefacts.
 
 ---
 
