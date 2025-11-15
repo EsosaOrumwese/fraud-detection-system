@@ -60,7 +60,7 @@ Concretely, 3A.S5:
   where `∥` denotes a canonical byte concatenation. S5 then:
 
   * embeds `routing_universe_hash` (and, where appropriate, its component digests) into a small, fingerprint-scoped artefact (`zone_alloc_universe_hash`), and
-  * may optionally embed `routing_universe_hash` into each `zone_alloc` row for convenient join-free checks.
+  * embeds the same `routing_universe_hash` into each `zone_alloc` row for convenient join-free checks.
 
   This combined hash is the **only** cross-layer handle that 2B and validation should use to decide “am I looking at the same zone allocation universe (priors + floors + mixture + day-effects + allocation) as the engine used when generating these counts?”.
 
@@ -673,7 +673,7 @@ Binding rules:
 * **Path↔embed equality:**
 
   * Every row MUST have `seed` equal to the `seed` path token, and
-  * `manifest_fingerprint` equal to the `fingerprint` path token.
+  * `fingerprint` equal to the `fingerprint` path token (this value carries the run’s `manifest_fingerprint`).
 
 Any mismatch is a schema/validation error.
 
@@ -684,7 +684,7 @@ Each row in `zone_alloc` MUST contain at minimum:
 **Lineage / partitions**
 
 * `seed` — `uint64`, as above.
-* `manifest_fingerprint` — `hex64`, as above.
+* `fingerprint` — `hex64`; equal to the manifest fingerprint for this run.
 
 **Identity**
 
@@ -696,12 +696,12 @@ Each row in `zone_alloc` MUST contain at minimum:
 
 * `zone_site_count`
 
-  * Type: integer (`minimum: 0`).
+  * Type: integer (`minimum: 1`).
   * MUST equal `zone_site_count(m,c,z)` from `s4_zone_counts` for the same `(seed, fingerprint, merchant_id, legal_country_iso, tzid)`.
 
 * `zone_site_count_sum`
 
-  * Type: integer (`minimum: 0`).
+  * Type: integer (`minimum: 1`).
   * For all rows with the same `(merchant_id, legal_country_iso)`, this value MUST be identical and satisfy:
     [
     zone_site_count_sum(m,c) = \sum_{z \in Z(c)} zone_site_count(m,c,z) = site_count(m,c).
@@ -709,7 +709,7 @@ Each row in `zone_alloc` MUST contain at minimum:
 
 Optionally (for convenience and consistency):
 
-* `site_count` — integer total outlets per `(m,c)`, copied from S1; MUST equal `zone_site_count_sum(m,c)`.
+* `site_count` — integer total outlets per `(m,c)`, copied from S1; MUST equal `zone_site_count_sum(m,c)` and inherit its `minimum: 1`.
 
 **Lineage (priors & policies)**
 
@@ -946,17 +946,17 @@ At minimum, it MUST enforce:
   * `zone_site_count`
 
     * `type: "integer"`
-    * `minimum: 0`
+    * `minimum: 1`
 
   * `zone_site_count_sum`
 
     * `type: "integer"`
-    * `minimum: 0`
+    * `minimum: 1`
 
   * `site_count`
 
     * `type: "integer"`
-    * `minimum: 0`
+    * `minimum: 1`
 
   * `prior_pack_id`
 
@@ -1095,27 +1095,28 @@ The 3A dataset dictionary MUST declare two datasets: `zone_alloc` and `zone_allo
 
 ```yaml
 datasets:
-  - id: "zone_alloc"
-    subsegment: "3A"
-    version: "1.0.0"   # S5 contract version for this dataset
-    path: "data/layer1/3A/zone_alloc/seed={seed}/fingerprint={manifest_fingerprint}/"
-    format: "parquet"
-    partitioning: ["seed", "fingerprint"]
-    ordering: ["merchant_id", "legal_country_iso", "tzid"]
-    schema_ref: "schemas.3A.yaml#/egress/zone_alloc"
+  - id: zone_alloc
+    owner_subsegment: 3A
+    description: Cross-layer zone allocation egress for routing segment.
+    version: '{seed}.{manifest_fingerprint}'
+    format: parquet
+    path: data/layer1/3A/zone_alloc/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitioning: [seed, fingerprint]
+    ordering: [merchant_id, legal_country_iso, tzid]
+    schema_ref: schemas.3A.yaml#/egress/zone_alloc
     lineage:
-      produced_by: ["3A.S5"]
-      consumed_by: ["2B", "3A.validation"]
+      produced_by: 3A.S5
+      consumed_by: [2B, validation, cross_segment_validation]
     final_in_layer: true
-    role: "Cross-layer egress of zone-level outlet counts per escalated merchant×country×zone, with routing universe hash"
-    cross_layer: true
+    pii: false
+    licence: Proprietary-Internal
 ```
 
 Binding points:
 
-* `id` MUST be `"zone_alloc"`.
+* `id` MUST be `zone_alloc` with `owner_subsegment: 3A`.
 * `path` MUST include `seed={seed}` and `fingerprint={manifest_fingerprint}`, and no other partition tokens.
-* `partitioning` MUST be exactly `["seed","fingerprint"]`.
+* `partitioning` MUST be exactly `[seed, fingerprint]`.
 * `schema_ref` MUST be `schemas.3A.yaml#/egress/zone_alloc`.
 * `ordering` expresses the writer-sort key; consumers MUST NOT infer additional semantics from file order.
 
@@ -1123,27 +1124,28 @@ Binding points:
 
 ```yaml
 datasets:
-  - id: "zone_alloc_universe_hash"
-    subsegment: "3A"
-    version: "1.0.0"
-    path: "data/layer1/3A/zone_universe/fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json"
-    format: "json"
-    partitioning: ["fingerprint"]
-    schema_ref: "schemas.3A.yaml#/validation/zone_alloc_universe_hash"
-    ordering: []        # single logical row; no meaningful row ordering
+  - id: zone_alloc_universe_hash
+    owner_subsegment: 3A
+    description: Fingerprint-scoped summary tying priors/policies to the published zone allocation.
+    version: '{manifest_fingerprint}'
+    format: json
+    path: data/layer1/3A/zone_universe/fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.3A.yaml#/validation/zone_alloc_universe_hash
     lineage:
-      produced_by: ["3A.S5"]
-      consumed_by: ["2B", "3A.validation"]
+      produced_by: 3A.S5
+      consumed_by: [2B, validation]
     final_in_layer: false
-    role: "Fingerprint-scoped summary of priors/policies/alloc digests and combined routing_universe_hash"
-    cross_layer: true
+    pii: false
+    licence: Proprietary-Internal
 ```
 
 Binding points:
 
-* `id` MUST be `"zone_alloc_universe_hash"`.
+* `id` MUST be `zone_alloc_universe_hash`.
 * `path` MUST include `fingerprint={manifest_fingerprint}` as the only partition token.
-* `partitioning` MUST be exactly `["fingerprint"]`.
+* `partitioning` MUST be exactly `[fingerprint]`.
 * `schema_ref` MUST be `schemas.3A.yaml#/validation/zone_alloc_universe_hash`.
 * `ordering` MAY be an empty list or omitted; there is logically one row per fingerprint.
 
@@ -1160,32 +1162,26 @@ For each manifest (`manifest_fingerprint`), the 3A artefact registry MUST regist
   name: "Segment 3A zone allocation egress"
   subsegment: "3A"
   type: "dataset"
-  category: "egress"
+  category: "plan"
   path: "data/layer1/3A/zone_alloc/seed={seed}/fingerprint={manifest_fingerprint}/"
   schema: "schemas.3A.yaml#/egress/zone_alloc"
-  version: "1.0.0"
-  digest: "<sha256_hex>"           # computed over canonical Parquet files at runtime
+  semver: "1.0.0"
+  version: "{seed}.{manifest_fingerprint}"
+  digest: "<sha256_hex>"
   dependencies:
-    - "mlr.3A.s1_escalation_queue"
-    - "mlr.3A.s2_country_zone_priors"
-    - "mlr.3A.s3_zone_shares"
-    - "mlr.3A.s4_zone_counts"
-    - "mlr.3A.s0_gate_receipt"
+    - "mlr.3A.s4.zone_counts"
     - "mlr.3A.zone_alloc_universe_hash"
-  role: "Cross-layer authoritative zone-level outlet counts per escalated merchant×country×zone, bound to a routing universe hash"
+  source: "internal"
+  owner: {owner_team: "mlr-3a-core"}
   cross_layer: true
-  notes: "RNG-free; projection of s4_zone_counts; must not exist without a matching zone_alloc_universe_hash."
 ```
 
 Binding requirements:
 
-* `manifest_key` MUST be unique and clearly identify the egress surface.
+* `manifest_key` MUST be `"mlr.3A.zone_alloc"`.
 * `path` and `schema` MUST match the dictionary entry.
-* `dependencies` MUST include, at minimum, all upstream artefacts that determine its content and hash:
-
-  * S1, S2, S3, S4 internal surfaces,
-  * S0 gate,
-  * the universe hash artefact (for the combined hash).
+* `version` MUST equal `{seed}.{manifest_fingerprint}`.
+* `dependencies` MUST include `s4.zone_counts` and the paired `zone_alloc_universe_hash`; new dependencies MUST be reflected in both registry and spec before sealing a manifest.
 
 #### 5.5.2 `zone_alloc_universe_hash` artefact entry
 
@@ -1197,26 +1193,25 @@ Binding requirements:
   category: "validation"
   path: "data/layer1/3A/zone_universe/fingerprint={manifest_fingerprint}/zone_alloc_universe_hash.json"
   schema: "schemas.3A.yaml#/validation/zone_alloc_universe_hash"
-  version: "1.0.0"
-  digest: "<sha256_hex>"           # SHA-256 of the JSON file itself
+  semver: "1.0.0"
+  version: "{manifest_fingerprint}"
+  digest: "<sha256_hex>"
   dependencies:
-    - "mlr.3A.country_zone_alphas"   # prior pack
-    - "mlr.3A.zone_floor_policy"     # floor/bump policy
-    - "mlr.3A.zone_mixture_policy"   # S1 mixture policy
-    - "mlr.2B.day_effect_policy"     # 2B day-effect policy
-    - "mlr.3A.s2_country_zone_priors"
+    - "mlr.3A.country_zone_alphas"
+    - "mlr.3A.zone_mixture_policy"
+    - "mlr.3A.zone_floor_policy"
+    - "mlr.2B.policy.day_effect_v1"
     - "mlr.3A.zone_alloc"
-    - "mlr.3A.s0_gate_receipt"
-  role: "Compact summary of priors, mixture, floor and day-effect digests and the combined routing_universe_hash for this manifest"
+  source: "internal"
+  owner: {owner_team: "mlr-3a-core"}
   cross_layer: true
-  notes: "Any change in priors, mixture, floor policy, day-effect policy, or zone_alloc must result in a different routing_universe_hash."
 ```
 
 Binding requirements:
 
-* `manifest_key` MUST be unique and clearly state this is the universe hash for zone allocation.
-* `dependencies` MUST include every artefact from which the component digests are derived, plus `zone_alloc` itself and S0’s gate.
-* `digest` for this artefact is the SHA-256 of the JSON body; the *component* digests inside it must be validated by recomputing from the underlying artefacts.
+* `manifest_key` MUST be `"mlr.3A.zone_alloc_universe_hash"`.
+* `dependencies` MUST include each artefact whose digest appears in the JSON (prior pack, mixture policy, floor policy, day-effect policy, and the `zone_alloc` output). Additional components require updating this entry and the spec.
+* `digest` for this artefact is the SHA-256 of the JSON body; the component digests inside it must be validated by recomputing them from the listed artefacts.
 
 ---
 

@@ -946,28 +946,30 @@ The Layer-1 dataset dictionary for subsegment 3A MUST define S3’s dataset as f
 
 ```yaml
 datasets:
-  - id: "s3_zone_shares"
-    subsegment: "3A"
-    version: "1.0.0"    # S3 contract version for this dataset
-    path: "data/layer1/3A/s3_zone_shares/seed={seed}/fingerprint={manifest_fingerprint}/"
-    format: "parquet"
-    partitioning: ["seed", "fingerprint"]
-    ordering: ["merchant_id", "legal_country_iso", "tzid"]
-    schema_ref: "schemas.3A.yaml#/plan/s3_zone_shares"
+  - id: s3_zone_shares
+    owner_subsegment: 3A
+    description: Dirichlet share draws per merchant×country×zone.
+    version: '{seed}.{manifest_fingerprint}'
+    format: parquet
+    path: data/layer1/3A/s3_zone_shares/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitioning: [seed, fingerprint]
+    ordering: [merchant_id, legal_country_iso, tzid]
+    schema_ref: schemas.3A.yaml#/plan/s3_zone_shares
     lineage:
-      produced_by: ["3A.S3"]
-      consumed_by: ["3A.S4", "3A.validation"]
+      produced_by: 3A.S3
+      consumed_by: [3A.S4, 3A.S5]
     final_in_layer: false
-    role: "Per-merchant×country×zone Dirichlet share draws for escalated pairs"
+    pii: false
+    licence: Proprietary-Internal
 ```
 
 Binding points:
 
-* `id` MUST be `"s3_zone_shares"`.
-* `partitioning` MUST be exactly `["seed","fingerprint"]`.
+* `id` MUST be `s3_zone_shares` under `owner_subsegment: 3A`.
+* `partitioning` MUST be exactly `[seed, fingerprint]`.
 * `path` MUST contain `seed={seed}` and `fingerprint={manifest_fingerprint}` and no other partition tokens.
 * `schema_ref` MUST be `schemas.3A.yaml#/plan/s3_zone_shares`.
-* `ordering` expresses the writer-sort key; consumers MUST NOT assign semantics to file order beyond reproducibility.
+* `ordering` expresses the deterministic writer-sort; consumers MUST NOT ascribe semantics beyond reproducibility.
 
 Any alternative ID, path template, partitioning or schema_ref for S3’s zone share dataset is out of spec.
 
@@ -975,46 +977,35 @@ Any alternative ID, path template, partitioning or schema_ref for S3’s zone sh
 
 ### 5.4 Artefact registry entry: `artefact_registry_3A.yaml`
 
-For each `(seed, manifest_fingerprint)` where S3 runs, the 3A artefact registry MUST include an entry for `s3_zone_shares`. A representative item (adapted to existing Layer-1 style) is:
+For each `(seed, manifest_fingerprint)` where S3 runs, the 3A artefact registry records `s3_zone_shares` as:
 
 ```yaml
-- manifest_key: "mlr.3A.s3_zone_shares"
+- manifest_key: mlr.3A.s3.zone_shares
   name: "Segment 3A S3 zone share draws"
   subsegment: "3A"
   type: "dataset"
   category: "plan"
-  path: "data/layer1/3A/s3_zone_shares/seed={seed}/fingerprint={manifest_fingerprint}/"
-  schema: "schemas.3A.yaml#/plan/s3_zone_shares"
-  version: "1.0.0"
-  digest: "<sha256_hex>"     # computed per {seed,fingerprint} at runtime
+  path: data/layer1/3A/s3_zone_shares/seed={seed}/fingerprint={manifest_fingerprint}/
+  schema: schemas.3A.yaml#/plan/s3_zone_shares
+  semver: '1.0.0'
+  version: '{seed}.{manifest_fingerprint}'
+  digest: '<sha256_hex>'
   dependencies:
-    - "mlr.3A.s1_escalation_queue"
-    - "mlr.3A.s2_country_zone_priors"
-    - "mlr.ingress.iso3166_canonical_2024"
-    - "mlr.ingress.country_tz_universe"    # or "mlr.ingress.tz_world_2025a"
-    - "mlr.3A.s0_gate_receipt"
-    - "mlr.layer1.rng_events"              # logical key for RNG events stream
-  role: "Authority on realised Dirichlet zone shares per escalated merchant×country"
+    - mlr.3A.s1.escalation_queue
+    - mlr.3A.s2.country_zone_priors
+  source: internal
+  owner: {owner_team: "mlr-3a-core"}
   cross_layer: true
-  notes: "RNG-bearing; consumed by 3A.S4 and 3A validation for replay and allocation."
 ```
 
 Binding requirements:
 
-* `manifest_key` MUST be unique and clearly namespaced to 3A.S3 (e.g. `mlr.3A.s3_zone_shares`).
-* `path` and `schema` MUST match the dataset dictionary entry.
-* `dependencies` MUST include at least:
+* `manifest_key` MUST be `mlr.3A.s3.zone_shares`.
+* `path`/`schema` MUST match the dataset dictionary entry.
+* `version` MUST encode `{seed}.{manifest_fingerprint}`; contract versioning remains in `semver`.
+* Dependencies MUST include, at minimum, the escalation queue and prior surface listed above. If additional artefacts become required (e.g. extra policy packs), the registry entry and this spec MUST be updated in lockstep.
 
-  * S1 escalation queue artefact,
-  * S2 priors surface,
-  * zone-universe references,
-  * S0 gate receipt,
-  * the RNG events/logs group used for Dirichlet events.
-
-The registry entry MUST be kept in sync with:
-
-* the dictionary entry, and
-* the actual stored dataset (path↔embed equality and digest correctness).
+The registry entry MUST remain consistent with the dictionary entry and the actual stored dataset (path↔embed equality, digest correctness).
 
 ---
 

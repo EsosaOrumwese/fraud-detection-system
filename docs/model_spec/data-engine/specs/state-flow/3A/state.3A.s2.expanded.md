@@ -849,28 +849,30 @@ The Layer-1 dataset dictionary for subsegment 3A MUST define S2’s dataset as f
 
 ```yaml
 datasets:
-  - id: "s2_country_zone_priors"
-    subsegment: "3A"
-    version: "1.0.0"         # S2 contract version for this dataset
-    path: "data/layer1/3A/s2_country_zone_priors/parameter_hash={parameter_hash}/"
-    format: "parquet"
-    partitioning: ["parameter_hash"]
-    ordering: ["country_iso", "tzid"]
-    schema_ref: "schemas.3A.yaml#/plan/s2_country_zone_priors"
+  - id: s2_country_zone_priors
+    owner_subsegment: 3A
+    description: Parameter-scoped Dirichlet α-vectors per country×tzid.
+    version: '{parameter_hash}'
+    format: parquet
+    path: data/layer1/3A/s2_country_zone_priors/parameter_hash={parameter_hash}/
+    partitioning: [parameter_hash]
+    ordering: [country_iso, tzid]
+    schema_ref: schemas.3A.yaml#/plan/s2_country_zone_priors
     lineage:
-      produced_by: ["3A.S2"]
-      consumed_by: ["3A.S3", "3A.validation"]
+      produced_by: 3A.S2
+      consumed_by: [3A.S3, 3A.S4, 3A.S5]
     final_in_layer: false
-    role: "Parameter-scoped prior surface — effective Dirichlet α per (country_iso, tzid)"
+    pii: false
+    licence: Proprietary-Internal
 ```
 
 Binding points:
 
-* `id` MUST be `"s2_country_zone_priors"`.
-* `path` MUST contain `parameter_hash={parameter_hash}` and no additional partition tokens.
-* `partitioning` MUST be exactly `["parameter_hash"]`.
+* `id` MUST be `s2_country_zone_priors` with `owner_subsegment: 3A`.
+* `path` MUST contain `parameter_hash={parameter_hash}` and no additional partition tokens; the dataset is parameter-scoped.
+* `partitioning` MUST be exactly `[parameter_hash]`.
 * `schema_ref` MUST be `schemas.3A.yaml#/plan/s2_country_zone_priors`.
-* `ordering` expresses the writer-sort key; consumers MUST NOT ascribe extra semantics to file order.
+* `ordering` expresses the deterministic writer-sort (`country_iso`, `tzid`); consumers MUST NOT ascribe extra semantics to file order.
 
 Any alternative ID, path, partitioning scheme or schema_ref for S2’s primary output is out of spec.
 
@@ -878,46 +880,35 @@ Any alternative ID, path, partitioning scheme or schema_ref for S2’s primary o
 
 ### 5.4 Artefact registry entry: `artefact_registry_3A.yaml`
 
-For each `parameter_hash` / `manifest_fingerprint` combination where S2 is considered part of the manifest, the 3A artefact registry MUST include an entry for `s2_country_zone_priors`. A representative item (adapting existing registry style) is:
+For each `parameter_hash` that participates in a manifest, the 3A artefact registry carries an entry of the form:
 
 ```yaml
-- manifest_key: "mlr.3A.s2_country_zone_priors"
-  name: "Segment 3A S2 country–zone priors"
+- manifest_key: mlr.3A.s2.country_zone_priors
+  name: "Segment 3A S2 country-zone priors"
   subsegment: "3A"
   type: "dataset"
   category: "plan"
-  path: "data/layer1/3A/s2_country_zone_priors/parameter_hash={parameter_hash}/"
-  schema: "schemas.3A.yaml#/plan/s2_country_zone_priors"
-  version: "1.0.0"
-  digest: "<sha256_hex>"        # computed per parameter_hash at runtime
+  path: data/layer1/3A/s2_country_zone_priors/parameter_hash={parameter_hash}/
+  schema: schemas.3A.yaml#/plan/s2_country_zone_priors
+  semver: '1.0.0'
+  version: '{parameter_hash}'
+  digest: '<sha256_hex>'
   dependencies:
-    - "mlr.3A.country_zone_alphas"     # prior pack artefact key
-    - "mlr.3A.zone_floor_policy"       # floor/bump policy artefact key
-    - "mlr.ingress.iso3166_canonical_2024"
-    - "mlr.ingress.tz_world_2025a"     # or a pre-derived country→tzid universe dataset
-    - "mlr.3A.s0_gate_receipt"
-  role: "Authority on effective Dirichlet α-vectors per (country_iso, tzid) for this parameter_hash"
-  cross_layer: true                    # used by 3A validation and cross-segment analytics
-  notes: "RNG-free; parameter-scoped; consumed by 3A.S3 for Dirichlet draws."
+    - mlr.3A.country_zone_alphas
+    - mlr.3A.zone_floor_policy
+  source: internal
+  owner: {owner_team: "mlr-3a-core"}
+  cross_layer: true
 ```
 
 Binding requirements:
 
-* `manifest_key` MUST be unique and clearly namespaced to 3A.S2 (e.g. `mlr.3A.s2_country_zone_priors`).
+* `manifest_key` MUST be `mlr.3A.s2.country_zone_priors`.
+* `version` is the instance identifier `{parameter_hash}`; contract versioning is handled via `semver`.
 * `path` and `schema` MUST match the dataset dictionary.
-* `dependencies` MUST include at least:
+* Dependencies MUST include, at minimum, the prior pack artefact and zone-floor policy artefact listed above. If additional artefacts become required, both the registry entry and this spec MUST be updated in lockstep.
 
-  * the prior pack artefact,
-  * the zone floor policy artefact,
-  * the zone-universe references used to derive `Z(c)`,
-  * the S0 gate receipt (as the trust anchor).
-
-The registry entry MUST be kept consistent with:
-
-* the dataset dictionary entry, and
-* the actual stored dataset (path↔embed equality, digest correctness).
-
-Later 3A validation states will rely on this consistency.
+The registry entry MUST remain consistent with the dataset dictionary entry and the actual stored dataset (path↔embed equality, digest correctness) so that downstream states and validators can trust it.
 
 ---
 
@@ -1582,7 +1573,7 @@ Under these rules, `s2_country_zone_priors` is a clean, parameter-scoped, snapsh
 
 This section defines **when 3A.S2 is considered PASS** for a given `parameter_hash`, and what later validators MUST check.
 
-S2 is **parameter-scoped**: acceptance is per-`parameter_hash`, independent of `seed`/`manifest_fingerprint`.
+S2 is **parameter-scoped**: acceptance is per-`parameter_hash`, independent of `seed`/`manifest_fingerprint`. Different manifests may reuse the same priors; S2 only uses a `manifest_fingerprint` to locate S0’s sealed inputs, and MUST emit byte-identical `s2_country_zone_priors` whenever the underlying `parameter_hash` and sealed artefacts are unchanged.
 
 ---
 

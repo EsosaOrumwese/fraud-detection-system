@@ -594,7 +594,7 @@ Binding rules:
 Every row in a given partition MUST satisfy:
 
 * `row.seed == {seed_token}`,
-* `row.manifest_fingerprint == {fingerprint_token}`.
+* `row.fingerprint == {fingerprint_token}`.
 
 Any mismatch MUST be treated as a validation error by S4 and downstream validators.
 
@@ -611,10 +611,10 @@ Each row in `s4_zone_counts` MUST contain at least:
   * Type: `uint64` (`schemas.layer1.yaml#/$defs/uint64`).
   * Same for all rows in the partition.
 
-* `manifest_fingerprint`
+* `fingerprint`
 
   * Type: `hex64` (`schemas.layer1.yaml#/$defs/hex64`).
-  * Same for all rows in the partition.
+  * Same for all rows in the partition and equal to the run’s `manifest_fingerprint` token.
 
 #### 4.4.2 Identity
 
@@ -799,7 +799,7 @@ At minimum, the schema MUST enforce:
 
     * `$ref: "schemas.layer1.yaml#/$defs/uint64"`
 
-  * `manifest_fingerprint`
+  * `fingerprint`
 
     * `$ref: "schemas.layer1.yaml#/$defs/hex64"`
 
@@ -889,26 +889,28 @@ The Layer-1 dataset dictionary for subsegment 3A MUST define S4’s dataset as f
 
 ```yaml
 datasets:
-  - id: "s4_zone_counts"
-    subsegment: "3A"
-    version: "1.0.0"   # S4 contract version for this dataset
-    path: "data/layer1/3A/s4_zone_counts/seed={seed}/fingerprint={manifest_fingerprint}/"
-    format: "parquet"
-    partitioning: ["seed", "fingerprint"]
-    ordering: ["merchant_id", "legal_country_iso", "tzid"]
-    schema_ref: "schemas.3A.yaml#/plan/s4_zone_counts"
+  - id: s4_zone_counts
+    owner_subsegment: 3A
+    description: Integer outlet counts per merchant×country×zone after floor/bump.
+    version: '{seed}.{manifest_fingerprint}'
+    format: parquet
+    path: data/layer1/3A/s4_zone_counts/seed={seed}/fingerprint={manifest_fingerprint}/
+    partitioning: [seed, fingerprint]
+    ordering: [merchant_id, legal_country_iso, tzid]
+    schema_ref: schemas.3A.yaml#/plan/s4_zone_counts
     lineage:
-      produced_by: ["3A.S4"]
-      consumed_by: ["3A", "3A.validation"]
+      produced_by: 3A.S4
+      consumed_by: [3A.S5]
     final_in_layer: false
-    role: "Integer zone-level outlet counts per escalated merchant×country×zone"
+    pii: false
+    licence: Proprietary-Internal
 ```
 
 Binding points:
 
-* `id` MUST be `"s4_zone_counts"`.
+* `id` MUST be `s4_zone_counts` under `owner_subsegment: 3A`.
 * `path` MUST include `seed={seed}` and `fingerprint={manifest_fingerprint}` and MUST NOT introduce additional partition tokens.
-* `partitioning` MUST be exactly `["seed","fingerprint"]`.
+* `partitioning` MUST be exactly `[seed, fingerprint]`.
 * `schema_ref` MUST be `schemas.3A.yaml#/plan/s4_zone_counts`.
 * `ordering` expresses the writer-sort key (merchant, then country, then tzid); consumers MUST NOT infer extra semantics from file order.
 
@@ -918,40 +920,35 @@ Any alternative dataset ID, path template, partitioning, or schema_ref for this 
 
 ### 5.4 Artefact registry entry: `artefact_registry_3A.yaml`
 
-For each `{seed, manifest_fingerprint}` where S4 is part of the manifest, the 3A artefact registry MUST include an entry for `s4_zone_counts`. A representative item (field names aligned with existing Layer-1 style) is:
+For each `{seed, manifest_fingerprint}`, the 3A artefact registry records `s4_zone_counts` as:
 
 ```yaml
-- manifest_key: "mlr.3A.s4_zone_counts"
+- manifest_key: mlr.3A.s4.zone_counts
   name: "Segment 3A S4 zone-level outlet counts"
   subsegment: "3A"
   type: "dataset"
   category: "plan"
-  path: "data/layer1/3A/s4_zone_counts/seed={seed}/fingerprint={manifest_fingerprint}/"
-  schema: "schemas.3A.yaml#/plan/s4_zone_counts"
-  version: "1.0.0"
-  digest: "<sha256_hex>"        # computed per {seed,fingerprint} at runtime
+  path: data/layer1/3A/s4_zone_counts/seed={seed}/fingerprint={manifest_fingerprint}/
+  schema: schemas.3A.yaml#/plan/s4_zone_counts
+  semver: '1.0.0'
+  version: '{seed}.{manifest_fingerprint}'
+  digest: '<sha256_hex>'
   dependencies:
-    - "mlr.3A.s1_escalation_queue"
-    - "mlr.3A.s3_zone_shares"
-    - "mlr.3A.s2_country_zone_priors"
-    - "mlr.3A.s0_gate_receipt"
-  role: "Authority on integer zone outlet counts per escalated merchant×country×zone for this run"
+    - mlr.3A.s3.zone_shares
+    - mlr.3A.zone_floor_policy
+  source: internal
+  owner: {owner_team: "mlr-3a-core"}
   cross_layer: true
-  notes: "RNG-free; per-run snapshot; consumed by later 3A states and 3A validation."
 ```
 
 Binding requirements:
 
-* `manifest_key` MUST be unique and clearly namespaced to 3A.S4 (e.g. `mlr.3A.s4_zone_counts`).
-* `path` and `schema` MUST match the dataset dictionary entry.
-* `dependencies` MUST include at least:
+* `manifest_key` MUST be `mlr.3A.s4.zone_counts`.
+* `version` MUST encode `{seed}.{manifest_fingerprint}`; contract versioning remains in `semver`.
+* `path`/`schema` MUST match the dataset dictionary entry.
+* Dependencies MUST include, at minimum, the S3 zone-share surface (providing fractional targets) and the zone-floor policy artefact. If S4 later relies on additional artefacts, both the registry entry and this spec MUST be updated accordingly.
 
-  * S1’s escalation queue (for `site_count` and domain),
-  * S3’s zone share surface,
-  * S2’s prior surface (for zone universe and lineage),
-  * S0’s gate receipt (trust anchor).
-
-The registry entry MUST be kept consistent with the dictionary and the actual artefact (path↔embed equality and digest correctness). Later 3A validation will rely on this consistency.
+The registry entry MUST remain consistent with the dictionary entry and the actual dataset (path↔embed equality, digest correctness); later validation relies on this consistency.
 
 ---
 
@@ -1450,7 +1447,7 @@ Binding rules:
 Every row in a given `{seed, fingerprint}` partition MUST satisfy:
 
 * `row.seed == {seed_token}`,
-* `row.manifest_fingerprint == {fingerprint_token}`.
+* `row.fingerprint == {fingerprint_token}`.
 
 Any mismatch between embedded values and path tokens is a schema/validation error.
 

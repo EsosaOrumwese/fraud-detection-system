@@ -1048,55 +1048,61 @@ The 3A dataset dictionary MUST declare S6’s outputs as datasets.
 
 ```yaml
 datasets:
-  - id: "s6_validation_report_3A"
-    subsegment: "3A"
-    version: "1.0.0"
-    path: "data/layer1/3A/s6_validation_report/fingerprint={manifest_fingerprint}/report.json"
-    format: "json"
-    partitioning: ["fingerprint"]
-    schema_ref: "schemas.3A.yaml#/validation/s6_validation_report_3A"
-    ordering: []              # single logical object; no row ordering
+  - id: s6_validation_report_3A
+    owner_subsegment: 3A
+    description: Structural validation report emitted by 3A.S6.
+    version: '{manifest_fingerprint}'
+    format: json
+    path: data/layer1/3A/s6_validation_report/fingerprint={manifest_fingerprint}/report.json
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.3A.yaml#/validation/s6_validation_report_3A
     lineage:
-      produced_by: ["3A.S6"]
-      consumed_by: ["3A.S7", "3A.validation", "cross_segment_validation"]
+      produced_by: 3A.S6
+      consumed_by: [3A.S7, cross_segment_validation]
     final_in_layer: false
-    role: "Segment 3A structural validation report per manifest_fingerprint"
+    pii: false
+    licence: Proprietary-Internal
 ```
 
 #### 5.5.2 `s6_issue_table_3A`
 
 ```yaml
-  - id: "s6_issue_table_3A"
-    subsegment: "3A"
-    version: "1.0.0"
-    path: "data/layer1/3A/s6_issues/fingerprint={manifest_fingerprint}/issues.parquet"
-    format: "parquet"
-    partitioning: ["fingerprint"]
-    schema_ref: "schemas.3A.yaml#/validation/s6_issue_table_3A"
-    ordering: ["issue_code", "severity", "merchant_id", "legal_country_iso", "tzid"]
+  - id: s6_issue_table_3A
+    owner_subsegment: 3A
+    description: Per-issue findings emitted by 3A.S6.
+    version: '{manifest_fingerprint}'
+    format: parquet
+    path: data/layer1/3A/s6_issues/fingerprint={manifest_fingerprint}/issues.parquet
+    partitioning: [fingerprint]
+    schema_ref: schemas.3A.yaml#/validation/s6_issue_table_3A
+    ordering: [severity, issue_code, merchant_id, legal_country_iso, tzid]
     lineage:
-      produced_by: ["3A.S6"]
-      consumed_by: ["3A.validation", "ops_tooling"]
+      produced_by: 3A.S6
+      consumed_by: [3A.S7, ops_tooling]
     final_in_layer: false
-    role: "Per-issue validation findings for Segment 3A at this manifest_fingerprint"
+    pii: false
+    licence: Proprietary-Internal
 ```
 
 #### 5.5.3 `s6_receipt_3A`
 
 ```yaml
-  - id: "s6_receipt_3A"
-    subsegment: "3A"
-    version: "1.0.0"
-    path: "data/layer1/3A/s6_receipt/fingerprint={manifest_fingerprint}/s6_receipt.json"
-    format: "json"
-    partitioning: ["fingerprint"]
-    schema_ref: "schemas.3A.yaml#/validation/s6_receipt_3A"
-    ordering: []              # single logical object
+  - id: s6_receipt_3A
+    owner_subsegment: 3A
+    description: Compact validation receipt capturing S6 outcomes.
+    version: '{manifest_fingerprint}'
+    format: json
+    path: data/layer1/3A/s6_receipt/fingerprint={manifest_fingerprint}/s6_receipt.json
+    partitioning: [fingerprint]
+    schema_ref: schemas.3A.yaml#/validation/s6_receipt_3A
+    ordering: []
     lineage:
-      produced_by: ["3A.S6"]
-      consumed_by: ["3A.S7", "cross_segment_validation"]
+      produced_by: 3A.S6
+      consumed_by: [3A.S7]
     final_in_layer: false
-    role: "Compact validation receipt for Segment 3A; overall_status and report digests per manifest_fingerprint"
+    pii: false
+    licence: Proprietary-Internal
 ```
 
 Binding requirements:
@@ -1114,63 +1120,62 @@ For each manifest (`manifest_fingerprint`), the 3A artefact registry MUST includ
 #### 5.6.1 `s6_validation_report_3A`
 
 ```yaml
-- manifest_key: "mlr.3A.s6_validation_report"
+- manifest_key: "mlr.3A.s6.validation_report"
   name: "Segment 3A S6 validation report"
   subsegment: "3A"
   type: "dataset"
   category: "validation"
   path: "data/layer1/3A/s6_validation_report/fingerprint={manifest_fingerprint}/report.json"
   schema: "schemas.3A.yaml#/validation/s6_validation_report_3A"
-  version: "1.0.0"
-  digest: "<sha256_hex>"       # SHA-256 of the report.json bytes
+  semver: "1.0.0"
+  version: "{manifest_fingerprint}"
+  digest: "<sha256_hex>"
   dependencies:
-    - "mlr.3A.s0_gate_receipt"
-    - "mlr.3A.s1_escalation_queue"
-    - "mlr.3A.s2_country_zone_priors"
-    - "mlr.3A.s3_zone_shares"
-    - "mlr.3A.s4_zone_counts"
     - "mlr.3A.zone_alloc"
     - "mlr.3A.zone_alloc_universe_hash"
-    - "mlr.layer1.rng_events"
-    - "mlr.layer1.rng_trace_log"
-  role: "Segment 3A structural validation summary per manifest_fingerprint"
+  source: "internal"
+  owner: {owner_team: "mlr-3a-core"}
   cross_layer: true
 ```
 
 #### 5.6.2 `s6_issue_table_3A`
 
 ```yaml
-- manifest_key: "mlr.3A.s6_issue_table"
+- manifest_key: "mlr.3A.s6.issues"
   name: "Segment 3A S6 per-issue validation findings"
   subsegment: "3A"
   type: "dataset"
   category: "validation"
   path: "data/layer1/3A/s6_issues/fingerprint={manifest_fingerprint}/issues.parquet"
   schema: "schemas.3A.yaml#/validation/s6_issue_table_3A"
-  version: "1.0.0"
-  digest: "<sha256_hex>"       # SHA-256 over canonical concatenation of issue files
+  semver: "1.0.0"
+  version: "{manifest_fingerprint}"
+  digest: "<sha256_hex>"
   dependencies:
-    - "mlr.3A.s6_validation_report"
-  role: "Detailed record of individual validation issues for Segment 3A"
-  cross_layer: false           # primarily internal/ops-facing
+    - "mlr.3A.s6.validation_report"
+  source: "internal"
+  owner: {owner_team: "mlr-3a-core"}
+  cross_layer: false
 ```
 
 #### 5.6.3 `s6_receipt_3A`
 
 ```yaml
-- manifest_key: "mlr.3A.s6_receipt"
+- manifest_key: "mlr.3A.s6.receipt"
   name: "Segment 3A S6 validation receipt"
   subsegment: "3A"
   type: "dataset"
   category: "validation"
   path: "data/layer1/3A/s6_receipt/fingerprint={manifest_fingerprint}/s6_receipt.json"
   schema: "schemas.3A.yaml#/validation/s6_receipt_3A"
-  version: "1.0.0"
-  digest: "<sha256_hex>"       # SHA-256 of s6_receipt.json bytes
+  semver: "1.0.0"
+  version: "{manifest_fingerprint}"
+  digest: "<sha256_hex>"
   dependencies:
-    - "mlr.3A.s6_validation_report"
-    - "mlr.3A.s6_issue_table"
-  role: "Compact, hash-protected verdict on Segment 3A validation for this manifest; consumed by 3A.S7 and cross-segment validators"
+    - "mlr.3A.s6.validation_report"
+    - "mlr.3A.s6.issues"
+  source: "internal"
+  owner: {owner_team: "mlr-3a-core"}
   cross_layer: true
 ```
 
@@ -1178,7 +1183,13 @@ Binding requirements:
 
 * Registry `manifest_key` values MUST be unique and clearly linked to S6.
 * `path` and `schema` MUST match the dataset dictionary entries.
-* `dependencies` MUST list all artefacts that the validation result is derived from.
+* `dependencies` MUST mirror the catalogue:
+
+  * the validation report depends on `zone_alloc` and `zone_alloc_universe_hash`,
+  * the issue table depends on `s6.validation_report`, and
+  * the receipt depends on both the report and the issue table.
+
+  Introducing additional dependencies requires updating both the registry and this spec.
 
 ---
 

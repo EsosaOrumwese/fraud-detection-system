@@ -596,7 +596,7 @@ No other S7 outputs are in scope in this contract version.
 * Path pattern (subject to dictionary in §5):
 
   ```text
-  data/layer1/3A/validation_bundle/fingerprint={manifest_fingerprint}/
+  data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
   ```
 
 Binding rules:
@@ -604,7 +604,7 @@ Binding rules:
 * For a given `manifest_fingerprint = F`, there MUST be at most one directory:
 
   ```text
-  data/layer1/3A/validation_bundle/fingerprint=F/
+  data/layer1/3A/validation/fingerprint=F/
   ```
 
 representing the 3A validation bundle for that manifest.
@@ -746,7 +746,7 @@ If any mismatch is found between `index.json` and the actual artefacts, S7 MUST 
 * Path pattern (conceptual):
 
   ```text
-  data/layer1/3A/validation_bundle/fingerprint={manifest_fingerprint}/_passed.flag_3A
+  data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag_3A
   ```
 
 Per `manifest_fingerprint = F`:
@@ -978,21 +978,21 @@ The 3A dataset dictionary MUST declare S7’s outputs as datasets.
 
 ```yaml
 datasets:
-  - id: "validation_bundle_3A"
-    subsegment: "3A"
-    version: "1.0.0"
-    path: "data/layer1/3A/validation_bundle/fingerprint={manifest_fingerprint}/"
-    format: "dir"          # directory-style artefact containing index.json and ancillary files
-    partitioning: ["fingerprint"]
-    schema_ref: "schemas.layer1.yaml#/validation/validation_bundle_index_3A"
-    # interpretation: schema_ref applies to index.json inside the directory
-    ordering: []           # ordering applies to index.json content, not to files
+  - id: validation_bundle_3A
+    owner_subsegment: 3A
+    description: Fingerprint-scoped validation bundle for Segment 3A.
+    version: '{manifest_fingerprint}'
+    format: dir
+    path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
+    partitioning: [fingerprint]
+    schema_ref: schemas.layer1.yaml#/validation/validation_bundle_index_3A
+    ordering: []
     lineage:
-      produced_by: ["3A.S7"]
-      consumed_by: ["orchestrator", "cross_segment_validation"]
+      produced_by: 3A.S7
+      consumed_by: [orchestrator, cross_segment_validation]
     final_in_layer: true
-    role: "Segment 3A validation bundle containing S0–S6 artefacts and index.json"
-    cross_layer: true
+    pii: false
+    licence: Proprietary-Internal
 ```
 
 Binding points:
@@ -1005,20 +1005,21 @@ Binding points:
 #### 5.4.2 `_passed.flag_3A`
 
 ```yaml
-  - id: "_passed.flag_3A"
-    subsegment: "3A"
-    version: "1.0.0"
-    path: "data/layer1/3A/validation_bundle/fingerprint={manifest_fingerprint}/_passed.flag_3A"
-    format: "text"
-    partitioning: ["fingerprint"]
-    schema_ref: "schemas.layer1.yaml#/validation/passed_flag_3A"
-    ordering: []           # single logical record
+  - id: _passed.flag_3A
+    owner_subsegment: 3A
+    description: HashGate PASS flag accompanying the validation bundle.
+    version: '{manifest_fingerprint}'
+    format: text
+    path: data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag_3A
+    partitioning: [fingerprint]
+    schema_ref: schemas.layer1.yaml#/validation/passed_flag_3A
+    ordering: []
     lineage:
-      produced_by: ["3A.S7"]
-      consumed_by: ["orchestrator", "cross_segment_validation", "segment_readers"]
+      produced_by: 3A.S7
+      consumed_by: [orchestrator, segment_readers]
     final_in_layer: true
-    role: "Segment 3A HashGate PASS flag; sha256_hex of the validation_bundle_3A index"
-    cross_layer: true
+    pii: false
+    licence: Proprietary-Internal
 ```
 
 Binding points:
@@ -1045,7 +1046,7 @@ For each `manifest_fingerprint`, the 3A artefact registry MUST include entries f
   subsegment: "3A"
   type: "dataset"
   category: "validation"
-  path: "data/layer1/3A/validation_bundle/fingerprint={manifest_fingerprint}/"
+  path: "data/layer1/3A/validation/fingerprint={manifest_fingerprint}/"
   schema: "schemas.layer1.yaml#/validation/validation_bundle_index_3A"
   version: "1.0.0"
   digest: "<sha256_hex>"     # SHA-256 of index.json bytes (or a canonical representation)
@@ -1081,7 +1082,7 @@ Binding requirements:
   subsegment: "3A"
   type: "dataset"
   category: "validation"
-  path: "data/layer1/3A/validation_bundle/fingerprint={manifest_fingerprint}/_passed.flag_3A"
+  path: "data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag_3A"
   schema: "schemas.layer1.yaml#/validation/passed_flag_3A"
   version: "1.0.0"
   digest: "<sha256_hex>"     # SHA-256 of the _passed.flag_3A file content
@@ -1380,7 +1381,7 @@ S7 MUST then:
 * write it to:
 
   ```text
-  data/layer1/3A/validation_bundle/fingerprint={manifest_fingerprint}/index.json
+  data/layer1/3A/validation/fingerprint={manifest_fingerprint}/index.json
   ```
 
 If an `index.json` already exists:
@@ -1433,7 +1434,7 @@ sha256_hex = <bundle_sha256_hex>
 at:
 
 ```text
-data/layer1/3A/validation_bundle/fingerprint={manifest_fingerprint}/_passed.flag_3A
+data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag_3A
 ```
 
 If no flag exists:
@@ -1558,7 +1559,7 @@ Thus:
 * Path pattern (from dictionary):
 
 ```text
-data/layer1/3A/validation_bundle/fingerprint={manifest_fingerprint}/
+data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
 ```
 
 Binding rules:
@@ -1566,7 +1567,7 @@ Binding rules:
 * For a given `F`, there MUST be at most one `validation_bundle_3A` directory located at:
 
 ```text
-data/layer1/3A/validation_bundle/fingerprint=F/
+data/layer1/3A/validation/fingerprint=F/
 ```
 
 * The `index.json` inside that directory MUST have:
@@ -1636,7 +1637,7 @@ Again, key order is not semantically meaningful beyond digest stability.
 * Path pattern:
 
 ```text
-data/layer1/3A/validation_bundle/fingerprint={manifest_fingerprint}/_passed.flag_3A
+data/layer1/3A/validation/fingerprint={manifest_fingerprint}/_passed.flag_3A
 ```
 
 Binding rules:
@@ -2380,7 +2381,7 @@ Exactly one log event **only if** S7 completes successfully as a state, i.e.:
 **Bundle summary**
 
 * `bundle_member_count` — number of member entries in `index.json`.
-* `bundle_path` — path to `validation_bundle_3A` root (e.g. `data/layer1/3A/validation_bundle/fingerprint=…/`).
+* `bundle_path` — path to `validation_bundle_3A` root (e.g. `data/layer1/3A/validation/fingerprint=…/`).
 * `bundle_sha256_hex` — composite digest written into `_passed.flag_3A`.
 
 **S6 linkage**
@@ -3176,7 +3177,7 @@ This appendix records the notation and shorthand used in the 3A.S7 design. It ha
   Structured as:
 
   ```text
-  data/layer1/3A/validation_bundle/fingerprint={manifest_fingerprint}/
+  data/layer1/3A/validation/fingerprint={manifest_fingerprint}/
     ├── index.json
     ├── _passed.flag_3A
     └── (other referenced artefacts or symlinks, per implementation)
