@@ -15,16 +15,16 @@ layer:
   name: Merchant Location Realism
 
 reference_data:
-- id: site_catalogue
+- id: site_locations
   status: approved
   owner_subsegment: 1B
-  description: Immutable merchant-to-site catalogue consumed for virtual overlays; 3B MUST NOT mutate 1B rows.
+  description: Immutable per-site geometry emitted by 1B; 3B joins by `merchant_id` but MUST NOT mutate these rows.
   version: '{seed}.{manifest_fingerprint}'
   format: parquet
-  path: data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+  path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
   partitioning: [seed, fingerprint]
-  ordering: [merchant_id, site_order]
-  schema_ref: schemas.1B.yaml#/egress/site_catalogue
+  ordering: [merchant_id, legal_country_iso, site_order]
+  schema_ref: schemas.1B.yaml#/egress/site_locations
   lineage:
     produced_by: 1B.egress
     consumed_by: [3B]

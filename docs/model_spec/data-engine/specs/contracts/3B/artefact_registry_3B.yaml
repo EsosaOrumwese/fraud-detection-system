@@ -159,22 +159,22 @@ subsegments:
         notes: null
 
       # 1 CROSS‑LAYER INPUT
-      - name: site_catalogue
-        path: data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+      - name: site_locations
+        path: data/layer1/1B/site_locations/seed={seed}/fingerprint={manifest_fingerprint}/
         type: dataset
         category: input
         semver: "{semver}"
         version: "{manifest_fingerprint}"
         digest: "{sha256}"
-        manifest_key: mlr.1B.output.site_catalogue
+        manifest_key: mlr.1B.egress.site_locations
         license: "{spdx_or_internal}"
-        role: Site-catalogue rows from 1B (to be joined with a virtual overlay; 3B MUST NOT mutate 1B).
-        dependencies: [ site_catalogue_schema ]
+        role: Immutable site geometry from 1B (3B joins by merchant but MUST NOT mutate 1B rows).
+        dependencies: []
         source: internal
         owner: { owner_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
-        schema: site_catalogue_schema
+        schema: schemas.1B.yaml#/egress/site_locations
         cross_layer: true
         notes: null
 
@@ -496,7 +496,7 @@ subsegments:
         environment: [ ci, runtime ]
         schema: null
         cross_layer: true
-        notes: "Enables join-on-overlay; 1B site_catalogue remains immutable."
+        notes: "Enables join-on-overlay; 1B site_locations remains immutable."
 
       - name: virtual_overlay
         path: artefacts/virtual/virtual_overlay_{run_id}.parquet
@@ -508,14 +508,14 @@ subsegments:
         manifest_key: mlr.3B.dataset.virtual_overlay
         license: "{spdx_or_internal}"
         role: Non-mutating overlay that provides is_virtual to downstream joins.
-        dependencies: [ mcc_channel_rules, virtual_overlay_schema, site_catalogue ]
+        dependencies: [ mcc_channel_rules, virtual_overlay_schema, site_locations ]
         source: internal
         owner: { engineering_team }
         last_updated: "{iso8601_timestamp}"
         environment: [ runtime ]
         schema: virtual_overlay_schema
         cross_layer: true
-        notes: "Downstream consumers must `JOIN site_catalogue USING (merchant_id)`."
+        notes: "Downstream consumers must `JOIN site_locations USING (merchant_id)`."
 
       # 3B RNG / GAMMA DRAW AUDIT
       - name: gamma_draw_schema
@@ -784,7 +784,7 @@ subsegments:
         manifest_key: mlr.3B.code.derive_is_virtual
         license: "{spdx_or_internal}"
         role: "Derives non-mutating `virtual_overlay` from MCC rules; does NOT alter 1B."
-        dependencies: [ mcc_channel_rules, site_catalogue, virtual_overlay_schema ]
+        dependencies: [ mcc_channel_rules, site_locations, virtual_overlay_schema ]
         source: internal
         owner: { engineering_team }
         last_updated: "{iso8601_timestamp}"
@@ -865,7 +865,7 @@ subsegments:
         manifest_key: mlr.3B.ci.virtual_rules
         license: "{spdx_or_internal}"
         role: Ensures derive_is_virtual output matches MCC rules.
-        dependencies: [ mcc_channel_rules, site_catalogue ]
+        dependencies: [ mcc_channel_rules, site_locations ]
         source: internal
         owner: { qa_team }
         last_updated: "{iso8601_timestamp}"

@@ -6,7 +6,8 @@
 **Must verify before any read.**
 
 * **1A PASS** for the fingerprint: recompute the 1A bundle hash from `index.json` (ASCII-lex order; flag excluded) and match `_passed.flag` → **No PASS → no read**. Then assert path↔embed equality when opening `outlet_catalogue`.
-  **Fix for the run.** `{seed, manifest_fingerprint}`; record digests for: `tz_world_2025a`, `zone_mixture_policy.yml`, `country_zone_alphas.yaml`, `zone_floor.yml` (and the day-effect policy you’ll register later).
+* **1B + 2A PASS** for the same fingerprint: replay `_passed.flag` for **1B** (locks the `site_locations` geometry that downstream validations join against) and **2A** (locks `site_timezones`, `tz_overrides.yaml`, `tz_nudge.yml`, and the `tz_timetable_cache`). Even when 3A only records these digests, S0 must prove the upstream authority surfaces are sealed before referencing them in manifests handed to 2B/3B.
+  **Fix for the run.** `{seed, manifest_fingerprint}`; record digests for: `outlet_catalogue`, `site_locations`, `site_timezones`, `tz_world_2025a`, `tz_overrides.yaml`, `tz_nudge.yml`, `zone_mixture_policy.yml`, `country_zone_alphas.yaml`, `zone_floor.yml`, and the day-effect policy you’ll register later.
 
 ---
 
@@ -16,8 +17,8 @@
 **Inputs.**
 
 * From 1A: per-merchant **country counts** (vector **v**, normalised to unit mass for policy decisions). 
-* **`zone_mixture_policy.yml`** (keys incl. `theta_mix`; digest recorded as `theta_digest`). Countries with mass ≥ θ enter the **escalation queue**; others remain **monolithic** in their country’s **largest-area TZID** from tz-world. 
-  **Notes.** Largest-area TZID is taken from the frozen `tz_world_2025a` polygons (deterministic index build). 
+* **`zone_mixture_policy.yml`** (keys incl. `theta_mix`; digest recorded as `theta_digest`). Countries with mass ≥ θ enter the **escalation queue**; others remain **monolithic** in their country’s **largest-area TZID** from tz-world **after applying the same override precedence (`tz_overrides.yaml`) that 2A used when producing `site_timezones`**. 
+  **Notes.** Largest-area TZID is taken from the frozen `tz_world_2025a` polygons (deterministic index build) and reconciled with overrides so non-escalated countries stay byte-identical to 2A’s authority surface. 
 
 ---
 
@@ -85,13 +86,15 @@
 
 ## Cross-state invariants (what keeps this green)
 
-* **Authority & identity.** 1A is read **only after** gate PASS; all 3A artefacts bind to `{seed, manifest_fingerprint}` and enforce path↔embed equality. 
+* **Authority & identity.** 1A/1B/2A surfaces are read **only after** their gates PASS; all 3A artefacts bind to `{seed, manifest_fingerprint}` and enforce path↔embed equality. 
 * **RNG boundary.** Only **S3** consumes RNG (Dirichlet); everything else is deterministic. 
+* **Order boundary.** `s3_candidate_set.candidate_rank` remains the **sole inter-country order authority**—3A only redistributes counts **within** a country. 2B must continue to join S3 for cross-country sequencing.
+* **TZ coherence.** `zone_alloc` inherits the same tz-world polygons and override precedence (`tz_overrides.yaml`, `tz_nudge.yml`) that 2A froze in `site_timezones`, so counts and timezone identities never diverge downstream.
 * **Governance.** `theta_mix`, α-ledger and zone-floors are YAML-governed with recorded digests; allocation files are digested and indexed for router drift checks via **universe hash**.
 
 ## Failure vocabulary (deterministic aborts)
 
-* `GateFailure_1AFlagMismatch` (no PASS → no read). 
+* `GateFailure_1AFlagMismatch` / `GateFailure_1BFlagMismatch` / `GateFailure_2AFlagMismatch` (no PASS → no read). 
 * `ZoneAlphaMissing` / `PolicyLedgerDigestMismatch`. 
 * `AllocationSumMismatch` (Σ_z ≠ Nₙ for any country). 
 * `FloorInfeasible` (φ_z cannot be satisfied without violating Nₙ). 

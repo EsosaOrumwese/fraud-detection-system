@@ -44,7 +44,7 @@
 **Algorithm essentials.**
 
 * For each virtual merchant, expand YAML weights into **E × weight_c** edge counts per country via largest-remainder rounding; total catalogue 50–800 nodes typical.
-* For each edge, **sample a coordinate** from HRSL within that country under your standard governed sampler (same replayable policy as 1B): counter-based RNG (Philox), open-interval mapping, and tagged sampling indices for exact replay. Resolve `tzid_operational` for each coordinate via tz-world.
+* For each edge, **sample a coordinate** from HRSL within that country under your standard governed sampler (same replayable policy as 1B): counter-based RNG (Philox), open-interval mapping, and tagged sampling indices for exact replay. Emit one `raster_pick_cell` RNG event (module `3B.edge_sampler`, substream label carried over from 1B) per draw so the `blocks`/`draws` ledger stays compatible, then resolve `tzid_operational` for each coordinate via tz-world.
 
 **Outputs (egress #2).**
 
@@ -75,7 +75,7 @@
 **Goal.** Declare **operational vs settlement** time-zones and wire validation hooks that will run once arrivals exist.
 **What to publish.**
 
-* **`virtual_routing_policy.json`** (per merchant): references `cdn_key_digest` (seed derivation rule for 2B), the **two TZIDs** (`tzid_settlement` from S1 and per-edge `tzid_operational` from S2), and the daily settlement **cut-off** convention (“23:59:59 in settlement zone”).
+* **`virtual_routing_policy.json`** (per merchant): references `cdn_key_digest` (the SHA-256 of the sealed `route_rng_policy_v1` that defines the `SHA256(global_seed ∥ "CDN" ∥ merchant_id)` key derivation shared with 2B), the **two TZIDs** (`tzid_settlement` from S1 and per-edge `tzid_operational` from S2), and the daily settlement **cut-off** convention (“23:59:59 in settlement zone”).
 * Extend the transaction schema notes: **`ip_latitude/ip_longitude`** fields are used for virtuals (customer-facing geo), separate from physical `latitude/longitude`. Downstream pipelines coalesce appropriately. 
 
 **CI hooks (declared here, executed after L2 exists).**
