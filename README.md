@@ -368,6 +368,41 @@ Legend:
 4A/4B    = reproducibility + validation, cross-cutting across all boxes/states
 ```
 
+```markdown
+=========== Arrival Mechanics (Layer 2 — design) ===========
+Planned sub-segments:
+  5A  Arrival Surfaces & Calendar              [ CONCEPT READY ]
+  5B  Arrival Realisation (LGCP + Routing)     [ CONCEPT READY ]
+
+Notes:
+  • 5A will define deterministic intensity surfaces per merchant×zone×time bucket,
+    with calendar/scenario overlays (paydays, holidays, campaigns).
+  • 5B will realise arrivals from those surfaces using LGCP-style latent fields +
+    Poisson draws, then route each arrival through L1 alias tables and edges to a site.
+
+[4A/4B overlay]  >>> S0 gate + validation bundle pattern reused for 5A/5B
+                   (same run sealing, RNG, and HashGate discipline as Layer 1)
+```
+
+```
+=========== Flow Dynamics (Layer 3 — concept) ===========
+Planned sub-segments:
+  6A  Entity & Product World                   [ CONCEPT READY ]
+  6B  Behaviour & Fraud Cascades               [ CONCEPT READY ]
+
+Notes:
+  • 6A will build the entity graph: customers, accounts, instruments, devices, IPs,
+    merchant-side accounts, and static fraud roles (mules, synthetic IDs, risky merchants).
+  • 6B will map arrivals to entities, generate transactional flows (auth/clear/refund/
+    chargeback), overlay fraud & abuse campaigns, and produce truth + bank-view labels.
+
+[4A/4B overlay]  >>> same governance rails in Layer 3:
+                   sealed inputs, deterministic specs, validation bundles,
+                   and "no PASS → no read" for all L3 outputs
+```
+
+
+
 
 ---
 
