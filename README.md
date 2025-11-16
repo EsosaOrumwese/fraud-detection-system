@@ -212,69 +212,57 @@ Legend (compact):
 ## Repository layout
 ```text
 fraud-enterprise/
-├─ packages/                     # buildable Python distributions (each with its own pyproject & src/)
-│  └─ engine/                    # the Data Engine package (Layer-1 Segments 1A–2B sealed; 3A planning in docs)
+├─ packages/
+│  └─ engine/
 │     ├─ pyproject.toml
 │     └─ src/engine/
-│        ├─ cli/                 # (concept) command entry points: run / validate / manifest
-│        ├─ registry/            # (concept) loads the declarative state registry
-│        ├─ core/                # (concept) lineage, RNG mapping, numeric policy, IO, paths
-│        ├─ validation/          # (concept) structural/corridor/adversarial checks; PASS bundle
-│        ├─ scenario_runner/     # (concept) sealed-world traffic driver
-│        └─ layers/              # (active) engine code by layer → segment → state (L0/L1/L2/L3)
-│           └─ l1/seg_1A/
-│              ├─ s0_foundations/{l0,l1,l2,l3}/
-│              ├─ s1_hurdle/{l0,l1,l2,l3}/
-│              ├─ s2_nb_outlets/{l0,l1,l2,l3}/
-│              ├─ s3_crossborder_universe/{l0,l1,l2,l3}/
-│              └─ s4_ztp_target/{l0,l1,l2,l3}/
-│  # add more packages later as they become real (e.g., packages/svc-decision-fabric, packages/lib-shared)
+│        ├─ cli/
+│        ├─ registry/
+│        ├─ core/
+│        ├─ validation/
+│        ├─ scenario_runner/
+│        └─ layers/
+│           └─ l1/seg_1A/...   # representative tree (s0_foundations, s1_hurdle, …)
+│  # add more packages later (e.g., packages/svc-decision-fabric, packages/lib-shared)
 │
-├─ services/                     # runtime microservices — conceptual stubs (docs only until “promoted” to packages/)
-│  ├─ ingestion/README.md        # schema/lineage gate, idempotent intake, tokenization
-│  ├─ feature_online/README.md   # low-latency feature reads/writes; freshness parity with offline
-│  ├─ decision_fabric/README.md  # rules + ML scoring, explanations, degrade ladder
-│  ├─ replayer/README.md         # stream engine-generated events to the event bus
-│  ├─ model_registry/README.md   # read-only pointers to immutable bundles
-│  └─ consumer_gate/README.md    # enforce “no PASS → no read” for data consumers
+├─ services/
+│  ├─ ingestion/README.md
+│  ├─ feature_online/README.md
+│  ├─ decision_fabric/README.md
+│  ├─ replayer/README.md
+│  ├─ model_registry/README.md
+│  └─ consumer_gate/README.md
 │
-├─ shared/README.md              # cross-service helper notes (logging, typing, time); not engine primitives
+├─ shared/README.md
+├─ contracts/
+│  ├─ schemas/
+│  ├─ dataset_dictionary/
+│  └─ policies/
 │
-├─ contracts/                    # authoritative contracts (schemas, dataset dictionary, governed policies)
-│  ├─ schemas/…                  # canonical JSON-Schemas for events/tables across layers/subsegments
-│  ├─ dataset_dictionary/…       # dataset names, partitions, gating rules (concept)
-│  └─ policies/…                 # versioned policy bundles consumed by kernels (concept)
+├─ docs/
+│  ├─ model_spec/
+│  │  └─ data-engine/
+│  │     ├─ README.md
+│  │     ├─ AGENTS.md
+│  │     ├─ layer-1/
+│  │     │  ├─ README.md / AGENTS.md
+│  │     │  ├─ narrative/, deprecated__assumptions/
+│  │     │  └─ specs/…
+│  │     └─ layer-2/
+│  │        ├─ README.md / AGENTS.md
+│  │        └─ specs/state-flow|contracts/{5A,5B}/
+│  └─ engineering-decisions/
 │
-├─ orchestration/                # workflow layer (concept)
-│  ├─ airflow/…                  # runner-specific glue/DAGs if/when chosen
-│  └─ state_registry/…           # declarative map: layer → segment → states with {after, gates}
-│
-├─ infra/                        # infrastructure & containerization (concept)
-│  ├─ terraform/…                # modules + env compositions (network/compute/storage/observability)
-│  └─ docker/…                   # image definitions (one image per package/service)
-│
-├─ config/                       # canonical non-secret configs + replayable run manifests
-│  ├─ models/…                  # governed priors + versioned model exports (e.g., hurdle)
-│  ├─ policy/…                  # channel/allocation/cross-border knobs (s3.rule_ladder.yaml, etc.)
-│  ├─ runs/…                    # sealed JSON configs (e.g., s0_synthetic_config.json)
-│  └─ scenario_profiles/…       # sealed-world traffic profiles for the Scenario Runner
-│
-├─ artefacts/                    # external artefact manifests & licenses (no raw data)
-│  ├─ registry/…                 # logical name → manifest mapping (hash, license)
-│  ├─ manifests/…                # provenance descriptors (source, license, digest)
-│  └─ licences/…                 # third-party license texts
-│
-├─ tests/                        # test tree (concept)
-│  ├─ unit/…                     # core primitives & state kernels/emitters; service API units
-│  ├─ integration/…              # path↔embed equality; event→trace adjacency; determinism
-│  └─ e2e/…                      # scenario → stream → decision → validation PASS (closed-world)
-│
-├─ docs/                         # narrative/context; not authoritative
-│  ├─ engineering-decisions/     # persistent records of dataset/policy engineering choices
-├─ scripts/                      # small dev helpers; no business logic
-├─ runs/                         # local run manifests & numeric attestations (gitignored; outputs live in data lake)
-└─ examples/                     # non-authoritative demos (notebooks/scripts)
+├─ orchestration/
+├─ infra/
+├─ config/
+├─ artefacts/
+├─ tests/
+├─ scripts/
+├─ runs/
+└─ examples/
 ```
+
 
 ---
 
@@ -310,7 +298,7 @@ Sub-segments:
   1B  Place Sites on Planet ................... [ ONLINE ]
   2A  Civil Time Zone (IANA/DST) .............. [ ONLINE ]
   2B  Routing Through Sites ................... [ ONLINE ]
-  3A  Cross-Zone Merchants .................... [ NEXT UP ]
+  3A  Cross-Zone Merchants .................... [ BUILDING ]
   3B  Purely Virtual Merchants ................ [ LOCKED ]
 
 [4A/4B overlay]  >>> applied to every sub-segment above (inputs/outputs, RNG,
@@ -351,6 +339,24 @@ Where (short labels just to anchor the flow):
 S0 Gate & Sealed Inputs        S1 Site Weights                S2 Alias Tables
 S3 Day Effects (γ draws)       S4 Group Weights (Σ=1)         S5 Router Core (group→site)
 S6 Virtual Edge Routing        S7 Audits & CI Gate            S8 Validation Bundle & `_passed.flag`
+
+
+=========== 3A state-flow (8 states; spec created) ===========
+S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6 -> S7
+
+Where (short labels just to anchor the flow):
+S0 Gate & Sealed Inputs        S1 Provisional TZ Lookup       S2 Overrides & Finalisation
+S3 Timetable Cache             S4 Legality Report             S5 Validation Bundle
+S6 Virtual Edge Routing        S7 Audits & CI Gate            S8 Validation Bundle & `_passed.flag`
+
+
+=========== 3B state-flow (6 states; spec created) ===========
+S0 -> S1 -> S2 -> S3 -> S4 -> S5
+
+Where (short labels just to anchor the flow):
+S0 Gate & Sealed Inputs        S1 Site Weights                S2 Alias Tables
+S3 Day Effects (γ draws)       S4 Group Weights (Σ=1)         S5 Router Core (group→site)
+
 
 Legend:
 [OPEN]   = exposed/being worked
