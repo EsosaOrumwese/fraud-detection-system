@@ -23,25 +23,29 @@ Read these in order before touching code so you align with the frozen specs.
 - docs/references/closed-world-enterprise-conceptual-design*.md
 - docs/references/closed-world-synthetic-data-engine-with-realism*.md
 
-**B. Already implemented data engine as well as context**
-- Review the current implementation of the project which for now involves understanding the implemented data engine in packages/engine and also its run tests in `runs/`
+**B. Layer-1 implementation references (Segments 1A–2B)**
+- Review the current implementation of the project which for now involves understanding the implemented data engine in packages/engine and also its run tests in `runs/`.
 - Ensure to read (strict) else you'll mess the whole project up:
    - docs/model_spec/data-engine/layer-1/specs/state-flow/1A/s#*.expanded.md (S0-S9)
    - docs/model_spec/data-engine/layer-1/specs/state-flow/1B/s#*.expanded.md (S0-S9)
+   - docs/model_spec/data-engine/layer-1/specs/state-flow/2A/s#*.expanded.md (S0-S5)
+   - docs/model_spec/data-engine/layer-1/specs/state-flow/2B/s#*.expanded.md (S0-S8)
 
-**C. Segment 2A state design (binding; ready for impl)**
-- docs/model_spec/data-engine/layer-1/specs/state-flow/2A/s#*.expanded.md (S0-S5)
+**C. Segment 3A state design (binding; implementation in progress)**
+- docs/model_spec/data-engine/layer-1/specs/state-flow/3A/s#*.expanded.md (S0–Sx)
+- docs/model_spec/data-engine/layer-1/specs/contracts/3A/artefact_registry_3A.yaml
+- docs/model_spec/data-engine/layer-1/specs/contracts/3A/dataset_dictionary.layer1.3A.yaml
+- docs/model_spec/data-engine/layer-1/specs/contracts/3A/schemas.3A.yaml
 
-**D. Contract specs (blueprints for contracts/)**
-- docs/model_spec/data-engine/layer-1/specs/contracts/2A/artefact_registry_2A.yaml
-- docs/model_spec/data-engine/layer-1/specs/contracts/2A/dataset_dictionary.layer1.2A.yaml
-- docs/model_spec/data-engine/layer-1/specs/contracts/2A/schemas.2A.yaml
+**D. Segment 3B state design (spec-ready; next up)**
+- docs/model_spec/data-engine/layer-1/specs/state-flow/3B/s#*.expanded.md (S0–S5)
+- docs/model_spec/data-engine/layer-1/specs/contracts/3B/artefact_registry_3B.yaml
+- docs/model_spec/data-engine/layer-1/specs/contracts/3B/dataset_dictionary.layer1.3B.yaml
+- docs/model_spec/data-engine/layer-1/specs/contracts/3B/schemas.3B.yaml
+
+**E. Shared Layer-1 contract packs**
 - docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml
 - docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.ingress.layer1.yaml
-
-**E. Segment 3A state design (binding; in progress)**
-- docs/model_spec/data-engine/layer-1/specs/state-flow/3A/s#*.expanded.md (S0–Sx)
-- docs/model_spec/data-engine/layer-1/specs/contracts/3A/* (artefact registry, dataset dictionary, schemas)
 
 > Never promote narratives, previews, or samples to binding authority. Only the expanded specs and contract documents govern code.
 
