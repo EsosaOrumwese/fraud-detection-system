@@ -1,23 +1,19 @@
-subsegments:
-- id: 6A
-  name:
-  artifacts:
-
-  - name:
-    path:
-    type:
-    category:
-    semver: '{semver}'
-    version:
-    digest: '{sha256}'
-    manifest_key:
-    license: '{spdx_or_internal}'
-    role:
+# artefact_registry_6A.yaml — template placeholder (structure matches Layer-1 registries)
+artefacts:
+  - manifest_key: tbd.layer3.6A.placeholder
+    name: Segment 6A Placeholder Artefact
+    subsegment: 6A
+    type: dataset
+    category: planning
+    path: TBD
+    schema: TBD
+    semver: '0.0.0'
+    version: TBD
+    digest: TBD
     dependencies: []
     source: internal
-    owner: {owner_team: null}
-    last_updated: '{iso8601_timestamp}'
-    environment:
-    schema:
-    cross_layer:
-    notes:
+    owner: { team: TBD }
+    last_updated:
+    environment: [planning]
+    cross_layer: false
+    notes: Placeholder entry; replace with real artefact once Segment 6A is defined.
