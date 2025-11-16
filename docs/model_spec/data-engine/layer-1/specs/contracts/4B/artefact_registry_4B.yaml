@@ -1,0 +1,683 @@
+subsegments:
+- id: 4B
+  name: Validation Without Bullet Points
+  artifacts:
+
+      # 1  VALIDATOR INPUT DATA
+  - name: synthetic_partition_pattern
+    path: output/transactions/partition_date=*/batch_*.parquet
+    type: dataset
+    category: validator_input
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.4B.input.synthetic_partition_pattern
+    license: '{spdx_or_internal}'
+    role: All synthetic transaction parquet partitions to be validated.
+    dependencies: [transaction_schema_avro]
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: transaction_schema_avro
+    cross_layer: true
+    notes: Pattern expands to many parquet files.
+
+  - name: real_reference_slice
+    path: data/reference/real_reference_slice.parquet
+    type: dataset
+    category: validator_input
+    semver: 2025.0.0
+    version: '2025'
+    digest: '{sha256}'
+    manifest_key: mlr.ref.validation.real_reference_slice
+    license: RestrictedCommercial
+    role: GDPR-sanitised real data slice for adversarial AUROC target.
+    dependencies: [transaction_schema_avro]
+    source: external
+    owner: {data_governance_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: transaction_schema_avro
+    cross_layer: true
+    notes:
+
+      # 2  CROSS-LAYER DIGEST REFERENCES
+  - name: tz_polygon_digest
+    path: artefacts/manifests/tz_polygon_digest.txt
+    type: manifest
+    category: spatial_digests
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.2A.manifest.tz_polygon_digest
+    license: '{spdx_or_internal}'
+    role: SHA-256 of tz-world polygons reused for coordinate legality check.
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
+
+  - name: zoneinfo_digest
+    path: artefacts/manifests/zoneinfo_digest.txt
+    type: manifest
+    category: runtime_environment
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.2A.manifest.zoneinfo_digest
+    license: '{spdx_or_internal}'
+    role: Digest of zoneinfo build used for DST legality validation.
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
+
+      # 3  SCHEMAS & VALIDATOR CONFIG BLOBS
+      #### might need to remove this artefact
+  - name: transaction_schema_avro
+    path: schemas/transaction_schema.avsc
+    type: schema
+    category: validator_schema
+    semver: '{schema_semver}'
+    version: '{schema_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.4B.schema.transaction
+    license: '{spdx_or_internal}'
+    role: Avro Schema compiled by validator for structural checks.
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
+
+  - name: validation_conf_yml
+    path: config/validation/validation_conf.yml
+    type: config
+    category: validator_config
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.4B.config.validation_conf
+    license: '{spdx_or_internal}'
+    role: AUROC cut-line, window size, theta corridors, fail-fast flags.
+    dependencies: []
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
+
+  - name: barcode_bounds_yml
+    path: config/validation/barcode_bounds.yml
+    type: config
+    category: barcode_validation
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.4B.config.barcode_bounds
+    license: '{spdx_or_internal}'
+    role: Acceptable slope band for offset-barcode validation (-1...-0.5).
+    dependencies: []
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
+
+  - name: adv_embed_py
+    path: src/validation/adv_embed.py
+    type: code
+    category: adversarial_validation
+    semver: '{code_semver}'
+    version: '{git_commit}'
+    digest: '{git_tree_hash}'
+    manifest_key: mlr.4B.code.adv_embed
+    license: '{spdx_or_internal}'
+    role: Embeds each row into 6-D vector for adversarial AUROC.
+    dependencies: []
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [dev, ci, runtime]
+    schema:
+    cross_layer: false
+    notes:
+
+      # 4B — VALIDATOR CODE (add)
+  - name: barcode_py
+    path: src/validation/barcode.py
+    type: code
+    category: barcode_validation
+    semver: '{code_semver}'
+    version: '{git_commit}'
+    digest: '{git_tree_hash}'
+    manifest_key: mlr.4B.code.barcode
+    license: '{spdx_or_internal}'
+    role: Offset-barcode slope finder via Hough transform.
+    dependencies: [barcode_bounds_yml]
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [dev, ci, runtime]
+    schema:
+    cross_layer: false
+    notes:
+
+  - name: semantic_glm_py
+    path: src/validation/semantic_glm.py
+    type: code
+    category: semantic_validation
+    semver: '{code_semver}'
+    version: '{git_commit}'
+    digest: '{git_tree_hash}'
+    manifest_key: mlr.4B.code.semantic_glm
+    license: '{spdx_or_internal}'
+    role: Poisson GLM with spline hour-of-day; checks θ corridor vs footfall.
+    dependencies: [site_catalogue]
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [dev, ci, runtime]
+    schema:
+    cross_layer: false
+    notes:
+
+      # 4  VALIDATOR RUNNER & PRIMARY SCRIPT
+  - name: validator_runner_py
+    path: src/validation/validator_runner.py
+    type: code
+    category: validator_runtime
+    semver: '{code_semver}'
+    version: '{git_commit}'
+    digest: '{git_tree_hash}'
+    manifest_key: mlr.4B.code.validator_runner
+    license: '{spdx_or_internal}'
+    role: Orchestrates structural, barcode, AUROC & DST legality checks.
+    dependencies:
+    - validation_conf_yml
+    - barcode_bounds_yml
+    - adv_embed_py
+    - structural_firewall_py
+    - barcode_py
+    - semantic_glm_py
+    - synthetic_partition_pattern
+    - real_reference_slice
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
+
+      # 4B — VALIDATOR CORE (add)
+  - name: structural_firewall_py
+    path: src/validation/firewall.py
+    type: code
+    category: validator_runtime
+    semver: '{code_semver}'
+    version: '{git_commit}'
+    digest: '{git_tree_hash}'
+    manifest_key: mlr.4B.code.structural_firewall
+    license: '{spdx_or_internal}'
+    role: 'Vectorised row-level checks: coord plausibility, TZ legality, DST bits, schema.'
+    dependencies: [transaction_schema_avro, tz_polygon_digest, zoneinfo_digest]
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
+
+  - name: failure_reproducer_py
+    path: artefacts/validation/reproducer/failure_reproducer_{run_id}.py
+    type: script
+    category: validator_output
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.4B.output.failure_reproducer
+    license: '{spdx_or_internal}'
+    role: Self-contained script to recreate the failing row; attached on firewall failure.
+    dependencies: [structural_firewall_py]
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
+
+      # 5  VALIDATION OUTPUT METRICS
+  - name: validation_report_parquet
+    path: artefacts/validation/validation_report_{run_id}.parquet
+    type: dataset
+    category: validation_output
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.4B.output.validation_report
+    license: '{spdx_or_internal}'
+    role: Row-per-metric table (slope, AUROC, null-share, etc.).
+    dependencies:
+    - validator_runner_py
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
+
+  - name: barcode_slope_metrics_json
+    path: artefacts/validation/barcode_slope_metrics_{run_id}.json
+    type: dataset
+    category: validation_output
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.4B.output.barcode_slope_metrics
+    license: '{spdx_or_internal}'
+    role: JSON with slope, intercept, R^2 for offset-barcode plot
+    dependencies:
+    - validator_runner_py
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
+
+  - name: adv_auroc_metrics_json
+    path: artefacts/validation/adv_auroc_metrics_{run_id}.json
+    type: dataset
+    category: validation_output
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.4B.output.adv_auroc_metrics
+    license: '{spdx_or_internal}'
+    role: AUROC, precision@95%CI for adversarial test.
+    dependencies:
+    - validator_runner_py
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
+
+  - name: barcode_heatmap_png
+    path: artefacts/validation/barcode_heatmap_{run_id}.png
+    type: documentation
+    category: validation_visual
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.4B.viz.barcode_heatmap
+    license: '{spdx_or_internal}'
+    role: Visual QC of barcode slope band.
+    dependencies:
+    - validator_runner_py
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
+
+      # 6  MANIFEST & AUDIT
+  - name: validator_manifest
+    path: artefacts/manifests/validator_manifest_{run_id}.json
+    type: manifest
+    category: provenance
+    semver: {semver: null}
+    version: {run_id: null}
+    digest: {sha256: null}
+    manifest_key: mlr.4B.manifest.validator
+    license: {spdx_or_internal: null}
+    role: Bundles digests of input slice, configs, scripts & metrics outputs.
+    dependencies:
+    - validation_report_parquet
+    - barcode_slope_metrics_json
+    - adv_auroc_metrics_json
+    - validator_rng_trace_log
+    - synthetic_partition_pattern              # input slice pattern
+    - real_reference_slice                     # adversarial reference
+    - transaction_schema_avro                  # structural schema
+    - validation_conf_yml                      # thresholds and toggles
+    - barcode_bounds_yml                       # slope corridor
+    - adv_embed_py                             # embedder code digest
+    - tz_polygon_digest                        # spatial vintage
+    - zoneinfo_digest                          # ZoneInfo build
+    - civil_time_manifest
+    - site_catalogue
+    - structural_firewall_py
+    - failure_reproducer_py
+    - barcode_py
+    - semantic_glm_py
+    - virtual_manifest
+    source: internal
+    owner: {qa_team: null}
+    last_updated: {iso8601_timestamp: null}
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
+
+
+  - name: validator_audit_log
+    path: logs/validation/{run_id}/validator_audit.log
+    type: log
+    category: validation_audit
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.4B.log.validator_audit
+    license: '{spdx_or_internal}'
+    role: Structured log of metric values + pass/fail per check.
+    dependencies:
+    - validator_runner_py
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
+
+      # 7  CI TESTS & EXPECTED-METRICS TEMPLATE
+  - name: validation_ci_test_py
+    path: ci/tests/validation_ci_test.py
+    type: ci_test
+    category: validation
+    semver: '{code_semver}'
+    version: '{git_commit}'
+    digest: '{git_tree_hash}'
+    manifest_key: mlr.4B.ci.validation_suite
+    license: '{spdx_or_internal}'
+    role: Asserts every metric in validation_report meets expected corridor.
+    dependencies:
+    - expected_metrics_yaml
+    - validation_report_parquet
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci]
+    schema:
+    cross_layer: false
+    notes:
+
+  - name: expected_metrics_yaml
+    path: config/validation/expected_metrics.yaml
+    type: config
+    category: validation
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.4B.config.expected_metrics
+    license: '{spdx_or_internal}'
+    role: Target values & tolerances for CI regression checks.
+    dependencies: []
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci]
+    schema:
+    cross_layer: false
+    notes:
+
+      # 8  SNAPSHOT DIFF & REPLAY
+  - name: snap_diff_py
+    path: tools/snap_diff.py
+    type: code
+    category: validation_tooling
+    semver: '{code_semver}'
+    version: '{git_commit}'
+    digest: '{git_tree_hash}'
+    manifest_key: mlr.4B.tool.snap_diff
+    license: '{spdx_or_internal}'
+    role: Diffs current metrics vs previous run snapshot; emits JSON diff.
+    dependencies:
+    - validation_report_parquet
+    source: internal
+    owner: {qa_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [dev, ci]
+    schema:
+    cross_layer: false
+    notes:
+
+      # 9  CONTAINER LOCK & BUILD MANIFEST
+  - name: validator_dockerfile_lock
+    path: Dockerfile.validator.lock
+    type: manifest
+    category: reproducibility
+    semver: '{semver}'
+    version: '{container_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.4B.manifest.validator_dockerfile_lock
+    license: '{spdx_or_internal}'
+    role: Locks validator container base digest & layer hashes.
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci]
+    schema:
+    cross_layer: false
+    notes:
+
+  - name: validator_build_manifest
+    path: artefacts/manifests/validator_build.manifest
+    type: manifest
+    category: reproducibility
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.4B.manifest.validator_build
+    license: '{spdx_or_internal}'
+    role: Digest roll-up of validator code, configs, container hash.
+    dependencies:
+    - validator_dockerfile_lock
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci]
+    schema:
+    cross_layer: false
+    notes:
+
+      # 10  RNG TRACE FOR VALIDATOR
+  - name: validator_rng_trace_log
+    path: logs/validation/{run_id}/validator_rng_trace.log
+    type: log
+    category: rng_audit
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.4B.log.validator_rng_trace
+    license: '{spdx_or_internal}'
+    role: Philox key & counter trace used during validation draws.
+    dependencies: [rng_logging_policy]
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
+
+      # 11  EXCEPTION CONTRACTS
+  - name: ValidationDriftError
+    path:
+    type: exception
+    category: exception_contract
+    semver:
+    version:
+    digest:
+    manifest_key: mlr.4B.exception.validation_drift
+    license:
+    role: Raised when any metric exceeds tolerance corridor.
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
+
+  - name: BarcodeSlopeError
+    path:
+    type: exception
+    category: exception_contract
+    semver:
+    version:
+    digest:
+    manifest_key: mlr.4B.exception.barcode_slope
+    license:
+    role: Raised when barcode slope falls outside bounds file.
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
+
+  - name: AUROCThresholdError
+    path:
+    type: exception
+    category: exception_contract
+    semver:
+    version:
+    digest:
+    manifest_key: mlr.4B.exception.auroc_threshold
+    license:
+    role: Raised when adversarial AUROC exceeds cut-line in validation_conf.
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: false
+    notes:
+
+      # cross layer
+  - name: rng_logging_policy
+    path: config/rng/rng_logging.yml
+    type: config
+    category: rng_policy
+    semver: '{semver}'
+    version: '{config_version}'
+    digest: '{sha256}'
+    manifest_key: mlr.4A.config.rng_logging
+    license: '{spdx_or_internal}'
+    role: Enables Philox counter dumps for every segment; size budget 10 MiB.
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
+
+  - name: civil_time_manifest
+    path: artefacts/manifests/civil_time_manifest.json
+    type: manifest
+    category: provenance
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.2A.manifest.civil_time
+    license: '{spdx_or_internal}'
+    role: Cross-layer digest roll-up from 2A (tz polygons/index/overrides/tzdata/horizon).
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes: Referenced by validator_manifest for DST/time provenance.
+
+  - name: site_catalogue
+    path: data/outputs/1B/site_catalogue/seed={seed}/fingerprint={manifest_fingerprint}/
+    type: dataset
+    category: validator_input
+    semver: '{semver}'
+    version: '{manifest_fingerprint}'
+    digest: '{sha256}'
+    manifest_key: mlr.1B.output.site_catalogue
+    license: '{spdx_or_internal}'
+    role: Site snapshot used for semantic checks and adversarial embedding.
+    dependencies: [site_catalogue_schema]
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema: site_catalogue_schema
+    cross_layer: true
+    notes: Declared in 4B for manifest-closure; owned by 1B.
+
+  - name: virtual_manifest
+    path: artefacts/manifests/virtual_manifest.json
+    type: manifest
+    category: provenance
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256}'
+    manifest_key: mlr.3B.manifest.virtual
+    license: '{spdx_or_internal}'
+    role: Cross-layer digest bundle of 3B virtual inputs (edges/aliases/configs).
+    dependencies: []
+    source: internal
+    owner: {platform_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [runtime]
+    schema:
+    cross_layer: true
+    notes:
+
+  - name: virtual_licenses_dir
+    path: LICENSES/
+    type: directory
+    category: licensing
+    semver: '{semver}'
+    version: '{run_id}'
+    digest: '{sha256_tree}'
+    manifest_key: mlr.3B.licenses
+    license: SEE-FILES
+    role: SPDX texts for HRSL, Akamai SOTI and any other external assets used by 3B.
+    dependencies: []
+    source: internal
+    owner: {legal_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment: [ci, runtime]
+    schema:
+    cross_layer: true
+    notes:

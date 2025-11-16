@@ -935,7 +935,17 @@ def _schema_document(file_name: str) -> Dict[str, Any]:
 def _schema_file_path(file_name: str) -> Path:
     repo_root = get_repo_root()
     if file_name == "schemas.1A.yaml":
-        return repo_root / "docs" / "model_spec" / "data-engine" / "specs" / "contracts" / "1A" / "schemas.1A.yaml"
+        return (
+            repo_root
+            / "docs"
+            / "model_spec"
+            / "data-engine"
+            / "layer-1"
+            / "specs"
+            / "contracts"
+            / "1A"
+            / "schemas.1A.yaml"
+        )
     if file_name == "schemas.layer1.yaml":
         return repo_root / "contracts" / "schemas" / "layer1" / "schemas.layer1.yaml"
     if file_name.startswith("l1/"):

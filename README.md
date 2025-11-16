@@ -24,6 +24,11 @@
 
 Implementation sequence (next): 3A (S0→SX) followed by 3B (S0→SX), leaving 1A/1B/2A/2B artefacts as read-only authorities while we prepare the PR to main.
 
+### Spec sources (repo layout)
+- **Layer-1** — `docs/model_spec/data-engine/layer-1/…` now holds every existing narrative, contract, and state-flow document (Segments 1A–3B). Anything that previously lived directly under `docs/model_spec/data-engine/` moved here byte-for-byte.
+- **Layer-2** — `docs/model_spec/data-engine/layer-2/…` mirrors the same structure for the upcoming 5A/5B planning work. Until those specs go green, Layer-1 remains the only binding contract set.
+- Future layers will follow the same convention (`layer-3/`, etc.) so each layer’s specs stay isolated while still referencing upstream authorities explicitly.
+
 ---
 
 ## Concept Map
