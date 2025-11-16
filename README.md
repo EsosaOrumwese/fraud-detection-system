@@ -21,8 +21,10 @@
 | 1B | S0-S9 | **Sealed** | Production-ready Layer-1 world realism |
 | 2A | S0-S5 | **Sealed** | Gate, TZ pipeline, timetable, legality, bundle |
 | 2B | S0-S8 | **Sealed** | Alias build, router core, audits, PASS bundle |
+| 3A | S0-SX | **Spec Ready / In Progress** | Implementation underway; specs live at `docs/model_spec/data-engine/layer-1/specs/state-flow/3A/` |
+| 3B | S0-SX | **Spec Ready** | Next after 3A; specs staged at `docs/model_spec/data-engine/layer-1/specs/state-flow/3B/` |
 
-Implementation sequence (next): 3A (S0→SX) followed by 3B (S0→SX), leaving 1A/1B/2A/2B artefacts as read-only authorities while we prepare the PR to main.
+Implementation sequence (next): 3A (S0→SX) followed by 3B (S0→SX), leaving 1A/1B/2A/2B artefacts as read-only authorities while we prepare the PR to main. Both 3A and 3B specs are green and parked under `docs/model_spec/data-engine/layer-1/specs/state-flow/3A|3B`, so implementation can begin immediately.
 
 ### Spec sources (repo layout)
 - **Layer-1** — `docs/model_spec/data-engine/layer-1/…` now holds every existing narrative, contract, and state-flow document (Segments 1A–3B). Anything that previously lived directly under `docs/model_spec/data-engine/` moved here byte-for-byte.
@@ -341,21 +343,23 @@ S3 Day Effects (γ draws)       S4 Group Weights (Σ=1)         S5 Router Core (
 S6 Virtual Edge Routing        S7 Audits & CI Gate            S8 Validation Bundle & `_passed.flag`
 
 
-=========== 3A state-flow (8 states; spec created) ===========
+=========== 3A state-flow (8 states; spec ready / impl in progress) ===========
 S0 -> S1 -> S2 -> S3 -> S4 -> S5 -> S6 -> S7
 
 Where (short labels just to anchor the flow):
-S0 Gate & Sealed Inputs        S1 Provisional TZ Lookup       S2 Overrides & Finalisation
-S3 Timetable Cache             S4 Legality Report             S5 Validation Bundle
-S6 Virtual Edge Routing        S7 Audits & CI Gate            S8 Validation Bundle & `_passed.flag`
+S0 Gate & Sealed Inputs        S1 Mixture Policy & Escalation Queue
+S2 Dirichlet Priors            S3 Zone Share Draws (Dirichlet)
+S4 Integerise w/ Floors & Bump S5 Bind Allocation + Universe Hash
+S6 Structural Validation       S7 Validation Bundle & `_passed.flag`
 
 
-=========== 3B state-flow (6 states; spec created) ===========
+=========== 3B state-flow (6 states; spec ready) ===========
 S0 -> S1 -> S2 -> S3 -> S4 -> S5
 
 Where (short labels just to anchor the flow):
-S0 Gate & Sealed Inputs        S1 Site Weights                S2 Alias Tables
-S3 Day Effects (γ draws)       S4 Group Weights (Σ=1)         S5 Router Core (group→site)
+S0 Gate & Sealed Inputs        S1 Virtual ID + Settlement Node
+S2 CDN Edge Catalogue (HRSL)   S3 Alias Tables & Universe Hash
+S4 Dual-TZ Routing Policy + CI S5 Validation Bundle & `_passed.flag`
 
 
 Legend:

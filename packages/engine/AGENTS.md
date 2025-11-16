@@ -1,4 +1,4 @@
-# AGENTS.md - Data Engine Router (Layer-1 / Segments 2A/2B)
+# AGENTS.md - Data Engine Router (Layer-1 / Segment 3A in progress)
 _As of 2025-11-12_
 
 This router tells you what is binding, what to read first, and which parts of the engine are in play. Segments **1A, 1B, 2A, and 2B** are online and sealed—treat them as read-only authority surfaces. We are preparing the PR to land Layer-1 through Segment 2B before moving on to Segment 3A specifications.
@@ -39,6 +39,10 @@ Read these in order before touching code so you align with the frozen specs.
 - docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.layer1.yaml
 - docs/model_spec/data-engine/layer-1/specs/contracts/1A/schemas.ingress.layer1.yaml
 
+**E. Segment 3A state design (binding; in progress)**
+- docs/model_spec/data-engine/layer-1/specs/state-flow/3A/s#*.expanded.md (S0–Sx)
+- docs/model_spec/data-engine/layer-1/specs/contracts/3A/* (artefact registry, dataset dictionary, schemas)
+
 > Never promote narratives, previews, or samples to binding authority. Only the expanded specs and contract documents govern code.
 
 ---
@@ -76,3 +80,4 @@ Read these in order before touching code so you align with the frozen specs.
 - **Deterministic artefacts only.** All seeded outputs (parquet partitions, manifests, contract bundles) must hash identically across reruns. Any volatile metadata (timestamps, `run_id`, temp paths, live telemetry) should be isolated from validation surfaces or normalised by tooling.
 
 _This router remains command-free by design. Execution strategy, test harness, and internal folder improvements stay up to you while respecting the governing specs._
+
