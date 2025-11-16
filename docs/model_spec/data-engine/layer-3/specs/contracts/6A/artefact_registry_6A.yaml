@@ -1,0 +1,23 @@
+subsegments:
+- id: 6A
+  name:
+  artifacts:
+
+  - name:
+    path:
+    type:
+    category:
+    semver: '{semver}'
+    version:
+    digest: '{sha256}'
+    manifest_key:
+    license: '{spdx_or_internal}'
+    role:
+    dependencies: []
+    source: internal
+    owner: {owner_team: null}
+    last_updated: '{iso8601_timestamp}'
+    environment:
+    schema:
+    cross_layer:
+    notes:

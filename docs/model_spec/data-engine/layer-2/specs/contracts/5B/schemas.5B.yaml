@@ -1,0 +1,378 @@
+version: '1.0'
+$id: schemas.1B.yaml
+$schema: https://json-schema.org/draft/2020-12/schema
+description: 'Schemas for Layer 1 — Subsegment 1B (Site geolocation: S0 gate + future states).'
+
+# Reusable primitives (kept minimal; prefer layer/ingress $defs where possible)
+$defs:
+  hex64:
+    type: string
+    pattern: ^[a-f0-9]{64}$
+    description: Lowercase hex SHA-256 digest.
+  uint64:
+    type: integer
+    minimum: 0
+    maximum: 18446744073709551615
+    description: Unsigned 64-bit integer.
+  rfc3339_micros:
+    type: string
+    pattern: ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}Z$
+    description: RFC-3339 UTC timestamp with exactly 6 fractional digits.
+  lon:
+    type: number
+    minimum: -180
+    maximum: 180
+    description: Longitude in degrees (WGS84).
+  lat:
+    type: number
+    minimum: -90
+    maximum: 90
+    description: Latitude in degrees (WGS84).
+  iso2:
+    type: string
+    pattern: '^[A-Z]{2}$'
+    description: ISO 3166-1 alpha-2 (uppercase).
+  inclusion_rule:
+    type: string
+    enum: ["center","any_overlap"]
+    description: Inclusion predicate used by S1 (see state spec §6.2).
+  dp_nonneg:
+    type: integer
+    minimum: 0
+    description: Non-negative decimal precision used for fixed-dp weights.
+  basis:
+    type: string
+    enum: ["uniform","area_m2","population"]
+    description: Weighting basis used by S2 (non-authoritative if included as a column).
+
+# Layer-1 template alignment placeholders. Detailed dataset schemas live in the
+# state-specific specs and will be inlined as we promote 1B to beta.
+model: {}
+
+prep: {}
+
+egress: {}
+
+plan: {}
+
+policy:
+  jitter_policy:
+    type: object
+    description: "Deterministic per-latitude σ policy (degrees) used by S6."
+    required: [policy_version, bands]
+    additionalProperties: false
+    properties:
+      policy_version:
+        type: string
+        description: "Human-readable or semver; not part of dataset identity."
+      notes:
+        type: string
+        description: "Optional free text."
+      bands:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          required: [lat_lo_deg, lat_hi_deg, sigma_lat_deg, sigma_lon_deg]
+          additionalProperties: false
+          properties:
+            lat_lo_deg: { $ref: '#/$defs/lat' }
+            lat_hi_deg: { $ref: '#/$defs/lat' }
+            sigma_lat_deg: { type: number, exclusiveMinimum: 0 }
+            sigma_lon_deg: { type: number, exclusiveMinimum: 0 }
+            merchant_class:
+              type: string
+              description: "Optional merchant class key if you differentiate by class."
+
+validation:
+  s0_gate_receipt:
+    type: table
+    description: 'Receipt proving 1A PASS for this fingerprint; authorises 1B to read outlet_catalogue. Fingerprint-only identity.'
+    primary_key: [manifest_fingerprint]
+    partition_keys: [fingerprint]
+    sort_keys: []
+    columns_strict: true
+    columns:
+      - {name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false, description: 'Lineage fingerprint (MUST byte-equal the `fingerprint` path token).'}
+      - {name: validation_bundle_path, type: string, nullable: false, description: 'Resolved folder of 1A validation bundle for this fingerprint (must include `fingerprint=<hex64>`).', pattern: '^data/layer1/1A/validation/fingerprint=[a-f0-9]{64}/?$'}
+      - {name: flag_sha256_hex, $ref: '#/$defs/hex64', nullable: false, description: 'Value read from _passed.flag after recomputation.'}
+      - {name: verified_at_utc, $ref: '#/$defs/rfc3339_micros', nullable: false, description: 'Verification timestamp (observational).'}
+      - name: sealed_inputs
+        type: array
+        nullable: false
+        description: 'List of sealed inputs S0 authorises for 1B after PASS (dataset id, partition keys, required schema_ref).'
+        items:
+          type: object
+          required: [id, schema_ref]
+          properties:
+            id: {type: string, description: 'Dataset ID, e.g., outlet_catalogue'}
+            partition: {type: array, items: {type: string}, description: 'Partition keys relevant to the input, e.g., ["seed","fingerprint"] or ["parameter_hash"].'}
+            schema_ref: {type: string, description: 'Schema anchor for the input, when applicable.'}
+          additionalProperties: false
+      - {name: notes, type: string, nullable: true, description: 'Optional free-text.'}
+
+  validation_bundle_1B:
+    description: "Bundle certifying a 1B publish for a given manifest_fingerprint."
+    type: object
+    additionalProperties: false
+    properties:
+      index_json:   { $ref: '#/validation/bundle_index_v1' }
+      checks_json:  { $ref: '#/validation/checks_v1' }
+      metrics_json: { $ref: '#/validation/metrics_v1' }
+    required: [index_json]
+
+  # Index shape used to recompute the bundle hash
+  bundle_index_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      files:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          properties:
+            path:       { type: string, minLength: 1 }
+            sha256_hex: { $ref: '#/$defs/hex64' }
+          required: [path, sha256_hex]
+    required: [files]
+
+  # Optional summary documents (structure is modest on purpose)
+  checks_v1:
+    description: "Validation outcomes for a 1B publish."
+    type: object
+    additionalProperties: false
+    properties:
+      fingerprint: { $ref: '#/$defs/hex64' }
+      generated_at_utc: { $ref: '#/$defs/rfc3339_micros' }
+      overall_status: { type: string, enum: [PASS, FAIL] }
+      datasets:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          additionalProperties: false
+          properties:
+            id:        { type: string, minLength: 1 }   # e.g., s5_site_tile_assignment
+            status:    { type: string, enum: [PASS, FAIL] }
+            notes:     { type: string }
+            validators:
+              description: "Per-dataset validator outcomes (e.g., A801…A813)."
+              type: array
+              minItems: 1
+              items:
+                type: object
+                additionalProperties: false
+                properties:
+                  code:    { type: string, pattern: '^[A-Z][0-9]{3}$' }
+                  name:    { type: string }
+                  status:  { type: string, enum: [PASS, FAIL, SKIP] }
+                  details: { type: string }
+                  count:   { type: integer, minimum: 0 }
+                required: [code, status]
+          required: [id, status]
+      rng_budgets:
+        type: object
+        additionalProperties: false
+        properties:
+          s5_events_eq_rows:    { type: boolean }
+          s5_draws_blocks_ok:   { type: boolean }  # draws="1", blocks=1
+          s6_events_ge_rows:    { type: boolean }
+          s6_last_event_equals: { type: boolean }
+        required: [s5_events_eq_rows, s5_draws_blocks_ok, s6_events_ge_rows, s6_last_event_equals]
+      spatial:
+        type: object
+        additionalProperties: false
+        properties:
+          point_in_country_pass: { type: boolean }
+        required: [point_in_country_pass]
+      extensions:
+        description: "Agent-specific, non-gating fields."
+        type: object
+        additionalProperties: true
+    required: [fingerprint, generated_at_utc, overall_status, datasets, rng_budgets, spatial]
+
+  metrics_v1:
+    type: object
+    additionalProperties: false
+    properties:
+      publish_ts_utc: { $ref: '#/$defs/rfc3339_micros' }
+    required: [publish_ts_utc]
+
+  passed_flag_text:
+    description: '_passed.flag content: single line "sha256_hex = <hex64>"'
+    type: string
+    pattern: '^sha256_hex = [a-f0-9]{64}\\s*$'
+
+  # Back-compat alias to match Dictionary schema_ref
+  passed_flag:
+    $ref: '#/validation/passed_flag_text'
+
+# Placeholders for later states (to be filled when we ratify S1+)
+prep:
+  tile_index:
+    type: table
+    description: 'Eligible raster cells per country.'
+    primary_key: [country_iso, tile_id]
+    partition_keys: [parameter_hash]
+    sort_keys: [country_iso, tile_id]
+    columns_strict: true
+    columns:
+      - {name: country_iso, $ref: '#/$defs/iso2', nullable: false, description: 'ISO 3166-1 alpha-2 (UPPERCASE).'}
+      - {name: tile_id, $ref: '#/$defs/uint64', nullable: false, description: 'Row-major linear cell id derived from raster metadata (global cell id).'}
+      - {name: raster_row, $ref: '#/$defs/uint64', nullable: false, description: 'Zero-based row index in population_raster_2025.'}
+      - {name: raster_col, $ref: '#/$defs/uint64', nullable: false, description: 'Zero-based column index in population_raster_2025.'}
+      - {name: centroid_lon, $ref: '#/$defs/lon',  nullable: false, description: 'Cell-center longitude (WGS84).'}
+      - {name: centroid_lat, $ref: '#/$defs/lat',  nullable: false, description: 'Cell-center latitude (WGS84).'}
+      - {name: pixel_area_m2, type: number, nullable: false, description: 'Ellipsoidal cell area (WGS84).', exclusiveMinimum: 0}
+      - {name: inclusion_rule, $ref: '#/$defs/inclusion_rule', nullable: false, description: 'Predicate applied to decide eligibility.'}
+
+  tile_weights:
+    type: table
+    description: 'Deterministic fixed-decimal weights per eligible tile (S2).'
+    primary_key: [country_iso, tile_id]
+    partition_keys: [parameter_hash]
+    sort_keys: [country_iso, tile_id]
+    columns_strict: true
+    columns:
+      - { name: country_iso, $ref: "#/$defs/iso2", nullable: false, description: "ISO 3166-1 alpha-2 (UPPERCASE)." }
+      - { name: tile_id,     $ref: "#/$defs/uint64", nullable: false, description: "Global raster cell id (row-major) as in tile_index." }
+      - { name: weight_fp,   type: integer, nullable: false, minimum: 0, description: "Fixed-decimal integer weight (per-country sum = 10^dp)." }
+      - { name: dp,          $ref: "#/$defs/dp_nonneg", nullable: false, description: "Decimal precision; K = 10^dp applies to the whole partition." }
+      - { name: basis, $ref: "#/$defs/basis", nullable: true, description: "Weighting basis; non-authoritative (run report is source of truth)." }
+
+  tile_bounds:
+    type: table
+    description: 'Per-tile rectangle bounds and centroids (S1 companion to tile_index).'
+    primary_key: [country_iso, tile_id]
+    partition_keys: [parameter_hash]
+    sort_keys: [country_iso, tile_id]
+    columns_strict: true
+    columns:
+      - { name: country_iso,      $ref: '#/$defs/iso2',  nullable: false }
+      - { name: tile_id,          $ref: '#/$defs/uint64', nullable: false }
+      - { name: min_lat_deg,      $ref: '#/$defs/lat',   nullable: false }
+      - { name: max_lat_deg,      $ref: '#/$defs/lat',   nullable: false }
+      - { name: min_lon_deg,      $ref: '#/$defs/lon',   nullable: false }
+      - { name: max_lon_deg,      $ref: '#/$defs/lon',   nullable: false }
+      - { name: centroid_lat_deg, $ref: '#/$defs/lat',   nullable: false }
+      - { name: centroid_lon_deg, $ref: '#/$defs/lon',   nullable: false }
+
+plan:
+  s3_requirements:
+    type: table
+    description: "Deterministic per-(merchant_id, legal_country_iso) site counts for this run (RNG-free)."
+    primary_key: [merchant_id, legal_country_iso]
+    partition_keys: [seed, fingerprint, parameter_hash]
+    sort_keys: [merchant_id, legal_country_iso]
+    columns_strict: true
+    columns:
+      - { name: merchant_id, $ref: 'schemas.layer1.yaml#/$defs/id64', nullable: false }
+      - { name: legal_country_iso, $ref: '#/$defs/iso2', nullable: false }
+      - { name: n_sites, type: integer, minimum: 1, nullable: false }
+
+  s4_alloc_plan:
+    type: table
+    description: "Per-tile integer allocations that sum to S3 n_sites (RNG-free). Emitted only for positive allocations."
+    primary_key: [merchant_id, legal_country_iso, tile_id]
+    partition_keys: [seed, fingerprint, parameter_hash]
+    sort_keys: [merchant_id, legal_country_iso, tile_id]
+    columns_strict: true
+    columns:
+      - { name: merchant_id,        $ref: 'schemas.layer1.yaml#/$defs/id64',  nullable: false }
+      - { name: legal_country_iso,  $ref: '#/$defs/iso2',                     nullable: false,
+          fk: { dataset_ref: 'schemas.ingress.layer1.yaml#/iso3166_canonical_2024',
+                columns: { legal_country_iso: country_iso } } }
+      - { name: tile_id,            $ref: '#/$defs/uint64',                   nullable: false,
+          fk: { dataset_ref: 'schemas.1B.yaml#/prep/tile_index', partition_keys: [parameter_hash],
+                columns: { legal_country_iso: country_iso, tile_id: tile_id } } }
+      - { name: n_sites_tile,       type: integer, minimum: 1,                nullable: false,
+          description: "Integer allocation for this (merchant,country,tile). Zeros are not materialised." }
+
+  s5_site_tile_assignment:
+    type: table
+    description: "Site→tile assignment; exactly one row per site; RNG used to randomise which sites fill S4’s tile quotas."
+    primary_key: [merchant_id, legal_country_iso, site_order]
+    partition_keys: [seed, fingerprint, parameter_hash]
+    sort_keys: [merchant_id, legal_country_iso, site_order]
+    columns_strict: true
+    columns:
+      - { name: merchant_id,        $ref: 'schemas.layer1.yaml#/$defs/id64',  nullable: false }
+      - { name: legal_country_iso,  $ref: '#/$defs/iso2',                     nullable: false,
+          fk: { dataset_ref: 'schemas.ingress.layer1.yaml#/iso3166_canonical_2024',
+                 columns: { legal_country_iso: country_iso } } }
+      - { name: site_order,         type: integer, minimum: 1,                nullable: false,
+          description: "Contiguous 1..N per (merchant_id, legal_country_iso), guaranteed upstream." }
+      - { name: tile_id,            $ref: '#/$defs/uint64',                   nullable: false,
+          fk: { dataset_ref: 'schemas.1B.yaml#/prep/tile_index', partition_keys: [parameter_hash],
+                columns: { legal_country_iso: country_iso, tile_id: tile_id } },
+          description: "Assigned eligible tile for this site (must exist in tile_index for the same parameter_hash)." }
+
+  s6_site_jitter:
+    type: table
+    description: "Per-site in-tile jitter; effective deltas after boundary handling (one row per site)."
+    primary_key: [merchant_id, legal_country_iso, site_order]
+    partition_keys: [seed, fingerprint, parameter_hash]
+    sort_keys: [merchant_id, legal_country_iso, site_order]
+    columns_strict: true
+    columns:
+      - { name: merchant_id,        $ref: 'schemas.layer1.yaml#/$defs/id64',  nullable: false }
+      - { name: legal_country_iso,  $ref: '#/$defs/iso2',                     nullable: false,
+          fk: { dataset_ref: 'schemas.ingress.layer1.yaml#/iso3166_canonical_2024',
+                columns: { legal_country_iso: country_iso } } }
+      - { name: site_order,         type: integer, minimum: 1,                nullable: false,
+          description: "Contiguous 1..N per (merchant_id, legal_country_iso), guaranteed upstream." }
+      - { name: tile_id,            $ref: '#/$defs/uint64',                   nullable: false,
+          fk: { dataset_ref: 'schemas.1B.yaml#/prep/tile_index', partition_keys: [parameter_hash],
+                columns: { legal_country_iso: country_iso, tile_id: tile_id } },
+          description: "Assigned tile for this site; must exist in tile_index for the same parameter_hash." }
+      - { name: delta_lat_deg,      type: number, minimum: -1, maximum: 1,     nullable: false,
+          description: "Effective latitude jitter in degrees (post-clamp); bounded to [-1,1] to guard unit slips." }
+      - { name: delta_lon_deg,      type: number, minimum: -1, maximum: 1,     nullable: false,
+          description: "Effective longitude jitter in degrees (post-clamp); bounded to [-1,1] to guard unit slips." }
+      - { name: manifest_fingerprint, $ref: '#/$defs/hex64', nullable: false,
+          description: "Lineage fingerprint; MUST byte-equal the fingerprint path token." }
+
+  s7_site_synthesis:
+    type: table
+    description: "Deterministic stitch of S5 (tile) + S6 (effective deltas) + S1 geometry into per-site absolutes, ready for S8 egress."
+    primary_key: [merchant_id, legal_country_iso, site_order]
+    partition_keys: [seed, fingerprint, parameter_hash]
+    sort_keys: [merchant_id, legal_country_iso, site_order]
+    columns_strict: true
+    columns:
+      - { name: merchant_id,        $ref: 'schemas.layer1.yaml#/$defs/id64',  nullable: false }
+      - { name: legal_country_iso,  $ref: '#/$defs/iso2',                     nullable: false,
+          fk: { dataset_ref: 'schemas.ingress.layer1.yaml#/iso3166_canonical_2024',
+                columns: { legal_country_iso: country_iso } } }
+      - { name: site_order,         type: integer, minimum: 1,                nullable: false,
+          description: "Contiguous 1..N per (merchant_id, legal_country_iso), guaranteed upstream." }
+      - { name: tile_id,            $ref: '#/$defs/uint64',                   nullable: false,
+          fk: { dataset_ref: 'schemas.1B.yaml#/prep/tile_index', partition_keys: [parameter_hash],
+                columns: { legal_country_iso: country_iso, tile_id: tile_id } },
+          description: "Assigned eligible tile for this site (must exist in tile_index for the same parameter_hash)." }
+      - { name: lon_deg,            $ref: '#/$defs/lon',                      nullable: false,
+          description: "Reconstructed longitude: tile_bounds.centroid_lon_deg + delta_lon_deg (WGS84 degrees)." }
+      - { name: lat_deg,            $ref: '#/$defs/lat',                      nullable: false,
+          description: "Reconstructed latitude: tile_bounds.centroid_lat_deg + delta_lat_deg (WGS84 degrees)." }
+
+egress:
+  site_locations:
+    type: table
+    description: 'Concrete (lat,lon, …) per outlet stub; order-free (join 1A S3 for inter-country order).'
+    primary_key: [merchant_id, legal_country_iso, site_order]
+    partition_keys: [seed, fingerprint]
+    sort_keys: [merchant_id, legal_country_iso, site_order]
+    columns_strict: true
+    columns:
+      - { name: merchant_id,        $ref: 'schemas.layer1.yaml#/$defs/id64',  nullable: false }
+      - { name: legal_country_iso,  $ref: '#/$defs/iso2',                     nullable: false,
+          fk: { dataset_ref: 'schemas.ingress.layer1.yaml#/iso3166_canonical_2024',
+                columns: { legal_country_iso: country_iso } } }
+      - { name: site_order,         type: integer, minimum: 1,                nullable: false,
+          description: 'Contiguous 1..N per (merchant_id, legal_country_iso), guaranteed upstream.' }
+      - { name: lon_deg,            $ref: '#/$defs/lon',                      nullable: false,
+          description: 'Absolute longitude in WGS84 degrees.' }
+      - { name: lat_deg,            $ref: '#/$defs/lat',                      nullable: false,
+          description: 'Absolute latitude in WGS84 degrees.' }
