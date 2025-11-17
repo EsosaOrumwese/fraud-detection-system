@@ -246,3 +246,85 @@ Warp the baseline surfaces through **calendar and scenario effects**, then publi
 
 ---
 
+## 5A.S5 — Segment Validation & HashGate (`validation_bundle_5A` / `_passed.flag_5A`)
+
+**Role**
+
+* Final **validation + sealing** state for Segment 5A.
+* Performs cross-state checks over **S0–S4**, then emits:
+
+  * `validation_bundle_5A/fingerprint={manifest_fingerprint}/…`
+  * `_passed.flag_5A` (one per `manifest_fingerprint`)
+* Establishes the Layer-2 rule: **“No 5A PASS → No read of S1–S4 outputs.”**
+
+**Inputs (conceptual)**
+
+* Control-plane:
+
+  * `s0_gate_receipt_5A`, `sealed_inputs_5A` (gate + sealed universe).
+* Modelling outputs:
+
+  * S1: `merchant_zone_profile_5A` (merchant×zone class + base scale).
+  * S2: `shape_grid_definition_5A`, `class_zone_shape_5A` (grid + unit-mass shapes).
+  * S3: `merchant_zone_baseline_local_5A` (and any optional class/UTC baselines).
+  * S4: calendar/scenario overlays (whatever S4 emits: scenario-aware intensities over the horizon).
+* Policies:
+
+  * Any S0/S1/S2/S3/S4 validation policies (tolerances, domain contracts, etc.) required to check invariants.
+
+**Core behaviour (conceptual)**
+
+* **Structural checks**
+
+  * S0: gate identity, sealed_inputs digest, upstream 1A–3B `status="PASS"`.
+  * S1: PKs, domain keys, `demand_class` present for all in-scope `(merchant, zone)`, base scale non-negative / finite.
+  * S2: grid contiguity, `bucket_index` range, `shape_value ≥ 0`, Σ=1 per `(class, zone[, channel])`.
+  * S3: `lambda_local_base ≥ 0`, domain parity with S1×grid, weekly sum vs base scale within tolerance.
+  * S4: (once defined) structural sanity for horizon overlays (no negative intensities, domain alignment with S3, overlay policies applied where expected).
+
+* **Cross-state invariants**
+
+  * Every in-scope `(merchant, zone[, channel])` in S1 has:
+
+    * a matching `(class, zone[, channel])` shape in S2, and
+    * a full local-week baseline in S3, and
+    * (if S4 is present) a scenario-aware horizon intensity surface.
+  * Identity alignment:
+
+    * `parameter_hash`, `manifest_fingerprint`, `scenario_id` consistent across all 5A artefacts.
+  * (Optional) replay-style spot checks:
+
+    * Recompute a small sample of S3/S4 values from S1+S2+overlays and compare to stored results.
+
+* **Bundle construction**
+
+  * Assemble a `validation_bundle_5A` directory under
+    `data/layer2/5A/validation/fingerprint={manifest_fingerprint}/…` containing:
+
+    * `index.json` (list of evidence files with `path` + `sha256_hex`).
+    * S5 validation report(s) summarising check results, metrics, error tables, spec versions, etc.
+    * Any per-state validation receipts you want to surface (S0–S4 summaries).
+  * Compute a deterministic digest over the bundle contents (same style as Layer-1):
+
+    * e.g. SHA-256 over concatenated bytes of all files listed in `index.json` in ASCII-lex order.
+
+* **PASS flag**
+
+  * Write `_passed.flag_5A` alongside the bundle (same fingerprint partition) with a single line, e.g.:
+
+    ```text
+    sha256_hex = <bundle_digest>
+    ```
+
+  * `_passed.flag_5A` is the **only thing** downstream segments (5B, 6A, etc.) need to check, along with bundle structure, to trust any 5A outputs.
+
+**Downstream gating**
+
+* 5B, 6A and any later layer MUST enforce:
+
+  > For a given `manifest_fingerprint`:
+  > **no verified `_passed.flag_5A` → no read** of any 5A modelling outputs (S1–S4).
+
+* 5A itself (S1–S4) MAY read its own outputs without `_passed.flag_5A` during construction, but any external consumer (Layer-3, evaluation harnesses, prod pipelines) MUST NOT treat 5A artefacts as authoritative unless 5A.S5 has passed.
+
+---
