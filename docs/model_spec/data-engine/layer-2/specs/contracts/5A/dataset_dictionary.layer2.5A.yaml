@@ -1,5 +1,5 @@
-# dataset_dictionary.layer2.5A.yaml — template placeholder (structure matches Layer-1 dictionaries)
-version: '0.0.0'
+# dataset_dictionary.layer2.5A.yaml — layer-2 Segment 5A contracts
+version: '0.1.0'
 
 lifecycle:
   phase: planning
@@ -7,52 +7,385 @@ lifecycle:
   approver:
 
 ci_policy:
-  allow_placeholders: true
+  allow_placeholders: false
   placeholder_markers: [TBD]
   block_on_phase: [beta, stable]
 
 layer:
   id: layer2
-  name: Layer-2 (Segment 5A placeholder)
+  name: Layer-2 (Segment 5A)
 
-reference_data:
-  - id: TBD_reference
-    status: planned
+reference_data: []
+
+# Internally generated datasets
+datasets:
+  # S0 — gate + inputs
+  - id: s0_gate_receipt_5A
+    status: required
     owner_subsegment: 5A
-    description: Placeholder reference dataset for Segment 5A.
-    version: TBD
-    format: TBD
-    path: TBD
-    partitioning: []
+    description: Fingerprint-scoped S0 receipt confirming upstream gates and sealed inputs.
+    version: '1.0.0'
+    format: json
+    path: data/layer2/5A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_5A.json
+    partitioning: [fingerprint]
     ordering: []
-    schema_ref: TBD
+    schema_ref: schemas.5A.yaml#/validation/s0_gate_receipt_5A
     lineage:
-      produced_by: []
-      consumed_by: []
+      produced_by: [5A.S0]
+      consumed_by: [5A.S1, 5A.S2, 5A.S3, 5A.S4, 5A.S5]
       final_in_layer: false
-    retention_days: TBD
+    retention_days: 365
     pii: false
     licence: Proprietary-Internal
 
-# Internally generated datasets (template entry)
-datasets:
-  - id: TBD_dataset
-    status: planned
+  - id: sealed_inputs_5A
+    status: required
     owner_subsegment: 5A
-    description: Placeholder dataset entry for Segment 5A.
-    version: '0.0.0'
-    format: TBD
-    path: TBD
-    partitioning: []
+    description: Inventory of sealed artefacts 5A is allowed to read for a fingerprint.
+    version: '1.0.0'
+    format: parquet
+    path: data/layer2/5A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet
+    partitioning: [fingerprint]
     ordering: []
-    schema_ref: TBD
+    schema_ref: schemas.5A.yaml#/validation/sealed_inputs_5A
     lineage:
-      produced_by: []
-      consumed_by: []
+      produced_by: [5A.S0]
+      consumed_by: [5A.S1, 5A.S2, 5A.S3, 5A.S4, 5A.S5]
       final_in_layer: false
-    retention_days: TBD
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  - id: scenario_manifest_5A
+    status: optional
+    owner_subsegment: 5A
+    description: Scenario-level manifest projection derived from sealed inputs.
+    version: '1.0.0'
+    format: parquet
+    path: data/layer2/5A/scenario_manifest/fingerprint={manifest_fingerprint}/scenario_manifest_5A.parquet
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.5A.yaml#/validation/scenario_manifest_5A
+    lineage:
+      produced_by: [5A.S0]
+      consumed_by: [5A.S1, 5A.S2, 5A.S3, 5A.S4, 5A.S5]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  # S1 — demand profiles
+  - id: merchant_zone_profile_5A
+    status: required
+    owner_subsegment: 5A
+    description: Merchant×zone demand profile including class and scale for the local week.
+    version: '1.0.0'
+    format: parquet
+    path: data/layer2/5A/merchant_zone_profile/fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet
+    partitioning: [fingerprint]
+    ordering: [merchant_id, legal_country_iso, tzid]
+    schema_ref: schemas.5A.yaml#/model/merchant_zone_profile_5A
+    lineage:
+      produced_by: [5A.S1]
+      consumed_by: [5A.S2, 5A.S3, 5A.S4, 5A.S5, 5B, 6A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  - id: merchant_class_profile_5A
+    status: optional
+    owner_subsegment: 5A
+    description: Merchant-level aggregate class profile derived deterministically from zone profiles.
+    version: '1.0.0'
+    format: parquet
+    path: data/layer2/5A/merchant_class_profile/fingerprint={manifest_fingerprint}/merchant_class_profile_5A.parquet
+    partitioning: [fingerprint]
+    ordering: [merchant_id]
+    schema_ref: schemas.5A.yaml#/model/merchant_class_profile_5A
+    lineage:
+      produced_by: [5A.S1]
+      consumed_by: [5A.S2, 5A.S3, 5A.S4, 5A.S5, 5B, 6A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  # S2 — weekly shape library
+  - id: shape_grid_definition_5A
+    status: required
+    owner_subsegment: 5A
+    description: Local-week time grid definition for shapes under a parameter pack and scenario.
+    version: '1.0.0'
+    format: parquet
+    path: |
+      data/layer2/5A/shape_grid_definition/parameter_hash={parameter_hash}/scenario_id={scenario_id}/shape_grid_definition_5A.parquet
+    partitioning: [parameter_hash, scenario_id]
+    ordering: [bucket_index]
+    schema_ref: schemas.5A.yaml#/model/shape_grid_definition_5A
+    lineage:
+      produced_by: [5A.S2]
+      consumed_by: [5A.S3, 5A.S4, 5A.S5, 5B, 6A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  - id: class_zone_shape_5A
+    status: required
+    owner_subsegment: 5A
+    description: Normalised weekly shape vectors per class×zone (and optional channel) for each scenario.
+    version: '1.0.0'
+    format: parquet
+    path: |
+      data/layer2/5A/class_zone_shape/parameter_hash={parameter_hash}/scenario_id={scenario_id}/class_zone_shape_5A.parquet
+    partitioning: [parameter_hash, scenario_id]
+    ordering:
+      - demand_class
+      - legal_country_iso
+      - tzid
+      - bucket_index
+    schema_ref: schemas.5A.yaml#/model/class_zone_shape_5A
+    lineage:
+      produced_by: [5A.S2]
+      consumed_by: [5A.S3, 5A.S4, 5A.S5, 5B, 6A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  - id: class_shape_catalogue_5A
+    status: optional
+    owner_subsegment: 5A
+    description: Optional base shape catalogue per class (and optional channel) for each scenario.
+    version: '1.0.0'
+    format: parquet
+    path: |
+      data/layer2/5A/class_shape_catalogue/parameter_hash={parameter_hash}/scenario_id={scenario_id}/class_shape_catalogue_5A.parquet
+    partitioning: [parameter_hash, scenario_id]
+    ordering:
+      - demand_class
+    schema_ref: schemas.5A.yaml#/model/class_shape_catalogue_5A
+    lineage:
+      produced_by: [5A.S2]
+      consumed_by: [5A.S3, 5A.S4, 5A.S5, 5B, 6A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  # S3 — baselines
+  - id: merchant_zone_baseline_local_5A
+    status: required
+    owner_subsegment: 5A
+    description: Merchant×zone baseline local-week intensities per scenario.
+    version: '1.0.0'
+    format: parquet
+    path: |
+      data/layer2/5A/merchant_zone_baseline_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_local_5A.parquet
+    partitioning: [fingerprint, scenario_id]
+    ordering:
+      - merchant_id
+      - legal_country_iso
+      - tzid
+      - bucket_index
+    schema_ref: schemas.5A.yaml#/model/merchant_zone_baseline_local_5A
+    lineage:
+      produced_by: [5A.S3]
+      consumed_by: [5A.S4, 5A.S5, 5B, 6A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  - id: class_zone_baseline_local_5A
+    status: optional
+    owner_subsegment: 5A
+    description: Optional class×zone baseline local-week intensities per scenario.
+    version: '1.0.0'
+    format: parquet
+    path: |
+      data/layer2/5A/class_zone_baseline_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/class_zone_baseline_local_5A.parquet
+    partitioning: [fingerprint, scenario_id]
+    ordering:
+      - demand_class
+      - legal_country_iso
+      - tzid
+      - bucket_index
+    schema_ref: schemas.5A.yaml#/model/class_zone_baseline_local_5A
+    lineage:
+      produced_by: [5A.S3]
+      consumed_by: [5A.S4, 5A.S5, 5B, 6A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  - id: merchant_zone_baseline_utc_5A
+    status: optional
+    owner_subsegment: 5A
+    description: Optional merchant×zone baseline intensities expressed on a UTC grid.
+    version: '1.0.0'
+    format: parquet
+    path: |
+      data/layer2/5A/merchant_zone_baseline_utc/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_utc_5A.parquet
+    partitioning: [fingerprint, scenario_id]
+    ordering:
+      - merchant_id
+      - legal_country_iso
+      - tzid
+      - utc_bucket_index
+    schema_ref: schemas.5A.yaml#/model/merchant_zone_baseline_utc_5A
+    lineage:
+      produced_by: [5A.S3]
+      consumed_by: [5A.S4, 5A.S5, 5B, 6A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  # S4 — scenario overlays
+  - id: merchant_zone_scenario_local_5A
+    status: required
+    owner_subsegment: 5A
+    description: Scenario-adjusted local-week intensities per merchant×zone×horizon bucket.
+    version: '1.0.0'
+    format: parquet
+    path: |
+      data/layer2/5A/merchant_zone_scenario_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_local_5A.parquet
+    partitioning: [fingerprint, scenario_id]
+    ordering:
+      - merchant_id
+      - legal_country_iso
+      - tzid
+      - local_horizon_bucket_index
+    schema_ref: schemas.5A.yaml#/model/merchant_zone_scenario_local_5A
+    lineage:
+      produced_by: [5A.S4]
+      consumed_by: [5A.S5, 5B, 6A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  - id: merchant_zone_overlay_factors_5A
+    status: optional
+    owner_subsegment: 5A
+    description: Optional multiplicative overlay factors per merchant×zone×horizon bucket.
+    version: '1.0.0'
+    format: parquet
+    path: |
+      data/layer2/5A/merchant_zone_overlay_factors/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_overlay_factors_5A.parquet
+    partitioning: [fingerprint, scenario_id]
+    ordering:
+      - merchant_id
+      - legal_country_iso
+      - tzid
+      - local_horizon_bucket_index
+    schema_ref: schemas.5A.yaml#/model/merchant_zone_overlay_factors_5A
+    lineage:
+      produced_by: [5A.S4]
+      consumed_by: [5A.S5, 5B, 6A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  - id: merchant_zone_scenario_utc_5A
+    status: optional
+    owner_subsegment: 5A
+    description: Scenario-adjusted UTC intensities per merchant×zone×UTC horizon bucket.
+    version: '1.0.0'
+    format: parquet
+    path: |
+      data/layer2/5A/merchant_zone_scenario_utc/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_utc_5A.parquet
+    partitioning: [fingerprint, scenario_id]
+    ordering:
+      - merchant_id
+      - legal_country_iso
+      - tzid
+      - utc_horizon_bucket_index
+    schema_ref: schemas.5A.yaml#/model/merchant_zone_scenario_utc_5A
+    lineage:
+      produced_by: [5A.S4]
+      consumed_by: [5A.S5, 5B, 6A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  # S5 — validation bundle
+  - id: validation_bundle_index_5A
+    status: required
+    owner_subsegment: 5A
+    description: Index and manifest for the 5A validation bundle.
+    version: '1.0.0'
+    format: json
+    path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/validation_bundle_index_5A.json
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer2.yaml#/validation/validation_bundle_index_5A
+    lineage:
+      produced_by: [5A.S5]
+      consumed_by: [5A.S5, 5B, 6A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  - id: validation_report_5A
+    status: required
+    owner_subsegment: 5A
+    description: Human/machine readable validation report for 5A.
+    version: '1.0.0'
+    format: json
+    path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/reports/validation_report_5A.json
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer2.yaml#/validation/validation_report_5A
+    lineage:
+      produced_by: [5A.S5]
+      consumed_by: [5A.validation_tools, 5B, 6A]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  - id: validation_issue_table_5A
+    status: optional
+    owner_subsegment: 5A
+    description: Optional structured list of validation issues for 5A.
+    version: '1.0.0'
+    format: parquet
+    path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/issues/validation_issue_table_5A.parquet
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer2.yaml#/validation/validation_issue_table_5A
+    lineage:
+      produced_by: [5A.S5]
+      consumed_by: [5A.validation_tools]
+      final_in_layer: false
+    retention_days: 365
+    pii: false
+    licence: Proprietary-Internal
+
+  - id: passed_flag_5A
+    status: required
+    owner_subsegment: 5A
+    description: Pass/fail flag for the 5A validation bundle.
+    version: '1.0.0'
+    format: flag
+    path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag_5A
+    partitioning: [fingerprint]
+    ordering: []
+    schema_ref: schemas.layer2.yaml#/validation/passed_flag_5A
+    lineage:
+      produced_by: [5A.S5]
+      consumed_by: [5B, 6A, 5A.validation_tools]
+      final_in_layer: true
+    retention_days: 365
     pii: false
     licence: Proprietary-Internal
 
 notes:
-  - "Replace placeholder values when Segment 5A contracts are defined."
+  - "Derived from docs/model_spec/data-engine/layer-2/specs/state-flow/5A/s#.expanded.md section 5."
