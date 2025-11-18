@@ -1,0 +1,1 @@
+# 5B.S3 — Bucket-level arrival counts (Layer-2 / Segment 5B)

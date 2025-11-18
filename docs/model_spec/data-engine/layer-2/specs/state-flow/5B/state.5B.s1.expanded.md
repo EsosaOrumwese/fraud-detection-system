@@ -1,0 +1,1 @@
+# 5B.S1 — Time grid & grouping plan (Layer-2 / Segment 5B)

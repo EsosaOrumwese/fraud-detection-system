@@ -1,0 +1,1 @@
+# 5B.S0 — Gate & sealed inputs (Layer-2 / Segment 5B)
