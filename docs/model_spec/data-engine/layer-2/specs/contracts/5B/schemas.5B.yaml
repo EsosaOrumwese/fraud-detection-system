@@ -1,16 +1,342 @@
 $schema: "https://json-schema.org/draft/2020-12/schema"
-$comment: |
-  Template schema pack for Layer-2 Segment 5B.
-  Keep the structure aligned with Layer-1 packs: define one object per dataset under $defs.
+$id: schemas.5B.yaml
+$comment: "Layer-2 · Segment 5B schema pack. JSON-Schema is the shape authority for 5B datasets."
+version: '0.1.0'
+
 $defs:
-  placeholder_dataset:
+  hex64:
+    $ref: 'schemas.layer1.yaml#/$defs/hex64'
+  id64:
+    $ref: 'schemas.layer1.yaml#/$defs/id64'
+  iso2:
+    $ref: 'schemas.layer1.yaml#/$defs/iso2'
+  iana_tzid:
+    $ref: 'schemas.layer1.yaml#/$defs/iana_tzid'
+  rfc3339_micros:
+    $ref: 'schemas.layer1.yaml#/$defs/rfc3339_micros'
+  scenario_id:
+    type: string
+  seed:
+    type: integer
+    minimum: 0
+  zone_representation:
+    type: string
+
+validation:
+  s0_gate_receipt_5B:
+    type: object
+    additionalProperties: true
+    required:
+      - manifest_fingerprint
+      - parameter_hash
+      - seed
+      - run_id
+      - created_utc
+      - upstream_segments
+      - sealed_inputs_digest
+      - spec_version
+    properties:
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+      parameter_hash: { $ref: '#/$defs/hex64' }
+      seed: { $ref: '#/$defs/seed' }
+      run_id: { type: string }
+      created_utc: { $ref: '#/$defs/rfc3339_micros' }
+      upstream_segments:
+        type: object
+        additionalProperties:
+          type: object
+          additionalProperties: true
+          required: [status]
+          properties:
+            status: { enum: [PASS, FAIL, MISSING] }
+            bundle_path: { type: string }
+            flag_path: { type: string }
+      scenario_set:
+        type: array
+        items: { $ref: '#/$defs/scenario_id' }
+      sealed_inputs_digest: { $ref: '#/$defs/hex64' }
+      spec_version: { type: string }
+
+  sealed_inputs_5B:
     type: array
-    description: "Placeholder dataset schema for Segment 5B."
     items:
       type: object
-      additionalProperties: false
-      required: [placeholder_field]
+      additionalProperties: true
+      required:
+        - manifest_fingerprint
+        - owner_layer
+        - owner_segment
+        - artifact_id
+        - manifest_key
+        - role
+        - schema_ref
+        - path_template
+        - partition_keys
       properties:
-        placeholder_field:
-          type: string
-          description: "Replace with real fields when Segment 5B is implemented."
+        manifest_fingerprint: { $ref: '#/$defs/hex64' }
+        parameter_hash: { $ref: '#/$defs/hex64' }
+        owner_layer: { type: string }
+        owner_segment: { type: string }
+        artifact_id: { type: string }
+        manifest_key: { type: string }
+        role: { type: string }
+        schema_ref: { type: string }
+        path_template: { type: string }
+        partition_keys:
+          type: array
+          items: { type: string }
+        required_status: { enum: [REQUIRED, OPTIONAL] }
+        read_scope: { type: string }
+        sha256_hex: { $ref: '#/$defs/hex64' }
+
+model:
+  s1_time_grid_5B:
+    type: array
+    items:
+      type: object
+      additionalProperties: true
+      required:
+        - manifest_fingerprint
+        - parameter_hash
+        - scenario_id
+        - bucket_index
+        - bucket_start_utc
+        - bucket_end_utc
+        - bucket_duration_seconds
+      properties:
+        manifest_fingerprint: { $ref: '#/$defs/hex64' }
+        parameter_hash: { $ref: '#/$defs/hex64' }
+        scenario_id: { $ref: '#/$defs/scenario_id' }
+        bucket_index: { type: integer, minimum: 0 }
+        bucket_start_utc: { $ref: '#/$defs/rfc3339_micros' }
+        bucket_end_utc: { $ref: '#/$defs/rfc3339_micros' }
+        bucket_duration_seconds: { type: integer, minimum: 1 }
+        local_day_of_week: { type: integer, minimum: 1, maximum: 7 }
+        local_minutes_since_midnight: { type: integer, minimum: 0, maximum: 1439 }
+        is_weekend: { type: boolean }
+        scenario_is_baseline: { type: boolean }
+        scenario_is_stress: { type: boolean }
+        s1_spec_version: { type: string }
+
+  s1_grouping_5B:
+    type: array
+    items:
+      type: object
+      additionalProperties: true
+      required:
+        - manifest_fingerprint
+        - parameter_hash
+        - scenario_id
+        - merchant_id
+        - zone_representation
+        - group_id
+      properties:
+        manifest_fingerprint: { $ref: '#/$defs/hex64' }
+        parameter_hash: { $ref: '#/$defs/hex64' }
+        scenario_id: { $ref: '#/$defs/scenario_id' }
+        merchant_id: { $ref: '#/$defs/id64' }
+        zone_representation: { $ref: '#/$defs/zone_representation' }
+        channel_group: { type: string }
+        group_id: { type: integer, minimum: 0 }
+        grouping_key: { type: string }
+        s1_spec_version: { type: string }
+
+  s2_realised_intensity_5B:
+    type: array
+    items:
+      type: object
+      additionalProperties: true
+      required:
+        - manifest_fingerprint
+        - parameter_hash
+        - seed
+        - scenario_id
+        - merchant_id
+        - zone_representation
+        - bucket_index
+        - lambda_realised
+        - s2_spec_version
+      properties:
+        manifest_fingerprint: { $ref: '#/$defs/hex64' }
+        parameter_hash: { $ref: '#/$defs/hex64' }
+        seed: { $ref: '#/$defs/seed' }
+        scenario_id: { $ref: '#/$defs/scenario_id' }
+        merchant_id: { $ref: '#/$defs/id64' }
+        zone_representation: { $ref: '#/$defs/zone_representation' }
+        channel_group: { type: string }
+        bucket_index: { type: integer, minimum: 0 }
+        lambda_baseline: { type: number, minimum: 0 }
+        lambda_realised: { type: number, minimum: 0 }
+        lambda_random_component: { type: number }
+        rng_token: { type: string }
+        s2_spec_version: { type: string }
+
+  s2_latent_field_5B:
+    type: array
+    items:
+      type: object
+      additionalProperties: true
+      required:
+        - manifest_fingerprint
+        - parameter_hash
+        - seed
+        - scenario_id
+        - group_id
+        - bucket_index
+        - latent_value
+      properties:
+        manifest_fingerprint: { $ref: '#/$defs/hex64' }
+        parameter_hash: { $ref: '#/$defs/hex64' }
+        seed: { $ref: '#/$defs/seed' }
+        scenario_id: { $ref: '#/$defs/scenario_id' }
+        group_id: { type: integer, minimum: 0 }
+        bucket_index: { type: integer, minimum: 0 }
+        latent_value: { type: number }
+        latent_mean: { type: number }
+        latent_std: { type: number }
+        s2_spec_version: { type: string }
+
+  s3_bucket_counts_5B:
+    type: array
+    items:
+      type: object
+      additionalProperties: true
+      required:
+        - manifest_fingerprint
+        - parameter_hash
+        - seed
+        - scenario_id
+        - merchant_id
+        - zone_representation
+        - bucket_index
+        - count_N
+      properties:
+        manifest_fingerprint: { $ref: '#/$defs/hex64' }
+        parameter_hash: { $ref: '#/$defs/hex64' }
+        seed: { $ref: '#/$defs/seed' }
+        scenario_id: { $ref: '#/$defs/scenario_id' }
+        merchant_id: { $ref: '#/$defs/id64' }
+        zone_representation: { $ref: '#/$defs/zone_representation' }
+        channel_group: { type: string }
+        bucket_index: { type: integer, minimum: 0 }
+        count_N: { type: integer, minimum: 0 }
+        s3_spec_version: { type: string }
+
+egress:
+  s4_arrival_events_5B:
+    type: array
+    items:
+      type: object
+      additionalProperties: true
+      required:
+        - manifest_fingerprint
+        - parameter_hash
+        - seed
+        - scenario_id
+        - merchant_id
+        - zone_representation
+        - bucket_index
+        - arrival_seq
+        - ts_utc
+        - tzid_primary
+        - ts_local_primary
+        - is_virtual
+      properties:
+        manifest_fingerprint: { $ref: '#/$defs/hex64' }
+        parameter_hash: { $ref: '#/$defs/hex64' }
+        seed: { $ref: '#/$defs/seed' }
+        scenario_id: { $ref: '#/$defs/scenario_id' }
+        merchant_id: { $ref: '#/$defs/id64' }
+        zone_representation: { $ref: '#/$defs/zone_representation' }
+        channel_group: { type: string }
+        bucket_index: { type: integer, minimum: 0 }
+        arrival_seq: { type: integer, minimum: 1 }
+        ts_utc: { $ref: '#/$defs/rfc3339_micros' }
+        tzid_primary: { $ref: '#/$defs/iana_tzid' }
+        ts_local_primary: { $ref: '#/$defs/rfc3339_micros' }
+        tzid_settlement: { $ref: '#/$defs/iana_tzid' }
+        ts_local_settlement: { $ref: '#/$defs/rfc3339_micros' }
+        tzid_operational: { $ref: '#/$defs/iana_tzid' }
+        ts_local_operational: { $ref: '#/$defs/rfc3339_micros' }
+        site_id: { $ref: '#/$defs/id64' }
+        edge_id: { $ref: '#/$defs/id64' }
+        routing_universe_hash: { $ref: '#/$defs/hex64' }
+        lambda_realised: { type: number, minimum: 0 }
+        is_virtual: { type: boolean }
+        s4_spec_version: { type: string }
+
+diagnostics:
+  s4_arrival_summary_5B:
+    type: array
+    items:
+      type: object
+      additionalProperties: true
+      required:
+        - manifest_fingerprint
+        - parameter_hash
+        - seed
+        - scenario_id
+        - merchant_id
+        - zone_representation
+      properties:
+        manifest_fingerprint: { $ref: '#/$defs/hex64' }
+        parameter_hash: { $ref: '#/$defs/hex64' }
+        seed: { $ref: '#/$defs/seed' }
+        scenario_id: { $ref: '#/$defs/scenario_id' }
+        merchant_id: { $ref: '#/$defs/id64' }
+        zone_representation: { $ref: '#/$defs/zone_representation' }
+        channel_group: { type: string }
+        bucket_index: { type: integer, minimum: 0 }
+        count_N: { type: integer, minimum: 0 }
+        count_physical: { type: integer, minimum: 0 }
+        count_virtual: { type: integer, minimum: 0 }
+        s4_spec_version: { type: string }
+
+  s4_arrival_anomalies_5B:
+    type: array
+    items:
+      type: object
+      additionalProperties: true
+      required:
+        - manifest_fingerprint
+        - parameter_hash
+        - scenario_id
+        - anomaly_id
+        - anomaly_code
+        - severity
+      properties:
+        manifest_fingerprint: { $ref: '#/$defs/hex64' }
+        parameter_hash: { $ref: '#/$defs/hex64' }
+        scenario_id: { $ref: '#/$defs/scenario_id' }
+        anomaly_id: { $ref: '#/$defs/id64' }
+        anomaly_code: { type: string }
+        severity: { enum: [ERROR, WARN, INFO] }
+        context: { type: object }
+        message: { type: string }
+        s4_spec_version: { type: string }
+
+config:
+  time_grid_policy_5B:
+    type: object
+    additionalProperties: true
+  grouping_policy_5B:
+    type: object
+    additionalProperties: true
+  arrival_lgcp_config_5B:
+    type: object
+    additionalProperties: true
+  arrival_count_config_5B:
+    type: object
+    additionalProperties: true
+  arrival_time_placement_policy_5B:
+    type: object
+    additionalProperties: true
+  arrival_routing_policy_5B:
+    type: object
+    additionalProperties: true
+  arrival_rng_policy_5B:
+    type: object
+    additionalProperties: true
+  validation_policy_5B:
+    type: object
+    additionalProperties: true

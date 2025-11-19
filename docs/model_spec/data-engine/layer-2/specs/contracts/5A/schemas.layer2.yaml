@@ -110,3 +110,91 @@ validation:
     properties:
       manifest_fingerprint: { $ref: '#/$defs/hex64' }
       bundle_digest_sha256: { $ref: '#/$defs/hex64' }
+
+  validation_bundle_index_5B:
+    type: object
+    additionalProperties: true
+    required:
+      - manifest_fingerprint
+      - segment_id
+      - s5_spec_version
+      - generated_utc
+      - entries
+    properties:
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+      segment_id:
+        const: "5B"
+      s5_spec_version: { type: string }
+      generated_utc: { $ref: '#/$defs/rfc3339_micros' }
+      status: { enum: [PASS, FAIL] }
+      summary: { type: object }
+      entries:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required: [path, sha256_hex]
+          properties:
+            path: { type: string }
+            sha256_hex: { $ref: '#/$defs/hex64' }
+            schema_ref: { type: string }
+            role: { type: string }
+
+  validation_report_5B:
+    type: object
+    additionalProperties: true
+    required:
+      - manifest_fingerprint
+      - spec_version
+      - status
+    properties:
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+      spec_version: { type: string }
+      status: { enum: [PASS, FAIL] }
+      error_code: { type: string }
+      error_message: { type: string }
+      n_parameter_hashes: { type: integer, minimum: 0 }
+      n_scenarios: { type: integer, minimum: 0 }
+      n_seeds: { type: integer, minimum: 0 }
+      n_buckets_total: { type: integer, minimum: 0 }
+      n_buckets_nonzero: { type: integer, minimum: 0 }
+      n_arrivals_total: { type: integer, minimum: 0 }
+      n_arrivals_physical: { type: integer, minimum: 0 }
+      n_arrivals_virtual: { type: integer, minimum: 0 }
+      counts_match_s3: { type: boolean }
+      time_windows_ok: { type: boolean }
+      civil_time_ok: { type: boolean }
+      routing_ok: { type: boolean }
+      schema_partition_pk_ok: { type: boolean }
+      rng_accounting_ok: { type: boolean }
+      bundle_integrity_ok: { type: boolean }
+      bundle_sha256: { $ref: '#/$defs/hex64' }
+
+  validation_issue_table_5B:
+    type: array
+    items:
+      type: object
+      additionalProperties: true
+      required:
+        - manifest_fingerprint
+        - issue_code
+        - severity
+      properties:
+        manifest_fingerprint: { $ref: '#/$defs/hex64' }
+        parameter_hash: { $ref: '#/$defs/hex64' }
+        scenario_id: { type: string }
+        seed: { type: integer, minimum: 0 }
+        issue_code: { type: string }
+        severity: { enum: [ERROR, WARN, INFO] }
+        context: { type: object }
+        message: { type: string }
+
+  passed_flag_5B:
+    type: object
+    additionalProperties: false
+    required:
+      - manifest_fingerprint
+      - bundle_digest_sha256
+    properties:
+      manifest_fingerprint: { $ref: '#/$defs/hex64' }
+      bundle_digest_sha256: { $ref: '#/$defs/hex64' }

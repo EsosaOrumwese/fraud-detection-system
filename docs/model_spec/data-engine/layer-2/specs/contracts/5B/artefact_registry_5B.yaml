@@ -1,19 +1,452 @@
-# artefact_registry_5B.yaml — template placeholder (structure matches Layer-1 registries)
+# artefact_registry_5B.yaml — Layer-2 Segment 5B artefacts
 artefacts:
-  - manifest_key: tbd.layer2.5B.placeholder
-    name: Segment 5B Placeholder Artefact
+  # S0 — control plane
+  - manifest_key: mlr.5B.control.s0_gate_receipt
+    name: Layer-2 / 5B S0 gate receipt
     subsegment: 5B
     type: dataset
-    category: planning
-    path: TBD
-    schema: TBD
-    semver: '0.0.0'
-    version: TBD
-    digest: TBD
+    category: control
+    path: data/layer2/5B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_5B.json
+    schema: schemas.5B.yaml#/validation/s0_gate_receipt_5B
+    semver: '1.0.0'
+    version: '{manifest_fingerprint}'
+    digest:
+    dependencies:
+      - sealed_inputs_5B
+    source: internal
+    owner: { team: data-engineering }
+    last_updated:
+    environment: [ci, dev, staging, prod]
+    cross_layer: true
+    notes:
+
+  - manifest_key: mlr.5B.control.sealed_inputs
+    name: Layer-2 / 5B sealed inputs inventory
+    subsegment: 5B
+    type: dataset
+    category: control
+    path: data/layer2/5B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet
+    schema: schemas.5B.yaml#/validation/sealed_inputs_5B
+    semver: '1.0.0'
+    version: '{manifest_fingerprint}'
+    digest:
     dependencies: []
     source: internal
-    owner: { team: TBD }
+    owner: { team: data-engineering }
     last_updated:
-    environment: [planning]
+    environment: [ci, dev, staging, prod]
+    cross_layer: true
+    notes:
+
+  # S1 — time grid & grouping
+  - manifest_key: mlr.5B.model.s1_time_grid
+    name: Layer-2 / 5B time grid
+    subsegment: 5B
+    type: dataset
+    category: model
+    path: data/layer2/5B/s1_time_grid/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s1_time_grid_5B.parquet
+    schema: schemas.5B.yaml#/model/s1_time_grid_5B
+    semver: '1.0.0'
+    version: '{manifest_fingerprint}.{scenario_id}'
+    digest:
+    dependencies:
+      - s0_gate_receipt_5B
+      - sealed_inputs_5B
+      - time_grid_policy_5B
+      - scenario_manifest_5A
+    source: internal
+    owner: { team: data-engineering }
+    last_updated:
+    environment: [ci, dev, staging, prod]
     cross_layer: false
-    notes: Placeholder entry; replace with real artefact once Segment 5B is defined.
+    notes:
+
+  - manifest_key: mlr.5B.model.s1_grouping
+    name: Layer-2 / 5B latent grouping
+    subsegment: 5B
+    type: dataset
+    category: model
+    path: data/layer2/5B/s1_grouping/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s1_grouping_5B.parquet
+    schema: schemas.5B.yaml#/model/s1_grouping_5B
+    semver: '1.0.0'
+    version: '{manifest_fingerprint}.{scenario_id}'
+    digest:
+    dependencies:
+      - s0_gate_receipt_5B
+      - sealed_inputs_5B
+      - grouping_policy_5B
+      - merchant_zone_scenario_local_5A
+    source: internal
+    owner: { team: data-engineering }
+    last_updated:
+    environment: [ci, dev, staging, prod]
+    cross_layer: true
+    notes:
+
+  # S2 — realised intensities
+  - manifest_key: mlr.5B.model.s2_realised_intensity
+    name: Layer-2 / 5B realised intensities
+    subsegment: 5B
+    type: dataset
+    category: model
+    path: data/layer2/5B/s2_realised_intensity/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s2_realised_intensity_5B.parquet
+    schema: schemas.5B.yaml#/model/s2_realised_intensity_5B
+    semver: '1.0.0'
+    version: '{seed}.{manifest_fingerprint}.{scenario_id}'
+    digest:
+    dependencies:
+      - s1_time_grid_5B
+      - s1_grouping_5B
+      - merchant_zone_scenario_local_5A
+      - arrival_lgcp_config_5B
+      - arrival_rng_policy_5B
+    source: internal
+    owner: { team: data-engineering }
+    last_updated:
+    environment: [ci, dev, staging, prod]
+    cross_layer: true
+    notes:
+
+  - manifest_key: mlr.5B.model.s2_latent_field
+    name: Layer-2 / 5B latent field (diagnostic)
+    subsegment: 5B
+    type: dataset
+    category: diagnostic
+    path: data/layer2/5B/s2_latent_field/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s2_latent_field_5B.parquet
+    schema: schemas.5B.yaml#/model/s2_latent_field_5B
+    semver: '1.0.0'
+    version: '{seed}.{manifest_fingerprint}.{scenario_id}'
+    digest:
+    dependencies:
+      - s1_time_grid_5B
+      - s1_grouping_5B
+      - arrival_lgcp_config_5B
+      - arrival_rng_policy_5B
+    source: internal
+    owner: { team: data-engineering }
+    last_updated:
+    environment: [ci, dev, staging, prod]
+    cross_layer: false
+    notes: optional
+
+  # S3 — bucket counts
+  - manifest_key: mlr.5B.model.s3_bucket_counts
+    name: Layer-2 / 5B bucket-level counts
+    subsegment: 5B
+    type: dataset
+    category: model
+    path: data/layer2/5B/s3_bucket_counts/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s3_bucket_counts_5B.parquet
+    schema: schemas.5B.yaml#/model/s3_bucket_counts_5B
+    semver: '1.0.0'
+    version: '{seed}.{manifest_fingerprint}.{scenario_id}'
+    digest:
+    dependencies:
+      - s1_time_grid_5B
+      - s1_grouping_5B
+      - s2_realised_intensity_5B
+      - arrival_count_config_5B
+      - arrival_rng_policy_5B
+    source: internal
+    owner: { team: data-engineering }
+    last_updated:
+    environment: [ci, dev, staging, prod]
+    cross_layer: true
+    notes:
+
+  # S4 — arrival egress & diagnostics
+  - manifest_key: mlr.5B.egress.arrival_events
+    name: Layer-2 / 5B arrival events (egress)
+    subsegment: 5B
+    type: dataset
+    category: egress
+    path: data/layer2/5B/arrival_events/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
+    schema: schemas.5B.yaml#/egress/s4_arrival_events_5B
+    semver: '1.0.0'
+    version: '{seed}.{manifest_fingerprint}.{scenario_id}'
+    digest:
+    dependencies:
+      - s1_time_grid_5B
+      - s1_grouping_5B
+      - s2_realised_intensity_5B
+      - s3_bucket_counts_5B
+      - arrival_time_placement_policy_5B
+      - arrival_routing_policy_5B
+      - arrival_rng_policy_5B
+      - site_locations_1B
+      - site_timezones_2A
+      - tz_timetable_cache_2A
+      - zone_alloc_3A
+      - virtual_routing_3B
+    source: internal
+    owner: { team: data-engineering }
+    last_updated:
+    environment: [ci, dev, staging, prod]
+    cross_layer: true
+    notes:
+
+  - manifest_key: mlr.5B.diagnostic.arrival_summary
+    name: Layer-2 / 5B arrival summary (diagnostic)
+    subsegment: 5B
+    type: dataset
+    category: diagnostic
+    path: data/layer2/5B/arrival_summary/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s4_arrival_summary_5B.parquet
+    schema: schemas.5B.yaml#/diagnostics/s4_arrival_summary_5B
+    semver: '1.0.0'
+    version: '{seed}.{manifest_fingerprint}.{scenario_id}'
+    digest:
+    dependencies:
+      - arrival_events_5B
+    source: internal
+    owner: { team: data-engineering }
+    last_updated:
+    environment: [ci, dev, staging, prod]
+    cross_layer: false
+    notes: optional
+
+  - manifest_key: mlr.5B.diagnostic.arrival_anomalies
+    name: Layer-2 / 5B arrival anomalies (diagnostic)
+    subsegment: 5B
+    type: dataset
+    category: diagnostic
+    path: data/layer2/5B/arrival_anomalies/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s4_arrival_anomalies_5B.parquet
+    schema: schemas.5B.yaml#/diagnostics/s4_arrival_anomalies_5B
+    semver: '1.0.0'
+    version: '{seed}.{manifest_fingerprint}.{scenario_id}'
+    digest:
+    dependencies:
+      - arrival_events_5B
+    source: internal
+    owner: { team: data-engineering }
+    last_updated:
+    environment: [ci, dev, staging, prod]
+    cross_layer: false
+    notes: optional
+
+  # S5 — validation bundle
+  - manifest_key: mlr.5B.validation.bundle
+    name: Layer-2 / 5B validation bundle
+    subsegment: 5B
+    type: dataset
+    category: validation
+    path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/index.json
+    schema: schemas.layer2.yaml#/validation/validation_bundle_index_5B
+    semver: '1.0.0'
+    version: '{manifest_fingerprint}'
+    digest:
+    dependencies:
+      - s0_gate_receipt_5B
+      - sealed_inputs_5B
+      - s1_time_grid_5B
+      - s1_grouping_5B
+      - s2_realised_intensity_5B
+      - s3_bucket_counts_5B
+      - arrival_events_5B
+      - validation_policy_5B
+    source: internal
+    owner: { team: data-engineering }
+    last_updated:
+    environment: [ci, dev, staging, prod]
+    cross_layer: true
+    notes:
+
+  - manifest_key: mlr.5B.validation.passed_flag
+    name: Layer-2 / 5B validation pass flag
+    subsegment: 5B
+    type: dataset
+    category: validation
+    path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag_5B
+    schema: schemas.layer2.yaml#/validation/passed_flag_5B
+    semver: '1.0.0'
+    version: '{manifest_fingerprint}'
+    digest:
+    dependencies:
+      - validation_bundle_index_5B
+    source: internal
+    owner: { team: data-engineering }
+    last_updated:
+    environment: [ci, dev, staging, prod]
+    cross_layer: true
+    notes:
+
+  - manifest_key: mlr.5B.validation.report
+    name: Layer-2 / 5B validation report
+    subsegment: 5B
+    type: dataset
+    category: validation
+    path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/validation_report_5B.json
+    schema: schemas.layer2.yaml#/validation/validation_report_5B
+    semver: '1.0.0'
+    version: '{manifest_fingerprint}'
+    digest:
+    dependencies:
+      - validation_bundle_index_5B
+    source: internal
+    owner: { team: data-engineering }
+    last_updated:
+    environment: [ci, dev, staging, prod]
+    cross_layer: true
+    notes:
+
+  - manifest_key: mlr.5B.validation.issues
+    name: Layer-2 / 5B validation issue table
+    subsegment: 5B
+    type: dataset
+    category: validation
+    path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/validation_issue_table_5B.parquet
+    schema: schemas.layer2.yaml#/validation/validation_issue_table_5B
+    semver: '1.0.0'
+    version: '{manifest_fingerprint}'
+    digest:
+    dependencies:
+      - validation_bundle_index_5B
+    source: internal
+    owner: { team: data-engineering }
+    last_updated:
+    environment: [ci, dev, staging, prod]
+    cross_layer: true
+    notes: optional
+
+  # Config / policy artefacts sealed via S0
+  - manifest_key: mlr.5B.config.time_grid_policy
+    name: Layer-2 / 5B time-grid policy
+    subsegment: 5B
+    type: config
+    category: config
+    path: config/layer2/5B/time_grid_policy_5B.yaml
+    schema: schemas.5B.yaml#/config/time_grid_policy_5B
+    semver: '1.0.0'
+    version: '{policy_version}'
+    digest:
+    dependencies: []
+    source: internal
+    owner: { team: data-engineering }
+    last_updated:
+    environment: [ci, dev, staging, prod]
+    cross_layer: false
+    notes:
+
+  - manifest_key: mlr.5B.config.grouping_policy
+    name: Layer-2 / 5B grouping policy
+    subsegment: 5B
+    type: config
+    category: config
+    path: config/layer2/5B/grouping_policy_5B.yaml
+    schema: schemas.5B.yaml#/config/grouping_policy_5B
+    semver: '1.0.0'
+    version: '{policy_version}'
+    digest:
+    dependencies: []
+    source: internal
+    owner: { team: data-engineering }
+    last_updated:
+    environment: [ci, dev, staging, prod]
+    cross_layer: false
+    notes:
+
+  - manifest_key: mlr.5B.config.arrival_lgcp_config
+    name: Layer-2 / 5B LGCP configuration
+    subsegment: 5B
+    type: config
+    category: config
+    path: config/layer2/5B/arrival_lgcp_config_5B.yaml
+    schema: schemas.5B.yaml#/config/arrival_lgcp_config_5B
+    semver: '1.0.0'
+    version: '{policy_version}'
+    digest:
+    dependencies: []
+    source: internal
+    owner: { team: data-engineering }
+    last_updated:
+    environment: [ci, dev, staging, prod]
+    cross_layer: false
+    notes:
+
+  - manifest_key: mlr.5B.config.arrival_count_config
+    name: Layer-2 / 5B count configuration
+    subsegment: 5B
+    type: config
+    category: config
+    path: config/layer2/5B/arrival_count_config_5B.yaml
+    schema: schemas.5B.yaml#/config/arrival_count_config_5B
+    semver: '1.0.0'
+    version: '{policy_version}'
+    digest:
+    dependencies: []
+    source: internal
+    owner: { team: data-engineering }
+    last_updated:
+    environment: [ci, dev, staging, prod]
+    cross_layer: false
+    notes:
+
+  - manifest_key: mlr.5B.config.arrival_time_placement_policy
+    name: Layer-2 / 5B time-placement policy
+    subsegment: 5B
+    type: config
+    category: config
+    path: config/layer2/5B/arrival_time_placement_policy_5B.yaml
+    schema: schemas.5B.yaml#/config/arrival_time_placement_policy_5B
+    semver: '1.0.0'
+    version: '{policy_version}'
+    digest:
+    dependencies: []
+    source: internal
+    owner: { team: data-engineering }
+    last_updated:
+    environment: [ci, dev, staging, prod]
+    cross_layer: false
+    notes:
+
+  - manifest_key: mlr.5B.config.arrival_routing_policy
+    name: Layer-2 / 5B routing policy
+    subsegment: 5B
+    type: config
+    category: config
+    path: config/layer2/5B/arrival_routing_policy_5B.yaml
+    schema: schemas.5B.yaml#/config/arrival_routing_policy_5B
+    semver: '1.0.0'
+    version: '{policy_version}'
+    digest:
+    dependencies: []
+    source: internal
+    owner: { team: data-engineering }
+    last_updated:
+    environment: [ci, dev, staging, prod]
+    cross_layer: false
+    notes:
+
+  - manifest_key: mlr.5B.config.arrival_rng_policy
+    name: Layer-2 / 5B RNG policy
+    subsegment: 5B
+    type: config
+    category: config
+    path: config/layer2/5B/arrival_rng_policy_5B.yaml
+    schema: schemas.5B.yaml#/config/arrival_rng_policy_5B
+    semver: '1.0.0'
+    version: '{policy_version}'
+    digest:
+    dependencies: []
+    source: internal
+    owner: { team: data-engineering }
+    last_updated:
+    environment: [ci, dev, staging, prod]
+    cross_layer: false
+    notes:
+
+  - manifest_key: mlr.5B.config.validation_policy
+    name: Layer-2 / 5B validation policy
+    subsegment: 5B
+    type: config
+    category: config
+    path: config/layer2/5B/validation_policy_5B.yaml
+    schema: schemas.5B.yaml#/config/validation_policy_5B
+    semver: '1.0.0'
+    version: '{policy_version}'
+    digest:
+    dependencies: []
+    source: internal
+    owner: { team: data-engineering }
+    last_updated:
+    environment: [ci, dev, staging, prod]
+    cross_layer: false
+    notes:
