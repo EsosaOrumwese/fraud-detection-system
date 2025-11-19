@@ -258,6 +258,7 @@ egress:
         ts_local_settlement: { $ref: '#/$defs/rfc3339_micros' }
         tzid_operational: { $ref: '#/$defs/iana_tzid' }
         ts_local_operational: { $ref: '#/$defs/rfc3339_micros' }
+        tz_group_id: { type: string }
         site_id: { $ref: '#/$defs/id64' }
         edge_id: { $ref: '#/$defs/id64' }
         routing_universe_hash: { $ref: '#/$defs/hex64' }
