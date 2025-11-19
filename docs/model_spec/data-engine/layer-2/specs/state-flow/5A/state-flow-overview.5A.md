@@ -98,7 +98,7 @@ Map each merchant and zone into a **demand class** plus scale factors, using onl
 
 **Outputs**
 
-* `s1_demand_classes_5A`
+* `merchant_zone_profile_5A`
   A param-scoped classification table keyed by `(merchant_id, tzid)` (or `(merchant_id, zone_id)`), with:
 
   * `demand_class_id`
@@ -138,7 +138,7 @@ Own the reusable **weekly shape functions** that define the *shape* of demand ov
 
 **Outputs**
 
-* `s2_shape_library_5A`
+* `class_zone_shape_5A`
   A param-scoped library keyed by `(demand_class_id, tzid, hour_of_week)` (or equivalent), with:
 
   * `shape_value` (non-negative, sums to 1 per class×tz),
@@ -159,8 +159,8 @@ Combine **who you are** (S1) and **what your weekly shape looks like** (S2) into
 
 **Inputs**
 
-* `s1_demand_classes_5A` — classification + volume scale per `(merchant, zone)`.
-* `s2_shape_library_5A` — normalised weekly shape per `(demand_class, tzid)`.
+* `merchant_zone_profile_5A` — classification + volume scale per `(merchant, zone)`.
+* `class_zone_shape_5A` — normalised weekly shape per `(demand_class, tzid)`.
 * Optional additional priors (e.g. per-merchant caps or per-zone adjustments).
 
 **Behaviour**
@@ -178,7 +178,7 @@ For each `(merchant, tzid)` and each discrete time point in your weekly grid:
 
 **Outputs**
 
-* `s3_baseline_intensity_5A`
+* `merchant_zone_baseline_local_5A`
   Param-scoped baseline surfaces keyed by `(merchant_id, tzid, hour_of_week)` (or equivalent), with:
 
   * `lambda_base` (baseline intensity),
@@ -199,7 +199,7 @@ Warp the baseline surfaces through **calendar and scenario effects**, then publi
 
 **Inputs**
 
-* `s3_baseline_intensity_5A` — baseline λ surfaces.
+* `merchant_zone_baseline_local_5A` — baseline λ surfaces.
 * From sealed configs:
 
   * Scenario calendar (global and per-region events).
@@ -230,7 +230,7 @@ Warp the baseline surfaces through **calendar and scenario effects**, then publi
 
 **Outputs**
 
-* `s4_intensity_surfaces_5A`
+* `merchant_zone_scenario_local_5A`
   Param-scoped final intensity surfaces keyed by `(merchant_id, tzid, time_bucket)` (or weekly grid + calendar window), with:
 
   * `lambda_target`,
@@ -267,7 +267,7 @@ Warp the baseline surfaces through **calendar and scenario effects**, then publi
   * S1: `merchant_zone_profile_5A` (merchant×zone class + base scale).
   * S2: `shape_grid_definition_5A`, `class_zone_shape_5A` (grid + unit-mass shapes).
   * S3: `merchant_zone_baseline_local_5A` (and any optional class/UTC baselines).
-  * S4: calendar/scenario overlays (whatever S4 emits: scenario-aware intensities over the horizon).
+  * S4: `merchant_zone_scenario_local_5A` (plus any optional overlay diagnostics).
 * Policies:
 
   * Any S0/S1/S2/S3/S4 validation policies (tolerances, domain contracts, etc.) required to check invariants.
