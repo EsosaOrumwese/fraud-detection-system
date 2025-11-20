@@ -274,6 +274,8 @@ model:
         - parameter_hash
         - scenario_id
         - merchant_id
+        - legal_country_iso
+        - tzid
         - bucket_index
         - s3_spec_version
         - lambda_local_base
@@ -311,6 +313,8 @@ model:
         - parameter_hash
         - scenario_id
         - demand_class
+        - legal_country_iso
+        - tzid
         - bucket_index
         - lambda_local_base_class
         - s3_spec_version
@@ -340,6 +344,9 @@ model:
         - parameter_hash
         - scenario_id
         - merchant_id
+        - legal_country_iso
+        - tzid
+        - utc_bucket_index
         - s3_spec_version
         - lambda_utc_base
       properties:
@@ -369,6 +376,8 @@ model:
         - manifest_fingerprint
         - scenario_id
         - merchant_id
+        - legal_country_iso
+        - tzid
         - local_horizon_bucket_index
         - lambda_local_scenario
         - s4_spec_version
@@ -400,6 +409,8 @@ model:
         - manifest_fingerprint
         - scenario_id
         - merchant_id
+        - legal_country_iso
+        - tzid
         - local_horizon_bucket_index
         - overlay_factor_total
         - s4_spec_version
@@ -428,6 +439,8 @@ model:
         - manifest_fingerprint
         - scenario_id
         - merchant_id
+        - legal_country_iso
+        - tzid
         - utc_horizon_bucket_index
         - lambda_utc_scenario
         - s4_spec_version
