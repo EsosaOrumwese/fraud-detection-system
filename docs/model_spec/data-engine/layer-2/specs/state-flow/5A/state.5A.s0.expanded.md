@@ -848,6 +848,8 @@ The schema MUST include the following required properties:
 
 * `scenario_id` — string or array of strings
 
+  * Single-scenario manifests may record a scalar (e.g. `"baseline"`); multi-scenario runs MUST record the ordered scenario set as an array. Row-level details for each scenario (start/end horizons, tags, flags) live in `scenario_manifest_5A`, and S0’s receipt only mirrors the identifiers so later states can fail fast on mismatched scenario sets.
+
 * `scenario_pack_id` — string (optional)
 
 * `parameter_pack_id` — string (optional human-facing label)

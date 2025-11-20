@@ -57,7 +57,7 @@ validation:
     type: array
     items:
       type: object
-      additionalProperties: true
+      additionalProperties: false
       required:
         - manifest_fingerprint
         - parameter_hash
@@ -100,7 +100,7 @@ validation:
     type: array
     items:
       type: object
-      additionalProperties: true
+      additionalProperties: false
       required:
         - manifest_fingerprint
         - scenario_id

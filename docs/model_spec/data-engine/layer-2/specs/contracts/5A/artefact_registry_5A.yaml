@@ -1,358 +1,343 @@
 # artefact_registry_5A.yaml — Layer-2 Segment 5A catalogue
-artefacts:
-  # S0
-  - manifest_key: mlr.5A.validation.s0_gate_receipt
-    name: Layer-2 / 5A gate receipt
-    subsegment: 5A
-    type: dataset
-    category: control
-    path: data/layer2/5A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_5A.json
-    schema: schemas.5A.yaml#/validation/s0_gate_receipt_5A
-    semver: '1.0.0'
-    version: '{manifest_fingerprint}'
-    digest:
-    dependencies:
-      - sealed_inputs_5A
-    source: internal
-    owner: { team: data-engineering }
-    last_updated:
-    environment: [ci, dev, staging, prod]
-    cross_layer: true
-    notes:
+subsegments:
+  - id: 5A
+    name: Layer-2 Arrival Surfaces
+    artifacts:
+      # S0 — control plane
+      - manifest_key: mlr.5A.validation.s0_gate_receipt
+        name: Layer-2 / 5A gate receipt
+        type: dataset
+        category: control
+        path: data/layer2/5A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_5A.json
+        schema: schemas.5A.yaml#/validation/s0_gate_receipt_5A
+        semver: '1.0.0'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies:
+          - sealed_inputs_5A
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes:
 
-  - manifest_key: mlr.5A.validation.sealed_inputs
-    name: Layer-2 / 5A sealed inputs
-    subsegment: 5A
-    type: dataset
-    category: control
-    path: data/layer2/5A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet
-    schema: schemas.5A.yaml#/validation/sealed_inputs_5A
-    semver: '1.0.0'
-    version: '{manifest_fingerprint}'
-    digest:
-    dependencies: []
-    source: internal
-    owner: { team: data-engineering }
-    last_updated:
-    environment: [ci, dev, staging, prod]
-    cross_layer: true
-    notes:
+      - manifest_key: mlr.5A.validation.sealed_inputs
+        name: Layer-2 / 5A sealed inputs
+        type: dataset
+        category: control
+        path: data/layer2/5A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet
+        schema: schemas.5A.yaml#/validation/sealed_inputs_5A
+        semver: '1.0.0'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes:
 
-  - manifest_key: mlr.5A.validation.scenario_manifest
-    name: Layer-2 / 5A scenario manifest
-    subsegment: 5A
-    type: dataset
-    category: control
-    path: data/layer2/5A/scenario_manifest/fingerprint={manifest_fingerprint}/scenario_manifest_5A.parquet
-    schema: schemas.5A.yaml#/validation/scenario_manifest_5A
-    semver: '1.0.0'
-    version: '{manifest_fingerprint}'
-    digest:
-    dependencies:
-      - sealed_inputs_5A
-    source: internal
-    owner: { team: data-engineering }
-    last_updated:
-    environment: [ci, dev, staging, prod]
-    cross_layer: true
-    notes: optional
+      - manifest_key: mlr.5A.validation.scenario_manifest
+        name: Layer-2 / 5A scenario manifest
+        type: dataset
+        category: control
+        path: data/layer2/5A/scenario_manifest/fingerprint={manifest_fingerprint}/scenario_manifest_5A.parquet
+        schema: schemas.5A.yaml#/validation/scenario_manifest_5A
+        semver: '1.0.0'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies:
+          - sealed_inputs_5A
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes: optional
 
-  # S1
-  - manifest_key: mlr.5A.model.merchant_zone_profile
-    name: Layer-2 / 5A merchant×zone demand profile
-    subsegment: 5A
-    type: dataset
-    category: model
-    path: data/layer2/5A/merchant_zone_profile/fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet
-    schema: schemas.5A.yaml#/model/merchant_zone_profile_5A
-    semver: '1.0.0'
-    version: '{manifest_fingerprint}'
-    digest:
-    dependencies:
-      - sealed_inputs_5A
-      - s0_gate_receipt_5A
-    source: internal
-    owner: { team: data-engineering }
-    last_updated:
-    environment: [ci, dev, staging, prod]
-    cross_layer: true
-    notes:
+      # S1 — classification
+      - manifest_key: mlr.5A.model.merchant_zone_profile
+        name: Layer-2 / 5A merchant×zone demand profile
+        type: dataset
+        category: model
+        path: data/layer2/5A/merchant_zone_profile/fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet
+        schema: schemas.5A.yaml#/model/merchant_zone_profile_5A
+        semver: '1.0.0'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies:
+          - sealed_inputs_5A
+          - s0_gate_receipt_5A
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes:
 
-  - manifest_key: mlr.5A.model.merchant_class_profile
-    name: Layer-2 / 5A merchant class profile
-    subsegment: 5A
-    type: dataset
-    category: model
-    path: data/layer2/5A/merchant_class_profile/fingerprint={manifest_fingerprint}/merchant_class_profile_5A.parquet
-    schema: schemas.5A.yaml#/model/merchant_class_profile_5A
-    semver: '1.0.0'
-    version: '{manifest_fingerprint}'
-    digest:
-    dependencies:
-      - merchant_zone_profile_5A
-    source: internal
-    owner: { team: data-engineering }
-    last_updated:
-    environment: [ci, dev, staging, prod]
-    cross_layer: true
-    notes: optional
+      - manifest_key: mlr.5A.model.merchant_class_profile
+        name: Layer-2 / 5A merchant class profile
+        type: dataset
+        category: model
+        path: data/layer2/5A/merchant_class_profile/fingerprint={manifest_fingerprint}/merchant_class_profile_5A.parquet
+        schema: schemas.5A.yaml#/model/merchant_class_profile_5A
+        semver: '1.0.0'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies:
+          - merchant_zone_profile_5A
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes: optional
 
-  # S2
-  - manifest_key: mlr.5A.model.shape_grid_definition
-    name: Layer-2 / 5A local-week shape grid definition
-    subsegment: 5A
-    type: dataset
-    category: model_config
-    path: data/layer2/5A/shape_grid_definition/parameter_hash={parameter_hash}/scenario_id={scenario_id}/shape_grid_definition_5A.parquet
-    schema: schemas.5A.yaml#/model/shape_grid_definition_5A
-    semver: '1.0.0'
-    version: '{parameter_hash}.{scenario_id}'
-    digest:
-    dependencies: []
-    source: internal
-    owner: { team: data-engineering }
-    last_updated:
-    environment: [ci, dev, staging, prod]
-    cross_layer: false
-    notes:
+      # S2 — weekly shape library
+      - manifest_key: mlr.5A.model.shape_grid_definition
+        name: Layer-2 / 5A local-week shape grid definition
+        type: dataset
+        category: model_config
+        path: data/layer2/5A/shape_grid_definition/parameter_hash={parameter_hash}/scenario_id={scenario_id}/shape_grid_definition_5A.parquet
+        schema: schemas.5A.yaml#/model/shape_grid_definition_5A
+        semver: '1.0.0'
+        version: '{parameter_hash}.{scenario_id}'
+        digest:
+        dependencies: []
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: false
+        notes:
 
-  - manifest_key: mlr.5A.model.class_zone_shape
-    name: Layer-2 / 5A class×zone weekly shape library
-    subsegment: 5A
-    type: dataset
-    category: model
-    path: data/layer2/5A/class_zone_shape/parameter_hash={parameter_hash}/scenario_id={scenario_id}/class_zone_shape_5A.parquet
-    schema: schemas.5A.yaml#/model/class_zone_shape_5A
-    semver: '1.0.0'
-    version: '{parameter_hash}.{scenario_id}'
-    digest:
-    dependencies:
-      - merchant_zone_profile_5A
-      - shape_grid_definition_5A
-    source: internal
-    owner: { team: data-engineering }
-    last_updated:
-    environment: [ci, dev, staging, prod]
-    cross_layer: true
-    notes:
+      - manifest_key: mlr.5A.model.class_zone_shape
+        name: Layer-2 / 5A class×zone weekly shape library
+        type: dataset
+        category: model
+        path: data/layer2/5A/class_zone_shape/parameter_hash={parameter_hash}/scenario_id={scenario_id}/class_zone_shape_5A.parquet
+        schema: schemas.5A.yaml#/model/class_zone_shape_5A
+        semver: '1.0.0'
+        version: '{parameter_hash}.{scenario_id}'
+        digest:
+        dependencies:
+          - merchant_zone_profile_5A
+          - shape_grid_definition_5A
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes:
 
-  - manifest_key: mlr.5A.model.class_shape_catalogue
-    name: Layer-2 / 5A base class shape catalogue
-    subsegment: 5A
-    type: dataset
-    category: model
-    path: data/layer2/5A/class_shape_catalogue/parameter_hash={parameter_hash}/scenario_id={scenario_id}/class_shape_catalogue_5A.parquet
-    schema: schemas.5A.yaml#/model/class_shape_catalogue_5A
-    semver: '1.0.0'
-    version: '{parameter_hash}.{scenario_id}'
-    digest:
-    dependencies:
-      - shape_grid_definition_5A
-    source: internal
-    owner: { team: data-engineering }
-    last_updated:
-    environment: [ci, dev, staging, prod]
-    cross_layer: false
-    notes: optional
+      - manifest_key: mlr.5A.model.class_shape_catalogue
+        name: Layer-2 / 5A base class shape catalogue
+        type: dataset
+        category: model
+        path: data/layer2/5A/class_shape_catalogue/parameter_hash={parameter_hash}/scenario_id={scenario_id}/class_shape_catalogue_5A.parquet
+        schema: schemas.5A.yaml#/model/class_shape_catalogue_5A
+        semver: '1.0.0'
+        version: '{parameter_hash}.{scenario_id}'
+        digest:
+        dependencies:
+          - shape_grid_definition_5A
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: false
+        notes: optional
 
-  # S3
-  - manifest_key: mlr.5A.model.merchant_zone_baseline_local
-    name: Layer-2 / 5A merchant×zone baseline local intensities
-    subsegment: 5A
-    type: dataset
-    category: model
-    path: data/layer2/5A/merchant_zone_baseline_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_local_5A.parquet
-    schema: schemas.5A.yaml#/model/merchant_zone_baseline_local_5A
-    semver: '1.0.0'
-    version: '{manifest_fingerprint}.{scenario_id}'
-    digest:
-    dependencies:
-      - merchant_zone_profile_5A
-      - class_zone_shape_5A
-      - shape_grid_definition_5A
-    source: internal
-    owner: { team: data-engineering }
-    last_updated:
-    environment: [ci, dev, staging, prod]
-    cross_layer: true
-    notes:
+      # S3 — baselines
+      - manifest_key: mlr.5A.model.merchant_zone_baseline_local
+        name: Layer-2 / 5A merchant×zone baseline local intensities
+        type: dataset
+        category: model
+        path: data/layer2/5A/merchant_zone_baseline_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_local_5A.parquet
+        schema: schemas.5A.yaml#/model/merchant_zone_baseline_local_5A
+        semver: '1.0.0'
+        version: '{manifest_fingerprint}.{scenario_id}'
+        digest:
+        dependencies:
+          - merchant_zone_profile_5A
+          - class_zone_shape_5A
+          - shape_grid_definition_5A
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes:
 
-  - manifest_key: mlr.5A.model.class_zone_baseline_local
-    name: Layer-2 / 5A class×zone baseline local intensities
-    subsegment: 5A
-    type: dataset
-    category: model
-    path: data/layer2/5A/class_zone_baseline_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/class_zone_baseline_local_5A.parquet
-    schema: schemas.5A.yaml#/model/class_zone_baseline_local_5A
-    semver: '1.0.0'
-    version: '{manifest_fingerprint}.{scenario_id}'
-    digest:
-    dependencies:
-      - merchant_zone_baseline_local_5A
-    source: internal
-    owner: { team: data-engineering }
-    last_updated:
-    environment: [ci, dev, staging, prod]
-    cross_layer: true
-    notes: optional
+      - manifest_key: mlr.5A.model.class_zone_baseline_local
+        name: Layer-2 / 5A class×zone baseline local intensities
+        type: dataset
+        category: model
+        path: data/layer2/5A/class_zone_baseline_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/class_zone_baseline_local_5A.parquet
+        schema: schemas.5A.yaml#/model/class_zone_baseline_local_5A
+        semver: '1.0.0'
+        version: '{manifest_fingerprint}.{scenario_id}'
+        digest:
+        dependencies:
+          - merchant_zone_baseline_local_5A
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes: optional
 
-  - manifest_key: mlr.5A.model.merchant_zone_baseline_utc
-    name: Layer-2 / 5A merchant×zone baseline UTC intensities
-    subsegment: 5A
-    type: dataset
-    category: model
-    path: data/layer2/5A/merchant_zone_baseline_utc/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_utc_5A.parquet
-    schema: schemas.5A.yaml#/model/merchant_zone_baseline_utc_5A
-    semver: '1.0.0'
-    version: '{manifest_fingerprint}.{scenario_id}'
-    digest:
-    dependencies:
-      - merchant_zone_baseline_local_5A
-    source: internal
-    owner: { team: data-engineering }
-    last_updated:
-    environment: [ci, dev, staging, prod]
-    cross_layer: true
-    notes: optional
+      - manifest_key: mlr.5A.model.merchant_zone_baseline_utc
+        name: Layer-2 / 5A merchant×zone baseline UTC intensities
+        type: dataset
+        category: model
+        path: data/layer2/5A/merchant_zone_baseline_utc/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_utc_5A.parquet
+        schema: schemas.5A.yaml#/model/merchant_zone_baseline_utc_5A
+        semver: '1.0.0'
+        version: '{manifest_fingerprint}.{scenario_id}'
+        digest:
+        dependencies:
+          - merchant_zone_baseline_local_5A
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes: optional
 
-  # S4
-  - manifest_key: mlr.5A.model.merchant_zone_scenario_local
-    name: Layer-2 / 5A merchant×zone scenario-adjusted local intensities
-    subsegment: 5A
-    type: dataset
-    category: model
-    path: data/layer2/5A/merchant_zone_scenario_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_local_5A.parquet
-    schema: schemas.5A.yaml#/model/merchant_zone_scenario_local_5A
-    semver: '1.0.0'
-    version: '{manifest_fingerprint}.{scenario_id}'
-    digest:
-    dependencies:
-      - merchant_zone_baseline_local_5A
-      - scenario_manifest_5A
-    source: internal
-    owner: { team: data-engineering }
-    last_updated:
-    environment: [ci, dev, staging, prod]
-    cross_layer: true
-    notes:
+      # S4 — scenario overlays
+      - manifest_key: mlr.5A.model.merchant_zone_scenario_local
+        name: Layer-2 / 5A merchant×zone scenario-adjusted local intensities
+        type: dataset
+        category: model
+        path: data/layer2/5A/merchant_zone_scenario_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_local_5A.parquet
+        schema: schemas.5A.yaml#/model/merchant_zone_scenario_local_5A
+        semver: '1.0.0'
+        version: '{manifest_fingerprint}.{scenario_id}'
+        digest:
+        dependencies:
+          - merchant_zone_baseline_local_5A
+          - scenario_manifest_5A
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes:
 
-  - manifest_key: mlr.5A.model.merchant_zone_overlay_factors
-    name: Layer-2 / 5A merchant×zone overlay factors
-    subsegment: 5A
-    type: dataset
-    category: model
-    path: data/layer2/5A/merchant_zone_overlay_factors/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_overlay_factors_5A.parquet
-    schema: schemas.5A.yaml#/model/merchant_zone_overlay_factors_5A
-    semver: '1.0.0'
-    version: '{manifest_fingerprint}.{scenario_id}'
-    digest:
-    dependencies:
-      - merchant_zone_baseline_local_5A
-    source: internal
-    owner: { team: data-engineering }
-    last_updated:
-    environment: [ci, dev, staging, prod]
-    cross_layer: true
-    notes: optional
+      - manifest_key: mlr.5A.model.merchant_zone_overlay_factors
+        name: Layer-2 / 5A merchant×zone overlay factors
+        type: dataset
+        category: model
+        path: data/layer2/5A/merchant_zone_overlay_factors/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_overlay_factors_5A.parquet
+        schema: schemas.5A.yaml#/model/merchant_zone_overlay_factors_5A
+        semver: '1.0.0'
+        version: '{manifest_fingerprint}.{scenario_id}'
+        digest:
+        dependencies:
+          - merchant_zone_baseline_local_5A
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes: optional
 
-  - manifest_key: mlr.5A.model.merchant_zone_scenario_utc
-    name: Layer-2 / 5A merchant×zone scenario-adjusted UTC intensities
-    subsegment: 5A
-    type: dataset
-    category: model
-    path: data/layer2/5A/merchant_zone_scenario_utc/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_utc_5A.parquet
-    schema: schemas.5A.yaml#/model/merchant_zone_scenario_utc_5A
-    semver: '1.0.0'
-    version: '{manifest_fingerprint}.{scenario_id}'
-    digest:
-    dependencies:
-      - merchant_zone_scenario_local_5A
-    source: internal
-    owner: { team: data-engineering }
-    last_updated:
-    environment: [ci, dev, staging, prod]
-    cross_layer: true
-    notes: optional
+      - manifest_key: mlr.5A.model.merchant_zone_scenario_utc
+        name: Layer-2 / 5A merchant×zone scenario-adjusted UTC intensities
+        type: dataset
+        category: model
+        path: data/layer2/5A/merchant_zone_scenario_utc/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_utc_5A.parquet
+        schema: schemas.5A.yaml#/model/merchant_zone_scenario_utc_5A
+        semver: '1.0.0'
+        version: '{manifest_fingerprint}.{scenario_id}'
+        digest:
+        dependencies:
+          - merchant_zone_scenario_local_5A
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes: optional
 
-  # S5 — validation bundle
-  - manifest_key: mlr.5A.validation.bundle
-    name: Layer-2 / 5A validation bundle
-    subsegment: 5A
-    type: dataset
-    category: validation
-    path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/validation_bundle_index_5A.json
-    schema: schemas.layer2.yaml#/validation/validation_bundle_index_5A
-    semver: '1.0.0'
-    version: '{manifest_fingerprint}'
-    digest:
-    dependencies:
-      - s0_gate_receipt_5A
-      - sealed_inputs_5A
-      - merchant_zone_profile_5A
-      - shape_grid_definition_5A
-      - class_zone_shape_5A
-      - merchant_zone_baseline_local_5A
-      - merchant_zone_scenario_local_5A
-    source: internal
-    owner: { team: data-engineering }
-    last_updated:
-    environment: [ci, dev, staging, prod]
-    cross_layer: true
-    notes:
+      # S5 — validation bundle & flag
+      - manifest_key: mlr.5A.validation.bundle
+        name: Layer-2 / 5A validation bundle
+        type: dataset
+        category: validation
+        path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/validation_bundle_index_5A.json
+        schema: schemas.layer2.yaml#/validation/validation_bundle_index_5A
+        semver: '1.0.0'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies:
+          - s0_gate_receipt_5A
+          - sealed_inputs_5A
+          - merchant_zone_profile_5A
+          - shape_grid_definition_5A
+          - class_zone_shape_5A
+          - merchant_zone_baseline_local_5A
+          - merchant_zone_scenario_local_5A
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes:
 
-  - manifest_key: mlr.5A.validation.passed_flag
-    name: Layer-2 / 5A validation pass flag
-    subsegment: 5A
-    type: dataset
-    category: validation
-    path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag_5A
-    schema: schemas.layer2.yaml#/validation/passed_flag_5A
-    semver: '1.0.0'
-    version: '{manifest_fingerprint}'
-    digest:
-    dependencies:
-      - validation_bundle_5A
-    source: internal
-    owner: { team: data-engineering }
-    last_updated:
-    environment: [ci, dev, staging, prod]
-    cross_layer: true
-    notes:
+      - manifest_key: mlr.5A.validation.passed_flag
+        name: Layer-2 / 5A validation pass flag
+        type: dataset
+        category: validation
+        path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag_5A
+        schema: schemas.layer2.yaml#/validation/passed_flag_5A
+        semver: '1.0.0'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies:
+          - validation_bundle_5A
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes:
 
-  - manifest_key: mlr.5A.validation.report
-    name: Layer-2 / 5A validation report
-    subsegment: 5A
-    type: dataset
-    category: validation
-    path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/reports/validation_report_5A.json
-    schema: schemas.layer2.yaml#/validation/validation_report_5A
-    semver: '1.0.0'
-    version: '{manifest_fingerprint}'
-    digest:
-    dependencies:
-      - validation_bundle_5A
-    source: internal
-    owner: { team: data-engineering }
-    last_updated:
-    environment: [ci, dev, staging, prod]
-    cross_layer: true
-    notes:
+      - manifest_key: mlr.5A.validation.report
+        name: Layer-2 / 5A validation report
+        type: dataset
+        category: validation
+        path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/reports/validation_report_5A.json
+        schema: schemas.layer2.yaml#/validation/validation_report_5A
+        semver: '1.0.0'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies:
+          - validation_bundle_5A
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes:
 
-  - manifest_key: mlr.5A.validation.issues
-    name: Layer-2 / 5A validation issue table
-    subsegment: 5A
-    type: dataset
-    category: validation
-    path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/issues/validation_issue_table_5A.parquet
-    schema: schemas.layer2.yaml#/validation/validation_issue_table_5A
-    semver: '1.0.0'
-    version: '{manifest_fingerprint}'
-    digest:
-    dependencies:
-      - validation_bundle_5A
-    source: internal
-    owner: { team: data-engineering }
-    last_updated:
-    environment: [ci, dev, staging, prod]
-    cross_layer: true
-    notes: optional
+      - manifest_key: mlr.5A.validation.issues
+        name: Layer-2 / 5A validation issue table
+        type: dataset
+        category: validation
+        path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/issues/validation_issue_table_5A.parquet
+        schema: schemas.layer2.yaml#/validation/validation_issue_table_5A
+        semver: '1.0.0'
+        version: '{manifest_fingerprint}'
+        digest:
+        dependencies:
+          - validation_bundle_5A
+        source: internal
+        owner: { team: data-engineering }
+        last_updated:
+        environment: [ci, dev, staging, prod]
+        cross_layer: true
+        notes: optional
