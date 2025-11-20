@@ -1,5 +1,5 @@
 # dataset_dictionary.layer2.5A.yaml — layer-2 Segment 5A contracts
-version: '0.1.0'
+version: '1.0.0'
 
 lifecycle:
   phase: planning
@@ -24,10 +24,11 @@ datasets:
     status: required
     owner_subsegment: 5A
     description: Fingerprint-scoped S0 receipt confirming upstream gates and sealed inputs.
-    version: '1.0.0'
+    version: '{manifest_fingerprint}'
     format: json
     path: data/layer2/5A/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_5A.json
     partitioning: [fingerprint]
+    primary_key: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.5A.yaml#/validation/s0_gate_receipt_5A
     lineage:
@@ -42,10 +43,11 @@ datasets:
     status: required
     owner_subsegment: 5A
     description: Inventory of sealed artefacts 5A is allowed to read for a fingerprint.
-    version: '1.0.0'
+    version: '{manifest_fingerprint}'
     format: parquet
     path: data/layer2/5A/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5A.parquet
     partitioning: [fingerprint]
+    primary_key: [manifest_fingerprint, owner_segment, artifact_id]
     ordering: []
     schema_ref: schemas.5A.yaml#/validation/sealed_inputs_5A
     lineage:
@@ -60,10 +62,11 @@ datasets:
     status: optional
     owner_subsegment: 5A
     description: Scenario-level manifest projection derived from sealed inputs.
-    version: '1.0.0'
+    version: '{manifest_fingerprint}'
     format: parquet
     path: data/layer2/5A/scenario_manifest/fingerprint={manifest_fingerprint}/scenario_manifest_5A.parquet
     partitioning: [fingerprint]
+    primary_key: [manifest_fingerprint, scenario_id]
     ordering: []
     schema_ref: schemas.5A.yaml#/validation/scenario_manifest_5A
     lineage:
@@ -79,10 +82,11 @@ datasets:
     status: required
     owner_subsegment: 5A
     description: Merchant×zone demand profile including class and scale for the local week.
-    version: '1.0.0'
+    version: '{manifest_fingerprint}'
     format: parquet
     path: data/layer2/5A/merchant_zone_profile/fingerprint={manifest_fingerprint}/merchant_zone_profile_5A.parquet
     partitioning: [fingerprint]
+    primary_key: [merchant_id, legal_country_iso, tzid]
     ordering: [merchant_id, legal_country_iso, tzid]
     schema_ref: schemas.5A.yaml#/model/merchant_zone_profile_5A
     lineage:
@@ -97,10 +101,11 @@ datasets:
     status: optional
     owner_subsegment: 5A
     description: Merchant-level aggregate class profile derived deterministically from zone profiles.
-    version: '1.0.0'
+    version: '{manifest_fingerprint}'
     format: parquet
     path: data/layer2/5A/merchant_class_profile/fingerprint={manifest_fingerprint}/merchant_class_profile_5A.parquet
     partitioning: [fingerprint]
+    primary_key: [merchant_id]
     ordering: [merchant_id]
     schema_ref: schemas.5A.yaml#/model/merchant_class_profile_5A
     lineage:
@@ -116,11 +121,12 @@ datasets:
     status: required
     owner_subsegment: 5A
     description: Local-week time grid definition for shapes under a parameter pack and scenario.
-    version: '1.0.0'
+    version: '{parameter_hash}.{scenario_id}'
     format: parquet
     path: |
       data/layer2/5A/shape_grid_definition/parameter_hash={parameter_hash}/scenario_id={scenario_id}/shape_grid_definition_5A.parquet
     partitioning: [parameter_hash, scenario_id]
+    primary_key: [parameter_hash, scenario_id, bucket_index]
     ordering: [bucket_index]
     schema_ref: schemas.5A.yaml#/model/shape_grid_definition_5A
     lineage:
@@ -135,11 +141,18 @@ datasets:
     status: required
     owner_subsegment: 5A
     description: Normalised weekly shape vectors per class×zone (and optional channel) for each scenario.
-    version: '1.0.0'
+    version: '{parameter_hash}.{scenario_id}'
     format: parquet
     path: |
       data/layer2/5A/class_zone_shape/parameter_hash={parameter_hash}/scenario_id={scenario_id}/class_zone_shape_5A.parquet
     partitioning: [parameter_hash, scenario_id]
+    primary_key:
+      - parameter_hash
+      - scenario_id
+      - demand_class
+      - legal_country_iso
+      - tzid
+      - bucket_index
     ordering:
       - demand_class
       - legal_country_iso
@@ -158,11 +171,12 @@ datasets:
     status: optional
     owner_subsegment: 5A
     description: Optional base shape catalogue per class (and optional channel) for each scenario.
-    version: '1.0.0'
+    version: '{parameter_hash}.{scenario_id}'
     format: parquet
     path: |
       data/layer2/5A/class_shape_catalogue/parameter_hash={parameter_hash}/scenario_id={scenario_id}/class_shape_catalogue_5A.parquet
     partitioning: [parameter_hash, scenario_id]
+    primary_key: [parameter_hash, scenario_id, demand_class]
     ordering:
       - demand_class
     schema_ref: schemas.5A.yaml#/model/class_shape_catalogue_5A
@@ -179,11 +193,18 @@ datasets:
     status: required
     owner_subsegment: 5A
     description: Merchant×zone baseline local-week intensities per scenario.
-    version: '1.0.0'
+    version: '{manifest_fingerprint}.{scenario_id}'
     format: parquet
     path: |
       data/layer2/5A/merchant_zone_baseline_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_local_5A.parquet
     partitioning: [fingerprint, scenario_id]
+    primary_key:
+      - manifest_fingerprint
+      - scenario_id
+      - merchant_id
+      - legal_country_iso
+      - tzid
+      - bucket_index
     ordering:
       - merchant_id
       - legal_country_iso
@@ -202,11 +223,18 @@ datasets:
     status: optional
     owner_subsegment: 5A
     description: Optional class×zone baseline local-week intensities per scenario.
-    version: '1.0.0'
+    version: '{manifest_fingerprint}.{scenario_id}'
     format: parquet
     path: |
       data/layer2/5A/class_zone_baseline_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/class_zone_baseline_local_5A.parquet
     partitioning: [fingerprint, scenario_id]
+    primary_key:
+      - manifest_fingerprint
+      - scenario_id
+      - demand_class
+      - legal_country_iso
+      - tzid
+      - bucket_index
     ordering:
       - demand_class
       - legal_country_iso
@@ -225,11 +253,18 @@ datasets:
     status: optional
     owner_subsegment: 5A
     description: Optional merchant×zone baseline intensities expressed on a UTC grid.
-    version: '1.0.0'
+    version: '{manifest_fingerprint}.{scenario_id}'
     format: parquet
     path: |
       data/layer2/5A/merchant_zone_baseline_utc/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_baseline_utc_5A.parquet
     partitioning: [fingerprint, scenario_id]
+    primary_key:
+      - manifest_fingerprint
+      - scenario_id
+      - merchant_id
+      - legal_country_iso
+      - tzid
+      - utc_bucket_index
     ordering:
       - merchant_id
       - legal_country_iso
@@ -249,11 +284,18 @@ datasets:
     status: required
     owner_subsegment: 5A
     description: Scenario-adjusted local-week intensities per merchant×zone×horizon bucket.
-    version: '1.0.0'
+    version: '{manifest_fingerprint}.{scenario_id}'
     format: parquet
     path: |
       data/layer2/5A/merchant_zone_scenario_local/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_local_5A.parquet
     partitioning: [fingerprint, scenario_id]
+    primary_key:
+      - manifest_fingerprint
+      - scenario_id
+      - merchant_id
+      - legal_country_iso
+      - tzid
+      - local_horizon_bucket_index
     ordering:
       - merchant_id
       - legal_country_iso
@@ -272,11 +314,18 @@ datasets:
     status: optional
     owner_subsegment: 5A
     description: Optional multiplicative overlay factors per merchant×zone×horizon bucket.
-    version: '1.0.0'
+    version: '{manifest_fingerprint}.{scenario_id}'
     format: parquet
     path: |
       data/layer2/5A/merchant_zone_overlay_factors/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_overlay_factors_5A.parquet
     partitioning: [fingerprint, scenario_id]
+    primary_key:
+      - manifest_fingerprint
+      - scenario_id
+      - merchant_id
+      - legal_country_iso
+      - tzid
+      - local_horizon_bucket_index
     ordering:
       - merchant_id
       - legal_country_iso
@@ -295,11 +344,18 @@ datasets:
     status: optional
     owner_subsegment: 5A
     description: Scenario-adjusted UTC intensities per merchant×zone×UTC horizon bucket.
-    version: '1.0.0'
+    version: '{manifest_fingerprint}.{scenario_id}'
     format: parquet
     path: |
       data/layer2/5A/merchant_zone_scenario_utc/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/merchant_zone_scenario_utc_5A.parquet
     partitioning: [fingerprint, scenario_id]
+    primary_key:
+      - manifest_fingerprint
+      - scenario_id
+      - merchant_id
+      - legal_country_iso
+      - tzid
+      - utc_horizon_bucket_index
     ordering:
       - merchant_id
       - legal_country_iso
@@ -319,7 +375,7 @@ datasets:
     status: required
     owner_subsegment: 5A
     description: Index and manifest for the 5A validation bundle.
-    version: '1.0.0'
+    version: '{manifest_fingerprint}'
     format: json
     path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/validation_bundle_index_5A.json
     partitioning: [fingerprint]
@@ -337,7 +393,7 @@ datasets:
     status: required
     owner_subsegment: 5A
     description: Human/machine readable validation report for 5A.
-    version: '1.0.0'
+    version: '{manifest_fingerprint}'
     format: json
     path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/reports/validation_report_5A.json
     partitioning: [fingerprint]
@@ -355,7 +411,7 @@ datasets:
     status: optional
     owner_subsegment: 5A
     description: Optional structured list of validation issues for 5A.
-    version: '1.0.0'
+    version: '{manifest_fingerprint}'
     format: parquet
     path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/issues/validation_issue_table_5A.parquet
     partitioning: [fingerprint]
@@ -373,7 +429,7 @@ datasets:
     status: required
     owner_subsegment: 5A
     description: Pass/fail flag for the 5A validation bundle.
-    version: '1.0.0'
+    version: '{manifest_fingerprint}'
     format: flag
     path: data/layer2/5A/validation/fingerprint={manifest_fingerprint}/_passed.flag_5A
     partitioning: [fingerprint]

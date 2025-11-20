@@ -101,6 +101,8 @@ validation:
         status: { enum: [REQUIRED, OPTIONAL, IGNORED] }
         read_scope: { enum: [ROW_LEVEL, METADATA_ONLY] }
         notes: { type: string }
+        license_class: { type: string }
+        owner_team: { type: string }
 
   scenario_manifest_5A:
     type: array
