@@ -1,7 +1,7 @@
 $schema: "https://json-schema.org/draft/2020-12/schema"
 $id: schemas.5A.yaml
 $comment: "Layer-2 · Segment 5A schema pack. JSON-Schema is the shape authority for 5A datasets."
-version: '0.1.0'
+version: '1.0.0'
 
 $defs:
   hex64:
@@ -26,12 +26,18 @@ validation:
       - created_utc
       - verified_upstream_segments
       - scenario_id
+      - s0_spec_version
       - sealed_inputs_digest
     properties:
       manifest_fingerprint: { $ref: '#/$defs/hex64' }
       parameter_hash: { $ref: '#/$defs/hex64' }
       run_id: { type: string }
       created_utc: { $ref: '#/$defs/rfc3339_micros' }
+      s0_spec_version:
+        type: string
+        description: >
+          Semantic version of the 5A.S0 spec (MAJOR.MINOR.PATCH). Downstream states MUST
+          refuse to run if the MAJOR version is unsupported.
       verified_upstream_segments:
         type: object
         additionalProperties:
@@ -356,7 +362,7 @@ model:
     type: array
     items:
       type: object
-      additionalProperties: true
+      additionalProperties: false
       required:
         - manifest_fingerprint
         - scenario_id
@@ -415,7 +421,7 @@ model:
     type: array
     items:
       type: object
-      additionalProperties: true
+      additionalProperties: false
       required:
         - manifest_fingerprint
         - scenario_id
