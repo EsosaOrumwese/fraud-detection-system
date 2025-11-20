@@ -7,7 +7,7 @@
 For each `manifest_fingerprint` (and all `(parameter_hash, scenario_id, seed)` runs underneath it), S5:
 
 * re-validates the **structural and probabilistic invariants** of 5B.S0–S4, and
-* produces a **fingerprint-scoped validation bundle** (`validation_bundle_5B`) and a single ASCII `_passed.flag_5B` that together form the **only authoritative “5B PASS” signal** for downstream consumers.
+* produces a **fingerprint-scoped validation bundle** (`validation_bundle_5B`) and a single JSON `_passed.flag_5B` that together form the **only authoritative “5B PASS” signal** for downstream consumers.
 
 S5 does not generate any new arrival events; it decides whether the arrival world produced by 5B is acceptable and, if so, seals it.
 
@@ -363,7 +363,7 @@ For each `manifest_fingerprint = mf`, 5B.S5 owns exactly the following artefacts
    * a canonical `index.json` describing all bundle members (logical IDs, relative paths, per-file `sha256_hex`, roles), and
    * one or more evidence files (reports, receipts, RNG summaries, etc.) referenced by that index.
 
-2. **`_passed.flag_5B`** — an ASCII text file at the root of the bundle directory, containing the **canonical digest** of `validation_bundle_5B` as computed by S5’s hash law.
+2. **`_passed.flag_5B`** — a tiny JSON file at the root of the bundle directory, containing the **canonical digest** of `validation_bundle_5B` as computed by S5’s hash law.
 
 3. **(Optional) S5-specific summary / receipt objects**
    If you choose to materialise a separate 5B-level summary or receipt (e.g. `s5_receipt_5B.json`), it MUST:
@@ -412,7 +412,7 @@ Within this directory:
   * e.g. `validation_report_5B.json`, `validation_issue_table_5B.parquet`, `rng_accounting_5B.json`, etc.
 * `_passed.flag_5B` (required)
 
-  * A small ASCII file at the **root of this directory**, not referenced by `index.json`, containing the bundle digest in a fixed `key = value` format (to be specified in §6/§7).
+  * A small JSON file at the **root of this directory**, not referenced by `index.json`, containing the bundle digest in the format defined in §5.3.3 and §6.7.
 
 No S5 evidence file may live outside this `fingerprint={mf}` directory, and `_passed.flag_5B` MUST NOT appear in any other location.
 
@@ -526,13 +526,16 @@ The `_passed.flag_5B` file MUST conform to:
 
 * `schemas.layer2.yaml#/validation/passed_flag_5B`
 
-This anchor describes a tiny ASCII text file with a single key–value line, for example:
+This anchor describes a tiny JSON object, for example:
 
-```text
-sha256_hex = <64 lowercase hex chars>
+```json
+{
+  "manifest_fingerprint": "<mf>",
+  "bundle_digest_sha256": "<64 lowercase hex chars>"
+}
 ```
 
-where `<hex>` is the digest computed over the bundle contents (hash law defined later). S5 MUST NOT embed any other content or whitespace beyond what the schema permits.
+The `bundle_digest_sha256` value is the digest computed over the bundle contents (hash law defined later). S5 MUST NOT embed any other content or whitespace beyond what the schema permits.
 
 5.3.4 **Optional 5B receipt**
 If implemented, a 5B-specific receipt MUST be anchored at:
@@ -866,9 +869,12 @@ Finally, S5 MUST compute a single **bundle digest** and write `_passed.flag_5B`:
 
    * Create `_passed.flag_5B` at the root of the `fingerprint={mf}` directory with content conforming to the `passed_flag_5B` schema, e.g.:
 
-     ```text
-     sha256_hex = <bundle_sha256_hex>
-     ```
+    ```json
+    {
+      "manifest_fingerprint": "<mf>",
+      "bundle_digest_sha256": "<bundle_sha256_hex>"
+    }
+    ```
 
    * `_passed.flag_5B` MUST NOT be included in the bundle digest calculation.
 
@@ -991,10 +997,13 @@ The digest written into `_passed.flag_5B` MUST be computed as follows:
 `_passed.flag_5B` MUST:
 
 * live at the root of `fingerprint={mf}`, and
-* contain exactly a single line conforming to `schemas.layer2.yaml#/validation/passed_flag_5B`, e.g.:
+* contain a JSON object conforming to `schemas.layer2.yaml#/validation/passed_flag_5B`, e.g.:
 
-```text
-sha256_hex = <64 lowercase hex chars>
+```json
+{
+  "manifest_fingerprint": "<mf>",
+  "bundle_digest_sha256": "<64 lowercase hex chars>"
+}
 ```
 
 Where `<…>` is the `bundle_sha256` computed above.
@@ -1946,7 +1955,9 @@ These are *metrics* S5 computes; authoritative definitions of N live in S3.
 This is the value written into `_passed.flag_5B` as:
 
 ```text
-sha256_hex = <bundle_sha256_hex>
+{"manifest_fingerprint": "<mf>",
+ "bundle_digest_sha256": "<bundle_sha256_hex>"
+}
 ```
 
 ---

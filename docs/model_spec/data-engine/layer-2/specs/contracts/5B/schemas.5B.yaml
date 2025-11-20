@@ -1,7 +1,7 @@
 $schema: "https://json-schema.org/draft/2020-12/schema"
 $id: schemas.5B.yaml
 $comment: "Layer-2 · Segment 5B schema pack. JSON-Schema is the shape authority for 5B datasets."
-version: '0.1.0'
+version: '1.0.0'
 
 $defs:
   hex64:
@@ -61,9 +61,10 @@ validation:
     type: array
     items:
       type: object
-      additionalProperties: true
+      additionalProperties: false
       required:
         - manifest_fingerprint
+        - parameter_hash
         - owner_layer
         - owner_segment
         - artifact_id
@@ -72,6 +73,9 @@ validation:
         - schema_ref
         - path_template
         - partition_keys
+        - sha256_hex
+        - status
+        - read_scope
       properties:
         manifest_fingerprint: { $ref: '#/$defs/hex64' }
         parameter_hash: { $ref: '#/$defs/hex64' }
@@ -85,9 +89,12 @@ validation:
         partition_keys:
           type: array
           items: { type: string }
-        required_status: { enum: [REQUIRED, OPTIONAL] }
-        read_scope: { type: string }
         sha256_hex: { $ref: '#/$defs/hex64' }
+        status: { enum: [REQUIRED, OPTIONAL, INTERNAL, IGNORED] }
+        read_scope: { enum: [ROW_LEVEL, METADATA_ONLY] }
+        notes: { type: string }
+        owner_team: { type: string }
+        source_manifest: { type: string }
 
 model:
   s1_time_grid_5B:

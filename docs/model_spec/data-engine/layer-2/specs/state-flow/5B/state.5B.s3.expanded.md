@@ -53,7 +53,7 @@ Those jobs belong to S4.
 
 * **Produce a clean bucket-count surface**
 
-  * For every `(scenario_id, merchant_id, zone_key[, channel_group], bucket_index)` in domain, produce exactly one row with:
+  * For every `(scenario_id, merchant_id, zone_representation[, channel_group], bucket_index)` in domain, produce exactly one row with:
 
     * `N` (non-negative integer count),
     * the mean parameter(s) used for the draw,
@@ -208,7 +208,7 @@ Before S3 may execute for a given `(parameter_hash = ph, manifest_fingerprint = 
 
 2. **Upstream segments MUST all be PASS**
 
-   * In `s0_gate_receipt_5B.upstream_status`, every required upstream segment
+   * In `s0_gate_receipt_5B.upstream_segments`, every required upstream segment
      `{1A, 1B, 2A, 2B, 3A, 3B, 5A}` MUST have `status = "PASS"`.
 
 S3 MUST NOT re-hash upstream validation bundles itself; S0’s upstream status map is authoritative for gating.
@@ -217,7 +217,7 @@ S3 MUST NOT re-hash upstream validation bundles itself; S0’s upstream status m
 
 ### 2.2 Dependency on S1 (time grid & grouping)
 
-For each `scenario_id` S3 intends to process (the `scenario_ids` in `s0_gate_receipt_5B`):
+For each `scenario_id` S3 intends to process (the `scenario_set` in `s0_gate_receipt_5B`):
 
 1. **S1 outputs MUST exist and be valid**
 
@@ -230,7 +230,7 @@ For each `scenario_id` S3 intends to process (the `scenario_ids` in `s0_gate_rec
 
      * `manifest_fingerprint == mf`, `parameter_hash == ph`.
    * `s1_time_grid_5B` MUST expose a finite, ordered, contiguous set of `bucket_index` values per `scenario_id`.
-   * `s1_grouping_5B` MUST expose a finite, duplicate-free set of `(merchant_id, zone_key[, channel_group])` per `scenario_id`.
+   * `s1_grouping_5B` MUST expose a finite, duplicate-free set of `(merchant_id, zone_representation[, channel_group])` per `scenario_id`.
 
 If any of these checks fail for any `scenario_id` in scope, S3 MUST NOT run.
 
@@ -252,7 +252,7 @@ S3 operates **only** on intensities realised by S2. For each `scenario_id` and `
 
    * For each `(scenario_id)` S3 intends to process, S2’s realised intensity domain MUST be joinable to S1’s domain:
 
-     * every `(merchant_id, zone_key[, channel_group], bucket_index)` that S3 will count against MUST have a `lambda_realised` row.
+     * every `(merchant_id, zone_representation[, channel_group], bucket_index)` that S3 will count against MUST have a `lambda_realised` row.
 
 S3 MUST treat S2’s domain as authoritative for “where intensities exist”; it MUST NOT fabricate intensities for missing entity×bucket combinations.
 
@@ -278,7 +278,7 @@ Before S3 runs, the following 5B artefacts MUST be present in `sealed_inputs_5B`
      * Philox stream IDs and substream labels for **count draws**, distinct from S2’s latent-field streams,
      * expected event-per-draw mapping (e.g. one RNG event per entity×bucket),
      * `draws`/`blocks` expectations per event, and
-     * how to map `(scenario_id, merchant_id, zone_key[, channel_group], bucket_index)` to counters or offsets.
+     * how to map `(scenario_id, merchant_id, zone_representation[, channel_group], bucket_index)` to counters or offsets.
 
 3. **(Optional) S3 validation/guardrail config**
 
@@ -296,7 +296,7 @@ Given `sealed_inputs_5B` and catalogue:
 
   * `s1_time_grid_5B` (bucket durations, scenario tags),
   * `s1_grouping_5B` (entity domain; group_id if needed for per-group params),
-  * `s2_realised_intensity_5B` (λ_target, latent_effect, lambda_realised),
+  * `s2_realised_intensity_5B` (λ_target, lambda_random_component, lambda_realised),
   * S3 configs / policies (small tables/objects).
 
 * S3 MAY read **metadata-only** from:
@@ -357,7 +357,7 @@ Within that universe, S3’s logical inputs are:
 
 * **`s0_gate_receipt_5B` + `sealed_inputs_5B`**
 
-  * For `parameter_hash = ph`, `manifest_fingerprint = mf`, `seed`, `scenario_ids`, upstream status, and the whitelist of artefacts S3 may read.
+  * For `parameter_hash = ph`, `manifest_fingerprint = mf`, `seed`, `scenario_set`, upstream status, and the whitelist of artefacts S3 may read.
 
 * **`s1_time_grid_5B` (row-level)**
 
@@ -371,17 +371,17 @@ Within that universe, S3’s logical inputs are:
 
   * For each `scenario_id`:
 
-    * the entity domain `(merchant_id, zone_key[, channel_group])`,
+    * the entity domain `(merchant_id, zone_representation[, channel_group])`,
     * `group_id` if the arrival law uses group-level parameters (e.g. NB dispersion per group).
 
 * **`s2_realised_intensity_5B` (row-level)**
 
   * For each `(seed, mf, scenario_id)`:
 
-    * `lambda_target` (if echoed),
+    * `lambda_baseline` (if echoed),
     * `lambda_realised`,
-    * `latent_effect` (if needed for diagnostics),
-    * keys matching S1 domain: `(merchant_id, zone_key[, channel_group], bucket_index)`.
+    * `lambda_random_component` (if needed for diagnostics),
+    * keys matching S1 domain: `(merchant_id, zone_representation[, channel_group], bucket_index)`.
 
 S3 MUST treat S1+S2 as authoritative for the domain and intensity surface; it cannot “correct” or extend them.
 
@@ -403,7 +403,7 @@ S3 MUST read the following 5B artefacts (present in `sealed_inputs_5B` as `statu
 
     * Philox stream IDs and substream labels for count draws,
     * expected event granularity (e.g. one RNG event per entity×bucket),
-    * mapping from `(scenario_id, merchant_id, zone_key[, channel_group], bucket_index)` to counters/substreams,
+    * mapping from `(scenario_id, merchant_id, zone_representation[, channel_group], bucket_index)` to counters/substreams,
     * expected `draws` and `blocks` semantics per event.
 
 * **(Optional) count-validation / guardrail config**
@@ -441,7 +441,7 @@ Within S3, ownership is:
   * S3 MUST:
 
     * trust S0’s `sealed_inputs_5B` as the exact whitelist of inputs, and
-    * trust `upstream_status` as the upstream PASS/FAIL map.
+    * trust `upstream_segments` as the upstream PASS/FAIL map.
   * It MUST NOT widen the input set or reinterpret upstream PASS/FAIL itself.
 
 * **Time grid & entity domain**
@@ -450,7 +450,7 @@ Within S3, ownership is:
   * S3 MUST:
 
     * use `s1_time_grid_5B` as the canonical bucket set (`scenario_id`, `bucket_index`, bucket duration),
-    * use `s1_grouping_5B` as the canonical domain of `(merchant_id, zone_key[, channel_group])` per scenario.
+    * use `s1_grouping_5B` as the canonical domain of `(merchant_id, zone_representation[, channel_group])` per scenario.
   * S3 MUST NOT:
 
     * add buckets not present in S1,
@@ -556,7 +556,7 @@ Binding rules:
 ` s3_bucket_counts_5B` is the **authoritative bucket-count surface** for arrivals. For each:
 
 * `scenario_id`,
-* `(merchant_id, zone_key[, channel_group])` in S1’s grouping domain, and
+* `(merchant_id, zone_representation[, channel_group])` in S1’s grouping domain, and
 * `bucket_index` in S1’s time grid,
 
 and for a given `seed`, it records:
@@ -572,7 +572,7 @@ For each `scenario_id`, define:
 
 ```text
 D_s := {
-  (merchant_id, zone_key[, channel_group], bucket_index)
+  (merchant_id, zone_representation[, channel_group], bucket_index)
   : exists lambda_realised in s2_realised_intensity_5B
     and bucket_index in s1_time_grid_5B
 }
@@ -591,7 +591,7 @@ The concrete schema is pinned in `schemas.5B.yaml#/model/s3_bucket_counts_5B`, b
   * `seed : integer | string`
   * `scenario_id : string`
   * `merchant_id` (via Layer-1 `id64` type)
-  * `zone_key` (the chosen zone representation; must match S1/S2 conventions)
+  * `zone_representation` (the chosen zone representation; must match S1/S2 conventions)
   * optional `channel_group : string`
   * `bucket_index : integer` (aligned to S1 grid)
 
@@ -622,7 +622,7 @@ Optional diagnostic fields (e.g. flags for clipping, Fano category) MAY exist bu
 
   ```text
   (manifest_fingerprint, parameter_hash, seed,
-   scenario_id, merchant_id, zone_key[, channel_group], bucket_index)
+   scenario_id, merchant_id, zone_representation[, channel_group], bucket_index)
   ```
 
 * This combination MUST be unique.
@@ -719,7 +719,7 @@ Required columns (names illustrative but MUST be fixed in the schema):
 
   * `$ref: "schemas.layer1.yaml#/$defs/id64"`
 
-* `zone_key`
+* `zone_representation`
 
   * the chosen zone representation for 5B, consistent with S1/S2, e.g.:
 
@@ -742,16 +742,17 @@ Required columns (names illustrative but MUST be fixed in the schema):
 
 **Intensity & distribution parameters**
 
+*Optional but recommended modelling columns (if configured):*
+
 * `lambda_realised : number`
 
-  * Echo of S2’s realised intensity for this entity×bucket.
-  * Non-negative, finite; same semantics as in `s2_realised_intensity_5B`.
+  * Echo of S2’s realised intensity for this entity×bucket (non-negative, finite).
 
 * `bucket_duration_seconds : integer`
 
-  * Duration of the bucket in seconds; either copied from S1 or recomputed deterministically from `bucket_start_utc`/`bucket_end_utc` if those are present.
+  * Duration of the bucket in seconds; either copied from S1 or recomputed deterministically.
 
-* Arrival-law parameters (depending on configured law). Schema MUST define a stable representation, for example:
+* Arrival-law parameters (depending on the configured law). Schema SHOULD define a stable representation, for example:
 
   * For Poisson:
 
@@ -790,7 +791,7 @@ Optional diagnostics (not required by this spec, but allowed for future extensio
 * `group_id : string | integer` (echo of S1 grouping, if helpful)
 * `config_version : string` (echo of S3 count config version).
 
-The exact field set and types MUST be pinned in `schemas.5B.yaml#/model/s3_bucket_counts_5B`. Any added optional fields must be documented there.
+The exact field set and types MUST be pinned in `schemas.5B.yaml#/model/s3_bucket_counts_5B`. Any added optional fields must be documented there. Only the identity columns and `count_N` are strictly required by this spec; every other column described above is optional (though strongly recommended) and MUST conform to the schema if emitted.
 
 #### 5.2.3 Primary key, partitions & dictionary entry
 
@@ -798,7 +799,7 @@ The exact field set and types MUST be pinned in `schemas.5B.yaml#/model/s3_bucke
 
 ```text
 (manifest_fingerprint, parameter_hash, seed,
- scenario_id, merchant_id, zone_key[, channel_group], bucket_index)
+ scenario_id, merchant_id, zone_representation[, channel_group], bucket_index)
 ```
 
 This combination MUST be unique.
@@ -808,7 +809,7 @@ This combination MUST be unique.
 ```text
 scenario_id,
 merchant_id,
-zone_key[, channel_group],
+zone_representation[, channel_group],
 bucket_index
 ```
 
@@ -921,7 +922,7 @@ For fixed `(ph, mf, seed)` and fixed configs, re-running S3 MUST produce **byte-
      * schemas,
      * `parameter_hash == ph`, `manifest_fingerprint == mf`,
      * `sealed_inputs_digest` equals recomputed digest of `sealed_inputs_5B`,
-     * `upstream_status[seg].status == "PASS"` for all required segments `{1A,1B,2A,2B,3A,3B,5A}`.
+     * `upstream_segments[seg].status == "PASS"` for all required segments `{1A,1B,2A,2B,3A,3B,5A}`.
 
 2. **Load S1 outputs**
 
@@ -946,7 +947,7 @@ For fixed `(ph, mf, seed)` and fixed configs, re-running S3 MUST produce **byte-
    * Confirm:
 
      * `manifest_fingerprint == mf`, `parameter_hash == ph`, `seed == seed`, `scenario_id` as expected,
-     * keys `(merchant_id, zone_key[, channel_group], bucket_index)` match S1 domain shape.
+     * keys `(merchant_id, zone_representation[, channel_group], bucket_index)` match S1 domain shape.
 
 4. **Load S3 configs & RNG policy**
 
@@ -985,19 +986,19 @@ For each `scenario_id = s ∈ scenario_set_5B`:
 
    * From `s1_grouping_5B`:
 
-     * collect domain `E_s := {(merchant_id, zone_key[, channel_group])}` for scenario `s`.
+     * collect domain `E_s := {(merchant_id, zone_representation[, channel_group])}` for scenario `s`.
 
 3. **Join with λ_realised**
 
    * From `s2_realised_intensity_5B` for `(seed, mf, s)`:
 
-     * join on `(merchant_id, zone_key[, channel_group], bucket_index)`.
+     * join on `(merchant_id, zone_representation[, channel_group], bucket_index)`.
 
    * Define S3’s domain for scenario `s`:
 
      ```text
      D_s := {
-       (merchant_id, zone_key[, channel_group], bucket_index)
+       (merchant_id, zone_representation[, channel_group], bucket_index)
        : row exists in s2_realised_intensity_5B for (seed, mf, s)
      }
      ```
@@ -1005,7 +1006,7 @@ For each `scenario_id = s ∈ scenario_set_5B`:
    * For each element of `D_s`, retain:
 
      * `lambda_realised`,
-     * `lambda_target` (if present),
+     * `lambda_baseline` (if present),
      * `bucket_duration_seconds`,
      * optional `group_id` or other traits (if needed for params).
 
@@ -1017,7 +1018,7 @@ If, per the arrival config, some entities/buckets in S1 must have counts but are
 
 For each `(s, key, b) ∈ D_s`, where:
 
-* `key := (merchant_id, zone_key[, channel_group])`,
+* `key := (merchant_id, zone_representation[, channel_group])`,
 * `b := bucket_index`,
 
 S3 MUST deterministically compute the arrival-law parameters.
@@ -1073,7 +1074,7 @@ S3 now samples integer counts `N` using the arrival law and Philox.
 
 2. **Per-domain-element draw**
 
-   For each `(s, key, b) ∈ D_s` in deterministic order (e.g. sorted by `scenario_id, merchant_id, zone_key[, channel_group], bucket_index`):
+   For each `(s, key, b) ∈ D_s` in deterministic order (e.g. sorted by `scenario_id, merchant_id, zone_representation[, channel_group], bucket_index`):
 
    * Retrieve the distribution parameters `theta` computed in Step 2.
 
@@ -1092,7 +1093,7 @@ S3 now samples integer counts `N` using the arrival law and Philox.
 
      * `module = "5B.S3"`
      * `substream_label = "bucket_count"`
-     * fields: `manifest_fingerprint`, `parameter_hash`, `seed`, `run_id`, `scenario_id`, `merchant_id`, `zone_key[, channel_group]`, `bucket_index`
+     * fields: `manifest_fingerprint`, `parameter_hash`, `seed`, `run_id`, `scenario_id`, `merchant_id`, `zone_representation[, channel_group]`, `bucket_index`
      * `rng_counter_before_{lo,hi}`, `rng_counter_after_{lo,hi}`,
      * `draws` = decimal string with the number of uniforms consumed,
      * `blocks` = number of Philox blocks used.
@@ -1124,7 +1125,7 @@ Once counts have been sampled for all `(s, key, b) ∈ D_s` for all `scenario_id
      * `parameter_hash = ph`
      * `seed`
      * `scenario_id = s`
-     * `merchant_id`, `zone_key[, channel_group]`
+     * `merchant_id`, `zone_representation[, channel_group]`
      * `bucket_index = b`
      * `lambda_realised` (or reference to it)
      * `bucket_duration_seconds`
@@ -1145,7 +1146,7 @@ Once counts have been sampled for all `(s, key, b) ∈ D_s` for all `scenario_id
 
      * schema = `schemas.5B.yaml#/model/s3_bucket_counts_5B`,
      * partition keys `[seed, manifest_fingerprint, scenario_id]`,
-     * writer sort order = `(scenario_id, merchant_id, zone_key[, channel_group], bucket_index)`.
+     * writer sort order = `(scenario_id, merchant_id, zone_representation[, channel_group], bucket_index)`.
 
 3. **Idempotency & conflict handling**
 
@@ -1270,7 +1271,7 @@ S3 MUST NOT mix rows for different seeds, manifests, or scenarios in the same fi
  seed,
  scenario_id,
  merchant_id,
- zone_key[, channel_group],
+ zone_representation[, channel_group],
  bucket_index)
 ```
 
@@ -1283,7 +1284,7 @@ For each `(seed, mf, scenario_id)` partition, S3 MUST write rows sorted lexicogr
 ```text
 scenario_id,
 merchant_id,
-zone_key[, channel_group],
+zone_representation[, channel_group],
 bucket_index
 ```
 
@@ -1377,7 +1378,7 @@ For a fixed `(ph, mf, seed, scenario_set_5B)`, S3 is **PASS** iff **all** of the
      * exist,
      * validate against their schemas, and
      * carry `parameter_hash = ph`, `manifest_fingerprint = mf`, `sealed_inputs_digest` consistent with the actual `sealed_inputs_5B`.
-   * `upstream_status[seg].status == "PASS"` for all required segments `{1A,1B,2A,2B,3A,3B,5A}`.
+   * `upstream_segments[seg].status == "PASS"` for all required segments `{1A,1B,2A,2B,3A,3B,5A}`.
    * For every `scenario_id ∈ scenario_set_5B`:
 
      * `s1_time_grid_5B` and `s1_grouping_5B` exist and validate against their schemas,
@@ -1395,7 +1396,7 @@ For a fixed `(ph, mf, seed, scenario_set_5B)`, S3 is **PASS** iff **all** of the
 
    For each `scenario_id`:
 
-   * S3 derives a domain `D_s` comprising all `(merchant_id, zone_key[, channel_group], bucket_index)` that:
+   * S3 derives a domain `D_s` comprising all `(merchant_id, zone_representation[, channel_group], bucket_index)` that:
 
      * appear in `s2_realised_intensity_5B` for `(seed, mf, scenario_id)`, and
      * correspond to valid buckets in `s1_time_grid_5B` for that scenario.
@@ -1409,7 +1410,7 @@ For a fixed `(ph, mf, seed, scenario_set_5B)`, S3 is **PASS** iff **all** of the
 
    * In each `(seed, mf, scenario_id)` S3 output file:
 
-     * the logical PK `(manifest_fingerprint, parameter_hash, seed, scenario_id, merchant_id, zone_key[, channel_group], bucket_index)` is unique,
+     * the logical PK `(manifest_fingerprint, parameter_hash, seed, scenario_id, merchant_id, zone_representation[, channel_group], bucket_index)` is unique,
      * `manifest_fingerprint`, `parameter_hash`, `seed`, `scenario_id` columns match the partition and run context.
 
 5. **Distribution parameter correctness**
@@ -1434,7 +1435,7 @@ For a fixed `(ph, mf, seed, scenario_set_5B)`, S3 is **PASS** iff **all** of the
 
 7. **RNG accounting invariants**
 
-   * For each `(scenario_id, merchant_id, zone_key[, channel_group], bucket_index)` in `D_s`:
+   * For each `(scenario_id, merchant_id, zone_representation[, channel_group], bucket_index)` in `D_s`:
 
      * the expected RNG event(s) for the count draw exist in the event log,
      * each event’s envelope (counters, draws, blocks) obeys the RNG policy and global RNG law,
@@ -1597,7 +1598,7 @@ Any such error is **fatal** for S3 on `(parameter_hash, manifest_fingerprint, se
    * `sealed_inputs_digest` mismatch vs recomputed digest.
 
 2. **`5B.S3.UPSTREAM_NOT_PASS`**
-   Raised when `s0_gate_receipt_5B.upstream_status` reports any required upstream segment `{1A,1B,2A,2B,3A,3B,5A}` with `status ≠ "PASS"`.
+   Raised when `s0_gate_receipt_5B.upstream_segments` reports any required upstream segment `{1A,1B,2A,2B,3A,3B,5A}` with `status ≠ "PASS"`.
 
 3. **`5B.S3.S1_OUTPUT_MISSING`**
    Raised when, for any `scenario_id ∈ scenario_set_5B`:
@@ -1685,7 +1686,7 @@ Any such error is **fatal** for S3 on `(parameter_hash, manifest_fingerprint, se
 
 ```text
 (manifest_fingerprint, parameter_hash, seed,
- scenario_id, merchant_id, zone_key[, channel_group], bucket_index)
+ scenario_id, merchant_id, zone_representation[, channel_group], bucket_index)
 ```
 
 ---
@@ -1737,7 +1738,7 @@ For any `5B.S3.*` error, S3 MUST log/include at least:
 * and where relevant:
 
   * offending `segment_id` (for S0/S1/S2 issues),
-  * offending `merchant_id`, `zone_key`, `bucket_index` for count/domain errors.
+  * offending `merchant_id`, `zone_representation`, `bucket_index` for count/domain errors.
 
 Textual messages may vary, but orchestration and downstream logic MUST key on `error_code`.
 
@@ -1785,7 +1786,7 @@ the engine MUST emit **one** run-report record with at least:
 * `manifest_fingerprint = mf`
 * `seed`
 * `run_id`
-* `scenario_ids = sorted(scenario_set_5B)`
+* `scenario_set = sorted(scenario_set_5B)`
 * `status ∈ {"PASS","FAIL"}`
 * `error_code` (one of `5B.S3.*`, or `null` if `status = "PASS"`)
 * `started_at_utc`
@@ -1882,7 +1883,7 @@ On any `status = "FAIL"` with a `5B.S3.*` error (see §9):
   * minimal context in the payload, e.g.:
 
     * offending `scenario_id`,
-    * offending `merchant_id`, `zone_key`, `bucket_index` (for domain or numeric errors),
+    * offending `merchant_id`, `zone_representation`, `bucket_index` (for domain or numeric errors),
     * name of missing/misconfigured artefact (for config/RNG-policy issues).
 
 S3 MUST NOT mark any scenario as “succeeded” in metrics if its counts or RNG invariants failed.
@@ -1936,7 +1937,7 @@ S3’s work is conceptually simple:
 * For each scenario `s` and seed, it operates over the **domain**:
 
   ```text
-  D_s = { (merchant_id, zone_key[, channel_group], bucket_index) }
+  D_s = { (merchant_id, zone_representation[, channel_group], bucket_index) }
   ```
 
   where `λ_realised` is defined (from S2) and `bucket_index` is in the S1 grid.
@@ -2126,7 +2127,7 @@ The following S3 changes are **backwards-compatible** and MAY be made under a **
    * Using new optional columns in `s3_bucket_counts_5B` for:
 
      * per-bucket QA flags,
-     * references to S2 latent fields (e.g. `latent_effect` echoed),
+     * references to S2 latent fields (e.g. `lambda_random_component` echoed),
      * other purely diagnostic information.
 
    * Adding new run-report metrics or debug payload fields in S3’s observability (e.g. more detailed count/μ summaries).
@@ -2280,7 +2281,7 @@ This appendix just collects shorthand used in **5B.S3 — Bucket-level arrival c
   For a scenario `s`, the domain of entity×bucket combinations over which S3 draws counts:
 
   ```text
-  D_s = { (merchant_id, zone_key[, channel_group], bucket_index) }
+  D_s = { (merchant_id, zone_representation[, channel_group], bucket_index) }
   ```
 
   as implied by S1 grid and S2’s `λ_realised`.
@@ -2292,7 +2293,7 @@ This appendix just collects shorthand used in **5B.S3 — Bucket-level arrival c
 * **`s3_bucket_counts_5B`**
   Required S3 output. Per `(world, seed, scenario)` it contains:
 
-  * identity keys: `manifest_fingerprint`, `parameter_hash`, `seed`, `scenario_id`, `merchant_id`, `zone_key[, channel_group]`, `bucket_index`
+  * identity keys: `manifest_fingerprint`, `parameter_hash`, `seed`, `scenario_id`, `merchant_id`, `zone_representation[, channel_group]`, `bucket_index`
   * intensity/parameters: `lambda_realised`, `bucket_duration_seconds`, `mu`, (and any other law-specific parameters)
   * result: `count_N` — the realised bucket count.
 

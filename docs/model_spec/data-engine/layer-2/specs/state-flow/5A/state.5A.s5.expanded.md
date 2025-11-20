@@ -1145,20 +1145,14 @@ PK is not strictly required; this is fundamentally an **issues log**. If you wis
 
 **Type**
 
-* A **tiny JSON (or single-line text) object** encoding the bundle digest.
+* A **tiny JSON object** encoding the bundle digest.
 
-**Required fields (if JSON)**
+**Required fields**
 
 * `manifest_fingerprint` — string; non-null; MUST equal partition token.
 * `bundle_digest_sha256` — string; 64-character lowercase hex.
 
-You MAY instead store this as a very simple text file:
-
-```text
-sha256_hex = <64-char lowercase hex>
-```
-
-but if you do, you should still define a small schema for text structure, or document the format clearly in this spec.
+S5 MUST NOT emit any other format (e.g. free-form text); the JSON structure above is binding.
 
 ---
 
@@ -1698,14 +1692,7 @@ For each `(parameter_hash, scenario_id)` in `RUNS`:
      "bundle_digest_sha256": "<64-char hex>"
    }
    ```
-
-   or, if using text format, a single line:
-
-   ```text
-   sha256_hex = <64-char hex>
-   ```
-
-4. Validate `_passed.flag_5A` against `#/validation/passed_flag_5A` (if JSON), or at least verify it matches the documented format (if text).
+4. Validate `_passed.flag_5A` against `#/validation/passed_flag_5A`.
 
 **Invariants:**
 
@@ -1907,7 +1894,7 @@ For all S5 artefacts:
 For `_passed.flag_5A`:
 
 * If the flag has a JSON structure, it MUST contain `manifest_fingerprint` with the same equality requirement.
-* If the flag is bare text (only `sha256_hex = ...`), its **location** in the `fingerprint={manifest_fingerprint}` partition is the binding identity; it MUST NOT be used outside that context.
+* The JSON object lives solely under `fingerprint={manifest_fingerprint}` and MUST NOT be copied elsewhere; the manifest fingerprint embedded in the object is binding.
 
 Any mismatch between partition token and embedded `manifest_fingerprint` MUST be treated as invalid and MUST be surfaced as a validation inconsistency.
 

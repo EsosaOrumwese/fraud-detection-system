@@ -1,5 +1,5 @@
 # dataset_dictionary.layer2.5B.yaml — Layer-2 Segment 5B contracts
-version: '0.1.0'
+version: '1.0.0'
 
 lifecycle:
   phase: planning
@@ -23,10 +23,11 @@ datasets:
     status: required
     owner_subsegment: 5B
     description: Fingerprint-scoped receipt confirming upstream PASS gates and sealed inputs.
-    version: '1.0.0'
+    version: '{manifest_fingerprint}'
     format: json
     path: data/layer2/5B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_5B.json
     partitioning: [fingerprint]
+    primary_key: [manifest_fingerprint]
     ordering: []
     schema_ref: schemas.5B.yaml#/validation/s0_gate_receipt_5B
     lineage:
@@ -41,10 +42,11 @@ datasets:
     status: required
     owner_subsegment: 5B
     description: Inventory of artefacts 5B is allowed to read for a fingerprint.
-    version: '1.0.0'
+    version: '{manifest_fingerprint}'
     format: parquet
     path: data/layer2/5B/sealed_inputs/fingerprint={manifest_fingerprint}/sealed_inputs_5B.parquet
     partitioning: [fingerprint]
+    primary_key: [manifest_fingerprint, owner_segment, artifact_id]
     ordering: [owner_segment, artifact_id, role]
     schema_ref: schemas.5B.yaml#/validation/sealed_inputs_5B
     lineage:
@@ -60,11 +62,15 @@ datasets:
     status: required
     owner_subsegment: 5B
     description: Canonical scenario-level time grid for arrivals.
-    version: '1.0.0'
+    version: '{manifest_fingerprint}.{scenario_id}'
     format: parquet
     path: |
       data/layer2/5B/s1_time_grid/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s1_time_grid_5B.parquet
     partitioning: [fingerprint, scenario_id]
+    primary_key:
+      - manifest_fingerprint
+      - scenario_id
+      - bucket_index
     ordering: [scenario_id, bucket_index]
     schema_ref: schemas.5B.yaml#/model/s1_time_grid_5B
     lineage:
@@ -79,11 +85,17 @@ datasets:
     status: required
     owner_subsegment: 5B
     description: Deterministic mapping from merchant×zone×channel to latent group IDs.
-    version: '1.0.0'
+    version: '{manifest_fingerprint}.{scenario_id}'
     format: parquet
     path: |
       data/layer2/5B/s1_grouping/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s1_grouping_5B.parquet
     partitioning: [fingerprint, scenario_id]
+    primary_key:
+      - manifest_fingerprint
+      - scenario_id
+      - merchant_id
+      - zone_representation
+      - channel_group
     ordering:
       - scenario_id
       - merchant_id
@@ -103,11 +115,19 @@ datasets:
     status: required
     owner_subsegment: 5B
     description: Realised intensities λ_realised per entity×bucket×scenario×seed.
-    version: '1.0.0'
+    version: '{seed}.{manifest_fingerprint}.{scenario_id}'
     format: parquet
     path: |
       data/layer2/5B/s2_realised_intensity/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s2_realised_intensity_5B.parquet
     partitioning: [seed, fingerprint, scenario_id]
+    primary_key:
+      - seed
+      - manifest_fingerprint
+      - scenario_id
+      - merchant_id
+      - zone_representation
+      - channel_group
+      - bucket_index
     ordering:
       - scenario_id
       - merchant_id
@@ -127,11 +147,17 @@ datasets:
     status: optional
     owner_subsegment: 5B
     description: Optional per-group latent field table for diagnostics.
-    version: '1.0.0'
+    version: '{seed}.{manifest_fingerprint}.{scenario_id}'
     format: parquet
     path: |
       data/layer2/5B/s2_latent_field/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s2_latent_field_5B.parquet
     partitioning: [seed, fingerprint, scenario_id]
+    primary_key:
+      - seed
+      - manifest_fingerprint
+      - scenario_id
+      - group_id
+      - bucket_index
     ordering:
       - scenario_id
       - group_id
@@ -150,11 +176,19 @@ datasets:
     status: required
     owner_subsegment: 5B
     description: Integer counts per entity×bucket×scenario×seed.
-    version: '1.0.0'
+    version: '{seed}.{manifest_fingerprint}.{scenario_id}'
     format: parquet
     path: |
       data/layer2/5B/s3_bucket_counts/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s3_bucket_counts_5B.parquet
     partitioning: [seed, fingerprint, scenario_id]
+    primary_key:
+      - seed
+      - manifest_fingerprint
+      - scenario_id
+      - merchant_id
+      - zone_representation
+      - channel_group
+      - bucket_index
     ordering:
       - scenario_id
       - merchant_id
@@ -175,11 +209,17 @@ datasets:
     status: required
     owner_subsegment: 5B
     description: Canonical arrival skeleton stream per scenario×seed (final egress).
-    version: '1.0.0'
+    version: '{seed}.{manifest_fingerprint}.{scenario_id}'
     format: parquet
     path: |
       data/layer2/5B/arrival_events/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/part-*.parquet
     partitioning: [seed, fingerprint, scenario_id]
+    primary_key:
+      - seed
+      - manifest_fingerprint
+      - scenario_id
+      - merchant_id
+      - arrival_seq
     ordering:
       - scenario_id
       - merchant_id
@@ -198,11 +238,19 @@ datasets:
     status: optional
     owner_subsegment: 5B
     description: Optional per-entity/bucket arrival summaries for observability.
-    version: '1.0.0'
+    version: '{seed}.{manifest_fingerprint}.{scenario_id}'
     format: parquet
     path: |
       data/layer2/5B/arrival_summary/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s4_arrival_summary_5B.parquet
     partitioning: [seed, fingerprint, scenario_id]
+    primary_key:
+      - seed
+      - manifest_fingerprint
+      - scenario_id
+      - merchant_id
+      - zone_representation
+      - channel_group
+      - bucket_index
     ordering:
       - scenario_id
       - merchant_id
@@ -221,11 +269,16 @@ datasets:
     status: optional
     owner_subsegment: 5B
     description: Optional anomaly log for arrival routing/time-placement diagnostics.
-    version: '1.0.0'
+    version: '{seed}.{manifest_fingerprint}.{scenario_id}'
     format: parquet
     path: |
       data/layer2/5B/arrival_anomalies/seed={seed}/fingerprint={manifest_fingerprint}/scenario_id={scenario_id}/s4_arrival_anomalies_5B.parquet
     partitioning: [seed, fingerprint, scenario_id]
+    primary_key:
+      - seed
+      - manifest_fingerprint
+      - scenario_id
+      - anomaly_id
     ordering:
       - scenario_id
       - anomaly_id
@@ -243,7 +296,7 @@ datasets:
     status: required
     owner_subsegment: 5B
     description: Index/manifest for the 5B validation bundle (fingerprint scope).
-    version: '1.0.0'
+    version: '{manifest_fingerprint}'
     format: json
     path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/index.json
     partitioning: [fingerprint]
@@ -261,7 +314,7 @@ datasets:
     status: required
     owner_subsegment: 5B
     description: Human/machine readable 5B validation report.
-    version: '1.0.0'
+    version: '{manifest_fingerprint}'
     format: json
     path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/validation_report_5B.json
     partitioning: [fingerprint]
@@ -279,7 +332,7 @@ datasets:
     status: optional
     owner_subsegment: 5B
     description: Optional structured issue table for 5B validation findings.
-    version: '1.0.0'
+    version: '{manifest_fingerprint}'
     format: parquet
     path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/validation_issue_table_5B.parquet
     partitioning: [fingerprint]
@@ -297,7 +350,7 @@ datasets:
     status: required
     owner_subsegment: 5B
     description: HashGate flag proving the validation bundle digest for a fingerprint.
-    version: '1.0.0'
+    version: '{manifest_fingerprint}'
     format: text
     path: data/layer2/5B/validation/fingerprint={manifest_fingerprint}/_passed.flag_5B
     partitioning: [fingerprint]

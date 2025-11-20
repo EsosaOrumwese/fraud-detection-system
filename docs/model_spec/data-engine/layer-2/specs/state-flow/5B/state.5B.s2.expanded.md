@@ -193,7 +193,7 @@ Before S2 may execute for a given `(parameter_hash = ph, manifest_fingerprint = 
 
 2. **Upstream status MUST be all PASS**
 
-   * In `s0_gate_receipt_5B.upstream_status`, each required upstream segment `{1A, 1B, 2A, 2B, 3A, 3B, 5A}` MUST have `status = "PASS"`.
+   * In `s0_gate_receipt_5B.upstream_segments`, each required upstream segment `{1A, 1B, 2A, 2B, 3A, 3B, 5A}` MUST have `status = "PASS"`.
 
 S2 MUST NOT independently re-hash or override upstream flags; S0’s upstream status map is authoritative.
 
@@ -201,7 +201,7 @@ S2 MUST NOT independently re-hash or override upstream flags; S0’s upstream st
 
 ### 2.2 Dependency on S1 (Time grid & grouping)
 
-S2 builds latent fields **on top of** S1. For each `scenario_id` S2 intends to process (the `scenario_ids` in `s0_gate_receipt_5B`):
+S2 builds latent fields **on top of** S1. For each `scenario_id` S2 intends to process (the `scenario_set` in `s0_gate_receipt_5B`):
 
 1. **S1 outputs MUST exist**
 
@@ -212,7 +212,7 @@ S2 builds latent fields **on top of** S1. For each `scenario_id` S2 intends to p
 
    * For each `scenario_id`, `manifest_fingerprint` and `parameter_hash` columns in both datasets MUST equal `mf` and `ph`.
    * The time grid MUST expose a finite, ordered set of `bucket_index` values per scenario.
-   * The grouping table MUST expose a finite, non-duplicated set of `(merchant_id, zone_key[, channel_group])` keys per scenario.
+   * The grouping table MUST expose a finite, non-duplicated set of `(merchant_id, zone_representation[, channel_group])` keys per scenario.
 
 If either S1 dataset is missing or invalid for any `scenario_id` in scope, S2 MUST fail fast and MUST NOT attempt to reconstruct its own grid or grouping.
 
@@ -327,7 +327,7 @@ Within that universe, S2’s logical inputs are:
 
 * `s0_gate_receipt_5B` + `sealed_inputs_5B`
 
-  * For `parameter_hash`, `manifest_fingerprint`, `scenario_ids`, upstream status, and the whitelist of artefacts S2 may touch.
+  * For `parameter_hash`, `manifest_fingerprint`, `scenario_set`, upstream status, and the whitelist of artefacts S2 may touch.
 
 * `s1_time_grid_5B` (row-level)
 
@@ -335,7 +335,7 @@ Within that universe, S2’s logical inputs are:
 
 * `s1_grouping_5B` (row-level)
 
-  * Mapping from each in-scope `(merchant_id, zone_key[, channel_group])` to a `group_id` per `scenario_id`.
+  * Mapping from each in-scope `(merchant_id, zone_representation[, channel_group])` to a `group_id` per `scenario_id`.
 
 S2 MUST treat these as *given*; it cannot change grid or grouping.
 
@@ -347,7 +347,7 @@ S2’s λ_source MUST be a 5A dataset explicitly designated in the spec (e.g. `m
 * It MUST carry at least:
 
   * `scenario_id`,
-  * entity keys compatible with S1 grouping (`merchant_id`, `zone_key[, channel_group]`),
+  * entity keys compatible with S1 grouping (`merchant_id`, `zone_representation[, channel_group]`),
   * a bucket coordinate that can be mapped to S1’s `bucket_index`, and
   * a deterministic intensity value (e.g. `lambda_local_scenario`).
 
@@ -501,7 +501,7 @@ Binding rules:
 ` s2_realised_intensity_5B` is the **authoritative realised-intensity surface** for S3. For each:
 
 * `scenario_id`,
-* `(merchant_id, zone_key[, channel_group])` in S1’s grouping domain, and
+* `(merchant_id, zone_representation[, channel_group])` in S1’s grouping domain, and
 * `bucket_index` in S1’s time grid,
 
 it carries:
@@ -526,13 +526,13 @@ S3 MUST use this dataset as the **only** λ source for bucket-level count draws.
 * Rows cover exactly:
 
   ```text
-  {(scenario_id, merchant_id, zone_key[, channel_group], bucket_index)}
+  {(scenario_id, merchant_id, zone_representation[, channel_group], bucket_index)}
   ```
 
   where:
 
   * `scenario_id ∈ scenario_set_5B`,
-  * `(merchant_id, zone_key[, channel_group])` is in `s1_grouping_5B` for that scenario, and
+  * `(merchant_id, zone_representation[, channel_group])` is in `s1_grouping_5B` for that scenario, and
   * there is a corresponding λ_target in the chosen 5A surface, aligned to `bucket_index` from `s1_time_grid_5B`.
 
 There MUST be no extra rows outside this domain and no missing rows inside it.
@@ -546,11 +546,13 @@ At minimum, rows MUST include:
 * `seed`
 * `scenario_id`
 * `merchant_id`
-* `zone_key` (and `channel_group` if S1 uses it)
+* `zone_representation` (and `channel_group` if S1 uses it)
 * `bucket_index`
-* `lambda_target` (or equivalent λ field echoed from 5A)
-* `latent_effect` (or equivalent; e.g. log-factor or multiplicative factor)
-* `lambda_realised`
+* `lambda_baseline` (deterministic scale carried through from 5A/S1; optional)
+* `lambda_random_component` (the stochastic contribution from the latent field; optional)
+* `lambda_realised` (final mean intensity used by downstream states)
+
+`lambda_baseline` is the renamed “λ_target” from earlier drafts; `lambda_random_component` is the materialised latent factor that used to be described as `latent_effect`.
 
 Exact column names and types are pinned in `schemas.5B.yaml#/model/s2_realised_intensity_5B` and will be wired into the dictionary/registry in the contracts section.
 
@@ -600,7 +602,7 @@ At minimum, rows SHOULD include:
 * latent scalar(s), e.g.:
 
   * `latent_gaussian` (pre-transform)
-  * `latent_effect` (post-transform, e.g. multiplicative factor or log-factor)
+  * `lambda_random_component` (post-transform, e.g. multiplicative factor or log-factor)
 
 Exact column definitions belong to `schemas.5B.yaml#/model/s2_latent_field_5B`. The dataset is **optional**; if not produced, downstream code MUST rely solely on `s2_realised_intensity_5B`.
 
@@ -689,7 +691,7 @@ Required columns (names illustrative but MUST be fixed in the schema):
   * `seed : integer | string`
   * `scenario_id : string`
   * `merchant_id` — `$ref: schemas.layer1.yaml#/$defs/id64`
-  * `zone_key` — the chosen zone representation for 5B; schema MUST fix shape, e.g.:
+  * `zone_representation` — the chosen zone representation for 5B; schema MUST fix shape, e.g.:
 
     * either `tzid : $ref: .../iana_tzid`, or
     * `country_iso : $ref: .../iso2` + `tzid : $ref: .../iana_tzid`
@@ -698,10 +700,10 @@ Required columns (names illustrative but MUST be fixed in the schema):
 
 * Intensity & latent effect:
 
-  * `lambda_target : number`
+  * `lambda_baseline : number`
 
     * deterministic λ from 5A, echoed or aligned to 5A S4 surface.
-  * `latent_effect : number`
+  * `lambda_random_component : number`
 
     * the multiplicative (or log-scale) factor from the latent field; exact interpretation documented in schema description (e.g. log-normal factor vs additive-on-log).
   * `lambda_realised : number`
@@ -726,13 +728,13 @@ Exact field names, types and any optional extras MUST be pinned in `schemas.5B.y
 
 ```text
 (manifest_fingerprint, parameter_hash, seed,
- scenario_id, merchant_id, zone_key[, channel_group], bucket_index)
+ scenario_id, merchant_id, zone_representation[, channel_group], bucket_index)
 ```
 
 **Writer sort order (per file):**
 
 ```text
-scenario_id, merchant_id, zone_key[, channel_group], bucket_index
+scenario_id, merchant_id, zone_representation[, channel_group], bucket_index
 ```
 
 **Dictionary entry (sketch):**
@@ -789,12 +791,15 @@ Required columns:
 
 * Latent values:
 
-  * `latent_gaussian : number`
+* `latent_value : number`
 
-    * the raw Gaussian draw (if using a log-Gaussian model), or equivalent latent-space variable.
-  * `latent_effect : number`
+  * the raw latent sample (e.g. Gaussian draw) for the group×bucket.
+* `latent_mean : number`, `latent_std : number`
 
-    * the derived effect applied in intensity space (e.g. `exp(latent_gaussian)`, or other configurable transform).
+  * echo whatever parameters were used to produce `latent_value` (useful for diagnostics).
+* `lambda_random_component : number`
+
+  * the derived effect applied in intensity space (e.g. `exp(latent_value)`), matching the `lambda_random_component` stored in `s2_realised_intensity_5B`.
 
 Optional fields:
 
@@ -890,7 +895,7 @@ S2 MUST:
 
      * `parameter_hash == ph`, `manifest_fingerprint == mf`.
      * `sealed_inputs_digest` matches a recomputed digest of `sealed_inputs_5B`.
-     * `upstream_status[seg].status == "PASS"` for all `{1A,1B,2A,2B,3A,3B,5A}`.
+     * `upstream_segments[seg].status == "PASS"` for all `{1A,1B,2A,2B,3A,3B,5A}`.
 
 2. **Read and validate S1 outputs**
 
@@ -905,7 +910,7 @@ S2 MUST:
 
      * `parameter_hash == ph`, `manifest_fingerprint == mf` in both.
      * `bucket_index` is contiguous and ordered per scenario.
-     * grouping PK `(manifest_fingerprint, scenario_id, merchant_id, zone_key[, channel_group])` has no duplicates.
+     * grouping PK `(manifest_fingerprint, scenario_id, merchant_id, zone_representation[, channel_group])` has no duplicates.
 
 3. **Resolve S2 configs & RNG policy**
 
@@ -939,7 +944,7 @@ For each `scenario_id ∈ scenario_set_5B`:
 
    * Join λ_target rows to:
 
-     * `s1_grouping_5B` on `(scenario_id, merchant_id, zone_key[, channel_group])`, and
+     * `s1_grouping_5B` on `(scenario_id, merchant_id, zone_representation[, channel_group])`, and
      * `s1_time_grid_5B` on `(scenario_id, bucket_index)` (or via agreed mapping from 5A’s local bucket coordinate to S1’s `bucket_index`).
 
 3. **Define S2 domain**
@@ -948,7 +953,7 @@ For each `scenario_id ∈ scenario_set_5B`:
 
      ```text
      D_s := {
-       (merchant_id, zone_key[, channel_group], bucket_index)
+       (merchant_id, zone_representation[, channel_group], bucket_index)
        : there exists λ_target and a group_id in S1 for this combination
      }
      ```
@@ -974,7 +979,7 @@ For each `scenario_id`:
    * From `s1_grouping_5B`, determine the set of groups:
 
      ```text
-     G_s := { group_id : exists (merchant_id, zone_key[, channel_group]) in s1_grouping_5B for scenario s }
+     G_s := { group_id : exists (merchant_id, zone_representation[, channel_group]) in s1_grouping_5B for scenario s }
      ```
 
 2. **Bucket set**
@@ -1066,18 +1071,18 @@ For each `(s, g)` and each bucket index `b ∈ H_s_sorted`:
 
      ```text
      latent_gaussian = Z_s,g(b)             # zero-mean Gaussian
-     latent_effect   = exp(latent_gaussian) # multiplicative factor
+     lambda_random_component   = exp(latent_gaussian) # multiplicative factor
      ```
 
    * or more generally, apply the configured transform `f_latent`:
 
      ```text
-     latent_effect = f_latent(Z_s,g(b), config_s,g)
+     lambda_random_component = f_latent(Z_s,g(b), config_s,g)
      ```
 
 2. **Map to entities via grouping**
 
-   For each `(merchant_id, zone_key[, channel_group])` in `s1_grouping_5B` with `group_id = g` and for bucket `b`:
+   For each `(merchant_id, zone_representation[, channel_group])` in `s1_grouping_5B` with `group_id = g` and for bucket `b`:
 
    * Join the latent effect for `(s,g,b)` with `λ_target(m, zone, b)` from Step 1.
 
@@ -1086,14 +1091,14 @@ For each `(s, g)` and each bucket index `b ∈ H_s_sorted`:
    For each such entity/bucket, compute:
 
    ```text
-   lambda_target   = λ_target(m, zone[, ch], b)
-   latent_effect   = value from (s, g, b)
-   lambda_realised = f_intensity(lambda_target, latent_effect, config)
+   lambda_baseline   = λ_target(m, zone[, ch], b)
+   lambda_random_component   = value from (s, g, b)
+   lambda_realised = f_intensity(lambda_baseline, lambda_random_component, config)
    ```
 
    where:
 
-   * `f_intensity` is a deterministic mapping defined in the LGCP config (e.g. `λ_realised = λ_target × latent_effect`, possibly with clipping).
+   * `f_intensity` is a deterministic mapping defined in the LGCP config (e.g. `λ_realised = λ_target × lambda_random_component`, possibly with clipping).
 
 4. **Apply clipping/guardrails**
 
@@ -1106,7 +1111,7 @@ For each `(s, g)` and each bucket index `b ∈ H_s_sorted`:
      * no NaN or Inf,
      * any violations are flagged for later validation (e.g. S2 may log a local counter; overall checks belong to 5B’s validation state).
 
-Intermediate result: for each scenario, a complete mapping from `D_s` to `(lambda_target, latent_effect, lambda_realised)`.
+Intermediate result: for each scenario, a complete mapping from `D_s` to `(lambda_baseline, lambda_random_component, lambda_realised)`.
 
 ---
 
@@ -1126,7 +1131,7 @@ After latent fields and λ_realised are computed for all `(s,g)`:
 
      * schema = `schemas.5B.yaml#/model/s2_realised_intensity_5B`,
      * partition keys = `[seed, manifest_fingerprint, scenario_id]`,
-     * writer sort order: `(scenario_id, merchant_id, zone_key[, channel_group], bucket_index)`.
+     * writer sort order: `(scenario_id, merchant_id, zone_representation[, channel_group], bucket_index)`.
 
    * Ensure:
 
@@ -1277,7 +1282,7 @@ No S2 file may mix rows for different seeds, manifests or scenarios.
 
 ```text
 (manifest_fingerprint, parameter_hash, seed,
- scenario_id, merchant_id, zone_key[, channel_group], bucket_index)
+ scenario_id, merchant_id, zone_representation[, channel_group], bucket_index)
 ```
 
 This combination MUST be unique per row.
@@ -1287,7 +1292,7 @@ This combination MUST be unique per row.
 ```text
 scenario_id,
 merchant_id,
-zone_key[, channel_group],
+zone_representation[, channel_group],
 bucket_index
 ```
 
@@ -1392,9 +1397,9 @@ For a fixed `(ph, mf, seed, scenario_set_5B)`, a run of S2 is **PASS** if and on
    * `s0_gate_receipt_5B@mf` and `sealed_inputs_5B@mf`:
 
      * exist and are schema-valid,
-     * embed `parameter_hash = ph`, `manifest_fingerprint = mf`, and the correct `scenario_ids`.
+     * embed `parameter_hash = ph`, `manifest_fingerprint = mf`, and the correct `scenario_set`.
    * `sealed_inputs_digest` matches a recomputed digest of `sealed_inputs_5B`.
-   * `upstream_status[seg].status == "PASS"` for all required segments `{1A,1B,2A,2B,3A,3B,5A}`.
+   * `upstream_segments[seg].status == "PASS"` for all required segments `{1A,1B,2A,2B,3A,3B,5A}`.
    * For every `scenario_id ∈ scenario_set_5B`:
 
      * `s1_time_grid_5B` and `s1_grouping_5B` exist, are schema-valid, and consistent with `(ph, mf)`.
@@ -1426,7 +1431,7 @@ For a fixed `(ph, mf, seed, scenario_set_5B)`, a run of S2 is **PASS** if and on
    * If `s2_latent_field_5B` is produced:
 
      * it exists and is schema-valid,
-     * for each `(s, g)` it has exactly one `latent_gaussian`/`latent_effect` per `bucket_index` in the grid,
+     * for each `(s, g)` it has exactly one `latent_gaussian`/`lambda_random_component` per `bucket_index` in the grid,
      * no missing or duplicate `(scenario_id, group_id, bucket_index)` keys.
 
 5. **Realised intensity coverage & correctness**
@@ -1437,10 +1442,10 @@ For a fixed `(ph, mf, seed, scenario_set_5B)`, a run of S2 is **PASS** if and on
 
      * for every domain element in `D_s` (as defined in §6.2–6.4), there is exactly one row with:
 
-       * `(merchant_id, zone_key[, channel_group], bucket_index)`,
-       * `lambda_target`, `latent_effect`, and `lambda_realised`.
+       * `(merchant_id, zone_representation[, channel_group], bucket_index)`,
+       * `lambda_baseline`, `lambda_random_component`, and `lambda_realised`.
      * there are **no duplicate** rows for the logical PK
-       `(manifest_fingerprint, parameter_hash, seed, scenario_id, merchant_id, zone_key[, channel_group], bucket_index)`.
+       `(manifest_fingerprint, parameter_hash, seed, scenario_id, merchant_id, zone_representation[, channel_group], bucket_index)`.
 
    * Numerically:
 
@@ -1620,7 +1625,7 @@ Downstream 5B states (S3–S4) and orchestration MUST key on these codes, not fr
    * `sealed_inputs_digest` mismatch between receipt and recomputed digest.
 
 2. **`5B.S2.UPSTREAM_NOT_PASS`**
-   Raised when `s0_gate_receipt_5B.upstream_status` reports any required upstream segment `{1A,1B,2A,2B,3A,3B,5A}` with `status ≠ "PASS"`.
+   Raised when `s0_gate_receipt_5B.upstream_segments` reports any required upstream segment `{1A,1B,2A,2B,3A,3B,5A}` with `status ≠ "PASS"`.
 
 3. **`5B.S2.S1_OUTPUT_MISSING`**
    Raised when, for any `scenario_id ∈ scenario_set_5B`:
@@ -1702,7 +1707,7 @@ Downstream 5B states (S3–S4) and orchestration MUST key on these codes, not fr
 13. **`5B.S2.REALISED_DOMAIN_INCOMPLETE`**
     Raised when, for any `(scenario_id)`:
 
-* some domain elements `(merchant_id, zone_key[, channel_group], bucket_index)` in `D_s` lack a corresponding row in `s2_realised_intensity_5B`, or
+* some domain elements `(merchant_id, zone_representation[, channel_group], bucket_index)` in `D_s` lack a corresponding row in `s2_realised_intensity_5B`, or
 * duplicates exist for the logical PK.
 
 14. **`5B.S2.REALISED_NUMERIC_INVALID`**
@@ -1751,7 +1756,7 @@ For any of the error codes above, S2 MUST log or include at least:
 
   * offending `segment_id` (for upstream issues),
   * offending `group_id` (for latent domain issues),
-  * offending `(merchant_id, zone_key[, channel_group], bucket_index)` (for realised intensity issues).
+  * offending `(merchant_id, zone_representation[, channel_group], bucket_index)` (for realised intensity issues).
 
 Human-readable messages may vary, but tooling MUST rely on `error_code`.
 
@@ -1801,7 +1806,7 @@ the engine MUST emit **one** run-report record with at least:
 * `manifest_fingerprint = mf`
 * `seed`
 * `run_id`
-* `scenario_ids = sorted(scenario_set_5B)`
+* `scenario_set = sorted(scenario_set_5B)`
 * `status ∈ {"PASS","FAIL"}`
 * `error_code` (one of `5B.S2.*`, or `null` if `status = "PASS"`)
 * `started_at_utc`
@@ -1876,9 +1881,9 @@ For **PASS** runs, S2 SHOULD compute and include basic summary statistics for:
 
    Over all latent points (either from `s2_latent_field_5B` or reconstructed from S2’s internal structures):
 
-   * `latent_effect_min`
-   * `latent_effect_max`
-   * `latent_effect_mean`
+   * `lambda_random_component_min`
+   * `lambda_random_component_max`
+   * `lambda_random_component_mean`
 
    And, if latent_gaussian exists:
 
@@ -1912,7 +1917,7 @@ On any `status = "FAIL"` with a `5B.S2.*` error code (see §9):
 
     * failing `scenario_id`,
     * offending `group_id` (for latent domain errors),
-    * offending `merchant_id` / `zone_key` / `bucket_index` (for realised intensity errors),
+    * offending `merchant_id` / `zone_representation` / `bucket_index` (for realised intensity errors),
     * or the name of the missing/misconfigured artefact (for config / λ_source errors).
 
 S2 MUST NOT claim any scenario as “succeeded” in metrics if its latent-field or realised-intensity outputs failed validation.
@@ -2146,7 +2151,7 @@ The following are considered **backwards-compatible** for S2 and MAY be made und
 
    * Adding new **optional** fields to:
 
-     * `s2_realised_intensity_5B` (e.g. extra diagnostics like `latent_effect_log`, `lambda_clipped_flag`, `group_size`), or
+     * `s2_realised_intensity_5B` (e.g. extra diagnostics like `lambda_random_component_log`, `lambda_clipped_flag`, `group_size`), or
      * `s2_latent_field_5B` (e.g. `kernel_id`, `hyperparam_hash`, `group_metadata`).
 
    These must have clear defaults and must not alter the meaning of existing fields.
@@ -2185,7 +2190,7 @@ Breaking changes include, but are not limited to:
 
 1. **Changing λ_realised semantics**
 
-   * Redefining `lambda_realised` so that it no longer has the current “λ_target × latent_effect (with optional clipping)” semantics, e.g.:
+   * Redefining `lambda_realised` so that it no longer has the current “λ_target × lambda_random_component (with optional clipping)” semantics, e.g.:
 
      * switching from multiplicative to additive noise in intensity space,
      * changing its interpretation from intensity per bucket to something else (e.g. per-time-step probability) without a new version.
@@ -2193,7 +2198,7 @@ Breaking changes include, but are not limited to:
 2. **Changing latent model class or field representation**
 
    * Redefining the latent model from, say, log-Gaussian to a fundamentally different model (e.g. heavy-tailed, spike-and-slab) **without** clearly version-gated behaviour.
-   * Changing the meaning or type of `latent_effect` / `latent_gaussian` in ways that break current or future validation logic.
+   * Changing the meaning or type of `lambda_random_component` / `latent_gaussian` in ways that break current or future validation logic.
 
 3. **Partitioning / identity changes**
 
@@ -2296,15 +2301,15 @@ This appendix collects shorthand used in **5B.S2 — Latent intensity fields**. 
 * **`s2_realised_intensity_5B`**
   Required S2 model dataset. Contains:
 
-  * `lambda_target` — deterministic λ from 5A, aligned to S1 grid.
-  * `latent_effect` — latent multiplicative (or log-scale) factor per entity×bucket.
+  * `lambda_baseline` — deterministic λ from 5A, aligned to S1 grid.
+  * `lambda_random_component` — latent multiplicative (or log-scale) factor per entity×bucket.
   * `lambda_realised` — final realised intensity per entity×bucket used by S3.
 
 * **`s2_latent_field_5B`** *(optional)*
   Diagnostic dataset with latent fields at the **group** level, typically:
 
   * `latent_gaussian` — raw Gaussian latent value, per `(scenario, group, bucket)`.
-  * `latent_effect` — transformed effect used in intensity space.
+  * `lambda_random_component` — transformed effect used in intensity space.
 
 ---
 
@@ -2326,7 +2331,7 @@ This appendix collects shorthand used in **5B.S2 — Latent intensity fields**. 
   For a scenario `s`, the S2 domain of entity×bucket combinations:
 
   ```text
-  D_s = { (merchant_id, zone_key[, channel_group], bucket_index) }
+  D_s = { (merchant_id, zone_representation[, channel_group], bucket_index) }
   ```
 
   where S1 has a grouping entry and 5A provides λ_target.
@@ -2335,21 +2340,21 @@ This appendix collects shorthand used in **5B.S2 — Latent intensity fields**. 
 
 ### 13.4 Intensity & latent notation
 
-* **`λ_target` (`lambda_target`)**
+* **`λ_target` (`lambda_baseline`)**
   Deterministic intensity from 5A, aligned to S1 grid. This is the mean intensity before stochastic modulation.
 
 * **`λ_realised` (`lambda_realised`)**
   Realised intensity after applying latent effects (and any configured clipping):
 
   ```text
-  lambda_realised = f_intensity(lambda_target, latent_effect, config)
+  lambda_realised = f_intensity(lambda_baseline, lambda_random_component, config)
   ```
 
-* **`ξ(group, bucket)` / `latent_effect`**
+* **`ξ(group, bucket)` / `lambda_random_component`**
   Latent modulation factor for a `(group_id, bucket_index)` pair, as derived from the latent model and 5B config. Typically:
 
   ```text
-  latent_effect = exp(latent_gaussian)
+  lambda_random_component = exp(latent_gaussian)
   ```
 
   for a log-Gaussian Cox model, but the exact transform is config-driven.

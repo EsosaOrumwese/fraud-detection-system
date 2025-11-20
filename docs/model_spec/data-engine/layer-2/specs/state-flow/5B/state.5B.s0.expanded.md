@@ -615,7 +615,7 @@ No data-plane (arrival) artefacts originate here.
 
 5B.S0 MUST produce exactly these datasets:
 
-1. **`s5_gate_receipt_5B`**
+1. **`s0_gate_receipt_5B`**
 
    * One JSON object per `manifest_fingerprint`.
    * A compact receipt that says:
@@ -633,12 +633,12 @@ No other “S5-owned” datasets are permitted. Any additional logs, run-reports
 
 ---
 
-### 4.2 `s5_gate_receipt_5B` — contract & identity
+### 4.2 `s0_gate_receipt_5B` — contract & identity
 
 **Schema & anchors**
 
 * MUST conform to a JSON-Schema anchor under the 5B schema pack, e.g.:
-  `schemas.5B.yaml#/control/s5_gate_receipt_5B`
+  `schemas.5B.yaml#/validation/s0_gate_receipt_5B`
 * The dataset dictionary for Layer-2 / 5B MUST reference that schema anchor.
 
 **Logical content (high-level)**
@@ -650,9 +650,9 @@ Each row (there SHOULD be exactly one per `manifest_fingerprint`) MUST contain a
 * `seed` — RNG seed for the run.
 * `run_id` — engine run identifier.
 * `scenario_set` — list of `scenario_id` values 5B intends to realise under this sealing.
-* `upstream_status` — map from segment ID (`"1A"`, `"1B"`, `"2A"`, `"2B"`, `"3A"`, `"3B"`, `"5A"`) to a minimal status object:
+* `upstream_segments` — map from segment ID (`"1A"`, `"1B"`, `"2A"`, `"2B"`, `"3A"`, `"3B"`, `"5A"`) to a minimal status object:
 
-  * at minimum: `{ status: "PASS" | "FAIL" | "MISSING", validation_bundle_id, passed_flag_path }`.
+  * at minimum: `{ status: "PASS" | "FAIL" | "MISSING", bundle_path, flag_path }`.
 * `sealed_inputs_digest` — a SHA-256 (or equivalent) digest over the normalised bytes of `sealed_inputs_5B` for this fingerprint (schema will define exact hashing law).
 * `sealed_inputs_row_count` — row count of `sealed_inputs_5B`.
 * `created_utc` — gate execution timestamp.
@@ -671,7 +671,7 @@ Each row (there SHOULD be exactly one per `manifest_fingerprint`) MUST contain a
 * **Path template (normative intent):**
 
   ```text
-  data/layer2/5B/s5_gate_receipt/fingerprint={manifest_fingerprint}/s5_gate_receipt_5B.json
+  data/layer2/5B/s0_gate_receipt/fingerprint={manifest_fingerprint}/s0_gate_receipt_5B.json
   ```
 
 * **Mutability:**
@@ -738,8 +738,8 @@ Each row describes a single artefact that 5B is allowed to see. It MUST include 
 Both outputs MUST embed the run identity defined in §2:
 
 * `parameter_hash` and `manifest_fingerprint` MUST be present and must match the path tokens.
-* `seed` and `run_id` MUST be present in `s5_gate_receipt_5B` and MAY be omitted from `sealed_inputs_5B` rows if redundant.
-* `scenario_set` MUST be recorded in `s5_gate_receipt_5B`; `sealed_inputs_5B` MAY carry scenario information only if some artefacts are scenario-scoped.
+* `seed` and `run_id` MUST be present in `s0_gate_receipt_5B` and MAY be omitted from `sealed_inputs_5B` rows if redundant.
+* `scenario_set` MUST be recorded in `s0_gate_receipt_5B`; `sealed_inputs_5B` MAY carry scenario information only if some artefacts are scenario-scoped.
 
 No 5B state may treat artefacts from a different `{parameter_hash, manifest_fingerprint}` pair as part of the sealed world for this run, even if they are physically reachable.
 
@@ -749,7 +749,7 @@ No 5B state may treat artefacts from a different `{parameter_hash, manifest_fing
 
 For all later 5B states (S6+ in your numbering), the following are binding:
 
-* They MUST locate and read **exactly one** `s5_gate_receipt_5B` for their target `manifest_fingerprint` and treat it as authoritative for:
+* They MUST locate and read **exactly one** `s0_gate_receipt_5B` for their target `manifest_fingerprint` and treat it as authoritative for:
 
   * upstream segment PASS statuses, and
   * the identity of the sealed input inventory (`sealed_inputs_digest`).
@@ -814,7 +814,7 @@ The `s0_gate_receipt_5B` schema MUST describe a **single JSON object per `manife
 
   * Engine/run identifier; unique within (`parameter_hash`, `manifest_fingerprint`, `seed`).
 
-* `scenario_ids : array<string>`
+* `scenario_set : array<string>`
 
   * Non-empty list of `scenario_id` values that 5B is allowed to process for this (`parameter_hash`, `manifest_fingerprint`, `seed`, `run_id`).
 
@@ -822,7 +822,7 @@ The `s0_gate_receipt_5B` schema MUST describe a **single JSON object per `manife
 
   * Timestamp of receipt creation.
 
-* `upstream_status : object`
+* `upstream_segments : object`
 
   * Map from segment ID (`"1A"`, `"1B"`, `"2A"`, `"2B"`, `"3A"`, `"3B"`, `"5A"`) to a small object capturing:
 
@@ -1080,7 +1080,7 @@ For each segment `seg ∈ UPSTREAM_REQUIRED`:
    * If all checks succeed, record in an in-memory map:
 
      ```text
-     upstream_status[seg] = {
+     upstream_segments[seg] = {
        status = "PASS",
        spec_version = <from registry>,
        bundle_digest = <from flag>
@@ -1090,7 +1090,7 @@ For each segment `seg ∈ UPSTREAM_REQUIRED`:
    * If any check fails (bundle missing, flag missing, parse error, digest mismatch), record:
 
      ```text
-     upstream_status[seg] = {
+     upstream_segments[seg] = {
        status = "FAIL" or "MISSING",
        spec_version = <from registry if known>,
        bundle_digest = null
@@ -1099,7 +1099,7 @@ For each segment `seg ∈ UPSTREAM_REQUIRED`:
 
 After all segments are processed:
 
-* If any `upstream_status[seg].status ≠ "PASS"`, the state MUST:
+* If any `upstream_segments[seg].status ≠ "PASS"`, the state MUST:
 
   * NOT write `s0_gate_receipt_5B` or `sealed_inputs_5B`, and
   * terminate with a canonical **upstream-gate-failed** error.
@@ -1245,9 +1245,9 @@ Construct a single JSON object conforming to `schemas.5B.yaml#/validation/s0_gat
   * `parameter_hash = ph`
   * `seed`
   * `run_id`
-  * `scenario_ids = sorted(sid_set)`
+  * `scenario_set = sorted(sid_set)`
   * `created_at_utc = <current UTC timestamp>`
-  * `upstream_status = upstream_status` map from Step 1
+  * `upstream_segments = upstream_segments` map from Step 1
   * `sealed_inputs_digest = sealed_inputs_digest` from Step 4
 
 * Write it as:
@@ -1484,7 +1484,7 @@ For a given `(parameter_hash = ph, manifest_fingerprint = mf, seed, run_id, scen
    * The segment’s validation bundle for `mf` was located via catalogue.
    * Its `_passed.flag_*` was read and parsed successfully.
    * The digest in the flag exactly matched a recomputation of the bundle digest using that segment’s own hashing law.
-   * The in-memory `upstream_status[seg].status` is `"PASS"`.
+   * The in-memory `upstream_segments[seg].status` is `"PASS"`.
 
 2. **`sealed_inputs_5B` materialised and valid**
 
@@ -1518,8 +1518,8 @@ For a given `(parameter_hash = ph, manifest_fingerprint = mf, seed, run_id, scen
      * is schema-valid against `schemas.5B.yaml#/validation/s0_gate_receipt_5B`,
      * has `manifest_fingerprint == mf`,
      * has `parameter_hash == ph`,
-     * has `scenario_ids` equal (as a set) to `scenario_set_5B` fixed in §2,
-     * has `upstream_status[seg].status == "PASS"` for every required segment `seg`,
+     * has `scenario_set` equal (as a set) to `scenario_set_5B` fixed in §2,
+     * has `upstream_segments[seg].status == "PASS"` for every required segment `seg`,
      * has `sealed_inputs_digest` equal to the recomputed digest of `sealed_inputs_5B` for `mf`.
 
 4. **Internal consistency**
@@ -1538,7 +1538,7 @@ If all four conditions above hold, the S5 run is **locally PASS** and its output
 
 The S5 run MUST be considered **FAIL** if **any** of the following occurs:
 
-1. At least one required upstream segment has `upstream_status[seg].status ≠ "PASS"` after Step 1 in §6.
+1. At least one required upstream segment has `upstream_segments[seg].status ≠ "PASS"` after Step 1 in §6.
 
 2. The state cannot materialise `sealed_inputs_5B` for `mf`, or the file:
 
@@ -1551,7 +1551,7 @@ The S5 run MUST be considered **FAIL** if **any** of the following occurs:
 3. The state cannot materialise a valid `s0_gate_receipt_5B` for `mf`, or:
 
    * the JSON fails schema validation,
-   * embedded identity fields (`manifest_fingerprint`, `parameter_hash`, `scenario_ids`) do not match the run context, or
+   * embedded identity fields (`manifest_fingerprint`, `parameter_hash`, `scenario_set`) do not match the run context, or
    * the embedded `sealed_inputs_digest` does not match the recomputed digest of `sealed_inputs_5B`.
 
 4. Any write operation for `sealed_inputs_5B` or `s0_gate_receipt_5B` fails in a way that might leave partial or conflicting outputs on disk (e.g. non-atomic overwrite, partial file).
@@ -1577,7 +1577,7 @@ If such a partial state is detected (e.g. from a previous failed attempt), a sub
    * No consumption of upstream data-plane artefacts (even at metadata level) is permitted until:
 
      * all required upstream `_passed.flag_*` artefacts have been successfully re-verified for `mf`, and
-     * `upstream_status[seg].status == "PASS"` for every required `seg`.
+     * `upstream_segments[seg].status == "PASS"` for every required `seg`.
 
 2. **Closed-world completeness gate**
 
@@ -1609,7 +1609,7 @@ All later 5B states (S1, S2, S3, S4, and the terminal 5B validation state) MUST 
 
 2. **Respect for upstream statuses**
 
-   * Downstream 5B states MUST treat `upstream_status` from `s0_gate_receipt_5B` as authoritative.
+   * Downstream 5B states MUST treat `upstream_segments` from `s0_gate_receipt_5B` as authoritative.
    * If, in a future spec revision, 5B.S0 is extended to allow some segments to be `"MISSING"` or `"FAIL"` and still proceed, then each 5B state MUST explicitly define how it behaves in that case. In the current spec, S5 only passes if all required segments report `"PASS"`.
 
 3. **Sealed-inputs whitelist**
@@ -1686,7 +1686,7 @@ Downstream tooling and later 5B states MUST rely on these codes (not ad-hoc stri
    * the flag cannot be parsed, or
    * recomputing the bundle digest does not match the value in `_passed.flag_*`.
 
-In both cases, S5 MUST set `upstream_status[seg].status = "FAIL" | "MISSING"` and MUST abort before attempting to construct `sealed_inputs_5B`.
+In both cases, S5 MUST set `upstream_segments[seg].status = "FAIL" | "MISSING"` and MUST abort before attempting to construct `sealed_inputs_5B`.
 
 ---
 
@@ -1718,8 +1718,8 @@ In both cases, S5 MUST set `upstream_status[seg].status = "FAIL" | "MISSING"` an
    Raised when the candidate `s0_gate_receipt_5B` object fails schema validation against `schemas.5B.yaml#/validation/s0_gate_receipt_5B`, e.g.:
 
    * missing required fields;
-   * `scenario_ids` inconsistent with the run’s `scenario_set_5B`;
-   * `upstream_status` missing a required segment.
+   * `scenario_set` inconsistent with the run’s `scenario_set_5B`;
+   * `upstream_segments` missing a required segment.
 
 9. **`5B.S0.GATE_RECEIPT_DIGEST_MISMATCH`**
    Raised when:
@@ -1815,7 +1815,7 @@ For every attempted invocation of 5B.S0 on a given `(parameter_hash = ph, manife
 * `manifest_fingerprint = mf`
 * `seed`
 * `run_id`
-* `scenario_ids = sorted(scenario_set_5B)`
+* `scenario_set = sorted(scenario_set_5B)`
 * `status ∈ {"PASS","FAIL"}`
 * `error_code` (one of §9, or `null` if `status = "PASS"`)
 * `started_at_utc`
@@ -1836,7 +1836,7 @@ The run-report record for 5B.S0 MUST include, at minimum, the following **metric
    * `upstream_fail_count`
    * `upstream_missing_count`
 
-   These MUST be consistent with the `upstream_status` map written into `s0_gate_receipt_5B`.
+   These MUST be consistent with the `upstream_segments` map written into `s0_gate_receipt_5B`.
 
 2. **Sealed-inputs inventory summary**
 
@@ -1865,14 +1865,14 @@ These metrics are **binding** in the sense that:
 
 ### 10.3 Logging of upstream status map
 
-In addition to the run-report event, 5B.S0 MUST log the **upstream_status** map (seg → `{status,spec_version,bundle_digest}`) in a machine-readable form suitable for debugging. This MAY be:
+In addition to the run-report event, 5B.S0 MUST log the **upstream_segments** map (seg → `{status,spec_version,bundle_digest}`) in a machine-readable form suitable for debugging. This MAY be:
 
 * embedded into the generic run-report `details`/`payload` field, or
 * emitted as a separate structured log event.
 
 Binding requirements:
 
-* For `status = "PASS"`, the logged upstream_status MUST be bit-wise consistent with the map embedded in `s0_gate_receipt_5B`.
+* For `status = "PASS"`, the logged upstream_segments MUST be bit-wise consistent with the map embedded in `s0_gate_receipt_5B`.
 * For `status = "FAIL"`, if failure was due to an upstream gate error, the log payload MUST identify at least:
 
   * the offending `segment_id`, and
@@ -2228,7 +2228,7 @@ This appendix collects the short-hands used in the **5B.S0 — Gate & sealed inp
 
   * run identity,
   * upstream segment status map,
-  * `scenario_ids`,
+  * `scenario_set`,
   * and `sealed_inputs_digest`.
 
 * **`sealed_inputs_5B`**
@@ -2253,7 +2253,7 @@ This appendix collects the short-hands used in the **5B.S0 — Gate & sealed inp
 * **`_passed.flag_*`**
   Upstream segment-level PASS flag (1A–3B, 5A) as defined in those segments’ specs. 5B.S0 re-hashes bundles to verify these flags.
 
-* **`upstream_status`**
+* **`upstream_segments`**
   Map in `s0_gate_receipt_5B` from segment ID (`"1A"`, `"1B"`, `"2A"`, `"2B"`, `"3A"`, `"3B"`, `"5A"`) to:
 
   * `status ∈ {"PASS","FAIL","MISSING"}`,

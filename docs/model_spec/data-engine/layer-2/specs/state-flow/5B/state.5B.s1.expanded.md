@@ -96,7 +96,8 @@ The following activities are **in scope** for 5B.S1 and MUST be handled by this 
 
   * Determine the domain of entities to group, e.g.:
 
-    * `(merchant_id, zone_representation[, channel_group])` inferred from 5A’s scenario surfaces and 3A/2B/3B metadata,
+* `(merchant_id, zone_representation[, channel_group])` inferred from 5A’s scenario surfaces and 3A/2B/3B metadata,
+  *Here `zone_representation` is the canonical “zone key” (either `(legal_country_iso, tzid)` or a reversible `zone_id`).*
     * filtered according to 5B’s spec and grouping policy.
 
 * **Group assignment**
@@ -206,7 +207,7 @@ Before 5B.S1 may execute for a given `(parameter_hash = ph, manifest_fingerprint
 
      * be schema-valid,
      * embed `manifest_fingerprint = mf` and `parameter_hash = ph`,
-     * embed a `scenario_ids` set that matches the `scenario_set_5B` under which S1 is being invoked,
+     * embed a `scenario_set` set that matches the `scenario_set_5B` under which S1 is being invoked,
      * embed a `sealed_inputs_digest` value.
    * Recomputing the digest of `sealed_inputs_5B` for `mf` MUST equal the `sealed_inputs_digest` embedded in the receipt.
 
@@ -218,7 +219,7 @@ If any of these checks fail, 5B.S1 MUST abort and MUST NOT attempt to reconstruc
 
 5B.S1 does not re-verify upstream bundles itself; it relies on the fact that 5B.S0 already did so.
 
-As a precondition, S1 MUST confirm that `s0_gate_receipt_5B.upstream_status` reports:
+As a precondition, S1 MUST confirm that `s0_gate_receipt_5B.upstream_segments` reports:
 
 * `status = "PASS"` for all required upstream segments:
   `{1A, 1B, 2A, 2B, 3A, 3B, 5A}`.
@@ -330,7 +331,7 @@ Within that, S1’s logical inputs are:
 
 * `s0_gate_receipt_5B`
 
-  * for `parameter_hash`, `manifest_fingerprint`, `seed`, `run_id`, `scenario_ids`, and `upstream_status`.
+  * for `parameter_hash`, `manifest_fingerprint`, `seed`, `run_id`, `scenario_set`, and `upstream_segments`.
 
 * `sealed_inputs_5B`
 
@@ -763,7 +764,7 @@ Minimum required fields:
 
   * Type via `$ref: schemas.layer1.yaml#/$defs/id64`.
 
-* `zone_key : object | string`
+* `zone_representation : object | string`
 
   * The chosen representation for “zone” in 5B (e.g. `tzid` or `(country_iso, tzid)`); the schema MUST fix this, e.g.:
 
@@ -798,13 +799,13 @@ Optional fields (for later use, not required):
 
 **Primary key (logical):**
 
-* `(manifest_fingerprint, scenario_id, merchant_id, zone_key[, channel_group])`
+* `(manifest_fingerprint, scenario_id, merchant_id, zone_representation[, channel_group])`
 
   * Exact components MUST be fixed in the schema and dictionary; the key MUST be unique per row.
 
 **Writer sort order:**
 
-* `scenario_id`, `merchant_id`, `zone_key` (and `channel_group` if present).
+* `scenario_id`, `merchant_id`, `zone_representation` (and `channel_group` if present).
 
 **Dictionary entry (sketch):**
 
@@ -875,11 +876,11 @@ No Philox streams may be consumed and no RNG events may be emitted.
 
      * `s0_gate_receipt_5B.manifest_fingerprint = mf`
      * `s0_gate_receipt_5B.parameter_hash = ph`
-     * `scenario_ids` from the receipt equals the runtime `scenario_set_5B`.
+     * `scenario_set` from the receipt equals the runtime `scenario_set_5B`.
 
 3. **Check upstream status map**
 
-   * Ensure `upstream_status[seg].status = "PASS"` for all required segments `{1A,1B,2A,2B,3A,3B,5A}`.
+   * Ensure `upstream_segments[seg].status = "PASS"` for all required segments `{1A,1B,2A,2B,3A,3B,5A}`.
    * If any fails, S1 MUST abort with an appropriate error.
 
 ---
@@ -903,7 +904,7 @@ Using `sealed_inputs_5B` + catalogue:
    * Locate and validate `grouping_policy_5B`.
    * Extract:
 
-     * the grouping unit (e.g. `(merchant_id, zone_key[, channel_group])`),
+     * the grouping unit (e.g. `(merchant_id, zone_representation[, channel_group])`),
      * which attributes may be used (e.g. MCC, country, tzid, region, virtual flag),
      * whether grouping is trivial (`group_id = self`) or pooled,
      * any explicit “must not group” or “must group together” constraints.
@@ -995,12 +996,12 @@ S1 next discovers the **set of entities that must be assigned a group_id**.
 
    * From `merchant_zone_scenario_local_5A@mf`, for each `scenario_id ∈ scenario_set_5B`:
 
-     * collect distinct keys of the form `(merchant_id, zone_key[, channel_group])` where:
+     * collect distinct keys of the form `(merchant_id, zone_representation[, channel_group])` where:
 
        * `lambda_local_scenario` exists (or other agreed intensity field),
        * the record is within the scenario horizon.
 
-   * `zone_key` is whatever representation S1/5B has chosen (e.g. `tzid` or `(country_iso, tzid)`), consistent with `schemas.5B.yaml`.
+   * `zone_representation` is whatever representation S1/5B has chosen (e.g. `tzid` or `(country_iso, tzid)`), consistent with `schemas.5B.yaml`.
 
 2. **Optional filters from grouping policy**
 
@@ -1014,7 +1015,7 @@ S1 next discovers the **set of entities that must be assigned a group_id**.
    * For each `scenario_id`, construct a list `D_s` sorted by:
 
      * `merchant_id`, then
-     * `zone_key`, then
+     * `zone_representation`, then
      * (if present) `channel_group`.
 
 This `D_s` is the **exact domain** `s1_grouping_5B` must cover for scenario `s`.
@@ -1054,13 +1055,13 @@ Using `grouping_policy_5B` and the ordered domain `D_s`:
 
 4. **Build `s1_grouping_5B` rows**
 
-   * For each `(merchant_id, zone_key[, channel_group])` in `D_s`, construct a row with:
+   * For each `(merchant_id, zone_representation[, channel_group])` in `D_s`, construct a row with:
 
      * `manifest_fingerprint = mf`
      * `parameter_hash = ph`
      * `scenario_id`
      * `merchant_id`
-     * `zone_key`
+     * `zone_representation`
      * optional `channel_group`
      * `group_id`
 
@@ -1098,7 +1099,7 @@ Using `grouping_policy_5B` and the ordered domain `D_s`:
 
      * schema = `schemas.5B.yaml#/model/s1_grouping_5B`,
      * partition keys `{manifest_fingerprint, scenario_id}`,
-     * writer order: `merchant_id`, then `zone_key`, then `channel_group` (if present).
+     * writer order: `merchant_id`, then `zone_representation`, then `channel_group` (if present).
 
 3. **Atomicity & idempotency**
 
@@ -1222,7 +1223,7 @@ Binding constraints:
 * **Logical primary key:**
 
   ```text
-  (manifest_fingerprint, scenario_id, merchant_id, zone_key[, channel_group])
+  (manifest_fingerprint, scenario_id, merchant_id, zone_representation[, channel_group])
   ```
 
   (exact components per schema; the combination MUST be unique.)
@@ -1232,7 +1233,7 @@ Binding constraints:
   * Within each `(mf, scenario_id)` file, rows MUST be sorted by:
 
     * `merchant_id`, then
-    * `zone_key`, then
+    * `zone_representation`, then
     * `channel_group` (if present).
 
 This deterministic ordering is required to:
@@ -1308,9 +1309,9 @@ For a fixed `(ph, mf, scenario_set_5B)`, a run of S1 is **PASS** if and only if 
    * `s0_gate_receipt_5B@mf` and `sealed_inputs_5B@mf`:
 
      * exist and pass schema validation, and
-     * embed `parameter_hash = ph`, `manifest_fingerprint = mf`, and `scenario_ids = scenario_set_5B`.
+     * embed `parameter_hash = ph`, `manifest_fingerprint = mf`, and `scenario_set = scenario_set_5B`.
    * The recomputed digest of `sealed_inputs_5B` equals the `sealed_inputs_digest` in the receipt.
-   * `upstream_status[seg].status == "PASS"` for all required segments `{1A,1B,2A,2B,3A,3B,5A}`.
+   * `upstream_segments[seg].status == "PASS"` for all required segments `{1A,1B,2A,2B,3A,3B,5A}`.
 
 2. **Policies resolved and applied**
 
@@ -1354,8 +1355,8 @@ For a fixed `(ph, mf, scenario_set_5B)`, a run of S1 is **PASS** if and only if 
      * has at least one row (unless the grouping domain is explicitly and legitimately empty per policy), and
      * for that `(mf, scenario_id)`:
 
-       * the set of `(merchant_id, zone_key[, channel_group])` in `s1_grouping_5B` is exactly the domain discovered in Step 4 of §6 (no missing or extra keys),
-       * there are **no duplicates** for the grouping PK `(manifest_fingerprint, scenario_id, merchant_id, zone_key[, channel_group])`,
+       * the set of `(merchant_id, zone_representation[, channel_group])` in `s1_grouping_5B` is exactly the domain discovered in Step 4 of §6 (no missing or extra keys),
+       * there are **no duplicates** for the grouping PK `(manifest_fingerprint, scenario_id, merchant_id, zone_representation[, channel_group])`,
        * each such key is associated with exactly one `group_id`.
 
 6. **Group_id well-formedness**
@@ -1377,7 +1378,7 @@ If all of the above conditions hold, S1 is **locally PASS**, and `s1_time_grid_5
 1. **S0 or upstream gate failure**
 
    * S0 outputs are missing or invalid, or
-   * `upstream_status[seg].status ≠ "PASS"` for any required segment in `s0_gate_receipt_5B`.
+   * `upstream_segments[seg].status ≠ "PASS"` for any required segment in `s0_gate_receipt_5B`.
 
 2. **Missing or invalid policies**
 
@@ -1398,7 +1399,7 @@ If all of the above conditions hold, S1 is **locally PASS**, and `s1_time_grid_5
    * Any scenario lacks `s1_grouping_5B` where grouping policy expects a non-empty domain;
    * `s1_grouping_5B` fails schema validation;
    * there are duplicates for the grouping PK;
-   * there exist in-scope `(merchant_id, zone_key[, channel_group])` keys (as discovered from 5A domain) that are not present in `s1_grouping_5B`;
+   * there exist in-scope `(merchant_id, zone_representation[, channel_group])` keys (as discovered from 5A domain) that are not present in `s1_grouping_5B`;
    * `group_id` values are malformed or violate the schema.
 
 5. **Idempotency / overwrite issues**
@@ -1502,7 +1503,7 @@ Downstream 5B states and orchestration MUST key on these codes, not free-text er
    * `sealed_inputs_digest` mismatch between receipt and recomputed digest.
 
 2. **`5B.S1.UPSTREAM_NOT_PASS`**
-   Raised when `s0_gate_receipt_5B.upstream_status` reports any required upstream segment `{1A,1B,2A,2B,3A,3B,5A}` with `status ≠ "PASS"`.
+   Raised when `s0_gate_receipt_5B.upstream_segments` reports any required upstream segment `{1A,1B,2A,2B,3A,3B,5A}` with `status ≠ "PASS"`.
 
 S1 MUST NOT proceed beyond basic validation if either of these occurs.
 
@@ -1560,13 +1561,13 @@ S1 MUST NOT proceed beyond basic validation if either of these occurs.
 11. **`5B.S1.GROUP_DOMAIN_DERIVATION_FAILED`**
     Raised when S1 cannot derive a coherent grouping domain from 5A (and optional upstream metadata), e.g.:
 
-    * required keys `(merchant_id, zone_key[, channel_group])` are missing or malformed,
+    * required keys `(merchant_id, zone_representation[, channel_group])` are missing or malformed,
     * policy says the domain should be non-empty but no entities qualify.
 
 12. **`5B.S1.GROUP_ASSIGNMENT_INCOMPLETE`**
     Raised when, for any `scenario_id`:
 
-    * some in-scope `(merchant_id, zone_key[, channel_group])` (per domain discovery) are missing from `s1_grouping_5B`, or
+    * some in-scope `(merchant_id, zone_representation[, channel_group])` (per domain discovery) are missing from `s1_grouping_5B`, or
     * the grouping policy results in ambiguous or conflicting assignments that S1 cannot resolve deterministically.
 
 13. **`5B.S1.GROUPING_SCHEMA_INVALID`**
@@ -1575,7 +1576,7 @@ S1 MUST NOT proceed beyond basic validation if either of these occurs.
 14. **`5B.S1.GROUPING_DUPLICATE_KEY`**
     Raised when `s1_grouping_5B` contains duplicate logical keys:
 
-    * same `(manifest_fingerprint, scenario_id, merchant_id, zone_key[, channel_group])` appearing more than once.
+    * same `(manifest_fingerprint, scenario_id, merchant_id, zone_representation[, channel_group])` appearing more than once.
 
 15. **`5B.S1.GROUP_ID_DOMAIN_INVALID`**
     Raised when `group_id` values do not respect the schema/contract, e.g.:
@@ -1609,7 +1610,7 @@ For any of the above error codes, S1 MUST log/include at least:
 
   * offending `segment_id` (for upstream issues),
   * offending `scenario_id` (for horizon/grid issues),
-  * offending `merchant_id` / `zone_key` (for grouping issues).
+  * offending `merchant_id` / `zone_representation` (for grouping issues).
 
 Human-readable messages are implementation-defined, but consumers MUST key off `error_code`.
 
@@ -1658,7 +1659,7 @@ For every attempted invocation of S1 on `(parameter_hash = ph, manifest_fingerpr
 * `manifest_fingerprint = mf`
 * `seed`
 * `run_id`
-* `scenario_ids = sorted(scenario_set_5B)`
+* `scenario_set = sorted(scenario_set_5B)`
 * `status ∈ {"PASS","FAIL"}`
 * `error_code` (one of `5B.S1.*`, or `null` if `status = "PASS"`)
 * `started_at_utc`
@@ -1738,7 +1739,7 @@ On any `status = "FAIL"` with one of the `5B.S1.*` error codes (§9):
   * any relevant context in the payload, for example:
 
     * failing `scenario_id`,
-    * offending `merchant_id` / `zone_key` for grouping errors.
+    * offending `merchant_id` / `zone_representation` for grouping errors.
 
 * S1 MUST NOT claim any scenario as “succeeded” in metrics if its grid or grouping failed validation.
 
@@ -2064,7 +2065,7 @@ This appendix just collects shorthand and symbols used in **5B.S1 — Time grid 
 * **`bucket_start_utc`, `bucket_end_utc`**
   UTC bounds of a bucket, in RFC3339-with-micros format.
 
-* **`zone_key`**
+* **`zone_representation`**
   Short-hand for the chosen zone representation in 5B (e.g. `tzid` or `(country_iso, tzid)`) as fixed by the S1 schema.
 
 * **`group_id`**
