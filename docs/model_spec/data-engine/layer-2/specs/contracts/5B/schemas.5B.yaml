@@ -26,15 +26,16 @@ validation:
   s0_gate_receipt_5B:
     type: object
     additionalProperties: true
-    required:
-      - manifest_fingerprint
-      - parameter_hash
-      - seed
-      - run_id
-      - created_utc
-      - upstream_segments
-      - sealed_inputs_digest
-      - spec_version
+      required:
+        - manifest_fingerprint
+        - parameter_hash
+        - seed
+        - run_id
+        - created_utc
+        - upstream_segments
+        - scenario_set
+        - sealed_inputs_digest
+        - spec_version
     properties:
       manifest_fingerprint: { $ref: '#/$defs/hex64' }
       parameter_hash: { $ref: '#/$defs/hex64' }

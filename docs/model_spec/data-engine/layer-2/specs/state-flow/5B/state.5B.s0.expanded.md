@@ -649,10 +649,11 @@ Each row (there SHOULD be exactly one per `manifest_fingerprint`) MUST contain a
 * `parameter_hash` — parameter pack in effect when sealing.
 * `seed` — RNG seed for the run.
 * `run_id` — engine run identifier.
-* `scenario_set` — list of `scenario_id` values 5B intends to realise under this sealing.
+* `scenario_set` — list of `scenario_id` values 5B intends to realise under this sealing (MUST be non-empty and match the scenario manifest for this fingerprint).
 * `upstream_segments` — map from segment ID (`"1A"`, `"1B"`, `"2A"`, `"2B"`, `"3A"`, `"3B"`, `"5A"`) to a minimal status object:
 
   * at minimum: `{ status: "PASS" | "FAIL" | "MISSING", bundle_path, flag_path }`.
+* `spec_version` — semantic version of the S0 contract implemented by this receipt.
 * `sealed_inputs_digest` — a SHA-256 (or equivalent) digest over the normalised bytes of `sealed_inputs_5B` for this fingerprint (schema will define exact hashing law).
 * `sealed_inputs_row_count` — row count of `sealed_inputs_5B`.
 * `created_utc` — gate execution timestamp.
@@ -694,17 +695,18 @@ Each row (there SHOULD be exactly one per `manifest_fingerprint`) MUST contain a
 Each row describes a single artefact that 5B is allowed to see. It MUST include at least:
 
 * `manifest_fingerprint`
-* `owner_segment` — e.g. `"1B"`, `"2A"`, `"2B"`, `"3A"`, `"3B"`, `"5A"`, `"5B"`.
-* `artifact_id` — logical ID or registry key (e.g. `mlr.2A.egress.site_timezones`).
-* `artifact_kind` — `dataset` | `config` | `validation_bundle` | `policy` | `log`.
-* `schema_ref` — JSON-Schema anchor governing the artefact.
-* `path_template` — catalogue-derived path pattern, including partition tokens.
-* `partition_keys` — ordered list of partition key names (e.g. `["seed", "fingerprint"]`).
-* `sha256_hex` — artefact digest, from upstream sealed-inputs if available or recomputed if necessary.
-* `status` — `REQUIRED` | `OPTIONAL` | `INTERNAL` | `IGNORED`.
-* `read_scope` — `METADATA_ONLY` | `ROW_LEVEL`.
-* `source_manifest` — if the artefact itself is controlled by an upstream manifest (e.g. for Layer-1 segments), its fingerprint or manifest ID.
-* `notes` — optional free-text for diagnostics (non-normative).
+* `parameter_hash` — nullable when the artefact is fingerprint-only.
+* `owner_layer` / `owner_segment`
+* `artifact_id` (and, where applicable, `manifest_key`)
+* `role` — `DATASET` | `CONFIG` | `POLICY` | `VALIDATION_BUNDLE` | `FLAG` | `LOG`
+* `schema_ref`
+* `path_template`
+* `partition_keys`
+* `sha256_hex`
+* `status` — `REQUIRED` | `OPTIONAL` | `INTERNAL` | `IGNORED`
+* `read_scope` — `ROW_LEVEL` | `METADATA_ONLY`
+
+Optional metadata (`notes`, `source_manifest`, `owner_team`, etc.) MAY appear but MUST NOT be required.
 
 **Identity & partitioning**
 
@@ -818,7 +820,7 @@ The `s0_gate_receipt_5B` schema MUST describe a **single JSON object per `manife
 
   * Non-empty list of `scenario_id` values that 5B is allowed to process for this (`parameter_hash`, `manifest_fingerprint`, `seed`, `run_id`).
 
-* `created_at_utc : string` (RFC3339 with micros)
+* `created_utc : string` (RFC3339 with micros)
 
   * Timestamp of receipt creation.
 
@@ -1246,7 +1248,7 @@ Construct a single JSON object conforming to `schemas.5B.yaml#/validation/s0_gat
   * `seed`
   * `run_id`
   * `scenario_set = sorted(sid_set)`
-  * `created_at_utc = <current UTC timestamp>`
+  * `created_utc = <current UTC timestamp>`
   * `upstream_segments = upstream_segments` map from Step 1
   * `sealed_inputs_digest = sealed_inputs_digest` from Step 4
 
