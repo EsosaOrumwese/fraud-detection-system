@@ -495,10 +495,10 @@ These MUST be:
    Each row in `sealed_inputs_5B` corresponds to a single artefact that 5B may reference, and MUST include at least:
 
    * `manifest_fingerprint`
-   * `parameter_hash` (where applicable, or null/omitted for fingerprint-only artefacts)
-   * `owner_segment` (e.g. `1B`, `2A`, `2B`, `3A`, `3B`, `5A`, `5B`)
-   * `artifact_id` or logical ID
-   * `role` (e.g. `dataset`, `config`, `validation_bundle`, `policy`)
+   * `parameter_hash` — fixed hex string for the governing parameter pack (fingerprint-only artefacts still carry the same value)
+   * `owner_layer` / `owner_segment` (e.g. `layer1` + `2A`, `layer2` + `5A`)
+   * `artifact_id` and, where applicable, `manifest_key`
+   * `role` (e.g. `DATASET`, `CONFIG`, `VALIDATION_BUNDLE`, `POLICY`, `FLAG`, `LOG`)
    * `schema_ref` (JSON-Schema anchor)
    * `path_template` and partition key spec (as per the dataset dictionary / artefact registry)
    * `sha256_hex` (or equivalent digest) resolved from catalogue or sealed-input tables
